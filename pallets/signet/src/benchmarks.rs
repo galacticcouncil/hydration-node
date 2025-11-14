@@ -2,7 +2,7 @@
 
 use super::*;
 use frame_benchmarking::{benchmarks, whitelisted_caller};
-use frame_support::{parameter_types, traits::Currency};
+use frame_support::traits::Currency;
 use frame_system::RawOrigin;
 
 benchmarks! {

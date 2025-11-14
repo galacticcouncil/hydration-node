@@ -1,5 +1,7 @@
 const priv =
   '0x0aafff3d8934d620e90cd9eeeea1d63f76c5d35a912471974439560321e9323a'
+// const priv =
+//   '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
 import { SigningKey, getAddress, keccak256 } from 'ethers'
 
 const sk = new SigningKey(priv)

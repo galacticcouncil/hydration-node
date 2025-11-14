@@ -15,11 +15,25 @@ contract GasFaucetScript is Script {
     function run() public {
         vm.startBroadcast();
 
+        console.log("Broadcasting from:", msg.sender);
+        console.log("MPC address:", mpc);
+
         gasVoucher = new GasVoucher();
+        console.log("Deployed GasVoucher at:", address(gasVoucher));
 
         gasFaucet = new GasFaucet(mpc, address(gasVoucher), 1 ether);
+        console.log("Deployed GasFaucet at:", address(gasFaucet));
 
         gasVoucher.setFaucet(address(gasFaucet));
+        console.log("Set GasFaucet as faucet in GasVoucher");
+
+        (bool success, ) = payable(address(gasFaucet)).call{
+            value: 0.00001 ether
+        }("");
+        require(success, "Funding GasFaucet failed");
+
+        console.log("Funded GasFaucet with 100 ETH");
+        console.log("GasFaucet ETH balance:", address(gasFaucet).balance);
 
         vm.stopBroadcast();
     }

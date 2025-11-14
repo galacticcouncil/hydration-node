@@ -1868,46 +1868,25 @@ pub struct SigEthFaucetContractAddr;
 impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetContractAddr {
 	fn get() -> [u8; 20] {
 		[
-			0xF9, 0xE1, 0x6B, 0xEE, 0x32, 0xF9, 0x63, 0x6B, 0x84, 0x75, 0x22, 0x75, 0xD0, 0x58, 0x43, 0x6F, 0x16, 0xF2,
-			0x77, 0xB9,
-		]
-	}
-}
-
-// MPC “root signer” (Ethereum address expected to sign Signet responses)
-pub struct SigEthFaucetMpcRoot;
-impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetMpcRoot {
-	fn get() -> [u8; 20] {
-		[
-			0x3c, 0x44, 0xcd, 0xdd, 0xb6, 0xa9, 0x00, 0xfa, 0x2b, 0x58, 0x5d, 0xd2, 0x99, 0xe0, 0x3d, 0x12, 0xfa, 0x42,
-			0x93, 0xbc,
+			0x52, 0xBE, 0x07, 0x7E, 0x67, 0x49, 0x6C, 0x97, 0x63, 0xCC, 0xEF, 0x66, 0xC1, 0x11, 0x7D, 0xD2, 0x34, 0xCA,
+			0x8C, 0xFC,
 		]
 	}
 }
 
 impl pallet_dispenser::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-
 	type Currency = FungibleCurrencies<Runtime>;
-
 	type MinimumRequestAmount = SigEthFaucetMinRequest;
 	type MaxDispenseAmount = SigEthFaucetMaxDispense;
 	type DispenserFee = SigEthFaucetDispenserFee;
 	type FeeAsset = SigEthFaucetFeeAssetId;
 	type FaucetAsset = SigEthFaucetFaucetAssetId;
-
-	// receivers / addresses
 	type TreasuryAddress = SigEthFaucetTreasuryAccount;
 	type FaucetAddress = SigEthFaucetContractAddr;
-	type MPCRootSigner = SigEthFaucetMpcRoot;
-
-	// pallet account to hold faucet liquidity
 	type VaultPalletId = SigEthPalletId;
-
 	type UpdateOrigin = EnsureRoot<AccountId>;
-
 	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
-
 	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
 }
 

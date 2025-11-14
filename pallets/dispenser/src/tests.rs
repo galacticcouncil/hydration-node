@@ -4,29 +4,15 @@ use alloy_sol_types::SolCall;
 use codec::Encode;
 use frame_support::{
 	assert_noop, assert_ok, parameter_types,
-	traits::{
-		fungible::conformance_tests::regular::balanced::deposit,
-		tokens::nonfungibles::{Create, Inspect, Mutate},
-		Currency as CurrencyTrait, Everything, Nothing,
-	},
+	traits::{Currency as CurrencyTrait, Nothing},
 	PalletId,
 };
 use frame_system as system;
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrency;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
-use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
-use sp_core::offchain::{
-	testing::{PoolState, TestOffchainExt, TestTransactionPoolExt},
-	OffchainDbExt, OffchainWorkerExt, TransactionPoolExt,
-};
-use sp_std::sync::Arc;
-use sp_std::sync::RwLock;
-
-use sp_core::sr25519::{Public as Sr25519Public, Signature as Sr25519Signature};
 use sp_core::H256;
 use sp_io::hashing::keccak_256;
-use sp_runtime::transaction_validity::{InvalidTransaction, TransactionSource};
 use sp_runtime::{traits::Verify, MultiSignature};
 use sp_runtime::{
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
@@ -55,7 +41,6 @@ frame_support::construct_runtime!(
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
-
 }
 
 impl system::Config for Test {
@@ -120,7 +105,7 @@ parameter_types! {
 
 	pub const HDXAssetId: AssetId = HDX;
 
-   pub const TreasuryPalletId: PalletId = PalletId(*b"py/treas");
+  pub const TreasuryPalletId: PalletId = PalletId(*b"py/treas");
 }
 
 impl pallet_balances::Config for Test {
@@ -178,14 +163,10 @@ impl pallet_build_evm_tx::Config for Test {
 parameter_types! {
 	pub const DispenserPalletId: PalletId = PalletId(*b"py/erc20");
 	pub const SigEthFaucetDispenserFee: u128 = 500;
-
 	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000;
-
 	pub const SigEthFaucetMinRequest: u128 = 100;
-
 	pub const SigEthFaucetFeeAssetId: AssetId = 1;
 	pub const SigEthFaucetFaucetAssetId: AssetId = 2;
-
 	pub const SigEthMinFaucetThreshold: u128 = 1;
 
 }
@@ -206,37 +187,20 @@ impl frame_system::offchain::SendTransactionTypes<RuntimeCall> for Test {
 	type Extrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 }
 
-parameter_types! {
-	pub const EthRpcUrl: &'static str = "https://rpc.ankr.com/eth"; // placeholder for tests
-}
-
 impl pallet_dispenser::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type VaultPalletId = DispenserPalletId;
-
 	type Currency = FungibleCurrencies<Test>;
-
 	type MinimumRequestAmount = SigEthFaucetMinRequest;
-
 	type MaxDispenseAmount = SigEthFaucetMaxDispense;
-
 	type DispenserFee = SigEthFaucetDispenserFee;
-
 	type FeeAsset = SigEthFaucetFeeAssetId;
-
 	type FaucetAsset = SigEthFaucetFaucetAssetId;
-
 	type TreasuryAddress = TreasuryAccount;
-
 	type FaucetAddress = SigEthFaucetMpcRoot;
-
-	type MPCRootSigner = SigEthFaucetMpcRoot;
-
 	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
-
 	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
-
-	type WeightInfo = ();
+	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -270,8 +234,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 #[test]
 fn test_cannot_initialize_twice() {
 	new_test_ext().execute_with(|| {
-		let mpc_address = create_test_mpc_address();
-
 		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
 
 		assert_noop!(
@@ -451,7 +413,7 @@ fn test_deposit_erc20_success() {
 					request_id: rid,
 					requester: req,
 					to,
-					amount_wei: amt,
+					amount_wei: _amt,
 				}) if rid == &request_id
 					&& req == &requester
 					&& to == &receiver_address
@@ -512,7 +474,6 @@ fn non_governance_cannot_set_faucet_balance() {
 fn request_rejected_when_balance_below_threshold() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
-		let alice = acct(1);
 		let requester = acct(1);
 		let receiver = create_test_receiver_address();
 		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), 10u128));
@@ -558,65 +519,8 @@ fn request_allowed_at_or_above_threshold() {
 	});
 }
 
-fn get_test_secret_key() -> SecretKey {
-	SecretKey::from_slice(&[42u8; 32]).expect("Valid secret key")
-}
-
-fn bounded_u8<const N: u32>(v: Vec<u8>) -> BoundedVec<u8, ConstU32<N>> {
-	BoundedVec::try_from(v).unwrap()
-}
-
 pub fn bounded_chain_id(v: Vec<u8>) -> BoundedVec<u8, MaxChainIdLength> {
 	BoundedVec::try_from(v).unwrap()
-}
-
-// Get public key from secret key
-fn get_test_public_key() -> PublicKey {
-	let secp = Secp256k1::new();
-	let secret_key = get_test_secret_key();
-	PublicKey::from_secret_key(&secp, &secret_key)
-}
-
-fn public_key_to_eth_address(public_key: &PublicKey) -> [u8; 20] {
-	// Get uncompressed public key (65 bytes: 0x04 + x + y)
-	let uncompressed = public_key.serialize_uncompressed();
-	// Skip the 0x04 prefix byte and hash the remaining 64 bytes
-	let hash = keccak_256(&uncompressed[1..]);
-	// Take the last 20 bytes as Ethereum address
-	let mut address = [0u8; 20];
-	address.copy_from_slice(&hash[12..]);
-	address
-}
-
-fn create_valid_signature(message_hash: &[u8; 32]) -> pallet_signet::Signature {
-	let secp = Secp256k1::new();
-	let secret_key = get_test_secret_key();
-	let message = Message::from_slice(message_hash).expect("Valid message hash");
-
-	let sig = secp.sign_ecdsa_recoverable(&message, &secret_key);
-	let (recovery_id, sig_bytes) = sig.serialize_compact();
-
-	let mut r = [0u8; 32];
-	let mut s = [0u8; 32];
-	r.copy_from_slice(&sig_bytes[0..32]);
-	s.copy_from_slice(&sig_bytes[32..64]);
-
-	pallet_signet::Signature {
-		big_r: pallet_signet::AffinePoint { x: r, y: [0u8; 32] },
-		s,
-		recovery_id: recovery_id.to_i32() as u8,
-	}
-}
-
-fn create_test_signature() -> pallet_signet::Signature {
-	pallet_signet::Signature {
-		big_r: pallet_signet::AffinePoint {
-			x: [1u8; 32],
-			y: [2u8; 32],
-		},
-		s: [3u8; 32],
-		recovery_id: 0,
-	}
 }
 
 fn create_test_tx_params() -> EvmTransactionParams {
@@ -632,11 +536,6 @@ fn create_test_tx_params() -> EvmTransactionParams {
 
 fn create_test_receiver_address() -> [u8; 20] {
 	[1u8; 20]
-}
-
-fn create_test_mpc_address() -> [u8; 20] {
-	let public_key = get_test_public_key();
-	public_key_to_eth_address(&public_key)
 }
 
 fn compute_request_id(

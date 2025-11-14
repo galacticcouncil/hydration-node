@@ -7,12 +7,12 @@ use alloy_primitives::U256;
 use alloy_sol_types::{sol, SolCall};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
+use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::{fungibles::Mutate, tokens::Preservation, Currency};
 use frame_support::PalletId;
 use frame_support::{dispatch::DispatchResult, BoundedVec};
 use frame_system::pallet_prelude::*;
 use sp_core::H160;
-use sp_io::hashing;
 use sp_std::vec::Vec;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -80,8 +80,6 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type FaucetAddress: Get<EvmAddress>;
-		#[pallet::constant]
-		type MPCRootSigner: Get<EvmAddress>;
 
 		#[pallet::constant]
 		type VaultPalletId: Get<PalletId>;
@@ -146,10 +144,13 @@ pub mod pallet {
 		InvalidSigner,
 		InvalidRequestId,
 		Paused,
+		AlreadyPaused,
+		AlreadyUnpaused,
 		AmountTooSmall,
 		AmountTooLarge,
 		InvalidAddress,
 		FaucetBalanceBelowThreshold,
+		NotEnoughFunds,
 	}
 
 	#[pallet::call]
@@ -157,7 +158,7 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::initialize())]
 		pub fn initialize(origin: OriginFor<T>, balance_wei: u128) -> DispatchResult {
-			T::UpdateOrigin::ensure_origin(origin)?;
+			let _ = ensure_signed(origin)?;
 			ensure!(DispenserConfig::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
 
 			DispenserConfig::<T>::put(DispenserConfigData {
@@ -235,8 +236,8 @@ pub mod pallet {
 			let fee = T::DispenserFee::get();
 			let fee_bal = <T as Config>::Currency::balance(T::FeeAsset::get(), &requester);
 			let faucet_bal = <T as Config>::Currency::balance(T::FaucetAsset::get(), &requester);
-			ensure!(fee_bal >= fee, Error::<T>::NotFound);
-			ensure!(faucet_bal >= amount_wei, Error::<T>::NotFound);
+			ensure!(fee_bal >= fee, Error::<T>::NotEnoughFunds);
+			ensure!(faucet_bal >= amount_wei, Error::<T>::NotEnoughFunds);
 
 			<T as Config>::Currency::transfer(
 				T::FeeAsset::get(),
@@ -289,6 +290,7 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::pause())]
 		pub fn pause(origin: OriginFor<T>) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
+			Self::ensure_initialized()?;
 			DispenserConfig::<T>::mutate_exists(|p| p.as_mut().unwrap().paused = true);
 			Self::deposit_event(Event::Paused);
 			Ok(())
@@ -298,6 +300,7 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::unpause())]
 		pub fn unpause(origin: OriginFor<T>) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
+			Self::ensure_initialized()?;
 			DispenserConfig::<T>::mutate_exists(|p| p.as_mut().unwrap().paused = false);
 			Self::deposit_event(Event::Unpaused);
 			Ok(())
@@ -307,10 +310,12 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_faucet_balance())]
 		pub fn set_faucet_balance(origin: OriginFor<T>, balance_wei: u128) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
-
+			Self::ensure_initialized()?;
 			let old = CurrentFaucetBalanceWei::<T>::get();
+			if old == balance_wei {
+				return Ok(());
+			}
 			CurrentFaucetBalanceWei::<T>::put(balance_wei);
-
 			Self::deposit_event(Event::FaucetBalanceUpdated {
 				old_balance_wei: old,
 				new_balance_wei: balance_wei,
@@ -356,36 +361,6 @@ pub mod pallet {
 				.abi_encode_packed();
 
 			sp_io::hashing::keccak_256(&encoded)
-		}
-
-		fn hash_message(request_id: &[u8; 32], output: &[u8]) -> [u8; 32] {
-			let mut data = Vec::with_capacity(32 + output.len());
-			data.extend_from_slice(request_id);
-			data.extend_from_slice(output);
-			hashing::keccak_256(&data)
-		}
-
-		fn verify_signature_from_address(
-			message_hash: &[u8; 32],
-			signature: &pallet_signet::Signature,
-			expected_address: &[u8; 20],
-		) -> DispatchResult {
-			ensure!(signature.recovery_id < 4, Error::<T>::InvalidSignature);
-
-			let mut sig_bytes = [0u8; 65];
-			sig_bytes[..32].copy_from_slice(&signature.big_r.x);
-			sig_bytes[32..64].copy_from_slice(&signature.s);
-			sig_bytes[64] = signature.recovery_id;
-
-			let pubkey = sp_io::crypto::secp256k1_ecdsa_recover(&sig_bytes, message_hash)
-				.map_err(|_| Error::<T>::InvalidSignature)?;
-
-			let pubkey_hash = hashing::keccak_256(&pubkey);
-			let recovered_address = &pubkey_hash[12..];
-
-			ensure!(recovered_address == expected_address, Error::<T>::InvalidSigner);
-
-			Ok(())
 		}
 	}
 
