@@ -148,7 +148,7 @@ fn remove_token_should_clear_oracle_entries() {
 		};
 
 		// Check oracle entries exist for all supported periods
-		let supported_periods = hydradx_runtime::SupportedOraclePeriods::get();
+		let supported_periods = hydradx_runtime::SupportedPeriods::get();
 		for period in supported_periods.iter() {
 			let oracle_entry =
 				pallet_ema_oracle::Oracles::<hydradx_runtime::Runtime>::get((*b"omnipool", assets, period));

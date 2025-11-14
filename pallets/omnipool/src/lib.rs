@@ -239,7 +239,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// State of an asset in the omnipool
 	#[pallet::getter(fn assets)]
-	pub type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
+	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
 
 	// LRNA is only allowed to be sold
 	#[pallet::type_value]
@@ -1617,7 +1617,6 @@ pub mod pallet {
 			T::Currency::transfer(asset_id, &Self::protocol_account(), &beneficiary, asset_state.reserve)?;
 			<Assets<T>>::remove(asset_id);
 
-			// Clear related storage entries via hooks
 			T::OmnipoolHooks::on_asset_removed(asset_id);
 
 			Self::deposit_event(Event::TokenRemoved {

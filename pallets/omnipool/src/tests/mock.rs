@@ -768,11 +768,10 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		Ok(Some((amount, PROTOCOL_FEE_COLLECTOR)))
 	}
 
-	fn on_asset_removed(asset_id: AssetId) -> Weight {
+	fn on_asset_removed(asset_id: AssetId) {
 		ASSET_REMOVED_HOOK_CALLED.with(|v| {
 			*v.borrow_mut() = Some(asset_id);
 		});
-		Weight::zero()
 	}
 
 	fn on_asset_removed_weight() -> Weight {

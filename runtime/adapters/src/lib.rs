@@ -544,8 +544,6 @@ where
 			accumulator.remove(&(OMNIPOOL_SOURCE, assets));
 			Ok::<(), ()>(())
 		});
-
-		Self::on_asset_removed_weight()
 	}
 
 	fn on_asset_removed_weight() -> Weight {
