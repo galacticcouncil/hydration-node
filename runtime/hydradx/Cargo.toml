@@ -69,6 +69,7 @@ pallet-bags-list = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-conviction-voting = { workspace = true }
 pallet-dispatcher = { workspace = true }
+pallet-ismp-oracle-test = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-treasury = { workspace = true }
@@ -251,6 +252,7 @@ runtime-benchmarks = [
     "pallet-referenda/runtime-benchmarks",
     "pallet-whitelist/runtime-benchmarks",
     "pallet-dispatcher/runtime-benchmarks",
+    "pallet-ismp-oracle-test/runtime-benchmarks",
     "cumulus-primitives-utility/runtime-benchmarks",
     "pallet-xcm-benchmarks/runtime-benchmarks",
     "ismp-parachain/runtime-benchmarks",
@@ -379,6 +381,7 @@ std = [
     "pallet-whitelist/std",
     "pallet-broadcast/std",
     "pallet-dispatcher/std",
+    "pallet-ismp-oracle-test/std",
     # Hyperbridge
     "anyhow/std",
     "pallet-hyperbridge/std",
@@ -466,6 +469,7 @@ try-runtime = [
     "pallet-whitelist/try-runtime",
     "pallet-broadcast/try-runtime",
     "pallet-dispatcher/try-runtime",
+    "pallet-ismp-oracle-test/try-runtime",
 ]
 
 metadata-hash = [
