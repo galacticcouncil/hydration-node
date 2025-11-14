@@ -11,6 +11,7 @@ repository = "https://github.com/galacticcouncil/HydraDX-node"
 [dependencies]
 codec = { workspace = true, features = ["derive", "max-encoded-len"] }
 hex-literal = { workspace = true }
+num-traits = { workspace = true }
 frame-remote-externalities = { workspace = true }
 tokio = { workspace = true }
 scraper = { workspace = true }

@@ -12,8 +12,7 @@ use frame_system::RawOrigin;
 use hex_literal::hex;
 use sp_core::bounded_vec::BoundedVec;
 
-use crate::utils::accounts::{alith_evm_account, alith_evm_address, alith_secret_key, MockAccount};
-use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
+use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 use hydradx_runtime::evm::EvmAddress;
 use hydradx_runtime::evm::ExtendedAddressMapping;
 use hydradx_runtime::evm::Function;
@@ -28,7 +27,6 @@ use hydradx_runtime::{
 use hydradx_traits::router::{PoolType, Trade};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
-use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pallet_transaction_multi_payment::EVMPermit;

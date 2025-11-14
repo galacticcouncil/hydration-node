@@ -64,14 +64,15 @@ fn sell_with_peg_should_work_different_pegs() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_balance!(BOB, asset_b, 0);
@@ -141,14 +142,15 @@ fn buy_with_peg_should_work_different_pegs() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_balance!(BOB, asset_b, 0);
@@ -221,14 +223,15 @@ fn sell_with_peg_with_fee_should_work_different_pegs() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_balance!(BOB, asset_b, 0);
@@ -299,14 +302,15 @@ fn buy_with_peg_with_fee_should_work_different_pegs() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_balance!(BOB, asset_b, 0);
@@ -378,14 +382,15 @@ fn sell_with_drifting_peg_should_work() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
@@ -461,14 +466,15 @@ fn sell_with_drifting_peg_should_not_exceed_max_peg_update() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
@@ -546,14 +552,15 @@ fn share_pries_should_be_correct_with_different_pegs() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			let share0 = get_share_price(pool_id, 0);
@@ -621,14 +628,15 @@ fn spot_prices_should_be_correct_with_different_pegs() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			let spot1 = spot_price(pool_id, asset_a, asset_b);
@@ -709,23 +717,25 @@ fn add_liquidity_should_work_correctly_with_different_pegs() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
 			System::set_block_number(5);
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				BoundedVec::truncate_from(vec![AssetAmount::new(asset_b, 10 * ONE),])
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_b, 10 * ONE),]),
+				Balance::zero(),
 			));
 
 			let bob_shares = Tokens::free_balance(pool_id, &BOB);
@@ -789,14 +799,15 @@ fn add_liquidity_shares_should_work_correctly_with_different_pegs() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
@@ -871,23 +882,25 @@ fn remove_liquidity_for_one_asset_should_work_correctly_with_different_pegs() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
 			System::set_block_number(5);
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				BoundedVec::truncate_from(vec![AssetAmount::new(asset_b, 10 * ONE),])
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_b, 10 * ONE),]),
+				Balance::zero(),
 			));
 
 			let bob_shares = Tokens::free_balance(pool_id, &BOB);
@@ -964,23 +977,25 @@ fn remove_liquidity_given_asset_amount_should_work_correctly_with_different_pegs
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
 			System::set_block_number(5);
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				BoundedVec::truncate_from(vec![AssetAmount::new(asset_b, 10 * ONE),])
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_b, 10 * ONE),]),
+				Balance::zero(),
 			));
 
 			let bob_shares = Tokens::free_balance(pool_id, &BOB);
@@ -1059,23 +1074,25 @@ fn remove_liquidity_uniform_should_work_correctly_with_different_pegs() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
 			System::set_block_number(5);
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				BoundedVec::truncate_from(vec![AssetAmount::new(asset_b, 10 * ONE),])
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_b, 10 * ONE),]),
+				Balance::zero(),
 			));
 
 			let bob_shares = Tokens::free_balance(pool_id, &BOB);
@@ -1162,14 +1179,15 @@ fn asset_oracle_peg_should_work() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, liquid_a),
 					AssetAmount::new(asset_b, liquid_b),
 					AssetAmount::new(asset_c, liquid_c),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			// Change the oracle price using the oracle_asset instead of first_asset

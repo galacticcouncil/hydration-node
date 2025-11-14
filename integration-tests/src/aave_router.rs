@@ -45,6 +45,7 @@ use pallet_asset_registry::Assets;
 use pallet_broadcast::types::{Asset, ExecutionType};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
+use pallet_transaction_multi_payment::EVMPermit;
 use primitives::Balance;
 use sp_core::H256;
 use sp_runtime::traits::Zero;
@@ -209,7 +210,7 @@ fn with_stablepool(execution: impl FnOnce(AssetId)) {
 			fee,
 		));
 
-		assert_ok!(Stableswap::add_liquidity(
+		assert_ok!(Stableswap::add_assets_liquidity(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			pool,
 			BoundedVec::truncate_from(vec![
@@ -222,6 +223,7 @@ fn with_stablepool(execution: impl FnOnce(AssetId)) {
 					amount: BAG,
 				},
 			]),
+			Balance::zero(),
 		));
 
 		execution(pool);
@@ -1292,10 +1294,11 @@ pub fn init_stableswap_with_atoken() -> Result<(AssetId, AssetId, AssetId), Disp
 		fee,
 	)?;
 
-	Stableswap::add_liquidity(
+	Stableswap::add_assets_liquidity(
 		RuntimeOrigin::signed(BOB.into()),
 		pool_id,
 		BoundedVec::truncate_from(initial),
+		Balance::zero(),
 	)?;
 
 	Ok((pool_id, asset_in, asset_out))
