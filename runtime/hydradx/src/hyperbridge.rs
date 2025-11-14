@@ -141,4 +141,5 @@ impl pallet_ismp_oracle_test::Config for Runtime {
 	type Balance = Balance;
 	type IsmpHost = Ismp;
 	type RequestsTimeout = sp_core::ConstU64<3600>;
+	type RequestOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 }
