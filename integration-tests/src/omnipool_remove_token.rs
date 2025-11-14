@@ -268,7 +268,7 @@ fn remove_token_should_clear_both_fees_and_oracle_entries() {
 		assert!(oracle_entry_after.is_none(), "Oracle entry should be cleared for DOT");
 
 		// Verify the asset itself is removed
-		let asset_state = pallet_omnipool::Assets::<hydradx_runtime::Runtime>::get(DOT);
+		let asset_state = hydradx_runtime::Omnipool::assets(DOT);
 		assert!(asset_state.is_none(), "DOT asset should be removed from omnipool");
 	});
 }
@@ -339,11 +339,11 @@ fn remove_token_should_not_affect_other_assets() {
 
 		// Verify HDX and DAI are still in omnipool
 		assert!(
-			pallet_omnipool::Assets::<hydradx_runtime::Runtime>::get(HDX).is_some(),
+			hydradx_runtime::Omnipool::assets(HDX).is_some(),
 			"HDX should still be in omnipool"
 		);
 		assert!(
-			pallet_omnipool::Assets::<hydradx_runtime::Runtime>::get(DAI).is_some(),
+			hydradx_runtime::Omnipool::assets(DAI).is_some(),
 			"DAI should still be in omnipool"
 		);
 	});

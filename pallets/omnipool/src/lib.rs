@@ -111,7 +111,6 @@ pub mod weights;
 
 use crate::traits::{AssetInfo, OmnipoolHooks};
 use crate::types::{AssetReserveState, AssetState, Balance, Position, Tradability};
-pub use pallet::Assets;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
