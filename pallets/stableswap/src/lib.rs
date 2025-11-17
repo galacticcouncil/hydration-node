@@ -1449,6 +1449,11 @@ impl<T: Config> Pallet<T> {
 
 		let block_number = T::BlockNumberProvider::current_block_number();
 
+		// Create a mapping from original asset position to sorted position
+		// to reorder peg sources correctly
+		let asset_indices: sp_std::vec::Vec<(T::AssetId, usize)> =
+			assets.iter().enumerate().map(|(idx, asset)| (*asset, idx)).collect();
+
 		let mut pool_assets = assets.to_vec();
 		pool_assets.sort();
 
@@ -1496,7 +1501,44 @@ impl<T: Config> Pallet<T> {
 			} else {
 				return Err(Error::<T>::UnknownDecimals.into());
 			}
-			PoolPegs::<T>::insert(share_asset, p);
+
+			// Reorder peg sources to match the sorted asset order
+			// This fixes the issue where unsorted input assets would cause
+			// peg sources to be misaligned with the sorted pool assets
+			let reordered_sources: sp_std::vec::Vec<PegSource<T::AssetId>> = pool_assets
+				.iter()
+				.map(|sorted_asset| {
+					// Find the original index of this asset in the input
+					let original_idx = asset_indices
+						.iter()
+						.find(|(asset, _)| asset == sorted_asset)
+						.map(|(_, idx)| *idx)
+						.expect("Asset must exist in original list");
+					// Return the peg source at the original position
+					p.source[original_idx].clone()
+				})
+				.collect();
+
+			// Reorder current pegs to match the sorted asset order
+			let reordered_current: sp_std::vec::Vec<PegType> = pool_assets
+				.iter()
+				.map(|sorted_asset| {
+					let original_idx = asset_indices
+						.iter()
+						.find(|(asset, _)| asset == sorted_asset)
+						.map(|(_, idx)| *idx)
+						.expect("Asset must exist in original list");
+					p.current[original_idx]
+				})
+				.collect();
+
+			let reordered_peg_info = PoolPegInfo {
+				source: crate::types::BoundedPegSources::truncate_from(reordered_sources),
+				max_peg_update: p.max_peg_update,
+				current: crate::types::BoundedPegs::truncate_from(reordered_current),
+			};
+
+			PoolPegs::<T>::insert(share_asset, reordered_peg_info);
 		}
 
 		Pools::<T>::insert(share_asset, pool);
