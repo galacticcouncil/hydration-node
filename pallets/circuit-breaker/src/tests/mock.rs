@@ -392,8 +392,7 @@ where
 		Ok(None)
 	}
 
-	fn on_asset_removed(_asset_id: AssetId) {
-	}
+	fn on_asset_removed(_asset_id: AssetId) {}
 
 	fn on_asset_removed_weight() -> Weight {
 		Weight::zero()

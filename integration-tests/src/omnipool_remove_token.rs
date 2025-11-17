@@ -44,6 +44,10 @@ fn init_omnipool_with_oracle() {
 }
 
 fn populate_oracle_for_dot() {
+	// Give DAVE some tokens for trading
+	set_balance(DAVE.into(), DOT, 1_000 * DOT_UNITS as i128);
+	set_balance(DAVE.into(), HDX, 1_000_000 * UNITS as i128);
+
 	// Execute trades to populate oracle with DOT data
 	assert_ok!(hydradx_runtime::Omnipool::sell(
 		RuntimeOrigin::signed(DAVE.into()),
