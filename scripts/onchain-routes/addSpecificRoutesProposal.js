@@ -17,9 +17,26 @@ const RPC = "wss://hydration-rpc.n.dwellir.com"
 // Asset pairs to create routes for
 // Format: "assetIn-assetOut" (e.g., "10-222")
 const ASSET_PAIRS = [
-    "10-222",
-    "22-222",
-    // Add more pairs as needed
+    "5-30",
+    "30-1000766",
+    "30-1000767",
+    "0-1112",     // HUSDS
+    "0-1000809",  // wstETH
+    "0-1000625",  // sUSDe
+    "0-1110",     // HUSDC
+    "0-1000766",  // USDC
+    "0-1113",     // HUSDe
+    "0-252525",   // EWT
+    "0-1000767",  // USDT
+    "0-1006",     // atBTC
+    "0-1000745",  // sUSDS
+    "0-1039",     // aPAGX
+    "0-1001",     // aDOT
+    "0-1002",     // aUSDT
+    "0-1004",     // aWBTC
+    "0-1005",     // avDOT
+    //"0-69",       // GDOT
+    "0-34"        // ETH
 ];
 
 /* ========= MAIN LOGIC ========= */
@@ -36,7 +53,7 @@ async function collectRoutesAndCreateProposal() {
     const apiPromise = await ApiPromise.create({provider, noInitWarn: true});
 
     const {api, client} = createSdkContext(apiPromise, {
-        router: {exclude: [PoolType.XYK]},
+        router: {exclude: PoolType.HSM} // Exclude HSM pools if needed,
     });
 
     // Parse asset pairs from input
@@ -80,14 +97,18 @@ async function collectRoutesAndCreateProposal() {
         })
     );
 
-    // Collect successful routes
+    // Collect successful routes and track failed ones
     const routesData = [];
+    const failedToFetchRoutes = [];
     results.forEach((res, idx) => {
         if (res.status === 'fulfilled') {
             const {assetIn, assetOut, hops} = res.value;
             routesData.push({assetIn, assetOut, route: hops});
         } else {
             const {assetIn, assetOut} = pairs[idx];
+            const routeLabel = `${assetSymbolMap[assetIn]}(${assetIn}) <> ${assetSymbolMap[assetOut]}(${assetOut})`;
+            const errorMsg = String(res.reason);
+            failedToFetchRoutes.push({label: routeLabel, error: errorMsg});
             log(`❌ Failed to fetch route for ${assetIn}(${assetSymbolMap[assetIn]})->${assetOut}(${assetSymbolMap[assetOut]}): ${res.reason}`);
         }
     });
@@ -118,7 +139,7 @@ async function collectRoutesAndCreateProposal() {
         // Skip routes with zero hops as something went wrong collecting them
         if (route.length === 0) {
             skippedCount++;
-            const routeLabel = `${assetIn}(${assetSymbolMap[assetIn]})->${assetOut}(${assetSymbolMap[assetOut]})`;
+            const routeLabel = `${assetSymbolMap[assetIn]}(${assetIn}) <> ${assetSymbolMap[assetOut]}(${assetOut})`;
             emptyRoutes.push(routeLabel);
             log(`  ❌ SKIPPED: Route has zero hops (collection error)`);
             continue;
@@ -138,7 +159,7 @@ async function collectRoutesAndCreateProposal() {
         // (Omnipool is the default route, but we need to clear existing non-default routes)
         if (isSingleOmnipoolHop && existingRoute.isNone) {
             skippedCount++;
-            const routeLabel = `${assetIn}(${assetSymbolMap[assetIn]})->${assetOut}(${assetSymbolMap[assetOut]})`;
+            const routeLabel = `${assetSymbolMap[assetIn]}(${assetIn}) <> ${assetSymbolMap[assetOut]}(${assetOut})`;
             skippedRoutes.push(routeLabel);
             log(`  ❌ SKIPPED: Single Omnipool hop (default route) and no existing route on-chain`);
             continue;
@@ -160,13 +181,13 @@ async function collectRoutesAndCreateProposal() {
             const omnipoolJson = JSON.stringify(omnipoolRoute);
             if (storedJson === omnipoolJson) {
                 skippedCount++;
-                const routeLabel = `${assetIn}(${assetSymbolMap[assetIn]})->${assetOut}(${assetSymbolMap[assetOut]})`;
+                const routeLabel = `${assetSymbolMap[assetIn]}(${assetIn}) <> ${assetSymbolMap[assetOut]}(${assetOut})`;
                 skippedRoutes.push(routeLabel);
                 log(`  ✅ SKIPPED: Single Omnipool hop already matches existing route on-chain`);
                 continue;
             }
 
-            const routeLabel = `${assetIn}(${assetSymbolMap[assetIn]})->${assetOut}(${assetSymbolMap[assetOut]})`;
+            const routeLabel = `${assetSymbolMap[assetIn]}(${assetIn}) <> ${assetSymbolMap[assetOut]}(${assetOut})`;
             resetToDefaultRoutes.push(routeLabel);
             log(`  🔄 RESET TO DEFAULT: Single Omnipool hop (default) but existing route needs to be reset`);
             log(`    Stored:   ${storedJson}`);
@@ -191,7 +212,7 @@ async function collectRoutesAndCreateProposal() {
                 pool = {stableswap: parseInt(hop.poolId)};
             } else if (hop.pool === 'Aave') {
                 pool = {aave: null};
-            } else if (hop.pool === 'XYK') {
+            } else if (hop.pool === 'Xyk') {
                 pool = {xyk: null};
             } else if (hop.pool === 'LBP') {
                 pool = {lbp: null};
@@ -228,19 +249,19 @@ async function collectRoutesAndCreateProposal() {
 
             if (areEqual) {
                 skippedCount++;
-                const routeLabel = `${assetIn}(${assetSymbolMap[assetIn]})->${assetOut}(${assetSymbolMap[assetOut]})`;
+                const routeLabel = `${assetSymbolMap[assetIn]}(${assetIn}) <> ${assetSymbolMap[assetOut]}(${assetOut})`;
                 skippedRoutes.push(routeLabel);
                 log(`  ✅ SKIPPED: Route already exists and matches`);
                 continue; // Skip this pair as route already exists
             } else {
-                const routeLabel = `${assetIn}(${assetSymbolMap[assetIn]})->${assetOut}(${assetSymbolMap[assetOut]})`;
+                const routeLabel = `${assetSymbolMap[assetIn]}(${assetIn}) <> ${assetSymbolMap[assetOut]}(${assetOut})`;
                 resetRoutes.push(routeLabel);
                 log(`  🔄 RESET NEEDED: Route exists but differs`);
             }
         } else {
             log(`  ⭐ NEW: No existing route on-chain`);
             // No existing route, this is a new route
-            const routeLabel = `${assetIn}(${assetSymbolMap[assetIn]})->${assetOut}(${assetSymbolMap[assetOut]})`;
+            const routeLabel = `${assetSymbolMap[assetIn]}(${assetIn}) <> ${assetSymbolMap[assetOut]}(${assetOut})`;
             newRoutes.push(routeLabel);
         }
 
@@ -293,6 +314,7 @@ async function collectRoutesAndCreateProposal() {
         resetRoutes: resetRoutes,
         resetToDefaultRoutes: resetToDefaultRoutes,
         emptyRoutes: emptyRoutes,
+        failedToFetchRoutes: failedToFetchRoutes,
         validationErrors: validationErrors,
         summary: {
             newRoutesCount: newRoutes.length,
@@ -300,6 +322,7 @@ async function collectRoutesAndCreateProposal() {
             resetRoutesCount: resetRoutes.length,
             resetToDefaultRoutesCount: resetToDefaultRoutes.length,
             emptyRoutesCount: emptyRoutes.length,
+            failedToFetchRoutesCount: failedToFetchRoutes.length,
             totalProcessed: routesData.length,
             validationErrorsCount: validationErrors.length
         }
@@ -312,9 +335,70 @@ async function collectRoutesAndCreateProposal() {
     log(`Reset routes: ${resetRoutes.length}`);
     log(`Reset to default routes: ${resetToDefaultRoutes.length}`);
     log(`Empty routes (skipped): ${emptyRoutes.length}`);
+    log(`Failed to fetch routes: ${failedToFetchRoutes.length}`);
     log(`Validation errors: ${validationErrors.length}`);
     log(`Total processed: ${routesData.length}`);
     log(`Summary written to route-check-specific-${timestamp}.json (see file for detailed route lists)`);
+
+    // Display comprehensive summary of all pairs
+    log(`\n${'='.repeat(60)}`);
+    log(`COMPREHENSIVE PAIRS SUMMARY`);
+    log(`${'='.repeat(60)}\n`);
+
+    // Display pairs to be changed for easy sharing with colleagues
+    const pairsToBeChanged = [...newRoutes, ...resetRoutes, ...resetToDefaultRoutes];
+    if (pairsToBeChanged.length > 0) {
+        log(`📝 PAIRS TO BE CHANGED (${pairsToBeChanged.length}) - Copy this for colleagues:`);
+        log(`${'─'.repeat(60)}`);
+        pairsToBeChanged.forEach(pair => {
+            log(`  ${pair}`);
+        });
+        log(`${'─'.repeat(60)}\n`);
+    } else {
+        log(`📝 PAIRS TO BE CHANGED: None\n`);
+    }
+
+    // Show breakdown by category
+    if (newRoutes.length > 0) {
+        log(`✨ NEW ROUTES (${newRoutes.length}):`);
+        newRoutes.forEach(pair => log(`  ${pair}`));
+        log(``);
+    }
+
+    if (resetRoutes.length > 0) {
+        log(`🔄 ROUTES TO RESET (${resetRoutes.length}):`);
+        resetRoutes.forEach(pair => log(`  ${pair}`));
+        log(``);
+    }
+
+    if (resetToDefaultRoutes.length > 0) {
+        log(`🔙 ROUTES TO RESET TO DEFAULT (${resetToDefaultRoutes.length}):`);
+        resetToDefaultRoutes.forEach(pair => log(`  ${pair}`));
+        log(``);
+    }
+
+    if (skippedRoutes.length > 0) {
+        log(`✅ SKIPPED - ALREADY CORRECT (${skippedRoutes.length}):`);
+        skippedRoutes.forEach(pair => log(`  ${pair}`));
+        log(``);
+    }
+
+    if (emptyRoutes.length > 0) {
+        log(`⚠️  EMPTY ROUTES - SKIPPED (${emptyRoutes.length}):`);
+        emptyRoutes.forEach(pair => log(`  ${pair}`));
+        log(``);
+    }
+
+    if (failedToFetchRoutes.length > 0) {
+        log(`❌ FAILED TO FETCH FROM SDK (${failedToFetchRoutes.length}):`);
+        failedToFetchRoutes.forEach(item => {
+            log(`  ${item.label}`);
+            log(`     Error: ${item.error}`);
+        });
+        log(``);
+    }
+
+    log(`${'='.repeat(60)}\n`);
 
     if (calls.length === 0) {
         log('\n⚠️  No calls to batch! All routes are either already set correctly or were skipped.');
