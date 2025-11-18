@@ -152,7 +152,7 @@ mod benches {
 		};
 
 		let faucet_addr = T::FaucetAddress::get();
-		let rlp = pallet_build_evm_tx::Pallet::<T>::build_evm_tx(
+		let rlp = pallet_signet::Pallet::<T>::build_evm_tx(
 			RawOrigin::Signed(caller.clone()).into(),
 			Some(H160::from(faucet_addr)),
 			0u128,

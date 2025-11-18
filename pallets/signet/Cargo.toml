@@ -17,14 +17,17 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
+ethereum = { workspace = true }
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
 sp-io = { workspace = true, optional = true }
+sp-core = { workspace = true }
+rlp = { version = "0.5.2", default-features = false }
+
 
 [dev-dependencies]
 sp-io = { workspace = true }
-sp-core = { workspace = true }
 pallet-balances = { workspace = true }
 
 [features]

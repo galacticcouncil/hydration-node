@@ -58,7 +58,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_build_evm_tx::Config + pallet_signet::Config {
+	pub trait Config: frame_system::Config + pallet_signet::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -208,7 +208,7 @@ pub mod pallet {
 				amount: U256::from(amount_wei),
 			};
 
-			let rlp = pallet_build_evm_tx::Pallet::<T>::build_evm_tx(
+			let rlp = pallet_signet::Pallet::<T>::build_evm_tx(
 				frame_system::RawOrigin::Signed(requester.clone()).into(),
 				Some(H160::from(T::FaucetAddress::get())),
 				0u128,

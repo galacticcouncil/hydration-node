@@ -1820,16 +1820,10 @@ impl pallet_hsm::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxEvmDataLength: u32 = 100_000;
-}
-
-impl pallet_build_evm_tx::Config for Runtime {
-	type MaxDataLength = MaxEvmDataLength;
-}
-
-parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
 	pub const MaxChainIdLength: u32 = 128;
+
+	pub const MaxEvmDataLength: u32 = 100_000;
 }
 
 impl pallet_signet::Config for Runtime {
@@ -1838,6 +1832,7 @@ impl pallet_signet::Config for Runtime {
 	type PalletId = SignetPalletId;
 	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
+	type MaxDataLength = MaxEvmDataLength;
 }
 
 parameter_types! {

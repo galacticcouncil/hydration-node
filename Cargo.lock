@@ -4996,7 +4996,6 @@ dependencies = [
  "pallet-balances",
  "pallet-bonds",
  "pallet-broadcast",
- "pallet-build-evm-tx",
  "pallet-circuit-breaker",
  "pallet-claims",
  "pallet-collator-rewards",
@@ -8034,24 +8033,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-build-evm-tx"
-version = "1.0.0"
-dependencies = [
- "ethereum",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hex",
- "parity-scale-codec",
- "rlp",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-child-bounties"
 version = "37.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch6#1ed662757b03c4f17dc2429c1df84e975d98513a"
@@ -8352,7 +8333,6 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-build-evm-tx",
  "pallet-currencies",
  "pallet-signet",
  "parity-scale-codec",
@@ -9496,11 +9476,13 @@ dependencies = [
 name = "pallet-signet"
 version = "1.0.0"
 dependencies = [
+ "ethereum",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-balances",
  "parity-scale-codec",
+ "rlp",
  "scale-info",
  "sp-core",
  "sp-io",

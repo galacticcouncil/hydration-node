@@ -49,7 +49,6 @@ members = [
     'pallets/broadcast',
     'liquidation-worker-support',
     'pallets/hsm',
-    'pallets/build-evm-tx',
     "pallets/signet",
     "pallets/dispenser"
 ]
@@ -157,7 +156,6 @@ pallet-liquidation = { path = "pallets/liquidation", default-features = false }
 pallet-broadcast = { path = "pallets/broadcast", default-features = false }
 liquidation-worker-support = { path = "liquidation-worker-support", default-features = false }
 pallet-hsm = { path = "pallets/hsm", default-features = false }
-pallet-build-evm-tx = { path = "pallets/build-evm-tx", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
 pallet-signet = { path = "pallets/signet", default-features = false }
 pallet-dispenser = { path = "pallets/dispenser", default-features = false }

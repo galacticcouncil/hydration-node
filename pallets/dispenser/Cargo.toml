@@ -23,7 +23,6 @@ alloy-sol-types = { version = "=0.7.6", default-features = false, features = ["j
 alloy-primitives = { version = "=0.7.7", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-pallet-build-evm-tx = { path = "../build-evm-tx", default-features = false }
 pallet-signet = { path = "../signet", default-features = false }
 pallet-currencies = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, optional = true }
@@ -55,7 +54,6 @@ std = [
     "serde/std",
     "serde_json/std",
     "pallet-currencies/std",
-    "pallet-build-evm-tx/std",
     "pallet-signet/std",
     "hex/std",
 
