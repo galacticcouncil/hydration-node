@@ -32,7 +32,6 @@ use hydradx_runtime::{
 use hydradx_traits::router::{PoolType, Trade};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
-use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pallet_evm_accounts::EvmNonceProvider;

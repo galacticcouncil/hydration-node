@@ -5366,7 +5366,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "10.4.1"
+version = "10.4.2"
 dependencies = [
  "approx",
  "criterion",
@@ -5388,7 +5388,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.5.0"
+version = "14.7.0"
 dependencies = [
  "async-trait",
  "clap",
@@ -5416,12 +5416,11 @@ dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "frame-support",
+ "frame-system",
  "futures",
- "hex",
  "hex-literal",
  "hydra-dx-build-script-utils",
  "hydradx-runtime",
- "hydradx-traits",
  "hyper 0.14.31",
  "hyper-rustls 0.24.2",
  "ismp-parachain-inherent",
@@ -5430,14 +5429,14 @@ dependencies = [
  "log",
  "num_cpus",
  "pallet-claims",
+ "pallet-currencies-rpc-runtime-api",
  "pallet-ethereum",
+ "pallet-evm",
  "pallet-ismp-rpc",
  "pallet-ismp-runtime-api",
  "pallet-liquidation",
- "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
- "parking_lot 0.12.3",
  "polkadot-cli",
  "polkadot-primitives",
  "polkadot-service",
@@ -5460,7 +5459,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-api",
- "sp-arithmetic",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
@@ -5537,7 +5535,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "352.0.0"
+version = "362.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -7083,13 +7081,12 @@ dependencies = [
 
 [[package]]
 name = "liquidation-worker-support"
-version = "1.0.0"
+version = "1.1.3"
 dependencies = [
  "ethabi",
  "ethereum-types 0.15.1",
  "evm",
  "fp-evm",
- "fp-rpc",
  "frame-support",
  "hydradx-traits",
  "module-evm-utility-macro",
@@ -9153,7 +9150,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-currencies"
-version = "3.3.0"
+version = "3.4.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9173,7 +9170,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-currencies-rpc-runtime-api"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -9311,7 +9308,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-duster"
-version = "3.3.2"
+version = "3.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9363,7 +9360,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-fees"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9728,7 +9725,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-hsm"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "ethabi",
  "evm",
@@ -9917,7 +9914,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "1.4.2"
+version = "2.0.0"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -10283,7 +10280,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "5.0.10"
+version = "5.1.10"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -10865,7 +10862,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "5.5.1"
+version = "6.0.0"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -11066,7 +11063,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.1.8"
+version = "10.2.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -14634,7 +14631,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.53.1"
+version = "1.57.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -14664,6 +14661,7 @@ dependencies = [
  "libsecp256k1",
  "liquidation-worker-support",
  "module-evm-utility-macro",
+ "num-traits",
  "num_enum",
  "orml-tokens",
  "orml-traits",
@@ -14684,6 +14682,7 @@ dependencies = [
  "pallet-collective",
  "pallet-conviction-voting",
  "pallet-currencies",
+ "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
  "pallet-dispatcher",
  "pallet-duster",
@@ -14694,6 +14693,7 @@ dependencies = [
  "pallet-evm",
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
+ "pallet-hsm",
  "pallet-im-online",
  "pallet-lbp",
  "pallet-liquidation",
@@ -14730,7 +14730,6 @@ dependencies = [
  "proptest",
  "rococo-runtime",
  "sc-consensus-grandpa",
- "scale-info",
  "scraper",
  "serde_json",
  "sp-api",
@@ -14763,13 +14762,14 @@ dependencies = [
 
 [[package]]
 name = "runtime-mock"
-version = "1.0.9"
+version = "1.0.10"
 dependencies = [
  "frame-remote-externalities",
  "frame-support",
  "frame-system",
  "hydradx-runtime",
  "hydradx-traits",
+ "num-traits",
  "orml-tokens",
  "pallet-asset-registry",
  "pallet-omnipool",
