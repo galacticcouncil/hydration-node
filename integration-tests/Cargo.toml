@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.53.1"
+version = "1.57.1"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -9,10 +9,9 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
-xcm-runtime-apis = { workspace = true }
 codec = { workspace = true, features = ["derive", "max-encoded-len"] }
-scale-info = { workspace = true }
 hex-literal = { workspace = true }
+num-traits = { workspace = true }
 frame-remote-externalities = { workspace = true }
 tokio = { workspace = true }
 scraper = { workspace = true }
@@ -30,6 +29,7 @@ hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
 pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-currencies = { workspace = true }
+pallet-currencies-rpc-runtime-api = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
@@ -94,6 +94,7 @@ xcm-builder = { workspace = true }
 pallet-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 polkadot-xcm = { workspace = true }
+xcm-runtime-apis = { workspace = true }
 
 # Substrate dependencies
 frame-executive = { workspace = true }
@@ -188,6 +189,7 @@ std = [
     "pallet-utility/std",
     "pallet-im-online/std",
     "pallet-currencies/std",
+    "pallet-currencies-rpc-runtime-api/std",
     "sp-api/std",
     "sp-authority-discovery/std",
     "sp-block-builder/std",
