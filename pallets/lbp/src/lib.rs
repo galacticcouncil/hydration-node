@@ -735,7 +735,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			Self::execute_sell(&Self::validate_sell(&who, AssetPair { asset_in, asset_out }, amount, max_limit)?)?;
+			Self::execute_sell(&Self::validate_sell(
+				&who,
+				AssetPair { asset_in, asset_out },
+				amount,
+				max_limit,
+			)?)?;
 
 			Ok(())
 		}
@@ -766,7 +771,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			Self::execute_buy(&Self::validate_buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit)?, None)?;
+			Self::execute_buy(
+				&Self::validate_buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit)?,
+				None,
+			)?;
 
 			Ok(())
 		}
@@ -822,7 +830,7 @@ impl<T: Config> Pallet<T> {
 				weight_out,
 				amount,
 			)
-				.map_err(|_| Error::<T>::Overflow)?;
+			.map_err(|_| Error::<T>::Overflow)?;
 
 			ensure!(
 				amount_out
@@ -857,7 +865,7 @@ impl<T: Config> Pallet<T> {
 				weight_out,
 				amount,
 			)
-				.map_err(|_| Error::<T>::Overflow)?;
+			.map_err(|_| Error::<T>::Overflow)?;
 
 			let fee = Self::calculate_fees(&pool_data, calculated_out)?;
 			let amount_out_without_fee = calculated_out.checked_sub(fee).ok_or(Error::<T>::Overflow)?;
@@ -961,7 +969,7 @@ impl<T: Config> Pallet<T> {
 				weight_out,
 				amount_out_plus_fee,
 			)
-				.map_err(|_| Error::<T>::Overflow)?;
+			.map_err(|_| Error::<T>::Overflow)?;
 
 			ensure!(
 				calculated_in
@@ -999,7 +1007,7 @@ impl<T: Config> Pallet<T> {
 				weight_out,
 				amount,
 			)
-				.map_err(|_| Error::<T>::Overflow)?;
+			.map_err(|_| Error::<T>::Overflow)?;
 
 			let fee = Self::calculate_fees(&pool_data, calculated_in)?;
 			let calculated_in_without_fee = calculated_in.checked_sub(fee).ok_or(Error::<T>::Overflow)?;

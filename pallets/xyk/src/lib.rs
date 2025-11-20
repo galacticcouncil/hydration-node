@@ -492,7 +492,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			Self::execute_sell(&Self::validate_sell(&who, AssetPair { asset_in, asset_out }, amount, max_limit)?)?;
+			Self::execute_sell(&Self::validate_sell(
+				&who,
+				AssetPair { asset_in, asset_out },
+				amount,
+				max_limit,
+			)?)?;
 
 			Ok(())
 		}
@@ -516,7 +521,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			Self::execute_buy(&Self::validate_buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit)?, None)?;
+			Self::execute_buy(
+				&Self::validate_buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit)?,
+				None,
+			)?;
 
 			Ok(())
 		}
@@ -752,10 +760,7 @@ impl<T: Config> Pallet<T> {
 		max_limit: Balance,
 		dest: &T::AccountId,
 	) -> DispatchResult {
-		Self::execute_buy(
-			&Self::validate_buy(origin, assets, amount, max_limit)?,
-			Some(dest),
-		)?;
+		Self::execute_buy(&Self::validate_buy(origin, assets, amount, max_limit)?, Some(dest))?;
 		Ok(())
 	}
 
@@ -863,7 +868,7 @@ impl<T: Config> Pallet<T> {
 			Ratio::new(liquidity_in, liquidity_out),
 			Some(Self::total_liquidity(&pair_account)),
 		)
-			.map_err(|(_w, e)| e)?;
+		.map_err(|(_w, e)| e)?;
 
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::<T>::SellExecuted {
@@ -997,7 +1002,7 @@ impl<T: Config> Pallet<T> {
 			Ratio::new(liquidity_in, liquidity_out),
 			Some(Self::total_liquidity(&pair_account)),
 		)
-			.map_err(|(_w, e)| e)?;
+		.map_err(|(_w, e)| e)?;
 
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::<T>::BuyExecuted {

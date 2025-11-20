@@ -138,7 +138,7 @@ fn sell_with_discount_should_be_same_as_without_discount() {
 				share_token,
 				pool: pair_account,
 			}
-				.into(),
+			.into(),
 			Event::SellExecuted {
 				who: ALICE,
 				asset_in: asset_a,
@@ -149,7 +149,7 @@ fn sell_with_discount_should_be_same_as_without_discount() {
 				fee_amount: 2732432046,
 				pool: pair_account,
 			}
-				.into(),
+			.into(),
 			pallet_broadcast::Event::Swapped3 {
 				swapper: ALICE,
 				filler: pair_account,
@@ -160,7 +160,7 @@ fn sell_with_discount_should_be_same_as_without_discount() {
 				fees: vec![Fee::new(asset_b, 2732432046, Destination::Account(pair_account))],
 				operation_stack: vec![],
 			}
-				.into(),
+			.into(),
 		]);
 	});
 }
@@ -731,7 +731,7 @@ fn buy_with_discount_should_be_same_as_without_discount() {
 				share_token,
 				pool: pair_account,
 			}
-				.into(),
+			.into(),
 			Event::BuyExecuted {
 				who: user_1,
 				asset_out: asset_a,
@@ -742,7 +742,7 @@ fn buy_with_discount_should_be_same_as_without_discount() {
 				fee_amount: 44_137_926,
 				pool: pair_account,
 			}
-				.into(),
+			.into(),
 			pallet_broadcast::Event::Swapped3 {
 				swapper: user_1,
 				filler: pair_account,
@@ -753,7 +753,7 @@ fn buy_with_discount_should_be_same_as_without_discount() {
 				fees: vec![Fee::new(asset_b, 44_137_926, Destination::Account(pair_account))],
 				operation_stack: vec![],
 			}
-				.into(),
+			.into(),
 		]);
 	});
 }

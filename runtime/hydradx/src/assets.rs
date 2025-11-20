@@ -2069,13 +2069,7 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 		max_limit: Balance,
 		dest: &AccountId,
 	) -> DispatchResult {
-		XYK::buy_for(
-			origin,
-			AssetPair { asset_in, asset_out },
-			amount,
-			max_limit,
-			dest,
-		)
+		XYK::buy_for(origin, AssetPair { asset_in, asset_out }, amount, max_limit, dest)
 	}
 }
 
