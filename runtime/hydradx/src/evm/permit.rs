@@ -126,12 +126,9 @@ where
 				})
 			}
 		};
+
 		let account_source_nonce = frame_system::Account::<R>::get(&account_id).nonce;
-		debug_assert_eq!(
-			account_source_nonce,
-			source_nonce + <R as frame_system::Config>::Nonce::one()
-		);
-		frame_system::Account::<R>::mutate(account_id, |a| a.nonce -= <R as frame_system::Config>::Nonce::one());
+		debug_assert_eq!(account_source_nonce, source_nonce);
 
 		let permit_nonce = NoncesStorage::get(source);
 		NoncesStorage::insert(source, permit_nonce + U256::one());
