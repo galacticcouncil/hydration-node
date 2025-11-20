@@ -353,12 +353,6 @@ impl pallet_currencies::Config for Test {
 }
 
 parameter_types! {
-	pub const MinTradingLimit: Balance = 1_000;
-	pub const MinPoolLiquidity: Balance = 1_000;
-	pub const DiscountedFee: (u32, u32) = (7, 10_000);
-}
-
-parameter_types! {
 	#[derive(PartialEq, Debug)]
 	pub RegistryStringLimit: u32 = 100;
 	#[derive(PartialEq, Debug)]

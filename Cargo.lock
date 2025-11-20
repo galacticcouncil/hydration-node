@@ -5479,7 +5479,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.9.2"
+version = "1.9.3"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -5535,7 +5535,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "362.0.0"
+version = "363.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -5698,7 +5698,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.2.0"
+version = "4.3.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -9888,7 +9888,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.10.4"
+version = "4.11.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9914,7 +9914,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -10363,7 +10363,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11351,7 +11351,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "7.0.0"
+version = "7.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11378,7 +11378,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk-liquidity-mining"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "frame-support",
  "frame-system",
