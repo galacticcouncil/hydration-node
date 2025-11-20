@@ -131,6 +131,7 @@ pallet-dynamic-fees = { path = "pallets/dynamic-fees", default-features = false 
 pallet-dynamic-evm-fee = { path = "pallets/dynamic-evm-fee", default-features = false }
 pallet-ema-oracle = { path = "pallets/ema-oracle", default-features = false }
 pallet-genesis-history = { path = "pallets/genesis-history", default-features = false }
+pallet-ismp-oracle-test = { path = "pallets/ismp-oracle-test", default-features = false }
 pallet-liquidity-mining = { path = "pallets/liquidity-mining", default-features = false }
 pallet-nft = { path = "pallets/nft", default-features = false }
 pallet-omnipool = { path = "pallets/omnipool", default-features = false }
