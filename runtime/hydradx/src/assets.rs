@@ -1833,21 +1833,16 @@ impl pallet_signet::Config for Runtime {
 	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
 	type MaxDataLength = MaxEvmDataLength;
+	type UpdateOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {
-
 	pub const SigEthPalletId: PalletId = PalletId(*b"py/fucet");
-
 	pub const SigEthFaucetDispenserFee: u128 = 5_000;
-
 	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000_000_000_000;
-
 	pub const SigEthFaucetMinRequest: u64 = 0;
-
-	pub const SigEthFaucetFeeAssetId: AssetId = 1;
-	pub const SigEthFaucetFaucetAssetId: AssetId = 2;
-
+	pub const SigEthFaucetFeeAssetId: AssetId = 0;
+	pub const SigEthFaucetFaucetAssetId: AssetId = 20;
 	pub const SigEthMinFaucetThreshold: u128 = 50_000_000_000_000_000u128;
 }
 
@@ -1880,7 +1875,6 @@ impl pallet_dispenser::Config for Runtime {
 	type TreasuryAddress = SigEthFaucetTreasuryAccount;
 	type FaucetAddress = SigEthFaucetContractAddr;
 	type VaultPalletId = SigEthPalletId;
-	type UpdateOrigin = EnsureRoot<AccountId>;
 	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
 }

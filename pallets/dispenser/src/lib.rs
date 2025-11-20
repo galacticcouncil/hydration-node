@@ -61,7 +61,6 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + pallet_signet::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
-		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		#[pallet::constant]
 		type MinimumRequestAmount: Get<u128>;
@@ -151,6 +150,7 @@ pub mod pallet {
 		InvalidAddress,
 		FaucetBalanceBelowThreshold,
 		NotEnoughFunds,
+		NotEnoughFaucetFunds,
 	}
 
 	#[pallet::call]
@@ -158,7 +158,7 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::initialize())]
 		pub fn initialize(origin: OriginFor<T>, balance_wei: u128) -> DispatchResult {
-			let _ = ensure_signed(origin)?;
+			T::UpdateOrigin::ensure_origin(origin)?;
 			ensure!(DispenserConfig::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
 
 			DispenserConfig::<T>::put(DispenserConfigData {
@@ -237,7 +237,7 @@ pub mod pallet {
 			let fee_bal = <T as Config>::Currency::balance(T::FeeAsset::get(), &requester);
 			let faucet_bal = <T as Config>::Currency::balance(T::FaucetAsset::get(), &requester);
 			ensure!(fee_bal >= fee, Error::<T>::NotEnoughFunds);
-			ensure!(faucet_bal >= amount_wei, Error::<T>::NotEnoughFunds);
+			ensure!(faucet_bal >= amount_wei, Error::<T>::NotEnoughFaucetFunds);
 
 			<T as Config>::Currency::transfer(
 				T::FeeAsset::get(),
@@ -275,6 +275,8 @@ pub mod pallet {
 			)?;
 
 			UsedRequestIds::<T>::insert(request_id, ());
+
+			CurrentFaucetBalanceWei::<T>::mutate(|b| *b = b.saturating_sub(amount_wei));
 
 			Self::deposit_event(Event::FundRequested {
 				request_id: req_id,

@@ -6,6 +6,8 @@ import { encodeAddress } from '@polkadot/keyring'
 import { ethers } from 'ethers'
 import { SignetClient } from './signet-client'
 import { KeyDerivation } from './key-derivation'
+import { blake2AsHex } from '@polkadot/util-crypto'
+import { SubmittableExtrinsic } from '@polkadot/api/types'
 
 const isSepolia = true
 
@@ -52,7 +54,7 @@ function getPalletAccountId(): Uint8Array {
   return data
 }
 
-async function submitWithRetry(
+export async function submitWithRetry(
   tx: any,
   signer: any,
   api: ApiPromise,
@@ -89,6 +91,8 @@ async function submitWithRetry(
                 `✅ ${label} included in block ${status.asInBlock.toHex()}`
               )
 
+              console.log('------111', label)
+
               if (dispatchError) {
                 if (dispatchError.isModule) {
                   const decoded = api.registry.findMetaError(
@@ -106,6 +110,7 @@ async function submitWithRetry(
                 }
                 return
               }
+              console.log('------112')
 
               resolve({ events: Array.from(events) })
             } else if (status.isInvalid) {
@@ -285,9 +290,9 @@ async function logAliceTokenBalances(
 
   console.log(
     'Alice balances:',
-    'faucetAsset =',
+    'faucetBalance =',
     faucetBal.toString(),
-    'feeAsset =',
+    'feeBalance =',
     feeBal.toString()
   )
 }
@@ -387,11 +392,18 @@ async function initializeVaultIfNeeded(api: ApiPromise, alice: any) {
   }
 
   const mpcEthAddress = ethAddressFromPubKey(ROOT_PUBLIC_KEY)
-  console.log('Initializing vault with MPC address:', mpcEthAddress)
+  console.log('Initializing vault with MPC address (via Root):', mpcEthAddress)
 
   const initCall = api.tx.ethDispenser.initialize(PALLET_FAUCET_FUND)
 
-  await submitWithRetry(initCall, alice, api, 'Initialize vault')
+  await executeAsRootViaScheduler(
+    api,
+    initCall,
+    'Initialize ethDispenser via Root'
+  )
+
+  const cfg = await api.query.ethDispenser.dispenserConfig()
+  console.log('Dispenser config after Root init:', cfg.toHuman())
 }
 
 describe('ERC20 Vault Integration', () => {
@@ -414,7 +426,7 @@ describe('ERC20 Vault Integration', () => {
 
     console.log(
       `feeAsset = ${feeAsset}
-      feeAsset = ${faucetAsset}
+      faucetAsset = ${faucetAsset}
       faucetAddress = ${api.consts.ethDispenser.faucetAddress.toString()}`
     )
 
@@ -430,14 +442,22 @@ describe('ERC20 Vault Integration', () => {
     signetClient = new SignetClient(api, alice)
     sepoliaProvider = new ethers.JsonRpcProvider(RPC_URL)
 
-    await signetClient.ensureInitialized(CHAIN_ID)
+    await signetClient.ensureSignetInitializedViaReferendum(
+      api,
+      alice,
+      CHAIN_ID
+    )
+
+    console.log('----1 ')
 
     const derived = deriveSubstrateAndEthAddresses(keyring, alice, palletSS58)
     derivedEthAddress = derived.derivedEthAddress
     derivedPubKey = derived.derivedPubKey
     aliceHexPath = derived.aliceHexPath
 
+    console.log('----2 ')
     await ensureDerivedEthHasGas(sepoliaProvider, derivedEthAddress)
+    console.log('----3 ')
   }, 120_000)
 
   afterAll(async () => {
@@ -524,7 +544,7 @@ describe('ERC20 Vault Integration', () => {
       depositTx,
       alice,
       api,
-      'Deposit ERC20'
+      'Request Fund'
     )
 
     const signetEvents = depositResult.events.filter(
@@ -622,3 +642,171 @@ describe('ERC20 Vault Integration', () => {
     )
   }, 180_000)
 })
+
+export async function executeAsRootViaReferendum(
+  api: ApiPromise,
+  signer: any, // e.g. alice
+  call: any, // api.tx.<pallet>.<fn>(...)
+  label: string,
+  maxRetries = 1,
+  timeoutMs = 60_000
+): Promise<number> {
+  console.log(`\n=== ${label}: starting Root execution via Referenda ===`)
+
+  // 1) Encode call & hash it for preimage + Lookup
+  const encodedCall = call.method.toHex()
+  const encodedHash = blake2AsHex(encodedCall)
+
+  console.log(`${label}: encodedCall = ${encodedCall}`)
+  console.log(`${label}: encodedHash = ${encodedHash}`)
+
+  // 2) Note preimage
+  console.log(`${label}: noting preimage...`)
+  const notePreimageTx = api.tx.preimage.notePreimage(encodedCall)
+  await submitWithRetry(
+    notePreimageTx,
+    signer,
+    api,
+    `${label} - notePreimage`,
+    maxRetries,
+    timeoutMs
+  )
+
+  // 3) Submit referendum with ROOT origin
+  console.log(`${label}: submitting referendum with Root origin...`)
+  const proposalOrigin = { system: 'Root' }
+  const proposalCall = {
+    Lookup: {
+      hash: encodedHash,
+      // same length formula as in the Hydration runtime-upgrade tests
+      len: encodedCall.length / 2 - 1,
+    },
+  }
+  const enactmentMoment = { After: 1 }
+
+  const submitTx = api.tx.referenda.submit(
+    proposalOrigin,
+    proposalCall,
+    enactmentMoment
+  )
+
+  await submitWithRetry(
+    submitTx,
+    signer,
+    api,
+    `${label} - submitReferendum`,
+    maxRetries,
+    timeoutMs
+  )
+
+  const referendumIndex =
+    parseInt((await api.query.referenda.referendumCount()).toString()) - 1
+  console.log(`${label}: referendumIndex = ${referendumIndex}`)
+
+  const faucetAsset = (api.consts.ethDispenser.faucetAsset as any).toNumber()
+
+  let { data } = (await api.query.system.account(signer.address)) as any
+  console.log('signer free balance =', data.free.toBigInt().toString())
+  const acc = (await api.query.tokens.accounts(
+    signer.address,
+    faucetAsset
+  )) as any
+  console.log(
+    'faucet asset id =',
+    faucetAsset,
+    'faucet asset free =',
+    acc.free.toString()
+  )
+
+  const tracks: any = api.consts.referenda.tracks
+  console.log('Tracks:', tracks.toHuman())
+
+  // 5) Place decision deposit
+  console.log(`${label}: placing decision deposit...`)
+  const decisionDepositTx =
+    api.tx.referenda.placeDecisionDeposit(referendumIndex)
+  await submitWithRetry(
+    decisionDepositTx,
+    signer,
+    api,
+    `${label} - decisionDeposit`,
+    maxRetries,
+    timeoutMs
+  )
+
+  // 6) Vote AYE with a big balance so it passes quickly
+  console.log(`${label}: voting AYE on referendum...`)
+  data = ((await api.query.system.account(signer.address)) as any).data
+  const free = data.free.toBigInt()
+
+  const voteAmount = (free * 5n) / 10n
+
+  console.log(
+    `${label}: free balance = ${free.toString()}, voteAmount = ${voteAmount.toString()}`
+  )
+
+  const voteTx = api.tx.convictionVoting.vote(referendumIndex, {
+    Standard: {
+      balance: voteAmount,
+      vote: { aye: true, conviction: 'Locked1x' },
+    },
+  })
+
+  await submitWithRetry(
+    voteTx,
+    signer,
+    api,
+    `${label} - vote`,
+    maxRetries,
+    timeoutMs
+  )
+
+  console.log(`${label}: waiting for referendum to progress...`)
+
+  await (api.rpc as any)('dev_newBlock', { count: 10 })
+  const info = await api.query.referenda.referendumInfoFor(referendumIndex)
+  console.log('Referendum info:', info.toHuman())
+
+  console.log(
+    `=== ${label}: Root call scheduled via referenda (index ${referendumIndex}) ===\n`
+  )
+
+  // You can return the index to inspect later if needed
+  return referendumIndex
+}
+
+export async function executeAsRootViaScheduler(
+  api: ApiPromise,
+  call: SubmittableExtrinsic<'promise'>,
+  label: string
+) {
+  const header = await api.rpc.chain.getHeader()
+  const number = header.number.toNumber()
+  const callHex = call.method.toHex()
+
+  console.log(`${label}: scheduling as Root in block ${number + 1}`)
+
+  await (api.rpc as any)('dev_setStorage', {
+    scheduler: {
+      agenda: [
+        [
+          [number + 1],
+          [
+            {
+              call: { Inline: callHex },
+              origin: { system: 'Root' },
+            },
+          ],
+        ],
+      ],
+    },
+  })
+
+  await (api.rpc as any)('dev_newBlock', { count: 1 })
+
+  console.log(`${label}: executed in new block`)
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}

@@ -5,23 +5,30 @@ import { u8aToHex } from '@polkadot/util'
 import { ISubmittableResult } from '@polkadot/types/types'
 import { ethers } from 'ethers'
 import { keccak256, recoverAddress } from 'viem'
+import {
+  executeAsRootViaReferendum,
+  executeAsRootViaScheduler,
+} from './erc20vault.test'
 
 export class SignetClient {
   constructor(private api: ApiPromise, private signer: any) {}
 
-  async ensureInitialized(chainId: string): Promise<void> {
-    const admin = await this.api.query.signet.admin()
-
-    if (admin.isEmpty) {
-      const chainIdBytes = Array.from(new TextEncoder().encode(chainId))
-      const tx = this.api.tx.signet.initialize(
-        this.signer.address,
-        1000000000000,
-        chainIdBytes
-      )
-      await tx.signAndSend(this.signer)
-      await new Promise((resolve) => setTimeout(resolve, 5000))
-    }
+  async ensureSignetInitializedViaReferendum(
+    api: ApiPromise,
+    signer: any,
+    chainId: string
+  ) {
+    const chainIdBytes = Array.from(new TextEncoder().encode(chainId))
+    const signetInitCall = api.tx.signet.initialize(
+      signer.address,
+      1_000_000_000_000n,
+      chainIdBytes
+    )
+    await executeAsRootViaScheduler(
+      api,
+      signetInitCall,
+      'Initialize signet via Root'
+    )
   }
 
   async requestSignature(payload: Uint8Array, params: any): Promise<void> {

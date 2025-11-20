@@ -296,3 +296,42 @@ fn request_allowed_at_or_above_threshold() {
 		));
 	});
 }
+
+#[test]
+fn request_reduces_faucet_balance() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
+
+		let amount: u128 = 1_000u128;
+		let min_threshold = <Test as crate::Config>::MinFaucetEthThreshold::get();
+		let initial_balance = min_threshold + amount + 1_000u128;
+
+		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), initial_balance));
+		assert_eq!(Dispenser::current_faucet_balance_wei(), initial_balance);
+
+		let requester = acct(1);
+		let receiver = create_test_receiver_address();
+		let tx = create_test_tx_params();
+		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
+
+		let hdx_before = Currencies::free_balance(1, &requester);
+		let weth_before = Currencies::free_balance(2, &requester);
+
+		assert_ok!(Dispenser::request_fund(
+			RuntimeOrigin::signed(requester.clone()),
+			receiver,
+			amount,
+			req_id,
+			tx
+		));
+
+		let expected_balance = initial_balance.saturating_sub(amount);
+		assert_eq!(Dispenser::current_faucet_balance_wei(), expected_balance);
+
+		assert_eq!(
+			Currencies::free_balance(1, &requester),
+			hdx_before - <Test as crate::Config>::DispenserFee::get()
+		);
+		assert_eq!(Currencies::free_balance(2, &requester), weth_before - amount);
+	});
+}

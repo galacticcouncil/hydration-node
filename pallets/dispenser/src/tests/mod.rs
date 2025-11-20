@@ -155,6 +155,7 @@ impl pallet_signet::Config for Test {
 	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = ();
 	type MaxDataLength = MaxDataLength;
+	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
 }
 
 parameter_types! {
@@ -195,7 +196,6 @@ impl pallet_dispenser::Config for Test {
 	type FaucetAsset = SigEthFaucetFaucetAssetId;
 	type TreasuryAddress = TreasuryAccount;
 	type FaucetAddress = SigEthFaucetMpcRoot;
-	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
 	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
@@ -217,7 +217,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		let _ = Currencies::deposit(2, charlie, 1_000_000_000_000_000_000_000);
 		let requester = acct(1);
 		let _ = pallet_signet::Pallet::<Test>::initialize(
-			RuntimeOrigin::signed(requester.clone()),
+			RuntimeOrigin::root(),
 			requester,
 			100,
 			bounded_chain_id(b"test-chain".to_vec()),

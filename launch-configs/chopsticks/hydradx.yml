@@ -10,23 +10,23 @@ import-storage:
       - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
         - providers: 1
           data:
-            free: 1000000000000000
+            free: '9000000000000000000'
   Tokens:
     Accounts:
       - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
           - 18 # DAI
-        - free: '100000000000000000000'
+        - free: '900000000000000000000'
       - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
           - 10 # USDT
-        - free: '1000000000000'
+        - free: '900000000000000000000'
       - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
           - 22 # USDC
-        - free: '1000000000000'
+        - free: '900000000000000000000'
       - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
-          - 5  # DOT
-        - free: '100000000000000000000'
+          - 5 # DOT
+        - free: '900000000000000000000'
       - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
           - 20 # WETH
-        - free: '100000000000000000000'
+        - free: '900000000000000000000'
   TechnicalCommittee:
-    Members: [ 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY ]
+    Members: [5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY]
