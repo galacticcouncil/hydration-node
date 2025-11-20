@@ -25,7 +25,6 @@ fn sell_should_work_when_correct_input_provided() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -100,7 +99,6 @@ fn buy_should_work_when_correct_input_provided() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -176,7 +174,6 @@ fn sell_with_fee_should_work_when_correct_input_provided() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(10),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -225,7 +222,6 @@ fn sell_should_work_when_fee_is_small() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_rational(3u32, 1000u32),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -274,7 +270,6 @@ fn buy_should_work_when_fee_is_set() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(10),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -328,7 +323,6 @@ fn sell_should_fail_when_insufficient_amount_is_provided() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -415,7 +409,6 @@ fn buy_should_fail_when_insufficient_amount_is_provided() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -518,7 +511,6 @@ fn sell_should_work_when_pool_have_asset_with_various_decimals() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -578,7 +570,6 @@ fn buy_should_work_when_pool_have_asset_with_various_decimals() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -637,7 +628,6 @@ fn sell_should_work_when_assets_have_different_decimals() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -694,7 +684,6 @@ fn buy_should_work_when_assets_have_different_decimals() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -745,7 +734,6 @@ fn sell_should_fail_when_trading_same_assets() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -789,7 +777,6 @@ fn buy_should_fail_when_trading_same_assets() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,

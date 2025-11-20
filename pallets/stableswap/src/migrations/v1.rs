@@ -1,11 +1,12 @@
 use crate::*;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::migrations::VersionedMigration;
-use frame_support::traits::ConstU32;
 use frame_support::traits::UncheckedOnRuntimeUpgrade;
 use frame_support::Blake2_128Concat;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
+use sp_runtime::Perbill;
+use types::BoundedPegSources;
 
 const LOG_TARGET: &str = "runtime::stableswap";
 
@@ -14,21 +15,18 @@ mod v0 {
 	use frame_support::storage_alias;
 
 	#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct PoolInfo<AssetId, BlockNumber> {
-		pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
-		pub initial_amplification: NonZeroU16,
-		pub final_amplification: NonZeroU16,
-		pub initial_block: BlockNumber,
-		pub final_block: BlockNumber,
-		pub fee: Permill,
+	pub struct PoolPegInfo<AssetId = ()> {
+		pub source: BoundedPegSources<AssetId>,
+		pub max_peg_update: Perbill,
+		pub current: BoundedPegs,
 	}
 
 	#[storage_alias()]
-	pub type Pools<T: crate::Config> = StorageMap<
+	pub type PoolPegs<T: crate::Config> = StorageMap<
 		Pallet<T>,
 		Blake2_128Concat,
 		<T as crate::Config>::AssetId,
-		PoolInfo<<T as crate::Config>::AssetId, BlockNumberFor<T>>,
+		PoolPegInfo<<T as crate::Config>::AssetId>,
 	>;
 }
 
@@ -44,72 +42,72 @@ impl<T: crate::Config> UncheckedOnRuntimeUpgrade for unversioned::InnerMigrateV0
 		let mut reads: u64 = 0;
 		let mut writes: u64 = 0;
 
-		let mut migrated_pools: Vec<(T::AssetId, PoolInfo<T::AssetId, BlockNumberFor<T>>)> = Vec::with_capacity(12);
+		let mut migrated_pegs_info: Vec<(T::AssetId, types::PoolPegInfo<BlockNumberFor<T>, T::AssetId>)> =
+			Vec::with_capacity(4);
 		let current_block = T::BlockNumberProvider::current_block_number();
 
-		for (k, pool_v0) in v0::Pools::<T>::iter() {
+		for (k, peg_info_v0) in v0::PoolPegs::<T>::iter() {
+			log::info!(target: LOG_TARGET, "updating pegs for pool_id: {:?}", k);
+			//NOTE: 1 read for v0::PoolPegs
 			reads += 1;
 
-			let mut pool_v1 = PoolInfo {
-				assets: pool_v0.assets,
-				initial_amplification: pool_v0.initial_amplification,
-				final_amplification: pool_v0.final_amplification,
-				initial_block: pool_v0.initial_block,
-				final_block: pool_v0.final_block,
-				fee: pool_v0.fee,
-				pegs_info: None,
+			reads += 1;
+			let pool = if let Some(p) = Pools::<T>::get(k) {
+				p
+			} else {
+				log::error!(target: LOG_TARGET, "load pool from storage, pool_id: {:?}", k);
+				continue;
 			};
 
-			if let Some(peg_info) = PoolPegs::<T>::get(k) {
-				log::info!(target: LOG_TARGET, "updating pegs for pool_id: {:?}", k);
-				reads += pool_v1.assets.len() as u64;
-				let target_pegs = match Pallet::<T>::get_target_pegs(&pool_v1.assets, &peg_info.source) {
-					Ok(p) => p,
-					Err(e) => {
-						log::error!(target: LOG_TARGET, "to get target pegs, pool_id: {:?}, err: {:?}", k, e);
-						continue;
-					}
-				};
-
-				let current_pegs_updated_at = target_pegs
-					.iter()
-					.map(|e| e.1)
-					.min()
-					.unwrap_or(current_block.saturated_into());
-
-				let (trade_fee, new_pegs) = if let Some(p) = hydra_dx_math::stableswap::recalculate_pegs(
-					&peg_info.current,
-					current_pegs_updated_at,
-					&target_pegs,
-					current_block.saturated_into::<u128>(),
-					peg_info.max_peg_update,
-					pool_v1.fee,
-				) {
-					p
-				} else {
-					log::error!(target: LOG_TARGET, "to recalculate pegs, pool_id: {:?}", k);
+			reads += pool.assets.len() as u64;
+			let target_pegs = match Pallet::<T>::get_target_pegs(&pool.assets, &peg_info_v0.source) {
+				Ok(p) => p,
+				Err(e) => {
+					log::error!(target: LOG_TARGET, "to get target pegs, pool_id: {:?}, err: {:?}", k, e);
 					continue;
-				};
+				}
+			};
 
-				writes += 1;
-				let new_info = peg_info.with_new_pegs(&new_pegs);
-				PoolPegs::<T>::insert(k, new_info);
+			let current_pegs_updated_at = target_pegs
+				.iter()
+				.map(|e| e.1)
+				.min()
+				.unwrap_or(current_block.saturated_into());
 
-				pool_v1.pegs_info = Some(PegUpateInfo {
+			let (trade_fee, new_pegs) = if let Some(p) = hydra_dx_math::stableswap::recalculate_pegs(
+				&peg_info_v0.current,
+				current_pegs_updated_at,
+				&target_pegs,
+				current_block.saturated_into::<u128>(),
+				peg_info_v0.max_peg_update,
+				pool.fee,
+			) {
+				p
+			} else {
+				log::error!(target: LOG_TARGET, "to recalculate pegs, pool_id: {:?}", k);
+				continue;
+			};
+
+			writes += 1;
+			BlockFee::<T>::insert(k, trade_fee);
+
+			migrated_pegs_info.push((
+				k,
+				PoolPegInfo {
+					source: peg_info_v0.source,
+					max_peg_update: peg_info_v0.max_peg_update,
 					updated_at: current_block,
-					updated_fee: trade_fee,
-				});
-			}
-
-			migrated_pools.push((k, pool_v1));
+					current: BoundedPegs::truncate_from(new_pegs),
+				},
+			));
 		}
 
-		writes += migrated_pools.len() as u64;
-		for (k, v) in &migrated_pools {
-			Pools::<T>::insert(k, v);
+		writes += migrated_pegs_info.len() as u64;
+		for (k, v) in &migrated_pegs_info {
+			PoolPegs::<T>::insert(k, v);
 		}
 
-		log::info!(target: LOG_TARGET, "migration finished, migrated: {:?} pools", migrated_pools.len());
+		log::info!(target: LOG_TARGET, "migration finished, migrated: {:?} pools", migrated_pegs_info.len());
 		T::DbWeight::get().reads_writes(reads, writes)
 	}
 
@@ -126,8 +124,8 @@ impl<T: crate::Config> UncheckedOnRuntimeUpgrade for unversioned::InnerMigrateV0
 
 	#[cfg(feature = "try-runtime")]
 	fn post_upgrade(_: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
-		for k in Pools::<T>::iter_keys() {
-			let _ = Pools::<T>::get(k).expect("Pool must be valid");
+		for k in PoolPegs::<T>::iter_keys() {
+			let _ = PoolPegs::<T>::get(k).expect("PoolPegInfo must be valid");
 		}
 		Ok(())
 	}

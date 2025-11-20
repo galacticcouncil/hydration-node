@@ -84,7 +84,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	vec![
@@ -159,7 +158,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	vec![
@@ -235,7 +233,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	vec![
@@ -310,7 +307,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: Permill::from_percent(0),
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
@@ -397,7 +393,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: Permill::from_percent(0),
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 					assets:	vec![
@@ -489,7 +484,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: Permill::from_percent(0),
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
@@ -603,7 +597,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: Permill::from_percent(0),
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
@@ -714,7 +707,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: Permill::from_percent(0),
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
@@ -855,7 +847,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	initial_liquidity,}
@@ -960,7 +951,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	initial_liquidity,}
@@ -1065,7 +1055,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	initial_liquidity,}
@@ -1173,7 +1162,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	initial_liquidity,}
@@ -1286,7 +1274,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	initial_liquidity,}
@@ -1402,7 +1389,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 					assets:	initial_liquidity.clone(),
@@ -1454,7 +1440,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 					assets:	initial_liquidity,
@@ -1535,7 +1520,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 					assets:	initial_liquidity.clone(),
@@ -1587,7 +1571,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 					assets:	initial_liquidity,
@@ -1674,7 +1657,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity { account: ALICE,
 					assets: vec![
@@ -1755,7 +1737,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	vec![
@@ -1837,7 +1818,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: trade_fee,
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	vec![
@@ -1917,7 +1897,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: Permill::from_percent(0),
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
@@ -2009,7 +1988,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: Permill::from_percent(0),
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE,
 					assets:	vec![
@@ -2106,7 +2084,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: Permill::from_percent(0),
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
@@ -2224,7 +2201,6 @@ proptest! {
 					initial_block: 0,
 					final_block: 0,
 					fee: Permill::from_percent(0),
-					pegs_info: None,
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![

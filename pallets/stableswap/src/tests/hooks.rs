@@ -32,7 +32,6 @@ fn add_liquidity_should_provide_correct_values_in_the_hook() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -104,7 +103,6 @@ fn add_liquidity_shares_should_provide_correct_values_in_the_hook() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -178,7 +176,6 @@ fn removing_liquidity_should_provide_correct_values_in_the_hook() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -261,7 +258,6 @@ fn withdraw_asset_amount_should_provide_correct_values_in_the_hook() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -344,7 +340,6 @@ fn sell_should_provide_correct_values_in_the_hook() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -421,7 +416,6 @@ fn buy_should_provide_correct_values_in_the_hook() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,

@@ -23,15 +23,6 @@ use sp_runtime::DispatchResult;
 
 pub(crate) type Balance = u128;
 
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct PegUpateInfo<BlockNumber> {
-	//	block number when pegs were updated
-	pub updated_at: BlockNumber,
-	// updated fee calucalted at `self.updated_at`
-	pub updated_fee: Permill,
-}
-
 /// Pool properties for 2-asset pool (v1)
 /// `assets`: pool assets
 /// `amplification`: amp parameter
@@ -45,7 +36,6 @@ pub struct PoolInfo<AssetId, BlockNumber> {
 	pub initial_block: BlockNumber,
 	pub final_block: BlockNumber,
 	pub fee: Permill,
-	pub pegs_info: Option<PegUpateInfo<BlockNumber>>,
 }
 
 fn has_unique_elements<T>(iter: &mut T) -> bool
@@ -174,17 +164,19 @@ pub enum PegSource<AssetId = ()> {
 pub type BoundedPegSources<AssetId> = BoundedVec<PegSource<AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>;
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct PoolPegInfo<AssetId = ()> {
+pub struct PoolPegInfo<BlockNumber, AssetId = ()> {
 	pub source: BoundedPegSources<AssetId>,
+	pub updated_at: BlockNumber,
 	pub max_peg_update: Perbill,
 	pub current: BoundedPegs,
 }
 
-impl<AssetId> PoolPegInfo<AssetId> {
-	pub fn with_new_pegs(self, pegs: &[PegType]) -> Self {
+impl<BlockNumber, AssetId> PoolPegInfo<BlockNumber, AssetId> {
+	pub fn with_new_pegs(self, pegs: &[PegType], at: BlockNumber) -> Self {
 		debug_assert_eq!(self.current.len(), pegs.len(), "Invalid pegs length");
 		PoolPegInfo {
 			source: self.source,
+			updated_at: at,
 			max_peg_update: self.max_peg_update,
 			current: BoundedPegs::truncate_from(pegs.to_vec()),
 		}
@@ -192,17 +184,17 @@ impl<AssetId> PoolPegInfo<AssetId> {
 }
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct PoolSnapshot<AssetId, BlockNumber> {
+pub struct PoolSnapshot<AssetId> {
 	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
 	pub reserves: BoundedVec<AssetReserve, ConstU32<MAX_ASSETS_IN_POOL>>,
 	pub amplification: u128,
 	pub fee: Permill,
+	pub block_fee: Permill,
 	pub pegs: BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>,
-	pub pegs_info: Option<PegUpateInfo<BlockNumber>>,
 	pub share_issuance: Balance,
 }
 
-impl<AssetId: sp_std::cmp::PartialEq + Copy, BlockNumber> PoolSnapshot<AssetId, BlockNumber> {
+impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
 	pub fn asset_idx(&self, asset_id: AssetId) -> Option<usize> {
 		self.assets.iter().position(|&asset| asset == asset_id)
 	}

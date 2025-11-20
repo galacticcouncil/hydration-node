@@ -42,7 +42,6 @@ fn update_pool_should_work_when_all_parames_are_updated() {
 					initial_block: 1,
 					final_block: 1,
 					fee: Permill::from_percent(10),
-					pegs_info: None,
 				}
 			);
 		});
@@ -84,7 +83,6 @@ fn update_pool_should_work_when_only_fee_is_updated() {
 					initial_block: 1,
 					final_block: 1,
 					fee: Permill::from_percent(20),
-					pegs_info: None,
 				}
 			);
 		});

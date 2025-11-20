@@ -33,7 +33,6 @@ fn test_spot_price_in_sell() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::zero(),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -101,7 +100,6 @@ fn test_spot_price_in_buy() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::zero(),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -165,7 +163,6 @@ fn test_share_price_in_add_remove_liquidity() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::zero(),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -240,7 +237,6 @@ fn test_share_price_in_add_shares_remove_liquidity() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::zero(),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -316,7 +312,6 @@ fn test_share_price_case() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::zero(),
-				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,

@@ -9725,7 +9725,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-hsm"
-version = "1.4.1"
+version = "1.4.0"
 dependencies = [
  "ethabi",
  "evm",
