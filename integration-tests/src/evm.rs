@@ -1,6 +1,8 @@
 #![cfg(test)]
 
 use crate::{assert_balance, polkadot_test_net::*};
+use codec::Decode;
+
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::storage::with_transaction;
@@ -1958,7 +1960,7 @@ mod chainlink_precompile {
 				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
 			let precompile_price = U256::from(output.as_slice());
 
-			let (.., output) = Executor::<Runtime>::view(
+			let call_result = Executor::<Runtime>::view(
 				CallContext {
 					contract: reference_oracle,
 					sender: Default::default(),
@@ -1967,7 +1969,7 @@ mod chainlink_precompile {
 				input,
 				100_000,
 			);
-			let dia_price = U256::from(output.as_slice());
+			let dia_price = U256::from(call_result.value.as_slice());
 
 			// Prices doesn't need to be exactly same, but comparable within 5%
 			let tolerance = dia_price
@@ -2863,4 +2865,137 @@ fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amou
 		asset_b,
 		amount_b,
 	));
+}
+
+mod evm_error_decoder {
+	use super::*;
+	use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoder;
+	use hydradx_traits::evm::CallResult;
+	use pallet_evm::{ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed};
+	use proptest::prelude::*;
+	use proptest::test_runner::{Config, TestRunner};
+	use sp_core::Get;
+	use sp_runtime::traits::Convert;
+	use sp_runtime::{DispatchError, DispatchResult};
+
+	fn arbitrary_value() -> impl Strategy<Value = Vec<u8>> {
+		prop::collection::vec(any::<u8>(), 0..256)
+	}
+
+	fn random_error_string() -> impl Strategy<Value = Vec<u8>> {
+		// Fixed 4-byte prefix for Error(string) solidity error
+		let prefix: [u8; 4] = [0x08, 0xC3, 0x79, 0xA0];
+
+		// Generate the remaining random bytes (0–252)
+		prop::collection::vec(any::<u8>(), 0..252).prop_map(move |mut rest| {
+			let mut bytes = Vec::with_capacity(4 + rest.len());
+			bytes.extend_from_slice(&prefix);
+			bytes.append(&mut rest);
+			bytes
+		})
+	}
+
+	fn arbitrary_contract() -> impl Strategy<Value = sp_core::H160> {
+		prop::array::uniform20(any::<u8>()).prop_map(H160::from)
+	}
+
+	fn arbitrary_exit_reason() -> impl Strategy<Value = ExitReason> {
+		prop_oneof![
+			Just(ExitReason::Succeed(ExitSucceed::Stopped)),
+			Just(ExitReason::Succeed(ExitSucceed::Returned)),
+			Just(ExitReason::Succeed(ExitSucceed::Suicided)),
+			Just(ExitReason::Error(ExitError::StackUnderflow)),
+			Just(ExitReason::Error(ExitError::StackOverflow)),
+			Just(ExitReason::Error(ExitError::InvalidJump)),
+			Just(ExitReason::Revert(ExitRevert::Reverted)),
+			Just(ExitReason::Fatal(ExitFatal::NotSupported)),
+		]
+	}
+
+	/// Property-based test to ensure EvmErrorDecoder never panics
+	/// with arbitrary input values, exit reasons, and contract addresses
+	proptest! {
+		#![proptest_config(ProptestConfig::with_cases(10000))]
+		#[test]
+		fn evm_error_decoder_never_panics(
+			value in arbitrary_value(),
+			exit_reason in arbitrary_exit_reason(),
+			contract in arbitrary_contract(),
+		) {
+			let call_result = CallResult {
+					exit_reason,
+					value,
+					contract,
+				};
+
+			let _result = EvmErrorDecoder::convert(call_result);
+		}
+	}
+
+	//We set up prop test like this to share state, so we don't need to load snapshot in every run
+	#[test]
+	fn evm_error_decoder_never_panics_for_borrowing_contract() {
+		let successfull_cases = 10000;
+
+		hydra_live_ext(crate::liquidation::PATH_TO_SNAPSHOT).execute_with(|| {
+			// We run prop test this way to use the same state of the chain for all run without loading the snapshot again in every run
+			let mut runner = TestRunner::new(Config {
+				cases: successfull_cases,
+				source_file: Some("integration-tests/src/evm.rs"),
+				test_name: Some("evm_prop"),
+				..Config::default()
+			});
+
+			let _ = runner
+				.run(&random_error_string(), |value| {
+					let call_result = CallResult {
+						exit_reason: ExitReason::Error(ExitError::Other("Some error".into())),
+						value,
+						contract: hydradx_runtime::Liquidation::get(),
+					};
+
+					let _result = EvmErrorDecoder::convert(call_result);
+
+					Ok(())
+				})
+				.unwrap();
+		});
+	}
+
+	#[test]
+	fn evm_error_decoder_handles_empty_value() {
+		let call_result = CallResult {
+			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+			value: vec![],
+			contract: sp_core::H160::zero(),
+		};
+
+		let _error = EvmErrorDecoder::convert(call_result);
+	}
+
+	#[test]
+	fn evm_error_decoder_handles_values_shorter_than_function_selector_length() {
+		let call_result = CallResult {
+			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+			value: vec![0x01, 0x02],
+			contract: sp_core::H160::zero(),
+		};
+
+		let _error = EvmErrorDecoder::convert(call_result);
+	}
+
+	#[test]
+	fn decode_should_not_panic_on_deeply_nested_input() {
+		// Test 1: Deeply nested payload (simulating stack exhaustion attack)
+		let mut nested_payload = vec![0x01];
+		for _ in 0..10000 {
+			let mut new_layer = vec![0x01];
+			new_layer.extend_from_slice(&nested_payload);
+			nested_payload = new_layer;
+		}
+
+		let result = DispatchError::decode(&mut &nested_payload[..]).unwrap();
+
+		pretty_assertions::assert_eq!(result, DispatchError::CannotLookup);
+	}
 }

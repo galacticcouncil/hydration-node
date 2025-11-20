@@ -5,9 +5,14 @@ use core::panic;
 use ethabi::ethereum_types::BigEndianHash;
 use fp_evm::ExitReason::Succeed;
 use fp_evm::PrecompileSet;
+use frame_support::pallet_prelude::DispatchError;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
+use hex_literal::hex;
+use sp_runtime::traits::Convert;
+
+use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoder;
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::{Erc20Currency, EvmNonceProvider as AccountNonce, Executor, Function};
 use hydradx_runtime::AssetRegistry;
@@ -22,21 +27,18 @@ use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_evm::ExitSucceed::Returned;
-use sp_core::bounded_vec::BoundedVec;
-
-use hex_literal::hex;
 use pallet_evm_accounts::EvmNonceProvider;
 use polkadot_xcm::v3::Junction::AccountKey20;
 use polkadot_xcm::v3::Junctions::X1;
 use polkadot_xcm::v3::MultiLocation;
 use primitives::AccountId;
+use sp_core::bounded_vec::BoundedVec;
 use sp_core::keccak_256;
 use sp_core::Encode;
 use sp_core::{H256, U256};
 use sp_runtime::{Permill, TransactionOutcome};
 use std::fmt::Write;
 use xcm_emulator::TestExt;
-
 pub fn deployer() -> EvmAddress {
 	EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE))
 }
@@ -80,10 +82,10 @@ fn executor_view_should_return_something() {
 			sender: Default::default(),
 			origin: Default::default(),
 		};
-		let (res, value) = Executor::<Runtime>::view(context, data, 100_000);
+		let call_result = Executor::<Runtime>::view(context, data, 100_000);
 
-		assert_eq!(res, Succeed(Returned));
-		assert_ne!(value, vec![0; value.len()]);
+		assert_eq!(call_result.exit_reason, Succeed(Returned));
+		assert_ne!(call_result.value, vec![0; call_result.value.len()]);
 	});
 }
 
@@ -103,10 +105,10 @@ fn executor_call_wont_bump_nonce() {
 			sender: deployer(),
 			origin: deployer(),
 		};
-		let (res, value) = Executor::<Runtime>::call(context, data, U256::zero(), 100_000);
+		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 100_000);
 
-		assert_eq!(res, Succeed(Returned));
-		assert_ne!(value, vec![0; value.len()]);
+		assert_eq!(call_result.exit_reason, Succeed(Returned));
+		assert_ne!(call_result.value, vec![0; call_result.value.len()]);
 
 		assert_eq!(AccountNonce::get_nonce(deployer()), nonce);
 	});
@@ -420,30 +422,6 @@ fn currencies_should_transfer_bound_erc20() {
 	});
 }
 
-fn error_signature(definition: &str) -> String {
-	let hash = keccak_256(definition.as_bytes());
-	hash[..4].iter().fold(String::new(), |mut acc, b| {
-		write!(&mut acc, "{:02x}", b).unwrap();
-		acc
-	})
-}
-
-#[test]
-fn insufficient_balance_should_fail_transfer() {
-	TestNet::reset();
-	Hydra::execute_with(|| {
-		let contract = deploy_token_contract();
-		let asset = bind_erc20(contract);
-
-		match Currencies::transfer(RuntimeOrigin::signed(BOB.into()), ALICE.into(), asset, 100) {
-			Err(Other(e)) => {
-				assert!(e.contains(&error_signature("ERC20InsufficientBalance(address,uint256,uint256)")));
-			}
-			_ => panic!("transfer should fail"),
-		}
-	});
-}
-
 #[test]
 fn deposit_fails_when_unsufficient_funds_in_hold() {
 	TestNet::reset();
@@ -452,9 +430,9 @@ fn deposit_fails_when_unsufficient_funds_in_hold() {
 		let asset = bind_erc20(contract);
 
 		assert_eq!(
-			Currencies::deposit(asset, &ALICE.into(), 100),
-			Err(Other("evm:0xe450d38c000000000000000000000000ffffffffffffffffffffffffffffffffffffffff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000064"))
-		);
+            Currencies::deposit(asset, &ALICE.into(), 100),
+            Err(Other("evm:0xe450d38c000000000000000000000000ffffffffffffffffffffffffffffffffffffffff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000064"))
+        );
 	});
 }
 
@@ -543,4 +521,162 @@ fn erc20_currency_transfer_should_be_callable_using_dispatch_precompile() {
 		//Assert
 		assert_eq!(Currencies::free_balance(erc20, &BOB.into()), 100);
 	});
+}
+
+mod error_handling {
+	use super::*;
+	use frame_support::assert_noop;
+	use hydradx_runtime::evm::Executor;
+	use hydradx_runtime::Runtime;
+	use hydradx_traits::evm::CallContext;
+	use primitives::EvmAddress;
+	use sp_core::keccak_256;
+
+	#[test]
+	fn out_of_gas_error_should_be_mapped() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			// Deploy GasEatingToken which consumes 380k gas in transfer
+			let contract = crate::utils::contracts::deploy_contract("GasEater", crate::contracts::deployer());
+			let asset = crate::erc20::bind_erc20(contract);
+
+			// Try to transfer with insufficient gas
+			assert_noop!(
+				Currencies::transfer(RuntimeOrigin::signed(ALICE.into()), BOB.into(), asset, 100,),
+				pallet_dispatcher::Error::<Runtime>::EvmOutOfGas
+			);
+		});
+	}
+
+	#[test]
+	fn legacy_erc20_transfer_error_not_mapped_as_we_dont_have_such_contract_on_chain() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let token = deploy_contract("LegacyERC20", crate::erc20::deployer());
+
+			let asset = crate::erc20::bind_erc20(token);
+
+			assert_noop!(
+				Currencies::transfer(
+					RuntimeOrigin::signed(ALICE.into()),
+					BOB.into(),
+					asset,
+					100000000000000000000000 * UNITS
+				),
+				Other("evm:0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000")
+			);
+		});
+	}
+
+	#[test]
+	fn new_solidity_named_error_selectors_are_not_mapped_as_we_dont_have_such_contracts() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let contract = crate::erc20::deploy_token_contract();
+			let asset = crate::erc20::bind_erc20(contract);
+			assert_noop!(
+				Currencies::transfer(RuntimeOrigin::signed(BOB.into()), ALICE.into(), asset, 100),
+				DispatchError::Other("evm:0xe450d38c000000000000000000000000050505050505050505050505050505050505050500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000064")
+			);
+		});
+	}
+
+	#[test]
+	fn arithmetic_underflow_should_be_decoded() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			// Deploy WeirdToken which has causeUnderflow function
+			let contract = deploy_contract("WeirdToken", crate::erc20::deployer());
+
+			// Call causeUnderflow(1) which will trigger Panic(0x11)
+			let mut data = vec![0u8; 4];
+			// Function selector for causeUnderflow(uint256)
+			let selector = keccak_256(b"causeUnderflow(uint256)");
+			data[0..4].copy_from_slice(&selector[0..4]);
+			// Append uint256 parameter (1)
+			data.extend_from_slice(&[0u8; 31]);
+			data.push(1);
+
+			let context = CallContext {
+				contract,
+				sender: crate::erc20::deployer(),
+				origin: crate::erc20::deployer(),
+			};
+
+			let call_result = Executor::<Runtime>::view(context, data, 100_000);
+
+			// Should get a Revert with Panic(0x11) data
+			assert!(matches!(call_result.exit_reason, fp_evm::ExitReason::Revert(_)));
+
+			assert_eq!(
+				EvmErrorDecoder::convert(call_result),
+				pallet_dispatcher::Error::<Runtime>::EvmArithmeticOverflowOrUnderflow.into()
+			);
+		});
+	}
+
+	#[test]
+	fn arithmetic_overflow_should_be_decoded() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			// Deploy WeirdToken which has causeOverflow function
+			let contract = deploy_contract("WeirdToken", crate::erc20::deployer());
+
+			// Call causeOverflow() which will trigger Panic(0x11)
+			let selector = keccak_256(b"causeOverflow()");
+			let data = selector[0..4].to_vec();
+
+			let context = CallContext {
+				contract,
+				sender: crate::erc20::deployer(),
+				origin: crate::erc20::deployer(),
+			};
+
+			let call_result = Executor::<Runtime>::view(context, data, 100_000);
+
+			// Should get a Revert with Panic(0x11) data
+			assert!(matches!(call_result.exit_reason, fp_evm::ExitReason::Revert(_)));
+
+			assert_eq!(
+				EvmErrorDecoder::convert(call_result),
+				pallet_dispatcher::Error::<Runtime>::EvmArithmeticOverflowOrUnderflow.into()
+			);
+		});
+	}
+
+	#[test]
+	fn transfer_dispatch_error_can_be_decoded_when_insufficient_balance() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			// Deploy HydraToken
+			let contract = deploy_contract("HydraToken", crate::erc20::deployer());
+
+			let contract: EvmAddress = hex!["0000000000000000000000000000000100000005"].into();
+
+			// Try to transfer more tokens than BOB has (BOB has 0 balance)
+			// Prepare transfer(address,uint256) call data
+			let selector = keccak_256(b"transfer(address,uint256)");
+			let mut data = selector[0..4].to_vec();
+			// Recipient address
+			data.extend_from_slice(H256::from(EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE))).as_bytes());
+			// Amount to transfer)
+			data.extend_from_slice(H256::from_uint(&U256::from(1_000_000_000 * 10u128.pow(18))).as_bytes());
+
+			//Act
+			let context = CallContext {
+				contract,
+				sender: EVMAccounts::evm_address(&Into::<AccountId>::into(BOB)), // BOB has no tokens
+				origin: EVMAccounts::evm_address(&Into::<AccountId>::into(BOB)),
+			};
+
+			let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 100_000);
+
+			assert!(matches!(call_result.exit_reason, fp_evm::ExitReason::Revert(_)));
+			assert_eq!(
+				EvmErrorDecoder::convert(call_result),
+				orml_tokens::Error::<Runtime>::BalanceTooLow.into()
+			);
+		});
+	}
 }

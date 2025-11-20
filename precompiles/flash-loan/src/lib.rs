@@ -22,6 +22,7 @@
 #![allow(clippy::all)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use codec::Encode;
 use core::marker::PhantomData;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitSucceed;
@@ -37,7 +38,6 @@ use precompile_utils::prelude::*;
 use sp_core::crypto::AccountId32;
 use sp_core::{H256, U256};
 use sp_std::vec;
-
 pub const CALL_DATA_LIMIT: u32 = 2u32.pow(16);
 
 pub const SUCCESS: [u8; 32] = keccak256!("ERC3156FlashBorrower.onFlashLoan");
@@ -108,7 +108,7 @@ where
 					log::error!(target: "flash", "execute_arbitrage_with_flash_loan failed: {:?}", r);
 					return Err(PrecompileFailure::Revert {
 						exit_status: ExitRevert::Reverted,
-						output: vec![],
+						output: r.encode(),
 					});
 				}
 
@@ -135,7 +135,7 @@ where
 					log::error!(target: "flash", "liquidate_position failed: {:?}", r);
 					return Err(PrecompileFailure::Revert {
 						exit_status: ExitRevert::Reverted,
-						output: vec![],
+						output: r.encode(),
 					});
 				}
 				// Approve the loan repayment
@@ -158,12 +158,12 @@ where
 		data.extend_from_slice(H256::from(to).as_bytes());
 		data.extend_from_slice(H256::from_uint(&amount).as_bytes());
 
-		let (exit_reason, v) = <Runtime as pallet_hsm::Config>::Evm::call(cc, data, U256::zero(), 100_000);
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::error!(target: "flash", "approve failed: {:?}, value {:?}", exit_reason, v);
+		let call_result = <Runtime as pallet_hsm::Config>::Evm::call(cc, data, U256::zero(), 100_000);
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "flash", "approve failed: {:?}, value {:?}", call_result.exit_reason, call_result.value);
 			return Err(PrecompileFailure::Revert {
 				exit_status: ExitRevert::Reverted,
-				output: v,
+				output: call_result.value,
 			});
 		}
 		Ok(())

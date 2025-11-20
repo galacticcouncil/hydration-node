@@ -1,22 +1,23 @@
-use crate::evm::executor::{BalanceOf, CallResult, Executor, NonceIdOf};
+use crate::evm::evm_error_decoder::EvmErrorDecoder;
+use crate::evm::executor::{BalanceOf, Executor, NonceIdOf};
 use crate::evm::{EvmAccounts, EvmAddress};
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason;
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed::Returned;
-use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
+use frame_support::{dispatch::DispatchResult, fail, pallet_prelude::*};
+use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_currencies::{Config, Error};
 use polkadot_xcm::v3::MultiLocation;
 use primitives::{AccountId, Balance};
-use scale_info::prelude::format;
 use sp_core::crypto::AccountId32;
 use sp_core::{H160, H256, U256};
-use sp_runtime::traits::{CheckedConversion, Zero};
+use sp_runtime::traits::{CheckedConversion, Convert, Zero};
 use sp_runtime::{DispatchError, SaturatedConversion};
-use sp_std::boxed::Box;
+use sp_std::prelude::ToOwned;
 use sp_std::vec::Vec;
 
 /// Execution gas limit.
@@ -55,9 +56,9 @@ where
 	fn name(context: CallContext) -> Option<Vec<u8>> {
 		let data = Into::<u32>::into(Function::Name).to_be_bytes().to_vec();
 
-		let (exit_reason, value) = Executor::<T>::view(context, data, 100_000);
-		match exit_reason {
-			Succeed(Returned) => decode_string(value.as_slice().to_vec()),
+		let call_result = Executor::<T>::view(context, data, 100_000);
+		match call_result.exit_reason {
+			Succeed(Returned) => decode_string(call_result.value.as_slice().to_vec()),
 			_ => None,
 		}
 	}
@@ -65,9 +66,9 @@ where
 	fn symbol(context: CallContext) -> Option<Vec<u8>> {
 		let data = Into::<u32>::into(Function::Symbol).to_be_bytes().to_vec();
 
-		let (exit_reason, value) = Executor::<T>::view(context, data, 100_000);
-		match exit_reason {
-			Succeed(Returned) => decode_string(value.as_slice().to_vec()),
+		let call_result = Executor::<T>::view(context, data, 100_000);
+		match call_result.exit_reason {
+			Succeed(Returned) => decode_string(call_result.value.as_slice().to_vec()),
 			_ => None,
 		}
 	}
@@ -75,9 +76,9 @@ where
 	fn decimals(context: CallContext) -> Option<u8> {
 		let data = Into::<u32>::into(Function::Decimals).to_be_bytes().to_vec();
 
-		let (exit_reason, value) = Executor::<T>::view(context, data, 100_000);
-		match exit_reason {
-			Succeed(Returned) => decode_integer(value)?.checked_into(),
+		let call_result = Executor::<T>::view(context, data, 100_000);
+		match call_result.exit_reason {
+			Succeed(Returned) => decode_integer(call_result.value)?.checked_into(),
 			_ => None,
 		}
 	}
@@ -85,9 +86,9 @@ where
 	fn total_supply(context: CallContext) -> Balance {
 		let data = Into::<u32>::into(Function::TotalSupply).to_be_bytes().to_vec();
 
-		let (exit_reason, value) = Executor::<T>::view(context, data, 100_000);
-		match exit_reason {
-			Succeed(Returned) => decode_integer(value).unwrap_or_default().saturated_into(),
+		let call_result = Executor::<T>::view(context, data, 100_000);
+		match call_result.exit_reason {
+			Succeed(Returned) => decode_integer(call_result.value).unwrap_or_default().saturated_into(),
 			_ => Default::default(),
 		}
 	}
@@ -97,9 +98,9 @@ where
 		// address
 		data.extend_from_slice(H256::from(address).as_bytes());
 
-		let (exit_reason, value) = Executor::<T>::view(context, data, 100_000);
-		match exit_reason {
-			Succeed(Returned) => decode_integer(value).unwrap_or_default().saturated_into(),
+		let call_result = Executor::<T>::view(context, data, 100_000);
+		match call_result.exit_reason {
+			Succeed(Returned) => decode_integer(call_result.value).unwrap_or_default().saturated_into(),
 			_ => Default::default(),
 		}
 	}
@@ -111,9 +112,9 @@ where
 		// spender
 		data.extend_from_slice(H256::from(spender).as_bytes());
 
-		let (exit_reason, value) = Executor::<T>::view(context, data, 100_000);
-		match exit_reason {
-			Succeed(Returned) => decode_integer(value).unwrap_or_default().saturated_into(),
+		let call_result = Executor::<T>::view(context, data, 100_000);
+		match call_result.exit_reason {
+			Succeed(Returned) => decode_integer(call_result.value).unwrap_or_default().saturated_into(),
 			_ => Default::default(),
 		}
 	}
@@ -125,7 +126,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
+		handle_result::<T>(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 
 	// Calls the transfer method on an ERC20 contract using the given context.
@@ -136,7 +137,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
+		handle_result::<T>(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 
 	fn transfer_from(context: CallContext, from: EvmAddress, to: EvmAddress, value: Balance) -> DispatchResult {
@@ -148,7 +149,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
+		handle_result::<T>(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 }
 
@@ -190,11 +191,13 @@ fn decode_bool(value: Vec<u8>) -> Option<bool> {
 	Some(value == bytes)
 }
 
-fn handle_result(result: CallResult) -> DispatchResult {
-	let (exit_reason, value) = result;
-	match exit_reason {
+fn handle_result<T>(result: CallResult) -> DispatchResult
+where
+	T: pallet_dispatcher::Config,
+{
+	match &result.exit_reason {
 		ExitReason::Succeed(_) => {
-			if Some(false) == decode_bool(value) {
+			if Some(false) == decode_bool(result.value) {
 				log::error!(target: "evm", "evm transfer returned false");
 				Err(DispatchError::Other("evm: erc20 transfer returned false"))
 			} else {
@@ -202,10 +205,9 @@ fn handle_result(result: CallResult) -> DispatchResult {
 			}
 		}
 		e => {
-			log::error!(target: "evm", "evm call failed with : {:?}, value {:?}", e, value);
-			Err(DispatchError::Other(&*Box::leak(
-				format!("evm:0x{}", hex::encode(value)).into_boxed_str(),
-			)))
+			log::error!(target: "evm", "evm call failed with : {:?}, value {:?}", e, result.clone().value);
+			let dispatch_error = EvmErrorDecoder::convert(result);
+			Err(dispatch_error)
 		}
 	}
 }

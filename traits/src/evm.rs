@@ -1,7 +1,11 @@
 use codec::{Decode, Encode};
+use frame_support::sp_runtime;
+use frame_support::sp_runtime::app_crypto::sp_core;
 use frame_support::sp_runtime::app_crypto::sp_core::{H160, U256};
 use frame_support::sp_runtime::{DispatchResult, RuntimeDebug};
+use pallet_evm::ExitReason;
 use sp_std::vec::Vec;
+
 pub trait InspectEvmAccounts<AccountId> {
 	/// Returns `True` if the account is EVM truncated account.
 	fn is_evm_account(account_id: AccountId) -> bool;
@@ -61,6 +65,13 @@ impl CallContext {
 			origin: EvmAddress::default(),
 		}
 	}
+}
+
+#[derive(Clone, Debug)]
+pub struct CallResult {
+	pub exit_reason: ExitReason,
+	pub value: Vec<u8>,
+	pub contract: sp_core::H160,
 }
 
 pub trait EVM<EvmResult> {
