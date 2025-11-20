@@ -87,6 +87,85 @@ fn sell_test() {
 }
 
 #[test]
+fn sell_with_discount_should_be_same_as_without_discount() {
+	new_test_ext().execute_with(|| {
+		let user_1 = ALICE;
+		let asset_a = ACA;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			RuntimeOrigin::signed(user_1),
+			asset_a,
+			200_000_000_000,
+			asset_b,
+			600_000_000_000_000,
+		));
+
+		let pair_account = XYK::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+		let share_token = XYK::share_token(pair_account);
+
+		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 400000000000000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 600000000000000);
+
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 600000000000000);
+
+		assert_ok!(XYK::sell(
+			RuntimeOrigin::signed(user_1),
+			asset_a,
+			asset_b,
+			456_444_678,
+			1000000000000,
+			true,
+		));
+
+		assert_eq!(Currency::free_balance(asset_a, &user_1), 999799543555322);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 401363483591788);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 600000000000000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200456444678);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 598636516408212);
+
+		expect_events(vec![
+			Event::PoolCreated {
+				who: ALICE,
+				asset_a,
+				asset_b,
+				initial_shares_amount: 600000000000000,
+				share_token,
+				pool: pair_account,
+			}
+				.into(),
+			Event::SellExecuted {
+				who: ALICE,
+				asset_in: asset_a,
+				asset_out: asset_b,
+				amount: 456444678,
+				sale_price: 1363483591788,
+				fee_asset: asset_b,
+				fee_amount: 2732432046,
+				pool: pair_account,
+			}
+				.into(),
+			pallet_broadcast::Event::Swapped3 {
+				swapper: ALICE,
+				filler: pair_account,
+				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
+				operation: pallet_broadcast::types::TradeOperation::ExactIn,
+				inputs: vec![Asset::new(asset_a, 456444678)],
+				outputs: vec![Asset::new(asset_b, 1363483591788)],
+				fees: vec![Fee::new(asset_b, 2732432046, Destination::Account(pair_account))],
+				operation_stack: vec![],
+			}
+				.into(),
+		]);
+	});
+}
+
+#[test]
 fn execute_sell_should_use_event_id() {
 	new_test_ext().execute_with(|| {
 		let user_1 = ALICE;
@@ -116,8 +195,6 @@ fn execute_sell_should_use_event_id() {
 			},
 			amount: 456_444_678,
 			amount_b: 1363483591788,
-			discount: false,
-			discount_amount: 0_u128,
 			fee: (asset_b, 2732432046),
 		};
 
@@ -495,43 +572,6 @@ fn sell_without_sufficient_balance_should_not_work() {
 }
 
 #[test]
-fn sell_without_sufficient_discount_balance_should_not_work() {
-	new_test_ext().execute_with(|| {
-		let user = ALICE;
-		let asset_a = ACA;
-		let asset_b = DOT;
-
-		assert_ok!(XYK::create_pool(
-			RuntimeOrigin::signed(user),
-			asset_a,
-			1_000_000_000_000,
-			asset_b,
-			1_000_000_000_000,
-		));
-
-		assert_ok!(XYK::create_pool(
-			RuntimeOrigin::signed(user),
-			asset_a,
-			1_000_000_000_000,
-			HDX,
-			1_000_000_000_000,
-		));
-
-		assert_ok!(Currency::transfer(
-			RuntimeOrigin::signed(user),
-			BOB,
-			HDX,
-			998_999_999_999_999
-		));
-
-		assert_noop!(
-			XYK::sell(RuntimeOrigin::signed(user), ACA, DOT, 1_000_000_000, 100, true),
-			Error::<Test>::InsufficientNativeCurrencyBalance
-		);
-	});
-}
-
-#[test]
 fn buy_without_sufficient_balance_should_not_work() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;
@@ -556,50 +596,6 @@ fn buy_without_sufficient_balance_should_not_work() {
 		assert_noop!(
 			XYK::buy(RuntimeOrigin::signed(user), DOT, ACA, 1_000, 10_000, false),
 			Error::<Test>::InsufficientAssetBalance
-		);
-	});
-}
-
-#[test]
-fn buy_without_sufficient_discount_balance_should_not_work() {
-	new_test_ext().execute_with(|| {
-		let user = ALICE;
-		let asset_a = ACA;
-		let asset_b = DOT;
-
-		assert_ok!(XYK::create_pool(
-			RuntimeOrigin::signed(user),
-			asset_a,
-			1_000_000_000_000,
-			asset_b,
-			1_000_000_000_000,
-		));
-
-		assert_ok!(XYK::create_pool(
-			RuntimeOrigin::signed(user),
-			asset_b,
-			1_000_000_000_000,
-			HDX,
-			1_000_000_000_000,
-		));
-
-		assert_ok!(Currency::transfer(
-			RuntimeOrigin::signed(user),
-			BOB,
-			HDX,
-			998_999_999_999_999
-		));
-
-		assert_noop!(
-			XYK::buy(
-				RuntimeOrigin::signed(user),
-				DOT,
-				ACA,
-				1_000_000_000,
-				10_000_000_000,
-				true
-			),
-			Error::<Test>::InsufficientNativeCurrencyBalance
 		);
 	});
 }
@@ -684,6 +680,85 @@ fn single_buy_should_work() {
 }
 
 #[test]
+fn buy_with_discount_should_be_same_as_without_discount() {
+	new_test_ext().execute_with(|| {
+		let user_1 = ALICE;
+		let asset_a = ACA;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			RuntimeOrigin::signed(user_1),
+			asset_a,
+			200_000_000,
+			asset_b,
+			640_000_000_000,
+		));
+
+		let pair_account = XYK::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+		let share_token = XYK::share_token(pair_account);
+
+		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_800_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_360_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 640_000_000_000);
+
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 640_000_000_000);
+
+		assert_ok!(XYK::buy(
+			RuntimeOrigin::signed(user_1),
+			asset_a,
+			asset_b,
+			6_666_666,
+			1_000_000_000_000,
+			true,
+		));
+
+		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_806_666_666);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_337_886_898_839);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 640_000_000_000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 193_333_334);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 662_113_101_161);
+
+		expect_events(vec![
+			Event::PoolCreated {
+				who: user_1,
+				asset_a,
+				asset_b,
+				initial_shares_amount: 640_000_000_000,
+				share_token,
+				pool: pair_account,
+			}
+				.into(),
+			Event::BuyExecuted {
+				who: user_1,
+				asset_out: asset_a,
+				asset_in: asset_b,
+				amount: 6_666_666,
+				buy_price: 22_068_963_235,
+				fee_asset: asset_b,
+				fee_amount: 44_137_926,
+				pool: pair_account,
+			}
+				.into(),
+			pallet_broadcast::Event::Swapped3 {
+				swapper: user_1,
+				filler: pair_account,
+				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
+				inputs: vec![Asset::new(asset_b, 22_068_963_235)],
+				outputs: vec![Asset::new(asset_a, 6_666_666)],
+				fees: vec![Fee::new(asset_b, 44_137_926, Destination::Account(pair_account))],
+				operation_stack: vec![],
+			}
+				.into(),
+		]);
+	});
+}
+
+#[test]
 fn create_pool_with_insufficient_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
@@ -736,24 +811,6 @@ fn sell_with_non_existing_pool_should_not_work() {
 }
 
 #[test]
-fn discount_sell_with_no_native_pool_should_not_work() {
-	new_test_ext().execute_with(|| {
-		assert_ok!(XYK::create_pool(
-			RuntimeOrigin::signed(ALICE),
-			ACA,
-			1000,
-			DOT,
-			3_200_000
-		));
-
-		assert_noop!(
-			XYK::sell(RuntimeOrigin::signed(ALICE), ACA, DOT, 456_444_678, 1_000_000, true),
-			Error::<Test>::CannotApplyDiscount
-		);
-	});
-}
-
-#[test]
 fn buy_with_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
@@ -766,24 +823,6 @@ fn buy_with_non_existing_pool_should_not_work() {
 				false
 			),
 			Error::<Test>::TokenPoolNotFound
-		);
-	});
-}
-
-#[test]
-fn discount_buy_with_no_native_pool_should_not_work() {
-	new_test_ext().execute_with(|| {
-		assert_ok!(XYK::create_pool(
-			RuntimeOrigin::signed(ALICE),
-			ACA,
-			10_000,
-			DOT,
-			32_000_000
-		));
-
-		assert_noop!(
-			XYK::buy(RuntimeOrigin::signed(ALICE), ACA, DOT, 1000, 1_000_000_000, true),
-			Error::<Test>::CannotApplyDiscount
 		);
 	});
 }
