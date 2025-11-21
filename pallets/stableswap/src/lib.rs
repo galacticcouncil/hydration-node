@@ -2011,6 +2011,7 @@ impl<T: Config> Pallet<T> {
 		if let Some(peg_info) = PoolPegs::<T>::get(pool_id) {
 			let new_info = peg_info.with_new_pegs(&new_pegs, T::BlockNumberProvider::current_block_number());
 			PoolPegs::<T>::insert(pool_id, new_info);
+			BlockFee::<T>::insert(pool_id, trade_fee);
 		}
 
 		Ok((trade_fee, new_pegs))
