@@ -1526,8 +1526,6 @@ where
 				// just to be safe
 				return None;
 			}
-			let after_spot = FixedU128::one().div(after_spot);
-
 			if after_spot > sell_price {
 				return Some(());
 			}
