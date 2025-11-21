@@ -53,3 +53,7 @@ SNAPSHOT*
 
 db.sqlite*
 zombienet
+
+yarn.lock
+pubkey.js
+pnpm-lock.yaml
