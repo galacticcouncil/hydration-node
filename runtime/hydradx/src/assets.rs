@@ -1845,8 +1845,8 @@ parameter_types! {
 
 	pub const SigEthFaucetMinRequest: u64 = 0;
 
-	pub const SigEthFaucetFeeAssetId: AssetId = 1;
-	pub const SigEthFaucetFaucetAssetId: AssetId = 2;
+	pub const SigEthFaucetFeeAssetId: AssetId = 0;
+	pub const SigEthFaucetFaucetAssetId: AssetId = 20;
 
 	pub const SigEthMinFaucetThreshold: u128 = 50_000_000_000_000_000u128;
 }

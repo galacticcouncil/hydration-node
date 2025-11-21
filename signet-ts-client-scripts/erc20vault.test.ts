@@ -285,9 +285,9 @@ async function logAliceTokenBalances(
 
   console.log(
     'Alice balances:',
-    'faucetAsset =',
+    'faucetAssetBal =',
     faucetBal.toString(),
-    'feeAsset =',
+    'feeAssetBal =',
     feeBal.toString()
   )
 }
@@ -413,9 +413,9 @@ describe('ERC20 Vault Integration', () => {
     const faucetAsset = (api.consts.ethDispenser.faucetAsset as any).toNumber()
 
     console.log(
-      `feeAsset = ${feeAsset}
-      feeAsset = ${faucetAsset}
-      faucetAddress = ${api.consts.ethDispenser.faucetAddress.toString()}`
+      `feeAssetId = ${feeAsset}
+       faucetAssetId = ${faucetAsset}
+       faucetAddress = ${api.consts.ethDispenser.faucetAddress.toString()}`
     )
 
     const { keyring, alice: aliceAcc, bob } = createKeyringAndAccounts()
