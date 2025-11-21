@@ -298,7 +298,6 @@ where
 	}
 
 	fn deposit(contract: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> sp_runtime::DispatchResult {
-		// Check if account has zero balance before deposit
 		let had_zero_balance = Self::total_balance(contract, who).is_zero();
 
 		<Self as ERC20>::transfer(
@@ -319,7 +318,6 @@ where
 	}
 
 	fn withdraw(contract: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> sp_runtime::DispatchResult {
-		// Check balance before withdrawal
 		let balance_before = Self::total_balance(contract, who);
 
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(who);
