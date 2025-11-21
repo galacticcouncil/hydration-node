@@ -189,9 +189,7 @@ pub fn parachain_genesis(
 		"initialData": Vec::<(hydradx_runtime::Source, (AssetId, AssetId), Price, hydradx_runtime::Liquidity<Balance>)>::new()
 	},
 	"duster": {
-		"accountBlacklist": duster.account_blacklist,
-		"rewardAccount": duster.reward_account,
-		"dustAccount": duster.dust_account
+		"accountWhitelist": duster.account_whitelist,
 	},
 	"omnipoolWarehouseLm": {
 	},

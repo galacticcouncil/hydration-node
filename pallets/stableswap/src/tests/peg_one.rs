@@ -36,13 +36,14 @@ fn sell_with_peg_should_work_as_before_when_all_pegs_are_one() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, 100 * ONE),
 					AssetAmount::new(asset_b, 100 * ONE),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_ok!(Stableswap::sell(
@@ -88,13 +89,14 @@ fn buy_should_work_as_before_when_all_pegs_are_one() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, 100 * ONE),
 					AssetAmount::new(asset_b, 100 * ONE),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_ok!(Stableswap::buy(
@@ -176,24 +178,26 @@ fn remove_liquidity_with_peg_should_work_as_before_when_pegs_are_one() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, 100 * ONE),
 					AssetAmount::new(asset_b, 200 * ONE),
 					AssetAmount::new(asset_c, 300 * ONE),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			let amount_added = 200 * ONE;
 
 			let pool_account = pool_account(pool_id);
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)]),
+				Balance::zero(),
 			));
 
 			let shares = Tokens::free_balance(pool_id, &BOB);

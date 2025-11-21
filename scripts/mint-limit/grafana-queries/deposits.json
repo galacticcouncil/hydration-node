@@ -1,0 +1,248 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 37,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "OulRfMKVz"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 24,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "variance",
+            "stdDev",
+            "mean",
+            "range"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "OulRfMKVz"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "key": "Q-c7bafd21-43f7-41c9-93c0-16c0dac43a75-0",
+          "rawQuery": true,
+          "rawSql": "WITH limits AS (\n    SELECT\n        CASE\n            WHEN jsonb_typeof(e.args->'xcmRateLimit') = 'number'\n                THEN (e.args->'xcmRateLimit')::text::numeric(78,0)\n            WHEN jsonb_typeof(e.args->'xcmRateLimit') = 'string'\n                 AND (e.args->>'xcmRateLimit') ~ '^\\d+$'\n                THEN (e.args->>'xcmRateLimit')::numeric(78,0)\n            WHEN jsonb_typeof(e.args->'xcmRateLimit') = 'object'\n                 AND (e.args->'xcmRateLimit' ? 'Some')\n                 AND (e.args->'xcmRateLimit'->>'Some') ~ '^\\d+$'\n                THEN (e.args->'xcmRateLimit'->>'Some')::numeric(78,0)\n            WHEN jsonb_typeof(e.args->'assetParams') = 'object'\n                 AND (e.args->'assetParams'->>'xcmRateLimit') ~ '^\\d+$'\n                THEN (e.args->'assetParams'->>'xcmRateLimit')::numeric(78,0)\n            WHEN jsonb_typeof(e.args->'update') = 'object'\n                 AND (e.args->'update'->>'xcmRateLimit') ~ '^\\d+$'\n                THEN (e.args->'update'->>'xcmRateLimit')::numeric(78,0)\n            ELSE NULL\n        END AS xcm_rate_limit\n    FROM event e\n    JOIN block b ON b.id = e.block_id\n    WHERE e.name = 'AssetRegistry.Updated'\n      AND (e.args->>'assetId') ~ '^\\d+$'\n      AND (e.args->>'assetId')::int = $currencyId\n    ORDER BY b.timestamp DESC, b.id DESC\n    LIMIT 1\n),\ndaily AS (\n    SELECT\n        DATE_TRUNC('day', b.timestamp) AS time,\n        SUM(\n            CASE\n                WHEN e.name = 'Tokens.Deposited' THEN (e.args->>'amount')::NUMERIC\n                WHEN e.name = 'Tokens.Withdrawn' THEN -(e.args->>'amount')::NUMERIC\n                ELSE 0\n            END\n        ) AS net_deposits\n    FROM event e\n    JOIN block b ON e.block_id = b.id\n    WHERE e.name IN ('Tokens.Deposited', 'Tokens.Withdrawn')\n      AND (e.args->>'currencyId')::INTEGER = $currencyId\n      AND b.timestamp >= $__timeFrom()\n      AND b.timestamp < $__timeTo()\n    GROUP BY DATE_TRUNC('day', b.timestamp)\n)\nSELECT\n    d.time,\n    d.net_deposits,\n    l.xcm_rate_limit,                          -- horizontal line\n    (d.net_deposits / NULLIF(l.xcm_rate_limit,0))::double precision AS ratio_01  -- optional ratio series\nFROM daily d\nCROSS JOIN limits l\nORDER BY d.time;\n",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "OulRfMKVz"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "hide": false,
+          "rawQuery": true,
+          "rawSql": "WITH daily_data AS (\n    SELECT\n        DATE_TRUNC('day', b.timestamp) as time,\n        SUM(\n            CASE\n                WHEN e.name = 'Tokens.Deposited' THEN (e.args->>'amount')::NUMERIC\n                WHEN e.name = 'Tokens.Withdrawn' THEN -(e.args->>'amount')::NUMERIC\n                ELSE 0\n            END\n        ) as net_deposits\n    FROM event e\n    JOIN block b ON e.block_id = b.id\n    WHERE e.name IN ('Tokens.Deposited', 'Tokens.Withdrawn')\n        AND (e.args->>'currencyId')::INTEGER = $currencyId\n        AND b.timestamp >= $__timeFrom()\n        AND b.timestamp < $__timeTo()\n    GROUP BY DATE_TRUNC('day', b.timestamp)\n),\npercentiles AS (\n    SELECT \n        PERCENTILE_CONT(0.01) WITHIN GROUP (ORDER BY net_deposits) as p5,\n        PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY net_deposits) as p95\n    FROM daily_data\n)\nSELECT \n    time,\n    CASE \n        WHEN net_deposits < p.p5 THEN p.p5\n        WHEN net_deposits > p.p95 THEN p.p95\n        ELSE net_deposits\n    END as net_deposits_winsorized\nFROM daily_data d\nCROSS JOIN percentiles p\nORDER BY time;",
+          "refId": "B",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "OulRfMKVz"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "hide": false,
+          "rawQuery": true,
+          "rawSql": "WITH daily_data AS (\n    SELECT\n        DATE_TRUNC('day', b.timestamp) AS day_ts,\n        SUM(\n            CASE\n                WHEN e.name = 'Tokens.Deposited' THEN (e.args->>'amount')::numeric\n                WHEN e.name = 'Tokens.Withdrawn' THEN -(e.args->>'amount')::numeric\n                ELSE 0\n            END\n        ) AS net_deposits\n    FROM event e\n    JOIN block b ON e.block_id = b.id\n    WHERE e.name IN ('Tokens.Deposited', 'Tokens.Withdrawn')\n      AND (e.args->>'currencyId')::int = $currencyId\n      AND b.timestamp >= $__timeFrom()\n      AND b.timestamp < $__timeTo()\n    GROUP BY 1\n),\npercentiles AS (\n    SELECT \n        PERCENTILE_CONT(0.01) WITHIN GROUP (ORDER BY net_deposits) AS p5,\n        PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY net_deposits) AS p95\n    FROM daily_data\n),\nwins AS (\n    SELECT\n        day_ts,\n        CASE\n            WHEN net_deposits < p.p5  THEN p.p5\n            WHEN net_deposits > p.p95 THEN p.p95\n            ELSE net_deposits\n        END AS net_deposits_winsorized\n    FROM daily_data d\n    CROSS JOIN percentiles p\n)\nSELECT\n    NOW()::timestamptz AS \"time\",\n    2 * MAX(net_deposits_winsorized) AS \"2x_max\"\nFROM wins;",
+          "refId": "C",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "transparent": true,
+      "type": "timeseries"
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "1000765",
+          "value": "1000765"
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "OulRfMKVz"
+        },
+        "definition": "SELECT DISTINCT (args->>'currencyId')::INTEGER as currency_id\nFROM event \nWHERE name IN ('Tokens.Deposited', 'Tokens.Withdrawn')\nORDER BY currency_id ASC;",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "currencyId",
+        "options": [],
+        "query": "SELECT DISTINCT (args->>'currencyId')::INTEGER as currency_id\nFROM event \nWHERE name IN ('Tokens.Deposited', 'Tokens.Withdrawn')\nORDER BY currency_id ASC;",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-2y",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Deposits",
+  "uid": "gsOxD-lNz",
+  "version": 6,
+  "weekStart": ""
+}

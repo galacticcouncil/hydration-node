@@ -11,13 +11,15 @@ use frame_system as system;
 
 use sp_core::H256;
 
+use frame_support::weights::Weight;
+use frame_system::EnsureRoot;
+use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust, EvmAddress};
+use orml_traits::MultiCurrency;
+use pallet_currencies::fungibles::FungibleCurrencies;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
-
-use frame_support::weights::Weight;
-use frame_system::EnsureRoot;
 use sp_std::cell::RefCell;
 use sp_std::vec::Vec;
 
@@ -26,6 +28,10 @@ pub type AssetId = u32;
 type Balance = u128;
 type Amount = i128;
 
+pub const TOKEN: u32 = 10u32;
+pub const ATOKEN: u32 = 1005u32;
+pub const ATOKEN_ED: u128 = 1000u128;
+
 type Block = frame_system::mocking::MockBlock<Test>;
 
 lazy_static::lazy_static! {
@@ -33,6 +39,10 @@ pub static ref ALICE: AccountId = 100;
 pub static ref BOB: AccountId = 200;
 pub static ref DUSTER: AccountId = 300;
 pub static ref TREASURY: AccountId = 400;
+}
+
+thread_local! {
+	pub static ATOKEN_IDS: RefCell<Vec<AssetId>> = const { RefCell::new(vec![]) };
 }
 
 parameter_types! {
@@ -118,23 +128,75 @@ parameter_type_with_key! {
 		match currency_id {
 			0 => 1000,
 			1 => 100_000,
+			&TOKEN => 1000,
+			&ATOKEN => 1000,
 			_ => 0
 		}
 	};
 }
 
+pub struct TestExtendedWhitelist;
+
+impl frame_support::traits::Get<Vec<AccountId>> for TestExtendedWhitelist {
+	fn get() -> Vec<AccountId> {
+		// Return treasury and any other hardcoded accounts that should be whitelisted
+		vec![TreasuryAccount::get()]
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type Amount = Amount;
-	type CurrencyId = AssetId;
-	type MultiCurrency = Currencies;
-	type MinCurrencyDeposits = MinDeposits;
-	type Reward = Reward;
-	type NativeCurrencyId = NativeCurrencyId;
-	type BlacklistUpdateOrigin = EnsureRoot<AccountId>;
+	type AssetId = AssetId;
+	type MultiCurrency = FungibleCurrencies<Test>;
+	type ExistentialDeposit = MinDeposits;
+	type WhitelistUpdateOrigin = EnsureRoot<AccountId>;
+	type Erc20Support = ATokenDusterMock;
+	type ExtendedWhitelist = TestExtendedWhitelist;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = ();
+}
+
+pub struct ATokenDusterMock;
+
+impl ATokenDusterMock {
+	pub fn set_atoken(asset_id: AssetId) {
+		ATOKEN_IDS.with(|ids| {
+			if !ids.borrow().contains(&asset_id) {
+				ids.borrow_mut().push(asset_id);
+			}
+		});
+	}
+}
+
+impl Erc20Inspect<AssetId> for ATokenDusterMock {
+	fn contract_address(_id: AssetId) -> Option<EvmAddress> {
+		None
+	}
+
+	fn is_atoken(asset_id: AssetId) -> bool {
+		ATOKEN_IDS.with(|ids| ids.borrow().contains(&asset_id))
+	}
+}
+
+impl Erc20OnDust<AccountId, AssetId> for ATokenDusterMock {
+	fn on_dust(
+		account: &AccountId,
+		dust_dest_account: &AccountId,
+		currency_id: AssetId,
+	) -> frame_support::dispatch::DispatchResult {
+		// Simulate the AToken withdraw and supply by transferring the balance
+		let balance = Tokens::free_balance(currency_id, account);
+		if balance < ATOKEN_ED {
+			Tokens::transfer(
+				RuntimeOrigin::signed(*account),
+				*dust_dest_account,
+				currency_id,
+				balance,
+			)?;
+		}
+
+		Ok(())
+	}
 }
 
 impl orml_tokens::Config for Test {
@@ -159,6 +221,7 @@ impl pallet_currencies::Config for Test {
 	type BoundErc20 = MockBoundErc20<Test>;
 	type ReserveAccount = ();
 	type GetNativeCurrencyId = NativeCurrencyId;
+	type RegistryInspect = MockBoundErc20<Test>;
 	type WeightInfo = ();
 }
 
@@ -217,9 +280,7 @@ impl ExtBuilder {
 		.unwrap();
 
 		duster::GenesisConfig::<Test> {
-			account_blacklist: vec![*TREASURY],
-			reward_account: Some(*TREASURY),
-			dust_account: Some(*TREASURY),
+			account_whitelist: vec![*TREASURY],
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

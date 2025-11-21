@@ -1,5 +1,5 @@
 use crate::tests::mock::*;
-use crate::ARBITRAGE_DIRECTION_BUY;
+use crate::types::Arbitrage;
 use frame_support::assert_ok;
 use hex_literal::hex;
 use hydra_dx_math::hsm::PegType;
@@ -110,13 +110,13 @@ fn arbitrage_should_work_when_less_hollar_in_the_pool_and_arb_amount_given() {
 			let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
 			assert_ok!(HSM::set_flash_minter(RuntimeOrigin::root(), flash_minter,));
 
-			let opportunity = HSM::find_arbitrage_opportunity(DAI).expect("No arbitrage opportunity");
-			assert_eq!(opportunity, (ARBITRAGE_DIRECTION_BUY, 499994562497366512583));
+			let opportunity = HSM::find_arbitrage_opportunity(DAI);
+			assert_eq!(opportunity, Some(Arbitrage::HollarOut(499994562497366512583)));
 
 			let pool_acc = pallet_stableswap::Pallet::<Test>::pool_account(pool_id);
 			let pool_balance_dai_before = Tokens::free_balance(DAI, &pool_acc);
 			let hsm_balance_dai_before = Tokens::free_balance(DAI, &HSM::account_id());
-			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, Some(opportunity.1)));
+			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, opportunity));
 			let pool_balance_dai_after = Tokens::free_balance(DAI, &pool_acc);
 
 			let arb_amount = pool_balance_dai_before - pool_balance_dai_after;
@@ -170,12 +170,12 @@ fn arbitrage_should_work_when_less_hollar_in_the_pool() {
 			assert_ok!(HSM::set_flash_minter(RuntimeOrigin::root(), flash_minter,));
 
 			let opportunity = HSM::find_arbitrage_opportunity(DAI);
-			assert_eq!(opportunity, Some((ARBITRAGE_DIRECTION_BUY, 499994562497366512583)));
+			assert_eq!(opportunity, Some(Arbitrage::HollarOut(499994562497366512583)));
 
 			let pool_acc = pallet_stableswap::Pallet::<Test>::pool_account(pool_id);
 			let pool_balance_dai_before = Tokens::free_balance(DAI, &pool_acc);
 			let hsm_balance_dai_before = Tokens::free_balance(DAI, &HSM::account_id());
-			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, None));
+			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, opportunity));
 			let pool_balance_dai_after = Tokens::free_balance(DAI, &pool_acc);
 
 			let arb_amount = pool_balance_dai_before - pool_balance_dai_after;
@@ -247,54 +247,55 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				move_block();
-				let Some((direction, amount)) = HSM::find_arbitrage_opportunity(DAI) else{
+				let Some(arb) = HSM::find_arbitrage_opportunity(DAI) else{
 					return;
 				};
 
-				if direction == ARBITRAGE_DIRECTION_BUY && amount > 0 {
-					let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
-					assert_ok!(HSM::set_flash_minter(RuntimeOrigin::root(), flash_minter,));
+				match arb {
+					Arbitrage::HollarOut(amount) if amount > 0 => {
+						let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+						assert_ok!(HSM::set_flash_minter(RuntimeOrigin::root(), flash_minter,));
 
-					let pool_acc = pallet_stableswap::Pallet::<Test>::pool_account(pool_id);
-					let pool_balance_dai_before = Tokens::free_balance(DAI, &pool_acc);
-					let hsm_balance_dai_before = Tokens::free_balance(DAI, &HSM::account_id());
-					assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, None));
-					let pool_balance_dai_after = Tokens::free_balance(DAI, &pool_acc);
+						let pool_acc = pallet_stableswap::Pallet::<Test>::pool_account(pool_id);
+						let pool_balance_dai_before = Tokens::free_balance(DAI, &pool_acc);
+						let hsm_balance_dai_before = Tokens::free_balance(DAI, &HSM::account_id());
+						assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, Some(arb)));
+						let pool_balance_dai_after = Tokens::free_balance(DAI, &pool_acc);
 
-					let arb_amount = pool_balance_dai_before - pool_balance_dai_after;
-					assert!(arb_amount > 0 );
+						let arb_amount = pool_balance_dai_before - pool_balance_dai_after;
+						assert!(arb_amount > 0 );
 
-					let hsm_balance_dai_after = Tokens::free_balance(DAI, &HSM::account_id());
-					assert_eq!(hsm_balance_dai_after - hsm_balance_dai_before, arb_amount);
-					assert_eq!(hsm_balance_dai_after, arb_amount);
+						let hsm_balance_dai_after = Tokens::free_balance(DAI, &HSM::account_id());
+						assert_eq!(hsm_balance_dai_after - hsm_balance_dai_before, arb_amount);
+						assert_eq!(hsm_balance_dai_after, arb_amount);
 
-					let sell_price = hydra_dx_math::hsm::calculate_purchase_price(asset_peg, purchase_fee);
-					let sell_price = FixedU128::from_rational(sell_price.0, sell_price.1);
-					let state = pallet_stableswap::Pallet::<Test>::create_snapshot(pool_id).expect("Pool not found");
+						let sell_price = hydra_dx_math::hsm::calculate_purchase_price(asset_peg, purchase_fee);
+						let sell_price = FixedU128::from_rational(sell_price.0, sell_price.1);
+						let state = pallet_stableswap::Pallet::<Test>::create_snapshot(pool_id).expect("Pool not found");
 
-					let reserves = state
-						.reserves
-						.iter()
-						.zip(state.assets.iter())
-						.map(|(r, a)| ((*a), *r))
-						.collect::<Vec<_>>();
+						let reserves = state
+							.reserves
+							.iter()
+							.zip(state.assets.iter())
+							.map(|(r, a)| ((*a), *r))
+							.collect::<Vec<_>>();
 
-					let after_spot = hydra_dx_math::stableswap::calculate_spot_price(
-						pool_id,
-						reserves,
-						amplification as u128,
-						HOLLAR,
-						DAI,
-						state.share_issuance,
-						1_000_000_000_000_000_000_u128,
-						Some(state.fee),
-						&state.pegs,
-					).expect("Pool not found");
+						let after_spot = hydra_dx_math::stableswap::calculate_spot_price(
+							pool_id,
+							reserves,
+							amplification as u128,
+							HOLLAR,
+							DAI,
+							state.share_issuance,
+							1_000_000_000_000_000_000_u128,
+							Some(state.fee),
+							&state.pegs,
+						).expect("Pool not found");
 
-					assert_eq_approx!(sell_price,after_spot, FixedU128::from_float(0.01), "Price should converge");
-
-				}
-			});
+						assert_eq_approx!(sell_price,after_spot, FixedU128::from_float(0.01), "Price should converge");
+					}
+				_ => {}
+			}});
 	}
 }
 
@@ -347,6 +348,6 @@ fn find_opportunity() {
 			let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
 			assert_ok!(HSM::set_flash_minter(RuntimeOrigin::root(), flash_minter,));
 			let opportunity = HSM::find_arbitrage_opportunity(DAI);
-			assert_eq!(opportunity, Some((1, 78321364099875978581618)));
+			assert_eq!(opportunity, Some(Arbitrage::HollarOut(78321364099875978581618)));
 		});
 }

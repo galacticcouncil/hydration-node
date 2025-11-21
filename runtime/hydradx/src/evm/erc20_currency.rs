@@ -1,11 +1,10 @@
-use crate::evm::aave_trade_executor::AaveTradeExecutor;
 use crate::evm::executor::{BalanceOf, CallResult, Executor, NonceIdOf};
 use crate::evm::{EvmAccounts, EvmAddress};
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason;
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed::Returned;
-use frame_support::{dispatch::DispatchResult, fail, pallet_prelude::*};
+use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
@@ -39,6 +38,8 @@ pub enum Function {
 }
 
 pub struct Erc20Currency<T>(PhantomData<T>);
+
+pub const HOLDING_ADDRESS: EvmAddress = EvmAddress::repeat_byte(0xFF);
 
 impl<T> ERC20 for Erc20Currency<T>
 where
@@ -272,33 +273,40 @@ where
 	) -> sp_runtime::DispatchResult {
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(from);
 
-		// let's construct standard transfer
-		let erc20_transfer = || -> DispatchResult {
-			<Self as ERC20>::transfer(
-				CallContext {
-					contract,
-					sender,
-					origin: sender,
-				},
-				EvmAccounts::<T>::evm_address(to),
-				amount,
-			)
-		};
-
-		// And handle the transfer according to the token type
-		if AaveTradeExecutor::<T>::is_atoken(contract) {
-			AaveTradeExecutor::<T>::transfer(contract, from, to, amount, erc20_transfer)
-		} else {
-			erc20_transfer()
-		}
+		<Self as ERC20>::transfer(
+			CallContext {
+				contract,
+				sender,
+				origin: sender,
+			},
+			EvmAccounts::<T>::evm_address(to),
+			amount,
+		)
 	}
 
-	fn deposit(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {
-		fail!(Error::<T>::NotSupported)
+	fn deposit(contract: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> sp_runtime::DispatchResult {
+		<Self as ERC20>::transfer(
+			CallContext {
+				contract,
+				sender: HOLDING_ADDRESS,
+				origin: HOLDING_ADDRESS,
+			},
+			EvmAccounts::<T>::evm_address(who),
+			amount,
+		)
 	}
 
-	fn withdraw(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {
-		fail!(Error::<T>::NotSupported)
+	fn withdraw(contract: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> sp_runtime::DispatchResult {
+		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(who);
+		<Self as ERC20>::transfer(
+			CallContext {
+				contract,
+				sender,
+				origin: sender,
+			},
+			HOLDING_ADDRESS,
+			amount,
+		)
 	}
 
 	fn can_slash(_contract: Self::CurrencyId, _who: &AccountId, value: Self::Balance) -> bool {
