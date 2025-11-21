@@ -70,6 +70,10 @@ pub mod pallet {
 		/// Maximum length of transaction data
 		#[pallet::constant]
 		type MaxDataLength: Get<u32>;
+
+		/// Maximum deposit amount
+		#[pallet::constant]
+		type MaxDepositAmount: Get<u32>;
 	}
 
 	// ========================================
@@ -229,6 +233,8 @@ pub mod pallet {
 		InvalidAddress,
 		/// Priority fee cannot exceed max fee per gas (EIP-1559 requirement)
 		InvalidGasPrice,
+		/// Deposit Amount greater than MaxDepositAmount
+		InvalidDepositAmount,
 	}
 
 	// ========================================
@@ -248,6 +254,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let _initializer = ensure_signed(origin)?;
 			ensure!(Admin::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
+
+			ensure!(
+				signature_deposit <= T::MaxDepositAmount::get().into(),
+				Error::<T>::InvalidDepositAmount
+			);
 
 			Admin::<T>::put(&admin);
 			SignatureDeposit::<T>::put(signature_deposit);
@@ -272,6 +283,11 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			let admin = Admin::<T>::get().ok_or(Error::<T>::NotInitialized)?;
 			ensure!(who == admin, Error::<T>::Unauthorized);
+
+			ensure!(
+				new_deposit <= T::MaxDepositAmount::get().into(),
+				Error::<T>::InvalidDepositAmount
+			);
 
 			let old_deposit = SignatureDeposit::<T>::get();
 			SignatureDeposit::<T>::put(new_deposit);

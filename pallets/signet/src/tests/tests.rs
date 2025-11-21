@@ -748,3 +748,29 @@ fn test_cross_pallet_execution() {
 		println!("   NOT as: 2 (the original user)");
 	});
 }
+
+#[test]
+fn test_max_deposit_amount() {
+	new_test_ext().execute_with(|| {
+		let admin_account = 1u64;
+		let deposit = 100000u128;
+		let chain_id = bounded_chain_id(b"test-chain".to_vec());
+
+		assert_noop!(
+			Signet::initialize(RuntimeOrigin::signed(1), admin_account, deposit, chain_id.clone()),
+			Error::<Test>::InvalidDepositAmount
+		);
+
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			1,
+			100,
+			bounded_chain_id(b"test-chain".to_vec())
+		));
+
+		assert_noop!(
+			Signet::update_deposit(RuntimeOrigin::signed(1), 10_000_000_000_000),
+			Error::<Test>::InvalidDepositAmount
+		);
+	});
+}

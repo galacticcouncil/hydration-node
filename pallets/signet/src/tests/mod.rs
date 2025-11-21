@@ -128,6 +128,8 @@ impl pallet_balances::Config for Test {
 parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
 	pub const MaxChainIdLength: u32 = 128;
+
+	pub const MaxDepositAmount: u32 = 10_000;
 }
 
 impl pallet_signet::Config for Test {
@@ -137,6 +139,7 @@ impl pallet_signet::Config for Test {
 	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = ();
 	type MaxDataLength = MaxDataLength;
+	type MaxDepositAmount = MaxDepositAmount;
 }
 
 parameter_types! {
