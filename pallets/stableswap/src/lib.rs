@@ -2005,8 +2005,6 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(Permill, Vec<PegType>), DispatchError> {
 		let (trade_fee, new_pegs) = Self::get_updated_pegs(pool_id, pool)?;
 
-		// Store trade_fee
-
 		// Store new pegs if pool has pegs configured
 		if let Some(peg_info) = PoolPegs::<T>::get(pool_id) {
 			let new_info = peg_info.with_new_pegs(&new_pegs, T::BlockNumberProvider::current_block_number());

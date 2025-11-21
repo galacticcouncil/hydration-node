@@ -1409,7 +1409,7 @@ fn trade_fee_should_not_change_when_multiple_trades_happen_in_same_block() {
 }
 
 #[test]
-fn trade_fee_should_removed_on_finalize() {
+fn trade_fee_should_be_removed_on_finalize() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let asset_c: AssetId = 3;
