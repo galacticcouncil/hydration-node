@@ -271,6 +271,9 @@ where
 		to: &AccountId,
 		amount: Self::Balance,
 	) -> sp_runtime::DispatchResult {
+		let from_balance_before = Self::total_balance(contract, from);
+		let to_had_zero_balance = Self::total_balance(contract, to).is_zero();
+
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(from);
 
 		<Self as ERC20>::transfer(
@@ -281,10 +284,23 @@ where
 			},
 			EvmAccounts::<T>::evm_address(to),
 			amount,
-		)
+		)?;
+
+		if from_balance_before == amount {
+			let _ = frame_system::Pallet::<T>::dec_providers(from);
+		}
+
+		if to_had_zero_balance && !amount.is_zero() {
+			frame_system::Pallet::<T>::inc_providers(to);
+		}
+
+		Ok(())
 	}
 
 	fn deposit(contract: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> sp_runtime::DispatchResult {
+		// Check if account has zero balance before deposit
+		let had_zero_balance = Self::total_balance(contract, who).is_zero();
+
 		<Self as ERC20>::transfer(
 			CallContext {
 				contract,
@@ -293,10 +309,19 @@ where
 			},
 			EvmAccounts::<T>::evm_address(who),
 			amount,
-		)
+		)?;
+
+		if had_zero_balance && !amount.is_zero() {
+			frame_system::Pallet::<T>::inc_providers(who);
+		}
+
+		Ok(())
 	}
 
 	fn withdraw(contract: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> sp_runtime::DispatchResult {
+		// Check balance before withdrawal
+		let balance_before = Self::total_balance(contract, who);
+
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(who);
 		<Self as ERC20>::transfer(
 			CallContext {
@@ -306,7 +331,13 @@ where
 			},
 			HOLDING_ADDRESS,
 			amount,
-		)
+		)?;
+
+		if balance_before == amount {
+			let _ = frame_system::Pallet::<T>::dec_providers(who);
+		}
+
+		Ok(())
 	}
 
 	fn can_slash(_contract: Self::CurrencyId, _who: &AccountId, value: Self::Balance) -> bool {

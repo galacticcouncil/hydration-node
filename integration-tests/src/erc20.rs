@@ -2,18 +2,24 @@ use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
 use crate::utils::contracts::*;
 use core::panic;
+use frame_support::dispatch::GetDispatchInfo;
+use pallet_transaction_payment::ChargeTransactionPayment;
+use sp_core::crypto::Ss58Codec;
+use sp_runtime::traits::SignedExtension;
+
 use ethabi::ethereum_types::BigEndianHash;
 use fp_evm::ExitReason::Succeed;
 use fp_evm::PrecompileSet;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
+use frame_support::traits::NamedReservableCurrency;
 use frame_support::{assert_noop, assert_ok};
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::{Erc20Currency, EvmNonceProvider as AccountNonce, Executor, Function};
-use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::RuntimeCall;
 use hydradx_runtime::RuntimeOrigin;
 use hydradx_runtime::{AssetLocation, Currencies};
+use hydradx_runtime::{AssetRegistry, Balances};
 use hydradx_runtime::{EVMAccounts, Runtime};
 use hydradx_traits::evm::ERC20;
 use hydradx_traits::evm::EVM;
@@ -22,6 +28,7 @@ use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_evm::ExitSucceed::Returned;
+use pallet_evm_accounts::Call::bind_evm_address;
 use sp_core::bounded_vec::BoundedVec;
 
 use hex_literal::hex;
@@ -542,5 +549,430 @@ fn erc20_currency_transfer_should_be_callable_using_dispatch_precompile() {
 
 		//Assert
 		assert_eq!(Currencies::free_balance(erc20, &BOB.into()), 100);
+	});
+}
+
+#[test]
+fn blank_new_account_signed_tx_should_be_valid_when_contains_only_erc20() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+
+		let new_account: AccountId = AccountId::from([0xAA; 32]);
+
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			new_account.clone(),
+			erc20,
+			1000,
+		));
+
+		let set_currency_call =
+			hydradx_runtime::RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::<
+				hydradx_runtime::Runtime,
+			>::set_currency {
+				currency: erc20,
+			});
+
+		let info = set_currency_call.get_dispatch_info();
+		let info_len = 146;
+
+		let nonce = frame_system::Pallet::<Runtime>::account_nonce(&new_account);
+		let check_nonce = frame_system::CheckNonce::<Runtime>::from(nonce);
+		let nonce_validation_result = check_nonce.validate(&new_account, &set_currency_call, &info, info_len);
+		assert!(nonce_validation_result.is_ok());
+	});
+}
+
+//TODO: use bigger amounts
+//TODO: use totaly balance
+
+#[test]
+fn transfer_should_increment_providers_on_new_account() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+
+		let new_account: AccountId = AccountId::from([37u8; 32]);
+		let account_pre = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_pre.providers, 0);
+		assert_eq!(account_pre.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &new_account), 0);
+
+		// Act
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			new_account.clone(),
+			erc20,
+			100,
+		));
+
+		// Assert
+		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_post.providers, 1);
+		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &new_account), 100);
+
+		// Assert that multiple transfers to same account don't increment providers again
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			new_account.clone(),
+			erc20,
+			50,
+		));
+		let account_after_second = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_after_second.providers, 1);
+		assert_eq!(account_after_second.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &new_account), 150);
+	});
+}
+
+#[test]
+fn transfer_should_decrement_providers_when_balance_becomes_zero() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+
+		let new_account: AccountId = AccountId::from([37u8; 32]);
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			new_account.clone(),
+			erc20,
+			100,
+		));
+		let account_pre = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_pre.providers, 1);
+		assert_eq!(account_pre.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &new_account), 100);
+
+		// Act
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(new_account.clone()),
+			ALICE.into(),
+			erc20,
+			100,
+		));
+
+		// Assert
+		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_post.providers, 0);
+		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &new_account), 0);
+	});
+}
+
+#[test]
+fn transfer_should_not_decrement_providers_when_partial_balance_remains() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+
+		let new_account: AccountId = AccountId::from([37u8; 32]);
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			new_account.clone(),
+			erc20,
+			100,
+		));
+		let account_pre = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_pre.providers, 1);
+		assert_eq!(account_pre.sufficients, 0);
+
+		// Act - transfer partial balance away from new account
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(new_account.clone()),
+			ALICE.into(),
+			erc20,
+			50,
+		));
+
+		// Assert that providers remained the same
+		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_post.providers, 1);
+		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &new_account), 50);
+	});
+}
+
+#[test]
+fn deposit_should_increment_providers_on_new_account() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+
+		let new_account: AccountId = AccountId::from([37u8; 32]);
+		let account_pre = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_pre.providers, 0);
+		assert_eq!(account_pre.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &new_account), 0);
+
+		// Withdraw some funds to holding account so deposit can be made
+		assert_ok!(Currencies::withdraw(erc20, &ALICE.into(), 100));
+
+		// Act
+		assert_ok!(Currencies::deposit(erc20, &new_account, 100));
+
+		// Assert
+		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_post.providers, 1);
+		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &new_account), 100);
+	});
+}
+
+#[test]
+fn deposit_should_not_increment_providers_on_existing_account() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+
+		let new_account: AccountId = AccountId::from([37u8; 32]);
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			new_account.clone(),
+			erc20,
+			50,
+		));
+		let account_pre = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_pre.providers, 1);
+		assert_eq!(account_pre.sufficients, 0);
+
+		// Withdraw some funds to holding account so deposit can be made
+		assert_ok!(Currencies::withdraw(erc20, &ALICE.into(), 100));
+
+		// Act
+		assert_ok!(Currencies::deposit(erc20, &new_account, 100));
+
+		// Assert that providers remained the same
+		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_post.providers, 1);
+		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &new_account), 150);
+	});
+}
+
+#[test]
+fn withdraw_should_decrement_providers_when_balance_becomes_zero() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+
+		let new_account: AccountId = AccountId::from([37u8; 32]);
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
+			new_account.clone().into()
+		)));
+
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			new_account.clone(),
+			erc20,
+			100,
+		));
+		let account_pre = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_pre.providers, 1);
+		assert_eq!(account_pre.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &new_account), 100);
+
+		// Act
+		assert_ok!(Currencies::withdraw(erc20, &new_account, 100));
+
+		// Assert
+		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_post.providers, 0);
+		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &new_account), 0);
+	});
+}
+
+#[test]
+fn withdraw_should_not_decrement_providers_when_partial_balance_remains() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+
+		let new_account: AccountId = AccountId::from([37u8; 32]);
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			new_account.clone(),
+			erc20,
+			100,
+		));
+
+		let account_pre = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_pre.providers, 1);
+		assert_eq!(account_pre.sufficients, 0);
+
+		// Act
+		assert_ok!(Currencies::withdraw(erc20, &new_account, 50));
+
+		// Assert that providers remained the same
+		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
+		assert_eq!(account_post.providers, 1);
+		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &new_account), 50);
+	});
+}
+
+#[test]
+fn transfer_between_two_new_accounts_should_manage_providers_correctly() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+
+		let sender_account: AccountId = AccountId::from([0x22; 32]);
+		let receiver_account: AccountId = AccountId::from([0x33; 32]);
+
+		// Give sender account balance
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			sender_account.clone(),
+			erc20,
+			100,
+		));
+
+		let sender_account_initial = frame_system::Pallet::<Runtime>::account(&sender_account);
+		let receiver_account_initial = frame_system::Pallet::<Runtime>::account(&receiver_account);
+		assert_eq!(sender_account_initial.providers, 1);
+		assert_eq!(sender_account_initial.sufficients, 0);
+		assert_eq!(receiver_account_initial.providers, 0);
+		assert_eq!(receiver_account_initial.sufficients, 0);
+
+		// Act - transfer all from sender to receiver (new account)
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(sender_account.clone()),
+			receiver_account.clone(),
+			erc20,
+			100,
+		));
+
+		// Assert - sender providers decremented, receiver providers incremented
+		let sender_account_final = frame_system::Pallet::<Runtime>::account(&sender_account);
+		let receiver_account_final = frame_system::Pallet::<Runtime>::account(&receiver_account);
+		assert_eq!(sender_account_final.providers, 0);
+		assert_eq!(sender_account_final.sufficients, 0);
+		assert_eq!(receiver_account_final.providers, 1);
+		assert_eq!(receiver_account_final.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &sender_account), 0);
+		assert_eq!(Currencies::free_balance(erc20, &receiver_account), 100);
+	});
+}
+
+#[test]
+fn erc20_transfer_works_with_providers_and_consumers() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// This test demonstrates that with providers, ERC20 transfers work when providers >= consumers
+
+		let account: AccountId = AccountId::from([37u8; 32]);
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+
+		// STEP 1: Give account HDX (balances pallet increments providers)
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			account.clone(),
+			HDX,
+			500 * UNITS,
+		));
+
+		let state_after_hdx = frame_system::Pallet::<Runtime>::account(&account);
+		assert_eq!(state_after_hdx.providers, 1); // HDX provider
+		assert_eq!(state_after_hdx.consumers, 0);
+
+		// STEP 2: Give account ERC20 tokens (our code increments providers)
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			account.clone(),
+			erc20,
+			100,
+		));
+
+		let state_after_erc20 = frame_system::Pallet::<Runtime>::account(&account);
+		assert_eq!(state_after_erc20.providers, 2); // HDX + ERC20
+		assert_eq!(state_after_erc20.sufficients, 0);
+		assert_eq!(state_after_erc20.consumers, 0);
+
+		// STEP 3: Reserve some HDX (this creates a consumer)
+		// Reserved balance increments consumers but the account still has free balance
+		let reserve_amount = 100 * UNITS;
+		assert_ok!(hydradx_runtime::Balances::reserve_named(
+			&[0u8; 8],
+			&account,
+			reserve_amount,
+		));
+
+		let state_with_reserve = frame_system::Pallet::<Runtime>::account(&account);
+		assert_eq!(state_with_reserve.providers, 2); // HDX + ERC20
+		assert_eq!(state_with_reserve.consumers, 1); // Reserved balance created consumer
+		assert_eq!(Currencies::free_balance(HDX, &account), 400 * UNITS); // 500 - 100 reserved
+		assert_eq!(Currencies::free_balance(erc20, &account), 100);
+
+		// STEP 4: Transfer away all free HDX (not the reserved amount)
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(account.clone()),
+			ALICE.into(),
+			HDX,
+			400 * UNITS - UNITS, // All free balance
+		));
+
+		let state_after_hdx_transfer = frame_system::Pallet::<Runtime>::account(&account);
+		assert_eq!(state_after_hdx_transfer.consumers, 1);
+		assert_eq!(state_after_hdx_transfer.providers, 2); // HDX + ERC20
+		assert_eq!(Currencies::free_balance(HDX, &account), UNITS);
+		assert_eq!(Currencies::free_balance(erc20, &account), 100);
+
+		// STEP 5: Transfer ERC20 away
+		// Should SUCCEED because providers (2) >= consumers (1)
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(account.clone()),
+			ALICE.into(),
+			erc20,
+			100,
+		));
+
+		let final_state = frame_system::Pallet::<Runtime>::account(&account);
+		assert_eq!(final_state.providers, 1); // Still have HDX provider (reserved)
+		assert_eq!(final_state.consumers, 1);
+		assert_eq!(final_state.sufficients, 0);
+		assert_eq!(Currencies::free_balance(erc20, &account), 0);
+
+		//Step 6: Clean up by unreserving HDX
+		hydradx_runtime::Balances::unreserve_named(&[0u8; 8], &account, reserve_amount);
+
+		let final_state = frame_system::Pallet::<Runtime>::account(&account);
+		assert_eq!(final_state.providers, 1); // HDX only (no erc20, no consumer)
+		assert_eq!(final_state.consumers, 0);
+		assert_eq!(Currencies::free_balance(erc20, &account), 0);
+		assert_eq!(Currencies::free_balance(HDX, &account), 100 * UNITS + UNITS);
+
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(account.clone()),
+			ALICE.into(),
+			HDX,
+			100 * UNITS + UNITS, // All free balance
+		));
+
+		let final_state = frame_system::Pallet::<Runtime>::account(&account);
+		assert_eq!(final_state.providers, 0);
+		assert_eq!(final_state.consumers, 0);
+		assert_eq!(Currencies::free_balance(erc20, &account), 0);
 	});
 }
