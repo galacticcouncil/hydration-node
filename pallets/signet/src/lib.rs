@@ -54,8 +54,6 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
 		/// Currency for handling deposits and fees
 		type Currency: Currency<Self::AccountId>;
 
@@ -248,7 +246,7 @@ pub mod pallet {
 			signature_deposit: BalanceOf<T>,
 			chain_id: BoundedVec<u8, T::MaxChainIdLength>,
 		) -> DispatchResult {
-			T::UpdateOrigin::ensure_origin(origin)?;
+			let _initializer = ensure_signed(origin)?;
 			ensure!(Admin::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
 
 			Admin::<T>::put(&admin);

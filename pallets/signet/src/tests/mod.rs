@@ -9,10 +9,8 @@ use frame_support::{
 };
 use frame_system as system;
 use sp_core::H256;
-use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
-	AccountId32, BuildStorage,
-};
+use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
+use sp_runtime::BuildStorage;
 
 #[frame_support::pallet]
 pub mod pallet_mock_caller {
@@ -139,7 +137,6 @@ impl pallet_signet::Config for Test {
 	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = ();
 	type MaxDataLength = MaxDataLength;
-	type UpdateOrigin = frame_system::EnsureRoot<u64>;
 }
 
 parameter_types! {
