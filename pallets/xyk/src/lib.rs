@@ -197,7 +197,7 @@ pub mod pallet {
 		FeeAmountInvalid,
 
 		/// Overflow
-		/// Not in use. The discount feature has been deprecated.
+		/// Not used, kept for backward compatibility. The discount feature has been deprecated.
 		CannotApplyDiscount,
 
 		/// Max fraction of pool to buy in single transaction has been exceeded.
