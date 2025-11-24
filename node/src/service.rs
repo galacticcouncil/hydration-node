@@ -332,6 +332,9 @@ async fn start_node_impl(
 		);
 	}
 
+	// Data provided from the liquidation worker to RPC API.
+	let liquidation_task_data = Arc::new(liquidation_worker::LiquidationTaskData::new());
+
 	// By default, the liquidation worker is enabled for validator nodes and disabled for non-validator nodes.
 	if (validator && !(liquidation_worker_config.liquidation_worker == Some(false)))
 		|| (!validator && liquidation_worker_config.liquidation_worker == Some(true))
@@ -344,6 +347,7 @@ async fn start_node_impl(
 				liquidation_worker_config,
 				transaction_pool.clone(),
 				task_manager.spawn_handle(),
+				liquidation_task_data.clone(),
 			),
 		);
 	}
@@ -386,6 +390,7 @@ async fn start_node_impl(
 				client: client.clone(),
 				pool: transaction_pool.clone(),
 				backend: backend.clone(),
+				liquidation_task_data: liquidation_task_data.clone(),
 			};
 
 			let module = rpc::create_full(deps)?;

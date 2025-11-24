@@ -67,6 +67,7 @@
 //! * `add_token` - Adds token to the pool. Initial liquidity must be transffered to pool account prior to calling add_token.
 //! * `add_liquidity` - Adds liquidity of selected asset to the pool. Mints corresponding position NFT.
 //! * `remove_liquidity` - Removes liquidity of selected position from the pool. Partial withdrawals are allowed.
+//! * `remove_all_liquidity` - Removes all liquidity from a selected position.
 //! * `sell` - Trades an asset in for asset out by selling given amount of asset in.
 //! * `buy` - Trades an asset in for asset out by buying given amount of asset out.
 //! * `set_asset_tradable_state` - Updates asset's tradable state with new flags. This allows/forbids asset operation such SELL,BUY,ADD or  REMOVE liquidtityy.
@@ -819,6 +820,41 @@ pub mod pallet {
 
 			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_liquidity_invariant((asset_id, asset_state, new_asset_state));
+
+			Ok(())
+		}
+
+		/// Remove all liquidity from position
+		///
+		/// Limit protection is applied.
+		///
+		/// `remove_all_liquidity` removes all shares amount from given PositionId (NFT instance).
+		///
+		/// Asset's tradable state must contain REMOVE_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
+		///
+		/// if all shares from given position are removed, position is destroyed and NFT is burned.
+		///
+		/// Remove all liquidity fails if price difference between spot price and oracle price is higher than allowed by `PriceBarrier`.
+		///
+		/// Dynamic withdrawal fee is applied if withdrawal is not safe. It is calculated using spot price and external price oracle.
+		/// Withdrawal is considered safe when trading is disabled.
+		///
+		/// Parameters:
+		/// - `position_id`: The identifier of position which liquidity is entirely removed from.
+		///
+		/// Emits `LiquidityRemoved` event when successful.
+		///
+		#[pallet::call_index(15)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_all_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
+		#[transactional]
+		pub fn remove_all_liquidity(
+			origin: OriginFor<T>,
+			position_id: T::PositionItemId,
+			min_limit: Balance,
+		) -> DispatchResult {
+			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
+
+			Self::remove_liquidity_with_limit(origin, position_id, position.shares, min_limit)?;
 
 			Ok(())
 		}

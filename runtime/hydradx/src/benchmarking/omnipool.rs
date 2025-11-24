@@ -193,6 +193,51 @@ runtime_benchmarks! {
 		assert!(hub_issuance_after < hub_issuance);
 	}
 
+	remove_all_liquidity {
+		init()?;
+		let acc = Omnipool::protocol_account();
+		// Register new asset in asset registry
+		let token_id = register_asset(b"FCK".to_vec(), 1_u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		// Create account for token provider and set balance
+		let owner: AccountId = account("owner", 0, 1);
+
+		let token_price = FixedU128::from((1,5));
+		let token_amount = 200_000_000_000_000_u128;
+
+		update_balance(token_id, &acc, token_amount);
+
+		// Add the token to the pool
+		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner)?;
+
+		// Create LP provider account with correct balance and add some liquidity
+		let lp_provider: AccountId = account("provider", 1, 1);
+		update_balance(token_id, &lp_provider, 500_000_000_000_000);
+
+		let liquidity_added = 1_000_000_000_000_u128;
+
+		let current_position_id = Omnipool::next_position_id();
+
+		run_to_block(10);
+		Omnipool::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(), token_id, liquidity_added)?;
+
+		// to ensure worst case - Let's do a trade to make sure price changes, so LP provider receives some LRNA ( which does additional transfer)
+		let buyer: AccountId = account("buyer", 2, 1);
+		update_balance(DAI, &buyer, 500_000_000_000_000_u128);
+		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, DAI, 100_000_000_000_u128, 100_000_000_000_000_u128)?;
+
+		let hub_id = <Runtime as pallet_omnipool::Config>::HubAssetId::get();
+		let hub_issuance = <Runtime as pallet_omnipool::Config>::Currency::total_issuance(hub_id);
+	}: {Omnipool::remove_all_liquidity(RawOrigin::Signed(lp_provider.clone()).into(), current_position_id, 0u128)? }
+	verify {
+		// Ensure NFT instance was burned
+		assert!(Omnipool::positions(current_position_id).is_none());
+
+		// Ensure LRNA was burned
+		let hub_issuance_after  = <Runtime as pallet_omnipool::Config>::Currency::total_issuance(hub_id);
+		assert!(hub_issuance_after < hub_issuance);
+	}
+
 	sell {
 		init()?;
 

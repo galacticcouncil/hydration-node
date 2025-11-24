@@ -520,43 +520,6 @@ pub mod pallet {
 			})
 		}
 
-		/// Add liquidity to selected pool.
-		///
-		/// Use `add_assets_liquidity` instead.
-		/// This extrinsics will be removed in the future.
-		///
-		/// First call of `add_liquidity` must provide "initial liquidity" of all assets.
-		///
-		/// If there is liquidity already in the pool, LP can provide liquidity of any number of pool assets.
-		///
-		/// LP must have sufficient amount of each asset.
-		///
-		/// Origin is given corresponding amount of shares.
-		///
-		/// Parameters:
-		/// - `origin`: liquidity provider
-		/// - `pool_id`: Pool Id
-		/// - `assets`: asset id and liquidity amount provided
-		///
-		/// Emits `LiquidityAdded` event when successful.
-		/// Emits `pallet_broadcast::Swapped` event when successful.
-		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
-							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
-		#[transactional]
-		#[deprecated(note = "Use add_assets_liquidity instead")]
-		pub fn add_liquidity(
-			origin: OriginFor<T>,
-			pool_id: T::AssetId,
-			assets: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			Self::do_add_liquidity(&who, pool_id, &assets, Balance::zero())?;
-
-			Ok(())
-		}
-
 		/// Add liquidity to selected pool given exact amount of shares to receive.
 		///
 		/// Similar to `add_liquidity` but LP specifies exact amount of shares to receive.

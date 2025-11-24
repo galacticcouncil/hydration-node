@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "14.6.0"
+version = "14.7.1"
 description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -44,7 +44,7 @@ liquidation-worker-support = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true }
-frame-benchmarking-cli = { workspace = true, optional = true }
+frame-benchmarking-cli = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 pallet-transaction-payment-rpc = { workspace = true }
@@ -116,12 +116,9 @@ pallet-ismp-rpc = { workspace = true }
 ismp-parachain-inherent = { workspace = true }
 
 [features]
-default = [
-    "frame-benchmarking-cli",
-]
 runtime-benchmarks = [
     "hydradx-runtime/runtime-benchmarks",
-    "frame-benchmarking-cli",
+    "frame-benchmarking-cli/runtime-benchmarks",
     "polkadot-service/runtime-benchmarks",
     "polkadot-cli/runtime-benchmarks",
 ]
