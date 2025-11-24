@@ -52,7 +52,7 @@ pub struct AMMTransfer<AccountId, AssetId, AssetPair, Balance> {
 	pub fee: (AssetId, Balance),
 }
 
-/// Traits for handling AMM Pool trades.
+/// Trait providing info about AMM Pool.
 pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 	/// Check if both assets exist in a pool.
 	fn exists(assets: AssetPair) -> bool;
