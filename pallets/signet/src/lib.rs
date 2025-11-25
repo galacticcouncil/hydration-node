@@ -257,7 +257,7 @@ pub mod pallet {
 			ensure!(Admin::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
 
 			ensure!(
-				signature_deposit > T::MaxSignatureDeposit::get(),
+				signature_deposit < T::MaxSignatureDeposit::get(),
 				Error::<T>::InavlidSignatureDeposit
 			);
 
