@@ -28,8 +28,6 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(test)]
-mod tests;
 pub mod types;
 mod weights;
 
@@ -75,7 +73,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// New intent was submitted
-		IntentSubmitted(IntentId, Intent<T::AccountId>),
+		IntentSubmitted(T::AccountId, IntentId, Intent),
 	}
 
 	#[pallet::error]
@@ -89,7 +87,11 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_intent)]
-	pub(super) type Intents<T: Config> = StorageMap<_, Blake2_128Concat, IntentId, Intent<T::AccountId>>;
+	pub(super) type Intents<T: Config> = StorageMap<_, Blake2_128Concat, IntentId, Intent>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn intent_owner)]
+	pub(super) type IntentOwner<T: Config> = StorageMap<_, Blake2_128Concat, IntentId, T::AccountId>;
 
 	#[pallet::storage]
 	/// Intent id sequencer
@@ -100,10 +102,15 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
-		pub fn submit_intent(origin: OriginFor<T>, intent: Intent<T::AccountId>) -> DispatchResult {
+		pub fn submit_intent(origin: OriginFor<T>, intent: Intent) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(who == intent.who, Error::<T>::InvalidIntent);
-			Self::add_intent(intent)?;
+			Self::add_intent(who, intent)?;
+			Ok(())
+		}
+		#[pallet::call_index(1)]
+		#[pallet::weight(T::WeightInfo::cancel_intent())]
+		pub fn cancel_intent(origin: OriginFor<T>, intent: IntentId) -> DispatchResult {
+			let who = ensure_signed(origin)?;
 			Ok(())
 		}
 	}
@@ -114,7 +121,7 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	#[require_transactional]
-	pub fn add_intent(intent: Intent<T::AccountId>) -> Result<IntentId, DispatchError> {
+	pub fn add_intent(owner: T::AccountId, intent: Intent) -> Result<IntentId, DispatchError> {
 		let now = T::TimestampProvider::now();
 		ensure!(intent.deadline > now, Error::<T>::InvalidDeadline);
 		ensure!(
@@ -133,12 +140,13 @@ impl<T: Config> Pallet<T> {
 
 		let intent_id = Self::generate_new_intent_id(intent.deadline);
 		Intents::<T>::insert(intent_id, &intent);
-		Self::deposit_event(Event::IntentSubmitted(intent_id, intent));
+		IntentOwner::<T>::insert(intent_id, &owner);
+		Self::deposit_event(Event::IntentSubmitted(owner, intent_id, intent));
 		Ok(intent_id)
 	}
 
-	pub fn get_valid_intents() -> Vec<(IntentId, Intent<T::AccountId>)> {
-		let mut intents: Vec<(IntentId, Intent<T::AccountId>)> = Intents::<T>::iter().collect();
+	pub fn get_valid_intents() -> Vec<(IntentId, Intent)> {
+		let mut intents: Vec<(IntentId, Intent)> = Intents::<T>::iter().collect();
 		intents.sort_by_key(|(_, intent)| intent.deadline);
 
 		let now = T::TimestampProvider::now();

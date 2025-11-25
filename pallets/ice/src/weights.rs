@@ -1,4 +1,3 @@
-
 use frame_support::pallet_prelude::Weight;
 
 pub trait WeightInfo {

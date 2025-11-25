@@ -17,8 +17,7 @@ pub enum IntentKind {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Intent<AccountId> {
-	pub who: AccountId,
+pub struct Intent {
 	pub kind: IntentKind,
 	pub deadline: Moment,
 	pub on_success: Option<CallData>,
