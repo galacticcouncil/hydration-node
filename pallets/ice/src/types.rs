@@ -8,6 +8,6 @@ use sp_std::vec::Vec;
 pub struct Solution {}
 
 #[derive(Encode, Decode)]
-pub struct SolverData{
-    intents: Vec<Intent>,
+pub struct SolverData {
+	intents: Vec<Intent>,
 }

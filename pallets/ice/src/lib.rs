@@ -28,9 +28,9 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub mod api;
 pub mod types;
 mod weights;
-pub mod api;
 
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Mutate;
@@ -48,12 +48,11 @@ pub use weights::WeightInfo;
 
 pub const UNSIGNED_TXS_PRIORITY: u64 = 1000;
 
-type AssetId = pallet_intent::types::AssetId;
-type Balance = pallet_intent::types::Balance;
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_benchmarking::__private::log;
+	use frame_system::offchain::SubmitTransaction;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -65,12 +64,6 @@ pub mod pallet {
 		/// Pallet id - used to create a holding account
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
-
-		/// Block number provider.
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
-
-		/// Transfer support
-		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -105,7 +98,18 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {}
 
-		fn offchain_worker(block_number: BlockNumberFor<T>) {}
+		fn offchain_worker(block_number: BlockNumberFor<T>) {
+			let call = Self::run(block_number, |d| api::ice::get_solution(d));
+
+			if let Some(c) = call {
+				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(c.into()) {
+					log::error!(
+						target: "ice::offchain_worker",
+						"Failed to submit solution {:?}", e
+					);
+				}
+			}
+		}
 	}
 
 	#[pallet::validate_unsigned]
@@ -145,17 +149,14 @@ pub mod pallet {
 	}
 }
 
-// PALLET PUBLIC API
 impl<T: Config> Pallet<T> {
 	pub fn get_pallet_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
 	}
-}
 
-impl<T: Config> Pallet<T> {
 	pub fn run<F>(block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
 	where
-		F: FnOnce(SolverData) -> Option<Solution>,
+		F: FnOnce(Vec<u8>) -> Option<Vec<u8>>,
 	{
 		None
 	}
