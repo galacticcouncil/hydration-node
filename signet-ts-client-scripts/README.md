@@ -8,17 +8,30 @@ Test client for the Signet pallet on Substrate/Polkadot. Validates signature gen
 - Running Substrate node with Signet pallet deployed (port 8000)
 - Access to the Signet signature server
 - For ERC20 vault tests: Funded Ethereum Sepolia account with ETH and USDC
+- For Bitcoin vault tests: Docker for running Bitcoin regtest
 
 ## Setup
 
-### 1. Start the Signature Server
+### 1. Start Bitcoin Regtest (for Bitcoin vault tests)
+```bash
+# Clone the Bitcoin regtest repository
+git clone https://github.com/Pessina/bitcoin-regtest.git
+cd bitcoin-regtest
+
+# Start Bitcoin Core in regtest mode
+yarn docker:dev
+```
+
+The Bitcoin regtest node will be available at `http://localhost:18443`.
+
+### 2. Start the Signature Server
 
 Clone and run the signature server that responds to Substrate signature requests. Add .env to the root of the repository:
 
 ```bash
-# Clone the server repository
-git clone https://github.com/sig-net/solana-signet-program
-cd chain-signatures-solana/clients/response-server
+# Clone the server repository (substrate-new branch)
+git clone -b substrate-new https://github.com/sig-net/solana-signet-program.git
+cd solana-signet-program/clients/response-server
 
 # Install dependencies
 yarn install
@@ -35,6 +48,9 @@ PRIVATE_KEY_TESTNET=0x... # Your private key for signing
 # Ethereum Configuration (for vault monitoring)
 SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/your_infura_key_here
 
+# Bitcoin Configuration (for Bitcoin vault monitoring)
+BITCOIN_NETWORK=regtest
+
 # Dummy solana key
 SOLANA_PRIVATE_KEY='[16,151,155,240,122,151,187,95,145,26,179,205,196,113,3,62,17,105,18,240,197,176,45,90,176,108,30,106,182,43,7,104,80,202,59,51,239,219,236,17,39,204,155,35,175,195,17,172,201,196,134,125,25,214,148,76,102,47,123,37,203,86,159,147]'
 EOF
@@ -47,14 +63,15 @@ The server will:
 - Connect to your Substrate node
 - Automatically respond to signature requests
 - Monitor Ethereum transactions and report results back to Substrate
+- Monitor Bitcoin transactions on regtest and report results back to Substrate
 
-### 2. Install Test Client Dependencies
+### 3. Install Test Client Dependencies
 
 ```bash
 yarn install
 ```
 
-### 3. Ensure Substrate Node is Running
+### 4. Ensure Substrate Node is Running
 
 The tests expect a Substrate node with the Signet pallet at `ws://localhost:8000`. If using Chopsticks:
 
@@ -64,7 +81,7 @@ npx @acala-network/chopsticks@latest --config=hydradx \
   --db=:memory:
 ```
 
-### 4. Fund Ethereum Account for Vault Tests
+### 5. Fund Ethereum Account for Vault Tests
 
 The ERC20 vault test requires a funded account on Sepolia. The test derives an Ethereum address from your Substrate account and expects it to have:
 
@@ -82,6 +99,7 @@ yarn test
 # Run specific test suite
 yarn test signet.test.ts
 yarn test erc20vault.test.ts
+yarn test btc-vault.test.ts
 
 # Run with watch mode
 yarn test:watch
@@ -107,6 +125,22 @@ yarn test:watch
   - Verify MPC signature on result
   - Claim deposited tokens in Substrate vault
 - **Multi-token Support**: Vault supports any ERC20 token (decimal-agnostic)
+
+### Bitcoin Vault Integration (`btc-vault.test.ts`)
+- **Vault Initialization**: Initialize vault with MPC signer address hash
+- **UTXO Management**: Automatically discover and select UTXOs for spending
+- **Deposit Flow**:
+  - Fund Bitcoin address derived from Substrate account
+  - Build PSBT (Partially Signed Bitcoin Transaction) with vault output
+  - Request per-input MPC signatures for each PSBT input
+  - Finalize and broadcast signed transaction to regtest
+  - Wait for confirmation
+- **Result Monitoring**: MPC server observes transaction confirmation on Bitcoin
+- **Claim Flow**:
+  - Receive transaction output from MPC
+  - Verify MPC signature on result
+  - Claim deposited sats in Substrate vault
+- **Per-Input Signing**: Each UTXO input receives an individual signature with unique request ID
 
 ## Expected Output
 
@@ -168,6 +202,28 @@ Tests:       1 passed, 1 total
 Time:        48.056 s
 ```
 
+### Bitcoin Vault Test
+```
+PASS  ./btc-vault-perinput.test.ts (131.227 s)
+BTC Vault Integration
+✓ should complete full deposit and claim flow (125678 ms)
+🔑 Derived Bitcoin Address: bcrt1qmr8q7udefh6e3mld7xpahh7g652pq3zurswrxz
+💰 Funding bcrt1qmr8q7udefh6e3mld7xpahh7g652pq3zurswrxz with 1 BTC...
+📦 Found 32 UTXO(s)
+📊 Transaction breakdown:
+Inputs: 1
+To vault: 36879590 sats
+Fee: 138 sats
+✅ Deposit BTC included in block
+⏳ Waiting for MPC signature(s)...
+✅ Received all 1 signature(s) from MPC
+📡 Broadcasting transaction to regtest...
+✅ Transaction confirmed (1 confirmations)
+✅ Balance increased by: 36879590 sats
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+```
+
 ## Configuration
 
 The root public key used for derivation is hardcoded in the tests. Ensure the server's `PRIVATE_KEY_TESTNET` corresponds to:
@@ -181,8 +237,12 @@ const ROOT_PUBLIC_KEY = "0x044eef776e4f257d68983e45b340c2e9546c5df95447900b6aadf
 - **Timeout errors**: Ensure the signature server is running and connected to the same Substrate node
 - **Address mismatch**: Verify the server's private key matches the client's expected public key
 - **Transaction errors**: Check that the Signet pallet is initialized (tests handle this automatically)
-- **Vault test failures**:
+- **ERC20 vault test failures**:
   - Ensure your derived Ethereum address is funded with ETH and USDC on Sepolia
-  - Verify the MPC server has Ethereum monitoring enabled with `SEPOLIA_RPC` configured
+  - Verify the MPC server has Ethereum monitoring enabled with `SEPOLIA_RPC_URL` configured
   - Check that the vault's MPC address matches the server's signing key
+- **Bitcoin vault test failures**:
+  - Ensure Bitcoin regtest is running at `http://localhost:18443`
+  - Verify the MPC server has `BITCOIN_NETWORK=regtest` configured
+  - The test automatically funds addresses and mines blocks, but ensure Docker has sufficient resources
 - **InvalidSigner errors**: The output bytes from Substrate events include SCALE encoding that must be stripped before verification
