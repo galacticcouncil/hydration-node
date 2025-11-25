@@ -1,0 +1,69 @@
+[package]
+name = "pallet-btc-vault"
+version = "1.0.0"
+authors = ["Substrate DevHub <https://github.com/substrate-developer-hub>"]
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = ["derive"] }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
+serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+
+frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2409-2", default-features = false, optional = true }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2409-2", default-features = false }
+frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2409-2", default-features = false }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2409-2", default-features = false }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2409-2", default-features = false }
+sp-std = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2409-2", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2409-2", default-features = false }
+
+alloy-sol-types = { version = "0.8.14", default-features = false }
+
+pallet-signet = { path = "../signet", default-features = false }
+pallet-build-btc-tx = { path = "../build-btc-tx", default-features = false }
+
+[dev-dependencies]
+pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2409-2" }
+secp256k1 = { version = "0.29.1", features = ["rand", "recovery"] }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "hex/std",
+    "serde/std",
+    "serde_json/std",
+    "frame-benchmarking?/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-io/std",
+    "sp-core/std",
+    "sp-std/std",
+    "sp-runtime/std",
+    "alloy-sol-types/std",
+    "pallet-signet/std",
+    "pallet-build-btc-tx/std"
+]
+runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+]
+try-runtime = [
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+]
+
+[target.'cfg(not(feature = "std"))'.dependencies]
+borsh = { version = "1.5", default-features = false, features = ["derive", "hashbrown"] }
+
+[target.'cfg(feature = "std")'.dependencies]
+borsh = { version = "1.5", default-features = false, features = ["derive", "std"] }

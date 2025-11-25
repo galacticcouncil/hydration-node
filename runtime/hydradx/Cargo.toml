@@ -64,6 +64,7 @@ pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-hsm = { workspace = true }
 pallet-build-evm-tx = { workspace = true }
+pallet-build-btc-tx = { workspace = true }
 pallet-parameters = { workspace = true }
 
 # pallets
@@ -94,6 +95,7 @@ pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
 pallet-signet = { workspace = true }
 pallet-erc20-vault = { workspace = true }
+pallet-btc-vault = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -245,6 +247,7 @@ runtime-benchmarks = [
     "pallet-xyk/runtime-benchmarks",
     "pallet-hsm/runtime-benchmarks",
     "pallet-build-evm-tx/runtime-benchmarks",
+    "pallet-build-btc-tx/runtime-benchmarks",
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
@@ -262,6 +265,7 @@ runtime-benchmarks = [
     "pallet-token-gateway/runtime-benchmarks",
     "pallet-signet/runtime-benchmarks",
     "pallet-erc20-vault/runtime-benchmarks",
+    "pallet-btc-vault/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -343,6 +347,7 @@ std = [
     "pallet-duster-rpc-runtime-api/std",
     "pallet-hsm/std",
     "pallet-build-evm-tx/std",
+    "pallet-build-btc-tx/std",
     "pallet-parameters/std",
     "warehouse-liquidity-mining/std",
     "sp-api/std",
@@ -399,6 +404,7 @@ std = [
     "ismp-parachain-runtime-api/std",
     "pallet-signet/std",
     "pallet-erc20-vault/std",
+    "pallet-btc-vault/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -467,6 +473,7 @@ try-runtime = [
     "pallet-xyk/try-runtime",
     "pallet-hsm/try-runtime",
     "pallet-build-evm-tx/try-runtime",
+    "pallet-build-btc-tx/try-runtime",
     "pallet-referrals/try-runtime",
     "pallet-evm-accounts/try-runtime",
     "pallet-xyk-liquidity-mining/try-runtime",
@@ -480,6 +487,7 @@ try-runtime = [
     "pallet-dispatcher/try-runtime",
     "pallet-signet/try-runtime",
     "pallet-erc20-vault/try-runtime",
+    "pallet-btc-vault/try-runtime",
 ]
 
 metadata-hash = [

@@ -21,12 +21,11 @@ use frame_support::pallet_prelude::*;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use sp_std::vec::Vec;
 
-use ethereum::{AccessListItem, EIP1559TransactionMessage, TransactionAction};
-use sp_core::{H160, U256};
+use ethereum::AccessListItem;
+use signet_rs::{TransactionBuilder, TxBuilder, EVM};
+use sp_core::H160;
 
 pub use pallet::*;
-
-const EIP1559_TX_TYPE: u8 = 0x02;
 
 #[cfg(test)]
 mod tests;
@@ -84,32 +83,32 @@ pub mod pallet {
 			chain_id: u64,
 		) -> Result<Vec<u8>, DispatchError> {
 			ensure_signed(origin)?;
-
 			ensure!(data.len() <= T::MaxDataLength::get() as usize, Error::<T>::DataTooLong);
 			ensure!(max_priority_fee_per_gas <= max_fee_per_gas, Error::<T>::InvalidGasPrice);
 
-			let action = match to_address {
-				Some(addr) => TransactionAction::Call(addr),
-				None => TransactionAction::Create,
-			};
+			let to_address_bytes = to_address.map(|h| h.0);
+			let access_list_converted = convert_access_list(access_list);
 
-			let tx_message = EIP1559TransactionMessage {
-				chain_id,
-				nonce: U256::from(nonce),
-				max_priority_fee_per_gas: U256::from(max_priority_fee_per_gas),
-				max_fee_per_gas: U256::from(max_fee_per_gas),
-				gas_limit: U256::from(gas_limit),
-				action,
-				value: U256::from(value),
-				input: data,
-				access_list,
-			};
+			let tx = TransactionBuilder::new::<EVM>()
+				.chain_id(chain_id)
+				.nonce(nonce)
+				.max_priority_fee_per_gas(max_priority_fee_per_gas)
+				.max_fee_per_gas(max_fee_per_gas)
+				.gas_limit(gas_limit as u128)
+				.value(value)
+				.input(data)
+				.access_list(access_list_converted);
 
-			let mut output = Vec::new();
-			output.push(EIP1559_TX_TYPE);
-			output.extend_from_slice(&rlp::encode(&tx_message));
+			let tx = if let Some(to) = to_address_bytes { tx.to(to) } else { tx };
 
-			Ok(output)
+			Ok(tx.build().build_for_signing())
 		}
+	}
+
+	fn convert_access_list(items: Vec<AccessListItem>) -> Vec<([u8; 20], Vec<[u8; 32]>)> {
+		items
+			.into_iter()
+			.map(|item| (item.address.0, item.storage_keys.into_iter().map(|k| k.0).collect()))
+			.collect()
 	}
 }

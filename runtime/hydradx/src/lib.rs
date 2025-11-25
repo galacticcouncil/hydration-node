@@ -193,8 +193,10 @@ construct_runtime!(
 		HSM: pallet_hsm = 82,
 		Parameters: pallet_parameters = 83,
 		BuildEvmTx: pallet_build_evm_tx = 86,
+		BuildBTCTx: pallet_build_btc_tx = 87,
 		Signet: pallet_signet = 84,
 		Erc20Vault: pallet_erc20_vault = 85,
+		BTCVault: pallet_btc_vault = 88,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -345,11 +347,13 @@ mod benches {
 		[pallet_dispatcher, Dispatcher]
 		[pallet_hsm, HSM]
 		[pallet_build_evm_tx, BuildEvmTx]
+		[pallet_build_btc_tx, BuildBTCTx]
 		[pallet_dynamic_fees, DynamicFees]
 		[ismp_parachain, IsmpParachain]
 		[pallet_token_gateway, TokenGateway]
 		[pallet_signet, Signet]
 		[pallet_erc20_vault, Erc20Vault]
+		[pallet_btc_vault, BTCVault]
 	);
 }
 

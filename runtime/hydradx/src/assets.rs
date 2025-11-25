@@ -1841,6 +1841,16 @@ impl pallet_build_evm_tx::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MaxBTCInputs: u32 = 100;
+	pub const MaxBTCOutputs: u32 = 100;
+}
+
+impl pallet_build_btc_tx::Config for Runtime {
+	type MaxInputs = MaxBTCInputs;
+	type MaxOutputs = MaxBTCOutputs;
+}
+
+parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
 	pub const MaxChainIdLength: u32 = 128;
 }
@@ -1860,6 +1870,15 @@ parameter_types! {
 impl pallet_erc20_vault::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type VaultPalletId = Erc20VaultPalletId;
+}
+
+parameter_types! {
+	pub const BTCVaultPalletId: PalletId = PalletId(*b"py/btcvt");
+}
+
+impl pallet_btc_vault::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type VaultPalletId = BTCVaultPalletId;
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);

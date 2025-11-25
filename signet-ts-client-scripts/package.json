@@ -18,8 +18,12 @@
     "@polkadot/api": "^11.2.1",
     "@polkadot/keyring": "^12.6.2",
     "@polkadot/util": "^12.6.2",
+    "bitcoin-regtest": "^1.0.1",
+    "bitcoinjs-lib": "^6.1.6",
+    "coinselect": "^3.1.13",
     "elliptic": "^6.6.1",
     "ethers": "^6.15.0",
+    "tiny-secp256k1": "^2.2.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3",
     "viem": "^2.37.6"

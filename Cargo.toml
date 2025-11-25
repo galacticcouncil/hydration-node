@@ -162,9 +162,11 @@ pallet-broadcast = { path = "pallets/broadcast", default-features = false }
 liquidation-worker-support = { path = "liquidation-worker-support", default-features = false }
 pallet-hsm = { path = "pallets/hsm", default-features = false }
 pallet-build-evm-tx = { path = "pallets/build-evm-tx", default-features = false }
+pallet-build-btc-tx = { path = "pallets/build-btc-tx", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
 pallet-signet = { path = "pallets/signet", default-features = false }
 pallet-erc20-vault = { path = "pallets/erc20-vault", default-features = false } 
+pallet-btc-vault = { path = "pallets/btc-vault", default-features = false } 
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
