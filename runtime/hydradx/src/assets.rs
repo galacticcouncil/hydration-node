@@ -1824,6 +1824,7 @@ parameter_types! {
 	pub const MaxChainIdLength: u32 = 128;
 
 	pub const MaxEvmDataLength: u32 = 100_000;
+	pub const MaxSignatureDeposit: Balance = 200_000_000_000_000;
 }
 
 impl pallet_signet::Config for Runtime {
@@ -1834,6 +1835,7 @@ impl pallet_signet::Config for Runtime {
 	type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
 	type MaxDataLength = MaxEvmDataLength;
 	type UpdateOrigin = EnsureRoot<AccountId>;
+	type MaxSignatureDeposit = MaxSignatureDeposit;
 }
 
 parameter_types! {

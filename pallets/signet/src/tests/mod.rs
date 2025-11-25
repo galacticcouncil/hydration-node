@@ -11,7 +11,7 @@ use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
-	AccountId32, BuildStorage,
+	BuildStorage,
 };
 
 #[frame_support::pallet]
@@ -130,6 +130,7 @@ impl pallet_balances::Config for Test {
 parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
 	pub const MaxChainIdLength: u32 = 128;
+	pub const MaxSignatureDeposit: u32 = 0;
 }
 
 impl pallet_signet::Config for Test {
@@ -140,6 +141,7 @@ impl pallet_signet::Config for Test {
 	type WeightInfo = ();
 	type MaxDataLength = MaxDataLength;
 	type UpdateOrigin = frame_system::EnsureRoot<u64>;
+	type MaxSignatureDeposit = MaxSignatureDeposit;
 }
 
 parameter_types! {

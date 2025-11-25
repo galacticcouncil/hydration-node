@@ -146,6 +146,7 @@ impl frame_system::offchain::SigningTypes for Test {
 
 parameter_types! {
 	pub const MaxDataLength: u32 = 1024;
+	pub const MaxSignatureDeposit: u32 = 0;
 }
 
 impl pallet_signet::Config for Test {
@@ -156,6 +157,7 @@ impl pallet_signet::Config for Test {
 	type WeightInfo = ();
 	type MaxDataLength = MaxDataLength;
 	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
+	type MaxSignatureDeposit = MaxSignatureDeposit;
 }
 
 parameter_types! {
