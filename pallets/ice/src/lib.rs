@@ -30,6 +30,7 @@
 
 pub mod types;
 mod weights;
+pub mod api;
 
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Mutate;
