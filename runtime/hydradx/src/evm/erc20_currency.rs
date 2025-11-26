@@ -286,12 +286,19 @@ where
 			amount,
 		)?;
 
+		// Manage sufficients counter for ERC20 holders
+		// When account transfers away all ERC20 balance, decrement sufficients
 		if from_balance_before == amount {
-			let _ = frame_system::Pallet::<T>::dec_providers(from);
+			// Safety check: only decrement if sufficients > 0 (handles old accounts)
+			let account_info = frame_system::Pallet::<T>::account(from);
+			if account_info.sufficients > 0 {
+				let _ = frame_system::Pallet::<T>::dec_sufficients(from);
+			}
 		}
 
+		// When account receives first ERC20 balance, increment sufficients
 		if to_had_zero_balance && !amount.is_zero() {
-			frame_system::Pallet::<T>::inc_providers(to);
+			frame_system::Pallet::<T>::inc_sufficients(to);
 		}
 
 		Ok(())
@@ -310,8 +317,9 @@ where
 			amount,
 		)?;
 
+		// Increment sufficients when account receives first ERC20 balance
 		if had_zero_balance && !amount.is_zero() {
-			frame_system::Pallet::<T>::inc_providers(who);
+			frame_system::Pallet::<T>::inc_sufficients(who);
 		}
 
 		Ok(())
@@ -331,8 +339,13 @@ where
 			amount,
 		)?;
 
+		// Decrement sufficients when account withdraws all ERC20 balance
 		if balance_before == amount {
-			let _ = frame_system::Pallet::<T>::dec_providers(who);
+			// Safety check: only decrement if sufficients > 0 (handles old accounts)
+			let account_info = frame_system::Pallet::<T>::account(who);
+			if account_info.sufficients > 0 {
+				let _ = frame_system::Pallet::<T>::dec_sufficients(who);
+			}
 		}
 
 		Ok(())

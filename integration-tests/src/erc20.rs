@@ -40,7 +40,7 @@ use primitives::AccountId;
 use sp_core::keccak_256;
 use sp_core::Encode;
 use sp_core::{H256, U256};
-use sp_runtime::{Permill, TransactionOutcome};
+use sp_runtime::{FixedU128, Permill, TransactionOutcome};
 use std::fmt::Write;
 use xcm_emulator::TestExt;
 
@@ -611,13 +611,13 @@ fn transfer_should_increment_providers_on_new_account() {
 			100,
 		));
 
-		// Assert
+		// Assert - ERC20s now use sufficients instead of providers
 		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
-		assert_eq!(account_post.providers, 1);
-		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(account_post.providers, 0);
+		assert_eq!(account_post.sufficients, 1); // Incremented for ERC20
 		assert_eq!(Currencies::free_balance(erc20, &new_account), 100);
 
-		// Assert that multiple transfers to same account don't increment providers again
+		// Assert that multiple transfers to same account don't increment sufficients again
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(ALICE.into()),
 			new_account.clone(),
@@ -625,8 +625,8 @@ fn transfer_should_increment_providers_on_new_account() {
 			50,
 		));
 		let account_after_second = frame_system::Pallet::<Runtime>::account(&new_account);
-		assert_eq!(account_after_second.providers, 1);
-		assert_eq!(account_after_second.sufficients, 0);
+		assert_eq!(account_after_second.providers, 0);
+		assert_eq!(account_after_second.sufficients, 1); // Still 1
 		assert_eq!(Currencies::free_balance(erc20, &new_account), 150);
 	});
 }
@@ -647,8 +647,8 @@ fn transfer_should_decrement_providers_when_balance_becomes_zero() {
 			100,
 		));
 		let account_pre = frame_system::Pallet::<Runtime>::account(&new_account);
-		assert_eq!(account_pre.providers, 1);
-		assert_eq!(account_pre.sufficients, 0);
+		assert_eq!(account_pre.providers, 0);
+		assert_eq!(account_pre.sufficients, 1); // ERC20 uses sufficients
 		assert_eq!(Currencies::free_balance(erc20, &new_account), 100);
 
 		// Act
@@ -659,10 +659,10 @@ fn transfer_should_decrement_providers_when_balance_becomes_zero() {
 			100,
 		));
 
-		// Assert
+		// Assert - sufficients decremented when balance reaches zero
 		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
 		assert_eq!(account_post.providers, 0);
-		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(account_post.sufficients, 0); // Decremented
 		assert_eq!(Currencies::free_balance(erc20, &new_account), 0);
 	});
 }
@@ -683,8 +683,8 @@ fn transfer_should_not_decrement_providers_when_partial_balance_remains() {
 			100,
 		));
 		let account_pre = frame_system::Pallet::<Runtime>::account(&new_account);
-		assert_eq!(account_pre.providers, 1);
-		assert_eq!(account_pre.sufficients, 0);
+		assert_eq!(account_pre.providers, 0);
+		assert_eq!(account_pre.sufficients, 1); // ERC20 uses sufficients
 
 		// Act - transfer partial balance away from new account
 		assert_ok!(Currencies::transfer(
@@ -694,10 +694,10 @@ fn transfer_should_not_decrement_providers_when_partial_balance_remains() {
 			50,
 		));
 
-		// Assert that providers remained the same
+		// Assert that sufficients remained the same
 		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
-		assert_eq!(account_post.providers, 1);
-		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(account_post.providers, 0);
+		assert_eq!(account_post.sufficients, 1); // Still 1
 		assert_eq!(Currencies::free_balance(erc20, &new_account), 50);
 	});
 }
@@ -722,10 +722,10 @@ fn deposit_should_increment_providers_on_new_account() {
 		// Act
 		assert_ok!(Currencies::deposit(erc20, &new_account, 100));
 
-		// Assert
+		// Assert - ERC20 uses sufficients
 		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
-		assert_eq!(account_post.providers, 1);
-		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(account_post.providers, 0);
+		assert_eq!(account_post.sufficients, 1); // Incremented
 		assert_eq!(Currencies::free_balance(erc20, &new_account), 100);
 	});
 }
@@ -746,8 +746,8 @@ fn deposit_should_not_increment_providers_on_existing_account() {
 			50,
 		));
 		let account_pre = frame_system::Pallet::<Runtime>::account(&new_account);
-		assert_eq!(account_pre.providers, 1);
-		assert_eq!(account_pre.sufficients, 0);
+		assert_eq!(account_pre.providers, 0);
+		assert_eq!(account_pre.sufficients, 1); // ERC20 uses sufficients
 
 		// Withdraw some funds to holding account so deposit can be made
 		assert_ok!(Currencies::withdraw(erc20, &ALICE.into(), 100));
@@ -755,10 +755,10 @@ fn deposit_should_not_increment_providers_on_existing_account() {
 		// Act
 		assert_ok!(Currencies::deposit(erc20, &new_account, 100));
 
-		// Assert that providers remained the same
+		// Assert that sufficients remained the same
 		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
-		assert_eq!(account_post.providers, 1);
-		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(account_post.providers, 0);
+		assert_eq!(account_post.sufficients, 1); // Still 1
 		assert_eq!(Currencies::free_balance(erc20, &new_account), 150);
 	});
 }
@@ -783,17 +783,17 @@ fn withdraw_should_decrement_providers_when_balance_becomes_zero() {
 			100,
 		));
 		let account_pre = frame_system::Pallet::<Runtime>::account(&new_account);
-		assert_eq!(account_pre.providers, 1);
-		assert_eq!(account_pre.sufficients, 0);
+		assert_eq!(account_pre.providers, 0);
+		assert_eq!(account_pre.sufficients, 1); // ERC20 uses sufficients
 		assert_eq!(Currencies::free_balance(erc20, &new_account), 100);
 
 		// Act
 		assert_ok!(Currencies::withdraw(erc20, &new_account, 100));
 
-		// Assert
+		// Assert - sufficients decremented
 		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
 		assert_eq!(account_post.providers, 0);
-		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(account_post.sufficients, 0); // Decremented
 		assert_eq!(Currencies::free_balance(erc20, &new_account), 0);
 	});
 }
@@ -815,16 +815,16 @@ fn withdraw_should_not_decrement_providers_when_partial_balance_remains() {
 		));
 
 		let account_pre = frame_system::Pallet::<Runtime>::account(&new_account);
-		assert_eq!(account_pre.providers, 1);
-		assert_eq!(account_pre.sufficients, 0);
+		assert_eq!(account_pre.providers, 0);
+		assert_eq!(account_pre.sufficients, 1); // ERC20 uses sufficients
 
 		// Act
 		assert_ok!(Currencies::withdraw(erc20, &new_account, 50));
 
-		// Assert that providers remained the same
+		// Assert that sufficients remained the same
 		let account_post = frame_system::Pallet::<Runtime>::account(&new_account);
-		assert_eq!(account_post.providers, 1);
-		assert_eq!(account_post.sufficients, 0);
+		assert_eq!(account_post.providers, 0);
+		assert_eq!(account_post.sufficients, 1); // Still 1
 		assert_eq!(Currencies::free_balance(erc20, &new_account), 50);
 	});
 }
@@ -850,8 +850,8 @@ fn transfer_between_two_new_accounts_should_manage_providers_correctly() {
 
 		let sender_account_initial = frame_system::Pallet::<Runtime>::account(&sender_account);
 		let receiver_account_initial = frame_system::Pallet::<Runtime>::account(&receiver_account);
-		assert_eq!(sender_account_initial.providers, 1);
-		assert_eq!(sender_account_initial.sufficients, 0);
+		assert_eq!(sender_account_initial.providers, 0);
+		assert_eq!(sender_account_initial.sufficients, 1); // ERC20 uses sufficients
 		assert_eq!(receiver_account_initial.providers, 0);
 		assert_eq!(receiver_account_initial.sufficients, 0);
 
@@ -863,13 +863,13 @@ fn transfer_between_two_new_accounts_should_manage_providers_correctly() {
 			100,
 		));
 
-		// Assert - sender providers decremented, receiver providers incremented
+		// Assert - sender sufficients decremented, receiver sufficients incremented
 		let sender_account_final = frame_system::Pallet::<Runtime>::account(&sender_account);
 		let receiver_account_final = frame_system::Pallet::<Runtime>::account(&receiver_account);
 		assert_eq!(sender_account_final.providers, 0);
-		assert_eq!(sender_account_final.sufficients, 0);
-		assert_eq!(receiver_account_final.providers, 1);
-		assert_eq!(receiver_account_final.sufficients, 0);
+		assert_eq!(sender_account_final.sufficients, 0); // Decremented
+		assert_eq!(receiver_account_final.providers, 0);
+		assert_eq!(receiver_account_final.sufficients, 1); // Incremented
 		assert_eq!(Currencies::free_balance(erc20, &sender_account), 0);
 		assert_eq!(Currencies::free_balance(erc20, &receiver_account), 100);
 	});
@@ -879,7 +879,8 @@ fn transfer_between_two_new_accounts_should_manage_providers_correctly() {
 fn erc20_transfer_works_with_providers_and_consumers() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		// This test demonstrates that with providers, ERC20 transfers work when providers >= consumers
+		// This test demonstrates that ERC20 (using sufficients) works alongside HDX (using providers)
+		// and can handle consumers from reserves
 
 		let account: AccountId = AccountId::from([37u8; 32]);
 		let contract = deploy_token_contract();
@@ -897,7 +898,7 @@ fn erc20_transfer_works_with_providers_and_consumers() {
 		assert_eq!(state_after_hdx.providers, 1); // HDX provider
 		assert_eq!(state_after_hdx.consumers, 0);
 
-		// STEP 2: Give account ERC20 tokens (our code increments providers)
+		// STEP 2: Give account ERC20 tokens (now increments sufficients instead of providers)
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(ALICE.into()),
 			account.clone(),
@@ -906,8 +907,8 @@ fn erc20_transfer_works_with_providers_and_consumers() {
 		));
 
 		let state_after_erc20 = frame_system::Pallet::<Runtime>::account(&account);
-		assert_eq!(state_after_erc20.providers, 2); // HDX + ERC20
-		assert_eq!(state_after_erc20.sufficients, 0);
+		assert_eq!(state_after_erc20.providers, 1); // HDX only
+		assert_eq!(state_after_erc20.sufficients, 1); // ERC20 uses sufficients
 		assert_eq!(state_after_erc20.consumers, 0);
 
 		// STEP 3: Reserve some HDX (this creates a consumer)
@@ -920,7 +921,8 @@ fn erc20_transfer_works_with_providers_and_consumers() {
 		));
 
 		let state_with_reserve = frame_system::Pallet::<Runtime>::account(&account);
-		assert_eq!(state_with_reserve.providers, 2); // HDX + ERC20
+		assert_eq!(state_with_reserve.providers, 1); // HDX only
+		assert_eq!(state_with_reserve.sufficients, 1); // ERC20 sufficients
 		assert_eq!(state_with_reserve.consumers, 1); // Reserved balance created consumer
 		assert_eq!(Currencies::free_balance(HDX, &account), 400 * UNITS); // 500 - 100 reserved
 		assert_eq!(Currencies::free_balance(erc20, &account), 100);
@@ -935,12 +937,13 @@ fn erc20_transfer_works_with_providers_and_consumers() {
 
 		let state_after_hdx_transfer = frame_system::Pallet::<Runtime>::account(&account);
 		assert_eq!(state_after_hdx_transfer.consumers, 1);
-		assert_eq!(state_after_hdx_transfer.providers, 2); // HDX + ERC20
+		assert_eq!(state_after_hdx_transfer.providers, 1); // HDX still has provider (reserved)
+		assert_eq!(state_after_hdx_transfer.sufficients, 1); // ERC20 sufficients
 		assert_eq!(Currencies::free_balance(HDX, &account), UNITS);
 		assert_eq!(Currencies::free_balance(erc20, &account), 100);
 
 		// STEP 5: Transfer ERC20 away
-		// Should SUCCEED because providers (2) >= consumers (1)
+		// Should SUCCEED - sufficients can coexist with consumers/providers
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(account.clone()),
 			ALICE.into(),
@@ -951,7 +954,7 @@ fn erc20_transfer_works_with_providers_and_consumers() {
 		let final_state = frame_system::Pallet::<Runtime>::account(&account);
 		assert_eq!(final_state.providers, 1); // Still have HDX provider (reserved)
 		assert_eq!(final_state.consumers, 1);
-		assert_eq!(final_state.sufficients, 0);
+		assert_eq!(final_state.sufficients, 0); // ERC20 sufficients decremented
 		assert_eq!(Currencies::free_balance(erc20, &account), 0);
 
 		//Step 6: Clean up by unreserving HDX
@@ -974,5 +977,182 @@ fn erc20_transfer_works_with_providers_and_consumers() {
 		assert_eq!(final_state.providers, 0);
 		assert_eq!(final_state.consumers, 0);
 		assert_eq!(Currencies::free_balance(erc20, &account), 0);
+	});
+}
+
+#[test]
+fn nonce_should_become_u32_max_when_account_reaped_with_erc20_but_no_provider_management() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// This test previously demonstrated the bug where nonce became u32::MAX
+		// Now with sufficients management, the bug is FIXED:
+		// 1. Account has HDX (providers = 1)
+		// 2. Account receives ERC20 tokens (sufficients = 1)
+		// 3. Account transfers away all HDX (providers = 0, but sufficients = 1)
+		// 4. Account is NOT reaped (sufficients keeps it alive), nonce stays 0
+
+		let account: AccountId = AccountId::from([0xBB; 32]);
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+
+		// STEP 1: Give account some HDX tokens (providers = 1)
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			account.clone(),
+			HDX,
+			100 * UNITS,
+		));
+
+		let state_after_hdx = frame_system::Pallet::<Runtime>::account(&account);
+		assert_eq!(state_after_hdx.providers, 1);
+		assert_eq!(state_after_hdx.sufficients, 0);
+		assert_eq!(state_after_hdx.nonce, 0);
+
+		// STEP 2: Give account ERC20 tokens
+		// FIX: Now increments sufficients instead of providers
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			account.clone(),
+			erc20,
+			100,
+		));
+
+		let state_after_erc20 = frame_system::Pallet::<Runtime>::account(&account);
+		assert_eq!(state_after_erc20.providers, 1); // HDX
+		assert_eq!(state_after_erc20.sufficients, 1); // ERC20 uses sufficients
+		assert_eq!(Currencies::free_balance(erc20, &account), 100);
+		assert_eq!(state_after_erc20.nonce, 0);
+
+		// STEP 3: Transfer away all HDX tokens
+		// This decrements providers to 0, but sufficients is still 1
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(account.clone()),
+			ALICE.into(),
+			HDX,
+			100 * UNITS,
+		));
+
+		// STEP 4: Check the state - account is NOT reaped
+		let state_after_hdx_transfer = frame_system::Pallet::<Runtime>::account(&account);
+		assert_eq!(
+			state_after_hdx_transfer.providers, 0,
+			"Providers = 0 (no HDX)"
+		);
+		assert_eq!(
+			state_after_hdx_transfer.sufficients, 1,
+			"Sufficients = 1 keeps account alive"
+		);
+
+		// BUG FIX: Nonce stays at 0 (account wasn't reaped)
+		assert_eq!(
+			state_after_hdx_transfer.nonce,
+			0,
+			"FIXED: Nonce stays 0 because account is not reaped (sufficients = 1)"
+		);
+
+		// Account still has ERC20 balance and is alive
+		assert_eq!(
+			Currencies::free_balance(erc20, &account),
+			100,
+			"ERC20 balance still exists and accessible"
+		);
+	});
+}
+
+use hydradx_runtime::MultiTransactionPayment;
+
+#[test]
+fn nonce_should_become_u32_max_for_native_evm_account_when_reaped() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// This test previously reproduced the bug for NATIVE EVM ACCOUNTS (truncated)
+		// Now with sufficients management, the bug is FIXED:
+		// 1. EVM truncated account has HDX (providers = 1)
+		// 2. Account receives ERC20 tokens (sufficients = 1)
+		// 3. Account transfers away all HDX (providers = 0, but sufficients = 1)
+		// 4. Account is NOT reaped, nonce stays 0
+
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+
+		// Create a native EVM account (truncated account - NOT bound)
+		let evm_address = EvmAddress::from_low_u64_be(0xDEADBEEF);
+		let truncated_account = EVMAccounts::truncated_account_id(evm_address);
+
+		// Verify it's a truncated EVM account
+		assert!(EVMAccounts::is_evm_account(truncated_account.clone()));
+
+		// STEP 1: Give truncated account some HDX tokens (providers = 1)
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			truncated_account.clone(),
+			HDX,
+			100 * UNITS,
+		));
+
+		let state_after_hdx = frame_system::Pallet::<Runtime>::account(&truncated_account);
+		assert_eq!(state_after_hdx.providers, 1);
+		assert_eq!(state_after_hdx.sufficients, 0);
+		assert_eq!(state_after_hdx.nonce, 0);
+
+		// STEP 2: Give truncated account ERC20 tokens
+		// FIX: Now increments sufficients instead of providers
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			truncated_account.clone(),
+			erc20,
+			100,
+		));
+
+		let state_after_erc20 = frame_system::Pallet::<Runtime>::account(&truncated_account);
+		assert_eq!(state_after_erc20.providers, 1); // HDX
+		assert_eq!(state_after_erc20.sufficients, 1); // ERC20 uses sufficients
+		assert_eq!(Currencies::free_balance(erc20, &truncated_account), 100);
+		assert_eq!(state_after_erc20.nonce, 0);
+
+		assert_ok!(MultiTransactionPayment::add_currency(
+			RuntimeOrigin::root(),
+			erc20,
+			FixedU128::from_rational(1, 4)
+		));
+
+		assert_ok!(MultiTransactionPayment::set_currency(
+			RuntimeOrigin::signed(truncated_account.clone()),
+			erc20,
+		));
+
+		// STEP 3: Transfer away all HDX tokens
+		// This decrements providers to 0, but sufficients is still 1
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(truncated_account.clone()),
+			ALICE.into(),
+			HDX,
+			100 * UNITS,
+		));
+
+		// STEP 4: Check the state - account is NOT reaped
+		let state_after_hdx_transfer = frame_system::Pallet::<Runtime>::account(&truncated_account);
+		assert_eq!(
+			state_after_hdx_transfer.providers, 0,
+			"Providers = 0 (no HDX)"
+		);
+		assert_eq!(
+			state_after_hdx_transfer.sufficients, 1,
+			"Sufficients = 1 keeps account alive"
+		);
+
+		// BUG FIX: Nonce stays at 0 for EVM accounts (not reaped)
+		assert_eq!(
+			state_after_hdx_transfer.nonce,
+			0,
+			"FIXED: Nonce stays 0 because account is not reaped (sufficients = 1)"
+		);
+
+		// Account still has ERC20 balance and is accessible
+		assert_eq!(
+			Currencies::free_balance(erc20, &truncated_account),
+			100,
+			"ERC20 balance still exists and accessible"
+		);
 	});
 }
