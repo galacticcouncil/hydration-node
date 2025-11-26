@@ -40,7 +40,7 @@ use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
 use sp_core::{blake2_256, Pair, H160, H256, U256};
-use sp_runtime::traits::{Dispatchable, IdentifyAccount};
+use sp_runtime::traits::IdentifyAccount;
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
 use std::{borrow::Cow, cmp::Ordering};
@@ -53,8 +53,6 @@ mod account_conversion {
 	use fp_evm::ExitSucceed;
 	use frame_support::{assert_noop, assert_ok};
 	use pretty_assertions::assert_eq;
-	use sp_core::Pair;
-	use sp_runtime::traits::IdentifyAccount;
 
 	#[test]
 	fn eth_address_should_convert_to_truncated_address_when_not_bound() {
@@ -3143,4 +3141,91 @@ fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amou
 		asset_b,
 		amount_b,
 	));
+}
+
+#[test]
+fn raw_eth_revert_should_increment_nonce() {
+	use ethereum::{EIP1559Transaction, EIP1559TransactionMessage, TransactionAction, TransactionV2};
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Keep fees predictable for the test environment
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		let account = MockAccount::new(alith_evm_account());
+		let evm_address = alith_evm_address();
+
+		init_omnipool_with_oracle_for_block_10();
+		// Fund WETH so raw ETH tx has gas currency to pay with
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			account.address(),
+			WETH,
+			to_ether(1) as i128,
+		));
+
+		let evm_nonce_before = hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address);
+
+		// Deploy a simple ERC20 and call it with an invalid selector to force EVM revert
+		let target = crate::utils::contracts::deploy_contract("HydraToken", crate::contracts::deployer());
+
+		let (base_gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+		let gas_limit: u64 = 1_000_000;
+		let max_fee_per_gas = base_gas_price * 10;
+		let max_priority_fee_per_gas = base_gas_price;
+
+		let tx_msg = EIP1559TransactionMessage {
+			chain_id: <hydradx_runtime::Runtime as pallet_evm::Config>::ChainId::get(),
+			nonce: evm_nonce_before,
+			max_priority_fee_per_gas,
+			max_fee_per_gas,
+			gas_limit: gas_limit.into(),
+			action: TransactionAction::Call(target),
+			value: U256::zero(),
+			// invalid function selector to trigger revert
+			input: hex!("12345678").to_vec().into(),
+			access_list: vec![],
+		};
+
+		// Sign with Alith
+		let user_secret_key = alith_secret_key();
+		let secret_key = libsecp256k1::SecretKey::parse(&user_secret_key).expect("valid secret key");
+		let hash = tx_msg.hash();
+		let mut hash_bytes = [0u8; 32];
+		hash_bytes.copy_from_slice(&hash.0);
+		let message = libsecp256k1::Message::parse(&hash_bytes);
+		let (rs, v) = libsecp256k1::sign(&message, &secret_key);
+		let odd_y_parity = v.serialize() != 0;
+
+		let signed_tx = EIP1559Transaction {
+			chain_id: <hydradx_runtime::Runtime as pallet_evm::Config>::ChainId::get(),
+			nonce: evm_nonce_before,
+			max_priority_fee_per_gas,
+			max_fee_per_gas,
+			gas_limit: gas_limit.into(),
+			action: TransactionAction::Call(target),
+			value: U256::zero(),
+			input: hex!("12345678").to_vec().into(),
+			access_list: vec![],
+			odd_y_parity,
+			r: sp_core::H256::from(rs.r.b32()),
+			s: sp_core::H256::from(rs.s.b32()),
+		};
+
+		let transaction = TransactionV2::EIP1559(signed_tx);
+
+		// Submit raw ETH tx via Ethereum pallet extrinsic (unsigned self-contained)
+		crate::utils::executive::assert_executive_apply_unsigned_extrinsic(hydradx_runtime::RuntimeCall::Ethereum(
+			pallet_ethereum::Call::transact { transaction },
+		));
+
+		// Even on EVM revert, the EVM account nonce must increase by 1
+		assert_eq!(
+			hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address),
+			evm_nonce_before + U256::one(),
+			"EVM nonce must increment by exactly 1 even when raw ETH tx reverts",
+		);
+	});
 }

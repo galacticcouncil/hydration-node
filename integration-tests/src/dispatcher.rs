@@ -6,7 +6,7 @@ use frame_support::assert_ok;
 use frame_support::dispatch::{
 	extract_actual_pays_fee, extract_actual_weight, GetDispatchInfo, Pays, PostDispatchInfo,
 };
-use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
+use hydradx_runtime::evm::precompiles::{HydraDXPrecompiles, DISPATCH_ADDR};
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
 use orml_traits::MultiCurrency;
@@ -16,11 +16,11 @@ use pallet_transaction_multi_payment::EVMPermit;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use precompile_utils::prelude::PrecompileOutput;
 use primitives::EvmAddress;
-use sp_core::Encode;
 use sp_core::Get;
 use sp_core::{ByteArray, U256};
-use sp_runtime::traits::SignedExtension;
-use sp_runtime::DispatchErrorWithPostInfo;
+use sp_core::{Encode, Pair};
+use sp_runtime::traits::{IdentifyAccount, SignedExtension};
+use sp_runtime::{DispatchErrorWithPostInfo, MultiSigner};
 use test_utils::last_events;
 use xcm_emulator::TestExt;
 
@@ -578,6 +578,9 @@ fn dispatch_evm_call_should_fail_with_not_evm_call_error() {
 		});
 		let boxed_call = Box::new(call.clone());
 
+		// Record EVM nonce before
+		let evm_nonce_before = <hydradx_runtime::evm::EvmNonceProvider as EvmNonceProvider>::get_nonce(evm_address());
+
 		// Act & Assert: The dispatch should fail with NotEvmCall error
 		let result = Dispatcher::dispatch_evm_call(evm_signed_origin(evm_address()), boxed_call);
 		assert_eq!(
@@ -589,6 +592,12 @@ fn dispatch_evm_call_should_fail_with_not_evm_call_error() {
 				},
 				error: pallet_dispatcher::Error::<Runtime>::NotEvmCall.into(),
 			})
+		);
+
+		// EVM nonce should not change when extrinsic fails pre-EVM
+		assert_eq!(
+			<hydradx_runtime::evm::EvmNonceProvider as EvmNonceProvider>::get_nonce(evm_address()),
+			evm_nonce_before
 		);
 	})
 }
@@ -837,6 +846,72 @@ fn dispatch_evm_call_batch_via_call_permit_should_increase_permit_nonce_once() {
 		assert_eq!(
 			hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address),
 			evm_nonce_before
+		);
+	});
+}
+
+#[test]
+fn dispatch_evm_call_with_failing_signed_batch_should_increase_nonce_once() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let (pair, _) = sp_core::sr25519::Pair::generate();
+		let account = MockAccount::new(MultiSigner::from(pair.public()).into_account());
+
+		// Fund native balance for fees
+		assert_ok!(Tokens::set_balance(
+			RuntimeOrigin::root(),
+			account.address(),
+			WETH,
+			to_ether(1),
+			0
+		));
+
+		// Bind an EVM address to this Substrate account
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(account.address())));
+		let evm_address = EVMAccounts::evm_address(&account.address());
+
+		// Record nonces before
+		let evm_nonce_before = <hydradx_runtime::evm::EvmNonceProvider as EvmNonceProvider>::get_nonce(evm_address);
+
+		// Prepare a simple inner EVM call to the DISPATCH precompile; we'll batch it 3x
+		let inner_evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+			source: evm_address,
+			target: DISPATCH_ADDR,
+			input: hex!["12345678"].to_vec(), // Invalid function selector
+			value: U256::zero(),
+			gas_limit: 1_000_000,
+			max_fee_per_gas: gas_price(),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		});
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![inner_evm_call.clone(), inner_evm_call.clone(), inner_evm_call],
+		});
+
+		// Outer EVM call to DISPATCH precompile with encoded batch
+		let evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+			source: evm_address,
+			target: DISPATCH_ADDR,
+			input: batch.encode(),
+			value: U256::zero(),
+			gas_limit: 1_000_000,
+			max_fee_per_gas: gas_price(),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		});
+
+		// Act: dispatch as a signed extrinsic
+		crate::utils::executive::assert_executive_apply_signed_extrinsic(evm_call, pair);
+
+		// EVM nonce should also increase exactly by one on the signed path
+		// Note: currently EVM nonce uses the same storage as system nonce,
+		// 	and here nonce is incremented by SignedExtra's CheckNonce
+		assert_eq!(
+			<hydradx_runtime::evm::EvmNonceProvider as EvmNonceProvider>::get_nonce(evm_address),
+			evm_nonce_before + U256::one()
 		);
 	});
 }

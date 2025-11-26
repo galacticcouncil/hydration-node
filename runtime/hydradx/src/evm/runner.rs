@@ -32,7 +32,7 @@ use pallet_evm::{AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, 
 use pallet_genesis_history::migration::Weight;
 use primitive_types::{H160, H256, U256};
 use primitives::{AssetId, Balance};
-use sp_runtime::traits::UniqueSaturatedInto;
+use sp_runtime::traits::{One, UniqueSaturatedInto};
 use sp_std::vec::Vec;
 
 pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);
@@ -165,6 +165,11 @@ where
 		)?;
 
 		if validate && is_transactional && !(nonce.is_some() || max_priority_fee_per_gas.is_some()) {
+			let current_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
+			debug_assert_eq!(
+				current_nonce,
+				original_nonce + <T as frame_system::Config>::Nonce::one()
+			);
 			frame_system::Account::<T>::mutate(source_account_id, |a| a.nonce = original_nonce);
 		}
 
