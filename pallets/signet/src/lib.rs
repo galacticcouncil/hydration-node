@@ -286,7 +286,7 @@ pub mod pallet {
 			ensure!(who == admin, Error::<T>::Unauthorized);
 
 			ensure!(
-				new_deposit > T::MaxSignatureDeposit::get().into(),
+				new_deposit < T::MaxSignatureDeposit::get().into(),
 				Error::<T>::InavlidSignatureDeposit
 			);
 

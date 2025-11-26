@@ -3,7 +3,9 @@ mod utils;
 
 use crate::tests::utils::{acct, bounded_chain_id};
 use crate::{self as pallet_dispenser, *};
+use pallet_signet::Config as SignetConfig;
 
+use frame_support::assert_ok;
 use frame_support::{
 	parameter_types,
 	traits::{Currency as CurrencyTrait, Nothing},
@@ -146,7 +148,7 @@ impl frame_system::offchain::SigningTypes for Test {
 
 parameter_types! {
 	pub const MaxDataLength: u32 = 1024;
-	pub const MaxSignatureDeposit: u32 = 0;
+	pub const MaxSignatureDeposit: u128 = 100_000_000_000;
 }
 
 impl pallet_signet::Config for Test {
@@ -171,7 +173,6 @@ parameter_types! {
 
 }
 
-// MPC “root signer” (Ethereum address expected to sign Signet responses)
 pub struct SigEthFaucetMpcRoot;
 impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetMpcRoot {
 	fn get() -> [u8; 20] {
@@ -210,20 +211,26 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| {
 		System::set_block_number(1);
+
 		let _ = Currencies::deposit(1, alice, 1_000_000_000_000_000_000_000);
 		let _ = Currencies::deposit(1, bob, 1_000_000_000_000_000_000_000);
 		let _ = Currencies::deposit(1, charlie, 1_000_000_000_000_000_000_000);
+
+		Balances::make_free_balance_be(
+			&pallet_dispenser::Pallet::<Test>::account_id(),
+			1_000_000_000_000_000_000_000,
+		);
 
 		let _ = Currencies::deposit(2, alice, 1_000_000_000_000_000_000_000);
 		let _ = Currencies::deposit(2, bob, 1_000_000_000_000_000_000_000);
 		let _ = Currencies::deposit(2, charlie, 1_000_000_000_000_000_000_000);
 		let requester = acct(1);
-		let _ = pallet_signet::Pallet::<Test>::initialize(
+		assert_ok!(pallet_signet::Pallet::<Test>::initialize(
 			RuntimeOrigin::root(),
 			requester,
-			100,
+			100_000_000,
 			bounded_chain_id(b"test-chain".to_vec()),
-		);
+		));
 		let pallet_account = Dispenser::account_id();
 		let _ = <Balances as CurrencyTrait<_>>::deposit_creating(&pallet_account, 10_000);
 	});

@@ -335,3 +335,152 @@ fn request_reduces_faucet_balance() {
 		assert_eq!(Currencies::free_balance(2, &requester), weth_before - amount);
 	});
 }
+
+#[test]
+fn request_fails_before_initialize() {
+	new_test_ext().execute_with(|| {
+		let requester = acct(1);
+		let receiver = create_test_receiver_address();
+		let amount = 1_000u128;
+		let tx = create_test_tx_params();
+		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
+
+		assert_noop!(
+			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, req_id, tx),
+			Error::<Test>::NotFound
+		);
+	});
+}
+
+#[test]
+fn request_fails_with_zero_address() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
+
+		let requester = acct(1);
+		let receiver = [0u8; 20];
+		let amount = 10_000u128;
+		let tx = create_test_tx_params();
+		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
+
+		assert_noop!(
+			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, req_id, tx),
+			Error::<Test>::InvalidAddress
+		);
+	});
+}
+
+#[test]
+fn request_fails_when_insufficient_fee_balance() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
+
+		let requester = acct(99);
+		let receiver = create_test_receiver_address();
+		let amount = 10_000u128;
+		let tx = create_test_tx_params();
+		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
+
+		assert_eq!(Currencies::free_balance(1, &requester), 0);
+		assert_eq!(Currencies::free_balance(2, &requester), 0);
+
+		assert_noop!(
+			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, req_id, tx),
+			Error::<Test>::NotEnoughFunds
+		);
+	});
+}
+
+#[test]
+fn request_fails_when_insufficient_faucet_balance() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
+
+		let requester = acct(55);
+		let receiver = create_test_receiver_address();
+		let amount = 10_000u128;
+		let tx = create_test_tx_params();
+		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
+
+		let fee = <Test as crate::Config>::DispenserFee::get();
+
+		assert_ok!(Currencies::deposit(1, &requester, fee));
+
+		assert_eq!(Currencies::free_balance(1, &requester), fee);
+		assert_eq!(Currencies::free_balance(2, &requester), 0);
+
+		assert_noop!(
+			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, req_id, tx),
+			Error::<Test>::NotEnoughFaucetFunds
+		);
+	});
+}
+
+#[test]
+fn request_fails_with_duplicate_request_id() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
+
+		let requester = acct(1);
+		let receiver = create_test_receiver_address();
+		let amount = 10_000u128;
+		let tx = create_test_tx_params();
+		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
+
+		assert_ok!(Dispenser::request_fund(
+			RuntimeOrigin::signed(requester.clone()),
+			receiver,
+			amount,
+			req_id,
+			tx.clone()
+		));
+
+		assert_noop!(
+			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, req_id, tx),
+			Error::<Test>::DuplicateRequest
+		);
+	});
+}
+
+#[test]
+fn request_fails_with_zero_gas_limit() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
+
+		let amount = 10_000u128;
+		let min_threshold = <Test as crate::Config>::MinFaucetEthThreshold::get();
+		let initial_balance = min_threshold + amount + 1_000u128;
+
+		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), initial_balance));
+
+		let requester = acct(1);
+		let receiver = create_test_receiver_address();
+		let mut tx = create_test_tx_params();
+		tx.gas_limit = 0;
+
+		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
+
+		assert_noop!(
+			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, req_id, tx),
+			Error::<Test>::InvalidOutput
+		);
+	});
+}
+
+#[test]
+fn pause_fails_before_initialize() {
+	new_test_ext().execute_with(|| {
+		let origin = RuntimeOrigin::root();
+
+		assert_noop!(Dispenser::pause(origin), Error::<Test>::NotFound);
+	});
+}
+
+#[test]
+fn unpause_fails_before_initialize() {
+	new_test_ext().execute_with(|| {
+		let origin = RuntimeOrigin::root();
+
+		assert_noop!(Dispenser::unpause(origin), Error::<Test>::NotFound);
+	});
+}

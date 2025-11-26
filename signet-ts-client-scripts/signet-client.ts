@@ -18,13 +18,10 @@ export class SignetClient {
     signer: any,
     chainId: string
   ) {
-    const ed = api.consts.balances.existentialDeposit.toBigInt()
-    console.log('ED =', ed.toString())
-
     const chainIdBytes = Array.from(new TextEncoder().encode(chainId))
     const signetInitCall = api.tx.signet.initialize(
       signer.address,
-      ed + 1,
+      1_000_000_000_000n,
       chainIdBytes
     )
     await executeAsRootViaScheduler(
