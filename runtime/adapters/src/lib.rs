@@ -522,11 +522,7 @@ where
 
 		// Clear oracle entries for this asset paired with LRNA (hub asset)
 		let hub_asset = Lrna::get();
-		let assets = if asset_id < hub_asset {
-			(asset_id, hub_asset)
-		} else {
-			(hub_asset, asset_id)
-		};
+		let assets = pallet_ema_oracle::ordered_pair(asset_id, hub_asset);
 
 		// Remove from whitelist
 		pallet_ema_oracle::WhitelistedAssets::<Runtime>::mutate(|list| {
