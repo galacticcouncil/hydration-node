@@ -332,7 +332,13 @@ async fn start_node_impl(
 		);
 	}
 
-	if !liquidation_worker_config.disable_liquidation_worker {
+	// Data provided from the liquidation worker to RPC API.
+	let liquidation_task_data = Arc::new(liquidation_worker::LiquidationTaskData::new());
+
+	// By default, the liquidation worker is enabled for validator nodes and disabled for non-validator nodes.
+	if (validator && !(liquidation_worker_config.liquidation_worker == Some(false)))
+		|| (!validator && liquidation_worker_config.liquidation_worker == Some(true))
+	{
 		task_manager.spawn_handle().spawn(
 			"liquidation-worker",
 			None,
@@ -341,6 +347,7 @@ async fn start_node_impl(
 				liquidation_worker_config,
 				transaction_pool.clone(),
 				task_manager.spawn_handle(),
+				liquidation_task_data.clone(),
 			),
 		);
 	}
@@ -383,6 +390,7 @@ async fn start_node_impl(
 				client: client.clone(),
 				pool: transaction_pool.clone(),
 				backend: backend.clone(),
+				liquidation_task_data: liquidation_task_data.clone(),
 			};
 
 			let module = rpc::create_full(deps)?;
@@ -561,8 +569,19 @@ fn start_consensus(
 		client.clone(),
 	);
 
+	let (client_clone, relay_chain_interface_clone) = (client.clone(), relay_chain_interface.clone());
 	let params = AuraParams {
-		create_inherent_data_providers: move |_, ()| async move { Ok(()) },
+		create_inherent_data_providers: move |parent, ()| {
+			let client = client_clone.clone();
+			let relay_chain_interface = relay_chain_interface_clone.clone();
+			async move {
+				let inherent =
+					ismp_parachain_inherent::ConsensusInherentProvider::create(parent, client, relay_chain_interface)
+						.await?;
+
+				Ok(inherent)
+			}
+		},
 		block_import,
 		para_client: client.clone(),
 		para_backend: backend.clone(),

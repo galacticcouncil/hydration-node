@@ -4,18 +4,21 @@ use crate::dca::create_schedule;
 use crate::dca::schedule_fake_with_sell_order;
 use crate::liquidation::supply;
 use crate::polkadot_test_net::*;
+use crate::utils::accounts::*;
 use frame_support::assert_ok;
 use frame_support::pallet_prelude::DispatchError::Other;
+use frame_support::pallet_prelude::ValidateUnsigned;
 use frame_support::storage::with_transaction;
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
 use hydradx_runtime::evm::Erc20Currency;
 use hydradx_runtime::{
-	AssetId, Block, Currencies, EVMAccounts, Liquidation, OriginCaller, Router, Runtime, RuntimeCall, RuntimeEvent,
-	RuntimeOrigin,
+	AssetId, Block, Currencies, EVMAccounts, Liquidation, MultiTransactionPayment, Omnipool, OriginCaller, Router,
+	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, Treasury,
 };
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;
@@ -29,14 +32,18 @@ use hydradx_traits::router::{AssetPair, PoolType};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
+use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::Assets;
 use pallet_broadcast::types::{Asset, ExecutionType};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
+use pallet_transaction_multi_payment::EVMPermit;
 use primitives::Balance;
+use sp_core::{H256, U256};
 use sp_runtime::traits::Zero;
-use sp_runtime::DispatchResult;
+use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
+use sp_runtime::DispatchError;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
@@ -45,6 +52,19 @@ pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
 const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
 
 pub fn with_aave(execution: impl FnOnce()) {
+	with_aave_of_transaction_outcome(execution, TransactionOutcome::Commit(Ok::<(), DispatchError>(())))
+}
+
+// We need this for invariant tests, where we set up the base once (as it takes time to load snapshot),
+// then not sharing state between prop test runs
+pub fn with_aave_rollback(execution: impl FnOnce()) {
+	with_aave_of_transaction_outcome(execution, TransactionOutcome::Rollback(Ok::<(), DispatchError>(())))
+}
+
+pub fn with_aave_of_transaction_outcome<T, U>(execution: impl FnOnce(), outcome: TransactionOutcome<Result<T, U>>)
+where
+	U: From<DispatchError>,
+{
 	TestNet::reset();
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
@@ -55,11 +75,10 @@ pub fn with_aave(execution: impl FnOnce()) {
 
 		let pool_contract = liquidation_worker_support::MoneyMarketData::<
 			Block,
-			crate::liquidation::ApiProvider<Runtime>,
 			OriginCaller,
 			RuntimeCall,
 			RuntimeEvent,
-		>::fetch_pool(
+		>::fetch_pool::<crate::liquidation::ApiProvider<Runtime>>(
 			&crate::liquidation::ApiProvider::<Runtime>(Runtime),
 			hash,
 			pap_contract,
@@ -76,7 +95,7 @@ pub fn with_aave(execution: impl FnOnce()) {
 
 		let _ = with_transaction(|| {
 			execution();
-			TransactionOutcome::Commit(DispatchResult::Ok(()))
+			outcome
 		});
 	});
 }
@@ -121,8 +140,28 @@ fn transfer_all() {
 	});
 }
 
-fn with_atoken(execution: impl FnOnce()) {
+pub fn with_atoken(execution: impl FnOnce()) {
 	with_aave(|| {
+		assert_ok!(Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			ADOT,
+			BAG,
+			BAG + 2, //Tiny we charge due token-atoken is not always 1:1,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
+		execution();
+	})
+}
+
+pub fn with_atoken_rollback(execution: impl FnOnce()) {
+	with_aave_rollback(|| {
 		assert_ok!(Router::buy(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			DOT,
@@ -166,7 +205,7 @@ fn with_stablepool(execution: impl FnOnce(AssetId)) {
 			fee,
 		));
 
-		assert_ok!(Stableswap::add_liquidity(
+		assert_ok!(Stableswap::add_assets_liquidity(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			pool,
 			BoundedVec::truncate_from(vec![
@@ -179,6 +218,7 @@ fn with_stablepool(execution: impl FnOnce(AssetId)) {
 					amount: BAG,
 				},
 			]),
+			Balance::zero(),
 		));
 
 		execution(pool);
@@ -187,10 +227,10 @@ fn with_stablepool(execution: impl FnOnce(AssetId)) {
 
 const HDX: AssetId = 0;
 const DAI: AssetId = 1;
-const DOT: AssetId = 5;
-const ADOT: AssetId = 1_000_037;
+pub const DOT: AssetId = 5;
+pub const ADOT: AssetId = 1_000_037;
 const ONE: u128 = 10_u128.pow(10);
-const BAG: u128 = 100000 * ONE;
+pub const BAG: u128 = 100000 * ONE;
 
 #[test]
 fn nice_borrowing_contract_is_used() {
@@ -280,7 +320,6 @@ fn sell_adot() {
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE);
 	})
 }
-
 #[test]
 fn buy_dot() {
 	with_atoken(|| {
@@ -767,122 +806,550 @@ fn buy_in_stable_after_rebase() {
 	});
 }
 
+mod transfer_atoken {
+	use super::*;
+	use frame_support::assert_ok;
+	#[test]
+	fn transfer_almost_all_atoken_but_ed_should_leave_ed() {
+		crate::aave_router::with_atoken(|| {
+			let ed = 1000;
+			AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				crate::aave_router::ADOT,
+				None,
+				None,
+				Some(ed),
+				None,
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+			let alice_all_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
+
+			assert_eq!(alice_all_balance, 1000000000000000);
+			let alice_dot_balance_before = 8999999999999998;
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
+				alice_dot_balance_before
+			);
+			assert_eq!(Currencies::free_balance(crate::aave_router::DOT, &BOB.into()), 0);
+
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				ADOT,
+				alice_all_balance - ed
+			));
+			let bob_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &BOB.into());
+			assert_eq!(bob_new_balance, alice_all_balance - ed);
+
+			let alice_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
+			assert_eq!(alice_new_balance, ed);
+
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
+				alice_dot_balance_before
+			);
+			assert_eq!(Currencies::free_balance(crate::aave_router::DOT, &BOB.into()), 0);
+		})
+	}
+
+	#[test]
+	fn transfer_all_atoken_but_one_should_leave_one() {
+		crate::aave_router::with_atoken(|| {
+			let ed = 1000;
+			AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				crate::aave_router::ADOT,
+				None,
+				None,
+				Some(ed),
+				None,
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into()),
+				1000000000000000
+			);
+
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+			let alice_all_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
+
+			assert_eq!(alice_all_balance, 1000000000000000);
+			let alice_dot_balance_before = 8999999999999998;
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
+				alice_dot_balance_before
+			);
+			assert_eq!(Currencies::free_balance(crate::aave_router::DOT, &BOB.into()), 0);
+
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				ADOT,
+				alice_all_balance - 1
+			));
+			let bob_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &BOB.into());
+			assert_eq!(bob_new_balance, alice_all_balance - 1);
+			let alice_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
+			assert_eq!(1, alice_new_balance);
+
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
+				alice_dot_balance_before
+			);
+			assert_eq!(Currencies::free_balance(crate::aave_router::DOT, &BOB.into()), 0);
+		})
+	}
+
+	#[test]
+	fn transfer_atoken_when_left_more_than_ed_should_transfer_specified_amount() {
+		crate::aave_router::with_atoken(|| {
+			let ed = 1000;
+			AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				crate::aave_router::ADOT,
+				None,
+				None,
+				Some(ed),
+				None,
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+
+			let leftover = ed + 1;
+
+			let alice_all_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
+			let adot_asset_id = HydraErc20Mapping::asset_address(crate::aave_router::ADOT);
+			let amount = alice_all_balance - leftover;
+			assert_ok!(<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
+				adot_asset_id,
+				&AccountId::from(ALICE),
+				&AccountId::from(BOB),
+				amount
+			));
+			let bob_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &BOB.into());
+
+			let alice_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
+			assert_eq!(leftover, alice_new_balance);
+			assert_eq!(bob_new_balance, amount);
+		})
+	}
+
+	#[test]
+	fn transfer_some_specific_amount_leads_to_aave_rounding_issue() {
+		TestNet::reset();
+
+		crate::aave_router::with_atoken(|| {
+			let start_balance: u128 = 1_000_000_000_000_000;
+
+			let leftover = 737922657087018_u128;
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			)));
+
+			let alice_balance_before = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
+			assert_eq!(alice_balance_before, start_balance, "Start balance is not as expected");
+
+			// Transfer all but `ed` to BOB, leaving `ed` on ALICE → dust after ED=ed+1
+			assert_ok!(Currencies::transfer(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				ADOT,
+				start_balance - leftover
+			));
+
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into()),
+				leftover - 1
+			);
+
+			//Free balance leads to off-by-one due to Aave rounding issue
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::ADOT, &BOB.into()),
+				start_balance - leftover
+			);
+		});
+	}
+}
+
+pub mod stableswap_with_atoken {
+	use super::*;
+	use hydradx_runtime::{RuntimeOrigin, Stableswap};
+
+	#[test]
+	fn add_liquidity_shares_should_not_work_when_user_has_not_enough_atoken_balance() {
+		crate::aave_router::with_atoken(|| {
+			let ed = 1000;
+			AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				crate::aave_router::ADOT,
+				None,
+				None,
+				Some(ed),
+				None,
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+
+			let (pool_id, _, _) = init_stableswap_with_atoken().unwrap();
+
+			let alice_adot_balance = Currencies::free_balance(ADOT, &ALICE.into());
+			assert_eq!(alice_adot_balance, 1001);
+
+			//Should fail as alice has not enough asset to provide liquidity
+			assert_noop!(
+				Stableswap::add_liquidity_shares(
+					RuntimeOrigin::signed(ALICE.into()),
+					pool_id,
+					666_000_000_000_000_000_000,
+					ADOT,
+					u128::MAX
+				),
+				Other("evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011")
+			);
+		})
+	}
+}
+
+pub fn init_stableswap_with_atoken() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
+	let initial_liquidity = 1_000_000_000_000_000_000_000u128;
+
+	let mut initial: Vec<AssetAmount<<Runtime as pallet_stableswap::Config>::AssetId>> = vec![];
+	let mut asset_ids: Vec<<Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
+	//Add an asset
+	let name: Vec<u8> = 10i32.to_ne_bytes().to_vec();
+	let asset_id = AssetRegistry::register_sufficient_asset(
+		None,
+		Some(name.try_into().unwrap()),
+		AssetKind::Token,
+		1u128,
+		Some(b"xDUM".to_vec().try_into().unwrap()),
+		Some(18u8),
+		None,
+		None,
+	)?;
+
+	asset_ids.push(asset_id);
+	Currencies::update_balance(
+		RuntimeOrigin::root(),
+		AccountId::from(BOB),
+		asset_id,
+		initial_liquidity as i128,
+	)?;
+	initial.push(AssetAmount::new(asset_id, initial_liquidity));
+
+	//Add atoken
+	asset_ids.push(ADOT);
+	let initial_adot_liquidity = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into()) - 1001;
+	//assert_eq!(initial_adot_liquidity, 999999999990000);
+	initial.push(AssetAmount::new(ADOT, initial_adot_liquidity));
+	Currencies::transfer(
+		RuntimeOrigin::signed(ALICE.into()),
+		AccountId::from(BOB),
+		ADOT,
+		initial_adot_liquidity,
+	)?;
+	assert_eq!(Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into()), 1001);
+
+	//
+	let pool_id = AssetRegistry::register_sufficient_asset(
+		None,
+		Some(b"pool".to_vec().try_into().unwrap()),
+		AssetKind::Token,
+		1u128,
+		None,
+		None,
+		None,
+		None,
+	)?;
+
+	let amplification = 100u16;
+	let fee = Permill::from_percent(1);
+
+	let asset_in: AssetId = *asset_ids.last().unwrap();
+	let asset_out: AssetId = *asset_ids.first().unwrap();
+
+	Stableswap::create_pool(
+		RuntimeOrigin::root(),
+		pool_id,
+		BoundedVec::truncate_from(asset_ids),
+		amplification,
+		fee,
+	)?;
+
+	Stableswap::add_assets_liquidity(
+		RuntimeOrigin::signed(BOB.into()),
+		pool_id,
+		BoundedVec::truncate_from(initial),
+		Balance::zero(),
+	)?;
+
+	Ok((pool_id, asset_in, asset_out))
+}
+
 #[test]
-#[ignore]
-fn transfer_almost_all_atoken_but_ed_should_transfer_all_atoken() {
-	with_atoken(|| {
-		let ed = 1000;
-		AssetRegistry::update(
-			hydradx_runtime::RuntimeOrigin::root(),
+fn check_atoken_transfer_with_rounding_error() {
+	with_aave(|| {
+		//Make some atoken on alice account
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
 			ADOT,
-			None,
-			None,
-			Some(ed),
-			None,
-			None,
-			None,
-			None,
-			None,
-		)
-		.unwrap();
+			BAG,
+			0,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
 
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+		Currencies::update_balance(RuntimeOrigin::root(), AccountId::from(BOB), 5, 10 * BAG as i128).unwrap();
 
-		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
+		let bob_init_balance = Currencies::free_balance(ADOT, &BOB.into());
 
-		assert_eq!(alice_all_balance, 1000000000000000);
-		let alice_dot_balance_before = 1999999999999998;
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
-		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
+		let first_transfer_amount = BAG / 100;
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			DOT,
+			ADOT,
+			BAG / 100,
+			0,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
 
+		let alice_balance = Currencies::free_balance(ADOT, &ALICE.into());
+
+		let bob_balance = Currencies::free_balance(ADOT, &BOB.into());
+		assert_eq!(bob_balance, bob_init_balance + first_transfer_amount);
+
+		//Transfer amount to bob, leading to rounding issue
+		let amount = 55108183363806;
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(ALICE.into()),
 			BOB.into(),
 			ADOT,
-			alice_all_balance - ed
-		));
-		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
-
-		assert_eq!(bob_new_balance, alice_all_balance);
-
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
-		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
-	})
-}
-
-#[test]
-#[ignore]
-fn transfer_all_atoken_but_one_should_transfer_all_atoken() {
-	with_atoken(|| {
-		let ed = 1000;
-		AssetRegistry::update(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ADOT,
-			None,
-			None,
-			Some(ed),
-			None,
-			None,
-			None,
-			None,
-			None,
-		)
-		.unwrap();
-
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 1000000000000000);
-
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
-
-		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
-
-		assert_eq!(alice_all_balance, 1000000000000000);
-		let alice_dot_balance_before = 1999999999999998;
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
-		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
-
-		assert_ok!(Currencies::transfer(
-			RuntimeOrigin::signed(ALICE.into()),
-			BOB.into(),
-			ADOT,
-			alice_all_balance - 1
-		));
-		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
-		assert_eq!(bob_new_balance, alice_all_balance);
-
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
-		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
-	})
-}
-
-#[test]
-fn transfer_atoken_when_left_more_than_ed_should_transfer_specified_amount() {
-	with_atoken(|| {
-		let ed = 1000;
-		AssetRegistry::update(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ADOT,
-			None,
-			None,
-			Some(ed),
-			None,
-			None,
-			None,
-			None,
-			None,
-		)
-		.unwrap();
-
-		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
-		let adot_asset_id = HydraErc20Mapping::asset_address(ADOT);
-		let amount = alice_all_balance - ed - 1;
-		assert_ok!(<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
-			adot_asset_id,
-			&AccountId::from(ALICE),
-			&AccountId::from(BOB),
 			amount
 		));
-		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
 
-		assert_eq!(bob_new_balance, amount);
+		assert_eq!(Currencies::free_balance(ADOT, &BOB.into()), bob_balance + amount + 1);
+
+		//Transfer back to alice the same amount
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(BOB.into()),
+			ALICE.into(),
+			ADOT,
+			amount + 1
+		));
+
+		//Alice should have the original balance back
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), alice_balance);
+		assert_eq!(Currencies::free_balance(ADOT, &BOB.into()), first_transfer_amount);
+
+		let adot_contract = HydraErc20Mapping::asset_address(ADOT);
+		assert_ok!(AaveTradeExecutor::<hydradx_runtime::Runtime>::withdraw_all_to(
+			adot_contract,
+			&BOB.into(),
+			&ALICE.into()
+		));
+		assert_eq!(
+			Currencies::free_balance(ADOT, &ALICE.into()),
+			alice_balance + first_transfer_amount
+		);
 	})
+}
+
+use sp_runtime::codec::Encode;
+#[test]
+fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+	let treasury_acc = MockAccount::new(Treasury::account_id());
+
+	with_atoken(|| {
+		// ALICE has ADOT from with_atoken setup
+		let fee_currency = ADOT;
+
+		// Initialize omnipool and oracle
+
+		// Transfer some ADOT from ALICE to the EVM user (alith)
+		let adot_transfer_amount = BAG / 3; // Transfer 1 BAG of ADOT
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			alith_evm_account(),
+			ADOT,
+			adot_transfer_amount
+		));
+
+		// Send adot to protocol account so we can add it to ominpool
+		assert_ok!(MultiTransactionPayment::add_currency(
+			RuntimeOrigin::root(),
+			ADOT,
+			FixedU128::from_rational(1, 2)
+		));
+
+		set_ed(ADOT, 1);
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hydradx_runtime::Omnipool::protocol_account()
+		)));
+
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			hydradx_runtime::Omnipool::protocol_account(),
+			ADOT,
+			adot_transfer_amount
+		));
+
+		// // Add ADOT to omnipool so fee payment can work
+		assert_ok!(Omnipool::add_token(
+			RuntimeOrigin::root(),
+			ADOT,
+			FixedU128::from_rational(1, 2),
+			Permill::from_percent(100),
+			AccountId::from(ALICE),
+		));
+
+		hydradx_run_to_next_block();
+
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<Runtime>::put(hydradx_runtime::MinimumMultiplier::get());
+
+		//Let's mutate timestamp to accrue some yield on ADOT holdings
+		let current_timestamp = hydradx_runtime::Timestamp::get();
+		let new_timestamp = current_timestamp + (1 * 1000); // milliseconds
+		hydradx_runtime::Timestamp::set_timestamp(new_timestamp);
+
+		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
+		let initial_treasury_fee_balance = treasury_acc.balance(fee_currency);
+		let initial_fee_currency_issuance = Currencies::total_issuance(fee_currency);
+
+		// Create the set_currency call to set ADOT as fee payment currency
+		let set_currency_call =
+			RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::set_currency {
+				currency: fee_currency,
+			});
+
+		let gas_limit = 1000000;
+		let deadline = U256::from(1000000000000u128);
+
+		// Generate permit
+		let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<Runtime>::generate_permit(
+			CALLPERMIT,
+			user_evm_address,
+			DISPATCH_ADDR,
+			U256::from(0),
+			set_currency_call.encode(),
+			gas_limit,
+			U256::zero(),
+			deadline,
+		);
+		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+
+		// Validate unsigned first
+		let call: pallet_transaction_multi_payment::Call<Runtime> =
+			pallet_transaction_multi_payment::Call::dispatch_permit {
+				from: user_evm_address,
+				to: DISPATCH_ADDR,
+				value: U256::from(0),
+				data: set_currency_call.encode(),
+				gas_limit,
+				deadline,
+				v: v.serialize(),
+				r: H256::from(rs.r.b32()),
+				s: H256::from(rs.s.b32()),
+			};
+
+		let tag: Vec<u8> = ("EVMPermit", (U256::zero(), user_evm_address)).encode();
+		assert_eq!(
+			MultiTransactionPayment::validate_unsigned(TransactionSource::External, &call),
+			Ok(ValidTransaction {
+				priority: 0,
+				requires: vec![],
+				provides: vec![tag],
+				longevity: 64,
+				propagate: true,
+			})
+		);
+
+		// Dispatch the permit
+		assert_ok!(MultiTransactionPayment::dispatch_permit(
+			RuntimeOrigin::none(),
+			user_evm_address,
+			DISPATCH_ADDR,
+			U256::from(0),
+			set_currency_call.encode(),
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		));
+
+		// Verify the currency was set to ADOT
+		let currency = pallet_transaction_multi_payment::Pallet::<Runtime>::account_currency(&user_acc.address());
+		assert_eq!(currency, fee_currency);
+
+		// Verify total issuance didn't change (fees are transferred, not burned)
+		let fee_currency_issuance = Currencies::total_issuance(fee_currency);
+		assert_eq!(initial_fee_currency_issuance, fee_currency_issuance);
+
+		// Verify user's ADOT balance decreased (fee was paid)
+		let user_fee_currency_balance = user_acc.balance(fee_currency);
+		assert!(user_fee_currency_balance < initial_user_fee_currency_balance);
+
+		// Verify treasury received the fee
+		let final_treasury_fee_balance = treasury_acc.balance(fee_currency);
+		assert!(final_treasury_fee_balance > initial_treasury_fee_balance);
+
+		// Verify the fee amount matches what treasury received
+		let fee_amount = initial_user_fee_currency_balance - user_fee_currency_balance;
+		let treasury_received = final_treasury_fee_balance - initial_treasury_fee_balance;
+		assert_eq!(fee_amount, treasury_received);
+	})
+}
+
+fn set_ed(asset_id: AssetId, ed: u128) {
+	AssetRegistry::update(
+		hydradx_runtime::RuntimeOrigin::root(),
+		asset_id,
+		None,
+		None,
+		Some(ed),
+		None,
+		None,
+		None,
+		None,
+		None,
+	)
+	.unwrap();
 }

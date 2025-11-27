@@ -18,6 +18,7 @@ pub use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeEvent, RuntimeOrigin};
 pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
+pub use num_traits::Zero;
 use pallet_referrals::{FeeDistribution, Level};
 pub use polkadot_primitives::v8::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
@@ -628,9 +629,7 @@ pub mod hydra {
 				account_currencies: vec![],
 			},
 			duster: hydradx_runtime::DusterConfig {
-				account_blacklist: vec![Treasury::account_id()],
-				reward_account: Some(Treasury::account_id()),
-				dust_account: Some(Treasury::account_id()),
+				account_whitelist: vec![Treasury::account_id()],
 			},
 			..Default::default()
 		};
@@ -673,9 +672,7 @@ pub mod para {
 				..Default::default()
 			},
 			duster: hydradx_runtime::DusterConfig {
-				account_blacklist: vec![Treasury::account_id()],
-				reward_account: Some(Treasury::account_id()),
-				dust_account: Some(Treasury::account_id()),
+				account_whitelist: vec![Treasury::account_id()],
 			},
 			..Default::default()
 		};

@@ -35,5 +35,6 @@ sp_api::decl_runtime_apis! {
 		fn account(asset_id: AssetId, who: AccountId) -> AccountData<Balance>;
 		fn accounts(who: AccountId) -> Vec<(AssetId, AccountData<Balance>)>;
 		fn free_balance(asset_id: AssetId, who: AccountId) -> Balance;
+		fn minimum_balance(asset_id: AssetId) -> Balance;
 	}
 }
