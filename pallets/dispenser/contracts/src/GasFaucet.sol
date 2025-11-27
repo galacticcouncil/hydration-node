@@ -31,6 +31,7 @@ contract GasFaucet {
     constructor(address _mpc, address _voucher, uint256 _minEthThreshold) {
         owner = msg.sender;
         require(_mpc != address(0), "zero mpc");
+        require(_voucher != address(0), "zero voucher");
         mpc = _mpc;
         minEthThreshold = _minEthThreshold;
         voucher = GasVoucher(_voucher);
@@ -49,10 +50,9 @@ contract GasFaucet {
 
     function fund(address to, uint256 amountWei) external onlyMPC {
         require(to != address(0), "zero");
-        if (
-            address(this).balance >= amountWei &&
-            address(this).balance >= minEthThreshold
-        ) {
+        require(amountWei > 0);
+        uint256 balance = address(this).balance;
+        if (balance >= amountWei && balance - amountWei >= minEthThreshold) {
             (bool ok, ) = payable(to).call{value: amountWei}("");
             require(ok, "send");
             emit Funded(to, amountWei);
@@ -75,6 +75,7 @@ contract GasFaucet {
         address payable to,
         uint256 amountWei
     ) external onlyOwner {
+        require(to != address(0), "zero to");
         (bool ok, ) = to.call{value: amountWei}("");
         require(ok, "withdraw");
         emit Withdrawn(to, amountWei);
