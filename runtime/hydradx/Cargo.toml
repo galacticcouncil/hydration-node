@@ -257,7 +257,7 @@ runtime-benchmarks = [
     "cumulus-primitives-utility/runtime-benchmarks",
     "pallet-xcm-benchmarks/runtime-benchmarks",
     "pallet-signet/runtime-benchmarks",
-    "pallet-dispenser/runtime-benchmarks",,
+    "pallet-dispenser/runtime-benchmarks",
     "ismp-parachain/runtime-benchmarks",
     "pallet-token-gateway/runtime-benchmarks",
 ]
