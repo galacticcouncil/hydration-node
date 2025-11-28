@@ -62,6 +62,13 @@ macro_rules! assert_price_approx_eq {
 	}};
 }
 
+#[macro_export]
+macro_rules! assert_last_event {
+	( $x:expr ) => {{
+		pretty_assertions::assert_eq!(System::events().last().expect("events expected").event, $x);
+	}};
+}
+
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	ExtBuilder::default().build()
 }
