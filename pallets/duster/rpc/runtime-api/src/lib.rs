@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025  Intergalactic, Limited (GIB).
+// Copyright (C) 2020-2022  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,4 +13,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub type Migrations = ();
+//! Runtime API definition for the duster pallet.
+
+#![cfg_attr(not(feature = "std"), no_std)]
+
+use codec::Codec;
+
+sp_api::decl_runtime_apis! {
+	/// Runtime API for the duster pallet.
+	pub trait DusterApi<AccountId> where
+		AccountId: Codec,
+	{
+		/// Check if an account is whitelisted (protected from dusting).
+		/// Returns true if the account is whitelisted, false otherwise.
+		fn is_whitelisted(account: AccountId) -> bool;
+	}
+}

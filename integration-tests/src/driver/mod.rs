@@ -285,10 +285,11 @@ impl HydrationTestDriver {
 				fee,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 				pool_id,
-				BoundedVec::truncate_from(initial)
+				BoundedVec::truncate_from(initial),
+				Balance::zero(),
 			));
 			stable_pool_id = pool_id;
 			stable_assets = asset_ids;

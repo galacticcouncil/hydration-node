@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "360.0.0"
+version = "363.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -55,6 +55,7 @@ pallet-currencies-rpc-runtime-api = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-duster = { workspace = true }
+pallet-duster-rpc-runtime-api = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
 pallet-otc-settlements = { workspace = true }
@@ -333,6 +334,7 @@ std = [
     "pallet-lbp/std",
     "pallet-xyk/std",
     "pallet-duster/std",
+    "pallet-duster-rpc-runtime-api/std",
     "pallet-hsm/std",
     "pallet-parameters/std",
     "warehouse-liquidity-mining/std",
