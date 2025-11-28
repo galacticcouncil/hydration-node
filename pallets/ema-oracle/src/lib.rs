@@ -181,7 +181,12 @@ pub mod pallet {
 		/// Oracle was removed from the whitelist.
 		RemovedFromWhitelist { source: Source, assets: (AssetId, AssetId) },
 		/// Oracle price was updated
-		OracleUpdated { source: Source, assets: (AssetId, AssetId), period: OraclePeriod, update: OracleEntry<BlockNumberFor<T>> }
+		OracleUpdated {
+			source: Source,
+			assets: (AssetId, AssetId),
+			period: OraclePeriod,
+			update: OracleEntry<BlockNumberFor<T>>,
+		},
 	}
 
 	/// Accumulator for oracle data in current block that will be recorded at the end of the block.
@@ -438,12 +443,22 @@ impl<T: Config> Pallet<T> {
 				.filter(|p| *p != OraclePeriod::LastBlock)
 			{
 				Self::update_oracle(src.clone(), assets.clone(), period, oracle_entry.clone());
-				Self::deposit_event(Event::<T>::OracleUpdated{ source: src, assets, period, update: oracle_entry.clone() });
+				Self::deposit_event(Event::<T>::OracleUpdated {
+					source: src,
+					assets,
+					period,
+					update: oracle_entry.clone(),
+				});
 			}
 			// As we use (the old value of) the `LastBlock` entry to update the other oracles it
 			// gets updated last.
 			Self::update_oracle(src, assets, OraclePeriod::LastBlock, oracle_entry.clone());
-			Self::deposit_event(Event::<T>::OracleUpdated{ source: src, assets, period: OraclePeriod::LastBlock, update: oracle_entry });
+			Self::deposit_event(Event::<T>::OracleUpdated {
+				source: src,
+				assets,
+				period: OraclePeriod::LastBlock,
+				update: oracle_entry,
+			});
 		}
 	}
 

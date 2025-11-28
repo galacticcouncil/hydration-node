@@ -68,7 +68,8 @@ fn add_oracle_should_add_entry_to_storage() {
 			assets: ordered_pair(0, 5),
 			period: LastBlock,
 			update: entry.clone(),
-		}.into());
+		}
+		.into());
 	});
 }
 
@@ -126,7 +127,8 @@ fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
 			assets: ordered_pair(0, 5),
 			period: LastBlock,
 			update: entry.clone(),
-		}.into());
+		}
+		.into());
 	});
 }
 
@@ -225,7 +227,8 @@ fn should_pass_when_new_price_is_still_within_range() {
 			assets: ordered_pair(0, 5),
 			period: LastBlock,
 			update: entry.clone(),
-		}.into());
+		}
+		.into());
 
 		//Act
 		assert_ok!(EmaOracle::update_bifrost_oracle(
