@@ -56,13 +56,19 @@ fn add_oracle_should_add_entry_to_storage() {
 		update_aggregated_oracles();
 
 		//Assert
-		let entry = Oracles::<Test>::get((BIFROST_SOURCE, ordered_pair(0, 5), OraclePeriod::Day)).map(|(e, _)| e);
+		let entry = Oracles::<Test>::get((BIFROST_SOURCE, ordered_pair(0, 5), OraclePeriod::LastBlock)).map(|(e, _)| e);
 		assert!(entry.is_some());
 		let entry = entry.unwrap();
 		assert_eq!(entry.price, EmaPrice::new(100, 99));
 		assert_eq!(entry.volume, Volume::default());
 		assert_eq!(entry.liquidity, Liquidity::default());
 		assert_eq!(entry.updated_at, 3);
+		assert_eq!(System::events().last().unwrap().event, Event::<Test>::OracleUpdated {
+			source: BIFROST_SOURCE,
+			assets: ordered_pair(0, 5),
+			period: OraclePeriod::LastBlock,
+			update: entry.clone(),
+		}.into());
 	});
 }
 
@@ -108,13 +114,19 @@ fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
 		update_aggregated_oracles();
 
 		//Assert
-		let entry = Oracles::<Test>::get((BIFROST_SOURCE, ordered_pair(0, 5), OraclePeriod::Day)).map(|(e, _)| e);
+		let entry = Oracles::<Test>::get((BIFROST_SOURCE, ordered_pair(0, 5), OraclePeriod::LastBlock)).map(|(e, _)| e);
 		assert!(entry.is_some());
 		let entry = entry.unwrap();
 		assert_eq!(entry.price, EmaPrice::new(99, 100));
 		assert_eq!(entry.volume, Volume::default());
 		assert_eq!(entry.liquidity, Liquidity::default());
 		assert_eq!(entry.updated_at, 3);
+		assert_eq!(System::events().last().unwrap().event, Event::<Test>::OracleUpdated {
+			source: BIFROST_SOURCE,
+			assets: ordered_pair(0, 5),
+			period: OraclePeriod::LastBlock,
+			update: entry.clone(),
+		}.into());
 	});
 }
 
