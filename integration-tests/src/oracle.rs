@@ -13,7 +13,7 @@ use frame_support::{
 	traits::tokens::fungibles::Mutate,
 };
 use hydra_dx_math::ema::smoothing_from_period;
-use hydradx_runtime::bifrost_account;
+use hydradx_runtime::{bifrost_account, System};
 use hydradx_runtime::AssetLocation;
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::{EmaOracle, RuntimeOrigin};
@@ -24,7 +24,7 @@ use hydradx_traits::{
 	OraclePeriod::{self, *},
 };
 use orml_traits::MultiCurrency;
-use pallet_ema_oracle::into_smoothing;
+use pallet_ema_oracle::{into_smoothing, ordered_pair, Oracles, Event::OracleUpdated};
 use pallet_ema_oracle::OracleError;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_transaction_payment::ChargeTransactionPayment;
@@ -373,6 +373,15 @@ fn bifrost_oracle_should_be_updated() {
 				Err(OracleError::NotPresent)
 			);
 		}
+
+		// assert event
+		let entry = EmaOracle::oracle((BIFROST_SOURCE, ordered_pair(asset_a_id, asset_b_id), LastBlock)).unwrap().0;
+		System::assert_last_event(OracleUpdated {
+			source: BIFROST_SOURCE,
+			assets: ordered_pair(asset_a_id, asset_b_id),
+			period: LastBlock,
+			update: entry.clone()
+		}.into());
 	});
 }
 
@@ -403,6 +412,15 @@ fn bifrost_oracle_should_be_added_when_pair_not_whitelisted() {
 				Err(OracleError::NotPresent)
 			);
 		}
+
+		// assert event
+		let entry = EmaOracle::oracle((BIFROST_SOURCE, ordered_pair(asset_a_id, asset_b_id), LastBlock)).unwrap().0;
+		System::assert_last_event(OracleUpdated {
+			source: BIFROST_SOURCE,
+			assets: ordered_pair(asset_a_id, asset_b_id),
+			period: LastBlock,
+			update: entry.clone()
+		}.into());
 	});
 }
 
