@@ -640,13 +640,16 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 
 		assert_eq!(deposit, expected_deposit);
 
-		expect_omnipool_liquidity_added_events(vec![pallet_omnipool::Event::LiquidityAdded {
-			who: CHARLIE.into(),
-			asset_id: ETH,
-			amount: 1_000 * UNITS,
-			position_id: 7,
-		}
-		.into()]);
+		expect_omnipool_liquidity_added_events(
+			vec![pallet_omnipool::Event::LiquidityAdded {
+				who: CHARLIE.into(),
+				asset_id: ETH,
+				amount: 1_000 * UNITS,
+				position_id: 7,
+			}
+			.into()],
+			20,
+		);
 
 		expect_lm_events(vec![
 			pallet_omnipool_liquidity_mining::Event::SharesDeposited {
@@ -905,13 +908,16 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 			.into()]);
 
 			let stableswap_shares_amount = 20044549999405;
-			expect_omnipool_liquidity_added_events(vec![pallet_omnipool::Event::LiquidityAdded {
-				who: CHARLIE.into(),
-				asset_id: stable_pool_id,
-				amount: stableswap_shares_amount,
-				position_id: 8,
-			}
-			.into()]);
+			expect_omnipool_liquidity_added_events(
+				vec![pallet_omnipool::Event::LiquidityAdded {
+					who: CHARLIE.into(),
+					asset_id: stable_pool_id,
+					amount: stableswap_shares_amount,
+					position_id: 8,
+				}
+				.into()],
+				25,
+			);
 
 			expect_lm_events(vec![
 				pallet_omnipool_liquidity_mining::Event::SharesDeposited {
@@ -1152,13 +1158,16 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 			.into()]);
 
 			let stableswap_shares_amount = 20044549999405;
-			expect_omnipool_liquidity_added_events(vec![pallet_omnipool::Event::LiquidityAdded {
-				who: CHARLIE.into(),
-				asset_id: stable_pool_id,
-				amount: stableswap_shares_amount,
-				position_id: 8,
-			}
-			.into()]);
+			expect_omnipool_liquidity_added_events(
+				vec![pallet_omnipool::Event::LiquidityAdded {
+					who: CHARLIE.into(),
+					asset_id: stable_pool_id,
+					amount: stableswap_shares_amount,
+					position_id: 8,
+				}
+				.into()],
+				20,
+			);
 
 			expect_lm_events(vec![]);
 
@@ -2345,6 +2354,12 @@ fn price_adjustment_adapter_should_use_routed_oracle() {
 		});
 }
 
+// O(mn) unfortunately
+// We don't care for duplicates or order
+fn is_subset<T: PartialEq>(superset: &[T], subset: &[T]) -> bool {
+	subset.iter().all(|item| superset.contains(item))
+}
+
 pub fn expect_reward_claimed_events(e: Vec<RuntimeEvent>) {
 	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(10);
 
@@ -2366,7 +2381,7 @@ pub fn expect_reward_claimed_events(e: Vec<RuntimeEvent>) {
 }
 
 pub fn expect_lm_events(e: Vec<RuntimeEvent>) {
-	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(10);
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(25);
 
 	let mut reward_claimed_events = vec![];
 
@@ -2408,8 +2423,8 @@ pub fn expect_stableswap_liquidity_added_events(e: Vec<RuntimeEvent>) {
 	pretty_assertions::assert_eq!(events, e);
 }
 
-pub fn expect_omnipool_liquidity_added_events(e: Vec<RuntimeEvent>) {
-	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(10);
+pub fn expect_omnipool_liquidity_added_events(e: Vec<RuntimeEvent>, n: usize) {
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(n);
 
 	let mut events = vec![];
 
