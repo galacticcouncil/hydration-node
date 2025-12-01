@@ -648,7 +648,7 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 				position_id: 7,
 			}
 			.into()],
-			20,
+			10,
 		);
 
 		expect_lm_events(vec![

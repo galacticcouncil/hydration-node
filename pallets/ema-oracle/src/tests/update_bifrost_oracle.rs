@@ -66,7 +66,6 @@ fn add_oracle_should_add_entry_to_storage() {
 		assert_last_event!(Event::<Test>::OracleUpdated {
 			source: BIFROST_SOURCE,
 			assets: ordered_pair(0, 5),
-			period: LastBlock,
 			update: entry.clone(),
 		}
 		.into());
@@ -125,7 +124,6 @@ fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
 		assert_last_event!(Event::<Test>::OracleUpdated {
 			source: BIFROST_SOURCE,
 			assets: ordered_pair(0, 5),
-			period: LastBlock,
 			update: entry.clone(),
 		}
 		.into());
@@ -225,7 +223,6 @@ fn should_pass_when_new_price_is_still_within_range() {
 		assert_last_event!(Event::<Test>::OracleUpdated {
 			source: BIFROST_SOURCE,
 			assets: ordered_pair(0, 5),
-			period: LastBlock,
 			update: entry.clone(),
 		}
 		.into());

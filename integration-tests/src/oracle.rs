@@ -382,7 +382,6 @@ fn bifrost_oracle_should_be_updated() {
 			OracleUpdated {
 				source: BIFROST_SOURCE,
 				assets: ordered_pair(asset_a_id, asset_b_id),
-				period: LastBlock,
 				update: entry.clone(),
 			}
 			.into(),
@@ -426,7 +425,6 @@ fn bifrost_oracle_should_be_added_when_pair_not_whitelisted() {
 			OracleUpdated {
 				source: BIFROST_SOURCE,
 				assets: ordered_pair(asset_a_id, asset_b_id),
-				period: LastBlock,
 				update: entry.clone(),
 			}
 			.into(),
