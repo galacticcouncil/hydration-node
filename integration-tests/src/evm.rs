@@ -5,9 +5,26 @@ use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
+use hydradx_runtime::evm::precompiles::CALLPERMIT;
+
+use crate::utils::accounts::alith_evm_account;
+use crate::utils::accounts::alith_evm_address;
+use crate::utils::accounts::alith_secret_key;
+use crate::utils::accounts::alith_truncated_account;
+use crate::utils::accounts::MockAccount;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
+use hydradx_runtime::evm::Erc20Currency;
+use hydradx_runtime::MultiTransactionPayment;
+use hydradx_runtime::Runtime;
+use hydradx_traits::evm::CallContext;
+use hydradx_traits::evm::ERC20;
+
+use libsecp256k1::sign;
+use libsecp256k1::Message;
+
+use libsecp256k1::SecretKey;
 use sp_core::bounded_vec::BoundedVec;
 
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
@@ -2075,6 +2092,660 @@ mod contract_deployment {
 				false,
 				None,
 			));
+		});
+	}
+}
+
+mod account_marking {
+	use super::*;
+	use frame_support::assert_ok;
+	use pretty_assertions::assert_eq;
+
+	#[test]
+	fn account_should_be_marked_and_sufficients_inreased_on_first_evm_transaction() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			// Arrange
+			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+			let account_id = EVMAccounts::account_id(evm_address);
+
+			let initial_sufficients = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
+
+			assert_eq!(
+				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&account_id),
+				false
+			);
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				account_id.clone(),
+				WETH,
+				100000000 * UNITS as i128,
+			));
+
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+
+			// Act
+			assert_ok!(EVM::call(
+				evm_signed_origin(evm_address),
+				evm_address,
+				DISPATCH_ADDR,
+				data,
+				U256::from(0),
+				1000000,
+				gas_price(),
+				None,
+				Some(U256::zero()),
+				[].into()
+			));
+
+			// Assert
+			assert_eq!(
+				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&account_id),
+				true
+			);
+			let final_sufficients = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
+			assert_eq!(final_sufficients, initial_sufficients + 1);
+		});
+	}
+
+	#[test]
+	fn marking_should_be_idempotent_across_multiple_transactions() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			// Arrange
+			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+			let account_id = EVMAccounts::account_id(evm_address);
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				account_id.clone(),
+				WETH,
+				1000 * UNITS as i128,
+			));
+
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+
+			// Act - Execute first EVM transaction
+			assert_ok!(EVM::call(
+				evm_signed_origin(evm_address),
+				evm_address,
+				DISPATCH_ADDR,
+				data.clone(),
+				U256::from(0),
+				1000000,
+				gas_price(),
+				None,
+				Some(U256::zero()),
+				[].into()
+			));
+
+			let sufficients_after_first = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
+
+			// Execute second EVM transaction
+			assert_ok!(EVM::call(
+				evm_signed_origin(evm_address),
+				evm_address,
+				DISPATCH_ADDR,
+				data.clone(),
+				U256::from(0),
+				1000000,
+				gas_price(),
+				None,
+				Some(U256::from(1)),
+				[].into()
+			));
+
+			let sufficients_after_second = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
+
+			// Execute third EVM transaction
+			assert_ok!(EVM::call(
+				evm_signed_origin(evm_address),
+				evm_address,
+				DISPATCH_ADDR,
+				data,
+				U256::from(0),
+				1000000,
+				gas_price(),
+				None,
+				Some(U256::from(2)),
+				[].into()
+			));
+
+			let sufficients_after_third = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
+
+			// Assert - Sufficients should only increment once, not for each transaction
+			assert_eq!(sufficients_after_first, sufficients_after_second);
+			assert_eq!(sufficients_after_second, sufficients_after_third);
+
+			// Account should still be marked
+			assert_eq!(
+				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&account_id),
+				true
+			);
+		});
+	}
+
+	#[test]
+	fn multiple_different_accounts_can_be_marked_independently() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			// Arrange - Set up two different accounts
+			let alice_evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+			let alice_account_id: AccountId = EVMAccounts::account_id(alice_evm_address);
+
+			let bob_evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(BOB));
+			let bob_account_id: AccountId = EVMAccounts::account_id(bob_evm_address);
+
+			assert_eq!(
+				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&alice_account_id),
+				false
+			);
+			assert_eq!(
+				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&bob_account_id),
+				false
+			);
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				alice_account_id.clone(),
+				WETH,
+				100 * UNITS as i128,
+			));
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				bob_account_id.clone(),
+				WETH,
+				100 * UNITS as i128,
+			));
+
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+
+			let alice_initial_sufficients =
+				frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&alice_account_id);
+			let bob_initial_sufficients =
+				frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&bob_account_id);
+
+			// Act
+			assert_ok!(EVM::call(
+				evm_signed_origin(alice_evm_address),
+				alice_evm_address,
+				DISPATCH_ADDR,
+				data.clone(),
+				U256::from(0),
+				1000000,
+				gas_price(),
+				None,
+				Some(U256::zero()),
+				[].into()
+			));
+
+			// Assert
+			assert_eq!(
+				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&alice_account_id),
+				true
+			);
+			assert_eq!(
+				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&bob_account_id),
+				false
+			);
+
+			let alice_sufficients_after =
+				frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&alice_account_id);
+			assert_eq!(alice_sufficients_after, alice_initial_sufficients + 1);
+
+			// Act - Bob makes an EVM transaction
+			assert_ok!(EVM::call(
+				evm_signed_origin(bob_evm_address),
+				bob_evm_address,
+				DISPATCH_ADDR,
+				data,
+				U256::from(0),
+				1000000,
+				gas_price(),
+				None,
+				Some(U256::zero()),
+				[].into()
+			));
+
+			// Assert
+			assert_eq!(
+				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&alice_account_id),
+				true
+			);
+			assert_eq!(
+				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&bob_account_id),
+				true
+			);
+
+			let bob_sufficients_after = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&bob_account_id);
+			assert_eq!(bob_sufficients_after, bob_initial_sufficients + 1);
+
+			let alice_sufficients_final =
+				frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&alice_account_id);
+			assert_eq!(alice_sufficients_final, alice_sufficients_after);
+		});
+	}
+
+	#[test]
+	fn bound_account_should_be_marked_on_evm_transaction() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			// Arrange
+			init_omnipool_with_oracle_for_block_10();
+			let account_id: AccountId = Into::<AccountId>::into(ALICE);
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				account_id.clone()
+			)));
+
+			let evm_address = EVMAccounts::evm_address(&account_id);
+
+			assert_eq!(
+				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&account_id),
+				false
+			);
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				account_id.clone(),
+				WETH,
+				100000 * UNITS as i128,
+			));
+
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+
+			let initial_sufficients = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
+			let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+			// Act
+			assert_ok!(EVM::call(
+				evm_signed_origin(evm_address),
+				evm_address,
+				DISPATCH_ADDR,
+				data,
+				U256::from(0),
+				1000000,
+				gas_price * 10,
+				None,
+				Some(U256::zero()),
+				[].into()
+			));
+
+			// Assert
+			assert_eq!(
+				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&account_id),
+				true
+			);
+
+			let final_sufficients = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
+			assert_eq!(final_sufficients, initial_sufficients + 1);
+		});
+	}
+
+	#[test]
+	fn evm_should_not_be_reaped_when_only_erc20_left() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+
+			let user_evm_address = alith_evm_address();
+			let user_secret_key = alith_secret_key();
+			let user_acc = MockAccount::new(alith_truncated_account());
+
+			// Execute multiple EVM transactions to increase the nonce
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+
+			// Fund account with WETH for EVM gas fees
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				WETH,
+				10000 * UNITS as i128,
+			));
+
+			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			assert_eq!(state.providers, 1);
+			assert_eq!(state.sufficients, 0);
+			assert_eq!(state.nonce, 0);
+
+			let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+			// Execute first EVM transaction (nonce 0)
+			assert_ok!(EVM::call(
+				evm_signed_origin(user_evm_address),
+				user_evm_address,
+				DISPATCH_ADDR,
+				data.clone(),
+				U256::from(0),
+				1000000,
+				gas_price * 10,
+				None,
+				Some(U256::zero()),
+				[].into()
+			));
+
+			// Execute second EVM transaction (nonce 1)
+			assert_ok!(EVM::call(
+				evm_signed_origin(user_evm_address),
+				user_evm_address,
+				DISPATCH_ADDR,
+				data.clone(),
+				U256::from(0),
+				1000000,
+				gas_price * 10,
+				None,
+				Some(U256::from(1)),
+				[].into()
+			));
+
+			// Execute third EVM transaction (nonce 2)
+			assert_ok!(EVM::call(
+				evm_signed_origin(user_evm_address),
+				user_evm_address,
+				DISPATCH_ADDR,
+				data,
+				U256::from(0),
+				1000000,
+				gas_price * 10,
+				None,
+				Some(U256::from(2)),
+				[].into()
+			));
+
+			// Verify the nonce and sufficients were incremented through EVM transactions
+			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			assert_eq!(state.providers, 1);
+			assert_eq!(state.sufficients, 1);
+			assert_eq!(state.nonce, 3,);
+
+			//Deploy and use erc20
+
+			let contract = crate::erc20::deploy_token_contract();
+			let erc20 = crate::erc20::bind_erc20(contract);
+			let balance = Currencies::free_balance(erc20, &ALICE.into());
+			let erc20_balance = 2000000000000000;
+			assert_eq!(erc20_balance, 2000000000000000);
+			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
+				CallContext {
+					contract: contract,
+					sender: crate::erc20::deployer(),
+					origin: crate::erc20::deployer()
+				},
+				user_evm_address,
+				erc20_balance
+			));
+
+			assert_ok!(Currencies::transfer(
+				hydradx_runtime::RuntimeOrigin::signed(alith_evm_account()),
+				hydradx_runtime::Omnipool::protocol_account(),
+				erc20,
+				erc20_balance / 2
+			));
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 2),
+				Permill::from_percent(100),
+				AccountId::from(alith_evm_account()),
+			));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(alith_evm_account()),
+				erc20,
+				0,
+				erc20_balance / 100,
+				Balance::MIN
+			));
+			hydradx_run_to_next_block();
+
+			// Ensure Alith starts clean-ish
+			// Remove WETH if any (to ensure account can die)
+			let weth_balance = user_acc.balance(WETH);
+			if weth_balance > 0 {
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					user_acc.address(),
+					WETH,
+					-(weth_balance as i128),
+				));
+			}
+
+			// Fund with HDX
+			let initial_amount = 1000 * UNITS;
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				initial_amount as i128,
+			));
+
+			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			assert_eq!(state.providers, 1);
+
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(alith_evm_account()),
+				0,
+				erc20,
+				UNITS,
+				Balance::MIN
+			));
+
+			// Construct transfer_all call
+			let transfer_all = RuntimeCall::Balances(pallet_balances::Call::transfer_all {
+				dest: BOB.into(),
+				keep_alive: false,
+			});
+
+			let gas_limit = 1_000_000;
+			let deadline = U256::from(u64::MAX);
+
+			assert_ok!(MultiTransactionPayment::add_currency(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 4)
+			));
+
+			assert_ok!(MultiTransactionPayment::set_currency(
+				RuntimeOrigin::signed(user_acc.address().clone()),
+				erc20,
+			));
+			let permit =
+				pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+					CALLPERMIT,
+					user_evm_address,
+					DISPATCH_ADDR,
+					U256::from(0),
+					transfer_all.encode(),
+					gas_limit,
+					U256::zero(),
+					deadline,
+				);
+
+			let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+			let message = Message::parse(&permit);
+			let (rs, v) = sign(&message, &secret_key);
+
+			// Dispatch permit
+			assert_ok!(MultiTransactionPayment::dispatch_permit(
+				hydradx_runtime::RuntimeOrigin::none(),
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				transfer_all.encode(),
+				gas_limit,
+				deadline,
+				v.serialize(),
+				H256::from(rs.r.b32()),
+				H256::from(rs.s.b32()),
+			));
+
+			let free_hdx = Currencies::free_balance(HDX, &user_acc.address());
+			assert_eq!(free_hdx, 0);
+
+			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			assert_eq!(state.providers, 0);
+			assert_eq!(state.sufficients, 1);
+			assert_eq!(state.nonce, 3);
+		});
+	}
+
+	#[test]
+	fn evm_should_not_be_reaped_when_only_native_left() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+
+			let user_evm_address = alith_evm_address();
+			let user_secret_key = alith_secret_key();
+			let user_acc = MockAccount::new(alith_truncated_account());
+
+			//Deploy and use erc20
+			let contract = crate::erc20::deploy_token_contract();
+			let erc20 = crate::erc20::bind_erc20(contract);
+			let balance = Currencies::free_balance(erc20, &ALICE.into());
+			let erc20_balance = 2000000000000000;
+			assert_eq!(erc20_balance, 2000000000000000);
+			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
+				CallContext {
+					contract: contract,
+					sender: crate::erc20::deployer(),
+					origin: crate::erc20::deployer()
+				},
+				user_evm_address,
+				erc20_balance
+			));
+
+			assert_ok!(Currencies::transfer(
+				hydradx_runtime::RuntimeOrigin::signed(alith_evm_account()),
+				hydradx_runtime::Omnipool::protocol_account(),
+				erc20,
+				erc20_balance / 2
+			));
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 2),
+				Permill::from_percent(100),
+				AccountId::from(alith_evm_account()),
+			));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(alith_evm_account()),
+				erc20,
+				0,
+				erc20_balance / 100,
+				Balance::MIN
+			));
+			hydradx_run_to_next_block();
+
+			// Ensure Alith starts clean-ish
+			// Remove WETH if any (to ensure account can die)
+			let weth_balance = user_acc.balance(WETH);
+			if weth_balance > 0 {
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					user_acc.address(),
+					WETH,
+					-(weth_balance as i128),
+				));
+			}
+
+			// Fund with HDX
+			let initial_amount = 1000 * UNITS;
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				initial_amount as i128,
+			));
+
+			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			assert_eq!(state.providers, 1);
+
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(alith_evm_account()),
+				0,
+				erc20,
+				UNITS,
+				Balance::MIN
+			));
+
+			let erc20_balance = Currencies::free_balance(erc20, &user_acc.address());
+			// Construct transfer_all call
+			let transfer_all = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+				dest: BOB.into(),
+				currency_id: erc20,
+				amount: erc20_balance,
+			});
+
+			let gas_limit = 1_000_000;
+			let deadline = U256::from(u64::MAX);
+
+			assert_ok!(MultiTransactionPayment::add_currency(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 4)
+			));
+
+			assert_ok!(MultiTransactionPayment::set_currency(
+				RuntimeOrigin::signed(user_acc.address().clone()),
+				erc20,
+			));
+			let permit =
+				pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+					CALLPERMIT,
+					user_evm_address,
+					DISPATCH_ADDR,
+					U256::from(0),
+					transfer_all.encode(),
+					gas_limit,
+					U256::zero(),
+					deadline,
+				);
+
+			let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+			let message = Message::parse(&permit);
+			let (rs, v) = sign(&message, &secret_key);
+
+			// Dispatch permit
+			assert_ok!(MultiTransactionPayment::dispatch_permit(
+				hydradx_runtime::RuntimeOrigin::none(),
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				transfer_all.encode(),
+				gas_limit,
+				deadline,
+				v.serialize(),
+				H256::from(rs.r.b32()),
+				H256::from(rs.s.b32()),
+			));
+
+			let free_hdx = Currencies::free_balance(HDX, &user_acc.address());
+			assert!(free_hdx > 0);
+
+			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			assert_eq!(state.providers, 1);
+			assert_eq!(state.sufficients, 1);
+			assert_eq!(state.nonce, 0);
 		});
 	}
 }
