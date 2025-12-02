@@ -235,7 +235,7 @@ pub mod pallet {
 		/// Priority fee cannot exceed max fee per gas (EIP-1559 requirement)
 		InvalidGasPrice,
 		/// Signature Deposit cannot exceed MaxSignatureDeposit
-		InavlidSignatureDeposit,
+		MaxDepositExceeded,
 	}
 
 	// ========================================
@@ -257,16 +257,13 @@ pub mod pallet {
 			ensure!(Admin::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
 
 			ensure!(
-				signature_deposit < T::MaxSignatureDeposit::get(),
-				Error::<T>::InavlidSignatureDeposit
+				signature_deposit <= T::MaxSignatureDeposit::get(),
+				Error::<T>::MaxDepositExceeded
 			);
 
 			Admin::<T>::put(&admin);
 			SignatureDeposit::<T>::put(signature_deposit);
-
-			let bounded_chain_id = BoundedVec::<u8, T::MaxChainIdLength>::try_from(chain_id.clone())
-				.map_err(|_| Error::<T>::ChainIdTooLong)?;
-			ChainId::<T>::put(bounded_chain_id);
+			ChainId::<T>::put(chain_id.clone());
 
 			Self::deposit_event(Event::Initialized {
 				admin,
@@ -287,7 +284,7 @@ pub mod pallet {
 
 			ensure!(
 				new_deposit < T::MaxSignatureDeposit::get().into(),
-				Error::<T>::InavlidSignatureDeposit
+				Error::<T>::MaxDepositExceeded
 			);
 
 			let old_deposit = SignatureDeposit::<T>::get();

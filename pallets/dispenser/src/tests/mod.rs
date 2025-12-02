@@ -3,7 +3,6 @@ mod utils;
 
 use crate::tests::utils::{acct, bounded_chain_id};
 use crate::{self as pallet_dispenser, *};
-use pallet_signet::Config as SignetConfig;
 
 use frame_support::assert_ok;
 use frame_support::{
@@ -139,6 +138,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
 	type WeightInfo = ();
+	type RegistryInspect = MockBoundErc20<Test>;
 }
 
 impl frame_system::offchain::SigningTypes for Test {
@@ -190,14 +190,14 @@ impl frame_system::offchain::SendTransactionTypes<RuntimeCall> for Test {
 
 impl pallet_dispenser::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type VaultPalletId = DispenserPalletId;
+	type PalletId = DispenserPalletId;
 	type Currency = FungibleCurrencies<Test>;
 	type MinimumRequestAmount = SigEthFaucetMinRequest;
 	type MaxDispenseAmount = SigEthFaucetMaxDispense;
 	type DispenserFee = SigEthFaucetDispenserFee;
 	type FeeAsset = SigEthFaucetFeeAssetId;
 	type FaucetAsset = SigEthFaucetFaucetAssetId;
-	type TreasuryAddress = TreasuryAccount;
+	type FeeDestination = TreasuryAccount;
 	type FaucetAddress = SigEthFaucetMpcRoot;
 	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
@@ -233,6 +233,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		));
 		let pallet_account = Dispenser::account_id();
 		let _ = <Balances as CurrencyTrait<_>>::deposit_creating(&pallet_account, 10_000);
+
+		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), MIN_WEI_BALANCE));
 	});
 	ext
 }

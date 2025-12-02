@@ -4,35 +4,14 @@ use crate::{
 		utils::{acct, compute_request_id, create_test_receiver_address, create_test_tx_params},
 		Currencies, Dispenser, RuntimeEvent, RuntimeOrigin, System, Test, MIN_WEI_BALANCE,
 	},
-	DispenserConfigData, Error, Event,
+	CurrentFaucetBalanceWei, Error, Event,
 };
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
 
 #[test]
-fn test_cannot_initialize_twice() {
-	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
-
-		assert_noop!(
-			Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE),
-			Error::<Test>::AlreadyInitialized
-		);
-
-		assert_eq!(
-			Dispenser::dispenser_config(),
-			Some(DispenserConfigData {
-				init: true,
-				paused: false,
-			})
-		);
-	});
-}
-
-#[test]
 fn test_request_rejected_when_paused() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
 		assert_ok!(Dispenser::pause(RuntimeOrigin::root()));
 
 		let requester = acct(1);
@@ -57,7 +36,6 @@ fn test_request_rejected_when_paused() {
 #[test]
 fn test_invalid_request_id_reverts_balances() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
 		let requester = acct(1);
 		let receiver = create_test_receiver_address();
 		let amount = 123_456u128;
@@ -86,7 +64,6 @@ fn test_invalid_request_id_reverts_balances() {
 #[test]
 fn test_fee_and_asset_routing() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
 		let requester = acct(1);
 		let receiver = create_test_receiver_address();
 		let amount = 10_000u128;
@@ -94,7 +71,7 @@ fn test_fee_and_asset_routing() {
 		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
 
 		let fee = <Test as crate::Config>::DispenserFee::get();
-		let treasury = <Test as crate::Config>::TreasuryAddress::get();
+		let treasury = <Test as crate::Config>::FeeDestination::get();
 		let pallet_account = Dispenser::account_id();
 
 		let hdx_req_before = Currencies::free_balance(1, &requester);
@@ -122,7 +99,6 @@ fn test_fee_and_asset_routing() {
 #[test]
 fn test_pause_unpause_state() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
 		assert_ok!(Dispenser::pause(RuntimeOrigin::root()));
 		assert_eq!(Dispenser::dispenser_config().unwrap().paused, true);
 
@@ -134,7 +110,6 @@ fn test_pause_unpause_state() {
 #[test]
 fn test_amount_too_small_and_too_large() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
 		let requester = acct(1);
 		let receiver = create_test_receiver_address();
 		let tx = create_test_tx_params();
@@ -164,8 +139,6 @@ fn test_amount_too_small_and_too_large() {
 #[test]
 fn test_deposit_erc20_success() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
-
 		let requester = acct(1);
 		let receiver_address = create_test_receiver_address();
 		let amount = 1_000_000u128;
@@ -191,7 +164,7 @@ fn test_deposit_erc20_success() {
 					request_id: rid,
 					requester: req,
 					to,
-					amount_wei: _amt,
+					amount: _amt,
 				}) if rid == &request_id
 					&& req == &requester
 					&& to == &receiver_address
@@ -218,17 +191,15 @@ fn test_deposit_erc20_success() {
 #[test]
 fn governance_sets_faucet_balance_and_emits_event() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
-
 		let old = Dispenser::current_faucet_balance_wei();
 		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), 42u128));
-		assert_eq!(Dispenser::current_faucet_balance_wei(), 42u128);
+		assert_eq!(Dispenser::current_faucet_balance_wei(), MIN_WEI_BALANCE + 42u128);
 
 		let ev = System::events().into_iter().any(|rec| {
 			matches!(rec.event,
 				RuntimeEvent::Dispenser(Event::FaucetBalanceUpdated {
 					old_balance_wei, new_balance_wei
-				}) if old_balance_wei == old && new_balance_wei == 42u128
+				}) if old_balance_wei == old && new_balance_wei == MIN_WEI_BALANCE + 42u128
 			)
 		});
 		assert!(ev, "FaucetBalanceUpdated event not found");
@@ -238,7 +209,6 @@ fn governance_sets_faucet_balance_and_emits_event() {
 #[test]
 fn non_governance_cannot_set_faucet_balance() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
 		let alice = acct(1);
 		assert_noop!(
 			Dispenser::set_faucet_balance(RuntimeOrigin::signed(alice), 7u128),
@@ -251,10 +221,11 @@ fn non_governance_cannot_set_faucet_balance() {
 #[test]
 fn request_rejected_when_balance_below_threshold() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
 		let requester = acct(1);
 		let receiver = create_test_receiver_address();
 		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), 10u128));
+
+		CurrentFaucetBalanceWei::<Test>::put(100u128);
 
 		let amount = 100u128;
 		let tx = create_test_tx_params();
@@ -276,8 +247,6 @@ fn request_rejected_when_balance_below_threshold() {
 #[test]
 fn request_allowed_at_or_above_threshold() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
-
 		let amount = 101u128;
 		let needed = <Test as crate::Config>::MinFaucetEthThreshold::get() + amount;
 		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), needed));
@@ -300,14 +269,15 @@ fn request_allowed_at_or_above_threshold() {
 #[test]
 fn request_reduces_faucet_balance() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
-
 		let amount: u128 = 1_000u128;
 		let min_threshold = <Test as crate::Config>::MinFaucetEthThreshold::get();
 		let initial_balance = min_threshold + amount + 1_000u128;
 
 		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), initial_balance));
-		assert_eq!(Dispenser::current_faucet_balance_wei(), initial_balance);
+		assert_eq!(
+			Dispenser::current_faucet_balance_wei(),
+			MIN_WEI_BALANCE + initial_balance
+		);
 
 		let requester = acct(1);
 		let receiver = create_test_receiver_address();
@@ -325,7 +295,7 @@ fn request_reduces_faucet_balance() {
 			tx
 		));
 
-		let expected_balance = initial_balance.saturating_sub(amount);
+		let expected_balance = initial_balance.saturating_sub(amount).saturating_add(MIN_WEI_BALANCE);
 		assert_eq!(Dispenser::current_faucet_balance_wei(), expected_balance);
 
 		assert_eq!(
@@ -337,26 +307,8 @@ fn request_reduces_faucet_balance() {
 }
 
 #[test]
-fn request_fails_before_initialize() {
-	new_test_ext().execute_with(|| {
-		let requester = acct(1);
-		let receiver = create_test_receiver_address();
-		let amount = 1_000u128;
-		let tx = create_test_tx_params();
-		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
-
-		assert_noop!(
-			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, req_id, tx),
-			Error::<Test>::NotFound
-		);
-	});
-}
-
-#[test]
 fn request_fails_with_zero_address() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
-
 		let requester = acct(1);
 		let receiver = [0u8; 20];
 		let amount = 10_000u128;
@@ -373,8 +325,6 @@ fn request_fails_with_zero_address() {
 #[test]
 fn request_fails_when_insufficient_fee_balance() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
-
 		let requester = acct(99);
 		let receiver = create_test_receiver_address();
 		let amount = 10_000u128;
@@ -386,7 +336,7 @@ fn request_fails_when_insufficient_fee_balance() {
 
 		assert_noop!(
 			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, req_id, tx),
-			Error::<Test>::NotEnoughFunds
+			Error::<Test>::NotEnoughFeeFunds
 		);
 	});
 }
@@ -394,8 +344,6 @@ fn request_fails_when_insufficient_fee_balance() {
 #[test]
 fn request_fails_when_insufficient_faucet_balance() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
-
 		let requester = acct(55);
 		let receiver = create_test_receiver_address();
 		let amount = 10_000u128;
@@ -419,8 +367,6 @@ fn request_fails_when_insufficient_faucet_balance() {
 #[test]
 fn request_fails_with_duplicate_request_id() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
-
 		let requester = acct(1);
 		let receiver = create_test_receiver_address();
 		let amount = 10_000u128;
@@ -445,8 +391,6 @@ fn request_fails_with_duplicate_request_id() {
 #[test]
 fn request_fails_with_zero_gas_limit() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::root(), MIN_WEI_BALANCE));
-
 		let amount = 10_000u128;
 		let min_threshold = <Test as crate::Config>::MinFaucetEthThreshold::get();
 		let initial_balance = min_threshold + amount + 1_000u128;
@@ -464,23 +408,5 @@ fn request_fails_with_zero_gas_limit() {
 			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, req_id, tx),
 			Error::<Test>::InvalidOutput
 		);
-	});
-}
-
-#[test]
-fn pause_fails_before_initialize() {
-	new_test_ext().execute_with(|| {
-		let origin = RuntimeOrigin::root();
-
-		assert_noop!(Dispenser::pause(origin), Error::<Test>::NotFound);
-	});
-}
-
-#[test]
-fn unpause_fails_before_initialize() {
-	new_test_ext().execute_with(|| {
-		let origin = RuntimeOrigin::root();
-
-		assert_noop!(Dispenser::unpause(origin), Error::<Test>::NotFound);
 	});
 }

@@ -91,8 +91,6 @@ export async function submitWithRetry(
                 `✅ ${label} included in block ${status.asInBlock.toHex()}`
               )
 
-              console.log('------111', label)
-
               if (dispatchError) {
                 if (dispatchError.isModule) {
                   const decoded = api.registry.findMetaError(
@@ -110,7 +108,6 @@ export async function submitWithRetry(
                 }
                 return
               }
-              console.log('------112')
 
               resolve({ events: Array.from(events) })
             } else if (status.isInvalid) {
@@ -448,16 +445,12 @@ describe('ERC20 Vault Integration', () => {
       CHAIN_ID
     )
 
-    console.log('----1 ')
-
     const derived = deriveSubstrateAndEthAddresses(keyring, alice, palletSS58)
     derivedEthAddress = derived.derivedEthAddress
     derivedPubKey = derived.derivedPubKey
     aliceHexPath = derived.aliceHexPath
 
-    console.log('----2 ')
     await ensureDerivedEthHasGas(sepoliaProvider, derivedEthAddress)
-    console.log('----3 ')
   }, 120_000)
 
   afterAll(async () => {

@@ -16,7 +16,7 @@ Test client for the Signet pallet on Substrate/Polkadot. Validates signature gen
 Clone and run the signature server that responds to Substrate signature requests. Copy-paste the .env.example to .env at the root of the dir - signet-ts-client-scripts:
 
 ```bash
-cd signet-ts-client-scripts
+cd signet-ts-client-scripts/clients/response-server
 yarn start
 ```
 

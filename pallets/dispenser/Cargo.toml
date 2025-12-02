@@ -19,10 +19,10 @@ hex = { version = "0.4", default-features = false, features = ["alloc"] }
 
 
 # Ethereum ABI encoding
-alloy-sol-types = { version = "=0.7.6", default-features = false, features = ["json"] }
-alloy-primitives = { version = "=0.7.7", default-features = false }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+alloy-sol-types = { workspace = true, default-features = false, features = ["json"] }
+alloy-primitives = { workspace = true, default-features = false }
+serde = { workspace = true, default-features = false, features = ["derive"] }
+serde_json = { workspace = true, default-features = false, features = ["alloc"] }
 pallet-signet = { path = "../signet", default-features = false }
 pallet-currencies = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, optional = true }

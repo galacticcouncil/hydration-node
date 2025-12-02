@@ -5,6 +5,8 @@ use frame_benchmarking::v2::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use sp_runtime::traits::AccountIdConversion;
+use std::ops::Add;
+use std::ops::Mul;
 
 fn bench_chain_id<T: Config>() -> BoundedVec<u8, <T as pallet_signet::Config>::MaxChainIdLength> {
 	let v: Vec<u8> = b"bench-chain".to_vec();
@@ -16,22 +18,11 @@ mod benches {
 	use super::*;
 	use alloy_primitives::{Address, U256};
 	use alloy_sol_types::SolCall;
-	use core::ops::{Add, Mul};
 	use sp_core::H160;
 
 	#[benchmark]
-	fn initialize() {
-		#[extrinsic_call]
-		initialize(RawOrigin::Root, 1u128);
-		assert!(DispenserConfig::<T>::get().is_some());
-	}
-
-	#[benchmark]
 	fn set_faucet_balance() {
-		DispenserConfig::<T>::put(DispenserConfigData {
-			init: true,
-			paused: false,
-		});
+		DispenserConfig::<T>::put(DispenserConfigData { paused: false });
 		#[extrinsic_call]
 		set_faucet_balance(RawOrigin::Root, 123u128);
 		assert_eq!(CurrentFaucetBalanceWei::<T>::get(), 123u128);
@@ -39,10 +30,7 @@ mod benches {
 
 	#[benchmark]
 	fn pause() {
-		DispenserConfig::<T>::put(DispenserConfigData {
-			init: true,
-			paused: false,
-		});
+		DispenserConfig::<T>::put(DispenserConfigData { paused: false });
 
 		#[extrinsic_call]
 		pause(RawOrigin::Root);
@@ -52,10 +40,7 @@ mod benches {
 
 	#[benchmark]
 	fn unpause() {
-		DispenserConfig::<T>::put(DispenserConfigData {
-			init: true,
-			paused: true,
-		});
+		DispenserConfig::<T>::put(DispenserConfigData { paused: true });
 
 		#[extrinsic_call]
 		unpause(RawOrigin::Root);
@@ -109,10 +94,13 @@ mod benches {
 		let _ = <T as pallet_signet::Config>::Currency::deposit_creating(&signet_pallet_account, requester_needed);
 
 		let current_faucet_bal: u128 = (u64::MAX - 1) as u128;
-		assert_ok!(Pallet::<T>::initialize(RawOrigin::Root.into(), current_faucet_bal));
+		assert_ok!(Pallet::<T>::set_faucet_balance(
+			RawOrigin::Root.into(),
+			current_faucet_bal
+		));
 
 		let caller: T::AccountId = whitelisted_caller();
-		let treasury = T::TreasuryAddress::get();
+		let treasury = T::FeeDestination::get();
 		assert_ok!(<T as pallet::Config>::Currency::mint_into(
 			fee_asset,
 			&treasury,
@@ -179,8 +167,8 @@ mod benches {
 			60,
 			0,
 			&path_bytes,
-			b"ecdsa",
-			b"ethereum",
+			ECDSA,
+			ETHEREUM,
 			b"",
 		);
 
