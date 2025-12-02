@@ -8,7 +8,7 @@ import { keccak256, recoverAddress } from 'viem'
 import {
   executeAsRootViaReferendum,
   executeAsRootViaScheduler,
-} from './erc20vault.test'
+} from './dispenser.test'
 
 export class SignetClient {
   constructor(private api: ApiPromise, private signer: any) {}
