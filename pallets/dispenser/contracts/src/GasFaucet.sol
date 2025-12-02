@@ -1,85 +1,170 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import {GasVoucher} from "./GasVoucher.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IGasVoucher} from "./interfaces/IGasVoucher.sol";
+import {IGasFaucet} from "./interfaces/IGasFaucet.sol";
+import "./utils/Errors.sol";
 
-contract GasFaucet {
-    address public owner;
-    address public mpc;
+/// @title GasFaucet
+/// @notice Sends ETH to users when there is sufficient balance; otherwise issues
+///         vouchers that can be redeemed later for ETH.
+/// @dev
+/// - `mpc` is an off-chain-controlled address allowed to call `fund`.
+/// - `minEthThreshold` is a guardrail so the faucet doesn't fully drain via `fund`.
+/// - When the faucet cannot send ETH without dropping below the threshold,
+///   it mints `GasVoucher` IOUs instead.
+contract GasFaucet is Ownable, IGasFaucet {
+    // ========= State =========
 
-    uint256 public minEthThreshold;
+    /// @inheritdoc IGasFaucet
+    address public override mpc;
 
-    GasVoucher public immutable voucher;
+    /// @inheritdoc IGasFaucet
+    uint256 public override minEthThreshold;
 
-    event Funded(address indexed to, uint256 amountWei);
-    event VoucherIssued(address indexed to, uint256 amountWei);
-    event Redeemed(address indexed redeemer, uint256 amountWei);
-    event Withdrawn(address indexed to, uint256 amountWei);
-    event MPCUpdated(address indexed newMpc);
-    event ThresholdUpdated(uint256 newThreshold);
+    /// @inheritdoc IGasFaucet
+    IGasVoucher public override voucher;
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "owner");
-        _;
-    }
+    // ========= Modifiers =========
 
+    /// @notice Restricts a function to be callable only by the MPC.
     modifier onlyMPC() {
-        require(msg.sender == mpc, "mpc");
+        if (msg.sender != mpc) {
+            revert NotMPC();
+        }
         _;
     }
 
-    constructor(address _mpc, address _voucher, uint256 _minEthThreshold) {
-        owner = msg.sender;
-        require(_mpc != address(0), "zero mpc");
-        require(_voucher != address(0), "zero voucher");
+    // ========= Constructor =========
+
+    /// @notice Deploys the GasFaucet contract.
+    /// @param _mpc Initial MPC address allowed to call `fund`.
+    /// @param _voucher Address of the `GasVoucher` contract.
+    /// @param _minEthThreshold Initial minimum ETH threshold (in wei).
+    constructor(
+        address _mpc,
+        address _voucher,
+        uint256 _minEthThreshold,
+        address _owner
+    ) Ownable(_owner) {
+        if (_mpc == address(0)) {
+            revert ZeroAddress();
+        }
+        if (_voucher == address(0)) {
+            revert ZeroAddress();
+        }
+
         mpc = _mpc;
         minEthThreshold = _minEthThreshold;
-        voucher = GasVoucher(_voucher);
+        voucher = IGasVoucher(_voucher);
     }
 
-    function setMPC(address _mpc) external onlyOwner {
-        require(_mpc != address(0), "zero");
+    // ========= Admin Functions (owner) =========
+
+    /// @inheritdoc IGasFaucet
+    function setMPC(address _mpc) external override onlyOwner {
+        if (_mpc == address(0)) {
+            revert ZeroAddress();
+        }
+
         mpc = _mpc;
         emit MPCUpdated(_mpc);
     }
 
-    function setMinEthThreshold(uint256 _thresholdWei) external onlyOwner {
+    /// @inheritdoc IGasFaucet
+    function setMinEthThreshold(
+        uint256 _thresholdWei
+    ) external override onlyOwner {
         minEthThreshold = _thresholdWei;
         emit ThresholdUpdated(_thresholdWei);
     }
 
-    function fund(address to, uint256 amountWei) external onlyMPC {
-        require(to != address(0), "zero");
-        require(amountWei > 0);
+    /// @inheritdoc IGasFaucet
+    function setVoucher(address _voucher) external override onlyOwner {
+        if (_voucher == address(0)) {
+            revert ZeroAddress();
+        }
+
+        voucher = IGasVoucher(_voucher);
+        emit VoucherUpdated(_voucher);
+    }
+
+    // ========= Core Logic =========
+
+    /// @inheritdoc IGasFaucet
+    function fund(address to, uint256 amountWei) external override onlyMPC {
+        if (to == address(0)) {
+            revert ZeroAddress();
+        }
+        if (amountWei == 0) {
+            revert ZeroAmount();
+        }
+
         uint256 balance = address(this).balance;
-        if (balance >= amountWei && balance - amountWei >= minEthThreshold) {
+
+        // Only if we have enough and will remain above threshold.
+        if (balance >= amountWei) {
+            if (balance - amountWei < minEthThreshold) {
+                revert FaucetBelowThreshold();
+            }
+
             (bool ok, ) = payable(to).call{value: amountWei}("");
-            require(ok, "send");
+            if (!ok) {
+                revert EthTransferFailed();
+            }
             emit Funded(to, amountWei);
         } else {
+            // Otherwise, issue vouchers as IOUs.
             voucher.faucetMint(to, amountWei);
             emit VoucherIssued(to, amountWei);
         }
     }
 
-    function redeem(uint256 amountWei) external {
-        require(amountWei > 0, "zero amt");
-        require(address(this).balance >= amountWei, "faucet low");
+    /// @inheritdoc IGasFaucet
+    function redeem(uint256 amountWei) external override {
+        if (amountWei == 0) {
+            revert ZeroAmount();
+        }
+
+        if (address(this).balance < amountWei) {
+            revert FaucetLowBalance();
+        }
+
+        // Burn vouchers and then send ETH.
         voucher.faucetBurnFrom(msg.sender, amountWei);
+
         (bool ok, ) = payable(msg.sender).call{value: amountWei}("");
-        require(ok, "redeem send");
+        if (!ok) {
+            revert EthTransferFailed();
+        }
+
         emit Redeemed(msg.sender, amountWei);
     }
 
+    /// @inheritdoc IGasFaucet
     function withdraw(
         address payable to,
         uint256 amountWei
-    ) external onlyOwner {
-        require(to != address(0), "zero to");
+    ) external override onlyOwner {
+        if (to == address(0)) {
+            revert ZeroAddress();
+        }
+        if (amountWei == 0) {
+            revert ZeroAmount();
+        }
+        if (address(this).balance < amountWei) {
+            revert FaucetLowBalance();
+        }
+
         (bool ok, ) = to.call{value: amountWei}("");
-        require(ok, "withdraw");
+        if (!ok) {
+            revert EthTransferFailed();
+        }
+
         emit Withdrawn(to, amountWei);
     }
 
+    /// @notice Accepts raw ETH deposits into the faucet.
     receive() external payable {}
 }

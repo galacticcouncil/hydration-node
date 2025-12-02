@@ -3,8 +3,12 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {GasFaucet} from "../src/GasFaucet.sol";
+import {IGasFaucet} from "../src/interfaces/IGasFaucet.sol";
 import {GasVoucher} from "../src/GasVoucher.sol";
+import {IGasVoucher} from "../src/interfaces/IGasVoucher.sol";
+import "../src/utils/Errors.sol";
 
 contract FaucetTest is Test {
     GasFaucet faucet;
@@ -21,8 +25,8 @@ contract FaucetTest is Test {
         vm.deal(owner, 100 ether);
 
         vm.startPrank(owner);
-        voucher = new GasVoucher();
-        faucet = new GasFaucet(mpc, address(voucher), THRESH);
+        voucher = new GasVoucher(owner);
+        faucet = new GasFaucet(mpc, address(voucher), THRESH, owner);
         voucher.setFaucet(address(faucet));
         vm.stopPrank();
     }
@@ -36,28 +40,38 @@ contract FaucetTest is Test {
 
     function test_onlyOwner_can_setMPC() public {
         vm.prank(alice);
-        vm.expectRevert(bytes("owner"));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                alice
+            )
+        );
         faucet.setMPC(bob);
 
         vm.prank(owner);
-        vm.expectRevert(bytes("zero"));
+        vm.expectRevert(ZeroAddress.selector);
         faucet.setMPC(address(0));
 
         vm.prank(owner);
         vm.expectEmit(true, true, true, true);
-        emit GasFaucet.MPCUpdated(alice);
+        emit IGasFaucet.MPCUpdated(alice);
         faucet.setMPC(alice);
         assertEq(faucet.mpc(), alice);
     }
 
     function test_onlyOwner_can_setMinEthThreshold() public {
         vm.prank(alice);
-        vm.expectRevert(bytes("owner"));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                alice
+            )
+        );
         faucet.setMinEthThreshold(2 ether);
 
         vm.prank(owner);
         vm.expectEmit(true, true, true, true);
-        emit GasFaucet.ThresholdUpdated(2 ether);
+        emit IGasFaucet.ThresholdUpdated(2 ether);
         faucet.setMinEthThreshold(2 ether);
         assertEq(faucet.minEthThreshold(), 2 ether);
     }
@@ -72,7 +86,7 @@ contract FaucetTest is Test {
 
         vm.prank(mpc);
         vm.expectEmit(true, true, true, true);
-        emit GasFaucet.Funded(alice, amount);
+        emit IGasFaucet.Funded(alice, amount);
         faucet.fund(alice, amount);
 
         assertEq(
@@ -85,11 +99,11 @@ contract FaucetTest is Test {
 
     function test_fund_mints_voucher_when_balance_below_threshold() public {
         vm.deal(address(faucet), 0.5 ether);
-        uint256 amount = 0.2 ether;
+        uint256 amount = 0.7 ether;
 
         vm.prank(mpc);
         vm.expectEmit(true, true, true, true);
-        emit GasFaucet.VoucherIssued(alice, amount);
+        emit IGasFaucet.VoucherIssued(alice, amount);
         faucet.fund(alice, amount);
 
         assertEq(alice.balance, 0, "no ETH sent");
@@ -103,7 +117,7 @@ contract FaucetTest is Test {
         uint256 amount = 2 ether;
         vm.prank(mpc);
         vm.expectEmit(true, true, true, true);
-        emit GasFaucet.VoucherIssued(alice, amount);
+        emit IGasFaucet.VoucherIssued(alice, amount);
         faucet.fund(alice, amount);
 
         assertEq(alice.balance, 0);
@@ -113,14 +127,14 @@ contract FaucetTest is Test {
     function test_fund_reverts_on_zero_to() public {
         vm.deal(address(faucet), 2 ether);
         vm.prank(mpc);
-        vm.expectRevert(bytes("zero"));
+        vm.expectRevert(ZeroAddress.selector);
         faucet.fund(address(0), 1 ether);
     }
 
     function test_fund_only_mpc() public {
         vm.deal(address(faucet), 2 ether);
         vm.prank(alice);
-        vm.expectRevert(bytes("mpc"));
+        vm.expectRevert(NotMPC.selector);
         faucet.fund(bob, 0.1 ether);
     }
 
@@ -137,7 +151,7 @@ contract FaucetTest is Test {
         uint256 before = alice.balance;
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
-        emit GasFaucet.Redeemed(alice, amount);
+        emit IGasFaucet.Redeemed(alice, amount);
         faucet.redeem(amount);
 
         assertEq(alice.balance, before + amount, "redeemed ETH");
@@ -152,13 +166,13 @@ contract FaucetTest is Test {
 
         vm.deal(address(faucet), 0.2 ether);
         vm.prank(alice);
-        vm.expectRevert(bytes("faucet low"));
+        vm.expectRevert(FaucetLowBalance.selector);
         faucet.redeem(0.4 ether);
     }
 
     function test_redeem_reverts_zero_amount() public {
         vm.prank(alice);
-        vm.expectRevert(bytes("zero amt"));
+        vm.expectRevert(ZeroAmount.selector);
         faucet.redeem(0);
     }
 
@@ -167,16 +181,76 @@ contract FaucetTest is Test {
 
         // Non-owner
         vm.prank(alice);
-        vm.expectRevert(bytes("owner"));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                alice
+            )
+        );
         faucet.withdraw(payable(bob), 1 ether);
 
         // Owner ok
         uint256 before = bob.balance;
         vm.prank(owner);
         vm.expectEmit(true, true, true, true);
-        emit GasFaucet.Withdrawn(bob, 1 ether);
+        emit IGasFaucet.Withdrawn(bob, 1 ether);
         faucet.withdraw(payable(bob), 1 ether);
 
         assertEq(bob.balance, before + 1 ether);
+    }
+
+    function test_setVoucher_only_owner_and_non_zero() public {
+        address newVoucher = address(0xC0FFEE);
+
+        // non-owner
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                alice
+            )
+        );
+        faucet.setVoucher(newVoucher);
+
+        // zero addr
+        vm.prank(owner);
+        vm.expectRevert(ZeroAddress.selector);
+        faucet.setVoucher(address(0));
+
+        // happy path
+        vm.prank(owner);
+        faucet.setVoucher(newVoucher);
+        assertEq(address(faucet.voucher()), newVoucher);
+    }
+
+    function test_redeem_more_than_voucher_balance_reverts() public {
+        vm.deal(address(faucet), 0.1 ether);
+
+        vm.prank(mpc);
+        faucet.fund(alice, 1 ether);
+        assertEq(voucher.balanceOf(alice), 1 ether);
+
+        vm.prank(alice);
+        vm.expectRevert(FaucetLowBalance.selector);
+        faucet.redeem(1 ether);
+
+        vm.deal(address(faucet), 10 ether);
+
+        vm.prank(alice);
+        vm.expectRevert();
+        faucet.redeem(2 ether);
+
+        uint256 aliceVoucherBalBefore = voucher.balanceOf(alice);
+        uint256 aliceEthBalBefore = alice.balance;
+        assertEq(aliceEthBalBefore, 0 ether);
+
+        vm.prank(alice);
+        faucet.redeem(1 ether);
+
+        uint256 aliceVoucherBalAfter = voucher.balanceOf(alice);
+        uint256 aliceEthBalAfter = alice.balance;
+
+        assertEq(aliceVoucherBalBefore - aliceVoucherBalAfter, 1 ether);
+        assertEq(aliceEthBalAfter - aliceEthBalBefore, 1 ether);
     }
 }

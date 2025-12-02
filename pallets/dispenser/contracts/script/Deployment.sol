@@ -6,33 +6,46 @@ import {GasFaucet} from "../src/GasFaucet.sol";
 import {GasVoucher} from "../src/GasVoucher.sol";
 
 contract GasFaucetScript is Script {
-    GasFaucet public gasFaucet;
-    GasVoucher public gasVoucher;
-    address public mpc = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
-
-    function setUp() public {}
+    uint256 public constant MIN_ETH_THRESHOLD = 0.1 ether;
+    uint256 public constant INITIAL_FUNDING = 0.00001 ether;
 
     function run() public {
-        vm.startBroadcast();
+        // Load deployer private key & MPC from environment
+        // export PRIVATE_KEY=0x...
+        // export MPC_ADDRESS=0x...
+        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(deployerKey);
+        address mpc = vm.envAddress("MPC_ADDRESS");
 
-        console.log("Broadcasting from:", msg.sender);
+        vm.startBroadcast(deployerKey);
+
+        console.log("Deployer:", deployer);
         console.log("MPC address:", mpc);
 
-        gasVoucher = new GasVoucher();
+        // Deploy GasVoucher
+        GasVoucher gasVoucher = new GasVoucher(deployer);
         console.log("Deployed GasVoucher at:", address(gasVoucher));
 
-        gasFaucet = new GasFaucet(mpc, address(gasVoucher), 1 ether);
+        // Deploy GasFaucet
+        GasFaucet gasFaucet = new GasFaucet(
+            mpc,
+            address(gasVoucher),
+            MIN_ETH_THRESHOLD,
+            deployer
+        );
         console.log("Deployed GasFaucet at:", address(gasFaucet));
 
+        // Wire voucher -> faucet
         gasVoucher.setFaucet(address(gasFaucet));
         console.log("Set GasFaucet as faucet in GasVoucher");
 
+        // Fund the faucet with a small amount of ETH
         (bool success, ) = payable(address(gasFaucet)).call{
-            value: 0.00001 ether
+            value: INITIAL_FUNDING
         }("");
         require(success, "Funding GasFaucet failed");
 
-        console.log("Funded GasFaucet with 100 ETH");
+        console.log("Funded GasFaucet with:", INITIAL_FUNDING);
         console.log("GasFaucet ETH balance:", address(gasFaucet).balance);
 
         vm.stopBroadcast();
