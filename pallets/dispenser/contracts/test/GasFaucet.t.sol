@@ -10,7 +10,7 @@ import {GasVoucher} from "../src/GasVoucher.sol";
 import {IGasVoucher} from "../src/interfaces/IGasVoucher.sol";
 import "../src/utils/Errors.sol";
 
-contract FaucetTest is Test {
+contract GasFaucetTest is Test {
     GasFaucet faucet;
     GasVoucher voucher;
 
