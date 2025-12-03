@@ -29,6 +29,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod api;
+mod traits;
 pub mod types;
 mod weights;
 
@@ -45,6 +46,7 @@ use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
 use sp_runtime::AccountId32;
 use types::*;
 pub use weights::WeightInfo;
+use crate::traits::AMMState;
 
 pub const UNSIGNED_TXS_PRIORITY: u64 = 1000;
 
@@ -64,6 +66,9 @@ pub mod pallet {
 		/// Pallet id - used to create a holding account
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
+
+		/// AMM state provider trait - returns opaque state for solver
+		type AMM: traits::AMMState;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -99,7 +104,7 @@ pub mod pallet {
 		fn on_finalize(_n: BlockNumberFor<T>) {}
 
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
-			let call = Self::run(block_number, |d| api::ice::get_solution(d));
+			let call = Self::run(block_number, |i, d| api::ice::get_solution(i, d));
 
 			if let Some(c) = call {
 				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(c.into()) {
@@ -156,8 +161,15 @@ impl<T: Config> Pallet<T> {
 
 	pub fn run<F>(block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
 	where
-		F: FnOnce(Vec<u8>) -> Option<Vec<u8>>,
+		F: FnOnce(Vec<u8>, Vec<u8>) -> Option<Vec<u8>>,
 	{
+		let intents =  pallet_intent::Pallet::<T>::get_valid_intents();
+		let state = T::AMM::get_state();
+
+		let solution = solve(intents.encode(), state.encode());
+
+		// TODO: if solution, create submit_solution call
+
 		None
 	}
 }

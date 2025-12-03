@@ -28,6 +28,6 @@ use sp_runtime_interface::{runtime_interface, RIType};
 #[runtime_interface]
 pub trait ICE {
 	fn get_solution(&mut self, intents: Vec<u8>, data: Vec<u8>) -> Option<Vec<u8>> {
-		self.extension::<SolverExt>()?.get_solution(intents,data)
+		self.extension::<SolverExt>()?.get_solution(intents, data)
 	}
 }
