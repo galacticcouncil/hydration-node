@@ -1893,9 +1893,9 @@ impl pallet_dispenser::Config for Runtime {
 	type DispenserFee = SigEthFaucetDispenserFee;
 	type FeeAsset = SigEthFaucetFeeAssetId;
 	type FaucetAsset = SigEthFaucetFaucetAssetId;
-	type TreasuryAddress = SigEthFaucetTreasuryAccount;
+	type FeeDestination = SigEthFaucetTreasuryAccount;
 	type FaucetAddress = SigEthFaucetContractAddr;
-	type VaultPalletId = SigEthPalletId;
+	type PalletId = SigEthPalletId;
 	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
 }

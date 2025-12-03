@@ -4,7 +4,7 @@ use crate::{
 		utils::{acct, compute_request_id, create_test_receiver_address, create_test_tx_params},
 		Currencies, Dispenser, RuntimeEvent, RuntimeOrigin, System, Test, MIN_WEI_BALANCE,
 	},
-	CurrentFaucetBalanceWei, Error, Event,
+	Error, Event, FaucetBalanceWei,
 };
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
@@ -225,7 +225,7 @@ fn request_rejected_when_balance_below_threshold() {
 		let receiver = create_test_receiver_address();
 		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), 10u128));
 
-		CurrentFaucetBalanceWei::<Test>::put(100u128);
+		FaucetBalanceWei::<Test>::put(100u128);
 
 		let amount = 100u128;
 		let tx = create_test_tx_params();

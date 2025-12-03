@@ -25,7 +25,7 @@ mod benches {
 		DispenserConfig::<T>::put(DispenserConfigData { paused: false });
 		#[extrinsic_call]
 		set_faucet_balance(RawOrigin::Root, 123u128);
-		assert_eq!(CurrentFaucetBalanceWei::<T>::get(), 123u128);
+		assert_eq!(FaucetBalanceWei::<T>::get(), 123u128);
 	}
 
 	#[benchmark]

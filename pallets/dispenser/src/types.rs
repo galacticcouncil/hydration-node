@@ -1,4 +1,4 @@
-use alloy_sol_types::sol;
+
 use frame_support::{traits::Currency, weights::Weight};
 
 pub type Balance = u128;
@@ -19,12 +19,4 @@ pub trait WeightInfo {
 	fn unpause() -> Weight;
 }
 
-// Solidity interface for the external EVM gas faucet contract.
-//
-// The pallet builds a transaction calling `fund(address,uint256)` using this ABI.
-sol! {
-	#[sol(abi)]
-	interface IGasFaucet {
-		function fund(address to, uint256 amount) external;
-	}
-}
+

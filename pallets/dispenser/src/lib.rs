@@ -15,7 +15,7 @@ extern crate alloc;
 use alloc::{string::String, vec};
 
 use alloy_primitives::U256;
-use alloy_sol_types::SolCall;
+use alloy_sol_types::{sol, SolCall};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Inspect;
@@ -36,6 +36,16 @@ mod tests;
 
 pub use pallet::*;
 pub use types::*;
+
+// Solidity interface for the external EVM gas faucet contract.
+//
+// The pallet builds a transaction calling `fund(address,uint256)` using this ABI.
+sol! {
+	#[sol(abi)]
+	interface IGasFaucet {
+		function fund(address to, uint256 amount) external;
+	}
+}
 
 /// Parameters required to build an EIP-1559 EVM transaction.
 ///
@@ -133,7 +143,7 @@ pub mod pallet {
 	/// to prevent issuing requests that would over-spend the faucet.
 	#[pallet::storage]
 	#[pallet::getter(fn current_faucet_balance_wei)]
-	pub type CurrentFaucetBalanceWei<T> = StorageValue<_, Balance, ValueQuery>;
+	pub type FaucetBalanceWei<T> = StorageValue<_, Balance, ValueQuery>;
 
 	/// Dispenser configuration data.
 	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, MaxEncodedLen)]
@@ -247,7 +257,7 @@ pub mod pallet {
 			ensure!(amount <= T::MaxDispenseAmount::get(), Error::<T>::AmountTooLarge);
 
 			// Check tracked faucet balance vs. threshold.
-			let observed = CurrentFaucetBalanceWei::<T>::get();
+			let observed = FaucetBalanceWei::<T>::get();
 			let needed = T::MinFaucetEthThreshold::get()
 				.checked_add(amount)
 				.ok_or(Error::<T>::InvalidOutput)?;
@@ -340,7 +350,7 @@ pub mod pallet {
 
 			// Mark request ID as used and update tracked faucet balance.
 			UsedRequestIds::<T>::insert(request_id, ());
-			CurrentFaucetBalanceWei::<T>::mutate(|b| *b = b.saturating_sub(amount));
+			FaucetBalanceWei::<T>::mutate(|b| *b = b.saturating_sub(amount));
 
 			Self::deposit_event(Event::FundRequested {
 				request_id: req_id,
@@ -389,7 +399,7 @@ pub mod pallet {
 
 		/// Increase the tracked faucet ETH balance (in wei).
 		///
-		/// This is an accounting helper used to keep `CurrentFaucetBalanceWei`
+		/// This is an accounting helper used to keep `FaucetBalanceWei`
 		/// roughly in sync with the real faucet balance on the EVM chain.
 		///
 		/// Parameters:
@@ -399,9 +409,9 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_faucet_balance())]
 		pub fn set_faucet_balance(origin: OriginFor<T>, balance_wei: Balance) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
-			let old = CurrentFaucetBalanceWei::<T>::get();
+			let old = FaucetBalanceWei::<T>::get();
 			let new_balance = old + balance_wei;
-			CurrentFaucetBalanceWei::<T>::put(new_balance);
+			FaucetBalanceWei::<T>::put(new_balance);
 			Self::deposit_event(Event::FaucetBalanceUpdated {
 				old_balance_wei: old,
 				new_balance_wei: new_balance,
