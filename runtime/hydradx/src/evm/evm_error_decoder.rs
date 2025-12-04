@@ -80,6 +80,6 @@ impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
 }
 
 fn dispatch_error_other(value: Vec<u8>) -> DispatchError {
-	let error_string = format!("evm:0x{}", hex::encode(&value));
+	let error_string = format!("evm:0x{}" , hex::encode(&value));
 	DispatchError::Other(Box::leak(error_string.into_boxed_str()))
 }
