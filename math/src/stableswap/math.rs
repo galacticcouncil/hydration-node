@@ -1017,13 +1017,19 @@ pub fn calculate_spot_price_between_two_stable_assets(
 
 pub fn recalculate_pegs(
 	current_pegs: &[(Balance, Balance)],
-	curent_pegs_updated_at: u128,
+	current_pegs_updated_at: u128,
 	target_pegs: &[((Balance, Balance), u128)],
 	block: u128,
 	max_peg_update: Perbill,
 	pool_fee: Permill,
 ) -> Option<(Permill, Vec<(Balance, Balance)>)> {
-	let deltas = calculate_peg_deltas(block, current_pegs, curent_pegs_updated_at, target_pegs, max_peg_update);
+	let deltas = calculate_peg_deltas(
+		block,
+		current_pegs,
+		current_pegs_updated_at,
+		target_pegs,
+		max_peg_update,
+	);
 	let trade_fee = calculate_target_fee(current_pegs, &deltas, pool_fee);
 	let new_pegs = calculate_new_pegs(current_pegs, &deltas);
 	Some((trade_fee, new_pegs))
