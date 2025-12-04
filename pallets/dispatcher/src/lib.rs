@@ -89,8 +89,6 @@ pub mod pallet {
 		type TreasuryAccount: Get<Self::AccountId>;
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
 
-		type BorrowingContract: Get<EvmAddress>;
-
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
 

@@ -36,7 +36,6 @@ pallet-stableswap = { workspace = true }
 hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
 pallet-broadcast = { workspace = true }
-pallet-dispatcher = { workspace = true }
 
 # EVM dependencies
 evm = { workspace = true, features = ["with-codec"] }

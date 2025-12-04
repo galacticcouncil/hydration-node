@@ -123,15 +123,6 @@ impl dispatcher::Config for Test {
 	type WeightInfo = ();
 	type EvmCallIdentifier = EvmCallIdentifier;
 	type GasWeightMapping = MockGasWeightMapping;
-	type BorrowingContract = BorrowingContractMock;
-}
-
-pub struct BorrowingContractMock;
-
-impl Get<EvmAddress> for BorrowingContractMock {
-	fn get() -> EvmAddress {
-		todo!()
-	}
 }
 
 parameter_types! {
