@@ -2869,7 +2869,9 @@ fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amou
 
 mod evm_error_decoder {
 	use super::*;
+	use codec::{Decode, DecodeLimit};
 	use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoder;
+	use hydradx_runtime::evm::evm_error_decoder::*;
 	use hydradx_traits::evm::CallResult;
 	use pallet_evm::{ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed};
 	use proptest::prelude::*;
@@ -2877,9 +2879,6 @@ mod evm_error_decoder {
 	use sp_core::Get;
 	use sp_runtime::traits::Convert;
 	use sp_runtime::{DispatchError, DispatchResult};
-	use codec::{Decode, DecodeLimit};
-	use hydradx_runtime::evm::evm_error_decoder::*;
-
 
 	fn arbitrary_value() -> impl Strategy<Value = Vec<u8>> {
 		prop::collection::vec(any::<u8>(), 0..256)
@@ -3015,7 +3014,6 @@ mod evm_error_decoder {
 		let result = EvmErrorDecoder::convert(call_result);
 
 		assert!(matches!(result, DispatchError::Other(_)));
-
 	}
 
 	#[test]
@@ -3077,7 +3075,6 @@ mod evm_error_decoder {
 
 		assert!(matches!(result, DispatchError::Other(_)));
 	}
-
 
 	#[test]
 	fn test_off_by_one_boundary() {
@@ -3166,9 +3163,9 @@ mod evm_error_decoder {
 	#[test]
 	fn test_scale_decode_truncated_data() {
 		let truncated_values = vec![
-			vec![0x00], // Just discriminant, no data
-			vec![0x03], // Module error discriminant but no module data
-			vec![0x03, 0x00], // Module error with incomplete data
+			vec![0x00],             // Just discriminant, no data
+			vec![0x03],             // Module error discriminant but no module data
+			vec![0x03, 0x00],       // Module error with incomplete data
 			vec![0x03, 0x00, 0x00], // Module error with more incomplete data
 		];
 
@@ -3362,7 +3359,6 @@ mod evm_error_decoder {
 
 				let _result = EvmErrorDecoder::convert(call_result.clone());
 				DispatchError::decode_with_depth_limit(MAX_DECODE_DEPTH, &mut &call_result.value[..]);
-
 			}
 		}
 	}

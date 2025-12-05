@@ -12,8 +12,8 @@ use sp_std::vec::Vec;
 const ERROR_STRING_SELECTOR: [u8; 4] = [0x08, 0xC3, 0x79, 0xA0]; // Error(string)
 const PANIC_SELECTOR: [u8; 4] = [0x4E, 0x48, 0x7B, 0x71]; // Panic(uint256)
 const FUNCTION_SELECTOR_LENGTH: usize = 4;
-const MAX_DECODE_DEPTH: u32 = 256; // Used for DispatchError decoding to prevent stack exhaustion attacks
-const MAX_ERROR_DATA_LENGTH: usize = 1024; // Maximum length of EVM error data to prevent DOS attacks
+pub const MAX_DECODE_DEPTH: u32 = 256; // Used for DispatchError decoding to prevent stack exhaustion attacks
+pub const MAX_ERROR_DATA_LENGTH: usize = 1024; // Maximum length of EVM error data to prevent DOS attacks
 
 pub struct EvmErrorDecoder;
 
@@ -80,6 +80,6 @@ impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
 }
 
 fn dispatch_error_other(value: Vec<u8>) -> DispatchError {
-	let error_string = format!("evm:0x{}" , hex::encode(&value));
+	let error_string = format!("evm:0x{}", hex::encode(&value));
 	DispatchError::Other(Box::leak(error_string.into_boxed_str()))
 }
