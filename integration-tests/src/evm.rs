@@ -2998,4 +2998,313 @@ mod evm_error_decoder {
 
 		pretty_assertions::assert_eq!(result, DispatchError::CannotLookup);
 	}
+
+	const MAX_ERROR_DATA_LENGTH: usize = 1024;
+
+	#[test]
+	fn value_with_max_length_no_truncation_should_not_panic() {
+		let value = vec![0xFF; MAX_ERROR_DATA_LENGTH];
+
+		let call_result = CallResult {
+			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+			value: value.clone(),
+			contract: sp_core::H160::zero(),
+		};
+
+		let result = EvmErrorDecoder::convert(call_result);
+
+		assert!(matches!(result, DispatchError::Other(_)));
+
+	}
+
+	#[test]
+	fn value_with_max_length_plus_one_should_not_panic() {
+		let value = vec![0xFF; MAX_ERROR_DATA_LENGTH + 1]; // 1025 bytes
+
+		let call_result = CallResult {
+			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+			value: value.clone(),
+			contract: sp_core::H160::zero(),
+		};
+
+		let result = EvmErrorDecoder::convert(call_result);
+
+		assert!(matches!(result, DispatchError::Other(_)));
+	}
+
+	#[test]
+	fn value_with_large_length_should_not_panic() {
+		let value = vec![0xAB; 2048]; // 2048 bytes
+
+		let call_result = CallResult {
+			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+			value: value.clone(),
+			contract: sp_core::H160::zero(),
+		};
+
+		let result = EvmErrorDecoder::convert(call_result);
+
+		assert!(matches!(result, DispatchError::Other(_)));
+	}
+
+	#[test]
+	fn value_with_lenth_minus_one_should_not_panic() {
+		let value = vec![0x42; MAX_ERROR_DATA_LENGTH - 1];
+
+		let call_result = CallResult {
+			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+			value: value.clone(),
+			contract: sp_core::H160::zero(),
+		};
+
+		let result = EvmErrorDecoder::convert(call_result);
+
+		assert!(matches!(result, DispatchError::Other(_)));
+	}
+
+	#[test]
+	fn value_with_extremely_large_length_should_not_panic() {
+		let value = vec![0xFF; 10_000]; // 10KB
+
+		let call_result = CallResult {
+			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+			value: value.clone(),
+			contract: sp_core::H160::zero(),
+		};
+
+		let result = EvmErrorDecoder::convert(call_result);
+
+		assert!(matches!(result, DispatchError::Other(_)));
+	}
+
+
+	#[test]
+	fn test_off_by_one_boundary() {
+		// Test the exact boundary condition
+		let sizes = vec![
+			MAX_ERROR_DATA_LENGTH - 2,
+			MAX_ERROR_DATA_LENGTH - 1,
+			MAX_ERROR_DATA_LENGTH,
+			MAX_ERROR_DATA_LENGTH + 1,
+			MAX_ERROR_DATA_LENGTH + 2,
+		];
+
+		for size in sizes {
+			let value = vec![0xAA; size];
+			let call_result = CallResult {
+				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+				value,
+				contract: sp_core::H160::zero(),
+			};
+
+			let result = EvmErrorDecoder::convert(call_result);
+
+			assert!(matches!(result, DispatchError::Other(_)));
+		}
+	}
+
+	#[test]
+	fn test_scale_decode_invalid_discriminant() {
+		// DispatchError enum has valid discriminants 0-12
+		// Let's try an invalid discriminant like 0xFF
+		let value = vec![0xFF, 0x00, 0x00, 0x00];
+
+		let call_result = CallResult {
+			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+			value,
+			contract: sp_core::H160::zero(),
+		};
+
+		let result = EvmErrorDecoder::convert(call_result);
+
+		assert!(matches!(result, DispatchError::Other(_)));
+	}
+
+	#[test]
+	fn test_scale_decode_various_invalid_discriminants() {
+		let invalid_discriminants = vec![0xFFu8, 0xFE, 0xFD, 0x80, 0x7F, 0x20, 0x15];
+
+		for discriminant in invalid_discriminants {
+			let value = vec![discriminant, 0x00, 0x00, 0x00];
+			let call_result = CallResult {
+				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+				value,
+				contract: sp_core::H160::zero(),
+			};
+
+			let result = EvmErrorDecoder::convert(call_result);
+			assert!(matches!(result, DispatchError::Other(_)));
+		}
+	}
+
+	#[test]
+	fn test_scale_decode_malformed_compact_length() {
+		// Compact encoding with invalid length prefix
+		// Format: [discriminant, compact_length_bytes..., data...]
+		let malformed_values = vec![
+			// Length prefix indicates huge size but no data follows
+			vec![0x00, 0xFF, 0xFF, 0xFF, 0xFF],
+			// Incomplete compact length
+			vec![0x00, 0xFD],
+			// Length overflow scenario
+			vec![0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
+		];
+
+		for value in malformed_values {
+			let call_result = CallResult {
+				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+				value,
+				contract: sp_core::H160::zero(),
+			};
+
+			let result = EvmErrorDecoder::convert(call_result);
+			assert!(matches!(result, DispatchError::Other(_)));
+		}
+	}
+
+	#[test]
+	fn test_scale_decode_truncated_data() {
+		let truncated_values = vec![
+			vec![0x00], // Just discriminant, no data
+			vec![0x03], // Module error discriminant but no module data
+			vec![0x03, 0x00], // Module error with incomplete data
+			vec![0x03, 0x00, 0x00], // Module error with more incomplete data
+		];
+
+		for value in truncated_values {
+			let call_result = CallResult {
+				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+				value,
+				contract: sp_core::H160::zero(),
+			};
+
+			let result = EvmErrorDecoder::convert(call_result);
+			assert!(matches!(result, DispatchError::Other(_)));
+		}
+	}
+
+	#[test]
+	fn test_scale_decode_nested_structure() {
+		// Try to create deeply nested structure that might exceed depth limit
+		// This simulates a malicious payload trying to exhaust the stack
+		let mut nested_data = vec![0x00u8]; // Start with valid discriminant
+
+		// Add many layers of nesting indicators
+		for _ in 0..300 {
+			nested_data.push(0x01); // Indicate nested structure
+		}
+
+		let call_result = CallResult {
+			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+			value: nested_data,
+			contract: sp_core::H160::zero(),
+		};
+
+		let result = EvmErrorDecoder::convert(call_result);
+
+		assert!(matches!(result, DispatchError::Other(_)));
+	}
+
+	#[test]
+	fn test_scale_decode_length_overflow() {
+		// Try to trigger integer overflow in length calculation
+		// Use maximum values for length fields
+		let overflow_values = vec![
+			// Max u32 as compact length
+			vec![0x00, 0x03, 0xFF, 0xFF, 0xFF, 0xFF],
+			// Max u64 representation in compact encoding
+			vec![0x00, 0x13, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
+			// Multiple max values
+			vec![0xFF; 32],
+		];
+
+		for value in overflow_values {
+			let call_result = CallResult {
+				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+				value,
+				contract: sp_core::H160::zero(),
+			};
+
+			let result = EvmErrorDecoder::convert(call_result);
+			assert!(matches!(result, DispatchError::Other(_)));
+		}
+	}
+
+	#[test]
+	fn test_scale_decode_random_garbage() {
+		let garbage_values = vec![
+			vec![0xDE, 0xAD, 0xBE, 0xEF],
+			vec![0xFF; 100],
+			vec![0x00; 100],
+			vec![0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55],
+		];
+
+		for value in garbage_values {
+			let call_result = CallResult {
+				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+				value,
+				contract: sp_core::H160::zero(),
+			};
+
+			let result = EvmErrorDecoder::convert(call_result);
+			assert!(matches!(result, DispatchError::Other(_)));
+		}
+	}
+
+	#[test]
+	fn test_scale_decode_empty_data() {
+		// Empty vector should fail to decode but not panic
+		let value = vec![];
+
+		let call_result = CallResult {
+			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+			value,
+			contract: sp_core::H160::zero(),
+		};
+
+		let result = EvmErrorDecoder::convert(call_result);
+
+		assert!(matches!(result, DispatchError::Other(_)));
+	}
+
+	#[test]
+	fn test_scale_decode_all_single_bytes() {
+		// Test every possible discriminant value
+		for byte in 0u8..=255 {
+			let value = vec![byte];
+			let call_result = CallResult {
+				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+				value,
+				contract: sp_core::H160::zero(),
+			};
+
+			let result = EvmErrorDecoder::convert(call_result);
+
+			assert!(matches!(result, DispatchError::Other(_) | DispatchError::CannotLookup));
+		}
+	}
+
+	#[test]
+	fn test_scale_decode_malicious_payload() {
+		let malicious_payloads = vec![
+			// Looks like Module error (discriminant 3) with crafted data
+			vec![0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00],
+			// Looks like Other variant (discriminant 0) with invalid string data
+			vec![0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
+			// Token error with invalid nested enum
+			vec![0x06, 0xFF, 0xFF, 0xFF, 0xFF],
+			// Arithmetic error with invalid nested enum
+			vec![0x07, 0xFF, 0xFF, 0xFF, 0xFF],
+		];
+
+		for value in malicious_payloads.iter() {
+			let call_result = CallResult {
+				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+				value: value.clone(),
+				contract: sp_core::H160::zero(),
+			};
+
+			let _result = EvmErrorDecoder::convert(call_result);
+		}
+	}
 }
