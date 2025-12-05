@@ -16,6 +16,7 @@ pub trait WeightInfo {
 	fn renounce_contract_deployer() -> Weight;
 	fn approve_contract() -> Weight;
 	fn disapprove_contract() -> Weight;
+	fn claim_account() -> Weight;
 }
 
 /// Weights for `pallet_evm_accounts` using the HydraDX node and recommended hardware.
@@ -89,6 +90,11 @@ impl WeightInfo for () {
 		//  Estimated: `0`
 		// Minimum execution time: 10_131_000 picoseconds.
 		Weight::from_parts(10_348_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn claim_account() -> Weight {
+		Weight::from_parts(41_073_000, 4087)
+			.saturating_add(RocksDbWeight::get().reads(6_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }

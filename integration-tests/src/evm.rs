@@ -6,6 +6,10 @@ use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
+use frame_support::dispatch::DispatchInfo;
+use frame_support::weights::Weight;
+use frame_support::pallet_prelude::InvalidTransaction;
+use frame_support::unsigned::TransactionValidityError;
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use sp_core::bounded_vec::BoundedVec;
@@ -20,14 +24,14 @@ use hydradx_runtime::{
 		handle::EvmDataWriter, multicurrency::MultiCurrencyPrecompile, Address, Bytes, HydraDXPrecompiles,
 	},
 	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
-	TransactionPause, EVM,
+	TransactionPause, EVM, System,
 };
 use hydradx_traits::router::{PoolType, Trade};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
+use hydradx_traits::evm::ERC20;
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
-use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
 use sp_core::{blake2_256, H160, H256, U256};
@@ -44,6 +48,12 @@ mod account_conversion {
 	use fp_evm::ExitSucceed;
 	use frame_support::{assert_noop, assert_ok};
 	use pretty_assertions::assert_eq;
+	use sp_core::Pair;
+	use sp_runtime::traits::IdentifyAccount;
+	use hydradx_runtime::evm::Erc20Currency;
+	use hydradx_runtime::Runtime;
+	use hydradx_traits::evm::CallContext;
+	use crate::erc20::{bind_erc20, deploy_token_contract, deployer};
 
 	#[test]
 	fn eth_address_should_convert_to_truncated_address_when_not_bound() {
@@ -69,7 +79,7 @@ mod account_conversion {
 			let substrate_address: AccountId = Into::<AccountId>::into(ALICE);
 			let evm_address = EVMAccounts::evm_address(&substrate_address);
 
-			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
 				substrate_address.clone()
 			)));
 
@@ -85,13 +95,13 @@ mod account_conversion {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
-			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
 				ALICE.into()
 			)),);
 
 			assert_noop!(
-				EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
-				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::AddressAlreadyBound,
+				EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())),
+				pallet_evm_accounts::Error::<Runtime>::AddressAlreadyBound,
 			);
 		});
 	}
@@ -106,8 +116,8 @@ mod account_conversion {
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 			let truncated_address = EVMAccounts::truncated_account_id(evm_address);
 
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
 				truncated_address,
 				WETH,
 				100 * UNITS as i128,
@@ -135,8 +145,8 @@ mod account_conversion {
 			assert!(hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address) != U256::zero());
 
 			assert_noop!(
-				EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
-				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::TruncatedAccountAlreadyUsed,
+				EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())),
+				pallet_evm_accounts::Error::<Runtime>::TruncatedAccountAlreadyUsed,
 			);
 		});
 	}
@@ -150,8 +160,8 @@ mod account_conversion {
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 			let truncated_address = EVMAccounts::truncated_account_id(evm_address);
 
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
 				truncated_address,
 				HDX,
 				100 * UNITS as i128,
@@ -173,7 +183,7 @@ mod account_conversion {
 			};
 
 			//Act
-			let result = MultiCurrencyPrecompile::<hydradx_runtime::Runtime>::execute(&mut handle);
+			let result = MultiCurrencyPrecompile::<Runtime>::execute(&mut handle);
 
 			//Assert
 
@@ -216,11 +226,11 @@ mod account_conversion {
 			};
 
 			//Act
-			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
 				ALICE.into()
 			)),);
 
-			let result = MultiCurrencyPrecompile::<hydradx_runtime::Runtime>::execute(&mut handle);
+			let result = MultiCurrencyPrecompile::<Runtime>::execute(&mut handle);
 
 			//Assert
 
@@ -248,13 +258,13 @@ mod account_conversion {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
-			let call = pallet_evm_accounts::Call::<hydradx_runtime::Runtime>::bind_evm_address {};
+			let call = pallet_evm_accounts::Call::<Runtime>::bind_evm_address {};
 			let info = call.get_dispatch_info();
 			// convert to outer call
-			let call = hydradx_runtime::RuntimeCall::EVMAccounts(call);
+			let call = RuntimeCall::EVMAccounts(call);
 			let len = call.using_encoded(|e| e.len()) as u32;
 
-			NextFeeMultiplier::<hydradx_runtime::Runtime>::put(Multiplier::saturating_from_integer(1));
+			NextFeeMultiplier::<Runtime>::put(Multiplier::saturating_from_integer(1));
 			let fee_raw = hydradx_runtime::TransactionPayment::compute_fee_details(len, &info, 0);
 			let fee = fee_raw.final_fee();
 
@@ -335,7 +345,7 @@ mod account_conversion {
 				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
 					.to_vec();
 
-			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
 				ALICE.into()
 			)),);
 
@@ -355,7 +365,7 @@ mod account_conversion {
 					false,
 					None,
 				),
-				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::BoundAddressCannotBeUsed
+				pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed
 			);
 		});
 	}
@@ -370,7 +380,7 @@ mod account_conversion {
 				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
 					.to_vec();
 
-			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
 				ALICE.into()
 			)),);
 
@@ -391,6 +401,197 @@ mod account_conversion {
 			));
 		});
 	}
+
+	#[test]
+	fn claim_account_should_work_for_account_with_erc20_balance() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			// Arrange
+			let pair = sp_core::sr25519::Pair::from_seed_slice([1; 64].as_slice()).unwrap();
+			let account = frame_support::sp_runtime::MultiSigner::from(pair.public()).into_account();
+			let evm_address = EVMAccounts::evm_address(&account);
+
+			let contract = deploy_token_contract();
+			let asset = bind_erc20(contract);
+
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+				RuntimeOrigin::root(),
+				asset,
+				FixedU128::from_rational(1, 10),
+			));
+
+			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
+			CallContext {
+				contract,
+				sender: deployer(),
+				origin: deployer()
+			},
+			evm_address,
+			1_000_000_000_000_000_000
+			));
+
+			std::assert_eq!(
+				Erc20Currency::<Runtime>::balance_of(CallContext::new_view(contract), evm_address),
+				1_000_000_000_000_000_000
+			);
+
+			assert!(!System::account_exists(&account));
+			assert_eq!(System::account_nonce(&account), 0);
+			assert_eq!(System::sufficients(&account), 0);
+
+			let signature = pallet_evm_accounts::sign_message::<Runtime>(pair, &account, asset);
+
+			// Act
+			assert_ok!(
+				EVMAccounts::claim_account(RuntimeOrigin::none(), account.clone(), asset, signature),
+			);
+
+			// Assert
+			assert_eq!(hydradx_runtime::MultiTransactionPayment::account_currency(&account), asset);
+
+			assert_eq!(System::account_nonce(&account), 0);
+			assert_eq!(System::sufficients(&account), 1);
+
+			let evm_address = EVMAccounts::evm_address(&account);
+
+			std::assert_eq!(EVMAccounts::bound_account_id(evm_address), Some(account.clone()));
+
+			std::assert_eq!(EVMAccounts::account_id(evm_address), account);
+		});
+	}
+
+	#[test]
+	fn claim_account_should_enable_submitting_substrate_transactions_from_claimed_account() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			// Arrange
+			let pair = sp_core::sr25519::Pair::from_seed_slice([1; 64].as_slice()).unwrap();
+			let account = frame_support::sp_runtime::MultiSigner::from(pair.public()).into_account();
+			let evm_address = EVMAccounts::evm_address(&account);
+
+			let contract = deploy_token_contract();
+			let asset = bind_erc20(contract);
+
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+				RuntimeOrigin::root(),
+				asset,
+				FixedU128::from_rational(1, 10),
+			));
+
+			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
+			CallContext {
+				contract,
+				sender: deployer(),
+				origin: deployer()
+			},
+			evm_address,
+			1_000_000_000_000_000_000
+			));
+
+
+			let call = RuntimeCall::MultiTransactionPayment(
+				pallet_transaction_multi_payment::Call::set_currency { currency: asset },
+			);
+
+			let info = DispatchInfo {
+				weight: Weight::from_parts(106_957_000, 0),
+				..Default::default()
+			};
+			let len: usize = 10;
+
+			let nonce = System::account_nonce(&account);
+			let check_nonce_pre = frame_system::CheckNonce::<Runtime>::from(nonce).pre_dispatch(&account, &call, &info, len);
+			assert_noop!(check_nonce_pre, TransactionValidityError::Invalid(InvalidTransaction::Payment));
+
+			let signature = pallet_evm_accounts::sign_message::<Runtime>(pair, &account, asset);
+
+			// Act
+			assert_ok!(
+				EVMAccounts::claim_account(RuntimeOrigin::none(), account.clone(), asset, signature),
+			);
+
+			// Assert
+			let nonce = System::account_nonce(&account);
+			let check_nonce_pre = frame_system::CheckNonce::<Runtime>::from(nonce).pre_dispatch(&account, &call, &info, len);
+
+			let pre = pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0).pre_dispatch(
+				&account,
+				&call,
+				&info,
+				len,
+			);
+			assert_ok!(&pre);
+
+			let result = call.clone().dispatch(RuntimeOrigin::signed(account.clone().into()));
+			assert_ok!(result);
+
+			assert_ok!(pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::post_dispatch(
+				Some(pre.unwrap()),
+				&info,
+				&frame_support::dispatch::PostDispatchInfo::default(),
+				len,
+				&Ok(())
+			));
+			assert_ok!(check_nonce_pre);
+		});
+	}
+
+	#[test]
+	fn claim_account_should_not_be_deleted_when_all_assets_removed() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			// Arrange
+			let pair = sp_core::sr25519::Pair::from_seed_slice([1; 64].as_slice()).unwrap();
+			let account = frame_support::sp_runtime::MultiSigner::from(pair.public()).into_account();
+			let evm_address = EVMAccounts::evm_address(&account);
+
+			let contract = deploy_token_contract();
+			let asset = bind_erc20(contract);
+
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+				RuntimeOrigin::root(),
+				asset,
+				FixedU128::from_rational(1, 10),
+			));
+
+			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
+			CallContext {
+				contract,
+				sender: deployer(),
+				origin: deployer()
+			},
+			evm_address,
+			1_000_000_000_000_000_000
+			));
+
+			assert!(!System::account_exists(&account));
+			assert_eq!(System::account_nonce(&account), 0);
+			assert_eq!(System::sufficients(&account), 0);
+
+			let signature = pallet_evm_accounts::sign_message::<Runtime>(pair, &account, asset);
+			assert_ok!(
+				EVMAccounts::claim_account(RuntimeOrigin::none(), account.clone(), asset, signature),
+			);
+
+			// Act
+			assert_ok!(<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
+				contract,
+				&account,
+				&AccountId::from(BOB),
+				1_000_000_000_000_000_000
+			));
+
+			std::assert_eq!(
+				Erc20Currency::<Runtime>::free_balance(contract, &account),
+				0
+			);
+
+			// Assert
+			assert!(System::account_exists(&account));
+			assert_eq!(System::account_nonce(&account), 0);
+			assert_eq!(System::sufficients(&account), 1);
+		});
+	}
 }
 
 mod standard_precompiles {
@@ -402,7 +603,7 @@ mod standard_precompiles {
 	fn evm_runner_call(
 		to: EvmAddress,
 		data: Vec<u8>,
-	) -> Result<CallInfo, RunnerError<pallet_evm::Error<hydradx_runtime::Runtime>>> {
+	) -> Result<CallInfo, RunnerError<Error<hydradx_runtime::Runtime>>> {
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
 			evm_account(),
@@ -410,7 +611,7 @@ mod standard_precompiles {
 			to_ether(1_000),
 			0,
 		));
-		<hydradx_runtime::Runtime as pallet_evm::Config>::Runner::call(
+		<hydradx_runtime::Runtime as Config>::Runner::call(
 			evm_address(),
 			to,
 			data,
@@ -424,7 +625,7 @@ mod standard_precompiles {
 			true,
 			None,
 			None,
-			<hydradx_runtime::Runtime as pallet_evm::Config>::config(),
+			<hydradx_runtime::Runtime as Config>::config(),
 		)
 	}
 
@@ -727,7 +928,7 @@ mod currency_precompile {
 		Hydra::execute_with(|| {
 			//Arrange
 			AssetRegistry::update(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				HDX,
 				Some(b"xHDX".to_vec().try_into().unwrap()),
 				None,
@@ -775,7 +976,7 @@ mod currency_precompile {
 		Hydra::execute_with(|| {
 			//Arrange
 			AssetRegistry::update(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				HDX,
 				Some(b"xHDX".to_vec().try_into().unwrap()),
 				None,
@@ -866,8 +1067,8 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
 				evm_account(),
 				HDX,
 				100 * UNITS as i128,
@@ -914,8 +1115,8 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
 				evm_account(),
 				HDX,
 				100 * UNITS as i128,
@@ -952,13 +1153,13 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			pallet_evm::AccountCodes::<hydradx_runtime::Runtime>::insert(
+			AccountCodes::<hydradx_runtime::Runtime>::insert(
 				native_asset_ethereum_address(),
 				&hex!["365f5f375f5f365f73bebebebebebebebebebebebebebebebebebebebe5af43d5f5f3e5f3d91602a57fd5bf3"][..],
 			);
 
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
 				evm_account(),
 				HDX,
 				100 * UNITS as i128,
@@ -995,8 +1196,8 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
 				evm_account(),
 				HDX,
 				100 * UNITS as i128,
@@ -1025,7 +1226,7 @@ mod currency_precompile {
 			assert_eq!(
 				result,
 				Err(PrecompileFailure::Error {
-					exit_status: pallet_evm::ExitError::Other("not supported".into())
+					exit_status: ExitError::Other("not supported".into())
 				})
 			);
 		});
@@ -1074,7 +1275,7 @@ mod currency_precompile {
 		Hydra::execute_with(|| {
 			//Arrange
 			assert_ok!(EVMAccounts::approve_contract(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				evm_address(),
 			));
 
@@ -1115,7 +1316,7 @@ mod currency_precompile {
 		Hydra::execute_with(|| {
 			//Arrange
 			assert_ok!(EVMAccounts::approve_contract(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				evm_address(),
 			));
 			let data = EvmDataWriter::new_with_selector(Function::Allowance)
@@ -1136,7 +1337,7 @@ mod currency_precompile {
 
 			//Act
 			assert_ok!(EVMAccounts::disapprove_contract(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				evm_address(),
 			));
 			let result = CurrencyPrecompile::execute(&mut handle);
@@ -1158,8 +1359,8 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
 				evm_account(),
 				HDX,
 				100 * UNITS as i128,
@@ -1201,12 +1402,12 @@ mod currency_precompile {
 		Hydra::execute_with(|| {
 			//Arrange
 			assert_ok!(EVMAccounts::approve_contract(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				native_asset_ethereum_address(),
 			));
 
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
 				evm_account(),
 				HDX,
 				100 * UNITS as i128,
@@ -1320,15 +1521,15 @@ mod chainlink_precompile {
 
 			let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
 
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
+			assert_ok!(Omnipool::add_token(
+				RuntimeOrigin::root(),
 				DOT,
 				token_price,
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
 
-			assert_ok!(hydradx_runtime::Omnipool::sell(
+			assert_ok!(Omnipool::sell(
 				RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				DOT,
@@ -1366,13 +1567,13 @@ mod chainlink_precompile {
 
 			//Act
 			let PrecompileOutput { output, exit_status } =
-				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+				ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle).unwrap();
 
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			let asset_a_decimals = hydradx_runtime::AssetRegistry::decimals(HDX).unwrap();
-			let asset_b_decimals = hydradx_runtime::AssetRegistry::decimals(DOT).unwrap();
+			let asset_a_decimals = AssetRegistry::decimals(HDX).unwrap();
+			let asset_b_decimals = AssetRegistry::decimals(DOT).unwrap();
 			assert_prices_are_same(
 				ema_price,
 				U256::from_big_endian(&output),
@@ -1394,15 +1595,15 @@ mod chainlink_precompile {
 
 			let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
 
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
+			assert_ok!(Omnipool::add_token(
+				RuntimeOrigin::root(),
 				DOT,
 				token_price,
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
 
-			assert_ok!(hydradx_runtime::Omnipool::sell(
+			assert_ok!(Omnipool::sell(
 				RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				DOT,
@@ -1440,13 +1641,13 @@ mod chainlink_precompile {
 
 			//Act
 			let PrecompileOutput { output, exit_status } =
-				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+				ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle).unwrap();
 
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			let asset_a_decimals = hydradx_runtime::AssetRegistry::decimals(HDX).unwrap();
-			let asset_b_decimals = hydradx_runtime::AssetRegistry::decimals(DOT).unwrap();
+			let asset_a_decimals = AssetRegistry::decimals(HDX).unwrap();
+			let asset_b_decimals = AssetRegistry::decimals(DOT).unwrap();
 			assert_prices_are_same(
 				ema_price,
 				U256::from_big_endian(&output),
@@ -1465,13 +1666,13 @@ mod chainlink_precompile {
 			hydradx_run_to_next_block();
 
 			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				ALICE.into(),
 				DOT,
 				200 * UNITS as i128,
 			));
 
-			assert_ok!(hydradx_runtime::XYK::create_pool(
+			assert_ok!(XYK::create_pool(
 				RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				100 * UNITS,
@@ -1481,7 +1682,7 @@ mod chainlink_precompile {
 
 			assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), XYK_SOURCE, (HDX, DOT)));
 
-			assert_ok!(hydradx_runtime::XYK::buy(
+			assert_ok!(XYK::buy(
 				RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				DOT,
@@ -1513,13 +1714,13 @@ mod chainlink_precompile {
 
 			//Act
 			let PrecompileOutput { output, exit_status } =
-				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+				ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle).unwrap();
 
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			let asset_a_decimals = hydradx_runtime::AssetRegistry::decimals(HDX).unwrap();
-			let asset_b_decimals = hydradx_runtime::AssetRegistry::decimals(DOT).unwrap();
+			let asset_a_decimals = AssetRegistry::decimals(HDX).unwrap();
+			let asset_b_decimals = AssetRegistry::decimals(DOT).unwrap();
 			assert_prices_are_same(
 				ema_price,
 				U256::from_big_endian(&output),
@@ -1538,13 +1739,13 @@ mod chainlink_precompile {
 			hydradx_run_to_next_block();
 
 			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				ALICE.into(),
 				DOT,
 				200 * UNITS as i128,
 			));
 
-			assert_ok!(hydradx_runtime::XYK::create_pool(
+			assert_ok!(XYK::create_pool(
 				RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				100 * UNITS,
@@ -1554,7 +1755,7 @@ mod chainlink_precompile {
 
 			assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), XYK_SOURCE, (HDX, DOT)));
 
-			assert_ok!(hydradx_runtime::XYK::buy(
+			assert_ok!(XYK::buy(
 				RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				DOT,
@@ -1586,13 +1787,13 @@ mod chainlink_precompile {
 
 			//Act
 			let PrecompileOutput { output, exit_status } =
-				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+				ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle).unwrap();
 
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			let asset_a_decimals = hydradx_runtime::AssetRegistry::decimals(HDX).unwrap();
-			let asset_b_decimals = hydradx_runtime::AssetRegistry::decimals(DOT).unwrap();
+			let asset_a_decimals = AssetRegistry::decimals(HDX).unwrap();
+			let asset_b_decimals = AssetRegistry::decimals(DOT).unwrap();
 			assert_prices_are_same(
 				ema_price,
 				U256::from_big_endian(&output),
@@ -1611,20 +1812,20 @@ mod chainlink_precompile {
 			hydradx_run_to_next_block();
 
 			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				ALICE.into(),
 				DOT,
 				200 * UNITS as i128,
 			));
 
 			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				ALICE.into(),
 				DAI,
 				200 * UNITS as i128,
 			));
 
-			assert_ok!(hydradx_runtime::XYK::create_pool(
+			assert_ok!(XYK::create_pool(
 				RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				100 * UNITS,
@@ -1632,7 +1833,7 @@ mod chainlink_precompile {
 				200 * UNITS,
 			));
 
-			assert_ok!(hydradx_runtime::XYK::create_pool(
+			assert_ok!(XYK::create_pool(
 				RuntimeOrigin::signed(ALICE.into()),
 				DAI,
 				100 * UNITS,
@@ -1643,7 +1844,7 @@ mod chainlink_precompile {
 			assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), XYK_SOURCE, (HDX, DAI)));
 			assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), XYK_SOURCE, (DAI, DOT)));
 
-			assert_ok!(hydradx_runtime::XYK::buy(
+			assert_ok!(XYK::buy(
 				RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				DAI,
@@ -1651,7 +1852,7 @@ mod chainlink_precompile {
 				200 * UNITS,
 				false,
 			));
-			assert_ok!(hydradx_runtime::XYK::buy(
+			assert_ok!(XYK::buy(
 				RuntimeOrigin::signed(ALICE.into()),
 				DAI,
 				DOT,
@@ -1677,7 +1878,7 @@ mod chainlink_precompile {
 			hydradx_run_to_next_block();
 
 			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				RuntimeOrigin::signed(ALICE.into()),
 				AssetPair::new(HDX, DOT),
 				route.try_into().unwrap()
 			));
@@ -1710,13 +1911,13 @@ mod chainlink_precompile {
 
 			//Act
 			let PrecompileOutput { output, exit_status } =
-				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+				ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle).unwrap();
 
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			let asset_a_decimals = hydradx_runtime::AssetRegistry::decimals(HDX).unwrap();
-			let asset_b_decimals = hydradx_runtime::AssetRegistry::decimals(DOT).unwrap();
+			let asset_a_decimals = AssetRegistry::decimals(HDX).unwrap();
+			let asset_b_decimals = AssetRegistry::decimals(DOT).unwrap();
 			assert_prices_are_same(
 				ema_price,
 				U256::from_big_endian(&output),
@@ -1735,20 +1936,20 @@ mod chainlink_precompile {
 			hydradx_run_to_next_block();
 
 			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				ALICE.into(),
 				DOT,
 				200 * UNITS as i128,
 			));
 
 			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				ALICE.into(),
 				DAI,
 				200 * UNITS as i128,
 			));
 
-			assert_ok!(hydradx_runtime::XYK::create_pool(
+			assert_ok!(XYK::create_pool(
 				RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				100 * UNITS,
@@ -1756,7 +1957,7 @@ mod chainlink_precompile {
 				200 * UNITS,
 			));
 
-			assert_ok!(hydradx_runtime::XYK::create_pool(
+			assert_ok!(XYK::create_pool(
 				RuntimeOrigin::signed(ALICE.into()),
 				DAI,
 				100 * UNITS,
@@ -1767,7 +1968,7 @@ mod chainlink_precompile {
 			assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), XYK_SOURCE, (HDX, DAI)));
 			assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), XYK_SOURCE, (DAI, DOT)));
 
-			assert_ok!(hydradx_runtime::XYK::buy(
+			assert_ok!(XYK::buy(
 				RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				DAI,
@@ -1775,7 +1976,7 @@ mod chainlink_precompile {
 				200 * UNITS,
 				false,
 			));
-			assert_ok!(hydradx_runtime::XYK::buy(
+			assert_ok!(XYK::buy(
 				RuntimeOrigin::signed(ALICE.into()),
 				DAI,
 				DOT,
@@ -1801,7 +2002,7 @@ mod chainlink_precompile {
 			hydradx_run_to_next_block();
 
 			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				RuntimeOrigin::signed(ALICE.into()),
 				AssetPair::new(HDX, DOT),
 				route.try_into().unwrap()
 			));
@@ -1834,13 +2035,13 @@ mod chainlink_precompile {
 
 			//Act
 			let PrecompileOutput { output, exit_status } =
-				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+				ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle).unwrap();
 
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			let asset_a_decimals = hydradx_runtime::AssetRegistry::decimals(HDX).unwrap();
-			let asset_b_decimals = hydradx_runtime::AssetRegistry::decimals(DOT).unwrap();
+			let asset_a_decimals = AssetRegistry::decimals(HDX).unwrap();
+			let asset_b_decimals = AssetRegistry::decimals(DOT).unwrap();
 			assert_prices_are_same(
 				ema_price,
 				U256::from_big_endian(&output),
@@ -1874,7 +2075,7 @@ mod chainlink_precompile {
 			};
 
 			//Act
-			let result = ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle);
+			let result = ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle);
 
 			//Assert
 			pretty_assertions::assert_eq!(
@@ -1894,8 +2095,8 @@ mod chainlink_precompile {
 
 		Hydra::execute_with(|| {
 			pretty_assertions::assert_eq!(
-				hydradx_runtime::Runtime::encode_oracle_address(4, 5, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE),
-				hydradx_runtime::evm::precompiles::chainlink_adapter::encode_oracle_address(
+				Runtime::encode_oracle_address(4, 5, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE),
+				encode_oracle_address(
 					4,
 					5,
 					OraclePeriod::TenMinutes,
@@ -1904,10 +2105,10 @@ mod chainlink_precompile {
 			);
 
 			pretty_assertions::assert_eq!(
-				hydradx_runtime::Runtime::decode_oracle_address(H160::from(hex!(
+				Runtime::decode_oracle_address(H160::from(hex!(
 					"000001026f6d6e69706f6f6c0000000400000005"
 				))),
-				hydradx_runtime::evm::precompiles::chainlink_adapter::decode_oracle_address(H160::from(hex!(
+				chainlink_adapter::decode_oracle_address(H160::from(hex!(
 					"000001026f6d6e69706f6f6c0000000400000005"
 				)))
 			);
@@ -1943,7 +2144,7 @@ mod chainlink_precompile {
 			let input = EvmDataWriter::new_with_selector(AggregatorInterface::LatestAnswer).build();
 
 			// kinda weird that asset order is reversed, would expect WBTC/USDT instead
-			let address = chainlink_adapter::encode_oracle_address(base, asset, OraclePeriod::TenMinutes, [0; 8]);
+			let address = encode_oracle_address(base, asset, OraclePeriod::TenMinutes, [0; 8]);
 			let mut handle = MockHandle {
 				input: input.clone(),
 				context: Context {
@@ -2014,7 +2215,7 @@ mod chainlink_precompile {
 
 			//Act
 			let PrecompileOutput { output, exit_status } =
-				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+				ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle).unwrap();
 
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
@@ -2060,7 +2261,7 @@ mod contract_deployment {
 		Hydra::execute_with(|| {
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 			assert_ok!(EVMAccounts::add_contract_deployer(
-				hydradx_runtime::RuntimeOrigin::root(),
+				RuntimeOrigin::root(),
 				evm_address
 			));
 
@@ -2111,20 +2312,20 @@ fn dispatch_should_work_with_transfer() {
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
-		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
 			ALICE.into()
 		)));
 
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 		init_omnipool_with_oracle_for_block_10();
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
 			ALICE.into(),
 			WETH,
 			(100 * UNITS * 1_000_000) as i128,
 		));
 		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE.into()),
 			WETH,
 		));
 
@@ -2137,7 +2338,7 @@ fn dispatch_should_work_with_transfer() {
 
 		//Act
 		assert_ok!(EVM::call(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE.into()),
 			evm_address,
 			DISPATCH_ADDR,
 			data,
@@ -2163,7 +2364,7 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
-		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
 			ALICE.into()
 		)));
 
@@ -2189,14 +2390,14 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 		create_xyk_pool_with_amounts(altcoin, 1000000 * UNITS, HDX, 1000000 * UNITS);
 		init_omnipool_with_oracle_for_block_10();
 
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
 			currency_precompile::alice_substrate_evm_addr(),
 			WETH,
 			(100 * UNITS * 1_000_000) as i128,
 		));
 		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE.into()),
 			WETH,
 		));
 
@@ -2301,8 +2502,8 @@ fn dispatch_should_respect_call_filter() {
 		));
 		assert!(!CallFilter::contains(&transfer_call));
 
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
 			currency_precompile::alice_substrate_evm_addr(),
 			WETH,
 			(100 * UNITS * 1_000_000) as i128,
@@ -2354,26 +2555,26 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 	Hydra::execute_with(|| {
 		let fee_currency = WETH;
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
-		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
 			ALICE.into()
 		)));
 
 		init_omnipool_with_oracle_for_block_10();
 
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
 			ALICE.into(),
 			WETH,
 			(10_000_000 * UNITS) as i128,
 		));
 		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE.into()),
 			fee_currency,
 		));
 
 		// give alice evm addr some DOT to sell in omnipool
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
 			ALICE.into(),
 			DOT,
 			(10 * UNITS) as i128,
@@ -2384,7 +2585,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 
 		//Act
 		let omni_sell =
-			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+			RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
 				asset_in: DOT,
 				asset_out: HDX,
 				amount: 10_000_000_000,
@@ -2396,7 +2597,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 
 		//Execute omnipool sell via EVM
 		assert_ok!(EVM::call(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE.into()),
 			evm_address,
 			DISPATCH_ADDR,
 			omni_sell.encode(),
@@ -2452,7 +2653,7 @@ fn substrate_account_should_pay_gas_with_payment_currency() {
 		init_omnipool_with_oracle_for_block_10();
 		// Arrange
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
-		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
 			ALICE.into()
 		)));
 		assert_eq!(EVMAccounts::bound_account_id(evm_address), Some(ALICE.into()));
@@ -2468,7 +2669,7 @@ fn substrate_account_should_pay_gas_with_payment_currency() {
 			0,
 		));
 		assert_ok!(Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
+			RuntimeOrigin::root(),
 			ALICE.into(),
 			HDX,
 			100_000_000_000_000,
@@ -2478,7 +2679,7 @@ fn substrate_account_should_pay_gas_with_payment_currency() {
 
 		// Act
 		assert_ok!(EVM::call(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE.into()),
 			evm_address,
 			hydradx_runtime::evm::precompiles::IDENTITY,
 			vec![],
@@ -2523,7 +2724,7 @@ fn evm_account_pays_with_weth_for_evm_call_if_payment_currency_not_set() {
 			0,
 		));
 		assert_ok!(Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
+			RuntimeOrigin::root(),
 			evm_account(),
 			HDX,
 			0,
@@ -2533,7 +2734,7 @@ fn evm_account_pays_with_weth_for_evm_call_if_payment_currency_not_set() {
 
 		// Act
 		assert_ok!(EVM::call(
-			hydradx_runtime::RuntimeOrigin::signed(padded_evm_address.into()),
+			RuntimeOrigin::signed(padded_evm_address.into()),
 			evm_address,
 			hydradx_runtime::evm::precompiles::IDENTITY,
 			vec![],
@@ -2574,7 +2775,7 @@ fn evm_account_should_pay_gas_with_payment_currency_for_evm_call() {
 			0,
 		));
 		assert_ok!(Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
+			RuntimeOrigin::root(),
 			evm_account(),
 			HDX,
 			1000 * UNITS as i128,
@@ -2660,7 +2861,7 @@ pub fn init_omnipol() {
 	let native_price = FixedU128::from_rational(29903049701668757, 73927734532192294158);
 	let dot_price = FixedU128::from_rational(103158291366950047, 4566210555614178);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
-	let acc = hydradx_runtime::Omnipool::protocol_account();
+	let acc = Omnipool::protocol_account();
 
 	let stable_amount = 50_000_000 * UNITS * 1_000_000;
 	let dot_amount: Balance = 4566210555614178u128;
@@ -2682,23 +2883,23 @@ pub fn init_omnipol() {
 		weth_amount,
 		0
 	));
-	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
+	assert_ok!(Omnipool::add_token(
+		RuntimeOrigin::root(),
 		HDX,
 		native_price,
 		Permill::from_percent(60),
 		AccountId::from(ALICE),
 	));
 
-	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
+	assert_ok!(Omnipool::add_token(
+		RuntimeOrigin::root(),
 		DOT,
 		dot_price,
 		Permill::from_percent(60),
 		AccountId::from(ALICE),
 	));
-	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
+	assert_ok!(Omnipool::add_token(
+		RuntimeOrigin::root(),
 		WETH,
 		weth_price,
 		Permill::from_percent(60),
@@ -2706,8 +2907,8 @@ pub fn init_omnipol() {
 	));
 
 	assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), acc, DAI, stable_amount, 0));
-	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
+	assert_ok!(Omnipool::add_token(
+		RuntimeOrigin::root(),
 		DAI,
 		stable_price,
 		Permill::from_percent(100),
@@ -2716,7 +2917,7 @@ pub fn init_omnipol() {
 
 	assert_ok!(Balances::force_set_balance(
 		RawOrigin::Root.into(),
-		hydradx_runtime::Treasury::account_id(),
+		Treasury::account_id(),
 		TREASURY_ACCOUNT_INIT_BALANCE,
 	));
 }
@@ -2844,13 +3045,13 @@ impl PrecompileHandle for MockHandle {
 
 fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
 	assert_ok!(Currencies::update_balance(
-		hydradx_runtime::RuntimeOrigin::root(),
+		RuntimeOrigin::root(),
 		DAVE.into(),
 		asset_a,
 		amount_a as i128,
 	));
 	assert_ok!(Currencies::update_balance(
-		hydradx_runtime::RuntimeOrigin::root(),
+		RuntimeOrigin::root(),
 		DAVE.into(),
 		asset_b,
 		amount_b as i128,

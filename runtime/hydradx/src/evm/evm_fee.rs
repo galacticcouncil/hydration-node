@@ -21,8 +21,8 @@
 use crate::{Runtime, TreasuryAccount};
 use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 use frame_support::traits::{Get, TryDrop};
+use frame_support::dispatch::DispatchResult;
 use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::AccountFeeCurrency;
 use pallet_evm::{AddressMapping, Error};
@@ -281,5 +281,9 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault {
 			// 	and type-based defaults: EVM → EvmAssetId, non-EVM → NativeAssetId).
 			pallet_transaction_multi_payment::Pallet::<Runtime>::account_currency(a)
 		}
+	}
+
+	fn set(who: &AccountId, asset_id: Self::AssetId) -> DispatchResult {
+		<pallet_transaction_multi_payment::Pallet::<Runtime> as AccountFeeCurrency::<AccountId>>::set(who, asset_id)
 	}
 }

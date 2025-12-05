@@ -19,7 +19,7 @@ use hex_literal::hex;
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::fee::GetDynamicFee;
-use hydradx_traits::{router::PoolType, OraclePeriod, PriceOracle};
+use hydradx_traits::{router::PoolType, AccountFeeCurrency, OraclePeriod, PriceOracle};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
@@ -474,11 +474,27 @@ impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProviderMock {
 	}
 }
 
+pub struct FeeCurrencyMock;
+impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
+	type AssetId = AssetId;
+
+	fn get(_a: &AccountId) -> Self::AssetId {
+		unimplemented!()
+	}
+	fn set(_who: &AccountId, _asset_id: Self::AssetId) -> DispatchResult {
+		unimplemented!()
+	}
+}
+
 impl pallet_evm_accounts::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type FeeMultiplier = ConstU32<10>;
 	type EvmNonceProvider = EvmNonceProviderMock;
 	type ControllerOrigin = EnsureRoot<AccountId>;
+	type AssetId = AssetId;
+	type Currency = FungibleCurrencies<Test>;
+	type ExistentialDeposits = ExistentialDeposits;
+	type FeeCurrency = FeeCurrencyMock;
 	type WeightInfo = ();
 }
 

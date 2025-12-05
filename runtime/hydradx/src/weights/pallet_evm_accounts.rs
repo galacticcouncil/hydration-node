@@ -131,4 +131,9 @@ impl<T: frame_system::Config> pallet_evm_accounts::WeightInfo for HydraWeight<T>
 		Weight::from_parts(10_822_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	fn claim_account() -> Weight {
+		Weight::from_parts(38_460_000, 4087)
+			.saturating_add(T::DbWeight::get().reads(6_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }

@@ -298,6 +298,7 @@ pub trait AMMAddLiquidity<AccountId, AssetId, Balance> {
 pub trait AccountFeeCurrency<AccountId> {
 	type AssetId;
 	fn get(a: &AccountId) -> Self::AssetId;
+	fn set(who: &AccountId, asset_id: Self::AssetId) -> dispatch::DispatchResult;
 }
 
 /// Provides account's balance of fee asset currency in a given currency
