@@ -16,17 +16,17 @@
 // limitations under the License.
 
 use super::*;
-use mock::*;
-use frame_support::sp_runtime::traits::Zero;
+use frame_support::pallet_prelude::InvalidTransaction;
+use frame_support::pallet_prelude::TransactionSource;
 use frame_support::sp_runtime::traits::IdentifyAccount;
 use frame_support::sp_runtime::traits::ValidateUnsigned;
-use frame_support::pallet_prelude::TransactionSource;
-use frame_support::pallet_prelude::InvalidTransaction;
-use frame_support::unsigned::TransactionValidityError;
+use frame_support::sp_runtime::traits::Zero;
 use frame_support::sp_runtime::DispatchError;
+use frame_support::unsigned::TransactionValidityError;
 use frame_support::{assert_noop, assert_ok, assert_storage_noop};
-use orml_traits::MultiCurrency;
 use hex_literal::hex;
+use mock::*;
+use orml_traits::MultiCurrency;
 
 #[test]
 fn eth_address_should_convert_to_truncated_address_when_not_bound() {
@@ -232,7 +232,6 @@ fn verify_signed_message_should_work() {
 
 		// Assert
 		assert!(signature.verify(msg.as_slice(), &account.clone().into()));
-
 	});
 }
 
@@ -248,7 +247,6 @@ fn verify_signed_message_should_fail_if_different_account() {
 
 		// Assert
 		assert_eq!(signature.verify(msg.as_slice(), &ALICE.into()), false);
-
 	});
 }
 
@@ -264,7 +262,6 @@ fn verify_signed_message_should_fail_if_different_asset() {
 
 		// Assert
 		assert_eq!(signature.verify(msg.as_slice(), &account.into()), false);
-
 	});
 }
 
@@ -279,7 +276,6 @@ fn verify_signed_message_should_fail_if_different_message() {
 
 		// Assert
 		assert_eq!(signature.verify("wrong message".as_bytes(), &account.into()), false);
-
 	});
 }
 
@@ -299,7 +295,12 @@ fn claim_account_should_bound_address() {
 		let signature = sign_message::<Test>(pair, &account, DOT);
 
 		// Act
-		assert_ok!(EVMAccounts::claim_account(RuntimeOrigin::none(), account.clone(), DOT, signature));
+		assert_ok!(EVMAccounts::claim_account(
+			RuntimeOrigin::none(),
+			account.clone(),
+			DOT,
+			signature
+		));
 
 		// Assert
 		let evm_address = EVMAccounts::evm_address(&account);
@@ -327,7 +328,12 @@ fn claim_account_should_increase_sufficients() {
 		assert!(System::sufficients(&account).is_zero());
 
 		// Act
-		assert_ok!(EVMAccounts::claim_account(RuntimeOrigin::none(), account.clone(), DOT, signature));
+		assert_ok!(EVMAccounts::claim_account(
+			RuntimeOrigin::none(),
+			account.clone(),
+			DOT,
+			signature
+		));
 
 		// Assert
 		assert_eq!(System::sufficients(&account), 1);
@@ -351,7 +357,12 @@ fn claim_account_should_set_fee_payment_currency() {
 		let signature = sign_message::<Test>(pair, &account, DOT);
 
 		// Act
-		assert_ok!(EVMAccounts::claim_account(RuntimeOrigin::none(), account.clone(), DOT, signature));
+		assert_ok!(EVMAccounts::claim_account(
+			RuntimeOrigin::none(),
+			account.clone(),
+			DOT,
+			signature
+		));
 
 		// Assert
 		assert_eq!(FeeCurrencyMock::get(&account), DOT);
@@ -459,9 +470,9 @@ fn validate_unsigned_should_pass_if_correct_call() {
 
 		// Act & Assert
 		assert_storage_noop!({
-				let res = EVMAccounts::validate_unsigned(TransactionSource::Local, &call);
-				assert_ok!(res);
-			});
+			let res = EVMAccounts::validate_unsigned(TransactionSource::Local, &call);
+			assert_ok!(res);
+		});
 	});
 }
 
@@ -487,9 +498,9 @@ fn validate_unsigned_should_fail_if_account_exists() {
 
 		// Act & Assert
 		assert_storage_noop!({
-				let res = EVMAccounts::validate_unsigned(TransactionSource::Local, &call);
-				assert_noop!(res, TransactionValidityError::Invalid(InvalidTransaction::Call));
-			});
+			let res = EVMAccounts::validate_unsigned(TransactionSource::Local, &call);
+			assert_noop!(res, TransactionValidityError::Invalid(InvalidTransaction::Call));
+		});
 	});
 }
 
@@ -515,8 +526,8 @@ fn validate_unsigned_should_pass_if_signature_is_invalid() {
 
 		// Act & Assert
 		assert_storage_noop!({
-				let res = EVMAccounts::validate_unsigned(TransactionSource::Local, &call);
-				assert_noop!(res, TransactionValidityError::Invalid(InvalidTransaction::Call));
-			});
+			let res = EVMAccounts::validate_unsigned(TransactionSource::Local, &call);
+			assert_noop!(res, TransactionValidityError::Invalid(InvalidTransaction::Call));
+		});
 	});
 }

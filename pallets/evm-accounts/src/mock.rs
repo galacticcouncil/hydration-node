@@ -1,18 +1,18 @@
 use crate as pallet_evm_accounts;
 use crate::{Balance, Config, EvmNonceProvider, Signature};
-use frame_support::{parameter_types, BoundedVec};
+use frame_support::dispatch::DispatchResult;
 use frame_support::sp_runtime::{
 	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	BuildStorage,
 };
 use frame_support::traits::Everything;
 use frame_support::PalletId;
-use frame_support::dispatch::DispatchResult;
+use frame_support::{parameter_types, BoundedVec};
 use frame_system::{EnsureRoot, EnsureSigned};
 use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::AccountFeeCurrency;
-use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use orml_traits::parameter_type_with_key;
+use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 pub use sp_core::{H160, H256, U256};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -70,9 +70,7 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
 	type AssetId = AssetId;
 
 	fn get(a: &AccountId) -> Self::AssetId {
-		FEE_ASSET
-			.with(|v| v.borrow().get(&a).copied())
-			.unwrap_or_default()
+		FEE_ASSET.with(|v| v.borrow().get(&a).copied()).unwrap_or_default()
 	}
 	fn set(who: &AccountId, asset_id: Self::AssetId) -> DispatchResult {
 		FEE_ASSET.with(|v| {
@@ -190,7 +188,6 @@ parameter_types! {
 	pub const SequentialIdOffset: u32 = 1_000_000;
 }
 
-
 impl pallet_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EnsureRoot<AccountId>;
@@ -229,17 +226,15 @@ impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
-		let registered_assets = vec![
-			(
-				Some(DOT),
-				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
-				10_000,
-				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
-				Some(12),
-				None::<Balance>,
-				true,
-			),
-		];
+		let registered_assets = vec![(
+			Some(DOT),
+			Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
+			10_000,
+			Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
+			Some(12),
+			None::<Balance>,
+			true,
+		)];
 
 		pallet_asset_registry::GenesisConfig::<Test> {
 			registered_assets,

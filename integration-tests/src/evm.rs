@@ -3,13 +3,13 @@
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
+use frame_support::dispatch::DispatchInfo;
+use frame_support::pallet_prelude::InvalidTransaction;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
-use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
-use frame_support::dispatch::DispatchInfo;
-use frame_support::weights::Weight;
-use frame_support::pallet_prelude::InvalidTransaction;
 use frame_support::unsigned::TransactionValidityError;
+use frame_support::weights::Weight;
+use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use sp_core::bounded_vec::BoundedVec;
@@ -23,13 +23,13 @@ use hydradx_runtime::{
 	evm::precompiles::{
 		handle::EvmDataWriter, multicurrency::MultiCurrencyPrecompile, Address, Bytes, HydraDXPrecompiles,
 	},
-	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
-	TransactionPause, EVM, System,
+	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, Omnipool, RuntimeCall, RuntimeOrigin, System, Tokens,
+	TransactionPause, EVM,
 };
+use hydradx_traits::evm::ERC20;
 use hydradx_traits::router::{PoolType, Trade};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
-use hydradx_traits::evm::ERC20;
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pretty_assertions::assert_eq;
@@ -45,15 +45,15 @@ pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
 mod account_conversion {
 	use super::*;
+	use crate::erc20::{bind_erc20, deploy_token_contract, deployer};
 	use fp_evm::ExitSucceed;
 	use frame_support::{assert_noop, assert_ok};
-	use pretty_assertions::assert_eq;
-	use sp_core::Pair;
-	use sp_runtime::traits::IdentifyAccount;
 	use hydradx_runtime::evm::Erc20Currency;
 	use hydradx_runtime::Runtime;
 	use hydradx_traits::evm::CallContext;
-	use crate::erc20::{bind_erc20, deploy_token_contract, deployer};
+	use pretty_assertions::assert_eq;
+	use sp_core::Pair;
+	use sp_runtime::traits::IdentifyAccount;
 
 	#[test]
 	fn eth_address_should_convert_to_truncated_address_when_not_bound() {
@@ -95,9 +95,7 @@ mod account_conversion {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
-			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
-				ALICE.into()
-			)),);
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())),);
 
 			assert_noop!(
 				EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())),
@@ -226,9 +224,7 @@ mod account_conversion {
 			};
 
 			//Act
-			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
-				ALICE.into()
-			)),);
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())),);
 
 			let result = MultiCurrencyPrecompile::<Runtime>::execute(&mut handle);
 
@@ -345,9 +341,7 @@ mod account_conversion {
 				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
 					.to_vec();
 
-			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
-				ALICE.into()
-			)),);
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())),);
 
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 
@@ -380,9 +374,7 @@ mod account_conversion {
 				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
 					.to_vec();
 
-			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
-				ALICE.into()
-			)),);
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())),);
 
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 
@@ -421,13 +413,13 @@ mod account_conversion {
 			));
 
 			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
-			CallContext {
-				contract,
-				sender: deployer(),
-				origin: deployer()
-			},
-			evm_address,
-			1_000_000_000_000_000_000
+				CallContext {
+					contract,
+					sender: deployer(),
+					origin: deployer()
+				},
+				evm_address,
+				1_000_000_000_000_000_000
 			));
 
 			std::assert_eq!(
@@ -442,12 +434,18 @@ mod account_conversion {
 			let signature = pallet_evm_accounts::sign_message::<Runtime>(pair, &account, asset);
 
 			// Act
-			assert_ok!(
-				EVMAccounts::claim_account(RuntimeOrigin::none(), account.clone(), asset, signature),
-			);
+			assert_ok!(EVMAccounts::claim_account(
+				RuntimeOrigin::none(),
+				account.clone(),
+				asset,
+				signature
+			),);
 
 			// Assert
-			assert_eq!(hydradx_runtime::MultiTransactionPayment::account_currency(&account), asset);
+			assert_eq!(
+				hydradx_runtime::MultiTransactionPayment::account_currency(&account),
+				asset
+			);
 
 			assert_eq!(System::account_nonce(&account), 0);
 			assert_eq!(System::sufficients(&account), 1);
@@ -479,19 +477,18 @@ mod account_conversion {
 			));
 
 			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
-			CallContext {
-				contract,
-				sender: deployer(),
-				origin: deployer()
-			},
-			evm_address,
-			1_000_000_000_000_000_000
+				CallContext {
+					contract,
+					sender: deployer(),
+					origin: deployer()
+				},
+				evm_address,
+				1_000_000_000_000_000_000
 			));
 
-
-			let call = RuntimeCall::MultiTransactionPayment(
-				pallet_transaction_multi_payment::Call::set_currency { currency: asset },
-			);
+			let call = RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::set_currency {
+				currency: asset,
+			});
 
 			let info = DispatchInfo {
 				weight: Weight::from_parts(106_957_000, 0),
@@ -500,38 +497,44 @@ mod account_conversion {
 			let len: usize = 10;
 
 			let nonce = System::account_nonce(&account);
-			let check_nonce_pre = frame_system::CheckNonce::<Runtime>::from(nonce).pre_dispatch(&account, &call, &info, len);
-			assert_noop!(check_nonce_pre, TransactionValidityError::Invalid(InvalidTransaction::Payment));
+			let check_nonce_pre =
+				frame_system::CheckNonce::<Runtime>::from(nonce).pre_dispatch(&account, &call, &info, len);
+			assert_noop!(
+				check_nonce_pre,
+				TransactionValidityError::Invalid(InvalidTransaction::Payment)
+			);
 
 			let signature = pallet_evm_accounts::sign_message::<Runtime>(pair, &account, asset);
 
 			// Act
-			assert_ok!(
-				EVMAccounts::claim_account(RuntimeOrigin::none(), account.clone(), asset, signature),
-			);
+			assert_ok!(EVMAccounts::claim_account(
+				RuntimeOrigin::none(),
+				account.clone(),
+				asset,
+				signature
+			),);
 
 			// Assert
 			let nonce = System::account_nonce(&account);
-			let check_nonce_pre = frame_system::CheckNonce::<Runtime>::from(nonce).pre_dispatch(&account, &call, &info, len);
+			let check_nonce_pre =
+				frame_system::CheckNonce::<Runtime>::from(nonce).pre_dispatch(&account, &call, &info, len);
 
-			let pre = pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0).pre_dispatch(
-				&account,
-				&call,
-				&info,
-				len,
-			);
+			let pre = pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0)
+				.pre_dispatch(&account, &call, &info, len);
 			assert_ok!(&pre);
 
 			let result = call.clone().dispatch(RuntimeOrigin::signed(account.clone().into()));
 			assert_ok!(result);
 
-			assert_ok!(pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::post_dispatch(
-				Some(pre.unwrap()),
-				&info,
-				&frame_support::dispatch::PostDispatchInfo::default(),
-				len,
-				&Ok(())
-			));
+			assert_ok!(
+				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::post_dispatch(
+					Some(pre.unwrap()),
+					&info,
+					&frame_support::dispatch::PostDispatchInfo::default(),
+					len,
+					&Ok(())
+				)
+			);
 			assert_ok!(check_nonce_pre);
 		});
 	}
@@ -555,13 +558,13 @@ mod account_conversion {
 			));
 
 			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
-			CallContext {
-				contract,
-				sender: deployer(),
-				origin: deployer()
-			},
-			evm_address,
-			1_000_000_000_000_000_000
+				CallContext {
+					contract,
+					sender: deployer(),
+					origin: deployer()
+				},
+				evm_address,
+				1_000_000_000_000_000_000
 			));
 
 			assert!(!System::account_exists(&account));
@@ -569,9 +572,12 @@ mod account_conversion {
 			assert_eq!(System::sufficients(&account), 0);
 
 			let signature = pallet_evm_accounts::sign_message::<Runtime>(pair, &account, asset);
-			assert_ok!(
-				EVMAccounts::claim_account(RuntimeOrigin::none(), account.clone(), asset, signature),
-			);
+			assert_ok!(EVMAccounts::claim_account(
+				RuntimeOrigin::none(),
+				account.clone(),
+				asset,
+				signature
+			),);
 
 			// Act
 			assert_ok!(<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
@@ -581,10 +587,7 @@ mod account_conversion {
 				1_000_000_000_000_000_000
 			));
 
-			std::assert_eq!(
-				Erc20Currency::<Runtime>::free_balance(contract, &account),
-				0
-			);
+			std::assert_eq!(Erc20Currency::<Runtime>::free_balance(contract, &account), 0);
 
 			// Assert
 			assert!(System::account_exists(&account));
@@ -1274,10 +1277,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			assert_ok!(EVMAccounts::approve_contract(
-				RuntimeOrigin::root(),
-				evm_address(),
-			));
+			assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), evm_address(),));
 
 			let data = EvmDataWriter::new_with_selector(Function::Allowance)
 				.write(Address::from(evm_address2()))
@@ -1315,10 +1315,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			assert_ok!(EVMAccounts::approve_contract(
-				RuntimeOrigin::root(),
-				evm_address(),
-			));
+			assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), evm_address(),));
 			let data = EvmDataWriter::new_with_selector(Function::Allowance)
 				.write(Address::from(evm_address2()))
 				.write(Address::from(evm_address()))
@@ -1336,10 +1333,7 @@ mod currency_precompile {
 			};
 
 			//Act
-			assert_ok!(EVMAccounts::disapprove_contract(
-				RuntimeOrigin::root(),
-				evm_address(),
-			));
+			assert_ok!(EVMAccounts::disapprove_contract(RuntimeOrigin::root(), evm_address(),));
 			let result = CurrencyPrecompile::execute(&mut handle);
 
 			//Assert
@@ -2096,21 +2090,12 @@ mod chainlink_precompile {
 		Hydra::execute_with(|| {
 			pretty_assertions::assert_eq!(
 				Runtime::encode_oracle_address(4, 5, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE),
-				encode_oracle_address(
-					4,
-					5,
-					OraclePeriod::TenMinutes,
-					OMNIPOOL_SOURCE
-				)
+				encode_oracle_address(4, 5, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE)
 			);
 
 			pretty_assertions::assert_eq!(
-				Runtime::decode_oracle_address(H160::from(hex!(
-					"000001026f6d6e69706f6f6c0000000400000005"
-				))),
-				chainlink_adapter::decode_oracle_address(H160::from(hex!(
-					"000001026f6d6e69706f6f6c0000000400000005"
-				)))
+				Runtime::decode_oracle_address(H160::from(hex!("000001026f6d6e69706f6f6c0000000400000005"))),
+				chainlink_adapter::decode_oracle_address(H160::from(hex!("000001026f6d6e69706f6f6c0000000400000005")))
 			);
 		});
 	}
@@ -2260,10 +2245,7 @@ mod contract_deployment {
 
 		Hydra::execute_with(|| {
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
-			assert_ok!(EVMAccounts::add_contract_deployer(
-				RuntimeOrigin::root(),
-				evm_address
-			));
+			assert_ok!(EVMAccounts::add_contract_deployer(RuntimeOrigin::root(), evm_address));
 
 			assert_ok!(hydradx_runtime::Runtime::create(
 				evm_address,
@@ -2312,9 +2294,7 @@ fn dispatch_should_work_with_transfer() {
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
-			ALICE.into()
-		)));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
 
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 		init_omnipool_with_oracle_for_block_10();
@@ -2364,9 +2344,7 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
-			ALICE.into()
-		)));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
 
 		//Create inssufficient asset
 		let altcoin = with_transaction::<u32, DispatchError, _>(|| {
@@ -2555,9 +2533,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 	Hydra::execute_with(|| {
 		let fee_currency = WETH;
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
-			ALICE.into()
-		)));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
 
 		init_omnipool_with_oracle_for_block_10();
 
@@ -2584,13 +2560,12 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		let alice_currency_balance = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));
 
 		//Act
-		let omni_sell =
-			RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: HDX,
-				amount: 10_000_000_000,
-				min_buy_amount: 0,
-			});
+		let omni_sell = RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+			asset_in: DOT,
+			asset_out: HDX,
+			amount: 10_000_000_000,
+			min_buy_amount: 0,
+		});
 
 		let gas_limit = 1_000_000;
 		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
@@ -2653,9 +2628,7 @@ fn substrate_account_should_pay_gas_with_payment_currency() {
 		init_omnipool_with_oracle_for_block_10();
 		// Arrange
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
-			ALICE.into()
-		)));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
 		assert_eq!(EVMAccounts::bound_account_id(evm_address), Some(ALICE.into()));
 		assert_eq!(
 			hydradx_runtime::MultiTransactionPayment::account_currency(&AccountId::from(ALICE)),
@@ -2723,12 +2696,7 @@ fn evm_account_pays_with_weth_for_evm_call_if_payment_currency_not_set() {
 			to_ether(1),
 			0,
 		));
-		assert_ok!(Currencies::update_balance(
-			RuntimeOrigin::root(),
-			evm_account(),
-			HDX,
-			0,
-		));
+		assert_ok!(Currencies::update_balance(RuntimeOrigin::root(), evm_account(), HDX, 0,));
 		let mut padded_evm_address = [0u8; 32];
 		padded_evm_address[..20].copy_from_slice(evm_address.as_bytes());
 

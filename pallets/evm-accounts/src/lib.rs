@@ -60,17 +60,17 @@
 use codec::Encode;
 use frame_support::ensure;
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use hydradx_traits::AccountFeeCurrency;
+use frame_support::sp_runtime::traits::Verify;
+use frame_support::traits::fungibles::Inspect;
 use hydradx_traits::evm::InspectEvmAccounts;
+use hydradx_traits::AccountFeeCurrency;
+use orml_traits::GetByKey;
+pub use primitives::Signature;
+use sp_core::crypto::Pair as PairT;
 use sp_core::{
 	crypto::{AccountId32, ByteArray},
 	H160, U256,
 };
-pub use primitives::Signature;
-use frame_support::sp_runtime::traits::Verify;
-use frame_support::traits::fungibles::Inspect;
-use orml_traits::GetByKey;
-use sp_core::crypto::Pair as PairT;
 use sp_std::vec::Vec;
 
 #[cfg(test)]
@@ -162,7 +162,10 @@ pub mod pallet {
 		/// Contract was disapproved.
 		ContractDisapproved { address: EvmAddress },
 		/// Account was claimed.
-		AccountClaimed { account: T::AccountId, asset_id: T::AssetId },
+		AccountClaimed {
+			account: T::AccountId,
+			asset_id: T::AssetId,
+		},
 	}
 
 	#[pallet::error]
@@ -229,13 +232,18 @@ pub mod pallet {
 			};
 
 			match call {
-				Call::claim_account { account, asset_id, signature, .. } => {
+				Call::claim_account {
+					account,
+					asset_id,
+					signature,
+					..
+				} => {
 					// validate transaction
 					match Self::verify_claim_account(&account, asset_id.clone(), signature.clone()) {
 						Ok(()) => valid_tx(account),
-						_ => InvalidTransaction::Call.into()
+						_ => InvalidTransaction::Call.into(),
 					}
-				},
+				}
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -399,9 +407,9 @@ where
 	/// Binds an account to an EVM address and increases `sufficients`.
 	fn do_bind_evm_address(who: &T::AccountId) -> DispatchResult {
 		ensure!(
-				!Self::is_evm_account(who.clone()),
-				Error::<T>::TruncatedAccountAlreadyUsed
-			);
+			!Self::is_evm_account(who.clone()),
+			Error::<T>::TruncatedAccountAlreadyUsed
+		);
 
 		let evm_address = Self::evm_address(&who);
 
@@ -410,9 +418,9 @@ where
 		// on the nonce. So it's better to prevent any confusion and throw an error when address is
 		// already bound.
 		ensure!(
-				!AccountExtension::<T>::contains_key(evm_address),
-				Error::<T>::AddressAlreadyBound
-			);
+			!AccountExtension::<T>::contains_key(evm_address),
+			Error::<T>::AddressAlreadyBound
+		);
 
 		let nonce = T::EvmNonceProvider::get_nonce(evm_address);
 		ensure!(nonce.is_zero(), Error::<T>::TruncatedAccountAlreadyUsed);
@@ -435,14 +443,20 @@ where
 	fn verify_claim_account(account: &T::AccountId, asset_id: T::AssetId, signature: Signature) -> DispatchResult {
 		let msg = Self::create_claim_account_message(account, asset_id);
 
-		ensure!(!frame_system::Pallet::<T>::account_exists(&account),
-				Error::<T>::AccountAlreadyExists);
+		ensure!(
+			!frame_system::Pallet::<T>::account_exists(&account),
+			Error::<T>::AccountAlreadyExists
+		);
 
-		ensure!(signature.verify(msg.as_slice(), &account.clone().into()),
-				Error::<T>::InvalidSignature);
+		ensure!(
+			signature.verify(msg.as_slice(), &account.clone().into()),
+			Error::<T>::InvalidSignature
+		);
 
-		ensure!(T::Currency::balance(asset_id, &account) >= T::ExistentialDeposits::get(&asset_id),
-				Error::<T>::InsufficientAssetBalance);
+		ensure!(
+			T::Currency::balance(asset_id, &account) >= T::ExistentialDeposits::get(&asset_id),
+			Error::<T>::InsufficientAssetBalance
+		);
 
 		Ok(())
 	}
@@ -521,4 +535,3 @@ where
 	let signature = pair.sign(Pallet::<T>::create_claim_account_message(account, asset_id).as_slice());
 	Signature::Sr25519(signature)
 }
-

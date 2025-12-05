@@ -28,7 +28,7 @@ pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{DotAssetId, FeePriceOracle, Runtime, XykPaymentAssetSupport, AssetRegistry, MultiTransactionPayment};
+use crate::{AssetRegistry, DotAssetId, FeePriceOracle, MultiTransactionPayment, Runtime, XykPaymentAssetSupport};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	dispatch::RawOrigin,

@@ -560,14 +560,14 @@ impl<T: Config> Pallet<T> {
 	fn do_set_currency(who: &T::AccountId, currency: AssetIdOf<T>) -> DispatchResult {
 		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
 			ensure!(
-					currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
-					Error::<T>::UnsupportedCurrency
-				);
+				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
+				Error::<T>::UnsupportedCurrency
+			);
 		} else {
 			ensure!(
-					T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
-					Error::<T>::UnsupportedCurrency
-				);
+				T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
+				Error::<T>::UnsupportedCurrency
+			);
 		}
 
 		<AccountCurrencyMap<T>>::insert(who.clone(), currency);

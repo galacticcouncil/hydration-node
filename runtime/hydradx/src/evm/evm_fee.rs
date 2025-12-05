@@ -19,9 +19,9 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 use crate::{Runtime, TreasuryAccount};
+use frame_support::dispatch::DispatchResult;
 use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 use frame_support::traits::{Get, TryDrop};
-use frame_support::dispatch::DispatchResult;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::AccountFeeCurrency;
@@ -284,6 +284,6 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault {
 	}
 
 	fn set(who: &AccountId, asset_id: Self::AssetId) -> DispatchResult {
-		<pallet_transaction_multi_payment::Pallet::<Runtime> as AccountFeeCurrency::<AccountId>>::set(who, asset_id)
+		<pallet_transaction_multi_payment::Pallet<Runtime> as AccountFeeCurrency<AccountId>>::set(who, asset_id)
 	}
 }
