@@ -2877,6 +2877,9 @@ mod evm_error_decoder {
 	use sp_core::Get;
 	use sp_runtime::traits::Convert;
 	use sp_runtime::{DispatchError, DispatchResult};
+	use codec::{Decode, DecodeLimit};
+	use hydradx_runtime::evm::evm_error_decoder::*;
+
 
 	fn arbitrary_value() -> impl Strategy<Value = Vec<u8>> {
 		prop::collection::vec(any::<u8>(), 0..256)
@@ -2998,8 +3001,6 @@ mod evm_error_decoder {
 
 		pretty_assertions::assert_eq!(result, DispatchError::CannotLookup);
 	}
-
-	const MAX_ERROR_DATA_LENGTH: usize = 1024;
 
 	#[test]
 	fn value_with_max_length_no_truncation_should_not_panic() {
@@ -3268,7 +3269,7 @@ mod evm_error_decoder {
 	}
 
 	#[test]
-	fn test_scale_decode_all_single_bytes() {
+	fn test_scale_decode_all_single_bytes_discriminants() {
 		// Test every possible discriminant value
 		for byte in 0u8..=255 {
 			let value = vec![byte];
@@ -3305,6 +3306,64 @@ mod evm_error_decoder {
 			};
 
 			let _result = EvmErrorDecoder::convert(call_result);
+		}
+	}
+
+	#[test]
+	fn dispatch_decode_with_malformed_scawle_payloads_should_not_panic() {
+		// Test various malicious/malformed SCALE-encoded payloads
+		// that could trigger panics in decode_with_depth_limit
+		let test_cases = vec![
+			("Empty vector", vec![]),
+			("Single invalid discriminant (255)", vec![0xFF]),
+			("Invalid discriminant with data", vec![0xFF, 0x00, 0x00, 0x00]),
+			("Deeply nested (10000 bytes of 0x01)", vec![0x01; 10000]),
+			("Truncated Module error", vec![0x03, 0x00]),
+			("Invalid compact length", vec![0x00, 0xFF, 0xFF, 0xFF, 0xFF]),
+			("All zeros", vec![0x00; 100]),
+			("All ones", vec![0xFF; 100]),
+			("Random garbage", vec![0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE]),
+			("Length overflow", vec![0x00, 0x03, 0xFF, 0xFF, 0xFF, 0xFF]),
+			(
+				"Huge compact (u64 max)",
+				vec![0x00, 0x13, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
+			),
+			("Malformed Module error 1", vec![0x03]),
+			("Malformed Module error 2", vec![0x03, 0xFF, 0xFF]),
+			("Malformed Token error", vec![0x06, 0xFF]),
+			("Malformed Arithmetic error", vec![0x07, 0xFF]),
+			// Additional edge cases for SCALE decoding
+			("Nested depth attack", vec![0x01; 500]),
+			("Large compact prefix", vec![0xFF, 0xFF, 0xFF, 0xFF, 0xFF]),
+			("Module error with overflow", vec![0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]),
+		];
+
+		for (_name, value) in test_cases {
+			let call_result = CallResult {
+				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+				value,
+				contract: sp_core::H160::zero(),
+			};
+
+			let _result = EvmErrorDecoder::convert(call_result.clone());
+			DispatchError::decode_with_depth_limit(MAX_DECODE_DEPTH, &mut &call_result.value[..]);
+		}
+	}
+
+	#[test]
+	fn dispatch_decode_cannot_pani_for_different_multi_byte_patterns() {
+		for byte1 in [0x00, 0x03, 0x06, 0x07, 0xFF].iter() {
+			for byte2 in [0x00, 0xFF].iter() {
+				let call_result = CallResult {
+					exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+					value: vec![*byte1, *byte2],
+					contract: sp_core::H160::zero(),
+				};
+
+				let _result = EvmErrorDecoder::convert(call_result.clone());
+				DispatchError::decode_with_depth_limit(MAX_DECODE_DEPTH, &mut &call_result.value[..]);
+
+			}
 		}
 	}
 }
