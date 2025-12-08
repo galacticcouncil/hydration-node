@@ -193,7 +193,7 @@ pub mod pallet {
 
 		/// Max fraction of pool to buy in single transaction has been exceeded.
 		MaxOutRatioExceeded,
-		
+
 		/// Max fraction of pool to sell in single transaction has been exceeded.
 		MaxInRatioExceeded,
 
