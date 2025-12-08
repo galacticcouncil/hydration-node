@@ -447,10 +447,13 @@ impl<T: Config> Pallet<T> {
 			// gets updated last.
 			Self::update_oracle(src, assets, OraclePeriod::LastBlock, oracle_entry.clone());
 
+			// get the latest updated entry for event emission
+			let (latest_entry, _) = Self::oracle((src, assets, OraclePeriod::LastBlock)).unwrap();
+
 			Self::deposit_event(Event::<T>::OracleUpdated {
 				source: src,
 				assets,
-				update: oracle_entry,
+				update: latest_entry,
 			});
 		}
 	}
