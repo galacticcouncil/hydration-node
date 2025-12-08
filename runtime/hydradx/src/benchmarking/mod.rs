@@ -5,6 +5,7 @@ pub mod dca;
 pub mod duster;
 pub mod dynamic_evm_fee;
 pub mod ema_oracle;
+pub mod evm_accounts;
 pub mod multi_payment;
 pub mod omnipool;
 pub mod omnipool_liquidity_mining;
@@ -14,7 +15,6 @@ pub mod tokens;
 pub mod vesting;
 pub mod xyk;
 pub mod xyk_liquidity_mining;
-pub mod evm_accounts;
 
 use crate::evm::Erc20Currency;
 use crate::{

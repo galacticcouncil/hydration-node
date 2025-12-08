@@ -14,17 +14,17 @@
 // limitations under the License.
 
 use super::*;
-use crate::{AccountId, Currencies, EVMAccounts, System, MultiTransactionPayment, Runtime};
+use crate::{AccountId, Currencies, EVMAccounts, MultiTransactionPayment, Runtime, System};
 
-use frame_benchmarking::{account, whitelisted_caller};
 use frame_benchmarking::BenchmarkError;
+use frame_benchmarking::{account, whitelisted_caller};
 use frame_support::assert_ok;
-use orml_benchmarking::runtime_benchmarks;
-use frame_system::RawOrigin;
 use frame_support::sp_runtime::traits::IdentifyAccount;
-use sp_std::prelude::*;
+use frame_system::RawOrigin;
+use orml_benchmarking::runtime_benchmarks;
 use sp_core::Pair;
 use sp_runtime::traits::StaticLookup;
+use sp_std::prelude::*;
 
 runtime_benchmarks! {
 	{ Runtime, pallet_evm_accounts }
