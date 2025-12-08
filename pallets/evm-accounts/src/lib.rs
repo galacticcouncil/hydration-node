@@ -78,7 +78,6 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-mod benchmarking;
 pub mod weights;
 
 pub use pallet::*;
@@ -142,10 +141,12 @@ pub mod pallet {
 
 	/// Whitelisted addresses that are allowed to deploy smart contracts.
 	#[pallet::storage]
+	#[pallet::getter(fn contract_deployer)]
 	pub(super) type ContractDeployer<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, ()>;
 
 	/// Whitelisted contracts that are allowed to manage balances and tokens.
 	#[pallet::storage]
+	#[pallet::getter(fn approved_contract)]
 	pub(super) type ApprovedContract<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, ()>;
 
 	#[pallet::event]

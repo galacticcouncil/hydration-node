@@ -14,6 +14,7 @@ pub mod tokens;
 pub mod vesting;
 pub mod xyk;
 pub mod xyk_liquidity_mining;
+pub mod evm_accounts;
 
 use crate::evm::Erc20Currency;
 use crate::{
