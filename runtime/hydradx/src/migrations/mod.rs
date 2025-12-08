@@ -13,4 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub type Migrations = ();
+mod reset_max_nonces;
+
+pub type Migrations = (reset_max_nonces::v1::ResetMaxNonces<crate::Runtime>,);
