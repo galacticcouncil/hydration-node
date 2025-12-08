@@ -735,7 +735,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_, _, _, _>>::sell(&who, AssetPair { asset_in, asset_out }, amount, max_limit, false)?;
+			Self::execute_sell(&Self::validate_sell(
+				&who,
+				AssetPair { asset_in, asset_out },
+				amount,
+				max_limit,
+			)?)?;
 
 			Ok(())
 		}
@@ -766,7 +771,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_, _, _, _>>::buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit, false)?;
+			Self::execute_buy(
+				&Self::validate_buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit)?,
+				None,
+			)?;
 
 			Ok(())
 		}
@@ -774,6 +782,298 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	fn validate_sell(
+		who: &T::AccountId,
+		assets: AssetPair,
+		amount: BalanceOf<T>,
+		min_bought: BalanceOf<T>,
+	) -> Result<AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>, DispatchError> {
+		ensure!(!amount.is_zero(), Error::<T>::ZeroAmount);
+		ensure!(
+			T::MultiCurrency::free_balance(assets.asset_in, who) >= amount,
+			Error::<T>::InsufficientAssetBalance
+		);
+
+		let pool_id = Self::get_pair_id(assets);
+		let pool_data = <PoolData<T>>::try_get(&pool_id).map_err(|_| Error::<T>::PoolNotFound)?;
+
+		ensure!(Self::is_pool_running(&pool_data), Error::<T>::SaleIsNotRunning);
+
+		let now = T::BlockNumberProvider::current_block_number();
+		let (weight_in, weight_out) = Self::get_sorted_weight(assets.asset_in, now, &pool_data)?;
+		let asset_in_reserve = T::MultiCurrency::free_balance(assets.asset_in, &pool_id);
+		let asset_out_reserve = T::MultiCurrency::free_balance(assets.asset_out, &pool_id);
+
+		ensure!(
+			amount
+				<= asset_in_reserve
+					.checked_div(T::MaxInRatio::get())
+					.ok_or(Error::<T>::Overflow)?,
+			Error::<T>::MaxInRatioExceeded
+		);
+
+		// LBP fee asset is always accumulated asset
+		let fee_asset = pool_data.assets.0;
+
+		// Accumulated asset is sold (in) to the pool for distributed asset (out)
+		// Take accumulated asset (in) sans fee from the seller and add to pool
+		// Take distributed asset (out) and send to seller
+		// Take fee from the seller and send to fee collector
+		// Pool bears repay fee
+		if fee_asset == assets.asset_in {
+			let fee = Self::calculate_fees(&pool_data, amount)?;
+
+			let amount_out = hydra_dx_math::lbp::calculate_out_given_in(
+				asset_in_reserve,
+				asset_out_reserve,
+				weight_in,
+				weight_out,
+				amount,
+			)
+			.map_err(|_| Error::<T>::Overflow)?;
+
+			ensure!(
+				amount_out
+					<= asset_out_reserve
+						.checked_div(T::MaxOutRatio::get())
+						.ok_or(Error::<T>::Overflow)?,
+				Error::<T>::MaxOutRatioExceeded
+			);
+
+			ensure!(min_bought <= amount_out, Error::<T>::TradingLimitReached);
+
+			let amount_without_fee = amount.checked_sub(fee).ok_or(Error::<T>::Overflow)?;
+
+			Ok(AMMTransfer {
+				origin: who.clone(),
+				assets,
+				amount: amount_without_fee,
+				amount_b: amount_out,
+				fee: (fee_asset, fee),
+			})
+
+		// Distributed asset is sold (in) to the pool for accumulated asset (out)
+		// Take accumulated asset (out) from the pool sans fee and send to the seller
+		// Take distributed asset (in) from the seller and send to pool
+		// Take fee from the pool and send to fee collector
+		// Seller bears repay fee
+		} else {
+			let calculated_out = hydra_dx_math::lbp::calculate_out_given_in(
+				asset_in_reserve,
+				asset_out_reserve,
+				weight_in,
+				weight_out,
+				amount,
+			)
+			.map_err(|_| Error::<T>::Overflow)?;
+
+			let fee = Self::calculate_fees(&pool_data, calculated_out)?;
+			let amount_out_without_fee = calculated_out.checked_sub(fee).ok_or(Error::<T>::Overflow)?;
+
+			ensure!(
+				calculated_out
+					<= asset_out_reserve
+						.checked_div(T::MaxOutRatio::get())
+						.ok_or(Error::<T>::Overflow)?,
+				Error::<T>::MaxOutRatioExceeded
+			);
+
+			ensure!(min_bought <= amount_out_without_fee, Error::<T>::TradingLimitReached);
+
+			Ok(AMMTransfer {
+				origin: who.clone(),
+				assets,
+				amount,
+				amount_b: amount_out_without_fee,
+				fee: (fee_asset, fee),
+			})
+		}
+	}
+
+	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>) -> DispatchResult {
+		Self::execute_trade(transfer)?;
+
+		// TODO: Deprecated, remove when ready
+		Self::deposit_event(Event::<T>::SellExecuted {
+			who: transfer.origin.clone(),
+			asset_in: transfer.assets.asset_in,
+			asset_out: transfer.assets.asset_out,
+			amount: transfer.amount,
+			sale_price: transfer.amount_b,
+			fee_asset: transfer.fee.0,
+			fee_amount: transfer.fee.1,
+		});
+
+		let pool_account = Self::get_pair_id(transfer.assets);
+		let pool = <PoolData<T>>::try_get(&pool_account).map_err(|_| Error::<T>::PoolNotFound)?;
+
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
+			transfer.origin.clone(),
+			pool_account,
+			pallet_broadcast::types::Filler::LBP,
+			pallet_broadcast::types::TradeOperation::ExactIn,
+			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
+			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
+			vec![Fee {
+				asset: transfer.fee.0,
+				amount: transfer.fee.1,
+				destination: Destination::Account(pool.fee_collector),
+			}],
+		);
+
+		Ok(())
+	}
+
+	fn validate_buy(
+		who: &T::AccountId,
+		assets: AssetPair,
+		amount: BalanceOf<T>,
+		max_sold: BalanceOf<T>,
+	) -> Result<AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>, DispatchError> {
+		ensure!(!amount.is_zero(), Error::<T>::ZeroAmount);
+
+		let pool_id = Self::get_pair_id(assets);
+		let pool_data = <PoolData<T>>::try_get(&pool_id).map_err(|_| Error::<T>::PoolNotFound)?;
+
+		ensure!(Self::is_pool_running(&pool_data), Error::<T>::SaleIsNotRunning);
+
+		let now = T::BlockNumberProvider::current_block_number();
+		let (weight_in, weight_out) = Self::get_sorted_weight(assets.asset_in, now, &pool_data)?;
+		let asset_in_reserve = T::MultiCurrency::free_balance(assets.asset_in, &pool_id);
+		let asset_out_reserve = T::MultiCurrency::free_balance(assets.asset_out, &pool_id);
+
+		ensure!(
+			amount
+				<= asset_out_reserve
+					.checked_div(T::MaxOutRatio::get())
+					.ok_or(Error::<T>::Overflow)?,
+			Error::<T>::MaxOutRatioExceeded
+		);
+
+		// LBP fee asset is always accumulated asset
+		let fee_asset = pool_data.assets.0;
+
+		// Accumulated asset is bought (out) of the pool for distributed asset (in)
+		// Take accumulated asset (out) sans fee from the pool and send to seller
+		// Take distributed asset (in) from the seller and add to pool
+		// Take fee from the pool and send to fee collector
+		// Buyer bears repay fee
+		if fee_asset == assets.asset_out {
+			let fee = Self::calculate_fees(&pool_data, amount)?;
+			let amount_out_plus_fee = amount.checked_add(fee).ok_or(Error::<T>::Overflow)?;
+
+			let calculated_in = hydra_dx_math::lbp::calculate_in_given_out(
+				asset_in_reserve,
+				asset_out_reserve,
+				weight_in,
+				weight_out,
+				amount_out_plus_fee,
+			)
+			.map_err(|_| Error::<T>::Overflow)?;
+
+			ensure!(
+				calculated_in
+					<= asset_in_reserve
+						.checked_div(T::MaxInRatio::get())
+						.ok_or(Error::<T>::Overflow)?,
+				Error::<T>::MaxInRatioExceeded
+			);
+
+			ensure!(
+				T::MultiCurrency::free_balance(assets.asset_in, who) >= calculated_in,
+				Error::<T>::InsufficientAssetBalance
+			);
+
+			ensure!(max_sold >= calculated_in, Error::<T>::TradingLimitReached);
+
+			Ok(AMMTransfer {
+				origin: who.clone(),
+				assets,
+				amount: calculated_in,
+				amount_b: amount,
+				fee: (fee_asset, fee),
+			})
+
+		// Distributed asset is bought (out) of the pool for accumulated asset (in)
+		// Take accumulated asset (in) sans fee from the buyer and send to pool
+		// Take distributed asset (out) from the pool and send to buyer
+		// Take fee from the buyer and send to fee collector
+		// Pool bears repay fee
+		} else {
+			let calculated_in = hydra_dx_math::lbp::calculate_in_given_out(
+				asset_in_reserve,
+				asset_out_reserve,
+				weight_in,
+				weight_out,
+				amount,
+			)
+			.map_err(|_| Error::<T>::Overflow)?;
+
+			let fee = Self::calculate_fees(&pool_data, calculated_in)?;
+			let calculated_in_without_fee = calculated_in.checked_sub(fee).ok_or(Error::<T>::Overflow)?;
+
+			ensure!(
+				calculated_in
+					<= asset_in_reserve
+						.checked_div(T::MaxInRatio::get())
+						.ok_or(Error::<T>::Overflow)?,
+				Error::<T>::MaxInRatioExceeded
+			);
+
+			ensure!(
+				T::MultiCurrency::free_balance(assets.asset_in, who) >= calculated_in,
+				Error::<T>::InsufficientAssetBalance
+			);
+
+			ensure!(max_sold >= calculated_in, Error::<T>::TradingLimitReached);
+
+			Ok(AMMTransfer {
+				origin: who.clone(),
+				assets,
+				amount: calculated_in_without_fee,
+				amount_b: amount,
+				fee: (fee_asset, fee),
+			})
+		}
+	}
+
+	fn execute_buy(
+		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, BalanceOf<T>>,
+		_destination: Option<&T::AccountId>,
+	) -> DispatchResult {
+		Self::execute_trade(transfer)?;
+
+		// TODO: Deprecated, remove when ready
+		Self::deposit_event(Event::<T>::BuyExecuted {
+			who: transfer.origin.clone(),
+			asset_out: transfer.assets.asset_out,
+			asset_in: transfer.assets.asset_in,
+			amount: transfer.amount,
+			buy_price: transfer.amount_b,
+			fee_asset: transfer.fee.0,
+			fee_amount: transfer.fee.1,
+		});
+
+		let pool_account = Self::get_pair_id(transfer.assets);
+		let pool = <PoolData<T>>::try_get(&pool_account).map_err(|_| Error::<T>::PoolNotFound)?;
+
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
+			transfer.origin.clone(),
+			pool_account,
+			pallet_broadcast::types::Filler::LBP,
+			pallet_broadcast::types::TradeOperation::ExactOut,
+			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
+			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
+			vec![Fee {
+				asset: transfer.fee.0,
+				amount: transfer.fee.1,
+				destination: Destination::Account(pool.fee_collector),
+			}],
+		);
+
+		Ok(())
+	}
+
 	fn calculate_weights(
 		pool_data: &Pool<T::AccountId, BlockNumberFor<T>>,
 		at: BlockNumberFor<T>,
@@ -939,7 +1239,7 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T> {
 	fn exists(assets: AssetPair) -> bool {
-		let pair_account = Self::pair_account_from_assets(assets.asset_in, assets.asset_out);
+		let pair_account = Self::get_pair_id(assets);
 		<PoolData<T>>::contains_key(&pair_account)
 	}
 
@@ -958,363 +1258,6 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			Some(vec![pool_data.assets.0, pool_data.assets.1])
 		} else {
 			None
-		}
-	}
-
-	/// Calculate spot price for given assets and amount. This method does not modify the storage.
-	///
-	/// Provided assets must exist in the pool. Panic if an asset does not exist in the pool.
-	///
-	/// Return 0 if calculation overflows or weights calculation overflows.
-	fn get_spot_price_unchecked(asset_a: AssetId, asset_b: AssetId, amount: BalanceOf<T>) -> BalanceOf<T> {
-		let pool_id = Self::get_pair_id(AssetPair {
-			asset_in: asset_a,
-			asset_out: asset_b,
-		});
-
-		let asset_a_reserve = T::MultiCurrency::free_balance(asset_a, &pool_id);
-		let asset_b_reserve = T::MultiCurrency::free_balance(asset_b, &pool_id);
-
-		let pool_data = match <PoolData<T>>::try_get(&pool_id) {
-			Ok(pool) => pool,
-			Err(_) => return BalanceOf::<T>::zero(),
-		};
-
-		let now = T::BlockNumberProvider::current_block_number();
-
-		// We need to sort weights here if asset_in is not the first asset
-		let (weight_in, weight_out) = match Self::get_sorted_weight(asset_a, now, &pool_data) {
-			Ok(weights) => weights,
-			Err(_) => return BalanceOf::<T>::zero(),
-		};
-
-		hydra_dx_math::lbp::calculate_spot_price(asset_a_reserve, asset_b_reserve, weight_in, weight_out, amount)
-			.unwrap_or_else(|_| BalanceOf::<T>::zero())
-	}
-
-	fn validate_sell(
-		who: &T::AccountId,
-		assets: AssetPair,
-		amount: BalanceOf<T>,
-		min_bought: BalanceOf<T>,
-		_discount: bool,
-	) -> Result<AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>, DispatchError> {
-		ensure!(!amount.is_zero(), Error::<T>::ZeroAmount);
-		ensure!(
-			T::MultiCurrency::free_balance(assets.asset_in, who) >= amount,
-			Error::<T>::InsufficientAssetBalance
-		);
-
-		let pool_id = Self::get_pair_id(assets);
-		let pool_data = <PoolData<T>>::try_get(&pool_id).map_err(|_| Error::<T>::PoolNotFound)?;
-
-		ensure!(Self::is_pool_running(&pool_data), Error::<T>::SaleIsNotRunning);
-
-		let now = T::BlockNumberProvider::current_block_number();
-		let (weight_in, weight_out) = Self::get_sorted_weight(assets.asset_in, now, &pool_data)?;
-		let asset_in_reserve = T::MultiCurrency::free_balance(assets.asset_in, &pool_id);
-		let asset_out_reserve = T::MultiCurrency::free_balance(assets.asset_out, &pool_id);
-
-		ensure!(
-			amount
-				<= asset_in_reserve
-					.checked_div(T::MaxInRatio::get())
-					.ok_or(Error::<T>::Overflow)?,
-			Error::<T>::MaxInRatioExceeded
-		);
-
-		// LBP fee asset is always accumulated asset
-		let fee_asset = pool_data.assets.0;
-
-		// Accumulated asset is sold (in) to the pool for distributed asset (out)
-		// Take accumulated asset (in) sans fee from the seller and add to pool
-		// Take distributed asset (out) and send to seller
-		// Take fee from the seller and send to fee collector
-		// Pool bears repay fee
-		if fee_asset == assets.asset_in {
-			let fee = Self::calculate_fees(&pool_data, amount)?;
-
-			let amount_out = hydra_dx_math::lbp::calculate_out_given_in(
-				asset_in_reserve,
-				asset_out_reserve,
-				weight_in,
-				weight_out,
-				amount,
-			)
-			.map_err(|_| Error::<T>::Overflow)?;
-
-			ensure!(
-				amount_out
-					<= asset_out_reserve
-						.checked_div(T::MaxOutRatio::get())
-						.ok_or(Error::<T>::Overflow)?,
-				Error::<T>::MaxOutRatioExceeded
-			);
-
-			ensure!(min_bought <= amount_out, Error::<T>::TradingLimitReached);
-
-			let amount_without_fee = amount.checked_sub(fee).ok_or(Error::<T>::Overflow)?;
-
-			Ok(AMMTransfer {
-				origin: who.clone(),
-				assets,
-				amount: amount_without_fee,
-				amount_b: amount_out,
-				discount: false,
-				discount_amount: 0_u128,
-				fee: (fee_asset, fee),
-			})
-
-		// Distributed asset is sold (in) to the pool for accumulated asset (out)
-		// Take accumulated asset (out) from the pool sans fee and send to the seller
-		// Take distributed asset (in) from the seller and send to pool
-		// Take fee from the pool and send to fee collector
-		// Seller bears repay fee
-		} else {
-			let calculated_out = hydra_dx_math::lbp::calculate_out_given_in(
-				asset_in_reserve,
-				asset_out_reserve,
-				weight_in,
-				weight_out,
-				amount,
-			)
-			.map_err(|_| Error::<T>::Overflow)?;
-
-			let fee = Self::calculate_fees(&pool_data, calculated_out)?;
-			let amount_out_without_fee = calculated_out.checked_sub(fee).ok_or(Error::<T>::Overflow)?;
-
-			ensure!(
-				calculated_out
-					<= asset_out_reserve
-						.checked_div(T::MaxOutRatio::get())
-						.ok_or(Error::<T>::Overflow)?,
-				Error::<T>::MaxOutRatioExceeded
-			);
-
-			ensure!(min_bought <= amount_out_without_fee, Error::<T>::TradingLimitReached);
-
-			Ok(AMMTransfer {
-				origin: who.clone(),
-				assets,
-				amount,
-				amount_b: amount_out_without_fee,
-				discount: false,
-				discount_amount: 0_u128,
-				fee: (fee_asset, fee),
-			})
-		}
-	}
-
-	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>) -> DispatchResult {
-		Self::execute_trade(transfer)?;
-
-		// TODO: Deprecated, remove when ready
-		Self::deposit_event(Event::<T>::SellExecuted {
-			who: transfer.origin.clone(),
-			asset_in: transfer.assets.asset_in,
-			asset_out: transfer.assets.asset_out,
-			amount: transfer.amount,
-			sale_price: transfer.amount_b,
-			fee_asset: transfer.fee.0,
-			fee_amount: transfer.fee.1,
-		});
-
-		let pool_account = Self::get_pair_id(transfer.assets);
-		let pool = <PoolData<T>>::try_get(&pool_account).map_err(|_| Error::<T>::PoolNotFound)?;
-
-		pallet_broadcast::Pallet::<T>::deposit_trade_event(
-			transfer.origin.clone(),
-			pool_account,
-			pallet_broadcast::types::Filler::LBP,
-			pallet_broadcast::types::TradeOperation::ExactIn,
-			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
-			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
-			vec![Fee {
-				asset: transfer.fee.0,
-				amount: transfer.fee.1,
-				destination: Destination::Account(pool.fee_collector),
-			}],
-		);
-
-		Ok(())
-	}
-
-	fn validate_buy(
-		who: &T::AccountId,
-		assets: AssetPair,
-		amount: BalanceOf<T>,
-		max_sold: BalanceOf<T>,
-		_discount: bool,
-	) -> Result<AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>, DispatchError> {
-		ensure!(!amount.is_zero(), Error::<T>::ZeroAmount);
-
-		let pool_id = Self::get_pair_id(assets);
-		let pool_data = <PoolData<T>>::try_get(&pool_id).map_err(|_| Error::<T>::PoolNotFound)?;
-
-		ensure!(Self::is_pool_running(&pool_data), Error::<T>::SaleIsNotRunning);
-
-		let now = T::BlockNumberProvider::current_block_number();
-		let (weight_in, weight_out) = Self::get_sorted_weight(assets.asset_in, now, &pool_data)?;
-		let asset_in_reserve = T::MultiCurrency::free_balance(assets.asset_in, &pool_id);
-		let asset_out_reserve = T::MultiCurrency::free_balance(assets.asset_out, &pool_id);
-
-		ensure!(
-			amount
-				<= asset_out_reserve
-					.checked_div(T::MaxOutRatio::get())
-					.ok_or(Error::<T>::Overflow)?,
-			Error::<T>::MaxOutRatioExceeded
-		);
-
-		// LBP fee asset is always accumulated asset
-		let fee_asset = pool_data.assets.0;
-
-		// Accumulated asset is bought (out) of the pool for distributed asset (in)
-		// Take accumulated asset (out) sans fee from the pool and send to seller
-		// Take distributed asset (in) from the seller and add to pool
-		// Take fee from the pool and send to fee collector
-		// Buyer bears repay fee
-		if fee_asset == assets.asset_out {
-			let fee = Self::calculate_fees(&pool_data, amount)?;
-			let amount_out_plus_fee = amount.checked_add(fee).ok_or(Error::<T>::Overflow)?;
-
-			let calculated_in = hydra_dx_math::lbp::calculate_in_given_out(
-				asset_in_reserve,
-				asset_out_reserve,
-				weight_in,
-				weight_out,
-				amount_out_plus_fee,
-			)
-			.map_err(|_| Error::<T>::Overflow)?;
-
-			ensure!(
-				calculated_in
-					<= asset_in_reserve
-						.checked_div(T::MaxInRatio::get())
-						.ok_or(Error::<T>::Overflow)?,
-				Error::<T>::MaxInRatioExceeded
-			);
-
-			ensure!(
-				T::MultiCurrency::free_balance(assets.asset_in, who) >= calculated_in,
-				Error::<T>::InsufficientAssetBalance
-			);
-
-			ensure!(max_sold >= calculated_in, Error::<T>::TradingLimitReached);
-
-			Ok(AMMTransfer {
-				origin: who.clone(),
-				assets,
-				amount: calculated_in,
-				amount_b: amount,
-				discount: false,
-				discount_amount: 0_u128,
-				fee: (fee_asset, fee),
-			})
-
-		// Distributed asset is bought (out) of the pool for accumulated asset (in)
-		// Take accumulated asset (in) sans fee from the buyer and send to pool
-		// Take distributed asset (out) from the pool and send to buyer
-		// Take fee from the buyer and send to fee collector
-		// Pool bears repay fee
-		} else {
-			let calculated_in = hydra_dx_math::lbp::calculate_in_given_out(
-				asset_in_reserve,
-				asset_out_reserve,
-				weight_in,
-				weight_out,
-				amount,
-			)
-			.map_err(|_| Error::<T>::Overflow)?;
-
-			let fee = Self::calculate_fees(&pool_data, calculated_in)?;
-			let calculated_in_without_fee = calculated_in.checked_sub(fee).ok_or(Error::<T>::Overflow)?;
-
-			ensure!(
-				calculated_in
-					<= asset_in_reserve
-						.checked_div(T::MaxInRatio::get())
-						.ok_or(Error::<T>::Overflow)?,
-				Error::<T>::MaxInRatioExceeded
-			);
-
-			ensure!(
-				T::MultiCurrency::free_balance(assets.asset_in, who) >= calculated_in,
-				Error::<T>::InsufficientAssetBalance
-			);
-
-			ensure!(max_sold >= calculated_in, Error::<T>::TradingLimitReached);
-
-			Ok(AMMTransfer {
-				origin: who.clone(),
-				assets,
-				amount: calculated_in_without_fee,
-				amount_b: amount,
-				discount: false,
-				discount_amount: 0_u128,
-				fee: (fee_asset, fee),
-			})
-		}
-	}
-
-	fn execute_buy(
-		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, BalanceOf<T>>,
-		_destination: Option<&T::AccountId>,
-	) -> DispatchResult {
-		Self::execute_trade(transfer)?;
-
-		// TODO: Deprecated, remove when ready
-		Self::deposit_event(Event::<T>::BuyExecuted {
-			who: transfer.origin.clone(),
-			asset_out: transfer.assets.asset_out,
-			asset_in: transfer.assets.asset_in,
-			amount: transfer.amount,
-			buy_price: transfer.amount_b,
-			fee_asset: transfer.fee.0,
-			fee_amount: transfer.fee.1,
-		});
-
-		let pool_account = Self::get_pair_id(transfer.assets);
-		let pool = <PoolData<T>>::try_get(&pool_account).map_err(|_| Error::<T>::PoolNotFound)?;
-
-		pallet_broadcast::Pallet::<T>::deposit_trade_event(
-			transfer.origin.clone(),
-			pool_account,
-			pallet_broadcast::types::Filler::LBP,
-			pallet_broadcast::types::TradeOperation::ExactOut,
-			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
-			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
-			vec![Fee {
-				asset: transfer.fee.0,
-				amount: transfer.fee.1,
-				destination: Destination::Account(pool.fee_collector),
-			}],
-		);
-
-		Ok(())
-	}
-
-	fn get_min_trading_limit() -> Balance {
-		T::MinTradingLimit::get()
-	}
-
-	fn get_min_pool_liquidity() -> Balance {
-		T::MinPoolLiquidity::get()
-	}
-
-	fn get_max_in_ratio() -> u128 {
-		T::MaxInRatio::get()
-	}
-
-	fn get_max_out_ratio() -> u128 {
-		T::MaxOutRatio::get()
-	}
-
-	fn get_fee(pool_account_id: &T::AccountId) -> (u32, u32) {
-		let maybe_pool_data = <PoolData<T>>::get(pool_account_id);
-		match maybe_pool_data {
-			Some(pool_data) => pool_data.fee,
-			None => (0, 0),
 		}
 	}
 }
