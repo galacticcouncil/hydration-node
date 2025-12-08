@@ -149,14 +149,6 @@ pub mod pallet {
 		/// Liquidity is zero.
 		ZeroLiquidity,
 
-		/// It is not allowed to create a pool with zero initial price.
-		/// Not used, kept for backward compatibility
-		ZeroInitialPrice,
-
-		/// Overflow
-		/// Not used, kept for backward compatibility
-		CreatePoolAssetAmountInvalid,
-
 		/// Overflow
 		InvalidMintedLiquidity, // No tests - but it is currently not possible this error to occur due to previous checks in the code.
 
@@ -186,22 +178,22 @@ pub mod pallet {
 
 		/// Overflow
 		AddAssetAmountInvalid, // no tests
+
 		/// Overflow
 		RemoveAssetAmountInvalid, // no tests
+
 		/// Overflow
 		SellAssetAmountInvalid, // no tests
+
 		/// Overflow
 		BuyAssetAmountInvalid, // no tests
 
 		/// Overflow
 		FeeAmountInvalid,
 
-		/// Overflow
-		/// Not used, kept for backward compatibility. The discount feature has been deprecated.
-		CannotApplyDiscount,
-
 		/// Max fraction of pool to buy in single transaction has been exceeded.
 		MaxOutRatioExceeded,
+		
 		/// Max fraction of pool to sell in single transaction has been exceeded.
 		MaxInRatioExceeded,
 
