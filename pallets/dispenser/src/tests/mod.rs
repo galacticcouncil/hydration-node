@@ -4,9 +4,9 @@ mod utils;
 use crate::tests::utils::{acct, bounded_chain_id};
 use crate::{self as pallet_dispenser, *};
 use frame_support::assert_ok;
+use frame_support::traits::Everything;
 use frame_support::{parameter_types, traits::Currency as CurrencyTrait, PalletId};
-use frame_system::{self as system, EnsureRoot};
-use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
+use frame_system::{self as system};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrency;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
@@ -16,8 +16,6 @@ use sp_runtime::{
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
 	AccountId32, BuildStorage,
 };
-use std::cell::RefCell;
-use std::collections::HashMap;
 
 extern crate alloc;
 
@@ -98,7 +96,7 @@ impl pallet_balances::Config for Test {
 	type AccountStore = frame_system::Pallet<Test>;
 	type WeightInfo = ();
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = NamedReserveIdentifier;
+	type ReserveIdentifier = ();
 	type FreezeIdentifier = ();
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
@@ -119,6 +117,20 @@ impl pallet_currencies::Config for Test {
 	type GetNativeCurrencyId = HDXAssetId;
 	type WeightInfo = ();
 	type RegistryInspect = MockBoundErc20<Test>;
+}
+
+impl orml_tokens::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type Amount = i128;
+	type CurrencyId = AssetId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type MaxLocks = ();
+	type DustRemovalWhitelist = Everything;
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
+	type CurrencyHooks = ();
 }
 
 impl frame_system::offchain::SigningTypes for Test {
@@ -152,48 +164,6 @@ parameter_types! {
 	pub const SigEthMinFaucetThreshold: u128 = 1;
 }
 
-parameter_types! {
-	pub const HDXAssetId: AssetId = HDX;
-	pub const PosiitionCollectionId: u32= 1000;
-
-	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
-	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
-	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
-	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
-	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
-	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
-	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
-	pub const TVLCap: Balance = Balance::MAX;
-	pub MinWithdrawFee: Permill = Permill::from_percent(0);
-	pub BurnFee: Permill = Permill::from_percent(0);
-}
-
-impl pallet_omnipool::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type AssetId = AssetId;
-	type PositionItemId = u32;
-	type Currency = Tokens;
-	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
-	type HubAssetId = ();
-	type WeightInfo = ();
-	type HdxAssetId = HDXAssetId;
-	type NFTCollectionId = PosiitionCollectionId;
-	type NFTHandler = DummyNFT;
-	type AssetRegistry = DummyRegistry<Test>;
-	type MinimumTradingLimit = MinTradeAmount;
-	type MinimumPoolLiquidity = MinAddedLiquidity;
-	type UpdateTradabilityOrigin = EnsureRoot<Self::AccountId>;
-	type MaxInRatio = MaxInRatio;
-	type MaxOutRatio = MaxOutRatio;
-	type CollectionId = u32;
-	type OmnipoolHooks = ();
-	type PriceBarrier = ();
-	type MinWithdrawalFee = MinWithdrawFee;
-	type ExternalPriceOracle = WithdrawFeePriceOracle;
-	type Fee = ();
-	type BurnProtocolFee = BurnFee;
-}
-
 pub struct SigEthFaucetMpcRoot;
 impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetMpcRoot {
 	fn get() -> [u8; 20] {
@@ -225,21 +195,23 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let charlie = &acct(3);
 	let t = system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	let mut ext = sp_io::TestExternalities::new(t);
+
+	let initial_balance = 1_000_000_000_000_000_000_000;
 	ext.execute_with(|| {
 		System::set_block_number(1);
 
-		let _ = Currencies::deposit(1, alice, 1_000_000_000_000_000_000_000);
-		let _ = Currencies::deposit(1, bob, 1_000_000_000_000_000_000_000);
-		let _ = Currencies::deposit(1, charlie, 1_000_000_000_000_000_000_000);
+		let fee_asset = <Test as pallet_dispenser::Config>::FeeAsset::get();
+		let faucet_asset = <Test as pallet_dispenser::Config>::FaucetAsset::get();
 
-		Balances::make_free_balance_be(
-			&pallet_dispenser::Pallet::<Test>::account_id(),
-			1_000_000_000_000_000_000_000,
-		);
+		let _ = Currencies::deposit(fee_asset, alice, initial_balance);
+		let _ = Currencies::deposit(fee_asset, bob, initial_balance);
+		let _ = Currencies::deposit(fee_asset, charlie, initial_balance);
 
-		let _ = Currencies::deposit(2, alice, 1_000_000_000_000_000_000_000);
-		let _ = Currencies::deposit(2, bob, 1_000_000_000_000_000_000_000);
-		let _ = Currencies::deposit(2, charlie, 1_000_000_000_000_000_000_000);
+		Balances::make_free_balance_be(&pallet_dispenser::Pallet::<Test>::account_id(), initial_balance);
+
+		let _ = Currencies::deposit(faucet_asset, alice, initial_balance);
+		let _ = Currencies::deposit(faucet_asset, bob, initial_balance);
+		let _ = Currencies::deposit(faucet_asset, charlie, initial_balance);
 		let requester = acct(1);
 		assert_ok!(pallet_signet::Pallet::<Test>::initialize(
 			RuntimeOrigin::root(),

@@ -1,4 +1,3 @@
-
 use frame_support::{traits::Currency, weights::Weight};
 
 pub type Balance = u128;
@@ -18,5 +17,3 @@ pub trait WeightInfo {
 	fn pause() -> Weight;
 	fn unpause() -> Weight;
 }
-
-

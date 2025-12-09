@@ -3,11 +3,11 @@
 use super::*;
 use core::ops::Add;
 use frame_benchmarking::v2::*;
-use frame_support::{assert_ok, storage::with_transaction};
+use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use hydradx_traits::{AssetKind, Create};
 use pallet_asset_registry as asset_registry;
-use sp_runtime::{traits::AccountIdConversion, TransactionOutcome};
+use sp_runtime::traits::AccountIdConversion;
 use sp_std::ops::Mul;
 
 fn bench_chain_id<T: Config>() -> BoundedVec<u8, <T as pallet_signet::Config>::MaxChainIdLength> {
@@ -16,13 +16,12 @@ fn bench_chain_id<T: Config>() -> BoundedVec<u8, <T as pallet_signet::Config>::M
 }
 type RegistryStrLimitOf<T> = <T as asset_registry::Config>::StringLimit;
 
-#[benchmarks(where T: Config + asset_registry::Config<AssetId = AssetId>)]
+#[benchmarks(where T: Config)]
 mod benches {
 	use super::*;
 	use alloy_primitives::{Address, U256};
 	use alloy_sol_types::SolCall;
 	use sp_core::H160;
-	use sp_runtime::traits::Scale;
 
 	#[benchmark]
 	fn set_faucet_balance() {
@@ -54,8 +53,6 @@ mod benches {
 
 	#[benchmark]
 	fn request_fund() {
-		// Make sure faucet asset exists with sane ED
-
 		let signet_admin: T::AccountId = whitelisted_caller();
 		let chain_id = super::bench_chain_id::<T>();
 
@@ -66,7 +63,6 @@ mod benches {
 		let fee_asset = T::FeeAsset::get();
 		let faucet_asset = T::FaucetAsset::get();
 
-		// Initialize SigNet
 		let ed_native: BalanceOf<T> = <T as pallet_signet::Config>::Currency::minimum_balance();
 		assert_ok!(pallet_signet::Pallet::<T>::initialize(
 			RawOrigin::Root.into(),
@@ -75,12 +71,10 @@ mod benches {
 			chain_id,
 		));
 
-		// Fund SigNet-related accounts
 		let requester_needed: BalanceOf<T> = ed_native.add(ed_native.mul(10u32.into()));
 		let _ = <T as pallet_signet::Config>::Currency::deposit_creating(&pallet_account, requester_needed);
 		let _ = <T as pallet_signet::Config>::Currency::deposit_creating(&signet_pallet_account, requester_needed);
 
-		// Set high faucet balance in storage (this is purely virtual balance in your pallet)
 		let current_faucet_bal: u128 = u128::MAX - (u32::MAX as u128);
 		assert_ok!(Pallet::<T>::set_faucet_balance(
 			RawOrigin::Root.into(),
@@ -92,7 +86,6 @@ mod benches {
 		let caller: T::AccountId = whitelisted_caller();
 		let treasury = T::FeeDestination::get();
 
-		// ---- MINT FEE ASSET (this was already fine) ----
 		assert_ok!(<T as pallet::Config>::Currency::mint_into(
 			fee_asset,
 			&treasury,
@@ -104,12 +97,9 @@ mod benches {
 			1_000_000_000_000_000_000_000
 		));
 
-		// ---- MINT FAUCET ASSET SAFELY ----
-		// Get existential deposit for the faucet asset:
 		let amount: u128 = 100_000;
 		let faucet_ed = <T as pallet::Config>::Currency::minimum_balance(faucet_asset);
 		let faucet_needed = Mul::mul(faucet_ed, 1000000000000000000);
-		log::info!("--------amount {}", amount);
 
 		assert_ok!(<T as pallet::Config>::Currency::mint_into(
 			faucet_asset,
@@ -179,19 +169,16 @@ where
 {
 	let faucet_asset = TBench::FaucetAsset::get();
 
-	// Arbitrary but valid metadata for the benchmark
 	let name: BoundedVec<u8, RegistryStrLimitOf<TBench>> = b"WETH".to_vec().try_into().expect("name fits StringLimit");
 
-	// Best-effort: if the asset is already registered, this will likely return an error
-	// like AssetAlreadyRegistered, which we can safely ignore in a benchmark setup.
 	let _ = asset_registry::Pallet::<TBench>::register_sufficient_asset(
 		Some(faucet_asset),
 		Some(name),
 		AssetKind::Token,
-		1,        // existential deposit
-		None,     // xcm_asset_id
-		Some(18), // decimals
-		None,     // foreign_id
-		None,     // location
+		1,
+		None,
+		Some(18),
+		None,
+		None,
 	);
 }

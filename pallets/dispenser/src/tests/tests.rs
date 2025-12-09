@@ -1,3 +1,4 @@
+use crate::{self as pallet_dispenser, *};
 use crate::{
 	tests::{
 		new_test_ext,
@@ -74,11 +75,14 @@ fn test_fee_and_asset_routing() {
 		let treasury = <Test as crate::Config>::FeeDestination::get();
 		let pallet_account = Dispenser::account_id();
 
-		let hdx_req_before = Currencies::free_balance(1, &requester);
-		let hdx_treas_before = Currencies::free_balance(1, &treasury);
-		let weth_treas_before = Currencies::free_balance(2, &treasury);
-		let eth_req_before = Currencies::free_balance(2, &requester);
-		let eth_pallet_before = Currencies::free_balance(2, &pallet_account);
+		let fee_asset = <Test as pallet_dispenser::Config>::FeeAsset::get();
+		let faucet_asset = <Test as pallet_dispenser::Config>::FaucetAsset::get();
+
+		let hdx_req_before = Currencies::free_balance(fee_asset, &requester);
+		let hdx_treas_before = Currencies::free_balance(fee_asset, &treasury);
+		let weth_treas_before = Currencies::free_balance(faucet_asset, &treasury);
+		let eth_req_before = Currencies::free_balance(faucet_asset, &requester);
+		let eth_pallet_before = Currencies::free_balance(faucet_asset, &pallet_account);
 
 		assert_ok!(Dispenser::request_fund(
 			RuntimeOrigin::signed(requester.clone()),
@@ -88,11 +92,20 @@ fn test_fee_and_asset_routing() {
 			tx
 		));
 
-		assert_eq!(Currencies::free_balance(1, &requester), hdx_req_before - fee);
-		assert_eq!(Currencies::free_balance(1, &treasury), hdx_treas_before + fee);
-		assert_eq!(Currencies::free_balance(2, &treasury), weth_treas_before + amount);
-		assert_eq!(Currencies::free_balance(2, &requester), eth_req_before - amount);
-		assert_eq!(Currencies::free_balance(2, &pallet_account), eth_pallet_before + 0);
+		assert_eq!(Currencies::free_balance(fee_asset, &requester), hdx_req_before - fee);
+		assert_eq!(Currencies::free_balance(fee_asset, &treasury), hdx_treas_before + fee);
+		assert_eq!(
+			Currencies::free_balance(faucet_asset, &treasury),
+			weth_treas_before + amount
+		);
+		assert_eq!(
+			Currencies::free_balance(faucet_asset, &requester),
+			eth_req_before - amount
+		);
+		assert_eq!(
+			Currencies::free_balance(faucet_asset, &pallet_account),
+			eth_pallet_before + 0
+		);
 	});
 }
 
@@ -144,9 +157,12 @@ fn test_deposit_erc20_success() {
 		let amount = 1_000_000u128;
 		let tx_params = create_test_tx_params();
 
+		let fee_asset = <Test as pallet_dispenser::Config>::FeeAsset::get();
+		let faucet_asset = <Test as pallet_dispenser::Config>::FaucetAsset::get();
+
 		let request_id = compute_request_id(requester.clone(), receiver_address, amount, &tx_params);
-		let hdx_balance_before = Currencies::free_balance(1, &requester);
-		let eth_balance_before = Currencies::free_balance(2, &requester);
+		let hdx_balance_before = Currencies::free_balance(fee_asset, &requester);
+		let eth_balance_before = Currencies::free_balance(faucet_asset, &requester);
 
 		assert_ok!(Dispenser::request_fund(
 			RuntimeOrigin::signed(requester.clone()),
@@ -180,11 +196,14 @@ fn test_deposit_erc20_success() {
 		}));
 
 		assert_eq!(
-			Currencies::free_balance(1, &requester),
+			Currencies::free_balance(fee_asset, &requester),
 			hdx_balance_before - <Test as crate::Config>::DispenserFee::get()
 		);
 
-		assert_eq!(Currencies::free_balance(2, &requester), eth_balance_before - amount);
+		assert_eq!(
+			Currencies::free_balance(faucet_asset, &requester),
+			eth_balance_before - amount
+		);
 	});
 }
 
@@ -284,8 +303,11 @@ fn request_reduces_faucet_balance() {
 		let tx = create_test_tx_params();
 		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
 
-		let hdx_before = Currencies::free_balance(1, &requester);
-		let weth_before = Currencies::free_balance(2, &requester);
+		let fee_asset = <Test as pallet_dispenser::Config>::FeeAsset::get();
+		let faucet_asset = <Test as pallet_dispenser::Config>::FaucetAsset::get();
+
+		let hdx_before = Currencies::free_balance(fee_asset, &requester);
+		let weth_before = Currencies::free_balance(faucet_asset, &requester);
 
 		assert_ok!(Dispenser::request_fund(
 			RuntimeOrigin::signed(requester.clone()),
@@ -299,10 +321,10 @@ fn request_reduces_faucet_balance() {
 		assert_eq!(Dispenser::current_faucet_balance_wei(), expected_balance);
 
 		assert_eq!(
-			Currencies::free_balance(1, &requester),
+			Currencies::free_balance(fee_asset, &requester),
 			hdx_before - <Test as crate::Config>::DispenserFee::get()
 		);
-		assert_eq!(Currencies::free_balance(2, &requester), weth_before - amount);
+		assert_eq!(Currencies::free_balance(faucet_asset, &requester), weth_before - amount);
 	});
 }
 
@@ -350,12 +372,13 @@ fn request_fails_when_insufficient_faucet_balance() {
 		let tx = create_test_tx_params();
 		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
 
+		let fee_asset = <Test as pallet_dispenser::Config>::FeeAsset::get();
+
 		let fee = <Test as crate::Config>::DispenserFee::get();
 
-		assert_ok!(Currencies::deposit(1, &requester, fee));
+		let _ = Currencies::deposit(fee_asset, &requester, 1_000_000_000_000_000_000_000);
 
-		assert_eq!(Currencies::free_balance(1, &requester), fee);
-		assert_eq!(Currencies::free_balance(2, &requester), 0);
+		assert_ok!(Currencies::deposit(1, &requester, fee));
 
 		assert_noop!(
 			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, req_id, tx),
