@@ -3428,5 +3428,4 @@ mod evm_error_decoder {
 
 		error_data
 	}
-
 }
