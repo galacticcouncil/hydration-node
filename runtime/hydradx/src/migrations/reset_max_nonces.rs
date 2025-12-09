@@ -15,8 +15,8 @@
 
 //! Migration to reset nonces from u32::MAX to correct values for affected accounts
 //!
-//! This migration fixes a bug where 1,796 accounts ended up with nonce = u32::MAX (4294967295).
-//! The affected accounts were identified on 2025-12-01 via chain scan.
+//! This migration fixes a bug where 1,802 accounts ended up with nonce = u32::MAX (4294967295).
+//! The affected accounts were identified on 2025-12-09 (1,802 accounts) via chain scans.
 //! Each account's nonce is set to either:
 //! - Their EVM transaction count (if they have an EVM address in the transaction log)
 //! - 0 (if they don't have an EVM address or no transactions found)
@@ -187,8 +187,8 @@ pub mod v1 {
 		}
 	}
 }
-// Generated at: 2025-12-01T17:34:14.835Z
-// Total affected accounts: 1797
+// Generated at: 2025-12-09T06-26-06-529Z
+// Total affected accounts: 1,802
 const AFFECTED_ACCOUNTS: &[(&str, u32)] = &[
 	("12ZuLmUN1XrFfeGcL5fhZfgvpip3Dps7EqwV3swPbZ4ytdD7", 0),
 	("12ZuLmUKUF1gAEejgTpnjN6Qo7nDHAuc3vx43N1vYmdMyVvN", 0),
@@ -1987,4 +1987,9 @@ const AFFECTED_ACCOUNTS: &[(&str, u32)] = &[
 	("12ZuLmUo8EKSc4jQLqzUcwUFPRDbfAjFdex5PYnhtCv5C1Kx", 0),
 	("12ZuLmUa6U4kQaxy5zggwRFsdBNMvKFJAZ2XegibWrn2TPT5", 1),
 	("12ZuLmUUY9gAvxy7NGMC8a7ee67F3FD85Rm2DLzR9rVeNcV2", 0),
+	("12ZuLmUWKxHkxTF8gLEnUKgyacfGkXDKtGoiAYvyEm6oxQef", 0),
+	("12ZuLmUeYANVi6BnbqC6z9K4p7CwbfFnDNSUHAYMXa6muG7n", 0),
+	("12ZuLmUjk8P8yGkCm9enGsMTHaWyFjwY5NrUk1SZ1sUuNr9W", 0),
+	("12ZuLmUysBdRzVxTkqAShRtPnK1r1beTi79kBBiCsrv1Le2T", 0),
+	("12ZuLmV5MYV8S3q1tyCraBBBBetzf1oxNu3tBtHGkWUEMe35", 0),
 ];
