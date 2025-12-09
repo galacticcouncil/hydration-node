@@ -5479,7 +5479,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.9.2"
+version = "1.9.3"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -9902,7 +9902,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.10.4"
+version = "4.11.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10377,7 +10377,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11365,7 +11365,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "7.0.0"
+version = "8.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11392,7 +11392,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk-liquidity-mining"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "frame-support",
  "frame-system",
