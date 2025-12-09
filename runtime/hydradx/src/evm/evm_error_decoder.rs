@@ -31,13 +31,12 @@ impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
 				call_result.value.len(),
 				MAX_ERROR_DATA_LENGTH
 			);
-			let truncated_value = call_result.value[..MAX_ERROR_DATA_LENGTH].to_vec();
-			return dispatch_error_other(truncated_value);
+			return dispatch_error_other(&call_result.value[..MAX_ERROR_DATA_LENGTH]);
 		}
 
 		//Check for data without valid function selector
 		if call_result.value.len() < FUNCTION_SELECTOR_LENGTH {
-			return dispatch_error_other(call_result.value);
+			return dispatch_error_other(&call_result.value);
 		}
 
 		//Try to decode as SCALE-encoded DispatchError from precompiles
@@ -75,11 +74,11 @@ impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
 			}
 		}
 
-		dispatch_error_other(call_result.value)
+		dispatch_error_other(&call_result.value)
 	}
 }
 
-fn dispatch_error_other(value: Vec<u8>) -> DispatchError {
-	let error_string = format!("evm:0x{}", hex::encode(&value));
+fn dispatch_error_other(value: &[u8]) -> DispatchError {
+	let error_string = format!("evm:0x{}", hex::encode(value));
 	DispatchError::Other(Box::leak(error_string.into_boxed_str()))
 }
