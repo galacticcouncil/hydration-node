@@ -241,28 +241,28 @@ impl ExtBuilder {
 
 		let registered_assets = vec![
 			(
-			Some(DOT),
-			Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
-			10_000,
-			Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
-			Some(12),
-			None::<Balance>,
-			true,
+				Some(DOT),
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
+				10_000,
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
+				Some(12),
+				None::<Balance>,
+				true,
 			),
 			(
-					Some(DAI),
-					Some::<BoundedVec<u8, RegistryStringLimit>>(b"DAI".to_vec().try_into().unwrap()),
-					10_000,
-					Some::<BoundedVec<u8, RegistryStringLimit>>(b"DAI".to_vec().try_into().unwrap()),
-					Some(12),
-					None::<Balance>,
-					true,
+				Some(DAI),
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DAI".to_vec().try_into().unwrap()),
+				10_000,
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DAI".to_vec().try_into().unwrap()),
+				Some(12),
+				None::<Balance>,
+				true,
 			),
 		];
 
 		ACCEPTED_FEE_ASSETS.with(|v| {
 			let mut m = v.borrow_mut();
-			for currency in self.accepted_fee_payment_assets{
+			for currency in self.accepted_fee_payment_assets {
 				m.push(currency);
 			}
 		});

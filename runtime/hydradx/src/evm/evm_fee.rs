@@ -288,6 +288,8 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault {
 	}
 
 	fn is_payment_currency(asset_id: Self::AssetId) -> DispatchResult {
-		<pallet_transaction_multi_payment::Pallet<Runtime> as AccountFeeCurrency<AccountId>>::is_payment_currency(asset_id)
+		<pallet_transaction_multi_payment::Pallet<Runtime> as AccountFeeCurrency<AccountId>>::is_payment_currency(
+			asset_id,
+		)
 	}
 }
