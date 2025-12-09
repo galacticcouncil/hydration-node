@@ -156,11 +156,11 @@ impl pallet_signet::Config for Test {
 
 parameter_types! {
 	pub const DispenserPalletId: PalletId = PalletId(*b"py/erc20");
-	pub const SigEthFaucetDispenserFee: u128 = 500;
+	pub const SigEthFaucetDispenserFee: u128 = 10;
 	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000;
 	pub const SigEthFaucetMinRequest: u128 = 100;
 	pub const SigEthFaucetFeeAssetId: AssetId = 0;
-	pub const SigEthFaucetFaucetAssetId: AssetId = 1;
+	pub const SigEthFaucetFaucetAssetId: AssetId = 20;
 	pub const SigEthMinFaucetThreshold: u128 = 1;
 }
 

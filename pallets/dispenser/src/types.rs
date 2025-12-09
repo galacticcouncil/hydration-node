@@ -11,7 +11,6 @@ pub const ECDSA: &[u8] = b"ecdsa";
 pub const ETHEREUM: &[u8] = b"ethereum";
 
 pub trait WeightInfo {
-	fn initialize() -> Weight;
 	fn request_fund() -> Weight;
 	fn set_faucet_balance() -> Weight;
 	fn pause() -> Weight;

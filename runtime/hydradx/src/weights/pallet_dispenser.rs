@@ -6,10 +6,6 @@ pub use pallet_dispenser::weights::*;
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> pallet_dispenser::WeightInfo for HydraWeight<T> {
-	fn initialize() -> Weight {
-		Weight::from_parts(10_000_000, 0)
-	}
-
 	fn request_fund() -> Weight {
 		Weight::from_parts(10_000_000, 0)
 	}

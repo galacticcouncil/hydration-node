@@ -1,26 +1,22 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use core::ops::Add;
 use frame_benchmarking::v2::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use hydradx_traits::{AssetKind, Create};
-use pallet_asset_registry as asset_registry;
 use sp_runtime::traits::AccountIdConversion;
-use sp_std::ops::Mul;
 
 fn bench_chain_id<T: Config>() -> BoundedVec<u8, <T as pallet_signet::Config>::MaxChainIdLength> {
 	let v: Vec<u8> = b"bench-chain".to_vec();
 	BoundedVec::try_from(v).expect("bench-chain fits MaxChainIdLength")
 }
-type RegistryStrLimitOf<T> = <T as asset_registry::Config>::StringLimit;
 
 #[benchmarks(where T: Config)]
 mod benches {
 	use super::*;
 	use alloy_primitives::{Address, U256};
 	use alloy_sol_types::SolCall;
+	use core::ops::{Add, Mul};
 	use sp_core::H160;
 
 	#[benchmark]
@@ -63,10 +59,23 @@ mod benches {
 		let fee_asset = T::FeeAsset::get();
 		let faucet_asset = T::FaucetAsset::get();
 
+		<T as pallet::Config>::Currency::set_balance(fee_asset, &signet_admin, 340266920938463463374607431768211455);
+		<T as pallet::Config>::Currency::set_balance(
+			faucet_asset,
+			&signet_admin,
+			340282366920938463463374607431768211455,
+		);
+		<T as pallet::Config>::Currency::set_balance(fee_asset, &pallet_account, 340266920938463463374607431768211455);
+		<T as pallet::Config>::Currency::set_balance(
+			faucet_asset,
+			&pallet_account,
+			340282366920938463463374607431768211455,
+		);
+
 		let ed_native: BalanceOf<T> = <T as pallet_signet::Config>::Currency::minimum_balance();
 		assert_ok!(pallet_signet::Pallet::<T>::initialize(
 			RawOrigin::Root.into(),
-			signet_admin.clone(),
+			signet_admin,
 			ed_native,
 			chain_id,
 		));
@@ -75,38 +84,16 @@ mod benches {
 		let _ = <T as pallet_signet::Config>::Currency::deposit_creating(&pallet_account, requester_needed);
 		let _ = <T as pallet_signet::Config>::Currency::deposit_creating(&signet_pallet_account, requester_needed);
 
-		let current_faucet_bal: u128 = u128::MAX - (u32::MAX as u128);
+		let current_faucet_bal: u128 = (u64::MAX - 1) as u128;
 		assert_ok!(Pallet::<T>::set_faucet_balance(
 			RawOrigin::Root.into(),
 			current_faucet_bal
 		));
 
-		DispenserConfig::<T>::put(DispenserConfigData { paused: false });
-
 		let caller: T::AccountId = whitelisted_caller();
 		let treasury = T::FeeDestination::get();
 
-		assert_ok!(<T as pallet::Config>::Currency::mint_into(
-			fee_asset,
-			&treasury,
-			1_000_000_000_000_000_000_000
-		));
-		assert_ok!(<T as pallet::Config>::Currency::mint_into(
-			fee_asset,
-			&caller,
-			1_000_000_000_000_000_000_000
-		));
-
 		let amount: u128 = 100_000;
-		let faucet_ed = <T as pallet::Config>::Currency::minimum_balance(faucet_asset);
-		let faucet_needed = Mul::mul(faucet_ed, 1000000000000000000);
-
-		assert_ok!(<T as pallet::Config>::Currency::mint_into(
-			faucet_asset,
-			&caller,
-			faucet_needed
-		));
-
 		let to: [u8; 20] = [1u8; 20];
 
 		let tx = EvmTransactionParams {
@@ -151,8 +138,8 @@ mod benches {
 			60,
 			0,
 			&path_bytes,
-			ECDSA,
-			ETHEREUM,
+			b"ecdsa",
+			b"ethereum",
 			b"",
 		);
 
@@ -161,24 +148,4 @@ mod benches {
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Test);
-}
-
-fn ensure_faucet_asset_registered<TBench>()
-where
-	TBench: Config + asset_registry::Config<AssetId = AssetId>,
-{
-	let faucet_asset = TBench::FaucetAsset::get();
-
-	let name: BoundedVec<u8, RegistryStrLimitOf<TBench>> = b"WETH".to_vec().try_into().expect("name fits StringLimit");
-
-	let _ = asset_registry::Pallet::<TBench>::register_sufficient_asset(
-		Some(faucet_asset),
-		Some(name),
-		AssetKind::Token,
-		1,
-		None,
-		Some(18),
-		None,
-		None,
-	);
 }
