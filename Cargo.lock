@@ -9443,7 +9443,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -14641,7 +14641,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.57.2"
+version = "1.57.3"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
