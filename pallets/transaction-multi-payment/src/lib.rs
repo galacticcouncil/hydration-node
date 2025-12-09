@@ -849,6 +849,21 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 	fn set(who: &T::AccountId, asset_id: Self::AssetId) -> DispatchResult {
 		Self::do_set_currency(who, asset_id)
 	}
+	fn is_payment_currency(currency: Self::AssetId) -> DispatchResult {
+		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
+			ensure!(
+				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
+				Error::<T>::UnsupportedCurrency
+			);
+		} else {
+			ensure!(
+				T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
+				Error::<T>::UnsupportedCurrency
+			);
+		}
+
+		Ok(())
+	}
 }
 
 pub struct NoCallCurrency<T>(PhantomData<T>);

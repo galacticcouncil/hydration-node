@@ -363,8 +363,8 @@ impl pallet_currencies::Config for Test {
 
 pub struct EvmNonceProvider;
 impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
-	fn get_nonce(_: sp_core::H160) -> sp_core::U256 {
-		sp_core::U256::zero()
+	fn get_nonce(_: H160) -> U256 {
+		U256::zero()
 	}
 }
 
@@ -376,6 +376,9 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
 		unimplemented!()
 	}
 	fn set(_who: &AccountId, _asset_id: Self::AssetId) -> DispatchResult {
+		unimplemented!()
+	}
+	fn is_payment_currency(_asset_id: AssetId) -> DispatchResult {
 		unimplemented!()
 	}
 }

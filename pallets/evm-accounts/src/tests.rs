@@ -531,3 +531,34 @@ fn validate_unsigned_should_pass_if_signature_is_invalid() {
 		});
 	});
 }
+
+#[test]
+fn validate_unsigned_should_fail_if_asset_is_not_valid_fee_payment_asset() {
+	ExtBuilder::default()
+		.build()
+		.execute_with(|| {
+		// Arrange
+		let pair = sp_core::sr25519::Pair::from_seed_slice([1; 64].as_slice()).unwrap();
+		let account = frame_support::sp_runtime::MultiSigner::from(pair.public()).into_account();
+
+		assert_ok!(Currencies::deposit(DAI, &account, INITIAL_BALANCE));
+
+		// Remove account from the system pallet, but keep DOT balance in the tokens pallet
+		frame_system::Account::<Test>::remove(account.clone());
+		assert!(!System::account_exists(&account));
+
+		let signature = sign_message::<Test>(pair, &account, DAI);
+
+		let call = Call::claim_account {
+			account,
+			asset_id: DAI,
+			signature,
+		};
+
+		// Act & Assert
+		assert_storage_noop!({
+			let res = EVMAccounts::validate_unsigned(TransactionSource::Local, &call);
+			assert_noop!(res, TransactionValidityError::Invalid(InvalidTransaction::Call));
+		});
+	});
+}

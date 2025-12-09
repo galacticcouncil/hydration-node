@@ -478,6 +478,9 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
 	fn set(_who: &AccountId, _asset_id: Self::AssetId) -> DispatchResult {
 		unimplemented!()
 	}
+	fn is_payment_currency(_asset_id: Self::AssetId) -> DispatchResult {
+		unimplemented!()
+	}
 }
 
 impl pallet_evm_accounts::Config for Test {

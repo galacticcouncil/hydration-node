@@ -445,13 +445,15 @@ where
 		let msg = Self::create_claim_account_message(account, asset_id);
 
 		ensure!(
-			!frame_system::Pallet::<T>::account_exists(&account),
-			Error::<T>::AccountAlreadyExists
-		);
-
-		ensure!(
 			signature.verify(msg.as_slice(), &account.clone().into()),
 			Error::<T>::InvalidSignature
+		);
+
+		T::FeeCurrency::is_payment_currency(asset_id)?;
+
+		ensure!(
+			!frame_system::Pallet::<T>::account_exists(&account),
+			Error::<T>::AccountAlreadyExists
 		);
 
 		ensure!(

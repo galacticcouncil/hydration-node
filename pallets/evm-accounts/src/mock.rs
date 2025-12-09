@@ -31,10 +31,12 @@ pub const ALICE: AccountId = AccountId::new([1; 32]);
 
 pub const HDX: AssetId = 0;
 pub const DOT: AssetId = 3;
+pub const DAI: AssetId = 4;
 
 thread_local! {
 	pub static NONCE: RefCell<HashMap<H160, U256>> = RefCell::new(HashMap::default());
 	pub static FEE_ASSET: RefCell<HashMap<AccountId, AssetId>> = RefCell::new(HashMap::default());
+	pub static ACCEPTED_FEE_ASSETS: RefCell<Vec<AssetId>> = RefCell::new(Vec::default());
 }
 
 frame_support::construct_runtime!(
@@ -77,6 +79,15 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
 			v.borrow_mut().insert(who.clone(), asset_id);
 		});
 		Ok(())
+	}
+	fn is_payment_currency(asset_id: Self::AssetId) -> DispatchResult {
+		ACCEPTED_FEE_ASSETS.with(|v| {
+			if v.borrow().contains(&asset_id) {
+				Ok(())
+			} else {
+				Err("Not a payment currency".into())
+			}
+		})
 	}
 }
 
@@ -205,6 +216,7 @@ impl pallet_asset_registry::Config for Test {
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
+	accepted_fee_payment_assets: Vec<AssetId>,
 }
 
 impl Default for ExtBuilder {
@@ -218,6 +230,7 @@ impl Default for ExtBuilder {
 
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_BALANCE)],
+			accepted_fee_payment_assets: vec![HDX, DOT],
 		}
 	}
 }
@@ -226,7 +239,8 @@ impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
-		let registered_assets = vec![(
+		let registered_assets = vec![
+			(
 			Some(DOT),
 			Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
 			10_000,
@@ -234,7 +248,24 @@ impl ExtBuilder {
 			Some(12),
 			None::<Balance>,
 			true,
-		)];
+			),
+			(
+					Some(DAI),
+					Some::<BoundedVec<u8, RegistryStringLimit>>(b"DAI".to_vec().try_into().unwrap()),
+					10_000,
+					Some::<BoundedVec<u8, RegistryStringLimit>>(b"DAI".to_vec().try_into().unwrap()),
+					Some(12),
+					None::<Balance>,
+					true,
+			),
+		];
+
+		ACCEPTED_FEE_ASSETS.with(|v| {
+			let mut m = v.borrow_mut();
+			for currency in self.accepted_fee_payment_assets{
+				m.push(currency);
+			}
+		});
 
 		pallet_asset_registry::GenesisConfig::<Test> {
 			registered_assets,
