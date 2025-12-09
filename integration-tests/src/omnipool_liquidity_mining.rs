@@ -2354,12 +2354,6 @@ fn price_adjustment_adapter_should_use_routed_oracle() {
 		});
 }
 
-// O(mn) unfortunately
-// We don't care for duplicates or order
-fn is_subset<T: PartialEq>(superset: &[T], subset: &[T]) -> bool {
-	subset.iter().all(|item| superset.contains(item))
-}
-
 pub fn expect_reward_claimed_events(e: Vec<RuntimeEvent>) {
 	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(10);
 
