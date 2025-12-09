@@ -168,7 +168,10 @@ impl<T: Config> Pallet<T> {
 
 		let solution = solve(intents.encode(), state.encode());
 
-		// TODO: if solution, create submit_solution call
+
+		// TODO: if solution,
+		// 1. calculate score
+		// 2. create submit_solution call
 
 		None
 	}
