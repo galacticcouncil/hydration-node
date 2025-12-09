@@ -130,7 +130,7 @@ impl pallet_balances::Config for Test {
 parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
 	pub const MaxChainIdLength: u32 = 128;
-	pub const MaxSignatureDeposit: u32 = 0;
+	pub const MaxSignatureDeposit: u32 = 10000000;
 }
 
 impl pallet_signet::Config for Test {
