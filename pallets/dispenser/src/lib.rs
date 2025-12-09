@@ -32,7 +32,7 @@ pub mod types;
 pub mod weights;
 
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 pub use pallet::*;
 pub use types::*;

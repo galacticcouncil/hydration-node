@@ -1,5 +1,4 @@
 use frame_support::weights::Weight;
-use sp_runtime::traits::Get;
 use sp_std::marker::PhantomData;
 
 pub use pallet_dispenser::weights::*;

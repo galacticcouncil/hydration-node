@@ -1,16 +1,12 @@
-mod tests;
+pub mod tests;
 mod utils;
 
 use crate::tests::utils::{acct, bounded_chain_id};
 use crate::{self as pallet_dispenser, *};
-
 use frame_support::assert_ok;
-use frame_support::{
-	parameter_types,
-	traits::{Currency as CurrencyTrait, Nothing},
-	PalletId,
-};
-use frame_system as system;
+use frame_support::{parameter_types, traits::Currency as CurrencyTrait, PalletId};
+use frame_system::{self as system, EnsureRoot};
+use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrency;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
@@ -20,6 +16,8 @@ use sp_runtime::{
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
 	AccountId32, BuildStorage,
 };
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 extern crate alloc;
 
@@ -82,30 +80,12 @@ parameter_type_with_key! {
 	};
 }
 
-impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type Amount = Amount;
-	type CurrencyId = AssetId;
-	type WeightInfo = ();
-	type ExistentialDeposits = ExistentialDeposits;
-	type MaxLocks = ();
-	type DustRemovalWhitelist = Nothing;
-	type ReserveIdentifier = NamedReserveIdentifier;
-	type MaxReserves = MaxReserves;
-	type CurrencyHooks = ();
-}
-
 parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
 	pub const MaxChainIdLength: u32 = 128;
-
 	pub const MaxReserves: u32 = 50;
-
 	pub const ExistentialDeposit: u128 = 1;
-
 	pub const HDXAssetId: AssetId = HDX;
-
   pub const TreasuryPalletId: PalletId = PalletId(*b"py/treas");
 }
 
@@ -167,10 +147,51 @@ parameter_types! {
 	pub const SigEthFaucetDispenserFee: u128 = 500;
 	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000;
 	pub const SigEthFaucetMinRequest: u128 = 100;
-	pub const SigEthFaucetFeeAssetId: AssetId = 1;
-	pub const SigEthFaucetFaucetAssetId: AssetId = 2;
+	pub const SigEthFaucetFeeAssetId: AssetId = 0;
+	pub const SigEthFaucetFaucetAssetId: AssetId = 1;
 	pub const SigEthMinFaucetThreshold: u128 = 1;
+}
 
+parameter_types! {
+	pub const HDXAssetId: AssetId = HDX;
+	pub const PosiitionCollectionId: u32= 1000;
+
+	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
+	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
+	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
+	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
+	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
+	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
+	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
+	pub const TVLCap: Balance = Balance::MAX;
+	pub MinWithdrawFee: Permill = Permill::from_percent(0);
+	pub BurnFee: Permill = Permill::from_percent(0);
+}
+
+impl pallet_omnipool::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type PositionItemId = u32;
+	type Currency = Tokens;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
+	type HubAssetId = ();
+	type WeightInfo = ();
+	type HdxAssetId = HDXAssetId;
+	type NFTCollectionId = PosiitionCollectionId;
+	type NFTHandler = DummyNFT;
+	type AssetRegistry = DummyRegistry<Test>;
+	type MinimumTradingLimit = MinTradeAmount;
+	type MinimumPoolLiquidity = MinAddedLiquidity;
+	type UpdateTradabilityOrigin = EnsureRoot<Self::AccountId>;
+	type MaxInRatio = MaxInRatio;
+	type MaxOutRatio = MaxOutRatio;
+	type CollectionId = u32;
+	type OmnipoolHooks = ();
+	type PriceBarrier = ();
+	type MinWithdrawalFee = MinWithdrawFee;
+	type ExternalPriceOracle = WithdrawFeePriceOracle;
+	type Fee = ();
+	type BurnProtocolFee = BurnFee;
 }
 
 pub struct SigEthFaucetMpcRoot;
@@ -181,11 +202,6 @@ impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetMpcRoot {
 			0x93, 0xbc,
 		]
 	}
-}
-
-impl frame_system::offchain::SendTransactionTypes<RuntimeCall> for Test {
-	type OverarchingCall = RuntimeCall;
-	type Extrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 }
 
 impl pallet_dispenser::Config for Test {

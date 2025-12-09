@@ -16,7 +16,7 @@ sp-std = { workspace = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
-
+hydradx-traits = { workspace = true }
 
 # Ethereum ABI encoding
 alloy-sol-types = { workspace = true, default-features = false, features = ["json"] }
@@ -27,6 +27,7 @@ pallet-signet = { path = "../signet", default-features = false }
 pallet-currencies = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, optional = true }
 log = { version = "0.4", default-features = false }
+pallet-asset-registry = { workspace = true }
 
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
