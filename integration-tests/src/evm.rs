@@ -3358,8 +3358,75 @@ mod evm_error_decoder {
 				};
 
 				let _result = EvmErrorDecoder::convert(call_result.clone());
-				DispatchError::decode_with_depth_limit(MAX_DECODE_DEPTH, &mut &call_result.value[..]);
+
+				let _ = DispatchError::decode_with_depth_limit(MAX_DECODE_DEPTH, &mut &call_result.value[..]);
 			}
 		}
 	}
+
+	#[test]
+	fn test_aave_error_with_exact_70_bytes_length() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let error_data = create_aave_error_with_exact_length(b"35");
+			pretty_assertions::assert_eq!(error_data.len(), 70, "Error data must be exactly 70 bytes");
+
+			let call_result = CallResult {
+				exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+				value: error_data,
+				contract: hydradx_runtime::Liquidation::get(),
+			};
+
+			let result = EvmErrorDecoder::convert(call_result);
+
+			pretty_assertions::assert_eq!(
+				result,
+				pallet_dispatcher::Error::<hydradx_runtime::Runtime>::AaveHealthFactorLowerThanLiquidationThreshold
+					.into()
+			);
+		});
+	}
+
+	#[test]
+	fn test_non_aave_contract_with_70_bytes_falls_back_to_generic() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			// With non-AAVE contract address, should fall back to generic error
+			let error_data = create_aave_error_with_exact_length(b"35");
+
+			let call_result = CallResult {
+				exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+				value: error_data,
+				contract: H160::from_low_u64_be(12345), // Different contract
+			};
+
+			let result = EvmErrorDecoder::convert(call_result);
+
+			assert!(matches!(result, DispatchError::Other(_)));
+		});
+	}
+
+	fn create_aave_error_with_exact_length(error_code: &[u8; 2]) -> Vec<u8> {
+		let mut error_data = vec![0u8; 70];
+
+		// Set Error(string) selector [0x08, 0xC3, 0x79, 0xA0]
+		error_data[0..4].copy_from_slice(&[0x08, 0xC3, 0x79, 0xA0]);
+
+		// Bytes 4-65: padding (62 bytes of zeros is fine for testing)
+
+		// Bytes 66-67: Error string length marker [0x00, 0x02]
+		error_data[66] = 0x00;
+		error_data[67] = 0x02;
+
+		// Bytes 68-69: Error code (e.g., b"35")
+		error_data[68] = error_code[0];
+		error_data[69] = error_code[1];
+
+		assert!(error_data.len() == 70, "Error data must be exactly 70 bytes");
+
+		error_data
+	}
+
 }
