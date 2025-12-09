@@ -73,7 +73,7 @@ use pallet_staking::{
 	types::{Action, Point},
 	SigmoidPercentage,
 };
-use pallet_transaction_multi_payment::{AddTxAssetOnAccount, AssetIdOf, Call, Config, RemoveTxAssetOnKilled};
+use pallet_transaction_multi_payment::{AddTxAssetOnAccount, AssetIdOf, RemoveTxAssetOnKilled};
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use primitives::constants::{
 	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, XYK_SOURCE},
@@ -1695,7 +1695,6 @@ impl pallet_lbp::Config for Runtime {
 
 parameter_types! {
 	pub XYKExchangeFee: (u32, u32) = (3, 1_000);
-	pub const DiscountedFee: (u32, u32) = (7, 10_000);
 	pub const XYKOracleSourceIdentifier: Source = XYK_SOURCE;
 }
 
@@ -1713,7 +1712,6 @@ impl pallet_xyk::Config for Runtime {
 	type MaxOutRatio = MaxOutRatio;
 	type CanCreatePool = hydradx_adapters::xyk::AllowPoolCreation<Runtime, AssetRegistry>;
 	type AMMHandler = pallet_ema_oracle::OnActivityHandler<Runtime>;
-	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = Duster;
 	type OracleSource = XYKOracleSourceIdentifier;
 }
@@ -2075,14 +2073,7 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 		max_limit: Balance,
 		dest: &AccountId,
 	) -> DispatchResult {
-		XYK::buy_for(
-			origin,
-			pallet_xyk::types::AssetPair { asset_in, asset_out },
-			amount,
-			max_limit,
-			false,
-			dest,
-		)
+		XYK::buy_for(origin, AssetPair { asset_in, asset_out }, amount, max_limit, dest)
 	}
 }
 
