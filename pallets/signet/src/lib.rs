@@ -37,8 +37,9 @@ const EIP1559_TX_TYPE: u8 = 0x02;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
 
+pub mod types;
 pub mod weights;
-pub use weights::WeightInfo;
+pub use types::WeightInfo;
 
 #[cfg(test)]
 pub mod tests;
@@ -414,7 +415,7 @@ pub mod pallet {
 
 		/// Respond to signature requests (batch support)
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::respond(request_ids.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::respond())]
 		pub fn respond(
 			origin: OriginFor<T>,
 			request_ids: BoundedVec<[u8; 32], ConstU32<MAX_BATCH_SIZE>>,
@@ -439,7 +440,7 @@ pub mod pallet {
 
 		/// Report signature generation errors (batch support)
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::respond_error(errors.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::respond_error())]
 		pub fn respond_error(
 			origin: OriginFor<T>,
 			errors: BoundedVec<ErrorResponse, ConstU32<MAX_BATCH_SIZE>>,

@@ -36,7 +36,7 @@ use core::marker::PhantomData;
 
 /// Weight functions for `pallet_signet`.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_signet::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 	/// Storage: `Signet::Admin` (r:1 w:1)
 	/// Proof: `Signet::Admin` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
 	/// Storage: `Signet::SignatureDeposit` (r:0 w:1)
