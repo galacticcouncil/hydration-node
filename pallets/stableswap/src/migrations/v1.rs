@@ -5,6 +5,8 @@ use frame_support::traits::UncheckedOnRuntimeUpgrade;
 use frame_support::Blake2_128Concat;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
+use sp_runtime::traits::Saturating;
+use sp_runtime::FixedU128;
 use sp_runtime::Perbill;
 use types::BoundedPegSources;
 
@@ -35,7 +37,7 @@ mod unversioned {
 	pub struct InnerMigrateV0ToV1<T: crate::Config>(core::marker::PhantomData<T>);
 }
 
-impl<T: crate::Config> UncheckedOnRuntimeUpgrade for unversioned::InnerMigrateV0ToV1<T> {
+impl<T: crate::Config<AssetId = u32>> UncheckedOnRuntimeUpgrade for unversioned::InnerMigrateV0ToV1<T> {
 	fn on_runtime_upgrade() -> frame_support::weights::Weight {
 		log::info!(target: LOG_TARGET, "v0->v1 migration started");
 
@@ -74,12 +76,19 @@ impl<T: crate::Config> UncheckedOnRuntimeUpgrade for unversioned::InnerMigrateV0
 				.min()
 				.unwrap_or(current_block.saturated_into());
 
+			let max_peg_update = if k == 690 {
+				//GDOT
+				peg_info_v0.max_peg_update.int_mul(60)
+			} else {
+				peg_info_v0.max_peg_update.int_mul(20)
+			};
+
 			let (trade_fee, new_pegs) = if let Some(p) = hydra_dx_math::stableswap::recalculate_pegs(
 				&peg_info_v0.current,
 				current_pegs_updated_at,
 				&target_pegs,
 				current_block.saturated_into::<u128>(),
-				peg_info_v0.max_peg_update,
+				max_peg_update,
 				pool.fee,
 			) {
 				p
