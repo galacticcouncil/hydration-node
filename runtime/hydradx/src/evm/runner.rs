@@ -164,12 +164,9 @@ where
 			config,
 		)?;
 
-		if validate && is_transactional && !(nonce.is_some() || max_priority_fee_per_gas.is_some()) {
+		if validate && is_transactional && nonce.is_none() && max_priority_fee_per_gas.is_none() {
 			let current_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
-			debug_assert_eq!(
-				current_nonce,
-				original_nonce + <T as frame_system::Config>::Nonce::one()
-			);
+			debug_assert!(current_nonce > original_nonce);
 			frame_system::Account::<T>::mutate(source_account_id, |a| a.nonce = original_nonce);
 		}
 

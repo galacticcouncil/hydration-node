@@ -915,3 +915,162 @@ fn dispatch_evm_call_with_failing_signed_batch_should_increase_nonce_once() {
 		);
 	});
 }
+
+// Nonce tests
+
+fn dispatch_evm_call_with_params(is_batch: bool, max_priority_fee_per_gas: Option<U256>, nonce: Option<U256>) {
+	// Arrange: Deploy a valid contract to interact with
+	let contract = crate::utils::contracts::deploy_contract("HydraToken", crate::contracts::deployer());
+
+	// Arrange
+	let account = MockAccount::new(evm_account());
+
+	// Fund WETH for EVM gas and set WETH as fee currency for simplicity
+	assert_ok!(hydradx_runtime::Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		account.address(),
+		WETH,
+		to_ether(1).try_into().unwrap(),
+	));
+
+	assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+		RuntimeOrigin::signed(account.address()),
+		WETH,
+	));
+
+	// Build two identical EVM calls dispatched via the Dispatcher pallet
+	let inner_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_evm_call {
+		call: Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
+			source: evm_address(),
+			target: contract,
+			input: hex!["06fdde03"].to_vec(), // name() function selector
+			value: U256::zero(),
+			gas_limit: 1_000_000,
+			max_fee_per_gas: gas_price(),
+			max_priority_fee_per_gas,
+			nonce,
+			access_list: vec![],
+		})),
+	});
+	let mut call = inner_call.clone();
+	if is_batch {
+		call = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![inner_call.clone(), inner_call.clone()],
+		});
+	}
+
+	// Encode and execute via Executive
+	let data = call.encode();
+	let mut handle = create_dispatch_handle(data);
+	let precompiles = HydraDXPrecompiles::<hydradx_runtime::Runtime>::new();
+	let result = precompiles.execute(&mut handle).unwrap();
+
+	// The precompile should stop successfully
+	assert_eq!(
+		result,
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Stopped,
+			output: Default::default()
+		})
+	);
+}
+
+#[test]
+fn dispatch_evm_call_without_batch_should_increase_nonce_correctly() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let account = MockAccount::new(evm_account());
+
+		// Record system nonce before dispatch
+		let initial_nonce = account.nonce();
+
+		// EVM & permit nonces before
+		let initial_evm_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address());
+		let initial_permit_nonce =
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				evm_address(),
+			);
+
+		// No increment
+		dispatch_evm_call_with_params(false, None, None);
+		assert_eq!(account.nonce(), initial_nonce);
+		assert_eq!(evm::EvmNonceProvider::get_nonce(evm_address()), initial_evm_nonce);
+
+		// Should increment
+		dispatch_evm_call_with_params(false, Some(15_000.into()), None);
+		let last_evm_nonce = evm::EvmNonceProvider::get_nonce(evm_address());
+
+		assert_eq!(account.nonce(), initial_nonce + 1);
+		assert_eq!(last_evm_nonce, initial_evm_nonce + 1);
+
+		// Should increment
+		dispatch_evm_call_with_params(false, None, Some(last_evm_nonce.into()));
+		let last_evm_nonce = evm::EvmNonceProvider::get_nonce(evm_address());
+
+		assert_eq!(account.nonce(), initial_nonce + 2);
+		assert_eq!(last_evm_nonce, initial_evm_nonce + 2);
+
+		// Should increment
+		dispatch_evm_call_with_params(false, Some(15_000.into()), Some(last_evm_nonce.into()));
+		assert_eq!(account.nonce(), initial_nonce + 3);
+		assert_eq!(evm::EvmNonceProvider::get_nonce(evm_address()), initial_evm_nonce + 3);
+
+		// We didn't use permit at all. Should stay unchanged
+		assert_eq!(
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				evm_address()
+			),
+			initial_permit_nonce
+		);
+	});
+}
+
+#[test]
+fn dispatch_evm_call_with_batch_should_increase_nonce_correctly() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let account = MockAccount::new(evm_account());
+
+		// Record system nonce before dispatch
+		let initial_nonce = account.nonce();
+
+		// EVM & permit nonces before
+		let initial_evm_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address());
+		let initial_permit_nonce =
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				evm_address(),
+			);
+
+		// No increment
+		dispatch_evm_call_with_params(true, None, None);
+		assert_eq!(account.nonce(), initial_nonce);
+		assert_eq!(evm::EvmNonceProvider::get_nonce(evm_address()), initial_evm_nonce);
+
+		// Shouldn't happen
+		dispatch_evm_call_with_params(true, Some(15_000.into()), None);
+		let last_evm_nonce = evm::EvmNonceProvider::get_nonce(evm_address());
+
+		assert_eq!(account.nonce(), initial_nonce + 1);
+		assert_eq!(last_evm_nonce, initial_evm_nonce + 1);
+
+		// Shouldn't happen
+		dispatch_evm_call_with_params(true, None, Some(last_evm_nonce.into()));
+		let last_evm_nonce = evm::EvmNonceProvider::get_nonce(evm_address());
+
+		assert_eq!(account.nonce(), initial_nonce + 2);
+		assert_eq!(last_evm_nonce, initial_evm_nonce + 2);
+
+		// Shouldn't happen
+		dispatch_evm_call_with_params(true, Some(15_000.into()), Some(last_evm_nonce.into()));
+		assert_eq!(account.nonce(), initial_nonce + 3);
+		assert_eq!(evm::EvmNonceProvider::get_nonce(evm_address()), initial_evm_nonce + 3);
+
+		// We didn't use permit at all. Should stay unchanged
+		assert_eq!(
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				evm_address()
+			),
+			initial_permit_nonce
+		);
+	});
+}
