@@ -261,7 +261,6 @@ parameter_types! {
 
 	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
 	pub XYKExchangeFee: (u32, u32) = (3, 1_000);
-	pub const DiscountedFee: (u32, u32) = (7, 10_000);
 }
 
 impl pallet_xyk::Config for Test {
@@ -279,7 +278,6 @@ impl pallet_xyk::Config for Test {
 	type OracleSource = ();
 	type CanCreatePool = DummyCanCreatePool;
 	type AMMHandler = ();
-	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = DummyDuster;
 }
 

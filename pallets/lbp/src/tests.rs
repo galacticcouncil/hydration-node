@@ -1698,8 +1698,6 @@ fn execute_trade_should_work() {
 			assets: AssetPair { asset_in, asset_out },
 			amount: amount_in,
 			amount_b,
-			discount: false,
-			discount_amount: 0_u128,
 			fee: (asset_in, 1_000),
 		};
 
@@ -1726,8 +1724,6 @@ fn execute_trade_should_work() {
 			assets: AssetPair { asset_in, asset_out },
 			amount: amount_in,
 			amount_b,
-			discount: false,
-			discount_amount: 0_u128,
 			fee: (asset_in, 1_000),
 		};
 
@@ -1754,8 +1750,6 @@ fn trade_fails_when_first_fee_lesser_than_existential_deposit() {
 			},
 			amount: 1000,
 			amount_b: 1000,
-			discount: false,
-			discount_amount: 0_u128,
 			fee: (KUSD, EXISTENTIAL_DEPOSIT - 1),
 		};
 
@@ -1781,8 +1775,6 @@ fn execute_trade_should_not_work() {
 			assets: AssetPair { asset_in, asset_out },
 			amount: amount_in,
 			amount_b,
-			discount: false,
-			discount_amount: 0_u128,
 			fee: (asset_in, 1_000),
 		};
 
@@ -1819,8 +1811,6 @@ fn execute_sell_should_work() {
 			assets: AssetPair { asset_in, asset_out },
 			amount: amount_in,
 			amount_b,
-			discount: false,
-			discount_amount: 0_u128,
 			fee: (asset_in, 1_000),
 		};
 
@@ -1878,8 +1868,6 @@ fn execute_sell_should_not_work() {
 			},
 			amount: 8_000_000_000_u128,
 			amount_b: 200_000_000_000_000_u128,
-			discount: false,
-			discount_amount: 0_u128,
 			fee: (KUSD, 1_000),
 		};
 
@@ -1953,8 +1941,6 @@ fn execute_buy_should_work() {
 			assets: AssetPair { asset_in, asset_out },
 			amount: amount_in,
 			amount_b,
-			discount: false,
-			discount_amount: 0_u128,
 			fee: (asset_in, 1_000),
 		};
 
@@ -2017,8 +2003,6 @@ fn execute_buy_should_not_work() {
 			assets: AssetPair { asset_in, asset_out },
 			amount: amount_in,
 			amount_b,
-			discount: false,
-			discount_amount: 0_u128,
 			fee: (asset_in, 1_000),
 		};
 
@@ -2092,7 +2076,7 @@ fn exceed_max_in_ratio_should_not_work() {
 				Origin::signed(BOB),
 				KUSD,
 				BSX,
-				1_000_000_000 / LBPPallet::get_max_in_ratio() + 1,
+				1_000_000_000 / <Test as Config>::MaxInRatio::get() + 1,
 				200_000_u128
 			),
 			Error::<Test>::MaxInRatioExceeded
@@ -2109,7 +2093,7 @@ fn exceed_max_in_ratio_should_not_work() {
 			Origin::signed(BOB),
 			KUSD,
 			BSX,
-			1_000_000_000 / LBPPallet::get_max_in_ratio(),
+			1_000_000_000 / <Test as Config>::MaxInRatio::get(),
 			2_000_u128
 		));
 	});
@@ -2126,7 +2110,7 @@ fn exceed_max_out_ratio_should_not_work() {
 				Origin::signed(BOB),
 				BSX,
 				KUSD,
-				2_000_000_000 / LBPPallet::get_max_out_ratio() + 1,
+				2_000_000_000 / <Test as Config>::MaxOutRatio::get() + 1,
 				200_000_u128
 			),
 			Error::<Test>::MaxOutRatioExceeded
@@ -2994,165 +2978,6 @@ fn amm_trait_should_work() {
 
 		assert_eq!(LBPPallet::get_pool_assets(&KUSD_BSX_POOL_ID), Some(vec![KUSD, BSX]));
 		assert_eq!(LBPPallet::get_pool_assets(&HDX_BSX_POOL_ID), None);
-
-		// calculate_spot_price is tested in get_spot_price_should_work
-		// execute_sell and execute_buy is tested in execute_sell_should_work and execute_buy_should_work
-
-		let who = BOB;
-		let amount_in = 1_000_000;
-		let sell_limit = 100_000;
-		let pool_id = LBPPallet::get_pair_id(asset_pair);
-		let pool_data = LBPPallet::pool_data(pool_id).unwrap();
-
-		let fee = LBPPallet::calculate_fees(&pool_data, amount_in).unwrap();
-
-		let t_sell = AMMTransfer {
-			origin: who,
-			assets: asset_pair,
-			amount: amount_in - fee,
-			amount_b: 563_741,
-			discount: false,
-			discount_amount: 0_u128,
-			fee: (asset_pair.asset_in, fee),
-		};
-
-		assert_eq!(
-			LBPPallet::validate_sell(&who, asset_pair, amount_in, sell_limit, false).unwrap(),
-			t_sell
-		);
-
-		let amount_b = 1_000_000;
-		let buy_limit = 10_000_000;
-		let t_buy = AMMTransfer {
-			origin: who,
-			assets: asset_pair,
-			amount: 1_771_197,
-			amount_b,
-			discount: false,
-			discount_amount: 0_u128,
-			fee: (asset_pair.asset_in, 3_548),
-		};
-		assert_eq!(
-			LBPPallet::validate_buy(&who, asset_pair, amount_in, buy_limit, false).unwrap(),
-			t_buy
-		);
-
-		assert_eq!(
-			LBPPallet::get_min_trading_limit(),
-			<Test as Config>::MinTradingLimit::get()
-		);
-		assert_eq!(
-			LBPPallet::get_min_pool_liquidity(),
-			<Test as Config>::MinPoolLiquidity::get()
-		);
-		assert_eq!(LBPPallet::get_max_in_ratio(), <Test as Config>::MaxInRatio::get());
-		assert_eq!(LBPPallet::get_max_out_ratio(), <Test as Config>::MaxOutRatio::get());
-
-		assert_ok!(LBPPallet::create_pool(
-			Origin::root(),
-			ALICE,
-			HDX,
-			1_000_000_000,
-			BSX,
-			2_000_000_000,
-			20_000_000,
-			80_000_000,
-			WeightCurveType::Linear,
-			(400, 1_000),
-			CHARLIE,
-			0,
-		));
-
-		let pool_id = LBPPallet::get_pair_id(AssetPair {
-			asset_in: HDX,
-			asset_out: BSX,
-		});
-		// existing pool
-		assert_eq!(LBPPallet::get_fee(&pool_id), (400, 1_000));
-		// not existing pool
-		assert_eq!(LBPPallet::get_fee(&1_234), (0, 0));
-	});
-}
-
-#[test]
-fn get_spot_price_should_work() {
-	new_test_ext().execute_with(|| {
-		assert_ok!(LBPPallet::create_pool(
-			Origin::root(),
-			ALICE,
-			KUSD,
-			1_000_000_000,
-			BSX,
-			2_000_000_000,
-			20_000_000,
-			90_000_000,
-			WeightCurveType::Linear,
-			DEFAULT_FEE,
-			CHARLIE,
-			0,
-		));
-
-		assert_ok!(LBPPallet::update_pool_data(
-			Origin::signed(ALICE),
-			KUSD_BSX_POOL_ID,
-			None,
-			Some(10),
-			Some(20),
-			None,
-			None,
-			None,
-			None,
-			None
-		));
-
-		set_block_number(10);
-
-		let price = hydra_dx_math::lbp::calculate_spot_price(
-			1_000_000_000_u128,
-			2_000_000_000_u128,
-			20_u32,
-			80_u32,
-			1_000_000_u128,
-		)
-		.unwrap_or_else(|_| BalanceOf::<Test>::zero());
-
-		assert_eq!(LBPPallet::get_spot_price_unchecked(KUSD, BSX, 1_000_000_u128), price);
-
-		// swap assets
-		let price = hydra_dx_math::lbp::calculate_spot_price(
-			2_000_000_000_u128,
-			1_000_000_000_u128,
-			80_u32,
-			20_u32,
-			1_000_000_u128,
-		)
-		.unwrap_or_else(|_| BalanceOf::<Test>::zero());
-
-		assert_eq!(LBPPallet::get_spot_price_unchecked(BSX, KUSD, 1_000_000_u128), price);
-
-		// change weights
-		set_block_number(20);
-
-		let price = hydra_dx_math::lbp::calculate_spot_price(
-			1_000_000_000_u128,
-			2_000_000_000_u128,
-			90_u32,
-			10_u32,
-			1_000_000_u128,
-		)
-		.unwrap_or_else(|_| BalanceOf::<Test>::zero());
-
-		assert_eq!(LBPPallet::get_spot_price_unchecked(KUSD, BSX, 1_000_000), price);
-
-		// pool does not exist
-		assert_eq!(LBPPallet::get_spot_price_unchecked(KUSD, HDX, 1_000_000), 0);
-
-		// overflow
-		assert_eq!(LBPPallet::get_spot_price_unchecked(KUSD, BSX, u128::MAX), 0);
-
-		// sale ended
-		set_block_number(21);
-		assert_eq!(LBPPallet::get_spot_price_unchecked(KUSD, BSX, 1_000_000), 0);
 	});
 }
 
@@ -3348,7 +3173,6 @@ fn validate_trade_should_work() {
 				},
 				1_000_000_u128,
 				2_157_153_u128,
-				false
 			)
 			.unwrap(),
 			AMMTransfer {
@@ -3359,8 +3183,6 @@ fn validate_trade_should_work() {
 				},
 				amount: 1_998_500_u128,
 				amount_b: 1_000_000_u128,
-				discount: false,
-				discount_amount: 0_u128,
 				fee: (KUSD, 4_004),
 			}
 		);
@@ -3374,7 +3196,6 @@ fn validate_trade_should_work() {
 				},
 				1_000_000_u128,
 				2_000_u128,
-				false
 			)
 			.unwrap(),
 			AMMTransfer {
@@ -3385,8 +3206,6 @@ fn validate_trade_should_work() {
 				},
 				amount: 998_000_u128,
 				amount_b: 499_687_u128,
-				discount: false,
-				discount_amount: 0_u128,
 				fee: (KUSD, 2000),
 			}
 		);
@@ -3407,7 +3226,6 @@ fn validate_trade_should_not_work() {
 				},
 				1_000_000_u128,
 				2_157_153_u128,
-				false,
 			),
 			Error::<Test>::SaleIsNotRunning
 		);
@@ -3423,7 +3241,6 @@ fn validate_trade_should_not_work() {
 				},
 				0,
 				2_157_153_u128,
-				false,
 			),
 			Error::<Test>::ZeroAmount
 		);
@@ -3438,7 +3255,6 @@ fn validate_trade_should_not_work() {
 				},
 				100_000_000u128,
 				3_000_000_000_u128,
-				false,
 			),
 			Error::<Test>::InsufficientAssetBalance
 		);
@@ -3454,7 +3270,6 @@ fn validate_trade_should_not_work() {
 				},
 				1_000_000_u128,
 				2_157_153_u128,
-				false,
 			),
 			Error::<Test>::PoolNotFound
 		);
@@ -3468,7 +3283,6 @@ fn validate_trade_should_not_work() {
 				},
 				1_000_000_000_u128,
 				2_157_153_u128,
-				false,
 			),
 			Error::<Test>::MaxOutRatioExceeded
 		);
@@ -3482,7 +3296,6 @@ fn validate_trade_should_not_work() {
 				},
 				400_000_000_u128,
 				2_157_153_u128,
-				false,
 			),
 			Error::<Test>::MaxInRatioExceeded
 		);
@@ -3496,7 +3309,6 @@ fn validate_trade_should_not_work() {
 				},
 				1_000_u128,
 				500_u128,
-				false,
 			),
 			Error::<Test>::TradingLimitReached
 		);
@@ -3510,7 +3322,6 @@ fn validate_trade_should_not_work() {
 				},
 				1_000_u128,
 				1_994_u128,
-				false,
 			),
 			Error::<Test>::TradingLimitReached
 		);
@@ -3894,7 +3705,6 @@ fn simulate_lbp_event_with_repayment() {
 		// start LBP
 		for block_num in sale_start..=sale_end {
 			set_block_number(block_num);
-			println!("{}", LBPPallet::get_spot_price_unchecked(HDX, BSX, 100_000_000_000));
 			if let Some((is_buy, amount)) = trades.get(&block_num) {
 				if *is_buy {
 					assert_ok!(LBPPallet::buy(

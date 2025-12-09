@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.57.1"
+version = "1.57.2"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -48,6 +48,7 @@ pallet-liquidation = { workspace = true }
 liquidation-worker-support = { workspace = true }
 pallet-broadcast = { workspace = true }
 pallet-duster = { workspace = true }
+pallet-duster-rpc-runtime-api = { workspace = true }
 
 pallet-treasury = { workspace = true }
 pallet-scheduler = { workspace = true }
