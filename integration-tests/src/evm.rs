@@ -2493,7 +2493,7 @@ mod account_marking {
 	}
 
 	#[test]
-	fn bound_account_should_be_marked_on_evm_transaction() {
+	fn bound_account_should_not_be_marked_on_evm_transaction_because_only_truncated_evm_accounts_marked() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -2538,10 +2538,10 @@ mod account_marking {
 			));
 
 			// Assert
-			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&account_id).is_some());
+			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&account_id).is_none());
 
 			let final_sufficients = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
-			assert_eq!(final_sufficients, initial_sufficients + 1);
+			assert_eq!(final_sufficients, initial_sufficients);
 		});
 	}
 
