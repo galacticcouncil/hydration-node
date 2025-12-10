@@ -78,7 +78,8 @@ impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
 	}
 }
 
-//This leaks memory but since the data is so small and this is only called on errors, it's acceptable, so won't fix for now.
+//This leaks memory but since the data is small and this is only called on errors, it's acceptable
+//There is also a certain number of unique error messages, so the leak is limited
 fn dispatch_error_other(value: &[u8]) -> DispatchError {
 	let error_string = format!("evm:0x{}", hex::encode(value));
 	DispatchError::Other(Box::leak(error_string.into_boxed_str()))
