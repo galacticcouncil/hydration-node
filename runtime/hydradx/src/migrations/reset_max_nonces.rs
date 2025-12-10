@@ -51,35 +51,35 @@ pub mod v1 {
 			let mut skipped_count = 0u64;
 
 			for (account_str, new_nonce) in AFFECTED_ACCOUNTS {
-    let Ok(account_id) = AccountId::from_ss58check(account_str) else {
-        log::warn!(
-            target: "runtime::reset_max_nonces",
-            "Failed to decode address: {account_str}"
-        );
-        skipped_count += 1;
-        continue;
-    };
+				let Ok(account_id) = AccountId::from_ss58check(account_str) else {
+					log::warn!(
+						target: "runtime::reset_max_nonces",
+						"Failed to decode address: {account_str}"
+					);
+					skipped_count += 1;
+					continue;
+				};
 
-    reads += 1;
-    
-    let was_reset = frame_system::Account::<T>::mutate(&account_id, |info| {
-        (info.nonce == u32::MAX).then(|| info.nonce = *new_nonce).is_some()
-    });
+				reads += 1;
 
-    match was_reset {
-        true => {
-            writes += 1;
-            reset_count += 1;
-            if reset_count % 100 == 0 {
-                log::info!(
-                    target: "runtime::reset_max_nonces",
-                    "Reset {reset_count} nonces so far..."
-                );
-            }
-        }
-        false => skipped_count += 1,
-    }
-}
+				let was_reset = frame_system::Account::<T>::mutate(&account_id, |info| {
+					(info.nonce == u32::MAX).then(|| info.nonce = *new_nonce).is_some()
+				});
+
+				match was_reset {
+					true => {
+						writes += 1;
+						reset_count += 1;
+						if reset_count % 100 == 0 {
+							log::info!(
+								target: "runtime::reset_max_nonces",
+								"Reset {reset_count} nonces so far..."
+							);
+						}
+					}
+					false => skipped_count += 1,
+				}
+			}
 
 			log::info!(
 				target: "runtime::reset_max_nonces",
