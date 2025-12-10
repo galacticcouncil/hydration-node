@@ -1,6 +1,7 @@
 mod tests;
 pub mod utils;
 
+use crate::weights::WeightInfo;
 use crate::{self as pallet_signet, *};
 use frame_support::{
 	parameter_types,
@@ -138,7 +139,7 @@ impl pallet_signet::Config for Test {
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
 	type MaxChainIdLength = MaxChainIdLength;
-	type WeightInfo = ();
+	type WeightInfo = WeightInfo<Test>;
 	type MaxDataLength = MaxDataLength;
 	type UpdateOrigin = frame_system::EnsureRoot<u64>;
 	type MaxSignatureDeposit = MaxSignatureDeposit;

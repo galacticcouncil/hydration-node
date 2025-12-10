@@ -148,7 +148,7 @@ impl pallet_signet::Config for Test {
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
 	type MaxChainIdLength = MaxChainIdLength;
-	type WeightInfo = ();
+	type WeightInfo = pallet_signet::weights::WeightInfo<Test>;
 	type MaxDataLength = MaxDataLength;
 	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
 	type MaxSignatureDeposit = MaxSignatureDeposit;
