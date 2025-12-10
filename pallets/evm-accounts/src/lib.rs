@@ -485,6 +485,7 @@ where
 	/// Marks an account as an EVM account.
 	/// This should only be called once per account to avoid unnecessarily
 	/// increasing sufficients multiple times.
+	/// Only EVM truncated accounts are marked, because bound accounts has already their sufficients increased during binding.
 	pub fn mark_as_evm_account(account: &T::AccountId) {
 		if Self::is_evm_account(account.clone()) {
 			if !MarkedEvmAccounts::<T>::contains_key(account) {
