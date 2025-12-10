@@ -99,7 +99,7 @@ impl Conviction {
 			Conviction::Locked2x => FixedU128::from(2_u128),
 			Conviction::Locked3x => FixedU128::from(3_u128),
 			Conviction::Locked4x => FixedU128::from(4_u128),
-			Conviction::Locked5x => FixedU128::from(4_u128),
+			Conviction::Locked5x => FixedU128::from(5_u128),
 			Conviction::Locked6x => FixedU128::from(6_u128),
 		}
 	}
