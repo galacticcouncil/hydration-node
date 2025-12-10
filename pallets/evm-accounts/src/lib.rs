@@ -155,7 +155,8 @@ pub mod pallet {
 	/// When we mark account as EVM account, we increase its sufficients counter by one.
 	/// We never decrease this sufficients, so side effect is that account can never be reaped
 	#[pallet::storage]
-	pub type EvmAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, ()>;
+	#[pallet::getter(fn marked_evm_accounts)]
+	pub type MarkedEvmAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, ()>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -481,19 +482,14 @@ where
 		&account_id[0..4] == b"ETH\0" && account_id[24..32] == [0u8; 8]
 	}
 
-	/// Checks if an account has been marked as an EVM account.
-	pub fn is_marked_as_evm_account(account: &T::AccountId) -> bool {
-		EvmAccounts::<T>::contains_key(account)
-	}
-
 	/// Marks an account as an EVM account.
 	/// This should only be called once per account to avoid unnecessarily
 	/// increasing sufficients multiple times.
 	pub fn mark_as_evm_account(account: &T::AccountId) {
-		if !Self::is_marked_as_evm_account(account) {
+		if !MarkedEvmAccounts::<T>::contains_key(account) {
 			frame_system::Pallet::<T>::inc_sufficients(account);
 
-			EvmAccounts::<T>::insert(account, ());
+			MarkedEvmAccounts::<T>::insert(account, ());
 		}
 	}
 }

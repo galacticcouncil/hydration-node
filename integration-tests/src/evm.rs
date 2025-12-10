@@ -2294,10 +2294,7 @@ mod account_marking {
 
 			let initial_sufficients = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
 
-			assert_eq!(
-				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&account_id),
-				false
-			);
+			assert_eq!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&account_id), None);
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -2324,11 +2321,8 @@ mod account_marking {
 				[].into()
 			));
 
-			// Assert
-			assert_eq!(
-				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&account_id),
-				true
-			);
+			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&account_id).is_some());
+
 			let final_sufficients = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
 			assert_eq!(final_sufficients, initial_sufficients + 1);
 		});
@@ -2407,10 +2401,7 @@ mod account_marking {
 			assert_eq!(sufficients_after_second, sufficients_after_third);
 
 			// Account should still be marked
-			assert_eq!(
-				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&account_id),
-				true
-			);
+			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&account_id).is_some());
 		});
 	}
 
@@ -2426,14 +2417,8 @@ mod account_marking {
 			let bob_evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(BOB));
 			let bob_account_id: AccountId = EVMAccounts::account_id(bob_evm_address);
 
-			assert_eq!(
-				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&alice_account_id),
-				false
-			);
-			assert_eq!(
-				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&bob_account_id),
-				false
-			);
+			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&alice_account_id).is_none());
+			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&bob_account_id).is_none());
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -2473,14 +2458,8 @@ mod account_marking {
 			));
 
 			// Assert
-			assert_eq!(
-				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&alice_account_id),
-				true
-			);
-			assert_eq!(
-				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&bob_account_id),
-				false
-			);
+			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&alice_account_id).is_some());
+			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&bob_account_id).is_none());
 
 			let alice_sufficients_after =
 				frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&alice_account_id);
@@ -2501,14 +2480,8 @@ mod account_marking {
 			));
 
 			// Assert
-			assert_eq!(
-				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&alice_account_id),
-				true
-			);
-			assert_eq!(
-				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&bob_account_id),
-				true
-			);
+			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&alice_account_id).is_some());
+			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&bob_account_id).is_some());
 
 			let bob_sufficients_after = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&bob_account_id);
 			assert_eq!(bob_sufficients_after, bob_initial_sufficients + 1);
@@ -2534,10 +2507,7 @@ mod account_marking {
 
 			let evm_address = EVMAccounts::evm_address(&account_id);
 
-			assert_eq!(
-				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&account_id),
-				false
-			);
+			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&account_id).is_none());
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -2568,10 +2538,7 @@ mod account_marking {
 			));
 
 			// Assert
-			assert_eq!(
-				hydradx_runtime::EVMAccounts::is_marked_as_evm_account(&account_id),
-				true
-			);
+			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&account_id).is_some());
 
 			let final_sufficients = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
 			assert_eq!(final_sufficients, initial_sufficients + 1);
