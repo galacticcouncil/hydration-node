@@ -13,4 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub type Migrations = ();
+use super::*;
+
+pub type Migrations = (pallet_stableswap::migrations::v1::MigrateV0ToV1<Runtime>,);

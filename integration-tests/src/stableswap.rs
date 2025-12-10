@@ -11,8 +11,10 @@ use orml_traits::MultiReservableCurrency;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::BoundedPegSources;
+use pallet_stableswap::types::BoundedPegs;
 use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
+use pretty_assertions::assert_ne;
 use primitives::{constants::time::SECS_PER_BLOCK, BlockNumber};
 use sp_runtime::{Perbill, Permill};
 use std::sync::Arc;
@@ -252,4 +254,282 @@ mod circuit_breaker {
 				assert_reserved_balance!(&ALICE.into(), GIGADOT, 479138260494833187243);
 			});
 	}
+}
+
+#[test]
+fn pool_with_pegs_should_update_pegs_only_once_per_block() {
+	let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		1,
+		polkadot_xcm::v4::Junctions::X2(Arc::new([
+			polkadot_xcm::v4::Junction::Parachain(1500),
+			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		])),
+	);
+
+	let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		1,
+		polkadot_xcm::v4::Junctions::X2(Arc::new([
+			polkadot_xcm::v4::Junction::Parachain(1500),
+			polkadot_xcm::v4::Junction::GeneralIndex(1),
+		])),
+	);
+
+	let vdot_boxed = Box::new(vdot_location.clone().into_versioned());
+	let dot_boxed = Box::new(dot_location.clone().into_versioned());
+
+	HydrationTestDriver::default()
+		.register_asset(DOT, b"myDOT", DOT_DECIMALS, Some(dot_location))
+		.register_asset(VDOT, b"myvDOT", VDOT_DECIMALS, Some(vdot_location))
+		.register_asset(ADOT, b"myaDOT", ADOT_DECIMALS, None)
+		.register_asset(GIGADOT, b"myGIGADOT", GIGADOT_DECIMALS, None)
+		//~1.479615087126985602
+		.update_bifrost_oracle(dot_boxed.clone(), vdot_boxed.clone(), DOT_VDOT_PRICE)
+		.new_block()
+		.endow_account(ALICE.into(), DOT, 1_000_000 * 10u128.pow(DOT_DECIMALS as u32))
+		.endow_account(ALICE.into(), VDOT, 1_000_000 * 10u128.pow(VDOT_DECIMALS as u32))
+		.endow_account(ALICE.into(), ADOT, 1_000_000 * 10u128.pow(ADOT_DECIMALS as u32))
+		.execute(|| {
+			let precission = FixedU128::from_inner(1_000);
+			let assets = vec![VDOT, ADOT];
+			let pegs = vec![
+				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT)), // vDOT peg
+				PegSource::Value((1, 1)),                                          // aDOT peg
+			];
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				GIGADOT,
+				BoundedVec::truncate_from(assets),
+				100,
+				Permill::from_parts(600), //0.06%
+				BoundedPegSources::truncate_from(pegs),
+				Perbill::from_parts(1_000_000), //0.1%
+			));
+
+			assert_eq!(
+				Stableswap::pool_peg_info(GIGADOT)
+					.expect("GIGADOT pool to exists")
+					.updated_at,
+				System::block_number()
+			);
+
+			let initial_liquidity = 1_000 * 10u128.pow(DOT_DECIMALS as u32);
+			let liquidity = vec![
+				AssetAmount::new(VDOT, initial_liquidity),
+				AssetAmount::new(ADOT, initial_liquidity),
+			];
+
+			let pegs_0 = Stableswap::pool_peg_info(GIGADOT).expect("pegs should exists");
+
+			// Add initial liquidity
+			assert_ok!(Stableswap::add_assets_liquidity(
+				RuntimeOrigin::signed(ALICE.into()),
+				GIGADOT,
+				BoundedVec::truncate_from(liquidity),
+				0,
+			));
+
+			//pegs should not change, it's same block
+			assert_eq!(Stableswap::pool_peg_info(GIGADOT).unwrap(), pegs_0);
+
+			//initial liq. should update block fees
+			let block_fee_0 = Stableswap::block_fee(GIGADOT);
+			assert!(block_fee_0.is_some());
+
+			// Sell 1 vdot for adot
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				GIGADOT,
+				VDOT,
+				ADOT,
+				10u128.pow(VDOT_DECIMALS as u32),
+				0,
+			));
+
+			//neither pegs nor block fees should change, it's same block
+			assert_eq!(Stableswap::pool_peg_info(GIGADOT).unwrap(), pegs_0);
+			assert_eq!(Stableswap::block_fee(GIGADOT), block_fee_0);
+
+			//NOTE: I. set new oracle's price and move by 10 blocks
+			//new price = 1.576357467046855425
+			let dot_vdot_price: (Balance, Balance) = (189574745532334, 120261266556172);
+			assert_ok!(EmaOracle::update_bifrost_oracle(
+				RuntimeOrigin::signed(bifrost_account()),
+				dot_boxed.clone(),
+				vdot_boxed.clone(),
+				dot_vdot_price
+			));
+
+			for _ in 0..10 {
+				hydradx_run_to_next_block();
+			}
+
+			assert!(Stableswap::block_fee(GIGADOT).is_none());
+
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				GIGADOT,
+				VDOT,
+				ADOT,
+				10u128.pow(VDOT_DECIMALS as u32),
+				0,
+			));
+
+			// 1.479615087126985602 + (1.479615087126985602 * 10 * 0.001) = 1.49441123799825545802
+			// (1.49441123799825545802 / 1.479615087126985602) - 1 = 0.01 => 1[%] == 0.1[%]*10[blocks])
+			let expected_pegs = FixedU128::from_float(1.49441123799825545802_f64);
+			//Asserts
+			let peg_info_1 = Stableswap::pool_peg_info(GIGADOT).unwrap();
+			assert_eq_approx!(
+				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
+				expected_pegs,
+				precission,
+				"Updated pegs doesn't match expected value"
+			);
+			assert_eq!(peg_info_1.current[1], (1_u128, 1_u128));
+			assert_eq!(peg_info_1.updated_at, 12);
+
+			let block_fee_1 = Stableswap::block_fee(GIGADOT);
+			assert_eq!(block_fee_1, Some(Permill::from_parts(1999)));
+
+			//second trade in same block, pegs should not change
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				GIGADOT,
+				VDOT,
+				ADOT,
+				10u128.pow(VDOT_DECIMALS as u32),
+				0,
+			));
+			//Asserts
+			let peg_info_1 = Stableswap::pool_peg_info(GIGADOT).unwrap();
+			assert_eq_approx!(
+				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
+				expected_pegs,
+				precission,
+				"Updated pegs doesn't match expected value"
+			);
+			assert_eq!(peg_info_1.current[1], (1_u128, 1_u128));
+			assert_eq!(peg_info_1.updated_at, 12);
+
+			assert_eq!(Stableswap::block_fee(GIGADOT), block_fee_1);
+
+			//NOTE: II. move 1 block and check change
+			hydradx_run_to_next_block();
+
+			assert!(Stableswap::block_fee(GIGADOT).is_none());
+
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				GIGADOT,
+				VDOT,
+				ADOT,
+				10u128.pow(VDOT_DECIMALS as u32),
+				0,
+			));
+
+			//Asserts
+			let peg_info_1 = Stableswap::pool_peg_info(GIGADOT).unwrap();
+			// 1.49441123799825545802 + (1.49441123799825545802 * 1 * 0.001) = 1.49590564923625371347802
+			// (1.49590564923625371347802 / 1.49441123799825545802) - 1 = 0.001 => 0.1[%] == 0.1[%] * 1[block])
+			assert_eq_approx!(
+				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
+				FixedU128::from_float(1.49590564923625371347802_f64),
+				precission,
+				"Updated pegs doesn't match expected value"
+			);
+			assert_eq!(peg_info_1.current[1], (1_u128, 1_u128));
+			assert_eq!(peg_info_1.updated_at, 13);
+
+			assert_eq!(Stableswap::block_fee(GIGADOT), Some(Permill::from_parts(1999)));
+
+			//NOTE: III. run to 1 block before peg should reach oracle's price
+			// ((oracle_price - current_price)/(current_prie * max_change))
+			// (1.57635 - 1.495905649)/(1.495905649 * 0.001) = 53.776 => 53
+			// pegs should be equal 54 blocks from now
+			for _ in 0..53 {
+				hydradx_run_to_next_block();
+			}
+			assert!(Stableswap::block_fee(GIGADOT).is_none());
+
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				GIGADOT,
+				VDOT,
+				ADOT,
+				10u128.pow(VDOT_DECIMALS as u32),
+				0,
+			));
+
+			//Asserts
+			let peg_info_1 = Stableswap::pool_peg_info(GIGADOT).unwrap();
+			// 1.49590564923625371347802 + (1.49590564923625371347802 * 53 * 0.001) = 1.57518864864577516029235506
+			// (1.57518864864577516029235506 /  1.49590564923625371347802) - 1 = 0.053 => 5.3[%] == 0.1[%]*53[blocks])
+			assert_eq_approx!(
+				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
+				FixedU128::from_float(1.57518864864577516029235506_f64),
+				precission,
+				"Updated pegs doesn't match expected value"
+			);
+			assert_eq!(peg_info_1.current[1], (1_u128, 1_u128));
+			assert_eq!(peg_info_1.updated_at, 66);
+
+			assert_eq!(Stableswap::block_fee(GIGADOT), Some(Permill::from_parts(1999)));
+
+			//NOTE: run to block when stableswap's peg should reach oracle's price
+			hydradx_run_to_next_block();
+			assert!(Stableswap::block_fee(GIGADOT).is_none());
+
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				GIGADOT,
+				VDOT,
+				ADOT,
+				10u128.pow(VDOT_DECIMALS as u32),
+				0,
+			));
+
+			//Asserts
+			let peg_info_1 = Stableswap::pool_peg_info(GIGADOT).unwrap();
+			// 1.57518864864577516029235506 + (1.57518864864577516029235506 * 1 * 0.001) = 1.57676383729442093545264741506
+			// 1.57676383729442093545264741506 > 1.57635(oracle's price) => new peg == 1.576357467046855425
+			assert_eq_approx!(
+				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
+				FixedU128::from_float(1.576357467046855425_f64),
+				precission,
+				"Updated pegs doesn't match expected value"
+			);
+			assert_eq!(peg_info_1.current[1], (1_u128, 1_u128));
+			assert_eq!(peg_info_1.updated_at, 67);
+
+			assert_eq!(Stableswap::block_fee(GIGADOT), Some(Permill::from_parts(1484)));
+
+			//NOTE: run multiple blocks, pegs value should not change as it already reached oracle's
+			//price
+			for _ in 0..20 {
+				hydradx_run_to_next_block();
+			}
+			assert!(Stableswap::block_fee(GIGADOT).is_none());
+
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				GIGADOT,
+				VDOT,
+				ADOT,
+				10u128.pow(VDOT_DECIMALS as u32),
+				0,
+			));
+
+			//Asserts
+			let peg_info_1 = Stableswap::pool_peg_info(GIGADOT).unwrap();
+			assert_eq_approx!(
+				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
+				FixedU128::from_float(1.576357467046855425_f64),
+				precission,
+				"Updated pegs doesn't match expected value"
+			);
+			assert_eq!(peg_info_1.current[1], (1_u128, 1_u128));
+			assert_eq!(peg_info_1.updated_at, 87);
+
+			assert_eq!(Stableswap::block_fee(GIGADOT), Some(Permill::from_parts(600)));
+		});
 }
