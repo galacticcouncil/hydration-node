@@ -104,7 +104,7 @@ impl<T: crate::Config<AssetId = u32>> UncheckedOnRuntimeUpgrade for unversioned:
 				k,
 				PoolPegInfo {
 					source: peg_info_v0.source,
-					max_peg_update: peg_info_v0.max_peg_update,
+					max_peg_update: max_peg_update,
 					updated_at: current_block,
 					current: BoundedPegs::truncate_from(new_pegs),
 				},
