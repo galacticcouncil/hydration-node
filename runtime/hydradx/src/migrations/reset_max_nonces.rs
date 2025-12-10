@@ -50,49 +50,36 @@ pub mod v1 {
 			let mut reset_count = 0u64;
 			let mut skipped_count = 0u64;
 
-			for (account_str, new_nonce) in AFFECTED_ACCOUNTS.iter() {
-				// Decode the SS58 address to AccountId
-				let account_id = match AccountId::from_ss58check(account_str) {
-					Ok(acc) => acc,
-					Err(_) => {
-						log::warn!(
-							target: "runtime::reset_max_nonces",
-							"Failed to decode address: {}",
-							account_str
-						);
-						skipped_count += 1;
-						continue;
-					}
-				};
+			for (account_str, new_nonce) in AFFECTED_ACCOUNTS {
+    let Ok(account_id) = AccountId::from_ss58check(account_str) else {
+        log::warn!(
+            target: "runtime::reset_max_nonces",
+            "Failed to decode address: {account_str}"
+        );
+        skipped_count += 1;
+        continue;
+    };
 
-				// Mutate the account info atomically
-				reads += 1;
-				let was_reset = frame_system::Account::<T>::mutate(&account_id, |account_info| {
-					// Check if nonce is u32::MAX
-					if account_info.nonce == u32::MAX {
-						// Set nonce to the specified value
-						account_info.nonce = *new_nonce;
-						true
-					} else {
-						false
-					}
-				});
+    reads += 1;
+    
+    let was_reset = frame_system::Account::<T>::mutate(&account_id, |info| {
+        (info.nonce == u32::MAX).then(|| info.nonce = *new_nonce).is_some()
+    });
 
-				if was_reset {
-					writes += 1;
-					reset_count += 1;
-
-					if reset_count % 100 == 0 {
-						log::info!(
-							target: "runtime::reset_max_nonces",
-							"Reset {} nonces so far...",
-							reset_count
-						);
-					}
-				} else {
-					skipped_count += 1;
-				}
-			}
+    match was_reset {
+        true => {
+            writes += 1;
+            reset_count += 1;
+            if reset_count % 100 == 0 {
+                log::info!(
+                    target: "runtime::reset_max_nonces",
+                    "Reset {reset_count} nonces so far..."
+                );
+            }
+        }
+        false => skipped_count += 1,
+    }
+}
 
 			log::info!(
 				target: "runtime::reset_max_nonces",
