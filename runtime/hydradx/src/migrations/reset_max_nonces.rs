@@ -15,8 +15,8 @@
 
 //! Migration to reset nonces from u32::MAX to correct values for affected accounts
 //!
-//! This migration fixes a bug where 1,802 accounts ended up with nonce = u32::MAX (4294967295).
-//! The affected accounts were identified on 2025-12-09 (1,802 accounts) via chain scans.
+//! This migration fixes a bug where 1,804 accounts ended up with nonce = u32::MAX (4294967295).
+//! The affected accounts were identified on 2025-12-09 (1,804 accounts, updated 2025-12-10) via chain scans.
 //! Each account's nonce is set to either:
 //! - Their EVM transaction count (if they have an EVM address in the transaction log)
 //! - 0 (if they don't have an EVM address or no transactions found)
@@ -35,31 +35,18 @@ pub mod v1 {
 	use crate::AccountId;
 	use sp_core::crypto::Ss58Codec;
 
-	/// Storage to track if this migration has been executed
-	#[storage_alias]
-	pub type ResetMaxNoncesMigrationExecuted<T: frame_system::Config> = StorageValue<frame_system::Pallet<T>, bool>;
-
 	pub struct ResetMaxNonces<T>(sp_std::marker::PhantomData<T>);
 
 	impl<T: frame_system::Config<AccountId = AccountId, Nonce = u32>> OnRuntimeUpgrade for ResetMaxNonces<T> {
 		fn on_runtime_upgrade() -> Weight {
-			// Check if migration has already been executed
-			if ResetMaxNoncesMigrationExecuted::<T>::get().unwrap_or(false) {
-				log::info!(
-					target: "runtime::reset_max_nonces",
-					"Migration already executed, skipping..."
-				);
-				return T::DbWeight::get().reads(1);
-			}
-
 			log::info!(
 				target: "runtime::reset_max_nonces",
 				"Starting migration to reset {} accounts with max nonce",
 				AFFECTED_ACCOUNTS.len()
 			);
 
-			let mut reads = 1u64; // Already read the migration flag
-			let mut writes = 1u64; // Will write the migration flag
+			let mut reads = 0u64;
+			let mut writes = 0u64;
 			let mut reset_count = 0u64;
 			let mut skipped_count = 0u64;
 
@@ -106,9 +93,6 @@ pub mod v1 {
 					skipped_count += 1;
 				}
 			}
-
-			// Mark migration as executed
-			ResetMaxNoncesMigrationExecuted::<T>::put(true);
 
 			log::info!(
 				target: "runtime::reset_max_nonces",
@@ -187,8 +171,8 @@ pub mod v1 {
 		}
 	}
 }
-// Generated at: 2025-12-09T06-26-06-529Z
-// Total affected accounts: 1,802
+// Generated at: 2025-12-09T06-26-06-529Z (Updated: 2025-12-10 with 2 additional accounts)
+// Total affected accounts: 1,804
 const AFFECTED_ACCOUNTS: &[(&str, u32)] = &[
 	("12ZuLmUN1XrFfeGcL5fhZfgvpip3Dps7EqwV3swPbZ4ytdD7", 0),
 	("12ZuLmUKUF1gAEejgTpnjN6Qo7nDHAuc3vx43N1vYmdMyVvN", 0),
