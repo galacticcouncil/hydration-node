@@ -33,7 +33,7 @@ pub use oracle::*;
 pub use registry::*;
 
 use codec::{Decode, Encode};
-use frame_support::dispatch::{self};
+use frame_support::dispatch::{self, DispatchResult};
 use frame_support::sp_runtime::{traits::Zero, DispatchError, RuntimeDebug};
 use frame_support::traits::LockIdentifier;
 use frame_support::weights::Weight;
@@ -212,6 +212,8 @@ pub trait AMMAddLiquidity<AccountId, AssetId, Balance> {
 pub trait AccountFeeCurrency<AccountId> {
 	type AssetId;
 	fn get(a: &AccountId) -> Self::AssetId;
+	fn set(who: &AccountId, asset_id: Self::AssetId) -> DispatchResult;
+	fn is_payment_currency(asset_id: Self::AssetId) -> DispatchResult;
 }
 
 /// Provides account's balance of fee asset currency in a given currency

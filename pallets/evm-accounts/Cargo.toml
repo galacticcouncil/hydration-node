@@ -17,22 +17,28 @@ scale-info = { workspace = true }
 codec = { workspace = true }
 
 hydradx-traits = { workspace = true }
+primitives = { workspace = true }
 
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-std = { workspace = true }
 sp-core = { workspace = true }
 
+# ORML dependencies
+orml-traits = { workspace = true }
+
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
 sp-io = { workspace = true, optional = true }
 
 [dev-dependencies]
+pallet-balances = { workspace = true }
+pallet-currencies = { workspace = true }
+pallet-asset-registry = { workspace = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
 frame-benchmarking = { workspace = true }
 orml-tokens = { workspace = true }
-orml-traits = { workspace = true }
 test-utils = { workspace = true }
 hex-literal = { workspace = true }
 
@@ -41,12 +47,17 @@ default = ["std"]
 std = [
     "codec/std",
     "scale-info/std",
+    "primitives/std",
+    "pallet-balances/std",
+    "pallet-currencies/std",
+    "pallet-asset-registry/std",
     "sp-std/std",
     "sp-core/std",
     "sp-io/std",
     "frame-support/std",
     "frame-system/std",
     "orml-tokens/std",
+    "orml-traits/std",
     "frame-benchmarking/std",
 ]
 runtime-benchmarks = [
