@@ -1992,4 +1992,6 @@ const AFFECTED_ACCOUNTS: &[(&str, u32)] = &[
 	("12ZuLmUjk8P8yGkCm9enGsMTHaWyFjwY5NrUk1SZ1sUuNr9W", 0),
 	("12ZuLmUysBdRzVxTkqAShRtPnK1r1beTi79kBBiCsrv1Le2T", 0),
 	("12ZuLmV5MYV8S3q1tyCraBBBBetzf1oxNu3tBtHGkWUEMe35", 0),
+	("12ZuLmUtKNDksc34DzRSSJbfiK8q17Rdr697RGHxbXJ5Eecc", 0),
+	("12ZuLmUVoz55VsxJP4HiVLVw6mpqByV8fg2UheUqzcAKAdQv", 0),
 ];
