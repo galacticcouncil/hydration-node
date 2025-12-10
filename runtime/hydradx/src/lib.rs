@@ -122,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 365,
+	spec_version: 366,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -314,7 +314,6 @@ mod benches {
 		[pallet_claims, Claims]
 		[pallet_staking, Staking]
 		[pallet_referrals, Referrals]
-		[pallet_evm_accounts, EVMAccounts]
 		[pallet_otc, OTC]
 		[pallet_otc_settlements, OtcSettlements]
 		[pallet_liquidation, Liquidation]
@@ -1238,6 +1237,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
 			orml_list_benchmark!(list, extra, pallet_ema_oracle, benchmarking::ema_oracle);
 			orml_list_benchmark!(list, extra, pallet_token_gateway_ismp, benchmarking::token_gateway_ismp);
+			orml_list_benchmark!(list, extra, pallet_evm_accounts, benchmarking::evm_accounts);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1528,6 +1528,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
 			orml_add_benchmark!(params, batches, pallet_ema_oracle, benchmarking::ema_oracle);
 			orml_add_benchmark!(params, batches, pallet_token_gateway_ismp, benchmarking::token_gateway_ismp);
+			orml_add_benchmark!(params, batches, pallet_evm_accounts, benchmarking::evm_accounts);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

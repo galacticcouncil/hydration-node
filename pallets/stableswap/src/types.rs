@@ -164,17 +164,19 @@ pub enum PegSource<AssetId = ()> {
 pub type BoundedPegSources<AssetId> = BoundedVec<PegSource<AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>;
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct PoolPegInfo<AssetId = ()> {
+pub struct PoolPegInfo<BlockNumber, AssetId = ()> {
 	pub source: BoundedPegSources<AssetId>,
+	pub updated_at: BlockNumber,
 	pub max_peg_update: Perbill,
 	pub current: BoundedPegs,
 }
 
-impl<AssetId> PoolPegInfo<AssetId> {
-	pub fn with_new_pegs(self, pegs: &[PegType]) -> Self {
+impl<BlockNumber, AssetId> PoolPegInfo<BlockNumber, AssetId> {
+	pub fn with_new_pegs(self, pegs: &[PegType], at: BlockNumber) -> Self {
 		debug_assert_eq!(self.current.len(), pegs.len(), "Invalid pegs length");
 		PoolPegInfo {
 			source: self.source,
+			updated_at: at,
 			max_peg_update: self.max_peg_update,
 			current: BoundedPegs::truncate_from(pegs.to_vec()),
 		}
@@ -187,6 +189,7 @@ pub struct PoolSnapshot<AssetId> {
 	pub reserves: BoundedVec<AssetReserve, ConstU32<MAX_ASSETS_IN_POOL>>,
 	pub amplification: u128,
 	pub fee: Permill,
+	pub block_fee: Permill,
 	pub pegs: BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>,
 	pub share_issuance: Balance,
 }
