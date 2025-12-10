@@ -5514,7 +5514,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 4.1.5",
+ "pallet-staking 4.1.6",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
@@ -5536,7 +5536,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "366.0.0"
+version = "367.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -5644,7 +5644,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.1.5",
+ "pallet-staking 4.1.6",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -10911,7 +10911,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "4.1.5"
+version = "4.1.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -14726,7 +14726,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.1.5",
+ "pallet-staking 4.1.6",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
@@ -14792,7 +14792,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 4.1.5",
+ "pallet-staking 4.1.6",
  "primitives",
  "scraper",
  "serde",
