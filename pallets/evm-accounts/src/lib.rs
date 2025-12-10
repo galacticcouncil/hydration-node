@@ -486,6 +486,10 @@ where
 	/// This should only be called once per account to avoid unnecessarily
 	/// increasing sufficients multiple times.
 	pub fn mark_as_evm_account(account: &T::AccountId) {
+		if !Self::is_evm_account(account.clone()) {
+			debug_assert!(false, "Only EVM truncated accounts can be marked as EVM accounts");
+			return;
+		}
 		if !MarkedEvmAccounts::<T>::contains_key(account) {
 			frame_system::Pallet::<T>::inc_sufficients(account);
 
