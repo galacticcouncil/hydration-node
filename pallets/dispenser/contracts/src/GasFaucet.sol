@@ -104,7 +104,7 @@ contract GasFaucet is Ownable, IGasFaucet {
         uint256 balance = address(this).balance;
 
         // Only if we have enough and will remain above threshold.
-        if (balance >= amountWei && balance - amountWei > minEthThreshold) {
+        if (balance >= amountWei && balance - amountWei >= minEthThreshold) {
             (bool ok, ) = payable(to).call{value: amountWei}("");
             if (!ok) {
                 revert EthTransferFailed();
@@ -123,7 +123,9 @@ contract GasFaucet is Ownable, IGasFaucet {
             revert ZeroAmount();
         }
 
-        if (address(this).balance < amountWei) {
+        uint256 balance = address(this).balance;
+
+        if (balance < amountWei || balance - amountWei < minEthThreshold) {
             revert FaucetLowBalance();
         }
 
