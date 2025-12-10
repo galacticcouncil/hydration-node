@@ -122,7 +122,7 @@ fn set_supported_currency_without_spot_price_should_charge_fee_in_correct_curren
 		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 			Some(pre.unwrap()),
 			&info,
-			&default_post_info(),
+			&PostDispatchInfo::default(),
 			len,
 			&Ok(())
 		));
@@ -156,7 +156,7 @@ fn set_supported_currency_in_batch_should_charge_fee_in_correct_currency() {
 		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 			Some(pre.unwrap()),
 			&info,
-			&default_post_info(),
+			&PostDispatchInfo::default(),
 			len,
 			&Ok(())
 		));
@@ -187,7 +187,7 @@ fn set_supported_currency_in_batch_should_charge_fee_in_correct_currency() {
 		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 			Some(pre.unwrap()),
 			&info,
-			&default_post_info(),
+			&PostDispatchInfo::default(),
 			len,
 			&Ok(())
 		));
@@ -218,7 +218,7 @@ fn set_supported_currency_in_batch_should_charge_fee_in_correct_currency() {
 		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 			Some(pre.unwrap()),
 			&info,
-			&default_post_info(),
+			&PostDispatchInfo::default(),
 			len,
 			&Ok(())
 		));
@@ -251,7 +251,7 @@ fn set_supported_currency_in_batch_should_not_work_if_not_first_transaction() {
 		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 			Some(pre.unwrap()),
 			&info,
-			&default_post_info(),
+			&PostDispatchInfo::default(),
 			len,
 			&Ok(())
 		));
@@ -285,7 +285,7 @@ fn set_supported_currency_in_batch_should_not_work_if_not_first_transaction() {
 		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 			Some(pre.unwrap()),
 			&info,
-			&default_post_info(),
+			&PostDispatchInfo::default(),
 			len,
 			&Ok(())
 		));
@@ -319,7 +319,7 @@ fn set_supported_currency_in_batch_should_not_work_if_not_first_transaction() {
 		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 			Some(pre.unwrap()),
 			&info,
-			&default_post_info(),
+			&PostDispatchInfo::default(),
 			len,
 			&Ok(())
 		));
@@ -352,7 +352,7 @@ fn set_supported_currency_with_spot_price_should_charge_fee_in_correct_currency(
 		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 			Some(pre.unwrap()),
 			&info,
-			&default_post_info(),
+			&PostDispatchInfo::default(),
 			len,
 			&Ok(())
 		));
@@ -554,13 +554,6 @@ fn post_info_from_weight(w: Weight) -> PostDispatchInfo {
 	}
 }
 
-fn default_post_info() -> PostDispatchInfo {
-	PostDispatchInfo {
-		actual_weight: None,
-		pays_fee: Default::default(),
-	}
-}
-
 #[test]
 fn fee_should_be_transferred_when_paid_in_native_currency() {
 	// Arrange
@@ -587,7 +580,7 @@ fn fee_should_be_transferred_when_paid_in_native_currency() {
 			assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 				Some(pre),
 				&dispatch_info,
-				&default_post_info(),
+				&PostDispatchInfo::default(),
 				len,
 				&Ok(())
 			));
@@ -623,7 +616,7 @@ fn fee_should_be_withdrawn_when_paid_in_native_currency() {
 			assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 				Some(pre),
 				&dispatch_info,
-				&default_post_info(),
+				&PostDispatchInfo::default(),
 				len,
 				&Ok(())
 			));
@@ -748,7 +741,7 @@ fn fee_should_be_transferred_when_paid_in_non_native_currency() {
 			assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 				Some(pre),
 				&dispatch_info,
-				&default_post_info(),
+				&PostDispatchInfo::default(),
 				len,
 				&Ok(())
 			));
@@ -790,7 +783,7 @@ fn fee_should_be_withdrawn_when_paid_in_non_native_currency() {
 			assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 				Some(pre),
 				&dispatch_info,
-				&default_post_info(),
+				&PostDispatchInfo::default(),
 				len,
 				&Ok(())
 			));
@@ -1035,7 +1028,7 @@ fn fee_transfer_can_kill_account_when_paid_in_native() {
 			assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 				Some(pre),
 				&dispatch_info,
-				&default_post_info(),
+				&PostDispatchInfo::default(),
 				len,
 				&Ok(())
 			));
@@ -1081,7 +1074,7 @@ fn fee_transfer_can_kill_account_when_paid_in_non_native() {
 			assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 				Some(pre),
 				&dispatch_info,
-				&default_post_info(),
+				&PostDispatchInfo::default(),
 				len,
 				&Ok(())
 			));
