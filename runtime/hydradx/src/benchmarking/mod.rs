@@ -5,6 +5,7 @@ pub mod dca;
 pub mod duster;
 pub mod dynamic_evm_fee;
 pub mod ema_oracle;
+pub mod evm_accounts;
 pub mod multi_payment;
 pub mod omnipool;
 pub mod omnipool_liquidity_mining;
