@@ -1,22 +1,28 @@
 use crate as pallet_evm_accounts;
-use crate::{Balance, Config, EvmNonceProvider};
-use frame_support::parameter_types;
+use crate::{Balance, Config, EvmNonceProvider, Signature};
+use frame_support::dispatch::DispatchResult;
 use frame_support::sp_runtime::{
-	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	BuildStorage, MultiSignature,
+	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+	BuildStorage,
 };
 use frame_support::traits::Everything;
-use frame_system::EnsureRoot;
+use frame_support::PalletId;
+use frame_support::{parameter_types, BoundedVec};
+use frame_system::{EnsureRoot, EnsureSigned};
 use hydradx_traits::evm::InspectEvmAccounts;
+use hydradx_traits::AccountFeeCurrency;
 use orml_traits::parameter_type_with_key;
+use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 pub use sp_core::{H160, H256, U256};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
 pub type AssetId = u32;
-pub type Signature = MultiSignature;
+pub type Amount = i128;
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 type Block = frame_system::mocking::MockBlock<Test>;
+pub type NamedReserveIdentifier = [u8; 8];
+type AssetLocation = u8;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const INITIAL_BALANCE: Balance = 1_000_000_000_000 * ONE;
@@ -24,17 +30,24 @@ pub const INITIAL_BALANCE: Balance = 1_000_000_000_000 * ONE;
 pub const ALICE: AccountId = AccountId::new([1; 32]);
 
 pub const HDX: AssetId = 0;
+pub const DOT: AssetId = 3;
+pub const DAI: AssetId = 4;
 
 thread_local! {
 	pub static NONCE: RefCell<HashMap<H160, U256>> = RefCell::new(HashMap::default());
+	pub static FEE_ASSET: RefCell<HashMap<AccountId, AssetId>> = RefCell::new(HashMap::default());
+	pub static ACCEPTED_FEE_ASSETS: RefCell<Vec<AssetId>> = RefCell::new(Vec::default());
 }
 
 frame_support::construct_runtime!(
 	pub enum Test
 	 {
 		 System: frame_system,
-		 EVMAccounts: pallet_evm_accounts,
+		 Balances: pallet_balances,
+		 Currencies: pallet_currencies,
 		 Tokens: orml_tokens,
+		 AssetRegistry: pallet_asset_registry,
+		 EVMAccounts: pallet_evm_accounts,
 	 }
 
 );
@@ -54,11 +67,39 @@ impl EvmNonceProvider for EvmNonceProviderMock {
 	}
 }
 
+pub struct FeeCurrencyMock;
+impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
+	type AssetId = AssetId;
+
+	fn get(a: &AccountId) -> Self::AssetId {
+		FEE_ASSET.with(|v| v.borrow().get(&a).copied()).unwrap_or_default()
+	}
+	fn set(who: &AccountId, asset_id: Self::AssetId) -> DispatchResult {
+		FEE_ASSET.with(|v| {
+			v.borrow_mut().insert(who.clone(), asset_id);
+		});
+		Ok(())
+	}
+	fn is_payment_currency(asset_id: Self::AssetId) -> DispatchResult {
+		ACCEPTED_FEE_ASSETS.with(|v| {
+			if v.borrow().contains(&asset_id) {
+				Ok(())
+			} else {
+				Err("Not a payment currency".into())
+			}
+		})
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type FeeMultiplier = sp_core::ConstU32<10>;
 	type EvmNonceProvider = EvmNonceProviderMock;
 	type ControllerOrigin = EnsureRoot<AccountId>;
+	type AssetId = AssetId;
+	type Currency = FungibleCurrencies<Test>;
+	type ExistentialDeposits = ExistentialDeposits;
+	type FeeCurrency = FeeCurrencyMock;
 	type WeightInfo = ();
 }
 
@@ -80,7 +121,7 @@ impl frame_system::Config for Test {
 	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = ();
+	type AccountData = pallet_balances::AccountData<u128>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
@@ -100,6 +141,42 @@ parameter_type_with_key! {
 	};
 }
 
+parameter_types! {
+	pub const HDXAssetId: AssetId = HDX;
+	pub const ExistentialDeposit: u128 = 500;
+	pub const MaxReserves: u32 = 50;
+	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
+}
+
+impl pallet_balances::Config for Test {
+	type MaxLocks = ();
+	type Balance = Balance;
+	type RuntimeEvent = RuntimeEvent;
+	type DustRemoval = ();
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = frame_system::Pallet<Test>;
+	type WeightInfo = ();
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = NamedReserveIdentifier;
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type RuntimeHoldReason = ();
+	type RuntimeFreezeReason = ();
+}
+
+impl pallet_currencies::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = TreasuryAccount;
+	type GetNativeCurrencyId = HDXAssetId;
+	type RegistryInspect = MockBoundErc20<Test>;
+	type WeightInfo = ();
+}
+
 impl orml_tokens::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
@@ -110,12 +187,36 @@ impl orml_tokens::Config for Test {
 	type CurrencyHooks = ();
 	type MaxLocks = ();
 	type MaxReserves = ();
-	type ReserveIdentifier = ();
+	type ReserveIdentifier = NamedReserveIdentifier;
 	type DustRemovalWhitelist = Everything;
+}
+
+parameter_types! {
+	#[derive(PartialEq, Debug)]
+	pub RegistryStringLimit: u32 = 100;
+	#[derive(PartialEq, Debug)]
+	pub MinRegistryStringLimit: u32 = 2;
+	pub const SequentialIdOffset: u32 = 1_000_000;
+}
+
+impl pallet_asset_registry::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type RegistryOrigin = EnsureRoot<AccountId>;
+	type Currency = Tokens;
+	type UpdateOrigin = EnsureSigned<AccountId>;
+	type AssetId = AssetId;
+	type AssetNativeLocation = AssetLocation;
+	type StringLimit = RegistryStringLimit;
+	type MinStringLimit = MinRegistryStringLimit;
+	type SequentialIdStartAt = SequentialIdOffset;
+	type RegExternalWeightMultiplier = frame_support::traits::ConstU64<1>;
+	type RegisterAssetHook = ();
+	type WeightInfo = ();
 }
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
+	accepted_fee_payment_assets: Vec<AssetId>,
 }
 
 impl Default for ExtBuilder {
@@ -123,9 +224,13 @@ impl Default for ExtBuilder {
 		NONCE.with(|v| {
 			v.borrow_mut().clear();
 		});
+		FEE_ASSET.with(|v| {
+			v.borrow_mut().clear();
+		});
 
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_BALANCE)],
+			accepted_fee_payment_assets: vec![HDX, DOT],
 		}
 	}
 }
@@ -133,6 +238,41 @@ impl Default for ExtBuilder {
 impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+
+		let registered_assets = vec![
+			(
+				Some(DOT),
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
+				10_000,
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
+				Some(12),
+				None::<Balance>,
+				true,
+			),
+			(
+				Some(DAI),
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DAI".to_vec().try_into().unwrap()),
+				10_000,
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DAI".to_vec().try_into().unwrap()),
+				Some(12),
+				None::<Balance>,
+				true,
+			),
+		];
+
+		ACCEPTED_FEE_ASSETS.with(|v| {
+			let mut m = v.borrow_mut();
+			for currency in self.accepted_fee_payment_assets {
+				m.push(currency);
+			}
+		});
+
+		pallet_asset_registry::GenesisConfig::<Test> {
+			registered_assets,
+			..Default::default()
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self.endowed_accounts,
