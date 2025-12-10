@@ -3079,7 +3079,7 @@ fn raw_eth_revert_should_increment_nonce() {
 		assert_eq!(
 			hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address),
 			initial_evm_nonce + 2,
-			"EVM nonce must increment by exactly 1 even when raw ETH tx reverts",
+			"EVM nonce must increment by exactly 1 for each ETH tx even when it reverts",
 		);
 	});
 }
