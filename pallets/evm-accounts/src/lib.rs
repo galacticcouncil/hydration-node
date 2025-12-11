@@ -57,20 +57,27 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
 
+use codec::Encode;
 use frame_support::ensure;
 use frame_support::pallet_prelude::{DispatchResult, Get};
+use frame_support::sp_runtime::traits::Verify;
+use frame_support::traits::fungibles::Inspect;
 use hydradx_traits::evm::InspectEvmAccounts;
+use hydradx_traits::AccountFeeCurrency;
+use orml_traits::GetByKey;
+pub use primitives::Signature;
+use sp_core::crypto::Pair as PairT;
 use sp_core::{
 	crypto::{AccountId32, ByteArray},
 	H160, U256,
 };
+use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
 mod tests;
 
-mod benchmarking;
 pub mod weights;
 
 pub use pallet::*;
@@ -79,6 +86,8 @@ pub use weights::WeightInfo;
 pub type Balance = u128;
 pub type EvmAddress = H160;
 pub type AccountIdLast12Bytes = [u8; 12];
+pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
+pub const MESSAGE_PREFIX: &[u8] = b"EVMAccounts::claim_account";
 
 pub trait EvmNonceProvider {
 	fn get_nonce(evm_address: H160) -> U256;
@@ -88,6 +97,7 @@ pub trait EvmNonceProvider {
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
+	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 	use frame_system::pallet_prelude::*;
 
 	#[pallet::pallet]
@@ -108,6 +118,18 @@ pub mod pallet {
 		/// Origin that can whitelist addresses for smart contract deployment.
 		type ControllerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		/// Asset id type.
+		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen + AtLeast32BitUnsigned;
+
+		/// Multi currency.
+		type Currency: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Balance>;
+
+		/// Existential deposits provider.
+		type ExistentialDeposits: GetByKey<Self::AssetId, Balance>;
+
+		/// Fee payment currency getter and setter.
+		type FeeCurrency: AccountFeeCurrency<Self::AccountId, AssetId = Self::AssetId>;
+
 		/// Weight information for extrinsic in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -119,11 +141,22 @@ pub mod pallet {
 
 	/// Whitelisted addresses that are allowed to deploy smart contracts.
 	#[pallet::storage]
+	#[pallet::getter(fn contract_deployer)]
 	pub(super) type ContractDeployer<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, ()>;
 
 	/// Whitelisted contracts that are allowed to manage balances and tokens.
 	#[pallet::storage]
+	#[pallet::getter(fn approved_contract)]
 	pub(super) type ApprovedContract<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, ()>;
+
+	/// Tracks accounts that have been marked as EVM accounts.
+	/// An account is marked as EVM account right before we charge the evm fee
+	/// This is used to avoid resetting frame system nonce of accounts.
+	/// When we mark account as EVM account, we increase its sufficients counter by one.
+	/// We never decrease this sufficients, so side effect is that account can never be reaped
+	#[pallet::storage]
+	#[pallet::getter(fn marked_evm_accounts)]
+	pub type MarkedEvmAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, ()>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -138,6 +171,11 @@ pub mod pallet {
 		ContractApproved { address: EvmAddress },
 		/// Contract was disapproved.
 		ContractDisapproved { address: EvmAddress },
+		/// Account was claimed.
+		AccountClaimed {
+			account: T::AccountId,
+			asset_id: T::AssetId,
+		},
 	}
 
 	#[pallet::error]
@@ -151,6 +189,12 @@ pub mod pallet {
 		BoundAddressCannotBeUsed,
 		/// Address not whitelisted
 		AddressNotWhitelisted,
+		/// Provided signature is invalid
+		InvalidSignature,
+		/// Account already exists in the system pallet
+		AccountAlreadyExists,
+		/// Insufficient asset balance of the claimed asset
+		InsufficientAssetBalance,
 	}
 
 	#[pallet::hooks]
@@ -170,6 +214,51 @@ pub mod pallet {
 		}
 	}
 
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T>
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
+		type Call = Call<T>;
+
+		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match source {
+				TransactionSource::External => {
+					// receiving unsigned transaction from network - disallow
+					return InvalidTransaction::Call.into();
+				}
+				TransactionSource::Local => {}   // produced by off-chain worker
+				TransactionSource::InBlock => {} // some other node included it in a block
+			};
+
+			let valid_tx = |user| {
+				ValidTransaction::with_tag_prefix("evm-accounts")
+					.priority(UNSIGNED_TXS_PRIORITY)
+					// use account as "provides" so more than one unsigned extrinsic can be placed in the TX pool
+					.and_provides([Encode::encode(user)])
+					.longevity(3)
+					.propagate(false)
+					.build()
+			};
+
+			match call {
+				Call::claim_account {
+					account,
+					asset_id,
+					signature,
+					..
+				} => {
+					// validate transaction
+					match Self::verify_claim_account(&account, asset_id.clone(), signature.clone()) {
+						Ok(()) => valid_tx(account),
+						_ => InvalidTransaction::Call.into(),
+					}
+				}
+				_ => InvalidTransaction::Call.into(),
+			}
+		}
+	}
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
 	where
@@ -181,6 +270,7 @@ pub mod pallet {
 		/// to the origin address.
 		///
 		/// Binding an address is not necessary for interacting with the EVM.
+		/// Increases `sufficients` for the account.
 		///
 		/// Parameters:
 		/// - `origin`: Substrate account binding an address
@@ -191,36 +281,7 @@ pub mod pallet {
 		pub fn bind_evm_address(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			ensure!(
-				!Self::is_evm_account(who.clone()),
-				Error::<T>::TruncatedAccountAlreadyUsed
-			);
-
-			let evm_address = Self::evm_address(&who);
-
-			// This check is not necessary. It prevents binding the same address multiple times.
-			// Without this check binding the address second time can have pass or fail, depending
-			// on the nonce. So it's better to prevent any confusion and throw an error when address is
-			// already bound.
-			ensure!(
-				!AccountExtension::<T>::contains_key(evm_address),
-				Error::<T>::AddressAlreadyBound
-			);
-
-			let nonce = T::EvmNonceProvider::get_nonce(evm_address);
-			ensure!(nonce.is_zero(), Error::<T>::TruncatedAccountAlreadyUsed);
-
-			let mut last_12_bytes: [u8; 12] = [0; 12];
-			last_12_bytes.copy_from_slice(&who.as_ref()[20..32]);
-
-			<AccountExtension<T>>::insert(evm_address, last_12_bytes);
-
-			Self::deposit_event(Event::Bound {
-				account: who,
-				address: evm_address,
-			});
-
-			Ok(())
+			Self::do_bind_evm_address(&who)
 		}
 
 		/// Adds an EVM address to the list of addresses that are allowed to deploy smart contracts.
@@ -302,7 +363,7 @@ pub mod pallet {
 		/// Removes address of the contract from the list of approved contracts to manage balances.
 		///
 		/// Parameters:
-		/// - `origin`:  Must be `ControllerOrigin`.
+		/// - `origin`: Must be `ControllerOrigin`.
 		/// - `address`: Contract address that will be disapproved
 		///
 		/// Emits `ContractDisapproved` event when successful.
@@ -314,12 +375,125 @@ pub mod pallet {
 			Self::deposit_event(Event::ContractDisapproved { address });
 			Ok(())
 		}
+
+		/// Proves ownership of an account and binds it to the EVM address.
+		/// This is useful for accounts that want to submit some substrate transaction, but only
+		/// received some ERC20 balance and `System` pallet doesn't register them as a substrate account.
+		///
+		/// Parameters:
+		/// - `origin`: Unsigned origin.
+		/// - `account`: Account proving ownership of the address.
+		/// - `asset_id`: Asset ID to be set as fee currency for the account.
+		/// - `signature`: Signed message by the account that proves ownership of the account.
+		///
+		/// Emits `AccountClaimed` event when successful.
+		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::WeightInfo::claim_account())]
+		pub fn claim_account(
+			origin: OriginFor<T>,
+			account: T::AccountId,
+			asset_id: T::AssetId,
+			signature: Signature,
+		) -> DispatchResult {
+			ensure_none(origin)?;
+
+			Self::verify_claim_account(&account, asset_id, signature)?;
+
+			Self::do_bind_evm_address(&account)?;
+
+			T::FeeCurrency::set(&account, asset_id)?;
+
+			Self::deposit_event(Event::AccountClaimed { account, asset_id });
+
+			Ok(())
+		}
 	}
 }
 
-impl<T: Config> Pallet<T> {
+impl<T: Config> Pallet<T>
+where
+	T::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<AccountId32>,
+{
+	/// Binds an account to an EVM address and increases `sufficients`.
+	fn do_bind_evm_address(who: &T::AccountId) -> DispatchResult {
+		ensure!(
+			!Self::is_evm_account(who.clone()),
+			Error::<T>::TruncatedAccountAlreadyUsed
+		);
+
+		let evm_address = Self::evm_address(&who);
+
+		// This check is not necessary. It prevents binding the same address multiple times.
+		// Without this check binding the address second time can have pass or fail, depending
+		// on the nonce. So it's better to prevent any confusion and throw an error when address is
+		// already bound.
+		ensure!(
+			!AccountExtension::<T>::contains_key(evm_address),
+			Error::<T>::AddressAlreadyBound
+		);
+
+		let nonce = T::EvmNonceProvider::get_nonce(evm_address);
+		ensure!(nonce.is_zero(), Error::<T>::TruncatedAccountAlreadyUsed);
+
+		let mut last_12_bytes: [u8; 12] = [0; 12];
+		last_12_bytes.copy_from_slice(&who.as_ref()[20..32]);
+
+		<AccountExtension<T>>::insert(evm_address, last_12_bytes);
+
+		frame_system::Pallet::<T>::inc_sufficients(who);
+
+		Self::deposit_event(Event::Bound {
+			account: who.clone(),
+			address: evm_address,
+		});
+
+		Ok(())
+	}
+
+	fn verify_claim_account(account: &T::AccountId, asset_id: T::AssetId, signature: Signature) -> DispatchResult {
+		let msg = Self::create_claim_account_message(account, asset_id);
+
+		ensure!(
+			signature.verify(msg.as_slice(), &account.clone().into()),
+			Error::<T>::InvalidSignature
+		);
+
+		T::FeeCurrency::is_payment_currency(asset_id)?;
+
+		ensure!(
+			!frame_system::Pallet::<T>::account_exists(&account),
+			Error::<T>::AccountAlreadyExists
+		);
+
+		ensure!(
+			T::Currency::balance(asset_id, &account) >= T::ExistentialDeposits::get(&asset_id),
+			Error::<T>::InsufficientAssetBalance
+		);
+
+		Ok(())
+	}
+
+	/// Creates a message that can be used to prove ownership of an account.
+	fn create_claim_account_message(account: &T::AccountId, asset_id: T::AssetId) -> Vec<u8> {
+		(MESSAGE_PREFIX, account.clone(), asset_id).encode()
+	}
+
 	fn _is_evm_account(account_id: &[u8; 32]) -> bool {
 		&account_id[0..4] == b"ETH\0" && account_id[24..32] == [0u8; 8]
+	}
+
+	/// Marks an account as an EVM account.
+	/// This should only be called once per account to avoid unnecessarily
+	/// increasing sufficients multiple times.
+	/// Only EVM truncated accounts are marked, because bound accounts has already their sufficients increased during binding.
+	pub fn mark_as_evm_account(account: &T::AccountId) {
+		if Self::is_evm_account(account.clone()) {
+			if !MarkedEvmAccounts::<T>::contains_key(account) {
+				frame_system::Pallet::<T>::inc_sufficients(account);
+
+				MarkedEvmAccounts::<T>::insert(account, ());
+			}
+		}
 	}
 }
 
@@ -375,4 +549,15 @@ where
 	fn is_approved_contract(evm_address: EvmAddress) -> bool {
 		ApprovedContract::<T>::contains_key(evm_address)
 	}
+}
+
+#[cfg(feature = "std")]
+/// Used for testing purposes.
+/// Signs a message for `claim_account` with a given pair of keys.
+pub fn sign_message<T: Config>(pair: sp_core::sr25519::Pair, account: &T::AccountId, asset_id: T::AssetId) -> Signature
+where
+	T::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<AccountId32>,
+{
+	let signature = pair.sign(Pallet::<T>::create_claim_account_message(account, asset_id).as_slice());
+	Signature::Sr25519(signature)
 }

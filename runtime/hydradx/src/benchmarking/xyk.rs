@@ -208,7 +208,6 @@ runtime_benchmarks! {
 		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone()).into(), fee_asset)?;
 		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone()).into(), fee_asset)?;
 
-		let discount = false;
 		let amount: Balance = 250_000_000_000_000;
 		let min_bought: Balance = 1;
 
@@ -249,7 +248,6 @@ runtime_benchmarks! {
 		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone()).into(), fee_asset)?;
 		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone()).into(), fee_asset)?;
 
-		let discount = false;
 		let amount: Balance = 200_000_000_000_000;
 		let max_sold: Balance = INITIAL_BALANCE;
 
@@ -288,7 +286,6 @@ runtime_benchmarks! {
 		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone()).into(), fee_asset)?;
 		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone()).into(), fee_asset)?;
 
-		let discount = false;
 		let amount: Balance = 200_000_000_000_000;
 		let max_sold: Balance = INITIAL_BALANCE;
 
