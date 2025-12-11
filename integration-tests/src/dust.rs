@@ -452,7 +452,7 @@ mod atoken_dust {
 
 	#[test]
 	fn dust_account_invariant() {
-		let successfull_cases = 1;
+		let successfull_cases = 100;
 
 		let ed_range = 1_u128..(START_BALANCE - 1);
 
@@ -502,9 +502,11 @@ mod atoken_dust {
 							ADOT,
 							1,
 						);
-						assert_noop!(
-							sanity_transfer,
-							Other("evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011"),
+						let err = sanity_transfer.unwrap_err();
+						assert_eq!(
+							err,
+							pallet_dispatcher::Error::<hydradx_runtime::Runtime>::EvmArithmeticOverflowOrUnderflow
+								.into()
 						);
 						TransactionOutcome::Rollback(DispatchResult::Ok(()))
 					});
