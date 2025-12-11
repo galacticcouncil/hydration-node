@@ -149,6 +149,15 @@ pub mod pallet {
 	#[pallet::getter(fn approved_contract)]
 	pub(super) type ApprovedContract<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, ()>;
 
+	/// Tracks accounts that have been marked as EVM accounts.
+	/// An account is marked as EVM account right before we charge the evm fee
+	/// This is used to avoid resetting frame system nonce of accounts.
+	/// When we mark account as EVM account, we increase its sufficients counter by one.
+	/// We never decrease this sufficients, so side effect is that account can never be reaped
+	#[pallet::storage]
+	#[pallet::getter(fn marked_evm_accounts)]
+	pub type MarkedEvmAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, ()>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -471,6 +480,20 @@ where
 
 	fn _is_evm_account(account_id: &[u8; 32]) -> bool {
 		&account_id[0..4] == b"ETH\0" && account_id[24..32] == [0u8; 8]
+	}
+
+	/// Marks an account as an EVM account.
+	/// This should only be called once per account to avoid unnecessarily
+	/// increasing sufficients multiple times.
+	/// Only EVM truncated accounts are marked, because bound accounts has already their sufficients increased during binding.
+	pub fn mark_as_evm_account(account: &T::AccountId) {
+		if Self::is_evm_account(account.clone()) {
+			if !MarkedEvmAccounts::<T>::contains_key(account) {
+				frame_system::Pallet::<T>::inc_sufficients(account);
+
+				MarkedEvmAccounts::<T>::insert(account, ());
+			}
+		}
 	}
 }
 
