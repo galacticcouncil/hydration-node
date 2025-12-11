@@ -9518,7 +9518,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.3.0"
+version = "1.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -14646,7 +14646,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.58.0"
+version = "1.59.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",

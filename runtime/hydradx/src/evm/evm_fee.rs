@@ -21,7 +21,7 @@
 use crate::{Runtime, TreasuryAccount};
 use frame_support::dispatch::DispatchResult;
 use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
-use frame_support::traits::{Get, TryDrop};
+use frame_support::traits::{Get, IsType, TryDrop};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::AccountFeeCurrency;
@@ -95,6 +95,7 @@ where
 	SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<T::AccountId, AssetId, Balance>,
 	DotAssetId: Get<AssetId>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	T::AccountId: IsType<AccountId>,
 {
 	type LiquidityInfo = Option<EvmPaymentInfo<EmaPrice>>;
 
@@ -103,6 +104,9 @@ where
 			return Ok(None);
 		}
 		let account_id = T::AddressMapping::into_account_id(*who);
+
+		pallet_evm_accounts::Pallet::<crate::Runtime>::mark_as_evm_account(&account_id.clone().into());
+
 		let account_fee_currency = AccountCurrency::get(&account_id);
 
 		let (converted, fee_currency, price) =

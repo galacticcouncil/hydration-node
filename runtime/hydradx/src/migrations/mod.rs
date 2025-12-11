@@ -15,4 +15,9 @@
 
 use super::*;
 
-pub type Migrations = (pallet_stableswap::migrations::v1::MigrateV0ToV1<Runtime>,);
+mod reset_max_nonces;
+
+pub type Migrations = (
+	reset_max_nonces::v1::ResetMaxNonces<crate::Runtime>,
+	pallet_stableswap::migrations::v1::MigrateV0ToV1<Runtime>,
+);
