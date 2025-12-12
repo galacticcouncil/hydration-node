@@ -22,6 +22,7 @@ use crate::service::new_partial;
 use codec::Encode;
 use cumulus_client_service::storage_proof_size::HostFunctions as ReclaimHostFunctions;
 use cumulus_primitives_core::ParaId;
+#[cfg(feature = "runtime-benchmarks")]
 use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
 use hydradx_runtime::Block;
 use log::info;
@@ -188,6 +189,7 @@ pub fn run() -> sc_cli::Result<()> {
 				Ok((cmd.run(partials.client, partials.backend, None), partials.task_manager))
 			})
 		}
+		#[cfg(feature = "runtime-benchmarks")]
 		Some(Subcommand::Benchmark(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 
