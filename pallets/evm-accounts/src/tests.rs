@@ -560,3 +560,34 @@ fn validate_unsigned_should_fail_if_asset_is_not_valid_fee_payment_asset() {
 		});
 	});
 }
+
+#[test]
+fn validate_unsigned_should_fail_if_account_is_truncated() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let pair = sp_core::sr25519::Pair::from_seed_slice([1; 64].as_slice()).unwrap();
+		let account = frame_support::sp_runtime::MultiSigner::from(pair.public()).into_account();
+		let evm_address = EVMAccounts::evm_address(&account);
+		let truncated_account = EVMAccounts::truncated_account_id(evm_address);
+
+		assert_ok!(Currencies::deposit(DOT, &truncated_account, INITIAL_BALANCE));
+
+		// Remove account from the system pallet, but keep DOT balance in the tokens pallet
+		frame_system::Account::<Test>::remove(truncated_account.clone());
+		assert!(!System::account_exists(&truncated_account));
+
+		let signature = sign_message::<Test>(pair, &truncated_account, DOT);
+
+		let call = Call::claim_account {
+			account: truncated_account,
+			asset_id: DOT,
+			signature,
+		};
+
+		// Act & Assert
+		assert_storage_noop!({
+			let res = EVMAccounts::validate_unsigned(TransactionSource::Local, &call);
+			assert_noop!(res, TransactionValidityError::Invalid(InvalidTransaction::Call));
+		});
+	});
+}
