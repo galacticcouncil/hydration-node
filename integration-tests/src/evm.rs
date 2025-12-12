@@ -50,12 +50,13 @@ use hydradx_runtime::{
 use hydradx_traits::router::{PoolType, Trade};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
-use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
+use pallet_evm_accounts::EvmNonceProvider;
+use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
-use sp_core::{blake2_256, Pair, H160, H256, U256};
+use sp_core::{blake2_256, Get, Pair, H160, H256, U256};
 use sp_runtime::traits::IdentifyAccount;
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
@@ -74,7 +75,7 @@ mod account_conversion {
 	use hydradx_traits::evm::CallContext;
 	use pretty_assertions::assert_eq;
 	use sp_core::Pair;
-	use sp_runtime::traits::IdentifyAccount;
+	use sp_runtime::traits::{Dispatchable, IdentifyAccount};
 
 	#[test]
 	fn eth_address_should_convert_to_truncated_address_when_not_bound() {
