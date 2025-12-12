@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use super::*;
-pub use mock::{EmaOracle, RuntimeOrigin, Test};
+pub use mock::{expect_last_event_last_entry, EmaOracle, RuntimeOrigin, Test};
 
 use frame_support::{assert_noop, assert_ok};
 
@@ -55,20 +55,18 @@ fn add_oracle_should_add_entry_to_storage() {
 
 		update_aggregated_oracles();
 
-		//Assert
-		let entry = Oracles::<Test>::get((BIFROST_SOURCE, ordered_pair(0, 5), LastBlock)).map(|(e, _)| e);
+		let key = (BIFROST_SOURCE, ordered_pair(0, 5), LastBlock);
+		//Assert Storage
+		let entry = Oracles::<Test>::get(key).map(|(e, _)| e);
 		assert!(entry.is_some());
 		let entry = entry.unwrap();
 		assert_eq!(entry.price, EmaPrice::new(100, 99));
 		assert_eq!(entry.volume, Volume::default());
 		assert_eq!(entry.liquidity, Liquidity::default());
 		assert_eq!(entry.updated_at, 3);
-		assert_last_event!(Event::<Test>::OracleUpdated {
-			source: BIFROST_SOURCE,
-			assets: ordered_pair(0, 5),
-			update: entry.clone(),
-		}
-		.into());
+
+		// Assert Event
+		expect_last_event_last_entry(key, entry);
 	});
 }
 
@@ -113,20 +111,18 @@ fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
 
 		update_aggregated_oracles();
 
-		//Assert
-		let entry = Oracles::<Test>::get((BIFROST_SOURCE, ordered_pair(0, 5), LastBlock)).map(|(e, _)| e);
+		let key = (BIFROST_SOURCE, ordered_pair(0, 5), LastBlock);
+		//Assert State
+		let entry = Oracles::<Test>::get(key).map(|(e, _)| e);
 		assert!(entry.is_some());
 		let entry = entry.unwrap();
 		assert_eq!(entry.price, EmaPrice::new(99, 100));
 		assert_eq!(entry.volume, Volume::default());
 		assert_eq!(entry.liquidity, Liquidity::default());
 		assert_eq!(entry.updated_at, 3);
-		assert_last_event!(Event::<Test>::OracleUpdated {
-			source: BIFROST_SOURCE,
-			assets: ordered_pair(0, 5),
-			update: entry.clone(),
-		}
-		.into());
+
+		// Assert Event
+		expect_last_event_last_entry(key, entry);
 	});
 }
 
@@ -216,16 +212,15 @@ fn should_pass_when_new_price_is_still_within_range() {
 
 		update_aggregated_oracles();
 
-		// Assert last event
-		let entry = Oracles::<Test>::get((BIFROST_SOURCE, ordered_pair(0, 5), LastBlock)).map(|(e, _)| e);
+		let key = (BIFROST_SOURCE, ordered_pair(0, 5), LastBlock);
+
+		//Assert State
+		let entry = Oracles::<Test>::get(key).map(|(e, _)| e);
 		assert!(entry.is_some());
+
+		// Assert Event
 		let entry = entry.unwrap();
-		assert_last_event!(Event::<Test>::OracleUpdated {
-			source: BIFROST_SOURCE,
-			assets: ordered_pair(0, 5),
-			update: entry.clone(),
-		}
-		.into());
+		expect_last_event_last_entry(key, entry);
 
 		//Act
 		assert_ok!(EmaOracle::update_bifrost_oracle(
