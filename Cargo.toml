@@ -49,6 +49,9 @@ members = [
     'pallets/broadcast',
     'liquidation-worker-support',
     'pallets/hsm',
+    'pallets/build-evm-tx',
+    "pallets/signet",
+    'pallets/erc20-vault',
 ]
 
 resolver = "2"
@@ -58,6 +61,7 @@ codec = { package = "parity-scale-codec", version = "3.6.12", default-features =
 scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
 serde = { version = "1.0.209", default-features = false }
 primitive-types = { version = "0.12.2", default-features = false }
+borsh = { version = "1.5.7", default-features = false, features = ["derive"] }
 
 affix = "0.1.2"
 alloy-primitives = { version = "0.7", default-features = false }
@@ -157,7 +161,12 @@ pallet-liquidation = { path = "pallets/liquidation", default-features = false }
 pallet-broadcast = { path = "pallets/broadcast", default-features = false }
 liquidation-worker-support = { path = "liquidation-worker-support", default-features = false }
 pallet-hsm = { path = "pallets/hsm", default-features = false }
+pallet-build-evm-tx = { path = "pallets/build-evm-tx", default-features = false }
+pallet-build-btc-tx = { path = "pallets/build-btc-tx", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
+pallet-signet = { path = "pallets/signet", default-features = false }
+pallet-erc20-vault = { path = "pallets/erc20-vault", default-features = false } 
+pallet-btc-vault = { path = "pallets/btc-vault", default-features = false } 
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

@@ -1835,6 +1835,55 @@ impl pallet_hsm::Config for Runtime {
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
 }
 
+parameter_types! {
+	pub const MaxEvmDataLength: u32 = 100_000;
+}
+
+impl pallet_build_evm_tx::Config for Runtime {
+	type MaxDataLength = MaxEvmDataLength;
+}
+
+parameter_types! {
+	pub const MaxBTCInputs: u32 = 100;
+	pub const MaxBTCOutputs: u32 = 100;
+}
+
+impl pallet_build_btc_tx::Config for Runtime {
+	type MaxInputs = MaxBTCInputs;
+	type MaxOutputs = MaxBTCOutputs;
+}
+
+parameter_types! {
+	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
+	pub const MaxChainIdLength: u32 = 128;
+}
+
+impl pallet_signet::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type PalletId = SignetPalletId;
+	type MaxChainIdLength = MaxChainIdLength;
+	type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const Erc20VaultPalletId: PalletId = PalletId(*b"py/erc20");
+}
+
+impl pallet_erc20_vault::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type VaultPalletId = Erc20VaultPalletId;
+}
+
+parameter_types! {
+	pub const BTCVaultPalletId: PalletId = PalletId(*b"py/btcvt");
+}
+
+impl pallet_btc_vault::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type VaultPalletId = BTCVaultPalletId;
+}
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where

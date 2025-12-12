@@ -1,0 +1,43 @@
+[package]
+name = "pallet-build-btc-tx"
+version = "1.0.0"
+description = "Pallet for building PSBT-encoded Bitcoin transactions"
+authors = ["GalacticCouncil"]
+edition = "2021"
+homepage = "https://github.com/galacticcouncil/hydration-node"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/hydration-node"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { workspace = true }
+scale-info = { workspace = true }
+sp-std = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+signet-rs = { git = "https://github.com/esaminu/signet.rs", branch = "borsh-1.5.7", default-features = false, features = ["bitcoin"] }
+frame-benchmarking = { workspace = true, optional = true }
+
+[dev-dependencies]
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
+sp-core = { workspace = true }
+
+[features]
+default = ["std"]
+runtime-benchmarks = [
+    "frame-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+]
+std = [
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-std/std",
+    "scale-info/std",
+    "signet-rs/std",
+]
+try-runtime = ["frame-support/try-runtime"]
