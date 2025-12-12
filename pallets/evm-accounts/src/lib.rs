@@ -249,8 +249,10 @@ pub mod pallet {
 					..
 				} => {
 					// validate transaction
-					match (Self::verify_claim_account(&account, asset_id.clone(), signature.clone()),
-						   Self::validate_bind_evm_address(&account, &Self::evm_address(&account))) {
+					match (
+						Self::verify_claim_account(&account, asset_id.clone(), signature.clone()),
+						Self::validate_bind_evm_address(&account, &Self::evm_address(&account)),
+					) {
 						(Ok(()), Ok(())) => valid_tx(account),
 						_ => InvalidTransaction::Call.into(),
 					}
@@ -445,7 +447,6 @@ where
 
 	/// Binds an account to an EVM address and increases `sufficients`.
 	fn do_bind_evm_address(who: &T::AccountId, evm_address: &EvmAddress) -> DispatchResult {
-
 		let mut last_12_bytes: [u8; 12] = [0; 12];
 		last_12_bytes.copy_from_slice(&who.as_ref()[20..32]);
 
