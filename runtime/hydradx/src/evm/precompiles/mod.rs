@@ -29,14 +29,14 @@ use crate::evm::precompiles::{
 use codec::Decode;
 use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
 use pallet_evm::{
-	ExitError, ExitRevert, ExitSucceed, IsPrecompileResult, Precompile, PrecompileFailure, PrecompileHandle,
-	PrecompileOutput, PrecompileResult, PrecompileSet,
+	AddressMapping, ExitError, ExitRevert, ExitSucceed, IsPrecompileResult, Precompile, PrecompileFailure,
+	PrecompileHandle, PrecompileOutput, PrecompileResult, PrecompileSet,
 };
 use pallet_evm_precompile_blake2::Blake2F;
 use pallet_evm_precompile_bn128::{Bn128Add, Bn128Mul, Bn128Pairing};
 use pallet_evm_precompile_modexp::Modexp;
 use pallet_evm_precompile_simple::{ECRecover, Identity, Ripemd160, Sha256};
-use sp_runtime::traits::Dispatchable;
+use sp_runtime::traits::{Dispatchable, One};
 
 use codec::alloc;
 use ethabi::Token;
@@ -134,6 +134,8 @@ where
 	ChainlinkOraclePrecompile<R>: Precompile,
 	<R as frame_system::pallet::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	<R as pallet_stableswap::pallet::Config>::AssetId: From<u32>,
+	R::AddressMapping: pallet_evm::AddressMapping<R::AccountId>,
+	pallet_evm::AccountIdOf<R>: From<R::AccountId>,
 {
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		let context = handle.context();
@@ -175,7 +177,21 @@ where
 				AllowedFlashLoanCallers,
 			>::execute(handle))
 		} else if address == DISPATCH_ADDR {
-			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
+			let caller_account = R::AddressMapping::into_account_id(handle.context().caller);
+			let original_nonce = frame_system::Pallet::<R>::account_nonce(caller_account.clone());
+
+			let dispatch_precompile_result = pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle);
+
+			let nonce_after = frame_system::Pallet::<R>::account_nonce(caller_account.clone());
+			if nonce_after > original_nonce {
+				let target = original_nonce + One::one();
+
+				if nonce_after != target {
+					frame_system::Account::<R>::mutate(caller_account, |acc| acc.nonce = target);
+				}
+			}
+
+			Some(dispatch_precompile_result)
 		} else if is_asset_address(address) {
 			Some(MultiCurrencyPrecompile::<R>::execute(handle))
 		} else if is_oracle_address(address) {
