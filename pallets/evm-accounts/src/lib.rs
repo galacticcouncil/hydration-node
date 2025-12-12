@@ -249,8 +249,9 @@ pub mod pallet {
 					..
 				} => {
 					// validate transaction
-					match Self::verify_claim_account(&account, asset_id.clone(), signature.clone()) {
-						Ok(()) => valid_tx(account),
+					match (Self::verify_claim_account(&account, asset_id.clone(), signature.clone()),
+						   Self::validate_bind_evm_address(&account, &Self::evm_address(&account))) {
+						(Ok(()), Ok(())) => valid_tx(account),
 						_ => InvalidTransaction::Call.into(),
 					}
 				}
@@ -281,7 +282,10 @@ pub mod pallet {
 		pub fn bind_evm_address(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			Self::do_bind_evm_address(&who)
+			let evm_address = Self::evm_address(&who);
+
+			Self::validate_bind_evm_address(&who, &evm_address)?;
+			Self::do_bind_evm_address(&who, &evm_address)
 		}
 
 		/// Adds an EVM address to the list of addresses that are allowed to deploy smart contracts.
@@ -397,9 +401,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_none(origin)?;
 
+			let evm_address = Self::evm_address(&account);
+
 			Self::verify_claim_account(&account, asset_id, signature)?;
 
-			Self::do_bind_evm_address(&account)?;
+			Self::validate_bind_evm_address(&account, &evm_address)?;
+			Self::do_bind_evm_address(&account, &evm_address)?;
 
 			T::FeeCurrency::set(&account, asset_id)?;
 
@@ -414,14 +421,12 @@ impl<T: Config> Pallet<T>
 where
 	T::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<AccountId32>,
 {
-	/// Binds an account to an EVM address and increases `sufficients`.
-	fn do_bind_evm_address(who: &T::AccountId) -> DispatchResult {
+	/// Validations for `do_bind_evm_address`.
+	fn validate_bind_evm_address(who: &T::AccountId, evm_address: &EvmAddress) -> DispatchResult {
 		ensure!(
 			!Self::is_evm_account(who.clone()),
 			Error::<T>::TruncatedAccountAlreadyUsed
 		);
-
-		let evm_address = Self::evm_address(&who);
 
 		// This check is not necessary. It prevents binding the same address multiple times.
 		// Without this check binding the address second time can have pass or fail, depending
@@ -432,8 +437,14 @@ where
 			Error::<T>::AddressAlreadyBound
 		);
 
-		let nonce = T::EvmNonceProvider::get_nonce(evm_address);
+		let nonce = T::EvmNonceProvider::get_nonce(*evm_address);
 		ensure!(nonce.is_zero(), Error::<T>::TruncatedAccountAlreadyUsed);
+
+		Ok(())
+	}
+
+	/// Binds an account to an EVM address and increases `sufficients`.
+	fn do_bind_evm_address(who: &T::AccountId, evm_address: &EvmAddress) -> DispatchResult {
 
 		let mut last_12_bytes: [u8; 12] = [0; 12];
 		last_12_bytes.copy_from_slice(&who.as_ref()[20..32]);
@@ -444,7 +455,7 @@ where
 
 		Self::deposit_event(Event::Bound {
 			account: who.clone(),
-			address: evm_address,
+			address: *evm_address,
 		});
 
 		Ok(())

@@ -5536,7 +5536,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "370.0.0"
+version = "371.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -9521,7 +9521,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
