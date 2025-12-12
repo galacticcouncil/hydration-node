@@ -95,7 +95,7 @@ fn insufficient_asset_can_be_used_as_fee_currency() {
 			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
 				Some(pre.unwrap()),
 				&info,
-				&default_post_info(),
+				&PostDispatchInfo::default(),
 				info_len,
 				&Ok(())
 			));
@@ -235,7 +235,7 @@ fn sufficient_but_not_accepted_asset_can_be_used_as_fee_currency() {
 			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
 				Some(pre.unwrap()),
 				&info,
-				&default_post_info(),
+				&PostDispatchInfo::default(),
 				info_len,
 				&Ok(())
 			));
@@ -303,7 +303,7 @@ fn erc20_can_be_used_as_fee_currency() {
 			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
 				Some(pre.unwrap()),
 				&info,
-				&default_post_info(),
+				&PostDispatchInfo::default(),
 				info_len,
 				&Ok(())
 			));
@@ -319,11 +319,4 @@ fn erc20_can_be_used_as_fee_currency() {
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
 	});
-}
-
-fn default_post_info() -> PostDispatchInfo {
-	PostDispatchInfo {
-		actual_weight: None,
-		pays_fee: Default::default(),
-	}
 }
