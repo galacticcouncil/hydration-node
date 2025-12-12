@@ -95,7 +95,7 @@ proptest = "1.0.40"
 quote = "1.0.20"
 rand = { version = "0.8.5", default-features = false }
 rand_xoshiro = "0.6.0"
-rug = { version = "1.17.0", features = ["num-traits"] }
+rug = { version = "1.17.0", features = ["num-traits", "integer", "rational"], default-features=false }
 rustc-hex = { version = '2.1.0', default-features = false }
 sha3 = { version = "0.10.6", default-features = false }
 serde_json = { version = "1.0.117", default-features = false }
