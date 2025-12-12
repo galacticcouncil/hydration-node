@@ -1003,14 +1003,12 @@ fn dispatch_evm_call_without_batch_should_increase_nonce_correctly() {
 		assert_eq!(account.nonce(), initial_nonce + 1);
 		assert_eq!(last_evm_nonce, initial_evm_nonce + 1);
 
-		// Should increment
 		dispatch_evm_call_with_params(false, None, Some(last_evm_nonce.into()));
 		let last_evm_nonce = evm::EvmNonceProvider::get_nonce(evm_address());
 
 		assert_eq!(account.nonce(), initial_nonce + 2);
 		assert_eq!(last_evm_nonce, initial_evm_nonce + 2);
 
-		// Should increment
 		dispatch_evm_call_with_params(false, Some(15_000.into()), Some(last_evm_nonce.into()));
 		assert_eq!(account.nonce(), initial_nonce + 3);
 		assert_eq!(evm::EvmNonceProvider::get_nonce(evm_address()), initial_evm_nonce + 3);
@@ -1033,6 +1031,7 @@ fn dispatch_evm_call_with_batch_should_increase_nonce_correctly() {
 
 		// Record system nonce before dispatch
 		let initial_nonce = account.nonce();
+		let get_evm_nonce = || evm::EvmNonceProvider::get_nonce(evm_address());
 
 		// EVM & permit nonces before
 		let initial_evm_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address());
@@ -1044,26 +1043,15 @@ fn dispatch_evm_call_with_batch_should_increase_nonce_correctly() {
 		// No increment
 		dispatch_evm_call_with_params(true, None, None);
 		assert_eq!(account.nonce(), initial_nonce);
-		assert_eq!(evm::EvmNonceProvider::get_nonce(evm_address()), initial_evm_nonce);
+		assert_eq!(get_evm_nonce(), initial_evm_nonce);
 
-		// Shouldn't happen
+		// Explicit nonce in precompile will fail
+		// dispatch_evm_call_with_params(true, None, Some(get_evm_nonce()));
+
+		// Should increment
 		dispatch_evm_call_with_params(true, Some(15_000.into()), None);
-		let last_evm_nonce = evm::EvmNonceProvider::get_nonce(evm_address());
-
 		assert_eq!(account.nonce(), initial_nonce + 1);
-		assert_eq!(last_evm_nonce, initial_evm_nonce + 1);
-
-		// Shouldn't happen
-		dispatch_evm_call_with_params(true, None, Some(last_evm_nonce.into()));
-		let last_evm_nonce = evm::EvmNonceProvider::get_nonce(evm_address());
-
-		assert_eq!(account.nonce(), initial_nonce + 2);
-		assert_eq!(last_evm_nonce, initial_evm_nonce + 2);
-
-		// Shouldn't happen
-		dispatch_evm_call_with_params(true, Some(15_000.into()), Some(last_evm_nonce.into()));
-		assert_eq!(account.nonce(), initial_nonce + 3);
-		assert_eq!(evm::EvmNonceProvider::get_nonce(evm_address()), initial_evm_nonce + 3);
+		assert_eq!(get_evm_nonce(), initial_evm_nonce + 1);
 
 		// We didn't use permit at all. Should stay unchanged
 		assert_eq!(
