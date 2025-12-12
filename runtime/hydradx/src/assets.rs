@@ -17,7 +17,7 @@
 
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
-use crate::evm::Erc20Currency;
+use crate::evm::{Erc20Currency, WethAssetId};
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
@@ -68,6 +68,7 @@ use pallet_omnipool::{
 use pallet_otc::NamedReserveIdentifier;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights};
 use pallet_stableswap::weights::WeightInfo as StableswapWeights;
+use sp_runtime::{traits::Verify, MultiSignature};
 
 use pallet_staking::{
 	types::{Action, Point},
@@ -893,6 +894,11 @@ impl Get<AssetId> for DotAssetId {
 			None => invalid_id,
 		}
 	}
+}
+
+impl frame_system::offchain::SigningTypes for Runtime {
+	type Public = <MultiSignature as Verify>::Signer;
+	type Signature = MultiSignature;
 }
 
 parameter_types! {
@@ -1833,6 +1839,68 @@ impl pallet_hsm::Config for Runtime {
 	type WeightInfo = weights::pallet_hsm::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
+}
+
+parameter_types! {
+	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
+	pub const MaxChainIdLength: u32 = 128;
+
+	pub const MaxEvmDataLength: u32 = 100_000;
+	pub const MaxSignatureDeposit: Balance = 200_000_000_000_000;
+}
+
+impl pallet_signet::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type PalletId = SignetPalletId;
+	type MaxChainIdLength = MaxChainIdLength;
+	type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
+	type MaxDataLength = MaxEvmDataLength;
+	type UpdateOrigin = EnsureRoot<AccountId>;
+	type MaxSignatureDeposit = MaxSignatureDeposit;
+}
+
+parameter_types! {
+	pub const SigEthPalletId: PalletId = PalletId(*b"py/fucet");
+	pub const SigEthFaucetDispenserFee: u128 = 5_000;
+	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000_000_000_000;
+	pub const SigEthFaucetMinRequest: u64 = 0;
+	pub const SigEthFaucetFeeAssetId: AssetId = 0;
+	pub const SigEthFaucetFaucetAssetId: AssetId = 20;
+	pub const SigEthMinFaucetThreshold: u128 = 50_000_000_000_000_000u128;
+}
+
+// Treasury as the fee receiver (reuses the Treasury pallet account)
+pub struct SigEthFaucetTreasuryAccount;
+impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
+	fn get() -> AccountId {
+		Treasury::account_id()
+	}
+}
+
+pub struct SigEthFaucetContractAddr;
+impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetContractAddr {
+	fn get() -> [u8; 20] {
+		[
+			0x52, 0xBE, 0x07, 0x7E, 0x67, 0x49, 0x6C, 0x97, 0x63, 0xCC, 0xEF, 0x66, 0xC1, 0x11, 0x7D, 0xD2, 0x34, 0xCA,
+			0x8C, 0xFC,
+		]
+	}
+}
+
+impl pallet_dispenser::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = FungibleCurrencies<Runtime>;
+	type MinimumRequestAmount = SigEthFaucetMinRequest;
+	type MaxDispenseAmount = SigEthFaucetMaxDispense;
+	type DispenserFee = SigEthFaucetDispenserFee;
+	type FeeAsset = SigEthFaucetFeeAssetId;
+	type FaucetAsset = SigEthFaucetFaucetAssetId;
+	type FeeDestination = SigEthFaucetTreasuryAccount;
+	type FaucetAddress = SigEthFaucetContractAddr;
+	type PalletId = SigEthPalletId;
+	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
+	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
