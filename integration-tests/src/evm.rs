@@ -3954,6 +3954,100 @@ fn substrate_signed_evm_with_batch_should_increment_nonce_once() {
 	});
 }
 
+#[test]
+fn evm_input_through_precompile_should_increase_nonce_correctly() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			alith_evm_account(),
+			WETH,
+			to_ether(1).try_into().unwrap(),
+		));
+
+		//Arrange
+		let evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+			source: alith_evm_address(),
+			target: DISPATCH_ADDR,
+			input: hex!["0107081337"].to_vec(),
+			value: U256::zero(),
+			gas_limit: 1_000_000,
+			max_fee_per_gas: gas_price(),
+			max_priority_fee_per_gas: Some(15_000.into()),
+			nonce: None,
+			access_list: vec![],
+		});
+		let mut handle = create_dispatch_handle(evm_call.encode());
+
+		let get_evm_nonce = || hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address());
+		let initial_nonce = get_evm_nonce();
+
+		//Act
+		let prec = HydraDXPrecompiles::<hydradx_runtime::Runtime>::new();
+		let result = prec.execute(&mut handle);
+
+		//Assert
+		assert_eq!(
+			result.unwrap(),
+			Ok(PrecompileOutput {
+				exit_status: ExitSucceed::Stopped,
+				output: Default::default(),
+			})
+		);
+
+		assert_eq!(get_evm_nonce(), initial_nonce + 1);
+	});
+}
+
+#[test]
+fn batched_evm_input_through_precompile_should_increase_nonce_correctly() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			alith_evm_account(),
+			WETH,
+			to_ether(1).try_into().unwrap(),
+		));
+
+		//Arrange
+		let evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+			source: alith_evm_address(),
+			target: DISPATCH_ADDR,
+			input: hex!["0107081337"].to_vec(),
+			value: U256::zero(),
+			gas_limit: 1_000_000,
+			max_fee_per_gas: gas_price(),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		});
+		let batch_call = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![evm_call.clone(), evm_call],
+		});
+
+		let get_evm_nonce = || hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address());
+		let initial_nonce = get_evm_nonce();
+
+		//Act
+		assert_ok!(EVM::call(
+				evm_signed_origin(alith_evm_address()),
+				alith_evm_address(),
+				DISPATCH_ADDR,
+				batch_call.encode(),
+				U256::from(0),
+				1000000,
+				gas_price(),
+				None,
+				Some(U256::zero()),
+				[].into()
+			));
+
+		//Assert
+		assert_eq!(get_evm_nonce(), initial_nonce + 1);
+	});
+}
+
 pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
 	hydradx_run_to_next_block();
