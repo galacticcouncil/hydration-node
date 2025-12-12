@@ -4031,17 +4031,17 @@ fn batched_evm_input_through_precompile_should_increase_nonce_correctly() {
 
 		//Act
 		assert_ok!(EVM::call(
-				evm_signed_origin(alith_evm_address()),
-				alith_evm_address(),
-				DISPATCH_ADDR,
-				batch_call.encode(),
-				U256::from(0),
-				1000000,
-				gas_price(),
-				None,
-				Some(U256::zero()),
-				[].into()
-			));
+			evm_signed_origin(alith_evm_address()),
+			alith_evm_address(),
+			DISPATCH_ADDR,
+			batch_call.encode(),
+			U256::from(0),
+			1000000,
+			gas_price(),
+			None,
+			Some(U256::zero()),
+			[].into()
+		));
 
 		//Assert
 		assert_eq!(get_evm_nonce(), initial_nonce + 1);
