@@ -53,3 +53,7 @@ SNAPSHOT*
 
 db.sqlite*
 zombienet
+/pallets/dispenser/contracts/broadcast
+/pallets/dispenser/contracts/lib
+/pallets/dispenser/contracts/cache
+/pallets/dispenser/contracts/out
