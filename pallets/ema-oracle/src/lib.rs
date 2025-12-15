@@ -506,7 +506,6 @@ impl<T: Config> Pallet<T> {
 			}
 		};
 
-		// Unnecessary write if oracle wasn't updated due to some reason
 		Oracles::<T>::insert((src, assets, period), updated_oracle.clone());
 		updated_oracle
 	}
