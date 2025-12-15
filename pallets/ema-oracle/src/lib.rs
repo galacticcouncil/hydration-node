@@ -475,7 +475,6 @@ impl<T: Config> Pallet<T> {
 		let updated_oracle = match oracle {
 			None => (incoming_entry.clone(), T::BlockNumberProvider::current_block_number()),
 			Some((mut prev_entry, prev_updated_at)) => {
-
 				let current_block_num = T::BlockNumberProvider::current_block_number();
 				let parent = current_block_num.saturating_sub(One::one());
 
