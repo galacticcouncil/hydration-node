@@ -127,9 +127,6 @@ where
 			}
 		};
 
-		let source_nonce_after = frame_system::Account::<R>::get(&account_id).nonce;
-		debug_assert_eq!(source_nonce_after, source_nonce);
-
 		let permit_nonce = NoncesStorage::get(source);
 		NoncesStorage::insert(source, permit_nonce + U256::one());
 
@@ -147,6 +144,15 @@ where
 			actual_weight: Some(actual_weight),
 			pays_fee: Pays::No,
 		};
+
+		let source_nonce_after = frame_system::Account::<R>::get(&account_id).nonce;
+		ensure!(
+			source_nonce_after == source_nonce,
+			DispatchErrorWithPostInfo {
+				post_info,
+				error: pallet_transaction_multi_payment::Error::<R>::EvmPermitNonceInvariantViolated.into(),
+			}
+		);
 
 		match info.exit_reason {
 			ExitReason::Succeed(_) => Ok(post_info),
