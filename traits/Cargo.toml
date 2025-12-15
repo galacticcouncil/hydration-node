@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-traits"
-version = "4.3.0"
+version = "4.4.1"
 description = "Shared traits"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -20,6 +20,7 @@ primitives = { workspace = true }
 # Substrate dependencies
 frame-support = { workspace = true }
 sp-std = { workspace = true }
+pallet-evm = { workspace = true }
 
 [features]
 default = ["std"]
