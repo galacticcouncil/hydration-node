@@ -272,14 +272,14 @@ pub fn run() -> sc_cli::Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run.base.normalize())?;
 
-			runner.run_node_until_exit(|config| async move {
+			runner.run_node_until_exit(|mut config| async move {
 				if cfg!(feature = "runtime-benchmarks") && config.role.is_authority() {
 					return Err("It is not allowed to run a collator node with the benchmarking runtime.".into());
 				};
 
 				// Enable for all full nodes by default to store ISMP request/responses
 				if !config.role.is_authority() {
-					cli.run.base.base.offchain_worker_params.indexing_enabled = true;
+					config.offchain_worker.indexing_enabled = true;
 				}
 
 				let polkadot_cli = RelayChainCli::new(
