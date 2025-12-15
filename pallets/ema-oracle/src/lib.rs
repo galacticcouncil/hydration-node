@@ -474,9 +474,11 @@ impl<T: Config> Pallet<T> {
 
 		let updated_oracle = match oracle {
 			None => (incoming_entry.clone(), T::BlockNumberProvider::current_block_number()),
-			Some((mut prev_entry, _)) => {
+			Some((mut prev_entry, prev_updated_at)) => {
+
 				let current_block_num = T::BlockNumberProvider::current_block_number();
 				let parent = current_block_num.saturating_sub(One::one());
+
 				// update the entry to the parent block if it hasn't been updated for a while
 				if parent > prev_entry.updated_at {
 					Self::last_block_oracle(src, assets, parent)
@@ -491,6 +493,7 @@ impl<T: Config> Pallet<T> {
 							debug_assert!(false, "Updating to parent block should not fail.");
 						})
 				}
+
 				// calculate the actual update with the new value
 				prev_entry
 					.update_to_new_by_integrating_incoming(period, &incoming_entry)
@@ -502,7 +505,8 @@ impl<T: Config> Pallet<T> {
 						);
 						debug_assert!(false, "Updating to new value should not fail.");
 					});
-				(prev_entry, current_block_num)
+
+				(prev_entry, prev_updated_at)
 			}
 		};
 
