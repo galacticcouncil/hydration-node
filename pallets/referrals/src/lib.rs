@@ -608,8 +608,17 @@ pub mod pallet {
 				return Weight::zero();
 			}
 			let one_read = T::DbWeight::get().reads(1u64);
-			let max_converts = remaining_weight.saturating_sub(one_read).ref_time() / convert_weight.ref_time();
+			let remaining = remaining_weight.saturating_sub(one_read);
 
+			// Consider both ref_time and proof_size to determine max conversions
+			let max_by_ref_time = remaining.ref_time().checked_div(convert_weight.ref_time()).unwrap_or(0);
+			let max_by_proof_size = remaining
+				.proof_size()
+				.checked_div(convert_weight.proof_size())
+				.unwrap_or(u64::MAX);
+			let max_converts = max_by_ref_time.min(max_by_proof_size);
+
+			let mut actual_converts: u64 = 0;
 			for asset_id in PendingConversions::<T>::iter_keys().take(max_converts as usize) {
 				let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
 				// remove the asset_id from PendingConversions even when the conversion fails
@@ -620,8 +629,9 @@ pub mod pallet {
 					asset_balance,
 				);
 				PendingConversions::<T>::remove(asset_id);
+				actual_converts += 1;
 			}
-			convert_weight.saturating_mul(max_converts).saturating_add(one_read)
+			convert_weight.saturating_mul(actual_converts).saturating_add(one_read)
 		}
 	}
 }
