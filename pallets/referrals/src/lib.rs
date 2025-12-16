@@ -615,7 +615,7 @@ pub mod pallet {
 			let max_by_proof_size = remaining
 				.proof_size()
 				.checked_div(convert_weight.proof_size())
-				.unwrap_or(u64::MAX);
+				.unwrap_or(0);
 			let max_converts = max_by_ref_time.min(max_by_proof_size);
 
 			let mut actual_converts: u64 = 0;
