@@ -122,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 370,
+	spec_version: 372,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -192,6 +192,8 @@ construct_runtime!(
 		Liquidation: pallet_liquidation = 76,
 		HSM: pallet_hsm = 82,
 		Parameters: pallet_parameters = 83,
+		Signet: pallet_signet = 84,
+		EthDispenser: pallet_dispenser = 85,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -341,6 +343,8 @@ mod benches {
 		[pallet_dispatcher, Dispatcher]
 		[pallet_hsm, HSM]
 		[pallet_dynamic_fees, DynamicFees]
+		[pallet_signet, Signet]
+		[pallet_dispenser, EthDispenser]
 		[ismp_parachain, IsmpParachain]
 		[pallet_token_gateway, TokenGateway]
 	);
