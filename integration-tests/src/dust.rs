@@ -5,12 +5,11 @@ use frame_support::assert_noop;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_ok, sp_runtime::traits::Zero};
-use hydradx_runtime::{AssetRegistry, Balances, Currencies, Duster, Tokens, Treasury};
+use hydradx_runtime::{AssetRegistry, Balances, Currencies, Duster, EVMAccounts, Router, Tokens, Treasury};
 use orml_traits::MultiReservableCurrency;
 use orml_traits::{currency::MultiCurrency, GetByKey};
 use sp_runtime::{DispatchResult, TransactionOutcome};
 use xcm_emulator::TestExt;
-
 #[test]
 fn balance_should_be_dusted_when_native_balance_is_below_ed() {
 	TestNet::reset();
@@ -195,6 +194,162 @@ fn account_cannot_be_dusted_when_leftover_is_reserved() {
 	});
 }
 
+#[test]
+fn dust_account_should_fail_when_account_is_whitelisted_module_account() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		let router_account = Router::router_account();
+
+		set_ed(DAI, 0);
+
+		assert_ok!(Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			router_account.clone(),
+			DAI,
+			100,
+			0,
+		));
+
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &router_account), 100);
+
+		set_ed(DAI, 1000);
+
+		//Act
+		assert_noop!(
+			Duster::dust_account(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				router_account.clone(),
+				DAI,
+			),
+			pallet_duster::Error::<hydradx_runtime::Runtime>::AccountWhitelisted
+		);
+
+		// Verify balance remains unchanged
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &router_account), 100);
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 0);
+	});
+}
+
+#[test]
+fn dust_account_should_fail_when_account_is_holding_address() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// arrange
+		let holding_account = EVMAccounts::account_id(hydradx_runtime::evm::HOLDING_ADDRESS);
+
+		set_ed(DAI, 0);
+
+		assert_ok!(Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			holding_account.clone(),
+			DAI,
+			100,
+			0,
+		));
+
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &holding_account), 100);
+
+		set_ed(DAI, 1000);
+
+		// Act
+		assert_noop!(
+			Duster::dust_account(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				holding_account.clone(),
+				DAI,
+			),
+			pallet_duster::Error::<hydradx_runtime::Runtime>::AccountWhitelisted
+		);
+
+		// Assert
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &holding_account), 100);
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 0);
+	});
+}
+
+#[test]
+fn dust_account_should_fail_when_account_is_treasury() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// Arrange
+		let treasury_account = Treasury::account_id();
+
+		set_ed(DAI, 0);
+
+		assert_ok!(Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			treasury_account.clone(),
+			DAI,
+			100,
+			0,
+		));
+
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &treasury_account), 100);
+
+		set_ed(DAI, 1000);
+
+		// Act
+		assert_noop!(
+			Duster::dust_account(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				treasury_account.clone(),
+				DAI,
+			),
+			pallet_duster::Error::<hydradx_runtime::Runtime>::AccountWhitelisted
+		);
+
+		// Assert
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &treasury_account), 100);
+	});
+}
+
+#[test]
+fn dust_account_should_fail_when_account_is_manually_whitelisted() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// Arrange
+		let account_to_whitelist: AccountId = BOB.into();
+
+		set_ed(DAI, 0);
+
+		assert_ok!(Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			account_to_whitelist.clone(),
+			DAI,
+			100,
+			0,
+		));
+
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &account_to_whitelist), 100);
+
+		assert_ok!(Duster::whitelist_account(
+			hydradx_runtime::RuntimeOrigin::root(),
+			account_to_whitelist.clone(),
+		));
+
+		set_ed(DAI, 1000);
+
+		// Act
+		assert_noop!(
+			Duster::dust_account(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				account_to_whitelist.clone(),
+				DAI,
+			),
+			pallet_duster::Error::<hydradx_runtime::Runtime>::AccountWhitelisted
+		);
+
+		// Assert
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &account_to_whitelist), 100);
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 0);
+	});
+}
+
 mod atoken_dust {
 	use super::*;
 	use crate::aave_router::ADOT;
@@ -297,7 +452,7 @@ mod atoken_dust {
 
 	#[test]
 	fn dust_account_invariant() {
-		let successfull_cases = 1;
+		let successfull_cases = 100;
 
 		let ed_range = 1_u128..(START_BALANCE - 1);
 
@@ -347,9 +502,11 @@ mod atoken_dust {
 							ADOT,
 							1,
 						);
-						assert_noop!(
-							sanity_transfer,
-							Other("evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011"),
+						let err = sanity_transfer.unwrap_err();
+						assert_eq!(
+							err,
+							pallet_dispatcher::Error::<hydradx_runtime::Runtime>::EvmArithmeticOverflowOrUnderflow
+								.into()
 						);
 						TransactionOutcome::Rollback(DispatchResult::Ok(()))
 					});
@@ -357,6 +514,55 @@ mod atoken_dust {
 					Ok(())
 				})
 				.unwrap();
+		});
+	}
+}
+
+pub mod runtime_api {
+	use super::*;
+	use frame_support::assert_ok;
+	use hydradx_runtime::{EVMAccounts, Router, Treasury};
+	use pallet_duster_rpc_runtime_api::runtime_decl_for_duster_api::DusterApiV1;
+
+	#[test]
+	fn dustable_accounts_should_not_be_whitelisted() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(ALICE.into()), false);
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(BOB.into()), false);
+		});
+	}
+
+	#[test]
+	fn extended_whitelist_entries_should_be_whitelisted() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(Treasury::account_id()), true);
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(Router::router_account()), true);
+
+			let holding_account = EVMAccounts::account_id(hydradx_runtime::evm::HOLDING_ADDRESS);
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(holding_account), true);
+		});
+	}
+
+	#[test]
+	fn add_and_remove_from_whitelist_should_effect_is_whitelisted_api() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			assert_ok!(Duster::whitelist_account(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+			));
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(CHARLIE.into()), true);
+
+			assert_ok!(Duster::remove_from_whitelist(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+			));
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(CHARLIE.into()), false);
 		});
 	}
 }

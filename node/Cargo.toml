@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "14.4.2"
+version = "14.8.1"
 description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -20,7 +20,6 @@ hydra-dx-build-script-utils = { workspace = true }
 [dependencies]
 codec = { workspace = true }
 hex-literal = { workspace = true }
-hex = { workspace = true }
 jsonrpsee = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }
@@ -33,25 +32,23 @@ hyper-rustls = { version = "0.24.2", features = ["http1", "http2", "webpki-roots
 tokio = { workspace = true, default-features = true }
 threadpool = { version = "1.7" }
 num_cpus = { version = "1.13.1" }
-parking_lot = { version = "0.12.1", default-features = false }
+ethereum = { workspace = true }
+ethabi = { workspace = true }
 
 # local dependencies
 hydradx-runtime = { workspace = true, features = ["std"] }
-hydradx-traits = { workspace = true, default-features = false }
 primitives = { workspace = true }
-pallet-transaction-payment = { workspace = true }
 pallet-claims = { workspace = true }
-pallet-ethereum = { workspace = true }
-ethereum = { workspace = true }
 pallet-liquidation = { workspace = true }
 liquidation-worker-support = { workspace = true }
-ethabi = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true }
-frame-benchmarking-cli = { workspace = true, optional = true }
+frame-benchmarking-cli = { workspace = true }
 frame-support = { workspace = true }
+frame-system = { workspace = true }
 pallet-transaction-payment-rpc = { workspace = true }
+pallet-currencies-rpc-runtime-api = { workspace = true }
 sc-basic-authorship = { workspace = true }
 sc-chain-spec = { workspace = true }
 sc-cli = { workspace = true }
@@ -73,7 +70,6 @@ sp-consensus-aura = { workspace = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 sp-timestamp = { workspace = true }
-sp-arithmetic = { workspace = true }
 substrate-frame-rpc-system = { workspace = true }
 sc-network = { workspace = true }
 sc-network-sync = { workspace = true }
@@ -111,14 +107,18 @@ fp-rpc = { workspace = true }
 fp-consensus = { workspace = true }
 fp-self-contained = { workspace = true }
 fp-evm = { workspace = true }
+pallet-ethereum = { workspace = true }
+pallet-evm = { workspace = true }
+
+# Hyperbridge
+pallet-ismp-runtime-api = { workspace = true }
+pallet-ismp-rpc = { workspace = true }
+ismp-parachain-inherent = { workspace = true }
 
 [features]
-default = [
-    "frame-benchmarking-cli",
-]
 runtime-benchmarks = [
     "hydradx-runtime/runtime-benchmarks",
-    "frame-benchmarking-cli",
+    "frame-benchmarking-cli/runtime-benchmarks",
     "polkadot-service/runtime-benchmarks",
     "polkadot-cli/runtime-benchmarks",
 ]

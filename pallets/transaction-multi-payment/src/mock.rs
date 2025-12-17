@@ -37,7 +37,7 @@ use hydradx_traits::{
 	AssetKind, OraclePeriod, PriceOracle,
 };
 use orml_traits::{currency::MutationHooks, parameter_type_with_key};
-use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
+use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use sp_core::{H160, H256, U256};
 use sp_runtime::DispatchError;
 use sp_std::cell::RefCell;
@@ -360,13 +360,29 @@ impl pallet_currencies::Config for Test {
 	type BoundErc20 = MockBoundErc20<Test>;
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = HdxAssetId;
+	type RegistryInspect = MockBoundErc20<Test>;
 	type WeightInfo = ();
 }
 
 pub struct EvmNonceProvider;
 impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
-	fn get_nonce(_: sp_core::H160) -> sp_core::U256 {
-		sp_core::U256::zero()
+	fn get_nonce(_: H160) -> U256 {
+		U256::zero()
+	}
+}
+
+pub struct FeeCurrencyMock;
+impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
+	type AssetId = AssetId;
+
+	fn get(_a: &AccountId) -> Self::AssetId {
+		unimplemented!()
+	}
+	fn set(_who: &AccountId, _asset_id: Self::AssetId) -> DispatchResult {
+		unimplemented!()
+	}
+	fn is_payment_currency(_asset_id: AssetId) -> DispatchResult {
+		unimplemented!()
 	}
 }
 
@@ -375,6 +391,10 @@ impl pallet_evm_accounts::Config for Test {
 	type EvmNonceProvider = EvmNonceProvider;
 	type FeeMultiplier = frame_support::traits::ConstU32<10>;
 	type ControllerOrigin = frame_system::EnsureRoot<AccountId>;
+	type AssetId = AssetId;
+	type Currency = FungibleCurrencies<Test>;
+	type ExistentialDeposits = ExistentialDeposits;
+	type FeeCurrency = FeeCurrencyMock;
 	type WeightInfo = ();
 }
 

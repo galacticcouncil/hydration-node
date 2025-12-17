@@ -119,6 +119,9 @@ pub mod module {
 		#[pallet::constant]
 		type GetNativeCurrencyId: Get<CurrencyIdOf<Self>>;
 
+		/// Registry inspection provider (e.g., asset registry) decoupled via trait.
+		type RegistryInspect: hydradx_traits::registry::Inspect<AssetId = CurrencyIdOf<Self>>;
+
 		/// Weight information for extrinsics in this module.
 		type WeightInfo: WeightInfo;
 	}

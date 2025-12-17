@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.52.5"
+version = "1.60.1"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -9,10 +9,10 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
-xcm-runtime-apis = { workspace = true }
 codec = { workspace = true, features = ["derive", "max-encoded-len"] }
-scale-info = { workspace = true }
 hex-literal = { workspace = true }
+num-traits = { workspace = true }
+frame-metadata-hash-extension = { workspace = true }
 frame-remote-externalities = { workspace = true }
 tokio = { workspace = true }
 scraper = { workspace = true }
@@ -21,6 +21,7 @@ hydradx-runtime = { workspace = true }
 hydradx-adapters = { workspace = true }
 pallet-omnipool = { workspace = true }
 pallet-circuit-breaker = { workspace = true }
+pallet-claims = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-stableswap = { workspace = true }
@@ -30,6 +31,7 @@ hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
 pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-currencies = { workspace = true }
+pallet-currencies-rpc-runtime-api = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
@@ -48,12 +50,14 @@ pallet-liquidation = { workspace = true }
 liquidation-worker-support = { workspace = true }
 pallet-broadcast = { workspace = true }
 pallet-duster = { workspace = true }
+pallet-duster-rpc-runtime-api = { workspace = true }
 
 pallet-treasury = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-referenda = { workspace = true }
 pallet-conviction-voting = { workspace = true }
 pallet-dispatcher = { workspace = true }
+pallet-hsm = { workspace = true }
 
 # collator support
 pallet-collator-selection = { workspace = true }
@@ -84,6 +88,7 @@ cumulus-pallet-xcm = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
+cumulus-primitives-storage-weight-reclaim = { workspace = true }
 staging-parachain-info = { workspace = true }
 cumulus-test-relay-sproof-builder = { workspace = true }
 
@@ -93,6 +98,7 @@ xcm-builder = { workspace = true }
 pallet-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 polkadot-xcm = { workspace = true }
+xcm-runtime-apis = { workspace = true }
 
 # Substrate dependencies
 frame-executive = { workspace = true }
@@ -187,6 +193,7 @@ std = [
     "pallet-utility/std",
     "pallet-im-online/std",
     "pallet-currencies/std",
+    "pallet-currencies-rpc-runtime-api/std",
     "sp-api/std",
     "sp-authority-discovery/std",
     "sp-block-builder/std",
@@ -221,6 +228,7 @@ std = [
     "pallet-liquidation/std",
     "pallet-broadcast/std",
     "pallet-dispatcher/std",
+    "pallet-hsm/std",
     "ethereum/std",
     "pallet-ethereum/std",
     "fp-self-contained/std",

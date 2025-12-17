@@ -46,8 +46,6 @@ pub const HDX: AssetId = 1000;
 pub const DOT: AssetId = 2000;
 pub const ACA: AssetId = 3000;
 
-pub const HDX_DOT_POOL_ID: AccountId = 1_002_000;
-
 pub const ONE: Balance = 1_000_000_000_000;
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -68,7 +66,6 @@ frame_support::construct_runtime!(
 
 thread_local! {
 		static EXCHANGE_FEE: RefCell<(u32, u32)> = const { RefCell::new((2, 1_000)) };
-		static DISCOUNTED_FEE: RefCell<(u32, u32)> = const { RefCell::new((7, 10_000)) };
 		static MAX_OUT_RATIO: RefCell<u128> = const { RefCell::new(3) };
 }
 
@@ -76,13 +73,6 @@ struct ExchangeFee;
 impl Get<(u32, u32)> for ExchangeFee {
 	fn get() -> (u32, u32) {
 		EXCHANGE_FEE.with(|v| *v.borrow())
-	}
-}
-
-struct DiscountedFee;
-impl Get<(u32, u32)> for DiscountedFee {
-	fn get() -> (u32, u32) {
-		DISCOUNTED_FEE.with(|v| *v.borrow())
 	}
 }
 
@@ -193,7 +183,6 @@ parameter_types! {
 	pub const MaxInRatio: u128 = 3;
 	pub MaxOutRatio: u128 = MaximumOutRatio::get();
 	pub ExchangeFeeRate: (u32, u32) = ExchangeFee::get();
-	pub DiscountedFeeRate: (u32, u32) = DiscountedFee::get();
 	pub const OracleSourceIdentifier: Source = *b"hydraxyk";
 }
 
@@ -223,7 +212,6 @@ impl xyk::Config for Test {
 	type MaxOutRatio = MaxOutRatio;
 	type CanCreatePool = Disallow10_10Pool;
 	type AMMHandler = ();
-	type DiscountedFee = DiscountedFeeRate;
 	type NonDustableWhitelistHandler = Whitelist;
 	type OracleSource = OracleSourceIdentifier;
 }
@@ -259,11 +247,6 @@ impl ExtBuilder {
 
 	pub fn with_exchange_fee(self, f: (u32, u32)) -> Self {
 		EXCHANGE_FEE.with(|v| *v.borrow_mut() = f);
-		self
-	}
-
-	pub fn with_discounted_fee(self, f: (u32, u32)) -> Self {
-		DISCOUNTED_FEE.with(|v| *v.borrow_mut() = f);
 		self
 	}
 

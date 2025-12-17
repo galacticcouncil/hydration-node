@@ -11,8 +11,8 @@ use hydradx_runtime::Omnipool;
 use hydradx_runtime::RuntimeOrigin as hydra_origin;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::{
-	origins::Origin, AssetRegistry as Registry, Currencies, DustRemovalWhitelist, InsufficientEDinHDX,
-	MultiTransactionPayment, NativeExistentialDeposit, RuntimeEvent, Tokens, TreasuryAccount, SUFFICIENCY_LOCK,
+	origins::Origin, AssetRegistry as Registry, Currencies, InsufficientEDinHDX, MultiTransactionPayment,
+	NativeExistentialDeposit, RuntimeEvent, Tokens, TreasuryAccount, SUFFICIENCY_LOCK,
 };
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
@@ -23,6 +23,7 @@ use polkadot_xcm::v5::{
 	Junctions::X2,
 	Location,
 };
+use pallet_duster::DusterWhitelist;
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::TransactionOutcome;
@@ -1173,7 +1174,7 @@ fn sender_should_pay_ed_when_tranferred_or_deposited_to_whitelisted_dest() {
 
 		let treasury = TreasuryAccount::get();
 
-		assert!(DustRemovalWhitelist::contains(&treasury));
+		assert!(DusterWhitelist::<hydradx_runtime::Runtime>::contains(&treasury));
 		assert_eq!(MultiTransactionPayment::account_currency(&BOB.into()), HDX);
 
 		let bob_fee_asset_balance = Currencies::free_balance(HDX, &BOB.into());
@@ -1270,7 +1271,7 @@ fn ed_should_be_released_when_whitelisted_account_was_killed() {
 			1
 		);
 
-		assert!(DustRemovalWhitelist::contains(&treasury));
+		assert!(DusterWhitelist::<hydradx_runtime::Runtime>::contains(&treasury));
 		assert_eq!(MultiTransactionPayment::account_currency(&treasury), HDX);
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &treasury);
 

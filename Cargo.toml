@@ -49,6 +49,8 @@ members = [
     'pallets/broadcast',
     'liquidation-worker-support',
     'pallets/hsm',
+    "pallets/signet",
+    "pallets/dispenser"
 ]
 
 resolver = "2"
@@ -58,8 +60,12 @@ codec = { package = "parity-scale-codec", version = "3.6.12", default-features =
 scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
 serde = { version = "1.0.209", default-features = false }
 primitive-types = { version = "0.13.1", default-features = false }
+borsh = { version = "1.5.7", default-features = false, features = ["derive"] }
 
 affix = "0.1.2"
+alloy-primitives = { version = "0.7", default-features = false }
+alloy-sol-types = { version = "0.7", default-features = false }
+anyhow = { version = "1.0", default-features = false }
 approx = "0.5.1"
 async-trait = "0.1"
 bitflags = "1.3.2"
@@ -92,7 +98,7 @@ proptest = "1.0.40"
 quote = "1.0.20"
 rand = { version = "0.8.5", default-features = false }
 rand_xoshiro = "0.6.0"
-rug = { version = "1.17.0", features = ["num-traits"] }
+rug = { version = "1.17.0", features = ["num-traits", "integer", "rational"], default-features=false }
 rustc-hex = { version = '2.1.0', default-features = false }
 sha3 = { version = "0.10.6", default-features = false }
 serde_json = { version = "1.0.117", default-features = false }
@@ -124,6 +130,7 @@ pallet-currencies-rpc-runtime-api = { path = "pallets/currencies/rpc/runtime-api
 pallet-dca = { path = "pallets/dca", default-features = false }
 pallet-dispatcher = { path = "pallets/dispatcher", default-features = false }
 pallet-duster = { path = "pallets/duster", default-features = false }
+pallet-duster-rpc-runtime-api = { path = "pallets/duster/rpc/runtime-api", default-features = false }
 pallet-dynamic-fees = { path = "pallets/dynamic-fees", default-features = false }
 pallet-dynamic-evm-fee = { path = "pallets/dynamic-evm-fee", default-features = false }
 pallet-ema-oracle = { path = "pallets/ema-oracle", default-features = false }
@@ -154,12 +161,13 @@ pallet-broadcast = { path = "pallets/broadcast", default-features = false }
 liquidation-worker-support = { path = "liquidation-worker-support", default-features = false }
 pallet-hsm = { path = "pallets/hsm", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
+pallet-signet = { path = "pallets/signet", default-features = false }
+pallet-dispenser = { path = "pallets/dispenser", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
 runtime-mock = { path = "runtime-mock", default-features = false }
 test-utils = { path = "utils/test-utils", default-features = false }
-
 integration-tests = { path = "integration-tests", default-features = false }
 
 pallet-evm-precompile-call-permit = { path = "precompiles/call-permit", default-features = false }
@@ -382,6 +390,20 @@ cumulus-client-pov-recovery = { git = "https://github.com/galacticcouncil/polkad
 cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch" }
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch" }
 
+# Hyperbridge
+pallet-hyperbridge = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2503", default-features = false }
+pallet-token-gateway = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2503", default-features = false }
+
+pallet-ismp = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2503", default-features = false }
+pallet-ismp-runtime-api = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2503", default-features = false }
+
+ismp = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2503", default-features = false }
+ismp-parachain = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2503", default-features = false }
+ismp-parachain-runtime-api = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2503", default-features = false }
+
+pallet-ismp-rpc = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2503" }
+ismp-parachain-inherent = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2503" }
+
 [patch."https://github.com/moonbeam-foundation/open-runtime-module-library"]
 # ORML dependencies
 orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503" }
@@ -553,6 +575,7 @@ cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacti
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch" }
 
 [patch."https://github.com/paritytech/polkadot-sdk"]
+polkadot-sdk = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch" }
 frame-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch" }
 frame-benchmarking-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch" }
 frame-executive = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch" }
@@ -709,3 +732,8 @@ westend-runtime = { git = "https://github.com/galacticcouncil/polkadot-sdk", bra
 cumulus-client-pov-recovery = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch" }
 cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch" }
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch" }
+
+[patch."https://github.com/bifrost-io/open-runtime-module-library"]
+orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503" }
+orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503" }
+

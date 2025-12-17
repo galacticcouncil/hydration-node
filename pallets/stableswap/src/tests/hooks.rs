@@ -46,17 +46,12 @@ fn add_liquidity_should_provide_correct_values_in_the_hook() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(
-				pool_id,
-				&ALICE,
-				5906657405945079804575283,
-				frame_support::traits::ExistenceRequirement::AllowDeath,
-			)
-			.unwrap();
-			assert_ok!(Stableswap::add_liquidity(
+			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283, frame_support::traits::ExistenceRequirement::AllowDeath,).unwrap();
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount)]),
+				Balance::zero(),
 			));
 			let (p, state) = last_liquidity_changed_hook_state().unwrap();
 			assert_eq!(p, pool_id);

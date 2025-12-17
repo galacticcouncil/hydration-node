@@ -2,6 +2,7 @@ use codec::{Decode, Encode};
 use frame_support::sp_runtime::app_crypto::sp_core::U256;
 use frame_support::sp_runtime::{DispatchResult, RuntimeDebug};
 use primitives::EvmAddress;
+use pallet_evm::ExitReason;
 use sp_std::vec::Vec;
 
 pub trait InspectEvmAccounts<AccountId> {
@@ -61,6 +62,13 @@ impl CallContext {
 			origin: EvmAddress::default(),
 		}
 	}
+}
+
+#[derive(Clone, Debug)]
+pub struct CallResult {
+	pub exit_reason: ExitReason,
+	pub value: Vec<u8>,
+	pub contract: sp_core::H160,
 }
 
 pub trait EVM<EvmResult> {

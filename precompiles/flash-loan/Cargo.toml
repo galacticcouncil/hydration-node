@@ -2,7 +2,7 @@
 name = "pallet-evm-precompile-flash-loan"
 description = "A Precompile to handle flash loan."
 edition = "2021"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["GalacticCouncil"]
 repository = "https://github.com/galacticcouncil/hydration-node"
 

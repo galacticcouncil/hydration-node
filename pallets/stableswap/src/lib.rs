@@ -96,6 +96,7 @@ use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_std::collections::btree_map::BTreeMap;
 pub use weights::WeightInfo;
 
+pub mod migrations;
 #[cfg(test)]
 pub(crate) mod tests;
 
@@ -129,6 +130,7 @@ pub mod pallet {
 	use sp_std::num::NonZeroU16;
 
 	#[pallet::pallet]
+	#[pallet::storage_version(migrations::STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -204,7 +206,8 @@ pub mod pallet {
 	/// Pool peg info.
 	#[pallet::storage]
 	#[pallet::getter(fn pool_peg_info)]
-	pub type PoolPegs<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolPegInfo<T::AssetId>>;
+	pub type PoolPegs<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, PoolPegInfo<BlockNumberFor<T>, T::AssetId>>;
 
 	/// Tradability state of pool assets.
 	#[pallet::storage]
@@ -218,6 +221,11 @@ pub mod pallet {
 	pub type PoolSnapshots<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, PoolSnapshot<T::AssetId>, OptionQuery>;
 
+	/// Temporary pool's trade fee for current block.
+	#[pallet::storage]
+	#[pallet::getter(fn block_fee)]
+	pub type BlockFee<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Permill, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -227,7 +235,7 @@ pub mod pallet {
 			assets: Vec<T::AssetId>,
 			amplification: NonZeroU16,
 			fee: Permill,
-			peg: Option<PoolPegInfo<T::AssetId>>,
+			peg: Option<PoolPegInfo<BlockNumberFor<T>, T::AssetId>>,
 		},
 		/// Pool fee has been updated.
 		FeeUpdated { pool_id: T::AssetId, fee: Permill },
@@ -521,43 +529,6 @@ pub mod pallet {
 				});
 				Ok(())
 			})
-		}
-
-		/// Add liquidity to selected pool.
-		///
-		/// Use `add_assets_liquidity` instead.
-		/// This extrinsics will be removed in the future.
-		///
-		/// First call of `add_liquidity` must provide "initial liquidity" of all assets.
-		///
-		/// If there is liquidity already in the pool, LP can provide liquidity of any number of pool assets.
-		///
-		/// LP must have sufficient amount of each asset.
-		///
-		/// Origin is given corresponding amount of shares.
-		///
-		/// Parameters:
-		/// - `origin`: liquidity provider
-		/// - `pool_id`: Pool Id
-		/// - `assets`: asset id and liquidity amount provided
-		///
-		/// Emits `LiquidityAdded` event when successful.
-		/// Emits `pallet_broadcast::Swapped` event when successful.
-		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
-							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
-		#[transactional]
-		#[deprecated(note = "Use add_assets_liquidity instead")]
-		pub fn add_liquidity(
-			origin: OriginFor<T>,
-			pool_id: T::AssetId,
-			assets: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			Self::do_add_liquidity(&who, pool_id, &assets, Balance::zero())?;
-
-			Ok(())
 		}
 
 		/// Add liquidity to selected pool given exact amount of shares to receive.
@@ -1233,6 +1204,7 @@ pub mod pallet {
 
 			let peg_info = PoolPegInfo {
 				source: peg_source,
+				updated_at: T::BlockNumberProvider::current_block_number(),
 				max_peg_update,
 				current: BoundedPegs::truncate_from(initial_pegs.into_iter().map(|(v, _)| v).collect()),
 			};
@@ -1389,6 +1361,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			let _ = <PoolSnapshots<T>>::clear(u32::MAX, None);
+			let _ = <BlockFee<T>>::clear(u32::MAX, None);
 		}
 	}
 }
@@ -1409,12 +1382,13 @@ impl<T: Config> Pallet<T> {
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
 		let reserves = pool.reserves_with_decimals::<T>(&pool_account)?;
-		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).ok()?;
+		let (block_fee, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).ok()?;
 
 		Some(PoolSnapshot {
 			assets: pool.assets,
 			amplification,
 			fee: pool.fee,
+			block_fee,
 			reserves: BoundedVec::truncate_from(reserves),
 			pegs: BoundedVec::truncate_from(asset_pegs),
 			share_issuance,
@@ -1530,7 +1504,7 @@ impl<T: Config> Pallet<T> {
 		assets: &[T::AssetId],
 		amplification: NonZeroU16,
 		fee: Permill,
-		peg_info: Option<&PoolPegInfo<T::AssetId>>,
+		peg_info: Option<&PoolPegInfo<BlockNumberFor<T>, T::AssetId>>,
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(!Pools::<T>::contains_key(share_asset), Error::<T>::PoolExists);
 		ensure!(
@@ -2042,14 +2016,20 @@ impl<T: Config> Pallet<T> {
 			// No pegs for this pool, return default pegs
 			return Ok((pool.fee, vec![(1, 1); pool.assets.len()]));
 		};
+
 		// Move pegs to target pegs if necessary
-		let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
+		let current_block = T::BlockNumberProvider::current_block_number();
 		let target_pegs = Self::get_target_pegs(&pool.assets, &peg_info.source)?;
+
+		if peg_info.updated_at == current_block {
+			return Ok((Self::block_fee(pool_id).unwrap_or(pool.fee), peg_info.current.into()));
+		}
 
 		hydra_dx_math::stableswap::recalculate_pegs(
 			&peg_info.current,
+			peg_info.updated_at.saturated_into::<u128>(),
 			&target_pegs,
-			current_block,
+			current_block.saturated_into::<u128>(),
 			peg_info.max_peg_update,
 			pool.fee,
 		)
@@ -2066,9 +2046,10 @@ impl<T: Config> Pallet<T> {
 
 		// Store new pegs if pool has pegs configured
 		if let Some(peg_info) = PoolPegs::<T>::get(pool_id) {
-			let new_info = peg_info.with_new_pegs(&new_pegs);
+			let new_info = peg_info.with_new_pegs(&new_pegs, T::BlockNumberProvider::current_block_number());
 			PoolPegs::<T>::insert(pool_id, new_info);
-		};
+			BlockFee::<T>::insert(pool_id, trade_fee);
+		}
 
 		Ok((trade_fee, new_pegs))
 	}

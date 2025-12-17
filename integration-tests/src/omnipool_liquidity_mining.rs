@@ -2479,7 +2479,12 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 		fee,
 	)?;
 
-	Stableswap::add_liquidity(RuntimeOrigin::signed(BOB.into()), pool_id, initial.try_into().unwrap())?;
+	Stableswap::add_assets_liquidity(
+		RuntimeOrigin::signed(BOB.into()),
+		pool_id,
+		initial.try_into().unwrap(),
+		Balance::zero(),
+	)?;
 
 	Ok((pool_id, asset_in, asset_out))
 }

@@ -1017,12 +1017,19 @@ pub fn calculate_spot_price_between_two_stable_assets(
 
 pub fn recalculate_pegs(
 	current_pegs: &[(Balance, Balance)],
+	current_pegs_updated_at: u128,
 	target_pegs: &[((Balance, Balance), u128)],
 	block: u128,
 	max_peg_update: Perbill,
 	pool_fee: Permill,
 ) -> Option<(Permill, Vec<(Balance, Balance)>)> {
-	let deltas = calculate_peg_deltas(block, current_pegs, target_pegs, max_peg_update);
+	let deltas = calculate_peg_deltas(
+		block,
+		current_pegs,
+		current_pegs_updated_at,
+		target_pegs,
+		max_peg_update,
+	);
 	let trade_fee = calculate_target_fee(current_pegs, &deltas, pool_fee);
 	let new_pegs = calculate_new_pegs(current_pegs, &deltas);
 	Some((trade_fee, new_pegs))
@@ -1031,6 +1038,7 @@ pub fn recalculate_pegs(
 fn calculate_peg_deltas(
 	block_no: u128,
 	current: &[(Balance, Balance)],
+	current_updated_at: u128,
 	target: &[((Balance, Balance), u128)],
 	max_peg_update: Perbill,
 ) -> Vec<PegDelta> {
@@ -1041,11 +1049,10 @@ fn calculate_peg_deltas(
 	);
 
 	let mut r = vec![];
+	let block_ct = block_no.saturating_sub(current_updated_at).max(1u128);
 	for (current, target) in current.iter().copied().zip(target.iter().copied()) {
 		let c: Ratio = current.into();
 		let t: Ratio = target.0.into();
-		let t_updated_at = target.1;
-		let block_ct = block_no.saturating_sub(t_updated_at).max(1u128);
 
 		let (delta, delta_neg) = if t > c {
 			(t.saturating_sub(&c), false)

@@ -17,7 +17,7 @@
 
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
-use crate::evm::Erc20Currency;
+use crate::evm::{Erc20Currency, WethAssetId};
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
@@ -68,12 +68,13 @@ use pallet_omnipool::{
 use pallet_otc::NamedReserveIdentifier;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights};
 use pallet_stableswap::weights::WeightInfo as StableswapWeights;
+use sp_runtime::{traits::Verify, MultiSignature};
 
 use pallet_staking::{
 	types::{Action, Point},
 	SigmoidPercentage,
 };
-use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
+use pallet_transaction_multi_payment::{AddTxAssetOnAccount, AssetIdOf, RemoveTxAssetOnKilled};
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use primitives::constants::{
 	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, XYK_SOURCE},
@@ -411,7 +412,7 @@ impl orml_tokens::Config for Runtime {
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
-	type DustRemovalWhitelist = DustRemovalWhitelist;
+	type DustRemovalWhitelist = pallet_duster::DusterWhitelist<Runtime>;
 }
 
 parameter_types! {
@@ -429,6 +430,7 @@ impl pallet_currencies::Config for Runtime {
 	type BoundErc20 = AssetRegistry;
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeAssetId;
+	type RegistryInspect = AssetRegistry;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
 
@@ -673,13 +675,25 @@ impl pallet_ema_oracle::Config for Runtime {
 	type MaxAllowedPriceDifference = MaxAllowedPriceDifferenceForBifrostOracleUpdate;
 }
 
-pub struct DustRemovalWhitelist;
+pub struct ExtendedDustRemovalWhitelist;
 
-impl Contains<AccountId> for DustRemovalWhitelist {
-	fn contains(a: &AccountId) -> bool {
-		get_all_module_accounts().contains(a)
-			|| HSM::is_flash_loan_account(a)
-			|| pallet_duster::DusterWhitelist::<Runtime>::contains(a)
+impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
+	fn get() -> Vec<AccountId> {
+		let mut accounts = vec![
+			TreasuryPalletId::get().into_account_truncating(),
+			VestingPalletId::get().into_account_truncating(),
+			ReferralsPalletId::get().into_account_truncating(),
+			BondsPalletId::get().into_account_truncating(),
+			pallet_route_executor::Pallet::<Runtime>::router_account(),
+			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS),
+		];
+
+		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
+			accounts.push(EVMAccounts::account_id(flash_minter));
+			accounts.push(EVMAccounts::account_id(loan_receiver));
+		}
+
+		accounts
 	}
 }
 
@@ -690,6 +704,7 @@ impl pallet_duster::Config for Runtime {
 	type ExistentialDeposit = AssetRegistry;
 	type WhitelistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type Erc20Support = ATokenAccountDuster;
+	type ExtendedWhitelist = ExtendedDustRemovalWhitelist;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;
 }
@@ -882,6 +897,11 @@ impl Get<AssetId> for DotAssetId {
 			None => invalid_id,
 		}
 	}
+}
+
+impl frame_system::offchain::SigningTypes for Runtime {
+	type Public = <MultiSignature as Verify>::Signer;
+	type Signature = MultiSignature;
 }
 
 parameter_types! {
@@ -1389,8 +1409,10 @@ use pallet_currencies::fungibles::FungibleCurrencies;
 #[cfg(not(feature = "runtime-benchmarks"))]
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
+use crate::evm::evm_error_decoder::EvmErrorDecoder;
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
+use frame_support::traits::IsSubType;
 use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
@@ -1410,6 +1432,7 @@ use pallet_referrals::{FeeDistribution, Level};
 use pallet_stableswap::types::PegType;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
+use sp_runtime::traits::TryConvert;
 use sp_runtime::TokenError;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
@@ -1681,7 +1704,6 @@ impl pallet_lbp::Config for Runtime {
 
 parameter_types! {
 	pub XYKExchangeFee: (u32, u32) = (3, 1_000);
-	pub const DiscountedFee: (u32, u32) = (7, 10_000);
 	pub const XYKOracleSourceIdentifier: Source = XYK_SOURCE;
 }
 
@@ -1699,7 +1721,6 @@ impl pallet_xyk::Config for Runtime {
 	type MaxOutRatio = MaxOutRatio;
 	type CanCreatePool = hydradx_adapters::xyk::AllowPoolCreation<Runtime, AssetRegistry>;
 	type AMMHandler = pallet_ema_oracle::OnActivityHandler<Runtime>;
-	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = Duster;
 	type OracleSource = XYKOracleSourceIdentifier;
 }
@@ -1740,24 +1761,27 @@ impl pallet_referrals::Config for Runtime {
 
 parameter_types! {
 	pub const LiquidationGasLimit: u64 = 4_000_000;
+	pub BorrowingTreasuryAccount: AccountId = EVMAccounts::account_id(H160::from(hex!["E52567fF06aCd6CBe7BA94dc777a3126e180B6d9"]));
 }
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct DummyEvm;
 #[cfg(feature = "runtime-benchmarks")]
-impl hydradx_traits::evm::EVM<pallet_liquidation::CallResult> for DummyEvm {
-	fn call(_context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> pallet_liquidation::CallResult {
-		(
-			pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
-			vec![],
-		)
+impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
+	fn call(context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> hydradx_traits::evm::CallResult {
+		hydradx_traits::evm::CallResult {
+			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
+			value: vec![],
+			contract: context.contract,
+		}
 	}
 
-	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> pallet_liquidation::CallResult {
-		(
-			pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
-			vec![],
-		)
+	fn view(context: CallContext, _data: Vec<u8>, _gas: u64) -> hydradx_traits::evm::CallResult {
+		hydradx_traits::evm::CallResult {
+			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
+			value: vec![],
+			contract: context.contract,
+		}
 	}
 }
 
@@ -1776,11 +1800,12 @@ impl pallet_liquidation::Config for Runtime {
 	type Erc20Mapping = evm::precompiles::erc20_mapping::HydraErc20Mapping;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type GasLimit = LiquidationGasLimit;
-	type ProfitReceiver = TreasuryAccount;
+	type ProfitReceiver = BorrowingTreasuryAccount;
 	type RouterWeightInfo = RouterWeightInfo;
 	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
 	type HollarId = HOLLAR;
 	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
+	type EvmErrorDecoder = EvmErrorDecoder;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 }
 
@@ -1792,6 +1817,8 @@ parameter_types! {
 	pub const HsmGasLimit: u64 = 400_000;
 	pub const HsmPalletId: PalletId = PalletId(*b"py/hsmod");
 	pub const HOLLAR: AssetId = 222;
+	pub const MinArbitrageAmount: Balance = 1_000_000_000_000_000_000; // 1 HOLLAR
+	pub const HSMLoanReceiver: EvmAddress = evm::precompiles::FLASH_LOAN_RECEIVER;
 }
 
 impl pallet_hsm::Config for Runtime {
@@ -1807,11 +1834,76 @@ impl pallet_hsm::Config for Runtime {
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Evm = evm::Executor<Runtime>;
 	type EvmAccounts = EVMAccounts;
+	type MinArbitrageAmount = MinArbitrageAmount;
+	type FlashLoanReceiver = HSMLoanReceiver;
 	type GasLimit = HsmGasLimit;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
+	type EvmErrorDecoder = EvmErrorDecoder;
 	type WeightInfo = weights::pallet_hsm::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
+}
+
+parameter_types! {
+	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
+	pub const MaxChainIdLength: u32 = 128;
+
+	pub const MaxEvmDataLength: u32 = 100_000;
+	pub const MaxSignatureDeposit: Balance = 200_000_000_000_000;
+}
+
+impl pallet_signet::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type PalletId = SignetPalletId;
+	type MaxChainIdLength = MaxChainIdLength;
+	type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
+	type MaxDataLength = MaxEvmDataLength;
+	type UpdateOrigin = EnsureRoot<AccountId>;
+	type MaxSignatureDeposit = MaxSignatureDeposit;
+}
+
+parameter_types! {
+	pub const SigEthPalletId: PalletId = PalletId(*b"py/fucet");
+	pub const SigEthFaucetDispenserFee: u128 = 5_000;
+	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000_000_000_000;
+	pub const SigEthFaucetMinRequest: u64 = 0;
+	pub const SigEthFaucetFeeAssetId: AssetId = 0;
+	pub const SigEthFaucetFaucetAssetId: AssetId = 20;
+	pub const SigEthMinFaucetThreshold: u128 = 50_000_000_000_000_000u128;
+}
+
+// Treasury as the fee receiver (reuses the Treasury pallet account)
+pub struct SigEthFaucetTreasuryAccount;
+impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
+	fn get() -> AccountId {
+		Treasury::account_id()
+	}
+}
+
+pub struct SigEthFaucetContractAddr;
+impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetContractAddr {
+	fn get() -> [u8; 20] {
+		[
+			0x52, 0xBE, 0x07, 0x7E, 0x67, 0x49, 0x6C, 0x97, 0x63, 0xCC, 0xEF, 0x66, 0xC1, 0x11, 0x7D, 0xD2, 0x34, 0xCA,
+			0x8C, 0xFC,
+		]
+	}
+}
+
+impl pallet_dispenser::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = FungibleCurrencies<Runtime>;
+	type MinimumRequestAmount = SigEthFaucetMinRequest;
+	type MaxDispenseAmount = SigEthFaucetMaxDispense;
+	type DispenserFee = SigEthFaucetDispenserFee;
+	type FeeAsset = SigEthFaucetFeeAssetId;
+	type FaucetAsset = SigEthFaucetFaucetAssetId;
+	type FeeDestination = SigEthFaucetTreasuryAccount;
+	type FaucetAddress = SigEthFaucetContractAddr;
+	type PalletId = SigEthPalletId;
+	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
+	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
@@ -1904,11 +1996,10 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 
 use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
+use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
+#[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
-
-#[cfg(feature = "runtime-benchmarks")]
-use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;
@@ -2053,14 +2144,7 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 		max_limit: Balance,
 		dest: &AccountId,
 	) -> DispatchResult {
-		XYK::buy_for(
-			origin,
-			pallet_xyk::types::AssetPair { asset_in, asset_out },
-			amount,
-			max_limit,
-			false,
-			dest,
-		)
+		XYK::buy_for(origin, AssetPair { asset_in, asset_out }, amount, max_limit, dest)
 	}
 }
 
@@ -2093,5 +2177,37 @@ impl Erc20OnDust<AccountId, AssetId> for ATokenAccountDuster {
 		AaveTradeExecutor::<Runtime>::withdraw_all_to(contract, &account, &dust_dest_account)?;
 
 		Ok(())
+	}
+}
+
+pub struct TryCallCurrency;
+impl TryConvert<&<Runtime as frame_system::Config>::RuntimeCall, AssetIdOf<Runtime>> for TryCallCurrency {
+	fn try_convert(
+		call: &<Runtime as frame_system::Config>::RuntimeCall,
+	) -> Result<AssetIdOf<Runtime>, &<Runtime as frame_system::Config>::RuntimeCall> {
+		if let Some(pallet_transaction_multi_payment::pallet::Call::set_currency { currency }) = call.is_sub_type() {
+			Ok(*currency)
+		} else if let Some(pallet_utility::pallet::Call::batch { calls })
+		| Some(pallet_utility::pallet::Call::batch_all { calls })
+		| Some(pallet_utility::pallet::Call::force_batch { calls }) = call.is_sub_type()
+		{
+			// `calls` can be empty Vec
+			match calls.first() {
+				Some(first_call) => match first_call.is_sub_type() {
+					Some(pallet_transaction_multi_payment::pallet::Call::set_currency { currency }) => Ok(*currency),
+					_ => Err(call),
+				},
+				_ => Err(call),
+			}
+		} else if let Some(pallet_dispatcher::pallet::Call::dispatch_with_extra_gas { call: inner_call, .. }) =
+			call.is_sub_type()
+		{
+			match inner_call.is_sub_type() {
+				Some(pallet_transaction_multi_payment::pallet::Call::set_currency { currency }) => Ok(*currency),
+				_ => Err(call),
+			}
+		} else {
+			Err(call)
+		}
 	}
 }

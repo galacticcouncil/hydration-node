@@ -286,7 +286,7 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 		BaseXcmWeight::get()
 	}
 	fn alias_origin(_: &Location) -> Weight {
-		Weight::MAX
+		BaseXcmWeight::get()
 	}
 	fn unpaid_execution(_: &WeightLimit, _: &Option<Location>) -> Weight {
 		BaseXcmWeight::get()

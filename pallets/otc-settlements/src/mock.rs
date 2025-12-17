@@ -248,6 +248,7 @@ impl pallet_currencies::Config for Test {
 	type BoundErc20 = MockBoundErc20<Test>;
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
+	type RegistryInspect = MockBoundErc20<Test>;
 	type WeightInfo = ();
 }
 
@@ -257,8 +258,6 @@ impl pallet_broadcast::Config for Test {
 
 parameter_types! {
 	pub const MinTradingLimit: Balance = 1_000;
-	pub const MinPoolLiquidity: Balance = 1_000;
-	pub const DiscountedFee: (u32, u32) = (7, 10_000);
 }
 
 parameter_types! {

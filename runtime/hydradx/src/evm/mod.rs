@@ -28,7 +28,7 @@ pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{DotAssetId, FeePriceOracle, Runtime, XykPaymentAssetSupport};
+use crate::{AssetRegistry, DotAssetId, FeePriceOracle, MultiTransactionPayment, Runtime, XykPaymentAssetSupport};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	dispatch::RawOrigin,
@@ -55,6 +55,7 @@ use sp_std::sync::Arc;
 pub mod aave_trade_executor;
 mod accounts_conversion;
 mod erc20_currency;
+pub mod evm_error_decoder;
 mod evm_fee;
 mod executor;
 mod gas_to_weight_mapping;
@@ -64,6 +65,7 @@ mod runner;
 
 pub use erc20_currency::Erc20Currency;
 pub use erc20_currency::Function;
+pub use erc20_currency::HOLDING_ADDRESS;
 pub use executor::Executor;
 pub use primitives::AccountId as AccountIdType;
 
@@ -190,13 +192,13 @@ impl pallet_evm::Config for Runtime {
 		hydradx_adapters::price::FeeAssetBalanceInCurrency<
 			Runtime,
 			ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
-			FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<Runtime>>, // Get account's fee payment asset
-			FungibleCurrencies<Runtime>,                                     // Account balance inspector
+			FeeCurrencyOverrideOrDefault, // Get account's fee payment asset
+			FungibleCurrencies<Runtime>,  // Account balance inspector
 		>,
 	>;
 	type OnChargeTransaction = evm_fee::TransferEvmFees<
 		evm_fee::DepositEvmFeeToTreasury,
-		FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<Runtime>>, // Get account's fee payment asset
+		FeeCurrencyOverrideOrDefault, // Get account's fee payment asset
 		WethAssetId,
 		ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
 		FungibleCurrencies<Runtime>, // Multi currency support
@@ -234,8 +236,12 @@ type EvmAccounts<T> = pallet_evm_accounts::Pallet<T>;
 impl pallet_evm_accounts::Config for Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
 	type EvmNonceProvider = EvmNonceProvider;
-	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type FeeMultiplier = sp_core::ConstU32<50>;
+	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type AssetId = AssetId;
+	type Currency = FungibleCurrencies<Runtime>;
+	type ExistentialDeposits = AssetRegistry;
+	type FeeCurrency = MultiTransactionPayment;
 	type WeightInfo = crate::weights::pallet_evm_accounts::HydraWeight<Runtime>;
 }
 

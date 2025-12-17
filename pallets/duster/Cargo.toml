@@ -1,6 +1,6 @@
 [package]
 name = "pallet-duster"
-version = "3.3.1"
+version = "3.5.0"
 description = "Account duster"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -28,6 +28,7 @@ orml-traits = { workspace = true }
 # Substrate dependencies
 sp-std = { workspace = true }
 sp-runtime = { workspace = true }
+sp-api = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 
@@ -56,6 +57,7 @@ std = [
     "frame-system/std",
     "sp-runtime/std",
     "sp-std/std",
+    "sp-api/std",
     "sp-core/std",
     "sp-io/std",
     "scale-info/std",

@@ -21,13 +21,13 @@ use super::*;
 use crate as liq_mining;
 use frame_support::weights::RuntimeDbWeight;
 use frame_support::{
-	dispatch, parameter_types,
+	parameter_types,
 	traits::{Everything, Nothing},
 	PalletId,
 };
 
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMMTransfer, AMM};
+use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMM};
 use orml_traits::parameter_type_with_key;
 use pallet_liquidity_mining::{FarmMultiplier, YieldFarmId};
 use pallet_xyk::types::{AssetId, AssetPair, Balance};
@@ -205,74 +205,11 @@ pub struct DummyFarmEntry {
 pub struct DummyAMM;
 
 impl AMM<AccountId, AssetId, AssetPair, Balance> for DummyAMM {
-	fn get_max_out_ratio() -> u128 {
-		0_u32.into()
-	}
-
-	fn get_fee(_pool_account_id: &AccountId) -> (u32, u32) {
-		(0, 0)
-	}
-
-	fn get_max_in_ratio() -> u128 {
-		0_u32.into()
-	}
-
 	fn get_pool_assets(pool_id: &AccountId) -> Option<Vec<AssetId>> {
 		AMM_POOLS.with(|v| match v.borrow().get(pool_id) {
 			Some((_, pair)) => Some(vec![pair.asset_in, pair.asset_out]),
 			_ => None,
 		})
-	}
-
-	fn get_spot_price_unchecked(_asset_a: AssetId, _asset_b: AssetId, _amount: Balance) -> Balance {
-		Balance::from(0_u32)
-	}
-
-	fn validate_sell(
-		_origin: &AccountId,
-		_assets: AssetPair,
-		_amount: Balance,
-		_min_bought: Balance,
-		_discount: bool,
-	) -> Result<
-		hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-		frame_support::sp_runtime::DispatchError,
-	> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn execute_buy(
-		_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, u128>,
-		_destination: Option<&AccountId>,
-	) -> dispatch::DispatchResult {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn execute_sell(
-		_transfer: &hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-	) -> frame_support::dispatch::DispatchResult {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn validate_buy(
-		_origin: &AccountId,
-		_assets: AssetPair,
-		_amount: Balance,
-		_max_limit: Balance,
-		_discount: bool,
-	) -> Result<
-		hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-		frame_support::sp_runtime::DispatchError,
-	> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn get_min_pool_liquidity() -> Balance {
-		Balance::from(0_u32)
-	}
-
-	fn get_min_trading_limit() -> Balance {
-		Balance::from(0_u32)
 	}
 
 	// Fn bellow are used by liq. mining pallet

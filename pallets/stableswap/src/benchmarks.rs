@@ -176,23 +176,6 @@ benchmarks! {
 		assert!(<PoolPegs<T>>::get::<T::AssetId>(pool_id.into()).is_some());
 	}
 
-	add_liquidity{
-		let caller: T::AccountId = account("caller", 0, 1);
-		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
-
-		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		for asset_id in pool.assets.iter() {
-			T::Currency::update_balance(*asset_id, &caller, 300_000_000_000_000i128)?;
-			added_liquidity.push(AssetAmount::new(*asset_id, 300_000_000_000_000u128));
-		}
-		T::BenchmarkHelper::set_deposit_limit(pool_id, 1_000_000u128)?;//To trigger deposit limiter circuit breaker, leading to worst case
-
-	}: _(RawOrigin::Signed(caller.clone()), pool_id, added_liquidity.try_into().unwrap())
-	verify {
-		assert!(T::Currency::free_balance(pool_id, &caller) > 0u128);
-	}
-
 	add_assets_liquidity{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);

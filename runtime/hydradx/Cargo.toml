@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "350.0.0"
+version = "372.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -21,6 +21,8 @@ smallvec = { workspace = true }
 log = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 evm = { workspace = true, features = ["with-codec"] }
+alloy-primitives = { workspace = true }
+alloy-sol-types = { workspace = true }
 
 # local dependencies
 primitives = { workspace = true }
@@ -53,6 +55,7 @@ pallet-currencies-rpc-runtime-api = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-duster = { workspace = true }
+pallet-duster-rpc-runtime-api = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
 pallet-otc-settlements = { workspace = true }
@@ -88,6 +91,8 @@ pallet-uniques = { workspace = true }
 pallet-whitelist = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
+pallet-signet = { workspace = true }
+pallet-dispenser = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -181,6 +186,16 @@ serde_json = { workspace = true, default-features = false, features = [
 ] }
 ethereum = { workspace = true }
 
+# Hyperbridge
+pallet-ismp = { workspace = true, features = ["unsigned"] }
+pallet-ismp-runtime-api = { workspace = true }
+ismp-parachain-runtime-api = { workspace = true }
+pallet-hyperbridge = { workspace = true }
+pallet-token-gateway = { workspace = true }
+ismp-parachain = { workspace = true }
+ismp = { workspace = true }
+anyhow = { workspace = true }
+
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 
@@ -245,7 +260,11 @@ runtime-benchmarks = [
     "pallet-whitelist/runtime-benchmarks",
     "pallet-dispatcher/runtime-benchmarks",
     "cumulus-primitives-utility/runtime-benchmarks",
-    "pallet-xcm-benchmarks/runtime-benchmarks"
+    "pallet-xcm-benchmarks/runtime-benchmarks",
+    "pallet-signet/runtime-benchmarks",
+    "pallet-dispenser/runtime-benchmarks",
+    "ismp-parachain/runtime-benchmarks",
+    "pallet-token-gateway/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -324,6 +343,7 @@ std = [
     "pallet-lbp/std",
     "pallet-xyk/std",
     "pallet-duster/std",
+    "pallet-duster-rpc-runtime-api/std",
     "pallet-hsm/std",
     "pallet-parameters/std",
     "warehouse-liquidity-mining/std",
@@ -370,6 +390,17 @@ std = [
     "pallet-whitelist/std",
     "pallet-broadcast/std",
     "pallet-dispatcher/std",
+    "pallet-signet/std",
+    "pallet-dispenser/std",
+    # Hyperbridge
+    "anyhow/std",
+    "pallet-hyperbridge/std",
+    "pallet-token-gateway/std",
+    "pallet-ismp/std",
+    "pallet-ismp-runtime-api/std",
+    "ismp/std",
+    "ismp-parachain/std",
+    "ismp-parachain-runtime-api/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -448,6 +479,8 @@ try-runtime = [
     "pallet-whitelist/try-runtime",
     "pallet-broadcast/try-runtime",
     "pallet-dispatcher/try-runtime",
+    "pallet-signet/try-runtime",
+
 ]
 
 metadata-hash = [

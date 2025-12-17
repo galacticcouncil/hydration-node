@@ -18,6 +18,7 @@ pub use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::{evm::weth_asset_location, Referrals, RuntimeEvent, RuntimeOrigin};
 pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
+pub use num_traits::Zero;
 use pallet_referrals::{FeeDistribution, Level};
 use polkadot_primitives::runtime_api::runtime_decl_for_parachain_host::ParachainHostV13;
 pub use polkadot_primitives::v8::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};

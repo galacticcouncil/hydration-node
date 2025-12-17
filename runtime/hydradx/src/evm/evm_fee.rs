@@ -19,10 +19,10 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 use crate::{Runtime, TreasuryAccount};
+use frame_support::dispatch::DispatchResult;
 use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
-use frame_support::traits::{Get, TryDrop};
+use frame_support::traits::{Get, IsType, TryDrop};
 use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::AccountFeeCurrency;
 use pallet_evm::{AddressMapping, Error};
@@ -95,6 +95,7 @@ where
 	SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<T::AccountId, AssetId, Balance>,
 	DotAssetId: Get<AssetId>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	T::AccountId: IsType<AccountId>,
 {
 	type LiquidityInfo = Option<EvmPaymentInfo<EmaPrice>>;
 
@@ -103,6 +104,9 @@ where
 			return Ok(None);
 		}
 		let account_id = T::AddressMapping::into_account_id(*who);
+
+		pallet_evm_accounts::Pallet::<crate::Runtime>::mark_as_evm_account(&account_id.clone().into());
+
 		let account_fee_currency = AccountCurrency::get(&account_id);
 
 		let (converted, fee_currency, price) =
@@ -259,13 +263,17 @@ impl OnUnbalanced<EvmPaymentInfo<EmaPrice>> for DepositEvmFeeToTreasury {
 	}
 }
 
-pub struct FeeCurrencyOverrideOrDefault<EC, EI>(PhantomData<(EC, EI)>);
+/// Picks the asset used to pay transaction fees for a given account.
+///
+/// Resolution order:
+/// 1) If the account has an explicit fee-currency override set in
+///    `pallet_transaction_multi_payment`, use it.
+/// 2) Otherwise, defer to `account_currency(a)`, which returns either a
+///    per-account currency (if present) or falls back by account type:
+///    EVM account → `EvmAssetId`, non-EVM account → `NativeAssetId`.
+pub struct FeeCurrencyOverrideOrDefault();
 
-impl<EC, EI> AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault<EC, EI>
-where
-	EC: Get<AssetId>,
-	EI: InspectEvmAccounts<AccountId>,
-{
+impl AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault {
 	type AssetId = AssetId;
 
 	fn get(a: &AccountId) -> Self::AssetId {
@@ -273,12 +281,19 @@ where
 		if let Some(currency) = pallet_transaction_multi_payment::Pallet::<Runtime>::tx_fee_currency_override(a) {
 			currency
 		} else {
-			// if account is evm account - default to given EC, otherwise use account currency or default to HDX.
-			if EI::is_evm_account(a.clone()) {
-				EC::get()
-			} else {
-				pallet_transaction_multi_payment::Pallet::<Runtime>::account_currency(a)
-			}
+			// Otherwise, resolve via account_currency (handles per-account setting
+			// 	and type-based defaults: EVM → EvmAssetId, non-EVM → NativeAssetId).
+			pallet_transaction_multi_payment::Pallet::<Runtime>::account_currency(a)
 		}
+	}
+
+	fn set(who: &AccountId, asset_id: Self::AssetId) -> DispatchResult {
+		<pallet_transaction_multi_payment::Pallet<Runtime> as AccountFeeCurrency<AccountId>>::set(who, asset_id)
+	}
+
+	fn is_payment_currency(asset_id: Self::AssetId) -> DispatchResult {
+		<pallet_transaction_multi_payment::Pallet<Runtime> as AccountFeeCurrency<AccountId>>::is_payment_currency(
+			asset_id,
+		)
 	}
 }

@@ -33,7 +33,7 @@ use crate::{
 	},
 	Currencies,
 };
-use codec::EncodeLike;
+use codec::{Encode, EncodeLike};
 use frame_support::traits::{ExistenceRequirement, IsType, OriginTrait};
 use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
@@ -233,7 +233,7 @@ where
 		)
 		.map_err(|e| PrecompileFailure::Revert {
 			exit_status: ExitRevert::Reverted,
-			output: Into::<&str>::into(e).as_bytes().to_vec(),
+			output: e.encode(),
 		})?;
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
@@ -291,7 +291,7 @@ where
 			)
 			.map_err(|e| PrecompileFailure::Revert {
 				exit_status: ExitRevert::Reverted,
-				output: Into::<&str>::into(e).as_bytes().to_vec(),
+				output: e.encode(),
 			})?;
 
 			Ok(succeed(EvmDataWriter::new().write(true).build()))

@@ -21,6 +21,7 @@
 
 use std::sync::Arc;
 
+use crate::liquidation_worker::LiquidationTaskData;
 use cumulus_primitives_core::PersistedValidationData;
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
@@ -29,9 +30,11 @@ pub use fc_rpc::{EthBlockDataCacheTask, StorageOverride, StorageOverrideHandler}
 pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
 use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
+use pallet_ismp_rpc::{IsmpApiServer, IsmpRpcHandler};
 use sc_client_api::{
 	backend::{Backend, StateBackend, StorageProvider},
 	client::BlockchainEvents,
+	BlockBackend, ProofProvider,
 };
 use sc_network::service::traits::NetworkService;
 use sc_network_sync::SyncingService;
@@ -61,6 +64,8 @@ pub struct FullDeps<C, P, B> {
 	pub pool: Arc<P>,
 	/// Backend used by the node.
 	pub backend: Arc<B>,
+	/// Data provided from the liquidation worker.
+	pub liquidation_task_data: Arc<LiquidationTaskData>,
 }
 
 /// Extra dependencies for Ethereum compatibility.
@@ -106,26 +111,36 @@ pub type RpcExtension = jsonrpsee::RpcModule<()>;
 /// Instantiate all full RPC extensions.
 pub fn create_full<C, P, B>(deps: FullDeps<C, P, B>) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
-	C: ProvideRuntimeApi<Block>,
+	C: ProvideRuntimeApi<Block> + BlockBackend<Block> + ProofProvider<Block>,
 	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError>,
 	C: Send + Sync + 'static,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
+	C::Api: pallet_ismp_runtime_api::IsmpRuntimeApi<Block, sp_core::H256>,
 	C::Api: BlockBuilderApi<Block>,
 	P: TransactionPool + Sync + Send + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::StateBackend<sp_runtime::traits::HashingFor<Block>>,
 {
+	use crate::liquidation_worker::rpc::{LiquidationWorker, LiquidationWorkerApiServer};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
 	use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut module = RpcExtension::new(());
-	let FullDeps { client, pool, backend } = deps;
+	let FullDeps {
+		client,
+		pool,
+		backend,
+		liquidation_task_data,
+	} = deps;
 
 	module.merge(System::new(client.clone(), pool).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
-	module.merge(StateMigration::new(client, backend).into_rpc())?;
+	module.merge(StateMigration::new(client.clone(), backend.clone()).into_rpc())?;
+
+	module.merge(IsmpRpcHandler::new(client, backend)?.into_rpc())?;
+	module.merge(LiquidationWorker::new(liquidation_task_data).into_rpc())?;
 
 	Ok(module)
 }

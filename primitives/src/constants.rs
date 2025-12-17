@@ -24,6 +24,7 @@ pub mod currency {
 	pub const CENTS: Balance = DOLLARS / 100; // 1 UNITS ~= 1 cent
 	pub const MILLICENTS: Balance = CENTS / 1_000;
 	pub const NATIVE_EXISTENTIAL_DEPOSIT: Balance = CENTS;
+	pub const NATIVE_DECIMALS: u8 = 12;
 
 	pub fn deposit(items: u32, bytes: u32) -> Balance {
 		items as Balance * 2 * DOLLARS + (bytes as Balance) * 30 * MILLICENTS
@@ -71,6 +72,7 @@ pub mod chain {
 
 	/// Core asset id
 	pub const CORE_ASSET_ID: AssetId = 0;
+	pub const HOLLAR_ASSET_ID: AssetId = 222;
 
 	/// We allow for 2 seconds of compute with a 6 seconds average block.
 	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(

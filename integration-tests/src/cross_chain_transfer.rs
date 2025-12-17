@@ -10,6 +10,7 @@ use frame_support::{assert_noop, assert_ok};
 
 use polkadot_xcm::{v5::prelude::*, VersionedAssetId, VersionedAssets, VersionedXcm};
 
+use crate::utils::accounts::MockAccount;
 use cumulus_primitives_core::ParaId;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::storage::with_transaction;
@@ -1083,6 +1084,19 @@ fn register_dot() {
 	));
 }
 
+fn register_hollar() {
+	assert_ok!(AssetRegistry::register_sufficient_asset(
+		Some(222),
+		Some(b"HOLLAR".to_vec().try_into().unwrap()),
+		AssetKind::Token,
+		1_000_000,
+		None,
+		None,
+		None,
+		None,
+	));
+}
+
 fn add_currency_price(asset_id: u32, price: FixedU128) {
 	assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 		hydradx_runtime::RuntimeOrigin::root(),
@@ -1271,4 +1285,118 @@ fn xcm_transfer_reserve_asset_and_deposit_asset_to_hydra<RC: Decode + GetDispatc
 		},
 	]);
 	VersionedXcm::from(message)
+}
+
+#[test]
+fn hollar_xcm_transfer_should_work() {
+	// Arrange
+	TestNet::reset();
+
+	let bob_acc = MockAccount::new(AccountId::from(BOB));
+	let alice_acc = MockAccount::new(AccountId::from(ALICE));
+	let treasury_acc = MockAccount::new(Treasury::account_id());
+
+	// Register hollar on a parachain
+	Acala::execute_with(|| {
+		let _ = with_transaction(|| {
+			assert_ok!(AssetRegistry::register_sufficient_asset(
+				Some(223),
+				Some(b"HOLLAR".to_vec().try_into().unwrap()),
+				AssetKind::Token,
+				1_000_000,
+				None,
+				None,
+				None,
+				None,
+			));
+
+			add_currency_price(223, FixedU128::from(1));
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			223,
+			hydradx_runtime::AssetLocation(MultiLocation::new(
+				1,
+				X2(Junction::Parachain(HYDRA_PARA_ID), Junction::GeneralIndex(222))
+			))
+		));
+	});
+
+	// Send Hollar out from Hydration to a parachain
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			register_hollar();
+			add_currency_price(222, FixedU128::from(1));
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+		assert_ok!(hydradx_runtime::Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			222,
+			100_000_000_000_000,
+			0,
+		));
+
+		let alice_initial_hollar_balance = alice_acc.balance(222);
+		// Act
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			222,
+			30 * UNITS,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(ACALA_PARA_ID),
+						Junction::AccountId32 { id: BOB, network: None }
+					)
+				)
+				.into_versioned()
+			),
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
+		));
+
+		// Assert
+		assert_eq!(alice_acc.balance(222), alice_initial_hollar_balance - 30 * UNITS);
+	});
+
+	// Assert that parachain received hollar from hydration
+	Acala::execute_with(|| {
+		let fee = treasury_acc.balance(223);
+		assert!(fee > 0, "Fee is not sent to treasury");
+		assert_eq!(bob_acc.balance(223), 30 * UNITS - fee);
+	});
+
+	// Send some HOLLAR back to hydration
+	Acala::execute_with(|| {
+		let bob_initial_hollar_balance = bob_acc.balance(223);
+		// Act
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			223,
+			10 * UNITS,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountId32 {
+							id: ALICE,
+							network: None
+						}
+					)
+				)
+				.into_versioned()
+			),
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
+		));
+
+		// Assert
+		assert_eq!(bob_acc.balance(223), bob_initial_hollar_balance - 10 * UNITS);
+	});
+	Hydra::execute_with(|| {
+		let fee = treasury_acc.balance(222);
+		assert!(fee > 0, "Fee is not sent to treasury");
+		assert_eq!(alice_acc.balance(222), 79922172204893);
+	});
 }

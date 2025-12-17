@@ -229,6 +229,9 @@ pub mod pallet {
 
 		/// EVM permit call failed.
 		EvmPermitRunnerError,
+
+		/// EVM permit must not affect account nonce.
+		EvmPermitNonceInvariantViolated,
 	}
 
 	/// Account currency map
@@ -293,26 +296,7 @@ pub mod pallet {
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
-				ensure!(
-					currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
-					Error::<T>::UnsupportedCurrency
-				);
-			} else {
-				ensure!(
-					T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
-					Error::<T>::UnsupportedCurrency
-				);
-			}
-
-			<AccountCurrencyMap<T>>::insert(who.clone(), currency);
-
-			Self::deposit_event(Event::CurrencySet {
-				account_id: who,
-				asset_id: currency,
-			});
-
-			Ok(())
+			Self::do_set_currency(&who, currency)
 		}
 
 		/// Add a currency to the list of accepted currencies.
@@ -556,11 +540,47 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Returns the effective fee currency for `who`.
+	///
+	/// Behavior:
+	/// - If `get_currency(who)` is set, return that per-account currency.
+	/// - Otherwise, default by account type:
+	///     * EVM account     → `T::EvmAssetId::get()`
+	///     * non-EVM account → `T::NativeAssetId::get()`
 	pub fn account_currency(who: &T::AccountId) -> AssetIdOf<T>
 	where
 		BalanceOf<T>: FixedPointOperand,
 	{
-		Pallet::<T>::get_currency(who).unwrap_or_else(T::NativeAssetId::get)
+		Pallet::<T>::get_currency(who).unwrap_or_else(|| {
+			if T::InspectEvmAccounts::is_evm_account(who.clone()) {
+				T::EvmAssetId::get()
+			} else {
+				T::NativeAssetId::get()
+			}
+		})
+	}
+
+	fn do_set_currency(who: &T::AccountId, currency: AssetIdOf<T>) -> DispatchResult {
+		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
+			ensure!(
+				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
+				Error::<T>::UnsupportedCurrency
+			);
+		} else {
+			ensure!(
+				T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
+				Error::<T>::UnsupportedCurrency
+			);
+		}
+
+		<AccountCurrencyMap<T>>::insert(who.clone(), currency);
+
+		Self::deposit_event(Event::CurrencySet {
+			account_id: who.clone(),
+			asset_id: currency,
+		});
+
+		Ok(())
 	}
 
 	fn get_currency_price(currency: AssetIdOf<T>) -> Option<Price>
@@ -870,35 +890,24 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 	fn get(who: &T::AccountId) -> Self::AssetId {
 		Pallet::<T>::account_currency(who)
 	}
-}
 
-pub struct TryCallCurrency<T>(PhantomData<T>);
-impl<T> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for TryCallCurrency<T>
-where
-	T: Config + pallet_utility::Config,
-	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
-	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
-{
-	fn try_convert(
-		call: &<T as frame_system::Config>::RuntimeCall,
-	) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
-		if let Some(crate::pallet::Call::set_currency { currency }) = call.is_sub_type() {
-			Ok(*currency)
-		} else if let Some(pallet_utility::pallet::Call::batch { calls })
-		| Some(pallet_utility::pallet::Call::batch_all { calls })
-		| Some(pallet_utility::pallet::Call::force_batch { calls }) = call.is_sub_type()
-		{
-			// `calls` can be empty Vec
-			match calls.first() {
-				Some(first_call) => match first_call.is_sub_type() {
-					Some(crate::pallet::Call::set_currency { currency }) => Ok(*currency),
-					_ => Err(call),
-				},
-				_ => Err(call),
-			}
+	fn set(who: &T::AccountId, asset_id: Self::AssetId) -> DispatchResult {
+		Self::do_set_currency(who, asset_id)
+	}
+	fn is_payment_currency(currency: Self::AssetId) -> DispatchResult {
+		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
+			ensure!(
+				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
+				Error::<T>::UnsupportedCurrency
+			);
 		} else {
-			Err(call)
+			ensure!(
+				T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
+				Error::<T>::UnsupportedCurrency
+			);
 		}
+
+		Ok(())
 	}
 }
 
