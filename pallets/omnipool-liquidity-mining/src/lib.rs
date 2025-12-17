@@ -1039,6 +1039,8 @@ pub mod pallet {
 		/// - `stable_pool_id`: id of the stableswap pool to add liquidity to.
 		/// - `stable_asset_amounts`: amount of each asset to be deposited into the stableswap pool.
 		/// - `farm_entries`: list of farms to join.
+		/// - `min_shares_limit`: optional minimum Omnipool shares to receive (slippage protection).
+		///                       Applies to Omnipool step only. None defaults to no protection.
 		///
 		/// Emits `LiquidityAdded` events from both pool
 		/// Emits `SharesDeposited` event for the first farm entry
@@ -1058,16 +1060,18 @@ pub mod pallet {
 			stable_pool_id: T::AssetId,
 			stable_asset_amounts: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
 			farm_entries: Option<BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>>,
+			min_shares_limit: Option<Balance>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
 			let stablepool_shares = T::Stableswap::add_liquidity(who, stable_pool_id, stable_asset_amounts.to_vec())?;
 
+			let min_shares_limit = min_shares_limit.unwrap_or(Balance::MIN);
 			let position_id = OmnipoolPallet::<T>::do_add_liquidity_with_limit(
 				origin.clone(),
 				stable_pool_id,
 				stablepool_shares,
-				Balance::MIN,
+				min_shares_limit,
 			)?;
 
 			if let Some(farms) = farm_entries {

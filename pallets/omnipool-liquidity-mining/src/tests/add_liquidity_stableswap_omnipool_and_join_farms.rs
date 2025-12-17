@@ -91,6 +91,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_with_single_yiel
 				STABLESWAP_POOL_ID,
 				vec![AssetAmount::new(USDT, amount)].try_into().unwrap(),
 				Some(yield_farms.try_into().unwrap()),
+				None,
 			));
 
 			//Assert that liquidity is added
@@ -231,6 +232,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_with_multiple_yi
 				STABLESWAP_POOL_ID,
 				vec![AssetAmount::new(USDT, amount)].try_into().unwrap(),
 				Some(yield_farms.try_into().unwrap()),
+				None,
 			));
 
 			//Assert that liquidity is added
@@ -404,8 +406,196 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_when_origin_is_n
 					STABLESWAP_POOL_ID,
 					vec![AssetAmount::new(USDT, amount)].try_into().unwrap(),
 					Some(yield_farms.try_into().unwrap()),
+					None,
 				),
 				BadOrigin
 			);
+		});
+}
+
+#[test]
+fn add_liquidity_stableswap_with_min_limit_should_work() {
+	let token_amount = 2000 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, STABLESWAP_POOL_ID, 5000 * ONE),
+			(LP1, USDT, 5000 * ONE),
+			(LP1, DAI, 5000 * ONE),
+			(GC, HDX, 100_000_000 * ONE),
+			(CHARLIE, HDX, 100_000_000 * ONE),
+			(BOB, HDX, 100_000_000 * ONE),
+		])
+		.with_registered_asset(USDT)
+		.with_registered_asset(STABLESWAP_POOL_ID)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(STABLESWAP_POOL_ID, FixedU128::from_float(0.65), LP1, token_amount)
+		.with_global_farm(
+			80_000_000 * ONE,
+			2_628_000,
+			1,
+			HDX,
+			GC,
+			Perquintill::from_float(0.000_000_15_f64),
+			1_000,
+			FixedU128::one(),
+		)
+		.with_yield_farm(GC, 1, STABLESWAP_POOL_ID, FixedU128::one(), None)
+		.build()
+		.execute_with(|| {
+			let gc_g_farm_id = 1;
+			let gc_y_farm_id = 2;
+			let amount = 20 * ONE;
+			let yield_farms = vec![(gc_g_farm_id, gc_y_farm_id)];
+
+			assert_ok!(OmnipoolMining::add_liquidity_stableswap_omnipool_and_join_farms(
+				RuntimeOrigin::signed(LP1),
+				STABLESWAP_POOL_ID,
+				vec![AssetAmount::new(USDT, amount)].try_into().unwrap(),
+				Some(yield_farms.try_into().unwrap()),
+				Some(Balance::MIN),
+			));
+		});
+}
+
+#[test]
+fn add_liquidity_stableswap_with_exact_limit_should_work() {
+	let token_amount = 2000 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, STABLESWAP_POOL_ID, 5000 * ONE),
+			(LP1, USDT, 5000 * ONE),
+			(LP1, DAI, 5000 * ONE),
+			(GC, HDX, 100_000_000 * ONE),
+			(CHARLIE, HDX, 100_000_000 * ONE),
+			(BOB, HDX, 100_000_000 * ONE),
+		])
+		.with_registered_asset(USDT)
+		.with_registered_asset(STABLESWAP_POOL_ID)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(STABLESWAP_POOL_ID, FixedU128::from_float(0.65), LP1, token_amount)
+		.with_global_farm(
+			80_000_000 * ONE,
+			2_628_000,
+			1,
+			HDX,
+			GC,
+			Perquintill::from_float(0.000_000_15_f64),
+			1_000,
+			FixedU128::one(),
+		)
+		.with_yield_farm(GC, 1, STABLESWAP_POOL_ID, FixedU128::one(), None)
+		.build()
+		.execute_with(|| {
+			let gc_g_farm_id = 1;
+			let gc_y_farm_id = 2;
+			let amount = 20 * ONE;
+			let yield_farms = vec![(gc_g_farm_id, gc_y_farm_id)];
+
+			assert_ok!(OmnipoolMining::add_liquidity_stableswap_omnipool_and_join_farms(
+				RuntimeOrigin::signed(LP1),
+				STABLESWAP_POOL_ID,
+				vec![AssetAmount::new(USDT, amount)].try_into().unwrap(),
+				Some(yield_farms.try_into().unwrap()),
+				Some(SHARES_FROM_STABLESWAP),
+			));
+		});
+}
+
+#[test]
+fn add_liquidity_stableswap_with_high_limit_should_fail() {
+	let token_amount = 2000 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, STABLESWAP_POOL_ID, 5000 * ONE),
+			(LP1, USDT, 5000 * ONE),
+			(LP1, DAI, 5000 * ONE),
+			(GC, HDX, 100_000_000 * ONE),
+			(CHARLIE, HDX, 100_000_000 * ONE),
+			(BOB, HDX, 100_000_000 * ONE),
+		])
+		.with_registered_asset(USDT)
+		.with_registered_asset(STABLESWAP_POOL_ID)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(STABLESWAP_POOL_ID, FixedU128::from_float(0.65), LP1, token_amount)
+		.with_global_farm(
+			80_000_000 * ONE,
+			2_628_000,
+			1,
+			HDX,
+			GC,
+			Perquintill::from_float(0.000_000_15_f64),
+			1_000,
+			FixedU128::one(),
+		)
+		.with_yield_farm(GC, 1, STABLESWAP_POOL_ID, FixedU128::one(), None)
+		.build()
+		.execute_with(|| {
+			let gc_g_farm_id = 1;
+			let gc_y_farm_id = 2;
+			let amount = 20 * ONE;
+			let yield_farms = vec![(gc_g_farm_id, gc_y_farm_id)];
+
+			assert_noop!(
+				OmnipoolMining::add_liquidity_stableswap_omnipool_and_join_farms(
+					RuntimeOrigin::signed(LP1),
+					STABLESWAP_POOL_ID,
+					vec![AssetAmount::new(USDT, amount)].try_into().unwrap(),
+					Some(yield_farms.try_into().unwrap()),
+					Some(SHARES_FROM_STABLESWAP + 1),
+				),
+				pallet_omnipool::Error::<Test>::SlippageLimit
+			);
+		});
+}
+
+#[test]
+fn add_liquidity_stableswap_with_none_limit_should_work() {
+	let token_amount = 2000 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, STABLESWAP_POOL_ID, 5000 * ONE),
+			(LP1, USDT, 5000 * ONE),
+			(LP1, DAI, 5000 * ONE),
+			(GC, HDX, 100_000_000 * ONE),
+			(CHARLIE, HDX, 100_000_000 * ONE),
+			(BOB, HDX, 100_000_000 * ONE),
+		])
+		.with_registered_asset(USDT)
+		.with_registered_asset(STABLESWAP_POOL_ID)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(STABLESWAP_POOL_ID, FixedU128::from_float(0.65), LP1, token_amount)
+		.with_global_farm(
+			80_000_000 * ONE,
+			2_628_000,
+			1,
+			HDX,
+			GC,
+			Perquintill::from_float(0.000_000_15_f64),
+			1_000,
+			FixedU128::one(),
+		)
+		.with_yield_farm(GC, 1, STABLESWAP_POOL_ID, FixedU128::one(), None)
+		.build()
+		.execute_with(|| {
+			let gc_g_farm_id = 1;
+			let gc_y_farm_id = 2;
+			let amount = 20 * ONE;
+			let yield_farms = vec![(gc_g_farm_id, gc_y_farm_id)];
+
+			assert_ok!(OmnipoolMining::add_liquidity_stableswap_omnipool_and_join_farms(
+				RuntimeOrigin::signed(LP1),
+				STABLESWAP_POOL_ID,
+				vec![AssetAmount::new(USDT, amount)].try_into().unwrap(),
+				Some(yield_farms.try_into().unwrap()),
+				None,
+			));
 		});
 }
