@@ -2,7 +2,7 @@ use codec::{Decode, Encode};
 use frame_support::sp_runtime;
 use frame_support::sp_runtime::app_crypto::sp_core;
 use frame_support::sp_runtime::app_crypto::sp_core::{H160, U256};
-use frame_support::sp_runtime::{DispatchResult, RuntimeDebug};
+use frame_support::sp_runtime::{DispatchError, DispatchResult, RuntimeDebug};
 use pallet_evm::ExitReason;
 use sp_std::vec::Vec;
 
@@ -122,4 +122,11 @@ pub trait Erc20OnDust<AccountId, CurrencyId> {
 		dust_dest_account: &AccountId,
 		currency_id: CurrencyId,
 	) -> frame_support::dispatch::DispatchResult;
+}
+
+pub trait ExtraGasSupport {
+	fn set_extra_gas(gas: u64);
+	fn clear_extra_gas();
+
+	fn out_of_gas_error() -> DispatchError;
 }

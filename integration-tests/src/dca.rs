@@ -3,10 +3,13 @@
 use crate::count_dca_event;
 use crate::polkadot_test_net::*;
 use crate::{assert_balance, assert_reserved_balance};
+use ethabi::ethereum_types::H256;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_system::RawOrigin;
+use hydradx_runtime::evm::aave_trade_executor::Function;
+use hydradx_runtime::evm::Executor;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{AssetPairAccountIdFor, NamedReserveId};
@@ -14,6 +17,7 @@ use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin,
 	Stableswap, Tokens, Treasury, DCA,
 };
+use hydradx_traits::evm::CallContext;
 use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
@@ -27,13 +31,14 @@ use pallet_dca::types::{Order, Schedule};
 use pallet_omnipool::types::Tradability;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use primitives::{AssetId, Balance};
+use primitives::{AssetId, Balance, EvmAddress};
 use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchError;
 use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use sp_runtime::{DispatchResult, TransactionOutcome};
 use xcm_emulator::TestExt;
+
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
 mod omnipool {
@@ -4494,6 +4499,10 @@ pub fn count_failed_trade_events() -> u32 {
 	count_dca_event!(pallet_dca::Event::TradeFailed { .. })
 }
 
+pub fn count_trade_executed_events() -> u32 {
+	count_dca_event!(pallet_dca::Event::TradeExecuted { .. })
+}
+
 pub fn count_terminated_trade_events() -> u32 {
 	count_dca_event!(pallet_dca::Event::Terminated { .. })
 }
@@ -4682,4 +4691,366 @@ fn add_dot_as_payment_currency_with_details(amount: Balance, price: FixedU128) {
 	));
 
 	//crate::dca::do_trade_to_populate_oracle(DOT, HDX, UNITS);
+}
+
+mod extra_gas_erc20 {
+	use super::*;
+
+	use hydradx_runtime::{FixedU128, MultiTransactionPayment, Omnipool, Router};
+
+	use crate::polkadot_test_net::*;
+	use ethabi::ethereum_types::H160;
+	use frame_support::{assert_ok, traits::Hooks};
+	use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
+	use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+	use hydradx_runtime::evm::Erc20Currency;
+	use hydradx_runtime::EmaOracle;
+	use hydradx_runtime::Liquidation;
+	use hydradx_runtime::{
+		Block, Currencies, Dispatcher, EVMAccounts, OriginCaller, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+		DCA,
+	};
+	use hydradx_traits::evm::Erc20Mapping;
+	use hydradx_traits::evm::ERC20;
+	use hydradx_traits::evm::{CallContext, Erc20Encoding, EvmAddress, ExtraGasSupport};
+	use hydradx_traits::router::PoolType::Aave;
+	use hydradx_traits::router::{PoolType, Trade};
+	use liquidation_worker_support::MoneyMarketData;
+	use pallet_liquidation::BorrowingContract;
+	use primitives::constants::chain::OMNIPOOL_SOURCE;
+	use primitives::Balance;
+	use sp_core::U256;
+	use sp_runtime::Permill;
+
+	#[test]
+	fn dca_succeeds_after_extra_gas_increased_due_to_out_of_gas_error() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let evm_address = EVMAccounts::evm_address(&Router::router_account());
+			let contract = deploy_conditional_gas_eater(evm_address, 400_000, crate::erc20::deployer());
+			let erc20 = crate::erc20::bind_erc20(contract);
+			assert_ok!(EmaOracle::add_oracle(
+				RuntimeOrigin::root(),
+				OMNIPOOL_SOURCE,
+				(LRNA, erc20)
+			));
+
+			//Add new erc20 to omnipool
+			let bal = Currencies::free_balance(erc20, &ALICE.into());
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(ALICE.into()),
+				pallet_omnipool::Pallet::<Runtime>::protocol_account(),
+				erc20,
+				bal / 10,
+			));
+			assert_ok!(pallet_omnipool::Pallet::<Runtime>::add_token(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 200),
+				Permill::from_percent(30),
+				ALICE.into(),
+			));
+
+			assert_ok!(MultiTransactionPayment::add_currency(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 200)
+			));
+
+			hydradx_run_to_block(11);
+
+			let schedule_id = create_schedule_with_onchain_route(erc20, 0, 200000 * UNITS, 0, Some(3));
+
+			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+			hydradx_run_to_block(13);
+			let period = 5;
+			let retry_delay = 20;
+			let block_number = hydradx_runtime::System::block_number();
+
+			// Assert that extra gas was increased in one retry
+			assert_eq!(DCA::retries_on_error(schedule_id), 1);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), 333_333);
+			trade_failed_with_evm_out_of_gas_error(schedule_id);
+			assert_eq!(1, count_failed_trade_events());
+			assert_eq!(0, count_trade_executed_events());
+			let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+			assert_eq!(alice_init_hdx_balance, alice_hdx_balance);
+
+			hydradx_run_to_block(33);
+			assert_eq!(Dispatcher::extra_gas(), 0);
+
+			//Assert that trade finally succeeded
+			assert_eq!(DCA::retries_on_error(schedule_id), 0);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), 333_333);
+			assert_trade_executed_succesfully(schedule_id);
+			assert_eq!(1, count_failed_trade_events());
+			assert_eq!(1, count_trade_executed_events());
+			let alice_hdx_balance_after_retry = Currencies::free_balance(HDX, &ALICE.into());
+			assert!(alice_hdx_balance_after_retry > alice_hdx_balance);
+
+			hydradx_run_to_block(38);
+			assert_eq!(Dispatcher::extra_gas(), 0);
+
+			//Assert that trade succeeded in the next run too
+			assert_eq!(DCA::retries_on_error(schedule_id), 0);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), 333_333);
+			assert_eq!(1, count_failed_trade_events());
+			assert_eq!(2, count_trade_executed_events());
+			let alice_final_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+			assert!(alice_final_hdx_balance > alice_hdx_balance_after_retry);
+		});
+	}
+
+	#[test]
+	fn extra_gas_keep_incrementing_multiple_times_till_successfull() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let evm_address = EVMAccounts::evm_address(&Router::router_account());
+			let contract = deploy_conditional_gas_eater(evm_address, 800_000, crate::erc20::deployer());
+			let erc20 = crate::erc20::bind_erc20(contract);
+			assert_ok!(EmaOracle::add_oracle(
+				RuntimeOrigin::root(),
+				OMNIPOOL_SOURCE,
+				(LRNA, erc20)
+			));
+
+			//Add new erc20 to omnipool
+			let bal = Currencies::free_balance(erc20, &ALICE.into());
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(ALICE.into()),
+				pallet_omnipool::Pallet::<Runtime>::protocol_account(),
+				erc20,
+				bal / 10,
+			));
+			assert_ok!(pallet_omnipool::Pallet::<Runtime>::add_token(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 200),
+				Permill::from_percent(30),
+				ALICE.into(),
+			));
+
+			assert_ok!(MultiTransactionPayment::add_currency(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 200)
+			));
+
+			hydradx_run_to_block(11);
+
+			let schedule_id = create_schedule_with_onchain_route(erc20, 0, 200000 * UNITS, 0, Some(3));
+
+			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+			hydradx_run_to_block(13);
+			let period = 5;
+			let retry_delay = 20;
+			let block_number = hydradx_runtime::System::block_number();
+
+			// Assert that extra gas was increased in one retry
+			assert_eq!(DCA::retries_on_error(schedule_id), 1);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), 333_333);
+			trade_failed_with_evm_out_of_gas_error(schedule_id);
+			assert_eq!(1, count_failed_trade_events());
+			assert_eq!(0, count_trade_executed_events());
+			let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+			assert_eq!(alice_init_hdx_balance, alice_hdx_balance);
+
+			hydradx_run_to_block(33);
+
+			//It fails again as the gas increased was still not enough
+			assert_eq!(DCA::retries_on_error(schedule_id), 2);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), 666_666);
+			assert_eq!(2, count_failed_trade_events());
+			assert_eq!(0, count_trade_executed_events());
+			let alice_hdx_balance_after_retry = Currencies::free_balance(HDX, &ALICE.into());
+			assert_eq!(alice_hdx_balance_after_retry, alice_init_hdx_balance);
+
+			hydradx_run_to_block(73);
+
+			//Assert that trade succeeded in the next run
+			assert_eq!(DCA::retries_on_error(schedule_id), 0);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), 666_666);
+			assert_trade_executed_succesfully(schedule_id);
+			assert_eq!(2, count_failed_trade_events());
+			assert_eq!(1, count_trade_executed_events());
+			let alice_final_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+			assert!(alice_final_hdx_balance > alice_hdx_balance_after_retry);
+		});
+	}
+
+	#[test]
+	fn dca_with_extra_gas_should_completed_and_clear_up() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let evm_address = EVMAccounts::evm_address(&Router::router_account());
+			let contract = deploy_conditional_gas_eater(evm_address, 400_000, crate::erc20::deployer());
+			let erc20 = crate::erc20::bind_erc20(contract);
+			assert_ok!(EmaOracle::add_oracle(
+				RuntimeOrigin::root(),
+				OMNIPOOL_SOURCE,
+				(LRNA, erc20)
+			));
+
+			//Add new erc20 to omnipool
+			let bal = Currencies::free_balance(erc20, &ALICE.into());
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(ALICE.into()),
+				pallet_omnipool::Pallet::<Runtime>::protocol_account(),
+				erc20,
+				bal / 10,
+			));
+			assert_ok!(pallet_omnipool::Pallet::<Runtime>::add_token(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 200),
+				Permill::from_percent(30),
+				ALICE.into(),
+			));
+
+			assert_ok!(MultiTransactionPayment::add_currency(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 200)
+			));
+
+			hydradx_run_to_block(11);
+			let amount_in = 200000 * UNITS;
+			let schedule_id = create_schedule_with_onchain_route(erc20, 0, 200000 * UNITS, 500000 * UNITS, Some(3));
+
+			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+			hydradx_run_to_block(13);
+			let period = 5;
+			let retry_delay = 20;
+			let block_number = hydradx_runtime::System::block_number();
+
+			// Assert that extra gas was increased in one retry
+			assert_eq!(DCA::retries_on_error(schedule_id), 1);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), 333_333);
+			trade_failed_with_evm_out_of_gas_error(schedule_id);
+			assert_eq!(1, count_failed_trade_events());
+			assert_eq!(0, count_trade_executed_events());
+			let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+			assert_eq!(alice_init_hdx_balance, alice_hdx_balance);
+
+			hydradx_run_to_block(33);
+
+			//Assert that trade finally succeeded
+			assert_eq!(DCA::retries_on_error(schedule_id), 0);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), 333_333);
+			assert_trade_executed_succesfully(schedule_id);
+			assert_eq!(1, count_failed_trade_events());
+			assert_eq!(1, count_trade_executed_events());
+			let alice_hdx_balance_after_retry = Currencies::free_balance(HDX, &ALICE.into());
+			assert!(alice_hdx_balance_after_retry > alice_hdx_balance);
+
+			hydradx_run_to_block(38);
+
+			//Assert that trade succeeded in the next run too
+			assert_eq!(DCA::retries_on_error(schedule_id), 0);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), 333_333);
+			assert_eq!(1, count_failed_trade_events());
+			assert_eq!(2, count_trade_executed_events());
+			let alice_hdx_balance_after_2nd_run = Currencies::free_balance(HDX, &ALICE.into());
+			assert!(alice_hdx_balance_after_2nd_run > alice_hdx_balance_after_retry);
+
+			hydradx_run_to_block(43);
+
+			//Assert that trade succeeded in the next run too
+			assert_eq!(DCA::retries_on_error(schedule_id), 0);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), 0);
+			assert_eq!(1, count_failed_trade_events());
+			assert_eq!(3, count_trade_executed_events());
+			let alice_final_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+			assert!(alice_final_hdx_balance > alice_hdx_balance_after_2nd_run);
+			assert_eq!(1, count_completed_event());
+		});
+	}
+
+	fn create_schedule_with_onchain_route(
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		total_amount: Balance,
+		max_retries: Option<u8>,
+	) -> u32 {
+		use hydradx_runtime::Router;
+		use hydradx_traits::router::{AssetPair, RouteProvider};
+
+		let route = Router::get_route(AssetPair { asset_in, asset_out });
+
+		let schedule = Schedule {
+			owner: ALICE.into(),
+			period: 5u32,
+			total_amount,
+			max_retries,
+			stability_threshold: None,
+			slippage: Some(Permill::from_percent(90)),
+			order: Order::Sell {
+				asset_in,
+				asset_out,
+				amount_in,
+				min_amount_out: Balance::MIN,
+				route, // Use the BoundedVec directly from Router
+			},
+		};
+
+		assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE.into()), schedule, None));
+		0 // schedule_id
+	}
+
+	/// Deploy ConditionalGasEater contract with constructor parameters
+	///
+	/// # Arguments
+	/// * `router_address` - EVM address of the router pallet account
+	/// * `gas_to_waste` - Amount of gas to waste on transfers to the router
+	/// * `deployer` - EVM address of the contract deployer
+	///
+	/// # Returns
+	/// The deployed contract's EVM address
+	fn deploy_conditional_gas_eater(router_address: EvmAddress, gas_to_waste: u64, deployer: EvmAddress) -> EvmAddress {
+		use ethabi::{encode, Token};
+
+		// Get base bytecode from compiled artifact
+		let mut bytecode = crate::utils::contracts::get_contract_bytecode("ConditionalGasEater");
+
+		// Encode constructor parameters: (address _routerAddress, uint256 _gasToWaste)
+		let constructor_params = encode(&[Token::Address(router_address.into()), Token::Uint(gas_to_waste.into())]);
+
+		// Append encoded constructor params to bytecode
+		bytecode.extend(constructor_params);
+
+		// Deploy contract with complete bytecode
+		crate::utils::contracts::deploy_contract_code(bytecode, deployer)
+	}
+
+	fn trade_failed_with_evm_out_of_gas_error(schedule_id: u32) {
+		let events = last_hydra_events(20);
+		let has_out_of_gas_event = events.iter().any(|e| {
+			matches!(e,
+				RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { id, error, .. })
+				if *id == schedule_id && *error == pallet_dispatcher::Error::<hydradx_runtime::Runtime>::EvmOutOfGas.into()
+			)
+		});
+		assert!(
+			has_out_of_gas_event,
+			"Expected TradeFailed event with EvmOutOfGas error"
+		);
+	}
+
+	fn assert_trade_executed_succesfully(schedule_id: u32) {
+		let events = last_hydra_events(20);
+		let has_trade_executed = events.iter().any(|e| {
+			matches!(e,
+				RuntimeEvent::DCA(pallet_dca::Event::TradeExecuted { id, .. })
+				if *id == schedule_id
+			)
+		});
+		assert!(has_trade_executed, "Expected TradeExecuted event after retry");
+	}
 }

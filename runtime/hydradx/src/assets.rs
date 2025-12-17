@@ -923,6 +923,7 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 		let errors: Vec<DispatchError> = vec![
 			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
 			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
+			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
 		];
 		errors.contains(t)
 	}
@@ -972,6 +973,8 @@ impl pallet_dca::Config for Runtime {
 	type RetryOnError = RetryOnErrorForDca;
 	type PolkadotNativeAssetId = DotAssetId;
 	type SwappablePaymentAssetSupport = XykPaymentAssetSupport;
+	type ExtraGasSupport = Dispatcher;
+	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
