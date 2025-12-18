@@ -1,13 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs)]
+// #![warn(missing_docs)]
 
 extern crate alloc;
 
 use alloc::vec::Vec;
-use codec::Decode;
-use pallet_intent::types::{AssetId, Balance, Intent, IntentId};
 use sp_std::sync::Arc;
-use sp_std::vec;
 
 pub trait SolutionProvider: Send + Sync {
 	fn get_solution(&self, intents: Vec<u8>, data: Vec<u8>) -> Option<Vec<u8>>;
@@ -22,8 +19,8 @@ sp_externalities::decl_extension! {
 }
 
 #[cfg(feature = "std")]
-use sp_externalities::{Externalities, ExternalitiesExt};
-use sp_runtime_interface::{runtime_interface, RIType};
+use sp_externalities::ExternalitiesExt;
+use sp_runtime_interface::runtime_interface;
 
 #[runtime_interface]
 pub trait ICE {

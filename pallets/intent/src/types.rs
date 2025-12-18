@@ -39,3 +39,13 @@ pub enum SwapType {
 	ExactIn,
 	ExactOut,
 }
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct ExecutedIntent<AccountId> {
+	pub id: IntentId,
+	pub owner: AccountId,
+	pub asset_in: AssetId,
+	pub asset_out: AssetId,
+	pub amount_in: Balance,
+	pub amount_out: Balance,
+}

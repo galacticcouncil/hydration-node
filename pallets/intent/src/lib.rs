@@ -31,7 +31,7 @@
 pub mod types;
 mod weights;
 
-use crate::types::{AssetId, Balance, IncrementalIntentId, Intent, IntentId, IntentKind, Moment};
+use crate::types::{AssetId, Balance, ExecutedIntent, IncrementalIntentId, Intent, IntentId, IntentKind, Moment};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::Time;
@@ -83,6 +83,8 @@ pub mod pallet {
 
 		/// Invalid intent parameters
 		InvalidIntent,
+
+		IntentNotFound,
 	}
 
 	#[pallet::storage]
@@ -109,8 +111,8 @@ pub mod pallet {
 		}
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::cancel_intent())]
-		pub fn cancel_intent(origin: OriginFor<T>, intent: IntentId) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+		pub fn cancel_intent(origin: OriginFor<T>, _intent: IntentId) -> DispatchResult {
+			let _who = ensure_signed(origin)?;
 			Ok(())
 		}
 	}
@@ -153,6 +155,21 @@ impl<T: Config> Pallet<T> {
 		intents.retain(|(_, intent)| intent.deadline > now);
 
 		intents
+	}
+
+	pub fn intent_executed(ci: ExecutedIntent<T::AccountId>) -> DispatchResult {
+		//WARN: this is tmp just for testing. Implement validation and real intent resolution logic.
+		Intents::<T>::try_mutate_exists(ci.id, |maybe_intent| {
+			let _intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
+
+			*maybe_intent = None;
+			Ok(())
+		})
+	}
+
+	pub fn unlock_funds(_id: IntentId, _amount: Balance) -> DispatchResult {
+		//WARN: implement real unclock with validation
+		Ok(())
 	}
 }
 

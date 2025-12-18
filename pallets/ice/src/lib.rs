@@ -33,39 +33,59 @@ mod traits;
 pub mod types;
 mod weights;
 
+use crate::traits::AMMState;
+use frame_support::dispatch::DispatchResult;
 use frame_support::pallet_prelude::*;
-use frame_support::traits::fungibles::Mutate;
-use frame_support::traits::tokens::Preservation;
+use frame_support::traits::Get;
 use frame_support::PalletId;
-use frame_support::{dispatch::DispatchResult, require_transactional, traits::Get};
 use frame_system::offchain::SendTransactionTypes;
 use frame_system::pallet_prelude::*;
-use hydradx_traits::price::PriceProvider;
-pub use pallet::*;
-use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
+use frame_system::Origin;
+use hydra_dx_math::types::Ratio;
+use orml_traits::MultiCurrency;
+use pallet_intent::types::AssetId;
+use pallet_intent::types::ExecutedIntent;
+use pallet_intent::types::IntentId;
+use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::traits::BlockNumberProvider;
+use sp_runtime::traits::Zero;
 use sp_runtime::AccountId32;
+
+pub use pallet::*;
 use types::*;
 pub use weights::WeightInfo;
-use crate::traits::AMMState;
 
 pub const UNSIGNED_TXS_PRIORITY: u64 = 1000;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use std::collections::{HashMap, HashSet};
+
 	use super::*;
 	use frame_benchmarking::__private::log;
 	use frame_system::offchain::SubmitTransaction;
+	use pallet_intent::types::IntentKind;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_intent::Config + SendTransactionTypes<Call<Self>> {
+	pub trait Config:
+		frame_system::Config
+		+ pallet_intent::Config
+		+ pallet_route_executor::Config<AssetId = AssetId>
+		+ SendTransactionTypes<Call<Self>>
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// Multi currency mechanism
+		type Currency: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Balance>;
 
 		/// Pallet id - used to create a holding account
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
+
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
 		/// AMM state provider trait - returns opaque state for solver
 		type AMM: traits::AMMState;
@@ -78,11 +98,58 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Solution has been executed.
-		Executed { who: T::AccountId },
+		SolutionExecuted {
+			//NOTE: do we need block number? solution is executed in the block when event was triggered
+			intents_solved: u64,
+			trades_executed: u64,
+			score: u128,
+		},
+
+		IntentExecuted {
+			intent_id: IntentId,
+			owner: T::AccountId,
+			asset_in: AssetId,
+			asset_out: AssetId,
+			amount_in: Balance,
+			amount_out: Balance,
+		},
 	}
 
 	#[pallet::error]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+		/// Solution target doesn't match current block.
+		InvalidTargetBlock,
+		/// Referenced intent doesn't exist.
+		IntentNotFound,
+		/// Referenced intent's owner doesn't exist.
+		IntentOwnerNotFound,
+		/// Referenced intent has expired.
+		IntentExpired,
+		/// Resolution violates user's limit.
+		LimitViolation,
+		///  Total inputs don't equal total outputs for some asset.
+		BalanceImbalance,
+		///  Trade price doesn't match clearing price.
+		PriceInconsistency,
+		/// Asset involved in trade has no clearing price defined.
+		MissingClearingPrice,
+		/// Same intent referenced multiple times.
+		DuplicateIntent,
+		/// Same asset has multiple clearing prices.
+		DuplicateClearingPrice,
+		/// Price ratio has zero denominator or numerator.
+		InvalidPriceRatio,
+		/// Trade route is invalid.
+		InvalidRoute,
+		/// Claimed score doesn't match calculated score.
+		ScoreMismatch,
+		/// Resolved intentes lenght doesn't match trades lenght.
+		IntentsTradesMismatch,
+		/// Intent's kind is not supported.
+		UnsupportedIntentKind,
+		/// Caluclation overflow.
+		ArithmeticOverflow,
+	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -91,10 +158,168 @@ pub mod pallet {
 		pub fn submit_solution(
 			origin: OriginFor<T>,
 			solution: Solution,
-			score: u64,
+			score: u128,
 			valid_for_block: BlockNumberFor<T>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
+
+			ensure!(
+				valid_for_block == T::BlockNumberProvider::current_block_number(),
+				Error::<T>::InvalidTargetBlock
+			);
+
+			let mut clearing_prices: HashMap<AssetId, Ratio> = HashMap::with_capacity(solution.clearing_prices.len());
+			for cp in solution.clearing_prices {
+				ensure!(!cp.1.n.is_zero() && cp.1.d.is_zero(), Error::<T>::InvalidPriceRatio);
+				ensure!(
+					clearing_prices.insert(cp.0, cp.1).is_none(),
+					Error::<T>::DuplicateClearingPrice
+				);
+			}
+
+			ensure!(
+				solution.resolved.len() == solution.trades.len(),
+				Error::<T>::IntentsTradesMismatch
+			);
+
+			let mut processed_intents: HashSet<IntentId> = HashSet::with_capacity(solution.resolved.len());
+			let mut surpluses: HashMap<AssetId, Balance> = HashMap::with_capacity(solution.resolved.len());
+			let holding_pot = Self::get_pallet_account();
+			let holding_origin: OriginFor<T> = Origin::<T>::Signed(holding_pot.clone()).into();
+
+			//NOTE: this is not most prerformant Solution
+			//TODO: benchmark and optimise
+			for (i, (intent_id, intent)) in solution.resolved.iter().enumerate() {
+				ensure!(processed_intents.insert(*intent_id), Error::<T>::DuplicateIntent);
+
+				let trade = solution.trades.get(i).ok_or(Error::<T>::IntentsTradesMismatch)?;
+
+				let intent_owner =
+					pallet_intent::Pallet::<T>::intent_owner(intent_id).ok_or(Error::<T>::IntentOwnerNotFound)?;
+
+				match &intent.kind {
+					IntentKind::Swap(swap) => {
+						let cp_in = clearing_prices
+							.get(&swap.asset_in)
+							.ok_or(Error::<T>::MissingClearingPrice)?;
+						let cp_out = clearing_prices
+							.get(&swap.asset_out)
+							.ok_or(Error::<T>::MissingClearingPrice)?;
+
+						ensure!(
+							Self::calc_amount_out(trade.amount_in, cp_in, cp_out,)
+								.ok_or(Error::<T>::ArithmeticOverflow)?
+								.eq(&swap.amount_out),
+							Error::<T>::PriceInconsistency
+						);
+
+						pallet_intent::Pallet::<T>::unlock_funds(*intent_id, trade.amount_in)?;
+						<T as Config>::Currency::transfer(swap.asset_in, &intent_owner, &holding_pot, trade.amount_in)?;
+
+						match trade.trade_type {
+							TradeType::Buy => {
+								let holding_balance_0 =
+									<T as Config>::Currency::free_balance(swap.asset_in, &holding_pot);
+
+								pallet_route_executor::Pallet::<T>::buy(
+									holding_origin.clone(),
+									swap.asset_in.into(),
+									swap.asset_out.into(),
+									trade.amount_out.into(),
+									trade.amount_in.into(),
+									trade.route.clone(),
+								)?;
+
+								let holding_balance_1 =
+									<T as Config>::Currency::free_balance(swap.asset_in, &holding_pot);
+								let actual_amount_in = holding_balance_0
+									.checked_sub(holding_balance_1)
+									.ok_or(Error::<T>::ArithmeticOverflow)?;
+
+								let s = surpluses.get(&swap.asset_in).unwrap_or(&0_u128);
+								surpluses.insert(
+									swap.asset_in,
+									s.saturating_add(
+										trade
+											.amount_in
+											.checked_sub(actual_amount_in)
+											.ok_or(Error::<T>::ArithmeticOverflow)?,
+									),
+								);
+							}
+							TradeType::Sell => {
+								let holding_balance_0 =
+									<T as Config>::Currency::free_balance(swap.asset_out, &holding_pot);
+
+								pallet_route_executor::Pallet::<T>::sell(
+									holding_origin.clone(),
+									swap.asset_in.into(),
+									swap.asset_out.into(),
+									trade.amount_in.into(),
+									trade.amount_out.into(),
+									trade.route.clone(),
+								)?;
+
+								let holding_balance_1 =
+									<T as Config>::Currency::free_balance(swap.asset_out, &holding_pot);
+								let actual_amount_out = holding_balance_1
+									.checked_sub(holding_balance_0)
+									.ok_or(Error::<T>::ArithmeticOverflow)?;
+
+								let s = surpluses.get(&swap.asset_out).unwrap_or(&0_u128);
+								surpluses.insert(
+									swap.asset_out,
+									s.saturating_add(
+										actual_amount_out
+											.checked_sub(trade.amount_out)
+											.ok_or(Error::<T>::ArithmeticOverflow)?,
+									),
+								);
+							}
+						};
+
+						<T as Config>::Currency::transfer(
+							swap.asset_out,
+							&holding_pot,
+							&intent_owner,
+							trade.amount_out,
+						)?;
+
+						pallet_intent::Pallet::<T>::intent_executed(ExecutedIntent {
+							id: *intent_id,
+							owner: intent_owner.clone(),
+							asset_in: swap.asset_in,
+							asset_out: swap.asset_out,
+							amount_in: trade.amount_in,
+							amount_out: trade.amount_out,
+						})?;
+
+						Self::deposit_event(Event::IntentExecuted {
+							intent_id: *intent_id,
+							owner: intent_owner,
+							asset_in: swap.asset_in,
+							asset_out: swap.asset_out,
+							amount_in: trade.amount_in,
+							amount_out: trade.amount_out,
+						});
+					}
+				};
+
+				let mut exec_score = 0_u128;
+				for (_asset_id, surplus) in surpluses.iter() {
+					//TODO: distribute surplus, TBD
+					exec_score = exec_score.checked_add(*surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
+				}
+
+				ensure!(score == exec_score, Error::<T>::ScoreMismatch);
+
+				Self::deposit_event(Event::SolutionExecuted {
+					intents_solved: solution.resolved.len() as u64,
+					trades_executed: solution.trades.len() as u64,
+					score,
+				});
+			}
+
 			Ok(())
 		}
 	}
@@ -159,15 +384,32 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_account_truncating()
 	}
 
-	pub fn run<F>(block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
+	/// Function calculates amount out based on asset in and asset out prices denominated in common asset.
+	/// ```
+	/// rate = price_in / price_out
+	///		= (num_in / denom_in) / (num_out / denom_out)
+	///		= (num_in × denom_out) / (denom_in × num_out)
+	///	```
+	/// ```
+	/// out = amount_in × rate
+	///		= amount_in × (num_in × denom_out) / (denom_in × num_out)
+	///	```
+	fn calc_amount_out(amount_in: Balance, price_in: &Ratio, price_out: &Ratio) -> Option<u128> {
+		//TODO: use U256
+		let n = price_in.n.checked_mul(price_out.d)?;
+		let d = price_in.d.checked_mul(price_out.n)?;
+
+		n.checked_mul(amount_in)?.checked_div(d)
+	}
+
+	pub fn run<F>(_block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
 	where
 		F: FnOnce(Vec<u8>, Vec<u8>) -> Option<Vec<u8>>,
 	{
-		let intents =  pallet_intent::Pallet::<T>::get_valid_intents();
-		let state = T::AMM::get_state();
+		let intents = pallet_intent::Pallet::<T>::get_valid_intents();
+		let state = <T as Config>::AMM::get_state();
 
-		let solution = solve(intents.encode(), state.encode());
-
+		let _solution = solve(intents.encode(), state.encode());
 
 		// TODO: if solution,
 		// 1. calculate score
