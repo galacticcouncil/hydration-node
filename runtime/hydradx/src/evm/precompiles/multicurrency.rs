@@ -74,6 +74,7 @@ where
 			handle.check_function_modifier(match selector {
 				Function::Transfer => FunctionModifier::NonPayable,
 				Function::TransferFrom => FunctionModifier::NonPayable,
+				Function::Approve => FunctionModifier::NonPayable,
 				_ => FunctionModifier::View,
 			})?;
 
@@ -84,8 +85,8 @@ where
 				Function::TotalSupply => Self::total_supply(asset_id, handle),
 				Function::BalanceOf => Self::balance_of(asset_id, handle),
 				Function::Transfer => Self::transfer(asset_id, handle),
-				Function::Allowance => Self::allowance(handle),
-				Function::Approve => Self::not_supported(),
+				Function::Allowance => Self::allowance(asset_id, handle),
+				Function::Approve => Self::approve(asset_id, handle),
 				Function::TransferFrom => Self::transfer_from(asset_id, handle),
 			};
 		}
@@ -238,27 +239,43 @@ where
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
-	fn allowance(handle: &mut impl PrecompileHandle) -> PrecompileResult {
+	fn allowance(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
 		// Parse input
 		let mut input = handle.read_input()?;
 		input.expect_arguments(2)?;
 
-		let _owner: H160 = input.read::<Address>()?.into();
+		let owner: H160 = input.read::<Address>()?.into();
 		let spender: H160 = input.read::<Address>()?.into();
 
 		let allowance =
 			if <pallet_evm_accounts::Pallet<Runtime> as InspectEvmAccounts<Runtime::AccountId>>::is_approved_contract(
 				spender,
 			) {
-				u128::MAX
+				Balance::MAX
 			} else {
-				0
+				pallet_evm_accounts::Pallet::<Runtime>::get_allowance(asset_id.into(), owner, spender)
 			};
 
 		let encoded = Output::encode_uint::<u128>(allowance);
 		Ok(succeed(encoded))
+	}
+
+	fn approve(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		let mut input = handle.read_input()?;
+		input.expect_arguments(2)?;
+
+		let spender: H160 = input.read::<Address>()?.into();
+		let amount: Balance = input.read::<Balance>()?;
+
+		let owner: H160 = handle.context().caller;
+
+		pallet_evm_accounts::Pallet::<Runtime>::set_allowance(asset_id.into(), owner, spender, amount);
+
+		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
 	fn transfer_from(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
