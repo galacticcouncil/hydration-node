@@ -120,12 +120,18 @@ async function convertAddressesToAssets(apiPromise, addresses) {
 function generateAssetPairs(assetIds) {
     const pairs = [];
 
-    // Only generate one direction to avoid duplicates
-    for (let i = 0; i < assetIds.length; i++) {
-        for (let j = i + 1; j < assetIds.length; j++) {
+    // Sort asset IDs numerically to ensure pairs are ordered (smaller ID first)
+    // This matches the Router storage which uses ordered_pair() (asset_in <= asset_out)
+    const sortedAssetIds = assetIds.slice().sort((a, b) => {
+        return parseInt(a) - parseInt(b);
+    });
+
+    // Generate pairs with smaller ID first
+    for (let i = 0; i < sortedAssetIds.length; i++) {
+        for (let j = i + 1; j < sortedAssetIds.length; j++) {
             pairs.push({
-                assetIn: assetIds[i],
-                assetOut: assetIds[j]
+                assetIn: sortedAssetIds[i],
+                assetOut: sortedAssetIds[j]
             });
         }
     }
