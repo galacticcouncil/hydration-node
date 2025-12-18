@@ -229,6 +229,9 @@ pub mod pallet {
 
 		/// EVM permit call failed.
 		EvmPermitRunnerError,
+
+		/// EVM permit must not affect account nonce.
+		EvmPermitNonceInvariantViolated,
 	}
 
 	/// Account currency map
