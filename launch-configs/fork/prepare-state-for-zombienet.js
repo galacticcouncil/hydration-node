@@ -49,6 +49,7 @@ async function updateChainSpec(inputFile, outputFile) {
             price: 'HydraDxMathRatio',
             volume: 'HydradxTraitsOracleVolume',
             liquidity: 'HydradxTraitsOracleLiquidity',
+            sharesIssuance: 'Option<u128>',
             updatedAt: 'u32',
         },
         OracleValue: '(EmaOracleEntry, u32)',
@@ -179,11 +180,6 @@ async function updateChainSpec(inputFile, outputFile) {
                 // Update: reset blockNumber to 0
                 const updated = registry.createType('(EmaOracleEntry, u32)', [entry, 0]);
                 const reEncodedBytes = updated.toU8a();
-
-                if (originalBytes.length !== reEncodedBytes.length) {
-                    console.warn(`⚠️ Probably an encoding problem from incorrectly registered oracle types, please double check if the registered types correspond to the rust storage entry definition. Skipping key ${key}: original length ${originalBytes.length}, re-encoded length ${reEncodedBytes.length}`);
-                    continue;
-                }
 
                 chainSpec.genesis.raw.top[key] = u8aToHex(reEncodedBytes);
 
