@@ -49,6 +49,7 @@ async function updateChainSpec(inputFile, outputFile) {
             price: 'HydraDxMathRatio',
             volume: 'HydradxTraitsOracleVolume',
             liquidity: 'HydradxTraitsOracleLiquidity',
+            sharesIssuance: 'Option<u128>',
             updatedAt: 'u32',
         },
         OracleValue: '(EmaOracleEntry, u32)',
