@@ -290,29 +290,40 @@ where
 		let to: H160 = input.read::<Address>()?.into();
 		let amount = input.read::<Balance>()?;
 
+		let spender_is_approved =
+			<pallet_evm_accounts::Pallet<Runtime> as InspectEvmAccounts<Runtime::AccountId>>::is_approved_contract(
+				origin,
+			);
+
+		if !spender_is_approved {
+			let allowed: Balance = pallet_evm_accounts::Pallet::<Runtime>::get_allowance(asset_id.into(), from, origin);
+
+			if allowed < amount {
+				return Err(revert("ERC20: insufficient allowance"));
+			}
+
+			if allowed != Balance::MAX {
+				pallet_evm_accounts::Pallet::<Runtime>::set_allowance(asset_id.into(), from, origin, allowed - amount);
+			}
+		}
+
 		let from = ExtendedAddressMapping::into_account_id(from);
 		let to = ExtendedAddressMapping::into_account_id(to);
 
 		log::debug!(target: "evm", "multicurrency: transferFrom from: {:?}, to: {:?}, amount: {:?}", from, to, amount);
 
-		if <pallet_evm_accounts::Pallet<Runtime> as InspectEvmAccounts<Runtime::AccountId>>::is_approved_contract(
-			origin,
-		) {
-			<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
-				asset_id,
-				&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from)),
-				&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
-				amount,
-			)
-			.map_err(|e| PrecompileFailure::Revert {
-				exit_status: ExitRevert::Reverted,
-				output: e.encode(),
-			})?;
+		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
+			asset_id,
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from)),
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
+			amount,
+		)
+		.map_err(|e| PrecompileFailure::Revert {
+			exit_status: ExitRevert::Reverted,
+			output: e.encode(),
+		})?;
 
-			Ok(succeed(EvmDataWriter::new().write(true).build()))
-		} else {
-			Err(revert("Not approved contract"))
-		}
+		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
 	fn not_supported() -> PrecompileResult {
