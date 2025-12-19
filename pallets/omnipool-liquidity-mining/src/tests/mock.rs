@@ -69,6 +69,7 @@ pub const DOT: AssetId = 1_000;
 pub const KSM: AssetId = 1_001;
 pub const ACA: AssetId = 1_002;
 pub const USDT: AssetId = 1_003;
+pub const USDC: AssetId = 1_004;
 
 pub const LP1: AccountId = 1;
 pub const LP2: AccountId = 2;
@@ -199,6 +200,27 @@ impl StableswapAddLiquidity<AccountId, AssetId, Balance> for StableswapAddLiquid
 		_asset_amounts: Vec<AssetAmount<AssetId>>,
 	) -> Result<Balance, DispatchError> {
 		Ok(SHARES_FROM_STABLESWAP)
+	}
+
+	fn remove_liquidity_one_asset(
+		_who: AccountId,
+		_pool_id: AssetId,
+		_asset_id: AssetId,
+		_share_amount: Balance,
+		_min_amount_out: Balance,
+	) -> Result<Balance, DispatchError> {
+		// For testing purposes, return a reasonable amount
+		Ok(_share_amount)
+	}
+
+	fn remove_liquidity(
+		_who: AccountId,
+		_pool_id: AssetId,
+		_share_amount: Balance,
+		_min_amounts_out: Vec<AssetAmount<AssetId>>,
+	) -> Result<(), DispatchError> {
+		// For testing purposes, just return Ok
+		Ok(())
 	}
 }
 
