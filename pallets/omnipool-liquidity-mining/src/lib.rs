@@ -1084,11 +1084,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Remove liquidity from stableswap and omnipool, exiting all associated yield farms.
+		/// Remove liquidity from stableswap and omnipool, optionally exiting associated yield farms.
 		///
-		/// This extrinsic reverses the operation performed by `add_liquidity_stableswap_omnipool_and_join_farms`.
+		/// This extrinsic reverses the operation performed by `add_liquidity_stableswap_omnipool_and_join_farms`,
+		/// with optional farm exit to match the optional farm join in the add function.
+		///
 		/// It performs the following steps in order:
-		/// 1. Exits from ALL yield farms associated with the deposit (claiming rewards)
+		/// 1. [OPTIONAL] If deposit_id is provided: Exits from ALL yield farms associated with the deposit (claiming rewards)
 		/// 2. Removes liquidity from the omnipool to retrieve stableswap shares
 		/// 3. Removes liquidity from the stableswap pool to retrieve underlying assets
 		///
@@ -1097,16 +1099,20 @@ pub mod pallet {
 		/// - If multiple assets: Uses `remove_liquidity` (proportional, no trading fee)
 		///
 		/// Parameters:
-		/// - `origin`: Owner of the deposit NFT
-		/// - `deposit_id`: The liquidity mining deposit NFT ID to unwind
+		/// - `origin`: Owner of the omnipool position
+		/// - `position_id`: The omnipool position NFT ID to remove liquidity from
+		/// - `stable_pool_id`: The stableswap pool ID containing the liquidity
 		/// - `min_amounts_out`: Asset IDs and minimum amounts for slippage protection
+		/// - `deposit_id`: Optional liquidity mining deposit NFT ID. If provided, exits all farms first.
 		///
-		/// Emits multiple events:
-		/// - `RewardClaimed` for each farm (if rewards > 0)
-		/// - `SharesWithdrawn` for each farm
-		/// - `DepositDestroyed` when deposit is fully exited
-		/// - Omnipool's `LiquidityRemoved`
-		/// - Stableswap's `LiquidityRemoved`
+		/// Emits events:
+		/// - If deposit_id provided: `RewardClaimed`, `SharesWithdrawn`, `DepositDestroyed`
+		/// - Always: Omnipool's `LiquidityRemoved`, Stableswap's `LiquidityRemoved`
+		///
+		/// Errors:
+		/// - `NoAssetsSpecified` if min_amounts_out is empty
+		/// - `Forbidden` if caller doesn't own the deposit NFT (when deposit_id provided)
+		/// - `InconsistentState(MissingLpPosition)` if deposit-position mismatch
 		#[pallet::call_index(17)]
 		#[pallet::weight(Weight::default())]
 		//TODO: BENCHMARK AND ADD WEIGHT
@@ -1127,30 +1133,39 @@ pub mod pallet {
 		// })]
 		pub fn remove_liquidity_stableswap_omnipool_and_exit_farms(
 			origin: OriginFor<T>,
-			deposit_id: DepositId,
+			position_id: T::PositionItemId,
 			stable_pool_id: T::AssetId,
 			min_amounts_out: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
+			deposit_id: Option<DepositId>,
 		) -> DispatchResult {
-			//TODO: ensure deposit owner is the same as origin
 			let who = ensure_signed(origin.clone())?;
 			ensure!(!min_amounts_out.is_empty(), Error::<T>::NoAssetsSpecified);
 
-			// Collect all yield farm IDs from deposit
-			let yield_farm_ids: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit> =
-				T::LiquidityMiningHandler::get_yield_farm_ids(deposit_id)
+			if let Some(deposit_id) = deposit_id {
+				Self::ensure_nft_owner(origin.clone(), deposit_id)?;
+
+				let stored_position_id = OmniPositionId::<T>::get(deposit_id)
 					.ok_or(Error::<T>::InconsistentState(
-						InconsistentStateError::DepositDataNotFound,
-					))?
-					.try_into()
-					.map_err(|_| {
-						Error::<T>::InconsistentState(InconsistentStateError::DepositDataNotFound)
-					})?;
+						InconsistentStateError::MissingLpPosition
+					))?;
+				ensure!(
+					stored_position_id == position_id,
+					Error::<T>::InconsistentState(InconsistentStateError::MissingLpPosition)
+				);
 
-			// CRITICAL: Get position_id BEFORE exit_farms clears the storage mapping
-			let position_id = OmniPositionId::<T>::get(deposit_id)
-				.ok_or(Error::<T>::InconsistentState(InconsistentStateError::MissingLpPosition))?;
+				let yield_farm_ids: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit> =
+					T::LiquidityMiningHandler::get_yield_farm_ids(deposit_id)
+						.ok_or(Error::<T>::InconsistentState(
+							InconsistentStateError::DepositDataNotFound,
+						))?
+						.try_into()
+						.map_err(|_| {
+							Error::<T>::InconsistentState(InconsistentStateError::DepositDataNotFound)
+						})?;
 
-			Self::exit_farms(origin.clone(), deposit_id, yield_farm_ids)?;
+				Self::exit_farms(origin.clone(), deposit_id, yield_farm_ids)?;
+			}
+
 
 			let omnipool_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
 			let omnipool_shares_to_remove = omnipool_position.shares;
@@ -1159,7 +1174,7 @@ pub mod pallet {
 				origin.clone(),
 				position_id,
 				omnipool_shares_to_remove,
-				Balance::MIN, // No slippage limit for omnipool removal
+				Balance::MIN,
 			)?;
 
 			if min_amounts_out.len() == 1 {
