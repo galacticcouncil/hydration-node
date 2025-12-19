@@ -28,6 +28,9 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(test)]
+mod tests;
+
 pub mod api;
 mod traits;
 pub mod types;
@@ -46,10 +49,11 @@ use orml_traits::MultiCurrency;
 use pallet_intent::types::AssetId;
 use pallet_intent::types::ExecutedIntent;
 use pallet_intent::types::IntentId;
+use sp_core::U512;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::BlockNumberProvider;
+use sp_runtime::traits::CheckedConversion;
 use sp_runtime::traits::Zero;
-use sp_runtime::AccountId32;
 
 pub use pallet::*;
 use types::*;
@@ -170,7 +174,7 @@ pub mod pallet {
 
 			let mut clearing_prices: HashMap<AssetId, Ratio> = HashMap::with_capacity(solution.clearing_prices.len());
 			for cp in solution.clearing_prices {
-				ensure!(!cp.1.n.is_zero() && cp.1.d.is_zero(), Error::<T>::InvalidPriceRatio);
+				ensure!(!cp.1.n.is_zero() && !cp.1.d.is_zero(), Error::<T>::InvalidPriceRatio);
 				ensure!(
 					clearing_prices.insert(cp.0, cp.1).is_none(),
 					Error::<T>::DuplicateClearingPrice
@@ -207,7 +211,7 @@ pub mod pallet {
 							.ok_or(Error::<T>::MissingClearingPrice)?;
 
 						ensure!(
-							Self::calc_amount_out(trade.amount_in, cp_in, cp_out,)
+							Self::calc_amount_out(trade.amount_in, cp_in, cp_out)
 								.ok_or(Error::<T>::ArithmeticOverflow)?
 								.eq(&swap.amount_out),
 							Error::<T>::PriceInconsistency
@@ -304,21 +308,23 @@ pub mod pallet {
 						});
 					}
 				};
-
-				let mut exec_score = 0_u128;
-				for (_asset_id, surplus) in surpluses.iter() {
-					//TODO: distribute surplus, TBD
-					exec_score = exec_score.checked_add(*surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
-				}
-
-				ensure!(score == exec_score, Error::<T>::ScoreMismatch);
-
-				Self::deposit_event(Event::SolutionExecuted {
-					intents_solved: solution.resolved.len() as u64,
-					trades_executed: solution.trades.len() as u64,
-					score,
-				});
 			}
+
+			let mut exec_score = 0_u128;
+			for (asset_id, surplus) in surpluses.iter() {
+				//TODO: distribute surplus, TBD
+				println!("{:?} - {:?}", asset_id, surplus);
+				exec_score = exec_score.checked_add(*surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
+			}
+
+			println!("score: {:?}", exec_score);
+			ensure!(score == exec_score, Error::<T>::ScoreMismatch);
+
+			Self::deposit_event(Event::SolutionExecuted {
+				intents_solved: solution.resolved.len() as u64,
+				trades_executed: solution.trades.len() as u64,
+				score,
+			});
 
 			Ok(())
 		}
@@ -343,10 +349,7 @@ pub mod pallet {
 	}
 
 	#[pallet::validate_unsigned]
-	impl<T: Config> ValidateUnsigned for Pallet<T>
-	where
-		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
-	{
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
 
 		/// Validates unsigned transactions for arbitrage execution
@@ -385,21 +388,21 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Function calculates amount out based on asset in and asset out prices denominated in common asset.
-	/// ```
+	/// ```ignore
 	/// rate = price_in / price_out
 	///		= (num_in / denom_in) / (num_out / denom_out)
 	///		= (num_in × denom_out) / (denom_in × num_out)
 	///	```
-	/// ```
+	/// ```ignore
 	/// out = amount_in × rate
 	///		= amount_in × (num_in × denom_out) / (denom_in × num_out)
 	///	```
 	fn calc_amount_out(amount_in: Balance, price_in: &Ratio, price_out: &Ratio) -> Option<u128> {
 		//TODO: use U256
-		let n = price_in.n.checked_mul(price_out.d)?;
-		let d = price_in.d.checked_mul(price_out.n)?;
+		let n = U512::from(price_in.n).checked_mul(U512::from(price_out.d))?;
+		let d = U512::from(price_in.d).checked_mul(U512::from(price_out.n))?;
 
-		n.checked_mul(amount_in)?.checked_div(d)
+		n.checked_mul(U512::from(amount_in))?.checked_div(d)?.checked_into()
 	}
 
 	pub fn run<F>(_block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
