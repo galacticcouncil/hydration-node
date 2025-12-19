@@ -313,11 +313,9 @@ pub mod pallet {
 			let mut exec_score = 0_u128;
 			for (asset_id, surplus) in surpluses.iter() {
 				//TODO: distribute surplus, TBD
-				println!("{:?} - {:?}", asset_id, surplus);
 				exec_score = exec_score.checked_add(*surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
 			}
 
-			println!("score: {:?}", exec_score);
 			ensure!(score == exec_score, Error::<T>::ScoreMismatch);
 
 			Self::deposit_event(Event::SolutionExecuted {

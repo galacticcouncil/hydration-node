@@ -42,6 +42,12 @@ frame-benchmarking = { workspace = true, optional = true }
 [dev-dependencies]
 sp-io = { workspace = true }
 test-utils = { workspace = true }
+pretty_assertions = { workspace = true }
+orml-tokens = { workspace = true, features=["std"] }
+pallet-timestamp = { workspace = true }
+primitives = { workspace = true }
+pallet-broadcast = { workspace = true }
+
 
 [features]
 default = ['std']
