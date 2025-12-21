@@ -516,43 +516,20 @@ where
 	}
 
 	fn on_asset_removed(asset_id: AssetId) {
-		// Clear dynamic fees storage
-		pallet_dynamic_fees::AssetFee::<Runtime>::remove(asset_id);
-		pallet_dynamic_fees::AssetFeeConfiguration::<Runtime>::remove(asset_id);
+		// Clear dynamic fees storage using pallet function
+		let _ = pallet_dynamic_fees::Pallet::<Runtime>::clear_asset_fees(asset_id);
 
-		// Clear oracle entries for this asset paired with LRNA (hub asset)
+		// Clear oracle entries for this asset paired with LRNA (hub asset) using pallet function
 		let hub_asset = Lrna::get();
-		let assets = pallet_ema_oracle::ordered_pair(asset_id, hub_asset);
-
-		// Remove from whitelist
-		pallet_ema_oracle::WhitelistedAssets::<Runtime>::mutate(|list| {
-			list.remove(&(OMNIPOOL_SOURCE, assets));
-		});
-
-		// Remove oracle storage entries for all supported periods
-		let supported_periods = <Runtime as pallet_ema_oracle::Config>::SupportedPeriods::get();
-		for period in supported_periods.into_iter() {
-			pallet_ema_oracle::Oracles::<Runtime>::remove((OMNIPOOL_SOURCE, assets, period));
-		}
-
-		// Remove from accumulator if present
-		let _ = pallet_ema_oracle::Accumulator::<Runtime>::mutate(|accumulator| {
-			accumulator.remove(&(OMNIPOOL_SOURCE, assets));
-			Ok::<(), ()>(())
-		});
+		let _ = pallet_ema_oracle::Pallet::<Runtime>::clear_asset_oracle(OMNIPOOL_SOURCE, asset_id, hub_asset);
 	}
 
 	fn on_asset_removed_weight() -> Weight {
-		// Weight for removing two storage entries from dynamic fees
-		let dynamic_fees_weight = <Runtime as frame_system::Config>::DbWeight::get().reads_writes(0, 2);
+		// Weight for removing dynamic fees storage
+		let dynamic_fees_weight = <Runtime as pallet_dynamic_fees::Config>::WeightInfo::remove_asset_fee();
 
-		// Weight for oracle cleanup:
-		// - 1 read + 1 write for WhitelistedAssets
-		// - N writes for Oracles (where N is number of supported periods)
-		// - 1 read + 1 write for Accumulator
-		let supported_periods_count = <Runtime as pallet_ema_oracle::Config>::SupportedPeriods::get().len() as u64;
-		let oracle_weight =
-			<Runtime as frame_system::Config>::DbWeight::get().reads_writes(2, 2 + supported_periods_count);
+		// Weight for oracle cleanup
+		let oracle_weight = <Runtime as pallet_ema_oracle::Config>::WeightInfo::remove_oracle();
 
 		dynamic_fees_weight.saturating_add(oracle_weight)
 	}

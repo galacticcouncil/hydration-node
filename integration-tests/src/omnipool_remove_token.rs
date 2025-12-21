@@ -71,7 +71,7 @@ fn populate_oracle_for_dot() {
 }
 
 #[test]
-fn remove_token_should_clear_dynamic_fees_storage() {
+fn remove_token_should_clear_both_fees_and_oracle_entries() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -79,71 +79,23 @@ fn remove_token_should_clear_dynamic_fees_storage() {
 		init_omnipool_with_oracle();
 		populate_oracle_for_dot();
 
-		// Verify dynamic fees are set for DOT
-		let dot_fees_before = hydradx_runtime::DynamicFees::current_fees(DOT);
+		// Verify both dynamic fees and oracle entries exist
 		assert!(
-			dot_fees_before.is_some(),
-			"DOT should have dynamic fees entries before removal"
+			hydradx_runtime::DynamicFees::current_fees(DOT).is_some(),
+			"DOT should have dynamic fees before removal"
 		);
 
-		// Get position and remove all liquidity
-		let position_id = 2; // DOT position (HDX=0, DAI=1, DOT=2)
-		let position = pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_position(
-			position_id,
-			hydradx_runtime::Omnipool::protocol_account(),
-		)
-		.unwrap();
-
-		// Freeze the asset
-		assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-			RuntimeOrigin::root(),
-			DOT,
-			Tradability::FROZEN
-		));
-
-		// Sacrifice the position to remove all shares
-		assert_ok!(hydradx_runtime::Omnipool::sacrifice_position(
-			RuntimeOrigin::signed(hydradx_runtime::Omnipool::protocol_account()),
-			position_id
-		));
-
-		// Act - Remove token from omnipool
-		assert_ok!(hydradx_runtime::Omnipool::remove_token(
-			RuntimeOrigin::root(),
-			DOT,
-			AccountId::from(BOB),
-		));
-
-		// Assert - Dynamic fees should be cleared
-		let dot_fees_after = hydradx_runtime::DynamicFees::current_fees(DOT);
-		assert!(
-			dot_fees_after.is_none(),
-			"DOT dynamic fees should be cleared after token removal"
-		);
-
-		// Verify AssetFee storage is cleared
+		// Verify AssetFee storage exists
 		let asset_fee = pallet_dynamic_fees::AssetFee::<hydradx_runtime::Runtime>::get(DOT);
-		assert!(asset_fee.is_none(), "DOT AssetFee storage should be cleared");
+		assert!(asset_fee.is_some(), "DOT AssetFee storage should exist before removal");
 
-		// Verify AssetFeeConfiguration storage is cleared
+		// Verify AssetFeeConfiguration storage exists
 		let asset_fee_config = pallet_dynamic_fees::AssetFeeConfiguration::<hydradx_runtime::Runtime>::get(DOT);
 		assert!(
-			asset_fee_config.is_none(),
-			"DOT AssetFeeConfiguration storage should be cleared"
+			asset_fee_config.is_some(),
+			"DOT AssetFeeConfiguration storage should exist before removal"
 		);
-	});
-}
 
-#[test]
-fn remove_token_should_clear_oracle_entries() {
-	TestNet::reset();
-
-	Hydra::execute_with(|| {
-		// Arrange
-		init_omnipool_with_oracle();
-		populate_oracle_for_dot();
-
-		// Verify oracle entries exist for DOT before removal
 		let hub_asset = LRNA;
 		let assets = if DOT < hub_asset {
 			(DOT, hub_asset)
@@ -163,84 +115,14 @@ fn remove_token_should_clear_oracle_entries() {
 			);
 		}
 
-		// Get position and remove all liquidity
-		let position_id = 2; // DOT position
-		let position = pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_position(
-			position_id,
-			hydradx_runtime::Omnipool::protocol_account(),
-		)
-		.unwrap();
-
-		// Freeze the asset
-		assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-			RuntimeOrigin::root(),
-			DOT,
-			Tradability::FROZEN
-		));
-
-		// Sacrifice the position
-		assert_ok!(hydradx_runtime::Omnipool::sacrifice_position(
-			RuntimeOrigin::signed(hydradx_runtime::Omnipool::protocol_account()),
-			position_id
-		));
-
-		// Act - Remove token from omnipool
-		assert_ok!(hydradx_runtime::Omnipool::remove_token(
-			RuntimeOrigin::root(),
-			DOT,
-			AccountId::from(BOB),
-		));
-
-		// Assert - Oracle entries should be cleared
-		for period in supported_periods.iter() {
-			let oracle_entry =
-				pallet_ema_oracle::Oracles::<hydradx_runtime::Runtime>::get((*b"omnipool", assets, period));
-			assert!(
-				oracle_entry.is_none(),
-				"Oracle entry should be cleared for DOT after removal for period {:?}",
-				period
-			);
-		}
-
-		// Verify whitelist entry is removed
+		// Verify whitelist entry exists
 		let whitelist = pallet_ema_oracle::WhitelistedAssets::<hydradx_runtime::Runtime>::get();
 		assert!(
-			!whitelist.contains(&(*b"omnipool", assets)),
-			"DOT should be removed from oracle whitelist"
-		);
-	});
-}
-
-#[test]
-fn remove_token_should_clear_both_fees_and_oracle_entries() {
-	TestNet::reset();
-
-	Hydra::execute_with(|| {
-		// Arrange
-		init_omnipool_with_oracle();
-		populate_oracle_for_dot();
-
-		// Verify both dynamic fees and oracle entries exist
-		assert!(
-			hydradx_runtime::DynamicFees::current_fees(DOT).is_some(),
-			"DOT should have dynamic fees before removal"
+			whitelist.contains(&(*b"omnipool", assets)),
+			"DOT should be in oracle whitelist before removal"
 		);
 
-		let hub_asset = LRNA;
-		let assets = if DOT < hub_asset {
-			(DOT, hub_asset)
-		} else {
-			(hub_asset, DOT)
-		};
-
-		let period = OraclePeriod::LastBlock;
-		let oracle_entry_before =
-			pallet_ema_oracle::Oracles::<hydradx_runtime::Runtime>::get((*b"omnipool", assets, period));
-		assert!(
-			oracle_entry_before.is_some(),
-			"Oracle entry should exist for DOT before removal"
-		);
-
+		// Act
 		// Prepare for token removal
 		let position_id = 2;
 		assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
@@ -254,22 +136,55 @@ fn remove_token_should_clear_both_fees_and_oracle_entries() {
 			position_id
 		));
 
-		// Act - Remove token
+		// Remove token
 		assert_ok!(hydradx_runtime::Omnipool::remove_token(
 			RuntimeOrigin::root(),
 			DOT,
 			AccountId::from(BOB),
 		));
 
-		// Assert - Both should be cleared
+		// Assert
+		// Verify dynamic fees are cleared
 		assert!(
 			hydradx_runtime::DynamicFees::current_fees(DOT).is_none(),
 			"DOT dynamic fees should be cleared"
 		);
 
-		let oracle_entry_after =
-			pallet_ema_oracle::Oracles::<hydradx_runtime::Runtime>::get((*b"omnipool", assets, period));
-		assert!(oracle_entry_after.is_none(), "Oracle entry should be cleared for DOT");
+		// Verify AssetFee storage is cleared
+		let asset_fee_after = pallet_dynamic_fees::AssetFee::<hydradx_runtime::Runtime>::get(DOT);
+		assert!(asset_fee_after.is_none(), "DOT AssetFee storage should be cleared");
+
+		// Verify AssetFeeConfiguration storage is cleared
+		let asset_fee_config_after = pallet_dynamic_fees::AssetFeeConfiguration::<hydradx_runtime::Runtime>::get(DOT);
+		assert!(
+			asset_fee_config_after.is_none(),
+			"DOT AssetFeeConfiguration storage should be cleared"
+		);
+
+		// Verify oracle entries are cleared for all periods
+		for period in supported_periods.iter() {
+			let oracle_entry =
+				pallet_ema_oracle::Oracles::<hydradx_runtime::Runtime>::get((*b"omnipool", assets, period));
+			assert!(
+				oracle_entry.is_none(),
+				"Oracle entry should be cleared for DOT after removal for period {:?}",
+				period
+			);
+		}
+
+		// Verify whitelist entry is removed
+		let whitelist_after = pallet_ema_oracle::WhitelistedAssets::<hydradx_runtime::Runtime>::get();
+		assert!(
+			!whitelist_after.contains(&(*b"omnipool", assets)),
+			"DOT should be removed from oracle whitelist"
+		);
+
+		// Verify Accumulator storage is cleared
+		let accumulator = pallet_ema_oracle::Accumulator::<hydradx_runtime::Runtime>::get();
+		assert!(
+			!accumulator.contains_key(&(*b"omnipool", assets)),
+			"DOT should be removed from oracle accumulator"
+		);
 
 		// Verify the asset itself is removed
 		let asset_state = hydradx_runtime::Omnipool::assets(DOT);
@@ -301,6 +216,7 @@ fn remove_token_should_not_affect_other_assets() {
 		let hdx_oracle_before =
 			pallet_ema_oracle::Oracles::<hydradx_runtime::Runtime>::get((*b"omnipool", hdx_assets, period));
 
+		// Act
 		// Remove DOT
 		let position_id = 2;
 		assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
@@ -320,7 +236,8 @@ fn remove_token_should_not_affect_other_assets() {
 			AccountId::from(BOB),
 		));
 
-		// Assert - Other assets' fees and oracle entries should remain
+		// Assert
+		// Other assets' fees and oracle entries should remain
 		let hdx_fees_after = hydradx_runtime::DynamicFees::current_fees(HDX);
 		let dai_fees_after = hydradx_runtime::DynamicFees::current_fees(DAI);
 
