@@ -26,8 +26,7 @@ pub struct Trade {
 //TODO: change vec for boundedVec
 #[derive(Debug, Clone, PartialEq, Encode, Decode, TypeInfo)]
 pub struct Solution {
-	pub resolved: Vec<(IntentId, Intent)>,
-	pub trades: Vec<Trade>,
+	pub resolved: Vec<(IntentId, Intent, Trade)>,
 	pub clearing_prices: Vec<(AssetId, Ratio)>,
 }
 

@@ -104,8 +104,7 @@ pub mod pallet {
 		/// Solution has been executed.
 		SolutionExecuted {
 			//NOTE: do we need block number? solution is executed in the block when event was triggered
-			intents_solved: u64,
-			trades_executed: u64,
+			intents_executed: u64,
 			score: u128,
 		},
 
@@ -181,11 +180,6 @@ pub mod pallet {
 				);
 			}
 
-			ensure!(
-				solution.resolved.len() == solution.trades.len(),
-				Error::<T>::IntentsTradesMismatch
-			);
-
 			let mut processed_intents: HashSet<IntentId> = HashSet::with_capacity(solution.resolved.len());
 			let mut surpluses: HashMap<AssetId, Balance> = HashMap::with_capacity(solution.resolved.len());
 			let holding_pot = Self::get_pallet_account();
@@ -193,10 +187,8 @@ pub mod pallet {
 
 			//NOTE: this is not most prerformant Solution
 			//TODO: benchmark and optimise
-			for (i, (intent_id, intent)) in solution.resolved.iter().enumerate() {
+			for (intent_id, intent, trade) in solution.resolved.iter() {
 				ensure!(processed_intents.insert(*intent_id), Error::<T>::DuplicateIntent);
-
-				let trade = solution.trades.get(i).ok_or(Error::<T>::IntentsTradesMismatch)?;
 
 				let intent_owner =
 					pallet_intent::Pallet::<T>::intent_owner(intent_id).ok_or(Error::<T>::IntentOwnerNotFound)?;
@@ -311,7 +303,7 @@ pub mod pallet {
 			}
 
 			let mut exec_score = 0_u128;
-			for (asset_id, surplus) in surpluses.iter() {
+			for (_asset_id, surplus) in surpluses.iter() {
 				//TODO: distribute surplus, TBD
 				exec_score = exec_score.checked_add(*surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
 			}
@@ -319,8 +311,7 @@ pub mod pallet {
 			ensure!(score == exec_score, Error::<T>::ScoreMismatch);
 
 			Self::deposit_event(Event::SolutionExecuted {
-				intents_solved: solution.resolved.len() as u64,
-				trades_executed: solution.trades.len() as u64,
+				intents_executed: solution.resolved.len() as u64,
 				score,
 			});
 
