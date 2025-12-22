@@ -15,7 +15,7 @@ fn ismp_update_parachain_consensus_does_not_panic_on_inherent_validation() {
 		// Invalid consensus message
 		let consensus_msg = ConsensusMessage {
 			consensus_proof: vec![1, 2, 3],
-			consensus_state_id: [61, 92, 0, 0], // from your fuzzer log
+			consensus_state_id: [61, 92, 0, 0],
 			signer: vec![1u8; 32],
 		};
 
