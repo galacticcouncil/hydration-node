@@ -72,6 +72,8 @@ pub struct CallResult {
 	pub exit_reason: ExitReason,
 	pub value: Vec<u8>,
 	pub contract: sp_core::H160,
+	pub gas_used: sp_core::U256,
+	pub gas_limit: sp_core::U256,
 }
 
 pub trait EVM<EvmResult> {

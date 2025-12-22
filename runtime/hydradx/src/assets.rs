@@ -1773,6 +1773,7 @@ impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
 			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
 			value: vec![],
 			contract: context.contract,
+			gas_used: U256::zero(),
 		}
 	}
 
@@ -1781,6 +1782,7 @@ impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
 			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
 			value: vec![],
 			contract: context.contract,
+			gas_used: U256::zero(),
 		}
 	}
 }

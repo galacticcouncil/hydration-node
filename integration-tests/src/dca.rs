@@ -4972,6 +4972,126 @@ mod extra_gas_erc20 {
 		});
 	}
 
+	#[test]
+	fn subcall_gas_exhaustion_should_be_detected_and_retried() {
+		// This test reproduces the AAVE scenario where:
+		// 1. Main contract makes subcall to helper contract
+		// 2. Subcall gets 63/64 of gas (EIP-150)
+		// 3. Subcall runs out of gas and returns false
+		// 4. Main contract detects failure and reverts with empty message
+		// 5. Our detector should catch this as OutOfGas (gas_used > 90%)
+
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let evm_address = EVMAccounts::evm_address(&Router::router_account());
+
+			// Deploy contract with subcall that will exhaust gas
+			// Use 400_000 gas to ensure we hit >90% threshold
+			let gas_to_waste: u64 = 400_000;
+			let contract = deploy_subcall_gas_exhaustion_token(evm_address, gas_to_waste, crate::erc20::deployer());
+			let erc20 = crate::erc20::bind_erc20(contract);
+
+			// Add to omnipool with oracle
+			assert_ok!(EmaOracle::add_oracle(
+				hydradx_runtime::RuntimeOrigin::root(),
+				OMNIPOOL_SOURCE,
+				(LRNA, erc20),
+			));
+
+			//Add new erc20 to omnipool
+			let bal = Currencies::free_balance(erc20, &ALICE.into());
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(ALICE.into()),
+				pallet_omnipool::Pallet::<Runtime>::protocol_account(),
+				erc20,
+				bal / 10,
+			));
+			assert_ok!(pallet_omnipool::Pallet::<Runtime>::add_token(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 200),
+				Permill::from_percent(30),
+				ALICE.into(),
+			));
+
+			assert_ok!(MultiTransactionPayment::add_currency(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 200)
+			));
+
+			hydradx_run_to_block(11);
+
+			let amount_in = 200000 * UNITS;
+			let schedule_id = create_schedule_with_onchain_route(
+				erc20,
+				HDX,
+				amount_in,
+				500000 * UNITS,
+				Some(3), // Allow retries
+			);
+
+			// First execution attempt - should fail with subcall gas exhaustion
+			hydradx_run_to_block(13);
+
+			//Assert
+			assert_eq!(
+				DCA::retries_on_error(schedule_id),
+				1,
+				"Should have 1 retry after subcall gas exhaustion"
+			);
+			assert_eq!(
+				DCA::schedule_extra_gas(schedule_id),
+				333_333,
+				"Extra gas should be increased after first failure"
+			);
+
+			trade_failed_with_evm_out_of_gas_error(schedule_id);
+			assert_eq!(count_failed_trade_events(), 1);
+			assert_eq!(count_trade_executed_events(), 0);
+
+			// Retry with extra gas - should succeed
+			hydradx_run_to_block(33);
+
+			//Assert
+			assert_eq!(
+				DCA::retries_on_error(schedule_id),
+				0,
+				"Retries should reset to 0 after success"
+			);
+			assert_eq!(
+				DCA::schedule_extra_gas(schedule_id),
+				333_333,
+				"Extra gas should persist for future executions"
+			);
+
+			assert_trade_executed_succesfully(schedule_id);
+			assert_eq!(
+				count_failed_trade_events(),
+				1,
+				"Should still have 1 failed event from first attempt"
+			);
+			assert_eq!(
+				count_trade_executed_events(),
+				1,
+				"Should have 1 successful trade after retry"
+			);
+
+			// Act - Next scheduled trade - should execute successfully without retries
+			hydradx_run_to_block(38);
+
+			//Assert
+			assert_eq!(
+				count_trade_executed_events(),
+				2,
+				"Should have 2 successful trades total"
+			);
+		});
+	}
+
 	fn create_schedule_with_onchain_route(
 		asset_in: AssetId,
 		asset_out: AssetId,
@@ -5052,5 +5172,39 @@ mod extra_gas_erc20 {
 			)
 		});
 		assert!(has_trade_executed, "Expected TradeExecuted event after retry");
+	}
+
+	/// Deploy SubcallGasExhaustionToken contract with constructor parameters
+	///
+	/// This contract mimics AAVE's behavior where:
+	/// - Main contract makes subcall to helper GasWaster contract
+	/// - Subcall gets 63/64 of remaining gas (EIP-150)
+	/// - When subcall exhausts gas, main contract reverts with empty message
+	///
+	/// # Arguments
+	/// * `router_address` - EVM address of the router pallet account
+	/// * `gas_to_waste` - Amount of gas to waste in the subcall
+	/// * `deployer` - EVM address of the contract deployer
+	///
+	/// # Returns
+	/// The deployed contract's EVM address
+	fn deploy_subcall_gas_exhaustion_token(
+		router_address: EvmAddress,
+		gas_to_waste: u64,
+		deployer: EvmAddress,
+	) -> EvmAddress {
+		use ethabi::{encode, Token};
+
+		// Get base bytecode from compiled artifact
+		let mut bytecode = crate::utils::contracts::get_contract_bytecode("SubcallGasExhaustionToken");
+
+		// Encode constructor parameters: (address _routerAddress, uint256 _gasToWaste)
+		let constructor_params = encode(&[Token::Address(router_address.into()), Token::Uint(gas_to_waste.into())]);
+
+		// Append encoded constructor params to bytecode
+		bytecode.extend(constructor_params);
+
+		// Deploy contract with complete bytecode
+		crate::utils::contracts::deploy_contract_code(bytecode, deployer)
 	}
 }

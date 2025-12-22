@@ -109,6 +109,8 @@ where
 								exit_reason,
 								value: Vec::new(),
 								contract: context.contract,
+								gas_used: U256::from(gas_limit),
+								gas_limit: U256::from(gas_limit),
 							};
 						}
 					}
@@ -117,6 +119,8 @@ where
 					exit_reason: info.exit_reason,
 					value: info.value,
 					contract: context.contract,
+					gas_used: info.used_gas.effective,
+				gas_limit: U256::from(gas_limit),
 				}
 			}
 			Err(runner_error) => {
@@ -127,6 +131,8 @@ where
 					exit_reason: exit_reason,
 					value: Vec::new(),
 					contract: context.contract,
+					gas_used: U256::zero(),
+				gas_limit: U256::from(gas_limit),
 				}
 			}
 		}
@@ -143,14 +149,17 @@ where
 			let result = Self::execute(context.origin, gas_limit, |executor| {
 				let result =
 					executor.transact_call(context.sender, context.contract, U256::zero(), data, gas_limit, vec![]);
+				let gas_used_val = executor.used_gas();
 				if extra_gas > 0 {
-					extra_gas_used = executor.used_gas().saturating_sub(gas);
+					extra_gas_used = gas_used_val.saturating_sub(gas);
 					log::trace!(target: "evm::executor", "View used extra gas -{:?}", extra_gas_used);
 				}
 				CallResult {
 					exit_reason: result.0,
 					value: result.1,
 					contract: context.contract,
+					gas_used: U256::from(gas_used_val),
+				gas_limit: U256::from(gas_limit),
 				}
 			});
 			TransactionOutcome::Rollback(Ok::<CallResult, DispatchError>(result))
@@ -159,6 +168,8 @@ where
 			exit_reason: ExitReason::Fatal(Other("TransactionalError".into())),
 			value: Vec::new(),
 			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
 		});
 
 		if extra_gas_used > 0 {
