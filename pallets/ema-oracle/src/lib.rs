@@ -180,6 +180,12 @@ pub mod pallet {
 		AddedToWhitelist { source: Source, assets: (AssetId, AssetId) },
 		/// Oracle was removed from the whitelist.
 		RemovedFromWhitelist { source: Source, assets: (AssetId, AssetId) },
+		/// Oracle price was updated
+		OracleUpdated {
+			source: Source,
+			assets: (AssetId, AssetId),
+			updates: Vec<(OraclePeriod, OracleEntry<BlockNumberFor<T>>)>,
+		},
 	}
 
 	/// Accumulator for oracle data in current block that will be recorded at the end of the block.
@@ -430,16 +436,30 @@ impl<T: Config> Pallet<T> {
 	/// Update oracles based on data accumulated during the block.
 	fn update_oracles_from_accumulator() {
 		for ((src, assets), oracle_entry) in Accumulator::<T>::take().into_iter() {
+			// accumulate updates to oracle for event emission
+			let mut updates = vec![];
 			// First we update the non-immediate oracles with the value of the `LastBlock` oracle.
 			for period in T::SupportedPeriods::get()
 				.into_iter()
 				.filter(|p| *p != OraclePeriod::LastBlock)
 			{
-				Self::update_oracle(src, assets, period, oracle_entry.clone());
+				updates.push((
+					period,
+					Self::update_oracle(src.clone(), assets.clone(), period, oracle_entry.clone()).0,
+				));
 			}
 			// As we use (the old value of) the `LastBlock` entry to update the other oracles it
 			// gets updated last.
-			Self::update_oracle(src, assets, OraclePeriod::LastBlock, oracle_entry.clone());
+			updates.push((
+				OraclePeriod::LastBlock,
+				Self::update_oracle(src, assets, OraclePeriod::LastBlock, oracle_entry.clone()).0,
+			));
+
+			Self::deposit_event(Event::<T>::OracleUpdated {
+				source: src,
+				assets,
+				updates,
+			});
 		}
 	}
 
@@ -449,15 +469,15 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		period: OraclePeriod,
 		incoming_entry: OracleEntry<BlockNumberFor<T>>,
-	) {
-		Oracles::<T>::mutate((src, assets, period), |oracle| {
-			// initialize the oracle entry if it doesn't exist
-			if oracle.is_none() {
-				*oracle = Some((incoming_entry.clone(), T::BlockNumberProvider::current_block_number()));
-				return;
-			}
-			if let Some((prev_entry, _)) = oracle.as_mut() {
-				let parent = T::BlockNumberProvider::current_block_number().saturating_sub(One::one());
+	) -> (OracleEntry<BlockNumberFor<T>>, BlockNumberFor<T>) {
+		let oracle = Self::oracle((src, assets, period));
+
+		let updated_oracle = match oracle {
+			None => (incoming_entry.clone(), T::BlockNumberProvider::current_block_number()),
+			Some((mut prev_entry, prev_updated_at)) => {
+				let current_block_num = T::BlockNumberProvider::current_block_number();
+				let parent = current_block_num.saturating_sub(One::one());
+
 				// update the entry to the parent block if it hasn't been updated for a while
 				if parent > prev_entry.updated_at {
 					Self::last_block_oracle(src, assets, parent)
@@ -472,6 +492,7 @@ impl<T: Config> Pallet<T> {
 							debug_assert!(false, "Updating to parent block should not fail.");
 						})
 				}
+
 				// calculate the actual update with the new value
 				prev_entry
 					.update_to_new_by_integrating_incoming(period, &incoming_entry)
@@ -483,8 +504,13 @@ impl<T: Config> Pallet<T> {
 						);
 						debug_assert!(false, "Updating to new value should not fail.");
 					});
-			};
-		});
+
+				(prev_entry, prev_updated_at)
+			}
+		};
+
+		Oracles::<T>::insert((src, assets, period), updated_oracle.clone());
+		updated_oracle
 	}
 
 	/// Return the updated oracle entry for the given source, assets and period.
