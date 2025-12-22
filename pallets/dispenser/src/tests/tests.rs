@@ -191,7 +191,7 @@ fn test_deposit_erc20_success() {
 		assert!(events.iter().any(|e| {
 			matches!(
 				&e.event,
-				RuntimeEvent::Signet(pallet_signet::Event::SignRespondRequested { .. })
+				RuntimeEvent::Signet(pallet_signet::Event::SignBidirectionalRequested { .. })
 			)
 		}));
 
