@@ -5598,7 +5598,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "373.0.0"
+version = "374.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -9376,7 +9376,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispenser"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -10946,7 +10946,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-signet"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "ethereum",
  "frame-benchmarking",
