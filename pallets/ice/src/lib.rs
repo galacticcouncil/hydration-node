@@ -37,6 +37,7 @@ pub mod types;
 mod weights;
 
 use crate::traits::AMMState;
+use frame_benchmarking::v2::__private::log;
 use frame_support::dispatch::DispatchResult;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::Get;
@@ -61,6 +62,8 @@ pub use weights::WeightInfo;
 
 pub const UNSIGNED_TXS_PRIORITY: u64 = 1000;
 
+const OCW_LOG_TARGET: &str = "ice::offchain_worker";
+
 #[frame_support::pallet]
 pub mod pallet {
 	use std::collections::{HashMap, HashSet};
@@ -68,7 +71,6 @@ pub mod pallet {
 	use super::*;
 	use frame_benchmarking::__private::log;
 	use frame_system::offchain::SubmitTransaction;
-	use pallet_intent::types::IntentKind;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -105,6 +107,7 @@ pub mod pallet {
 		SolutionExecuted {
 			//NOTE: do we need block number? solution is executed in the block when event was triggered
 			intents_executed: u64,
+			trades_executed: u64,
 			score: u128,
 		},
 
@@ -181,137 +184,93 @@ pub mod pallet {
 			}
 
 			let mut processed_intents: HashSet<IntentId> = HashSet::with_capacity(solution.resolved.len());
-			let mut surpluses: HashMap<AssetId, Balance> = HashMap::with_capacity(solution.resolved.len());
 			let holding_pot = Self::get_pallet_account();
 			let holding_origin: OriginFor<T> = Origin::<T>::Signed(holding_pot.clone()).into();
 
-			//NOTE: this is not most prerformant Solution
-			//TODO: benchmark and optimise
-			for (intent_id, intent, trade) in solution.resolved.iter() {
-				ensure!(processed_intents.insert(*intent_id), Error::<T>::DuplicateIntent);
+			// TODO: this is not most prerformant solution, verify it works and optimise
 
-				let intent_owner =
-					pallet_intent::Pallet::<T>::intent_owner(intent_id).ok_or(Error::<T>::IntentOwnerNotFound)?;
+			for (id, intent) in &solution.resolved {
+				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
+				pallet_intent::Pallet::<T>::unlock_funds(*id, intent.amount_in())?;
 
-				match &intent.kind {
-					IntentKind::Swap(swap) => {
-						let cp_in = clearing_prices
-							.get(&swap.asset_in)
-							.ok_or(Error::<T>::MissingClearingPrice)?;
-						let cp_out = clearing_prices
-							.get(&swap.asset_out)
-							.ok_or(Error::<T>::MissingClearingPrice)?;
-
-						ensure!(
-							Self::calc_amount_out(trade.amount_in, cp_in, cp_out)
-								.ok_or(Error::<T>::ArithmeticOverflow)?
-								.eq(&swap.amount_out),
-							Error::<T>::PriceInconsistency
-						);
-
-						pallet_intent::Pallet::<T>::unlock_funds(*intent_id, trade.amount_in)?;
-						<T as Config>::Currency::transfer(swap.asset_in, &intent_owner, &holding_pot, trade.amount_in)?;
-
-						match trade.trade_type {
-							TradeType::Buy => {
-								let holding_balance_0 =
-									<T as Config>::Currency::free_balance(swap.asset_in, &holding_pot);
-
-								pallet_route_executor::Pallet::<T>::buy(
-									holding_origin.clone(),
-									swap.asset_in.into(),
-									swap.asset_out.into(),
-									trade.amount_out.into(),
-									trade.amount_in.into(),
-									trade.route.clone(),
-								)?;
-
-								let holding_balance_1 =
-									<T as Config>::Currency::free_balance(swap.asset_in, &holding_pot);
-								let actual_amount_in = holding_balance_0
-									.checked_sub(holding_balance_1)
-									.ok_or(Error::<T>::ArithmeticOverflow)?;
-
-								let s = surpluses.get(&swap.asset_in).unwrap_or(&0_u128);
-								surpluses.insert(
-									swap.asset_in,
-									s.saturating_add(
-										trade
-											.amount_in
-											.checked_sub(actual_amount_in)
-											.ok_or(Error::<T>::ArithmeticOverflow)?,
-									),
-								);
-							}
-							TradeType::Sell => {
-								let holding_balance_0 =
-									<T as Config>::Currency::free_balance(swap.asset_out, &holding_pot);
-
-								pallet_route_executor::Pallet::<T>::sell(
-									holding_origin.clone(),
-									swap.asset_in.into(),
-									swap.asset_out.into(),
-									trade.amount_in.into(),
-									trade.amount_out.into(),
-									trade.route.clone(),
-								)?;
-
-								let holding_balance_1 =
-									<T as Config>::Currency::free_balance(swap.asset_out, &holding_pot);
-								let actual_amount_out = holding_balance_1
-									.checked_sub(holding_balance_0)
-									.ok_or(Error::<T>::ArithmeticOverflow)?;
-
-								let s = surpluses.get(&swap.asset_out).unwrap_or(&0_u128);
-								surpluses.insert(
-									swap.asset_out,
-									s.saturating_add(
-										actual_amount_out
-											.checked_sub(trade.amount_out)
-											.ok_or(Error::<T>::ArithmeticOverflow)?,
-									),
-								);
-							}
-						};
-
-						<T as Config>::Currency::transfer(
-							swap.asset_out,
-							&holding_pot,
-							&intent_owner,
-							trade.amount_out,
-						)?;
-
-						pallet_intent::Pallet::<T>::intent_executed(ExecutedIntent {
-							id: *intent_id,
-							owner: intent_owner.clone(),
-							asset_in: swap.asset_in,
-							asset_out: swap.asset_out,
-							amount_in: trade.amount_in,
-							amount_out: trade.amount_out,
-						})?;
-
-						Self::deposit_event(Event::IntentExecuted {
-							intent_id: *intent_id,
-							owner: intent_owner,
-							asset_in: swap.asset_in,
-							asset_out: swap.asset_out,
-							amount_in: trade.amount_in,
-							amount_out: trade.amount_out,
-						});
-					}
-				};
+				<T as Config>::Currency::transfer(intent.asset_in(), &owner, &holding_pot, intent.amount_in())?;
 			}
 
-			let mut exec_score = 0_u128;
-			for (_asset_id, surplus) in surpluses.iter() {
-				//TODO: distribute surplus, TBD
-				exec_score = exec_score.checked_add(*surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
+			for t in &solution.trades {
+				match t.trade_type {
+					TradeType::Buy => {
+						pallet_route_executor::Pallet::<T>::buy(
+							holding_origin.clone(),
+							t.route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
+							t.route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
+							t.amount_out.into(),
+							t.amount_in.into(),
+							t.route.clone(),
+						)?;
+					}
+					TradeType::Sell => {
+						pallet_route_executor::Pallet::<T>::sell(
+							holding_origin.clone(),
+							t.route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
+							t.route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
+							t.amount_in.into(),
+							t.amount_out.into(),
+							t.route.clone(),
+						)?;
+					}
+				}
+			}
+
+			let mut exec_score: u128 = 0;
+			for (id, resolved) in &solution.resolved {
+				ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
+
+				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
+
+				<T as Config>::Currency::transfer(resolved.asset_out(), &holding_pot, &owner, resolved.amount_out())?;
+
+				pallet_intent::Pallet::<T>::intent_executed(ExecutedIntent {
+					id: *id,
+					owner: owner.clone(),
+					asset_in: resolved.asset_in(),
+					asset_out: resolved.asset_out(),
+					amount_in: resolved.amount_in(),
+					amount_out: resolved.amount_out(),
+				})?;
+
+				let cp_in = clearing_prices
+					.get(&resolved.asset_in())
+					.ok_or(Error::<T>::MissingClearingPrice)?;
+				let cp_out = clearing_prices
+					.get(&resolved.asset_out())
+					.ok_or(Error::<T>::MissingClearingPrice)?;
+
+				ensure!(
+					Self::calc_amount_out(resolved.amount_in(), cp_in, cp_out)
+						.ok_or(Error::<T>::ArithmeticOverflow)?
+						.eq(&resolved.amount_out()),
+					Error::<T>::PriceInconsistency
+				);
+
+				Self::deposit_event(Event::IntentExecuted {
+					intent_id: *id,
+					owner,
+					asset_in: resolved.asset_in(),
+					asset_out: resolved.asset_out(),
+					amount_in: resolved.amount_in(),
+					amount_out: resolved.amount_out(),
+				});
+
+				let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
+				let (_, s) = intent.surplus(&resolved).ok_or(Error::<T>::ArithmeticOverflow)?;
+				exec_score = exec_score.checked_add(s).ok_or(Error::<T>::ArithmeticOverflow)?;
 			}
 
 			ensure!(score == exec_score, Error::<T>::ScoreMismatch);
 
 			Self::deposit_event(Event::SolutionExecuted {
 				intents_executed: solution.resolved.len() as u64,
+				trades_executed: solution.trades.len() as u64,
 				score,
 			});
 
@@ -329,7 +288,7 @@ pub mod pallet {
 			if let Some(c) = call {
 				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(c.into()) {
 					log::error!(
-						target: "ice::offchain_worker",
+						target: OCW_LOG_TARGET,
 						"Failed to submit solution {:?}", e
 					);
 				}
@@ -387,21 +346,31 @@ impl<T: Config> Pallet<T> {
 	///		= amount_in × (num_in × denom_out) / (denom_in × num_out)
 	///	```
 	fn calc_amount_out(amount_in: Balance, price_in: &Ratio, price_out: &Ratio) -> Option<u128> {
-		//TODO: use U256
 		let n = U512::from(price_in.n).checked_mul(U512::from(price_out.d))?;
 		let d = U512::from(price_in.d).checked_mul(U512::from(price_out.n))?;
 
 		n.checked_mul(U512::from(amount_in))?.checked_div(d)?.checked_into()
 	}
 
-	pub fn run<F>(_block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
+	pub fn run<F>(block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
 	where
 		F: FnOnce(Vec<u8>, Vec<u8>) -> Option<Vec<u8>>,
 	{
 		let intents = pallet_intent::Pallet::<T>::get_valid_intents();
 		let state = <T as Config>::AMM::get_state();
 
-		let _solution = solve(intents.encode(), state.encode());
+		let solution = if let Some(s) = solve(intents.encode(), state.encode()) {
+			match Solution::decode(&mut s.as_slice()) {
+				Ok(s) => s,
+				Err(err) => {
+					log::error!(target: OCW_LOG_TARGET, "to decode solver's solution, err: {:?}, block: {:?}", err, block_no);
+					return None;
+				}
+			}
+		} else {
+			log::debug!(target: OCW_LOG_TARGET, "no solution found, block: {:?}", block_no);
+			return None;
+		};
 
 		// TODO: if solution,
 		// 1. calculate score

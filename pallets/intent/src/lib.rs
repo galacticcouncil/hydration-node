@@ -157,9 +157,9 @@ impl<T: Config> Pallet<T> {
 		intents
 	}
 
-	pub fn intent_executed(ci: ExecutedIntent<T::AccountId>) -> DispatchResult {
+	pub fn intent_executed(ei: ExecutedIntent<T::AccountId>) -> DispatchResult {
 		//WARN: this is tmp just for testing. Implement validation and real intent resolution logic.
-		Intents::<T>::try_mutate_exists(ci.id, |maybe_intent| {
+		Intents::<T>::try_mutate_exists(ei.id, |maybe_intent| {
 			let _intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
 
 			*maybe_intent = None;

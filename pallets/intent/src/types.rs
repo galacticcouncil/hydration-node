@@ -1,6 +1,8 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{RuntimeDebug, TypeInfo};
 use frame_support::traits::ConstU32;
+use sp_core::U256;
+use sp_runtime::traits::CheckedConversion;
 use sp_runtime::BoundedVec;
 
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
@@ -22,6 +24,77 @@ pub struct Intent {
 	pub deadline: Moment,
 	pub on_success: Option<CallData>,
 	pub on_failure: Option<CallData>,
+}
+
+impl Intent {
+	pub fn asset_in(&self) -> AssetId {
+		match &self.kind {
+			IntentKind::Swap(s) => s.asset_in,
+		}
+	}
+
+	pub fn asset_out(&self) -> AssetId {
+		match &self.kind {
+			IntentKind::Swap(s) => s.asset_out,
+		}
+	}
+
+	pub fn amount_in(&self) -> Balance {
+		match &self.kind {
+			IntentKind::Swap(s) => s.amount_in,
+		}
+	}
+
+	pub fn amount_out(&self) -> Balance {
+		match &self.kind {
+			IntentKind::Swap(s) => s.amount_out,
+		}
+	}
+
+	/// Function calculates surplus amount from `resolved` intent.
+	///
+	/// Surplus must be >= zero
+	pub fn surplus(&self, resolved: &Intent) -> Option<(AssetId, Balance)> {
+		match &self.kind {
+			IntentKind::Swap(s) => match s.swap_type {
+				SwapType::ExactIn => {
+					let amt = if s.partial {
+						self.pro_rata(&resolved)?
+					} else {
+						s.amount_out
+					};
+
+					resolved.amount_out().checked_sub(amt).map(|x| (s.asset_out, x))
+				}
+				SwapType::ExactOut => {
+					let amt = if s.partial {
+						self.pro_rata(&resolved)?
+					} else {
+						s.amount_in
+					};
+
+					amt.checked_sub(resolved.amount_in()).map(|x| (s.asset_in, x))
+				}
+			},
+		}
+	}
+
+	// Function calculates pro rata amount based on `resolved` intent.
+	pub fn pro_rata(&self, resolved: &Intent) -> Option<Balance> {
+		match &self.kind {
+			IntentKind::Swap(s) => match s.swap_type {
+				SwapType::ExactIn => U256::from(resolved.amount_in())
+					.checked_mul(U256::from(s.amount_out))?
+					.checked_div(U256::from(s.amount_in))?
+					.checked_into(),
+
+				SwapType::ExactOut => U256::from(resolved.amount_out())
+					.checked_mul(U256::from(s.amount_in))?
+					.checked_div(U256::from(s.amount_out))?
+					.checked_into(),
+			},
+		}
+	}
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
