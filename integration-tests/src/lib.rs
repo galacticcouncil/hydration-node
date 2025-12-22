@@ -21,6 +21,7 @@ mod evm_permit;
 mod exchange_asset;
 mod fee_calculation;
 mod hsm;
+mod hyperbridge;
 mod insufficient_assets_ed;
 mod liquidation;
 mod multi_payment;
