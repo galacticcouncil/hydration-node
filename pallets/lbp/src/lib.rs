@@ -23,7 +23,7 @@
 #![allow(clippy::manual_inspect)]
 
 pub use crate::types::{Amount, AssetId, AssetPair, Balance};
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::sp_runtime::{
 	traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Zero},
 	DispatchError, RuntimeDebug,
@@ -31,7 +31,7 @@ use frame_support::sp_runtime::{
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
-	traits::{EnsureOrigin, Get, LockIdentifier},
+	traits::{EnsureOrigin, ExistenceRequirement, Get, LockIdentifier},
 	transactional,
 };
 use frame_system::ensure_signed;
@@ -75,7 +75,9 @@ type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<<T as frame_s
 type PoolId<T> = <T as frame_system::Config>::AccountId;
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Default, RuntimeDebug, Encode, Decode, Copy, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Default, RuntimeDebug, Encode, Decode, DecodeWithMemTracking, Copy, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen,
+)]
 pub enum WeightCurveType {
 	#[default]
 	Linear,
@@ -91,7 +93,7 @@ pub const MAX_SALE_DURATION: u32 = (60 * 60 * 24 / 6) * 14;
 pub const COLLECTOR_LOCK_ID: LockIdentifier = *b"lbpcllct";
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(RuntimeDebug, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(RuntimeDebug, Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct Pool<AccountId, BlockNumber: AtLeast32BitUnsigned + Copy> {
 	/// owner of the pool after `CreatePoolOrigin` creates it
 	pub owner: AccountId,
@@ -493,8 +495,20 @@ pub mod pallet {
 				data: pool_data,
 			});
 
-			T::MultiCurrency::transfer(asset_a, &pool_owner, &pool_id, asset_a_amount)?;
-			T::MultiCurrency::transfer(asset_b, &pool_owner, &pool_id, asset_b_amount)?;
+			T::MultiCurrency::transfer(
+				asset_a,
+				&pool_owner,
+				&pool_id,
+				asset_a_amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
+			T::MultiCurrency::transfer(
+				asset_b,
+				&pool_owner,
+				&pool_id,
+				asset_b_amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			Self::deposit_event(Event::LiquidityAdded {
 				who: pool_id,
@@ -647,8 +661,8 @@ pub mod pallet {
 				);
 			}
 
-			T::MultiCurrency::transfer(asset_a, &who, &pool_id, amount_a)?;
-			T::MultiCurrency::transfer(asset_b, &who, &pool_id, amount_b)?;
+			T::MultiCurrency::transfer(asset_a, &who, &pool_id, amount_a, ExistenceRequirement::AllowDeath)?;
+			T::MultiCurrency::transfer(asset_b, &who, &pool_id, amount_b, ExistenceRequirement::AllowDeath)?;
 
 			Self::deposit_event(Event::LiquidityAdded {
 				who: pool_id,
@@ -688,8 +702,8 @@ pub mod pallet {
 			let amount_a = T::MultiCurrency::free_balance(asset_a, &pool_id);
 			let amount_b = T::MultiCurrency::free_balance(asset_b, &pool_id);
 
-			T::MultiCurrency::transfer(asset_a, &pool_id, &who, amount_a)?;
-			T::MultiCurrency::transfer(asset_b, &pool_id, &who, amount_b)?;
+			T::MultiCurrency::transfer(asset_a, &pool_id, &who, amount_a, ExistenceRequirement::AllowDeath)?;
+			T::MultiCurrency::transfer(asset_b, &pool_id, &who, amount_b, ExistenceRequirement::AllowDeath)?;
 
 			if Self::collected_fees(&pool_data) > 0 {
 				T::MultiCurrency::remove_lock(COLLECTOR_LOCK_ID, asset_a, &pool_data.fee_collector)?;
@@ -1193,12 +1207,14 @@ impl<T: Config> Pallet<T> {
 			&transfer.origin,
 			&pool_account,
 			transfer.amount,
+			ExistenceRequirement::AllowDeath,
 		)?;
 		T::MultiCurrency::transfer(
 			transfer.assets.asset_out,
 			&pool_account,
 			&transfer.origin,
 			transfer.amount_b,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		// Fee is deducted from the sent out amount of accumulated asset and transferred to the fee collector
@@ -1209,7 +1225,13 @@ impl<T: Config> Pallet<T> {
 			&pool_account
 		};
 
-		T::MultiCurrency::transfer(fee_asset, fee_payer, &pool.fee_collector, fee_amount)?;
+		T::MultiCurrency::transfer(
+			fee_asset,
+			fee_payer,
+			&pool.fee_collector,
+			fee_amount,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		// Resets lock for total of collected fees
 		let collected_fee_total = Self::collected_fees(&pool) + fee_amount;

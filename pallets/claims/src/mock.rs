@@ -74,6 +74,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_types! {
@@ -94,6 +95,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_types! {
@@ -126,6 +128,7 @@ impl ExtBuilder {
 		pallet_balances::GenesisConfig::<Test> {
 			//NOTE: total issuance must be less than Balance::MAX
 			balances: vec![(ALICE, 1), (BOB, 1), (CHARLIE, Balance::MAX - 2)],
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

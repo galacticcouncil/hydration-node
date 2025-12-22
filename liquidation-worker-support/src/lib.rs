@@ -25,7 +25,7 @@ use frame_support::{
 	sp_runtime::traits::{Block as BlockT, CheckedConversion},
 	Deserialize, Serialize,
 };
-use hydradx_traits::evm::EvmAddress;
+use primitives::EvmAddress;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use sp_arithmetic::ArithmeticError;
 use sp_core::{RuntimeDebug, H160, H256, U256};
@@ -338,7 +338,7 @@ impl UserData {
 		)?;
 
 		Ok(Self {
-			address,
+			address: address,
 			configuration,
 			reserves,
 			emode_id,
@@ -518,8 +518,7 @@ impl UserData {
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -598,8 +597,7 @@ where
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -622,8 +620,7 @@ where
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -1037,7 +1034,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
+			Ok(EvmAddress::from(H160::from_slice(&call_info.value[12..32])))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -1219,8 +1216,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}

@@ -26,4 +26,4 @@ primitive-types = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 
 # Hydration dependencies
-hydradx-traits = { workspace = true }
+primitives = { workspace = true }

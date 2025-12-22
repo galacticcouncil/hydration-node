@@ -41,6 +41,9 @@ mod system;
 pub mod types;
 pub mod xcm;
 
+extern crate alloc;
+use alloc::borrow::Cow;
+
 // clippy no touch
 pub use assets::*;
 pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions::X1, NetworkId, NonFungible, Response};
@@ -56,11 +59,12 @@ pub use system::*;
 pub use xcm::*;
 
 use codec::{Decode, Encode};
-use hydradx_traits::evm::{EvmAddress, InspectEvmAccounts};
+use hydradx_traits::evm::InspectEvmAccounts;
+use primitives::EvmAddress;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
 pub use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
+	generic, impl_opaque_keys,
 	traits::{
 		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
@@ -74,6 +78,8 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
+use ethereum::AuthorizationList;
+use frame_metadata_hash_extension;
 use frame_support::{construct_runtime, pallet_prelude::Hooks, traits::Contains, weights::Weight};
 pub use hex_literal::hex;
 use orml_traits::MultiCurrency;
@@ -82,6 +88,7 @@ pub use pallet_claims;
 use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
 use pallet_evm::{Account as EVMAccount, FeeCalculator, GasWeightMapping, Runner};
 pub use pallet_genesis_history::Chain;
+use polkadot_xcm::prelude::XcmVersion;
 pub use primitives::{
 	constants::time::SLOT_DURATION, AccountId, Amount, AssetId, Balance, BlockNumber, CollectionId, Hash, Index,
 	ItemId, Price, Signature,
@@ -119,14 +126,14 @@ pub mod opaque {
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("hydradx"),
-	impl_name: create_runtime_str!("hydradx"),
+	spec_name: Cow::Borrowed("hydradx"),
+	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
 	spec_version: 373,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 1,
+	system_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -227,6 +234,7 @@ construct_runtime!(
 		XcmpQueue: cumulus_pallet_xcmp_queue exclude_parts { Call } = 111,
 		// 113 was used by DmpQueue which is now replaced by MessageQueue
 		MessageQueue: pallet_message_queue = 114,
+		WeightReclaim: cumulus_pallet_weight_reclaim = 115,
 
 		// ORML XCM
 		OrmlXcm: orml_xcm = 135,
@@ -257,13 +265,13 @@ pub type Address = AccountId;
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type as expected by this runtime.
-pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+pub type Block = generic::Block<Header, HydraUncheckedExtrinsic>;
 /// A Block signed with a Justification
 pub type SignedBlock = generic::SignedBlock<Block>;
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
-/// The SignedExtension to the basic transaction logic.
-pub type SignedExtra = (
+
+pub type InnerSignedExtra = (
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
@@ -274,10 +282,13 @@ pub type SignedExtra = (
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	pallet_claims::ValidateClaim<Runtime>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
-	cumulus_primitives_storage_weight_reclaim::StorageWeightReclaim<Runtime>,
 );
+
+/// Wrap the tuple with `StorageWeightReclaim`.
+pub type SignedExtra = cumulus_pallet_weight_reclaim::StorageWeightReclaim<Runtime, InnerSignedExtra>;
+
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+pub type HydraUncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = fp_self_contained::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra, H160>;
@@ -291,12 +302,21 @@ pub type Executive = frame_executive::Executive<
 	migrations::Migrations,
 >;
 
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+impl<LocalCall> frame_system::offchain::CreateTransactionBase<LocalCall> for Runtime
 where
-	RuntimeCall: From<C>,
+	RuntimeCall: From<LocalCall>,
 {
-	type OverarchingCall = RuntimeCall;
-	type Extrinsic = UncheckedExtrinsic;
+	type RuntimeCall = RuntimeCall;
+	type Extrinsic = HydraUncheckedExtrinsic;
+}
+
+impl<LocalCall> frame_system::offchain::CreateInherent<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_inherent(call: Self::RuntimeCall) -> HydraUncheckedExtrinsic {
+		HydraUncheckedExtrinsic::new_bare(call)
+	}
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -437,16 +457,16 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 
 pub struct TransactionConverter;
 
-impl fp_rpc::ConvertTransaction<UncheckedExtrinsic> for TransactionConverter {
-	fn convert_transaction(&self, transaction: pallet_ethereum::Transaction) -> UncheckedExtrinsic {
-		UncheckedExtrinsic::new_unsigned(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
+impl fp_rpc::ConvertTransaction<HydraUncheckedExtrinsic> for TransactionConverter {
+	fn convert_transaction(&self, transaction: pallet_ethereum::Transaction) -> HydraUncheckedExtrinsic {
+		HydraUncheckedExtrinsic::new_bare(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
 	}
 }
 
 impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConverter {
 	fn convert_transaction(&self, transaction: pallet_ethereum::Transaction) -> sp_runtime::OpaqueExtrinsic {
 		let extrinsic =
-			UncheckedExtrinsic::new_unsigned(pallet_ethereum::Call::<Runtime>::transact { transaction }.into());
+			HydraUncheckedExtrinsic::new_bare(pallet_ethereum::Call::<Runtime>::transact { transaction }.into());
 		let encoded = extrinsic.encode();
 		sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid")
 	}
@@ -746,8 +766,7 @@ impl_runtime_apis! {
 		}
 
 		fn storage_at(address: H160, index: U256) -> H256 {
-			let mut tmp = [0u8; 32];
-			index.to_big_endian(&mut tmp);
+			let tmp = index.to_big_endian();
 			pallet_evm::AccountStorages::<Runtime>::get(address, H256::from_slice(&tmp[..]))
 		}
 
@@ -762,6 +781,7 @@ impl_runtime_apis! {
 			nonce: Option<U256>,
 			estimate: bool,
 			access_list: Option<Vec<(H160, Vec<H256>)>>,
+			authorization_list: Option<AuthorizationList>,
 		) -> Result<pallet_evm::CallInfo, sp_runtime::DispatchError> {
 			let mut config = <Runtime as pallet_evm::Config>::config().clone();
 			config.estimate = estimate;
@@ -819,6 +839,7 @@ impl_runtime_apis! {
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.unwrap_or_default(),
+				authorization_list.clone().unwrap_or_default(),
 				is_transactional,
 				validate,
 				weight_limit,
@@ -838,6 +859,7 @@ impl_runtime_apis! {
 			nonce: Option<U256>,
 			estimate: bool,
 			access_list: Option<Vec<(H160, Vec<H256>)>>,
+			authorization_list: Option<AuthorizationList>,
 		) -> Result<pallet_evm::CreateInfo, sp_runtime::DispatchError> {
 			let config = if estimate {
 				let mut config = <Runtime as pallet_evm::Config>::config().clone();
@@ -905,6 +927,7 @@ impl_runtime_apis! {
 				max_priority_fee_per_gas,
 				nonce,
 				Vec::new(),
+				authorization_list.clone().unwrap_or_default(),
 				is_transactional,
 				validate,
 				weight_limit,
@@ -977,7 +1000,7 @@ impl_runtime_apis! {
 
 	impl fp_rpc::ConvertTransactionRuntimeApi<Block> for Runtime {
 		fn convert_transaction(transaction: EthereumTransaction) -> <Block as BlockT>::Extrinsic {
-			UncheckedExtrinsic::new_unsigned(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
+			HydraUncheckedExtrinsic::new_bare(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
 		}
 	}
 
@@ -1010,23 +1033,23 @@ impl_runtime_apis! {
 
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: polkadot_xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
-			if !matches!(xcm_version, 3 | 4) {
+			if !matches!(xcm_version, 3 | 4 | 5) {
 				return Err(XcmPaymentApiError::UnhandledXcmVersion);
 			}
 
 			let mut asset_locations = vec![
-		AssetLocation(polkadot_xcm::v3::MultiLocation {
+		AssetLocation(polkadot_xcm::v5::Location {
 				parents: 1,
 				interior: [
-					polkadot_xcm::v3::Junction::Parachain(ParachainInfo::get().into()),
-					polkadot_xcm::v3::Junction::GeneralIndex(CORE_ASSET_ID.into()),
+					polkadot_xcm::v5::Junction::Parachain(ParachainInfo::get().into()),
+					polkadot_xcm::v5::Junction::GeneralIndex(CORE_ASSET_ID.into()),
 				]
 				.into(),
 			}),
-			AssetLocation(polkadot_xcm::v3::MultiLocation {
+			AssetLocation(polkadot_xcm::v5::Location {
 				parents: 0,
 				interior: [
-					polkadot_xcm::v3::Junction::GeneralIndex(CORE_ASSET_ID.into()),
+					polkadot_xcm::v5::Junction::GeneralIndex(CORE_ASSET_ID.into()),
 				]
 				.into(),
 			})];
@@ -1034,7 +1057,7 @@ impl_runtime_apis! {
 			let mut asset_registry_locations: Vec<AssetLocation> = pallet_asset_registry::LocationAssets::<Runtime>::iter_keys().collect();
 			asset_locations.append(&mut asset_registry_locations);
 
-			let versioned_locations = asset_locations.iter().map(|loc| VersionedAssetId::V3(polkadot_xcm::v3::AssetId::Concrete(loc.0)));
+			let versioned_locations = asset_locations.iter().map(|loc| VersionedAssetId::V5(polkadot_xcm::v5::AssetId(loc.0.clone())));
 
 			Ok(versioned_locations
 				.filter_map(|asset| asset.into_version(xcm_version).ok())
@@ -1042,10 +1065,10 @@ impl_runtime_apis! {
 		}
 
 		fn query_weight_to_asset_fee(weight: Weight, asset: VersionedAssetId) -> Result<u128, XcmPaymentApiError> {
-			let v4_xcm_asset_id = asset.into_version(4).map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?;
+			let v5_xcm_asset_id = asset.into_version(5).map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?;
 
 			// get nested polkadot_xcm::AssetId type
-			let xcm_asset_id: &polkadot_xcm::v4::AssetId = v4_xcm_asset_id.try_as().map_err(|_| XcmPaymentApiError::WeightNotComputable)?;
+			let xcm_asset_id: &polkadot_xcm::v5::AssetId = v5_xcm_asset_id.try_as().map_err(|_| XcmPaymentApiError::WeightNotComputable)?;
 
 			let asset_id: AssetId = CurrencyIdConvert::convert(xcm_asset_id.clone().0).ok_or(XcmPaymentApiError::AssetNotFound)?;
 
@@ -1077,14 +1100,25 @@ impl_runtime_apis! {
 	}
 
 	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
-		fn dry_run_call(origin: OriginCaller, call: RuntimeCall) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
-			PolkadotXcm::dry_run_call::<Runtime, xcm::XcmRouter, OriginCaller, RuntimeCall>(origin, call)
-		}
+					fn dry_run_call(
+						origin: OriginCaller,
+						call: RuntimeCall,
+						result_xcms_version: XcmVersion
+					) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+						PolkadotXcm::dry_run_call::<
+							Runtime,
+							xcm::XcmRouter,
+							OriginCaller,
+							RuntimeCall>(origin, call, result_xcms_version)
+					}
 
-		fn dry_run_xcm(origin_location: VersionedLocation, xcm: VersionedXcm<RuntimeCall>) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
-			PolkadotXcm::dry_run_xcm::<Runtime, xcm::XcmRouter, RuntimeCall, xcm::XcmConfig>(origin_location, xcm)
-		}
-	}
+					fn dry_run_xcm(
+						origin_location: VersionedLocation,
+						xcm: VersionedXcm<RuntimeCall>
+					) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+						PolkadotXcm::dry_run_xcm::<Runtime, xcm::XcmRouter, RuntimeCall, xcm::XcmConfig>(origin_location, xcm)
+					}
+				}
 
 	impl xcm_runtime_apis::conversions::LocationToAccountApi<Block, AccountId> for Runtime {
 		fn convert_location(location: VersionedLocation) -> Result<
@@ -1562,22 +1596,13 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 	//			polkadot_xcm::opaque::lts::Junctions::X1(Arc::new([polkadot_xcm::opaque::lts::Junction::GeneralIndex(dai.into())]))
 
 	use frame_support::assert_ok;
-	use polkadot_xcm::v3::Junction::GeneralIndex;
-	use polkadot_xcm::v3::Junctions::X1;
-	use polkadot_xcm::v3::MultiLocation;
+	use polkadot_xcm::v5::Junction::GeneralIndex;
+	use polkadot_xcm::v5::Junctions::X1;
+	use polkadot_xcm::v5::Location;
 	assert_ok!(AssetRegistry::set_location(
 		dai,
-		AssetLocation(MultiLocation::new(0, X1(GeneralIndex(dai.into()))))
+		AssetLocation(Location::new(0, X1(GeneralIndex(dai.into()))))
 	));
-	/*
-		assert_ok!(AssetRegistry::set_location(
-		dai,
-		AssetLocation(MultiLocation::new(
-			0,
-			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GeneralIndex(dai.into());1]))
-		))
-	));
-	*/
 
 	Currencies::update_balance(
 		RuntimeOrigin::root(),

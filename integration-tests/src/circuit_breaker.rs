@@ -257,7 +257,7 @@ fn buy_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 fn add_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_exceeded() {
 	Hydra::execute_with(|| {
 		//Arrange
-		set_relaychain_block_number(200);
+		go_to_block(200);
 
 		init_omnipool();
 
@@ -271,7 +271,7 @@ fn add_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_exce
 			added_liquidity,
 		));
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		//Act and assert
 		assert_ok!(Omnipool::add_liquidity(
@@ -301,7 +301,7 @@ fn add_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_exceeded
 			added_liquidity,
 		));
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		//Act and assert
 		assert_noop!(
@@ -351,7 +351,7 @@ fn add_token_with_minimum_liquidity_to_omnipool_can_disable_adding_liquidity() {
 			0,
 		));
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		//Act and assert
 		// ED >= 1_000_000, adding MinimumPoolLiquidity should not trigger the circuit breaker
@@ -398,7 +398,7 @@ fn add_token_with_minimum_liquidity_to_omnipool_can_disable_adding_liquidity() {
 			0,
 		));
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		//Act and assert
 		// ED < 1_000_000, adding MinimumPoolLiquidity triggers the circuit breaker
@@ -432,7 +432,7 @@ fn add_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_exce
 			added_liquidity,
 		));
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		//Act and assert
 		assert_ok!(Omnipool::add_liquidity(
@@ -459,7 +459,7 @@ fn remove_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_e
 			added_liquidity,
 		));
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		//Act and assert
 		let position_id = Omnipool::next_position_id();
@@ -492,7 +492,7 @@ fn remove_liquidity_from_omnipool_should_fail_when_large_legacy_position_removed
 			bag,
 		));
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		let position = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
@@ -530,7 +530,7 @@ fn remove_liquidity_from_omnipool_should_succeed_when_legacy_position_withdrawn_
 			bag,
 		));
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		let position = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
@@ -552,7 +552,7 @@ fn remove_liquidity_from_omnipool_should_succeed_when_legacy_position_withdrawn_
 			bag / 2,
 		));
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 
 		assert_ok!(Omnipool::remove_liquidity(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -572,7 +572,7 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 
 		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
@@ -587,7 +587,7 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 			added_liquidity,
 		));
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		let position_id_2 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
@@ -596,7 +596,7 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 			added_liquidity,
 		));
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 
 		assert_ok!(Omnipool::remove_liquidity(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -632,7 +632,7 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 			added_liquidity * 10,
 		));
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 
 		let position_id_1 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
@@ -641,7 +641,7 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 			added_liquidity,
 		));
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		let position_id_2 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
@@ -650,7 +650,7 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 			added_liquidity,
 		));
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 
 		assert_ok!(Omnipool::remove_liquidity(
 			hydradx_runtime::RuntimeOrigin::signed(Treasury::account_id()),

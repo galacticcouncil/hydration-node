@@ -1,10 +1,14 @@
 use crate::module::{BalanceOf, CurrencyIdOf};
 use crate::{Config, Error, Pallet};
 use frame_support::fail;
-use frame_support::traits::fungibles::Inspect as FungibleInspect;
-use frame_support::traits::tokens::{
-	fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
+use frame_support::traits::{
+	tokens::{
+		fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
+	},
+	ExistenceRequirement,
 };
+use frame_support::traits::fungibles::Inspect as FungibleInspect;
+
 use hydradx_traits::{BoundErc20, Inspect};
 use orml_traits::MultiCurrency;
 #[cfg(any(feature = "try-runtime", test))]
@@ -344,7 +348,10 @@ where
 				.into()
 		} else {
 			match T::BoundErc20::contract_address(asset) {
-				Some(contract) => T::Erc20Currency::transfer(contract, source, dest, amount).map(|_| amount),
+				Some(contract) => {
+					T::Erc20Currency::transfer(contract, source, dest, amount, ExistenceRequirement::AllowDeath)
+						.map(|_| amount)
+				}
 				None => <T::MultiCurrency as fungibles::Mutate<T::AccountId>>::transfer(
 					asset.into(),
 					source,

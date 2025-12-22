@@ -28,11 +28,18 @@ mod tests;
 pub mod migration;
 pub mod weights;
 pub use crate::weights::WeightInfo;
-use frame_support::sp_runtime::DispatchError;
-use frame_support::traits::fungibles::Inspect;
-use frame_support::traits::fungibles::Mutate;
-use frame_support::traits::tokens::Preservation;
-use frame_support::{dispatch::DispatchResult, ensure, traits::Contains, traits::Get};
+
+use frame_support::{
+	dispatch::DispatchResult,
+	ensure,
+	sp_runtime::DispatchError,
+	traits::{
+		fungibles::{Inspect, Mutate},
+		tokens::Preservation,
+		Contains, Get,
+	},
+};
+
 use frame_system::ensure_signed;
 use hydradx_traits::evm::Erc20Inspect;
 use hydradx_traits::evm::Erc20OnDust;

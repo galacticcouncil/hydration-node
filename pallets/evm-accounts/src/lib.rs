@@ -67,6 +67,7 @@ use hydradx_traits::AccountFeeCurrency;
 use orml_traits::GetByKey;
 pub use primitives::Signature;
 use sp_core::crypto::Pair as PairT;
+use primitives::EvmAddress;
 use sp_core::{
 	crypto::{AccountId32, ByteArray},
 	H160, U256,
@@ -84,7 +85,6 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 pub type Balance = u128;
-pub type EvmAddress = H160;
 pub type AccountIdLast12Bytes = [u8; 12];
 pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
 pub const MESSAGE_PREFIX: &[u8] = b"EVMAccounts::claim_account";

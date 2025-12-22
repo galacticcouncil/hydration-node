@@ -7,7 +7,7 @@ use frame_support::{dispatch::GetDispatchInfo, BoundedVec, __private::sp_tracing
 use futures::StreamExt;
 use hex_literal::hex;
 use hydradx_runtime::{
-	evm::{precompiles::erc20_mapping::Erc20MappingApi, EvmAddress},
+	evm::{precompiles::erc20_mapping::Erc20MappingApi},
 	OriginCaller, RuntimeCall, RuntimeEvent,
 };
 use hyper::{body::Body, Client, StatusCode};
@@ -16,7 +16,7 @@ pub use liquidation_worker_support::*;
 use pallet_currencies_rpc_runtime_api::CurrenciesApi;
 use pallet_ethereum::Transaction;
 use polkadot_primitives::EncodeAs;
-use primitives::AccountId;
+use primitives::{AccountId, EvmAddress};
 use sc_client_api::{Backend, BlockchainEvents, StorageKey, StorageProvider};
 use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::{InPoolTransaction, TransactionPool};
@@ -117,9 +117,9 @@ impl<Block, C> RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent
 where
 	Block: BlockT,
 	C: EthereumRuntimeRPCApi<Block>
-		+ Erc20MappingApi<Block>
-		+ DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller>
-		+ CurrenciesApi<Block, AssetId, AccountId, Balance>,
+	+ Erc20MappingApi<Block>
+	+ DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller>
+	+ CurrenciesApi<Block, AssetId, AccountId, Balance>,
 {
 	fn current_timestamp(&self, hash: Block::Hash) -> Option<u64> {
 		let block = self.0.current_block(hash).ok()??;
@@ -147,6 +147,7 @@ where
 			None,
 			true,
 			None,
+			None, // authorization_list
 		)
 	}
 
@@ -160,7 +161,7 @@ where
 		origin: OriginCaller,
 		call: RuntimeCall,
 	) -> Result<Result<CallDryRunEffects<RuntimeEvent>, xcm_runtime_apis::dry_run::Error>, ApiError> {
-		self.0.dry_run_call(hash, origin, call)
+		self.0.dry_run_call(hash, origin, call, 5)
 	}
 
 	fn minimum_balance(&self, hash: Block::Hash, asset_id: AssetId) -> Result<Balance, ApiError> {
@@ -228,9 +229,9 @@ where
 	B: BlockT,
 	C: ProvideRuntimeApi<B>,
 	C::Api: EthereumRuntimeRPCApi<B>
-		+ Erc20MappingApi<B>
-		+ DryRunApi<B, RuntimeCall, RuntimeEvent, OriginCaller>
-		+ CurrenciesApi<B, AssetId, AccountId, Balance>,
+	+ Erc20MappingApi<B>
+	+ DryRunApi<B, RuntimeCall, RuntimeEvent, OriginCaller>
+	+ CurrenciesApi<B, AssetId, AccountId, Balance>,
 	C: BlockchainEvents<B> + 'static,
 	C: HeaderBackend<B> + StorageProvider<B, BE>,
 	BE: Backend<B> + 'static,
@@ -371,7 +372,7 @@ where
 					};
 
 					let opaque_tx_encoded = pool_tx.data().encode();
-					let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
+					let tx = hydradx_runtime::HydraUncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
 
 					let Ok(transaction) = tx else {
 						tracing::error!(target: LOG_TARGET, "liquidation-worker: transaction decoding failed");
@@ -434,7 +435,7 @@ where
 			.iter()
 			.filter_map(
 				|OracleUpdataData {
-				     base_asset_name, price, ..
+					 base_asset_name, price, ..
 				 }| {
 					if let Ok(base_asset_str) = String::from_utf8(base_asset_name.to_ascii_lowercase()) {
 						let asset_reserves: Vec<(&AssetAddress, &AssetSymbol)> = reserves
@@ -576,7 +577,7 @@ where
 				RuntimeCall,
 				hydradx_runtime::Signature,
 				hydradx_runtime::SignedExtra,
-			> = fp_self_contained::UncheckedExtrinsic::new_unsigned(liquidation_tx.clone());
+			> = fp_self_contained::UncheckedExtrinsic::new_bare(liquidation_tx.clone());
 			let encoded = encoded_tx.encode();
 			let opaque_tx =
 				sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid");
@@ -1024,7 +1025,7 @@ where
 	/// Fetch the preprocessed data used to evaluate possible candidates for liquidation.
 	async fn fetch_borrowers_data(url: String) -> Option<BorrowersData<AccountId>> {
 		let https = hyper_rustls::HttpsConnectorBuilder::new()
-			.with_native_roots()
+			.with_webpki_roots()
 			.https_or_http()
 			.enable_http1()
 			.enable_http2()
@@ -1099,6 +1100,7 @@ where
 				Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
 				Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
 				Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
+				Transaction::EIP7702(eip7702_transaction) => eip7702_transaction.destination,
 			};
 
 			// check if the transaction is DIA oracle update
@@ -1174,6 +1176,7 @@ fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdataData
 		Transaction::Legacy(legacy_transaction) => &legacy_transaction.input,
 		Transaction::EIP2930(eip2930_transaction) => &eip2930_transaction.input,
 		Transaction::EIP1559(eip1559_transaction) => &eip1559_transaction.input,
+		Transaction::EIP7702(eip7702_transaction) => &eip7702_transaction.data,
 	};
 
 	let mut dia_oracle_data = Vec::new();
@@ -1189,7 +1192,7 @@ fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdataData
 			],
 			&transaction_input[4..], // first 4 bytes are function selector
 		)
-		.ok()?;
+			.ok()?;
 
 		dia_oracle_data.push((
 			decoded[0].clone().into_string()?,
@@ -1204,7 +1207,7 @@ fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdataData
 			],
 			&transaction_input[4..], // first 4 bytes are function selector
 		)
-		.ok()?;
+			.ok()?;
 
 		if decoded.len() == 2 {
 			for (asset_str, price_and_timestamp) in sp_std::iter::zip(
@@ -1351,13 +1354,13 @@ mod tests {
 				0000000000000000000000000000000000000000000000000000000000000008\
 				744254432f555344000000000000000000000000000000000000000000000000"
 			)
-			.encode_as(),
-			signature: ethereum::TransactionSignature::new(
+				.encode_as(),
+			signature: ethereum::legacy::TransactionSignature::new(
 				444480,
 				H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
 				H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
 			)
-			.unwrap(),
+				.unwrap(),
 		})
 	}
 
@@ -1388,13 +1391,13 @@ mod tests {
                 00000000000000000000000029b5c33700000000000000000000000067acbce5\
                 000000000000000000000005939a32ea00000000000000000000000067acbce5"
 			)
-			.encode_as(),
-			signature: ethereum::TransactionSignature::new(
+				.encode_as(),
+			signature: ethereum::legacy::TransactionSignature::new(
 				444480,
 				H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
 				H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
 			)
-			.unwrap(),
+				.unwrap(),
 		})
 	}
 

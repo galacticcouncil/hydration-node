@@ -36,7 +36,6 @@ use sp_core::bounded_vec::BoundedVec;
 
 use crate::utils::accounts::*;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
-use hydradx_runtime::evm::EvmAddress;
 use hydradx_runtime::evm::ExtendedAddressMapping;
 use hydradx_runtime::evm::Function;
 use hydradx_runtime::XYK;
@@ -55,11 +54,12 @@ use pallet_evm::*;
 use pallet_evm_accounts::EvmNonceProvider;
 use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
+use primitives::EvmAddress;
 use primitives::{AssetId, Balance};
 use sp_core::{blake2_256, Get, Pair, H160, H256, U256};
 use sp_runtime::traits::IdentifyAccount;
 use sp_runtime::TransactionOutcome;
-use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
+use sp_runtime::{traits::DispatchTransaction, DispatchError, FixedU128, Permill};
 use std::{borrow::Cow, cmp::Ordering};
 use xcm_emulator::TestExt;
 
@@ -157,7 +157,8 @@ mod account_conversion {
 				gas_price(),
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Assert
@@ -313,6 +314,7 @@ mod account_conversion {
 				None,
 				false,
 				None,
+				None,
 			));
 		});
 	}
@@ -340,6 +342,7 @@ mod account_conversion {
 				None,
 				None,
 				false,
+				None,
 				None,
 			);
 
@@ -379,6 +382,7 @@ mod account_conversion {
 					None,
 					false,
 					None,
+					None,
 				),
 				pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed
 			);
@@ -410,6 +414,7 @@ mod account_conversion {
 				None,
 				None,
 				true,
+				None,
 				None,
 			));
 		});
@@ -644,6 +649,7 @@ mod standard_precompiles {
 			None,
 			None,
 			None,
+			Default::default(),
 			Default::default(),
 			false,
 			true,
@@ -1488,13 +1494,14 @@ mod chainlink_precompile {
 		evm::precompiles::chainlink_adapter::{encode_oracle_address, AggregatorInterface, ChainlinkOraclePrecompile},
 		EmaOracle, Inspect, Router, Runtime,
 	};
+	use hydradx_traits::evm::CallContext;
 	use hydradx_traits::evm::EVM;
-	use hydradx_traits::evm::{CallContext, EvmAddress};
 	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::{router::AssetPair, AggregatedPriceOracle, OraclePeriod};
 	use pallet_ema_oracle::Price;
 	use pallet_lbp::AssetId;
 	use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
+	use primitives::EvmAddress;
 
 	fn assert_prices_are_same(ema_price: Price, precompile_price: U256, asset_a_decimals: u8, asset_b_decimals: u8) {
 		// EMA price does not take into account decimals of the asset. Adjust the price accordingly.
@@ -2163,7 +2170,7 @@ mod chainlink_precompile {
 			};
 			let PrecompileOutput { output, .. } =
 				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
-			let precompile_price = U256::from(output.as_slice());
+			let precompile_price = U256::from_big_endian(output.as_slice());
 
 			let call_result = Executor::<Runtime>::view(
 				CallContext {
@@ -2174,7 +2181,7 @@ mod chainlink_precompile {
 				input,
 				100_000,
 			);
-			let dia_price = U256::from(call_result.value.as_slice());
+			let dia_price = U256::from_big_endian(call_result.value.as_slice());
 
 			// Prices doesn't need to be exactly same, but comparable within 5%
 			let tolerance = dia_price
@@ -2227,7 +2234,7 @@ mod chainlink_precompile {
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
 			let expected_decimals: u8 = 8;
-			let r: u8 = U256::from(output.as_slice()).try_into().unwrap();
+			let r: u8 = U256::from_big_endian(output.as_slice()).try_into().unwrap();
 			pretty_assertions::assert_eq!(r, expected_decimals);
 		});
 	}
@@ -2254,6 +2261,7 @@ mod contract_deployment {
 					None,
 					false,
 					None,
+					None,
 				),
 				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::AddressNotWhitelisted
 			);
@@ -2277,6 +2285,7 @@ mod contract_deployment {
 				None,
 				None,
 				false,
+				None,
 				None,
 			));
 		});
@@ -2969,7 +2978,8 @@ fn dispatch_should_work_with_transfer() {
 			gas_price * 10,
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
+			vec![],
 		));
 
 		//Assert
@@ -3061,7 +3071,8 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 			gas_price * 10,
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
+			vec![],
 		));
 
 		//EVM call passes even when the substrate tx fails, so we need to check if the tx is executed
@@ -3093,6 +3104,7 @@ fn dispatch_transfer_should_not_work_with_insufficient_fees() {
 			None,
 			Some(U256::zero()),
 			[].into(),
+			vec![],
 		);
 
 		//Assert
@@ -3147,6 +3159,7 @@ fn dispatch_should_respect_call_filter() {
 			None,
 			Some(U256::zero()),
 			[].into(),
+			vec![],
 		));
 
 		//Assert
@@ -3224,6 +3237,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 			None,
 			Some(U256::zero()),
 			[].into(),
+			vec![],
 		));
 
 		let new_treasury_currency_balance = Currencies::free_balance(fee_currency, &Treasury::account_id());
@@ -3236,7 +3250,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		let info = omni_sell.get_dispatch_info();
 		let len: usize = 146;
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, len);
+			.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &omni_sell, &info, len, 0);
 		assert_ok!(&pre);
 
 		let alice_currency_balance_pre_dispatch = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));
@@ -3303,7 +3317,8 @@ fn substrate_account_should_pay_gas_with_payment_currency() {
 			U256::from(1000000000),
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
+			vec![],
 		));
 
 		// Assert
@@ -3353,7 +3368,8 @@ fn evm_account_pays_with_weth_for_evm_call_if_payment_currency_not_set() {
 			U256::from(1000000000),
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
+			vec![],
 		));
 
 		// Assert

@@ -15,8 +15,8 @@ use hydradx_runtime::{AssetRegistry, Currencies, Omnipool, Router, RuntimeOrigin
 use hydradx_traits::{AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
-use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
-use polkadot_xcm::{v4::prelude::*, VersionedXcm};
+use polkadot_xcm::v5::{Junction, Junctions::X2, Location};
+use polkadot_xcm::{v5::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
 use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::Balance;
@@ -1093,7 +1093,6 @@ mod circuit_breaker {
 	use hydradx_runtime::{Currencies, FixedU128, Omnipool};
 	use orml_traits::MultiReservableCurrency;
 	use polkadot_xcm::latest::{Asset, Location};
-	use polkadot_xcm::v3::MultiLocation;
 	use polkadot_xcm::VersionedAssets;
 	use primitives::constants::chain::{Weight, CORE_ASSET_ID};
 	use sp_runtime::{DispatchResult, TransactionOutcome};
@@ -1209,7 +1208,7 @@ mod circuit_breaker {
 		});
 	}
 
-	use polkadot_xcm::opaque::v3::MultiAssets;
+	use polkadot_xcm::v5::Assets as MultiAssets;
 
 	#[test]
 	fn swap_should_fail_when_asset_reaches_limit_for_buy() {
@@ -1410,7 +1409,7 @@ mod circuit_breaker {
 		});
 	}
 
-	use polkadot_xcm::opaque::v3::AssetId::Concrete;
+	use polkadot_xcm::v5::AssetId;
 
 	fn assert_trapped_acala_token(trapped_event: &hydradx_runtime::RuntimeEvent, expected_amount: u128) {
 		if let hydradx_runtime::RuntimeEvent::PolkadotXcm(pallet_xcm::Event::AssetsTrapped {
@@ -1419,23 +1418,21 @@ mod circuit_breaker {
 			assets,
 		}) = trapped_event
 		{
-			if let Ok(v3_assets) = <VersionedAssets as TryInto<MultiAssets>>::try_into(assets.clone()) {
-				let asset = &v3_assets.inner()[0].clone();
-				let aca = MultiLocation::new(
+			if let Ok(v5_assets) = <VersionedAssets as TryInto<MultiAssets>>::try_into(assets.clone()) {
+				let assets_vec: Vec<_> = v5_assets.into_inner().into_iter().collect();
+				let asset = &assets_vec[0].clone();
+				let aca = Location::new(
 					1,
-					polkadot_xcm::v3::Junctions::X2(
-						polkadot_xcm::v3::Junction::Parachain(ACALA_PARA_ID),
-						polkadot_xcm::v3::Junction::GeneralIndex(0),
-					),
+					polkadot_xcm::v5::Junctions::X2(Arc::new([
+						polkadot_xcm::v5::Junction::Parachain(ACALA_PARA_ID),
+						polkadot_xcm::v5::Junction::GeneralIndex(0),
+					])),
 				);
 
-				if let Concrete(asset_id) = asset.id {
-					pretty_assertions::assert_eq!(asset_id, aca, "Trapped asset ID is not ACA");
-				} else {
-					panic!("Asset ID is not Concrete");
-				}
+				let AssetId(asset_id) = &asset.id;
+				pretty_assertions::assert_eq!(*asset_id, aca, "Trapped asset ID is not ACA");
 
-				if let polkadot_xcm::v3::Fungibility::Fungible(trapped_amount) = asset.fun {
+				if let polkadot_xcm::v5::Fungibility::Fungible(trapped_amount) = asset.fun {
 					test_utils::assert_eq_approx!(
 						trapped_amount,
 						expected_amount,
@@ -1478,9 +1475,12 @@ fn register_glmr() {
 		1_000_000,
 		None,
 		None,
-		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
+		Some(hydradx_runtime::AssetLocation(Location::new(
 			1,
-			X2(Junction::Parachain(MOONBEAM_PARA_ID), Junction::GeneralIndex(0))
+			X2(Arc::new([
+				Junction::Parachain(MOONBEAM_PARA_ID),
+				Junction::GeneralIndex(0)
+			]))
 		))),
 		None,
 	));
@@ -1494,9 +1494,12 @@ fn register_aca() {
 		1_000_000,
 		None,
 		None,
-		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
+		Some(hydradx_runtime::AssetLocation(Location::new(
 			1,
-			X2(Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0))
+			X2(Arc::new([
+				Junction::Parachain(ACALA_PARA_ID),
+				Junction::GeneralIndex(0)
+			]))
 		))),
 		None,
 	));
@@ -1510,9 +1513,12 @@ fn register_ibtc() {
 		1_000_000,
 		None,
 		None,
-		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
+		Some(hydradx_runtime::AssetLocation(Location::new(
 			1,
-			X2(Junction::Parachain(INTERLAY_PARA_ID), Junction::GeneralIndex(0))
+			X2(Arc::new([
+				Junction::Parachain(INTERLAY_PARA_ID),
+				Junction::GeneralIndex(0)
+			]))
 		))),
 		None,
 	));
@@ -1526,9 +1532,12 @@ fn register_ztg() {
 		1_000_000,
 		None,
 		None,
-		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
+		Some(hydradx_runtime::AssetLocation(Location::new(
 			1,
-			X2(Junction::Parachain(ZEITGEIST_PARA_ID), Junction::GeneralIndex(0))
+			X2(Arc::new([
+				Junction::Parachain(ZEITGEIST_PARA_ID),
+				Junction::GeneralIndex(0)
+			]))
 		))),
 		None,
 	));
@@ -1542,9 +1551,12 @@ fn register_hdx_in_sibling_chain() {
 		1_000_000,
 		None,
 		None,
-		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
+		Some(hydradx_runtime::AssetLocation(Location::new(
 			1,
-			X2(Junction::Parachain(HYDRA_PARA_ID), Junction::GeneralIndex(0))
+			X2(Arc::new([
+				Junction::Parachain(HYDRA_PARA_ID),
+				Junction::GeneralIndex(0)
+			]))
 		))),
 		None,
 	));

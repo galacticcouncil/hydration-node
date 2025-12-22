@@ -3,7 +3,7 @@ use super::*;
 use crate::origins::GeneralAdmin;
 use sp_std::marker::PhantomData;
 
-use codec::MaxEncodedLen;
+use codec::{DecodeWithMemTracking, MaxEncodedLen};
 use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::{AssetId, Price};
@@ -12,7 +12,7 @@ use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::{AccountIdConversion, Convert},
-	traits::{ConstU32, Contains, ContainsPair, EitherOf, Everything, Get, Nothing, TransformOrigin},
+	traits::{ConstU32, Contains, ContainsPair, Disabled, EitherOf, Everything, Get, Nothing, TransformOrigin},
 	PalletId,
 };
 use frame_system::unique;
@@ -25,8 +25,7 @@ pub use pallet_xcm::GenesisConfig as XcmGenesisConfig;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_parachain::primitives::Sibling;
-use polkadot_xcm::v3::MultiLocation;
-use polkadot_xcm::v4::{prelude::*, Asset, InteriorLocation, Weight as XcmWeight};
+use polkadot_xcm::v5::{prelude::*, InteriorLocation, Location, Weight as XcmWeight};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::MaybeEquivalence, Perbill};
 use xcm_builder::{
@@ -38,8 +37,8 @@ use xcm_builder::{
 };
 use xcm_executor::{Config, XcmExecutor};
 
-#[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub struct AssetLocation(pub polkadot_xcm::v3::Location);
+#[derive(Debug, Default, Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+pub struct AssetLocation(pub Location);
 
 impl From<AssetLocation> for Option<Location> {
 	fn from(location: AssetLocation) -> Option<Location> {
@@ -47,7 +46,7 @@ impl From<AssetLocation> for Option<Location> {
 	}
 }
 
-impl From<AssetLocation> for MultiLocation {
+impl From<AssetLocation> for Location {
 	fn from(location: AssetLocation) -> Self {
 		location.0
 	}
@@ -57,8 +56,7 @@ impl TryFrom<Location> for AssetLocation {
 	type Error = ();
 
 	fn try_from(value: Location) -> Result<Self, Self::Error> {
-		let loc: MultiLocation = value.try_into()?;
-		Ok(AssetLocation(loc))
+		Ok(AssetLocation(value))
 	}
 }
 
@@ -86,7 +84,7 @@ parameter_types! {
 
 use sp_std::sync::Arc;
 parameter_types! {
-	pub SelfLocation: Location = Location::new(1, cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(ParachainInfo::get().into());1])));
+	pub SelfLocation: Location = Location::new(1, X1(Arc::new([Parachain(ParachainInfo::get().into());1])));
 }
 
 parameter_types! {
@@ -373,6 +371,7 @@ impl Config for XcmConfig {
 	type HrmpChannelClosingHandler = ();
 	type HrmpChannelAcceptedHandler = ();
 	type XcmRecorder = PolkadotXcm;
+	type XcmEventEmitter = ();
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -443,6 +442,19 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> XcmAssetTransfers fo
 	type AssetTransactor = <XcmConfig as Config>::AssetTransactor;
 }
 
+impl<Inner> FeeManager for WithUnifiedEventSupport<Inner>
+where
+	Inner: FeeManager,
+{
+	fn is_waived(origin: Option<&Location>, r: FeeReason) -> bool {
+		Inner::is_waived(origin, r)
+	}
+
+	fn handle_fee(fee: Assets, context: Option<&XcmContext>, r: FeeReason) {
+		Inner::handle_fee(fee, context, r)
+	}
+}
+
 parameter_types! {
 	pub const MaxInboundSuspended: u32 = 1_000;
 }
@@ -478,7 +490,7 @@ impl orml_xtokens::Config for Runtime {
 	type Balance = Balance;
 	type CurrencyId = AssetId;
 	type CurrencyIdConvert = CurrencyIdConvert;
-	type AccountIdToLocation = AccountIdToMultiLocation;
+	type AccountIdToLocation = AccountIdToLocation;
 	type SelfLocation = SelfLocation;
 	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type Weigher = DynamicWeigher<RuntimeCall>;
@@ -525,6 +537,7 @@ impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 parameter_types! {
@@ -630,8 +643,8 @@ impl Convert<VersionedLocation, Option<AssetId>> for CurrencyIdConvert {
 	}
 }
 
-pub struct AccountIdToMultiLocation;
-impl Convert<AccountId, Location> for AccountIdToMultiLocation {
+pub struct AccountIdToLocation;
+impl Convert<AccountId, Location> for AccountIdToLocation {
 	fn convert(account: AccountId) -> Location {
 		[AccountId32 {
 			network: None,
@@ -650,7 +663,7 @@ pub type XcmRouter = WithUniqueTopic<(
 	XcmpQueue,
 )>;
 
-/// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
+/// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM
 /// `Transact` in order to determine the dispatch Origin.
 pub type LocationToAccountId = (
@@ -669,7 +682,7 @@ pub type LocationToAccountId = (
 	GlobalConsensusConvertsFor<UniversalLocation, AccountId>,
 );
 use pallet_broadcast::types::ExecutionType;
-use xcm_executor::traits::{ConvertLocation, XcmAssetTransfers};
+use xcm_executor::traits::{ConvertLocation, FeeManager, FeeReason, XcmAssetTransfers};
 
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);

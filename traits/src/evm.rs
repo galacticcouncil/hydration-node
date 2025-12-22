@@ -1,8 +1,7 @@
 use codec::{Decode, Encode};
-use frame_support::sp_runtime;
-use frame_support::sp_runtime::app_crypto::sp_core;
-use frame_support::sp_runtime::app_crypto::sp_core::{H160, U256};
+use frame_support::sp_runtime::app_crypto::sp_core::U256;
 use frame_support::sp_runtime::{DispatchResult, RuntimeDebug};
+use primitives::EvmAddress;
 use pallet_evm::ExitReason;
 use sp_std::vec::Vec;
 
@@ -29,8 +28,6 @@ pub trait InspectEvmAccounts<AccountId> {
 	/// Returns `True` if the address is allowed to manage balances and tokens.
 	fn is_approved_contract(address: EvmAddress) -> bool;
 }
-
-pub type EvmAddress = H160;
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug)]
 pub struct CallContext {
