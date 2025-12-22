@@ -120,7 +120,7 @@ where
 					value: info.value,
 					contract: context.contract,
 					gas_used: info.used_gas.effective,
-				gas_limit: U256::from(gas_limit),
+					gas_limit: U256::from(gas_limit),
 				}
 			}
 			Err(runner_error) => {
@@ -132,7 +132,7 @@ where
 					value: Vec::new(),
 					contract: context.contract,
 					gas_used: U256::zero(),
-				gas_limit: U256::from(gas_limit),
+					gas_limit: U256::from(gas_limit),
 				}
 			}
 		}
@@ -159,7 +159,7 @@ where
 					value: result.1,
 					contract: context.contract,
 					gas_used: U256::from(gas_used_val),
-				gas_limit: U256::from(gas_limit),
+					gas_limit: U256::from(gas_limit),
 				}
 			});
 			TransactionOutcome::Rollback(Ok::<CallResult, DispatchError>(result))
