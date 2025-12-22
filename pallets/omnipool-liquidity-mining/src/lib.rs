@@ -318,6 +318,9 @@ pub mod pallet {
 
 		/// No farms specified to join
 		NoFarmEntriesSpecified,
+
+		/// No assets specified in the withdrawal
+		NoAssetsSpecified,
 	}
 
 	//NOTE: these errors should never happen.
@@ -1039,6 +1042,8 @@ pub mod pallet {
 		/// - `stable_pool_id`: id of the stableswap pool to add liquidity to.
 		/// - `stable_asset_amounts`: amount of each asset to be deposited into the stableswap pool.
 		/// - `farm_entries`: list of farms to join.
+		/// - `min_shares_limit`: optional minimum Omnipool shares to receive (slippage protection).
+		///                       Applies to Omnipool step only. None defaults to no protection.
 		///
 		/// Emits `LiquidityAdded` events from both pool
 		/// Emits `SharesDeposited` event for the first farm entry
@@ -1058,20 +1063,137 @@ pub mod pallet {
 			stable_pool_id: T::AssetId,
 			stable_asset_amounts: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
 			farm_entries: Option<BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>>,
+			min_shares_limit: Option<Balance>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
 			let stablepool_shares = T::Stableswap::add_liquidity(who, stable_pool_id, stable_asset_amounts.to_vec())?;
 
+			let min_shares_limit = min_shares_limit.unwrap_or(Balance::MIN);
 			let position_id = OmnipoolPallet::<T>::do_add_liquidity_with_limit(
 				origin.clone(),
 				stable_pool_id,
 				stablepool_shares,
-				Balance::MIN,
+				min_shares_limit,
 			)?;
 
 			if let Some(farms) = farm_entries {
 				Self::join_farms(origin, farms, position_id)?;
+			}
+
+			Ok(())
+		}
+
+		/// Remove liquidity from stableswap and omnipool, optionally exiting associated yield farms.
+		///
+		/// This extrinsic reverses the operation performed by `add_liquidity_stableswap_omnipool_and_join_farms`,
+		/// with optional farm exit to match the optional farm join in the add function.
+		///
+		/// It performs the following steps in order:
+		/// 1. [OPTIONAL] If deposit_id is provided: Exits from ALL yield farms associated with the deposit (claiming rewards)
+		/// 2. Removes liquidity from the omnipool to retrieve stableswap shares
+		/// 3. Removes liquidity from the stableswap pool to retrieve underlying assets
+		///
+		/// The asset removal strategy is determined by the `min_amounts_out` parameter length:
+		/// - If 1 asset is specified: Uses `remove_liquidity_one_asset` (trading fee applies)
+		/// - If multiple assets: Uses `remove_liquidity` (proportional, no trading fee)
+		///
+		/// Parameters:
+		/// - `origin`: Owner of the omnipool position
+		/// - `position_id`: The omnipool position NFT ID to remove liquidity from
+		/// - `stable_pool_id`: The stableswap pool ID containing the liquidity
+		/// - `min_amounts_out`: Asset IDs and minimum amounts for slippage protection
+		/// - `deposit_id`: Optional liquidity mining deposit NFT ID. If provided, exits all farms first.
+		///
+		/// Emits events:
+		/// - If deposit_id provided: `RewardClaimed`, `SharesWithdrawn`, `DepositDestroyed`
+		/// - Always: Omnipool's `LiquidityRemoved`, Stableswap's `LiquidityRemoved`
+		///
+		/// Errors:
+		/// - `NoAssetsSpecified` if min_amounts_out is empty
+		/// - `Forbidden` if caller doesn't own the deposit NFT (when deposit_id provided)
+		/// - `InconsistentState(MissingLpPosition)` if deposit-position mismatch
+		#[pallet::call_index(17)]
+		#[pallet::weight(Weight::default())]
+		//TODO: BENCHMARK AND ADD WEIGHT
+		// #[pallet::weight({
+		// 	let deposit_data = T::LiquidityMiningHandler::deposit(*deposit_id);
+		// 	let farm_count = match deposit_data {
+		// 		Some(data) => data.yield_farm_entries.len() as u32,
+		// 		None => 0,
+		// 	};
+		// 	<T as Config>::WeightInfo::exit_farms(farm_count)
+		// 		.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(farm_count as u64))
+		// 		.saturating_add(<T as pallet_omnipool::Config>::WeightInfo::remove_liquidity())
+		// 		.saturating_add(if min_amounts_out.len() == 1 {
+		// 			<T as pallet_stableswap::Config>::WeightInfo::remove_liquidity_one_asset()
+		// 		} else {
+		// 			<T as pallet_stableswap::Config>::WeightInfo::remove_liquidity()
+		// 		})
+		// })]
+		pub fn remove_liquidity_stableswap_omnipool_and_exit_farms(
+			origin: OriginFor<T>,
+			position_id: T::PositionItemId,
+			stable_pool_id: T::AssetId,
+			min_amounts_out: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
+			deposit_id: Option<DepositId>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+			ensure!(!min_amounts_out.is_empty(), Error::<T>::NoAssetsSpecified);
+
+			if let Some(deposit_id) = deposit_id {
+				Self::ensure_nft_owner(origin.clone(), deposit_id)?;
+
+				let stored_position_id = OmniPositionId::<T>::get(deposit_id)
+					.ok_or(Error::<T>::InconsistentState(
+						InconsistentStateError::MissingLpPosition
+					))?;
+				ensure!(
+					stored_position_id == position_id,
+					Error::<T>::InconsistentState(InconsistentStateError::MissingLpPosition)
+				);
+
+				let yield_farm_ids: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit> =
+					T::LiquidityMiningHandler::get_yield_farm_ids(deposit_id)
+						.ok_or(Error::<T>::InconsistentState(
+							InconsistentStateError::DepositDataNotFound,
+						))?
+						.try_into()
+						.map_err(|_| {
+							Error::<T>::InconsistentState(InconsistentStateError::DepositDataNotFound)
+						})?;
+
+				Self::exit_farms(origin.clone(), deposit_id, yield_farm_ids)?;
+			}
+
+
+			let omnipool_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
+			let omnipool_shares_to_remove = omnipool_position.shares;
+
+			let actual_stable_shares_received = OmnipoolPallet::<T>::do_remove_liquidity_with_limit(
+				origin.clone(),
+				position_id,
+				omnipool_shares_to_remove,
+				Balance::MIN,
+			)?;
+
+			if min_amounts_out.len() == 1 {
+				let asset_amount = &min_amounts_out[0];
+
+				T::Stableswap::remove_liquidity_one_asset(
+					who.clone(),
+					stable_pool_id,
+					asset_amount.asset_id,
+					actual_stable_shares_received,
+					asset_amount.amount,
+				)?;
+			} else {
+				T::Stableswap::remove_liquidity(
+					who,
+					stable_pool_id,
+					actual_stable_shares_received,
+					min_amounts_out.to_vec(),
+				)?;
 			}
 
 			Ok(())

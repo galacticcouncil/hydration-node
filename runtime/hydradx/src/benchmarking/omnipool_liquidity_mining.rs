@@ -924,7 +924,7 @@ runtime_benchmarks! {
 		let _ = Tokens::deposit(pool_id, &lp_provider, 50000000000000000);//We mint some share token so it wont fail with insufficience balance in adding liqudity to omnipool
 		update_deposit_limit(pool_id, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
 		update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
-	}: _(RawOrigin::Signed(lp_provider),pool_id, added_liquidity.try_into().unwrap(), Some(farms.try_into().unwrap()))
+	}: _(RawOrigin::Signed(lp_provider),pool_id, added_liquidity.try_into().unwrap(), Some(farms.try_into().unwrap()), None)
 
 
 	//NOTE: price adjustment reads route's price from oracle so pool type doesn't matter
