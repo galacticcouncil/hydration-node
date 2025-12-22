@@ -2,7 +2,7 @@ use crate as pallet_liquidation;
 use crate::*;
 use ethabi::ethereum_types::H160;
 use evm::{ExitError, ExitSucceed};
-use frame_support::sp_runtime::traits::CheckedConversion;
+use frame_support::sp_runtime::traits::{CheckedConversion, Convert};
 use frame_support::{
 	assert_ok, parameter_types,
 	sp_runtime::{
@@ -19,7 +19,7 @@ use hex_literal::hex;
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::fee::GetDynamicFee;
-use hydradx_traits::{router::PoolType, OraclePeriod, PriceOracle};
+use hydradx_traits::{router::PoolType, AccountFeeCurrency, OraclePeriod, PriceOracle};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
@@ -105,7 +105,11 @@ impl EVM<CallResult> for EvmMock {
 				let debt_asset = HydraErc20Mapping::decode_evm_address(data.1);
 
 				if collateral_asset.is_none() || debt_asset.is_none() {
-					return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
+					return CallResult {
+						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+						value: vec![],
+						contract: context.contract,
+					};
 				};
 
 				let collateral_asset = collateral_asset.unwrap();
@@ -129,13 +133,27 @@ impl EVM<CallResult> for EvmMock {
 				);
 
 				if first_transfer_result.is_err() || second_transfer_result.is_err() {
-					return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
+					return CallResult {
+						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+						value: vec![],
+						contract: context.contract,
+					};
 				}
 			}
-			None => return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]),
+			None => {
+				return CallResult {
+					exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+					value: vec![],
+					contract: context.contract,
+				}
+			}
 		}
 
-		(ExitReason::Succeed(ExitSucceed::Returned), vec![])
+		CallResult {
+			exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+			value: vec![],
+			contract: context.contract,
+		}
 	}
 
 	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {
@@ -210,7 +228,16 @@ impl Config for Test {
 	type WeightInfo = ();
 	type HollarId = HollarId;
 	type FlashMinter = ();
+	type EvmErrorDecoder = EvmErrorDecodeMock;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+}
+
+pub struct EvmErrorDecodeMock;
+
+impl Convert<CallResult, DispatchError> for EvmErrorDecodeMock {
+	fn convert(call_result: CallResult) -> DispatchError {
+		DispatchError::Other("Call failed")
+	}
 }
 
 parameter_types! {
@@ -353,12 +380,6 @@ impl pallet_currencies::Config for Test {
 }
 
 parameter_types! {
-	pub const MinTradingLimit: Balance = 1_000;
-	pub const MinPoolLiquidity: Balance = 1_000;
-	pub const DiscountedFee: (u32, u32) = (7, 10_000);
-}
-
-parameter_types! {
 	#[derive(PartialEq, Debug)]
 	pub RegistryStringLimit: u32 = 100;
 	#[derive(PartialEq, Debug)]
@@ -474,11 +495,30 @@ impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProviderMock {
 	}
 }
 
+pub struct FeeCurrencyMock;
+impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
+	type AssetId = AssetId;
+
+	fn get(_a: &AccountId) -> Self::AssetId {
+		unimplemented!()
+	}
+	fn set(_who: &AccountId, _asset_id: Self::AssetId) -> DispatchResult {
+		unimplemented!()
+	}
+	fn is_payment_currency(_asset_id: Self::AssetId) -> DispatchResult {
+		unimplemented!()
+	}
+}
+
 impl pallet_evm_accounts::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type FeeMultiplier = ConstU32<10>;
 	type EvmNonceProvider = EvmNonceProviderMock;
 	type ControllerOrigin = EnsureRoot<AccountId>;
+	type AssetId = AssetId;
+	type Currency = FungibleCurrencies<Test>;
+	type ExistentialDeposits = ExistentialDeposits;
+	type FeeCurrency = FeeCurrencyMock;
 	type WeightInfo = ();
 }
 

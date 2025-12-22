@@ -120,6 +120,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
 
 [[package]]
+name = "alloy-json-abi"
+version = "0.7.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc05b04ac331a9f07e3a4036ef7926e49a8bf84a99a1ccfc7e2ab55a5fcbb372"
+dependencies = [
+ "alloy-primitives 0.7.7",
+ "alloy-sol-type-parser",
+ "serde",
+]
+
+[[package]]
 name = "alloy-primitives"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -208,6 +219,7 @@ version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "867a5469d61480fea08c7333ffeca52d5b621f5ca2e44f271b117ec1fc9a0525"
 dependencies = [
+ "alloy-json-abi",
  "alloy-sol-macro-input",
  "const-hex",
  "heck 0.5.0",
@@ -226,13 +238,25 @@ version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e482dc33a32b6fadbc0f599adea520bd3aaa585c141a80b404d0a3e3fa72528"
 dependencies = [
+ "alloy-json-abi",
  "const-hex",
  "dunce",
  "heck 0.5.0",
  "proc-macro2",
  "quote",
+ "serde_json",
  "syn 2.0.90",
  "syn-solidity 0.7.7",
+]
+
+[[package]]
+name = "alloy-sol-type-parser"
+version = "0.7.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbcba3ca07cf7975f15d871b721fb18031eec8bce51103907f6dcce00b255d98"
+dependencies = [
+ "serde",
+ "winnow 0.6.20",
 ]
 
 [[package]]
@@ -253,9 +277,11 @@ version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a91ca40fa20793ae9c3841b83e74569d1cc9af29a2f5237314fd3452d51e38c7"
 dependencies = [
+ "alloy-json-abi",
  "alloy-primitives 0.7.7",
  "alloy-sol-macro 0.7.7",
  "const-hex",
+ "serde",
 ]
 
 [[package]]
@@ -1350,6 +1376,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "borsh"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1da5ab77c1437701eeff7c88d968729e7766172279eab0676857b3d63af7a6f"
+dependencies = [
+ "borsh-derive",
+ "cfg_aliases 0.2.1",
+ "hashbrown 0.15.2",
+]
+
+[[package]]
+name = "borsh-derive"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0686c856aa6aac0c4498f936d7d6a02df690f614c03e4d906d1018062b5c5e2c"
+dependencies = [
+ "once_cell",
+ "proc-macro-crate 3.1.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.90",
+]
+
+[[package]]
 name = "bounded-collections"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1702,6 +1752,9 @@ name = "bytes"
 version = "1.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8318a53db07bb3f8dca91a600466bdb3f2eaadeedfdbcf02e1accbad9271ba50"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bzip2-sys"
@@ -1825,6 +1878,12 @@ name = "cfg_aliases"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
+
+[[package]]
+name = "cfg_aliases"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
 name = "chacha"
@@ -5210,6 +5269,9 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "hex-conservative"
@@ -5366,7 +5428,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "10.4.2"
+version = "11.0.0"
 dependencies = [
  "approx",
  "criterion",
@@ -5388,7 +5450,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.7.1"
+version = "14.8.1"
 dependencies = [
  "async-trait",
  "clap",
@@ -5479,7 +5541,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.9.2"
+version = "1.9.4"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -5504,6 +5566,7 @@ dependencies = [
  "pallet-broadcast",
  "pallet-circuit-breaker",
  "pallet-currencies",
+ "pallet-dispatcher",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",
  "pallet-lbp",
@@ -5513,7 +5576,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 4.1.5",
+ "pallet-staking 4.1.6",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
@@ -5535,7 +5598,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "362.0.0"
+version = "373.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -5600,7 +5663,9 @@ dependencies = [
  "pallet-dca",
  "pallet-democracy 4.3.4",
  "pallet-dispatcher",
+ "pallet-dispenser",
  "pallet-duster",
+ "pallet-duster-rpc-runtime-api",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -5641,8 +5706,9 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-signet",
  "pallet-stableswap",
- "pallet-staking 4.1.5",
+ "pallet-staking 4.1.6",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -5698,10 +5764,11 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.2.0"
+version = "4.4.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
+ "pallet-evm",
  "parity-scale-codec",
  "primitives",
  "scale-info",
@@ -7865,7 +7932,7 @@ checksum = "ab2156c4fce2f8df6c499cc1c763e4394b7482525bf2a9701c9d79d215f519e4"
 dependencies = [
  "bitflags 2.6.0",
  "cfg-if",
- "cfg_aliases",
+ "cfg_aliases 0.1.1",
  "libc",
 ]
 
@@ -9288,11 +9355,12 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispatcher"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hex",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -9307,8 +9375,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-dispenser"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives 0.7.7",
+ "alloy-sol-types 0.7.7",
+ "borsh",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-asset-registry",
+ "pallet-balances",
+ "pallet-currencies",
+ "pallet-signet",
+ "parity-scale-codec",
+ "scale-info",
+ "secp256k1 0.27.0",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-duster"
-version = "3.4.0"
+version = "3.5.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9323,11 +9421,20 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-api",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-duster-rpc-runtime-api"
+version = "1.0.0"
+dependencies = [
+ "parity-scale-codec",
+ "sp-api",
 ]
 
 [[package]]
@@ -9508,7 +9615,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.2.3"
+version = "1.4.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9517,7 +9624,11 @@ dependencies = [
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
+ "pallet-asset-registry",
+ "pallet-balances",
+ "pallet-currencies",
  "parity-scale-codec",
+ "primitives",
  "scale-info",
  "sp-core",
  "sp-io",
@@ -9605,7 +9716,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-precompile-flash-loan"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "ethabi",
  "evm",
@@ -9725,7 +9836,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-hsm"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "ethabi",
  "evm",
@@ -9888,7 +9999,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.10.4"
+version = "4.11.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9914,7 +10025,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -9938,6 +10049,7 @@ dependencies = [
  "pallet-balances",
  "pallet-broadcast",
  "pallet-currencies",
+ "pallet-dispatcher",
  "pallet-ethereum",
  "pallet-evm",
  "pallet-evm-accounts",
@@ -9952,6 +10064,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-io",
+ "sp-runtime",
  "sp-std",
  "test-utils",
 ]
@@ -10363,7 +10476,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10522,7 +10635,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-referrals"
-version = "1.2.9"
+version = "1.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10832,6 +10945,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-signet"
+version = "1.0.0"
+dependencies = [
+ "ethereum",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec",
+ "rlp",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-skip-feeless-payment"
 version = "13.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch6#1ed662757b03c4f17dc2429c1df84e975d98513a"
@@ -10862,7 +10993,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "6.0.0"
+version = "7.0.0"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -10870,6 +11001,7 @@ dependencies = [
  "frame-system",
  "hydra-dx-math",
  "hydradx-traits",
+ "log",
  "num-traits",
  "orml-tokens",
  "orml-traits",
@@ -10891,7 +11023,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "4.1.5"
+version = "4.1.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11063,7 +11195,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.2.0"
+version = "10.2.1"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -11351,7 +11483,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "7.0.0"
+version = "8.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11378,7 +11510,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk-liquidity-mining"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -14631,7 +14763,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.57.2"
+version = "1.60.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -14639,6 +14771,7 @@ dependencies = [
  "cumulus-pallet-xcmp-queue",
  "cumulus-primitives-core",
  "cumulus-primitives-parachain-inherent",
+ "cumulus-primitives-storage-weight-reclaim",
  "cumulus-test-relay-sproof-builder",
  "ethabi",
  "ethereum",
@@ -14646,6 +14779,7 @@ dependencies = [
  "fp-rpc",
  "fp-self-contained",
  "frame-executive",
+ "frame-metadata-hash-extension",
  "frame-remote-externalities",
  "frame-support",
  "frame-system",
@@ -14675,6 +14809,7 @@ dependencies = [
  "pallet-bonds",
  "pallet-broadcast",
  "pallet-circuit-breaker",
+ "pallet-claims",
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-conviction-voting",
@@ -14683,6 +14818,7 @@ dependencies = [
  "pallet-dca",
  "pallet-dispatcher",
  "pallet-duster",
+ "pallet-duster-rpc-runtime-api",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",
@@ -14705,7 +14841,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.1.5",
+ "pallet-staking 4.1.6",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
@@ -14771,7 +14907,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 4.1.5",
+ "pallet-staking 4.1.6",
  "primitives",
  "scraper",
  "serde",
@@ -16476,11 +16612,29 @@ dependencies = [
 
 [[package]]
 name = "secp256k1"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25996b82292a7a57ed3508f052cfff8640d38d32018784acd714758b43da9c8f"
+dependencies = [
+ "secp256k1-sys 0.8.2",
+]
+
+[[package]]
+name = "secp256k1"
 version = "0.28.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d24b59d129cdadea20aea4fb2352fa053712e5d713eee47d700cd4b2bc002f10"
 dependencies = [
- "secp256k1-sys",
+ "secp256k1-sys 0.9.2",
+]
+
+[[package]]
+name = "secp256k1-sys"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4473013577ec77b4ee3668179ef1186df3146e2cf2d927bd200974c6fe60fd99"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -17627,7 +17781,7 @@ dependencies = [
  "rand 0.8.5",
  "scale-info",
  "schnorrkel 0.11.4",
- "secp256k1",
+ "secp256k1 0.28.2",
  "secrecy",
  "serde",
  "sp-crypto-hashing",
@@ -17762,7 +17916,7 @@ dependencies = [
  "parity-scale-codec",
  "polkavm-derive 0.9.1",
  "rustversion",
- "secp256k1",
+ "secp256k1 0.28.2",
  "sp-core",
  "sp-crypto-hashing",
  "sp-externalities",
@@ -18346,7 +18500,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a2a1c578e98c1c16fc3b8ec1328f7659a500737d7a0c6d625e73e830ff9c1f6"
 dependencies = [
  "bitflags 1.3.2",
- "cfg_aliases",
+ "cfg_aliases 0.1.1",
  "libc",
  "parking_lot 0.11.2",
  "parking_lot_core 0.8.6",
@@ -18360,7 +18514,7 @@ version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70a2595fc3aa78f2d0e45dd425b22282dd863273761cc77780914b2cf3003acf"
 dependencies = [
- "cfg_aliases",
+ "cfg_aliases 0.1.1",
  "memchr",
  "proc-macro2",
  "quote",

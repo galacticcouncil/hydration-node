@@ -1,0 +1,52 @@
+[package]
+name = "pallet-signet"
+version = "1.0.0"
+authors = ["Signet"]
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/galacticcouncil/hydradx-node"
+description = "Signet event emitter pallet"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { workspace = true }
+scale-info = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+ethereum = { workspace = true }
+
+# Optional imports for benchmarking
+frame-benchmarking = { workspace = true, optional = true }
+sp-io = { workspace = true, optional = true }
+sp-core = { workspace = true }
+rlp = { version = "0.5.2", default-features = false }
+
+
+[dev-dependencies]
+sp-io = { workspace = true }
+pallet-balances = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "sp-io/std",
+    "frame-benchmarking?/std",
+    "pallet-balances/std"
+]
+runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "sp-io",
+]
+try-runtime = ["frame-support/try-runtime"]

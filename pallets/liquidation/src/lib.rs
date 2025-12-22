@@ -40,7 +40,9 @@ use frame_support::{
 	},
 	PalletId,
 };
+
 use frame_system::{pallet_prelude::OriginFor, RawOrigin};
+use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
@@ -54,8 +56,8 @@ use precompile_utils::evm::{
 };
 use sp_arithmetic::ArithmeticError;
 use sp_core::{crypto::AccountId32, H256, U256};
+use sp_runtime::traits::Convert;
 use sp_std::{vec, vec::Vec};
-
 #[cfg(test)]
 mod tests;
 
@@ -70,8 +72,6 @@ pub use pallet::*;
 
 pub type Balance = u128;
 pub type AssetId = u32;
-pub type CallResult = (ExitReason, Vec<u8>);
-
 pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = 1_000_000;
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -133,6 +133,8 @@ pub mod pallet {
 
 		/// Flash minter contract address and flash loan receiver address.
 		type FlashMinter: Get<Option<(EvmAddress, EvmAddress)>>;
+
+		type EvmErrorDecoder: Convert<CallResult, DispatchError>;
 
 		/// The origin which can update transaction priorities, allowed signers and call addresses
 		/// for the liquidation worker.
@@ -261,11 +263,11 @@ pub mod pallet {
 					.write(Bytes(liquidation_data))
 					.build();
 
-				let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+				let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
-				if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-					log::info!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
-					return Err(Error::<T>::LiquidationCallFailed.into());
+				if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+					log::info!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
+					return Err(T::EvmErrorDecoder::convert(call_result));
 				}
 			} else {
 				let pallet_acc = Self::account_id();
@@ -351,11 +353,11 @@ impl<T: Config> Pallet<T> {
 		let context = CallContext::new_call(contract, liquidator);
 		let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
 
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 			log::info!(target: "liquidation",
-						"Evm execution failed. Reason: {:?}", value);
-			return Err(Error::<T>::LiquidationCallFailed.into());
+						"Evm execution failed. Reason: {:?}", call_result.value);
+			return Err(T::EvmErrorDecoder::convert(call_result));
 		}
 
 		// swap collateral if necessary
@@ -464,5 +466,14 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok((collateral_asset_id, debt_asset_id, user, Route::truncate_from(route)))
+	}
+}
+
+impl<T> Get<EvmAddress> for Pallet<T>
+where
+	T: Config,
+{
+	fn get() -> EvmAddress {
+		Self::borrowing_contract()
 	}
 }

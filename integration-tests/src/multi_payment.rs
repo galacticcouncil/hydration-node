@@ -98,7 +98,7 @@ fn insufficient_asset_can_be_used_as_fee_currency() {
 			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
 				Some(pre.unwrap()),
 				&info,
-				&default_post_info(),
+				&PostDispatchInfo::default(),
 				info_len,
 				&Ok(())
 			));
@@ -238,7 +238,7 @@ fn sufficient_but_not_accepted_asset_can_be_used_as_fee_currency() {
 			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
 				Some(pre.unwrap()),
 				&info,
-				&default_post_info(),
+				&PostDispatchInfo::default(),
 				info_len,
 				&Ok(())
 			));
@@ -306,7 +306,7 @@ fn erc20_can_be_used_as_fee_currency() {
 			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
 				Some(pre.unwrap()),
 				&info,
-				&default_post_info(),
+				&PostDispatchInfo::default(),
 				info_len,
 				&Ok(())
 			));
@@ -408,12 +408,6 @@ fn set_currency_in_batch_should_fail_for_unaccepted_asset_with_oracle_price() {
 	});
 }
 
-fn default_post_info() -> PostDispatchInfo {
-	PostDispatchInfo {
-		actual_weight: None,
-		pays_fee: Default::default(),
-	}
-}
 fn set_ed(asset_id: AssetId, ed: u128) {
 	AssetRegistry::update(
 		hydradx_runtime::RuntimeOrigin::root(),
