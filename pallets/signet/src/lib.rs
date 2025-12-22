@@ -170,7 +170,7 @@ pub mod pallet {
 		},
 
 		/// Sign-respond request event
-		SignRespondRequested {
+		SignBidirectionalRequested {
 			sender: T::AccountId,
 			transaction_data: Vec<u8>,
 			slip44_chain_id: u32,
@@ -201,7 +201,7 @@ pub mod pallet {
 		},
 
 		/// Read response event
-		ReadResponded {
+		RespondBidirectionalEvent {
 			request_id: [u8; 32],
 			responder: T::AccountId,
 			serialized_output: Vec<u8>,
@@ -363,8 +363,8 @@ pub mod pallet {
 
 		/// Request a signature for a serialized transaction
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::sign_respond())]
-		pub fn sign_respond(
+		#[pallet::weight(<T as Config>::WeightInfo::sign_bidirectional())]
+		pub fn sign_bidirectional(
 			origin: OriginFor<T>,
 			serialized_transaction: BoundedVec<u8, ConstU32<MAX_TRANSACTION_LENGTH>>,
 			slip44_chain_id: u32,
@@ -394,7 +394,7 @@ pub mod pallet {
 			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::KeepAlive)?;
 
 			// Emit event
-			Self::deposit_event(Event::SignRespondRequested {
+			Self::deposit_event(Event::SignBidirectionalRequested {
 				sender: requester,
 				transaction_data: serialized_transaction.to_vec(),
 				slip44_chain_id,
@@ -461,8 +461,8 @@ pub mod pallet {
 
 		/// Provide a read response with signature
 		#[pallet::call_index(7)]
-		#[pallet::weight(<T as Config>::WeightInfo::read_respond())]
-		pub fn read_respond(
+		#[pallet::weight(<T as Config>::WeightInfo::respond_bidirectional())]
+		pub fn respond_bidirectional(
 			origin: OriginFor<T>,
 			request_id: [u8; 32],
 			serialized_output: BoundedVec<u8, ConstU32<MAX_SERIALIZED_OUTPUT_LENGTH>>,
@@ -471,7 +471,7 @@ pub mod pallet {
 			let responder = ensure_signed(origin)?;
 
 			// Just emit event
-			Self::deposit_event(Event::ReadResponded {
+			Self::deposit_event(Event::RespondBidirectionalEvent {
 				request_id,
 				responder,
 				serialized_output: serialized_output.to_vec(),

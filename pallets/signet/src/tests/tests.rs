@@ -472,7 +472,7 @@ fn test_multiple_sign_requests() {
 }
 
 #[test]
-fn test_sign_respond_works() {
+fn test_sign_bidirectional_works() {
 	new_test_ext().execute_with(|| {
 		let admin = ADMIN;
 		let requester = NON_ADMIN;
@@ -489,7 +489,7 @@ fn test_sign_respond_works() {
 		let slip44_chain_id = SLIP44_ETH;
 		let balance_before = Balances::free_balance(&requester);
 
-		assert_ok!(Signet::sign_respond(
+		assert_ok!(Signet::sign_bidirectional(
 			RuntimeOrigin::signed(requester),
 			bounded_u8::<65536>(tx_data.clone()),
 			slip44_chain_id,
@@ -509,13 +509,13 @@ fn test_sign_respond_works() {
 		let events = System::events();
 		let event_found = events
 			.iter()
-			.any(|e| matches!(&e.event, RuntimeEvent::Signet(Event::SignRespondRequested { .. })));
+			.any(|e| matches!(&e.event, RuntimeEvent::Signet(Event::SignBidirectionalRequested { .. })));
 		assert!(event_found);
 	});
 }
 
 #[test]
-fn test_sign_respond_empty_transaction_fails() {
+fn test_sign_bidirectional_empty_transaction_fails() {
 	new_test_ext().execute_with(|| {
 		let admin = ADMIN;
 		let requester = NON_ADMIN;
@@ -523,7 +523,7 @@ fn test_sign_respond_empty_transaction_fails() {
 		init_signet(admin, INITIAL_DEPOSIT);
 
 		assert_noop!(
-			Signet::sign_respond(
+			Signet::sign_bidirectional(
 				RuntimeOrigin::signed(requester),
 				bounded_u8::<65536>(vec![]),
 				60,
@@ -667,14 +667,14 @@ fn test_respond_error_batch() {
 }
 
 #[test]
-fn test_read_respond() {
+fn respond_bidirectional() {
 	new_test_ext().execute_with(|| {
 		let responder = ADMIN;
 		let request_id = [99u8; 32];
 		let output = b"read_output_data".to_vec();
 		let signature = create_test_signature();
 
-		assert_ok!(Signet::read_respond(
+		assert_ok!(Signet::respond_bidirectional(
 			RuntimeOrigin::signed(responder),
 			request_id,
 			bounded_u8::<65536>(output.clone()),
@@ -682,7 +682,7 @@ fn test_read_respond() {
 		));
 
 		System::assert_last_event(
-			Event::ReadResponded {
+			Event::RespondBidirectionalEvent {
 				request_id,
 				responder,
 				serialized_output: output,
