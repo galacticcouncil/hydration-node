@@ -426,6 +426,25 @@ where
 		log::trace!(target: "dynamic-fees", "new fees: {:?} {:?}", asset_fee, protocol_fee);
 		(asset_fee, protocol_fee)
 	}
+
+	/// Clears all fee-related storage for an asset
+	///
+	/// This function removes both the asset fee and asset fee configuration entries for the specified asset.
+	/// It emits an `AssetFeeConfigRemoved` event.
+	///
+	/// # Arguments
+	/// * `asset_id` - The asset ID to clear fees for
+	///
+	/// # Returns
+	/// Weight of the operation
+	pub fn clear_asset_fees(asset_id: T::AssetId) -> Weight {
+		AssetFee::<T>::remove(asset_id);
+		AssetFeeConfiguration::<T>::remove(asset_id);
+
+		Self::deposit_event(Event::AssetFeeConfigRemoved { asset_id });
+
+		T::WeightInfo::remove_asset_fee()
+	}
 }
 
 /// Main interface for retrieving dynamic fees

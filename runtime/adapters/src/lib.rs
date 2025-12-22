@@ -339,6 +339,7 @@ where
 	ProtocolFeeRecipient: Get<AccountId>,
 	Runtime: pallet_ema_oracle::Config
 		+ pallet_circuit_breaker::Config
+		+ pallet_dynamic_fees::Config<AssetId = AssetId>
 		+ frame_system::Config<RuntimeOrigin = Origin, AccountId = sp_runtime::AccountId32>
 		+ pallet_staking::Config
 		+ pallet_referrals::Config
@@ -513,8 +514,26 @@ where
 		MC::transfer(Lrna::get(), &fee_account, &ProtocolFeeRecipient::get(), amount)?;
 		Ok(Some((amount, ProtocolFeeRecipient::get())))
 	}
-}
 
+	fn on_asset_removed(asset_id: AssetId) {
+		// Clear dynamic fees storage using pallet function
+		let _ = pallet_dynamic_fees::Pallet::<Runtime>::clear_asset_fees(asset_id);
+
+		// Clear oracle entries for this asset paired with LRNA (hub asset) using pallet function
+		let hub_asset = Lrna::get();
+		let _ = pallet_ema_oracle::Pallet::<Runtime>::clear_asset_oracle(OMNIPOOL_SOURCE, asset_id, hub_asset);
+	}
+
+	fn on_asset_removed_weight() -> Weight {
+		// Weight for removing dynamic fees storage
+		let dynamic_fees_weight = <Runtime as pallet_dynamic_fees::Config>::WeightInfo::remove_asset_fee();
+
+		// Weight for oracle cleanup
+		let oracle_weight = <Runtime as pallet_ema_oracle::Config>::WeightInfo::remove_oracle();
+
+		dynamic_fees_weight.saturating_add(oracle_weight)
+	}
+}
 /// Passes ema oracle price to the omnipool.
 pub struct EmaOraclePriceAdapter<Period, Runtime>(PhantomData<(Period, Runtime)>);
 
@@ -644,8 +663,7 @@ where
 					Some(round_u512_to_rational((nom, den), Rounding::Nearest).into())
 				} else {
 					// Recursive case: chunk and recurse
-					let chunk_results: Vec<EmaPrice> =
-						prices.chunks(4).map(|chunk| inner(chunk)).collect::<Option<Vec<_>>>()?;
+					let chunk_results: Vec<EmaPrice> = prices.chunks(4).map(inner).collect::<Option<Vec<_>>>()?;
 
 					inner(&chunk_results)
 				}
