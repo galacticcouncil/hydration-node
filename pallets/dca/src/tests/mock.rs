@@ -712,6 +712,30 @@ impl Config for Test {
 	type RetryOnError = ();
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
 	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
+	type ExtraGasSupport = ExtraGasSetterMock;
+	type GasWeightMapping = MockGasWeightMapping;
+}
+
+pub struct ExtraGasSetterMock;
+
+impl ExtraGasSupport for ExtraGasSetterMock {
+	fn set_extra_gas(_gas: u64) {}
+
+	fn clear_extra_gas() {}
+
+	fn out_of_gas_error() -> DispatchError {
+		DispatchError::Other("Out of gas")
+	}
+}
+
+pub struct MockGasWeightMapping;
+impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
+	fn gas_to_weight(_gas: u64, _without_base_weight: bool) -> Weight {
+		Weight::zero()
+	}
+	fn weight_to_gas(_weight: Weight) -> u64 {
+		0
+	}
 }
 
 pub struct MockedInsufficientAssetSupport;
@@ -785,6 +809,7 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
+use hydradx_traits::evm::ExtraGasSupport;
 use hydradx_traits::fee::{GetDynamicFee, InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
