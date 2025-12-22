@@ -123,6 +123,8 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		/// Provided solution is not valid.
+		InvalidSolution,
 		/// Solution target doesn't match current block.
 		InvalidTargetBlock,
 		/// Referenced intent doesn't exist.
@@ -149,8 +151,6 @@ pub mod pallet {
 		InvalidRoute,
 		/// Claimed score doesn't match calculated score.
 		ScoreMismatch,
-		/// Resolved intentes lenght doesn't match trades lenght.
-		IntentsTradesMismatch,
 		/// Intent's kind is not supported.
 		UnsupportedIntentKind,
 		/// Caluclation overflow.
@@ -172,6 +172,11 @@ pub mod pallet {
 			ensure!(
 				valid_for_block == T::BlockNumberProvider::current_block_number(),
 				Error::<T>::InvalidTargetBlock
+			);
+
+			ensure!(
+				!solution.resolved.is_empty() && !solution.trades.is_empty(),
+				Error::<T>::InvalidSolution
 			);
 
 			let mut clearing_prices: HashMap<AssetId, Ratio> = HashMap::with_capacity(solution.clearing_prices.len());
@@ -229,15 +234,6 @@ pub mod pallet {
 
 				<T as Config>::Currency::transfer(resolved.asset_out(), &holding_pot, &owner, resolved.amount_out())?;
 
-				pallet_intent::Pallet::<T>::intent_executed(ExecutedIntent {
-					id: *id,
-					owner: owner.clone(),
-					asset_in: resolved.asset_in(),
-					asset_out: resolved.asset_out(),
-					amount_in: resolved.amount_in(),
-					amount_out: resolved.amount_out(),
-				})?;
-
 				let cp_in = clearing_prices
 					.get(&resolved.asset_in())
 					.ok_or(Error::<T>::MissingClearingPrice)?;
@@ -254,7 +250,7 @@ pub mod pallet {
 
 				Self::deposit_event(Event::IntentExecuted {
 					intent_id: *id,
-					owner,
+					owner: owner.clone(),
 					asset_in: resolved.asset_in(),
 					asset_out: resolved.asset_out(),
 					amount_in: resolved.amount_in(),
@@ -264,6 +260,15 @@ pub mod pallet {
 				let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
 				let (_, s) = intent.surplus(&resolved).ok_or(Error::<T>::ArithmeticOverflow)?;
 				exec_score = exec_score.checked_add(s).ok_or(Error::<T>::ArithmeticOverflow)?;
+
+				pallet_intent::Pallet::<T>::intent_executed(ExecutedIntent {
+					id: *id,
+					owner,
+					asset_in: resolved.asset_in(),
+					asset_out: resolved.asset_out(),
+					amount_in: resolved.amount_in(),
+					amount_out: resolved.amount_out(),
+				})?;
 			}
 
 			ensure!(score == exec_score, Error::<T>::ScoreMismatch);
@@ -289,7 +294,7 @@ pub mod pallet {
 				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(c.into()) {
 					log::error!(
 						target: OCW_LOG_TARGET,
-						"Failed to submit solution {:?}", e
+						"to submit solution {:?}", e
 					);
 				}
 			}
