@@ -76,10 +76,13 @@ pub fn compute_request_id(
 		s
 	};
 
+	// CAIP-2 chain ID format
+	let caip2_id = format!("eip155:{}", tx_params.chain_id);
+
 	let packed = (
 		sender_ss58.as_str(),
 		rlp_encoded.as_slice(),
-		60u32,
+		caip2_id.as_str(),
 		0u32,
 		path.as_str(),
 		"ecdsa",
