@@ -158,6 +158,21 @@ pub mod pallet {
 	#[pallet::getter(fn marked_evm_accounts)]
 	pub type MarkedEvmAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, ()>;
 
+	/// ERC20-style allowances storage for the MultiCurrency precompile:
+	/// (asset_id, owner, spender) -> allowance
+	#[pallet::storage]
+	#[pallet::getter(fn allowance)]
+	pub(super) type Allowances<T: Config> = StorageNMap<
+		_,
+		(
+			NMapKey<Blake2_128Concat, T::AssetId>,
+			NMapKey<Blake2_128Concat, EvmAddress>, // owner (H160)
+			NMapKey<Blake2_128Concat, EvmAddress>, // spender (H160)
+		),
+		Balance,
+		ValueQuery, // default 0
+	>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -560,6 +575,20 @@ where
 	/// Returns `True` if the address is allowed to manage balances and tokens.
 	fn is_approved_contract(evm_address: EvmAddress) -> bool {
 		ApprovedContract::<T>::contains_key(evm_address)
+	}
+}
+
+impl<T: Config> Pallet<T> {
+	pub fn get_allowance(asset_id: T::AssetId, owner: EvmAddress, spender: EvmAddress) -> Balance {
+		Allowances::<T>::get((asset_id, owner, spender))
+	}
+
+	pub fn set_allowance(asset_id: T::AssetId, owner: EvmAddress, spender: EvmAddress, amount: Balance) {
+		if amount == 0 {
+			Allowances::<T>::remove((asset_id, owner, spender));
+		} else {
+			Allowances::<T>::insert((asset_id, owner, spender), amount);
+		}
 	}
 }
 
