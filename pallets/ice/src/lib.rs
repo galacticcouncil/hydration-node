@@ -240,12 +240,6 @@ pub mod pallet {
 					.get(&resolved.asset_out())
 					.ok_or(Error::<T>::MissingClearingPrice)?;
 
-				println!(
-					"{:?}, {:?}: {:?}",
-					resolved.asset_in(),
-					resolved.asset_out(),
-					Self::calc_amount_out(resolved.amount_in(), cp_in, cp_out)
-				);
 				ensure!(
 					Self::calc_amount_out(resolved.amount_in(), cp_in, cp_out)
 						.ok_or(Error::<T>::ArithmeticOverflow)?
