@@ -302,8 +302,16 @@ where
 				return Err(revert("ERC20: insufficient allowance"));
 			}
 
+			// Some ERC-20 tokens treat `type(uint256).max` as an “infinite allowance” and do not decrement it
+			// on `transferFrom`. We mirror that behavior: if `allowed == Balance::MAX`, we skip updating the
+			// stored allowance; otherwise we decrement by `amount`.
 			if allowed != Balance::MAX {
-				pallet_evm_accounts::Pallet::<Runtime>::set_allowance(asset_id.into(), from, origin, allowed - amount);
+				pallet_evm_accounts::Pallet::<Runtime>::set_allowance(
+					asset_id.into(),
+					from,
+					origin,
+					allowed.saturating_sub(amount),
+				);
 			}
 		}
 
