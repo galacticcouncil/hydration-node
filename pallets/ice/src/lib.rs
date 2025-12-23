@@ -48,7 +48,6 @@ use frame_system::Origin;
 use hydra_dx_math::types::Ratio;
 use orml_traits::MultiCurrency;
 use pallet_intent::types::AssetId;
-use pallet_intent::types::ExecutedIntent;
 use pallet_intent::types::IntentId;
 use sp_core::U512;
 use sp_runtime::traits::AccountIdConversion;
@@ -111,7 +110,7 @@ pub mod pallet {
 			score: u128,
 		},
 
-		IntentExecuted {
+		IntentResolved {
 			intent_id: IntentId,
 			owner: T::AccountId,
 			asset_in: AssetId,
@@ -241,6 +240,12 @@ pub mod pallet {
 					.get(&resolved.asset_out())
 					.ok_or(Error::<T>::MissingClearingPrice)?;
 
+				println!(
+					"{:?}, {:?}: {:?}",
+					resolved.asset_in(),
+					resolved.asset_out(),
+					Self::calc_amount_out(resolved.amount_in(), cp_in, cp_out)
+				);
 				ensure!(
 					Self::calc_amount_out(resolved.amount_in(), cp_in, cp_out)
 						.ok_or(Error::<T>::ArithmeticOverflow)?
@@ -248,7 +253,7 @@ pub mod pallet {
 					Error::<T>::PriceInconsistency
 				);
 
-				Self::deposit_event(Event::IntentExecuted {
+				Self::deposit_event(Event::IntentResolved {
 					intent_id: *id,
 					owner: owner.clone(),
 					asset_in: resolved.asset_in(),
@@ -261,14 +266,7 @@ pub mod pallet {
 				let (_, s) = intent.surplus(&resolved).ok_or(Error::<T>::ArithmeticOverflow)?;
 				exec_score = exec_score.checked_add(s).ok_or(Error::<T>::ArithmeticOverflow)?;
 
-				pallet_intent::Pallet::<T>::intent_executed(ExecutedIntent {
-					id: *id,
-					owner,
-					asset_in: resolved.asset_in(),
-					asset_out: resolved.asset_out(),
-					amount_in: resolved.amount_in(),
-					amount_out: resolved.amount_out(),
-				})?;
+				pallet_intent::Pallet::<T>::intent_resolved(*id, &owner, &resolved)?;
 			}
 
 			ensure!(score == exec_score, Error::<T>::ScoreMismatch);
