@@ -227,7 +227,7 @@ pub mod pallet {
 		/// - Charges the configured fee in `FeeAsset`.
 		/// - Transfers the requested faucet asset from the user to `FeeDestination`.
 		/// - Builds an EVM transaction calling `IGasFaucet::fund`.
-		/// - Submits a signing request to SigNet via `pallet_signet::sign_respond`.
+		/// - Submits a signing request to SigNet via `pallet_signet::sign_bidirectional`.
 		///
 		/// The `request_id` must match the ID derived internally from the inputs,
 		/// otherwise the call will fail with `InvalidRequestId`.
@@ -333,7 +333,7 @@ pub mod pallet {
 				serde_json::to_vec(&serde_json::json!("bool")).map_err(|_| Error::<T>::Serialization)?;
 
 			// Submit signing request to SigNet.
-			pallet_signet::Pallet::<T>::sign_respond(
+			pallet_signet::Pallet::<T>::sign_bidirectional(
 				frame_system::RawOrigin::Signed(pallet_acc.clone()).into(),
 				BoundedVec::<u8, ConstU32<65536>>::try_from(rlp).map_err(|_| Error::<T>::Serialization)?,
 				60,

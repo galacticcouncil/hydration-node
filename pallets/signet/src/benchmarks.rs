@@ -124,7 +124,7 @@ mod benches {
 	}
 
 	#[benchmark]
-	fn sign_respond() {
+	fn sign_bidirectional() {
 		let admin: T::AccountId = whitelisted_caller();
 		let max_dep: BalanceOf<T> = T::MaxSignatureDeposit::get();
 		let deposit: BalanceOf<T> = max_dep.saturating_sub(One::one());
@@ -171,7 +171,7 @@ mod benches {
 		let callback_serialization_format = SerializationFormat::Borsh;
 
 		#[extrinsic_call]
-		sign_respond(
+		sign_bidirectional(
 			RawOrigin::Signed(requester.clone()),
 			serialized_transaction,
 			slip44_chain_id,
@@ -245,7 +245,7 @@ mod benches {
 	}
 
 	#[benchmark]
-	fn read_respond() {
+	fn respond_bidirectional() {
 		let responder: T::AccountId = whitelisted_caller();
 
 		let request_id: [u8; 32] = [7u8; 32];
@@ -263,7 +263,7 @@ mod benches {
 		};
 
 		#[extrinsic_call]
-		read_respond(
+		respond_bidirectional(
 			RawOrigin::Signed(responder.clone()),
 			request_id,
 			serialized_output,

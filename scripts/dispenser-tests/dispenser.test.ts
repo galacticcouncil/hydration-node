@@ -188,7 +188,10 @@ async function waitForReadResponse(
       .events((events: any) => {
         events.forEach((record: any) => {
           const { event } = record
-          if (event.section === 'signet' && event.method === 'ReadResponded') {
+          if (
+            event.section === 'signet' &&
+            event.method === 'RespondBidirectionalEvent'
+          ) {
             const [reqId, responder, output, signature] = event.data
             if (ethers.hexlify(reqId.toU8a()) === requestId) {
               clearTimeout(timer)
@@ -543,17 +546,19 @@ describe('ERC20 Vault Integration', () => {
     const signetEvents = depositResult.events.filter(
       (record: any) =>
         record.event.section === 'signet' &&
-        record.event.method === 'SignRespondRequested'
+        record.event.method === 'SignBidirectionalRequested'
     )
 
-    console.log(`📊 Found ${signetEvents.length} SignRespondRequested event(s)`)
+    console.log(
+      `📊 Found ${signetEvents.length} SignBidirectionalRequested event(s)`
+    )
 
     if (signetEvents.length > 0) {
       console.log(
-        '✅ SignRespondRequested event emitted - MPC should pick it up!'
+        '✅ SignBidirectionalRequested event emitted - MPC should pick it up!'
       )
     } else {
-      console.log('⚠️  No SignRespondRequested event found!')
+      console.log('⚠️  No SignBidirectionalRequested event found!')
     }
 
     console.log('⏳ Waiting for MPC signature...')
