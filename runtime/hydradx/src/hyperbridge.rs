@@ -1,6 +1,6 @@
 use crate::origins::GeneralAdmin;
 use crate::{
-	weights, Balances, EVMAccounts, Ismp, IsmpParachain, NativeAssetId, Runtime, RuntimeEvent,
+	weights, Balances, EVMAccounts, Ismp, IsmpParachain, NativeAssetId, Parameters, Runtime, RuntimeEvent,
 	TechCommitteeSuperMajority, Timestamp, TokenGateway, TreasuryAccount,
 };
 use frame_support::parameter_types;
@@ -18,6 +18,7 @@ use pallet_token_gateway::types::EvmToSubstrate;
 use primitive_types::H160;
 use primitives::constants::currency::NATIVE_DECIMALS;
 use primitives::{AccountId, AssetId, Balance};
+use sp_core::Get;
 use sp_std::{boxed::Box, vec::Vec};
 
 impl pallet_hyperbridge::Config for Runtime {
@@ -27,19 +28,29 @@ impl pallet_hyperbridge::Config for Runtime {
 }
 
 parameter_types! {
-	// The hyperbridge parachain on Polkadot
-	pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Polkadot(3367));
-
-	// The host state machine of this pallet on Polkadot
-	pub const HostStateMachine: StateMachine = StateMachine::Polkadot(2034);
-
-	// The hyperbridge parachain on Paseo
-	// pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Kusama(4009));
-
-	// The host state machine of this pallet on Paseo
-	// pub const HostStateMachine: StateMachine = StateMachine::Kusama(2034);
-
 	pub const USDC: AssetId = 22; // USDC asset id on Hydration
+}
+
+pub struct IsmpCoprocessor;
+impl Get<Option<StateMachine>> for IsmpCoprocessor {
+	fn get() -> Option<StateMachine> {
+		if Parameters::is_testnet() {
+			Some(StateMachine::Kusama(4009))
+		} else {
+			Some(StateMachine::Polkadot(3367))
+		}
+	}
+}
+
+pub struct IsmpHostStateMachine;
+impl Get<StateMachine> for IsmpHostStateMachine {
+	fn get() -> StateMachine {
+		if Parameters::is_testnet() {
+			StateMachine::Kusama(2034)
+		} else {
+			StateMachine::Polkadot(2034)
+		}
+	}
 }
 
 impl pallet_ismp::Config for Runtime {
@@ -51,9 +62,9 @@ impl pallet_ismp::Config for Runtime {
 	// The token used to collect fees, only stablecoins are supported
 	type Currency = ItemOf<FungibleCurrencies<Runtime>, USDC, AccountId>;
 	// The state machine identifier of the chain -- parachain id
-	type HostStateMachine = HostStateMachine;
+	type HostStateMachine = IsmpHostStateMachine;
 	// Co-processor
-	type Coprocessor = Coprocessor;
+	type Coprocessor = IsmpCoprocessor;
 	// The router provides the implementation for the IsmpModule as the module id.
 	type Router = IsmpRouterStruct;
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
