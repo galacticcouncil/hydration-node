@@ -1389,6 +1389,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(CHARLIE.into()),
 						position_id,
+						Balance::MIN,
 						asset_ids_without_slippage,
 						Some(deposit_id)
 					)
@@ -1564,6 +1565,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(CHARLIE.into()),
 						position_id,
+						Balance::MIN,
 						asset_ids_without_slippage,
 						None
 					)
@@ -1732,6 +1734,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(CHARLIE.into()),
 						position_id,
+						Balance::MIN,
 						asset_ids_without_slippage,
 						None
 					),
@@ -1856,6 +1859,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(CHARLIE.into()),
 						position_id,
+						Balance::MIN,
 						vec![AssetAmount::new(stable_asset_1, 0)].try_into().unwrap(),
 						Some(deposit_id)
 					)
@@ -2011,6 +2015,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(CHARLIE.into()),
 						position_id,
+						Balance::MIN,
 						vec![AssetAmount::new(stable_asset_1, 0)].try_into().unwrap(),
 						Some(deposit_id)
 					)
@@ -2165,6 +2170,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(DAVE.into()),
 						position_id,
+						Balance::MIN,
 						vec![AssetAmount::new(stable_asset_1, 0), AssetAmount::new(stable_asset_2, 0)]
 							.try_into()
 							.unwrap(),
@@ -2276,6 +2282,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(CHARLIE.into()),
 						position_id,
+						Balance::MIN,
 						vec![].try_into().unwrap(),
 						Some(deposit_id)
 					),

@@ -15,6 +15,7 @@
 
 use super::*;
 
+use frame_support::BoundedVec;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pretty_assertions::assert_eq;
 
@@ -70,6 +71,7 @@ fn remove_liquidity_stableswap_omnipool_and_exit_farms_should_work_with_single_a
 			assert_ok!(OmnipoolMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 				RuntimeOrigin::signed(LP1),
 				position_id,
+				Balance::MIN,
 				vec![AssetAmount::new(USDT, 1)].try_into().unwrap(),
 				Some(deposit_id),
 			));
@@ -158,6 +160,7 @@ fn remove_liquidity_stableswap_omnipool_and_exit_farms_should_work_with_multi_as
 			assert_ok!(OmnipoolMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 				RuntimeOrigin::signed(LP1),
 				position_id,
+				Balance::MIN,
 				vec![AssetAmount::new(USDT, 1), AssetAmount::new(USDC, 1)]
 					.try_into()
 					.unwrap(),
@@ -269,6 +272,7 @@ fn remove_liquidity_stableswap_omnipool_and_exit_farms_should_work_with_multiple
 			assert_ok!(OmnipoolMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 				RuntimeOrigin::signed(LP1),
 				position_id,
+				Balance::MIN,
 				vec![AssetAmount::new(USDT, 1)].try_into().unwrap(),
 				Some(deposit_id),
 			));
@@ -380,6 +384,7 @@ fn remove_liquidity_stableswap_omnipool_and_exit_farms_should_fail_when_not_owne
 				OmnipoolMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 					RuntimeOrigin::signed(LP2),
 					position_id,
+					Balance::MIN,
 					vec![AssetAmount::new(USDT, 1)].try_into().unwrap(),
 					Some(deposit_id),
 				),
@@ -440,6 +445,7 @@ fn remove_liquidity_stableswap_omnipool_and_exit_farms_should_fail_with_empty_as
 				OmnipoolMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 					RuntimeOrigin::signed(LP1),
 					position_id,
+					Balance::MIN,
 					vec![].try_into().unwrap(),
 					Some(deposit_id),
 				),
@@ -505,6 +511,7 @@ fn remove_liquidity_stableswap_omnipool_and_exit_farms_full_round_trip_with_rewa
 			assert_ok!(OmnipoolMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 				RuntimeOrigin::signed(LP1),
 				position_id,
+				Balance::MIN,
 				vec![AssetAmount::new(USDT, 1)].try_into().unwrap(),
 				Some(deposit_id),
 			));
@@ -584,6 +591,7 @@ fn remove_liquidity_without_farm_exit_should_work() {
 			assert_ok!(OmnipoolMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 				RuntimeOrigin::signed(LP1),
 				position_id,
+				Balance::MIN,
 				vec![AssetAmount::new(USDT, 1)].try_into().unwrap(),
 				None, // No deposit_id since we never joined farms
 			));
@@ -676,6 +684,7 @@ fn should_fail_with_mismatched_deposit_and_position() {
 				OmnipoolMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 					RuntimeOrigin::signed(LP1),
 					position_1,
+					Balance::MIN,
 					vec![AssetAmount::new(USDT, 1)].try_into().unwrap(),
 					Some(deposit_2), // WRONG deposit for position_1
 				),
@@ -718,6 +727,7 @@ fn should_fail_with_nonexistent_deposit() {
 				OmnipoolMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 					RuntimeOrigin::signed(LP1),
 					position_id,
+					Balance::MIN,
 					vec![AssetAmount::new(USDT, 1)].try_into().unwrap(),
 					Some(999), // Non-existent deposit_id
 				),
@@ -779,10 +789,73 @@ fn should_fail_when_deposit_owner_differs() {
 				OmnipoolMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 					RuntimeOrigin::signed(LP2),
 					position_id,
+					Balance::MIN,
 					vec![AssetAmount::new(USDT, 1)].try_into().unwrap(),
 					Some(deposit_id),
 				),
 				crate::Error::<Test>::Forbidden
+			);
+		});
+}
+
+#[test]
+fn remove_liquidity_should_fail_when_slippage_limit_exceeded_on_omnipool_step() {
+	let token_amount = 2000 * ONE;
+	let amount = 20 * ONE;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, STABLESWAP_POOL_ID, 500000 * ONE),
+			(LP1, USDT, 5000 * ONE),
+			(GC, HDX, 100_000_000 * ONE),
+		])
+		.with_registered_asset(USDT)
+		.with_registered_asset(STABLESWAP_POOL_ID)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(USDT, FixedU128::from_float(0.65), LP1, token_amount)
+		.with_token(STABLESWAP_POOL_ID, FixedU128::from_float(0.65), LP1, token_amount)
+		.with_global_farm(
+			80_000_000 * ONE,
+			2_628_000,
+			1,
+			HDX,
+			GC,
+			Perquintill::from_float(0.000_000_15_f64),
+			1_000,
+			FixedU128::one(),
+		)
+		.with_yield_farm(GC, 1, STABLESWAP_POOL_ID, FixedU128::one(), None)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let gc_g_farm_id = 1;
+			let gc_y_farm_id = 2;
+			let deposit_id = 1;
+			let yield_farms = vec![(gc_g_farm_id, gc_y_farm_id)];
+
+			assert_ok!(OmnipoolMining::add_liquidity_stableswap_omnipool_and_join_farms(
+				RuntimeOrigin::signed(LP1),
+				STABLESWAP_POOL_ID,
+				vec![AssetAmount::new(USDT, amount)].try_into().unwrap(),
+				Some(yield_farms.try_into().unwrap()),
+				None,
+			));
+
+			let position_id =
+				crate::OmniPositionId::<Test>::get(deposit_id).expect("Position should be mapped to deposit");
+
+			//Act and assert
+			assert_noop!(
+				OmnipoolMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
+					RuntimeOrigin::signed(LP1),
+					position_id,
+					SHARES_FROM_STABLESWAP + 1,
+					vec![AssetAmount::new(USDT, 1)].try_into().unwrap(),
+					Some(deposit_id),
+				),
+				pallet_omnipool::Error::<Test>::SlippageLimit
 			);
 		});
 }

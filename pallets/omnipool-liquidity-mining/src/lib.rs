@@ -1092,8 +1092,8 @@ pub mod pallet {
 		///
 		/// It performs the following steps in order:
 		/// 1. [OPTIONAL] If deposit_id is provided: Exits from ALL yield farms associated with the deposit (claiming rewards)
-		/// 2. Removes liquidity from the omnipool to retrieve stableswap shares
-		/// 3. Removes liquidity from the stableswap pool to retrieve underlying assets
+		/// 2. Removes liquidity from the omnipool to retrieve stableswap shares (protected by omnipool_min_limit)
+		/// 3. Removes liquidity from the stableswap pool to retrieve underlying assets (protected by min_amounts_out)
 		///
 		/// The asset removal strategy is determined by the `min_amounts_out` parameter length:
 		/// - If 1 asset is specified: Uses `remove_liquidity_one_asset` (trading fee applies)
@@ -1102,8 +1102,8 @@ pub mod pallet {
 		/// Parameters:
 		/// - `origin`: Owner of the omnipool position
 		/// - `position_id`: The omnipool position NFT ID to remove liquidity from
-		/// - `stable_pool_id`: The stableswap pool ID containing the liquidity
-		/// - `min_amounts_out`: Asset IDs and minimum amounts for slippage protection
+		/// - `omnipool_min_limit`: Minimum stableswap shares to receive from omnipool (slippage protection for step 2)
+		/// - `min_amounts_out`: Asset IDs and minimum amounts for slippage protection (for step 3)
 		/// - `deposit_id`: Optional liquidity mining deposit NFT ID. If provided, exits all farms first.
 		///
 		/// Emits events:
@@ -1118,6 +1118,7 @@ pub mod pallet {
 		pub fn remove_liquidity_stableswap_omnipool_and_exit_farms(
 			origin: OriginFor<T>,
 			position_id: T::PositionItemId,
+			omnipool_min_limit: Balance,
 			min_amounts_out: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
 			deposit_id: Option<DepositId>,
 		) -> DispatchResult {
@@ -1153,7 +1154,7 @@ pub mod pallet {
 				origin.clone(),
 				position_id,
 				omnipool_shares_to_remove,
-				Balance::MIN,
+				omnipool_min_limit,
 			)?;
 
 			if min_amounts_out.len() == 1 {

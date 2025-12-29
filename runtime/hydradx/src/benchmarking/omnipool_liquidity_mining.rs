@@ -1068,7 +1068,7 @@ runtime_benchmarks! {
 		let asset_ids: BoundedVec<AssetAmount<u32>, ConstU32<{ pallet_stableswap::MAX_ASSETS_IN_POOL }>> = asset_ids.try_into().unwrap();
 		CircuitBreaker::set_remove_liquidity_limit(RawOrigin::Root.into(),pool_id, None).unwrap();
 	}: {
-		OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(RawOrigin::Signed(lp_provider).into(),position_id,asset_ids, deposit_id).unwrap();
+		OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(RawOrigin::Signed(lp_provider).into(),position_id,Balance::MIN,asset_ids, deposit_id).unwrap();
 	}
 
 	verify{
