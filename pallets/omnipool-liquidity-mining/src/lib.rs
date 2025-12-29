@@ -1093,17 +1093,17 @@ pub mod pallet {
 		/// It performs the following steps in order:
 		/// 1. [OPTIONAL] If deposit_id is provided: Exits from ALL yield farms associated with the deposit (claiming rewards)
 		/// 2. Removes liquidity from the omnipool to retrieve stableswap shares (protected by omnipool_min_limit)
-		/// 3. Removes liquidity from the stableswap pool to retrieve underlying assets (protected by min_amounts_out)
+		/// 3. Removes liquidity from the stableswap pool to retrieve underlying assets (protected by stableswap_min_amounts_out)
 		///
-		/// The asset removal strategy is determined by the `min_amounts_out` parameter length:
+		/// The stabelswap liquidity asset removal strategy is determined by the `min_amounts_out` parameter length:
 		/// - If 1 asset is specified: Uses `remove_liquidity_one_asset` (trading fee applies)
 		/// - If multiple assets: Uses `remove_liquidity` (proportional, no trading fee)
 		///
 		/// Parameters:
 		/// - `origin`: Owner of the omnipool position
 		/// - `position_id`: The omnipool position NFT ID to remove liquidity from
-		/// - `omnipool_min_limit`: Minimum stableswap shares to receive from omnipool (slippage protection for step 2)
-		/// - `min_amounts_out`: Asset IDs and minimum amounts for slippage protection (for step 3)
+		/// - `omnipool_min_limit`: The min amount of asset to be removed from omnipool (slippage protection)
+		/// - `stableswap_min_amounts_out`: Asset IDs and minimum amounts minimum amounts of each asset to receive from omnipool.
 		/// - `deposit_id`: Optional liquidity mining deposit NFT ID. If provided, exits all farms first.
 		///
 		/// Emits events:
@@ -1119,11 +1119,11 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			position_id: T::PositionItemId,
 			omnipool_min_limit: Balance,
-			min_amounts_out: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
+			stableswap_min_amounts_out: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
 			deposit_id: Option<DepositId>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			ensure!(!min_amounts_out.is_empty(), Error::<T>::NoAssetsSpecified);
+			ensure!(!stableswap_min_amounts_out.is_empty(), Error::<T>::NoAssetsSpecified);
 
 			if let Some(deposit_id) = deposit_id {
 				Self::ensure_nft_owner(origin.clone(), deposit_id)?;
@@ -1157,8 +1157,8 @@ pub mod pallet {
 				omnipool_min_limit,
 			)?;
 
-			if min_amounts_out.len() == 1 {
-				let asset_amount = &min_amounts_out[0];
+			if stableswap_min_amounts_out.len() == 1 {
+				let asset_amount = &stableswap_min_amounts_out[0];
 
 				T::Stableswap::remove_liquidity_one_asset(
 					who.clone(),
@@ -1172,7 +1172,7 @@ pub mod pallet {
 					who,
 					stable_pool_id,
 					actual_stable_shares_received,
-					min_amounts_out.to_vec(),
+					stableswap_min_amounts_out.to_vec(),
 				)?;
 			}
 
