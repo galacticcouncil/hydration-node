@@ -2205,7 +2205,12 @@ impl<T: Config> Pallet<T> {
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		T::Currency::transfer(asset_id, &Self::protocol_account(), &who, *state_changes.asset.delta_reserve)?;
+		T::Currency::transfer(
+			asset_id,
+			&Self::protocol_account(),
+			&who,
+			*state_changes.asset.delta_reserve,
+		)?;
 
 		// burn only difference between delta hub and lp hub amount.
 		Self::update_hub_asset_liquidity(

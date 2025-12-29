@@ -596,13 +596,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let _ = Self::do_remove_liquidity_one_asset(
-				&who,
-				pool_id,
-				asset_id,
-				share_amount,
-				min_amount_out,
-			)?;
+			let _ = Self::do_remove_liquidity_one_asset(&who, pool_id, asset_id, share_amount, min_amount_out)?;
 
 			Ok(())
 		}
