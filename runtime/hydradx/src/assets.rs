@@ -1774,6 +1774,7 @@ impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
 			value: vec![],
 			contract: context.contract,
 			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
 		}
 	}
 
@@ -1783,6 +1784,7 @@ impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
 			value: vec![],
 			contract: context.contract,
 			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
 		}
 	}
 }
