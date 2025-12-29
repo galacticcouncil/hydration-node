@@ -1109,11 +1109,6 @@ pub mod pallet {
 		/// Emits events:
 		/// - If deposit_id provided: `RewardClaimed`, `SharesWithdrawn`, `DepositDestroyed`
 		/// - Always: Omnipool's `LiquidityRemoved`, Stableswap's `LiquidityRemoved`
-		///
-		/// Errors:
-		/// - `NoAssetsSpecified` if min_amounts_out is empty
-		/// - `Forbidden` if caller doesn't own the deposit NFT (when deposit_id provided)
-		/// - `InconsistentState(MissingLpPosition)` if deposit-position mismatch
 		#[pallet::call_index(17)]
 		#[pallet::weight({
 			let with_farm = if deposit_id.is_some() { 1 } else { 0 };
