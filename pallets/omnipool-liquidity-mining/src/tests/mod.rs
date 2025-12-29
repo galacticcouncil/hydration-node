@@ -39,6 +39,7 @@ pub mod exit_farms;
 pub mod join_farms;
 pub mod mock;
 pub mod redeposit_shares;
+pub mod remove_liquidity_stableswap_omnipool_and_exit_farms;
 pub mod resume_yield_farm;
 pub mod stop_yield_farm;
 pub mod terminate_global_farm;

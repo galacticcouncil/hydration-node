@@ -9,6 +9,21 @@ pub trait StableswapAddLiquidity<AccountId, AssetId, Balance> {
 		pool_id: AssetId,
 		assets_amounts: Vec<AssetAmount<AssetId>>,
 	) -> Result<Balance, DispatchError>;
+
+	fn remove_liquidity_one_asset(
+		who: AccountId,
+		pool_id: AssetId,
+		asset_id: AssetId,
+		share_amount: Balance,
+		min_amount_out: Balance,
+	) -> Result<Balance, DispatchError>;
+
+	fn remove_liquidity(
+		who: AccountId,
+		pool_id: AssetId,
+		share_amount: Balance,
+		min_amounts_out: Vec<AssetAmount<AssetId>>,
+	) -> Result<(), DispatchError>;
 }
 
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo)]

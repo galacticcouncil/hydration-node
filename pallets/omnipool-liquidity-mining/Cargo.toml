@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.7.1"
+version = "2.8.0"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -14,7 +14,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 # parity
 scale-info = { workspace = true }
-codec = {workspace = true }
+codec = { workspace = true }
 log = { workspace = true }
 
 # local
@@ -61,26 +61,26 @@ polkadot-xcm = { workspace = true }
 [features]
 default = ["std"]
 std = [
-	"codec/std",
-	"scale-info/std",
-	"sp-runtime/std",
-	"sp-std/std",
-	"frame-support/std",
-	"frame-system/std",
-	"sp-core/std",
-	"sp-io/std",
-	"pallet-balances/std",
-	"orml-tokens/std",
+    "codec/std",
+    "scale-info/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-core/std",
+    "sp-io/std",
+    "pallet-balances/std",
+    "orml-tokens/std",
     "pallet-omnipool/std",
-	"pallet-ema-oracle/std",
-	"pallet-liquidity-mining/std",
-	"primitives/std",
+    "pallet-ema-oracle/std",
+    "pallet-liquidity-mining/std",
+    "primitives/std",
     "hydra-dx-math/std",
 ]
 runtime-benchmarks = [
-	"frame-benchmarking/runtime-benchmarks",
-	"sp-core",
-	"sp-io",
-	"pallet-balances",
+    "frame-benchmarking/runtime-benchmarks",
+    "sp-core",
+    "sp-io",
+    "pallet-balances",
 ]
-try-runtime = [ "frame-support/try-runtime" ]
+try-runtime = ["frame-support/try-runtime"]
