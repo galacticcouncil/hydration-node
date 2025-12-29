@@ -87,6 +87,7 @@ type PeriodOf<T> = BlockNumberFor<T>;
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
+	use primitives::ItemId;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -1114,27 +1115,14 @@ pub mod pallet {
 		/// - `Forbidden` if caller doesn't own the deposit NFT (when deposit_id provided)
 		/// - `InconsistentState(MissingLpPosition)` if deposit-position mismatch
 		#[pallet::call_index(17)]
-		#[pallet::weight(Weight::default())]
-		//TODO: BENCHMARK AND ADD WEIGHT
-		// #[pallet::weight({
-		// 	let deposit_data = T::LiquidityMiningHandler::deposit(*deposit_id);
-		// 	let farm_count = match deposit_data {
-		// 		Some(data) => data.yield_farm_entries.len() as u32,
-		// 		None => 0,
-		// 	};
-		// 	<T as Config>::WeightInfo::exit_farms(farm_count)
-		// 		.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(farm_count as u64))
-		// 		.saturating_add(<T as pallet_omnipool::Config>::WeightInfo::remove_liquidity())
-		// 		.saturating_add(if min_amounts_out.len() == 1 {
-		// 			<T as pallet_stableswap::Config>::WeightInfo::remove_liquidity_one_asset()
-		// 		} else {
-		// 			<T as pallet_stableswap::Config>::WeightInfo::remove_liquidity()
-		// 		})
-		// })]
+		#[pallet::weight({
+			let with_farm = if deposit_id.is_some() { 1 } else { 0 };
+			<T as Config>::WeightInfo::remove_liquidity_stableswap_omnipool_and_exit_farms(with_farm)
+				.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(T::MaxFarmEntriesPerDeposit::get() as u64))
+		})]
 		pub fn remove_liquidity_stableswap_omnipool_and_exit_farms(
 			origin: OriginFor<T>,
 			position_id: T::PositionItemId,
-			stable_pool_id: T::AssetId,
 			min_amounts_out: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
 			deposit_id: Option<DepositId>,
 		) -> DispatchResult {
@@ -1145,9 +1133,7 @@ pub mod pallet {
 				Self::ensure_nft_owner(origin.clone(), deposit_id)?;
 
 				let stored_position_id = OmniPositionId::<T>::get(deposit_id)
-					.ok_or(Error::<T>::InconsistentState(
-						InconsistentStateError::MissingLpPosition
-					))?;
+					.ok_or(Error::<T>::InconsistentState(InconsistentStateError::MissingLpPosition))?;
 				ensure!(
 					stored_position_id == position_id,
 					Error::<T>::InconsistentState(InconsistentStateError::MissingLpPosition)
@@ -1159,16 +1145,14 @@ pub mod pallet {
 							InconsistentStateError::DepositDataNotFound,
 						))?
 						.try_into()
-						.map_err(|_| {
-							Error::<T>::InconsistentState(InconsistentStateError::DepositDataNotFound)
-						})?;
+						.map_err(|_| Error::<T>::InconsistentState(InconsistentStateError::DepositDataNotFound))?;
 
 				Self::exit_farms(origin.clone(), deposit_id, yield_farm_ids)?;
 			}
 
-
 			let omnipool_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
 			let omnipool_shares_to_remove = omnipool_position.shares;
+			let stable_pool_id = omnipool_position.asset_id;
 
 			let actual_stable_shares_received = OmnipoolPallet::<T>::do_remove_liquidity_with_limit(
 				origin.clone(),

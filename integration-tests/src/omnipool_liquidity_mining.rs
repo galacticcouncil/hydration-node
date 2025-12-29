@@ -1389,7 +1389,6 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(CHARLIE.into()),
 						position_id,
-						stable_pool_id,
 						asset_ids_without_slippage,
 						Some(deposit_id)
 					)
@@ -1401,11 +1400,8 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				// Verify NFT was destroyed (all liquidity removed)
 				assert!(
-					hydradx_runtime::Uniques::owner(
-						hydradx_runtime::OmnipoolCollectionId::get(),
-						position_id
-					)
-					.is_none(),
+					hydradx_runtime::Uniques::owner(hydradx_runtime::OmnipoolCollectionId::get(), position_id)
+						.is_none(),
 					"NFT should be destroyed after removing all liquidity"
 				);
 
@@ -1420,33 +1416,27 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				//Verify SharesWithdrawn events for all 3 farms
 				expect_shares_withdrawn_ln_events(vec![
-					RuntimeEvent::OmnipoolLiquidityMining(
-						pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
-							global_farm_id: 1,
-							yield_farm_id: 4,
-							deposit_id: 1,
-							amount: 20044549999405,
-							who: CHARLIE.into(),
-						},
-					),
-					RuntimeEvent::OmnipoolLiquidityMining(
-						pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
-							global_farm_id: 2,
-							yield_farm_id: 5,
-							deposit_id: 1,
-							amount: 20044549999405,
-							who: CHARLIE.into(),
-						},
-					),
-					RuntimeEvent::OmnipoolLiquidityMining(
-						pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
-							global_farm_id: 3,
-							yield_farm_id: 6,
-							deposit_id: 1,
-							amount: 20044549999405,
-							who: CHARLIE.into(),
-						},
-					),
+					RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
+						global_farm_id: 1,
+						yield_farm_id: 4,
+						deposit_id: 1,
+						amount: 20044549999405,
+						who: CHARLIE.into(),
+					}),
+					RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
+						global_farm_id: 2,
+						yield_farm_id: 5,
+						deposit_id: 1,
+						amount: 20044549999405,
+						who: CHARLIE.into(),
+					}),
+					RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
+						global_farm_id: 3,
+						yield_farm_id: 6,
+						deposit_id: 1,
+						amount: 20044549999405,
+						who: CHARLIE.into(),
+					}),
 				]);
 
 				// Verify LiquidityRemoved events
@@ -1459,22 +1449,20 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				}
 				.into()]);
 
-				expect_stableswap_liquidity_removed_events(vec![
-					pallet_stableswap::Event::LiquidityRemoved {
-						pool_id: stable_pool_id,
-						who: CHARLIE.into(),
-						shares: 20042545544405,
-						amounts: vec![
-							AssetAmount::new(1000002, 3984601523849),
-							AssetAmount::new(1000003, 3984601484003),
-							AssetAmount::new(1000004, 3984601484003),
-							AssetAmount::new(1000005, 3984601484003),
-							AssetAmount::new(1000006, 3984601523849),
-						],
-						fee: 0,
-					}
-						.into(),
-				]);
+				expect_stableswap_liquidity_removed_events(vec![pallet_stableswap::Event::LiquidityRemoved {
+					pool_id: stable_pool_id,
+					who: CHARLIE.into(),
+					shares: 20042545544405,
+					amounts: vec![
+						AssetAmount::new(1000002, 3984601523849),
+						AssetAmount::new(1000003, 3984601484003),
+						AssetAmount::new(1000004, 3984601484003),
+						AssetAmount::new(1000005, 3984601484003),
+						AssetAmount::new(1000006, 3984601523849),
+					],
+					fee: 0,
+				}
+				.into()]);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -1576,7 +1564,6 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(CHARLIE.into()),
 						position_id,
-						stable_pool_id,
 						asset_ids_without_slippage,
 						None
 					)
@@ -1585,11 +1572,8 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				//Assert
 				// Verify NFT was destroyed (all liquidity removed)
 				assert!(
-					hydradx_runtime::Uniques::owner(
-						hydradx_runtime::OmnipoolCollectionId::get(),
-						position_id
-					)
-					.is_none(),
+					hydradx_runtime::Uniques::owner(hydradx_runtime::OmnipoolCollectionId::get(), position_id)
+						.is_none(),
 					"NFT should be destroyed after removing all liquidity"
 				);
 
@@ -1606,22 +1590,20 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				}
 				.into()]);
 
-				expect_stableswap_liquidity_removed_events(vec![
-					pallet_stableswap::Event::LiquidityRemoved {
-						pool_id: stable_pool_id,
-						who: CHARLIE.into(),
-						shares: 20042545544405,
-						amounts: vec![
-							AssetAmount::new(1000002, 3984601523849),
-							AssetAmount::new(1000003, 3984601484003),
-							AssetAmount::new(1000004, 3984601484003),
-							AssetAmount::new(1000005, 3984601484003),
-							AssetAmount::new(1000006, 3984601523849),
-						],
-						fee: 0,
-					}
-						.into(),
-				]);
+				expect_stableswap_liquidity_removed_events(vec![pallet_stableswap::Event::LiquidityRemoved {
+					pool_id: stable_pool_id,
+					who: CHARLIE.into(),
+					shares: 20042545544405,
+					amounts: vec![
+						AssetAmount::new(1000002, 3984601523849),
+						AssetAmount::new(1000003, 3984601484003),
+						AssetAmount::new(1000004, 3984601484003),
+						AssetAmount::new(1000005, 3984601484003),
+						AssetAmount::new(1000006, 3984601523849),
+					],
+					fee: 0,
+				}
+				.into()]);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -1729,7 +1711,6 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(CHARLIE.into()),
 						position_id,
-						stable_pool_id,
 						vec![AssetAmount::new(stable_asset_1, 0)].try_into().unwrap(),
 						Some(deposit_id)
 					)
@@ -1741,11 +1722,8 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				// Verify NFT was destroyed (all liquidity removed)
 				assert!(
-					hydradx_runtime::Uniques::owner(
-						hydradx_runtime::OmnipoolCollectionId::get(),
-						position_id
-					)
-					.is_none(),
+					hydradx_runtime::Uniques::owner(hydradx_runtime::OmnipoolCollectionId::get(), position_id)
+						.is_none(),
 					"NFT should be destroyed after removing all liquidity"
 				);
 
@@ -1760,16 +1738,14 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				assert_eq!(charlie_asset_2_balance_after, charlie_asset_2_balance_before);
 
 				// Verify SharesWithdrawn and DepositDestroyed events
-				expect_shares_withdrawn_ln_events(vec![
-					pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
-						global_farm_id,
-						yield_farm_id,
-						deposit_id: 1,
-						amount: 20044549999405,
-						who: CHARLIE.into(),
-					}
-					.into()
-				]);
+				expect_shares_withdrawn_ln_events(vec![pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
+					global_farm_id,
+					yield_farm_id,
+					deposit_id: 1,
+					amount: 20044549999405,
+					who: CHARLIE.into(),
+				}
+				.into()]);
 
 				// Verify LiquidityRemoved event from omnipool
 				expect_omnipool_liquidity_removed_events(vec![pallet_omnipool::Event::LiquidityRemoved {
@@ -1781,18 +1757,14 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				}
 				.into()]);
 
-				expect_stableswap_liquidity_removed_events(vec![
-					pallet_stableswap::Event::LiquidityRemoved {
-						pool_id: stable_pool_id,
-						who: CHARLIE.into(),
-						shares: 20042545544405,
-						amounts: vec![
-							AssetAmount::new( stable_asset_1, 19823392461976),
-						],
-						fee: 99615037340,
-					}
-						.into(),
-				]);
+				expect_stableswap_liquidity_removed_events(vec![pallet_stableswap::Event::LiquidityRemoved {
+					pool_id: stable_pool_id,
+					who: CHARLIE.into(),
+					shares: 20042545544405,
+					amounts: vec![AssetAmount::new(stable_asset_1, 19823392461976)],
+					fee: 99615037340,
+				}
+				.into()]);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -1876,11 +1848,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(
 						RuntimeOrigin::signed(CHARLIE.into()),
 						stable_pool_id,
-						vec![
-							AssetAmount::new(stable_asset_1, 10 * UNITS),
-						]
-						.try_into()
-						.unwrap(),
+						vec![AssetAmount::new(stable_asset_1, 10 * UNITS),].try_into().unwrap(),
 						Some(farms.try_into().unwrap()),
 						None,
 					)
@@ -1898,12 +1866,8 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(CHARLIE.into()),
 						position_id,
-						stable_pool_id,
-						vec![AssetAmount::new(stable_asset_1, 0)]
-							.try_into()
-							.unwrap(),
+						vec![AssetAmount::new(stable_asset_1, 0)].try_into().unwrap(),
 						Some(deposit_id)
-
 					)
 				);
 
@@ -1913,11 +1877,8 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				// Verify NFT was destroyed (all liquidity removed)
 				assert!(
-					hydradx_runtime::Uniques::owner(
-						hydradx_runtime::OmnipoolCollectionId::get(),
-						position_id
-					)
-					.is_none(),
+					hydradx_runtime::Uniques::owner(hydradx_runtime::OmnipoolCollectionId::get(), position_id)
+						.is_none(),
 					"NFT should be destroyed after removing all liquidity"
 				);
 
@@ -1954,10 +1915,8 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					pool_id: stable_pool_id,
 					who: CHARLIE.into(),
 					shares: 10008699029606,
-					amounts: vec![
-						AssetAmount::new(stable_asset_1, 9899259975202),
-					],
-					fee:  49745024898,
+					amounts: vec![AssetAmount::new(stable_asset_1, 9899259975202)],
+					fee: 49745024898,
 				}
 				.into()]);
 
@@ -2061,11 +2020,10 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(DAVE.into()),
 						position_id,
-						stable_pool_id,
 						vec![AssetAmount::new(stable_asset_1, 0), AssetAmount::new(stable_asset_2, 0)]
 							.try_into()
 							.unwrap(),
-												Some(deposit_id)
+						Some(deposit_id)
 					),
 					pallet_omnipool_liquidity_mining::Error::<hydradx_runtime::Runtime>::Forbidden
 				);
@@ -2173,7 +2131,6 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
 						RuntimeOrigin::signed(CHARLIE.into()),
 						position_id,
-						stable_pool_id,
 						vec![].try_into().unwrap(),
 						Some(deposit_id)
 					),
@@ -3412,7 +3369,7 @@ pub fn expect_lm_events(e: Vec<RuntimeEvent>) {
 			>::SharesDeposited { .. })
 				| RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::<
 					hydradx_runtime::Runtime,
-				>::SharesRedeposited { .. }  )
+				>::SharesRedeposited { .. })
 		) {
 			reward_claimed_events.push(e);
 		}
@@ -3422,17 +3379,16 @@ pub fn expect_lm_events(e: Vec<RuntimeEvent>) {
 }
 
 pub fn expect_shares_withdrawn_ln_events(expected: Vec<RuntimeEvent>) {
-	let last_events =
-		test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(80);
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(80);
 
 	let shares_withdrawn_events: Vec<RuntimeEvent> = last_events
 		.into_iter()
 		.filter(|event| {
 			matches!(
 				event,
-				RuntimeEvent::OmnipoolLiquidityMining(
-					pallet_omnipool_liquidity_mining::Event::<hydradx_runtime::Runtime>::SharesWithdrawn { .. }
-				)
+				RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::<
+					hydradx_runtime::Runtime,
+				>::SharesWithdrawn { .. })
 			)
 		})
 		.collect();

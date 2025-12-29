@@ -29,6 +29,7 @@ use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::stableswap::AssetAmount;
 use orml_benchmarking::runtime_benchmarks;
 use primitives::AssetId;
+use sp_runtime::traits::ConstU32;
 use sp_runtime::{traits::One, FixedU128, Permill};
 use sp_runtime::{DispatchError, DispatchResult, Perquintill, TransactionOutcome};
 use warehouse_liquidity_mining::LoyaltyCurve;
@@ -925,6 +926,170 @@ runtime_benchmarks! {
 		update_deposit_limit(pool_id, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
 		update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
 	}: _(RawOrigin::Signed(lp_provider),pool_id, added_liquidity.try_into().unwrap(), Some(farms.try_into().unwrap()), None)
+
+	remove_liquidity_stableswap_omnipool_and_exit_farms  {
+		let c in 0..1;
+		let with_farms = c == 1; // if c == 1, we also join and exit from farms
+
+		let max_entries = get_max_entries();
+
+		//Init stableswap first
+		let caller: AccountId = account("caller", 0, 1);
+		let lp_provider: AccountId = account("provider", 0, 1);
+		let initial_liquidity = 1_000_000_000_000_000u128;
+		let liquidity_added = 300_000_000_000_000u128;
+
+		let mut initial: Vec<AssetAmount<AssetId>> = vec![];
+		let mut added_liquidity: Vec<AssetAmount<AssetId>> = vec![];
+		let mut asset_ids: Vec<AssetId> = Vec::new() ;
+		for idx in 0..pallet_stableswap::MAX_ASSETS_IN_POOL {
+			let name: Vec<u8> = idx.to_ne_bytes().to_vec();
+			let asset_id = register_asset_with_decimals(
+				name,
+				1u128,
+				18u8
+			).unwrap();
+			asset_ids.push(asset_id);
+			Currencies::update_balance(RawOrigin::Root.into(), caller.clone(),asset_id,  1_000_000_000_000_000i128)?;
+			Currencies::update_balance(RawOrigin::Root.into(), lp_provider.clone(),asset_id, 1_000_000_000_000_000_000_000i128)?;
+			initial.push(AssetAmount::new(asset_id, initial_liquidity));
+			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
+		}
+
+		let name : Vec<u8> = b"PO2".to_vec();
+		let pool_id = register_asset_with_decimals(
+			name,
+			1u128,
+			18u8
+		).unwrap();
+
+		let amplification = 100u16;
+		let trade_fee = Permill::from_percent(1);
+		let successful_origin = <crate::Runtime as pallet_stableswap::Config>::AuthorityOrigin::try_successful_origin().unwrap();
+		Stableswap::create_pool(successful_origin,
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			trade_fee,
+		)?;
+
+		// Worst case is adding additional liquidity and not initial liquidity
+		Stableswap::add_assets_liquidity(RawOrigin::Signed(caller).into(),
+			pool_id,
+			initial.try_into().unwrap(),
+			0u128,
+		)?;
+
+		let lp1 = create_funded_account("lp_1", 1, 10 * BTC_ONE, BTC);
+		let deposit_id = 1;
+
+		//Init LM farms
+		let owner = create_funded_account("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY);
+		let owner2 = create_funded_account("owner2", 1, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY);
+		let owner3 = create_funded_account("owner3", 2, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY);
+		let owner4 = create_funded_account("owner4", 3, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY);
+		let owner5 = create_funded_account("owner5", 4, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY);
+
+		let deposit_id = 1;
+
+		initialize_omnipool(Some(pool_id))?;
+
+		CircuitBreaker::set_add_liquidity_limit(RuntimeOrigin::root(), pool_id, Some((99, 100))).unwrap();
+		let liquidity_added = 100_000_000_000_000_u128;
+		let omni_lp_provider: AccountId = create_funded_account("provider", 1, liquidity_added * 10, pool_id);
+		Omnipool::add_liquidity(RawOrigin::Signed(omni_lp_provider.clone()).into(), pool_id, liquidity_added)?;
+
+		//gId: 1, yId: 2
+		initialize_global_farm(owner.clone())?;
+		initialize_yield_farm(owner, 1, pool_id)?;
+		let lp1 = create_funded_account("lp_1", 1, 10 * ONE, pool_id);
+		let lp1_position_id = omnipool_add_liquidity(lp1.clone(), pool_id, 10 * ONE)?;
+		lm_deposit_shares(lp1, 1, 2, lp1_position_id)?;
+
+		//gId: 3, yId: 4
+		initialize_global_farm(owner2.clone())?;
+		initialize_yield_farm(owner2, 3, pool_id)?;
+		let lp2 = create_funded_account("lp_2", 1, 10 * ONE, pool_id);
+		let lp2_position_id = omnipool_add_liquidity(lp2.clone(), pool_id, 10 * ONE)?;
+		lm_deposit_shares(lp2, 3, 4, lp2_position_id)?;
+
+		//gId: 5, yId: 6
+		initialize_global_farm(owner3.clone())?;
+		initialize_yield_farm(owner3, 5, pool_id)?;
+		let lp3 = create_funded_account("lp_3", 1, 10 * ONE, pool_id);
+		let lp3_position_id = omnipool_add_liquidity(lp3.clone(), pool_id, 10 * ONE)?;
+		lm_deposit_shares(lp3, 5, 6, lp3_position_id)?;
+
+		//gId: 7, yId: 8
+		initialize_global_farm(owner4.clone())?;
+		initialize_yield_farm(owner4, 7, pool_id)?;
+		let lp4 = create_funded_account("lp_4", 1, 10 * ONE, pool_id);
+		let lp4_position_id = omnipool_add_liquidity(lp4.clone(), pool_id, 10 * ONE)?;
+		lm_deposit_shares(lp4, 7, 8, lp4_position_id)?;
+
+		//gId: 9, yId: 10
+		initialize_global_farm(owner5.clone())?;
+		initialize_yield_farm(owner5, 9, pool_id)?;
+		let lp5 = create_funded_account("lp_5", 1, 10 * ONE, pool_id);
+		let lp5_position_id = omnipool_add_liquidity(lp5.clone(), pool_id, 10 * ONE)?;
+		lm_deposit_shares(lp5, 9, 10, lp5_position_id)?;
+
+		let lp6 = create_funded_account("lp_6", 5, 10 * ONE, pool_id);
+
+		set_period(200);
+		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms = farms_entries[0..max_entries as usize].to_vec();
+
+
+		CircuitBreaker::set_add_liquidity_limit(RawOrigin::Root.into(),pool_id, None).unwrap();
+		let _ = Tokens::deposit(pool_id, &lp_provider, 50000000000000000);//We mint some share token so it wont fail with insufficience balance in adding liqudity to omnipool
+		update_deposit_limit(pool_id, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
+		update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
+
+		let position_id = Omnipool::next_position_id();
+		let deposit_id = if with_farms {
+			 Some(OmnipoolWarehouseLM::deposit_id() + 1)
+		} else {
+			None
+		};
+		let farms_to_join = if with_farms {
+			Some(farms.try_into().unwrap())
+		} else {
+			None
+		};
+		OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(RawOrigin::Signed(lp_provider.clone()).into(),pool_id, added_liquidity.try_into().unwrap(), farms_to_join, None).unwrap();
+
+		let asset_ids: Vec<AssetAmount<u32>> = Stableswap::pools(pool_id)
+					.into_iter()
+					.flat_map(|pool_info| pool_info.assets.into_iter())
+					.map(|asset_id| AssetAmount::<u32>::new(asset_id.into(), 10000))
+					.collect();
+
+		let asset_ids: BoundedVec<AssetAmount<u32>, ConstU32<{ pallet_stableswap::MAX_ASSETS_IN_POOL }>> = asset_ids.try_into().unwrap();
+		CircuitBreaker::set_remove_liquidity_limit(RawOrigin::Root.into(),pool_id, None).unwrap();
+	}: {
+		OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(RawOrigin::Signed(lp_provider).into(),position_id,asset_ids, deposit_id).unwrap();
+	}
+
+	verify{
+		if with_farms {
+			let deposit_id = deposit_id.unwrap();
+			assert!(OmnipoolWarehouseLM::deposit(deposit_id).is_none());
+		}
+
+		// Verify NFT was destroyed
+		assert!(
+			Uniques::owner(
+				OmnipoolCollectionId::get(),
+				position_id
+			)
+			.is_none(),
+			"NFT should be destroyed after removing all liquidity"
+		);
+	}
+
+
+
 
 
 	//NOTE: price adjustment reads route's price from oracle so pool type doesn't matter
