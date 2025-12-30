@@ -5764,7 +5764,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.4.1"
+version = "4.4.2"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -9615,7 +9615,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.4.1"
+version = "1.4.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
