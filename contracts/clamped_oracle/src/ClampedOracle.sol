@@ -13,20 +13,18 @@ contract ClampedOracle is IClampedOracle {
     uint256 public immutable override maxDiffBps;
 
     uint8 private immutable _decimals;
-    string private _description;
 
     constructor(
-        address primaryFeed,
-        address secondaryFeed,
-        uint256 maxDiffBps_,
-        string memory description_
+        address _primaryFeed,
+        address _secondaryFeed,
+        uint256 _maxDiffBps
     ) {
-        if (primaryFeed == address(0) || secondaryFeed == address(0))
+        if (_primaryFeed == address(0) || _secondaryFeed == address(0))
             revert InvalidFeed();
-        if (maxDiffBps_ > MAX_BPS) revert InvalidBps();
+        if (_maxDiffBps > MAX_BPS) revert InvalidBps();
 
-        IAggregatorV3 p = IAggregatorV3(primaryFeed);
-        IAggregatorV3 s = IAggregatorV3(secondaryFeed);
+        IAggregatorV3 p = IAggregatorV3(_primaryFeed);
+        IAggregatorV3 s = IAggregatorV3(_secondaryFeed);
 
         uint8 pd = p.decimals();
         uint8 sd = s.decimals();
@@ -34,17 +32,15 @@ contract ClampedOracle is IClampedOracle {
 
         primaryAgg = p;
         secondaryAgg = s;
-        maxDiffBps = maxDiffBps_;
+        maxDiffBps = _maxDiffBps;
 
         _decimals = pd;
-        _description = description_;
 
         emit ClampedOracleInitialized(
-            primaryFeed,
-            secondaryFeed,
-            maxDiffBps_,
-            pd,
-            description_
+            _primaryFeed,
+            _secondaryFeed,
+            _maxDiffBps,
+            pd
         );
     }
 
@@ -58,14 +54,6 @@ contract ClampedOracle is IClampedOracle {
 
     function decimals() external view override returns (uint8) {
         return _decimals;
-    }
-
-    function description() external view override returns (string memory) {
-        return _description;
-    }
-
-    function version() external pure override returns (uint256) {
-        return 1;
     }
 
     function getRoundData(

@@ -8,8 +8,7 @@ interface IClampedOracle is IAggregatorV3 {
         address indexed primaryFeed,
         address indexed secondaryFeed,
         uint256 maxDiffBps,
-        uint8 decimals,
-        string description
+        uint8 decimals
     );
 
     event ClampParamsUpdated(
