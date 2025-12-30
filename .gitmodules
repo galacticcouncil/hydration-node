@@ -1,0 +1,3 @@
+[submodule "contracts/clamped_oracle/lib/forge-std"]
+	path = contracts/clamped_oracle/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
