@@ -23,7 +23,7 @@ use frame_support::sp_runtime::traits::ValidateUnsigned;
 use frame_support::sp_runtime::traits::Zero;
 use frame_support::sp_runtime::DispatchError;
 use frame_support::unsigned::TransactionValidityError;
-use frame_support::{assert_noop, assert_ok, assert_storage_noop};
+use frame_support::{assert_noop, assert_ok, assert_storage_noop, assert_err};
 use hex_literal::hex;
 use mock::*;
 use orml_traits::MultiCurrency;
@@ -221,7 +221,7 @@ fn renounce_contract_deployer_should_remove_address_from_the_storage() {
 }
 
 #[test]
-fn verify_signed_message_should_work() {
+fn verify_signed_message_should_work_if_message_not_wrapped() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange & Act
 		let pair = sp_core::sr25519::Pair::from_seed_slice([1; 64].as_slice()).unwrap();
@@ -231,7 +231,27 @@ fn verify_signed_message_should_work() {
 		let msg = EVMAccounts::create_claim_account_message(&account, HDX);
 
 		// Assert
-		assert!(signature.verify(msg.as_slice(), &account.clone().into()));
+		assert_ok!(EVMAccounts::validate_signature(msg.as_slice(), &signature, &account));
+	});
+}
+
+#[test]
+fn verify_signed_message_should_work_if_message_wrapped() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange & Act
+		let pair = sp_core::sr25519::Pair::from_seed_slice([1; 64].as_slice()).unwrap();
+		let account = frame_support::sp_runtime::MultiSigner::from(pair.public()).into_account();
+
+		let original_msg = EVMAccounts::create_claim_account_message(&account, HDX);
+		let mut wrapped_msg = Vec::new();
+		wrapped_msg.extend(b"<Bytes>");
+		wrapped_msg.extend(original_msg);
+		wrapped_msg.extend(b"</Bytes>");
+
+		let signature = Signature::Sr25519(pair.sign(wrapped_msg.as_slice()));
+
+		// Assert
+		assert_ok!(EVMAccounts::validate_signature(wrapped_msg.as_slice(), &signature, &account));
 	});
 }
 
@@ -246,7 +266,10 @@ fn verify_signed_message_should_fail_if_different_account() {
 		let msg = EVMAccounts::create_claim_account_message(&account, HDX);
 
 		// Assert
-		assert_eq!(signature.verify(msg.as_slice(), &ALICE.into()), false);
+		assert_err!(
+			EVMAccounts::validate_signature(msg.as_slice(), &signature, &ALICE.into()),
+			Error::<Test>::InvalidSignature
+		);
 	});
 }
 
@@ -261,7 +284,10 @@ fn verify_signed_message_should_fail_if_different_asset() {
 		let msg = EVMAccounts::create_claim_account_message(&account, 1);
 
 		// Assert
-		assert_eq!(signature.verify(msg.as_slice(), &account.into()), false);
+		assert_err!(
+			EVMAccounts::validate_signature(msg.as_slice(), &signature, &account.into()),
+			Error::<Test>::InvalidSignature
+		);
 	});
 }
 
@@ -275,7 +301,10 @@ fn verify_signed_message_should_fail_if_different_message() {
 		let signature = sign_message::<Test>(pair, &account, HDX);
 
 		// Assert
-		assert_eq!(signature.verify("wrong message".as_bytes(), &account.into()), false);
+		assert_err!(
+			EVMAccounts::validate_signature("wrong message".as_bytes(), &signature, &account.into()),
+			Error::<Test>::InvalidSignature
+		);
 	});
 }
 
@@ -470,7 +499,7 @@ fn validate_unsigned_should_pass_if_correct_call() {
 
 		// Act & Assert
 		assert_storage_noop!({
-			let res = EVMAccounts::validate_unsigned(TransactionSource::Local, &call);
+			let res = EVMAccounts::validate_unsigned(TransactionSource::External, &call);
 			assert_ok!(res);
 		});
 	});

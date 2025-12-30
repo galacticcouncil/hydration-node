@@ -236,16 +236,7 @@ pub mod pallet {
 	{
 		type Call = Call<T>;
 
-		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			match source {
-				TransactionSource::External => {
-					// receiving unsigned transaction from network - disallow
-					return InvalidTransaction::Call.into();
-				}
-				TransactionSource::Local => {}   // produced by off-chain worker
-				TransactionSource::InBlock => {} // some other node included it in a block
-			};
-
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			let valid_tx = |user| {
 				ValidTransaction::with_tag_prefix("evm-accounts")
 					.priority(UNSIGNED_TXS_PRIORITY)
@@ -480,10 +471,7 @@ where
 	fn verify_claim_account(account: &T::AccountId, asset_id: T::AssetId, signature: Signature) -> DispatchResult {
 		let msg = Self::create_claim_account_message(account, asset_id);
 
-		ensure!(
-			signature.verify(msg.as_slice(), &account.clone().into()),
-			Error::<T>::InvalidSignature
-		);
+		Self::validate_signature(msg.as_slice(), &signature, &account)?;
 
 		T::FeeCurrency::is_payment_currency(asset_id)?;
 
@@ -501,8 +489,32 @@ where
 	}
 
 	/// Creates a message that can be used to prove ownership of an account.
-	fn create_claim_account_message(account: &T::AccountId, asset_id: T::AssetId) -> Vec<u8> {
+	pub fn create_claim_account_message(account: &T::AccountId, asset_id: T::AssetId) -> Vec<u8> {
 		(MESSAGE_PREFIX, account.clone(), asset_id).encode()
+	}
+
+	/// Validate a signature. Supports signatures on raw `data` or `data` wrapped in HTML `<Bytes>`.
+	pub fn validate_signature(
+		data: &[u8],
+		signature: &Signature,
+		signer: &T::AccountId,
+	) -> DispatchResult {
+		// Happy path, user has signed the raw data.
+		if signature.verify(data, &signer.clone().into()) {
+			return Ok(())
+		}
+		// NOTE: for security reasons modern UIs implicitly wrap the data requested to sign into
+		// `<Bytes> + data + </Bytes>`.
+		let prefix = b"<Bytes>";
+		let suffix = b"</Bytes>";
+		let mut wrapped: Vec<u8> = Vec::with_capacity(data.len() + prefix.len() + suffix.len());
+		wrapped.extend(prefix);
+		wrapped.extend(data);
+		wrapped.extend(suffix);
+
+		ensure!(signature.verify(&wrapped[..], &signer.clone().into()), Error::<T>::InvalidSignature);
+
+		Ok(())
 	}
 
 	fn _is_evm_account(account_id: &[u8; 32]) -> bool {
