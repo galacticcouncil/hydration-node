@@ -271,7 +271,7 @@ fn verify_signed_message_should_fail_if_different_account() {
 
 		// Assert
 		assert_err!(
-			EVMAccounts::validate_signature(msg.as_slice(), &signature, &ALICE.into()),
+			EVMAccounts::validate_signature(msg.as_slice(), &signature, &ALICE),
 			Error::<Test>::InvalidSignature
 		);
 	});
@@ -289,7 +289,7 @@ fn verify_signed_message_should_fail_if_different_asset() {
 
 		// Assert
 		assert_err!(
-			EVMAccounts::validate_signature(msg.as_slice(), &signature, &account.into()),
+			EVMAccounts::validate_signature(msg.as_slice(), &signature, &account),
 			Error::<Test>::InvalidSignature
 		);
 	});
@@ -306,7 +306,7 @@ fn verify_signed_message_should_fail_if_different_message() {
 
 		// Assert
 		assert_err!(
-			EVMAccounts::validate_signature("wrong message".as_bytes(), &signature, &account.into()),
+			EVMAccounts::validate_signature("wrong message".as_bytes(), &signature, &account),
 			Error::<Test>::InvalidSignature
 		);
 	});

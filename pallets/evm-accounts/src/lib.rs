@@ -256,8 +256,8 @@ pub mod pallet {
 				} => {
 					// validate transaction
 					match (
-						Self::verify_claim_account(&account, asset_id.clone(), signature.clone()),
-						Self::validate_bind_evm_address(&account, &Self::evm_address(&account)),
+						Self::verify_claim_account(account, *asset_id, signature.clone()),
+						Self::validate_bind_evm_address(account, &Self::evm_address(&account)),
 					) {
 						(Ok(()), Ok(())) => valid_tx(account),
 						_ => InvalidTransaction::Call.into(),
@@ -471,17 +471,17 @@ where
 	fn verify_claim_account(account: &T::AccountId, asset_id: T::AssetId, signature: Signature) -> DispatchResult {
 		let msg = Self::create_claim_account_message(account, asset_id);
 
-		Self::validate_signature(msg.as_slice(), &signature, &account)?;
+		Self::validate_signature(msg.as_slice(), &signature, account)?;
 
 		T::FeeCurrency::is_payment_currency(asset_id)?;
 
 		ensure!(
-			!frame_system::Pallet::<T>::account_exists(&account),
+			!frame_system::Pallet::<T>::account_exists(account),
 			Error::<T>::AccountAlreadyExists
 		);
 
 		ensure!(
-			T::Currency::balance(asset_id, &account) >= T::ExistentialDeposits::get(&asset_id),
+			T::Currency::balance(asset_id, account) >= T::ExistentialDeposits::get(&asset_id),
 			Error::<T>::InsufficientAssetBalance
 		);
 
