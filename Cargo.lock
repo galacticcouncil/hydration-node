@@ -442,9 +442,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.86"
+version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3d1d046238990b9cf5bcde22a3fb3584ee5cf65fb2765f454ed428c7a0063da"
+checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
 name = "approx"
@@ -3077,7 +3077,7 @@ dependencies = [
  "cumulus-test-relay-sproof-builder",
  "parity-scale-codec",
  "sc-client-api",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-inherents",
  "sp-runtime",
  "sp-state-machine",
@@ -4615,7 +4615,7 @@ dependencies = [
  "rustc-hex",
  "serde",
  "serde_json",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
 ]
 
 [[package]]
@@ -5006,7 +5006,7 @@ dependencies = [
  "scale-decode 0.14.0",
  "scale-info",
  "scale-type-resolver",
- "sp-crypto-hashing 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-crypto-hashing",
 ]
 
 [[package]]
@@ -5106,7 +5106,7 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-io",
  "sp-runtime",
  "sp-state-machine",
@@ -5173,7 +5173,7 @@ dependencies = [
  "proc-macro-warning",
  "proc-macro2",
  "quote",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "syn 2.0.90",
 ]
 
@@ -6902,7 +6902,8 @@ checksum = "f8478577c03552c21db0e2724ffb8986a5ce7af88107e6be5d2ee6e158c12800"
 [[package]]
 name = "ismp"
 version = "1.2.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2503#05f2e1f8ef30e94a578c67e30db84c9a26e772aa"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25e6e457045b65e80521632ea2eb175b2901edbe94210c89bd03bf554e5bc55d"
 dependencies = [
  "anyhow",
  "derive_more 1.0.0",
@@ -6918,8 +6919,9 @@ dependencies = [
 
 [[package]]
 name = "ismp-parachain"
-version = "2503.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2503#05f2e1f8ef30e94a578c67e30db84c9a26e772aa"
+version = "2503.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "879385136c417cd125d02a5c76ca9734d0de692ea8ccebd81b72932de5ed9c14"
 dependencies = [
  "hex",
  "hex-literal",
@@ -6936,8 +6938,9 @@ dependencies = [
 
 [[package]]
 name = "ismp-parachain-inherent"
-version = "2503.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2503#05f2e1f8ef30e94a578c67e30db84c9a26e772aa"
+version = "2503.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5647dd47cc6686f50fee1d9bb3efdf503a5b414ee5f6d72ff42f043fa0258273"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6952,8 +6955,9 @@ dependencies = [
 
 [[package]]
 name = "ismp-parachain-runtime-api"
-version = "2503.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2503#05f2e1f8ef30e94a578c67e30db84c9a26e772aa"
+version = "2503.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2062e60cb7e3da436ce3c921a9c67d694148e30379d9f25e0b86f36623b650b3"
 dependencies = [
  "polkadot-sdk 2503.2.0",
 ]
@@ -9140,7 +9144,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-io",
  "sp-runtime",
 ]
@@ -10555,8 +10559,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-hyperbridge"
-version = "2503.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2503#05f2e1f8ef30e94a578c67e30db84c9a26e772aa"
+version = "2503.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d9efe49c0762062951ba9ab1097d470478966395e50807b1af713b75f91b8f1"
 dependencies = [
  "anyhow",
  "ismp",
@@ -10630,8 +10635,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-ismp"
-version = "2503.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2503#05f2e1f8ef30e94a578c67e30db84c9a26e772aa"
+version = "2503.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eabcc387f76f86928bb2c7ca5d9f6f164d9acdcc8b5b05cd6a9ce53959ddc1ff"
 dependencies = [
  "anyhow",
  "fortuples",
@@ -10646,8 +10652,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-ismp-rpc"
-version = "2503.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2503#05f2e1f8ef30e94a578c67e30db84c9a26e772aa"
+version = "2503.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc184e29fa5090d3660ac0189d7a60ad90e189022b26aec0a9fc5b3a9f73f220"
 dependencies = [
  "anyhow",
  "hash-db",
@@ -10667,8 +10674,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-ismp-runtime-api"
-version = "2503.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2503#05f2e1f8ef30e94a578c67e30db84c9a26e772aa"
+version = "2503.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f87b20e928ba113c2b8e31bc1a30d7a83ddd014701722d0ab4015e6b6d4bc22c"
 dependencies = [
  "ismp",
  "pallet-ismp",
@@ -11855,8 +11863,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-token-gateway"
-version = "2503.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2503#05f2e1f8ef30e94a578c67e30db84c9a26e772aa"
+version = "2503.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e70b87827f279b29950247fe8ac45b6c36b82f8c48523b5307649a390ef73ddb"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-macro 0.7.7",
@@ -12812,7 +12821,7 @@ dependencies = [
  "sc-network",
  "sp-application-crypto",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-keystore",
  "tracing-gum",
 ]
@@ -13146,7 +13155,7 @@ dependencies = [
  "sc-executor-wasmtime",
  "seccompiler",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-externalities",
  "sp-io",
  "sp-tracing",
@@ -13366,7 +13375,7 @@ dependencies = [
  "sp-consensus",
  "sp-consensus-aura",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-genesis-builder",
  "sp-inherents",
  "sp-keystore",
@@ -13597,7 +13606,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eb819108697967452fa6d8d96ab4c0d48cbaa423b3156499dcb24f1cf95d6775"
 dependencies = [
- "sp-crypto-hashing 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-crypto-hashing",
 ]
 
 [[package]]
@@ -13792,7 +13801,7 @@ dependencies = [
  "sp-core",
  "sp-core-hashing",
  "sp-crypto-ec-utils",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-debug-derive",
  "sp-externalities",
  "sp-genesis-builder",
@@ -15881,7 +15890,7 @@ dependencies = [
  "serde_json",
  "sp-blockchain",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-genesis-builder",
  "sp-io",
  "sp-runtime",
@@ -16074,7 +16083,7 @@ dependencies = [
  "sp-consensus-babe",
  "sp-consensus-slots",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-inherents",
  "sp-keystore",
  "sp-runtime",
@@ -16208,7 +16217,7 @@ dependencies = [
  "sp-consensus",
  "sp-consensus-grandpa",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-keystore",
  "sp-runtime",
  "substrate-prometheus-endpoint",
@@ -16748,7 +16757,7 @@ dependencies = [
  "sc-executor",
  "sc-executor-common",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-state-machine",
  "sp-wasm-interface",
  "thiserror 1.0.69",
@@ -16877,7 +16886,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-io",
 ]
 
@@ -16960,7 +16969,7 @@ dependencies = [
  "sp-api",
  "sp-blockchain",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-runtime",
  "sp-tracing",
  "sp-transaction-pool",
@@ -17460,7 +17469,8 @@ dependencies = [
 [[package]]
 name = "serde-hex-utils"
 version = "0.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2503#05f2e1f8ef30e94a578c67e30db84c9a26e772aa"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e3d83ec090e617054c5425d2eddd4358a251104c9fba51d71bd997d05cf4915"
 dependencies = [
  "anyhow",
  "hex",
@@ -18221,7 +18231,7 @@ dependencies = [
  "sp-api",
  "sp-application-crypto",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-io",
  "sp-keystore",
  "sp-mmr-primitives",
@@ -18302,7 +18312,7 @@ dependencies = [
  "secp256k1 0.28.2",
  "secrecy 0.8.0",
  "serde",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-debug-derive",
  "sp-externalities",
  "sp-runtime-interface",
@@ -18321,7 +18331,7 @@ name = "sp-core-hashing"
 version = "16.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch#e5734fcc2dec3e01fa70e27d4562098a4845e55e"
 dependencies = [
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
 ]
 
 [[package]]
@@ -18347,20 +18357,6 @@ dependencies = [
 [[package]]
 name = "sp-crypto-hashing"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc9927a7f81334ed5b8a98a4a978c81324d12bd9713ec76b5c68fd410174c5eb"
-dependencies = [
- "blake2b_simd",
- "byteorder",
- "digest 0.10.7",
- "sha2 0.10.8",
- "sha3",
- "twox-hash",
-]
-
-[[package]]
-name = "sp-crypto-hashing"
-version = "0.1.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch#e5734fcc2dec3e01fa70e27d4562098a4845e55e"
 dependencies = [
  "blake2b_simd",
@@ -18377,7 +18373,7 @@ version = "0.1.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch#e5734fcc2dec3e01fa70e27d4562098a4845e55e"
 dependencies = [
  "quote",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "syn 2.0.90",
 ]
 
@@ -18450,7 +18446,7 @@ dependencies = [
  "rustversion",
  "secp256k1 0.28.2",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-externalities",
  "sp-keystore",
  "sp-runtime-interface",
@@ -18695,7 +18691,7 @@ dependencies = [
  "sp-api",
  "sp-application-crypto",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-externalities",
  "sp-runtime",
  "sp-runtime-interface",
@@ -19189,8 +19185,9 @@ dependencies = [
 
 [[package]]
 name = "substrate-state-machine"
-version = "2503.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2503#05f2e1f8ef30e94a578c67e30db84c9a26e772aa"
+version = "2503.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2ff40ca1a734dd79060eb4fe83eeed30d6b68bce111a8384f23895858363fa1"
 dependencies = [
  "hash-db",
  "ismp",
@@ -19811,8 +19808,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "token-gateway-primitives"
-version = "2503.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2503#05f2e1f8ef30e94a578c67e30db84c9a26e772aa"
+version = "2503.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d9613c02e46da5e603616c11a02c8d53f0b7068f021343b4b0b012cb5d4b3a5"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-macro 0.7.7",
@@ -21738,7 +21736,7 @@ dependencies = [
  "polkadot-runtime-parachains",
  "sp-arithmetic",
  "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch)",
+ "sp-crypto-hashing",
  "sp-io",
  "sp-runtime",
  "sp-tracing",
