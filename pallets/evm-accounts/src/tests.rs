@@ -23,7 +23,7 @@ use frame_support::sp_runtime::traits::ValidateUnsigned;
 use frame_support::sp_runtime::traits::Zero;
 use frame_support::sp_runtime::DispatchError;
 use frame_support::unsigned::TransactionValidityError;
-use frame_support::{assert_noop, assert_ok, assert_storage_noop, assert_err};
+use frame_support::{assert_err, assert_noop, assert_ok, assert_storage_noop};
 use hex_literal::hex;
 use mock::*;
 use orml_traits::MultiCurrency;
@@ -251,7 +251,11 @@ fn verify_signed_message_should_work_if_message_wrapped() {
 		let signature = Signature::Sr25519(pair.sign(wrapped_msg.as_slice()));
 
 		// Assert
-		assert_ok!(EVMAccounts::validate_signature(wrapped_msg.as_slice(), &signature, &account));
+		assert_ok!(EVMAccounts::validate_signature(
+			wrapped_msg.as_slice(),
+			&signature,
+			&account
+		));
 	});
 }
 

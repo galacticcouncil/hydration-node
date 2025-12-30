@@ -494,14 +494,10 @@ where
 	}
 
 	/// Validate a signature. Supports signatures on raw `data` or `data` wrapped in HTML `<Bytes>`.
-	pub fn validate_signature(
-		data: &[u8],
-		signature: &Signature,
-		signer: &T::AccountId,
-	) -> DispatchResult {
+	pub fn validate_signature(data: &[u8], signature: &Signature, signer: &T::AccountId) -> DispatchResult {
 		// Happy path, user has signed the raw data.
 		if signature.verify(data, &signer.clone().into()) {
-			return Ok(())
+			return Ok(());
 		}
 		// NOTE: for security reasons modern UIs implicitly wrap the data requested to sign into
 		// `<Bytes> + data + </Bytes>`.
@@ -512,7 +508,10 @@ where
 		wrapped.extend(data);
 		wrapped.extend(suffix);
 
-		ensure!(signature.verify(&wrapped[..], &signer.clone().into()), Error::<T>::InvalidSignature);
+		ensure!(
+			signature.verify(&wrapped[..], &signer.clone().into()),
+			Error::<T>::InvalidSignature
+		);
 
 		Ok(())
 	}
