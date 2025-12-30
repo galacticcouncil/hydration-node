@@ -11641,7 +11641,7 @@ dependencies = [
  "frame-system",
  "pallet-balances",
  "parity-scale-codec",
- "rlp 0.5.2",
+ "rlp 0.6.1",
  "scale-info",
  "sp-core",
  "sp-io",
