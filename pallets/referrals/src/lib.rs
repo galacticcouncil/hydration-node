@@ -753,11 +753,11 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// To support ATokens - we might need to allow tolerance of 1 unit
-		// we calculated the shares based if calculated total_taken (which is correct)
+		// we calculated the shares based on calculated total_taken (which is correct)
 		// but we need to report back that we have actually taken +1 sometimes.
 		let actual_taken = balance_after.saturating_sub(balance_before);
 		let actual_diff = actual_taken.abs_diff(total_taken);
-		ensure!(actual_diff <= 1, Error::<T>::IncorrectRewardCalculation);
+		ensure!(actual_diff <= 1, ArithmeticError::Overflow);
 
 		Ok(Some((actual_taken, Self::pot_account_id())))
 	}
