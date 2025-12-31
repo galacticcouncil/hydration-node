@@ -2103,12 +2103,19 @@ impl<T: Config> Pallet<T> {
 			.filter(|fee| fee.amount > 0) // filter out when we zero percentage is configured for fees
 			.collect();
 
-		let taken_fee_total: Balance = taken_fee_entries.iter().map(|fee| fee.amount).sum();
+		let mut taken_fee_total: Balance = taken_fee_entries.iter().map(|fee| fee.amount).sum();
 
 		let asset_reserve = T::Currency::free_balance(asset, &account);
 		let diff = original_asset_reserve.saturating_sub(asset_reserve);
-		ensure!(diff <= allowed_amount, Error::<T>::FeeOverdraft);
-		ensure!(diff == taken_fee_total, Error::<T>::FeeOverdraft);
+		// Allow accepted tolerance +1
+		ensure!(diff <= allowed_amount.saturating_add(Balance::one()), Error::<T>::FeeOverdraft);
+
+		// the diff of account reserve before and after must equal to reported total taken amount
+		// We allow accepted difference of 1 unit.
+		let total_diff = taken_fee_total.abs_diff(diff);
+		ensure!(total_diff <= 1, Error::<T>::FeeOverdraft);
+		// and let's set the correct taken amount with the tolerance for fee reporting.
+		taken_fee_total = diff;
 
 		let protocol_fee_amount = amount.saturating_sub(taken_fee_total);
 
