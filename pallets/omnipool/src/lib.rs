@@ -2103,19 +2103,23 @@ impl<T: Config> Pallet<T> {
 			.filter(|fee| fee.amount > 0) // filter out when we zero percentage is configured for fees
 			.collect();
 
-		let mut taken_fee_total: Balance = taken_fee_entries.iter().map(|fee| fee.amount).sum();
+		// Total fee taken as reported from the hook
+		let taken_fee_total: Balance = taken_fee_entries
+			.iter()
+			.try_fold(Balance::zero(), |acc, fee| acc.checked_add(fee.amount))
+			.ok_or(ArithmeticError::Overflow)?;
 
 		let asset_reserve = T::Currency::free_balance(asset, &account);
-		let diff = original_asset_reserve.saturating_sub(asset_reserve);
-		// Allow accepted tolerance +1
-		ensure!(diff <= allowed_amount.saturating_add(Balance::one()), Error::<T>::FeeOverdraft);
+		let actual_fee_taken = original_asset_reserve.saturating_sub(asset_reserve);
 
-		// the diff of account reserve before and after must equal to reported total taken amount
-		// We allow accepted difference of 1 unit.
-		let total_diff = taken_fee_total.abs_diff(diff);
-		ensure!(total_diff <= 1, Error::<T>::FeeOverdraft);
-		// and let's set the correct taken amount with the tolerance for fee reporting.
-		taken_fee_total = diff;
+		// We allowed `allowed_amount` as the max fee that can be taken by external sources
+		// To support Atokens, we need to allow a tolerance of 1 extra unit.
+		ensure!(
+			actual_fee_taken <= allowed_amount.saturating_add(Balance::one()),
+			Error::<T>::FeeOverdraft
+		);
+		// And actual fee taken must be equal to the reported amount!
+		ensure!(actual_fee_taken == taken_fee_total, Error::<T>::FeeOverdraft);
 
 		let protocol_fee_amount = amount.saturating_sub(taken_fee_total);
 

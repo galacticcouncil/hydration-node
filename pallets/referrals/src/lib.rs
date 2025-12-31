@@ -51,7 +51,7 @@ pub mod traits;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use frame_support::traits::fungibles::Mutate;
+use frame_support::traits::fungibles::{Inspect, Mutate};
 use frame_support::traits::tokens::Preservation;
 use frame_support::{defensive, ensure, transactional};
 use frame_system::{
@@ -696,6 +696,7 @@ impl<T: Config> Pallet<T> {
 			.saturating_add(trader_reward)
 			.saturating_add(external_reward);
 		ensure!(total_taken <= amount, Error::<T>::IncorrectRewardCalculation);
+		let balance_before = T::Currency::total_balance(asset_id.clone(), &Self::pot_account_id());
 		T::Currency::transfer(
 			asset_id.clone(),
 			&source,
@@ -703,6 +704,7 @@ impl<T: Config> Pallet<T> {
 			total_taken,
 			Preservation::Preserve,
 		)?;
+		let balance_after = T::Currency::total_balance(asset_id.clone(), &Self::pot_account_id());
 
 		let referrer_shares = if ref_account.is_some() {
 			multiply_by_rational_with_rounding(referrer_reward, price.n, price.d, Rounding::Down)
@@ -750,6 +752,13 @@ impl<T: Config> Pallet<T> {
 			PendingConversions::<T>::insert(asset_id, ());
 		}
 
-		Ok(Some((total_taken, Self::pot_account_id())))
+		// To support ATokens - we might need to allow tolerance of 1 unit
+		// we calculated the shares based if calculated total_taken (which is correct)
+		// but we need to report back that we have actually taken +1 sometimes.
+		let actual_taken = balance_after.saturating_sub(balance_before);
+		let actual_diff = actual_taken.abs_diff(total_taken);
+		ensure!(actual_diff <= 1, Error::<T>::IncorrectRewardCalculation);
+
+		Ok(Some((actual_taken, Self::pot_account_id())))
 	}
 }
