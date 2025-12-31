@@ -5764,7 +5764,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.4.2"
+version = "4.4.3"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
