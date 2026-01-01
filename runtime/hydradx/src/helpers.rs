@@ -57,6 +57,8 @@ pub mod benchmark_helpers {
 										contract: H160::zero(),
 										exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 										value: vec![],
+										gas_used: U256::zero(),
+										gas_limit: U256::zero(),
 									};
 								}
 							}
@@ -81,6 +83,8 @@ pub mod benchmark_helpers {
 										contract: H160::zero(),
 										exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 										value: vec![],
+										gas_used: U256::zero(),
+										gas_limit: U256::zero(),
 									};
 								}
 							}
@@ -117,6 +121,8 @@ pub mod benchmark_helpers {
 									contract: H160::zero(),
 									exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 									value: vec![],
+									gas_used: U256::zero(),
+									gas_limit: U256::zero(),
 								};
 							}
 						}
@@ -129,6 +135,8 @@ pub mod benchmark_helpers {
 								contract: H160::zero(),
 								exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 								value: bytes,
+								gas_used: U256::zero(),
+								gas_limit: U256::zero(),
 							};
 						}
 						ERC20Function::GetFacilitatorBucket => {
@@ -145,6 +153,8 @@ pub mod benchmark_helpers {
 								contract: H160::zero(),
 								exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 								value: bytes,
+								gas_used: U256::zero(),
+								gas_limit: U256::zero(),
 							};
 						}
 					}
@@ -155,6 +165,8 @@ pub mod benchmark_helpers {
 				contract: H160::zero(),
 				exit_reason: ExitReason::Revert(Reverted),
 				value: vec![],
+				gas_used: U256::zero(),
+				gas_limit: U256::zero(),
 			};
 		}
 
@@ -163,6 +175,8 @@ pub mod benchmark_helpers {
 				contract: H160::zero(),
 				exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 				value: vec![],
+				gas_used: U256::zero(),
+				gas_limit: U256::zero(),
 			};
 		}
 	}

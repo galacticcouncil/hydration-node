@@ -78,13 +78,13 @@ use frame_system::{
 	pallet_prelude::{BlockNumberFor, OriginFor},
 	Origin,
 };
-use sp_runtime::traits::Zero;
-
+use hydradx_traits::evm::ExtraGasSupport;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::CheckedMul;
+use sp_runtime::traits::Zero;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Percent, Permill, Rounding,
@@ -97,6 +97,7 @@ use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTr
 use hydradx_traits::router::{inverse_route, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade};
 use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
 use pallet_broadcast::types::ExecutionType;
+use pallet_evm::GasWeightMapping;
 pub use weights::WeightInfo;
 
 #[cfg(test)]
@@ -112,6 +113,7 @@ pub use pallet::*;
 
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
+pub const MAX_EXTRA_GAS: u64 = 1_000_000;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -155,7 +157,7 @@ pub mod pallet {
 					continue;
 				};
 
-				let weight_for_single_execution = Self::get_trade_weight(&schedule.order);
+				let weight_for_single_execution = Self::get_trade_weight_with_extra_gas(schedule_id, &schedule.order);
 				weight.saturating_accrue(weight_for_single_execution);
 
 				if let Err(e) = Self::prepare_schedule(
@@ -191,6 +193,11 @@ pub mod pallet {
 							who: schedule.owner.clone(),
 							error,
 						});
+
+						// If it fails with out of gas then we need to increase gas for next execution
+						if error == T::ExtraGasSupport::out_of_gas_error() {
+							Self::increment_extra_gas(schedule_id, &schedule);
+						}
 
 						if error != Error::<T>::TradeLimitReached.into()
 							&& error != Error::<T>::SlippageLimitReached.into()
@@ -258,6 +265,10 @@ pub mod pallet {
 
 		///Errors we want to explicitly retry on, in case of failing DCA
 		type RetryOnError: Contains<DispatchError>;
+
+		type ExtraGasSupport: ExtraGasSupport;
+
+		type GasWeightMapping: GasWeightMapping;
 
 		///Max price difference allowed between blocks
 		#[pallet::constant]
@@ -449,6 +460,13 @@ pub mod pallet {
 	pub type ScheduleIdsPerBlock<T: Config> =
 		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, BoundedVec<ScheduleId, T::MaxSchedulePerBlock>, ValueQuery>;
 
+	/// Stores the current extra gas value for each schedule.
+	/// Initialized to 0, increments on EvmOutOfGas, persists after successful execution.
+	/// Cleaned up when schedule terminates or completes.
+	#[pallet::storage]
+	#[pallet::getter(fn schedule_extra_gas)]
+	pub type ScheduleExtraGas<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u64, ValueQuery>;
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Creates a new DCA (Dollar-Cost Averaging) schedule and plans the next execution
@@ -553,6 +571,7 @@ pub mod pallet {
 			ScheduleOwnership::<T>::insert(who.clone(), next_schedule_id, ());
 			RemainingAmounts::<T>::insert(next_schedule_id, reserve_amount);
 			RetriesOnError::<T>::insert(next_schedule_id, 0);
+			ScheduleExtraGas::<T>::insert(next_schedule_id, 0); //TODO: we might dont need to set it as 0 is default?!
 
 			T::Currencies::reserve_named(
 				&T::NamedReserveId::get(),
@@ -762,6 +781,10 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 	) -> Result<AmountInAndOut<Balance>, DispatchError> {
+		// Set extra gas for dispatcher to use during EVM calls
+		let extra_gas = ScheduleExtraGas::<T>::get(schedule_id);
+		T::ExtraGasSupport::set_extra_gas(extra_gas);
+
 		pallet_broadcast::Pallet::<T>::add_to_context(|id| ExecutionType::DCA(schedule_id, id))?;
 
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
@@ -844,6 +867,9 @@ impl<T: Config> Pallet<T> {
 		};
 
 		pallet_broadcast::Pallet::<T>::remove_from_context()?;
+
+		// Clean up extra gas
+		T::ExtraGasSupport::clear_extra_gas();
 
 		trade_result
 	}
@@ -1210,6 +1236,20 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Calculates trade weight including extra gas for a schedule.
+	fn get_trade_weight_with_extra_gas(schedule_id: ScheduleId, order: &Order<T::AssetId>) -> Weight {
+		let base_weight = Self::get_trade_weight(order);
+		let extra_gas = ScheduleExtraGas::<T>::get(schedule_id);
+
+		if extra_gas == 0 {
+			return base_weight;
+		}
+
+		// Convert extra gas to weight without base weight because we already account for that
+		let extra_weight = T::GasWeightMapping::gas_to_weight(extra_gas, false);
+		base_weight.saturating_add(extra_weight)
+	}
+
 	fn convert_native_amount_to_currency(
 		asset_id: T::AssetId,
 		native_asset_amount: Balance,
@@ -1266,12 +1306,35 @@ impl<T: Config> Pallet<T> {
 		Ok(price_from_rational)
 	}
 
+	/// Increments extra gas for a schedule for the case when EvmOutOfGas error occurs.
+	/// Uses linear increment: MAX_EXTRA_GAS / max_retries, capped at MAX_EXTRA_GAS.
+	fn increment_extra_gas(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>) {
+		ScheduleExtraGas::<T>::mutate(schedule_id, |extra_gas| {
+			let max_retries = schedule
+				.max_retries
+				.map(|r| r as u64)
+				.unwrap_or_else(|| T::MaxNumberOfRetriesOnError::get() as u64);
+
+			let Some(gas_increment) = MAX_EXTRA_GAS.checked_div(max_retries) else {
+				log::error!(
+					"Gas increment calculation overflowed for schedule_id: {:?}",
+					schedule_id
+				);
+				return;
+			};
+
+			let new_gas = extra_gas.saturating_add(gas_increment);
+			*extra_gas = new_gas.min(MAX_EXTRA_GAS);
+		});
+	}
+
 	fn remove_schedule_from_storages(owner: &T::AccountId, schedule_id: ScheduleId) {
 		Schedules::<T>::remove(schedule_id);
 		ScheduleOwnership::<T>::remove(owner, schedule_id);
 		RemainingAmounts::<T>::remove(schedule_id);
 		RetriesOnError::<T>::remove(schedule_id);
 		ScheduleExecutionBlock::<T>::remove(schedule_id);
+		ScheduleExtraGas::<T>::remove(schedule_id);
 	}
 }
 
