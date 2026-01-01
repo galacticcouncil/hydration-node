@@ -48,12 +48,16 @@ use frame_system::Origin;
 use hydra_dx_math::types::Ratio;
 use orml_traits::MultiCurrency;
 use pallet_intent::types::AssetId;
+use pallet_intent::types::Intent;
 use pallet_intent::types::IntentId;
 use sp_core::U512;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::CheckedConversion;
+use sp_runtime::traits::One;
+use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
+use std::collections::{HashMap, HashSet};
 
 pub use pallet::*;
 use types::*;
@@ -65,8 +69,6 @@ const OCW_LOG_TARGET: &str = "ice::offchain_worker";
 
 #[frame_support::pallet]
 pub mod pallet {
-	use std::collections::{HashMap, HashSet};
-
 	use super::*;
 	use frame_benchmarking::__private::log;
 	use frame_system::offchain::SubmitTransaction;
@@ -179,13 +181,7 @@ pub mod pallet {
 			);
 
 			let mut clearing_prices: HashMap<AssetId, Ratio> = HashMap::with_capacity(solution.clearing_prices.len());
-			for cp in solution.clearing_prices {
-				ensure!(!cp.1.n.is_zero() && !cp.1.d.is_zero(), Error::<T>::InvalidPriceRatio);
-				ensure!(
-					clearing_prices.insert(cp.0, cp.1).is_none(),
-					Error::<T>::DuplicateClearingPrice
-				);
-			}
+			Self::validate_clearing_prices(&mut clearing_prices, &solution.clearing_prices)?;
 
 			let mut processed_intents: HashSet<IntentId> = HashSet::with_capacity(solution.resolved.len());
 			let holding_pot = Self::get_pallet_account();
@@ -233,19 +229,7 @@ pub mod pallet {
 
 				<T as Config>::Currency::transfer(resolved.asset_out(), &holding_pot, &owner, resolved.amount_out())?;
 
-				let cp_in = clearing_prices
-					.get(&resolved.asset_in())
-					.ok_or(Error::<T>::MissingClearingPrice)?;
-				let cp_out = clearing_prices
-					.get(&resolved.asset_out())
-					.ok_or(Error::<T>::MissingClearingPrice)?;
-
-				ensure!(
-					Self::calc_amount_out(resolved.amount_in(), cp_in, cp_out)
-						.ok_or(Error::<T>::ArithmeticOverflow)?
-						.eq(&resolved.amount_out()),
-					Error::<T>::PriceInconsistency
-				);
+				Self::validate_price_consitency(&clearing_prices, resolved)?;
 
 				Self::deposit_event(Event::IntentResolved {
 					intent_id: *id,
@@ -332,6 +316,41 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_account_truncating()
 	}
 
+	// Function validtes if intent was resolved based on clearing price.
+	fn validate_price_consitency(clearing_prices: &HashMap<AssetId, Ratio>, resolved: &Intent) -> DispatchResult {
+		let cp_in = clearing_prices
+			.get(&resolved.asset_in())
+			.ok_or(Error::<T>::MissingClearingPrice)?;
+		let cp_out = clearing_prices
+			.get(&resolved.asset_out())
+			.ok_or(Error::<T>::MissingClearingPrice)?;
+
+		ensure!(
+			Self::calc_amount_out(resolved.amount_in(), cp_in, cp_out)
+				.ok_or(Error::<T>::ArithmeticOverflow)?
+				.eq(&resolved.amount_out()),
+			Error::<T>::PriceInconsistency
+		);
+
+		Ok(())
+	}
+
+	// Function validates if clearing price value is correct.
+	fn validate_clearing_prices(
+		valid_prices: &mut HashMap<AssetId, Ratio>,
+		clearing_prices: &Vec<(AssetId, Ratio)>,
+	) -> Result<(), DispatchError> {
+		for cp in clearing_prices {
+			ensure!(!cp.1.n.is_zero() && !cp.1.d.is_zero(), Error::<T>::InvalidPriceRatio);
+			ensure!(
+				valid_prices.insert(cp.0, cp.1).is_none(),
+				Error::<T>::DuplicateClearingPrice
+			);
+		}
+
+		Ok(())
+	}
+
 	/// Function calculates amount out based on asset in and asset out prices denominated in common asset.
 	/// ```ignore
 	/// rate = price_in / price_out
@@ -359,8 +378,8 @@ impl<T: Config> Pallet<T> {
 		let solution = if let Some(s) = solve(intents.encode(), state.encode()) {
 			match Solution::decode(&mut s.as_slice()) {
 				Ok(s) => s,
-				Err(err) => {
-					log::error!(target: OCW_LOG_TARGET, "to decode solver's solution, err: {:?}, block: {:?}", err, block_no);
+				Err(e) => {
+					log::error!(target: OCW_LOG_TARGET, "to decode solver's solution, err: {:?}, block: {:?}", e, block_no);
 					return None;
 				}
 			}
@@ -369,10 +388,62 @@ impl<T: Config> Pallet<T> {
 			return None;
 		};
 
-		// TODO: if solution,
-		// 1. calculate score
-		// 2. create submit_solution call
+		let mut clearing_prices: HashMap<AssetId, Ratio> = HashMap::with_capacity(solution.clearing_prices.len());
+		if let Err(e) = Self::validate_clearing_prices(&mut clearing_prices, &solution.clearing_prices) {
+			log::error!(target: OCW_LOG_TARGET, "solution's clearing prices are not valid, err: {:?}, block: {:?}", e, block_no);
+			return None;
+		};
 
-		None
+		let mut processed_intents: HashSet<IntentId> = HashSet::with_capacity(solution.resolved.len());
+		let mut score = 0_u128;
+		for (id, resolved) in &solution.resolved {
+			let intent = match pallet_intent::Pallet::<T>::get_intent(id) {
+				Some(i) => i,
+				None => {
+					log::error!(target: OCW_LOG_TARGET, "intent not found, intent_id: {:?}, block: {:?}", id, block_no);
+					return None;
+				}
+			};
+
+			let s = match intent.surplus(resolved) {
+				Some(s) => s.1,
+				None => {
+					log::error!(target: OCW_LOG_TARGET, "calculate intent's surplus, intent_id: {:?}, block: {:?}", id, block_no);
+					return None;
+				}
+			};
+
+			score = match score.checked_add(s) {
+				Some(s) => s,
+				None => {
+					log::error!(target: OCW_LOG_TARGET, "calculate calculate solution score, intent_id: {:?}, block: {:?}", id, block_no);
+					return None;
+				}
+			};
+
+			if !processed_intents.insert(*id) {
+				log::error!(target: OCW_LOG_TARGET, "solution contains duplicate intent, intent_id: {:?}, block: {:?}", id, block_no);
+				return None;
+			};
+
+			if let Err(e) = pallet_intent::Pallet::<T>::validate_resolve(*id, resolved) {
+				log::error!(target: OCW_LOG_TARGET, "resolve intent, intent_id: {:?}, err: {:?}, block: {:?}", id, e, block_no);
+				return None;
+			}
+
+			if let Err(e) = Self::validate_price_consitency(&clearing_prices, resolved) {
+				log::error!(target: OCW_LOG_TARGET, "validate clearing price consistency, intent_id: {:?}, err: {:?}, block: {:?}", id, e, block_no);
+				return None;
+			}
+		}
+
+		//TODO:
+		// * add weight rule and make sure sollution respets it.
+
+		Some(Call::submit_solution {
+			solution,
+			score,
+			valid_for_block: block_no.saturating_add(One::one()),
+		})
 	}
 }

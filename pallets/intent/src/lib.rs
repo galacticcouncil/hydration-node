@@ -157,10 +157,17 @@ impl<T: Config> Pallet<T> {
 		intents
 	}
 
-	pub fn intent_resolved(id: IntentId, _owner: &T::AccountId, _resolved: &Intent) -> DispatchResult {
+	pub fn validate_resolve(_id: IntentId, _resolved: &Intent) -> Result<(), DispatchError> {
+		//WARN: add real intent's resolution validtion
+		Ok(())
+	}
+
+	pub fn intent_resolved(id: IntentId, _owner: &T::AccountId, resolved: &Intent) -> DispatchResult {
 		//WARN: this is tmp just for testing. Implement validation and real intent resolution logic.
 		Intents::<T>::try_mutate_exists(id, |maybe_intent| {
 			let _intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
+
+			Self::validate_resolve(id, resolved)?;
 
 			*maybe_intent = None;
 			Ok(())
