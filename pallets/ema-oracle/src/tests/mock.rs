@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as ema_oracle;
-use crate::Config;
+use crate::{Config, Event};
 use ema_oracle::OracleEntry;
 use frame_support::pallet_prelude::ConstU32;
 use frame_support::parameter_types;
@@ -210,4 +210,20 @@ impl ExtBuilder {
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);
+}
+
+pub fn expect_last_event_last_entry(key: (Source, (AssetId, AssetId), OraclePeriod), entry: OracleEntry<BlockNumber>) {
+	let last_event = System::events().last().expect("events expected").event.clone();
+	match last_event {
+		RuntimeEvent::EmaOracle(Event::OracleUpdated {
+			source,
+			assets,
+			updates,
+		}) => {
+			assert_eq!(source, key.0);
+			assert_eq!(assets, key.1);
+			pretty_assertions::assert_eq!(*updates.last().unwrap(), (key.2, entry));
+		}
+		_ => assert!(false, "expected an oracle event"),
+	}
 }

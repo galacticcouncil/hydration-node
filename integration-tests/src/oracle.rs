@@ -13,9 +13,9 @@ use frame_support::{
 	traits::tokens::fungibles::Mutate,
 };
 use hydra_dx_math::ema::smoothing_from_period;
-use hydradx_runtime::bifrost_account;
 use hydradx_runtime::AssetLocation;
 use hydradx_runtime::AssetRegistry;
+use hydradx_runtime::{bifrost_account, System};
 use hydradx_runtime::{EmaOracle, RuntimeOrigin};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
@@ -24,17 +24,37 @@ use hydradx_traits::{
 	OraclePeriod::{self, *},
 };
 use orml_traits::MultiCurrency;
-use pallet_ema_oracle::into_smoothing;
-use pallet_ema_oracle::OracleError;
 use pallet_ema_oracle::BIFROST_SOURCE;
+use pallet_ema_oracle::{into_smoothing, ordered_pair, Event::OracleUpdated, Oracles};
+use pallet_ema_oracle::{OracleEntry, OracleError};
 use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
+use rococo_runtime::RuntimeEvent;
 use sp_runtime::traits::SignedExtension;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
 use sp_std::sync::Arc;
+use test_utils::last_events;
 use xcm_emulator::TestExt;
+
+pub fn assert_last_event_last_entry(key: ([u8; 8], (AssetId, AssetId), OraclePeriod), entry: OracleEntry<BlockNumber>) {
+	let events = last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(10);
+	let last_event = events.last().expect("last_events expected");
+
+	match last_event {
+		hydradx_runtime::RuntimeEvent::EmaOracle(OracleUpdated {
+			source,
+			assets,
+			updates,
+		}) => {
+			std::assert_eq!(*source, key.0);
+			std::assert_eq!(*assets, key.1);
+			std::assert_eq!(*updates.last().unwrap(), (key.2, entry));
+		}
+		_ => assert!(false, "expected an oracle event"),
+	}
+}
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
 	while hydradx_runtime::System::block_number() < to {
@@ -373,6 +393,11 @@ fn bifrost_oracle_should_be_updated() {
 				Err(OracleError::NotPresent)
 			);
 		}
+
+		// assert event
+		let key = (BIFROST_SOURCE, ordered_pair(asset_a_id, asset_b_id), LastBlock);
+		let entry = EmaOracle::oracle(key).unwrap().0;
+		assert_last_event_last_entry(key, entry);
 	});
 }
 
@@ -403,6 +428,11 @@ fn bifrost_oracle_should_be_added_when_pair_not_whitelisted() {
 				Err(OracleError::NotPresent)
 			);
 		}
+
+		// assert event
+		let key = (BIFROST_SOURCE, ordered_pair(asset_a_id, asset_b_id), LastBlock);
+		let entry = EmaOracle::oracle(key).unwrap().0;
+		assert_last_event_last_entry(key, entry);
 	});
 }
 
