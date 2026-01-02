@@ -421,7 +421,7 @@ where
 	/// Parse a new DIA oracle update transaction and return the list of oracle updates.
 	/// Updates of assets that are not used by the MM are omitted from the returned list.
 	fn process_new_oracle_update(
-		transaction: &ethereum::TransactionV2,
+		transaction: &Transaction,
 		reserves: &HashMap<AssetAddress, AssetSymbol>,
 	) -> Option<Vec<(AssetAddress, Option<Price>)>> {
 		let Some(oracle_data) = parse_oracle_transaction(transaction) else {
@@ -896,7 +896,7 @@ where
 			debt_to_cover: Default::default(),
 			route: BoundedVec::new(),
 		};
-		let liquidation_weight = liquidation_weight.get_dispatch_info().weight;
+		let liquidation_weight = liquidation_weight.get_dispatch_info().call_weight;
 
 		let allowed_weight = 100u8.saturating_sub(config.weight_reserve);
 		let max_block_weight = Percent::from_percent(allowed_weight) * max_block_weight;

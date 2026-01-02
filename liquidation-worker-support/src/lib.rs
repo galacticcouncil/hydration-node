@@ -546,8 +546,7 @@ impl UserData {
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}

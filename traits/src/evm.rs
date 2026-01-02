@@ -68,7 +68,7 @@ impl CallContext {
 pub struct CallResult {
 	pub exit_reason: ExitReason,
 	pub value: Vec<u8>,
-	pub contract: sp_core::H160,
+	pub contract: EvmAddress,
 }
 
 pub trait EVM<EvmResult> {

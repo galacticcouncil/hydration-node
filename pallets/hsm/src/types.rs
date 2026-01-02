@@ -3,7 +3,7 @@
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use evm::ExitReason;
 use hydra_dx_math::hsm::CoefficientRatio;
 use scale_info::TypeInfo;
@@ -31,7 +31,7 @@ pub struct CollateralInfo<AssetId> {
 	pub max_in_holding: Option<Balance>,
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Clone, Copy, RuntimeDebug, TypeInfo)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, Copy, RuntimeDebug, TypeInfo)]
 #[repr(u8)]
 pub enum Arbitrage {
 	/// Sell HOLLAR to a pool, buy HOLLAR fro HSM

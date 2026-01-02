@@ -10050,6 +10050,7 @@ dependencies = [
  "orml-traits",
  "pallet-evm",
  "parity-scale-codec",
+ "primitives",
  "scale-info",
  "sp-core",
  "sp-io",

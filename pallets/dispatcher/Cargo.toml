@@ -25,6 +25,7 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 
 # HydraDX dependencies
+primitives = { workspace = true }
 hydradx-traits = { workspace = true }
 
 # EVM dependencies

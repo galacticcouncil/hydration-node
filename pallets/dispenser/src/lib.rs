@@ -16,7 +16,7 @@ use alloc::{string::String, vec};
 
 use alloy_primitives::U256;
 use alloy_sol_types::{sol, SolCall};
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::{fungibles::Mutate, tokens::Preservation, Currency};
@@ -51,7 +51,7 @@ sol! {
 ///
 /// These values are provided by the caller and used to construct the RLP-encoded
 /// transaction which SigNet will sign.
-#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq)]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, Debug, PartialEq)]
 pub struct EvmTransactionParams {
 	/// ETH value (in wei) sent with the EVM transaction.
 	pub value: u128,

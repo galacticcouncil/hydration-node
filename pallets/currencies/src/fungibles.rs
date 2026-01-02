@@ -307,7 +307,12 @@ where
 			match T::BoundErc20::contract_address(asset) {
 				Some(contract) => {
 					let old_balance = Self::balance(asset, who);
-					T::Erc20Currency::withdraw(contract, who, amount)?;
+					let existence = if preservation == Preservation::Expendable {
+						ExistenceRequirement::AllowDeath
+					} else {
+						ExistenceRequirement::KeepAlive
+					};
+					T::Erc20Currency::withdraw(contract, who, amount, existence)?;
 					let new_balance = Self::balance(asset, who);
 					let burnt = old_balance
 						.checked_sub(&new_balance)

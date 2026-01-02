@@ -3,7 +3,7 @@ use codec::{Decode, DecodeLimit};
 use frame_support::traits::Get;
 use hydradx_traits::evm::CallResult;
 use pallet_evm::{ExitError, ExitReason};
-use sp_runtime::format;
+use alloc::format;
 use sp_runtime::traits::Convert;
 use sp_runtime::DispatchError;
 use sp_std::boxed::Box;
