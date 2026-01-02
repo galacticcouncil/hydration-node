@@ -15,7 +15,6 @@ use hydradx_adapters::price::ConvertBalance;
 use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
 use hydradx_runtime::types::ShortOraclePrice;
 use hydradx_runtime::AssetRegistry;
-use hydradx_runtime::EVMAccounts;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{
@@ -709,7 +708,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 		//Create new erc20, fund user with it and set it as fee payment currency
 		let contract = crate::erc20::deploy_token_contract();
 		let asset = crate::erc20::bind_erc20(contract);
-		let balance = Currencies::free_balance(asset, &ALICE.into());
+		let _balance = Currencies::free_balance(asset, &ALICE.into());
 		let initial_treasury_fee_balance = treasury_acc.balance(asset);
 		let erc20_balance = 2000000000000000;
 		assert_eq!(erc20_balance, 2000000000000000);
@@ -881,7 +880,7 @@ fn evm_permit_set_currency_dispatch_should_work_when_wrapped_in_dispatch_with_ex
 		//Create new erc20, fund user with it and set it as fee payment currency
 		let contract = crate::erc20::deploy_token_contract();
 		let asset = crate::erc20::bind_erc20(contract);
-		let balance = Currencies::free_balance(asset, &ALICE.into());
+		let _balance = Currencies::free_balance(asset, &ALICE.into());
 		let initial_treasury_fee_balance = treasury_acc.balance(asset);
 		let erc20_balance = 2000000000000000;
 		assert_eq!(erc20_balance, 2000000000000000);

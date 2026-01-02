@@ -1,7 +1,6 @@
 use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
 use crate::utils::contracts::*;
-use core::panic;
 use ethabi::ethereum_types::BigEndianHash;
 use fp_evm::ExitReason::Succeed;
 use fp_evm::PrecompileSet;
@@ -36,12 +35,10 @@ use polkadot_xcm::v5::Junction::AccountKey20;
 use polkadot_xcm::v5::Junctions::X1;
 use polkadot_xcm::v5::Location;
 use primitives::AccountId;
-use sp_core::keccak_256;
 use sp_core::Encode;
 use sp_core::{H256, U256};
 use sp_runtime::{Permill, TransactionOutcome};
 use sp_std::sync::Arc;
-use std::fmt::Write;
 use xcm_emulator::TestExt;
 pub fn deployer() -> EvmAddress {
 	EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE))
@@ -655,7 +652,7 @@ mod error_handling {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			// Deploy HydraToken
-			let contract = deploy_contract("HydraToken", crate::erc20::deployer());
+			let _contract = deploy_contract("HydraToken", crate::erc20::deployer());
 
 			let contract: EvmAddress = hex!["0000000000000000000000000000000100000005"].into();
 

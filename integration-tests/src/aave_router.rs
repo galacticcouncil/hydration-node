@@ -44,7 +44,6 @@ use pallet_asset_registry::Assets;
 use pallet_broadcast::types::{Asset, ExecutionType};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
-use pallet_transaction_multi_payment::EVMPermit;
 use primitives::Balance;
 use primitives::EvmAddress;
 use sp_core::H256;

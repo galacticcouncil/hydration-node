@@ -15,7 +15,6 @@ use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::constants::currency::UNITS;
-use sp_core::Get;
 use sp_runtime::traits::{DispatchTransaction, TransactionExtension};
 use sp_runtime::DispatchResult;
 use sp_runtime::Permill;

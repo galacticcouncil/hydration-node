@@ -22,14 +22,12 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetType;
 use pallet_ema_oracle::BIFROST_SOURCE;
-use pallet_hsm::types::Arbitrage;
 use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
 use primitives::EvmAddress;
 use primitives::{AssetId, Balance};
 use sp_core::{RuntimeDebug, H256, U256};
-use sp_runtime::traits::CheckedConversion;
 use sp_runtime::traits::One;
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
@@ -2211,7 +2209,7 @@ fn hollar_liquidation_should_fail_when_above_health_factor() {
 		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
 		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
 
-		let treasury_hollar_initial_balance = Currencies::free_balance(222, &hydradx_runtime::Treasury::account_id());
+		let _treasury_hollar_initial_balance = Currencies::free_balance(222, &hydradx_runtime::Treasury::account_id());
 
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into()),));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(BOB.into()),));

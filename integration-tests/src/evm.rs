@@ -2,15 +2,12 @@
 
 use crate::utils::executive::assert_executive_apply_signed_extrinsic;
 use crate::{assert_balance, polkadot_test_net::*};
-use codec::Decode;
 
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::dispatch::DispatchInfo;
-use frame_support::pallet_prelude::InvalidTransaction;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
-use frame_support::unsigned::TransactionValidityError;
 use frame_support::weights::Weight;
 use hydradx_runtime::evm::precompiles::CALLPERMIT;
 
@@ -34,7 +31,6 @@ use libsecp256k1::Message;
 use libsecp256k1::SecretKey;
 use sp_core::bounded_vec::BoundedVec;
 
-use crate::utils::accounts::*;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 use hydradx_runtime::evm::ExtendedAddressMapping;
 use hydradx_runtime::evm::Function;
@@ -4609,7 +4605,7 @@ mod evm_error_decoder {
 	use proptest::test_runner::{Config, TestRunner};
 	use sp_core::Get;
 	use sp_runtime::traits::Convert;
-	use sp_runtime::{DispatchError, DispatchResult};
+	use sp_runtime::DispatchError;
 
 	fn arbitrary_value() -> impl Strategy<Value = Vec<u8>> {
 		prop::collection::vec(any::<u8>(), 0..256)
@@ -4645,8 +4641,8 @@ mod evm_error_decoder {
 		]
 	}
 
-	/// Property-based test to ensure EvmErrorDecoder never panics
-	/// with arbitrary input values, exit reasons, and contract addresses
+	// Property-based test to ensure EvmErrorDecoder never panics
+	// with arbitrary input values, exit reasons, and contract addresses
 	proptest! {
 		#![proptest_config(ProptestConfig::with_cases(10000))]
 		#[test]
