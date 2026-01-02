@@ -162,7 +162,7 @@ This pallet depends on `pallet_signet` and an external EVM GasFaucet contract:
 
   - `pallet_dispenser::request_fund` constructs an EIP‑1559 transaction targeting `FaucetAddress`.
   - It calls `IGasFaucet::fund(to, amount)` encoded via `alloy_sol_types`.
-  - It then uses `pallet_signet::sign_respond` to request an ECDSA signature from SigNet.
+  - It then uses `pallet_signet::sign_bidirectional` to request an ECDSA signature from SigNet.
 
 - Off‑chain:
   - The SigNet MPC network signs and broadcasts the EVM transaction to the configured chain.
@@ -280,7 +280,7 @@ From a user’s perspective:
    - Deducts:
      - `DispenserFee` in `FeeAsset` from user → `FeeDestination`
      - `amount` of `FaucetAsset` from user → `FeeDestination`
-   - Builds EIP‑1559 transaction bytes and calls `pallet_signet::sign_respond`.
+   - Builds EIP‑1559 transaction bytes and calls `pallet_signet::sign_bidirectional`.
    - Marks `request_id` as used and decrements `FaucetBalanceWei`.
 
 3. SigNet eventually signs and broadcasts the EVM transaction, and the user receives ETH on `to`.

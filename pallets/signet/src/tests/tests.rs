@@ -4,7 +4,7 @@ use crate::{
 		utils::{bounded_array, bounded_chain_id, bounded_err, bounded_sig, bounded_u8, create_test_signature},
 		Balances, MockCaller, MockCallerPalletId, RuntimeEvent, RuntimeOrigin, Signet, System, Test,
 	},
-	Error, ErrorResponse, Event, SerializationFormat,
+	Error, ErrorResponse, Event,
 };
 use frame_support::traits::Currency;
 use frame_support::{assert_noop, assert_ok};
@@ -26,7 +26,7 @@ const WITHDRAW_AMOUNT: u128 = 5_000;
 const PALLET_INITIAL_BALANCE: u128 = 10_000;
 const WITHDRAW_TOO_MUCH_AMOUNT: u128 = 20_000;
 
-const SLIP44_ETH: u32 = 60;
+const CAIP2_SEPOLIA: &[u8] = b"eip155:11155111";
 
 const TEST_CHAIN_ID_BYTES: &[u8] = b"test-chain";
 const HYDRADX_CHAIN_ID_BYTES: &[u8] = b"hydradx:polkadot:0";
@@ -472,7 +472,7 @@ fn test_multiple_sign_requests() {
 }
 
 #[test]
-fn test_sign_respond_works() {
+fn test_sign_bidirectional_works() {
 	new_test_ext().execute_with(|| {
 		let admin = ADMIN;
 		let requester = NON_ADMIN;
@@ -486,21 +486,19 @@ fn test_sign_respond_works() {
 		));
 
 		let tx_data = b"mock_transaction_data".to_vec();
-		let slip44_chain_id = SLIP44_ETH;
+		let caip2_id = CAIP2_SEPOLIA;
 		let balance_before = Balances::free_balance(&requester);
 
-		assert_ok!(Signet::sign_respond(
+		assert_ok!(Signet::sign_bidirectional(
 			RuntimeOrigin::signed(requester),
 			bounded_u8::<65536>(tx_data.clone()),
-			slip44_chain_id,
+			bounded_u8::<64>(caip2_id.to_vec()),
 			1,
 			bounded_u8::<256>(b"path".to_vec()),
 			bounded_u8::<32>(b"ecdsa".to_vec()),
 			bounded_u8::<64>(b"callback".to_vec()),
 			bounded_u8::<1024>(b"{}".to_vec()),
-			SerializationFormat::AbiJson,
 			bounded_u8::<4096>(b"schema1".to_vec()),
-			SerializationFormat::Borsh,
 			bounded_u8::<4096>(b"schema2".to_vec())
 		));
 
@@ -509,13 +507,13 @@ fn test_sign_respond_works() {
 		let events = System::events();
 		let event_found = events
 			.iter()
-			.any(|e| matches!(&e.event, RuntimeEvent::Signet(Event::SignRespondRequested { .. })));
+			.any(|e| matches!(&e.event, RuntimeEvent::Signet(Event::SignBidirectionalRequested { .. })));
 		assert!(event_found);
 	});
 }
 
 #[test]
-fn test_sign_respond_empty_transaction_fails() {
+fn test_sign_bidirectional_empty_transaction_fails() {
 	new_test_ext().execute_with(|| {
 		let admin = ADMIN;
 		let requester = NON_ADMIN;
@@ -523,18 +521,16 @@ fn test_sign_respond_empty_transaction_fails() {
 		init_signet(admin, INITIAL_DEPOSIT);
 
 		assert_noop!(
-			Signet::sign_respond(
+			Signet::sign_bidirectional(
 				RuntimeOrigin::signed(requester),
 				bounded_u8::<65536>(vec![]),
-				60,
+				bounded_u8::<64>(CAIP2_SEPOLIA.to_vec()),
 				1,
 				bounded_u8::<256>(b"path".to_vec()),
 				bounded_u8::<32>(b"algo".to_vec()),
 				bounded_u8::<64>(b"dest".to_vec()),
 				bounded_u8::<1024>(b"params".to_vec()),
-				SerializationFormat::Borsh,
 				bounded_u8::<4096>(vec![]),
-				SerializationFormat::Borsh,
 				bounded_u8::<4096>(vec![])
 			),
 			Error::<Test>::InvalidTransaction
@@ -667,14 +663,14 @@ fn test_respond_error_batch() {
 }
 
 #[test]
-fn test_read_respond() {
+fn test_respond_bidirectional() {
 	new_test_ext().execute_with(|| {
 		let responder = ADMIN;
 		let request_id = [99u8; 32];
 		let output = b"read_output_data".to_vec();
 		let signature = create_test_signature();
 
-		assert_ok!(Signet::read_respond(
+		assert_ok!(Signet::respond_bidirectional(
 			RuntimeOrigin::signed(responder),
 			request_id,
 			bounded_u8::<65536>(output.clone()),
@@ -682,7 +678,7 @@ fn test_read_respond() {
 		));
 
 		System::assert_last_event(
-			Event::ReadResponded {
+			Event::RespondBidirectionalEvent {
 				request_id,
 				responder,
 				serialized_output: output,

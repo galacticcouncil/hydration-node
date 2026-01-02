@@ -124,7 +124,7 @@ impl<T: frame_system::Config> pallet_signet::WeightInfo for HydraWeight<T> {
 	/// Proof: `Signet::SignatureDeposit` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
 	/// Storage: `System::Account` (r:1 w:1)
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	fn sign_respond() -> Weight {
+	fn sign_bidirectional() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `167`
 		//  Estimated: `3593`
@@ -147,7 +147,7 @@ impl<T: frame_system::Config> pallet_signet::WeightInfo for HydraWeight<T> {
 		// Minimum execution time: 352_398_000 picoseconds.
 		Weight::from_parts(355_369_000, 0)
 	}
-	fn read_respond() -> Weight {
+	fn respond_bidirectional() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`

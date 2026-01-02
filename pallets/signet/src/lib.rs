@@ -169,21 +169,19 @@ pub mod pallet {
 			params: Vec<u8>,
 		},
 
-		/// Sign-respond request event
-		SignRespondRequested {
+		/// Sign bidirectional request event
+		SignBidirectionalRequested {
 			sender: T::AccountId,
-			transaction_data: Vec<u8>,
-			slip44_chain_id: u32,
+			serialized_transaction: Vec<u8>,
+			caip2_id: Vec<u8>,
 			key_version: u32,
 			deposit: BalanceOf<T>,
 			path: Vec<u8>,
 			algo: Vec<u8>,
 			dest: Vec<u8>,
 			params: Vec<u8>,
-			explorer_deserialization_format: u8,
-			explorer_deserialization_schema: Vec<u8>,
-			callback_serialization_format: u8,
-			callback_serialization_schema: Vec<u8>,
+			output_deserialization_schema: Vec<u8>,
+			respond_serialization_schema: Vec<u8>,
 		},
 
 		/// Signature response event
@@ -200,8 +198,8 @@ pub mod pallet {
 			error: Vec<u8>,
 		},
 
-		/// Read response event
-		ReadResponded {
+		/// Respond bidirectional event
+		RespondBidirectionalEvent {
 			request_id: [u8; 32],
 			responder: T::AccountId,
 			serialized_output: Vec<u8>,
@@ -363,20 +361,18 @@ pub mod pallet {
 
 		/// Request a signature for a serialized transaction
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::sign_respond())]
-		pub fn sign_respond(
+		#[pallet::weight(<T as Config>::WeightInfo::sign_bidirectional())]
+		pub fn sign_bidirectional(
 			origin: OriginFor<T>,
 			serialized_transaction: BoundedVec<u8, ConstU32<MAX_TRANSACTION_LENGTH>>,
-			slip44_chain_id: u32,
+			caip2_id: BoundedVec<u8, ConstU32<64>>,
 			key_version: u32,
 			path: BoundedVec<u8, ConstU32<MAX_PATH_LENGTH>>,
 			algo: BoundedVec<u8, ConstU32<MAX_ALGO_LENGTH>>,
 			dest: BoundedVec<u8, ConstU32<MAX_DEST_LENGTH>>,
 			params: BoundedVec<u8, ConstU32<MAX_PARAMS_LENGTH>>,
-			explorer_deserialization_format: SerializationFormat,
-			explorer_deserialization_schema: BoundedVec<u8, ConstU32<MAX_SCHEMA_LENGTH>>,
-			callback_serialization_format: SerializationFormat,
-			callback_serialization_schema: BoundedVec<u8, ConstU32<MAX_SCHEMA_LENGTH>>,
+			output_deserialization_schema: BoundedVec<u8, ConstU32<MAX_SCHEMA_LENGTH>>,
+			respond_serialization_schema: BoundedVec<u8, ConstU32<MAX_SCHEMA_LENGTH>>,
 		) -> DispatchResult {
 			let requester = ensure_signed(origin)?;
 
@@ -394,20 +390,18 @@ pub mod pallet {
 			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::KeepAlive)?;
 
 			// Emit event
-			Self::deposit_event(Event::SignRespondRequested {
+			Self::deposit_event(Event::SignBidirectionalRequested {
 				sender: requester,
-				transaction_data: serialized_transaction.to_vec(),
-				slip44_chain_id,
+				serialized_transaction: serialized_transaction.to_vec(),
+				caip2_id: caip2_id.to_vec(),
 				key_version,
 				deposit,
 				path: path.to_vec(),
 				algo: algo.to_vec(),
 				dest: dest.to_vec(),
 				params: params.to_vec(),
-				explorer_deserialization_format: explorer_deserialization_format as u8,
-				explorer_deserialization_schema: explorer_deserialization_schema.to_vec(),
-				callback_serialization_format: callback_serialization_format as u8,
-				callback_serialization_schema: callback_serialization_schema.to_vec(),
+				output_deserialization_schema: output_deserialization_schema.to_vec(),
+				respond_serialization_schema: respond_serialization_schema.to_vec(),
 			});
 
 			Ok(())
@@ -461,8 +455,8 @@ pub mod pallet {
 
 		/// Provide a read response with signature
 		#[pallet::call_index(7)]
-		#[pallet::weight(<T as Config>::WeightInfo::read_respond())]
-		pub fn read_respond(
+		#[pallet::weight(<T as Config>::WeightInfo::respond_bidirectional())]
+		pub fn respond_bidirectional(
 			origin: OriginFor<T>,
 			request_id: [u8; 32],
 			serialized_output: BoundedVec<u8, ConstU32<MAX_SERIALIZED_OUTPUT_LENGTH>>,
@@ -471,7 +465,7 @@ pub mod pallet {
 			let responder = ensure_signed(origin)?;
 
 			// Just emit event
-			Self::deposit_event(Event::ReadResponded {
+			Self::deposit_event(Event::RespondBidirectionalEvent {
 				request_id,
 				responder,
 				serialized_output: serialized_output.to_vec(),

@@ -49,6 +49,11 @@ pub fn evm_account() -> AccountId {
 pub fn evm_address2() -> H160 {
 	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D81"].into()
 }
+
+pub fn evm_address3() -> H160 {
+	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D82"].into()
+}
+
 pub fn evm_account2() -> AccountId {
 	hydradx_runtime::EVMAccounts::truncated_account_id(evm_address2())
 }

@@ -1221,11 +1221,152 @@ mod currency_precompile {
 	}
 
 	#[test]
-	fn precompile_for_currency_approve_allowance_should_fail_as_not_supported() {
+	fn precompile_for_currency_approve_should_set_allowance() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
-			//Arrange
+			let owner = evm_address();
+			let spender = evm_address2();
+			let amount = 50u128 * UNITS;
+
+			let data = EvmDataWriter::new_with_selector(Function::Approve)
+				.write(Address::from(spender))
+				.write(U256::from(amount))
+				.build();
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: owner,
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(), // HDX “ERC20 address”
+				is_static: false,
+			};
+
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			assert_eq!(
+				result,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["0000000000000000000000000000000000000000000000000000000000000001"].to_vec()
+				})
+			);
+
+			let stored = pallet_evm_accounts::Pallet::<Runtime>::get_allowance(HDX.into(), owner, spender);
+			assert_eq!(stored, amount);
+		});
+	}
+
+	#[test]
+	fn precompile_for_currency_allowance_should_reflect_approved_amount() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let owner = evm_address();
+			let spender = evm_address2();
+			let amount = 50u128 * UNITS;
+
+			let approve_data = EvmDataWriter::new_with_selector(Function::Approve)
+				.write(Address::from(spender))
+				.write(U256::from(amount))
+				.build();
+
+			let mut approve_handle = MockHandle {
+				input: approve_data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: owner,
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: false,
+			};
+
+			assert_ok!(CurrencyPrecompile::execute(&mut approve_handle));
+
+			let allowance_data = EvmDataWriter::new_with_selector(Function::Allowance)
+				.write(Address::from(owner))
+				.write(Address::from(spender))
+				.build();
+
+			let mut allowance_handle = MockHandle {
+				input: allowance_data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: true,
+			};
+
+			let result = CurrencyPrecompile::execute(&mut allowance_handle);
+
+			assert_eq!(
+				result,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["00000000000000000000000000000000000000000000000000002d79883d2000"].to_vec()
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn precompile_for_currency_approve_should_overwrite_and_clear() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let owner = evm_address();
+			let spender = evm_address2();
+
+			let approve = |amt: u128| {
+				let data = EvmDataWriter::new_with_selector(Function::Approve)
+					.write(Address::from(spender))
+					.write(U256::from(amt))
+					.build();
+
+				let mut handle = MockHandle {
+					input: data,
+					context: Context {
+						address: native_asset_ethereum_address(),
+						caller: owner,
+						apparent_value: U256::from(0),
+					},
+					code_address: native_asset_ethereum_address(),
+					is_static: false,
+				};
+
+				CurrencyPrecompile::execute(&mut handle).unwrap();
+			};
+
+			approve(80u128 * UNITS);
+			assert_eq!(
+				pallet_evm_accounts::Pallet::<Runtime>::get_allowance(HDX.into(), owner, spender),
+				80u128 * UNITS
+			);
+
+			approve(0);
+			assert_eq!(
+				pallet_evm_accounts::Pallet::<Runtime>::get_allowance(HDX.into(), owner, spender),
+				0
+			);
+		});
+	}
+
+	#[test]
+	fn precompile_for_transfer_from_approved_contract_should_have_max_allowance_and_not_require_approve() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let owner = evm_address();
+			let to = evm_address2();
+			let spender = native_asset_ethereum_address();
+			let amount = 50u128 * UNITS;
+
 			assert_ok!(Currencies::update_balance(
 				RuntimeOrigin::root(),
 				evm_account(),
@@ -1233,32 +1374,181 @@ mod currency_precompile {
 				100 * UNITS as i128,
 			));
 
-			let data = EvmDataWriter::new_with_selector(Function::Approve)
-				.write(Address::from(evm_address2()))
-				.write(U256::from(50u128 * UNITS))
+			assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), spender));
+
+			let allowance_data = EvmDataWriter::new_with_selector(Function::Allowance)
+				.write(Address::from(owner))
+				.write(Address::from(spender))
 				.build();
 
-			let mut handle = MockHandle {
-				input: data,
+			let mut allowance_handle = MockHandle {
+				input: allowance_data,
 				context: Context {
-					address: evm_address(),
-					caller: native_asset_ethereum_address(),
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
 				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
-			//Act
-			let result = CurrencyPrecompile::execute(&mut handle);
-
-			//Assert
+			let allowance_res = CurrencyPrecompile::execute(&mut allowance_handle);
 			assert_eq!(
-				result,
-				Err(PrecompileFailure::Error {
-					exit_status: ExitError::Other("not supported".into())
+				allowance_res,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["00000000000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"].to_vec()
 				})
 			);
+
+			let tf_data = EvmDataWriter::new_with_selector(Function::TransferFrom)
+				.write(Address::from(owner))
+				.write(Address::from(to))
+				.write(U256::from(amount))
+				.build();
+
+			let mut tf_handle = MockHandle {
+				input: tf_data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: spender,
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: false,
+			};
+
+			let tf_res = CurrencyPrecompile::execute(&mut tf_handle);
+			assert_eq!(
+				tf_res,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["0000000000000000000000000000000000000000000000000000000000000001"].to_vec(),
+				})
+			);
+
+			assert_balance!(evm_account2(), HDX, amount);
+
+			let allowance_data2 = EvmDataWriter::new_with_selector(Function::Allowance)
+				.write(Address::from(owner))
+				.write(Address::from(spender))
+				.build();
+
+			let mut allowance_handle2 = MockHandle {
+				input: allowance_data2,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: true,
+			};
+
+			let allowance_res2 = CurrencyPrecompile::execute(&mut allowance_handle2);
+			assert_eq!(
+				allowance_res2,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["00000000000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"].to_vec()
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn precompile_for_transfer_from_should_deduct_allowance_for_non_approved_spender() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let owner = evm_address();
+			let to = evm_address2();
+			let spender = evm_address3();
+
+			let approve_amt = 80u128 * UNITS;
+			let spend_amt = 50u128 * UNITS;
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				evm_account(),
+				HDX,
+				100 * UNITS as i128,
+			));
+
+			let approve_data = EvmDataWriter::new_with_selector(Function::Approve)
+				.write(Address::from(spender))
+				.write(U256::from(approve_amt))
+				.build();
+
+			let mut approve_handle = MockHandle {
+				input: approve_data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: owner,
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: false,
+			};
+
+			let approve_res = CurrencyPrecompile::execute(&mut approve_handle);
+			assert_eq!(approve_res.unwrap().exit_status, ExitSucceed::Returned);
+
+			let tf_data = EvmDataWriter::new_with_selector(Function::TransferFrom)
+				.write(Address::from(owner))
+				.write(Address::from(to))
+				.write(U256::from(spend_amt))
+				.build();
+
+			let mut tf_handle = MockHandle {
+				input: tf_data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: spender,
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: false,
+			};
+
+			let tf_res = CurrencyPrecompile::execute(&mut tf_handle);
+			assert_eq!(
+				tf_res,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["0000000000000000000000000000000000000000000000000000000000000001"].to_vec(),
+				})
+			);
+
+			assert_balance!(evm_account2(), HDX, spend_amt);
+
+			let allowance_data = EvmDataWriter::new_with_selector(Function::Allowance)
+				.write(Address::from(owner))
+				.write(Address::from(spender))
+				.build();
+
+			let mut allowance_handle = MockHandle {
+				input: allowance_data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: true,
+			};
+
+			let allowance_res = CurrencyPrecompile::execute(&mut allowance_handle).unwrap();
+
+			let expected_leftover = approve_amt - spend_amt;
+			let expected_output = {
+				let mut buf = [0u8; 32];
+				U256::from(expected_leftover).to_big_endian(&mut buf);
+				buf.to_vec()
+			};
+
+			assert_eq!(allowance_res.exit_status, ExitSucceed::Returned);
+			assert_eq!(allowance_res.output, expected_output);
 		});
 	}
 
@@ -1404,12 +1694,11 @@ mod currency_precompile {
 				is_static: false,
 			};
 
-			//Act & Assert
 			assert_noop!(
 				CurrencyPrecompile::execute(&mut handle),
 				PrecompileFailure::Revert {
 					exit_status: Reverted,
-					output: "Not approved contract".as_bytes().to_vec()
+					output: "ERC20: insufficient allowance".as_bytes().to_vec()
 				}
 			);
 			assert_balance!(evm_account2(), HDX, 0);
