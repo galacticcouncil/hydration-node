@@ -242,7 +242,7 @@ pub mod pallet {
 				});
 
 				let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
-				let (_, s) = intent.surplus(&resolved).ok_or(Error::<T>::ArithmeticOverflow)?;
+				let s = intent.surplus(&resolved).ok_or(Error::<T>::ArithmeticOverflow)?;
 				exec_score = exec_score.checked_add(s).ok_or(Error::<T>::ArithmeticOverflow)?;
 
 				pallet_intent::Pallet::<T>::intent_resolved(*id, &owner, &resolved)?;
@@ -265,16 +265,14 @@ pub mod pallet {
 		fn on_finalize(_n: BlockNumberFor<T>) {}
 
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
-			let call = Self::run(block_number, |i, d| api::ice::get_solution(i, d));
+			let Some(call) = Self::run(block_number, |i, d| api::ice::get_solution(i, d)) else {
+				//No call/solution, nothing to do
+				return;
+			};
 
-			if let Some(c) = call {
-				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(c.into()) {
-					log::error!(
-						target: OCW_LOG_TARGET,
-						"to submit solution {:?}", e
-					);
-				}
-			}
+			if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()) {
+				log::error!(target: OCW_LOG_TARGET, "submit solution, err: {:?}", e);
+			};
 		}
 	}
 
@@ -406,7 +404,7 @@ impl<T: Config> Pallet<T> {
 		for (id, resolved) in &s.resolved {
 			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
 
-			let (_, s) = intent.surplus(resolved).ok_or(Error::<T>::ArithmeticOverflow)?;
+			let s = intent.surplus(resolved).ok_or(Error::<T>::ArithmeticOverflow)?;
 			score = score.checked_add(s).ok_or(Error::<T>::ArithmeticOverflow)?;
 
 			ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);

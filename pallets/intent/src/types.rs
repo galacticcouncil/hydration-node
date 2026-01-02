@@ -54,7 +54,7 @@ impl Intent {
 	/// Function calculates surplus amount from `resolved` intent.
 	///
 	/// Surplus must be >= zero
-	pub fn surplus(&self, resolved: &Intent) -> Option<(AssetId, Balance)> {
+	pub fn surplus(&self, resolved: &Intent) -> Option<Balance> {
 		match &self.kind {
 			IntentKind::Swap(s) => match s.swap_type {
 				SwapType::ExactIn => {
@@ -64,7 +64,7 @@ impl Intent {
 						s.amount_out
 					};
 
-					resolved.amount_out().checked_sub(amt).map(|x| (s.asset_out, x))
+					resolved.amount_out().checked_sub(amt)
 				}
 				SwapType::ExactOut => {
 					let amt = if s.partial {
@@ -73,7 +73,7 @@ impl Intent {
 						s.amount_in
 					};
 
-					amt.checked_sub(resolved.amount_in()).map(|x| (s.asset_in, x))
+					amt.checked_sub(resolved.amount_in())
 				}
 			},
 		}
