@@ -29,11 +29,11 @@ use polkadot_xcm::v5::{prelude::*, InteriorLocation, Location, Weight as XcmWeig
 use scale_info::TypeInfo;
 use sp_runtime::{traits::MaybeEquivalence, Perbill};
 use xcm_builder::{
-	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, DescribeAllTerminal, DescribeFamily,
-	EnsureXcmOrigin, GlobalConsensusConvertsFor, HashedDescription, ParentIsPreset, RelayChainAsNative,
-	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-	SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, WeightInfoBounds, WithComputedOrigin,
-	WithUniqueTopic,
+	AccountId32Aliases, AliasChildLocation, AliasOriginRootUsingFilter, AllowKnownQueryResponses,
+	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin,
+	GlobalConsensusConvertsFor, HashedDescription, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
+	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
+	TakeWeightCredit, TrailingSetTopicAsId, WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
 };
 use xcm_executor::{Config, XcmExecutor};
 
@@ -69,7 +69,7 @@ pub type Barrier = TrailingSetTopicAsId<(
 	// Evaluate the barriers with the effective origin
 	WithComputedOrigin<
 		(
-			remove_when_updating_to_stable2412::AllowTopLevelPaidExecutionFrom<Everything>,
+			AllowTopLevelPaidExecutionFrom<Everything>,
 			// Subscriptions for version tracking are OK.
 			AllowSubscriptionsFrom<Everything>,
 		),
@@ -185,116 +185,6 @@ pub type Reserves = (
 pub type DynamicWeigher<RuntimeCall> =
 	WeightInfoBounds<crate::weights::xcm::HydraXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
 
-// Types that exist in `xcm_builder` from `stable2412` onwards.
-mod remove_when_updating_to_stable2412 {
-	use core::marker::PhantomData;
-	use frame_support::{
-		ensure,
-		traits::{Contains, ContainsPair, Get, ProcessMessageError},
-	};
-	use polkadot_xcm::prelude::*;
-	use xcm_builder::{CreateMatcher, MatchXcm};
-	use xcm_executor::traits::{Properties, ShouldExecute};
-
-	/// Alias a descendant location of the original origin.
-	pub struct AliasChildLocation;
-	impl ContainsPair<Location, Location> for AliasChildLocation {
-		fn contains(origin: &Location, target: &Location) -> bool {
-			return target.starts_with(origin);
-		}
-	}
-
-	/// Alias a location if it passes `Filter` and the original origin is root of `Origin`.
-	///
-	/// This can be used to allow (trusted) system chains root to alias into other locations.
-	/// **Warning**: do not use with untrusted `Origin` chains.
-	pub struct AliasOriginRootUsingFilter<Origin, Filter>(PhantomData<(Origin, Filter)>);
-	impl<Origin, Filter> ContainsPair<Location, Location> for AliasOriginRootUsingFilter<Origin, Filter>
-	where
-		Origin: Get<Location>,
-		Filter: Contains<Location>,
-	{
-		fn contains(origin: &Location, target: &Location) -> bool {
-			// check that `origin` is a root location
-			match origin.unpack() {
-				(1, [Parachain(_)]) | (2, [GlobalConsensus(_)]) | (2, [GlobalConsensus(_), Parachain(_)]) => (),
-				_ => return false,
-			};
-			// check that `origin` matches `Origin` and `target` matches `Filter`
-			return Origin::get().eq(origin) && Filter::contains(target);
-		}
-	}
-
-	const MAX_ASSETS_FOR_BUY_EXECUTION: usize = 2;
-
-	/// Allows execution from `origin` if it is contained in `T` (i.e. `T::Contains(origin)`) taking
-	/// payments into account.
-	///
-	/// Only allows for `WithdrawAsset`, `ReceiveTeleportedAsset`, `ReserveAssetDeposited` and
-	/// `ClaimAsset` XCMs because they are the only ones that place assets in the Holding Register to
-	/// pay for execution.
-	pub struct AllowTopLevelPaidExecutionFrom<T>(PhantomData<T>);
-	impl<T: Contains<Location>> ShouldExecute for AllowTopLevelPaidExecutionFrom<T> {
-		fn should_execute<RuntimeCall>(
-			origin: &Location,
-			instructions: &mut [Instruction<RuntimeCall>],
-			max_weight: Weight,
-			properties: &mut Properties,
-		) -> Result<(), ProcessMessageError> {
-			log::trace!(
-				target: "xcm::barriers",
-				"AllowTopLevelPaidExecutionFrom. origin: {:?}, instructions: {:?}, max_weight: {:?}, properties: {:?}",
-				origin,
-				instructions,
-				max_weight,
-				properties,
-			);
-
-			ensure!(T::contains(origin), ProcessMessageError::Unsupported);
-			// We will read up to 5 instructions. This allows up to 3 `ClearOrigin` instructions. We
-			// allow for more than one since anything beyond the first is a no-op and it's conceivable
-			// that composition of operations might result in more than one being appended.
-			let end = instructions.len().min(5);
-			instructions[..end]
-				.matcher()
-				.match_next_inst(|inst| match inst {
-					WithdrawAsset(ref assets)
-					| ReceiveTeleportedAsset(ref assets)
-					| ReserveAssetDeposited(ref assets)
-					| ClaimAsset { ref assets, .. } => {
-						if assets.len() <= MAX_ASSETS_FOR_BUY_EXECUTION {
-							Ok(())
-						} else {
-							Err(ProcessMessageError::BadFormat)
-						}
-					}
-					_ => Err(ProcessMessageError::BadFormat),
-				})?
-				.skip_inst_while(|inst| {
-					matches!(inst, ClearOrigin | AliasOrigin(..))
-						|| matches!(inst, DescendOrigin(child) if *child != Here)
-				})?
-				.match_next_inst(|inst| match inst {
-					BuyExecution {
-						weight_limit: Limited(ref mut weight),
-						..
-					} if weight.all_gte(max_weight) => {
-						*weight = max_weight;
-						Ok(())
-					}
-					BuyExecution {
-						ref mut weight_limit, ..
-					} if weight_limit == &Unlimited => {
-						*weight_limit = Limited(max_weight);
-						Ok(())
-					}
-					_ => Err(ProcessMessageError::Overweight(max_weight)),
-				})?;
-			Ok(())
-		}
-	}
-}
-
 pub struct RestrictedAssetHubAliases;
 impl Contains<Location> for RestrictedAssetHubAliases {
 	fn contains(target: &Location) -> bool {
@@ -320,9 +210,9 @@ impl Contains<Location> for RestrictedAssetHubAliases {
 /// Rules for allowing the usage of `AliasOrigin`.
 pub type Aliasers = (
 	// Anyone can alias an interior location, same as `DescendOrigin`.
-	remove_when_updating_to_stable2412::AliasChildLocation,
+	AliasChildLocation,
 	// Asset Hub root can alias system chains, Ethereum and Kusama
-	remove_when_updating_to_stable2412::AliasOriginRootUsingFilter<AssetHubLocation, RestrictedAssetHubAliases>,
+	AliasOriginRootUsingFilter<AssetHubLocation, RestrictedAssetHubAliases>,
 );
 
 pub struct XcmConfig;
