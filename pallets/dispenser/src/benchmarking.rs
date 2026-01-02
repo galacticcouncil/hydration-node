@@ -132,10 +132,13 @@ mod benches {
 			s.into_bytes()
 		};
 
+		// CAIP-2 chain ID format
+		let caip2_id = alloc::format!("eip155:{}", tx.chain_id);
+
 		let req_id = Pallet::<T>::generate_request_id(
 			&Pallet::<T>::account_id(),
 			&rlp,
-			60,
+			&caip2_id,
 			0,
 			&path_bytes,
 			b"ecdsa",

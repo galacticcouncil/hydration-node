@@ -145,7 +145,8 @@ mod benches {
 		let serialized_transaction: BoundedVec<u8, ConstU32<MAX_TRANSACTION_LENGTH>> =
 			BoundedVec::try_from(tx_bytes).expect("tx fits");
 
-		let slip44_chain_id: u32 = 60;
+		let caip2_id: BoundedVec<u8, ConstU32<64>> =
+			BoundedVec::try_from(b"eip155:11155111".to_vec()).expect("caip2 fits");
 		let key_version: u32 = 1;
 
 		let path_vec = vec![1u8; MAX_PATH_LENGTH as usize];
@@ -159,31 +160,26 @@ mod benches {
 		let params: BoundedVec<u8, ConstU32<MAX_PARAMS_LENGTH>> =
 			BoundedVec::try_from(params_vec).expect("params fits");
 
-		let explorer_schema_vec = vec![6u8; MAX_SCHEMA_LENGTH as usize];
-		let callback_schema_vec = vec![7u8; MAX_SCHEMA_LENGTH as usize];
+		let output_schema_vec = vec![6u8; MAX_SCHEMA_LENGTH as usize];
+		let respond_schema_vec = vec![7u8; MAX_SCHEMA_LENGTH as usize];
 
-		let explorer_deserialization_schema: BoundedVec<u8, ConstU32<MAX_SCHEMA_LENGTH>> =
-			BoundedVec::try_from(explorer_schema_vec).expect("explorer schema fits");
-		let callback_serialization_schema: BoundedVec<u8, ConstU32<MAX_SCHEMA_LENGTH>> =
-			BoundedVec::try_from(callback_schema_vec).expect("callback schema fits");
-
-		let explorer_deserialization_format = SerializationFormat::AbiJson;
-		let callback_serialization_format = SerializationFormat::Borsh;
+		let output_deserialization_schema: BoundedVec<u8, ConstU32<MAX_SCHEMA_LENGTH>> =
+			BoundedVec::try_from(output_schema_vec).expect("output schema fits");
+		let respond_serialization_schema: BoundedVec<u8, ConstU32<MAX_SCHEMA_LENGTH>> =
+			BoundedVec::try_from(respond_schema_vec).expect("respond schema fits");
 
 		#[extrinsic_call]
 		sign_bidirectional(
 			RawOrigin::Signed(requester.clone()),
 			serialized_transaction,
-			slip44_chain_id,
+			caip2_id,
 			key_version,
 			path,
 			algo,
 			dest,
 			params,
-			explorer_deserialization_format,
-			explorer_deserialization_schema,
-			callback_serialization_format,
-			callback_serialization_schema,
+			output_deserialization_schema,
+			respond_serialization_schema,
 		);
 	}
 
