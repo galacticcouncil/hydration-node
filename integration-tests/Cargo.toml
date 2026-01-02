@@ -84,6 +84,7 @@ fp-rpc = { workspace = true }
 
 # Hyperbridge
 ismp = { workspace = true }
+pallet-ismp = { workspace = true }
 ismp-parachain = { workspace = true }
 
 # Cumulus dependencies

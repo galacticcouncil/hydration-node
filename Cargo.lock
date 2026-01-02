@@ -14830,6 +14830,7 @@ dependencies = [
  "pallet-evm-precompile-call-permit",
  "pallet-hsm",
  "pallet-im-online",
+ "pallet-ismp",
  "pallet-lbp",
  "pallet-liquidation",
  "pallet-liquidity-mining",
