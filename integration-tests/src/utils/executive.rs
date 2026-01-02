@@ -31,7 +31,7 @@ where
 	let payload = sp_runtime::generic::SignedPayload::new(call.clone(), extra.clone()).unwrap();
 	let ecdsa_sig = payload.using_encoded(|e| pair.sign(e));
 
-	let ue = hydradx_runtime::UncheckedExtrinsic::new_signed(
+	let ue = hydradx_runtime::HydraUncheckedExtrinsic::new_signed(
 		call,
 		who.clone(),
 		sp_runtime::MultiSignature::from(ecdsa_sig),
@@ -43,7 +43,7 @@ where
 }
 
 pub(crate) fn assert_executive_apply_unsigned_extrinsic(call: hydradx_runtime::RuntimeCall) {
-	let ue = hydradx_runtime::UncheckedExtrinsic::new_unsigned(call);
+	let ue = hydradx_runtime::HydraUncheckedExtrinsic::new_bare(call);
 	let ae = hydradx_runtime::Executive::apply_extrinsic(ue);
 	frame_support::assert_ok!(ae);
 }

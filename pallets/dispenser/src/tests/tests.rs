@@ -1,4 +1,4 @@
-use crate::{self as pallet_dispenser, *};
+use crate::{self as pallet_dispenser};
 use crate::{
 	tests::{
 		new_test_ext,

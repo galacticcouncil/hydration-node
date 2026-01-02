@@ -31,7 +31,6 @@ use pallet_evm::ExitSucceed::Returned;
 use primitives::EvmAddress;
 use sp_core::bounded_vec::BoundedVec;
 
-use hex_literal::hex;
 use pallet_evm_accounts::EvmNonceProvider;
 use polkadot_xcm::v5::Junction::AccountKey20;
 use polkadot_xcm::v5::Junctions::X1;
@@ -449,7 +448,7 @@ fn withdraw() {
 		let contract = deploy_token_contract();
 		let asset = bind_erc20(contract);
 
-		assert_ok!(Currencies::withdraw(asset, &ALICE.into(), 100));
+		assert_ok!(Currencies::withdraw(asset, &ALICE.into(), 100, ExistenceRequirement::AllowDeath));
 	});
 }
 
@@ -459,7 +458,7 @@ fn deposit() {
 	Hydra::execute_with(|| {
 		let contract = deploy_token_contract();
 		let asset = bind_erc20(contract);
-		assert_ok!(Currencies::withdraw(asset, &ALICE.into(), 100));
+		assert_ok!(Currencies::withdraw(asset, &ALICE.into(), 100, ExistenceRequirement::AllowDeath));
 
 		assert_ok!(Currencies::deposit(asset, &BOB.into(), 100));
 		assert_eq!(Currencies::free_balance(asset, &BOB.into()), 100);

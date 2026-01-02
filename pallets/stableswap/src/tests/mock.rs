@@ -385,7 +385,6 @@ use hydradx_traits::stableswap::AssetAmount;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::Source;
 use hydradx_traits::{AccountIdFor, Inspect, RawEntry};
-use sp_runtime::traits::Zero;
 
 pub struct DummyRegistry;
 

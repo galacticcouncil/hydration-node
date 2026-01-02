@@ -18,6 +18,7 @@ use precompile_utils::prelude::PrecompileOutput;
 use primitives::EvmAddress;
 use sp_core::Get;
 use sp_core::{ByteArray, U256};
+use sp_runtime::traits::IdentifyAccount;
 use sp_core::{Encode, Pair};
 
 use sp_runtime::traits::{DispatchTransaction, TransactionExtension};
@@ -704,6 +705,7 @@ fn dispatch_evm_call_with_batch_should_not_increase_nonce_internally() {
 				max_priority_fee_per_gas: None,
 				nonce: None,
 				access_list: vec![],
+				authorization_list: vec![],
 			})),
 		});
 		let call2 = call1.clone();
@@ -800,6 +802,7 @@ fn dispatch_evm_call_batch_via_call_permit_should_increase_permit_nonce_once() {
 				max_priority_fee_per_gas: None,
 				nonce: None,
 				access_list: vec![],
+				authorization_list: vec![],
 			})),
 		});
 		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
@@ -896,6 +899,7 @@ fn dispatch_evm_call_with_failing_signed_batch_should_increase_nonce_once() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
 			calls: vec![inner_evm_call.clone(), inner_evm_call.clone(), inner_evm_call],
@@ -912,6 +916,7 @@ fn dispatch_evm_call_with_failing_signed_batch_should_increase_nonce_once() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 
 		// Act: dispatch as a signed extrinsic
@@ -961,6 +966,7 @@ fn dispatch_evm_call_with_params(is_batch: bool, max_priority_fee_per_gas: Optio
 			max_priority_fee_per_gas,
 			nonce,
 			access_list: vec![],
+			authorization_list: vec![],
 		})),
 	});
 	let mut call = inner_call.clone();

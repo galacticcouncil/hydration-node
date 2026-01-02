@@ -335,10 +335,4 @@ where
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
-
-	fn not_supported() -> PrecompileResult {
-		Err(PrecompileFailure::Error {
-			exit_status: pallet_evm::ExitError::Other("not supported".into()),
-		})
-	}
 }

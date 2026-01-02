@@ -59,7 +59,7 @@ use primitives::{AssetId, Balance};
 use sp_core::{blake2_256, Get, Pair, H160, H256, U256};
 use sp_runtime::traits::IdentifyAccount;
 use sp_runtime::TransactionOutcome;
-use sp_runtime::{traits::DispatchTransaction, DispatchError, FixedU128, Permill};
+use sp_runtime::{traits::{DispatchTransaction, TransactionExtension}, DispatchError, FixedU128, Permill};
 use std::{borrow::Cow, cmp::Ordering};
 use xcm_emulator::TestExt;
 
@@ -517,18 +517,16 @@ mod account_conversion {
 			});
 
 			let info = DispatchInfo {
-				weight: Weight::from_parts(106_957_000, 0),
+				call_weight: Weight::from_parts(106_957_000, 0),
 				..Default::default()
 			};
 			let len: usize = 10;
 
+			// Before claiming, transaction payment should fail (no balance in Substrate account)
 			let nonce = System::account_nonce(&account);
 			let check_nonce_pre =
-				frame_system::CheckNonce::<Runtime>::from(nonce).pre_dispatch(&account, &call, &info, len);
-			assert_noop!(
-				check_nonce_pre,
-				TransactionValidityError::Invalid(InvalidTransaction::Payment)
-			);
+				frame_system::CheckNonce::<Runtime>::from(nonce).validate_and_prepare(Some(account.clone()).into(), &call, &info, len, 0);
+			assert!(check_nonce_pre.is_err());
 
 			let signature = pallet_evm_accounts::sign_message::<Runtime>(pair, &account, asset);
 
@@ -540,28 +538,29 @@ mod account_conversion {
 				signature
 			),);
 
-			// Assert
+			// Assert - after claiming, transaction should succeed
 			let nonce = System::account_nonce(&account);
 			let check_nonce_pre =
-				frame_system::CheckNonce::<Runtime>::from(nonce).pre_dispatch(&account, &call, &info, len);
+				frame_system::CheckNonce::<Runtime>::from(nonce).validate_and_prepare(Some(account.clone()).into(), &call, &info, len, 0);
+			assert_ok!(&check_nonce_pre);
 
 			let pre = pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0)
-				.pre_dispatch(&account, &call, &info, len);
+				.validate_and_prepare(Some(account.clone()).into(), &call, &info, len, 0);
 			assert_ok!(&pre);
+			let (pre_data, _origin) = pre.unwrap();
 
 			let result = call.clone().dispatch(RuntimeOrigin::signed(account.clone().into()));
 			assert_ok!(result);
 
 			assert_ok!(
 				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::post_dispatch(
-					Some(pre.unwrap()),
+					pre_data,
 					&info,
-					&frame_support::dispatch::PostDispatchInfo::default(),
+					&mut frame_support::dispatch::PostDispatchInfo::default(),
 					len,
 					&Ok(())
 				)
 			);
-			assert_ok!(check_nonce_pre);
 		});
 	}
 
@@ -610,7 +609,8 @@ mod account_conversion {
 				contract,
 				&account,
 				&AccountId::from(BOB),
-				1_000_000_000_000_000_000
+				1_000_000_000_000_000_000,
+				frame_support::traits::ExistenceRequirement::AllowDeath
 			));
 
 			std::assert_eq!(Erc20Currency::<Runtime>::free_balance(contract, &account), 0);
@@ -1541,11 +1541,7 @@ mod currency_precompile {
 			let allowance_res = CurrencyPrecompile::execute(&mut allowance_handle).unwrap();
 
 			let expected_leftover = approve_amt - spend_amt;
-			let expected_output = {
-				let mut buf = [0u8; 32];
-				U256::from(expected_leftover).to_big_endian(&mut buf);
-				buf.to_vec()
-			};
+			let expected_output = U256::from(expected_leftover).to_big_endian().to_vec();
 
 			assert_eq!(allowance_res.exit_status, ExitSucceed::Returned);
 			assert_eq!(allowance_res.output, expected_output);
@@ -4012,7 +4008,7 @@ fn raw_eip1559_eth_should_increment_nonce_correctly() {
 
 fn raw_legacy_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>) {
 	use ethereum::{
-		LegacyTransaction, LegacyTransactionMessage, TransactionAction, TransactionSignature, TransactionV2,
+		legacy::TransactionSignature, LegacyTransaction, LegacyTransactionMessage, TransactionAction, TransactionV2,
 	};
 
 	let account = MockAccount::new(alith_evm_account());

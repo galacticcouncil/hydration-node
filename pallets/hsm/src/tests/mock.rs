@@ -314,7 +314,7 @@ impl EVM<CallResult> for MockEvm {
 
 		// Check if the call has a pre-defined result in our mock
 		let maybe_predefined = EVM_CALL_RESULTS.with(|v| v.borrow().get(&data).cloned());
-		if let Some(result) = maybe_predefined {
+		if let Some(_result) = maybe_predefined {
 			return CallResult {
 				exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 				value: vec![],
