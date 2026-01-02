@@ -1,13 +1,13 @@
 use crate::module::{BalanceOf, CurrencyIdOf};
 use crate::{Config, Error, Pallet};
 use frame_support::fail;
+use frame_support::traits::fungibles::Inspect as FungibleInspect;
 use frame_support::traits::{
 	tokens::{
 		fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
 	},
 	ExistenceRequirement,
 };
-use frame_support::traits::fungibles::Inspect as FungibleInspect;
 
 use hydradx_traits::{BoundErc20, Inspect};
 use orml_traits::MultiCurrency;

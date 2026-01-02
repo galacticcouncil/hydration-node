@@ -39,7 +39,6 @@ mod benchmarking;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
-use primitives::EvmAddress;
 use hydradx_traits::evm::MaybeEvmCall;
 use pallet_evm::{ExitReason, GasWeightMapping};
 use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};

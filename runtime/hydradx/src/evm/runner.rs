@@ -33,7 +33,7 @@ use pallet_evm::{AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, 
 use pallet_genesis_history::migration::Weight;
 use primitive_types::{H160, H256, U256};
 use primitives::{AssetId, Balance};
-use sp_runtime::traits::{One, UniqueSaturatedInto};
+use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
 
 pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);

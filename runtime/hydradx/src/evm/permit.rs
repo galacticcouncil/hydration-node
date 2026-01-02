@@ -15,7 +15,7 @@ use primitive_types::{H160, H256, U256};
 use primitives::AccountId;
 use sp_core::crypto::AccountId32;
 use sp_io::hashing::keccak_256;
-use sp_runtime::traits::{One, UniqueSaturatedInto};
+use sp_runtime::traits::UniqueSaturatedInto;
 use sp_runtime::DispatchResult;
 use sp_std::vec::Vec;
 

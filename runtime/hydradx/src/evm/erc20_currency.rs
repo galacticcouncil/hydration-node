@@ -5,8 +5,8 @@ use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason;
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed::Returned;
-use frame_support::{dispatch::DispatchResult, fail, pallet_prelude::*};
 use frame_support::traits::ExistenceRequirement;
+use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -18,7 +18,6 @@ use sp_core::crypto::AccountId32;
 use sp_core::{H160, H256, U256};
 use sp_runtime::traits::{CheckedConversion, Convert, Zero};
 use sp_runtime::{DispatchError, SaturatedConversion};
-use sp_std::prelude::ToOwned;
 use sp_std::vec::Vec;
 
 /// Execution gas limit.
@@ -299,7 +298,12 @@ where
 		)
 	}
 
-	fn withdraw(contract: Self::CurrencyId, who: &AccountId, amount: Self::Balance, _existence_requirement: ExistenceRequirement) -> sp_runtime::DispatchResult {
+	fn withdraw(
+		contract: Self::CurrencyId,
+		who: &AccountId,
+		amount: Self::Balance,
+		_existence_requirement: ExistenceRequirement,
+	) -> sp_runtime::DispatchResult {
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(who);
 		<Self as ERC20>::transfer(
 			CallContext {

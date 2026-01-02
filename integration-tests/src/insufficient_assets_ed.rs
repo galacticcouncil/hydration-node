@@ -18,12 +18,12 @@ use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use hydradx_traits::NativePriceOracle;
 use orml_traits::MultiCurrency;
+use pallet_duster::DusterWhitelist;
 use polkadot_xcm::v5::{
 	Junction::{GeneralIndex, Parachain},
 	Junctions::X2,
 	Location,
 };
-use pallet_duster::DusterWhitelist;
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::TransactionOutcome;

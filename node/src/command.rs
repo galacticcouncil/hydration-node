@@ -129,7 +129,7 @@ fn extract_genesis_wasm(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Result<V
 
 /// Parse and run command line arguments
 pub fn run() -> sc_cli::Result<()> {
-	let mut cli = Cli::from_args();
+	let cli = Cli::from_args();
 
 	match &cli.subcommand {
 		Some(Subcommand::BuildSpec(cmd)) => {

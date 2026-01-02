@@ -1,13 +1,11 @@
-use crate::Liquidation;
-use codec::{Decode, DecodeLimit};
+use alloc::format;
+use codec::DecodeLimit;
 use frame_support::traits::Get;
 use hydradx_traits::evm::CallResult;
 use pallet_evm::{ExitError, ExitReason};
-use alloc::format;
 use sp_runtime::traits::Convert;
 use sp_runtime::DispatchError;
 use sp_std::boxed::Box;
-use sp_std::vec::Vec;
 
 const ERROR_STRING_SELECTOR: [u8; 4] = [0x08, 0xC3, 0x79, 0xA0]; // Error(string)
 const PANIC_SELECTOR: [u8; 4] = [0x4E, 0x48, 0x7B, 0x71]; // Panic(uint256)

@@ -19,7 +19,7 @@ use alloy_sol_types::{sol, SolCall};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Inspect;
-use frame_support::traits::{fungibles::Mutate, tokens::Preservation, Currency};
+use frame_support::traits::{fungibles::Mutate, tokens::Preservation};
 use frame_support::PalletId;
 use frame_support::{dispatch::DispatchResult, BoundedVec};
 use frame_system::pallet_prelude::*;

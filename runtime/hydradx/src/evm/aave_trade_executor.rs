@@ -5,7 +5,6 @@ use crate::evm::precompiles::handle::EvmDataWriter;
 use crate::evm::Executor;
 use crate::evm::{Erc20Currency, EvmAccounts};
 use crate::{Runtime, Vec};
-use alloc::format;
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethabi::{decode, ParamType};
 use evm::ExitReason::Succeed;

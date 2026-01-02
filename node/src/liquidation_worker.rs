@@ -6,10 +6,7 @@ use fp_self_contained::SelfContainedCall;
 use frame_support::{dispatch::GetDispatchInfo, BoundedVec, __private::sp_tracing::tracing};
 use futures::StreamExt;
 use hex_literal::hex;
-use hydradx_runtime::{
-	evm::{precompiles::erc20_mapping::Erc20MappingApi},
-	OriginCaller, RuntimeCall, RuntimeEvent,
-};
+use hydradx_runtime::{evm::precompiles::erc20_mapping::Erc20MappingApi, OriginCaller, RuntimeCall, RuntimeEvent};
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
 pub use liquidation_worker_support::*;
@@ -117,9 +114,9 @@ impl<Block, C> RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent
 where
 	Block: BlockT,
 	C: EthereumRuntimeRPCApi<Block>
-	+ Erc20MappingApi<Block>
-	+ DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller>
-	+ CurrenciesApi<Block, AssetId, AccountId, Balance>,
+		+ Erc20MappingApi<Block>
+		+ DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller>
+		+ CurrenciesApi<Block, AssetId, AccountId, Balance>,
 {
 	fn current_timestamp(&self, hash: Block::Hash) -> Option<u64> {
 		let block = self.0.current_block(hash).ok()??;
@@ -229,9 +226,9 @@ where
 	B: BlockT,
 	C: ProvideRuntimeApi<B>,
 	C::Api: EthereumRuntimeRPCApi<B>
-	+ Erc20MappingApi<B>
-	+ DryRunApi<B, RuntimeCall, RuntimeEvent, OriginCaller>
-	+ CurrenciesApi<B, AssetId, AccountId, Balance>,
+		+ Erc20MappingApi<B>
+		+ DryRunApi<B, RuntimeCall, RuntimeEvent, OriginCaller>
+		+ CurrenciesApi<B, AssetId, AccountId, Balance>,
 	C: BlockchainEvents<B> + 'static,
 	C: HeaderBackend<B> + StorageProvider<B, BE>,
 	BE: Backend<B> + 'static,
@@ -435,7 +432,7 @@ where
 			.iter()
 			.filter_map(
 				|OracleUpdataData {
-					 base_asset_name, price, ..
+				     base_asset_name, price, ..
 				 }| {
 					if let Ok(base_asset_str) = String::from_utf8(base_asset_name.to_ascii_lowercase()) {
 						let asset_reserves: Vec<(&AssetAddress, &AssetSymbol)> = reserves
@@ -1192,7 +1189,7 @@ fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdataData
 			],
 			&transaction_input[4..], // first 4 bytes are function selector
 		)
-			.ok()?;
+		.ok()?;
 
 		dia_oracle_data.push((
 			decoded[0].clone().into_string()?,
@@ -1207,7 +1204,7 @@ fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdataData
 			],
 			&transaction_input[4..], // first 4 bytes are function selector
 		)
-			.ok()?;
+		.ok()?;
 
 		if decoded.len() == 2 {
 			for (asset_str, price_and_timestamp) in sp_std::iter::zip(
@@ -1354,13 +1351,13 @@ mod tests {
 				0000000000000000000000000000000000000000000000000000000000000008\
 				744254432f555344000000000000000000000000000000000000000000000000"
 			)
-				.encode_as(),
+			.encode_as(),
 			signature: ethereum::legacy::TransactionSignature::new(
 				444480,
 				H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
 				H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
 			)
-				.unwrap(),
+			.unwrap(),
 		})
 	}
 
@@ -1391,13 +1388,13 @@ mod tests {
                 00000000000000000000000029b5c33700000000000000000000000067acbce5\
                 000000000000000000000005939a32ea00000000000000000000000067acbce5"
 			)
-				.encode_as(),
+			.encode_as(),
 			signature: ethereum::legacy::TransactionSignature::new(
 				444480,
 				H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
 				H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
 			)
-				.unwrap(),
+			.unwrap(),
 		})
 	}
 
