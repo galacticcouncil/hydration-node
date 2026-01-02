@@ -1,11 +1,11 @@
-use codec::Encode;
+use codec::{Decode, Encode};
 use primitives::{AccountId, Balance};
 use sp_core::Pair;
 use sp_runtime::traits::IdentifyAccount;
 
 /// Returns transaction extra.
 pub fn signed_extra(nonce: primitives::Index, extra_fee: Balance) -> hydradx_runtime::SignedExtra {
-	(
+	let inner: hydradx_runtime::InnerSignedExtra = (
 		frame_system::CheckNonZeroSender::new(),
 		frame_system::CheckSpecVersion::new(),
 		frame_system::CheckTxVersion::new(),
@@ -14,11 +14,11 @@ pub fn signed_extra(nonce: primitives::Index, extra_fee: Balance) -> hydradx_run
 		frame_system::CheckNonce::from(nonce),
 		frame_system::CheckWeight::new(),
 		pallet_transaction_payment::ChargeTransactionPayment::from(extra_fee),
-		pallet_claims::ValidateClaim::<hydradx_runtime::Runtime>::new(),
+		pallet_claims::ValidateClaim::<hydradx_runtime::Runtime>::decode(&mut &[][..])
+			.expect("PhantomData decodes from empty"),
 		frame_metadata_hash_extension::CheckMetadataHash::<hydradx_runtime::Runtime>::new(false),
-		cumulus_primitives_storage_weight_reclaim::StorageWeightReclaim::<hydradx_runtime::Runtime>::new(),
-	)
-		.into()
+	);
+	hydradx_runtime::SignedExtra::new(inner)
 }
 
 pub(crate) fn assert_executive_apply_signed_extrinsic<P: Pair>(call: hydradx_runtime::RuntimeCall, pair: P)

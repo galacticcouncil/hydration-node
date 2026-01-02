@@ -55,7 +55,10 @@ use primitives::{AssetId, Balance};
 use sp_core::{blake2_256, Get, Pair, H160, H256, U256};
 use sp_runtime::traits::IdentifyAccount;
 use sp_runtime::TransactionOutcome;
-use sp_runtime::{traits::{DispatchTransaction, TransactionExtension}, DispatchError, FixedU128, Permill};
+use sp_runtime::{
+	traits::{DispatchTransaction, TransactionExtension},
+	DispatchError, FixedU128, Permill,
+};
 use std::{borrow::Cow, cmp::Ordering};
 use xcm_emulator::TestExt;
 
@@ -520,8 +523,13 @@ mod account_conversion {
 
 			// Before claiming, transaction payment should fail (no balance in Substrate account)
 			let nonce = System::account_nonce(&account);
-			let check_nonce_pre =
-				frame_system::CheckNonce::<Runtime>::from(nonce).validate_and_prepare(Some(account.clone()).into(), &call, &info, len, 0);
+			let check_nonce_pre = frame_system::CheckNonce::<Runtime>::from(nonce).validate_and_prepare(
+				Some(account.clone()).into(),
+				&call,
+				&info,
+				len,
+				0,
+			);
 			assert!(check_nonce_pre.is_err());
 
 			let signature = pallet_evm_accounts::sign_message::<Runtime>(pair, &account, asset);
@@ -536,12 +544,22 @@ mod account_conversion {
 
 			// Assert - after claiming, transaction should succeed
 			let nonce = System::account_nonce(&account);
-			let check_nonce_pre =
-				frame_system::CheckNonce::<Runtime>::from(nonce).validate_and_prepare(Some(account.clone()).into(), &call, &info, len, 0);
+			let check_nonce_pre = frame_system::CheckNonce::<Runtime>::from(nonce).validate_and_prepare(
+				Some(account.clone()).into(),
+				&call,
+				&info,
+				len,
+				0,
+			);
 			assert_ok!(&check_nonce_pre);
 
-			let pre = pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0)
-				.validate_and_prepare(Some(account.clone()).into(), &call, &info, len, 0);
+			let pre = pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0).validate_and_prepare(
+				Some(account.clone()).into(),
+				&call,
+				&info,
+				len,
+				0,
+			);
 			assert_ok!(&pre);
 			let (pre_data, _origin) = pre.unwrap();
 
@@ -2613,7 +2631,8 @@ mod account_marking {
 				gas_price(),
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&account_id).is_some());
@@ -2654,7 +2673,8 @@ mod account_marking {
 				gas_price(),
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			let sufficients_after_first = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
@@ -2670,7 +2690,8 @@ mod account_marking {
 				gas_price(),
 				None,
 				Some(U256::from(1)),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			let sufficients_after_second = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
@@ -2686,7 +2707,8 @@ mod account_marking {
 				gas_price(),
 				None,
 				Some(U256::from(2)),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			let sufficients_after_third = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
@@ -2749,7 +2771,8 @@ mod account_marking {
 				gas_price(),
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Assert
@@ -2771,7 +2794,8 @@ mod account_marking {
 				gas_price(),
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Assert
@@ -2829,7 +2853,8 @@ mod account_marking {
 				gas_price * 10,
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Assert
@@ -2883,7 +2908,8 @@ mod account_marking {
 				gas_price * 10,
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Execute second EVM transaction (nonce 1)
@@ -2897,7 +2923,8 @@ mod account_marking {
 				gas_price * 10,
 				None,
 				Some(U256::from(1)),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Execute third EVM transaction (nonce 2)
@@ -2911,7 +2938,8 @@ mod account_marking {
 				gas_price * 10,
 				None,
 				Some(U256::from(2)),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Verify the nonce and sufficients were incremented through EVM transactions
@@ -2924,7 +2952,7 @@ mod account_marking {
 
 			let contract = crate::erc20::deploy_token_contract();
 			let erc20 = crate::erc20::bind_erc20(contract);
-			let balance = Currencies::free_balance(erc20, &ALICE.into());
+			let _balance = Currencies::free_balance(erc20, &ALICE.into());
 			let erc20_balance = 2000000000000000;
 			assert_eq!(erc20_balance, 2000000000000000);
 			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
@@ -3065,7 +3093,7 @@ mod account_marking {
 			//Deploy and use erc20
 			let contract = crate::erc20::deploy_token_contract();
 			let erc20 = crate::erc20::bind_erc20(contract);
-			let balance = Currencies::free_balance(erc20, &ALICE.into());
+			let _balance = Currencies::free_balance(erc20, &ALICE.into());
 			let erc20_balance = 2000000000000000;
 			assert_eq!(erc20_balance, 2000000000000000);
 			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
@@ -3708,7 +3736,8 @@ fn evm_account_should_pay_gas_with_payment_currency_for_evm_call() {
 			U256::from(1000000000),
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
+			vec![],
 		));
 
 		let hdx_balance = Currencies::free_balance(HDX, &evm_account());
@@ -3753,6 +3782,7 @@ fn dispatch_permit_with_params(is_batch: bool, max_priority_fee_per_gas: Option<
 		max_priority_fee_per_gas,
 		nonce,
 		access_list: vec![],
+		authorization_list: vec![],
 	});
 	let mut call = inner_call.clone();
 	if is_batch {
@@ -3874,7 +3904,9 @@ fn dispatch_permit_with_batch_should_increase_permit_nonce_correctly() {
 }
 
 fn raw_eip1559_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>) {
-	use ethereum::{EIP1559Transaction, EIP1559TransactionMessage, TransactionAction, TransactionV2};
+	use ethereum::{
+		eip2930::TransactionSignature, EIP1559Transaction, EIP1559TransactionMessage, TransactionAction, TransactionV2,
+	};
 
 	let account = MockAccount::new(alith_evm_account());
 	let evm_address = alith_evm_address();
@@ -3904,6 +3936,7 @@ fn raw_eip1559_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>)
 		max_priority_fee_per_gas: Some(max_priority_fee_per_gas),
 		nonce: Some(nonce),
 		access_list: vec![],
+		authorization_list: vec![],
 	});
 	let mut call_data = inner_evm_call.clone();
 	if is_batch {
@@ -3936,6 +3969,8 @@ fn raw_eip1559_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>)
 	let message = Message::parse(&hash_bytes);
 	let (rs, v) = sign(&message, &secret_key);
 	let odd_y_parity = v.serialize() != 0;
+	let signature = TransactionSignature::new(odd_y_parity, H256::from(rs.r.b32()), H256::from(rs.s.b32()))
+		.expect("valid signature");
 
 	let signed_tx = EIP1559Transaction {
 		chain_id,
@@ -3947,16 +3982,16 @@ fn raw_eip1559_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>)
 		value: U256::zero(),
 		input: input_data.into(),
 		access_list: vec![],
-		odd_y_parity,
-		r: H256::from(rs.r.b32()),
-		s: H256::from(rs.s.b32()),
+		signature,
 	};
 
 	let transaction = TransactionV2::EIP1559(signed_tx);
 
 	// Act: submit the raw Ethereum transaction via Executive unsigned self-contained extrinsic
 	crate::utils::executive::assert_executive_apply_unsigned_extrinsic(hydradx_runtime::RuntimeCall::Ethereum(
-		pallet_ethereum::Call::transact { transaction },
+		pallet_ethereum::Call::transact {
+			transaction: transaction.into(),
+		},
 	));
 }
 
@@ -4035,6 +4070,7 @@ fn raw_legacy_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>) 
 		max_priority_fee_per_gas: None,
 		nonce: Some(nonce),
 		access_list: vec![],
+		authorization_list: vec![],
 	});
 	let mut call_data = inner_evm_call.clone();
 	if is_batch {
@@ -4083,7 +4119,9 @@ fn raw_legacy_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>) 
 
 	// Act: submit the raw Ethereum transaction via Executive unsigned self-contained extrinsic
 	crate::utils::executive::assert_executive_apply_unsigned_extrinsic(hydradx_runtime::RuntimeCall::Ethereum(
-		pallet_ethereum::Call::transact { transaction },
+		pallet_ethereum::Call::transact {
+			transaction: transaction.into(),
+		},
 	));
 }
 
@@ -4220,6 +4258,7 @@ fn substrate_signed_evm_with_batch_should_increment_nonce_once() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 		let batch_data = RuntimeCall::Utility(pallet_utility::Call::batch_all {
 			calls: vec![inner_evm_call.clone(), inner_evm_call.clone(), inner_evm_call],
@@ -4235,6 +4274,7 @@ fn substrate_signed_evm_with_batch_should_increment_nonce_once() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 
 		// Dispatch the EVM call as a signed extrinsic from the bound Substrate account
@@ -4273,6 +4313,7 @@ fn evm_input_through_precompile_should_increase_nonce_correctly() {
 			max_priority_fee_per_gas: Some(15_000.into()),
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 		let mut handle = create_dispatch_handle(evm_call.encode());
 
@@ -4318,6 +4359,7 @@ fn batched_evm_input_through_precompile_should_increase_nonce_correctly() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 		let batch_call = RuntimeCall::Utility(pallet_utility::Call::batch_all {
 			calls: vec![evm_call.clone(), evm_call],
@@ -4337,7 +4379,8 @@ fn batched_evm_input_through_precompile_should_increase_nonce_correctly() {
 			gas_price(),
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
+			vec![],
 		));
 
 		//Assert
@@ -5070,7 +5113,7 @@ mod evm_error_decoder {
 			};
 
 			let _result = EvmErrorDecoder::convert(call_result.clone());
-			DispatchError::decode_with_depth_limit(MAX_DECODE_DEPTH, &mut &call_result.value[..]);
+			let _ = DispatchError::decode_with_depth_limit(MAX_DECODE_DEPTH, &mut &call_result.value[..]);
 		}
 	}
 

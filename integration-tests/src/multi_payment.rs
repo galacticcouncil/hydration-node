@@ -302,12 +302,13 @@ fn erc20_can_be_used_as_fee_currency() {
 
 			//Act
 			let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-				.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, info_len);
+				.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &omni_sell, &info, info_len, 0)
+				.map(|(pre, _)| pre);
 			assert_ok!(&pre);
 			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-				Some(pre.unwrap()),
+				pre.unwrap(),
 				&info,
-				&PostDispatchInfo::default(),
+				&mut PostDispatchInfo::default(),
 				info_len,
 				&Ok(())
 			));
@@ -396,7 +397,8 @@ fn set_currency_in_batch_should_fail_for_unaccepted_asset_with_oracle_price() {
 			let alice_init_dai_balance = hydradx_runtime::Currencies::free_balance(DAI, &ALICE.into());
 
 			let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-				.pre_dispatch(&AccountId::from(ALICE), &batch, &info, info_len);
+				.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &batch, &info, info_len, 0)
+				.map(|(pre, _)| pre);
 
 			let alice_dai_balance_after = hydradx_runtime::Currencies::free_balance(DAI, &ALICE.into());
 			let dai_fee_charged = alice_init_dai_balance - alice_dai_balance_after;
