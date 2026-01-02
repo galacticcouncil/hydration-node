@@ -983,8 +983,16 @@ impl<T: Config> Pallet<T> {
 		amount: Balance,
 	) -> Result<Option<(Balance, T::AccountId)>, DispatchError> {
 		if asset == T::NativeAssetId::get() && Self::is_initialized() {
+			let balance_before = T::Currency::total_balance(asset, &Self::pot_account_id());
 			T::Currency::transfer(asset, &source, &Self::pot_account_id(), amount)?;
-			Ok(Some((amount, Self::pot_account_id())))
+			let balance_after = T::Currency::total_balance(asset, &Self::pot_account_id());
+
+			// To support ATokens - we might need to allow tolerance of 1 unit
+			// and we need to report back that we have actually taken +1 sometimes.
+			let actual_taken = balance_after.saturating_sub(balance_before);
+			let actual_diff = actual_taken.abs_diff(amount);
+			ensure!(actual_diff <= 1, Error::<T>::Arithmetic);
+			Ok(Some((actual_taken, Self::pot_account_id())))
 		} else {
 			Ok(None)
 		}
