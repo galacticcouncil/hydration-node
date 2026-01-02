@@ -2118,7 +2118,7 @@ impl<T: Config> Pallet<T> {
 			actual_fee_taken <= allowed_amount.saturating_add(Balance::one()),
 			Error::<T>::FeeOverdraft
 		);
-		// And actual fee taken must be equal to the reported amount!
+		// And the actual fee taken must be equal to the reported amount!
 		ensure!(actual_fee_taken == taken_fee_total, Error::<T>::FeeOverdraft);
 
 		let protocol_fee_amount = amount.saturating_sub(taken_fee_total);
