@@ -1315,9 +1315,9 @@ fn hollar_xcm_transfer_should_work() {
 		});
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			223,
-			hydradx_runtime::AssetLocation(MultiLocation::new(
+			hydradx_runtime::AssetLocation(Location::new(
 				1,
-				X2(Junction::Parachain(HYDRA_PARA_ID), Junction::GeneralIndex(222))
+				[Junction::Parachain(HYDRA_PARA_ID), Junction::GeneralIndex(222)]
 			))
 		));
 	});
@@ -1344,12 +1344,12 @@ fn hollar_xcm_transfer_should_work() {
 			222,
 			30 * UNITS,
 			Box::new(
-				MultiLocation::new(
+				Location::new(
 					1,
-					X2(
+					[
 						Junction::Parachain(ACALA_PARA_ID),
 						Junction::AccountId32 { id: BOB, network: None }
-					)
+					]
 				)
 				.into_versioned()
 			),
@@ -1376,15 +1376,15 @@ fn hollar_xcm_transfer_should_work() {
 			223,
 			10 * UNITS,
 			Box::new(
-				MultiLocation::new(
+				Location::new(
 					1,
-					X2(
+					[
 						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountId32 {
 							id: ALICE,
 							network: None
 						}
-					)
+					]
 				)
 				.into_versioned()
 			),

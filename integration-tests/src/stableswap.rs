@@ -258,19 +258,19 @@ mod circuit_breaker {
 
 #[test]
 fn pool_with_pegs_should_update_pegs_only_once_per_block() {
-	let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
 		])),
 	);
 
-	let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(1),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(1),
 		])),
 	);
 
