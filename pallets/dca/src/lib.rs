@@ -69,7 +69,7 @@ use frame_support::traits::DefensiveOption;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
-	traits::{Get, Len},
+	traits::{ExistenceRequirement, Get, Len},
 	transactional,
 	weights::WeightToFee as FrameSupportWeight,
 };
@@ -1033,6 +1033,7 @@ impl<T: Config> Pallet<T> {
 				&schedule.owner,
 				&T::FeeReceiver::get(),
 				fee_amount_in_sold_asset,
+				ExistenceRequirement::AllowDeath,
 			)?;
 		} else {
 			//We buy DOT with insufficient asset, for the treasury

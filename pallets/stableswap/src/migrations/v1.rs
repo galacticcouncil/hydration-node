@@ -5,8 +5,6 @@ use frame_support::traits::UncheckedOnRuntimeUpgrade;
 use frame_support::Blake2_128Concat;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
-use sp_runtime::traits::Saturating;
-use sp_runtime::FixedU128;
 use sp_runtime::Perbill;
 use types::BoundedPegSources;
 

@@ -15,8 +15,8 @@ use hydradx_runtime::{
 	AccountId, BorrowingTreasuryAccount, Currencies, EVMAccounts, FixedU128, Liquidation, OriginCaller, Router,
 	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, Stableswap, Tokens, TreasuryAccount, HSM,
 };
-use hydradx_traits::evm::Erc20Encoding;
-use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
+use hydradx_runtime::{OriginCaller, RuntimeCall, RuntimeEvent, RuntimeOrigin, Stableswap};
+use hydradx_traits::evm::{CallContext, Erc20Encoding, InspectEvmAccounts, EVM};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -27,6 +27,7 @@ use pallet_hsm::types::Arbitrage;
 use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
+use primitives::EvmAddress;
 use primitives::{AssetId, Balance};
 use sp_core::{RuntimeDebug, H256, U256};
 use sp_runtime::traits::CheckedConversion;
@@ -79,7 +80,7 @@ fn balance_of(address: EvmAddress) -> U256 {
 		"{:?}",
 		hex::encode(call_result.value)
 	);
-	sp_core::U256::from(call_result.value.as_slice())
+	sp_core::U256::from_big_endian(call_result.value.as_slice())
 }
 
 fn list_facilitators() -> Vec<EvmAddress> {
@@ -601,16 +602,16 @@ const POOL_ID: AssetId = 9876;
 
 #[test]
 fn buy_hollar_with_yield_bearing_token_should_work() {
-	let collateral_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(2000),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(2000),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
 		])),
 	);
-	let hollar_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
+		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
 		}])),
@@ -710,16 +711,16 @@ fn buy_hollar_with_yield_bearing_token_should_work() {
 
 #[test]
 fn sell_yield_bearing_token_to_get_hollar_should_work() {
-	let collateral_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(2000),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(2000),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
 		])),
 	);
-	let hollar_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
+		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
 		}])),
@@ -834,16 +835,16 @@ fn sell_yield_bearing_token_to_get_hollar_should_work() {
 
 #[test]
 fn sell_collateral_to_get_hollar_via_router_should_work() {
-	let collateral_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(2000),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(2000),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
 		])),
 	);
-	let hollar_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
+		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
 		}])),
@@ -964,16 +965,16 @@ fn sell_collateral_to_get_hollar_via_router_should_work() {
 
 #[test]
 fn sell_collateral_to_get_hollar_via_router_should_work_when_collateral_is_acquired_from_omnipool() {
-	let collateral_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(2000),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(2000),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
 		])),
 	);
-	let hollar_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
+		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
 		}])),
@@ -1305,16 +1306,16 @@ fn selling_hollar_should_fail_when_facilitator_capacity_is_insfuccicient() {
 
 #[test]
 fn sell_hollar_to_get_yield_bearing_token_should_work() {
-	let collateral_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(2000),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(2000),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
 		])),
 	);
-	let hollar_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
+		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
 		}])),
@@ -1421,16 +1422,16 @@ fn sell_hollar_to_get_yield_bearing_token_should_work() {
 
 #[test]
 fn buy_yield_bearing_token_with_hollar_should_work() {
-	let collateral_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(2000),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(2000),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
 		])),
 	);
-	let hollar_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
+		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
 		}])),
@@ -1537,16 +1538,16 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 
 #[test]
 fn buy_collateral_with_hollar_via_router_should_work() {
-	let collateral_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(2000),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(2000),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
 		])),
 	);
-	let hollar_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
+		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
 		}])),
@@ -2114,7 +2115,7 @@ fn hollar_liquidation_should_work() {
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		crate::liquidation::update_oracle_price(
-			vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())],
+			vec![("DOT/USD", U256::from_big_endian(&data[0..32]))],
 			ORACLE_ADDRESS,
 			ORACLE_CALLER,
 		);
@@ -2125,7 +2126,7 @@ fn hollar_liquidation_should_work() {
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		crate::liquidation::update_oracle_price(
-			vec![("WETH/USD", U256::checked_from(&data[0..32]).unwrap())],
+			vec![("WETH/USD", U256::from_big_endian(&data[0..32]))],
 			ORACLE_ADDRESS,
 			ORACLE_CALLER,
 		);

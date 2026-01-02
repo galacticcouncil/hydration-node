@@ -22,7 +22,6 @@
 //! - 0 (if they don't have an EVM address or no transactions found)
 
 use frame_support::{
-	storage_alias,
 	traits::{Get, OnRuntimeUpgrade},
 	weights::Weight,
 };

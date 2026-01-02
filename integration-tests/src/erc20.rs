@@ -8,6 +8,7 @@ use fp_evm::PrecompileSet;
 use frame_support::pallet_prelude::DispatchError;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{assert_noop, assert_ok};
 use hex_literal::hex;
 use sp_runtime::traits::Convert;
@@ -20,23 +21,27 @@ use hydradx_runtime::RuntimeCall;
 use hydradx_runtime::RuntimeOrigin;
 use hydradx_runtime::{AssetLocation, Currencies};
 use hydradx_runtime::{EVMAccounts, Runtime};
+use hydradx_traits::evm::CallContext;
 use hydradx_traits::evm::ERC20;
 use hydradx_traits::evm::EVM;
-use hydradx_traits::evm::{CallContext, EvmAddress};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_evm::ExitSucceed::Returned;
-use pallet_evm_accounts::EvmNonceProvider;
-use polkadot_xcm::v3::Junction::AccountKey20;
-use polkadot_xcm::v3::Junctions::X1;
-use polkadot_xcm::v3::MultiLocation;
-use primitives::AccountId;
+use primitives::EvmAddress;
 use sp_core::bounded_vec::BoundedVec;
+
+use hex_literal::hex;
+use pallet_evm_accounts::EvmNonceProvider;
+use polkadot_xcm::v5::Junction::AccountKey20;
+use polkadot_xcm::v5::Junctions::X1;
+use polkadot_xcm::v5::Location;
+use primitives::AccountId;
 use sp_core::keccak_256;
 use sp_core::Encode;
 use sp_core::{H256, U256};
 use sp_runtime::{Permill, TransactionOutcome};
+use sp_std::sync::Arc;
 use std::fmt::Write;
 use xcm_emulator::TestExt;
 pub fn deployer() -> EvmAddress {
@@ -57,12 +62,12 @@ pub fn bind_erc20(contract: EvmAddress) -> AssetId {
 			1,
 			Some(Erc20Currency::<Runtime>::symbol(token).unwrap().try_into().unwrap()),
 			Some(Erc20Currency::<Runtime>::decimals(token).unwrap()),
-			Some(AssetLocation(MultiLocation::new(
+			Some(AssetLocation(Location::new(
 				0,
-				X1(AccountKey20 {
+				X1(Arc::new([AccountKey20 {
 					key: contract.into(),
 					network: None,
-				}),
+				}])),
 			))),
 			None,
 		))
@@ -321,7 +326,8 @@ fn account_should_receive_tokens() {
 			token,
 			&AccountId::from(ALICE),
 			&AccountId::from(BOB),
-			100
+			100,
+			ExistenceRequirement::AllowDeath
 		));
 
 		assert_eq!(

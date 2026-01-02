@@ -127,6 +127,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_type_with_key! {
@@ -384,6 +385,7 @@ use hydradx_traits::stableswap::AssetAmount;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::Source;
 use hydradx_traits::{AccountIdFor, Inspect, RawEntry};
+use sp_runtime::traits::Zero;
 
 pub struct DummyRegistry;
 

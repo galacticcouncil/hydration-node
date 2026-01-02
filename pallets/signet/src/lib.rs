@@ -83,21 +83,21 @@ pub mod pallet {
 	// ========================================
 
 	/// Serialization format enum
-	#[derive(Encode, Decode, TypeInfo, Clone, Copy, Debug, PartialEq, Eq)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, Copy, Debug, PartialEq, Eq)]
 	pub enum SerializationFormat {
 		Borsh = 0,
 		AbiJson = 1,
 	}
 
 	/// Affine point for signatures
-	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, Eq)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, Debug, PartialEq, Eq)]
 	pub struct AffinePoint {
 		pub x: [u8; 32],
 		pub y: [u8; 32],
 	}
 
 	/// Signature structure
-	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, Eq)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, Debug, PartialEq, Eq)]
 	pub struct Signature {
 		pub big_r: AffinePoint,
 		pub s: [u8; 32],
@@ -105,7 +105,7 @@ pub mod pallet {
 	}
 
 	/// Error response structure
-	#[derive(Encode, Decode, TypeInfo, Debug, Clone, PartialEq, Eq)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Debug, Clone, PartialEq, Eq)]
 	pub struct ErrorResponse {
 		pub request_id: [u8; 32],
 		pub error_message: BoundedVec<u8, ConstU32<MAX_ERROR_MESSAGE_LENGTH>>,
