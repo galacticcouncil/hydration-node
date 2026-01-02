@@ -7,6 +7,7 @@ use pallet_intent::types::Intent;
 use pallet_intent::types::IntentId;
 
 pub type Balance = u128;
+pub type Score = u128;
 
 #[derive(Debug, Clone, PartialEq, Encode, Decode, TypeInfo)]
 pub enum TradeType {

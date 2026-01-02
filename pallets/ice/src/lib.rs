@@ -63,7 +63,8 @@ pub use pallet::*;
 use types::*;
 pub use weights::WeightInfo;
 
-pub const UNSIGNED_TXS_PRIORITY: u64 = 1000;
+//TODO: make sure tx is always first in the block(same as liquidations), this is tmp
+pub const UNSIGNED_TXS_PRIORITY: u64 = u64::max_value();
 
 const OCW_LOG_TARGET: &str = "ice::offchain_worker";
 
@@ -109,7 +110,7 @@ pub mod pallet {
 			//NOTE: do we need block number? solution is executed in the block when event was triggered
 			intents_executed: u64,
 			trades_executed: u64,
-			score: u128,
+			score: Score,
 		},
 
 		IntentResolved {
@@ -165,7 +166,7 @@ pub mod pallet {
 		pub fn submit_solution(
 			origin: OriginFor<T>,
 			solution: Solution,
-			score: u128,
+			score: Score,
 			valid_for_block: BlockNumberFor<T>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
@@ -221,7 +222,7 @@ pub mod pallet {
 				}
 			}
 
-			let mut exec_score: u128 = 0;
+			let mut exec_score: Score = 0;
 			for (id, resolved) in &solution.resolved {
 				ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
 
@@ -281,32 +282,52 @@ pub mod pallet {
 	impl<T: Config> ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
 
-		/// Validates unsigned transactions for arbitrage execution
+		/// Validates unsigned transactions for solution execution
 		///
-		/// This function ensures that only valid arbitrage transactions originating from
+		/// This function ensures that only valid solution transactions originating from
 		/// offchain workers are accepted, and prevents unauthorized external calls.
 		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match source {
-				TransactionSource::External => {
+				TransactionSource::Local | TransactionSource::InBlock => { /*OCW or included in block are allowed */ }
+				_ => {
 					return InvalidTransaction::Call.into();
 				}
-				TransactionSource::Local => {}   // produced by our offchain worker
-				TransactionSource::InBlock => {} // included in block
 			};
 
-			let valid_tx = |provide| {
-				ValidTransaction::with_tag_prefix("ice-solution")
+			let block_no = T::BlockNumberProvider::current_block_number();
+			if let Call::submit_solution {
+				solution,
+				score,
+				valid_for_block,
+			} = call
+			{
+				if !valid_for_block.eq(&block_no.saturating_add(One::one())) {
+					log::error!(target: OCW_LOG_TARGET, "invalid target block,  target_block: {:?}, block: {:?}", valid_for_block, block_no);
+					return InvalidTransaction::Call.into();
+				}
+
+				let exec_score = match Self::validate_unsigned_solution(&solution) {
+					Ok(ec) => ec,
+					Err(e) => {
+						log::error!(target: OCW_LOG_TARGET, "validate solution, err: {:?}, block: {:?}", e, block_no);
+						return InvalidTransaction::Call.into();
+					}
+				};
+
+				if exec_score != *score {
+					log::error!(target: OCW_LOG_TARGET, "score mismatch,  score: {:?}, exec_score: {:?}, block: {:?}", score, exec_score, block_no);
+					return InvalidTransaction::Call.into();
+				}
+
+				return ValidTransaction::with_tag_prefix("ice-solution")
 					.priority(UNSIGNED_TXS_PRIORITY)
-					.and_provides([&provide])
-					.longevity(3)
+					.and_provides(b"submit_solution".to_vec())
+					.longevity(1)
 					.propagate(false)
-					.build()
-			};
-
-			match call {
-				Call::submit_solution { .. } => valid_tx(b"submit_solution".to_vec()),
-				_ => InvalidTransaction::Call.into(),
+					.build();
 			}
+
+			InvalidTransaction::Call.into()
 		}
 	}
 }
@@ -316,8 +337,11 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_account_truncating()
 	}
 
-	// Function validtes if intent was resolved based on clearing price.
-	fn validate_price_consitency(clearing_prices: &HashMap<AssetId, Ratio>, resolved: &Intent) -> DispatchResult {
+	/// Function validtes if intent was resolved based on clearing price.
+	fn validate_price_consitency(
+		clearing_prices: &HashMap<AssetId, Ratio>,
+		resolved: &Intent,
+	) -> Result<(), DispatchError> {
 		let cp_in = clearing_prices
 			.get(&resolved.asset_in())
 			.ok_or(Error::<T>::MissingClearingPrice)?;
@@ -335,7 +359,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	// Function validates if clearing price value is correct.
+	/// Function validates values of `clearing_prices` and adds it into `valid_prices`.
 	fn validate_clearing_prices(
 		valid_prices: &mut HashMap<AssetId, Ratio>,
 		clearing_prices: &Vec<(AssetId, Ratio)>,
@@ -368,6 +392,33 @@ impl<T: Config> Pallet<T> {
 		n.checked_mul(U512::from(amount_in))?.checked_div(d)?.checked_into()
 	}
 
+	/// Function validates provided solution and returns solution's score if solution is
+	/// valid.
+	fn validate_unsigned_solution(s: &Solution) -> Result<Score, DispatchError> {
+		//TODO:
+		// * add weight rule and make sure sollution respets it.
+
+		let mut clearing_prices: HashMap<AssetId, Ratio> = HashMap::with_capacity(s.clearing_prices.len());
+		Self::validate_clearing_prices(&mut clearing_prices, &s.clearing_prices)?;
+
+		let mut processed_intents: HashSet<IntentId> = HashSet::with_capacity(s.resolved.len());
+		let mut score: Score = 0;
+		for (id, resolved) in &s.resolved {
+			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
+
+			let (_, s) = intent.surplus(resolved).ok_or(Error::<T>::ArithmeticOverflow)?;
+			score = score.checked_add(s).ok_or(Error::<T>::ArithmeticOverflow)?;
+
+			ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
+
+			pallet_intent::Pallet::<T>::validate_resolved(*id, resolved)?;
+
+			Self::validate_price_consitency(&clearing_prices, resolved)?;
+		}
+
+		Ok(score)
+	}
+
 	pub fn run<F>(block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
 	where
 		F: FnOnce(Vec<u8>, Vec<u8>) -> Option<Vec<u8>>,
@@ -375,75 +426,29 @@ impl<T: Config> Pallet<T> {
 		let intents = pallet_intent::Pallet::<T>::get_valid_intents();
 		let state = <T as Config>::AMM::get_state();
 
-		let solution = if let Some(s) = solve(intents.encode(), state.encode()) {
-			match Solution::decode(&mut s.as_slice()) {
-				Ok(s) => s,
-				Err(e) => {
-					log::error!(target: OCW_LOG_TARGET, "to decode solver's solution, err: {:?}, block: {:?}", e, block_no);
-					return None;
-				}
-			}
-		} else {
+		let Some(s) = solve(intents.encode(), state.encode()) else {
 			log::debug!(target: OCW_LOG_TARGET, "no solution found, block: {:?}", block_no);
 			return None;
 		};
 
-		let mut clearing_prices: HashMap<AssetId, Ratio> = HashMap::with_capacity(solution.clearing_prices.len());
-		if let Err(e) = Self::validate_clearing_prices(&mut clearing_prices, &solution.clearing_prices) {
-			log::error!(target: OCW_LOG_TARGET, "solution's clearing prices are not valid, err: {:?}, block: {:?}", e, block_no);
-			return None;
+		let solution = match Solution::decode(&mut s.as_slice()) {
+			Ok(s) => s,
+			Err(e) => {
+				log::error!(target: OCW_LOG_TARGET, "to decode solver's solution, err: {:?}, block: {:?}", e, block_no);
+				return None;
+			}
 		};
 
-		let mut processed_intents: HashSet<IntentId> = HashSet::with_capacity(solution.resolved.len());
-		let mut score = 0_u128;
-		for (id, resolved) in &solution.resolved {
-			let intent = match pallet_intent::Pallet::<T>::get_intent(id) {
-				Some(i) => i,
-				None => {
-					log::error!(target: OCW_LOG_TARGET, "intent not found, intent_id: {:?}, block: {:?}", id, block_no);
-					return None;
-				}
-			};
-
-			let s = match intent.surplus(resolved) {
-				Some(s) => s.1,
-				None => {
-					log::error!(target: OCW_LOG_TARGET, "calculate intent's surplus, intent_id: {:?}, block: {:?}", id, block_no);
-					return None;
-				}
-			};
-
-			score = match score.checked_add(s) {
-				Some(s) => s,
-				None => {
-					log::error!(target: OCW_LOG_TARGET, "calculate calculate solution score, intent_id: {:?}, block: {:?}", id, block_no);
-					return None;
-				}
-			};
-
-			if !processed_intents.insert(*id) {
-				log::error!(target: OCW_LOG_TARGET, "solution contains duplicate intent, intent_id: {:?}, block: {:?}", id, block_no);
-				return None;
-			};
-
-			if let Err(e) = pallet_intent::Pallet::<T>::validate_resolve(*id, resolved) {
-				log::error!(target: OCW_LOG_TARGET, "resolve intent, intent_id: {:?}, err: {:?}, block: {:?}", id, e, block_no);
-				return None;
-			}
-
-			if let Err(e) = Self::validate_price_consitency(&clearing_prices, resolved) {
-				log::error!(target: OCW_LOG_TARGET, "validate clearing price consistency, intent_id: {:?}, err: {:?}, block: {:?}", id, e, block_no);
-				return None;
+		match Self::validate_unsigned_solution(&solution) {
+			Ok(score) => Some(Call::submit_solution {
+				solution,
+				score,
+				valid_for_block: block_no.saturating_add(One::one()),
+			}),
+			Err(e) => {
+				log::error!(target: OCW_LOG_TARGET, "validate solution, err: {:?}, block: {:?}", e, block_no);
+				None
 			}
 		}
-
-		//TODO:
-		// * add weight rule and make sure sollution respets it.
-
-		Some(Call::submit_solution {
-			solution,
-			score,
-			valid_for_block: block_no.saturating_add(One::one()),
-		})
 	}
 }

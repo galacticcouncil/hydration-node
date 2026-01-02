@@ -157,7 +157,8 @@ impl<T: Config> Pallet<T> {
 		intents
 	}
 
-	pub fn validate_resolve(_id: IntentId, _resolved: &Intent) -> Result<(), DispatchError> {
+	/// Function validates if intent was resolved correctly.
+	pub fn validate_resolved(_id: IntentId, _resolved: &Intent) -> Result<(), DispatchError> {
 		//WARN: add real intent's resolution validtion
 		Ok(())
 	}
@@ -167,7 +168,7 @@ impl<T: Config> Pallet<T> {
 		Intents::<T>::try_mutate_exists(id, |maybe_intent| {
 			let _intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
 
-			Self::validate_resolve(id, resolved)?;
+			Self::validate_resolved(id, resolved)?;
 
 			*maybe_intent = None;
 			Ok(())
