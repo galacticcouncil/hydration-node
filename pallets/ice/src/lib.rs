@@ -67,6 +67,8 @@ pub use weights::WeightInfo;
 pub const UNSIGNED_TXS_PRIORITY: u64 = u64::max_value();
 
 const OCW_LOG_TARGET: &str = "ice::offchain_worker";
+pub(crate) const OCW_TAG_PREFIX: &str = "ice-solution";
+pub(crate) const OCW_PROVIDES: &[u8; 15] = b"submit_solution";
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -317,9 +319,9 @@ pub mod pallet {
 					return InvalidTransaction::Call.into();
 				}
 
-				return ValidTransaction::with_tag_prefix("ice-solution")
+				return ValidTransaction::with_tag_prefix(OCW_TAG_PREFIX)
 					.priority(UNSIGNED_TXS_PRIORITY)
-					.and_provides(b"submit_solution".to_vec())
+					.and_provides(OCW_PROVIDES.to_vec())
 					.longevity(1)
 					.propagate(false)
 					.build();

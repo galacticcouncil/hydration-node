@@ -61,7 +61,7 @@ pub(crate) const ONE_QUINTIL: u128 = 1_000_000_000_000_000_000;
 pub(crate) const HDX: AssetId = 0;
 pub(crate) const HUB_ASSET_ID: AssetId = 1;
 pub(crate) const DOT: AssetId = 2;
-pub(crate) const _GETH: AssetId = 3;
+pub(crate) const GETH: AssetId = 3;
 pub(crate) const ETH: AssetId = 4;
 
 //5 SEC.
