@@ -58,7 +58,7 @@ impl pallet_ismp::Config for Runtime {
 	type Router = IsmpRouterStruct;
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
 	type ConsensusClients = (ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>,);
-	type WeightProvider = IsmpWeightProvider;
+	type FeeHandler = pallet_ismp::fee_handler::WeightFeeHandler<IsmpWeightProvider>;
 	type OffchainDB = ();
 }
 
@@ -79,6 +79,7 @@ impl ismp_parachain::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// pallet-ismp implements the IsmpHost
 	type IsmpHost = Ismp;
+	type RootOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type WeightInfo = weights::ismp_parachain::HydraWeight<Runtime>;
 }
 
