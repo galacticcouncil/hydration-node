@@ -135,8 +135,6 @@ pub mod pallet {
 		IntentNotFound,
 		/// Referenced intent's owner doesn't exist.
 		IntentOwnerNotFound,
-		/// Referenced intent has expired.
-		IntentExpired,
 		/// Resolution violates user's limit.
 		LimitViolation,
 		///  Total inputs don't equal total outputs for some asset.
@@ -225,29 +223,29 @@ pub mod pallet {
 			}
 
 			let mut exec_score: Score = 0;
-			for (id, resolved) in &solution.resolved {
+			for (id, resolve) in &solution.resolved {
 				ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
 
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
 
-				<T as Config>::Currency::transfer(resolved.asset_out(), &holding_pot, &owner, resolved.amount_out())?;
+				<T as Config>::Currency::transfer(resolve.asset_out(), &holding_pot, &owner, resolve.amount_out())?;
 
-				Self::validate_price_consitency(&clearing_prices, resolved)?;
+				Self::validate_price_consitency(&clearing_prices, resolve)?;
 
 				Self::deposit_event(Event::IntentResolved {
 					intent_id: *id,
 					owner: owner.clone(),
-					asset_in: resolved.asset_in(),
-					asset_out: resolved.asset_out(),
-					amount_in: resolved.amount_in(),
-					amount_out: resolved.amount_out(),
+					asset_in: resolve.asset_in(),
+					asset_out: resolve.asset_out(),
+					amount_in: resolve.amount_in(),
+					amount_out: resolve.amount_out(),
 				});
 
 				let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
-				let s = intent.surplus(&resolved).ok_or(Error::<T>::ArithmeticOverflow)?;
+				let s = intent.surplus(&resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 				exec_score = exec_score.checked_add(s).ok_or(Error::<T>::ArithmeticOverflow)?;
 
-				pallet_intent::Pallet::<T>::intent_resolved(*id, &owner, &resolved)?;
+				pallet_intent::Pallet::<T>::intent_resolved(*id, &owner, &resolve)?;
 			}
 
 			ensure!(score == exec_score, Error::<T>::ScoreMismatch);
@@ -340,19 +338,19 @@ impl<T: Config> Pallet<T> {
 	/// Function validtes if intent was resolved based on clearing price.
 	fn validate_price_consitency(
 		clearing_prices: &HashMap<AssetId, Ratio>,
-		resolved: &Intent,
+		resolve: &Intent,
 	) -> Result<(), DispatchError> {
 		let cp_in = clearing_prices
-			.get(&resolved.asset_in())
+			.get(&resolve.asset_in())
 			.ok_or(Error::<T>::MissingClearingPrice)?;
 		let cp_out = clearing_prices
-			.get(&resolved.asset_out())
+			.get(&resolve.asset_out())
 			.ok_or(Error::<T>::MissingClearingPrice)?;
 
 		ensure!(
-			Self::calc_amount_out(resolved.amount_in(), cp_in, cp_out)
+			Self::calc_amount_out(resolve.amount_in(), cp_in, cp_out)
 				.ok_or(Error::<T>::ArithmeticOverflow)?
-				.eq(&resolved.amount_out()),
+				.eq(&resolve.amount_out()),
 			Error::<T>::PriceInconsistency
 		);
 
@@ -403,17 +401,17 @@ impl<T: Config> Pallet<T> {
 
 		let mut processed_intents: HashSet<IntentId> = HashSet::with_capacity(s.resolved.len());
 		let mut score: Score = 0;
-		for (id, resolved) in &s.resolved {
+		for (id, resolve) in &s.resolved {
 			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
 
-			let s = intent.surplus(resolved).ok_or(Error::<T>::ArithmeticOverflow)?;
+			let s = intent.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 			score = score.checked_add(s).ok_or(Error::<T>::ArithmeticOverflow)?;
 
 			ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
 
-			pallet_intent::Pallet::<T>::validate_resolved(*id, resolved)?;
+			pallet_intent::Pallet::<T>::validate_resolved(*id, resolve)?;
 
-			Self::validate_price_consitency(&clearing_prices, resolved)?;
+			Self::validate_price_consitency(&clearing_prices, resolve)?;
 		}
 
 		Ok(score)

@@ -31,6 +31,7 @@
 pub mod types;
 mod weights;
 
+use crate::types::SwapType;
 use crate::types::{AssetId, Balance, IncrementalIntentId, Intent, IntentId, IntentKind, Moment};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
@@ -80,11 +81,18 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Invalid deadline
 		InvalidDeadline,
-
 		/// Invalid intent parameters
 		InvalidIntent,
-
+		/// Referenced intent doesn't exist.
 		IntentNotFound,
+		/// Referenced intent has expired.
+		IntentExpired,
+		/// Intent's resolution doesn't match intent's params.
+		ResolveMismatch,
+		///Resolution violates user's limits.
+		LimitViolation,
+		/// Caluclation overflow.
+		ArithmeticOverflow,
 	}
 
 	#[pallet::storage]
@@ -109,6 +117,7 @@ pub mod pallet {
 			Self::add_intent(who, intent)?;
 			Ok(())
 		}
+
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::cancel_intent())]
 		pub fn cancel_intent(origin: OriginFor<T>, _intent: IntentId) -> DispatchResult {
@@ -158,17 +167,61 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Function validates if intent was resolved correctly.
-	pub fn validate_resolved(_id: IntentId, _resolved: &Intent) -> Result<(), DispatchError> {
-		//WARN: add real intent's resolution validtion
+	pub fn validate_resolved(id: IntentId, resolve: &Intent) -> Result<(), DispatchError> {
+		let intent = Self::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
+
+		ensure!(intent.deadline > T::TimestampProvider::now(), Error::<T>::IntentExpired);
+
+		ensure!(intent.asset_in() == resolve.asset_in(), Error::<T>::ResolveMismatch);
+		ensure!(intent.asset_out() == resolve.asset_out(), Error::<T>::ResolveMismatch);
+		ensure!(intent.on_success == resolve.on_success, Error::<T>::ResolveMismatch);
+		ensure!(intent.on_failure == resolve.on_failure, Error::<T>::ResolveMismatch);
+
+		match intent.kind {
+			IntentKind::Swap(_) => {
+				Self::validate_swap_intent_resolve(&intent, resolve)?;
+			}
+		}
+
 		Ok(())
 	}
 
-	pub fn intent_resolved(id: IntentId, _owner: &T::AccountId, resolved: &Intent) -> DispatchResult {
+	fn validate_swap_intent_resolve(intent: &Intent, resolve: &Intent) -> Result<(), DispatchError> {
+		let IntentKind::Swap(ref swap) = intent.kind;
+		let IntentKind::Swap(ref resolve_swap) = resolve.kind;
+
+		match swap.swap_type {
+			SwapType::ExactIn => {
+				if swap.partial {
+					let limit = intent.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+					ensure!(resolve_swap.amount_in <= swap.amount_in, Error::<T>::LimitViolation);
+					ensure!(resolve_swap.amount_out >= limit, Error::<T>::LimitViolation);
+				} else {
+					ensure!(resolve_swap.amount_in == swap.amount_in, Error::<T>::LimitViolation);
+					ensure!(resolve_swap.amount_out >= swap.amount_out, Error::<T>::LimitViolation);
+				};
+			}
+			SwapType::ExactOut => {
+				if swap.partial {
+					let limit = intent.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+					ensure!(resolve_swap.amount_in <= limit, Error::<T>::LimitViolation);
+					ensure!(resolve_swap.amount_out <= swap.amount_out, Error::<T>::LimitViolation);
+				} else {
+					ensure!(resolve_swap.amount_in <= swap.amount_in, Error::<T>::LimitViolation);
+					ensure!(resolve_swap.amount_out == swap.amount_out, Error::<T>::LimitViolation);
+				}
+			}
+		}
+
+		Ok(())
+	}
+
+	pub fn intent_resolved(id: IntentId, _owner: &T::AccountId, resolve: &Intent) -> DispatchResult {
 		//WARN: this is tmp just for testing. Implement validation and real intent resolution logic.
 		Intents::<T>::try_mutate_exists(id, |maybe_intent| {
 			let _intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
 
-			Self::validate_resolved(id, resolved)?;
+			Self::validate_resolved(id, resolve)?;
 
 			*maybe_intent = None;
 			Ok(())
