@@ -115,7 +115,7 @@ pub mod pallet {
 			score: Score,
 		},
 
-		IntentResolved {
+		IntentSettled {
 			intent_id: IntentId,
 			owner: T::AccountId,
 			asset_in: AssetId,
@@ -232,7 +232,7 @@ pub mod pallet {
 
 				Self::validate_price_consitency(&clearing_prices, resolve)?;
 
-				Self::deposit_event(Event::IntentResolved {
+				Self::deposit_event(Event::IntentSettled {
 					intent_id: *id,
 					owner: owner.clone(),
 					asset_in: resolve.asset_in(),
@@ -409,7 +409,7 @@ impl<T: Config> Pallet<T> {
 
 			ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
 
-			pallet_intent::Pallet::<T>::validate_resolved(*id, resolve)?;
+			pallet_intent::Pallet::<T>::validate_resolve(&intent, resolve)?;
 
 			Self::validate_price_consitency(&clearing_prices, resolve)?;
 		}

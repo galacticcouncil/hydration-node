@@ -27,6 +27,12 @@ pub struct Intent {
 }
 
 impl Intent {
+	pub fn is_partial(&self) -> bool {
+		match &self.kind {
+			IntentKind::Swap(s) => s.partial,
+		}
+	}
+
 	pub fn asset_in(&self) -> AssetId {
 		match &self.kind {
 			IntentKind::Swap(s) => s.asset_in,

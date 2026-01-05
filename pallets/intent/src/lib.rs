@@ -31,8 +31,8 @@
 pub mod types;
 mod weights;
 
-use crate::types::SwapType;
 use crate::types::{AssetId, Balance, IncrementalIntentId, Intent, IntentId, IntentKind, Moment};
+use crate::types::{SwapData, SwapType};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::Time;
@@ -75,6 +75,14 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// New intent was submitted
 		IntentSubmitted(T::AccountId, IntentId, Intent),
+		/// Intent was resolved as part of ICE solution execution.
+		IntentResolved {
+			id: IntentId,
+			owner: T::AccountId,
+			amount_in: Balance,
+			amount_out: Balance,
+			partial: bool,
+		},
 	}
 
 	#[pallet::error]
@@ -89,10 +97,14 @@ pub mod pallet {
 		IntentExpired,
 		/// Intent's resolution doesn't match intent's params.
 		ResolveMismatch,
-		///Resolution violates user's limits.
+		///Resolution violates intent's limits.
 		LimitViolation,
 		/// Caluclation overflow.
 		ArithmeticOverflow,
+		/// Referenced intent's owner doesn't exist.
+		IntentOwnerNotFound,
+		/// Account is not intent's owner.
+		InvalidOwner,
 	}
 
 	#[pallet::storage]
@@ -167,9 +179,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Function validates if intent was resolved correctly.
-	pub fn validate_resolved(id: IntentId, resolve: &Intent) -> Result<(), DispatchError> {
-		let intent = Self::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
-
+	pub fn validate_resolve(intent: &Intent, resolve: &Intent) -> Result<(), DispatchError> {
 		ensure!(intent.deadline > T::TimestampProvider::now(), Error::<T>::IntentExpired);
 
 		ensure!(intent.asset_in() == resolve.asset_in(), Error::<T>::ResolveMismatch);
@@ -216,16 +226,73 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn intent_resolved(id: IntentId, _owner: &T::AccountId, resolve: &Intent) -> DispatchResult {
-		//WARN: this is tmp just for testing. Implement validation and real intent resolution logic.
+	pub fn intent_resolved(id: IntentId, who: &T::AccountId, resolve: &Intent) -> DispatchResult {
 		Intents::<T>::try_mutate_exists(id, |maybe_intent| {
-			let _intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
+			let intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
+			let owner = Self::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
 
-			Self::validate_resolved(id, resolve)?;
+			ensure!(owner == *who, Error::<T>::InvalidOwner);
 
-			*maybe_intent = None;
+			Self::validate_resolve(&intent, resolve)?;
+
+			let fully_resolved;
+			match intent.kind {
+				IntentKind::Swap(ref mut s) => {
+					let IntentKind::Swap(ref r) = resolve.kind;
+					fully_resolved = Self::resolve_swap_intent(s, r)?;
+				}
+			};
+
+			if fully_resolved {
+				*maybe_intent = None
+			} else {
+				ensure!(intent.is_partial(), Error::<T>::LimitViolation);
+			}
+
+			Self::deposit_event(Event::IntentResolved {
+				id,
+				owner,
+				amount_in: resolve.amount_in(),
+				amount_out: resolve.amount_out(),
+				partial: !fully_resolved,
+			});
+
 			Ok(())
 		})
+	}
+
+	// Function updates intent's `SwapData` and returns `true` if intent was fully resolved.
+	fn resolve_swap_intent(intent: &mut SwapData, resolve: &SwapData) -> Result<bool, DispatchError> {
+		match intent.swap_type {
+			SwapType::ExactIn => {
+				intent.amount_in = intent
+					.amount_in
+					.checked_sub(resolve.amount_in)
+					.ok_or(Error::<T>::ArithmeticOverflow)?;
+
+				intent.amount_out = intent.amount_out.saturating_sub(resolve.amount_out);
+
+				if intent.amount_in.is_zero() {
+					ensure!(intent.amount_out.is_zero(), Error::<T>::LimitViolation);
+					return Ok(true);
+				}
+
+				Ok(false)
+			}
+			SwapType::ExactOut => {
+				intent.amount_in = intent
+					.amount_in
+					.checked_sub(resolve.amount_in)
+					.ok_or(Error::<T>::ArithmeticOverflow)?;
+
+				intent.amount_out = intent
+					.amount_out
+					.checked_sub(resolve.amount_out)
+					.ok_or(Error::<T>::ArithmeticOverflow)?;
+
+				Ok(intent.amount_out.is_zero())
+			}
+		}
 	}
 
 	pub fn unlock_funds(_id: IntentId, _amount: Balance) -> DispatchResult {
