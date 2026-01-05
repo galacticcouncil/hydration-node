@@ -544,7 +544,7 @@ mod account_conversion {
 				.pre_dispatch(&account, &call, &info, len);
 			assert_ok!(&pre);
 
-			let result = call.clone().dispatch(RuntimeOrigin::signed(account.clone().into()));
+			let result = call.clone().dispatch(RuntimeOrigin::signed(account.clone()));
 			assert_ok!(result);
 
 			assert_ok!(
@@ -1249,7 +1249,7 @@ mod currency_precompile {
 				})
 			);
 
-			let stored = pallet_evm_accounts::Pallet::<Runtime>::get_allowance(HDX.into(), owner, spender);
+			let stored = pallet_evm_accounts::Pallet::<Runtime>::get_allowance(HDX, owner, spender);
 			assert_eq!(stored, amount);
 		});
 	}
@@ -1339,13 +1339,13 @@ mod currency_precompile {
 
 			approve(80u128 * UNITS);
 			assert_eq!(
-				pallet_evm_accounts::Pallet::<Runtime>::get_allowance(HDX.into(), owner, spender),
+				pallet_evm_accounts::Pallet::<Runtime>::get_allowance(HDX, owner, spender),
 				80u128 * UNITS
 			);
 
 			approve(0);
 			assert_eq!(
-				pallet_evm_accounts::Pallet::<Runtime>::get_allowance(HDX.into(), owner, spender),
+				pallet_evm_accounts::Pallet::<Runtime>::get_allowance(HDX, owner, spender),
 				0
 			);
 		});
@@ -2864,7 +2864,7 @@ mod account_marking {
 				10000 * UNITS as i128,
 			));
 
-			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			let state = frame_system::Pallet::<Runtime>::account(user_acc.address());
 			assert_eq!(state.providers, 1);
 			assert_eq!(state.sufficients, 0);
 			assert_eq!(state.nonce, 0);
@@ -2914,7 +2914,7 @@ mod account_marking {
 			));
 
 			// Verify the nonce and sufficients were incremented through EVM transactions
-			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			let state = frame_system::Pallet::<Runtime>::account(user_acc.address());
 			assert_eq!(state.providers, 1);
 			assert_eq!(state.sufficients, 1);
 			assert_eq!(state.nonce, 3,);
@@ -2979,7 +2979,7 @@ mod account_marking {
 				initial_amount as i128,
 			));
 
-			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			let state = frame_system::Pallet::<Runtime>::account(user_acc.address());
 			assert_eq!(state.providers, 1);
 
 			assert_ok!(Omnipool::sell(
@@ -3042,7 +3042,7 @@ mod account_marking {
 			let free_hdx = Currencies::free_balance(HDX, &user_acc.address());
 			assert_eq!(free_hdx, 0);
 
-			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			let state = frame_system::Pallet::<Runtime>::account(user_acc.address());
 			assert_eq!(state.providers, 0);
 			assert_eq!(state.sufficients, 1);
 			assert_eq!(state.nonce, 3);
@@ -3120,7 +3120,7 @@ mod account_marking {
 				initial_amount as i128,
 			));
 
-			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			let state = frame_system::Pallet::<Runtime>::account(user_acc.address());
 			assert_eq!(state.providers, 1);
 
 			assert_ok!(Omnipool::sell(
@@ -3185,7 +3185,7 @@ mod account_marking {
 			let free_hdx = Currencies::free_balance(HDX, &user_acc.address());
 			assert!(free_hdx > 0);
 
-			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			let state = frame_system::Pallet::<Runtime>::account(user_acc.address());
 			assert_eq!(state.providers, 1);
 			assert_eq!(state.sufficients, 1);
 			assert_eq!(state.nonce, 0);
@@ -3915,7 +3915,7 @@ fn raw_eip1559_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>)
 		gas_limit: gas_limit.into(),
 		action: TransactionAction::Call(DISPATCH_ADDR),
 		value: U256::zero(),
-		input: input_data.clone().into(),
+		input: input_data.clone(),
 		access_list: vec![],
 	};
 
@@ -3937,7 +3937,7 @@ fn raw_eip1559_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>)
 		gas_limit: gas_limit.into(),
 		action: TransactionAction::Call(DISPATCH_ADDR),
 		value: U256::zero(),
-		input: input_data.into(),
+		input: input_data,
 		access_list: vec![],
 		odd_y_parity,
 		r: H256::from(rs.r.b32()),
@@ -4043,7 +4043,7 @@ fn raw_legacy_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>) 
 		gas_limit: gas_limit.into(),
 		action: TransactionAction::Call(DISPATCH_ADDR),
 		value: U256::zero(),
-		input: input_data.clone().into(),
+		input: input_data.clone(),
 		chain_id: None,
 	};
 
@@ -4067,7 +4067,7 @@ fn raw_legacy_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>) 
 		gas_limit: gas_limit.into(),
 		action: TransactionAction::Call(DISPATCH_ADDR),
 		value: U256::zero(),
-		input: input_data.into(),
+		input: input_data,
 		signature,
 	};
 
@@ -4668,7 +4668,7 @@ mod evm_error_decoder {
 				..Config::default()
 			});
 
-			let _ = runner
+			runner
 				.run(&random_error_string(), |value| {
 					let call_result = CallResult {
 						exit_reason: ExitReason::Error(ExitError::Other("Some error".into())),
@@ -5040,7 +5040,7 @@ mod evm_error_decoder {
 
 	#[test]
 	fn test_scale_decode_malicious_payload() {
-		let malicious_payloads = vec![
+		let malicious_payloads = [
 			// Looks like Module error (discriminant 3) with crafted data
 			vec![0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00],
 			// Looks like Other variant (discriminant 0) with invalid string data
@@ -5065,7 +5065,7 @@ mod evm_error_decoder {
 	}
 
 	#[test]
-	fn dispatch_decode_with_malformed_scawle_payloads_should_not_panic() {
+	fn dispatch_decode_with_malformed_scale_payloads_should_not_panic() {
 		// Test various malicious/malformed SCALE-encoded payloads
 		// that could trigger panics in decode_with_depth_limit
 		let test_cases = vec![
@@ -5103,12 +5103,12 @@ mod evm_error_decoder {
 			};
 
 			let _result = EvmErrorDecoder::convert(call_result.clone());
-			DispatchError::decode_with_depth_limit(MAX_DECODE_DEPTH, &mut &call_result.value[..]);
+			let _ = DispatchError::decode_with_depth_limit(MAX_DECODE_DEPTH, &mut &call_result.value[..]);
 		}
 	}
 
 	#[test]
-	fn dispatch_decode_cannot_pani_for_different_multi_byte_patterns() {
+	fn dispatch_decode_cannot_panic_for_different_multi_byte_patterns() {
 		for byte1 in [0x00, 0x03, 0x06, 0x07, 0xFF].iter() {
 			for byte2 in [0x00, 0xFF].iter() {
 				let call_result = CallResult {
