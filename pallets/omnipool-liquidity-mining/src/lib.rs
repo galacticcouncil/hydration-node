@@ -995,7 +995,7 @@ pub mod pallet {
 
 			let min_shares_limit = min_shares_limit.unwrap_or(Balance::MIN);
 			let position_id =
-				OmnipoolPallet::<T>::do_add_liquidity_with_limit(origin.clone(), asset, amount, min_shares_limit)?;
+				OmnipoolPallet::<T>::do_add_liquidity(origin.clone(), asset, amount, min_shares_limit)?;
 
 			Self::join_farms(origin, farm_entries, position_id)?;
 
@@ -1071,7 +1071,7 @@ pub mod pallet {
 			let stablepool_shares = T::Stableswap::add_liquidity(who, stable_pool_id, stable_asset_amounts.to_vec())?;
 
 			let min_shares_limit = min_shares_limit.unwrap_or(Balance::MIN);
-			let position_id = OmnipoolPallet::<T>::do_add_liquidity_with_limit(
+			let position_id = OmnipoolPallet::<T>::do_add_liquidity(
 				origin.clone(),
 				stable_pool_id,
 				stablepool_shares,

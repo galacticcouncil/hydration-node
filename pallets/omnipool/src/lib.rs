@@ -613,7 +613,7 @@ pub mod pallet {
 			amount: Balance,
 			min_shares_limit: Balance,
 		) -> DispatchResult {
-			let _ = Self::do_add_liquidity_with_limit(origin, asset, amount, min_shares_limit)?;
+			let _ = Self::do_add_liquidity(origin, asset, amount, min_shares_limit)?;
 
 			Ok(())
 		}
@@ -1999,7 +1999,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[require_transactional]
-	pub fn do_add_liquidity_with_limit(
+	pub fn do_add_liquidity(
 		origin: OriginFor<T>,
 		asset: T::AssetId,
 		amount: Balance,
