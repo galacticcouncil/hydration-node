@@ -27,13 +27,9 @@ impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
 		// EVM Subcalls exits with Revert with empty data on gas exhaustion, so we check for that case
 		if let ExitReason::Revert(ExitRevert::Reverted) = call_result.exit_reason {
 			if call_result.value.is_empty() {
-				let threshold = call_result
-					.gas_limit
-					.checked_mul(U256::from(90))
-					.and_then(|v| v.checked_div(U256::from(100)))
-					.unwrap_or(U256::zero());
-
-				if call_result.gas_used >= threshold {
+				if call_result.gas_used.saturating_mul(U256::from(100))
+					>= call_result.gas_limit.saturating_mul(U256::from(90))
+				{
 					log::warn!(
 						target: "evm::error_decoder",
 						"Detected subcall gas exhaustion: {:?} gas used out of {:?} limit (contract: {:?})",
