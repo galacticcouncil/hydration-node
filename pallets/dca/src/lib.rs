@@ -571,7 +571,6 @@ pub mod pallet {
 			ScheduleOwnership::<T>::insert(who.clone(), next_schedule_id, ());
 			RemainingAmounts::<T>::insert(next_schedule_id, reserve_amount);
 			RetriesOnError::<T>::insert(next_schedule_id, 0);
-			ScheduleExtraGas::<T>::insert(next_schedule_id, 0); //TODO: we might dont need to set it as 0 is default?!
 
 			T::Currencies::reserve_named(
 				&T::NamedReserveId::get(),
