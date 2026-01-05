@@ -125,9 +125,13 @@ pub trait Erc20OnDust<AccountId, CurrencyId> {
 	) -> frame_support::dispatch::DispatchResult;
 }
 
+/// Support for providing extra gas to EVM calls.
+/// Used when an operation runs out of gas and needs additional gas for retries.
 pub trait ExtraGasSupport {
+	/// Set extra gas to be added to subsequent EVM calls
 	fn set_extra_gas(gas: u64);
+	/// Clear any previously set extra gas
 	fn clear_extra_gas();
-
+	/// Returns the dispatch error that indicates an out of gas condition
 	fn out_of_gas_error() -> DispatchError;
 }
