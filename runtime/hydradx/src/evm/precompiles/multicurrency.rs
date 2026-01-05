@@ -230,7 +230,7 @@ where
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(origin)),
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
 			amount,
-			ExistenceRequirement::KeepAlive,
+			ExistenceRequirement::AllowDeath,
 		)
 		.map_err(|e| PrecompileFailure::Revert {
 			exit_status: ExitRevert::Reverted,
@@ -326,7 +326,7 @@ where
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from)),
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
 			amount,
-			ExistenceRequirement::KeepAlive,
+			ExistenceRequirement::AllowDeath,
 		)
 		.map_err(|e| PrecompileFailure::Revert {
 			exit_status: ExitRevert::Reverted,
