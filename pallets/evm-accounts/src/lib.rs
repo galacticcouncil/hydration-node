@@ -242,8 +242,7 @@ pub mod pallet {
 					.priority(UNSIGNED_TXS_PRIORITY)
 					// use account as "provides" so more than one unsigned extrinsic can be placed in the TX pool
 					.and_provides([Encode::encode(user)])
-					.longevity(3)
-					.propagate(false)
+					.longevity(64_u64)
 					.build()
 			};
 
