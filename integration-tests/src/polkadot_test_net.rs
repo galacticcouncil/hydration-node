@@ -29,6 +29,25 @@ use sp_core::H160;
 pub use xcm_emulator::Network;
 use xcm_emulator::{decl_test_networks, decl_test_parachains, decl_test_relay_chains, Parachain};
 
+/// Wrapper for XcmpQueue that ensures MultiTransactionPayment prices are initialized
+/// before processing XCM messages. This is needed because AcceptedCurrencyPrice is
+/// transient storage that must be populated by on_initialize before XCM fee payment works.
+pub struct XcmpQueueWithPrices;
+
+impl polkadot_parachain::primitives::XcmpMessageHandler for XcmpQueueWithPrices {
+	fn handle_xcmp_messages<'a, I: Iterator<Item = (ParaId, polkadot_primitives::v8::BlockNumber, &'a [u8])>>(
+		iter: I,
+		max_weight: frame_support::weights::Weight,
+	) -> frame_support::weights::Weight {
+		// Ensure prices are populated before processing XCM messages
+		let block = hydradx_runtime::System::block_number();
+		hydradx_runtime::MultiTransactionPayment::on_initialize(block);
+
+		// Delegate to the actual handler
+		<hydradx_runtime::XcmpQueue as polkadot_parachain::primitives::XcmpMessageHandler>::handle_xcmp_messages(iter, max_weight)
+	}
+}
+
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
 pub const CHARLIE: [u8; 32] = [6u8; 32];
@@ -156,7 +175,7 @@ decl_test_parachains! {
 		},
 		runtime = hydradx_runtime,
 		core = {
-			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			XcmpMessageHandler: XcmpQueueWithPrices,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
