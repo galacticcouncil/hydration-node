@@ -736,7 +736,7 @@ pub fn go_to_block(number: BlockNumber) {
 	}
 
 	// Finalize current block if we're advancing
-	if current_block > 0 && current_block < number {
+	if current_block < number {
 		hydradx_runtime::System::on_finalize(current_block);
 		hydradx_runtime::Ethereum::on_finalize(current_block);
 		hydradx_runtime::TransactionPayment::on_finalize(current_block);
