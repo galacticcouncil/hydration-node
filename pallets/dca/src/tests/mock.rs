@@ -730,11 +730,13 @@ impl ExtraGasSupport for ExtraGasSetterMock {
 
 pub struct MockGasWeightMapping;
 impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
-	fn gas_to_weight(_gas: u64, _without_base_weight: bool) -> Weight {
-		Weight::zero()
+	fn gas_to_weight(gas: u64, _without_base_weight: bool) -> Weight {
+		// Convert gas to weight with a simple ratio: 1 gas = 1 weight unit
+		// This ensures extra gas actually affects the weight calculation in tests
+		Weight::from_parts(gas, 0)
 	}
-	fn weight_to_gas(_weight: Weight) -> u64 {
-		0
+	fn weight_to_gas(weight: Weight) -> u64 {
+		weight.ref_time()
 	}
 }
 

@@ -157,7 +157,7 @@ pub mod pallet {
 					continue;
 				};
 
-				let weight_for_single_execution = Self::get_trade_weight_with_extra_gas(schedule_id, &schedule.order);
+				let weight_for_single_execution = Self::get_trade_weight(&schedule.order, Some(schedule_id));
 				weight.saturating_accrue(weight_for_single_execution);
 
 				if let Err(e) = Self::prepare_schedule(
@@ -522,7 +522,7 @@ pub mod pallet {
 				Error::<T>::StabilityThresholdTooHigh
 			);
 
-			let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
+			let transaction_fee = Self::get_transaction_fee(&schedule.order, None)?;
 
 			let amount_in = match schedule.order {
 				Order::Sell { amount_in, .. } => amount_in,
@@ -891,7 +891,7 @@ impl<T: Config> Pallet<T> {
 
 		let remaining_amount: Balance =
 			RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
-		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
+		let transaction_fee = Self::get_transaction_fee(&schedule.order, Some(schedule_id))?;
 		let min_amount_for_replanning = transaction_fee.saturating_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT);
 		if remaining_amount < min_amount_for_replanning || remaining_amount < T::MinimumTradingLimit::get() {
 			Self::complete_schedule(schedule_id, schedule);
@@ -1001,8 +1001,8 @@ impl<T: Config> Pallet<T> {
 		Ok(first_trade.amount_in)
 	}
 
-	pub fn get_transaction_fee(order: &Order<T::AssetId>) -> Result<Balance, DispatchError> {
-		Self::convert_weight_to_fee(Self::get_trade_weight(order), order.get_asset_in())
+	pub fn get_transaction_fee(order: &Order<T::AssetId>, schedule_id: Option<ScheduleId>) -> Result<Balance, DispatchError> {
+		Self::convert_weight_to_fee(Self::get_trade_weight(order, schedule_id), order.get_asset_in())
 	}
 
 	fn unallocate_amount(
@@ -1206,10 +1206,9 @@ impl<T: Config> Pallet<T> {
 		Ok(fee_amount_in_sold_asset)
 	}
 
-	// returns DCA overhead weight + router execution weight
-	fn get_trade_weight(order: &Order<T::AssetId>) -> Weight {
+	fn get_trade_weight(order: &Order<T::AssetId>, schedule_id: Option<ScheduleId>) -> Weight {
 		let route = &order.get_route_or_default::<T::RouteProvider>();
-		match order {
+		let base_weight = match order {
 			Order::Sell { .. } => {
 				let on_initialize_weight =
 					if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
@@ -1232,21 +1231,18 @@ impl<T: Config> Pallet<T> {
 				on_initialize_weight
 					.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route))
 			}
+		};
+
+		if let Some(id) = schedule_id {
+			let extra_gas = ScheduleExtraGas::<T>::get(id);
+			if extra_gas > 0 {
+				// Convert extra gas to weight without base weight because we already account for that
+				let extra_weight = T::GasWeightMapping::gas_to_weight(extra_gas, false);
+				return base_weight.saturating_add(extra_weight);
+			}
 		}
-	}
 
-	/// Calculates trade weight including extra gas for a schedule.
-	fn get_trade_weight_with_extra_gas(schedule_id: ScheduleId, order: &Order<T::AssetId>) -> Weight {
-		let base_weight = Self::get_trade_weight(order);
-		let extra_gas = ScheduleExtraGas::<T>::get(schedule_id);
-
-		if extra_gas == 0 {
-			return base_weight;
-		}
-
-		// Convert extra gas to weight without base weight because we already account for that
-		let extra_weight = T::GasWeightMapping::gas_to_weight(extra_gas, false);
-		base_weight.saturating_add(extra_weight)
+		base_weight
 	}
 
 	fn convert_native_amount_to_currency(

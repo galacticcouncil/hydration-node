@@ -2010,17 +2010,20 @@ mod omnipool {
 			init_omnipool_with_oracle_for_block_10();
 
 			let amount_to_sell = 1000 * UNITS;
-			let fee = DCA::get_transaction_fee(&Order::Sell {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: amount_to_sell,
-				min_amount_out: Balance::MIN,
-				route: create_bounded_vec(vec![Trade {
-					pool: PoolType::Omnipool,
+			let fee = DCA::get_transaction_fee(
+				&Order::Sell {
 					asset_in: HDX,
 					asset_out: DAI,
-				}]),
-			})
+					amount_in: amount_to_sell,
+					min_amount_out: Balance::MIN,
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DAI,
+					}]),
+				},
+				None,
+			)
 			.unwrap();
 
 			let alice_init_hdx_balance = 2 * (1000 * UNITS + fee) + 1;
@@ -2123,8 +2126,8 @@ mod fee {
 				set_relaychain_block_number(11);
 
 				//Assert
-				let fee_for_dot = DCA::get_transaction_fee(&sell_with_hdx_fee).unwrap();
-				let fee_for_insufficient = DCA::get_transaction_fee(&sell_with_insufficient_fee).unwrap();
+				let fee_for_dot = DCA::get_transaction_fee(&sell_with_hdx_fee, None).unwrap();
+				let fee_for_insufficient = DCA::get_transaction_fee(&sell_with_insufficient_fee, None).unwrap();
 
 				let diff = fee_for_insufficient - fee_for_dot;
 				let relative_fee_difference = FixedU128::from_rational(diff, fee_for_dot);
@@ -2202,8 +2205,8 @@ mod fee {
 
 				set_relaychain_block_number(11);
 
-				let fee_for_dot = DCA::get_transaction_fee(&buy_with_hdx_fee).unwrap();
-				let fee_for_insufficient = DCA::get_transaction_fee(&buy_with_insufficient_fee).unwrap();
+				let fee_for_dot = DCA::get_transaction_fee(&buy_with_hdx_fee, None).unwrap();
+				let fee_for_insufficient = DCA::get_transaction_fee(&buy_with_insufficient_fee, None).unwrap();
 
 				let diff = fee_for_insufficient - fee_for_dot;
 				let relative_fee_difference = FixedU128::from_rational(diff, fee_for_dot);
@@ -4800,6 +4803,93 @@ mod extra_gas_erc20 {
 			assert_eq!(2, count_trade_executed_events());
 			let alice_final_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			assert!(alice_final_hdx_balance > alice_hdx_balance_after_retry);
+		});
+	}
+
+	#[test]
+	fn dca_retry_includes_extra_gas_in_fee_with_evm_token() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let evm_address = EVMAccounts::evm_address(&Router::router_account());
+			let contract = deploy_conditional_gas_eater(evm_address, 400_000, crate::erc20::deployer());
+			let erc20 = crate::erc20::bind_erc20(contract);
+			assert_ok!(EmaOracle::add_oracle(
+				RuntimeOrigin::root(),
+				OMNIPOOL_SOURCE,
+				(LRNA, erc20)
+			));
+
+			//Add new erc20 to omnipool
+			let bal = Currencies::free_balance(erc20, &ALICE.into());
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(ALICE.into()),
+				pallet_omnipool::Pallet::<Runtime>::protocol_account(),
+				erc20,
+				bal / 10,
+			));
+			assert_ok!(pallet_omnipool::Pallet::<Runtime>::add_token(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 200),
+				Permill::from_percent(30),
+				ALICE.into(),
+			));
+
+			assert_ok!(MultiTransactionPayment::add_currency(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 200)
+			));
+
+			hydradx_run_to_block(11);
+
+			let sell_amount = 200000 * UNITS;
+			let schedule_id = create_schedule_with_onchain_route(erc20, 0, sell_amount, 0, Some(3));
+
+			// Get the schedule to access the order
+			let schedule = DCA::schedules(schedule_id).expect("Schedule should exist");
+
+			let alice_init_balance = Currencies::free_balance(erc20, &ALICE.into());
+
+			// Run to block 13 - first execution fails with out of gas
+			hydradx_run_to_block(13);
+
+			assert_eq!(DCA::retries_on_error(schedule_id), 1);
+			let expected_extra_gas = 333_333; // MAX_EXTRA_GAS / 3
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), expected_extra_gas);
+
+			let base_fee = DCA::get_transaction_fee(&schedule.order, None).unwrap();
+			let fee_with_extra = DCA::get_transaction_fee(&schedule.order, Some(schedule_id)).unwrap();
+
+			assert!(
+				fee_with_extra > base_fee,
+				"Fee with extra gas ({}) should be > base fee ({})",
+				fee_with_extra,
+				base_fee
+			);
+
+			// The first attempt charged base fee (before extra gas was added)
+			let balance_after_first_attempt = Currencies::free_balance(erc20, &ALICE.into());
+			let first_fee_charged = alice_init_balance - balance_after_first_attempt;
+			assert_eq!(first_fee_charged, base_fee);
+
+			let alice_balance_before_retry = Currencies::free_balance(erc20, &ALICE.into());
+
+			hydradx_run_to_block(33);
+
+			let fee_with_extra = DCA::get_transaction_fee(&schedule.order, Some(schedule_id)).unwrap();
+
+			// Verify
+			assert_eq!(DCA::retries_on_error(schedule_id), 0);
+			assert_trade_executed_succesfully(schedule_id);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), expected_extra_gas);
+
+			// The retry should charge fee with extra gas
+			let balance_after_retry = Currencies::free_balance(erc20, &ALICE.into());
+			let total_fees_charged = alice_balance_before_retry - balance_after_retry - sell_amount;
+			assert_eq!(fee_with_extra, total_fees_charged);
 		});
 	}
 
