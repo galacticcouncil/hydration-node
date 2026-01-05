@@ -352,9 +352,15 @@ where
 			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::transfer(source, dest, amount.into(), preservation)
 				.into()
 		} else {
+			let existence = if preservation == Preservation::Expendable {
+				ExistenceRequirement::AllowDeath
+			} else {
+				ExistenceRequirement::KeepAlive
+			};
+
 			match T::BoundErc20::contract_address(asset) {
 				Some(contract) => {
-					T::Erc20Currency::transfer(contract, source, dest, amount, ExistenceRequirement::AllowDeath)
+					T::Erc20Currency::transfer(contract, source, dest, amount, existence)
 						.map(|_| amount)
 				}
 				None => <T::MultiCurrency as fungibles::Mutate<T::AccountId>>::transfer(
