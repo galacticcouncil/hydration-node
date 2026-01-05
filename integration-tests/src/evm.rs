@@ -4495,7 +4495,8 @@ pub fn init_omnipol() {
 
 // TODO: test that we charge approximatelly same fee on evm as with extrinsics directly
 pub fn gas_price() -> U256 {
-	U256::from(hydradx_runtime::evm::DEFAULT_BASE_FEE_PER_GAS)
+	// Fetch current base evm fee from storage
+	hydradx_runtime::DynamicEvmFee::base_evm_fee()
 }
 
 impl MockHandle {
