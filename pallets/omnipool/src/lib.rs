@@ -679,7 +679,7 @@ pub mod pallet {
 			amount: Balance,
 			min_limit: Balance,
 		) -> DispatchResult {
-			Self::do_remove_liquidity_with_limit(origin, position_id, amount, min_limit)?;
+			Self::do_remove_liquidity(origin, position_id, amount, min_limit)?;
 			Ok(())
 		}
 
@@ -2125,7 +2125,7 @@ impl<T: Config> Pallet<T> {
 	/// This is the core logic for liquidity removal, extracted to allow
 	/// other pallets to call it and receive the transferred amount.
 	#[require_transactional]
-	pub fn do_remove_liquidity_with_limit(
+	pub fn do_remove_liquidity(
 		origin: OriginFor<T>,
 		position_id: T::PositionItemId,
 		amount: Balance,

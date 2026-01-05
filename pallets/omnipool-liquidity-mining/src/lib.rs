@@ -1150,7 +1150,7 @@ pub mod pallet {
 			let omnipool_shares_to_remove = omnipool_position.shares;
 			let stable_pool_id = omnipool_position.asset_id;
 
-			let actual_stable_shares_received = OmnipoolPallet::<T>::do_remove_liquidity_with_limit(
+			let actual_stable_shares_received = OmnipoolPallet::<T>::do_remove_liquidity(
 				origin.clone(),
 				position_id,
 				omnipool_shares_to_remove,
