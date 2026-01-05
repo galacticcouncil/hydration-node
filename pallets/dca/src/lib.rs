@@ -1001,7 +1001,10 @@ impl<T: Config> Pallet<T> {
 		Ok(first_trade.amount_in)
 	}
 
-	pub fn get_transaction_fee(order: &Order<T::AssetId>, schedule_id: Option<ScheduleId>) -> Result<Balance, DispatchError> {
+	pub fn get_transaction_fee(
+		order: &Order<T::AssetId>,
+		schedule_id: Option<ScheduleId>,
+	) -> Result<Balance, DispatchError> {
 		Self::convert_weight_to_fee(Self::get_trade_weight(order, schedule_id), order.get_asset_in())
 	}
 
