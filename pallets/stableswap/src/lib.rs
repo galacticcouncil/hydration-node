@@ -62,7 +62,7 @@ use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional, BoundedVec, PalletId};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
-use hydradx_traits::{registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
+use hydradx_traits::{registry::Inspect, stableswap::StableswapLiquidityMutation, AccountIdFor};
 use num_traits::zero;
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
@@ -2062,7 +2062,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> StableswapAddLiquidity<T::AccountId, T::AssetId, Balance> for Pallet<T> {
+impl<T: Config> StableswapLiquidityMutation<T::AccountId, T::AssetId, Balance> for Pallet<T> {
 	fn add_liquidity(
 		who: T::AccountId,
 		pool_id: T::AssetId,

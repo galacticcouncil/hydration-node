@@ -3,7 +3,7 @@ use frame_support::__private::DispatchError;
 use frame_support::pallet_prelude::TypeInfo;
 use sp_std::vec::Vec;
 
-pub trait StableswapAddLiquidity<AccountId, AssetId, Balance> {
+pub trait StableswapLiquidityMutation<AccountId, AssetId, Balance> {
 	fn add_liquidity(
 		who: AccountId,
 		pool_id: AssetId,

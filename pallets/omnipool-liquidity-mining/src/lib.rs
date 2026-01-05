@@ -61,7 +61,7 @@ use frame_system::{
 };
 use hydra_dx_math::ema::EmaPrice as Price;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::stableswap::StableswapAddLiquidity;
+use hydradx_traits::stableswap::StableswapLiquidityMutation;
 use hydradx_traits::{
 	liquidity_mining::{GlobalFarmId, Mutate as LiquidityMiningMutate, YieldFarmId},
 	oracle::{AggregatedPriceOracle, OraclePeriod, Source},
@@ -149,7 +149,7 @@ pub mod pallet {
 			Period = PeriodOf<Self>,
 		>;
 
-		type Stableswap: StableswapAddLiquidity<Self::AccountId, Self::AssetId, Balance>;
+		type Stableswap: StableswapLiquidityMutation<Self::AccountId, Self::AssetId, Balance>;
 
 		/// Identifier of oracle data soruce
 		#[pallet::constant]

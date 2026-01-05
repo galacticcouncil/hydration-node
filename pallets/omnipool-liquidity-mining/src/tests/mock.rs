@@ -48,7 +48,7 @@ use warehouse_liquidity_mining::{GlobalFarmData, Instance1};
 use hydradx_traits::{
 	oracle::{OraclePeriod, Source},
 	pools::DustRemovalAccountWhitelist,
-	stableswap::StableswapAddLiquidity,
+	stableswap::StableswapLiquidityMutation,
 	AssetKind,
 };
 
@@ -193,7 +193,7 @@ pub const SHARES_FROM_STABLESWAP: u128 = 5 * ONE;
 pub const STABLESWAP_POOL_ID: u32 = 72;
 pub struct StableswapAddLiquidityStub;
 
-impl StableswapAddLiquidity<AccountId, AssetId, Balance> for StableswapAddLiquidityStub {
+impl StableswapLiquidityMutation<AccountId, AssetId, Balance> for StableswapAddLiquidityStub {
 	fn add_liquidity(
 		_who: AccountId,
 		_pool_id: AssetId,
