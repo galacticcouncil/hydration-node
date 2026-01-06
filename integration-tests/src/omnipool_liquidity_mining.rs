@@ -2409,7 +2409,7 @@ pub fn expect_stableswap_liquidity_added_events(e: Vec<RuntimeEvent>) {
 }
 
 pub fn expect_omnipool_liquidity_added_events(e: Vec<RuntimeEvent>) {
-	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(10);
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(30);
 
 	let mut events = vec![];
 
