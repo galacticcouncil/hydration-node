@@ -43,6 +43,13 @@ impl polkadot_parachain::primitives::XcmpMessageHandler for XcmpQueueWithPrices 
 		let block = hydradx_runtime::System::block_number();
 		hydradx_runtime::MultiTransactionPayment::on_initialize(block);
 
+		// Override DAI price to a reasonable value (1 DAI = 10 HDX) for test XCM fees
+		// The oracle price can be too high, making fees unaffordable in tests
+		pallet_transaction_multi_payment::AcceptedCurrencyPrice::<hydradx_runtime::Runtime>::insert(
+			DAI,
+			Price::from_inner(10_000_000_000_000_000_000), // 10 in FixedU128
+		);
+
 		// Delegate to the actual handler
 		<hydradx_runtime::XcmpQueue as polkadot_parachain::primitives::XcmpMessageHandler>::handle_xcmp_messages(iter, max_weight)
 	}
@@ -192,7 +199,7 @@ decl_test_parachains! {
 		},
 		runtime = hydradx_runtime,
 		core = {
-			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			XcmpMessageHandler: XcmpQueueWithPrices,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
@@ -209,7 +216,7 @@ decl_test_parachains! {
 		},
 		runtime = hydradx_runtime,
 		core = {
-			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			XcmpMessageHandler: XcmpQueueWithPrices,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
@@ -226,7 +233,7 @@ decl_test_parachains! {
 		},
 		runtime = hydradx_runtime,
 		core = {
-			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			XcmpMessageHandler: XcmpQueueWithPrices,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
@@ -243,7 +250,7 @@ decl_test_parachains! {
 		},
 		runtime = hydradx_runtime,
 		core = {
-			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			XcmpMessageHandler: XcmpQueueWithPrices,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
@@ -260,7 +267,7 @@ decl_test_parachains! {
 		},
 		runtime = hydradx_runtime,
 		core = {
-			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			XcmpMessageHandler: XcmpQueueWithPrices,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
