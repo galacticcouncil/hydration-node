@@ -17,6 +17,7 @@ use frame_support::storage::with_transaction;
 use frame_support::traits::OnInitialize;
 use frame_support::weights::Weight;
 use hydradx_runtime::{AssetRegistry, LocationToAccountId};
+use pallet_transaction_multi_payment::Price;
 use hydradx_traits::{registry::Mutate, AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
 use polkadot_xcm::v5::{
@@ -413,6 +414,12 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 				]))
 			})
 		));
+
+		// Set a reasonable price for DAI (1 DAI = 10 HDX) to ensure XCM fees are affordable
+		pallet_transaction_multi_payment::AcceptedCurrencyPrice::<hydradx_runtime::Runtime>::insert(
+			DAI,
+			Price::from_inner(10_000_000_000_000_000_000), // 10 in FixedU128
+		);
 
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(DAI, &hydradx_runtime::Omnipool::protocol_account()),
