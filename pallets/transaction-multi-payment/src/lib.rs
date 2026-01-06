@@ -782,7 +782,18 @@ where
 
 		let currency = Self::resolve_currency_from_call(who, call);
 
-		MC::ensure_can_withdraw(currency.into(), who, fee).map_err(|_| InvalidTransaction::Payment.into())
+		// Only validate for transaction fee currencies, not insufficient assets
+		if !T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
+			return Ok(());
+		}
+
+		// Convert fee from native currency to the target currency before checking
+		let price = Pallet::<T>::get_currency_price(currency)
+			.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+		let converted_fee = convert_fee_with_price(fee, price)
+			.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+		MC::ensure_can_withdraw(currency.into(), who, converted_fee).map_err(|_| InvalidTransaction::Payment.into())
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
