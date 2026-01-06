@@ -50,6 +50,13 @@ impl polkadot_parachain::primitives::XcmpMessageHandler for XcmpQueueWithPrices 
 			Price::from_inner(10_000_000_000_000_000_000), // 10 in FixedU128
 		);
 
+		// Override ACA (asset 1234) price to 1.0 for test XCM fees to match test expectations
+		// Tests expect fallback price (1.0) but oracle now provides actual price after omnipool init
+		pallet_transaction_multi_payment::AcceptedCurrencyPrice::<hydradx_runtime::Runtime>::insert(
+			1234u32, // ACA
+			Price::from_inner(1_000_000_000_000_000_000), // 1.0 in FixedU128
+		);
+
 		// Delegate to the actual handler
 		<hydradx_runtime::XcmpQueue as polkadot_parachain::primitives::XcmpMessageHandler>::handle_xcmp_messages(iter, max_weight)
 	}

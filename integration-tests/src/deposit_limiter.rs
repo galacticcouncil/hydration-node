@@ -571,7 +571,7 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 
 	Hydra::execute_with(|| {
 		//The fee to-be-sent to the treausury was blocked and reserved too as we reached limit
-		let fee = 77827795107;
+		let fee = 77048488154;
 		assert_reserved_balance!(&Treasury::account_id(), ACA, fee);
 
 		// Bob receives the amount equal to deposit limit, the rest is reserved

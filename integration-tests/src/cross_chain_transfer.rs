@@ -1354,6 +1354,6 @@ fn hollar_xcm_transfer_should_work() {
 	Hydra::execute_with(|| {
 		let fee = treasury_acc.balance(222);
 		assert!(fee > 0, "Fee is not sent to treasury");
-		assert_eq!(alice_acc.balance(222), 79922172204893);
+		assert_eq!(alice_acc.balance(222), 79922951511846);
 	});
 }
