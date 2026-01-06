@@ -28,6 +28,9 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(test)]
+mod tests;
+
 pub mod types;
 mod weights;
 
@@ -81,7 +84,7 @@ pub mod pallet {
 			owner: T::AccountId,
 			amount_in: Balance,
 			amount_out: Balance,
-			partial: bool,
+			fully: bool,
 		},
 	}
 
@@ -254,7 +257,7 @@ impl<T: Config> Pallet<T> {
 				owner,
 				amount_in: resolve.amount_in(),
 				amount_out: resolve.amount_out(),
-				partial: !fully_resolved,
+				fully: fully_resolved,
 			});
 
 			Ok(())

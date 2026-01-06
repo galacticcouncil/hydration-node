@@ -64,6 +64,8 @@ pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-hsm = { workspace = true }
 pallet-parameters = { workspace = true }
+pallet-intent = { workspace = true }
+pallet-ice = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -372,6 +374,8 @@ std = [
     "pallet-evm-accounts/std",
     "pallet-evm-accounts-rpc-runtime-api/std",
     "pallet-xyk-liquidity-mining/std",
+    "pallet-intent/std",
+    "pallet-ice/std",
     "parachains-common/std",
     "polkadot-runtime-common/std",
     "pallet-state-trie-migration/std",

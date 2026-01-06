@@ -1,3 +1,4 @@
+use crate::Vec;
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::TypeInfo;
 use hydra_dx_math::ratio::Ratio;

@@ -26,12 +26,19 @@ frame-system = { workspace = true }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 
+# ORML dependencies
+orml-traits = { workspace = true }
+
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
 test-utils = { workspace = true }
+orml-tokens = { workspace = true, features=["std"] }
+pallet-timestamp = { workspace = true }
+primitives = { workspace = true }
+pretty_assertions = { workspace = true }
 
 [features]
 default = ['std']
@@ -44,6 +51,7 @@ std = [
     'sp-std/std',
     'frame-benchmarking/std',
     'hydradx-traits/std',
+    'orml-traits/std',
 ]
 
 runtime-benchmarks = [

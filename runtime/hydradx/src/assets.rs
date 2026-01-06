@@ -1830,6 +1830,45 @@ impl pallet_hsm::Config for Runtime {
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
 }
 
+parameter_types! {
+	//24 hours
+	pub const MaxIntentDuration: u64  = 24 * 3_600 * 1_000;
+}
+
+impl pallet_intent::Config for Runtime {
+	//TODO:
+	type RuntimeEvent = RuntimeEvent;
+	type MaxAllowedIntentDuration = MaxIntentDuration;
+	type TimestampProvider = Timestamp;
+	type HubAssetId = LRNA;
+	type WeightInfo = ();
+}
+
+//WARN: tmp, do real impl.
+pub struct DummyAMM {}
+
+impl pallet_ice::traits::AMMState for DummyAMM {
+	type State = ();
+
+	fn get_state() -> Self::State {
+		return ();
+	}
+}
+
+parameter_types! {
+	pub const IcePalletId: PalletId = PalletId(*b"ice_ice#");
+}
+
+impl pallet_ice::Config for Runtime {
+	//TODO:
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Currencies;
+	type PalletId = IcePalletId;
+	type BlockNumberProvider = System;
+	type AMM = DummyAMM;
+	type WeightInfo = ();
+}
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where

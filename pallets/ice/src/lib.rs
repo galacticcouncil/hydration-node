@@ -32,12 +32,11 @@
 mod tests;
 
 pub mod api;
-mod traits;
+pub mod traits;
 pub mod types;
 mod weights;
 
 use crate::traits::AMMState;
-use frame_benchmarking::v2::__private::log;
 use frame_support::dispatch::DispatchResult;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::Get;
@@ -57,7 +56,9 @@ use sp_runtime::traits::CheckedConversion;
 use sp_runtime::traits::One;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
-use std::collections::{HashMap, HashSet};
+use sp_std::collections::btree_map::BTreeMap;
+use sp_std::collections::btree_set::BTreeSet;
+use sp_std::vec::Vec;
 
 pub use pallet::*;
 use types::*;
@@ -73,7 +74,6 @@ pub(crate) const OCW_PROVIDES: &[u8; 15] = b"submit_solution";
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_benchmarking::__private::log;
 	use frame_system::offchain::SubmitTransaction;
 
 	#[pallet::pallet]
@@ -181,14 +181,14 @@ pub mod pallet {
 				Error::<T>::InvalidSolution
 			);
 
-			let mut clearing_prices: HashMap<AssetId, Ratio> = HashMap::with_capacity(solution.clearing_prices.len());
+			let mut clearing_prices: BTreeMap<AssetId, Ratio> = BTreeMap::new();
 			Self::validate_clearing_prices(&mut clearing_prices, &solution.clearing_prices)?;
 
-			let mut processed_intents: HashSet<IntentId> = HashSet::with_capacity(solution.resolved.len());
+			let mut processed_intents: BTreeSet<IntentId> = BTreeSet::new();
 			let holding_pot = Self::get_pallet_account();
 			let holding_origin: OriginFor<T> = Origin::<T>::Signed(holding_pot.clone()).into();
 
-			// TODO: this is not most prerformant solution, verify it works and optimise
+			// TODO: this is not most preformant solution, verify it works and optimise
 
 			for (id, intent) in &solution.resolved {
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
@@ -337,7 +337,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Function validtes if intent was resolved based on clearing price.
 	fn validate_price_consitency(
-		clearing_prices: &HashMap<AssetId, Ratio>,
+		clearing_prices: &BTreeMap<AssetId, Ratio>,
 		resolve: &Intent,
 	) -> Result<(), DispatchError> {
 		let cp_in = clearing_prices
@@ -359,7 +359,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Function validates values of `clearing_prices` and adds it into `valid_prices`.
 	fn validate_clearing_prices(
-		valid_prices: &mut HashMap<AssetId, Ratio>,
+		valid_prices: &mut BTreeMap<AssetId, Ratio>,
 		clearing_prices: &Vec<(AssetId, Ratio)>,
 	) -> Result<(), DispatchError> {
 		for cp in clearing_prices {
@@ -396,10 +396,10 @@ impl<T: Config> Pallet<T> {
 		//TODO:
 		// * add weight rule and make sure sollution respets it.
 
-		let mut clearing_prices: HashMap<AssetId, Ratio> = HashMap::with_capacity(s.clearing_prices.len());
+		let mut clearing_prices: BTreeMap<AssetId, Ratio> = BTreeMap::new();
 		Self::validate_clearing_prices(&mut clearing_prices, &s.clearing_prices)?;
 
-		let mut processed_intents: HashSet<IntentId> = HashSet::with_capacity(s.resolved.len());
+		let mut processed_intents: BTreeSet<IntentId> = BTreeSet::new();
 		let mut score: Score = 0;
 		for (id, resolve) in &s.resolved {
 			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;

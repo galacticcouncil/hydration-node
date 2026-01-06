@@ -193,6 +193,9 @@ construct_runtime!(
 		HSM: pallet_hsm = 82,
 		Parameters: pallet_parameters = 83,
 
+		Intent: pallet_intent = 84,
+		ICE: pallet_ice = 85,
+
 		// ORML related modules
 		Tokens: orml_tokens = 77,
 		Currencies: pallet_currencies = 79,
