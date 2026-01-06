@@ -44,6 +44,7 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 
 	Hydra::execute_with(|| {
 		init_omnipool();
+		clear_ema_oracle_accumulator_for_xcm_tests();
 
 		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -170,6 +171,7 @@ fn xcm_call_should_populate_unified_event_call_context() {
 
 	Hydra::execute_with(|| {
 		init_omnipool();
+		clear_ema_oracle_accumulator_for_xcm_tests();
 
 		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),

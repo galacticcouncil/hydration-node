@@ -39,7 +39,7 @@ impl polkadot_parachain::primitives::XcmpMessageHandler for XcmpQueueWithPrices 
 		iter: I,
 		max_weight: frame_support::weights::Weight,
 	) -> frame_support::weights::Weight {
-		// Ensure prices are populated before processing XCM messages
+		use frame_support::traits::OnInitialize;
 		let block = hydradx_runtime::System::block_number();
 		hydradx_runtime::MultiTransactionPayment::on_initialize(block);
 
@@ -433,7 +433,7 @@ pub mod rococo {
 				config: get_host_configuration(),
 			},
 			xcm_pallet: rococo_runtime::XcmPalletConfig {
-				safe_xcm_version: Some(3),
+				safe_xcm_version: Some(5),
 				..Default::default()
 			},
 			babe: rococo_runtime::BabeConfig {
@@ -648,7 +648,7 @@ pub mod hydra {
 				],
 			},
 			polkadot_xcm: hydradx_runtime::PolkadotXcmConfig {
-				safe_xcm_version: Some(3),
+				safe_xcm_version: Some(5),
 				..Default::default()
 			},
 			multi_transaction_payment: hydradx_runtime::MultiTransactionPaymentConfig {
@@ -702,7 +702,7 @@ pub mod para {
 				..Default::default()
 			},
 			polkadot_xcm: hydradx_runtime::PolkadotXcmConfig {
-				safe_xcm_version: Some(3),
+				safe_xcm_version: Some(5),
 				..Default::default()
 			},
 			duster: hydradx_runtime::DusterConfig {
@@ -862,7 +862,6 @@ pub fn hydradx_finalize_block() {
 
 	hydradx_runtime::System::on_finalize(b);
 	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-	hydradx_runtime::EmaOracle::on_finalize(b);
 }
 
 pub fn rococo_run_to_block(to: BlockNumber) {
@@ -973,6 +972,33 @@ pub fn init_omnipool() {
 
 	set_zero_reward_for_referrals(DAI);
 	set_zero_reward_for_referrals(HDX);
+}
+
+/// Clears the EMA oracle accumulator for XCM integration tests.
+///
+/// This function must be called before xcm-emulator takes over block management
+/// in XCM integration tests. The xcm-emulator maintains its own block lifecycle
+/// and calls `on_finalize` when processing XCM messages.
+///
+/// The EMA oracle requires `elapsed >= 1` (incoming.updated_at - prev.updated_at)
+/// when updating values. If data accumulated during test setup (e.g., from
+/// `init_omnipool` or `add_token`) is processed in the same block as the XCM
+/// swap data, the oracle entries get updated twice for the same block, causing
+/// "Updating to new value should not fail" because elapsed would be 0.
+///
+/// By clearing the accumulator before XCM processing:
+/// - Test setup data (omnipool initialization) is discarded
+/// - Only the XCM swap data gets processed by xcm-emulator's `on_finalize`
+/// - Oracle updates work correctly with elapsed >= 1
+///
+/// Note: This means oracle data from test setup is not persisted, which is
+/// acceptable for XCM tests that focus on cross-chain message handling rather
+/// than oracle accuracy.
+///
+/// Call this at the end of your test setup, after `init_omnipool()` and any
+/// additional omnipool operations, but before triggering XCM message exchange.
+pub fn clear_ema_oracle_accumulator_for_xcm_tests() {
+	pallet_ema_oracle::Accumulator::<hydradx_runtime::Runtime>::kill();
 }
 
 pub fn set_zero_reward_for_referrals(asset_id: AssetId) {

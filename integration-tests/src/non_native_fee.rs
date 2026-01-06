@@ -29,6 +29,10 @@ fn non_native_fee_payment_works_with_oracle_price_based_on_onchain_route() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
 		);
@@ -79,6 +83,10 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 
 	// batch
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let first_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
 		);
@@ -105,6 +113,10 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 
 	// batch_all
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let first_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
 		);
@@ -129,8 +141,12 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 
 	TestNet::reset();
 
-	// batch_all
+	// force_batch
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let first_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
 		);
@@ -160,6 +176,10 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 
 	// batch
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let first_inner_call = hydradx_runtime::RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 		let second_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
@@ -188,6 +208,10 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 
 	// batch_all
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let first_inner_call = hydradx_runtime::RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 		let second_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
@@ -214,8 +238,12 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 
 	TestNet::reset();
 
-	// batch_all
+	// force_batch
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let first_inner_call = hydradx_runtime::RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 		let second_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },

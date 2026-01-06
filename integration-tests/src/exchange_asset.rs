@@ -201,6 +201,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
+		clear_ema_oracle_accumulator_for_xcm_tests();
 	});
 
 	let amount_out = 300 * UNITS;
@@ -309,6 +310,7 @@ fn transfer_and_swap_should_work_with_4_hops() {
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
+		clear_ema_oracle_accumulator_for_xcm_tests();
 	});
 
 	Moonbeam::execute_with(|| {
@@ -434,6 +436,7 @@ pub mod zeitgeist_use_cases {
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
+			clear_ema_oracle_accumulator_for_xcm_tests();
 		});
 
 		let alice_init_hxd_balance_on_zeitgeist = 0;
@@ -620,6 +623,7 @@ pub mod zeitgeist_use_cases {
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
+			clear_ema_oracle_accumulator_for_xcm_tests();
 		});
 
 		//Deposit IBTC reserve for hydra
@@ -850,6 +854,7 @@ pub mod zeitgeist_use_cases {
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
+			clear_ema_oracle_accumulator_for_xcm_tests();
 		});
 
 		//Deposit IBTC reserve for hydra

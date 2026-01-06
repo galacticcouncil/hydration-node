@@ -11,13 +11,11 @@ use frame_support::{assert_noop, assert_ok};
 use polkadot_xcm::{v5::prelude::*, VersionedAssetId, VersionedAssets, VersionedXcm};
 
 use crate::utils::accounts::MockAccount;
-use cumulus_primitives_core::ParaId;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::storage::with_transaction;
 use frame_support::traits::OnInitialize;
 use frame_support::weights::Weight;
 use hydradx_runtime::{AssetRegistry, LocationToAccountId};
-use pallet_transaction_multi_payment::Price;
 use hydradx_traits::{registry::Mutate, AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
 use polkadot_xcm::v5::{
@@ -28,7 +26,7 @@ use polkadot_xcm::v5::{
 use pretty_assertions::assert_eq;
 use primitives::AccountId;
 use sp_core::{Decode, H256};
-use sp_runtime::traits::{AccountIdConversion, BlakeTwo256, ConstU32, Hash};
+use sp_runtime::traits::{BlakeTwo256, ConstU32, Hash};
 use sp_runtime::{DispatchResult, FixedU128, TransactionOutcome};
 use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
