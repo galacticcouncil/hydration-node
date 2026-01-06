@@ -8,7 +8,7 @@ use frame_support::{
 	dispatch::GetDispatchInfo,
 	pallet_prelude::*,
 	storage::with_transaction,
-	traits::{fungible::Balanced, tokens::Precision},
+	traits::fungible::Balanced,
 	weights::Weight,
 };
 use hydradx_runtime::{AssetRegistry, Currencies, Omnipool, Router, RuntimeOrigin, TempAccountForXcmAssetExchange};
@@ -26,7 +26,6 @@ use sp_runtime::{
 };
 use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
-use xcm_executor::traits::WeightBounds;
 
 pub const SELL: bool = true;
 pub const BUY: bool = false;
@@ -1457,185 +1456,6 @@ fn half(asset: &Asset) -> Asset {
 		fun: Fungible(half_amount),
 		id: asset.clone().id,
 	}
-}
-
-fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
-	give_asset: Asset,
-	want_asset: Asset,
-	is_sell: bool,
-) -> VersionedXcm<RC> {
-	type Weigher<RC> = hydradx_runtime::xcm::DynamicWeigher<RC>;
-
-	let give_reserve_chain = Location::new(
-		1,
-		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
-			MOONBEAM_PARA_ID,
-		)])),
-	);
-	let want_reserve_chain = Location::new(
-		1,
-		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
-			INTERLAY_PARA_ID,
-		)])),
-	);
-	let swap_chain = Location::new(
-		1,
-		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)])),
-	);
-	let dest = Location::new(
-		1,
-		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID)])),
-	);
-	let beneficiary = Location::new(
-		0,
-		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
-			id: BOB,
-			network: None,
-		}])),
-	);
-	let assets: Assets = Asset {
-		id: cumulus_primitives_core::AssetId(Location::new(
-			0,
-			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GeneralIndex(0)])),
-		)),
-		fun: Fungible(100 * UNITS),
-	}
-	.into();
-	let max_assets = assets.len() as u32 + 1;
-	let origin_context = cumulus_primitives_core::Junctions::X2(Arc::new([
-		cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
-		cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-	]));
-	let give = give_asset
-		.clone()
-		.reanchored(&dest, &origin_context)
-		.expect("should reanchor give");
-	let give: AssetFilter = Definite(give.into());
-	let want: Assets = want_asset.clone().into();
-
-	let fees = give_asset
-		.clone()
-		.reanchored(&swap_chain, &give_reserve_chain.interior)
-		.expect("should reanchor");
-
-	let reserve_fees = want_asset
-		.clone()
-		.reanchored(&want_reserve_chain, &swap_chain.interior)
-		.expect("should reanchor");
-
-	let destination_fee = want_asset
-		.reanchored(&dest, &want_reserve_chain.interior)
-		.expect("should reanchor");
-
-	let weight_limit = {
-		let fees = fees.clone();
-		let mut remote_message = Xcm(vec![
-			ReserveAssetDeposited::<RC>(assets),
-			ClearOrigin,
-			BuyExecution {
-				fees,
-				weight_limit: Limited(Weight::zero()),
-			},
-			ExchangeAsset {
-				give: give.clone(),
-				want: want.clone(),
-				maximal: is_sell,
-			},
-			InitiateReserveWithdraw {
-				assets: want.clone().into(),
-				reserve: want_reserve_chain.clone(),
-				xcm: Xcm(vec![
-					BuyExecution {
-						fees: reserve_fees.clone(), //reserve fee
-						weight_limit: Limited(Weight::zero()),
-					},
-					DepositReserveAsset {
-						assets: Wild(AllCounted(max_assets)),
-						dest: dest.clone(),
-						xcm: Xcm(vec![
-							BuyExecution {
-								fees: destination_fee.clone(), //destination fee
-								weight_limit: Limited(Weight::zero()),
-							},
-							DepositAsset {
-								assets: Wild(AllCounted(max_assets)),
-								beneficiary: beneficiary.clone(),
-							},
-						]),
-					},
-				]),
-			},
-		]);
-		// use local weight for remote message and hope for the best.
-		let _remote_weight = Weigher::weight(&mut remote_message).expect("weighing should not fail");
-		Unlimited
-	};
-
-	// executed on remote (on hydra)
-	let xcm = Xcm(vec![
-		BuyExecution {
-			fees: half(&fees),
-			weight_limit: weight_limit.clone(),
-		},
-		ExchangeAsset {
-			give,
-			want: want.clone(),
-			maximal: is_sell,
-		},
-		InitiateReserveWithdraw {
-			assets: want.into(),
-			reserve: want_reserve_chain,
-			xcm: Xcm(vec![
-				//Executed on interlay
-				BuyExecution {
-					fees: half(&reserve_fees),
-					weight_limit: weight_limit.clone(),
-				},
-				DepositReserveAsset {
-					assets: Wild(AllCounted(max_assets)),
-					dest,
-					xcm: Xcm(vec![
-						//Executed on acala
-						BuyExecution {
-							fees: half(&destination_fee),
-							weight_limit: weight_limit.clone(),
-						},
-						DepositAsset {
-							assets: Wild(AllCounted(max_assets)),
-							beneficiary,
-						},
-					]),
-				},
-			]),
-		},
-	]);
-
-	let give_reserve_fees = give_asset
-		.clone()
-		.reanchored(&give_reserve_chain, &origin_context)
-		.expect("should reanchor");
-
-	// executed on local (acala)
-	let message = Xcm(vec![
-		WithdrawAsset(give_asset.into()),
-		InitiateReserveWithdraw {
-			assets: All.into(),
-			reserve: give_reserve_chain,
-			xcm: Xcm(vec![
-				//Executed on moonbeam
-				BuyExecution {
-					fees: half(&give_reserve_fees),
-					weight_limit,
-				},
-				DepositReserveAsset {
-					assets: AllCounted(max_assets).into(),
-					dest: swap_chain,
-					xcm,
-				},
-			]),
-		},
-	]);
-	VersionedXcm::from(message)
 }
 
 fn craft_exchange_asset_xcm<RC: Decode + GetDispatchInfo>(give: Asset, want: Asset, is_sell: bool) -> VersionedXcm<RC> {
