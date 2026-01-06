@@ -359,10 +359,7 @@ where
 			};
 
 			match T::BoundErc20::contract_address(asset) {
-				Some(contract) => {
-					T::Erc20Currency::transfer(contract, source, dest, amount, existence)
-						.map(|_| amount)
-				}
+				Some(contract) => T::Erc20Currency::transfer(contract, source, dest, amount, existence).map(|_| amount),
 				None => <T::MultiCurrency as fungibles::Mutate<T::AccountId>>::transfer(
 					asset.into(),
 					source,

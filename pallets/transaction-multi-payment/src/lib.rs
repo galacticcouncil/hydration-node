@@ -790,8 +790,8 @@ where
 		// Convert fee from native currency to the target currency before checking
 		let price = Pallet::<T>::get_currency_price(currency)
 			.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-		let converted_fee = convert_fee_with_price(fee, price)
-			.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+		let converted_fee =
+			convert_fee_with_price(fee, price).ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 		MC::ensure_can_withdraw(currency.into(), who, converted_fee).map_err(|_| InvalidTransaction::Payment.into())
 	}
