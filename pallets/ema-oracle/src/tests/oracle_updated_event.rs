@@ -47,7 +47,7 @@ fn oracle_updated_event_should_be_emitted_on_trade() {
 		}
 		.into()]);
 	});
-
+}
 
 #[test]
 fn no_oracle_updated_event_when_no_accumulator_data() {
