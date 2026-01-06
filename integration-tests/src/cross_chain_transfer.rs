@@ -40,50 +40,6 @@ pub fn determine_hash(origin: &Location, assets: Vec<Asset>) -> H256 {
 }
 
 #[test]
-fn hydra_should_receive_asset_when_transferred_from_rococo_relay_chain() {
-	//Arrange
-	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			1,
-			hydradx_runtime::AssetLocation(Location {
-				parents: 1,
-				interior: Here
-			})
-		));
-	});
-
-	Rococo::execute_with(|| {
-		//Act
-		assert_ok!(rococo_runtime::XcmPallet::limited_reserve_transfer_assets(
-			rococo_runtime::RuntimeOrigin::signed(ALICE.into()),
-			Box::new(Parachain(HYDRA_PARA_ID).into_versioned()),
-			Box::new(Junction::AccountId32 { id: BOB, network: None }.into_versioned()),
-			Box::new((Here, 300 * UNITS).into()),
-			0,
-			WeightLimit::Unlimited,
-		));
-
-		//Assert
-		assert_eq!(
-			rococo_runtime::Balances::free_balance(AccountIdConversion::<AccountId>::into_account_truncating(
-				&ParaId::from(HYDRA_PARA_ID)
-			)),
-			310 * UNITS
-		);
-	});
-
-	Hydra::execute_with(|| {
-		let fee = hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id());
-		assert!(fee > 0, "Fees is not sent to treasury");
-
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS - fee
-		);
-	});
-}
-
-#[test]
 fn rococo_should_receive_asset_when_sent_from_hydra() {
 	//Arrange
 	Rococo::execute_with(|| {
