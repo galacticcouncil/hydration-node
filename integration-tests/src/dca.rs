@@ -5182,6 +5182,80 @@ mod extra_gas_erc20 {
 		});
 	}
 
+	#[test]
+	fn dca_retries_when_fee_payment_fails_with_out_of_gas() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			// Deploy ConditionalGasEater with FeeReceiver address (not router)
+			// This makes fee transfers trigger gas eating
+			let fee_receiver = <Runtime as pallet_dca::Config>::FeeReceiver::get();
+			let fee_receiver_evm = EVMAccounts::evm_address(&fee_receiver);
+			let contract = deploy_conditional_gas_eater(fee_receiver_evm, 400_000, crate::erc20::deployer());
+			let erc20 = crate::erc20::bind_erc20(contract);
+
+			assert_ok!(EmaOracle::add_oracle(
+				RuntimeOrigin::root(),
+				OMNIPOOL_SOURCE,
+				(LRNA, erc20)
+			));
+
+			// Add new erc20 to omnipool
+			let bal = Currencies::free_balance(erc20, &ALICE.into());
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(ALICE.into()),
+				pallet_omnipool::Pallet::<Runtime>::protocol_account(),
+				erc20,
+				bal / 10,
+			));
+			assert_ok!(pallet_omnipool::Pallet::<Runtime>::add_token(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 200),
+				Permill::from_percent(30),
+				ALICE.into(),
+			));
+
+			// Add as transaction fee currency (fees go through transfer path)
+			assert_ok!(MultiTransactionPayment::add_currency(
+				RuntimeOrigin::root(),
+				erc20,
+				FixedU128::from_rational(1, 200)
+			));
+
+			hydradx_run_to_block(11);
+
+			let schedule_id = create_schedule_with_onchain_route(erc20, HDX, 200000 * UNITS, 0, Some(3));
+
+			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+			hydradx_run_to_block(13);
+
+			// Assert: fee payment failed with EvmOutOfGas, extra gas increased, schedule retried
+			assert_eq!(DCA::retries_on_error(schedule_id), 1);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), 333_333);
+			trade_failed_with_evm_out_of_gas_error(schedule_id);
+			assert_eq!(1, count_failed_trade_events());
+			assert_eq!(0, count_trade_executed_events());
+
+			// Balance unchanged because fee payment failed before trade
+			let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+			assert_eq!(alice_init_hdx_balance, alice_hdx_balance);
+
+			// Retry with extra gas - should succeed
+			hydradx_run_to_block(33);
+
+			// Assert: trade finally succeeded
+			assert_eq!(DCA::retries_on_error(schedule_id), 0);
+			assert_eq!(DCA::schedule_extra_gas(schedule_id), 333_333);
+			assert_trade_executed_succesfully(schedule_id);
+			assert_eq!(1, count_failed_trade_events());
+			assert_eq!(1, count_trade_executed_events());
+			let alice_hdx_balance_after_retry = Currencies::free_balance(HDX, &ALICE.into());
+			assert!(alice_hdx_balance_after_retry > alice_hdx_balance);
+		});
+	}
+
 	fn create_schedule_with_onchain_route(
 		asset_in: AssetId,
 		asset_out: AssetId,

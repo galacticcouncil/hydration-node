@@ -167,7 +167,10 @@ pub mod pallet {
 					&schedule,
 					&mut randomness_generator,
 				) {
-					if e == Error::<T>::PriceUnstable.into() || e == Error::<T>::Bumped.into() {
+					if e == Error::<T>::PriceUnstable.into()
+						|| e == Error::<T>::Bumped.into()
+						|| e == T::ExtraGasSupport::out_of_gas_error()
+					{
 						continue;
 					} else {
 						Self::terminate_schedule(schedule_id, &schedule, e);
@@ -759,7 +762,19 @@ impl<T: Config> Pallet<T> {
 			return Err(Error::<T>::Bumped.into());
 		}
 
-		Self::take_transaction_fee_from_user(schedule_id, schedule, weight_for_dca_execution)?;
+		if let Err(e) = Self::take_transaction_fee_from_user(schedule_id, schedule, weight_for_dca_execution) {
+			if e == T::ExtraGasSupport::out_of_gas_error() {
+				Self::increment_extra_gas(schedule_id, schedule);
+				Self::deposit_event(Event::TradeFailed {
+					id: schedule_id,
+					who: schedule.owner.clone(),
+					error: e,
+				});
+				Self::retry_schedule(schedule_id, schedule, current_blocknumber, randomness_generator)?;
+				return Err(e);
+			}
+			return Err(e);
+		}
 
 		if Self::is_price_unstable(schedule) {
 			Self::deposit_event(Event::TradeFailed {
@@ -780,7 +795,7 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 	) -> Result<AmountInAndOut<Balance>, DispatchError> {
-		// Set extra gas for dispatcher to use during EVM calls
+		// Set extra gas for evm execution when previous dca failed with out of gas
 		let extra_gas = ScheduleExtraGas::<T>::get(schedule_id);
 		T::ExtraGasSupport::set_extra_gas(extra_gas);
 
@@ -867,7 +882,6 @@ impl<T: Config> Pallet<T> {
 
 		pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
-		// Clean up extra gas
 		T::ExtraGasSupport::clear_extra_gas();
 
 		trade_result
@@ -1050,6 +1064,10 @@ impl<T: Config> Pallet<T> {
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 		weight_to_charge: Weight,
 	) -> DispatchResult {
+		// Set extra gas for evm execution when previous dca failed with out of gas
+		let extra_gas = ScheduleExtraGas::<T>::get(schedule_id);
+		T::ExtraGasSupport::set_extra_gas(extra_gas);
+
 		let fee_currency = schedule.order.get_asset_in();
 		let fee_amount_in_sold_asset = Self::convert_weight_to_fee(weight_to_charge, fee_currency)?;
 
@@ -1083,6 +1101,8 @@ impl<T: Config> Pallet<T> {
 				&T::FeeReceiver::get(),
 			)?;
 		}
+
+		T::ExtraGasSupport::clear_extra_gas();
 
 		Ok(())
 	}
