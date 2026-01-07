@@ -367,6 +367,21 @@ mod benches {
 		[pallet_dispenser, EthDispenser]
 		[ismp_parachain, IsmpParachain]
 		[pallet_token_gateway, TokenGateway]
+		[pallet_currencies, benchmarking::currencies::Benchmark]
+		[orml_tokens, benchmarking::tokens::Benchmark]
+		[orml_vesting, benchmarking::vesting::Benchmark]
+		[pallet_transaction_multi_payment, benchmarking::multi_payment::Benchmark]
+		[pallet_duster, benchmarking::duster::Benchmark]
+		[pallet_omnipool, benchmarking::omnipool::Benchmark]
+		[pallet_route_executor, benchmarking::route_executor::Benchmark]
+		[pallet_dca, benchmarking::dca::Benchmark]
+		[pallet_xyk, benchmarking::xyk::Benchmark]
+		[pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee::Benchmark]
+		[pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining::Benchmark]
+		[pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining::Benchmark]
+		[pallet_ema_oracle, benchmarking::ema_oracle::Benchmark]
+		[pallet_token_gateway_ismp, benchmarking::token_gateway_ismp::Benchmark]
+		[pallet_evm_accounts, benchmarking::evm_accounts::Benchmark]
 	);
 }
 
@@ -1240,9 +1255,8 @@ impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{Benchmarking, BenchmarkList};
+			use frame_benchmarking::BenchmarkList;
 			use frame_support::traits::StorageInfoTrait;
-			use orml_benchmarking::list_benchmark as orml_list_benchmark;
 
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
@@ -1254,25 +1268,7 @@ impl_runtime_apis! {
 			type XcmGeneric = pallet_xcm_benchmarks::generic::Pallet::<Runtime>;
 
 			let mut list = Vec::<BenchmarkList>::new();
-
 			list_benchmarks!(list, extra);
-
-			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
-			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
-			orml_list_benchmark!(list, extra, orml_vesting, benchmarking::vesting);
-			orml_list_benchmark!(list, extra, pallet_transaction_multi_payment, benchmarking::multi_payment);
-			orml_list_benchmark!(list, extra, pallet_duster, benchmarking::duster);
-			orml_list_benchmark!(list, extra, pallet_omnipool, benchmarking::omnipool);
-			orml_list_benchmark!(list, extra, pallet_route_executor, benchmarking::route_executor);
-			orml_list_benchmark!(list, extra, pallet_dca, benchmarking::dca);
-			orml_list_benchmark!(list, extra, pallet_xyk, benchmarking::xyk);
-			orml_list_benchmark!(list, extra, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
-			orml_list_benchmark!(list, extra, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
-			orml_list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
-			orml_list_benchmark!(list, extra, pallet_ema_oracle, benchmarking::ema_oracle);
-			orml_list_benchmark!(list, extra, pallet_token_gateway_ismp, benchmarking::token_gateway_ismp);
-			orml_list_benchmark!(list, extra, pallet_evm_accounts, benchmarking::evm_accounts);
-
 			let storage_info = AllPalletsWithSystem::storage_info();
 
 			(list, storage_info)
@@ -1284,7 +1280,6 @@ impl_runtime_apis! {
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
 			use frame_benchmarking::{BenchmarkError, BenchmarkBatch};
 
-			use orml_benchmarking::add_benchmark as orml_add_benchmark;
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use cumulus_primitives_core::ParaId;
@@ -1548,22 +1543,6 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			add_benchmarks!(params, batches);
-
-			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
-			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);
-			orml_add_benchmark!(params, batches, orml_vesting, benchmarking::vesting);
-			orml_add_benchmark!(params, batches, pallet_transaction_multi_payment, benchmarking::multi_payment);
-			orml_add_benchmark!(params, batches, pallet_duster, benchmarking::duster);
-			orml_add_benchmark!(params, batches, pallet_omnipool, benchmarking::omnipool);
-			orml_add_benchmark!(params, batches, pallet_route_executor, benchmarking::route_executor);
-			orml_add_benchmark!(params, batches, pallet_dca, benchmarking::dca);
-			orml_add_benchmark!(params, batches, pallet_xyk, benchmarking::xyk);
-			orml_add_benchmark!(params, batches, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
-			orml_add_benchmark!(params, batches, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
-			orml_add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
-			orml_add_benchmark!(params, batches, pallet_ema_oracle, benchmarking::ema_oracle);
-			orml_add_benchmark!(params, batches, pallet_token_gateway_ismp, benchmarking::token_gateway_ismp);
-			orml_add_benchmark!(params, batches, pallet_evm_accounts, benchmarking::evm_accounts);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
