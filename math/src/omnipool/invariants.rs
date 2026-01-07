@@ -7,6 +7,7 @@ use crate::MathError::Overflow;
 use primitive_types::U256;
 use proptest::prelude::*;
 use sp_arithmetic::{traits::Zero, FixedPointNumber, FixedU128, Permill};
+use crate::omnipool::types::slip_fee::SlipFeeConfig;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const TOLERANCE: Balance = 1_000;
@@ -113,6 +114,7 @@ proptest! {
 			Permill::from_percent(0),
 			Permill::from_percent(0),
 			Permill::from_percent(0),
+			SlipFeeConfig::default(),
 		);
 
 		assert!(result.is_some());

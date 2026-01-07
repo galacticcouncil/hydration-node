@@ -80,6 +80,7 @@ thread_local! {
 	pub static WITHDRAWAL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 	pub static ON_TRADE_WITHDRAWAL: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static SLIP_FACTOR: RefCell<FixedU128> = const { RefCell::new(FixedU128::from_u32(0)) };
 }
 
 construct_runtime!(
@@ -183,6 +184,8 @@ parameter_types! {
 	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
+	pub SlipFactor: FixedU128 = SLIP_FACTOR.with(|v| *v.borrow());
+	pub MaxSlipFee: FixedU128 = FixedU128::from_u32(10);
 }
 
 impl pallet_broadcast::Config for Test {
@@ -216,6 +219,8 @@ impl Config for Test {
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
 	type BurnProtocolFee = BurnFee;
+	type SlipFactor = SlipFactor;
+	type MaxSlipFee = MaxSlipFee;
 }
 
 pub struct ExtBuilder {
@@ -279,6 +284,9 @@ impl Default for ExtBuilder {
 		});
 		WITHDRAWAL_ADJUSTMENT.with(|v| {
 			*v.borrow_mut() = (0, 0, false);
+		});
+		SLIP_FACTOR.with(|v| {
+			*v.borrow_mut() = FixedU128::zero();
 		});
 
 		Self {
@@ -391,6 +399,11 @@ impl ExtBuilder {
 		amount: Balance,
 	) -> Self {
 		self.pool_tokens.push((asset_id, price, position_owner, amount));
+		self
+	}
+
+	pub fn with_slip_fee(self) -> Self {
+		SLIP_FACTOR.with(|v| *v.borrow_mut() = FixedU128::one());
 		self
 	}
 

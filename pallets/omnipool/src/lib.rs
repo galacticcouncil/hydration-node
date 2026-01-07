@@ -86,7 +86,7 @@ use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydra_dx_math::ema::EmaPrice;
-use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
+use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, slip_fee, slip_fee::SlipFeeConfig};
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::MultiCurrency;
@@ -231,8 +231,18 @@ pub mod pallet {
 		/// Oracle price provider. Provides price for given asset. Used in remove liquidity to support calculation of dynamic withdrawal fee.
 		type ExternalPriceOracle: ExternalPriceProvider<Self::AssetId, EmaPrice, Error = DispatchError>;
 
+		// TODO: comment
 		#[pallet::constant]
 		type BurnProtocolFee: Get<Permill>;
+
+		/// Slip fee factor.
+		/// 0.0 = disabled, 1.0 = enabled.
+		#[pallet::constant]
+		type SlipFactor: Get<FixedU128>;
+
+		/// Max slip fee.
+		#[pallet::constant]
+		type MaxSlipFee: Get<FixedU128>;
 	}
 
 	#[pallet::storage]
@@ -261,6 +271,21 @@ pub mod pallet {
 	#[pallet::getter(fn next_position_id)]
 	/// Position ids sequencer
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn hub_asset_block_state)]
+	/// Tracks hub asset state for slip fee calculation
+	/// Resets at each block boundary
+	/// Key: AssetId
+	/// Value: (hub_reserve_at_block_start, current delta)
+	pub type HubAssetBlockState<T: Config> =
+	StorageMap<
+		_,
+		Blake2_128Concat,
+		T::AssetId,
+		slip_fee::HubAssetBlockState<Balance>,
+		OptionQuery
+	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -973,16 +998,28 @@ pub mod pallet {
 				Error::<T>::MaxInRatioExceeded
 			);
 
-			let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_out_state.reserve));
-			let (_, protocol_fee) = T::Fee::get_and_store((asset_in, asset_in_state.reserve));
+			let (asset_dynamic_fee, _) = T::Fee::get_and_store((asset_out, asset_out_state.reserve));
+			let (_, protocol_dynamic_fee) = T::Fee::get_and_store((asset_in, asset_in_state.reserve));
+
+			// get `HubAssetBlockState` and create initial state when empty
+			let hub_asset_block_state_in = Self::get_or_initialize_hub_asset_block_state(asset_in, asset_in_state.hub_reserve);
+			let hub_asset_block_state_out = Self::get_or_initialize_hub_asset_block_state(asset_out, asset_out_state.hub_reserve);
+
+			let slip_fee_config = SlipFeeConfig::<Balance>{
+				slip_factor: T::SlipFactor::get(),
+				max_slip_fee: T::MaxSlipFee::get(),
+				hub_state_in: hub_asset_block_state_in,
+				hub_state_out: hub_asset_block_state_out,
+			};
 
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state).into(),
 				&(&asset_out_state).into(),
 				amount,
-				asset_fee,
-				protocol_fee,
+				asset_dynamic_fee,
+				protocol_dynamic_fee,
 				T::BurnProtocolFee::get(),
+				slip_fee_config,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1005,6 +1042,16 @@ pub mod pallet {
 
 			let (taken_fee, trade_fees) = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 			let state_changes = state_changes.account_for_fee_taken(taken_fee);
+
+
+			HubAssetBlockState::<T>::mutate_extant(asset_in, |state| {
+				let new_state = &state.current_delta_hub_reserve.saturating_merge(state_changes.asset_in.delta_hub_reserve);
+				*new_state
+			});
+			HubAssetBlockState::<T>::mutate_extant(asset_out, |state| {
+				let new_state = &state.current_delta_hub_reserve.saturating_merge(state_changes.asset_out.delta_hub_reserve);
+				*new_state
+			});
 
 			let new_asset_in_state = asset_in_state
 				.delta_update(&state_changes.asset_in)
@@ -1626,6 +1673,16 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			// TODO: what to do with this?
+			// T::WeightInfo::on_finalize(0, 0)
+			Weight::zero()
+		}
+
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			let _ = <HubAssetBlockState<T>>::clear(u32::MAX, None);
+		}
+
 		fn integrity_test() {
 			assert_ne!(
 				T::MinimumPoolLiquidity::get(),
@@ -1639,6 +1696,8 @@ pub mod pallet {
 			);
 			assert_ne!(T::MaxInRatio::get(), Balance::zero(), "MaxInRatio is 0.");
 			assert_ne!(T::MaxOutRatio::get(), Balance::zero(), "MaxOutRatio is 0.");
+			// Slip fee implementation expects `SlipFactor` being equal to 0 or 1
+			assert!(T::SlipFactor::get().is_zero() || sp_runtime::FixedPointNumber::is_one(&T::SlipFactor::get()), "SlipFactor is not 0 or 1.")
 		}
 
 		#[cfg(feature = "try-runtime")]
@@ -2256,6 +2315,19 @@ impl<T: Config> Pallet<T> {
 		Self::ensure_liquidity_invariant((asset, asset_state, new_asset_state));
 
 		Ok(instance_id)
+	}
+
+	/// Get `HubAssetBlockState` and create initial state when empty.
+	fn get_or_initialize_hub_asset_block_state(asset_id: T::AssetId, hub_reserve: Balance) -> slip_fee::HubAssetBlockState<Balance> {
+		HubAssetBlockState::<T>::mutate(asset_id, |maybe_state| -> slip_fee::HubAssetBlockState::<Balance> {
+			if let Some(state) = maybe_state {
+				*state
+			} else {
+				let new_state = slip_fee::HubAssetBlockState::<Balance>::new(hub_reserve);
+				*maybe_state = Some(new_state);
+				new_state
+			}
+		})
 	}
 
 	#[cfg(any(feature = "try-runtime", test))]

@@ -1,4 +1,4 @@
-use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, TradeFee};
+use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, TradeFee, slip_fee::{SlipFeeConfig, HubAssetBlockState}};
 use crate::omnipool::{
 	calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
 	calculate_cap_difference, calculate_fee_amount_for_buy, calculate_remove_liquidity_state_changes,
@@ -13,7 +13,7 @@ use std::str::FromStr;
 const UNIT: Balance = 1_000_000_000_000;
 
 #[test]
-fn calculate_sell_should_work_when_correct_input_provided() {
+fn calculate_sell_without_fees_should_work_when_correct_input_provided() {
 	let asset_in_state = AssetReserveState {
 		reserve: 10 * UNIT,
 		hub_reserve: 20 * UNIT,
@@ -31,6 +31,7 @@ fn calculate_sell_should_work_when_correct_input_provided() {
 	let asset_fee = Permill::from_percent(0);
 	let protocol_fee = Permill::from_percent(0);
 	let burn_fee = Permill::from_percent(0);
+	let slip_fee = SlipFeeConfig::default();
 
 	let state_changes = calculate_sell_state_changes(
 		&asset_in_state,
@@ -39,6 +40,7 @@ fn calculate_sell_should_work_when_correct_input_provided() {
 		asset_fee,
 		protocol_fee,
 		burn_fee,
+		slip_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -67,7 +69,7 @@ fn calculate_sell_should_work_when_correct_input_provided() {
 }
 
 #[test]
-fn calculate_sell_should_return_correct_when_protocol_fee_is_zero() {
+fn calculate_sell_with_asset_fee_should_work() {
 	let asset_in_state = AssetReserveState {
 		reserve: 10 * UNIT,
 		hub_reserve: 20 * UNIT,
@@ -85,6 +87,7 @@ fn calculate_sell_should_return_correct_when_protocol_fee_is_zero() {
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(0);
 	let burn_fee = Permill::from_percent(0);
+	let slip_fee = SlipFeeConfig::default();
 
 	let state_changes = calculate_sell_state_changes(
 		&asset_in_state,
@@ -93,6 +96,7 @@ fn calculate_sell_should_return_correct_when_protocol_fee_is_zero() {
 		asset_fee,
 		protocol_fee,
 		burn_fee,
+		slip_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -112,7 +116,7 @@ fn calculate_sell_should_return_correct_when_protocol_fee_is_zero() {
 }
 
 #[test]
-fn calculate_sell_should_return_correct_when_protocol_fee_is_not_zero() {
+fn calculate_sell_with_asset_and_protocol_fees_should_work_when_correct_input_provided() {
 	let asset_in_state = AssetReserveState {
 		reserve: 10 * UNIT,
 		hub_reserve: 20 * UNIT,
@@ -130,6 +134,7 @@ fn calculate_sell_should_return_correct_when_protocol_fee_is_not_zero() {
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(1);
 	let burn_fee = Permill::from_percent(0);
+	let slip_fee = SlipFeeConfig::default();
 
 	let state_changes = calculate_sell_state_changes(
 		&asset_in_state,
@@ -138,46 +143,7 @@ fn calculate_sell_should_return_correct_when_protocol_fee_is_not_zero() {
 		asset_fee,
 		protocol_fee,
 		burn_fee,
-	);
-
-	assert!(state_changes.is_some());
-	let state_changes = state_changes.unwrap();
-	assert_eq!(
-		state_changes.fee,
-		TradeFee {
-			asset_fee: 26541554960,
-			protocol_fee: 57142857142,
-		}
-	);
-}
-
-#[test]
-fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
-	let asset_in_state = AssetReserveState {
-		reserve: 10 * UNIT,
-		hub_reserve: 20 * UNIT,
-		shares: 10 * UNIT,
-		protocol_shares: 0u128,
-	};
-	let asset_out_state = AssetReserveState {
-		reserve: 5 * UNIT,
-		hub_reserve: 5 * UNIT,
-		shares: 20 * UNIT,
-		protocol_shares: 0u128,
-	};
-
-	let amount_to_sell = 4 * UNIT;
-	let asset_fee = Permill::from_percent(1);
-	let protocol_fee = Permill::from_percent(1);
-	let burn_fee = Permill::from_percent(0);
-
-	let state_changes = calculate_sell_state_changes(
-		&asset_in_state,
-		&asset_out_state,
-		amount_to_sell,
-		asset_fee,
-		protocol_fee,
-		burn_fee,
+		slip_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -202,6 +168,14 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 		BalanceUpdate::Increase(5777720816326)
 	);
 	assert_eq!(state_changes.extra_protocol_fee_amount, 57142857142);
+
+	assert_eq!(
+		state_changes.fee,
+		TradeFee {
+			asset_fee: 26541554960,
+			protocol_fee: 57142857142,
+		}
+	);
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 57142857142u128 + 5657142857143u128;
@@ -228,6 +202,7 @@ fn calculate_sell_with_fees_should_burn_halt_of_protocol_fee_amount_when_burn_fe
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(1);
 	let burn_fee = Permill::from_percent(50);
+	let slip_fee = SlipFeeConfig::default();
 
 	let state_changes = calculate_sell_state_changes(
 		&asset_in_state,
@@ -236,6 +211,7 @@ fn calculate_sell_with_fees_should_burn_halt_of_protocol_fee_amount_when_burn_fe
 		asset_fee,
 		protocol_fee,
 		burn_fee,
+		slip_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -269,6 +245,88 @@ fn calculate_sell_with_fees_should_burn_halt_of_protocol_fee_amount_when_burn_fe
 	let f = 57142857142u128 + 5657142857143u128;
 	let no_fees_amount: Balance = *state_changes.asset_in.total_delta_hub_reserve();
 	assert_eq!(f, no_fees_amount);
+}
+
+#[test]
+fn calculate_sell_with_slip_fee_should_work_when_correct_input_provided() {
+	let asset_in_state = AssetReserveState {
+		reserve: 10 * UNIT,
+		hub_reserve: 20 * UNIT,
+		shares: 10 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 5 * UNIT,
+		hub_reserve: 5 * UNIT,
+		shares: 20 * UNIT,
+		protocol_shares: 0u128,
+	};
+
+	let amount_to_sell = 4 * UNIT;
+	let asset_fee = Permill::from_percent(0);
+	let protocol_fee = Permill::from_percent(0);
+	let burn_fee = Permill::from_percent(0);
+	let slip_fee = SlipFeeConfig{
+		slip_factor: FixedU128::one(),
+		max_slip_fee: FixedU128::from_u32(10),
+		hub_state_in: HubAssetBlockState::<Balance>{
+			hub_reserve_at_block_start: 20 * UNIT,
+			current_delta_hub_reserve: BalanceUpdate::Increase(0),
+		},
+		hub_state_out: HubAssetBlockState::<Balance>{
+			hub_reserve_at_block_start: 5 * UNIT,
+			current_delta_hub_reserve: BalanceUpdate::Increase(0),
+		},
+	};
+
+	// slip_fee_sell = |delta| / (init + delta)
+	// slip_fee_sell = 5714285714285 / (20000000000000 - 5714285714285) = 0.4
+	// fee = 0.4 * 5714285714285 = 2285714285714
+	// delta hub reserve out = 5714285714285 - 2285714285714 = 2926829268293
+	// slip_fee_buy = 2926829268293 / (5000000000000 + 2926829268293) = 0.369
+	// d net = 2926829268293 - (2926829268293 * 0.369) = 1846829268292
+
+	let state_changes = calculate_sell_state_changes(
+		&asset_in_state,
+		&asset_out_state,
+		amount_to_sell,
+		asset_fee,
+		protocol_fee,
+		burn_fee,
+		slip_fee,
+	);
+
+	assert!(state_changes.is_some());
+
+	let state_changes = state_changes.unwrap();
+
+	assert_eq!(
+		state_changes.asset_in.delta_reserve,
+		BalanceUpdate::Increase(amount_to_sell)
+	);
+	assert_eq!(
+		state_changes.asset_in.total_delta_hub_reserve(),
+		BalanceUpdate::Decrease(5_714_285_714_285u128)
+	);
+
+	assert_eq!(
+		state_changes.asset_out.delta_reserve,
+		BalanceUpdate::Decrease(1_846_153_846_153u128)
+	);
+	assert_eq!(
+		state_changes.asset_out.total_delta_hub_reserve(),
+		BalanceUpdate::Increase(2_926_829_268_293u128)
+	);
+	assert_eq!(state_changes.extra_protocol_fee_amount, 2_285_714_285_713u128); // slip fee
+	assert_eq!(state_changes.fee, TradeFee{
+		asset_fee: 0,
+		protocol_fee: 2_285_714_285_713, // slip fee
+	});
+
+	// // Verify if fee + delta amount == delta with fee
+	// let f = 57142857142u128 + 5657142857143u128;
+	// let no_fees_amount: Balance = *state_changes.asset_in.total_delta_hub_reserve();
+	// assert_eq!(f, no_fees_amount);
 }
 
 #[test]

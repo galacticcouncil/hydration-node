@@ -22,6 +22,7 @@ mod spot_price;
 mod tradability;
 mod types;
 mod verification;
+mod slip_fee;
 
 use crate::Balance;
 use mock::*;

@@ -4,6 +4,8 @@ use num_traits::{CheckedAdd, CheckedSub, SaturatingAdd};
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_std::ops::{Add, Deref};
+use codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
 
 /// Asset state representation including asset pool reserve.
 #[derive(Clone, Default, Debug)]
@@ -39,7 +41,7 @@ where
 }
 
 /// Indicates whether delta amount should be added or subtracted.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Encode, Decode, TypeInfo, MaxEncodedLen, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum BalanceUpdate<Balance> {
 	Increase(Balance),
 	Decrease(Balance),
@@ -51,7 +53,7 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default + Saturating
 		self.checked_add(&other)
 	}
 
-	fn saturating_merge(self, other: Self) -> Self {
+	pub fn saturating_merge(self, other: Self) -> Self {
 		self.saturating_add(&other)
 	}
 }
@@ -288,6 +290,80 @@ where
 {
 	pub fn price(&self) -> Option<FixedU128> {
 		FixedU128::checked_from_rational(self.price.0.into(), self.price.1.into())
+	}
+}
+
+pub mod slip_fee {
+	use codec::{Decode, Encode, MaxEncodedLen};
+	use scale_info::TypeInfo;
+	use sp_arithmetic::{FixedPointNumber, FixedU128};
+	use crate::omnipool::types::BalanceUpdate;
+	use crate::omnipool::types::BalanceUpdate::{Increase, Decrease};
+	use crate::types::Balance;
+	use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, SaturatingAdd, Zero};
+
+	/// Hub asset state for slip fee calculation
+	#[derive(Default, Encode, Decode, TypeInfo, MaxEncodedLen, Copy, Clone, Debug)]
+	pub struct HubAssetBlockState<Balance> {
+		/// Hub reserve (Q₀) at start of current block
+		pub hub_reserve_at_block_start: Balance,
+
+		/// Current net H2O delta for this asset in current block
+		/// Signed value: positive = net buying, negative = net selling
+		pub current_delta_hub_reserve: BalanceUpdate<Balance>,
+	}
+	impl HubAssetBlockState<Balance> {
+		pub fn new(block_start_reserve: Balance) -> Self {
+			HubAssetBlockState {
+				hub_reserve_at_block_start: block_start_reserve,
+				current_delta_hub_reserve: Increase(0),
+			}
+		}
+	}
+
+	/// Configuration for slip fee calculation
+	#[derive(Default)]
+	pub struct SlipFeeConfig<Balance> {
+		/// Slip factor (s) - typically 0.0 to 2.0
+		pub slip_factor: FixedU128,
+
+		/// Maximum slip fee cap
+		pub max_slip_fee: FixedU128,
+
+		/// Hub asset state for asset_in
+		pub hub_state_in: HubAssetBlockState<Balance>,
+
+		/// Hub asset state for asset_out
+		pub hub_state_out: HubAssetBlockState<Balance>,
+	}
+	impl SlipFeeConfig<Balance> {
+		pub fn calculate_slip_fee(&self, delta: BalanceUpdate<Balance>) -> Option<FixedU128> {
+			if self.slip_factor.is_zero() {
+				// slip fee disabled
+				Some(FixedU128::zero())
+			} else {
+				// slip factor == 1
+				FixedU128::from(*delta)
+					.checked_div(&FixedU128::from(*(delta.checked_add(&Increase(self.hub_state_in.hub_reserve_at_block_start))?)))
+			}
+		}
+		
+		pub fn calculate_slip_fee_sell(&self, delta_hub_reserve_in: Balance) -> Option<FixedU128> {
+			// add new delta to existing delta
+			let delta_hub_in = BalanceUpdate::<Balance>::Decrease(delta_hub_reserve_in).saturating_add(&self.hub_state_in.current_delta_hub_reserve);
+			let slip_fee_sell = self.calculate_slip_fee(delta_hub_in)?;
+			Some(sp_std::cmp::min(slip_fee_sell, self.max_slip_fee))
+		}
+
+		pub fn calculate_slip_fee_buy(&self, delta_hub_reserve_out: Balance) -> Option<FixedU128> {
+			let delta_hub_out = BalanceUpdate::<Balance>::Increase(delta_hub_reserve_out).saturating_add(&self.hub_state_out.current_delta_hub_reserve);
+			let slip_fee_buy = self.calculate_slip_fee(delta_hub_out)?;
+			Some(sp_std::cmp::min(slip_fee_buy, self.max_slip_fee))
+		}
+
+		pub fn invert_slip(delta_hub_reserve_net: &Balance) {
+
+		}
 	}
 }
 
