@@ -265,6 +265,7 @@ runtime-benchmarks = [
     "pallet-dispenser/runtime-benchmarks",
     "ismp-parachain/runtime-benchmarks",
     "pallet-token-gateway/runtime-benchmarks",
+    "cumulus-pallet-weight-reclaim/runtime-benchmarks",
 ]
 std = [
     "codec/std",

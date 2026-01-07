@@ -226,8 +226,7 @@ impl frame_system::Config for Runtime {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
-	// TODO: weights
-	type ExtensionsWeightInfo = ();
+	type ExtensionsWeightInfo = weights::frame_system_extensions::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -628,8 +627,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
-	// TODO: weights
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_transaction_payment::HydraWeight<Runtime>;
 }
 
 impl pallet_transaction_multi_payment::Config for Runtime {
@@ -723,6 +721,5 @@ impl pallet_state_trie_migration::Config for Runtime {
 }
 
 impl cumulus_pallet_weight_reclaim::Config for Runtime {
-	// TODO: add weights
-	type WeightInfo = ();
+	type WeightInfo = weights::cumulus_pallet_weight_reclaim::HydraWeight<Runtime>;
 }

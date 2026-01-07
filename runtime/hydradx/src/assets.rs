@@ -535,7 +535,7 @@ impl pallet_uniques::Config for Runtime {
 	type ValueLimit = ValueLimit;
 	#[cfg(feature = "runtime-benchmarks")]
 	type Helper = ();
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_uniques::HydraWeight<Runtime>;
 }
 
 parameter_types! {
