@@ -1,6 +1,6 @@
 pub mod cumulus_pallet_parachain_system;
-pub mod cumulus_pallet_xcmp_queue;
 pub mod cumulus_pallet_weight_reclaim;
+pub mod cumulus_pallet_xcmp_queue;
 pub mod frame_system;
 pub mod frame_system_extensions;
 pub mod ismp_parachain;
