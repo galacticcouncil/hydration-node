@@ -2,7 +2,7 @@ use crate::tests::mock::*;
 use crate::*;
 use frame_support::pallet_prelude::ConstU32;
 use frame_support::BoundedVec;
-use sp_runtime::FixedU128;
+use sp_runtime::{FixedPointNumber, FixedU128};
 
 mod add_liquidity;
 mod amplification;
@@ -66,6 +66,8 @@ pub(crate) fn spot_price_first_asset(pool_id: AssetId, asset_id: AssetId) -> Fix
 		&asset_pegs,
 	)
 	.unwrap()
+	.reciprocal()
+	.unwrap()
 }
 
 pub(crate) fn spot_price(pool_id: AssetId, asset_id_a: AssetId, asset_id_b: AssetId) -> FixedU128 {
@@ -86,6 +88,8 @@ pub(crate) fn spot_price(pool_id: AssetId, asset_id_a: AssetId, asset_id_b: Asse
 		None,
 		&asset_pegs,
 	)
+	.unwrap()
+	.reciprocal()
 	.unwrap()
 }
 

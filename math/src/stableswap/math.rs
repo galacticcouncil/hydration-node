@@ -902,7 +902,6 @@ pub fn calculate_spot_price(
 				fee,
 				pegs,
 			)
-			.map(|p| p.reciprocal())?
 		}
 		(SHARE_ASSET, STABLE_ASSET) => {
 			let asset_out_idx = asset_reserves.iter().position(|r| r.0 == asset_out)?;
@@ -1006,14 +1005,16 @@ pub fn calculate_spot_price_between_two_stable_assets(
 	let result = price.saturating_mul(&peg_out).saturating_div(&peg_in);
 	let spot_price = (result.n, result.d);
 
-	if let Some(fee) = fee {
+	let spot_price = if let Some(fee) = fee {
 		// Amount_out is reduced by fee in SELL, making asset_out more expensive, so the asset_in/asset_out spot price should be increased.
 		// So divide spot-price-without-fee by (1-fee) to reflect correct amount out after the fee deduction
 		let fee_multiplier = Permill::from_percent(100).checked_sub(&fee)?;
-		FixedU128::checked_from_rational(spot_price.0, fee_multiplier.mul_floor(spot_price.1))
+		FixedU128::checked_from_rational(spot_price.0, fee_multiplier.mul_floor(spot_price.1))?
 	} else {
-		FixedU128::checked_from_rational(spot_price.0, spot_price.1)
-	}
+		FixedU128::checked_from_rational(spot_price.0, spot_price.1)?
+	};
+
+	spot_price.reciprocal()
 }
 
 pub fn recalculate_pegs(
