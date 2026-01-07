@@ -252,7 +252,7 @@ impl MaybeEvmCall<RuntimeCall> for EvmCallChecker {
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn is_evm_call(call: &RuntimeCall) -> bool {
+	fn is_evm_call(_call: &RuntimeCall) -> bool {
 		true
 	}
 }

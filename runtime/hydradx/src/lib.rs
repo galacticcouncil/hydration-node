@@ -46,7 +46,7 @@ use alloc::borrow::Cow;
 
 // clippy no touch
 pub use assets::*;
-pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions::X1, NetworkId, NonFungible, Response};
+pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions, Junctions::X1, NetworkId, NonFungible, Response};
 pub use frame_support::{assert_ok, parameter_types, storage::with_transaction, traits::TrackedStorageKey};
 pub use frame_system::RawOrigin;
 pub use governance::origins::pallet_custom_origins;
@@ -1278,10 +1278,11 @@ impl_runtime_apis! {
 			(list, storage_info)
 		}
 
+		#[allow(non_local_definitions)]
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
-		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
+		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
+			use frame_benchmarking::{BenchmarkError, BenchmarkBatch};
 
 			use orml_benchmarking::add_benchmark as orml_add_benchmark;
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
@@ -1511,7 +1512,7 @@ impl_runtime_apis! {
 				}
 
 				fn export_message_origin_and_destination(
-				) -> Result<(Location, NetworkId, InteriorLocation), BenchmarkError> {
+				) -> Result<(Location, NetworkId, Junctions), BenchmarkError> {
 					Err(BenchmarkError::Skip)
 				}
 
@@ -1597,11 +1598,10 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 
 	use frame_support::assert_ok;
 	use polkadot_xcm::v5::Junction::GeneralIndex;
-	use polkadot_xcm::v5::Junctions::X1;
 	use polkadot_xcm::v5::Location;
 	assert_ok!(AssetRegistry::set_location(
 		dai,
-		AssetLocation(Location::new(0, X1(GeneralIndex(dai.into()))))
+		AssetLocation(Location::new(0, [GeneralIndex(dai.into())]))
 	));
 
 	Currencies::update_balance(
