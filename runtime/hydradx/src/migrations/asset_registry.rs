@@ -27,7 +27,7 @@ use polkadot_xcm::v5::Location as V5Location;
 use polkadot_xcm::VersionedLocation;
 
 /// Maximum number of records to migrate (safety limit for single-block migrations)
-pub const MAX_RECORDS_TO_MIGRATE: u64 = 100;
+pub const MAX_RECORDS_TO_MIGRATE: u64 = 2_000;
 
 /// Old AssetLocation wrapper type that matches the on-chain encoding
 /// The old type was: `pub struct AssetLocation(pub MultiLocation);`
