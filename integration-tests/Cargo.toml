@@ -245,4 +245,6 @@ runtime-benchmarks = [
     "rococo-runtime/runtime-benchmarks",
 ]
 try-runtime = [
+    "hydradx-runtime/try-runtime",
+    "rococo-runtime/try-runtime",
 ]
