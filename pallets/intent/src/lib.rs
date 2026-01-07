@@ -34,8 +34,6 @@ mod tests;
 pub mod types;
 mod weights;
 
-use core::mem::swap;
-
 use crate::types::{AssetId, Balance, IncrementalIntentId, Intent, IntentId, IntentKind, Moment};
 use crate::types::{SwapData, SwapType};
 use frame_support::pallet_prelude::StorageValue;
@@ -211,6 +209,11 @@ impl<T: Config> Pallet<T> {
 		match swap.swap_type {
 			SwapType::ExactIn => {
 				if swap.partial {
+					if resolve_swap.amount_in == swap.amount_in {
+						ensure!(resolve_swap.amount_out >= swap.amount_out, Error::<T>::LimitViolation);
+						return Ok(());
+					}
+
 					let limit = intent.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 					ensure!(resolve_swap.amount_in <= swap.amount_in, Error::<T>::LimitViolation);
 					ensure!(resolve_swap.amount_out >= limit, Error::<T>::LimitViolation);
@@ -221,6 +224,11 @@ impl<T: Config> Pallet<T> {
 			}
 			SwapType::ExactOut => {
 				if swap.partial {
+					if resolve_swap.amount_out == swap.amount_out {
+						ensure!(resolve_swap.amount_in <= swap.amount_in, Error::<T>::LimitViolation);
+						return Ok(());
+					}
+
 					let limit = intent.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 					ensure!(resolve_swap.amount_in <= limit, Error::<T>::LimitViolation);
 					ensure!(resolve_swap.amount_out <= swap.amount_out, Error::<T>::LimitViolation);
