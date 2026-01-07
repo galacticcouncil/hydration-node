@@ -34,6 +34,8 @@ mod tests;
 pub mod types;
 mod weights;
 
+use core::mem::swap;
+
 use crate::types::{AssetId, Balance, IncrementalIntentId, Intent, IntentId, IntentKind, Moment};
 use crate::types::{SwapData, SwapType};
 use frame_support::pallet_prelude::StorageValue;
@@ -202,6 +204,9 @@ impl<T: Config> Pallet<T> {
 	fn validate_swap_intent_resolve(intent: &Intent, resolve: &Intent) -> Result<(), DispatchError> {
 		let IntentKind::Swap(ref swap) = intent.kind;
 		let IntentKind::Swap(ref resolve_swap) = resolve.kind;
+
+		ensure!(swap.swap_type == resolve_swap.swap_type, Error::<T>::ResolveMismatch);
+		ensure!(swap.partial == resolve_swap.partial, Error::<T>::ResolveMismatch);
 
 		match swap.swap_type {
 			SwapType::ExactIn => {
