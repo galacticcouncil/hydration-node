@@ -640,13 +640,22 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 
 		assert_eq!(deposit, expected_deposit);
 
-		expect_omnipool_liquidity_added_events(vec![pallet_omnipool::Event::LiquidityAdded {
-			who: CHARLIE.into(),
-			asset_id: ETH,
-			amount: 1_000 * UNITS,
-			position_id: 7,
-		}
-		.into()]);
+		expect_omnipool_liquidity_added_events(vec![
+			pallet_omnipool::Event::LiquidityAdded {
+				who: CHARLIE.into(),
+				asset_id: ETH,
+				amount: 100 * UNITS,
+				position_id: 6,
+			}
+			.into(),
+			pallet_omnipool::Event::LiquidityAdded {
+				who: CHARLIE.into(),
+				asset_id: ETH,
+				amount: 1_000 * UNITS,
+				position_id: 7,
+			}
+			.into(),
+		]);
 
 		expect_lm_events(vec![
 			pallet_omnipool_liquidity_mining::Event::SharesDeposited {
@@ -2409,7 +2418,7 @@ pub fn expect_stableswap_liquidity_added_events(e: Vec<RuntimeEvent>) {
 }
 
 pub fn expect_omnipool_liquidity_added_events(e: Vec<RuntimeEvent>) {
-	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(30);
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(50);
 
 	let mut events = vec![];
 
