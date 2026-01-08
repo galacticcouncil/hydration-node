@@ -2,46 +2,30 @@
 pragma solidity ^0.8.13;
 
 import {IClampedOracle} from "./interfaces/IClampedOracle.sol";
-import {IAggregatorV3} from "./interfaces/IAggregatorV3.sol";
+import {AggregatorInterface} from "./interfaces/AggregatorInterface.sol";
 
 contract ClampedOracle is IClampedOracle {
     uint256 public constant MAX_BPS = 10_000;
 
-    IAggregatorV3 private immutable primaryAgg;
-    IAggregatorV3 private immutable secondaryAgg;
+    AggregatorInterface private immutable primaryAgg;
+    AggregatorInterface private immutable secondaryAgg;
 
     uint256 public immutable override maxDiffBps;
 
-    uint8 private immutable _decimals;
-
     constructor(
-        address _primaryFeed,
-        address _secondaryFeed,
-        uint256 _maxDiffBps
+        address primaryFeed,
+        address secondaryFeed,
+        uint256 maxDiffBps_
     ) {
-        if (_primaryFeed == address(0) || _secondaryFeed == address(0))
+        if (primaryFeed == address(0) || secondaryFeed == address(0))
             revert InvalidFeed();
-        if (_maxDiffBps > MAX_BPS) revert InvalidBps();
+        if (maxDiffBps_ > MAX_BPS) revert InvalidBps();
 
-        IAggregatorV3 p = IAggregatorV3(_primaryFeed);
-        IAggregatorV3 s = IAggregatorV3(_secondaryFeed);
+        primaryAgg = AggregatorInterface(primaryFeed);
+        secondaryAgg = AggregatorInterface(secondaryFeed);
+        maxDiffBps = maxDiffBps_;
 
-        uint8 pd = p.decimals();
-        uint8 sd = s.decimals();
-        if (pd != sd) revert DecimalsMismatch();
-
-        primaryAgg = p;
-        secondaryAgg = s;
-        maxDiffBps = _maxDiffBps;
-
-        _decimals = pd;
-
-        emit ClampedOracleInitialized(
-            _primaryFeed,
-            _secondaryFeed,
-            _maxDiffBps,
-            pd
-        );
+        emit ClampedOracleInitialized(primaryFeed, secondaryFeed, maxDiffBps_);
     }
 
     function primary() external view override returns (address) {
@@ -52,65 +36,13 @@ contract ClampedOracle is IClampedOracle {
         return address(secondaryAgg);
     }
 
-    function decimals() external view override returns (uint8) {
-        return _decimals;
-    }
-
-    function getRoundData(
-        uint80
-    )
-        external
-        view
-        override
-        returns (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        )
-    {
-        return latestRoundData();
-    }
-
-    function latestRoundData()
-        public
-        view
-        override
-        returns (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        )
-    {
-        (
-            bool pOk,
-            uint80 pRound,
-            int256 pAns,
-            uint256 pStart,
-            uint256 pUpdate,
-            uint80 pAnswered
-        ) = _tryLatest(primaryAgg);
-
-        (
-            bool sOk,
-            uint80 sRound,
-            int256 sAns,
-            uint256 sStart,
-            uint256 sUpdate,
-            uint80 sAnswered
-        ) = _tryLatest(secondaryAgg);
+    function latestAnswer() public view override returns (int256) {
+        (bool pOk, int256 pAns) = _tryLatestAnswer(primaryAgg);
+        (bool sOk, int256 sAns) = _tryLatestAnswer(secondaryAgg);
 
         if (!pOk && !sOk) revert NoValidPrice();
-
-        if (!sOk) {
-            return (pRound, pAns, pStart, pUpdate, pAnswered);
-        }
-        if (!pOk) {
-            return (sRound, sAns, sStart, sUpdate, sAnswered);
-        }
+        if (!sOk) return pAns;
+        if (!pOk) return sAns;
 
         if (pAns <= 0 || sAns <= 0) revert NoValidPrice();
 
@@ -124,39 +56,55 @@ contract ClampedOracle is IClampedOracle {
         if (out < lower) out = lower;
         if (out > upper) out = upper;
 
-        uint256 outStart = pStart < sStart ? pStart : sStart;
-        uint256 outUpdate = pUpdate < sUpdate ? pUpdate : sUpdate;
-
-        return (pRound, int256(out), outStart, outUpdate, pAnswered);
+        return int256(out);
     }
 
-    function _tryLatest(
-        IAggregatorV3 agg
-    )
-        internal
-        view
-        returns (
-            bool ok,
-            uint80 roundId,
-            int256 ans,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        )
-    {
-        try agg.latestRoundData() returns (
-            uint80 r,
-            int256 a,
-            uint256 s,
-            uint256 u,
-            uint80 ar
-        ) {
-            if (a <= 0 || u == 0) {
-                return (false, 0, 0, 0, 0, 0);
-            }
-            return (true, r, a, s, u, ar);
+    function latestTimestamp() public view override returns (uint256) {
+        (bool pOk, uint256 pTs) = _tryLatestTimestamp(primaryAgg);
+        (bool sOk, uint256 sTs) = _tryLatestTimestamp(secondaryAgg);
+
+        if (!pOk && !sOk) revert NoValidPrice();
+        if (!sOk) return pTs;
+        if (!pOk) return sTs;
+
+        return pTs < sTs ? pTs : sTs;
+    }
+
+    function latestRound() external view override returns (uint256) {
+        try primaryAgg.latestRound() returns (uint256 r) {
+            return r;
         } catch {
-            return (false, 0, 0, 0, 0, 0);
+            return secondaryAgg.latestRound();
+        }
+    }
+
+    function getAnswer(uint256) external view override returns (int256) {
+        return latestAnswer();
+    }
+
+    function getTimestamp(uint256) external view override returns (uint256) {
+        return latestTimestamp();
+    }
+
+    function _tryLatestAnswer(
+        AggregatorInterface agg
+    ) internal view returns (bool ok, int256 ans) {
+        try agg.latestAnswer() returns (int256 a) {
+            if (a <= 0) return (false, 0);
+            return (true, a);
+        } catch {
+            return (false, 0);
+        }
+    }
+
+    function _tryLatestTimestamp(
+        AggregatorInterface agg
+    ) internal view returns (bool ok, uint256 ts) {
+        try agg.latestTimestamp() returns (uint256 t) {
+            if (t == 0) return (false, 0);
+            return (true, t);
+        } catch {
+            return (false, 0);
         }
     }
 }

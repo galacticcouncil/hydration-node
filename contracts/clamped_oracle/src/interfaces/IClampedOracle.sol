@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import {IAggregatorV3} from "./IAggregatorV3.sol";
+import {AggregatorInterface} from "./AggregatorInterface.sol";
 
-interface IClampedOracle is IAggregatorV3 {
+interface IClampedOracle is AggregatorInterface {
     event ClampedOracleInitialized(
         address indexed primaryFeed,
         address indexed secondaryFeed,
-        uint256 maxDiffBps,
-        uint8 decimals
+        uint256 maxDiffBps
     );
 
     event ClampParamsUpdated(
