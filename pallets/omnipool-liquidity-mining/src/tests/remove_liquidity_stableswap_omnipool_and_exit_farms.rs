@@ -502,8 +502,8 @@ fn remove_liquidity_stableswap_omnipool_and_exit_farms_full_round_trip_with_rewa
 			let position_id =
 				crate::OmniPositionId::<Test>::get(deposit_id).expect("Position should be mapped to deposit");
 
-			// Wait some blocks to accumulate rewards
-			set_block_number(100);
+			// Wait enough blocks to accumulate rewards
+			set_block_number(1_000);
 
 			let hdx_balance_before = Tokens::free_balance(HDX, &LP1);
 
@@ -530,23 +530,22 @@ fn remove_liquidity_stableswap_omnipool_and_exit_farms_full_round_trip_with_rewa
 			);
 
 			let hdx_balance_after = Tokens::free_balance(HDX, &LP1);
+			let expected_claimed_rewards = 243_506_250_u128;
 
-			// Verify user received HDX rewards (if any were generated)
-			// Note: rewards might be 0 in test depending on block time configuration
-			if hdx_balance_after > hdx_balance_before {
-				// Rewards were claimed
-				assert!(has_event(
-					crate::Event::RewardClaimed {
-						global_farm_id: gc_g_farm_id,
-						yield_farm_id: gc_y_farm_id,
-						who: LP1,
-						claimed: hdx_balance_after - hdx_balance_before,
-						reward_currency: HDX,
-						deposit_id,
-					}
-					.into()
-				));
-			}
+			// Verify user received HDX rewards
+			assert_eq!(hdx_balance_after - hdx_balance_before, expected_claimed_rewards);
+
+			assert!(has_event(
+				crate::Event::RewardClaimed {
+					global_farm_id: gc_g_farm_id,
+					yield_farm_id: gc_y_farm_id,
+					who: LP1,
+					claimed: expected_claimed_rewards,
+					reward_currency: HDX,
+					deposit_id,
+				}
+				.into()
+			));
 
 			// Verify all storage is cleaned up
 			assert_eq!(crate::OmniPositionId::<Test>::get(deposit_id), None);
