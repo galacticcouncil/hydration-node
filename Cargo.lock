@@ -10071,7 +10071,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.4.9"
+version = "4.5.0"
 dependencies = [
  "fixed",
  "frame-support",
