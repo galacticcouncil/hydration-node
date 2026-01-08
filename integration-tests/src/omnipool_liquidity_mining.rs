@@ -640,6 +640,7 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 
 		assert_eq!(deposit, expected_deposit);
 
+		//First liquidity added before calling add_liquidity_stableswap_omnipool_and_join_farms
 		expect_omnipool_liquidity_added_events(vec![
 			pallet_omnipool::Event::LiquidityAdded {
 				who: CHARLIE.into(),
@@ -914,13 +915,23 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 			.into()]);
 
 			let stableswap_shares_amount = 20044549999405;
-			expect_omnipool_liquidity_added_events(vec![pallet_omnipool::Event::LiquidityAdded {
-				who: CHARLIE.into(),
-				asset_id: stable_pool_id,
-				amount: stableswap_shares_amount,
-				position_id: 8,
-			}
-			.into()]);
+			//First liquidity added before calling add_liquidity_stableswap_omnipool_and_join_farms
+			expect_omnipool_liquidity_added_events(vec![
+				pallet_omnipool::Event::LiquidityAdded {
+					who: CHARLIE.into(),
+					asset_id: ETH,
+					amount: 100 * UNITS,
+					position_id: 7,
+				}
+				.into(),
+				pallet_omnipool::Event::LiquidityAdded {
+					who: CHARLIE.into(),
+					asset_id: stable_pool_id,
+					amount: stableswap_shares_amount,
+					position_id: 8,
+				}
+				.into(),
+			]);
 
 			expect_lm_events(vec![
 				pallet_omnipool_liquidity_mining::Event::SharesDeposited {
@@ -1161,13 +1172,23 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 			.into()]);
 
 			let stableswap_shares_amount = 20044549999405;
-			expect_omnipool_liquidity_added_events(vec![pallet_omnipool::Event::LiquidityAdded {
-				who: CHARLIE.into(),
-				asset_id: stable_pool_id,
-				amount: stableswap_shares_amount,
-				position_id: 8,
-			}
-			.into()]);
+			//First liquidity added before calling add_liquidity_stableswap_omnipool_and_join_farms
+			expect_omnipool_liquidity_added_events(vec![
+				pallet_omnipool::Event::LiquidityAdded {
+					who: CHARLIE.into(),
+					asset_id: ETH,
+					amount: 100 * UNITS,
+					position_id: 7,
+				}
+				.into(),
+				pallet_omnipool::Event::LiquidityAdded {
+					who: CHARLIE.into(),
+					asset_id: stable_pool_id,
+					amount: stableswap_shares_amount,
+					position_id: 8,
+				}
+				.into(),
+			]);
 
 			expect_lm_events(vec![]);
 
