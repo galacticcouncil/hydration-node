@@ -9248,7 +9248,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.9.6"
+version = "1.10.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
