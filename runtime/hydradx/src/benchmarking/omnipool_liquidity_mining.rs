@@ -1059,6 +1059,9 @@ runtime_benchmarks! {
 		};
 		OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(RawOrigin::Signed(lp_provider.clone()).into(),pool_id, added_liquidity.try_into().unwrap(), farms_to_join, None).unwrap();
 
+		// Advance period to accumulate rewards for worst case (claiming rewards on exit)
+		set_period(400);
+
 		let asset_ids: Vec<AssetAmount<u32>> = Stableswap::pools(pool_id)
 					.into_iter()
 					.flat_map(|pool_info| pool_info.assets.into_iter())
