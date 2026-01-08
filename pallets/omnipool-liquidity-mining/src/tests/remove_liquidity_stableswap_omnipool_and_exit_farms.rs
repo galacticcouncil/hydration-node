@@ -688,7 +688,7 @@ fn should_fail_with_mismatched_deposit_and_position() {
 					vec![AssetAmount::new(USDT, 1)].try_into().unwrap(),
 					Some(deposit_2), // WRONG deposit for position_1
 				),
-				Error::<Test>::InconsistentState(InconsistentStateError::MissingLpPosition)
+				Error::<Test>::PositionIdMismatch
 			);
 		});
 }

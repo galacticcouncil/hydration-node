@@ -321,6 +321,9 @@ pub mod pallet {
 
 		/// No assets specified in the withdrawal
 		NoAssetsSpecified,
+
+		/// The provided position_id does not match the deposit's associated position.
+		PositionIdMismatch,
 	}
 
 	//NOTE: these errors should never happen.
@@ -1130,7 +1133,7 @@ pub mod pallet {
 					.ok_or(Error::<T>::InconsistentState(InconsistentStateError::MissingLpPosition))?;
 				ensure!(
 					stored_position_id == position_id,
-					Error::<T>::InconsistentState(InconsistentStateError::MissingLpPosition)
+					Error::<T>::PositionIdMismatch
 				);
 
 				let yield_farm_ids: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit> =
