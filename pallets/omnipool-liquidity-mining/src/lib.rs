@@ -87,7 +87,6 @@ type PeriodOf<T> = BlockNumberFor<T>;
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
-	use primitives::ItemId;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -994,8 +993,7 @@ pub mod pallet {
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
 
 			let min_shares_limit = min_shares_limit.unwrap_or(Balance::MIN);
-			let position_id =
-				OmnipoolPallet::<T>::do_add_liquidity(origin.clone(), asset, amount, min_shares_limit)?;
+			let position_id = OmnipoolPallet::<T>::do_add_liquidity(origin.clone(), asset, amount, min_shares_limit)?;
 
 			Self::join_farms(origin, farm_entries, position_id)?;
 
