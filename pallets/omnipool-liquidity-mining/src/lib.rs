@@ -1131,10 +1131,7 @@ pub mod pallet {
 
 				let stored_position_id = OmniPositionId::<T>::get(deposit_id)
 					.ok_or(Error::<T>::InconsistentState(InconsistentStateError::MissingLpPosition))?;
-				ensure!(
-					stored_position_id == position_id,
-					Error::<T>::PositionIdMismatch
-				);
+				ensure!(stored_position_id == position_id, Error::<T>::PositionIdMismatch);
 
 				let yield_farm_ids: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit> =
 					T::LiquidityMiningHandler::get_yield_farm_ids(deposit_id)
@@ -1152,7 +1149,7 @@ pub mod pallet {
 			let stable_pool_id = omnipool_position.asset_id;
 
 			let actual_stable_shares_received = OmnipoolPallet::<T>::do_remove_liquidity(
-				origin.clone(),
+				origin,
 				position_id,
 				omnipool_shares_to_remove,
 				omnipool_min_limit,
@@ -1162,7 +1159,7 @@ pub mod pallet {
 				let asset_amount = &stableswap_min_amounts_out[0];
 
 				T::Stableswap::remove_liquidity_one_asset(
-					who.clone(),
+					who,
 					stable_pool_id,
 					asset_amount.asset_id,
 					actual_stable_shares_received,
