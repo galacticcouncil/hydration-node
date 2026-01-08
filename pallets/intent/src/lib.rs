@@ -215,7 +215,7 @@ impl<T: Config> Pallet<T> {
 					}
 
 					let limit = intent.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
-					ensure!(resolve_swap.amount_in <= swap.amount_in, Error::<T>::LimitViolation);
+					ensure!(resolve_swap.amount_in < swap.amount_in, Error::<T>::LimitViolation);
 					ensure!(resolve_swap.amount_out >= limit, Error::<T>::LimitViolation);
 				} else {
 					ensure!(resolve_swap.amount_in == swap.amount_in, Error::<T>::LimitViolation);
@@ -231,7 +231,7 @@ impl<T: Config> Pallet<T> {
 
 					let limit = intent.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 					ensure!(resolve_swap.amount_in <= limit, Error::<T>::LimitViolation);
-					ensure!(resolve_swap.amount_out <= swap.amount_out, Error::<T>::LimitViolation);
+					ensure!(resolve_swap.amount_out < swap.amount_out, Error::<T>::LimitViolation);
 				} else {
 					ensure!(resolve_swap.amount_in <= swap.amount_in, Error::<T>::LimitViolation);
 					ensure!(resolve_swap.amount_out == swap.amount_out, Error::<T>::LimitViolation);
@@ -260,7 +260,8 @@ impl<T: Config> Pallet<T> {
 			};
 
 			if fully_resolved {
-				*maybe_intent = None
+				*maybe_intent = None;
+				IntentOwner::<T>::remove(id);
 			} else {
 				ensure!(intent.is_partial(), Error::<T>::LimitViolation);
 			}
