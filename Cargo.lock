@@ -6161,7 +6161,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "375.1.0"
+version = "379.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -15348,6 +15348,7 @@ dependencies = [
  "pallet-evm-precompile-call-permit",
  "pallet-hsm",
  "pallet-im-online",
+ "pallet-ismp",
  "pallet-lbp",
  "pallet-liquidation",
  "pallet-liquidity-mining",

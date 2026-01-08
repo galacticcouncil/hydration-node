@@ -27,10 +27,17 @@
 
 use crate::polkadot_test_net::*;
 use codec::Encode;
+use ismp::host::StateMachine;
 use pallet_referenda::TracksInfo;
 use primitives::constants::time::{HOURS, MINUTES};
 use sp_core::storage::StorageKey;
 use xcm_emulator::TestExt;
+
+fn set_parameters_storage_to_testnet() {
+	let key = StorageKey(frame_support::storage::storage_prefix(b"Parameters", b"IsTestnet").to_vec());
+	let value = true.encode();
+	sp_io::storage::set(&key.0, &value);
+}
 
 #[test]
 fn is_testnet_sets_correct_referenda_params_when_default() {
@@ -55,9 +62,7 @@ fn is_testnet_sets_correct_referenda_params_when_testnet() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Prepare
-		let key = StorageKey(frame_support::storage::storage_prefix(b"Parameters", b"IsTestnet").to_vec());
-		let value = true.encode();
-		sp_io::storage::set(&key.0, &value);
+		set_parameters_storage_to_testnet();
 
 		// Assert
 		let tracks: Vec<_> = <hydradx_runtime::Runtime as pallet_referenda::Config>::Tracks::tracks().collect();
@@ -69,5 +74,34 @@ fn is_testnet_sets_correct_referenda_params_when_testnet() {
 		assert_eq!(root_track.info.prepare_period, 1);
 		assert_eq!(root_track.info.confirm_period, 1);
 		assert_eq!(root_track.info.min_enactment_period, 1);
+	});
+}
+
+#[test]
+fn is_testnet_sets_correct_ismp_params_when_default() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Assert
+		let ismp_coprocessor = <hydradx_runtime::Runtime as pallet_ismp::Config>::Coprocessor::get();
+		let host_state_machine = <hydradx_runtime::Runtime as pallet_ismp::Config>::HostStateMachine::get();
+
+		assert_eq!(ismp_coprocessor, Some(StateMachine::Polkadot(3367)));
+		assert_eq!(host_state_machine, StateMachine::Polkadot(2034));
+	});
+}
+
+#[test]
+fn is_testnet_sets_correct_ismp_params_when_testnet() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Prepare
+		set_parameters_storage_to_testnet();
+
+		// Assert
+		let ismp_coprocessor = <hydradx_runtime::Runtime as pallet_ismp::Config>::Coprocessor::get();
+		let host_state_machine = <hydradx_runtime::Runtime as pallet_ismp::Config>::HostStateMachine::get();
+
+		assert_eq!(ismp_coprocessor, Some(StateMachine::Kusama(4009)));
+		assert_eq!(host_state_machine, StateMachine::Kusama(2034));
 	});
 }

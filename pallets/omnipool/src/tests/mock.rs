@@ -80,6 +80,7 @@ thread_local! {
 	pub static WITHDRAWAL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 	pub static ON_TRADE_WITHDRAWAL: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static ON_TRADE_WITHDRAWAL_EXTRA: RefCell<Balance> = const { RefCell::new(0) };
 }
 
 construct_runtime!(
@@ -282,6 +283,12 @@ impl Default for ExtBuilder {
 		WITHDRAWAL_ADJUSTMENT.with(|v| {
 			*v.borrow_mut() = (0, 0, false);
 		});
+		ON_TRADE_WITHDRAWAL.with(|v| {
+			*v.borrow_mut() = Permill::from_percent(0);
+		});
+		ON_TRADE_WITHDRAWAL_EXTRA.with(|v| {
+			*v.borrow_mut() = Balance::zero();
+		});
 
 		Self {
 			endowed_accounts: vec![
@@ -382,6 +389,11 @@ impl ExtBuilder {
 
 	pub fn with_on_trade_withdrawal(self, p: Permill) -> Self {
 		ON_TRADE_WITHDRAWAL.with(|v| *v.borrow_mut() = p);
+		self
+	}
+
+	pub fn with_on_trade_withdrawal_extra(self, extra: Balance) -> Self {
+		ON_TRADE_WITHDRAWAL_EXTRA.with(|v| *v.borrow_mut() = extra);
 		self
 	}
 
@@ -749,14 +761,15 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		let percentage = ON_TRADE_WITHDRAWAL.with(|v| *v.borrow());
 		let to_take = percentage.mul_floor(amount);
+		let add_extra = ON_TRADE_WITHDRAWAL_EXTRA.with(|v| *v.borrow());
 		<Tokens as MultiCurrency<AccountId>>::transfer(
 			asset,
 			&fee_account,
 			&TRADE_FEE_COLLECTOR,
-			to_take,
-			frame_support::traits::ExistenceRequirement::AllowDeath,
+			to_take + add_extra,
+			ExistenceRequirement::AllowDeath,
 		)?;
-		Ok(vec![Some((to_take, TRADE_FEE_COLLECTOR))])
+		Ok(vec![Some((to_take + add_extra, TRADE_FEE_COLLECTOR))])
 	}
 
 	fn consume_protocol_fee(

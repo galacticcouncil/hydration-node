@@ -72,7 +72,7 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
 	type AssetId = AssetId;
 
 	fn get(a: &AccountId) -> Self::AssetId {
-		FEE_ASSET.with(|v| v.borrow().get(&a).copied()).unwrap_or_default()
+		FEE_ASSET.with(|v| v.borrow().get(a).copied()).unwrap_or_default()
 	}
 	fn set(who: &AccountId, asset_id: Self::AssetId) -> DispatchResult {
 		FEE_ASSET.with(|v| {
