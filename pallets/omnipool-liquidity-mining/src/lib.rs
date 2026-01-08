@@ -1123,11 +1123,10 @@ pub mod pallet {
 			stableswap_min_amounts_out: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
 			deposit_id: Option<DepositId>,
 		) -> DispatchResult {
-			let who = ensure_signed(origin.clone())?;
 			ensure!(!stableswap_min_amounts_out.is_empty(), Error::<T>::NoAssetsSpecified);
 
-			if let Some(deposit_id) = deposit_id {
-				Self::ensure_nft_owner(origin.clone(), deposit_id)?;
+			let who = if let Some(deposit_id) = deposit_id {
+				let who = Self::ensure_nft_owner(origin.clone(), deposit_id)?;
 
 				let stored_position_id = OmniPositionId::<T>::get(deposit_id)
 					.ok_or(Error::<T>::InconsistentState(InconsistentStateError::MissingLpPosition))?;
@@ -1142,7 +1141,11 @@ pub mod pallet {
 						.map_err(|_| Error::<T>::InconsistentState(InconsistentStateError::DepositDataNotFound))?;
 
 				Self::exit_farms(origin.clone(), deposit_id, yield_farm_ids)?;
-			}
+
+				who
+			} else {
+				ensure_signed(origin.clone())?
+			};
 
 			let omnipool_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
 			let omnipool_shares_to_remove = omnipool_position.shares;
