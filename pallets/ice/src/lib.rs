@@ -192,7 +192,7 @@ pub mod pallet {
 
 			for (id, intent) in &solution.resolved {
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
-				pallet_intent::Pallet::<T>::unlock_funds(*id, intent.amount_in())?;
+				pallet_intent::Pallet::<T>::unlock_funds(&owner, intent.asset_in(), intent.amount_in())?;
 
 				<T as Config>::Currency::transfer(intent.asset_in(), &owner, &holding_pot, intent.amount_in())?;
 			}

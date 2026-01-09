@@ -42,10 +42,14 @@ use frame_support::traits::Time;
 use frame_support::Blake2_128Concat;
 use frame_support::{dispatch::DispatchResult, require_transactional, traits::Get};
 use frame_system::pallet_prelude::*;
+use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
+
+pub type NamedReserveIdentifier = [u8; 8];
+pub const NAMED_RESERVE_ID: [u8; 8] = *b"ICE_int#";
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -60,6 +64,14 @@ pub mod pallet {
 
 		/// Provider for the current timestamp.
 		type TimestampProvider: Time<Moment = Moment>;
+
+		/// Multi currency mechanism
+		type Currency: NamedMultiReservableCurrency<
+			Self::AccountId,
+			ReserveIdentifier = NamedReserveIdentifier,
+			CurrencyId = AssetId,
+			Balance = Balance,
+		>;
 
 		/// Asset Id of hub asset
 		#[pallet::constant]
@@ -108,6 +120,8 @@ pub mod pallet {
 		IntentOwnerNotFound,
 		/// Account is not intent's owner.
 		InvalidOwner,
+		/// User doesn't have enough reserved funds.
+		InsufficientReservedBalance,
 	}
 
 	#[pallet::storage]
@@ -161,6 +175,8 @@ impl<T: Config> Pallet<T> {
 				ensure!(data.amount_out > Balance::zero(), Error::<T>::InvalidIntent);
 				ensure!(data.asset_in != data.asset_out, Error::<T>::InvalidIntent);
 				ensure!(data.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
+
+				T::Currency::reserve_named(&NAMED_RESERVE_ID, data.asset_in, &owner, data.amount_in)?;
 			}
 		}
 
@@ -260,6 +276,10 @@ impl<T: Config> Pallet<T> {
 			};
 
 			if fully_resolved {
+				if !intent.amount_in().is_zero() {
+					Self::unlock_funds(&owner, intent.asset_in(), intent.amount_in())?;
+				}
+
 				*maybe_intent = None;
 				IntentOwner::<T>::remove(id);
 			} else {
@@ -312,8 +332,12 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn unlock_funds(_id: IntentId, _amount: Balance) -> DispatchResult {
-		//WARN: implement real unclock with validation
+	/// Function unlocks reserved `amount` of `asset_id` for `who`.
+	pub fn unlock_funds(who: &T::AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult {
+		if !T::Currency::unreserve_named(&NAMED_RESERVE_ID, asset_id, &who, amount).is_zero() {
+			return Err(Error::<T>::InsufficientReservedBalance.into());
+		}
+
 		Ok(())
 	}
 }

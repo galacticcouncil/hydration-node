@@ -1838,6 +1838,7 @@ parameter_types! {
 impl pallet_intent::Config for Runtime {
 	//TODO:
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = Currencies;
 	type MaxAllowedIntentDuration = MaxIntentDuration;
 	type TimestampProvider = Timestamp;
 	type HubAssetId = LRNA;
