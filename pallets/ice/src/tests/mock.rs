@@ -166,6 +166,7 @@ impl pallet_timestamp::Config for Test {
 
 impl pallet_intent::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = Currencies;
 	type TimestampProvider = Timestamp;
 	type HubAssetId = ConstU32<HUB_ASSET_ID>;
 	type MaxAllowedIntentDuration = ConstU64<MAX_INTENT_DEADLINE>;

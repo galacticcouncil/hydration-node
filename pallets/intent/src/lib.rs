@@ -89,7 +89,11 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// New intent was submitted
-		IntentSubmitted(T::AccountId, IntentId, Intent),
+		IntentSubmitted {
+			id: IntentId,
+			owner: T::AccountId,
+			intent: Intent,
+		},
 		/// Intent was resolved as part of ICE solution execution.
 		IntentResolved {
 			id: IntentId,
@@ -97,6 +101,11 @@ pub mod pallet {
 			amount_in: Balance,
 			amount_out: Balance,
 			fully: bool,
+		},
+
+		IntentCanceled {
+			id: IntentId,
+			owner: T::AccountId,
 		},
 	}
 
@@ -149,9 +158,28 @@ pub mod pallet {
 
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::cancel_intent())]
-		pub fn cancel_intent(origin: OriginFor<T>, _intent: IntentId) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
-			Ok(())
+		pub fn cancel_intent(origin: OriginFor<T>, id: IntentId) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			Intents::<T>::try_mutate_exists(id, |maybe_intent| {
+				let intent = maybe_intent.as_ref().ok_or(Error::<T>::IntentNotFound)?;
+
+				IntentOwner::<T>::try_mutate_exists(id, |maybe_owner| -> Result<(), DispatchError> {
+					let owner = maybe_owner.clone().ok_or(Error::<T>::IntentOwnerNotFound)?;
+
+					ensure!(owner == who, Error::<T>::InvalidOwner);
+
+					Self::unlock_funds(&who, intent.asset_in(), intent.amount_in())?;
+
+					Self::deposit_event(Event::<T>::IntentCanceled { id, owner });
+
+					*maybe_owner = None;
+					Ok(())
+				})?;
+
+				*maybe_intent = None;
+				Ok(())
+			})
 		}
 	}
 
@@ -180,11 +208,12 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		let intent_id = Self::generate_new_intent_id(intent.deadline);
-		Intents::<T>::insert(intent_id, &intent);
-		IntentOwner::<T>::insert(intent_id, &owner);
-		Self::deposit_event(Event::IntentSubmitted(owner, intent_id, intent));
-		Ok(intent_id)
+		let id = Self::generate_new_intent_id(intent.deadline);
+		Intents::<T>::insert(id, &intent);
+		IntentOwner::<T>::insert(id, &owner);
+		Self::deposit_event(Event::IntentSubmitted { id, owner, intent });
+
+		Ok(id)
 	}
 
 	pub fn get_valid_intents() -> Vec<(IntentId, Intent)> {
@@ -333,6 +362,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Function unlocks reserved `amount` of `asset_id` for `who`.
+	#[inline(always)]
 	pub fn unlock_funds(who: &T::AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult {
 		if !T::Currency::unreserve_named(&NAMED_RESERVE_ID, asset_id, &who, amount).is_zero() {
 			return Err(Error::<T>::InsufficientReservedBalance.into());

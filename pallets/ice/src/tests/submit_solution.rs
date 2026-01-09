@@ -1051,6 +1051,22 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 					on_failure: None,
 				},
 			),
+			(
+				BOB,
+				Intent {
+					kind: IntentKind::Swap(SwapData {
+						asset_in: ETH,
+						asset_out: HDX,
+						amount_in: ONE_QUINTIL,
+						amount_out: 16_000_000 * ONE_HDX,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					on_success: None,
+					on_failure: None,
+				},
+			),
 		])
 		.with_router_settlement(
 			TradeType::Sell,

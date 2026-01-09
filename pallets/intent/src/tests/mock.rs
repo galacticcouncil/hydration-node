@@ -39,7 +39,7 @@ pub(crate) const HDX: AssetId = 0;
 pub(crate) const HUB_ASSET_ID: AssetId = 1;
 pub(crate) const DOT: AssetId = 2;
 pub(crate) const ETH: AssetId = 3;
-pub(crate) const _BTC: AssetId = 4;
+pub(crate) const BTC: AssetId = 4;
 
 pub(crate) const ALICE: AccountId = 2;
 pub(crate) const BOB: AccountId = 3;
