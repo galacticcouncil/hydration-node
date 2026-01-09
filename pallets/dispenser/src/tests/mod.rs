@@ -1,7 +1,7 @@
-pub mod tests;
+pub mod test_cases;
 mod utils;
 
-use crate::tests::utils::{acct, bounded_chain_id};
+use crate::test_cases::utils::{acct, bounded_chain_id};
 use crate::{self as pallet_dispenser, *};
 use frame_support::assert_ok;
 use frame_support::traits::Everything;

@@ -44,7 +44,7 @@ pub mod xcm;
 extern crate alloc;
 use alloc::borrow::Cow;
 
-// clippy no touch
+#[allow(ambiguous_glob_reexports)]
 pub use assets::*;
 pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions, Junctions::X1, NetworkId, NonFungible, Response};
 pub use frame_support::{assert_ok, parameter_types, storage::with_transaction, traits::TrackedStorageKey};

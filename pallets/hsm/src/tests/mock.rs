@@ -188,7 +188,7 @@ parameter_types! {
 	pub PalletId: frame_support::PalletId = frame_support::PalletId(*b"py/hsmdx");
 	pub const GasLimit: u64 = 1_000_000;
 	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
-	pub HsmArbProfitReceiver: AccountId =  PROFIT_RECEIVER.into();
+	pub HsmArbProfitReceiver: AccountId =  PROFIT_RECEIVER;
 	pub const MinArbAmount: Balance =  1_000_000_000_000_000_000;
 	pub LoanReceiver: EvmAddress= hex!("000000000000000000000000000000000000090a").into();
 }
