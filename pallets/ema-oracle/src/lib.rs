@@ -80,6 +80,7 @@ use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::FixedU128;
 use sp_arithmetic::Permill;
 use sp_runtime::traits::Convert;
+use sp_std::collections::btree_map::BTreeMap;
 use sp_std::marker::PhantomData;
 use sp_std::prelude::*;
 
@@ -180,6 +181,12 @@ pub mod pallet {
 		AddedToWhitelist { source: Source, assets: (AssetId, AssetId) },
 		/// Oracle was removed from the whitelist.
 		RemovedFromWhitelist { source: Source, assets: (AssetId, AssetId) },
+		/// Oracle price was updated
+		OracleUpdated {
+			source: Source,
+			assets: (AssetId, AssetId),
+			updates: BTreeMap<OraclePeriod, Price>,
+		},
 	}
 
 	/// Accumulator for oracle data in current block that will be recorded at the end of the block.
@@ -430,31 +437,42 @@ impl<T: Config> Pallet<T> {
 	/// Update oracles based on data accumulated during the block.
 	fn update_oracles_from_accumulator() {
 		for ((src, assets), oracle_entry) in Accumulator::<T>::take().into_iter() {
+			let mut updates = BTreeMap::new();
+
 			// First we update the non-immediate oracles with the value of the `LastBlock` oracle.
 			for period in T::SupportedPeriods::get()
 				.into_iter()
 				.filter(|p| *p != OraclePeriod::LastBlock)
 			{
-				Self::update_oracle(src, assets, period, oracle_entry.clone());
+				let price = Self::update_oracle(src, assets, period, oracle_entry.clone());
+				updates.insert(period, price);
 			}
 			// As we use (the old value of) the `LastBlock` entry to update the other oracles it
 			// gets updated last.
-			Self::update_oracle(src, assets, OraclePeriod::LastBlock, oracle_entry.clone());
+			let price = Self::update_oracle(src, assets, OraclePeriod::LastBlock, oracle_entry.clone());
+			updates.insert(OraclePeriod::LastBlock, price);
+
+			Self::deposit_event(Event::<T>::OracleUpdated {
+				source: src,
+				assets,
+				updates,
+			});
 		}
 	}
 
 	/// Update the oracle of the given source, assets and period with `oracle_entry`.
+	/// Returns the updated price.
 	fn update_oracle(
 		src: Source,
 		assets: (AssetId, AssetId),
 		period: OraclePeriod,
 		incoming_entry: OracleEntry<BlockNumberFor<T>>,
-	) {
+	) -> Price {
 		Oracles::<T>::mutate((src, assets, period), |oracle| {
 			// initialize the oracle entry if it doesn't exist
 			if oracle.is_none() {
 				*oracle = Some((incoming_entry.clone(), T::BlockNumberProvider::current_block_number()));
-				return;
+				return incoming_entry.price;
 			}
 			if let Some((prev_entry, _)) = oracle.as_mut() {
 				let parent = T::BlockNumberProvider::current_block_number().saturating_sub(One::one());
@@ -483,8 +501,12 @@ impl<T: Config> Pallet<T> {
 						);
 						debug_assert!(false, "Updating to new value should not fail.");
 					});
-			};
-		});
+				prev_entry.price
+			} else {
+				// This branch should never be reached since we handle is_none above
+				incoming_entry.price
+			}
+		})
 	}
 
 	/// Return the updated oracle entry for the given source, assets and period.

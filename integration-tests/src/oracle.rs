@@ -33,6 +33,7 @@ use sp_runtime::traits::SignedExtension;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
+use sp_std::collections::btree_map::BTreeMap;
 use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 
@@ -130,6 +131,106 @@ fn omnipool_trades_are_ingested_into_oracle() {
 				Err(OracleError::NotPresent)
 			);
 		}
+	});
+}
+
+#[test]
+fn oracle_updated_event_is_emitted_on_omnipool_trade() {
+	use pallet_ema_oracle::Price;
+
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// Arrange
+		hydradx_run_to_next_block();
+
+		init_omnipool();
+
+		let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
+
+		assert_ok!(hydradx_runtime::Omnipool::add_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DOT,
+			token_price,
+			Permill::from_percent(100),
+			AccountId::from(BOB),
+		));
+
+		// Clear events from setup
+		hydradx_runtime::System::reset_events();
+		hydradx_run_to_next_block();
+
+		assert_ok!(hydradx_runtime::Omnipool::sell(
+			RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			DOT,
+			5 * UNITS,
+			0,
+		));
+
+		// Act - finalize block to trigger oracle update and event emission
+		hydradx_runtime::System::reset_events();
+		hydradx_run_to_next_block();
+
+		// Assert
+		let oracle_updated_events: Vec<_> = hydradx_runtime::System::events()
+			.into_iter()
+			.filter(|record| {
+				matches!(
+					record.event,
+					hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated { .. })
+				)
+			})
+			.map(|record| record.event)
+			.collect();
+
+		let hdx_lrna_short = Price::new(
+			275912930266301964650125486133045298712u128,
+			331509048522000723356274948002205827u128,
+		);
+
+		let hdx_lrna_ten_minutes = Price::new(
+			275912707974555369233768326255072237241u128,
+			331509048522000723356274948002205827u128,
+		);
+
+		let hdx_lrna_last_block = Price::new(936334588000000000u128, 1124993992514080u128);
+
+		let lrna_dot_short = Price::new(
+			264175141927355168031033383691740147272u128,
+			10299220574157342235602475141589164734u128,
+		);
+
+		let lrna_dot_ten_minutes = Price::new(
+			264175035630151730654534455921460486402u128,
+			10299220574157342235602475141589164734u128,
+		);
+
+		let lrna_dot_last_block = Price::new(2250006012082300u128, 87719064743683u128);
+
+		pretty_assertions::assert_eq!(
+			oracle_updated_events,
+			vec![
+				hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated {
+					source: OMNIPOOL_SOURCE,
+					assets: (HDX, LRNA),
+					updates: BTreeMap::from([
+						(Short, hdx_lrna_short),
+						(TenMinutes, hdx_lrna_ten_minutes),
+						(LastBlock, hdx_lrna_last_block),
+					]),
+				}),
+				hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated {
+					source: OMNIPOOL_SOURCE,
+					assets: (LRNA, DOT),
+					updates: BTreeMap::from([
+						(Short, lrna_dot_short),
+						(TenMinutes, lrna_dot_ten_minutes),
+						(LastBlock, lrna_dot_last_block),
+					]),
+				}),
+			]
+		);
 	});
 }
 
