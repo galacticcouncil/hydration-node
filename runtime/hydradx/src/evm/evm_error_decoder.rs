@@ -2,7 +2,8 @@ use crate::Liquidation;
 use codec::{Decode, DecodeLimit};
 use frame_support::traits::Get;
 use hydradx_traits::evm::CallResult;
-use pallet_evm::{ExitError, ExitReason};
+use pallet_evm::{ExitError, ExitReason, ExitRevert};
+use sp_core::U256;
 use sp_runtime::format;
 use sp_runtime::traits::Convert;
 use sp_runtime::DispatchError;
@@ -21,6 +22,24 @@ impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
 	fn convert(call_result: CallResult) -> DispatchError {
 		if let ExitReason::Error(ExitError::OutOfGas) = call_result.exit_reason {
 			return pallet_dispatcher::Error::<crate::Runtime>::EvmOutOfGas.into();
+		}
+
+		// EVM Subcalls exits with Revert with empty data on gas exhaustion, so we check for that case
+		if let ExitReason::Revert(ExitRevert::Reverted) = call_result.exit_reason {
+			if call_result.value.is_empty() {
+				if call_result.gas_used.saturating_mul(U256::from(100))
+					>= call_result.gas_limit.saturating_mul(U256::from(90))
+				{
+					log::warn!(
+						target: "evm::error_decoder",
+						"Detected subcall gas exhaustion: {:?} gas used out of {:?} limit (contract: {:?})",
+						call_result.gas_used,
+						call_result.gas_limit,
+						call_result.contract
+					);
+					return pallet_dispatcher::Error::<crate::Runtime>::EvmOutOfGas.into();
+				}
+			}
 		}
 
 		// DOS Prevention: Limit error data size to prevent memory exhaustion attacks
