@@ -39,10 +39,10 @@ mod benchmarking;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
-use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::evm::MaybeEvmCall;
+use hydradx_traits::evm::{EvmAddress, ExtraGasSupport};
 use pallet_evm::{ExitReason, GasWeightMapping};
-use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
+use sp_runtime::{traits::Dispatchable, DispatchError, DispatchResultWithInfo};
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -367,5 +367,19 @@ impl<T: Config> Pallet<T> {
 
 	pub fn set_last_evm_call_exit_reason(reason: &ExitReason) {
 		LastEvmCallExitReason::<T>::put(reason);
+	}
+}
+
+impl<T: Config> ExtraGasSupport for Pallet<T> {
+	fn set_extra_gas(gas: u64) {
+		ExtraGas::<T>::set(gas);
+	}
+
+	fn clear_extra_gas() {
+		ExtraGas::<T>::kill();
+	}
+
+	fn out_of_gas_error() -> DispatchError {
+		Error::<T>::EvmOutOfGas.into()
 	}
 }
