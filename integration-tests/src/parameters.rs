@@ -30,7 +30,7 @@ use codec::Encode;
 use ismp::host::StateMachine;
 use pallet_referenda::TracksInfo;
 use primitives::constants::time::{HOURS, MINUTES};
-use sp_core::storage::StorageKey;
+use sp_core::{storage::StorageKey, Get};
 use xcm_emulator::TestExt;
 
 fn set_parameters_storage_to_testnet() {
