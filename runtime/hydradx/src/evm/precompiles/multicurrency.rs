@@ -34,7 +34,7 @@ use crate::{
 	Currencies,
 };
 use codec::{Encode, EncodeLike};
-use frame_support::traits::{IsType, OriginTrait};
+use frame_support::traits::{ExistenceRequirement, IsType, OriginTrait};
 use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
@@ -230,6 +230,7 @@ where
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(origin)),
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
 			amount,
+			ExistenceRequirement::AllowDeath,
 		)
 		.map_err(|e| PrecompileFailure::Revert {
 			exit_status: ExitRevert::Reverted,
@@ -325,6 +326,7 @@ where
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from)),
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
 			amount,
+			ExistenceRequirement::AllowDeath,
 		)
 		.map_err(|e| PrecompileFailure::Revert {
 			exit_status: ExitRevert::Reverted,
@@ -332,11 +334,5 @@ where
 		})?;
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
-	}
-
-	fn not_supported() -> PrecompileResult {
-		Err(PrecompileFailure::Error {
-			exit_status: pallet_evm::ExitError::Other("not supported".into()),
-		})
 	}
 }

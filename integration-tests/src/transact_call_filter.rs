@@ -4,7 +4,7 @@ use crate::polkadot_test_net::*;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo};
 use sp_runtime::codec::Encode;
 
-use polkadot_xcm::v4::prelude::*;
+use polkadot_xcm::v5::prelude::*;
 use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 
@@ -51,7 +51,7 @@ fn allowed_transact_call_should_pass_filter() {
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most: call.get_dispatch_info().weight,
+				fallback_max_weight: Some(call.get_dispatch_info().call_weight),
 				origin_kind: OriginKind::SovereignAccount,
 				call: hydradx_runtime::RuntimeCall::Balances(call).encode().into(),
 			},
@@ -134,7 +134,7 @@ fn blocked_transact_calls_should_not_pass_filter() {
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most: call.get_dispatch_info().weight,
+				fallback_max_weight: Some(call.get_dispatch_info().call_weight),
 				origin_kind: OriginKind::Native,
 				call: hydradx_runtime::RuntimeCall::Treasury(call).encode().into(),
 			},
@@ -212,7 +212,7 @@ fn safe_call_filter_should_respect_runtime_call_filter() {
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most: call.get_dispatch_info().weight,
+				fallback_max_weight: Some(call.get_dispatch_info().call_weight),
 				origin_kind: OriginKind::Native,
 				call: hydradx_runtime::RuntimeCall::Balances(call).encode().into(),
 			},

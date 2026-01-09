@@ -6,17 +6,14 @@ use fp_self_contained::SelfContainedCall;
 use frame_support::{dispatch::GetDispatchInfo, BoundedVec, __private::sp_tracing::tracing};
 use futures::StreamExt;
 use hex_literal::hex;
-use hydradx_runtime::{
-	evm::{precompiles::erc20_mapping::Erc20MappingApi, EvmAddress},
-	OriginCaller, RuntimeCall, RuntimeEvent,
-};
+use hydradx_runtime::{evm::precompiles::erc20_mapping::Erc20MappingApi, OriginCaller, RuntimeCall, RuntimeEvent};
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
 pub use liquidation_worker_support::*;
 use pallet_currencies_rpc_runtime_api::CurrenciesApi;
 use pallet_ethereum::Transaction;
 use polkadot_primitives::EncodeAs;
-use primitives::AccountId;
+use primitives::{AccountId, EvmAddress};
 use sc_client_api::{Backend, BlockchainEvents, StorageKey, StorageProvider};
 use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::{InPoolTransaction, TransactionPool};
@@ -147,6 +144,7 @@ where
 			None,
 			true,
 			None,
+			None, // authorization_list
 		)
 	}
 
@@ -160,7 +158,7 @@ where
 		origin: OriginCaller,
 		call: RuntimeCall,
 	) -> Result<Result<CallDryRunEffects<RuntimeEvent>, xcm_runtime_apis::dry_run::Error>, ApiError> {
-		self.0.dry_run_call(hash, origin, call)
+		self.0.dry_run_call(hash, origin, call, 5)
 	}
 
 	fn minimum_balance(&self, hash: Block::Hash, asset_id: AssetId) -> Result<Balance, ApiError> {
@@ -371,7 +369,7 @@ where
 					};
 
 					let opaque_tx_encoded = pool_tx.data().encode();
-					let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
+					let tx = hydradx_runtime::HydraUncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
 
 					let Ok(transaction) = tx else {
 						tracing::error!(target: LOG_TARGET, "liquidation-worker: transaction decoding failed");
@@ -420,7 +418,7 @@ where
 	/// Parse a new DIA oracle update transaction and return the list of oracle updates.
 	/// Updates of assets that are not used by the MM are omitted from the returned list.
 	fn process_new_oracle_update(
-		transaction: &ethereum::TransactionV2,
+		transaction: &Transaction,
 		reserves: &HashMap<AssetAddress, AssetSymbol>,
 	) -> Option<Vec<(AssetAddress, Option<Price>)>> {
 		let Some(oracle_data) = parse_oracle_transaction(transaction) else {
@@ -576,7 +574,7 @@ where
 				RuntimeCall,
 				hydradx_runtime::Signature,
 				hydradx_runtime::SignedExtra,
-			> = fp_self_contained::UncheckedExtrinsic::new_unsigned(liquidation_tx.clone());
+			> = fp_self_contained::UncheckedExtrinsic::new_bare(liquidation_tx.clone());
 			let encoded = encoded_tx.encode();
 			let opaque_tx =
 				sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid");
@@ -895,7 +893,7 @@ where
 			debt_to_cover: Default::default(),
 			route: BoundedVec::new(),
 		};
-		let liquidation_weight = liquidation_weight.get_dispatch_info().weight;
+		let liquidation_weight = liquidation_weight.get_dispatch_info().call_weight;
 
 		let allowed_weight = 100u8.saturating_sub(config.weight_reserve);
 		let max_block_weight = Percent::from_percent(allowed_weight) * max_block_weight;
@@ -1024,7 +1022,7 @@ where
 	/// Fetch the preprocessed data used to evaluate possible candidates for liquidation.
 	async fn fetch_borrowers_data(url: String) -> Option<BorrowersData<AccountId>> {
 		let https = hyper_rustls::HttpsConnectorBuilder::new()
-			.with_native_roots()
+			.with_webpki_roots()
 			.https_or_http()
 			.enable_http1()
 			.enable_http2()
@@ -1099,6 +1097,7 @@ where
 				Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
 				Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
 				Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
+				Transaction::EIP7702(eip7702_transaction) => eip7702_transaction.destination,
 			};
 
 			// check if the transaction is DIA oracle update
@@ -1174,6 +1173,7 @@ fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdataData
 		Transaction::Legacy(legacy_transaction) => &legacy_transaction.input,
 		Transaction::EIP2930(eip2930_transaction) => &eip2930_transaction.input,
 		Transaction::EIP1559(eip1559_transaction) => &eip1559_transaction.input,
+		Transaction::EIP7702(eip7702_transaction) => &eip7702_transaction.data,
 	};
 
 	let mut dia_oracle_data = Vec::new();
@@ -1352,7 +1352,7 @@ mod tests {
 				744254432f555344000000000000000000000000000000000000000000000000"
 			)
 			.encode_as(),
-			signature: ethereum::TransactionSignature::new(
+			signature: ethereum::legacy::TransactionSignature::new(
 				444480,
 				H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
 				H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
@@ -1389,7 +1389,7 @@ mod tests {
                 000000000000000000000005939a32ea00000000000000000000000067acbce5"
 			)
 			.encode_as(),
-			signature: ethereum::TransactionSignature::new(
+			signature: ethereum::legacy::TransactionSignature::new(
 				444480,
 				H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
 				H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),

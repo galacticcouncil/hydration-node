@@ -1,7 +1,6 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use cumulus_pallet_parachain_system::Call;
 use hydradx_runtime::{Runtime, RuntimeCall, RuntimeOrigin};
 use ismp::messaging::ConsensusMessage;
 use sp_runtime::traits::Dispatchable;

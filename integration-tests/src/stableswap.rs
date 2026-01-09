@@ -11,10 +11,8 @@ use orml_traits::MultiReservableCurrency;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::BoundedPegSources;
-use pallet_stableswap::types::BoundedPegs;
 use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
-use pretty_assertions::assert_ne;
 use primitives::{constants::time::SECS_PER_BLOCK, BlockNumber};
 use sp_runtime::{Perbill, Permill};
 use std::sync::Arc;
@@ -34,19 +32,19 @@ pub const DOT_VDOT_PRICE: (Balance, Balance) = (85473939039997170, 5776768551743
 
 #[test]
 fn gigadot_pool_should_work() {
-	let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
 		])),
 	);
 
-	let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(1),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(1),
 		])),
 	);
 
@@ -190,19 +188,19 @@ mod circuit_breaker {
 
 	#[test]
 	fn ciruit_breaker_is_triggered_when_deposit_limit_reached_for_sharetoken() {
-		let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 			1,
-			polkadot_xcm::v4::Junctions::X2(Arc::new([
-				polkadot_xcm::v4::Junction::Parachain(1500),
-				polkadot_xcm::v4::Junction::GeneralIndex(0),
+			polkadot_xcm::v5::Junctions::X2(Arc::new([
+				polkadot_xcm::v5::Junction::Parachain(1500),
+				polkadot_xcm::v5::Junction::GeneralIndex(0),
 			])),
 		);
 
-		let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 			1,
-			polkadot_xcm::v4::Junctions::X2(Arc::new([
-				polkadot_xcm::v4::Junction::Parachain(1500),
-				polkadot_xcm::v4::Junction::GeneralIndex(1),
+			polkadot_xcm::v5::Junctions::X2(Arc::new([
+				polkadot_xcm::v5::Junction::Parachain(1500),
+				polkadot_xcm::v5::Junction::GeneralIndex(1),
 			])),
 		);
 
@@ -258,19 +256,19 @@ mod circuit_breaker {
 
 #[test]
 fn pool_with_pegs_should_update_pegs_only_once_per_block() {
-	let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
 		])),
 	);
 
-	let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(1),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(1),
 		])),
 	);
 

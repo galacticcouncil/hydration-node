@@ -1,8 +1,6 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use crate::Runtime;
-use frame_benchmarking::v2::{benchmark, benchmarks, block};
-use frame_benchmarking::BenchmarkError;
 use orml_benchmarking::runtime_benchmarks;
 use sp_std::vec;
 use sp_std::vec::Vec;

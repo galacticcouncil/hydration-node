@@ -28,7 +28,6 @@
 use crate as dispatcher;
 use crate::Config;
 use frame_support::pallet_prelude::Weight;
-use frame_support::traits::Get;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, Nothing},
@@ -36,7 +35,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::EnsureRoot;
-use hydradx_traits::evm::{EvmAddress, MaybeEvmCall};
+use hydradx_traits::evm::MaybeEvmCall;
 use hydradx_traits::{registry::Inspect, AssetKind};
 use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
@@ -161,6 +160,7 @@ impl system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl orml_tokens::Config for Test {

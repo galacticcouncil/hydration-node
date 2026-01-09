@@ -1,6 +1,4 @@
-use crate::{AccountId, Amount, AssetId, Balance, Currencies, EVMAccounts, NativeAssetId, Runtime};
-use evm::ExitReason;
-use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
+use crate::{AccountId, Amount, AssetId, Balance, Currencies, NativeAssetId, Runtime};
 use primitives::constants::currency::NATIVE_EXISTENTIAL_DEPOSIT;
 
 use sp_std::prelude::*;
@@ -13,15 +11,9 @@ use sp_runtime::SaturatedConversion;
 use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
 
-use crate::evm::Erc20Currency;
-use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, ERC20};
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
-use polkadot_xcm::v3::Junction::AccountKey20;
-use polkadot_xcm::v3::Junctions::X1;
-use polkadot_xcm::v3::MultiLocation;
-use primitive_types::U256;
 
 use super::*;
 

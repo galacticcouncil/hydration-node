@@ -63,7 +63,7 @@ where
 
 		// Make sure there is enough gas.
 		let remaining_gas = handle.remaining_gas();
-		let required_gas = Runtime::GasWeightMapping::weight_to_gas(dispatch_info.weight);
+		let required_gas = Runtime::GasWeightMapping::weight_to_gas(dispatch_info.call_weight);
 		if required_gas > remaining_gas {
 			return Err(PrecompileFailure::Error {
 				exit_status: ExitError::OutOfGas,
@@ -80,7 +80,7 @@ where
 			.map_err(|e| revert(alloc::format!("Dispatched call failed with error: {:?}", e)))?
 			.actual_weight;
 
-		let used_gas = Runtime::GasWeightMapping::weight_to_gas(used_weight.unwrap_or(dispatch_info.weight));
+		let used_gas = Runtime::GasWeightMapping::weight_to_gas(used_weight.unwrap_or(dispatch_info.call_weight));
 
 		handle.record_cost(used_gas)?;
 

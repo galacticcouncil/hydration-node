@@ -17,6 +17,7 @@ mod benches {
 	use alloy_primitives::{Address, U256};
 	use alloy_sol_types::SolCall;
 	use core::ops::{Add, Mul};
+	use frame_support::traits::Currency;
 	use sp_core::H160;
 
 	#[benchmark]
@@ -91,7 +92,6 @@ mod benches {
 		));
 
 		let caller: T::AccountId = whitelisted_caller();
-		let treasury = T::FeeDestination::get();
 
 		let amount: u128 = 100_000;
 		let to: [u8; 20] = [1u8; 20];

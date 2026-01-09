@@ -49,7 +49,7 @@ use frame_support::{
 		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub},
 		DispatchError, Permill, Saturating,
 	},
-	traits::{Contains, Time},
+	traits::{Contains, ExistenceRequirement, Time},
 	PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
@@ -262,8 +262,20 @@ pub mod pallet {
 				}
 			};
 
-			T::Currency::transfer(asset_id, &who, &pallet_account, amount_without_fee)?;
-			T::Currency::transfer(asset_id, &who, &T::FeeReceiver::get(), fee)?;
+			T::Currency::transfer(
+				asset_id,
+				&who,
+				&pallet_account,
+				amount_without_fee,
+				ExistenceRequirement::AllowDeath,
+			)?;
+			T::Currency::transfer(
+				asset_id,
+				&who,
+				&T::FeeReceiver::get(),
+				fee,
+				ExistenceRequirement::AllowDeath,
+			)?;
 			T::Currency::deposit(bond_id, &who, amount_without_fee)?;
 
 			Self::deposit_event(Event::Issued {
@@ -298,10 +310,16 @@ pub mod pallet {
 			let now = T::TimestampProvider::now();
 			ensure!(now >= maturity, Error::<T>::NotMature);
 
-			T::Currency::withdraw(bond_id, &who, amount)?;
+			T::Currency::withdraw(bond_id, &who, amount, ExistenceRequirement::AllowDeath)?;
 
 			let pallet_account = Self::pallet_account_id();
-			T::Currency::transfer(underlying_asset_id, &pallet_account, &who, amount)?;
+			T::Currency::transfer(
+				underlying_asset_id,
+				&pallet_account,
+				&who,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			Self::deposit_event(Event::Redeemed { who, bond_id, amount });
 

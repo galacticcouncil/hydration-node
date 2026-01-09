@@ -8,8 +8,8 @@ use super::*;
 use crate::types::Voting;
 use frame_system::RawOrigin;
 use mock::Staking;
-use pallet_conviction_voting::traits::VotingHooks;
 use pallet_conviction_voting::AccountVote;
+use pallet_conviction_voting::VotingHooks;
 use pretty_assertions::assert_eq;
 //NOTE: Referendums with even indexes are finished.
 
@@ -338,7 +338,7 @@ fn process_votes_should_work_when_on_vote_is_called() {
 			let position_before = Staking::positions(position_id).unwrap();
 
 			//Act
-			assert_ok!(StakingConvictionVoting::<Test>::on_vote(
+			assert_ok!(StakingConvictionVoting::<Test>::on_before_vote(
 				&BOB,
 				7,
 				AccountVote::Standard {
@@ -786,7 +786,11 @@ fn conviction_voting_hook_vote_cap_should_work() {
 			assert_eq!(Staking::get_position_votes(vested_position_id).votes.len(), 0);
 
 			//Act - happy path, user have enough token for staking and vesting.
-			assert_ok!(StakingConvictionVoting::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+			assert_ok!(StakingConvictionVoting::<Test>::on_before_vote(
+				&VESTED_100K,
+				ref_idx,
+				v
+			));
 
 			//Assert
 			let staking_votes = Staking::get_position_votes(vested_position_id).votes;
@@ -799,7 +803,11 @@ fn conviction_voting_hook_vote_cap_should_work() {
 			Tokens::transfer(RuntimeOrigin::signed(VESTED_100K), ALICE, HDX, 1).unwrap();
 
 			//Act
-			assert_ok!(StakingConvictionVoting::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+			assert_ok!(StakingConvictionVoting::<Test>::on_before_vote(
+				&VESTED_100K,
+				ref_idx,
+				v
+			));
 
 			//Assert
 			let staking_votes = Staking::get_position_votes(vested_position_id).votes;
@@ -814,7 +822,11 @@ fn conviction_voting_hook_vote_cap_should_work() {
 			assert_eq!(Tokens::free_balance(HDX, &VESTED_100K), 100_000 * ONE);
 
 			//Act 3
-			assert_ok!(StakingConvictionVoting::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+			assert_ok!(StakingConvictionVoting::<Test>::on_before_vote(
+				&VESTED_100K,
+				ref_idx,
+				v
+			));
 
 			//Assert
 			let staking_votes = Staking::get_position_votes(vested_position_id).votes;
@@ -845,7 +857,11 @@ fn conviction_voting_hook_vote_cap_should_work() {
 			};
 
 			//Act 4
-			assert_ok!(StakingConvictionVoting::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+			assert_ok!(StakingConvictionVoting::<Test>::on_before_vote(
+				&VESTED_100K,
+				ref_idx,
+				v
+			));
 
 			//Assert
 			let staking_votes = Staking::get_position_votes(vested_position_id).votes;
@@ -876,7 +892,11 @@ fn conviction_voting_hook_vote_cap_should_work() {
 			};
 
 			//Act 5
-			assert_ok!(StakingConvictionVoting::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+			assert_ok!(StakingConvictionVoting::<Test>::on_before_vote(
+				&VESTED_100K,
+				ref_idx,
+				v
+			));
 
 			//Assert
 			let staking_votes = Staking::get_position_votes(vested_position_id).votes;

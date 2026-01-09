@@ -17,17 +17,17 @@ mod pallet_xcm_benchmarks_fungible;
 mod pallet_xcm_benchmarks_generic;
 
 use crate::{BaseXcmWeight, MaxAssetsIntoHolding, RouterWeightInfo, Runtime};
-use frame_support::weights::Weight;
+use frame_support::{weights::Weight, BoundedVec};
 use pallet_xcm_benchmarks_generic::WeightInfo as XcmGeneric;
 use polkadot_xcm::latest::InteriorLocation;
-use polkadot_xcm::v4::{QueryId, Response, WeightLimit, WildFungibility, Xcm, XcmWeightInfo};
+use polkadot_xcm::v5::{AssetTransferFilter, QueryId, Response, WeightLimit, WildFungibility, Xcm, XcmWeightInfo};
 use polkadot_xcm::DoubleEncoded;
 use sp_std::vec;
 use sp_std::vec::Vec;
 
 use cumulus_primitives_core::{
-	All, AllCounted, AllOf, AllOfCounted, Asset, AssetFilter, Assets, Junction, Junctions, Location, OriginKind,
-	QueryResponseInfo,
+	All, AllCounted, AllOf, AllOfCounted, Asset, AssetFilter, Assets, Hint, HintNumVariants, Junction, Junctions,
+	Location, MaxAssetTransferFilters, OriginKind, QueryResponseInfo,
 };
 use hydradx_traits::router::{AmmTradeWeights, PoolType, Trade};
 use polkadot_xcm::prelude::{MaybeErrorCode, NetworkId, XcmError};
@@ -95,7 +95,7 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 	}
 	fn transact(
 		_origin_type: &OriginKind,
-		_fallback_max_weight: &cumulus_primitives_core::Weight,
+		_fallback_max_weight: &Option<Weight>,
 		_call: &DoubleEncoded<Call>,
 	) -> Weight {
 		BaseXcmWeight::get()
@@ -289,6 +289,24 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 		BaseXcmWeight::get()
 	}
 	fn unpaid_execution(_: &WeightLimit, _: &Option<Location>) -> Weight {
+		BaseXcmWeight::get()
+	}
+	fn pay_fees(_: &Asset) -> Weight {
+		BaseXcmWeight::get()
+	}
+	fn initiate_transfer(
+		_: &Location,
+		_: &Option<AssetTransferFilter>,
+		_: &bool,
+		_: &BoundedVec<AssetTransferFilter, MaxAssetTransferFilters>,
+		_: &Xcm<()>,
+	) -> Weight {
+		BaseXcmWeight::get()
+	}
+	fn execute_with_origin(_: &Option<Junctions>, _: &Xcm<Call>) -> Weight {
+		BaseXcmWeight::get()
+	}
+	fn set_hints(_: &BoundedVec<Hint, HintNumVariants>) -> Weight {
 		BaseXcmWeight::get()
 	}
 }

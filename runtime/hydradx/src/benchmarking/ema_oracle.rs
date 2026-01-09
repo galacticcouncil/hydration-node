@@ -24,7 +24,6 @@ use hydradx_traits::AggregatedEntry;
 use pallet_ema_oracle::ordered_pair;
 use pallet_ema_oracle::OnActivityHandler;
 use scale_info::prelude::string::ToString;
-use sp_std::sync::Arc;
 pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
 use frame_support::{assert_ok, dispatch::RawOrigin};
@@ -423,8 +422,8 @@ runtime_benchmarks! {
 		let asset_a = 0;
 		let asset_b = 3;
 
-		let hdx_loc = polkadot_xcm::v4::Location::new(0, polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::GeneralIndex(0)])));
-		let dot_loc = polkadot_xcm::v4::Location::new(1, polkadot_xcm::v4::Junctions::X2(Arc::new([polkadot_xcm::v4::Junction::Parachain(1000), polkadot_xcm::v4::Junction::GeneralIndex(0)])));
+		let hdx_loc = polkadot_xcm::v5::Location::new(0, [polkadot_xcm::v5::Junction::GeneralIndex(0)]);
+		let dot_loc = polkadot_xcm::v5::Location::new(1, [polkadot_xcm::v5::Junction::Parachain(1000), polkadot_xcm::v5::Junction::GeneralIndex(0)]);
 
 		let dot_asset_loc = AssetLocation::try_from(dot_loc.clone()).unwrap();
 
