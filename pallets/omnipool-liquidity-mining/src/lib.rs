@@ -1110,6 +1110,7 @@ pub mod pallet {
 		/// Emits events:
 		/// - If deposit_id provided: `RewardClaimed`, `SharesWithdrawn`, `DepositDestroyed`
 		/// - Always: Omnipool's `LiquidityRemoved`, Stableswap's `LiquidityRemoved`
+		///
 		#[pallet::call_index(17)]
 		#[pallet::weight({
 			let with_farm = if deposit_id.is_some() { 1 } else { 0 };
