@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "379.0.0"
+version = "381.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -481,7 +481,6 @@ try-runtime = [
     "pallet-broadcast/try-runtime",
     "pallet-dispatcher/try-runtime",
     "pallet-signet/try-runtime",
-
 ]
 
 metadata-hash = [

@@ -319,6 +319,8 @@ impl EVM<CallResult> for MockEvm {
 				exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 				value: vec![],
 				contract: context.contract,
+				gas_used: U256::zero(),
+				gas_limit: U256::zero(),
 			};
 		}
 
@@ -352,6 +354,8 @@ impl EVM<CallResult> for MockEvm {
 									exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 									value: vec![],
 									contract: context.contract,
+									gas_used: U256::zero(),
+									gas_limit: U256::zero(),
 								};
 							}
 						}
@@ -376,6 +380,8 @@ impl EVM<CallResult> for MockEvm {
 									exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 									value: vec![],
 									contract: context.contract,
+									gas_used: U256::zero(),
+									gas_limit: U256::zero(),
 								};
 							}
 						}
@@ -416,6 +422,8 @@ impl EVM<CallResult> for MockEvm {
 								exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 								value: vec![],
 								contract: context.contract,
+								gas_used: U256::zero(),
+								gas_limit: U256::zero(),
 							};
 						} else {
 							panic!("incorrect data len");
@@ -429,6 +437,8 @@ impl EVM<CallResult> for MockEvm {
 							exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 							value: bytes,
 							contract: context.contract,
+							gas_used: U256::zero(),
+							gas_limit: U256::zero(),
 						};
 					}
 					ERC20Function::GetFacilitatorBucket => {
@@ -443,6 +453,8 @@ impl EVM<CallResult> for MockEvm {
 							exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 							value: bytes,
 							contract: context.contract,
+							gas_used: U256::zero(),
+							gas_limit: U256::zero(),
 						};
 					}
 				}
@@ -453,6 +465,8 @@ impl EVM<CallResult> for MockEvm {
 			exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
 			value: vec![],
 			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
 		}
 	}
 

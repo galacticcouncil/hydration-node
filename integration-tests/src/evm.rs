@@ -4699,7 +4699,8 @@ mod evm_error_decoder {
 					exit_reason,
 					value,
 					contract,
-				};
+					gas_used: sp_core::U256::zero(),
+					gas_limit: sp_core::U256::zero(),				};
 
 			let _result = EvmErrorDecoder::convert(call_result);
 		}
@@ -4725,6 +4726,8 @@ mod evm_error_decoder {
 						exit_reason: ExitReason::Error(ExitError::Other("Some error".into())),
 						value,
 						contract: hydradx_runtime::Liquidation::get(),
+						gas_used: sp_core::U256::zero(),
+						gas_limit: sp_core::U256::zero(),
 					};
 
 					let _result = EvmErrorDecoder::convert(call_result);
@@ -4741,6 +4744,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: vec![],
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let _error = EvmErrorDecoder::convert(call_result);
@@ -4752,6 +4757,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: vec![0x01, 0x02],
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let _error = EvmErrorDecoder::convert(call_result);
@@ -4780,6 +4787,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: value.clone(),
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4795,6 +4804,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: value.clone(),
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4810,6 +4821,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: value.clone(),
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4825,6 +4838,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: value.clone(),
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4840,6 +4855,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: value.clone(),
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4864,6 +4881,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -4882,6 +4901,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value,
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4899,6 +4920,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -4924,6 +4947,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -4945,6 +4970,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -4967,6 +4994,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: nested_data,
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4992,6 +5021,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -5013,6 +5044,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -5029,6 +5062,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value,
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: U256::from(400_000),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -5045,6 +5080,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -5071,6 +5108,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value: value.clone(),
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let _result = EvmErrorDecoder::convert(call_result);
@@ -5111,6 +5150,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let _result = EvmErrorDecoder::convert(call_result.clone());
@@ -5126,6 +5167,8 @@ mod evm_error_decoder {
 					exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 					value: vec![*byte1, *byte2],
 					contract: sp_core::H160::zero(),
+					gas_used: sp_core::U256::zero(),
+					gas_limit: sp_core::U256::zero(),
 				};
 
 				let _result = EvmErrorDecoder::convert(call_result.clone());
@@ -5147,6 +5190,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 				value: error_data,
 				contract: hydradx_runtime::Liquidation::get(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -5171,6 +5216,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 				value: error_data,
 				contract: H160::from_low_u64_be(12345), // Different contract
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);

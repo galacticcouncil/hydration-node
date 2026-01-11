@@ -932,6 +932,7 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 		let errors: Vec<DispatchError> = vec![
 			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
 			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
+			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
 		];
 		errors.contains(t)
 	}
@@ -981,6 +982,8 @@ impl pallet_dca::Config for Runtime {
 	type RetryOnError = RetryOnErrorForDca;
 	type PolkadotNativeAssetId = DotAssetId;
 	type SwappablePaymentAssetSupport = XykPaymentAssetSupport;
+	type ExtraGasSupport = Dispatcher;
+	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -1773,6 +1776,8 @@ impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
 			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
 			value: vec![],
 			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
 		}
 	}
 
@@ -1781,6 +1786,8 @@ impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
 			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
 			value: vec![],
 			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
 		}
 	}
 }
