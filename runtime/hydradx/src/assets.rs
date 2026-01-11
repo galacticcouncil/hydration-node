@@ -202,7 +202,7 @@ impl SufficiencyCheck {
 	/// If user's fee asset is not sufficient asset, it calculates ED amount in DOT and transfers it to treasury through a swap
 	///
 	/// Function also locks corresponding HDX amount in the treasury because returned ED to the users
-	/// when the account is killed is in the HDX. We are collecting little bit more (currencty 10%)than
+	/// when the account is killed is in the HDX. We are collecting little bit more (currently 10%) than
 	/// we are paying back when account is killed.
 	///
 	/// We assume account already paid ED if it holds transferred insufficient asset so additional
