@@ -1,4 +1,4 @@
-mod tests;
+mod test_cases;
 pub mod utils;
 
 use crate::weights::WeightInfo;

@@ -650,8 +650,7 @@ where
 					Some(round_u512_to_rational((nom, den), Rounding::Nearest).into())
 				} else {
 					// Recursive case: chunk and recurse
-					let chunk_results: Vec<EmaPrice> =
-						prices.chunks(4).map(|chunk| inner(chunk)).collect::<Option<Vec<_>>>()?;
+					let chunk_results: Vec<EmaPrice> = prices.chunks(4).map(inner).collect::<Option<Vec<_>>>()?;
 
 					inner(&chunk_results)
 				}

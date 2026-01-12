@@ -524,12 +524,10 @@ where
 	/// increasing sufficients multiple times.
 	/// Only EVM truncated accounts are marked, because bound accounts has already their sufficients increased during binding.
 	pub fn mark_as_evm_account(account: &T::AccountId) {
-		if Self::is_evm_account(account.clone()) {
-			if !MarkedEvmAccounts::<T>::contains_key(account) {
-				frame_system::Pallet::<T>::inc_sufficients(account);
+		if Self::is_evm_account(account.clone()) && !MarkedEvmAccounts::<T>::contains_key(account) {
+			frame_system::Pallet::<T>::inc_sufficients(account);
 
-				MarkedEvmAccounts::<T>::insert(account, ());
-			}
+			MarkedEvmAccounts::<T>::insert(account, ());
 		}
 	}
 }

@@ -26,7 +26,6 @@ use frame_system::pallet_prelude::*;
 use sp_core::H160;
 use sp_std::vec::Vec;
 
-#[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 pub mod types;
 pub mod weights;
@@ -434,7 +433,7 @@ pub mod pallet {
 		///
 		/// This mirrors the off-chain logic used by SigNet clients and prevents
 		/// clients from supplying arbitrary request IDs.
-
+		#[allow(clippy::too_many_arguments)]
 		pub fn generate_request_id(
 			sender: &T::AccountId,
 			transaction_data: &[u8],

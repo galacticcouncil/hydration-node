@@ -1862,9 +1862,8 @@ where
 	/// - `true` if the account is the flash loan receiver account
 	/// - `false` if it's not or if flash minter is not configured
 	pub fn is_flash_loan_account(account: &T::AccountId) -> bool {
-		GetFlashMinterSupport::<T>::get().map_or(false, |(_, loan_receiver)| {
-			T::EvmAccounts::account_id(loan_receiver) == *account
-		})
+		GetFlashMinterSupport::<T>::get()
+			.is_some_and(|(_, loan_receiver)| T::EvmAccounts::account_id(loan_receiver) == *account)
 	}
 
 	/// Simulate an arbitrage execution without committing state changes

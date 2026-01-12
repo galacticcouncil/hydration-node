@@ -44,6 +44,7 @@ pub use types::WeightInfo;
 #[cfg(test)]
 pub mod tests;
 
+#[allow(clippy::too_many_arguments)]
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -282,7 +283,7 @@ pub mod pallet {
 			ensure!(who == admin, Error::<T>::Unauthorized);
 
 			ensure!(
-				new_deposit < T::MaxSignatureDeposit::get().into(),
+				new_deposit < T::MaxSignatureDeposit::get(),
 				Error::<T>::MaxDepositExceeded
 			);
 

@@ -256,7 +256,7 @@ pub struct EModeCategory {
 
 impl EModeCategory {
 	pub fn new(data: &[ethabi::Token]) -> Option<Self> {
-		let data_tuple = data.get(0)?.clone().into_tuple()?;
+		let data_tuple = data.first()?.clone().into_tuple()?;
 
 		Some(Self {
 			#[allow(clippy::get_first)]
@@ -334,7 +334,7 @@ impl UserData {
 		)?;
 
 		Ok(Self {
-			address: address,
+			address,
 			configuration,
 			reserves,
 			emode_id,

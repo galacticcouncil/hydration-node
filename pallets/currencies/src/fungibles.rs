@@ -146,20 +146,11 @@ where
 		From<WithdrawConsequence<<T::NativeCurrency as fungible::Inspect<T::AccountId>>::Balance>>,
 {
 	fn name(asset: Self::AssetId) -> Vec<u8> {
-		// Prefer registry for metadata; fall back to sensible defaults
-		if let Some(name) = T::RegistryInspect::asset_name(asset) {
-			name
-		} else {
-			Vec::new()
-		}
+		T::RegistryInspect::asset_name(asset).unwrap_or_default()
 	}
 
 	fn symbol(asset: Self::AssetId) -> Vec<u8> {
-		if let Some(sym) = T::RegistryInspect::asset_symbol(asset) {
-			sym
-		} else {
-			Vec::new()
-		}
+		T::RegistryInspect::asset_symbol(asset).unwrap_or_default()
 	}
 
 	fn decimals(asset: Self::AssetId) -> u8 {
