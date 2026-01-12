@@ -851,7 +851,8 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 					]
 					.try_into()
 					.unwrap(),
-					Some(farms.try_into().unwrap())
+					Some(farms.try_into().unwrap()),
+					None,
 				)
 			);
 
@@ -1065,7 +1066,8 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_stableshare_goes
 					]
 					.try_into()
 					.unwrap(),
-					Some(farms.try_into().unwrap())
+					Some(farms.try_into().unwrap()),
+					None,
 				),
 				pallet_omnipool::Error::<hydradx_runtime::Runtime>::InsufficientBalance
 			);
@@ -1148,7 +1150,8 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 					]
 					.try_into()
 					.unwrap(),
-					None
+					None,
+					None,
 				)
 			);
 
@@ -1195,6 +1198,1143 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
 	});
+}
+
+#[test]
+fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_when_slippage_limit_reached() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			//Arrange
+			let global_farm_1_id = 1;
+			let global_farm_2_id = 2;
+			let global_farm_3_id = 3;
+			let yield_farm_1_id = 4;
+			let yield_farm_2_id = 5;
+			let yield_farm_3_id = 6;
+
+			let (stable_pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			init_omnipool();
+			seed_lm_pot();
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				stable_pool_id,
+				30_000_000 * UNITS as i128,
+			));
+
+			assert_ok!(Omnipool::add_token(
+				RuntimeOrigin::root(),
+				stable_pool_id,
+				FixedU128::from_rational(50, 100),
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
+
+			//NOTE: necessary to get oracle price.
+			hydradx_run_to_block(100);
+			set_relaychain_block_number(100);
+			create_global_farm(None, None);
+			create_global_farm(None, None);
+			create_global_farm(None, None);
+
+			set_relaychain_block_number(200);
+			create_yield_farm(global_farm_1_id, stable_pool_id);
+			create_yield_farm(global_farm_2_id, stable_pool_id);
+			create_yield_farm(global_farm_3_id, stable_pool_id);
+
+			set_relaychain_block_number(300);
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				100 * UNITS as i128,
+			));
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_2,
+				100 * UNITS as i128,
+			));
+
+			set_relaychain_block_number(400);
+			let farms = vec![
+				(global_farm_1_id, yield_farm_1_id),
+				(global_farm_2_id, yield_farm_2_id),
+				(global_farm_3_id, yield_farm_3_id),
+			];
+
+			//Act and assert - try to add liquidity with impossible slippage limit
+			assert_noop!(
+				hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(
+					RuntimeOrigin::signed(CHARLIE.into()),
+					stable_pool_id,
+					vec![
+						AssetAmount::new(stable_asset_1, 10 * UNITS),
+						AssetAmount::new(stable_asset_2, 10 * UNITS)
+					]
+					.try_into()
+					.unwrap(),
+					Some(farms.try_into().unwrap()),
+					Some(100_000 * UNITS), // Impossibly high slippage limit
+				),
+				pallet_omnipool::Error::<hydradx_runtime::Runtime>::SlippageLimit
+			);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}
+
+mod remove_liquidity_stableswap_omnipool_and_exit_farms {
+	use super::*;
+	use hydradx_traits::stableswap::AssetAmount;
+	use pretty_assertions::assert_eq;
+	use sp_runtime::FixedU128;
+
+	#[test]
+	fn remove_liquidity_stableswap_omnipool_and_exit_farms_should_work_for_multiple_farms() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				let global_farm_1_id = 1;
+				let global_farm_2_id = 2;
+				let global_farm_3_id = 3;
+				let yield_farm_1_id = 4;
+				let yield_farm_2_id = 5;
+				let yield_farm_3_id = 6;
+
+				//Arrange
+				let (stable_pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+				init_omnipool();
+				seed_lm_pot();
+
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_pool_id,
+					30_000_000 * UNITS as i128,
+				));
+
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					stable_pool_id,
+					FixedU128::from_rational(50, 100),
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				//NOTE: necessary to get oracle price.
+				hydradx_run_to_block(100);
+				set_relaychain_block_number(100);
+				create_global_farm(None, None);
+				create_global_farm(None, None);
+				create_global_farm(None, None);
+
+				set_relaychain_block_number(200);
+				create_yield_farm(global_farm_1_id, stable_pool_id);
+				create_yield_farm(global_farm_2_id, stable_pool_id);
+				create_yield_farm(global_farm_3_id, stable_pool_id);
+
+				set_relaychain_block_number(300);
+
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					ETH,
+					10_000 * UNITS as i128,
+				));
+
+				//Add some liquidity to make sure that it does not interfere with the new liquidity add
+				assert_ok!(hydradx_runtime::Omnipool::add_liquidity(
+					RuntimeOrigin::signed(CHARLIE.into()),
+					ETH,
+					100 * UNITS,
+				));
+
+				let position_id = hydradx_runtime::Omnipool::next_position_id();
+
+				set_relaychain_block_number(400);
+				let deposit_id = 1;
+				let farms = vec![
+					(global_farm_1_id, yield_farm_1_id),
+					(global_farm_2_id, yield_farm_2_id),
+					(global_farm_3_id, yield_farm_3_id),
+				];
+
+				//Add liquidity first
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_1,
+					100 * UNITS as i128,
+				));
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_2,
+					100 * UNITS as i128,
+				));
+
+				assert_ok!(
+					hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						stable_pool_id,
+						vec![
+							AssetAmount::new(stable_asset_1, 10 * UNITS),
+							AssetAmount::new(stable_asset_2, 10 * UNITS)
+						]
+						.try_into()
+						.unwrap(),
+						Some(farms.try_into().unwrap()),
+						None,
+					)
+				);
+
+				// Wait some blocks
+				set_relaychain_block_number(500);
+
+				// Store balance before removal
+				let charlie_asset_1_balance_before =
+					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(CHARLIE));
+				let charlie_asset_2_balance_before =
+					hydradx_runtime::Currencies::free_balance(stable_asset_2, &AccountId::from(CHARLIE));
+
+				let asset_ids_without_slippage: Vec<AssetAmount<u32>> = Stableswap::pools(stable_pool_id)
+					.into_iter()
+					.flat_map(|pool_info| pool_info.assets.into_iter())
+					.map(|asset_id| AssetAmount::<u32>::new(asset_id.into(), 10000))
+					.collect();
+
+				let asset_ids_without_slippage = create_bounded_vec(asset_ids_without_slippage);
+
+				//Act - Remove liquidity and exit all farms
+				assert_ok!(
+					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						position_id,
+						Balance::MIN,
+						asset_ids_without_slippage,
+						Some(deposit_id)
+					)
+				);
+
+				//Assert
+				// Verify deposit is destroyed
+				assert!(hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).is_none());
+
+				// Verify NFT was destroyed (all liquidity removed)
+				assert!(
+					hydradx_runtime::Uniques::owner(hydradx_runtime::OmnipoolCollectionId::get(), position_id)
+						.is_none(),
+					"NFT should be destroyed after removing all liquidity"
+				);
+
+				// Verify balances increased (approximately, accounting for fees)
+				let charlie_asset_1_balance_after =
+					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(CHARLIE));
+				let charlie_asset_2_balance_after =
+					hydradx_runtime::Currencies::free_balance(stable_asset_2, &AccountId::from(CHARLIE));
+
+				assert!(charlie_asset_1_balance_after > charlie_asset_1_balance_before);
+				assert!(charlie_asset_2_balance_after > charlie_asset_2_balance_before);
+
+				//Verify SharesWithdrawn events for all 3 farms
+				expect_shares_withdrawn_ln_events(vec![
+					RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
+						global_farm_id: 1,
+						yield_farm_id: 4,
+						deposit_id: 1,
+						amount: 20044549999405,
+						who: CHARLIE.into(),
+					}),
+					RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
+						global_farm_id: 2,
+						yield_farm_id: 5,
+						deposit_id: 1,
+						amount: 20044549999405,
+						who: CHARLIE.into(),
+					}),
+					RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
+						global_farm_id: 3,
+						yield_farm_id: 6,
+						deposit_id: 1,
+						amount: 20044549999405,
+						who: CHARLIE.into(),
+					}),
+				]);
+
+				// Verify LiquidityRemoved events
+				expect_omnipool_liquidity_removed_events(vec![pallet_omnipool::Event::LiquidityRemoved {
+					who: CHARLIE.into(),
+					position_id,
+					asset_id: stable_pool_id,
+					shares_removed: 20044549999405,
+					fee: FixedU128::from_float(0.000100000000000000),
+				}
+				.into()]);
+
+				expect_stableswap_liquidity_removed_events(vec![pallet_stableswap::Event::LiquidityRemoved {
+					pool_id: stable_pool_id,
+					who: CHARLIE.into(),
+					shares: 20042545544405,
+					amounts: vec![
+						AssetAmount::new(1000002, 3984601523849),
+						AssetAmount::new(1000003, 3984601484003),
+						AssetAmount::new(1000004, 3984601484003),
+						AssetAmount::new(1000005, 3984601484003),
+						AssetAmount::new(1000006, 3984601523849),
+					],
+					fee: 0,
+				}
+				.into()]);
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn remove_liquidity_without_farm_exit_should_work() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let (stable_pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+				init_omnipool();
+				seed_lm_pot();
+
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_pool_id,
+					30_000_000 * UNITS as i128,
+				));
+
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					stable_pool_id,
+					FixedU128::from_rational(50, 100),
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				//NOTE: necessary to get oracle price.
+				hydradx_run_to_block(100);
+				set_relaychain_block_number(100);
+
+				set_relaychain_block_number(300);
+
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					ETH,
+					10_000 * UNITS as i128,
+				));
+
+				//Add some liquidiity to make sure that it does not interfere with the new liquidty add
+				assert_ok!(hydradx_runtime::Omnipool::add_liquidity(
+					RuntimeOrigin::signed(CHARLIE.into()),
+					ETH,
+					100 * UNITS,
+				));
+
+				let position_id = hydradx_runtime::Omnipool::next_position_id();
+
+				set_relaychain_block_number(400);
+
+				//Add liquidity first
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_1,
+					100 * UNITS as i128,
+				));
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_2,
+					100 * UNITS as i128,
+				));
+
+				assert_ok!(
+					hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						stable_pool_id,
+						vec![
+							AssetAmount::new(stable_asset_1, 10 * UNITS),
+							AssetAmount::new(stable_asset_2, 10 * UNITS)
+						]
+						.try_into()
+						.unwrap(),
+						None,
+						None,
+					)
+				);
+
+				// Wait some blocks
+				set_relaychain_block_number(500);
+
+				let asset_ids_without_slippage: Vec<AssetAmount<u32>> = Stableswap::pools(stable_pool_id)
+					.into_iter()
+					.flat_map(|pool_info| pool_info.assets.into_iter())
+					.map(|asset_id| AssetAmount::<u32>::new(asset_id.into(), 10000))
+					.collect();
+
+				let asset_ids_without_slippage = create_bounded_vec(asset_ids_without_slippage);
+
+				//Act - Remove liquidity and exit all farms
+				assert_ok!(
+					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						position_id,
+						Balance::MIN,
+						asset_ids_without_slippage,
+						None
+					)
+				);
+
+				//Assert
+				// Verify NFT was destroyed (all liquidity removed)
+				assert!(
+					hydradx_runtime::Uniques::owner(hydradx_runtime::OmnipoolCollectionId::get(), position_id)
+						.is_none(),
+					"NFT should be destroyed after removing all liquidity"
+				);
+
+				//Verify SharesWithdrawn events for all 3 farms
+				expect_shares_withdrawn_ln_events(vec![]);
+
+				// Verify LiquidityRemoved events
+				expect_omnipool_liquidity_removed_events(vec![pallet_omnipool::Event::LiquidityRemoved {
+					who: CHARLIE.into(),
+					position_id,
+					asset_id: stable_pool_id,
+					shares_removed: 20044549999405,
+					fee: FixedU128::from_float(0.000100000000000000),
+				}
+				.into()]);
+
+				expect_stableswap_liquidity_removed_events(vec![pallet_stableswap::Event::LiquidityRemoved {
+					pool_id: stable_pool_id,
+					who: CHARLIE.into(),
+					shares: 20042545544405,
+					amounts: vec![
+						AssetAmount::new(1000002, 3984601523849),
+						AssetAmount::new(1000003, 3984601484003),
+						AssetAmount::new(1000004, 3984601484003),
+						AssetAmount::new(1000005, 3984601484003),
+						AssetAmount::new(1000006, 3984601523849),
+					],
+					fee: 0,
+				}
+				.into()]);
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn remove_liquidity_stableswap_omnipool_and_exit_farms_should_not_work_when_not_exiting_from_farms() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				let global_farm_1_id = 1;
+				let global_farm_2_id = 2;
+				let global_farm_3_id = 3;
+				let yield_farm_1_id = 4;
+				let yield_farm_2_id = 5;
+				let yield_farm_3_id = 6;
+
+				//Arrange
+				let (stable_pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+				init_omnipool();
+				seed_lm_pot();
+
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_pool_id,
+					30_000_000 * UNITS as i128,
+				));
+
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					stable_pool_id,
+					FixedU128::from_rational(50, 100),
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				//NOTE: necessary to get oracle price.
+				hydradx_run_to_block(100);
+				set_relaychain_block_number(100);
+				create_global_farm(None, None);
+				create_global_farm(None, None);
+				create_global_farm(None, None);
+
+				set_relaychain_block_number(200);
+				create_yield_farm(global_farm_1_id, stable_pool_id);
+				create_yield_farm(global_farm_2_id, stable_pool_id);
+				create_yield_farm(global_farm_3_id, stable_pool_id);
+
+				set_relaychain_block_number(300);
+
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					ETH,
+					10_000 * UNITS as i128,
+				));
+
+				//Add some liquidity to make sure that it does not interfere with the new liquidity add
+				assert_ok!(hydradx_runtime::Omnipool::add_liquidity(
+					RuntimeOrigin::signed(CHARLIE.into()),
+					ETH,
+					100 * UNITS,
+				));
+
+				let position_id = hydradx_runtime::Omnipool::next_position_id();
+
+				set_relaychain_block_number(400);
+				let deposit_id = 1;
+				let farms = vec![
+					(global_farm_1_id, yield_farm_1_id),
+					(global_farm_2_id, yield_farm_2_id),
+					(global_farm_3_id, yield_farm_3_id),
+				];
+
+				//Add liquidity first
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_1,
+					100 * UNITS as i128,
+				));
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_2,
+					100 * UNITS as i128,
+				));
+
+				assert_ok!(
+					hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						stable_pool_id,
+						vec![
+							AssetAmount::new(stable_asset_1, 10 * UNITS),
+							AssetAmount::new(stable_asset_2, 10 * UNITS)
+						]
+						.try_into()
+						.unwrap(),
+						Some(farms.try_into().unwrap()),
+						None,
+					)
+				);
+
+				// Wait some blocks
+				set_relaychain_block_number(500);
+
+				// Store balance before removal
+				let charlie_asset_1_balance_before =
+					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(CHARLIE));
+				let charlie_asset_2_balance_before =
+					hydradx_runtime::Currencies::free_balance(stable_asset_2, &AccountId::from(CHARLIE));
+
+				let asset_ids_without_slippage: Vec<AssetAmount<u32>> = Stableswap::pools(stable_pool_id)
+					.into_iter()
+					.flat_map(|pool_info| pool_info.assets.into_iter())
+					.map(|asset_id| AssetAmount::<u32>::new(asset_id.into(), 10000))
+					.collect();
+
+				let asset_ids_without_slippage = create_bounded_vec(asset_ids_without_slippage);
+
+				//Act - Remove liquidity and exit all farms
+				assert_noop!(
+					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						position_id,
+						Balance::MIN,
+						asset_ids_without_slippage,
+						None
+					),
+					pallet_omnipool::Error::<hydradx_runtime::Runtime>::Forbidden
+				);
+
+				//Assert
+				// Verify deposit is destroyed
+				assert!(hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).is_some());
+
+				// Verify NFT was destroyed (all liquidity removed)
+				assert!(
+					hydradx_runtime::Uniques::owner(hydradx_runtime::OmnipoolCollectionId::get(), position_id)
+						.is_some(),
+					"NFT should not be destroyed as no liquidity removed"
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn remove_liquidity_stableswap_omnipool_and_exit_farms_should_work_with_single_asset_withdrawal() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				let global_farm_id = 1;
+				let yield_farm_id = 2;
+
+				//Arrange
+				let (stable_pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+				init_omnipool();
+				seed_lm_pot();
+
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_pool_id,
+					30_000_000 * UNITS as i128,
+				));
+
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					stable_pool_id,
+					FixedU128::from_rational(50, 100),
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				//NOTE: necessary to get oracle price.
+				hydradx_run_to_block(100);
+				set_relaychain_block_number(100);
+				create_global_farm(None, None);
+
+				set_relaychain_block_number(200);
+				create_yield_farm(global_farm_id, stable_pool_id);
+
+				set_relaychain_block_number(300);
+
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					ETH,
+					10_000 * UNITS as i128,
+				));
+
+				//Add some liquidity to make sure that it does not interfere with the new liquidity add
+				assert_ok!(hydradx_runtime::Omnipool::add_liquidity(
+					RuntimeOrigin::signed(CHARLIE.into()),
+					ETH,
+					100 * UNITS,
+				));
+
+				let position_id = hydradx_runtime::Omnipool::next_position_id();
+
+				set_relaychain_block_number(400);
+				let deposit_id = 1;
+				let farms = vec![(global_farm_id, yield_farm_id)];
+
+				//Add liquidity first
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_1,
+					100 * UNITS as i128,
+				));
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_2,
+					100 * UNITS as i128,
+				));
+				assert_ok!(
+					hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						stable_pool_id,
+						vec![
+							AssetAmount::new(stable_asset_1, 10 * UNITS),
+							AssetAmount::new(stable_asset_2, 10 * UNITS)
+						]
+						.try_into()
+						.unwrap(),
+						Some(farms.try_into().unwrap()),
+						None,
+					)
+				);
+
+				// Wait some blocks
+				set_relaychain_block_number(500);
+
+				// Store balance before removal - only checking stable_asset_1
+				let charlie_asset_1_balance_before =
+					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(CHARLIE));
+				let charlie_asset_2_balance_before =
+					hydradx_runtime::Currencies::free_balance(stable_asset_2, &AccountId::from(CHARLIE));
+
+				//Act - Remove liquidity with single asset (only stable_asset_1 has non-zero min_amount)
+				assert_ok!(
+					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						position_id,
+						Balance::MIN,
+						vec![AssetAmount::new(stable_asset_1, 0)].try_into().unwrap(),
+						Some(deposit_id)
+					)
+				);
+
+				//Assert
+				// Verify deposit is destroyed
+				assert!(hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).is_none());
+
+				// Verify NFT was destroyed (all liquidity removed)
+				assert!(
+					hydradx_runtime::Uniques::owner(hydradx_runtime::OmnipoolCollectionId::get(), position_id)
+						.is_none(),
+					"NFT should be destroyed after removing all liquidity"
+				);
+
+				// Verify only asset_1 balance increased (single asset withdrawal)
+				let charlie_asset_1_balance_after =
+					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(CHARLIE));
+				let charlie_asset_2_balance_after =
+					hydradx_runtime::Currencies::free_balance(stable_asset_2, &AccountId::from(CHARLIE));
+
+				assert!(charlie_asset_1_balance_after > charlie_asset_1_balance_before);
+				// asset_2 balance should remain unchanged for single asset withdrawal
+				assert_eq!(charlie_asset_2_balance_after, charlie_asset_2_balance_before);
+
+				// Verify SharesWithdrawn and DepositDestroyed events
+				expect_shares_withdrawn_ln_events(vec![pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
+					global_farm_id,
+					yield_farm_id,
+					deposit_id: 1,
+					amount: 20044549999405,
+					who: CHARLIE.into(),
+				}
+				.into()]);
+
+				// Verify LiquidityRemoved event from omnipool
+				expect_omnipool_liquidity_removed_events(vec![pallet_omnipool::Event::LiquidityRemoved {
+					who: CHARLIE.into(),
+					position_id,
+					asset_id: stable_pool_id,
+					shares_removed: 20044549999405,
+					fee: FixedU128::from_float(0.000100000000000000),
+				}
+				.into()]);
+
+				expect_stableswap_liquidity_removed_events(vec![pallet_stableswap::Event::LiquidityRemoved {
+					pool_id: stable_pool_id,
+					who: CHARLIE.into(),
+					shares: 20042545544405,
+					amounts: vec![AssetAmount::new(stable_asset_1, 19823392461976)],
+					fee: 99615037340,
+				}
+				.into()]);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn remove_liquidity_stableswap_omnipool_and_exit_farms_with_rewards_round_trip() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				let global_farm_id = 1;
+				let yield_farm_id = 2;
+
+				//Arrange
+				let (stable_pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+				init_omnipool();
+				seed_lm_pot();
+
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_pool_id,
+					30_000_000 * UNITS as i128,
+				));
+
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					stable_pool_id,
+					FixedU128::from_rational(50, 100),
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				//NOTE: necessary to get oracle price.
+				hydradx_run_to_block(100);
+				set_relaychain_block_number(100);
+				create_global_farm(None, None);
+
+				set_relaychain_block_number(200);
+				create_yield_farm(global_farm_id, stable_pool_id);
+
+				set_relaychain_block_number(300);
+
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					ETH,
+					10_000 * UNITS as i128,
+				));
+
+				//Add some liquidity to make sure that it does not interfere with the new liquidity add
+				assert_ok!(hydradx_runtime::Omnipool::add_liquidity(
+					RuntimeOrigin::signed(CHARLIE.into()),
+					ETH,
+					100 * UNITS,
+				));
+
+				let position_id = hydradx_runtime::Omnipool::next_position_id();
+
+				set_relaychain_block_number(400);
+				let deposit_id = 1;
+				let farms = vec![(global_farm_id, yield_farm_id)];
+
+				//Add liquidity first
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_1,
+					100 * UNITS as i128,
+				));
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_2,
+					100 * UNITS as i128,
+				));
+				assert_ok!(
+					hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						stable_pool_id,
+						vec![AssetAmount::new(stable_asset_1, 10 * UNITS),].try_into().unwrap(),
+						Some(farms.try_into().unwrap()),
+						None,
+					)
+				);
+
+				// Store HDX balance before to verify rewards
+				let charlie_hdx_balance_before =
+					hydradx_runtime::Currencies::free_balance(HDX, &AccountId::from(CHARLIE));
+
+				// Wait significant number of blocks to accumulate rewards
+				set_relaychain_block_number(1000);
+
+				//Act - Remove liquidity and exit all farms (should claim rewards)
+				assert_ok!(
+					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						position_id,
+						Balance::MIN,
+						vec![AssetAmount::new(stable_asset_1, 0)].try_into().unwrap(),
+						Some(deposit_id)
+					)
+				);
+
+				//Assert
+				// Verify deposit is destroyed
+				assert!(hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).is_none());
+
+				// Verify NFT was destroyed (all liquidity removed)
+				assert!(
+					hydradx_runtime::Uniques::owner(hydradx_runtime::OmnipoolCollectionId::get(), position_id)
+						.is_none(),
+					"NFT should be destroyed after removing all liquidity"
+				);
+
+				// Verify HDX rewards were received
+				let charlie_hdx_balance_after =
+					hydradx_runtime::Currencies::free_balance(HDX, &AccountId::from(CHARLIE));
+
+				assert!(
+					charlie_hdx_balance_after > charlie_hdx_balance_before,
+					"Should have received HDX rewards"
+				);
+
+				// Verify original liquidity returned (approximately)
+				let charlie_asset_1_balance_after =
+					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(CHARLIE));
+				let charlie_asset_2_balance_after =
+					hydradx_runtime::Currencies::free_balance(stable_asset_2, &AccountId::from(CHARLIE));
+
+				// Should have approximately 100 UNITS (90 initial + ~10 returned, accounting for fees)
+				assert!(charlie_asset_1_balance_after > 95 * UNITS);
+				assert!(charlie_asset_2_balance_after > 95 * UNITS);
+
+				// Verify LiquidityRemoved events
+				expect_omnipool_liquidity_removed_events(vec![pallet_omnipool::Event::LiquidityRemoved {
+					who: CHARLIE.into(),
+					position_id,
+					asset_id: stable_pool_id,
+					shares_removed: 10009699999606,
+					fee: FixedU128::from_float(0.000100000000000000),
+				}
+				.into()]);
+
+				expect_stableswap_liquidity_removed_events(vec![pallet_stableswap::Event::LiquidityRemoved {
+					pool_id: stable_pool_id,
+					who: CHARLIE.into(),
+					shares: 10008699029606,
+					amounts: vec![AssetAmount::new(stable_asset_1, 9899259975202)],
+					fee: 49745024898,
+				}
+				.into()]);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn remove_liquidity_stableswap_omnipool_and_exit_farms_should_fail_when_not_owner() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				let global_farm_id = 1;
+				let yield_farm_id = 2;
+
+				//Arrange
+				let (stable_pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+				init_omnipool();
+				seed_lm_pot();
+
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_pool_id,
+					30_000_000 * UNITS as i128,
+				));
+
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					stable_pool_id,
+					FixedU128::from_rational(50, 100),
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				//NOTE: necessary to get oracle price.
+				hydradx_run_to_block(100);
+				set_relaychain_block_number(100);
+				create_global_farm(None, None);
+
+				set_relaychain_block_number(200);
+				create_yield_farm(global_farm_id, stable_pool_id);
+
+				set_relaychain_block_number(300);
+
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					ETH,
+					10_000 * UNITS as i128,
+				));
+
+				//Add some liquidity to make sure that it does not interfere with the new liquidity add
+				assert_ok!(hydradx_runtime::Omnipool::add_liquidity(
+					RuntimeOrigin::signed(CHARLIE.into()),
+					ETH,
+					100 * UNITS,
+				));
+
+				let position_id = hydradx_runtime::Omnipool::next_position_id();
+
+				set_relaychain_block_number(400);
+				let deposit_id = 1;
+				let farms = vec![(global_farm_id, yield_farm_id)];
+
+				//CHARLIE adds liquidity and joins farms
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_1,
+					100 * UNITS as i128,
+				));
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_2,
+					100 * UNITS as i128,
+				));
+				assert_ok!(
+					hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						stable_pool_id,
+						vec![
+							AssetAmount::new(stable_asset_1, 10 * UNITS),
+							AssetAmount::new(stable_asset_2, 10 * UNITS)
+						]
+						.try_into()
+						.unwrap(),
+						Some(farms.try_into().unwrap()),
+						None,
+					)
+				);
+
+				set_relaychain_block_number(500);
+
+				//Act - DAVE tries to remove CHARLIE's liquidity (should fail)
+				assert_noop!(
+					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
+						RuntimeOrigin::signed(DAVE.into()),
+						position_id,
+						Balance::MIN,
+						vec![AssetAmount::new(stable_asset_1, 0), AssetAmount::new(stable_asset_2, 0)]
+							.try_into()
+							.unwrap(),
+						Some(deposit_id)
+					),
+					pallet_omnipool_liquidity_mining::Error::<hydradx_runtime::Runtime>::Forbidden
+				);
+
+				//Assert - Deposit should still exist
+				assert!(hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).is_some());
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn remove_liquidity_stableswap_omnipool_and_exit_farms_should_fail_with_empty_assets() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				let global_farm_id = 1;
+				let yield_farm_id = 2;
+
+				//Arrange
+				let (stable_pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+				init_omnipool();
+				seed_lm_pot();
+
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_pool_id,
+					30_000_000 * UNITS as i128,
+				));
+
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					stable_pool_id,
+					FixedU128::from_rational(50, 100),
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				//NOTE: necessary to get oracle price.
+				hydradx_run_to_block(100);
+				set_relaychain_block_number(100);
+				create_global_farm(None, None);
+
+				set_relaychain_block_number(200);
+				create_yield_farm(global_farm_id, stable_pool_id);
+
+				set_relaychain_block_number(300);
+
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					ETH,
+					10_000 * UNITS as i128,
+				));
+
+				//Add some liquidity to make sure that it does not interfere with the new liquidity add
+				assert_ok!(hydradx_runtime::Omnipool::add_liquidity(
+					RuntimeOrigin::signed(CHARLIE.into()),
+					ETH,
+					100 * UNITS,
+				));
+
+				let position_id = hydradx_runtime::Omnipool::next_position_id();
+
+				set_relaychain_block_number(400);
+				let deposit_id = 1;
+				let farms = vec![(global_farm_id, yield_farm_id)];
+
+				//CHARLIE adds liquidity and joins farms
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_1,
+					100 * UNITS as i128,
+				));
+				assert_ok!(hydradx_runtime::Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_2,
+					100 * UNITS as i128,
+				));
+				assert_ok!(
+					hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						stable_pool_id,
+						vec![
+							AssetAmount::new(stable_asset_1, 10 * UNITS),
+							AssetAmount::new(stable_asset_2, 10 * UNITS)
+						]
+						.try_into()
+						.unwrap(),
+						Some(farms.try_into().unwrap()),
+						None,
+					)
+				);
+
+				set_relaychain_block_number(500);
+
+				//Act - Try to remove with empty min_amounts_out (should fail)
+				assert_noop!(
+					hydradx_runtime::OmnipoolLiquidityMining::remove_liquidity_stableswap_omnipool_and_exit_farms(
+						RuntimeOrigin::signed(CHARLIE.into()),
+						position_id,
+						Balance::MIN,
+						vec![].try_into().unwrap(),
+						Some(deposit_id)
+					),
+					pallet_omnipool_liquidity_mining::Error::<hydradx_runtime::Runtime>::NoAssetsSpecified
+				);
+
+				//Assert - Deposit should still exist
+				assert!(hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).is_some());
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	use frame_support::traits::ConstU32;
+	pub fn create_bounded_vec(
+		assets: Vec<AssetAmount<u32>>,
+	) -> BoundedVec<AssetAmount<u32>, ConstU32<{ MAX_ASSETS_IN_POOL }>> {
+		let bounded_vec: BoundedVec<AssetAmount<u32>, ConstU32<{ MAX_ASSETS_IN_POOL }>> = assets.try_into().unwrap();
+
+		bounded_vec
+	}
 }
 
 #[test]
@@ -2396,7 +3536,7 @@ pub fn expect_reward_claimed_events(e: Vec<RuntimeEvent>) {
 }
 
 pub fn expect_lm_events(e: Vec<RuntimeEvent>) {
-	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(10);
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(40);
 
 	let mut reward_claimed_events = vec![];
 
@@ -2418,6 +3558,24 @@ pub fn expect_lm_events(e: Vec<RuntimeEvent>) {
 	}
 
 	pretty_assertions::assert_eq!(reward_claimed_events, e);
+}
+
+pub fn expect_shares_withdrawn_ln_events(expected: Vec<RuntimeEvent>) {
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(80);
+
+	let shares_withdrawn_events: Vec<RuntimeEvent> = last_events
+		.into_iter()
+		.filter(|event| {
+			matches!(
+				event,
+				RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::<
+					hydradx_runtime::Runtime,
+				>::SharesWithdrawn { .. })
+			)
+		})
+		.collect();
+
+	pretty_assertions::assert_eq!(shares_withdrawn_events, expected);
 }
 
 pub fn expect_stableswap_liquidity_added_events(e: Vec<RuntimeEvent>) {
@@ -2448,6 +3606,42 @@ pub fn expect_omnipool_liquidity_added_events(e: Vec<RuntimeEvent>) {
 		if matches!(
 			e,
 			RuntimeEvent::Omnipool(pallet_omnipool::Event::<hydradx_runtime::Runtime>::LiquidityAdded { .. })
+		) {
+			events.push(e);
+		}
+	}
+
+	pretty_assertions::assert_eq!(events, e);
+}
+
+pub fn expect_stableswap_liquidity_removed_events(e: Vec<RuntimeEvent>) {
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(40);
+
+	let mut events = vec![];
+
+	for event in &last_events {
+		let e = event.clone();
+		if matches!(
+			e,
+			RuntimeEvent::Stableswap(pallet_stableswap::Event::<hydradx_runtime::Runtime>::LiquidityRemoved { .. })
+		) {
+			events.push(e);
+		}
+	}
+
+	pretty_assertions::assert_eq!(events, e);
+}
+
+pub fn expect_omnipool_liquidity_removed_events(e: Vec<RuntimeEvent>) {
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(40);
+
+	let mut events = vec![];
+
+	for event in &last_events {
+		let e = event.clone();
+		if matches!(
+			e,
+			RuntimeEvent::Omnipool(pallet_omnipool::Event::<hydradx_runtime::Runtime>::LiquidityRemoved { .. })
 		) {
 			events.push(e);
 		}
