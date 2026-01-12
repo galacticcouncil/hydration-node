@@ -702,14 +702,14 @@ where
 		from: &T::AccountId,
 		to: &T::AccountId,
 		amount: Self::Balance,
-		_existence_requirement: ExistenceRequirement,
+		existence_requirement: ExistenceRequirement,
 	) -> DispatchResult {
 		<Pallet<T> as MultiCurrency<T::AccountId>>::transfer(
 			GetCurrencyId::get(),
 			from,
 			to,
 			amount,
-			ExistenceRequirement::AllowDeath,
+			existence_requirement,
 		)
 	}
 
@@ -720,9 +720,9 @@ where
 	fn withdraw(
 		who: &T::AccountId,
 		amount: Self::Balance,
-		_existence_requirement: ExistenceRequirement,
+		existence_requirement: ExistenceRequirement,
 	) -> DispatchResult {
-		<Pallet<T>>::withdraw(GetCurrencyId::get(), who, amount, ExistenceRequirement::AllowDeath)
+		<Pallet<T>>::withdraw(GetCurrencyId::get(), who, amount, existence_requirement)
 	}
 
 	fn can_slash(who: &T::AccountId, amount: Self::Balance) -> bool {

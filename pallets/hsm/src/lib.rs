@@ -388,10 +388,10 @@ pub mod pallet {
 
 					if let Some(call) = Self::process_arbitrage_opportunities(block_number) {
 						let xt = T::create_inherent(call.into());
-						if SubmitTransaction::<T, Call<T>>::submit_transaction(xt).is_err() {
+						if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(xt) {
 							log::error!(
 								target: "hsm::offchain_worker",
-								"Failed to submit arbitrage transaction"
+								"Failed to submit arbitrage transaction: {:?}", e
 							);
 						}
 					}
