@@ -842,6 +842,16 @@ impl hydradx_traits::liquidity_mining::Mutate<AccountId, AssetId, BlockNumber> f
 			Ok(())
 		})
 	}
+
+	fn get_yield_farm_ids(deposit_id: DepositId) -> Option<Vec<u32>> {
+		DEPOSITS.with(|v| {
+			let m = v.borrow();
+			m.get(&deposit_id).map(|_deposit| {
+				// Return an empty vector for now - this is a dummy implementation
+				Vec::new()
+			})
+		})
+	}
 }
 
 impl hydradx_traits::liquidity_mining::Inspect<AccountId> for DummyLiquidityMining {

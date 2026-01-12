@@ -2020,6 +2020,10 @@ impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Mutate<T::Accou
 	fn get_global_farm_id(deposit_id: DepositId, yield_farm_id: YieldFarmId) -> Option<u32> {
 		Self::get_global_farm_id(deposit_id, yield_farm_id)
 	}
+
+	fn get_yield_farm_ids(deposit_id: DepositId) -> Option<Vec<u32>> {
+		Self::deposit(deposit_id).map(|deposit| deposit.yield_farm_entries.iter().map(|e| e.yield_farm_id).collect())
+	}
 }
 
 impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Inspect<T::AccountId> for Pallet<T, I> {

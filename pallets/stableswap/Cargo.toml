@@ -53,7 +53,7 @@ orml-tokens = { workspace = true, features = ["std"] }
 proptest = { workspace = true }
 test-utils = { workspace = true }
 pretty_assertions = "1.4.0"
-pallet-circuit-breaker = { workspace = true}
+pallet-circuit-breaker = { workspace = true }
 
 [features]
 default = ["std"]
@@ -79,6 +79,7 @@ std = [
     "frame-benchmarking/std",
     "orml-traits/std",
     "hydra-dx-math/std",
+    "hydradx-traits/std",
     "pallet-broadcast/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

@@ -4989,7 +4989,7 @@ mod extra_gas_erc20 {
 			));
 
 			hydradx_run_to_block(11);
-			let amount_in = 200000 * UNITS;
+			let _amount_in = 200000 * UNITS;
 			let schedule_id = create_schedule_with_onchain_route(erc20, 0, 200000 * UNITS, 500000 * UNITS, Some(3));
 
 			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
