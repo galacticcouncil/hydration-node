@@ -504,9 +504,8 @@ use hydradx_runtime::origins::Origin;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use polkadot_xcm::opaque::lts::WeightLimit;
-use polkadot_xcm::v5::{Junction, Junctions::X2, Location};
+use polkadot_xcm::v5::{Junction, Location};
 use primitives::constants::currency::UNITS;
-use sp_std::sync::Arc;
 
 #[test]
 fn hydra_should_block_asset_from_other_chain_when_over_limit() {
@@ -520,10 +519,10 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 			ACA,
 			hydradx_runtime::AssetLocation(Location {
 				parents: 1,
-				interior: X2(Arc::new([
+				interior: [
 					Junction::Parachain(ACALA_PARA_ID),
 					Junction::GeneralIndex(0)
-				]))
+				].into()
 			})
 		));
 
@@ -558,10 +557,10 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 			Box::new(
 				Location {
 					parents: 1,
-					interior: X2(Arc::new([
+					interior: [
 						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountId32 { id: BOB, network: None }
-					]))
+					].into()
 				}
 				.into_versioned()
 			),

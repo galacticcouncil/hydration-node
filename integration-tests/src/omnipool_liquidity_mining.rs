@@ -2233,18 +2233,18 @@ fn price_adjustment_adapter_should_use_routed_oracle() {
 
 	let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(1500),
 			polkadot_xcm::v5::Junction::GeneralIndex(0),
-		])),
+		],
 	);
 
 	let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(1500),
 			polkadot_xcm::v5::Junction::GeneralIndex(1),
-		])),
+		],
 	);
 
 	let vdot_boxed = Box::new(vdot_location.clone().into_versioned());

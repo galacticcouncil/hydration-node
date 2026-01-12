@@ -46,7 +46,7 @@ use alloc::borrow::Cow;
 
 #[allow(ambiguous_glob_reexports)]
 pub use assets::*;
-pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions, Junctions::X1, NetworkId, NonFungible, Response};
+pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions,  NetworkId, NonFungible, Response};
 pub use frame_support::{assert_ok, parameter_types, storage::with_transaction, traits::TrackedStorageKey};
 pub use frame_system::RawOrigin;
 pub use governance::origins::pallet_custom_origins;
@@ -1288,7 +1288,6 @@ impl_runtime_apis! {
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use cumulus_primitives_core::ParaId;
 			use primitives::constants::chain::CORE_ASSET_ID;
-			use sp_std::sync::Arc;
 			 use polkadot_runtime_common::xcm_sender::ExponentialPrice;
 			 use primitives::constants::currency::CENTS;
 
@@ -1306,16 +1305,12 @@ impl_runtime_apis! {
 			frame_support::parameter_types! {
 				pub const RandomParaId: ParaId = ParaId::new(22_222_222);
 				pub const ExistentialDeposit: u128 = 1_000_000_000_000;
-				pub CoreAssetLocation: Location = Location::new(0, cumulus_primitives_core::Junctions::X1(
-					Arc::new([
+				pub CoreAssetLocation: Location = Location::new(0, [
 						cumulus_primitives_core::Junction::GeneralIndex(CORE_ASSET_ID.into())
-						])
-				));
-				pub DaiLocation: Location = Location::new(0, cumulus_primitives_core::Junctions::X1(
-					Arc::new([
+						]);
+				pub DaiLocation: Location = Location::new(0, [
 						cumulus_primitives_core::Junction::GeneralIndex(2)
-						])
-				));
+						]);
 			}
 
 			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Assets, Parent, ParentThen, Parachain};
@@ -1576,8 +1571,8 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 	let dai = 2;
 	let token_amount = 2000000000000u128 * 1_000_000_000;
 
-	//let loc : MultiLocation = Location::new(1, cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GeneralIndex(dai.into());1]))).into();
-	//			polkadot_xcm::opaque::lts::Junctions::X1(Arc::new([polkadot_xcm::opaque::lts::Junction::GeneralIndex(dai.into())]))
+	//let loc : MultiLocation = Location::new(1, cumulus_primitives_core::[cumulus_primitives_core::Junction::GeneralIndex(dai.into());1]).into();
+	//			polkadot_xcm::opaque::lts::[polkadot_xcm::opaque::lts::Junction::GeneralIndex(dai.into())]
 
 	use frame_support::assert_ok;
 	use polkadot_xcm::v5::Junction::GeneralIndex;

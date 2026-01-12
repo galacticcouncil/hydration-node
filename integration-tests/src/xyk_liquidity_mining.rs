@@ -42,12 +42,11 @@ use hydradx_runtime::{
 use pallet_xyk::types::AssetPair;
 use polkadot_xcm::v5::{
 	Junction::{GeneralIndex, Parachain},
-	Junctions::X2,
+	
 	Location,
 };
 use pretty_assertions::assert_eq;
 use primitives::constants::time::unix_time::MONTH;
-use sp_std::sync::Arc;
 
 #[test]
 fn create_global_farm_should_work_when_origin_is_root() {
@@ -1446,7 +1445,7 @@ fn create_yield_farm(id: GlobalFarmId, pair: AssetPair, owner: Option<AccountId>
 fn register_external_asset(general_index: u128) -> AssetId {
 	let location = hydradx_runtime::AssetLocation(Location::new(
 		1,
-		X2(Arc::new([Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)])),
+		[Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)],
 	));
 
 	let next_asset_id = AssetRegistry::next_asset_id().unwrap();

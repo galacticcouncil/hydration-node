@@ -34,18 +34,18 @@ pub const DOT_VDOT_PRICE: (Balance, Balance) = (85473939039997170, 5776768551743
 fn gigadot_pool_should_work() {
 	let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(1500),
 			polkadot_xcm::v5::Junction::GeneralIndex(0),
-		])),
+		],
 	);
 
 	let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(1500),
 			polkadot_xcm::v5::Junction::GeneralIndex(1),
-		])),
+		],
 	);
 
 	let vdot_boxed = Box::new(vdot_location.clone().into_versioned());
@@ -190,18 +190,18 @@ mod circuit_breaker {
 	fn ciruit_breaker_is_triggered_when_deposit_limit_reached_for_sharetoken() {
 		let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 			1,
-			polkadot_xcm::v5::Junctions::X2(Arc::new([
+			[
 				polkadot_xcm::v5::Junction::Parachain(1500),
 				polkadot_xcm::v5::Junction::GeneralIndex(0),
-			])),
+			],
 		);
 
 		let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 			1,
-			polkadot_xcm::v5::Junctions::X2(Arc::new([
+			[
 				polkadot_xcm::v5::Junction::Parachain(1500),
 				polkadot_xcm::v5::Junction::GeneralIndex(1),
-			])),
+			],
 		);
 
 		let vdot_boxed = Box::new(vdot_location.clone().into_versioned());
@@ -258,18 +258,18 @@ mod circuit_breaker {
 fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 	let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(1500),
 			polkadot_xcm::v5::Junction::GeneralIndex(0),
-		])),
+		],
 	);
 
 	let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(1500),
 			polkadot_xcm::v5::Junction::GeneralIndex(1),
-		])),
+		],
 	);
 
 	let vdot_boxed = Box::new(vdot_location.clone().into_versioned());

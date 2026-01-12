@@ -38,7 +38,6 @@ use primitives::AccountId;
 use sp_core::Encode;
 use sp_core::{H256, U256};
 use sp_runtime::{Permill, TransactionOutcome};
-use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 pub fn deployer() -> EvmAddress {
 	EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE))
@@ -60,10 +59,10 @@ pub fn bind_erc20(contract: EvmAddress) -> AssetId {
 			Some(Erc20Currency::<Runtime>::decimals(token).unwrap()),
 			Some(AssetLocation(Location::new(
 				0,
-				X1(Arc::new([AccountKey20 {
+				[AccountKey20 {
 					key: contract.into(),
 					network: None,
-				}])),
+				}],
 			))),
 			None,
 		))

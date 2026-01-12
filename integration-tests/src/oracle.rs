@@ -34,7 +34,6 @@ use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
 use sp_std::collections::btree_map::BTreeMap;
-use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
@@ -390,17 +389,17 @@ fn arrange_bifrost_assets() -> (
 	let asset_b_id = 51;
 	let asset_a_loc = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(1500),
 			polkadot_xcm::v5::Junction::GeneralIndex(0),
-		])),
+		],
 	);
 	let asset_b_loc = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(2000),
 			polkadot_xcm::v5::Junction::GeneralIndex(0),
-		])),
+		],
 	);
 
 	Hydra::execute_with(|| {

@@ -21,13 +21,12 @@ use orml_traits::MultiCurrency;
 use pallet_duster::DusterWhitelist;
 use polkadot_xcm::v5::{
 	Junction::{GeneralIndex, Parachain},
-	Junctions::X2,
+	
 	Location,
 };
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::TransactionOutcome;
-use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -1517,7 +1516,7 @@ fn ed_should_be_paid_in_insufficient_asset_through_dot() {
 fn register_external_asset(general_index: u128) -> AssetId {
 	let location = hydradx_runtime::AssetLocation(Location::new(
 		1,
-		X2(Arc::new([Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)])),
+		[Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)],
 	));
 
 	let next_asset_id = Registry::next_asset_id().unwrap();

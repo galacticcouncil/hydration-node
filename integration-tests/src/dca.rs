@@ -5022,7 +5022,7 @@ mod extra_gas_erc20 {
 			// Assert that extra gas was increased in one retry
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
 			assert_eq!(DCA::schedule_extra_gas(schedule_id), 333_333);
-			trade_failed_with_evm_out_of_gas_error(schedule_id);
+			trade_failed_with_evm_out_of_gas_error(schedule_id); 
 			assert_eq!(1, count_failed_trade_events());
 			assert_eq!(0, count_trade_executed_events());
 			let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());

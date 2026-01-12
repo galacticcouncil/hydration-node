@@ -6,11 +6,9 @@ use mock::Registry;
 use frame_support::storage::with_transaction;
 use polkadot_xcm::v5::{
 	Junction::{self, Parachain},
-	Junctions::X2,
 	Location,
 };
 use sp_runtime::{DispatchResult, TransactionOutcome};
-use sp_std::sync::Arc;
 
 #[test]
 fn register_asset_should_work() {
@@ -25,7 +23,7 @@ fn register_asset_should_work() {
 			let is_sufficient = true;
 
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 			//Act
 			assert_ok!(<Registry as Create<Balance>>::register_asset(
@@ -98,7 +96,7 @@ fn register_insufficient_asset_should_work() {
 			let ed = 10_000;
 
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 			//Act
 			assert_ok!(<Registry as Create<Balance>>::register_insufficient_asset(
@@ -170,7 +168,7 @@ fn register_sufficient_asset_should_work() {
 			let ed = 10_000;
 
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 			//Act
 			assert_ok!(<Registry as Create<Balance>>::register_sufficient_asset(
@@ -243,7 +241,7 @@ fn get_or_register_asset_should_register_asset_when_does_not_exists() {
 			let is_sufficient = true;
 
 			let key = Junction::from(BoundedVec::try_from(new_asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 			//Act
 			assert_ok!(
@@ -330,7 +328,7 @@ fn get_or_register_asset_should_return_asset_id_when_asset_exists() {
 				let is_sufficient = true;
 
 				let key = Junction::from(BoundedVec::try_from(1_000.encode()).unwrap());
-				let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+				let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 				//Act
 				assert_ok!(
@@ -378,7 +376,7 @@ fn get_or_register_sufficient_asset_should_work() {
 			let ed = 10_000;
 
 			let key = Junction::from(BoundedVec::try_from(new_asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 			//Act
 			assert_ok!(<Registry as Create<Balance>>::get_or_register_sufficient_asset(
@@ -449,7 +447,7 @@ fn get_or_register_insufficient_asset_should_work() {
 			let ed = 10_000;
 
 			let key = Junction::from(BoundedVec::try_from(new_asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 			//Act
 			assert_ok!(<Registry as Create<Balance>>::get_or_register_insufficient_asset(

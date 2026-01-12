@@ -11,7 +11,7 @@ use hydradx_runtime::{AssetRegistry, Currencies, Omnipool, Router, RuntimeOrigin
 use hydradx_traits::{AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
-use polkadot_xcm::v5::{Junction, Junctions::X2, Location};
+use polkadot_xcm::v5::{Junction,  Location};
 use polkadot_xcm::{v5::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
 use primitives::constants::chain::CORE_ASSET_ID;
@@ -20,7 +20,6 @@ use sp_runtime::{
 	traits::{Convert, Zero},
 	DispatchResult, FixedU128, Permill, TransactionOutcome,
 };
-use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 
 pub const SELL: bool = true;
@@ -69,10 +68,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		let give = Asset::from((
 			Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X2(Arc::new([
+				[
 					cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
 					cumulus_primitives_core::Junction::GeneralIndex(0),
-				])),
+				],
 			),
 			50 * UNITS,
 		));
@@ -80,10 +79,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		let want = Asset::from((
 			Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X2(Arc::new([
+				[
 					cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
 					cumulus_primitives_core::Junction::GeneralIndex(0),
-				])),
+				],
 			),
 			300 * UNITS,
 		));
@@ -204,10 +203,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 		let give = Asset::from((
 			Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X2(Arc::new([
+				[
 					cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
 					cumulus_primitives_core::Junction::GeneralIndex(0),
-				])),
+				],
 			),
 			50 * UNITS,
 		));
@@ -215,10 +214,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 		let want = Asset::from((
 			Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X2(Arc::new([
+				[
 					cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
 					cumulus_primitives_core::Junction::GeneralIndex(0),
-				])),
+				],
 			),
 			amount_out,
 		));
@@ -314,32 +313,32 @@ pub mod zeitgeist_use_cases {
 
 			let give_reserve_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+				[cumulus_primitives_core::Junction::Parachain(
 					ZEITGEIST_PARA_ID,
-				)])),
+				)],
 			);
 			let swap_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+				[cumulus_primitives_core::Junction::Parachain(
 					HYDRA_PARA_ID,
-				)])),
+				)],
 			);
 			let want_reserve_chain = swap_chain.clone();
 			let dest = give_reserve_chain.clone();
 
 			let beneficiary = Location::new(
 				0,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+				[cumulus_primitives_core::Junction::AccountId32 {
 					id: ALICE,
 					network: None,
-				}])),
+				}],
 			);
 			let assets: Assets = Asset {
 				id: cumulus_primitives_core::AssetId(Location::new(
 					0,
-					cumulus_primitives_core::Junctions::X1(Arc::new([
+					[
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				)),
 				fun: Fungible(100 * UNITS),
 			}
@@ -351,10 +350,10 @@ pub mod zeitgeist_use_cases {
 			let want_asset = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new([
+					[
 						cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				),
 				100 * UNITS,
 			));
@@ -513,37 +512,37 @@ pub mod zeitgeist_use_cases {
 
 			let give_reserve_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+				[cumulus_primitives_core::Junction::Parachain(
 					ZEITGEIST_PARA_ID,
-				)])),
+				)],
 			);
 			let swap_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+				[cumulus_primitives_core::Junction::Parachain(
 					HYDRA_PARA_ID,
-				)])),
+				)],
 			);
 			let want_reserve_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+				[cumulus_primitives_core::Junction::Parachain(
 					INTERLAY_PARA_ID,
-				)])),
+				)],
 			);
 			let dest = give_reserve_chain.clone();
 
 			let beneficiary = Location::new(
 				0,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+				[cumulus_primitives_core::Junction::AccountId32 {
 					id: ALICE,
 					network: None,
-				}])),
+				}],
 			);
 			let assets: Assets = Asset {
 				id: cumulus_primitives_core::AssetId(Location::new(
 					0,
-					cumulus_primitives_core::Junctions::X1(Arc::new([
+					[
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				)),
 				fun: Fungible(10 * UNITS),
 			}
@@ -555,10 +554,10 @@ pub mod zeitgeist_use_cases {
 			let want_asset = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new([
+					[
 						cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID),
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				),
 				10 * UNITS,
 			));
@@ -755,42 +754,42 @@ pub mod zeitgeist_use_cases {
 
 			let give_reserve_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+				[cumulus_primitives_core::Junction::Parachain(
 					MOONBEAM_PARA_ID,
-				)])),
+				)],
 			);
 			let swap_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+				[cumulus_primitives_core::Junction::Parachain(
 					HYDRA_PARA_ID,
-				)])),
+				)],
 			);
 			let want_reserve_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+				[cumulus_primitives_core::Junction::Parachain(
 					INTERLAY_PARA_ID,
-				)])),
+				)],
 			);
 			let dest = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+				[cumulus_primitives_core::Junction::Parachain(
 					ZEITGEIST_PARA_ID,
-				)])),
+				)],
 			);
 
 			let beneficiary = Location::new(
 				0,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+				[cumulus_primitives_core::Junction::AccountId32 {
 					id: ALICE,
 					network: None,
-				}])),
+				}],
 			);
 			let assets: Assets = Asset {
 				id: cumulus_primitives_core::AssetId(Location::new(
 					0,
-					cumulus_primitives_core::Junctions::X1(Arc::new([
+					[
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				)),
 				fun: Fungible(10 * UNITS),
 			}
@@ -801,20 +800,20 @@ pub mod zeitgeist_use_cases {
 			let give_asset = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new([
+					[
 						cumulus_primitives_core::Junction::Parachain(MOONBEAM_PARA_ID),
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				),
 				give_amount,
 			));
 			let want_asset = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new([
+					[
 						cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID),
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				),
 				10 * UNITS,
 			));
@@ -831,10 +830,10 @@ pub mod zeitgeist_use_cases {
 				.reanchored(&dest, &want_reserve_chain.interior)
 				.expect("should reanchor");
 
-			let origin_context = cumulus_primitives_core::Junctions::X2(Arc::new([
+			let origin_context: cumulus_primitives_core::Junctions = [
 				cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
 				cumulus_primitives_core::Junction::Parachain(ZEITGEIST_PARA_ID),
-			]));
+			].into();
 			let give_reserve_fees = give_asset
 				.clone()
 				.reanchored(&give_reserve_chain, &origin_context)
@@ -1006,10 +1005,10 @@ mod circuit_breaker {
 			let give = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new([
+					[
 						cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				),
 				500 * UNITS,
 			));
@@ -1017,10 +1016,10 @@ mod circuit_breaker {
 			let want = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new([
+					[
 						cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				),
 				60 * UNITS,
 			));
@@ -1125,10 +1124,10 @@ mod circuit_breaker {
 			let give = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new([
+					[
 						cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				),
 				50000000000 * UNITS,
 			));
@@ -1136,10 +1135,10 @@ mod circuit_breaker {
 			let want = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new([
+					[
 						cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				),
 				500000 * UNITS,
 			));
@@ -1212,10 +1211,10 @@ mod circuit_breaker {
 			let give = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new([
+					[
 						cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				),
 				50 * UNITS,
 			));
@@ -1223,10 +1222,10 @@ mod circuit_breaker {
 			let want = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new([
+					[
 						cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
 						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
+					],
 				),
 				300 * UNITS,
 			));
@@ -1285,10 +1284,10 @@ mod circuit_breaker {
 				let asset = &assets_vec[0].clone();
 				let aca = Location::new(
 					1,
-					polkadot_xcm::v5::Junctions::X2(Arc::new([
+					[
 						polkadot_xcm::v5::Junction::Parachain(ACALA_PARA_ID),
 						polkadot_xcm::v5::Junction::GeneralIndex(0),
-					])),
+					],
 				);
 
 				let AssetId(asset_id) = &asset.id;
@@ -1339,10 +1338,10 @@ fn register_glmr() {
 		None,
 		Some(hydradx_runtime::AssetLocation(Location::new(
 			1,
-			X2(Arc::new([
+			[
 				Junction::Parachain(MOONBEAM_PARA_ID),
 				Junction::GeneralIndex(0)
-			]))
+			]
 		))),
 		None,
 	));
@@ -1358,10 +1357,10 @@ fn register_aca() {
 		None,
 		Some(hydradx_runtime::AssetLocation(Location::new(
 			1,
-			X2(Arc::new([
+			[
 				Junction::Parachain(ACALA_PARA_ID),
 				Junction::GeneralIndex(0)
-			]))
+			]
 		))),
 		None,
 	));
@@ -1377,10 +1376,10 @@ fn register_ibtc() {
 		None,
 		Some(hydradx_runtime::AssetLocation(Location::new(
 			1,
-			X2(Arc::new([
+			[
 				Junction::Parachain(INTERLAY_PARA_ID),
 				Junction::GeneralIndex(0)
-			]))
+			]
 		))),
 		None,
 	));
@@ -1396,10 +1395,10 @@ fn register_ztg() {
 		None,
 		Some(hydradx_runtime::AssetLocation(Location::new(
 			1,
-			X2(Arc::new([
+			[
 				Junction::Parachain(ZEITGEIST_PARA_ID),
 				Junction::GeneralIndex(0)
-			]))
+			]
 		))),
 		None,
 	));
@@ -1415,10 +1414,10 @@ fn register_hdx_in_sibling_chain() {
 		None,
 		Some(hydradx_runtime::AssetLocation(Location::new(
 			1,
-			X2(Arc::new([
+			[
 				Junction::Parachain(HYDRA_PARA_ID),
 				Junction::GeneralIndex(0)
-			]))
+			]
 		))),
 		None,
 	));
@@ -1466,28 +1465,28 @@ fn craft_exchange_asset_xcm_with_amount<RC: Decode + GetDispatchInfo>(
 ) -> VersionedXcm<RC> {
 	let dest = Location::new(
 		1,
-		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)])),
+		[cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)],
 	);
 	let beneficiary = Location::new(
 		0,
-		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+		[cumulus_primitives_core::Junction::AccountId32 {
 			id: BOB,
 			network: None,
-		}])),
+		}],
 	);
 	let assets: Assets = Asset {
 		id: cumulus_primitives_core::AssetId(Location::new(
 			0,
-			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GeneralIndex(0)])),
+			[cumulus_primitives_core::Junction::GeneralIndex(0)],
 		)),
 		fun: Fungible(native_from_source),
 	}
 	.into();
 	let max_assets = assets.len() as u32 + 1;
-	let context = cumulus_primitives_core::Junctions::X2(Arc::new([
+	let context: cumulus_primitives_core::Junctions = [
 		cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
 		cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-	]));
+	].into();
 	let fees = assets
 		.get(0)
 		.expect("should have at least 1 asset")

@@ -50,7 +50,6 @@ use polkadot_xcm::v5::prelude::*;
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId, EvmAddress};
 use sp_arithmetic::FixedU128;
 use sp_core::{crypto::AccountId32, Get, U256};
-use sp_std::sync::Arc;
 
 pub mod aave_trade_executor;
 mod accounts_conversion;
@@ -94,14 +93,14 @@ const MOONBEAM_PARA_ID: u32 = 2004;
 pub fn weth_asset_location() -> AssetLocation {
 	AssetLocation(Location {
 		parents: 1,
-		interior: Junctions::X3(Arc::new([
+		interior: [
 			Junction::Parachain(MOONBEAM_PARA_ID),
 			Junction::PalletInstance(110),
 			Junction::AccountKey20 {
 				network: None,
-				key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
+				key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"].into(),
 			},
-		])),
+		].into(),
 	})
 }
 

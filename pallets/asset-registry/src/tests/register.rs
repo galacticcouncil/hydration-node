@@ -7,11 +7,9 @@ use mock::RegistryStringLimit;
 use mock::{AssetId, Registry};
 use polkadot_xcm::v5::{
 	Junction::{self, Parachain},
-	Junctions::X2,
 	Location,
 };
 use pretty_assertions::assert_eq;
-use sp_std::sync::Arc;
 
 #[test]
 fn register_should_work_when_all_params_are_provided() {
@@ -25,7 +23,7 @@ fn register_should_work_when_all_params_are_provided() {
 		let is_sufficient = true;
 
 		let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-		let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+		let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 		//Act
 		assert_ok!(Registry::register(
@@ -146,7 +144,7 @@ fn register_should_not_work_when_asset_id_is_not_from_reserved_range() {
 		let is_sufficient = true;
 
 		let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-		let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+		let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 		//Act
 		assert_noop!(
@@ -210,7 +208,7 @@ fn register_should_not_work_when_asset_id_is_already_used() {
 			let is_sufficient = true;
 
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 			//Act
 			assert_noop!(
@@ -274,7 +272,7 @@ fn register_should_not_work_when_asset_name_is_already_used() {
 			let is_sufficient = true;
 
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 			//Act
 			assert_noop!(
@@ -333,7 +331,7 @@ fn register_should_not_work_when_asset_location_is_already_used() {
 			let asset_id = 4;
 
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 			Pallet::<Test>::set_location(3, asset_location.clone()).unwrap();
 
 			let name: BoundedVec<u8, RegistryStringLimit> = b"Tkn4".to_vec().try_into().unwrap();
@@ -407,7 +405,7 @@ fn register_should_not_work_when_origin_is_none() {
 			let is_sufficient = true;
 
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 			//Act
 			assert_noop!(
@@ -473,7 +471,7 @@ fn register_should_not_work_when_origin_is_not_allowed() {
 			let is_sufficient = true;
 
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 			//Act
 			assert_noop!(
@@ -500,7 +498,7 @@ fn register_external_asset_should_work_when_location_is_provided() {
 		let expected_id = Pallet::<Test>::next_asset_id().unwrap();
 
 		let key = Junction::from(BoundedVec::try_from(528.encode()).unwrap());
-		let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+		let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 		let alice_balance = 10_000 * UNIT;
 		Tokens::mint_into(NativeAssetId::get(), &ALICE, alice_balance).unwrap();
@@ -566,7 +564,7 @@ fn register_external_asset_should_not_work_when_location_is_already_used() {
 		let is_sufficient = true;
 
 		let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-		let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+		let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 		assert_ok!(Registry::register(
 			RuntimeOrigin::root(),
@@ -604,7 +602,7 @@ fn register_should_not_work_when_symbol_is_not_valid() {
 		let is_sufficient = true;
 
 		let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-		let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+		let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 		let symbol: BoundedVec<u8, RegistryStringLimit> = b"TKN ".to_vec().try_into().unwrap();
 		//Act
@@ -723,7 +721,7 @@ fn register_should_not_work_when_name_is_too_short() {
 			let is_sufficient = true;
 
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 			//Act
 			assert_noop!(
@@ -787,7 +785,7 @@ fn register_should_not_work_when_symbol_is_too_short() {
 			let is_sufficient = true;
 
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-			let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 			//Act
 			assert_noop!(
@@ -812,7 +810,7 @@ fn register_should_not_work_when_symbol_is_too_short() {
 fn register_externa_should_not_work_when_origin_is_none() {
 	ExtBuilder::default().build().execute_with(|| {
 		let key = Junction::from(BoundedVec::try_from(528.encode()).unwrap());
-		let asset_location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+		let asset_location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 		let alice_balance = 10_000 * UNIT;
 		Tokens::mint_into(NativeAssetId::get(), &ALICE, alice_balance).unwrap();

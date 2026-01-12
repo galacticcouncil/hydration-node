@@ -5,10 +5,8 @@ use mock::Registry;
 
 use polkadot_xcm::v5::{
 	Junction::{self, Parachain},
-	Junctions::X2,
 	Location,
 };
-use sp_std::sync::Arc;
 
 #[test]
 fn set_location_should_work_when_location_was_not_set_yet() {
@@ -26,7 +24,7 @@ fn set_location_should_work_when_location_was_not_set_yet() {
 		.build()
 		.execute_with(|| {
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-			let location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let location = AssetLocation(Location::new(0, [Parachain(200), key]));
 			assert_eq!(Registry::locations(asset_id), None);
 
 			//Act
@@ -55,7 +53,7 @@ fn set_location_should_not_work_when_location_was_not() {
 		.execute_with(|| {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
-			let location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+			let location = AssetLocation(Location::new(0, [Parachain(200), key]));
 			Pallet::<Test>::set_location(asset_id, location.clone()).unwrap();
 
 			//Act
@@ -72,7 +70,7 @@ fn set_location_should_not_work_when_asset_does_not_exists() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let key = Junction::from(BoundedVec::try_from(non_existing_id.encode()).unwrap());
-		let location = AssetLocation(Location::new(0, X2(Arc::new([Parachain(200), key]))));
+		let location = AssetLocation(Location::new(0, [Parachain(200), key]));
 
 		//Act
 		assert_noop!(

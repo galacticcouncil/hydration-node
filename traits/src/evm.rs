@@ -2,7 +2,7 @@ use codec::{Decode, Encode};
 use frame_support::sp_runtime::app_crypto::sp_core::U256;
 use frame_support::sp_runtime::{DispatchError, DispatchResult, RuntimeDebug};
 use pallet_evm::ExitReason;
-use primitives::EvmAddress;
+pub use primitives::EvmAddress;
 use sp_std::vec::Vec;
 
 pub trait InspectEvmAccounts<AccountId> {

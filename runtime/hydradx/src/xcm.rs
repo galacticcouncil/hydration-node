@@ -82,9 +82,8 @@ parameter_types! {
 	pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
 }
 
-use sp_std::sync::Arc;
 parameter_types! {
-	pub SelfLocation: Location = Location::new(1, X1(Arc::new([Parachain(ParachainInfo::get().into());1])));
+	pub SelfLocation: Location = Location::new(1, [Parachain(ParachainInfo::get().into())]);
 }
 
 parameter_types! {

@@ -601,17 +601,17 @@ const POOL_ID: AssetId = 9876;
 fn buy_hollar_with_yield_bearing_token_should_work() {
 	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(2000),
 			polkadot_xcm::v5::Junction::GeneralIndex(0),
-		])),
+		],
 	);
 	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
+		[polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
-		}])),
+		}],
 	);
 
 	let hollar_boxed = Box::new(hollar_location.clone().into_versioned());
@@ -710,17 +710,17 @@ fn buy_hollar_with_yield_bearing_token_should_work() {
 fn sell_yield_bearing_token_to_get_hollar_should_work() {
 	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(2000),
 			polkadot_xcm::v5::Junction::GeneralIndex(0),
-		])),
+		],
 	);
 	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
+		[polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
-		}])),
+		}],
 	);
 
 	let hollar_boxed = Box::new(hollar_location.clone().into_versioned());
@@ -834,17 +834,17 @@ fn sell_yield_bearing_token_to_get_hollar_should_work() {
 fn sell_collateral_to_get_hollar_via_router_should_work() {
 	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(2000),
 			polkadot_xcm::v5::Junction::GeneralIndex(0),
-		])),
+		],
 	);
 	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
+		[polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
-		}])),
+		}],
 	);
 
 	let hollar_boxed = Box::new(hollar_location.clone().into_versioned());
@@ -964,17 +964,17 @@ fn sell_collateral_to_get_hollar_via_router_should_work() {
 fn sell_collateral_to_get_hollar_via_router_should_work_when_collateral_is_acquired_from_omnipool() {
 	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(2000),
 			polkadot_xcm::v5::Junction::GeneralIndex(0),
-		])),
+		],
 	);
 	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
+		[polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
-		}])),
+		}],
 	);
 
 	let hollar_boxed = Box::new(hollar_location.clone().into_versioned());
@@ -1305,17 +1305,17 @@ fn selling_hollar_should_fail_when_facilitator_capacity_is_insfuccicient() {
 fn sell_hollar_to_get_yield_bearing_token_should_work() {
 	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(2000),
 			polkadot_xcm::v5::Junction::GeneralIndex(0),
-		])),
+		],
 	);
 	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
+		[polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
-		}])),
+		}],
 	);
 
 	let hollar_boxed = Box::new(hollar_location.clone().into_versioned());
@@ -1421,17 +1421,17 @@ fn sell_hollar_to_get_yield_bearing_token_should_work() {
 fn buy_yield_bearing_token_with_hollar_should_work() {
 	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(2000),
 			polkadot_xcm::v5::Junction::GeneralIndex(0),
-		])),
+		],
 	);
 	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
+		[polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
-		}])),
+		}],
 	);
 
 	let hollar_boxed = Box::new(hollar_location.clone().into_versioned());
@@ -1537,17 +1537,17 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 fn buy_collateral_with_hollar_via_router_should_work() {
 	let collateral_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v5::Junctions::X2(Arc::new([
+		[
 			polkadot_xcm::v5::Junction::Parachain(2000),
 			polkadot_xcm::v5::Junction::GeneralIndex(0),
-		])),
+		],
 	);
 	let hollar_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		0,
-		polkadot_xcm::v5::Junctions::X1(Arc::new([polkadot_xcm::v5::Junction::AccountKey20 {
+		[polkadot_xcm::v5::Junction::AccountKey20 {
 			network: None,
 			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
-		}])),
+		}],
 	);
 
 	let hollar_boxed = Box::new(hollar_location.clone().into_versioned());

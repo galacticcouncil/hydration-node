@@ -6,11 +6,9 @@ use frame_system::RawOrigin;
 use hydradx_runtime::AssetRegistry as Registry;
 use polkadot_xcm::v5::{
 	Junction::{GeneralIndex, Parachain},
-	Junctions::X2,
 	Location,
 };
 use pretty_assertions::{assert_eq, assert_ne};
-use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -46,7 +44,7 @@ fn root_should_update_location_when_asset_exists() {
 
 		let loc_1 = hydradx_runtime::AssetLocation(Location {
 			parents: 1,
-			interior: X2(Arc::new([Parachain(MOONBEAM_PARA_ID), GeneralIndex(0)])),
+			interior: [Parachain(MOONBEAM_PARA_ID), GeneralIndex(0)].into(),
 		});
 
 		//Set location 1-th time.
@@ -68,7 +66,7 @@ fn root_should_update_location_when_asset_exists() {
 		// Update location if it was previously set.
 		let loc_2 = hydradx_runtime::AssetLocation(Location {
 			parents: 1,
-			interior: X2(Arc::new([Parachain(INTERLAY_PARA_ID), GeneralIndex(0)])),
+			interior: [Parachain(INTERLAY_PARA_ID), GeneralIndex(0)].into(),
 		});
 
 		assert_ok!(Registry::update(
