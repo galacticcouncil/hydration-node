@@ -291,6 +291,10 @@ where
 			matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("Failed to get scaled total supply".into())
 		);
+		ensure!(
+			call_result.value.len() == 32,
+			ExecutorError::Error("Invalid response length for scaled total supply".into())
+		);
 		Ok(U256::from_big_endian(call_result.value.as_slice()))
 	}
 
