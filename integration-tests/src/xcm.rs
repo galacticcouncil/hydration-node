@@ -20,11 +20,10 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 	// Arrange
 	TestNet::reset();
 
-	let xcm_interior_at_acala =
-		[cumulus_primitives_core::Junction::AccountId32 {
-			network: None,
-			id: evm_account().into(),
-		}];
+	let xcm_interior_at_acala = [cumulus_primitives_core::Junction::AccountId32 {
+		network: None,
+		id: evm_account().into(),
+	}];
 
 	let xcm_origin_at_hydra = Location {
 		parents: 1,
@@ -34,7 +33,8 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 				network: None,
 				id: evm_account().into(),
 			},
-		].into(),
+		]
+		.into(),
 	};
 
 	let acala_account_id_at_hydra: AccountId =
@@ -106,12 +106,7 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 			},
 		]);
 
-		let dest_hydradx = Location::new(
-			1,
-			[cumulus_primitives_core::Junction::Parachain(
-				HYDRA_PARA_ID,
-			)],
-		);
+		let dest_hydradx = Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]);
 
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
 			xcm_interior_at_acala,
@@ -147,11 +142,10 @@ fn xcm_call_should_populate_unified_event_call_context() {
 	// Arrange
 	TestNet::reset();
 
-	let xcm_interior_at_acala =
-		[cumulus_primitives_core::Junction::AccountId32 {
-			network: None,
-			id: evm_account().into(),
-		}];
+	let xcm_interior_at_acala = [cumulus_primitives_core::Junction::AccountId32 {
+		network: None,
+		id: evm_account().into(),
+	}];
 
 	let xcm_origin_at_hydra = Location {
 		parents: 1,
@@ -161,7 +155,8 @@ fn xcm_call_should_populate_unified_event_call_context() {
 				network: None,
 				id: evm_account().into(),
 			},
-		].into(),
+		]
+		.into(),
 	};
 
 	let acala_account_id_at_hydra: AccountId =
@@ -233,12 +228,7 @@ fn xcm_call_should_populate_unified_event_call_context() {
 			},
 		]);
 
-		let dest_hydradx = Location::new(
-			1,
-			[cumulus_primitives_core::Junction::Parachain(
-				HYDRA_PARA_ID,
-			)],
-		);
+		let dest_hydradx = Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]);
 
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
 			xcm_interior_at_acala,
@@ -270,11 +260,10 @@ fn unified_event_context_should_be_cleared_when_error_happens_in_xcm_prepare() {
 	// Arrange
 	TestNet::reset();
 
-	let xcm_interior_at_acala =
-		[cumulus_primitives_core::Junction::AccountId32 {
-			network: None,
-			id: evm_account().into(),
-		}];
+	let xcm_interior_at_acala = [cumulus_primitives_core::Junction::AccountId32 {
+		network: None,
+		id: evm_account().into(),
+	}];
 
 	let xcm_origin_at_hydra = Location {
 		parents: 1,
@@ -284,7 +273,8 @@ fn unified_event_context_should_be_cleared_when_error_happens_in_xcm_prepare() {
 				network: None,
 				id: evm_account().into(),
 			},
-		].into(),
+		]
+		.into(),
 	};
 
 	let acala_account_id_at_hydra: AccountId =
@@ -314,12 +304,7 @@ fn unified_event_context_should_be_cleared_when_error_happens_in_xcm_prepare() {
 		let message: cumulus_primitives_core::Xcm<()> =
 			cumulus_primitives_core::Xcm([ARRAY_REPEAT_VALUE; 10000].to_vec());
 
-		let dest_hydradx = Location::new(
-			1,
-			[cumulus_primitives_core::Junction::Parachain(
-				HYDRA_PARA_ID,
-			)],
-		);
+		let dest_hydradx = Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]);
 
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
 			xcm_interior_at_acala,
@@ -340,11 +325,10 @@ fn initiate_teleport_should_fail_as_disabled() {
 	// Arrange
 	TestNet::reset();
 
-	let xcm_interior_at_acala =
-		[cumulus_primitives_core::Junction::AccountId32 {
-			network: None,
-			id: evm_account().into(),
-		}];
+	let xcm_interior_at_acala = [cumulus_primitives_core::Junction::AccountId32 {
+		network: None,
+		id: evm_account().into(),
+	}];
 
 	let xcm_origin_at_hydra = Location {
 		parents: 1,
@@ -354,7 +338,8 @@ fn initiate_teleport_should_fail_as_disabled() {
 				network: None,
 				id: evm_account().into(),
 			},
-		].into(),
+		]
+		.into(),
 	};
 
 	let acala_account_id_at_hydra: AccountId =
@@ -407,12 +392,7 @@ fn initiate_teleport_should_fail_as_disabled() {
 			},
 		]);
 
-		let dest_hydradx = Location::new(
-			1,
-			[cumulus_primitives_core::Junction::Parachain(
-				HYDRA_PARA_ID,
-			)],
-		);
+		let dest_hydradx = Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]);
 
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
 			xcm_interior_at_acala,

@@ -100,7 +100,8 @@ pub fn weth_asset_location() -> AssetLocation {
 				network: None,
 				key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"].into(),
 			},
-		].into(),
+		]
+		.into(),
 	})
 }
 

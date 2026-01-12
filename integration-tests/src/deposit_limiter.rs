@@ -519,10 +519,7 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 			ACA,
 			hydradx_runtime::AssetLocation(Location {
 				parents: 1,
-				interior: [
-					Junction::Parachain(ACALA_PARA_ID),
-					Junction::GeneralIndex(0)
-				].into()
+				interior: [Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0)].into()
 			})
 		));
 
@@ -560,7 +557,8 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 					interior: [
 						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountId32 { id: BOB, network: None }
-					].into()
+					]
+					.into()
 				}
 				.into_versioned()
 			),

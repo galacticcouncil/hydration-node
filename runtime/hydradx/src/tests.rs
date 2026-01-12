@@ -266,10 +266,7 @@ mod xcm_fee_payment_api_tests {
 			assert_eq!(
 				Runtime::query_weight_to_asset_fee(
 					Weight::from_parts(1_000_000_000, 1_000_000_000),
-					V5(AssetId(Location::new(
-						1,
-						[Parachain(100), GeneralIndex(0)]
-					)))
+					V5(AssetId(Location::new(1, [Parachain(100), GeneralIndex(0)])))
 				),
 				Ok(expected_fee)
 			);
@@ -277,10 +274,7 @@ mod xcm_fee_payment_api_tests {
 			assert_eq!(
 				Runtime::query_weight_to_asset_fee(
 					Weight::from_parts(1_000_000_000, 1_000_000_000),
-					V5(AssetId(Location::new(
-						1,
-						[Parachain(123), GeneralIndex(123)]
-					)))
+					V5(AssetId(Location::new(1, [Parachain(123), GeneralIndex(123)])))
 				),
 				Ok(2 * expected_fee)
 			);
@@ -288,10 +282,7 @@ mod xcm_fee_payment_api_tests {
 			assert_err!(
 				Runtime::query_weight_to_asset_fee(
 					Weight::from_parts(1_000_000_000, 1_000_000_000),
-					V5(AssetId(Location::new(
-						1,
-						[Parachain(666), GeneralIndex(0)]
-					)))
+					V5(AssetId(Location::new(1, [Parachain(666), GeneralIndex(0)])))
 				),
 				XcmPaymentApiError::AssetNotFound
 			);
@@ -299,10 +290,7 @@ mod xcm_fee_payment_api_tests {
 			assert_err!(
 				Runtime::query_weight_to_asset_fee(
 					Weight::from_parts(1_000_000_000, 1_000_000_000),
-					V5(AssetId(Location::new(
-						1,
-						[Parachain(123), GeneralIndex(456)]
-					)))
+					V5(AssetId(Location::new(1, [Parachain(123), GeneralIndex(456)])))
 				),
 				XcmPaymentApiError::WeightNotComputable
 			);

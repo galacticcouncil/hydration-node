@@ -21,7 +21,6 @@ use orml_traits::MultiCurrency;
 use pallet_duster::DusterWhitelist;
 use polkadot_xcm::v5::{
 	Junction::{GeneralIndex, Parachain},
-	
 	Location,
 };
 use sp_runtime::DispatchResult;

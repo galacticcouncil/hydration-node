@@ -39,8 +39,8 @@ mod benchmarking;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
-use hydradx_traits::evm::MaybeEvmCall;
 use hydradx_traits::evm::ExtraGasSupport;
+use hydradx_traits::evm::MaybeEvmCall;
 use pallet_evm::{ExitReason, GasWeightMapping};
 use sp_runtime::{traits::Dispatchable, DispatchError, DispatchResultWithInfo};
 pub use weights::WeightInfo;

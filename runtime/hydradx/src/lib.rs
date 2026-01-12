@@ -46,7 +46,7 @@ use alloc::borrow::Cow;
 
 #[allow(ambiguous_glob_reexports)]
 pub use assets::*;
-pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions,  NetworkId, NonFungible, Response};
+pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions, NetworkId, NonFungible, Response};
 pub use frame_support::{assert_ok, parameter_types, storage::with_transaction, traits::TrackedStorageKey};
 pub use frame_system::RawOrigin;
 pub use governance::origins::pallet_custom_origins;

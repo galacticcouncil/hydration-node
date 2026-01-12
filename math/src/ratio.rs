@@ -10,7 +10,20 @@ use sp_arithmetic::{helpers_128bit, Permill};
 use sp_std::ops::{Add, Mul, Sub};
 
 /// A rational number represented by a `n`umerator and `d`enominator.
-#[derive(Clone, Copy, Default, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, Serialize, Deserialize, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Clone,
+	Copy,
+	Default,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Serialize,
+	Deserialize,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 pub struct Ratio {
 	pub n: u128,
 	pub d: u128,

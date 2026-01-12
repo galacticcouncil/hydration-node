@@ -18,10 +18,7 @@ use frame_support::weights::Weight;
 use hydradx_runtime::{AssetRegistry, LocationToAccountId};
 use hydradx_traits::{registry::Mutate, AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
-use polkadot_xcm::v5::{
-	Junction, Junctions::X1,
-	Location, NetworkId,
-};
+use polkadot_xcm::v5::{Junction, Junctions::X1, Location, NetworkId};
 use pretty_assertions::assert_eq;
 use primitives::AccountId;
 use sp_core::{Decode, H256};
@@ -115,10 +112,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 			ACA,
 			hydradx_runtime::AssetLocation(Location {
 				parents: 1,
-				interior: [
-					Junction::Parachain(ACALA_PARA_ID),
-					Junction::GeneralIndex(0)
-				].into()
+				interior: [Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0)].into()
 			})
 		));
 	});
@@ -135,7 +129,8 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 					interior: [
 						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountId32 { id: BOB, network: None }
-					].into()
+					]
+					.into()
 				}
 				.into_versioned()
 			),
@@ -169,10 +164,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 			ACA,
 			hydradx_runtime::AssetLocation(Location {
 				parents: 1,
-				interior: [
-					Junction::Parachain(ACALA_PARA_ID),
-					Junction::GeneralIndex(0)
-				].into()
+				interior: [Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0)].into()
 			})
 		));
 	});
@@ -193,7 +185,8 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 							network: None,
 							key: evm_address().into(),
 						}
-					].into()
+					]
+					.into()
 				}
 				.into_versioned()
 			),
@@ -226,10 +219,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_same_address_repres
 			ACA,
 			hydradx_runtime::AssetLocation(Location {
 				parents: 1,
-				interior: [
-					Junction::Parachain(ACALA_PARA_ID),
-					Junction::GeneralIndex(0)
-				].into()
+				interior: [Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0)].into()
 			})
 		));
 	});
@@ -250,7 +240,8 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_same_address_repres
 							network: None,
 							key: evm_address().into(),
 						}
-					].into()
+					]
+					.into()
 				}
 				.into_versioned()
 			),
@@ -271,7 +262,8 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_same_address_repres
 							id: evm_account().into(),
 							network: None
 						}
-					].into()
+					]
+					.into()
 				}
 				.into_versioned()
 			),
@@ -304,10 +296,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 			1,
 			hydradx_runtime::AssetLocation(Location {
 				parents: 1,
-				interior: [
-					Junction::Parachain(ACALA_PARA_ID),
-					Junction::GeneralIndex(0)
-				].into()
+				interior: [Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0)].into()
 			})
 		));
 	});
@@ -324,7 +313,8 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 						interior: [
 							Junction::Parachain(HYDRA_PARA_ID),
 							Junction::AccountId32 { id: BOB, network: None }
-						].into()
+						]
+						.into()
 					}
 					.into_versioned()
 				),
@@ -360,10 +350,7 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 			DAI, // we pretend that the incoming tokens are DAI
 			hydradx_runtime::AssetLocation(Location {
 				parents: 1,
-				interior: [
-					Junction::Parachain(ACALA_PARA_ID),
-					Junction::GeneralIndex(0)
-				].into()
+				interior: [Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0)].into()
 			})
 		));
 
@@ -388,7 +375,8 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 							id: hydradx_runtime::Omnipool::protocol_account().into(),
 							network: None,
 						}
-					].into()
+					]
+					.into()
 				}
 				.into_versioned()
 			),
@@ -429,7 +417,8 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 					interior: [
 						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountId32 { id: BOB, network: None }
-					].into()
+					]
+					.into()
 				}
 				.into_versioned()
 			),
@@ -491,20 +480,14 @@ fn claim_trapped_asset_should_work() {
 			1,
 			hydradx_runtime::AssetLocation(Location {
 				parents: 1,
-				interior: [
-					Junction::Parachain(ACALA_PARA_ID),
-					Junction::GeneralIndex(0)
-				].into()
+				interior: [Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0)].into()
 			})
 		));
 	});
 
 	let bob_loc = Location::new(
 		0,
-		[cumulus_primitives_core::Junction::AccountId32 {
-			id: BOB,
-			network: None,
-		}],
+		[cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }],
 	);
 
 	claim_asset(asset.clone(), bob_loc);
@@ -567,10 +550,7 @@ fn transfer_foreign_asset_from_asset_hub_to_hydra_should_work() {
 
 		let bob_beneficiary = Location::new(
 			0,
-			[cumulus_primitives_core::Junction::AccountId32 {
-				id: BOB,
-				network: None,
-			}],
+			[cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }],
 		);
 
 		let xcm =
@@ -646,10 +626,7 @@ fn transfer_foreign_asset_from_acala_to_hydra_should_not_work() {
 
 		let bob_beneficiary = Location::new(
 			0,
-			[cumulus_primitives_core::Junction::AccountId32 {
-				id: BOB,
-				network: None,
-			}],
+			[cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }],
 		);
 
 		let xcm =
@@ -719,10 +696,7 @@ fn transfer_dot_from_asset_hub_to_hydra_should_work() {
 
 		let bob_beneficiary = Location::new(
 			0,
-			[cumulus_primitives_core::Junction::AccountId32 {
-				id: BOB,
-				network: None,
-			}],
+			[cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }],
 		);
 
 		let xcm =
@@ -761,10 +735,7 @@ fn transfer_dot_from_asset_hub_to_hydra_should_work() {
 #[test]
 fn transfer_dot_from_hydra_to_asset_hub_should_work() {
 	let init_hydra_para_dot_balance_on_ah = 4000 * UNITS;
-	let hydra_at_ah = Location::new(
-		1,
-		[cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)],
-	);
+	let hydra_at_ah = Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]);
 
 	let hydra_parachain_account_at_ah = LocationToAccountId::convert_location(&hydra_at_ah).unwrap();
 
@@ -805,10 +776,7 @@ fn transfer_dot_from_hydra_to_asset_hub_should_work() {
 
 		let bob_beneficiary = Location::new(
 			0,
-			[cumulus_primitives_core::Junction::AccountId32 {
-				id: BOB,
-				network: None,
-			}],
+			[cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }],
 		);
 
 		let deposit_xcm = Xcm(vec![DepositAsset {
@@ -912,10 +880,7 @@ fn transfer_dot_reserve_from_non_asset_hub_chain_to_hydra_should_not_work() {
 
 		let bob_beneficiary = Location::new(
 			0,
-			[cumulus_primitives_core::Junction::AccountId32 {
-				id: BOB,
-				network: None,
-			}],
+			[cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }],
 		);
 
 		let xcm = xcm_for_deposit_reserve_asset_to_hydra::<hydradx_runtime::RuntimeCall>(dot, bob_beneficiary);
@@ -952,15 +917,13 @@ fn xcm_for_deposit_reserve_asset_to_hydra<RC: Decode + GetDispatchInfo>(
 
 	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
 
-	let dest = Location::new(
-		1,
-		[cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)],
-	);
+	let dest = Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]);
 
 	let context = [
 		cumulus_primitives_core::Junction::GlobalConsensus(cumulus_primitives_core::NetworkId::Polkadot),
 		cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-	].into();
+	]
+	.into();
 
 	let fee_asset = assets.clone().reanchored(&dest, &context).expect("should reanchor");
 	let weight_limit = {
@@ -1077,7 +1040,8 @@ fn trap_asset() -> Asset {
 					interior: [
 						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountId32 { id: BOB, network: None }
-					].into()
+					]
+					.into()
 				}
 				.into_versioned()
 			),
@@ -1187,17 +1151,15 @@ fn xcm_transfer_reserve_asset_and_deposit_asset_to_hydra<RC: Decode + GetDispatc
 
 	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
 
-	let dest = Location::new(
-		1,
-		[cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)],
-	);
+	let dest = Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]);
 
 	let max_assets = 1 + 1;
 
 	let context = [
 		cumulus_primitives_core::Junction::GlobalConsensus(cumulus_primitives_core::NetworkId::Polkadot),
 		cumulus_primitives_core::Junction::Parachain(ASSET_HUB_PARA_ID),
-	].into();
+	]
+	.into();
 
 	let fee_asset = assets.clone().reanchored(&dest, &context).expect("should reanchor");
 	let fees = fee_asset.clone();
