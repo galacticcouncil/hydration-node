@@ -6329,7 +6329,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.5.0"
+version = "4.6.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -9852,7 +9852,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.10.1"
+version = "1.11.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -9961,7 +9961,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispatcher"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10148,7 +10148,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.9.0"
+version = "1.10.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -15283,7 +15283,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.62.0"
+version = "1.63.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
