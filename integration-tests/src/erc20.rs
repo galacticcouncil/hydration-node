@@ -32,7 +32,6 @@ use sp_core::bounded_vec::BoundedVec;
 
 use pallet_evm_accounts::EvmNonceProvider;
 use polkadot_xcm::v5::Junction::AccountKey20;
-use polkadot_xcm::v5::Junctions::X1;
 use polkadot_xcm::v5::Location;
 use primitives::AccountId;
 use sp_core::Encode;

@@ -32,7 +32,6 @@ use sp_runtime::traits::One;
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, DispatchError};
-use std::sync::Arc;
 use xcm_emulator::{Network, TestExt};
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/SNAPSHOT";

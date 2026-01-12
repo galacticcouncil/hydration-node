@@ -260,7 +260,6 @@ pub mod zeitgeist_use_cases {
 	use frame_support::traits::tokens::Precision;
 	use polkadot_xcm::latest::{NetworkId, Parent};
 	use polkadot_xcm::prelude::{Parachain, Unlimited};
-	use std::sync::Arc;
 
 	use primitives::constants::chain::CORE_ASSET_ID;
 
@@ -957,7 +956,6 @@ mod circuit_breaker {
 	use polkadot_xcm::VersionedAssets;
 	use primitives::constants::chain::{Weight, CORE_ASSET_ID};
 	use sp_runtime::{DispatchResult, TransactionOutcome};
-	use std::sync::Arc;
 
 	#[test]
 	fn swap_should_fail_when_asset_reaches_limit_for_sell() {

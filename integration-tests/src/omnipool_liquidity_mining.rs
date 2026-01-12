@@ -47,7 +47,6 @@ use sp_runtime::{
 	DispatchError, FixedPointNumber, FixedU128, Permill, Perquintill,
 };
 use sp_runtime::{DispatchResult, Perbill};
-use std::sync::Arc;
 use warehouse_liquidity_mining::{
 	DefaultPriceAdjustment, DepositData, GlobalFarmData, GlobalFarmId, Instance1, LoyaltyCurve, YieldFarmData,
 	YieldFarmEntry,

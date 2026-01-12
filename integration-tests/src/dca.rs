@@ -3,13 +3,10 @@
 use crate::count_dca_event;
 use crate::polkadot_test_net::*;
 use crate::{assert_balance, assert_reserved_balance};
-use ethabi::ethereum_types::H256;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_system::RawOrigin;
-use hydradx_runtime::evm::aave_trade_executor::Function;
-use hydradx_runtime::evm::Executor;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{AssetPairAccountIdFor, NamedReserveId};
@@ -17,7 +14,6 @@ use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin,
 	Stableswap, Tokens, Treasury, DCA,
 };
-use hydradx_traits::evm::CallContext;
 use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
@@ -4699,30 +4695,13 @@ fn add_dot_as_payment_currency_with_details(amount: Balance, price: FixedU128) {
 mod extra_gas_erc20 {
 	use super::*;
 
-	use hydradx_runtime::{FixedU128, MultiTransactionPayment, Omnipool, Router};
+	use hydradx_runtime::{FixedU128, MultiTransactionPayment, Router};
 
-	use crate::polkadot_test_net::*;
-	use ethabi::ethereum_types::H160;
-	use frame_support::{assert_ok, traits::Hooks};
-	use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
-	use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-	use hydradx_runtime::evm::Erc20Currency;
+	use frame_support::assert_ok;
 	use hydradx_runtime::EmaOracle;
-	use hydradx_runtime::Liquidation;
-	use hydradx_runtime::{
-		Block, Currencies, Dispatcher, EVMAccounts, OriginCaller, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-		DCA,
-	};
-	use hydradx_traits::evm::Erc20Mapping;
-	use hydradx_traits::evm::ERC20;
-	use hydradx_traits::evm::{CallContext, Erc20Encoding, EvmAddress, ExtraGasSupport};
-	use hydradx_traits::router::PoolType::Aave;
-	use hydradx_traits::router::{PoolType, Trade};
-	use liquidation_worker_support::MoneyMarketData;
-	use pallet_liquidation::BorrowingContract;
+	use hydradx_runtime::{Currencies, Dispatcher, EVMAccounts, Runtime, RuntimeEvent, RuntimeOrigin, DCA};
 	use primitives::constants::chain::OMNIPOOL_SOURCE;
 	use primitives::Balance;
-	use sp_core::U256;
 	use sp_runtime::Permill;
 
 	#[test]
@@ -4768,9 +4747,9 @@ mod extra_gas_erc20 {
 
 			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			hydradx_run_to_block(13);
-			let period = 5;
-			let retry_delay = 20;
-			let block_number = hydradx_runtime::System::block_number();
+			let _period = 5;
+			let _retry_delay = 20;
+			let _block_number = hydradx_runtime::System::block_number();
 
 			// Assert that extra gas was increased in one retry
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
@@ -4936,9 +4915,9 @@ mod extra_gas_erc20 {
 
 			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			hydradx_run_to_block(13);
-			let period = 5;
-			let retry_delay = 20;
-			let block_number = hydradx_runtime::System::block_number();
+			let _period = 5;
+			let _retry_delay = 20;
+			let _block_number = hydradx_runtime::System::block_number();
 
 			// Assert that extra gas was increased in one retry
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
@@ -5015,14 +4994,14 @@ mod extra_gas_erc20 {
 
 			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			hydradx_run_to_block(13);
-			let period = 5;
-			let retry_delay = 20;
-			let block_number = hydradx_runtime::System::block_number();
+			let _period = 5;
+			let _retry_delay = 20;
+			let _block_number = hydradx_runtime::System::block_number();
 
 			// Assert that extra gas was increased in one retry
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
 			assert_eq!(DCA::schedule_extra_gas(schedule_id), 333_333);
-			trade_failed_with_evm_out_of_gas_error(schedule_id); 
+			trade_failed_with_evm_out_of_gas_error(schedule_id);
 			assert_eq!(1, count_failed_trade_events());
 			assert_eq!(0, count_trade_executed_events());
 			let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
