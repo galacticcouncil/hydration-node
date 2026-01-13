@@ -221,9 +221,11 @@ where
 	type Val = ();
 	type Pre = ();
 
-	fn weight(&self, _call: &<T as frame_system::Config>::RuntimeCall) -> Weight {
-		// TODO: check
-		Weight::zero()
+	fn weight(&self, call: &<T as frame_system::Config>::RuntimeCall) -> Weight {
+		match call.is_sub_type() {
+			Some(Call::claim { .. }) => T::WeightInfo::validate_claim(),
+			_ => Weight::zero(),
+		}
 	}
 
 	fn validate(

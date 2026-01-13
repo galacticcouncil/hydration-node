@@ -809,8 +809,6 @@ where
 	}
 }
 
-// use frame_support::dispatch::IsSubType;
-
 impl<T, MC, DF, FR> TransferFees<T, MC, DF, FR>
 where
 	T: Config + pallet_utility::Config,

@@ -1256,6 +1256,13 @@ where
 	assert_ok!(Currencies::update_balance(
 		RawOrigin::Root.into(),
 		maker.clone(),
+		0_u32,
+		InsufficientEDinHDX::get() as i128,
+	));
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		maker.clone(),
 		asset_a,
 		amount_a as i128,
 	));
