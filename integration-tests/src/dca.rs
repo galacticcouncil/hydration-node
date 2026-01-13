@@ -722,9 +722,10 @@ mod omnipool {
 			assert!(DCA::schedules(0).is_none());
 			assert!(Currencies::free_balance(DAI, &ALICE.into()) > dai_balance);
 			//The initial reserved amount + the last trade size minus for rolling DCA should be returned to free balance as it failed with FundsUnavailable error
+			let fee_in_last_failing_round = fee;
 			assert_eq!(
 				Currencies::free_balance(HDX, &ALICE.into()),
-				default_reserved_amount_for_rolling_dca + not_enough_leftover_in_the_end
+				default_reserved_amount_for_rolling_dca + not_enough_leftover_in_the_end - fee_in_last_failing_round
 			);
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
 			check_if_dcas_completed_without_failed_or_terminated_events();
