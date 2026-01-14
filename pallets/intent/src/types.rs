@@ -14,6 +14,12 @@ pub type IntentId = u128;
 pub type CallData = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub enum CallbackType {
+	OnSuccess,
+	OnFailure,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum IntentKind {
 	Swap(SwapData),
 }

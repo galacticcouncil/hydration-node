@@ -195,6 +195,7 @@ construct_runtime!(
 
 		Intent: pallet_intent = 84,
 		ICE: pallet_ice = 85,
+		LazyExecutor: pallet_lazy_executor = 86,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -210,6 +211,7 @@ construct_runtime!(
 
 		XYKLiquidityMining: pallet_xyk_liquidity_mining = 95,
 		XYKWarehouseLM: warehouse_liquidity_mining::<Instance2> = 96,
+
 
 		RelayChainInfo: pallet_relaychain_info = 201,
 		//NOTE: DCA pallet should be declared before ParachainSystem pallet,

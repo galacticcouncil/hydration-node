@@ -49,6 +49,7 @@ members = [
     'pallets/broadcast',
     'liquidation-worker-support',
     'pallets/hsm',
+    'pallets/lazy-executor',
     'pallets/intent',
     'pallets/ice',
 ]
@@ -162,6 +163,7 @@ pallet-hsm = { path = "pallets/hsm", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
 pallet-intent = { path = "pallets/intent", default-features = false }
 pallet-ice = { path = "pallets/ice", default-features = false }
+pallet-lazy-executor = { path = "pallets/lazy-executor", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

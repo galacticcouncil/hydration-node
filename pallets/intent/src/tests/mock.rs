@@ -14,12 +14,15 @@
 // limitations under the License.
 
 use crate as pallet_intent;
+use crate::types;
 use crate::types::AssetId;
 use crate::types::Balance;
 use crate::types::Intent;
+use crate::Config;
 use frame_support::parameter_types;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Everything;
+use hydradx_traits::lazy_executor::Source;
 use orml_traits::parameter_type_with_key;
 use primitives::constants::time::SLOT_DURATION;
 use sp_core::ConstU32;
@@ -28,8 +31,11 @@ use sp_core::H256;
 use sp_runtime::traits::BlakeTwo256;
 use sp_runtime::traits::IdentityLookup;
 use sp_runtime::BuildStorage;
+use sp_runtime::DispatchError;
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
+use std::cell::RefCell;
+use std::vec;
 
 pub(crate) const ONE_DOT: u128 = 10_000_000_000;
 pub(crate) const ONE_HDX: u128 = 1_000_000_000_000;
@@ -129,9 +135,44 @@ impl pallet_timestamp::Config for Test {
 	type WeightInfo = ();
 }
 
+thread_local! {
+	pub static QUEUD_TASKS: RefCell<Vec<(Source, AccountId)>> = RefCell::new(Vec::default());
+}
+
+pub struct DummyLazyExecutor<T>(sp_std::marker::PhantomData<T>);
+impl<T: Config> hydradx_traits::lazy_executor::Mutate<AccountId> for DummyLazyExecutor<T> {
+	type Error = DispatchError;
+	type BoundedCall = types::CallData;
+
+	fn queue(src: Source, origin: AccountId, _call: Self::BoundedCall) -> Result<(), Self::Error> {
+		QUEUD_TASKS.with(|v| {
+			if get_queued_task(src.clone()).is_some() {
+				return Err(DispatchError::Other("Duplicate intent"));
+			}
+
+			v.borrow_mut().push((src, origin));
+
+			Ok(())
+		})
+	}
+}
+
+pub fn get_queued_task(src: Source) -> Option<(Source, AccountId)> {
+	QUEUD_TASKS.with(|v| {
+		let m = v.borrow();
+
+		if let Some((_, (_, acc))) = m.clone().into_iter().enumerate().find(|x| x.1 .0 == src) {
+			Some((src, acc))
+		} else {
+			None
+		}
+	})
+}
+
 impl pallet_intent::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
+	type LazyExecutorHandler = DummyLazyExecutor<Test>;
 	type TimestampProvider = Timestamp;
 	type HubAssetId = ConstU32<HUB_ASSET_ID>;
 	type MaxAllowedIntentDuration = ConstU64<MAX_INTENT_DEADLINE>;
@@ -145,6 +186,10 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
+		QUEUD_TASKS.with(|v| {
+			v.borrow_mut().clear();
+		});
+
 		Self {
 			endowed_accounts: vec![],
 			intents: vec![],

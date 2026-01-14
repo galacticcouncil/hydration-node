@@ -15,6 +15,7 @@
 
 use crate as pallet_ice;
 use crate::types::TradeType;
+use crate::Config;
 use frame_support::parameter_types;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Everything;
@@ -28,6 +29,7 @@ use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrency;
+use pallet_intent::types::CallData;
 use pallet_intent::types::Intent;
 use pallet_route_executor::ExecutorError;
 use pallet_route_executor::Trade;
@@ -164,9 +166,24 @@ impl pallet_timestamp::Config for Test {
 	type WeightInfo = ();
 }
 
+pub struct DummyLazyExecutor<T>(sp_std::marker::PhantomData<T>);
+impl<T: Config> hydradx_traits::lazy_executor::Mutate<AccountId> for DummyLazyExecutor<T> {
+	type Error = DispatchError;
+	type BoundedCall = pallet_intent::types::CallData;
+
+	fn queue(
+		_src: hydradx_traits::lazy_executor::Source,
+		_origin: AccountId,
+		_call: Self::BoundedCall,
+	) -> Result<(), Self::Error> {
+		Ok(())
+	}
+}
+
 impl pallet_intent::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
+	type LazyExecutorHandler = DummyLazyExecutor<Test>;
 	type TimestampProvider = Timestamp;
 	type HubAssetId = ConstU32<HUB_ASSET_ID>;
 	type MaxAllowedIntentDuration = ConstU64<MAX_INTENT_DEADLINE>;

@@ -36,7 +36,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
 						partial: false,
 					}),
 					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
-					on_success: None,
+					on_success: Some(BoundedVec::new()),
 					on_failure: None,
 				},
 			),
@@ -45,11 +45,13 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
 		.execute_with(|| {
 			let (id, resolve) = IntentPallet::get_valid_intents()[0].to_owned();
 			let who = IntentPallet::intent_owner(id).expect("intent owner to exists");
+			assert_eq!(get_queued_task(Source::ICE(id)), None);
 
 			assert_ok!(IntentPallet::intent_resolved(id, &who, &resolve));
 
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
+			assert_eq!(get_queued_task(Source::ICE(id)), Some((Source::ICE(id), who)));
 		});
 }
 
@@ -308,7 +310,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_exactly() {
 						partial: true,
 					}),
 					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
-					on_success: None,
+					on_success: Some(BoundedVec::new()),
 					on_failure: None,
 				},
 			),
@@ -318,10 +320,13 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_exactly() {
 			let (id, resolve) = IntentPallet::get_valid_intents()[0].to_owned();
 			let who = IntentPallet::intent_owner(id).expect("intent owner to exists");
 
+			assert_eq!(get_queued_task(Source::ICE(id)), None);
+
 			assert_ok!(IntentPallet::intent_resolved(id, &who, &resolve));
 
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
+			assert_eq!(get_queued_task(Source::ICE(id)), Some((Source::ICE(id), who)));
 		});
 }
 
@@ -358,7 +363,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 						partial: true,
 					}),
 					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
-					on_success: None,
+					on_success: Some(BoundedVec::new()),
 					on_failure: None,
 				},
 			),
@@ -367,6 +372,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 		.execute_with(|| {
 			let (id, mut resolve) = IntentPallet::get_valid_intents()[0].to_owned();
 			let who = IntentPallet::intent_owner(id).expect("intent owner to exists");
+			assert_eq!(get_queued_task(Source::ICE(id)), None);
 
 			let IntentKind::Swap(ref mut r_swap) = resolve.kind;
 			if r_swap.swap_type == SwapType::ExactIn {
@@ -379,6 +385,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
+			assert_eq!(get_queued_task(Source::ICE(id)), Some((Source::ICE(id), who)));
 		});
 }
 
@@ -1198,5 +1205,61 @@ fn partial_exact_out_should_not_unreserve_funds_when_resolved_patially() {
 				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, resolve.asset_in(), &who),
 				expected_intent.amount_in()
 			);
+		});
+}
+
+#[test]
+fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX), (BOB, ETH, 5 * ONE_QUINTIL)])
+		.with_intents(vec![
+			(
+				ALICE,
+				Intent {
+					kind: IntentKind::Swap(SwapData {
+						asset_in: HDX,
+						asset_out: DOT,
+						amount_in: 10 * ONE_HDX,
+						amount_out: 100 * ONE_DOT,
+						swap_type: SwapType::ExactIn,
+						partial: true,
+					}),
+					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					on_success: None,
+					on_failure: None,
+				},
+			),
+			(
+				BOB,
+				Intent {
+					kind: IntentKind::Swap(SwapData {
+						asset_in: ETH,
+						asset_out: DOT,
+						amount_in: ONE_QUINTIL,
+						amount_out: 1_500 * ONE_DOT,
+						swap_type: SwapType::ExactOut,
+						partial: true,
+					}),
+					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					on_success: Some(BoundedVec::new()),
+					on_failure: None,
+				},
+			),
+		])
+		.build()
+		.execute_with(|| {
+			//NOTE: partial ExactOut
+			let id = 73786976294838206464001_u128;
+			let who = BOB;
+			assert_eq!(get_queued_task(Source::ICE(id)), None);
+
+			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
+			let IntentKind::Swap(ref mut r_swap) = resolve.kind;
+			r_swap.amount_in = r_swap.amount_in / 2;
+			r_swap.amount_out = r_swap.amount_out / 2;
+
+			assert_ok!(IntentPallet::intent_resolved(id, &who, &resolve),);
+
+			assert_eq!(get_queued_task(Source::ICE(id)), None);
 		});
 }

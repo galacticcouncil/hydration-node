@@ -20,6 +20,7 @@
 
 pub mod evm;
 pub mod fee;
+pub mod lazy_executor;
 pub mod liquidity_mining;
 pub mod nft;
 pub mod oracle;

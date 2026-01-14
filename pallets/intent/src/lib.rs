@@ -34,14 +34,24 @@ mod tests;
 pub mod types;
 mod weights;
 
-use crate::types::{AssetId, Balance, IncrementalIntentId, Intent, IntentId, IntentKind, Moment};
-use crate::types::{SwapData, SwapType};
+use crate::types::AssetId;
+use crate::types::Balance;
+use crate::types::CallbackType;
+use crate::types::IncrementalIntentId;
+use crate::types::Intent;
+use crate::types::IntentId;
+use crate::types::IntentKind;
+use crate::types::Moment;
+use crate::types::SwapData;
+use crate::types::SwapType;
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::Time;
 use frame_support::Blake2_128Concat;
 use frame_support::{dispatch::DispatchResult, require_transactional, traits::Get};
 use frame_system::pallet_prelude::*;
+use hydradx_traits::lazy_executor::Mutate;
+use hydradx_traits::lazy_executor::Source;
 use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use sp_runtime::traits::Zero;
@@ -53,6 +63,8 @@ pub const NAMED_RESERVE_ID: [u8; 8] = *b"ICE_int#";
 
 #[frame_support::pallet]
 pub mod pallet {
+	use crate::types::CallData;
+
 	use super::*;
 
 	#[pallet::pallet]
@@ -72,6 +84,8 @@ pub mod pallet {
 			CurrencyId = AssetId,
 			Balance = Balance,
 		>;
+
+		type LazyExecutorHandler: Mutate<Self::AccountId, Error = DispatchError, BoundedCall = CallData>;
 
 		/// Asset Id of hub asset
 		#[pallet::constant]
@@ -106,6 +120,12 @@ pub mod pallet {
 		IntentCanceled {
 			id: IntentId,
 			owner: T::AccountId,
+		},
+
+		FailedToQueueCallback {
+			id: IntentId,
+			callback: CallbackType,
+			error: DispatchError,
 		},
 	}
 
@@ -149,7 +169,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
+		#[pallet::weight(<T as Config>::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
 		pub fn submit_intent(origin: OriginFor<T>, intent: Intent) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::add_intent(who, intent)?;
@@ -157,7 +177,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::cancel_intent())]
+		#[pallet::weight(<T as Config>::WeightInfo::cancel_intent())]
 		pub fn cancel_intent(origin: OriginFor<T>, id: IntentId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -307,6 +327,17 @@ impl<T: Config> Pallet<T> {
 			if fully_resolved {
 				if !intent.amount_in().is_zero() {
 					Self::unlock_funds(&owner, intent.asset_in(), intent.amount_in())?;
+				}
+
+				//NOTE: it's ok to `take`, intent will be removed from storage.
+				if let Some(cb) = intent.on_success.take() {
+					if let Err(e) = T::LazyExecutorHandler::queue(Source::ICE(id), who.clone(), cb) {
+						Self::deposit_event(Event::FailedToQueueCallback {
+							id,
+							callback: CallbackType::OnSuccess,
+							error: e,
+						});
+					};
 				}
 
 				*maybe_intent = None;

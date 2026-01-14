@@ -66,6 +66,7 @@ pallet-hsm = { workspace = true }
 pallet-parameters = { workspace = true }
 pallet-intent = { workspace = true }
 pallet-ice = { workspace = true }
+pallet-lazy-executor = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -376,6 +377,7 @@ std = [
     "pallet-xyk-liquidity-mining/std",
     "pallet-intent/std",
     "pallet-ice/std",
+    "pallet-lazy-executor/std",
     "parachains-common/std",
     "polkadot-runtime-common/std",
     "pallet-state-trie-migration/std",

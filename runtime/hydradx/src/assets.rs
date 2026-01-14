@@ -53,6 +53,7 @@ pub use hydradx_traits::{
 	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
 	AMM,
 };
+use sp_core::ConstU64;
 
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
@@ -1830,6 +1831,29 @@ impl pallet_hsm::Config for Runtime {
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
 }
 
+impl pallet_lazy_executor::Config for Runtime {
+	//TODO:
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type UnsignedLongevity = ConstU64<2>;
+	type UnsignedPriority = ConstU64<100>;
+	type WeightInfo = ();
+}
+
+pub struct DummyLazyExecutor<T>(sp_std::marker::PhantomData<T>);
+impl<T: pallet_intent::Config> hydradx_traits::lazy_executor::Mutate<AccountId> for DummyLazyExecutor<T> {
+	type Error = DispatchError;
+	type BoundedCall = pallet_intent::types::CallData;
+
+	fn queue(
+		_src: hydradx_traits::lazy_executor::Source,
+		_origin: AccountId,
+		_call: Self::BoundedCall,
+	) -> Result<(), Self::Error> {
+		Ok(())
+	}
+}
+
 parameter_types! {
 	//24 hours
 	pub const MaxIntentDuration: u64  = 24 * 3_600 * 1_000;
@@ -1838,6 +1862,7 @@ parameter_types! {
 impl pallet_intent::Config for Runtime {
 	//TODO:
 	type RuntimeEvent = RuntimeEvent;
+	type LazyExecutorHandler = LazyExecutor;
 	type Currency = Currencies;
 	type MaxAllowedIntentDuration = MaxIntentDuration;
 	type TimestampProvider = Timestamp;
