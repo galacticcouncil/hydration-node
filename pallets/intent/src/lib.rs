@@ -111,7 +111,6 @@ pub mod pallet {
 		/// Intent was resolved as part of ICE solution execution.
 		IntentResolved {
 			id: IntentId,
-			owner: T::AccountId,
 			amount_in: Balance,
 			amount_out: Balance,
 			fully: bool,
@@ -119,7 +118,10 @@ pub mod pallet {
 
 		IntentCanceled {
 			id: IntentId,
-			owner: T::AccountId,
+		},
+
+		IntentExpired {
+			id: IntentId,
 		},
 
 		FailedToQueueCallback {
@@ -139,6 +141,8 @@ pub mod pallet {
 		IntentNotFound,
 		/// Referenced intent has expired.
 		IntentExpired,
+		/// Referenced intent is still active.
+		IntentActive,
 		/// Intent's resolution doesn't match intent's params.
 		ResolveMismatch,
 		///Resolution violates intent's limits.
@@ -191,7 +195,7 @@ pub mod pallet {
 
 					Self::unlock_funds(&who, intent.asset_in(), intent.amount_in())?;
 
-					Self::deposit_event(Event::<T>::IntentCanceled { id, owner });
+					Self::deposit_event(Event::<T>::IntentCanceled { id });
 
 					*maybe_owner = None;
 					Ok(())
@@ -199,6 +203,45 @@ pub mod pallet {
 
 				*maybe_intent = None;
 				Ok(())
+			})
+		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::cleanup_intent())]
+		pub fn cleanup_intent(origin: OriginFor<T>, id: IntentId) -> DispatchResultWithPostInfo {
+			if let Err(_) = ensure_none(origin.clone()) {
+				ensure_signed(origin)?;
+			}
+
+			Intents::<T>::try_mutate_exists(id, |maybe_intent| {
+				let intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
+
+				ensure!(intent.deadline < T::TimestampProvider::now(), Error::<T>::IntentActive);
+
+				IntentOwner::<T>::try_mutate_exists(id, |maybe_owner| -> Result<(), DispatchError> {
+					let owner = maybe_owner.as_ref().ok_or(Error::<T>::IntentOwnerNotFound)?;
+
+					//NOTE: it's safe to take, intent will be removed.
+					if let Some(cb) = intent.on_failure.take() {
+						if let Err(e) = T::LazyExecutorHandler::queue(Source::ICE(id), owner.clone(), cb) {
+							Self::deposit_event(Event::FailedToQueueCallback {
+								id,
+								callback: CallbackType::OnSuccess,
+								error: e,
+							});
+						}
+					}
+
+					Self::unlock_funds(owner, intent.asset_in(), intent.amount_in())?;
+
+					Self::deposit_event(Event::<T>::IntentExpired { id });
+
+					*maybe_owner = None;
+					Ok(())
+				})?;
+
+				*maybe_intent = None;
+				Ok(Pays::No.into())
 			})
 		}
 	}
@@ -348,7 +391,6 @@ impl<T: Config> Pallet<T> {
 
 			Self::deposit_event(Event::IntentResolved {
 				id,
-				owner,
 				amount_in: resolve.amount_in(),
 				amount_out: resolve.amount_out(),
 				fully: fully_resolved,
