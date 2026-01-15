@@ -16,7 +16,7 @@ sp-std = { workspace = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
-hydradx-traits = { workspace = true }
+primitives = { workspace = true }
 
 # Ethereum ABI encoding
 alloy-sol-types = { workspace = true, default-features = false, features = ["json"] }

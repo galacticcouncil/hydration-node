@@ -23,6 +23,7 @@ use frame_support::traits::{fungibles::Mutate, tokens::Preservation};
 use frame_support::PalletId;
 use frame_support::{dispatch::DispatchResult, BoundedVec};
 use frame_system::pallet_prelude::*;
+use primitives::EvmAddress;
 use sp_core::H160;
 use sp_std::vec::Vec;
 
@@ -251,7 +252,7 @@ pub mod pallet {
 			Self::ensure_not_paused()?;
 
 			// Basic validation of parameters.
-			ensure!(to != [0u8; 20], Error::<T>::InvalidAddress);
+			ensure!(to != EvmAddress::zero(), Error::<T>::InvalidAddress);
 			ensure!(amount >= T::MinimumRequestAmount::get(), Error::<T>::AmountTooSmall);
 			ensure!(amount <= T::MaxDispenseAmount::get(), Error::<T>::AmountTooLarge);
 
@@ -271,7 +272,7 @@ pub mod pallet {
 
 			// Build the EVM call to the faucet.
 			let call = IGasFaucet::fundCall {
-				to: alloy_primitives::Address::from_slice(&to),
+				to: alloy_primitives::Address::from_slice(to.as_bytes()),
 				amount: U256::from(amount),
 			};
 
