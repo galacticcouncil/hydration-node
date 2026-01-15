@@ -782,6 +782,163 @@ mod router_different_pools_tests {
 		});
 	}
 
+	//TODO: might need fix, questionable, possibly a user error
+	#[test]
+	fn sell_router_locks_share_asset_in_router_with_when_sold_with_no_slippage_protection() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_asset_1,
+					3000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_inner(25_650_000_000_000_000),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				let trades = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: stable_asset_1,
+					},
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: stable_asset_1,
+						asset_out: pool_id,
+					},
+				];
+
+				assert_balance!(ALICE.into(), pool_id, 0);
+
+				//Act
+				let amount_to_sell = 100 * UNITS;
+				let deposit_limit = UNITS;
+				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
+
+				//Act and assert
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					pool_id,
+					amount_to_sell,
+					0,
+					trades.try_into().unwrap()
+				),);
+
+				assert_balance!(ALICE.into(), pool_id, 1000000000000);
+				assert_reserved_balance!(&Router::router_account(), pool_id, 3638992258357);
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	//TODO: needs fix asap, it should not behave like that
+	#[test]
+	fn buy_router_locks_stable_share_asset_on_router_account() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				// Arrange - Same setup as the sell test
+				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+
+				init_omnipool();
+
+				// Add stable_asset_1 to Omnipool (NOT pool_id - we want minting at END)
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_asset_1,
+					3000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_inner(25_650_000_000_000_000),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				// Route: HDX -> stable_asset_1 (Omnipool) -> pool_id (Stableswap mint at END!)
+				let trades = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: stable_asset_1,
+					},
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: stable_asset_1,
+						asset_out: pool_id, // Minting shares at the END
+					},
+				];
+
+				assert_balance!(ALICE.into(), pool_id, 0);
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ALICE.into(),
+					HDX,
+					100_000 * UNITS as i128,
+				));
+
+				let amount_to_buy = 100 * UNITS;
+				let deposit_limit = UNITS;
+				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
+
+				// Act
+				assert_ok!(Router::buy(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					pool_id,
+					amount_to_buy,
+					2_500 * UNITS,
+					trades.try_into().unwrap()
+				));
+
+				let alice_shares_balance = Currencies::free_balance(pool_id, &ALICE.into());
+				let router_reserved_shares = Currencies::reserved_balance(pool_id, &Router::router_account());
+
+				assert_eq!(
+					alice_shares_balance, deposit_limit,
+					"User should receive only up to deposit limit. Got {} but limit is {}",
+					alice_shares_balance, deposit_limit
+				);
+				assert!(
+					alice_shares_balance < amount_to_buy,
+					"User should receive less than expected. Got {} but wanted {}",
+					alice_shares_balance,
+					amount_to_buy
+				);
+
+				assert_eq!(
+					router_reserved_shares,
+					amount_to_buy - deposit_limit,
+					"Router should reserve the difference. Expected {} but got {}",
+					amount_to_buy - deposit_limit,
+					router_reserved_shares
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
 	#[test]
 	fn router_should_remove_liquidity_from_stableswap_when_selling_shareasset_in_stable() {
 		TestNet::reset();
