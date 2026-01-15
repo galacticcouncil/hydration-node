@@ -3,7 +3,13 @@ use crate::assets::{DotAssetId, XykPaymentAssetSupport};
 use crate::types::ShortOraclePrice;
 use frame_support::traits::Contains;
 use hydradx_adapters::price::ConvertBalance;
-use polkadot_xcm::v4::{Asset, AssetId as XcmAssetId, Fungibility, Location};
+use polkadot_xcm::{
+	v4::{
+		Asset, AssetId as XcmAssetId, Fungibility, Instruction, Location, Xcm,
+		Instruction::{DepositReserveAsset, InitiateReserveWithdraw, TransferReserveAsset},
+	},
+	VersionedXcm,
+};
 use primitives::Balance;
 use sp_runtime::traits::Convert;
 use sp_runtime::{ArithmeticError, DispatchResult};
@@ -47,6 +53,42 @@ impl WithdrawCircuitBreaker {
 			}
 		}
 		Ok(())
+	}
+
+	pub fn is_lockdown_active() -> bool {
+		let now = pallet_circuit_breaker::Pallet::<Runtime>::timestamp_now();
+		pallet_circuit_breaker::Pallet::<Runtime>::is_lockdown_at(now)
+	}
+
+	/// Returns true if the XCM message is an egress message and the global lockdown is active.
+	pub fn is_egress_blocked<Call>(message: &VersionedXcm<Call>) -> bool {
+		if let Ok(xcm) = Xcm::<Call>::try_from(message.clone()) {
+			return XcmEgressFilter::is_egress(&xcm) && Self::is_lockdown_active();
+		}
+		false
+	}
+}
+
+pub struct XcmEgressFilter;
+impl XcmEgressFilter {
+	pub fn is_egress<Call>(message: &Xcm<Call>) -> bool {
+		message.0.iter().any(|inst| {
+			matches!(
+				inst,
+				DepositReserveAsset { .. } | InitiateReserveWithdraw { .. } | TransferReserveAsset { .. }
+			)
+		})
+	}
+}
+
+pub struct XcmLockdownFilter;
+impl Contains<(Location, Xcm<RuntimeCall>)> for XcmLockdownFilter {
+	fn contains(t: &(Location, Xcm<RuntimeCall>)) -> bool {
+		let (_, message) = t;
+		if XcmEgressFilter::is_egress(message) && WithdrawCircuitBreaker::is_lockdown_active() {
+			return false;
+		}
+		true
 	}
 }
 

@@ -628,7 +628,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Get the current timestamp from timestamp provider.
-	fn timestamp_now() -> primitives::Moment {
+	pub fn timestamp_now() -> primitives::Moment {
 		T::TimestampProvider::now()
 	}
 

@@ -508,7 +508,7 @@ impl pallet_xcm::Config for Runtime {
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmExecuteFilter = Everything;
+	type XcmExecuteFilter = circuit_breaker::XcmLockdownFilter;
 	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = circuit_breaker::CircuitBreakerReserveTransferFilter<Everything>;

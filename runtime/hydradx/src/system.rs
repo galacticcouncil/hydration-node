@@ -53,6 +53,7 @@ use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use pallet_broadcast::types::ExecutionType;
 use pallet_utility::BatchHook;
 use scale_info::TypeInfo;
+use polkadot_xcm::v4::Xcm;
 use sp_runtime::DispatchResult;
 
 pub struct CallFilter;
@@ -122,6 +123,12 @@ impl Contains<RuntimeCall> for CallFilter {
 			//of pallet that created it.
 			RuntimeCall::Uniques(pallet_uniques::Call::burn { .. }) => false,
 			RuntimeCall::Router(pallet_route_executor::Call::set_route { .. }) => false,
+			RuntimeCall::PolkadotXcm(pallet_xcm::Call::send { message, .. }) => {
+				!circuit_breaker::WithdrawCircuitBreaker::is_egress_blocked(message)
+			}
+			RuntimeCall::PolkadotXcm(pallet_xcm::Call::execute { message, .. }) => {
+				!circuit_breaker::WithdrawCircuitBreaker::is_egress_blocked(message)
+			}
 			_ => true,
 		}
 	}
