@@ -77,7 +77,6 @@ impl pallet_collective_technical_committee::Config<TechnicalCollective> for Runt
 	type WeightInfo = weights::pallet_collective_technical_committee::HydraWeight<Runtime>;
 	type MaxProposalWeight = MaxProposalWeight;
 	type SetMembersOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
-	// TODO: use ref canceller / killer?
 	type DisapproveOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type KillOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type Consideration = ();
