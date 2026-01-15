@@ -1037,8 +1037,10 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 			.map_err(LiquidationError::ApiError)?
 			.map_err(LiquidationError::DispatchError)?;
 
-		if call_info.exit_reason == Succeed(Returned) {
+		if call_info.exit_reason == Succeed(Returned) && call_info.value.len() >= 32 {
 			Ok(EvmAddress::from(H160::from_slice(&call_info.value[12..32])))
+		} else if call_info.exit_reason == Succeed(Returned) {
+			Err(LiquidationError::InvalidResponseLength)
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -1058,8 +1060,10 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 			.map_err(LiquidationError::ApiError)?
 			.map_err(LiquidationError::DispatchError)?;
 
-		if call_info.exit_reason == Succeed(Returned) {
-			Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
+		if call_info.exit_reason == Succeed(Returned) && call_info.value.len() >= 32 {
+			Ok(EvmAddress::from(H160::from_slice(&call_info.value[12..32])))
+		} else if call_info.exit_reason == Succeed(Returned) {
+			Err(LiquidationError::InvalidResponseLength)
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}

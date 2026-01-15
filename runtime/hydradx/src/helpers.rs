@@ -90,7 +90,8 @@ pub mod benchmark_helpers {
 							}
 						}
 						ERC20Function::FlashLoan => {
-							if data.len() >= 4 + 32 + 32 + 32 {
+							// FlashLoan ABI: receiver (32) + hollar (32) + amount (32) + offset (32) + length (32) + data
+							if data.len() >= 4 + 32 + 32 + 32 + 32 + 32 {
 								// Extract recipient address (padded to 32 bytes in ABI encoding)
 								let receiver: [u8; 32] = data[4..4 + 32].try_into().unwrap_or([0; 32]);
 								let _receiver_evm = primitives::EvmAddress::from_slice(&receiver[12..32]);
@@ -98,7 +99,7 @@ pub mod benchmark_helpers {
 								let hollar: [u8; 32] = data[4 + 32..4 + 32 + 32].try_into().unwrap_or([0; 32]);
 								let _hollar_evm = primitives::EvmAddress::from_slice(&hollar[12..32]);
 
-								let amount_bytes: [u8; 32] = data[4 + 32 + 32..4 + 32 + 32 + 32].try_into().unwrap();
+								let amount_bytes: [u8; 32] = data[4 + 32 + 32..4 + 32 + 32 + 32].try_into().unwrap_or([0; 32]);
 								let amount = U256::from_big_endian(&amount_bytes);
 
 								let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();

@@ -164,13 +164,18 @@ fn decode_string(output: Vec<u8>) -> Option<Vec<u8>> {
 	}
 
 	let offset = U256::from_big_endian(&output[0..32]);
-	let length = U256::from_big_endian(&output[offset.as_usize()..offset.as_usize() + 32]);
-	if output.len() < offset.as_usize() + 32 + length.as_usize() {
+	let offset_usize = offset.as_usize();
+	if offset_usize.saturating_add(32) > output.len() {
+		return None;
+	}
+	let length = U256::from_big_endian(&output[offset_usize..offset_usize + 32]);
+	let length_usize = length.as_usize();
+	if offset_usize.saturating_add(32).saturating_add(length_usize) > output.len() {
 		return None;
 	}
 
 	let mut data = Vec::new();
-	data.extend_from_slice(&output[offset.as_usize() + 32..offset.as_usize() + 32 + length.as_usize()]);
+	data.extend_from_slice(&output[offset_usize + 32..offset_usize + 32 + length_usize]);
 
 	Some(data.to_vec())
 }

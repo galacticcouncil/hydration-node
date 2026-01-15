@@ -28,7 +28,7 @@ use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
 use pallet_liquidation::BorrowingContract;
 use polkadot_xcm::v5::Location;
-use primitive_types::{H256, U256};
+use primitive_types::{H160, H256, U256};
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
 use scale_info::prelude::string::String;
 use sp_arithmetic::traits::SaturatedConversion;
@@ -311,12 +311,12 @@ where
 
 		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
-		if !matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)) {
-			// not a token
+		if !matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)) || call_result.value.len() < 32 {
+			// not a token or invalid response
 			return None;
 		}
 
-		Some(EvmAddress::from(H256::from_slice(&call_result.value)))
+		Some(EvmAddress::from(H160::from_slice(&call_result.value[12..32])))
 	}
 
 	fn supply(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
