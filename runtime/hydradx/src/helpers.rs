@@ -99,7 +99,8 @@ pub mod benchmark_helpers {
 								let hollar: [u8; 32] = data[4 + 32..4 + 32 + 32].try_into().unwrap_or([0; 32]);
 								let _hollar_evm = primitives::EvmAddress::from_slice(&hollar[12..32]);
 
-								let amount_bytes: [u8; 32] = data[4 + 32 + 32..4 + 32 + 32 + 32].try_into().unwrap_or([0; 32]);
+								let amount_bytes: [u8; 32] =
+									data[4 + 32 + 32..4 + 32 + 32 + 32].try_into().unwrap_or([0; 32]);
 								let amount = U256::from_big_endian(&amount_bytes);
 
 								let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();

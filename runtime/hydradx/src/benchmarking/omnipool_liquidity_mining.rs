@@ -1109,15 +1109,15 @@ runtime_benchmarks! {
 		let asset_9 = register_asset(b"AS9".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_10 = register_asset(b"ASA".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
-		create_xyk_pool::<Runtime>(asset_1, 1000 * ONE, asset_2, 1000 * ONE);
-		create_xyk_pool::<Runtime>(asset_2, 1000 * ONE, asset_3, 1000 * ONE);
-		create_xyk_pool::<Runtime>(asset_3, 1000 * ONE, asset_4, 1000 * ONE);
-		create_xyk_pool::<Runtime>(asset_4, 1000 * ONE, asset_5, 1000 * ONE);
-		create_xyk_pool::<Runtime>(asset_5, 1000 * ONE, asset_6, 1000 * ONE);
-		create_xyk_pool::<Runtime>(asset_6, 1000 * ONE, asset_7, 1000 * ONE);
-		create_xyk_pool::<Runtime>(asset_7, 1000 * ONE, asset_8, 1000 * ONE);
-		create_xyk_pool::<Runtime>(asset_8, 1000 * ONE, asset_9, 1000 * ONE);
-		create_xyk_pool::<Runtime>(asset_9, 1000 * ONE, asset_10, 1000 * ONE);
+		create_xyk_pool::<Runtime>(asset_1, 1000 * ONE, asset_2, 1000 * ONE, 0);
+		create_xyk_pool::<Runtime>(asset_2, 1000 * ONE, asset_3, 1000 * ONE, 1);
+		create_xyk_pool::<Runtime>(asset_3, 1000 * ONE, asset_4, 1000 * ONE, 2);
+		create_xyk_pool::<Runtime>(asset_4, 1000 * ONE, asset_5, 1000 * ONE, 3);
+		create_xyk_pool::<Runtime>(asset_5, 1000 * ONE, asset_6, 1000 * ONE, 4);
+		create_xyk_pool::<Runtime>(asset_6, 1000 * ONE, asset_7, 1000 * ONE, 5);
+		create_xyk_pool::<Runtime>(asset_7, 1000 * ONE, asset_8, 1000 * ONE, 6);
+		create_xyk_pool::<Runtime>(asset_8, 1000 * ONE, asset_9, 1000 * ONE, 7);
+		create_xyk_pool::<Runtime>(asset_9, 1000 * ONE, asset_10, 1000 * ONE, 8);
 
 		xyk_sell::<Runtime>(asset_1,asset_2, 10 * ONE);
 		xyk_sell::<Runtime>(asset_2,asset_3, 10 * ONE);
@@ -1212,17 +1212,23 @@ fn get_max_entries() -> u32 {
 	<Runtime as pallet_omnipool_liquidity_mining::Config>::MaxFarmEntriesPerDeposit::get() as u32
 }
 
-fn create_xyk_pool<T: pallet_xyk::Config>(asset_a: AssetId, amount_a: Balance, asset_b: AssetId, amount_b: Balance)
-where
+fn create_xyk_pool<T: pallet_xyk::Config>(
+	asset_a: AssetId,
+	amount_a: Balance,
+	asset_b: AssetId,
+	amount_b: Balance,
+	idx: u32,
+) where
 	<T as frame_system::Config>::RuntimeOrigin: core::convert::From<frame_system::RawOrigin<sp_runtime::AccountId32>>,
 {
-	let maker: AccountId = account("xyk-maker", 0, 0);
+	let maker: AccountId = account("xyk-maker", idx, 0);
 
+	// Need ED for asset_a, asset_b, and share token accounts
 	assert_ok!(Currencies::update_balance(
 		RawOrigin::Root.into(),
 		maker.clone(),
 		0_u32,
-		InsufficientEDinHDX::get() as i128,
+		(InsufficientEDinHDX::get() * 3) as i128,
 	));
 
 	assert_ok!(Currencies::update_balance(

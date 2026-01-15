@@ -28,7 +28,7 @@ use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
 use pallet_liquidation::BorrowingContract;
 use polkadot_xcm::v5::Location;
-use primitive_types::{H160, H256, U256};
+use primitive_types::{H160, U256};
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
 use scale_info::prelude::string::String;
 use sp_arithmetic::traits::SaturatedConversion;
