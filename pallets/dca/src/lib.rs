@@ -191,6 +191,11 @@ pub mod pallet {
 						}
 					}
 					Err(error) => {
+						if schedule.is_rolling() && error == sp_runtime::TokenError::FundsUnavailable.into() {
+							Self::complete_schedule(schedule_id, &schedule);
+							continue;
+						}
+
 						Self::deposit_event(Event::TradeFailed {
 							id: schedule_id,
 							who: schedule.owner.clone(),
