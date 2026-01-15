@@ -393,11 +393,11 @@ where
 	type Extrinsic = Extrinsic;
 }
 
-impl<LocalCall> frame_system::offchain::CreateInherent<LocalCall> for Test
+impl<LocalCall> hydradx_traits::CreateBare<LocalCall> for Test
 where
 	RuntimeCall: From<LocalCall>,
 {
-	fn create_inherent(call: Self::RuntimeCall) -> Extrinsic {
+	fn create_bare(call: Self::RuntimeCall) -> Extrinsic {
 		Extrinsic::new_bare(call)
 	}
 }

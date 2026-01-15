@@ -45,11 +45,12 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_system::offchain::{CreateInherent, SubmitTransaction};
+use frame_system::offchain::SubmitTransaction;
 use frame_system::{pallet_prelude::*, Origin};
 use hex_literal::hex;
 use hydra_dx_math::hsm::{CoefficientRatio, PegType, Price};
 use hydradx_traits::evm::CallResult;
+use hydradx_traits::CreateBare;
 use hydradx_traits::{
 	evm::{CallContext, InspectEvmAccounts, EVM},
 	registry::BoundErc20,
@@ -125,7 +126,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_stableswap::Config + pallet_broadcast::Config + CreateInherent<Call<Self>>
+		frame_system::Config + pallet_stableswap::Config + pallet_broadcast::Config + CreateBare<Call<Self>>
 	where
 		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
@@ -387,7 +388,7 @@ pub mod pallet {
 					);
 
 					if let Some(call) = Self::process_arbitrage_opportunities(block_number) {
-						let xt = T::create_inherent(call.into());
+						let xt = T::create_bare(call.into());
 						if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(xt) {
 							log::error!(
 								target: "hsm::offchain_worker",

@@ -48,12 +48,13 @@ use frame_support::{
 use hydradx_traits::router::Route;
 
 use frame_system::{
-	offchain::{CreateInherent, SubmitTransaction},
+	offchain::SubmitTransaction,
 	pallet_prelude::{BlockNumberFor, OriginFor},
 };
 use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouteSpotPriceProvider, RouterT, Trade,
 };
+use hydradx_traits::CreateBare;
 use pallet_otc::weights::WeightInfo as OtcWeightInfo;
 pub use pallet_otc::OrderId;
 use sp_arithmetic::{
@@ -114,7 +115,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_otc::Config + CreateInherent<Call<Self>> {
+	pub trait Config: frame_system::Config + pallet_otc::Config + CreateBare<Call<Self>> {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -558,7 +559,7 @@ impl<T: Config> Pallet<T> {
 				};
 
 				// Create an unsigned extrinsic
-				let xt = T::create_inherent(call.into());
+				let xt = T::create_bare(call.into());
 				let _ = SubmitTransaction::<T, Call<T>>::submit_transaction(xt);
 			}
 		}

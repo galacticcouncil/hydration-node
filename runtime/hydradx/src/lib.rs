@@ -310,11 +310,11 @@ where
 	type Extrinsic = HydraUncheckedExtrinsic;
 }
 
-impl<LocalCall> frame_system::offchain::CreateInherent<LocalCall> for Runtime
+impl<LocalCall> hydradx_traits::CreateBare<LocalCall> for Runtime
 where
 	RuntimeCall: From<LocalCall>,
 {
-	fn create_inherent(call: Self::RuntimeCall) -> HydraUncheckedExtrinsic {
+	fn create_bare(call: Self::RuntimeCall) -> HydraUncheckedExtrinsic {
 		HydraUncheckedExtrinsic::new_bare(call)
 	}
 }

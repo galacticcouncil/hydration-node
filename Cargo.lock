@@ -6332,6 +6332,7 @@ name = "hydradx-traits"
 version = "4.7.0"
 dependencies = [
  "frame-support",
+ "frame-system",
  "impl-trait-for-tuples",
  "pallet-evm",
  "parity-scale-codec",
