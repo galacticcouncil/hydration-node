@@ -40,7 +40,7 @@ const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 mod omnipool {
 	use super::*;
 	use frame_support::assert_ok;
-	use hydradx_runtime::{Balances, Currencies, Treasury, DCA, XYK};
+	use hydradx_runtime::{Balances, Currencies, Runtime, Treasury, DCA, XYK};
 	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::AssetKind;
 	use pallet_broadcast::types::Destination;
@@ -685,6 +685,73 @@ mod omnipool {
 			assert!(Balances::free_balance(&ALICE.into()) > reserved);
 			assert!(Currencies::free_balance(DAI, &ALICE.into()) > dai_balance);
 			assert!(DCA::schedules(0).is_none());
+		});
+	}
+
+	#[test]
+	fn rolling_sell_dca_should_complete_gracefully_when_user_runs_out_of_funds() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+			let balance = 5000 * UNITS;
+			let trade_size = 500 * UNITS;
+			let dca_budget = 0; // rolling DCA - takes all available balance
+			Balances::force_set_balance(RuntimeOrigin::root(), ALICE.into(), balance).unwrap();
+
+			let sell_schedule =
+				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, dca_budget, HDX, DAI, trade_size);
+			let fee = DCA::get_transaction_fee(&sell_schedule.order, None).unwrap();
+
+			let default_reserved_amount_for_rolling_dca = 2 * (trade_size + fee);
+			let not_enough_leftover_in_the_end = balance - 9 * (trade_size + fee);
+
+			create_schedule(ALICE, sell_schedule);
+			assert_reserved_balance!(&ALICE.into(), HDX, default_reserved_amount_for_rolling_dca);
+
+			let dai_balance = Currencies::free_balance(DAI, &ALICE.into());
+
+			//Act - run until user runs out of funds
+			run_to_block(11, 100);
+
+			//Assert
+			assert!(DCA::schedules(0).is_none());
+			assert!(Currencies::free_balance(DAI, &ALICE.into()) > dai_balance);
+			//The initial reserved amount + the last trade size minus for rolling DCA should be returned to free balance as it failed with FundsUnavailable error
+			let fee_in_last_failing_round = fee;
+			assert_eq!(
+				Currencies::free_balance(HDX, &ALICE.into()),
+				default_reserved_amount_for_rolling_dca + not_enough_leftover_in_the_end - fee_in_last_failing_round
+			);
+			assert_reserved_balance!(&ALICE.into(), HDX, 0);
+			check_if_dcas_completed_without_failed_or_terminated_events();
+		});
+	}
+
+	#[test]
+	fn rolling_buy_dca_should_complete_gracefully_when_user_runs_out_of_funds() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+			let balance = 5000 * UNITS;
+			let trade_size = 500 * UNITS; // amount_out to buy
+			let dca_budget = 0; // rolling DCA
+			Balances::force_set_balance(RuntimeOrigin::root(), ALICE.into(), balance).unwrap();
+			create_schedule(
+				ALICE,
+				schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, trade_size, dca_budget),
+			);
+			let dai_balance = Currencies::free_balance(DAI, &ALICE.into());
+
+			//Act - run until user runs out of funds
+			run_to_block(11, 100);
+
+			//Assert
+			assert!(DCA::schedules(0).is_none());
+			assert!(Currencies::free_balance(DAI, &ALICE.into()) > dai_balance);
+			assert_reserved_balance!(&ALICE.into(), HDX, 0);
+			check_if_dcas_completed_without_failed_or_terminated_events();
 		});
 	}
 
