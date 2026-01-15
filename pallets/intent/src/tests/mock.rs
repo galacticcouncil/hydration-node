@@ -104,6 +104,15 @@ impl frame_system::Config for Test {
 	type PostTransactions = ();
 }
 
+pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+where
+	RuntimeCall: From<C>,
+{
+	type OverarchingCall = RuntimeCall;
+	type Extrinsic = Extrinsic;
+}
+
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		0

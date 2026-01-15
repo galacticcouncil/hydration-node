@@ -9890,6 +9890,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydradx-traits",
+ "log",
  "orml-tokens",
  "orml-traits",
  "pallet-timestamp",

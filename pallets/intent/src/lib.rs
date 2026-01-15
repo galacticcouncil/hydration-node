@@ -49,6 +49,7 @@ use frame_support::pallet_prelude::*;
 use frame_support::traits::Time;
 use frame_support::Blake2_128Concat;
 use frame_support::{dispatch::DispatchResult, require_transactional, traits::Get};
+use frame_system::offchain::SendTransactionTypes;
 use frame_system::pallet_prelude::*;
 use hydradx_traits::lazy_executor::Mutate;
 use hydradx_traits::lazy_executor::Source;
@@ -61,9 +62,14 @@ pub use weights::WeightInfo;
 pub type NamedReserveIdentifier = [u8; 8];
 pub const NAMED_RESERVE_ID: [u8; 8] = *b"ICE_int#";
 
+pub const UNSIGNED_TXS_PRIORITY: u64 = 1000;
+const OCW_LOG_TARGET: &str = "intent::offchain_worker";
+pub(crate) const OCW_TAG_PREFIX: &str = "intnt-cleanup";
+
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::types::CallData;
+	use frame_system::offchain::SubmitTransaction;
 
 	use super::*;
 
@@ -71,7 +77,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Provider for the current timestamp.
@@ -113,7 +119,13 @@ pub mod pallet {
 			id: IntentId,
 			amount_in: Balance,
 			amount_out: Balance,
-			fully: bool,
+		},
+
+		/// Portion of intent was resolved as parf of ICE solution execution.
+		IntentResovedPartially {
+			id: IntentId,
+			amount_in: Balance,
+			amount_out: Balance,
 		},
 
 		IntentCanceled {
@@ -216,7 +228,7 @@ pub mod pallet {
 			Intents::<T>::try_mutate_exists(id, |maybe_intent| {
 				let intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
 
-				ensure!(intent.deadline < T::TimestampProvider::now(), Error::<T>::IntentActive);
+				ensure!(intent.deadline <= T::TimestampProvider::now(), Error::<T>::IntentActive);
 
 				IntentOwner::<T>::try_mutate_exists(id, |maybe_owner| -> Result<(), DispatchError> {
 					let owner = maybe_owner.as_ref().ok_or(Error::<T>::IntentOwnerNotFound)?;
@@ -247,7 +259,55 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		//NOTE: this is tmp. solution for testing
+		fn offchain_worker(_block_number: BlockNumberFor<T>) {
+			let expired = Self::get_expired_intents();
+
+			for (i, intent_id) in expired.iter().enumerate() {
+				if i >= 10 {
+					break;
+				}
+
+				let c = Call::cleanup_intent { id: *intent_id };
+
+				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(c.into()) {
+					log::error!(target: OCW_LOG_TARGET, "fialed to sumbmit cleanup_intent call, err: {:?}", e);
+				};
+			}
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			if let Call::cleanup_intent { id } = call {
+				match source {
+					TransactionSource::Local | TransactionSource::InBlock => { /*OCW or included in block are allowed */
+					}
+					_ => {
+						return InvalidTransaction::Call.into();
+					}
+				};
+
+				let Some(intent) = Intents::<T>::get(id) else {
+					return InvalidTransaction::Call.into();
+				};
+
+				ensure!(intent.deadline <= T::TimestampProvider::now(), InvalidTransaction::Call);
+
+				return ValidTransaction::with_tag_prefix(OCW_TAG_PREFIX)
+					.priority(UNSIGNED_TXS_PRIORITY)
+					.and_provides(Encode::encode(id))
+					.longevity(1)
+					.propagate(false)
+					.build();
+			}
+			InvalidTransaction::Call.into()
+		}
+	}
 }
 
 impl<T: Config> Pallet<T> {
@@ -277,6 +337,17 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::IntentSubmitted { id, owner, intent });
 
 		Ok(id)
+	}
+
+	/// Function returns expired intents.
+	pub fn get_expired_intents() -> Vec<IntentId> {
+		let mut intents: Vec<(IntentId, Intent)> = Intents::<T>::iter().collect();
+		intents.sort_by_key(|(_, intent)| intent.deadline);
+
+		let now = T::TimestampProvider::now();
+		intents.retain(|(_, intent)| intent.deadline <= now);
+
+		intents.iter().map(|x| x.0).collect::<Vec<IntentId>>()
 	}
 
 	pub fn get_valid_intents() -> Vec<(IntentId, Intent)> {
@@ -385,15 +456,20 @@ impl<T: Config> Pallet<T> {
 
 				*maybe_intent = None;
 				IntentOwner::<T>::remove(id);
-			} else {
-				ensure!(intent.is_partial(), Error::<T>::LimitViolation);
+
+				Self::deposit_event(Event::IntentResolved {
+					id,
+					amount_in: resolve.amount_in(),
+					amount_out: resolve.amount_out(),
+				});
+				return Ok(());
 			}
 
-			Self::deposit_event(Event::IntentResolved {
+			ensure!(intent.is_partial(), Error::<T>::LimitViolation);
+			Self::deposit_event(Event::IntentResovedPartially {
 				id,
 				amount_in: resolve.amount_in(),
 				amount_out: resolve.amount_out(),
-				fully: fully_resolved,
 			});
 
 			Ok(())

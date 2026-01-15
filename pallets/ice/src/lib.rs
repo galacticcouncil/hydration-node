@@ -66,7 +66,6 @@ pub use weights::WeightInfo;
 
 //TODO: make sure tx is always first in the block(same as liquidations), this is tmp
 pub const UNSIGNED_TXS_PRIORITY: u64 = u64::max_value();
-
 const OCW_LOG_TARGET: &str = "ice::offchain_worker";
 pub(crate) const OCW_TAG_PREFIX: &str = "ice-solution";
 pub(crate) const OCW_PROVIDES: &[u8; 15] = b"submit_solution";

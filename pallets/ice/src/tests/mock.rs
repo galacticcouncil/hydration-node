@@ -169,7 +169,7 @@ impl pallet_timestamp::Config for Test {
 pub struct DummyLazyExecutor<T>(sp_std::marker::PhantomData<T>);
 impl<T: Config> hydradx_traits::lazy_executor::Mutate<AccountId> for DummyLazyExecutor<T> {
 	type Error = DispatchError;
-	type BoundedCall = pallet_intent::types::CallData;
+	type BoundedCall = CallData;
 
 	fn queue(
 		_src: hydradx_traits::lazy_executor::Source,
