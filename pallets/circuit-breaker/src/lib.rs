@@ -19,7 +19,7 @@
 #![allow(clippy::manual_inspect)]
 
 use codec::{Decode, Encode};
-use frame_support::traits::{Contains, EnsureOrigin};
+use frame_support::traits::{Contains, EnsureOrigin, Time};
 use frame_support::weights::Weight;
 use frame_support::{dispatch::Pays, ensure, pallet_prelude::DispatchResult, traits::Get};
 use frame_system::ensure_signed_or_root;
@@ -143,6 +143,16 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			let now = Self::timestamp_now();
+			// Lift lockdown automatically when time has passed.
+			let until = Self::withdraw_lockdown_until();
+
+			if until.is_some_and(|u| now >= u) {
+				WithdrawLockdownUntil::<T>::kill();
+				Self::deposit_event(Event::GlobalLockdownLifted);
+			}
+
+			// TODO: benchmark it
 			T::WeightInfo::on_finalize(0, 0)
 		}
 
@@ -237,6 +247,12 @@ pub mod pallet {
 
 		#[cfg(feature = "runtime-benchmarks")]
 		type BenchmarkHelper: types::BenchmarkHelper<Self::AccountId, Self::AssetId, Self::Balance>;
+
+		/// Time window for global withdraw accumulator in milliseconds (e.g., 86_400_000 for 24h).
+		#[pallet::constant]
+		type GlobalWithdrawWindow: Get<primitives::Moment>;
+
+		type TimestampProvider: Time<Moment = primitives::Moment>;
 	}
 
 	#[pallet::pallet]
@@ -304,6 +320,21 @@ pub mod pallet {
 	pub type AllowedRemoveLiquidityAmountPerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn global_withdraw_limit)]
+	/// Configured global limit in reference currency
+	pub type GlobalWithdrawLimit<T: Config> = StorageValue<_, T::Balance, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn withdraw_limit_accumulator)]
+	/// Tuple of (current_accumulator_in_ref, last_update_timestamp_ms)
+	pub type WithdrawLimitAccumulator<T: Config> = StorageValue<_, (T::Balance, primitives::Moment), ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn withdraw_lockdown_until)]
+	/// If some, global lockdown is active until this timestamp.
+	pub type WithdrawLockdownUntil<T: Config> = StorageValue<_, primitives::Moment, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -332,6 +363,15 @@ pub mod pallet {
 
 		/// All reserved amount of deposit was released
 		DepositReleased { who: T::AccountId, asset_id: T::AssetId },
+
+		/// Global lockdown triggered until given timestamp (ms).
+		GlobalLockdownTriggered { until: u64 },
+		/// Global lockdown was lifted (either automatically or by reset).
+		GlobalLockdownLifted,
+		/// Global lockdown accumulator and state were reset by governance.
+		GlobalLockdownReset,
+		/// Global limit value updated by governance (in reference currency).
+		GlobalLimitUpdated { new_limit: T::Balance },
 	}
 
 	#[pallet::error]
@@ -357,6 +397,10 @@ pub mod pallet {
 		AssetNotInLockdown,
 		/// Invalid amount to save deposit
 		InvalidAmount,
+		/// Global lockdown is active and withdrawals that participate in the global limit are blocked.
+		GlobalLockdownActive,
+		/// Applying the increment would exceed the configured global limit -> lockdown is triggered and operation fails.
+		GlobalLimitExceeded,
 	}
 
 	#[pallet::call]
@@ -547,10 +591,121 @@ pub mod pallet {
 
 			Ok(Pays::No.into())
 		}
+
+		/// Set the global withdraw limit (reference currency units)
+		/// Can be called only by authority origin.
+		#[pallet::call_index(6)]
+		#[pallet::weight(T::DbWeight::get().writes(1))]
+		pub fn set_global_withdraw_limit(origin: OriginFor<T>, limit: T::Balance) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			GlobalWithdrawLimit::<T>::put(limit);
+			Self::deposit_event(Event::GlobalLimitUpdated { new_limit: limit });
+			Ok(())
+		}
+
+		/// Reset the global lockdown and accumulator to zero at current block.
+		/// Can be called only by authority origin.
+		#[pallet::call_index(7)]
+		#[pallet::weight(T::DbWeight::get().reads_writes(1,3))]
+		pub fn reset_global_lockdown(origin: OriginFor<T>) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			let now = Self::timestamp_now();
+			WithdrawLimitAccumulator::<T>::put((T::Balance::zero(), now));
+
+			WithdrawLockdownUntil::<T>::kill();
+			Self::deposit_event(Event::GlobalLockdownReset);
+
+			Ok(())
+		}
 	}
 }
 
 impl<T: Config> Pallet<T> {
+	/// Window in milliseconds representing the decay horizon (e.g. 24h).
+	fn global_withdraw_window() -> u64 {
+		T::GlobalWithdrawWindow::get()
+	}
+
+	/// Get the current timestamp from timestamp provider.
+	fn timestamp_now() -> primitives::Moment {
+		T::TimestampProvider::now()
+	}
+
+	/// Returns true if global lockdown is active at given timestamp.
+	pub fn is_lockdown_at(target: primitives::Moment) -> bool {
+		let until = Self::withdraw_lockdown_until();
+		until.is_some_and(|u| target < u)
+	}
+
+	/// Decay the accumulator linearly over the configured window.
+	/// Guarded to run at most once per block (by timestamp guard).
+	pub fn try_to_decay_withdraw_limit_accumulator() {
+		let now = Self::timestamp_now();
+		let (current, last_update) = Self::withdraw_limit_accumulator();
+		let time_diff = now.saturating_sub(last_update);
+
+		if !time_diff.is_zero() {
+			let window = Self::global_withdraw_window();
+
+			let capped_dt = time_diff.min(window);
+			let p = sp_runtime::Perbill::from_rational(capped_dt, window);
+			// TODO: decide after testing whether to leave it as it is, use Perquintill or consider remainder if needed
+			let decay = p.mul_floor(current);
+
+			let new_current = current.saturating_sub(decay);
+
+			WithdrawLimitAccumulator::<T>::put((new_current, now));
+		}
+	}
+
+	/// Apply an increment in reference currency to the global accumulator.
+	/// Fails if lockdown is active or if the new value would exceed the global limit.
+	pub fn note_egress(amount: T::Balance) -> DispatchResult {
+		let now = Self::timestamp_now();
+		if Self::is_lockdown_at(now) {
+			return Err(Error::<T>::GlobalLockdownActive.into());
+		}
+
+		// Ensure we decayed at this block before adding increments.
+		Self::try_to_decay_withdraw_limit_accumulator();
+
+		let (current, _) = Self::withdraw_limit_accumulator();
+		let new_current = current.checked_add(&amount).ok_or(ArithmeticError::Overflow)?;
+		WithdrawLimitAccumulator::<T>::put((new_current, now));
+
+		if let Some(limit) = Self::global_withdraw_limit() {
+			if new_current >= limit {
+				let until = now.saturating_add(Self::global_withdraw_window());
+				WithdrawLockdownUntil::<T>::put(until);
+
+				Self::deposit_event(Event::GlobalLockdownTriggered { until });
+				return Err(Error::<T>::GlobalLimitExceeded.into());
+			}
+		}
+
+		Ok(())
+	}
+
+	pub fn try_note_egress(amount: T::Balance) -> DispatchResult {
+		let now = Self::timestamp_now();
+		if Self::is_lockdown_at(now) {
+			return Err(Error::<T>::GlobalLockdownActive.into());
+		}
+
+		// Ensure we decayed at this block before adding increments.
+		Self::try_to_decay_withdraw_limit_accumulator();
+
+		let (current, _) = Self::withdraw_limit_accumulator();
+		let new_current = current.checked_add(&amount).ok_or(ArithmeticError::Overflow)?;
+
+		if let Some(limit) = Self::global_withdraw_limit() {
+			ensure!(new_current < limit, Error::<T>::GlobalLimitExceeded);
+		}
+
+		Ok(())
+	}
+
 	fn initialize_trade_limit(asset_id: T::AssetId, initial_asset_reserve: T::Balance) -> DispatchResult {
 		if asset_id != T::OmnipoolHubAsset::get() && !<AllowedTradeVolumeLimitPerAsset<T>>::contains_key(asset_id) {
 			let limit = Self::calculate_limit(
