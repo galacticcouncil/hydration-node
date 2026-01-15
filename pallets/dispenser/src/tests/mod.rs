@@ -167,12 +167,10 @@ parameter_types! {
 }
 
 pub struct SigEthFaucetMpcRoot;
-impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetMpcRoot {
-	fn get() -> [u8; 20] {
-		[
-			0x3c, 0x44, 0xcd, 0xdd, 0xb6, 0xa9, 0x00, 0xfa, 0x2b, 0x58, 0x5d, 0xd2, 0x99, 0xe0, 0x3d, 0x12, 0xfa, 0x42,
-			0x93, 0xbc,
-		]
+impl frame_support::traits::Get<primitives::EvmAddress> for SigEthFaucetMpcRoot {
+	fn get() -> primitives::EvmAddress {
+		// 0x3c44CdDdB6a900fa2b585dd299e03d12FA4293BC
+		primitives::EvmAddress::from(hex_literal::hex!("3c44CdDdB6a900fa2b585dd299e03d12FA4293BC"))
 	}
 }
 

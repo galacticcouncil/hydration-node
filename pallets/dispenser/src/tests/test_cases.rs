@@ -332,7 +332,7 @@ fn request_reduces_faucet_balance() {
 fn request_fails_with_zero_address() {
 	new_test_ext().execute_with(|| {
 		let requester = acct(1);
-		let receiver = [0u8; 20];
+		let receiver = primitives::EvmAddress::zero();
 		let amount = 10_000u128;
 		let tx = create_test_tx_params();
 		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
