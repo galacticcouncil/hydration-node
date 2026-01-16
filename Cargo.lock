@@ -6822,9 +6822,9 @@ dependencies = [
 
 [[package]]
 name = "ismp"
-version = "1.2.0"
+version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25e6e457045b65e80521632ea2eb175b2901edbe94210c89bd03bf554e5bc55d"
+checksum = "03c12980d899695c2e8c49ba6b768760aa1cfa2ad7ff8c158199f4707d9f2fe8"
 dependencies = [
  "anyhow",
  "derive_more 1.0.0",

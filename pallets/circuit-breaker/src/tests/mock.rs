@@ -23,7 +23,9 @@ pub use frame_support::{assert_noop, assert_ok, parameter_types};
 use frame_support::PalletId;
 use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
-use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, MultiCurrency, NamedMultiReservableCurrency};
+#[cfg(feature = "runtime-benchmarks")]
+use orml_traits::MultiCurrency;
+use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, NamedMultiReservableCurrency};
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, ConstU128, ConstU32, Zero};
 use sp_runtime::DispatchResult;
