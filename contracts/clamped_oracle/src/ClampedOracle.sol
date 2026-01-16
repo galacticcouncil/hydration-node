@@ -3,12 +3,13 @@ pragma solidity ^0.8.13;
 
 import {IClampedOracle} from "./interfaces/IClampedOracle.sol";
 import {AggregatorInterface} from "./interfaces/AggregatorInterface.sol";
+import {IHydraChainlinkOracle} from "./interfaces/IHydraChainlinkOracle.sol";
 
 contract ClampedOracle is IClampedOracle {
     uint256 public constant MAX_BPS = 10_000;
 
     AggregatorInterface private immutable primaryAgg;
-    AggregatorInterface private immutable secondaryAgg;
+    IHydraChainlinkOracle private immutable secondaryAgg;
 
     uint256 public immutable override maxDiffBps;
 
@@ -22,7 +23,7 @@ contract ClampedOracle is IClampedOracle {
         if (maxDiffBps_ > MAX_BPS) revert InvalidBps();
 
         primaryAgg = AggregatorInterface(primaryFeed);
-        secondaryAgg = AggregatorInterface(secondaryFeed);
+        secondaryAgg = IHydraChainlinkOracle(secondaryFeed);
         maxDiffBps = maxDiffBps_;
 
         emit ClampedOracleInitialized(primaryFeed, secondaryFeed, maxDiffBps_);
@@ -36,9 +37,13 @@ contract ClampedOracle is IClampedOracle {
         return address(secondaryAgg);
     }
 
+    function decimals() external pure returns (uint8) {
+        return 8;
+    }
+
     function latestAnswer() public view override returns (int256) {
-        (bool pOk, int256 pAns) = _tryLatestAnswer(primaryAgg);
-        (bool sOk, int256 sAns) = _tryLatestAnswer(secondaryAgg);
+        (bool pOk, int256 pAns) = _tryLatestAnswerPrimary();
+        (bool sOk, int256 sAns) = _tryLatestAnswerSecondary();
 
         if (!pOk && !sOk) revert NoValidPrice();
         if (!sOk) return pAns;
@@ -60,36 +65,56 @@ contract ClampedOracle is IClampedOracle {
     }
 
     function latestTimestamp() public view override returns (uint256) {
-        (bool pOk, uint256 pTs) = _tryLatestTimestamp(primaryAgg);
-        (bool sOk, uint256 sTs) = _tryLatestTimestamp(secondaryAgg);
+        (bool pOk, uint256 pTs) = _tryLatestTimestampPrimary();
 
-        if (!pOk && !sOk) revert NoValidPrice();
-        if (!sOk) return pTs;
-        if (!pOk) return sTs;
-
-        return pTs < sTs ? pTs : sTs;
+        if (pOk) return pTs;
+        revert NoValidPrice();
     }
 
     function latestRound() external view override returns (uint256) {
-        try primaryAgg.latestRound() returns (uint256 r) {
-            return r;
-        } catch {
-            return secondaryAgg.latestRound();
-        }
+        return primaryAgg.latestRound();
     }
 
-    function getAnswer(uint256) external view override returns (int256) {
-        return latestAnswer();
+    function getAnswer(
+        uint256 roundId
+    ) external view override returns (int256) {
+        (bool pOk, int256 pAns) = _tryGetAnswerPrimary(roundId);
+        (bool sOk, int256 sAns) = _tryGetAnswerSecondary(roundId);
+
+        if (!pOk && !sOk) revert NoValidPrice();
+        if (!sOk) return pAns;
+        if (!pOk) return sAns;
+
+        if (pAns <= 0 || sAns <= 0) revert NoValidPrice();
+
+        uint256 P = uint256(pAns);
+        uint256 S = uint256(sAns);
+
+        uint256 lower = (S * (MAX_BPS - maxDiffBps)) / MAX_BPS;
+        uint256 upper = (S * (MAX_BPS + maxDiffBps)) / MAX_BPS;
+
+        uint256 out = P;
+        if (out < lower) out = lower;
+        if (out > upper) out = upper;
+
+        return int256(out);
     }
 
-    function getTimestamp(uint256) external view override returns (uint256) {
-        return latestTimestamp();
+    function getTimestamp(
+        uint256 roundId
+    ) external view override returns (uint256) {
+        (bool pOk, uint256 pTs) = _tryGetTimestampPrimary(roundId);
+
+        if (pOk) return pTs;
+        revert NoValidPrice();
     }
 
-    function _tryLatestAnswer(
-        AggregatorInterface agg
-    ) internal view returns (bool ok, int256 ans) {
-        try agg.latestAnswer() returns (int256 a) {
+    function _tryLatestAnswerPrimary()
+        internal
+        view
+        returns (bool ok, int256 ans)
+    {
+        try primaryAgg.latestAnswer() returns (int256 a) {
             if (a <= 0) return (false, 0);
             return (true, a);
         } catch {
@@ -97,10 +122,58 @@ contract ClampedOracle is IClampedOracle {
         }
     }
 
-    function _tryLatestTimestamp(
-        AggregatorInterface agg
+    function _tryLatestAnswerSecondary()
+        internal
+        view
+        returns (bool ok, int256 ans)
+    {
+        try secondaryAgg.latestAnswer() returns (int256 a) {
+            if (a <= 0) return (false, 0);
+            return (true, a);
+        } catch {
+            return (false, 0);
+        }
+    }
+
+    function _tryLatestTimestampPrimary()
+        internal
+        view
+        returns (bool ok, uint256 ts)
+    {
+        try primaryAgg.latestTimestamp() returns (uint256 t) {
+            if (t == 0) return (false, 0);
+            return (true, t);
+        } catch {
+            return (false, 0);
+        }
+    }
+
+    function _tryGetAnswerPrimary(
+        uint256 roundId
+    ) internal view returns (bool ok, int256 ans) {
+        try primaryAgg.getAnswer(roundId) returns (int256 a) {
+            if (a <= 0) return (false, 0);
+            return (true, a);
+        } catch {
+            return (false, 0);
+        }
+    }
+
+    function _tryGetAnswerSecondary(
+        uint256 roundId
+    ) internal view returns (bool ok, int256 ans) {
+        try secondaryAgg.getAnswer(roundId) returns (int256 a) {
+            if (a <= 0) return (false, 0);
+            return (true, a);
+        } catch {
+            return (false, 0);
+        }
+    }
+
+    function _tryGetTimestampPrimary(
+        uint256 roundId
     ) internal view returns (bool ok, uint256 ts) {
-        try agg.latestTimestamp() returns (uint256 t) {
+        try primaryAgg.getTimestamp(roundId) returns (uint256 t) {
             if (t == 0) return (false, 0);
             return (true, t);
         } catch {

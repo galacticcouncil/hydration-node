@@ -5,8 +5,12 @@ import "forge-std/Test.sol";
 
 import {ClampedOracle} from "../src/ClampedOracle.sol";
 import {IClampedOracle} from "../src/interfaces/IClampedOracle.sol";
+
 import {MockAggregator} from "./mocks/MockAggregator.sol";
 import {RevertingAggregator} from "./mocks/RevertingAggregator.sol";
+
+import {MockHydraChainlinkOracle} from "./mocks/MockHydraChainlinkOracle.sol";
+import {RevertingHydraChainlinkOracle} from "./mocks/RevertingHydraChainlinkOracle.sol";
 
 contract ClampedOracleTest is Test {
     function p(
@@ -18,10 +22,10 @@ contract ClampedOracleTest is Test {
 
     function testClampAboveBandExample() public {
         MockAggregator primary = new MockAggregator();
-        MockAggregator secondary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
         primary.pushAnswer(p(1, 50), 100);
-        secondary.pushAnswer(p(1, 0), 100);
+        secondary.pushAnswer(p(1, 0));
 
         ClampedOracle oracle = new ClampedOracle(
             address(primary),
@@ -29,16 +33,15 @@ contract ClampedOracleTest is Test {
             1000
         );
 
-        int256 ans = oracle.latestAnswer();
-        assertEq(ans, p(1, 10));
+        assertEq(oracle.latestAnswer(), p(1, 10));
     }
 
     function testClampBelowBand() public {
         MockAggregator primary = new MockAggregator();
-        MockAggregator secondary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
         primary.pushAnswer(p(0, 80), 100);
-        secondary.pushAnswer(p(1, 0), 100);
+        secondary.pushAnswer(p(1, 0));
 
         ClampedOracle oracle = new ClampedOracle(
             address(primary),
@@ -46,16 +49,15 @@ contract ClampedOracleTest is Test {
             1000
         );
 
-        int256 ans = oracle.latestAnswer();
-        assertEq(ans, p(0, 90));
+        assertEq(oracle.latestAnswer(), p(0, 90));
     }
 
     function testWithinBandReturnsPrimary() public {
         MockAggregator primary = new MockAggregator();
-        MockAggregator secondary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
         primary.pushAnswer(p(1, 5), 100);
-        secondary.pushAnswer(p(1, 0), 100);
+        secondary.pushAnswer(p(1, 0));
 
         ClampedOracle oracle = new ClampedOracle(
             address(primary),
@@ -63,13 +65,12 @@ contract ClampedOracleTest is Test {
             1000
         );
 
-        int256 ans = oracle.latestAnswer();
-        assertEq(ans, p(1, 5));
+        assertEq(oracle.latestAnswer(), p(1, 5));
     }
 
     function testRevertOpenSecondaryRevertsReturnsPrimary() public {
         MockAggregator primary = new MockAggregator();
-        RevertingAggregator secondary = new RevertingAggregator();
+        RevertingHydraChainlinkOracle secondary = new RevertingHydraChainlinkOracle();
 
         primary.pushAnswer(p(1, 23), 100);
 
@@ -84,9 +85,9 @@ contract ClampedOracleTest is Test {
 
     function testRevertOpenPrimaryRevertsReturnsSecondary() public {
         RevertingAggregator primary = new RevertingAggregator();
-        MockAggregator secondary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
-        secondary.pushAnswer(p(0, 99), 100);
+        secondary.pushAnswer(p(0, 99));
 
         ClampedOracle oracle = new ClampedOracle(
             address(primary),
@@ -99,7 +100,7 @@ contract ClampedOracleTest is Test {
 
     function testBothFailRevertsNoValidPrice() public {
         RevertingAggregator primary = new RevertingAggregator();
-        RevertingAggregator secondary = new RevertingAggregator();
+        RevertingHydraChainlinkOracle secondary = new RevertingHydraChainlinkOracle();
 
         ClampedOracle oracle = new ClampedOracle(
             address(primary),
@@ -111,27 +112,12 @@ contract ClampedOracleTest is Test {
         oracle.latestAnswer();
     }
 
-    function testLatestTimestampReturnsMinWhenBothOk() public {
+    function testLatestTimestampReturnsPrimaryTs() public {
         MockAggregator primary = new MockAggregator();
-        MockAggregator secondary = new MockAggregator();
-
-        primary.pushAnswer(p(1, 0), 200);
-        secondary.pushAnswer(p(1, 0), 150);
-
-        ClampedOracle oracle = new ClampedOracle(
-            address(primary),
-            address(secondary),
-            1000
-        );
-
-        assertEq(oracle.latestTimestamp(), 150);
-    }
-
-    function testLatestTimestampSecondaryFailsReturnsPrimaryTs() public {
-        MockAggregator primary = new MockAggregator();
-        RevertingAggregator secondary = new RevertingAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
         primary.pushAnswer(p(1, 0), 777);
+        secondary.pushAnswer(p(1, 0));
 
         ClampedOracle oracle = new ClampedOracle(
             address(primary),
@@ -142,14 +128,47 @@ contract ClampedOracleTest is Test {
         assertEq(oracle.latestTimestamp(), 777);
     }
 
+    function testLatestTimestampPrimaryRevertsNoValidPrice() public {
+        RevertingAggregator primary = new RevertingAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
+
+        secondary.pushAnswer(p(1, 0));
+
+        ClampedOracle oracle = new ClampedOracle(
+            address(primary),
+            address(secondary),
+            1000
+        );
+
+        vm.expectRevert(IClampedOracle.NoValidPrice.selector);
+        oracle.latestTimestamp();
+    }
+
+    function testLatestTimestampPrimaryZeroNoValidPrice() public {
+        MockAggregator primary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
+
+        primary.pushAnswer(p(1, 0), 0);
+        secondary.pushAnswer(p(1, 0));
+
+        ClampedOracle oracle = new ClampedOracle(
+            address(primary),
+            address(secondary),
+            1000
+        );
+
+        vm.expectRevert(IClampedOracle.NoValidPrice.selector);
+        oracle.latestTimestamp();
+    }
+
     function testLatestRoundForwardsPrimaryRound() public {
         MockAggregator primary = new MockAggregator();
-        MockAggregator secondary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
         primary.pushAnswer(p(1, 0), 100);
         uint256 r2 = primary.pushAnswer(p(1, 0), 101);
 
-        secondary.pushAnswer(p(1, 0), 100);
+        secondary.pushAnswer(p(1, 0));
 
         ClampedOracle oracle = new ClampedOracle(
             address(primary),
@@ -160,11 +179,11 @@ contract ClampedOracleTest is Test {
         assertEq(oracle.latestRound(), r2);
     }
 
-    function testLatestRoundFallsBackToSecondaryIfPrimaryReverts() public {
+    function testLatestRoundPrimaryReverts() public {
         RevertingAggregator primary = new RevertingAggregator();
-        MockAggregator secondary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
-        uint256 r = secondary.pushAnswer(p(1, 0), 100);
+        secondary.pushAnswer(p(1, 0));
 
         ClampedOracle oracle = new ClampedOracle(
             address(primary),
@@ -172,18 +191,16 @@ contract ClampedOracleTest is Test {
             1000
         );
 
-        assertEq(oracle.latestRound(), r);
+        vm.expectRevert();
+        oracle.latestRound();
     }
 
-    function testGetAnswerAndGetTimestampReturnLatest() public {
+    function testGetAnswerClampsUsingRoundId() public {
         MockAggregator primary = new MockAggregator();
-        MockAggregator secondary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
-        primary.setRoundData(10, p(9, 99), 10);
-        secondary.setRoundData(10, p(1, 0), 10);
-
-        primary.pushAnswer(p(1, 5), 200);
-        secondary.pushAnswer(p(1, 0), 150);
+        primary.setRoundData(10, p(1, 50), 111);
+        secondary.setRoundData(10, p(1, 0));
 
         ClampedOracle oracle = new ClampedOracle(
             address(primary),
@@ -191,12 +208,43 @@ contract ClampedOracleTest is Test {
             1000
         );
 
-        assertEq(oracle.getAnswer(10), oracle.latestAnswer());
-        assertEq(oracle.getTimestamp(10), oracle.latestTimestamp());
+        assertEq(oracle.getAnswer(10), p(1, 10));
+    }
+
+    function testGetTimestampUsesPrimaryRoundId() public {
+        MockAggregator primary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
+
+        primary.setRoundData(10, p(1, 0), 555);
+        secondary.setRoundData(10, p(1, 0));
+
+        ClampedOracle oracle = new ClampedOracle(
+            address(primary),
+            address(secondary),
+            1000
+        );
+
+        assertEq(oracle.getTimestamp(10), 555);
+    }
+
+    function testGetTimestampPrimaryRevertsNoValidPrice() public {
+        RevertingAggregator primary = new RevertingAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
+
+        secondary.setRoundData(10, p(1, 0));
+
+        ClampedOracle oracle = new ClampedOracle(
+            address(primary),
+            address(secondary),
+            1000
+        );
+
+        vm.expectRevert(IClampedOracle.NoValidPrice.selector);
+        oracle.getTimestamp(10);
     }
 
     function testConstructorZeroFeedReverts() public {
-        MockAggregator secondary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
         vm.expectRevert(IClampedOracle.InvalidFeed.selector);
         new ClampedOracle(address(0), address(secondary), 1000);
@@ -204,7 +252,7 @@ contract ClampedOracleTest is Test {
 
     function testConstructorInvalidBpsReverts() public {
         MockAggregator primary = new MockAggregator();
-        MockAggregator secondary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
         vm.expectRevert(IClampedOracle.InvalidBps.selector);
         new ClampedOracle(address(primary), address(secondary), 10_001);
@@ -212,10 +260,10 @@ contract ClampedOracleTest is Test {
 
     function testPrimaryZeroAnswerFallsBackToSecondary() public {
         MockAggregator primary = new MockAggregator();
-        MockAggregator secondary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
         primary.pushAnswer(int256(0), 100);
-        secondary.pushAnswer(p(1, 0), 100);
+        secondary.pushAnswer(p(1, 0));
 
         ClampedOracle oracle = new ClampedOracle(
             address(primary),
@@ -228,10 +276,10 @@ contract ClampedOracleTest is Test {
 
     function testSecondaryZeroAnswerReturnsPrimaryNoClamp() public {
         MockAggregator primary = new MockAggregator();
-        MockAggregator secondary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
         primary.pushAnswer(p(1, 23), 100);
-        secondary.pushAnswer(int256(0), 100);
+        secondary.pushAnswer(int256(0));
 
         ClampedOracle oracle = new ClampedOracle(
             address(primary),
@@ -242,12 +290,12 @@ contract ClampedOracleTest is Test {
         assertEq(oracle.latestAnswer(), p(1, 23));
     }
 
-    function testLatestTimestampZeroFallsBack() public {
+    function testDecimalsIsEight() public {
         MockAggregator primary = new MockAggregator();
-        MockAggregator secondary = new MockAggregator();
+        MockHydraChainlinkOracle secondary = new MockHydraChainlinkOracle();
 
-        primary.pushAnswer(p(1, 0), 0);
-        secondary.pushAnswer(p(1, 0), 123);
+        primary.pushAnswer(p(1, 0), 100);
+        secondary.pushAnswer(p(1, 0));
 
         ClampedOracle oracle = new ClampedOracle(
             address(primary),
@@ -255,6 +303,6 @@ contract ClampedOracleTest is Test {
             1000
         );
 
-        assertEq(oracle.latestTimestamp(), 123);
+        assertEq(oracle.decimals(), 8);
     }
 }
