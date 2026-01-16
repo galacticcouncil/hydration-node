@@ -1020,13 +1020,13 @@ fn dispatch_evm_call_without_batch_should_increase_nonce_correctly() {
 		assert_eq!(account.nonce(), initial_nonce + 1);
 		assert_eq!(last_evm_nonce, initial_evm_nonce + 1);
 
-		dispatch_evm_call_with_params(false, None, Some(last_evm_nonce.into()));
+		dispatch_evm_call_with_params(false, None, Some(last_evm_nonce));
 		let last_evm_nonce = evm::EvmNonceProvider::get_nonce(evm_address());
 
 		assert_eq!(account.nonce(), initial_nonce + 2);
 		assert_eq!(last_evm_nonce, initial_evm_nonce + 2);
 
-		dispatch_evm_call_with_params(false, Some(15_000.into()), Some(last_evm_nonce.into()));
+		dispatch_evm_call_with_params(false, Some(15_000.into()), Some(last_evm_nonce));
 		assert_eq!(account.nonce(), initial_nonce + 3);
 		assert_eq!(evm::EvmNonceProvider::get_nonce(evm_address()), initial_evm_nonce + 3);
 

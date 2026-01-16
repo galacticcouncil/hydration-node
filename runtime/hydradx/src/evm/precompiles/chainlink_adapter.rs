@@ -63,10 +63,7 @@ where
 		if let Some((asset_id_a, asset_id_b, period, source)) = decode_oracle_address(address) {
 			log::debug!(target: "evm", "chainlink: asset_id_a: {:?}, asset_id_b: {:?}, period: {:?}, source: {:?}", asset_id_a, asset_id_b, period, source);
 
-			let selector = match handle.read_selector() {
-				Ok(selector) => selector,
-				Err(e) => return Err(e),
-			};
+			let selector = handle.read_selector()?;
 
 			handle.check_function_modifier(FunctionModifier::View)?;
 

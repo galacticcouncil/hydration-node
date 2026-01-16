@@ -2957,7 +2957,7 @@ mod account_marking {
 			assert_eq!(erc20_balance, 2000000000000000);
 			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
 				CallContext {
-					contract: contract,
+					contract,
 					sender: crate::erc20::deployer(),
 					origin: crate::erc20::deployer()
 				},
@@ -3098,7 +3098,7 @@ mod account_marking {
 			assert_eq!(erc20_balance, 2000000000000000);
 			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
 				CallContext {
-					contract: contract,
+					contract,
 					sender: crate::erc20::deployer(),
 					origin: crate::erc20::deployer()
 				},
@@ -4986,9 +4986,7 @@ mod evm_error_decoder {
 		let mut nested_data = vec![0x00u8]; // Start with valid discriminant
 
 		// Add many layers of nesting indicators
-		for _ in 0..300 {
-			nested_data.push(0x01); // Indicate nested structure
-		}
+		nested_data.resize(301, 0x01); // Indicate nested structure
 
 		let call_result = CallResult {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),

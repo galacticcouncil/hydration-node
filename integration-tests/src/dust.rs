@@ -464,6 +464,7 @@ mod atoken_dust {
 				..Config::default()
 			});
 
+			#[allow(clippy::let_unit_value)]
 			let _ = runner
 				.run(&ed_range, |ed| {
 					let _ = with_transaction(|| {
@@ -528,8 +529,8 @@ pub mod runtime_api {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
-			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(ALICE.into()), false);
-			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(BOB.into()), false);
+			assert!(!hydradx_runtime::Runtime::is_whitelisted(ALICE.into()));
+			assert!(!hydradx_runtime::Runtime::is_whitelisted(BOB.into()));
 		});
 	}
 
@@ -538,11 +539,11 @@ pub mod runtime_api {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
-			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(Treasury::account_id()), true);
-			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(Router::router_account()), true);
+			assert!(hydradx_runtime::Runtime::is_whitelisted(Treasury::account_id()));
+			assert!(hydradx_runtime::Runtime::is_whitelisted(Router::router_account()));
 
 			let holding_account = EVMAccounts::account_id(hydradx_runtime::evm::HOLDING_ADDRESS);
-			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(holding_account), true);
+			assert!(hydradx_runtime::Runtime::is_whitelisted(holding_account));
 		});
 	}
 
@@ -555,13 +556,13 @@ pub mod runtime_api {
 				hydradx_runtime::RuntimeOrigin::root(),
 				CHARLIE.into(),
 			));
-			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(CHARLIE.into()), true);
+			assert!(hydradx_runtime::Runtime::is_whitelisted(CHARLIE.into()));
 
 			assert_ok!(Duster::remove_from_whitelist(
 				hydradx_runtime::RuntimeOrigin::root(),
 				CHARLIE.into(),
 			));
-			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(CHARLIE.into()), false);
+			assert!(!hydradx_runtime::Runtime::is_whitelisted(CHARLIE.into()));
 		});
 	}
 }

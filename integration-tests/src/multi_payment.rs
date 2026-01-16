@@ -355,7 +355,7 @@ fn set_currency_in_batch_should_fail_for_unaccepted_asset_with_oracle_price() {
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				dot,
-				1 * UNITS,
+				UNITS,
 				u128::MIN,
 				vec![].try_into().unwrap(),
 			));

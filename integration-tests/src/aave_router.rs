@@ -1442,7 +1442,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
 
 		//Let's mutate timestamp to accrue some yield on ADOT holdings
 		let current_timestamp = hydradx_runtime::Timestamp::get();
-		let new_timestamp = current_timestamp + (1 * 1000); // milliseconds
+		let new_timestamp = current_timestamp + 1000; // milliseconds
 		hydradx_runtime::Timestamp::set_timestamp(new_timestamp);
 
 		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);

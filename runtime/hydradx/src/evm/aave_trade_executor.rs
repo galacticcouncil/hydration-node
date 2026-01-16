@@ -156,7 +156,7 @@ where
 			EvmAccounts::<T>::evm_address(&from),
 		);
 
-		AaveTradeExecutor::<T>::do_withdraw_all(&from, underlying_asset)?;
+		AaveTradeExecutor::<T>::do_withdraw_all(from, underlying_asset)?;
 
 		let underlying_balance_after = <Erc20Currency<T> as ERC20>::balance_of(
 			CallContext::new_view(underlying_asset),

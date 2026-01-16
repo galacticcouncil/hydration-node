@@ -17,6 +17,7 @@ pub const MAX_ERROR_DATA_LENGTH: usize = 1024; // Maximum length of EVM error da
 pub struct EvmErrorDecoder;
 
 impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
+	#[allow(clippy::collapsible_if)]
 	fn convert(call_result: CallResult) -> DispatchError {
 		if let ExitReason::Error(ExitError::OutOfGas) = call_result.exit_reason {
 			return pallet_dispatcher::Error::<crate::Runtime>::EvmOutOfGas.into();

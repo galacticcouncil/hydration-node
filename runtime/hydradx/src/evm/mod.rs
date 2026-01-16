@@ -98,7 +98,7 @@ pub fn weth_asset_location() -> AssetLocation {
 			Junction::PalletInstance(110),
 			Junction::AccountKey20 {
 				network: None,
-				key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"].into(),
+				key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
 			},
 		]
 		.into(),

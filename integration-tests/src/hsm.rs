@@ -1886,7 +1886,7 @@ fn arbitrage_should_work_when_hollar_amount_is_less_in_the_pool() {
 
 		let hsm_address = hydradx_runtime::HSM::account_id();
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			hsm_address.clone().into()
+			hsm_address.clone()
 		)));
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 		add_facilitator(hsm_evm_address, "hsm", 100_000_000_000_000_000_000_000);
@@ -2339,7 +2339,7 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool() {
 
 		let hsm_address = hydradx_runtime::HSM::account_id();
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			hsm_address.clone().into()
+			hsm_address.clone()
 		)));
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000_000_000);
@@ -2424,7 +2424,7 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool() {
 			.assets
 			.iter()
 			.zip(state.reserves.iter())
-			.map(|(a, b)| (a.clone(), b.clone()))
+			.map(|(a, b)| (*a, *b))
 			.collect();
 		let initial_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 			pool_id,
@@ -2454,7 +2454,7 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool() {
 			.assets
 			.iter()
 			.zip(state.reserves.iter())
-			.map(|(a, b)| (a.clone(), b.clone()))
+			.map(|(a, b)| (*a, *b))
 			.collect();
 		let final_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 			pool_id,
@@ -2480,7 +2480,7 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool_and_collateral_has_12_
 
 		let hsm_address = hydradx_runtime::HSM::account_id();
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			hsm_address.clone().into()
+			hsm_address.clone()
 		)));
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000_000_000);
@@ -2577,7 +2577,7 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool_and_collateral_has_12_
 			.assets
 			.iter()
 			.zip(state.reserves.iter())
-			.map(|(a, b)| (a.clone(), b.clone()))
+			.map(|(a, b)| (*a, *b))
 			.collect();
 		let initial_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 			pool_id,
@@ -2609,7 +2609,7 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool_and_collateral_has_12_
 			.assets
 			.iter()
 			.zip(state.reserves.iter())
-			.map(|(a, b)| (a.clone(), b.clone()))
+			.map(|(a, b)| (*a, *b))
 			.collect();
 		let final_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 			pool_id,
@@ -2634,7 +2634,7 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool() {
 
 		let hsm_address = hydradx_runtime::HSM::account_id();
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			hsm_address.clone().into()
+			hsm_address.clone()
 		)));
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000_000_000);
@@ -2732,7 +2732,7 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool() {
 			.assets
 			.iter()
 			.zip(state.reserves.iter())
-			.map(|(a, b)| (a.clone(), b.clone()))
+			.map(|(a, b)| (*a, *b))
 			.collect();
 		let initial_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 			pool_id,
@@ -2755,7 +2755,7 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool() {
 				.assets
 				.iter()
 				.zip(state.reserves.iter())
-				.map(|(a, b)| (a.clone(), b.clone()))
+				.map(|(a, b)| (*a, *b))
 				.collect();
 			let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 				pool_id,
@@ -2779,7 +2779,7 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool() {
 			.assets
 			.iter()
 			.zip(state.reserves.iter())
-			.map(|(a, b)| (a.clone(), b.clone()))
+			.map(|(a, b)| (*a, *b))
 			.collect();
 		let final_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 			pool_id,
@@ -2805,7 +2805,7 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 
 		let hsm_address = hydradx_runtime::HSM::account_id();
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			hsm_address.clone().into()
+			hsm_address.clone()
 		)));
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000_000_000);
@@ -2915,7 +2915,7 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 			.assets
 			.iter()
 			.zip(state.reserves.iter())
-			.map(|(a, b)| (a.clone(), b.clone()))
+			.map(|(a, b)| (*a, *b))
 			.collect();
 		let initial_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 			pool_id,
@@ -2942,7 +2942,7 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 				.assets
 				.iter()
 				.zip(state.reserves.iter())
-				.map(|(a, b)| (a.clone(), b.clone()))
+				.map(|(a, b)| (*a, *b))
 				.collect();
 			let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 				pool_id,
@@ -2966,7 +2966,7 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 			.assets
 			.iter()
 			.zip(state.reserves.iter())
-			.map(|(a, b)| (a.clone(), b.clone()))
+			.map(|(a, b)| (*a, *b))
 			.collect();
 		let final_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 			pool_id,

@@ -126,7 +126,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result::<T>(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 
 	// Calls the transfer method on an ERC20 contract using the given context.
@@ -137,7 +137,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result::<T>(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 
 	fn transfer_from(context: CallContext, from: EvmAddress, to: EvmAddress, value: Balance) -> DispatchResult {
@@ -149,7 +149,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result::<T>(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 }
 
@@ -195,10 +195,7 @@ fn decode_bool(value: Vec<u8>) -> Option<bool> {
 	Some(value.as_slice() == bytes)
 }
 
-fn handle_result<T>(result: CallResult) -> DispatchResult
-where
-	T: pallet_dispatcher::Config,
-{
+fn handle_result(result: CallResult) -> DispatchResult {
 	match &result.exit_reason {
 		ExitReason::Succeed(_) => {
 			if Some(false) == decode_bool(result.value) {

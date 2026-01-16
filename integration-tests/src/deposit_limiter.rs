@@ -675,9 +675,7 @@ fn remove_liquidity_cannot_burn_more_lrna_when_asset_locked_down() {
 			go_to_block(init_block + (i + 1u32));
 		}
 
-		for i in 0..=36usize {
-			let position_id = positions[i];
-
+		for (i, &position_id) in positions.iter().enumerate().take(37) {
 			assert_ok!(Omnipool::remove_liquidity(
 				RuntimeOrigin::signed(ALICE.into()),
 				position_id,

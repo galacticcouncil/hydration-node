@@ -40,7 +40,7 @@ const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 mod omnipool {
 	use super::*;
 	use frame_support::assert_ok;
-	use hydradx_runtime::{Balances, Currencies, Runtime, Treasury, DCA, XYK};
+	use hydradx_runtime::{Balances, Currencies, Treasury, DCA, XYK};
 	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::AssetKind;
 	use pallet_broadcast::types::Destination;
@@ -5350,7 +5350,7 @@ mod extra_gas_erc20 {
 		let mut bytecode = crate::utils::contracts::get_contract_bytecode("ConditionalGasEater");
 
 		// Encode constructor parameters: (address _routerAddress, uint256 _gasToWaste)
-		let constructor_params = encode(&[Token::Address(router_address.into()), Token::Uint(gas_to_waste.into())]);
+		let constructor_params = encode(&[Token::Address(router_address), Token::Uint(gas_to_waste.into())]);
 
 		// Append encoded constructor params to bytecode
 		bytecode.extend(constructor_params);
@@ -5409,7 +5409,7 @@ mod extra_gas_erc20 {
 		let mut bytecode = crate::utils::contracts::get_contract_bytecode("SubcallGasExhaustionToken");
 
 		// Encode constructor parameters: (address _routerAddress, uint256 _gasToWaste)
-		let constructor_params = encode(&[Token::Address(router_address.into()), Token::Uint(gas_to_waste.into())]);
+		let constructor_params = encode(&[Token::Address(router_address), Token::Uint(gas_to_waste.into())]);
 
 		// Append encoded constructor params to bytecode
 		bytecode.extend(constructor_params);

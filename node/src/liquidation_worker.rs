@@ -206,6 +206,11 @@ pub struct LiquidationTaskData {
 	pub max_transactions: Arc<Mutex<usize>>,
 	pub thread_pool: Arc<Mutex<ThreadPool>>,
 }
+impl Default for LiquidationTaskData {
+	fn default() -> Self {
+		Self::new()
+	}
+}
 impl LiquidationTaskData {
 	pub fn new() -> Self {
 		Self {
@@ -944,7 +949,7 @@ where
 					}
 				}
 				RuntimeEvent::Liquidation(pallet_liquidation::Event::Liquidated { user, .. }) => {
-					liquidated_users.push(user.clone());
+					liquidated_users.push(*user);
 				}
 				_ => {}
 			}
@@ -976,7 +981,7 @@ where
 		*max_transactions = Self::calculate_max_number_of_liquidations_in_block(config.clone()).unwrap_or_default();
 		// Set the number of max liquidation calls in a block for the liquidation RPC API.
 		if let Ok(mut max_txs) = liquidation_task_data.max_transactions.lock() {
-			*max_txs = max_transactions.clone();
+			*max_txs = *max_transactions;
 		}
 
 		let _ = Self::add_new_borrowers(new_borrowers, borrowers);

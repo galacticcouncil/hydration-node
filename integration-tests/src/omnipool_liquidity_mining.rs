@@ -1408,7 +1408,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				let asset_ids_without_slippage: Vec<AssetAmount<u32>> = Stableswap::pools(stable_pool_id)
 					.into_iter()
 					.flat_map(|pool_info| pool_info.assets.into_iter())
-					.map(|asset_id| AssetAmount::<u32>::new(asset_id.into(), 10000))
+					.map(|asset_id| AssetAmount::<u32>::new(asset_id, 10000))
 					.collect();
 
 				let asset_ids_without_slippage = create_bounded_vec(asset_ids_without_slippage);
@@ -1584,7 +1584,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				let asset_ids_without_slippage: Vec<AssetAmount<u32>> = Stableswap::pools(stable_pool_id)
 					.into_iter()
 					.flat_map(|pool_info| pool_info.assets.into_iter())
-					.map(|asset_id| AssetAmount::<u32>::new(asset_id.into(), 10000))
+					.map(|asset_id| AssetAmount::<u32>::new(asset_id, 10000))
 					.collect();
 
 				let asset_ids_without_slippage = create_bounded_vec(asset_ids_without_slippage);
@@ -1753,7 +1753,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				let asset_ids_without_slippage: Vec<AssetAmount<u32>> = Stableswap::pools(stable_pool_id)
 					.into_iter()
 					.flat_map(|pool_info| pool_info.assets.into_iter())
-					.map(|asset_id| AssetAmount::<u32>::new(asset_id.into(), 10000))
+					.map(|asset_id| AssetAmount::<u32>::new(asset_id, 10000))
 					.collect();
 
 				let asset_ids_without_slippage = create_bounded_vec(asset_ids_without_slippage);

@@ -373,7 +373,7 @@ fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 
 			// 1.479615087126985602 + (1.479615087126985602 * 10 * 0.001) = 1.49441123799825545802
 			// (1.49441123799825545802 / 1.479615087126985602) - 1 = 0.01 => 1[%] == 0.1[%]*10[blocks])
-			let expected_pegs = FixedU128::from_float(1.49441123799825545802_f64);
+			let expected_pegs = FixedU128::from_float(1.494_411_237_998_255_5_f64);
 			//Asserts
 			let peg_info_1 = Stableswap::pool_peg_info(GIGADOT).unwrap();
 			assert_eq_approx!(
@@ -430,7 +430,7 @@ fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 			// (1.49590564923625371347802 / 1.49441123799825545802) - 1 = 0.001 => 0.1[%] == 0.1[%] * 1[block])
 			assert_eq_approx!(
 				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
-				FixedU128::from_float(1.49590564923625371347802_f64),
+				FixedU128::from_float(1.495_905_649_236_253_7_f64),
 				precission,
 				"Updated pegs doesn't match expected value"
 			);
@@ -463,7 +463,7 @@ fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 			// (1.57518864864577516029235506 /  1.49590564923625371347802) - 1 = 0.053 => 5.3[%] == 0.1[%]*53[blocks])
 			assert_eq_approx!(
 				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
-				FixedU128::from_float(1.57518864864577516029235506_f64),
+				FixedU128::from_float(1.575_188_648_645_775_1_f64),
 				precission,
 				"Updated pegs doesn't match expected value"
 			);
@@ -491,7 +491,7 @@ fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 			// 1.57676383729442093545264741506 > 1.57635(oracle's price) => new peg == 1.576357467046855425
 			assert_eq_approx!(
 				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
-				FixedU128::from_float(1.576357467046855425_f64),
+				FixedU128::from_float(1.576_357_467_046_855_4_f64),
 				precission,
 				"Updated pegs doesn't match expected value"
 			);
@@ -520,7 +520,7 @@ fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 			let peg_info_1 = Stableswap::pool_peg_info(GIGADOT).unwrap();
 			assert_eq_approx!(
 				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
-				FixedU128::from_float(1.576357467046855425_f64),
+				FixedU128::from_float(1.576_357_467_046_855_4_f64),
 				precission,
 				"Updated pegs doesn't match expected value"
 			);

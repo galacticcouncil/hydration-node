@@ -129,7 +129,7 @@ where
 				// Map RunnerError to a generic EVM execution failure
 				let exit_reason = ExitReason::Error(ExitError::Other(sp_std::borrow::Cow::Borrowed("EVM Call failed")));
 				CallResult {
-					exit_reason: exit_reason,
+					exit_reason,
 					value: Vec::new(),
 					contract: context.contract,
 					gas_used: U256::zero(),

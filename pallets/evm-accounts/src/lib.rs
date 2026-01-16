@@ -67,7 +67,7 @@ use hydradx_traits::AccountFeeCurrency;
 use orml_traits::GetByKey;
 use primitives::EvmAddress;
 pub use primitives::Signature;
-use sp_core::crypto::Pair as PairT;
+use sp_core::Pair;
 use sp_core::{
 	crypto::{AccountId32, ByteArray},
 	H160, U256,

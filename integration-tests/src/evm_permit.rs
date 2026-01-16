@@ -714,7 +714,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 		assert_eq!(erc20_balance, 2000000000000000);
 		assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
 			CallContext {
-				contract: contract,
+				contract,
 				sender: crate::erc20::deployer(),
 				origin: crate::erc20::deployer()
 			},
@@ -729,7 +729,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 			erc20_balance / 2
 		));
 
-		let alith_balance = Currencies::free_balance(asset, &alith_evm_account().into());
+		let alith_balance = Currencies::free_balance(asset, &alith_evm_account());
 		assert_eq!(alith_balance, erc20_balance / 2);
 
 		assert_ok!(MultiTransactionPayment::add_currency(
@@ -886,7 +886,7 @@ fn evm_permit_set_currency_dispatch_should_work_when_wrapped_in_dispatch_with_ex
 		assert_eq!(erc20_balance, 2000000000000000);
 		assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
 			CallContext {
-				contract: contract,
+				contract,
 				sender: crate::erc20::deployer(),
 				origin: crate::erc20::deployer()
 			},
@@ -901,7 +901,7 @@ fn evm_permit_set_currency_dispatch_should_work_when_wrapped_in_dispatch_with_ex
 			erc20_balance / 2
 		));
 
-		let alith_balance = Currencies::free_balance(asset, &alith_evm_account().into());
+		let alith_balance = Currencies::free_balance(asset, &alith_evm_account());
 		assert_eq!(alith_balance, erc20_balance / 2);
 
 		assert_ok!(MultiTransactionPayment::add_currency(

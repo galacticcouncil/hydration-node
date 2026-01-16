@@ -24,7 +24,6 @@ use frame_support::PalletId;
 use frame_support::{dispatch::DispatchResult, BoundedVec};
 use frame_system::pallet_prelude::*;
 use primitives::EvmAddress;
-use sp_core::H160;
 use sp_std::vec::Vec;
 
 pub mod benchmarking;
@@ -279,7 +278,7 @@ pub mod pallet {
 			// Build EVM transaction bytes using pallet_signet helper.
 			let rlp = pallet_signet::Pallet::<T>::build_evm_tx(
 				frame_system::RawOrigin::Signed(requester.clone()).into(),
-				Some(H160::from(T::FaucetAddress::get())),
+				Some(T::FaucetAddress::get()),
 				0u128,
 				call.abi_encode(),
 				tx.nonce,

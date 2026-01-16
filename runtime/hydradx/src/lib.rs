@@ -79,7 +79,6 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 use ethereum::AuthorizationList;
-use frame_metadata_hash_extension;
 use frame_support::{construct_runtime, pallet_prelude::Hooks, traits::Contains, weights::Weight};
 pub use hex_literal::hex;
 use orml_traits::MultiCurrency;
@@ -1052,7 +1051,7 @@ impl_runtime_apis! {
 
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: polkadot_xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
-			if !matches!(xcm_version, 3 | 4 | 5) {
+			if !matches!(xcm_version, 3..=5) {
 				return Err(XcmPaymentApiError::UnhandledXcmVersion);
 			}
 
