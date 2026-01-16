@@ -1,6 +1,6 @@
 [package]
 name = "liquidation-worker-support"
-version = "1.1.3"
+version = "1.2.0"
 description = "Methods for the liquidation worker"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -26,4 +26,4 @@ primitive-types = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 
 # Hydration dependencies
-hydradx-traits = { workspace = true }
+primitives = { workspace = true }

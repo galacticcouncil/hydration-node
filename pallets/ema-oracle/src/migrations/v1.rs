@@ -45,6 +45,7 @@ impl<T: crate::Config + pallet_xyk::Config> UncheckedOnRuntimeUpgrade for unvers
 
 		let mut reads = 0;
 
+		#[allow(clippy::type_complexity)]
 		let mut migrated_entries: Vec<(
 			(Source, (AssetId, AssetId), OraclePeriod),
 			(OracleEntry<BlockNumberFor<T>>, BlockNumberFor<T>),

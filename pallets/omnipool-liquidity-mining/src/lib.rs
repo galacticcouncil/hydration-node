@@ -327,7 +327,9 @@ pub mod pallet {
 	}
 
 	//NOTE: these errors should never happen.
-	#[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
+	#[derive(
+		Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug,
+	)]
 	pub enum InconsistentStateError {
 		/// Mapping of `deposit_id` to `position_id` was not fond in the storage.
 		MissingLpPosition,

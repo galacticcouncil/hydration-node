@@ -1,4 +1,4 @@
-use crate::{self as pallet_dispenser, *};
+use crate::{self as pallet_dispenser};
 use crate::{
 	tests::{
 		new_test_ext,
@@ -104,7 +104,7 @@ fn test_fee_and_asset_routing() {
 		);
 		assert_eq!(
 			Currencies::free_balance(faucet_asset, &pallet_account),
-			eth_pallet_before + 0
+			eth_pallet_before
 		);
 	});
 }
@@ -113,10 +113,10 @@ fn test_fee_and_asset_routing() {
 fn test_pause_unpause_state() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Dispenser::pause(RuntimeOrigin::root()));
-		assert_eq!(Dispenser::dispenser_config().unwrap().paused, true);
+		assert!(Dispenser::dispenser_config().unwrap().paused);
 
 		assert_ok!(Dispenser::unpause(RuntimeOrigin::root()));
-		assert_eq!(Dispenser::dispenser_config().unwrap().paused, false);
+		assert!(!Dispenser::dispenser_config().unwrap().paused);
 	});
 }
 
@@ -127,7 +127,7 @@ fn test_amount_too_small_and_too_large() {
 		let receiver = create_test_receiver_address();
 		let tx = create_test_tx_params();
 
-		let amt_small = (<Test as crate::Config>::MinimumRequestAmount::get() - 1) as u128;
+		let amt_small = <Test as crate::Config>::MinimumRequestAmount::get() - 1;
 		let rid_small = compute_request_id(requester.clone(), receiver, amt_small, &tx);
 		assert_noop!(
 			Dispenser::request_fund(
@@ -332,7 +332,7 @@ fn request_reduces_faucet_balance() {
 fn request_fails_with_zero_address() {
 	new_test_ext().execute_with(|| {
 		let requester = acct(1);
-		let receiver = [0u8; 20];
+		let receiver = primitives::EvmAddress::zero();
 		let amount = 10_000u128;
 		let tx = create_test_tx_params();
 		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);

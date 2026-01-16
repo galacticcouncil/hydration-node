@@ -69,7 +69,7 @@ impl pallet_ismp::Config for Runtime {
 	type Router = IsmpRouterStruct;
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
 	type ConsensusClients = (ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>,);
-	type WeightProvider = IsmpWeightProvider;
+	type FeeHandler = pallet_ismp::fee_handler::WeightFeeHandler<IsmpWeightProvider>;
 	type OffchainDB = ();
 }
 
@@ -79,7 +79,7 @@ pub struct IsmpRouterStruct;
 impl IsmpRouter for IsmpRouterStruct {
 	fn module_for_id(&self, id: Vec<u8>) -> Result<Box<dyn IsmpModule>, anyhow::Error> {
 		match id.as_slice() {
-			id if TokenGateway::is_token_gateway(&id) => Ok(Box::new(TokenGateway::default())),
+			id if TokenGateway::is_token_gateway(id) => Ok(Box::new(TokenGateway::default())),
 			pallet_hyperbridge::PALLET_HYPERBRIDGE_ID => Ok(Box::new(pallet_hyperbridge::Pallet::<Runtime>::default())),
 			_ => Err(ismp::Error::ModuleNotFound(id))?,
 		}
@@ -90,6 +90,7 @@ impl ismp_parachain::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// pallet-ismp implements the IsmpHost
 	type IsmpHost = Ismp;
+	type RootOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type WeightInfo = weights::ismp_parachain::HydraWeight<Runtime>;
 }
 

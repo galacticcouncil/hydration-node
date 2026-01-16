@@ -131,7 +131,7 @@ impl ActionData for Vote {
 	}
 }
 
-impl<'a> ActionData for &'a Vote {
+impl ActionData for &Vote {
 	fn amount(&self) -> Balance {
 		self.amount
 	}

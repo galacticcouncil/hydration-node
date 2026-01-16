@@ -15,7 +15,6 @@ use hydradx_adapters::price::ConvertBalance;
 use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
 use hydradx_runtime::types::ShortOraclePrice;
 use hydradx_runtime::AssetRegistry;
-use hydradx_runtime::EVMAccounts;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{
@@ -37,7 +36,7 @@ use primitives::constants::currency::UNITS;
 use primitives::{AssetId, Balance};
 use sp_core::{H256, U256};
 use sp_runtime::traits::Convert;
-use sp_runtime::traits::SignedExtension;
+use sp_runtime::traits::DispatchTransaction;
 use sp_runtime::transaction_validity::InvalidTransaction;
 use sp_runtime::transaction_validity::TransactionValidityError;
 use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
@@ -149,7 +148,13 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 		let info = omni_sell.get_dispatch_info();
 		let len: usize = 146;
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(user_acc.address()), &omni_sell, &info, len);
+			.validate_and_prepare(
+				Some(AccountId::from(user_acc.address())).into(),
+				&omni_sell,
+				&info,
+				len,
+				0,
+			);
 		assert_ok!(&pre);
 
 		let alice_currency_balance_pre_dispatch =
@@ -703,13 +708,13 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 		//Create new erc20, fund user with it and set it as fee payment currency
 		let contract = crate::erc20::deploy_token_contract();
 		let asset = crate::erc20::bind_erc20(contract);
-		let balance = Currencies::free_balance(asset, &ALICE.into());
+		let _balance = Currencies::free_balance(asset, &ALICE.into());
 		let initial_treasury_fee_balance = treasury_acc.balance(asset);
 		let erc20_balance = 2000000000000000;
 		assert_eq!(erc20_balance, 2000000000000000);
 		assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
 			CallContext {
-				contract: contract,
+				contract,
 				sender: crate::erc20::deployer(),
 				origin: crate::erc20::deployer()
 			},
@@ -724,7 +729,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 			erc20_balance / 2
 		));
 
-		let alith_balance = Currencies::free_balance(asset, &alith_evm_account().into());
+		let alith_balance = Currencies::free_balance(asset, &alith_evm_account());
 		assert_eq!(alith_balance, erc20_balance / 2);
 
 		assert_ok!(MultiTransactionPayment::add_currency(
@@ -875,13 +880,13 @@ fn evm_permit_set_currency_dispatch_should_work_when_wrapped_in_dispatch_with_ex
 		//Create new erc20, fund user with it and set it as fee payment currency
 		let contract = crate::erc20::deploy_token_contract();
 		let asset = crate::erc20::bind_erc20(contract);
-		let balance = Currencies::free_balance(asset, &ALICE.into());
+		let _balance = Currencies::free_balance(asset, &ALICE.into());
 		let initial_treasury_fee_balance = treasury_acc.balance(asset);
 		let erc20_balance = 2000000000000000;
 		assert_eq!(erc20_balance, 2000000000000000);
 		assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
 			CallContext {
-				contract: contract,
+				contract,
 				sender: crate::erc20::deployer(),
 				origin: crate::erc20::deployer()
 			},
@@ -896,7 +901,7 @@ fn evm_permit_set_currency_dispatch_should_work_when_wrapped_in_dispatch_with_ex
 			erc20_balance / 2
 		));
 
-		let alith_balance = Currencies::free_balance(asset, &alith_evm_account().into());
+		let alith_balance = Currencies::free_balance(asset, &alith_evm_account());
 		assert_eq!(alith_balance, erc20_balance / 2);
 
 		assert_ok!(MultiTransactionPayment::add_currency(

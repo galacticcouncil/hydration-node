@@ -5,19 +5,19 @@ use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason;
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed::Returned;
-use frame_support::{dispatch::DispatchResult, fail, pallet_prelude::*};
+use frame_support::traits::ExistenceRequirement;
+use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_currencies::{Config, Error};
-use polkadot_xcm::v3::MultiLocation;
+use polkadot_xcm::v5::Location;
 use primitives::{AccountId, Balance};
 use sp_core::crypto::AccountId32;
 use sp_core::{H160, H256, U256};
 use sp_runtime::traits::{CheckedConversion, Convert, Zero};
 use sp_runtime::{DispatchError, SaturatedConversion};
-use sp_std::prelude::ToOwned;
 use sp_std::vec::Vec;
 
 /// Execution gas limit.
@@ -126,7 +126,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result::<T>(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 
 	// Calls the transfer method on an ERC20 contract using the given context.
@@ -137,7 +137,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result::<T>(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 
 	fn transfer_from(context: CallContext, from: EvmAddress, to: EvmAddress, value: Balance) -> DispatchResult {
@@ -149,7 +149,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result::<T>(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 }
 
@@ -164,13 +164,18 @@ fn decode_string(output: Vec<u8>) -> Option<Vec<u8>> {
 	}
 
 	let offset = U256::from_big_endian(&output[0..32]);
-	let length = U256::from_big_endian(&output[offset.as_usize()..offset.as_usize() + 32]);
-	if output.len() < offset.as_usize() + 32 + length.as_usize() {
+	let offset_usize = offset.as_usize();
+	if offset_usize.saturating_add(32) > output.len() {
+		return None;
+	}
+	let length = U256::from_big_endian(&output[offset_usize..offset_usize + 32]);
+	let length_usize = length.as_usize();
+	if offset_usize.saturating_add(32).saturating_add(length_usize) > output.len() {
 		return None;
 	}
 
 	let mut data = Vec::new();
-	data.extend_from_slice(&output[offset.as_usize() + 32..offset.as_usize() + 32 + length.as_usize()]);
+	data.extend_from_slice(&output[offset_usize + 32..offset_usize + 32 + length_usize]);
 
 	Some(data.to_vec())
 }
@@ -179,22 +184,18 @@ fn decode_integer(value: Vec<u8>) -> Option<U256> {
 	if value.len() != 32 {
 		return None;
 	}
-	U256::checked_from(value.as_slice())
+	Some(U256::from_big_endian(value.as_slice()))
 }
 
 fn decode_bool(value: Vec<u8>) -> Option<bool> {
 	if value.len() != 32 {
 		return None;
 	}
-	let mut bytes = [0u8; 32];
-	U256::from(1).to_big_endian(&mut bytes);
-	Some(value == bytes)
+	let bytes = U256::from(1).to_big_endian();
+	Some(value.as_slice() == bytes)
 }
 
-fn handle_result<T>(result: CallResult) -> DispatchResult
-where
-	T: pallet_dispatcher::Config,
-{
+fn handle_result(result: CallResult) -> DispatchResult {
 	match &result.exit_reason {
 		ExitReason::Succeed(_) => {
 			if Some(false) == decode_bool(result.value) {
@@ -225,7 +226,7 @@ where
 	pallet_evm_accounts::Pallet<T>: InspectEvmAccounts<AccountId>,
 	AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
-	T::AssetNativeLocation: Into<MultiLocation>,
+	T::AssetNativeLocation: Into<Location>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 	NonceIdOf<T>: Into<T::Nonce>,
@@ -272,6 +273,7 @@ where
 		from: &AccountId,
 		to: &AccountId,
 		amount: Self::Balance,
+		_existence_requirement: ExistenceRequirement,
 	) -> sp_runtime::DispatchResult {
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(from);
 
@@ -298,7 +300,12 @@ where
 		)
 	}
 
-	fn withdraw(contract: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> sp_runtime::DispatchResult {
+	fn withdraw(
+		contract: Self::CurrencyId,
+		who: &AccountId,
+		amount: Self::Balance,
+		_existence_requirement: ExistenceRequirement,
+	) -> sp_runtime::DispatchResult {
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(who);
 		<Self as ERC20>::transfer(
 			CallContext {

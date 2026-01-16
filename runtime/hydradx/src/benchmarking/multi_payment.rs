@@ -227,7 +227,7 @@ runtime_benchmarks! {
 		let tip = 0;
 		let mut tx_result : Result<Option<PaymentInfo<Balance, pallet_transaction_multi_payment::AssetIdOf<Runtime>, Price>>, TransactionValidityError> = Err(TransactionValidityError::Invalid(InvalidTransaction::Payment));
 	}: {
-		tx_result = <TransferFees<Currencies, DepositAll<Runtime>, TreasuryAccount> as OnChargeTransaction<Runtime>>::withdraw_fee(&from, &call, &info, fee, tip);
+		tx_result = <TransferFees<Runtime, Currencies, DepositAll<Runtime>, TreasuryAccount> as OnChargeTransaction<Runtime>>::withdraw_fee(&from, &call, &info, fee, tip);
 	}
 	verify {
 		assert!(tx_result.is_ok());
@@ -244,7 +244,7 @@ where
 		RawOrigin::Root.into(),
 		maker.clone(),
 		0_u32,
-		InsufficientEDinHDX::get() as i128,
+		(InsufficientEDinHDX::get() * 3) as i128,
 	));
 
 	assert_ok!(Currencies::update_balance(

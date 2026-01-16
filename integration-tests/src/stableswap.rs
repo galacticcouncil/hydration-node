@@ -11,13 +11,10 @@ use orml_traits::MultiReservableCurrency;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::BoundedPegSources;
-use pallet_stableswap::types::BoundedPegs;
 use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
-use pretty_assertions::assert_ne;
 use primitives::{constants::time::SECS_PER_BLOCK, BlockNumber};
 use sp_runtime::{Perbill, Permill};
-use std::sync::Arc;
 use test_utils::assert_eq_approx;
 
 pub const DOT: AssetId = 2221;
@@ -34,20 +31,20 @@ pub const DOT_VDOT_PRICE: (Balance, Balance) = (85473939039997170, 5776768551743
 
 #[test]
 fn gigadot_pool_should_work() {
-	let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
-		])),
+		[
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
+		],
 	);
 
-	let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(1),
-		])),
+		[
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(1),
+		],
 	);
 
 	let vdot_boxed = Box::new(vdot_location.clone().into_versioned());
@@ -190,20 +187,20 @@ mod circuit_breaker {
 
 	#[test]
 	fn ciruit_breaker_is_triggered_when_deposit_limit_reached_for_sharetoken() {
-		let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 			1,
-			polkadot_xcm::v4::Junctions::X2(Arc::new([
-				polkadot_xcm::v4::Junction::Parachain(1500),
-				polkadot_xcm::v4::Junction::GeneralIndex(0),
-			])),
+			[
+				polkadot_xcm::v5::Junction::Parachain(1500),
+				polkadot_xcm::v5::Junction::GeneralIndex(0),
+			],
 		);
 
-		let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 			1,
-			polkadot_xcm::v4::Junctions::X2(Arc::new([
-				polkadot_xcm::v4::Junction::Parachain(1500),
-				polkadot_xcm::v4::Junction::GeneralIndex(1),
-			])),
+			[
+				polkadot_xcm::v5::Junction::Parachain(1500),
+				polkadot_xcm::v5::Junction::GeneralIndex(1),
+			],
 		);
 
 		let vdot_boxed = Box::new(vdot_location.clone().into_versioned());
@@ -258,20 +255,20 @@ mod circuit_breaker {
 
 #[test]
 fn pool_with_pegs_should_update_pegs_only_once_per_block() {
-	let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
-		])),
+		[
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
+		],
 	);
 
-	let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(1),
-		])),
+		[
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(1),
+		],
 	);
 
 	let vdot_boxed = Box::new(vdot_location.clone().into_versioned());
@@ -376,7 +373,7 @@ fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 
 			// 1.479615087126985602 + (1.479615087126985602 * 10 * 0.001) = 1.49441123799825545802
 			// (1.49441123799825545802 / 1.479615087126985602) - 1 = 0.01 => 1[%] == 0.1[%]*10[blocks])
-			let expected_pegs = FixedU128::from_float(1.49441123799825545802_f64);
+			let expected_pegs = FixedU128::from_float(1.494_411_237_998_255_5_f64);
 			//Asserts
 			let peg_info_1 = Stableswap::pool_peg_info(GIGADOT).unwrap();
 			assert_eq_approx!(
@@ -433,7 +430,7 @@ fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 			// (1.49590564923625371347802 / 1.49441123799825545802) - 1 = 0.001 => 0.1[%] == 0.1[%] * 1[block])
 			assert_eq_approx!(
 				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
-				FixedU128::from_float(1.49590564923625371347802_f64),
+				FixedU128::from_float(1.495_905_649_236_253_7_f64),
 				precission,
 				"Updated pegs doesn't match expected value"
 			);
@@ -466,7 +463,7 @@ fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 			// (1.57518864864577516029235506 /  1.49590564923625371347802) - 1 = 0.053 => 5.3[%] == 0.1[%]*53[blocks])
 			assert_eq_approx!(
 				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
-				FixedU128::from_float(1.57518864864577516029235506_f64),
+				FixedU128::from_float(1.575_188_648_645_775_1_f64),
 				precission,
 				"Updated pegs doesn't match expected value"
 			);
@@ -494,7 +491,7 @@ fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 			// 1.57676383729442093545264741506 > 1.57635(oracle's price) => new peg == 1.576357467046855425
 			assert_eq_approx!(
 				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
-				FixedU128::from_float(1.576357467046855425_f64),
+				FixedU128::from_float(1.576_357_467_046_855_4_f64),
 				precission,
 				"Updated pegs doesn't match expected value"
 			);
@@ -523,7 +520,7 @@ fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 			let peg_info_1 = Stableswap::pool_peg_info(GIGADOT).unwrap();
 			assert_eq_approx!(
 				FixedU128::from_rational(peg_info_1.current[0].0, peg_info_1.current[0].1),
-				FixedU128::from_float(1.576357467046855425_f64),
+				FixedU128::from_float(1.576_357_467_046_855_4_f64),
 				precission,
 				"Updated pegs doesn't match expected value"
 			);

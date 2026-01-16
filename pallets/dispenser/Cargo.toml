@@ -1,6 +1,6 @@
 [package]
 name = "pallet-dispenser"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 
 [package.metadata.docs.rs]
@@ -16,7 +16,7 @@ sp-std = { workspace = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
-hydradx-traits = { workspace = true }
+primitives = { workspace = true }
 
 # Ethereum ABI encoding
 alloy-sol-types = { workspace = true, default-features = false, features = ["json"] }
@@ -37,6 +37,7 @@ sp-runtime = { workspace = true, features = ["std"] }
 secp256k1 = { version = "0.27", features = ["recovery", "global-context"] }
 orml-traits = { workspace = true, features = ["std"] }
 orml-tokens = { workspace = true, features = ["std"] }
+hex-literal = { workspace = true }
 
 [features]
 default = ["std"]

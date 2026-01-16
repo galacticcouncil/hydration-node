@@ -2,9 +2,13 @@ use crate::module::{BalanceOf, CurrencyIdOf};
 use crate::{Config, Error, Pallet};
 use frame_support::fail;
 use frame_support::traits::fungibles::Inspect as FungibleInspect;
-use frame_support::traits::tokens::{
-	fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
+use frame_support::traits::{
+	tokens::{
+		fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
+	},
+	ExistenceRequirement,
 };
+
 use hydradx_traits::{BoundErc20, Inspect};
 use orml_traits::MultiCurrency;
 #[cfg(any(feature = "try-runtime", test))]
@@ -142,20 +146,11 @@ where
 		From<WithdrawConsequence<<T::NativeCurrency as fungible::Inspect<T::AccountId>>::Balance>>,
 {
 	fn name(asset: Self::AssetId) -> Vec<u8> {
-		// Prefer registry for metadata; fall back to sensible defaults
-		if let Some(name) = T::RegistryInspect::asset_name(asset) {
-			name
-		} else {
-			Vec::new()
-		}
+		T::RegistryInspect::asset_name(asset).unwrap_or_default()
 	}
 
 	fn symbol(asset: Self::AssetId) -> Vec<u8> {
-		if let Some(sym) = T::RegistryInspect::asset_symbol(asset) {
-			sym
-		} else {
-			Vec::new()
-		}
+		T::RegistryInspect::asset_symbol(asset).unwrap_or_default()
 	}
 
 	fn decimals(asset: Self::AssetId) -> u8 {
@@ -303,7 +298,12 @@ where
 			match T::BoundErc20::contract_address(asset) {
 				Some(contract) => {
 					let old_balance = Self::balance(asset, who);
-					T::Erc20Currency::withdraw(contract, who, amount)?;
+					let existence = if preservation == Preservation::Expendable {
+						ExistenceRequirement::AllowDeath
+					} else {
+						ExistenceRequirement::KeepAlive
+					};
+					T::Erc20Currency::withdraw(contract, who, amount, existence)?;
 					let new_balance = Self::balance(asset, who);
 					let burnt = old_balance
 						.checked_sub(&new_balance)
@@ -343,8 +343,14 @@ where
 			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::transfer(source, dest, amount.into(), preservation)
 				.into()
 		} else {
+			let existence = if preservation == Preservation::Expendable {
+				ExistenceRequirement::AllowDeath
+			} else {
+				ExistenceRequirement::KeepAlive
+			};
+
 			match T::BoundErc20::contract_address(asset) {
-				Some(contract) => T::Erc20Currency::transfer(contract, source, dest, amount).map(|_| amount),
+				Some(contract) => T::Erc20Currency::transfer(contract, source, dest, amount, existence).map(|_| amount),
 				None => <T::MultiCurrency as fungibles::Mutate<T::AccountId>>::transfer(
 					asset.into(),
 					source,

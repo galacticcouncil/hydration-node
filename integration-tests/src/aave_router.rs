@@ -10,7 +10,7 @@ use frame_support::assert_ok;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::pallet_prelude::ValidateUnsigned;
 use frame_support::storage::with_transaction;
-use frame_support::traits::OnInitialize;
+use frame_support::traits::{ExistenceRequirement, OnInitialize};
 use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
@@ -27,7 +27,6 @@ use sp_runtime::traits::Convert;
 
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Mapping;
-use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::evm::EVM;
 use hydradx_traits::evm::{CallContext, Erc20Encoding};
 use hydradx_traits::router::ExecutorError;
@@ -45,8 +44,8 @@ use pallet_asset_registry::Assets;
 use pallet_broadcast::types::{Asset, ExecutionType};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
-use pallet_transaction_multi_payment::EVMPermit;
 use primitives::Balance;
+use primitives::EvmAddress;
 use sp_core::H256;
 use sp_runtime::traits::Zero;
 use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
@@ -1038,7 +1037,8 @@ mod transfer_atoken {
 				adot_asset_id,
 				&AccountId::from(ALICE),
 				&AccountId::from(BOB),
-				amount
+				amount,
+				ExistenceRequirement::AllowDeath
 			));
 			let bob_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &BOB.into());
 
@@ -1442,7 +1442,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
 
 		//Let's mutate timestamp to accrue some yield on ADOT holdings
 		let current_timestamp = hydradx_runtime::Timestamp::get();
-		let new_timestamp = current_timestamp + (1 * 1000); // milliseconds
+		let new_timestamp = current_timestamp + 1000; // milliseconds
 		hydradx_runtime::Timestamp::set_timestamp(new_timestamp);
 
 		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);

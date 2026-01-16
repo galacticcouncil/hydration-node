@@ -41,7 +41,7 @@ jobs:
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          rustflags: ''
+          rustflags: '-D warnings'
       - name: Run tests
         run: make test-release
       - name: Build release
@@ -133,7 +133,7 @@ jobs:
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          rustflags: ''
+          rustflags: '-D warnings'
 
       - name: Download benchmarks CLI
         uses: actions/download-artifact@v4

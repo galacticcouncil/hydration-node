@@ -24,6 +24,10 @@ impl fmt::Display for RuntimeInstanceError {
 pub struct RunCmd {
 	#[clap(flatten)]
 	pub base: cumulus_client_cli::RunCmd,
+
+	/// Disable fork-aware transaction pool and use legacy single-state pool instead
+	#[arg(long, default_value_t = false)]
+	pub disable_fork_aware_pool: bool,
 }
 
 #[derive(Debug, Parser)]

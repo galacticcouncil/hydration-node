@@ -3,7 +3,7 @@ use super::*;
 use crate::origins::GeneralAdmin;
 use sp_std::marker::PhantomData;
 
-use codec::MaxEncodedLen;
+use codec::{DecodeWithMemTracking, MaxEncodedLen};
 use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::{AssetId, Price};
@@ -12,7 +12,7 @@ use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::{AccountIdConversion, Convert},
-	traits::{ConstU32, Contains, ContainsPair, EitherOf, Everything, Get, Nothing, TransformOrigin},
+	traits::{ConstU32, Contains, ContainsPair, Disabled, EitherOf, Everything, Get, Nothing, TransformOrigin},
 	PalletId,
 };
 use frame_system::unique;
@@ -25,21 +25,20 @@ pub use pallet_xcm::GenesisConfig as XcmGenesisConfig;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_parachain::primitives::Sibling;
-use polkadot_xcm::v3::MultiLocation;
-use polkadot_xcm::v4::{prelude::*, Asset, InteriorLocation, Weight as XcmWeight};
+use polkadot_xcm::v5::{prelude::*, InteriorLocation, Location, Weight as XcmWeight};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::MaybeEquivalence, Perbill};
 use xcm_builder::{
-	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, GlobalConsensusConvertsFor, HashedDescription,
-	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId,
-	WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
+	AccountId32Aliases, AliasChildLocation, AliasOriginRootUsingFilter, AllowKnownQueryResponses,
+	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin,
+	GlobalConsensusConvertsFor, HashedDescription, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
+	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
+	TakeWeightCredit, TrailingSetTopicAsId, WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
 };
 use xcm_executor::{Config, XcmExecutor};
 
-#[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub struct AssetLocation(pub polkadot_xcm::v3::Location);
+#[derive(Debug, Default, Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+pub struct AssetLocation(pub Location);
 
 impl From<AssetLocation> for Option<Location> {
 	fn from(location: AssetLocation) -> Option<Location> {
@@ -47,7 +46,7 @@ impl From<AssetLocation> for Option<Location> {
 	}
 }
 
-impl From<AssetLocation> for MultiLocation {
+impl From<AssetLocation> for Location {
 	fn from(location: AssetLocation) -> Self {
 		location.0
 	}
@@ -57,8 +56,7 @@ impl TryFrom<Location> for AssetLocation {
 	type Error = ();
 
 	fn try_from(value: Location) -> Result<Self, Self::Error> {
-		let loc: MultiLocation = value.try_into()?;
-		Ok(AssetLocation(loc))
+		Ok(AssetLocation(value))
 	}
 }
 
@@ -71,7 +69,7 @@ pub type Barrier = TrailingSetTopicAsId<(
 	// Evaluate the barriers with the effective origin
 	WithComputedOrigin<
 		(
-			remove_when_updating_to_stable2412::AllowTopLevelPaidExecutionFrom<Everything>,
+			AllowTopLevelPaidExecutionFrom<Everything>,
 			// Subscriptions for version tracking are OK.
 			AllowSubscriptionsFrom<Everything>,
 		),
@@ -84,9 +82,8 @@ parameter_types! {
 	pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
 }
 
-use sp_std::sync::Arc;
 parameter_types! {
-	pub SelfLocation: Location = Location::new(1, cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(ParachainInfo::get().into());1])));
+	pub SelfLocation: Location = Location::new(1, [Parachain(ParachainInfo::get().into())]);
 }
 
 parameter_types! {
@@ -187,116 +184,6 @@ pub type Reserves = (
 pub type DynamicWeigher<RuntimeCall> =
 	WeightInfoBounds<crate::weights::xcm::HydraXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
 
-// Types that exist in `xcm_builder` from `stable2412` onwards.
-mod remove_when_updating_to_stable2412 {
-	use core::marker::PhantomData;
-	use frame_support::{
-		ensure,
-		traits::{Contains, ContainsPair, Get, ProcessMessageError},
-	};
-	use polkadot_xcm::prelude::*;
-	use xcm_builder::{CreateMatcher, MatchXcm};
-	use xcm_executor::traits::{Properties, ShouldExecute};
-
-	/// Alias a descendant location of the original origin.
-	pub struct AliasChildLocation;
-	impl ContainsPair<Location, Location> for AliasChildLocation {
-		fn contains(origin: &Location, target: &Location) -> bool {
-			return target.starts_with(origin);
-		}
-	}
-
-	/// Alias a location if it passes `Filter` and the original origin is root of `Origin`.
-	///
-	/// This can be used to allow (trusted) system chains root to alias into other locations.
-	/// **Warning**: do not use with untrusted `Origin` chains.
-	pub struct AliasOriginRootUsingFilter<Origin, Filter>(PhantomData<(Origin, Filter)>);
-	impl<Origin, Filter> ContainsPair<Location, Location> for AliasOriginRootUsingFilter<Origin, Filter>
-	where
-		Origin: Get<Location>,
-		Filter: Contains<Location>,
-	{
-		fn contains(origin: &Location, target: &Location) -> bool {
-			// check that `origin` is a root location
-			match origin.unpack() {
-				(1, [Parachain(_)]) | (2, [GlobalConsensus(_)]) | (2, [GlobalConsensus(_), Parachain(_)]) => (),
-				_ => return false,
-			};
-			// check that `origin` matches `Origin` and `target` matches `Filter`
-			return Origin::get().eq(origin) && Filter::contains(target);
-		}
-	}
-
-	const MAX_ASSETS_FOR_BUY_EXECUTION: usize = 2;
-
-	/// Allows execution from `origin` if it is contained in `T` (i.e. `T::Contains(origin)`) taking
-	/// payments into account.
-	///
-	/// Only allows for `WithdrawAsset`, `ReceiveTeleportedAsset`, `ReserveAssetDeposited` and
-	/// `ClaimAsset` XCMs because they are the only ones that place assets in the Holding Register to
-	/// pay for execution.
-	pub struct AllowTopLevelPaidExecutionFrom<T>(PhantomData<T>);
-	impl<T: Contains<Location>> ShouldExecute for AllowTopLevelPaidExecutionFrom<T> {
-		fn should_execute<RuntimeCall>(
-			origin: &Location,
-			instructions: &mut [Instruction<RuntimeCall>],
-			max_weight: Weight,
-			properties: &mut Properties,
-		) -> Result<(), ProcessMessageError> {
-			log::trace!(
-				target: "xcm::barriers",
-				"AllowTopLevelPaidExecutionFrom. origin: {:?}, instructions: {:?}, max_weight: {:?}, properties: {:?}",
-				origin,
-				instructions,
-				max_weight,
-				properties,
-			);
-
-			ensure!(T::contains(origin), ProcessMessageError::Unsupported);
-			// We will read up to 5 instructions. This allows up to 3 `ClearOrigin` instructions. We
-			// allow for more than one since anything beyond the first is a no-op and it's conceivable
-			// that composition of operations might result in more than one being appended.
-			let end = instructions.len().min(5);
-			instructions[..end]
-				.matcher()
-				.match_next_inst(|inst| match inst {
-					WithdrawAsset(ref assets)
-					| ReceiveTeleportedAsset(ref assets)
-					| ReserveAssetDeposited(ref assets)
-					| ClaimAsset { ref assets, .. } => {
-						if assets.len() <= MAX_ASSETS_FOR_BUY_EXECUTION {
-							Ok(())
-						} else {
-							Err(ProcessMessageError::BadFormat)
-						}
-					}
-					_ => Err(ProcessMessageError::BadFormat),
-				})?
-				.skip_inst_while(|inst| {
-					matches!(inst, ClearOrigin | AliasOrigin(..))
-						|| matches!(inst, DescendOrigin(child) if *child != Here)
-				})?
-				.match_next_inst(|inst| match inst {
-					BuyExecution {
-						weight_limit: Limited(ref mut weight),
-						..
-					} if weight.all_gte(max_weight) => {
-						*weight = max_weight;
-						Ok(())
-					}
-					BuyExecution {
-						ref mut weight_limit, ..
-					} if weight_limit == &Unlimited => {
-						*weight_limit = Limited(max_weight);
-						Ok(())
-					}
-					_ => Err(ProcessMessageError::Overweight(max_weight)),
-				})?;
-			Ok(())
-		}
-	}
-}
-
 pub struct RestrictedAssetHubAliases;
 impl Contains<Location> for RestrictedAssetHubAliases {
 	fn contains(target: &Location) -> bool {
@@ -322,9 +209,9 @@ impl Contains<Location> for RestrictedAssetHubAliases {
 /// Rules for allowing the usage of `AliasOrigin`.
 pub type Aliasers = (
 	// Anyone can alias an interior location, same as `DescendOrigin`.
-	remove_when_updating_to_stable2412::AliasChildLocation,
+	AliasChildLocation,
 	// Asset Hub root can alias system chains, Ethereum and Kusama
-	remove_when_updating_to_stable2412::AliasOriginRootUsingFilter<AssetHubLocation, RestrictedAssetHubAliases>,
+	AliasOriginRootUsingFilter<AssetHubLocation, RestrictedAssetHubAliases>,
 );
 
 pub struct XcmConfig;
@@ -373,6 +260,7 @@ impl Config for XcmConfig {
 	type HrmpChannelClosingHandler = ();
 	type HrmpChannelAcceptedHandler = ();
 	type XcmRecorder = PolkadotXcm;
+	type XcmEventEmitter = ();
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -443,6 +331,19 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> XcmAssetTransfers fo
 	type AssetTransactor = <XcmConfig as Config>::AssetTransactor;
 }
 
+impl<Inner> FeeManager for WithUnifiedEventSupport<Inner>
+where
+	Inner: FeeManager,
+{
+	fn is_waived(origin: Option<&Location>, r: FeeReason) -> bool {
+		Inner::is_waived(origin, r)
+	}
+
+	fn handle_fee(fee: Assets, context: Option<&XcmContext>, r: FeeReason) {
+		Inner::handle_fee(fee, context, r)
+	}
+}
+
 parameter_types! {
 	pub const MaxInboundSuspended: u32 = 1_000;
 }
@@ -478,7 +379,7 @@ impl orml_xtokens::Config for Runtime {
 	type Balance = Balance;
 	type CurrencyId = AssetId;
 	type CurrencyIdConvert = CurrencyIdConvert;
-	type AccountIdToLocation = AccountIdToMultiLocation;
+	type AccountIdToLocation = AccountIdToLocation;
 	type SelfLocation = SelfLocation;
 	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type Weigher = DynamicWeigher<RuntimeCall>;
@@ -525,6 +426,7 @@ impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 parameter_types! {
@@ -630,8 +532,8 @@ impl Convert<VersionedLocation, Option<AssetId>> for CurrencyIdConvert {
 	}
 }
 
-pub struct AccountIdToMultiLocation;
-impl Convert<AccountId, Location> for AccountIdToMultiLocation {
+pub struct AccountIdToLocation;
+impl Convert<AccountId, Location> for AccountIdToLocation {
 	fn convert(account: AccountId) -> Location {
 		[AccountId32 {
 			network: None,
@@ -650,7 +552,7 @@ pub type XcmRouter = WithUniqueTopic<(
 	XcmpQueue,
 )>;
 
-/// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
+/// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM
 /// `Transact` in order to determine the dispatch Origin.
 pub type LocationToAccountId = (
@@ -669,7 +571,7 @@ pub type LocationToAccountId = (
 	GlobalConsensusConvertsFor<UniversalLocation, AccountId>,
 );
 use pallet_broadcast::types::ExecutionType;
-use xcm_executor::traits::{ConvertLocation, XcmAssetTransfers};
+use xcm_executor::traits::{ConvertLocation, FeeManager, FeeReason, XcmAssetTransfers};
 
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);

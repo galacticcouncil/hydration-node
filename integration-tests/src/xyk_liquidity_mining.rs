@@ -40,10 +40,9 @@ use hydradx_runtime::{
 	XYKLiquidityMining, XYKWarehouseLM, XYK,
 };
 use pallet_xyk::types::AssetPair;
-use polkadot_xcm::v3::{
+use polkadot_xcm::v5::{
 	Junction::{GeneralIndex, Parachain},
-	Junctions::X2,
-	MultiLocation,
+	Location,
 };
 use pretty_assertions::assert_eq;
 use primitives::constants::time::unix_time::MONTH;
@@ -68,7 +67,7 @@ fn create_global_farm_should_work_when_origin_is_root() {
 			total_rewards,
 		));
 
-		set_relaychain_block_number(100);
+		go_to_block(100);
 
 		assert_ok!(XYKLiquidityMining::create_global_farm(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -122,7 +121,7 @@ fn create_yield_farm_should_work_when_xyk_exists() {
 		};
 		let amm_pool_id = <Runtime as pallet_xyk_liquidity_mining::Config>::AMM::get_pair_id(asset_pair);
 
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, PEPE, None);
 
 		create_xyk_pool(
@@ -132,7 +131,7 @@ fn create_yield_farm_should_work_when_xyk_exists() {
 			10_000_000 * UNITS,
 		);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		assert_ok!(XYKLiquidityMining::create_yield_farm(
 			RuntimeOrigin::signed(Treasury::account_id()),
 			global_farm_id,
@@ -183,10 +182,10 @@ fn deposit_shares_should_work_when_yield_farm_exists() {
 
 		create_global_farm(None, PEPE, None);
 		create_yield_farm(global_farm_id, asset_pair, None);
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		//Act
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		assert_ok!(XYKLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			global_farm_id,
@@ -252,15 +251,15 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, PEPE, None);
 		create_global_farm(None, ACA, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, asset_pair, None);
 		create_yield_farm(global_farm_2_id, asset_pair, None);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(XYKLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
@@ -271,7 +270,7 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 		));
 
 		//Act
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(XYKLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			global_farm_2_id,
@@ -348,17 +347,17 @@ fn join_farms_should_work_with_multiple_farm_entries() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, PEPE, None);
 		create_global_farm(None, ACA, None);
 		create_global_farm(None, PEPE, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, asset_pair, None);
 		create_yield_farm(global_farm_2_id, asset_pair, None);
 		create_yield_farm(global_farm_3_id, asset_pair, None);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let farms = vec![
 			(global_farm_1_id, yield_farm_1_id),
 			(global_farm_2_id, yield_farm_2_id),
@@ -374,7 +373,7 @@ fn join_farms_should_work_with_multiple_farm_entries() {
 			dave_shares_balance,
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 
 		let deposit = XYKWarehouseLM::deposit(deposit_id).unwrap();
 		let mut expected_deposit = DepositData::new(dave_shares_balance, amm_pool_id);
@@ -455,17 +454,17 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, PEPE, None);
 		create_global_farm(None, ACA, None);
 		create_global_farm(None, PEPE, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, asset_pair, None);
 		create_yield_farm(global_farm_2_id, asset_pair, None);
 		create_yield_farm(global_farm_3_id, asset_pair, None);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		assert_ok!(Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			BOB.into(),
@@ -488,7 +487,7 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 			100000 * UNITS
 		));
 		hydradx_run_to_block(401);
-		set_relaychain_block_number(401);
+		go_to_block(401);
 
 		let existing_shares = 1000 * UNITS;
 		assert_eq!(Currencies::free_balance(xyk_share_id, &BOB.into()), existing_shares);
@@ -510,7 +509,7 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 			farms.try_into().unwrap(),
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 
 		let deposit = XYKWarehouseLM::deposit(deposit_id).unwrap();
 
@@ -588,15 +587,15 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, PEPE, None);
 		create_global_farm(None, ACA, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, asset_pair, None);
 		create_yield_farm(global_farm_2_id, asset_pair, None);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(XYKLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
@@ -606,7 +605,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 			dave_shares_balance,
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(XYKLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			global_farm_2_id,
@@ -622,7 +621,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 				.is_some()
 		);
 
-		set_relaychain_block_number(600);
+		go_to_block(600);
 		assert_ok!(XYKLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			deposit_id,
@@ -654,7 +653,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 				.is_none()
 		);
 
-		set_relaychain_block_number(700);
+		go_to_block(700);
 		//Arrange - claim before withdraw
 		assert_ok!(XYKLiquidityMining::claim_rewards(
 			RuntimeOrigin::signed(DAVE.into()),
@@ -726,16 +725,16 @@ fn liquidity_mining_should_work_when_distributes_insufficient_asset() {
 		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		let farm_owner = BOB;
 		create_global_farm(Some(ext1), ext1, Some(farm_owner.into()));
 		create_global_farm(Some(ext1), ext2, Some(farm_owner.into()));
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, asset_pair, Some(farm_owner.into()));
 		create_yield_farm(global_farm_2_id, asset_pair, Some(farm_owner.into()));
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(XYKLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
@@ -745,7 +744,7 @@ fn liquidity_mining_should_work_when_distributes_insufficient_asset() {
 			dave_shares_balance,
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(XYKLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			global_farm_2_id,
@@ -761,7 +760,7 @@ fn liquidity_mining_should_work_when_distributes_insufficient_asset() {
 				.is_some()
 		);
 
-		set_relaychain_block_number(600);
+		go_to_block(600);
 		assert_ok!(XYKLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			deposit_id,
@@ -793,7 +792,7 @@ fn liquidity_mining_should_work_when_distributes_insufficient_asset() {
 				.is_none()
 		);
 
-		set_relaychain_block_number(700);
+		go_to_block(700);
 
 		//Act
 		assert_ok!(XYKLiquidityMining::withdraw_shares(
@@ -862,15 +861,15 @@ fn liquidity_mining_should_work_when_xyk_assets_are_insufficient() {
 
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, ext1, None);
 		create_global_farm(None, ext2, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, asset_pair, None);
 		create_yield_farm(global_farm_2_id, asset_pair, None);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(XYKLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
@@ -880,7 +879,7 @@ fn liquidity_mining_should_work_when_xyk_assets_are_insufficient() {
 			dave_shares_balance,
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(XYKLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			global_farm_2_id,
@@ -896,7 +895,7 @@ fn liquidity_mining_should_work_when_xyk_assets_are_insufficient() {
 				.is_some()
 		);
 
-		set_relaychain_block_number(600);
+		go_to_block(600);
 		assert_ok!(XYKLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			deposit_id,
@@ -928,7 +927,7 @@ fn liquidity_mining_should_work_when_xyk_assets_are_insufficient() {
 				.is_none()
 		);
 
-		set_relaychain_block_number(700);
+		go_to_block(700);
 
 		//Act
 		assert_ok!(XYKLiquidityMining::withdraw_shares(
@@ -984,11 +983,11 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 		);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(Some(ACA), PEPE, None);
 		create_global_farm(Some(PEPE), ACA, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, asset_pair, None);
 		create_yield_farm(global_farm_2_id, asset_pair, None);
 
@@ -1016,7 +1015,7 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 		));
 
 		hydra_run_to_block(500);
-		set_relaychain_block_number(500);
+		go_to_block(500);
 
 		//Act
 		let deposit_id = 1;
@@ -1028,7 +1027,7 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 			dave_shares_balance,
 		));
 
-		set_relaychain_block_number(600);
+		go_to_block(600);
 
 		assert_ok!(XYKLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(DAVE.into()),
@@ -1107,10 +1106,10 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 		create_xyk_pool(HDX, 10_000_000 * UNITS, PEPE, 100_000_000 * UNITS);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(Some(bond_id), PEPE, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, asset_pair, None);
 
 		assert_ok!(Currencies::update_balance(
@@ -1137,7 +1136,7 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 		));
 
 		hydra_run_to_block(500);
-		set_relaychain_block_number(500);
+		go_to_block(500);
 
 		//Act
 		let deposit_id = 1;
@@ -1149,7 +1148,7 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 			dave_shares_balance,
 		));
 
-		set_relaychain_block_number(600);
+		go_to_block(600);
 
 		let dave_bonds_balance = Currencies::free_balance(bond_id, &DAVE.into());
 
@@ -1198,17 +1197,17 @@ fn exit_farm_should_work_on_multiple_different_farms() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, PEPE, None);
 		create_global_farm(None, ACA, None);
 		create_global_farm(None, PEPE, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, asset_pair, None);
 		create_yield_farm(global_farm_2_id, asset_pair, None);
 		create_yield_farm(global_farm_3_id, asset_pair, None);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(XYKLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
@@ -1218,7 +1217,7 @@ fn exit_farm_should_work_on_multiple_different_farms() {
 			dave_shares_balance,
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(XYKLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			global_farm_2_id,
@@ -1304,18 +1303,18 @@ fn withdraw_shares_should_fail_when_provided_asset_pair_doesnt_match_deposit() {
 			shares_2_balance,
 		));
 
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, PEPE, None);
 		create_global_farm(None, ACA, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, asset_pair, None);
 		create_yield_farm(global_farm_2_id, asset_pair, None);
 
 		create_global_farm(None, DOT, None);
 		create_yield_farm(global_farm_3_id, asset_pair_2, None);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(XYKLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
@@ -1325,7 +1324,7 @@ fn withdraw_shares_should_fail_when_provided_asset_pair_doesnt_match_deposit() {
 			dave_shares_balance,
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(XYKLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			global_farm_2_id,
@@ -1342,7 +1341,7 @@ fn withdraw_shares_should_fail_when_provided_asset_pair_doesnt_match_deposit() {
 			shares_2_balance,
 		));
 
-		set_relaychain_block_number(600);
+		go_to_block(600);
 
 		assert_noop!(
 			XYKLiquidityMining::withdraw_shares(
@@ -1443,9 +1442,9 @@ fn create_yield_farm(id: GlobalFarmId, pair: AssetPair, owner: Option<AccountId>
 }
 
 fn register_external_asset(general_index: u128) -> AssetId {
-	let location = hydradx_runtime::AssetLocation(MultiLocation::new(
+	let location = hydradx_runtime::AssetLocation(Location::new(
 		1,
-		X2(Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)),
+		[Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)],
 	));
 
 	let next_asset_id = AssetRegistry::next_asset_id().unwrap();

@@ -1,6 +1,6 @@
 [package]
 name = "pallet-stableswap"
-version = "7.1.0"
+version = "7.2.0"
 description = "AMM for correlated assets"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -23,6 +23,7 @@ serde = { workspace = true }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 pallet-broadcast = { workspace = true }
+primitives = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }

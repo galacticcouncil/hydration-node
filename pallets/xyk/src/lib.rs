@@ -29,8 +29,11 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::manual_inspect)]
 
-use frame_support::sp_runtime::{traits::Zero, DispatchError};
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
+use frame_support::{
+	sp_runtime::{traits::Zero, DispatchError},
+	traits::ExistenceRequirement,
+};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
@@ -372,8 +375,8 @@ pub mod pallet {
 				pool: pair_account.clone(),
 			});
 
-			T::Currency::transfer(asset_a, &who, &pair_account, amount_a)?;
-			T::Currency::transfer(asset_b, &who, &pair_account, amount_b)?;
+			T::Currency::transfer(asset_a, &who, &pair_account, amount_a, ExistenceRequirement::AllowDeath)?;
+			T::Currency::transfer(asset_b, &who, &pair_account, amount_b, ExistenceRequirement::AllowDeath)?;
 
 			T::Currency::deposit(share_token, &who, shares_added)?;
 
@@ -592,8 +595,8 @@ impl<T: Config> Pallet<T> {
 			.checked_add(shares_added)
 			.ok_or(Error::<T>::InvalidLiquidityAmount)?;
 
-		T::Currency::transfer(asset_a, &who, &pair_account, amount_a)?;
-		T::Currency::transfer(asset_b, &who, &pair_account, amount_b)?;
+		T::Currency::transfer(asset_a, &who, &pair_account, amount_a, ExistenceRequirement::AllowDeath)?;
+		T::Currency::transfer(asset_b, &who, &pair_account, amount_b, ExistenceRequirement::AllowDeath)?;
 
 		T::Currency::deposit(share_token, &who, shares_added)?;
 
@@ -687,10 +690,22 @@ impl<T: Config> Pallet<T> {
 			.checked_sub(share_amount)
 			.ok_or(Error::<T>::InvalidLiquidityAmount)?;
 
-		T::Currency::transfer(asset_a, &pair_account, &who, remove_amount_a)?;
-		T::Currency::transfer(asset_b, &pair_account, &who, remove_amount_b)?;
+		T::Currency::transfer(
+			asset_a,
+			&pair_account,
+			&who,
+			remove_amount_a,
+			ExistenceRequirement::AllowDeath,
+		)?;
+		T::Currency::transfer(
+			asset_b,
+			&pair_account,
+			&who,
+			remove_amount_b,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
-		T::Currency::withdraw(share_token, &who, share_amount)?;
+		T::Currency::withdraw(share_token, &who, share_amount, ExistenceRequirement::AllowDeath)?;
 
 		<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
 
@@ -839,12 +854,14 @@ impl<T: Config> Pallet<T> {
 			&transfer.origin,
 			&pair_account,
 			transfer.amount,
+			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
 			transfer.assets.asset_out,
 			&pair_account,
 			&transfer.origin,
 			transfer.amount_b,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		let liquidity_in = T::Currency::total_balance(transfer.assets.asset_in, &pair_account);
@@ -973,12 +990,14 @@ impl<T: Config> Pallet<T> {
 			&pair_account,
 			destination.unwrap_or(&transfer.origin),
 			transfer.amount,
+			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
 			transfer.assets.asset_in,
 			&transfer.origin,
 			&pair_account,
 			transfer.amount_b + transfer.fee.1,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		let liquidity_in = T::Currency::total_balance(transfer.assets.asset_in, &pair_account);
