@@ -34,10 +34,10 @@ fn setup_mappings(
 	chain_for_precision: StateMachine,
 ) {
 	// Map remote asset id to local asset id
-	tg::LocalAssets::<Runtime>::insert(remote_asset_id, local_asset_id.clone());
+	tg::LocalAssets::<Runtime>::insert(remote_asset_id, local_asset_id);
 	// Set precision mapping to runtime native decimals to keep conversion simple
 	let decimals = <Runtime as tg::Config>::Decimals::get();
-	tg::Precisions::<Runtime>::insert(local_asset_id.clone(), chain_for_precision, decimals);
+	tg::Precisions::<Runtime>::insert(local_asset_id, chain_for_precision, decimals);
 	// Mark the local asset as non-native so pallet issues/mints instead of transferring from pallet account
 	tg::NativeAssets::<Runtime>::insert(local_asset_id, false);
 }
@@ -138,7 +138,7 @@ runtime_benchmarks! {
 		// Use the native asset id in runtime
 		let local_asset_id = <Runtime as tg::Config>::NativeAssetId::get();
 		let remote_asset_id = H256::repeat_byte(7u8);
-		setup_mappings(local_asset_id.clone(), remote_asset_id, source);
+		setup_mappings(local_asset_id, remote_asset_id, source);
 
 		// Beneficiary is derived from Body.to
 		let beneficiary_bytes = [2u8; 32];
@@ -195,7 +195,7 @@ runtime_benchmarks! {
 		let local_asset_id = <Runtime as tg::Config>::NativeAssetId::get();
 		let remote_asset_id = H256::repeat_byte(9u8);
 		// on_timeout uses precision for `dest`
-		setup_mappings(local_asset_id.clone(), remote_asset_id, dest);
+		setup_mappings(local_asset_id, remote_asset_id, dest);
 
 		// Funds should be refunded to Body.from
 		let refund_beneficiary_bytes = [3u8; 32];

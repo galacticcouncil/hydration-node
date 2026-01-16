@@ -1065,7 +1065,7 @@ runtime_benchmarks! {
 		let asset_ids: Vec<AssetAmount<u32>> = Stableswap::pools(pool_id)
 					.into_iter()
 					.flat_map(|pool_info| pool_info.assets.into_iter())
-					.map(|asset_id| AssetAmount::<u32>::new(asset_id.into(), 10000))
+					.map(|asset_id| AssetAmount::<u32>::new(asset_id, 10000))
 					.collect();
 
 		let asset_ids: BoundedVec<AssetAmount<u32>, ConstU32<{ pallet_stableswap::MAX_ASSETS_IN_POOL }>> = asset_ids.try_into().unwrap();

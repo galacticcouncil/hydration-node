@@ -160,23 +160,23 @@ pub mod benchmark_helpers {
 				}
 			}
 
-			return CallResult {
+			CallResult {
 				contract: H160::zero(),
 				exit_reason: ExitReason::Revert(Reverted),
 				value: vec![],
 				gas_used: U256::zero(),
 				gas_limit: U256::zero(),
-			};
+			}
 		}
 
 		fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> hydradx_traits::evm::CallResult {
-			return CallResult {
+			CallResult {
 				contract: H160::zero(),
 				exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 				value: vec![],
 				gas_used: U256::zero(),
 				gas_limit: U256::zero(),
-			};
+			}
 		}
 	}
 
