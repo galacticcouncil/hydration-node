@@ -175,7 +175,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -357,6 +357,9 @@ pub mod pallet {
 		AssetNotInLockdown,
 		/// Invalid amount to save deposit
 		InvalidAmount,
+		/// Deposit limit would be exceeded in router context.
+		/// Operation rejected to prevent funds being locked on router account.
+		DepositLimitExceededInRouterContext,
 	}
 
 	#[pallet::call]
@@ -791,6 +794,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub(crate) fn do_lock_deposit(who: &T::AccountId, asset_id: T::AssetId, amount: T::Balance) -> DispatchResult {
+		// Prevent locking deposits in router context to avoid funds being stuck on router account
+		if pallet_broadcast::Pallet::<T>::get_swapper().is_some() {
+			return Err(Error::<T>::DepositLimitExceededInRouterContext.into());
+		}
+
 		<T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::OnLockdownDeposit::handle(&(
 			asset_id,
 			who.clone(),

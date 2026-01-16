@@ -717,7 +717,7 @@ mod router_different_pools_tests {
 	}
 
 	#[test]
-	fn sell_router_with_adding_liquidity_fails_with_slippage_when_deposit_limiter_triggered() {
+	fn sell_router_with_stableshares_adding_liquidity_fails_when_deposit_limiter_triggered() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -772,7 +772,7 @@ mod router_different_pools_tests {
 						4538992258357,
 						trades.try_into().unwrap()
 					),
-					pallet_route_executor::Error::<Runtime>::TradingLimitReached
+					pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededInRouterContext
 				);
 
 				assert_balance!(ALICE.into(), pool_id, 0);
@@ -782,9 +782,8 @@ mod router_different_pools_tests {
 		});
 	}
 
-	//TODO: might need fix, questionable, possibly a user error
 	#[test]
-	fn sell_router_locks_share_asset_in_router_with_when_sold_with_no_slippage_protection() {
+	fn sell_router_fails_when_deposit_limit_exceeded_in_router_context() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -823,32 +822,37 @@ mod router_different_pools_tests {
 				];
 
 				assert_balance!(ALICE.into(), pool_id, 0);
+				let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
 
 				//Act
 				let amount_to_sell = 100 * UNITS;
 				let deposit_limit = UNITS;
 				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
 
-				//Act and assert
-				assert_ok!(Router::sell(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					HDX,
-					pool_id,
-					amount_to_sell,
-					0,
-					trades.try_into().unwrap()
-				),);
+				//Act
+				assert_noop!(
+					Router::sell(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						HDX,
+						pool_id,
+						amount_to_sell,
+						0,
+						trades.try_into().unwrap()
+					),
+					pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::DepositLimitExceededInRouterContext
+				);
 
-				assert_balance!(ALICE.into(), pool_id, 1000000000000);
-				assert_reserved_balance!(&Router::router_account(), pool_id, 3638992258357);
+				// Verify that nothing has changed
+				assert_balance!(ALICE.into(), pool_id, 0);
+				assert_balance!(ALICE.into(), HDX, alice_hdx_before);
+				assert_reserved_balance!(&Router::router_account(), pool_id, 0);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
 	}
 
-	//TODO: needs fix asap, it should not behave like that
 	#[test]
-	fn buy_router_locks_stable_share_asset_on_router_account() {
+	fn buy_router_fails_when_deposit_limit_exceeded_in_router_context() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -897,42 +901,29 @@ mod router_different_pools_tests {
 					100_000 * UNITS as i128,
 				));
 
+				let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
+
 				let amount_to_buy = 100 * UNITS;
 				let deposit_limit = UNITS;
 				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
 
 				// Act
-				assert_ok!(Router::buy(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					HDX,
-					pool_id,
-					amount_to_buy,
-					2_500 * UNITS,
-					trades.try_into().unwrap()
-				));
-
-				let alice_shares_balance = Currencies::free_balance(pool_id, &ALICE.into());
-				let router_reserved_shares = Currencies::reserved_balance(pool_id, &Router::router_account());
-
-				assert_eq!(
-					alice_shares_balance, deposit_limit,
-					"User should receive only up to deposit limit. Got {} but limit is {}",
-					alice_shares_balance, deposit_limit
-				);
-				assert!(
-					alice_shares_balance < amount_to_buy,
-					"User should receive less than expected. Got {} but wanted {}",
-					alice_shares_balance,
-					amount_to_buy
+				assert_noop!(
+					Router::buy(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						HDX,
+						pool_id,
+						amount_to_buy,
+						2_500 * UNITS,
+						trades.try_into().unwrap()
+					),
+					pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::DepositLimitExceededInRouterContext
 				);
 
-				assert_eq!(
-					router_reserved_shares,
-					amount_to_buy - deposit_limit,
-					"Router should reserve the difference. Expected {} but got {}",
-					amount_to_buy - deposit_limit,
-					router_reserved_shares
-				);
+				// Verify nothing changed and locked
+				assert_balance!(ALICE.into(), pool_id, 0);
+				assert_balance!(ALICE.into(), HDX, alice_hdx_before);
+				assert_reserved_balance!(&Router::router_account(), pool_id, 0);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});

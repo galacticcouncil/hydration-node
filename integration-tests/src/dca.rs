@@ -3489,9 +3489,8 @@ mod stableswap {
 		});
 	}
 
-	//TODO: it should behave like this, fix ASAP!
 	#[test]
-	fn dca_buy_locks_funds_on_router_when_minting_stable_share_at_last_step() {
+	fn dca_buy_fails_when_deposit_limit_exceeded_in_router_context() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -3585,7 +3584,6 @@ mod stableswap {
 
 				create_schedule(ALICE, schedule);
 
-				let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
 				let alice_pool_id_before = Currencies::free_balance(pool_id, &ALICE.into());
 				assert_eq!(alice_pool_id_before, 0, "ALICE should start with 0 pool_id shares");
 
@@ -3593,19 +3591,20 @@ mod stableswap {
 				set_relaychain_block_number(12);
 
 				// Assert
-				let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
 				let alice_stable_shares_after = Currencies::free_balance(pool_id, &ALICE.into());
 				let router_reserved_shares = Currencies::reserved_balance(pool_id, &Router::router_account());
 
-				// User didn't received all pool shares they wanted to buy, and it is mistakenly locked on Router
-				assert_eq!(alice_stable_shares_after, deposit_limit);
-				assert!(
-					alice_stable_shares_after < amount_to_buy,
-					"User should receive less than expected. Got {} but wanted {}. Difference locked on Router!",
-					alice_stable_shares_after,
-					amount_to_buy
+				assert_eq!(
+					alice_stable_shares_after, 0,
+					"User should have 0 pool shares since DCA execution failed. Got {}",
+					alice_stable_shares_after
 				);
-				assert_eq!(router_reserved_shares, amount_to_buy - deposit_limit);
+
+				assert_eq!(
+					router_reserved_shares, 0,
+					"Router should have 0 reserved shares. Got {}",
+					router_reserved_shares
+				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
