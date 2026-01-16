@@ -14893,6 +14893,7 @@ dependencies = [
  "staging-xcm-builder",
  "staging-xcm-executor",
  "test-utils",
+ "tiny-keccak",
  "tokio",
  "xcm-emulator",
  "xcm-runtime-apis",
