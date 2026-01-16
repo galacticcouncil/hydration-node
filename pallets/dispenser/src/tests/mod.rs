@@ -7,6 +7,7 @@ use frame_support::assert_ok;
 use frame_support::traits::Everything;
 use frame_support::{parameter_types, traits::Currency as CurrencyTrait, PalletId};
 use frame_system::{self as system};
+use hex_literal::hex;
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrency;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
@@ -170,7 +171,7 @@ pub struct SigEthFaucetMpcRoot;
 impl frame_support::traits::Get<primitives::EvmAddress> for SigEthFaucetMpcRoot {
 	fn get() -> primitives::EvmAddress {
 		// 0x3c44CdDdB6a900fa2b585dd299e03d12FA4293BC
-		primitives::EvmAddress::from(hex_literal::hex!("3c44CdDdB6a900fa2b585dd299e03d12FA4293BC"))
+		primitives::EvmAddress::from(hex!("3c44CdDdB6a900fa2b585dd299e03d12FA4293BC"))
 	}
 }
 

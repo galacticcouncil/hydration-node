@@ -9993,6 +9993,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hex",
+ "hex-literal",
  "log",
  "orml-tokens",
  "orml-traits",

@@ -37,6 +37,7 @@ sp-runtime = { workspace = true, features = ["std"] }
 secp256k1 = { version = "0.27", features = ["recovery", "global-context"] }
 orml-traits = { workspace = true, features = ["std"] }
 orml-tokens = { workspace = true, features = ["std"] }
+hex-literal = { workspace = true }
 
 [features]
 default = ["std"]
