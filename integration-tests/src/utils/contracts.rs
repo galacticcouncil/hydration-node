@@ -5,6 +5,7 @@ use hydradx_traits::evm::EvmAddress;
 use pallet_evm::ExitReason;
 use sp_core::U256;
 use std::fs;
+use ethabi::{encode, Token};
 
 pub fn get_contract_bytecode(name: &str) -> Vec<u8> {
 	let path = format!(
@@ -48,3 +49,11 @@ pub fn deploy_contract_code(code: Vec<u8>, deployer: EvmAddress) -> EvmAddress {
 pub fn deploy_contract(name: &str, deployer: EvmAddress) -> EvmAddress {
 	deploy_contract_code(get_contract_bytecode(name), deployer)
 }
+
+pub fn append_constructor_args(mut initcode: Vec<u8>, args: Vec<Token>) -> Vec<u8> {
+	let encoded = encode(&args);
+	initcode.extend_from_slice(&encoded);
+	initcode
+}
+
+

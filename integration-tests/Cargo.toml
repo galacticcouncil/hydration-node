@@ -51,7 +51,7 @@ liquidation-worker-support = { workspace = true }
 pallet-broadcast = { workspace = true }
 pallet-duster = { workspace = true }
 pallet-duster-rpc-runtime-api = { workspace = true }
-
+tiny-keccak = "*"
 pallet-treasury = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-referenda = { workspace = true }
