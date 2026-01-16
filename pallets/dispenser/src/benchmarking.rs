@@ -18,7 +18,6 @@ mod benches {
 	use alloy_sol_types::SolCall;
 	use core::ops::{Add, Mul};
 	use frame_support::traits::Currency;
-	use sp_core::H160;
 
 	#[benchmark]
 	fn set_faucet_balance() {
@@ -94,7 +93,7 @@ mod benches {
 		let caller: T::AccountId = whitelisted_caller();
 
 		let amount: u128 = 100_000;
-		let to: [u8; 20] = [1u8; 20];
+		let to = EvmAddress::from([1u8; 20]);
 
 		let tx = EvmTransactionParams {
 			value: 0,
@@ -106,14 +105,14 @@ mod benches {
 		};
 
 		let call = crate::IGasFaucet::fundCall {
-			to: Address::from_slice(&to),
+			to: Address::from_slice(to.as_bytes()),
 			amount: U256::from(amount),
 		};
 
 		let faucet_addr = T::FaucetAddress::get();
 		let rlp = pallet_signet::Pallet::<T>::build_evm_tx(
 			RawOrigin::Signed(caller.clone()).into(),
-			Some(H160::from(faucet_addr)),
+			Some(faucet_addr),
 			0u128,
 			call.abi_encode(),
 			tx.nonce,
