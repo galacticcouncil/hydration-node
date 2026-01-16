@@ -16,7 +16,7 @@
 // limitations under the License.
 
 pub use crate as pallet_circuit_breaker;
-use frame_support::traits::{Contains, Get};
+use frame_support::traits::{Contains, Get, Time};
 pub use frame_support::traits::{Everything, OnFinalize};
 pub use frame_support::{assert_noop, assert_ok, parameter_types};
 
@@ -25,7 +25,7 @@ use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, MultiCurrency, NamedMultiReservableCurrency};
 use sp_core::H256;
-use sp_runtime::traits::{AccountIdConversion, ConstU128, ConstU32, Zero};
+use sp_runtime::traits::{AccountIdConversion, ConstU128, ConstU32, ConstU64, Zero};
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
@@ -92,6 +92,7 @@ frame_support::construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
+		Timestamp: pallet_timestamp,
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
@@ -100,6 +101,13 @@ frame_support::construct_runtime!(
 		Currencies: pallet_currencies
 	}
 );
+
+impl pallet_timestamp::Config for Test {
+	type Moment = primitives::Moment;
+	type OnTimestampSet = ();
+	type MinimumPeriod = ConstU64<1>;
+	type WeightInfo = ();
+}
 
 parameter_types! {
 	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
@@ -164,7 +172,7 @@ parameter_types! {
 	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = LRNA;
-
+	pub const GlobalWithdrawWindow: primitives::Moment = 24 * 60 * 60 * 1000; // 24h
 }
 
 impl pallet_circuit_breaker::Config for Test {
@@ -179,6 +187,8 @@ impl pallet_circuit_breaker::Config for Test {
 	type OmnipoolHubAsset = OmnipoolHubAsset;
 	type WeightInfo = ();
 	type DepositLimiter = DepositLimiter;
+	type GlobalWithdrawWindow = GlobalWithdrawWindow;
+	type TimestampProvider = Timestamp;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = BenchmarkHelperMock;
