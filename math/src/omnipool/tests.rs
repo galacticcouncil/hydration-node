@@ -15,6 +15,289 @@ use std::str::FromStr;
 
 const UNIT: Balance = 1_000_000_000_000;
 
+mod slip_fee_config {
+	use num_traits::CheckedDiv;
+	use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
+	use super::*;
+
+	#[test]
+	fn calculate_slip_fee_sell_with_zero_slip_factor_should_provide_correct_result() {
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::zero(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Decrease(0),
+			},
+			hub_state_out: Default::default(),
+		};
+
+		let delta_hub_reserve_in = UNIT;
+
+		let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_sell, FixedU128::zero());
+	}
+
+	#[test]
+	fn calculate_slip_fee_sell_should_provide_correct_result_for_first_trade() {
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::one(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Decrease(0),
+			},
+			hub_state_out: Default::default(),
+		};
+
+		let delta_hub_reserve_in = UNIT;
+
+		let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_sell, FixedU128::from_rational(1, 1_000 - 1));
+	}
+
+	#[test]
+	fn calculate_slip_fee_sell_should_provide_correct_result_for_additional_trade_same_direction() {
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::one(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Decrease(5 * UNIT),
+			},
+			hub_state_out: Default::default(),
+		};
+
+		let delta_hub_reserve_in = UNIT;
+
+		let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_sell, FixedU128::from(6).checked_div(&FixedU128::from(1_000 - 6)).unwrap());
+	}
+
+	#[test]
+	fn calculate_slip_fee_sell_should_provide_correct_result_for_additional_trade_different_direction() {
+		// delta_hub_reserve > 0
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::one(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Increase(5 * UNIT),
+			},
+			hub_state_out: Default::default(),
+		};
+
+		let delta_hub_reserve_in = UNIT;
+
+		let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_sell, FixedU128::from(4).checked_div(&FixedU128::from(1_000 + 4)).unwrap());
+
+
+		// delta_hub_reserve < 0
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::one(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Increase(1 * UNIT),
+			},
+			hub_state_out: Default::default(),
+		};
+
+		let delta_hub_reserve_in = 5 * UNIT;
+
+		let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_sell, FixedU128::from(4).checked_div(&FixedU128::from(1_000 - 4)).unwrap());
+
+
+		// delta_hub_reserve = 0
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::one(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Increase(5 * UNIT),
+			},
+			hub_state_out: Default::default(),
+		};
+
+		let delta_hub_reserve_in = 5 * UNIT;
+
+		let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_sell, FixedU128::zero());
+	}
+
+	#[test]
+	fn calculate_slip_fee_sell_should_respect_max_slip_fee_rate() {
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::one(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Decrease(0),
+			},
+			hub_state_out: Default::default(),
+		};
+
+		let delta_hub_reserve_in = 100 * UNIT;
+
+		let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_sell, slip_fee_config.max_slip_fee);
+	}
+
+	#[test]
+	fn calculate_slip_fee_buy_with_zero_slip_factor_should_provide_correct_result() {
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::zero(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: Default::default(),
+			hub_state_out: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Increase(0),
+			},
+		};
+
+		let delta_hub_reserve_out = UNIT;
+
+		let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_buy, FixedU128::zero());
+	}
+
+	#[test]
+	fn calculate_slip_fee_buy_should_provide_correct_result_for_first_trade() {
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::one(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: Default::default(),
+			hub_state_out: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Increase(0),
+			},
+		};
+
+		let delta_hub_reserve_out = UNIT;
+
+		let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_buy, FixedU128::from_rational(1, 1_000 + 1));
+	}
+
+	#[test]
+	fn calculate_slip_fee_buy_should_provide_correct_result_for_additional_trade_same_direction() {
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::one(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: Default::default(),
+			hub_state_out: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Increase(5 * UNIT),
+			},
+		};
+
+		let delta_hub_reserve_out = UNIT;
+
+		let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_buy, FixedU128::from(6).checked_div(&FixedU128::from(1_000 + 6)).unwrap());
+	}
+
+	#[test]
+	fn calculate_slip_fee_buy_should_provide_correct_result_for_additional_trade_different_direction() {
+		// delta_hub_reserve > 0
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::one(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: Default::default(),
+			hub_state_out: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Decrease(5 * UNIT),
+			},
+		};
+
+		let delta_hub_reserve_out = UNIT;
+
+		let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_buy, FixedU128::from(4).checked_div(&FixedU128::from(1_000 - 4)).unwrap());
+
+
+		// delta_hub_reserve < 0
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::one(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: Default::default(),
+			hub_state_out: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Decrease(1 * UNIT),
+			},
+		};
+
+		let delta_hub_reserve_out = 5 * UNIT;
+
+		let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_buy, FixedU128::from(4).checked_div(&FixedU128::from(1_000 + 4)).unwrap());
+
+
+		// delta_hub_reserve = 0
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::one(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: Default::default(),
+			hub_state_out: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Decrease(5 * UNIT),
+			},
+		};
+
+		let delta_hub_reserve_out = 5 * UNIT;
+
+		let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_buy, FixedU128::zero());
+	}
+
+	#[test]
+	fn calculate_slip_fee_buy_should_respect_max_slip_fee_rate() {
+		let slip_fee_config = SlipFeeConfig {
+			slip_factor: FixedU128::one(),
+			max_slip_fee: FixedU128::from_rational(5, 100),
+			hub_state_in: Default::default(),
+			hub_state_out: HubAssetBlockState {
+				hub_reserve_at_block_start: 1_000 * UNIT,
+				current_delta_hub_reserve: Increase(0),
+			},
+		};
+
+		let delta_hub_reserve_in = 100 * UNIT;
+
+		let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_in).unwrap();
+
+		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
+		assert_eq!(slip_fee_buy, slip_fee_config.max_slip_fee);
+	}
+}
 #[test]
 fn calculate_sell_without_fees_should_work_when_correct_input_provided() {
 	let asset_in_state = AssetReserveState {
