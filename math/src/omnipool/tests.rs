@@ -16,9 +16,9 @@ use std::str::FromStr;
 const UNIT: Balance = 1_000_000_000_000;
 
 mod slip_fee_config {
-	use num_traits::CheckedDiv;
-	use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
 	use super::*;
+	use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
+	use num_traits::CheckedDiv;
 
 	#[test]
 	fn calculate_slip_fee_sell_with_zero_slip_factor_should_provide_correct_result() {
@@ -77,7 +77,10 @@ mod slip_fee_config {
 		let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in).unwrap();
 
 		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
-		assert_eq!(slip_fee_sell, FixedU128::from(6).checked_div(&FixedU128::from(1_000 - 6)).unwrap());
+		assert_eq!(
+			slip_fee_sell,
+			FixedU128::from(6).checked_div(&FixedU128::from(1_000 - 6)).unwrap()
+		);
 	}
 
 	#[test]
@@ -98,8 +101,10 @@ mod slip_fee_config {
 		let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in).unwrap();
 
 		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
-		assert_eq!(slip_fee_sell, FixedU128::from(4).checked_div(&FixedU128::from(1_000 + 4)).unwrap());
-
+		assert_eq!(
+			slip_fee_sell,
+			FixedU128::from(4).checked_div(&FixedU128::from(1_000 + 4)).unwrap()
+		);
 
 		// delta_hub_reserve < 0
 		let slip_fee_config = SlipFeeConfig {
@@ -117,8 +122,10 @@ mod slip_fee_config {
 		let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in).unwrap();
 
 		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
-		assert_eq!(slip_fee_sell, FixedU128::from(4).checked_div(&FixedU128::from(1_000 - 4)).unwrap());
-
+		assert_eq!(
+			slip_fee_sell,
+			FixedU128::from(4).checked_div(&FixedU128::from(1_000 - 4)).unwrap()
+		);
 
 		// delta_hub_reserve = 0
 		let slip_fee_config = SlipFeeConfig {
@@ -216,7 +223,10 @@ mod slip_fee_config {
 		let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out).unwrap();
 
 		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
-		assert_eq!(slip_fee_buy, FixedU128::from(6).checked_div(&FixedU128::from(1_000 + 6)).unwrap());
+		assert_eq!(
+			slip_fee_buy,
+			FixedU128::from(6).checked_div(&FixedU128::from(1_000 + 6)).unwrap()
+		);
 	}
 
 	#[test]
@@ -237,8 +247,10 @@ mod slip_fee_config {
 		let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out).unwrap();
 
 		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
-		assert_eq!(slip_fee_buy, FixedU128::from(4).checked_div(&FixedU128::from(1_000 - 4)).unwrap());
-
+		assert_eq!(
+			slip_fee_buy,
+			FixedU128::from(4).checked_div(&FixedU128::from(1_000 - 4)).unwrap()
+		);
 
 		// delta_hub_reserve < 0
 		let slip_fee_config = SlipFeeConfig {
@@ -256,8 +268,10 @@ mod slip_fee_config {
 		let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out).unwrap();
 
 		// slip_fee_rate = slip_factor × |LRNA_delta| / (LRNA_at_block_start + LRNA_delta)
-		assert_eq!(slip_fee_buy, FixedU128::from(4).checked_div(&FixedU128::from(1_000 + 4)).unwrap());
-
+		assert_eq!(
+			slip_fee_buy,
+			FixedU128::from(4).checked_div(&FixedU128::from(1_000 + 4)).unwrap()
+		);
 
 		// delta_hub_reserve = 0
 		let slip_fee_config = SlipFeeConfig {
