@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "366.0.0"
+version = "383.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -91,6 +91,8 @@ pallet-uniques = { workspace = true }
 pallet-whitelist = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
+pallet-signet = { workspace = true }
+pallet-dispenser = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -254,6 +256,8 @@ runtime-benchmarks = [
     "pallet-dispatcher/runtime-benchmarks",
     "cumulus-primitives-utility/runtime-benchmarks",
     "pallet-xcm-benchmarks/runtime-benchmarks",
+    "pallet-signet/runtime-benchmarks",
+    "pallet-dispenser/runtime-benchmarks",
     "ismp-parachain/runtime-benchmarks",
     "pallet-token-gateway/runtime-benchmarks",
 ]
@@ -381,6 +385,8 @@ std = [
     "pallet-whitelist/std",
     "pallet-broadcast/std",
     "pallet-dispatcher/std",
+    "pallet-signet/std",
+    "pallet-dispenser/std",
     # Hyperbridge
     "anyhow/std",
     "pallet-hyperbridge/std",
@@ -468,6 +474,7 @@ try-runtime = [
     "pallet-whitelist/try-runtime",
     "pallet-broadcast/try-runtime",
     "pallet-dispatcher/try-runtime",
+    "pallet-signet/try-runtime",
 ]
 
 metadata-hash = [

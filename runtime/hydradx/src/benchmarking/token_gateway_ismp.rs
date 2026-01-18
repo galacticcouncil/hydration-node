@@ -14,7 +14,7 @@ use ismp::module::IsmpModule;
 use ismp::router::{PostRequest, PostResponse, Request, Response, Timeout};
 use pallet_token_gateway as tg;
 use pallet_token_gateway::types::Body;
-use sp_core::H256;
+use sp_core::{Get, H256};
 
 // Helper: encode a token-gateway Body and prefix with a selector byte expected by on_accept/on_timeout
 fn encode_body(body: Body) -> Vec<u8> {

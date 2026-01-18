@@ -149,6 +149,30 @@ pub mod pallet {
 	#[pallet::getter(fn approved_contract)]
 	pub(super) type ApprovedContract<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, ()>;
 
+	/// Tracks accounts that have been marked as EVM accounts.
+	/// An account is marked as EVM account right before we charge the evm fee
+	/// This is used to avoid resetting frame system nonce of accounts.
+	/// When we mark account as EVM account, we increase its sufficients counter by one.
+	/// We never decrease this sufficients, so side effect is that account can never be reaped
+	#[pallet::storage]
+	#[pallet::getter(fn marked_evm_accounts)]
+	pub type MarkedEvmAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, ()>;
+
+	/// ERC20-style allowances storage for the MultiCurrency precompile:
+	/// (asset_id, owner, spender) -> allowance
+	#[pallet::storage]
+	#[pallet::getter(fn allowance)]
+	pub(super) type Allowances<T: Config> = StorageNMap<
+		_,
+		(
+			NMapKey<Blake2_128Concat, T::AssetId>,
+			NMapKey<Blake2_128Concat, EvmAddress>, // owner (H160)
+			NMapKey<Blake2_128Concat, EvmAddress>, // spender (H160)
+		),
+		Balance,
+		ValueQuery, // default 0
+	>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -212,23 +236,13 @@ pub mod pallet {
 	{
 		type Call = Call<T>;
 
-		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			match source {
-				TransactionSource::External => {
-					// receiving unsigned transaction from network - disallow
-					return InvalidTransaction::Call.into();
-				}
-				TransactionSource::Local => {}   // produced by off-chain worker
-				TransactionSource::InBlock => {} // some other node included it in a block
-			};
-
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			let valid_tx = |user| {
 				ValidTransaction::with_tag_prefix("evm-accounts")
 					.priority(UNSIGNED_TXS_PRIORITY)
 					// use account as "provides" so more than one unsigned extrinsic can be placed in the TX pool
 					.and_provides([Encode::encode(user)])
-					.longevity(3)
-					.propagate(false)
+					.longevity(64_u64)
 					.build()
 			};
 
@@ -240,8 +254,11 @@ pub mod pallet {
 					..
 				} => {
 					// validate transaction
-					match Self::verify_claim_account(&account, asset_id.clone(), signature.clone()) {
-						Ok(()) => valid_tx(account),
+					match (
+						Self::verify_claim_account(account, *asset_id, signature.clone()),
+						Self::validate_bind_evm_address(account, &Self::evm_address(&account)),
+					) {
+						(Ok(()), Ok(())) => valid_tx(account),
 						_ => InvalidTransaction::Call.into(),
 					}
 				}
@@ -272,7 +289,10 @@ pub mod pallet {
 		pub fn bind_evm_address(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			Self::do_bind_evm_address(&who)
+			let evm_address = Self::evm_address(&who);
+
+			Self::validate_bind_evm_address(&who, &evm_address)?;
+			Self::do_bind_evm_address(&who, &evm_address)
 		}
 
 		/// Adds an EVM address to the list of addresses that are allowed to deploy smart contracts.
@@ -388,9 +408,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_none(origin)?;
 
+			let evm_address = Self::evm_address(&account);
+
 			Self::verify_claim_account(&account, asset_id, signature)?;
 
-			Self::do_bind_evm_address(&account)?;
+			Self::validate_bind_evm_address(&account, &evm_address)?;
+			Self::do_bind_evm_address(&account, &evm_address)?;
 
 			T::FeeCurrency::set(&account, asset_id)?;
 
@@ -405,14 +428,12 @@ impl<T: Config> Pallet<T>
 where
 	T::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<AccountId32>,
 {
-	/// Binds an account to an EVM address and increases `sufficients`.
-	fn do_bind_evm_address(who: &T::AccountId) -> DispatchResult {
+	/// Validations for `do_bind_evm_address`.
+	fn validate_bind_evm_address(who: &T::AccountId, evm_address: &EvmAddress) -> DispatchResult {
 		ensure!(
 			!Self::is_evm_account(who.clone()),
 			Error::<T>::TruncatedAccountAlreadyUsed
 		);
-
-		let evm_address = Self::evm_address(&who);
 
 		// This check is not necessary. It prevents binding the same address multiple times.
 		// Without this check binding the address second time can have pass or fail, depending
@@ -423,9 +444,14 @@ where
 			Error::<T>::AddressAlreadyBound
 		);
 
-		let nonce = T::EvmNonceProvider::get_nonce(evm_address);
+		let nonce = T::EvmNonceProvider::get_nonce(*evm_address);
 		ensure!(nonce.is_zero(), Error::<T>::TruncatedAccountAlreadyUsed);
 
+		Ok(())
+	}
+
+	/// Binds an account to an EVM address and increases `sufficients`.
+	fn do_bind_evm_address(who: &T::AccountId, evm_address: &EvmAddress) -> DispatchResult {
 		let mut last_12_bytes: [u8; 12] = [0; 12];
 		last_12_bytes.copy_from_slice(&who.as_ref()[20..32]);
 
@@ -435,7 +461,7 @@ where
 
 		Self::deposit_event(Event::Bound {
 			account: who.clone(),
-			address: evm_address,
+			address: *evm_address,
 		});
 
 		Ok(())
@@ -444,20 +470,17 @@ where
 	fn verify_claim_account(account: &T::AccountId, asset_id: T::AssetId, signature: Signature) -> DispatchResult {
 		let msg = Self::create_claim_account_message(account, asset_id);
 
-		ensure!(
-			signature.verify(msg.as_slice(), &account.clone().into()),
-			Error::<T>::InvalidSignature
-		);
+		Self::validate_signature(msg.as_slice(), &signature, account)?;
 
 		T::FeeCurrency::is_payment_currency(asset_id)?;
 
 		ensure!(
-			!frame_system::Pallet::<T>::account_exists(&account),
+			!frame_system::Pallet::<T>::account_exists(account),
 			Error::<T>::AccountAlreadyExists
 		);
 
 		ensure!(
-			T::Currency::balance(asset_id, &account) >= T::ExistentialDeposits::get(&asset_id),
+			T::Currency::balance(asset_id, account) >= T::ExistentialDeposits::get(&asset_id),
 			Error::<T>::InsufficientAssetBalance
 		);
 
@@ -465,12 +488,49 @@ where
 	}
 
 	/// Creates a message that can be used to prove ownership of an account.
-	fn create_claim_account_message(account: &T::AccountId, asset_id: T::AssetId) -> Vec<u8> {
+	pub fn create_claim_account_message(account: &T::AccountId, asset_id: T::AssetId) -> Vec<u8> {
 		(MESSAGE_PREFIX, account.clone(), asset_id).encode()
+	}
+
+	/// Validate a signature. Supports signatures on raw `data` or `data` wrapped in HTML `<Bytes>`.
+	pub fn validate_signature(data: &[u8], signature: &Signature, signer: &T::AccountId) -> DispatchResult {
+		// Happy path, user has signed the raw data.
+		if signature.verify(data, &signer.clone().into()) {
+			return Ok(());
+		}
+		// NOTE: for security reasons modern UIs implicitly wrap the data requested to sign into
+		// `<Bytes> + data + </Bytes>`.
+		let prefix = b"<Bytes>";
+		let suffix = b"</Bytes>";
+		let mut wrapped: Vec<u8> = Vec::with_capacity(data.len() + prefix.len() + suffix.len());
+		wrapped.extend(prefix);
+		wrapped.extend(data);
+		wrapped.extend(suffix);
+
+		ensure!(
+			signature.verify(&wrapped[..], &signer.clone().into()),
+			Error::<T>::InvalidSignature
+		);
+
+		Ok(())
 	}
 
 	fn _is_evm_account(account_id: &[u8; 32]) -> bool {
 		&account_id[0..4] == b"ETH\0" && account_id[24..32] == [0u8; 8]
+	}
+
+	/// Marks an account as an EVM account.
+	/// This should only be called once per account to avoid unnecessarily
+	/// increasing sufficients multiple times.
+	/// Only EVM truncated accounts are marked, because bound accounts has already their sufficients increased during binding.
+	pub fn mark_as_evm_account(account: &T::AccountId) {
+		if Self::is_evm_account(account.clone()) {
+			if !MarkedEvmAccounts::<T>::contains_key(account) {
+				frame_system::Pallet::<T>::inc_sufficients(account);
+
+				MarkedEvmAccounts::<T>::insert(account, ());
+			}
+		}
 	}
 }
 
@@ -525,6 +585,20 @@ where
 	/// Returns `True` if the address is allowed to manage balances and tokens.
 	fn is_approved_contract(evm_address: EvmAddress) -> bool {
 		ApprovedContract::<T>::contains_key(evm_address)
+	}
+}
+
+impl<T: Config> Pallet<T> {
+	pub fn get_allowance(asset_id: T::AssetId, owner: EvmAddress, spender: EvmAddress) -> Balance {
+		Allowances::<T>::get((asset_id, owner, spender))
+	}
+
+	pub fn set_allowance(asset_id: T::AssetId, owner: EvmAddress, spender: EvmAddress, amount: Balance) {
+		if amount == 0 {
+			Allowances::<T>::remove((asset_id, owner, spender));
+		} else {
+			Allowances::<T>::insert((asset_id, owner, spender), amount);
+		}
 	}
 }
 

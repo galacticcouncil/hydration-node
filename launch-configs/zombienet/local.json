@@ -61,12 +61,14 @@
         {
           "name": "alice",
           "command": "../../target/release/hydradx",
+          "env": {
+            "RUST_LOG": "info,parachain::collation=trace,cumulus_collator=trace,cumulus_client_collator=trace"
+          },
           "args": [
             "--no-hardware-benchmarks",
             "--force-authoring",
             "--database=paritydb",
-            "--pruning=archive",
-            "--log=info"
+            "--pruning=archive"
           ],
           "ws_port": 9988,
           "rpc_port": 9999
@@ -74,12 +76,14 @@
         {
           "name": "bob",
           "command": "../../target/release/hydradx",
+          "env": {
+            "RUST_LOG": "info,parachain::collation=trace,cumulus_collator=trace,cumulus_client_collator=trace"
+          },
           "args": [
             "--no-hardware-benchmarks",
             "--force-authoring",
             "--database=paritydb",
-            "--pruning=archive",
-            "--log=info"
+            "--pruning=archive"
           ],
           "ws_port": 9989
         }

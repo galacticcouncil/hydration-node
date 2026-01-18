@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-dca'
-version = "1.9.5"
+version = "1.12.0"
 description = 'A pallet to manage DCA scheduling'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -31,6 +31,8 @@ cumulus-pallet-parachain-system = { workspace = true }
 # HydraDX dependencies
 pallet-xyk = { workspace = true }
 pallet-omnipool = { workspace = true }
+pallet-dispatcher = { workspace = true }
+pallet-evm = { workspace = true }
 hydradx-traits = { workspace = true }
 hydradx-adapters = { workspace = true }
 pallet-ema-oracle = { workspace = true }
@@ -79,6 +81,8 @@ std = [
     "hydradx-adapters/std",
     "pallet-omnipool/std",
     "pallet-ema-oracle/std",
+    "pallet-dispatcher/std",
+    "pallet-evm/std",
 ]
 
 runtime-benchmarks = [
