@@ -4814,9 +4814,6 @@ mod extra_gas_erc20 {
 
 			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			hydradx_run_to_block(13);
-			let _period = 5;
-			let _retry_delay = 20;
-			let _block_number = hydradx_runtime::System::block_number();
 
 			// Assert that extra gas was increased in one retry
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
@@ -4982,9 +4979,6 @@ mod extra_gas_erc20 {
 
 			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			hydradx_run_to_block(13);
-			let _period = 5;
-			let _retry_delay = 20;
-			let _block_number = hydradx_runtime::System::block_number();
 
 			// Assert that extra gas was increased in one retry
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
@@ -5061,9 +5055,6 @@ mod extra_gas_erc20 {
 
 			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			hydradx_run_to_block(13);
-			let _period = 5;
-			let _retry_delay = 20;
-			let _block_number = hydradx_runtime::System::block_number();
 
 			// Assert that extra gas was increased in one retry
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);

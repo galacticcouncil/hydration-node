@@ -35,9 +35,6 @@ fn remove_all_liquidity_should_work() {
 			Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
 		));
 
-		let _position =
-			pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_position(position_id, lp.clone()).unwrap();
-
 		assert_ok!(hydradx_runtime::Omnipool::remove_all_liquidity(
 			hydradx_runtime::RuntimeOrigin::signed(lp.clone()),
 			position_id,

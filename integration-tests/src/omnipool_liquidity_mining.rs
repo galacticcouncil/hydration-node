@@ -1744,12 +1744,6 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				// Wait some blocks
 				go_to_block(500);
 
-				// Store balance before removal
-				let _charlie_asset_1_balance_before =
-					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(CHARLIE));
-				let _charlie_asset_2_balance_before =
-					hydradx_runtime::Currencies::free_balance(stable_asset_2, &AccountId::from(CHARLIE));
-
 				let asset_ids_without_slippage: Vec<AssetAmount<u32>> = Stableswap::pools(stable_pool_id)
 					.into_iter()
 					.flat_map(|pool_info| pool_info.assets.into_iter())
