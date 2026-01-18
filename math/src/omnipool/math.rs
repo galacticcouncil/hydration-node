@@ -1,14 +1,14 @@
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
-use crate::omnipool::types::{slip_fee, AssetReserveState, AssetStateChange, BalanceUpdate, HubTradeStateChange, LiquidityStateChange, Position, TradeFee, TradeStateChange};
+use crate::omnipool::types::{AssetReserveState, AssetStateChange, HubTradeStateChange, LiquidityStateChange, Position, TradeFee, TradeStateChange};
 use crate::omnipool::types::slip_fee::{SlipFeeConfig};
 use crate::types::Balance;
 use crate::MathError::Overflow;
 use crate::{to_balance, to_u256};
-use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, SaturatingAdd, Zero};
+use num_traits::{CheckedAdd, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
-use sp_std::ops::{Div, Sub};
+use sp_std::ops::Div;
 
 #[inline]
 fn amount_without_fee(amount: Balance, fee: Permill) -> Option<Balance> {
@@ -23,7 +23,7 @@ pub fn calculate_sell_state_changes(
 	asset_dynamic_fee: Permill,
 	protocol_dynamic_fee: Permill,
 	burn_protocol_fee: Permill,
-	slip_fee_config: SlipFeeConfig<Balance>,
+	slip_fee_config: &SlipFeeConfig<Balance>,
 ) -> Option<TradeStateChange<Balance>> {
 	let (in_hub_reserve, in_reserve, in_amount) = to_u256!(asset_in_state.hub_reserve, asset_in_state.reserve, amount);
 
@@ -81,7 +81,7 @@ pub fn calculate_sell_state_changes(
 		},
 		asset_out: AssetStateChange {
 			delta_reserve: Decrease(delta_reserve_out),
-			delta_hub_reserve: Increase(delta_hub_reserve_net),
+			delta_hub_reserve: Increase(delta_hub_reserve_out),
 			extra_hub_reserve_amount: Increase(delta_out_m),
 			..Default::default()
 		},
@@ -97,26 +97,37 @@ pub fn calculate_sell_state_changes(
 pub fn calculate_sell_hub_state_changes(
 	asset_out_state: &AssetReserveState<Balance>,
 	hub_asset_amount: Balance,
-	asset_fee: Permill,
-	// slip_fee_config: SlipFeeConfig<Balance>,
+	asset_dynamic_fee: Permill,
+	slip_fee_config: &SlipFeeConfig<Balance>,
 ) -> Option<HubTradeStateChange<Balance>> {
-	// let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(hub_asset_amount)?;
-	// let delta_hub_reserve_net = FixedU128::one().checked_sub(&slip_fee_buy)?.checked_mul_int(hub_asset_amount)?;
+	let delta_hub_reserve_out = hub_asset_amount;
 
-	let (reserve_hp, hub_reserve_hp, amount_hp) =
-		to_u256!(asset_out_state.reserve, asset_out_state.hub_reserve, hub_asset_amount);
-	// to_u256!(asset_out_state.reserve, asset_out_state.hub_reserve, delta_hub_reserve_net);
+	let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out)?;
 
-	let delta_reserve_out_hp = reserve_hp
-		.checked_mul(amount_hp)
-		.and_then(|v| v.checked_div(hub_reserve_hp.checked_add(amount_hp)?))?;
+	let delta_hub_reserve_net = FixedU128::one().checked_sub(&slip_fee_buy)?.checked_mul_int(delta_hub_reserve_out)?;
+
+	let (out_reserve_hp, out_hub_reserve_hp, delta_hub_reserve_net_hp) = to_u256!(
+		asset_out_state.reserve,
+		asset_out_state.hub_reserve,
+		delta_hub_reserve_net
+	);
+
+	let delta_reserve_out_hp = out_reserve_hp
+		.checked_mul(delta_hub_reserve_net_hp)
+		.and_then(|v| v.checked_div(out_hub_reserve_hp.checked_add(delta_hub_reserve_net_hp)?))?;
 
 	let amount_out = to_balance!(delta_reserve_out_hp).ok()?;
-	let delta_reserve_out = amount_without_fee(amount_out, asset_fee)?;
+
+	let delta_reserve_out = amount_without_fee(amount_out, asset_dynamic_fee)?;
+
 	let asset_fee_amount = amount_out.saturating_sub(delta_reserve_out);
 
+	let (hub_reserve_hp, amount_hp) =
+		to_u256!(asset_out_state.hub_reserve, hub_asset_amount);
+
+
 	// mint amount to account for asset fee that stays in the pool
-	let delta_q_m = asset_fee.mul_floor(
+	let delta_q_m = asset_dynamic_fee.mul_floor(
 		to_balance!(hub_reserve_hp
 			.checked_add(amount_hp)?
 			.checked_mul(amount_hp)?
@@ -164,25 +175,51 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 	asset_out_state: &AssetReserveState<Balance>,
 	asset_out_amount: Balance,
 	asset_fee: Permill,
+	slip_fee_config: &SlipFeeConfig<Balance>,
 ) -> Option<HubTradeStateChange<Balance>> {
+	let delta_reserve_out_gross_hp = to_u256!(asset_out_amount).checked_mul(Permill::from_percent(100).deconstruct().into())?
+		.checked_div(Permill::one().checked_sub(&asset_fee)?.deconstruct().into())?;
+	let delta_reserve_out_gross = to_balance!(delta_reserve_out_gross_hp).ok()?;
+
+	let (hub_reserve_hp, reserve_hp) =
+		to_u256!(asset_out_state.hub_reserve, asset_out_state.reserve);
+	let delta_hub_reserve_out_net_hp = delta_reserve_out_gross_hp
+		.checked_mul(hub_reserve_hp)
+		.and_then(|v| v.checked_div(reserve_hp.checked_sub(delta_reserve_out_gross_hp)?))
+		.and_then(|v| v.checked_add(U256::one()))?;
+	let delta_hub_reserve_out_net = to_balance!(delta_hub_reserve_out_net_hp).ok()?;
+
+	let delta_hub_reserve= if slip_fee_config.slip_factor.is_zero() {
+		delta_hub_reserve_out_net
+	} else {
+		let denom = to_u256!(slip_fee_config.hub_state_out.hub_reserve_at_block_start.checked_sub(delta_hub_reserve_out_net)?);
+		let n1 = to_u256!(slip_fee_config.hub_state_out.hub_reserve_at_block_start);
+		let n2 = slip_fee_config.hub_state_out.current_delta_hub_reserve.merge(Increase(delta_hub_reserve_out_net))?;
+		if !n2.is_positive() {
+			// TODO: log error (debug_assert)
+			return None
+		};
+		let u = n1
+			.checked_mul(to_u256!(*n2))?
+			.checked_div(denom)?;
+		let u = to_balance!(u).ok()?;
+
+		u.checked_sub(*slip_fee_config.hub_state_out.current_delta_hub_reserve)?
+	};
+
+	let delta_reserve_out_without_fee = amount_without_fee(delta_reserve_out_gross, asset_fee)?;
+	let asset_fee_amount = delta_reserve_out_gross.saturating_sub(delta_reserve_out_without_fee);
+
 	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
 	let hub_denominator = reserve_no_fee.checked_sub(asset_out_amount)?;
 
-	let (hub_reserve_hp, amount_hp, hub_denominator_hp) =
-		to_u256!(asset_out_state.hub_reserve, asset_out_amount, hub_denominator);
-
-	let delta_hub_reserve_hp = hub_reserve_hp.checked_mul(amount_hp).and_then(|v| {
-		v.checked_div(hub_denominator_hp)
-			.and_then(|v| v.checked_add(U256::one()))
-	})?;
-
-	let delta_hub_reserve = to_balance!(delta_hub_reserve_hp).ok()?;
-	let fee_amount = calculate_fee_amount_for_buy(asset_fee, asset_out_amount);
-
 	// mint amount to account for asset fee that stays in the pool
+	let (hub_reserve_hp, amount_hp) =
+		to_u256!(asset_out_state.hub_reserve, asset_out_amount);
+
 	let n = asset_fee.mul_floor(
 		to_balance!(hub_reserve_hp
-			.checked_add(delta_hub_reserve_hp)?
+			.checked_add(delta_hub_reserve.into())?
 			.checked_mul(amount_hp)?)
 		.ok()?,
 	);
@@ -196,7 +233,7 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 			..Default::default()
 		},
 		fee: TradeFee {
-			asset_fee: fee_amount,
+			asset_fee: asset_fee_amount,
 			..Default::default()
 		},
 	})
@@ -210,53 +247,62 @@ pub fn calculate_buy_state_changes(
 	asset_fee: Permill,
 	protocol_fee: Permill,
 	m: Permill,
-	// slip_fee_config: SlipFeeConfig<Balance>,
+	slip_fee_config: &SlipFeeConfig<Balance>,
 ) -> Option<TradeStateChange<Balance>> {
-	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
-	let (out_hub_reserve_hp, out_reserve_no_fee_hp, out_amount_hp) =
-		to_u256!(asset_out_state.hub_reserve, reserve_no_fee, amount);
+	let delta_reserve_out_gross_hp = to_u256!(amount).checked_mul(Permill::from_percent(100).deconstruct().into())?
+		.checked_div(Permill::one().checked_sub(&asset_fee)?.deconstruct().into())?;
+	let delta_reserve_out_gross = to_balance!(delta_reserve_out_gross_hp).ok()?;
 
-	let delta_hub_reserve_out_hp = out_hub_reserve_hp
-		.checked_mul(out_amount_hp)
-		.and_then(|v| v.checked_div(out_reserve_no_fee_hp.checked_sub(out_amount_hp)?))?;
+	let (delta_reserve_out_gross_hp, hub_reserve_hp, reserve_hp) =
+		to_u256!(delta_reserve_out_gross, asset_out_state.hub_reserve, asset_out_state.reserve);
+	let delta_hub_reserve_out_net_hp = delta_reserve_out_gross_hp
+		.checked_mul(hub_reserve_hp)
+		.and_then(|v| v.checked_div(reserve_hp.checked_sub(delta_reserve_out_gross_hp)?))
+		.and_then(|v| v.checked_add(U256::one()))?;
+	let delta_hub_reserve_out_net = to_balance!(delta_hub_reserve_out_net_hp).ok()?;
 
-	//TODO: verify with colin - this make sell and buy exact amounts
-	//let delta_hub_reserve_out_hp = delta_hub_reserve_out_hp.checked_add(U256::one())?;
+	let delta_hub_reserve_out_gross = if slip_fee_config.slip_factor.is_zero() {
+		delta_hub_reserve_out_net
+	} else {
+		let denom = to_u256!(slip_fee_config.hub_state_out.hub_reserve_at_block_start.checked_sub(delta_hub_reserve_out_net)?);
+		let n1 = to_u256!(slip_fee_config.hub_state_out.hub_reserve_at_block_start);
+		let n2 = slip_fee_config.hub_state_out.current_delta_hub_reserve.merge(Increase(delta_hub_reserve_out_net))?;
+		if !n2.is_positive() {
+			// TODO: log error
+			return None
+		};
+		let u = n1
+			.checked_mul(to_u256!(*n2))?
+			.checked_div(denom)?;
+		let u = to_balance!(u).ok()?;
 
-	let delta_hub_reserve_out = to_balance!(delta_hub_reserve_out_hp).ok()?;
-	let delta_hub_reserve_out = delta_hub_reserve_out.checked_add(Balance::one())?;
+		u.checked_sub(*slip_fee_config.hub_state_out.current_delta_hub_reserve)?
+	};
 
-	// let delta_hub_reserve_net = delta_hub_reserve_out;
-	// let delta_hub_reserve_out = slip_fee_config.invert_slip(&delta_hub_reserve_net);
+	// let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out_gross)?;
+	// let slip_fee_buy_amount = slip_fee_buy.checked_mul_int(delta_hub_reserve_out_gross)?;
 
-	// Negative
-	let delta_hub_reserve_in: Balance = FixedU128::from_inner(delta_hub_reserve_out)
-		.checked_div(&Permill::from_percent(100).sub(protocol_fee).into())?
-		.into_inner();
+	let delta_hub_reserve_in = slip_fee_config.invert_slip(delta_hub_reserve_out_gross, &protocol_fee)?;
+
+	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
+	let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in)?;
+	let slip_fee_sell_amount = slip_fee_sell.checked_mul_int(delta_hub_reserve_in)?;
+
+	let delta_reserve_in = asset_in_state.reserve.checked_mul(delta_hub_reserve_in)?.checked_div(asset_in_state.hub_reserve.checked_sub(delta_hub_reserve_in)?)?;
+	let delta_reserve_in = delta_reserve_in.checked_add(Balance::one())?;
 
 	if delta_hub_reserve_in >= asset_in_state.hub_reserve {
 		return None;
 	}
 
-	let (delta_hub_reserve_in_hp, in_hub_reserve_hp, in_reserve_hp) =
-		to_u256!(delta_hub_reserve_in, asset_in_state.hub_reserve, asset_in_state.reserve);
-
-	let delta_reserve_in = in_reserve_hp
-		.checked_mul(delta_hub_reserve_in_hp)
-		.and_then(|v| v.checked_div(in_hub_reserve_hp.checked_sub(delta_hub_reserve_in_hp)?))?;
-
-	let delta_reserve_in = to_balance!(delta_reserve_in).ok()?;
-	let delta_reserve_in = delta_reserve_in.checked_add(Balance::one())?;
-
 	let asset_fee_amount = calculate_fee_amount_for_buy(asset_fee, amount);
-	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
 
 	// mint amount to account for asset fee that stays in the pool
-	let delta_hub_reserve_out_hp = to_u256!(delta_hub_reserve_out);
+	let (out_hub_reserve_hp, delta_hub_reserve_out_net_hp) = to_u256!(asset_out_state.hub_reserve, delta_hub_reserve_out_net);
 	let delta_out_m = asset_fee.mul_floor(
 		to_balance!(out_hub_reserve_hp
-			.checked_add(delta_hub_reserve_out_hp)?
-			.checked_mul(delta_hub_reserve_out_hp)?
+			.checked_add(delta_hub_reserve_out_net_hp)?
+			.checked_mul(delta_hub_reserve_out_net_hp)?
 			.checked_div(out_hub_reserve_hp)?)
 		.ok()?,
 	);
@@ -273,7 +319,7 @@ pub fn calculate_buy_state_changes(
 		},
 		asset_out: AssetStateChange {
 			delta_reserve: Decrease(amount),
-			delta_hub_reserve: Increase(delta_hub_reserve_out),
+			delta_hub_reserve: Increase(delta_hub_reserve_out_net), // TODO: gross ???
 			extra_hub_reserve_amount: Increase(delta_out_m),
 			..Default::default()
 		},
@@ -285,7 +331,7 @@ pub fn calculate_buy_state_changes(
 	})
 }
 
-/// Calculate delta changes of add liqudiity given current asset state
+/// Calculate delta changes of add liquidity given current asset state
 pub fn calculate_add_liquidity_state_changes(
 	asset_state: &AssetReserveState<Balance>,
 	amount: Balance,

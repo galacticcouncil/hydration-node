@@ -1019,7 +1019,7 @@ pub mod pallet {
 				asset_dynamic_fee,
 				protocol_dynamic_fee,
 				T::BurnProtocolFee::get(),
-				slip_fee_config,
+				&slip_fee_config,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1043,14 +1043,13 @@ pub mod pallet {
 			let (taken_fee, trade_fees) = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 			let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
-
 			HubAssetBlockState::<T>::mutate_extant(asset_in, |state| {
-				let new_state = &state.current_delta_hub_reserve.saturating_merge(state_changes.asset_in.delta_hub_reserve);
-				*new_state
+				let new_delta = state.current_delta_hub_reserve.saturating_merge(state_changes.asset_in.delta_hub_reserve);
+				state.current_delta_hub_reserve = new_delta;
 			});
 			HubAssetBlockState::<T>::mutate_extant(asset_out, |state| {
-				let new_state = &state.current_delta_hub_reserve.saturating_merge(state_changes.asset_out.delta_hub_reserve);
-				*new_state
+				let new_delta = state.current_delta_hub_reserve.saturating_merge(state_changes.asset_out.delta_hub_reserve);
+				state.current_delta_hub_reserve = new_delta;
 			});
 
 			let new_asset_in_state = asset_in_state
@@ -1205,8 +1204,8 @@ pub mod pallet {
 		/// Asset's tradable states must contain SELL flag for asset_in and BUY flag for asset_out, otherwise `NotAllowed` error is returned.
 		///
 		/// Parameters:
-		/// - `asset_in`: ID of asset sold to the pool
 		/// - `asset_out`: ID of asset bought from the pool
+		/// - `asset_in`: ID of asset sold to the pool
 		/// - `amount`: Amount of asset sold
 		/// - `max_sell_amount`: Maximum amount to be sold.
 		///
@@ -1265,6 +1264,18 @@ pub mod pallet {
 
 			let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_out_state.reserve));
 			let (_, protocol_fee) = T::Fee::get_and_store((asset_in, asset_in_state.reserve));
+
+			// get `HubAssetBlockState` and create initial state when empty
+			let hub_asset_block_state_in = Self::get_or_initialize_hub_asset_block_state(asset_in, asset_in_state.hub_reserve);
+			let hub_asset_block_state_out = Self::get_or_initialize_hub_asset_block_state(asset_out, asset_out_state.hub_reserve);
+
+			let slip_fee_config = SlipFeeConfig::<Balance>{
+				slip_factor: T::SlipFactor::get(),
+				max_slip_fee: T::MaxSlipFee::get(),
+				hub_state_in: hub_asset_block_state_in,
+				hub_state_out: hub_asset_block_state_out,
+			};
+
 			let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 				&(&asset_in_state).into(),
 				&(&asset_out_state).into(),
@@ -1272,6 +1283,7 @@ pub mod pallet {
 				asset_fee,
 				protocol_fee,
 				T::BurnProtocolFee::get(),
+				&slip_fee_config,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1296,6 +1308,15 @@ pub mod pallet {
 
 			let (taken_fee, trade_fees) = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 			let state_changes = state_changes.account_for_fee_taken(taken_fee);
+
+			HubAssetBlockState::<T>::mutate_extant(asset_in, |state| {
+				let new_delta = state.current_delta_hub_reserve.saturating_merge(state_changes.asset_in.delta_hub_reserve);
+				state.current_delta_hub_reserve = new_delta;
+			});
+			HubAssetBlockState::<T>::mutate_extant(asset_out, |state| {
+				let new_delta = state.current_delta_hub_reserve.saturating_merge(state_changes.asset_out.delta_hub_reserve);
+				state.current_delta_hub_reserve = new_delta;
+			});
 
 			let new_asset_in_state = asset_in_state
 				.delta_update(&state_changes.asset_in)
@@ -1852,8 +1873,18 @@ impl<T: Config> Pallet<T> {
 
 		let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_state.reserve));
 
+		// get `HubAssetBlockState` and create initial state when empty
+		let hub_asset_block_state_out = Self::get_or_initialize_hub_asset_block_state(asset_out, asset_state.hub_reserve);
+
+		let slip_fee_config = SlipFeeConfig::<Balance>{
+			slip_factor: T::SlipFactor::get(),
+			max_slip_fee: T::MaxSlipFee::get(),
+			hub_state_in: Default::default(),
+			hub_state_out: hub_asset_block_state_out,
+		};
+
 		let state_changes =
-			hydra_dx_math::omnipool::calculate_sell_hub_state_changes(&(&asset_state).into(), amount, asset_fee)
+			hydra_dx_math::omnipool::calculate_sell_hub_state_changes(&(&asset_state).into(), amount, asset_fee, &slip_fee_config)
 				.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
@@ -1872,6 +1903,11 @@ impl<T: Config> Pallet<T> {
 
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 		let state_changes = state_changes.account_for_fee_taken(taken_fee);
+
+		HubAssetBlockState::<T>::mutate_extant(asset_out, |state| {
+			let new_delta = state.current_delta_hub_reserve.saturating_merge(state_changes.asset.delta_hub_reserve);
+			state.current_delta_hub_reserve = new_delta;
+		});
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
@@ -1964,10 +2000,21 @@ impl<T: Config> Pallet<T> {
 
 		let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_state.reserve));
 
+		// get `HubAssetBlockState` and create initial state when empty
+		let hub_asset_block_state_out = Self::get_or_initialize_hub_asset_block_state(asset_out, asset_state.hub_reserve);
+
+		let slip_fee_config = SlipFeeConfig::<Balance>{
+			slip_factor: T::SlipFactor::get(),
+			max_slip_fee: T::MaxSlipFee::get(),
+			hub_state_in: Default::default(),
+			hub_state_out: hub_asset_block_state_out,
+		};
+
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
 			amount,
 			asset_fee,
+			&slip_fee_config,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1987,6 +2034,11 @@ impl<T: Config> Pallet<T> {
 
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 		let state_changes = state_changes.account_for_fee_taken(taken_fee);
+
+		HubAssetBlockState::<T>::mutate_extant(asset_out, |state| {
+			let new_delta = state.current_delta_hub_reserve.saturating_merge(state_changes.asset.delta_hub_reserve);
+			state.current_delta_hub_reserve = new_delta;
+		});
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
