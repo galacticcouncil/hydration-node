@@ -507,22 +507,13 @@ impl pallet_asset_registry::Config for Runtime {
 
 parameter_types! {
 	pub const CollectionDeposit: Balance = 0;
+	pub const ItemDeposit: Balance = 0;
 	pub const KeyLimit: u32 = 256;	// Max 256 bytes per key
 	pub const ValueLimit: u32 = 1024;	// Max 1024 bytes per value
 	pub const UniquesMetadataDepositBase: Balance = 1_000 * UNITS;
 	pub const AttributeDepositBase: Balance = UNITS;
 	pub const DepositPerByte: Balance = UNITS;
 	pub const UniquesStringLimit: u32 = 72;
-}
-
-// ItemDeposit must be non-zero for benchmarks, otherwise pallet_uniques::redeposit benchmark fails
-#[cfg(feature = "runtime-benchmarks")]
-parameter_types! {
-	pub const ItemDeposit: Balance = UNITS;
-}
-#[cfg(not(feature = "runtime-benchmarks"))]
-parameter_types! {
-	pub const ItemDeposit: Balance = 0;
 }
 
 impl pallet_uniques::Config for Runtime {
@@ -544,7 +535,7 @@ impl pallet_uniques::Config for Runtime {
 	type ValueLimit = ValueLimit;
 	#[cfg(feature = "runtime-benchmarks")]
 	type Helper = ();
-	type WeightInfo = weights::pallet_uniques::HydraWeight<Runtime>;
+	type WeightInfo = ();
 }
 
 parameter_types! {
