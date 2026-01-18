@@ -267,6 +267,8 @@ parameter_types! {
 	pub const TVLCap: Balance = Balance::MAX;
 	pub MinWithdrawFee: Permill = Permill::from_percent(0);
 	pub BurnFee: Permill = Permill::from_percent(0);
+	pub SlipFactor: FixedU128 = FixedU128::zero();
+	pub MaxSlipFee: FixedU128 = FixedU128::from_rational(5, 100);
 }
 
 impl pallet_omnipool::Config for Test {
@@ -293,6 +295,8 @@ impl pallet_omnipool::Config for Test {
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
 	type BurnProtocolFee = BurnFee;
+	type SlipFactor = SlipFactor;
+	type MaxSlipFee = MaxSlipFee;
 }
 
 impl pallet_broadcast::Config for Test {

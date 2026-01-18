@@ -199,6 +199,8 @@ parameter_types! {
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
 	pub BurnFee: Permill = Permill::zero();
 	pub const ReserveAccount: AccountId = 7;
+	pub SlipFactor: FixedU128 = FixedU128::zero();
+	pub MaxSlipFee: FixedU128 = FixedU128::from_rational(5, 100);
 }
 
 impl pallet_omnipool::Config for Test {
@@ -228,6 +230,8 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type BurnProtocolFee = BurnFee;
+	type SlipFactor = SlipFactor;
+	type MaxSlipFee = MaxSlipFee;
 }
 
 pub struct FeeProvider;

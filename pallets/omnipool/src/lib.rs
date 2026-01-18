@@ -1584,7 +1584,7 @@ pub mod pallet {
 			assert_ne!(T::MaxOutRatio::get(), Balance::zero(), "MaxOutRatio is 0.");
 			// Slip fee implementation expects `SlipFactor` being equal to 0 or 1
 			assert!(
-				T::SlipFactor::get().is_zero() || sp_runtime::FixedPointNumber::is_one(&T::SlipFactor::get()),
+				T::SlipFactor::get().is_zero() || One::is_one(&T::SlipFactor::get()),
 				"SlipFactor is not 0 or 1."
 			)
 		}

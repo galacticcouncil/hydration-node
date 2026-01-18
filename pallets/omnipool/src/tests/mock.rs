@@ -186,7 +186,7 @@ parameter_types! {
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
 	pub SlipFactor: FixedU128 = SLIP_FACTOR.with(|v| *v.borrow());
-	pub MaxSlipFee: FixedU128 = FixedU128::from_u32(10);
+	pub MaxSlipFee: FixedU128 = FixedU128::from_rational(5, 100);
 }
 
 impl pallet_broadcast::Config for Test {

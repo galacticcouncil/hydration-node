@@ -18,7 +18,7 @@ use crate::*;
 use frame_support::{
 	assert_ok, parameter_types,
 	sp_runtime::{
-		traits::{BlakeTwo256, IdentityLookup},
+		traits::{BlakeTwo256, IdentityLookup, Zero},
 		BuildStorage, Permill,
 	},
 	traits::{
@@ -215,6 +215,8 @@ parameter_types! {
 	pub MaxInRatio: Balance = 1u128;
 	pub MaxOutRatio: Balance = 1u128;
 	pub const TVLCap: Balance = Balance::MAX;
+	pub SlipFactor: FixedU128 = FixedU128::zero();
+	pub MaxSlipFee: FixedU128 = FixedU128::from_rational(5, 100);
 
 	pub const TransactionByteFee: Balance = 10 * ONE / 100_000;
 
@@ -321,6 +323,8 @@ impl pallet_omnipool::Config for Test {
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
 	type BurnProtocolFee = BurnFee;
+	type SlipFactor = SlipFactor;
+	type MaxSlipFee = MaxSlipFee;
 }
 
 pub struct DummyNFT;
