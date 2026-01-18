@@ -1,14 +1,14 @@
 use crate::assert_approx_eq;
+use crate::omnipool::types::slip_fee::SlipFeeConfig;
 use crate::omnipool::types::{AssetReserveState, Position};
 use crate::omnipool::*;
 use crate::to_balance;
 use crate::types::Balance;
 use crate::MathError::Overflow;
+use num_traits::One;
 use primitive_types::U256;
 use proptest::prelude::*;
 use sp_arithmetic::{traits::Zero, FixedPointNumber, FixedU128, Permill};
-use crate::omnipool::types::slip_fee::SlipFeeConfig;
-use num_traits::One;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const TOLERANCE: Balance = 1_000;

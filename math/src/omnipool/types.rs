@@ -1,12 +1,12 @@
 use crate::omnipool::calculate_burn_amount_based_on_fee_taken;
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
-use num_traits::{CheckedAdd, CheckedSub, CheckedMul, SaturatingAdd, Zero};
+use codec::{Decode, Encode, MaxEncodedLen};
+use num_traits::{CheckedAdd, CheckedMul, CheckedSub, SaturatingAdd, Zero};
+use scale_info::TypeInfo;
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointNumber, FixedPointOperand, FixedU128};
-use sp_std::ops::{Add, Sub, Deref, Mul};
 use sp_std::cmp::Ordering;
-use codec::{Decode, Encode, MaxEncodedLen};
-use scale_info::TypeInfo;
+use sp_std::ops::{Add, Deref, Mul, Sub};
 
 /// Asset state representation including asset pool reserve.
 #[derive(Clone, Default, Debug)]
@@ -73,7 +73,8 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default + Saturating
 
 	// Note: CheckedMul trait can't be implemented for distinct types, so we implement it here.
 	pub fn checked_mul_fixed(self, other: FixedU128) -> Option<Self>
-	where Balance: FixedPointOperand
+	where
+		Balance: FixedPointOperand,
 	{
 		match self {
 			Increase(v) => Some(Increase(other.checked_mul_int(v)?)),
@@ -177,7 +178,7 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Zero + Default> Sub<Self> f
 				} else {
 					Decrease(b - a)
 				}
-			},
+			}
 			(Decrease(a), Decrease(b)) => {
 				if a == b {
 					Increase(Zero::zero())
@@ -186,10 +187,8 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Zero + Default> Sub<Self> f
 				} else {
 					Increase(b - a)
 				}
-			},
-			(Increase(a), Decrease(b)) => {
-				Increase(a + b)
 			}
+			(Increase(a), Decrease(b)) => Increase(a + b),
 			(Decrease(a), Increase(b)) => {
 				if a.is_zero() && b.is_zero() {
 					Increase(Zero::zero())
@@ -210,19 +209,17 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Zero + Copy + Default> Chec
 				} else {
 					Some(Decrease(b.checked_sub(a)?))
 				}
-			},
+			}
 			(Decrease(a), Decrease(b)) => {
 				if a == b {
-				 	Some(Increase(Zero::zero()))
+					Some(Increase(Zero::zero()))
 				} else if a > b {
 					Some(Decrease(a.checked_sub(b)?))
 				} else {
 					Some(Increase(b.checked_sub(a)?))
 				}
-			},
-			(Increase(a), Decrease(b)) => {
-				Some(Increase(a.checked_add(b)?))
 			}
+			(Increase(a), Decrease(b)) => Some(Increase(a.checked_add(b)?)),
 			(Decrease(a), Increase(b)) => {
 				if a.is_zero() && b.is_zero() {
 					Some(Increase(Zero::zero()))
@@ -241,7 +238,7 @@ impl<Balance: Mul<Output = Balance>> Mul for BalanceUpdate<Balance> {
 			(Increase(a), Increase(b)) => Increase(a * b),
 			(Decrease(a), Decrease(b)) => Increase(a * b),
 			(Increase(a), Decrease(b)) => Decrease(a * b),
-			(Decrease(a), Increase(b)) => Decrease(a * b)
+			(Decrease(a), Increase(b)) => Decrease(a * b),
 		}
 	}
 }
@@ -252,7 +249,7 @@ impl<Balance: CheckedMul> CheckedMul for BalanceUpdate<Balance> {
 			(Increase(a), Increase(b)) => Some(Increase(a.checked_mul(b)?)),
 			(Decrease(a), Decrease(b)) => Some(Increase(a.checked_mul(b)?)),
 			(Increase(a), Decrease(b)) => Some(Decrease(a.checked_mul(b)?)),
-			(Decrease(a), Increase(b)) => Some(Decrease(a.checked_mul(b)?))
+			(Decrease(a), Increase(b)) => Some(Decrease(a.checked_mul(b)?)),
 		}
 	}
 }
@@ -291,16 +288,20 @@ impl<Balance: Ord + Zero> PartialOrd for BalanceUpdate<Balance> {
 		match (self, other) {
 			(Increase(a), Increase(b)) => a.partial_cmp(b),
 			(Decrease(a), Decrease(b)) => b.partial_cmp(a),
-			(Increase(a), Decrease(b)) => if a.is_zero() && b.is_zero() {
-				Some(Ordering::Equal)
-			} else {
-				Some(Ordering::Greater)
-			},
-			(Decrease(a), Increase(b)) => if a.is_zero() && b.is_zero() {
-				Some(Ordering::Equal)
-			} else {
-				Some(Ordering::Less)
-			},
+			(Increase(a), Decrease(b)) => {
+				if a.is_zero() && b.is_zero() {
+					Some(Ordering::Equal)
+				} else {
+					Some(Ordering::Greater)
+				}
+			}
+			(Decrease(a), Increase(b)) => {
+				if a.is_zero() && b.is_zero() {
+					Some(Ordering::Equal)
+				} else {
+					Some(Ordering::Less)
+				}
+			}
 		}
 	}
 }
@@ -310,16 +311,20 @@ impl<Balance: Ord + Zero> Ord for BalanceUpdate<Balance> {
 		match (self, other) {
 			(Increase(a), Increase(b)) => a.cmp(b),
 			(Decrease(a), Decrease(b)) => b.cmp(a),
-			(Increase(a), Decrease(b)) => if a.is_zero() && b.is_zero() {
-				Ordering::Equal
-			} else {
-				Ordering::Greater
-			},
-			(Decrease(a), Increase(b)) => if a.is_zero() && b.is_zero() {
-				Ordering::Equal
-			} else {
-				Ordering::Less
-			},
+			(Increase(a), Decrease(b)) => {
+				if a.is_zero() && b.is_zero() {
+					Ordering::Equal
+				} else {
+					Ordering::Greater
+				}
+			}
+			(Decrease(a), Increase(b)) => {
+				if a.is_zero() && b.is_zero() {
+					Ordering::Equal
+				} else {
+					Ordering::Less
+				}
+			}
 		}
 	}
 }
@@ -360,9 +365,7 @@ impl<
 			amt_to_burn,
 			v.extra_hub_reserve_amount
 		);
-		v.extra_hub_reserve_amount = v
-			.extra_hub_reserve_amount
-			.saturating_merge(Decrease(amt_to_burn));
+		v.extra_hub_reserve_amount = v.extra_hub_reserve_amount.saturating_merge(Decrease(amt_to_burn));
 		v
 	}
 }
@@ -448,14 +451,14 @@ where
 }
 
 pub mod slip_fee {
-	use codec::{Decode, Encode, MaxEncodedLen};
-	use scale_info::TypeInfo;
-	use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+	use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
 	use crate::omnipool::types::{AssetReserveState, BalanceUpdate};
-	use crate::omnipool::types::BalanceUpdate::{Increase, Decrease};
 	use crate::types::Balance;
+	use codec::{Decode, Encode, MaxEncodedLen};
 	use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, SaturatingAdd, Zero};
+	use scale_info::TypeInfo;
 	use sp_arithmetic::traits::IntegerSquareRoot;
+	use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 
 	/// Hub asset state for slip fee calculation
 	#[derive(Default, Encode, Decode, TypeInfo, MaxEncodedLen, Copy, Clone, Debug, Eq, PartialEq)]
@@ -492,8 +495,13 @@ pub mod slip_fee {
 		pub hub_state_out: HubAssetBlockState<Balance>,
 	}
 	impl SlipFeeConfig<Balance> {
-		pub fn new_from_asset_state(asset_in_state: &AssetReserveState<Balance>, asset_out_state: &AssetReserveState<Balance>, slip_factor: FixedU128, max_slip_fee: FixedU128) -> Self {
-			Self{
+		pub fn new_from_asset_state(
+			asset_in_state: &AssetReserveState<Balance>,
+			asset_out_state: &AssetReserveState<Balance>,
+			slip_factor: FixedU128,
+			max_slip_fee: FixedU128,
+		) -> Self {
+			Self {
 				slip_factor,
 				max_slip_fee,
 				hub_state_in: HubAssetBlockState::new(asset_in_state.hub_reserve),
@@ -501,26 +509,33 @@ pub mod slip_fee {
 			}
 		}
 
-		pub fn calculate_slip_fee(&self, delta: BalanceUpdate<Balance>, hub_reserve_at_block_start: Balance) -> Option<FixedU128> {
+		pub fn calculate_slip_fee(
+			&self,
+			delta: BalanceUpdate<Balance>,
+			hub_reserve_at_block_start: Balance,
+		) -> Option<FixedU128> {
 			if self.slip_factor.is_zero() {
 				// slip fee disabled
 				Some(FixedU128::zero())
 			} else {
 				// slip factor == 1
-				FixedU128::from(*delta)
-					.checked_div(&FixedU128::from(*(delta.checked_add(&Increase(hub_reserve_at_block_start))?)))
+				FixedU128::from(*delta).checked_div(&FixedU128::from(
+					*(delta.checked_add(&Increase(hub_reserve_at_block_start))?),
+				))
 			}
 		}
-		
+
 		pub fn calculate_slip_fee_sell(&self, delta_hub_reserve_in: Balance) -> Option<FixedU128> {
 			// add new delta to existing delta
-			let delta_hub_in = BalanceUpdate::<Balance>::Decrease(delta_hub_reserve_in).saturating_add(&self.hub_state_in.current_delta_hub_reserve);
+			let delta_hub_in = BalanceUpdate::<Balance>::Decrease(delta_hub_reserve_in)
+				.saturating_add(&self.hub_state_in.current_delta_hub_reserve);
 			let slip_fee_sell = self.calculate_slip_fee(delta_hub_in, self.hub_state_in.hub_reserve_at_block_start)?;
 			Some(sp_std::cmp::min(slip_fee_sell, self.max_slip_fee))
 		}
 
 		pub fn calculate_slip_fee_buy(&self, delta_hub_reserve_out: Balance) -> Option<FixedU128> {
-			let delta_hub_out = BalanceUpdate::<Balance>::Increase(delta_hub_reserve_out).saturating_add(&self.hub_state_out.current_delta_hub_reserve);
+			let delta_hub_out = BalanceUpdate::<Balance>::Increase(delta_hub_reserve_out)
+				.saturating_add(&self.hub_state_out.current_delta_hub_reserve);
 			let slip_fee_buy = self.calculate_slip_fee(delta_hub_out, self.hub_state_out.hub_reserve_at_block_start)?;
 			Some(sp_std::cmp::min(slip_fee_buy, self.max_slip_fee))
 		}
@@ -535,13 +550,18 @@ pub mod slip_fee {
 				k.checked_add(&self.slip_factor)?
 			};
 
-			let q1 = Increase(k.checked_mul_int(self.hub_state_in.hub_reserve_at_block_start)?.checked_add(delta_hub_reserve_out_gross)?);
+			let q1 = Increase(
+				k.checked_mul_int(self.hub_state_in.hub_reserve_at_block_start)?
+					.checked_add(delta_hub_reserve_out_gross)?,
+			);
 			let q2 = self.hub_state_in.current_delta_hub_reserve.checked_mul_fixed(p)?;
 			let q = q1.checked_sub(&q2)?;
 
 			let r = Increase(self.hub_state_in.hub_reserve_at_block_start)
 				.checked_mul(&Increase(delta_hub_reserve_out_gross).checked_sub(&c_k)?)?;
-			let disc = q.checked_mul(&q)?.checked_sub(&r.checked_mul(&Increase(4u128))?.checked_mul_fixed(p)?)?;
+			let disc = q
+				.checked_mul(&q)?
+				.checked_sub(&r.checked_mul(&Increase(4u128))?.checked_mul_fixed(p)?)?;
 			let sd = disc.integer_sqrt();
 
 			let u = if q >= Increase(0) {
@@ -559,8 +579,8 @@ pub mod slip_fee {
 #[cfg(test)]
 mod tests {
 	use super::BalanceUpdate;
-	use super::{CheckedAdd, CheckedSub};
 	use super::Ordering;
+	use super::{CheckedAdd, CheckedSub};
 	//use cool_asserts::assert_panics;
 	use test_case::test_case;
 

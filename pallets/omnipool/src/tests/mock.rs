@@ -286,8 +286,6 @@ impl Default for ExtBuilder {
 		WITHDRAWAL_ADJUSTMENT.with(|v| {
 			*v.borrow_mut() = (0, 0, false);
 		});
-		SLIP_FACTOR.with(|v| {
-			*v.borrow_mut() = FixedU128::zero();
 		ON_TRADE_WITHDRAWAL.with(|v| {
 			*v.borrow_mut() = Permill::from_percent(0);
 		});

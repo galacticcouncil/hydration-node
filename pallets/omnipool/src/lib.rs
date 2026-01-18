@@ -86,7 +86,7 @@ use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydra_dx_math::ema::EmaPrice;
-use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, slip_fee, slip_fee::SlipFeeConfig};
+use hydra_dx_math::omnipool::types::{slip_fee, slip_fee::SlipFeeConfig, AssetStateChange, BalanceUpdate};
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::MultiCurrency;
@@ -279,13 +279,7 @@ pub mod pallet {
 	/// Key: AssetId
 	/// Value: (hub_reserve_at_block_start, current delta)
 	pub type HubAssetBlockState<T: Config> =
-	StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AssetId,
-		slip_fee::HubAssetBlockState<Balance>,
-		OptionQuery
-	>;
+		StorageMap<_, Blake2_128Concat, T::AssetId, slip_fee::HubAssetBlockState<Balance>, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -861,10 +855,12 @@ pub mod pallet {
 			let (_, protocol_dynamic_fee) = T::Fee::get_and_store((asset_in, asset_in_state.reserve));
 
 			// get `HubAssetBlockState` and create initial state when empty
-			let hub_asset_block_state_in = Self::get_or_initialize_hub_asset_block_state(asset_in, asset_in_state.hub_reserve);
-			let hub_asset_block_state_out = Self::get_or_initialize_hub_asset_block_state(asset_out, asset_out_state.hub_reserve);
+			let hub_asset_block_state_in =
+				Self::get_or_initialize_hub_asset_block_state(asset_in, asset_in_state.hub_reserve);
+			let hub_asset_block_state_out =
+				Self::get_or_initialize_hub_asset_block_state(asset_out, asset_out_state.hub_reserve);
 
-			let slip_fee_config = SlipFeeConfig::<Balance>{
+			let slip_fee_config = SlipFeeConfig::<Balance> {
 				slip_factor: T::SlipFactor::get(),
 				max_slip_fee: T::MaxSlipFee::get(),
 				hub_state_in: hub_asset_block_state_in,
@@ -903,11 +899,15 @@ pub mod pallet {
 			let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
 			HubAssetBlockState::<T>::mutate_extant(asset_in, |state| {
-				let new_delta = state.current_delta_hub_reserve.saturating_merge(state_changes.asset_in.delta_hub_reserve);
+				let new_delta = state
+					.current_delta_hub_reserve
+					.saturating_merge(state_changes.asset_in.delta_hub_reserve);
 				state.current_delta_hub_reserve = new_delta;
 			});
 			HubAssetBlockState::<T>::mutate_extant(asset_out, |state| {
-				let new_delta = state.current_delta_hub_reserve.saturating_merge(state_changes.asset_out.delta_hub_reserve);
+				let new_delta = state
+					.current_delta_hub_reserve
+					.saturating_merge(state_changes.asset_out.delta_hub_reserve);
 				state.current_delta_hub_reserve = new_delta;
 			});
 
@@ -1125,10 +1125,12 @@ pub mod pallet {
 			let (_, protocol_fee) = T::Fee::get_and_store((asset_in, asset_in_state.reserve));
 
 			// get `HubAssetBlockState` and create initial state when empty
-			let hub_asset_block_state_in = Self::get_or_initialize_hub_asset_block_state(asset_in, asset_in_state.hub_reserve);
-			let hub_asset_block_state_out = Self::get_or_initialize_hub_asset_block_state(asset_out, asset_out_state.hub_reserve);
+			let hub_asset_block_state_in =
+				Self::get_or_initialize_hub_asset_block_state(asset_in, asset_in_state.hub_reserve);
+			let hub_asset_block_state_out =
+				Self::get_or_initialize_hub_asset_block_state(asset_out, asset_out_state.hub_reserve);
 
-			let slip_fee_config = SlipFeeConfig::<Balance>{
+			let slip_fee_config = SlipFeeConfig::<Balance> {
 				slip_factor: T::SlipFactor::get(),
 				max_slip_fee: T::MaxSlipFee::get(),
 				hub_state_in: hub_asset_block_state_in,
@@ -1169,11 +1171,15 @@ pub mod pallet {
 			let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
 			HubAssetBlockState::<T>::mutate_extant(asset_in, |state| {
-				let new_delta = state.current_delta_hub_reserve.saturating_merge(state_changes.asset_in.delta_hub_reserve);
+				let new_delta = state
+					.current_delta_hub_reserve
+					.saturating_merge(state_changes.asset_in.delta_hub_reserve);
 				state.current_delta_hub_reserve = new_delta;
 			});
 			HubAssetBlockState::<T>::mutate_extant(asset_out, |state| {
-				let new_delta = state.current_delta_hub_reserve.saturating_merge(state_changes.asset_out.delta_hub_reserve);
+				let new_delta = state
+					.current_delta_hub_reserve
+					.saturating_merge(state_changes.asset_out.delta_hub_reserve);
 				state.current_delta_hub_reserve = new_delta;
 			});
 
@@ -1577,7 +1583,10 @@ pub mod pallet {
 			assert_ne!(T::MaxInRatio::get(), Balance::zero(), "MaxInRatio is 0.");
 			assert_ne!(T::MaxOutRatio::get(), Balance::zero(), "MaxOutRatio is 0.");
 			// Slip fee implementation expects `SlipFactor` being equal to 0 or 1
-			assert!(T::SlipFactor::get().is_zero() || sp_runtime::FixedPointNumber::is_one(&T::SlipFactor::get()), "SlipFactor is not 0 or 1.")
+			assert!(
+				T::SlipFactor::get().is_zero() || sp_runtime::FixedPointNumber::is_one(&T::SlipFactor::get()),
+				"SlipFactor is not 0 or 1."
+			)
 		}
 
 		#[cfg(feature = "try-runtime")]
@@ -1735,18 +1744,23 @@ impl<T: Config> Pallet<T> {
 		let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_state.reserve));
 
 		// get `HubAssetBlockState` and create initial state when empty
-		let hub_asset_block_state_out = Self::get_or_initialize_hub_asset_block_state(asset_out, asset_state.hub_reserve);
+		let hub_asset_block_state_out =
+			Self::get_or_initialize_hub_asset_block_state(asset_out, asset_state.hub_reserve);
 
-		let slip_fee_config = SlipFeeConfig::<Balance>{
+		let slip_fee_config = SlipFeeConfig::<Balance> {
 			slip_factor: T::SlipFactor::get(),
 			max_slip_fee: T::MaxSlipFee::get(),
 			hub_state_in: Default::default(),
 			hub_state_out: hub_asset_block_state_out,
 		};
 
-		let state_changes =
-			hydra_dx_math::omnipool::calculate_sell_hub_state_changes(&(&asset_state).into(), amount, asset_fee, &slip_fee_config)
-				.ok_or(ArithmeticError::Overflow)?;
+		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
+			&(&asset_state).into(),
+			amount,
+			asset_fee,
+			&slip_fee_config,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
 			*state_changes.asset.delta_reserve >= limit,
@@ -1766,7 +1780,9 @@ impl<T: Config> Pallet<T> {
 		let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
 		HubAssetBlockState::<T>::mutate_extant(asset_out, |state| {
-			let new_delta = state.current_delta_hub_reserve.saturating_merge(state_changes.asset.delta_hub_reserve);
+			let new_delta = state
+				.current_delta_hub_reserve
+				.saturating_merge(state_changes.asset.delta_hub_reserve);
 			state.current_delta_hub_reserve = new_delta;
 		});
 
@@ -1862,9 +1878,10 @@ impl<T: Config> Pallet<T> {
 		let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_state.reserve));
 
 		// get `HubAssetBlockState` and create initial state when empty
-		let hub_asset_block_state_out = Self::get_or_initialize_hub_asset_block_state(asset_out, asset_state.hub_reserve);
+		let hub_asset_block_state_out =
+			Self::get_or_initialize_hub_asset_block_state(asset_out, asset_state.hub_reserve);
 
-		let slip_fee_config = SlipFeeConfig::<Balance>{
+		let slip_fee_config = SlipFeeConfig::<Balance> {
 			slip_factor: T::SlipFactor::get(),
 			max_slip_fee: T::MaxSlipFee::get(),
 			hub_state_in: Default::default(),
@@ -1897,7 +1914,9 @@ impl<T: Config> Pallet<T> {
 		let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
 		HubAssetBlockState::<T>::mutate_extant(asset_out, |state| {
-			let new_delta = state.current_delta_hub_reserve.saturating_merge(state_changes.asset.delta_hub_reserve);
+			let new_delta = state
+				.current_delta_hub_reserve
+				.saturating_merge(state_changes.asset.delta_hub_reserve);
 			state.current_delta_hub_reserve = new_delta;
 		});
 
@@ -2242,8 +2261,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Get `HubAssetBlockState` and create initial state when empty.
-	fn get_or_initialize_hub_asset_block_state(asset_id: T::AssetId, hub_reserve: Balance) -> slip_fee::HubAssetBlockState<Balance> {
-		HubAssetBlockState::<T>::mutate(asset_id, |maybe_state| -> slip_fee::HubAssetBlockState::<Balance> {
+	fn get_or_initialize_hub_asset_block_state(
+		asset_id: T::AssetId,
+		hub_reserve: Balance,
+	) -> slip_fee::HubAssetBlockState<Balance> {
+		HubAssetBlockState::<T>::mutate(asset_id, |maybe_state| -> slip_fee::HubAssetBlockState<Balance> {
 			if let Some(state) = maybe_state {
 				*state
 			} else {

@@ -1,7 +1,7 @@
 use super::*;
 use crate::slip_fee::HubAssetBlockState;
+use hydra_dx_math::omnipool::types::BalanceUpdate::{Decrease, Increase};
 use pretty_assertions::assert_eq;
-use hydra_dx_math::omnipool::types::BalanceUpdate::{Increase, Decrease};
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
@@ -9,29 +9,29 @@ pub fn expect_events(e: Vec<RuntimeEvent>) {
 
 #[test]
 fn single_sell_works() {
-    ExtBuilder::default()
-        .with_endowed_accounts(vec![
-            (Omnipool::protocol_account(), DAI, 1000 * ONE),
-            (Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-            (LP2, 100, 2000 * ONE),
-            (LP3, 200, 2000 * ONE),
-            (LP1, 100, 1000 * ONE),
-        ])
-        .with_registered_asset(100)
-        .with_registered_asset(200)
-        .with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-        .with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-        .with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
 		.with_slip_fee()
-        .build()
-        .execute_with(|| {
-            let liq_added = 400 * ONE;
-            assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
+		.build()
+		.execute_with(|| {
+			let liq_added = 400 * ONE;
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
 
-            let sell_amount = 50 * ONE;
-            let min_limit = 10 * ONE;
+			let sell_amount = 50 * ONE;
+			let min_limit = 10 * ONE;
 
-            assert_ok!(Omnipool::sell(
+			assert_ok!(Omnipool::sell(
 				RuntimeOrigin::signed(LP1),
 				100,
 				200,
@@ -41,27 +41,36 @@ fn single_sell_works() {
 
 			let hub_asset_block_state_in = Omnipool::hub_asset_block_state(100).unwrap();
 			let hub_asset_block_state_out = Omnipool::hub_asset_block_state(200).unwrap();
-			assert_eq!(hub_asset_block_state_in, HubAssetBlockState::<Balance>{
-				hub_reserve_at_block_start: 1560000000000000,
-				current_delta_hub_reserve: Decrease(31836734693877),
-			});
-			assert_eq!(hub_asset_block_state_out, HubAssetBlockState::<Balance>{
-				hub_reserve_at_block_start: 1300000000000000,
-				current_delta_hub_reserve: Increase(31173469387755),
-			});
+			assert_eq!(
+				hub_asset_block_state_in,
+				HubAssetBlockState::<Balance> {
+					hub_reserve_at_block_start: 1560000000000000,
+					current_delta_hub_reserve: Decrease(31836734693877),
+				}
+			);
+			assert_eq!(
+				hub_asset_block_state_out,
+				HubAssetBlockState::<Balance> {
+					hub_reserve_at_block_start: 1300000000000000,
+					current_delta_hub_reserve: Increase(31173469387755),
+				}
+			);
 
-            assert_eq!(Tokens::free_balance(100, &LP1), 550 * ONE);
-            assert_eq!(Tokens::free_balance(200, &LP1), 45_939_561_782_192);
-            assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_359_336_734_693_878);
-            assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2450 * ONE);
-            assert_eq!(
-                Tokens::free_balance(200, &Omnipool::protocol_account()),
+			assert_eq!(Tokens::free_balance(100, &LP1), 550 * ONE);
+			assert_eq!(Tokens::free_balance(200, &LP1), 45_939_561_782_192);
+			assert_eq!(
+				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
+				13_359_336_734_693_878
+			);
+			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2450 * ONE);
+			assert_eq!(
+				Tokens::free_balance(200, &Omnipool::protocol_account()),
 				1_954_060_438_217_808
-            );
+			);
 
-            assert_pool_state!(13359336734693878, 26_720 * ONE);
+			assert_pool_state!(13359336734693878, 26_720 * ONE);
 
-            assert_asset_state!(
+			assert_asset_state!(
 				100,
 				AssetReserveState {
 					reserve: 2450 * ONE,
@@ -72,7 +81,7 @@ fn single_sell_works() {
 					tradable: Tradability::default(),
 				}
 			);
-            assert_asset_state!(
+			assert_asset_state!(
 				200,
 				AssetReserveState {
 					reserve: 1954060438217808,
@@ -84,21 +93,19 @@ fn single_sell_works() {
 				}
 			);
 
-			expect_events(vec![
-				Event::SellExecuted {
-					who: LP1,
-					asset_in: 100,
-					asset_out: 200,
-					amount_in: 50000000000000,
-					amount_out: 45939561782192,
-					hub_amount_in: 31836734693877,
-					hub_amount_out: 31173469387755,
-					asset_fee_amount: 0,
-					protocol_fee_amount: 663265306122,
-				}
-					.into(),
-				]);
-        });
+			expect_events(vec![Event::SellExecuted {
+				who: LP1,
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 50000000000000,
+				amount_out: 45939561782192,
+				hub_amount_in: 31836734693877,
+				hub_amount_out: 31173469387755,
+				asset_fee_amount: 0,
+				protocol_fee_amount: 663265306122,
+			}
+			.into()]);
+		});
 }
 
 #[test]
@@ -135,18 +142,27 @@ fn two_sells_in_one_direction_should_increase_fee() {
 
 			let hub_asset_block_state_in = Omnipool::hub_asset_block_state(100).unwrap();
 			let hub_asset_block_state_out = Omnipool::hub_asset_block_state(200).unwrap();
-			assert_eq!(hub_asset_block_state_in, HubAssetBlockState::<Balance>{
-				hub_reserve_at_block_start: 1560000000000000,
-				current_delta_hub_reserve: Decrease(31836734693877),
-			});
-			assert_eq!(hub_asset_block_state_out, HubAssetBlockState::<Balance>{
-				hub_reserve_at_block_start: 1300000000000000,
-				current_delta_hub_reserve: Increase(31173469387755),
-			});
+			assert_eq!(
+				hub_asset_block_state_in,
+				HubAssetBlockState::<Balance> {
+					hub_reserve_at_block_start: 1560000000000000,
+					current_delta_hub_reserve: Decrease(31836734693877),
+				}
+			);
+			assert_eq!(
+				hub_asset_block_state_out,
+				HubAssetBlockState::<Balance> {
+					hub_reserve_at_block_start: 1300000000000000,
+					current_delta_hub_reserve: Increase(31173469387755),
+				}
+			);
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 550 * ONE);
 			assert_eq!(Tokens::free_balance(200, &LP1), 45_939_561_782_192);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_359_336_734_693_878);
+			assert_eq!(
+				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
+				13_359_336_734_693_878
+			);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2450 * ONE);
 			assert_eq!(
 				Tokens::free_balance(200, &Omnipool::protocol_account()),
@@ -178,20 +194,18 @@ fn two_sells_in_one_direction_should_increase_fee() {
 				}
 			);
 
-			expect_events(vec![
-				Event::SellExecuted {
-					who: LP1,
-					asset_in: 100,
-					asset_out: 200,
-					amount_in: 50000000000000,
-					amount_out: 45939561782192,
-					hub_amount_in: 31836734693877,
-					hub_amount_out: 31173469387755,
-					asset_fee_amount: 0,
-					protocol_fee_amount: 663_265_306_122,
-				}
-					.into(),
-			]);
+			expect_events(vec![Event::SellExecuted {
+				who: LP1,
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 50000000000000,
+				amount_out: 45939561782192,
+				hub_amount_in: 31836734693877,
+				hub_amount_out: 31173469387755,
+				asset_fee_amount: 0,
+				protocol_fee_amount: 663_265_306_122,
+			}
+			.into()]);
 
 			System::reset_events();
 
@@ -205,29 +219,33 @@ fn two_sells_in_one_direction_should_increase_fee() {
 
 			let hub_asset_block_state_in = Omnipool::hub_asset_block_state(100).unwrap();
 			let hub_asset_block_state_out = Omnipool::hub_asset_block_state(200).unwrap();
-			assert_eq!(hub_asset_block_state_in, HubAssetBlockState::<Balance>{
-				hub_reserve_at_block_start: 1560000000000000,
-				current_delta_hub_reserve: Decrease(62399999999999),
-			});
-			assert_eq!(hub_asset_block_state_out, HubAssetBlockState::<Balance>{
-				hub_reserve_at_block_start: 1300000000000000,
-				current_delta_hub_reserve: Increase(60463265306122),
-			});
-
-			expect_events(vec![
-				Event::SellExecuted {
-					who: LP1,
-					asset_in: 100,
-					asset_out: 200,
-					amount_in: 50_000_000_000_000,
-					amount_out: 40_532_364_402_622,
-					hub_amount_in: 30_563_265_306_122,
-					hub_amount_out: 29_289_795_918_367,
-					asset_fee_amount: 0,
-					protocol_fee_amount: 1_273_469_387_755,
+			assert_eq!(
+				hub_asset_block_state_in,
+				HubAssetBlockState::<Balance> {
+					hub_reserve_at_block_start: 1560000000000000,
+					current_delta_hub_reserve: Decrease(62399999999999),
 				}
-					.into(),
-			]);
+			);
+			assert_eq!(
+				hub_asset_block_state_out,
+				HubAssetBlockState::<Balance> {
+					hub_reserve_at_block_start: 1300000000000000,
+					current_delta_hub_reserve: Increase(60463265306122),
+				}
+			);
+
+			expect_events(vec![Event::SellExecuted {
+				who: LP1,
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 50_000_000_000_000,
+				amount_out: 40_532_364_402_622,
+				hub_amount_in: 30_563_265_306_122,
+				hub_amount_out: 29_289_795_918_367,
+				asset_fee_amount: 0,
+				protocol_fee_amount: 1_273_469_387_755,
+			}
+			.into()]);
 		});
 }
 
@@ -266,18 +284,27 @@ fn sell_and_buy_can_cancel_out_and_bring_slip_fee_to_initial_state() {
 
 			let hub_asset_block_state_in = Omnipool::hub_asset_block_state(100).unwrap();
 			let hub_asset_block_state_out = Omnipool::hub_asset_block_state(200).unwrap();
-			assert_eq!(hub_asset_block_state_in, HubAssetBlockState::<Balance>{
-				hub_reserve_at_block_start: 1560000000000000,
-				current_delta_hub_reserve: Decrease(31836734693877),
-			});
-			assert_eq!(hub_asset_block_state_out, HubAssetBlockState::<Balance>{
-				hub_reserve_at_block_start: 1300000000000000,
-				current_delta_hub_reserve: Increase(31173469387755),
-			});
+			assert_eq!(
+				hub_asset_block_state_in,
+				HubAssetBlockState::<Balance> {
+					hub_reserve_at_block_start: 1560000000000000,
+					current_delta_hub_reserve: Decrease(31836734693877),
+				}
+			);
+			assert_eq!(
+				hub_asset_block_state_out,
+				HubAssetBlockState::<Balance> {
+					hub_reserve_at_block_start: 1300000000000000,
+					current_delta_hub_reserve: Increase(31173469387755),
+				}
+			);
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 550 * ONE);
 			assert_eq!(Tokens::free_balance(200, &LP1), 1_045_939_561_782_192);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_359_336_734_693_878);
+			assert_eq!(
+				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
+				13_359_336_734_693_878
+			);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2450 * ONE);
 			assert_eq!(
 				Tokens::free_balance(200, &Omnipool::protocol_account()),
@@ -309,20 +336,18 @@ fn sell_and_buy_can_cancel_out_and_bring_slip_fee_to_initial_state() {
 				}
 			);
 
-			expect_events(vec![
-				Event::SellExecuted {
-					who: LP1,
-					asset_in: 100,
-					asset_out: 200,
-					amount_in: 50000000000000,
-					amount_out: 45939561782192,
-					hub_amount_in: 31836734693877,
-					hub_amount_out: 31173469387755,
-					asset_fee_amount: 0,
-					protocol_fee_amount: 663_265_306_122,
-				}
-					.into(),
-			]);
+			expect_events(vec![Event::SellExecuted {
+				who: LP1,
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 50000000000000,
+				amount_out: 45939561782192,
+				hub_amount_in: 31836734693877,
+				hub_amount_out: 31173469387755,
+				asset_fee_amount: 0,
+				protocol_fee_amount: 663_265_306_122,
+			}
+			.into()]);
 
 			System::reset_events();
 
@@ -340,29 +365,33 @@ fn sell_and_buy_can_cancel_out_and_bring_slip_fee_to_initial_state() {
 
 			let hub_asset_block_state_in = Omnipool::hub_asset_block_state(100).unwrap();
 			let hub_asset_block_state_out = Omnipool::hub_asset_block_state(200).unwrap();
-			assert_eq!(hub_asset_block_state_in, HubAssetBlockState::<Balance>{
-				hub_reserve_at_block_start: 1560000000000000,
-				current_delta_hub_reserve: Increase(1),
-			});
-			assert_eq!(hub_asset_block_state_out, HubAssetBlockState::<Balance>{
-				hub_reserve_at_block_start: 1300000000000000,
-				current_delta_hub_reserve: Increase(31173469387755),
-			});
-
-			expect_events(vec![
-				Event::BuyExecuted {
-					who: LP1,
-					asset_in: 100,
-					asset_out: 200,
-					amount_in: 50_000_000_000_000,
-					amount_out: 40_532_364_402_622,
-					hub_amount_in: 30_563_265_306_122,
-					hub_amount_out: 29_289_795_918_367,
-					asset_fee_amount: 0,
-					protocol_fee_amount: 1_273_469_387_755,
+			assert_eq!(
+				hub_asset_block_state_in,
+				HubAssetBlockState::<Balance> {
+					hub_reserve_at_block_start: 1560000000000000,
+					current_delta_hub_reserve: Increase(1),
 				}
-					.into(),
-			]);
+			);
+			assert_eq!(
+				hub_asset_block_state_out,
+				HubAssetBlockState::<Balance> {
+					hub_reserve_at_block_start: 1300000000000000,
+					current_delta_hub_reserve: Increase(31173469387755),
+				}
+			);
+
+			expect_events(vec![Event::BuyExecuted {
+				who: LP1,
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 50_000_000_000_000,
+				amount_out: 40_532_364_402_622,
+				hub_amount_in: 30_563_265_306_122,
+				hub_amount_out: 29_289_795_918_367,
+				asset_fee_amount: 0,
+				protocol_fee_amount: 1_273_469_387_755,
+			}
+			.into()]);
 		});
 }
 

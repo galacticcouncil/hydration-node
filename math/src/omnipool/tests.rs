@@ -1,4 +1,7 @@
-use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, TradeFee, slip_fee::{SlipFeeConfig, HubAssetBlockState}};
+use crate::omnipool::types::{
+	slip_fee::{HubAssetBlockState, SlipFeeConfig},
+	AssetReserveState, BalanceUpdate, Position, TradeFee,
+};
 use crate::omnipool::{
 	calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
 	calculate_cap_difference, calculate_fee_amount_for_buy, calculate_remove_liquidity_state_changes,
@@ -241,10 +244,13 @@ fn calculate_sell_with_fees_but_without_slip_fee_should_burn_halt_of_protocol_fe
 	);
 
 	assert_eq!(state_changes.extra_protocol_fee_amount, 28_571_428_571);
-	assert_eq!(state_changes.fee, TradeFee{
-		asset_fee: 26_541_554_960,
-		protocol_fee: 57_142_857_142,
-	});
+	assert_eq!(
+		state_changes.fee,
+		TradeFee {
+			asset_fee: 26_541_554_960,
+			protocol_fee: 57_142_857_142,
+		}
+	);
 
 	let zero_fee_amount = state_changes.fee.protocol_fee;
 	assert_eq!(
@@ -277,14 +283,14 @@ fn calculate_sell_with_slip_fee_should_work_when_correct_input_provided() {
 	let asset_fee = Permill::from_percent(0);
 	let protocol_fee = Permill::from_percent(0);
 	let burn_fee = Permill::from_percent(0);
-	let slip_fee = SlipFeeConfig{
+	let slip_fee = SlipFeeConfig {
 		slip_factor: FixedU128::one(),
 		max_slip_fee: FixedU128::from_u32(10),
-		hub_state_in: HubAssetBlockState::<Balance>{
+		hub_state_in: HubAssetBlockState::<Balance> {
 			hub_reserve_at_block_start: 20 * UNIT,
 			current_delta_hub_reserve: BalanceUpdate::Increase(0),
 		},
-		hub_state_out: HubAssetBlockState::<Balance>{
+		hub_state_out: HubAssetBlockState::<Balance> {
 			hub_reserve_at_block_start: 5 * UNIT,
 			current_delta_hub_reserve: BalanceUpdate::Increase(0),
 		},
@@ -326,10 +332,13 @@ fn calculate_sell_with_slip_fee_should_work_when_correct_input_provided() {
 		BalanceUpdate::Increase(0)
 	);
 	assert_eq!(state_changes.extra_protocol_fee_amount, 2_285_714_285_713);
-	assert_eq!(state_changes.fee, TradeFee{
-		asset_fee: 0,
-		protocol_fee: 2_285_714_285_713,
-	});
+	assert_eq!(
+		state_changes.fee,
+		TradeFee {
+			asset_fee: 0,
+			protocol_fee: 2_285_714_285_713,
+		}
+	);
 }
 
 #[test]
@@ -351,14 +360,14 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(1);
 	let burn_fee = Permill::from_percent(50);
-	let slip_fee = SlipFeeConfig{
+	let slip_fee = SlipFeeConfig {
 		slip_factor: FixedU128::one(),
 		max_slip_fee: FixedU128::from_u32(10),
-		hub_state_in: HubAssetBlockState::<Balance>{
+		hub_state_in: HubAssetBlockState::<Balance> {
 			hub_reserve_at_block_start: 20 * UNIT,
 			current_delta_hub_reserve: BalanceUpdate::Increase(0),
 		},
-		hub_state_out: HubAssetBlockState::<Balance>{
+		hub_state_out: HubAssetBlockState::<Balance> {
 			hub_reserve_at_block_start: 5 * UNIT,
 			current_delta_hub_reserve: BalanceUpdate::Increase(0),
 		},
@@ -401,10 +410,13 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 	);
 
 	assert_eq!(state_changes.extra_protocol_fee_amount, 1_171_428_571_428);
-	assert_eq!(state_changes.fee, TradeFee{
-		asset_fee: 14_355_231_144,
-		protocol_fee: 2_342_857_142_856,
-	});
+	assert_eq!(
+		state_changes.fee,
+		TradeFee {
+			asset_fee: 14_355_231_144,
+			protocol_fee: 2_342_857_142_856,
+		}
+	);
 
 	let protocol_fee_amount = state_changes.fee.protocol_fee;
 	assert_eq!(
@@ -424,13 +436,9 @@ fn calculate_sell_hub_asset_should_work_when_correct_input_provided() {
 
 	let amount_to_sell = 4 * UNIT;
 	let asset_fee = Permill::from_percent(0);
-	let slip_fee = SlipFeeConfig::new_from_asset_state(&Default::default(), &asset_state, FixedU128::zero(), FixedU128::one());
-	let state_changes = calculate_sell_hub_state_changes(
-		&asset_state,
-		amount_to_sell,
-		asset_fee,
-		&slip_fee,
-	);
+	let slip_fee =
+		SlipFeeConfig::new_from_asset_state(&Default::default(), &asset_state, FixedU128::zero(), FixedU128::one());
+	let state_changes = calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee, &slip_fee);
 
 	assert!(state_changes.is_some());
 
@@ -498,13 +506,13 @@ fn calculate_sell_hub_asset_with_slip_fee_should_work_when_correct_input_provide
 
 	let amount_to_sell = 4 * UNIT;
 	let asset_fee = Permill::from_percent(0);
-	let slip_fee = SlipFeeConfig::new_from_asset_state(&Default::default(), &asset_state, FixedU128::one(), FixedU128::from_u32(10));
-	let state_changes = calculate_sell_hub_state_changes(
+	let slip_fee = SlipFeeConfig::new_from_asset_state(
+		&Default::default(),
 		&asset_state,
-		amount_to_sell,
-		asset_fee,
-		&slip_fee,
+		FixedU128::one(),
+		FixedU128::from_u32(10),
 	);
+	let state_changes = calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee, &slip_fee);
 
 	assert!(state_changes.is_some());
 
@@ -586,7 +594,8 @@ fn calculate_buy_should_work_when_correct_input_provided() {
 	let asset_fee = Permill::from_percent(0);
 	let protocol_fee = Permill::from_percent(0);
 	let burn_fee = Permill::from_percent(0);
-	let slip_fee = SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
+	let slip_fee =
+		SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
@@ -641,7 +650,8 @@ fn calculate_buy_should_return_correct_fee_when_protocol_fee_is_zero() {
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(0);
 	let burn_fee = Permill::from_percent(0);
-	let slip_fee = SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
+	let slip_fee =
+		SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
@@ -690,7 +700,8 @@ fn calculate_buy_should_return_correct_fee_when_protocol_fee_is_non_zero() {
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(1);
 	let burn_fee = Permill::from_percent(0);
-	let slip_fee = SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
+	let slip_fee =
+		SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
@@ -739,7 +750,8 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(1);
 	let burn_fee = Permill::from_percent(0);
-	let slip_fee = SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
+	let slip_fee =
+		SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
@@ -799,7 +811,8 @@ fn calculate_buy_with_fees_should_burn_half_of_protocol_fee_when_burn_fee_set_to
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(1);
 	let burn_fee = Permill::from_percent(50);
-	let slip_fee = SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
+	let slip_fee =
+		SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
@@ -855,7 +868,8 @@ fn calculate_buy_for_hub_asset_should_work_when_correct_input_provided() {
 
 	let amount_to_buy = 2 * UNIT;
 	let asset_fee = Permill::from_percent(0);
-	let slip_fee = SlipFeeConfig::new_from_asset_state(&Default::default(), &asset_state, FixedU128::zero(), FixedU128::one());
+	let slip_fee =
+		SlipFeeConfig::new_from_asset_state(&Default::default(), &asset_state, FixedU128::zero(), FixedU128::one());
 	let state_changes = calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee, &slip_fee);
 
 	assert!(state_changes.is_some());
@@ -1322,7 +1336,8 @@ fn calculate_buy_should_charge_less_when_fee_is_zero() {
 	let asset_fee = Permill::from_percent(0);
 	let protocol_fee = Permill::from_percent(0);
 	let burn_fee = Permill::from_percent(0);
-	let slip_fee = SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
+	let slip_fee =
+		SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
@@ -1375,7 +1390,8 @@ fn calculate_buy_should_charge_more_when_fee_is_not_zero() {
 	let asset_fee = Permill::from_percent(10);
 	let protocol_fee = Permill::from_percent(5);
 	let burn_fee = Permill::from_percent(0);
-	let slip_fee = SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
+	let slip_fee =
+		SlipFeeConfig::new_from_asset_state(&asset_in_state, &asset_out_state, FixedU128::zero(), FixedU128::one());
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
