@@ -366,7 +366,6 @@ mod benches {
 		[pallet_dispenser, EthDispenser]
 		[ismp_parachain, IsmpParachain]
 		[pallet_token_gateway, TokenGateway]
-		[pallet_uniques, Uniques]
 		[frame_system_extensions, frame_system_benchmarking::extensions::Pallet::<Runtime>]
 		[pallet_transaction_payment, TransactionPayment]
 		[cumulus_pallet_weight_reclaim, WeightReclaim]
