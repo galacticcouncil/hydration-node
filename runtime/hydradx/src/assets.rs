@@ -1868,6 +1868,19 @@ impl pallet_signet::Config for Runtime {
 }
 
 parameter_types! {
+	pub const BtcVaultPalletId: PalletId = PalletId(*b"py/btcvt");
+	pub const MaxBtcInputs: u32 = 100;
+	pub const MaxBtcOutputs: u32 = 100;
+}
+
+impl pallet_btc_vault::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type VaultPalletId = BtcVaultPalletId;
+	type MaxBtcInputs = MaxBtcInputs;
+	type MaxBtcOutputs = MaxBtcOutputs;
+}
+
+parameter_types! {
 	pub const SigEthPalletId: PalletId = PalletId(*b"py/fucet");
 	pub const SigEthFaucetDispenserFee: u128 = 5_000;
 	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000_000_000_000;

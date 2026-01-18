@@ -92,6 +92,7 @@ pallet-whitelist = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
 pallet-signet = { workspace = true }
+pallet-btc-vault = { workspace = true }
 pallet-dispenser = { workspace = true }
 
 # ORML dependencies
@@ -386,6 +387,7 @@ std = [
     "pallet-broadcast/std",
     "pallet-dispatcher/std",
     "pallet-signet/std",
+    "pallet-btc-vault/std",
     "pallet-dispenser/std",
     # Hyperbridge
     "anyhow/std",
@@ -475,6 +477,7 @@ try-runtime = [
     "pallet-broadcast/try-runtime",
     "pallet-dispatcher/try-runtime",
     "pallet-signet/try-runtime",
+    "pallet-btc-vault/try-runtime",
 ]
 
 metadata-hash = [

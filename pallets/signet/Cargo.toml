@@ -18,6 +18,7 @@ frame-system = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 ethereum = { workspace = true }
+signet-rs = { git = "https://github.com/esaminu/signet.rs", branch = "borsh-1.5.7", default-features = false, features = ["bitcoin"] }
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
@@ -41,7 +42,8 @@ std = [
     "sp-std/std",
     "sp-io/std",
     "frame-benchmarking?/std",
-    "pallet-balances/std"
+    "pallet-balances/std",
+    "signet-rs/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",

@@ -6,6 +6,7 @@ use frame_support::{
 	traits::{Currency, ExistenceRequirement},
 	PalletId,
 };
+use sp_runtime::RuntimeDebug;
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use sp_core::{H160, U256};
@@ -22,8 +23,9 @@ const MAX_DEST_LENGTH: u32 = 64;
 const MAX_PARAMS_LENGTH: u32 = 1024;
 
 /// Maximum length for transaction data and serialized outputs
-const MAX_TRANSACTION_LENGTH: u32 = 65536; // 64 KB
-const MAX_SERIALIZED_OUTPUT_LENGTH: u32 = 65536; // 64 KB
+/// Set to 4MB to accommodate the largest possible Bitcoin transaction
+const MAX_TRANSACTION_LENGTH: u32 = 4 * 1024 * 1024; // 4 MB
+const MAX_SERIALIZED_OUTPUT_LENGTH: u32 = 4 * 1024 * 1024; // 4 MB
 
 /// Maximum length for schemas and error messages
 const MAX_SCHEMA_LENGTH: u32 = 4096; // 4 KB
@@ -109,6 +111,36 @@ pub mod pallet {
 	pub struct ErrorResponse {
 		pub request_id: [u8; 32],
 		pub error_message: BoundedVec<u8, ConstU32<MAX_ERROR_MESSAGE_LENGTH>>,
+	}
+
+	// ========================================
+	// Bitcoin Types
+	// ========================================
+
+	/// Bitcoin script max size (10KB - generous for any script type)
+	pub type MaxScriptLength = ConstU32<10_000>;
+
+	/// Maximum number of Bitcoin inputs (supports large consolidation txs)
+	pub type MaxBitcoinInputs = ConstU32<5_000>;
+
+	/// Maximum number of Bitcoin outputs (supports large batch payouts)
+	pub type MaxBitcoinOutputs = ConstU32<5_000>;
+
+	/// Bitcoin UTXO input with metadata required for PSBT construction
+	#[derive(Encode, Decode, TypeInfo, Clone, PartialEq, Eq, RuntimeDebug)]
+	pub struct UtxoInput {
+		pub txid: [u8; 32],
+		pub vout: u32,
+		pub value: u64,
+		pub script_pubkey: BoundedVec<u8, MaxScriptLength>,
+		pub sequence: u32,
+	}
+
+	/// Bitcoin transaction output
+	#[derive(Encode, Decode, TypeInfo, Clone, PartialEq, Eq, RuntimeDebug)]
+	pub struct BitcoinOutput {
+		pub value: u64,
+		pub script_pubkey: BoundedVec<u8, MaxScriptLength>,
 	}
 
 	// ========================================
@@ -235,6 +267,17 @@ pub mod pallet {
 		InvalidGasPrice,
 		/// Signature Deposit cannot exceed MaxSignatureDeposit
 		MaxDepositExceeded,
+		// Bitcoin errors
+		/// Bitcoin transaction must have at least one input
+		NoInputs,
+		/// Bitcoin transaction must have at least one output
+		NoOutputs,
+		/// Invalid lock time value
+		InvalidLockTime,
+		/// Failed to create PSBT
+		PsbtCreationFailed,
+		/// Failed to serialize PSBT
+		PsbtSerializationFailed,
 	}
 
 	// ========================================
@@ -537,6 +580,117 @@ pub mod pallet {
 			output.extend_from_slice(&rlp::encode(&tx_message));
 
 			Ok(output)
+		}
+
+		/// Build a Bitcoin PSBT and return the serialized bytes
+		///
+		/// # Parameters
+		/// - `origin`: The signed origin
+		/// - `inputs`: UTXOs to spend
+		/// - `outputs`: Transaction outputs
+		/// - `lock_time`: Transaction locktime
+		///
+		/// # Returns
+		/// Serialized PSBT bytes
+		pub fn build_bitcoin_tx(
+			origin: OriginFor<T>,
+			inputs: BoundedVec<UtxoInput, MaxBitcoinInputs>,
+			outputs: BoundedVec<BitcoinOutput, MaxBitcoinOutputs>,
+			lock_time: u32,
+		) -> Result<Vec<u8>, DispatchError> {
+			ensure_signed(origin)?;
+
+			ensure!(!inputs.is_empty(), Error::<T>::NoInputs);
+			ensure!(!outputs.is_empty(), Error::<T>::NoOutputs);
+
+			let (psbt_bytes, _) = Self::build_psbt(&inputs, &outputs, lock_time)?;
+			Ok(psbt_bytes)
+		}
+
+		/// Get the transaction ID (txid) for a Bitcoin transaction
+		///
+		/// # Parameters
+		/// - `origin`: The signed origin
+		/// - `inputs`: UTXOs to spend
+		/// - `outputs`: Transaction outputs
+		/// - `lock_time`: Transaction locktime
+		///
+		/// # Returns
+		/// 32-byte transaction ID (canonical, excludes witness)
+		pub fn get_bitcoin_txid(
+			origin: OriginFor<T>,
+			inputs: BoundedVec<UtxoInput, MaxBitcoinInputs>,
+			outputs: BoundedVec<BitcoinOutput, MaxBitcoinOutputs>,
+			lock_time: u32,
+		) -> Result<[u8; 32], DispatchError> {
+			ensure_signed(origin)?;
+
+			ensure!(!inputs.is_empty(), Error::<T>::NoInputs);
+			ensure!(!outputs.is_empty(), Error::<T>::NoOutputs);
+
+			let (_, txid) = Self::build_psbt(&inputs, &outputs, lock_time)?;
+			Ok(txid)
+		}
+
+		fn build_psbt(
+			inputs: &[UtxoInput],
+			outputs: &[BitcoinOutput],
+			lock_time: u32,
+		) -> Result<(Vec<u8>, [u8; 32]), DispatchError> {
+			use signet_rs::bitcoin::types::{
+				Amount, Hash, LockTime, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Txid, Version, Witness,
+			};
+			use signet_rs::{TransactionBuilder, TxBuilder, BITCOIN};
+
+			let tx_inputs: Vec<TxIn> = inputs
+				.iter()
+				.map(|input| TxIn {
+					previous_output: OutPoint::new(Txid(Hash(input.txid)), input.vout),
+					script_sig: ScriptBuf::default(),
+					sequence: Sequence(input.sequence),
+					witness: Witness::default(),
+				})
+				.collect();
+
+			let tx_outputs: Vec<TxOut> = outputs
+				.iter()
+				.map(|output| TxOut {
+					value: Amount::from_sat(output.value),
+					script_pubkey: ScriptBuf(output.script_pubkey.to_vec()),
+				})
+				.collect();
+
+			let lock_time_parsed = if lock_time < 500_000_000 {
+				LockTime::from_height(lock_time).map_err(|_| Error::<T>::InvalidLockTime)?
+			} else {
+				LockTime::from_time(lock_time).map_err(|_| Error::<T>::InvalidLockTime)?
+			};
+
+			let tx = TransactionBuilder::new::<BITCOIN>()
+				.version(Version::Two)
+				.inputs(tx_inputs)
+				.outputs(tx_outputs)
+				.lock_time(lock_time_parsed)
+				.build();
+
+			// Extract txid before creating PSBT
+			let txid = tx.compute_txid();
+			let mut txid_bytes = txid.as_byte_array();
+			txid_bytes.reverse();
+
+			let mut psbt = tx.to_psbt();
+
+			for (i, input) in inputs.iter().enumerate() {
+				psbt.update_input_with_witness_utxo(i, input.script_pubkey.to_vec(), input.value)
+					.map_err(|_| Error::<T>::PsbtCreationFailed)?;
+
+				psbt.update_input_with_sighash_type(i, 1)
+					.map_err(|_| Error::<T>::PsbtCreationFailed)?;
+			}
+
+			let psbt_bytes = psbt.serialize().map_err(|_| Error::<T>::PsbtSerializationFailed)?;
+
+			Ok((psbt_bytes, txid_bytes))
 		}
 	}
 }

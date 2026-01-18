@@ -193,6 +193,7 @@ construct_runtime!(
 		HSM: pallet_hsm = 82,
 		Parameters: pallet_parameters = 83,
 		Signet: pallet_signet = 84,
+		BtcVault: pallet_btc_vault = 86,
 		EthDispenser: pallet_dispenser = 85,
 
 		// ORML related modules
