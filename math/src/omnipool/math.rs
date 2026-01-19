@@ -7,7 +7,7 @@ use crate::omnipool::types::{
 use crate::types::Balance;
 use crate::MathError::Overflow;
 use crate::{to_balance, to_u256};
-use num_traits::{CheckedAdd, CheckedMul, CheckedDiv, CheckedSub, One, Zero};
+use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
@@ -186,7 +186,11 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 		.checked_div(&Permill::one().checked_sub(&asset_fee)?.into())?
 		.into_inner();
 
-	let (hub_reserve_hp, reserve_hp, delta_reserve_out_gross_hp) = to_u256!(asset_out_state.hub_reserve, asset_out_state.reserve, delta_reserve_out_gross);
+	let (hub_reserve_hp, reserve_hp, delta_reserve_out_gross_hp) = to_u256!(
+		asset_out_state.hub_reserve,
+		asset_out_state.reserve,
+		delta_reserve_out_gross
+	);
 	let delta_hub_reserve_out_net_hp = delta_reserve_out_gross_hp
 		.checked_mul(hub_reserve_hp)
 		.and_then(|v| v.checked_div(reserve_hp.checked_sub(delta_reserve_out_gross_hp)?))
