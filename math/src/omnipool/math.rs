@@ -7,7 +7,7 @@ use crate::omnipool::types::{
 use crate::types::Balance;
 use crate::MathError::Overflow;
 use crate::{to_balance, to_u256};
-use num_traits::{CheckedAdd, CheckedMul, CheckedSub, One, Zero};
+use num_traits::{CheckedAdd, CheckedMul, CheckedDiv, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
@@ -182,12 +182,11 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 	asset_fee: Permill,
 	slip_fee_config: &SlipFeeConfig<Balance>,
 ) -> Option<HubTradeStateChange<Balance>> {
-	let delta_reserve_out_gross_hp = to_u256!(asset_out_amount)
-		.checked_mul(Permill::from_percent(100).deconstruct().into())?
-		.checked_div(Permill::one().checked_sub(&asset_fee)?.deconstruct().into())?;
-	let delta_reserve_out_gross = to_balance!(delta_reserve_out_gross_hp).ok()?;
+	let delta_reserve_out_gross: Balance = FixedU128::from_inner(asset_out_amount)
+		.checked_div(&Permill::one().checked_sub(&asset_fee)?.into())?
+		.into_inner();
 
-	let (hub_reserve_hp, reserve_hp) = to_u256!(asset_out_state.hub_reserve, asset_out_state.reserve);
+	let (hub_reserve_hp, reserve_hp, delta_reserve_out_gross_hp) = to_u256!(asset_out_state.hub_reserve, asset_out_state.reserve, delta_reserve_out_gross);
 	let delta_hub_reserve_out_net_hp = delta_reserve_out_gross_hp
 		.checked_mul(hub_reserve_hp)
 		.and_then(|v| v.checked_div(reserve_hp.checked_sub(delta_reserve_out_gross_hp)?))
@@ -304,10 +303,12 @@ pub fn calculate_buy_state_changes(
 	let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in)?;
 	let slip_fee_sell_amount = slip_fee_sell.checked_mul_int(delta_hub_reserve_in)?;
 
-	let delta_reserve_in = asset_in_state
-		.reserve
-		.checked_mul(delta_hub_reserve_in)?
-		.checked_div(asset_in_state.hub_reserve.checked_sub(delta_hub_reserve_in)?)?;
+	let (delta_hub_reserve_in_hp, in_hub_reserve_hp, in_reserve_hp) =
+		to_u256!(delta_hub_reserve_in, asset_in_state.hub_reserve, asset_in_state.reserve);
+	let delta_reserve_in = in_reserve_hp
+		.checked_mul(delta_hub_reserve_in_hp)?
+		.checked_div(in_hub_reserve_hp.checked_sub(delta_hub_reserve_in_hp)?)?;
+	let delta_reserve_in = to_balance!(delta_reserve_in).ok()?;
 	let delta_reserve_in = delta_reserve_in.checked_add(Balance::one())?;
 
 	if delta_hub_reserve_in >= asset_in_state.hub_reserve {

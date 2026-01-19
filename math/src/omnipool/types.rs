@@ -457,8 +457,10 @@ pub mod slip_fee {
 	use codec::{Decode, Encode, MaxEncodedLen};
 	use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, SaturatingAdd, Zero};
 	use scale_info::TypeInfo;
-	use sp_arithmetic::traits::IntegerSquareRoot;
 	use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+	use sp_arithmetic::ArithmeticError::Overflow;
+	use primitive_types::U256;
+	use crate::{to_balance, to_u256};
 
 	/// Hub asset state for slip fee calculation
 	#[derive(Default, Encode, Decode, TypeInfo, MaxEncodedLen, Copy, Clone, Debug, Eq, PartialEq)]
@@ -559,10 +561,18 @@ pub mod slip_fee {
 
 			let r = Increase(self.hub_state_in.hub_reserve_at_block_start)
 				.checked_mul(&Increase(delta_hub_reserve_out_gross).checked_sub(&c_k)?)?;
-			let disc = q
-				.checked_mul(&q)?
-				.checked_sub(&r.checked_mul(&Increase(4u128))?.checked_mul_fixed(p)?)?;
-			let sd = disc.integer_sqrt();
+
+			let q_hp = to_u256!(*q);
+			let right_side = to_u256!(*(r.checked_mul(&Increase(4u128))?.checked_mul_fixed(p)?));
+			let disc = if r.is_positive() {
+				q_hp.checked_mul(q_hp)?
+					.checked_sub(right_side)?
+			} else {
+				q_hp.checked_mul(q_hp)?
+					.checked_add(right_side)?
+			};
+			let sd_hp = disc.integer_sqrt();
+			let sd = to_balance!(sd_hp).ok()?;
 
 			let u = if q >= Increase(0) {
 				Decrease((*r).checked_mul(2)?.checked_div((*q).checked_add(sd)?)?)
