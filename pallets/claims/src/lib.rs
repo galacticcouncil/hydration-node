@@ -238,17 +238,18 @@ where
 		_implication: &impl sp_runtime::traits::Implication,
 		_source: TransactionSource,
 	) -> ValidateResult<Self::Val, <T as frame_system::Config>::RuntimeCall> {
-		let who = match frame_system::ensure_signed(origin.clone()) {
-			Ok(w) => w,
-			// Don't block unsigned transactions
-			Err(_) => return Ok((ValidTransaction::default(), (), origin)),
-		};
-
 		match call.is_sub_type() {
-			Some(Call::claim { ethereum_signature }) => match Pallet::<T>::validate_claim(&who, ethereum_signature) {
-				Ok(_) => Ok((ValidTransaction::default(), (), origin)),
-				Err(error) => Err(error_to_invalid::<T>(error).into()),
-			},
+			Some(Call::claim { ethereum_signature }) => {
+				// Claims require a signed origin
+				let who = frame_system::ensure_signed(origin.clone())
+					.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::BadProof))?;
+
+				match Pallet::<T>::validate_claim(&who, ethereum_signature) {
+					Ok(_) => Ok((ValidTransaction::default(), (), origin)),
+					Err(error) => Err(error_to_invalid::<T>(error).into()),
+				}
+			}
+			// Non-claim calls pass through (including unsigned inherents)
 			_ => Ok((ValidTransaction::default(), (), origin)),
 		}
 	}

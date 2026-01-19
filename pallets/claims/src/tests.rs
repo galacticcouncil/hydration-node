@@ -175,7 +175,7 @@ fn signed_extention_no_claim_error() {
 }
 
 #[test]
-fn unsigned_claim_cannot_bypass_via_transaction_extension() {
+fn unsigned_claim_rejected_by_transaction_extension() {
 	new_test_ext().execute_with(|| {
 		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
 		let alice_eth_addr = EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]);
@@ -183,7 +183,7 @@ fn unsigned_claim_cannot_bypass_via_transaction_extension() {
 		let call: &<Test as frame_system::Config>::RuntimeCall = &RuntimeCall::ClaimsPallet(crate::Call::claim{ethereum_signature: EcdsaSignature(signature)});
 		let info = DispatchInfo::default();
 
-		// The transaction extension passes unsigned transactions through (to not block inherents)
+		// Unsigned claim calls should be rejected at the extension level
 		let result = ValidateClaim::<Test>(PhantomData).validate(
 			RuntimeOrigin::none(),
 			call,
@@ -193,15 +193,39 @@ fn unsigned_claim_cannot_bypass_via_transaction_extension() {
 			&TxBaseImplication(PhantomData::<Test>),
 			TransactionSource::External
 		);
-		assert!(result.is_ok(), "Extension should pass unsigned through to not block inherents");
-
-		// But the actual claim dispatch must fail with BadOrigin
-		assert_err!(
-			ClaimsPallet::claim(RuntimeOrigin::none(), EcdsaSignature(signature)),
-			sp_runtime::traits::BadOrigin,
+		assert!(result.is_err(), "Extension should reject unsigned claim calls");
+		assert_eq!(
+			result.unwrap_err(),
+			sp_runtime::transaction_validity::TransactionValidityError::Invalid(
+				sp_runtime::transaction_validity::InvalidTransaction::BadProof
+			)
 		);
 
 		// Verify no claim was processed
 		assert_eq!(Claims::<Test>::get(alice_eth_addr), CLAIM_AMOUNT);
+	});
+}
+
+#[test]
+fn unsigned_non_claim_calls_pass_through_extension() {
+	new_test_ext().execute_with(|| {
+		// A non-claim call (e.g., System::remark) should pass through even if unsigned
+		let call: &<Test as frame_system::Config>::RuntimeCall =
+			&RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+		let info = DispatchInfo::default();
+
+		let result = ValidateClaim::<Test>(PhantomData).validate(
+			RuntimeOrigin::none(),
+			call,
+			&info,
+			150,
+			(),
+			&TxBaseImplication(PhantomData::<Test>),
+			TransactionSource::External,
+		);
+		assert!(
+			result.is_ok(),
+			"Extension should pass through non-claim unsigned calls (like inherents)"
+		);
 	});
 }
