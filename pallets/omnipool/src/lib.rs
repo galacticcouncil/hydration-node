@@ -901,17 +901,24 @@ pub mod pallet {
 				*state_changes.asset_out.delta_reserve,
 			)?;
 
-			// Hub liquidity update - work out difference between in and amount so only one update is needed.
+			// Hub liquidity update - calculate how much to mint or to burn
+			// Calculate the difference between in and out, so we make only one call to burn or mint.
 			let delta_hub_asset = state_changes
 				.asset_in
 				.total_delta_hub_reserve()
-				.merge(
-					state_changes
-						.asset_out
-						.total_delta_hub_reserve()
-						.merge(BalanceUpdate::Increase(state_changes.extra_protocol_fee_amount))
-						.ok_or(ArithmeticError::Overflow)?,
-				)
+				.merge(state_changes.asset_out.total_delta_hub_reserve())
+				.ok_or(ArithmeticError::Overflow)?;
+
+			// We need to account for protocol fee correctly.
+			// The amounts in the trade result are already adjusted for fees.
+			// That means, current calculated delta_hub_asset "burns" the whole protocol fee
+			// if any of the protocol fee amount is not burned, we need to adjust the delta
+			let remaining_protocol_fee_amount = state_changes
+				.fee
+				.protocol_fee
+				.saturating_sub(state_changes.fee.burnt_protocol_fee);
+			let delta_hub_asset = delta_hub_asset
+				.merge(BalanceUpdate::Increase(remaining_protocol_fee_amount))
 				.ok_or(ArithmeticError::Overflow)?;
 
 			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
@@ -938,7 +945,8 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			let protocol_fees = Self::process_extra_protocol_fee_amount(state_changes.extra_protocol_fee_amount)?;
+			let protocol_fees =
+				Self::process_protocol_fee(state_changes.fee.protocol_fee, state_changes.fee.burnt_protocol_fee)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who: who.clone(),
@@ -954,21 +962,6 @@ pub mod pallet {
 
 			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool)?;
 
-			// Protocol fee report
-			let burned_protocol_fee = state_changes
-				.fee
-				.protocol_fee
-				.saturating_sub(state_changes.extra_protocol_fee_amount);
-			let mut fees = vec![];
-			if burned_protocol_fee > 0 {
-				fees.push(Fee::new(
-					T::HubAssetId::get().into(),
-					burned_protocol_fee,
-					Destination::Burned,
-				));
-			}
-			fees.extend(protocol_fees);
-
 			// Swapped event for AssetA to HubAsset
 			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who.clone(),
@@ -980,7 +973,7 @@ pub mod pallet {
 					T::HubAssetId::get().into(),
 					*state_changes.asset_in.delta_hub_reserve,
 				)],
-				fees,
+				protocol_fees,
 			);
 
 			// Swapped event for HubAsset to AssetB
@@ -1145,17 +1138,24 @@ pub mod pallet {
 				*state_changes.asset_out.delta_reserve,
 			)?;
 
-			// Hub liquidity update - work out difference between in and amount so only one update is needed.
+			// Hub liquidity update - calculate how much to mint or to burn
+			// Calculate the difference between in and out, so we make only one call to burn or mint.
 			let delta_hub_asset = state_changes
 				.asset_in
 				.total_delta_hub_reserve()
-				.merge(
-					state_changes
-						.asset_out
-						.total_delta_hub_reserve()
-						.merge(BalanceUpdate::Increase(state_changes.extra_protocol_fee_amount))
-						.ok_or(ArithmeticError::Overflow)?,
-				)
+				.merge(state_changes.asset_out.total_delta_hub_reserve())
+				.ok_or(ArithmeticError::Overflow)?;
+
+			// We need to account for protocol fee correctly.
+			// The amounts in the trade result are already adjusted for fees.
+			// That means, current calculated delta_hub_asset "burns" the whole protocol fee
+			// if any of the protocol fee amount is not burned, we need to adjust the delta
+			let remaining_protocol_fee_amount = state_changes
+				.fee
+				.protocol_fee
+				.saturating_sub(state_changes.fee.burnt_protocol_fee);
+			let delta_hub_asset = delta_hub_asset
+				.merge(BalanceUpdate::Increase(remaining_protocol_fee_amount))
 				.ok_or(ArithmeticError::Overflow)?;
 
 			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
@@ -1182,7 +1182,8 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			let protocol_fees = Self::process_extra_protocol_fee_amount(state_changes.extra_protocol_fee_amount)?;
+			let protocol_fees =
+				Self::process_protocol_fee(state_changes.fee.protocol_fee, state_changes.fee.burnt_protocol_fee)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who: who.clone(),
@@ -1198,20 +1199,6 @@ pub mod pallet {
 
 			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool)?;
 
-			let burned_protocol_fee = state_changes
-				.fee
-				.protocol_fee
-				.saturating_sub(state_changes.extra_protocol_fee_amount);
-			let mut fees = vec![];
-			if burned_protocol_fee > 0 {
-				fees.push(Fee::new(
-					T::HubAssetId::get().into(),
-					burned_protocol_fee,
-					Destination::Burned,
-				));
-			}
-			fees.extend(protocol_fees);
-
 			// Swapped even from AssetA to HubAsset
 			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who.clone(),
@@ -1223,7 +1210,7 @@ pub mod pallet {
 					T::HubAssetId::get().into(),
 					*state_changes.asset_in.delta_hub_reserve,
 				)],
-				fees,
+				protocol_fees,
 			);
 
 			// Swapped even from HubAsset to AssetB
@@ -1533,7 +1520,9 @@ pub mod pallet {
 }
 
 use crate::traits::ExternalPriceProvider;
+use frame_support::traits::fungible::conformance_tests::inspect_mutate::restore_below_minimum;
 use frame_support::traits::DefensiveOption;
+
 impl<T: Config> Pallet<T> {
 	/// Protocol account address
 	pub fn protocol_account() -> T::AccountId {
@@ -1572,29 +1561,49 @@ impl<T: Config> Pallet<T> {
 	/// Process given protocol fee amount by calling a consume_protocol_fee hook.
 	/// If hook returns None, we need to burn the extra amount ourselves.
 	/// Returns information where the fee amounts were transferred/burned for fee reporting.
-	fn process_extra_protocol_fee_amount(amount: Balance) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
-		if amount.is_zero() {
+	fn process_protocol_fee(protocol_fee: Balance, burnt: Balance) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
+		if protocol_fee.is_zero() {
 			return Ok(vec![]);
 		}
+
+		debug_assert!(burnt <= protocol_fee);
+		let mut fee_report = vec![];
+
+		let remaining_protocol_fee = protocol_fee.saturating_sub(burnt);
+
+		if burnt > Balance::zero() {
+			fee_report.push(Fee::new(T::HubAssetId::get().into(), burnt, Destination::Burned));
+		}
+
+		if remaining_protocol_fee.is_zero() {
+			return Ok(fee_report);
+		}
+
 		let initial_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-		let Some((consumed, who)) = T::OmnipoolHooks::consume_protocol_fee(Self::protocol_account(), amount)? else {
+		let Some((consumed, who)) =
+			T::OmnipoolHooks::consume_protocol_fee(Self::protocol_account(), remaining_protocol_fee)?
+		else {
 			// if nothing was consumed, we need to burn the extra amount ourselves
-			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
-			return Ok(vec![Fee::new(T::HubAssetId::get().into(), amount, Destination::Burned)]);
+			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), remaining_protocol_fee)?;
+			return Ok(vec![Fee::new(
+				T::HubAssetId::get().into(),
+				remaining_protocol_fee,
+				Destination::Burned,
+			)]);
 		};
 		// ensure first that consumed amount is less or equal to the total fee amount
-		ensure!(consumed <= amount, Error::<T>::FeeOverdraft);
+		ensure!(consumed <= remaining_protocol_fee, Error::<T>::FeeOverdraft);
 
-		let mut fee_report = vec![Fee::new(
+		fee_report.push(Fee::new(
 			T::HubAssetId::get().into(),
 			consumed,
 			Destination::Account(who),
-		)];
+		));
 
 		// let's also handle a case where not all amount was consumed
 		// in such case ,we need to burn the difference
-		if consumed < amount {
-			let diff = amount.saturating_sub(consumed);
+		if consumed < remaining_protocol_fee {
+			let diff = remaining_protocol_fee.saturating_sub(consumed);
 			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
 			fee_report.push(Fee::new(T::HubAssetId::get().into(), diff, Destination::Burned));
 		}
@@ -1602,7 +1611,7 @@ impl<T: Config> Pallet<T> {
 		// assert the final balance
 		let final_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 		ensure!(
-			initial_balance.saturating_sub(final_balance) == amount,
+			initial_balance.saturating_sub(final_balance) == remaining_protocol_fee,
 			Error::<T>::ProtocolFeeNotConsumed
 		);
 		Ok(fee_report)
