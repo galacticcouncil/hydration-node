@@ -909,18 +909,6 @@ pub mod pallet {
 				.merge(state_changes.asset_out.total_delta_hub_reserve())
 				.ok_or(ArithmeticError::Overflow)?;
 
-			// We need to account for protocol fee correctly.
-			// The amounts in the trade result are already adjusted for fees.
-			// That means, current calculated delta_hub_asset "burns" the whole protocol fee
-			// if any of the protocol fee amount is not burned, we need to adjust the delta
-			let remaining_protocol_fee_amount = state_changes
-				.fee
-				.protocol_fee
-				.saturating_sub(state_changes.fee.burnt_protocol_fee);
-			let delta_hub_asset = delta_hub_asset
-				.merge(BalanceUpdate::Increase(remaining_protocol_fee_amount))
-				.ok_or(ArithmeticError::Overflow)?;
-
 			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
 			// Callback hook info
@@ -1144,18 +1132,6 @@ pub mod pallet {
 				.asset_in
 				.total_delta_hub_reserve()
 				.merge(state_changes.asset_out.total_delta_hub_reserve())
-				.ok_or(ArithmeticError::Overflow)?;
-
-			// We need to account for protocol fee correctly.
-			// The amounts in the trade result are already adjusted for fees.
-			// That means, current calculated delta_hub_asset "burns" the whole protocol fee
-			// if any of the protocol fee amount is not burned, we need to adjust the delta
-			let remaining_protocol_fee_amount = state_changes
-				.fee
-				.protocol_fee
-				.saturating_sub(state_changes.fee.burnt_protocol_fee);
-			let delta_hub_asset = delta_hub_asset
-				.merge(BalanceUpdate::Increase(remaining_protocol_fee_amount))
 				.ok_or(ArithmeticError::Overflow)?;
 
 			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
@@ -1558,8 +1534,8 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	/// Process given protocol fee amount by calling a consume_protocol_fee hook.
-	/// If hook returns None, we need to burn the extra amount ourselves.
+	/// Process protocol fee.
+	/// Given the total `protocol_fee` and already `burnt` portion of the fee, transfer the rest to HDX subpool
 	/// Returns information where the fee amounts were transferred/burned for fee reporting.
 	fn process_protocol_fee(protocol_fee: Balance, burnt: Balance) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
 		if protocol_fee.is_zero() {
@@ -1579,41 +1555,16 @@ impl<T: Config> Pallet<T> {
 			return Ok(fee_report);
 		}
 
-		let initial_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-		let Some((consumed, who)) =
-			T::OmnipoolHooks::consume_protocol_fee(Self::protocol_account(), remaining_protocol_fee)?
-		else {
-			// if nothing was consumed, we need to burn the extra amount ourselves
-			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), remaining_protocol_fee)?;
-			return Ok(vec![Fee::new(
-				T::HubAssetId::get().into(),
-				remaining_protocol_fee,
-				Destination::Burned,
-			)]);
-		};
-		// ensure first that consumed amount is less or equal to the total fee amount
-		ensure!(consumed <= remaining_protocol_fee, Error::<T>::FeeOverdraft);
+		Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(remaining_protocol_fee))?;
+
+		Self::increase_hdx_subpool_hub_reserve(remaining_protocol_fee)?;
 
 		fee_report.push(Fee::new(
 			T::HubAssetId::get().into(),
-			consumed,
-			Destination::Account(who),
+			remaining_protocol_fee,
+			Destination::Account(Self::protocol_account()),
 		));
 
-		// let's also handle a case where not all amount was consumed
-		// in such case ,we need to burn the difference
-		if consumed < remaining_protocol_fee {
-			let diff = remaining_protocol_fee.saturating_sub(consumed);
-			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
-			fee_report.push(Fee::new(T::HubAssetId::get().into(), diff, Destination::Burned));
-		}
-
-		// assert the final balance
-		let final_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-		ensure!(
-			initial_balance.saturating_sub(final_balance) == remaining_protocol_fee,
-			Error::<T>::ProtocolFeeNotConsumed
-		);
 		Ok(fee_report)
 	}
 
@@ -1628,6 +1579,22 @@ impl<T: Config> Pallet<T> {
 				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), *amount)
 			}
 		}
+	}
+
+	#[require_transactional]
+	fn increase_hdx_subpool_hub_reserve(amount: Balance) -> DispatchResult {
+		if amount.is_zero() {
+			return Ok(());
+		}
+
+		Assets::<T>::try_mutate(T::HdxAssetId::get(), |maybe_asset| -> DispatchResult {
+			let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+			asset_state.hub_reserve = asset_state
+				.hub_reserve
+				.checked_add(amount)
+				.ok_or(ArithmeticError::Overflow)?;
+			Ok(())
+		})
 	}
 
 	/// Check if assets can be traded - asset_in must be allowed to be sold and asset_out allowed to be bought.
