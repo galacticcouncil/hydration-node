@@ -108,7 +108,7 @@ fn complex_scenario_works() {
 				0,
 				AssetReserveState {
 					reserve: 10000000000000000,
-					hub_reserve: 10020000000000000, // H2O from sell_hub routed here
+					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
@@ -132,7 +132,7 @@ fn complex_scenario_works() {
 				200,
 				AssetReserveState {
 					reserve: 1638588974363041,
-					hub_reserve: 2689090864095513, // unchanged - H2O routed to HDX
+					hub_reserve: 2709090864095513,
 					shares: 2008863636363636,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,

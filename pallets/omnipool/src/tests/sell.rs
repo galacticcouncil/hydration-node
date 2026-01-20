@@ -248,7 +248,7 @@ fn sell_hub_works() {
 				0,
 				AssetReserveState {
 					reserve: 10000000000000000,
-					hub_reserve: 10050000000000000, // H2O now routed to HDX subpool
+					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
@@ -272,7 +272,7 @@ fn sell_hub_works() {
 				200,
 				AssetReserveState {
 					reserve: 1925925925925926,
-					hub_reserve: 1300000000000000, // unchanged - H2O routed to HDX subpool
+					hub_reserve: 1350000000000000,
 					shares: 2000000000000000,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
@@ -914,12 +914,10 @@ fn spot_price_after_selling_hub_asset_should_be_identical_when_protocol_fee_is_n
 			spot_price_2 = FixedU128::from_rational(actual.reserve, actual.hub_reserve);
 		});
 
-	// With H2O routing to HDX subpool, fee differences affect spot price more directly
-	// since hub_reserve no longer changes on the traded asset, hence the delta tolerance
 	assert_eq_approx!(
 		spot_price_1,
 		spot_price_2,
-		FixedU128::from_float(0.0001),
+		FixedU128::from_float(0.000000001),
 		"spot price afters sells"
 	);
 }
@@ -981,12 +979,10 @@ fn spot_price_after_selling_hub_asset_should_be_identical_when_protocol_fee_is_n
 			spot_price_2 = FixedU128::from_rational(actual.reserve, actual.hub_reserve);
 		});
 
-	// With H2O routing to HDX subpool, fee differences affect spot price more directly
-	// since hub_reserve no longer changes on the traded asset, hence the delta tolerance
 	assert_eq_approx!(
 		spot_price_1,
 		spot_price_2,
-		FixedU128::from_float(0.0001),
+		FixedU128::from_float(0.000000001),
 		"spot price afters sells"
 	);
 }
@@ -1129,120 +1125,5 @@ fn sell_allows_tolerance_when_part_of_fee_is_taken() {
 			let fee_collector = Tokens::free_balance(200, &TRADE_FEE_COLLECTOR);
 			let buy_amount = Tokens::free_balance(200, &LP1);
 			assert_eq!(initial_reserve, omnipool_200_reserve + buy_amount + fee_collector);
-		});
-}
-
-#[test]
-fn sell_hub_routes_to_hdx_subpool() {
-	let initial_asset_100_reserve = 2000 * ONE;
-	let expected_asset_100_reserve = 1_925_925_925_925_926;
-	let expected_received = initial_asset_100_reserve - expected_asset_100_reserve;
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP1, 100, 5000 * ONE),
-			(LP3, LRNA, 100 * ONE),
-		])
-		.with_registered_asset(100)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(100, FixedU128::from_float(0.65), LP1, initial_asset_100_reserve)
-		.build()
-		.execute_with(|| {
-			let sell_amount = 50 * ONE;
-			assert_ok!(Omnipool::sell(
-				RuntimeOrigin::signed(LP3),
-				LRNA,
-				100,
-				sell_amount,
-				0
-			));
-
-			// HDX subpool: hub_reserve increased by delta_hub_reserve (routed here)
-			assert_asset_state!(
-				HDX,
-				AssetReserveState {
-					reserve: 10_000_000_000_000_000,
-					hub_reserve: NATIVE_AMOUNT + sell_amount,
-					shares: 10_000_000_000_000_000,
-					protocol_shares: 0,
-					cap: DEFAULT_WEIGHT_CAP,
-					tradable: Tradability::default(),
-				}
-			);
-
-			// Asset 100: reserve decreased (user received tokens), hub_reserve unchanged
-			assert_asset_state!(
-				100,
-				AssetReserveState {
-					reserve: expected_asset_100_reserve,
-					hub_reserve: 1_300_000_000_000_000,
-					shares: 2_000_000_000_000_000,
-					protocol_shares: 0,
-					cap: DEFAULT_WEIGHT_CAP,
-					tradable: Tradability::default(),
-				}
-			);
-
-			assert_eq!(Tokens::free_balance(LRNA, &LP3), 100 * ONE - sell_amount);
-			assert_eq!(Tokens::free_balance(100, &LP3), expected_received);
-		});
-}
-
-#[test]
-fn buy_for_hub_routes_to_hdx_subpool() {
-	let expected_hdx_hub_reserve = 10_033_333_333_333_334;
-	let expected_lrna_spent = expected_hdx_hub_reserve - NATIVE_AMOUNT;
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP1, 100, 5000 * ONE),
-			(LP3, LRNA, 100 * ONE),
-		])
-		.with_registered_asset(100)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
-		.build()
-		.execute_with(|| {
-			let buy_amount = 50 * ONE;
-			assert_ok!(Omnipool::buy(
-				RuntimeOrigin::signed(LP3),
-				100,
-				LRNA,
-				buy_amount,
-				100 * ONE
-			));
-
-			// HDX subpool: hub_reserve increased by delta_hub_reserve (routed here)
-			assert_asset_state!(
-				HDX,
-				AssetReserveState {
-					reserve: 10_000_000_000_000_000,
-					hub_reserve: expected_hdx_hub_reserve,
-					shares: 10_000_000_000_000_000,
-					protocol_shares: 0,
-					cap: DEFAULT_WEIGHT_CAP,
-					tradable: Tradability::default(),
-				}
-			);
-
-			// Asset 100: reserve decreased by buy_amount, hub_reserve unchanged
-			assert_asset_state!(
-				100,
-				AssetReserveState {
-					reserve: 2000 * ONE - buy_amount,
-					hub_reserve: 1_300_000_000_000_000,
-					shares: 2_000_000_000_000_000,
-					protocol_shares: 0,
-					cap: DEFAULT_WEIGHT_CAP,
-					tradable: Tradability::default(),
-				}
-			);
-
-			assert_eq!(Tokens::free_balance(LRNA, &LP3), 100 * ONE - expected_lrna_spent);
-			assert_eq!(Tokens::free_balance(100, &LP3), buy_amount);
 		});
 }

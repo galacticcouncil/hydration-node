@@ -298,7 +298,7 @@ fn buy_for_hub_asset_works() {
 				0,
 				AssetReserveState {
 					reserve: 10000000000000000,
-					hub_reserve: 10033333333333334, // H2O now routed to HDX subpool
+					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
@@ -322,7 +322,7 @@ fn buy_for_hub_asset_works() {
 				200,
 				AssetReserveState {
 					reserve: 1950000000000000,
-					hub_reserve: 1300000000000000, // unchanged - H2O routed to HDX subpool
+					hub_reserve: 1333333333333334,
 					shares: 2000000000000000,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
