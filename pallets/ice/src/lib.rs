@@ -153,6 +153,8 @@ pub mod pallet {
 		DuplicateClearingPrice,
 		/// Price ratio has zero denominator or numerator.
 		InvalidPriceRatio,
+		/// Provided list of clearing prices overflows allowed length.
+		ClearingPricesInvalidLength,
 		/// Trade route is invalid.
 		InvalidRoute,
 		/// Claimed score doesn't match calculated score.
@@ -184,8 +186,14 @@ pub mod pallet {
 				Error::<T>::InvalidSolution
 			);
 
-			let mut clearing_prices: BTreeMap<AssetId, Ratio> = BTreeMap::new();
-			Self::validate_clearing_prices(&mut clearing_prices, &solution.clearing_prices)?;
+			for cp in &solution.clearing_prices {
+				ensure!(!cp.1.n.is_zero() && !cp.1.d.is_zero(), Error::<T>::InvalidPriceRatio);
+			}
+
+			ensure!(
+				solution.clearing_prices.len() <= solution.trades.len() * 2,
+				Error::<T>::ClearingPricesInvalidLength
+			);
 
 			let mut processed_intents: BTreeSet<IntentId> = BTreeSet::new();
 			let holding_pot = Self::get_pallet_account();
@@ -234,7 +242,7 @@ pub mod pallet {
 
 				<T as Config>::Currency::transfer(resolve.asset_out(), &holding_pot, &owner, resolve.amount_out())?;
 
-				Self::validate_price_consitency(&clearing_prices, resolve)?;
+				Self::validate_price_consitency(&solution.clearing_prices, resolve)?;
 
 				Self::deposit_event(Event::IntentSettled {
 					intent_id: *id,
@@ -352,22 +360,6 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Function validates values of `clearing_prices` and adds it into `valid_prices`.
-	fn validate_clearing_prices(
-		valid_prices: &mut BTreeMap<AssetId, Ratio>,
-		clearing_prices: &Vec<(AssetId, Ratio)>,
-	) -> Result<(), DispatchError> {
-		for cp in clearing_prices {
-			ensure!(!cp.1.n.is_zero() && !cp.1.d.is_zero(), Error::<T>::InvalidPriceRatio);
-			ensure!(
-				valid_prices.insert(cp.0, cp.1).is_none(),
-				Error::<T>::DuplicateClearingPrice
-			);
-		}
-
-		Ok(())
-	}
-
 	/// Function calculates amount out based on asset in and asset out prices denominated in common asset.
 	/// ```ignore
 	/// rate = price_in / price_out
@@ -391,22 +383,28 @@ impl<T: Config> Pallet<T> {
 		//TODO:
 		// * add weight rule and make sure sollution respets it.
 
-		let mut clearing_prices: BTreeMap<AssetId, Ratio> = BTreeMap::new();
-		Self::validate_clearing_prices(&mut clearing_prices, &s.clearing_prices)?;
+		for cp in &s.clearing_prices {
+			ensure!(!cp.1.n.is_zero() && !cp.1.d.is_zero(), Error::<T>::InvalidPriceRatio);
+		}
+
+		ensure!(
+			s.clearing_prices.len() <= s.trades.len() * 2,
+			Error::<T>::ClearingPricesInvalidLength
+		);
 
 		let mut processed_intents: BTreeSet<IntentId> = BTreeSet::new();
 		let mut score: Score = 0;
 		for ResolvedIntent { id, data: resolve } in &s.resolved_intents {
 			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
 
-			let s = intent.data.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
-			score = score.checked_add(s).ok_or(Error::<T>::ArithmeticOverflow)?;
+			let surplus = intent.data.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+			score = score.checked_add(surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
 
 			ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
 
 			pallet_intent::Pallet::<T>::validate_resolve(&intent, resolve)?;
 
-			Self::validate_price_consitency(&clearing_prices, resolve)?;
+			Self::validate_price_consitency(&s.clearing_prices, resolve)?;
 		}
 
 		ensure!(s.score == score, Error::<T>::ScoreMismatch);

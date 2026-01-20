@@ -8,6 +8,7 @@ use frame_support::BoundedVec;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::Route;
 use sp_core::U256;
+use sp_std::collections::btree_map::BTreeMap;
 
 pub type AssetId = u32;
 pub type Balance = u128;
@@ -23,7 +24,7 @@ pub const MAX_NUMBER_OF_CLEARING_PRICES: u32 = MAX_NUMBER_OF_SOLUTION_TRADES * 2
 
 pub type ResolvedIntents = BoundedVec<ResolvedIntent, ConstU32<MAX_NUMBER_OF_RESOLVED_INTENTS>>;
 pub type SolutionTrades = BoundedVec<PoolTrade, ConstU32<MAX_NUMBER_OF_SOLUTION_TRADES>>;
-pub type ClearingPrices = BoundedVec<(AssetId, Price), ConstU32<MAX_NUMBER_OF_CLEARING_PRICES>>;
+pub type ClearingPrices = BTreeMap<AssetId, Ratio>;
 
 pub type ResolvedIntent = Intent;
 
