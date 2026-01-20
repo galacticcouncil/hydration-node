@@ -298,12 +298,7 @@ where
 			match T::BoundErc20::contract_address(asset) {
 				Some(contract) => {
 					let old_balance = Self::balance(asset, who);
-					let existence = if preservation == Preservation::Expendable {
-						ExistenceRequirement::AllowDeath
-					} else {
-						ExistenceRequirement::KeepAlive
-					};
-					T::Erc20Currency::withdraw(contract, who, amount, existence)?;
+					T::Erc20Currency::withdraw(contract, who, amount, ExistenceRequirement::AllowDeath)?;
 					let new_balance = Self::balance(asset, who);
 					let burnt = old_balance
 						.checked_sub(&new_balance)
@@ -343,14 +338,11 @@ where
 			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::transfer(source, dest, amount.into(), preservation)
 				.into()
 		} else {
-			let existence = if preservation == Preservation::Expendable {
-				ExistenceRequirement::AllowDeath
-			} else {
-				ExistenceRequirement::KeepAlive
-			};
-
 			match T::BoundErc20::contract_address(asset) {
-				Some(contract) => T::Erc20Currency::transfer(contract, source, dest, amount, existence).map(|_| amount),
+				Some(contract) => {
+					T::Erc20Currency::transfer(contract, source, dest, amount, ExistenceRequirement::AllowDeath)
+						.map(|_| amount)
+				}
 				None => <T::MultiCurrency as fungibles::Mutate<T::AccountId>>::transfer(
 					asset.into(),
 					source,
