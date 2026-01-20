@@ -1102,7 +1102,7 @@ where
 				Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
 				Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
 				Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
-				Transaction::EIP7702(eip7702_transaction) => eip7702_transaction.destination,
+				Transaction::EIP7702(_) => return None, // EIP7702 not supported
 			};
 
 			// check if the transaction is DIA oracle update
@@ -1171,14 +1171,13 @@ impl OracleUpdataData {
 }
 
 /// Parse DIA oracle update transaction.
-/// All Ethereum transaction types are supported.
 /// Returns a list of `OracleUpdateData`.
 fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdataData>> {
 	let transaction_input = match eth_tx {
 		Transaction::Legacy(legacy_transaction) => &legacy_transaction.input,
 		Transaction::EIP2930(eip2930_transaction) => &eip2930_transaction.input,
 		Transaction::EIP1559(eip1559_transaction) => &eip1559_transaction.input,
-		Transaction::EIP7702(eip7702_transaction) => &eip7702_transaction.data,
+		Transaction::EIP7702(_) => return None, // EIP7702 not supported
 	};
 
 	let mut dia_oracle_data = Vec::new();

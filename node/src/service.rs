@@ -92,7 +92,7 @@ impl TransactionDetailProvider for TxDetailProvider {
 						pallet_ethereum::Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
 						pallet_ethereum::Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
 						pallet_ethereum::Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
-						pallet_ethereum::Transaction::EIP7702(eip7702_transaction) => eip7702_transaction.destination,
+						pallet_ethereum::Transaction::EIP7702(_) => return None, // EIP7702 not supported
 					};
 					let maybe_call_address = match action {
 						pallet_ethereum::TransactionAction::Call(call_address) => Some(call_address),
