@@ -388,7 +388,7 @@ pub mod pallet {
 
 			// Transfer deposit from requester to pallet account
 			let pallet_account = Self::account_id();
-			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::ALlowDeath)?;
+			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::AllowDeath)?;
 
 			// Emit event
 			Self::deposit_event(Event::SignBidirectionalRequested {
