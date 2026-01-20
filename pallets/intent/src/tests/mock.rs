@@ -15,14 +15,14 @@
 
 use crate as pallet_intent;
 use crate::types;
-use crate::types::AssetId;
-use crate::types::Balance;
 use crate::types::Intent;
 use crate::Config;
 use frame_support::parameter_types;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Everything;
 use hydradx_traits::lazy_executor::Source;
+use ice_support::AssetId;
+use ice_support::Balance;
 use orml_traits::parameter_type_with_key;
 use primitives::constants::time::SLOT_DURATION;
 use sp_core::ConstU32;

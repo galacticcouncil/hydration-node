@@ -33,7 +33,6 @@ mod tests;
 
 pub mod api;
 pub mod traits;
-pub mod types;
 mod weights;
 
 use crate::traits::AMMState;
@@ -45,10 +44,15 @@ use frame_system::offchain::SendTransactionTypes;
 use frame_system::pallet_prelude::*;
 use frame_system::Origin;
 use hydra_dx_math::types::Ratio;
+use ice_support::AssetId;
+use ice_support::Balance;
+use ice_support::Intent;
+use ice_support::IntentData;
+use ice_support::IntentId;
+use ice_support::ResolvedIntent;
+use ice_support::Score;
+use ice_support::Solution;
 use orml_traits::MultiCurrency;
-use pallet_intent::types::AssetId;
-use pallet_intent::types::Intent;
-use pallet_intent::types::IntentId;
 use sp_core::U512;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::BlockNumberProvider;
@@ -61,7 +65,6 @@ use sp_std::collections::btree_set::BTreeSet;
 use sp_std::vec::Vec;
 
 pub use pallet::*;
-use types::*;
 pub use weights::WeightInfo;
 
 //TODO: make sure tx is always first in the block(same as liquidations), this is tmp
@@ -74,6 +77,7 @@ pub(crate) const OCW_PROVIDES: &[u8; 15] = b"submit_solution";
 pub mod pallet {
 	use super::*;
 	use frame_system::offchain::SubmitTransaction;
+	use ice_support::SwapType;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -165,7 +169,6 @@ pub mod pallet {
 		pub fn submit_solution(
 			origin: OriginFor<T>,
 			solution: Solution,
-			score: Score,
 			valid_for_block: BlockNumberFor<T>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
@@ -176,7 +179,7 @@ pub mod pallet {
 			);
 
 			ensure!(
-				!solution.resolved.is_empty() && !solution.trades.is_empty(),
+				!solution.resolved_intents.is_empty() && !solution.trades.is_empty(),
 				Error::<T>::InvalidSolution
 			);
 
@@ -189,7 +192,7 @@ pub mod pallet {
 
 			// TODO: this is not most preformant solution, verify it works and optimise
 
-			for (id, intent) in &solution.resolved {
+			for ResolvedIntent { id, data: intent } in &solution.resolved_intents {
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
 				pallet_intent::Pallet::<T>::unlock_funds(&owner, intent.asset_in(), intent.amount_in())?;
 
@@ -197,8 +200,8 @@ pub mod pallet {
 			}
 
 			for t in &solution.trades {
-				match t.trade_type {
-					TradeType::Buy => {
+				match t.direction {
+					SwapType::ExactOut => {
 						pallet_route_executor::Pallet::<T>::buy(
 							holding_origin.clone(),
 							t.route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
@@ -208,7 +211,7 @@ pub mod pallet {
 							t.route.clone(),
 						)?;
 					}
-					TradeType::Sell => {
+					SwapType::ExactIn => {
 						pallet_route_executor::Pallet::<T>::sell(
 							holding_origin.clone(),
 							t.route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
@@ -222,7 +225,8 @@ pub mod pallet {
 			}
 
 			let mut exec_score: Score = 0;
-			for (id, resolve) in &solution.resolved {
+			for resolved_intent in &solution.resolved_intents {
+				let ResolvedIntent { id, data: resolve } = resolved_intent;
 				ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
 
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
@@ -241,18 +245,18 @@ pub mod pallet {
 				});
 
 				let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
-				let s = intent.surplus(&resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+				let s = intent.data.surplus(&resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 				exec_score = exec_score.checked_add(s).ok_or(Error::<T>::ArithmeticOverflow)?;
 
-				pallet_intent::Pallet::<T>::intent_resolved(*id, &owner, &resolve)?;
+				pallet_intent::Pallet::<T>::intent_resolved(&owner, resolved_intent)?;
 			}
 
-			ensure!(score == exec_score, Error::<T>::ScoreMismatch);
+			ensure!(solution.score == exec_score, Error::<T>::ScoreMismatch);
 
 			Self::deposit_event(Event::SolutionExecuted {
-				intents_executed: solution.resolved.len() as u64,
+				intents_executed: solution.resolved_intents.len() as u64,
 				trades_executed: solution.trades.len() as u64,
-				score,
+				score: solution.score,
 			});
 
 			Ok(())
@@ -294,7 +298,6 @@ pub mod pallet {
 			let block_no = T::BlockNumberProvider::current_block_number();
 			if let Call::submit_solution {
 				solution,
-				score,
 				valid_for_block,
 			} = call
 			{
@@ -303,18 +306,10 @@ pub mod pallet {
 					return InvalidTransaction::Call.into();
 				}
 
-				let exec_score = match Self::validate_unsigned_solution(&solution) {
-					Ok(ec) => ec,
-					Err(e) => {
-						log::error!(target: OCW_LOG_TARGET, "validate solution, err: {:?}, block: {:?}", e, block_no);
-						return InvalidTransaction::Call.into();
-					}
-				};
-
-				if exec_score != *score {
-					log::error!(target: OCW_LOG_TARGET, "score mismatch,  score: {:?}, exec_score: {:?}, block: {:?}", score, exec_score, block_no);
+				if let Err(e) = Self::validate_unsigned_solution(&solution) {
+					log::error!(target: OCW_LOG_TARGET, "validate solution, err: {:?}, block: {:?}", e, block_no);
 					return InvalidTransaction::Call.into();
-				}
+				};
 
 				return ValidTransaction::with_tag_prefix(OCW_TAG_PREFIX)
 					.priority(UNSIGNED_TXS_PRIORITY)
@@ -337,7 +332,7 @@ impl<T: Config> Pallet<T> {
 	/// Function validtes if intent was resolved based on clearing price.
 	fn validate_price_consitency(
 		clearing_prices: &BTreeMap<AssetId, Ratio>,
-		resolve: &Intent,
+		resolve: &IntentData,
 	) -> Result<(), DispatchError> {
 		let cp_in = clearing_prices
 			.get(&resolve.asset_in())
@@ -391,7 +386,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Function validates provided solution and returns solution's score if solution is
 	/// valid.
-	fn validate_unsigned_solution(s: &Solution) -> Result<Score, DispatchError> {
+	fn validate_unsigned_solution(s: &Solution) -> Result<(), DispatchError> {
 		//TODO:
 		// * add weight rule and make sure sollution respets it.
 
@@ -400,10 +395,10 @@ impl<T: Config> Pallet<T> {
 
 		let mut processed_intents: BTreeSet<IntentId> = BTreeSet::new();
 		let mut score: Score = 0;
-		for (id, resolve) in &s.resolved {
+		for ResolvedIntent { id, data: resolve } in &s.resolved_intents {
 			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
 
-			let s = intent.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+			let s = intent.data.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 			score = score.checked_add(s).ok_or(Error::<T>::ArithmeticOverflow)?;
 
 			ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
@@ -413,39 +408,36 @@ impl<T: Config> Pallet<T> {
 			Self::validate_price_consitency(&clearing_prices, resolve)?;
 		}
 
-		Ok(score)
+		ensure!(s.score == score, Error::<T>::ScoreMismatch);
+		Ok(())
 	}
 
 	pub fn run<F>(block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
 	where
-		F: FnOnce(Vec<u8>, Vec<u8>) -> Option<Vec<u8>>,
+		F: FnOnce(Vec<u8>, Vec<u8>) -> Option<Solution>,
 	{
-		let intents = pallet_intent::Pallet::<T>::get_valid_intents();
+		let intents: Vec<Intent> = pallet_intent::Pallet::<T>::get_valid_intents()
+			.iter()
+			.map(|x| Intent {
+				id: x.0,
+				data: x.1.data.to_owned(),
+			})
+			.collect();
 		let state = <T as Config>::AMM::get_state();
 
-		let Some(s) = solve(intents.encode(), state.encode()) else {
+		let Some(solution) = solve(intents.encode(), state.encode()) else {
 			log::debug!(target: OCW_LOG_TARGET, "no solution found, block: {:?}", block_no);
 			return None;
 		};
 
-		let solution = match Solution::decode(&mut s.as_slice()) {
-			Ok(s) => s,
-			Err(e) => {
-				log::error!(target: OCW_LOG_TARGET, "to decode solver's solution, err: {:?}, block: {:?}", e, block_no);
-				return None;
-			}
-		};
-
-		match Self::validate_unsigned_solution(&solution) {
-			Ok(score) => Some(Call::submit_solution {
-				solution,
-				score,
-				valid_for_block: block_no.saturating_add(One::one()),
-			}),
-			Err(e) => {
-				log::error!(target: OCW_LOG_TARGET, "validate solution, err: {:?}, block: {:?}", e, block_no);
-				None
-			}
+		if let Err(e) = Self::validate_unsigned_solution(&solution) {
+			log::error!(target: OCW_LOG_TARGET, "validate solution, err: {:?}, block: {:?}", e, block_no);
+			return None;
 		}
+
+		Some(Call::submit_solution {
+			solution,
+			valid_for_block: block_no.saturating_add(One::one()),
+		})
 	}
 }

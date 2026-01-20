@@ -16,7 +16,7 @@ fn should_work_when_intent_is_expired_and_origin_is_none() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -32,7 +32,7 @@ fn should_work_when_intent_is_expired_and_origin_is_none() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -54,8 +54,8 @@ fn should_work_when_intent_is_expired_and_origin_is_none() {
 
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				intent.amount_in(),
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				intent.data.amount_in(),
 			);
 
 			assert_ok!(Timestamp::set(RuntimeOrigin::none(), intent.deadline + 1));
@@ -67,8 +67,8 @@ fn should_work_when_intent_is_expired_and_origin_is_none() {
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				Zero::zero()
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				0
 			);
 			assert_eq!(get_queued_task(Source::ICE(id)), Some((Source::ICE(id), owner)));
 		});
@@ -86,7 +86,7 @@ fn should_work_when_intent_is_expired_and_origin_is_signed() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -102,7 +102,7 @@ fn should_work_when_intent_is_expired_and_origin_is_signed() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -124,8 +124,8 @@ fn should_work_when_intent_is_expired_and_origin_is_signed() {
 
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				intent.amount_in(),
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				intent.data.amount_in(),
 			);
 
 			assert_ok!(Timestamp::set(RuntimeOrigin::none(), intent.deadline + 1));
@@ -137,8 +137,8 @@ fn should_work_when_intent_is_expired_and_origin_is_signed() {
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				Zero::zero()
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				0
 			);
 			assert_eq!(get_queued_task(Source::ICE(id)), Some((Source::ICE(id), owner)));
 		});
@@ -156,7 +156,7 @@ fn should_work_when_intent_is_expired_and_intent_has_on_failure() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -172,7 +172,7 @@ fn should_work_when_intent_is_expired_and_intent_has_on_failure() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -194,8 +194,8 @@ fn should_work_when_intent_is_expired_and_intent_has_on_failure() {
 
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				intent.amount_in(),
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				intent.data.amount_in(),
 			);
 
 			assert_ok!(Timestamp::set(RuntimeOrigin::none(), intent.deadline + 1));
@@ -207,8 +207,8 @@ fn should_work_when_intent_is_expired_and_intent_has_on_failure() {
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				Zero::zero()
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				0
 			);
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
 		});
@@ -226,7 +226,7 @@ fn should_not_work_when_intent_is_not_expired() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -242,7 +242,7 @@ fn should_not_work_when_intent_is_not_expired() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -264,8 +264,8 @@ fn should_not_work_when_intent_is_not_expired() {
 
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				intent.amount_in(),
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				intent.data.amount_in(),
 			);
 
 			//Act as signed
@@ -278,8 +278,8 @@ fn should_not_work_when_intent_is_not_expired() {
 			assert!(IntentPallet::get_intent(id).is_some());
 			assert!(IntentPallet::intent_owner(id).is_some());
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				intent.amount_in()
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				intent.data.amount_in()
 			);
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
 
@@ -293,8 +293,8 @@ fn should_not_work_when_intent_is_not_expired() {
 			assert!(IntentPallet::get_intent(id).is_some());
 			assert!(IntentPallet::intent_owner(id).is_some());
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				intent.amount_in()
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				intent.data.amount_in()
 			);
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
 		});
@@ -312,7 +312,7 @@ fn should_not_collect_fees_when_intent_is_expired() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -328,7 +328,7 @@ fn should_not_collect_fees_when_intent_is_expired() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -350,8 +350,8 @@ fn should_not_collect_fees_when_intent_is_expired() {
 
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				intent.amount_in(),
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				intent.data.amount_in(),
 			);
 
 			assert_ok!(Timestamp::set(RuntimeOrigin::none(), intent.deadline + 1));
@@ -364,8 +364,8 @@ fn should_not_collect_fees_when_intent_is_expired() {
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				Zero::zero()
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				0
 			);
 			assert_eq!(get_queued_task(Source::ICE(id)), Some((Source::ICE(id), owner)));
 		});

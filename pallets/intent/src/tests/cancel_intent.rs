@@ -17,7 +17,7 @@ fn should_work_when_canceled_by_owner() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -33,7 +33,7 @@ fn should_work_when_canceled_by_owner() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -49,7 +49,7 @@ fn should_work_when_canceled_by_owner() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,
@@ -70,8 +70,8 @@ fn should_work_when_canceled_by_owner() {
 			let owner = ALICE;
 
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				intent.amount_in(),
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				intent.data.amount_in(),
 			);
 
 			//Act
@@ -81,8 +81,8 @@ fn should_work_when_canceled_by_owner() {
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.asset_in(), &owner),
-				Zero::zero()
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+				0
 			);
 		});
 }
@@ -99,7 +99,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -115,7 +115,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -131,7 +131,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,
@@ -151,25 +151,36 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 			let mut resolve = IntentPallet::get_intent(id).expect("Intent to exists");
 			let owner = ALICE;
 
-			let IntentKind::Swap(ref mut r_swap) = resolve.kind;
+			let IntentData::Swap(ref mut r_swap) = resolve.data;
 			r_swap.amount_in = r_swap.amount_in / 2;
 			r_swap.amount_out = r_swap.amount_out / 2;
 
 			//NOTE: It's ICE pallet responsibility is to unlock used fund during solution execution. This is
 			//to simulate it.
 			assert_eq!(
-				Currencies::unreserve_named(&NAMED_RESERVE_ID, resolve.asset_in(), &owner, resolve.amount_in()),
-				Zero::zero()
+				Currencies::unreserve_named(
+					&NAMED_RESERVE_ID,
+					resolve.data.asset_in(),
+					&owner,
+					resolve.data.amount_in()
+				),
+				0
 			);
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, resolve.asset_in(), &owner),
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, resolve.data.asset_in(), &owner),
 				5_000_000_000_000_u128
 			);
-			assert_ok!(IntentPallet::intent_resolved(id, &owner, &resolve));
+			assert_ok!(IntentPallet::intent_resolved(
+				&owner,
+				&ResolvedIntent {
+					id,
+					data: resolve.data.clone()
+				}
+			));
 
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, resolve.asset_in(), &owner),
-				resolve.amount_in(),
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, resolve.data.asset_in(), &owner),
+				resolve.data.amount_in(),
 			);
 
 			//Act
@@ -179,8 +190,8 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
 			assert_eq!(
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, resolve.asset_in(), &owner),
-				Zero::zero()
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, resolve.data.asset_in(), &owner),
+				0
 			);
 		});
 }
@@ -197,7 +208,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -213,7 +224,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -229,7 +240,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,
@@ -268,7 +279,7 @@ fn should_not_work_when_canceled_non_owner() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -284,7 +295,7 @@ fn should_not_work_when_canceled_non_owner() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -323,7 +334,7 @@ fn should_not_work_when_origin_is_none() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -339,7 +350,7 @@ fn should_not_work_when_origin_is_none() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,

@@ -14,7 +14,7 @@ fn validate_unsingned_should_work_when_intent_is_expired() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -30,7 +30,7 @@ fn validate_unsingned_should_work_when_intent_is_expired() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -46,7 +46,7 @@ fn validate_unsingned_should_work_when_intent_is_expired() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,
@@ -93,7 +93,7 @@ fn validate_unsingned_should_not_work_when_intent_doesnt_exists() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -109,7 +109,7 @@ fn validate_unsingned_should_not_work_when_intent_doesnt_exists() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -125,7 +125,7 @@ fn validate_unsingned_should_not_work_when_intent_doesnt_exists() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,
@@ -163,7 +163,7 @@ fn validate_unsingned_should_not_work_when_intent_is_not_expired() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -179,7 +179,7 @@ fn validate_unsingned_should_not_work_when_intent_is_not_expired() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -195,7 +195,7 @@ fn validate_unsingned_should_not_work_when_intent_is_not_expired() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,
@@ -236,7 +236,7 @@ fn validate_unsingned_should_not_work_when_tx_is_external() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -252,7 +252,7 @@ fn validate_unsingned_should_not_work_when_tx_is_external() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -268,7 +268,7 @@ fn validate_unsingned_should_not_work_when_tx_is_external() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,

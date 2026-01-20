@@ -3,10 +3,11 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
+use ice_support::Solution;
 use sp_std::sync::Arc;
 
 pub trait SolutionProvider: Send + Sync {
-	fn get_solution(&self, intents: Vec<u8>, data: Vec<u8>) -> Option<Vec<u8>>;
+	fn get_solution(&self, intents: Vec<u8>, data: Vec<u8>) -> Option<Solution>;
 }
 
 pub type SolverPtr = Arc<dyn SolutionProvider + Send + 'static>;
@@ -23,7 +24,7 @@ use sp_runtime_interface::runtime_interface;
 
 #[runtime_interface]
 pub trait ICE {
-	fn get_solution(&mut self, intents: Vec<u8>, data: Vec<u8>) -> Option<Vec<u8>> {
+	fn get_solution(&mut self, intents: Vec<u8>, data: Vec<u8>) -> Option<Solution> {
 		self.extension::<SolverExt>()?.get_solution(intents, data)
 	}
 }

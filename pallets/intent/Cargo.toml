@@ -26,6 +26,7 @@ frame-system = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
+ice-support = { workspace = true }
 
 # ORML dependencies
 orml-traits = { workspace = true }
@@ -53,6 +54,7 @@ std = [
     'frame-benchmarking/std',
     'hydradx-traits/std',
     'orml-traits/std',
+    'ice-support/std',
 ]
 
 runtime-benchmarks = [

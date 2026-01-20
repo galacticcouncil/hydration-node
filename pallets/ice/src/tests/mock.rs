@@ -14,8 +14,7 @@
 // limitations under the License.
 
 use crate as pallet_ice;
-use crate::types::TradeType;
-use crate::Config;
+use crate::*;
 use frame_support::parameter_types;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Everything;
@@ -27,6 +26,7 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
+use ice_support::SwapType;
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrency;
 use pallet_intent::types::CallData;
@@ -255,7 +255,7 @@ impl PriceOracle<AssetId> for PriceProviderMock {
 
 #[derive(Debug)]
 struct RouterSettlement {
-	trade_type: TradeType,
+	trade_type: SwapType,
 	pool_type: pallet_route_executor::PoolType<AssetId>,
 	asset_in: AssetId,
 	asset_out: AssetId,
@@ -287,7 +287,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for RouterPoo
 				.iter()
 				.position(|x| {
 					//NOTE: who is router account at this point we can't match on it
-					x.trade_type == TradeType::Buy
+					x.trade_type == SwapType::ExactOut
 						&& x.pool_type == pool_type
 						&& x.asset_in == asset_in
 						&& x.asset_out == asset_out
@@ -322,7 +322,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for RouterPoo
 				.iter()
 				.position(|x| {
 					//NOTE: who is router account at this point we can't match on it
-					x.trade_type == TradeType::Sell
+					x.trade_type == SwapType::ExactIn
 						&& x.pool_type == pool_type
 						&& x.asset_in == asset_in
 						&& x.asset_out == asset_out
@@ -362,7 +362,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for RouterPoo
 			let idx = m
 				.iter()
 				.position(|x| {
-					x.trade_type == TradeType::Sell
+					x.trade_type == SwapType::ExactIn
 						&& x.pool_type == pool_type
 						&& x.asset_in == asset_in
 						&& x.asset_out == asset_out
@@ -388,7 +388,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for RouterPoo
 			let idx = m
 				.iter()
 				.position(|x| {
-					x.trade_type == TradeType::Buy
+					x.trade_type == SwapType::ExactOut
 						&& x.pool_type == pool_type
 						&& x.asset_in == asset_in
 						&& x.asset_out == asset_out
@@ -444,7 +444,7 @@ impl ExtBuilder {
 
 	pub fn with_router_settlement(
 		mut self,
-		trade_type: TradeType,
+		trade_type: SwapType,
 		pool_type: pallet_route_executor::PoolType<AssetId>,
 		asset_in: AssetId,
 		asset_out: AssetId,

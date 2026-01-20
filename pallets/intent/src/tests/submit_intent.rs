@@ -17,7 +17,7 @@ fn should_work_when_origin_signed() {
 			assert_eq!(Intents::<Test>::iter_keys().count(), 0);
 
 			let intent_0 = Intent {
-				kind: IntentKind::Swap(SwapData {
+				data: IntentData::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -57,7 +57,7 @@ fn should_not_work_when_origin_is_none() {
 			assert_eq!(Intents::<Test>::iter_keys().count(), 0);
 
 			let intent_0 = Intent {
-				kind: IntentKind::Swap(SwapData {
+				data: IntentData::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -84,7 +84,7 @@ fn should_not_work_when_deadline_is_less_than_now() {
 			assert_ok!(Timestamp::set(RuntimeOrigin::none(), 2 * MAX_INTENT_DEADLINE));
 
 			let intent_0 = Intent {
-				kind: IntentKind::Swap(SwapData {
+				data: IntentData::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -111,7 +111,7 @@ fn should_not_work_when_deadline_bigger_than_max_allowed_intent_duration() {
 		.build()
 		.execute_with(|| {
 			let intent_0 = Intent {
-				kind: IntentKind::Swap(SwapData {
+				data: IntentData::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -138,7 +138,7 @@ fn should_not_work_when_amount_in_is_zero() {
 		.build()
 		.execute_with(|| {
 			let intent_0 = Intent {
-				kind: IntentKind::Swap(SwapData {
+				data: IntentData::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 0,
@@ -165,7 +165,7 @@ fn should_not_work_when_amount_out_is_zero() {
 		.build()
 		.execute_with(|| {
 			let intent_0 = Intent {
-				kind: IntentKind::Swap(SwapData {
+				data: IntentData::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -192,7 +192,7 @@ fn should_not_work_when_asset_in_eq_asset_out() {
 		.build()
 		.execute_with(|| {
 			let intent_0 = Intent {
-				kind: IntentKind::Swap(SwapData {
+				data: IntentData::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: HDX,
 					amount_in: 10 * ONE_HDX,
@@ -219,7 +219,7 @@ fn should_not_work_when_asset_out_is_hub_asset() {
 		.build()
 		.execute_with(|| {
 			let intent_0 = Intent {
-				kind: IntentKind::Swap(SwapData {
+				data: IntentData::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: HUB_ASSET_ID,
 					amount_in: 10 * ONE_HDX,
@@ -249,7 +249,7 @@ fn should_not_work_when_cant_reserve_funds() {
 			assert_eq!(Intents::<Test>::iter_keys().count(), 0);
 
 			let intent_0 = Intent {
-				kind: IntentKind::Swap(SwapData {
+				data: IntentData::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,

@@ -1,15 +1,13 @@
 use crate::tests::mock::*;
-use crate::types::Solution;
-use crate::types::Trade;
-use crate::types::TradeType;
 use crate::*;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
 use hydra_dx_math::types::Ratio;
+use ice_support::PoolTrade;
+use ice_support::Solution;
+use ice_support::SwapData;
+use ice_support::SwapType;
 use pallet_intent::types::Intent;
-use pallet_intent::types::IntentKind;
-use pallet_intent::types::SwapData;
-use pallet_intent::types::SwapType;
 use pallet_route_executor::PoolType;
 use pallet_route_executor::Trade as RTrade;
 use pretty_assertions::assert_eq;
@@ -29,7 +27,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -45,7 +43,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 			(
 				DAVE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -61,7 +59,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -76,7 +74,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 			),
 		])
 		.with_router_settlement(
-			TradeType::Sell,
+			SwapType::ExactIn,
 			PoolType::XYK,
 			HDX,
 			DOT,
@@ -85,7 +83,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 			15 * ONE_DOT,
 		)
 		.with_router_settlement(
-			TradeType::Buy,
+			SwapType::ExactOut,
 			PoolType::Omnipool,
 			ETH,
 			HDX,
@@ -96,61 +94,46 @@ fn solution_execution_should_work_when_solution_is_valid() {
 		.build()
 		.execute_with(|| {
 			let resolved = vec![
-				(
-					73786976294838206464002_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 4,
-							asset_out: 0,
-							amount_in: 500000000000000000,
-							amount_out: 16000000000000000000,
-							swap_type: SwapType::ExactOut,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464001_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 10000000000000000,
-							amount_out: 100000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464000_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 5000000000000000,
-							amount_out: 50000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
+				ResolvedIntent {
+					id: 73786976294838206464002_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 4,
+						asset_out: 0,
+						amount_in: 500000000000000000,
+						amount_out: 16000000000000000000,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464001_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 10000000000000000,
+						amount_out: 100000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464000_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 5000000000000000,
+						amount_out: 50000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
 			];
 
 			let trades = vec![
-				Trade {
+				PoolTrade {
 					amount_in: 15_000 * ONE_HDX,
 					amount_out: 12 * ONE_DOT,
-					trade_type: TradeType::Sell,
+					direction: SwapType::ExactIn,
 					route: vec![RTrade {
 						pool: PoolType::XYK,
 						asset_in: HDX,
@@ -159,10 +142,10 @@ fn solution_execution_should_work_when_solution_is_valid() {
 					.try_into()
 					.unwrap(),
 				},
-				Trade {
+				PoolTrade {
 					amount_in: ONE_QUINTIL / 2,
 					amount_out: 16_000_000 * ONE_HDX,
-					trade_type: TradeType::Buy,
+					direction: SwapType::ExactOut,
 					route: vec![RTrade {
 						pool: PoolType::Omnipool,
 						asset_in: ETH,
@@ -174,8 +157,8 @@ fn solution_execution_should_work_when_solution_is_valid() {
 			];
 
 			let s = Solution {
-				resolved,
-				trades,
+				resolved_intents: resolved.try_into().unwrap(),
+				trades: trades.try_into().unwrap(),
 				clearing_prices: vec![
 					(
 						HDX,
@@ -198,12 +181,13 @@ fn solution_execution_should_work_when_solution_is_valid() {
 							d: 3_125_000_000_000,
 						},
 					),
-				],
+				]
+				.try_into()
+				.unwrap(),
+				score: 500_000_030_000_000_000_u128,
 			};
 
-			let score = 500_000_030_000_000_000_u128;
-
-			assert_ok!(ICE::submit_solution(RuntimeOrigin::none(), s, score, 1));
+			assert_ok!(ICE::submit_solution(RuntimeOrigin::none(), s, 1));
 		});
 }
 
@@ -222,7 +206,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -238,7 +222,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 			(
 				DAVE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -254,7 +238,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -269,7 +253,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 			),
 		])
 		.with_router_settlement(
-			TradeType::Sell,
+			SwapType::ExactIn,
 			PoolType::XYK,
 			HDX,
 			DOT,
@@ -278,7 +262,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 			15 * ONE_DOT,
 		)
 		.with_router_settlement(
-			TradeType::Buy,
+			SwapType::ExactOut,
 			PoolType::Omnipool,
 			ETH,
 			HDX,
@@ -289,61 +273,46 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 		.build()
 		.execute_with(|| {
 			let resolved = vec![
-				(
-					73786976294838206464002_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 4,
-							asset_out: 0,
-							amount_in: 500000000000000000,
-							amount_out: 16000000000000000000,
-							swap_type: SwapType::ExactOut,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464001_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 10000000000000000,
-							amount_out: 100000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464000_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 5000000000000000,
-							amount_out: 50000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
+				ResolvedIntent {
+					id: 73786976294838206464002_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 4,
+						asset_out: 0,
+						amount_in: 500000000000000000,
+						amount_out: 16000000000000000000,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464001_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 10000000000000000,
+						amount_out: 100000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464000_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 5000000000000000,
+						amount_out: 50000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
 			];
 
 			let trades = vec![
-				Trade {
+				PoolTrade {
 					amount_in: 15_000 * ONE_HDX,
 					amount_out: 12 * ONE_DOT,
-					trade_type: TradeType::Sell,
+					direction: SwapType::ExactIn,
 					route: vec![RTrade {
 						pool: PoolType::XYK,
 						asset_in: HDX,
@@ -352,10 +321,10 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 					.try_into()
 					.unwrap(),
 				},
-				Trade {
+				PoolTrade {
 					amount_in: ONE_QUINTIL / 2,
 					amount_out: 16_000_000 * ONE_HDX,
-					trade_type: TradeType::Buy,
+					direction: SwapType::ExactOut,
 					route: vec![RTrade {
 						pool: PoolType::Omnipool,
 						asset_in: ETH,
@@ -367,8 +336,8 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 			];
 
 			let s = Solution {
-				resolved,
-				trades,
+				resolved_intents: resolved.try_into().unwrap(),
+				trades: trades.try_into().unwrap(),
 				clearing_prices: vec![
 					(
 						HDX,
@@ -391,13 +360,14 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 							d: 3_125_000_000_000,
 						},
 					),
-				],
+				]
+				.try_into()
+				.unwrap(),
+				score: 500_000_000_000_000_000_u128,
 			};
 
-			let score = 500_000_000_000_000_000_u128;
-
 			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::none(), s, score, 1),
+				ICE::submit_solution(RuntimeOrigin::none(), s, 1),
 				Error::<Test>::ScoreMismatch
 			);
 		});
@@ -418,7 +388,7 @@ fn solution_execution_should_not_work_when_duplicate_clearing_price_exists() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -434,7 +404,7 @@ fn solution_execution_should_not_work_when_duplicate_clearing_price_exists() {
 			(
 				DAVE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -450,7 +420,7 @@ fn solution_execution_should_not_work_when_duplicate_clearing_price_exists() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -465,7 +435,7 @@ fn solution_execution_should_not_work_when_duplicate_clearing_price_exists() {
 			),
 		])
 		.with_router_settlement(
-			TradeType::Sell,
+			SwapType::ExactIn,
 			PoolType::XYK,
 			HDX,
 			DOT,
@@ -474,7 +444,7 @@ fn solution_execution_should_not_work_when_duplicate_clearing_price_exists() {
 			15 * ONE_DOT,
 		)
 		.with_router_settlement(
-			TradeType::Buy,
+			SwapType::ExactOut,
 			PoolType::Omnipool,
 			ETH,
 			HDX,
@@ -485,61 +455,46 @@ fn solution_execution_should_not_work_when_duplicate_clearing_price_exists() {
 		.build()
 		.execute_with(|| {
 			let resolved = vec![
-				(
-					73786976294838206464002_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 4,
-							asset_out: 0,
-							amount_in: 500000000000000000,
-							amount_out: 16000000000000000000,
-							swap_type: SwapType::ExactOut,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464001_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 10000000000000000,
-							amount_out: 100000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464000_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 5000000000000000,
-							amount_out: 50000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
+				ResolvedIntent {
+					id: 73786976294838206464002_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 4,
+						asset_out: 0,
+						amount_in: 500000000000000000,
+						amount_out: 16000000000000000000,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464001_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 10000000000000000,
+						amount_out: 100000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464000_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 5000000000000000,
+						amount_out: 50000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
 			];
 
 			let trades = vec![
-				Trade {
+				PoolTrade {
 					amount_in: 15_000 * ONE_HDX,
 					amount_out: 12 * ONE_DOT,
-					trade_type: TradeType::Sell,
+					direction: SwapType::ExactIn,
 					route: vec![RTrade {
 						pool: PoolType::XYK,
 						asset_in: HDX,
@@ -548,10 +503,10 @@ fn solution_execution_should_not_work_when_duplicate_clearing_price_exists() {
 					.try_into()
 					.unwrap(),
 				},
-				Trade {
+				PoolTrade {
 					amount_in: ONE_QUINTIL / 2,
 					amount_out: 16_000_000 * ONE_HDX,
-					trade_type: TradeType::Buy,
+					direction: SwapType::ExactOut,
 					route: vec![RTrade {
 						pool: PoolType::Omnipool,
 						asset_in: ETH,
@@ -563,8 +518,8 @@ fn solution_execution_should_not_work_when_duplicate_clearing_price_exists() {
 			];
 
 			let s = Solution {
-				resolved,
-				trades,
+				resolved_intents: resolved.try_into().unwrap(),
+				trades: trades.try_into().unwrap(),
 				clearing_prices: vec![
 					(
 						HDX,
@@ -594,13 +549,14 @@ fn solution_execution_should_not_work_when_duplicate_clearing_price_exists() {
 							d: 1_000_000_000,
 						},
 					),
-				],
+				]
+				.try_into()
+				.unwrap(),
+				score: 500_000_030_000_000_000_u128,
 			};
 
-			let score = 500_000_030_000_000_000_u128;
-
 			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::none(), s, score, 1),
+				ICE::submit_solution(RuntimeOrigin::none(), s, 1),
 				Error::<Test>::DuplicateClearingPrice
 			);
 		});
@@ -621,7 +577,7 @@ fn solution_execution_should_not_work_when_clearing_price_is_missing() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -637,7 +593,7 @@ fn solution_execution_should_not_work_when_clearing_price_is_missing() {
 			(
 				DAVE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -653,7 +609,7 @@ fn solution_execution_should_not_work_when_clearing_price_is_missing() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -668,7 +624,7 @@ fn solution_execution_should_not_work_when_clearing_price_is_missing() {
 			),
 		])
 		.with_router_settlement(
-			TradeType::Sell,
+			SwapType::ExactIn,
 			PoolType::XYK,
 			HDX,
 			DOT,
@@ -677,7 +633,7 @@ fn solution_execution_should_not_work_when_clearing_price_is_missing() {
 			15 * ONE_DOT,
 		)
 		.with_router_settlement(
-			TradeType::Buy,
+			SwapType::ExactOut,
 			PoolType::Omnipool,
 			ETH,
 			HDX,
@@ -688,61 +644,46 @@ fn solution_execution_should_not_work_when_clearing_price_is_missing() {
 		.build()
 		.execute_with(|| {
 			let resolved = vec![
-				(
-					73786976294838206464002_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 4,
-							asset_out: 0,
-							amount_in: 500000000000000000,
-							amount_out: 16000000000000000000,
-							swap_type: SwapType::ExactOut,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464001_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 10000000000000000,
-							amount_out: 100000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464000_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 5000000000000000,
-							amount_out: 50000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
+				ResolvedIntent {
+					id: 73786976294838206464002_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 4,
+						asset_out: 0,
+						amount_in: 500000000000000000,
+						amount_out: 16000000000000000000,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464001_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 10000000000000000,
+						amount_out: 100000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464000_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 5000000000000000,
+						amount_out: 50000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
 			];
 
 			let trades = vec![
-				Trade {
+				PoolTrade {
 					amount_in: 15_000 * ONE_HDX,
 					amount_out: 12 * ONE_DOT,
-					trade_type: TradeType::Sell,
+					direction: SwapType::ExactIn,
 					route: vec![RTrade {
 						pool: PoolType::XYK,
 						asset_in: HDX,
@@ -751,10 +692,10 @@ fn solution_execution_should_not_work_when_clearing_price_is_missing() {
 					.try_into()
 					.unwrap(),
 				},
-				Trade {
+				PoolTrade {
 					amount_in: ONE_QUINTIL / 2,
 					amount_out: 16_000_000 * ONE_HDX,
-					trade_type: TradeType::Buy,
+					direction: SwapType::ExactOut,
 					route: vec![RTrade {
 						pool: PoolType::Omnipool,
 						asset_in: ETH,
@@ -766,8 +707,8 @@ fn solution_execution_should_not_work_when_clearing_price_is_missing() {
 			];
 
 			let s = Solution {
-				resolved,
-				trades,
+				resolved_intents: resolved.try_into().unwrap(),
+				trades: trades.try_into().unwrap(),
 				clearing_prices: vec![
 					(
 						HDX,
@@ -783,13 +724,14 @@ fn solution_execution_should_not_work_when_clearing_price_is_missing() {
 							d: 1_000_000_000,
 						},
 					),
-				],
+				]
+				.try_into()
+				.unwrap(),
+				score: 500_000_030_000_000_000_u128,
 			};
 
-			let score = 500_000_030_000_000_000_u128;
-
 			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::none(), s, score, 1),
+				ICE::submit_solution(RuntimeOrigin::none(), s, 1),
 				Error::<Test>::MissingClearingPrice
 			);
 		});
@@ -810,7 +752,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -826,7 +768,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 			(
 				DAVE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -842,7 +784,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -857,7 +799,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 			),
 		])
 		.with_router_settlement(
-			TradeType::Sell,
+			SwapType::ExactIn,
 			PoolType::XYK,
 			HDX,
 			DOT,
@@ -866,7 +808,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 			15 * ONE_DOT,
 		)
 		.with_router_settlement(
-			TradeType::Buy,
+			SwapType::ExactOut,
 			PoolType::Omnipool,
 			ETH,
 			HDX,
@@ -877,61 +819,46 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 		.build()
 		.execute_with(|| {
 			let resolved = vec![
-				(
-					73786976294838206464002_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 4,
-							asset_out: 0,
-							amount_in: 500000000000000000,
-							amount_out: 16000000000000000000,
-							swap_type: SwapType::ExactOut,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464001_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 10000000000000000,
-							amount_out: 100000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464000_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 5000000000000000,
-							amount_out: 50000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
+				ResolvedIntent {
+					id: 73786976294838206464002_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 4,
+						asset_out: 0,
+						amount_in: 500000000000000000,
+						amount_out: 16000000000000000000,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464001_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 10000000000000000,
+						amount_out: 100000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464000_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 5000000000000000,
+						amount_out: 50000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
 			];
 
 			let trades = vec![
-				Trade {
+				PoolTrade {
 					amount_in: 15_000 * ONE_HDX,
 					amount_out: 12 * ONE_DOT,
-					trade_type: TradeType::Sell,
+					direction: SwapType::ExactIn,
 					route: vec![RTrade {
 						pool: PoolType::XYK,
 						asset_in: HDX,
@@ -940,10 +867,10 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 					.try_into()
 					.unwrap(),
 				},
-				Trade {
+				PoolTrade {
 					amount_in: ONE_QUINTIL / 2,
 					amount_out: 16_000_000 * ONE_HDX,
-					trade_type: TradeType::Buy,
+					direction: SwapType::ExactOut,
 					route: vec![RTrade {
 						pool: PoolType::Omnipool,
 						asset_in: ETH,
@@ -955,8 +882,8 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 			];
 
 			let s = Solution {
-				resolved,
-				trades,
+				resolved_intents: resolved.try_into().unwrap(),
+				trades: trades.try_into().unwrap(),
 				clearing_prices: vec![
 					(
 						HDX,
@@ -979,13 +906,14 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 							d: 3_125_000_000_000,
 						},
 					),
-				],
+				]
+				.try_into()
+				.unwrap(),
+				score: 500_000_030_000_000_000_u128,
 			};
 
-			let score = 500_000_030_000_000_000_u128;
-
 			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::none(), s, score, 2),
+				ICE::submit_solution(RuntimeOrigin::none(), s, 2),
 				Error::<Test>::InvalidTargetBlock
 			);
 		});
@@ -1006,7 +934,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -1022,7 +950,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			(
 				DAVE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -1038,7 +966,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -1054,7 +982,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -1069,7 +997,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			),
 		])
 		.with_router_settlement(
-			TradeType::Sell,
+			SwapType::ExactIn,
 			PoolType::XYK,
 			HDX,
 			DOT,
@@ -1078,7 +1006,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			15 * ONE_DOT,
 		)
 		.with_router_settlement(
-			TradeType::Buy,
+			SwapType::ExactOut,
 			PoolType::Omnipool,
 			ETH,
 			HDX,
@@ -1089,77 +1017,57 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 		.build()
 		.execute_with(|| {
 			let resolved = vec![
-				(
-					73786976294838206464002_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 4,
-							asset_out: 0,
-							amount_in: 500000000000000000,
-							amount_out: 16000000000000000000,
-							swap_type: SwapType::ExactOut,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464001_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 10000000000000000,
-							amount_out: 100000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464000_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 5000000000000000,
-							amount_out: 50000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464002_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 4,
-							asset_out: 0,
-							amount_in: 500000000000000000,
-							amount_out: 16000000000000000000,
-							swap_type: SwapType::ExactOut,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
+				ResolvedIntent {
+					id: 73786976294838206464002_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 4,
+						asset_out: 0,
+						amount_in: 500000000000000000,
+						amount_out: 16000000000000000000,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464001_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 10000000000000000,
+						amount_out: 100000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464000_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 5000000000000000,
+						amount_out: 50000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464002_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 4,
+						asset_out: 0,
+						amount_in: 500000000000000000,
+						amount_out: 16000000000000000000,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+				},
 			];
 
 			let trades = vec![
-				Trade {
+				PoolTrade {
 					amount_in: 15_000 * ONE_HDX,
 					amount_out: 12 * ONE_DOT,
-					trade_type: TradeType::Sell,
+					direction: SwapType::ExactIn,
 					route: vec![RTrade {
 						pool: PoolType::XYK,
 						asset_in: HDX,
@@ -1168,10 +1076,10 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 					.try_into()
 					.unwrap(),
 				},
-				Trade {
+				PoolTrade {
 					amount_in: ONE_QUINTIL / 2,
 					amount_out: 16_000_000 * ONE_HDX,
-					trade_type: TradeType::Buy,
+					direction: SwapType::ExactOut,
 					route: vec![RTrade {
 						pool: PoolType::Omnipool,
 						asset_in: ETH,
@@ -1183,8 +1091,8 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			];
 
 			let s = Solution {
-				resolved,
-				trades,
+				resolved_intents: resolved.try_into().unwrap(),
+				trades: trades.try_into().unwrap(),
 				clearing_prices: vec![
 					(
 						HDX,
@@ -1207,13 +1115,14 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 							d: 3_125_000_000_000,
 						},
 					),
-				],
+				]
+				.try_into()
+				.unwrap(),
+				score: 500_000_030_000_000_000_u128,
 			};
 
-			let score = 500_000_030_000_000_000_u128;
-
 			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::none(), s, score, 1),
+				ICE::submit_solution(RuntimeOrigin::none(), s, 1),
 				Error::<Test>::DuplicateIntent
 			);
 		});
@@ -1234,7 +1143,7 @@ fn solution_execution_should_not_work_when_clearing_price_numerator_is_zero() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -1250,7 +1159,7 @@ fn solution_execution_should_not_work_when_clearing_price_numerator_is_zero() {
 			(
 				DAVE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -1266,7 +1175,7 @@ fn solution_execution_should_not_work_when_clearing_price_numerator_is_zero() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -1281,7 +1190,7 @@ fn solution_execution_should_not_work_when_clearing_price_numerator_is_zero() {
 			),
 		])
 		.with_router_settlement(
-			TradeType::Sell,
+			SwapType::ExactIn,
 			PoolType::XYK,
 			HDX,
 			DOT,
@@ -1290,7 +1199,7 @@ fn solution_execution_should_not_work_when_clearing_price_numerator_is_zero() {
 			15 * ONE_DOT,
 		)
 		.with_router_settlement(
-			TradeType::Buy,
+			SwapType::ExactOut,
 			PoolType::Omnipool,
 			ETH,
 			HDX,
@@ -1301,61 +1210,46 @@ fn solution_execution_should_not_work_when_clearing_price_numerator_is_zero() {
 		.build()
 		.execute_with(|| {
 			let resolved = vec![
-				(
-					73786976294838206464002_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 4,
-							asset_out: 0,
-							amount_in: 500000000000000000,
-							amount_out: 16000000000000000000,
-							swap_type: SwapType::ExactOut,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464001_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 10000000000000000,
-							amount_out: 100000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464000_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 5000000000000000,
-							amount_out: 50000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
+				ResolvedIntent {
+					id: 73786976294838206464002_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 4,
+						asset_out: 0,
+						amount_in: 500000000000000000,
+						amount_out: 16000000000000000000,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464001_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 10000000000000000,
+						amount_out: 100000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464000_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 5000000000000000,
+						amount_out: 50000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
 			];
 
 			let trades = vec![
-				Trade {
+				PoolTrade {
 					amount_in: 15_000 * ONE_HDX,
 					amount_out: 12 * ONE_DOT,
-					trade_type: TradeType::Sell,
+					direction: SwapType::ExactIn,
 					route: vec![RTrade {
 						pool: PoolType::XYK,
 						asset_in: HDX,
@@ -1364,10 +1258,10 @@ fn solution_execution_should_not_work_when_clearing_price_numerator_is_zero() {
 					.try_into()
 					.unwrap(),
 				},
-				Trade {
+				PoolTrade {
 					amount_in: ONE_QUINTIL / 2,
 					amount_out: 16_000_000 * ONE_HDX,
-					trade_type: TradeType::Buy,
+					direction: SwapType::ExactOut,
 					route: vec![RTrade {
 						pool: PoolType::Omnipool,
 						asset_in: ETH,
@@ -1379,8 +1273,8 @@ fn solution_execution_should_not_work_when_clearing_price_numerator_is_zero() {
 			];
 
 			let s = Solution {
-				resolved,
-				trades,
+				resolved_intents: resolved.try_into().unwrap(),
+				trades: trades.try_into().unwrap(),
 				clearing_prices: vec![
 					(
 						HDX,
@@ -1403,13 +1297,14 @@ fn solution_execution_should_not_work_when_clearing_price_numerator_is_zero() {
 							d: 3_125_000_000_000,
 						},
 					),
-				],
+				]
+				.try_into()
+				.unwrap(),
+				score: 500_000_030_000_000_000_u128,
 			};
 
-			let score = 500_000_030_000_000_000_u128;
-
 			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::none(), s, score, 1),
+				ICE::submit_solution(RuntimeOrigin::none(), s, 1),
 				Error::<Test>::InvalidPriceRatio
 			);
 		});
@@ -1430,7 +1325,7 @@ fn solution_execution_should_not_work_when_clearing_price_denominator_is_zero() 
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -1446,7 +1341,7 @@ fn solution_execution_should_not_work_when_clearing_price_denominator_is_zero() 
 			(
 				DAVE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -1462,7 +1357,7 @@ fn solution_execution_should_not_work_when_clearing_price_denominator_is_zero() 
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -1477,7 +1372,7 @@ fn solution_execution_should_not_work_when_clearing_price_denominator_is_zero() 
 			),
 		])
 		.with_router_settlement(
-			TradeType::Sell,
+			SwapType::ExactIn,
 			PoolType::XYK,
 			HDX,
 			DOT,
@@ -1486,7 +1381,7 @@ fn solution_execution_should_not_work_when_clearing_price_denominator_is_zero() 
 			15 * ONE_DOT,
 		)
 		.with_router_settlement(
-			TradeType::Buy,
+			SwapType::ExactOut,
 			PoolType::Omnipool,
 			ETH,
 			HDX,
@@ -1497,61 +1392,46 @@ fn solution_execution_should_not_work_when_clearing_price_denominator_is_zero() 
 		.build()
 		.execute_with(|| {
 			let resolved = vec![
-				(
-					73786976294838206464002_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 4,
-							asset_out: 0,
-							amount_in: 500000000000000000,
-							amount_out: 16000000000000000000,
-							swap_type: SwapType::ExactOut,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464001_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 10000000000000000,
-							amount_out: 100000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464000_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 5000000000000000,
-							amount_out: 50000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
+				ResolvedIntent {
+					id: 73786976294838206464002_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 4,
+						asset_out: 0,
+						amount_in: 500000000000000000,
+						amount_out: 16000000000000000000,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464001_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 10000000000000000,
+						amount_out: 100000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464000_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 5000000000000000,
+						amount_out: 50000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
 			];
 
 			let trades = vec![
-				Trade {
+				PoolTrade {
 					amount_in: 15_000 * ONE_HDX,
 					amount_out: 12 * ONE_DOT,
-					trade_type: TradeType::Sell,
+					direction: SwapType::ExactIn,
 					route: vec![RTrade {
 						pool: PoolType::XYK,
 						asset_in: HDX,
@@ -1560,10 +1440,10 @@ fn solution_execution_should_not_work_when_clearing_price_denominator_is_zero() 
 					.try_into()
 					.unwrap(),
 				},
-				Trade {
+				PoolTrade {
 					amount_in: ONE_QUINTIL / 2,
 					amount_out: 16_000_000 * ONE_HDX,
-					trade_type: TradeType::Buy,
+					direction: SwapType::ExactOut,
 					route: vec![RTrade {
 						pool: PoolType::Omnipool,
 						asset_in: ETH,
@@ -1575,8 +1455,8 @@ fn solution_execution_should_not_work_when_clearing_price_denominator_is_zero() 
 			];
 
 			let s = Solution {
-				resolved,
-				trades,
+				resolved_intents: resolved.try_into().unwrap(),
+				trades: trades.try_into().unwrap(),
 				clearing_prices: vec![
 					(
 						HDX,
@@ -1593,13 +1473,14 @@ fn solution_execution_should_not_work_when_clearing_price_denominator_is_zero() 
 						},
 					),
 					(ETH, Ratio { n: 177, d: 0 }),
-				],
+				]
+				.try_into()
+				.unwrap(),
+				score: 500_000_030_000_000_000_u128,
 			};
 
-			let score = 500_000_030_000_000_000_u128;
-
 			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::none(), s, score, 1),
+				ICE::submit_solution(RuntimeOrigin::none(), s, 1),
 				Error::<Test>::InvalidPriceRatio
 			);
 		});
@@ -1620,7 +1501,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -1636,7 +1517,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 			(
 				DAVE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -1652,7 +1533,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -1667,7 +1548,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 			),
 		])
 		.with_router_settlement(
-			TradeType::Sell,
+			SwapType::ExactIn,
 			PoolType::XYK,
 			HDX,
 			DOT,
@@ -1676,7 +1557,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 			15 * ONE_DOT,
 		)
 		.with_router_settlement(
-			TradeType::Buy,
+			SwapType::ExactOut,
 			PoolType::Omnipool,
 			ETH,
 			HDX,
@@ -1687,61 +1568,46 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 		.build()
 		.execute_with(|| {
 			let resolved = vec![
-				(
-					999999999_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 4,
-							asset_out: 0,
-							amount_in: 500000000000000000,
-							amount_out: 16000000000000000000,
-							swap_type: SwapType::ExactOut,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464001_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 10000000000000000,
-							amount_out: 100000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				(
-					73786976294838206464000_u128,
-					Intent {
-						kind: IntentKind::Swap(SwapData {
-							asset_in: 0,
-							asset_out: 2,
-							amount_in: 5000000000000000,
-							amount_out: 50000000000,
-							swap_type: SwapType::ExactIn,
-							partial: false,
-						}),
-						deadline: 4000,
-						on_success: None,
-						on_failure: None,
-					},
-				),
+				ResolvedIntent {
+					id: 999999999_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 4,
+						asset_out: 0,
+						amount_in: 500000000000000000,
+						amount_out: 16000000000000000000,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464001_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 10000000000000000,
+						amount_out: 100000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
+				ResolvedIntent {
+					id: 73786976294838206464000_u128,
+					data: IntentData::Swap(SwapData {
+						asset_in: 0,
+						asset_out: 2,
+						amount_in: 5000000000000000,
+						amount_out: 50000000000,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+				},
 			];
 
 			let trades = vec![
-				Trade {
+				PoolTrade {
 					amount_in: 15_000 * ONE_HDX,
 					amount_out: 12 * ONE_DOT,
-					trade_type: TradeType::Sell,
+					direction: SwapType::ExactIn,
 					route: vec![RTrade {
 						pool: PoolType::XYK,
 						asset_in: HDX,
@@ -1750,10 +1616,10 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 					.try_into()
 					.unwrap(),
 				},
-				Trade {
+				PoolTrade {
 					amount_in: ONE_QUINTIL / 2,
 					amount_out: 16_000_000 * ONE_HDX,
-					trade_type: TradeType::Buy,
+					direction: SwapType::ExactOut,
 					route: vec![RTrade {
 						pool: PoolType::Omnipool,
 						asset_in: ETH,
@@ -1765,8 +1631,8 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 			];
 
 			let s = Solution {
-				resolved,
-				trades,
+				resolved_intents: resolved.try_into().unwrap(),
+				trades: trades.try_into().unwrap(),
 				clearing_prices: vec![
 					(
 						HDX,
@@ -1789,13 +1655,14 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 							d: 3_125_000_000_000,
 						},
 					),
-				],
+				]
+				.try_into()
+				.unwrap(),
+				score: 500_000_030_000_000_000_u128,
 			};
 
-			let score = 500_000_030_000_000_000_u128;
-
 			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::none(), s, score, 1),
+				ICE::submit_solution(RuntimeOrigin::none(), s, 1),
 				Error::<Test>::IntentOwnerNotFound
 			);
 		});
@@ -1816,7 +1683,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -1832,7 +1699,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 			(
 				DAVE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -1848,7 +1715,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -1863,7 +1730,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 			),
 		])
 		.with_router_settlement(
-			TradeType::Sell,
+			SwapType::ExactIn,
 			PoolType::XYK,
 			HDX,
 			DOT,
@@ -1873,27 +1740,22 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 		)
 		.build()
 		.execute_with(|| {
-			let resolved = vec![(
-				73786976294838206464000_u128,
-				Intent {
-					kind: IntentKind::Swap(SwapData {
-						asset_in: 0,
-						asset_out: 2,
-						amount_in: 5000000000000000,
-						amount_out: 50000000000,
-						swap_type: SwapType::ExactIn,
-						partial: false,
-					}),
-					deadline: 4000,
-					on_success: None,
-					on_failure: None,
-				},
-			)];
+			let resolved = vec![ResolvedIntent {
+				id: 73786976294838206464000_u128,
+				data: IntentData::Swap(SwapData {
+					asset_in: 0,
+					asset_out: 2,
+					amount_in: 5000000000000000,
+					amount_out: 50000000000,
+					swap_type: SwapType::ExactIn,
+					partial: false,
+				}),
+			}];
 
-			let trades = vec![Trade {
+			let trades = vec![PoolTrade {
 				amount_in: 5_000 * ONE_HDX,
 				amount_out: 5 * ONE_DOT,
-				trade_type: TradeType::Sell,
+				direction: SwapType::ExactIn,
 				route: vec![RTrade {
 					pool: PoolType::XYK,
 					asset_in: HDX,
@@ -1904,8 +1766,8 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 			}];
 
 			let s = Solution {
-				resolved,
-				trades,
+				resolved_intents: resolved.try_into().unwrap(),
+				trades: trades.try_into().unwrap(),
 				clearing_prices: vec![
 					(
 						HDX,
@@ -1921,12 +1783,13 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 							d: 1_000_000_000,
 						},
 					),
-				],
+				]
+				.try_into()
+				.unwrap(),
+				score: 10_000_000_000_u128,
 			};
 
-			let score = 10_000_000_000_u128;
-
-			assert_ok!(ICE::submit_solution(RuntimeOrigin::none(), s, score, 1));
+			assert_ok!(ICE::submit_solution(RuntimeOrigin::none(), s, 1));
 		});
 }
 
@@ -1945,7 +1808,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 			(
 				ALICE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -1961,7 +1824,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 			(
 				DAVE,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -1977,7 +1840,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 			(
 				BOB,
 				Intent {
-					kind: IntentKind::Swap(SwapData {
+					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -1992,7 +1855,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 			),
 		])
 		.with_router_settlement(
-			TradeType::Sell,
+			SwapType::ExactIn,
 			PoolType::XYK,
 			HDX,
 			DOT,
@@ -2002,27 +1865,22 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 		)
 		.build()
 		.execute_with(|| {
-			let resolved = vec![(
-				73786976294838206464000_u128,
-				Intent {
-					kind: IntentKind::Swap(SwapData {
-						asset_in: 0,
-						asset_out: 2,
-						amount_in: 5000000000000000,
-						amount_out: 50000000000,
-						swap_type: SwapType::ExactIn,
-						partial: false,
-					}),
-					deadline: 4000,
-					on_success: None,
-					on_failure: None,
-				},
-			)];
+			let resolved = vec![ResolvedIntent {
+				id: 73786976294838206464000_u128,
+				data: IntentData::Swap(SwapData {
+					asset_in: 0,
+					asset_out: 2,
+					amount_in: 5000000000000000,
+					amount_out: 50000000000,
+					swap_type: SwapType::ExactIn,
+					partial: false,
+				}),
+			}];
 
-			let trades = vec![Trade {
+			let trades = vec![PoolTrade {
 				amount_in: 5_000 * ONE_HDX,
 				amount_out: 5 * ONE_DOT,
-				trade_type: TradeType::Sell,
+				direction: SwapType::ExactIn,
 				route: vec![RTrade {
 					pool: PoolType::XYK,
 					asset_in: HDX,
@@ -2033,8 +1891,8 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 			}];
 
 			let s = Solution {
-				resolved,
-				trades,
+				resolved_intents: resolved.try_into().unwrap(),
+				trades: trades.try_into().unwrap(),
 				clearing_prices: vec![
 					(
 						HDX,
@@ -2050,11 +1908,12 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 							d: 1_000_000_000,
 						},
 					),
-				],
+				]
+				.try_into()
+				.unwrap(),
+				score: 0_u128,
 			};
 
-			let score = 0_u128;
-
-			assert_ok!(ICE::submit_solution(RuntimeOrigin::none(), s, score, 1));
+			assert_ok!(ICE::submit_solution(RuntimeOrigin::none(), s, 1));
 		});
 }

@@ -34,16 +34,10 @@ mod tests;
 pub mod types;
 mod weights;
 
-use crate::types::AssetId;
-use crate::types::Balance;
 use crate::types::CallbackType;
 use crate::types::IncrementalIntentId;
 use crate::types::Intent;
-use crate::types::IntentId;
-use crate::types::IntentKind;
 use crate::types::Moment;
-use crate::types::SwapData;
-use crate::types::SwapType;
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::Time;
@@ -53,6 +47,13 @@ use frame_system::offchain::SendTransactionTypes;
 use frame_system::pallet_prelude::*;
 use hydradx_traits::lazy_executor::Mutate;
 use hydradx_traits::lazy_executor::Source;
+use ice_support::AssetId;
+use ice_support::Balance;
+use ice_support::IntentData;
+use ice_support::IntentId;
+use ice_support::ResolvedIntent;
+use ice_support::SwapData;
+use ice_support::SwapType;
 use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use sp_runtime::traits::Zero;
@@ -205,7 +206,7 @@ pub mod pallet {
 
 					ensure!(owner == who, Error::<T>::InvalidOwner);
 
-					Self::unlock_funds(&who, intent.asset_in(), intent.amount_in())?;
+					Self::unlock_funds(&who, intent.data.asset_in(), intent.data.amount_in())?;
 
 					Self::deposit_event(Event::<T>::IntentCanceled { id });
 
@@ -244,7 +245,7 @@ pub mod pallet {
 						}
 					}
 
-					Self::unlock_funds(owner, intent.asset_in(), intent.amount_in())?;
+					Self::unlock_funds(owner, intent.data.asset_in(), intent.data.amount_in())?;
 
 					Self::deposit_event(Event::<T>::IntentExpired { id });
 
@@ -320,8 +321,8 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::InvalidDeadline
 		);
 
-		match intent.kind {
-			IntentKind::Swap(ref data) => {
+		match intent.data {
+			IntentData::Swap(ref data) => {
 				ensure!(data.amount_in > Balance::zero(), Error::<T>::InvalidIntent);
 				ensure!(data.amount_out > Balance::zero(), Error::<T>::InvalidIntent);
 				ensure!(data.asset_in != data.asset_out, Error::<T>::InvalidIntent);
@@ -361,16 +362,20 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Function validates if intent was resolved correctly.
-	pub fn validate_resolve(intent: &Intent, resolve: &Intent) -> Result<(), DispatchError> {
+	pub fn validate_resolve(intent: &Intent, resolve: &IntentData) -> Result<(), DispatchError> {
 		ensure!(intent.deadline > T::TimestampProvider::now(), Error::<T>::IntentExpired);
 
-		ensure!(intent.asset_in() == resolve.asset_in(), Error::<T>::ResolveMismatch);
-		ensure!(intent.asset_out() == resolve.asset_out(), Error::<T>::ResolveMismatch);
-		ensure!(intent.on_success == resolve.on_success, Error::<T>::ResolveMismatch);
-		ensure!(intent.on_failure == resolve.on_failure, Error::<T>::ResolveMismatch);
+		ensure!(
+			intent.data.asset_in() == resolve.asset_in(),
+			Error::<T>::ResolveMismatch
+		);
+		ensure!(
+			intent.data.asset_out() == resolve.asset_out(),
+			Error::<T>::ResolveMismatch
+		);
 
-		match intent.kind {
-			IntentKind::Swap(_) => {
+		match intent.data {
+			IntentData::Swap(_) => {
 				Self::validate_swap_intent_resolve(&intent, resolve)?;
 			}
 		}
@@ -378,9 +383,9 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn validate_swap_intent_resolve(intent: &Intent, resolve: &Intent) -> Result<(), DispatchError> {
-		let IntentKind::Swap(ref swap) = intent.kind;
-		let IntentKind::Swap(ref resolve_swap) = resolve.kind;
+	fn validate_swap_intent_resolve(intent: &Intent, resolve: &IntentData) -> Result<(), DispatchError> {
+		let IntentData::Swap(ref swap) = intent.data;
+		let IntentData::Swap(ref resolve_swap) = resolve;
 
 		ensure!(swap.swap_type == resolve_swap.swap_type, Error::<T>::ResolveMismatch);
 		ensure!(swap.partial == resolve_swap.partial, Error::<T>::ResolveMismatch);
@@ -393,7 +398,7 @@ impl<T: Config> Pallet<T> {
 						return Ok(());
 					}
 
-					let limit = intent.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+					let limit = intent.data.pro_rata(&resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 					ensure!(resolve_swap.amount_in < swap.amount_in, Error::<T>::LimitViolation);
 					ensure!(resolve_swap.amount_out >= limit, Error::<T>::LimitViolation);
 				} else {
@@ -408,7 +413,7 @@ impl<T: Config> Pallet<T> {
 						return Ok(());
 					}
 
-					let limit = intent.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+					let limit = intent.data.pro_rata(&resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 					ensure!(resolve_swap.amount_in <= limit, Error::<T>::LimitViolation);
 					ensure!(resolve_swap.amount_out < swap.amount_out, Error::<T>::LimitViolation);
 				} else {
@@ -421,33 +426,34 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn intent_resolved(id: IntentId, who: &T::AccountId, resolve: &Intent) -> DispatchResult {
+	pub fn intent_resolved(who: &T::AccountId, resolve: &ResolvedIntent) -> DispatchResult {
+		let ResolvedIntent { id, data: resolve } = resolve;
 		Intents::<T>::try_mutate_exists(id, |maybe_intent| {
 			let intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
 			let owner = Self::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
 
 			ensure!(owner == *who, Error::<T>::InvalidOwner);
 
-			Self::validate_resolve(&intent, resolve)?;
+			Self::validate_resolve(&intent, &resolve)?;
 
 			let fully_resolved;
-			match intent.kind {
-				IntentKind::Swap(ref mut s) => {
-					let IntentKind::Swap(ref r) = resolve.kind;
+			match intent.data {
+				IntentData::Swap(ref mut s) => {
+					let IntentData::Swap(ref r) = resolve;
 					fully_resolved = Self::resolve_swap_intent(s, r)?;
 				}
 			};
 
 			if fully_resolved {
-				if !intent.amount_in().is_zero() {
-					Self::unlock_funds(&owner, intent.asset_in(), intent.amount_in())?;
+				if !intent.data.amount_in().is_zero() {
+					Self::unlock_funds(&owner, intent.data.asset_in(), intent.data.amount_in())?;
 				}
 
 				//NOTE: it's ok to `take`, intent will be removed from storage.
 				if let Some(cb) = intent.on_success.take() {
-					if let Err(e) = T::LazyExecutorHandler::queue(Source::ICE(id), who.clone(), cb) {
+					if let Err(e) = T::LazyExecutorHandler::queue(Source::ICE(*id), who.clone(), cb) {
 						Self::deposit_event(Event::FailedToQueueCallback {
-							id,
+							id: *id,
 							callback: CallbackType::OnSuccess,
 							error: e,
 						});
@@ -458,16 +464,16 @@ impl<T: Config> Pallet<T> {
 				IntentOwner::<T>::remove(id);
 
 				Self::deposit_event(Event::IntentResolved {
-					id,
+					id: *id,
 					amount_in: resolve.amount_in(),
 					amount_out: resolve.amount_out(),
 				});
 				return Ok(());
 			}
 
-			ensure!(intent.is_partial(), Error::<T>::LimitViolation);
+			ensure!(intent.data.is_partial(), Error::<T>::LimitViolation);
 			Self::deposit_event(Event::IntentResovedPartially {
-				id,
+				id: *id,
 				amount_in: resolve.amount_in(),
 				amount_out: resolve.amount_out(),
 			});

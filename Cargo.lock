@@ -5836,6 +5836,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ice-support"
+version = "1.0.0"
+dependencies = [
+ "frame-support",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-std",
+]
+
+[[package]]
 name = "idna"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9798,6 +9811,7 @@ dependencies = [
  "frame-system",
  "hydra-dx-math",
  "hydradx-traits",
+ "ice-support",
  "log",
  "orml-tokens",
  "orml-traits",
@@ -9890,6 +9904,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydradx-traits",
+ "ice-support",
  "log",
  "orml-tokens",
  "orml-traits",

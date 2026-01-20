@@ -52,6 +52,7 @@ members = [
     'pallets/lazy-executor',
     'pallets/intent',
     'pallets/ice',
+    'pallets/ice/support',
 ]
 
 resolver = "2"
@@ -163,6 +164,7 @@ pallet-hsm = { path = "pallets/hsm", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
 pallet-intent = { path = "pallets/intent", default-features = false }
 pallet-ice = { path = "pallets/ice", default-features = false }
+ice-support = { path = "pallets/ice/support", default-features = false }
 pallet-lazy-executor = { path = "pallets/lazy-executor", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }

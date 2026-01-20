@@ -30,6 +30,7 @@ frame-system = { workspace = true }
 hydradx-traits = { workspace = true }
 pallet-intent = { workspace = true}
 pallet-route-executor = { workspace = true}
+ice-support = { workspace = true }
 
 # Math
 hydra-dx-math = { workspace = true }
@@ -67,6 +68,7 @@ std = [
     "hydra-dx-math/std",
     "pallet-route-executor/std",
     "orml-traits/std",
+    "ice-support/std",
 ]
 
 runtime-benchmarks = [
