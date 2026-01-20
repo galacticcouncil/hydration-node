@@ -182,6 +182,7 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 	asset_fee: Permill,
 	slip_fee_config: &SlipFeeConfig<Balance>,
 ) -> Option<HubTradeStateChange<Balance>> {
+	// TODO: change this to prevent rounding errors?
 	let delta_reserve_out_gross: Balance = FixedU128::from_inner(asset_out_amount)
 		.checked_div(&Permill::one().checked_sub(&asset_fee)?.into())?
 		.into_inner();
@@ -260,21 +261,16 @@ pub fn calculate_buy_state_changes(
 	m: Permill,
 	slip_fee_config: &SlipFeeConfig<Balance>,
 ) -> Option<TradeStateChange<Balance>> {
-	let delta_reserve_out_gross_hp = to_u256!(amount)
-		.checked_mul(Permill::from_percent(100).deconstruct().into())?
-		.checked_div(Permill::one().checked_sub(&asset_fee)?.deconstruct().into())?;
-	let delta_reserve_out_gross = to_balance!(delta_reserve_out_gross_hp).ok()?;
+	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
+	let (out_hub_reserve_hp, out_reserve_no_fee_hp, out_amount_hp) =
+		to_u256!(asset_out_state.hub_reserve, reserve_no_fee, amount);
 
-	let (delta_reserve_out_gross_hp, hub_reserve_hp, reserve_hp) = to_u256!(
-		delta_reserve_out_gross,
-		asset_out_state.hub_reserve,
-		asset_out_state.reserve
-	);
-	let delta_hub_reserve_out_net_hp = delta_reserve_out_gross_hp
-		.checked_mul(hub_reserve_hp)
-		.and_then(|v| v.checked_div(reserve_hp.checked_sub(delta_reserve_out_gross_hp)?))
-		.and_then(|v| v.checked_add(U256::one()))?;
+	let delta_hub_reserve_out_net_hp = out_hub_reserve_hp
+		.checked_mul(out_amount_hp)
+		.and_then(|v| v.checked_div(out_reserve_no_fee_hp.checked_sub(out_amount_hp)?))?;
+
 	let delta_hub_reserve_out_net = to_balance!(delta_hub_reserve_out_net_hp).ok()?;
+	let delta_hub_reserve_out_net = delta_hub_reserve_out_net.checked_add(Balance::one())?;
 
 	let delta_hub_reserve_out_gross = if slip_fee_config.slip_factor.is_zero() {
 		delta_hub_reserve_out_net
@@ -295,7 +291,8 @@ pub fn calculate_buy_state_changes(
 		let u = n1.checked_mul(to_u256!(*n2))?.checked_div(denom)?;
 		let u = to_balance!(u).ok()?;
 
-		u.checked_sub(*slip_fee_config.hub_state_out.current_delta_hub_reserve)?
+		let result = Increase(u).checked_sub(&slip_fee_config.hub_state_out.current_delta_hub_reserve)?;
+		*result
 	};
 
 	// let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out_gross)?;
