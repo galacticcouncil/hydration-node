@@ -339,7 +339,7 @@ pub mod pallet {
 
 			// Transfer deposit from requester to pallet account
 			let pallet_account = Self::account_id();
-			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::KeepAlive)?;
+			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::AllowDeath)?;
 
 			// Get chain ID for event (convert BoundedVec to Vec)
 			let chain_id = ChainId::<T>::get().to_vec();
@@ -388,7 +388,7 @@ pub mod pallet {
 
 			// Transfer deposit from requester to pallet account
 			let pallet_account = Self::account_id();
-			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::KeepAlive)?;
+			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::ALlowDeath)?;
 
 			// Emit event
 			Self::deposit_event(Event::SignBidirectionalRequested {
