@@ -1649,7 +1649,11 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
-		let state_changes = state_changes.account_for_fee_taken(taken_fee);
+		let mut state_changes = state_changes.account_for_fee_taken(taken_fee);
+
+		// Store original hub reserve delta for routing to HDX subpool, then zero it
+		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
+		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
@@ -1660,7 +1664,7 @@ impl<T: Config> Pallet<T> {
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			*state_changes.asset.delta_hub_reserve, // note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
+			hub_reserve_delta, // note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
 		)?;
 		T::Currency::transfer(
 			asset_out,
@@ -1682,11 +1686,14 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
+		// Route H2O to HDX subpool instead of traded asset's subpool, to bump HDX prices
+		Self::increase_hdx_subpool_hub_reserve(hub_reserve_delta)?;
+
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
 			asset_out,
-			amount_in: *state_changes.asset.delta_hub_reserve,
+			amount_in: hub_reserve_delta,
 			amount_out: *state_changes.asset.delta_reserve,
 			hub_amount_in: 0,
 			hub_amount_out: 0,
@@ -1700,10 +1707,7 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_broadcast::types::Filler::Omnipool,
 			pallet_broadcast::types::TradeOperation::ExactIn,
-			vec![Asset::new(
-				T::HubAssetId::get().into(),
-				*state_changes.asset.delta_hub_reserve,
-			)],
+			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
 		);
@@ -1764,7 +1768,11 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
-		let state_changes = state_changes.account_for_fee_taken(taken_fee);
+		let mut state_changes = state_changes.account_for_fee_taken(taken_fee);
+
+		// Store original hub reserve delta for routing to HDX subpool, then zero it
+		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
+		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
@@ -1774,7 +1782,7 @@ impl<T: Config> Pallet<T> {
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			*state_changes.asset.delta_hub_reserve, //note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
+			hub_reserve_delta, //note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
 		)?;
 		T::Currency::transfer(
 			asset_out,
@@ -1796,12 +1804,15 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
+		// Route H2O to HDX subpool instead of traded asset's subpool, to bump HDX prices
+		Self::increase_hdx_subpool_hub_reserve(hub_reserve_delta)?;
+
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
 			asset_out,
-			amount_in: *state_changes.asset.delta_hub_reserve,
+			amount_in: hub_reserve_delta,
 			amount_out: *state_changes.asset.delta_reserve,
 			hub_amount_in: 0,
 			hub_amount_out: 0,
@@ -1815,10 +1826,7 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_broadcast::types::Filler::Omnipool,
 			pallet_broadcast::types::TradeOperation::ExactOut,
-			vec![Asset::new(
-				T::HubAssetId::get().into(),
-				*state_changes.asset.delta_hub_reserve,
-			)],
+			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
 		);
