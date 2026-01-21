@@ -106,6 +106,16 @@ fn batch_execution_type_should_be_included_in_batch() {
 				},
 				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(LRNA, 5640664064)],
+					outputs: vec![Asset::new(HDX, 0)],
+					fees: vec![],
+					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
+				},
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
+					swapper: BOB.into(),
 					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
 						asset_out: DOT,
@@ -291,6 +301,20 @@ fn nested_batch_should_represent_embeddedness() {
 						11736653730,
 						Destination::Account(Omnipool::protocol_account())
 					)],
+					operation_stack: vec![
+						ExecutionType::Batch(0),
+						ExecutionType::Batch(1),
+						ExecutionType::Router(2)
+					],
+				},
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(LRNA, 5640664064)],
+					outputs: vec![Asset::new(HDX, 0)],
+					fees: vec![],
 					operation_stack: vec![
 						ExecutionType::Batch(0),
 						ExecutionType::Batch(1),
