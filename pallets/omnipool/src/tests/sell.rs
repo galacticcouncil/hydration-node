@@ -1187,6 +1187,45 @@ fn sell_hub_routes_to_hdx_subpool() {
 
 			assert_eq!(Tokens::free_balance(LRNA, &LP3), 100 * ONE - sell_amount);
 			assert_eq!(Tokens::free_balance(100, &LP3), expected_received);
+
+			// Verify the HDX routing event is emitted
+			expect_last_events(vec![
+				Event::SellExecuted {
+					who: LP3,
+					asset_in: LRNA,
+					asset_out: 100,
+					amount_in: sell_amount,
+					amount_out: expected_received,
+					hub_amount_in: 0,
+					hub_amount_out: 0,
+					asset_fee_amount: 0,
+					protocol_fee_amount: 0,
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped3 {
+					swapper: LP3,
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(LRNA, sell_amount)],
+					outputs: vec![Asset::new(100, expected_received)],
+					fees: vec![Fee::new(100, 0, Destination::Account(Omnipool::protocol_account()))],
+					operation_stack: vec![],
+				}
+				.into(),
+				// HDX routing event
+				pallet_broadcast::Event::Swapped3 {
+					swapper: LP3,
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(LRNA, sell_amount)],
+					outputs: vec![Asset::new(HDX, 0)],
+					fees: vec![],
+					operation_stack: vec![],
+				}
+				.into(),
+			]);
 		});
 }
 
@@ -1244,5 +1283,44 @@ fn buy_for_hub_routes_to_hdx_subpool() {
 
 			assert_eq!(Tokens::free_balance(LRNA, &LP3), 100 * ONE - expected_lrna_spent);
 			assert_eq!(Tokens::free_balance(100, &LP3), buy_amount);
+
+			// Verify the HDX routing event is emitted
+			expect_last_events(vec![
+				Event::BuyExecuted {
+					who: LP3,
+					asset_in: LRNA,
+					asset_out: 100,
+					amount_in: expected_lrna_spent,
+					amount_out: buy_amount,
+					hub_amount_in: 0,
+					hub_amount_out: 0,
+					asset_fee_amount: 0,
+					protocol_fee_amount: 0,
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped3 {
+					swapper: LP3,
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactOut,
+					inputs: vec![Asset::new(LRNA, expected_lrna_spent)],
+					outputs: vec![Asset::new(100, buy_amount)],
+					fees: vec![Fee::new(100, 0, Destination::Account(Omnipool::protocol_account()))],
+					operation_stack: vec![],
+				}
+				.into(),
+				// HDX routing event
+				pallet_broadcast::Event::Swapped3 {
+					swapper: LP3,
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(LRNA, expected_lrna_spent)],
+					outputs: vec![Asset::new(HDX, 0)],
+					fees: vec![],
+					operation_stack: vec![],
+				}
+				.into(),
+			]);
 		});
 }

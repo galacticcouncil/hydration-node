@@ -1712,6 +1712,17 @@ impl<T: Config> Pallet<T> {
 			trade_fees,
 		);
 
+		// Emit trade event for H2O routing to HDX subpool
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
+			who.clone(),
+			Self::protocol_account(),
+			pallet_broadcast::types::Filler::Omnipool,
+			pallet_broadcast::types::TradeOperation::ExactIn,
+			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
+			vec![Asset::new(T::HdxAssetId::get().into(), Balance::zero())],
+			vec![], // no fees for internal routing
+		);
+
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
 
 		Ok(())
@@ -1829,6 +1840,17 @@ impl<T: Config> Pallet<T> {
 			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
+		);
+
+		// Emit trade event for H2O routing to HDX subpool
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
+			who.clone(),
+			Self::protocol_account(),
+			pallet_broadcast::types::Filler::Omnipool,
+			pallet_broadcast::types::TradeOperation::ExactIn,
+			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
+			vec![Asset::new(T::HdxAssetId::get().into(), Balance::zero())],
+			vec![], // no fees for internal routing
 		);
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
