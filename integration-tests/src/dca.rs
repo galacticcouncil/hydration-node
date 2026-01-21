@@ -504,7 +504,7 @@ mod omnipool {
 			));
 
 			//Assert
-			assert_balance!(ALICE.into(), HDX, 859578905568959);
+			assert_balance!(ALICE.into(), HDX, 859578905761517);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		});
 
@@ -533,7 +533,7 @@ mod omnipool {
 			));
 
 			//Assert
-			assert_balance!(ALICE.into(), HDX, 859578905568959);
+			assert_balance!(ALICE.into(), HDX, 859578905761517);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		});
 	}
@@ -591,7 +591,7 @@ mod omnipool {
 			));
 
 			//Assert
-			assert_balance!(ALICE.into(), LRNA, 4929824559916281);
+			assert_balance!(ALICE.into(), LRNA, 4929824559956382);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		});
 
@@ -623,7 +623,7 @@ mod omnipool {
 			));
 
 			//Assert
-			assert_balance!(ALICE.into(), LRNA, 4929824559916281);
+			assert_balance!(ALICE.into(), LRNA, 4929824559956382);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		});
 	}
@@ -775,7 +775,7 @@ mod omnipool {
 			let dca_budget = 1100 * UNITS;
 			let amount_to_sell = 100 * UNITS;
 			let schedule1 =
-				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, dca_budget, HDX, DAI, amount_to_sell);
+			schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, dca_budget, HDX, DAI, amount_to_sell);
 			create_schedule(ALICE, schedule1);
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -790,7 +790,7 @@ mod omnipool {
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 			assert!(fee > 0, "Treasury got rugged");
 
-			assert_balance!(ALICE.into(), DAI, 2071214372591672);
+			assert_balance!(ALICE.into(), DAI, 2071214372689327);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell - fee);
 		});
@@ -1563,7 +1563,7 @@ mod omnipool {
 			assert!(fee > 0, "Treasury got rugged");
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
-			assert_balance!(ALICE.into(), DAI, 2071214372591672);
+			assert_balance!(ALICE.into(), DAI, 2071214372689327);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_in - fee);
 		});
 	}
@@ -1671,7 +1671,7 @@ mod omnipool {
 			let treasury_balance = Currencies::free_balance(LRNA, &Treasury::account_id());
 			assert!(treasury_balance > 0);
 
-			assert_balance!(ALICE.into(), DAI, 2142499995765714);
+			assert_balance!(ALICE.into(), DAI, 2142499995847142);
 			assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
 			let reserved_budget = Currencies::reserved_balance(LRNA, &ALICE.into());
 			assert!(reserved_budget < dca_budget);
@@ -1710,7 +1710,7 @@ mod omnipool {
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell - fee);
 
-			assert_balance!(ALICE.into(), DAI, 2071214372591672);
+			assert_balance!(ALICE.into(), DAI, 2071214372689327);
 		});
 
 		//Direct Omnipool
@@ -1736,7 +1736,7 @@ mod omnipool {
 
 			//Assert
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - amount_to_sell);
-			assert_balance!(ALICE.into(), DAI, 2071214372591672);
+			assert_balance!(ALICE.into(), DAI, 2071214372689327);
 		});
 
 		//Router
@@ -1768,7 +1768,7 @@ mod omnipool {
 
 			//Assert
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - amount_to_sell);
-			assert_balance!(ALICE.into(), DAI, 2071214372591672);
+			assert_balance!(ALICE.into(), DAI, 2071214372689327);
 		});
 	}
 
@@ -1800,7 +1800,7 @@ mod omnipool {
 			let fee = Currencies::free_balance(LRNA, &Treasury::account_id());
 			assert_reserved_balance!(&ALICE.into(), LRNA, dca_budget - amount_to_sell - fee);
 
-			assert_balance!(ALICE.into(), DAI, 2142499995765714);
+			assert_balance!(ALICE.into(), DAI, 2142499995847142);
 		});
 
 		//Direct omnipool
@@ -1826,7 +1826,7 @@ mod omnipool {
 
 			//Assert
 			assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance - amount_to_sell);
-			assert_balance!(ALICE.into(), DAI, 2142499995765714);
+			assert_balance!(ALICE.into(), DAI, 2142499995847142);
 		});
 
 		//Router
@@ -1854,7 +1854,7 @@ mod omnipool {
 
 			//Assert
 			assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance - amount_to_sell);
-			assert_balance!(ALICE.into(), DAI, 2142499995765714);
+			assert_balance!(ALICE.into(), DAI, 2142499995847142);
 		});
 	}
 
@@ -2436,7 +2436,7 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades() {
 		let amount_to_sell = 200 * UNITS;
-		let amount_to_receive = 197218633037918;
+		let amount_to_receive = 197218633116789;
 		//With DCA
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -2910,7 +2910,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, 1070726380525269);
+				assert_balance!(ALICE.into(), HDX, 1070726380522238);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -3013,7 +3013,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, 1070726380525269);
+				assert_balance!(ALICE.into(), HDX, 1070726380522238);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -3553,7 +3553,7 @@ mod all_pools {
 
 				//Assert
 				assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
-				assert_balance!(ALICE.into(), DAI, 2380211607465609);
+				assert_balance!(ALICE.into(), DAI, 2380211607614709);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -3708,7 +3708,7 @@ mod with_onchain_route {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades_with_onchain_routes() {
 		let amount_to_sell = 200 * UNITS;
-		let amount_to_receive = 187172768546856u128;
+		let amount_to_receive = 187172768621709u128;
 
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -3917,7 +3917,7 @@ mod with_onchain_route {
 			assert!(fee > 0, "The treasury did not receive the fee");
 
 			assert_balance!(ALICE.into(), DOT, alice_init_dot_balance - dca_budget);
-			assert_balance!(ALICE.into(), HDX, 1398004528624518);
+			assert_balance!(ALICE.into(), HDX, 1398004528465345);
 
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
@@ -4177,7 +4177,7 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			assert_balance!(ALICE.into(), HDX, 5268226594908739);
+			assert_balance!(ALICE.into(), HDX, 5266445659477853);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}
