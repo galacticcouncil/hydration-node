@@ -31,6 +31,7 @@ use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_runtime::Saturating;
 use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
+use sp_std::vec::Vec;
 pub mod weights;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
@@ -143,11 +144,9 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
-			let now = Self::timestamp_now();
 			// Lift lockdown automatically when time has passed.
-			let until = Self::withdraw_lockdown_until();
-
-			if until.is_some_and(|u| now >= u) {
+			let lockdown_until = Self::withdraw_lockdown_until();
+			if lockdown_until.is_some_and(|until| Self::timestamp_now() >= until) {
 				WithdrawLockdownUntil::<T>::kill();
 				Self::deposit_event(Event::GlobalLockdownLifted);
 			}
@@ -252,6 +251,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type GlobalWithdrawWindow: Get<primitives::Moment>;
 
+		/// The maximum number of accounts that can be in the egress accounts list.
+		#[pallet::constant]
+		type MaxEgressAccounts: Get<u32>;
+
 		type TimestampProvider: Time<Moment = primitives::Moment>;
 	}
 
@@ -335,6 +338,11 @@ pub mod pallet {
 	/// If some, global lockdown is active until this timestamp.
 	pub type WithdrawLockdownUntil<T: Config> = StorageValue<_, primitives::Moment, OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn egress_accounts)]
+	/// List of accounts that are considered egress sinks.
+	pub type EgressAccounts<T: Config> = StorageValue<_, BoundedVec<T::AccountId, T::MaxEgressAccounts>, ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -372,6 +380,10 @@ pub mod pallet {
 		GlobalLockdownReset,
 		/// Global limit value updated by governance (in reference currency).
 		GlobalLimitUpdated { new_limit: T::Balance },
+		/// Egress accounts list was updated.
+		EgressAccountsUpdated {
+			accounts: BoundedVec<T::AccountId, T::MaxEgressAccounts>,
+		},
 	}
 
 	#[pallet::error]
@@ -401,6 +413,8 @@ pub mod pallet {
 		GlobalLockdownActive,
 		/// Applying the increment would exceed the configured global limit -> lockdown is triggered and operation fails.
 		GlobalLimitExceeded,
+		/// Maximum number of egress accounts reached.
+		MaxEgressAccountsReached,
 	}
 
 	#[pallet::call]
@@ -606,7 +620,7 @@ pub mod pallet {
 		/// Reset the global lockdown and accumulator to zero at current block.
 		/// Can be called only by authority origin.
 		#[pallet::call_index(7)]
-		#[pallet::weight(T::DbWeight::get().reads_writes(1,3))]
+		#[pallet::weight(T::DbWeight::get().reads_writes(1,2))]
 		pub fn reset_global_lockdown(origin: OriginFor<T>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -615,6 +629,22 @@ pub mod pallet {
 
 			WithdrawLockdownUntil::<T>::kill();
 			Self::deposit_event(Event::GlobalLockdownReset);
+
+			Ok(())
+		}
+
+		#[pallet::call_index(12)]
+		#[pallet::weight(T::DbWeight::get().writes(1))]
+		pub fn set_egress_accounts(origin: OriginFor<T>, accounts: Vec<T::AccountId>) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			let bounded_accounts: BoundedVec<T::AccountId, T::MaxEgressAccounts> =
+				accounts.try_into().map_err(|_| Error::<T>::MaxEgressAccountsReached)?;
+
+			EgressAccounts::<T>::put(bounded_accounts.clone());
+			Self::deposit_event(Event::EgressAccountsUpdated {
+				accounts: bounded_accounts,
+			});
 
 			Ok(())
 		}
@@ -641,13 +671,16 @@ impl<T: Config> Pallet<T> {
 	/// Decay the accumulator linearly over the configured window.
 	/// Guarded to run at most once per block (by timestamp guard).
 	pub fn try_to_decay_withdraw_limit_accumulator() {
+		let window = Self::global_withdraw_window();
+		if window < 1 {
+			return;
+		}
+
 		let now = Self::timestamp_now();
 		let (current, last_update) = Self::withdraw_limit_accumulator();
 		let time_diff = now.saturating_sub(last_update);
 
-		if !time_diff.is_zero() {
-			let window = Self::global_withdraw_window();
-
+		if !time_diff.is_zero() && !Self::is_lockdown_at(now) {
 			let capped_dt = time_diff.min(window);
 			let p = sp_runtime::Perbill::from_rational(capped_dt, window);
 			// TODO: decide after testing whether to leave it as it is, use Perquintill or consider remainder if needed
@@ -662,6 +695,11 @@ impl<T: Config> Pallet<T> {
 	/// Apply an increment in reference currency to the global accumulator.
 	/// Fails if lockdown is active or if the new value would exceed the global limit.
 	pub fn note_egress(amount: T::Balance) -> DispatchResult {
+		let window = Self::global_withdraw_window();
+		if window < 1 {
+			return Ok(());
+		}
+
 		let now = Self::timestamp_now();
 		if Self::is_lockdown_at(now) {
 			return Err(Error::<T>::GlobalLockdownActive.into());

@@ -173,6 +173,7 @@ parameter_types! {
 	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = LRNA;
 	pub const GlobalWithdrawWindow: primitives::Moment = 24 * 60 * 60 * 1000; // 24h
+	pub const MaxEgressAccounts: u32 = 10;
 }
 
 impl pallet_circuit_breaker::Config for Test {
@@ -188,6 +189,7 @@ impl pallet_circuit_breaker::Config for Test {
 	type WeightInfo = ();
 	type DepositLimiter = DepositLimiter;
 	type GlobalWithdrawWindow = GlobalWithdrawWindow;
+	type MaxEgressAccounts = MaxEgressAccounts;
 	type TimestampProvider = Timestamp;
 
 	#[cfg(feature = "runtime-benchmarks")]

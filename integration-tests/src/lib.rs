@@ -43,8 +43,8 @@ mod utility;
 pub mod utils;
 mod vesting;
 mod xcm;
-mod xcm_lockdown;
 mod xcm_aliasers;
+mod xcm_lockdown;
 mod xyk;
 mod xyk_liquidity_mining;
 

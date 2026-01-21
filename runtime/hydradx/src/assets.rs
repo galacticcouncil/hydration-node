@@ -606,6 +606,7 @@ parameter_types! {
 
 	// Global withdraw limit parameters
 	pub const GlobalWithdrawWindow: primitives::Moment = primitives::constants::time::unix_time::DAY;
+	pub const MaxEgressAccounts: u32 = 100;
 }
 
 impl pallet_circuit_breaker::Config for Runtime {
@@ -623,6 +624,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = CircuitBreakerBenchmarkHelper<Runtime>;
 	type GlobalWithdrawWindow = GlobalWithdrawWindow;
+	type MaxEgressAccounts = MaxEgressAccounts;
 	type TimestampProvider = Timestamp;
 }
 
