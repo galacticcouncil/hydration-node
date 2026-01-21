@@ -439,12 +439,12 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				who: BOB.into(),
 				asset_in: DAI,
 				asset_out: HDX,
-				amount_in: 27034239540904000,
+				amount_in: 27105999707057867,
 				amount_out: 1_000_000_000_000,
-				hub_amount_in: 1218703819,
-				hub_amount_out: 1218094469,
-				asset_fee_amount: 10215297085,
-				protocol_fee_amount: 609351,
+				hub_amount_in: 1220853806,
+				hub_amount_out: 1220243381,
+				asset_fee_amount: 10207132871,
+				protocol_fee_amount: 610426,
 			}
 			.into(),
 			pallet_broadcast::Event::Swapped3 {
@@ -452,11 +452,11 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				filler: Omnipool::protocol_account(),
 				filler_type: Filler::Omnipool,
 				operation: TradeOperation::ExactOut,
-				inputs: vec![Asset::new(DAI, 27034239540904000)],
-				outputs: vec![Asset::new(LRNA, 1218703819)],
+				inputs: vec![Asset::new(DAI, 27105999707057867)],
+				outputs: vec![Asset::new(LRNA, 1220853806)],
 				fees: vec![Fee::new(
 					LRNA,
-					609351,
+					610426,
 					Destination::Account(Omnipool::protocol_account()),
 				)],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
@@ -467,11 +467,11 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				filler: Omnipool::protocol_account(),
 				filler_type: Filler::Omnipool,
 				operation: TradeOperation::ExactOut,
-				inputs: vec![Asset::new(LRNA, 1218094468)],
+				inputs: vec![Asset::new(LRNA, 1220243380)],
 				outputs: vec![Asset::new(HDX, 1_000_000_000_000)],
 				fees: vec![
 					Fee::new(HDX, 1, Destination::Account(Omnipool::protocol_account())),
-					Fee::new(HDX, 10215297084, Destination::Account(Staking::pot_account_id())),
+					Fee::new(HDX, 10207132870, Destination::Account(Staking::pot_account_id())),
 				],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
@@ -481,7 +481,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
 		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 0);
-		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 10215297084);
+		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 10207132870);
 	});
 }
 
@@ -509,12 +509,12 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				who: BOB.into(),
 				asset_in: HDX,
 				asset_out: DAI,
-				amount_in: 37622382629988,
+				amount_in: 37522474282594,
 				amount_out: 1_000_000_000_000_000_000,
-				hub_amount_in: 45362332324,
-				hub_amount_out: 45469007788,
+				hub_amount_in: 45322055075,
+				hub_amount_out: 45428635822,
 				asset_fee_amount: 5738745280570938,
-				protocol_fee_amount: 22681166,
+				protocol_fee_amount: 22661027,
 			}
 			.into(),
 			pallet_broadcast::Event::Swapped3 {
@@ -522,11 +522,11 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				filler: Omnipool::protocol_account(),
 				filler_type: pallet_broadcast::types::Filler::Omnipool,
 				operation: pallet_broadcast::types::TradeOperation::ExactOut,
-				inputs: vec![Asset::new(HDX, 37622382629988)],
-				outputs: vec![Asset::new(LRNA, 45362332324)],
+				inputs: vec![Asset::new(HDX, 37522474282594)],
+				outputs: vec![Asset::new(LRNA, 45322055075)],
 				fees: vec![Fee::new(
 					LRNA,
-					22681166,
+					22661027,
 					Destination::Account(Omnipool::protocol_account()),
 				)],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
@@ -537,7 +537,7 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				filler: Omnipool::protocol_account(),
 				filler_type: pallet_broadcast::types::Filler::Omnipool,
 				operation: pallet_broadcast::types::TradeOperation::ExactOut,
-				inputs: vec![Asset::new(LRNA, 45339651158)],
+				inputs: vec![Asset::new(LRNA, 45299394048)],
 				outputs: vec![Asset::new(DAI, 1_000_000_000_000_000_000)],
 				fees: vec![
 					Fee::new(

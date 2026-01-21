@@ -237,11 +237,11 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(HDX, 140421094366889)],
-						outputs: vec![Asset::new(LRNA, 70210545436637)],
+						inputs: vec![Asset::new(HDX, 140421093981778)],
+						outputs: vec![Asset::new(LRNA, 70210545356397)],
 						fees: vec![Fee::new(
 							LRNA,
-							35105272718,
+							35105272678,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -255,7 +255,7 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(LRNA, 70175440163919)],
+						inputs: vec![Asset::new(LRNA, 70175440083719)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![Fee::new(
 							DAI,
@@ -283,11 +283,11 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(HDX, 140421107721220)],
-						outputs: vec![Asset::new(LRNA, 70210548452699)],
+						inputs: vec![Asset::new(HDX, 140421106854717)],
+						outputs: vec![Asset::new(LRNA, 70210548272158)],
 						fees: vec![Fee::new(
 							LRNA,
-							35105274226,
+							35105274136,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -301,7 +301,7 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(LRNA, 70175443178473)],
+						inputs: vec![Asset::new(LRNA, 70175442998022)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![Fee::new(
 							DAI,
@@ -833,10 +833,10 @@ mod omnipool {
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, amount_to_sell)],
-						outputs: vec![Asset::new(LRNA, 49999999160157)],
+						outputs: vec![Asset::new(LRNA, 49999999240142)],
 						fees: vec![Fee::new(
 							LRNA,
-							24999999580,
+							24999999620,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -850,11 +850,11 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
-						inputs: vec![Asset::new(LRNA, 49974999160577)],
-						outputs: vec![Asset::new(DAI, 71214372624206)],
+						inputs: vec![Asset::new(LRNA, 49974999240522)],
+						outputs: vec![Asset::new(DAI, 71214372819515)],
 						fees: vec![Fee::new(
 							DAI,
-							178482136903,
+							178482137393,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -879,10 +879,10 @@ mod omnipool {
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, amount_to_sell)],
-						outputs: vec![Asset::new(LRNA, 49999997360994)],
+						outputs: vec![Asset::new(LRNA, 49999997540960)],
 						fees: vec![Fee::new(
 							LRNA,
-							24999998680,
+							24999998770,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -896,11 +896,11 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
-						inputs: vec![Asset::new(LRNA, 49974997362314)],
-						outputs: vec![Asset::new(DAI, 71214367824533)],
+						inputs: vec![Asset::new(LRNA, 49974997542190)],
+						outputs: vec![Asset::new(DAI, 71214368263979)],
 						fees: vec![Fee::new(
 							DAI,
-							178482124874,
+							178482125975,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
