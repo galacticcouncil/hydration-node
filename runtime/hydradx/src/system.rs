@@ -305,7 +305,10 @@ impl pallet_collator_selection::Config for Runtime {
 	type MaxCandidates = ConstU32<20>;
 	type MaxInvulnerables = MaxInvulnerables;
 	// should be a multiple of session or things will get inconsistent
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type KickThreshold = Period;
+	#[cfg(feature = "runtime-benchmarks")]
+	type KickThreshold = ConstU32<10>; // Use small value like polkadot-sdk mock to avoid PoV regression issues
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
 	type ValidatorRegistration = Session;
