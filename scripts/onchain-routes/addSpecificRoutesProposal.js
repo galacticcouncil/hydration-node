@@ -17,28 +17,38 @@ const RPC = "wss://hydration-rpc.n.dwellir.com"
 // Asset pairs to create routes for
 // Format: "assetIn-assetOut" (e.g., "10-222")
 const ASSET_PAIRS = [
-    "5-30",
-    "30-1000766",
-    "30-1000767",
-    "0-1112",     // HUSDS
-    "0-1000809",  // wstETH
-    "0-1000625",  // sUSDe
-    "0-1110",     // HUSDC
-    "0-1000766",  // USDC
-    "0-1113",     // HUSDe
-    "0-252525",   // EWT
-    "0-1000767",  // USDT
-    "0-1006",     // atBTC
-    "0-1000745",  // sUSDS
-    "0-1039",     // aPAGX
-    "0-1001",     // aDOT
-    "0-1002",     // aUSDT
-    "0-1004",     // aWBTC
-    "0-1005",     // avDOT
-    //"0-69",       // GDOT
-    "0-34"        // ETH
+    // Existing non-DOT pairs
+    "10-30",
+    "22-30",
+    "22-252525",
+    // Existing DOT pairs (assets not in omnipool)
+    "5-10",
+    "5-252525",
+    "5-1000085",
+    // DOT <> all omnipool assets
+    "0-5",       // HDX
+    "5-9",       // ASTR
+    "5-14",      // BNC
+    "5-15",      // vDOT
+    "5-16",      // GLMR
+    "5-19",      // WBTC
+    "5-33",      // vASTR
+    "5-35",      // TRAC
+    "5-38",      // ENA
+    "5-39",      // PAXG
+    "5-102",     // 2-Pool
+    "5-222",     // HOLLAR
+    "5-420",     // GETH
+    "5-1001",    // aDOT
+    "5-1000624", // AAVE
+    "5-1000752", // SOL
+    "5-1000753", // SUI
+    "5-1000765", // tBTC
+    "5-1000771", // KSM
+    "5-1000794", // LINK
+    "5-1000795", // SKY
+    "5-1000796", // LDO
 ];
-
 /* ========= MAIN LOGIC ========= */
 
 // Log file for route processing with timestamp
