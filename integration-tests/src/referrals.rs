@@ -454,10 +454,11 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				operation: TradeOperation::ExactOut,
 				inputs: vec![Asset::new(DAI, 27034239540904000)],
 				outputs: vec![Asset::new(LRNA, 1218703819)],
-				fees: vec![
-					Fee::new(LRNA, 304675, Destination::Burned),
-					Fee::new(LRNA, 304676, Destination::Account(Treasury::account_id())),
-				],
+				fees: vec![Fee::new(
+					LRNA,
+					609351,
+					Destination::Account(Omnipool::protocol_account()),
+				)],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
@@ -523,10 +524,11 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				operation: pallet_broadcast::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(HDX, 37622382629988)],
 				outputs: vec![Asset::new(LRNA, 45362332324)],
-				fees: vec![
-					Fee::new(LRNA, 11340583, Destination::Burned),
-					Fee::new(LRNA, 11340583, Destination::Account(Treasury::account_id())),
-				],
+				fees: vec![Fee::new(
+					LRNA,
+					22681166,
+					Destination::Account(Omnipool::protocol_account()),
+				)],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),

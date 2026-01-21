@@ -2306,10 +2306,11 @@ mod omnipool_router_tests {
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, amount_to_sell)],
 						outputs: vec![Asset::new(LRNA, 12014871681)],
-						fees: vec![
-							Fee::new(LRNA, 3003717, Destination::Burned),
-							Fee::new(LRNA, 3003718, Destination::Account(Treasury::account_id())),
-						],
+						fees: vec![Fee::new(
+							LRNA,
+							6007435,
+							Destination::Account(Omnipool::protocol_account())
+						),],
 						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 					},
 					pallet_broadcast::Event::Swapped3 {
@@ -2366,10 +2367,11 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, amount_to_sell)],
 					outputs: vec![Asset::new(LRNA, 12_014_871_681)],
-					fees: vec![
-						Fee::new(LRNA, 3003717, Destination::Burned),
-						Fee::new(LRNA, 3003718, Destination::Account(Treasury::account_id())),
-					],
+					fees: vec![Fee::new(
+						LRNA,
+						6007435,
+						Destination::Account(Omnipool::protocol_account()),
+					)],
 
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
@@ -2545,10 +2547,11 @@ mod omnipool_router_tests {
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(HDX, amount_in)],
 						outputs: vec![Asset::new(LRNA, 4513544013)],
-						fees: vec![
-							Fee::new(LRNA, 1128386, Destination::Burned),
-							Fee::new(LRNA, 1128386, Destination::Account(Treasury::account_id())),
-						],
+						fees: vec![Fee::new(
+							LRNA,
+							2256772,
+							Destination::Account(Omnipool::protocol_account())
+						),],
 						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 					},
 					pallet_broadcast::Event::Swapped3 {
@@ -2605,10 +2608,11 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, amount_in)],
 					outputs: vec![Asset::new(LRNA, 4513544013)],
-					fees: vec![
-						Fee::new(LRNA, 1128386, Destination::Burned),
-						Fee::new(LRNA, 1128386, Destination::Account(Treasury::account_id())),
-					],
+					fees: vec![Fee::new(
+						LRNA,
+						2256772,
+						Destination::Account(Omnipool::protocol_account()),
+					)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
