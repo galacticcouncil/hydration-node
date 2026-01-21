@@ -934,7 +934,7 @@ pub mod pallet {
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
 			let protocol_fees =
-				Self::process_protocol_fee(state_changes.fee.protocol_fee, state_changes.fee.burnt_protocol_fee)?;
+				Self::process_protocol_fee(state_changes.fee.protocol_fee, state_changes.fee.burned_protocol_fee)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who: who.clone(),
@@ -1159,7 +1159,7 @@ pub mod pallet {
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
 			let protocol_fees =
-				Self::process_protocol_fee(state_changes.fee.protocol_fee, state_changes.fee.burnt_protocol_fee)?;
+				Self::process_protocol_fee(state_changes.fee.protocol_fee, state_changes.fee.burned_protocol_fee)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who: who.clone(),
@@ -1535,20 +1535,20 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Process protocol fee.
-	/// Given the total `protocol_fee` and already `burnt` portion of the fee, transfer the rest to HDX subpool
+	/// Given the total `protocol_fee` and already `burned` portion of the fee, transfer the rest to HDX subpool
 	/// Returns information where the fee amounts were transferred/burned for fee reporting.
-	fn process_protocol_fee(protocol_fee: Balance, burnt: Balance) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
+	fn process_protocol_fee(protocol_fee: Balance, burned: Balance) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
 		if protocol_fee.is_zero() {
 			return Ok(vec![]);
 		}
 
-		debug_assert!(burnt <= protocol_fee);
+		debug_assert!(burned <= protocol_fee);
 		let mut fee_report = vec![];
 
-		let remaining_protocol_fee = protocol_fee.saturating_sub(burnt);
+		let remaining_protocol_fee = protocol_fee.saturating_sub(burned);
 
-		if burnt > Balance::zero() {
-			fee_report.push(Fee::new(T::HubAssetId::get().into(), burnt, Destination::Burned));
+		if burned > Balance::zero() {
+			fee_report.push(Fee::new(T::HubAssetId::get().into(), burned, Destination::Burned));
 		}
 
 		if remaining_protocol_fee.is_zero() {

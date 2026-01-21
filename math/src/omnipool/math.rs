@@ -82,7 +82,7 @@ pub fn calculate_sell_state_changes(
 		fee: TradeFee {
 			asset_fee: asset_fee_amount,
 			protocol_fee: protocol_fee_amount,
-			burnt_protocol_fee: burned_protocol_fee,
+			burned_protocol_fee: burned_protocol_fee,
 		},
 	})
 }
@@ -264,7 +264,7 @@ pub fn calculate_buy_state_changes(
 		fee: TradeFee {
 			asset_fee: asset_fee_amount,
 			protocol_fee: protocol_fee_amount,
-			burnt_protocol_fee: burned_protocol_fee,
+			burned_protocol_fee: burned_protocol_fee,
 		},
 	})
 }
