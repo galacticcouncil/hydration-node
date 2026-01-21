@@ -7,7 +7,7 @@ use crate::{
 	Error, ErrorResponse, Event,
 };
 use frame_support::traits::Currency;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, BoundedVec};
 use sp_runtime::traits::AccountIdConversion;
 
 // -----------------------------------------------------------------------------
@@ -491,7 +491,7 @@ fn test_sign_bidirectional_works() {
 
 		assert_ok!(Signet::sign_bidirectional(
 			RuntimeOrigin::signed(requester),
-			bounded_u8::<65536>(tx_data.clone()),
+			bounded_u8::<4194304>(tx_data.clone()),
 			bounded_u8::<64>(caip2_id.to_vec()),
 			1,
 			bounded_u8::<256>(b"path".to_vec()),
@@ -523,7 +523,7 @@ fn test_sign_bidirectional_empty_transaction_fails() {
 		assert_noop!(
 			Signet::sign_bidirectional(
 				RuntimeOrigin::signed(requester),
-				bounded_u8::<65536>(vec![]),
+				bounded_u8::<4194304>(vec![]),
 				bounded_u8::<64>(CAIP2_SEPOLIA.to_vec()),
 				1,
 				bounded_u8::<256>(b"path".to_vec()),
@@ -673,7 +673,7 @@ fn test_respond_bidirectional() {
 		assert_ok!(Signet::respond_bidirectional(
 			RuntimeOrigin::signed(responder),
 			request_id,
-			bounded_u8::<65536>(output.clone()),
+			bounded_u8::<4194304>(output.clone()),
 			signature.clone()
 		));
 
@@ -773,5 +773,113 @@ fn test_cross_pallet_execution() {
 			mock_pallet_account
 		);
 		println!("   NOT as: {} (the original user)", NON_ADMIN);
+	});
+}
+
+// -----------------------------------------------------------------------------
+// Bitcoin Transaction Tests
+// -----------------------------------------------------------------------------
+
+use crate::{
+	tests::utils::{create_test_bitcoin_output, create_test_utxo_input},
+	BitcoinOutput, MaxBitcoinInputs, MaxBitcoinOutputs, UtxoInput,
+};
+
+#[test]
+fn test_build_bitcoin_tx_works() {
+	new_test_ext().execute_with(|| {
+		let inputs = BoundedVec::<UtxoInput, MaxBitcoinInputs>::try_from(vec![create_test_utxo_input(
+			[0x42; 32],
+			0,
+			100_000_000,
+		)])
+		.unwrap();
+
+		let outputs =
+			BoundedVec::<BitcoinOutput, MaxBitcoinOutputs>::try_from(vec![create_test_bitcoin_output(99_900_000)])
+				.unwrap();
+
+		let result = Signet::build_bitcoin_tx(RuntimeOrigin::signed(ADMIN), inputs, outputs, 0);
+
+		assert_ok!(&result);
+		let psbt = result.unwrap();
+		assert!(!psbt.is_empty(), "PSBT should not be empty");
+	});
+}
+
+#[test]
+fn test_get_bitcoin_txid_works() {
+	new_test_ext().execute_with(|| {
+		let inputs = BoundedVec::<UtxoInput, MaxBitcoinInputs>::try_from(vec![create_test_utxo_input(
+			[0x42; 32],
+			0,
+			100_000_000,
+		)])
+		.unwrap();
+
+		let outputs =
+			BoundedVec::<BitcoinOutput, MaxBitcoinOutputs>::try_from(vec![create_test_bitcoin_output(99_900_000)])
+				.unwrap();
+
+		let result = Signet::get_bitcoin_txid(RuntimeOrigin::signed(ADMIN), inputs.clone(), outputs.clone(), 0);
+
+		assert_ok!(&result);
+		let txid = result.unwrap();
+		assert_eq!(txid.len(), 32, "Txid should be 32 bytes");
+
+		// Verify txid is deterministic
+		let result2 = Signet::get_bitcoin_txid(RuntimeOrigin::signed(ADMIN), inputs, outputs, 0);
+		assert_eq!(txid, result2.unwrap(), "Same inputs should produce same txid");
+	});
+}
+
+#[test]
+fn test_build_bitcoin_tx_no_inputs_fails() {
+	new_test_ext().execute_with(|| {
+		let outputs =
+			BoundedVec::<BitcoinOutput, MaxBitcoinOutputs>::try_from(vec![create_test_bitcoin_output(100_000_000)])
+				.unwrap();
+
+		assert_noop!(
+			Signet::build_bitcoin_tx(
+				RuntimeOrigin::signed(ADMIN),
+				BoundedVec::default(),
+				outputs.clone(),
+				0
+			),
+			Error::<Test>::NoInputs
+		);
+
+		assert_noop!(
+			Signet::get_bitcoin_txid(RuntimeOrigin::signed(ADMIN), BoundedVec::default(), outputs, 0),
+			Error::<Test>::NoInputs
+		);
+	});
+}
+
+#[test]
+fn test_build_bitcoin_tx_no_outputs_fails() {
+	new_test_ext().execute_with(|| {
+		let inputs = BoundedVec::<UtxoInput, MaxBitcoinInputs>::try_from(vec![create_test_utxo_input(
+			[0x42; 32],
+			0,
+			100_000_000,
+		)])
+		.unwrap();
+
+		assert_noop!(
+			Signet::build_bitcoin_tx(
+				RuntimeOrigin::signed(ADMIN),
+				inputs.clone(),
+				BoundedVec::default(),
+				0
+			),
+			Error::<Test>::NoOutputs
+		);
+
+		assert_noop!(
+			Signet::get_bitcoin_txid(RuntimeOrigin::signed(ADMIN), inputs, BoundedVec::default(), 0),
+			Error::<Test>::NoOutputs
+		);
 	});
 }

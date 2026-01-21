@@ -1,4 +1,4 @@
-use crate::{tests::MaxChainIdLength, AffinePoint, ErrorResponse, Signature};
+use crate::{tests::MaxChainIdLength, AffinePoint, BitcoinOutput, ErrorResponse, MaxScriptLength, Signature, UtxoInput};
 use sp_core::ConstU32;
 use sp_runtime::BoundedVec;
 
@@ -30,5 +30,23 @@ pub fn create_test_signature() -> Signature {
 		},
 		s: [3u8; 32],
 		recovery_id: 0,
+	}
+}
+
+// Bitcoin helpers
+pub fn create_test_utxo_input(txid: [u8; 32], vout: u32, value: u64) -> UtxoInput {
+	UtxoInput {
+		txid,
+		vout,
+		value,
+		script_pubkey: BoundedVec::<u8, MaxScriptLength>::try_from(vec![0x00, 0x14]).unwrap(),
+		sequence: 0xFFFFFFFF,
+	}
+}
+
+pub fn create_test_bitcoin_output(value: u64) -> BitcoinOutput {
+	BitcoinOutput {
+		value,
+		script_pubkey: BoundedVec::<u8, MaxScriptLength>::try_from(vec![0x00, 0x14]).unwrap(),
 	}
 }
