@@ -11,152 +11,171 @@ import { KeyDerivation } from "./key-derivation";
 import * as ecc from "tiny-secp256k1";
 import coinSelect from "coinselect";
 
-// Initialize tiny-secp256k1 with bitcoinjs-lib
 bitcoin.initEccLib(ecc);
 
 const ROOT_PUBLIC_KEY =
   "0x044eef776e4f257d68983e45b340c2e9546c5df95447900b6aadfec68fb46fdee257e26b8ba383ddba9914b33c60e869265f859566fff4baef283c54d821ca3b64";
 const CHAIN_ID = "bip122:000000000933ea01ad0ee984209779ba";
-
-function normalizeSignature(r: Buffer, s: Buffer): { r: Buffer; s: Buffer } {
-  const N = BigInt(
-    "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141"
-  );
-  const halfN = N / 2n;
-  const sBigInt = BigInt("0x" + s.toString("hex"));
-
-  if (sBigInt > halfN) {
-    const normalizedS = N - sBigInt;
-    const sBuffer = Buffer.from(
-      normalizedS.toString(16).padStart(64, "0"),
-      "hex"
-    );
-    return { r, s: sBuffer };
-  }
-
-  return { r, s };
-}
-
-const TESTNET_VAULT_ADDRESS_HASH = new Uint8Array([
-  0x89, 0xf0, 0xa8, 0x23, 0x93, 0x8c, 0x58, 0xcf, 0x5b, 0x17, 0xc8, 0xeb, 0x93,
-  0xc6, 0x82, 0x80, 0x63, 0x5b, 0x73, 0x4e,
+const SECP256K1_N = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
+const VAULT_PUBKEY_HASH = new Uint8Array([
+  0x67, 0x6c, 0x36, 0x49, 0xc4, 0xa4, 0x24, 0x7e, 0xd0, 0x14, 0xff, 0x52, 0x50,
+  0x73, 0xe6, 0x3b, 0xba, 0x5c, 0x43, 0xe4,
 ]);
+const ERROR_PREFIX = Buffer.from([0xDE, 0xAD, 0xBE, 0xEF]);
+
+// ============ Helper Functions ============
 
 function getPalletAccountId(): Uint8Array {
-  const palletId = new TextEncoder().encode("py/btcvt");
-  const modl = new TextEncoder().encode("modl");
   const data = new Uint8Array(32);
-  data.set(modl, 0);
-  data.set(palletId, 4);
+  data.set(new TextEncoder().encode("modl"), 0);
+  data.set(new TextEncoder().encode("py/btcvt"), 4);
   return data;
 }
 
+function stripScalePrefix(data: Uint8Array): Uint8Array {
+  if (data.length === 0) return data;
+  const mode = data[0] & 0b11;
+  if (mode === 0) return data.slice(1);
+  if (mode === 1) return data.slice(2);
+  if (mode === 2) return data.slice(4);
+  return data;
+}
+
+function compressPubkey(pubKey: string): Buffer {
+  const uncompressed = Buffer.from(pubKey.slice(4), "hex");
+  const full = Buffer.concat([Buffer.from([0x04]), uncompressed]);
+  return Buffer.from(ecc.pointCompress(full, true));
+}
+
+function btcAddressFromPubKey(pubKey: string, network: bitcoin.Network): string {
+  return bitcoin.payments.p2wpkh({ pubkey: compressPubkey(pubKey), network }).address!;
+}
+
+function normalizeSignature(r: Buffer, s: Buffer): { r: Buffer; s: Buffer } {
+  const sBigInt = BigInt("0x" + s.toString("hex"));
+  if (sBigInt > SECP256K1_N / 2n) {
+    return { r, s: Buffer.from((SECP256K1_N - sBigInt).toString(16).padStart(64, "0"), "hex") };
+  }
+  return { r, s };
+}
+
+function extractSigBuffers(sig: any): { r: Buffer; s: Buffer } {
+  const r = typeof sig.bigR.x === "string"
+    ? Buffer.from(sig.bigR.x.slice(2), "hex")
+    : Buffer.from(sig.bigR.x);
+  const s = typeof sig.s === "string"
+    ? Buffer.from(sig.s.slice(2), "hex")
+    : Buffer.from(sig.s);
+  return normalizeSignature(r, s);
+}
+
+function encodeDER(r: Buffer, s: Buffer): Buffer {
+  const toDER = (x: Buffer): Buffer => {
+    let i = 0;
+    while (i < x.length - 1 && x[i] === 0 && x[i + 1] < 0x80) i++;
+    const trimmed = x.subarray(i);
+    return trimmed[0] >= 0x80 ? Buffer.concat([Buffer.from([0x00]), trimmed]) : trimmed;
+  };
+  const rDER = toDER(r), sDER = toDER(s);
+  const len = 2 + rDER.length + 2 + sDER.length;
+  const buf = Buffer.allocUnsafe(2 + len);
+  buf[0] = 0x30; buf[1] = len;
+  buf[2] = 0x02; buf[3] = rDER.length;
+  rDER.copy(buf, 4);
+  buf[4 + rDER.length] = 0x02;
+  buf[5 + rDER.length] = sDER.length;
+  sDER.copy(buf, 6 + rDER.length);
+  return buf;
+}
+
+function getVaultScript(): Buffer {
+  return Buffer.concat([Buffer.from([0x00, 0x14]), Buffer.from(VAULT_PUBKEY_HASH)]);
+}
+
+function getScriptCode(witnessScript: Buffer, network: bitcoin.Network): Buffer {
+  return bitcoin.payments.p2pkh({ hash: witnessScript.subarray(2), network }).output!;
+}
+
 async function submitWithRetry(
-  tx: any,
-  signer: any,
-  api: ApiPromise,
-  label: string,
-  maxRetries: number = 1,
-  timeoutMs: number = 60000
+  tx: any, signer: any, api: ApiPromise, label: string, maxRetries = 3, timeoutMs = 60000
 ): Promise<{ events: any[] }> {
-  let attempt = 0;
-
-  while (attempt <= maxRetries) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`${label} - Attempt ${attempt + 1}/${maxRetries + 1}`);
-
-      const result = await new Promise<{ events: any[] }>((resolve, reject) => {
-        let unsubscribe: any;
-
-        const timer = setTimeout(() => {
-          if (unsubscribe) unsubscribe();
-          console.log(`⏱️  ${label} timed out after ${timeoutMs}ms`);
-          reject(new Error("TIMEOUT"));
-        }, timeoutMs);
+      return await new Promise((resolve, reject) => {
+        let unsub: any;
+        const timer = setTimeout(() => { unsub?.(); reject(new Error("TIMEOUT")); }, timeoutMs);
 
         tx.signAndSend(signer, (result: ISubmittableResult) => {
           const { status, events, dispatchError } = result;
-
           if (status.isInBlock) {
-            clearTimeout(timer);
-            if (unsubscribe) unsubscribe();
-
-            console.log(
-              `✅ ${label} included in block ${status.asInBlock.toHex()}`
-            );
-
-            console.log(`📋 All events (${events.length}):`);
-            for (const record of events) {
-              const { event } = record;
-              console.log(`   ${event.section}.${event.method}`);
-
-              if (
-                event.section === "btcVault" &&
-                event.method === "DebugTxid"
-              ) {
-                const palletTxid = event.data[0].toU8a();
-                console.log(
-                  `🔍 PALLET TXID: ${Buffer.from(palletTxid).toString("hex")}`
-                );
-              }
-            }
-
+            clearTimeout(timer); unsub?.();
             if (dispatchError) {
-              if (dispatchError.isModule) {
-                const decoded = api.registry.findMetaError(
-                  dispatchError.asModule
-                );
-                reject(
-                  new Error(
-                    `${decoded.section}.${decoded.name}: ${decoded.docs.join(
-                      " "
-                    )}`
-                  )
-                );
-              } else {
-                reject(new Error(dispatchError.toString()));
-              }
+              const err = dispatchError.isModule
+                ? api.registry.findMetaError(dispatchError.asModule)
+                : { section: "", name: dispatchError.toString(), docs: [] };
+              reject(new Error(`${err.section}.${err.name}`));
               return;
             }
-
+            console.log(`✅ ${label} in block`);
             resolve({ events: Array.from(events) });
-          } else if (status.isInvalid) {
-            clearTimeout(timer);
-            if (unsubscribe) unsubscribe();
-            console.log(`❌ Transaction INVALID - status:`, JSON.stringify(status.toJSON()));
-            reject(new Error("INVALID_TX"));
-          } else if (status.isDropped) {
-            clearTimeout(timer);
-            if (unsubscribe) unsubscribe();
-            reject(new Error(`${label} dropped`));
+          } else if (status.isInvalid || status.isDropped) {
+            clearTimeout(timer); unsub?.();
+            reject(new Error(status.isInvalid ? "INVALID_TX" : "DROPPED"));
           }
-        })
-          .then((unsub: any) => {
-            unsubscribe = unsub;
-          })
-          .catch((error: any) => {
-            clearTimeout(timer);
-            reject(error);
-          });
+        }).then((u: any) => unsub = u).catch((e: any) => { clearTimeout(timer); reject(e); });
       });
-
-      return result;
     } catch (error: any) {
-      if (
-        (error.message === "INVALID_TX" || error.message === "TIMEOUT") &&
-        attempt < maxRetries
-      ) {
+      const msg = error.message || "";
+      if ((msg === "INVALID_TX" || msg === "TIMEOUT" || msg.includes("stale")) && attempt < maxRetries) {
         console.log(`🔄 Retrying ${label}...`);
-        attempt++;
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise(r => setTimeout(r, 2000));
         continue;
       }
       throw error;
     }
   }
-
-  throw new Error(`${label} failed after ${maxRetries + 1} attempts`);
+  throw new Error(`${label} failed after retries`);
 }
+
+async function waitForSignature(api: ApiPromise, requestId: string, timeout: number): Promise<any> {
+  return new Promise((resolve, reject) => {
+    let unsub: any;
+    const timer = setTimeout(() => { unsub?.(); reject(new Error(`Timeout for ${requestId}`)); }, timeout);
+    api.query.system.events((events: any) => {
+      for (const { event } of events) {
+        if (event.section === "signet" && event.method === "SignatureResponded") {
+          const [reqId, , signature] = event.data;
+          if (ethers.hexlify(reqId.toU8a()) === requestId) {
+            clearTimeout(timer); unsub?.();
+            resolve(signature.toJSON());
+            return;
+          }
+        }
+      }
+    }).then((u: any) => unsub = u);
+  });
+}
+
+async function waitForResponse(api: ApiPromise, requestId: string, timeout: number): Promise<any> {
+  return new Promise(resolve => {
+    let unsub: any;
+    const timer = setTimeout(() => { unsub?.(); resolve(null); }, timeout);
+    api.query.system.events((events: any) => {
+      for (const { event } of events) {
+        if (event.section === "signet" && event.method === "RespondBidirectionalEvent") {
+          const [reqId, , output, signature] = event.data;
+          if (ethers.hexlify(reqId.toU8a()) === requestId) {
+            clearTimeout(timer); unsub?.();
+            resolve({ output: Array.from(output.toU8a()), signature: signature.toJSON() });
+            return;
+          }
+        }
+      }
+    }).then((u: any) => unsub = u);
+  });
+}
+
+// ============ Test Suite ============
 
 describe("BTC Vault Integration", () => {
   let api: ApiPromise;
@@ -166,28 +185,14 @@ describe("BTC Vault Integration", () => {
   let derivedBtcAddress: string;
   let derivedPubKey: string;
   let network: bitcoin.Network;
+  let palletSS58: string;
+  let spentVaultUtxos: Array<{ txid: string; vout: number; value: number; script: Buffer }> = [];
 
   beforeAll(async () => {
     await waitReady();
 
-    console.log("🔗 Connecting to Bitcoin regtest...");
-    btcClient = new Client({
-      host: "http://localhost:18443",
-      username: "test",
-      password: "test123",
-    });
-
-    try {
-      const blockCount = await btcClient.command("getblockcount");
-      console.log(
-        `✅ Connected to Bitcoin regtest (block height: ${blockCount})\n`
-      );
-    } catch (error) {
-      throw new Error(
-        "❌ Cannot connect to Bitcoin regtest. Make sure it's running:\n" +
-          "   cd bitcoin-regtest && yarn docker:dev"
-      );
-    }
+    btcClient = new Client({ host: "http://localhost:18443", username: "test", password: "test123" });
+    await btcClient.command("getblockcount"); // Verify connection
 
     api = await ApiPromise.create({
       provider: new WsProvider("ws://127.0.0.1:8000"),
@@ -199,793 +204,361 @@ describe("BTC Vault Integration", () => {
 
     const keyring = new Keyring({ type: "sr25519" });
     alice = keyring.addFromUri("//Alice");
-    const bob = keyring.addFromUri("//Bob");
+    palletSS58 = encodeAddress(getPalletAccountId(), 0);
 
-    const { data: bobBalance } = (await api.query.system.account(
-      bob.address
-    )) as any;
-
-    if (bobBalance.free.toBigInt() < 1000000000000n) {
-      console.log("Funding Bob's account for server responses...");
-      const bobFundTx = api.tx.balances.transferKeepAlive(
-        bob.address,
-        100000000000000n
+    // Fund pallet if needed
+    const { data: palletBalance } = (await api.query.system.account(palletSS58)) as any;
+    if (palletBalance.free.toBigInt() < 10000000000000n) {
+      await submitWithRetry(
+        api.tx.balances.transferKeepAlive(palletSS58, 10000000000000n),
+        alice, api, "Fund pallet"
       );
-      await submitWithRetry(bobFundTx, alice, api, "Fund Bob account");
-    }
-
-    const palletAccountId = getPalletAccountId();
-    const palletSS58 = encodeAddress(palletAccountId, 0);
-
-    const { data: palletBalance } = (await api.query.system.account(
-      palletSS58
-    )) as any;
-
-    const fundingAmount = 10000000000000n;
-
-    if (palletBalance.free.toBigInt() < fundingAmount) {
-      console.log(`Funding BTC vault pallet account ${palletSS58}...`);
-      const fundTx = api.tx.balances.transferKeepAlive(
-        palletSS58,
-        fundingAmount
-      );
-      await submitWithRetry(fundTx, alice, api, "Fund pallet account");
     }
 
     signetClient = new SignetClient(api, alice);
     await signetClient.ensureInitialized(CHAIN_ID);
 
-    const aliceAccountId = keyring.decodeAddress(alice.address);
-    const aliceHexPath = "0x" + u8aToHex(aliceAccountId).slice(2);
-
-    derivedPubKey = KeyDerivation.derivePublicKey(
-      ROOT_PUBLIC_KEY,
-      palletSS58,
-      aliceHexPath,
-      "polkadot:2034"
-    );
-
-    const compressedForComparison = compressPubkey(derivedPubKey);
-    console.log(
-      `🔍 Test expects compressed pubkey: ${compressedForComparison.toString(
-        "hex"
-      )}`
-    );
-
-    console.log(`🔍 Test using path: ${aliceHexPath}`);
-    console.log(`🔍 Test using sender: ${palletSS58}`);
-    console.log(`🔍 Derived public key: ${derivedPubKey}`);
-
+    const aliceHexPath = "0x" + u8aToHex(keyring.decodeAddress(alice.address)).slice(2);
+    derivedPubKey = KeyDerivation.derivePublicKey(ROOT_PUBLIC_KEY, palletSS58, aliceHexPath, "polkadot:2034");
     network = bitcoin.networks.regtest;
     derivedBtcAddress = btcAddressFromPubKey(derivedPubKey, network);
 
-    console.log(`\n🔑 Derived Bitcoin Address: ${derivedBtcAddress}`);
-
-    await fundBitcoinAddress(derivedBtcAddress);
+    // Fund Bitcoin address
+    let walletAddr;
+    try { walletAddr = await btcClient.command("getnewaddress"); }
+    catch {
+      try { await btcClient.command("createwallet", "testwallet"); }
+      catch { await btcClient.command("loadwallet", "testwallet"); }
+      walletAddr = await btcClient.command("getnewaddress");
+    }
+    await btcClient.command("generatetoaddress", 101, walletAddr);
+    await btcClient.command("sendtoaddress", derivedBtcAddress, 1.0);
+    await btcClient.command("generatetoaddress", 1, walletAddr);
+    console.log(`✅ Setup complete. Address: ${derivedBtcAddress}`);
   }, 180000);
 
-  afterAll(async () => {
-    if (api) {
-      await api.disconnect();
-    }
-  });
+  afterAll(async () => { await api?.disconnect(); });
 
-  async function fundBitcoinAddress(address: string) {
-    console.log(`💰 Funding ${address} with 1 BTC...`);
-
-    try {
-      let walletAddress;
-      try {
-        walletAddress = await btcClient.command("getnewaddress");
-      } catch (e) {
-        try {
-          await btcClient.command("createwallet", "testwallet");
-          walletAddress = await btcClient.command("getnewaddress");
-        } catch (createErr: any) {
-          await btcClient.command("loadwallet", "testwallet");
-          walletAddress = await btcClient.command("getnewaddress");
-        }
-      }
-
-      await btcClient.command("generatetoaddress", 101, walletAddress);
-      console.log(`   Mined 101 blocks to wallet`);
-
-      const txid = await btcClient.command("sendtoaddress", address, 1.0);
-      console.log(`   Funding txid: ${txid}`);
-
-      await btcClient.command("generatetoaddress", 1, walletAddress);
-
-      const scanResult = await btcClient.command("scantxoutset", "start", [
-        `addr(${derivedBtcAddress})`,
-      ]);
-
-      console.log(`📦 Found ${scanResult.unspents.length} UTXO(s)`);
-
-      for (const utxo of scanResult.unspents) {
-        console.log(`\n🔍 UTXO ${utxo.txid}:${utxo.vout}`);
-        console.log(`   scriptPubKey: ${utxo.scriptPubKey}`);
-        console.log(`   amount: ${utxo.amount} BTC`);
-      }
-
-      if (scanResult.unspents.length === 0) {
-        throw new Error("No UTXOs found after funding");
-      }
-
-      console.log("✅ Funding confirmed\n");
-    } catch (error: any) {
-      console.error("Funding error:", error.message);
-      throw error;
-    }
-  }
-
-  it("should complete full deposit and claim flow", async () => {
-    const mpcEthAddress = ethAddressFromPubKey(ROOT_PUBLIC_KEY);
-    console.log("Checking vault initialization...");
-
-    const existingConfig = await api.query.btcVault.vaultConfig();
-    const configJson = existingConfig.toJSON();
-
-    if (configJson !== null) {
-      console.log("⚠️  Vault already initialized, skipping initialization");
-      console.log("   Existing config:", existingConfig.toHuman());
-    } else {
-      console.log("Initializing vault with MPC address hash");
-      const initTx = api.tx.btcVault.initialize(Array.from(mpcEthAddress));
-      await submitWithRetry(initTx, alice, api, "Initialize vault");
-    }
-
-    const scanResult = await btcClient.command("scantxoutset", "start", [
-      `addr(${derivedBtcAddress})`,
+  it("should complete deposit and claim flow", async () => {
+    // Initialize vault if needed
+    const mpcEthAddress = new Uint8Array([
+      0x00, 0xa4, 0x0c, 0x26, 0x61, 0x29, 0x3d, 0x51, 0x34, 0xe5,
+      0x3d, 0xa5, 0x29, 0x51, 0xa3, 0xf7, 0x76, 0x78, 0x36, 0xef,
     ]);
-
-    if (scanResult.unspents.length === 0) {
-      throw new Error("No UTXOs available for derived address");
+    const existingConfig = await api.query.btcVault.vaultConfig();
+    if (existingConfig.toJSON() === null) {
+      await submitWithRetry(api.tx.btcVault.initialize(Array.from(mpcEthAddress)), alice, api, "Initialize vault");
     }
 
-    console.log(`📦 Found ${scanResult.unspents.length} UTXO(s)`);
+    // Get UTXOs and build transaction
+    const scanResult = await btcClient.command("scantxoutset", "start", [`addr(${derivedBtcAddress})`]);
+    expect(scanResult.unspents.length).toBeGreaterThan(0);
 
-    const depositAmount = 36879690;
-    const feeRate = 2; // satoshis per vbyte (min relay fee requires slightly more than 1)
-
-    // Convert UTXOs to coinselect format
+    const depositAmount = 35289790;
     const utxos = scanResult.unspents.map((u: any) => ({
-      txid: u.txid,
-      vout: u.vout,
+      txid: u.txid, vout: u.vout,
       value: Math.floor(u.amount * 100000000),
-      script: Buffer.from(
-        bitcoin.address.toOutputScript(derivedBtcAddress, network)
-      ),
+      script: Buffer.from(bitcoin.address.toOutputScript(derivedBtcAddress, network)),
     }));
 
-    // Vault output
-    const vaultScript = Buffer.concat([
-      Buffer.from([0x00, 0x14]),
-      Buffer.from(TESTNET_VAULT_ADDRESS_HASH),
-    ]);
+    const coinSelectResult = coinSelect(utxos, [{ script: getVaultScript(), value: depositAmount }], 2);
+    if (!coinSelectResult.inputs || !coinSelectResult.outputs) throw new Error("Insufficient funds");
+    const { inputs, outputs } = coinSelectResult;
 
-    const targets = [
-      {
-        script: vaultScript,
-        value: depositAmount,
-      },
-    ];
-
-    // Let coinselect pick optimal UTXOs and calculate fee
-    const { inputs, outputs, fee } = coinSelect(utxos, targets, feeRate);
-
-    if (!inputs || !outputs) {
-      throw new Error("Insufficient funds for transaction");
-    }
-
-    console.log(`📊 Transaction breakdown:`);
-    console.log(`   Inputs: ${inputs.length}`);
-    inputs.forEach((inp: any, i: number) => {
-      console.log(
-        `     Input ${i}: ${inp.value} sats (${inp.txid.slice(0, 8)}...)`
-      );
-    });
-    console.log(`   To vault: ${outputs[0].value} sats`);
-    if (outputs.length > 1) {
-      console.log(`   Change: ${outputs[1].value} sats`);
-    }
-    console.log(`   Fee: ${fee} sats\n`);
-
-    // Build PSBT with selected inputs/outputs
+    // Build PSBT
     const psbt = new bitcoin.Psbt({ network });
-
     for (const input of inputs) {
-      const txidBytes = Buffer.from(input.txid, "hex").reverse();
       psbt.addInput({
-        hash: txidBytes,
+        hash: Buffer.from(input.txid, "hex").reverse(),
         index: input.vout,
         sequence: 0xffffffff,
-        witnessUtxo: {
-          script: input.script!,
-          value: input.value,
-        },
+        witnessUtxo: { script: input.script!, value: input.value },
       });
+      psbt.updateInput(psbt.inputCount - 1, { sighashType: bitcoin.Transaction.SIGHASH_ALL });
     }
-
-    for (let i = 0; i < inputs.length; i++) {
-      psbt.updateInput(i, {
-        sighashType: bitcoin.Transaction.SIGHASH_ALL,
-      });
-    }
-
     for (const output of outputs) {
-      if (output.script) {
-        psbt.addOutput({
-          script: output.script,
-          value: output.value,
-        });
-      } else {
-        // Change output
-        psbt.addOutput({
-          address: derivedBtcAddress,
-          value: output.value,
-        });
-      }
+      psbt.addOutput(output.script
+        ? { script: output.script, value: output.value }
+        : { address: derivedBtcAddress, value: output.value }
+      );
     }
 
-    const psbtBytes = psbt.toBuffer();
-    console.log(`📝 PSBT bytes length: ${psbtBytes.length}`);
-
-    console.log(`🔍 Test prevout txid (as sent to pallet): ${inputs[0].txid}`);
-    console.log(
-      `🔍 Test prevout txid (reversed for PSBT): ${Buffer.from(
-        inputs[0].txid,
-        "hex"
-      )
-        .reverse()
-        .toString("hex")}`
-    );
-
-    // Extract txid from PSBT
-    const unsignedTxBuffer = psbt.data.globalMap.unsignedTx.toBuffer();
-    const unsignedTx = bitcoin.Transaction.fromBuffer(unsignedTxBuffer);
+    const unsignedTx = bitcoin.Transaction.fromBuffer(psbt.data.globalMap.unsignedTx.toBuffer());
     const txid = Buffer.from(unsignedTx.getId(), "hex");
-
-    const testUnsignedTx = bitcoin.Transaction.fromBuffer(unsignedTxBuffer);
-    
-    const getScriptCode = (witnessScript: Buffer): Buffer => {
-      // witnessScript is P2WPKH: 00 14 <pubkeyhash>
-      const pubkeyHash = witnessScript.slice(2); // Skip version byte and push opcode
-      return bitcoin.payments.p2pkh({ hash: pubkeyHash, network }).output!;
-    };
-
-    for (let i = 0; i < inputs.length; i++) {
-      const scriptCode = getScriptCode(inputs[i].script!);
-      const testSighash = testUnsignedTx.hashForWitnessV0(
-        i,
-        scriptCode,
-        inputs[i].value,
-        bitcoin.Transaction.SIGHASH_ALL
-      );
-      console.log(`🔍 Test Input ${i} sighash: ${testSighash.toString("hex")}`);
-    }
-
-    console.log(`🔑 Transaction ID: ${txid.toString("hex")}`);
-
-    console.log(`🔍 Test tx version: ${unsignedTx.version}`);
-    console.log(`🔍 Test tx locktime: ${unsignedTx.locktime}`);
-
     const keyring = new Keyring({ type: "sr25519" });
-    const palletAccountId = getPalletAccountId();
-    const palletSS58 = encodeAddress(palletAccountId, 0);
-    const aliceAccountId = keyring.decodeAddress(alice.address);
-    const aliceHexPath = "0x" + u8aToHex(aliceAccountId).slice(2);
+    const aliceHexPath = "0x" + u8aToHex(keyring.decodeAddress(alice.address)).slice(2);
 
-    console.log(`🔍 Pallet SS58 (sender): ${palletSS58}`);
-    console.log(`🔍 Alice hex path: ${aliceHexPath}`);
+    // Calculate request IDs
+    const aggregateRequestId = signetClient.calculateSignRespondRequestId(palletSS58, Array.from(txid), {
+      caip2Id: CHAIN_ID, keyVersion: 0, path: aliceHexPath, algo: "ecdsa", dest: "bitcoin", params: "",
+    });
 
-    // Calculate aggregate request ID (for monitoring)
-    const aggregateRequestId = signetClient.calculateSignRespondRequestId(
-      palletSS58,
-      Array.from(txid),
-      {
-        caip2Id: CHAIN_ID,
-        keyVersion: 0,
-        path: aliceHexPath,
-        algo: "ecdsa",
-        dest: "bitcoin",
-        params: "",
-      }
-    );
+    const perInputRequestIds = inputs.map((_: any, i: number) => {
+      const indexBuf = Buffer.alloc(4); indexBuf.writeUInt32LE(i, 0);
+      return ethers.hexlify(signetClient.calculateSignRespondRequestId(
+        palletSS58, Array.from(Buffer.concat([Buffer.from(unsignedTx.getId(), "hex"), indexBuf])),
+        { caip2Id: CHAIN_ID, keyVersion: 0, path: aliceHexPath, algo: "ecdsa", dest: "bitcoin", params: "" }
+      ));
+    });
 
-    console.log(
-      `📋 Aggregate Request ID: ${ethers.hexlify(aggregateRequestId)}`
-    );
-
-    // Generate per-input request IDs
-    const txidForPerInputRequestId = Buffer.from(unsignedTx.getId(), "hex");
-
-    // Generate per-input request IDs
-    const perInputRequestIds: string[] = [];
-    for (let i = 0; i < inputs.length; i++) {
-      const inputIndexBytes = Buffer.alloc(4);
-      inputIndexBytes.writeUInt32LE(i, 0);
-      // Use the display order txid reversed (internal order) to match server
-      const txDataForInput = Buffer.concat([
-        txidForPerInputRequestId,
-        inputIndexBytes,
-      ]);
-
-      const perInputRequestId = signetClient.calculateSignRespondRequestId(
-        palletSS58,
-        Array.from(txDataForInput),
-        {
-          caip2Id: CHAIN_ID,
-          keyVersion: 0,
-          path: aliceHexPath,
-          algo: "ecdsa",
-          dest: "bitcoin",
-          params: "",
-        }
-      );
-
-      perInputRequestIds.push(ethers.hexlify(perInputRequestId));
-      console.log(`📋 Input ${i} Request ID: ${perInputRequestIds[i]}`);
-    }
-    console.log(""); // Empty line
-
-    // Convert to pallet format
-    const palletInputs = inputs.map((input: any) => ({
-      txid: Array.from(Buffer.from(input.txid, "hex")),
-      vout: input.vout,
-      value: input.value,
-      scriptPubkey: Array.from(input.script),
-      sequence: 0xffffffff,
+    // Submit deposit
+    const palletInputs = inputs.map((i: any) => ({
+      txid: Array.from(Buffer.from(i.txid, "hex")), vout: i.vout, value: i.value,
+      scriptPubkey: Array.from(i.script), sequence: 0xffffffff,
+    }));
+    const palletOutputs = outputs.map((o: any) => ({
+      value: o.value, scriptPubkey: Array.from(o.script || bitcoin.address.toOutputScript(derivedBtcAddress, network)),
     }));
 
-    const palletOutputs = outputs.map((output: any) => {
-      if (output.script) {
-        return {
-          value: output.value,
-          scriptPubkey: Array.from(output.script),
-        };
-      } else {
-        return {
-          value: output.value,
-          scriptPubkey: Array.from(
-            bitcoin.address.toOutputScript(derivedBtcAddress, network)
-          ),
-        };
-      }
-    });
-
-    const depositTx = api.tx.btcVault.depositBtc(
-      Array.from(ethers.getBytes(aggregateRequestId)),
-      palletInputs,
-      palletOutputs,
-      0
+    await submitWithRetry(
+      api.tx.btcVault.depositBtc(Array.from(ethers.getBytes(aggregateRequestId)), palletInputs, palletOutputs, 0),
+      alice, api, "Deposit BTC"
     );
 
-    console.log("🚀 Submitting deposit_btc transaction...");
-    const depositResult = await submitWithRetry(
-      depositTx,
-      alice,
-      api,
-      "Deposit BTC"
-    );
-
-    const debugEvent = depositResult.events.find(
-      (record: any) =>
-        record.event.section === "btcVault" &&
-        record.event.method === "DebugTxid"
-    );
-
-    if (debugEvent) {
-      const palletTxid = debugEvent.event.data[0].toU8a();
-      console.log(
-        `🔍 Pallet computed txid: ${Buffer.from(palletTxid).toString("hex")}`
-      );
-      console.log(
-        `🔍 Test computed txid:   ${Buffer.from(txid).toString("hex")}`
-      );
-      console.log(
-        `🔍 Match: ${
-          Buffer.from(palletTxid).toString("hex") ===
-          Buffer.from(txid).toString("hex")
-        }`
-      );
-    } else {
-      console.log("⚠️  DebugTxid event not found");
-    }
-
-    const debugTxEvent = depositResult.events.find(
-      (record: any) =>
-        record.event.section === "btcVault" &&
-        record.event.method === "DebugTransaction"
-    );
-
-    if (debugTxEvent) {
-      const palletTxHex = debugTxEvent.event.data[0].toHex();
-      const palletVersion = debugTxEvent.event.data[1].toNumber();
-      const palletLocktime = debugTxEvent.event.data[2].toNumber();
-
-      console.log(`🔍 Pallet PSBT hex: ${palletTxHex}`);
-      console.log(
-        `🔍 Pallet version: ${palletVersion}, locktime: ${palletLocktime}`
-      );
-    }
-
-    const signetEvents = depositResult.events.filter(
-      (record: any) =>
-        record.event.section === "signet" &&
-        record.event.method === "SignBidirectionalRequested"
-    );
-
-    console.log(
-      `📊 Found ${signetEvents.length} SignBidirectionalRequested event(s)`
-    );
-
-    if (signetEvents.length > 0) {
-      console.log(
-        "✅ SignBidirectionalRequested event emitted - MPC should pick it up!"
-      );
-    }
-
-    console.log("⏳ Waiting for MPC signature(s)...");
-
-    // Wait for each input's signature separately
-    const signatures: any[] = [];
-    for (let i = 0; i < perInputRequestIds.length; i++) {
-      console.log(
-        `   Waiting for signature ${i + 1}/${perInputRequestIds.length}...`
-      );
-      const sig = await waitForSingleSignature(
-        api,
-        perInputRequestIds[i],
-        120000
-      );
-      signatures.push(sig);
-      console.log(`   ✅ Received signature ${i + 1}`);
-    }
-
-    console.log(
-      `\n✅ Received all ${signatures.length} signature(s) from MPC\n`
-    );
-
+    // Wait for signatures and apply them
     const compressedPubkey = compressPubkey(derivedPubKey);
-
-    for (let i = 0; i < signatures.length; i++) {
-      const sig = signatures[i];
-
-      const rBuf =
-        typeof sig.bigR.x === "string"
-          ? Buffer.from(sig.bigR.x.slice(2), "hex")
-          : Buffer.from(sig.bigR.x);
-
-      const sBuf =
-        typeof sig.s === "string"
-          ? Buffer.from(sig.s.slice(2), "hex")
-          : Buffer.from(sig.s);
-
-      const { r: normalizedR, s: normalizedS } = normalizeSignature(rBuf, sBuf);
-
-      console.log(`🔍 Signature ${i} verification:`);
-      console.log(`   R: ${normalizedR.toString("hex")}`);
-      console.log(`   S: ${normalizedS.toString("hex")}`);
-      console.log(`   Recovery ID: ${sig.recoveryId}`);
-
-      // VERIFY THE SIGNATURE - use correct BIP-143 scriptCode
-      const scriptCode = getScriptCode(inputs[i].script!);
-      const testSighash = testUnsignedTx.hashForWitnessV0(
-        i,
-        scriptCode,
-        inputs[i].value,
-        bitcoin.Transaction.SIGHASH_ALL
-      );
-
-      // Verify signature is valid before broadcasting to Bitcoin
-      const rawSig = Buffer.concat([normalizedR, normalizedS]);
-      console.log(`   Sighash for verify: ${testSighash.toString("hex")}`);
-      console.log(`   Pubkey: ${compressedPubkey.toString("hex")}`);
-      console.log(`   RawSig (64 bytes): ${rawSig.toString("hex")}`);
-      const isValid = ecc.verify(testSighash, compressedPubkey, rawSig);
-      console.log(`   Signature valid (ecc.verify): ${isValid}`);
-      expect(isValid).toBe(true);
-
-      const derSig = encodeDER(normalizedR, normalizedS);
-      const fullSig = Buffer.concat([derSig, Buffer.from([0x01])]);
-
+    for (let i = 0; i < inputs.length; i++) {
+      const sig = await waitForSignature(api, perInputRequestIds[i], 120000);
+      const { r, s } = extractSigBuffers(sig);
+      const scriptCode = getScriptCode(inputs[i].script!, network);
+      const sighash = unsignedTx.hashForWitnessV0(i, scriptCode, inputs[i].value, bitcoin.Transaction.SIGHASH_ALL);
+      expect(ecc.verify(sighash, compressedPubkey, Buffer.concat([r, s]))).toBe(true);
       psbt.updateInput(i, {
-        partialSig: [
-          {
-            pubkey: compressedPubkey,
-            signature: fullSig,
-          },
-        ],
+        partialSig: [{ pubkey: compressedPubkey, signature: Buffer.concat([encodeDER(r, s), Buffer.from([0x01])]) }],
       });
     }
 
-    console.log(`🔍 Input 0 witnessUtxo:`, psbt.data.inputs[0].witnessUtxo);
+    // Broadcast
     psbt.finalizeAllInputs();
-    const signedTx = psbt.extractTransaction();
-    console.log(`🔍 Witness for input 0:`);
-    const witness = signedTx.ins[0].witness;
-    witness.forEach((w, idx) => {
-      console.log(`   Witness ${idx}: ${w.toString("hex")}`);
-    });
-    const signedTxHex = signedTx.toHex();
-
-    console.log(`\n🔍 Full signed transaction hex (first 200 chars):`);
-    console.log(`   ${signedTxHex.substring(0, 200)}...`);
-    console.log(
-      `🔍 Transaction input 0 sequence: 0x${signedTx.ins[0].sequence.toString(
-        16
-      )}`
-    );
-
-    console.log(`✅ Transaction finalized: ${signedTx.getId()}\n`);
-
-    console.log("📡 Broadcasting transaction to regtest...");
-    const broadcastTxid = await btcClient.command(
-      "sendrawtransaction",
-      signedTxHex
-    );
-    console.log(`   Tx Hash: ${broadcastTxid}`);
-
-    console.log("⛏️  Mining block to confirm transaction...");
+    const signedTxHex = psbt.extractTransaction().toHex();
+    await btcClient.command("sendrawtransaction", signedTxHex);
     await btcClient.command("generatetoaddress", 1, derivedBtcAddress);
 
-    const txDetails = await btcClient.command(
-      "getrawtransaction",
-      broadcastTxid,
-      true
+    // Wait for read response and claim
+    const readResponse = await waitForResponse(api, ethers.hexlify(aggregateRequestId), 120000);
+    expect(readResponse).toBeTruthy();
+
+    const outputBytes = stripScalePrefix(new Uint8Array(readResponse.output));
+    const balanceBefore = BigInt((await api.query.btcVault.userBalances(alice.address)).toString());
+
+    await submitWithRetry(
+      api.tx.btcVault.claimBtc(Array.from(ethers.getBytes(aggregateRequestId)), Array.from(outputBytes), readResponse.signature),
+      alice, api, "Claim BTC"
     );
 
-    console.log(
-      `✅ Transaction confirmed (${txDetails.confirmations} confirmations)\n`
-    );
-
-    console.log("⏳ Waiting for MPC to read transaction result...");
-    const readResponse = await waitForReadResponse(
-      api,
-      ethers.hexlify(aggregateRequestId),
-      120000
-    );
-
-    if (!readResponse) {
-      throw new Error("❌ Timeout waiting for read response");
-    }
-
-    console.log("✅ Received read response\n");
-
-    console.log("\n🔍 Claim Debug:");
-    console.log("  Request ID:", ethers.hexlify(aggregateRequestId));
-    console.log(
-      "  Output (hex):",
-      Buffer.from(readResponse.output).toString("hex")
-    );
-
-    let outputBytes = new Uint8Array(readResponse.output);
-    if (outputBytes.length > 0) {
-      const mode = outputBytes[0] & 0b11;
-      if (mode === 0) {
-        outputBytes = outputBytes.slice(1);
-      } else if (mode === 1) {
-        outputBytes = outputBytes.slice(2);
-      } else if (mode === 2) {
-        outputBytes = outputBytes.slice(4);
-      }
-    }
-
-    console.log(
-      "  Stripped output (hex):",
-      Buffer.from(outputBytes).toString("hex")
-    );
-    console.log("  Signature:", JSON.stringify(readResponse.signature));
-
-    // Verify the signature manually
-    const requestIdBytes = ethers.getBytes(aggregateRequestId);
-    const messageForHash = new Uint8Array(requestIdBytes.length + outputBytes.length);
-    messageForHash.set(requestIdBytes);
-    messageForHash.set(outputBytes, requestIdBytes.length);
-    const expectedMessageHash = ethers.keccak256(messageForHash);
-    console.log("  Expected message hash:", expectedMessageHash);
-
-    // Try to recover address from signature
-    const sig = readResponse.signature;
-    // sig.bigR.x can be either a hex string or an array - handle both
-    const rHex = typeof sig.bigR.x === 'string'
-      ? sig.bigR.x
-      : "0x" + Buffer.from(sig.bigR.x).toString("hex");
-    const sHex = typeof sig.s === 'string'
-      ? sig.s
-      : "0x" + Buffer.from(sig.s).toString("hex");
-    const recoveryId = sig.recoveryId;
-    console.log("  Sig R:", rHex);
-    console.log("  Sig S:", sHex);
-    console.log("  Recovery ID:", recoveryId);
-
-    try {
-      const ethSignature = ethers.Signature.from({
-        r: rHex,
-        s: sHex,
-        v: 27 + recoveryId,
-      });
-      const recoveredAddress = ethers.recoverAddress(expectedMessageHash, ethSignature);
-      console.log("  Recovered address:", recoveredAddress.toLowerCase());
-    } catch (e: any) {
-      console.log("  Address recovery failed:", e.message);
-    }
-
-    // Check vault config
-    const vaultConfig = await api.query.btcVault.vaultConfig();
-    console.log("  Vault config:", vaultConfig.toJSON());
-
-    // Check if pending deposit exists
-    const pendingDeposit = await api.query.btcVault.pendingDeposits(
-      Array.from(ethers.getBytes(aggregateRequestId))
-    );
-    console.log("  Pending deposit exists:", !pendingDeposit.isEmpty);
-    if (!pendingDeposit.isEmpty) {
-      console.log("  Pending deposit:", pendingDeposit.toJSON());
-    }
-
-    const balanceBefore = await api.query.btcVault.userBalances(alice.address);
-
-    const claimTx = api.tx.btcVault.claimBtc(
-      Array.from(ethers.getBytes(aggregateRequestId)),
-      Array.from(outputBytes),
-      readResponse.signature
-    );
-
-    // Try to do a dry run first
-    console.log("🔍 Testing claim transaction (dry run)...");
-    try {
-      const paymentInfo = await claimTx.paymentInfo(alice);
-      console.log("  Payment info:", paymentInfo.toJSON());
-    } catch (e: any) {
-      console.log("  Dry run failed:", e.message);
-    }
-
-    console.log("🚀 Submitting claim transaction...");
-    await submitWithRetry(claimTx, alice, api, "Claim BTC");
-
-    const balanceAfter = await api.query.btcVault.userBalances(alice.address);
-
-    const balanceIncrease =
-      BigInt(balanceAfter.toString()) - BigInt(balanceBefore.toString());
-
-    expect(balanceIncrease.toString()).toBe(depositAmount.toString());
-    console.log(`✅ Balance increased by: ${balanceIncrease} sats`);
-    console.log(`   Total balance: ${balanceAfter} sats\n`);
+    const balanceAfter = BigInt((await api.query.btcVault.userBalances(alice.address)).toString());
+    expect((balanceAfter - balanceBefore).toString()).toBe(depositAmount.toString());
+    console.log(`✅ Deposit claimed: ${balanceAfter - balanceBefore} sats`);
   }, 300000);
 
-  function compressPubkey(pubKey: string): Buffer {
-    const uncompressed = Buffer.from(pubKey.slice(4), "hex");
-    const fullUncompressed = Buffer.concat([Buffer.from([0x04]), uncompressed]);
-    const compressed = ecc.pointCompress(fullUncompressed, true);
-    return Buffer.from(compressed);
-  }
+  it("should complete successful withdrawal", async () => {
+    const balanceBefore = BigInt((await api.query.btcVault.userBalances(alice.address)).toString());
+    expect(balanceBefore).toBeGreaterThan(0n);
 
-  function btcAddressFromPubKey(
-    pubKey: string,
-    network: bitcoin.Network
-  ): string {
-    const compressedPubkey = compressPubkey(pubKey);
-    const payment = bitcoin.payments.p2wpkh({
-      pubkey: compressedPubkey,
-      network,
-    });
-    return payment.address!;
-  }
+    const vaultScript = getVaultScript();
+    const vaultAddress = bitcoin.address.fromOutputScript(vaultScript, network);
+    const vaultScan = await btcClient.command("scantxoutset", "start", [`addr(${vaultAddress})`]);
+    if (vaultScan.unspents.length === 0) return;
 
-  function ethAddressFromPubKey(pubKey: string): Uint8Array {
-    const uncompressedPubkey = Buffer.from(pubKey.slice(4), "hex");
-    const hash = ethers.keccak256(uncompressedPubkey);
-    return new Uint8Array(Buffer.from(hash.slice(2), "hex").slice(-20));
-  }
+    const withdrawAmount = 10000000;
+    const vaultUtxos = vaultScan.unspents.map((u: any) => ({
+      txid: u.txid, vout: u.vout, value: Math.floor(u.amount * 100000000), script: vaultScript,
+    }));
+    const recipientScript = Buffer.from(bitcoin.address.toOutputScript(derivedBtcAddress, network));
 
-  function encodeDER(r: Buffer, s: Buffer): Buffer {
-    function toDER(x: Buffer): Buffer {
-      let i = 0;
-      while (i < x.length - 1 && x[i] === 0 && x[i + 1] < 0x80) i++;
+    const coinSelectResult = coinSelect(vaultUtxos, [{ script: recipientScript, value: withdrawAmount }], 2);
+    if (!coinSelectResult.inputs || !coinSelectResult.outputs) return;
+    const { inputs, outputs } = coinSelectResult;
 
-      const xDER = x.slice(i);
+    spentVaultUtxos = inputs.map((i: any) => ({ txid: i.txid, vout: i.vout, value: i.value, script: i.script }));
 
-      if (xDER[0] >= 0x80) {
-        return Buffer.concat([Buffer.from([0x00]), xDER]);
-      }
-
-      return xDER;
+    // Build PSBT
+    const psbt = new bitcoin.Psbt({ network });
+    for (const input of inputs) {
+      psbt.addInput({
+        hash: Buffer.from(input.txid, "hex").reverse(),
+        index: input.vout, sequence: 0xffffffff,
+        witnessUtxo: { script: input.script!, value: input.value },
+      });
+      psbt.updateInput(psbt.inputCount - 1, { sighashType: bitcoin.Transaction.SIGHASH_ALL });
+    }
+    for (const output of outputs) {
+      psbt.addOutput(output.script ? { script: output.script, value: output.value } : { script: vaultScript, value: output.value });
     }
 
-    const rDER = toDER(r);
-    const sDER = toDER(s);
+    const unsignedTx = bitcoin.Transaction.fromBuffer(psbt.data.globalMap.unsignedTx.toBuffer());
+    const txid = Buffer.from(unsignedTx.getId(), "hex");
+    const withdrawalPath = "root";
 
-    const len = 2 + rDER.length + 2 + sDER.length;
-    const buf = Buffer.allocUnsafe(2 + len);
-
-    buf[0] = 0x30;
-    buf[1] = len;
-    buf[2] = 0x02;
-    buf[3] = rDER.length;
-    rDER.copy(buf, 4);
-    buf[4 + rDER.length] = 0x02;
-    buf[5 + rDER.length] = sDER.length;
-    sDER.copy(buf, 6 + rDER.length);
-
-    return buf;
-  }
-
-  async function waitForSingleSignature(
-    api: ApiPromise,
-    requestId: string,
-    timeout: number
-  ): Promise<any> {
-    return new Promise((resolve, reject) => {
-      let unsubscribe: any;
-      const timer = setTimeout(() => {
-        if (unsubscribe) unsubscribe();
-        reject(
-          new Error(
-            `Timeout waiting for signature with request ID ${requestId}`
-          )
-        );
-      }, timeout);
-
-      api.query.system
-        .events((events: any) => {
-          events.forEach((record: any) => {
-            const { event } = record;
-            if (
-              event.section === "signet" &&
-              event.method === "SignatureResponded"
-            ) {
-              const [reqId, responder, signature] = event.data;
-              if (ethers.hexlify(reqId.toU8a()) === requestId) {
-                clearTimeout(timer);
-                if (unsubscribe) unsubscribe();
-                resolve(signature.toJSON());
-              }
-            }
-          });
-        })
-        .then((unsub: any) => {
-          unsubscribe = unsub;
-        });
+    const aggregateRequestId = signetClient.calculateSignRespondRequestId(palletSS58, Array.from(txid), {
+      caip2Id: CHAIN_ID, keyVersion: 0, path: withdrawalPath, algo: "ecdsa", dest: "bitcoin", params: "",
     });
-  }
 
-  async function waitForReadResponse(
-    api: ApiPromise,
-    requestId: string,
-    timeout: number
-  ): Promise<any> {
-    return new Promise((resolve) => {
-      let unsubscribe: any;
-      const timer = setTimeout(() => {
-        if (unsubscribe) unsubscribe();
-        resolve(null);
-      }, timeout);
-
-      api.query.system
-        .events((events: any) => {
-          events.forEach((record: any) => {
-            const { event } = record;
-            if (
-              event.section === "signet" &&
-              event.method === "RespondBidirectionalEvent"
-            ) {
-              const [reqId, responder, output, signature] = event.data;
-              if (ethers.hexlify(reqId.toU8a()) === requestId) {
-                clearTimeout(timer);
-                if (unsubscribe) unsubscribe();
-                resolve({
-                  responder: responder.toString(),
-                  output: Array.from(output.toU8a()),
-                  signature: signature.toJSON(),
-                });
-              }
-            }
-          });
-        })
-        .then((unsub: any) => {
-          unsubscribe = unsub;
-        });
+    const perInputRequestIds = inputs.map((_: any, i: number) => {
+      const indexBuf = Buffer.alloc(4); indexBuf.writeUInt32LE(i, 0);
+      return ethers.hexlify(signetClient.calculateSignRespondRequestId(
+        palletSS58, Array.from(Buffer.concat([Buffer.from(unsignedTx.getId(), "hex"), indexBuf])),
+        { caip2Id: CHAIN_ID, keyVersion: 0, path: withdrawalPath, algo: "ecdsa", dest: "bitcoin", params: "" }
+      ));
     });
-  }
+
+    const palletInputs = inputs.map((i: any) => ({
+      txid: Array.from(Buffer.from(i.txid, "hex")), vout: i.vout, value: i.value,
+      scriptPubkey: Array.from(i.script), sequence: 0xffffffff,
+    }));
+    const palletOutputs = outputs.map((o: any) => ({
+      value: o.value, scriptPubkey: Array.from(o.script || vaultScript),
+    }));
+
+    const withdrawResult = await submitWithRetry(
+      api.tx.btcVault.withdrawBtc(
+        Array.from(ethers.getBytes(aggregateRequestId)), withdrawAmount,
+        Array.from(recipientScript), palletInputs, palletOutputs, 0
+      ),
+      alice, api, "Withdraw BTC"
+    );
+    expect(withdrawResult.events.some((r: any) => r.event.section === "btcVault" && r.event.method === "WithdrawalRequested")).toBe(true);
+
+    // Verify optimistic decrement
+    const balanceAfterWithdraw = BigInt((await api.query.btcVault.userBalances(alice.address)).toString());
+    expect(balanceAfterWithdraw).toBe(balanceBefore - BigInt(withdrawAmount));
+
+    // Get signatures
+    const vaultPubKey = KeyDerivation.derivePublicKey(ROOT_PUBLIC_KEY, palletSS58, withdrawalPath, "polkadot:2034");
+    const vaultCompressed = compressPubkey(vaultPubKey);
+
+    for (let i = 0; i < inputs.length; i++) {
+      const sig = await waitForSignature(api, perInputRequestIds[i], 120000);
+      const { r, s } = extractSigBuffers(sig);
+      psbt.updateInput(i, {
+        partialSig: [{ pubkey: vaultCompressed, signature: Buffer.concat([encodeDER(r, s), Buffer.from([0x01])]) }],
+      });
+    }
+
+    // Broadcast
+    psbt.finalizeAllInputs();
+    await btcClient.command("sendrawtransaction", psbt.extractTransaction().toHex());
+    await btcClient.command("generatetoaddress", 1, derivedBtcAddress);
+
+    // Complete withdrawal
+    const readResponse = await waitForResponse(api, ethers.hexlify(aggregateRequestId), 120000);
+    expect(readResponse).toBeTruthy();
+
+    const outputBytes = stripScalePrefix(new Uint8Array(readResponse.output));
+    const completeResult = await submitWithRetry(
+      api.tx.btcVault.completeWithdrawBtc(Array.from(ethers.getBytes(aggregateRequestId)), Array.from(outputBytes), readResponse.signature),
+      alice, api, "Complete Withdraw"
+    );
+
+    expect(completeResult.events.some((r: any) => r.event.section === "btcVault" && r.event.method === "WithdrawalCompleted")).toBe(true);
+    console.log(`✅ Withdrawal completed: ${withdrawAmount} sats`);
+  }, 300000);
+
+  it("should refund when withdrawal fails", async () => {
+    if (spentVaultUtxos.length === 0) return;
+
+    const balanceBefore = BigInt((await api.query.btcVault.userBalances(alice.address)).toString());
+    expect(balanceBefore).toBeGreaterThan(0n);
+
+    const vaultScript = getVaultScript();
+    const recipientScript = Buffer.from(bitcoin.address.toOutputScript(derivedBtcAddress, network));
+    const totalValue = spentVaultUtxos.reduce((sum, u) => sum + u.value, 0);
+    const withdrawAmount = Math.min(5000000, totalValue - 1000);
+    const fee = 500;
+
+    const inputs = spentVaultUtxos;
+    const outputs = [
+      { script: recipientScript, value: withdrawAmount },
+      { script: vaultScript, value: totalValue - withdrawAmount - fee },
+    ];
+
+    // Build PSBT with spent UTXOs
+    const psbt = new bitcoin.Psbt({ network });
+    for (const input of inputs) {
+      psbt.addInput({
+        hash: Buffer.from(input.txid, "hex").reverse(),
+        index: input.vout, sequence: 0xffffffff,
+        witnessUtxo: { script: input.script!, value: input.value },
+      });
+      psbt.updateInput(psbt.inputCount - 1, { sighashType: bitcoin.Transaction.SIGHASH_ALL });
+    }
+    for (const output of outputs) {
+      psbt.addOutput({ script: output.script, value: output.value });
+    }
+
+    const unsignedTx = bitcoin.Transaction.fromBuffer(psbt.data.globalMap.unsignedTx.toBuffer());
+    const txid = Buffer.from(unsignedTx.getId(), "hex");
+    const withdrawalPath = "root";
+
+    const aggregateRequestId = signetClient.calculateSignRespondRequestId(palletSS58, Array.from(txid), {
+      caip2Id: CHAIN_ID, keyVersion: 0, path: withdrawalPath, algo: "ecdsa", dest: "bitcoin", params: "",
+    });
+
+    const perInputRequestIds = inputs.map((_, i) => {
+      const indexBuf = Buffer.alloc(4); indexBuf.writeUInt32LE(i, 0);
+      return ethers.hexlify(signetClient.calculateSignRespondRequestId(
+        palletSS58, Array.from(Buffer.concat([Buffer.from(unsignedTx.getId(), "hex"), indexBuf])),
+        { caip2Id: CHAIN_ID, keyVersion: 0, path: withdrawalPath, algo: "ecdsa", dest: "bitcoin", params: "" }
+      ));
+    });
+
+    const palletInputs = inputs.map((i: any) => ({
+      txid: Array.from(Buffer.from(i.txid, "hex")), vout: i.vout, value: i.value,
+      scriptPubkey: Array.from(i.script), sequence: 0xffffffff,
+    }));
+    const palletOutputs = outputs.map((o: any) => ({ value: o.value, scriptPubkey: Array.from(o.script) }));
+
+    await submitWithRetry(
+      api.tx.btcVault.withdrawBtc(
+        Array.from(ethers.getBytes(aggregateRequestId)), withdrawAmount,
+        Array.from(recipientScript), palletInputs, palletOutputs, 0
+      ),
+      alice, api, "Withdraw BTC (refund)"
+    );
+
+    const balanceAfterWithdraw = BigInt((await api.query.btcVault.userBalances(alice.address)).toString());
+    expect(balanceAfterWithdraw).toBe(balanceBefore - BigInt(withdrawAmount));
+
+    // Get signatures
+    const vaultPubKey = KeyDerivation.derivePublicKey(ROOT_PUBLIC_KEY, palletSS58, withdrawalPath, "polkadot:2034");
+    const vaultCompressed = compressPubkey(vaultPubKey);
+
+    for (let i = 0; i < inputs.length; i++) {
+      const sig = await waitForSignature(api, perInputRequestIds[i], 120000);
+      const { r, s } = extractSigBuffers(sig);
+      psbt.updateInput(i, {
+        partialSig: [{ pubkey: vaultCompressed, signature: Buffer.concat([encodeDER(r, s), Buffer.from([0x01])]) }],
+      });
+    }
+
+    psbt.finalizeAllInputs();
+    const signedTxHex = psbt.extractTransaction().toHex();
+
+    // Broadcast should fail (spent UTXOs)
+    let broadcastFailed = false;
+    try { await btcClient.command("sendrawtransaction", signedTxHex); }
+    catch { broadcastFailed = true; }
+    expect(broadcastFailed).toBe(true);
+    console.log("✅ Broadcast failed as expected (spent UTXOs)");
+
+    // Wait for MPC error response
+    const readResponse = await waitForResponse(api, ethers.hexlify(aggregateRequestId), 300000);
+    expect(readResponse).toBeTruthy();
+
+    const outputBytes = stripScalePrefix(new Uint8Array(readResponse.output));
+    expect(Buffer.from(outputBytes.slice(0, 4)).equals(ERROR_PREFIX)).toBe(true);
+
+    // Complete withdrawal with error
+    const completeResult = await submitWithRetry(
+      api.tx.btcVault.completeWithdrawBtc(Array.from(ethers.getBytes(aggregateRequestId)), Array.from(outputBytes), readResponse.signature),
+      alice, api, "Complete Withdraw (refund)"
+    );
+
+    expect(completeResult.events.some((r: any) => r.event.section === "btcVault" && r.event.method === "WithdrawalFailed")).toBe(true);
+
+    // Verify refund
+    const finalBalance = BigInt((await api.query.btcVault.userBalances(alice.address)).toString());
+    expect(finalBalance).toBe(balanceBefore);
+    console.log(`✅ Refund verified: balance restored to ${finalBalance} sats`);
+  }, 360000);
 });
