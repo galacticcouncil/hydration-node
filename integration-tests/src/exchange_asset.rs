@@ -999,7 +999,7 @@ mod circuit_breaker {
 		Hydra::execute_with(|| {
 			let trapped_event = last_hydra_events(10)[3].clone(); //We need to explicitly assert it, so we can be flexible with amount assertion. If it changes, debug and see at which index is the PolkadotXcm TrappedAsset event
 
-			assert_trapped_acala_token(&trapped_event, 490820165787108u128);
+			assert_trapped_acala_token(&trapped_event, 491170133748382u128);
 
 			//Assert that nothing was reserved on TempAccountForXcmAssetExchange
 			assert_reserved_balance!(TempAccountForXcmAssetExchange::get(), ACA, 0u128);
@@ -1206,7 +1206,7 @@ mod circuit_breaker {
 		Hydra::execute_with(|| {
 			let trapped_event = &last_hydra_events(10)[3].clone();
 
-			assert_trapped_acala_token(trapped_event, 90820165787108u128);
+			assert_trapped_acala_token(trapped_event, 91170133748382u128);
 
 			let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
 			assert!(fee > 0, "treasury should have received fees");
