@@ -217,8 +217,8 @@ pub struct TradeFee<Balance> {
 	pub asset_fee: Balance,
 	// Total protocol fee amount ( includes burnt portion)
 	pub protocol_fee: Balance,
-	// Burnt portion of protocol fee amount
-	pub burnt_protocol_fee: Balance,
+	// Burned portion of protocol fee amount
+	pub burned_protocol_fee: Balance,
 }
 
 /// Delta changes after a trade is executed
