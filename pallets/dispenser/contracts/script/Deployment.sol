@@ -7,7 +7,7 @@ import {GasVoucher} from "../src/GasVoucher.sol";
 
 contract GasFaucetScript is Script {
     uint256 public constant MIN_ETH_THRESHOLD = 0.1 ether;
-    uint256 public constant INITIAL_FUNDING = 0.00001 ether;
+    uint256 public constant INITIAL_FUNDING = 1 ether;
 
     function run() public {
         // Load deployer private key & MPC from environment

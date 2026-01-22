@@ -9,7 +9,7 @@ import { KeyDerivation } from './key-derivation'
 import { blake2AsHex } from '@polkadot/util-crypto'
 import { SubmittableExtrinsic } from '@polkadot/api/types'
 
-const isSepolia = true
+const isSepolia = false
 
 const WS_ENDPOINT = 'ws://127.0.0.1:8000'
 const SEPOLIA_RPC = 'https://ethereum-sepolia-rpc.publicnode.com'
@@ -21,7 +21,7 @@ const SEPOLIA_PUBLIC_KEY =
 const SEPOLIA_CHAIN_ID = 11155111
 const ANVIL_CHAIN_ID = 31337
 const CHAIN_ID = 'polkadot:2034'
-const ANVIL_FAUCET_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512'
+const ANVIL_FAUCET_ADDRESS = '0x2BF866DA3A8eEb90b288e6D434d319624263a24b'
 const SEPOLIA_FAUCET_ADDRESS = '0x52Be077e67496c9763cCEF66c1117dD234Ca8Cfc'
 const LOCAL_SS58_PREFIX = 0
 
@@ -60,7 +60,7 @@ export async function submitWithRetry(
   api: ApiPromise,
   label: string,
   maxRetries: number = 1,
-  timeoutMs: number = 60_000
+  timeoutMs: number = 60_000,
 ): Promise<{ events: any[] }> {
   let attempt = 0
 
@@ -88,20 +88,20 @@ export async function submitWithRetry(
               if (unsubscribe) unsubscribe()
 
               console.log(
-                `✅ ${label} included in block ${status.asInBlock.toHex()}`
+                `✅ ${label} included in block ${status.asInBlock.toHex()}`,
               )
 
               if (dispatchError) {
                 if (dispatchError.isModule) {
                   const decoded = api.registry.findMetaError(
-                    dispatchError.asModule
+                    dispatchError.asModule,
                   )
                   reject(
                     new Error(
                       `${decoded.section}.${decoded.name}: ${decoded.docs.join(
-                        ' '
-                      )}`
-                    )
+                        ' ',
+                      )}`,
+                    ),
                   )
                 } else {
                   reject(new Error(dispatchError.toString()))
@@ -120,7 +120,7 @@ export async function submitWithRetry(
               if (unsubscribe) unsubscribe()
               reject(new Error(`${label} dropped`))
             }
-          }
+          },
         )
           .then((unsub: any) => {
             unsubscribe = unsub
@@ -156,7 +156,7 @@ function ethAddressFromPubKey(pubKey: string): string {
 
 function constructSignedTransaction(
   unsignedSerialized: string,
-  signature: any
+  signature: any,
 ): string {
   const tx = ethers.Transaction.from(unsignedSerialized)
 
@@ -175,7 +175,7 @@ function constructSignedTransaction(
 async function waitForReadResponse(
   api: ApiPromise,
   requestId: string,
-  timeout: number
+  timeout: number,
 ): Promise<any> {
   return new Promise((resolve) => {
     let unsubscribe: any
@@ -214,7 +214,7 @@ async function waitForReadResponse(
 async function getTokenFree(
   api: ApiPromise,
   who: string,
-  assetId: number
+  assetId: number,
 ): Promise<bigint> {
   const acc = await api.query.tokens.accounts(who, assetId)
   return (acc as any).free as unknown as bigint
@@ -226,7 +226,7 @@ async function transferAsset(
   to: string,
   assetId: number,
   amount: bigint | string,
-  label: string
+  label: string,
 ) {
   const tx = api.tx.tokens.transfer(to, assetId, amount)
   await submitWithRetry(tx, from, api, label)
@@ -253,10 +253,10 @@ async function ensureBobHasAssets(
   api: ApiPromise,
   alice: any,
   bob: any,
-  faucetAsset: number
+  faucetAsset: number,
 ) {
   const { data: bobBalance } = (await api.query.system.account(
-    bob.address
+    bob.address,
   )) as any
 
   if (bobBalance.free.toBigInt() < MIN_BOB_NATIVE_BALANCE) {
@@ -268,12 +268,12 @@ async function ensureBobHasAssets(
       bob.address,
       faucetAsset,
       ethers.parseEther('100'),
-      `Fund faucet asset ${faucetAsset} to Bob`
+      `Fund faucet asset ${faucetAsset} to Bob`,
     )
 
     const bobFundTx = api.tx.balances.transferKeepAlive(
       bob.address,
-      BOB_NATIVE_TOPUP
+      BOB_NATIVE_TOPUP,
     )
     await submitWithRetry(bobFundTx, alice, api, 'Fund Bob account')
   }
@@ -283,7 +283,7 @@ async function logAliceTokenBalances(
   api: ApiPromise,
   alice: any,
   faucetAsset: number,
-  feeAsset: number
+  feeAsset: number,
 ) {
   const faucetBal = await getTokenFree(api, alice.address, faucetAsset)
   const feeBal = await getTokenFree(api, alice.address, feeAsset)
@@ -293,14 +293,14 @@ async function logAliceTokenBalances(
     'faucetBalance =',
     faucetBal.toString(),
     'feeBalance =',
-    feeBal.toString()
+    feeBal.toString(),
   )
 }
 
 async function fundPalletAccounts(
   api: ApiPromise,
   alice: any,
-  faucetAsset: number
+  faucetAsset: number,
 ): Promise<{ palletSS58: string }> {
   const palletAccountId = getPalletAccountId()
   const palletSS58 = encodeAddress(palletAccountId, LOCAL_SS58_PREFIX)
@@ -311,11 +311,11 @@ async function fundPalletAccounts(
     palletSS58,
     faucetAsset,
     PALLET_FAUCET_FUND,
-    `Fund pallet faucet asset ${faucetAsset}`
+    `Fund pallet faucet asset ${faucetAsset}`,
   )
 
   const { data: palletBalance } = (await api.query.system.account(
-    palletSS58
+    palletSS58,
   )) as any
 
   if (palletBalance.free.toBigInt() < PALLET_MIN_NATIVE_BALANCE) {
@@ -323,7 +323,7 @@ async function fundPalletAccounts(
 
     const fundTx = api.tx.balances.transferKeepAlive(
       palletSS58,
-      PALLET_MIN_NATIVE_BALANCE
+      PALLET_MIN_NATIVE_BALANCE,
     )
     await submitWithRetry(fundTx, alice, api, 'Fund pallet account')
   }
@@ -334,7 +334,7 @@ async function fundPalletAccounts(
 function deriveSubstrateAndEthAddresses(
   keyring: Keyring,
   alice: any,
-  palletSS58: string
+  palletSS58: string,
 ): { derivedPubKey: string; derivedEthAddress: string; aliceHexPath: string } {
   const aliceAccountId = keyring.decodeAddress(alice.address)
   const aliceHexPath = '0x' + u8aToHex(aliceAccountId).slice(2)
@@ -343,7 +343,7 @@ function deriveSubstrateAndEthAddresses(
     ROOT_PUBLIC_KEY,
     palletSS58,
     aliceHexPath,
-    CHAIN_ID
+    CHAIN_ID,
   )
 
   const derivedEthAddress = ethAddressFromPubKey(derivedPubKey)
@@ -355,7 +355,7 @@ function deriveSubstrateAndEthAddresses(
 
 async function ensureDerivedEthHasGas(
   provider: ethers.JsonRpcProvider,
-  derivedEthAddress: string
+  derivedEthAddress: string,
 ) {
   const ethBalance = await provider.getBalance(derivedEthAddress)
   const feeData = await provider.getFeeData()
@@ -366,7 +366,7 @@ async function ensureDerivedEthHasGas(
   console.log(`💰 Balances for ${derivedEthAddress}:`)
   console.log(`   ETH: ${ethers.formatEther(ethBalance)}`)
   console.log(
-    `   Estimated gas needed: ${ethers.formatEther(estimatedGas)} ETH\n`
+    `   Estimated gas needed: ${ethers.formatEther(estimatedGas)} ETH\n`,
   )
 
   if (ethBalance < estimatedGas) {
@@ -374,7 +374,7 @@ async function ensureDerivedEthHasGas(
       `❌ Insufficient ETH at ${derivedEthAddress}\n` +
         `   Need: ${ethers.formatEther(estimatedGas)} ETH\n` +
         `   Have: ${ethers.formatEther(ethBalance)} ETH\n` +
-        `   Please fund this address with ETH for gas`
+        `   Please fund this address with ETH for gas`,
     )
   }
 }
@@ -394,12 +394,12 @@ async function initializeVaultIfNeeded(api: ApiPromise, alice: any) {
   const mpcEthAddress = ethAddressFromPubKey(ROOT_PUBLIC_KEY)
   console.log('Initializing vault with MPC address (via Root):', mpcEthAddress)
 
-  const initCall = api.tx.ethDispenser.initialize(PALLET_FAUCET_FUND)
+  const initCall = api.tx.ethDispenser.setFaucetBalance(PALLET_FAUCET_FUND)
 
   await executeAsRootViaScheduler(
     api,
     initCall,
-    'Initialize ethDispenser via Root'
+    'Initialize ethDispenser via Root',
   )
 
   const cfg = await api.query.ethDispenser.dispenserConfig()
@@ -427,7 +427,7 @@ describe('ERC20 Vault Integration', () => {
     console.log(
       `feeAsset = ${feeAsset}
       faucetAsset = ${faucetAsset}
-      faucetAddress = ${api.consts.ethDispenser.faucetAddress.toString()}`
+      faucetAddress = ${api.consts.ethDispenser.faucetAddress.toString()}`,
     )
 
     const { keyring, alice: aliceAcc, bob } = createKeyringAndAccounts()
@@ -445,7 +445,7 @@ describe('ERC20 Vault Integration', () => {
     await signetClient.ensureSignetInitializedViaReferendum(
       api,
       alice,
-      CHAIN_ID
+      CHAIN_ID,
     )
 
     const derived = deriveSubstrateAndEthAddresses(keyring, alice, palletSS58)
@@ -468,7 +468,7 @@ describe('ERC20 Vault Integration', () => {
     const feeData = await sepoliaProvider.getFeeData()
     const currentNonce = await sepoliaProvider.getTransactionCount(
       derivedEthAddress,
-      'pending'
+      'pending',
     )
 
     console.log(`📊 Current nonce for ${derivedEthAddress}: ${currentNonce}`)
@@ -478,7 +478,7 @@ describe('ERC20 Vault Integration', () => {
       gasLimit: Number(GAS_LIMIT),
       maxFeePerGas: Number(feeData.maxFeePerGas || DEFAULT_MAX_FEE_PER_GAS),
       maxPriorityFeePerGas: Number(
-        feeData.maxPriorityFeePerGas || DEFAULT_MAX_PRIORITY_FEE_PER_GAS
+        feeData.maxPriorityFeePerGas || DEFAULT_MAX_PRIORITY_FEE_PER_GAS,
       ),
       nonce: currentNonce,
       chainId: EVM_CHAIN_ID,
@@ -498,6 +498,8 @@ describe('ERC20 Vault Integration', () => {
       REQUEST_FUND_AMOUNT,
     ])
 
+    console.log({ data })
+
     const tx = ethers.Transaction.from({
       type: 2,
       chainId: txParams.chainId,
@@ -512,15 +514,13 @@ describe('ERC20 Vault Integration', () => {
 
     const requestId = signetClient.calculateSignRespondRequestId(
       palletSS58,
-      Array.from(ethers.getBytes(tx.unsignedSerialized)),
-      {
-        slip44ChainId: 60,
-        keyVersion: 0,
-        path: aliceHexPath,
-        algo: 'ecdsa',
-        dest: 'ethereum',
-        params: '',
-      }
+      ethers.getBytes(tx.unsignedSerialized),
+      EVM_CHAIN_ID,
+      0,
+      aliceHexPath,
+      'ecdsa',
+      'ethereum',
+      '',
     )
 
     console.log(`📋 Request ID: ${ethers.hexlify(requestId)}\n`)
@@ -532,7 +532,7 @@ describe('ERC20 Vault Integration', () => {
       Array.from(ethers.getBytes(TARGET_ADDRESS)),
       REQUEST_FUND_AMOUNT.toString(),
       requestIdBytes,
-      txParams
+      txParams,
     )
 
     console.log('🚀 Submitting deposit_erc20 transaction...')
@@ -540,22 +540,22 @@ describe('ERC20 Vault Integration', () => {
       depositTx,
       alice,
       api,
-      'Request Fund'
+      'Request Fund',
     )
 
     const signetEvents = depositResult.events.filter(
       (record: any) =>
         record.event.section === 'signet' &&
-        record.event.method === 'SignBidirectionalRequested'
+        record.event.method === 'SignBidirectionalRequested',
     )
 
     console.log(
-      `📊 Found ${signetEvents.length} SignBidirectionalRequested event(s)`
+      `📊 Found ${signetEvents.length} SignBidirectionalRequested event(s)`,
     )
 
     if (signetEvents.length > 0) {
       console.log(
-        '✅ SignBidirectionalRequested event emitted - MPC should pick it up!'
+        '✅ SignBidirectionalRequested event emitted - MPC should pick it up!',
       )
     } else {
       console.log('⚠️  No SignBidirectionalRequested event found!')
@@ -565,7 +565,7 @@ describe('ERC20 Vault Integration', () => {
 
     const signature = await signetClient.waitForSignature(
       ethers.hexlify(requestId),
-      1_200_000
+      1_200_000,
     )
 
     if (!signature) {
@@ -576,7 +576,7 @@ describe('ERC20 Vault Integration', () => {
 
     const signedTx = constructSignedTransaction(
       tx.unsignedSerialized,
-      signature.signature
+      signature.signature,
     )
     const recoveredTx = ethers.Transaction.from(signedTx)
     const recoveredAddress = recoveredTx.from
@@ -587,7 +587,7 @@ describe('ERC20 Vault Integration', () => {
     console.log(
       `   Match: ${
         recoveredAddress?.toLowerCase() === derivedEthAddress.toLowerCase()
-      }`
+      }`,
     )
 
     if (recoveredAddress?.toLowerCase() !== derivedEthAddress.toLowerCase()) {
@@ -595,20 +595,20 @@ describe('ERC20 Vault Integration', () => {
         `❌ Signature verification failed!\n` +
           `   Expected: ${derivedEthAddress}\n` +
           `   Recovered: ${recoveredAddress}\n` +
-          `   This means the MPC signed with the wrong key or recovery ID is incorrect.`
+          `   This means the MPC signed with the wrong key or recovery ID is incorrect.`,
       )
     }
 
     const freshNonce = await sepoliaProvider.getTransactionCount(
       derivedEthAddress,
-      'pending'
+      'pending',
     )
     console.log(`📊 Fresh nonce check: ${freshNonce}`)
 
     if (freshNonce !== txParams.nonce) {
       throw new Error(
         `❌ Nonce mismatch! Expected ${txParams.nonce}, but network shows ${freshNonce}.\n` +
-          `   A transaction may have already been sent from this address.`
+          `   A transaction may have already been sent from this address.`,
       )
     }
 
@@ -623,7 +623,7 @@ describe('ERC20 Vault Integration', () => {
     const readResponse = await waitForReadResponse(
       api,
       ethers.hexlify(requestId),
-      120_000
+      120_000,
     )
 
     if (!readResponse) {
@@ -636,7 +636,7 @@ describe('ERC20 Vault Integration', () => {
     console.log('  Request ID:', ethers.hexlify(requestIdBytes))
     console.log(
       '  Output (hex):',
-      Buffer.from(readResponse.output).toString('hex')
+      Buffer.from(readResponse.output).toString('hex'),
     )
   }, 180_000)
 })
@@ -647,7 +647,7 @@ export async function executeAsRootViaReferendum(
   call: any, // api.tx.<pallet>.<fn>(...)
   label: string,
   maxRetries = 1,
-  timeoutMs = 60_000
+  timeoutMs = 60_000,
 ): Promise<number> {
   console.log(`\n=== ${label}: starting Root execution via Referenda ===`)
 
@@ -667,7 +667,7 @@ export async function executeAsRootViaReferendum(
     api,
     `${label} - notePreimage`,
     maxRetries,
-    timeoutMs
+    timeoutMs,
   )
 
   // 3) Submit referendum with ROOT origin
@@ -685,7 +685,7 @@ export async function executeAsRootViaReferendum(
   const submitTx = api.tx.referenda.submit(
     proposalOrigin,
     proposalCall,
-    enactmentMoment
+    enactmentMoment,
   )
 
   await submitWithRetry(
@@ -694,7 +694,7 @@ export async function executeAsRootViaReferendum(
     api,
     `${label} - submitReferendum`,
     maxRetries,
-    timeoutMs
+    timeoutMs,
   )
 
   const referendumIndex =
@@ -707,13 +707,13 @@ export async function executeAsRootViaReferendum(
   console.log('signer free balance =', data.free.toBigInt().toString())
   const acc = (await api.query.tokens.accounts(
     signer.address,
-    faucetAsset
+    faucetAsset,
   )) as any
   console.log(
     'faucet asset id =',
     faucetAsset,
     'faucet asset free =',
-    acc.free.toString()
+    acc.free.toString(),
   )
 
   const tracks: any = api.consts.referenda.tracks
@@ -729,7 +729,7 @@ export async function executeAsRootViaReferendum(
     api,
     `${label} - decisionDeposit`,
     maxRetries,
-    timeoutMs
+    timeoutMs,
   )
 
   // 6) Vote AYE with a big balance so it passes quickly
@@ -740,7 +740,7 @@ export async function executeAsRootViaReferendum(
   const voteAmount = (free * 5n) / 10n
 
   console.log(
-    `${label}: free balance = ${free.toString()}, voteAmount = ${voteAmount.toString()}`
+    `${label}: free balance = ${free.toString()}, voteAmount = ${voteAmount.toString()}`,
   )
 
   const voteTx = api.tx.convictionVoting.vote(referendumIndex, {
@@ -756,7 +756,7 @@ export async function executeAsRootViaReferendum(
     api,
     `${label} - vote`,
     maxRetries,
-    timeoutMs
+    timeoutMs,
   )
 
   console.log(`${label}: waiting for referendum to progress...`)
@@ -766,7 +766,7 @@ export async function executeAsRootViaReferendum(
   console.log('Referendum info:', info.toHuman())
 
   console.log(
-    `=== ${label}: Root call scheduled via referenda (index ${referendumIndex}) ===\n`
+    `=== ${label}: Root call scheduled via referenda (index ${referendumIndex}) ===\n`,
   )
 
   // You can return the index to inspect later if needed
@@ -776,7 +776,7 @@ export async function executeAsRootViaReferendum(
 export async function executeAsRootViaScheduler(
   api: ApiPromise,
   call: SubmittableExtrinsic<'promise'>,
-  label: string
+  label: string,
 ) {
   const header = await api.rpc.chain.getHeader()
   const number = header.number.toNumber()
