@@ -352,7 +352,6 @@ mod benches {
 		[pallet_multisig, Multisig]
 		[pallet_proxy, Proxy]
 		[cumulus_pallet_parachain_system, ParachainSystem]
-		[pallet_collator_selection, CollatorSelection]
 		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
 		[pallet_xcm_benchmarks::fungible, XcmBalances]
 		[pallet_xcm_benchmarks::generic, XcmGeneric]
