@@ -26,6 +26,7 @@ pub trait WeightInfo {
 	fn join_farms(c: u32) -> Weight;	
 	fn add_liquidity_and_join_farms(c: u32) -> Weight;
 	fn add_liquidity_stableswap_omnipool_and_join_farms(c: u32) -> Weight;
+	fn remove_liquidity_stableswap_omnipool_and_exit_farms(c: u32) -> Weight;
 	fn price_adjustment_get() -> Weight;
 
 	fn exit_farms(c: u32) -> Weight;
@@ -545,6 +546,78 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(35_u64))
 			.saturating_add(RocksDbWeight::get().writes((3_u64).saturating_mul(c.into())))
 			.saturating_add(Weight::from_parts(0, 2680).saturating_mul(c.into()))
+	}
+
+	/// Storage: `Uniques::Asset` (r:2 w:2)
+	/// Proof: `Uniques::Asset` (`max_values`: None, `max_size`: Some(146), added: 2621, mode: `MaxEncodedLen`)
+	/// Storage: `OmnipoolLiquidityMining::OmniPositionId` (r:1 w:1)
+	/// Proof: `OmnipoolLiquidityMining::OmniPositionId` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `OmnipoolWarehouseLM::Deposit` (r:1 w:1)
+	/// Proof: `OmnipoolWarehouseLM::Deposit` (`max_values`: None, `max_size`: Some(385), added: 2860, mode: `MaxEncodedLen`)
+	/// Storage: `Omnipool::Positions` (r:1 w:1)
+	/// Proof: `Omnipool::Positions` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
+	/// Storage: `OmnipoolWarehouseLM::YieldFarm` (r:5 w:5)
+	/// Proof: `OmnipoolWarehouseLM::YieldFarm` (`max_values`: None, `max_size`: Some(198), added: 2673, mode: `MaxEncodedLen`)
+	/// Storage: `OmnipoolWarehouseLM::GlobalFarm` (r:5 w:5)
+	/// Proof: `OmnipoolWarehouseLM::GlobalFarm` (`max_values`: None, `max_size`: Some(205), added: 2680, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:8 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:3 w:0)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `Uniques::Class` (r:2 w:2)
+	/// Proof: `Uniques::Class` (`max_values`: None, `max_size`: Some(190), added: 2665, mode: `MaxEncodedLen`)
+	/// Storage: `Omnipool::Assets` (r:1 w:1)
+	/// Proof: `Omnipool::Assets` (`max_values`: None, `max_size`: Some(85), added: 2560, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Accounts` (r:13 w:13)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	/// Storage: `DynamicFees::AssetFeeConfiguration` (r:1 w:0)
+	/// Proof: `DynamicFees::AssetFeeConfiguration` (`max_values`: None, `max_size`: Some(93), added: 2568, mode: `MaxEncodedLen`)
+	/// Storage: `DynamicFees::AssetFee` (r:1 w:0)
+	/// Proof: `DynamicFees::AssetFee` (`max_values`: None, `max_size`: Some(24), added: 2499, mode: `MaxEncodedLen`)
+	/// Storage: `EmaOracle::Oracles` (r:2 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(194), added: 2669, mode: `MaxEncodedLen`)
+	/// Storage: `EVMAccounts::AccountExtension` (r:1 w:0)
+	/// Proof: `EVMAccounts::AccountExtension` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `HSM::FlashMinter` (r:1 w:0)
+	/// Proof: `HSM::FlashMinter` (`max_values`: Some(1), `max_size`: Some(20), added: 515, mode: `MaxEncodedLen`)
+	/// Storage: `Duster::AccountWhitelist` (r:2 w:0)
+	/// Proof: `Duster::AccountWhitelist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::BannedAssets` (r:6 w:0)
+	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::TotalIssuance` (r:2 w:2)
+	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
+	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(6601), added: 7096, mode: `MaxEncodedLen`)
+	/// Storage: `CircuitBreaker::LiquidityAddLimitPerAsset` (r:1 w:0)
+	/// Proof: `CircuitBreaker::LiquidityAddLimitPerAsset` (`max_values`: None, `max_size`: Some(29), added: 2504, mode: `MaxEncodedLen`)
+	/// Storage: `CircuitBreaker::LiquidityRemoveLimitPerAsset` (r:1 w:0)
+	/// Proof: `CircuitBreaker::LiquidityRemoveLimitPerAsset` (`max_values`: None, `max_size`: Some(29), added: 2504, mode: `MaxEncodedLen`)
+	/// Storage: `Stableswap::Pools` (r:1 w:0)
+	/// Proof: `Stableswap::Pools` (`max_values`: None, `max_size`: Some(57), added: 2532, mode: `MaxEncodedLen`)
+	/// Storage: `Stableswap::PoolSnapshots` (r:1 w:0)
+	/// Proof: `Stableswap::PoolSnapshots` (`max_values`: None, `max_size`: Some(328), added: 2803, mode: `MaxEncodedLen`)
+	/// Storage: `Stableswap::AssetTradability` (r:5 w:0)
+	/// Proof: `Stableswap::AssetTradability` (`max_values`: None, `max_size`: Some(41), added: 2516, mode: `MaxEncodedLen`)
+	/// Storage: `Stableswap::PoolPegs` (r:1 w:0)
+	/// Proof: `Stableswap::PoolPegs` (`max_values`: None, `max_size`: Some(355), added: 2830, mode: `MaxEncodedLen`)
+	/// Storage: `Uniques::Account` (r:0 w:3)
+	/// Proof: `Uniques::Account` (`max_values`: None, `max_size`: Some(112), added: 2587, mode: `MaxEncodedLen`)
+	/// Storage: `Uniques::ItemPriceOf` (r:0 w:2)
+	/// Proof: `Uniques::ItemPriceOf` (`max_values`: None, `max_size`: Some(113), added: 2588, mode: `MaxEncodedLen`)
+	/// The range of component `c` is `[0, 1]`.
+	fn remove_liquidity_stableswap_omnipool_and_exit_farms(c: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `25250 + c * (5724 ±0)`
+		//  Estimated: `34569 + c * (7195 ±0)`
+		// Minimum execution time: 571_000_000 picoseconds.
+		Weight::from_parts(626_842_857, 34569)
+			// Standard Error: 2_082_005
+			.saturating_add(Weight::from_parts(261_557_142, 0).saturating_mul(c.into()))
+			.saturating_add(RocksDbWeight::get().reads(53_u64))
+			.saturating_add(RocksDbWeight::get().reads((16_u64).saturating_mul(c.into())))
+			.saturating_add(RocksDbWeight::get().writes(22_u64))
+			.saturating_add(RocksDbWeight::get().writes((17_u64).saturating_mul(c.into())))
+			.saturating_add(Weight::from_parts(0, 7195).saturating_mul(c.into()))
 	}
 	fn price_adjustment_get() -> Weight {
 		// Proof Size summary in bytes:
