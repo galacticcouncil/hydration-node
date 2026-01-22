@@ -933,8 +933,11 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			let protocol_fees =
-				Self::process_protocol_fee(state_changes.fee.protocol_fee, state_changes.fee.burnt_protocol_fee)?;
+			let protocol_fees = Self::process_protocol_fee(
+				origin.clone(),
+				state_changes.fee.protocol_fee,
+				state_changes.fee.burnt_protocol_fee,
+			)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who: who.clone(),
@@ -1158,8 +1161,11 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			let protocol_fees =
-				Self::process_protocol_fee(state_changes.fee.protocol_fee, state_changes.fee.burnt_protocol_fee)?;
+			let protocol_fees = Self::process_protocol_fee(
+				origin.clone(),
+				state_changes.fee.protocol_fee,
+				state_changes.fee.burnt_protocol_fee,
+			)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who: who.clone(),
@@ -1537,7 +1543,11 @@ impl<T: Config> Pallet<T> {
 	/// Process protocol fee.
 	/// Given the total `protocol_fee` and already `burnt` portion of the fee, transfer the rest to HDX subpool
 	/// Returns information where the fee amounts were transferred/burned for fee reporting.
-	fn process_protocol_fee(protocol_fee: Balance, burnt: Balance) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
+	fn process_protocol_fee(
+		origin: T::RuntimeOrigin,
+		protocol_fee: Balance,
+		burnt: Balance,
+	) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
 		if protocol_fee.is_zero() {
 			return Ok(vec![]);
 		}
@@ -1557,7 +1567,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(remaining_protocol_fee))?;
 
-		Self::increase_hdx_subpool_hub_reserve(remaining_protocol_fee)?;
+		Self::increase_hdx_subpool_hub_reserve(origin, remaining_protocol_fee)?;
 
 		fee_report.push(Fee::new(
 			T::HubAssetId::get().into(),
@@ -1582,10 +1592,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[require_transactional]
-	fn increase_hdx_subpool_hub_reserve(amount: Balance) -> DispatchResult {
+	fn increase_hdx_subpool_hub_reserve(origin: T::RuntimeOrigin, amount: Balance) -> DispatchResult {
 		if amount.is_zero() {
 			return Ok(());
 		}
+
+		let hdx_state_before = Self::load_asset_state(T::HdxAssetId::get())?;
 
 		Assets::<T>::try_mutate(T::HdxAssetId::get(), |maybe_asset| -> DispatchResult {
 			let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
@@ -1594,7 +1606,30 @@ impl<T: Config> Pallet<T> {
 				.checked_add(amount)
 				.ok_or(ArithmeticError::Overflow)?;
 			Ok(())
-		})
+		})?;
+
+		let hdx_state_after = Self::load_asset_state(T::HdxAssetId::get())?;
+
+		let hdx_delta_changes = AssetStateChange {
+			delta_hub_reserve: BalanceUpdate::Increase(amount),
+			..Default::default()
+		};
+
+		let hdx_info: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+			T::HdxAssetId::get(),
+			&hdx_state_before,
+			&hdx_state_after,
+			&hdx_delta_changes,
+			false,
+		);
+
+		T::OmnipoolHooks::on_hub_asset_trade(origin, hdx_info)?;
+
+		//TODO: verify with Martin, becauase without this we have many failing integration tests
+		// Store HDX fee to keep it in sync with the oracle update
+		let _ = T::Fee::get_and_store((T::HdxAssetId::get(), hdx_state_after.reserve));
+
+		Ok(())
 	}
 
 	/// Check if assets can be traded - asset_in must be allowed to be sold and asset_out allowed to be bought.
@@ -1687,7 +1722,7 @@ impl<T: Config> Pallet<T> {
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
 		// Route H2O to HDX subpool instead of traded asset's subpool, to bump HDX prices
-		Self::increase_hdx_subpool_hub_reserve(hub_reserve_delta)?;
+		Self::increase_hdx_subpool_hub_reserve(origin.clone(), hub_reserve_delta)?;
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
@@ -1816,7 +1851,7 @@ impl<T: Config> Pallet<T> {
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
 		// Route H2O to HDX subpool instead of traded asset's subpool, to bump HDX prices
-		Self::increase_hdx_subpool_hub_reserve(hub_reserve_delta)?;
+		Self::increase_hdx_subpool_hub_reserve(origin.clone(), hub_reserve_delta)?;
 
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::BuyExecuted {

@@ -23,7 +23,7 @@ use std::collections::HashMap;
 
 use crate as pallet_omnipool;
 
-use crate::traits::ExternalPriceProvider;
+use crate::traits::{AssetInfo, ExternalPriceProvider};
 use frame_support::traits::{ConstU128, Everything};
 use frame_support::weights::Weight;
 use frame_support::{
@@ -81,6 +81,7 @@ thread_local! {
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 	pub static ON_TRADE_WITHDRAWAL: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static ON_TRADE_WITHDRAWAL_EXTRA: RefCell<Balance> = const { RefCell::new(0) };
+	pub static HUB_ASSET_TRADE_HOOK_CALLS: RefCell<Vec<AssetInfo<AssetId, Balance>>> = RefCell::new(vec![]);
 }
 
 construct_runtime!(
@@ -286,6 +287,9 @@ impl Default for ExtBuilder {
 		});
 		ON_TRADE_WITHDRAWAL_EXTRA.with(|v| {
 			*v.borrow_mut() = Balance::zero();
+		});
+		HUB_ASSET_TRADE_HOOK_CALLS.with(|v| {
+			v.borrow_mut().clear();
 		});
 
 		Self {
@@ -605,6 +609,27 @@ pub(crate) fn last_position_id() -> u32 {
 	Omnipool::next_position_id()
 }
 
+// Helper to get recorded hub asset trade hook calls
+pub fn get_hub_asset_trade_hook_calls() -> Vec<AssetInfo<AssetId, Balance>> {
+	HUB_ASSET_TRADE_HOOK_CALLS.with(|v| {
+		v.borrow()
+			.iter()
+			.map(|info| AssetInfo {
+				asset_id: info.asset_id,
+				before: info.before.clone(),
+				after: info.after.clone(),
+				delta_changes: info.delta_changes.clone(),
+				safe_withdrawal: info.safe_withdrawal,
+			})
+			.collect()
+	})
+}
+
+// Helper to clear recorded hub asset trade hook calls
+pub fn clear_hub_asset_trade_hook_calls() {
+	HUB_ASSET_TRADE_HOOK_CALLS.with(|v| v.borrow_mut().clear());
+}
+
 pub struct MockOracle;
 
 impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
@@ -739,7 +764,11 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		Ok(Weight::zero())
 	}
 
-	fn on_hub_asset_trade(_origin: RuntimeOrigin, _asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+	fn on_hub_asset_trade(_origin: RuntimeOrigin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+		// Record the complete AssetInfo
+		HUB_ASSET_TRADE_HOOK_CALLS.with(|v| {
+			v.borrow_mut().push(asset);
+		});
 		Ok(Weight::zero())
 	}
 

@@ -109,7 +109,7 @@ fn omnipool_trades_are_ingested_into_oracle() {
 		hydradx_run_to_next_block();
 
 		// assert
-		let expected_a = ((936334588000000000, 1124993992514080).into(), 0);
+		let expected_a = ((936334588000000000, 1124993995517813).into(), 0);
 		let expected_b = ((87719064743683, 2250006019587887).into(), 0);
 		for supported_period in SUPPORTED_PERIODS {
 			assert_eq!(
@@ -185,16 +185,16 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 			.collect();
 
 		let hdx_lrna_short = Price::new(
-			275912930266301964650125486133045298712u128,
-			331509048522000723356274948002205827u128,
+			275912930932827880927603180629154300849u128,
+			331509049407129600017073813722130790u128,
 		);
 
 		let hdx_lrna_ten_minutes = Price::new(
-			275912707974555369233768326255072237241u128,
-			331509048522000723356274948002205827u128,
+			275912708696654056019008621647156976919u128,
+			331509049407129600017073813722130790u128,
 		);
 
-		let hdx_lrna_last_block = Price::new(936334588000000000u128, 1124993992514080u128);
+		let hdx_lrna_last_block = Price::new(936334588000000000u128, 1124993995517813u128);
 
 		let lrna_dot_short = Price::new(
 			264175141927355168031033383691740147272u128,
@@ -596,6 +596,155 @@ fn bifrost_oracle_update_fail_should_charge_fee() {
 			hydradx_runtime::Currencies::free_balance(0, &ALICE.into()),
 			balance,
 			"fee shouldn't be returned"
+		);
+	});
+}
+
+#[test]
+fn oracle_updated_event_is_emitted_for_hdx_subpool_on_hub_asset_sell() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// Arrange
+		hydradx_run_to_next_block();
+		init_omnipool();
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			LRNA,
+			100 * UNITS as i128,
+		));
+
+		hydradx_runtime::System::reset_events();
+		hydradx_run_to_next_block();
+
+		// Act
+		assert_ok!(hydradx_runtime::Omnipool::sell(
+			RuntimeOrigin::signed(ALICE.into()),
+			LRNA, // selling hub asset
+			DAI,
+			10 * UNITS,
+			0,
+		));
+
+		// Finalize block to trigger oracle update
+		hydradx_runtime::System::reset_events();
+		hydradx_run_to_next_block();
+
+		let oracle_updated_events: Vec<_> = hydradx_runtime::System::events()
+			.into_iter()
+			.filter(|record| {
+				matches!(
+					record.event,
+					hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated { .. })
+				)
+			})
+			.map(|record| record.event)
+			.collect();
+
+		// Should have oracle updates for:
+		// 1. DAI/LRNA pair (from the trade)
+		// 2. HDX/LRNA pair (from H2O routing to HDX subpool)
+		let has_dai_lrna_update = oracle_updated_events.iter().any(|e| {
+			matches!(
+				e,
+				hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated {
+					assets: (LRNA, DAI) | (DAI, LRNA),
+					..
+				})
+			)
+		});
+
+		let has_hdx_lrna_update = oracle_updated_events.iter().any(|e| {
+			matches!(
+				e,
+				hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated {
+					assets: (LRNA, HDX) | (HDX, LRNA),
+					..
+				})
+			)
+		});
+
+		assert!(has_dai_lrna_update, "Expected DAI/LRNA oracle update from trade");
+		assert!(
+			has_hdx_lrna_update,
+			"Expected HDX/LRNA oracle update from H2O routing to HDX subpool"
+		);
+	});
+}
+
+#[test]
+fn oracle_updated_event_is_emitted_for_hdx_subpool_on_buy_with_hub_asset() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// Arrange
+		hydradx_run_to_next_block();
+		init_omnipool();
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			LRNA,
+			100 * UNITS as i128,
+		));
+
+		hydradx_runtime::System::reset_events();
+		hydradx_run_to_next_block();
+
+		// Act
+		assert_ok!(hydradx_runtime::Omnipool::buy(
+			RuntimeOrigin::signed(ALICE.into()),
+			DAI,  // buying DAI
+			LRNA, // paying with hub asset
+			5 * UNITS,
+			100 * UNITS,
+		));
+
+		// Finalize block to trigger oracle update
+		hydradx_runtime::System::reset_events();
+		hydradx_run_to_next_block();
+
+		// Assert - Filter for OracleUpdated events
+		let oracle_updated_events: Vec<_> = hydradx_runtime::System::events()
+			.into_iter()
+			.filter(|record| {
+				matches!(
+					record.event,
+					hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated { .. })
+				)
+			})
+			.map(|record| record.event)
+			.collect();
+
+		// Should have oracle updates for:
+		// 1. DAI/LRNA pair (from the trade)
+		// 2. HDX/LRNA pair (from H2O routing to HDX subpool)
+		let has_dai_lrna_update = oracle_updated_events.iter().any(|e| {
+			matches!(
+				e,
+				hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated {
+					assets: (LRNA, DAI) | (DAI, LRNA),
+					..
+				})
+			)
+		});
+
+		let has_hdx_lrna_update = oracle_updated_events.iter().any(|e| {
+			matches!(
+				e,
+				hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated {
+					assets: (LRNA, HDX) | (HDX, LRNA),
+					..
+				})
+			)
+		});
+
+		assert!(has_dai_lrna_update, "Expected DAI/LRNA oracle update from trade");
+		assert!(
+			has_hdx_lrna_update,
+			"Expected HDX/LRNA oracle update from H2O routing to HDX subpool"
 		);
 	});
 }

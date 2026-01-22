@@ -1151,13 +1151,7 @@ fn sell_hub_routes_to_hdx_subpool() {
 		.build()
 		.execute_with(|| {
 			let sell_amount = 50 * ONE;
-			assert_ok!(Omnipool::sell(
-				RuntimeOrigin::signed(LP3),
-				LRNA,
-				100,
-				sell_amount,
-				0
-			));
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP3), LRNA, 100, sell_amount, 0));
 
 			// HDX subpool: hub_reserve increased by delta_hub_reserve (routed here)
 			assert_asset_state!(
@@ -1322,5 +1316,87 @@ fn buy_for_hub_routes_to_hdx_subpool() {
 				}
 				.into(),
 			]);
+		});
+}
+
+#[test]
+fn sell_hub_asset_calls_oracle_hook_for_hdx_subpool() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, 100, 5000 * ONE),
+			(LP3, LRNA, 100 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			clear_hub_asset_trade_hook_calls();
+
+			let sell_amount = 50 * ONE;
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP3), LRNA, 100, sell_amount, 0));
+
+			let hook_calls = get_hub_asset_trade_hook_calls();
+
+			// Should have 2 calls:
+			// 1. For HDX subpool with delta_hub_reserve = sell_amount (from increase_hdx_subpool_hub_reserve)
+			// 2. For traded asset (100) with delta_hub_reserve = 0 (from on_hub_asset_trade)
+			assert_eq!(hook_calls.len(), 2);
+
+			// First oracle call: HDX subpool with actual hub delta
+			let hdx_info = &hook_calls[0];
+			assert_eq!(hdx_info.asset_id, HDX);
+			assert_eq!(*hdx_info.delta_changes.delta_hub_reserve, sell_amount);
+			assert_eq!(*hdx_info.delta_changes.delta_reserve, 0);
+			assert_eq!(hdx_info.after.hub_reserve, hdx_info.before.hub_reserve + sell_amount);
+			assert_eq!(hdx_info.after.reserve, hdx_info.before.reserve);
+
+			// Second oracle call: traded asset (100) with zero hub delta
+			let traded_asset_info = &hook_calls[1];
+			assert_eq!(traded_asset_info.asset_id, 100);
+			assert_eq!(*traded_asset_info.delta_changes.delta_hub_reserve, 0);
+			assert!(*traded_asset_info.delta_changes.delta_reserve > 0);
+			// hub_reserve unchanged (H2O routed to HDX subpool, not here)
+			assert_eq!(traded_asset_info.after.hub_reserve, traded_asset_info.before.hub_reserve);
+			// reserve decreased (tokens sold to user)
+			assert!(traded_asset_info.after.reserve < traded_asset_info.before.reserve);
+		});
+}
+
+#[test]
+fn protocol_fee_calls_oracle_hook_for_hdx_subpool() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, 100, 5000 * ONE),
+			(LP2, 200, 5000 * ONE),
+			(LP3, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_protocol_fee(Permill::from_percent(10))
+		.build()
+		.execute_with(|| {
+			clear_hub_asset_trade_hook_calls();
+
+			// Regular trade (not H2O) that generates protocol fees
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP3), 100, 200, 100 * ONE, 0));
+
+			let hook_calls = get_hub_asset_trade_hook_calls();
+
+			let hdx_calls: Vec<_> = hook_calls.iter().filter(|info| info.asset_id == HDX).collect();
+
+			assert_eq!(hdx_calls.len(), 1, "Expected HDX hook call from protocol fee routing");
+			let hdx_info = hdx_calls[0];
+			assert_eq!(hdx_info.asset_id, HDX);
+			assert!(*hdx_info.delta_changes.delta_hub_reserve > 0); // fee amount
+			assert_eq!(*hdx_info.delta_changes.delta_reserve, 0); // no HDX change
+			assert!(hdx_info.after.hub_reserve > hdx_info.before.hub_reserve);
 		});
 }

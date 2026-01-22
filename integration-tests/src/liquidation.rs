@@ -46,6 +46,7 @@ pub const ORACLE_ADDRESS: EvmAddress = H160(hex!("C756bD338A97c1d2FAAB4F13B5444a
 // pub const ORACLE_CALLER: EvmAddress = H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e"));
 // pub const ORACLE_ADDRESS: EvmAddress = H160(hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e"));
 
+const HDX: AssetId = 0;
 const DOT: AssetId = 5;
 const DOT_UNIT: Balance = 10_000_000_000;
 const WETH: AssetId = 20;
@@ -195,6 +196,8 @@ fn liquidation_should_work() {
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		let pallet_acc = Liquidation::account_id();
 		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
 		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
@@ -313,6 +316,8 @@ fn liquidation_should_revert_correctly_when_evm_call_fails() {
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		let pallet_acc = Liquidation::account_id();
 		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
 		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
@@ -417,6 +422,8 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		hydradx_run_to_next_block();
 
 		let pallet_acc = Liquidation::account_id();
@@ -566,6 +573,8 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		hydradx_run_to_next_block();
 
 		let pallet_acc = Liquidation::account_id();
@@ -692,6 +701,8 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		hydradx_run_to_next_block();
 
 		let pallet_acc = Liquidation::account_id();
@@ -856,6 +867,8 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		hydradx_run_to_next_block();
 
 		let pallet_acc = Liquidation::account_id();
@@ -982,6 +995,8 @@ fn calculate_debt_to_liquidate_with_two_different_assets() {
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		hydradx_run_to_next_block();
 
 		let pallet_acc = Liquidation::account_id();
@@ -1159,6 +1174,8 @@ where
 fn calculate_debt_to_liquidate_with_three_different_assets() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		deposit_hdx_to_protocol_account();
+
 		hydradx_run_to_next_block();
 
 		let pallet_acc = Liquidation::account_id();
@@ -1303,4 +1320,15 @@ fn calculate_debt_to_liquidate_with_three_different_assets() {
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 		assert_health_factor_is_within_tolerance(usr_data.health_factor, target_health_factor);
 	});
+}
+
+fn deposit_hdx_to_protocol_account() {
+	// We need to deposit HDX to omnipool account since the snapshot doesn't include System pallet
+	// (native HDX balance is stored in frame_system::Account, not orml_tokens)
+	let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+	assert_ok!(Currencies::deposit(
+		HDX,
+		&omnipool_account,
+		1_000_000_000_000_000_000_000u128
+	));
 }
