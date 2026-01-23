@@ -143,7 +143,7 @@ pub fn native_version() -> NativeVersion {
 		can_author_with: Default::default(),
 	}
 }
-// Create the runtime by composing the FRAME pallets that were previously configured.
+// Create the runtime by composing the FRAME pallets that were previously configured
 construct_runtime!(
 	pub enum Runtime
 	{
