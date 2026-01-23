@@ -20,13 +20,9 @@ use ethabi::ethereum_types::U512;
 use evm::ExitReason;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
 use frame_support::sp_runtime::TokenError;
-use frame_support::{
-	pallet_prelude::*,
-	sp_runtime::traits::{Block as BlockT, CheckedConversion},
-	Deserialize, Serialize,
-};
-use hydradx_traits::evm::EvmAddress;
+use frame_support::{pallet_prelude::*, sp_runtime::traits::Block as BlockT, Deserialize, Serialize};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use primitives::EvmAddress;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{RuntimeDebug, H160, H256, U256};
 use sp_std::{boxed::Box, ops::BitAnd, vec::Vec};
@@ -45,6 +41,7 @@ pub enum LiquidationError {
 	ReserveNotFound,
 	CurrentBlockNotAvailable,
 	ApiError(sp_api::ApiError),
+	InvalidResponseLength,
 }
 
 impl From<ArithmeticError> for LiquidationError {
@@ -260,7 +257,7 @@ pub struct EModeCategory {
 
 impl EModeCategory {
 	pub fn new(data: &[ethabi::Token]) -> Option<Self> {
-		let data_tuple = data.get(0)?.clone().into_tuple()?;
+		let data_tuple = data.first()?.clone().into_tuple()?;
 
 		Some(Self {
 			#[allow(clippy::get_first)]
@@ -517,9 +514,10 @@ impl UserData {
 			.map_err(LiquidationError::ApiError)?
 			.map_err(LiquidationError::DispatchError)?;
 
-		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+		if call_info.exit_reason == Succeed(Returned) && call_info.value.len() >= 32 {
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
+		} else if call_info.exit_reason == Succeed(Returned) {
+			Err(LiquidationError::InvalidResponseLength)
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -546,9 +544,10 @@ impl UserData {
 			.map_err(LiquidationError::ApiError)?
 			.map_err(LiquidationError::DispatchError)?;
 
-		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+		if call_info.exit_reason == Succeed(Returned) && call_info.value.len() >= 32 {
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
+		} else if call_info.exit_reason == Succeed(Returned) {
+			Err(LiquidationError::InvalidResponseLength)
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -597,9 +596,10 @@ where
 			.map_err(LiquidationError::ApiError)?
 			.map_err(LiquidationError::DispatchError)?;
 
-		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+		if call_info.exit_reason == Succeed(Returned) && call_info.value.len() >= 32 {
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
+		} else if call_info.exit_reason == Succeed(Returned) {
+			Err(LiquidationError::InvalidResponseLength)
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -621,9 +621,10 @@ where
 			.map_err(LiquidationError::ApiError)?
 			.map_err(LiquidationError::DispatchError)?;
 
-		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+		if call_info.exit_reason == Succeed(Returned) && call_info.value.len() >= 32 {
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
+		} else if call_info.exit_reason == Succeed(Returned) {
+			Err(LiquidationError::InvalidResponseLength)
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -1036,8 +1037,10 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 			.map_err(LiquidationError::ApiError)?
 			.map_err(LiquidationError::DispatchError)?;
 
-		if call_info.exit_reason == Succeed(Returned) {
-			Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
+		if call_info.exit_reason == Succeed(Returned) && call_info.value.len() >= 32 {
+			Ok(EvmAddress::from(H160::from_slice(&call_info.value[12..32])))
+		} else if call_info.exit_reason == Succeed(Returned) {
+			Err(LiquidationError::InvalidResponseLength)
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -1057,8 +1060,10 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 			.map_err(LiquidationError::ApiError)?
 			.map_err(LiquidationError::DispatchError)?;
 
-		if call_info.exit_reason == Succeed(Returned) {
-			Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
+		if call_info.exit_reason == Succeed(Returned) && call_info.value.len() >= 32 {
+			Ok(EvmAddress::from(H160::from_slice(&call_info.value[12..32])))
+		} else if call_info.exit_reason == Succeed(Returned) {
+			Err(LiquidationError::InvalidResponseLength)
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -1218,9 +1223,10 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 			.map_err(LiquidationError::ApiError)?
 			.map_err(LiquidationError::DispatchError)?;
 
-		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+		if call_info.exit_reason == Succeed(Returned) && call_info.value.len() >= 32 {
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
+		} else if call_info.exit_reason == Succeed(Returned) {
+			Err(LiquidationError::InvalidResponseLength)
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}

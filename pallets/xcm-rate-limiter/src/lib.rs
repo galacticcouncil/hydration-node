@@ -56,7 +56,7 @@
 //!
 //! - The filter assumes that it is fine to ignore (neither track nor limit) tokens that don't have a defined local id
 //!   or don't have a configured rate limit.
-//! - It counts accumulated amounts via `MultiLocation`s of incoming messages without reanchoring or canonicalizing.
+//! - It counts accumulated amounts via `Location`s of incoming messages without reanchoring or canonicalizing.
 //! - It only tracks and limits incoming tokens, not outgoing.
 //! - Only tracks and limits `ReserveAssetDeposited` and `ReceiveTeleportedAsset`, meaning that core asset tokens
 //!   "returning" from other chains are not tracked or limited.
@@ -82,7 +82,7 @@ use sp_runtime::SaturatedConversion;
 use sp_std::vec::Vec;
 use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
-use xcm::VersionedXcm::V3;
+use xcm::VersionedXcm::V5;
 
 #[cfg(test)]
 mod tests;
@@ -104,7 +104,7 @@ pub mod pallet {
 
 	use polkadot_parachain::primitives::RelayChainBlockNumber;
 	use sp_runtime::traits::BlockNumberProvider;
-	use xcm::lts::MultiLocation;
+	use xcm::v5::Location;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
@@ -136,8 +136,8 @@ pub mod pallet {
 		/// Relay chain block number provider
 		type RelayBlockNumberProvider: BlockNumberProvider<BlockNumber = RelayChainBlockNumber>;
 
-		/// Convert from `MultiLocation` to local `AssetId`
-		type CurrencyIdConvert: Convert<MultiLocation, Option<Self::AssetId>>;
+		/// Convert from `Location` to local `AssetId`
+		type CurrencyIdConvert: Convert<Location, Option<Self::AssetId>>;
 
 		/// Xcm rate limit getter for each asset
 		type RateLimitFor: GetByKey<Self::AssetId, Option<u128>>;
@@ -150,7 +150,7 @@ pub mod pallet {
 	/// Accumulated amounts for each asset
 	#[pallet::getter(fn accumulated_amount)]
 	pub type AccumulatedAmounts<T: Config> =
-		StorageMap<_, Blake2_128Concat, MultiLocation, AccumulatedAmount, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, Location, AccumulatedAmount, ValueQuery>;
 
 	#[pallet::event]
 	pub enum Event<T: Config> {}
@@ -164,7 +164,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn get_locations_and_amounts(instruction: &Instruction<T::RuntimeCall>) -> Vec<(MultiLocation, u128)> {
+	fn get_locations_and_amounts(instruction: &Instruction<T::RuntimeCall>) -> Vec<(Location, u128)> {
 		use Instruction::*;
 		match instruction {
 			// NOTE: This does not address the native asset "coming back" from other chains.
@@ -176,7 +176,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-fn get_loc_and_amount(m: &MultiAsset) -> Option<(MultiLocation, u128)> {
+fn get_loc_and_amount(m: &MultiAsset) -> Option<(Location, u128)> {
 	match m.id {
 		AssetId::Concrete(location) => match m.fun {
 			Fungibility::Fungible(amount) => Some((location, amount)),

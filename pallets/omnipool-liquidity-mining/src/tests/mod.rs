@@ -14,7 +14,7 @@
 // limitations under the License.
 
 use super::*;
-use mock::*;
+use mock::{Balance, *};
 
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::{traits::BadOrigin, traits::One, FixedU128};

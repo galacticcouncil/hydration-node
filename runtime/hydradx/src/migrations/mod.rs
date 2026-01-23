@@ -13,11 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::*;
+use crate::migrations::asset_registry::MigrateAssetRegistryToXcmV5;
+use crate::Runtime;
 
-mod reset_max_nonces;
+mod asset_registry;
 
-pub type Migrations = (
-	reset_max_nonces::v1::ResetMaxNonces<crate::Runtime>,
-	pallet_stableswap::migrations::v1::MigrateV0ToV1<Runtime>,
-);
+// New migrations which need to be cleaned up after every Runtime upgrade
+pub type UnreleasedSingleBlockMigrations = MigrateAssetRegistryToXcmV5<Runtime>;
+
+// These migrations can run on every runtime upgrade
+pub type PermanentSingleBlockMigrations = pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>;
+
+pub type Migrations = (PermanentSingleBlockMigrations, UnreleasedSingleBlockMigrations);

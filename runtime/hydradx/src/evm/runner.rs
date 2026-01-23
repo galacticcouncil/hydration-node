@@ -24,6 +24,7 @@
 //!
 //! Shamelessly copied from pallet-evm and modified to support multi-currency fees.
 use crate::evm::WethAssetId;
+use ethereum::AuthorizationList;
 use fp_evm::{Account, TransactionValidationError};
 use frame_support::traits::Get;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
@@ -32,7 +33,7 @@ use pallet_evm::{AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, 
 use pallet_genesis_history::migration::Weight;
 use primitive_types::{H160, H256, U256};
 use primitives::{AssetId, Balance};
-use sp_runtime::traits::{One, UniqueSaturatedInto};
+use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
 
 pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);
@@ -58,6 +59,7 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: Vec<(U256, H160, U256, Option<H160>)>,
 		is_transactional: bool,
 		weight_limit: Option<Weight>,
 		proof_size_base_cost: Option<u64>,
@@ -98,6 +100,7 @@ where
 				max_priority_fee_per_gas,
 				value,
 				access_list,
+				authorization_list,
 			},
 			weight_limit,
 			proof_size_base_cost,
@@ -119,6 +122,7 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: AuthorizationList,
 		is_transactional: bool,
 		validate: bool,
 		weight_limit: Option<Weight>,
@@ -136,6 +140,7 @@ where
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.clone(),
+				convert_authorization_list(authorization_list.clone()),
 				is_transactional,
 				weight_limit,
 				proof_size_base_cost,
@@ -157,6 +162,7 @@ where
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
+			authorization_list,
 			is_transactional,
 			false,
 			weight_limit,
@@ -185,6 +191,7 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: AuthorizationList,
 		is_transactional: bool,
 		validate: bool,
 		weight_limit: Option<Weight>,
@@ -202,6 +209,7 @@ where
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.clone(),
+				convert_authorization_list(authorization_list.clone()),
 				is_transactional,
 				weight_limit,
 				proof_size_base_cost,
@@ -218,6 +226,7 @@ where
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
+			authorization_list,
 			is_transactional,
 			false,
 			weight_limit,
@@ -236,6 +245,7 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: AuthorizationList,
 		is_transactional: bool,
 		validate: bool,
 		weight_limit: Option<Weight>,
@@ -253,6 +263,7 @@ where
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.clone(),
+				convert_authorization_list(authorization_list.clone()),
 				is_transactional,
 				weight_limit,
 				proof_size_base_cost,
@@ -270,6 +281,7 @@ where
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
+			authorization_list,
 			is_transactional,
 			false,
 			weight_limit,
@@ -287,6 +299,7 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: AuthorizationList,
 		is_transactional: bool,
 		validate: bool,
 		weight_limit: Option<Weight>,
@@ -305,6 +318,7 @@ where
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.clone(),
+				convert_authorization_list(authorization_list.clone()),
 				is_transactional,
 				weight_limit,
 				proof_size_base_cost,
@@ -321,6 +335,7 @@ where
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
+			authorization_list,
 			is_transactional,
 			false,
 			weight_limit,
@@ -329,4 +344,18 @@ where
 			contract_address,
 		)
 	}
+}
+
+fn convert_authorization_list(auth_list: AuthorizationList) -> Vec<(U256, H160, U256, Option<H160>)> {
+	auth_list
+		.into_iter()
+		.map(|item| {
+			(
+				item.chain_id.into(),
+				item.address,
+				item.nonce,
+				None, // authority field not available in AuthorizationListItem
+			)
+		})
+		.collect()
 }

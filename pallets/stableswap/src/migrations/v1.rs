@@ -5,8 +5,6 @@ use frame_support::traits::UncheckedOnRuntimeUpgrade;
 use frame_support::Blake2_128Concat;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
-use sp_runtime::traits::Saturating;
-use sp_runtime::FixedU128;
 use sp_runtime::Perbill;
 use types::BoundedPegSources;
 
@@ -44,6 +42,7 @@ impl<T: crate::Config<AssetId = u32>> UncheckedOnRuntimeUpgrade for unversioned:
 		let mut reads: u64 = 0;
 		let mut writes: u64 = 0;
 
+		#[allow(clippy::type_complexity)]
 		let mut migrated_pegs_info: Vec<(T::AssetId, types::PoolPegInfo<BlockNumberFor<T>, T::AssetId>)> =
 			Vec::with_capacity(4);
 		let current_block = T::BlockNumberProvider::current_block_number();
@@ -104,7 +103,7 @@ impl<T: crate::Config<AssetId = u32>> UncheckedOnRuntimeUpgrade for unversioned:
 				k,
 				PoolPegInfo {
 					source: peg_info_v0.source,
-					max_peg_update: max_peg_update,
+					max_peg_update,
 					updated_at: current_block,
 					current: BoundedPegs::truncate_from(new_pegs),
 				},

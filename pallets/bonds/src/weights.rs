@@ -16,7 +16,6 @@ pub trait WeightInfo {
 }
 
 /// Weights for pallet_bonds using the hydraDX node and recommended hardware.
-
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	/// Storage: `AssetRegistry::Assets` (r:1 w:1)

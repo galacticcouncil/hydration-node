@@ -5057,7 +5057,7 @@ mod route_spot_price {
 			//Arrange
 			create_lbp_pool(HDX, DOT);
 
-			set_relaychain_block_number(LBP_SALE_START + 7);
+			go_to_block(LBP_SALE_START + 7);
 
 			let amount_to_sell = UNITS;
 			let limit = 0;
@@ -5446,7 +5446,7 @@ fn get_lbp_pair_account_id(asset_a: AssetId, asset_b: AssetId) -> AccountId {
 }
 
 fn start_lbp_campaign() {
-	set_relaychain_block_number(LBP_SALE_START + 1);
+	go_to_block(LBP_SALE_START + 1);
 }
 
 pub fn create_xyk_pool(asset_a: u32, asset_b: u32) {
@@ -5586,5 +5586,5 @@ fn populate_oracle(
 		0,
 		BoundedVec::truncate_from(route.clone())
 	));
-	set_relaychain_block_number(block.unwrap_or(10));
+	go_to_block(block.unwrap_or(10));
 }

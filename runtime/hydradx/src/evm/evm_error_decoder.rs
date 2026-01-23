@@ -1,14 +1,12 @@
-use crate::Liquidation;
-use codec::{Decode, DecodeLimit};
+use alloc::format;
+use codec::DecodeLimit;
 use frame_support::traits::Get;
 use hydradx_traits::evm::CallResult;
 use pallet_evm::{ExitError, ExitReason, ExitRevert};
 use sp_core::U256;
-use sp_runtime::format;
 use sp_runtime::traits::Convert;
 use sp_runtime::DispatchError;
 use sp_std::boxed::Box;
-use sp_std::vec::Vec;
 
 const ERROR_STRING_SELECTOR: [u8; 4] = [0x08, 0xC3, 0x79, 0xA0]; // Error(string)
 const PANIC_SELECTOR: [u8; 4] = [0x4E, 0x48, 0x7B, 0x71]; // Panic(uint256)
@@ -19,6 +17,7 @@ pub const MAX_ERROR_DATA_LENGTH: usize = 1024; // Maximum length of EVM error da
 pub struct EvmErrorDecoder;
 
 impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
+	#[allow(clippy::collapsible_if)]
 	fn convert(call_result: CallResult) -> DispatchError {
 		if let ExitReason::Error(ExitError::OutOfGas) = call_result.exit_reason {
 			return pallet_dispatcher::Error::<crate::Runtime>::EvmOutOfGas.into();
