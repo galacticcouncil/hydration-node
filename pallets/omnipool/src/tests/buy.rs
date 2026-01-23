@@ -1,7 +1,7 @@
 use super::*;
+use crate::tests::slip_fee::expect_events;
 use frame_support::assert_noop;
 use pretty_assertions::assert_eq;
-use crate::tests::slip_fee::expect_events;
 
 #[test]
 fn simple_buy_works() {
@@ -82,7 +82,7 @@ fn simple_buy_works() {
 				asset_fee_amount: 0,
 				protocol_fee_amount: 0,
 			}
-				.into()]);
+			.into()]);
 		});
 }
 

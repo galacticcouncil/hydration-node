@@ -1,8 +1,8 @@
 use super::*;
+use crate::tests::slip_fee::expect_events;
 use frame_support::assert_noop;
 use pretty_assertions::assert_eq;
 use sp_runtime::Permill;
-use crate::tests::slip_fee::expect_events;
 
 #[test]
 fn simple_sell_works() {
@@ -80,7 +80,7 @@ fn simple_sell_works() {
 				asset_fee_amount: 0,
 				protocol_fee_amount: 0,
 			}
-				.into()]);
+			.into()]);
 		});
 }
 

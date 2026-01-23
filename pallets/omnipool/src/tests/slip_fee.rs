@@ -107,10 +107,18 @@ fn single_sell_works() {
 			}
 			.into()]);
 
-			let (hub_amount_in, hub_amount_out, protocol_fee_amount) = frame_system::Pallet::<Test>::events().iter().find_map(|e| match e.event {
-				RuntimeEvent::Omnipool(Event::SellExecuted {hub_amount_in, hub_amount_out, protocol_fee_amount, ..}) => Some((hub_amount_in, hub_amount_out, protocol_fee_amount)),
-				_ => None,
-			}).unwrap();
+			let (hub_amount_in, hub_amount_out, protocol_fee_amount) = frame_system::Pallet::<Test>::events()
+				.iter()
+				.find_map(|e| match e.event {
+					RuntimeEvent::Omnipool(Event::SellExecuted {
+						hub_amount_in,
+						hub_amount_out,
+						protocol_fee_amount,
+						..
+					}) => Some((hub_amount_in, hub_amount_out, protocol_fee_amount)),
+					_ => None,
+				})
+				.unwrap();
 			assert_eq!(hub_amount_in - hub_amount_out, protocol_fee_amount);
 		});
 }
@@ -136,11 +144,7 @@ fn sell_hub_works() {
 		.build()
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
-			assert_ok!(Omnipool::add_liquidity(
-				RuntimeOrigin::signed(LP2),
-				100,
-				liq_added
-			));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, liq_added));
 
 			let sell_amount = 50 * ONE;
 			let min_limit = 10 * ONE;
@@ -159,7 +163,10 @@ fn sell_hub_works() {
 			assert_eq!(Tokens::free_balance(2, &Omnipool::protocol_account()), 1_000 * ONE);
 			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_410 * ONE);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2_400 * ONE);
-			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), 1_928_571_428_571_429);
+			assert_eq!(
+				Tokens::free_balance(200, &Omnipool::protocol_account()),
+				1_928_571_428_571_429
+			);
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 3_000 * ONE);
 			assert_eq!(Tokens::free_balance(200, &LP1), 3_000 * ONE);
@@ -418,7 +425,10 @@ fn single_buy_works() {
 			let sold = 55_105_274_301_832;
 			assert_eq!(Tokens::free_balance(100, &LP1), 600 * ONE - sold);
 			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_358_318_856_027_344);
+			assert_eq!(
+				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
+				13_358_318_856_027_344
+			);
 			assert_eq!(
 				Tokens::free_balance(100, &Omnipool::protocol_account()),
 				2_455_105_274_301_832
@@ -461,7 +471,7 @@ fn single_buy_works() {
 				asset_fee_amount: 0,
 				protocol_fee_amount: 0,
 			}
-				.into()]);
+			.into()]);
 		});
 }
 
@@ -485,28 +495,21 @@ fn buy_for_hub_asset_works() {
 		.with_slip_fee()
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(
-				RuntimeOrigin::signed(LP2),
-				100,
-				400 * ONE
-			));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400 * ONE));
 
 			let buy_amount = 50 * ONE;
 			let max_limit = 50 * ONE;
 
-			assert_ok!(Omnipool::buy(
-				RuntimeOrigin::signed(LP3),
-				200,
-				1,
-				buy_amount,
-				max_limit,
-			));
+			assert_ok!(Omnipool::buy(RuntimeOrigin::signed(LP3), 200, 1, buy_amount, max_limit,));
 
 			let sold = 34_210_526_315_790;
 
 			assert_eq!(Tokens::free_balance(HDX, &Omnipool::protocol_account()), NATIVE_AMOUNT);
 			assert_eq!(Tokens::free_balance(2, &Omnipool::protocol_account()), 1_000 * ONE);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_394_210_526_315_790);
+			assert_eq!(
+				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
+				13_394_210_526_315_790
+			);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2_400 * ONE);
 			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), 1_950 * ONE);
 
@@ -621,7 +624,10 @@ fn two_buys_in_one_direction_should_increase_fee() {
 			let sold = 55_105_274_301_832;
 			assert_eq!(Tokens::free_balance(100, &LP1), 600 * ONE - sold);
 			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_358_318_856_027_344);
+			assert_eq!(
+				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
+				13_358_318_856_027_344
+			);
 			assert_eq!(
 				Tokens::free_balance(100, &Omnipool::protocol_account()),
 				2_455_105_274_301_832
@@ -664,7 +670,7 @@ fn two_buys_in_one_direction_should_increase_fee() {
 				asset_fee_amount: 0,
 				protocol_fee_amount: 0,
 			}
-				.into()]);
+			.into()]);
 
 			System::reset_events();
 
@@ -704,7 +710,7 @@ fn two_buys_in_one_direction_should_increase_fee() {
 				asset_fee_amount: 0,
 				protocol_fee_amount: 0,
 			}
-				.into()]);
+			.into()]);
 		});
 }
 
@@ -806,7 +812,7 @@ fn slip_fee_should_be_symmetric() {
 				asset_fee_amount: 0,
 				protocol_fee_amount: 663_265_306_122,
 			}
-				.into()]);
+			.into()]);
 		});
 
 	ExtBuilder::default()
@@ -852,7 +858,7 @@ fn slip_fee_should_be_symmetric() {
 				asset_fee_amount: 0,
 				protocol_fee_amount: 0,
 			}
-				.into()]);
+			.into()]);
 
 			let hub_asset_block_state_in = Omnipool::hub_asset_block_state(100).unwrap();
 			let hub_asset_block_state_out = Omnipool::hub_asset_block_state(200).unwrap();
@@ -971,7 +977,7 @@ fn sell_and_buy_can_cancel_out_and_bring_slip_fee_to_initial_state() {
 				asset_fee_amount: 0,
 				protocol_fee_amount: 663_265_306_122,
 			}
-				.into()]);
+			.into()]);
 
 			System::reset_events();
 
@@ -998,7 +1004,7 @@ fn sell_and_buy_can_cancel_out_and_bring_slip_fee_to_initial_state() {
 				asset_fee_amount: 0,
 				protocol_fee_amount: 0,
 			}
-				.into()]);
+			.into()]);
 
 			let hub_asset_block_state_in = Omnipool::hub_asset_block_state(100).unwrap();
 			let hub_asset_block_state_out = Omnipool::hub_asset_block_state(200).unwrap();
