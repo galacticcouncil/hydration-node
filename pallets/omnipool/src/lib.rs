@@ -125,7 +125,7 @@ pub mod pallet {
 	use crate::types::{Position, Price, Tradability};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
-	use frame_support::traits::DefensiveOption;
+
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::ema::EmaPrice;
 	use hydra_dx_math::omnipool::types::BalanceUpdate;
@@ -1496,7 +1496,6 @@ pub mod pallet {
 }
 
 use crate::traits::ExternalPriceProvider;
-use frame_support::traits::fungible::conformance_tests::inspect_mutate::restore_below_minimum;
 use frame_support::traits::DefensiveOption;
 
 impl<T: Config> Pallet<T> {
