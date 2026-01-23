@@ -1632,7 +1632,6 @@ impl<T: Config> Pallet<T> {
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, hdx_info)?;
 
-		//TODO: verify with Martin, becauase without this we have many failing integration tests
 		// Store HDX fee to keep it in sync with the oracle update
 		let _ = T::Fee::get_and_store((T::HdxAssetId::get(), hdx_state_after.reserve));
 
