@@ -3,13 +3,10 @@
 use crate::count_dca_event;
 use crate::polkadot_test_net::*;
 use crate::{assert_balance, assert_reserved_balance};
-use ethabi::ethereum_types::H256;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_system::RawOrigin;
-use hydradx_runtime::evm::aave_trade_executor::Function;
-use hydradx_runtime::evm::Executor;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{AssetPairAccountIdFor, NamedReserveId};
@@ -17,7 +14,6 @@ use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin,
 	Stableswap, Tokens, Treasury, DCA,
 };
-use hydradx_traits::evm::CallContext;
 use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
@@ -44,7 +40,7 @@ const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 mod omnipool {
 	use super::*;
 	use frame_support::assert_ok;
-	use hydradx_runtime::{Balances, Currencies, Runtime, Treasury, DCA, XYK};
+	use hydradx_runtime::{Balances, Currencies, Treasury, DCA, XYK};
 	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::AssetKind;
 	use pallet_broadcast::types::Destination;
@@ -58,7 +54,7 @@ mod omnipool {
 			init_omnipool_with_oracle_for_block_10();
 
 			let block_id = 11;
-			set_relaychain_block_number(block_id);
+			go_to_block(block_id);
 
 			let budget = 1000 * UNITS;
 			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
@@ -136,7 +132,7 @@ mod omnipool {
 
 				//Arrange
 				let block_id = 11;
-				set_relaychain_block_number(block_id);
+				go_to_block(block_id);
 
 				let budget = 5000 * UNITS;
 				let schedule1 =
@@ -197,7 +193,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -341,7 +337,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -393,7 +389,7 @@ mod omnipool {
 
 			//Act and assert
 			let schedule_id = 0;
-			set_relaychain_block_number(12);
+			go_to_block(12);
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
@@ -401,20 +397,20 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
 
-			set_relaychain_block_number(32);
+			go_to_block(32);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 2);
 
-			set_relaychain_block_number(72);
+			go_to_block(72);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 3);
 
 			//After this retry we terminate
-			set_relaychain_block_number(152);
+			go_to_block(152);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - 4 * fee);
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
@@ -446,7 +442,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), LRNA, 0);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
@@ -478,7 +474,7 @@ mod omnipool {
 			create_schedule(ALICE, schedule1);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			let reserved_budget = Currencies::reserved_balance(LRNA, &ALICE.into());
@@ -562,7 +558,7 @@ mod omnipool {
 			create_schedule(ALICE, schedule1);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			let reserved_budget = Currencies::reserved_balance(LRNA, &ALICE.into());
@@ -786,7 +782,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -1039,7 +1035,7 @@ mod omnipool {
 					false
 				));
 
-				set_relaychain_block_number(11);
+				go_to_block(11);
 
 				//init_omnipool_with_oracle_for_block_10();
 				let alice_init_insuff_balance = 10000000 * UNITS;
@@ -1052,7 +1048,7 @@ mod omnipool {
 
 				add_dot_as_payment_currency_with_details(100 * UNITS, FixedU128::from_rational(2000, 1));
 
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				let dca_budget = 500000 * UNITS;
 				let amount_to_sell = 10000 * UNITS;
@@ -1085,7 +1081,7 @@ mod omnipool {
 				let out_reserve = Currencies::free_balance(DOT, &asset_pair_account);
 
 				//Act
-				set_relaychain_block_number(14);
+				go_to_block(14);
 
 				//Assert
 				let new_treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
@@ -1141,7 +1137,7 @@ mod omnipool {
 
 				//Arrange
 				let block_id = 11;
-				set_relaychain_block_number(block_id);
+				go_to_block(block_id);
 
 				let budget = 5000 * UNITS;
 				let schedule1 =
@@ -1212,7 +1208,7 @@ mod omnipool {
 					false
 				));
 
-				set_relaychain_block_number(11);
+				go_to_block(11);
 
 				//init_omnipool_with_oracle_for_block_10();
 				let alice_init_insuff_balance = 10000 * UNITS;
@@ -1254,7 +1250,7 @@ mod omnipool {
 				let out_reserve = Currencies::free_balance(DOT, &asset_pair_account);
 
 				//Act
-				set_relaychain_block_number(13);
+				go_to_block(13);
 
 				//Assert
 				let new_treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
@@ -1329,7 +1325,7 @@ mod omnipool {
 					false
 				));
 
-				set_relaychain_block_number(11);
+				go_to_block(11);
 
 				//init_omnipool_with_oracle_for_block_10();
 				let alice_init_insuff_balance = 10000 * UNITS;
@@ -1380,7 +1376,7 @@ mod omnipool {
 				let out_reserve = Currencies::free_balance(DOT, &asset_pair_account);
 
 				//Act
-				set_relaychain_block_number(13);
+				go_to_block(13);
 
 				//Assert
 				let new_treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
@@ -1455,7 +1451,7 @@ mod omnipool {
 					false
 				));
 
-				set_relaychain_block_number(11);
+				go_to_block(11);
 
 				//init_omnipool_with_oracle_for_block_10();
 				let alice_init_suff_balance = 10000000 * UNITS;
@@ -1468,7 +1464,7 @@ mod omnipool {
 
 				add_dot_as_payment_currency_with_details(100 * UNITS, FixedU128::from_rational(2000, 1));
 
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				let dca_budget = 500000 * UNITS;
 				let amount_to_sell = 10000 * UNITS;
@@ -1501,7 +1497,7 @@ mod omnipool {
 				let out_reserve = Currencies::free_balance(DOT, &asset_pair_account);
 
 				//Act
-				set_relaychain_block_number(14);
+				go_to_block(14);
 
 				//Assert
 				let new_treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
@@ -1560,7 +1556,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -1615,7 +1611,7 @@ mod omnipool {
 			//Act and Assert
 			let schedule_id = 0;
 
-			set_relaychain_block_number(12);
+			go_to_block(12);
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -1624,20 +1620,20 @@ mod omnipool {
 
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
 
-			set_relaychain_block_number(32);
+			go_to_block(32);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 2);
 
-			set_relaychain_block_number(72);
+			go_to_block(72);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 3);
 
 			//At this point, the schedule will be terminated as retries max number of times
-			set_relaychain_block_number(152);
+			go_to_block(152);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - 4 * fee);
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
@@ -1669,7 +1665,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), LRNA, 0);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			let treasury_balance = Currencies::free_balance(LRNA, &Treasury::account_id());
@@ -1708,7 +1704,7 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -1798,7 +1794,7 @@ mod omnipool {
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			let fee = Currencies::free_balance(LRNA, &Treasury::account_id());
@@ -2194,7 +2190,7 @@ mod fee {
 					route: create_bounded_vec(vec![]),
 				};
 
-				set_relaychain_block_number(11);
+				go_to_block(11);
 
 				//Assert
 				let fee_for_dot = DCA::get_transaction_fee(&sell_with_hdx_fee, None).unwrap();
@@ -2274,7 +2270,7 @@ mod fee {
 					route: create_bounded_vec(vec![]),
 				};
 
-				set_relaychain_block_number(11);
+				go_to_block(11);
 
 				let fee_for_dot = DCA::get_transaction_fee(&buy_with_hdx_fee, None).unwrap();
 				let fee_for_insufficient = DCA::get_transaction_fee(&buy_with_insufficient_fee, None).unwrap();
@@ -2342,7 +2338,7 @@ mod stableswap {
 					asset_b,
 					amount_to_sell,
 				);
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				create_schedule(ALICE, schedule1);
 
@@ -2352,7 +2348,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), asset_a, 0);
 
 				//Act
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				//Assert
 				let fee = Currencies::free_balance(asset_a, &Treasury::account_id());
@@ -2414,7 +2410,7 @@ mod stableswap {
 					asset_b,
 					amount_to_sell,
 				);
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				create_schedule(ALICE, schedule1);
 
@@ -2424,7 +2420,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), asset_a, 0);
 
 				//Act
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				//Assert
 				let fee = Currencies::free_balance(asset_a, &Treasury::account_id());
@@ -2481,7 +2477,7 @@ mod stableswap {
 				set_zero_reward_for_referrals(pool_id);
 				do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				let alice_init_hdx_balance = 5000 * UNITS;
 				assert_ok!(Balances::force_set_balance(
@@ -2528,7 +2524,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 				//Act
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				//Assert
 				let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -2585,7 +2581,7 @@ mod stableswap {
 				set_zero_reward_for_referrals(pool_id);
 				do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				//Act
 				assert_ok!(Omnipool::sell(
@@ -2652,7 +2648,7 @@ mod stableswap {
 				set_zero_reward_for_referrals(pool_id);
 				do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				let alice_init_hdx_balance = 5000 * UNITS;
 				assert_ok!(Balances::force_set_balance(
@@ -2758,7 +2754,7 @@ mod stableswap {
 					Balance::MIN
 				));
 
-				set_relaychain_block_number(1000);
+				go_to_block(1000);
 
 				let alice_init_stable1_balance = 5000 * UNITS;
 				assert_ok!(Currencies::update_balance(
@@ -2806,7 +2802,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), stable_asset_1, 0);
 
 				//Act
-				set_relaychain_block_number(1002);
+				go_to_block(1002);
 
 				//Assert
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
@@ -2886,7 +2882,7 @@ mod stableswap {
 
 				assert_balance!(ALICE.into(), pool_id, 0);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				//Act
 				assert_ok!(Stableswap::add_assets_liquidity(
@@ -2987,7 +2983,7 @@ mod stableswap {
 
 				assert_balance!(ALICE.into(), pool_id, 0);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				//Act
 				let trades = vec![
@@ -3068,7 +3064,7 @@ mod stableswap {
 				do_trade_to_populate_oracle(DAI, HDX, UNITS);
 				set_zero_reward_for_referrals(pool_id);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				let alice_init_hdx_balance = 5000 * UNITS;
 				assert_ok!(Balances::force_set_balance(
@@ -3115,7 +3111,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 				//Act
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				//Assert
 				let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -3174,7 +3170,7 @@ mod stableswap {
 					amount_to_buy,
 					dca_budget,
 				);
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				create_schedule(ALICE, schedule1);
 
@@ -3184,7 +3180,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), asset_a, 0);
 
 				//Act
-				set_relaychain_block_number(14);
+				go_to_block(14);
 
 				//Assert
 				let fee = Currencies::free_balance(asset_a, &Treasury::account_id());
@@ -3248,7 +3244,7 @@ mod stableswap {
 				set_zero_reward_for_referrals(pool_id);
 				do_trade_to_populate_oracle(pool_id, HDX, 100 * UNITS);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				let alice_init_stable1_balance = 5000 * UNITS;
 				assert_ok!(Currencies::update_balance(
@@ -3296,7 +3292,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), stable_asset_1, 0);
 
 				//Act
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				//Assert
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
@@ -3357,7 +3353,7 @@ mod xyk {
 				alice_init_hdx_balance,
 			));
 
-			set_relaychain_block_number(10);
+			go_to_block(10);
 
 			let dca_budget = 1100 * UNITS;
 			let amount_to_sell = 100 * UNITS;
@@ -3370,7 +3366,7 @@ mod xyk {
 			let treasury_init_balance = Balances::free_balance(Treasury::account_id());
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			let amount_out = 151105924242426;
@@ -3412,7 +3408,7 @@ mod xyk {
 				alice_init_hdx_balance,
 			));
 
-			set_relaychain_block_number(10);
+			go_to_block(10);
 
 			let dca_budget = 1100 * UNITS;
 			let amount_to_buy = 150 * UNITS;
@@ -3424,7 +3420,7 @@ mod xyk {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_to_buy);
@@ -3497,7 +3493,7 @@ mod all_pools {
 					false
 				));
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				let alice_init_hdx_balance = 5000 * UNITS;
 				assert_ok!(Balances::force_set_balance(
@@ -3553,7 +3549,7 @@ mod all_pools {
 				);
 
 				//Act
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				//Assert
 				assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -3639,7 +3635,7 @@ mod with_onchain_route {
 				set_zero_reward_for_referrals(pool_id);
 				do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				let alice_init_hdx_balance = 5000 * UNITS;
 				assert_ok!(Balances::force_set_balance(
@@ -3695,7 +3691,7 @@ mod with_onchain_route {
 				assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 				//Act
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				//Assert
 				assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -3753,7 +3749,7 @@ mod with_onchain_route {
 				set_zero_reward_for_referrals(pool_id);
 				do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				let alice_init_hdx_balance = 5000 * UNITS;
 				assert_ok!(Balances::force_set_balance(
@@ -3809,7 +3805,7 @@ mod with_onchain_route {
 				assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 				//Act
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				//Assert
 				let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -3865,7 +3861,7 @@ mod with_onchain_route {
 			));
 			let alice_init_dot_balance = 50000 * UNITS + ALICE_INITIAL_DOT_BALANCE;
 
-			set_relaychain_block_number(10);
+			go_to_block(10);
 
 			let dca_budget = 10000 * UNITS;
 
@@ -3914,7 +3910,7 @@ mod with_onchain_route {
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
@@ -3976,7 +3972,7 @@ mod with_onchain_route {
 				set_zero_reward_for_referrals(pool_id);
 				do_trade_to_populate_oracle(pool_id, HDX, 10000000 * UNITS);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				let alice_init_hdx_balance = 5000 * UNITS;
 				assert_ok!(Balances::force_set_balance(
@@ -4055,7 +4051,7 @@ mod with_onchain_route {
 				create_schedule(ALICE, schedule);
 
 				//Act
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				//Assert
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
@@ -4104,7 +4100,7 @@ mod with_onchain_route {
 				false
 			));
 
-			set_relaychain_block_number(10);
+			go_to_block(10);
 
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::force_set_balance(
@@ -4175,13 +4171,13 @@ mod with_onchain_route {
 			create_schedule(ALICE, schedule);
 
 			//Act
-			set_relaychain_block_number(12);
+			go_to_block(12);
 
 			//Assert
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			assert_balance!(ALICE.into(), HDX, 5268226594908739);
+			assert_balance!(ALICE.into(), HDX, 5268049466638470);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}
@@ -4195,7 +4191,7 @@ fn terminate_should_work_for_freshly_created_dca() {
 		init_omnipool_with_oracle_for_block_10();
 
 		let block_id = 11;
-		set_relaychain_block_number(block_id);
+		go_to_block(block_id);
 
 		let budget = 1000 * UNITS;
 		let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
@@ -4227,7 +4223,7 @@ fn unlock_should_not_work_when_user_has_active_schedule() {
 		init_omnipool_with_oracle_for_block_10();
 
 		let block_id = 11;
-		set_relaychain_block_number(block_id);
+		go_to_block(block_id);
 
 		let budget = 1000 * UNITS;
 		let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
@@ -4258,7 +4254,7 @@ fn unclock_should_work_when_user_has_leftover() {
 		init_omnipool_with_oracle_for_block_10();
 
 		let block_id = 11;
-		set_relaychain_block_number(block_id);
+		go_to_block(block_id);
 
 		assert_ok!(Currencies::reserve_named(
 			&NamedReserveId::get(),
@@ -4498,7 +4494,7 @@ pub fn init_omnipol() {
 pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
 	do_trade_to_populate_oracle(DAI, HDX, UNITS);
-	set_relaychain_block_number(10);
+	go_to_block(10);
 	do_trade_to_populate_oracle(DAI, HDX, UNITS);
 }
 
@@ -4531,7 +4527,7 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 pub fn run_to_block(from: BlockNumber, to: BlockNumber) {
 	for b in from..=to {
 		do_trade_to_populate_oracle(DAI, HDX, UNITS);
-		set_relaychain_block_number(b);
+		go_to_block(b);
 	}
 }
 
@@ -4770,30 +4766,13 @@ fn add_dot_as_payment_currency_with_details(amount: Balance, price: FixedU128) {
 mod extra_gas_erc20 {
 	use super::*;
 
-	use hydradx_runtime::{FixedU128, MultiTransactionPayment, Omnipool, Router};
+	use hydradx_runtime::{FixedU128, MultiTransactionPayment, Router};
 
-	use crate::polkadot_test_net::*;
-	use ethabi::ethereum_types::H160;
-	use frame_support::{assert_ok, traits::Hooks};
-	use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
-	use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-	use hydradx_runtime::evm::Erc20Currency;
+	use frame_support::assert_ok;
 	use hydradx_runtime::EmaOracle;
-	use hydradx_runtime::Liquidation;
-	use hydradx_runtime::{
-		Block, Currencies, Dispatcher, EVMAccounts, OriginCaller, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-		DCA,
-	};
-	use hydradx_traits::evm::Erc20Mapping;
-	use hydradx_traits::evm::ERC20;
-	use hydradx_traits::evm::{CallContext, Erc20Encoding, EvmAddress, ExtraGasSupport};
-	use hydradx_traits::router::PoolType::Aave;
-	use hydradx_traits::router::{PoolType, Trade};
-	use liquidation_worker_support::MoneyMarketData;
-	use pallet_liquidation::BorrowingContract;
+	use hydradx_runtime::{Currencies, Dispatcher, EVMAccounts, Runtime, RuntimeEvent, RuntimeOrigin, DCA};
 	use primitives::constants::chain::OMNIPOOL_SOURCE;
 	use primitives::Balance;
-	use sp_core::U256;
 	use sp_runtime::Permill;
 
 	#[test]
@@ -4839,9 +4818,6 @@ mod extra_gas_erc20 {
 
 			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			hydradx_run_to_block(13);
-			let period = 5;
-			let retry_delay = 20;
-			let block_number = hydradx_runtime::System::block_number();
 
 			// Assert that extra gas was increased in one retry
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
@@ -5007,9 +4983,6 @@ mod extra_gas_erc20 {
 
 			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			hydradx_run_to_block(13);
-			let period = 5;
-			let retry_delay = 20;
-			let block_number = hydradx_runtime::System::block_number();
 
 			// Assert that extra gas was increased in one retry
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
@@ -5081,14 +5054,11 @@ mod extra_gas_erc20 {
 			));
 
 			hydradx_run_to_block(11);
-			let amount_in = 200000 * UNITS;
+			let _amount_in = 200000 * UNITS;
 			let schedule_id = create_schedule_with_onchain_route(erc20, 0, 200000 * UNITS, 500000 * UNITS, Some(3));
 
 			let alice_init_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			hydradx_run_to_block(13);
-			let period = 5;
-			let retry_delay = 20;
-			let block_number = hydradx_runtime::System::block_number();
 
 			// Assert that extra gas was increased in one retry
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
@@ -5375,7 +5345,7 @@ mod extra_gas_erc20 {
 		let mut bytecode = crate::utils::contracts::get_contract_bytecode("ConditionalGasEater");
 
 		// Encode constructor parameters: (address _routerAddress, uint256 _gasToWaste)
-		let constructor_params = encode(&[Token::Address(router_address.into()), Token::Uint(gas_to_waste.into())]);
+		let constructor_params = encode(&[Token::Address(router_address), Token::Uint(gas_to_waste.into())]);
 
 		// Append encoded constructor params to bytecode
 		bytecode.extend(constructor_params);
@@ -5434,7 +5404,7 @@ mod extra_gas_erc20 {
 		let mut bytecode = crate::utils::contracts::get_contract_bytecode("SubcallGasExhaustionToken");
 
 		// Encode constructor parameters: (address _routerAddress, uint256 _gasToWaste)
-		let constructor_params = encode(&[Token::Address(router_address.into()), Token::Uint(gas_to_waste.into())]);
+		let constructor_params = encode(&[Token::Address(router_address), Token::Uint(gas_to_waste.into())]);
 
 		// Append encoded constructor params to bytecode
 		bytecode.extend(constructor_params);

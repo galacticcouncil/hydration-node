@@ -109,6 +109,7 @@ fn oracle_updated_event_contains_updated_price_after_multiple_trades() {
 	});
 }
 
+#[allow(clippy::type_complexity)]
 fn get_oracle_updated_events() -> Vec<(Source, (AssetId, AssetId), BTreeMap<OraclePeriod, Price>)> {
 	frame_system::Pallet::<Test>::events()
 		.into_iter()

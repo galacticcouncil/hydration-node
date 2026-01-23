@@ -65,8 +65,9 @@ use frame_support::traits::fungibles::Inspect;
 use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::AccountFeeCurrency;
 use orml_traits::GetByKey;
+use primitives::EvmAddress;
 pub use primitives::Signature;
-use sp_core::crypto::Pair as PairT;
+use sp_core::Pair;
 use sp_core::{
 	crypto::{AccountId32, ByteArray},
 	H160, U256,
@@ -84,7 +85,6 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 pub type Balance = u128;
-pub type EvmAddress = H160;
 pub type AccountIdLast12Bytes = [u8; 12];
 pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
 pub const MESSAGE_PREFIX: &[u8] = b"EVMAccounts::claim_account";
@@ -524,12 +524,10 @@ where
 	/// increasing sufficients multiple times.
 	/// Only EVM truncated accounts are marked, because bound accounts has already their sufficients increased during binding.
 	pub fn mark_as_evm_account(account: &T::AccountId) {
-		if Self::is_evm_account(account.clone()) {
-			if !MarkedEvmAccounts::<T>::contains_key(account) {
-				frame_system::Pallet::<T>::inc_sufficients(account);
+		if Self::is_evm_account(account.clone()) && !MarkedEvmAccounts::<T>::contains_key(account) {
+			frame_system::Pallet::<T>::inc_sufficients(account);
 
-				MarkedEvmAccounts::<T>::insert(account, ());
-			}
+			MarkedEvmAccounts::<T>::insert(account, ());
 		}
 	}
 }

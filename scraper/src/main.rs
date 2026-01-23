@@ -46,6 +46,7 @@ struct SaveChainspecCmd {
 
 /// Possible commands of `scraper`.
 #[derive(Parser, Debug)]
+#[allow(clippy::enum_variant_names)]
 enum Command {
 	SaveStorage(StorageCmd),
 	SaveBlocks(BlocksCmd),
