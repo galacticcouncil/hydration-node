@@ -130,15 +130,21 @@ parameter_types! {
 }
 
 pub struct ConvertIdMock;
-impl Convert<MultiLocation, Option<AssetId>> for ConvertIdMock {
-	fn convert(location: MultiLocation) -> Option<AssetId> {
+impl Convert<Location, Option<AssetId>> for ConvertIdMock {
+	fn convert(location: Location) -> Option<AssetId> {
 		use sp_runtime::SaturatedConversion;
 		match location {
-			loc if loc == MultiLocation::here() => Some(HDX),
-			MultiLocation {
+			loc if loc == Location::here() => Some(HDX),
+			Location {
 				parents: _,
-				interior: Junctions::X1(GeneralIndex(i)),
-			} => Some(i.saturated_into()),
+				interior: Junctions::X1(ref junctions),
+			} => {
+				if let Some(GeneralIndex(i)) = junctions.first() {
+					Some((*i).saturated_into())
+				} else {
+					None
+				}
+			}
 			_ => None,
 		}
 	}
@@ -321,7 +327,7 @@ where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
 	type AssetId = T::AssetId;
-	type Location = MultiLocation;
+	type Location = Location;
 
 	fn is_sufficient(_id: Self::AssetId) -> bool {
 		unimplemented!()

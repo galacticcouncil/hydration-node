@@ -81,7 +81,10 @@
 use crate::traits::ShouldAllow;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::require_transactional;
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+use frame_support::traits::{
+	tokens::nonfungibles::{Create, Inspect, Mutate},
+	ExistenceRequirement,
+};
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
@@ -125,7 +128,6 @@ pub mod pallet {
 	use crate::types::{Position, Price, Tradability};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
-	use frame_support::traits::DefensiveOption;
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::ema::EmaPrice;
 	use hydra_dx_math::omnipool::types::BalanceUpdate;
@@ -893,12 +895,14 @@ pub mod pallet {
 				&who,
 				&Self::protocol_account(),
 				*state_changes.asset_in.delta_reserve,
+				ExistenceRequirement::AllowDeath,
 			)?;
 			T::Currency::transfer(
 				asset_out,
 				&Self::protocol_account(),
 				&who,
 				*state_changes.asset_out.delta_reserve,
+				ExistenceRequirement::AllowDeath,
 			)?;
 
 			// Hub liquidity update - work out difference between in and amount so only one update is needed.
@@ -1137,12 +1141,14 @@ pub mod pallet {
 				&who,
 				&Self::protocol_account(),
 				*state_changes.asset_in.delta_reserve,
+				ExistenceRequirement::AllowDeath,
 			)?;
 			T::Currency::transfer(
 				asset_out,
 				&Self::protocol_account(),
 				&who,
 				*state_changes.asset_out.delta_reserve,
+				ExistenceRequirement::AllowDeath,
 			)?;
 
 			// Hub liquidity update - work out difference between in and amount so only one update is needed.
@@ -1325,7 +1331,13 @@ pub mod pallet {
 				Error::<T>::InsufficientBalance
 			);
 
-			T::Currency::transfer(asset_id, &Self::protocol_account(), &recipient, amount)?;
+			T::Currency::transfer(
+				asset_id,
+				&Self::protocol_account(),
+				&recipient,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			Self::deposit_event(Event::AssetRefunded {
 				asset_id,
@@ -1415,6 +1427,7 @@ pub mod pallet {
 				&Self::protocol_account(),
 				&dest,
 				*state_changes.asset.delta_reserve,
+				ExistenceRequirement::AllowDeath,
 			)?;
 
 			// burn only difference between delta hub and lp hub amount.
@@ -1471,8 +1484,19 @@ pub mod pallet {
 				asset_state.shares == asset_state.protocol_shares,
 				Error::<T>::SharesRemaining
 			);
-			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), asset_state.hub_reserve)?;
-			T::Currency::transfer(asset_id, &Self::protocol_account(), &beneficiary, asset_state.reserve)?;
+			T::Currency::withdraw(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				asset_state.hub_reserve,
+				ExistenceRequirement::AllowDeath,
+			)?;
+			T::Currency::transfer(
+				asset_id,
+				&Self::protocol_account(),
+				&beneficiary,
+				asset_state.reserve,
+				ExistenceRequirement::AllowDeath,
+			)?;
 			<Assets<T>>::remove(asset_id);
 			Self::deposit_event(Event::TokenRemoved {
 				asset_id,
@@ -1579,7 +1603,12 @@ impl<T: Config> Pallet<T> {
 		let initial_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 		let Some((consumed, who)) = T::OmnipoolHooks::consume_protocol_fee(Self::protocol_account(), amount)? else {
 			// if nothing was consumed, we need to burn the extra amount ourselves
-			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+			T::Currency::withdraw(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 			return Ok(vec![Fee::new(T::HubAssetId::get().into(), amount, Destination::Burned)]);
 		};
 		// ensure first that consumed amount is less or equal to the total fee amount
@@ -1595,7 +1624,12 @@ impl<T: Config> Pallet<T> {
 		// in such case ,we need to burn the difference
 		if consumed < amount {
 			let diff = amount.saturating_sub(consumed);
-			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
+			T::Currency::withdraw(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				diff,
+				ExistenceRequirement::AllowDeath,
+			)?;
 			fee_report.push(Fee::new(T::HubAssetId::get().into(), diff, Destination::Burned));
 		}
 
@@ -1615,9 +1649,12 @@ impl<T: Config> Pallet<T> {
 			BalanceUpdate::Increase(amount) => {
 				T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), *amount)
 			}
-			BalanceUpdate::Decrease(amount) => {
-				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), *amount)
-			}
+			BalanceUpdate::Decrease(amount) => T::Currency::withdraw(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				*amount,
+				ExistenceRequirement::AllowDeath,
+			),
 		}
 	}
 
@@ -1685,12 +1722,14 @@ impl<T: Config> Pallet<T> {
 			who,
 			&Self::protocol_account(),
 			*state_changes.asset.delta_hub_reserve, // note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
+			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
 			asset_out,
 			&Self::protocol_account(),
 			who,
 			*state_changes.asset.delta_reserve,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		// we need to mint the new extra hub amount
@@ -1799,12 +1838,14 @@ impl<T: Config> Pallet<T> {
 			who,
 			&Self::protocol_account(),
 			*state_changes.asset.delta_hub_reserve, //note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
+			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
 			asset_out,
 			&Self::protocol_account(),
 			who,
 			*state_changes.asset.delta_reserve,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		// we need to mint the new extra hub amount
@@ -1998,9 +2039,20 @@ impl<T: Config> Pallet<T> {
 	pub fn process_hub_amount(amount: Balance, dest: &T::AccountId) -> DispatchResult {
 		if amount > Balance::zero() {
 			// If transfers fails and the amount is less than ED, it failed due to ED limit, so we simply burn it
-			if let Err(e) = T::Currency::transfer(T::HubAssetId::get(), &Self::protocol_account(), dest, amount) {
+			if let Err(e) = T::Currency::transfer(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				dest,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			) {
 				if amount < 400_000_000u128 {
-					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+					T::Currency::withdraw(
+						T::HubAssetId::get(),
+						&Self::protocol_account(),
+						amount,
+						ExistenceRequirement::AllowDeath,
+					)?;
 				} else {
 					return Err(e);
 				}
@@ -2103,6 +2155,7 @@ impl<T: Config> Pallet<T> {
 			&who,
 			&Self::protocol_account(),
 			*state_changes.asset.delta_reserve,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		debug_assert_eq!(*state_changes.asset.delta_reserve, amount);
@@ -2221,6 +2274,7 @@ impl<T: Config> Pallet<T> {
 			&Self::protocol_account(),
 			&who,
 			*state_changes.asset.delta_reserve,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		// burn only difference between delta hub and lp hub amount.

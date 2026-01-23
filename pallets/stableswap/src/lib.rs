@@ -58,8 +58,11 @@
 
 extern crate core;
 
-use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional, BoundedVec, PalletId};
+use frame_support::{
+	pallet_prelude::{DispatchResult, Get},
+	traits::ExistenceRequirement,
+};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use hydradx_traits::{registry::Inspect, stableswap::StableswapLiquidityMutation, AccountIdFor};
@@ -595,7 +598,6 @@ pub mod pallet {
 			min_amount_out: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-
 			let _ = Self::do_remove_liquidity_one_asset(&who, pool_id, asset_id, share_amount, min_amount_out)?;
 
 			Ok(())
@@ -662,8 +664,8 @@ pub mod pallet {
 			ensure!(shares <= max_share_amount, Error::<T>::SlippageLimit);
 
 			// Burn shares and transfer asset to user.
-			T::Currency::withdraw(pool_id, &who, shares)?;
-			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
+			T::Currency::withdraw(pool_id, &who, shares, ExistenceRequirement::AllowDeath)?;
+			T::Currency::transfer(asset_id, &pool_account, &who, amount, ExistenceRequirement::AllowDeath)?;
 
 			// All done and updated. let's call the on_liquidity_changed hook.
 			Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
@@ -755,8 +757,20 @@ pub mod pallet {
 
 			Self::save_snapshot(pool_id);
 
-			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
-			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
+			T::Currency::transfer(
+				asset_in,
+				&who,
+				&pool_account,
+				amount_in,
+				ExistenceRequirement::AllowDeath,
+			)?;
+			T::Currency::transfer(
+				asset_out,
+				&pool_account,
+				&who,
+				amount_out,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			//All done and updated. Let's call on_trade hook.
 			Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
@@ -850,8 +864,20 @@ pub mod pallet {
 
 			Self::save_snapshot(pool_id);
 
-			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
-			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
+			T::Currency::transfer(
+				asset_in,
+				&who,
+				&pool_account,
+				amount_in,
+				ExistenceRequirement::AllowDeath,
+			)?;
+			T::Currency::transfer(
+				asset_out,
+				&pool_account,
+				&who,
+				amount_out,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			//All done and updated. Let's call on_trade_hook.
 			Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
@@ -1019,7 +1045,7 @@ pub mod pallet {
 					amount
 				};
 
-				T::Currency::transfer(*asset_id, &pool_account, &who, amount)?;
+				T::Currency::transfer(*asset_id, &pool_account, &who, amount, ExistenceRequirement::AllowDeath)?;
 				amounts.push(AssetAmount {
 					asset_id: *asset_id,
 					amount,
@@ -1027,7 +1053,7 @@ pub mod pallet {
 			}
 
 			// Burn shares
-			T::Currency::withdraw(pool_id, &who, share_amount)?;
+			T::Currency::withdraw(pool_id, &who, share_amount, ExistenceRequirement::AllowDeath)?;
 
 			// All done and updated. let's call the on_liquidity_changed hook.
 			if share_amount != share_issuance {
@@ -1566,7 +1592,13 @@ impl<T: Config> Pallet<T> {
 		T::Currency::deposit(pool_id, who, share_amount)?;
 
 		for asset in assets.iter() {
-			T::Currency::transfer(asset.asset_id, who, &pool_account, asset.amount)?;
+			T::Currency::transfer(
+				asset.asset_id,
+				who,
+				&pool_account,
+				asset.amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 		}
 
 		// All done and updated. let's call the on_liquidity_changed hook.
@@ -1659,7 +1691,13 @@ impl<T: Config> Pallet<T> {
 		Self::save_snapshot(pool_id);
 
 		T::Currency::deposit(pool_id, who, shares)?;
-		T::Currency::transfer(asset_id, who, &pool_account, amount_in)?;
+		T::Currency::transfer(
+			asset_id,
+			who,
+			&pool_account,
+			amount_in,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		//All done and update. let's call the on_liquidity_changed hook.
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
@@ -1735,8 +1773,8 @@ impl<T: Config> Pallet<T> {
 		ensure!(amount >= min_amount_out, Error::<T>::SlippageLimit);
 
 		// Burn shares and transfer asset to user.
-		T::Currency::withdraw(pool_id, who, share_amount)?;
-		T::Currency::transfer(asset_id, &pool_account, who, amount)?;
+		T::Currency::withdraw(pool_id, who, share_amount, ExistenceRequirement::AllowDeath)?;
+		T::Currency::transfer(asset_id, &pool_account, who, amount, ExistenceRequirement::AllowDeath)?;
 
 		// All done and updated. let's call the on_liquidity_changed hook.
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
@@ -1827,7 +1865,7 @@ impl<T: Config> Pallet<T> {
 				amount
 			};
 
-			T::Currency::transfer(*asset_id, &pool_account, who, amount)?;
+			T::Currency::transfer(*asset_id, &pool_account, who, amount, ExistenceRequirement::AllowDeath)?;
 			amounts.push(AssetAmount {
 				asset_id: *asset_id,
 				amount,
@@ -1835,7 +1873,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Burn shares
-		T::Currency::withdraw(pool_id, who, share_amount)?;
+		T::Currency::withdraw(pool_id, who, share_amount, ExistenceRequirement::AllowDeath)?;
 
 		// All done and updated. let's call the on_liquidity_changed hook.
 		if share_amount != share_issuance {

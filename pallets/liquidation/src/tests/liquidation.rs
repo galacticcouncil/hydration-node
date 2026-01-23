@@ -18,7 +18,7 @@ pub fn expect_last_events(e: Vec<RuntimeEvent>) {
 		test_utils::expect_event::<RuntimeEvent, Test>(event);
 	}
 }
-use hydradx_traits::evm::EvmAddress;
+use primitives::EvmAddress;
 
 #[test]
 fn liquidation_should_transfer_profit_to_treasury() {

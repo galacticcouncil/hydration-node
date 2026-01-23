@@ -519,17 +519,25 @@ runtime_benchmarks! {
 
 		let amount_sell = 200 * ONE;
 		let schedule1 = schedule_fake(caller.clone(), HDX, DAI, amount_sell);
-		let schedule_id : ScheduleId = 0;
 
 		set_period(99);
-		let execution_block = 100u32;
-		assert_ok!(DCA::schedule(RawOrigin::Signed(caller).into(), schedule1, Option::Some(execution_block)));
-		ScheduleExtraGas::<Runtime>::insert(schedule_id, 1_000_000);
 
+		let execution_block = 105u32;
+
+		// Fill block with MaxSchedulesPerBlock schedules to test worst case for linear search
+		for _ in 0..MaxSchedulesPerBlock::get() {
+			assert_ok!(DCA::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
+		}
+
+		// Terminate the last schedule which is at the last index in ScheduleIdsPerBlock
+		// This is worst case for linear search - must iterate through all elements
+		let schedule_id: ScheduleId = MaxSchedulesPerBlock::get() - 1;
+		ScheduleExtraGas::<Runtime>::insert(schedule_id, 1_000_000);
 
 	}: _(RawOrigin::Root, schedule_id, None)
 	verify {
 		assert!(<Schedules<Runtime>>::get::<ScheduleId>(schedule_id).is_none());
+		assert_eq!((MaxSchedulesPerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<Runtime>>::get::<BlockNumber>(execution_block).len());
 	}
 
 	unlock_reserves {

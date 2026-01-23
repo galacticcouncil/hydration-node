@@ -2,7 +2,7 @@
 use crate::polkadot_test_net::*;
 use frame_support::traits::ContainsPair;
 use hydradx_runtime::XcmConfig;
-use polkadot_xcm::v4::{prelude::*, Junctions::*};
+use polkadot_xcm::v5::{prelude::*, Junctions::*};
 use xcm_emulator::TestExt;
 
 #[test]
@@ -184,11 +184,11 @@ fn asset_hub_root_cannot_alias_non_whitelisted_locations() {
 			"Asset Hub root must NOT alias Polkadot relay"
 		);
 
-		// Random global consensus (e.g. Westend)
-		let target = Location::new(1, X1([GlobalConsensus(NetworkId::Westend)].into()));
+		// Random global consensus (e.g. Kusama)
+		let target = Location::new(1, X1([GlobalConsensus(NetworkId::Kusama)].into()));
 		assert!(
 			!<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
-			"Asset Hub root must NOT alias Westend consensus"
+			"Asset Hub root must NOT alias Kusama consensus"
 		);
 	});
 }

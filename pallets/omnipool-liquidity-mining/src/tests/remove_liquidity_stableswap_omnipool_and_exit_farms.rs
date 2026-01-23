@@ -15,7 +15,6 @@
 
 use super::*;
 
-use frame_support::BoundedVec;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pretty_assertions::assert_eq;
 
