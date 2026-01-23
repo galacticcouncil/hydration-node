@@ -877,7 +877,7 @@ proptest! {
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 				//TODO: this no longer hold, discuss it with Peter
 				//assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
-			
+
 				// With H2O routing to HDX subpool, HDX subpool's hub_reserve increases
 				assert!(new_state_hdx.hub_reserve > old_state_hdx.hub_reserve, "HDX hub_reserve increased");
 
@@ -1028,7 +1028,7 @@ proptest! {
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-			    //TODO: this no longer hold, discuss it with Peter
+				//TODO: this no longer hold, discuss it with Peter
 				//assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				// With H2O routing to HDX subpool, HDX subpool's hub_reserve increases
@@ -1106,8 +1106,8 @@ proptest! {
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-			    //TODO: this no longer hold, discuss it with Peter
-			    //assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
+				//TODO: this no longer hold, discuss it with Peter
+				//assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				// With H2O routing to HDX subpool, HDX subpool's hub_reserve increases
 				assert!(new_state_hdx.hub_reserve > old_state_hdx.hub_reserve, "HDX hub_reserve increased");
@@ -1484,6 +1484,307 @@ proptest! {
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
 				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
+			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(100))]
+	#[test]
+	fn hub_reserve_sum_equals_protocol_balance_after_h2o_routing_sell(
+		sell_amount in trade_amount(),
+		stable_price in price(),
+		stable_reserve in asset_reserve(),
+		native_reserve in asset_reserve(),
+		token_1 in pool_token(100),
+		token_2 in pool_token(200),
+		token_3 in pool_token(300),
+		token_4 in pool_token(400),
+		asset_fee in fee(),
+		protocol_fee in fee(),
+		withdraw_fee in withdrawal_fee(),
+	) {
+		let lp1: u64 = 100;
+		let lp2: u64 = 200;
+		let lp3: u64 = 300;
+		let lp4: u64 = 400;
+		let trader: u64 = 500;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, stable_reserve),
+				(Omnipool::protocol_account(), HDX, native_reserve),
+				(lp1, 100, token_1.amount + 2 * ONE),
+				(lp2, 200, token_2.amount + 2 * ONE),
+				(lp3, 300, token_3.amount + 2 * ONE),
+				(lp4, 400, token_4.amount + 2 * ONE),
+				(trader, LRNA, 200_000 * ONE),
+			])
+			.with_registered_asset(100)
+			.with_registered_asset(200)
+			.with_registered_asset(300)
+			.with_registered_asset(400)
+			.with_asset_fee(asset_fee)
+			.with_protocol_fee(protocol_fee)
+			.with_on_trade_withdrawal(withdraw_fee)
+			.with_initial_pool(
+				stable_price,
+				FixedU128::from(1),
+			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.build()
+			.execute_with(|| {
+				let initial_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+				let initial_asset_hub_liquidity = sum_asset_hub_liquidity();
+				let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+
+				assert_eq!(
+					initial_hub_liquidity, initial_asset_hub_liquidity,
+					"Initial invariant: hub_liquidity must equal sum_asset_hub_liquidity"
+				);
+
+				assert_ok!(Omnipool::sell(
+					RuntimeOrigin::signed(trader),
+					LRNA,
+					300,
+					sell_amount,
+					Balance::zero()
+				));
+
+				let post_sell_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+				let post_sell_asset_hub_liquidity = sum_asset_hub_liquidity();
+				let post_sell_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+
+				assert_eq!(
+					post_sell_hub_liquidity, post_sell_asset_hub_liquidity,
+					"Post-sell invariant: hub_liquidity must equal sum_asset_hub_liquidity"
+				);
+
+				assert!(
+					post_sell_hdx_state.hub_reserve > initial_hdx_state.hub_reserve,
+					"HDX hub_reserve must increase after sell_hub (H2O routing)"
+				);
+			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(100))]
+	#[test]
+	fn hub_reserve_sum_equals_protocol_balance_after_h2o_routing_buy(
+		buy_amount in trade_amount(),
+		stable_price in price(),
+		stable_reserve in asset_reserve(),
+		native_reserve in asset_reserve(),
+		token_1 in pool_token(100),
+		token_2 in pool_token(200),
+		token_3 in pool_token(300),
+		token_4 in pool_token(400),
+		asset_fee in fee(),
+		protocol_fee in fee(),
+		withdraw_fee in withdrawal_fee(),
+	) {
+		let lp1: u64 = 100;
+		let lp2: u64 = 200;
+		let lp3: u64 = 300;
+		let lp4: u64 = 400;
+		let trader: u64 = 500;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, stable_reserve),
+				(Omnipool::protocol_account(), HDX, native_reserve),
+				(lp1, 100, token_1.amount + 2 * ONE),
+				(lp2, 200, token_2.amount + 2 * ONE),
+				(lp3, 300, token_3.amount + 2 * ONE),
+				(lp4, 400, token_4.amount + 2 * ONE),
+				(trader, LRNA, 200_000 * ONE),
+			])
+			.with_registered_asset(100)
+			.with_registered_asset(200)
+			.with_registered_asset(300)
+			.with_registered_asset(400)
+			.with_asset_fee(asset_fee)
+			.with_protocol_fee(protocol_fee)
+			.with_on_trade_withdrawal(withdraw_fee)
+			.with_initial_pool(
+				stable_price,
+				FixedU128::from(1),
+			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.build()
+			.execute_with(|| {
+				let initial_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+				let initial_asset_hub_liquidity = sum_asset_hub_liquidity();
+				let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+
+				assert_eq!(
+					initial_hub_liquidity, initial_asset_hub_liquidity,
+					"Initial invariant: hub_liquidity must equal sum_asset_hub_liquidity"
+				);
+
+				assert_ok!(Omnipool::buy(
+					RuntimeOrigin::signed(trader),
+					300,
+					LRNA,
+					buy_amount,
+					Balance::MAX
+				));
+
+				let post_buy_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+				let post_buy_asset_hub_liquidity = sum_asset_hub_liquidity();
+				let post_buy_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+
+				assert_eq!(
+					post_buy_hub_liquidity, post_buy_asset_hub_liquidity,
+					"Post-buy invariant: hub_liquidity must equal sum_asset_hub_liquidity"
+				);
+
+				assert!(
+					post_buy_hdx_state.hub_reserve > initial_hdx_state.hub_reserve,
+					"HDX hub_reserve must increase after buy_for_hub (H2O routing)"
+				);
+			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(100))]
+	#[test]
+	fn hub_reserve_sum_equals_protocol_balance_after_multiple_h2o_routing_operations(
+		sell_amount_1 in trade_amount(),
+		sell_amount_2 in trade_amount(),
+		buy_amount_1 in trade_amount(),
+		buy_amount_2 in trade_amount(),
+		stable_price in price(),
+		stable_reserve in asset_reserve(),
+		native_reserve in asset_reserve(),
+		token_1 in pool_token(100),
+		token_2 in pool_token(200),
+		token_3 in pool_token(300),
+		token_4 in pool_token(400),
+		asset_fee in fee(),
+		protocol_fee in fee(),
+		withdraw_fee in withdrawal_fee(),
+	) {
+		let lp1: u64 = 100;
+		let lp2: u64 = 200;
+		let lp3: u64 = 300;
+		let lp4: u64 = 400;
+		let trader: u64 = 500;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, stable_reserve),
+				(Omnipool::protocol_account(), HDX, native_reserve),
+				(lp1, 100, token_1.amount + 2 * ONE),
+				(lp2, 200, token_2.amount + 2 * ONE),
+				(lp3, 300, token_3.amount + 2 * ONE),
+				(lp4, 400, token_4.amount + 2 * ONE),
+				(trader, LRNA, 500_000 * ONE),
+			])
+			.with_registered_asset(100)
+			.with_registered_asset(200)
+			.with_registered_asset(300)
+			.with_registered_asset(400)
+			.with_asset_fee(asset_fee)
+			.with_protocol_fee(protocol_fee)
+			.with_on_trade_withdrawal(withdraw_fee)
+			.with_initial_pool(
+				stable_price,
+				FixedU128::from(1),
+			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.build()
+			.execute_with(|| {
+				// Helper to check invariant
+				let check_invariant = |msg: &str| {
+					let hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+					let asset_hub_liquidity = sum_asset_hub_liquidity();
+					assert_eq!(hub_liquidity, asset_hub_liquidity, "{}", msg);
+				};
+
+				let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+				check_invariant("Initial invariant");
+
+				// Operation 1: Sell LRNA -> asset 300
+				assert_ok!(Omnipool::sell(
+					RuntimeOrigin::signed(trader),
+					LRNA,
+					300,
+					sell_amount_1,
+					Balance::zero()
+				));
+				check_invariant("After sell #1 (LRNA -> 300)");
+
+				let hdx_after_sell_1 = Omnipool::load_asset_state(HDX).unwrap();
+				assert!(
+					hdx_after_sell_1.hub_reserve > initial_hdx_state.hub_reserve,
+					"HDX hub_reserve must increase after sell #1"
+				);
+
+				// Operation 2: Buy asset 100 with LRNA
+				assert_ok!(Omnipool::buy(
+					RuntimeOrigin::signed(trader),
+					100,
+					LRNA,
+					buy_amount_1,
+					Balance::MAX
+				));
+				check_invariant("After buy #1 (100 <- LRNA)");
+
+				let hdx_after_buy_1 = Omnipool::load_asset_state(HDX).unwrap();
+				assert!(
+					hdx_after_buy_1.hub_reserve > hdx_after_sell_1.hub_reserve,
+					"HDX hub_reserve must increase after buy #1"
+				);
+
+				// Operation 3: Sell LRNA -> asset 200
+				assert_ok!(Omnipool::sell(
+					RuntimeOrigin::signed(trader),
+					LRNA,
+					200,
+					sell_amount_2,
+					Balance::zero()
+				));
+				check_invariant("After sell #2 (LRNA -> 200)");
+
+				let hdx_after_sell_2 = Omnipool::load_asset_state(HDX).unwrap();
+				assert!(
+					hdx_after_sell_2.hub_reserve > hdx_after_buy_1.hub_reserve,
+					"HDX hub_reserve must increase after sell #2"
+				);
+
+				// Operation 4: Buy asset 400 with LRNA
+				assert_ok!(Omnipool::buy(
+					RuntimeOrigin::signed(trader),
+					400,
+					LRNA,
+					buy_amount_2,
+					Balance::MAX
+				));
+				check_invariant("After buy #2 (400 <- LRNA)");
+
+				let hdx_after_buy_2 = Omnipool::load_asset_state(HDX).unwrap();
+				assert!(
+					hdx_after_buy_2.hub_reserve > hdx_after_sell_2.hub_reserve,
+					"HDX hub_reserve must increase after buy #2"
+				);
+
+				// Final check: HDX hub_reserve should have increased significantly
+				assert!(
+					hdx_after_buy_2.hub_reserve > initial_hdx_state.hub_reserve,
+					"HDX hub_reserve must be higher than initial after all operations"
+				);
 			});
 	}
 }
