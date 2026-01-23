@@ -49,6 +49,24 @@ macro_rules! assert_asset_invariant_not_decreased {
 	}};
 }
 
+#[macro_export]
+macro_rules! assert_asset_invariant_not_decreased_for_hub_swap {
+	( $old_state:expr, $new_state:expr, $old_hdx_state:expr, $new_hdx_state:expr, $desc:expr) => {{
+		let new_s = U256::from($new_state.reserve)
+			* (U256::from($new_state.hub_reserve) + U256::from($new_hdx_state.hub_reserve));
+		let old_s = U256::from($old_state.reserve)
+			* (U256::from($old_state.hub_reserve) + U256::from($old_hdx_state.hub_reserve));
+
+		assert!(
+			new_s >= old_s,
+			"Invariant decreased for {} - {:?} >= {:?}",
+			$desc,
+			new_s,
+			old_s
+		);
+	}};
+}
+
 /*
 fn assert_invariants_after_trade(
 	asset_in_old_state: &AssetReserveState<Balance>,
@@ -875,8 +893,13 @@ proptest! {
 
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-				//TODO: this no longer hold, discuss it with Peter
-				//assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
+				assert_asset_invariant_not_decreased_for_hub_swap!(
+					&old_state_300,
+					&new_state_300,
+					&old_state_hdx,
+					&new_state_hdx,
+					"Invariant 300"
+				);
 
 				// With H2O routing to HDX subpool, HDX subpool's hub_reserve increases
 				assert!(new_state_hdx.hub_reserve > old_state_hdx.hub_reserve, "HDX hub_reserve increased");
@@ -951,9 +974,13 @@ proptest! {
 
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-
-				//TODO: this no longer hold, discuss it with Peter
-				//assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
+				assert_asset_invariant_not_decreased_for_hub_swap!(
+					&old_state_300,
+					&new_state_300,
+					&old_state_hdx,
+					&new_state_hdx,
+					"Invariant 300"
+				);
 
 				// With H2O routing to HDX subpool, HDX subpool's hub_reserve increases
 				assert!(new_state_hdx.hub_reserve > old_state_hdx.hub_reserve, "HDX hub_reserve increased");
@@ -1027,9 +1054,13 @@ proptest! {
 
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-
-				//TODO: this no longer hold, discuss it with Peter
-				//assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
+				assert_asset_invariant_not_decreased_for_hub_swap!(
+					&old_state_300,
+					&new_state_300,
+					&old_state_hdx,
+					&new_state_hdx,
+					"Invariant 300"
+				);
 
 				// With H2O routing to HDX subpool, HDX subpool's hub_reserve increases
 				assert!(new_state_hdx.hub_reserve > old_state_hdx.hub_reserve, "HDX hub_reserve increased");
@@ -1105,9 +1136,13 @@ proptest! {
 
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-
-				//TODO: this no longer hold, discuss it with Peter
-				//assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
+				assert_asset_invariant_not_decreased_for_hub_swap!(
+					&old_state_300,
+					&new_state_300,
+					&old_state_hdx,
+					&new_state_hdx,
+					"Invariant 300"
+				);
 
 				// With H2O routing to HDX subpool, HDX subpool's hub_reserve increases
 				assert!(new_state_hdx.hub_reserve > old_state_hdx.hub_reserve, "HDX hub_reserve increased");
