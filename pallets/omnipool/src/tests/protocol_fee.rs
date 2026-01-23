@@ -198,6 +198,7 @@ fn protocol_fee_amount_should_match_hdx_hub_reserve_increase() {
 			});
 
 			let protocol_fee_amount = sell_event.expect("SellExecuted event should exist");
+			assert_ne!(protocol_fee_amount, 0);
 
 			// Get HDX state after trade
 			let hdx_state_after = Assets::<Test>::get(HDX).unwrap();
