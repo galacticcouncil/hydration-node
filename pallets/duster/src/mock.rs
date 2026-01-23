@@ -13,9 +13,10 @@ use sp_core::H256;
 
 use frame_support::weights::Weight;
 use frame_system::EnsureRoot;
-use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust, EvmAddress};
+use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
 use orml_traits::MultiCurrency;
 use pallet_currencies::fungibles::FungibleCurrencies;
+use primitives::EvmAddress;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
@@ -115,6 +116,7 @@ impl system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_type_with_key! {
@@ -239,6 +241,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 pub struct ExtBuilder {
@@ -269,6 +272,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: self.native_balances,
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

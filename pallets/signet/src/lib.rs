@@ -44,6 +44,7 @@ pub use types::WeightInfo;
 #[cfg(test)]
 pub mod tests;
 
+#[allow(clippy::too_many_arguments)]
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -83,21 +84,21 @@ pub mod pallet {
 	// ========================================
 
 	/// Serialization format enum
-	#[derive(Encode, Decode, TypeInfo, Clone, Copy, Debug, PartialEq, Eq)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, Copy, Debug, PartialEq, Eq)]
 	pub enum SerializationFormat {
 		Borsh = 0,
 		AbiJson = 1,
 	}
 
 	/// Affine point for signatures
-	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, Eq)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, Debug, PartialEq, Eq)]
 	pub struct AffinePoint {
 		pub x: [u8; 32],
 		pub y: [u8; 32],
 	}
 
 	/// Signature structure
-	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, Eq)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, Debug, PartialEq, Eq)]
 	pub struct Signature {
 		pub big_r: AffinePoint,
 		pub s: [u8; 32],
@@ -105,7 +106,7 @@ pub mod pallet {
 	}
 
 	/// Error response structure
-	#[derive(Encode, Decode, TypeInfo, Debug, Clone, PartialEq, Eq)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Debug, Clone, PartialEq, Eq)]
 	pub struct ErrorResponse {
 		pub request_id: [u8; 32],
 		pub error_message: BoundedVec<u8, ConstU32<MAX_ERROR_MESSAGE_LENGTH>>,
@@ -282,7 +283,7 @@ pub mod pallet {
 			ensure!(who == admin, Error::<T>::Unauthorized);
 
 			ensure!(
-				new_deposit < T::MaxSignatureDeposit::get().into(),
+				new_deposit < T::MaxSignatureDeposit::get(),
 				Error::<T>::MaxDepositExceeded
 			);
 
@@ -338,7 +339,7 @@ pub mod pallet {
 
 			// Transfer deposit from requester to pallet account
 			let pallet_account = Self::account_id();
-			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::KeepAlive)?;
+			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::AllowDeath)?;
 
 			// Get chain ID for event (convert BoundedVec to Vec)
 			let chain_id = ChainId::<T>::get().to_vec();
@@ -387,7 +388,7 @@ pub mod pallet {
 
 			// Transfer deposit from requester to pallet account
 			let pallet_account = Self::account_id();
-			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::KeepAlive)?;
+			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::AllowDeath)?;
 
 			// Emit event
 			Self::deposit_event(Event::SignBidirectionalRequested {

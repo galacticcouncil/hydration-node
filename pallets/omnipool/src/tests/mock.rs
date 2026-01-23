@@ -125,6 +125,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl pallet_balances::Config for Test {
@@ -141,6 +142,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_type_with_key! {
@@ -773,7 +775,13 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		let percentage = ON_TRADE_WITHDRAWAL.with(|v| *v.borrow());
 		let to_take = percentage.mul_floor(amount);
 		let add_extra = ON_TRADE_WITHDRAWAL_EXTRA.with(|v| *v.borrow());
-		<Tokens as MultiCurrency<AccountId>>::transfer(asset, &fee_account, &TRADE_FEE_COLLECTOR, to_take + add_extra)?;
+		<Tokens as MultiCurrency<AccountId>>::transfer(
+			asset,
+			&fee_account,
+			&TRADE_FEE_COLLECTOR,
+			to_take + add_extra,
+			ExistenceRequirement::AllowDeath,
+		)?;
 		Ok(vec![Some((to_take + add_extra, TRADE_FEE_COLLECTOR))])
 	}
 
@@ -786,9 +794,20 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		}
 		if amount < 400_000_000 {
 			//less than ED -> dust
-			<Tokens as MultiCurrency<AccountId>>::withdraw(LRNA, &fee_account, amount)?;
+			<Tokens as MultiCurrency<AccountId>>::withdraw(
+				LRNA,
+				&fee_account,
+				amount,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)?;
 		} else {
-			<Tokens as MultiCurrency<AccountId>>::transfer(LRNA, &fee_account, &PROTOCOL_FEE_COLLECTOR, amount)?;
+			<Tokens as MultiCurrency<AccountId>>::transfer(
+				LRNA,
+				&fee_account,
+				&PROTOCOL_FEE_COLLECTOR,
+				amount,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)?;
 		}
 		Ok(Some((amount, PROTOCOL_FEE_COLLECTOR)))
 	}

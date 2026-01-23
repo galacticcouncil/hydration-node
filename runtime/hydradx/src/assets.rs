@@ -17,7 +17,7 @@
 
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
-use crate::evm::{Erc20Currency, WethAssetId};
+use crate::evm::Erc20Currency;
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
@@ -31,8 +31,8 @@ use frame_support::{
 	},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, Imbalance,
-		LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
+		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, ExistenceRequirement,
+		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
 	},
 	BoundedVec, PalletId,
 };
@@ -119,6 +119,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxReserves = MaxReserves;
 	type MaxFreezes = MaxFreezes;
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 pub struct CurrencyHooks;
@@ -250,6 +251,7 @@ impl SufficiencyCheck {
 					paying_account,
 					&TreasuryAccount::get(),
 					ed_in_fee_asset,
+					ExistenceRequirement::AllowDeath,
 				)
 				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
@@ -371,6 +373,7 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			&TreasuryAccount::get(),
 			who,
 			ed_to_refund,
+			ExistenceRequirement::AllowDeath,
 		);
 
 		frame_system::Pallet::<Runtime>::dec_sufficients(who);
@@ -885,7 +888,7 @@ impl SpotPriceProvider<AssetId> for DummySpotPriceProvider {
 	}
 }
 
-pub const DOT_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v3::MultiLocation::parent());
+pub const DOT_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v5::Location::parent());
 
 pub struct DotAssetId;
 impl Get<AssetId> for DotAssetId {
@@ -1890,12 +1893,10 @@ impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
 }
 
 pub struct SigEthFaucetContractAddr;
-impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetContractAddr {
-	fn get() -> [u8; 20] {
-		[
-			0x52, 0xBE, 0x07, 0x7E, 0x67, 0x49, 0x6C, 0x97, 0x63, 0xCC, 0xEF, 0x66, 0xC1, 0x11, 0x7D, 0xD2, 0x34, 0xCA,
-			0x8C, 0xFC,
-		]
+impl frame_support::traits::Get<EvmAddress> for SigEthFaucetContractAddr {
+	fn get() -> EvmAddress {
+		// 0x52BE077E67496C9763CCEF66C1117DD234CA8CFC
+		EvmAddress::from(hex_literal::hex!("52BE077E67496C9763CCEF66C1117DD234CA8CFC"))
 	}
 }
 
@@ -2182,7 +2183,7 @@ impl Erc20OnDust<AccountId, AssetId> for ATokenAccountDuster {
 			return Err(DispatchError::Token(TokenError::UnknownAsset));
 		};
 
-		AaveTradeExecutor::<Runtime>::withdraw_all_to(contract, &account, &dust_dest_account)?;
+		AaveTradeExecutor::<Runtime>::withdraw_all_to(contract, account, dust_dest_account)?;
 
 		Ok(())
 	}

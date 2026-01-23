@@ -16,17 +16,16 @@ use alloc::{string::String, vec};
 
 use alloy_primitives::U256;
 use alloy_sol_types::{sol, SolCall};
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Inspect;
-use frame_support::traits::{fungibles::Mutate, tokens::Preservation, Currency};
+use frame_support::traits::{fungibles::Mutate, tokens::Preservation};
 use frame_support::PalletId;
 use frame_support::{dispatch::DispatchResult, BoundedVec};
 use frame_system::pallet_prelude::*;
-use sp_core::H160;
+use primitives::EvmAddress;
 use sp_std::vec::Vec;
 
-#[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 pub mod types;
 pub mod weights;
@@ -51,7 +50,7 @@ sol! {
 ///
 /// These values are provided by the caller and used to construct the RLP-encoded
 /// transaction which SigNet will sign.
-#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq)]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, Debug, PartialEq)]
 pub struct EvmTransactionParams {
 	/// ETH value (in wei) sent with the EVM transaction.
 	pub value: u128,
@@ -252,7 +251,7 @@ pub mod pallet {
 			Self::ensure_not_paused()?;
 
 			// Basic validation of parameters.
-			ensure!(to != [0u8; 20], Error::<T>::InvalidAddress);
+			ensure!(to != EvmAddress::zero(), Error::<T>::InvalidAddress);
 			ensure!(amount >= T::MinimumRequestAmount::get(), Error::<T>::AmountTooSmall);
 			ensure!(amount <= T::MaxDispenseAmount::get(), Error::<T>::AmountTooLarge);
 
@@ -272,14 +271,14 @@ pub mod pallet {
 
 			// Build the EVM call to the faucet.
 			let call = IGasFaucet::fundCall {
-				to: alloy_primitives::Address::from_slice(&to),
+				to: alloy_primitives::Address::from_slice(to.as_bytes()),
 				amount: U256::from(amount),
 			};
 
 			// Build EVM transaction bytes using pallet_signet helper.
 			let rlp = pallet_signet::Pallet::<T>::build_evm_tx(
 				frame_system::RawOrigin::Signed(requester.clone()).into(),
-				Some(H160::from(T::FaucetAddress::get())),
+				Some(T::FaucetAddress::get()),
 				0u128,
 				call.abi_encode(),
 				tx.nonce,
@@ -434,7 +433,7 @@ pub mod pallet {
 		///
 		/// This mirrors the off-chain logic used by SigNet clients and prevents
 		/// clients from supplying arbitrary request IDs.
-
+		#[allow(clippy::too_many_arguments)]
 		pub fn generate_request_id(
 			sender: &T::AccountId,
 			transaction_data: &[u8],
