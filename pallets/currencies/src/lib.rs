@@ -55,11 +55,21 @@ use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{AssetKind, BoundErc20};
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
-	currency::TransferAll,
+	currency::{OnDeposit, OnTransfer, TransferAll},
 	BalanceStatus, BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency, GetByKey,
 	LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
 	NamedBasicReservableCurrency, NamedMultiReservableCurrency,
 };
+
+pub trait OnWithdraw<AccountId, AssetId, Balance> {
+	fn on_withdraw(asset_id: AssetId, who: &AccountId, amount: Balance) -> DispatchResult;
+}
+
+impl<AccountId, AssetId, Balance> OnWithdraw<AccountId, AssetId, Balance> for () {
+	fn on_withdraw(_asset_id: AssetId, _who: &AccountId, _amount: Balance) -> DispatchResult {
+		Ok(())
+	}
+}
 use orml_utilities::with_transaction_result;
 use sp_runtime::{
 	traits::{CheckedSub, MaybeSerializeDeserialize, StaticLookup, Zero},
@@ -118,6 +128,10 @@ pub mod module {
 
 		/// Registry inspection provider (e.g., asset registry) decoupled via trait.
 		type RegistryInspect: hydradx_traits::registry::Inspect<AssetId = CurrencyIdOf<Self>>;
+
+		/// Egress handler for tracking token outflows.
+		type EgressHandler: OnWithdraw<Self::AccountId, CurrencyIdOf<Self>, BalanceOf<Self>>
+			+ OnTransfer<Self::AccountId, CurrencyIdOf<Self>, BalanceOf<Self>>;
 
 		/// Weight information for extrinsics in this module.
 		type WeightInfo: WeightInfo;
@@ -302,6 +316,9 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if amount.is_zero() || from == to {
 			return Ok(());
 		}
+
+		T::EgressHandler::on_transfer(currency_id, from, to, amount)?;
+
 		#[cfg(any(feature = "try-runtime", test))]
 		let (initial_source_balance, initial_dest_balance) = {
 			(
@@ -367,6 +384,9 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if amount.is_zero() {
 			return Ok(());
 		}
+
+		T::EgressHandler::on_withdraw(currency_id, who, amount)?;
+
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::withdraw(who, amount)?;
 		} else {

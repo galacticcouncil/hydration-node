@@ -24,6 +24,7 @@ use frame_support::PalletId;
 use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, MultiCurrency, NamedMultiReservableCurrency};
+use pallet_asset_registry::{AssetDetails, AssetType};
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, ConstU128, ConstU32, ConstU64, Zero};
 use sp_runtime::DispatchResult;
@@ -127,6 +128,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = ();
 	type WeightInfo = ();
 }
 

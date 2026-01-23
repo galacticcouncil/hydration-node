@@ -380,6 +380,8 @@ pub mod pallet {
 		GlobalLockdownReset,
 		/// Global limit value updated by governance (in reference currency).
 		GlobalLimitUpdated { new_limit: T::Balance },
+		/// Global withdraw lockdown was set by governance.
+		GlobalLockdownSet { until: primitives::Moment },
 		/// Egress accounts list was updated.
 		EgressAccountsUpdated {
 			accounts: BoundedVec<T::AccountId, T::MaxEgressAccounts>,
@@ -646,6 +648,15 @@ pub mod pallet {
 				accounts: bounded_accounts,
 			});
 
+			Ok(())
+		}
+
+		#[pallet::call_index(13)]
+		#[pallet::weight(T::DbWeight::get().writes(1))]
+		pub fn set_global_lockdown(origin: OriginFor<T>, until: primitives::Moment) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			WithdrawLockdownUntil::<T>::put(until);
+			Self::deposit_event(Event::GlobalLockdownSet { until });
 			Ok(())
 		}
 	}

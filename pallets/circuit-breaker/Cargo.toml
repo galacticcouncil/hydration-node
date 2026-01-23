@@ -37,6 +37,7 @@ pallet-omnipool = { workspace = true }
 pallet-currencies = { workspace = true }
 pallet-broadcast = { workspace = true }
 pallet-balances = { workspace = true }
+pallet-asset-registry = { workspace = true }
 orml-tokens = { workspace = true }
 hydra-dx-math = { workspace = true }
 test-utils = { workspace = true }

@@ -1,4 +1,5 @@
 use crate::module::{BalanceOf, CurrencyIdOf};
+use crate::OnWithdraw;
 use crate::{Config, Error, Pallet};
 use frame_support::fail;
 use frame_support::traits::fungibles::Inspect as FungibleInspect;
@@ -6,6 +7,7 @@ use frame_support::traits::tokens::{
 	fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
 };
 use hydradx_traits::{BoundErc20, Inspect};
+use orml_traits::currency::OnTransfer;
 use orml_traits::MultiCurrency;
 #[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::traits::Zero;
@@ -290,6 +292,8 @@ where
 		precision: Precision,
 		force: Fortitude,
 	) -> Result<Self::Balance, DispatchError> {
+		T::EgressHandler::on_withdraw(asset, who, amount)?;
+
 		if asset == T::GetNativeCurrencyId::get() {
 			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::burn_from(
 				who,
@@ -331,6 +335,8 @@ where
 		amount: Self::Balance,
 		preservation: Preservation,
 	) -> Result<Self::Balance, DispatchError> {
+		T::EgressHandler::on_transfer(asset, source, dest, amount)?;
+
 		#[cfg(any(feature = "try-runtime", test))]
 		let (initial_source_balance, initial_dest_balance) = {
 			(

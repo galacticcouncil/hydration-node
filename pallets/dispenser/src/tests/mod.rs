@@ -115,8 +115,9 @@ impl pallet_currencies::Config for Test {
 	type BoundErc20 = MockBoundErc20<Test>;
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
-	type WeightInfo = ();
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = ();
+	type WeightInfo = ();
 }
 
 impl orml_tokens::Config for Test {
