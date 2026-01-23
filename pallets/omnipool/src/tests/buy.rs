@@ -1,22 +1,23 @@
 use super::*;
 use frame_support::assert_noop;
 use pretty_assertions::assert_eq;
+use crate::tests::slip_fee::expect_events;
 
 #[test]
 fn simple_buy_works() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), DAI, 1_000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP2, 100, 2000 * ONE),
-			(LP3, 200, 2000 * ONE),
-			(LP1, 100, 1000 * ONE),
+			(LP2, 100, 2_000 * ONE),
+			(LP3, 200, 2_000 * ONE),
+			(LP1, 100, 1_000 * ONE),
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2_000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP3, 2_000 * ONE)
 		.build()
 		.execute_with(|| {
 			// Arrange
@@ -36,22 +37,22 @@ fn simple_buy_works() {
 			));
 
 			// Assert
-			assert_eq!(Tokens::free_balance(100, &LP1), 547598253275108);
+			assert_eq!(Tokens::free_balance(100, &LP1), 547_598_253_275_108);
 			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13360 * ONE);
+			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_360 * ONE);
 			assert_eq!(
 				Tokens::free_balance(100, &Omnipool::protocol_account()),
-				2452401746724892
+				2_452_401_746_724_892
 			);
-			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), 1950 * ONE);
+			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), 1_950 * ONE);
 
 			assert_pool_state!(13_360 * ONE, 26_720 * ONE);
 
 			assert_asset_state!(
 				100,
 				AssetReserveState {
-					reserve: 2452401746724892,
-					hub_reserve: 1526666666666666,
+					reserve: 2_452_401_746_724_892,
+					hub_reserve: 1_526_666_666_666_666,
 					shares: 2400 * ONE,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
@@ -62,13 +63,26 @@ fn simple_buy_works() {
 				200,
 				AssetReserveState {
 					reserve: 1950 * ONE,
-					hub_reserve: 1333333333333334,
+					hub_reserve: 1_333_333_333_333_334,
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
+
+			expect_events(vec![Event::BuyExecuted {
+				who: LP1,
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 52_401_746_724_892,
+				amount_out: buy_amount,
+				hub_amount_in: 33_333_333_333_334,
+				hub_amount_out: 33_333_333_333_334,
+				asset_fee_amount: 0,
+				protocol_fee_amount: 0,
+			}
+				.into()]);
 		});
 }
 

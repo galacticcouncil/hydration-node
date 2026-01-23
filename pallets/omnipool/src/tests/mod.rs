@@ -72,7 +72,7 @@ macro_rules! assert_hub_asset {
 macro_rules! assert_pool_state {
 	( $x:expr, $y:expr) => {{
 		let hub_reserves: Vec<Balance> = Assets::<Test>::iter().map(|v| v.1.hub_reserve).collect();
-		assert_eq!($x, hub_reserves.iter().sum::<Balance>());
+		assert_eq!(hub_reserves.iter().sum::<Balance>(), $x);
 		assert_eq!(
 			Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
 			$x,
