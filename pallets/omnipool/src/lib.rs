@@ -45,6 +45,13 @@
 //!
 //! This is currently used to update on-chain oracle and in the circuit breaker.
 //!
+//! ### Hub Asset Trading
+//!
+//! When Hub Asset (LRNA) is sold to the Omnipool, the incoming LRNA is routed to the HDX subpool
+//! instead of the traded asset's subpool. This increases the HDX subpool's hub reserve while
+//! leaving the traded asset's hub reserve unchanged. The routing strengthens the HDX price by
+//! increasing its backing with hub asset.
+//!
 //! ## Terminology
 //!
 //! * **LP:**  liquidity provider
