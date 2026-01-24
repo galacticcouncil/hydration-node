@@ -1036,7 +1036,7 @@ mod router_different_pools_tests {
 mod omnipool_router_tests {
 	use super::*;
 	use frame_support::assert_noop;
-	use hydradx_runtime::{Balances, Omnipool, Treasury, XYK};
+	use hydradx_runtime::{Balances, Omnipool, XYK};
 	use hydradx_traits::router::PoolType;
 	use hydradx_traits::AssetKind;
 	use pallet_broadcast::types::{Destination, ExecutionType};
