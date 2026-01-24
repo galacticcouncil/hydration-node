@@ -3,7 +3,7 @@
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens, Treasury};
+use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens};
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::Asset;
 use pallet_broadcast::types::Destination;
