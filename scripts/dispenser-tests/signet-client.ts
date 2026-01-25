@@ -150,7 +150,7 @@ export class SignetClient {
       [
         'string',
         'bytes',
-        'uint32',
+        'string',
         'uint32',
         'string',
         'string',
@@ -160,7 +160,7 @@ export class SignetClient {
       [
         sender,
         txHex,
-        params.slip44ChainId,
+        params.caip2_id,
         params.keyVersion,
         params.path,
         params.algo || '',
