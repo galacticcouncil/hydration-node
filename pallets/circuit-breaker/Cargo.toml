@@ -30,12 +30,12 @@ primitives = { workspace = true }
 # Warehouse
 hydradx-traits = { workspace = true }
 orml-traits = { workspace = true }
-pallet-broadcast = { workspace = true }
 
 [dev-dependencies]
 pallet-omnipool = { workspace = true }
 pallet-currencies = { workspace = true }
 pallet-balances = { workspace = true }
+pallet-broadcast = { workspace = true }
 orml-tokens = { workspace = true }
 hydra-dx-math = { workspace = true }
 test-utils = { workspace = true }
@@ -62,7 +62,6 @@ std = [
     "hydradx-traits/std",
     "pallet-omnipool/std",
     "orml-traits/std",
-    "pallet-broadcast/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",

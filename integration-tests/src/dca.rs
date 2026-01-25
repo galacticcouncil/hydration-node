@@ -3350,7 +3350,7 @@ mod stableswap {
 				set_zero_reward_for_referrals(pool_id);
 				do_trade_to_populate_oracle(pool_id, HDX, 100 * UNITS);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				let deposit_limit = 50 * UNITS;
 				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
@@ -3403,7 +3403,7 @@ mod stableswap {
 				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget);
 
 				//Act - Execute DCA
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
 				let router_reserved_pool_id = Currencies::reserved_balance(pool_id, &Router::router_account());
@@ -3474,7 +3474,7 @@ mod stableswap {
 				set_zero_reward_for_referrals(pool_id);
 				do_trade_to_populate_oracle(pool_id, HDX, 100 * UNITS);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				let deposit_limit = 50 * UNITS;
 				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
@@ -3527,7 +3527,7 @@ mod stableswap {
 				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget);
 
 				//Act - Execute DCA
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				//Assert
 				let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
@@ -3601,7 +3601,7 @@ mod stableswap {
 				set_zero_reward_for_referrals(stable_asset_1);
 				do_trade_to_populate_oracle(stable_asset_1, HDX, 100 * UNITS);
 
-				set_relaychain_block_number(10);
+				go_to_block(10);
 
 				let deposit_limit = 50 * UNITS;
 				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
@@ -3651,7 +3651,7 @@ mod stableswap {
 				assert_eq!(alice_pool_id_before, 0, "ALICE should start with 0 pool_id shares");
 
 				// Act - Execute DCA
-				set_relaychain_block_number(12);
+				go_to_block(12);
 
 				// Assert
 				let alice_stable_shares_after = Currencies::free_balance(pool_id, &ALICE.into());

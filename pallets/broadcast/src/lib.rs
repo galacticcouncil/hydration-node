@@ -178,8 +178,9 @@ impl<T: Config> Pallet<T> {
 		Swapper::<T>::kill();
 	}
 
-	/// NOTE!: If swapper is set, we don't lock deposit in circuit breaker `issuance.rs` in case of reaching deposit mint limit, only letting it fail
-	/// This is mainly used in router as there the router account is executing the actual trade
+	/// Sets the swapper account for trade event attribution.
+	/// This overwrites the original swapper in Swapped3 events.
+	/// Mainly used by the router where a temporary trade account executes the actual trade.
 	pub fn set_swapper(account_id: T::AccountId) {
 		Swapper::<T>::put(account_id);
 	}

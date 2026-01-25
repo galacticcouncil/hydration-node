@@ -772,7 +772,7 @@ mod router_different_pools_tests {
 						4538992258357,
 						trades.try_into().unwrap()
 					),
-					pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededInRouterContext
+					pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount
 				);
 
 				assert_balance!(ALICE.into(), pool_id, 0);
@@ -839,7 +839,7 @@ mod router_different_pools_tests {
 						0,
 						trades.try_into().unwrap()
 					),
-					pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::DepositLimitExceededInRouterContext
+					pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::DepositLimitExceededForWhitelistedAccount
 				);
 
 				// Verify that nothing has changed
@@ -917,7 +917,7 @@ mod router_different_pools_tests {
 						2_500 * UNITS,
 						trades.try_into().unwrap()
 					),
-					pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::DepositLimitExceededInRouterContext
+					pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::DepositLimitExceededForWhitelistedAccount
 				);
 
 				// Verify nothing changed and locked
