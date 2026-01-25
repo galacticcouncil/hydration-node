@@ -1,11 +1,12 @@
 use codec::Decode;
+use codec::DecodeWithMemTracking;
 use codec::Encode;
 use codec::MaxEncodedLen;
 use frame_support::pallet_prelude::RuntimeDebug;
 use frame_support::pallet_prelude::TypeInfo;
 
 pub type Identificator = u128;
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, DecodeWithMemTracking, MaxEncodedLen)]
 pub enum Source {
 	ICE(Identificator),
 }

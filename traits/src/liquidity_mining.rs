@@ -171,6 +171,9 @@ pub trait Mutate<AccountId, AssetId, BlockNumber> {
 
 	/// Returns `Some(global_farm_id)` for given `deposit_id` and `yield_farm_id` or `None`.
 	fn get_global_farm_id(deposit_id: DepositId, yield_farm_id: YieldFarmId) -> Option<u32>;
+
+	/// Returns `Some(Vec<yield_farm_id>)` for given `deposit_id` or `None` if no existing deposit.
+	fn get_yield_farm_ids(deposit_id: DepositId) -> Option<Vec<u32>>;
 }
 
 /// Implementers of this trait provide `price_adjustment` for given `GlobalFarm`.

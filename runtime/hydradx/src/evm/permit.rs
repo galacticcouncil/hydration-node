@@ -1,5 +1,6 @@
 use crate::evm::precompiles;
 use crate::ExtrinsicBaseWeight;
+use alloc::vec;
 use evm::ExitReason;
 use fp_evm::FeeCalculator;
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo, RawOrigin};
@@ -14,7 +15,7 @@ use primitive_types::{H160, H256, U256};
 use primitives::AccountId;
 use sp_core::crypto::AccountId32;
 use sp_io::hashing::keccak_256;
-use sp_runtime::traits::{One, UniqueSaturatedInto};
+use sp_runtime::traits::UniqueSaturatedInto;
 use sp_runtime::DispatchResult;
 use sp_std::vec::Vec;
 
@@ -109,6 +110,7 @@ where
 			max_priority_fee_per_gas,
 			None,
 			access_list,
+			vec![],
 			is_transactional,
 			validate,
 			None,
@@ -126,12 +128,6 @@ where
 				})
 			}
 		};
-		let account_source_nonce = frame_system::Account::<R>::get(&account_id).nonce;
-		debug_assert_eq!(
-			account_source_nonce,
-			source_nonce + <R as frame_system::Config>::Nonce::one()
-		);
-		frame_system::Account::<R>::mutate(account_id, |a| a.nonce -= <R as frame_system::Config>::Nonce::one());
 
 		let permit_nonce = NoncesStorage::get(source);
 		NoncesStorage::insert(source, permit_nonce + U256::one());
@@ -150,6 +146,15 @@ where
 			actual_weight: Some(actual_weight),
 			pays_fee: Pays::No,
 		};
+
+		let source_nonce_after = frame_system::Account::<R>::get(&account_id).nonce;
+		ensure!(
+			source_nonce_after == source_nonce,
+			DispatchErrorWithPostInfo {
+				post_info,
+				error: pallet_transaction_multi_payment::Error::<R>::EvmPermitNonceInvariantViolated.into(),
+			}
+		);
 
 		match info.exit_reason {
 			ExitReason::Succeed(_) => Ok(post_info),

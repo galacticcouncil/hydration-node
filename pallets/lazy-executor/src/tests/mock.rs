@@ -165,6 +165,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl mock_pallet::Config for Test {
@@ -188,15 +189,25 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+impl<LocalCall> frame_system::offchain::CreateTransactionBase<LocalCall> for Test
 where
-	RuntimeCall: From<C>,
+	RuntimeCall: From<LocalCall>,
 {
-	type OverarchingCall = RuntimeCall;
+	type RuntimeCall = RuntimeCall;
 	type Extrinsic = Extrinsic;
+}
+
+impl<LocalCall> hydradx_traits::CreateBare<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_bare(call: Self::RuntimeCall) -> Extrinsic {
+		Extrinsic::new_bare(call)
+	}
 }
 
 impl pallet_lazy_executor::Config for Test {
@@ -256,6 +267,7 @@ impl pallet_transaction_payment::Config for Test {
 	type WeightToFee = WeightToFee;
 	type LengthToFee = TransactionByteFee;
 	type FeeMultiplierUpdate = ();
+	type WeightInfo = ();
 }
 
 pub struct ExtBuilder;
@@ -271,6 +283,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: vec![(ALICE, 200_000 * UNIT), (BOB, 150_000 * UNIT), (CHARLIE, 15_000 * UNIT)],
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

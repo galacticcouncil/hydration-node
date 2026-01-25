@@ -5,11 +5,11 @@ pub mod benchmark_helpers {
 	use evm::{ExitReason, ExitSucceed};
 	use frame_support::storage::with_transaction;
 	use frame_support::BoundedVec;
-	use hydradx_traits::evm::{CallContext, InspectEvmAccounts};
+	use hydradx_traits::evm::{CallContext, CallResult, InspectEvmAccounts};
 	use hydradx_traits::{AssetKind, Create};
 	use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 	use pallet_hsm::ERC20Function;
-	use primitive_types::U256;
+	use primitive_types::{H160, U256};
 	use primitives::{AccountId, AssetId, Balance, EvmAddress};
 	use sp_core::crypto::AccountId32;
 	use sp_runtime::{DispatchResult, TransactionOutcome};
@@ -25,8 +25,8 @@ pub mod benchmark_helpers {
 	}
 
 	pub struct DummyEvmForHsm;
-	impl hydradx_traits::evm::EVM<pallet_hsm::types::CallResult> for DummyEvmForHsm {
-		fn call(context: CallContext, data: Vec<u8>, _value: U256, _gas: u64) -> pallet_hsm::types::CallResult {
+	impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvmForHsm {
+		fn call(context: CallContext, data: Vec<u8>, _value: U256, _gas: u64) -> hydradx_traits::evm::CallResult {
 			// For the HSM benchmarks - since we mock the evm executor here, we still need to update balances of HOLLAR
 			if data.len() >= 4 {
 				let function_bytes: [u8; 4] = data[0..4].try_into().unwrap_or([0; 4]);
@@ -53,7 +53,13 @@ pub mod benchmark_helpers {
 									// Increase the balance of the recipient
 									let _ = Tokens::update_balance(hollar_id, &recipient, amount as i128);
 
-									return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
+									return CallResult {
+										contract: H160::zero(),
+										exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
+										value: vec![],
+										gas_used: U256::zero(),
+										gas_limit: U256::zero(),
+									};
 								}
 							}
 						}
@@ -73,20 +79,28 @@ pub mod benchmark_helpers {
 									// Decrease the balance of the caller
 									let _ = Tokens::update_balance(hollar_id, &account_id, -(amount as i128));
 
-									return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
+									return CallResult {
+										contract: H160::zero(),
+										exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
+										value: vec![],
+										gas_used: U256::zero(),
+										gas_limit: U256::zero(),
+									};
 								}
 							}
 						}
 						ERC20Function::FlashLoan => {
-							if data.len() >= 4 + 32 + 32 + 32 {
+							// FlashLoan ABI: receiver (32) + hollar (32) + amount (32) + offset (32) + length (32) + data
+							if data.len() >= 4 + 32 + 32 + 32 + 32 + 32 {
 								// Extract recipient address (padded to 32 bytes in ABI encoding)
 								let receiver: [u8; 32] = data[4..4 + 32].try_into().unwrap_or([0; 32]);
-								let _receiver_evm = hydradx_traits::evm::EvmAddress::from_slice(&receiver[12..32]);
+								let _receiver_evm = primitives::EvmAddress::from_slice(&receiver[12..32]);
 
 								let hollar: [u8; 32] = data[4 + 32..4 + 32 + 32].try_into().unwrap_or([0; 32]);
-								let _hollar_evm = hydradx_traits::evm::EvmAddress::from_slice(&hollar[12..32]);
+								let _hollar_evm = primitives::EvmAddress::from_slice(&hollar[12..32]);
 
-								let amount_bytes: [u8; 32] = data[4 + 32 + 32..4 + 32 + 32 + 32].try_into().unwrap();
+								let amount_bytes: [u8; 32] =
+									data[4 + 32 + 32..4 + 32 + 32 + 32].try_into().unwrap_or([0; 32]);
 								let amount = U256::from_big_endian(&amount_bytes);
 
 								let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
@@ -104,37 +118,65 @@ pub mod benchmark_helpers {
 								)
 								.unwrap();
 								Tokens::update_balance(hollar_id, &arb_account, -(amount.as_u128() as i128)).unwrap();
-								return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
+
+								return CallResult {
+									contract: H160::zero(),
+									exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+									value: vec![],
+									gas_used: U256::zero(),
+									gas_limit: U256::zero(),
+								};
 							}
 						}
 						ERC20Function::MaxFlashLoan => {
 							let max_flash_loan_amount = U256::from(100_000_000_000_000_000_000_000u128);
-							let mut buf1 = [0u8; 32];
-							max_flash_loan_amount.to_big_endian(&mut buf1);
+							let buf1 = max_flash_loan_amount.to_big_endian();
 							let bytes = Vec::from(buf1);
-							return (ExitReason::Succeed(ExitSucceed::Returned), bytes);
+							return CallResult {
+								contract: H160::zero(),
+								exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+								value: bytes,
+								gas_used: U256::zero(),
+								gas_limit: U256::zero(),
+							};
 						}
 						ERC20Function::GetFacilitatorBucket => {
 							let capacity = U256::from(1_000_000_000_000_000_000_000_000u128);
 							let level = U256::from(0u128);
-							let mut buf1 = [0u8; 32];
-							let mut buf2 = [0u8; 32];
-							capacity.to_big_endian(&mut buf1);
-							level.to_big_endian(&mut buf2);
+							let buf1 = capacity.to_big_endian();
+							let buf2 = level.to_big_endian();
 							let mut bytes = vec![];
 							bytes.extend_from_slice(&buf1);
 							bytes.extend_from_slice(&buf2);
-							return (ExitReason::Succeed(ExitSucceed::Returned), bytes);
+							return CallResult {
+								contract: H160::zero(),
+								exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+								value: bytes,
+								gas_used: U256::zero(),
+								gas_limit: U256::zero(),
+							};
 						}
 					}
 				}
 			}
 
-			(ExitReason::Revert(Reverted), vec![])
+			CallResult {
+				contract: H160::zero(),
+				exit_reason: ExitReason::Revert(Reverted),
+				value: vec![],
+				gas_used: U256::zero(),
+				gas_limit: U256::zero(),
+			}
 		}
 
-		fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> pallet_hsm::types::CallResult {
-			(ExitReason::Succeed(ExitSucceed::Stopped), vec![])
+		fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> hydradx_traits::evm::CallResult {
+			CallResult {
+				contract: H160::zero(),
+				exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
+				value: vec![],
+				gas_used: U256::zero(),
+				gas_limit: U256::zero(),
+			}
 		}
 	}
 

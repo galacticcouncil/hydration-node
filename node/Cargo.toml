@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "14.8.0"
+version = "14.9.0"
 description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -27,8 +27,8 @@ serde_json = { workspace = true }
 clap = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }
-hyperv14 = { package = "hyper", features = ["http2", "stream"], version = "0.14.29", default-features = true }
-hyper-rustls = { version = "0.24.2", features = ["http2"], default-features = false }
+hyperv14 = { package = "hyper", features = ["http2", "stream", "tcp"], version = "0.14.29", default-features = true }
+hyper-rustls = { version = "0.24.2", features = ["http1", "http2", "webpki-roots", "tokio-runtime"], default-features = false }
 tokio = { workspace = true, default-features = true }
 threadpool = { version = "1.7" }
 num_cpus = { version = "1.13.1" }

@@ -46,13 +46,15 @@ use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::{EnsureAddressOrigin, FrameSystemAccountProvider};
 use pallet_transaction_payment::Multiplier;
-use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
+use polkadot_xcm::v5::prelude::*;
+use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId, EvmAddress};
 use sp_arithmetic::FixedU128;
 use sp_core::{crypto::AccountId32, Get, U256};
 
 pub mod aave_trade_executor;
 mod accounts_conversion;
 mod erc20_currency;
+pub mod evm_error_decoder;
 mod evm_fee;
 mod executor;
 mod gas_to_weight_mapping;
@@ -87,31 +89,34 @@ parameter_types! {
 }
 
 const MOONBEAM_PARA_ID: u32 = 2004;
-pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v3::MultiLocation {
-	parents: 1,
-	interior: polkadot_xcm::v3::prelude::X3(
-		polkadot_xcm::v3::prelude::Parachain(MOONBEAM_PARA_ID),
-		polkadot_xcm::v3::prelude::PalletInstance(110),
-		polkadot_xcm::v3::prelude::AccountKey20 {
-			network: None,
-			key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
-		},
-	),
-});
+
+pub fn weth_asset_location() -> AssetLocation {
+	AssetLocation(Location {
+		parents: 1,
+		interior: [
+			Junction::Parachain(MOONBEAM_PARA_ID),
+			Junction::PalletInstance(110),
+			Junction::AccountKey20 {
+				network: None,
+				key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
+			},
+		]
+		.into(),
+	})
+}
 
 pub struct WethAssetId;
 impl Get<AssetId> for WethAssetId {
 	fn get() -> AssetId {
 		let invalid_id = pallet_asset_registry::Pallet::<Runtime>::next_asset_id().defensive_unwrap_or(AssetId::MAX);
 
-		match pallet_asset_registry::Pallet::<Runtime>::location_to_asset(WETH_ASSET_LOCATION) {
+		match pallet_asset_registry::Pallet::<Runtime>::location_to_asset(weth_asset_location()) {
 			Some(asset_id) => asset_id,
 			None => invalid_id,
 		}
 	}
 }
 
-pub type EvmAddress = sp_core::H160;
 type WethCurrency = CurrencyAdapter<Runtime, WethAssetId>;
 
 parameter_types! {
@@ -203,9 +208,10 @@ impl pallet_evm::Config for Runtime {
 	type OnCreate = ();
 	type FindAuthor = FindAuthorTruncated<Runtime, Aura>;
 	type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
-	type SuicideQuickClearLimit = SuicideQuickClearLimit;
 	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
 	type Timestamp = crate::Timestamp;
+	type CreateOriginFilter = ();
+	type CreateInnerOriginFilter = ();
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 }
 

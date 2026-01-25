@@ -49,9 +49,9 @@ pub mod migration;
 mod tests;
 pub mod traits;
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use frame_support::traits::fungibles::Mutate;
+use frame_support::traits::fungibles::{Inspect, Mutate};
 use frame_support::traits::tokens::Preservation;
 use frame_support::{defensive, ensure, transactional};
 use frame_system::{
@@ -83,7 +83,20 @@ pub type ReferralCode<S> = BoundedVec<u8, S>;
 
 /// Referrer level.
 /// Indicates current level of the referrer to determine which reward percentages are used.
-#[derive(Hash, Clone, Copy, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Hash,
+	Clone,
+	Copy,
+	Default,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+)]
 pub enum Level {
 	None,
 	#[default]
@@ -124,7 +137,9 @@ impl Level {
 	}
 }
 
-#[derive(Clone, Copy, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Clone, Copy, Default, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 pub struct FeeDistribution {
 	/// Percentage of the fee that goes to the referrer.
 	pub referrer: Permill,
@@ -134,7 +149,7 @@ pub struct FeeDistribution {
 	pub external: Permill,
 }
 
-#[derive(Clone, Debug, PartialEq, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct AssetAmount<AssetId> {
 	asset_id: AssetId,
 	amount: Balance,
@@ -608,8 +623,17 @@ pub mod pallet {
 				return Weight::zero();
 			}
 			let one_read = T::DbWeight::get().reads(1u64);
-			let max_converts = remaining_weight.saturating_sub(one_read).ref_time() / convert_weight.ref_time();
+			let remaining = remaining_weight.saturating_sub(one_read);
 
+			// Consider both ref_time and proof_size to determine max conversions
+			let max_by_ref_time = remaining.ref_time().checked_div(convert_weight.ref_time()).unwrap_or(0);
+			let max_by_proof_size = remaining
+				.proof_size()
+				.checked_div(convert_weight.proof_size())
+				.unwrap_or(0);
+			let max_converts = max_by_ref_time.min(max_by_proof_size);
+
+			let mut actual_converts: u64 = 0;
 			for asset_id in PendingConversions::<T>::iter_keys().take(max_converts as usize) {
 				let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
 				// remove the asset_id from PendingConversions even when the conversion fails
@@ -620,8 +644,9 @@ pub mod pallet {
 					asset_balance,
 				);
 				PendingConversions::<T>::remove(asset_id);
+				actual_converts += 1;
 			}
-			convert_weight.saturating_mul(max_converts).saturating_add(one_read)
+			convert_weight.saturating_mul(actual_converts).saturating_add(one_read)
 		}
 	}
 }
@@ -686,6 +711,7 @@ impl<T: Config> Pallet<T> {
 			.saturating_add(trader_reward)
 			.saturating_add(external_reward);
 		ensure!(total_taken <= amount, Error::<T>::IncorrectRewardCalculation);
+		let balance_before = T::Currency::total_balance(asset_id.clone(), &Self::pot_account_id());
 		T::Currency::transfer(
 			asset_id.clone(),
 			&source,
@@ -693,6 +719,7 @@ impl<T: Config> Pallet<T> {
 			total_taken,
 			Preservation::Preserve,
 		)?;
+		let balance_after = T::Currency::total_balance(asset_id.clone(), &Self::pot_account_id());
 
 		let referrer_shares = if ref_account.is_some() {
 			multiply_by_rational_with_rounding(referrer_reward, price.n, price.d, Rounding::Down)
@@ -740,6 +767,13 @@ impl<T: Config> Pallet<T> {
 			PendingConversions::<T>::insert(asset_id, ());
 		}
 
-		Ok(Some((total_taken, Self::pot_account_id())))
+		// To support ATokens - we might need to allow tolerance of 1 unit
+		// we calculated the shares based on calculated total_taken (which is correct)
+		// but we need to report back that we have actually taken +1 sometimes.
+		let actual_taken = balance_after.saturating_sub(balance_before);
+		let actual_diff = actual_taken.abs_diff(total_taken);
+		ensure!(actual_diff <= 1, ArithmeticError::Overflow);
+
+		Ok(Some((actual_taken, Self::pot_account_id())))
 	}
 }

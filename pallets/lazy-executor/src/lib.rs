@@ -23,11 +23,7 @@ use frame_support::{
 	transactional,
 	weights::Weight,
 };
-use frame_system::{
-	offchain::{SendTransactionTypes, SubmitTransaction},
-	pallet_prelude::*,
-	Origin,
-};
+use frame_system::{offchain::SubmitTransaction, pallet_prelude::*, Origin};
 use hydradx_traits::lazy_executor::Source;
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_runtime::{
@@ -69,10 +65,11 @@ pub mod pallet {
 		dispatch::{DispatchInfo, DispatchResult},
 		pallet_prelude::{TransactionSource, TransactionValidity, ValueQuery, *},
 	};
+	use hydradx_traits::CreateBare;
 
 	#[pallet::config]
 	pub trait Config:
-		SendTransactionTypes<Call<Self>>
+		CreateBare<Call<Self>>
 		+ frame_system::Config
 		+ pallet_transaction_payment::Config<RuntimeCall = <Self as pallet::Config>::RuntimeCall>
 	{
@@ -189,7 +186,8 @@ pub mod pallet {
 
 				if CallQueue::<T>::get(next_id).is_some() {
 					let call = Call::dispatch_top {};
-					let r = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
+					let tx = T::create_bare(call.into());
+					let r = SubmitTransaction::<T, Call<T>>::submit_transaction(tx);
 					log::debug!(target: LOG_TARGET, "sutmitted dispatch_top transaction, result: {:?}", r,);
 				} else {
 					break;
@@ -240,14 +238,16 @@ pub mod pallet {
 					c.get_dispatch_info()
 				} else {
 					DispatchInfo {
-						weight: Default::default(),
+						call_weight: Default::default(),
+						extension_weight: Default::default(),
 						class: DispatchClass::Normal,
 						pays_fee: Pays::No,
 					}
 				}
 			} else {
 				DispatchInfo {
-					weight: Default::default(),
+					call_weight: Default::default(),
+					extension_weight: Default::default(),
 					class: DispatchClass::Normal,
 					pays_fee: Pays::No,
 				}
@@ -255,7 +255,7 @@ pub mod pallet {
 
 
 			//TODO: add weight for storage read
-			Weight::from_parts(1000, 1000).saturating_add(info.weight).saturating_add(T::DbWeight::get().reads(1_u64))
+			Weight::from_parts(1000, 1000).saturating_add(info.call_weight).saturating_add(T::DbWeight::get().reads(1_u64))
 		})]
 		pub fn dispatch_top(origin: OriginFor<T>) -> DispatchResult {
 			ensure_none(origin)?;
@@ -291,13 +291,17 @@ impl<T: Config> Pallet<T> {
 		let call = <T as Config>::RuntimeCall::decode(&mut &bounded_call[..]).map_err(|_| Error::<T>::Corrupted)?;
 
 		let mut info = call.get_dispatch_info();
-		info.weight = info.weight.saturating_add(T::WeightInfo::dispatch_top_base_weight());
+		info.call_weight = info
+			.call_weight
+			.saturating_add(<T as Config>::WeightInfo::dispatch_top_base_weight());
 
 		let call_id = Self::get_next_call_id()?;
 		let dispatch_top_call: pallet::Call<T> = Call::dispatch_top {};
-		info.weight = info.weight.saturating_add(dispatch_top_call.get_dispatch_info().weight);
+		info.call_weight = info
+			.call_weight
+			.saturating_add(dispatch_top_call.get_dispatch_info().call_weight);
 
-		if info.weight.any_gt(Self::max_weight_per_call()) {
+		if info.call_weight.any_gt(Self::max_weight_per_call()) {
 			return Err(Error::<T>::Overweight.into());
 		}
 
@@ -324,7 +328,7 @@ impl<T: Config> Pallet<T> {
 			&origin,
 			&info,
 			&PostDispatchInfo {
-				actual_weight: Some(info.weight),
+				actual_weight: Some(info.call_weight),
 				pays_fee: Pays::Yes,
 			},
 			fees,

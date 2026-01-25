@@ -38,9 +38,9 @@ mod weights;
 use crate::traits::AMMState;
 use frame_support::dispatch::DispatchResult;
 use frame_support::pallet_prelude::*;
+use frame_support::traits::ExistenceRequirement::AllowDeath;
 use frame_support::traits::Get;
 use frame_support::PalletId;
-use frame_system::offchain::SendTransactionTypes;
 use frame_system::pallet_prelude::*;
 use frame_system::Origin;
 use hydra_dx_math::types::Ratio;
@@ -78,6 +78,7 @@ pub(crate) const OCW_PROVIDES: &[u8; 15] = b"submit_solution";
 pub mod pallet {
 	use super::*;
 	use frame_system::offchain::SubmitTransaction;
+	use hydradx_traits::CreateBare;
 	use ice_support::SwapType;
 
 	#[pallet::pallet]
@@ -88,7 +89,7 @@ pub mod pallet {
 		frame_system::Config
 		+ pallet_intent::Config
 		+ pallet_route_executor::Config<AssetId = AssetId>
-		+ SendTransactionTypes<Call<Self>>
+		+ CreateBare<Call<Self>>
 	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -205,7 +206,13 @@ pub mod pallet {
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
 				pallet_intent::Pallet::<T>::unlock_funds(&owner, intent.asset_in(), intent.amount_in())?;
 
-				<T as Config>::Currency::transfer(intent.asset_in(), &owner, &holding_pot, intent.amount_in())?;
+				<T as Config>::Currency::transfer(
+					intent.asset_in(),
+					&owner,
+					&holding_pot,
+					intent.amount_in(),
+					AllowDeath,
+				)?;
 			}
 
 			for t in &solution.trades {
@@ -240,7 +247,13 @@ pub mod pallet {
 
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
 
-				<T as Config>::Currency::transfer(resolve.asset_out(), &holding_pot, &owner, resolve.amount_out())?;
+				<T as Config>::Currency::transfer(
+					resolve.asset_out(),
+					&holding_pot,
+					&owner,
+					resolve.amount_out(),
+					AllowDeath,
+				)?;
 
 				Self::validate_price_consitency(&solution.clearing_prices, resolve)?;
 
@@ -282,7 +295,8 @@ pub mod pallet {
 				return;
 			};
 
-			if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()) {
+			let tx = <T as CreateBare<self::Call<T>>>::create_bare(call.into());
+			if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
 				log::error!(target: OCW_LOG_TARGET, "submit solution, err: {:?}", e);
 			};
 		}

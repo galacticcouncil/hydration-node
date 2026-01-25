@@ -384,6 +384,95 @@ fn terminate_should_work_with_no_blocknumber_when_just_scheduled() {
 		});
 }
 
+#[test]
+fn terminate_should_not_depend_on_schedule_ids_per_block_ordering() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (BOB, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			let (block_600, schedule_id_0, schedule_id_1) = arrange_unsorted_schedule_ids_per_block_600();
+
+			let reserved_before = Currencies::reserved_balance_named(&NamedReserveId::get(), HDX, &ALICE);
+			assert!(reserved_before > 0);
+
+			assert_ok!(DCA::terminate(RuntimeOrigin::signed(ALICE), schedule_id_1, None));
+
+			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id_1);
+			assert_eq!(DCA::schedule_ids_per_block(block_600).to_vec(), vec![schedule_id_0]);
+			assert_eq!(
+				Currencies::reserved_balance_named(&NamedReserveId::get(), HDX, &ALICE),
+				0
+			);
+		});
+}
+
+fn arrange_unsorted_schedule_ids_per_block_600() -> (u64, ScheduleId, ScheduleId) {
+	// Builds `ScheduleIdsPerBlock[600] == [1, 0]` via normal flow.
+	let block_502 = 502u64;
+	let block_600 = 600u64;
+	let schedule_id_0: ScheduleId = 0;
+	let schedule_id_1: ScheduleId = 1;
+
+	set_block_number(500);
+
+	let schedule_replans_into_block_600 = ScheduleBuilder::new()
+		.with_owner(BOB)
+		.with_period(98)
+		.with_order(Order::Sell {
+			asset_in: HDX,
+			asset_out: BTC,
+			amount_in: ONE,
+			min_amount_out: 0,
+			route: create_bounded_vec(vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: BTC,
+			}]),
+		})
+		.build();
+	assert_ok!(DCA::schedule(
+		RuntimeOrigin::signed(BOB),
+		schedule_replans_into_block_600,
+		None
+	));
+	assert!(DCA::schedules(schedule_id_0).is_some());
+
+	let schedule_planned_for_block_600 = ScheduleBuilder::new()
+		.with_total_amount(0)
+		.with_order(Order::Sell {
+			asset_in: HDX,
+			asset_out: BTC,
+			amount_in: ONE,
+			min_amount_out: 0,
+			route: create_bounded_vec(vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: BTC,
+			}]),
+		})
+		.build();
+	assert_ok!(DCA::schedule(
+		RuntimeOrigin::signed(ALICE),
+		schedule_planned_for_block_600,
+		Some(block_600)
+	));
+	assert!(DCA::schedules(schedule_id_1).is_some());
+
+	set_block_number(block_502);
+
+	assert!(DCA::schedules(schedule_id_1).is_some());
+	assert_eq!(DCA::schedule_execution_block(schedule_id_1), Some(block_600));
+	assert_eq!(
+		DCA::schedule_ids_per_block(block_600).to_vec(),
+		vec![schedule_id_1, schedule_id_0]
+	);
+	assert!(DCA::schedule_ids_per_block(block_600)
+		.iter()
+		.any(|id| *id == schedule_id_1));
+
+	(block_600, schedule_id_0, schedule_id_1)
+}
+
 pub fn set_block_number(to: u64) {
 	System::set_block_number(to);
 	DCA::on_initialize(to);

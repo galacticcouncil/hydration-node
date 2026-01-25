@@ -1,6 +1,6 @@
 [package]
 name = "pallet-stableswap"
-version = "7.0.0"
+version = "7.2.0"
 description = "AMM for correlated assets"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -23,6 +23,7 @@ serde = { workspace = true }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 pallet-broadcast = { workspace = true }
+primitives = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -52,7 +53,7 @@ orml-tokens = { workspace = true, features = ["std"] }
 proptest = { workspace = true }
 test-utils = { workspace = true }
 pretty_assertions = "1.4.0"
-pallet-circuit-breaker = { workspace = true}
+pallet-circuit-breaker = { workspace = true }
 
 [features]
 default = ["std"]
@@ -78,6 +79,7 @@ std = [
     "frame-benchmarking/std",
     "orml-traits/std",
     "hydra-dx-math/std",
+    "hydradx-traits/std",
     "pallet-broadcast/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

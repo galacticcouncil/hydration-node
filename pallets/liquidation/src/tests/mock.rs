@@ -2,7 +2,7 @@ use crate as pallet_liquidation;
 use crate::*;
 use ethabi::ethereum_types::H160;
 use evm::{ExitError, ExitSucceed};
-use frame_support::sp_runtime::traits::CheckedConversion;
+use frame_support::sp_runtime::traits::Convert;
 use frame_support::{
 	assert_ok, parameter_types,
 	sp_runtime::{
@@ -86,7 +86,7 @@ fn decode_liquidation_call_data(data: Vec<u8>) -> Option<(EvmAddress, EvmAddress
 		let collateral_asset = EvmAddress::from(H256::from_slice(&data[4..36]));
 		let debt_asset = EvmAddress::from(H256::from_slice(&data[36..68]));
 		let user = EvmAddress::from(H256::from_slice(&data[68..100]));
-		let debt_to_cover = Balance::try_from(U256::checked_from(&data[100..132])?).ok()?;
+		let debt_to_cover = Balance::try_from(U256::from_big_endian(&data[100..132])).ok()?;
 		let receive_atoken = !H256(data[132..164].try_into().unwrap()).is_zero();
 
 		Some((collateral_asset, debt_asset, user, debt_to_cover, receive_atoken))
@@ -105,7 +105,13 @@ impl EVM<CallResult> for EvmMock {
 				let debt_asset = HydraErc20Mapping::decode_evm_address(data.1);
 
 				if collateral_asset.is_none() || debt_asset.is_none() {
-					return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
+					return CallResult {
+						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+						value: vec![],
+						contract: context.contract,
+						gas_used: U256::zero(),
+						gas_limit: U256::zero(),
+					};
 				};
 
 				let collateral_asset = collateral_asset.unwrap();
@@ -129,13 +135,33 @@ impl EVM<CallResult> for EvmMock {
 				);
 
 				if first_transfer_result.is_err() || second_transfer_result.is_err() {
-					return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
+					return CallResult {
+						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+						value: vec![],
+						contract: context.contract,
+						gas_used: U256::zero(),
+						gas_limit: U256::zero(),
+					};
 				}
 			}
-			None => return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]),
+			None => {
+				return CallResult {
+					exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+					value: vec![],
+					contract: context.contract,
+					gas_used: U256::zero(),
+					gas_limit: U256::zero(),
+				}
+			}
 		}
 
-		(ExitReason::Succeed(ExitSucceed::Returned), vec![])
+		CallResult {
+			exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+			value: vec![],
+			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
+		}
 	}
 
 	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {
@@ -210,7 +236,16 @@ impl Config for Test {
 	type WeightInfo = ();
 	type HollarId = HollarId;
 	type FlashMinter = ();
+	type EvmErrorDecoder = EvmErrorDecodeMock;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+}
+
+pub struct EvmErrorDecodeMock;
+
+impl Convert<CallResult, DispatchError> for EvmErrorDecodeMock {
+	fn convert(_call_result: CallResult) -> DispatchError {
+		DispatchError::Other("Call failed")
+	}
 }
 
 parameter_types! {
@@ -286,6 +321,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl orml_tokens::Config for Test {
@@ -338,6 +374,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 impl pallet_currencies::Config for Test {
@@ -574,6 +611,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: initial_native_accounts,
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

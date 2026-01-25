@@ -39,13 +39,15 @@ mod benchmarking;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
+use hydradx_traits::evm::ExtraGasSupport;
 use hydradx_traits::evm::MaybeEvmCall;
 use pallet_evm::{ExitReason, GasWeightMapping};
-use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
+use sp_runtime::{traits::Dispatchable, DispatchError, DispatchResultWithInfo};
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_support::pallet_prelude::Weight;
+use frame_support::traits::Get;
 pub use pallet::*;
 
 #[frame_support::pallet]
@@ -119,6 +121,20 @@ pub mod pallet {
 		EvmCallFailed,
 		/// The provided call is not an EVM call. This extrinsic only accepts `pallet_evm::Call::call`.
 		NotEvmCall,
+		/// The EVM call ran out of gas.
+		EvmOutOfGas,
+		/// The EVM call resulted in an arithmetic overflow or underflow.
+		EvmArithmeticOverflowOrUnderflow,
+		/// Aave - supply cap has been exceeded.
+		AaveSupplyCapExceeded,
+		/// Aave - borrow cap has been exceeded.
+		AaveBorrowCapExceeded,
+		/// Aave - health factor is not below the threshold.
+		AaveHealthFactorNotBelowThreshold,
+		/// Aave - health factor is lesser than the liquidation threshold
+		AaveHealthFactorLowerThanLiquidationThreshold,
+		/// Aave - there is not enough collateral to cover a new borrow
+		CollateralCannotCoverNewBorrow,
 	}
 
 	#[pallet::event]
@@ -146,7 +162,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().weight;
+			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
 
 			T::WeightInfo::dispatch_as_treasury(call_len)
@@ -174,7 +190,7 @@ pub mod pallet {
 
 		#[pallet::call_index(1)]
 		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().weight;
+			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
 
 			T::WeightInfo::dispatch_as_aave_manager(call_len)
@@ -220,7 +236,7 @@ pub mod pallet {
 		/// The extra gas is not refunded, even if not used.
 		#[pallet::call_index(3)]
 		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().weight;
+			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
 			let gas_weight = T::GasWeightMapping::gas_to_weight(*extra_gas, true);
 			T::WeightInfo::dispatch_with_extra_gas(call_len)
@@ -276,7 +292,7 @@ pub mod pallet {
 		/// Emits `EvmCallFailed` event when failed.
 		#[pallet::call_index(4)]
 		#[pallet::weight({
-			let evm_call_weight = call.get_dispatch_info().weight;
+			let evm_call_weight = call.get_dispatch_info().call_weight;
 			let evm_call_len = call.encoded_size() as u32;
 			T::WeightInfo::dispatch_evm_call(evm_call_len)
 				.saturating_add(evm_call_weight)
@@ -351,5 +367,19 @@ impl<T: Config> Pallet<T> {
 
 	pub fn set_last_evm_call_exit_reason(reason: &ExitReason) {
 		LastEvmCallExitReason::<T>::put(reason);
+	}
+}
+
+impl<T: Config> ExtraGasSupport for Pallet<T> {
+	fn set_extra_gas(gas: u64) {
+		ExtraGas::<T>::set(gas);
+	}
+
+	fn clear_extra_gas() {
+		ExtraGas::<T>::kill();
+	}
+
+	fn out_of_gas_error() -> DispatchError {
+		Error::<T>::EvmOutOfGas.into()
 	}
 }

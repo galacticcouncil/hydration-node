@@ -48,7 +48,7 @@ use warehouse_liquidity_mining::{GlobalFarmData, Instance1};
 use hydradx_traits::{
 	oracle::{OraclePeriod, Source},
 	pools::DustRemovalAccountWhitelist,
-	stableswap::StableswapAddLiquidity,
+	stableswap::StableswapLiquidityMutation,
 	AssetKind,
 };
 
@@ -69,6 +69,7 @@ pub const DOT: AssetId = 1_000;
 pub const KSM: AssetId = 1_001;
 pub const ACA: AssetId = 1_002;
 pub const USDT: AssetId = 1_003;
+pub const USDC: AssetId = 1_004;
 
 pub const LP1: AccountId = 1;
 pub const LP2: AccountId = 2;
@@ -163,6 +164,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_types! {
@@ -192,13 +194,34 @@ pub const SHARES_FROM_STABLESWAP: u128 = 5 * ONE;
 pub const STABLESWAP_POOL_ID: u32 = 72;
 pub struct StableswapAddLiquidityStub;
 
-impl StableswapAddLiquidity<AccountId, AssetId, Balance> for StableswapAddLiquidityStub {
+impl StableswapLiquidityMutation<AccountId, AssetId, Balance> for StableswapAddLiquidityStub {
 	fn add_liquidity(
 		_who: AccountId,
 		_pool_id: AssetId,
 		_asset_amounts: Vec<AssetAmount<AssetId>>,
 	) -> Result<Balance, DispatchError> {
 		Ok(SHARES_FROM_STABLESWAP)
+	}
+
+	fn remove_liquidity_one_asset(
+		_who: AccountId,
+		_pool_id: AssetId,
+		_asset_id: AssetId,
+		_share_amount: Balance,
+		_min_amount_out: Balance,
+	) -> Result<Balance, DispatchError> {
+		// For testing purposes, return a reasonable amount
+		Ok(_share_amount)
+	}
+
+	fn remove_liquidity(
+		_who: AccountId,
+		_pool_id: AssetId,
+		_share_amount: Balance,
+		_min_amounts_out: Vec<AssetAmount<AssetId>>,
+	) -> Result<(), DispatchError> {
+		// For testing purposes, just return Ok
+		Ok(())
 	}
 }
 
@@ -244,6 +267,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_type_with_key! {

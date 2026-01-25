@@ -45,14 +45,12 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_system::{
-	offchain::{SendTransactionTypes, SubmitTransaction},
-	pallet_prelude::*,
-	Origin,
-};
+use frame_system::offchain::SubmitTransaction;
+use frame_system::{pallet_prelude::*, Origin};
 use hex_literal::hex;
 use hydra_dx_math::hsm::{CoefficientRatio, PegType, Price};
-use hydradx_traits::evm::EvmAddress;
+use hydradx_traits::evm::CallResult;
+use hydradx_traits::CreateBare;
 use hydradx_traits::{
 	evm::{CallContext, InspectEvmAccounts, EVM},
 	registry::BoundErc20,
@@ -62,7 +60,9 @@ use num_traits::One;
 use pallet_stableswap::types::PoolSnapshot;
 use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
 use precompile_utils::evm::Bytes;
+use primitives::EvmAddress;
 use sp_core::{offchain::Duration, Get, H256, U256};
+use sp_runtime::traits::Convert;
 use sp_runtime::{
 	helpers_128bit::multiply_by_rational_with_rounding,
 	offchain::storage_lock::{StorageLock, Time},
@@ -126,7 +126,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_stableswap::Config + pallet_broadcast::Config + SendTransactionTypes<Call<Self>>
+		frame_system::Config + pallet_stableswap::Config + pallet_broadcast::Config + CreateBare<Call<Self>>
 	where
 		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
@@ -154,7 +154,7 @@ pub mod pallet {
 		type Currency: Mutate<Self::AccountId, Balance = Balance, AssetId = Self::AssetId>;
 
 		/// EVM handler
-		type Evm: EVM<types::CallResult>;
+		type Evm: EVM<CallResult>;
 
 		/// EVM address converter
 		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
@@ -171,6 +171,8 @@ pub mod pallet {
 
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
+
+		type EvmErrorDecoder: Convert<CallResult, DispatchError>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -386,10 +388,11 @@ pub mod pallet {
 					);
 
 					if let Some(call) = Self::process_arbitrage_opportunities(block_number) {
-						if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()) {
+						let xt = T::create_bare(call.into());
+						if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(xt) {
 							log::error!(
 								target: "hsm::offchain_worker",
-								"Failed to submit arbitrage transaction {:?}", e
+								"Failed to submit arbitrage transaction: {:?}", e
 							);
 						}
 					}
@@ -911,15 +914,15 @@ pub mod pallet {
 				.write(Bytes(arb_data))
 				.build();
 
-			let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+			let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
 			let receiver_balance_initial = <T as crate::pallet::Config>::Currency::total_balance(
 				collateral_asset_id,
 				&T::ArbitrageProfitReceiver::get(),
 			);
-			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
-				return Err(Error::<T>::InvalidEVMInteraction.into());
+			if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
+				return Err(T::EvmErrorDecoder::convert(call_result));
 			}
 			let receiver_balance_final = <T as crate::pallet::Config>::Currency::total_balance(
 				collateral_asset_id,
@@ -1229,12 +1232,12 @@ where
 		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
 
 		// Execute the EVM call
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
 		// Check if the call was successful
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
-			log::error!(target: "hsm", "Mint Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
-			return Err(Error::<T>::InvalidEVMInteraction.into());
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
+			log::error!(target: "hsm", "Mint Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
+			return Err(T::EvmErrorDecoder::convert(call_result));
 		}
 
 		Ok(())
@@ -1258,12 +1261,12 @@ where
 		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
 
 		// Execute the EVM call
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
 		// Check if the call was successful
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
-			log::error!(target: "hsm", "Burn Hollar EVM execution failed. Reason: {:?}, value {:?}", exit_reason, value);
-			return Err(Error::<T>::InvalidEVMInteraction.into());
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
+			log::error!(target: "hsm", "Burn Hollar EVM execution failed. Reason: {:?}, value {:?}", call_result.exit_reason, call_result.value);
+			return Err(T::EvmErrorDecoder::convert(call_result));
 		}
 
 		Ok(())
@@ -1795,16 +1798,16 @@ where
 		let data = EvmDataWriter::new_with_selector(ERC20Function::MaxFlashLoan)
 			.write(hollar_address)
 			.build();
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::error!(target: "hsm", "MaxFlashLoan exit reason: {:?}:{:?}", exit_reason, value);
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "hsm", "MaxFlashLoan exit reason: {:?}:{:?}", call_result.exit_reason, call_result.value);
 			0
 		} else {
-			if value.len() != 32 {
+			if call_result.value.len() != 32 {
 				return 0;
 			}
-			U256::from_big_endian(&value[..]).try_into().unwrap_or(0)
+			U256::from_big_endian(&call_result.value[..]).try_into().unwrap_or(0)
 		}
 	}
 
@@ -1829,16 +1832,18 @@ where
 		let data = EvmDataWriter::new_with_selector(ERC20Function::GetFacilitatorBucket)
 			.write(hsm_evm_addr)
 			.build();
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::error!(target: "hsm", "GetFacilitatorBucket exit reason: {:?}:{:?}", exit_reason, value);
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "hsm", "GetFacilitatorBucket exit reason: {:?}:{:?}", call_result.exit_reason, call_result.value);
 			0
 		} else {
-			if value.len() != 64 {
+			if call_result.value.len() != 64 {
 				return 0;
 			}
-			let capacity: u128 = U256::from_big_endian(&value[0..32]).try_into().unwrap_or(0);
-			let level: u128 = U256::from_big_endian(&value[32..64]).try_into().unwrap_or(0);
+			let capacity: u128 = U256::from_big_endian(&call_result.value[0..32]).try_into().unwrap_or(0);
+			let level: u128 = U256::from_big_endian(&call_result.value[32..64])
+				.try_into()
+				.unwrap_or(0);
 			log::trace!(target: "hsm", "Bucket capacity: {:?}", capacity);
 			log::trace!(target: "hsm", "Bucket level: {:?}", level);
 			capacity.saturating_sub(level)
@@ -1858,9 +1863,8 @@ where
 	/// - `true` if the account is the flash loan receiver account
 	/// - `false` if it's not or if flash minter is not configured
 	pub fn is_flash_loan_account(account: &T::AccountId) -> bool {
-		GetFlashMinterSupport::<T>::get().map_or(false, |(_, loan_receiver)| {
-			T::EvmAccounts::account_id(loan_receiver) == *account
-		})
+		GetFlashMinterSupport::<T>::get()
+			.is_some_and(|(_, loan_receiver)| T::EvmAccounts::account_id(loan_receiver) == *account)
 	}
 
 	/// Simulate an arbitrage execution without committing state changes

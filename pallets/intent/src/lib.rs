@@ -43,10 +43,11 @@ use frame_support::pallet_prelude::*;
 use frame_support::traits::Time;
 use frame_support::Blake2_128Concat;
 use frame_support::{dispatch::DispatchResult, require_transactional, traits::Get};
-use frame_system::offchain::SendTransactionTypes;
+use frame_system::offchain::SubmitTransaction;
 use frame_system::pallet_prelude::*;
 use hydradx_traits::lazy_executor::Mutate;
 use hydradx_traits::lazy_executor::Source;
+use hydradx_traits::CreateBare;
 use ice_support::AssetId;
 use ice_support::Balance;
 use ice_support::IntentData;
@@ -70,7 +71,6 @@ pub(crate) const OCW_TAG_PREFIX: &str = "intnt-cleanup";
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::types::CallData;
-	use frame_system::offchain::SubmitTransaction;
 
 	use super::*;
 
@@ -78,7 +78,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
+	pub trait Config: frame_system::Config + CreateBare<Call<Self>> {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Provider for the current timestamp.
@@ -270,9 +270,9 @@ pub mod pallet {
 					break;
 				}
 
-				let c = Call::cleanup_intent { id: *intent_id };
-
-				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(c.into()) {
+				let call = Call::cleanup_intent { id: *intent_id };
+				let tx = T::create_bare(call.into());
+				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
 					log::error!(target: OCW_LOG_TARGET, "fialed to sumbmit cleanup_intent call, err: {:?}", e);
 				};
 			}

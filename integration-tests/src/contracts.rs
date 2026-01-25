@@ -11,9 +11,10 @@ use hydradx_runtime::{
 	},
 	AccountId, EVMAccounts, Runtime, RuntimeEvent, System,
 };
-use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
+use hydradx_traits::evm::{CallContext, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pretty_assertions::assert_eq;
+use primitives::EvmAddress;
 use sp_core::{RuntimeDebug, H256, U256};
 use test_utils::expect_events;
 use xcm_emulator::{Network, TestExt};
@@ -40,8 +41,8 @@ fn is_contract(checker: EvmAddress, address: EvmAddress) -> bool {
 		sender: Default::default(),
 		origin: Default::default(),
 	};
-	let (res, _) = Executor::<Runtime>::call(context, data, U256::zero(), 100_000);
-	matches!(res, Succeed(_))
+	let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 100_000);
+	matches!(call_result.exit_reason, Succeed(_))
 }
 
 #[test]
@@ -145,6 +146,7 @@ fn contract_check_should_succeed_when_called_from_extrinsic() {
 			hydradx_runtime::DynamicEvmFee::min_gas_price().0 * 10,
 			None,
 			Some(System::account_nonce(AccountId::from(BOB)).into()),
+			[].into(),
 			[].into()
 		));
 
@@ -166,7 +168,7 @@ fn proxy_should_be_initialized_correctly() {
 		let implementation_init = EvmDataWriter::new_with_selector(Function::Initialize)
 			.write(H256::from(EvmAddress::default()))
 			.build();
-		let (res, _) = Executor::<Runtime>::call(
+		let call_result = Executor::<Runtime>::call(
 			CallContext {
 				contract: implementation,
 				sender: deployer(),
@@ -176,7 +178,11 @@ fn proxy_should_be_initialized_correctly() {
 			U256::zero(),
 			100_000,
 		);
-		assert_eq!(res, Succeed(Stopped), "Failed to initialize implementation");
+		assert_eq!(
+			call_result.exit_reason,
+			Succeed(Stopped),
+			"Failed to initialize implementation"
+		);
 
 		// Act
 		let payload = EvmDataWriter::new_with_selector(Function::Initialize)
@@ -187,7 +193,7 @@ fn proxy_should_be_initialized_correctly() {
 			.write(H256::from(deployer()))
 			.write(Bytes(payload))
 			.build();
-		let (res, _) = Executor::<Runtime>::call(
+		let call_result = Executor::<Runtime>::call(
 			CallContext {
 				contract: proxy,
 				sender: deployer(),
@@ -199,6 +205,6 @@ fn proxy_should_be_initialized_correctly() {
 		);
 
 		// Assert
-		assert_eq!(res, Succeed(Stopped), "Failed to initialize proxy");
+		assert_eq!(call_result.exit_reason, Succeed(Stopped), "Failed to initialize proxy");
 	});
 }

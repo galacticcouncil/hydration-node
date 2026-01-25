@@ -124,15 +124,25 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+impl<LocalCall> frame_system::offchain::CreateTransactionBase<LocalCall> for Test
 where
-	RuntimeCall: From<C>,
+	RuntimeCall: From<LocalCall>,
 {
-	type OverarchingCall = RuntimeCall;
+	type RuntimeCall = RuntimeCall;
 	type Extrinsic = Extrinsic;
+}
+
+impl<LocalCall> hydradx_traits::CreateBare<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_bare(call: Self::RuntimeCall) -> Extrinsic {
+		Extrinsic::new_bare(call)
+	}
 }
 
 parameter_type_with_key! {

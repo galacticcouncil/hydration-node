@@ -1,0 +1,74 @@
+[package]
+name = "pallet-dispenser"
+version = "0.2.0"
+edition = "2021"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { workspace = true }
+scale-info = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
+primitives = { workspace = true }
+
+# Ethereum ABI encoding
+alloy-sol-types = { workspace = true, default-features = false, features = ["json"] }
+alloy-primitives = { workspace = true, default-features = false }
+serde = { workspace = true, default-features = false, features = ["derive"] }
+serde_json = { workspace = true, default-features = false, features = ["alloc"] }
+pallet-signet = { path = "../signet", default-features = false }
+pallet-currencies = { workspace = true, default-features = false }
+frame-benchmarking = { workspace = true, optional = true }
+log = { version = "0.4", default-features = false }
+pallet-asset-registry = { workspace = true }
+
+[dev-dependencies]
+pallet-balances = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, features = ["std"] }
+sp-core = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+secp256k1 = { version = "0.27", features = ["recovery", "global-context"] }
+orml-traits = { workspace = true, features = ["std"] }
+orml-tokens = { workspace = true, features = ["std"] }
+hex-literal = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "sp-core/std",
+    "sp-io/std",
+    "frame-benchmarking?/std",
+    "alloy-sol-types/std",
+    "alloy-primitives/std",
+    "serde/std",
+    "serde_json/std",
+    "pallet-currencies/std",
+    "pallet-signet/std",
+    "hex/std",
+
+]
+runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]
+
+[target.'cfg(not(feature = "std"))'.dependencies]
+borsh = { version = "1.5", default-features = false, features = ["derive", "hashbrown"] }
+
+[target.'cfg(feature = "std")'.dependencies]
+borsh = { version = "1.5", default-features = false, features = ["derive", "std"] }

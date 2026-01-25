@@ -27,12 +27,12 @@ use sp_runtime::{
 	BuildStorage,
 };
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
 use frame_support::traits::Everything;
 
-use polkadot_xcm::v3::MultiLocation;
+use polkadot_xcm::v5::Location;
 
 use crate as pallet_asset_registry;
 use crate::types::{Name, Symbol};
@@ -96,12 +96,13 @@ impl system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
-#[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub struct AssetLocation(pub MultiLocation);
+#[derive(Debug, Default, Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+pub struct AssetLocation(pub Location);
 
-impl From<AssetLocation> for MultiLocation {
+impl From<AssetLocation> for Location {
 	fn from(location: AssetLocation) -> Self {
 		location.0
 	}

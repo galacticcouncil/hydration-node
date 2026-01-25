@@ -23,7 +23,7 @@ fn add_to_queue_should_work_when_call_is_valid() {
 				id: 0,
 				src: Source::ICE(0),
 				who: ALICE,
-				fees: 107_077_159_u128
+				fees: 108_160_159_u128
 			}
 			.into()
 		))

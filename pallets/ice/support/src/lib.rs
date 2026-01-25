@@ -1,7 +1,7 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{ConstU32, RuntimeDebug, TypeInfo};
 use frame_support::sp_runtime::traits::CheckedConversion;
 use frame_support::BoundedVec;
@@ -28,13 +28,13 @@ pub type ClearingPrices = BTreeMap<AssetId, Ratio>;
 
 pub type ResolvedIntent = Intent;
 
-#[derive(Clone, Debug, Encode, Decode, TypeInfo, Eq, PartialEq)]
+#[derive(Clone, DecodeWithMemTracking, Debug, Encode, Decode, TypeInfo, Eq, PartialEq)]
 pub struct Intent {
 	pub id: IntentId,
 	pub data: IntentData,
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum IntentData {
 	Swap(SwapData),
 }
@@ -116,7 +116,7 @@ impl IntentData {
 	}
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct SwapData {
 	pub asset_in: AssetId,
 	pub asset_out: AssetId,
@@ -126,13 +126,13 @@ pub struct SwapData {
 	pub partial: bool,
 }
 
-#[derive(Copy, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Copy, DecodeWithMemTracking, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum SwapType {
 	ExactIn,
 	ExactOut,
 }
 
-#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq, Eq)]
+#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq, DecodeWithMemTracking, Eq)]
 pub struct Solution {
 	pub resolved_intents: ResolvedIntents,
 	pub trades: SolutionTrades,
@@ -140,7 +140,7 @@ pub struct Solution {
 	pub score: Score,
 }
 
-#[derive(Debug, Clone, Encode, Decode, TypeInfo, PartialEq, Eq)]
+#[derive(Debug, DecodeWithMemTracking, Clone, Encode, Decode, TypeInfo, PartialEq, Eq)]
 pub struct PoolTrade {
 	/// Direction of trade (sell or buy)
 	pub direction: SwapType,

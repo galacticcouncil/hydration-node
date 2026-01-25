@@ -7,7 +7,7 @@ use fp_evm::Vicinity;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Get;
 use frame_system;
-use hydradx_traits::evm::{CallContext, EVM};
+use hydradx_traits::evm::{CallContext, CallResult, EVM};
 use pallet_evm::runner::stack::SubstrateStackState;
 use pallet_evm::{
 	self, runner::Runner as EvmRunnerT, AccountProvider as EvmAccountProviderT, AddressMapping as EvmAddressMappingT,
@@ -17,8 +17,6 @@ use sp_core::{H160, U256};
 use sp_runtime::{DispatchError, TransactionOutcome};
 use sp_std::vec;
 use sp_std::vec::Vec;
-
-pub type CallResult = (ExitReason, Vec<u8>);
 
 pub type BalanceOf<T> =
 	<<T as pallet_evm::Config>::Currency as frame_support::traits::Currency<pallet_evm::AccountIdOf<T>>>::Balance;
@@ -38,7 +36,7 @@ where
 	where
 		F: for<'precompiles> FnOnce(
 			&mut StackExecutor<'config, 'precompiles, SubstrateStackState<'_, 'config, T>, T::PrecompilesType>,
-		) -> (ExitReason, Vec<u8>),
+		) -> CallResult,
 	{
 		let gas_price = U256::one();
 		let vicinity = Vicinity { gas_price, origin };
@@ -69,14 +67,14 @@ where
 		let gas_limit = gas.saturating_add(extra_gas);
 		log::trace!(target: "evm::executor", "Call with extra gas {:?}", extra_gas);
 
-		let source_h160 = context.sender;
-		let source_account_id = T::AddressMapping::into_account_id(source_h160);
+		let source_evm_address = context.sender;
+		let source_account_id = T::AddressMapping::into_account_id(source_evm_address);
 		let original_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
 
 		let evm_config = <T as pallet_evm::Config>::config();
 
 		let call_info_result = T::Runner::call(
-			source_h160,
+			source_evm_address,
 			context.contract,
 			data,
 			value,
@@ -84,6 +82,7 @@ where
 			Some(U256::zero()), // max_fee_per_gas
 			None,               // max_priority_fee_per_gas
 			None,               // nonce
+			vec![],
 			vec![],
 			false, // is_transactional - we dont need to check for  EIP-3607, and it also makes the payed fee zeo
 			false, // validate
@@ -107,17 +106,35 @@ where
 						Err(_) => {
 							log::error!(target: "evm::executor", "Gas value too large to fit into u64");
 							let exit_reason = ExitReason::Error(ExitError::OutOfGas);
-							return (exit_reason, Vec::new());
+							return CallResult {
+								exit_reason,
+								value: Vec::new(),
+								contract: context.contract,
+								gas_used: U256::from(gas_limit),
+								gas_limit: U256::from(gas_limit),
+							};
 						}
 					}
 				}
-				(info.exit_reason, info.value)
+				CallResult {
+					exit_reason: info.exit_reason,
+					value: info.value,
+					contract: context.contract,
+					gas_used: info.used_gas.effective,
+					gas_limit: U256::from(gas_limit),
+				}
 			}
 			Err(runner_error) => {
 				log::error!(target: "evm_executor", "EVM call failed: {:?}", runner_error.error.into());
 				// Map RunnerError to a generic EVM execution failure
 				let exit_reason = ExitReason::Error(ExitError::Other(sp_std::borrow::Cow::Borrowed("EVM Call failed")));
-				(exit_reason, Vec::new())
+				CallResult {
+					exit_reason,
+					value: Vec::new(),
+					contract: context.contract,
+					gas_used: U256::zero(),
+					gas_limit: U256::from(gas_limit),
+				}
 			}
 		}
 	}
@@ -131,17 +148,37 @@ where
 
 		let result = with_transaction(|| {
 			let result = Self::execute(context.origin, gas_limit, |executor| {
-				let result =
-					executor.transact_call(context.sender, context.contract, U256::zero(), data, gas_limit, vec![]);
+				let result = executor.transact_call(
+					context.sender,
+					context.contract,
+					U256::zero(),
+					data,
+					gas_limit,
+					vec![],
+					vec![],
+				);
+				let gas_used_val = executor.used_gas();
 				if extra_gas > 0 {
-					extra_gas_used = executor.used_gas().saturating_sub(gas);
+					extra_gas_used = gas_used_val.saturating_sub(gas);
 					log::trace!(target: "evm::executor", "View used extra gas -{:?}", extra_gas_used);
 				}
-				result
+				CallResult {
+					exit_reason: result.0,
+					value: result.1,
+					contract: context.contract,
+					gas_used: U256::from(gas_used_val),
+					gas_limit: U256::from(gas_limit),
+				}
 			});
 			TransactionOutcome::Rollback(Ok::<CallResult, DispatchError>(result))
 		})
-		.unwrap_or((ExitReason::Fatal(Other("TransactionalError".into())), Vec::new()));
+		.unwrap_or(CallResult {
+			exit_reason: ExitReason::Fatal(Other("TransactionalError".into())),
+			value: Vec::new(),
+			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
+		});
 
 		if extra_gas_used > 0 {
 			log::trace!(target: "evm::executor", "Used extra gas -{:?}", extra_gas_used);

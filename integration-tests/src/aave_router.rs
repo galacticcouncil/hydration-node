@@ -2,28 +2,33 @@
 
 use crate::dca::create_schedule;
 use crate::dca::schedule_fake_with_sell_order;
-use crate::liquidation::supply;
+use crate::liquidation::{borrow, supply};
 use crate::polkadot_test_net::*;
 use crate::utils::accounts::*;
+use ethabi::ethereum_types::U256;
 use frame_support::assert_ok;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::pallet_prelude::ValidateUnsigned;
 use frame_support::storage::with_transaction;
-use frame_support::traits::OnInitialize;
+use frame_support::traits::{ExistenceRequirement, OnInitialize};
 use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
+use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoder;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+use hydradx_runtime::evm::precompiles::handle::EvmDataWriter;
 use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
-use hydradx_runtime::evm::Erc20Currency;
+use hydradx_runtime::evm::{Erc20Currency, Executor};
 use hydradx_runtime::{
 	AssetId, Block, Currencies, EVMAccounts, Liquidation, MultiTransactionPayment, Omnipool, OriginCaller, Router,
 	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, Treasury,
 };
+use sp_runtime::traits::Convert;
+
 use hydradx_runtime::{AssetRegistry, Stableswap};
-use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::Erc20Mapping;
-use hydradx_traits::evm::EvmAddress;
+use hydradx_traits::evm::EVM;
+use hydradx_traits::evm::{CallContext, Erc20Encoding};
 use hydradx_traits::router::ExecutorError;
 use hydradx_traits::router::PoolType::{Aave, XYK};
 use hydradx_traits::router::RouteProvider;
@@ -33,14 +38,15 @@ use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use libsecp256k1::{sign, Message, SecretKey};
+use liquidation_worker_support::Function;
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::Assets;
 use pallet_broadcast::types::{Asset, ExecutionType};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
-use pallet_transaction_multi_payment::EVMPermit;
 use primitives::Balance;
-use sp_core::{H256, U256};
+use primitives::EvmAddress;
+use sp_core::H256;
 use sp_runtime::traits::Zero;
 use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
 use sp_runtime::DispatchError;
@@ -133,9 +139,7 @@ fn transfer_all() {
 				//max_asset_amount
 				u128::MAX - 1u128,
 			),
-			Err(Other(
-				"evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011"
-			))
+			Err(pallet_dispatcher::Error::<Runtime>::EvmArithmeticOverflowOrUnderflow.into())
 		);
 	});
 }
@@ -254,6 +258,99 @@ fn alice_can_supply() {
 			EVMAccounts::evm_address(&AccountId::from(ALICE)),
 			HydraErc20Mapping::encode_evm_address(DOT),
 			100 * 10_u128.pow(10),
+		);
+	})
+}
+
+#[test]
+fn alice_cannot_supply_when_supply_cap_exceeded() {
+	with_aave(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let mm_pool = EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice());
+		let user = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		let asset = HydraErc20Mapping::encode_evm_address(DOT);
+		let amount = 10000000 * 10_u128.pow(10);
+
+		let context = CallContext::new_call(mm_pool, user);
+		let data = EvmDataWriter::new_with_selector(Function::Supply)
+			.write(asset)
+			.write(amount)
+			.write(user)
+			.write(0u32)
+			.build();
+
+		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
+
+		assert_eq!(
+			EvmErrorDecoder::convert(call_result),
+			pallet_dispatcher::Error::<Runtime>::AaveSupplyCapExceeded.into()
+		);
+	})
+}
+
+#[test]
+fn alice_cannot_borrow_when_borrow_cap_exceeded() {
+	with_aave(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let mm_pool = EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice());
+		let user = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		let asset = HydraErc20Mapping::encode_evm_address(DOT);
+		let amount = 10000000 * 10_u128.pow(10);
+
+		let interest_rate_mode: u8 = 2;
+		let referral_code: u16 = 0;
+
+		let context = CallContext::new_call(mm_pool, user);
+
+		let data = EvmDataWriter::new_with_selector(Function::Borrow)
+			.write(asset) // address asset
+			.write(amount) // uint256 amount
+			.write(interest_rate_mode) // uint256 interestRateMode (any int type encodes fine)
+			.write(referral_code) // uint16 referralCode
+			.write(user) // address onBehalfOf
+			.build();
+
+		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
+
+		assert_eq!(
+			EvmErrorDecoder::convert(call_result),
+			pallet_dispatcher::Error::<Runtime>::AaveBorrowCapExceeded.into()
+		);
+	})
+}
+
+#[test]
+fn alice_cannot_supply_when_not_enough_balance() {
+	with_aave(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let free_balance = Currencies::free_balance(DOT, &ALICE.into());
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			BOB.into(),
+			DOT,
+			free_balance
+		));
+
+		let mm_pool = EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice());
+		let user = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		let asset = HydraErc20Mapping::encode_evm_address(DOT);
+		let amount = 100 * 10_u128.pow(10);
+		let context = CallContext::new_call(mm_pool, user);
+		let data = EvmDataWriter::new_with_selector(Function::Supply)
+			.write(asset)
+			.write(amount)
+			.write(user)
+			.write(0u32)
+			.build();
+
+		let call_result = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 500_000);
+
+		assert_eq!(
+			EvmErrorDecoder::convert(call_result),
+			orml_tokens::Error::<Runtime>::BalanceTooLow.into()
 		);
 	})
 }
@@ -940,7 +1037,8 @@ mod transfer_atoken {
 				adot_asset_id,
 				&AccountId::from(ALICE),
 				&AccountId::from(BOB),
-				amount
+				amount,
+				ExistenceRequirement::AllowDeath
 			));
 			let bob_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &BOB.into());
 
@@ -1024,10 +1122,110 @@ pub mod stableswap_with_atoken {
 					ADOT,
 					u128::MAX
 				),
-				Other("evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011")
+				pallet_dispatcher::Error::<Runtime>::EvmArithmeticOverflowOrUnderflow
 			);
 		})
 	}
+}
+
+#[test]
+fn cannot_borrow_more_than_collateral_allows() {
+	with_aave(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let mm_pool = EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice());
+		let user = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		let dot_asset = HydraErc20Mapping::encode_evm_address(DOT);
+
+		// Step 1: Supply collateral
+		let supply_amount = 1_000 * ONE;
+		supply(mm_pool, user, dot_asset, supply_amount);
+
+		// Step 2: Borrow against collateral (borrow close to maximum)
+		let context = CallContext::new_call(mm_pool, user);
+		let data = EvmDataWriter::new_with_selector(Function::Borrow)
+			.write(dot_asset)
+			.write(supply_amount)
+			.write(2u32)
+			.write(0u32)
+			.write(user)
+			.build();
+
+		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 50_000_000);
+
+		let error = EvmErrorDecoder::convert(call_result);
+		assert_eq!(
+			error,
+			pallet_dispatcher::Error::<Runtime>::CollateralCannotCoverNewBorrow.into()
+		);
+	})
+}
+
+#[test]
+fn cannot_withdraw_when_debt_increased_health_factor_too_low() {
+	with_aave(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let mm_pool = EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice());
+		let user = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		let dot_asset = HydraErc20Mapping::encode_evm_address(DOT);
+
+		// Step 1: Supply collateral
+		let supply_amount = 1_000 * ONE;
+		supply(mm_pool, user, dot_asset, supply_amount);
+
+		// Step 2: Borrow against collateral (borrow close to maximum)
+		let borrow_amount = 500 * ONE;
+		borrow(mm_pool, user, dot_asset, borrow_amount);
+
+		// Step 3: Try to withdraw some collateral - this should fail because health factor would drop below threshold
+		let withdraw_amount = 500 * ONE;
+		let context = CallContext::new_call(mm_pool, user);
+		let data = EvmDataWriter::new_with_selector(Function::Withdraw)
+			.write(dot_asset)
+			.write(withdraw_amount)
+			.write(user)
+			.build();
+
+		//Act
+		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
+
+		//Assert
+		let error = EvmErrorDecoder::convert(call_result);
+		assert_eq!(
+			error,
+			pallet_dispatcher::Error::<Runtime>::AaveHealthFactorLowerThanLiquidationThreshold.into()
+		);
+	})
+}
+
+#[test]
+fn router_buy_should_decode_aave_supply_cap_exceeded_error() {
+	with_aave(|| {
+		// Give Alice enough DOT to attempt the purchase
+		let excessive_amount = 10_000_000 * ONE;
+		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), excessive_amount * 2));
+
+		// Try to buy an excessive amount of ADOT that exceeds the supply cap
+		// This should trigger the AaveSupplyCapExceeded error through the Router
+		assert_noop!(
+			Router::buy(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				DOT,
+				ADOT,
+				excessive_amount,
+				excessive_amount * 2, // max_amount_in
+				vec![Trade {
+					pool: Aave,
+					asset_in: DOT,
+					asset_out: ADOT,
+				}]
+				.try_into()
+				.unwrap()
+			),
+			pallet_dispatcher::Error::<Runtime>::AaveSupplyCapExceeded
+		);
+	})
 }
 
 pub fn init_stableswap_with_atoken() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
@@ -1244,7 +1442,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
 
 		//Let's mutate timestamp to accrue some yield on ADOT holdings
 		let current_timestamp = hydradx_runtime::Timestamp::get();
-		let new_timestamp = current_timestamp + (1 * 1000); // milliseconds
+		let new_timestamp = current_timestamp + 1000; // milliseconds
 		hydradx_runtime::Timestamp::set_timestamp(new_timestamp);
 
 		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
