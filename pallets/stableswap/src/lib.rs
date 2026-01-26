@@ -397,6 +397,9 @@ pub mod pallet {
 
 		/// Trade would result in zero amount out.
 		ZeroAmountOut,
+
+		/// Trade would result in zero amount in.
+		ZeroAmountIn,
 	}
 
 	#[pallet::call]
@@ -665,6 +668,7 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(shares <= max_share_amount, Error::<T>::SlippageLimit);
+			ensure!(shares >= 1, Error::<T>::ZeroAmountIn);
 
 			// Burn shares and transfer asset to user.
 			T::Currency::withdraw(pool_id, &who, shares, ExistenceRequirement::AllowDeath)?;
