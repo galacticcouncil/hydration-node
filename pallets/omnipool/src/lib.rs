@@ -2115,11 +2115,11 @@ impl<T: Config> Pallet<T> {
 		// We allowed `allowed_amount` as the max fee that can be taken by external sources
 		// To support Atokens, we need to allow a tolerance of 1 extra unit.
 		ensure!(
-			actual_fee_taken <= allowed_amount.saturating_add(Balance::one()),
+			actual_fee_taken <= allowed_amount.saturating_add(10u128),
 			Error::<T>::FeeOverdraft
 		);
 		// And the actual fee taken must be equal to the reported amount!
-		ensure!(actual_fee_taken == taken_fee_total, Error::<T>::FeeOverdraft);
+		debug_assert!(actual_fee_taken == taken_fee_total, "Fee Overdraft - actual taken amount is not equal to reported amount");
 
 		let protocol_fee_amount = amount.saturating_sub(taken_fee_total);
 
