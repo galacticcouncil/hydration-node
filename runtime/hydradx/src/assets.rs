@@ -607,7 +607,7 @@ parameter_types! {
 
 	// Global withdraw limit parameters
 	pub const GlobalWithdrawWindow: primitives::Moment = primitives::constants::time::unix_time::DAY;
-	pub const MaxEgressAccounts: u32 = 100;
+	pub const MaxEgressAccounts: u32 = 64;
 }
 
 impl pallet_circuit_breaker::Config for Runtime {

@@ -174,7 +174,7 @@ parameter_types! {
 	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = LRNA;
-	pub const GlobalWithdrawWindow: primitives::Moment = 24 * 60 * 60 * 1000; // 24h
+	pub const GlobalWithdrawWindow: primitives::Moment = primitives::constants::time::unix_time::DAY;
 	pub const MaxEgressAccounts: u32 = 10;
 }
 
