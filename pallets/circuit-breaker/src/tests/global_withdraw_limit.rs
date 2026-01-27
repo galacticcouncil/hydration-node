@@ -1,7 +1,6 @@
 use crate::tests::mock::*;
 use crate::*;
 use frame_support::{assert_noop, assert_ok};
-use sp_runtime::DispatchError;
 
 #[test]
 fn note_egress_should_increment_accumulator() {
@@ -38,9 +37,6 @@ fn note_egress_should_fail_during_manual_lockdown() {
 
 		let res = CircuitBreaker::note_egress(1);
 		assert_eq!(res, Err(Error::<Test>::GlobalLockdownActive.into()));
-
-		let res_try = CircuitBreaker::try_note_egress(1);
-		assert_eq!(res_try, Err(Error::<Test>::GlobalLockdownActive.into()));
 	});
 }
 

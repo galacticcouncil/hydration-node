@@ -5,7 +5,7 @@ use frame_support::weights::Weight;
 use frame_support::{assert_noop, assert_ok};
 use hydradx_runtime::{CircuitBreaker, RuntimeCall, TokenGateway};
 use ismp::host::StateMachine;
-use polkadot_xcm::v4::prelude::*;
+use polkadot_xcm::v5::prelude::*;
 use polkadot_xcm::VersionedXcm;
 use sp_runtime::traits::Dispatchable;
 use xcm_emulator::TestExt;

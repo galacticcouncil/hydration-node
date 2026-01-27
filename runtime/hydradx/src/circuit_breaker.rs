@@ -5,7 +5,7 @@ use frame_support::traits::Contains;
 use hydradx_adapters::price::ConvertBalance;
 use pallet_asset_registry::AssetType;
 use polkadot_xcm::{
-	v4::{
+	v5::{
 		Asset, AssetId as XcmAssetId, Fungibility, Instruction,
 		Instruction::{DepositReserveAsset, InitiateReserveWithdraw, TransferReserveAsset},
 		Location, Xcm,

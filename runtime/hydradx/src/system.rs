@@ -52,7 +52,7 @@ use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use pallet_broadcast::types::ExecutionType;
 use pallet_utility::BatchHook;
-use polkadot_xcm::v4::Xcm;
+use polkadot_xcm::v5::Xcm;
 use scale_info::TypeInfo;
 use sp_runtime::DispatchResult;
 
