@@ -2,9 +2,13 @@ import { ApiPromise } from '@polkadot/api'
 import { EventRecord } from '@polkadot/types/interfaces'
 import { Vec } from '@polkadot/types'
 import { u8aToHex } from '@polkadot/util'
+import { ISubmittableResult } from '@polkadot/types/types'
 import { ethers } from 'ethers'
 import { keccak256, recoverAddress } from 'viem'
-import { executeAsRootViaScheduler } from './dispenser.test'
+import {
+  executeAsRootViaReferendum,
+  executeAsRootViaScheduler,
+} from './dispenser.test'
 
 export class SignetClient {
   constructor(
@@ -140,17 +144,11 @@ export class SignetClient {
   }
 
   calculateSignRespondRequestId(
-    senderSs58: string,
-    txData: Uint8Array,
-    chainId: number,
-    keyVersion: number,
-    path: string,
-    algo = 'ecdsa',
-    dest = 'ethereum',
-    params = '',
+    sender: string,
+    txData: number[],
+    params: any,
   ): string {
-    const caip2 = `eip155:${chainId}`
-    const txHex = ethers.hexlify(txData)
+    const txHex = '0x' + Buffer.from(txData).toString('hex')
     const encoded = ethers.solidityPacked(
       [
         'string',
@@ -162,9 +160,17 @@ export class SignetClient {
         'string',
         'string',
       ],
-      [senderSs58, txHex, caip2, keyVersion, path, algo, dest, params],
+      [
+        sender,
+        txHex,
+        params.caip2_id,
+        params.keyVersion,
+        params.path,
+        params.algo || '',
+        params.dest || '',
+        params.params || '',
+      ],
     )
-
     return ethers.keccak256(encoded)
   }
 

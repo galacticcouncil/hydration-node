@@ -9,24 +9,27 @@ import { KeyDerivation } from './key-derivation'
 import { blake2AsHex } from '@polkadot/util-crypto'
 import { SubmittableExtrinsic } from '@polkadot/api/types'
 
-const isSepolia = false
+const isSepolia = true
 
 const WS_ENDPOINT = 'ws://127.0.0.1:8000'
 const SEPOLIA_RPC = 'https://ethereum-sepolia-rpc.publicnode.com'
 const ANVIL_RPC = 'http://localhost:8545'
 const ANVIL_PUBLIC_KEY =
   '0x048318535b54105d4a7aae60c08fc45f9687181b4fdfc625bd1a753fa7397fed753547f11ca8696646f2f3acb08e31016afac23e630c5d11f59f61fef57b0d2aa5'
+// TODO: revert to production key
 const SEPOLIA_PUBLIC_KEY =
-  '0x047ca560e19ef0fb49f046670e50b6ceb394122ddfed5526802e5e438cdd2bc5347963e633398aa8498e8711c416746d87d49a8860e04967761d0a0cea229a5220'
+  '0x044eef776e4f257d68983e45b340c2e9546c5df95447900b6aadfec68fb46fdee257e26b8ba383ddba9914b33c60e869265f859566fff4baef283c54d821ca3b64'
+// ORIGINAL: '0x047ca560e19ef0fb49f046670e50b6ceb394122ddfed5526802e5e438cdd2bc5347963e633398aa8498e8711c416746d87d49a8860e04967761d0a0cea229a5220'
 const SEPOLIA_CHAIN_ID = 11155111
 const ANVIL_CHAIN_ID = 31337
 const CHAIN_ID = 'polkadot:2034'
-const ANVIL_FAUCET_ADDRESS = '0x2BF866DA3A8eEb90b288e6D434d319624263a24b'
-const SEPOLIA_FAUCET_ADDRESS = '0x52Be077e67496c9763cCEF66c1117dD234Ca8Cfc'
+const ANVIL_FAUCET_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512'
+// TODO: revert to production address: 0x52Be077e67496c9763cCEF66c1117dD234Ca8Cfc
+const SEPOLIA_FAUCET_ADDRESS = '0x1a9ac4A78baE112CA3B249d6133d58f0Ae1Ab361'
 const LOCAL_SS58_PREFIX = 0
 
 const RPC_URL = isSepolia ? SEPOLIA_RPC : ANVIL_RPC
-const ROOT_PUBLIC_KEY = isSepolia ? SEPOLIA_PUBLIC_KEY : ANVIL_PUBLIC_KEY
+const ROOT_PUBLIC_KEY = isSepolia ? SEPOLIA_PUBLIC_KEY : ANVIL_PUBLIC_KEY // replace this with MPC public key if using MPC backend
 const EVM_CHAIN_ID = isSepolia ? SEPOLIA_CHAIN_ID : ANVIL_CHAIN_ID
 const FAUCET_ADDRESS = isSepolia ? SEPOLIA_FAUCET_ADDRESS : ANVIL_FAUCET_ADDRESS
 
@@ -60,7 +63,7 @@ export async function submitWithRetry(
   api: ApiPromise,
   label: string,
   maxRetries: number = 1,
-  timeoutMs: number = 60_000,
+  timeoutMs: number = 300_000,
 ): Promise<{ events: any[] }> {
   let attempt = 0
 
@@ -304,6 +307,7 @@ async function fundPalletAccounts(
 ): Promise<{ palletSS58: string }> {
   const palletAccountId = getPalletAccountId()
   const palletSS58 = encodeAddress(palletAccountId, LOCAL_SS58_PREFIX)
+  console.log(`Pallet address: ${palletSS58}`)
 
   await transferAsset(
     api,
@@ -379,31 +383,52 @@ async function ensureDerivedEthHasGas(
   }
 }
 
-async function initializeVaultIfNeeded(api: ApiPromise, alice: any) {
-  const existingConfig = await api.query.ethDispenser.dispenserConfig()
-  const configJson = existingConfig.toJSON()
+async function initializeVaultIfNeeded(api: ApiPromise) {
+  const cfgOpt = await (api.query as any).ethDispenser.dispenserConfig()
+  const cfg = cfgOpt.toJSON() as any
+  console.log('Dispenser config JSON ->', cfg)
 
-  console.log('Existing dispenser config JSON -> ', configJson)
+  if (cfg?.paused === true) {
+    console.log('Dispenser is paused; unpausing via Root...')
+    const unpauseCall = (api.tx as any).ethDispenser.unpause()
+    await executeAsRootViaScheduler(
+      api,
+      unpauseCall,
+      'Unpause ethDispenser via Root',
+    )
+  }
 
-  if (configJson !== null) {
-    console.log('⚠️  Vault already initialized, skipping initialization')
-    console.log('   Existing config:', existingConfig.toHuman())
+  const current = (
+    await (api.query as any).ethDispenser.faucetBalanceWei()
+  ).toBigInt()
+  const threshold = (
+    (api.consts as any).ethDispenser.minFaucetEthThreshold as any
+  ).toBigInt()
+
+  console.log('Current faucetBalanceWei =', current.toString())
+  console.log('MinFaucetEthThreshold =', threshold.toString())
+
+  // 保证余额 >= threshold + amount + buffer
+  const targetMin = threshold + REQUEST_FUND_AMOUNT + ethers.parseEther('1')
+  if (current >= targetMin) {
+    console.log('✅ FaucetBalanceWei already sufficient, skipping top-up')
     return
   }
 
-  const mpcEthAddress = ethAddressFromPubKey(ROOT_PUBLIC_KEY)
-  console.log('Initializing vault with MPC address (via Root):', mpcEthAddress)
+  const addWei = targetMin - current
+  console.log('Topping up faucet balance via Root, add =', addWei.toString())
 
-  const initCall = api.tx.ethDispenser.setFaucetBalance(PALLET_FAUCET_FUND)
-
+  const setBalCall = (api.tx as any).ethDispenser.setFaucetBalance(
+    addWei.toString(),
+  )
   await executeAsRootViaScheduler(
     api,
-    initCall,
-    'Initialize ethDispenser via Root',
+    setBalCall,
+    'Top up ethDispenser faucet balance via Root',
   )
 
-  const cfg = await api.query.ethDispenser.dispenserConfig()
-  console.log('Dispenser config after Root init:', cfg.toHuman())
+  const after = await (api.query as any).ethDispenser.faucetBalanceWei()
+  console.log('faucetBalanceWei after =', after.toString())
 }
 
 describe('ERC20 Vault Integration', () => {
@@ -448,13 +473,12 @@ describe('ERC20 Vault Integration', () => {
       CHAIN_ID,
     )
 
+    // Derive caller address (pallet as sender, alice account id as path)
     const derived = deriveSubstrateAndEthAddresses(keyring, alice, palletSS58)
     derivedEthAddress = derived.derivedEthAddress
     derivedPubKey = derived.derivedPubKey
     aliceHexPath = derived.aliceHexPath
-
-    await ensureDerivedEthHasGas(sepoliaProvider, derivedEthAddress)
-  }, 120_000)
+  }, 60_000)
 
   afterAll(async () => {
     if (api) {
@@ -463,7 +487,7 @@ describe('ERC20 Vault Integration', () => {
   })
 
   it('should complete full deposit and claim flow', async () => {
-    await initializeVaultIfNeeded(api, alice)
+    await initializeVaultIfNeeded(api)
 
     const feeData = await sepoliaProvider.getFeeData()
     const currentNonce = await sepoliaProvider.getTransactionCount(
@@ -498,8 +522,6 @@ describe('ERC20 Vault Integration', () => {
       REQUEST_FUND_AMOUNT,
     ])
 
-    console.log({ data })
-
     const tx = ethers.Transaction.from({
       type: 2,
       chainId: txParams.chainId,
@@ -514,13 +536,15 @@ describe('ERC20 Vault Integration', () => {
 
     const requestId = signetClient.calculateSignRespondRequestId(
       palletSS58,
-      ethers.getBytes(tx.unsignedSerialized),
-      EVM_CHAIN_ID,
-      0,
-      aliceHexPath,
-      'ecdsa',
-      'ethereum',
-      '',
+      Array.from(ethers.getBytes(tx.unsignedSerialized)),
+      {
+        caip2_id: 'eip155:11155111',
+        keyVersion: 0,
+        path: aliceHexPath,
+        algo: 'ecdsa',
+        dest: 'ethereum',
+        params: '',
+      },
     )
 
     console.log(`📋 Request ID: ${ethers.hexlify(requestId)}\n`)
@@ -623,7 +647,7 @@ describe('ERC20 Vault Integration', () => {
     const readResponse = await waitForReadResponse(
       api,
       ethers.hexlify(requestId),
-      120_000,
+      60_000,
     )
 
     if (!readResponse) {
@@ -647,7 +671,7 @@ export async function executeAsRootViaReferendum(
   call: any, // api.tx.<pallet>.<fn>(...)
   label: string,
   maxRetries = 1,
-  timeoutMs = 60_000,
+  timeoutMs = 300_000,
 ): Promise<number> {
   console.log(`\n=== ${label}: starting Root execution via Referenda ===`)
 
