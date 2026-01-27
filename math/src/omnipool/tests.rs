@@ -112,7 +112,7 @@ mod slip_fee_config {
 			max_slip_fee: FixedU128::from_rational(5, 100),
 			hub_state_in: HubAssetBlockState {
 				hub_reserve_at_block_start: 1_000 * UNIT,
-				current_delta_hub_reserve: Increase(1 * UNIT),
+				current_delta_hub_reserve: Increase(UNIT),
 			},
 			hub_state_out: Default::default(),
 		};
@@ -259,7 +259,7 @@ mod slip_fee_config {
 			hub_state_in: Default::default(),
 			hub_state_out: HubAssetBlockState {
 				hub_reserve_at_block_start: 1_000 * UNIT,
-				current_delta_hub_reserve: Decrease(1 * UNIT),
+				current_delta_hub_reserve: Decrease(UNIT),
 			},
 		};
 

@@ -62,11 +62,7 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default + Saturating
 		match self {
 			Increase(_) => true,
 			Decrease(v) => {
-				if v.is_zero() {
-					true
-				} else {
-					false
-				}
+				v.is_zero()
 			}
 		}
 	}
