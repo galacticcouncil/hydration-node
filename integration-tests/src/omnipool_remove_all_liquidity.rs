@@ -5,7 +5,6 @@ use crate::polkadot_test_net::*;
 
 use frame_support::{assert_noop, assert_ok};
 use pallet_omnipool::types::Tradability;
-use sp_runtime::FixedPointNumber;
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
 
@@ -36,11 +35,8 @@ fn remove_all_liquidity_should_work() {
 			Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
 		));
 
-		let position =
-			pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_position(position_id, lp.clone()).unwrap();
-
 		assert_ok!(hydradx_runtime::Omnipool::remove_all_liquidity(
-			hydradx_runtime::RuntimeOrigin::signed(lp.clone().into()),
+			hydradx_runtime::RuntimeOrigin::signed(lp.clone()),
 			position_id,
 			Balance::MIN,
 		));

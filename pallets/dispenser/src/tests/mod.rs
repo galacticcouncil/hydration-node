@@ -1,4 +1,4 @@
-pub mod tests;
+pub mod test_cases;
 mod utils;
 
 use crate::tests::utils::{acct, bounded_chain_id};
@@ -7,6 +7,7 @@ use frame_support::assert_ok;
 use frame_support::traits::Everything;
 use frame_support::{parameter_types, traits::Currency as CurrencyTrait, PalletId};
 use frame_system::{self as system};
+use hex_literal::hex;
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrency;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
@@ -70,6 +71,7 @@ impl system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_type_with_key! {
@@ -101,6 +103,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_types! {
@@ -166,12 +169,10 @@ parameter_types! {
 }
 
 pub struct SigEthFaucetMpcRoot;
-impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetMpcRoot {
-	fn get() -> [u8; 20] {
-		[
-			0x3c, 0x44, 0xcd, 0xdd, 0xb6, 0xa9, 0x00, 0xfa, 0x2b, 0x58, 0x5d, 0xd2, 0x99, 0xe0, 0x3d, 0x12, 0xfa, 0x42,
-			0x93, 0xbc,
-		]
+impl frame_support::traits::Get<primitives::EvmAddress> for SigEthFaucetMpcRoot {
+	fn get() -> primitives::EvmAddress {
+		// 0x3c44CdDdB6a900fa2b585dd299e03d12FA4293BC
+		primitives::EvmAddress::from(hex!("3c44CdDdB6a900fa2b585dd299e03d12FA4293BC"))
 	}
 }
 

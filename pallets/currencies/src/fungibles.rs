@@ -3,9 +3,13 @@ use crate::OnWithdraw;
 use crate::{Config, Error, Pallet};
 use frame_support::fail;
 use frame_support::traits::fungibles::Inspect as FungibleInspect;
-use frame_support::traits::tokens::{
-	fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
+use frame_support::traits::{
+	tokens::{
+		fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
+	},
+	ExistenceRequirement,
 };
+
 use hydradx_traits::{BoundErc20, Inspect};
 use orml_traits::currency::OnTransfer;
 use orml_traits::MultiCurrency;
@@ -144,20 +148,11 @@ where
 		From<WithdrawConsequence<<T::NativeCurrency as fungible::Inspect<T::AccountId>>::Balance>>,
 {
 	fn name(asset: Self::AssetId) -> Vec<u8> {
-		// Prefer registry for metadata; fall back to sensible defaults
-		if let Some(name) = T::RegistryInspect::asset_name(asset) {
-			name
-		} else {
-			Vec::new()
-		}
+		T::RegistryInspect::asset_name(asset).unwrap_or_default()
 	}
 
 	fn symbol(asset: Self::AssetId) -> Vec<u8> {
-		if let Some(sym) = T::RegistryInspect::asset_symbol(asset) {
-			sym
-		} else {
-			Vec::new()
-		}
+		T::RegistryInspect::asset_symbol(asset).unwrap_or_default()
 	}
 
 	fn decimals(asset: Self::AssetId) -> u8 {
@@ -305,7 +300,7 @@ where
 			match T::BoundErc20::contract_address(asset) {
 				Some(contract) => {
 					let old_balance = Self::balance(asset, who);
-					T::Erc20Currency::withdraw(contract, who, amount)?;
+					T::Erc20Currency::withdraw(contract, who, amount, ExistenceRequirement::AllowDeath)?;
 					let new_balance = Self::balance(asset, who);
 					let burnt = old_balance
 						.checked_sub(&new_balance)
@@ -352,7 +347,10 @@ where
 				.into()
 		} else {
 			match T::BoundErc20::contract_address(asset) {
-				Some(contract) => T::Erc20Currency::transfer(contract, source, dest, amount).map(|_| amount),
+				Some(contract) => {
+					T::Erc20Currency::transfer(contract, source, dest, amount, ExistenceRequirement::AllowDeath)
+						.map(|_| amount)
+				}
 				None => <T::MultiCurrency as fungibles::Mutate<T::AccountId>>::transfer(
 					asset.into(),
 					source,

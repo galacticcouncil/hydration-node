@@ -83,6 +83,7 @@ where
 	}
 
 	/// Return the raw data of the entry as a tuple of tuples, excluding the block number.
+	#[allow(clippy::type_complexity)]
 	pub fn raw_data(
 		&self,
 	) -> (

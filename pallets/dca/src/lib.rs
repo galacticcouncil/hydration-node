@@ -69,7 +69,7 @@ use frame_support::traits::DefensiveOption;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
-	traits::{Get, Len},
+	traits::{ExistenceRequirement, Get, Len},
 	transactional,
 	weights::WeightToFee as FrameSupportWeight,
 };
@@ -649,11 +649,11 @@ pub mod pallet {
 				|maybe_schedule_ids| -> DispatchResult {
 					let schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
 
-					let index = schedule_ids
-						.binary_search(&schedule_id)
-						.map_err(|_| Error::<T>::ScheduleNotFound)?;
-
-					schedule_ids.remove(index);
+					let idx = schedule_ids
+						.iter()
+						.position(|x| *x == schedule_id)
+						.ok_or(Error::<T>::ScheduleNotFound)?;
+					schedule_ids.remove(idx);
 
 					if schedule_ids.is_empty() {
 						*maybe_schedule_ids = None;
@@ -1084,6 +1084,7 @@ impl<T: Config> Pallet<T> {
 				&schedule.owner,
 				&T::FeeReceiver::get(),
 				fee_amount_in_sold_asset,
+				ExistenceRequirement::AllowDeath,
 			)?;
 		} else {
 			//We buy DOT with insufficient asset, for the treasury

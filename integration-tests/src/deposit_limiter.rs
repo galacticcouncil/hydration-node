@@ -49,7 +49,7 @@ fn circuit_breaker_triggered_when_reaches_limit_in_period() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit / 2));
 
 		//Act
-		set_relaychain_block_number(5);
+		go_to_block(5);
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit));
 
 		//Assert
@@ -66,7 +66,7 @@ fn circuit_breaker_triggered_when_reaches_limit_in_period() {
 fn circuit_breaker_allows_deposit_when_period_is_over() {
 	Hydra::execute_with(|| {
 		//Arrange
-		set_relaychain_block_number(2);
+		go_to_block(2);
 
 		crate::circuit_breaker::init_omnipool();
 		let deposit_limit = 100_000_000_000_000_000;
@@ -76,7 +76,7 @@ fn circuit_breaker_allows_deposit_when_period_is_over() {
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
 		//Act
-		set_relaychain_block_number(DAYS + 3);
+		go_to_block(DAYS + 3);
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit));
 
 		//Assert
@@ -93,7 +93,7 @@ fn circuit_breaker_allows_deposit_when_period_is_over() {
 fn circuit_breaker_triggers_when_period_is_over_but_first_deposit_reaches_limit() {
 	Hydra::execute_with(|| {
 		//Arrange
-		set_relaychain_block_number(2);
+		go_to_block(2);
 
 		crate::circuit_breaker::init_omnipool();
 		let deposit_limit = 100_000_000_000_000_000;
@@ -102,7 +102,7 @@ fn circuit_breaker_triggers_when_period_is_over_but_first_deposit_reaches_limit(
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(DAYS + 3);
+		go_to_block(DAYS + 3);
 
 		//Act
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + 5 * UNITS));
@@ -121,7 +121,7 @@ fn circuit_breaker_triggers_when_period_is_over_but_first_deposit_reaches_limit(
 fn circuit_breaker_triggers_when_adding_more_and_more_above_limit() {
 	Hydra::execute_with(|| {
 		//Arrange
-		set_relaychain_block_number(2);
+		go_to_block(2);
 
 		crate::circuit_breaker::init_omnipool();
 		let deposit_limit = 100_000_000_000_000_000;
@@ -131,15 +131,15 @@ fn circuit_breaker_triggers_when_adding_more_and_more_above_limit() {
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
 		//Act
-		set_relaychain_block_number(3);
+		go_to_block(3);
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), 5 * UNITS));
 
 		//Act
-		set_relaychain_block_number(4);
+		go_to_block(4);
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), 5 * UNITS));
 
 		//Act
-		set_relaychain_block_number(5);
+		go_to_block(5);
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), 5 * UNITS));
 
 		//Assert
@@ -219,7 +219,7 @@ fn release_deposit_should_fail_when_in_the_last_block_of_lockdown() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
-		set_relaychain_block_number(4);
+		go_to_block(4);
 
 		assert_eq!(Currencies::free_balance(DAI, &ALICE.into()), ALICE_INITIAL_DAI_BALANCE);
 		let deposit_limit = 100_000_000_000_000_000;
@@ -228,7 +228,7 @@ fn release_deposit_should_fail_when_in_the_last_block_of_lockdown() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(DAYS + 4);
+		go_to_block(DAYS + 4);
 
 		//Act
 		assert_noop!(
@@ -243,7 +243,7 @@ fn release_deposit_should_release_asset_when_lockdown_expires() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
-		set_relaychain_block_number(4);
+		go_to_block(4);
 
 		assert_eq!(Currencies::free_balance(DAI, &ALICE.into()), ALICE_INITIAL_DAI_BALANCE);
 		let deposit_limit = 100_000_000_000_000_000;
@@ -252,7 +252,7 @@ fn release_deposit_should_release_asset_when_lockdown_expires() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(DAYS + 5);
+		go_to_block(DAYS + 5);
 
 		//Act
 		assert_ok!(
@@ -273,7 +273,7 @@ fn release_deposit_should_not_work_when_lockedown_triggered_2nd_time() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
-		set_relaychain_block_number(4);
+		go_to_block(4);
 
 		assert_eq!(Currencies::free_balance(DAI, &ALICE.into()), ALICE_INITIAL_DAI_BALANCE);
 		let deposit_limit = 100_000_000_000_000_000;
@@ -282,7 +282,7 @@ fn release_deposit_should_not_work_when_lockedown_triggered_2nd_time() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(DAYS + 5);
+		go_to_block(DAYS + 5);
 
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, 2 * UNITS);
@@ -303,7 +303,7 @@ fn release_deposit_should_work_when_asset_unclocked() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
-		set_relaychain_block_number(4);
+		go_to_block(4);
 
 		assert_eq!(Currencies::free_balance(DAI, &ALICE.into()), ALICE_INITIAL_DAI_BALANCE);
 		let deposit_limit = 100_000_000_000_000_000;
@@ -312,7 +312,7 @@ fn release_deposit_should_work_when_asset_unclocked() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(DAYS + 5);
+		go_to_block(DAYS + 5);
 
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), UNITS)); //It doesnt trigger circuit breaker, just puts state to unlocked
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
@@ -338,7 +338,7 @@ fn release_deposit_should_work_when_called_by_authority() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
-		set_relaychain_block_number(4);
+		go_to_block(4);
 
 		assert_eq!(Currencies::free_balance(DAI, &ALICE.into()), ALICE_INITIAL_DAI_BALANCE);
 		let deposit_limit = 100_000_000_000_000_000;
@@ -347,7 +347,7 @@ fn release_deposit_should_work_when_called_by_authority() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(DAYS + 5);
+		go_to_block(DAYS + 5);
 
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), UNITS)); //It doesnt trigger circuit breaker, just puts state to unlocked
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
@@ -375,7 +375,7 @@ fn release_deposit_should_work_when_accumulated_through_multiple_periods() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
-		set_relaychain_block_number(4);
+		go_to_block(4);
 
 		assert_eq!(Currencies::free_balance(DAI, &ALICE.into()), ALICE_INITIAL_DAI_BALANCE);
 		let deposit_limit = 100_000_000_000_000_000;
@@ -384,17 +384,17 @@ fn release_deposit_should_work_when_accumulated_through_multiple_periods() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(DAYS + 5);
+		go_to_block(DAYS + 5);
 
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + 2 * UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, 3 * UNITS);
 
-		set_relaychain_block_number(2 * DAYS + 6);
+		go_to_block(2 * DAYS + 6);
 
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + 3 * UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, 6 * UNITS);
 
-		set_relaychain_block_number(3 * DAYS + 7);
+		go_to_block(3 * DAYS + 7);
 
 		//Act
 		assert_ok!(CircuitBreaker::release_deposit(
@@ -417,13 +417,13 @@ fn release_deposit_should_fail_when_no_reserved_asset_for_user() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
-		set_relaychain_block_number(4);
+		go_to_block(4);
 
 		assert_eq!(Currencies::free_balance(DAI, &ALICE.into()), ALICE_INITIAL_DAI_BALANCE);
 		let deposit_limit = 100_000_000_000_000_000;
 		update_deposit_limit(DAI, deposit_limit).unwrap();
 
-		set_relaychain_block_number(DAYS + 5);
+		go_to_block(DAYS + 5);
 
 		//Act and assert
 		assert_noop!(
@@ -438,7 +438,7 @@ fn release_deposit_should_work_when_other_user_claims_it() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
-		set_relaychain_block_number(4);
+		go_to_block(4);
 
 		assert_eq!(Currencies::free_balance(DAI, &ALICE.into()), ALICE_INITIAL_DAI_BALANCE);
 		let deposit_limit = 100_000_000_000_000_000;
@@ -447,7 +447,7 @@ fn release_deposit_should_work_when_other_user_claims_it() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(DAYS + 5);
+		go_to_block(DAYS + 5);
 
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
@@ -472,7 +472,7 @@ fn release_deposit_should_fail_when_called_2nd_time() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
-		set_relaychain_block_number(4);
+		go_to_block(4);
 
 		assert_eq!(Currencies::free_balance(DAI, &ALICE.into()), ALICE_INITIAL_DAI_BALANCE);
 		let deposit_limit = 100_000_000_000_000_000;
@@ -481,7 +481,7 @@ fn release_deposit_should_fail_when_called_2nd_time() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(DAYS + 5);
+		go_to_block(DAYS + 5);
 
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
@@ -504,7 +504,7 @@ use hydradx_runtime::origins::Origin;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use polkadot_xcm::opaque::lts::WeightLimit;
-use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
+use polkadot_xcm::v5::{Junction, Location};
 use primitives::constants::currency::UNITS;
 
 #[test]
@@ -517,10 +517,10 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 	Hydra::execute_with(|| {
 		assert_ok!(AssetRegistry::set_location(
 			ACA,
-			hydradx_runtime::AssetLocation(MultiLocation::new(
-				1,
-				X2(Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0))
-			))
+			hydradx_runtime::AssetLocation(Location {
+				parents: 1,
+				interior: [Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0)].into()
+			})
 		));
 
 		update_deposit_limit(ACA, deposit_limit).unwrap();
@@ -552,13 +552,14 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 			0,
 			deposit_limit + amount_over_limit,
 			Box::new(
-				MultiLocation::new(
-					1,
-					X2(
+				Location {
+					parents: 1,
+					interior: [
 						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountId32 { id: BOB, network: None }
-					)
-				)
+					]
+					.into()
+				}
 				.into_versioned()
 			),
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
@@ -567,7 +568,7 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 
 	Hydra::execute_with(|| {
 		//The fee to-be-sent to the treausury was blocked and reserved too as we reached limit
-		let fee = 77827795107;
+		let fee = 77048488154;
 		assert_reserved_balance!(&Treasury::account_id(), ACA, fee);
 
 		// Bob receives the amount equal to deposit limit, the rest is reserved
@@ -627,7 +628,7 @@ fn add_liquidity_should_work_when_circuit_breaker_triggers_for_lrna() {
 		update_deposit_limit(LRNA, UNITS).unwrap();
 		assert_ok!(Currencies::deposit(LRNA, &Omnipool::protocol_account(), 100 * UNITS));
 
-		set_relaychain_block_number(10);
+		go_to_block(10);
 
 		// Act and assert
 		assert_ok!(Omnipool::add_liquidity(
@@ -657,7 +658,7 @@ fn remove_liquidity_cannot_burn_more_lrna_when_asset_locked_down() {
 		assert_ok!(Currencies::deposit(LRNA, &Omnipool::protocol_account(), 100 * UNITS));
 
 		let init_block = 10u32;
-		set_relaychain_block_number(init_block);
+		go_to_block(init_block);
 
 		let mut positions = vec![];
 		let amount = 2000000000 * UNITS;
@@ -671,19 +672,17 @@ fn remove_liquidity_cannot_burn_more_lrna_when_asset_locked_down() {
 				amount
 			));
 			positions.push(position_id);
-			set_relaychain_block_number(init_block + (i + 1u32));
+			go_to_block(init_block + (i + 1u32));
 		}
 
-		for i in 0..=36usize {
-			let position_id = positions[i];
-
+		for (i, &position_id) in positions.iter().enumerate().take(37) {
 			assert_ok!(Omnipool::remove_liquidity(
 				RuntimeOrigin::signed(ALICE.into()),
 				position_id,
 				amount
 			));
 
-			set_relaychain_block_number(init_block + (i as u32) + 100);
+			go_to_block(init_block + (i as u32) + 100);
 		}
 
 		assert_noop!(

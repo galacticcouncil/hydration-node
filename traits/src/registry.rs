@@ -1,5 +1,5 @@
-use crate::evm::EvmAddress;
 use frame_support::dispatch::Parameter;
+use primitives::EvmAddress;
 use sp_std::vec::Vec;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
