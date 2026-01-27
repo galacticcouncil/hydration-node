@@ -317,8 +317,6 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 			return Ok(());
 		}
 
-		T::EgressHandler::on_transfer(currency_id, from, to, amount)?;
-
 		#[cfg(any(feature = "try-runtime", test))]
 		let (initial_source_balance, initial_dest_balance) = {
 			(
@@ -335,6 +333,9 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 				None => T::MultiCurrency::transfer(currency_id, from, to, amount)?,
 			};
 		}
+
+		T::EgressHandler::on_transfer(currency_id, from, to, amount)?;
+
 		Self::deposit_event(Event::Transferred {
 			currency_id,
 			from: from.clone(),
@@ -385,8 +386,6 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 			return Ok(());
 		}
 
-		T::EgressHandler::on_withdraw(currency_id, who, amount)?;
-
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::withdraw(who, amount)?;
 		} else {
@@ -395,6 +394,9 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 				None => T::MultiCurrency::withdraw(currency_id, who, amount)?,
 			}
 		}
+
+		T::EgressHandler::on_withdraw(currency_id, who, amount)?;
+
 		Self::deposit_event(Event::Withdrawn {
 			currency_id,
 			who: who.clone(),

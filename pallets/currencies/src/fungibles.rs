@@ -292,9 +292,7 @@ where
 		precision: Precision,
 		force: Fortitude,
 	) -> Result<Self::Balance, DispatchError> {
-		T::EgressHandler::on_withdraw(asset, who, amount)?;
-
-		if asset == T::GetNativeCurrencyId::get() {
+		let result = if asset == T::GetNativeCurrencyId::get() {
 			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::burn_from(
 				who,
 				amount.into(),
@@ -325,7 +323,13 @@ where
 				)
 				.into(),
 			}
+		};
+
+		if result.is_ok() {
+			T::EgressHandler::on_withdraw(asset, who, amount)?;
 		}
+
+		result
 	}
 
 	fn transfer(
@@ -335,8 +339,6 @@ where
 		amount: Self::Balance,
 		preservation: Preservation,
 	) -> Result<Self::Balance, DispatchError> {
-		T::EgressHandler::on_transfer(asset, source, dest, amount)?;
-
 		#[cfg(any(feature = "try-runtime", test))]
 		let (initial_source_balance, initial_dest_balance) = {
 			(
@@ -361,6 +363,8 @@ where
 				.into(),
 			}
 		};
+
+		T::EgressHandler::on_transfer(asset, source, dest, amount)?;
 
 		#[cfg(any(feature = "try-runtime", test))]
 		if result.is_ok() {
