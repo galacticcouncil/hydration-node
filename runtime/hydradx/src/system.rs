@@ -123,12 +123,6 @@ impl Contains<RuntimeCall> for CallFilter {
 			//of pallet that created it.
 			RuntimeCall::Uniques(pallet_uniques::Call::burn { .. }) => false,
 			RuntimeCall::Router(pallet_route_executor::Call::set_route { .. }) => false,
-			RuntimeCall::PolkadotXcm(pallet_xcm::Call::send { message, .. }) => {
-				!circuit_breaker::WithdrawCircuitBreaker::is_egress_blocked(message)
-			}
-			RuntimeCall::PolkadotXcm(pallet_xcm::Call::execute { message, .. }) => {
-				!circuit_breaker::WithdrawCircuitBreaker::is_egress_blocked(message)
-			}
 			_ => true,
 		}
 	}

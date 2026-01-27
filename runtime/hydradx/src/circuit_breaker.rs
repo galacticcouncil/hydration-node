@@ -64,14 +64,6 @@ impl WithdrawCircuitBreaker {
 		let now = pallet_circuit_breaker::Pallet::<Runtime>::timestamp_now();
 		pallet_circuit_breaker::Pallet::<Runtime>::is_lockdown_at(now)
 	}
-
-	/// Returns true if the XCM message is an egress message and the global lockdown is active.
-	pub fn is_egress_blocked<Call>(message: &VersionedXcm<Call>) -> bool {
-		if let Ok(xcm) = Xcm::<Call>::try_from(message.clone()) {
-			return XcmEgressFilter::is_egress(&xcm) && Self::is_lockdown_active();
-		}
-		false
-	}
 }
 
 impl pallet_currencies::OnWithdraw<AccountId, AssetId, Balance> for WithdrawCircuitBreaker {
