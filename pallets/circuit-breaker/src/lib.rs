@@ -721,36 +721,12 @@ impl<T: Config> Pallet<T> {
 
 		let (current, _) = Self::withdraw_limit_accumulator();
 		let new_current = current.checked_add(&amount).ok_or(ArithmeticError::Overflow)?;
-		WithdrawLimitAccumulator::<T>::put((new_current, now));
-
-		if let Some(limit) = Self::global_withdraw_limit() {
-			if new_current >= limit {
-				let until = now.saturating_add(Self::global_withdraw_window());
-				WithdrawLockdownUntil::<T>::put(until);
-
-				Self::deposit_event(Event::GlobalLockdownTriggered { until });
-				return Err(Error::<T>::GlobalLimitExceeded.into());
-			}
-		}
-
-		Ok(())
-	}
-
-	pub fn try_note_egress(amount: T::Balance) -> DispatchResult {
-		let now = Self::timestamp_now();
-		if Self::is_lockdown_at(now) {
-			return Err(Error::<T>::GlobalLockdownActive.into());
-		}
-
-		// Ensure we decayed at this block before adding increments.
-		Self::try_to_decay_withdraw_limit_accumulator();
-
-		let (current, _) = Self::withdraw_limit_accumulator();
-		let new_current = current.checked_add(&amount).ok_or(ArithmeticError::Overflow)?;
 
 		if let Some(limit) = Self::global_withdraw_limit() {
 			ensure!(new_current < limit, Error::<T>::GlobalLimitExceeded);
 		}
+
+		WithdrawLimitAccumulator::<T>::put((new_current, now));
 
 		Ok(())
 	}

@@ -55,31 +55,9 @@ impl WithdrawCircuitBreaker {
 		}
 	}
 
-	pub fn try_egress(asset_id: AssetId, amount: Balance) -> DispatchResult {
-		let amount_ref_currency = Self::convert_to_hdx(asset_id, amount).ok_or(ArithmeticError::Overflow)?;
-		pallet_circuit_breaker::Pallet::<Runtime>::try_note_egress(amount_ref_currency)
-	}
-
 	pub fn on_egress(asset_id: AssetId, amount: Balance) -> DispatchResult {
 		let amount_ref_currency = Self::convert_to_hdx(asset_id, amount).ok_or(ArithmeticError::Overflow)?;
 		pallet_circuit_breaker::Pallet::<Runtime>::note_egress(amount_ref_currency)
-	}
-
-	pub fn handle_xcm_assets(assets: &Vec<Asset>) -> DispatchResult {
-		for asset in assets {
-			if let Asset {
-				id: XcmAssetId(_location),
-				fun: Fungibility::Fungible(amount),
-			} = asset
-			{
-				if let Some(asset_id) = CurrencyIdConvert::convert(asset.clone()) {
-					if Self::should_account_operation(asset_id, OperationKind::Withdraw, None) {
-						Self::try_egress(asset_id, *amount)?;
-					}
-				}
-			}
-		}
-		Ok(())
 	}
 
 	pub fn is_lockdown_active() -> bool {
@@ -123,26 +101,5 @@ impl XcmEgressFilter {
 				DepositReserveAsset { .. } | InitiateReserveWithdraw { .. } | TransferReserveAsset { .. }
 			)
 		})
-	}
-}
-
-pub struct XcmLockdownFilter;
-impl Contains<(Location, Xcm<RuntimeCall>)> for XcmLockdownFilter {
-	fn contains(t: &(Location, Xcm<RuntimeCall>)) -> bool {
-		let (_, message) = t;
-		if XcmEgressFilter::is_egress(message) && WithdrawCircuitBreaker::is_lockdown_active() {
-			return false;
-		}
-		true
-	}
-}
-
-pub struct CircuitBreakerReserveTransferFilter<T>(sp_std::marker::PhantomData<T>);
-impl<T: Contains<(Location, Vec<Asset>)>> Contains<(Location, Vec<Asset>)> for CircuitBreakerReserveTransferFilter<T> {
-	fn contains(assets: &(Location, Vec<Asset>)) -> bool {
-		if WithdrawCircuitBreaker::handle_xcm_assets(&assets.1).is_err() {
-			return false;
-		}
-		T::contains(assets)
 	}
 }
