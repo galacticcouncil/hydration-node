@@ -298,8 +298,25 @@ pub mod pallet {
 			// CAIP-2 chain ID (e.g., "eip155:1" for Ethereum mainnet)
 			let caip2_id = alloc::format!("eip155:{}", tx.chain_id);
 
+			// DEBUG: Log request ID generation parameters
+			log::info!("🔍 DEBUG: Request ID Generation Parameters");
+			log::info!("  Pallet account: {:?}", pallet_acc);
+			log::info!("  RLP bytes (hex): 0x{}", hex::encode(&rlp));
+			log::info!("  RLP length: {}", rlp.len());
+			log::info!("  CAIP2 ID: {}", caip2_id);
+			log::info!("  Path (hex): 0x{}", hex::encode(&path));
+			log::info!("  Path (str): {}", core::str::from_utf8(&path).unwrap_or("<invalid utf8>"));
+			log::info!("  Key version: 0");
+			log::info!("  Algo: {}", core::str::from_utf8(ECDSA).unwrap_or(""));
+			log::info!("  Dest: {}", core::str::from_utf8(ETHEREUM).unwrap_or(""));
+
 			// Derive canonical request ID and compare with user-supplied one.
 			let req_id = Self::generate_request_id(&pallet_acc, &rlp, &caip2_id, 0, &path, ECDSA, ETHEREUM, b"");
+
+			log::info!("  Generated request ID: 0x{}", hex::encode(req_id));
+			log::info!("  Provided request ID:  0x{}", hex::encode(request_id));
+			log::info!("  Match: {}", req_id == request_id);
+
 			ensure!(req_id == request_id, Error::<T>::InvalidRequestId);
 			ensure!(
 				UsedRequestIds::<T>::get(request_id).is_none(),
@@ -456,17 +473,35 @@ pub mod pallet {
 			let account_id32 = sp_runtime::AccountId32::from(account_bytes);
 			let sender_ss58 = account_id32.to_ss58check_with_version(sp_core::crypto::Ss58AddressFormat::custom(0));
 
+			let path_str = core::str::from_utf8(path).unwrap_or("");
+			let algo_str = core::str::from_utf8(algo).unwrap_or("");
+			let dest_str = core::str::from_utf8(dest).unwrap_or("");
+			let params_str = core::str::from_utf8(params).unwrap_or("");
+
+			log::info!("  🔧 Encoding parameters (in generate_request_id):");
+			log::info!("    sender_ss58: {}", sender_ss58);
+			log::info!("    txHex: 0x{}", hex::encode(transaction_data));
+			log::info!("    caip2: {}", caip2_id);
+			log::info!("    keyVersion: {}", key_version);
+			log::info!("    path: {}", path_str);
+			log::info!("    algo: {}", algo_str);
+			log::info!("    dest: {}", dest_str);
+			log::info!("    params: {}", if params_str.is_empty() { "(empty)" } else { params_str });
+
 			let encoded = (
 				sender_ss58.as_str(),
 				transaction_data,
 				caip2_id,
 				key_version,
-				core::str::from_utf8(path).unwrap_or(""),
-				core::str::from_utf8(algo).unwrap_or(""),
-				core::str::from_utf8(dest).unwrap_or(""),
-				core::str::from_utf8(params).unwrap_or(""),
+				path_str,
+				algo_str,
+				dest_str,
+				params_str,
 			)
 				.abi_encode_packed();
+
+			log::info!("    Packed encoding: 0x{}", hex::encode(&encoded));
+			log::info!("    Packed length: {}", encoded.len());
 
 			sp_io::hashing::keccak_256(&encoded)
 		}

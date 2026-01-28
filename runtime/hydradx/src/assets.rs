@@ -1888,7 +1888,7 @@ impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
 pub struct SigEthFaucetContractAddr;
 impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetContractAddr {
 	fn get() -> [u8; 20] {
-		hex!("2BF866DA3A8eEb90b288e6D434d319624263a24b")
+		hex!("189d33ea9A9701fdb67C21df7420868193dcf578")
 	}
 }
 
