@@ -1219,7 +1219,10 @@ fn buy_for_hub_asset_calls_oracle_hook_for_hdx_subpool() {
 			assert_eq!(*traded_asset_info.delta_changes.delta_hub_reserve, 0);
 			assert!(*traded_asset_info.delta_changes.delta_reserve > 0);
 			// hub_reserve unchanged (H2O routed to HDX subpool, not here)
-			assert_eq!(traded_asset_info.after.hub_reserve, traded_asset_info.before.hub_reserve);
+			assert_eq!(
+				traded_asset_info.after.hub_reserve,
+				traded_asset_info.before.hub_reserve
+			);
 			// reserve decreased (tokens bought by user)
 			assert!(traded_asset_info.after.reserve < traded_asset_info.before.reserve);
 		});

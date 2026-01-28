@@ -52,10 +52,9 @@ macro_rules! assert_asset_invariant_not_decreased {
 #[macro_export]
 macro_rules! assert_asset_invariant_not_decreased_for_hub_swap {
 	( $old_state:expr, $new_state:expr, $old_hdx_state:expr, $new_hdx_state:expr, $desc:expr) => {{
-		let new_s = U256::from($new_state.reserve)
-			* (U256::from($new_state.hub_reserve) + U256::from($new_hdx_state.hub_reserve));
-		let old_s = U256::from($old_state.reserve)
-			* (U256::from($old_state.hub_reserve) + U256::from($old_hdx_state.hub_reserve));
+		let delta_hub = $new_hdx_state.hub_reserve - $old_hdx_state.hub_reserve;
+		let new_s = U256::from($new_state.reserve) * (U256::from($new_state.hub_reserve) + U256::from(delta_hub));
+		let old_s = U256::from($old_state.reserve) * U256::from($old_state.hub_reserve);
 
 		assert!(
 			new_s >= old_s,
