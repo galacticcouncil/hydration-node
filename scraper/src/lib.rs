@@ -361,6 +361,7 @@ mod test {
 
 		pallet_balances::GenesisConfig::<hydradx_runtime::Runtime> {
 			balances: vec![(hydradx_runtime::AccountId::from(ALICE), 1_000_000_000_000_000)],
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut storage)
 		.unwrap();

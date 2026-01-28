@@ -1036,7 +1036,7 @@ mod router_different_pools_tests {
 mod omnipool_router_tests {
 	use super::*;
 	use frame_support::assert_noop;
-	use hydradx_runtime::{Balances, Omnipool, Treasury, XYK};
+	use hydradx_runtime::{Balances, Omnipool, XYK};
 	use hydradx_traits::router::PoolType;
 	use hydradx_traits::AssetKind;
 	use pallet_broadcast::types::{Destination, ExecutionType};
@@ -5061,7 +5061,7 @@ mod route_spot_price {
 			//Arrange
 			create_lbp_pool(HDX, DOT);
 
-			set_relaychain_block_number(LBP_SALE_START + 7);
+			go_to_block(LBP_SALE_START + 7);
 
 			let amount_to_sell = UNITS;
 			let limit = 0;
@@ -5450,7 +5450,7 @@ fn get_lbp_pair_account_id(asset_a: AssetId, asset_b: AssetId) -> AccountId {
 }
 
 fn start_lbp_campaign() {
-	set_relaychain_block_number(LBP_SALE_START + 1);
+	go_to_block(LBP_SALE_START + 1);
 }
 
 pub fn create_xyk_pool(asset_a: u32, asset_b: u32) {
@@ -5590,5 +5590,5 @@ fn populate_oracle(
 		0,
 		BoundedVec::truncate_from(route.clone())
 	));
-	set_relaychain_block_number(block.unwrap_or(10));
+	go_to_block(block.unwrap_or(10));
 }

@@ -34,7 +34,7 @@ use crate::{
 	Currencies,
 };
 use codec::{Encode, EncodeLike};
-use frame_support::traits::{IsType, OriginTrait};
+use frame_support::traits::{ExistenceRequirement, IsType, OriginTrait};
 use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
@@ -66,10 +66,7 @@ where
 		if let Some(asset_id) = HydraErc20Mapping::decode_evm_address(address) {
 			log::debug!(target: "evm", "multicurrency: currency id: {:?}", asset_id);
 
-			let selector = match handle.read_selector() {
-				Ok(selector) => selector,
-				Err(e) => return Err(e),
-			};
+			let selector = handle.read_selector()?;
 
 			handle.check_function_modifier(match selector {
 				Function::Transfer => FunctionModifier::NonPayable,
@@ -230,6 +227,7 @@ where
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(origin)),
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
 			amount,
+			ExistenceRequirement::AllowDeath,
 		)
 		.map_err(|e| PrecompileFailure::Revert {
 			exit_status: ExitRevert::Reverted,
@@ -325,6 +323,7 @@ where
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from)),
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
 			amount,
+			ExistenceRequirement::AllowDeath,
 		)
 		.map_err(|e| PrecompileFailure::Revert {
 			exit_status: ExitRevert::Reverted,
@@ -332,11 +331,5 @@ where
 		})?;
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
-	}
-
-	fn not_supported() -> PrecompileResult {
-		Err(PrecompileFailure::Error {
-			exit_status: pallet_evm::ExitError::Other("not supported".into()),
-		})
 	}
 }

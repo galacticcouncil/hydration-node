@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.64.1"
+version = "1.65.1"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -246,4 +246,6 @@ runtime-benchmarks = [
     "rococo-runtime/runtime-benchmarks",
 ]
 try-runtime = [
+    "hydradx-runtime/try-runtime",
+    "rococo-runtime/try-runtime",
 ]

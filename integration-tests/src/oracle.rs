@@ -29,12 +29,11 @@ use pallet_ema_oracle::OracleError;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
-use sp_runtime::traits::SignedExtension;
+use sp_runtime::traits::{DispatchTransaction, TransactionExtension};
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
 use sp_std::collections::btree_map::BTreeMap;
-use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
@@ -388,19 +387,19 @@ fn arrange_bifrost_assets() -> (
 ) {
 	let asset_a_id = 50;
 	let asset_b_id = 51;
-	let asset_a_loc = polkadot_xcm::v4::Location::new(
+	let asset_a_loc = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
-		])),
+		[
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
+		],
 	);
-	let asset_b_loc = polkadot_xcm::v4::Location::new(
+	let asset_b_loc = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(2000),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
-		])),
+		[
+			polkadot_xcm::v5::Junction::Parachain(2000),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
+		],
 	);
 
 	Hydra::execute_with(|| {
@@ -532,8 +531,9 @@ fn bifrost_oracle_update_should_return_fee() {
 
 		// act & assert
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&bifrost_account(), &oracle_call, &info, info_len);
+			.validate_and_prepare(Some(bifrost_account()).into(), &oracle_call, &info, info_len, 0);
 		assert_ok!(&pre);
+		let (pre_data, _origin) = pre.unwrap();
 		assert_ne!(
 			hydradx_runtime::Currencies::free_balance(0, &bifrost_account()),
 			balance,
@@ -542,10 +542,11 @@ fn bifrost_oracle_update_should_return_fee() {
 		let exec =
 			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(bifrost_account()), asset_a, asset_b, (50, 100));
 		assert_ok!(&exec);
+		let mut exec_result = exec.unwrap();
 		assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-			Some(pre.unwrap()),
+			pre_data,
 			&info,
-			&exec.unwrap(),
+			&mut exec_result,
 			info_len,
 			&Ok(())
 		));
@@ -576,8 +577,9 @@ fn bifrost_oracle_update_fail_should_charge_fee() {
 
 		// act & assert
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&ALICE.into(), &oracle_call, &info, info_len);
+			.validate_and_prepare(Some(ALICE.into()).into(), &oracle_call, &info, info_len, 0);
 		assert_ok!(&pre);
+		let (pre_data, _origin) = pre.unwrap();
 		assert_ne!(
 			hydradx_runtime::Currencies::free_balance(0, &ALICE.into()),
 			balance,
@@ -585,10 +587,11 @@ fn bifrost_oracle_update_fail_should_charge_fee() {
 		);
 		let exec = EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE.into()), asset_a, asset_b, (50, 100));
 		assert_noop!(exec.clone(), BadOrigin);
+		let mut exec_err_post_info = exec.err().unwrap().post_info;
 		assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-			Some(pre.unwrap()),
+			pre_data,
 			&info,
-			&exec.err().unwrap().post_info,
+			&mut exec_err_post_info,
 			info_len,
 			&Ok(())
 		));

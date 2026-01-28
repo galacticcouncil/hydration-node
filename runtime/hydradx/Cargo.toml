@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "384.0.0"
+version = "386.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -113,6 +113,7 @@ pallet-authorship = { workspace = true }
 # Cumulus dependencies
 cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }
+cumulus-pallet-weight-reclaim = { workspace = true }
 cumulus-pallet-xcm = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
 cumulus-primitives-aura = { workspace = true }
@@ -180,7 +181,10 @@ precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = { workspace = true }
 hex = { workspace = true }
-serde_json = { workspace = true, default-features = false }
+serde_json = { workspace = true, default-features = false, features = [
+    "alloc",
+] }
+ethereum = { workspace = true }
 
 # Hyperbridge
 pallet-ismp = { workspace = true, features = ["unsigned"] }
@@ -245,6 +249,7 @@ runtime-benchmarks = [
     "pallet-hsm/runtime-benchmarks",
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
+    "pallet-transaction-multi-payment/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
     "pallet-message-queue/runtime-benchmarks",
     "pallet-state-trie-migration/runtime-benchmarks",
@@ -260,6 +265,7 @@ runtime-benchmarks = [
     "pallet-dispenser/runtime-benchmarks",
     "ismp-parachain/runtime-benchmarks",
     "pallet-token-gateway/runtime-benchmarks",
+    "cumulus-pallet-weight-reclaim/runtime-benchmarks",
 ]
 std = [
     "codec/std",

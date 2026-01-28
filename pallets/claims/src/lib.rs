@@ -19,23 +19,26 @@
 #![allow(clippy::unused_unit)]
 #![allow(clippy::manual_inspect)]
 
-use codec::{Decode, Encode};
+use codec::{Decode, DecodeWithMemTracking, Encode};
+use frame_support::weights::Weight;
 use frame_support::{
 	dispatch::{DispatchClass, DispatchResult, Pays},
 	ensure,
 	sp_runtime::{
-		traits::{DispatchInfoOf, SignedExtension},
-		transaction_validity::{InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction},
+		traits::DispatchInfoOf,
+		transaction_validity::{InvalidTransaction, TransactionValidityError, ValidTransaction},
 	},
 	traits::{Currency, Get, Imbalance, IsSubType},
 };
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::Balance;
-use scale_info::TypeInfo;
+use sp_runtime::traits::{TransactionExtension, ValidateResult};
+use sp_runtime::transaction_validity::TransactionSource;
 use sp_runtime::DispatchError;
 use sp_runtime::{traits::Zero, ModuleError};
 use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
+
 pub use weights::WeightInfo;
 
 mod benchmarking;
@@ -192,15 +195,10 @@ fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
 }
 
 /// Signed extension that checks for the `claim` call and in that case, it verifies an Ethereum signature
-#[derive(Default, Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
+#[derive(Default, Encode, Debug, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, scale_info::TypeInfo)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[scale_info(skip_type_params(T))]
 pub struct ValidateClaim<T: Config + Send + Sync>(PhantomData<T>);
-
-impl<T: Config + Send + Sync> sp_std::fmt::Debug for ValidateClaim<T> {
-	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
-		write!(f, "ValidateClaim")
-	}
-}
 
 /// convert an Error to a custom InvalidTransaction with the inner code being the error
 /// number.
@@ -212,49 +210,59 @@ pub fn error_to_invalid<T: Config>(error: Error<T>) -> InvalidTransaction {
 	InvalidTransaction::Custom(error_number)
 }
 
-impl<T: Config + Send + Sync> SignedExtension for ValidateClaim<T>
+impl<T: Config + Send + Sync + sp_std::fmt::Debug> TransactionExtension<<T as frame_system::Config>::RuntimeCall>
+	for ValidateClaim<T>
 where
 	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>>,
 {
 	const IDENTIFIER: &'static str = "ValidateClaim";
-	type AccountId = T::AccountId;
-	type Call = <T as frame_system::Config>::RuntimeCall;
-	type AdditionalSigned = ();
+
+	type Implicit = ();
+	type Val = ();
 	type Pre = ();
 
-	fn additional_signed(&self) -> Result<(), TransactionValidityError> {
-		Ok(())
+	fn weight(&self, call: &<T as frame_system::Config>::RuntimeCall) -> Weight {
+		match call.is_sub_type() {
+			Some(Call::claim { .. }) => T::WeightInfo::validate_claim(),
+			_ => Weight::zero(),
+		}
 	}
 
 	fn validate(
 		&self,
-		who: &Self::AccountId,
-		call: &Self::Call,
-		_info: &DispatchInfoOf<Self::Call>,
+		origin: <T as frame_system::Config>::RuntimeOrigin,
+		call: &<T as frame_system::Config>::RuntimeCall,
+		_info: &DispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
 		_len: usize,
-	) -> TransactionValidity {
+		_implicit: Self::Implicit,
+		_implication: &impl sp_runtime::traits::Implication,
+		_source: TransactionSource,
+	) -> ValidateResult<Self::Val, <T as frame_system::Config>::RuntimeCall> {
 		match call.is_sub_type() {
-			Some(Call::claim { ethereum_signature }) => match Pallet::<T>::validate_claim(who, ethereum_signature) {
-				Ok(_) => Ok(ValidTransaction::default()),
-				Err(error) => error_to_invalid(error).into(),
-			},
-			_ => Ok(Default::default()),
+			Some(Call::claim { ethereum_signature }) => {
+				// Claims require a signed origin
+				let who = frame_system::ensure_signed(origin.clone())
+					.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::BadProof))?;
+
+				match Pallet::<T>::validate_claim(&who, ethereum_signature) {
+					Ok(_) => Ok((ValidTransaction::default(), (), origin)),
+					Err(error) => Err(error_to_invalid::<T>(error).into()),
+				}
+			}
+			// Non-claim calls pass through (including unsigned inherents)
+			_ => Ok((ValidTransaction::default(), (), origin)),
 		}
 	}
 
-	fn pre_dispatch(
+	// Called after validation
+	fn prepare(
 		self,
-		who: &Self::AccountId,
-		call: &Self::Call,
-		info: &DispatchInfoOf<Self::Call>,
-		len: usize,
+		_val: Self::Val,
+		_origin: &<T as frame_system::Config>::RuntimeOrigin,
+		_call: &<T as frame_system::Config>::RuntimeCall,
+		_info: &DispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
+		_len: usize,
 	) -> Result<Self::Pre, TransactionValidityError> {
-		self.validate(who, call, info, len).map(|_| ())
-	}
-}
-
-impl<T: Config + Send + Sync> ValidateClaim<T> {
-	pub fn new() -> Self {
-		Self(PhantomData)
+		Ok(())
 	}
 }

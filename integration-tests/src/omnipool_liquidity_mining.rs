@@ -47,7 +47,6 @@ use sp_runtime::{
 	DispatchError, FixedPointNumber, FixedU128, Permill, Perquintill,
 };
 use sp_runtime::{DispatchResult, Perbill};
-use std::sync::Arc;
 use warehouse_liquidity_mining::{
 	DefaultPriceAdjustment, DepositData, GlobalFarmData, GlobalFarmId, Instance1, LoyaltyCurve, YieldFarmData,
 	YieldFarmEntry,
@@ -80,7 +79,7 @@ fn create_global_farm_should_work_when_origin_is_root() {
 			total_rewards,
 		));
 
-		set_relaychain_block_number(100);
+		go_to_block(100);
 
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::create_global_farm(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -130,10 +129,10 @@ fn create_yield_farm_should_work_when_asset_is_in_omnipool() {
 
 		init_omnipool();
 
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::create_yield_farm(
 			RuntimeOrigin::signed(Treasury::account_id()),
 			global_farm_id,
@@ -169,13 +168,13 @@ fn deposit_shares_should_work_when_yield_farm_exists() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -192,7 +191,7 @@ fn deposit_shares_should_work_when_yield_farm_exists() {
 		);
 
 		//Act
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_id,
@@ -240,15 +239,15 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -264,7 +263,7 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 			CHARLIE.into()
 		);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -274,7 +273,7 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 		));
 
 		//Act
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_2_id,
@@ -331,17 +330,17 @@ fn join_farms_should_work_for_multiple_farms() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
 		create_yield_farm(global_farm_3_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -357,7 +356,7 @@ fn join_farms_should_work_for_multiple_farms() {
 			CHARLIE.into()
 		);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		let farms = vec![
 			(global_farm_1_id, yield_farm_1_id),
@@ -374,7 +373,7 @@ fn join_farms_should_work_for_multiple_farms() {
 		let lm_account = hydradx_runtime::OmnipoolLiquidityMining::account_id();
 		assert_nft_owner!(hydradx_runtime::OmnipoolCollectionId::get(), position_id, lm_account);
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 
 		let deposit = hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).unwrap();
 		let mut expected_deposit = DepositData::new(1_000_000_000_000_000, ETH);
@@ -438,17 +437,17 @@ fn add_liquidity_and_join_farms_should_work_for_multiple_farms() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
 		create_yield_farm(global_farm_3_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -466,7 +465,7 @@ fn add_liquidity_and_join_farms_should_work_for_multiple_farms() {
 
 		let position_id = hydradx_runtime::Omnipool::next_position_id();
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		let farms = vec![
 			(global_farm_1_id, yield_farm_1_id),
@@ -485,7 +484,7 @@ fn add_liquidity_and_join_farms_should_work_for_multiple_farms() {
 		let lm_account = hydradx_runtime::OmnipoolLiquidityMining::account_id();
 		assert_nft_owner!(hydradx_runtime::OmnipoolCollectionId::get(), position_id, lm_account);
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 
 		let deposit = hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).unwrap();
 		let mut expected_deposit = DepositData::new(1_000_000_000_000_000, ETH);
@@ -549,17 +548,17 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
 		create_yield_farm(global_farm_3_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -577,7 +576,7 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 
 		let position_id = hydradx_runtime::Omnipool::next_position_id();
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		let farms = vec![
 			(global_farm_1_id, yield_farm_1_id),
@@ -596,7 +595,7 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 		let lm_account = hydradx_runtime::OmnipoolLiquidityMining::account_id();
 		assert_nft_owner!(hydradx_runtime::OmnipoolCollectionId::get(), position_id, lm_account);
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 
 		let deposit = hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).unwrap();
 		let mut expected_deposit = DepositData::new(1_000_000_000_000_000, ETH);
@@ -711,17 +710,17 @@ fn add_liquidity_with_limit_and_join_farms_should_fail_when_reaches_limit() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
 		create_yield_farm(global_farm_3_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -737,7 +736,7 @@ fn add_liquidity_with_limit_and_join_farms_should_fail_when_reaches_limit() {
 			100 * UNITS,
 		));
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let farms = vec![
 			(global_farm_1_id, yield_farm_1_id),
 			(global_farm_2_id, yield_farm_2_id),
@@ -792,17 +791,17 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 
 			//NOTE: necessary to get oracle price.
 			hydradx_run_to_block(100);
-			set_relaychain_block_number(100);
+			go_to_block(100);
 			create_global_farm(None, None);
 			create_global_farm(None, None);
 			create_global_farm(None, None);
 
-			set_relaychain_block_number(200);
+			go_to_block(200);
 			create_yield_farm(global_farm_1_id, stable_pool_id);
 			create_yield_farm(global_farm_2_id, stable_pool_id);
 			create_yield_farm(global_farm_3_id, stable_pool_id);
 
-			set_relaychain_block_number(300);
+			go_to_block(300);
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -820,7 +819,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 
 			let position_id = hydradx_runtime::Omnipool::next_position_id();
 
-			set_relaychain_block_number(400);
+			go_to_block(400);
 			let deposit_id = 1;
 			let farms = vec![
 				(global_farm_1_id, yield_farm_1_id),
@@ -860,7 +859,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 			let lm_account = hydradx_runtime::OmnipoolLiquidityMining::account_id();
 			assert_nft_owner!(hydradx_runtime::OmnipoolCollectionId::get(), position_id, lm_account);
 
-			set_relaychain_block_number(500);
+			go_to_block(500);
 
 			let deposit = hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).unwrap();
 			let mut expected_deposit = DepositData::new(20044549999405, stable_pool_id);
@@ -1008,17 +1007,17 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_stableshare_goes
 
 			//NOTE: necessary to get oracle price.
 			hydradx_run_to_block(100);
-			set_relaychain_block_number(100);
+			go_to_block(100);
 			create_global_farm(None, None);
 			create_global_farm(None, None);
 			create_global_farm(None, None);
 
-			set_relaychain_block_number(200);
+			go_to_block(200);
 			create_yield_farm(global_farm_1_id, stable_pool_id);
 			create_yield_farm(global_farm_2_id, stable_pool_id);
 			create_yield_farm(global_farm_3_id, stable_pool_id);
 
-			set_relaychain_block_number(300);
+			go_to_block(300);
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -1034,7 +1033,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_stableshare_goes
 				100 * UNITS,
 			));
 
-			set_relaychain_block_number(400);
+			go_to_block(400);
 			let farms = vec![
 				(global_farm_1_id, yield_farm_1_id),
 				(global_farm_2_id, yield_farm_2_id),
@@ -1107,7 +1106,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 			//NOTE: necessary to get oracle price.
 			hydradx_run_to_block(100);
 
-			set_relaychain_block_number(300);
+			go_to_block(300);
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -1125,7 +1124,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 
 			let position_id = hydradx_runtime::Omnipool::next_position_id();
 
-			set_relaychain_block_number(400);
+			go_to_block(400);
 
 			//Act
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -1161,7 +1160,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 				CHARLIE.into()
 			);
 
-			set_relaychain_block_number(500);
+			go_to_block(500);
 
 			expect_stableswap_liquidity_added_events(vec![pallet_stableswap::Event::LiquidityAdded {
 				pool_id: stable_pool_id,
@@ -1236,17 +1235,17 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_when_slippage_li
 
 			//NOTE: necessary to get oracle price.
 			hydradx_run_to_block(100);
-			set_relaychain_block_number(100);
+			go_to_block(100);
 			create_global_farm(None, None);
 			create_global_farm(None, None);
 			create_global_farm(None, None);
 
-			set_relaychain_block_number(200);
+			go_to_block(200);
 			create_yield_farm(global_farm_1_id, stable_pool_id);
 			create_yield_farm(global_farm_2_id, stable_pool_id);
 			create_yield_farm(global_farm_3_id, stable_pool_id);
 
-			set_relaychain_block_number(300);
+			go_to_block(300);
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -1261,7 +1260,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_when_slippage_li
 				100 * UNITS as i128,
 			));
 
-			set_relaychain_block_number(400);
+			go_to_block(400);
 			let farms = vec![
 				(global_farm_1_id, yield_farm_1_id),
 				(global_farm_2_id, yield_farm_2_id),
@@ -1332,17 +1331,17 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				//NOTE: necessary to get oracle price.
 				hydradx_run_to_block(100);
-				set_relaychain_block_number(100);
+				go_to_block(100);
 				create_global_farm(None, None);
 				create_global_farm(None, None);
 				create_global_farm(None, None);
 
-				set_relaychain_block_number(200);
+				go_to_block(200);
 				create_yield_farm(global_farm_1_id, stable_pool_id);
 				create_yield_farm(global_farm_2_id, stable_pool_id);
 				create_yield_farm(global_farm_3_id, stable_pool_id);
 
-				set_relaychain_block_number(300);
+				go_to_block(300);
 
 				assert_ok!(hydradx_runtime::Currencies::update_balance(
 					hydradx_runtime::RuntimeOrigin::root(),
@@ -1360,7 +1359,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				let position_id = hydradx_runtime::Omnipool::next_position_id();
 
-				set_relaychain_block_number(400);
+				go_to_block(400);
 				let deposit_id = 1;
 				let farms = vec![
 					(global_farm_1_id, yield_farm_1_id),
@@ -1398,7 +1397,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				);
 
 				// Wait some blocks
-				set_relaychain_block_number(500);
+				go_to_block(500);
 
 				// Store balance before removal
 				let charlie_asset_1_balance_before =
@@ -1409,7 +1408,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				let asset_ids_without_slippage: Vec<AssetAmount<u32>> = Stableswap::pools(stable_pool_id)
 					.into_iter()
 					.flat_map(|pool_info| pool_info.assets.into_iter())
-					.map(|asset_id| AssetAmount::<u32>::new(asset_id.into(), 10000))
+					.map(|asset_id| AssetAmount::<u32>::new(asset_id, 10000))
 					.collect();
 
 				let asset_ids_without_slippage = create_bounded_vec(asset_ids_without_slippage);
@@ -1528,9 +1527,9 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				//NOTE: necessary to get oracle price.
 				hydradx_run_to_block(100);
-				set_relaychain_block_number(100);
+				go_to_block(100);
 
-				set_relaychain_block_number(300);
+				go_to_block(300);
 
 				assert_ok!(hydradx_runtime::Currencies::update_balance(
 					hydradx_runtime::RuntimeOrigin::root(),
@@ -1548,7 +1547,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				let position_id = hydradx_runtime::Omnipool::next_position_id();
 
-				set_relaychain_block_number(400);
+				go_to_block(400);
 
 				//Add liquidity first
 				assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -1580,12 +1579,12 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				);
 
 				// Wait some blocks
-				set_relaychain_block_number(500);
+				go_to_block(500);
 
 				let asset_ids_without_slippage: Vec<AssetAmount<u32>> = Stableswap::pools(stable_pool_id)
 					.into_iter()
 					.flat_map(|pool_info| pool_info.assets.into_iter())
-					.map(|asset_id| AssetAmount::<u32>::new(asset_id.into(), 10000))
+					.map(|asset_id| AssetAmount::<u32>::new(asset_id, 10000))
 					.collect();
 
 				let asset_ids_without_slippage = create_bounded_vec(asset_ids_without_slippage);
@@ -1677,17 +1676,17 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				//NOTE: necessary to get oracle price.
 				hydradx_run_to_block(100);
-				set_relaychain_block_number(100);
+				go_to_block(100);
 				create_global_farm(None, None);
 				create_global_farm(None, None);
 				create_global_farm(None, None);
 
-				set_relaychain_block_number(200);
+				go_to_block(200);
 				create_yield_farm(global_farm_1_id, stable_pool_id);
 				create_yield_farm(global_farm_2_id, stable_pool_id);
 				create_yield_farm(global_farm_3_id, stable_pool_id);
 
-				set_relaychain_block_number(300);
+				go_to_block(300);
 
 				assert_ok!(hydradx_runtime::Currencies::update_balance(
 					hydradx_runtime::RuntimeOrigin::root(),
@@ -1705,7 +1704,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				let position_id = hydradx_runtime::Omnipool::next_position_id();
 
-				set_relaychain_block_number(400);
+				go_to_block(400);
 				let deposit_id = 1;
 				let farms = vec![
 					(global_farm_1_id, yield_farm_1_id),
@@ -1743,18 +1742,12 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				);
 
 				// Wait some blocks
-				set_relaychain_block_number(500);
-
-				// Store balance before removal
-				let charlie_asset_1_balance_before =
-					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(CHARLIE));
-				let charlie_asset_2_balance_before =
-					hydradx_runtime::Currencies::free_balance(stable_asset_2, &AccountId::from(CHARLIE));
+				go_to_block(500);
 
 				let asset_ids_without_slippage: Vec<AssetAmount<u32>> = Stableswap::pools(stable_pool_id)
 					.into_iter()
 					.flat_map(|pool_info| pool_info.assets.into_iter())
-					.map(|asset_id| AssetAmount::<u32>::new(asset_id.into(), 10000))
+					.map(|asset_id| AssetAmount::<u32>::new(asset_id, 10000))
 					.collect();
 
 				let asset_ids_without_slippage = create_bounded_vec(asset_ids_without_slippage);
@@ -1819,13 +1812,13 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				//NOTE: necessary to get oracle price.
 				hydradx_run_to_block(100);
-				set_relaychain_block_number(100);
+				go_to_block(100);
 				create_global_farm(None, None);
 
-				set_relaychain_block_number(200);
+				go_to_block(200);
 				create_yield_farm(global_farm_id, stable_pool_id);
 
-				set_relaychain_block_number(300);
+				go_to_block(300);
 
 				assert_ok!(hydradx_runtime::Currencies::update_balance(
 					hydradx_runtime::RuntimeOrigin::root(),
@@ -1843,7 +1836,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				let position_id = hydradx_runtime::Omnipool::next_position_id();
 
-				set_relaychain_block_number(400);
+				go_to_block(400);
 				let deposit_id = 1;
 				let farms = vec![(global_farm_id, yield_farm_id)];
 
@@ -1876,7 +1869,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				);
 
 				// Wait some blocks
-				set_relaychain_block_number(500);
+				go_to_block(500);
 
 				// Store balance before removal - only checking stable_asset_1
 				let charlie_asset_1_balance_before =
@@ -1982,13 +1975,13 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				//NOTE: necessary to get oracle price.
 				hydradx_run_to_block(100);
-				set_relaychain_block_number(100);
+				go_to_block(100);
 				create_global_farm(None, None);
 
-				set_relaychain_block_number(200);
+				go_to_block(200);
 				create_yield_farm(global_farm_id, stable_pool_id);
 
-				set_relaychain_block_number(300);
+				go_to_block(300);
 
 				assert_ok!(hydradx_runtime::Currencies::update_balance(
 					hydradx_runtime::RuntimeOrigin::root(),
@@ -2006,7 +1999,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				let position_id = hydradx_runtime::Omnipool::next_position_id();
 
-				set_relaychain_block_number(400);
+				go_to_block(400);
 				let deposit_id = 1;
 				let farms = vec![(global_farm_id, yield_farm_id)];
 
@@ -2038,7 +2031,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					hydradx_runtime::Currencies::free_balance(HDX, &AccountId::from(CHARLIE));
 
 				// Wait significant number of blocks to accumulate rewards
-				set_relaychain_block_number(1000);
+				go_to_block(1000);
 
 				//Act - Remove liquidity and exit all farms (should claim rewards)
 				assert_ok!(
@@ -2137,13 +2130,13 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				//NOTE: necessary to get oracle price.
 				hydradx_run_to_block(100);
-				set_relaychain_block_number(100);
+				go_to_block(100);
 				create_global_farm(None, None);
 
-				set_relaychain_block_number(200);
+				go_to_block(200);
 				create_yield_farm(global_farm_id, stable_pool_id);
 
-				set_relaychain_block_number(300);
+				go_to_block(300);
 
 				assert_ok!(hydradx_runtime::Currencies::update_balance(
 					hydradx_runtime::RuntimeOrigin::root(),
@@ -2161,7 +2154,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				let position_id = hydradx_runtime::Omnipool::next_position_id();
 
-				set_relaychain_block_number(400);
+				go_to_block(400);
 				let deposit_id = 1;
 				let farms = vec![(global_farm_id, yield_farm_id)];
 
@@ -2193,7 +2186,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					)
 				);
 
-				set_relaychain_block_number(500);
+				go_to_block(500);
 
 				//Act - DAVE tries to remove CHARLIE's liquidity (should fail)
 				assert_noop!(
@@ -2249,13 +2242,13 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				//NOTE: necessary to get oracle price.
 				hydradx_run_to_block(100);
-				set_relaychain_block_number(100);
+				go_to_block(100);
 				create_global_farm(None, None);
 
-				set_relaychain_block_number(200);
+				go_to_block(200);
 				create_yield_farm(global_farm_id, stable_pool_id);
 
-				set_relaychain_block_number(300);
+				go_to_block(300);
 
 				assert_ok!(hydradx_runtime::Currencies::update_balance(
 					hydradx_runtime::RuntimeOrigin::root(),
@@ -2273,7 +2266,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 
 				let position_id = hydradx_runtime::Omnipool::next_position_id();
 
-				set_relaychain_block_number(400);
+				go_to_block(400);
 				let deposit_id = 1;
 				let farms = vec![(global_farm_id, yield_farm_id)];
 
@@ -2305,7 +2298,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					)
 				);
 
-				set_relaychain_block_number(500);
+				go_to_block(500);
 
 				//Act - Try to remove with empty min_amounts_out (should fail)
 				assert_noop!(
@@ -2356,15 +2349,15 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -2380,7 +2373,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 			CHARLIE.into()
 		);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -2389,7 +2382,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 			position_id
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_2_id,
@@ -2405,7 +2398,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		);
 
 		//Act 1 - withdraw shares from 2-nd yield-farm
-		set_relaychain_block_number(600);
+		go_to_block(600);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
@@ -2434,7 +2427,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 				.is_none()
 		);
 
-		set_relaychain_block_number(700);
+		go_to_block(700);
 		//Arrange - claim before withdraw
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -2490,16 +2483,16 @@ fn withdraw_shares_should_send_reward_to_user_when_bigger_than_ed_but_user_has_n
 		do_lrna_hdx_trade();
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 
 		create_global_farm(None, Some(Perquintill::from_percent(40)));
 		create_global_farm(None, Some(Perquintill::from_percent(40)));
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -2515,7 +2508,7 @@ fn withdraw_shares_should_send_reward_to_user_when_bigger_than_ed_but_user_has_n
 			CHARLIE.into()
 		);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -2524,7 +2517,7 @@ fn withdraw_shares_should_send_reward_to_user_when_bigger_than_ed_but_user_has_n
 			position_id
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_2_id,
@@ -2549,7 +2542,7 @@ fn withdraw_shares_should_send_reward_to_user_when_bigger_than_ed_but_user_has_n
 		));
 
 		//Act
-		set_relaychain_block_number(1000);
+		go_to_block(1000);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
@@ -2593,16 +2586,16 @@ fn withdraw_shares_should_send_reward_to_user_when_reward_is_less_than_ed_but_us
 		do_lrna_hdx_trade();
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -2618,7 +2611,7 @@ fn withdraw_shares_should_send_reward_to_user_when_reward_is_less_than_ed_but_us
 			CHARLIE.into()
 		);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -2627,7 +2620,7 @@ fn withdraw_shares_should_send_reward_to_user_when_reward_is_less_than_ed_but_us
 			position_id
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_2_id,
@@ -2643,7 +2636,7 @@ fn withdraw_shares_should_send_reward_to_user_when_reward_is_less_than_ed_but_us
 		);
 
 		//Act
-		set_relaychain_block_number(600);
+		go_to_block(600);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
@@ -2686,16 +2679,16 @@ fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_an
 		do_lrna_hdx_trade();
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -2711,7 +2704,7 @@ fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_an
 			CHARLIE.into()
 		);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -2720,7 +2713,7 @@ fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_an
 			position_id
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_2_id,
@@ -2748,7 +2741,7 @@ fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_an
 		assert_eq!(charlie_hdx_balance_0, 0);
 
 		//Act
-		set_relaychain_block_number(600);
+		go_to_block(600);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
@@ -2785,17 +2778,17 @@ fn exit_farms_should_work_for_multiple_farms() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
 		create_yield_farm(global_farm_3_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -2811,7 +2804,7 @@ fn exit_farms_should_work_for_multiple_farms() {
 			CHARLIE.into()
 		);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -2820,7 +2813,7 @@ fn exit_farms_should_work_for_multiple_farms() {
 			position_id
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_2_id,
@@ -2996,13 +2989,13 @@ fn position_should_be_valued_correctly_when_oracle_is_used() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -3012,7 +3005,7 @@ fn position_should_be_valued_correctly_when_oracle_is_used() {
 		));
 
 		hydradx_run_to_block(400);
-		set_relaychain_block_number(400);
+		go_to_block(400);
 
 		//NOTE: we don't have any trades in mocked env so position should be valued same using
 		//oracle and omnipool's spot price.
@@ -3075,13 +3068,13 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -3097,7 +3090,7 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 			CHARLIE.into()
 		);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -3107,7 +3100,7 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 		));
 
 		//Act
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
@@ -3176,13 +3169,13 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(Some(bond_id), None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -3198,7 +3191,7 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 			CHARLIE.into()
 		);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -3207,10 +3200,10 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 			position_id
 		));
 
-		set_relaychain_block_number(600);
+		go_to_block(600);
 
 		//Assert
-		set_relaychain_block_number(700);
+		go_to_block(700);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
@@ -3246,14 +3239,14 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
-		set_relaychain_block_number(100);
+		go_to_block(100);
 		create_global_farm(None, None);
 
-		set_relaychain_block_number(200);
+		go_to_block(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_1_id, DOT);
 
-		set_relaychain_block_number(300);
+		go_to_block(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -3269,7 +3262,7 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			CHARLIE.into()
 		);
 
-		set_relaychain_block_number(400);
+		go_to_block(400);
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -3278,7 +3271,7 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			position_id
 		));
 
-		set_relaychain_block_number(500);
+		go_to_block(500);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			CHARLIE.into(),
@@ -3293,7 +3286,7 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			CHARLIE.into()
 		);
 
-		set_relaychain_block_number(550);
+		go_to_block(550);
 		let deposit_id_2 = 2;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -3323,7 +3316,7 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 
 		let charlie_hdx_balance_0 = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
 		//Act 1 - claim rewards for 2-nd yield-farm-entry
-		set_relaychain_block_number(600);
+		go_to_block(600);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id_2,
@@ -3371,20 +3364,20 @@ fn price_adjustment_adapter_should_use_routed_oracle() {
 
 	const DOT_VDOT_PRICE: (Balance, Balance) = (85473939039997170, 57767685517430457);
 
-	let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
-		])),
+		[
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
+		],
 	);
 
-	let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(1),
-		])),
+		[
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(1),
+		],
 	);
 
 	let vdot_boxed = Box::new(vdot_location.clone().into_versioned());

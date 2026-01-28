@@ -3,7 +3,7 @@
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens, Treasury};
+use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens};
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::Asset;
 use pallet_broadcast::types::Destination;
@@ -656,14 +656,14 @@ fn init_omnipool() {
 fn init_omnipool_with_oracle_for_block_12() {
 	init_omnipool();
 	do_trade_to_populate_oracle(DAI, HDX, UNITS);
-	set_relaychain_block_number(12);
+	go_to_block(12);
 	do_trade_to_populate_oracle(DAI, HDX, UNITS);
 }
 
 fn init_omnipool_with_oracle_for_block_24() {
 	init_omnipool();
 	do_trade_to_populate_oracle(DAI, HDX, UNITS);
-	set_relaychain_block_number(24);
+	go_to_block(24);
 	do_trade_to_populate_oracle(DAI, HDX, UNITS);
 }
 
