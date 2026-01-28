@@ -1,0 +1,35 @@
+# Source files (already compiled to dist/)
+*.ts
+!*.d.ts
+!*.d.cts
+
+# Config files
+tsdown.config.ts
+tsconfig.json
+.env
+.env.*
+
+# Development files
+node_modules/
+.DS_Store
+*.log
+*.tsbuildinfo
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+__tests__/
+
+# Documentation (keep README.md)
+docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
