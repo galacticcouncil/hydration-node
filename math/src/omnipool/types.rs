@@ -215,7 +215,7 @@ impl<
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct TradeFee<Balance> {
 	pub asset_fee: Balance,
-	// Total protocol fee amount ( includes burnt portion)
+	// Total protocol fee amount ( includes burned portion)
 	pub protocol_fee: Balance,
 	// Burned portion of protocol fee amount
 	pub burned_protocol_fee: Balance,
