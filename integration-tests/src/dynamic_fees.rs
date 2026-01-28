@@ -244,7 +244,7 @@ fn fees_should_change_only_one_when_trades_happen_in_the_same_block() {
 	});
 }
 
-fn set_balance(who: hydradx_runtime::AccountId, currency: AssetId, amount: i128) {
+pub fn set_balance(who: hydradx_runtime::AccountId, currency: AssetId, amount: i128) {
 	assert_ok!(hydradx_runtime::Currencies::update_balance(
 		hydradx_runtime::RuntimeOrigin::root(),
 		who,
@@ -253,7 +253,7 @@ fn set_balance(who: hydradx_runtime::AccountId, currency: AssetId, amount: i128)
 	));
 }
 
-fn init_omnipool() {
+pub fn init_omnipool() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
 

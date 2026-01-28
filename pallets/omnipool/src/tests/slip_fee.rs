@@ -224,6 +224,19 @@ fn sell_hub_works() {
 			);
 
 			assert_pool_state!(13_410 * ONE, 26_820 * ONE);
+
+			expect_events(vec![Event::SellExecuted {
+				who: LP3,
+				asset_in: LRNA,
+				asset_out: 200,
+				amount_in: 50 * ONE,
+				amount_out: 71428571428571,
+				hub_amount_in: 0,
+				hub_amount_out: 0,
+				asset_fee_amount: 0,
+				protocol_fee_amount: 0,
+			}
+				.into()]);
 		});
 }
 
@@ -569,6 +582,19 @@ fn buy_for_hub_asset_works() {
 			);
 
 			assert_pool_state!(13_360 * ONE + sold, 26_786_666_666_666_668);
+
+			expect_events(vec![Event::BuyExecuted {
+				who: LP3,
+				asset_in: 1,
+				asset_out: 200,
+				amount_in: sold,
+				amount_out: buy_amount,
+				hub_amount_in: 0,
+				hub_amount_out: 0,
+				asset_fee_amount: 0,
+				protocol_fee_amount: 0,
+			}
+				.into()]);
 		});
 }
 

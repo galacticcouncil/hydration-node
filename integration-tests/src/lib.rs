@@ -36,6 +36,7 @@ mod parameters;
 mod polkadot_test_net;
 mod referrals;
 mod router;
+mod slip_fee;
 mod stableswap;
 mod staking;
 mod transact_call_filter;
