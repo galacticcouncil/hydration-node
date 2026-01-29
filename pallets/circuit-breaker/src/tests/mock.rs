@@ -18,7 +18,7 @@
 pub use crate as pallet_circuit_breaker;
 use frame_support::traits::{Contains, Get};
 pub use frame_support::traits::{Everything, OnFinalize};
-pub use frame_support::{assert_ok, parameter_types};
+pub use frame_support::{assert_noop, assert_ok, parameter_types};
 
 use frame_support::PalletId;
 use frame_system::EnsureRoot;
