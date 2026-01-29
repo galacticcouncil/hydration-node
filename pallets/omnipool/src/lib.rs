@@ -1658,7 +1658,8 @@ impl<T: Config> Pallet<T> {
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, hdx_info)?;
 
-		// Store HDX fee to keep it in sync with the oracle update
+		// Update HDX dynamic fee to keep it in sync with the oracle update
+		// Fees must be updated on any liquidity change
 		let _ = T::Fee::get_and_store((T::HdxAssetId::get(), hdx_state_after.reserve));
 
 		Ok(())
