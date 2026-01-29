@@ -5,7 +5,7 @@ use tests::{has_event, mock::*};
 
 #[test]
 fn add_to_queue_should_work_when_call_is_valid() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		//Arrange
 		let call: BoundedCall = RuntimeCall::MockPallet(MockPalletCall::dummy_call {
 			allowed_origin: vec![ALICE, BOB],
@@ -32,7 +32,7 @@ fn add_to_queue_should_work_when_call_is_valid() {
 
 #[test]
 fn add_to_queue_should_fail_when_call_is_not_decodeable() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		//Arrange
 		//NOTE: call encoded from PolkadotAPPs with removed last 2 characters
 		let corrupted_call: BoundedCall = Into::<Vec<u8>>::into(hex_literal::hex![
@@ -51,7 +51,7 @@ fn add_to_queue_should_fail_when_call_is_not_decodeable() {
 
 #[test]
 fn add_to_queue_should_fail_when_call_is_overweight() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		//Arrange
 		let max_allowed_weight = LazyExecutor::max_weight_per_call();
 
@@ -89,7 +89,7 @@ fn add_to_queue_should_fail_when_call_is_overweight() {
 
 #[test]
 fn add_to_queue_should_fail_when_origin_cant_pay_fees() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		//Arrange
 		let call: BoundedCall = RuntimeCall::MockPallet(MockPalletCall::dummy_call {
 			allowed_origin: vec![BOB],

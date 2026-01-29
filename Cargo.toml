@@ -55,6 +55,8 @@ members = [
     'pallets/intent',
     'pallets/ice',
     'pallets/ice/support',
+    "ice/ice-solver",
+    "pallets/ice/amm-simulator",
 ]
 
 resolver = "2"
@@ -65,6 +67,10 @@ scale-info = { version = "2.11.1", default-features = false, features = ["derive
 serde = { version = "1.0.209", default-features = false }
 primitive-types = { version = "0.13.1", default-features = false }
 borsh = { version = "1.5.7", default-features = false, features = ["derive"] }
+
+# ICE
+ice-solver = { path = "ice/ice-solver", default-features = false}
+
 
 affix = "0.1.2"
 alloy-primitives = { version = "0.7", default-features = false }
@@ -170,6 +176,7 @@ pallet-dispenser = { path = "pallets/dispenser", default-features = false }
 pallet-intent = { path = "pallets/intent", default-features = false }
 pallet-ice = { path = "pallets/ice", default-features = false }
 ice-support = { path = "pallets/ice/support", default-features = false }
+amm-simulator = { path = "pallets/ice/amm-simulator", default-features = false }
 pallet-lazy-executor = { path = "pallets/lazy-executor", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }

@@ -1,0 +1,26 @@
+[package]
+name = "ice-solver"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+codec = { workspace = true, features = ["derive", "max-encoded-len"] }
+frame-support = { workspace = true }
+ice-support = { workspace = true }
+hydradx-traits = { workspace = true }
+hydra-dx-math = { workspace = true }
+sp-core = { workspace = true }
+log = { workspace = true }
+
+[features]
+default = ['std']
+std = [
+    'codec/std',
+    'frame-support/std',
+    'ice-support/std',
+    'hydradx-traits/std',
+    'hydra-dx-math/std',
+    'sp-core/std',
+    "log/std",
+]
+

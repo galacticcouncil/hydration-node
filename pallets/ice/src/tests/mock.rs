@@ -23,7 +23,8 @@ use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::EnsureRoot;
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::router::PoolType;
+use hydradx_traits::amm::{SimulatorConfig, SimulatorError, SimulatorSet, TradeResult};
+use hydradx_traits::router::{AssetPair, PoolType, Route, RouteProvider};
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
 use ice_support::SwapType;
@@ -213,17 +214,65 @@ impl pallet_ice::Config for Test {
 	type Currency = Currencies;
 	type PalletId = IceId;
 	type BlockNumberProvider = System;
-	type AMM = FakeAMM;
+	type Simulator = TestSimulatorConfig;
 	type WeightInfo = ();
 }
 
-pub struct FakeAMM {}
+// Mock SimulatorConfig
+pub struct TestSimulatorConfig;
 
-impl crate::traits::AMMState for FakeAMM {
+impl SimulatorConfig for TestSimulatorConfig {
+	type Simulators = MockSimulatorSet;
+	type RouteProvider = MockRouteProvider;
+	type PriceDenominator = NativeCurrencyId;
+}
+
+// Mock SimulatorSet
+pub struct MockSimulatorSet;
+
+impl SimulatorSet for MockSimulatorSet {
 	type State = ();
 
-	fn get_state() -> Self::State {
-		return ();
+	fn initial_state() -> Self::State {}
+
+	fn simulate_sell(
+		_pool_type: PoolType<AssetId>,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		_amount_in: Balance,
+		_min_amount_out: Balance,
+		_state: &Self::State,
+	) -> Result<(Self::State, TradeResult), SimulatorError> {
+		Err(SimulatorError::Other)
+	}
+
+	fn simulate_buy(
+		_pool_type: PoolType<AssetId>,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		_amount_out: Balance,
+		_max_amount_in: Balance,
+		_state: &Self::State,
+	) -> Result<(Self::State, TradeResult), SimulatorError> {
+		Err(SimulatorError::Other)
+	}
+
+	fn get_spot_price(
+		_pool_type: PoolType<AssetId>,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		_state: &Self::State,
+	) -> Result<Ratio, SimulatorError> {
+		Ok(Ratio::new(1, 1))
+	}
+}
+
+// Mock RouteProvider
+pub struct MockRouteProvider;
+
+impl RouteProvider<AssetId> for MockRouteProvider {
+	fn get_route(_pair: AssetPair<AssetId>) -> Route<AssetId> {
+		Route::default()
 	}
 }
 

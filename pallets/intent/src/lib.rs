@@ -222,7 +222,7 @@ pub mod pallet {
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::cleanup_intent())]
 		pub fn cleanup_intent(origin: OriginFor<T>, id: IntentId) -> DispatchResultWithPostInfo {
-			if let Err(_) = ensure_none(origin.clone()) {
+			if ensure_none(origin.clone()).is_err() {
 				ensure_signed(origin)?;
 			}
 
@@ -376,7 +376,7 @@ impl<T: Config> Pallet<T> {
 
 		match intent.data {
 			IntentData::Swap(_) => {
-				Self::validate_swap_intent_resolve(&intent, resolve)?;
+				Self::validate_swap_intent_resolve(intent, resolve)?;
 			}
 		}
 
@@ -398,7 +398,7 @@ impl<T: Config> Pallet<T> {
 						return Ok(());
 					}
 
-					let limit = intent.data.pro_rata(&resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+					let limit = intent.data.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 					ensure!(resolve_swap.amount_in < swap.amount_in, Error::<T>::LimitViolation);
 					ensure!(resolve_swap.amount_out >= limit, Error::<T>::LimitViolation);
 				} else {
@@ -413,7 +413,7 @@ impl<T: Config> Pallet<T> {
 						return Ok(());
 					}
 
-					let limit = intent.data.pro_rata(&resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+					let limit = intent.data.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 					ensure!(resolve_swap.amount_in <= limit, Error::<T>::LimitViolation);
 					ensure!(resolve_swap.amount_out < swap.amount_out, Error::<T>::LimitViolation);
 				} else {
@@ -434,7 +434,7 @@ impl<T: Config> Pallet<T> {
 
 			ensure!(owner == *who, Error::<T>::InvalidOwner);
 
-			Self::validate_resolve(&intent, &resolve)?;
+			Self::validate_resolve(intent, resolve)?;
 
 			let fully_resolved;
 			match intent.data {
@@ -519,7 +519,7 @@ impl<T: Config> Pallet<T> {
 	/// Function unlocks reserved `amount` of `asset_id` for `who`.
 	#[inline(always)]
 	pub fn unlock_funds(who: &T::AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult {
-		if !T::Currency::unreserve_named(&NAMED_RESERVE_ID, asset_id, &who, amount).is_zero() {
+		if !T::Currency::unreserve_named(&NAMED_RESERVE_ID, asset_id, who, amount).is_zero() {
 			return Err(Error::<T>::InsufficientReservedBalance.into());
 		}
 

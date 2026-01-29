@@ -53,7 +53,7 @@ fn should_work_when_canceled_by_owner() {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,
-						amount_out: 1 * ONE_QUINTIL,
+						amount_out: ONE_QUINTIL,
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
@@ -135,7 +135,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,
-						amount_out: 1 * ONE_QUINTIL,
+						amount_out: ONE_QUINTIL,
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
@@ -152,8 +152,8 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 			let owner = ALICE;
 
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in / 2;
-			r_swap.amount_out = r_swap.amount_out / 2;
+			r_swap.amount_in /= 2;
+			r_swap.amount_out /= 2;
 
 			//NOTE: It's ICE pallet responsibility is to unlock used fund during solution execution. This is
 			//to simulate it.
@@ -244,7 +244,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,
-						amount_out: 1 * ONE_QUINTIL,
+						amount_out: ONE_QUINTIL,
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),

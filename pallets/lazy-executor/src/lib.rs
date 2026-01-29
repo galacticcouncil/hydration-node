@@ -265,9 +265,8 @@ pub mod pallet {
 
 				let result = if let Ok(call) = <T as Config>::RuntimeCall::decode(&mut &call_data.call[..]) {
 					let o: OriginFor<T> = Origin::<T>::Signed(call_data.origin).into();
-					let result = call.dispatch(o);
 
-					result
+					call.dispatch(o)
 				} else {
 					Err(Error::<T>::Corrupted.into())
 				};

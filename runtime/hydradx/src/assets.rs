@@ -1876,28 +1876,27 @@ impl pallet_intent::Config for Runtime {
 	type WeightInfo = ();
 }
 
-//WARN: tmp, do real impl.
-pub struct DummyAMM {}
-
-impl pallet_ice::traits::AMMState for DummyAMM {
-	type State = ();
-
-	fn get_state() -> Self::State {
-		return ();
-	}
-}
-
 parameter_types! {
 	pub const IcePalletId: PalletId = PalletId(*b"ice_ice#");
 }
 
+/// Simulator configuration for the ICE pallet
+/// Bundles simulators and route provider for the solver
+pub struct HydrationSimulatorConfig;
+
+impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
+	type Simulators = (Omnipool, Stableswap);
+	type RouteProvider = Router;
+	// Use HDX (native asset) as price denominator since LRNA cannot be bought from Omnipool
+	type PriceDenominator = NativeAssetId;
+}
+
 impl pallet_ice::Config for Runtime {
-	//TODO:
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
 	type PalletId = IcePalletId;
 	type BlockNumberProvider = System;
-	type AMM = DummyAMM;
+	type Simulator = HydrationSimulatorConfig;
 	type WeightInfo = ();
 }
 

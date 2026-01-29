@@ -371,6 +371,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4436e0292ab1bb631b42973c61205e704475fe8126af845c8d923c0996328127"
 
 [[package]]
+name = "amm-simulator"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "ice-support",
+ "sp-std",
+]
+
+[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6336,6 +6347,7 @@ version = "4.7.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "hydra-dx-math",
  "impl-trait-for-tuples",
  "pallet-evm",
  "parity-scale-codec",
@@ -6464,6 +6476,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "ice-solver"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "ice-support",
+ "log",
+ "parity-scale-codec",
+ "sp-core",
 ]
 
 [[package]]
@@ -15379,6 +15404,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 name = "runtime-integration-tests"
 version = "1.65.0"
 dependencies = [
+ "amm-simulator",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcm",
@@ -15404,6 +15430,8 @@ dependencies = [
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
+ "ice-solver",
+ "ice-support",
  "ismp",
  "ismp-parachain",
  "libsecp256k1",
@@ -15443,7 +15471,9 @@ dependencies = [
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
  "pallet-hsm",
+ "pallet-ice",
  "pallet-im-online",
+ "pallet-intent",
  "pallet-ismp",
  "pallet-lbp",
  "pallet-liquidation",

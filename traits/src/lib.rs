@@ -18,6 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::upper_case_acronyms)]
 
+pub mod amm;
 pub mod evm;
 pub mod fee;
 pub mod lazy_executor;

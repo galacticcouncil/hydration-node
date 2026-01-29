@@ -12,7 +12,7 @@ use super::mock::{ExtBuilder, LazyExecutor, RuntimeCall};
 
 #[test]
 fn valdiate_unsigned_should_work_when_queue_is_not_empty() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		//Arrange
 		MaxTxPerBlock::<Test>::set(3);
 
@@ -48,7 +48,7 @@ fn valdiate_unsigned_should_work_when_queue_is_not_empty() {
 
 #[test]
 fn validate_unsigned_should_fail_when_source_is_not_local() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		//Arrange
 		let bounded_call: BoundedCall = RuntimeCall::MockPallet(MockPalletCall::dummy_call {
 			allowed_origin: vec![BOB],
@@ -70,7 +70,7 @@ fn validate_unsigned_should_fail_when_source_is_not_local() {
 
 #[test]
 fn validate_unsigned_should_fail_when_queue_is_empty() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		assert_noop!(
 			LazyExecutor::validate_unsigned(TransactionSource::Local, &LazyExecutorCall::dispatch_top {}),
 			TransactionValidityError::Invalid(InvalidTransaction::Call)

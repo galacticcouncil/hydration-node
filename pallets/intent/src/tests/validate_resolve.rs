@@ -66,7 +66,7 @@ fn non_partial_swap_intent_should_work_when_resolved_better() {
 
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_out = r_swap.amount_out + 2 * ONE_HDX;
+		r_swap.amount_out += 2 * ONE_HDX;
 
 		assert_ok!(IntentPallet::validate_resolve(&intent, &resolve.data));
 
@@ -87,7 +87,7 @@ fn non_partial_swap_intent_should_work_when_resolved_better() {
 
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_in = r_swap.amount_in - 1 * ONE_DOT;
+		r_swap.amount_in -= ONE_DOT;
 
 		assert_ok!(IntentPallet::validate_resolve(&intent, &resolve.data));
 	});
@@ -156,7 +156,7 @@ fn partial_swap_intent_should_work_when_resolved_better() {
 
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_out = r_swap.amount_out + 2 * ONE_HDX;
+		r_swap.amount_out += 2 * ONE_HDX;
 
 		assert_ok!(IntentPallet::validate_resolve(&intent, &resolve.data));
 
@@ -177,7 +177,7 @@ fn partial_swap_intent_should_work_when_resolved_better() {
 
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_in = r_swap.amount_in - ONE_HDX;
+		r_swap.amount_in -= ONE_HDX;
 
 		assert_ok!(IntentPallet::validate_resolve(&intent, &resolve.data));
 	});
@@ -203,8 +203,8 @@ fn partial_should_work_when_resolved_partially() {
 
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_in = r_swap.amount_in / 2;
-		r_swap.amount_out = r_swap.amount_out / 2;
+		r_swap.amount_in /= 2;
+		r_swap.amount_out /= 2;
 
 		assert_ok!(IntentPallet::validate_resolve(&intent, &resolve.data));
 
@@ -225,8 +225,8 @@ fn partial_should_work_when_resolved_partially() {
 
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_in = r_swap.amount_in / 2;
-		r_swap.amount_out = r_swap.amount_out / 2;
+		r_swap.amount_in /= 2;
+		r_swap.amount_out /= 2;
 
 		assert_ok!(IntentPallet::validate_resolve(&intent, &resolve.data));
 	});
@@ -363,7 +363,7 @@ fn non_partial_swap_exact_in_intent_should_not_work_when_amount_out_is_less_than
 
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_out = r_swap.amount_out - 1;
+		r_swap.amount_out -= 1;
 
 		assert_noop!(
 			IntentPallet::validate_resolve(&intent, &resolve.data),
@@ -392,7 +392,7 @@ fn non_partial_swap_exact_in_intent_should_not_work_when_amount_in_is_not_exact(
 		//smaller than limit
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_in = r_swap.amount_in - 1;
+		r_swap.amount_in -= 1;
 
 		assert_noop!(
 			IntentPallet::validate_resolve(&intent, &resolve.data),
@@ -402,7 +402,7 @@ fn non_partial_swap_exact_in_intent_should_not_work_when_amount_in_is_not_exact(
 		//bigger than limit
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_in = r_swap.amount_in + 1;
+		r_swap.amount_in += 1;
 
 		assert_noop!(
 			IntentPallet::validate_resolve(&intent, &resolve.data),
@@ -430,7 +430,7 @@ fn non_partial_swap_exact_out_intent_should_not_work_when_amount_in_is_bigger_th
 
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_in = r_swap.amount_in + 1;
+		r_swap.amount_in += 1;
 
 		assert_noop!(
 			IntentPallet::validate_resolve(&intent, &resolve.data),
@@ -459,7 +459,7 @@ fn non_partial_swap_exact_out_intent_should_not_work_when_amount_out_not_exact()
 		//smaller than limit
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_out = r_swap.amount_out - 1;
+		r_swap.amount_out -= 1;
 
 		assert_noop!(
 			IntentPallet::validate_resolve(&intent, &resolve.data),
@@ -469,7 +469,7 @@ fn non_partial_swap_exact_out_intent_should_not_work_when_amount_out_not_exact()
 		//bigger than limit
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_out = r_swap.amount_out + 1;
+		r_swap.amount_out += 1;
 
 		assert_noop!(
 			IntentPallet::validate_resolve(&intent, &resolve.data),
@@ -497,7 +497,7 @@ fn partial_swap_exact_in_should_not_work_when_resolved_fully_and_amount_out_is_l
 
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_out = r_swap.amount_out - 1;
+		r_swap.amount_out -= 1;
 
 		assert_noop!(
 			IntentPallet::validate_resolve(&intent, &resolve.data),
@@ -525,7 +525,7 @@ fn partial_swap_exact_in_should_not_work_when_amount_in_is_bigger_limit() {
 
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_in = r_swap.amount_in + 1;
+		r_swap.amount_in += 1;
 
 		assert_noop!(
 			IntentPallet::validate_resolve(&intent, &resolve.data),
@@ -554,7 +554,7 @@ fn partial_swap_exact_in_should_not_work_when_resolved_partially_and_amount_out_
 		//NOTE: resolve 50% of intent so amount_out >= pro-rata limit(50%)
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_in = r_swap.amount_in / 2;
+		r_swap.amount_in /= 2;
 		r_swap.amount_out = r_swap.amount_out / 2 - 1;
 
 		assert_noop!(
@@ -583,7 +583,7 @@ fn partial_swap_exact_out_should_not_work_when_resolved_fully_and_amount_in_is_b
 
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_in = r_swap.amount_in + 1;
+		r_swap.amount_in += 1;
 
 		assert_noop!(
 			IntentPallet::validate_resolve(&intent, &resolve.data),
@@ -611,7 +611,7 @@ fn partial_swap_exact_out_should_not_work_when_amount_out_is_bigger_limit() {
 
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
-		r_swap.amount_out = r_swap.amount_out + 1;
+		r_swap.amount_out += 1;
 
 		assert_noop!(
 			IntentPallet::validate_resolve(&intent, &resolve.data),
@@ -641,7 +641,7 @@ fn partial_swap_exact_out_should_not_work_when_resolved_partially_and_amount_in_
 		let mut resolve = intent.clone();
 		let IntentData::Swap(ref mut r_swap) = resolve.data;
 		r_swap.amount_in = r_swap.amount_in / 2 + 1;
-		r_swap.amount_out = r_swap.amount_out / 2;
+		r_swap.amount_out /= 2;
 
 		assert_noop!(
 			IntentPallet::validate_resolve(&intent, &resolve.data),

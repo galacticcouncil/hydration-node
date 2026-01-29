@@ -629,7 +629,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 
 			//Act 1
 			let mut s1 = s.clone();
-			s1.score = s1.score - 1;
+			s1.score -= 1;
 			let call = Call::submit_solution {
 				solution: s.clone(),
 				valid_for_block: current_block,
@@ -642,7 +642,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 
 			//Act 2
 			let mut s2 = s.clone();
-			s2.score = s2.score + 1;
+			s2.score += 1;
 			let call = Call::submit_solution {
 				solution: s.clone(),
 				valid_for_block: current_block,

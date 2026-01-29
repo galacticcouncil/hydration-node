@@ -59,3 +59,5 @@ zombienet
 /pallets/dispenser/contracts/out
 
 rustc*.txt
+.claude/
+CLAUDE.md

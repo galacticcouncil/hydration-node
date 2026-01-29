@@ -4,8 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ice-support = { workspace = true }
+hydradx-traits = { workspace = true }
+hydra-dx-math = { workspace = true }
+frame-support = { workspace = true }
+sp-std = { workspace = true }
 
 [features]
 default = ['std']
 std = [
+    "ice-support/std",
+    "hydradx-traits/std",
+    "hydra-dx-math/std",
+    "frame-support/std",
+    "sp-std/std",
 ]

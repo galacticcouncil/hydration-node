@@ -1,9 +1,3 @@
-use codec::{Decode, Encode};
-
-pub trait AMMState {
-	/// Opaque state type - solver knows how to interpret it
-	type State: Encode + Decode;
-
-	/// Get current state of all relevant AMM pools
-	fn get_state() -> Self::State;
-}
+// This file can be removed or kept for backwards compatibility.
+// The AMMState trait has been replaced by hydradx_traits::amm::SimulatorSet
+// which is configured directly in the pallet Config.

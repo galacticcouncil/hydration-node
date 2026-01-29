@@ -103,9 +103,9 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_better_than_limits()
 
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
 			if r_swap.swap_type == SwapType::ExactIn {
-				r_swap.amount_out = r_swap.amount_out + 1_000_000;
+				r_swap.amount_out += 1_000_000;
 			} else {
-				r_swap.amount_in = r_swap.amount_in - 1_000_000;
+				r_swap.amount_in -= 1_000_000;
 			}
 
 			assert_ok!(IntentPallet::intent_resolved(
@@ -165,7 +165,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			//amout out is < than ExactOut
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_out = r_swap.amount_out - 1;
+			r_swap.amount_out -= 1;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -175,7 +175,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			//amout out is > than ExactOut
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_out = r_swap.amount_out + 1;
+			r_swap.amount_out += 1;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -185,7 +185,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			//amout in is > than amount in limit
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in + 1;
+			r_swap.amount_in += 1;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -199,7 +199,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			//amout in is < than ExactIn
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in - 1;
+			r_swap.amount_in -= 1;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -209,7 +209,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			//amout in is > than ExactIn
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in + 1;
+			r_swap.amount_in += 1;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -219,7 +219,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			//amout out is < than amount out limit
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_out = r_swap.amount_out - 1;
+			r_swap.amount_out -= 1;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -273,8 +273,8 @@ fn should_not_work_when_non_partial_intent_resolved_partially() {
 			let who = BOB;
 
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in / 2;
-			r_swap.amount_out = r_swap.amount_out / 2;
+			r_swap.amount_in /= 2;
+			r_swap.amount_out /= 2;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -385,9 +385,9 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
 			if r_swap.swap_type == SwapType::ExactIn {
-				r_swap.amount_out = r_swap.amount_out + 1_000_000;
+				r_swap.amount_out += 1_000_000;
 			} else {
-				r_swap.amount_in = r_swap.amount_in - 1_000_000;
+				r_swap.amount_in -= 1_000_000;
 			}
 
 			assert_ok!(IntentPallet::intent_resolved(
@@ -446,8 +446,8 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 			let who = IntentPallet::intent_owner(id).expect("intent owner to exists");
 
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in / 2;
-			r_swap.amount_out = r_swap.amount_out / 2;
+			r_swap.amount_in /= 2;
+			r_swap.amount_out /= 2;
 
 			assert_ok!(IntentPallet::intent_resolved(
 				&who,
@@ -520,7 +520,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			// amount Out > intent.ExactOut
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_out = r_swap.amount_out + 1;
+			r_swap.amount_out += 1;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -530,7 +530,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			// amount in > intent.amount_in
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in + 1;
+			r_swap.amount_in += 1;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -544,7 +544,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			//amount in > intent.exactIn
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in + 1;
+			r_swap.amount_in += 1;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -554,7 +554,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			//amount in > intent.amount_out
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_out = r_swap.amount_out - 1;
+			r_swap.amount_out -= 1;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -610,7 +610,7 @@ fn partial_intent_should_not_work_when_resolved_partially_and_bellow_limit() {
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
 			r_swap.amount_in = r_swap.amount_in / 2 + 1; //above limit
-			r_swap.amount_out = r_swap.amount_out / 2;
+			r_swap.amount_out /= 2;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -623,7 +623,7 @@ fn partial_intent_should_not_work_when_resolved_partially_and_bellow_limit() {
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in / 2;
+			r_swap.amount_in /= 2;
 			r_swap.amount_out = r_swap.amount_out / 2 - 1; //bellow limit
 
 			assert_noop!(
@@ -678,8 +678,8 @@ fn should_not_work_when_intent_doesnt_exist() {
 			let who = IntentPallet::intent_owner(id).expect("intent owner to exists");
 
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in / 2;
-			r_swap.amount_out = r_swap.amount_out / 2;
+			r_swap.amount_in /= 2;
+			r_swap.amount_out /= 2;
 
 			let non_existing_id = 1;
 			assert_noop!(
@@ -740,8 +740,8 @@ fn should_not_work_when_resolved_as_not_an_owner() {
 			let non_owner = CHARLIE;
 
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in / 2;
-			r_swap.amount_out = r_swap.amount_out / 2;
+			r_swap.amount_in /= 2;
+			r_swap.amount_out /= 2;
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&non_owner, &ResolvedIntent { id, data: resolve.data }),
@@ -985,7 +985,7 @@ fn non_partial_exact_out_should_unreserve_surplus_when_resolved_better_than_limi
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in - 1_000;
+			r_swap.amount_in -= 1_000;
 
 			//NOTE: It's ICE pallet responsibility is to unlock used fund during solution execution. This is
 			//to simulate it.
@@ -1062,7 +1062,7 @@ fn partial_exact_out_should_unreserve_surplus_when_fully_resolved_better_than_li
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in - 1_000;
+			r_swap.amount_in -= 1_000;
 
 			//NOTE: It's ICE pallet responsibility is to unlock used fund during solution execution. This is
 			//to simulate it.
@@ -1139,8 +1139,8 @@ fn partial_exact_out_should_not_unreserve_funds_when_resolved_patially() {
 			let who = IntentPallet::intent_owner(id).expect("intent owner to exists");
 
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in / 2;
-			r_swap.amount_out = r_swap.amount_out / 2;
+			r_swap.amount_in /= 2;
+			r_swap.amount_out /= 2;
 
 			//NOTE: It's ICE pallet responsibility is to unlock used fund during solution execution. This is
 			//to simulate it.
@@ -1236,8 +1236,8 @@ fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
-			r_swap.amount_in = r_swap.amount_in / 2;
-			r_swap.amount_out = r_swap.amount_out / 2;
+			r_swap.amount_in /= 2;
+			r_swap.amount_out /= 2;
 
 			assert_ok!(IntentPallet::intent_resolved(
 				&who,
