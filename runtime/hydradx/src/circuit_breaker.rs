@@ -24,7 +24,7 @@ impl<ReferenceCurrencyId> WithdrawCircuitBreaker<ReferenceCurrencyId>
 where
 	ReferenceCurrencyId: Get<AssetId>,
 {
-	pub fn convert_to_hdx(asset_id: AssetId, amount: Balance) -> Option<Balance> {
+	fn convert_to_hdx(asset_id: AssetId, amount: Balance) -> Option<Balance> {
 		if asset_id == ReferenceCurrencyId::get() {
 			return Some(amount);
 		}
@@ -53,6 +53,10 @@ where
 	}
 
 	pub fn on_egress(asset_id: AssetId, amount: Balance) -> DispatchResult {
+		if CircuitBreaker::ignore_withdraw_fuse() {
+			return Ok(());
+		}
+
 		let amount_ref_currency = Self::convert_to_hdx(asset_id, amount)
 			.ok_or(pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset)?;
 		pallet_circuit_breaker::Pallet::<Runtime>::note_egress(amount_ref_currency)

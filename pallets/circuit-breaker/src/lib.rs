@@ -715,7 +715,7 @@ impl<T: Config> Pallet<T> {
 	/// Fails if lockdown is active or if the new value would exceed the global limit.
 	pub fn note_egress(amount: T::Balance) -> DispatchResult {
 		let window = Self::global_withdraw_window();
-		if window < 1 || Self::ignore_withdraw_fuse() {
+		if window < 1 {
 			return Ok(());
 		}
 
