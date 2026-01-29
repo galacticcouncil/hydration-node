@@ -159,6 +159,7 @@ pub mod pallet {
 			let _ = <AllowedTradeVolumeLimitPerAsset<T>>::clear(u32::MAX, None);
 			let _ = <AllowedAddLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
 			let _ = <AllowedRemoveLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
+			IgnoreWithdrawFuse::<T>::kill();
 		}
 
 		fn integrity_test() {
@@ -343,6 +344,11 @@ pub mod pallet {
 	/// List of accounts that are considered egress sinks.
 	pub type EgressAccounts<T: Config> = StorageValue<_, BoundedVec<T::AccountId, T::MaxEgressAccounts>, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn ignore_withdraw_fuse)]
+	/// If some, global lockdown is active until this timestamp.
+	pub type IgnoreWithdrawFuse<T: Config> = StorageValue<_, bool, ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -417,6 +423,8 @@ pub mod pallet {
 		GlobalLimitExceeded,
 		/// Maximum number of egress accounts reached.
 		MaxEgressAccountsReached,
+		/// Asset to withdraw cannot be converted to reference currency.
+		FailedToConvertAsset,
 	}
 
 	#[pallet::call]
@@ -707,7 +715,7 @@ impl<T: Config> Pallet<T> {
 	/// Fails if lockdown is active or if the new value would exceed the global limit.
 	pub fn note_egress(amount: T::Balance) -> DispatchResult {
 		let window = Self::global_withdraw_window();
-		if window < 1 {
+		if window < 1 || Self::ignore_withdraw_fuse() {
 			return Ok(());
 		}
 

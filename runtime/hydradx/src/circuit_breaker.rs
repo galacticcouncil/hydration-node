@@ -1,20 +1,17 @@
 use super::*;
-use crate::assets::{DotAssetId, XykPaymentAssetSupport};
+use crate::assets::XykPaymentAssetSupport;
 use crate::types::ShortOraclePrice;
-use frame_support::traits::Contains;
 use hydradx_adapters::price::ConvertBalance;
+use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use pallet_asset_registry::AssetType;
-use polkadot_xcm::{
-	v5::{
-		Asset, AssetId as XcmAssetId, Fungibility, Instruction,
-		Instruction::{DepositReserveAsset, InitiateReserveWithdraw, TransferReserveAsset},
-		Location, Xcm,
-	},
-	VersionedXcm,
+use polkadot_xcm::v5::{
+	Instruction::{DepositReserveAsset, InitiateReserveWithdraw, TransferReserveAsset},
+	Xcm,
 };
 use primitives::Balance;
 use sp_runtime::traits::Convert;
-use sp_runtime::{ArithmeticError, DispatchResult};
+use sp_runtime::DispatchResult;
+use sp_std::marker::PhantomData;
 
 pub enum OperationKind {
 	Burn,
@@ -22,18 +19,18 @@ pub enum OperationKind {
 	Transfer,
 }
 
-// TODO: move to the pallet
-pub struct WithdrawCircuitBreaker;
-impl WithdrawCircuitBreaker {
+pub struct WithdrawCircuitBreaker<ReferenceCurrencyId>(PhantomData<ReferenceCurrencyId>);
+impl<ReferenceCurrencyId> WithdrawCircuitBreaker<ReferenceCurrencyId>
+where
+	ReferenceCurrencyId: Get<AssetId>,
+{
 	pub fn convert_to_hdx(asset_id: AssetId, amount: Balance) -> Option<Balance> {
-		if asset_id == CORE_ASSET_ID {
+		if asset_id == ReferenceCurrencyId::get() {
 			return Some(amount);
 		}
-		let (converted, _) = ConvertBalance::<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>::convert((
-			asset_id,
-			CORE_ASSET_ID,
-			amount,
-		))?;
+		let (converted, _) = ConvertBalance::<ShortOraclePrice, XykPaymentAssetSupport, ReferenceCurrencyId>::convert(
+			(asset_id, CORE_ASSET_ID, amount),
+		)?;
 		Some(converted)
 	}
 
@@ -56,7 +53,8 @@ impl WithdrawCircuitBreaker {
 	}
 
 	pub fn on_egress(asset_id: AssetId, amount: Balance) -> DispatchResult {
-		let amount_ref_currency = Self::convert_to_hdx(asset_id, amount).ok_or(ArithmeticError::Overflow)?;
+		let amount_ref_currency = Self::convert_to_hdx(asset_id, amount)
+			.ok_or(pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset)?;
 		pallet_circuit_breaker::Pallet::<Runtime>::note_egress(amount_ref_currency)
 	}
 
@@ -66,7 +64,11 @@ impl WithdrawCircuitBreaker {
 	}
 }
 
-impl pallet_currencies::OnWithdraw<AccountId, AssetId, Balance> for WithdrawCircuitBreaker {
+impl<ReferenceCurrencyId> pallet_currencies::OnWithdraw<AccountId, AssetId, Balance>
+	for WithdrawCircuitBreaker<ReferenceCurrencyId>
+where
+	ReferenceCurrencyId: Get<AssetId>,
+{
 	fn on_withdraw(asset_id: AssetId, _who: &AccountId, amount: Balance) -> DispatchResult {
 		if Self::should_account_operation(asset_id, OperationKind::Withdraw, None) {
 			Self::on_egress(asset_id, amount)?;
@@ -75,7 +77,11 @@ impl pallet_currencies::OnWithdraw<AccountId, AssetId, Balance> for WithdrawCirc
 	}
 }
 
-impl orml_traits::currency::OnTransfer<AccountId, AssetId, Balance> for WithdrawCircuitBreaker {
+impl<ReferenceCurrencyId> orml_traits::currency::OnTransfer<AccountId, AssetId, Balance>
+	for WithdrawCircuitBreaker<ReferenceCurrencyId>
+where
+	ReferenceCurrencyId: Get<AssetId>,
+{
 	fn on_transfer(asset_id: AssetId, _from: &AccountId, to: &AccountId, amount: Balance) -> DispatchResult {
 		if Self::should_account_operation(asset_id, OperationKind::Transfer, Some(to)) {
 			Self::on_egress(asset_id, amount)?;
@@ -93,5 +99,12 @@ impl XcmEgressFilter {
 				DepositReserveAsset { .. } | InitiateReserveWithdraw { .. } | TransferReserveAsset { .. }
 			)
 		})
+	}
+}
+
+pub struct IgnoreWithdrawFuse<T>(PhantomData<T>);
+impl<T: pallet_circuit_breaker::Config> WithdrawFuseControl for IgnoreWithdrawFuse<T> {
+	fn set_withdraw_fuse_active(value: bool) {
+		pallet_circuit_breaker::IgnoreWithdrawFuse::<T>::set(!value);
 	}
 }
