@@ -1,7 +1,44 @@
 const fs = require('fs');
 const {TypeRegistry} = require('@polkadot/types');
 const {hexToU8a, u8aToHex} = require('@polkadot/util');
-const { xxhashAsHex } = require('@polkadot/util-crypto');
+const {xxhashAsHex} = require('@polkadot/util-crypto');
+const {parser} = require('stream-json');
+const Assembler = require('stream-json/Assembler');
+const {JsonStreamStringify} = require('json-stream-stringify');
+
+// Enable BigInt JSON serialization (needed for @polkadot/types compatibility)
+BigInt.prototype.toJSON = function () {
+    return Number(this);
+};
+
+// Helper function to parse large JSON files using streaming
+function parseJsonStream(filePath) {
+    return new Promise((resolve, reject) => {
+        const readStream = fs.createReadStream(filePath);
+        const jsonParser = parser();
+        const assembler = Assembler.connectTo(jsonParser);
+
+        assembler.on('done', asm => resolve(asm.current));
+        jsonParser.on('error', reject);
+        readStream.on('error', reject);
+
+        readStream.pipe(jsonParser);
+    });
+}
+
+// Helper function to write large JSON files using streaming
+function writeJsonStream(filePath, data) {
+    return new Promise((resolve, reject) => {
+        const writeStream = fs.createWriteStream(filePath);
+        const jsonStream = new JsonStreamStringify(data);
+
+        jsonStream.on('error', reject);
+        writeStream.on('error', reject);
+        writeStream.on('finish', resolve);
+
+        jsonStream.pipe(writeStream);
+    });
+}
 
 // Define network names
 const NEW_NAME = process.env.CHAIN_NAME || "Hydration Local Testnet";
@@ -22,7 +59,7 @@ async function updateChainSpec(inputFile, outputFile) {
     console.log('Starting the chain spec update script...');
     let chainSpec;
     try {
-        chainSpec = JSON.parse(fs.readFileSync(inputFile, 'utf8'));
+        chainSpec = await parseJsonStream(inputFile);
     } catch (err) {
         console.error('Error reading the chain spec file:', err);
         process.exit(1);
@@ -105,7 +142,11 @@ async function updateChainSpec(inputFile, outputFile) {
     }
 
     const deployer = process.env.NO_DEPLOYER ? {} : {
-        "0x2c2b3fbb4fc221c42de8259db454678fe74405d2678f6b81824443771f6fa86af065818ad972112ab4e06ea85b354e36222222ff7be76052e023ec1a306fcca8f9659d80": "0x", // Contract deployer 0x222222ff7Be76052e023Ec1a306fCca8F9659D80
+        // EvmAccounts.ContractDeployer - allows deploying contracts
+        "0x2c2b3fbb4fc221c42de8259db454678f7c36c2657df4391d8b829a0c1347bd1ef065818ad972112ab4e06ea85b354e36222222ff7be76052e023ec1a306fcca8f9659d80": "0x", // ContractDeployer 0x222222ff7Be76052e023Ec1a306fCca8F9659D80
+        // EvmAccounts.ApprovedContract - allows managing balances/tokens
+        "0x2c2b3fbb4fc221c42de8259db454678fe74405d2678f6b81824443771f6fa86af065818ad972112ab4e06ea85b354e36222222ff7be76052e023ec1a306fcca8f9659d80": "0x", // ApprovedContract 0x222222ff7Be76052e023Ec1a306fCca8F9659D80
+        // System account balance for 0x222222
         "0x99971b5749ac43e0235e41b0d37869188ee7418a6531173d60d1f6a82d8f4d5173d3a4140c3587d7bc56f1a1c01a1c5e45544800222222ff7be76052e023ec1a306fcca8f9659d8000000000000000001f0e76f06ebd150314000000": "0x000064a7b3b6e00d00000000000000000000000000000000000000000000000000000000000000000000000000000000", // 1 ETH for 0x222222
     }
 
@@ -222,9 +263,9 @@ async function updateChainSpec(inputFile, outputFile) {
     chainSpec.relay_chain = NEW_RELAY_CHAIN;
     chainSpec.para_id = 2034;
 
-    // Save the updated chain spec
+    // Save the updated chain spec using streaming to handle large files
     try {
-        fs.writeFileSync(outputFile, JSON.stringify(chainSpec));
+        await writeJsonStream(outputFile, chainSpec);
         console.log(`Chain spec updated successfully and saved to ${outputFile}`);
     } catch (err) {
         console.error('Error writing the updated chain spec file:', err);
