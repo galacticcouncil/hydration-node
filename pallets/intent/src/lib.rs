@@ -66,7 +66,7 @@ pub const NAMED_RESERVE_ID: [u8; 8] = *b"ICE_int#";
 
 pub const UNSIGNED_TXS_PRIORITY: u64 = 1000;
 const OCW_LOG_TARGET: &str = "intent::offchain_worker";
-pub(crate) const OCW_TAG_PREFIX: &str = "intnt-cleanup";
+pub(crate) const OCW_TAG_PREFIX: &str = "intent-cleanup";
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -92,6 +92,7 @@ pub mod pallet {
 			Balance = Balance,
 		>;
 
+		/// Intents' lazy callback execution handling
 		type LazyExecutorHandler: Mutate<Self::AccountId, Error = DispatchError, BoundedCall = CallData>;
 
 		/// Asset Id of hub asset
@@ -109,7 +110,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// New intent was submitted
+		/// New intent was submitted.
 		IntentSubmitted {
 			id: IntentId,
 			owner: T::AccountId,
@@ -122,21 +123,20 @@ pub mod pallet {
 			amount_out: Balance,
 		},
 
-		/// Portion of intent was resolved as parf of ICE solution execution.
+		/// Portion of intent was resolved as part of ICE solution execution.
 		IntentResovedPartially {
 			id: IntentId,
 			amount_in: Balance,
 			amount_out: Balance,
 		},
 
-		IntentCanceled {
-			id: IntentId,
-		},
+		/// Intent was canceled.
+		IntentCanceled { id: IntentId },
 
-		IntentExpired {
-			id: IntentId,
-		},
+		/// Intent expired.
+		IntentExpired { id: IntentId },
 
+		/// Failed to add intent's callback to queue for execution.
 		FailedToQueueCallback {
 			id: IntentId,
 			callback: CallbackType,
@@ -156,11 +156,11 @@ pub mod pallet {
 		IntentExpired,
 		/// Referenced intent is still active.
 		IntentActive,
-		/// Intent's resolution doesn't match intent's params.
+		/// Intent's resolution doesn't match intent's parameters.
 		ResolveMismatch,
 		///Resolution violates intent's limits.
 		LimitViolation,
-		/// Caluclation overflow.
+		/// Calculation overflow.
 		ArithmeticOverflow,
 		/// Referenced intent's owner doesn't exist.
 		IntentOwnerNotFound,
@@ -185,6 +185,16 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Submit intent by user.
+		///
+		/// This extrinsics reserves fund for intents' execution.
+		///
+		/// Parameters:
+		///	- `intent`: intent's data
+		///
+		/// Emits:
+		/// - `IntentSubmitted` when successful
+		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
 		pub fn submit_intent(origin: OriginFor<T>, intent: Intent) -> DispatchResult {
@@ -193,6 +203,16 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Extrinsic unlocks reserved funds and cancels intent.
+		///
+		/// Only intent's owner can cancel intent.
+		///
+		/// Parameters:
+		/// - `id`: id of intent to be canceled.
+		///
+		/// Emits:
+		/// - `IntentCanceled` when successful
+		///
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_intent())]
 		pub fn cancel_intent(origin: OriginFor<T>, id: IntentId) -> DispatchResult {
@@ -219,6 +239,18 @@ pub mod pallet {
 			})
 		}
 
+		/// Extrinsic removes expired intent, queue intent's on failure callback and unlocks funds.
+		///
+		/// Failure to queue callback for future execution doesn't fail clean up function.
+		/// This is called automatically from OCW to remove expired intents but it can be called also
+		/// called by any users.
+		///
+		/// Parameters:
+		/// - `id`: id of intent to be cleaned up from storage.
+		///
+		/// Emits:
+		/// - `FailedToQueueCallback` when callback's queuing fails
+		/// - `IntentExpired` when successful
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::cleanup_intent())]
 		pub fn cleanup_intent(origin: OriginFor<T>, id: IntentId) -> DispatchResultWithPostInfo {
@@ -261,7 +293,8 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		//NOTE: this is tmp. solution for testing
+		//NOTE: this is tmp solution for testing.
+		//TODO: create offchain bot that will do clean up instead of OCW.
 		fn offchain_worker(_block_number: BlockNumberFor<T>) {
 			let expired = Self::get_expired_intents();
 
@@ -273,7 +306,7 @@ pub mod pallet {
 				let call = Call::cleanup_intent { id: *intent_id };
 				let tx = T::create_bare(call.into());
 				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
-					log::error!(target: OCW_LOG_TARGET, "fialed to sumbmit cleanup_intent call, err: {:?}", e);
+					log::error!(target: OCW_LOG_TARGET, "to sumbmit cleanup_intent call, err: {:?}", e);
 				};
 			}
 		}
@@ -286,7 +319,7 @@ pub mod pallet {
 		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			if let Call::cleanup_intent { id } = call {
 				match source {
-					TransactionSource::Local | TransactionSource::InBlock => { /*OCW or included in block are allowed */
+					TransactionSource::Local | TransactionSource::InBlock => { /* OCW or included in block are allowed */
 					}
 					_ => {
 						return InvalidTransaction::Call.into();
@@ -312,6 +345,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Function validates and reserves funds for intent's execution and adds intent to storage
 	#[require_transactional]
 	pub fn add_intent(owner: T::AccountId, intent: Intent) -> Result<IntentId, DispatchError> {
 		let now = T::TimestampProvider::now();
@@ -340,7 +374,7 @@ impl<T: Config> Pallet<T> {
 		Ok(id)
 	}
 
-	/// Function returns expired intents.
+	/// Function returns expired intents
 	pub fn get_expired_intents() -> Vec<IntentId> {
 		let mut intents: Vec<(IntentId, Intent)> = Intents::<T>::iter().collect();
 		intents.sort_by_key(|(_, intent)| intent.deadline);
@@ -351,6 +385,7 @@ impl<T: Config> Pallet<T> {
 		intents.iter().map(|x| x.0).collect::<Vec<IntentId>>()
 	}
 
+	/// Function returns valid intents
 	pub fn get_valid_intents() -> Vec<(IntentId, Intent)> {
 		let mut intents: Vec<(IntentId, Intent)> = Intents::<T>::iter().collect();
 		intents.sort_by_key(|(_, intent)| intent.deadline);
@@ -361,7 +396,7 @@ impl<T: Config> Pallet<T> {
 		intents
 	}
 
-	/// Function validates if intent was resolved correctly.
+	/// Function validates if intent was resolved correctly
 	pub fn validate_resolve(intent: &Intent, resolve: &IntentData) -> Result<(), DispatchError> {
 		ensure!(intent.deadline > T::TimestampProvider::now(), Error::<T>::IntentExpired);
 
@@ -426,6 +461,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Function resolves intent
 	pub fn intent_resolved(who: &T::AccountId, resolve: &ResolvedIntent) -> DispatchResult {
 		let ResolvedIntent { id, data: resolve } = resolve;
 		Intents::<T>::try_mutate_exists(id, |maybe_intent| {

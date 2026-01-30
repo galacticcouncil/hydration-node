@@ -173,13 +173,13 @@ pub mod pallet {
 		/// Solution can be executed only as a whole solution.
 		///
 		/// Parameters:
-		/// - `origin`: `None`
 		/// - `solution`: solution to execute
 		/// - `valid_for_block`: block number `solution` is valid for
 		///
 		/// Emits:
 		/// - `IntentSettled` when intent was resolved successfully
 		/// - `SolutionExecuted`when `solution` was executed successfully
+		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::submit_solution())]
 		pub fn submit_solution(

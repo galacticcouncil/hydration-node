@@ -24,7 +24,7 @@ pub const MAX_NUMBER_OF_CLEARING_PRICES: u32 = MAX_NUMBER_OF_SOLUTION_TRADES * 2
 
 pub type ResolvedIntents = BoundedVec<ResolvedIntent, ConstU32<MAX_NUMBER_OF_RESOLVED_INTENTS>>;
 pub type SolutionTrades = BoundedVec<PoolTrade, ConstU32<MAX_NUMBER_OF_SOLUTION_TRADES>>;
-pub type ClearingPrices = BTreeMap<AssetId, Ratio>;
+pub type ClearingPrices = BTreeMap<AssetId, Price>;
 
 pub type ResolvedIntent = Intent;
 

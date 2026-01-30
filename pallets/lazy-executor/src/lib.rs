@@ -51,7 +51,7 @@ pub struct CallData<AccountId> {
 
 const NO_TIP: u32 = 0;
 //Encoded call's length offset for additional extrinsic's data in bytes.
-//4(lenght) + 1(version&type) + 32(signer) + 65(signauture) + 16(tip) + 40(signedExtras) + 16(tip)
+//4(length) + 1(version&type) + 32(signer) + 65(signature) + 16(tip) + 40(signedExtras) + 16(tip)
 //NOTE: this is approximate number
 const CALL_LEN_OFFSET: u32 = 158;
 const LOG_TARGET: &str = "runtime::pallet-lazy-executor";
@@ -130,6 +130,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// Call was queued for execution.
 		Queued {
 			id: CallId,
 			src: Source,
@@ -137,36 +138,31 @@ pub mod pallet {
 			fees: BalanceOf<T>,
 		},
 
-		Executed {
-			id: CallId,
-			result: DispatchResult,
-		},
+		/// Call was executed.
+		Executed { id: CallId, result: DispatchResult },
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Provided data can't be decoded
+		/// Failed to decode provided call data.
 		Corrupted,
 
-		/// `id` reached max. value
+		/// `id` reached max. value.
 		IdOverflow,
 
 		/// Arithmetic or type conversion overflow
 		Overflow,
 
-		/// User failed to pay fees for future execution
+		/// User failed to pay fees for future execution.
 		FailedToPayFees,
 
-		/// Failed to deposit collected fees
+		/// Failed to deposit collected fees.
 		FailedToDepositFees,
 
-		/// Calls' queue is empty
+		/// Queue is empty.
 		EmptyQueue,
 
-		/// Provided call is not not call at the top of the queue
-		CallMismatch,
-
-		/// Call's weight is bigger than max allowed weight
+		/// Call's weight is bigger than max allowed weight.
 		Overweight,
 	}
 
@@ -206,8 +202,6 @@ pub mod pallet {
 				match source {
 					TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ }
 					_ => {
-						log::warn!(target: LOG_TARGET, "dispatch_top transaction is not local/in-block.");
-
 						return InvalidTransaction::Call.into();
 					}
 				}
@@ -231,6 +225,12 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Extrinsics dispatches top call from the queue.
+		///
+		/// This is called from OWC.
+		///
+		/// Emits:
+		/// - `Executed` when successful
 		#[pallet::call_index(1)]
 		#[pallet::weight({
 			let info = if let Some(call_data) = CallQueue::<T>::get(DispatchNextId::<T>::get()) {
@@ -253,8 +253,6 @@ pub mod pallet {
 				}
 			};
 
-
-			//TODO: add weight for storage read
 			Weight::from_parts(1000, 1000).saturating_add(info.call_weight).saturating_add(T::DbWeight::get().reads(1_u64))
 		})]
 		pub fn dispatch_top(origin: OriginFor<T>) -> DispatchResult {
@@ -285,6 +283,10 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Function adds call to queue for future execution.
+	///
+	/// This function also charges fees for future call execution and fails if `origin` can't pay
+	/// fees.
 	#[transactional]
 	pub fn add_to_queue(src: Source, origin: T::AccountId, bounded_call: BoundedCall) -> Result<(), DispatchError> {
 		let call = <T as Config>::RuntimeCall::decode(&mut &bounded_call[..]).map_err(|_| Error::<T>::Corrupted)?;
