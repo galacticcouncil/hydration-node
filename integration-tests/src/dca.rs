@@ -235,10 +235,11 @@ mod omnipool {
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(HDX, 140421094366889)],
 						outputs: vec![Asset::new(LRNA, 70210545436637)],
-						fees: vec![
-							Fee::new(LRNA, 17552636359, Destination::Burned),
-							Fee::new(LRNA, 17552636359, Destination::Account(Treasury::account_id()))
-						],
+						fees: vec![Fee::new(
+							LRNA,
+							35105272718,
+							Destination::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
@@ -278,12 +279,13 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(HDX, 140421107723192)],
+						inputs: vec![Asset::new(HDX, 140421107721220)],
 						outputs: vec![Asset::new(LRNA, 70210548452699)],
-						fees: vec![
-							Fee::new(LRNA, 17552637113, Destination::Burned),
-							Fee::new(LRNA, 17552637113, Destination::Account(Treasury::account_id()))
-						],
+						fees: vec![Fee::new(
+							LRNA,
+							35105274226,
+							Destination::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
@@ -828,10 +830,11 @@ mod omnipool {
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, amount_to_sell)],
 						outputs: vec![Asset::new(LRNA, 49999999160157)],
-						fees: vec![
-							Fee::new(LRNA, 12499999790, Destination::Burned),
-							Fee::new(LRNA, 12499999790, Destination::Account(Treasury::account_id()))
-						],
+						fees: vec![Fee::new(
+							LRNA,
+							24999999580,
+							Destination::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
@@ -872,11 +875,12 @@ mod omnipool {
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, amount_to_sell)],
-						outputs: vec![Asset::new(LRNA, 49999997360494)],
-						fees: vec![
-							Fee::new(LRNA, 12499999340, Destination::Burned),
-							Fee::new(LRNA, 12499999340, Destination::Account(Treasury::account_id()))
-						],
+						outputs: vec![Asset::new(LRNA, 49999997360994)],
+						fees: vec![Fee::new(
+							LRNA,
+							24999998680,
+							Destination::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
@@ -888,11 +892,11 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
-						inputs: vec![Asset::new(LRNA, 49974997361814)],
-						outputs: vec![Asset::new(DAI, 71214367823821)],
+						inputs: vec![Asset::new(LRNA, 49974997362314)],
+						outputs: vec![Asset::new(DAI, 71214367824533)],
 						fees: vec![Fee::new(
 							DAI,
-							178482124872,
+							178482124874,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -2804,7 +2808,7 @@ mod stableswap {
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
 				assert!(fee > 0, "The treasury did not receive the fee");
 				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
-				assert_balance!(ALICE.into(), HDX, 1070726380525269);
+				assert_balance!(ALICE.into(), HDX, 1070726380522238);
 
 				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -2906,7 +2910,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, 1070726380525269);
+				assert_balance!(ALICE.into(), HDX, 1070726380522238);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -3009,7 +3013,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, 1070726380525269);
+				assert_balance!(ALICE.into(), HDX, 1070726380522238);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
