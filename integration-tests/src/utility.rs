@@ -8,7 +8,7 @@ use crate::assert_balance;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{Currencies, Omnipool, Runtime};
 use hydradx_runtime::{RuntimeCall, Utility};
-use hydradx_runtime::{RuntimeEvent, LBP};
+use hydradx_runtime::{LBP};
 use hydradx_traits::router::PoolType;
 use pallet_broadcast::types::Asset;
 use xcm_emulator::TestExt;
