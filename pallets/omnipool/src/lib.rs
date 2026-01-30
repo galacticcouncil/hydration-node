@@ -945,7 +945,7 @@ pub mod pallet {
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
 			let protocol_fees = Self::process_protocol_fee(
-				origin.clone(),
+				origin,
 				state_changes.fee.protocol_fee,
 				state_changes.fee.burned_protocol_fee,
 			)?;
@@ -1175,7 +1175,7 @@ pub mod pallet {
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
 			let protocol_fees = Self::process_protocol_fee(
-				origin.clone(),
+				origin,
 				state_changes.fee.protocol_fee,
 				state_changes.fee.burned_protocol_fee,
 			)?;
