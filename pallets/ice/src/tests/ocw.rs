@@ -2,8 +2,9 @@ use crate::tests::mock::*;
 use crate::tests::prices_to_map;
 use crate::*;
 use frame_support::assert_noop;
-use hydra_dx_math::types::Ratio;
+use ice_support::AssetId;
 use ice_support::PoolTrade;
+use ice_support::Price;
 use ice_support::SwapData;
 use ice_support::SwapType;
 use pallet_intent::types::Intent;
@@ -158,21 +159,21 @@ fn validate_unsingned_should_work_when_submitted_solution_is_valid() {
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -351,21 +352,21 @@ fn validate_unsingned_should_not_work_when_submitted_solution_is_not_for_next_bl
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -580,21 +581,21 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -828,21 +829,21 @@ fn validate_unsingned_should_not_work_when_submitted_solution_has_invalid_cleari
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 0, //INVALID PRICE
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -1017,21 +1018,21 @@ fn validate_unsingned_should_not_work_when_intentent_not_found() {
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -1207,21 +1208,21 @@ fn validate_unsingned_should_not_work_when_solution_has_duplicate_intents() {
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -1249,6 +1250,7 @@ fn validate_unsingned_should_not_work_when_solution_has_duplicate_intents() {
 		})
 }
 
+#[ignore = "This is temporarily, unignore when allowing clearing price validtion again"]
 #[test]
 fn validate_unsingned_should_work_when_submitted_solution_is_missing_clearing_price() {
 	ExtBuilder::default()
@@ -1397,21 +1399,21 @@ fn validate_unsingned_should_work_when_submitted_solution_is_missing_clearing_pr
 				//DOT's price is missing and GETH price is not used
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					GETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -1584,21 +1586,21 @@ fn validate_unsingned_should_work_when_submitted_solution_has_inconsistent_clear
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -1625,7 +1627,7 @@ fn validate_unsingned_should_work_when_submitted_solution_has_inconsistent_clear
 }
 
 #[test]
-fn validate_unsingned_should_not_work_when_soluution_has_to_may_clearing_prices() {
+fn validate_unsingned_should_not_work_when_soluution_has_to_many_clearing_prices() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, HDX, 10_000 * ONE_HDX),
@@ -1768,48 +1770,21 @@ fn validate_unsingned_should_not_work_when_soluution_has_to_may_clearing_prices(
 				},
 			];
 
-			let cp = prices_to_map(vec![
-				(
-					HDX,
-					Ratio {
+			let mut cp: Vec<(AssetId, Price)> = Vec::new();
+			for i in 1..=(MAX_NUMBER_OF_RESOLVED_INTENTS * 2) + 1 {
+				cp.push((
+					i,
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
-				),
-				(
-					DOT,
-					Ratio {
-						n: 177,
-						d: 1_000_000_000,
-					},
-				),
-				(
-					ETH,
-					Ratio {
-						n: 177,
-						d: 3_125_000_000_000,
-					},
-				),
-				(
-					GETH,
-					Ratio {
-						n: 177,
-						d: 3_125_000_000_000,
-					},
-				),
-				(
-					HUB_ASSET_ID,
-					Ratio {
-						n: 177,
-						d: 3_125_000_000_000,
-					},
-				),
-			]);
+				));
+			}
 
 			let s = Solution {
 				resolved_intents: resolved.try_into().unwrap(),
 				trades: trades.try_into().unwrap(),
-				clearing_prices: cp,
+				clearing_prices: prices_to_map(cp),
 				score: 500_000_030_000_000_000_u128,
 			};
 

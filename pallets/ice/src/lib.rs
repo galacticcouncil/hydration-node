@@ -42,16 +42,17 @@ use frame_support::traits::Get;
 use frame_support::PalletId;
 use frame_system::pallet_prelude::*;
 use frame_system::Origin;
-use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
 use ice_support::AssetId;
 use ice_support::Balance;
 use ice_support::Intent;
 use ice_support::IntentData;
 use ice_support::IntentId;
+use ice_support::Price;
 use ice_support::ResolvedIntent;
 use ice_support::Score;
 use ice_support::Solution;
+use ice_support::MAX_NUMBER_OF_RESOLVED_INTENTS;
 use orml_traits::MultiCurrency;
 use sp_core::U512;
 use sp_runtime::traits::AccountIdConversion;
@@ -100,6 +101,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
+		/// Provider for current block number
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
 		/// Simulator configuration - provides simulators and route provider for the solver
@@ -114,12 +116,12 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Solution has been executed.
 		SolutionExecuted {
-			//NOTE: do we need block number? solution is executed in the block when event was triggered
 			intents_executed: u64,
 			trades_executed: u64,
 			score: Score,
 		},
 
+		/// Intent was settled.
 		IntentSettled {
 			intent_id: IntentId,
 			owner: T::AccountId,
@@ -142,32 +144,42 @@ pub mod pallet {
 		IntentOwnerNotFound,
 		/// Resolution violates user's limit.
 		LimitViolation,
-		///  Total inputs don't equal total outputs for some asset.
-		BalanceImbalance,
-		///  Trade price doesn't match clearing price.
+		/// Trade price doesn't match clearing price.
 		PriceInconsistency,
 		/// Asset involved in trade has no clearing price defined.
 		MissingClearingPrice,
-		/// Same intent referenced multiple times.
+		/// Intent was referenced multiple times.
 		DuplicateIntent,
-		/// Same asset has multiple clearing prices.
+		/// Asset has multiple clearing prices.
 		DuplicateClearingPrice,
-		/// Price ratio has zero denominator or numerator.
+		/// Price ratio has zero numerator or denominator.
 		InvalidPriceRatio,
 		/// Provided list of clearing prices overflows allowed length.
 		ClearingPricesInvalidLength,
-		/// Trade route is invalid.
+		/// Trade's route is invalid.
 		InvalidRoute,
-		/// Claimed score doesn't match calculated score.
+		/// Provided score doesn't match execution score.
 		ScoreMismatch,
 		/// Intent's kind is not supported.
 		UnsupportedIntentKind,
-		/// Caluclation overflow.
+		/// Calculation overflow.
 		ArithmeticOverflow,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Execute `solution` submitted by OCW.
+		///
+		/// Solution can be executed only as a whole solution.
+		///
+		/// Parameters:
+		/// - `origin`: `None`
+		/// - `solution`: solution to execute
+		/// - `valid_for_block`: block number `solution` is valid for
+		///
+		/// Emits:
+		/// - `IntentSettled` when intent was resolved successfully
+		/// - `SolutionExecuted`when `solution` was executed successfully
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::submit_solution())]
 		pub fn submit_solution(
@@ -185,23 +197,13 @@ pub mod pallet {
 			// V1 solver may produce solutions with no trades (perfect CoW matching)
 			ensure!(!solution.resolved_intents.is_empty(), Error::<T>::InvalidSolution);
 
-			for cp in &solution.clearing_prices {
-				ensure!(!cp.1.n.is_zero() && !cp.1.d.is_zero(), Error::<T>::InvalidPriceRatio);
-			}
-
-			// Allow solutions with no trades (CoW matching)
-			if !solution.trades.is_empty() {
-				ensure!(
-					solution.clearing_prices.len() <= solution.trades.len() * 2,
-					Error::<T>::ClearingPricesInvalidLength
-				);
-			}
+			Self::validate_clearing_prices(&solution.clearing_prices)?;
 
 			let mut processed_intents: BTreeSet<IntentId> = BTreeSet::new();
 			let holding_pot = Self::get_pallet_account();
 			let holding_origin: OriginFor<T> = Origin::<T>::Signed(holding_pot.clone()).into();
 
-			// TODO: this is not most preformant solution, verify it works and optimise
+			// TODO: this is not most perform solution, verify it works and optimize
 
 			for ResolvedIntent { id, data: intent } in &solution.resolved_intents {
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
@@ -268,8 +270,8 @@ pub mod pallet {
 				});
 
 				let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
-				let s = intent.data.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
-				exec_score = exec_score.checked_add(s).ok_or(Error::<T>::ArithmeticOverflow)?;
+				let surplus = intent.data.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+				exec_score = exec_score.checked_add(surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
 
 				pallet_intent::Pallet::<T>::intent_resolved(&owner, resolved_intent)?;
 			}
@@ -353,13 +355,29 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Function provides `holding_pot` account id.
 	pub fn get_pallet_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
 	}
 
-	/// Function validtes if intent was resolved based on clearing price.
+	/// Function validates clearing prices(length and values) provided by solver.
+	#[inline(always)]
+	fn validate_clearing_prices(clearing_prices: &BTreeMap<AssetId, Price>) -> Result<(), DispatchError> {
+		ensure!(
+			clearing_prices.len() <= (MAX_NUMBER_OF_RESOLVED_INTENTS * 2) as usize,
+			Error::<T>::ClearingPricesInvalidLength
+		);
+
+		for cp in clearing_prices {
+			ensure!(!cp.1.n.is_zero() && !cp.1.d.is_zero(), Error::<T>::InvalidPriceRatio);
+		}
+
+		Ok(())
+	}
+
+	/// Function validates if intent was resolved based on clearing price.
 	fn validate_price_consitency(
-		_clearing_prices: &BTreeMap<AssetId, Ratio>,
+		_clearing_prices: &BTreeMap<AssetId, Price>,
 		_resolve: &IntentData,
 	) -> Result<(), DispatchError> {
 		// V1 solver: Price consistency check temporarily disabled
@@ -396,7 +414,7 @@ impl<T: Config> Pallet<T> {
 	/// out = amount_in × rate
 	///		= amount_in × (num_in × denom_out) / (denom_in × num_out)
 	///	```
-	fn calc_amount_out(amount_in: Balance, price_in: &Ratio, price_out: &Ratio) -> Option<u128> {
+	fn calc_amount_out(amount_in: Balance, price_in: &Price, price_out: &Price) -> Option<u128> {
 		let n = U512::from(price_in.n).checked_mul(U512::from(price_out.d))?;
 		let d = U512::from(price_in.d).checked_mul(U512::from(price_out.n))?;
 
@@ -405,22 +423,15 @@ impl<T: Config> Pallet<T> {
 
 	/// Function validates provided solution and returns solution's score if solution is
 	/// valid.
-	fn validate_unsigned_solution(s: &Solution) -> Result<(), DispatchError> {
+	fn validate_unsigned_solution(solution: &Solution) -> Result<(), DispatchError> {
 		//TODO:
-		// * add weight rule and make sure sollution respets it.
+		// * add weight rule and make sure solution respects it.
 
-		for cp in &s.clearing_prices {
-			ensure!(!cp.1.n.is_zero() && !cp.1.d.is_zero(), Error::<T>::InvalidPriceRatio);
-		}
-
-		ensure!(
-			s.clearing_prices.len() <= s.trades.len() * 2,
-			Error::<T>::ClearingPricesInvalidLength
-		);
+		Self::validate_clearing_prices(&solution.clearing_prices)?;
 
 		let mut processed_intents: BTreeSet<IntentId> = BTreeSet::new();
 		let mut score: Score = 0;
-		for ResolvedIntent { id, data: resolve } in &s.resolved_intents {
+		for ResolvedIntent { id, data: resolve } in &solution.resolved_intents {
 			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
 
 			let surplus = intent.data.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
@@ -430,10 +441,10 @@ impl<T: Config> Pallet<T> {
 
 			pallet_intent::Pallet::<T>::validate_resolve(&intent, resolve)?;
 
-			Self::validate_price_consitency(&s.clearing_prices, resolve)?;
+			Self::validate_price_consitency(&solution.clearing_prices, resolve)?;
 		}
 
-		ensure!(s.score == score, Error::<T>::ScoreMismatch);
+		ensure!(solution.score == score, Error::<T>::ScoreMismatch);
 		Ok(())
 	}
 

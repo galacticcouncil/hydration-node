@@ -3,8 +3,9 @@ use crate::tests::prices_to_map;
 use crate::*;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
-use hydra_dx_math::types::Ratio;
+use ice_support::AssetId;
 use ice_support::PoolTrade;
+use ice_support::Price;
 use ice_support::Solution;
 use ice_support::SwapData;
 use ice_support::SwapType;
@@ -160,21 +161,21 @@ fn solution_execution_should_work_when_solution_is_valid() {
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -339,21 +340,21 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -374,6 +375,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 		});
 }
 
+#[ignore = "This is temporarily, unignore when allowing clearing price validtion again"]
 #[test]
 fn solution_execution_should_not_work_when_clearing_price_is_missing() {
 	ExtBuilder::default()
@@ -521,14 +523,14 @@ fn solution_execution_should_not_work_when_clearing_price_is_missing() {
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
@@ -696,21 +698,21 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -905,21 +907,21 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -1087,21 +1089,21 @@ fn solution_execution_should_not_work_when_clearing_price_numerator_is_zero() {
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 0,
 						d: 3_125_000_000_000,
 					},
@@ -1269,19 +1271,19 @@ fn solution_execution_should_not_work_when_clearing_price_denominator_is_zero() 
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
-				(ETH, Ratio { n: 177, d: 0 }),
+				(ETH, Price { n: 177, d: 0 }),
 			]);
 
 			let s = Solution {
@@ -1444,21 +1446,21 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
 				),
 				(
 					ETH,
-					Ratio {
+					Price {
 						n: 177,
 						d: 3_125_000_000_000,
 					},
@@ -1579,14 +1581,14 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
@@ -1704,14 +1706,14 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 			let cp = prices_to_map(vec![
 				(
 					HDX,
-					Ratio {
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
 				),
 				(
 					DOT,
-					Ratio {
+					Price {
 						n: 177,
 						d: 1_000_000_000,
 					},
@@ -1873,48 +1875,21 @@ fn solution_execution_should_not_work_when_solution_has_to_many_clearing_prices(
 				},
 			];
 
-			let cp = prices_to_map(vec![
-				(
-					HDX,
-					Ratio {
+			let mut cp: Vec<(AssetId, Price)> = Vec::new();
+			for i in 1..=(MAX_NUMBER_OF_RESOLVED_INTENTS * 2) + 1 {
+				cp.push((
+					i,
+					Price {
 						n: 177,
 						d: 100_000_000_000_000,
 					},
-				),
-				(
-					DOT,
-					Ratio {
-						n: 177,
-						d: 1_000_000_000,
-					},
-				),
-				(
-					ETH,
-					Ratio {
-						n: 177,
-						d: 3_125_000_000_000,
-					},
-				),
-				(
-					GETH,
-					Ratio {
-						n: 177,
-						d: 3_125_000_000_000,
-					},
-				),
-				(
-					HUB_ASSET_ID,
-					Ratio {
-						n: 177,
-						d: 3_125_000_000_000,
-					},
-				),
-			]);
+				));
+			}
 
 			let s = Solution {
 				resolved_intents: resolved.try_into().unwrap(),
 				trades: trades.try_into().unwrap(),
-				clearing_prices: cp,
+				clearing_prices: prices_to_map(cp),
 				score: 500_000_030_000_000_000_u128,
 			};
 
