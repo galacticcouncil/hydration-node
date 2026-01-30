@@ -3535,10 +3535,10 @@ mod stableswap {
 
 				//Assert
 				let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
-				let alice_stable1_after = Currencies::free_balance(stable_asset_1, &ALICE.into());
 				let alice_stable1_reserved = Currencies::reserved_balance(stable_asset_1, &ALICE.into());
 				let router_reserved_shares = Currencies::reserved_balance(pool_id, &Router::router_account());
 
+				assert_eq!(alice_stable1_reserved, 0, "All reserved stable_asset_1 should be freed after rollback");
 				assert_eq!(
 					alice_hdx_after, alice_hdx_before,
 					"DCA Buy should fail when circuit breaker triggers on intermediate shares. HDX before: {}, after: {}",
