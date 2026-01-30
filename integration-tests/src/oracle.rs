@@ -619,20 +619,18 @@ fn oracle_updated_event_is_emitted_for_hdx_subpool_on_hub_asset_sell() {
 			100 * UNITS as i128,
 		));
 
-		hydradx_runtime::System::reset_events();
 		hydradx_run_to_next_block();
 
 		// Act
 		assert_ok!(hydradx_runtime::Omnipool::sell(
 			RuntimeOrigin::signed(ALICE.into()),
-			LRNA, // selling hub asset
+			LRNA,
 			DAI,
 			10 * UNITS,
 			0,
 		));
 
 		// Finalize block to trigger oracle update
-		hydradx_runtime::System::reset_events();
 		hydradx_run_to_next_block();
 
 		let oracle_updated_events: Vec<_> = hydradx_runtime::System::events()
@@ -653,7 +651,7 @@ fn oracle_updated_event_is_emitted_for_hdx_subpool_on_hub_asset_sell() {
 			matches!(
 				e,
 				hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated {
-					assets: (LRNA, DAI) | (DAI, LRNA),
+					assets: (LRNA, DAI),
 					..
 				})
 			)
@@ -663,7 +661,7 @@ fn oracle_updated_event_is_emitted_for_hdx_subpool_on_hub_asset_sell() {
 			matches!(
 				e,
 				hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated {
-					assets: (LRNA, HDX) | (HDX, LRNA),
+					assets: (HDX, LRNA),
 					..
 				})
 			)
@@ -693,20 +691,18 @@ fn oracle_updated_event_is_emitted_for_hdx_subpool_on_buy_with_hub_asset() {
 			100 * UNITS as i128,
 		));
 
-		hydradx_runtime::System::reset_events();
 		hydradx_run_to_next_block();
 
 		// Act
 		assert_ok!(hydradx_runtime::Omnipool::buy(
 			RuntimeOrigin::signed(ALICE.into()),
-			DAI,  // buying DAI
-			LRNA, // paying with hub asset
+			DAI,
+			LRNA,
 			5 * UNITS,
 			100 * UNITS,
 		));
 
 		// Finalize block to trigger oracle update
-		hydradx_runtime::System::reset_events();
 		hydradx_run_to_next_block();
 
 		// Assert - Filter for OracleUpdated events
@@ -728,7 +724,7 @@ fn oracle_updated_event_is_emitted_for_hdx_subpool_on_buy_with_hub_asset() {
 			matches!(
 				e,
 				hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated {
-					assets: (LRNA, DAI) | (DAI, LRNA),
+					assets: (LRNA, DAI),
 					..
 				})
 			)
@@ -738,7 +734,7 @@ fn oracle_updated_event_is_emitted_for_hdx_subpool_on_buy_with_hub_asset() {
 			matches!(
 				e,
 				hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated {
-					assets: (LRNA, HDX) | (HDX, LRNA),
+					assets:(HDX, LRNA),
 					..
 				})
 			)
