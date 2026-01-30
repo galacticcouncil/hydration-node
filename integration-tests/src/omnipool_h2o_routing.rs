@@ -48,10 +48,7 @@ fn sell_h2o_for_asset_should_route_to_hdx_pool() {
 			sell_amount,
 			"ALICE should have spent sell_amount of LRNA"
 		);
-		assert!(
-			final_alice_dai > initial_alice_dai,
-			"ALICE should have received DAI"
-		);
+		assert!(final_alice_dai > initial_alice_dai, "ALICE should have received DAI");
 
 		assert!(
 			final_hdx_state.hub_reserve > initial_hdx_state.hub_reserve,
@@ -114,10 +111,7 @@ fn sell_h2o_for_hdx_should_emit_rerouted_event() {
 			sell_amount,
 			"ALICE should have spent sell_amount of LRNA"
 		);
-		assert!(
-			final_alice_hdx > initial_alice_hdx,
-			"ALICE should have received HDX"
-		);
+		assert!(final_alice_hdx > initial_alice_hdx, "ALICE should have received HDX");
 
 		assert!(
 			final_hdx_state.hub_reserve > initial_hdx_state.hub_reserve,

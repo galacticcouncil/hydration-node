@@ -1235,13 +1235,7 @@ fn sell_hub_asset_for_hdx_works() {
 			let initial_hdx_balance = Tokens::free_balance(HDX, &LP3);
 
 			//act
-			assert_ok!(Omnipool::sell(
-				RuntimeOrigin::signed(LP3),
-				LRNA,
-				HDX,
-				sell_amount,
-				0
-			));
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP3), LRNA, HDX, sell_amount, 0));
 
 			let final_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 
