@@ -1219,6 +1219,95 @@ fn sell_hub_routes_to_hdx_subpool() {
 }
 
 #[test]
+fn sell_hub_asset_for_hdx_works() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP3, LRNA, 100 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			let sell_amount = 50 * ONE;
+			let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+			let initial_lrna_balance = Tokens::free_balance(LRNA, &LP3);
+			let initial_hdx_balance = Tokens::free_balance(HDX, &LP3);
+
+			//act
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(LP3),
+				LRNA,
+				HDX,
+				sell_amount,
+				0
+			));
+
+			let final_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+
+			assert!(
+				final_hdx_state.reserve < initial_hdx_state.reserve,
+				"HDX reserve should decrease (tokens sent to user)"
+			);
+			assert!(
+				final_hdx_state.hub_reserve > initial_hdx_state.hub_reserve,
+				"HDX hub_reserve should increase (H2O routed here)"
+			);
+
+			// Verify user balances
+			assert_eq!(
+				Tokens::free_balance(LRNA, &LP3),
+				initial_lrna_balance - sell_amount,
+				"User should have less LRNA"
+			);
+			assert!(
+				Tokens::free_balance(HDX, &LP3) > initial_hdx_balance,
+				"User should have received HDX"
+			);
+
+			assert_eq!(
+				final_hdx_state.hub_reserve,
+				initial_hdx_state.hub_reserve + sell_amount,
+				"HDX hub_reserve should increase by exactly the sold LRNA amount"
+			);
+
+			let expected_hdx_received = initial_hdx_state.reserve - final_hdx_state.reserve;
+
+			expect_last_events(vec![
+				Event::SellExecuted {
+					who: LP3,
+					asset_in: LRNA,
+					asset_out: HDX,
+					amount_in: sell_amount,
+					amount_out: expected_hdx_received,
+					hub_amount_in: 0,
+					hub_amount_out: 0,
+					asset_fee_amount: 0,
+					protocol_fee_amount: 0,
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped3 {
+					swapper: LP3,
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(LRNA, sell_amount)],
+					outputs: vec![Asset::new(HDX, expected_hdx_received)],
+					fees: vec![Fee::new(HDX, 0, Destination::Account(Omnipool::protocol_account()))],
+					operation_stack: vec![],
+				}
+				.into(),
+				Event::Rerouted {
+					from: HDX,
+					to: HDX,
+					hub_amount: sell_amount,
+				}
+				.into(),
+			]);
+		});
+}
+
+#[test]
 fn buy_for_hub_routes_to_hdx_subpool() {
 	let expected_hdx_hub_reserve = 10_033_333_333_333_334;
 	let expected_lrna_spent = expected_hdx_hub_reserve - NATIVE_AMOUNT;
