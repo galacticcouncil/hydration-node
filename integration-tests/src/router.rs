@@ -717,7 +717,7 @@ mod router_different_pools_tests {
 	}
 
 	#[test]
-	fn sell_router_with_adding_liquidity_fails_with_slippage_when_deposit_limiter_triggered() {
+	fn sell_router_with_stableshares_adding_liquidity_fails_when_deposit_limiter_triggered() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -772,11 +772,159 @@ mod router_different_pools_tests {
 						4538992258357,
 						trades.try_into().unwrap()
 					),
-					pallet_route_executor::Error::<Runtime>::TradingLimitReached
+					pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount
 				);
 
 				assert_balance!(ALICE.into(), pool_id, 0);
 				assert_reserved_balance!(&Router::router_account(), pool_id, 0);
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn sell_router_fails_when_deposit_limit_exceeded_in_router_context() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_asset_1,
+					3000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_inner(25_650_000_000_000_000),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				let trades = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: stable_asset_1,
+					},
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: stable_asset_1,
+						asset_out: pool_id,
+					},
+				];
+
+				assert_balance!(ALICE.into(), pool_id, 0);
+				let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
+
+				//Act
+				let amount_to_sell = 100 * UNITS;
+				let deposit_limit = UNITS;
+				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
+
+				//Act
+				assert_noop!(
+					Router::sell(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						HDX,
+						pool_id,
+						amount_to_sell,
+						0,
+						trades.try_into().unwrap()
+					),
+					pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::DepositLimitExceededForWhitelistedAccount
+				);
+
+				// Verify that nothing has changed
+				assert_balance!(ALICE.into(), pool_id, 0);
+				assert_balance!(ALICE.into(), HDX, alice_hdx_before);
+				assert_reserved_balance!(&Router::router_account(), pool_id, 0);
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn buy_router_fails_when_deposit_limit_exceeded_in_router_context() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				// Arrange - Same setup as the sell test
+				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+
+				init_omnipool();
+
+				// Add stable_asset_1 to Omnipool (NOT pool_id - we want minting at END)
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_asset_1,
+					3000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_inner(25_650_000_000_000_000),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				// Route: HDX -> stable_asset_1 (Omnipool) -> pool_id (Stableswap mint at END!)
+				let trades = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: stable_asset_1,
+					},
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: stable_asset_1,
+						asset_out: pool_id, // Minting shares at the END
+					},
+				];
+
+				assert_balance!(ALICE.into(), pool_id, 0);
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ALICE.into(),
+					HDX,
+					100_000 * UNITS as i128,
+				));
+
+				let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
+
+				let amount_to_buy = 100 * UNITS;
+				let deposit_limit = UNITS;
+				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
+
+				// Act
+				assert_noop!(
+					Router::buy(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						HDX,
+						pool_id,
+						amount_to_buy,
+						2_500 * UNITS,
+						trades.try_into().unwrap()
+					),
+					pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::DepositLimitExceededForWhitelistedAccount
+				);
+
+				// Verify nothing changed and locked
+				assert_balance!(ALICE.into(), pool_id, 0);
+				assert_balance!(ALICE.into(), HDX, alice_hdx_before);
+				assert_reserved_balance!(&Router::router_account(), pool_id, 0);
+
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
