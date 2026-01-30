@@ -8,7 +8,7 @@ import { keccak256, recoverAddress } from 'viem'
 import {
   executeAsRootViaReferendum,
   executeAsRootViaScheduler,
-} from './dispenser.test'
+} from './utils'
 
 export class SignetClient {
   constructor(

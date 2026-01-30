@@ -457,20 +457,15 @@ pub mod pallet {
 			let account_id32 = sp_runtime::AccountId32::from(account_bytes);
 			let sender_ss58 = account_id32.to_ss58check_with_version(sp_core::crypto::Ss58AddressFormat::custom(0));
 
-			let path_str = core::str::from_utf8(path).unwrap_or("");
-			let algo_str = core::str::from_utf8(algo).unwrap_or("");
-			let dest_str = core::str::from_utf8(dest).unwrap_or("");
-			let params_str = core::str::from_utf8(params).unwrap_or("");
-
 			let encoded = (
 				sender_ss58.as_str(),
 				transaction_data,
 				caip2_id,
 				key_version,
-				path_str,
-				algo_str,
-				dest_str,
-				params_str,
+				core::str::from_utf8(path).unwrap_or(""),
+				core::str::from_utf8(algo).unwrap_or(""),
+				core::str::from_utf8(dest).unwrap_or(""),
+				core::str::from_utf8(params).unwrap_or(""),
 			)
 				.abi_encode_packed();
 
