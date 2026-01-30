@@ -734,7 +734,7 @@ fn oracle_updated_event_is_emitted_for_hdx_subpool_on_buy_with_hub_asset() {
 			matches!(
 				e,
 				hydradx_runtime::RuntimeEvent::EmaOracle(pallet_ema_oracle::Event::OracleUpdated {
-					assets:(HDX, LRNA),
+					assets: (HDX, LRNA),
 					..
 				})
 			)
