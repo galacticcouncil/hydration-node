@@ -462,19 +462,6 @@ pub mod pallet {
 			let dest_str = core::str::from_utf8(dest).unwrap_or("");
 			let params_str = core::str::from_utf8(params).unwrap_or("");
 
-			log::info!("  🔧 Encoding parameters (in generate_request_id):");
-			log::info!("    sender_ss58: {}", sender_ss58);
-			log::info!("    txHex: 0x{}", hex::encode(transaction_data));
-			log::info!("    caip2: {}", caip2_id);
-			log::info!("    keyVersion: {}", key_version);
-			log::info!("    path: {}", path_str);
-			log::info!("    algo: {}", algo_str);
-			log::info!("    dest: {}", dest_str);
-			log::info!(
-				"    params: {}",
-				if params_str.is_empty() { "(empty)" } else { params_str }
-			);
-
 			let encoded = (
 				sender_ss58.as_str(),
 				transaction_data,
@@ -486,9 +473,6 @@ pub mod pallet {
 				params_str,
 			)
 				.abi_encode_packed();
-
-			log::info!("    Packed encoding: 0x{}", hex::encode(&encoded));
-			log::info!("    Packed length: {}", encoded.len());
 
 			sp_io::hashing::keccak_256(&encoded)
 		}
