@@ -1756,7 +1756,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		// Route H2O to HDX subpool instead of traded asset's subpool, to bump HDX prices
+		// Route H2O to HDX subpool instead of traded asset's subpool, reducing value leaked to arbitrage through external markets
 		Self::increase_hdx_subpool_hub_reserve(origin.clone(), hub_reserve_delta)?;
 
 		Self::deposit_event(Event::SellExecuted {
@@ -1887,7 +1887,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		// Route H2O to HDX subpool instead of traded asset's subpool, to bump HDX prices
+		// Route H2O to HDX subpool instead of traded asset's subpool, reducing value leaked to arbitrage through external markets
 		Self::increase_hdx_subpool_hub_reserve(origin.clone(), hub_reserve_delta)?;
 
 		// TODO: Deprecated, remove when ready
