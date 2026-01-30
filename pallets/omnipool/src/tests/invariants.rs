@@ -66,52 +66,6 @@ macro_rules! assert_asset_invariant_not_decreased_for_hub_swap {
 	}};
 }
 
-/*
-fn assert_invariants_after_trade(
-	asset_in_old_state: &AssetReserveState<Balance>,
-	asset_in_new_state: &AssetReserveState<Balance>,
-	asset_out_old_state: &AssetReserveState<Balance>,
-	asset_out_new_state: &AssetReserveState<Balance>,
-	asset_fee_amount: Balance,
-	asset_fee: Permill,
-	extra_withdraw_fee: Permill,
-	desc: &str,
-) {
-	let asset_in_old_hub_reserve_hp = U256::from(asset_in_old_state.hub_reserve);
-	let asset_in_new_hub_reserve_hp = U256::from(asset_in_new_state.hub_reserve);
-
-	let delta_q = asset_in_old_hub_reserve_hp - asset_in_new_hub_reserve_hp;
-
-	let asset_out_old_hub_reserve_hp = U256::from(asset_out_old_state.hub_reserve);
-	let asset_out_new_hub_reserve_hp = U256::from(asset_out_new_state.hub_reserve);
-	let asset_out_old_reserve_hp = U256::from(asset_out_old_state.reserve);
-	let asset_out_new_reserve_hp = U256::from(asset_out_new_state.reserve);
-
-	let taken_fee_amount_hp = U256::from(extra_withdraw_fee.mul_floor(asset_fee_amount));
-
-	let qr_plus = asset_out_new_hub_reserve_hp * asset_out_new_reserve_hp;
-	let qr_with_fee = asset_out_old_hub_reserve_hp * (asset_out_old_reserve_hp - taken_fee_amount_hp);
-
-	let lhs = (qr_plus - qr_with_fee) / delta_q;
-	let fee_compl = Permill::one() - asset_fee;
-	let q_adj = U256::from(fee_compl.mul_floor(asset_out_old_state.hub_reserve));
-	let rh0 = (q_adj * asset_out_old_reserve_hp) / (asset_out_old_hub_reserve_hp + delta_q);
-	let rh1 = asset_out_new_reserve_hp + U256::from(asset_fee.mul_floor(asset_out_new_state.reserve));
-	let rh2 = (U256::from(asset_fee.mul_floor(asset_out_new_state.reserve)) * delta_q) / asset_out_old_hub_reserve_hp;
-
-	dbg!(rh0);
-	dbg!(rh1);
-	dbg!(rh2);
-
-	let r = rh1 - rh2;
-
-	let rhs = r - rh0;
-	dbg!(lhs);
-	dbg!(rhs);
-}
-
- */
-
 #[macro_export]
 macro_rules! assert_invariants_after_trade {
 	( $old_state:expr, $new_state:expr, $delta_q:expr, $fee_amount:expr, $asset_fee:expr, $extra_fee_taken:expr, $tolerance:expr, $decimals:expr, $desc:expr) => {{
