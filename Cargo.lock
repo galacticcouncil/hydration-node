@@ -6104,7 +6104,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6161,7 +6161,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "386.0.0"
+version = "387.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -9524,7 +9524,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-broadcast"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "frame-support",
  "frame-support-procedural",
@@ -9580,7 +9580,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.3.0"
+version = "1.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11605,7 +11605,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "7.2.1"
+version = "7.2.2"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -15285,7 +15285,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.65.1"
+version = "1.66.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
