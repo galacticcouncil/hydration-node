@@ -372,6 +372,13 @@ pub mod pallet {
 
 		/// Asset's weight cap has been updated.
 		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
+
+		/// Hub asset was rerouted from one subpool to another.
+		Rerouted {
+			from: T::AssetId,
+			to: T::AssetId,
+			hub_amount: Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -1782,16 +1789,11 @@ impl<T: Config> Pallet<T> {
 			trade_fees,
 		);
 
-		// Emit trade event for H2O routing to HDX subpool
-		pallet_broadcast::Pallet::<T>::deposit_trade_event(
-			who.clone(),
-			Self::protocol_account(),
-			pallet_broadcast::types::Filler::Omnipool,
-			pallet_broadcast::types::TradeOperation::ExactIn,
-			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
-			vec![Asset::new(T::HdxAssetId::get().into(), Balance::zero())],
-			vec![], // no fees for internal routing
-		);
+		Self::deposit_event(Event::Rerouted {
+			from: asset_out,
+			to: T::HdxAssetId::get(),
+			hub_amount: hub_reserve_delta,
+		});
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
 
@@ -1914,16 +1916,11 @@ impl<T: Config> Pallet<T> {
 			trade_fees,
 		);
 
-		// Emit trade event for H2O routing to HDX subpool
-		pallet_broadcast::Pallet::<T>::deposit_trade_event(
-			who.clone(),
-			Self::protocol_account(),
-			pallet_broadcast::types::Filler::Omnipool,
-			pallet_broadcast::types::TradeOperation::ExactIn,
-			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
-			vec![Asset::new(T::HdxAssetId::get().into(), Balance::zero())],
-			vec![], // no fees for internal routing
-		);
+		Self::deposit_event(Event::Rerouted {
+			from: asset_out,
+			to: T::HdxAssetId::get(),
+			hub_amount: hub_reserve_delta,
+		});
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
 

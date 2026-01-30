@@ -1208,15 +1208,10 @@ fn sell_hub_routes_to_hdx_subpool() {
 				}
 				.into(),
 				// HDX routing event
-				pallet_broadcast::Event::Swapped3 {
-					swapper: LP3,
-					filler: Omnipool::protocol_account(),
-					filler_type: pallet_broadcast::types::Filler::Omnipool,
-					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(LRNA, sell_amount)],
-					outputs: vec![Asset::new(HDX, 0)],
-					fees: vec![],
-					operation_stack: vec![],
+				Event::Rerouted {
+					from: 100,
+					to: HDX,
+					hub_amount: sell_amount,
 				}
 				.into(),
 			]);
@@ -1304,15 +1299,10 @@ fn buy_for_hub_routes_to_hdx_subpool() {
 				}
 				.into(),
 				// HDX routing event
-				pallet_broadcast::Event::Swapped3 {
-					swapper: LP3,
-					filler: Omnipool::protocol_account(),
-					filler_type: pallet_broadcast::types::Filler::Omnipool,
-					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(LRNA, expected_lrna_spent)],
-					outputs: vec![Asset::new(HDX, 0)],
-					fees: vec![],
-					operation_stack: vec![],
+				Event::Rerouted {
+					from: 100,
+					to: HDX,
+					hub_amount: expected_lrna_spent,
 				}
 				.into(),
 			]);
