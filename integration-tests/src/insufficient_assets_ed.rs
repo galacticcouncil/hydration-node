@@ -2,7 +2,6 @@
 
 use crate::assert_balance;
 use crate::assert_event_times;
-use crate::insufficient_assets_ed::v3::Junction::GeneralIndex;
 use crate::polkadot_test_net::*;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok, traits::Contains};
@@ -20,7 +19,10 @@ use hydradx_traits::Create;
 use hydradx_traits::NativePriceOracle;
 use orml_traits::MultiCurrency;
 use pallet_duster::DusterWhitelist;
-use polkadot_xcm::v3::{self, Junction::Parachain, Junctions::X2, MultiLocation};
+use polkadot_xcm::v5::{
+	Junction::{GeneralIndex, Parachain},
+	Location,
+};
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::TransactionOutcome;
@@ -1464,7 +1466,7 @@ fn ed_should_be_paid_in_insufficient_asset_through_dot() {
 			)
 			.unwrap();
 
-			set_relaychain_block_number(11);
+			go_to_block(11);
 
 			let alice_init_insuff_balance = 10 * UNITS;
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -1511,9 +1513,9 @@ fn ed_should_be_paid_in_insufficient_asset_through_dot() {
 }
 
 fn register_external_asset(general_index: u128) -> AssetId {
-	let location = hydradx_runtime::AssetLocation(MultiLocation::new(
+	let location = hydradx_runtime::AssetLocation(Location::new(
 		1,
-		X2(Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)),
+		[Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)],
 	));
 
 	let next_asset_id = Registry::next_asset_id().unwrap();

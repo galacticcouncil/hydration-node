@@ -26,7 +26,7 @@ use {
 	sp_core::H256,
 	sp_std::vec::Vec,
 	sp_weights::Weight,
-	xcm::v3::{Junction, Junctions, MultiLocation, NetworkId},
+	xcm::v5::{Junction, Junctions, Location, NetworkId},
 };
 
 pub const JUNCTION_SIZE_LIMIT: u32 = 2u32.pow(16);
@@ -73,21 +73,6 @@ pub(crate) fn network_id_to_bytes(network_id: Option<NetworkId>) -> Vec<u8> {
 			encoded.push(1u8);
 			encoded.append(&mut block_number.to_be_bytes().into());
 			encoded.append(&mut block_hash.into());
-			encoded
-		}
-		Some(NetworkId::Westend) => {
-			encoded.push(5u8);
-			encoded.push(4u8);
-			encoded
-		}
-		Some(NetworkId::Rococo) => {
-			encoded.push(6u8);
-			encoded.push(5u8);
-			encoded
-		}
-		Some(NetworkId::Wococo) => {
-			encoded.push(7u8);
-			encoded.push(6u8);
 			encoded
 		}
 		Some(NetworkId::Ethereum { chain_id }) => {
@@ -149,9 +134,6 @@ pub(crate) fn network_id_from_bytes(encoded_bytes: Vec<u8>) -> MayRevert<Option<
 				block_hash,
 			}))
 		}
-		5 => Ok(Some(NetworkId::Westend)),
-		6 => Ok(Some(NetworkId::Rococo)),
-		7 => Ok(Some(NetworkId::Wococo)),
 		8 => {
 			let mut chain_id: [u8; 8] = Default::default();
 			chain_id.copy_from_slice(&encoded_network_id.read_raw_bytes(8)?);
@@ -350,10 +332,10 @@ impl Codec for Junctions {
 }
 
 // Cannot used derive macro since it is a foreign struct.
-impl Codec for MultiLocation {
+impl Codec for Location {
 	fn read(reader: &mut Reader) -> MayRevert<Self> {
 		let (parents, interior) = reader.read().map_in_tuple_to_field(&["parents", "interior"])?;
-		Ok(MultiLocation { parents, interior })
+		Ok(Location { parents, interior })
 	}
 
 	fn write(writer: &mut Writer, value: Self) {

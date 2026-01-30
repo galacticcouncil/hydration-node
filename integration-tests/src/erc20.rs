@@ -1,13 +1,13 @@
 use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
 use crate::utils::contracts::*;
-use core::panic;
 use ethabi::ethereum_types::BigEndianHash;
 use fp_evm::ExitReason::Succeed;
 use fp_evm::PrecompileSet;
 use frame_support::pallet_prelude::DispatchError;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{assert_noop, assert_ok};
 use hex_literal::hex;
 use sp_runtime::traits::Convert;
@@ -20,24 +20,23 @@ use hydradx_runtime::RuntimeCall;
 use hydradx_runtime::RuntimeOrigin;
 use hydradx_runtime::{AssetLocation, Currencies};
 use hydradx_runtime::{EVMAccounts, Runtime};
+use hydradx_traits::evm::CallContext;
 use hydradx_traits::evm::ERC20;
 use hydradx_traits::evm::EVM;
-use hydradx_traits::evm::{CallContext, EvmAddress};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_evm::ExitSucceed::Returned;
-use pallet_evm_accounts::EvmNonceProvider;
-use polkadot_xcm::v3::Junction::AccountKey20;
-use polkadot_xcm::v3::Junctions::X1;
-use polkadot_xcm::v3::MultiLocation;
-use primitives::AccountId;
+use primitives::EvmAddress;
 use sp_core::bounded_vec::BoundedVec;
-use sp_core::keccak_256;
+
+use pallet_evm_accounts::EvmNonceProvider;
+use polkadot_xcm::v5::Junction::AccountKey20;
+use polkadot_xcm::v5::Location;
+use primitives::AccountId;
 use sp_core::Encode;
 use sp_core::{H256, U256};
 use sp_runtime::{Permill, TransactionOutcome};
-use std::fmt::Write;
 use xcm_emulator::TestExt;
 pub fn deployer() -> EvmAddress {
 	EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE))
@@ -57,12 +56,12 @@ pub fn bind_erc20(contract: EvmAddress) -> AssetId {
 			1,
 			Some(Erc20Currency::<Runtime>::symbol(token).unwrap().try_into().unwrap()),
 			Some(Erc20Currency::<Runtime>::decimals(token).unwrap()),
-			Some(AssetLocation(MultiLocation::new(
+			Some(AssetLocation(Location::new(
 				0,
-				X1(AccountKey20 {
+				[AccountKey20 {
 					key: contract.into(),
 					network: None,
-				}),
+				}],
 			))),
 			None,
 		))
@@ -321,7 +320,8 @@ fn account_should_receive_tokens() {
 			token,
 			&AccountId::from(ALICE),
 			&AccountId::from(BOB),
-			100
+			100,
+			ExistenceRequirement::AllowDeath
 		));
 
 		assert_eq!(
@@ -443,7 +443,12 @@ fn withdraw() {
 		let contract = deploy_token_contract();
 		let asset = bind_erc20(contract);
 
-		assert_ok!(Currencies::withdraw(asset, &ALICE.into(), 100));
+		assert_ok!(Currencies::withdraw(
+			asset,
+			&ALICE.into(),
+			100,
+			ExistenceRequirement::AllowDeath
+		));
 	});
 }
 
@@ -453,7 +458,12 @@ fn deposit() {
 	Hydra::execute_with(|| {
 		let contract = deploy_token_contract();
 		let asset = bind_erc20(contract);
-		assert_ok!(Currencies::withdraw(asset, &ALICE.into(), 100));
+		assert_ok!(Currencies::withdraw(
+			asset,
+			&ALICE.into(),
+			100,
+			ExistenceRequirement::AllowDeath
+		));
 
 		assert_ok!(Currencies::deposit(asset, &BOB.into(), 100));
 		assert_eq!(Currencies::free_balance(asset, &BOB.into()), 100);
@@ -650,7 +660,7 @@ mod error_handling {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			// Deploy HydraToken
-			let contract = deploy_contract("HydraToken", crate::erc20::deployer());
+			let _contract = deploy_contract("HydraToken", crate::erc20::deployer());
 
 			let contract: EvmAddress = hex!["0000000000000000000000000000000100000005"].into();
 

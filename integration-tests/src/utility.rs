@@ -332,5 +332,5 @@ fn nested_batch_should_represent_embeddedness() {
 }
 
 fn start_lbp_campaign() {
-	set_relaychain_block_number(crate::router::LBP_SALE_START + 1);
+	go_to_block(crate::router::LBP_SALE_START + 1);
 }

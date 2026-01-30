@@ -36,7 +36,7 @@
 #![allow(clippy::manual_inspect)]
 
 use codec::MaxEncodedLen;
-use frame_support::{pallet_prelude::*, require_transactional};
+use frame_support::{pallet_prelude::*, require_transactional, traits::ExistenceRequirement};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::Inspect;
 use orml_traits::{GetByKey, MultiCurrency, NamedMultiReservableCurrency};
@@ -426,7 +426,13 @@ impl<T: Config> Pallet<T> {
 		amount_out: Balance,
 		fee: Balance,
 	) -> DispatchResult {
-		T::Currency::transfer(order.asset_in, who, &order.owner, amount_in)?;
+		T::Currency::transfer(
+			order.asset_in,
+			who,
+			&order.owner,
+			amount_in,
+			ExistenceRequirement::AllowDeath,
+		)?;
 		let remaining_to_unreserve =
 			// returns any amount that was unable to be unreserved
 			T::Currency::unreserve_named(&NAMED_RESERVE_ID, order.asset_out, &order.owner, amount_out);
@@ -434,8 +440,20 @@ impl<T: Config> Pallet<T> {
 
 		let amount_out_without_fee = amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?;
 
-		T::Currency::transfer(order.asset_out, &order.owner, who, amount_out_without_fee)?;
-		T::Currency::transfer(order.asset_out, &order.owner, &T::FeeReceiver::get(), fee)?;
+		T::Currency::transfer(
+			order.asset_out,
+			&order.owner,
+			who,
+			amount_out_without_fee,
+			ExistenceRequirement::AllowDeath,
+		)?;
+		T::Currency::transfer(
+			order.asset_out,
+			&order.owner,
+			&T::FeeReceiver::get(),
+			fee,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		Ok(())
 	}
