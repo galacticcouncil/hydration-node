@@ -9,7 +9,7 @@ import { KeyDerivation } from './key-derivation'
 import { blake2AsHex } from '@polkadot/util-crypto'
 import { SubmittableExtrinsic } from '@polkadot/api/types'
 
-const isSepolia = true
+const isSepolia = false
 
 const WS_ENDPOINT = 'ws://127.0.0.1:8000'
 const SEPOLIA_RPC = 'https://ethereum-sepolia-rpc.publicnode.com'
@@ -23,9 +23,9 @@ const SEPOLIA_PUBLIC_KEY =
 const SEPOLIA_CHAIN_ID = 11155111
 const ANVIL_CHAIN_ID = 31337
 const CHAIN_ID = 'polkadot:2034'
-const ANVIL_FAUCET_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512'
+const ANVIL_FAUCET_ADDRESS = '0x189d33ea9A9701fdb67C21df7420868193dcf578'
 // TODO: revert to production address: 0x52Be077e67496c9763cCEF66c1117dD234Ca8Cfc
-const SEPOLIA_FAUCET_ADDRESS = '0x1a9ac4A78baE112CA3B249d6133d58f0Ae1Ab361'
+const SEPOLIA_FAUCET_ADDRESS = '0x189d33ea9A9701fdb67C21df7420868193dcf578'
 const LOCAL_SS58_PREFIX = 0
 
 const RPC_URL = isSepolia ? SEPOLIA_RPC : ANVIL_RPC
@@ -127,6 +127,8 @@ export async function submitWithRetry(
         )
           .then((unsub: any) => {
             unsubscribe = unsub
+            // Produce a block so the transaction gets included on the dev chain
+            ;(api.rpc as any)('dev_newBlock', { count: 1 }).catch(() => {})
           })
           .catch((error: any) => {
             clearTimeout(timer)
@@ -345,8 +347,6 @@ function deriveSubstrateAndEthAddresses(
 
   const derivedPubKey = KeyDerivation.derivePublicKey(
     ROOT_PUBLIC_KEY,
-    palletSS58,
-    aliceHexPath,
     CHAIN_ID,
   )
 
@@ -538,7 +538,7 @@ describe('ERC20 Vault Integration', () => {
       palletSS58,
       Array.from(ethers.getBytes(tx.unsignedSerialized)),
       {
-        caip2_id: 'eip155:11155111',
+        caip2_id: `eip155:${EVM_CHAIN_ID}`,
         keyVersion: 0,
         path: aliceHexPath,
         algo: 'ecdsa',
