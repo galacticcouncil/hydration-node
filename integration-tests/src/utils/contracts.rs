@@ -1,3 +1,4 @@
+use ethabi::{encode, Token};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV6;
 use frame_support::assert_ok;
 use hydradx_runtime::EVMAccounts;
@@ -5,7 +6,6 @@ use pallet_evm::ExitReason;
 use primitives::EvmAddress;
 use sp_core::U256;
 use std::fs;
-use ethabi::{encode, Token};
 
 pub fn get_contract_bytecode(name: &str) -> Vec<u8> {
 	let path = format!(
@@ -56,5 +56,3 @@ pub fn append_constructor_args(mut initcode: Vec<u8>, args: Vec<Token>) -> Vec<u
 	initcode.extend_from_slice(&encoded);
 	initcode
 }
-
-

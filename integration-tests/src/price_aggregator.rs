@@ -2,6 +2,10 @@
 
 use crate::polkadot_test_net::*;
 
+use crate::evm::MockHandle;
+use crate::utils::contracts::{append_constructor_args, deploy_contract, deploy_contract_code, get_contract_bytecode};
+use ethabi::{decode, encode, ParamType, Token};
+use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
 use frame_support::assert_noop;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::storage::with_transaction;
@@ -12,53 +16,48 @@ use frame_support::{
 	sp_runtime::{FixedU128, Permill},
 	traits::tokens::fungibles::Mutate,
 };
-use pallet_evm::ExitReason;
-use hydradx_traits::evm::EvmAddress;
 use hex_literal::hex;
 use hydra_dx_math::ema::smoothing_from_period;
 use hydradx_runtime::bifrost_account;
+use hydradx_runtime::evm::precompiles::chainlink_adapter::encode_oracle_address;
 use hydradx_runtime::evm::precompiles::chainlink_adapter::AggregatorInterface;
 use hydradx_runtime::evm::precompiles::chainlink_adapter::ChainlinkOraclePrecompile;
 use hydradx_runtime::AssetLocation;
 use hydradx_runtime::AssetRegistry;
+use hydradx_runtime::EVMAccounts;
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::Runtime;
 use hydradx_runtime::{EmaOracle, RuntimeOrigin};
+use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use hydradx_traits::{
 	AggregatedPriceOracle,
 	OraclePeriod::{self, *},
 };
-use sp_core::crypto::AccountId32;
-use pallet_evm::PrecompileFailure;
 use orml_traits::MultiCurrency;
 use pallet_ema_oracle::into_smoothing;
 use pallet_ema_oracle::OracleError;
 use pallet_ema_oracle::BIFROST_SOURCE;
+use pallet_evm::Context;
+use pallet_evm::ExitReason;
 use pallet_evm::ExitSucceed;
+use pallet_evm::Precompile;
+use pallet_evm::PrecompileFailure;
 use pallet_transaction_payment::ChargeTransactionPayment;
+use precompile_utils::evm::writer::EvmDataWriter;
 use precompile_utils::prelude::PrecompileOutput;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
+use sp_core::crypto::AccountId32;
+use sp_core::H160;
 use sp_core::U256;
 use sp_runtime::traits::SignedExtension;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
 use sp_std::sync::Arc;
-use xcm_emulator::TestExt;
-use pallet_evm::Precompile;
-use hydradx_runtime::evm::precompiles::chainlink_adapter::encode_oracle_address;
- use pallet_evm::Context;
-use crate::evm::MockHandle;
-use precompile_utils::evm::writer::EvmDataWriter;
-use hydradx_runtime::EVMAccounts;
-use sp_core::H160;
-use crate::utils::contracts::{get_contract_bytecode, deploy_contract_code, deploy_contract, append_constructor_args};
- use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
- use ethabi::{encode, decode, ParamType, Token};
 use tiny_keccak::{Hasher, Keccak};
-
+use xcm_emulator::TestExt;
 
 fn call_u256(selector: AggregatorInterface, oracle: H160) -> U256 {
 	let input = EvmDataWriter::new_with_selector(selector).build();
@@ -100,70 +99,72 @@ fn call_bytes(selector: AggregatorInterface, oracle: H160) -> Vec<u8> {
 	output
 }
 
-	fn setup_chainlink_oracle_address() -> H160 {
-		hydradx_run_to_next_block();
-		init_omnipool();
+fn setup_chainlink_oracle_address() -> H160 {
+	hydradx_run_to_next_block();
+	init_omnipool();
 
-		let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
-		assert_ok!(Omnipool::add_token(
-			RuntimeOrigin::root(),
-			DOT,
-			token_price,
-			Permill::from_percent(100),
-			AccountId::from(BOB),
-		));
+	let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
+	assert_ok!(Omnipool::add_token(
+		RuntimeOrigin::root(),
+		DOT,
+		token_price,
+		Permill::from_percent(100),
+		AccountId::from(BOB),
+	));
 
-		assert_ok!(Omnipool::sell(
-			RuntimeOrigin::signed(ALICE.into()),
-			HDX,
-			DOT,
-			5 * UNITS,
-			0,
-		));
+	assert_ok!(Omnipool::sell(
+		RuntimeOrigin::signed(ALICE.into()),
+		HDX,
+		DOT,
+		5 * UNITS,
+		0,
+	));
 
-		hydradx_run_to_next_block();
+	hydradx_run_to_next_block();
 
-		assert_ok!(EmaOracle::get_price(HDX, LRNA, OraclePeriod::Short, OMNIPOOL_SOURCE));
-		assert_ok!(EmaOracle::get_price(DOT, LRNA, OraclePeriod::Short, OMNIPOOL_SOURCE));
+	assert_ok!(EmaOracle::get_price(HDX, LRNA, OraclePeriod::Short, OMNIPOOL_SOURCE));
+	assert_ok!(EmaOracle::get_price(DOT, LRNA, OraclePeriod::Short, OMNIPOOL_SOURCE));
 
-		encode_oracle_address(HDX, DOT, OraclePeriod::Short, OMNIPOOL_SOURCE)
-	}
+	encode_oracle_address(HDX, DOT, OraclePeriod::Short, OMNIPOOL_SOURCE)
+}
 
-	fn exec_precompile(input: Vec<u8>, oracle: H160) -> Result<Vec<u8>, PrecompileFailure> {
-		let mut handle = MockHandle {
-			input,
-			context: Context {
-				address: evm_address(),
-				caller: H160::repeat_byte(0x11),
-				apparent_value: U256::zero(),
-			},
-			code_address: oracle,
-			is_static: true,
-		};
+fn exec_precompile(input: Vec<u8>, oracle: H160) -> Result<Vec<u8>, PrecompileFailure> {
+	let mut handle = MockHandle {
+		input,
+		context: Context {
+			address: evm_address(),
+			caller: H160::repeat_byte(0x11),
+			apparent_value: U256::zero(),
+		},
+		code_address: oracle,
+		is_static: true,
+	};
 
-		let out = ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle)?;
-		assert_eq!(out.exit_status, ExitSucceed::Returned);
-		Ok(out.output)
-	}
+	let out = ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle)?;
+	assert_eq!(out.exit_status, ExitSucceed::Returned);
+	Ok(out.output)
+}
 
-	fn exec_precompile_err(input: Vec<u8>, oracle: H160) -> PrecompileFailure {
-		let mut handle = MockHandle {
-			input,
-			context: Context {
-				address: evm_address(),
-				caller: H160::repeat_byte(0x11),
-				apparent_value: U256::zero(),
-			},
-			code_address: oracle,
-			is_static: true,
-		};
+fn exec_precompile_err(input: Vec<u8>, oracle: H160) -> PrecompileFailure {
+	let mut handle = MockHandle {
+		input,
+		context: Context {
+			address: evm_address(),
+			caller: H160::repeat_byte(0x11),
+			apparent_value: U256::zero(),
+		},
+		code_address: oracle,
+		is_static: true,
+	};
 
-		ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle).err().unwrap()
-	}
+	ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle)
+		.err()
+		.unwrap()
+}
 
-	fn decode_u256(output: Vec<u8>) -> U256 {
-		U256::from_big_endian(&output)
-	}
+fn decode_u256(output: Vec<u8>) -> U256 {
+	U256::from_big_endian(&output)
+}
 
 pub fn deploy_clamped_oracle(
 	deployer: EvmAddress,
@@ -290,45 +291,39 @@ fn aggregator_should_be_callable_after_setup() {
 	});
 }
 
-	#[test]
-	fn aggregator_should_fail_for_non_existing_oracle_address() {
-		TestNet::reset();
+#[test]
+fn aggregator_should_fail_for_non_existing_oracle_address() {
+	TestNet::reset();
 
-		Hydra::execute_with(|| {
-			let oracle = H160::from(hex!("000001026f6d6e69706f6f6c0000007b0000007c"));
+	Hydra::execute_with(|| {
+		let oracle = H160::from(hex!("000001026f6d6e69706f6f6c0000007b0000007c"));
 
-			let input = EvmDataWriter::new_with_selector(AggregatorInterface::LatestAnswer).build();
+		let input = EvmDataWriter::new_with_selector(AggregatorInterface::LatestAnswer).build();
 
-			let mut handle = MockHandle {
-				input,
-				context: Context {
-					address: evm_address(),
-					caller: oracle,
-					apparent_value: U256::zero(),
-				},
-				code_address: oracle,
-				is_static: true,
-			};
+		let mut handle = MockHandle {
+			input,
+			context: Context {
+				address: evm_address(),
+				caller: oracle,
+				apparent_value: U256::zero(),
+			},
+			code_address: oracle,
+			is_static: true,
+		};
 
-			let res = ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle);
-			assert!(res.is_err());
-		});
-	}
+		let res = ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle);
+		assert!(res.is_err());
+	});
+}
 
 #[test]
 fn clamped_oracle_should_deploy() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-
 		let primary: EvmAddress = deploy_contract("MockAggregator", crate::erc20::deployer());
 
-		let secondary: EvmAddress = encode_oracle_address(
-	HDX,
-	DOT,
-	OraclePeriod::Short,
-	OMNIPOOL_SOURCE,
-);
+		let secondary: EvmAddress = encode_oracle_address(HDX, DOT, OraclePeriod::Short, OMNIPOOL_SOURCE);
 
 		let clamped_init = get_contract_bytecode("ClampedOracle");
 		let clamped_code = append_constructor_args(
@@ -346,7 +341,6 @@ fn clamped_oracle_should_deploy() {
 		assert_ne!(deployed, vec![0; deployed.len()]);
 	});
 }
-
 
 #[test]
 fn clamped_oracle_latest_answer_uses_chainlink_secondary_and_clamps() {
@@ -581,19 +575,19 @@ fn clamped_oracle_decimals_is_8() {
 }
 
 fn decode_u256_uint256(output: Vec<u8>) -> U256 {
-    let t = ethabi::decode(&[ethabi::ParamType::Uint(256)], &output).unwrap();
-    match &t[0] {
-        ethabi::Token::Uint(u) => *u,
-        _ => panic!("unexpected return"),
-    }
+	let t = ethabi::decode(&[ethabi::ParamType::Uint(256)], &output).unwrap();
+	match &t[0] {
+		ethabi::Token::Uint(u) => *u,
+		_ => panic!("unexpected return"),
+	}
 }
 
 fn decode_u256_int256(output: Vec<u8>) -> U256 {
-    let t = ethabi::decode(&[ethabi::ParamType::Int(256)], &output).unwrap();
-    match &t[0] {
-        ethabi::Token::Int(i) => *i,
-        _ => panic!("unexpected return"),
-    }
+	let t = ethabi::decode(&[ethabi::ParamType::Int(256)], &output).unwrap();
+	match &t[0] {
+		ethabi::Token::Int(i) => *i,
+		_ => panic!("unexpected return"),
+	}
 }
 
 fn seed_oracle_price_via_omnipool() {
