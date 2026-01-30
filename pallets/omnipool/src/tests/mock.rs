@@ -81,7 +81,7 @@ thread_local! {
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 	pub static ON_TRADE_WITHDRAWAL: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static ON_TRADE_WITHDRAWAL_EXTRA: RefCell<Balance> = const { RefCell::new(0) };
-	pub static HUB_ASSET_TRADE_HOOK_CALLS: RefCell<Vec<AssetInfo<AssetId, Balance>>> = RefCell::new(vec![]);
+	pub static HUB_ASSET_TRADE_HOOK_CALLS: RefCell<Vec<AssetInfo<AssetId, Balance>>> = const { RefCell::new(vec![]) };
 }
 
 construct_runtime!(
@@ -618,8 +618,8 @@ pub fn get_hub_asset_trade_hook_calls() -> Vec<AssetInfo<AssetId, Balance>> {
 			.iter()
 			.map(|info| AssetInfo {
 				asset_id: info.asset_id,
-				before: info.before.clone(),
-				after: info.after.clone(),
+				before: info.before,
+				after: info.after,
 				delta_changes: info.delta_changes.clone(),
 				safe_withdrawal: info.safe_withdrawal,
 			})
