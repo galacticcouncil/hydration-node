@@ -27,4 +27,5 @@ pub type PermanentSingleBlockMigrations = pallet_xcm::migration::MigrateToLatest
 pub type SingleBlockMigrations = (PermanentSingleBlockMigrations, UnreleasedSingleBlockMigrations);
 
 // Multi-block migrations executed by pallet-migrations
+#[cfg(not(feature = "runtime-benchmarks"))]
 pub type MultiBlockMigrations<Runtime> = pallet_identity::migration::v2::LazyMigrationV1ToV2<Runtime>;
