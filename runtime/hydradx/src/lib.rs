@@ -234,6 +234,7 @@ construct_runtime!(
 		// 113 was used by DmpQueue which is now replaced by MessageQueue
 		MessageQueue: pallet_message_queue = 114,
 		WeightReclaim: cumulus_pallet_weight_reclaim = 115,
+		MultiBlockMigrations: pallet_migrations = 116,
 
 		// ORML XCM
 		OrmlXcm: orml_xcm = 135,
