@@ -63,6 +63,7 @@ fn sell_h2o_for_asset_should_route_to_hdx_pool() {
 			"DAI reserve decrease should equal tokens sent to user"
 		);
 
+		assert!(sell_amount != 0 && dai_received != 0, "trade amounts should not be zero");
 		// Assert Swapped3 event using get_last_swapped_events pattern (like dca.rs)
 		let swapped_events = get_last_swapped_events();
 		pretty_assertions::assert_eq!(
@@ -142,6 +143,8 @@ fn sell_h2o_for_hdx_should_emit_rerouted_event() {
 			hdx_received,
 			"HDX reserve decrease should equal tokens sent to user"
 		);
+
+		assert!(sell_amount !=0 && hdx_received !=0, "trade amounts should not be zero");
 
 		// Assert Swapped3 event using get_last_swapped_events pattern (like dca.rs)
 		let swapped_events = get_last_swapped_events();
