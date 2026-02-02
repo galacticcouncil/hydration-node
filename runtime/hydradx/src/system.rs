@@ -245,8 +245,7 @@ impl pallet_migrations::Config for Runtime {
 	type MigrationStatusHandler = ();
 	type FailedMigrationHandler = LogErrorAndForceUnstuck;
 	type MaxServiceWeight = MaxServiceWeight;
-	// TODO: weights
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_migrations::HydraWeight<Runtime>;
 }
 
 pub struct LogErrorAndForceUnstuck;

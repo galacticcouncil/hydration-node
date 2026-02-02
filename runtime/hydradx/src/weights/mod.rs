@@ -30,6 +30,7 @@ pub mod pallet_identity;
 pub mod pallet_lbp;
 pub mod pallet_liquidation;
 pub mod pallet_message_queue;
+pub mod pallet_migrations;
 pub mod pallet_multisig;
 pub mod pallet_omnipool;
 pub mod pallet_omnipool_liquidity_mining;
