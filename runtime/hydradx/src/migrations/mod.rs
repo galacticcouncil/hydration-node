@@ -24,7 +24,7 @@ pub type UnreleasedSingleBlockMigrations = MigrateAssetRegistryToXcmV5<Runtime>;
 // These migrations can run on every runtime upgrade
 pub type PermanentSingleBlockMigrations = pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>;
 
-pub type Migrations = (PermanentSingleBlockMigrations, UnreleasedSingleBlockMigrations);
+pub type SingleBlockMigrations = (PermanentSingleBlockMigrations, UnreleasedSingleBlockMigrations);
 
 // Multi-block migrations executed by pallet-migrations
 pub type MultiBlockMigrations<Runtime> = pallet_identity::migration::v2::LazyMigrationV1ToV2<Runtime>;
