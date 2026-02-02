@@ -413,10 +413,8 @@ pub async fn fetch_all_storage(
 				let raw_key = key.as_ref();
 				futures::future::ready({
 					// Check if key matches any excluded pallet prefix
-					let is_excluded = raw_key.len() >= 16
-						&& excluded_prefixes
-							.iter()
-							.any(|prefix| raw_key.starts_with(prefix));
+					let is_excluded =
+						raw_key.len() >= 16 && excluded_prefixes.iter().any(|prefix| raw_key.starts_with(prefix));
 
 					!is_excluded
 						&& (raw_key == sp_core::storage::well_known_keys::CODE
