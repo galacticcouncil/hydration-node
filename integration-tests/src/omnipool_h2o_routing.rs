@@ -4,6 +4,7 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use hydradx_runtime::{Omnipool, RuntimeOrigin};
 use orml_traits::MultiCurrency;
+use pallet_broadcast::types::{Asset, Destination, Fee, Filler, TradeOperation};
 use xcm_emulator::TestExt;
 
 #[test]
@@ -62,6 +63,23 @@ fn sell_h2o_for_asset_should_route_to_hdx_pool() {
 			"DAI reserve decrease should equal tokens sent to user"
 		);
 
+		// Assert Swapped3 event using get_last_swapped_events pattern (like dca.rs)
+		let swapped_events = get_last_swapped_events();
+		pretty_assertions::assert_eq!(
+			swapped_events.last().unwrap(),
+			&pallet_broadcast::Event::Swapped3 {
+				swapper: ALICE.into(),
+				filler: Omnipool::protocol_account(),
+				filler_type: Filler::Omnipool,
+				operation: TradeOperation::ExactIn,
+				inputs: vec![Asset::new(LRNA, sell_amount)],
+				outputs: vec![Asset::new(DAI, dai_received)],
+				fees: vec![Fee::new(DAI, 5319148936170212766, Destination::Account(Omnipool::protocol_account()))],
+				operation_stack: vec![],
+			}
+		);
+
+		// Assert Rerouted event
 		expect_hydra_events(vec![pallet_omnipool::Event::Rerouted {
 			from: DAI,
 			to: CORE_ASSET_ID,
@@ -125,6 +143,27 @@ fn sell_h2o_for_hdx_should_emit_rerouted_event() {
 			"HDX reserve decrease should equal tokens sent to user"
 		);
 
+		// Assert Swapped3 event using get_last_swapped_events pattern (like dca.rs)
+		let swapped_events = get_last_swapped_events();
+		pretty_assertions::assert_eq!(
+			swapped_events.last().unwrap(),
+			&pallet_broadcast::Event::Swapped3 {
+				swapper: ALICE.into(),
+				filler: Omnipool::protocol_account(),
+				filler_type: Filler::Omnipool,
+				operation: TradeOperation::ExactIn,
+				inputs: vec![Asset::new(LRNA, sell_amount)],
+				outputs: vec![Asset::new(CORE_ASSET_ID, hdx_received)],
+				fees: vec![Fee::new(
+					CORE_ASSET_ID,
+					191087671023216,
+					Destination::Account(Omnipool::protocol_account()),
+				)],
+				operation_stack: vec![],
+			}
+		);
+
+		// Assert Rerouted event
 		expect_hydra_events(vec![pallet_omnipool::Event::Rerouted {
 			from: CORE_ASSET_ID,
 			to: CORE_ASSET_ID,
