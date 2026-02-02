@@ -223,7 +223,7 @@ impl frame_system::Config for Runtime {
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 	type SingleBlockMigrations = ();
-	type MultiBlockMigrator = ();
+	type MultiBlockMigrator = pallet_migrations::Pallet<Runtime>;
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
