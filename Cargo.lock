@@ -13,6 +13,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "aave-simulator"
+version = "1.0.0"
+dependencies = [
+ "ethabi",
+ "evm",
+ "frame-support",
+ "hex-literal",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "ice-support",
+ "log",
+ "module-evm-utility-macro",
+ "num_enum",
+ "parity-scale-codec",
+ "precompile-utils",
+ "primitive-types 0.13.1",
+ "primitives",
+ "sp-arithmetic",
+ "sp-std",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4197,7 +4219,10 @@ source = "git+https://github.com/AcalaNetwork/ethabi?branch=acala#6e6ef9b3712aec
 dependencies = [
  "ethereum-types",
  "hex",
+ "serde",
  "sha3",
+ "thiserror 1.0.69",
+ "uint 0.10.0",
 ]
 
 [[package]]
@@ -6174,6 +6199,7 @@ dependencies = [
 name = "hydradx-runtime"
 version = "389.0.0"
 dependencies = [
+ "aave-simulator",
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
  "anyhow",

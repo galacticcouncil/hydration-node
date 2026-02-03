@@ -67,6 +67,7 @@ pallet-parameters = { workspace = true }
 pallet-intent = { workspace = true }
 pallet-ice = { workspace = true }
 pallet-lazy-executor = { workspace = true }
+aave-simulator = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -399,6 +400,7 @@ std = [
     "pallet-intent/std",
     "pallet-ice/std",
     "pallet-lazy-executor/std",
+    "aave-simulator/std",
     # Hyperbridge
     "anyhow/std",
     "pallet-hyperbridge/std",

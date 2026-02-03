@@ -21,6 +21,7 @@ use crate::evm::Erc20Currency;
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
+use aave_simulator::AaveSimulator;
 use core::ops::RangeInclusive;
 use frame_support::{
 	ensure, parameter_types,
@@ -1890,6 +1891,7 @@ impl pallet_intent::Config for Runtime {
 
 parameter_types! {
 	pub const IcePalletId: PalletId = PalletId(*b"ice_ice#");
+
 }
 
 /// Simulator configuration for the ICE pallet
@@ -1897,7 +1899,11 @@ parameter_types! {
 pub struct HydrationSimulatorConfig;
 
 impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
-	type Simulators = (Omnipool, Stableswap);
+	type Simulators = (
+		Omnipool,
+		Stableswap,
+		// AaveSimulator<Aave, evm::precompiles::erc20_mapping::HydraErc20Mapping>,
+	);
 	type RouteProvider = Router;
 	// Use HDX (native asset) as price denominator since LRNA cannot be bought from Omnipool
 	type PriceDenominator = NativeAssetId;

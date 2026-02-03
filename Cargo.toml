@@ -55,8 +55,9 @@ members = [
     'pallets/intent',
     'pallets/ice',
     'pallets/ice/support',
-    "ice/ice-solver",
-    "pallets/ice/amm-simulator",
+    'ice/ice-solver',
+    'pallets/ice/amm-simulator',
+    'runtime/aave-simulator'
 ]
 
 resolver = "2"
@@ -177,6 +178,7 @@ pallet-intent = { path = "pallets/intent", default-features = false }
 pallet-ice = { path = "pallets/ice", default-features = false }
 ice-support = { path = "pallets/ice/support", default-features = false }
 amm-simulator = { path = "pallets/ice/amm-simulator", default-features = false }
+aave-simulator = { path = "runtime/aave-simulator", default-features = false }
 pallet-lazy-executor = { path = "pallets/lazy-executor", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
