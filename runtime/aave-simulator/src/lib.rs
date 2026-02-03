@@ -3,18 +3,15 @@
 use codec::Decode;
 use codec::Encode;
 use core::marker::PhantomData;
-use evm::ExitReason;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{AmmSimulator, SimulatorError, TradeResult};
+use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::evm::EVM;
 use hydradx_traits::router::PoolType;
 use ice_support::AssetId;
 use ice_support::Balance;
 use ice_support::Price;
-use sp_std::vec::Vec;
-
-pub type CallResult = (ExitReason, Vec<u8>);
 
 //NOTE: This is tmp. dummy impl. of aave simulator that always trade 1:1 and doesn't do any checks.
 pub struct AaveSimulator<Evm, ErcMapping>(PhantomData<(Evm, ErcMapping)>);

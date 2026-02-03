@@ -1902,7 +1902,7 @@ impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
 	type Simulators = (
 		Omnipool,
 		Stableswap,
-		// AaveSimulator<Aave, evm::precompiles::erc20_mapping::HydraErc20Mapping>,
+		AaveSimulator<evm::Executor<Runtime>, evm::precompiles::erc20_mapping::HydraErc20Mapping>,
 	);
 	type RouteProvider = Router;
 	// Use HDX (native asset) as price denominator since LRNA cannot be bought from Omnipool
