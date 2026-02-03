@@ -235,10 +235,11 @@ mod omnipool {
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(HDX, 140421094366889)],
 						outputs: vec![Asset::new(LRNA, 70210545436637)],
-						fees: vec![
-							Fee::new(LRNA, 17552636359, Destination::Burned),
-							Fee::new(LRNA, 17552636359, Destination::Account(Treasury::account_id()))
-						],
+						fees: vec![Fee::new(
+							LRNA,
+							35105272718,
+							Destination::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
@@ -278,12 +279,13 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(HDX, 140421107723192)],
+						inputs: vec![Asset::new(HDX, 140421107721220)],
 						outputs: vec![Asset::new(LRNA, 70210548452699)],
-						fees: vec![
-							Fee::new(LRNA, 17552637113, Destination::Burned),
-							Fee::new(LRNA, 17552637113, Destination::Account(Treasury::account_id()))
-						],
+						fees: vec![Fee::new(
+							LRNA,
+							35105274226,
+							Destination::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
@@ -828,10 +830,11 @@ mod omnipool {
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, amount_to_sell)],
 						outputs: vec![Asset::new(LRNA, 49999999160157)],
-						fees: vec![
-							Fee::new(LRNA, 12499999790, Destination::Burned),
-							Fee::new(LRNA, 12499999790, Destination::Account(Treasury::account_id()))
-						],
+						fees: vec![Fee::new(
+							LRNA,
+							24999999580,
+							Destination::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
@@ -872,11 +875,12 @@ mod omnipool {
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, amount_to_sell)],
-						outputs: vec![Asset::new(LRNA, 49999997360494)],
-						fees: vec![
-							Fee::new(LRNA, 12499999340, Destination::Burned),
-							Fee::new(LRNA, 12499999340, Destination::Account(Treasury::account_id()))
-						],
+						outputs: vec![Asset::new(LRNA, 49999997360994)],
+						fees: vec![Fee::new(
+							LRNA,
+							24999998680,
+							Destination::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
@@ -888,11 +892,11 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
-						inputs: vec![Asset::new(LRNA, 49974997361814)],
-						outputs: vec![Asset::new(DAI, 71214367823821)],
+						inputs: vec![Asset::new(LRNA, 49974997362314)],
+						outputs: vec![Asset::new(DAI, 71214367824533)],
 						fees: vec![Fee::new(
 							DAI,
-							178482124872,
+							178482124874,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -2804,7 +2808,7 @@ mod stableswap {
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
 				assert!(fee > 0, "The treasury did not receive the fee");
 				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
-				assert_balance!(ALICE.into(), HDX, 1070726380525269);
+				assert_balance!(ALICE.into(), HDX, 1070726380522238);
 
 				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -2906,7 +2910,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, 1070726380525269);
+				assert_balance!(ALICE.into(), HDX, 1070726380522238);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -3009,7 +3013,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, 1070726380525269);
+				assert_balance!(ALICE.into(), HDX, 1070726380522238);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -3295,6 +3299,382 @@ mod stableswap {
 				assert!(fee > 0, "The treasury did not receive the fee");
 				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
 				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + amount_to_buy);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn dca_buy_fails_when_circuit_breaker_deposit_limit_is_set_on_share_asset() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+				assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+					RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_rational(50, 100),
+				));
+
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_1,
+					5000 * UNITS as i128,
+				));
+				assert_ok!(Stableswap::sell(
+					RuntimeOrigin::signed(CHARLIE.into()),
+					pool_id,
+					stable_asset_1,
+					stable_asset_2,
+					1000 * UNITS,
+					0u128,
+				));
+
+				//Init omnipool and add pool id as token
+				init_omnipol();
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					pool_id,
+					3000 * UNITS as i128,
+				));
+
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					pool_id,
+					FixedU128::from_rational(50, 100),
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+				set_zero_reward_for_referrals(pool_id);
+				do_trade_to_populate_oracle(pool_id, HDX, 100 * UNITS);
+
+				go_to_block(10);
+
+				let deposit_limit = 50 * UNITS;
+				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
+
+				let alice_init_stable1_balance = 5000 * UNITS;
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					ALICE.into(),
+					stable_asset_1,
+					alice_init_stable1_balance as i128,
+				));
+
+				// First leg mints pool shares, which will be limited by circuit breaker
+				let trades = vec![
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: stable_asset_1,
+						asset_out: pool_id,
+					},
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: pool_id,
+						asset_out: HDX,
+					},
+				];
+
+				let amount_to_buy = 100 * UNITS;
+				let dca_budget = 1100 * UNITS;
+
+				let schedule = Schedule {
+					owner: AccountId::from(ALICE),
+					period: 5u32,
+					total_amount: dca_budget,
+					max_retries: None,
+					stability_threshold: None,
+					slippage: Some(Permill::from_percent(100)),
+					order: Order::Buy {
+						asset_in: stable_asset_1,
+						asset_out: HDX,
+						amount_out: amount_to_buy,
+						max_amount_in: Balance::MAX,
+						route: create_bounded_vec(trades),
+					},
+				};
+
+				create_schedule(ALICE, schedule);
+
+				let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
+				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
+				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget);
+
+				//Act - Execute DCA
+				go_to_block(12);
+
+				let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
+				let router_reserved_pool_id = Currencies::reserved_balance(pool_id, &Router::router_account());
+
+				assert_eq!(
+					alice_hdx_after, alice_hdx_before,
+					"DCA should fail when circuit breaker deposit limit is set on share asset"
+				);
+
+				assert_eq!(
+					router_reserved_pool_id, 0,
+					"No shares should be reserved since DCA didn't execute"
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	/// It fails because stable share is locked in an intermediary trade,
+	/// and in the next hop the user has not enough balance to continue the trade
+	#[test]
+	fn dca_buy_also_fails_when_circuit_breaker_triggers_on_intermediate_shares_trade() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+				assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+					RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_rational(50, 100),
+				));
+
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_1,
+					5000 * UNITS as i128,
+				));
+				assert_ok!(Stableswap::sell(
+					RuntimeOrigin::signed(CHARLIE.into()),
+					pool_id,
+					stable_asset_1,
+					stable_asset_2,
+					1000 * UNITS,
+					0u128,
+				));
+
+				//Init omnipool and add pool id as token
+				init_omnipol();
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					pool_id,
+					3000 * UNITS as i128,
+				));
+
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					pool_id,
+					FixedU128::from_rational(50, 100),
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+				set_zero_reward_for_referrals(pool_id);
+				do_trade_to_populate_oracle(pool_id, HDX, 100 * UNITS);
+
+				go_to_block(10);
+
+				let deposit_limit = 50 * UNITS;
+				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
+
+				let alice_init_stable1_balance = 5000 * UNITS;
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					ALICE.into(),
+					stable_asset_1,
+					alice_init_stable1_balance as i128,
+				));
+
+				// First step MINTS shares - circuit breaker triggers here!
+				let trades = vec![
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: stable_asset_1,
+						asset_out: pool_id,
+					},
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: pool_id,
+						asset_out: HDX,
+					},
+				];
+
+				let amount_to_buy = 100 * UNITS;
+				let dca_budget = 1100 * UNITS;
+
+				let schedule = Schedule {
+					owner: AccountId::from(ALICE),
+					period: 5u32,
+					total_amount: dca_budget,
+					max_retries: None,
+					stability_threshold: None,
+					slippage: Some(Permill::from_percent(70)),
+					order: Order::Buy {
+						asset_in: stable_asset_1,
+						asset_out: HDX,
+						amount_out: amount_to_buy,
+						max_amount_in: Balance::MAX,
+						route: create_bounded_vec(trades),
+					},
+				};
+
+				create_schedule(ALICE, schedule);
+
+				let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
+				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
+				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget);
+
+				//Act - Execute DCA
+				go_to_block(12);
+
+				//Assert
+				let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
+				let alice_stable1_reserved = Currencies::reserved_balance(stable_asset_1, &ALICE.into());
+				let router_reserved_shares = Currencies::reserved_balance(pool_id, &Router::router_account());
+
+				assert_eq!(
+					alice_stable1_reserved, 0,
+					"All reserved stable_asset_1 should be freed after rollback"
+				);
+				assert_eq!(
+					alice_hdx_after, alice_hdx_before,
+					"DCA Buy should fail when circuit breaker triggers on intermediate shares. HDX before: {}, after: {}",
+					alice_hdx_before, alice_hdx_after
+				);
+
+				assert_eq!(
+					router_reserved_shares, 0,
+					"No shares should be reserved since DCA was rolled back. Reserved: {}",
+					router_reserved_shares
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn dca_buy_fails_when_deposit_limit_exceeded_in_router_context() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				// Arrange
+				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+				assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+					RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_rational(50, 100),
+				));
+
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					CHARLIE.into(),
+					stable_asset_1,
+					5000 * UNITS as i128,
+				));
+				assert_ok!(Stableswap::sell(
+					RuntimeOrigin::signed(CHARLIE.into()),
+					pool_id,
+					stable_asset_1,
+					stable_asset_2,
+					1000 * UNITS,
+					0u128,
+				));
+
+				// Init omnipool and add stable_asset_1 as token
+				init_omnipol();
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_asset_1,
+					3000 * UNITS as i128,
+				));
+
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_rational(50, 100),
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+				set_zero_reward_for_referrals(stable_asset_1);
+				do_trade_to_populate_oracle(stable_asset_1, HDX, 100 * UNITS);
+
+				go_to_block(10);
+
+				let deposit_limit = 50 * UNITS;
+				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
+
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					ALICE.into(),
+					HDX,
+					5000 * UNITS as i128,
+				));
+
+				let trades = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: stable_asset_1,
+					},
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: stable_asset_1,
+						asset_out: pool_id, // Minting shares at the END
+					},
+				];
+
+				let amount_to_buy = 100 * UNITS;
+				let dca_budget = 1100 * UNITS;
+
+				let schedule = Schedule {
+					owner: AccountId::from(ALICE),
+					period: 5u32,
+					total_amount: dca_budget,
+					max_retries: None,
+					stability_threshold: None,
+					slippage: Some(Permill::from_percent(70)),
+					order: Order::Buy {
+						asset_in: HDX,
+						asset_out: pool_id,
+						amount_out: amount_to_buy,
+						max_amount_in: Balance::MAX,
+						route: create_bounded_vec(trades),
+					},
+				};
+
+				create_schedule(ALICE, schedule);
+
+				let alice_pool_id_before = Currencies::free_balance(pool_id, &ALICE.into());
+				assert_eq!(alice_pool_id_before, 0, "ALICE should start with 0 pool_id shares");
+
+				// Act - Execute DCA
+				go_to_block(12);
+
+				// Assert
+				let alice_stable_shares_after = Currencies::free_balance(pool_id, &ALICE.into());
+				let router_reserved_shares = Currencies::reserved_balance(pool_id, &Router::router_account());
+
+				assert_eq!(
+					alice_stable_shares_after, 0,
+					"User should have 0 pool shares since DCA execution failed. Got {}",
+					alice_stable_shares_after
+				);
+
+				assert_eq!(
+					router_reserved_shares, 0,
+					"Router should have 0 reserved shares. Got {}",
+					router_reserved_shares
+				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});

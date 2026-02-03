@@ -224,7 +224,7 @@ async function updateChainSpec(inputFile, outputFile) {
 
     // Save the updated chain spec
     try {
-        fs.writeFileSync(outputFile, JSON.stringify(chainSpec, null, 4));
+        fs.writeFileSync(outputFile, JSON.stringify(chainSpec));
         console.log(`Chain spec updated successfully and saved to ${outputFile}`);
     } catch (err) {
         console.error('Error writing the updated chain spec file:', err);

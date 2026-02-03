@@ -395,6 +395,12 @@ pub mod pallet {
 
 		/// Pool does not have pegs configured.
 		NoPegSource,
+
+		/// Trade would result in zero amount out.
+		ZeroAmountOut,
+
+		/// Trade would result in zero amount in.
+		ZeroAmountIn,
 	}
 
 	#[pallet::call]
@@ -663,6 +669,7 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(shares <= max_share_amount, Error::<T>::SlippageLimit);
+			ensure!(shares >= 1, Error::<T>::ZeroAmountIn);
 
 			// Burn shares and transfer asset to user.
 			T::Currency::withdraw(pool_id, &who, shares, ExistenceRequirement::AllowDeath)?;
@@ -1772,6 +1779,7 @@ impl<T: Config> Pallet<T> {
 		.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(amount >= min_amount_out, Error::<T>::SlippageLimit);
+		ensure!(amount >= 1, Error::<T>::ZeroAmountOut);
 
 		// Burn shares and transfer asset to user.
 		T::Currency::withdraw(pool_id, who, share_amount, ExistenceRequirement::AllowDeath)?;
@@ -1865,6 +1873,8 @@ impl<T: Config> Pallet<T> {
 				ensure!(amount >= min_amount, Error::<T>::SlippageLimit);
 				amount
 			};
+
+			ensure!(amount >= 1, Error::<T>::ZeroAmountOut);
 
 			T::Currency::transfer(*asset_id, &pool_account, who, amount, ExistenceRequirement::AllowDeath)?;
 			amounts.push(AssetAmount {
