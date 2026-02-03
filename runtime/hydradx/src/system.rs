@@ -222,7 +222,7 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type SingleBlockMigrations = migrations::SingleBlockMigrations;
+	type SingleBlockMigrations = migrations::SingleBlockMigrationsList;
 	type MultiBlockMigrator = MultiBlockMigrations;
 	type PreInherents = ();
 	type PostInherents = ();
@@ -237,7 +237,7 @@ parameter_types! {
 impl pallet_migrations::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type Migrations = migrations::MultiBlockMigrations<Runtime>;
+	type Migrations = migrations::MultiBlockMigrationsList<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
 	type CursorMaxLen = ConstU32<65_536>;

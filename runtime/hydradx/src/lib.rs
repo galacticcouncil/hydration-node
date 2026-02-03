@@ -299,7 +299,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	migrations::SingleBlockMigrations,
+	migrations::SingleBlockMigrationsList,
 >;
 
 impl<LocalCall> frame_system::offchain::CreateTransactionBase<LocalCall> for Runtime
