@@ -1,7 +1,6 @@
 use crate::mock::*;
 use crate::{Event, ExtraGas};
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays};
-use frame_support::pallet_prelude::Weight;
 use frame_support::{assert_noop, assert_ok, dispatch::PostDispatchInfo};
 use orml_tokens::Error;
 use orml_traits::MultiCurrency;
