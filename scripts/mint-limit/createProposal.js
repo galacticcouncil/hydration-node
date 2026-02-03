@@ -28,30 +28,20 @@ const RANGE_DAYS = 90;
 // Technical Committee threshold (how many approvals needed to start motion)
 const TC_THRESHOLD = 4;
 
-const ASSETS =  [
-    5, // Polkadot
-    8, // "Phala"
-    9, // "Astar"
-    10, // "USDT"
-    12, // "Zeitgeist"
-    14, // "Bifrost Native Coin"
-    15, // "Bifrost Voucher DOT"
-    16, // "Glimmer"
-    17, // "Interlay"
-    19, // "Wrapped BTC (Moonbeam Wormhole)"
-    20, // "Wrapped ETH (Moonbeam Wormhole)"
-    22, // "USDC"
-    27, // "Crust"
-    31, // "Darwinia Network RING"
-    33, // "Voucher ASTR"
-    35, // "OriginTrail"
-    1000624, // "AAVE"
-    1000752, // "Solana (Moonbeam Wormhole)"
-    1000765, // "Threshold BTC"
-    1000771, // "Kusama"
-    1000794, // "Chainlink"
-    1000795, // "SKY"
-    1000796, // "Lido"
+const ASSETS = [
+    // Stable shares
+    100, // "4-Pool"
+    101, // "2-Pool"
+    102, // "2-Pool-Stbl"
+    103, // "3-Pool"
+    //104, // "2-Pool-WETH"
+    105, // "3-Pool-MRL"
+    110, // "2-Pool-HUSDC"
+    111, // "2-Pool-HUSDT"
+    112, // "2-Pool-HUSDS"
+    113, // "2-Pool-HUSDe"
+    690, // "2-Pool-GDOT"
+    4200, // "2-Pool-GETH"
 ];
 
 // Overwrites for specific assets (asset_id -> mint_limit_value)
@@ -237,13 +227,13 @@ async function buildBatchCall({rpc, assetIds, rangeDays}) {
         const MIN_USD_LIMIT = 50000;
         let adjustedLimit = finalLimit;
         let wasAdjusted = false;
-        
+
         if (tmaxUsd < MIN_USD_LIMIT) {
             // Safety check to prevent division by zero
             if (parseFloat(priceAmount) <= 0) {
                 throw new Error(`Invalid price for asset ${assetId}: ${priceAmount}`);
             }
-            
+
             // Calculate the asset amount needed for $50k USD
             const usdToAssetRate = (parseFloat(priceAmount) / 10 ** priceDecimals);
             const minAssetAmount = MIN_USD_LIMIT / usdToAssetRate;
@@ -260,7 +250,7 @@ async function buildBatchCall({rpc, assetIds, rangeDays}) {
             isOverwrite ? 'OVERWRITE' : null,
             wasAdjusted ? 'ADJUSTED TO MIN' : null
         ].filter(Boolean).join(', ');
-        
+
         console.log(`${assetId} (${assetName}) -> mint limit = $${finalUsdAmount.toLocaleString()} | amount = ${adjustedLimit} ${statusFlags ? ` (${statusFlags})` : ''}`);
         calls.push(buildUpdateCall(api, assetId, adjustedLimit));
     }

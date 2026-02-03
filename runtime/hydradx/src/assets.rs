@@ -550,7 +550,7 @@ parameter_types! {
 	pub const EmaOracleSpotPriceShort: OraclePeriod = OraclePeriod::Short;
 	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
-	pub BurnProtocolFee : Permill = Permill::from_percent(50);
+	pub BurnProtocolFee : Permill = Permill::from_percent(0);
 }
 
 impl pallet_omnipool::Config for Runtime {
@@ -604,6 +604,17 @@ impl Contains<AccountId> for CircuitBreakerWhitelist {
 	}
 }
 
+/// Accounts exempt from deposit locking in the circuit breaker.
+/// When the circuit breaker would normally lock deposits for these accounts,
+/// it returns an error instead to prevent funds being stuck.
+pub struct DepositLockWhitelist;
+
+impl Contains<AccountId> for DepositLockWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		pallet_route_executor::Pallet::<Runtime>::router_account() == *a
+	}
+}
+
 parameter_types! {
 	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (5_000, 10_000);	// 50%
 	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((500, 10_000));	// 5%
@@ -619,6 +630,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type Balance = Balance;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DepositLockWhitelist = DepositLockWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;

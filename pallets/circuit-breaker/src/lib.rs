@@ -218,6 +218,10 @@ pub mod pallet {
 		/// List of accounts that bypass checks for adding/removing liquidity. Root is always whitelisted
 		type WhitelistedAccounts: Contains<Self::AccountId>;
 
+		/// Accounts exempt from deposit locking.
+		/// Instead of locking, the circuit breaker errors to avoid trapping funds on intermediate accounts.
+		type DepositLockWhitelist: Contains<Self::AccountId>;
+
 		/// The maximum percentage of a pool's liquidity that can be traded in a block.
 		/// Represented as a non-zero fraction (nominator, denominator) with the max value being 10_000.
 		#[pallet::constant]
@@ -416,6 +420,9 @@ pub mod pallet {
 		AssetNotInLockdown,
 		/// Invalid amount to save deposit
 		InvalidAmount,
+		/// Deposit limit would be exceeded for a whitelisted account.
+		/// Operation rejected to prevent funds being locked on system accounts.
+		DepositLimitExceededForWhitelistedAccount,
 		/// Global lockdown is active and withdrawals that participate in the global limit are blocked.
 		GlobalLockdownActive,
 		/// Applying the increment would exceed the configured global limit -> lockdown is triggered and operation fails.
@@ -978,6 +985,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub(crate) fn do_lock_deposit(who: &T::AccountId, asset_id: T::AssetId, amount: T::Balance) -> DispatchResult {
+		// Prevent locking deposits for whitelisted accounts (e.g., router) to avoid funds being stuck
+		if T::DepositLockWhitelist::contains(who) {
+			return Err(Error::<T>::DepositLimitExceededForWhitelistedAccount.into());
+		}
+
 		<T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::OnLockdownDeposit::handle(&(
 			asset_id,
 			who.clone(),
