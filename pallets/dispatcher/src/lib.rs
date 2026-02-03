@@ -259,12 +259,11 @@ pub mod pallet {
 			// We need to add the extra gas to the actual weight - because evm execution does not account for it
 			// If actual weight is None, we still account for extra gas
 			let actual_weight = if let Some(weight) = actual_weight {
-				weight
+				let extra_weight = T::GasWeightMapping::gas_to_weight(extra_gas, true);
+				Some(weight.saturating_add(extra_weight))
 			} else {
-				Weight::zero()
+				None
 			};
-			let extra_weight = T::GasWeightMapping::gas_to_weight(extra_gas, true);
-			let actual_weight = Some(actual_weight.saturating_add(extra_weight));
 
 			match result {
 				Ok(_) => Ok(PostDispatchInfo {
