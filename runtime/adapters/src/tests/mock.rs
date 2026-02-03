@@ -315,7 +315,6 @@ parameter_types! {
 	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = LRNA;
-	pub const MaxEgressAccounts: u32 = 10;
 }
 
 pub struct NoIssuanceIncreaseLimit<T>(PhantomData<T>);
@@ -365,7 +364,6 @@ impl pallet_circuit_breaker::Config for Test {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type GlobalWithdrawWindow = GlobalWithdrawWindow;
-	type MaxEgressAccounts = MaxEgressAccounts;
 	type TimestampProvider = Timestamp;
 }
 

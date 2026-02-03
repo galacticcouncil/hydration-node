@@ -255,10 +255,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type GlobalWithdrawWindow: Get<primitives::Moment>;
 
-		/// The maximum number of accounts that can be in the egress accounts list.
-		#[pallet::constant]
-		type MaxEgressAccounts: Get<u32>;
-
 		type TimestampProvider: Time<Moment = primitives::Moment>;
 	}
 
@@ -343,13 +339,14 @@ pub mod pallet {
 	pub type WithdrawLockdownUntil<T: Config> = StorageValue<_, primitives::Moment, OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn egress_accounts)]
-	/// List of accounts that are considered egress sinks.
-	pub type EgressAccounts<T: Config> = StorageValue<_, BoundedVec<T::AccountId, T::MaxEgressAccounts>, ValueQuery>;
+	#[pallet::getter(fn is_account_egress)]
+	/// A map of accounts that are considered egress sinks.
+	pub type EgressAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, ()>;
 
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	#[pallet::getter(fn ignore_withdraw_fuse)]
-	/// If some, global lockdown is active until this timestamp.
+	/// When set to true, egress accounting is skipped.
 	pub type IgnoreWithdrawFuse<T: Config> = StorageValue<_, bool, ValueQuery>;
 
 	#[pallet::event]
@@ -391,10 +388,10 @@ pub mod pallet {
 		GlobalLimitUpdated { new_limit: T::Balance },
 		/// Global withdraw lockdown was set by governance.
 		GlobalLockdownSet { until: primitives::Moment },
-		/// Egress accounts list was updated.
-		EgressAccountsUpdated {
-			accounts: BoundedVec<T::AccountId, T::MaxEgressAccounts>,
-		},
+		/// A number of egress accounts added to a list.
+		EgressAccountsAdded { count: u32 },
+		/// A number of egress accounts removed from a list.
+		EgressAccountsRemoved { count: u32 },
 	}
 
 	#[pallet::error]
@@ -427,8 +424,6 @@ pub mod pallet {
 		GlobalLockdownActive,
 		/// Applying the increment would exceed the configured global limit -> lockdown is triggered and operation fails.
 		GlobalLimitExceeded,
-		/// Maximum number of egress accounts reached.
-		MaxEgressAccountsReached,
 		/// Asset to withdraw cannot be converted to reference currency.
 		FailedToConvertAsset,
 	}
@@ -649,23 +644,34 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(12)]
+		#[pallet::call_index(8)]
 		#[pallet::weight(T::DbWeight::get().writes(1))]
-		pub fn set_egress_accounts(origin: OriginFor<T>, accounts: Vec<T::AccountId>) -> DispatchResult {
+		pub fn add_egress_accounts(origin: OriginFor<T>, accounts: Vec<T::AccountId>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
-			let bounded_accounts: BoundedVec<T::AccountId, T::MaxEgressAccounts> =
-				accounts.try_into().map_err(|_| Error::<T>::MaxEgressAccountsReached)?;
-
-			EgressAccounts::<T>::put(bounded_accounts.clone());
-			Self::deposit_event(Event::EgressAccountsUpdated {
-				accounts: bounded_accounts,
-			});
+			for account in &accounts {
+				EgressAccounts::<T>::insert(account, ());
+			}
+			Self::deposit_event(Event::EgressAccountsAdded { count: accounts.len() as u32 });
 
 			Ok(())
 		}
 
-		#[pallet::call_index(13)]
+		#[pallet::call_index(9)]
+		#[pallet::weight(T::DbWeight::get().writes(1))]
+		pub fn remove_egress_accounts(origin: OriginFor<T>, accounts: Vec<T::AccountId>) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			for account in &accounts {
+				EgressAccounts::<T>::remove(account);
+			}
+
+			Self::deposit_event(Event::EgressAccountsAdded { count: accounts.len() as u32 });
+
+			Ok(())
+		}
+
+		#[pallet::call_index(10)]
 		#[pallet::weight(T::DbWeight::get().writes(1))]
 		pub fn set_global_lockdown(origin: OriginFor<T>, until: primitives::Moment) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;

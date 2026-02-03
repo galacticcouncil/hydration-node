@@ -35,28 +35,27 @@ where
 	}
 
 	pub fn should_account_operation(asset_id: AssetId, op_kind: OperationKind, maybe_dest: Option<&AccountId>) -> bool {
+		if CircuitBreaker::ignore_withdraw_fuse() {
+			return false;
+		}
+
 		let asset_details = AssetRegistry::assets(asset_id);
 		let asset_type = asset_details.map(|d| d.asset_type);
 
 		match op_kind {
-			OperationKind::Burn | OperationKind::Withdraw => {
-				matches!(asset_type, Some(AssetType::External) | Some(AssetType::Erc20))
-			}
+			OperationKind::Burn | OperationKind::Withdraw if matches!(asset_type, Some(AssetType::External)) => true,
 			OperationKind::Transfer => {
 				if let Some(dest) = maybe_dest {
-					pallet_circuit_breaker::Pallet::<Runtime>::egress_accounts().contains(dest)
+					pallet_circuit_breaker::Pallet::<Runtime>::is_account_egress(dest).is_some()
 				} else {
 					false
 				}
 			}
+			_ => false,
 		}
 	}
 
-	pub fn on_egress(asset_id: AssetId, amount: Balance) -> DispatchResult {
-		if CircuitBreaker::ignore_withdraw_fuse() {
-			return Ok(());
-		}
-
+	fn on_egress(asset_id: AssetId, amount: Balance) -> DispatchResult {
 		let amount_ref_currency = Self::convert_to_hdx(asset_id, amount)
 			.ok_or(pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset)?;
 		pallet_circuit_breaker::Pallet::<Runtime>::note_egress(amount_ref_currency)

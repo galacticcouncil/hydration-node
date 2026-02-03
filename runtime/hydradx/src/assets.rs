@@ -431,7 +431,8 @@ impl pallet_currencies::Config for Runtime {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeAssetId;
 	type RegistryInspect = AssetRegistry;
-	type EgressHandler = circuit_breaker::WithdrawCircuitBreaker<NativeAssetId>;
+	type EgressHandler =
+		circuit_breaker::WithdrawCircuitBreaker<NativeAssetId>;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
 
@@ -621,7 +622,6 @@ parameter_types! {
 
 	// Global withdraw limit parameters
 	pub const GlobalWithdrawWindow: primitives::Moment = primitives::constants::time::unix_time::DAY;
-	pub const MaxEgressAccounts: u32 = 64;
 }
 
 impl pallet_circuit_breaker::Config for Runtime {
@@ -640,7 +640,6 @@ impl pallet_circuit_breaker::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = CircuitBreakerBenchmarkHelper<Runtime>;
 	type GlobalWithdrawWindow = GlobalWithdrawWindow;
-	type MaxEgressAccounts = MaxEgressAccounts;
 	type TimestampProvider = Timestamp;
 }
 
