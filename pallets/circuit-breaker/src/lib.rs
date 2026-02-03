@@ -151,7 +151,6 @@ pub mod pallet {
 				Self::deposit_event(Event::GlobalLockdownLifted);
 			}
 
-			// TODO: benchmark it
 			T::WeightInfo::on_finalize(0, 0)
 		}
 

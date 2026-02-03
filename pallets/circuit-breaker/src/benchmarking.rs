@@ -21,7 +21,7 @@ use super::*;
 
 use crate::types::BenchmarkHelper;
 use frame_benchmarking::{account, benchmarks};
-use frame_support::traits::Hooks;
+use frame_support::{assert_ok, traits::Hooks};
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
 
@@ -49,6 +49,26 @@ fn whitelist_storage_maps<T: Config>() {
 benchmarks! {
 	 where_clause {
 		where T::AssetId: From<u32>,
+	}
+
+	on_initialize_skip_lockdown_lifting {
+		let block_num: BlockNumberFor<T> = 1u32.into();
+		frame_system::Pallet::<T>::set_block_number(block_num);
+	}: { Pallet::<T>::on_initialize(block_num) }
+	verify {}
+
+	on_initialize_lift_lockdown {
+		let block_num: BlockNumberFor<T> = 1u32.into();
+		frame_system::Pallet::<T>::set_block_number(block_num);
+
+		let until = crate::Pallet::<T>::timestamp_now() + (primitives::constants::time::MILLISECS_PER_BLOCK * 4);
+		assert_ok!(crate::Pallet::<T>::set_global_lockdown(RawOrigin::Root.into(), until));
+
+		let until_block_num: BlockNumberFor<T> = 5u32.into();
+		frame_system::Pallet::<T>::set_block_number(block_num);
+	}: { Pallet::<T>::on_initialize(block_num) }
+	verify {
+		assert!(crate::Pallet::<T>::withdraw_lockdown_until().is_none());
 	}
 
 	on_finalize {
@@ -138,6 +158,31 @@ benchmarks! {
 	}: _(RawOrigin::Root, asset_id, trade_limit)
 	verify {
 		assert_eq!(LiquidityRemoveLimitPerAsset::<T>::get(asset_id), trade_limit);
+	}
+
+	set_global_withdraw_limit {
+		let balance = T::Balance::from(1_000_000u32);
+	}: _(RawOrigin::Root, balance)
+	verify {
+		assert_eq!(crate::Pallet::<T>::global_withdraw_limit(), Some(balance));
+	}
+
+	reset_global_lockdown {
+		let now = crate::Pallet::<T>::timestamp_now();
+		let init_value = (T::Balance::from(1_000_000u32), now - 1);
+		WithdrawLimitAccumulator::<T>::put(init_value);
+		WithdrawLockdownUntil::<T>::put(now);
+	}: _(RawOrigin::Root)
+	verify {
+		assert!(crate::Pallet::<T>::withdraw_lockdown_until().is_none());
+		assert_eq!(crate::Pallet::<T>::withdraw_limit_accumulator(), (T::Balance::zero(), now));
+	}
+
+	set_global_lockdown {
+		let until = crate::Pallet::<T>::timestamp_now() + 1;
+	}: _(RawOrigin::Root, until)
+	verify {
+		assert_eq!(crate::Pallet::<T>::withdraw_lockdown_until(), Some(until));
 	}
 
 	ensure_add_liquidity_limit {

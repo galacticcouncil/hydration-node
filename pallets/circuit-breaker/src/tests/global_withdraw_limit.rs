@@ -1,6 +1,8 @@
 use crate::tests::mock::*;
 use crate::*;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::assert_ok;
+
+const DAY: primitives::Moment = primitives::constants::time::unix_time::DAY;
 
 #[test]
 fn note_egress_should_increment_accumulator() {
@@ -49,12 +51,12 @@ fn accumulator_should_decay_linearly() {
 
 		// Window is 24h (86_400_000 ms)
 		// 12h passed => 50% decay
-		pallet_timestamp::Now::<Test>::put(12 * 60 * 60 * 1000);
+		pallet_timestamp::Now::<Test>::put(DAY / 2);
 		CircuitBreaker::try_to_decay_withdraw_limit_accumulator();
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 500);
 
 		// 100h passed from start => should be 0
-		pallet_timestamp::Now::<Test>::put(100 * 60 * 60 * 1000);
+		pallet_timestamp::Now::<Test>::put(DAY * 4);
 		CircuitBreaker::try_to_decay_withdraw_limit_accumulator();
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
 	});
@@ -66,7 +68,7 @@ fn decay_should_not_underflow() {
 		assert_ok!(CircuitBreaker::note_egress(1000));
 
 		// 48h passed => should be 0, not underflow
-		pallet_timestamp::Now::<Test>::put(48 * 60 * 60 * 1000);
+		pallet_timestamp::Now::<Test>::put(DAY * 2);
 		CircuitBreaker::try_to_decay_withdraw_limit_accumulator();
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
 	});

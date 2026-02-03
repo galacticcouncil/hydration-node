@@ -271,33 +271,3 @@ fn lockdown_expiry_allows_egress() {
 		);
 	});
 }
-
-// todo:
-// #[test]
-// fn token_gateway_teleport_blocked_during_lockdown() {
-// 	Hydra::execute_with(|| {
-// 		// Arrange
-// 		let now = CircuitBreaker::timestamp_now();
-// 		pallet_circuit_breaker::WithdrawLockdownUntil::<hydradx_runtime::Runtime>::put(now + 1000);
-//
-// 		let params = hydradx_runtime::pallet_token_gateway::types::TeleportParams {
-// 			asset_id: 0, // Native asset
-// 			destination: StateMachine::Polkadot(1000),
-// 			recepient: [1u8; 32].into(),
-// 			amount: 1000,
-// 			call_data: None,
-// 			redeem: false,
-// 		};
-//
-// 		let call = RuntimeCall::TokenGateway(hydradx_runtime::pallet_token_gateway::Call::teleport {
-// 			params,
-// 		});
-//
-// 		// Act & Assert
-// 		// It should fail with GlobalLockdownActive because it goes through pallet_currencies
-// 		assert_noop!(
-// 			call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
-// 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::GlobalLockdownActive
-// 		);
-// 	});
-// }
