@@ -401,6 +401,8 @@ dependencies = [
  "hydra-dx-math",
  "hydradx-traits",
  "ice-support",
+ "log",
+ "primitive-types 0.13.1",
  "sp-std",
 ]
 

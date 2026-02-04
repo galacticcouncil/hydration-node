@@ -262,6 +262,15 @@ impl<T: Config<AssetId = u32>> AmmSimulator for Pallet<T> {
 
 		Ok(Ratio::new(spot_price.into_inner(), sp_runtime::FixedU128::DIV))
 	}
+
+	fn can_trade(asset_in: u32, asset_out: u32, snapshot: &Self::Snapshot) -> Option<PoolType<u32>> {
+		// Use existing find_pool logic to check if both assets are in the same pool
+		if let Ok((pool_id, _)) = find_pool(asset_in, asset_out, snapshot) {
+			Some(PoolType::Stableswap(pool_id))
+		} else {
+			None
+		}
+	}
 }
 
 fn find_pool(

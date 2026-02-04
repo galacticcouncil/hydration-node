@@ -130,6 +130,18 @@ pub trait AmmSimulator {
 		asset_out: AssetId,
 		snapshot: &Self::Snapshot,
 	) -> Result<Ratio, SimulatorError>;
+
+	/// Check if this simulator can trade the given asset pair directly.
+	/// Returns Some(PoolType) if the pair can be traded, None otherwise.
+	///
+	/// Each AMM knows its own trading capabilities:
+	/// - Omnipool: Can trade if both assets are in the omnipool
+	/// - Stableswap: Can trade if both assets are in the same pool
+	/// - Aave: Can trade if it's a valid aToken/underlying pair
+	fn can_trade(_asset_in: AssetId, _asset_out: AssetId, _snapshot: &Self::Snapshot) -> Option<PoolType<AssetId>> {
+		// Default implementation: cannot determine trading capability
+		None
+	}
 }
 
 /// A set of simulators that can be dispatched to based on pool type.
@@ -184,6 +196,10 @@ pub trait SimulatorSet {
 		asset_out: AssetId,
 		state: &Self::State,
 	) -> Result<Ratio, SimulatorError>;
+
+	/// Find a simulator that can trade the given asset pair.
+	/// Returns Some(PoolType) from the first simulator that can handle it.
+	fn can_trade(asset_in: AssetId, asset_out: AssetId, state: &Self::State) -> Option<PoolType<AssetId>>;
 }
 
 /// High-level AMM interface for the solver.
@@ -265,6 +281,10 @@ impl<S: AmmSimulator> SimulatorSet for S {
 			return Err(SimulatorError::NotSupported);
 		}
 		S::get_spot_price(asset_in, asset_out, state)
+	}
+
+	fn can_trade(asset_in: AssetId, asset_out: AssetId, state: &Self::State) -> Option<PoolType<AssetId>> {
+		S::can_trade(asset_in, asset_out, state)
 	}
 }
 
@@ -365,6 +385,13 @@ macro_rules! impl_simulator_set_for_tuple {
 					Err(SimulatorError::NotSupported) => $B::get_spot_price(pool_type, asset_in, asset_out, &state.$b),
 					Err(e) => Err(e),
 				}
+			}
+
+			fn can_trade(asset_in: AssetId, asset_out: AssetId, state: &Self::State) -> Option<PoolType<AssetId>> {
+				if let Some(pool_type) = $A::can_trade(asset_in, asset_out, &state.$a) {
+					return Some(pool_type);
+				}
+				$B::can_trade(asset_in, asset_out, &state.$b)
 			}
 		}
 	};
@@ -500,6 +527,16 @@ macro_rules! impl_simulator_set_for_tuple {
 					}
 					Err(e) => Err(e),
 				}
+			}
+
+			fn can_trade(asset_in: AssetId, asset_out: AssetId, state: &Self::State) -> Option<PoolType<AssetId>> {
+				if let Some(pool_type) = $A::can_trade(asset_in, asset_out, &state.$a) {
+					return Some(pool_type);
+				}
+				if let Some(pool_type) = $B::can_trade(asset_in, asset_out, &state.$b) {
+					return Some(pool_type);
+				}
+				$C::can_trade(asset_in, asset_out, &state.$c)
 			}
 		}
 	};
@@ -693,6 +730,19 @@ macro_rules! impl_simulator_set_for_tuple {
 					}
 					Err(e) => Err(e),
 				}
+			}
+
+			fn can_trade(asset_in: AssetId, asset_out: AssetId, state: &Self::State) -> Option<PoolType<AssetId>> {
+				if let Some(pool_type) = $A::can_trade(asset_in, asset_out, &state.$a) {
+					return Some(pool_type);
+				}
+				if let Some(pool_type) = $B::can_trade(asset_in, asset_out, &state.$b) {
+					return Some(pool_type);
+				}
+				if let Some(pool_type) = $C::can_trade(asset_in, asset_out, &state.$c) {
+					return Some(pool_type);
+				}
+				$D::can_trade(asset_in, asset_out, &state.$d)
 			}
 		}
 	};
@@ -986,6 +1036,22 @@ macro_rules! impl_simulator_set_for_tuple {
 					}
 					Err(e) => Err(e),
 				}
+			}
+
+			fn can_trade(asset_in: AssetId, asset_out: AssetId, state: &Self::State) -> Option<PoolType<AssetId>> {
+				if let Some(pool_type) = $A::can_trade(asset_in, asset_out, &state.$a) {
+					return Some(pool_type);
+				}
+				if let Some(pool_type) = $B::can_trade(asset_in, asset_out, &state.$b) {
+					return Some(pool_type);
+				}
+				if let Some(pool_type) = $C::can_trade(asset_in, asset_out, &state.$c) {
+					return Some(pool_type);
+				}
+				if let Some(pool_type) = $D::can_trade(asset_in, asset_out, &state.$d) {
+					return Some(pool_type);
+				}
+				$E::can_trade(asset_in, asset_out, &state.$e)
 			}
 		}
 	};
@@ -1343,6 +1409,25 @@ macro_rules! impl_simulator_set_for_tuple {
 					}
 					Err(e) => Err(e),
 				}
+			}
+
+			fn can_trade(asset_in: AssetId, asset_out: AssetId, state: &Self::State) -> Option<PoolType<AssetId>> {
+				if let Some(pool_type) = $A::can_trade(asset_in, asset_out, &state.$a) {
+					return Some(pool_type);
+				}
+				if let Some(pool_type) = $B::can_trade(asset_in, asset_out, &state.$b) {
+					return Some(pool_type);
+				}
+				if let Some(pool_type) = $C::can_trade(asset_in, asset_out, &state.$c) {
+					return Some(pool_type);
+				}
+				if let Some(pool_type) = $D::can_trade(asset_in, asset_out, &state.$d) {
+					return Some(pool_type);
+				}
+				if let Some(pool_type) = $E::can_trade(asset_in, asset_out, &state.$e) {
+					return Some(pool_type);
+				}
+				$F::can_trade(asset_in, asset_out, &state.$f)
 			}
 		}
 	};

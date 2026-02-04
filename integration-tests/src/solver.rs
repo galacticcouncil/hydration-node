@@ -2,8 +2,11 @@ use crate::polkadot_test_net::{TestNet, ALICE, BOB, CHARLIE, DAVE, EVE};
 use amm_simulator::HydrationSimulator;
 use frame_support::assert_ok;
 use frame_support::traits::Time;
-use hydradx_runtime::{Currencies, LazyExecutor, Omnipool, Router, Runtime, RuntimeOrigin, Stableswap, Timestamp};
+use hydradx_runtime::{
+	AssetRegistry, Currencies, LazyExecutor, Omnipool, Router, Runtime, RuntimeOrigin, Stableswap, Timestamp,
+};
 use hydradx_traits::amm::{AMMInterface, AmmSimulator, SimulatorConfig, SimulatorSet};
+use hydradx_traits::BoundErc20;
 use ice_solver::v1::SolverV1;
 use ice_support::Solution;
 use orml_traits::MultiCurrency;
@@ -173,14 +176,13 @@ fn test_stableswap_simulator_direct() {
 fn test_stableswap_intent() {
 	TestNet::reset();
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
-		use hydradx_traits::router::{AssetPair, PoolType as RouterPoolType, RouteProvider};
+		use hydradx_traits::router::{AssetPair, RouteProvider};
 
 		let stableswap_snapshot = <Stableswap as AmmSimulator>::snapshot();
 		let hdx = 0u32;
 
-		// Find a suitable stableswap pool with omnipool-only routes to HDX
+		// Find a suitable stableswap pool with routes to HDX
 		let mut selected_pool: Option<(u32, u32, u32, u8)> = None;
-
 		for (pid, pool) in &stableswap_snapshot.pools {
 			if pool.assets.len() < 2 {
 				continue;
@@ -188,22 +190,12 @@ fn test_stableswap_intent() {
 			let a = pool.assets[0];
 			let b = pool.assets[1];
 
-			let route_ab = Router::get_route(AssetPair::new(a, b));
-			let uses_stableswap = route_ab.iter().any(|t| matches!(t.pool, RouterPoolType::Stableswap(_)));
-
-			if !uses_stableswap {
+			if AssetRegistry::contract_address(a).is_some() || AssetRegistry::contract_address(b).is_some() {
 				continue;
 			}
-
-			let route_a_hdx = Router::get_route(AssetPair::new(a, hdx));
-			let route_b_hdx = Router::get_route(AssetPair::new(b, hdx));
-
-			let a_omnipool_only =
-				!route_a_hdx.is_empty() && route_a_hdx.iter().all(|t| matches!(t.pool, RouterPoolType::Omnipool));
-			let b_omnipool_only =
-				!route_b_hdx.is_empty() && route_b_hdx.iter().all(|t| matches!(t.pool, RouterPoolType::Omnipool));
-
-			if a_omnipool_only && b_omnipool_only {
+			let route_a_hdx = Router::get_onchain_route(AssetPair::new(a, hdx));
+			let route_b_hdx = Router::get_onchain_route(AssetPair::new(b, hdx));
+			if route_a_hdx.is_some() && route_b_hdx.is_some() {
 				selected_pool = Some((*pid, a, b, pool.reserves[0].decimals));
 				break;
 			}
@@ -211,6 +203,7 @@ fn test_stableswap_intent() {
 
 		let Some((_pool_id, asset_a, asset_b, decimals_a)) = selected_pool else {
 			// No suitable pool found in this snapshot, skip test
+			assert!(false, "no suitable pool to test stablepool intent");
 			return;
 		};
 
@@ -254,19 +247,15 @@ fn test_stableswap_intent() {
 		let result = pallet_ice::Pallet::<Runtime>::run(
 			block,
 			|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+				println!("{:?}", intents);
 				let solution = Solver::solve(intents, state).ok()?;
 				captured_solution = Some(solution.clone());
 				Some(solution)
 			},
 		);
 
-		// May not find solution depending on route configuration
-		let Some(_call) = result else {
-			return;
-		};
-
+		assert!(result.is_some(), "No solution found");
 		let solution = captured_solution.expect("Solution should be captured");
-
 		assert_eq!(solution.resolved_intents.len(), 1, "Should resolve the intent");
 
 		crate::polkadot_test_net::hydradx_run_to_next_block();

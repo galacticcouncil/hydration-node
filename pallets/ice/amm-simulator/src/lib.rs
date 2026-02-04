@@ -1,10 +1,14 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::traits::Get;
+use frame_support::BoundedVec;
+use hydra_dx_math::support::rational::{round_to_rational, Rounding};
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{AMMInterface, SimulatorConfig, SimulatorError, SimulatorSet, TradeExecution};
-use hydradx_traits::router::{AssetPair, Route, RouteProvider};
+use hydradx_traits::router::{AssetPair, Route, RouteProvider, Trade};
+use primitive_types::U256;
 use sp_std::marker::PhantomData;
+use sp_std::vec;
 
 /// The Hydration simulator compositor.
 ///
@@ -16,6 +20,31 @@ impl<C: SimulatorConfig> HydrationSimulator<C> {
 	/// Get the initial state from all simulators
 	pub fn initial_state() -> <C::Simulators as SimulatorSet>::State {
 		C::Simulators::initial_state()
+	}
+
+	/// Discover a route for the asset pair with proper priority:
+	/// 1. Explicit on-chain route (if configured in Router storage)
+	/// 2. Simulator discovery (ask simulators via can_trade)
+	/// 3. Default route from RouteProvider
+	fn discover_route(asset_in: u32, asset_out: u32, state: &<C::Simulators as SimulatorSet>::State) -> Route<u32> {
+		let asset_pair = AssetPair::new(asset_in, asset_out);
+
+		// Priority 1: Check for explicitly configured on-chain route
+		if let Some(explicit_route) = C::RouteProvider::get_onchain_route(asset_pair) {
+			return explicit_route;
+		}
+
+		// Priority 2: Ask simulators if they can trade this pair directly
+		if let Some(pool_type) = C::Simulators::can_trade(asset_in, asset_out, state) {
+			return BoundedVec::truncate_from(vec![Trade {
+				pool: pool_type,
+				asset_in,
+				asset_out,
+			}]);
+		}
+
+		// Priority 3: Fall back to the route provider's default
+		C::RouteProvider::get_route(asset_pair)
 	}
 }
 
@@ -30,7 +59,7 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 		route: Option<Route<u32>>,
 		state: &Self::State,
 	) -> Result<(Self::State, TradeExecution), Self::Error> {
-		let route = route.unwrap_or_else(|| C::RouteProvider::get_route(AssetPair::new(asset_in, asset_out)));
+		let route = route.unwrap_or_else(|| Self::discover_route(asset_in, asset_out, state));
 
 		if route.is_empty() {
 			return Err(SimulatorError::Other);
@@ -71,7 +100,7 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 		route: Option<Route<u32>>,
 		state: &Self::State,
 	) -> Result<(Self::State, TradeExecution), Self::Error> {
-		let route = route.unwrap_or_else(|| C::RouteProvider::get_route(AssetPair::new(asset_in, asset_out)));
+		let route = route.unwrap_or_else(|| Self::discover_route(asset_in, asset_out, state));
 
 		if route.is_empty() {
 			return Err(SimulatorError::Other);
@@ -108,25 +137,33 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 	}
 
 	fn get_spot_price(asset_in: u32, asset_out: u32, state: &Self::State) -> Result<Ratio, Self::Error> {
-		let route = C::RouteProvider::get_route(AssetPair::new(asset_in, asset_out));
+		let route = Self::discover_route(asset_in, asset_out, state);
+
+		log::trace!(target: "amm-simulator", "Route for spot price: {:?}", route);
 
 		if route.is_empty() {
 			return Err(SimulatorError::AssetNotFound);
 		}
 
-		let mut numerator = 1u128;
-		let mut denominator = 1u128;
+		// Use U256 to avoid overflow when multiplying ratios across hops
+		let mut numerator = U256::from(1u128);
+		let mut denominator = U256::from(1u128);
 
 		for trade in route.iter() {
 			let hop_price = C::Simulators::get_spot_price(trade.pool, trade.asset_in, trade.asset_out, state)?;
 
 			// Multiply: (n1/d1) * (n2/d2) = (n1*n2)/(d1*d2)
-			//TODO: u256?!
-			numerator = numerator.checked_mul(hop_price.n).ok_or(SimulatorError::MathError)?;
-			denominator = denominator.checked_mul(hop_price.d).ok_or(SimulatorError::MathError)?;
+			numerator = numerator
+				.checked_mul(U256::from(hop_price.n))
+				.ok_or(SimulatorError::MathError)?;
+			denominator = denominator
+				.checked_mul(U256::from(hop_price.d))
+				.ok_or(SimulatorError::MathError)?;
 		}
 
-		Ok(Ratio::new(numerator, denominator))
+		// Round back to u128
+		let (n, d) = round_to_rational((numerator, denominator), Rounding::Nearest);
+		Ok(Ratio::new(n, d))
 	}
 
 	fn price_denominator() -> u32 {

@@ -342,4 +342,13 @@ where
 		}
 		Ok(Ratio { n: 1, d: 1 })
 	}
+
+	fn can_trade(
+		_asset_in: primitives::AssetId,
+		_asset_out: primitives::AssetId,
+		_snapshot: &Self::Snapshot,
+	) -> Option<PoolType<AssetId>> {
+		// no, Dave, you cannot trade this now.
+		None
+	}
 }

@@ -2,11 +2,13 @@ use crate::types::{AssetReserveState, Balance, Tradability};
 use crate::{Assets, Config, Pallet};
 use codec::{Decode, Encode};
 use frame_support::traits::Get;
+use hydra_dx_math::support::rational::{round_to_rational, Rounding};
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{AmmSimulator, SimulatorError, TradeResult};
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::router::PoolType;
 use orml_traits::MultiCurrency;
+use primitive_types::U256;
 use sp_runtime::{traits::Zero, Permill};
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -261,17 +263,29 @@ impl<T: Config<AssetId = u32>> AmmSimulator for Pallet<T> {
 			let state_in = snapshot.get_asset(asset_in).ok_or(SimulatorError::AssetNotFound)?;
 			let state_out = snapshot.get_asset(asset_out).ok_or(SimulatorError::AssetNotFound)?;
 
-			//TODO: U256?
-			let n = state_in
-				.hub_reserve
-				.checked_mul(state_out.reserve)
-				.ok_or(SimulatorError::MathError)?;
-			let d = state_in
-				.reserve
-				.checked_mul(state_out.hub_reserve)
-				.ok_or(SimulatorError::MathError)?;
+			// Use U256 to avoid overflow in multiplication
+			let n = U256::from(state_in.hub_reserve) * U256::from(state_out.reserve);
+			let d = U256::from(state_in.reserve) * U256::from(state_out.hub_reserve);
 
+			let (n, d) = round_to_rational((n, d), Rounding::Nearest);
 			Ok(Ratio::new(n, d))
+		}
+	}
+
+	fn can_trade(asset_in: u32, asset_out: u32, snapshot: &Self::Snapshot) -> Option<PoolType<u32>> {
+		// Hub asset trades are not supported directly
+		if asset_in == snapshot.hub_asset_id || asset_out == snapshot.hub_asset_id {
+			return None;
+		}
+
+		// Both assets must be in the omnipool
+		let has_in = snapshot.assets.contains_key(&asset_in);
+		let has_out = snapshot.assets.contains_key(&asset_out);
+
+		if has_in && has_out {
+			Some(PoolType::Omnipool)
+		} else {
+			None
 		}
 	}
 }
