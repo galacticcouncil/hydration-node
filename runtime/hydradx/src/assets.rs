@@ -550,8 +550,6 @@ parameter_types! {
 	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
 	pub BurnProtocolFee : Permill = Permill::from_percent(0);
-	pub SlipFactor: FixedU128 = FixedU128::one();
-	pub MaxSlipFee: FixedU128 = FixedU128::from_rational(5, 100);
 }
 
 impl pallet_omnipool::Config for Runtime {
@@ -595,8 +593,6 @@ impl pallet_omnipool::Config for Runtime {
 	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
 	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
 	type BurnProtocolFee = BurnProtocolFee;
-	type SlipFactor = SlipFactor;
-	type MaxSlipFee = MaxSlipFee;
 }
 
 pub struct CircuitBreakerWhitelist;

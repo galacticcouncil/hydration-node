@@ -22,9 +22,10 @@ fn single_sell_works() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP2, 2_000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP3, 2_000 * ONE)
-		.with_slip_fee()
 		.build()
 		.execute_with(|| {
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), true, FixedU128::from_rational(5, 100)));
+
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
 
@@ -140,9 +141,10 @@ fn sell_hub_works() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP1, 2_000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP1, 2_000 * ONE)
-		.with_slip_fee()
 		.build()
 		.execute_with(|| {
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), true, FixedU128::from_rational(5, 100)));
+
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, liq_added));
 
@@ -255,9 +257,10 @@ fn two_sells_in_one_direction_should_increase_fee() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP2, 2_000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP3, 2_000 * ONE)
-		.with_slip_fee()
 		.build()
 		.execute_with(|| {
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), true, FixedU128::from_rational(5, 100)));
+
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
 
@@ -396,10 +399,11 @@ fn single_buy_works() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP2, 2_000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP3, 2_000 * ONE)
-		.with_slip_fee()
 		.build()
 		.execute_with(|| {
 			// Arrange
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), true, FixedU128::from_rational(5, 100)));
+
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
 
@@ -503,9 +507,10 @@ fn buy_for_hub_asset_works() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP1, 2_000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP1, 2_000 * ONE)
-		.with_slip_fee()
 		.build()
 		.execute_with(|| {
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), true, FixedU128::from_rational(5, 100)));
+
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400 * ONE));
 
 			let buy_amount = 50 * ONE;
@@ -611,9 +616,10 @@ fn two_buys_in_one_direction_should_increase_fee() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP2, 2_000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP3, 2_000 * ONE)
-		.with_slip_fee()
 		.build()
 		.execute_with(|| {
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), true, FixedU128::from_rational(5, 100)));
+
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
 
@@ -754,9 +760,10 @@ fn slip_fee_should_be_symmetric() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP2, 2_000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP3, 2_000 * ONE)
-		.with_slip_fee()
 		.build()
 		.execute_with(|| {
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), true, FixedU128::from_rational(5, 100)));
+
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
 
@@ -853,9 +860,10 @@ fn slip_fee_should_be_symmetric() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP2, 2_000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP3, 2_000 * ONE)
-		.with_slip_fee()
 		.build()
 		.execute_with(|| {
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), true, FixedU128::from_rational(5, 100)));
+
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
 
@@ -919,9 +927,10 @@ fn sell_and_buy_can_cancel_out_and_bring_slip_fee_to_initial_state() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP2, 2_000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP3, 2_000 * ONE)
-		.with_slip_fee()
 		.build()
 		.execute_with(|| {
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), true, FixedU128::from_rational(5, 100)));
+
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
 
@@ -1046,5 +1055,48 @@ fn sell_and_buy_can_cancel_out_and_bring_slip_fee_to_initial_state() {
 					current_delta_hub_reserve: Decrease(679_934_192_261),
 				}
 			);
+		});
+}
+
+#[test]
+fn set_slip_fee_should_work() {
+	ExtBuilder::default()
+		.build()
+		.execute_with(|| {
+			// enable slip fee
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), true, FixedU128::from_rational(5, 100)));
+
+			expect_events(vec![Event::SlipFactorUpdated {
+				slip_factor: FixedU128::one(),
+				max_slip_fee: FixedU128::from_rational(5, 100),
+			}
+				.into()]);
+
+			// disable slip fee
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), false, FixedU128::from_rational(5, 100)));
+
+			expect_events(vec![Event::SlipFactorUpdated {
+				slip_factor: FixedU128::one(),
+				max_slip_fee: FixedU128::from_rational(5, 100),
+			}
+				.into()]);
+
+			// enable slip fee
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), true, FixedU128::from_rational(1, 100)));
+
+			expect_events(vec![Event::SlipFactorUpdated {
+				slip_factor: FixedU128::one(),
+				max_slip_fee: FixedU128::from_rational(1, 100),
+			}
+				.into()]);
+
+			// modify slip fee
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), true, FixedU128::from_rational(7, 100)));
+
+			expect_events(vec![Event::SlipFactorUpdated {
+				slip_factor: FixedU128::one(),
+				max_slip_fee: FixedU128::from_rational(7, 100),
+			}
+				.into()]);
 		});
 }

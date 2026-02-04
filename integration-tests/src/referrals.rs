@@ -34,6 +34,8 @@ fn registering_a_code_should_charge_registration_fee() {
 #[test]
 fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool_with_oracle_for_block_24();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
@@ -57,6 +59,8 @@ fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 #[test]
 fn buying_in_omnipool_should_transfer_portion_of_asset_out_fee_to_reward_pot() {
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool_with_oracle_for_block_24();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
@@ -103,6 +107,8 @@ fn trading_lrna_omnipool_should_not_transfer_portion_of_fee_to_reward_pot() {
 #[test]
 fn trading_in_omnipool_should_increase_referrer_shares() {
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool_with_oracle_for_block_24();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
@@ -125,6 +131,8 @@ fn trading_in_omnipool_should_increase_referrer_shares() {
 #[test]
 fn trading_in_omnipool_should_increase_trader_shares() {
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool_with_oracle_for_block_24();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
@@ -147,6 +155,8 @@ fn trading_in_omnipool_should_increase_trader_shares() {
 #[test]
 fn trading_in_omnipool_should_increase_external_shares() {
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool_with_oracle_for_block_24();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
@@ -171,6 +181,8 @@ fn trading_in_omnipool_should_increase_external_shares() {
 #[test]
 fn trading_in_omnipool_should_increase_total_shares_correctly() {
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool_with_oracle_for_block_24();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
@@ -333,6 +345,8 @@ fn trading_hdx_in_omnipool_should_skip_referrals_program() {
 #[test]
 fn trading_in_omnipool_should_transfer_some_portion_of_fee_when_no_code_linked() {
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool_with_oracle_for_block_24();
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
@@ -352,6 +366,8 @@ fn trading_in_omnipool_should_transfer_some_portion_of_fee_when_no_code_linked()
 #[test]
 fn trading_in_omnipool_should_use_global_rewards_when_not_set() {
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool_with_oracle_for_block_24();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
@@ -381,6 +397,8 @@ fn trading_in_omnipool_should_use_global_rewards_when_not_set() {
 #[test]
 fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool_with_oracle_for_block_24();
 		assert_ok!(Referrals::set_reward_percentage(
 			RuntimeOrigin::root(),
@@ -420,6 +438,8 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 #[test]
 fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool_with_oracle_for_block_24();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 		let staking_acc = Staking::pot_account_id();
@@ -487,6 +507,8 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 #[test]
 fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool_with_oracle_for_block_24();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 		let staking_acc = Staking::pot_account_id();
@@ -564,6 +586,8 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 #[test]
 fn trading_in_omnipool_should_increase_staking_shares_when_no_code_linked() {
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool_with_oracle_for_block_24();
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),

@@ -18,7 +18,7 @@ use crate::*;
 use frame_support::{
 	assert_ok, parameter_types,
 	sp_runtime::{
-		traits::{BlakeTwo256, IdentityLookup, Zero},
+		traits::{BlakeTwo256, IdentityLookup},
 		BuildStorage, Permill,
 	},
 	traits::{
@@ -216,8 +216,6 @@ parameter_types! {
 	pub MaxInRatio: Balance = 1u128;
 	pub MaxOutRatio: Balance = 1u128;
 	pub const TVLCap: Balance = Balance::MAX;
-	pub SlipFactor: FixedU128 = FixedU128::zero();
-	pub MaxSlipFee: FixedU128 = FixedU128::from_rational(5, 100);
 
 	pub const TransactionByteFee: Balance = 10 * ONE / 100_000;
 
@@ -325,8 +323,6 @@ impl pallet_omnipool::Config for Test {
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
 	type BurnProtocolFee = BurnFee;
-	type SlipFactor = SlipFactor;
-	type MaxSlipFee = MaxSlipFee;
 }
 
 pub struct DummyNFT;
@@ -410,6 +406,7 @@ pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	omnipool_liquidity: Vec<(AccountId, AssetId, Balance)>, //who, asset, amount/
+	disable_slip_fee: bool,
 }
 
 impl Default for ExtBuilder {
@@ -433,11 +430,17 @@ impl Default for ExtBuilder {
 			],
 			init_pool: Some((FixedU128::from_float(0.5), FixedU128::from(1))),
 			omnipool_liquidity: vec![(ALICE, KSM, 5_000 * ONE)],
+			disable_slip_fee: false,
 		}
 	}
 }
 
 impl ExtBuilder {
+	pub fn disable_slip_fee(mut self) -> Self {
+		self.disable_slip_fee = true;
+		self
+	}
+
 	pub fn build(self) -> (sp_io::TestExternalities, Arc<parking_lot::RwLock<PoolState>>) {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
@@ -524,6 +527,12 @@ impl ExtBuilder {
 		ext.execute_with(|| {
 			System::set_block_number(1);
 		});
+
+		if self.disable_slip_fee {
+			ext.execute_with(|| {
+				assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), false, Omnipool::max_slip_fee()));
+			});
+		}
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			ext.execute_with(|| {

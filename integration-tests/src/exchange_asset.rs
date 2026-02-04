@@ -111,6 +111,8 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 	});
 
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
 		assert!(fee > 0, "treasury should have received fees");
 		assert_eq!(

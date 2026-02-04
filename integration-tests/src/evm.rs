@@ -3301,6 +3301,8 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		//Set up to idle state where the chain is not utilized at all
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),

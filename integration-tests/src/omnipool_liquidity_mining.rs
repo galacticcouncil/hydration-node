@@ -2335,6 +2335,8 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		let global_farm_1_id = 1;
 		let global_farm_2_id = 2;
 		let yield_farm_1_id = 3;
@@ -2359,8 +2361,8 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		go_to_block(300);
 
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
 			CHARLIE.into(),
 			ETH,
 			10_000 * UNITS as i128,
@@ -2573,6 +2575,8 @@ fn withdraw_shares_should_send_reward_to_user_when_reward_is_less_than_ed_but_us
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		let global_farm_1_id = 1;
 		let global_farm_2_id = 2;
 		let yield_farm_1_id = 3;
@@ -2666,6 +2670,8 @@ fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_an
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		let global_farm_1_id = 1;
 		let global_farm_2_id = 2;
 		let yield_farm_1_id = 3;
@@ -3057,6 +3063,8 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		let global_farm_1_id = 1;
 		let yield_farm_1_id = 2;
 
@@ -3119,6 +3127,8 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		let global_farm_1_id = 1;
 		let yield_farm_1_id = 2;
 
@@ -3227,6 +3237,8 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		let global_farm_1_id = 1;
 		let yield_farm_1_id = 2;
 		let yield_farm_2_id = 3;

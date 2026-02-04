@@ -17,6 +17,8 @@ fn omnipool_launch_init_params_should_be_correct() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 		let stable_amount = 50_000 * UNITS * 1_000_000;
 		let native_amount = 936_329_588_000_000_000;

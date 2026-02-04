@@ -149,6 +149,7 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 
 		let hdx_balance_in_omnipool = Balances::free_balance(Omnipool::protocol_account());
@@ -221,6 +222,7 @@ fn buy_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 fn buy_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 
 		assert_ok!(Tokens::set_balance(

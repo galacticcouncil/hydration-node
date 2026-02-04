@@ -38,8 +38,8 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			let (asset_fee, _) = T::Fee::get((asset_out, asset_out_state.reserve));
 
 			let slip_fee_config = SlipFeeConfig::<Balance> {
-				slip_factor: T::SlipFactor::get(),
-				max_slip_fee: T::MaxSlipFee::get(),
+				slip_factor: Self::slip_factor(),
+				max_slip_fee: Self::max_slip_fee(),
 				hub_state_in: Default::default(),
 				hub_state_out: hub_asset_block_state_out,
 			};
@@ -63,8 +63,8 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		let hub_asset_block_state_in =
 			Self::get_or_initialize_hub_asset_block_state(asset_in, asset_in_state.hub_reserve);
 		let slip_fee_config = SlipFeeConfig::<Balance> {
-			slip_factor: T::SlipFactor::get(),
-			max_slip_fee: T::MaxSlipFee::get(),
+			slip_factor: Self::slip_factor(),
+			max_slip_fee: Self::max_slip_fee(),
 			hub_state_in: hub_asset_block_state_in,
 			hub_state_out: hub_asset_block_state_out,
 		};
@@ -106,8 +106,8 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			let (asset_fee, _) = T::Fee::get((asset_out, asset_out_state.reserve));
 
 			let slip_fee_config = SlipFeeConfig::<Balance> {
-				slip_factor: T::SlipFactor::get(),
-				max_slip_fee: T::MaxSlipFee::get(),
+				slip_factor: Self::slip_factor(),
+				max_slip_fee: Self::max_slip_fee(),
 				hub_state_in: Default::default(),
 				hub_state_out: hub_asset_block_state_out,
 			};
@@ -132,8 +132,8 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		let hub_asset_block_state_in =
 			Self::get_or_initialize_hub_asset_block_state(asset_in, asset_in_state.hub_reserve);
 		let slip_fee_config = SlipFeeConfig::<Balance> {
-			slip_factor: T::SlipFactor::get(),
-			max_slip_fee: T::MaxSlipFee::get(),
+			slip_factor: Self::slip_factor(),
+			max_slip_fee: Self::max_slip_fee(),
 			hub_state_in: hub_asset_block_state_in,
 			hub_state_out: hub_asset_block_state_out,
 		};

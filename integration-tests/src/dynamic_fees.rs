@@ -50,6 +50,7 @@ fn fees_should_change_when_buys_happen_in_different_blocks() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);
@@ -96,6 +97,7 @@ fn fees_should_change_when_sells_happen_in_different_blocks() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);
@@ -140,6 +142,7 @@ fn fees_should_change_when_trades_happen_in_different_blocks() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);
@@ -184,6 +187,7 @@ fn fees_should_change_only_one_when_trades_happen_in_the_same_block() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);
@@ -388,6 +392,7 @@ fn test_fees_update_in_multi_blocks() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_next_block();
@@ -485,6 +490,7 @@ fn test_fees_update_after_selling_lrna_in_multi_blocks() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_next_block();
@@ -534,6 +540,7 @@ fn test_fees_update_after_buying_with_lrna_in_multi_blocks() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_next_block();
@@ -583,6 +590,7 @@ fn fees_should_work_when_min_equals_max_in_dynamic_config() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);
@@ -681,6 +689,7 @@ fn fees_should_be_applied_correctly_when_min_equals_max_in_dynamic_config() {
 	// First scenario: zero fees
 	let amount_out_with_zero_fee = Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);
@@ -752,6 +761,7 @@ fn fees_should_be_applied_correctly_when_min_equals_max_in_dynamic_config() {
 	// Second scenario: non-zero fees (min = max)
 	let amount_out_with_fee = Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);

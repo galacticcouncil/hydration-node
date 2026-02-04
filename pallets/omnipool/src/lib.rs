@@ -236,15 +236,6 @@ pub mod pallet {
 		// TODO: comment
 		#[pallet::constant]
 		type BurnProtocolFee: Get<Permill>;
-
-		/// Slip fee factor.
-		/// 0.0 = disabled, 1.0 = enabled.
-		#[pallet::constant]
-		type SlipFactor: Get<FixedU128>;
-
-		/// Max slip fee.
-		#[pallet::constant]
-		type MaxSlipFee: Get<FixedU128>;
 	}
 
 	#[pallet::storage]
@@ -282,6 +273,29 @@ pub mod pallet {
 	/// Value: (hub_reserve_at_block_start, current delta)
 	pub type HubAssetBlockState<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, slip_fee::HubAssetBlockState<Balance>, OptionQuery>;
+
+	#[pallet::type_value]
+	pub fn DefaultSlipFactor() -> FixedU128 {
+		FixedU128::one()
+	}
+
+	#[pallet::storage]
+	#[pallet::getter(fn slip_factor)]
+	/// Slip factor for slip fee.
+	/// Slip fee implementation expects `SlipFactor` being equal to 0 (disabled) or 1 (enabled).
+	pub(super) type SlipFactor<T: Config> =
+	StorageValue<_, FixedU128, ValueQuery, DefaultSlipFactor>;
+
+	#[pallet::type_value]
+	pub fn DefaultMaxSlipFee() -> FixedU128 {
+		FixedU128::from_rational(5, 100)
+	}
+
+	#[pallet::storage]
+	#[pallet::getter(fn max_slip_fee)]
+	/// Max slip fee.
+	pub(super) type MaxSlipFee<T: Config> =
+	StorageValue<_, FixedU128, ValueQuery, DefaultMaxSlipFee>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -384,6 +398,9 @@ pub mod pallet {
 
 		/// Asset's weight cap has been updated.
 		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
+
+		/// Slip factor has been updated.
+		SlipFactorUpdated { slip_factor: FixedU128, max_slip_fee: FixedU128 },
 	}
 
 	#[pallet::error]
@@ -863,8 +880,8 @@ pub mod pallet {
 				Self::get_or_initialize_hub_asset_block_state(asset_out, asset_out_state.hub_reserve);
 
 			let slip_fee_config = SlipFeeConfig::<Balance> {
-				slip_factor: T::SlipFactor::get(),
-				max_slip_fee: T::MaxSlipFee::get(),
+				slip_factor: Self::slip_factor(),
+				max_slip_fee: Self::max_slip_fee(),
 				hub_state_in: hub_asset_block_state_in,
 				hub_state_out: hub_asset_block_state_out,
 			};
@@ -1135,8 +1152,8 @@ pub mod pallet {
 				Self::get_or_initialize_hub_asset_block_state(asset_out, asset_out_state.hub_reserve);
 
 			let slip_fee_config = SlipFeeConfig::<Balance> {
-				slip_factor: T::SlipFactor::get(),
-				max_slip_fee: T::MaxSlipFee::get(),
+				slip_factor: Self::slip_factor(),
+				max_slip_fee: Self::max_slip_fee(),
 				hub_state_in: hub_asset_block_state_in,
 				hub_state_out: hub_asset_block_state_out,
 			};
@@ -1579,6 +1596,33 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		/// Update the slip factor
+		///
+		/// Parameters:
+		/// - `slip_factor`: Enable (slip_factor=1) or disable (slip_factor=0) slip fee.
+		///
+		/// Emits `SlipFactorUpdated` event when successful.
+		///
+		#[pallet::call_index(16)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_asset_weight_cap())]
+		pub fn set_slip_fee(origin: OriginFor<T>, slip_factor: bool, max_slip_fee: FixedU128) -> DispatchResult {
+			T::UpdateTradabilityOrigin::ensure_origin(origin)?;
+
+			// Slip fee implementation expects `SlipFactor` being equal to 0 (disabled) or 1 (enabled).
+			let new_slip_factor = if slip_factor {
+				FixedU128::one()
+			} else {
+				FixedU128::zero()
+			};
+
+			SlipFactor::<T>::put(new_slip_factor);
+			MaxSlipFee::<T>::put(max_slip_fee);
+
+			Self::deposit_event(Event::SlipFactorUpdated { slip_factor: new_slip_factor, max_slip_fee });
+
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
@@ -1606,11 +1650,6 @@ pub mod pallet {
 			);
 			assert_ne!(T::MaxInRatio::get(), Balance::zero(), "MaxInRatio is 0.");
 			assert_ne!(T::MaxOutRatio::get(), Balance::zero(), "MaxOutRatio is 0.");
-			// Slip fee implementation expects `SlipFactor` being equal to 0 or 1
-			assert!(
-				T::SlipFactor::get().is_zero() || One::is_one(&T::SlipFactor::get()),
-				"SlipFactor is not 0 or 1."
-			)
 		}
 
 		#[cfg(feature = "try-runtime")]
@@ -1785,8 +1824,8 @@ impl<T: Config> Pallet<T> {
 			Self::get_or_initialize_hub_asset_block_state(asset_out, asset_state.hub_reserve);
 
 		let slip_fee_config = SlipFeeConfig::<Balance> {
-			slip_factor: T::SlipFactor::get(),
-			max_slip_fee: T::MaxSlipFee::get(),
+			slip_factor: Self::slip_factor(),
+			max_slip_fee: Self::max_slip_fee(),
 			hub_state_in: Default::default(),
 			hub_state_out: hub_asset_block_state_out,
 		};
@@ -1921,8 +1960,8 @@ impl<T: Config> Pallet<T> {
 			Self::get_or_initialize_hub_asset_block_state(asset_out, asset_state.hub_reserve);
 
 		let slip_fee_config = SlipFeeConfig::<Balance> {
-			slip_factor: T::SlipFactor::get(),
-			max_slip_fee: T::MaxSlipFee::get(),
+			slip_factor: Self::slip_factor(),
+			max_slip_fee: Self::max_slip_fee(),
 			hub_state_in: Default::default(),
 			hub_state_out: hub_asset_block_state_out,
 		};

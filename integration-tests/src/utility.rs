@@ -24,6 +24,8 @@ fn batch_execution_type_should_be_included_in_batch() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		//Arrange
 		init_omnipool();
 		crate::router::create_lbp_pool(DAI, LRNA);
@@ -206,6 +208,8 @@ fn nested_batch_should_represent_embeddedness() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
+
 		init_omnipool();
 		crate::router::create_lbp_pool(DAI, LRNA);
 		crate::router::create_xyk_pool(HDX, DOT);

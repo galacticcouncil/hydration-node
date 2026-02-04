@@ -118,6 +118,8 @@ fn aye6x(amount: u128) -> AccountVote<u128> {
 fn staking_should_transfer_hdx_fees_to_pot_account_when_omnipool_trade_is_executed() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 

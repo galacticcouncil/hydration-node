@@ -57,6 +57,9 @@ fn xcm_exchanger_allows_selling_supported_assets() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
+			// disable slip fee
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), false, FixedU128::from_rational(5, 100)));
+
 			let give: Assets = Asset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
 			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
 			let want: Assets = Asset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
@@ -107,6 +110,9 @@ fn xcm_exchanger_should_work_with_onchain_route() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
+			// disable slip fee
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), false, FixedU128::from_rational(5, 100)));
+
 			create_xyk_pool(HDX, DOT);
 
 			assert_ok!(RouteExecutor::set_route(
@@ -161,6 +167,9 @@ fn xcm_exchanger_allows_buying_supported_assets() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
+			// disable slip fee
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), false, FixedU128::from_rational(5, 100)));
+
 			let given_amount = 100 * UNITS;
 			let give_asset = Asset::from((GeneralIndex(DAI.into()), given_amount));
 			let give = give_asset.into();
@@ -248,6 +257,9 @@ fn xcm_exchanger_works_with_specified_origin() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
+			// disable slip fee
+			assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), false, FixedU128::from_rational(5, 100)));
+
 			let give = Asset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
 			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
 			let want = Asset::from((GeneralIndex(HDX.into()), wanted_amount)).into();

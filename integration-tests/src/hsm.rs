@@ -1,5 +1,5 @@
 use crate::liquidation::{ORACLE_ADDRESS, ORACLE_CALLER};
-use crate::polkadot_test_net::hydra_live_ext;
+use crate::polkadot_test_net::{disable_slip_fee, hydra_live_ext};
 use crate::polkadot_test_net::hydradx_run_to_next_block;
 use crate::polkadot_test_net::{TestNet, ALICE, BOB, HDX};
 use fp_evm::ExitSucceed::Returned;
@@ -988,6 +988,8 @@ fn sell_collateral_to_get_hollar_via_router_should_work_when_collateral_is_acqui
 		.endow_account(ALICE.into(), COLLATERAL, 910 * 10u128.pow(DECIMALS as u32))
 		.endow_account(ALICE.into(), HDX, 1_000_000_000_000_000_000u128)
 		.execute(|| {
+			disable_slip_fee();
+
 			let hsm_address = hydradx_runtime::HSM::account_id();
 			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
 				hsm_address.clone()
