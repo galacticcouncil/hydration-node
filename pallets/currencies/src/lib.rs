@@ -54,7 +54,7 @@ use frame_system::{ensure_root, ensure_signed, pallet_prelude::*};
 use hydradx_traits::{AssetKind, BoundErc20};
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
-	currency::{OnDeposit, OnTransfer, TransferAll},
+	currency::{OnTransfer, TransferAll},
 	BalanceStatus, BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency, GetByKey,
 	LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
 	NamedBasicReservableCurrency, NamedMultiReservableCurrency,

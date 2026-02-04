@@ -652,7 +652,9 @@ pub mod pallet {
 			for account in &accounts {
 				EgressAccounts::<T>::insert(account, ());
 			}
-			Self::deposit_event(Event::EgressAccountsAdded { count: accounts.len() as u32 });
+			Self::deposit_event(Event::EgressAccountsAdded {
+				count: accounts.len() as u32,
+			});
 
 			Ok(())
 		}
@@ -666,7 +668,9 @@ pub mod pallet {
 				EgressAccounts::<T>::remove(account);
 			}
 
-			Self::deposit_event(Event::EgressAccountsAdded { count: accounts.len() as u32 });
+			Self::deposit_event(Event::EgressAccountsAdded {
+				count: accounts.len() as u32,
+			});
 
 			Ok(())
 		}

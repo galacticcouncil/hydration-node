@@ -25,12 +25,16 @@ where
 	ReferenceCurrencyId: Get<AssetId>,
 {
 	fn convert_to_hdx(asset_id: AssetId, amount: Balance) -> Option<Balance> {
-		if asset_id == ReferenceCurrencyId::get() {
+		let ref_currency = ReferenceCurrencyId::get();
+		if asset_id == ref_currency {
 			return Some(amount);
 		}
-		let (converted, _) = ConvertBalance::<ShortOraclePrice, XykPaymentAssetSupport, ReferenceCurrencyId>::convert(
-			(asset_id, CORE_ASSET_ID, amount),
-		)?;
+
+		let (converted, _) = ConvertBalance::<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>::convert((
+			asset_id,
+			ref_currency,
+			amount,
+		))?;
 		Some(converted)
 	}
 
@@ -43,7 +47,11 @@ where
 		let asset_type = asset_details.map(|d| d.asset_type);
 
 		match op_kind {
-			OperationKind::Burn | OperationKind::Withdraw if matches!(asset_type, Some(AssetType::External)) => true,
+			OperationKind::Burn | OperationKind::Withdraw
+				if matches!(asset_type, Some(AssetType::External)) =>
+			{
+				true
+			}
 			OperationKind::Transfer => {
 				if let Some(dest) = maybe_dest {
 					pallet_circuit_breaker::Pallet::<Runtime>::is_account_egress(dest).is_some()
