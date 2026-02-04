@@ -308,7 +308,7 @@ pub fn init_omnipool() {
 /// This function executes one sell and buy with HDX for all assets in the omnipool. This is necessary to
 /// oracle have a prices for the assets.
 /// NOTE: It's necessary to change parachain block to oracle have prices.
-fn init_oracle() {
+pub fn init_oracle() {
 	let trader = DAVE;
 
 	set_balance(trader.into(), HDX, 10_000_000 * UNITS as i128);

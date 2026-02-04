@@ -9,6 +9,7 @@ use hydra_dx_math::omnipool::types::slip_fee::HubAssetBlockState;
 use hydradx_runtime::{RuntimeOrigin, System, Omnipool};
 
 const ONE: u128 = 1_000_000_000_000;
+const ONE_DOT: u128 = 10_000_000_000;
 
 
 #[test]
@@ -26,16 +27,16 @@ fn slip_fee_for_single_sell_should_provide_correct_results() {
 			RuntimeOrigin::signed(ALICE.into()),
 			DOT,
 			HDX,
-			2 * ONE,
+			2 * ONE_DOT,
 			0,
 		));
 
-		let amount_in = 2_000_000_000_000;
-		let amount_out = 37_412_066_789_861_635;
-		let hub_amount_in = 50_156_433_320_353;
-		let hub_amount_out = 49_110_044_651_337;
-		let asset_fee_amount = 93_764_578_420_706;
-		let protocol_fee_amount = 1_168_644_896_307;
+		let amount_in = 20_000_000_000;
+		let amount_out = 425_104_485_150_786;
+		let hub_amount_in = 512_883_062_661;
+		let hub_amount_out = 513_790_957_735;
+		let asset_fee_amount = 1_065_424_774_814;
+		let protocol_fee_amount = 373_378_869;
 
 		expect_hydra_events(vec![
 			pallet_omnipool::Event::SellExecuted {
@@ -58,14 +59,14 @@ fn slip_fee_for_single_sell_should_provide_correct_results() {
 			hub_asset_block_state_in,
 			HubAssetBlockState::<pallet_omnipool::types::Balance> {
 				hub_reserve_at_block_start: 2_250_000_000_112_500,
-				current_delta_hub_reserve: Decrease(50_156_433_320_353),
+				current_delta_hub_reserve: Decrease(512_883_062_661),
 			}
 		);
 		pretty_assertions::assert_eq!(
 			hub_asset_block_state_out,
 			HubAssetBlockState::<pallet_omnipool::types::Balance> {
 				hub_reserve_at_block_start: 1_124_999_999_982_000,
-				current_delta_hub_reserve: Increase(48_987_788_424_046),
+				current_delta_hub_reserve: Increase(512_509_683_792),
 			}
 		);
 

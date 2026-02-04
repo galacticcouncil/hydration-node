@@ -549,7 +549,7 @@ parameter_types! {
 	pub const EmaOracleSpotPriceShort: OraclePeriod = OraclePeriod::Short;
 	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
-	pub BurnProtocolFee : Permill = Permill::from_percent(50);
+	pub BurnProtocolFee : Permill = Permill::from_percent(0);
 	pub SlipFactor: FixedU128 = FixedU128::one();
 	pub MaxSlipFee: FixedU128 = FixedU128::from_rational(5, 100);
 }

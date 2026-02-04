@@ -295,14 +295,9 @@ pub fn calculate_buy_state_changes(
 		*result
 	};
 
-	// let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out_gross)?;
-	// let slip_fee_buy_amount = slip_fee_buy.checked_mul_int(delta_hub_reserve_out_gross)?;
-
 	let delta_hub_reserve_in = slip_fee_config.invert_slip(delta_hub_reserve_out_gross, &protocol_fee)?;
 
 	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
-	let slip_fee_sell = slip_fee_config.calculate_slip_fee_sell(delta_hub_reserve_in)?;
-	let slip_fee_sell_amount = slip_fee_sell.checked_mul_int(delta_hub_reserve_in)?;
 
 	let (delta_hub_reserve_in_hp, in_hub_reserve_hp, in_reserve_hp) =
 		to_u256!(delta_hub_reserve_in, asset_in_state.hub_reserve, asset_in_state.reserve);

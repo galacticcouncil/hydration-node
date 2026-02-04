@@ -403,8 +403,6 @@ fn single_buy_works() {
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
 
-			let initial_asset_in_hub_reserve = Assets::<Test>::get(100).unwrap().hub_reserve;
-			let initial_asset_out_hub_reserve = Assets::<Test>::get(100).unwrap().hub_reserve;
 			let buy_amount = 50 * ONE;
 			let max_limit = 100 * ONE;
 

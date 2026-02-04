@@ -281,24 +281,7 @@ impl<Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + CheckedAdd + Checke
 
 impl<Balance: Ord + Zero> PartialOrd for BalanceUpdate<Balance> {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-		match (self, other) {
-			(Increase(a), Increase(b)) => a.partial_cmp(b),
-			(Decrease(a), Decrease(b)) => b.partial_cmp(a),
-			(Increase(a), Decrease(b)) => {
-				if a.is_zero() && b.is_zero() {
-					Some(Ordering::Equal)
-				} else {
-					Some(Ordering::Greater)
-				}
-			}
-			(Decrease(a), Increase(b)) => {
-				if a.is_zero() && b.is_zero() {
-					Some(Ordering::Equal)
-				} else {
-					Some(Ordering::Less)
-				}
-			}
-		}
+		Some(self.cmp(other))
 	}
 }
 
