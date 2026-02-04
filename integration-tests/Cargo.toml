@@ -60,7 +60,8 @@ pallet-dispatcher = { workspace = true }
 pallet-hsm = { workspace = true }
 pallet-intent = { workspace = true }
 pallet-ice = { workspace = true }
-amm-simulator = {workspace = true}
+amm-simulator = { workspace = true }
+aave-simulator = { workspace = true }
 
 ice-solver = {workspace = true}
 ice-support = {workspace = true}

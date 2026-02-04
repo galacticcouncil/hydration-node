@@ -23,6 +23,7 @@ hex-literal = { workspace = true }
 log = { workspace = true }
 hydra-dx-math = { workspace = true }
 sp-std = { workspace = true }
+pallet-liquidation = { workspace = true }
 
 # Hydration dependencies
 ice-support = { workspace = true }
@@ -46,4 +47,5 @@ std = [
     'evm/std',
     'hydra-dx-math/std',
     'sp-std/std',
+    'pallet-liquidation/std',
 ]
