@@ -699,6 +699,7 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			BondsPalletId::get().into_account_truncating(),
 			pallet_route_executor::Pallet::<Runtime>::router_account(),
 			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS),
+			IcePalletId::get().into_account_truncating(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
