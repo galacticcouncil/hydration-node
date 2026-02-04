@@ -168,6 +168,8 @@ pub mod pallet {
 		InvalidOwner,
 		/// User doesn't have enough reserved funds.
 		InsufficientReservedBalance,
+		/// Partial intents are not supported at the moment.
+		NotImplemented,
 	}
 
 	#[pallet::storage]
@@ -188,6 +190,7 @@ pub mod pallet {
 		/// Submit intent by user.
 		///
 		/// This extrinsics reserves fund for intents' execution.
+		/// WARN: partial intents are not supported at the moment and its' creation is not allowed.
 		///
 		/// Parameters:
 		///	- `intent`: intent's data
@@ -199,11 +202,15 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
 		pub fn submit_intent(origin: OriginFor<T>, intent: Intent) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			//NOTE: it's intentinally checked only in extrinsic so we can still test internal `add_intent()`.
+			ensure!(!intent.data.is_partial(), Error::<T>::NotImplemented);
+
 			Self::add_intent(who, intent)?;
 			Ok(())
 		}
 
-		/// Extrinsic unlocks reserved funds and cancels intent.
+		/// Extrinsic unlocks reserved funds and removes intent.
 		///
 		/// Only intent's owner can cancel intent.
 		///
@@ -215,28 +222,9 @@ pub mod pallet {
 		///
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_intent())]
-		pub fn cancel_intent(origin: OriginFor<T>, id: IntentId) -> DispatchResult {
+		pub fn remove_intent(origin: OriginFor<T>, id: IntentId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-
-			Intents::<T>::try_mutate_exists(id, |maybe_intent| {
-				let intent = maybe_intent.as_ref().ok_or(Error::<T>::IntentNotFound)?;
-
-				IntentOwner::<T>::try_mutate_exists(id, |maybe_owner| -> Result<(), DispatchError> {
-					let owner = maybe_owner.clone().ok_or(Error::<T>::IntentOwnerNotFound)?;
-
-					ensure!(owner == who, Error::<T>::InvalidOwner);
-
-					Self::unlock_funds(&who, intent.data.asset_in(), intent.data.amount_in())?;
-
-					Self::deposit_event(Event::<T>::IntentCanceled { id });
-
-					*maybe_owner = None;
-					Ok(())
-				})?;
-
-				*maybe_intent = None;
-				Ok(())
-			})
+			Self::cancel_intent(who, id)
 		}
 
 		/// Extrinsic removes expired intent, queue intent's on failure callback and unlocks funds.
@@ -345,7 +333,32 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Function unreserves funds and cancels intent.
+	#[require_transactional]
+	pub fn cancel_intent(who: T::AccountId, id: IntentId) -> DispatchResult {
+		Intents::<T>::try_mutate_exists(id, |maybe_intent| {
+			let intent = maybe_intent.as_ref().ok_or(Error::<T>::IntentNotFound)?;
+
+			IntentOwner::<T>::try_mutate_exists(id, |maybe_owner| -> Result<(), DispatchError> {
+				let owner = maybe_owner.clone().ok_or(Error::<T>::IntentOwnerNotFound)?;
+
+				ensure!(owner == who, Error::<T>::InvalidOwner);
+
+				Self::unlock_funds(&who, intent.data.asset_in(), intent.data.amount_in())?;
+
+				Self::deposit_event(Event::<T>::IntentCanceled { id });
+
+				*maybe_owner = None;
+				Ok(())
+			})?;
+
+			*maybe_intent = None;
+			Ok(())
+		})
+	}
+
 	/// Function validates and reserves funds for intent's execution and adds intent to storage
+	/// WARN: partial intents are not supported at the moment, look at `submit_intent()`
 	#[require_transactional]
 	pub fn add_intent(owner: T::AccountId, intent: Intent) -> Result<IntentId, DispatchError> {
 		let now = T::TimestampProvider::now();
