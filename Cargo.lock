@@ -6161,7 +6161,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "389.0.0"
+version = "390.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -9962,7 +9962,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispatcher"
-version = "1.5.0"
+version = "1.5.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -17178,7 +17178,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scraper"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "clap",
  "fp-rpc",
