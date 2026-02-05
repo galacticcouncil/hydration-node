@@ -13,7 +13,7 @@ use ice_support::{
 	AssetId, Balance, Intent, IntentData, PoolTrade, ResolvedIntent, ResolvedIntents, Solution, SolutionTrades,
 	SwapData, SwapType,
 };
-use sp_core::U256;
+use sp_core::{U256, U512};
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 
@@ -52,6 +52,7 @@ impl<A: AMMInterface> SolverV1<A> {
 						spot_prices.insert(asset, price);
 					}
 					Err(_) => {
+						log::warn!(target: "solver", "Failed to get spot price for asset {}. Skipping.", asset);
 						continue;
 					}
 				}
@@ -115,10 +116,9 @@ impl<A: AMMInterface> SolverV1<A> {
 			// Multiple intents: match through denominator
 			let flows = Self::calculate_flows(&satisfiable_intents, &spot_prices);
 
-			let denominator_surplus = flows
-				.get(&denominator)
-				.map(|f| f.total_in as i128 - f.total_out as i128)
-				.unwrap_or(0);
+			// Track actual denominator balance as we execute trades
+			// This accounts for price impact and execution differences
+			let mut actual_denominator_balance: Balance = 0;
 
 			// First pass: sell surplus non-denominator assets to get denominator
 			for (asset, flow) in &flows {
@@ -131,6 +131,10 @@ impl<A: AMMInterface> SolverV1<A> {
 						Ok((new_state, trade_execution)) => {
 							let effective_price = Ratio::new(trade_execution.amount_out, trade_execution.amount_in);
 							actual_prices.insert(*asset, effective_price);
+
+							// Track the actual denominator received
+							actual_denominator_balance =
+								actual_denominator_balance.saturating_add(trade_execution.amount_out);
 
 							executed_trades.push(PoolTrade {
 								direction: SwapType::ExactIn,
@@ -149,17 +153,23 @@ impl<A: AMMInterface> SolverV1<A> {
 			}
 
 			// Second pass: handle deficit non-denominator assets
+			// Use actual denominator balance from first pass, not theoretical surplus
 			for (asset, flow) in &flows {
 				let net = flow.total_in as i128 - flow.total_out as i128;
 
 				if net < 0 && *asset != denominator {
-					if denominator_surplus > 0 {
-						let sell_amount = denominator_surplus as Balance;
+					if actual_denominator_balance > 0 {
+						// Sell the actual denominator we have for the deficit asset
+						let sell_amount = actual_denominator_balance;
 
 						match A::sell(denominator, *asset, sell_amount, None, &state) {
 							Ok((new_state, trade_execution)) => {
 								let asset_price = Ratio::new(trade_execution.amount_in, trade_execution.amount_out);
 								actual_prices.insert(*asset, asset_price);
+
+								// Use what we actually spent
+								actual_denominator_balance =
+									actual_denominator_balance.saturating_sub(trade_execution.amount_in);
 
 								executed_trades.push(PoolTrade {
 									direction: SwapType::ExactIn,
@@ -451,19 +461,10 @@ impl<A: AMMInterface> SolverV1<A> {
 
 	/// in = amount_out × (price_out / price_in)
 	fn calc_amount_in(amount_out: Balance, price_in: &Ratio, price_out: &Ratio) -> Option<Balance> {
-		let n = U256::from(price_out.n).checked_mul(U256::from(price_in.d))?;
-		let d = U256::from(price_out.d).checked_mul(U256::from(price_in.n))?;
-
-		if d.is_zero() {
-			return None;
-		}
-
-		let result = U256::from(amount_out).checked_mul(n)?.checked_div(d)?;
-
-		if result > U256::from(u128::MAX) {
-			return None;
-		}
-		Some(result.as_u128())
+		let n = U512::from(price_out.n) * U512::from(price_in.d);
+		let d = U512::from(price_out.d) * U512::from(price_in.n);
+		let result = U512::from(amount_out).checked_mul(n)?.checked_div(d)?;
+		result.try_into().ok()
 	}
 
 	fn calculate_flows(intents: &[&Intent], spot_prices: &BTreeMap<AssetId, Ratio>) -> BTreeMap<AssetId, AssetFlow> {
@@ -549,19 +550,10 @@ impl<A: AMMInterface> SolverV1<A> {
 
 	/// out = amount_in × (price_in / price_out)
 	fn calc_amount_out(amount_in: Balance, price_in: &Ratio, price_out: &Ratio) -> Option<Balance> {
-		let n = U256::from(price_in.n).checked_mul(U256::from(price_out.d))?;
-		let d = U256::from(price_in.d).checked_mul(U256::from(price_out.n))?;
-
-		if d.is_zero() {
-			return None;
-		}
-
-		let result = U256::from(amount_in).checked_mul(n)?.checked_div(d)?;
-
-		if result > U256::from(u128::MAX) {
-			return None;
-		}
-		Some(result.as_u128())
+		let n = U512::from(price_in.n) * U512::from(price_out.d);
+		let d = U512::from(price_in.d) * U512::from(price_out.n);
+		let result = U512::from(amount_in).checked_mul(n)?.checked_div(d)?;
+		result.try_into().ok()
 	}
 }
 

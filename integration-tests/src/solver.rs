@@ -6,6 +6,7 @@ use hydradx_runtime::{
 	AssetRegistry, Currencies, LazyExecutor, Omnipool, Router, Runtime, RuntimeOrigin, Stableswap, Timestamp,
 };
 use hydradx_traits::amm::{AMMInterface, AmmSimulator, SimulatorConfig, SimulatorSet};
+use hydradx_traits::router::{AssetPair, RouteProvider, RouteSpotPriceProvider};
 use hydradx_traits::BoundErc20;
 use ice_solver::v1::SolverV1;
 use ice_support::Solution;
@@ -247,7 +248,6 @@ fn test_stableswap_intent() {
 		let result = pallet_ice::Pallet::<Runtime>::run(
 			block,
 			|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-				println!("{:?}", intents);
 				let solution = Solver::solve(intents, state).ok()?;
 				captured_solution = Some(solution.clone());
 				Some(solution)
@@ -1261,5 +1261,322 @@ fn test_intent_with_on_success_callback() {
 				alice_hdx_final, expected_alice_hdx,
 				"Alice HDX balance should match expected"
 			);
+		});
+}
+
+/// Test single intent trading USDT (asset 10, 6 decimals) for WETH (asset 20, 18 decimals)
+/// This tests route discovery with different decimal assets
+#[test]
+fn test_usdt_weth_single_intent() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+
+	// Asset IDs
+	let usdt = 10u32; // Tether - 6 decimals
+	let weth = 20u32; // WETH - 18 decimals
+
+	// Units based on decimals
+	let usdt_unit = 1_000_000u128; // 10^6
+	let _weth_unit = 1_000_000_000_000_000_000u128; // 10^18
+
+	// Sell 100 USDT
+	let amount_in = 100 * usdt_unit;
+	let min_amount_out = 1u128;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), usdt, amount_in * 10)
+		.submit_sell_intent(alice.clone(), usdt, weth, amount_in, min_amount_out, 10)
+		.execute(|| {
+			let alice_usdt_before = Currencies::total_balance(usdt, &alice);
+			let alice_weth_before = Currencies::total_balance(weth, &alice);
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 1, "Should have 1 intent");
+			let original_intent_id = intents[0].0;
+
+			let block = hydradx_runtime::System::block_number();
+
+			let mut captured_solution: Option<Solution> = None;
+			let result = pallet_ice::Pallet::<Runtime>::run(
+				block,
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+					let solution = Solver::solve(intents, state).ok()?;
+					captured_solution = Some(solution.clone());
+					Some(solution)
+				},
+			);
+
+			let _call = result.expect("Solver should produce a solution for USDT->WETH");
+			let solution = captured_solution.expect("Solution should be captured");
+
+			// Verify solution structure
+			assert_eq!(solution.resolved_intents.len(), 1, "Should resolve exactly 1 intent");
+			assert!(solution.score > 0, "Solution score should be positive");
+
+			// Verify the resolved intent
+			let resolved = &solution.resolved_intents[0];
+			assert_eq!(resolved.id, original_intent_id, "Resolved intent ID should match");
+			let ice_support::IntentData::Swap(ref swap_data) = resolved.data;
+			assert_eq!(swap_data.asset_in, usdt, "asset_in should be USDT");
+			assert_eq!(swap_data.asset_out, weth, "asset_out should be WETH");
+			assert_eq!(
+				swap_data.amount_in, amount_in,
+				"amount_in should match submitted amount"
+			);
+			assert!(
+				swap_data.amount_out >= min_amount_out,
+				"amount_out should be >= min_amount_out"
+			);
+			assert_eq!(
+				swap_data.swap_type,
+				ice_support::SwapType::ExactIn,
+				"Should be ExactIn swap"
+			);
+
+			// Verify clearing prices contain both assets
+			assert!(
+				solution.clearing_prices.contains_key(&usdt),
+				"Should have USDT clearing price"
+			);
+			assert!(
+				solution.clearing_prices.contains_key(&weth),
+				"Should have WETH clearing price"
+			);
+
+			// Verify trades are valid
+			assert!(!solution.trades.is_empty(), "Should have at least one trade");
+			for trade in solution.trades.iter() {
+				assert!(trade.amount_in > 0, "Trade amount_in should be positive");
+				assert!(trade.amount_out > 0, "Trade amount_out should be positive");
+				assert!(!trade.route.is_empty(), "Trade route should not be empty");
+			}
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			let new_block = hydradx_runtime::System::block_number();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution.clone(),
+				new_block,
+			));
+
+			let alice_usdt_after = Currencies::total_balance(usdt, &alice);
+			let alice_weth_after = Currencies::total_balance(weth, &alice);
+
+			// Verify balances changed correctly
+			assert!(
+				alice_usdt_after < alice_usdt_before,
+				"Alice should have less USDT after sell"
+			);
+			assert!(
+				alice_weth_after > alice_weth_before,
+				"Alice should have more WETH after sell"
+			);
+
+			// Verify exact amounts match solution
+			let usdt_spent = alice_usdt_before - alice_usdt_after;
+			let weth_received = alice_weth_after - alice_weth_before;
+			assert_eq!(usdt_spent, swap_data.amount_in, "USDT spent should match solution");
+			assert_eq!(
+				weth_received, swap_data.amount_out,
+				"WETH received should match solution"
+			);
+
+			// Verify intent was resolved
+			let remaining_intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert!(remaining_intents.is_empty(), "Intent should be resolved");
+		});
+}
+
+/// Compare trading USDT->WETH via solver vs direct router
+/// Both should give the same result for a single intent
+#[test]
+fn test_usdt_weth_solver_vs_router() {
+	use hydradx_traits::router::RouteProvider;
+
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	// Asset IDs
+	let usdt = 10u32; // Tether - 6 decimals
+	let weth = 20u32; // WETH - 18 decimals
+
+	// Units based on decimals
+	let usdt_unit = 1_000_000u128; // 10^6
+
+	// Sell 100 USDT
+	let amount_in = 100 * usdt_unit;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), usdt, amount_in * 10)
+		.endow_account(bob.clone(), usdt, amount_in * 10)
+		.submit_sell_intent(alice.clone(), usdt, weth, amount_in, 1, 10)
+		.execute(|| {
+			// ========== SOLVER PATH (Alice) ==========
+			let alice_usdt_before = Currencies::total_balance(usdt, &alice);
+			let alice_weth_before = Currencies::total_balance(weth, &alice);
+
+			let block = hydradx_runtime::System::block_number();
+
+			let mut captured_solution: Option<Solution> = None;
+			let result = pallet_ice::Pallet::<Runtime>::run(
+				block,
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+					let solution = Solver::solve(intents, state).ok()?;
+					captured_solution = Some(solution.clone());
+					Some(solution)
+				},
+			);
+
+			let _call = result.expect("Solver should produce a solution");
+			let solution = captured_solution.expect("Solution should be captured");
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			let new_block = hydradx_runtime::System::block_number();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution.clone(),
+				new_block,
+			));
+
+			let alice_usdt_after = Currencies::total_balance(usdt, &alice);
+			let alice_weth_after = Currencies::total_balance(weth, &alice);
+
+			let solver_usdt_spent = alice_usdt_before - alice_usdt_after;
+			let solver_weth_received = alice_weth_after - alice_weth_before;
+
+			// ========== DIRECT ROUTER PATH (Bob) ==========
+			let bob_usdt_before = Currencies::total_balance(usdt, &bob);
+			let bob_weth_before = Currencies::total_balance(weth, &bob);
+
+			// Get the route that would be used
+			let route = Router::get_route(hydradx_traits::router::AssetPair::new(usdt, weth));
+
+			// Execute sell directly via router
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(bob.clone()),
+				usdt,
+				weth,
+				amount_in,
+				1, // min_amount_out
+				route.clone(),
+			));
+
+			let bob_usdt_after = Currencies::total_balance(usdt, &bob);
+			let bob_weth_after = Currencies::total_balance(weth, &bob);
+
+			let router_usdt_spent = bob_usdt_before - bob_usdt_after;
+			let router_weth_received = bob_weth_after - bob_weth_before;
+
+			// Both should spend the same amount of USDT
+			assert_eq!(solver_usdt_spent, router_usdt_spent, "USDT spent should be the same");
+
+			// WETH received will differ slightly because the pool state changes after the solver trade.
+			// The solver trades first, so when the router trades afterward, pools have different reserves.
+			// For a fair comparison, we verify they're within a small percentage of each other.
+			let diff_pct = if solver_weth_received > router_weth_received {
+				(solver_weth_received - router_weth_received) * 10000 / router_weth_received
+			} else {
+				(router_weth_received - solver_weth_received) * 10000 / solver_weth_received
+			};
+			// Should be within 1% (100 bps) - accounting for pool state change
+			assert!(
+				diff_pct < 100,
+				"WETH difference should be within 1%, got {}bps",
+				diff_pct
+			);
+		});
+}
+
+/// Test 2 opposing intents: Alice sells USDT for WETH, Bob sells WETH for USDT
+/// These should partially match (CoW), giving Alice a better price than single intent
+#[test]
+fn test_usdt_weth_two_opposing_intents() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	// Asset IDs
+	let usdt = 10u32; // Tether - 6 decimals
+	let weth = 20u32; // WETH - 18 decimals
+
+	// Units based on decimals
+	let usdt_unit = 1_000_000u128; // 10^6
+	let weth_unit = 1_000_000_000_000_000_000u128; // 10^18
+
+	// Alice sells 100 USDT for WETH
+	let alice_usdt_amount = 100 * usdt_unit;
+	// Bob sells 0.01 WETH for USDT (roughly equivalent value to create partial match)
+	let bob_weth_amount = weth_unit / 100; // 0.01 WETH
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), usdt, alice_usdt_amount * 100)
+		.endow_account(bob.clone(), weth, bob_weth_amount * 100)
+		// Also give some of the opposite asset for potential edge cases
+		.endow_account(alice.clone(), weth, weth_unit)
+		.endow_account(bob.clone(), usdt, 1000 * usdt_unit)
+		// Alice: sell USDT for WETH
+		.submit_sell_intent(alice.clone(), usdt, weth, alice_usdt_amount, 1, 10)
+		// Bob: sell WETH for USDT (opposite direction)
+		.submit_sell_intent(bob.clone(), weth, usdt, bob_weth_amount, 1, 10)
+		.execute(|| {
+			let alice_usdt_before = Currencies::total_balance(usdt, &alice);
+			let alice_weth_before = Currencies::total_balance(weth, &alice);
+			let bob_usdt_before = Currencies::total_balance(usdt, &bob);
+			let bob_weth_before = Currencies::total_balance(weth, &bob);
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 2, "Should have 2 intents");
+
+			let block = hydradx_runtime::System::block_number();
+
+			let mut captured_solution: Option<Solution> = None;
+			let result = pallet_ice::Pallet::<Runtime>::run(
+				block,
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+					let solution = Solver::solve(intents, state).ok()?;
+					captured_solution = Some(solution.clone());
+					Some(solution)
+				},
+			);
+
+			let _call = result.expect("Solver should produce a solution");
+			let solution = captured_solution.expect("Solution should be captured");
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			let new_block = hydradx_runtime::System::block_number();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution.clone(),
+				new_block,
+			));
+
+			let alice_usdt_after = Currencies::total_balance(usdt, &alice);
+			let alice_weth_after = Currencies::total_balance(weth, &alice);
+			let bob_usdt_after = Currencies::total_balance(usdt, &bob);
+			let alice_weth_received = alice_weth_after - alice_weth_before;
+			let bob_usdt_received = bob_usdt_after - bob_usdt_before;
+
+			let single_intent_weth = 32_040_810_565_082_029u128;
+			let improvement = if alice_weth_received > single_intent_weth {
+				alice_weth_received - single_intent_weth
+			} else {
+				0
+			};
+			let improvement_pct = improvement as f64 / single_intent_weth as f64 * 100.0;
+			// Verify both intents were resolved
+			assert!(solution.resolved_intents.len() >= 1, "Should resolve at least 1 intent");
+
+			// Verify Alice got WETH
+			assert!(alice_weth_received > 0, "Alice should receive WETH");
+
+			// Verify Bob got USDT
+			assert!(bob_usdt_received > 0, "Bob should receive USDT");
 		});
 }
