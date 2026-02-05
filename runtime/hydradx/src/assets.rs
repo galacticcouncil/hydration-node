@@ -1892,6 +1892,7 @@ impl pallet_intent::Config for Runtime {
 
 parameter_types! {
 	pub const IcePalletId: PalletId = PalletId(*b"ice_ice#");
+	pub const SimulatorHubAsset: AssetId = 0;
 
 }
 
@@ -1906,8 +1907,7 @@ impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
 		AaveSimulator<evm::Executor<Runtime>, evm::precompiles::erc20_mapping::HydraErc20Mapping, Runtime>,
 	);
 	type RouteProvider = Router;
-	// Use HDX (native asset) as price denominator since LRNA cannot be bought from Omnipool
-	type PriceDenominator = NativeAssetId;
+	type PriceDenominator = SimulatorHubAsset;
 }
 
 impl pallet_ice::Config for Runtime {

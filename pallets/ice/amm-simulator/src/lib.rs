@@ -2,11 +2,11 @@
 
 use frame_support::traits::Get;
 use frame_support::BoundedVec;
-use hydra_dx_math::support::rational::{round_to_rational, Rounding};
+use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{AMMInterface, SimulatorConfig, SimulatorError, SimulatorSet, TradeExecution};
 use hydradx_traits::router::{AssetPair, Route, RouteProvider, Trade};
-use primitive_types::U256;
+use primitive_types::U512;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
 
@@ -139,30 +139,38 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 	fn get_spot_price(asset_in: u32, asset_out: u32, state: &Self::State) -> Result<Ratio, Self::Error> {
 		let route = Self::discover_route(asset_in, asset_out, state);
 
-		log::trace!(target: "amm-simulator", "Route for spot price: {:?}", route);
-
 		if route.is_empty() {
 			return Err(SimulatorError::AssetNotFound);
 		}
 
-		// Use U256 to avoid overflow when multiplying ratios across hops
-		let mut numerator = U256::from(1u128);
-		let mut denominator = U256::from(1u128);
+		let mut numerator = U512::from(1u128);
+		let mut denominator = U512::from(1u128);
 
-		for trade in route.iter() {
-			let hop_price = C::Simulators::get_spot_price(trade.pool, trade.asset_in, trade.asset_out, state)?;
+		for chunk in route.chunks(4) {
+			let mut chunk_numerator = U512::from(1u128);
+			let mut chunk_denominator = U512::from(1u128);
 
-			// Multiply: (n1/d1) * (n2/d2) = (n1*n2)/(d1*d2)
+			for trade in chunk.iter() {
+				let hop_price = C::Simulators::get_spot_price(trade.pool, trade.asset_in, trade.asset_out, state)?;
+
+				// Multiply: (n1/d1) * (n2/d2) = (n1*n2)/(d1*d2)
+				chunk_numerator = chunk_numerator
+					.checked_mul(U512::from(hop_price.n))
+					.ok_or(SimulatorError::MathError)?;
+				chunk_denominator = chunk_denominator
+					.checked_mul(U512::from(hop_price.d))
+					.ok_or(SimulatorError::MathError)?;
+			}
+
 			numerator = numerator
-				.checked_mul(U256::from(hop_price.n))
+				.checked_mul(chunk_numerator)
 				.ok_or(SimulatorError::MathError)?;
 			denominator = denominator
-				.checked_mul(U256::from(hop_price.d))
+				.checked_mul(chunk_denominator)
 				.ok_or(SimulatorError::MathError)?;
 		}
 
-		// Round back to u128
-		let (n, d) = round_to_rational((numerator, denominator), Rounding::Nearest);
+		let (n, d) = round_u512_to_rational((numerator, denominator), Rounding::Nearest);
 		Ok(Ratio::new(n, d))
 	}
 

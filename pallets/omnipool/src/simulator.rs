@@ -263,7 +263,6 @@ impl<T: Config<AssetId = u32>> AmmSimulator for Pallet<T> {
 			let state_in = snapshot.get_asset(asset_in).ok_or(SimulatorError::AssetNotFound)?;
 			let state_out = snapshot.get_asset(asset_out).ok_or(SimulatorError::AssetNotFound)?;
 
-			// Use U256 to avoid overflow in multiplication
 			let n = U256::from(state_in.hub_reserve) * U256::from(state_out.reserve);
 			let d = U256::from(state_in.reserve) * U256::from(state_out.hub_reserve);
 

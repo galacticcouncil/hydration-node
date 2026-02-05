@@ -1,7 +1,7 @@
 use crate::polkadot_test_net::{TestNet, ALICE, BOB, CHARLIE, DAVE, EVE};
 use amm_simulator::HydrationSimulator;
 use frame_support::assert_ok;
-use frame_support::traits::Time;
+use frame_support::traits::{Get, Time};
 use hydradx_runtime::{
 	AssetRegistry, Currencies, LazyExecutor, Omnipool, Router, Runtime, RuntimeOrigin, Stableswap, Timestamp,
 };
@@ -21,6 +21,25 @@ pub type CombinedSimulatorState =
 
 type TestSimulator = HydrationSimulator<hydradx_runtime::HydrationSimulatorConfig>;
 type Solver = SolverV1<TestSimulator>;
+
+// Custom simulator config for ETH/3pool tests with price denominator 222
+pub struct Eth3PoolSimulatorConfig;
+
+pub struct PriceDenominator222;
+impl Get<u32> for PriceDenominator222 {
+	fn get() -> u32 {
+		222
+	}
+}
+
+impl SimulatorConfig for Eth3PoolSimulatorConfig {
+	type Simulators = <hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators;
+	type RouteProvider = <hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::RouteProvider;
+	type PriceDenominator = PriceDenominator222;
+}
+
+type Eth3PoolSimulator = HydrationSimulator<Eth3PoolSimulatorConfig>;
+type Eth3PoolSolver = SolverV1<Eth3PoolSimulator>;
 
 #[test]
 fn test_simulator_snapshot() {
@@ -1578,5 +1597,252 @@ fn test_usdt_weth_two_opposing_intents() {
 
 			// Verify Bob got USDT
 			assert!(bob_usdt_received > 0, "Bob should receive USDT");
+		});
+}
+
+/// Test: Single intent - sell ETH for 3pool
+/// ETH (asset 34) - 18 decimals
+/// 3pool (asset 103) - 18 decimals
+#[test]
+fn test_eth_3pool_single_intent() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+
+	// Asset IDs
+	let eth = 34u32; // ETH - 18 decimals
+	let pool3 = 103u32; // 3pool - 18 decimals
+
+	// Units based on decimals (both 18 decimals)
+	let unit = 1_000_000_000_000_000_000u128; // 10^18
+
+	// Alice sells 0.1 ETH for 3pool
+	let alice_eth_amount = unit / 10; // 0.1 ETH
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), eth, alice_eth_amount * 10)
+		// Alice: sell ETH for 3pool
+		.submit_sell_intent(alice.clone(), eth, pool3, alice_eth_amount, 1, 10)
+		.execute(|| {
+			let alice_eth_before = Currencies::total_balance(eth, &alice);
+			let alice_3pool_before = Currencies::total_balance(pool3, &alice);
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 1, "Should have 1 intent");
+
+			let block = hydradx_runtime::System::block_number();
+
+			let mut captured_solution: Option<Solution> = None;
+			let result = pallet_ice::Pallet::<Runtime>::run(
+				block,
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+					let solution = Eth3PoolSolver::solve(intents, state).ok()?;
+					captured_solution = Some(solution.clone());
+					Some(solution)
+				},
+			);
+
+			let _call = result.expect("Solver should produce a solution");
+			let solution = captured_solution.expect("Solution should be captured");
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			let new_block = hydradx_runtime::System::block_number();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution.clone(),
+				new_block,
+			));
+
+			let alice_eth_after = Currencies::total_balance(eth, &alice);
+			let alice_3pool_after = Currencies::total_balance(pool3, &alice);
+
+			let eth_spent = alice_eth_before - alice_eth_after;
+			let pool3_received = alice_3pool_after - alice_3pool_before;
+
+			// Verify Alice spent ETH and received 3pool
+			assert_eq!(eth_spent, alice_eth_amount, "Alice should spend the intent amount");
+			assert!(pool3_received > 0, "Alice should receive 3pool");
+		});
+}
+
+/// Test: Compare solver results with direct router trade for ETH -> 3pool
+#[test]
+fn test_eth_3pool_solver_vs_router() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	// Asset IDs
+	let eth = 34u32; // ETH - 18 decimals
+	let pool3 = 103u32; // 3pool - 18 decimals
+
+	// Units based on decimals (both 18 decimals)
+	let unit = 1_000_000_000_000_000_000u128; // 10^18
+
+	// Both sell 0.1 ETH for 3pool
+	let amount_in = unit / 10; // 0.1 ETH
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), eth, amount_in * 10)
+		.endow_account(bob.clone(), eth, amount_in * 10)
+		// Alice: sell ETH for 3pool via intent
+		.submit_sell_intent(alice.clone(), eth, pool3, amount_in, 1, 10)
+		.execute(|| {
+			// ========== SOLVER PATH (Alice) ==========
+			let alice_eth_before = Currencies::total_balance(eth, &alice);
+			let alice_3pool_before = Currencies::total_balance(pool3, &alice);
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 1, "Should have 1 intent");
+
+			let block = hydradx_runtime::System::block_number();
+
+			let mut captured_solution: Option<Solution> = None;
+			let result = pallet_ice::Pallet::<Runtime>::run(
+				block,
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+					let solution = Eth3PoolSolver::solve(intents, state).ok()?;
+					captured_solution = Some(solution.clone());
+					Some(solution)
+				},
+			);
+
+			let _call = result.expect("Solver should produce a solution");
+			let solution = captured_solution.expect("Solution should be captured");
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			let new_block = hydradx_runtime::System::block_number();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution.clone(),
+				new_block,
+			));
+
+			let alice_eth_after = Currencies::total_balance(eth, &alice);
+			let alice_3pool_after = Currencies::total_balance(pool3, &alice);
+
+			let solver_eth_spent = alice_eth_before - alice_eth_after;
+			let solver_3pool_received = alice_3pool_after - alice_3pool_before;
+
+			// ========== DIRECT ROUTER PATH (Bob) ==========
+			let bob_eth_before = Currencies::total_balance(eth, &bob);
+			let bob_3pool_before = Currencies::total_balance(pool3, &bob);
+
+			// Get the route that would be used
+			let route = Router::get_route(hydradx_traits::router::AssetPair::new(eth, pool3));
+
+			// Execute sell directly via router
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(bob.clone()),
+				eth,
+				pool3,
+				amount_in,
+				1, // min_amount_out
+				route,
+			));
+
+			let bob_eth_after = Currencies::total_balance(eth, &bob);
+			let bob_3pool_after = Currencies::total_balance(pool3, &bob);
+
+			let router_eth_spent = bob_eth_before - bob_eth_after;
+			let router_3pool_received = bob_3pool_after - bob_3pool_before;
+
+			// Both should spend the same amount of ETH
+			assert_eq!(solver_eth_spent, router_eth_spent, "ETH spent should be the same");
+
+			// 3pool received will differ slightly because the pool state changes after the solver trade
+			let diff_pct = if solver_3pool_received > router_3pool_received {
+				(solver_3pool_received - router_3pool_received) * 10000 / router_3pool_received
+			} else {
+				(router_3pool_received - solver_3pool_received) * 10000 / solver_3pool_received
+			};
+
+			// Should be within 1% (100 bps)
+			assert!(
+				diff_pct < 100,
+				"3pool difference should be within 1%, got {}bps",
+				diff_pct
+			);
+		});
+}
+
+/// Test: Two opposing intents for ETH <-> 3pool (CoW matching)
+#[test]
+fn test_eth_3pool_two_opposing_intents() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	// Asset IDs
+	let eth = 34u32; // ETH - 18 decimals
+	let pool3 = 103u32; // 3pool - 18 decimals
+
+	// Units based on decimals (both 18 decimals)
+	let unit = 1_000_000_000_000_000_000u128; // 10^18
+
+	// Alice sells 0.1 ETH for 3pool
+	let alice_eth_amount = unit / 10; // 0.1 ETH
+								   // Bob sells 100 3pool for ETH (roughly equivalent value to create partial match)
+	let bob_3pool_amount = 100 * unit; // 100 3pool
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), eth, alice_eth_amount * 100)
+		.endow_account(bob.clone(), pool3, bob_3pool_amount * 100)
+		// Also give some of the opposite asset
+		.endow_account(alice.clone(), pool3, unit)
+		.endow_account(bob.clone(), eth, unit)
+		// Alice: sell ETH for 3pool
+		.submit_sell_intent(alice.clone(), eth, pool3, alice_eth_amount, 1, 10)
+		// Bob: sell 3pool for ETH (opposite direction)
+		.submit_sell_intent(bob.clone(), pool3, eth, bob_3pool_amount, 1, 10)
+		.execute(|| {
+			let alice_3pool_before = Currencies::total_balance(pool3, &alice);
+			let bob_eth_before = Currencies::total_balance(eth, &bob);
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 2, "Should have 2 intents");
+
+			let block = hydradx_runtime::System::block_number();
+
+			let mut captured_solution: Option<Solution> = None;
+			let result = pallet_ice::Pallet::<Runtime>::run(
+				block,
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+					let solution = Eth3PoolSolver::solve(intents, state).ok()?;
+					captured_solution = Some(solution.clone());
+					Some(solution)
+				},
+			);
+
+			let _call = result.expect("Solver should produce a solution");
+			let solution = captured_solution.expect("Solution should be captured");
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			let new_block = hydradx_runtime::System::block_number();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution.clone(),
+				new_block,
+			));
+
+			let alice_3pool_after = Currencies::total_balance(pool3, &alice);
+			let bob_eth_after = Currencies::total_balance(eth, &bob);
+
+			let alice_3pool_received = alice_3pool_after - alice_3pool_before;
+			let bob_eth_received = bob_eth_after - bob_eth_before;
+
+			// Verify both intents were resolved
+			assert!(solution.resolved_intents.len() >= 1, "Should resolve at least 1 intent");
+
+			// Verify Alice got 3pool
+			assert!(alice_3pool_received > 0, "Alice should receive 3pool");
+
+			// Verify Bob got ETH
+			assert!(bob_eth_received > 0, "Bob should receive ETH");
 		});
 }
