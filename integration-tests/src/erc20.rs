@@ -18,7 +18,7 @@ use hydradx_runtime::evm::{Erc20Currency, EvmNonceProvider as AccountNonce, Exec
 use hydradx_runtime::RuntimeCall;
 use hydradx_runtime::RuntimeOrigin;
 use hydradx_runtime::{AssetLocation, Currencies};
-use hydradx_runtime::{AssetRegistry, DotAssetId};
+use hydradx_runtime::{AssetRegistry, DOT_ASSET_LOCATION};
 use hydradx_runtime::{EVMAccounts, Runtime};
 use hydradx_traits::evm::CallContext;
 use hydradx_traits::evm::ERC20;
@@ -445,11 +445,12 @@ fn withdraw() {
 		let asset = bind_erc20(contract);
 
 		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
 		assert_ok!(hydradx_runtime::XYK::create_pool(
 			RuntimeOrigin::signed(ALICE.into()),
 			asset,
 			100 * UNITS,
-			HDX,
+			DOT,
 			100 * UNITS,
 		));
 		hydradx_run_to_next_block();
@@ -473,11 +474,12 @@ fn deposit() {
 		let asset = bind_erc20(contract);
 
 		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
 		assert_ok!(hydradx_runtime::XYK::create_pool(
 			RuntimeOrigin::signed(ALICE.into()),
 			asset,
 			100 * UNITS,
-			HDX,
+			DOT,
 			100 * UNITS,
 		));
 		hydradx_run_to_next_block();

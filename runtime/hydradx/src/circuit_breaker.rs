@@ -5,10 +5,6 @@ use hydradx_adapters::price::ConvertBalance;
 use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use pallet_asset_registry::AssetType;
 use pallet_circuit_breaker::GlobalAssetCategory;
-use polkadot_xcm::v5::{
-	Instruction::{DepositReserveAsset, InitiateReserveWithdraw, TransferReserveAsset},
-	Xcm,
-};
 use primitives::Balance;
 use sp_runtime::traits::Convert;
 use sp_runtime::DispatchResult;

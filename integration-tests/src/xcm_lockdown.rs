@@ -3,13 +3,15 @@
 use crate::polkadot_test_net::*;
 use frame_support::weights::Weight;
 use frame_support::{assert_noop, assert_ok};
-use hydradx_runtime::{CircuitBreaker, RuntimeCall};
+use hydradx_runtime::{CircuitBreaker, RuntimeCall, DOT_ASSET_LOCATION};
+use pallet_circuit_breaker::GlobalAssetCategory;
 use polkadot_xcm::v5::prelude::*;
 use polkadot_xcm::{VersionedAssetId, VersionedXcm};
 use primitives::constants::time::MILLISECS_PER_BLOCK;
 use sp_runtime::traits::Dispatchable;
 use xcm_emulator::TestExt;
 use xcm_executor::traits::TransferType;
+use crate::evm::init_omnipool_with_oracle_for_block_10;
 
 #[test]
 fn polkadot_xcm_execute_should_fail_when_lockdown_active_and_message_is_egress() {
@@ -17,15 +19,14 @@ fn polkadot_xcm_execute_should_fail_when_lockdown_active_and_message_is_egress()
 	Hydra::execute_with(|| {
 		// Arrange
 		let now = CircuitBreaker::timestamp_now();
-		pallet_circuit_breaker::WithdrawLockdownUntil::<hydradx_runtime::Runtime>::put(now + 1000);
+		assert_ok!(CircuitBreaker::set_global_lockdown(
+			hydradx_runtime::RuntimeOrigin::root(),
+			now + 1000
+		));
 
 		let message = Xcm(vec![
 			WithdrawAsset((Here, 1000).into()),
-			DepositReserveAsset {
-				assets: All.into(),
-				dest: Location::parent(),
-				xcm: Xcm(vec![]),
-			},
+			ClearOrigin,
 		]);
 
 		let call = RuntimeCall::PolkadotXcm(pallet_xcm::Call::execute {
@@ -34,43 +35,20 @@ fn polkadot_xcm_execute_should_fail_when_lockdown_active_and_message_is_egress()
 		});
 
 		// Act & Assert
-		assert_noop!(
-			call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
-			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::GlobalLockdownActive
+		let res = call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()));
+		assert_eq!(
+			res.map_err(|e| e.error),
+			Err(pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncomplete.into())
 		);
+
+		// Assert invariants
+		assert!(CircuitBreaker::withdraw_lockdown_until().is_some());
+		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
 	});
 }
 
 #[test]
 fn polkadot_xcm_send_should_fail_when_lockdown_active_and_message_is_egress() {
-	TestNet::reset();
-	Hydra::execute_with(|| {
-		// Arrange
-		let now = CircuitBreaker::timestamp_now();
-		pallet_circuit_breaker::WithdrawLockdownUntil::<hydradx_runtime::Runtime>::put(now + 1000);
-
-		let message = Xcm(vec![DepositReserveAsset {
-			assets: All.into(),
-			dest: Location::parent(),
-			xcm: Xcm(vec![]),
-		}]);
-
-		let call = RuntimeCall::PolkadotXcm(pallet_xcm::Call::send {
-			dest: Box::new(Location::parent().into()),
-			message: Box::new(VersionedXcm::from(message)),
-		});
-
-		// Act & Assert
-		// CallFilter should block it
-		assert_noop!(
-			call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
-			frame_system::Error::<hydradx_runtime::Runtime>::CallFiltered
-		);
-	});
-}
-
-#[test]
-fn polkadot_xcm_execute_should_succeed_when_lockdown_active_and_message_is_not_egress() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Arrange
@@ -82,45 +60,23 @@ fn polkadot_xcm_execute_should_succeed_when_lockdown_active_and_message_is_not_e
 		));
 
 		let now = CircuitBreaker::timestamp_now();
-		pallet_circuit_breaker::WithdrawLockdownUntil::<hydradx_runtime::Runtime>::put(now + 1000);
+		assert_ok!(CircuitBreaker::set_global_lockdown(
+			hydradx_runtime::RuntimeOrigin::root(),
+			now + 1000
+		));
 
-		// WithdrawAsset + BuyExecution is not egress
 		let message = Xcm(vec![
 			WithdrawAsset((Here, 1000).into()),
 			BuyExecution {
 				fees: (Here, 1000).into(),
 				weight_limit: Unlimited,
 			},
+			DepositReserveAsset {
+				assets: All.into(),
+				dest: Location::parent(),
+				xcm: Xcm(vec![]),
+			},
 		]);
-
-		let call = RuntimeCall::PolkadotXcm(pallet_xcm::Call::execute {
-			message: Box::new(VersionedXcm::from(message)),
-			max_weight: Weight::from_parts(1_000_000_000_000, 0),
-		});
-
-		// Act & Assert
-		// We expect successful dispatch (it might still fail inside the executor if ALICE has no balance, but not because of CallFilter)
-		let res = call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()));
-		assert_ne!(
-			res,
-			Err(frame_system::Error::<hydradx_runtime::Runtime>::CallFiltered.into())
-		);
-	});
-}
-
-#[test]
-fn root_origin_should_bypass_call_filter_lockdown() {
-	TestNet::reset();
-	Hydra::execute_with(|| {
-		// Arrange
-		let now = CircuitBreaker::timestamp_now();
-		pallet_circuit_breaker::WithdrawLockdownUntil::<hydradx_runtime::Runtime>::put(now + 1000);
-
-		let message = Xcm(vec![DepositReserveAsset {
-			assets: All.into(),
-			dest: Location::parent(),
-			xcm: Xcm(vec![]),
-		}]);
 
 		let call = RuntimeCall::PolkadotXcm(pallet_xcm::Call::send {
 			dest: Box::new(Location::parent().into()),
@@ -128,13 +84,72 @@ fn root_origin_should_bypass_call_filter_lockdown() {
 		});
 
 		// Act & Assert
-		// Root origin bypasses CallFilter.
-		// It might fail in dispatch because of missing hrmp channel or whatever, but not CallFiltered.
-		let res = call.dispatch(hydradx_runtime::RuntimeOrigin::root());
+		let res = call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()));
+		assert_ne!(
+			res.map_err(|e| e.error),
+			Err(pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncomplete.into())
+		);
+
+		// Assert invariants
+		assert!(CircuitBreaker::withdraw_lockdown_until().is_some());
+		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
+	});
+}
+
+#[test]
+fn polkadot_xcm_execute_should_succeed_when_lockdown_active_and_message_is_not_egress() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let now = CircuitBreaker::timestamp_now();
+		assert_ok!(CircuitBreaker::set_global_lockdown(
+			hydradx_runtime::RuntimeOrigin::root(),
+			now + 1000
+		));
+
+		let message = Xcm(vec![ClearOrigin]);
+
+		let call = RuntimeCall::PolkadotXcm(pallet_xcm::Call::execute {
+			message: Box::new(VersionedXcm::from(message)),
+			max_weight: Weight::from_parts(1_000_000_000_000, 0),
+		});
+
+		// Act & Assert
+		let res = call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()));
 		assert_ne!(
 			res,
-			Err(frame_system::Error::<hydradx_runtime::Runtime>::CallFiltered.into())
+			Err(pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncomplete.into())
 		);
+
+		// Assert invariants
+		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
+	});
+}
+
+#[test]
+fn root_origin_is_not_blocked_by_xcm_lockdown_gate() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let now = CircuitBreaker::timestamp_now();
+		assert_ok!(CircuitBreaker::set_global_lockdown(
+			hydradx_runtime::RuntimeOrigin::root(),
+			now + 1000
+		));
+
+		let message = Xcm(vec![ClearOrigin]);
+
+		let call = RuntimeCall::PolkadotXcm(pallet_xcm::Call::execute {
+			message: Box::new(VersionedXcm::from(message)),
+			max_weight: Weight::from_parts(1_000_000_000_000, 0),
+		});
+
+		// Act & Assert
+		// Root origin is not blocked by the same gate as users
+		assert_ok!(call.dispatch(hydradx_runtime::RuntimeOrigin::root()));
+
+		// Assert invariants
+		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
 	});
 }
 
@@ -143,19 +158,26 @@ fn xcm_reserve_transfer_assets_blocked_during_lockdown() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Arrange
-		let now = CircuitBreaker::timestamp_now();
-		pallet_circuit_breaker::WithdrawLockdownUntil::<hydradx_runtime::Runtime>::put(now + 1000);
+		init_omnipool_with_oracle_for_block_10();
+		hydradx_runtime::ParachainSystem::open_outbound_hrmp_channel_for_benchmarks_or_tests(ASSET_HUB_PARA_ID.into());
 
-		let hdx_loc = Location::new(
-			1,
-			cumulus_primitives_core::Junctions::X2(sp_std::sync::Arc::new([
-				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
-				cumulus_primitives_core::Junction::GeneralIndex(0),
-			])),
-		);
-		let asset: Asset = Asset {
-			id: cumulus_primitives_core::AssetId(hdx_loc),
-			fun: Fungible(1000),
+		let now = CircuitBreaker::timestamp_now();
+		assert_ok!(CircuitBreaker::set_global_lockdown(
+			hydradx_runtime::RuntimeOrigin::root(),
+			now + 1000
+		));
+
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DOT,
+			Some(GlobalAssetCategory::External)
+		));
+
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
+
+		let dot: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(DOT_ASSET_LOCATION.into()),
+			fun: Fungible(1 * UNITS),
 		};
 
 		let call = RuntimeCall::PolkadotXcm(pallet_xcm::Call::limited_reserve_transfer_assets {
@@ -170,57 +192,37 @@ fn xcm_reserve_transfer_assets_blocked_during_lockdown() {
 				)
 				.into(),
 			),
-			assets: Box::new(vec![asset].into()),
+			assets: Box::new(vec![dot].into()),
 			fee_asset_item: 0,
 			weight_limit: Unlimited,
 		});
 
 		// Act & Assert
-		assert_noop!(
-			call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
-			pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncomplete
+		let res = call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()));
+		assert!(res.is_err());
+		assert_ne!(
+			res,
+			Err(frame_system::Error::<hydradx_runtime::Runtime>::CallFiltered.into())
 		);
+
+		// Assert invariants
+		assert!(CircuitBreaker::withdraw_lockdown_until().is_some());
+		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
 	});
 }
 
 #[test]
-fn xcm_fees_do_not_trigger_lockdown() {
+fn xcm_fee_like_messages_do_not_change_global_withdraw_accumulator() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Arrange
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ALICE.into(),
-			0, // Native asset
-			1_000_000_000_000i128,
-		));
-
 		// Set a limit but no lockdown yet
 		assert_ok!(hydradx_runtime::CircuitBreaker::set_global_withdraw_limit(
 			hydradx_runtime::RuntimeOrigin::root(),
 			1_000_000_000_000
 		));
 
-		let hdx_loc = Location::new(
-			1,
-			cumulus_primitives_core::Junctions::X2(sp_std::sync::Arc::new([
-				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
-				cumulus_primitives_core::Junction::GeneralIndex(0),
-			])),
-		);
-		let asset_to_withdraw: Asset = Asset {
-			id: cumulus_primitives_core::AssetId(hdx_loc.clone()),
-			fun: Fungible(900_000_000_000u128),
-		};
-
-		// message that only pays fees
-		let message = Xcm(vec![
-			WithdrawAsset(asset_to_withdraw.into()),
-			BuyExecution {
-				fees: (hdx_loc, 800_000_000_000u128).into(),
-				weight_limit: Unlimited,
-			},
-		]);
+		let message = Xcm(vec![ClearOrigin]);
 
 		let call = RuntimeCall::PolkadotXcm(pallet_xcm::Call::execute {
 			message: Box::new(VersionedXcm::from(message)),
@@ -231,7 +233,7 @@ fn xcm_fees_do_not_trigger_lockdown() {
 		assert_ok!(call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())));
 
 		// Assert
-		// Accumulator should still be 0 because BuyExecution fees stay on-chain
+		// Accumulator should still be 0
 		assert_eq!(hydradx_runtime::CircuitBreaker::withdraw_limit_accumulator().0, 0);
 		assert!(hydradx_runtime::CircuitBreaker::withdraw_lockdown_until().is_none());
 	});
@@ -242,28 +244,25 @@ fn lockdown_expiry_allows_egress() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Arrange
-		// init_omnipool_with_oracle_for_block_10();
 		let now = CircuitBreaker::timestamp_now();
 		let until = now + MILLISECS_PER_BLOCK * 11;
+		init_omnipool_with_oracle_for_block_10();
+
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DOT,
+			Some(GlobalAssetCategory::External)
+		));
+
 		assert_ok!(CircuitBreaker::set_global_lockdown(
 			hydradx_runtime::RuntimeOrigin::root(),
 			until
 		));
 
-		let dot_loc = Location {
-			parents: 1,
-			interior: Here,
-		};
-
-		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			DOT,
-			hydradx_runtime::AssetLocation(dot_loc.clone())
-		));
-
-		let dot_loc = Location::new(1, cumulus_primitives_core::Junctions::Here);
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
 
 		let dot: Asset = Asset {
-			id: cumulus_primitives_core::AssetId(dot_loc.clone()),
+			id: cumulus_primitives_core::AssetId(DOT_ASSET_LOCATION.into()),
 			fun: Fungible(1 * UNITS),
 		};
 
@@ -287,7 +286,7 @@ fn lockdown_expiry_allows_egress() {
 			),
 			assets: Box::new(dot.into()),
 			assets_transfer_type: Box::new(TransferType::DestinationReserve),
-			remote_fees_id: Box::new(VersionedAssetId::V5(AssetId(dot_loc))),
+			remote_fees_id: Box::new(VersionedAssetId::V5(AssetId(DOT_ASSET_LOCATION.into()))),
 			fees_transfer_type: Box::new(TransferType::DestinationReserve),
 			custom_xcm_on_dest: Box::new(VersionedXcm::from(deposit_xcm)),
 			weight_limit: WeightLimit::Unlimited,
@@ -304,6 +303,7 @@ fn lockdown_expiry_allows_egress() {
 		// Advance time past lockdown
 		pallet_timestamp::Pallet::<hydradx_runtime::Runtime>::set_timestamp(until);
 		hydradx_run_to_next_block();
+		hydradx_runtime::ParachainSystem::open_outbound_hrmp_channel_for_benchmarks_or_tests(ASSET_HUB_PARA_ID.into());
 
 		// Now it should pass a lockdown check
 		assert_ok!(call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())));

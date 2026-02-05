@@ -33,7 +33,7 @@ mod migrations;
 pub mod weights;
 
 mod assets;
-mod circuit_breaker;
+pub mod circuit_breaker;
 pub mod evm;
 pub mod governance;
 mod helpers;
