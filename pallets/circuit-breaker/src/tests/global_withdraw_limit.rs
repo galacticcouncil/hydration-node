@@ -23,7 +23,7 @@ fn note_egress_should_not_trigger_lockdown_when_limit_exceeded() {
 		assert_ok!(CircuitBreaker::note_egress(999));
 		// note_egress returns error when limit exceeded, and does NOT update storage or trigger lockdown
 		let res = CircuitBreaker::note_egress(1);
-		assert_eq!(res, Err(Error::<Test>::GlobalLimitExceeded.into()));
+		assert_eq!(res, Err(Error::<Test>::GlobalWithdrawLimitExceeded.into()));
 
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator(), (999, 0));
 		assert!(CircuitBreaker::withdraw_lockdown_until().is_none());
@@ -38,7 +38,7 @@ fn note_egress_should_fail_during_manual_lockdown() {
 		assert!(CircuitBreaker::withdraw_lockdown_until().is_some());
 
 		let res = CircuitBreaker::note_egress(1);
-		assert_eq!(res, Err(Error::<Test>::GlobalLockdownActive.into()));
+		assert_eq!(res, Err(Error::<Test>::WithdrawLockdownActive.into()));
 	});
 }
 
@@ -94,5 +94,42 @@ fn reset_global_lockdown_should_work() {
 		assert_ok!(CircuitBreaker::reset_global_lockdown(RuntimeOrigin::root()));
 		assert!(CircuitBreaker::withdraw_lockdown_until().is_none());
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
+	});
+}
+
+#[test]
+fn set_asset_category_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		let asset_id = 100u32;
+
+		// Set to External
+		assert_ok!(CircuitBreaker::set_asset_category(
+			RuntimeOrigin::root(),
+			asset_id,
+			Some(GlobalAssetCategory::External)
+		));
+		assert_eq!(
+			CircuitBreaker::global_asset_overrides(asset_id),
+			Some(GlobalAssetCategory::External)
+		);
+
+		// Set to Local
+		assert_ok!(CircuitBreaker::set_asset_category(
+			RuntimeOrigin::root(),
+			asset_id,
+			Some(GlobalAssetCategory::Local)
+		));
+		assert_eq!(
+			CircuitBreaker::global_asset_overrides(asset_id),
+			Some(GlobalAssetCategory::Local)
+		);
+
+		// Set to None (explicitly excluded)
+		assert_ok!(CircuitBreaker::set_asset_category(
+			RuntimeOrigin::root(),
+			asset_id,
+			None
+		));
+		assert!(CircuitBreaker::global_asset_overrides(asset_id).is_none());
 	});
 }

@@ -183,6 +183,12 @@ pub mod pallet {
 		}
 	}
 
+	#[derive(Clone, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq, Eq, DecodeWithMemTracking)]
+	pub enum GlobalAssetCategory {
+		External,
+		Local,
+	}
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// The overarching event type.
@@ -349,6 +355,12 @@ pub mod pallet {
 	/// When set to true, egress accounting is skipped.
 	pub type IgnoreWithdrawFuse<T: Config> = StorageValue<_, bool, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn global_asset_overrides)]
+	/// Overrides for global asset categorization.
+	pub type GlobalAssetOverrides<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, GlobalAssetCategory, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -392,6 +404,11 @@ pub mod pallet {
 		EgressAccountsAdded { count: u32 },
 		/// A number of egress accounts removed from a list.
 		EgressAccountsRemoved { count: u32 },
+		/// Asset category override updated.
+		AssetCategoryUpdated {
+			asset_id: T::AssetId,
+			category: Option<GlobalAssetCategory>,
+		},
 	}
 
 	#[pallet::error]
@@ -421,9 +438,9 @@ pub mod pallet {
 		/// Operation rejected to prevent funds being locked on system accounts.
 		DepositLimitExceededForWhitelistedAccount,
 		/// Global lockdown is active and withdrawals that participate in the global limit are blocked.
-		GlobalLockdownActive,
+		WithdrawLockdownActive,
 		/// Applying the increment would exceed the configured global limit -> lockdown is triggered and operation fails.
-		GlobalLimitExceeded,
+		GlobalWithdrawLimitExceeded,
 		/// Asset to withdraw cannot be converted to reference currency.
 		FailedToConvertAsset,
 	}
@@ -683,6 +700,25 @@ pub mod pallet {
 			Self::deposit_event(Event::GlobalLockdownSet { until });
 			Ok(())
 		}
+
+		#[pallet::call_index(11)]
+		#[pallet::weight(T::DbWeight::get().writes(1))]
+		pub fn set_asset_category(
+			origin: OriginFor<T>,
+			asset_id: T::AssetId,
+			category: Option<GlobalAssetCategory>,
+		) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			match &category {
+				Some(cat) => GlobalAssetOverrides::<T>::insert(asset_id, cat),
+				None => GlobalAssetOverrides::<T>::remove(asset_id),
+			}
+
+			Self::deposit_event(Event::AssetCategoryUpdated { asset_id, category });
+
+			Ok(())
+		}
 	}
 }
 
@@ -737,7 +773,7 @@ impl<T: Config> Pallet<T> {
 
 		let now = Self::timestamp_now();
 		if Self::is_lockdown_at(now) {
-			return Err(Error::<T>::GlobalLockdownActive.into());
+			return Err(Error::<T>::WithdrawLockdownActive.into());
 		}
 
 		// Ensure we decayed at this block before adding increments.
@@ -747,7 +783,7 @@ impl<T: Config> Pallet<T> {
 		let new_current = current.checked_add(&amount).ok_or(ArithmeticError::Overflow)?;
 
 		if let Some(limit) = Self::global_withdraw_limit() {
-			ensure!(new_current < limit, Error::<T>::GlobalLimitExceeded);
+			ensure!(new_current < limit, Error::<T>::GlobalWithdrawLimitExceeded);
 		}
 
 		WithdrawLimitAccumulator::<T>::put((new_current, now));

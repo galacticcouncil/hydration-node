@@ -4,6 +4,7 @@ use crate::types::ShortOraclePrice;
 use hydradx_adapters::price::ConvertBalance;
 use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use pallet_asset_registry::AssetType;
+use pallet_circuit_breaker::GlobalAssetCategory;
 use polkadot_xcm::v5::{
 	Instruction::{DepositReserveAsset, InitiateReserveWithdraw, TransferReserveAsset},
 	Xcm,
@@ -38,29 +39,45 @@ where
 		Some(converted)
 	}
 
+	pub fn global_asset_category(asset_id: AssetId) -> Option<GlobalAssetCategory> {
+		if let Some(overridden) = CircuitBreaker::global_asset_overrides(asset_id) {
+			return Some(overridden);
+		}
+
+		let asset_details = AssetRegistry::assets(asset_id)?;
+		match asset_details.asset_type {
+			AssetType::External | AssetType::Erc20 => Some(GlobalAssetCategory::External),
+			AssetType::Token | AssetType::XYK | AssetType::StableSwap | AssetType::Bond => None,
+		}
+	}
+
 	pub fn should_account_operation(asset_id: AssetId, op_kind: OperationKind, maybe_dest: Option<&AccountId>) -> bool {
 		if CircuitBreaker::ignore_withdraw_fuse() {
 			return false;
 		}
 
-		let asset_details = AssetRegistry::assets(asset_id);
-		let asset_type = asset_details.map(|d| d.asset_type);
+		let category = Self::global_asset_category(asset_id);
 
 		match op_kind {
-			OperationKind::Burn | OperationKind::Withdraw
-				if matches!(asset_type, Some(AssetType::External)) =>
-			{
-				true
+			OperationKind::Burn | OperationKind::Withdraw => {
+				matches!(category, Some(GlobalAssetCategory::External))
 			}
 			OperationKind::Transfer => {
 				if let Some(dest) = maybe_dest {
-					pallet_circuit_breaker::Pallet::<Runtime>::is_account_egress(dest).is_some()
+					category.is_some() && pallet_circuit_breaker::Pallet::<Runtime>::is_account_egress(dest).is_some()
 				} else {
 					false
 				}
 			}
-			_ => false,
 		}
+	}
+
+	pub fn note_local_egress(asset_id: AssetId, amount: Balance) -> DispatchResult {
+		if Self::global_asset_category(asset_id) != Some(GlobalAssetCategory::Local) {
+			return Ok(());
+		}
+
+		Self::on_egress(asset_id, amount)
 	}
 
 	fn on_egress(asset_id: AssetId, amount: Balance) -> DispatchResult {
@@ -98,18 +115,6 @@ where
 			Self::on_egress(asset_id, amount)?;
 		}
 		Ok(())
-	}
-}
-
-pub struct XcmEgressFilter;
-impl XcmEgressFilter {
-	pub fn is_egress<Call>(message: &Xcm<Call>) -> bool {
-		message.0.iter().any(|inst| {
-			matches!(
-				inst,
-				DepositReserveAsset { .. } | InitiateReserveWithdraw { .. } | TransferReserveAsset { .. }
-			)
-		})
 	}
 }
 

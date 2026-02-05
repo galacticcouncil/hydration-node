@@ -105,10 +105,14 @@ frame_support::construct_runtime!(
 	}
 );
 
+parameter_types! {
+	pub const MinimumPeriod: u64 = primitives::constants::time::SLOT_DURATION / 2;
+}
+
 impl pallet_timestamp::Config for Test {
 	type Moment = primitives::Moment;
 	type OnTimestampSet = ();
-	type MinimumPeriod = ConstU64<1>;
+	type MinimumPeriod = MinimumPeriod;
 	type WeightInfo = ();
 }
 
