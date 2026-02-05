@@ -13,6 +13,7 @@ mod invariants;
 pub(crate) mod mock;
 mod peg;
 mod peg_one;
+mod pegs_with_different_decimals;
 mod price;
 mod remove_liquidity;
 mod trades;
