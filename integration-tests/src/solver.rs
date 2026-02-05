@@ -22,24 +22,24 @@ pub type CombinedSimulatorState =
 type TestSimulator = HydrationSimulator<hydradx_runtime::HydrationSimulatorConfig>;
 type Solver = SolverV1<TestSimulator>;
 
-// Custom simulator config for ETH/3pool tests with price denominator 222
-pub struct Eth3PoolSimulatorConfig;
+// Custom simulator config for Hollar tests with price denominator 222
+pub struct HollarSimulatorConfig;
 
-pub struct PriceDenominator222;
-impl Get<u32> for PriceDenominator222 {
+pub struct HollarPriceDenominator;
+impl Get<u32> for HollarPriceDenominator {
 	fn get() -> u32 {
 		222
 	}
 }
 
-impl SimulatorConfig for Eth3PoolSimulatorConfig {
+impl SimulatorConfig for HollarSimulatorConfig {
 	type Simulators = <hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators;
 	type RouteProvider = <hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::RouteProvider;
-	type PriceDenominator = PriceDenominator222;
+	type PriceDenominator = HollarPriceDenominator;
 }
 
-type Eth3PoolSimulator = HydrationSimulator<Eth3PoolSimulatorConfig>;
-type Eth3PoolSolver = SolverV1<Eth3PoolSimulator>;
+type HollarSimulator = HydrationSimulator<HollarSimulatorConfig>;
+type HollarSolver = SolverV1<HollarSimulator>;
 
 #[test]
 fn test_simulator_snapshot() {
@@ -1636,7 +1636,7 @@ fn test_eth_3pool_single_intent() {
 			let result = pallet_ice::Pallet::<Runtime>::run(
 				block,
 				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					let solution = Eth3PoolSolver::solve(intents, state).ok()?;
+					let solution = HollarSolver::solve(intents, state).ok()?;
 					captured_solution = Some(solution.clone());
 					Some(solution)
 				},
@@ -1703,7 +1703,7 @@ fn test_eth_3pool_solver_vs_router() {
 			let result = pallet_ice::Pallet::<Runtime>::run(
 				block,
 				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					let solution = Eth3PoolSolver::solve(intents, state).ok()?;
+					let solution = HollarSolver::solve(intents, state).ok()?;
 					captured_solution = Some(solution.clone());
 					Some(solution)
 				},
@@ -1812,7 +1812,7 @@ fn test_eth_3pool_two_opposing_intents() {
 			let result = pallet_ice::Pallet::<Runtime>::run(
 				block,
 				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					let solution = Eth3PoolSolver::solve(intents, state).ok()?;
+					let solution = HollarSolver::solve(intents, state).ok()?;
 					captured_solution = Some(solution.clone());
 					Some(solution)
 				},
