@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use crate::evm::init_omnipool_with_oracle_for_block_10;
 use crate::polkadot_test_net::*;
 use frame_support::weights::Weight;
 use frame_support::{assert_noop, assert_ok};
@@ -11,7 +12,6 @@ use primitives::constants::time::MILLISECS_PER_BLOCK;
 use sp_runtime::traits::Dispatchable;
 use xcm_emulator::TestExt;
 use xcm_executor::traits::TransferType;
-use crate::evm::init_omnipool_with_oracle_for_block_10;
 
 #[test]
 fn polkadot_xcm_execute_should_fail_when_lockdown_active_and_message_is_egress() {
@@ -24,10 +24,7 @@ fn polkadot_xcm_execute_should_fail_when_lockdown_active_and_message_is_egress()
 			now + 1000
 		));
 
-		let message = Xcm(vec![
-			WithdrawAsset((Here, 1000).into()),
-			ClearOrigin,
-		]);
+		let message = Xcm(vec![WithdrawAsset((Here, 1000).into()), ClearOrigin]);
 
 		let call = RuntimeCall::PolkadotXcm(pallet_xcm::Call::execute {
 			message: Box::new(VersionedXcm::from(message)),
