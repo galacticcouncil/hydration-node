@@ -34,7 +34,10 @@ fn note_egress_should_not_trigger_lockdown_when_limit_exceeded() {
 fn note_egress_should_fail_during_manual_lockdown() {
 	ExtBuilder::default().build().execute_with(|| {
 		pallet_timestamp::Pallet::<Test>::set_timestamp(100);
-		assert_ok!(CircuitBreaker::set_global_lockdown(RuntimeOrigin::root(), 1000));
+		assert_ok!(CircuitBreaker::set_global_withdraw_lockdown(
+			RuntimeOrigin::root(),
+			1000
+		));
 		assert!(CircuitBreaker::withdraw_lockdown_until().is_some());
 
 		let res = CircuitBreaker::note_egress(1);
@@ -85,13 +88,16 @@ fn set_global_withdraw_limit_should_work() {
 }
 
 #[test]
-fn reset_global_lockdown_should_work() {
+fn reset_withdraw_lockdown_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
 		pallet_timestamp::Pallet::<Test>::set_timestamp(100);
-		assert_ok!(CircuitBreaker::set_global_lockdown(RuntimeOrigin::root(), 1000));
+		assert_ok!(CircuitBreaker::set_global_withdraw_lockdown(
+			RuntimeOrigin::root(),
+			1000
+		));
 		assert!(CircuitBreaker::withdraw_lockdown_until().is_some());
 
-		assert_ok!(CircuitBreaker::reset_global_lockdown(RuntimeOrigin::root()));
+		assert_ok!(CircuitBreaker::reset_withdraw_lockdown(RuntimeOrigin::root()));
 		assert!(CircuitBreaker::withdraw_lockdown_until().is_none());
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
 	});

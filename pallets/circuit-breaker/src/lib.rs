@@ -649,7 +649,7 @@ pub mod pallet {
 		/// Can be called only by authority origin.
 		#[pallet::call_index(7)]
 		#[pallet::weight(T::DbWeight::get().reads_writes(1,2))]
-		pub fn reset_global_lockdown(origin: OriginFor<T>) -> DispatchResult {
+		pub fn reset_withdraw_lockdown(origin: OriginFor<T>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let now = Self::timestamp_now();
@@ -685,7 +685,7 @@ pub mod pallet {
 				EgressAccounts::<T>::remove(account);
 			}
 
-			Self::deposit_event(Event::EgressAccountsAdded {
+			Self::deposit_event(Event::EgressAccountsRemoved {
 				count: accounts.len() as u32,
 			});
 
@@ -694,7 +694,7 @@ pub mod pallet {
 
 		#[pallet::call_index(10)]
 		#[pallet::weight(T::DbWeight::get().writes(1))]
-		pub fn set_global_lockdown(origin: OriginFor<T>, until: primitives::Moment) -> DispatchResult {
+		pub fn set_global_withdraw_lockdown(origin: OriginFor<T>, until: primitives::Moment) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 			WithdrawLockdownUntil::<T>::put(until);
 			Self::deposit_event(Event::GlobalLockdownSet { until });
@@ -754,7 +754,6 @@ impl<T: Config> Pallet<T> {
 		if !time_diff.is_zero() && !Self::is_lockdown_at(now) {
 			let capped_dt = time_diff.min(window);
 			let p = sp_runtime::Perbill::from_rational(capped_dt, window);
-			// TODO: decide after testing whether to leave it as it is, use Perquintill or consider remainder if needed
 			let decay = p.mul_floor(current);
 
 			let new_current = current.saturating_sub(decay);
