@@ -10,6 +10,7 @@ ice-support = { workspace = true }
 hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
 sp-core = { workspace = true }
+sp-std = { workspace = true }
 log = { workspace = true }
 
 [features]
@@ -21,6 +22,7 @@ std = [
     'hydradx-traits/std',
     'hydra-dx-math/std',
     'sp-core/std',
+    'sp-std/std',
     "log/std",
 ]
 

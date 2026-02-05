@@ -31,6 +31,8 @@ hydradx-traits = { workspace = true }
 pallet-intent = { workspace = true}
 pallet-route-executor = { workspace = true}
 ice-support = { workspace = true }
+ice-solver = { workspace = true }
+amm-simulator = { workspace = true }
 
 # Math
 hydra-dx-math = { workspace = true }
@@ -69,6 +71,8 @@ std = [
     "pallet-route-executor/std",
     "orml-traits/std",
     "ice-support/std",
+    "ice-solver/std",
+    "amm-simulator/std",
 ]
 
 runtime-benchmarks = [

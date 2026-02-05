@@ -14,8 +14,9 @@ use ice_support::{
 	SwapData, SwapType,
 };
 use sp_core::{U256, U512};
-use std::collections::BTreeMap;
-use std::marker::PhantomData;
+use sp_std::collections::btree_map::BTreeMap;
+use sp_std::marker::PhantomData;
+use sp_std::vec::Vec;
 
 pub struct SolverV1<A: AMMInterface> {
 	_phantom: PhantomData<A>,

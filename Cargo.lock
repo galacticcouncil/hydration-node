@@ -6518,6 +6518,7 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "sp-core",
+ "sp-std",
 ]
 
 [[package]]
@@ -10571,11 +10572,13 @@ dependencies = [
 name = "pallet-ice"
 version = "1.0.0"
 dependencies = [
+ "amm-simulator",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hydra-dx-math",
  "hydradx-traits",
+ "ice-solver",
  "ice-support",
  "log",
  "orml-tokens",

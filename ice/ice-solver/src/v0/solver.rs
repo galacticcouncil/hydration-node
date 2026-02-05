@@ -2,8 +2,9 @@ use hydradx_traits::amm::AMMInterface;
 use ice_support::{
 	Intent, IntentData, PoolTrade, ResolvedIntent, ResolvedIntents, Solution, SolutionTrades, SwapData, SwapType,
 };
-use std::collections::BTreeMap;
-use std::marker::PhantomData;
+use sp_std::collections::btree_map::BTreeMap;
+use sp_std::marker::PhantomData;
+use sp_std::vec::Vec;
 
 pub struct SolverV0<A: AMMInterface> {
 	_phantom: PhantomData<A>,

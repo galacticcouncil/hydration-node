@@ -31,7 +31,6 @@
 #[cfg(test)]
 mod tests;
 
-pub mod api;
 pub mod traits;
 mod weights;
 
@@ -80,6 +79,7 @@ pub mod pallet {
 	use super::*;
 	use frame_system::offchain::SubmitTransaction;
 	use hydradx_traits::CreateBare;
+	use ice_solver::v1::SolverV1;
 	use ice_support::SwapType;
 
 	#[pallet::pallet]
@@ -293,10 +293,8 @@ pub mod pallet {
 		fn on_finalize(_n: BlockNumberFor<T>) {}
 
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
-			// The run function provides concrete types, but the runtime interface
-			// requires encoded bytes for cross-WASM boundary serialization
 			let Some(call) = Self::run(block_number, |intents, state| {
-				api::ice::get_solution(codec::Encode::encode(&intents), codec::Encode::encode(&state))
+				SolverV1::<amm_simulator::HydrationSimulator<T::Simulator>>::solve(intents, state).ok()
 			}) else {
 				//No call/solution, nothing to do
 				return;
