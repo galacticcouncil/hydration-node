@@ -76,7 +76,6 @@ pub fn calculate_sell_state_changes(
 	// note that we dont need to include burned amount anywhere, as it is already part of delta_hub_reserve_in value.
 	// we only to need to include extra_protocol_fee when the deltas are calculated, as it used to be done for hdx hub amount.
 	let burned_protocol_fee = burn_protocol_fee.mul_floor(protocol_fee_amount);
-	let extra_protocol_fee = protocol_fee_amount.checked_sub(burned_protocol_fee)?;
 
 	Some(TradeStateChange {
 		asset_in: AssetStateChange {
@@ -90,10 +89,10 @@ pub fn calculate_sell_state_changes(
 			extra_hub_reserve_amount: Increase(delta_out_m),
 			..Default::default()
 		},
-		extra_protocol_fee_amount: extra_protocol_fee,
 		fee: TradeFee {
 			asset_fee: asset_fee_amount,
 			protocol_fee: protocol_fee_amount,
+			burned_protocol_fee,
 		},
 	})
 }
@@ -258,7 +257,7 @@ pub fn calculate_buy_state_changes(
 	amount: Balance,
 	asset_fee: Permill,
 	protocol_fee: Permill,
-	m: Permill,
+	burn_protocol_fee: Permill,
 	slip_fee_config: &SlipFeeConfig<Balance>,
 ) -> Option<TradeStateChange<Balance>> {
 	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
@@ -325,8 +324,7 @@ pub fn calculate_buy_state_changes(
 	);
 
 	// Protocol fee to burn and transfer
-	let burned_protocol_fee = m.mul_floor(protocol_fee_amount);
-	let extra_protocol_fee = protocol_fee_amount.checked_sub(burned_protocol_fee)?;
+	let burned_protocol_fee = burn_protocol_fee.mul_floor(protocol_fee_amount);
 
 	Some(TradeStateChange {
 		asset_in: AssetStateChange {
@@ -340,10 +338,10 @@ pub fn calculate_buy_state_changes(
 			extra_hub_reserve_amount: Increase(delta_out_m),
 			..Default::default()
 		},
-		extra_protocol_fee_amount: extra_protocol_fee,
 		fee: TradeFee {
 			asset_fee: asset_fee_amount,
 			protocol_fee: protocol_fee_amount,
+			burned_protocol_fee,
 		},
 	})
 }

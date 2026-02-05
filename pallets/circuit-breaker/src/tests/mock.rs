@@ -48,6 +48,7 @@ pub type Balance = u128;
 pub const ALICE: u64 = 1;
 pub const BOB: u64 = 2;
 pub const WHITELISTED_ACCCOUNT: u64 = 2;
+pub const DEPOSIT_LOCK_WHITELISTED_ACCOUNT: u64 = 999;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
@@ -176,6 +177,7 @@ impl pallet_circuit_breaker::Config for Test {
 	type Balance = Balance;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DepositLockWhitelist = DepositLockWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
@@ -216,6 +218,14 @@ pub struct CircuitBreakerWhitelist;
 impl Contains<AccountId> for CircuitBreakerWhitelist {
 	fn contains(a: &AccountId) -> bool {
 		WHITELISTED_ACCCOUNT == *a
+	}
+}
+
+pub struct DepositLockWhitelist;
+
+impl Contains<AccountId> for DepositLockWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		DEPOSIT_LOCK_WHITELISTED_ACCOUNT == *a
 	}
 }
 
