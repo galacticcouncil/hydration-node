@@ -4,7 +4,9 @@ use crate::evm::init_omnipool_with_oracle_for_block_10;
 use crate::polkadot_test_net::*;
 use frame_support::weights::Weight;
 use frame_support::{assert_noop, assert_ok};
-use hydradx_runtime::{CircuitBreaker, RuntimeCall, DOT_ASSET_LOCATION};
+use hydradx_runtime::circuit_breaker::WithdrawCircuitBreaker;
+use hydradx_runtime::{CircuitBreaker, NativeAssetId, RuntimeCall, DOT_ASSET_LOCATION};
+use orml_traits::MultiCurrency;
 use pallet_circuit_breaker::GlobalAssetCategory;
 use polkadot_xcm::v5::prelude::*;
 use polkadot_xcm::{VersionedAssetId, VersionedXcm};
@@ -304,5 +306,156 @@ fn lockdown_expiry_allows_egress() {
 
 		// Now it should pass a lockdown check
 		assert_ok!(call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())));
+	});
+}
+
+#[test]
+fn withdraw_external_should_be_accounted() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Set CORE_ASSET_ID (HDX) as External to avoid conversion issues
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			CORE_ASSET_ID,
+			Some(GlobalAssetCategory::External)
+		));
+
+		let amount = 100 * UNITS;
+		assert_ok!(Currencies::deposit(CORE_ASSET_ID, &ALICE.into(), amount));
+
+		let initial_accumulator = CircuitBreaker::withdraw_limit_accumulator().0;
+
+		assert_ok!(Currencies::withdraw(
+			CORE_ASSET_ID,
+			&ALICE.into(),
+			amount,
+			frame_support::traits::ExistenceRequirement::AllowDeath
+		));
+
+		let final_accumulator = CircuitBreaker::withdraw_limit_accumulator().0;
+		assert!(
+			final_accumulator > initial_accumulator,
+			"Accumulator should increase for external withdraw"
+		);
+	});
+}
+
+#[test]
+fn withdraw_token_without_override_should_not_be_accounted() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// CORE_ASSET_ID is Token, so it should be None by default
+		let amount = 100 * UNITS;
+		assert_ok!(Currencies::deposit(CORE_ASSET_ID, &ALICE.into(), amount));
+
+		let initial_accumulator = CircuitBreaker::withdraw_limit_accumulator().0;
+
+		assert_ok!(Currencies::withdraw(
+			CORE_ASSET_ID,
+			&ALICE.into(),
+			amount,
+			frame_support::traits::ExistenceRequirement::AllowDeath
+		));
+
+		let final_accumulator = CircuitBreaker::withdraw_limit_accumulator().0;
+		assert_eq!(
+			final_accumulator, initial_accumulator,
+			"Accumulator should NOT increase for token withdraw without override"
+		);
+	});
+}
+
+#[test]
+fn transfer_to_sink_should_be_accounted_for_participating_assets() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let sink: AccountId = [99u8; 32].into();
+		assert_ok!(CircuitBreaker::add_egress_accounts(
+			hydradx_runtime::RuntimeOrigin::root(),
+			vec![sink.clone()]
+		));
+
+		let amount = 100 * UNITS;
+		assert_ok!(Currencies::deposit(CORE_ASSET_ID, &ALICE.into(), amount * 2));
+
+		// 1. External -> Accounted (Override CORE_ASSET_ID to External)
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			CORE_ASSET_ID,
+			Some(GlobalAssetCategory::External)
+		));
+		let initial_accumulator = CircuitBreaker::withdraw_limit_accumulator().0;
+		assert_ok!(Currencies::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			sink.clone(),
+			CORE_ASSET_ID,
+			amount
+		));
+		let accumulator_after_ext = CircuitBreaker::withdraw_limit_accumulator().0;
+		assert!(
+			accumulator_after_ext > initial_accumulator,
+			"Accumulator should increase for External transfer to sink"
+		);
+
+		// 2. Local -> Accounted (Override CORE_ASSET_ID to Local)
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			CORE_ASSET_ID,
+			Some(GlobalAssetCategory::Local)
+		));
+		assert_ok!(Currencies::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			sink.clone(),
+			CORE_ASSET_ID,
+			amount
+		));
+		let accumulator_after_local = CircuitBreaker::withdraw_limit_accumulator().0;
+		assert!(
+			accumulator_after_local > accumulator_after_ext,
+			"Accumulator should increase for Local transfer to sink"
+		);
+	});
+}
+
+#[test]
+fn note_local_egress_should_work_only_for_local_assets() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let amount = 100 * UNITS;
+
+		// Set CORE_ASSET_ID as Local
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			CORE_ASSET_ID,
+			Some(GlobalAssetCategory::Local)
+		));
+
+		// 1. Local asset -> Accounted
+		let initial_accumulator = CircuitBreaker::withdraw_limit_accumulator().0;
+		assert_ok!(WithdrawCircuitBreaker::<NativeAssetId>::note_local_egress(
+			CORE_ASSET_ID,
+			amount
+		));
+		let accumulator_after_local = CircuitBreaker::withdraw_limit_accumulator().0;
+		assert!(
+			accumulator_after_local > initial_accumulator,
+			"note_local_egress should increase accumulator for Local asset"
+		);
+
+		// 2. Non-Local asset -> NOT accounted (set to None)
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			CORE_ASSET_ID,
+			None
+		));
+		assert_ok!(WithdrawCircuitBreaker::<NativeAssetId>::note_local_egress(
+			CORE_ASSET_ID,
+			amount
+		));
+		let accumulator_after_none = CircuitBreaker::withdraw_limit_accumulator().0;
+		assert_eq!(
+			accumulator_after_none, accumulator_after_local,
+			"note_local_egress should NOT increase accumulator for non-Local asset"
+		);
 	});
 }

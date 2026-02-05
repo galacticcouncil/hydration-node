@@ -33,7 +33,7 @@ fn note_egress_should_not_trigger_lockdown_when_limit_exceeded() {
 #[test]
 fn note_egress_should_fail_during_manual_lockdown() {
 	ExtBuilder::default().build().execute_with(|| {
-		pallet_timestamp::Now::<Test>::put(100);
+		pallet_timestamp::Pallet::<Test>::set_timestamp(100);
 		assert_ok!(CircuitBreaker::set_global_lockdown(RuntimeOrigin::root(), 1000));
 		assert!(CircuitBreaker::withdraw_lockdown_until().is_some());
 
@@ -45,18 +45,18 @@ fn note_egress_should_fail_during_manual_lockdown() {
 #[test]
 fn accumulator_should_decay_linearly() {
 	ExtBuilder::default().build().execute_with(|| {
-		pallet_timestamp::Now::<Test>::put(0);
+		pallet_timestamp::Pallet::<Test>::set_timestamp(0);
 		assert_ok!(CircuitBreaker::note_egress(1000));
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator(), (1000, 0));
 
 		// Window is 24h (86_400_000 ms)
 		// 12h passed => 50% decay
-		pallet_timestamp::Now::<Test>::put(DAY / 2);
+		pallet_timestamp::Pallet::<Test>::set_timestamp(DAY / 2);
 		CircuitBreaker::try_to_decay_withdraw_limit_accumulator();
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 500);
 
 		// 100h passed from start => should be 0
-		pallet_timestamp::Now::<Test>::put(DAY * 4);
+		pallet_timestamp::Pallet::<Test>::set_timestamp(DAY * 4);
 		CircuitBreaker::try_to_decay_withdraw_limit_accumulator();
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
 	});
@@ -68,7 +68,7 @@ fn decay_should_not_underflow() {
 		assert_ok!(CircuitBreaker::note_egress(1000));
 
 		// 48h passed => should be 0, not underflow
-		pallet_timestamp::Now::<Test>::put(DAY * 2);
+		pallet_timestamp::Pallet::<Test>::set_timestamp(DAY * 2);
 		CircuitBreaker::try_to_decay_withdraw_limit_accumulator();
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
 	});
@@ -87,7 +87,7 @@ fn set_global_withdraw_limit_should_work() {
 #[test]
 fn reset_global_lockdown_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		pallet_timestamp::Now::<Test>::put(100);
+		pallet_timestamp::Pallet::<Test>::set_timestamp(100);
 		assert_ok!(CircuitBreaker::set_global_lockdown(RuntimeOrigin::root(), 1000));
 		assert!(CircuitBreaker::withdraw_lockdown_until().is_some());
 

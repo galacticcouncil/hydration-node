@@ -20,7 +20,7 @@ mod evm;
 mod evm_permit;
 mod exchange_asset;
 mod fee_calculation;
-mod global_circuit_breaker;
+mod global_withdraw_limit;
 mod hsm;
 mod hyperbridge;
 mod insufficient_assets_ed;
@@ -45,7 +45,6 @@ pub mod utils;
 mod vesting;
 mod xcm;
 mod xcm_aliasers;
-mod xcm_lockdown;
 mod xyk;
 mod xyk_liquidity_mining;
 

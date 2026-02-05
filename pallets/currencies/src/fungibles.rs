@@ -362,25 +362,27 @@ where
 			}
 		};
 
-		T::EgressHandler::on_transfer(asset, source, dest, amount)?;
-
-		#[cfg(any(feature = "try-runtime", test))]
 		if result.is_ok() {
-			let (final_source_balance, final_dest_balance) = {
-				(
-					<Self as fungibles::Inspect<T::AccountId>>::total_balance(asset, source),
-					<Self as fungibles::Inspect<T::AccountId>>::total_balance(asset, dest),
-				)
-			};
-			debug_assert!(
-				final_source_balance == initial_source_balance - amount || final_source_balance.is_zero(),
-				"Transfer - source sent incorrect amount"
-			);
-			debug_assert_eq!(
-				initial_dest_balance + amount,
-				final_dest_balance,
-				"Transfer - dest received incorrect amount"
-			);
+			T::EgressHandler::on_transfer(asset, source, dest, amount)?;
+
+			#[cfg(any(feature = "try-runtime", test))]
+			{
+				let (final_source_balance, final_dest_balance) = {
+					(
+						<Self as fungibles::Inspect<T::AccountId>>::total_balance(asset, source),
+						<Self as fungibles::Inspect<T::AccountId>>::total_balance(asset, dest),
+					)
+				};
+				debug_assert!(
+					final_source_balance == initial_source_balance - amount || final_source_balance.is_zero(),
+					"Transfer - source sent incorrect amount"
+				);
+				debug_assert_eq!(
+					initial_dest_balance + amount,
+					final_dest_balance,
+					"Transfer - dest received incorrect amount"
+				);
+			}
 		}
 
 		result
