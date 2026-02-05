@@ -546,7 +546,7 @@ fn calculate_sell_with_fees_but_without_slip_fee_should_burn_halt_of_protocol_fe
 		TradeFee {
 			asset_fee: 26_541_554_960,
 			protocol_fee: 57_142_857_142,
-			burned_protocol_fee: 0
+			burned_protocol_fee: 28_571_428_571
 		}
 	);
 
@@ -710,7 +710,7 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 		TradeFee {
 			asset_fee: 14_355_231_144,
 			protocol_fee: 2_342_857_142_856,
-			burned_protocol_fee: 0
+			burned_protocol_fee: 1_171_428_571_428
 		}
 	);
 

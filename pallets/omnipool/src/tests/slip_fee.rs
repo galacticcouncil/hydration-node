@@ -60,17 +60,14 @@ fn single_sell_works() {
 			let received = 45_764_362_220_058;
 			assert_eq!(Tokens::free_balance(100, &LP1), 500 * ONE + sell_amount);
 			assert_eq!(Tokens::free_balance(200, &LP1), received);
-			assert_eq!(
-				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
-				13_359_336_734_693_878
-			);
+			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_360 * ONE);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2_450 * ONE);
 			assert_eq!(
 				Tokens::free_balance(200, &Omnipool::protocol_account()),
 				2_000 * ONE - received
 			);
 
-			assert_pool_state!(13_359_336_734_693_878, 26_720 * ONE); // TODO: verify
+			assert_pool_state!(13_360 * ONE, 26_720 * ONE);
 
 			assert_asset_state!(
 				100,
@@ -294,17 +291,14 @@ fn two_sells_in_one_direction_should_increase_fee() {
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 550 * ONE);
 			assert_eq!(Tokens::free_balance(200, &LP1), 45_764_362_220_058);
-			assert_eq!(
-				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
-				13_359_336_734_693_878
-			);
+			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_360 * ONE);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2_450 * ONE);
 			assert_eq!(
 				Tokens::free_balance(200, &Omnipool::protocol_account()),
 				1_954_235_637_779_942
 			);
 
-			assert_pool_state!(13_359_336_734_693_878, 26_720 * ONE);
+			assert_pool_state!(13_360 * ONE, 26_720 * ONE);
 
 			assert_asset_state!(
 				100,
@@ -797,17 +791,14 @@ fn slip_fee_should_be_symmetric() {
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 550 * ONE);
 			assert_eq!(Tokens::free_balance(200, &LP1), 1_045_764_362_220_058);
-			assert_eq!(
-				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
-				13_359_336_734_693_878
-			);
+			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_360 * ONE);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2450 * ONE);
 			assert_eq!(
 				Tokens::free_balance(200, &Omnipool::protocol_account()),
 				1_954_235_637_779_942
 			);
 
-			assert_pool_state!(13_359_336_734_693_878, 26_720 * ONE);
+			assert_pool_state!(13_360 * ONE, 26_720 * ONE);
 
 			assert_asset_state!(
 				100,
@@ -964,17 +955,14 @@ fn sell_and_buy_can_cancel_out_and_bring_slip_fee_to_initial_state() {
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 550 * ONE);
 			assert_eq!(Tokens::free_balance(200, &LP1), 1_045_764_362_220_058);
-			assert_eq!(
-				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
-				13_359_336_734_693_878
-			);
+			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_360 * ONE);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2_450 * ONE);
 			assert_eq!(
 				Tokens::free_balance(200, &Omnipool::protocol_account()),
 				1_954_235_637_779_942
 			);
 
-			assert_pool_state!(13_359_336_734_693_878, 26_720 * ONE);
+			assert_pool_state!(13_360 * ONE, 26_720 * ONE);
 
 			assert_asset_state!(
 				100,
