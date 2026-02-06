@@ -6257,6 +6257,7 @@ dependencies = [
  "pallet-liquidation",
  "pallet-liquidity-mining",
  "pallet-message-queue",
+ "pallet-migrations",
  "pallet-multisig",
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
