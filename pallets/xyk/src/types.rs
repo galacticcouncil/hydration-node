@@ -20,7 +20,7 @@ pub type Amount = i128;
 pub type Balance = u128;
 pub type Price = FixedU128;
 
-use codec::{Decode, Encode};
+use codec::{Decode, DecodeWithMemTracking, Encode};
 use scale_info::TypeInfo;
 use sp_runtime::FixedU128;
 use sp_std::vec::Vec;
@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 /// asset_in represents asset coming into the pool
 /// asset_out represents asset coming out of the pool
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Debug, Encode, Decode, Copy, Clone, PartialEq, Eq, Default, TypeInfo)]
+#[derive(Debug, Encode, Decode, DecodeWithMemTracking, Copy, Clone, PartialEq, Eq, Default, TypeInfo)]
 pub struct AssetPair {
 	pub asset_in: AssetId,
 	pub asset_out: AssetId,

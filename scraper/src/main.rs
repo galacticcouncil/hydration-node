@@ -15,6 +15,9 @@ struct StorageCmd {
 	/// The pallets to scrape. If empty, entire chain state will be scraped.
 	#[arg(long, num_args = 0..)]
 	pallet: Vec<String>,
+	/// The pallets to exclude from scraping.
+	#[arg(long, num_args = 0..)]
+	exclude: Vec<String>,
 	#[allow(missing_docs)]
 	#[clap(flatten)]
 	shared: SharedParams,
@@ -39,6 +42,9 @@ struct SaveChainspecCmd {
 	/// The pallets to include. If empty, entire chain state will be exported.
 	#[arg(long, num_args = 0..)]
 	pallet: Vec<String>,
+	/// The pallets to exclude from chainspec export.
+	#[arg(long, num_args = 0..)]
+	exclude: Vec<String>,
 	#[allow(missing_docs)]
 	#[clap(flatten)]
 	shared: SharedParams,
@@ -46,6 +52,7 @@ struct SaveChainspecCmd {
 
 /// Possible commands of `scraper`.
 #[derive(Parser, Debug)]
+#[allow(clippy::enum_variant_names)]
 enum Command {
 	SaveStorage(StorageCmd),
 	SaveBlocks(BlocksCmd),
@@ -93,6 +100,7 @@ fn main() {
 	let path = match args.command {
 		Command::SaveStorage(cmd) => {
 			let path = cmd.shared.get_path();
+			let excluded_pallets = cmd.exclude;
 
 			let snapshot_config = SnapshotConfig::new(path.clone());
 			let transport = Transport::Uri(cmd.shared.uri);
@@ -114,6 +122,13 @@ fn main() {
 				.build()
 				.unwrap()
 				.block_on(async { builder.build().await.unwrap() });
+
+			// Post-process snapshot to exclude specified pallets
+			if !excluded_pallets.is_empty() {
+				println!("Filtering out excluded pallets: {:?}", excluded_pallets);
+				scraper::filter_snapshot_by_excluded_pallets::<Block>(&path, &excluded_pallets)
+					.expect("Failed to filter snapshot by excluded pallets");
+			}
 
 			path
 		}
@@ -173,7 +188,7 @@ fn main() {
 				.build()
 				.unwrap()
 				.block_on(async {
-					scraper::save_chainspec(cmd.at, path.clone(), cmd.shared.uri)
+					scraper::save_chainspec(cmd.at, path.clone(), cmd.shared.uri, cmd.exclude)
 						.await
 						.unwrap()
 				});

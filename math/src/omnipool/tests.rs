@@ -62,7 +62,6 @@ fn calculate_sell_should_work_when_correct_input_provided() {
 		state_changes.asset_out.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(5714285714285u128)
 	);
-	assert_eq!(state_changes.extra_protocol_fee_amount, 0u128);
 	assert_eq!(state_changes.fee, TradeFee::default());
 }
 
@@ -107,6 +106,7 @@ fn calculate_sell_should_return_correct_when_protocol_fee_is_zero() {
 		TradeFee {
 			asset_fee: 26666666667,
 			protocol_fee: 0,
+			burned_protocol_fee: 0,
 		}
 	);
 }
@@ -147,6 +147,7 @@ fn calculate_sell_should_return_correct_when_protocol_fee_is_not_zero() {
 		TradeFee {
 			asset_fee: 26541554960,
 			protocol_fee: 57142857142,
+			burned_protocol_fee: 0,
 		}
 	);
 }
@@ -201,7 +202,7 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 		state_changes.asset_out.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(5777720816326)
 	);
-	assert_eq!(state_changes.extra_protocol_fee_amount, 57142857142);
+	assert_eq!(state_changes.fee.protocol_fee, 57142857142);
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 57142857142u128 + 5657142857143u128;
@@ -260,10 +261,8 @@ fn calculate_sell_with_fees_should_burn_halt_of_protocol_fee_amount_when_burn_fe
 		BalanceUpdate::Increase(5777720816326)
 	);
 	let zero_fee_amount = 57142857142u128;
-	assert_eq!(
-		state_changes.extra_protocol_fee_amount,
-		zero_fee_amount - burn_fee.mul_floor(zero_fee_amount)
-	);
+	let burn_amount = burn_fee.mul_floor(zero_fee_amount);
+	assert_eq!(state_changes.fee.burned_protocol_fee, burn_amount);
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 57142857142u128 + 5657142857143u128;
@@ -334,6 +333,7 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
 		TradeFee {
 			asset_fee: 16666666667,
 			protocol_fee: 0,
+			burned_protocol_fee: 0,
 		}
 	);
 }
@@ -388,7 +388,7 @@ fn calculate_buy_should_work_when_correct_input_provided() {
 		state_changes.asset_out.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(1250000000001u128)
 	);
-	assert_eq!(state_changes.extra_protocol_fee_amount, 0u128);
+	assert_eq!(state_changes.fee, TradeFee::default());
 }
 
 #[test]
@@ -434,6 +434,7 @@ fn calculate_buy_should_return_correct_fee_when_protocol_fee_is_zero() {
 		TradeFee {
 			asset_fee: 10101010102,
 			protocol_fee: 0,
+			burned_protocol_fee: 0,
 		}
 	)
 }
@@ -481,6 +482,7 @@ fn calculate_buy_should_return_correct_fee_when_protocol_fee_is_non_zero() {
 		TradeFee {
 			asset_fee: 10101010102,
 			protocol_fee: 12786088735,
+			burned_protocol_fee: 0,
 		}
 	)
 }
@@ -535,7 +537,7 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
 		state_changes.asset_out.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(1281685627304)
 	);
-	assert_eq!(state_changes.extra_protocol_fee_amount, 12786088735);
+	assert_eq!(state_changes.fee.protocol_fee, 12786088735);
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 1265822784811u128 + 12786088735u128;
@@ -595,8 +597,8 @@ fn calculate_buy_with_fees_should_burn_half_of_protocol_fee_when_burn_fee_set_to
 	);
 	let zero_burn_fee_amount = 12786088735u128;
 	assert_eq!(
-		state_changes.extra_protocol_fee_amount,
-		zero_burn_fee_amount - burn_fee.mul_floor(zero_burn_fee_amount)
+		state_changes.fee.burned_protocol_fee,
+		burn_fee.mul_floor(zero_burn_fee_amount)
 	);
 
 	// Verify if fee + delta amount == delta with fee
@@ -665,6 +667,7 @@ fn calculate_buy_for_hub_asset_with_fee_should_work_when_correct_input_provided(
 		TradeFee {
 			asset_fee: 20_202_020_203,
 			protocol_fee: 0,
+			burned_protocol_fee: 0,
 		}
 	);
 }
@@ -1109,6 +1112,7 @@ fn calculate_buy_should_charge_less_when_fee_is_zero() {
 		TradeFee {
 			asset_fee: 0,
 			protocol_fee: 0,
+			burned_protocol_fee: 0,
 		}
 	);
 }
@@ -1160,6 +1164,7 @@ fn calculate_buy_should_charge_more_when_fee_is_not_zero() {
 		TradeFee {
 			asset_fee: 111_111_111_112,
 			protocol_fee: 75_187_969_924,
+			burned_protocol_fee: 0,
 		}
 	);
 }

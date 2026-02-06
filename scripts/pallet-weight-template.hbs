@@ -43,7 +43,11 @@ pub struct WeightInfo<T>(PhantomData<T>);
 
 /// Weights for `{{pallet}}` using the HydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
+{{#if (eq pallet "frame_system_extensions")}}
+impl<T: frame_system::Config> frame_system::ExtensionsWeightInfo for HydraWeight<T> {
+{{else}}
 impl<T: frame_system::Config> {{pallet}}::WeightInfo for HydraWeight<T> {
+{{/if}}
 	{{#each benchmarks as |benchmark|}}
 	{{#each benchmark.comments as |comment|}}
 	/// {{comment}}

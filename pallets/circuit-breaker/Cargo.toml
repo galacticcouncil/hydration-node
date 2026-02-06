@@ -1,6 +1,6 @@
 [package]
 name = "pallet-circuit-breaker"
-version = "1.2.3"
+version = "1.4.0"
 authors = ["GalacticCouncil <hydradx@galacticcouncil.io>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -34,8 +34,8 @@ orml-traits = { workspace = true }
 [dev-dependencies]
 pallet-omnipool = { workspace = true }
 pallet-currencies = { workspace = true }
-pallet-broadcast = { workspace = true }
 pallet-balances = { workspace = true }
+pallet-broadcast = { workspace = true }
 orml-tokens = { workspace = true }
 hydra-dx-math = { workspace = true }
 test-utils = { workspace = true }

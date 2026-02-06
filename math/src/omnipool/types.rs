@@ -215,7 +215,10 @@ impl<
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct TradeFee<Balance> {
 	pub asset_fee: Balance,
+	// Total protocol fee amount ( includes burned portion)
 	pub protocol_fee: Balance,
+	// Burned portion of protocol fee amount
+	pub burned_protocol_fee: Balance,
 }
 
 /// Delta changes after a trade is executed
@@ -226,7 +229,6 @@ where
 {
 	pub asset_in: AssetStateChange<Balance>,
 	pub asset_out: AssetStateChange<Balance>,
-	pub extra_protocol_fee_amount: Balance, // Portion of protocol fee that can be transfer out of the pool (eg. for buyback)
 	pub fee: TradeFee<Balance>,
 }
 

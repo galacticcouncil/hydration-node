@@ -1,8 +1,8 @@
-use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
+use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV6;
 use frame_support::assert_ok;
 use hydradx_runtime::EVMAccounts;
-use hydradx_traits::evm::EvmAddress;
 use pallet_evm::ExitReason;
+use primitives::EvmAddress;
 use sp_core::U256;
 use std::fs;
 
@@ -32,6 +32,7 @@ pub fn deploy_contract_code(code: Vec<u8>, deployer: EvmAddress) -> EvmAddress {
 		None,
 		None,
 		false,
+		None,
 		None,
 	);
 

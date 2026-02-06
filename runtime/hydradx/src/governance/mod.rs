@@ -77,6 +77,9 @@ impl pallet_collective_technical_committee::Config<TechnicalCollective> for Runt
 	type WeightInfo = weights::pallet_collective_technical_committee::HydraWeight<Runtime>;
 	type MaxProposalWeight = MaxProposalWeight;
 	type SetMembersOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type DisapproveOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type KillOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type Consideration = ();
 }
 
 parameter_types! {
@@ -172,6 +175,7 @@ impl pallet_treasury::Config for Runtime {
 	type PayoutPeriod = TreasuryPayoutPeriod;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = (); // default impl is enough because we support only the native currency
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -189,6 +193,7 @@ impl pallet_conviction_voting::Config for Runtime {
 	type VotingHooks = pallet_staking::integrations::conviction_voting::StakingConvictionVoting<Runtime>;
 	// Any single technical committee member may remove a vote.
 	type VoteRemovalOrigin = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -229,6 +234,7 @@ impl pallet_referenda::Config for Runtime {
 	type AlarmInterval = AlarmInterval;
 	type Tracks = TracksInfo;
 	type Preimages = Preimage;
+	type BlockNumberProvider = System;
 }
 
 impl origins::pallet_custom_origins::Config for Runtime {}
@@ -245,7 +251,7 @@ impl MaybeEvmCall<RuntimeCall> for EvmCallChecker {
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn is_evm_call(call: &RuntimeCall) -> bool {
+	fn is_evm_call(_call: &RuntimeCall) -> bool {
 		true
 	}
 }

@@ -39,8 +39,8 @@ mod benchmarking;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
+use hydradx_traits::evm::ExtraGasSupport;
 use hydradx_traits::evm::MaybeEvmCall;
-use hydradx_traits::evm::{EvmAddress, ExtraGasSupport};
 use pallet_evm::{ExitReason, GasWeightMapping};
 use sp_runtime::{traits::Dispatchable, DispatchError, DispatchResultWithInfo};
 pub use weights::WeightInfo;
@@ -162,7 +162,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().weight;
+			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
 
 			T::WeightInfo::dispatch_as_treasury(call_len)
@@ -190,7 +190,7 @@ pub mod pallet {
 
 		#[pallet::call_index(1)]
 		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().weight;
+			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
 
 			T::WeightInfo::dispatch_as_aave_manager(call_len)
@@ -236,7 +236,7 @@ pub mod pallet {
 		/// The extra gas is not refunded, even if not used.
 		#[pallet::call_index(3)]
 		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().weight;
+			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
 			let gas_weight = T::GasWeightMapping::gas_to_weight(*extra_gas, true);
 			T::WeightInfo::dispatch_with_extra_gas(call_len)
@@ -259,12 +259,11 @@ pub mod pallet {
 			// We need to add the extra gas to the actual weight - because evm execution does not account for it
 			// If actual weight is None, we still account for extra gas
 			let actual_weight = if let Some(weight) = actual_weight {
-				weight
+				let extra_weight = T::GasWeightMapping::gas_to_weight(extra_gas, true);
+				Some(weight.saturating_add(extra_weight))
 			} else {
-				Weight::zero()
+				None
 			};
-			let extra_weight = T::GasWeightMapping::gas_to_weight(extra_gas, true);
-			let actual_weight = Some(actual_weight.saturating_add(extra_weight));
 
 			match result {
 				Ok(_) => Ok(PostDispatchInfo {
@@ -292,7 +291,7 @@ pub mod pallet {
 		/// Emits `EvmCallFailed` event when failed.
 		#[pallet::call_index(4)]
 		#[pallet::weight({
-			let evm_call_weight = call.get_dispatch_info().weight;
+			let evm_call_weight = call.get_dispatch_info().call_weight;
 			let evm_call_len = call.encoded_size() as u32;
 			T::WeightInfo::dispatch_evm_call(evm_call_len)
 				.saturating_add(evm_call_weight)

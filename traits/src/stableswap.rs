@@ -1,4 +1,4 @@
-use codec::{Decode, Encode};
+use codec::{Decode, DecodeWithMemTracking, Encode};
 use frame_support::__private::DispatchError;
 use frame_support::pallet_prelude::TypeInfo;
 use sp_std::vec::Vec;
@@ -26,7 +26,7 @@ pub trait StableswapLiquidityMutation<AccountId, AssetId, Balance> {
 	) -> Result<(), DispatchError>;
 }
 
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo)]
+#[derive(Debug, Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, TypeInfo)]
 pub struct AssetAmount<AssetId> {
 	pub asset_id: AssetId,
 	pub amount: u128,

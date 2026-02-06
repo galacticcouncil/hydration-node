@@ -234,6 +234,7 @@ pub fn get_evm_fee_in_cent(nonce: u128) -> f64 {
 		None,
 		Some(U256::from(nonce)),
 		[].into(),
+		vec![],
 	));
 
 	let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());

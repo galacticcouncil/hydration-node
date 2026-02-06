@@ -1,6 +1,6 @@
 [package]
 name = "pallet-duster"
-version = "3.5.0"
+version = "3.6.0"
 description = "Account duster"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -42,6 +42,7 @@ sp-core = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-currencies = { workspace = true }
 orml-tokens = { workspace = true }
+primitives = { workspace = true }
 
 [features]
 default = ["std"]

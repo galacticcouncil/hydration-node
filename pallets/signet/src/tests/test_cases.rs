@@ -38,7 +38,7 @@ const HYDRADX_CHAIN_ID_BYTES: &[u8] = b"hydradx:polkadot:0";
 /// Initialize Signet with the default "test-chain" chain id.
 fn init_signet(admin: u64, deposit: u128) {
 	assert_ok!(Signet::initialize(
-		RuntimeOrigin::root().into(),
+		RuntimeOrigin::root(),
 		admin,
 		deposit,
 		bounded_chain_id(TEST_CHAIN_ID_BYTES.to_vec()),
@@ -66,7 +66,7 @@ fn test_initialize_works() {
 		assert_eq!(Signet::admin(), None);
 
 		assert_ok!(Signet::initialize(
-			RuntimeOrigin::root().into(),
+			RuntimeOrigin::root(),
 			admin_account,
 			deposit,
 			chain_id.clone()
@@ -94,7 +94,7 @@ fn test_cannot_initialize_twice() {
 
 		assert_noop!(
 			Signet::initialize(
-				RuntimeOrigin::root().into(),
+				RuntimeOrigin::root(),
 				NON_ADMIN,
 				INITIAL_DEPOSIT,
 				bounded_chain_id(TEST_CHAIN_ID_BYTES.to_vec())
@@ -104,7 +104,7 @@ fn test_cannot_initialize_twice() {
 
 		assert_noop!(
 			Signet::initialize(
-				RuntimeOrigin::root().into(),
+				RuntimeOrigin::root(),
 				NON_ADMIN,
 				INITIAL_DEPOSIT,
 				bounded_chain_id(TEST_CHAIN_ID_BYTES.to_vec())
@@ -142,7 +142,7 @@ fn test_any_signed_can_initialize_once() {
 
 		assert_noop!(
 			Signet::initialize(
-				RuntimeOrigin::root().into(),
+				RuntimeOrigin::root(),
 				3,
 				INITIAL_DEPOSIT,
 				bounded_chain_id(TEST_CHAIN_ID_BYTES.to_vec())
@@ -152,7 +152,7 @@ fn test_any_signed_can_initialize_once() {
 
 		assert_noop!(
 			Signet::initialize(
-				RuntimeOrigin::root().into(),
+				RuntimeOrigin::root(),
 				3,
 				INITIAL_DEPOSIT,
 				bounded_chain_id(TEST_CHAIN_ID_BYTES.to_vec())
@@ -172,7 +172,7 @@ fn test_initialize_sets_deposit() {
 		let initial_deposit = INITIAL_DEPOSIT;
 
 		assert_ok!(Signet::initialize(
-			RuntimeOrigin::root().into(),
+			RuntimeOrigin::root(),
 			admin,
 			initial_deposit,
 			bounded_chain_id(TEST_CHAIN_ID_BYTES.to_vec())
@@ -199,7 +199,7 @@ fn test_update_deposit_as_admin() {
 		let new_deposit = UPDATED_DEPOSIT;
 
 		assert_ok!(Signet::initialize(
-			RuntimeOrigin::root().into(),
+			RuntimeOrigin::root(),
 			admin,
 			initial_deposit,
 			bounded_chain_id(TEST_CHAIN_ID_BYTES.to_vec())
@@ -255,8 +255,8 @@ fn test_withdraw_funds_as_admin() {
 
 		let pallet_account = fund_signet_pallet(PALLET_INITIAL_BALANCE);
 
-		let recipient_balance_before = Balances::free_balance(&recipient);
-		assert_eq!(Balances::free_balance(&pallet_account), PALLET_INITIAL_BALANCE);
+		let recipient_balance_before = Balances::free_balance(recipient);
+		assert_eq!(Balances::free_balance(pallet_account), PALLET_INITIAL_BALANCE);
 
 		assert_ok!(Signet::withdraw_funds(
 			RuntimeOrigin::signed(admin),
@@ -265,11 +265,11 @@ fn test_withdraw_funds_as_admin() {
 		));
 
 		assert_eq!(
-			Balances::free_balance(&pallet_account),
+			Balances::free_balance(pallet_account),
 			PALLET_INITIAL_BALANCE - WITHDRAW_AMOUNT
 		);
 		assert_eq!(
-			Balances::free_balance(&recipient),
+			Balances::free_balance(recipient),
 			recipient_balance_before + WITHDRAW_AMOUNT
 		);
 
@@ -291,7 +291,7 @@ fn test_non_admin_cannot_withdraw() {
 
 		init_signet(admin, INITIAL_DEPOSIT);
 		let pallet_account = fund_signet_pallet(PALLET_INITIAL_BALANCE);
-		assert_eq!(Balances::free_balance(&pallet_account), PALLET_INITIAL_BALANCE);
+		assert_eq!(Balances::free_balance(pallet_account), PALLET_INITIAL_BALANCE);
 
 		assert_noop!(
 			Signet::withdraw_funds(RuntimeOrigin::signed(non_admin), non_admin, WITHDRAW_AMOUNT),
@@ -307,7 +307,7 @@ fn test_cannot_withdraw_more_than_balance() {
 
 		init_signet(admin, INITIAL_DEPOSIT);
 		let pallet_account = fund_signet_pallet(PALLET_INITIAL_BALANCE);
-		assert_eq!(Balances::free_balance(&pallet_account), PALLET_INITIAL_BALANCE);
+		assert_eq!(Balances::free_balance(pallet_account), PALLET_INITIAL_BALANCE);
 
 		assert_noop!(
 			Signet::withdraw_funds(RuntimeOrigin::signed(admin), admin, WITHDRAW_TOO_MUCH_AMOUNT),
@@ -336,13 +336,13 @@ fn test_sign_request_works() {
 		let deposit = INITIAL_DEPOSIT;
 
 		assert_ok!(Signet::initialize(
-			RuntimeOrigin::root().into(),
+			RuntimeOrigin::root(),
 			admin,
 			deposit,
 			bounded_chain_id(TEST_CHAIN_ID_BYTES.to_vec())
 		));
 
-		let balance_before = Balances::free_balance(&requester);
+		let balance_before = Balances::free_balance(requester);
 		let payload = [42u8; 32];
 		let key_version = 1u32;
 		let path = bounded_u8::<256>(b"path".to_vec());
@@ -360,9 +360,9 @@ fn test_sign_request_works() {
 			params.clone()
 		));
 
-		assert_eq!(Balances::free_balance(&requester), balance_before - deposit);
+		assert_eq!(Balances::free_balance(requester), balance_before - deposit);
 		let pallet_account = Signet::account_id();
-		assert_eq!(Balances::free_balance(&pallet_account), deposit);
+		assert_eq!(Balances::free_balance(pallet_account), deposit);
 
 		System::assert_last_event(
 			Event::SignatureRequested {
@@ -389,7 +389,7 @@ fn test_sign_request_insufficient_balance() {
 		let deposit = INSUFFICIENT_BALANCE_DEPOSIT;
 
 		assert_ok!(Signet::initialize(
-			RuntimeOrigin::root().into(),
+			RuntimeOrigin::root(),
 			admin,
 			deposit,
 			bounded_chain_id(TEST_CHAIN_ID_BYTES.to_vec())
@@ -437,7 +437,7 @@ fn test_multiple_sign_requests() {
 		let deposit = INITIAL_DEPOSIT;
 
 		assert_ok!(Signet::initialize(
-			RuntimeOrigin::root().into(),
+			RuntimeOrigin::root(),
 			admin,
 			deposit,
 			bounded_chain_id(TEST_CHAIN_ID_BYTES.to_vec())
@@ -455,7 +455,7 @@ fn test_multiple_sign_requests() {
 			bounded_u8::<1024>(b"params".to_vec())
 		));
 
-		assert_eq!(Balances::free_balance(&pallet_account), deposit);
+		assert_eq!(Balances::free_balance(pallet_account), deposit);
 
 		assert_ok!(Signet::sign(
 			RuntimeOrigin::signed(requester2),
@@ -467,7 +467,7 @@ fn test_multiple_sign_requests() {
 			bounded_u8::<1024>(b"params".to_vec())
 		));
 
-		assert_eq!(Balances::free_balance(&pallet_account), deposit * 2);
+		assert_eq!(Balances::free_balance(pallet_account), deposit * 2);
 	});
 }
 
@@ -479,7 +479,7 @@ fn test_sign_bidirectional_works() {
 		let deposit = INITIAL_DEPOSIT;
 
 		assert_ok!(Signet::initialize(
-			RuntimeOrigin::root().into(),
+			RuntimeOrigin::root(),
 			admin,
 			deposit,
 			bounded_chain_id(TEST_CHAIN_ID_BYTES.to_vec())
@@ -487,7 +487,7 @@ fn test_sign_bidirectional_works() {
 
 		let tx_data = b"mock_transaction_data".to_vec();
 		let caip2_id = CAIP2_SEPOLIA;
-		let balance_before = Balances::free_balance(&requester);
+		let balance_before = Balances::free_balance(requester);
 
 		assert_ok!(Signet::sign_bidirectional(
 			RuntimeOrigin::signed(requester),
@@ -502,7 +502,7 @@ fn test_sign_bidirectional_works() {
 			bounded_u8::<4096>(b"schema2".to_vec())
 		));
 
-		assert_eq!(Balances::free_balance(&requester), balance_before - deposit);
+		assert_eq!(Balances::free_balance(requester), balance_before - deposit);
 
 		let events = System::events();
 		let event_found = events
@@ -697,7 +697,7 @@ fn test_sign_includes_chain_id() {
 		let chain_id = bounded_chain_id(HYDRADX_CHAIN_ID_BYTES.to_vec());
 
 		assert_ok!(Signet::initialize(
-			RuntimeOrigin::root().into(),
+			RuntimeOrigin::root(),
 			admin,
 			INITIAL_DEPOSIT,
 			chain_id.clone()
@@ -761,7 +761,7 @@ fn test_cross_pallet_execution() {
 
 		// Verify the deposit was taken from the pallet's account
 		assert_eq!(
-			Balances::free_balance(&mock_pallet_account),
+			Balances::free_balance(mock_pallet_account),
 			PALLET_INITIAL_BALANCE - INITIAL_DEPOSIT
 		);
 

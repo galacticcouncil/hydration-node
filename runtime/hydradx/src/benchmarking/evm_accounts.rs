@@ -105,7 +105,7 @@ runtime_benchmarks! {
 		let asset_id = bind_erc20(contract_address);
 
 		let pair = sp_core::sr25519::Pair::from_seed_slice([1; 64].as_slice()).unwrap();
-		let user: AccountId = frame_support::sp_runtime::MultiSigner::from(pair.public()).into_account().into();
+		let user: AccountId = frame_support::sp_runtime::MultiSigner::from(pair.public()).into_account();
 		let evm_address = EVMAccounts::evm_address(&user);
 		// Use pregenerated signature from a test because `sign` requires `full_crypto` feature and should not be enabled in production.
 		// Signature was generated with asset_id = 1000001

@@ -17,7 +17,7 @@
 
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
-use crate::evm::{Erc20Currency, WethAssetId};
+use crate::evm::Erc20Currency;
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
@@ -31,8 +31,8 @@ use frame_support::{
 	},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, Imbalance,
-		LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
+		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, ExistenceRequirement,
+		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
 	},
 	BoundedVec, PalletId,
 };
@@ -119,6 +119,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxReserves = MaxReserves;
 	type MaxFreezes = MaxFreezes;
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 pub struct CurrencyHooks;
@@ -250,6 +251,7 @@ impl SufficiencyCheck {
 					paying_account,
 					&TreasuryAccount::get(),
 					ed_in_fee_asset,
+					ExistenceRequirement::AllowDeath,
 				)
 				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
@@ -371,6 +373,7 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			&TreasuryAccount::get(),
 			who,
 			ed_to_refund,
+			ExistenceRequirement::AllowDeath,
 		);
 
 		frame_system::Pallet::<Runtime>::dec_sufficients(who);
@@ -546,7 +549,7 @@ parameter_types! {
 	pub const EmaOracleSpotPriceShort: OraclePeriod = OraclePeriod::Short;
 	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
-	pub BurnProtocolFee : Permill = Permill::from_percent(50);
+	pub BurnProtocolFee : Permill = Permill::from_percent(0);
 }
 
 impl pallet_omnipool::Config for Runtime {
@@ -600,6 +603,17 @@ impl Contains<AccountId> for CircuitBreakerWhitelist {
 	}
 }
 
+/// Accounts exempt from deposit locking in the circuit breaker.
+/// When the circuit breaker would normally lock deposits for these accounts,
+/// it returns an error instead to prevent funds being stuck.
+pub struct DepositLockWhitelist;
+
+impl Contains<AccountId> for DepositLockWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		pallet_route_executor::Pallet::<Runtime>::router_account() == *a
+	}
+}
+
 parameter_types! {
 	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (5_000, 10_000);	// 50%
 	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((500, 10_000));	// 5%
@@ -611,6 +625,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type Balance = Balance;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DepositLockWhitelist = DepositLockWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
@@ -881,7 +896,7 @@ impl SpotPriceProvider<AssetId> for DummySpotPriceProvider {
 	}
 }
 
-pub const DOT_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v3::MultiLocation::parent());
+pub const DOT_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v5::Location::parent());
 
 pub struct DotAssetId;
 impl Get<AssetId> for DotAssetId {
@@ -1886,9 +1901,10 @@ impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
 }
 
 pub struct SigEthFaucetContractAddr;
-impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetContractAddr {
-	fn get() -> [u8; 20] {
-		hex!("189d33ea9A9701fdb67C21df7420868193dcf578")
+impl frame_support::traits::Get<EvmAddress> for SigEthFaucetContractAddr {
+	fn get() -> EvmAddress {
+		// 0x189d33ea9A9701fdb67C21df7420868193dcf578
+		EvmAddress::from(hex_literal::hex!("189d33ea9A9701fdb67C21df7420868193dcf578"))
 	}
 }
 
@@ -2175,7 +2191,7 @@ impl Erc20OnDust<AccountId, AssetId> for ATokenAccountDuster {
 			return Err(DispatchError::Token(TokenError::UnknownAsset));
 		};
 
-		AaveTradeExecutor::<Runtime>::withdraw_all_to(contract, &account, &dust_dest_account)?;
+		AaveTradeExecutor::<Runtime>::withdraw_all_to(contract, account, dust_dest_account)?;
 
 		Ok(())
 	}
