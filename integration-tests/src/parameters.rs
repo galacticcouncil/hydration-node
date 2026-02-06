@@ -27,10 +27,10 @@
 
 use crate::polkadot_test_net::*;
 use codec::Encode;
-use ismp::host::StateMachine;
+//use ismp::host::StateMachine;
 use pallet_referenda::TracksInfo;
 use primitives::constants::time::{HOURS, MINUTES};
-use sp_core::{storage::StorageKey, Get};
+use sp_core::storage::StorageKey;
 use xcm_emulator::TestExt;
 
 fn set_parameters_storage_to_testnet() {
