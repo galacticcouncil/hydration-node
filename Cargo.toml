@@ -254,6 +254,7 @@ pallet-collective = { git = "https://github.com/galacticcouncil/polkadot-sdk", b
 pallet-conviction-voting = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch", default-features = false }
 pallet-elections-phragmen = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch", default-features = false }
 pallet-identity = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch", default-features = false }
+pallet-migrations = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch", default-features = false }
 pallet-multisig = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch", default-features = false }
 pallet-preimage = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch", default-features = false }
 pallet-proxy = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2503-11-patch", default-features = false }
