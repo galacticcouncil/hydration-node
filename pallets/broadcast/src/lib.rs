@@ -178,6 +178,9 @@ impl<T: Config> Pallet<T> {
 		Swapper::<T>::kill();
 	}
 
+	/// Sets the swapper account for trade event attribution.
+	/// This overwrites the original swapper in Swapped3 events.
+	/// Mainly used by the router where a temporary trade account executes the actual trade.
 	pub fn set_swapper(account_id: T::AccountId) {
 		Swapper::<T>::put(account_id);
 	}

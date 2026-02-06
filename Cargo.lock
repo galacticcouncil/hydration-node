@@ -5991,7 +5991,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "11.1.0"
+version = "12.0.1"
 dependencies = [
  "approx",
  "criterion",
@@ -6104,7 +6104,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6161,7 +6161,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "385.0.0"
+version = "390.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -9524,7 +9524,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-broadcast"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "frame-support",
  "frame-support-procedural",
@@ -9580,7 +9580,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.3.0"
+version = "1.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9962,7 +9962,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispatcher"
-version = "1.5.0"
+version = "1.5.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11003,7 +11003,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "5.3.0"
+version = "5.4.1"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -11605,7 +11605,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "7.2.1"
+version = "7.2.2"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -15285,7 +15285,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.65.0"
+version = "1.67.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -17179,7 +17179,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scraper"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "clap",
  "fp-rpc",
