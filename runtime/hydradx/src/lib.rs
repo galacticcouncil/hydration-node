@@ -36,7 +36,7 @@ mod assets;
 pub mod evm;
 pub mod governance;
 mod helpers;
-mod hyperbridge;
+// mod hyperbridge;
 mod system;
 pub mod types;
 pub mod xcm;
@@ -128,7 +128,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 392,
+	spec_version: 393,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -249,10 +249,11 @@ construct_runtime!(
 		AuraExt: cumulus_pallet_aura_ext = 169,
 
 		// Hyperbridge
-		Ismp: pallet_ismp = 180,
-		IsmpParachain: ismp_parachain = 181,
-		Hyperbridge: pallet_hyperbridge = 182,
-		TokenGateway: pallet_token_gateway = 183,
+		// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
+		// Ismp: pallet_ismp = 180,
+		// IsmpParachain: ismp_parachain = 181,
+		// Hyperbridge: pallet_hyperbridge = 182,
+		// TokenGateway: pallet_token_gateway = 183,
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		EmaOracle: pallet_ema_oracle = 202,
@@ -493,7 +494,6 @@ impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConv
 use crate::evm::aave_trade_executor::AaveTradeExecutor;
 use crate::evm::aave_trade_executor::PoolData;
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use cumulus_pallet_parachain_system::RelayChainState;
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	sp_runtime::{
@@ -503,10 +503,6 @@ use frame_support::{
 	weights::WeightToFee as _,
 };
 use hydradx_traits::evm::Erc20Mapping;
-use ismp::{
-	consensus::{ConsensusClientId, StateMachineHeight, StateMachineId},
-	host::StateMachine,
-};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
 pub use polkadot_xcm::latest::Junction;
@@ -1196,60 +1192,61 @@ impl_runtime_apis! {
 	}
 
 	// Hyperbridge
-	impl pallet_ismp_runtime_api::IsmpRuntimeApi<Block, <Block as BlockT>::Hash> for Runtime {
-		fn host_state_machine() -> StateMachine {
-			<Runtime as pallet_ismp::Config>::HostStateMachine::get()
-		}
-
-		fn challenge_period(state_machine_id: StateMachineId) -> Option<u64> {
-			pallet_ismp::Pallet::<Runtime>::challenge_period(state_machine_id)
-		}
-
-		/// Fetch all ISMP events in the block, should only be called from runtime-api.
-		fn block_events() -> Vec<::ismp::events::Event> {
-			pallet_ismp::Pallet::<Runtime>::block_events()
-		}
-
-		/// Fetch all ISMP events and their extrinsic metadata, should only be called from runtime-api.
-		fn block_events_with_metadata() -> Vec<(::ismp::events::Event, Option<u32>)> {
-			pallet_ismp::Pallet::<Runtime>::block_events_with_metadata()
-		}
-
-		/// Return the scale encoded consensus state
-		fn consensus_state(id: ConsensusClientId) -> Option<Vec<u8>> {
-			pallet_ismp::Pallet::<Runtime>::consensus_states(id)
-		}
-
-		/// Return the timestamp this client was last updated in seconds
-		fn state_machine_update_time(height: StateMachineHeight) -> Option<u64> {
-			pallet_ismp::Pallet::<Runtime>::state_machine_update_time(height)
-		}
-
-		/// Return the latest height of the state machine
-		fn latest_state_machine_height(id: StateMachineId) -> Option<u64> {
-			pallet_ismp::Pallet::<Runtime>::latest_state_machine_height(id)
-		}
-
-		/// Get actual requests
-		fn requests(commitments: Vec<H256>) -> Vec<ismp::router::Request> {
-			pallet_ismp::Pallet::<Runtime>::requests(commitments)
-		}
-
-		/// Get actual requests
-		fn responses(commitments: Vec<H256>) -> Vec<ismp::router::Response> {
-			pallet_ismp::Pallet::<Runtime>::responses(commitments)
-		}
-	}
-
-	impl ismp_parachain_runtime_api::IsmpParachainApi<Block> for Runtime {
-		fn para_ids() -> Vec<u32> {
-			IsmpParachain::para_ids()
-		}
-
-		fn current_relay_chain_state() -> RelayChainState {
-			IsmpParachain::current_relay_chain_state()
-		}
-	}
+	// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
+	// impl pallet_ismp_runtime_api::IsmpRuntimeApi<Block, <Block as BlockT>::Hash> for Runtime {
+	// 	fn host_state_machine() -> StateMachine {
+	// 		<Runtime as pallet_ismp::Config>::HostStateMachine::get()
+	// 	}
+	//
+	// 	fn challenge_period(state_machine_id: StateMachineId) -> Option<u64> {
+	// 		pallet_ismp::Pallet::<Runtime>::challenge_period(state_machine_id)
+	// 	}
+	//
+	// 	/// Fetch all ISMP events in the block, should only be called from runtime-api.
+	// 	fn block_events() -> Vec<::ismp::events::Event> {
+	// 		pallet_ismp::Pallet::<Runtime>::block_events()
+	// 	}
+	//
+	// 	/// Fetch all ISMP events and their extrinsic metadata, should only be called from runtime-api.
+	// 	fn block_events_with_metadata() -> Vec<(::ismp::events::Event, Option<u32>)> {
+	// 		pallet_ismp::Pallet::<Runtime>::block_events_with_metadata()
+	// 	}
+	//
+	// 	/// Return the scale encoded consensus state
+	// 	fn consensus_state(id: ConsensusClientId) -> Option<Vec<u8>> {
+	// 		pallet_ismp::Pallet::<Runtime>::consensus_states(id)
+	// 	}
+	//
+	// 	/// Return the timestamp this client was last updated in seconds
+	// 	fn state_machine_update_time(height: StateMachineHeight) -> Option<u64> {
+	// 		pallet_ismp::Pallet::<Runtime>::state_machine_update_time(height)
+	// 	}
+	//
+	// 	/// Return the latest height of the state machine
+	// 	fn latest_state_machine_height(id: StateMachineId) -> Option<u64> {
+	// 		pallet_ismp::Pallet::<Runtime>::latest_state_machine_height(id)
+	// 	}
+	//
+	// 	/// Get actual requests
+	// 	fn requests(commitments: Vec<H256>) -> Vec<ismp::router::Request> {
+	// 		pallet_ismp::Pallet::<Runtime>::requests(commitments)
+	// 	}
+	//
+	// 	/// Get actual requests
+	// 	fn responses(commitments: Vec<H256>) -> Vec<ismp::router::Response> {
+	// 		pallet_ismp::Pallet::<Runtime>::responses(commitments)
+	// 	}
+	// }
+	//
+	// impl ismp_parachain_runtime_api::IsmpParachainApi<Block> for Runtime {
+	// 	fn para_ids() -> Vec<u32> {
+	// 		IsmpParachain::para_ids()
+	// 	}
+	//
+	// 	fn current_relay_chain_state() -> RelayChainState {
+	// 		IsmpParachain::current_relay_chain_state()
+	// 	}
+	// }
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
