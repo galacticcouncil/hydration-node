@@ -23,7 +23,9 @@ pub use frame_support::{assert_noop, assert_ok, parameter_types};
 use frame_support::PalletId;
 use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
-use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, MultiCurrency, NamedMultiReservableCurrency};
+#[cfg(feature = "runtime-benchmarks")]
+use orml_traits::MultiCurrency;
+use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, NamedMultiReservableCurrency};
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, ConstU128, ConstU32, Zero};
 use sp_runtime::DispatchResult;
@@ -46,6 +48,7 @@ pub type Balance = u128;
 pub const ALICE: u64 = 1;
 pub const BOB: u64 = 2;
 pub const WHITELISTED_ACCCOUNT: u64 = 2;
+pub const DEPOSIT_LOCK_WHITELISTED_ACCOUNT: u64 = 999;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
@@ -157,6 +160,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_types! {
@@ -173,6 +177,7 @@ impl pallet_circuit_breaker::Config for Test {
 	type Balance = Balance;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DepositLockWhitelist = DepositLockWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
@@ -216,6 +221,14 @@ impl Contains<AccountId> for CircuitBreakerWhitelist {
 	}
 }
 
+pub struct DepositLockWhitelist;
+
+impl Contains<AccountId> for DepositLockWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		DEPOSIT_LOCK_WHITELISTED_ACCOUNT == *a
+	}
+}
+
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
@@ -230,6 +243,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_type_with_key! {

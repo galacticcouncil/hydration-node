@@ -780,7 +780,7 @@ fn sell_schedule_should_work_when_total_amount_is_equal_to_2times_amount_in_plus
 				}]),
 			};
 
-			let fee_in_native = DCA::get_transaction_fee(&order).unwrap();
+			let fee_in_native = DCA::get_transaction_fee(&order, None).unwrap();
 			let total_amount = 2 * (amount_in + fee_in_native);
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -940,7 +940,7 @@ pub fn get_fee_for_sell_in_hdx() -> Balance {
 		}]),
 	};
 
-	DCA::get_transaction_fee(&order).unwrap()
+	DCA::get_transaction_fee(&order, None).unwrap()
 }
 pub fn get_fee_for_buy_in_hdx() -> Balance {
 	let order = Order::Buy {
@@ -955,5 +955,5 @@ pub fn get_fee_for_buy_in_hdx() -> Balance {
 		}]),
 	};
 
-	DCA::get_transaction_fee(&order).unwrap()
+	DCA::get_transaction_fee(&order, None).unwrap()
 }

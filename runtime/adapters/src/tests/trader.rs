@@ -21,7 +21,6 @@ use frame_support::{weights::IdentityFee, BoundedVec};
 use sp_runtime::{traits::One, DispatchResult, FixedU128};
 use sp_std::cell::RefCell;
 use sp_std::collections::btree_set::BTreeSet;
-use sp_std::sync::Arc;
 
 type AccountId = u32;
 type AssetId = u32;
@@ -53,7 +52,7 @@ impl Convert<AssetId, Option<Location>> for MockConvert {
 		match id {
 			CORE_ASSET_ID | TEST_ASSET_ID | CHEAP_ASSET_ID | OVERFLOW_ASSET_ID => {
 				let junction = Junction::from(BoundedVec::try_from(id.encode()).unwrap());
-				Some(Location::new(0, Junctions::X1(Arc::new([junction]))))
+				Some(Location::new(0, [junction]))
 			}
 			_ => None,
 		}

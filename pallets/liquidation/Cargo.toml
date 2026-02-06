@@ -1,6 +1,6 @@
 [package]
 name = "pallet-liquidation"
-version = "2.1.0"
+version = "2.2.0"
 description = "A pallet for money market liquidations"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -44,6 +44,7 @@ primitive-types = { workspace = true }
 hydradx-traits = { workspace = true }
 pallet-broadcast = { workspace = true }
 precompile-utils = { workspace = true }
+primitives = { workspace = true }
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }

@@ -1,8 +1,6 @@
-use crate::tests::mock::{expect_events, ExtBuilder, System, Test, Tokens, ALICE};
-use crate::types::LockdownStatus;
-use crate::AssetLockdownState;
-use crate::Event as CircuitBreakerEvent;
-use frame_support::assert_ok;
+use crate::tests::mock::*;
+use crate::*;
+use frame_support::{assert_err, assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
 use test_utils::assert_balance;
 pub const ASSET_ID: u32 = 10000;
@@ -23,7 +21,7 @@ fn deposit_limit_should_work() {
 			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 100);
 			expect_events(vec![
-				CircuitBreakerEvent::AssetLockdown {
+				Event::AssetLockdown {
 					asset_id: ASSET_ID,
 					until: 12,
 				}
@@ -53,7 +51,7 @@ fn deposit_limit_should_work_when_first_deposit_exceed_limit() {
 			assert_balance!(ALICE, ASSET_ID, 100);
 
 			expect_events(vec![
-				CircuitBreakerEvent::AssetLockdown {
+				Event::AssetLockdown {
 					asset_id: ASSET_ID,
 					until: 12,
 				}
@@ -88,7 +86,7 @@ fn deposit_limit_should_lock_deposits_when_asset_on_lockdown() {
 			let state = AssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, LockdownStatus::Locked(12));
 			expect_events(vec![
-				CircuitBreakerEvent::AssetLockdown {
+				Event::AssetLockdown {
 					asset_id: ASSET_ID,
 					until: 12,
 				}
@@ -126,7 +124,7 @@ fn deposit_limit_should_lock_when_lock_expires_but_amount_reaches_limit_again() 
 			let state = AssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, LockdownStatus::Locked(23));
 			expect_events(vec![
-				CircuitBreakerEvent::AssetLockdown {
+				Event::AssetLockdown {
 					asset_id: ASSET_ID,
 					until: 23,
 				}
@@ -164,7 +162,7 @@ fn deposit_limit_should_lock_when_asset_already_in_unlocked() {
 			let state = AssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, LockdownStatus::Locked(23)); // 13 (current block) + 10 (period)
 			expect_events(vec![
-				CircuitBreakerEvent::AssetLockdown {
+				Event::AssetLockdown {
 					asset_id: ASSET_ID,
 					until: 23,
 				}
@@ -360,7 +358,7 @@ fn unlock_event_should_be_emitted_when_asset_unlocked() {
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 1));
 
 			expect_events(vec![
-				CircuitBreakerEvent::AssetLockdownRemoved { asset_id: ASSET_ID }.into(),
+				Event::AssetLockdownRemoved { asset_id: ASSET_ID }.into(),
 				orml_tokens::Event::<Test>::Deposited {
 					currency_id: ASSET_ID,
 					who: ALICE,
@@ -388,7 +386,12 @@ fn rate_limit_should_not_be_bypassed_by_burning_tokens() {
 			// Act 1: The attacker burns the newly created tokens to reset the *total supply*.
 			// This tricks the circuit breaker which only measures net supply change.
 			System::set_block_number(3);
-			assert_ok!(Tokens::withdraw(ASSET_ID, &ALICE, 90));
+			assert_ok!(Tokens::withdraw(
+				ASSET_ID,
+				&ALICE,
+				90,
+				frame_support::traits::ExistenceRequirement::AllowDeath
+			));
 			assert_balance!(ALICE, ASSET_ID, 0);
 
 			// Act 2: The attacker mints another 90 tokens. The gross issuance in this period
@@ -402,5 +405,39 @@ fn rate_limit_should_not_be_bypassed_by_burning_tokens() {
 			assert_balance!(ALICE, ASSET_ID, 10);
 			let state = AssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, LockdownStatus::Locked(14));
+		});
+}
+
+#[test]
+fn do_lock_deposit_should_fail_for_whitelisted_account() {
+	ExtBuilder::default()
+		.with_deposit_period(10)
+		.with_asset_limit(ASSET_ID, 100)
+		.build()
+		.execute_with(|| {
+			// Arrange:
+			assert_ok!(Tokens::deposit(ASSET_ID, &DEPOSIT_LOCK_WHITELISTED_ACCOUNT, 100));
+
+			// Act & Assert
+			assert_noop!(
+				CircuitBreaker::do_lock_deposit(&DEPOSIT_LOCK_WHITELISTED_ACCOUNT, ASSET_ID, 50),
+				Error::<Test>::DepositLimitExceededForWhitelistedAccount
+			);
+		});
+}
+
+#[test]
+fn deposit_that_exceeds_limit_should_fail_for_whitelisted_account() {
+	ExtBuilder::default()
+		.with_deposit_period(10)
+		.with_asset_limit(ASSET_ID, 100)
+		.build()
+		.execute_with(|| {
+			System::set_block_number(2);
+
+			assert_err!(
+				Tokens::deposit(ASSET_ID, &DEPOSIT_LOCK_WHITELISTED_ACCOUNT, 101),
+				Error::<Test>::DepositLimitExceededForWhitelistedAccount
+			);
 		});
 }

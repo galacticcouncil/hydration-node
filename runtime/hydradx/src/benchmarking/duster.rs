@@ -1,25 +1,15 @@
-use crate::{AccountId, AssetId, Balance, Duster, NativeAssetId, Runtime, Tokens};
+use crate::{AccountId, Balance, Runtime};
 
 use super::*;
 
 use frame_benchmarking::account;
 use frame_benchmarking::whitelisted_caller;
 use frame_benchmarking::BenchmarkError;
-use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use orml_benchmarking::runtime_benchmarks;
-use orml_traits::{GetByKey, MultiCurrency, MultiCurrencyExtended};
-use sp_runtime::traits::SaturatedConversion;
+use orml_traits::MultiCurrency;
 
 const SEED: u32 = 1;
-
-pub fn update_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
-	assert_ok!(<Tokens as MultiCurrencyExtended<_>>::update_balance(
-		currency_id,
-		who,
-		balance.saturated_into()
-	));
-}
 
 runtime_benchmarks! {
 	{ Runtime, pallet_duster }
@@ -34,7 +24,7 @@ runtime_benchmarks! {
 		let asset_id = bind_erc20(contract_address); //Dusting AToken is the worst case scenario
 		assert_eq!(crate::Currencies::free_balance(asset_id, &to_dust_account), 1000000000000000000000000000);
 		let ed = 10000;
-		set_ed(asset_id, ed);
+		let _ = set_ed(asset_id, ed);
 		crate::Currencies::transfer(
 			RawOrigin::Signed(to_dust_account.clone()).into(),
 			burner_acc,

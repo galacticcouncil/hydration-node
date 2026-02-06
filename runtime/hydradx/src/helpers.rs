@@ -57,6 +57,8 @@ pub mod benchmark_helpers {
 										contract: H160::zero(),
 										exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 										value: vec![],
+										gas_used: U256::zero(),
+										gas_limit: U256::zero(),
 									};
 								}
 							}
@@ -81,20 +83,24 @@ pub mod benchmark_helpers {
 										contract: H160::zero(),
 										exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 										value: vec![],
+										gas_used: U256::zero(),
+										gas_limit: U256::zero(),
 									};
 								}
 							}
 						}
 						ERC20Function::FlashLoan => {
-							if data.len() >= 4 + 32 + 32 + 32 {
+							// FlashLoan ABI: receiver (32) + hollar (32) + amount (32) + offset (32) + length (32) + data
+							if data.len() >= 4 + 32 + 32 + 32 + 32 + 32 {
 								// Extract recipient address (padded to 32 bytes in ABI encoding)
 								let receiver: [u8; 32] = data[4..4 + 32].try_into().unwrap_or([0; 32]);
-								let _receiver_evm = hydradx_traits::evm::EvmAddress::from_slice(&receiver[12..32]);
+								let _receiver_evm = primitives::EvmAddress::from_slice(&receiver[12..32]);
 
 								let hollar: [u8; 32] = data[4 + 32..4 + 32 + 32].try_into().unwrap_or([0; 32]);
-								let _hollar_evm = hydradx_traits::evm::EvmAddress::from_slice(&hollar[12..32]);
+								let _hollar_evm = primitives::EvmAddress::from_slice(&hollar[12..32]);
 
-								let amount_bytes: [u8; 32] = data[4 + 32 + 32..4 + 32 + 32 + 32].try_into().unwrap();
+								let amount_bytes: [u8; 32] =
+									data[4 + 32 + 32..4 + 32 + 32 + 32].try_into().unwrap_or([0; 32]);
 								let amount = U256::from_big_endian(&amount_bytes);
 
 								let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
@@ -117,27 +123,28 @@ pub mod benchmark_helpers {
 									contract: H160::zero(),
 									exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 									value: vec![],
+									gas_used: U256::zero(),
+									gas_limit: U256::zero(),
 								};
 							}
 						}
 						ERC20Function::MaxFlashLoan => {
 							let max_flash_loan_amount = U256::from(100_000_000_000_000_000_000_000u128);
-							let mut buf1 = [0u8; 32];
-							max_flash_loan_amount.to_big_endian(&mut buf1);
+							let buf1 = max_flash_loan_amount.to_big_endian();
 							let bytes = Vec::from(buf1);
 							return CallResult {
 								contract: H160::zero(),
 								exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 								value: bytes,
+								gas_used: U256::zero(),
+								gas_limit: U256::zero(),
 							};
 						}
 						ERC20Function::GetFacilitatorBucket => {
 							let capacity = U256::from(1_000_000_000_000_000_000_000_000u128);
 							let level = U256::from(0u128);
-							let mut buf1 = [0u8; 32];
-							let mut buf2 = [0u8; 32];
-							capacity.to_big_endian(&mut buf1);
-							level.to_big_endian(&mut buf2);
+							let buf1 = capacity.to_big_endian();
+							let buf2 = level.to_big_endian();
 							let mut bytes = vec![];
 							bytes.extend_from_slice(&buf1);
 							bytes.extend_from_slice(&buf2);
@@ -145,25 +152,31 @@ pub mod benchmark_helpers {
 								contract: H160::zero(),
 								exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 								value: bytes,
+								gas_used: U256::zero(),
+								gas_limit: U256::zero(),
 							};
 						}
 					}
 				}
 			}
 
-			return CallResult {
+			CallResult {
 				contract: H160::zero(),
 				exit_reason: ExitReason::Revert(Reverted),
 				value: vec![],
-			};
+				gas_used: U256::zero(),
+				gas_limit: U256::zero(),
+			}
 		}
 
 		fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> hydradx_traits::evm::CallResult {
-			return CallResult {
+			CallResult {
 				contract: H160::zero(),
 				exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 				value: vec![],
-			};
+				gas_used: U256::zero(),
+				gas_limit: U256::zero(),
+			}
 		}
 	}
 
