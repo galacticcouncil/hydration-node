@@ -2,6 +2,8 @@
 pragma solidity ^0.8.13;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IGasVoucher} from "./interfaces/IGasVoucher.sol";
 import {IGasFaucet} from "./interfaces/IGasFaucet.sol";
 import "./utils/Errors.sol";
@@ -14,7 +16,8 @@ import "./utils/Errors.sol";
 /// - `minEthThreshold` is a guardrail so the faucet doesn't fully drain via `fund`.
 /// - When the faucet cannot send ETH without dropping below the threshold,
 ///   it mints `GasVoucher` IOUs instead.
-contract GasFaucet is Ownable, IGasFaucet {
+/// - Protected with reentrancy guards and pausable for emergency situations.
+contract GasFaucet is Ownable, ReentrancyGuard, Pausable, IGasFaucet {
     // ========= State =========
 
     /// @inheritdoc IGasFaucet
@@ -93,7 +96,10 @@ contract GasFaucet is Ownable, IGasFaucet {
     // ========= Core Logic =========
 
     /// @inheritdoc IGasFaucet
-    function fund(address to, uint256 amountWei) external override onlyMPC {
+    function fund(
+        address to,
+        uint256 amountWei
+    ) external override onlyMPC nonReentrant whenNotPaused {
         if (to == address(0)) {
             revert ZeroAddress();
         }
@@ -106,10 +112,15 @@ contract GasFaucet is Ownable, IGasFaucet {
         // Only if we have enough and will remain above threshold.
         if (balance >= amountWei && balance - amountWei >= minEthThreshold) {
             (bool ok, ) = payable(to).call{value: amountWei}("");
-            if (!ok) {
-                revert EthTransferFailed();
+            if (ok) {
+                // ETH transfer succeeded
+                emit Funded(to, amountWei);
+            } else {
+                // ETH transfer failed (e.g., recipient is a contract that rejects ETH)
+                // Fallback to issuing vouchers instead
+                voucher.faucetMint(to, amountWei);
+                emit VoucherIssued(to, amountWei);
             }
-            emit Funded(to, amountWei);
         } else {
             // Otherwise, issue vouchers as IOUs.
             voucher.faucetMint(to, amountWei);
@@ -118,7 +129,9 @@ contract GasFaucet is Ownable, IGasFaucet {
     }
 
     /// @inheritdoc IGasFaucet
-    function redeem(uint256 amountWei) external override {
+    function redeem(
+        uint256 amountWei
+    ) external override nonReentrant whenNotPaused {
         if (amountWei == 0) {
             revert ZeroAmount();
         }
@@ -144,7 +157,7 @@ contract GasFaucet is Ownable, IGasFaucet {
     function withdraw(
         address payable to,
         uint256 amountWei
-    ) external override onlyOwner {
+    ) external override onlyOwner nonReentrant {
         if (to == address(0)) {
             revert ZeroAddress();
         }
@@ -161,6 +174,18 @@ contract GasFaucet is Ownable, IGasFaucet {
         }
 
         emit Withdrawn(to, amountWei);
+    }
+
+    /// @notice Pauses all faucet operations (fund and redeem).
+    /// @dev Only callable by owner. Withdraw remains available for emergency recovery.
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice Unpauses all faucet operations.
+    /// @dev Only callable by owner.
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     /// @notice Accepts raw ETH deposits into the faucet.

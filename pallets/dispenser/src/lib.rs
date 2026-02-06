@@ -299,6 +299,7 @@ pub mod pallet {
 
 			// Derive canonical request ID and compare with user-supplied one.
 			let req_id = Self::generate_request_id(&pallet_acc, &rlp, &caip2_id, 0, &path, ECDSA, ETHEREUM, b"");
+
 			ensure!(req_id == request_id, Error::<T>::InvalidRequestId);
 			ensure!(
 				UsedRequestIds::<T>::get(request_id).is_none(),
