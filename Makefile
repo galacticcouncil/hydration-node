@@ -85,4 +85,4 @@ chopstics: release
 	npx @acala-network/chopsticks xcm --parachain=launch-configs/chopsticks/hydradx.yml --parachain=launch-configs/chopsticks/assethub.yml
 
 srbuild:
-	srtool -e docker build -p "hydradx-runtime" --app --image docker.io/paritytech/srtool --build-opts="--features=metadata-hash" --root
+	docker run --rm -v "$(CURDIR):/build" -e PACKAGE=hydradx-runtime -e RUNTIME_DIR=runtime/hydradx -e BUILD_OPTS="--features=metadata-hash" paritytech/srtool:1.81.0 build --app

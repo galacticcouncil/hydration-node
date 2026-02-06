@@ -6161,7 +6161,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "390.0.0"
+version = "392.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -9963,7 +9963,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispatcher"
-version = "1.5.0"
+version = "1.5.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -15286,7 +15286,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.66.0"
+version = "1.67.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -17179,7 +17179,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scraper"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "clap",
  "fp-rpc",

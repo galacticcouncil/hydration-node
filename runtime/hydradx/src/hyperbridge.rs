@@ -1,7 +1,7 @@
 use crate::origins::GeneralAdmin;
 use crate::{
 	weights, Balances, EVMAccounts, Ismp, IsmpParachain, NativeAssetId, Parameters, Runtime, RuntimeEvent,
-	TechCommitteeSuperMajority, Timestamp, TokenGateway, TreasuryAccount,
+	TechCommitteeMajority, Timestamp, TokenGateway, TreasuryAccount,
 };
 use frame_support::parameter_types;
 use frame_support::traits::fungible::ItemOf;
@@ -56,7 +56,7 @@ impl Get<StateMachine> for IsmpHostStateMachine {
 impl pallet_ismp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// Modify the consensus client's permissions, for example, TechAdmin
-	type AdminOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type AdminOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type TimestampProvider = Timestamp;
 	type Balance = Balance;
 	// The token used to collect fees, only stablecoins are supported
@@ -90,7 +90,7 @@ impl ismp_parachain::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// pallet-ismp implements the IsmpHost
 	type IsmpHost = Ismp;
-	type RootOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type RootOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type WeightInfo = weights::ismp_parachain::HydraWeight<Runtime>;
 }
 
@@ -103,7 +103,7 @@ impl pallet_token_gateway::Config for Runtime {
 	type Dispatcher = Ismp;
 	type NativeCurrency = Balances;
 	type AssetAdmin = TreasuryAccount;
-	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Assets = FungibleCurrencies<Runtime>;
 	type NativeAssetId = NativeAssetId;
 	type Decimals = NativeTokenDecimals;
