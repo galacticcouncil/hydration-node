@@ -48,25 +48,26 @@ fn whitelist_storage_maps<T: Config>() {
 
 benchmarks! {
 	 where_clause {
-		where T::AssetId: From<u32>,
+		where
+			T::AssetId: From<u32>,
+			T: pallet_timestamp::Config<Moment = u64>
 	}
 
 	on_initialize_skip_lockdown_lifting {
 		let block_num: BlockNumberFor<T> = 1u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);
-	}: { Pallet::<T>::on_initialize(block_num) }
+	}: { Pallet::<T>::on_initialize(block_num); }
 	verify {}
 
 	on_initialize_lift_lockdown {
-		let block_num: BlockNumberFor<T> = 1u32.into();
-		frame_system::Pallet::<T>::set_block_number(block_num);
+		let block_num = frame_system::Pallet::<T>::block_number();
 
 		let until = crate::Pallet::<T>::timestamp_now() + (primitives::constants::time::MILLISECS_PER_BLOCK * 4);
 		assert_ok!(crate::Pallet::<T>::set_global_withdraw_lockdown(RawOrigin::Root.into(), until));
 
-		let until_block_num: BlockNumberFor<T> = 5u32.into();
-		frame_system::Pallet::<T>::set_block_number(block_num);
-	}: { Pallet::<T>::on_initialize(block_num) }
+		pallet_timestamp::Pallet::<T>::set_timestamp(until);
+		assert!(crate::Pallet::<T>::withdraw_lockdown_until().is_some());
+	}: { Pallet::<T>::on_initialize(block_num); }
 	verify {
 		assert!(crate::Pallet::<T>::withdraw_lockdown_until().is_none());
 	}
