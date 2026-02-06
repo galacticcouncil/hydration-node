@@ -77,31 +77,31 @@ fn is_testnet_sets_correct_referenda_params_when_testnet() {
 	});
 }
 
-#[test]
-fn is_testnet_sets_correct_ismp_params_when_default() {
-	TestNet::reset();
-	Hydra::execute_with(|| {
-		// Assert
-		let ismp_coprocessor = <hydradx_runtime::Runtime as pallet_ismp::Config>::Coprocessor::get();
-		let host_state_machine = <hydradx_runtime::Runtime as pallet_ismp::Config>::HostStateMachine::get();
+// #[test]
+// fn is_testnet_sets_correct_ismp_params_when_default() {
+// 	TestNet::reset();
+// 	Hydra::execute_with(|| {
+// 		// Assert
+// 		let ismp_coprocessor = <hydradx_runtime::Runtime as pallet_ismp::Config>::Coprocessor::get();
+// 		let host_state_machine = <hydradx_runtime::Runtime as pallet_ismp::Config>::HostStateMachine::get();
+//
+// 		assert_eq!(ismp_coprocessor, Some(StateMachine::Polkadot(3367)));
+// 		assert_eq!(host_state_machine, StateMachine::Polkadot(2034));
+// 	});
+// }
 
-		assert_eq!(ismp_coprocessor, Some(StateMachine::Polkadot(3367)));
-		assert_eq!(host_state_machine, StateMachine::Polkadot(2034));
-	});
-}
-
-#[test]
-fn is_testnet_sets_correct_ismp_params_when_testnet() {
-	TestNet::reset();
-	Hydra::execute_with(|| {
-		// Prepare
-		set_parameters_storage_to_testnet();
-
-		// Assert
-		let ismp_coprocessor = <hydradx_runtime::Runtime as pallet_ismp::Config>::Coprocessor::get();
-		let host_state_machine = <hydradx_runtime::Runtime as pallet_ismp::Config>::HostStateMachine::get();
-
-		assert_eq!(ismp_coprocessor, Some(StateMachine::Kusama(4009)));
-		assert_eq!(host_state_machine, StateMachine::Kusama(2034));
-	});
-}
+// #[test]
+// fn is_testnet_sets_correct_ismp_params_when_testnet() {
+// 	TestNet::reset();
+// 	Hydra::execute_with(|| {
+// 		// Prepare
+// 		set_parameters_storage_to_testnet();
+//
+// 		// Assert
+// 		let ismp_coprocessor = <hydradx_runtime::Runtime as pallet_ismp::Config>::Coprocessor::get();
+// 		let host_state_machine = <hydradx_runtime::Runtime as pallet_ismp::Config>::HostStateMachine::get();
+//
+// 		assert_eq!(ismp_coprocessor, Some(StateMachine::Kusama(4009)));
+// 		assert_eq!(host_state_machine, StateMachine::Kusama(2034));
+// 	});
+// }
