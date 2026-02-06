@@ -45,7 +45,7 @@ pub use num_traits::Zero;
 use orml_traits::currency::MutationHooks;
 pub use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, NamedMultiReservableCurrency};
-use sp_core::H256;
+use sp_core::{H160, H256};
 use sp_runtime::Perbill;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
@@ -578,6 +578,32 @@ impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
 				shares_issuance: Default::default(),
 				updated_at: System::block_number(),
 			}),
+			PegSource::MMOracle(H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])) => Ok(RawEntry {
+				price: (1, 1),
+				volume: Default::default(),
+				liquidity: Default::default(),
+				shares_issuance: Default::default(),
+				updated_at: System::block_number(),
+			}),
+			PegSource::MMOracle(H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])) => {
+				if System::block_number() == 2 {
+					return Ok(RawEntry {
+						price: (48, 100),
+						volume: Default::default(),
+						liquidity: Default::default(),
+						shares_issuance: Default::default(),
+						updated_at: System::block_number(),
+					});
+				}
+
+				Ok(RawEntry {
+					price: (1, 2),
+					volume: Default::default(),
+					liquidity: Default::default(),
+					shares_issuance: Default::default(),
+					updated_at: System::block_number(),
+				})
+			}
 			_ => panic!("unusupported oracle types: {:?}", source),
 		}
 	}
