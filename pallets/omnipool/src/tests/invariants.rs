@@ -50,18 +50,17 @@ macro_rules! assert_asset_invariant_not_decreased {
 }
 
 #[macro_export]
-macro_rules! assert_asset_invariant_not_decreased_for_hub_swap {
-	( $old_state:expr, $new_state:expr, $old_hdx_state:expr, $new_hdx_state:expr, $desc:expr) => {{
-		let delta_hub = $new_hdx_state.hub_reserve - $old_hdx_state.hub_reserve;
-		let new_s = U256::from($new_state.reserve) * (U256::from($new_state.hub_reserve) + U256::from(delta_hub));
-		let old_s = U256::from($old_state.reserve) * U256::from($old_state.hub_reserve);
-
+macro_rules! assert_hub_swap_invariants {
+	($old_state:expr, $new_state:expr, $old_hdx_state:expr, $new_hdx_state:expr, $desc:expr) => {{
+		assert_eq!(
+			$new_hdx_state.hub_reserve, $old_hdx_state.hub_reserve,
+			"HDX hub_reserve should be unchanged for {} (H2O routed to treasury)",
+			$desc
+		);
 		assert!(
-			new_s >= old_s,
-			"Invariant decreased for {} - {:?} >= {:?}",
-			$desc,
-			new_s,
-			old_s
+			$new_state.reserve < $old_state.reserve,
+			"Traded asset reserve should decrease for {} (tokens sent to user)",
+			$desc
 		);
 	}};
 }
@@ -828,6 +827,7 @@ proptest! {
 			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
 			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
 			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.with_treasury_lrna(1000 * ONE)
 			.build()
 			.execute_with(|| {
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -846,16 +846,10 @@ proptest! {
 
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-				assert_asset_invariant_not_decreased_for_hub_swap!(
-					&old_state_300,
-					&new_state_300,
-					&old_state_hdx,
-					&new_state_hdx,
-					"Invariant 300"
-				);
+				assert_hub_swap_invariants!(&old_state_300, &new_state_300, &old_state_hdx, &new_state_hdx, "Hub swap 300");
 
-				// With H2O routing to HDX subpool, HDX subpool's hub_reserve increases
-				assert!(new_state_hdx.hub_reserve > old_state_hdx.hub_reserve, "HDX hub_reserve increased");
+				let initial_treasury = 1000 * ONE;
+				assert!(Tokens::free_balance(LRNA, &TREASURY) > initial_treasury, "Treasury received H2O");
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
@@ -909,6 +903,7 @@ proptest! {
 			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
 			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
 			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.with_treasury_lrna(1000 * ONE)
 			.build()
 			.execute_with(|| {
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -927,16 +922,11 @@ proptest! {
 
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-				assert_asset_invariant_not_decreased_for_hub_swap!(
-					&old_state_300,
-					&new_state_300,
-					&old_state_hdx,
-					&new_state_hdx,
-					"Invariant 300"
-				);
+				assert_hub_swap_invariants!(&old_state_300, &new_state_300, &old_state_hdx, &new_state_hdx, "Hub swap 300");
 
-				// With H2O routing to HDX subpool, HDX subpool's hub_reserve increases
-				assert!(new_state_hdx.hub_reserve > old_state_hdx.hub_reserve, "HDX hub_reserve increased");
+				// Treasury balance increased (H2O transferred from omnipool)
+				let initial_treasury = 1000 * ONE; // Initial treasury balance from mock setup
+				assert!(Tokens::free_balance(LRNA, &TREASURY) > initial_treasury, "Treasury received H2O");
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
@@ -989,6 +979,7 @@ proptest! {
 			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
 			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
 			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.with_treasury_lrna(1000 * ONE)
 			.build()
 			.execute_with(|| {
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -1007,21 +998,11 @@ proptest! {
 
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-				assert_asset_invariant_not_decreased_for_hub_swap!(
-					&old_state_300,
-					&new_state_300,
-					&old_state_hdx,
-					&new_state_hdx,
-					"Invariant 300"
-				);
+				assert_hub_swap_invariants!(&old_state_300, &new_state_300, &old_state_hdx, &new_state_hdx, "Hub swap 300");
 
-				// With H2O routing to HDX subpool, HDX subpool's hub_reserve increases
-				assert!(new_state_hdx.hub_reserve > old_state_hdx.hub_reserve, "HDX hub_reserve increased");
-
-				// Total hub asset liquidity has not changed
-				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-
-				assert!(old_hub_liquidity < new_hub_liquidity, "Total Hub liquidity increased incorrectly!");
+				// Treasury balance increased (H2O transferred from omnipool)
+				let initial_treasury = 1000 * ONE; // Initial treasury balance from mock setup
+				assert!(Tokens::free_balance(LRNA, &TREASURY) > initial_treasury, "Treasury received H2O");
 			});
 	}
 }
@@ -1071,6 +1052,7 @@ proptest! {
 			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
 			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
 			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.with_treasury_lrna(1000 * ONE)
 			.build()
 			.execute_with(|| {
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -1089,21 +1071,11 @@ proptest! {
 
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-				assert_asset_invariant_not_decreased_for_hub_swap!(
-					&old_state_300,
-					&new_state_300,
-					&old_state_hdx,
-					&new_state_hdx,
-					"Invariant 300"
-				);
+				assert_hub_swap_invariants!(&old_state_300, &new_state_300, &old_state_hdx, &new_state_hdx, "Hub swap 300");
 
-				// With H2O routing to HDX subpool, HDX subpool's hub_reserve increases
-				assert!(new_state_hdx.hub_reserve > old_state_hdx.hub_reserve, "HDX hub_reserve increased");
-
-				// Total hub asset liquidity has increased (LRNA transferred from user)
-				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-
-				assert!(old_hub_liquidity < new_hub_liquidity, "Total Hub liquidity increased incorrectly!");
+				// Treasury balance increased (H2O transferred from omnipool)
+				let initial_treasury = 1000 * ONE; // Initial treasury balance from mock setup
+				assert!(Tokens::free_balance(LRNA, &TREASURY) > initial_treasury, "Treasury received H2O");
 			});
 	}
 }
@@ -1828,6 +1800,7 @@ proptest! {
 				let initial_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let initial_asset_hub_liquidity = sum_asset_hub_liquidity();
 				let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+				let initial_treasury_lrna = Tokens::free_balance(LRNA, &TREASURY);
 
 				assert_eq!(
 					initial_hub_liquidity, initial_asset_hub_liquidity,
@@ -1845,16 +1818,19 @@ proptest! {
 				let post_sell_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let post_sell_asset_hub_liquidity = sum_asset_hub_liquidity();
 				let post_sell_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+				let treasury_lrna = Tokens::free_balance(LRNA, &TREASURY);
 
 				assert_eq!(
 					post_sell_hub_liquidity, post_sell_asset_hub_liquidity,
 					"Post-sell invariant: hub_liquidity must equal sum_asset_hub_liquidity"
 				);
 
-				assert!(
-					post_sell_hdx_state.hub_reserve > initial_hdx_state.hub_reserve,
-					"HDX hub_reserve must increase after sell_hub (H2O routing)"
+				assert_eq!(
+					post_sell_hdx_state.hub_reserve, initial_hdx_state.hub_reserve,
+					"HDX hub_reserve must be unchanged after sell_hub (H2O routed to treasury)"
 				);
+
+				assert_eq!(treasury_lrna - initial_treasury_lrna, sell_amount, "Treasury must receive sell_amount of LRNA");
 			});
 	}
 }
@@ -1934,10 +1910,12 @@ proptest! {
 					"Post-buy invariant: hub_liquidity must equal sum_asset_hub_liquidity"
 				);
 
-				assert!(
-					post_buy_hdx_state.hub_reserve > initial_hdx_state.hub_reserve,
-					"HDX hub_reserve must increase after buy_for_hub (H2O routing)"
+				assert_eq!(
+					post_buy_hdx_state.hub_reserve, initial_hdx_state.hub_reserve,
+					"HDX hub_reserve must be unchanged after buy_for_hub (H2O routed to treasury)"
 				);
+
+				assert!(Tokens::free_balance(LRNA, &TREASURY) > 0, "Treasury must receive LRNA");
 			});
 	}
 }
@@ -1994,7 +1972,6 @@ proptest! {
 			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
 			.build()
 			.execute_with(|| {
-				// Helper to check invariant
 				let check_invariant = |msg: &str| {
 					let hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 					let asset_hub_liquidity = sum_asset_hub_liquidity();
@@ -2015,9 +1992,9 @@ proptest! {
 				check_invariant("After sell #1 (LRNA -> 300)");
 
 				let hdx_after_sell_1 = Omnipool::load_asset_state(HDX).unwrap();
-				assert!(
-					hdx_after_sell_1.hub_reserve > initial_hdx_state.hub_reserve,
-					"HDX hub_reserve must increase after sell #1"
+				assert_eq!(
+					hdx_after_sell_1.hub_reserve, initial_hdx_state.hub_reserve,
+					"HDX hub_reserve must be unchanged after sell #1"
 				);
 
 				// Operation 2: Buy asset 100 with LRNA
@@ -2031,9 +2008,9 @@ proptest! {
 				check_invariant("After buy #1 (100 <- LRNA)");
 
 				let hdx_after_buy_1 = Omnipool::load_asset_state(HDX).unwrap();
-				assert!(
-					hdx_after_buy_1.hub_reserve > hdx_after_sell_1.hub_reserve,
-					"HDX hub_reserve must increase after buy #1"
+				assert_eq!(
+					hdx_after_buy_1.hub_reserve, hdx_after_sell_1.hub_reserve,
+					"HDX hub_reserve must be unchanged after buy #1"
 				);
 
 				// Operation 3: Sell LRNA -> asset 200
@@ -2047,9 +2024,9 @@ proptest! {
 				check_invariant("After sell #2 (LRNA -> 200)");
 
 				let hdx_after_sell_2 = Omnipool::load_asset_state(HDX).unwrap();
-				assert!(
-					hdx_after_sell_2.hub_reserve > hdx_after_buy_1.hub_reserve,
-					"HDX hub_reserve must increase after sell #2"
+				assert_eq!(
+					hdx_after_sell_2.hub_reserve, hdx_after_buy_1.hub_reserve,
+					"HDX hub_reserve must be unchanged after sell #2"
 				);
 
 				// Operation 4: Buy asset 400 with LRNA
@@ -2063,15 +2040,18 @@ proptest! {
 				check_invariant("After buy #2 (400 <- LRNA)");
 
 				let hdx_after_buy_2 = Omnipool::load_asset_state(HDX).unwrap();
-				assert!(
-					hdx_after_buy_2.hub_reserve > hdx_after_sell_2.hub_reserve,
-					"HDX hub_reserve must increase after buy #2"
+				assert_eq!(
+					hdx_after_buy_2.hub_reserve, hdx_after_sell_2.hub_reserve,
+					"HDX hub_reserve must be unchanged after buy #2"
 				);
 
-				// Final check: HDX hub_reserve should have increased significantly
+				assert_eq!(
+					hdx_after_buy_2.hub_reserve, initial_hdx_state.hub_reserve,
+					"HDX hub_reserve must be unchanged after all operations"
+				);
 				assert!(
-					hdx_after_buy_2.hub_reserve > initial_hdx_state.hub_reserve,
-					"HDX hub_reserve must be higher than initial after all operations"
+					Tokens::free_balance(LRNA, &TREASURY) > 0,
+					"Treasury must have accumulated LRNA after all operations"
 				);
 			});
 	}

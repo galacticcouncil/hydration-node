@@ -2,13 +2,13 @@
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
-use hydradx_runtime::{Omnipool, RuntimeOrigin};
+use hydradx_runtime::{Omnipool, RuntimeOrigin, TreasuryAccount};
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::{Asset, Destination, Fee, Filler, TradeOperation};
 use xcm_emulator::TestExt;
 
 #[test]
-fn sell_h2o_for_asset_should_route_to_hdx_pool() {
+fn sell_h2o_for_asset_should_route_to_treasury() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -26,8 +26,7 @@ fn sell_h2o_for_asset_should_route_to_hdx_pool() {
 
 		let initial_alice_lrna = hydradx_runtime::Tokens::free_balance(LRNA, &AccountId::from(ALICE));
 		let initial_alice_dai = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(ALICE));
-		let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
-		let initial_dai_state = Omnipool::load_asset_state(DAI).unwrap();
+		let initial_treasury_lrna = hydradx_runtime::Tokens::free_balance(LRNA, &TreasuryAccount::get());
 
 		// Act
 		assert_ok!(Omnipool::sell(
@@ -40,8 +39,7 @@ fn sell_h2o_for_asset_should_route_to_hdx_pool() {
 
 		let final_alice_lrna = hydradx_runtime::Tokens::free_balance(LRNA, &AccountId::from(ALICE));
 		let final_alice_dai = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(ALICE));
-		let final_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
-		let final_dai_state = Omnipool::load_asset_state(DAI).unwrap();
+		let final_treasury_lrna = hydradx_runtime::Tokens::free_balance(LRNA, &TreasuryAccount::get());
 
 		// Assert
 		assert_eq!(
@@ -51,19 +49,19 @@ fn sell_h2o_for_asset_should_route_to_hdx_pool() {
 		);
 		assert!(final_alice_dai > initial_alice_dai, "ALICE should have received DAI");
 
-		assert!(
-			final_hdx_state.hub_reserve > initial_hdx_state.hub_reserve,
-			"HDX hub_reserve should increase when H2O is routed to HDX subpool"
+		// Treasury should receive the H2O
+		assert_eq!(
+			final_treasury_lrna - initial_treasury_lrna,
+			sell_amount,
+			"Treasury should receive the sell_amount of LRNA"
 		);
 
 		let dai_received = final_alice_dai - initial_alice_dai;
-		assert_eq!(
-			initial_dai_state.reserve - final_dai_state.reserve,
-			dai_received,
-			"DAI reserve decrease should equal tokens sent to user"
-		);
 
-		assert!(sell_amount != 0 && dai_received != 0, "trade amounts should not be zero");
+		assert!(
+			sell_amount != 0 && dai_received != 0,
+			"trade amounts should not be zero"
+		);
 		// Assert Swapped3 event using get_last_swapped_events pattern (like dca.rs)
 		let swapped_events = get_last_swapped_events();
 		pretty_assertions::assert_eq!(
@@ -75,23 +73,19 @@ fn sell_h2o_for_asset_should_route_to_hdx_pool() {
 				operation: TradeOperation::ExactIn,
 				inputs: vec![Asset::new(LRNA, sell_amount)],
 				outputs: vec![Asset::new(DAI, dai_received)],
-				fees: vec![Fee::new(DAI, 5319148936170212766, Destination::Account(Omnipool::protocol_account()))],
+				fees: vec![Fee::new(
+					DAI,
+					5319148936170212766,
+					Destination::Account(Omnipool::protocol_account())
+				)],
 				operation_stack: vec![],
 			}
 		);
-
-		// Assert Rerouted event
-		expect_hydra_events(vec![pallet_omnipool::Event::Rerouted {
-			from: DAI,
-			to: CORE_ASSET_ID,
-			hub_amount: sell_amount,
-		}
-		.into()]);
 	});
 }
 
 #[test]
-fn sell_h2o_for_hdx_should_emit_rerouted_event() {
+fn sell_h2o_for_hdx_should_route_to_treasury() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -109,7 +103,7 @@ fn sell_h2o_for_hdx_should_emit_rerouted_event() {
 
 		let initial_alice_lrna = hydradx_runtime::Tokens::free_balance(LRNA, &AccountId::from(ALICE));
 		let initial_alice_hdx = hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE));
-		let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+		let initial_treasury_lrna = hydradx_runtime::Tokens::free_balance(LRNA, &TreasuryAccount::get());
 
 		// Act
 		assert_ok!(Omnipool::sell(
@@ -122,7 +116,7 @@ fn sell_h2o_for_hdx_should_emit_rerouted_event() {
 
 		let final_alice_lrna = hydradx_runtime::Tokens::free_balance(LRNA, &AccountId::from(ALICE));
 		let final_alice_hdx = hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE));
-		let final_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+		let final_treasury_lrna = hydradx_runtime::Tokens::free_balance(LRNA, &TreasuryAccount::get());
 
 		// Assert
 		assert_eq!(
@@ -132,19 +126,19 @@ fn sell_h2o_for_hdx_should_emit_rerouted_event() {
 		);
 		assert!(final_alice_hdx > initial_alice_hdx, "ALICE should have received HDX");
 
-		assert!(
-			final_hdx_state.hub_reserve > initial_hdx_state.hub_reserve,
-			"HDX hub_reserve should increase when H2O is routed to HDX subpool"
+		// Treasury should receive the full H2O amount (hub asset routing to treasury)
+		assert_eq!(
+			final_treasury_lrna - initial_treasury_lrna,
+			sell_amount,
+			"Treasury should receive the full sell_amount of LRNA"
 		);
 
 		let hdx_received = final_alice_hdx - initial_alice_hdx;
-		assert_eq!(
-			initial_hdx_state.reserve - final_hdx_state.reserve,
-			hdx_received,
-			"HDX reserve decrease should equal tokens sent to user"
-		);
 
-		assert!(sell_amount !=0 && hdx_received !=0, "trade amounts should not be zero");
+		assert!(
+			sell_amount != 0 && hdx_received != 0,
+			"trade amounts should not be zero"
+		);
 
 		// Assert Swapped3 event using get_last_swapped_events pattern (like dca.rs)
 		let swapped_events = get_last_swapped_events();
@@ -165,13 +159,5 @@ fn sell_h2o_for_hdx_should_emit_rerouted_event() {
 				operation_stack: vec![],
 			}
 		);
-
-		// Assert Rerouted event
-		expect_hydra_events(vec![pallet_omnipool::Event::Rerouted {
-			from: CORE_ASSET_ID,
-			to: CORE_ASSET_ID,
-			hub_amount: sell_amount,
-		}
-		.into()]);
 	});
 }

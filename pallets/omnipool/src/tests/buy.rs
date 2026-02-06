@@ -239,6 +239,10 @@ fn buy_not_allowed_assets_fails() {
 
 #[test]
 fn buy_for_hub_asset_works() {
+	let buy_amount = 50 * ONE;
+	let lp3_initial_lrna = 100 * ONE;
+	let treasury_initial_lrna = 1000 * ONE;
+
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), 0, NATIVE_AMOUNT),
@@ -247,13 +251,14 @@ fn buy_for_hub_asset_works() {
 			(LP1, 200, 5000000000000000),
 			(LP2, 100, 1000000000000000),
 			(LP3, 100, 1000000000000000),
-			(LP3, 1, 100_000_000_000_000),
+			(LP3, 1, lp3_initial_lrna),
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_treasury_lrna(treasury_initial_lrna)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_liquidity(
@@ -266,21 +271,25 @@ fn buy_for_hub_asset_works() {
 				RuntimeOrigin::signed(LP3),
 				200,
 				1,
-				50_000_000_000_000,
-				50_000_000_000_000
+				buy_amount,
+				buy_amount
 			));
+
+			// Calculate LRNA spent by LP3 (which goes to treasury)
+			let lp3_final_lrna = Tokens::free_balance(LRNA, &LP3);
+			let lrna_spent = lp3_initial_lrna - lp3_final_lrna;
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, 10000000000000000u128, 1);
 			assert_balance_approx!(Omnipool::protocol_account(), 2, 1000000000000000u128, 1);
-			assert_balance_approx!(Omnipool::protocol_account(), 1, 13393333333333334u128, 1);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 13360000000000000u128, 1);
 			assert_balance_approx!(Omnipool::protocol_account(), 100, 2400000000000000u128, 1);
 			assert_balance_approx!(Omnipool::protocol_account(), 200, 1950000000000000u128, 1);
 			assert_balance_approx!(LP1, 100, 3000000000000000u128, 1);
 			assert_balance_approx!(LP1, 200, 3000000000000000u128, 1);
 			assert_balance_approx!(LP2, 100, 600000000000000u128, 1);
 			assert_balance_approx!(LP3, 100, 1000000000000000u128, 1);
-			assert_balance_approx!(LP3, 1, 66_666_666_666_667u128, 1);
-			assert_balance_approx!(LP3, 200, 50000000000000u128, 1);
+			assert_balance_approx!(LP3, 1, lp3_final_lrna, 1);
+			assert_balance_approx!(LP3, 200, buy_amount, 1);
 
 			assert_asset_state!(
 				2,
@@ -298,7 +307,7 @@ fn buy_for_hub_asset_works() {
 				0,
 				AssetReserveState {
 					reserve: 10000000000000000,
-					hub_reserve: 10033333333333334, // H2O now routed to HDX subpool
+					hub_reserve: 10000000000000000, // H2O now routed to treasury
 					shares: 10000000000000000,
 					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
@@ -322,7 +331,7 @@ fn buy_for_hub_asset_works() {
 				200,
 				AssetReserveState {
 					reserve: 1950000000000000,
-					hub_reserve: 1300000000000000, // unchanged - H2O routed to HDX subpool
+					hub_reserve: 1300000000000000, // unchanged - H2O routed to treasury
 					shares: 2000000000000000,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
@@ -330,7 +339,9 @@ fn buy_for_hub_asset_works() {
 				}
 			);
 
-			assert_pool_state!(13393333333333334, 26786666666666668);
+			assert_balance_approx!(TREASURY, LRNA, treasury_initial_lrna + lrna_spent, 1);
+
+			assert_pool_state!(13360000000000000, 26753333333333334);
 		});
 }
 
@@ -1174,7 +1185,7 @@ fn buy_allows_tolerance_when_part_of_fee_is_taken() {
 }
 
 #[test]
-fn buy_for_hub_asset_calls_oracle_hook_for_hdx_subpool() {
+fn buy_for_hub_asset_calls_oracle_hook_for_traded_asset() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -1200,25 +1211,13 @@ fn buy_for_hub_asset_calls_oracle_hook_for_hdx_subpool() {
 
 			let hook_calls = get_hub_asset_trade_hook_calls();
 
-			// Should have 2 calls:
-			// 1. For HDX subpool with delta_hub_reserve > 0 (from increase_hdx_subpool_hub_reserve)
-			// 2. For traded asset (100) with delta_hub_reserve = 0 (from on_hub_asset_trade)
-			assert_eq!(hook_calls.len(), 2);
+			assert_eq!(hook_calls.len(), 1);
 
-			// First call: HDX subpool with actual hub delta
-			let hdx_info = &hook_calls[0];
-			assert_eq!(hdx_info.asset_id, HDX);
-			assert!(*hdx_info.delta_changes.delta_hub_reserve > 0);
-			assert_eq!(*hdx_info.delta_changes.delta_reserve, 0);
-			assert!(hdx_info.after.hub_reserve > hdx_info.before.hub_reserve);
-			assert_eq!(hdx_info.after.reserve, hdx_info.before.reserve);
-
-			// Second oracle call: traded asset (100) with zero hub delta
-			let traded_asset_info = &hook_calls[1];
+			let traded_asset_info = &hook_calls[0];
 			assert_eq!(traded_asset_info.asset_id, 100);
 			assert_eq!(*traded_asset_info.delta_changes.delta_hub_reserve, 0);
 			assert!(*traded_asset_info.delta_changes.delta_reserve > 0);
-			// hub_reserve unchanged (H2O routed to HDX subpool, not here)
+			// hub_reserve unchanged (H2O routed to treasury)
 			assert_eq!(
 				traded_asset_info.after.hub_reserve,
 				traded_asset_info.before.hub_reserve

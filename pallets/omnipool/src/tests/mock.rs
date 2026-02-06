@@ -57,6 +57,7 @@ pub const LP2: u64 = 2;
 pub const LP3: u64 = 3;
 pub const PROTOCOL_FEE_COLLECTOR: u64 = 4;
 pub const TRADE_FEE_COLLECTOR: u64 = 5;
+pub const TREASURY: u64 = 100;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -187,6 +188,7 @@ parameter_types! {
 	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
+	pub const TreasuryAccount: u64 = TREASURY;
 }
 
 impl pallet_broadcast::Config for Test {
@@ -220,6 +222,7 @@ impl Config for Test {
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
 	type BurnProtocolFee = BurnFee;
+	type HubDestination = TreasuryAccount;
 }
 
 pub struct ExtBuilder {
@@ -398,6 +401,12 @@ impl ExtBuilder {
 
 	pub fn with_on_trade_withdrawal_extra(self, extra: Balance) -> Self {
 		ON_TRADE_WITHDRAWAL_EXTRA.with(|v| *v.borrow_mut() = extra);
+		self
+	}
+
+	/// Fund treasury with LRNA - needed for tests that sell hub asset (H2O routes to treasury), to prevent ED error
+	pub fn with_treasury_lrna(mut self, amount: Balance) -> Self {
+		self.endowed_accounts.push((TREASURY, LRNA, amount));
 		self
 	}
 

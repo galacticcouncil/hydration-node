@@ -242,6 +242,10 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type BurnProtocolFee: Get<Permill>;
+
+		/// Destination account when hub asset is sold
+		#[pallet::constant]
+		type HubDestination: Get<Self::AccountId>;
 	}
 
 	#[pallet::storage]
@@ -372,13 +376,6 @@ pub mod pallet {
 
 		/// Asset's weight cap has been updated.
 		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
-
-		/// Hub asset was rerouted from one subpool to another.
-		Rerouted {
-			from: T::AssetId,
-			to: T::AssetId,
-			hub_amount: Balance,
-		},
 	}
 
 	#[pallet::error]
@@ -1763,8 +1760,14 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		// Route H2O to HDX subpool instead of traded asset's subpool, reducing value leaked to arbitrage through external markets
-		Self::increase_hdx_subpool_hub_reserve(origin.clone(), hub_reserve_delta)?;
+		// To reduce value leaked to arbitrage through external markets
+		T::Currency::transfer(
+			T::HubAssetId::get(),
+			&Self::protocol_account(),
+			&T::HubDestination::get(),
+			hub_reserve_delta,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
@@ -1788,12 +1791,6 @@ impl<T: Config> Pallet<T> {
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
 		);
-
-		Self::deposit_event(Event::Rerouted {
-			from: asset_out,
-			to: T::HdxAssetId::get(),
-			hub_amount: hub_reserve_delta,
-		});
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
 
@@ -1889,8 +1886,14 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		// Route H2O to HDX subpool instead of traded asset's subpool, reducing value leaked to arbitrage through external markets
-		Self::increase_hdx_subpool_hub_reserve(origin.clone(), hub_reserve_delta)?;
+		// To reduce value leaked to arbitrage through external markets
+		T::Currency::transfer(
+			T::HubAssetId::get(),
+			&Self::protocol_account(),
+			&T::HubDestination::get(),
+			hub_reserve_delta,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::BuyExecuted {
@@ -1915,12 +1918,6 @@ impl<T: Config> Pallet<T> {
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
 		);
-
-		Self::deposit_event(Event::Rerouted {
-			from: asset_out,
-			to: T::HdxAssetId::get(),
-			hub_amount: hub_reserve_delta,
-		});
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
 

@@ -1662,14 +1662,17 @@ mod omnipool {
 			assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), LRNA, dca_budget);
-			assert_balance!(&Treasury::account_id(), LRNA, 0);
+			let initial_treasury_lrna = Currencies::free_balance(LRNA, &Treasury::account_id());
 
 			//Act
 			go_to_block(12);
 
 			//Assert
 			let treasury_balance = Currencies::free_balance(LRNA, &Treasury::account_id());
-			assert!(treasury_balance > 0);
+			assert!(
+				treasury_balance > initial_treasury_lrna,
+				"Treasury should receive more LRNA from DCA trades"
+			);
 
 			assert_balance!(ALICE.into(), DAI, 2142499995847142);
 			assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);

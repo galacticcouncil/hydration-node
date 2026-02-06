@@ -204,6 +204,7 @@ fn sell_hub_works() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_treasury_lrna(1000 * ONE)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_liquidity(
@@ -212,24 +213,25 @@ fn sell_hub_works() {
 				400000000000000
 			));
 
+			let sell_amount = 50 * ONE;
 			assert_ok!(Omnipool::sell(
 				RuntimeOrigin::signed(LP3),
 				1,
 				200,
-				50000000000000,
+				sell_amount,
 				10000000000000
 			));
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 1);
 			assert_balance_approx!(Omnipool::protocol_account(), 2, 1_000_000_000_000_000u128, 1);
-			assert_balance_approx!(Omnipool::protocol_account(), 1, 13410000000000000u128, 1);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 13410000000000000u128 - sell_amount, 1);
 			assert_balance_approx!(Omnipool::protocol_account(), 100, 2400000000000000u128, 1);
 			assert_balance_approx!(Omnipool::protocol_account(), 200, 1925925925925925u128, 1);
 			assert_balance_approx!(LP1, 100, 3000000000000000u128, 1);
 			assert_balance_approx!(LP1, 200, 3000000000000000u128, 1);
 			assert_balance_approx!(LP2, 100, 600000000000000u128, 1);
 			assert_balance_approx!(LP3, 100, 1000000000000000u128, 1);
-			assert_balance_approx!(LP3, 1, 50000000000000u128, 1);
+			assert_balance_approx!(LP3, 1, 100 * ONE - sell_amount, 1);
 			assert_balance_approx!(LP3, 200, 74074074074074u128, 1);
 
 			assert_asset_state!(
@@ -248,13 +250,15 @@ fn sell_hub_works() {
 				0,
 				AssetReserveState {
 					reserve: 10000000000000000,
-					hub_reserve: 10050000000000000, // H2O now routed to HDX subpool
+					hub_reserve: 10000000000000000, // H2O now routed to treasury
 					shares: 10000000000000000,
 					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
+
+			assert_balance_approx!(TREASURY, LRNA, 1000 * ONE + sell_amount, 1);
 
 			assert_asset_state!(
 				100,
@@ -272,7 +276,7 @@ fn sell_hub_works() {
 				200,
 				AssetReserveState {
 					reserve: 1925925925925926,
-					hub_reserve: 1300000000000000, // unchanged - H2O routed to HDX subpool
+					hub_reserve: 1300000000000000, // unchanged - H2O routed to treasury
 					shares: 2000000000000000,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
@@ -280,7 +284,7 @@ fn sell_hub_works() {
 				}
 			);
 
-			assert_pool_state!(13410000000000000, 26820000000000000);
+			assert_pool_state!(13360000000000000, 26770000000000000);
 		});
 }
 
@@ -1133,7 +1137,7 @@ fn sell_allows_tolerance_when_part_of_fee_is_taken() {
 }
 
 #[test]
-fn sell_hub_routes_to_hdx_subpool() {
+fn sell_hub_routes_to_treasury() {
 	let initial_asset_100_reserve = 2000 * ONE;
 	let expected_asset_100_reserve = 1_925_925_925_925_926;
 	let expected_received = initial_asset_100_reserve - expected_asset_100_reserve;
@@ -1148,17 +1152,18 @@ fn sell_hub_routes_to_hdx_subpool() {
 		.with_registered_asset(100)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP1, initial_asset_100_reserve)
+		.with_treasury_lrna(1000 * ONE)
 		.build()
 		.execute_with(|| {
 			let sell_amount = 50 * ONE;
 			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP3), LRNA, 100, sell_amount, 0));
 
-			// HDX subpool: hub_reserve increased by delta_hub_reserve (routed here)
+			// HDX subpool: hub_reserve unchanged (H2O now routed to treasury)
 			assert_asset_state!(
 				HDX,
 				AssetReserveState {
 					reserve: 10_000_000_000_000_000,
-					hub_reserve: NATIVE_AMOUNT + sell_amount,
+					hub_reserve: NATIVE_AMOUNT,
 					shares: 10_000_000_000_000_000,
 					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
@@ -1182,7 +1187,8 @@ fn sell_hub_routes_to_hdx_subpool() {
 			assert_eq!(Tokens::free_balance(LRNA, &LP3), 100 * ONE - sell_amount);
 			assert_eq!(Tokens::free_balance(100, &LP3), expected_received);
 
-			// Verify the HDX routing event is emitted
+			assert_eq!(Tokens::free_balance(LRNA, &TREASURY), 1000 * ONE + sell_amount);
+
 			expect_last_events(vec![
 				Event::SellExecuted {
 					who: LP3,
@@ -1207,13 +1213,6 @@ fn sell_hub_routes_to_hdx_subpool() {
 					operation_stack: vec![],
 				}
 				.into(),
-				// HDX routing event
-				Event::Rerouted {
-					from: 100,
-					to: HDX,
-					hub_amount: sell_amount,
-				}
-				.into(),
 			]);
 		});
 }
@@ -1227,6 +1226,7 @@ fn sell_hub_asset_for_hdx_works() {
 			(LP3, LRNA, 100 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_treasury_lrna(1000 * ONE)
 		.build()
 		.execute_with(|| {
 			let sell_amount = 50 * ONE;
@@ -1243,9 +1243,10 @@ fn sell_hub_asset_for_hdx_works() {
 				final_hdx_state.reserve < initial_hdx_state.reserve,
 				"HDX reserve should decrease (tokens sent to user)"
 			);
-			assert!(
-				final_hdx_state.hub_reserve > initial_hdx_state.hub_reserve,
-				"HDX hub_reserve should increase (H2O routed here)"
+			// HDX hub_reserve unchanged - H2O now transferred to treasury
+			assert_eq!(
+				final_hdx_state.hub_reserve, initial_hdx_state.hub_reserve,
+				"HDX hub_reserve should be unchanged (H2O routed to treasury)"
 			);
 
 			// Verify user balances
@@ -1260,9 +1261,9 @@ fn sell_hub_asset_for_hdx_works() {
 			);
 
 			assert_eq!(
-				final_hdx_state.hub_reserve,
-				initial_hdx_state.hub_reserve + sell_amount,
-				"HDX hub_reserve should increase by exactly the sold LRNA amount"
+				Tokens::free_balance(LRNA, &TREASURY),
+				1000 * ONE + sell_amount,
+				"Treasury should receive the sold LRNA amount"
 			);
 
 			let expected_hdx_received = initial_hdx_state.reserve - final_hdx_state.reserve;
@@ -1291,20 +1292,13 @@ fn sell_hub_asset_for_hdx_works() {
 					operation_stack: vec![],
 				}
 				.into(),
-				Event::Rerouted {
-					from: HDX,
-					to: HDX,
-					hub_amount: sell_amount,
-				}
-				.into(),
 			]);
 		});
 }
 
 #[test]
-fn buy_for_hub_routes_to_hdx_subpool() {
-	let expected_hdx_hub_reserve = 10_033_333_333_333_334;
-	let expected_lrna_spent = expected_hdx_hub_reserve - NATIVE_AMOUNT;
+fn buy_for_hub_routes_to_treasury() {
+	let expected_lrna_spent = 33_333_333_333_334;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -1316,6 +1310,7 @@ fn buy_for_hub_routes_to_hdx_subpool() {
 		.with_registered_asset(100)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_treasury_lrna(1000 * ONE)
 		.build()
 		.execute_with(|| {
 			let buy_amount = 50 * ONE;
@@ -1327,12 +1322,12 @@ fn buy_for_hub_routes_to_hdx_subpool() {
 				100 * ONE
 			));
 
-			// HDX subpool: hub_reserve increased by delta_hub_reserve (routed here)
+			// HDX subpool: hub_reserve unchanged (H2O now routed to treasury)
 			assert_asset_state!(
 				HDX,
 				AssetReserveState {
 					reserve: 10_000_000_000_000_000,
-					hub_reserve: expected_hdx_hub_reserve,
+					hub_reserve: NATIVE_AMOUNT,
 					shares: 10_000_000_000_000_000,
 					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
@@ -1356,7 +1351,8 @@ fn buy_for_hub_routes_to_hdx_subpool() {
 			assert_eq!(Tokens::free_balance(LRNA, &LP3), 100 * ONE - expected_lrna_spent);
 			assert_eq!(Tokens::free_balance(100, &LP3), buy_amount);
 
-			// Verify the HDX routing event is emitted
+			assert_eq!(Tokens::free_balance(LRNA, &TREASURY), 1000 * ONE + expected_lrna_spent);
+
 			expect_last_events(vec![
 				Event::BuyExecuted {
 					who: LP3,
@@ -1381,19 +1377,12 @@ fn buy_for_hub_routes_to_hdx_subpool() {
 					operation_stack: vec![],
 				}
 				.into(),
-				// HDX routing event
-				Event::Rerouted {
-					from: 100,
-					to: HDX,
-					hub_amount: expected_lrna_spent,
-				}
-				.into(),
 			]);
 		});
 }
 
 #[test]
-fn sell_hub_asset_calls_oracle_hook_for_hdx_subpool() {
+fn sell_hub_asset_calls_oracle_hook_for_traded_asset() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -1413,25 +1402,13 @@ fn sell_hub_asset_calls_oracle_hook_for_hdx_subpool() {
 
 			let hook_calls = get_hub_asset_trade_hook_calls();
 
-			// Should have 2 calls:
-			// 1. For HDX subpool with delta_hub_reserve = sell_amount (from increase_hdx_subpool_hub_reserve)
-			// 2. For traded asset (100) with delta_hub_reserve = 0 (from on_hub_asset_trade)
-			assert_eq!(hook_calls.len(), 2);
+			assert_eq!(hook_calls.len(), 1);
 
-			// First oracle call: HDX subpool with actual hub delta
-			let hdx_info = &hook_calls[0];
-			assert_eq!(hdx_info.asset_id, HDX);
-			assert_eq!(*hdx_info.delta_changes.delta_hub_reserve, sell_amount);
-			assert_eq!(*hdx_info.delta_changes.delta_reserve, 0);
-			assert_eq!(hdx_info.after.hub_reserve, hdx_info.before.hub_reserve + sell_amount);
-			assert_eq!(hdx_info.after.reserve, hdx_info.before.reserve);
-
-			// Second oracle call: traded asset (100) with zero hub delta
-			let traded_asset_info = &hook_calls[1];
+			let traded_asset_info = &hook_calls[0];
 			assert_eq!(traded_asset_info.asset_id, 100);
 			assert_eq!(*traded_asset_info.delta_changes.delta_hub_reserve, 0);
 			assert!(*traded_asset_info.delta_changes.delta_reserve > 0);
-			// hub_reserve unchanged (H2O routed to HDX subpool, not here)
+			// hub_reserve unchanged (H2O transferred to treasury)
 			assert_eq!(
 				traded_asset_info.after.hub_reserve,
 				traded_asset_info.before.hub_reserve
