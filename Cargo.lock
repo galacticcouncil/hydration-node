@@ -9589,7 +9589,6 @@ dependencies = [
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
- "pallet-asset-registry",
  "pallet-balances",
  "pallet-broadcast",
  "pallet-currencies",

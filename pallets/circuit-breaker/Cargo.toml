@@ -24,20 +24,18 @@ sp-io = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 sp-core = { workspace = true }
+pallet-timestamp = { workspace = true }
 primitives = { workspace = true }
-
 
 # Warehouse
 hydradx-traits = { workspace = true }
 orml-traits = { workspace = true }
 
 [dev-dependencies]
-pallet-timestamp = { workspace = true }
 pallet-omnipool = { workspace = true }
 pallet-currencies = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-broadcast = { workspace = true }
-pallet-asset-registry = { workspace = true }
 orml-tokens = { workspace = true }
 hydra-dx-math = { workspace = true }
 test-utils = { workspace = true }
@@ -53,6 +51,7 @@ std = [
     "serde/std",
     "scale-info/std",
     "pallet-balances/std",
+    "pallet-timestamp/std",
     "orml-tokens/std",
     "sp-runtime/std",
     "sp-std/std",
