@@ -413,7 +413,7 @@ pub mod pallet {
 		InsufficientTradingAmount,
 		/// Sell or buy with same asset ids is not allowed.
 		SameAssetTradeNotAllowed,
-		/// LRNA update after trade results in positive value.
+		/// Hub asset reserve update after trade resulted in unexpected Decrease.
 		HubAssetUpdateError,
 		/// Amount of shares provided cannot be 0.
 		InvalidSharesAmount,
@@ -1723,6 +1723,10 @@ impl<T: Config> Pallet<T> {
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 		let mut state_changes = state_changes.account_for_fee_taken(taken_fee);
 
+		ensure!(
+			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
+			Error::<T>::HubAssetUpdateError
+		);
 		// Store original hub reserve delta for routing to HDX subpool, then zero it
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
 		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
@@ -1850,6 +1854,10 @@ impl<T: Config> Pallet<T> {
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 		let mut state_changes = state_changes.account_for_fee_taken(taken_fee);
 
+		ensure!(
+			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
+			Error::<T>::HubAssetUpdateError
+		);
 		// Store original hub reserve delta for routing to HDX subpool, then zero it
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
 		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
