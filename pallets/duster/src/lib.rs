@@ -159,10 +159,7 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	where
-		T::AccountId: AsRef<[u8; 32]>,
-	{
+	impl<T: Config> Pallet<T> {
 		/// Dust specified account.
 		/// IF account balance is < min. existential deposit of given currency, and account is allowed to
 		/// be dusted, the remaining balance is transferred to treasury account.
