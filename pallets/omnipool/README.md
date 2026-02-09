@@ -39,6 +39,11 @@ Omnipool pallet supports multiple hooks which are triggerred on certain operatio
 
 This is currently used to update on-chain oracle and in the circuit breaker.
 
+#### Hub Asset Trading
+
+When Hub Asset (H2O) is sold to the Omnipool, the incoming H2O is transferred to the treasury.
+This reduces the impact of H2O trades on the price of H2O and reduces arbitrage opportunities from external markets.
+
 ### Terminology
 
 * **LP:**  liquidity provider
