@@ -307,6 +307,7 @@ impl pallet_omnipool::Config for Test {
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
 	type BurnProtocolFee = BurnFee;
+	type HubDestination = TreasuryAccount;
 }
 
 impl pallet_broadcast::Config for Test {
