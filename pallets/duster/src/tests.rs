@@ -6,7 +6,7 @@ use crate::mock::{
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo};
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
-use sp_runtime::traits::BadOrigin;
+use sp_runtime::{traits::BadOrigin, AccountId32};
 
 #[test]
 fn dust_account_works() {
@@ -79,7 +79,7 @@ fn dust_account_with_exact_dust_fails() {
 fn dust_nonexisting_account_fails() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			Duster::dust_account(RuntimeOrigin::signed(*DUSTER), 123456, 1),
+			Duster::dust_account(RuntimeOrigin::signed(*DUSTER), AccountId32::new([99u8; 32]), 1),
 			Error::<Test>::ZeroBalance
 		); // Fails with zero balance because total_balance for non-existing account returns default value = Zero.
 		assert_eq!(Tokens::free_balance(1, &*TREASURY), 0);
@@ -290,7 +290,7 @@ fn remove_from_whitelist_works() {
 
 			//remove non-existing account
 			assert_noop!(
-				Duster::remove_from_whitelist(RuntimeOrigin::root(), 1234556),
+				Duster::remove_from_whitelist(RuntimeOrigin::root(), AccountId32::new([99u8; 32])),
 				Error::<Test>::AccountNotWhitelisted
 			);
 

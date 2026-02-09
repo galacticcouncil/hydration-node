@@ -718,6 +718,7 @@ impl pallet_duster::Config for Runtime {
 	type Erc20Support = ATokenAccountDuster;
 	type ExtendedWhitelist = ExtendedDustRemovalWhitelist;
 	type TreasuryAccountId = TreasuryAccount;
+	type EvmAccounts = EVMAccounts;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;
 }
 

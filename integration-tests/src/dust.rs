@@ -424,6 +424,48 @@ mod atoken_dust {
 	}
 
 	#[test]
+	fn dust_account_should_work_for_unbound_evm_account_when_atoken_balance_below_ed() {
+		TestNet::reset();
+
+		crate::aave_router::with_atoken(|| {
+			let ed = 10000;
+			set_ed(ADOT, ed);
+
+			let alice_dot_balance_before = Currencies::free_balance(crate::aave_router::DOT, &ALICE.into());
+			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), START_BALANCE);
+
+			// Make account fall below ED
+			assert_ok!(Currencies::transfer(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				ADOT,
+				START_BALANCE - 1
+			));
+
+			assert_eq!(
+				hydradx_runtime::Currencies::free_balance(ADOT, &Treasury::account_id()),
+				0
+			);
+
+			// Act
+			assert_ok!(Duster::dust_account(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				ALICE.into(),
+				ADOT,
+			));
+
+			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 0);
+			assert_eq!(Currencies::free_balance(ADOT, &Treasury::account_id()), 1);
+
+			// Alice DOT (underlying asset) balance should remain the same after dusting
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
+				alice_dot_balance_before
+			);
+		});
+	}
+
+	#[test]
 	fn no_dusting_when_atoken_balance_above_ed() {
 		TestNet::reset();
 

@@ -13,18 +13,18 @@ use sp_core::H256;
 
 use frame_support::weights::Weight;
 use frame_system::EnsureRoot;
-use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
+use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust, InspectEvmAccounts};
 use orml_traits::MultiCurrency;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use primitives::EvmAddress;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage,
+	AccountId32, BuildStorage,
 };
 use sp_std::cell::RefCell;
 use sp_std::vec::Vec;
 
-type AccountId = u64;
+type AccountId = AccountId32;
 pub type AssetId = u32;
 type Balance = u128;
 type Amount = i128;
@@ -36,10 +36,10 @@ pub const ATOKEN_ED: u128 = 1000u128;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 lazy_static::lazy_static! {
-pub static ref ALICE: AccountId = 100;
-pub static ref BOB: AccountId = 200;
-pub static ref DUSTER: AccountId = 300;
-pub static ref TREASURY: AccountId = 400;
+pub static ref ALICE: AccountId = AccountId32::new([1u8; 32]);
+pub static ref BOB: AccountId = AccountId32::new([2u8; 32]);
+pub static ref DUSTER: AccountId = AccountId32::new([3u8; 32]);
+pub static ref TREASURY: AccountId = AccountId32::new([4u8; 32]);
 }
 
 thread_local! {
@@ -76,13 +76,13 @@ parameter_types! {
 }
 
 thread_local! {
-	pub static KILLED: RefCell<Vec<u64>> = const { RefCell::new(vec![]) };
+	pub static KILLED: RefCell<Vec<AccountId32>> = const { RefCell::new(vec![]) };
 }
 
 pub struct RecordKilled;
-impl OnKilledAccount<u64> for RecordKilled {
-	fn on_killed_account(who: &u64) {
-		KILLED.with(|r| r.borrow_mut().push(*who))
+impl OnKilledAccount<AccountId32> for RecordKilled {
+	fn on_killed_account(who: &AccountId32) {
+		KILLED.with(|r| r.borrow_mut().push(who.clone()))
 	}
 }
 
@@ -97,7 +97,7 @@ impl system::Config for Test {
 	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId32;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
@@ -146,6 +146,40 @@ impl frame_support::traits::Get<Vec<AccountId>> for TestExtendedWhitelist {
 	}
 }
 
+pub struct MockEvmAccounts;
+
+impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
+	fn is_evm_account(_account_id: AccountId) -> bool {
+		false
+	}
+
+	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
+		EvmAddress::from_slice(&account_id.as_ref()[..20])
+	}
+
+	fn truncated_account_id(evm_address: EvmAddress) -> AccountId {
+		let mut data = [0u8; 32];
+		data[..20].copy_from_slice(evm_address.as_bytes());
+		AccountId32::from(data)
+	}
+
+	fn bound_account_id(_evm_address: EvmAddress) -> Option<AccountId> {
+		None
+	}
+
+	fn account_id(evm_address: EvmAddress) -> AccountId {
+		Self::truncated_account_id(evm_address)
+	}
+
+	fn can_deploy_contracts(_evm_address: EvmAddress) -> bool {
+		false
+	}
+
+	fn is_approved_contract(_address: EvmAddress) -> bool {
+		false
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -153,6 +187,7 @@ impl Config for Test {
 	type ExistentialDeposit = MinDeposits;
 	type WhitelistUpdateOrigin = EnsureRoot<AccountId>;
 	type Erc20Support = ATokenDusterMock;
+	type EvmAccounts = MockEvmAccounts;
 	type ExtendedWhitelist = TestExtendedWhitelist;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = ();
