@@ -3,7 +3,8 @@ pub mod cumulus_pallet_weight_reclaim;
 pub mod cumulus_pallet_xcmp_queue;
 pub mod frame_system;
 pub mod frame_system_extensions;
-pub mod ismp_parachain;
+// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
+// pub mod ismp_parachain;
 pub mod orml_tokens;
 pub mod orml_vesting;
 pub mod pallet_asset_registry;
@@ -48,7 +49,8 @@ pub mod pallet_staking;
 pub mod pallet_state_trie_migration;
 pub mod pallet_timestamp;
 pub mod pallet_token_gateway;
-pub mod pallet_token_gateway_ismp;
+// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
+// pub mod pallet_token_gateway_ismp;
 pub mod pallet_transaction_multi_payment;
 pub mod pallet_transaction_pause;
 pub mod pallet_transaction_payment;

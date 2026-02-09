@@ -7,6 +7,9 @@ else
     sha256sum := sha256sum
 endif
 
+# Fail on warnings
+export RUSTFLAGS := -D warnings
+
 .PHONY: build
 build:
 	$(cargo) build --release --locked
