@@ -47,10 +47,8 @@
 //!
 //! ### Hub Asset Trading
 //!
-//! When Hub Asset (LRNA) is sold to the Omnipool, the incoming LRNA is routed to the HDX subpool
-//! instead of the traded asset's subpool. This increases the HDX subpool's hub reserve while
-//! leaving the traded asset's hub reserve unchanged. The routing strengthens the HDX price by
-//! increasing its backing with hub asset.
+//! When Hub Asset (H2O) is sold to the Omnipool, the incoming H2O is transferred to the treasury.
+//! This reduces the impact of H2O trades on the price of H2O and reduces arbitrage opportunities from external markets.
 //!
 //! ## Terminology
 //!

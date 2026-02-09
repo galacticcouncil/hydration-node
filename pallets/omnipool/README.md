@@ -41,9 +41,8 @@ This is currently used to update on-chain oracle and in the circuit breaker.
 
 #### Hub Asset Trading
 
-When Hub Asset (H2O) is sold to the Omnipool, the incoming H2O is routed to the HDX subpool instead of the traded
-asset's subpool. This increases the HDX subpool's hub reserve while leaving the traded asset's hub reserve unchanged.
-The routing reduces the impact of H2O trades on the price of H2O by keeping it in the internal market
+When Hub Asset (H2O) is sold to the Omnipool, the incoming H2O is transferred to the treasury.
+This reduces the impact of H2O trades on the price of H2O and reduces arbitrage opportunities from external markets.
 
 ### Terminology
 
