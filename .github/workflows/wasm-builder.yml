@@ -8,7 +8,7 @@ on:
 
 env:
   SUBWASM_VERSION: 0.21.3
-  SRTOOL_VERSION: 1.81.0
+  SRTOOL_VERSION: 1.84.1
   CHAIN: hydradx
 
 permissions:

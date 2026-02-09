@@ -80,7 +80,7 @@ checksum:
 	cp runtime/hydradx/target/srtool/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm target/release/
 	$(sha256sum) target/release/hydradx_runtime.compact.compressed.wasm > target/release/hydradx_runtime.compact.compressed.wasm.sha256
 
-release: srbuild checksum
+release: build srbuild checksum
 
 all: clippy build-benchmarks test-benchmarks test build checksum
 
