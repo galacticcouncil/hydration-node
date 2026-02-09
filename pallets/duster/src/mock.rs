@@ -13,7 +13,7 @@ use sp_core::H256;
 
 use frame_support::weights::Weight;
 use frame_system::EnsureRoot;
-use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust, InspectEvmAccounts};
+use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
 use orml_traits::MultiCurrency;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use primitives::EvmAddress;
@@ -35,19 +35,17 @@ pub const ATOKEN_ED: u128 = 1000u128;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
-lazy_static::lazy_static! {
-pub static ref ALICE: AccountId = AccountId32::new([1u8; 32]);
-pub static ref BOB: AccountId = AccountId32::new([2u8; 32]);
-pub static ref DUSTER: AccountId = AccountId32::new([3u8; 32]);
-pub static ref TREASURY: AccountId = AccountId32::new([4u8; 32]);
-}
+pub const ALICE: AccountId = AccountId32::new([1u8; 32]);
+pub const BOB: AccountId = AccountId32::new([2u8; 32]);
+pub const DUSTER: AccountId = AccountId32::new([3u8; 32]);
+pub const TREASURY: AccountId = AccountId32::new([4u8; 32]);
 
 thread_local! {
 	pub static ATOKEN_IDS: RefCell<Vec<AssetId>> = const { RefCell::new(vec![]) };
 }
 
 parameter_types! {
-	pub TreasuryAccount: AccountId = *TREASURY;
+	pub TreasuryAccount: AccountId = TREASURY;
 }
 
 frame_support::construct_runtime!(
@@ -146,40 +144,6 @@ impl frame_support::traits::Get<Vec<AccountId>> for TestExtendedWhitelist {
 	}
 }
 
-pub struct MockEvmAccounts;
-
-impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
-	fn is_evm_account(_account_id: AccountId) -> bool {
-		false
-	}
-
-	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
-		EvmAddress::from_slice(&account_id.as_ref()[..20])
-	}
-
-	fn truncated_account_id(evm_address: EvmAddress) -> AccountId {
-		let mut data = [0u8; 32];
-		data[..20].copy_from_slice(evm_address.as_bytes());
-		AccountId32::from(data)
-	}
-
-	fn bound_account_id(_evm_address: EvmAddress) -> Option<AccountId> {
-		None
-	}
-
-	fn account_id(evm_address: EvmAddress) -> AccountId {
-		Self::truncated_account_id(evm_address)
-	}
-
-	fn can_deploy_contracts(_evm_address: EvmAddress) -> bool {
-		false
-	}
-
-	fn is_approved_contract(_address: EvmAddress) -> bool {
-		false
-	}
-}
-
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -187,7 +151,6 @@ impl Config for Test {
 	type ExistentialDeposit = MinDeposits;
 	type WhitelistUpdateOrigin = EnsureRoot<AccountId>;
 	type Erc20Support = ATokenDusterMock;
-	type EvmAccounts = MockEvmAccounts;
 	type ExtendedWhitelist = TestExtendedWhitelist;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = ();
@@ -225,8 +188,8 @@ impl Erc20OnDust<AccountId, AssetId> for ATokenDusterMock {
 		let balance = Tokens::free_balance(currency_id, account);
 		if balance < ATOKEN_ED {
 			Tokens::transfer(
-				RuntimeOrigin::signed(*account),
-				*dust_dest_account,
+				RuntimeOrigin::signed(account.clone()),
+				dust_dest_account.clone(),
 				currency_id,
 				balance,
 			)?;
@@ -256,7 +219,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
-	type ReserveAccount = ();
+	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type RegistryInspect = MockBoundErc20<Test>;
 	type WeightInfo = ();
@@ -287,7 +250,7 @@ impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
 			endowed_accounts: vec![],
-			native_balances: vec![(*TREASURY, 1_000_000)],
+			native_balances: vec![(TREASURY, 1_000_000)],
 		}
 	}
 }
@@ -319,7 +282,7 @@ impl ExtBuilder {
 		.unwrap();
 
 		duster::GenesisConfig::<Test> {
-			account_whitelist: vec![*TREASURY],
+			account_whitelist: vec![TREASURY],
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

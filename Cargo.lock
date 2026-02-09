@@ -10022,7 +10022,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydradx-traits",
- "lazy_static",
  "log",
  "orml-tokens",
  "orml-traits",

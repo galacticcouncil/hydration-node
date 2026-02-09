@@ -43,7 +43,6 @@ use frame_support::{
 use frame_system::ensure_signed;
 use hydradx_traits::evm::Erc20Inspect;
 use hydradx_traits::evm::Erc20OnDust;
-use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::GetByKey;
 use sp_runtime::traits::Zero;
@@ -98,9 +97,6 @@ pub mod pallet {
 		/// Erc20 support to dust AToken balances
 		type Erc20Support: hydradx_traits::evm::Erc20Inspect<Self::AssetId>
 			+ hydradx_traits::evm::Erc20OnDust<Self::AccountId, Self::AssetId>;
-
-		/// EVM accounts for resolving the EVM-mapped substrate account during AToken dusting
-		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
 
 		/// Extended whitelist for dust removal - hardcoded accounts from runtime that cannot be dusted
 		type ExtendedWhitelist: Get<Vec<Self::AccountId>>;
@@ -171,7 +167,8 @@ pub mod pallet {
 		/// IF account balance is < min. existential deposit of given currency, and account is allowed to
 		/// be dusted, the remaining balance is transferred to treasury account.
 		///
-		/// In case of AToken, we perform an erc20 dust, which does a wihtdraw all then supply atoken on behalf of the dust receiver
+		/// In case of AToken, we perform an erc20 dust, which does a wihtdraw all to the treasury account
+		/// Note that in this case, the treasury will just receive the underlying token, not the atoken variant.
 		///
 		/// The transaction fee is returned back in case of successful dusting.
 		///
@@ -201,12 +198,7 @@ pub mod pallet {
 			let dust_dest_account = T::TreasuryAccountId::get();
 
 			if T::Erc20Support::is_atoken(currency_id) {
-				//Temporarily adding the account to whitelist to prevent ED error when AToken is withdrawn from contract
-				let evm_address = T::EvmAccounts::evm_address(&account);
-				let account_id = T::EvmAccounts::account_id(evm_address);
-				Self::add_account(&account_id)?;
 				T::Erc20Support::on_dust(&account, &dust_dest_account, currency_id)?;
-				Self::remove_account(&account_id)?;
 			} else {
 				Self::transfer_dust(&account, &dust_dest_account, currency_id, dust)?;
 			}
