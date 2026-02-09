@@ -8,26 +8,29 @@ import { keccak256, recoverAddress } from 'viem'
 import {
   executeAsRootViaReferendum,
   executeAsRootViaScheduler,
-} from './dispenser.test'
+} from './utils'
 
 export class SignetClient {
-  constructor(private api: ApiPromise, private signer: any) {}
+  constructor(
+    private api: ApiPromise,
+    private signer: any,
+  ) {}
 
   async ensureSignetInitializedViaReferendum(
     api: ApiPromise,
     signer: any,
-    chainId: string
+    chainId: string,
   ) {
     const chainIdBytes = Array.from(new TextEncoder().encode(chainId))
     const signetInitCall = api.tx.signet.initialize(
       signer.address,
       1_000_000_000_000n,
-      chainIdBytes
+      chainIdBytes,
     )
     await executeAsRootViaScheduler(
       api,
       signetInitCall,
-      'Initialize signet via Root'
+      'Initialize signet via Root',
     )
   }
 
@@ -38,7 +41,7 @@ export class SignetClient {
       params.path,
       params.algo,
       params.dest,
-      params.params
+      params.params,
     )
 
     await new Promise<void>((resolve, reject) => {
@@ -55,7 +58,7 @@ export class SignetClient {
 
   async requestTransactionSignature(
     serializedTx: number[],
-    params: any
+    params: any,
   ): Promise<void> {
     const tx = this.api.tx.signet.signRespond(
       serializedTx,
@@ -68,7 +71,7 @@ export class SignetClient {
       params.schemas.explorer.format,
       Array.from(new TextEncoder().encode(params.schemas.explorer.schema)),
       params.schemas.callback.format,
-      Array.from(new TextEncoder().encode(params.schemas.callback.schema))
+      Array.from(new TextEncoder().encode(params.schemas.callback.schema)),
     )
 
     await tx.signAndSend(this.signer)
@@ -112,7 +115,7 @@ export class SignetClient {
     sender: string,
     payload: Uint8Array,
     params: any,
-    chainId: string
+    chainId: string,
   ): string {
     const payloadHex = '0x' + Buffer.from(payload).toString('hex')
     const encoded = ethers.AbiCoder.defaultAbiCoder().encode(
@@ -135,7 +138,7 @@ export class SignetClient {
         params.algo,
         params.dest,
         params.params,
-      ]
+      ],
     )
     return ethers.keccak256(encoded)
   }
@@ -143,14 +146,14 @@ export class SignetClient {
   calculateSignRespondRequestId(
     sender: string,
     txData: number[],
-    params: any
+    params: any,
   ): string {
     const txHex = '0x' + Buffer.from(txData).toString('hex')
     const encoded = ethers.solidityPacked(
       [
         'string',
         'bytes',
-        'uint32',
+        'string',
         'uint32',
         'string',
         'string',
@@ -160,13 +163,13 @@ export class SignetClient {
       [
         sender,
         txHex,
-        params.slip44ChainId,
+        params.caip2_id,
         params.keyVersion,
         params.path,
         params.algo || '',
         params.dest || '',
         params.params || '',
-      ]
+      ],
     )
     return ethers.keccak256(encoded)
   }
@@ -174,7 +177,7 @@ export class SignetClient {
   async verifySignature(
     payload: Uint8Array,
     signature: any,
-    derivedPublicKey: string
+    derivedPublicKey: string,
   ): Promise<boolean> {
     const r = signature.bigR.x.startsWith('0x')
       ? signature.bigR.x
@@ -199,7 +202,7 @@ export class SignetClient {
   async verifyTransactionSignature(
     tx: ethers.Transaction,
     signature: any,
-    derivedPublicKey: string
+    derivedPublicKey: string,
   ): Promise<boolean> {
     const msgHash = ethers.keccak256(tx.unsignedSerialized)
     const r = signature.bigR.x.startsWith('0x')

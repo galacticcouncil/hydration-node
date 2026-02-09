@@ -128,7 +128,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 390,
+	spec_version: 392,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -234,6 +234,7 @@ construct_runtime!(
 		// 113 was used by DmpQueue which is now replaced by MessageQueue
 		MessageQueue: pallet_message_queue = 114,
 		WeightReclaim: cumulus_pallet_weight_reclaim = 115,
+		MultiBlockMigrations: pallet_migrations = 116,
 
 		// ORML XCM
 		OrmlXcm: orml_xcm = 135,
@@ -298,7 +299,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	migrations::Migrations,
+	migrations::SingleBlockMigrationsList,
 >;
 
 impl<LocalCall> frame_system::offchain::CreateTransactionBase<LocalCall> for Runtime
@@ -383,6 +384,7 @@ mod benches {
 		[pallet_ema_oracle, benchmarking::ema_oracle::Benchmark]
 		[pallet_token_gateway_ismp, benchmarking::token_gateway_ismp::Benchmark]
 		[pallet_evm_accounts, benchmarking::evm_accounts::Benchmark]
+		[pallet_migrations, MultiBlockMigrations]
 	);
 }
 

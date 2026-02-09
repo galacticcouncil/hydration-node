@@ -493,7 +493,7 @@ parameter_types! {
 impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
-	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Runtime>;
 	type AssetId = AssetId;
 	type AssetNativeLocation = AssetLocation;
@@ -558,7 +558,7 @@ impl pallet_omnipool::Config for Runtime {
 	type Currency = Currencies;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, OmnipoolAdmin>;
 	type UpdateTradabilityOrigin =
-		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
+		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, OmnipoolAdmin>>;
 	type AssetRegistry = AssetRegistry;
 	type HdxAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
@@ -623,7 +623,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, OmnipoolAdmin>>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DepositLockWhitelist = DepositLockWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
@@ -954,7 +954,7 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 impl pallet_dca::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
-	type TerminateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type TerminateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Currencies = Currencies;
 	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
 	type RandomnessProvider = DCA;
@@ -1324,7 +1324,7 @@ impl pallet_route_executor::Config for Runtime {
 	type AMM = (Omnipool, Stableswap, XYK, LBP, Aave, HSM);
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
-	type ForceInsertOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type ForceInsertOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type OraclePeriod = RouteValidationOraclePeriod;
 }
@@ -1392,7 +1392,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 	type WeightInfo = weights::pallet_dynamic_fees::HydraWeight<Runtime>;
-	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, OmnipoolAdmin>>;
 }
 
 // Stableswap
@@ -1573,7 +1573,7 @@ impl pallet_stableswap::Config for Runtime {
 	type ShareAccountId = StableswapAccountIdConstructor<Runtime>;
 	type AssetInspection = AssetRegistry;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, OmnipoolAdmin>;
-	type UpdateTradabilityOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeSuperMajority>;
+	type UpdateTradabilityOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type DustAccountHandler = Duster;
 	type Hooks = StableswapHooksAdapter<Runtime>;
 	type MinPoolLiquidity = MinPoolLiquidity;
@@ -1826,7 +1826,7 @@ impl pallet_liquidation::Config for Runtime {
 	type HollarId = HOLLAR;
 	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
 	type EvmErrorDecoder = EvmErrorDecoder;
-	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 }
 
 impl pallet_broadcast::Config for Runtime {
@@ -1904,8 +1904,8 @@ impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
 pub struct SigEthFaucetContractAddr;
 impl frame_support::traits::Get<EvmAddress> for SigEthFaucetContractAddr {
 	fn get() -> EvmAddress {
-		// 0x52BE077E67496C9763CCEF66C1117DD234CA8CFC
-		EvmAddress::from(hex_literal::hex!("52BE077E67496C9763CCEF66C1117DD234CA8CFC"))
+		// 0x189d33ea9A9701fdb67C21df7420868193dcf578
+		EvmAddress::from(hex_literal::hex!("189d33ea9A9701fdb67C21df7420868193dcf578"))
 	}
 }
 
