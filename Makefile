@@ -77,10 +77,10 @@ docker:
 
 checksum:
 	$(sha256sum) target/release/hydradx > target/release/hydradx.sha256
-	cp target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm target/release/
+	cp runtime/hydradx/target/srtool/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm target/release/
 	$(sha256sum) target/release/hydradx_runtime.compact.compressed.wasm > target/release/hydradx_runtime.compact.compressed.wasm.sha256
 
-release: build-release checksum
+release: srbuild checksum
 
 all: clippy build-benchmarks test-benchmarks test build checksum
 
@@ -88,4 +88,7 @@ chopstics: release
 	npx @acala-network/chopsticks xcm --parachain=launch-configs/chopsticks/hydradx.yml --parachain=launch-configs/chopsticks/assethub.yml
 
 srbuild:
-	docker run --rm -v "$(CURDIR):/build" -e PACKAGE=hydradx-runtime -e RUNTIME_DIR=runtime/hydradx -e BUILD_OPTS="--features=metadata-hash" paritytech/srtool:1.81.0 build --app
+	docker run --rm --user $(id -u):$(id -g) -v "$(CURDIR):/build" -e PACKAGE=hydradx-runtime -e RUNTIME_DIR=runtime/hydradx -e BUILD_OPTS="--features=metadata-hash" paritytech/srtool:1.84.1 build --app
+
+check-papi-problems: checksum
+	npx @polkadot-api/check-runtime problems wss://rpc.hydradx.cloud --wasm target/release/hydradx_runtime.compact.compressed.wasm
