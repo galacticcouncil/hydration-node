@@ -19,12 +19,12 @@ use pallet_currencies::fungibles::FungibleCurrencies;
 use primitives::EvmAddress;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage,
+	AccountId32, BuildStorage,
 };
 use sp_std::cell::RefCell;
 use sp_std::vec::Vec;
 
-type AccountId = u64;
+type AccountId = AccountId32;
 pub type AssetId = u32;
 type Balance = u128;
 type Amount = i128;
@@ -35,19 +35,17 @@ pub const ATOKEN_ED: u128 = 1000u128;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
-lazy_static::lazy_static! {
-pub static ref ALICE: AccountId = 100;
-pub static ref BOB: AccountId = 200;
-pub static ref DUSTER: AccountId = 300;
-pub static ref TREASURY: AccountId = 400;
-}
+pub const ALICE: AccountId = AccountId32::new([1u8; 32]);
+pub const BOB: AccountId = AccountId32::new([2u8; 32]);
+pub const DUSTER: AccountId = AccountId32::new([3u8; 32]);
+pub const TREASURY: AccountId = AccountId32::new([4u8; 32]);
 
 thread_local! {
 	pub static ATOKEN_IDS: RefCell<Vec<AssetId>> = const { RefCell::new(vec![]) };
 }
 
 parameter_types! {
-	pub TreasuryAccount: AccountId = *TREASURY;
+	pub TreasuryAccount: AccountId = TREASURY;
 }
 
 frame_support::construct_runtime!(
@@ -76,13 +74,13 @@ parameter_types! {
 }
 
 thread_local! {
-	pub static KILLED: RefCell<Vec<u64>> = const { RefCell::new(vec![]) };
+	pub static KILLED: RefCell<Vec<AccountId32>> = const { RefCell::new(vec![]) };
 }
 
 pub struct RecordKilled;
-impl OnKilledAccount<u64> for RecordKilled {
-	fn on_killed_account(who: &u64) {
-		KILLED.with(|r| r.borrow_mut().push(*who))
+impl OnKilledAccount<AccountId32> for RecordKilled {
+	fn on_killed_account(who: &AccountId32) {
+		KILLED.with(|r| r.borrow_mut().push(who.clone()))
 	}
 }
 
@@ -97,7 +95,7 @@ impl system::Config for Test {
 	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId32;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
@@ -190,8 +188,8 @@ impl Erc20OnDust<AccountId, AssetId> for ATokenDusterMock {
 		let balance = Tokens::free_balance(currency_id, account);
 		if balance < ATOKEN_ED {
 			Tokens::transfer(
-				RuntimeOrigin::signed(*account),
-				*dust_dest_account,
+				RuntimeOrigin::signed(account.clone()),
+				dust_dest_account.clone(),
 				currency_id,
 				balance,
 			)?;
@@ -221,7 +219,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
-	type ReserveAccount = ();
+	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type RegistryInspect = MockBoundErc20<Test>;
 	type EgressHandler = ();
@@ -253,7 +251,7 @@ impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
 			endowed_accounts: vec![],
-			native_balances: vec![(*TREASURY, 1_000_000)],
+			native_balances: vec![(TREASURY, 1_000_000)],
 		}
 	}
 }
@@ -285,7 +283,7 @@ impl ExtBuilder {
 		.unwrap();
 
 		duster::GenesisConfig::<Test> {
-			account_whitelist: vec![*TREASURY],
+			account_whitelist: vec![TREASURY],
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

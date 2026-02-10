@@ -386,6 +386,9 @@ mod atoken_dust {
 			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
 				ALICE.into()
 			)));
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				Treasury::account_id()
+			)));
 
 			let alice_dot_balance_before = 8999999999999998;
 			assert_eq!(
@@ -407,6 +410,9 @@ mod atoken_dust {
 				0
 			);
 
+			let treasury_dot_balance_before =
+				Currencies::free_balance(crate::aave_router::DOT, &Treasury::account_id());
+
 			assert_ok!(Duster::dust_account(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				ALICE.into(),
@@ -414,8 +420,68 @@ mod atoken_dust {
 			));
 
 			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 0);
-			assert_eq!(Currencies::free_balance(ADOT, &Treasury::account_id()), 1);
+			// Treasury receives underlying DOT, not ADOT, as Treasury doesnt need AToken
+			assert_eq!(Currencies::free_balance(ADOT, &Treasury::account_id()), 0);
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &Treasury::account_id()),
+				treasury_dot_balance_before + 1
+			);
+
 			//Alice DOT (adot underlying asset) balance should remain the same after dusting
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
+				alice_dot_balance_before
+			);
+		});
+	}
+
+	#[test]
+	fn dust_account_should_work_for_unbound_evm_account_when_atoken_balance_below_ed() {
+		TestNet::reset();
+
+		crate::aave_router::with_atoken(|| {
+			let ed = 10000;
+			set_ed(ADOT, ed);
+			//Needed because withdraw_all_to sends the assets to treasury which should be a known bounded account
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				Treasury::account_id()
+			)));
+
+			let alice_dot_balance_before = Currencies::free_balance(crate::aave_router::DOT, &ALICE.into());
+			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), START_BALANCE);
+
+			// Make account fall below ED
+			assert_ok!(Currencies::transfer(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				ADOT,
+				START_BALANCE - 1
+			));
+
+			assert_eq!(
+				hydradx_runtime::Currencies::free_balance(ADOT, &Treasury::account_id()),
+				0
+			);
+
+			let treasury_dot_balance_before =
+				Currencies::free_balance(crate::aave_router::DOT, &Treasury::account_id());
+
+			// Act
+			assert_ok!(Duster::dust_account(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				ALICE.into(),
+				ADOT,
+			));
+
+			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 0);
+			// Treasury receives underlying DOT, not ADOT
+			assert_eq!(Currencies::free_balance(ADOT, &Treasury::account_id()), 0);
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &Treasury::account_id()),
+				treasury_dot_balance_before + 1
+			);
+
+			// Alice DOT (underlying asset) balance should remain the same after dusting
 			assert_eq!(
 				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
 				alice_dot_balance_before
@@ -456,6 +522,11 @@ mod atoken_dust {
 		let ed_range = 1_u128..(START_BALANCE - 1);
 
 		crate::aave_router::with_atoken_rollback(|| {
+			//Needed because withdraw_all_to sends the assets to treasury which should be a known bounded account
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				Treasury::account_id()
+			)));
+
 			// We run prop test this way to use the same state of the chain for all run without loading the snapshot again in every run
 			let mut runner = TestRunner::new(Config {
 				cases: successfull_cases,

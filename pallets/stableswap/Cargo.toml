@@ -1,6 +1,6 @@
 [package]
 name = "pallet-stableswap"
-version = "7.2.2"
+version = "7.2.3"
 description = "AMM for correlated assets"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -56,6 +56,7 @@ pretty_assertions = "1.4.0"
 pallet-circuit-breaker = { workspace = true }
 pallet-timestamp = { workspace = true }
 primitives = { workspace = true }
+hex-literal = { workspace = true }
 
 [features]
 default = ["std"]

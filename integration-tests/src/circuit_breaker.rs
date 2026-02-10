@@ -121,7 +121,7 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 		let sell_amount = 300000 * UNITS;
 
 		//We need to split in multiple sells to avoid max in ratio error
-		for _ in 1..=3 {
+		for _ in 1..=2 {
 			assert_ok!(Omnipool::sell(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				LRNA,

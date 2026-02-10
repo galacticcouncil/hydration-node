@@ -206,6 +206,7 @@ fn compare_spot_price_with_and_without_fee_when_lrna_sold() {
 		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
 		.with_asset_fee(Permill::from_percent(3))
 		.with_protocol_fee(Permill::from_percent(5))
+		.with_treasury_lrna(1000 * ONE)
 		.build()
 		.execute_with(|| {
 			let liq_added = 400 * ONE;

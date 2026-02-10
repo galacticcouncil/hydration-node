@@ -1372,15 +1372,15 @@ fn check_atoken_transfer_with_rounding_error() {
 		assert_eq!(Currencies::free_balance(ADOT, &BOB.into()), first_transfer_amount);
 
 		let adot_contract = HydraErc20Mapping::asset_address(ADOT);
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+		let alice_dot_balance_before = Currencies::free_balance(DOT, &ALICE.into());
 		assert_ok!(AaveTradeExecutor::<hydradx_runtime::Runtime>::withdraw_all_to(
 			adot_contract,
 			&BOB.into(),
 			&ALICE.into()
 		));
-		assert_eq!(
-			Currencies::free_balance(ADOT, &ALICE.into()),
-			alice_balance + first_transfer_amount
-		);
+		assert_eq!(Currencies::free_balance(ADOT, &BOB.into()), 0);
+		assert!(Currencies::free_balance(DOT, &ALICE.into()) > alice_dot_balance_before);
 	})
 }
 

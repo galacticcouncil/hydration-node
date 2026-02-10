@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "391.0.0"
+version = "394.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -83,6 +83,7 @@ pallet-identity = { workspace = true }
 pallet-collective = { workspace = true }
 pallet-tips = { workspace = true }
 pallet-proxy = { workspace = true }
+pallet-migrations = { workspace = true }
 pallet-multisig = { workspace = true }
 pallet-referenda = { workspace = true }
 pallet-democracy = { workspace = true }
@@ -222,6 +223,7 @@ runtime-benchmarks = [
     "pallet-transaction-pause/runtime-benchmarks",
     "pallet-tips/runtime-benchmarks",
     "pallet-proxy/runtime-benchmarks",
+    "pallet-migrations/runtime-benchmarks",
     "pallet-multisig/runtime-benchmarks",
     "pallet-utility/runtime-benchmarks",
     "pallet-democracy/runtime-benchmarks",
@@ -310,6 +312,7 @@ std = [
     "pallet-collective/std",
     "pallet-tips/std",
     "pallet-proxy/std",
+    "pallet-migrations/std",
     "pallet-multisig/std",
     "pallet-transaction-payment/std",
     "pallet-transaction-payment-rpc-runtime-api/std",
@@ -432,6 +435,7 @@ try-runtime = [
     "pallet-collective/try-runtime",
     "pallet-democracy/try-runtime",
     "pallet-proxy/try-runtime",
+    "pallet-migrations/try-runtime",
     "pallet-multisig/try-runtime",
     "pallet-scheduler/try-runtime",
     "pallet-tips/try-runtime",
