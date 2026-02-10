@@ -1476,6 +1476,11 @@ impl<T: Config> Pallet<T> {
 		if let Some(p) = peg_info {
 			ensure!(p.current.len() == pool.assets.len(), Error::<T>::IncorrectInitialPegs);
 
+			let enforce_decimals = p.source.iter().any(|x| match x {
+				PegSource::Value(_) | PegSource::MMOracle(_) => false,
+				PegSource::Oracle(_) => true,
+			});
+
 			let asset_decimals: Vec<Option<u8>> = pool
 				.assets
 				.iter()
@@ -1483,10 +1488,12 @@ impl<T: Config> Pallet<T> {
 				.collect();
 			let asset_decimals: Option<Vec<u8>> = asset_decimals.into_iter().collect();
 			if let Some(decimals_info) = asset_decimals {
-				ensure!(
-					decimals_info.iter().all(|&x| x == decimals_info[0]),
-					Error::<T>::IncorrectAssetDecimals
-				);
+				if enforce_decimals {
+					ensure!(
+						decimals_info.iter().all(|&x| x == decimals_info[0]),
+						Error::<T>::IncorrectAssetDecimals
+					);
+				}
 			} else {
 				return Err(Error::<T>::UnknownDecimals.into());
 			}

@@ -20,6 +20,11 @@ use std::{
 use substrate_rpc_client::ws_client;
 use substrate_rpc_client::StateApi;
 
+/// Compute the storage key prefix for a pallet name using twox_128 hash.
+pub fn pallet_storage_prefix(pallet_name: &str) -> [u8; 16] {
+	sp_io::hashing::twox_128(pallet_name.as_bytes())
+}
+
 pub fn save_blocks_snapshot<Block: Encode>(data: &Vec<Block>, path: &Path) -> Result<(), &'static str> {
 	let mut path = path.to_path_buf();
 	let encoded = data.encode();
@@ -110,6 +115,66 @@ pub fn save_externalities<B: BlockT<Hash = H256>>(ext: TestExternalities, path: 
 
 	let encoded = snapshot.encode();
 	fs::write(path, encoded).map_err(|_| "fs::write failed")?;
+
+	Ok(())
+}
+
+/// Filter a snapshot file by removing storage entries for excluded pallets.
+/// This loads the snapshot, filters out keys matching excluded pallet prefixes,
+/// and saves the filtered snapshot back to the same path.
+pub fn filter_snapshot_by_excluded_pallets<B: BlockT<Hash = H256>>(
+	path: &PathBuf,
+	excluded_pallets: &[String],
+) -> Result<(), &'static str> {
+	if excluded_pallets.is_empty() {
+		return Ok(());
+	}
+
+	// Compute prefixes for all excluded pallets
+	let excluded_prefixes: Vec<[u8; 16]> = excluded_pallets
+		.iter()
+		.map(|name| pallet_storage_prefix(name))
+		.collect();
+
+	// Load the existing snapshot
+	let snapshot = Snapshot::<B>::load(path)?;
+
+	let original_count = snapshot.raw_storage.len();
+
+	// Filter out keys that start with any excluded pallet prefix
+	let filtered_storage: Vec<(Vec<u8>, (Vec<u8>, i32))> = snapshot
+		.raw_storage
+		.into_iter()
+		.filter(|(key, _)| {
+			// Keys in raw_storage have the format: prefix + hash
+			// We need to check if the storage key (not the DB key) starts with excluded prefix
+			// The actual storage key prefix is at the beginning of the key
+			if key.len() >= 16 {
+				!excluded_prefixes.iter().any(|prefix| key.starts_with(prefix))
+			} else {
+				true // Keep keys that are too short to match
+			}
+		})
+		.collect();
+
+	let filtered_count = filtered_storage.len();
+	println!(
+		"Filtered {} entries (removed {} entries for excluded pallets)",
+		filtered_count,
+		original_count - filtered_count
+	);
+
+	// Create new snapshot with filtered storage
+	let filtered_snapshot = Snapshot::<B>::new(
+		snapshot.state_version,
+		snapshot.block_hash,
+		filtered_storage,
+		snapshot.storage_root,
+	);
+
+	// Save the filtered snapshot
+	let encoded = filtered_snapshot.encode();
+	fs::write(path, encoded).map_err(|_| "fs::write failed for filtered snapshot")?;
 
 	Ok(())
 }
@@ -213,7 +278,12 @@ pub fn extend_externalities<B: BlockT>(
 	Ok(ext)
 }
 
-pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Result<(), &'static str> {
+pub async fn save_chainspec(
+	at: Option<H256>,
+	path: PathBuf,
+	uri: String,
+	excluded_pallets: Vec<String>,
+) -> Result<(), &'static str> {
 	let rpc = ws_client(uri.clone())
 		.await
 		.map_err(|_| "Failed to create RPC client")?;
@@ -236,7 +306,7 @@ pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Res
 	storage_map.insert(code_key.to_vec(), wasm_code.0);
 
 	println!("Reading all storage key-value pairs remotely");
-	let all_pairs = fetch_all_storage(uri, at)
+	let all_pairs = fetch_all_storage(uri, at, excluded_pallets)
 		.await
 		.map_err(|_| "Failed to fetch storage")
 		.unwrap();
@@ -276,8 +346,22 @@ const ESTIMATED_TOTAL_KEYS: u64 = 350_000;
 // Loading the SNAPSHOT or getting raw storage entries don't help as the keys contain additional hashing data,
 // so the keys are difficult to be cleaned up by trimming
 // StateApi call performances needed to be improved by using concurrency
-pub async fn fetch_all_storage(uri: String, at: Option<H256>) -> Result<Vec<(StorageKey, StorageData)>, &'static str> {
+pub async fn fetch_all_storage(
+	uri: String,
+	at: Option<H256>,
+	excluded_pallets: Vec<String>,
+) -> Result<Vec<(StorageKey, StorageData)>, &'static str> {
 	let rpc = Arc::new(ws_client(uri).await.map_err(|_| "Failed to create RPC client")?);
+
+	// Compute prefixes for excluded pallets
+	let excluded_prefixes: Vec<[u8; 16]> = excluded_pallets
+		.iter()
+		.map(|name| pallet_storage_prefix(name))
+		.collect();
+
+	if !excluded_pallets.is_empty() {
+		println!("Excluding pallets: {:?}", excluded_pallets);
+	}
 
 	let mut all_pairs = Vec::new();
 	let mut start_key: Option<StorageKey> = None;
@@ -307,6 +391,7 @@ pub async fn fetch_all_storage(uri: String, at: Option<H256>) -> Result<Vec<(Sto
 			sp_core::storage::well_known_keys::DEFAULT_CHILD_STORAGE_KEY_PREFIX,
 		];
 
+		let excluded_prefixes = excluded_prefixes.clone();
 		let fetched: Vec<(StorageKey, StorageData)> = stream::iter(keys.clone())
 			.map(|key| {
 				let rpc = Arc::clone(&rpc);
@@ -327,8 +412,13 @@ pub async fn fetch_all_storage(uri: String, at: Option<H256>) -> Result<Vec<(Sto
 			.filter(|(key, _value)| {
 				let raw_key = key.as_ref();
 				futures::future::ready({
-					raw_key == sp_core::storage::well_known_keys::CODE
-						|| !forbidden_keys.iter().any(|prefix| raw_key.starts_with(prefix))
+					// Check if key matches any excluded pallet prefix
+					let is_excluded =
+						raw_key.len() >= 16 && excluded_prefixes.iter().any(|prefix| raw_key.starts_with(prefix));
+
+					!is_excluded
+						&& (raw_key == sp_core::storage::well_known_keys::CODE
+							|| !forbidden_keys.iter().any(|prefix| raw_key.starts_with(prefix)))
 				})
 			})
 			.collect()

@@ -45,6 +45,11 @@
 //!
 //! This is currently used to update on-chain oracle and in the circuit breaker.
 //!
+//! ### Hub Asset Trading
+//!
+//! When Hub Asset (H2O) is sold to the Omnipool, the incoming H2O is transferred to the treasury.
+//! This reduces the impact of H2O trades on the price of H2O and reduces arbitrage opportunities from external markets.
+//!
 //! ## Terminology
 //!
 //! * **LP:**  liquidity provider
@@ -236,6 +241,10 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type BurnProtocolFee: Get<Permill>;
+
+		/// Destination account when hub asset is sold
+		#[pallet::constant]
+		type HubDestination: Get<Self::AccountId>;
 	}
 
 	#[pallet::storage]
@@ -403,7 +412,7 @@ pub mod pallet {
 		InsufficientTradingAmount,
 		/// Sell or buy with same asset ids is not allowed.
 		SameAssetTradeNotAllowed,
-		/// LRNA update after trade results in positive value.
+		/// Hub asset reserve update after trade resulted in unexpected Decrease.
 		HubAssetUpdateError,
 		/// Amount of shares provided cannot be 0.
 		InvalidSharesAmount,
@@ -938,8 +947,11 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			let protocol_fees =
-				Self::process_protocol_fee(state_changes.fee.protocol_fee, state_changes.fee.burned_protocol_fee)?;
+			let protocol_fees = Self::process_protocol_fee(
+				origin,
+				state_changes.fee.protocol_fee,
+				state_changes.fee.burned_protocol_fee,
+			)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who: who.clone(),
@@ -1165,8 +1177,11 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			let protocol_fees =
-				Self::process_protocol_fee(state_changes.fee.protocol_fee, state_changes.fee.burned_protocol_fee)?;
+			let protocol_fees = Self::process_protocol_fee(
+				origin,
+				state_changes.fee.protocol_fee,
+				state_changes.fee.burned_protocol_fee,
+			)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who: who.clone(),
@@ -1561,7 +1576,11 @@ impl<T: Config> Pallet<T> {
 	/// Process protocol fee.
 	/// Given the total `protocol_fee` and already `burned` portion of the fee, transfer the rest to HDX subpool
 	/// Returns information where the fee amounts were transferred/burned for fee reporting.
-	fn process_protocol_fee(protocol_fee: Balance, burned: Balance) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
+	fn process_protocol_fee(
+		origin: T::RuntimeOrigin,
+		protocol_fee: Balance,
+		burned: Balance,
+	) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
 		if protocol_fee.is_zero() {
 			return Ok(vec![]);
 		}
@@ -1581,7 +1600,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(remaining_protocol_fee))?;
 
-		Self::increase_hdx_subpool_hub_reserve(remaining_protocol_fee)?;
+		Self::increase_hdx_subpool_hub_reserve(origin, remaining_protocol_fee)?;
 
 		fee_report.push(Fee::new(
 			T::HubAssetId::get().into(),
@@ -1609,10 +1628,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[require_transactional]
-	fn increase_hdx_subpool_hub_reserve(amount: Balance) -> DispatchResult {
+	fn increase_hdx_subpool_hub_reserve(origin: T::RuntimeOrigin, amount: Balance) -> DispatchResult {
 		if amount.is_zero() {
 			return Ok(());
 		}
+
+		let hdx_state_before = Self::load_asset_state(T::HdxAssetId::get())?;
 
 		Assets::<T>::try_mutate(T::HdxAssetId::get(), |maybe_asset| -> DispatchResult {
 			let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
@@ -1621,7 +1642,30 @@ impl<T: Config> Pallet<T> {
 				.checked_add(amount)
 				.ok_or(ArithmeticError::Overflow)?;
 			Ok(())
-		})
+		})?;
+
+		let hdx_state_after = Self::load_asset_state(T::HdxAssetId::get())?;
+
+		let hdx_delta_changes = AssetStateChange {
+			delta_hub_reserve: BalanceUpdate::Increase(amount),
+			..Default::default()
+		};
+
+		let hdx_info: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+			T::HdxAssetId::get(),
+			&hdx_state_before,
+			&hdx_state_after,
+			&hdx_delta_changes,
+			false,
+		);
+
+		T::OmnipoolHooks::on_hub_asset_trade(origin, hdx_info)?;
+
+		// Update HDX dynamic fee to keep it in sync with the oracle update
+		// Fees must be updated on any liquidity change
+		let _ = T::Fee::get_and_store((T::HdxAssetId::get(), hdx_state_after.reserve));
+
+		Ok(())
 	}
 
 	/// Check if assets can be traded - asset_in must be allowed to be sold and asset_out allowed to be bought.
@@ -1676,7 +1720,15 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
-		let state_changes = state_changes.account_for_fee_taken(taken_fee);
+		let mut state_changes = state_changes.account_for_fee_taken(taken_fee);
+
+		ensure!(
+			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
+			Error::<T>::HubAssetUpdateError
+		);
+		// Store original hub reserve delta for routing to HDX subpool, then zero it
+		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
+		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
@@ -1687,7 +1739,7 @@ impl<T: Config> Pallet<T> {
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			*state_changes.asset.delta_hub_reserve, // note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
+			hub_reserve_delta,
 			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
@@ -1711,11 +1763,20 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
+		// To reduce value leaked to arbitrage through external markets
+		T::Currency::transfer(
+			T::HubAssetId::get(),
+			&Self::protocol_account(),
+			&T::HubDestination::get(),
+			hub_reserve_delta,
+			ExistenceRequirement::AllowDeath,
+		)?;
+
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
 			asset_out,
-			amount_in: *state_changes.asset.delta_hub_reserve,
+			amount_in: hub_reserve_delta,
 			amount_out: *state_changes.asset.delta_reserve,
 			hub_amount_in: 0,
 			hub_amount_out: 0,
@@ -1729,10 +1790,7 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_broadcast::types::Filler::Omnipool,
 			pallet_broadcast::types::TradeOperation::ExactIn,
-			vec![Asset::new(
-				T::HubAssetId::get().into(),
-				*state_changes.asset.delta_hub_reserve,
-			)],
+			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
 		);
@@ -1793,7 +1851,15 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
-		let state_changes = state_changes.account_for_fee_taken(taken_fee);
+		let mut state_changes = state_changes.account_for_fee_taken(taken_fee);
+
+		ensure!(
+			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
+			Error::<T>::HubAssetUpdateError
+		);
+		// Store original hub reserve delta for routing to HDX subpool, then zero it
+		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
+		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
@@ -1803,7 +1869,7 @@ impl<T: Config> Pallet<T> {
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			*state_changes.asset.delta_hub_reserve, //note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
+			hub_reserve_delta, //note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
 			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
@@ -1827,12 +1893,21 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
+		// To reduce value leaked to arbitrage through external markets
+		T::Currency::transfer(
+			T::HubAssetId::get(),
+			&Self::protocol_account(),
+			&T::HubDestination::get(),
+			hub_reserve_delta,
+			ExistenceRequirement::AllowDeath,
+		)?;
+
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
 			asset_out,
-			amount_in: *state_changes.asset.delta_hub_reserve,
+			amount_in: hub_reserve_delta,
 			amount_out: *state_changes.asset.delta_reserve,
 			hub_amount_in: 0,
 			hub_amount_out: 0,
@@ -1846,10 +1921,7 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_broadcast::types::Filler::Omnipool,
 			pallet_broadcast::types::TradeOperation::ExactOut,
-			vec![Asset::new(
-				T::HubAssetId::get().into(),
-				*state_changes.asset.delta_hub_reserve,
-			)],
+			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
 		);

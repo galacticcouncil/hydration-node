@@ -1,7 +1,6 @@
 use crate::mock::*;
 use crate::{Event, ExtraGas};
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays};
-use frame_support::pallet_prelude::Weight;
 use frame_support::{assert_noop, assert_ok, dispatch::PostDispatchInfo};
 use orml_tokens::Error;
 use orml_traits::MultiCurrency;
@@ -104,7 +103,7 @@ fn dispatch_with_extra_gas_should_fail_when_call_fails() {
 
 		let r = DispatchErrorWithPostInfo {
 			post_info: PostDispatchInfo {
-				actual_weight: Some(Weight::zero()),
+				actual_weight: None,
 				pays_fee: Pays::Yes,
 			},
 			error: Error::<Test>::BalanceTooLow.into(),
