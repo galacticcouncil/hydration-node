@@ -174,7 +174,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_intent)]
-	pub(super) type Intents<T: Config> = StorageMap<_, Blake2_128Concat, IntentId, Intent>;
+	pub type Intents<T: Config> = StorageMap<_, Blake2_128Concat, IntentId, Intent>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn intent_owner)]
@@ -221,7 +221,7 @@ pub mod pallet {
 		/// - `IntentCanceled` when successful
 		///
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::cancel_intent())]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_intent())]
 		pub fn remove_intent(origin: OriginFor<T>, id: IntentId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::cancel_intent(who, id)
@@ -259,7 +259,7 @@ pub mod pallet {
 						if let Err(e) = T::LazyExecutorHandler::queue(Source::ICE(id), owner.clone(), cb) {
 							Self::deposit_event(Event::FailedToQueueCallback {
 								id,
-								callback: CallbackType::OnSuccess,
+								callback: CallbackType::OnFailure,
 								error: e,
 							});
 						}

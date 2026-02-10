@@ -391,6 +391,7 @@ mod benches {
 		//[pallet_token_gateway_ismp, benchmarking::token_gateway_ismp::Benchmark]
 		[pallet_evm_accounts, benchmarking::evm_accounts::Benchmark]
 		[pallet_migrations, MultiBlockMigrations]
+		[pallet_intent, benchmarking::intent::Benchmark]
 	);
 }
 

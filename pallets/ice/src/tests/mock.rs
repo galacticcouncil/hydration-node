@@ -265,6 +265,14 @@ impl SimulatorSet for MockSimulatorSet {
 	) -> Result<Ratio, SimulatorError> {
 		Ok(Ratio::new(1, 1))
 	}
+
+	fn can_trade(
+		_asset_in: primitives::AssetId,
+		_asset_out: primitives::AssetId,
+		_state: &Self::State,
+	) -> Option<PoolType<primitives::AssetId>> {
+		None
+	}
 }
 
 // Mock RouteProvider

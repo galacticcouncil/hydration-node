@@ -1888,7 +1888,7 @@ impl pallet_intent::Config for Runtime {
 	type MaxAllowedIntentDuration = MaxIntentDuration;
 	type TimestampProvider = Timestamp;
 	type HubAssetId = LRNA;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_intent::HydraWeight<Runtime>;
 }
 
 parameter_types! {

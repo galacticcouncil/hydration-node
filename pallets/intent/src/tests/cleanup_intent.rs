@@ -166,7 +166,7 @@ fn should_work_when_intent_is_expired_and_intent_has_on_failure() {
 					}),
 					deadline: ONE_SECOND,
 					on_success: None,
-					on_failure: None,
+					on_failure: Some(BoundedVec::new()),
 				},
 			),
 			(
@@ -182,7 +182,7 @@ fn should_work_when_intent_is_expired_and_intent_has_on_failure() {
 					}),
 					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
 					on_success: None,
-					on_failure: None,
+					on_failure: Some(BoundedVec::new()),
 				},
 			),
 		])
@@ -210,7 +210,7 @@ fn should_work_when_intent_is_expired_and_intent_has_on_failure() {
 				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
 				0
 			);
-			assert_eq!(get_queued_task(Source::ICE(id)), None);
+			assert_eq!(get_queued_task(Source::ICE(id)), Some((Source::ICE(id), owner)));
 		});
 }
 
