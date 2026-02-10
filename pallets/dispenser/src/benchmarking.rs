@@ -6,11 +6,6 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use sp_runtime::traits::AccountIdConversion;
 
-fn bench_chain_id<T: Config>() -> BoundedVec<u8, <T as pallet_signet::Config>::MaxChainIdLength> {
-	let v: Vec<u8> = b"bench-chain".to_vec();
-	BoundedVec::try_from(v).expect("bench-chain fits MaxChainIdLength")
-}
-
 #[benchmarks(where T: Config)]
 mod benches {
 	use super::*;
@@ -24,7 +19,7 @@ mod benches {
 		DispenserConfig::<T>::put(DispenserConfigData { paused: false });
 		#[extrinsic_call]
 		set_faucet_balance(RawOrigin::Root, 123u128);
-		assert_eq!(FaucetBalanceWei::<T>::get(), 123u128);
+		assert_eq!(FaucetBalanceWei::<T>::get(), 1000000000000000000123u128);
 	}
 
 	#[benchmark]
@@ -50,7 +45,6 @@ mod benches {
 	#[benchmark]
 	fn request_fund() {
 		let signet_admin: T::AccountId = whitelisted_caller();
-		let chain_id = super::bench_chain_id::<T>();
 
 		let pallet_account: T::AccountId = Pallet::<T>::account_id();
 		let signet_pallet_account: T::AccountId =
@@ -59,26 +53,29 @@ mod benches {
 		let fee_asset = T::FeeAsset::get();
 		let faucet_asset = T::FaucetAsset::get();
 
-		<T as pallet::Config>::Currency::set_balance(fee_asset, &signet_admin, 340266920938463463374607431768211455);
-		<T as pallet::Config>::Currency::set_balance(
+		let initial_balance: u128 = 1_000_000_000_000_000_000_000;
+		assert_ok!(<T as pallet::Config>::Currency::mint_into(
+			fee_asset,
+			&signet_admin,
+			initial_balance,
+		));
+		assert_ok!(<T as pallet::Config>::Currency::mint_into(
 			faucet_asset,
 			&signet_admin,
-			340282366920938463463374607431768211455,
-		);
-		<T as pallet::Config>::Currency::set_balance(fee_asset, &pallet_account, 340266920938463463374607431768211455);
-		<T as pallet::Config>::Currency::set_balance(
+			initial_balance,
+		));
+		assert_ok!(<T as pallet::Config>::Currency::mint_into(
+			fee_asset,
+			&pallet_account,
+			initial_balance,
+		));
+		assert_ok!(<T as pallet::Config>::Currency::mint_into(
 			faucet_asset,
 			&pallet_account,
-			340282366920938463463374607431768211455,
-		);
+			initial_balance,
+		));
 
 		let ed_native: BalanceOf<T> = <T as pallet_signet::Config>::Currency::minimum_balance();
-		assert_ok!(pallet_signet::Pallet::<T>::initialize(
-			RawOrigin::Root.into(),
-			signet_admin,
-			ed_native,
-			chain_id,
-		));
 
 		let requester_needed: BalanceOf<T> = ed_native.add(ed_native.mul(10u32.into()));
 		let _ = <T as pallet_signet::Config>::Currency::deposit_creating(&pallet_account, requester_needed);
