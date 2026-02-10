@@ -200,6 +200,7 @@ construct_runtime!(
 		Parameters: pallet_parameters = 83,
 		Signet: pallet_signet = 84,
 		EthDispenser: pallet_dispenser = 85,
+		BtcVault: pallet_btc_vault = 86,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -363,6 +364,7 @@ mod benches {
 		[pallet_dynamic_fees, DynamicFees]
 		[pallet_signet, Signet]
 		[pallet_dispenser, EthDispenser]
+		[pallet_btc_vault, BtcVault]
 		[ismp_parachain, IsmpParachain]
 		[pallet_token_gateway, TokenGateway]
 		[frame_system_extensions, frame_system_benchmarking::extensions::Pallet::<Runtime>]

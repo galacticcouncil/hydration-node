@@ -1869,6 +1869,8 @@ parameter_types! {
 
 	pub const MaxEvmDataLength: u32 = 100_000;
 	pub const MaxSignatureDeposit: Balance = 200_000_000_000_000;
+	pub const MaxInputs: u32 = 256;
+	pub const MaxOutputs: u32 = 256;
 }
 
 impl pallet_signet::Config for Runtime {
@@ -1880,6 +1882,8 @@ impl pallet_signet::Config for Runtime {
 	type MaxDataLength = MaxEvmDataLength;
 	type UpdateOrigin = EnsureRoot<AccountId>;
 	type MaxSignatureDeposit = MaxSignatureDeposit;
+	type MaxInputs = MaxInputs;
+	type MaxOutputs = MaxOutputs;
 }
 
 parameter_types! {
@@ -1911,6 +1915,7 @@ impl frame_support::traits::Get<EvmAddress> for SigEthFaucetContractAddr {
 impl pallet_dispenser::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Runtime>;
+	type UpdateOrigin = EnsureRoot<AccountId>;
 	type MinimumRequestAmount = SigEthFaucetMinRequest;
 	type MaxDispenseAmount = SigEthFaucetMaxDispense;
 	type DispenserFee = SigEthFaucetDispenserFee;
@@ -1921,6 +1926,32 @@ impl pallet_dispenser::Config for Runtime {
 	type PalletId = SigEthPalletId;
 	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const BtcVaultPalletId: PalletId = PalletId(*b"py/btcvt");
+	pub const BitcoinCaip2: &'static str = "bip122:000000000933ea01ad0ee984209779ba";
+	pub const MpcRootSignerAddress: [u8; 20] = [
+		0x1b, 0xe3, 0x1a, 0x94, 0x36, 0x1a, 0x39, 0x1b, 0xba, 0xfb,
+		0x2a, 0x4c, 0xcd, 0x70, 0x4f, 0x57, 0xdc, 0x04, 0xd4, 0xbb,
+	];
+	// hash160 of compressed vault pubkey derived from MPC root key with path "root"
+	pub const VaultPubkeyHash: [u8; 20] = [
+		0x73, 0x79, 0xa7, 0x34, 0x07, 0x6e, 0xb8, 0x2b, 0xa7, 0xa2,
+		0xf1, 0x8b, 0x4a, 0x0c, 0x7e, 0xc0, 0x9c, 0x64, 0x12, 0x67,
+	];
+	pub const KeyVersion: u32 = 0;
+}
+
+impl pallet_btc_vault::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type UpdateOrigin = EnsureRoot<AccountId>;
+	type PalletId = BtcVaultPalletId;
+	type BitcoinCaip2 = BitcoinCaip2;
+	type MpcRootSignerAddress = MpcRootSignerAddress;
+	type VaultPubkeyHash = VaultPubkeyHash;
+	type KeyVersion = KeyVersion;
+	type WeightInfo = weights::pallet_btc_vault::HydraWeight<Runtime>;
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);

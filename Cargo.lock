@@ -6217,6 +6217,7 @@ dependencies = [
  "pallet-balances",
  "pallet-bonds",
  "pallet-broadcast",
+ "pallet-btc-vault",
  "pallet-circuit-breaker",
  "pallet-claims",
  "pallet-collator-rewards",
@@ -9561,6 +9562,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-btc-vault"
+version = "0.1.0"
+dependencies = [
+ "alloy-sol-types 0.7.7",
+ "borsh",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "pallet-balances",
+ "pallet-signet",
+ "parity-scale-codec",
+ "scale-info",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-child-bounties"
 version = "39.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2503-11-patch#e5734fcc2dec3e01fa70e27d4562098a4845e55e"
@@ -11568,6 +11590,7 @@ dependencies = [
  "parity-scale-codec",
  "rlp 0.6.1",
  "scale-info",
+ "signet-rs",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -17417,6 +17440,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-big-array"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11fc7cc2c76d73e0f27ee52abbd64eec84d46f370c88371120433196934e4b7f"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde-hex-utils"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -17597,6 +17629,21 @@ checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
 dependencies = [
  "digest 0.10.7",
  "rand_core 0.6.4",
+]
+
+[[package]]
+name = "signet-rs"
+version = "0.2.5"
+source = "git+https://github.com/esaminu/signet.rs?branch=borsh-1.5.7#d85f0e81507c315ae65e08b9c28f172baf9a59ce"
+dependencies = [
+ "borsh",
+ "bs58",
+ "hex",
+ "rlp 0.6.1",
+ "serde",
+ "serde-big-array",
+ "serde_json",
+ "sha2 0.10.8",
 ]
 
 [[package]]

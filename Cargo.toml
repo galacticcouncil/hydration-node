@@ -50,7 +50,8 @@ members = [
     'liquidation-worker-support',
     'pallets/hsm',
     "pallets/signet",
-    "pallets/dispenser"
+    "pallets/dispenser",
+    "pallets/btc-vault"
 ]
 
 resolver = "2"
@@ -163,6 +164,7 @@ pallet-hsm = { path = "pallets/hsm", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
 pallet-signet = { path = "pallets/signet", default-features = false }
 pallet-dispenser = { path = "pallets/dispenser", default-features = false }
+pallet-btc-vault = { path = "pallets/btc-vault", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

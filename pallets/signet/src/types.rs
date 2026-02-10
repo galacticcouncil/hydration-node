@@ -1,3 +1,4 @@
+use frame_support::pallet_prelude::ConstU32;
 use frame_support::weights::Weight;
 
 pub trait WeightInfo {
@@ -10,3 +11,5 @@ pub trait WeightInfo {
 	fn respond_error() -> Weight;
 	fn respond_bidirectional() -> Weight;
 }
+
+pub type MaxScriptLength = ConstU32<520>;

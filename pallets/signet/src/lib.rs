@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use crate::types::MaxScriptLength;
 use ethereum::{AccessListItem, EIP1559TransactionMessage, TransactionAction};
 use frame_support::{
 	pallet_prelude::*,
@@ -77,6 +78,11 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxSignatureDeposit: Get<BalanceOf<Self>>;
+
+		#[pallet::constant]
+		type MaxInputs: Get<u32>;
+		#[pallet::constant]
+		type MaxOutputs: Get<u32>;
 	}
 
 	// ========================================
@@ -110,6 +116,21 @@ pub mod pallet {
 	pub struct ErrorResponse {
 		pub request_id: [u8; 32],
 		pub error_message: BoundedVec<u8, ConstU32<MAX_ERROR_MESSAGE_LENGTH>>,
+	}
+
+	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, RuntimeDebug)]
+	pub struct UtxoInput {
+		pub txid: [u8; 32],
+		pub vout: u32,
+		pub value: u64,
+		pub script_pubkey: BoundedVec<u8, MaxScriptLength>,
+		pub sequence: u32,
+	}
+
+	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, RuntimeDebug)]
+	pub struct BitcoinOutput {
+		pub value: u64,
+		pub script_pubkey: BoundedVec<u8, MaxScriptLength>,
 	}
 
 	// ========================================
@@ -236,6 +257,12 @@ pub mod pallet {
 		InvalidGasPrice,
 		/// Signature Deposit cannot exceed MaxSignatureDeposit
 		MaxDepositExceeded,
+
+		NoInputs,
+		NoOutputs,
+		InvalidLockTime,
+		PsbtCreationFailed,
+		PsbtSerializationFailed,
 	}
 
 	// ========================================
@@ -538,6 +565,96 @@ pub mod pallet {
 			output.extend_from_slice(&rlp::encode(&tx_message));
 
 			Ok(output)
+		}
+
+		pub fn build_bitcoin_tx(
+			origin: OriginFor<T>,
+			inputs: BoundedVec<UtxoInput, T::MaxInputs>,
+			outputs: BoundedVec<BitcoinOutput, T::MaxOutputs>,
+			lock_time: u32,
+		) -> Result<Vec<u8>, DispatchError> {
+			ensure_signed(origin)?;
+
+			ensure!(!inputs.is_empty(), Error::<T>::NoInputs);
+			ensure!(!outputs.is_empty(), Error::<T>::NoOutputs);
+
+			let (psbt_bytes, _) = Self::build_psbt(&inputs, &outputs, lock_time)?;
+			Ok(psbt_bytes)
+		}
+
+		pub fn get_txid(
+			origin: OriginFor<T>,
+			inputs: BoundedVec<UtxoInput, T::MaxInputs>,
+			outputs: BoundedVec<BitcoinOutput, T::MaxOutputs>,
+			lock_time: u32,
+		) -> Result<[u8; 32], DispatchError> {
+			ensure_signed(origin)?;
+
+			ensure!(!inputs.is_empty(), Error::<T>::NoInputs);
+			ensure!(!outputs.is_empty(), Error::<T>::NoOutputs);
+
+			let (_, txid) = Self::build_psbt(&inputs, &outputs, lock_time)?;
+			Ok(txid)
+		}
+
+		fn build_psbt(
+			inputs: &[UtxoInput],
+			outputs: &[BitcoinOutput],
+			lock_time: u32,
+		) -> Result<(Vec<u8>, [u8; 32]), DispatchError> {
+			use signet_rs::bitcoin::types::{
+				Amount, Hash, LockTime, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Txid, Version, Witness,
+			};
+			use signet_rs::{TransactionBuilder, TxBuilder, BITCOIN};
+
+			let tx_inputs: Vec<TxIn> = inputs
+				.iter()
+				.map(|input| TxIn {
+					previous_output: OutPoint::new(Txid(Hash(input.txid)), input.vout),
+					script_sig: ScriptBuf::default(),
+					sequence: Sequence(input.sequence),
+					witness: Witness::default(),
+				})
+				.collect();
+
+			let tx_outputs: Vec<TxOut> = outputs
+				.iter()
+				.map(|output| TxOut {
+					value: Amount::from_sat(output.value),
+					script_pubkey: ScriptBuf(output.script_pubkey.to_vec()),
+				})
+				.collect();
+
+			let lock_time_parsed = if lock_time < 500_000_000 {
+				LockTime::from_height(lock_time).map_err(|_| Error::<T>::InvalidLockTime)?
+			} else {
+				LockTime::from_time(lock_time).map_err(|_| Error::<T>::InvalidLockTime)?
+			};
+
+			let tx = TransactionBuilder::new::<BITCOIN>()
+				.version(Version::Two)
+				.inputs(tx_inputs)
+				.outputs(tx_outputs)
+				.lock_time(lock_time_parsed)
+				.build();
+
+			let txid = tx.compute_txid();
+			let mut txid_bytes = txid.as_byte_array();
+			txid_bytes.reverse();
+
+			let mut psbt = tx.to_psbt();
+
+			for (i, input) in inputs.iter().enumerate() {
+				psbt.update_input_with_witness_utxo(i, input.script_pubkey.to_vec(), input.value)
+					.map_err(|_| Error::<T>::PsbtCreationFailed)?;
+
+				psbt.update_input_with_sighash_type(i, 1)
+					.map_err(|_| Error::<T>::PsbtCreationFailed)?;
+			}
+
+			let psbt_bytes = psbt.serialize().map_err(|_| Error::<T>::PsbtSerializationFailed)?;
+
+			Ok((psbt_bytes, txid_bytes))
 		}
 	}
 }

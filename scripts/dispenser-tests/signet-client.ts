@@ -163,7 +163,7 @@ export class SignetClient {
       [
         sender,
         txHex,
-        params.caip2_id,
+        params.caip2Id,
         params.keyVersion,
         params.path,
         params.algo || '',
@@ -223,5 +223,25 @@ export class SignetClient {
     console.log('       Expected: ', expectedAddress)
 
     return recoveredAddress.toLowerCase() === expectedAddress.toLowerCase()
+  }
+
+  async ensureInitialized(chainId: string): Promise<void> {
+    const admin = await this.api.query.signet.admin()
+    if (!admin.isEmpty) {
+      console.log('Signet already initialized, skipping')
+      return
+    }
+
+    const chainIdBytes = Array.from(new TextEncoder().encode(chainId))
+    const signetInitCall = this.api.tx.signet.initialize(
+      this.signer.address,
+      1_000_000_000_000n,
+      chainIdBytes,
+    )
+    await executeAsRootViaScheduler(
+      this.api,
+      signetInitCall,
+      'Initialize signet via Root',
+    )
   }
 }

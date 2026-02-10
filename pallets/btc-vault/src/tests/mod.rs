@@ -1,11 +1,9 @@
-mod test_cases;
-pub mod utils;
+pub mod test_cases;
 
-use crate::weights::WeightInfo;
-use crate::{self as pallet_signet, *};
+use crate as pallet_btc_vault;
 use frame_support::{
 	parameter_types,
-	traits::{ConstU16, ConstU64},
+	traits::{Currency, Everything},
 	PalletId,
 };
 use frame_system as system;
@@ -15,69 +13,35 @@ use sp_runtime::{
 	BuildStorage,
 };
 
-#[frame_support::pallet]
-pub mod pallet_mock_caller {
-	use crate::{self as pallet_signet, tests::utils::bounded_u8};
-	use frame_support::{pallet_prelude::*, PalletId};
-	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::AccountIdConversion;
-
-	#[pallet::pallet]
-	pub struct Pallet<T>(_);
-
-	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_signet::Config {
-		#[pallet::constant]
-		type PalletId: Get<PalletId>;
-	}
-
-	#[pallet::call]
-	impl<T: Config> Pallet<T> {
-		#[pallet::call_index(0)]
-		#[pallet::weight(Weight::from_parts(10_000, 0))]
-		pub fn call_signet(origin: OriginFor<T>) -> DispatchResult {
-			// This pallet will call signet with ITS OWN account as the sender
-			let _who = ensure_signed(origin)?;
-
-			// Get this pallet's derived account (use fully-qualified syntax)
-			let pallet_account: T::AccountId = <T as Config>::PalletId::get().into_account_truncating();
-
-			// Call signet from this pallet's account
-			pallet_signet::Pallet::<T>::sign(
-				frame_system::RawOrigin::Signed(pallet_account).into(),
-				[99u8; 32],
-				1,
-				bounded_u8::<256>(b"from_pallet".to_vec()),
-				bounded_u8::<32>(b"ecdsa".to_vec()),
-				bounded_u8::<64>(b"".to_vec()),
-				bounded_u8::<1024>(b"{}".to_vec()),
-			)?;
-
-			Ok(())
-		}
-	}
-}
-
 type Block = frame_system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime!(
-	pub enum Test
-	{
+	pub enum Test {
 		System: frame_system,
 		Balances: pallet_balances,
 		Signet: pallet_signet,
-		MockCaller: pallet_mock_caller,
+		BtcVault: pallet_btc_vault,
 	}
 );
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
-	pub const SS58Prefix: u8 = 42;
+	pub const ExistentialDeposit: u128 = 1;
+	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
+	pub const BtcVaultPalletId: PalletId = PalletId(*b"btcvault");
+	pub const MaxChainIdLength: u32 = 128;
 	pub const MaxDataLength: u32 = 100_000;
+	pub const MaxSignatureDeposit: u32 = 10_000_000;
+	pub const MaxInputs: u32 = 10;
+	pub const MaxOutputs: u32 = 10;
+	pub const BitcoinCaip2: &'static str = "bip122:000000000019d6689c085ae165831e93";
+	pub const MpcRootSignerAddress: [u8; 20] = [1u8; 20];
+	pub const VaultPubkeyHash: [u8; 20] = [0xAA; 20];
+	pub const KeyVersion: u32 = 0;
 }
 
 impl system::Config for Test {
-	type BaseCallFilter = frame_support::traits::Everything;
+	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
@@ -90,14 +54,14 @@ impl system::Config for Test {
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Block = Block;
 	type RuntimeEvent = RuntimeEvent;
-	type BlockHashCount = ConstU64<250>;
+	type BlockHashCount = BlockHashCount;
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<u128>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
-	type SS58Prefix = ConstU16<42>;
+	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 	type RuntimeTask = ();
@@ -107,10 +71,6 @@ impl system::Config for Test {
 	type PostInherents = ();
 	type PostTransactions = ();
 	type ExtensionsWeightInfo = ();
-}
-
-parameter_types! {
-	pub const ExistentialDeposit: u128 = 1;
 }
 
 impl pallet_balances::Config for Test {
@@ -130,23 +90,12 @@ impl pallet_balances::Config for Test {
 	type DoneSlashHandler = ();
 }
 
-parameter_types! {
-	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
-	pub const MaxChainIdLength: u32 = 128;
-	pub const MaxSignatureDeposit: u32 = 10000000;
-}
-
-parameter_types! {
-	pub const MaxInputs: u32 = 10;
-	pub const MaxOutputs: u32 = 10;
-}
-
 impl pallet_signet::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
 	type MaxChainIdLength = MaxChainIdLength;
-	type WeightInfo = WeightInfo<Test>;
+	type WeightInfo = pallet_signet::weights::WeightInfo<Test>;
 	type MaxDataLength = MaxDataLength;
 	type UpdateOrigin = frame_system::EnsureRoot<u64>;
 	type MaxSignatureDeposit = MaxSignatureDeposit;
@@ -154,17 +103,19 @@ impl pallet_signet::Config for Test {
 	type MaxOutputs = MaxOutputs;
 }
 
-parameter_types! {
-	pub const MockCallerPalletId: PalletId = PalletId(*b"py/mockc");
-}
-
-impl pallet_mock_caller::Config for Test {
-	type PalletId = MockCallerPalletId;
+impl pallet_btc_vault::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type UpdateOrigin = frame_system::EnsureRoot<u64>;
+	type PalletId = BtcVaultPalletId;
+	type BitcoinCaip2 = BitcoinCaip2;
+	type MpcRootSignerAddress = MpcRootSignerAddress;
+	type VaultPubkeyHash = VaultPubkeyHash;
+	type KeyVersion = KeyVersion;
+	type WeightInfo = crate::weights::SubstrateWeight<Test>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = system::GenesisConfig::<Test>::default().build_storage().unwrap();
-
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| {
 		System::set_block_number(1);

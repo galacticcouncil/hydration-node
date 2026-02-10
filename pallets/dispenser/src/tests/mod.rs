@@ -146,6 +146,11 @@ parameter_types! {
 	pub const MaxSignatureDeposit: u128 = 100_000_000_000;
 }
 
+parameter_types! {
+	pub const MaxInputs: u32 = 10;
+	pub const MaxOutputs: u32 = 10;
+}
+
 impl pallet_signet::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
@@ -155,6 +160,8 @@ impl pallet_signet::Config for Test {
 	type MaxDataLength = MaxDataLength;
 	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
 	type MaxSignatureDeposit = MaxSignatureDeposit;
+	type MaxInputs = MaxInputs;
+	type MaxOutputs = MaxOutputs;
 }
 
 parameter_types! {
@@ -179,6 +186,7 @@ impl pallet_dispenser::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type PalletId = DispenserPalletId;
 	type Currency = FungibleCurrencies<Test>;
+	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
 	type MinimumRequestAmount = SigEthFaucetMinRequest;
 	type MaxDispenseAmount = SigEthFaucetMaxDispense;
 	type DispenserFee = SigEthFaucetDispenserFee;

@@ -93,6 +93,7 @@ pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
 pallet-signet = { workspace = true }
 pallet-dispenser = { workspace = true }
+pallet-btc-vault = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -263,6 +264,7 @@ runtime-benchmarks = [
     "pallet-xcm-benchmarks/runtime-benchmarks",
     "pallet-signet/runtime-benchmarks",
     "pallet-dispenser/runtime-benchmarks",
+    "pallet-btc-vault/runtime-benchmarks",
     "ismp-parachain/runtime-benchmarks",
     "pallet-token-gateway/runtime-benchmarks",
     "cumulus-pallet-weight-reclaim/runtime-benchmarks",
@@ -393,6 +395,7 @@ std = [
     "pallet-dispatcher/std",
     "pallet-signet/std",
     "pallet-dispenser/std",
+    "pallet-btc-vault/std",
     # Hyperbridge
     "anyhow/std",
     "pallet-hyperbridge/std",
