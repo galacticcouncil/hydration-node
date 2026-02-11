@@ -105,18 +105,6 @@ parameter_types! {
 	pub const ReserveAccount: AccountId32 = AccountId32::new([9u8; 32]);
 }
 
-pub struct EgressHandlerMock;
-impl OnWithdraw<AccountId, CurrencyId, Balance> for EgressHandlerMock {
-	fn on_withdraw(_asset_id: CurrencyId, _who: &AccountId, _amount: Balance) -> DispatchResult {
-		Ok(())
-	}
-}
-impl OnTransfer<AccountId, CurrencyId, Balance> for EgressHandlerMock {
-	fn on_transfer(_asset_id: CurrencyId, _from: &AccountId, _to: &AccountId, _amount: Balance) -> DispatchResult {
-		Ok(())
-	}
-}
-
 impl Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
@@ -126,7 +114,7 @@ impl Config for Runtime {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type RegistryInspect = MockBoundErc20<Runtime>;
-	type EgressHandler = EgressHandlerMock;
+	type EgressHandler = MockEgressHandler<Runtime>;
 	type WeightInfo = ();
 }
 pub type NativeCurrency = NativeCurrencyOf<Runtime>;
