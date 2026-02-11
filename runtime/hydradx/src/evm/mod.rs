@@ -67,6 +67,7 @@ pub use erc20_currency::Function;
 pub use erc20_currency::HOLDING_ADDRESS;
 pub use executor::Executor;
 pub use primitives::AccountId as AccountIdType;
+use crate::circuit_breaker::IgnoreWithdrawFuse;
 
 // Current approximation of the gas per second consumption considering
 // EVM execution over compiled WASM (on 4.4Ghz CPU).
@@ -204,6 +205,7 @@ impl pallet_evm::Config for Runtime {
 		FungibleCurrencies<Runtime>, // Multi currency support
 		XykPaymentAssetSupport,
 		DotAssetId,
+		IgnoreWithdrawFuse<Runtime>,
 	>;
 	type OnCreate = ();
 	type FindAuthor = FindAuthorTruncated<Runtime, Aura>;
