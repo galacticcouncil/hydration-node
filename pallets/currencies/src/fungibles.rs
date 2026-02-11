@@ -258,7 +258,7 @@ where
 		who: &T::AccountId,
 		amount: Self::Balance,
 	) -> Result<Self::Balance, DispatchError> {
-		if asset == T::GetNativeCurrencyId::get() {
+		let result = if asset == T::GetNativeCurrencyId::get() {
 			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::mint_into(who, amount.into()).into()
 		} else {
 			match T::BoundErc20::contract_address(asset) {
@@ -276,7 +276,15 @@ where
 						.into()
 				}
 			}
+		};
+
+		if result.is_ok() {
+			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnDeposit::handle(
+				&(asset, amount, None),
+			)?;
 		}
+
+		result
 	}
 
 	fn burn_from(
@@ -367,6 +375,10 @@ where
 		if result.is_ok() {
 			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnTransfer::on_transfer(
 				asset, source, dest, amount
+			)?;
+
+			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnDeposit::handle(
+				&(asset, amount, Some(source.clone())),
 			)?;
 
 			#[cfg(any(feature = "try-runtime", test))]

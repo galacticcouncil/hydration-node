@@ -46,7 +46,7 @@ impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrency
 		}
 	}
 
-	pub fn should_account_operation(
+	pub fn should_account_withdraw_operation(
 		asset_id: AssetId,
 		op_kind: EgressOperationKind,
 		maybe_dest: Option<&AccountId>,
@@ -57,10 +57,18 @@ impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrency
 
 		let category = Self::global_asset_category(asset_id);
 		match op_kind {
-			EgressOperationKind::Withdraw if category.is_some() => true,
-			EgressOperationKind::Transfer if category.is_some() => maybe_dest
-				.and_then(pallet_circuit_breaker::Pallet::<Runtime>::is_account_egress)
-				.is_some(),
+			EgressOperationKind::Withdraw => matches!(category, Some(GlobalAssetCategory::External)),
+			EgressOperationKind::Transfer if category.is_some() => {
+				maybe_dest.and_then(CircuitBreaker::is_account_egress).is_some()
+			}
+			_ => false,
+		}
+	}
+
+	pub fn should_account_deposit_operation(asset_id: AssetId, maybe_source: Option<AccountId>) -> bool {
+		match Self::global_asset_category(asset_id) {
+			Some(GlobalAssetCategory::External) => true,
+			Some(GlobalAssetCategory::Local) => maybe_source.and_then(CircuitBreaker::is_account_egress).is_some(),
 			_ => false,
 		}
 	}
@@ -68,6 +76,7 @@ impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrency
 	fn on_egress(asset_id: AssetId, amount: Balance) -> DispatchResult {
 		let amount_ref_currency = Self::convert_to_hdx(asset_id, amount)
 			.ok_or(pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset)?;
+
 		pallet_circuit_breaker::Pallet::<Runtime>::note_egress(amount_ref_currency)
 	}
 
@@ -82,7 +91,11 @@ impl<RC: Get<AssetId>> orml_traits::Handler<(AssetId, Balance)> for OnWithdrawHo
 	fn handle(t: &(AssetId, Balance)) -> DispatchResult {
 		let (asset_id, amount) = *t;
 
-		if WithdrawCircuitBreaker::<RC>::should_account_operation(asset_id, EgressOperationKind::Withdraw, None) {
+		if WithdrawCircuitBreaker::<RC>::should_account_withdraw_operation(
+			asset_id,
+			EgressOperationKind::Withdraw,
+			None,
+		) {
 			WithdrawCircuitBreaker::<RC>::on_egress(asset_id, amount)?;
 		}
 		Ok(())
@@ -92,8 +105,27 @@ impl<RC: Get<AssetId>> orml_traits::Handler<(AssetId, Balance)> for OnWithdrawHo
 pub struct OnTransferHook<RC>(PhantomData<RC>);
 impl<RC: Get<AssetId>> orml_traits::currency::OnTransfer<AccountId, AssetId, Balance> for OnTransferHook<RC> {
 	fn on_transfer(asset_id: AssetId, _from: &AccountId, to: &AccountId, amount: Balance) -> DispatchResult {
-		if WithdrawCircuitBreaker::<RC>::should_account_operation(asset_id, EgressOperationKind::Transfer, Some(to)) {
+		if WithdrawCircuitBreaker::<RC>::should_account_withdraw_operation(
+			asset_id,
+			EgressOperationKind::Transfer,
+			Some(to),
+		) {
 			WithdrawCircuitBreaker::<RC>::on_egress(asset_id, amount)?;
+		}
+		Ok(())
+	}
+}
+
+pub struct OnDepositHook<RC>(PhantomData<RC>);
+impl<RC: Get<AssetId>> orml_traits::Handler<(AssetId, Balance, Option<AccountId>)> for OnDepositHook<RC> {
+	fn handle(t: &(AssetId, Balance, Option<AccountId>)) -> DispatchResult {
+		let (asset_id, amount, maybe_from) = t;
+
+		if WithdrawCircuitBreaker::<RC>::should_account_deposit_operation(*asset_id, maybe_from.clone()) {
+			let amount_ref_currency = WithdrawCircuitBreaker::<RC>::convert_to_hdx(*asset_id, *amount)
+				.ok_or(pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset)?;
+
+			CircuitBreaker::note_deposit(amount_ref_currency)
 		}
 		Ok(())
 	}

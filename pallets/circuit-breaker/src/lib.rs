@@ -790,6 +790,16 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	pub fn note_deposit(amount: T::Balance) {
+		let now = Self::timestamp_now();
+		if !Self::is_lockdown_at(now) {
+			let (current, _) = Self::withdraw_limit_accumulator();
+			let new_current = current.saturating_sub(amount);
+
+			WithdrawLimitAccumulator::<T>::put((new_current, now));
+		}
+	}
+
 	fn initialize_trade_limit(asset_id: T::AssetId, initial_asset_reserve: T::Balance) -> DispatchResult {
 		if asset_id != T::OmnipoolHubAsset::get() && !<AllowedTradeVolumeLimitPerAsset<T>>::contains_key(asset_id) {
 			let limit = Self::calculate_limit(

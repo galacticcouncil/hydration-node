@@ -763,6 +763,8 @@ where
 				}
 			};
 
+			WF::set_withdraw_fuse_active(false);
+
 			// refund to the account that paid the fees
 			MC::deposit(currency, who, refund)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
@@ -770,6 +772,8 @@ where
 			// deposit the fee
 			DF::deposit_fee(&fee_receiver, currency, fee + tip)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+			WF::set_withdraw_fuse_active(true);
 		}
 
 		Ok(())
