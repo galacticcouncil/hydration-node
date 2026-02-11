@@ -51,17 +51,13 @@ impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrency
 		op_kind: EgressOperationKind,
 		maybe_dest: Option<&AccountId>,
 	) -> bool {
-		if CircuitBreaker::ignore_withdraw_limit() {
+		if CircuitBreaker::ignore_withdraw_limit() || Self::global_asset_category(asset_id).is_none() {
 			return false;
 		}
 
-		let category = Self::global_asset_category(asset_id);
 		match op_kind {
-			EgressOperationKind::Withdraw => matches!(category, Some(GlobalAssetCategory::External)),
-			EgressOperationKind::Transfer if category.is_some() => {
-				maybe_dest.and_then(CircuitBreaker::is_account_egress).is_some()
-			}
-			_ => false,
+			EgressOperationKind::Withdraw => true,
+			EgressOperationKind::Transfer => maybe_dest.and_then(CircuitBreaker::is_account_egress).is_some(),
 		}
 	}
 

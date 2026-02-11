@@ -23,6 +23,7 @@ use frame_support::dispatch::DispatchResult;
 use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 use frame_support::traits::{Get, IsType, TryDrop};
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::AccountFeeCurrency;
 use pallet_evm::{AddressMapping, Error};
@@ -38,7 +39,6 @@ use {
 	sp_core::{H160, U256},
 	sp_runtime::traits::UniqueSaturatedInto,
 };
-use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 
 #[derive(Copy, Clone, Default)]
 pub struct EvmPaymentInfo<Price> {
@@ -69,6 +69,7 @@ impl<Price> TryDrop for EvmPaymentInfo<Price> {
 
 /// Implements the transaction payment for EVM transactions.
 /// Supports multi-currency fees based on what is provided by AC - account currency.
+#[allow(clippy::type_complexity)]
 pub struct TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId, WF>(
 	PhantomData<(
 		OU,

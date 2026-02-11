@@ -62,12 +62,12 @@ pub mod permit;
 pub mod precompiles;
 mod runner;
 
+use crate::circuit_breaker::IgnoreWithdrawFuse;
 pub use erc20_currency::Erc20Currency;
 pub use erc20_currency::Function;
 pub use erc20_currency::HOLDING_ADDRESS;
 pub use executor::Executor;
 pub use primitives::AccountId as AccountIdType;
-use crate::circuit_breaker::IgnoreWithdrawFuse;
 
 // Current approximation of the gas per second consumption considering
 // EVM execution over compiled WASM (on 4.4Ghz CPU).
