@@ -6335,6 +6335,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "impl-trait-for-tuples",
+ "orml-traits",
  "pallet-evm",
  "parity-scale-codec",
  "primitives",
