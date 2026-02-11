@@ -12,6 +12,7 @@ pub mod omnipool_liquidity_mining;
 pub mod route_executor;
 //pub mod token_gateway_ismp;
 pub mod intent;
+pub mod lazy_executor;
 pub mod tokens;
 pub mod vesting;
 pub mod xyk;

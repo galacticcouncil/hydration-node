@@ -392,6 +392,7 @@ mod benches {
 		[pallet_evm_accounts, benchmarking::evm_accounts::Benchmark]
 		[pallet_migrations, MultiBlockMigrations]
 		[pallet_intent, benchmarking::intent::Benchmark]
+		[pallet_lazy_executor, benchmarking::lazy_executor::Benchmark]
 	);
 }
 

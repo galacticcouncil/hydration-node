@@ -254,7 +254,7 @@ pub mod pallet {
 				}
 			};
 
-			Weight::from_parts(1000, 1000).saturating_add(info.call_weight).saturating_add(T::DbWeight::get().reads(1_u64))
+			<T as pallet::Config>::WeightInfo::dispatch_top_base_weight().saturating_add(info.call_weight)
 		})]
 		pub fn dispatch_top(origin: OriginFor<T>) -> DispatchResult {
 			ensure_none(origin)?;

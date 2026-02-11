@@ -52,6 +52,7 @@ pub mod pallet_token_gateway;
 // FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
 // pub mod pallet_token_gateway_ismp;
 pub mod pallet_intent;
+pub mod pallet_lazy_executor;
 pub mod pallet_transaction_multi_payment;
 pub mod pallet_transaction_pause;
 pub mod pallet_transaction_payment;

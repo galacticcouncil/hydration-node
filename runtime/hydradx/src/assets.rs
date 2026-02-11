@@ -1872,7 +1872,7 @@ impl pallet_lazy_executor::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type UnsignedLongevity = ConstU64<2>;
 	type UnsignedPriority = ConstU64<100>;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_lazy_executor::HydraWeight<Runtime>;
 }
 
 parameter_types! {
