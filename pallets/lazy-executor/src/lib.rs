@@ -103,6 +103,7 @@ pub mod pallet {
 
 	#[pallet::type_value]
 	pub(super) fn DefaultMaxCallWeight() -> Weight {
+		//TODO: set reasonable value
 		Weight::from_parts(10_000_000_000_u64, 26_000)
 	}
 
@@ -296,12 +297,6 @@ impl<T: Config> Pallet<T> {
 			.call_weight
 			.saturating_add(<T as Config>::WeightInfo::dispatch_top_base_weight());
 
-		let call_id = Self::get_next_call_id()?;
-		let dispatch_top_call: pallet::Call<T> = Call::dispatch_top {};
-		info.call_weight = info
-			.call_weight
-			.saturating_add(dispatch_top_call.get_dispatch_info().call_weight);
-
 		if info.call_weight.any_gt(Self::max_weight_per_call()) {
 			return Err(Error::<T>::Overweight.into());
 		}
@@ -338,6 +333,7 @@ impl<T: Config> Pallet<T> {
 		)
 		.map_err(|_| Error::<T>::FailedToDepositFees)?;
 
+		let call_id = Self::get_next_call_id()?;
 		CallQueue::<T>::insert(
 			call_id,
 			CallData {
