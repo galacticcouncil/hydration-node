@@ -1,5 +1,4 @@
 use crate::module::{BalanceOf, CurrencyIdOf};
-use crate::OnWithdraw;
 use crate::{Config, Error, Pallet};
 use frame_support::fail;
 use frame_support::traits::fungibles::Inspect as FungibleInspect;
@@ -10,9 +9,10 @@ use frame_support::traits::{
 	ExistenceRequirement,
 };
 
+use hydradx_traits::circuit_breaker::AssetWithdrawHandler;
 use hydradx_traits::{BoundErc20, Inspect};
 use orml_traits::currency::OnTransfer;
-use orml_traits::MultiCurrency;
+use orml_traits::{Handler, MultiCurrency};
 #[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::traits::Zero;
 use sp_runtime::traits::{CheckedSub, Get};
@@ -321,7 +321,9 @@ where
 		};
 
 		if result.is_ok() {
-			T::EgressHandler::on_withdraw(asset, who, amount)?;
+			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnWithdraw::handle(
+				&(asset, amount)
+			)?;
 		}
 
 		result
@@ -363,7 +365,9 @@ where
 		};
 
 		if result.is_ok() {
-			T::EgressHandler::on_transfer(asset, source, dest, amount)?;
+			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnTransfer::on_transfer(
+				asset, source, dest, amount
+			)?;
 
 			#[cfg(any(feature = "try-runtime", test))]
 			{

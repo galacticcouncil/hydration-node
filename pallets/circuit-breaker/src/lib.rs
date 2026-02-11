@@ -741,7 +741,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Decay the accumulator linearly over the configured window.
 	/// Guarded to run at most once per block (by timestamp guard).
-	pub fn try_to_decay_withdraw_limit_accumulator() {
+	fn try_to_decay_withdraw_limit_accumulator() {
 		let window = Self::global_withdraw_window();
 		if window < 1 {
 			return;

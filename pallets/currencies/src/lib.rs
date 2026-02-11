@@ -56,19 +56,9 @@ use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
 	currency::{OnTransfer, TransferAll},
 	BalanceStatus, BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency, GetByKey,
-	LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
+	Handler, LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
 	NamedBasicReservableCurrency, NamedMultiReservableCurrency,
 };
-
-pub trait OnWithdraw<AccountId, AssetId, Balance> {
-	fn on_withdraw(asset_id: AssetId, who: &AccountId, amount: Balance) -> DispatchResult;
-}
-
-impl<AccountId, AssetId, Balance> OnWithdraw<AccountId, AssetId, Balance> for () {
-	fn on_withdraw(_asset_id: AssetId, _who: &AccountId, _amount: Balance) -> DispatchResult {
-		Ok(())
-	}
-}
 use orml_utilities::with_transaction_result;
 use primitives::EvmAddress;
 use sp_runtime::{
@@ -133,8 +123,7 @@ pub mod module {
 		type RegistryInspect: hydradx_traits::registry::Inspect<AssetId = CurrencyIdOf<Self>>;
 
 		/// Egress handler for tracking token outflows.
-		type EgressHandler: OnWithdraw<Self::AccountId, CurrencyIdOf<Self>, BalanceOf<Self>>
-			+ OnTransfer<Self::AccountId, CurrencyIdOf<Self>, BalanceOf<Self>>;
+		type EgressHandler: AssetWithdrawHandler<Self::AccountId, CurrencyIdOf<Self>, BalanceOf<Self>>;
 
 		/// Weight information for extrinsics in this module.
 		type WeightInfo: WeightInfo;
@@ -344,7 +333,12 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 			};
 		}
 
-		T::EgressHandler::on_transfer(currency_id, from, to, amount)?;
+		<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnTransfer::on_transfer(
+			currency_id,
+			from,
+			to,
+			amount
+		)?;
 
 		Self::deposit_event(Event::Transferred {
 			currency_id,
@@ -410,7 +404,9 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 			}
 		}
 
-		T::EgressHandler::on_withdraw(currency_id, who, amount)?;
+		<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnWithdraw::handle(
+			&(currency_id, amount),
+		)?;
 
 		Self::deposit_event(Event::Withdrawn {
 			currency_id,
@@ -1059,6 +1055,7 @@ impl<T: Config> TransferAll<T::AccountId> for Pallet<T> {
 
 use frame_support::traits::fungible::{Dust, Inspect, Mutate, Unbalanced};
 use frame_support::traits::tokens::{DepositConsequence, Fortitude, Preservation, Provenance, WithdrawConsequence};
+use hydradx_traits::circuit_breaker::AssetWithdrawHandler;
 
 impl<T: Config, AccountId, Currency, Amount, Moment> Inspect<AccountId>
 	for BasicCurrencyAdapter<T, Currency, Amount, Moment>
@@ -1255,4 +1252,11 @@ impl<T: Config> BoundErc20 for MockBoundErc20<T> {
 	fn contract_address(_id: Self::AssetId) -> Option<EvmAddress> {
 		None
 	}
+}
+
+pub struct MockEgressHandler<T>(PhantomData<T>);
+impl<T: Config> AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>> for MockEgressHandler<T> {
+	type OnWithdraw = ();
+	type OnDeposit = ();
+	type OnTransfer = ();
 }
