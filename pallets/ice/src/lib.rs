@@ -53,6 +53,7 @@ use ice_support::Score;
 use ice_support::Solution;
 use ice_support::MAX_NUMBER_OF_RESOLVED_INTENTS;
 use orml_traits::MultiCurrency;
+use pallet_route_executor::AmmTradeWeights;
 use sp_core::U512;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::BlockNumberProvider;
@@ -181,7 +182,22 @@ pub mod pallet {
 		/// - `SolutionExecuted`when `solution` was executed successfully
 		///
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::submit_solution())]
+		#[pallet::weight({
+			let mut total_w = <T as Config>::WeightInfo::submit_solution().saturating_mul(solution.resolved_intents.len() as u64);
+
+			for t in &solution.trades {
+				match t.direction {
+					SwapType::ExactOut => {
+						total_w = total_w.saturating_add(<T as pallet_route_executor::Config>::WeightInfo::buy_weight(t.route.as_slice()));
+					}
+					SwapType::ExactIn => {
+						total_w = total_w.saturating_add(<T as pallet_route_executor::Config>::WeightInfo::sell_weight(t.route.as_slice()));
+					}
+				}
+			}
+
+			total_w
+		})]
 		pub fn submit_solution(
 			origin: OriginFor<T>,
 			solution: Solution,

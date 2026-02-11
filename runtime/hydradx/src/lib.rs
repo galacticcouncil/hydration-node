@@ -393,6 +393,7 @@ mod benches {
 		[pallet_migrations, MultiBlockMigrations]
 		[pallet_intent, benchmarking::intent::Benchmark]
 		[pallet_lazy_executor, benchmarking::lazy_executor::Benchmark]
+		[pallet_ice, benchmarking::ice::Benchmark]
 	);
 }
 

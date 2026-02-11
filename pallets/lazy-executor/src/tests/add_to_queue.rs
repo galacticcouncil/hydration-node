@@ -18,12 +18,13 @@ fn add_to_queue_should_work_when_call_is_valid() {
 		//Act&Assert
 		assert_ok!(LazyExecutor::add_to_queue(Source::ICE(0), ALICE, call));
 
+		//TODO: make better assertion so we don't have to change it when weight change
 		assert!(has_event(
 			Event::Queued {
 				id: 0,
 				src: Source::ICE(0),
 				who: ALICE,
-				fees: 108_160_159_u128
+				fees: 108_159_159_u128
 			}
 			.into()
 		))

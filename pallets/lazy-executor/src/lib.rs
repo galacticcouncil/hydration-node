@@ -104,7 +104,7 @@ pub mod pallet {
 	#[pallet::type_value]
 	pub(super) fn DefaultMaxCallWeight() -> Weight {
 		//TODO: set reasonable value
-		Weight::from_parts(10_000_000_000_u64, 26_000)
+		Weight::from_parts(10_000_000_000_u64, 5_000_000)
 	}
 
 	#[pallet::storage]

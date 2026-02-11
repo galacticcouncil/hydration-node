@@ -1917,7 +1917,7 @@ impl pallet_ice::Config for Runtime {
 	type PalletId = IcePalletId;
 	type BlockNumberProvider = System;
 	type Simulator = HydrationSimulatorConfig;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_ice::HydraWeight<Runtime>;
 }
 
 parameter_types! {

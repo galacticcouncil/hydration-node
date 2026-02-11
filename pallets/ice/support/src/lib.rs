@@ -20,7 +20,6 @@ pub type Price = Ratio;
 
 pub const MAX_NUMBER_OF_RESOLVED_INTENTS: u32 = 100;
 pub const MAX_NUMBER_OF_SOLUTION_TRADES: u32 = 200;
-pub const MAX_NUMBER_OF_CLEARING_PRICES: u32 = MAX_NUMBER_OF_SOLUTION_TRADES * 2;
 
 pub type ResolvedIntents = BoundedVec<ResolvedIntent, ConstU32<MAX_NUMBER_OF_RESOLVED_INTENTS>>;
 pub type SolutionTrades = BoundedVec<PoolTrade, ConstU32<MAX_NUMBER_OF_SOLUTION_TRADES>>;
