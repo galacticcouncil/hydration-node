@@ -57,7 +57,7 @@ where
 		match op_kind {
 			OperationKind::Burn | OperationKind::Withdraw if category.is_some() => true,
 			OperationKind::Transfer if category.is_some() => maybe_dest
-				.and_then(|dest| pallet_circuit_breaker::Pallet::<Runtime>::is_account_egress(dest))
+				.and_then(pallet_circuit_breaker::Pallet::<Runtime>::is_account_egress)
 				.is_some(),
 			_ => false,
 		}
