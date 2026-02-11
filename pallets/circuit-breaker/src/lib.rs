@@ -158,7 +158,7 @@ pub mod pallet {
 			let _ = <AllowedTradeVolumeLimitPerAsset<T>>::clear(u32::MAX, None);
 			let _ = <AllowedAddLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
 			let _ = <AllowedRemoveLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
-			IgnoreWithdrawFuse::<T>::kill();
+			IgnoreWithdrawLimit::<T>::kill();
 		}
 
 		fn integrity_test() {
@@ -351,9 +351,9 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::whitelist_storage]
-	#[pallet::getter(fn ignore_withdraw_fuse)]
+	#[pallet::getter(fn ignore_withdraw_limit)]
 	/// When set to true, egress accounting is skipped.
-	pub type IgnoreWithdrawFuse<T: Config> = StorageValue<_, bool, ValueQuery>;
+	pub type IgnoreWithdrawLimit<T: Config> = StorageValue<_, bool, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn global_asset_overrides)]
@@ -637,7 +637,7 @@ pub mod pallet {
 		/// Set the global withdraw limit (reference currency units)
 		/// Can be called only by authority origin.
 		#[pallet::call_index(6)]
-		#[pallet::weight(T::DbWeight::get().writes(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::set_global_withdraw_limit())]
 		pub fn set_global_withdraw_limit(origin: OriginFor<T>, limit: T::Balance) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 			GlobalWithdrawLimit::<T>::put(limit);
@@ -648,7 +648,7 @@ pub mod pallet {
 		/// Reset the global lockdown and accumulator to zero at current block.
 		/// Can be called only by authority origin.
 		#[pallet::call_index(7)]
-		#[pallet::weight(T::DbWeight::get().reads_writes(1,2))]
+		#[pallet::weight(<T as Config>::WeightInfo::reset_withdraw_lockdown())]
 		pub fn reset_withdraw_lockdown(origin: OriginFor<T>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -662,7 +662,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(8)]
-		#[pallet::weight(T::DbWeight::get().writes(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::add_egress_accounts(accounts.len() as u32))]
 		pub fn add_egress_accounts(origin: OriginFor<T>, accounts: Vec<T::AccountId>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -677,7 +677,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(9)]
-		#[pallet::weight(T::DbWeight::get().writes(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_egress_accounts(accounts.len() as u32))]
 		pub fn remove_egress_accounts(origin: OriginFor<T>, accounts: Vec<T::AccountId>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -693,7 +693,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(10)]
-		#[pallet::weight(T::DbWeight::get().writes(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::set_global_withdraw_lockdown())]
 		pub fn set_global_withdraw_lockdown(origin: OriginFor<T>, until: primitives::Moment) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 			WithdrawLockdownUntil::<T>::put(until);
@@ -702,7 +702,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(11)]
-		#[pallet::weight(T::DbWeight::get().writes(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::set_asset_category())]
 		pub fn set_asset_category(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,

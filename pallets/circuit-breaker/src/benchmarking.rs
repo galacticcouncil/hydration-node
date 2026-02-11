@@ -187,44 +187,44 @@ benchmarks! {
 	}
 
 	add_egress_accounts {
-        let n in 0 .. 100;
-        let mut accounts: Vec<T::AccountId> = Vec::with_capacity(n as usize);
-        for i in 0..n {
-            // deterministic accounts; any method ok
-            let acc: T::AccountId = frame_benchmarking::account("egress", i, 0);
-            accounts.push(acc);
-        }
-    }: _(RawOrigin::Root, accounts) // or the proper AuthorityOrigin if not Root
-    verify {
-        // spot check: last inserted exists
-        if n > 0 {
-            let last = frame_benchmarking::account::<T::AccountId>("egress", n-1, 0);
-            assert!(EgressAccounts::<T>::contains_key(last));
-        }
-    }
+		let n in 0 .. 100;
+		let mut accounts: Vec<T::AccountId> = Vec::with_capacity(n as usize);
+		for i in 0..n {
+			// deterministic accounts; any method ok
+			let acc: T::AccountId = frame_benchmarking::account("egress", i, 0);
+			accounts.push(acc);
+		}
+	}: _(RawOrigin::Root, accounts) // or the proper AuthorityOrigin if not Root
+	verify {
+		// spot check: last inserted exists
+		if n > 0 {
+			let last = frame_benchmarking::account::<T::AccountId>("egress", n-1, 0);
+			assert!(EgressAccounts::<T>::contains_key(last));
+		}
+	}
 
-    remove_egress_accounts {
-        let n in 0 .. 100;
-        let mut accounts: Vec<T::AccountId> = Vec::with_capacity(n as usize);
-        for i in 0..n {
-            let acc: T::AccountId = frame_benchmarking::account("egress", i, 0);
-            EgressAccounts::<T>::insert(&acc, ());
-            accounts.push(acc);
-        }
-    }: _(RawOrigin::Root, accounts)
-    verify {
-        if n > 0 {
-            let last = frame_benchmarking::account::<T::AccountId>("egress", n-1, 0);
-            assert!(!EgressAccounts::<T>::contains_key(last));
-        }
-    }
+	remove_egress_accounts {
+		let n in 0 .. 100;
+		let mut accounts: Vec<T::AccountId> = Vec::with_capacity(n as usize);
+		for i in 0..n {
+			let acc: T::AccountId = frame_benchmarking::account("egress", i, 0);
+			EgressAccounts::<T>::insert(&acc, ());
+			accounts.push(acc);
+		}
+	}: _(RawOrigin::Root, accounts)
+	verify {
+		if n > 0 {
+			let last = frame_benchmarking::account::<T::AccountId>("egress", n-1, 0);
+			assert!(!EgressAccounts::<T>::contains_key(last));
+		}
+	}
 
 	set_asset_category {
 		let asset_id = T::AssetId::from(0u32);
 		let expected_category = Some(GlobalAssetCategory::Local);
 	}: _(RawOrigin::Root, asset_id, expected_category.clone())
 	verify {
-		assert_eq!(crate::Pallet::<T>::global_asset_overrides(&asset_id), expected_category);
+		assert_eq!(crate::Pallet::<T>::global_asset_overrides(asset_id), expected_category);
 	}
 
 	ensure_add_liquidity_limit {

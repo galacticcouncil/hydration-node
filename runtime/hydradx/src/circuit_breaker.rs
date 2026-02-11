@@ -48,7 +48,7 @@ where
 	}
 
 	pub fn should_account_operation(asset_id: AssetId, op_kind: OperationKind, maybe_dest: Option<&AccountId>) -> bool {
-		if CircuitBreaker::ignore_withdraw_fuse() {
+		if CircuitBreaker::ignore_withdraw_limit() {
 			return false;
 		}
 
@@ -112,6 +112,6 @@ where
 pub struct IgnoreWithdrawFuse<T>(PhantomData<T>);
 impl<T: pallet_circuit_breaker::Config> WithdrawFuseControl for IgnoreWithdrawFuse<T> {
 	fn set_withdraw_fuse_active(value: bool) {
-		pallet_circuit_breaker::IgnoreWithdrawFuse::<T>::set(!value);
+		pallet_circuit_breaker::IgnoreWithdrawLimit::<T>::set(!value);
 	}
 }
