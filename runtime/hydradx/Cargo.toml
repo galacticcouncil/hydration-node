@@ -61,6 +61,7 @@ pallet-otc = { workspace = true }
 pallet-otc-settlements = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
+pallet-fee-processor = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-hsm = { workspace = true }
 pallet-parameters = { workspace = true }
@@ -244,6 +245,7 @@ runtime-benchmarks = [
     "pallet-ethereum/runtime-benchmarks",
     "pallet-evm/runtime-benchmarks",
     "pallet-staking/runtime-benchmarks",
+    "pallet-fee-processor/runtime-benchmarks",
     "pallet-bonds/runtime-benchmarks",
     "pallet-stableswap/runtime-benchmarks",
     "pallet-lbp/runtime-benchmarks",
@@ -342,6 +344,7 @@ std = [
     "pallet-omnipool-liquidity-mining/std",
     "pallet-dynamic-fees/std",
     "pallet-staking/std",
+    "pallet-fee-processor/std",
     "pallet-bonds/std",
     "pallet-stableswap/std",
     "pallet-lbp/std",
@@ -462,6 +465,7 @@ try-runtime = [
     "pallet-route-executor/try-runtime",
     "pallet-dynamic-fees/try-runtime",
     "pallet-staking/try-runtime",
+    "pallet-fee-processor/try-runtime",
     "pallet-bonds/try-runtime",
     "pallet-stableswap/try-runtime",
     "pallet-lbp/try-runtime",

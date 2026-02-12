@@ -149,6 +149,17 @@ pub struct FeeDistribution {
 	pub external: Permill,
 }
 
+impl FeeDistribution {
+	// Ensure that the sum of percentages is correct.
+	fn is_correct(&self) -> bool {
+		self.referrer
+			.checked_add(&self.trader)
+			.and_then(|sum| sum.checked_add(&self.external))
+			.map(|_| true)
+			.unwrap_or(false)
+	}
+}
+
 #[derive(Clone, Debug, PartialEq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct AssetAmount<AssetId> {
 	asset_id: AssetId,
@@ -287,6 +298,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn pending_conversions)]
 	pub(super) type PendingConversions<T: Config> = CountedStorageMap<_, Blake2_128Concat, T::AssetId, ()>;
+	//TODO: we need to remove this storage - we need migration to kill it once ren
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -444,32 +456,6 @@ pub mod pallet {
 		/// Parameters:
 		/// - `asset_id`: Id of an asset to convert to RewardAsset.
 		///
-		/// Emits `Converted` event when successful.
-		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::convert())]
-		pub fn convert(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
-			ensure_signed(origin)?;
-
-			let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
-			ensure!(asset_balance > 0, Error::<T>::ZeroAmount);
-
-			let total_reward_asset = T::Convert::convert(
-				Self::pot_account_id(),
-				asset_id.clone(),
-				T::RewardAsset::get(),
-				asset_balance,
-			)?;
-
-			PendingConversions::<T>::remove(asset_id.clone());
-
-			Self::deposit_event(Event::Converted {
-				from: AssetAmount::new(asset_id, asset_balance),
-				to: AssetAmount::new(T::RewardAsset::get(), total_reward_asset),
-			});
-
-			Ok(())
-		}
-
 		/// Claim accumulated rewards
 		///
 		/// IF there is any asset in the reward pot, all is converted to RewardCurrency first.
@@ -489,25 +475,6 @@ pub mod pallet {
 		})]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			for (asset_id, _) in PendingConversions::<T>::iter() {
-				let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
-				let r = T::Convert::convert(
-					Self::pot_account_id(),
-					asset_id.clone(),
-					T::RewardAsset::get(),
-					asset_balance,
-				);
-				if let Err(error) = r {
-					// We allow these errors to continue claiming as the current amount of asset that needed to be converted
-					// has very low impact on the rewards.
-					if error != Error::<T>::ConversionMinTradingAmountNotReached.into()
-						&& error != Error::<T>::ConversionZeroAmountReceived.into()
-					{
-						return Err(error);
-					}
-				}
-				PendingConversions::<T>::remove(asset_id);
-			}
 			let referrer_shares = ReferrerShares::<T>::take(&who);
 			let trader_shares = TraderShares::<T>::take(&who);
 			let total_shares = referrer_shares.saturating_add(trader_shares);
@@ -616,39 +583,7 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
-			let convert_weight = T::WeightInfo::convert();
-			if convert_weight.is_zero() {
-				return Weight::zero();
-			}
-			let one_read = T::DbWeight::get().reads(1u64);
-			let remaining = remaining_weight.saturating_sub(one_read);
-
-			// Consider both ref_time and proof_size to determine max conversions
-			let max_by_ref_time = remaining.ref_time().checked_div(convert_weight.ref_time()).unwrap_or(0);
-			let max_by_proof_size = remaining
-				.proof_size()
-				.checked_div(convert_weight.proof_size())
-				.unwrap_or(0);
-			let max_converts = max_by_ref_time.min(max_by_proof_size);
-
-			let mut actual_converts: u64 = 0;
-			for asset_id in PendingConversions::<T>::iter_keys().take(max_converts as usize) {
-				let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
-				// remove the asset_id from PendingConversions even when the conversion fails
-				let _ = T::Convert::convert(
-					Self::pot_account_id(),
-					asset_id.clone(),
-					T::RewardAsset::get(),
-					asset_balance,
-				);
-				PendingConversions::<T>::remove(asset_id);
-				actual_converts += 1;
-			}
-			convert_weight.saturating_mul(actual_converts).saturating_add(one_read)
-		}
-	}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 }
 
 impl<T: Config> Pallet<T> {
@@ -661,87 +596,43 @@ impl<T: Config> Pallet<T> {
 		ReferralCode::<T::CodeLength>::truncate_from(r)
 	}
 
-	/// Process trader fee
-	/// `source`: account to take the fee from
-	/// `trader`: account that does the trade
-	///
-	/// Returns used amount and recipient on success.
-	#[transactional]
-	pub fn process_trade_fee(
-		source: T::AccountId,
-		trader: T::AccountId,
-		asset_id: T::AssetId,
-		amount: Balance,
-	) -> Result<Option<(Balance, T::AccountId)>, DispatchError> {
-		let Some(price) = T::PriceProvider::get_price(T::RewardAsset::get(), asset_id.clone()) else {
-			// no price, no fun.
-			return Ok(None);
-		};
-
+	/// Called by FeeProcessor when HDX is deposited to referrals pot.
+	/// Calculates and records referrer/trader/external shares from HDX amount.
+	/// No transfer or price conversion is needed — amount is already in HDX.
+	pub fn on_fee_received(trader: T::AccountId, hdx_amount: Balance) -> DispatchResult {
 		let (level, ref_account) = if let Some(acc) = Self::linked_referral_account(&trader) {
 			if let Some((level, _)) = Self::referrer_level(&acc) {
-				// Should not really happen, the ref entry should be always there.
 				(level, Some(acc))
 			} else {
-				defensive!("Referrer details not found");
-				return Ok(None);
+				return Ok(()); // No referrer details, skip
 			}
 		} else {
 			(Level::None, None)
 		};
 
-		// What is asset fee for this level? if not explicitly set, use global parameter.
-		let rewards = Self::asset_rewards(asset_id.clone(), level)
+		let rewards = Self::asset_rewards(T::RewardAsset::get(), level)
 			.unwrap_or_else(|| T::LevelVolumeAndRewardPercentages::get(&level).1);
 
-		// Rewards
-		let external_account = T::ExternalAccount::get();
-		let referrer_reward = if ref_account.is_some() {
-			rewards.referrer.mul_floor(amount)
-		} else {
-			0
-		};
-		let trader_reward = rewards.trader.mul_floor(amount);
-		let external_reward = if external_account.is_some() {
-			rewards.external.mul_floor(amount)
-		} else {
-			0
-		};
-		let total_taken = referrer_reward
-			.saturating_add(trader_reward)
-			.saturating_add(external_reward);
-		ensure!(total_taken <= amount, Error::<T>::IncorrectRewardCalculation);
-		let balance_before = T::Currency::total_balance(asset_id.clone(), &Self::pot_account_id());
-		T::Currency::transfer(
-			asset_id.clone(),
-			&source,
-			&Self::pot_account_id(),
-			total_taken,
-			Preservation::Preserve,
-		)?;
-		let balance_after = T::Currency::total_balance(asset_id.clone(), &Self::pot_account_id());
+		ensure!(rewards.is_correct(), Error::<T>::IncorrectRewardCalculation);
 
 		let referrer_shares = if ref_account.is_some() {
-			multiply_by_rational_with_rounding(referrer_reward, price.n, price.d, Rounding::Down)
-				.ok_or(ArithmeticError::Overflow)?
+			rewards.referrer.mul_floor(hdx_amount)
 		} else {
 			0
 		};
-		let trader_shares = multiply_by_rational_with_rounding(trader_reward, price.n, price.d, Rounding::Down)
-			.ok_or(ArithmeticError::Overflow)?;
-		let external_shares = if external_account.is_some() {
-			multiply_by_rational_with_rounding(external_reward, price.n, price.d, Rounding::Down)
-				.ok_or(ArithmeticError::Overflow)?
+		let trader_shares = rewards.trader.mul_floor(hdx_amount);
+		let external_shares = if T::ExternalAccount::get().is_some() {
+			rewards.external.mul_floor(hdx_amount)
 		} else {
 			0
 		};
 
+		let total_shares = referrer_shares
+			.saturating_add(trader_shares)
+			.saturating_add(external_shares);
+
 		TotalShares::<T>::mutate(|v| {
-			*v = v.saturating_add(
-				referrer_shares
-					.saturating_add(trader_shares)
-					.saturating_add(external_shares),
-			);
+			*v = v.saturating_add(total_shares);
 		});
 
 		if let Some(acc) = ref_account {
@@ -750,30 +641,18 @@ impl<T: Config> Pallet<T> {
 			});
 		}
 
-		// don't store zero values
 		if !trader_shares.is_zero() {
-			TraderShares::<T>::mutate(trader, |v| {
+			TraderShares::<T>::mutate(&trader, |v| {
 				*v = v.saturating_add(trader_shares);
 			});
 		}
 
-		if let Some(acc) = external_account {
+		if let Some(acc) = T::ExternalAccount::get() {
 			TraderShares::<T>::mutate(acc, |v| {
 				*v = v.saturating_add(external_shares);
 			});
 		}
 
-		if asset_id != T::RewardAsset::get() {
-			PendingConversions::<T>::insert(asset_id, ());
-		}
-
-		// To support ATokens - we might need to allow tolerance of 1 unit
-		// we calculated the shares based on calculated total_taken (which is correct)
-		// but we need to report back that we have actually taken +1 sometimes.
-		let actual_taken = balance_after.saturating_sub(balance_before);
-		let actual_diff = actual_taken.abs_diff(total_taken);
-		ensure!(actual_diff <= 1, ArithmeticError::Overflow);
-
-		Ok(Some((actual_taken, Self::pot_account_id())))
+		Ok(())
 	}
 }

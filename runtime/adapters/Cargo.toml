@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-adapters"
-version = "1.12.0"
+version = "1.11.0"
 description = "Structs and other generic types for building runtimes."
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -35,6 +35,7 @@ pallet-asset-registry = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-broadcast = { workspace = true }
 pallet-dispatcher = { workspace = true }
+pallet-fee-processor = { workspace = true }
 
 # Evm
 num_enum = { workspace = true, default-features = false }
@@ -122,5 +123,6 @@ std = [
     "pallet-asset-registry/std",
     "pallet-omnipool-liquidity-mining/std",
     "pallet-bonds/std",
+    "pallet-fee-processor/std",
     "pallet-timestamp/std",
 ]

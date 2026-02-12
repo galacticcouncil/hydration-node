@@ -41,6 +41,7 @@ pallet-dca = { workspace = true }
 pallet-dynamic-fees = { workspace = true }
 pallet-dynamic-evm-fee = { workspace = true }
 pallet-staking = { workspace = true }
+pallet-fee-processor = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-evm-accounts = { workspace = true }
@@ -227,6 +228,7 @@ std = [
     "hydradx-runtime/std",
     "rococo-runtime/std",
     "pallet-staking/std",
+    "pallet-fee-processor/std",
     "scraper/std",
     "pallet-dynamic-evm-fee/std",
     "precompile-utils/std",

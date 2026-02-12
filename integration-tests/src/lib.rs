@@ -32,6 +32,7 @@ mod omnipool_init;
 mod omnipool_liquidity_mining;
 mod omnipool_remove_all_liquidity;
 mod oracle;
+mod fee_processor;
 mod otc;
 mod parameters;
 mod polkadot_test_net;

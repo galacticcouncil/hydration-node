@@ -16,7 +16,6 @@
 // limitations under the License.
 
 mod claim;
-mod convert;
 mod flow;
 mod link;
 mod mock_amm;
@@ -30,6 +29,7 @@ use crate::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use frame_support::traits::tokens::{Fortitude, Precision};
 use frame_support::{
 	assert_noop, assert_ok, construct_runtime, parameter_types,
 	sp_runtime::traits::{BlakeTwo256, ConstU32, ConstU64, IdentityLookup, Zero},
@@ -421,6 +421,8 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 			.with(|v| v.borrow().get(&(asset_out, asset_in)).copied())
 			.expect("to have a price");
 		let amount_out = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down).unwrap();
+
+		Tokens::mint_into(asset_out, &_who, amount_out)?;
 		let fee_amount = TRADE_PERCENTAGE.mul_floor(amount_out);
 		Ok(TradeResult {
 			amount_in: amount,
@@ -436,7 +438,27 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 		fee_asset: AssetId,
 		fee: Balance,
 	) -> Result<(), DispatchError> {
-		Referrals::process_trade_fee(*source, *trader, fee_asset, fee)?;
+		println!("on_trade_fee: fee_asset: {:?}, fee: {:?}", fee_asset, fee);
+		let price = ConversionPrice::get_price(HDX, fee_asset.clone()).expect("Asset price");
+		println!("on_trade_fee: price: {:?}", price);
+		let total_taken = fee / 2;
+		let hdx_amount = multiply_by_rational_with_rounding(total_taken, price.n, price.d, Rounding::Down).unwrap();
+
+		println!("on_trade_fee: hdx: {:?}", hdx_amount);
+
+		Tokens::mint_into(HDX, &Referrals::pot_account_id(), hdx_amount)?;
+
+		Tokens::burn_from(
+			fee_asset,
+			source,
+			total_taken,
+			Preservation::Expendable,
+			Precision::Exact,
+			Fortitude::Force,
+		)
+		.expect("remove from source");
+
+		Referrals::on_fee_received(*trader, hdx_amount)?;
 		Ok(())
 	}
 }

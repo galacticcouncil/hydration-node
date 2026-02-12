@@ -34,6 +34,7 @@ pub mod weights;
 
 mod assets;
 pub mod evm;
+pub mod gigahdx;
 pub mod governance;
 mod helpers;
 // mod hyperbridge;
@@ -258,6 +259,9 @@ construct_runtime!(
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		EmaOracle: pallet_ema_oracle = 202,
 		Broadcast: pallet_broadcast = 204,
+
+		// GIGAHDX
+		FeeProcessor: pallet_fee_processor = 207,
 	}
 );
 
