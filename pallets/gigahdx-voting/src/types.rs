@@ -1,0 +1,131 @@
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use frame_support::sp_runtime::RuntimeDebug;
+use scale_info::TypeInfo;
+
+use primitives::Balance;
+
+/// Local conviction enum matching pallet-conviction-voting's Conviction.
+/// Provides reward_multiplier() and lock_period_multiplier() for our reward calculations.
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+	Default,
+)]
+pub enum Conviction {
+	/// 0.1x votes, unlocked. Reward multiplier: 1 (base participation).
+	#[default]
+	None,
+	/// 1x votes, locked for 1 period.
+	Locked1x,
+	/// 2x votes, locked for 2 periods.
+	Locked2x,
+	/// 3x votes, locked for 4 periods.
+	Locked3x,
+	/// 4x votes, locked for 8 periods.
+	Locked4x,
+	/// 5x votes, locked for 16 periods.
+	Locked5x,
+	/// 6x votes, locked for 32 periods.
+	Locked6x,
+}
+
+impl Conviction {
+	/// Multiplier for reward calculation.
+	/// None = 1 (base participation reward), then matches conviction level.
+	pub fn reward_multiplier(self) -> u32 {
+		match self {
+			Conviction::None => 1,
+			Conviction::Locked1x => 1,
+			Conviction::Locked2x => 2,
+			Conviction::Locked3x => 3,
+			Conviction::Locked4x => 4,
+			Conviction::Locked5x => 5,
+			Conviction::Locked6x => 6,
+		}
+	}
+
+	/// Number of lock periods (matches pallet-conviction-voting).
+	pub fn lock_periods(self) -> u32 {
+		match self {
+			Conviction::None => 0,
+			Conviction::Locked1x => 1,
+			Conviction::Locked2x => 2,
+			Conviction::Locked3x => 4,
+			Conviction::Locked4x => 8,
+			Conviction::Locked5x => 16,
+			Conviction::Locked6x => 32,
+		}
+	}
+}
+
+impl From<pallet_conviction_voting::Conviction> for Conviction {
+	fn from(c: pallet_conviction_voting::Conviction) -> Self {
+		match c {
+			pallet_conviction_voting::Conviction::None => Conviction::None,
+			pallet_conviction_voting::Conviction::Locked1x => Conviction::Locked1x,
+			pallet_conviction_voting::Conviction::Locked2x => Conviction::Locked2x,
+			pallet_conviction_voting::Conviction::Locked3x => Conviction::Locked3x,
+			pallet_conviction_voting::Conviction::Locked4x => Conviction::Locked4x,
+			pallet_conviction_voting::Conviction::Locked5x => Conviction::Locked5x,
+			pallet_conviction_voting::Conviction::Locked6x => Conviction::Locked6x,
+		}
+	}
+}
+
+/// A tracked GIGAHDX vote for a specific referendum.
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct GigaHdxVote<BlockNumber> {
+	/// GIGAHDX amount used in this vote.
+	pub amount: Balance,
+	/// Conviction level chosen by the voter.
+	pub conviction: Conviction,
+	/// Block number when the vote was cast.
+	pub voted_at: BlockNumber,
+	/// Block number when the conviction lock expires (0 for Conviction::None).
+	pub lock_expires_at: BlockNumber,
+}
+
+/// How a voting lock is split between GIGAHDX and HDX.
+#[derive(
+	Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Default,
+)]
+pub struct VotingLockSplit {
+	/// Amount locked in GIGAHDX (EVM-side enforcement).
+	pub gigahdx_amount: Balance,
+	/// Amount locked in HDX (native pallet-balances lock).
+	pub hdx_amount: Balance,
+}
+
+/// Reward pool snapshot for a completed referendum.
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct ReferendaReward<AccountId> {
+	/// Governance track this referendum belongs to.
+	pub track_id: u16,
+	/// Total HDX allocated to this referendum's reward pool.
+	pub total_reward: Balance,
+	/// Snapshot of total weighted votes at allocation time.
+	pub total_weighted_votes: Balance,
+	/// Remaining HDX reward not yet claimed.
+	pub remaining_reward: Balance,
+	/// Sub-account holding the HDX reward for this referendum.
+	pub pot_account: AccountId,
+}
+
+/// A pending reward entry for a user to claim.
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct PendingRewardEntry {
+	/// The referendum index this reward is for.
+	pub referenda_id: u32,
+	/// HDX reward amount to claim.
+	pub reward_amount: Balance,
+}

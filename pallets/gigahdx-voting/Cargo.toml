@@ -1,0 +1,73 @@
+[package]
+name = "pallet-gigahdx-voting"
+version = "0.1.0"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache-2.0"
+homepage = "https://github.com/galacticcouncil/hydradx-node"
+repository = "https://github.com/galacticcouncil/hydradx-node"
+description = "GIGAHDX voting adapter and conviction-weighted referenda rewards"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+# parity
+scale-info = { workspace = true }
+codec = { workspace = true }
+log = { workspace = true }
+
+# Local dependencies
+hydradx-traits = { workspace = true }
+primitives = { workspace = true }
+pallet-gigahdx = { workspace = true }
+
+# Substrate dependencies
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+sp-arithmetic = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+frame-benchmarking = { workspace = true, optional = true }
+
+# conviction-voting (for VotingHooks trait, AccountVote, Status, Conviction)
+pallet-conviction-voting = { workspace = true }
+
+# ORML
+orml-traits = { workspace = true }
+
+[dev-dependencies]
+orml-tokens = { workspace = true }
+pallet-balances = { workspace = true }
+pallet-currencies = { workspace = true }
+sp-io = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	"frame-benchmarking/std",
+	"frame-support/std",
+	"frame-system/std",
+	"scale-info/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"sp-core/std",
+	"sp-arithmetic/std",
+	"hydradx-traits/std",
+	"primitives/std",
+	"pallet-gigahdx/std",
+	"pallet-conviction-voting/std",
+	"orml-traits/std",
+	"orml-tokens/std",
+	"pallet-balances/std",
+	"pallet-currencies/std",
+]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]

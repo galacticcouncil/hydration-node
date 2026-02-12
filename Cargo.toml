@@ -52,6 +52,8 @@ members = [
     "pallets/signet",
     "pallets/dispenser",
     'pallets/fee-processor',
+    'pallets/gigahdx',
+    'pallets/gigahdx-voting',
 ]
 
 resolver = "2"
@@ -149,6 +151,8 @@ pallet-transaction-multi-payment = { path = "pallets/transaction-multi-payment",
 pallet-transaction-pause = { path = "pallets/transaction-pause", default-features = false }
 pallet-staking = { path = "pallets/staking", default-features = false }
 pallet-fee-processor = { path = "pallets/fee-processor", default-features = false }
+pallet-gigahdx = { path = "pallets/gigahdx", default-features = false }
+pallet-gigahdx-voting = { path = "pallets/gigahdx-voting", default-features = false }
 pallet-democracy = { path = "pallets/democracy", default-features = false }
 warehouse-liquidity-mining = { package = "pallet-liquidity-mining", path = "pallets/liquidity-mining", default-features = false }
 pallet-bonds = { path = "pallets/bonds", default-features = false }

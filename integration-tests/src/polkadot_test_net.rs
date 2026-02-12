@@ -136,6 +136,8 @@ pub const WETH: AssetId = 20;
 pub const FOREIGN_ASSET: AssetId = 21;
 pub const PEPE: AssetId = 420;
 pub const INSUFFICIENT_ASSET: AssetId = 500;
+pub const ST_HDX: AssetId = 12344;
+pub const GIGAHDX: AssetId = 12345;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
@@ -610,6 +612,24 @@ pub mod hydra {
 						true,
 					),
 					(Some(INSUFFICIENT_ASSET), None, 1_000u128, None, None, None, false),
+					(
+						Some(ST_HDX),
+						Some(b"stHDX".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(GIGAHDX),
+						Some(b"GIGAHDX".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
 					// workaround for next_asset_id() to return correct values
 					(
 						None,

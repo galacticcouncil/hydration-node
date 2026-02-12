@@ -6250,6 +6250,8 @@ dependencies = [
  "pallet-evm-precompile-simple",
  "pallet-fee-processor",
  "pallet-genesis-history",
+ "pallet-gigahdx",
+ "pallet-gigahdx-voting",
  "pallet-hsm",
  "pallet-hyperbridge",
  "pallet-identity",
@@ -10424,6 +10426,54 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-gigahdx"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-gigahdx-voting"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-conviction-voting",
+ "pallet-currencies",
+ "pallet-gigahdx",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "sp-arithmetic",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -15376,6 +15426,8 @@ dependencies = [
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
  "pallet-fee-processor",
+ "pallet-gigahdx",
+ "pallet-gigahdx-voting",
  "pallet-hsm",
  "pallet-im-online",
  "pallet-ismp",

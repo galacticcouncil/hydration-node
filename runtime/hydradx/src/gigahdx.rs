@@ -1,12 +1,211 @@
-// GIGAHDX runtime configuration — fee-processor Config impl.
+// GIGAHDX runtime configuration — adapters and Config impls for
+// pallet-gigahdx and pallet-gigahdx-voting.
 
 use super::*;
 use frame_support::{parameter_types, PalletId};
 use pallet_currencies::fungibles::FungibleCurrencies;
-use sp_runtime::Permill;
+use primitives::constants::time::DAYS;
+use sp_runtime::{DispatchError, Permill};
 
 #[cfg(not(feature = "runtime-benchmarks"))]
 use hydradx_adapters::{price::OraclePriceProviderUsingRoute, OraclePriceProvider};
+
+// ---------------------------------------------------------------------------
+// Parameter types
+// ---------------------------------------------------------------------------
+
+parameter_types! {
+	pub const SimpleMoneyMarketPalletId: PalletId = PalletId(*b"simplemm");
+	pub const StHdxAssetId: AssetId = 12344;
+	pub const GigaHdxAssetIdConst: AssetId = 12345;
+	pub const GigaHdxPalletId: PalletId = PalletId(*b"gigahdx!");
+	pub const GigaRewardPotId: PalletId = PalletId(*b"gigarwd!");
+	pub const GigaHdxCooldownPeriod: BlockNumber = 222 * DAYS;
+	pub const GigaHdxMinStake: Balance = 10 * primitives::constants::currency::UNITS;
+	pub const GigaHdxMaxUnstakePositions: u32 = 10;
+	pub const GigaHdxMaxVotes: u32 = 25;
+}
+
+// ---------------------------------------------------------------------------
+// SimpleMoneyMarket — 1:1 stHDX ↔ GIGAHDX exchange via holding account
+// ---------------------------------------------------------------------------
+
+pub struct SimpleMoneyMarket;
+
+impl hydradx_traits::gigahdx::MoneyMarketOperations<AccountId, AssetId, Balance> for SimpleMoneyMarket {
+	fn supply(who: &AccountId, _underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
+		use frame_support::traits::fungibles::Mutate;
+		use frame_support::traits::tokens::Preservation;
+
+		let holding = SimpleMoneyMarketPalletId::get().into_account_truncating();
+
+		// Transfer stHDX from user → holding account.
+		<FungibleCurrencies<Runtime> as Mutate<AccountId>>::transfer(
+			StHdxAssetId::get(),
+			who,
+			&holding,
+			amount,
+			Preservation::Expendable,
+		)?;
+
+		// Mint GIGAHDX to user (1:1).
+		<FungibleCurrencies<Runtime> as Mutate<AccountId>>::mint_into(GigaHdxAssetIdConst::get(), who, amount)?;
+
+		Ok(amount)
+	}
+
+	fn withdraw(who: &AccountId, _underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
+		use frame_support::traits::fungibles::Mutate;
+		use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
+
+		let holding: AccountId = SimpleMoneyMarketPalletId::get().into_account_truncating();
+
+		// Burn GIGAHDX from user.
+		<FungibleCurrencies<Runtime> as Mutate<AccountId>>::burn_from(
+			GigaHdxAssetIdConst::get(),
+			who,
+			amount,
+			Preservation::Expendable,
+			Precision::Exact,
+			Fortitude::Polite,
+		)?;
+
+		// Transfer stHDX from holding account → user (1:1).
+		<FungibleCurrencies<Runtime> as Mutate<AccountId>>::transfer(
+			StHdxAssetId::get(),
+			&holding,
+			who,
+			amount,
+			Preservation::Expendable,
+		)?;
+
+		Ok(amount)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// RuntimeReferendumInfo — GetReferendumOutcome + GetTrackId
+// ---------------------------------------------------------------------------
+
+pub struct RuntimeReferendumInfo;
+
+impl hydradx_traits::gigahdx::GetReferendumOutcome<u32> for RuntimeReferendumInfo {
+	fn is_referendum_finished(index: u32) -> bool {
+		use frame_support::traits::{PollStatus, Polling};
+
+		let r = <Referenda as Polling<pallet_conviction_voting::TallyOf<Runtime>>>::try_access_poll::<bool>(
+			index,
+			|status| {
+				let finished = match status {
+					PollStatus::Completed(_, _) => true,
+					PollStatus::Ongoing(_, _) => false,
+					PollStatus::None => false,
+				};
+				Ok(finished)
+			},
+		);
+		r.unwrap_or(false)
+	}
+
+	fn referendum_outcome(index: u32) -> hydradx_traits::gigahdx::ReferendumOutcome {
+		use hydradx_traits::gigahdx::ReferendumOutcome;
+		use pallet_referenda::ReferendumInfo;
+
+		let Some(info) = pallet_referenda::ReferendumInfoFor::<Runtime>::get(index) else {
+			return ReferendumOutcome::Cancelled;
+		};
+
+		match info {
+			ReferendumInfo::Ongoing(..) => ReferendumOutcome::Ongoing,
+			ReferendumInfo::Approved(..) => ReferendumOutcome::Approved,
+			ReferendumInfo::Rejected(..) => ReferendumOutcome::Rejected,
+			ReferendumInfo::Cancelled(..) | ReferendumInfo::TimedOut(..) | ReferendumInfo::Killed(..) => {
+				ReferendumOutcome::Cancelled
+			}
+		}
+	}
+}
+
+impl hydradx_traits::gigahdx::GetTrackId<u32> for RuntimeReferendumInfo {
+	type TrackId = u16;
+
+	fn track_id(index: u32) -> Option<u16> {
+		use pallet_referenda::ReferendumInfo;
+
+		let info = pallet_referenda::ReferendumInfoFor::<Runtime>::get(index)?;
+
+		match info {
+			ReferendumInfo::Ongoing(status) => Some(status.track),
+			// Completed referenda don't store the track — use our cache.
+			_ => pallet_gigahdx_voting::ReferendumTracks::<Runtime>::get(index),
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// RuntimeForceRemoveVote
+// ---------------------------------------------------------------------------
+
+pub struct RuntimeForceRemoveVote;
+
+impl hydradx_traits::gigahdx::ForceRemoveVote<AccountId> for RuntimeForceRemoveVote {
+	fn remove_vote(who: &AccountId, class: Option<u16>, index: u32) -> frame_support::dispatch::DispatchResult {
+		pallet_conviction_voting::Pallet::<Runtime>::remove_vote(RuntimeOrigin::signed(who.clone()), class, index)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// RuntimeTrackRewards — per-track reward percentage
+// ---------------------------------------------------------------------------
+
+pub struct RuntimeTrackRewards;
+
+impl hydradx_traits::gigahdx::TrackRewardConfig for RuntimeTrackRewards {
+	fn reward_percentage(track_id: u16) -> Permill {
+		match track_id {
+			0 => Permill::from_percent(10), // root
+			1 => Permill::from_percent(8),  // whitelisted_caller
+			5 => Permill::from_percent(5),  // treasurer
+			_ => Permill::from_percent(3),  // default
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// pallet-gigahdx Config
+// ---------------------------------------------------------------------------
+
+impl pallet_gigahdx::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = FungibleCurrencies<Runtime>;
+	type LockableCurrency = Currencies;
+	type MoneyMarket = SimpleMoneyMarket;
+	type Hooks = GigaHdxVoting;
+	type PalletId = GigaHdxPalletId;
+	type HdxAssetId = NativeAssetId;
+	type StHdxAssetId = StHdxAssetId;
+	type GigaHdxAssetId = GigaHdxAssetIdConst;
+	type CooldownPeriod = GigaHdxCooldownPeriod;
+	type MinStake = GigaHdxMinStake;
+	type MaxUnstakePositions = GigaHdxMaxUnstakePositions;
+	type WeightInfo = ();
+}
+
+// ---------------------------------------------------------------------------
+// pallet-gigahdx-voting Config
+// ---------------------------------------------------------------------------
+
+impl pallet_gigahdx_voting::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type NativeCurrency = Balances;
+	type Referenda = RuntimeReferendumInfo;
+	type TrackRewards = RuntimeTrackRewards;
+	type ForceRemoveVote = RuntimeForceRemoveVote;
+	type GigaRewardPotId = GigaRewardPotId;
+	type VoteLockingPeriod = VoteLockingPeriod;
+	type MaxVotes = GigaHdxMaxVotes;
+	type VotingWeightInfo = ();
+}
 
 // ---------------------------------------------------------------------------
 // pallet-fee-processor — FeeReceiver impls and Config

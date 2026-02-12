@@ -185,12 +185,18 @@ parameter_types! {
 impl pallet_conviction_voting::Config for Runtime {
 	type WeightInfo = weights::pallet_conviction_voting::HydraWeight<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
+	type Currency = pallet_gigahdx_voting::adapter::GigaHdxVotingCurrency<Runtime>;
 	type VoteLockingPeriod = VoteLockingPeriod;
 	type MaxVotes = ConstU32<25>;
-	type MaxTurnout = frame_support::traits::tokens::currency::ActiveIssuanceOf<Balances, Self::AccountId>;
+	type MaxTurnout = frame_support::traits::tokens::currency::ActiveIssuanceOf<
+		pallet_gigahdx_voting::adapter::GigaHdxVotingCurrency<Runtime>,
+		Self::AccountId,
+	>;
 	type Polls = Referenda;
-	type VotingHooks = pallet_staking::integrations::conviction_voting::StakingConvictionVoting<Runtime>;
+	type VotingHooks = pallet_gigahdx_voting::combinator::CombinedVotingHooks<
+		pallet_staking::integrations::conviction_voting::StakingConvictionVoting<Runtime>,
+		pallet_gigahdx_voting::hooks::GigaHdxVotingHooks<Runtime>,
+	>;
 	// Any single technical committee member may remove a vote.
 	type VoteRemovalOrigin = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;
 	type BlockNumberProvider = System;

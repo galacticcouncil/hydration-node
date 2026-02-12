@@ -699,6 +699,11 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			BondsPalletId::get().into_account_truncating(),
 			pallet_route_executor::Pallet::<Runtime>::router_account(),
 			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS),
+			// GIGAHDX pot accounts
+			crate::gigahdx::FeeProcessorPalletId::get().into_account_truncating(),
+			crate::gigahdx::GigaHdxPalletId::get().into_account_truncating(),
+			crate::gigahdx::GigaRewardPotId::get().into_account_truncating(),
+			crate::gigahdx::SimpleMoneyMarketPalletId::get().into_account_truncating(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {

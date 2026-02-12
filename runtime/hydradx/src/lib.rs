@@ -261,6 +261,8 @@ construct_runtime!(
 		Broadcast: pallet_broadcast = 204,
 
 		// GIGAHDX
+		GigaHdx: pallet_gigahdx = 205,
+		GigaHdxVoting: pallet_gigahdx_voting = 206,
 		FeeProcessor: pallet_fee_processor = 207,
 	}
 );

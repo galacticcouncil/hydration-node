@@ -1,6 +1,124 @@
+use codec::{Decode, Encode};
+use frame_support::dispatch::DispatchResult;
 use frame_support::sp_runtime::traits::Zero;
-use frame_support::sp_runtime::{DispatchError, Permill, Saturating};
+use frame_support::sp_runtime::{DispatchError, Permill, RuntimeDebug, Saturating};
+use scale_info::TypeInfo;
 use sp_std::vec::Vec;
+
+// ---------------------------------------------------------------------------
+// GigaHdxHooks — called by pallet-gigahdx during stake/unstake lifecycle.
+// Implemented by pallet-gigahdx-voting.
+// ---------------------------------------------------------------------------
+
+/// Hooks called by pallet-gigahdx during stake/unstake lifecycle.
+pub trait GigaHdxHooks<AccountId, Balance, BlockNumber> {
+	/// Called after a successful giga_stake.
+	fn on_stake(who: &AccountId, hdx_amount: Balance, gigahdx_received: Balance) -> DispatchResult;
+
+	/// Called during giga_unstake after can_unstake check passes.
+	/// Handles force removal of votes from finished referenda and records rewards.
+	fn on_unstake(who: &AccountId, gigahdx_amount: Balance) -> DispatchResult;
+
+	/// Check if the user can unstake.
+	/// Returns `false` if user has votes in any ongoing (not finished) referenda.
+	fn can_unstake(who: &AccountId) -> bool;
+
+	/// Get the additional lock period required due to voting locks.
+	/// Returns the maximum remaining lock duration across all votes.
+	/// Called BEFORE on_unstake to capture lock periods before votes are removed.
+	fn additional_unstake_lock(who: &AccountId) -> BlockNumber;
+}
+
+/// No-op implementation — used when no voting pallet is wired (e.g. tests).
+impl<AccountId, Balance, BlockNumber: frame_support::sp_runtime::traits::Zero>
+	GigaHdxHooks<AccountId, Balance, BlockNumber> for ()
+{
+	fn on_stake(_who: &AccountId, _hdx_amount: Balance, _gigahdx_received: Balance) -> DispatchResult {
+		Ok(())
+	}
+	fn on_unstake(_who: &AccountId, _gigahdx_amount: Balance) -> DispatchResult {
+		Ok(())
+	}
+	fn can_unstake(_who: &AccountId) -> bool {
+		true
+	}
+	fn additional_unstake_lock(_who: &AccountId) -> BlockNumber {
+		frame_support::sp_runtime::traits::Zero::zero()
+	}
+}
+
+// ---------------------------------------------------------------------------
+// MoneyMarketOperations — supply/withdraw through a Money Market (e.g. AAVE).
+// ---------------------------------------------------------------------------
+
+/// Money Market supply/withdraw operations.
+/// Implemented by a runtime adapter wrapping AAVE EVM calls.
+pub trait MoneyMarketOperations<AccountId, AssetId, Balance> {
+	/// Supply underlying asset to Money Market, receive aToken.
+	/// Returns the amount of aToken received.
+	fn supply(who: &AccountId, underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError>;
+
+	/// Withdraw from Money Market, burn aToken, receive underlying.
+	/// Returns the amount of underlying received.
+	fn withdraw(who: &AccountId, underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError>;
+}
+
+/// No-op implementation — supply/withdraw are identity (amount in == amount out).
+impl<AccountId, AssetId, Balance> MoneyMarketOperations<AccountId, AssetId, Balance> for () {
+	fn supply(_who: &AccountId, _underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
+		Ok(amount)
+	}
+	fn withdraw(_who: &AccountId, _underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
+		Ok(amount)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Referendum state queries — used by pallet-gigahdx-voting for reward logic.
+// ---------------------------------------------------------------------------
+
+/// Referendum outcome for reward calculations.
+#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, RuntimeDebug, TypeInfo)]
+pub enum ReferendumOutcome {
+	/// Referendum is still ongoing (voting active).
+	Ongoing,
+	/// Referendum was approved (passed).
+	Approved,
+	/// Referendum was rejected (failed).
+	Rejected,
+	/// Referendum was cancelled / timed-out / killed (no rewards).
+	Cancelled,
+}
+
+/// Query referendum state / outcome.
+/// Extends the simpler `GetReferendumState` from pallet-staking with full outcome info.
+pub trait GetReferendumOutcome<Index> {
+	/// Check if referendum is finished (not ongoing).
+	fn is_referendum_finished(index: Index) -> bool;
+
+	/// Get the full referendum outcome.
+	fn referendum_outcome(index: Index) -> ReferendumOutcome;
+}
+
+/// Query track ID for a given referendum index.
+pub trait GetTrackId<Index> {
+	type TrackId;
+
+	/// Get the track ID for a given referendum index.
+	/// Returns `None` if the referendum doesn't exist.
+	fn track_id(index: Index) -> Option<Self::TrackId>;
+}
+
+// ---------------------------------------------------------------------------
+// TrackRewardConfig — per-track reward percentage configuration.
+// ---------------------------------------------------------------------------
+
+/// Per-track reward percentage configuration.
+/// Implemented in the runtime to set different reward percentages per governance track.
+pub trait TrackRewardConfig {
+	/// Get the reward percentage for a specific track.
+	fn reward_percentage(track_id: u16) -> Permill;
+}
 
 // ---------------------------------------------------------------------------
 // FeeReceiver — trait for fee distribution recipients.
@@ -33,6 +151,23 @@ pub trait FeeReceiver<AccountId, Balance> {
 	/// Post-deposit callback after HDX has been distributed to pots.
 	/// Called after `distribute_to_pots` completes. No trader context needed.
 	fn on_fee_received(amount: Balance) -> Result<(), Self::Error>;
+}
+
+// ---------------------------------------------------------------------------
+// ForceRemoveVote — force-remove a user's vote from conviction-voting.
+// Used by pallet-gigahdx-voting during unstake and liquidation.
+// ---------------------------------------------------------------------------
+
+/// Force-remove a vote from conviction-voting on behalf of a user.
+/// Implemented in the runtime as a wrapper around `pallet_conviction_voting::Pallet::remove_vote`.
+pub trait ForceRemoveVote<AccountId> {
+	fn remove_vote(who: &AccountId, class: Option<u16>, index: u32) -> DispatchResult;
+}
+
+impl<AccountId> ForceRemoveVote<AccountId> for () {
+	fn remove_vote(_who: &AccountId, _class: Option<u16>, _index: u32) -> DispatchResult {
+		Ok(())
+	}
 }
 
 /// No-op implementation.
