@@ -191,9 +191,7 @@ fn otcs_list_storage_should_be_sorted_on_new_block() {
 
 #[test]
 fn profit_should_be_transferred_to_treasury_when_zero_initial_pallet_balance() {
-	let (mut ext, _) = ExtBuilder::default()
-		.disable_slip_fee()
-		.build();
+	let (mut ext, _) = ExtBuilder::default().disable_slip_fee().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
 			RuntimeOrigin::signed(ALICE),
@@ -223,9 +221,7 @@ fn profit_should_be_transferred_to_treasury_when_zero_initial_pallet_balance() {
 
 #[test]
 fn profit_should_be_transferred_to_treasury_when_nonzero_initial_pallet_balance() {
-	let (mut ext, _) = ExtBuilder::default()
-		.disable_slip_fee()
-		.build();
+	let (mut ext, _) = ExtBuilder::default().disable_slip_fee().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
 			RuntimeOrigin::signed(ALICE),
@@ -257,9 +253,7 @@ fn profit_should_be_transferred_to_treasury_when_nonzero_initial_pallet_balance(
 
 #[test]
 fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_found() {
-	let (mut ext, _) = ExtBuilder::default()
-		.disable_slip_fee()
-		.build();
+	let (mut ext, _) = ExtBuilder::default().disable_slip_fee().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
 			RuntimeOrigin::signed(ALICE),
@@ -327,9 +321,7 @@ fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_foun
 
 #[test]
 fn existing_arb_opportunity_should_trigger_trade_when_partially_fillable_otc_can_be_fully_filled() {
-	let (mut ext, _) = ExtBuilder::default()
-		.disable_slip_fee()
-		.build();
+	let (mut ext, _) = ExtBuilder::default().disable_slip_fee().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
 			RuntimeOrigin::signed(ALICE),
@@ -385,9 +377,7 @@ fn existing_arb_opportunity_should_trigger_trade_when_partially_fillable_otc_can
 
 #[test]
 fn existing_arb_opportunity_should_trigger_trade_when_otc_is_not_partially_fillable() {
-	let (mut ext, _) = ExtBuilder::default()
-		.disable_slip_fee()
-		.build();
+	let (mut ext, _) = ExtBuilder::default().disable_slip_fee().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
 			RuntimeOrigin::signed(ALICE),
@@ -438,9 +428,7 @@ fn existing_arb_opportunity_should_trigger_trade_when_otc_is_not_partially_filla
 
 #[test]
 fn existing_arb_opportunity_of_insufficient_asset_should_trigger_trade() {
-	let (mut ext, _) = ExtBuilder::default()
-		.disable_slip_fee()
-		.build();
+	let (mut ext, _) = ExtBuilder::default().disable_slip_fee().build();
 	ext.execute_with(|| {
 		// ensure that BTC is configured as insufficient asset
 		assert!(!AssetRegistry::is_sufficient(BTC));
@@ -494,9 +482,7 @@ fn existing_arb_opportunity_of_insufficient_asset_should_trigger_trade() {
 
 #[test]
 fn multiple_arb_opportunities_should_trigger_trades() {
-	let (mut ext, _) = ExtBuilder::default()
-		.disable_slip_fee()
-		.build();
+	let (mut ext, _) = ExtBuilder::default().disable_slip_fee().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
 			RuntimeOrigin::signed(ALICE),
@@ -534,9 +520,7 @@ fn multiple_arb_opportunities_should_trigger_trades() {
 
 #[test]
 fn trade_should_be_triggered_when_arb_opportunity_appears() {
-	let (mut ext, _) = ExtBuilder::default()
-		.disable_slip_fee()
-		.build();
+	let (mut ext, _) = ExtBuilder::default().disable_slip_fee().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
 			RuntimeOrigin::signed(ALICE),
@@ -736,9 +720,7 @@ fn trade_should_not_be_triggered_when_amount_not_found() {
 
 #[test]
 fn test_offchain_worker_unsigned_transaction_submission() {
-	let (mut ext, pool_state) = ExtBuilder::default()
-		.disable_slip_fee()
-		.build();
+	let (mut ext, pool_state) = ExtBuilder::default().disable_slip_fee().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
 			RuntimeOrigin::signed(ALICE),
@@ -777,9 +759,7 @@ fn test_offchain_worker_unsigned_transaction_submission() {
 
 #[test]
 fn test_offchain_worker_signed_transaction_submission() {
-	let (mut ext, _pool_state) = ExtBuilder::default()
-		.disable_slip_fee()
-		.build();
+	let (mut ext, _pool_state) = ExtBuilder::default().disable_slip_fee().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
 			RuntimeOrigin::signed(ALICE),

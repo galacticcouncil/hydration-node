@@ -177,6 +177,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 
 			let dca_budget = 1000 * UNITS;
@@ -489,6 +490,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
@@ -512,6 +514,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
@@ -575,6 +578,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			let alice_init_lrna_balance = 5000 * UNITS;
 			set_alice_lrna_balance(alice_init_lrna_balance);
 
@@ -601,6 +605,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			let alice_init_lrna_balance = 5000 * UNITS;
 			set_alice_lrna_balance(alice_init_lrna_balance);
 

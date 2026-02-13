@@ -271,30 +271,13 @@ pub fn calculate_buy_state_changes(
 	let delta_hub_reserve_out_net = to_balance!(delta_hub_reserve_out_net_hp).ok()?;
 	let delta_hub_reserve_out_net = delta_hub_reserve_out_net.checked_add(Balance::one())?;
 
-	let delta_hub_reserve_out_gross = if slip_fee_config.slip_factor.is_zero() {
-		delta_hub_reserve_out_net
-	} else {
-		let denom = to_u256!(slip_fee_config
-			.hub_state_out
-			.hub_reserve_at_block_start
-			.checked_sub(delta_hub_reserve_out_net)?);
-		let n1 = to_u256!(slip_fee_config.hub_state_out.hub_reserve_at_block_start);
-		let n2 = slip_fee_config
-			.hub_state_out
-			.current_delta_hub_reserve
-			.merge(Increase(delta_hub_reserve_out_net))?;
-		if !n2.is_positive() {
-			// TODO: log error
-			return None;
-		};
-		let u = n1.checked_mul(to_u256!(*n2))?.checked_div(denom)?;
-		let u = to_balance!(u).ok()?;
+	let delta_hub_reserve_out_gross = slip_fee_config.invert_buy_side_slip_fee(delta_hub_reserve_out_net)?;
 
-		let result = Increase(u).checked_sub(&slip_fee_config.hub_state_out.current_delta_hub_reserve)?;
-		*result
-	};
+	let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out_gross)?;
+	let slip_fee_buy_amount = slip_fee_buy.checked_mul_int(delta_hub_reserve_out_gross)?;
+	let delta_hub_reserve_out = delta_hub_reserve_out_gross.checked_sub(slip_fee_buy_amount)?;
 
-	let delta_hub_reserve_in = slip_fee_config.invert_slip(delta_hub_reserve_out_gross, &protocol_fee)?;
+	let delta_hub_reserve_in = slip_fee_config.invert_sell_side_slip_fee(delta_hub_reserve_out_gross, &protocol_fee)?;
 
 	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
 
@@ -334,7 +317,7 @@ pub fn calculate_buy_state_changes(
 		},
 		asset_out: AssetStateChange {
 			delta_reserve: Decrease(amount),
-			delta_hub_reserve: Increase(delta_hub_reserve_out_net), // TODO: gross ???
+			delta_hub_reserve: Increase(delta_hub_reserve_out),
 			extra_hub_reserve_amount: Increase(delta_out_m),
 			..Default::default()
 		},

@@ -44,6 +44,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 
 			add_currency_price(ACA, FixedU128::from(1));
 
+			disable_slip_fee();
 			init_omnipool();
 			let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 

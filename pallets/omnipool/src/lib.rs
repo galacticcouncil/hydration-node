@@ -283,8 +283,7 @@ pub mod pallet {
 	#[pallet::getter(fn slip_factor)]
 	/// Slip factor for slip fee.
 	/// Slip fee implementation expects `SlipFactor` being equal to 0 (disabled) or 1 (enabled).
-	pub(super) type SlipFactor<T: Config> =
-	StorageValue<_, FixedU128, ValueQuery, DefaultSlipFactor>;
+	pub(super) type SlipFactor<T: Config> = StorageValue<_, FixedU128, ValueQuery, DefaultSlipFactor>;
 
 	#[pallet::type_value]
 	pub fn DefaultMaxSlipFee() -> FixedU128 {
@@ -294,8 +293,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn max_slip_fee)]
 	/// Max slip fee.
-	pub(super) type MaxSlipFee<T: Config> =
-	StorageValue<_, FixedU128, ValueQuery, DefaultMaxSlipFee>;
+	pub(super) type MaxSlipFee<T: Config> = StorageValue<_, FixedU128, ValueQuery, DefaultMaxSlipFee>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -400,7 +398,10 @@ pub mod pallet {
 		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
 
 		/// Slip factor has been updated.
-		SlipFactorUpdated { slip_factor: FixedU128, max_slip_fee: FixedU128 },
+		SlipFactorUpdated {
+			slip_factor: FixedU128,
+			max_slip_fee: FixedU128,
+		},
 	}
 
 	#[pallet::error]
@@ -1582,7 +1583,10 @@ pub mod pallet {
 			SlipFactor::<T>::put(new_slip_factor);
 			MaxSlipFee::<T>::put(max_slip_fee);
 
-			Self::deposit_event(Event::SlipFactorUpdated { slip_factor: new_slip_factor, max_slip_fee });
+			Self::deposit_event(Event::SlipFactorUpdated {
+				slip_factor: new_slip_factor,
+				max_slip_fee,
+			});
 
 			Ok(())
 		}

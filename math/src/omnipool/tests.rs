@@ -714,7 +714,7 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 		}
 	);
 
-	let zero_fee_amount = 57142857142u128;
+	let zero_fee_amount = 2_342_857_142_856;
 	let burn_amount = burn_fee.mul_floor(zero_fee_amount);
 	assert_eq!(state_changes.fee.burned_protocol_fee, burn_amount);
 }

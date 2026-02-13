@@ -530,7 +530,11 @@ impl ExtBuilder {
 
 		if self.disable_slip_fee {
 			ext.execute_with(|| {
-				assert_ok!(Omnipool::set_slip_fee(RuntimeOrigin::root(), false, Omnipool::max_slip_fee()));
+				assert_ok!(Omnipool::set_slip_fee(
+					RuntimeOrigin::root(),
+					false,
+					Omnipool::max_slip_fee()
+				));
 			});
 		}
 

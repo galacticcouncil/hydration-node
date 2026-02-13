@@ -2426,6 +2426,7 @@ mod omnipool_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			let trades = vec![Trade {
@@ -2490,6 +2491,7 @@ mod omnipool_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			//Act
@@ -2559,6 +2561,7 @@ mod omnipool_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			let amount_to_buy = UNITS * 100000;
