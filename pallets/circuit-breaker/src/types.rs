@@ -12,6 +12,11 @@ pub enum LockdownStatus<BlockNumber, Balance> {
 	Unlocked((BlockNumber, Balance)),
 }
 
+pub enum EgressOperationKind {
+	Withdraw,
+	Transfer,
+}
+
 #[cfg(feature = "runtime-benchmarks")]
 pub trait BenchmarkHelper<AccountId, AssetId, Balance> {
 	fn deposit(who: AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult;

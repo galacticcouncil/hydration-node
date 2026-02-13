@@ -20,6 +20,7 @@ mod evm;
 mod evm_permit;
 mod exchange_asset;
 mod fee_calculation;
+mod global_withdraw_limit;
 mod hsm;
 //mod hyperbridge;
 mod insufficient_assets_ed;
