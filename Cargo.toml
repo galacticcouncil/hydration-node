@@ -353,8 +353,7 @@ evm-runtime = { git = "https://github.com/moonbeam-foundation/evm", branch = "mo
 
 # EVM from acala
 module-evm-utility-macro = { path = "runtime/hydradx/src/evm/evm-utility/macro", default-features = false }
-
-ethereum = { git = "https://github.com/rust-ethereum/ethereum", rev = "cf3076f07e61102eec686f6816da668f97d94f1f", default-features = false, features = [
+ethereum = { version = "0.18.2", default-features = false, features = [
     "with-scale",
 ] }
 ethereum-types = { version = "0.15.1", default-features = false }
@@ -392,18 +391,18 @@ cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacti
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-7-patch" }
 
 # Hyperbridge
-pallet-hyperbridge = { version = "2503.2.0", default-features = false }
-pallet-token-gateway = { version = "2503.2.0", default-features = false }
+pallet-hyperbridge = { version = "2506.1.1", default-features = false }
+pallet-token-gateway = { version = "2506.1.0", default-features = false }
 
-pallet-ismp = { version = "2503.2.0", default-features = false }
-pallet-ismp-runtime-api = { version = "2503.2.0", default-features = false }
+pallet-ismp = { version = "2506.1.0", default-features = false }
+pallet-ismp-runtime-api = { version = "2506.1.0", default-features = false }
 
-ismp = { version = "1.2.2", default-features = false }
-ismp-parachain = { version = "2503.2.0", default-features = false }
-ismp-parachain-runtime-api = { version = "2503.2.0", default-features = false }
+ismp = { version = "2506.1.0", default-features = false }
+ismp-parachain = { version = "2506.3.0", default-features = false }
+ismp-parachain-runtime-api = { version = "2506.0.0", default-features = false }
 
-pallet-ismp-rpc = { version = "2503.2.0" }
-ismp-parachain-inherent = { version = "2503.2.0" }
+pallet-ismp-rpc = { version = "2506.1.0" }
+ismp-parachain-inherent = { version = "2506.1.0" }
 
 [patch."https://github.com/moonbeam-foundation/open-runtime-module-library"]
 # ORML dependencies
