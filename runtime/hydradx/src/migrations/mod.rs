@@ -25,4 +25,4 @@ pub type SingleBlockMigrationsList = (PermanentSingleBlockMigrations, Unreleased
 
 // Multi-block migrations executed by pallet-migrations
 #[cfg(not(feature = "runtime-benchmarks"))]
-pub type MultiBlockMigrationsList<Runtime> = pallet_identity::migration::v2::LazyMigrationV1ToV2<Runtime>;
+pub type MultiBlockMigrationsList<Runtime> = ();
