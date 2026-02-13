@@ -47,6 +47,7 @@ use frame_system::offchain::SubmitTransaction;
 use frame_system::pallet_prelude::*;
 use hydradx_traits::lazy_executor::Mutate;
 use hydradx_traits::lazy_executor::Source;
+use hydradx_traits::registry::Inspect;
 use hydradx_traits::CreateBare;
 use ice_support::AssetId;
 use ice_support::Balance;
@@ -94,6 +95,9 @@ pub mod pallet {
 
 		/// Intents' lazy callback execution handling
 		type LazyExecutorHandler: Mutate<Self::AccountId, Error = DispatchError, BoundedCall = CallData>;
+
+		/// Asset registry handler
+		type RegistryHandler: Inspect<AssetId = AssetId>;
 
 		/// Asset Id of hub asset
 		#[pallet::constant]
@@ -170,6 +174,8 @@ pub mod pallet {
 		InsufficientReservedBalance,
 		/// Partial intents are not supported at the moment.
 		NotImplemented,
+		/// Asset with specified id doesn't exists.
+		AssetNotFound,
 	}
 
 	#[pallet::storage]
@@ -368,10 +374,14 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::InvalidDeadline
 		);
 
+		let in_ed = T::RegistryHandler::existential_deposit(intent.data.asset_in()).ok_or(Error::<T>::AssetNotFound)?;
+		let out_ed =
+			T::RegistryHandler::existential_deposit(intent.data.asset_out()).ok_or(Error::<T>::AssetNotFound)?;
+
 		match intent.data {
 			IntentData::Swap(ref data) => {
-				ensure!(data.amount_in > Balance::zero(), Error::<T>::InvalidIntent);
-				ensure!(data.amount_out > Balance::zero(), Error::<T>::InvalidIntent);
+				ensure!(data.amount_in >= in_ed, Error::<T>::InvalidIntent);
+				ensure!(data.amount_out >= out_ed, Error::<T>::InvalidIntent);
 				ensure!(data.asset_in != data.asset_out, Error::<T>::InvalidIntent);
 				ensure!(data.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
 

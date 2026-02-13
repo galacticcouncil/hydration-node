@@ -21,6 +21,7 @@ use frame_support::parameter_types;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Everything;
 use hydradx_traits::lazy_executor::Source;
+use hydradx_traits::registry::Inspect;
 use ice_support::AssetId;
 use ice_support::Balance;
 use orml_traits::parameter_type_with_key;
@@ -188,10 +189,50 @@ pub fn get_queued_task(src: Source) -> Option<(Source, AccountId)> {
 	})
 }
 
+pub struct DummyRegistry;
+
+impl Inspect for DummyRegistry {
+	type AssetId = AssetId;
+	type Location = u8;
+
+	fn exists(_id: Self::AssetId) -> bool {
+		todo!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		todo!()
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		todo!()
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<hydradx_traits::AssetKind> {
+		todo!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		todo!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		todo!()
+	}
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		todo!()
+	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		Some(1_000)
+	}
+}
+
 impl pallet_intent::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
 	type LazyExecutorHandler = DummyLazyExecutor<Test>;
+	type RegistryHandler = DummyRegistry;
 	type TimestampProvider = Timestamp;
 	type HubAssetId = ConstU32<HUB_ASSET_ID>;
 	type MaxAllowedIntentDuration = ConstU64<MAX_INTENT_DEADLINE>;

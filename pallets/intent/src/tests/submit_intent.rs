@@ -301,3 +301,73 @@ fn should_not_work_when_intent_is_partial() {
 			);
 		});
 }
+
+#[test]
+fn should_not_work_when_amount_in_is_less_than_ed() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX), (BOB, ETH, 5 * ONE_QUINTIL)])
+		.build()
+		.execute_with(|| {
+			let id: IntentId = 92215273624474048528384;
+			assert_eq!(IntentPallet::get_intent(id), None);
+			assert_eq!(Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE), 0);
+			assert_eq!(Intents::<Test>::iter_keys().count(), 0);
+
+			let ed = DummyRegistry::existential_deposit(HDX).expect("dummy registry to work");
+
+			let intent = Intent {
+				data: IntentData::Swap(SwapData {
+					asset_in: HDX,
+					asset_out: DOT,
+					amount_in: ed - 1,
+					amount_out: 1_000 * ONE_DOT,
+					swap_type: SwapType::ExactIn,
+					partial: false,
+				}),
+				deadline: MAX_INTENT_DEADLINE - 1,
+				on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
+				on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+			};
+
+			//Act&Assert
+			assert_noop!(
+				IntentPallet::submit_intent(RuntimeOrigin::signed(ALICE), intent),
+				Error::<Test>::InvalidIntent
+			);
+		});
+}
+
+#[test]
+fn should_not_work_when_amount_out_is_less_than_ed() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX), (BOB, ETH, 5 * ONE_QUINTIL)])
+		.build()
+		.execute_with(|| {
+			let id: IntentId = 92215273624474048528384;
+			assert_eq!(IntentPallet::get_intent(id), None);
+			assert_eq!(Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE), 0);
+			assert_eq!(Intents::<Test>::iter_keys().count(), 0);
+
+			let ed = DummyRegistry::existential_deposit(DOT).expect("dummy registry to work");
+
+			let intent = Intent {
+				data: IntentData::Swap(SwapData {
+					asset_in: HDX,
+					asset_out: DOT,
+					amount_in: 10 * ONE_HDX,
+					amount_out: ed - 1,
+					swap_type: SwapType::ExactIn,
+					partial: false,
+				}),
+				deadline: MAX_INTENT_DEADLINE - 1,
+				on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
+				on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+			};
+
+			//Act&Assert
+			assert_noop!(
+				IntentPallet::submit_intent(RuntimeOrigin::signed(ALICE), intent),
+				Error::<Test>::InvalidIntent
+			);
+		});
+}
