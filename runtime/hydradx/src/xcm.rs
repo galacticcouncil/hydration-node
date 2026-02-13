@@ -25,7 +25,7 @@ pub use pallet_xcm::GenesisConfig as XcmGenesisConfig;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_parachain::primitives::Sibling;
-use polkadot_xcm::v5::{prelude::*, InteriorLocation, Location, Weight as XcmWeight};
+use polkadot_xcm::v5::{prelude::*, InstructionError, InteriorLocation, Location, Weight as XcmWeight};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::MaybeEquivalence, Perbill};
 use xcm_builder::{
@@ -277,7 +277,8 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 
 	fn prepare(
 		message: Xcm<<XcmConfig as Config>::RuntimeCall>,
-	) -> Result<Self::Prepared, Xcm<<XcmConfig as Config>::RuntimeCall>> {
+		weight_limit: XcmWeight,
+	) -> Result<Self::Prepared, InstructionError> {
 		//We populate the context in `prepare` as we have the xcm message at this point so we can get the unique topic id
 		let unique_id = if let Some(SetTopic(id)) = message.last() {
 			*id
@@ -288,15 +289,14 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 			.is_err()
 		{
 			log::error!(target: "xcm-executor", "Failed to add to broadcast context.");
-			return Err(message.clone());
+			return Err(InstructionError { index: 0, error: XcmError::ExceedsStackLimit });
 		}
 
-		let prepare_result = Inner::prepare(message.clone());
+		let prepare_result = Inner::prepare(message.clone(), weight_limit);
 
 		//In case of error we need to clean context as xcm execution won't happen
 		if prepare_result.is_err() && pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
 			log::error!(target: "xcm-executor", "Failed to remove from broadcast context.");
-			return Err(message);
 		}
 
 		prepare_result
@@ -312,9 +312,10 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 
 		// Context was added to the stack in `prepare` call.
 		if pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
-			return Outcome::Error {
+			return Outcome::Error(InstructionError {
+				index: 0,
 				error: XcmError::FailedToTransactAsset("Unexpected error at modifying broadcast execution stack"),
-			};
+			});
 		};
 
 		outcome
@@ -375,7 +376,6 @@ parameter_type_with_key! {
 }
 
 impl orml_xtokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type CurrencyId = AssetId;
 	type CurrencyIdConvert = CurrencyIdConvert;
@@ -393,12 +393,9 @@ impl orml_xtokens::Config for Runtime {
 	type RateLimiterId = ();
 }
 
-impl orml_unknown_tokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl orml_unknown_tokens::Config for Runtime {}
 
 impl orml_xcm::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type SovereignOrigin = EnsureRoot<Self::AccountId>;
 }
 

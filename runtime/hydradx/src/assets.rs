@@ -402,7 +402,6 @@ impl RefundAndLockedEdCalculator {
 }
 
 impl orml_tokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -460,7 +459,6 @@ parameter_types! {
 }
 
 impl orml_vesting::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
 	type VestedTransferOrigin = RootAsVestingPallet;
@@ -1829,9 +1827,7 @@ impl pallet_liquidation::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 }
 
-impl pallet_broadcast::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Runtime {}
 
 parameter_types! {
 	pub const HsmGasLimit: u64 = 400_000;
