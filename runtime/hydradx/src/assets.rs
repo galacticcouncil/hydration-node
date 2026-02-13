@@ -1884,6 +1884,7 @@ impl pallet_intent::Config for Runtime {
 	//TODO:
 	type RuntimeEvent = RuntimeEvent;
 	type LazyExecutorHandler = LazyExecutor;
+	type RegistryHandler = AssetRegistry;
 	type Currency = Currencies;
 	type MaxAllowedIntentDuration = MaxIntentDuration;
 	type TimestampProvider = Timestamp;
@@ -1916,6 +1917,7 @@ impl pallet_ice::Config for Runtime {
 	type Currency = Currencies;
 	type PalletId = IcePalletId;
 	type BlockNumberProvider = System;
+	type RegistryHandler = AssetRegistry;
 	type Simulator = HydrationSimulatorConfig;
 	type WeightInfo = weights::pallet_ice::HydraWeight<Runtime>;
 }

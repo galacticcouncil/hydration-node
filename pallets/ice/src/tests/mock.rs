@@ -24,6 +24,7 @@ use frame_system::pallet_prelude::OriginFor;
 use frame_system::EnsureRoot;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{SimulatorConfig, SimulatorError, SimulatorSet, TradeResult};
+use hydradx_traits::registry::Inspect;
 use hydradx_traits::router::{AssetPair, PoolType, Route, RouteProvider};
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
@@ -191,10 +192,50 @@ impl<T: Config> hydradx_traits::lazy_executor::Mutate<AccountId> for DummyLazyEx
 	}
 }
 
+pub struct DummyRegistry;
+
+impl Inspect for DummyRegistry {
+	type AssetId = AssetId;
+	type Location = u8;
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		todo!()
+	}
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		todo!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		todo!()
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<hydradx_traits::AssetKind> {
+		todo!()
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		todo!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		todo!()
+	}
+
+	fn exists(_id: Self::AssetId) -> bool {
+		todo!()
+	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		Some(1_000)
+	}
+}
+
 impl pallet_intent::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
 	type LazyExecutorHandler = DummyLazyExecutor<Test>;
+	type RegistryHandler = DummyRegistry;
 	type TimestampProvider = Timestamp;
 	type HubAssetId = ConstU32<HUB_ASSET_ID>;
 	type MaxAllowedIntentDuration = ConstU64<MAX_INTENT_DEADLINE>;
@@ -213,6 +254,7 @@ impl pallet_ice::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
 	type PalletId = IceId;
+	type RegistryHandler = DummyRegistry;
 	type BlockNumberProvider = System;
 	type Simulator = TestSimulatorConfig;
 	type WeightInfo = ();

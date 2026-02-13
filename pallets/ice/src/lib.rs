@@ -42,6 +42,7 @@ use frame_support::PalletId;
 use frame_system::pallet_prelude::*;
 use frame_system::Origin;
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
+use hydradx_traits::registry::Inspect;
 use ice_support::AssetId;
 use ice_support::Balance;
 use ice_support::Intent;
@@ -105,6 +106,9 @@ pub mod pallet {
 		/// Provider for current block number
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
+		/// Asset registry handler
+		type RegistryHandler: Inspect<AssetId = AssetId>;
+
 		/// Simulator configuration - provides simulators and route provider for the solver
 		type Simulator: SimulatorConfig;
 
@@ -165,6 +169,10 @@ pub mod pallet {
 		UnsupportedIntentKind,
 		/// Calculation overflow.
 		ArithmeticOverflow,
+		/// Asset with specified id doesn't exists.
+		AssetNotFound,
+		/// Traded amount is bellow limit.
+		InvalidAmount,
 	}
 
 	#[pallet::call]
@@ -222,6 +230,8 @@ pub mod pallet {
 			// TODO: this is not most perform solution, verify it works and optimize
 
 			for ResolvedIntent { id, data: intent } in &solution.resolved_intents {
+				Self::validate_intent_amounts(intent)?;
+
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
 				pallet_intent::Pallet::<T>::unlock_funds(&owner, intent.asset_in(), intent.amount_in())?;
 
@@ -435,6 +445,20 @@ impl<T: Config> Pallet<T> {
 		n.checked_mul(U512::from(amount_in))?.checked_div(d)?.checked_into()
 	}
 
+	/// Function validates intent's `amount_in` and `amount_out` values are bigger than existential
+	/// deposit.
+	fn validate_intent_amounts(intent: &IntentData) -> Result<(), DispatchError> {
+		let in_ed =
+			<T as Config>::RegistryHandler::existential_deposit(intent.asset_in()).ok_or(Error::<T>::AssetNotFound)?;
+		let out_ed =
+			<T as Config>::RegistryHandler::existential_deposit(intent.asset_out()).ok_or(Error::<T>::AssetNotFound)?;
+
+		ensure!(intent.amount_in() >= in_ed, Error::<T>::InvalidAmount);
+		ensure!(intent.amount_out() >= out_ed, Error::<T>::InvalidAmount);
+
+		Ok(())
+	}
+
 	/// Function validates provided solution and returns solution's score if solution is
 	/// valid.
 	fn validate_unsigned_solution(solution: &Solution) -> Result<(), DispatchError> {
@@ -446,8 +470,9 @@ impl<T: Config> Pallet<T> {
 		let mut processed_intents: BTreeSet<IntentId> = BTreeSet::new();
 		let mut score: Score = 0;
 		for ResolvedIntent { id, data: resolve } in &solution.resolved_intents {
-			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
+			Self::validate_intent_amounts(resolve)?;
 
+			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
 			let surplus = intent.data.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 			score = score.checked_add(surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
 
