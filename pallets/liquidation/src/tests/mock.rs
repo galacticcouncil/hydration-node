@@ -223,7 +223,6 @@ impl pallet_evm::GasWeightMapping for DummyGasWeightMapping {
 	}
 }
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Test>;
 	type Evm = EvmMock;
 	type Router = Router;
@@ -268,7 +267,6 @@ impl PriceOracle<AssetId> for PriceProviderMock {
 }
 
 impl pallet_route_executor::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = HDXAssetId;
@@ -281,9 +279,7 @@ impl pallet_route_executor::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -325,7 +321,6 @@ impl frame_system::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -378,7 +373,6 @@ impl pallet_balances::Config for Test {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
@@ -400,7 +394,6 @@ parameter_types! {
 type AssetLocation = u8;
 
 impl pallet_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EnsureRoot<AccountId>;
 	type Currency = Tokens;
 	type UpdateOrigin = EnsureSigned<AccountId>;
@@ -415,7 +408,6 @@ impl pallet_asset_registry::Config for Test {
 }
 
 impl pallet_omnipool::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Currencies;
@@ -522,7 +514,6 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
 }
 
 impl pallet_evm_accounts::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type FeeMultiplier = ConstU32<10>;
 	type EvmNonceProvider = EvmNonceProviderMock;
 	type ControllerOrigin = EnsureRoot<AccountId>;

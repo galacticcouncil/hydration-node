@@ -111,7 +111,6 @@ parameter_types! {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
@@ -123,7 +122,6 @@ impl pallet_currencies::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -147,7 +145,6 @@ parameter_types! {
 }
 
 impl pallet_signet::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
 	type MaxChainIdLength = MaxChainIdLength;
@@ -176,7 +173,6 @@ impl frame_support::traits::Get<primitives::EvmAddress> for SigEthFaucetMpcRoot 
 }
 
 impl pallet_dispenser::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type PalletId = DispenserPalletId;
 	type Currency = FungibleCurrencies<Test>;
 	type MinimumRequestAmount = SigEthFaucetMinRequest;

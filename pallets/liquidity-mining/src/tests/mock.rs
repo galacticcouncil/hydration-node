@@ -202,7 +202,6 @@ parameter_types! {
 }
 
 impl Config<Instance1> for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type MultiCurrency = Tokens;
 	type PalletId = LMPalletId;
@@ -229,7 +228,6 @@ parameter_types! {
 }
 
 impl Config<Instance2> for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type MultiCurrency = Tokens;
 	type PalletId = LMPalletId2;
@@ -250,7 +248,6 @@ parameter_types! {
 }
 
 impl Config<Instance3> for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type MultiCurrency = Tokens;
 	type PalletId = LMPalletId3;
@@ -290,7 +287,6 @@ impl pallet_balances::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;

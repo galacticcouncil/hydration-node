@@ -165,7 +165,6 @@ impl system::Config for Test {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AcceptedCurrencyOrigin = frame_system::EnsureRoot<AccountId>;
 	type Currencies = Currencies;
 	type RouteProvider = DefaultRouteProvider;
@@ -339,7 +338,6 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -353,7 +351,6 @@ impl orml_tokens::Config for Test {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
@@ -387,7 +384,6 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
 }
 
 impl pallet_evm_accounts::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type EvmNonceProvider = EvmNonceProvider;
 	type FeeMultiplier = frame_support::traits::ConstU32<10>;
 	type ControllerOrigin = frame_system::EnsureRoot<AccountId>;
