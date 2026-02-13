@@ -482,6 +482,7 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = weights::pallet_identity::HydraWeight<Runtime>;
 	type UsernameDeposit = UsernameDeposit;
 	type UsernameGracePeriod = ConstU32<{ 30 * DAYS }>;
+	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 }
 
