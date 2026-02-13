@@ -232,7 +232,6 @@ impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
 type EvmAccounts<T> = pallet_evm_accounts::Pallet<T>;
 
 impl pallet_evm_accounts::Config for Runtime {
-	type RuntimeEvent = crate::RuntimeEvent;
 	type EvmNonceProvider = EvmNonceProvider;
 	type FeeMultiplier = sp_core::ConstU32<50>;
 	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;

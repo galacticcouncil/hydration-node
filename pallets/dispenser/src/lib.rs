@@ -77,8 +77,6 @@ pub mod pallet {
 	/// Pallet configuration trait.
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_signet::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Multi-asset fungible currency implementation used for fees and faucet tokens.
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 

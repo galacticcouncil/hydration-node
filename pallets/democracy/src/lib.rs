@@ -223,8 +223,6 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + Sized {
 		type WeightInfo: WeightInfo;
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// The Scheduler.
 		type Scheduler: ScheduleNamed<BlockNumberFor<Self>, CallOf<Self>, Self::PalletsOrigin, Hasher = Self::Hashing>;
 

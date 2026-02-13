@@ -130,9 +130,6 @@ pub mod pallet {
 	where
 		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Asset ID of Hollar
 		#[pallet::constant]
 		type HollarId: Get<Self::AssetId>;

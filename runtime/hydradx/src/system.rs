@@ -666,7 +666,6 @@ impl pallet_transaction_payment::Config for Runtime {
 }
 
 impl pallet_transaction_multi_payment::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AcceptedCurrencyOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Currencies = Currencies;
 	type RouteProvider = Router;
@@ -683,7 +682,6 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 }
 
 impl pallet_relaychain_info::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type RelaychainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 }
 
@@ -705,7 +703,6 @@ parameter_types! {
 }
 
 impl pallet_collator_rewards::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type CurrencyId = AssetId;
 	type Currency = Currencies;
@@ -720,7 +717,6 @@ impl pallet_collator_rewards::Config for Runtime {
 }
 
 impl pallet_transaction_pause::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type WeightInfo = weights::pallet_transaction_pause::HydraWeight<Runtime>;
 }
