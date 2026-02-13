@@ -6229,7 +6229,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.9.0"
+version = "14.10.0"
 dependencies = [
  "async-trait",
  "clap",
