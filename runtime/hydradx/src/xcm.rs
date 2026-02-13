@@ -289,7 +289,10 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 			.is_err()
 		{
 			log::error!(target: "xcm-executor", "Failed to add to broadcast context.");
-			return Err(InstructionError { index: 0, error: XcmError::ExceedsStackLimit });
+			return Err(InstructionError {
+				index: 0,
+				error: XcmError::ExceedsStackLimit,
+			});
 		}
 
 		let prepare_result = Inner::prepare(message.clone(), weight_limit);
