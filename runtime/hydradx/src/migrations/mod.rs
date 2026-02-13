@@ -25,4 +25,4 @@ pub type SingleBlockMigrationsList = (PermanentSingleBlockMigrations, Unreleased
 
 // Multi-block migrations executed by pallet-migrations
 #[cfg(not(feature = "runtime-benchmarks"))]
-pub type MultiBlockMigrationsList<Runtime> = ();
+pub type MultiBlockMigrationsList = ();
