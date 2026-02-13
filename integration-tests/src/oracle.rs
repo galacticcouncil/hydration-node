@@ -81,6 +81,8 @@ fn omnipool_trades_are_ingested_into_oracle() {
 
 	Hydra::execute_with(|| {
 		// arrange
+		disable_slip_fee();
+
 		hydradx_run_to_next_block();
 
 		init_omnipool();
@@ -141,6 +143,8 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 
 	Hydra::execute_with(|| {
 		// Arrange
+		disable_slip_fee();
+
 		hydradx_run_to_next_block();
 
 		init_omnipool();
@@ -239,6 +243,8 @@ fn omnipool_hub_asset_trades_are_ingested_into_oracle() {
 
 	Hydra::execute_with(|| {
 		// arrange
+		disable_slip_fee();
+
 		hydradx_run_to_next_block();
 
 		init_omnipool();

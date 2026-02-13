@@ -528,6 +528,7 @@ pub struct ExtBuilder {
 	max_net_trade_volume_limit_per_block: (u32, u32),
 	max_add_liquidity_limit_per_block: Option<(u32, u32)>,
 	max_remove_liquidity_limit_per_block: Option<(u32, u32)>,
+	disable_slip_fee: bool,
 }
 
 impl Default for ExtBuilder {
@@ -588,6 +589,7 @@ impl Default for ExtBuilder {
 			max_net_trade_volume_limit_per_block: (2_000, 10_000),
 			max_add_liquidity_limit_per_block: Some((4_000, 10_000)),
 			max_remove_liquidity_limit_per_block: Some((2_000, 10_000)),
+			disable_slip_fee: false,
 		}
 	}
 }
@@ -636,6 +638,11 @@ impl ExtBuilder {
 		ASSET_DEPOSIT_PERIOD.with(|v| {
 			*v.borrow_mut() = period;
 		});
+		self
+	}
+
+	pub fn disable_slip_fee(mut self) -> Self {
+		self.disable_slip_fee = true;
 		self
 	}
 
@@ -747,6 +754,16 @@ impl ExtBuilder {
 		}
 
 		r.execute_with(|| System::set_block_number(1));
+
+		if self.disable_slip_fee {
+			r.execute_with(|| {
+				assert_ok!(Omnipool::set_slip_fee(
+					RuntimeOrigin::root(),
+					false,
+					Omnipool::max_slip_fee()
+				));
+			});
+		}
 
 		r
 	}

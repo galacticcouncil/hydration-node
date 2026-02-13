@@ -222,7 +222,8 @@ where
 		+ Default
 		+ PartialOrd
 		+ sp_std::fmt::Debug
-		+ Saturating,
+		+ Saturating
+		+ Zero,
 {
 	pub fn price_as_rational(&self) -> (Balance, Balance) {
 		(self.hub_reserve, self.reserve)

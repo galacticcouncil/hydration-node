@@ -90,7 +90,7 @@ fn liquidation_should_transfer_profit_to_treasury() {
 			user: bob_evm_address,
 			debt_asset: DOT,
 			collateral_asset: HDX,
-			profit: 2_976_143_141_153_081,
+			profit: 2_952_537_861_985_932,
 		}
 		.into()]);
 	});
@@ -251,7 +251,7 @@ fn initial_pallet_balance_should_not_change_after_execution() {
 			user: bob_evm_address,
 			debt_asset: DOT,
 			collateral_asset: HDX,
-			profit: 2_976_143_141_153_081,
+			profit: 2_952_537_861_985_932,
 		}
 		.into()]);
 	});

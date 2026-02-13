@@ -50,6 +50,7 @@ fn fees_should_change_when_buys_happen_in_different_blocks() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);
@@ -96,6 +97,7 @@ fn fees_should_change_when_sells_happen_in_different_blocks() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);
@@ -140,6 +142,7 @@ fn fees_should_change_when_trades_happen_in_different_blocks() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);
@@ -184,6 +187,7 @@ fn fees_should_change_only_one_when_trades_happen_in_the_same_block() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);
@@ -244,7 +248,7 @@ fn fees_should_change_only_one_when_trades_happen_in_the_same_block() {
 	});
 }
 
-fn set_balance(who: hydradx_runtime::AccountId, currency: AssetId, amount: i128) {
+pub fn set_balance(who: hydradx_runtime::AccountId, currency: AssetId, amount: i128) {
 	assert_ok!(hydradx_runtime::Currencies::update_balance(
 		hydradx_runtime::RuntimeOrigin::root(),
 		who,
@@ -253,7 +257,7 @@ fn set_balance(who: hydradx_runtime::AccountId, currency: AssetId, amount: i128)
 	));
 }
 
-fn init_omnipool() {
+pub fn init_omnipool() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
 
@@ -308,7 +312,7 @@ fn init_omnipool() {
 /// This function executes one sell and buy with HDX for all assets in the omnipool. This is necessary to
 /// oracle have a prices for the assets.
 /// NOTE: It's necessary to change parachain block to oracle have prices.
-fn init_oracle() {
+pub fn init_oracle() {
 	let trader = DAVE;
 
 	set_balance(trader.into(), HDX, 10_000_000 * UNITS as i128);
@@ -388,6 +392,7 @@ fn test_fees_update_in_multi_blocks() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_next_block();
@@ -485,6 +490,7 @@ fn test_fees_update_after_selling_lrna_in_multi_blocks() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_next_block();
@@ -534,6 +540,7 @@ fn test_fees_update_after_buying_with_lrna_in_multi_blocks() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_next_block();
@@ -583,6 +590,7 @@ fn fees_should_work_when_min_equals_max_in_dynamic_config() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);
@@ -681,6 +689,7 @@ fn fees_should_be_applied_correctly_when_min_equals_max_in_dynamic_config() {
 	// First scenario: zero fees
 	let amount_out_with_zero_fee = Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);
@@ -752,6 +761,7 @@ fn fees_should_be_applied_correctly_when_min_equals_max_in_dynamic_config() {
 	// Second scenario: non-zero fees (min = max)
 	let amount_out_with_fee = Hydra::execute_with(|| {
 		//Arrange
+		disable_slip_fee();
 		init_omnipool();
 		init_oracle();
 		hydradx_run_to_block(12);

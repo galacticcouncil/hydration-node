@@ -201,6 +201,7 @@ fn sell_should_fail_when_trade_volume_min_limit_exceeded() {
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
 		.with_token(ACA, FixedU128::from_float(0.50), LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.disable_slip_fee()
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
@@ -234,6 +235,7 @@ fn sell_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
 		.with_token(ACA, FixedU128::from_float(0.50), LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.disable_slip_fee()
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
@@ -316,6 +318,7 @@ fn buy_should_work_when_trade_volume_limit_not_exceeded(diff_from_min_limit: Bal
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
 		.with_token(ACA, FixedU128::from_float(0.8), LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.disable_slip_fee()
 		.build()
 		.execute_with(|| {
 			let buy_amount =
@@ -429,6 +432,7 @@ fn buy_should_fail_when_trade_volume_min_limit_exceeded() {
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
 		.with_token(ACA, FixedU128::from_float(0.8), LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.disable_slip_fee()
 		.build()
 		.execute_with(|| {
 			let buy_amount = CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap() + ONE;
@@ -461,6 +465,7 @@ fn buy_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
 		.with_token(ACA, FixedU128::from_float(0.8), LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.disable_slip_fee()
 		.build()
 		.execute_with(|| {
 			let buy_amount = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap() + ONE;

@@ -111,6 +111,7 @@ mod router_different_pools_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 			create_lbp_pool(DAI, LRNA);
 			create_xyk_pool(HDX, DOT);
@@ -161,6 +162,7 @@ mod router_different_pools_tests {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (stable_pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 				create_lbp_pool(DAI, HDX);
 
@@ -224,6 +226,7 @@ mod router_different_pools_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 			create_lbp_pool(DAI, LRNA);
 			create_xyk_pool(HDX, DOT);
@@ -274,6 +277,7 @@ mod router_different_pools_tests {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (stable_pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 				create_lbp_pool(DAI, HDX);
 
@@ -659,6 +663,7 @@ mod router_different_pools_tests {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
 				init_omnipool();
@@ -937,6 +942,7 @@ mod router_different_pools_tests {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
 				init_omnipool();
@@ -2372,6 +2378,7 @@ mod omnipool_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			let amount_to_sell = 10 * UNITS;
@@ -2419,6 +2426,7 @@ mod omnipool_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			let trades = vec![Trade {
@@ -2483,6 +2491,7 @@ mod omnipool_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			//Act
@@ -2552,6 +2561,7 @@ mod omnipool_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			let amount_to_buy = UNITS * 100000;
@@ -2595,6 +2605,7 @@ mod omnipool_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			let amount_to_buy = 26559360000000000000u128;
@@ -2662,6 +2673,7 @@ mod omnipool_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			let trades = vec![Trade {
@@ -2724,6 +2736,7 @@ mod omnipool_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			//Act
@@ -3033,6 +3046,7 @@ mod lbp_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			create_lbp_pool(HDX, DAI);
 			start_lbp_campaign();
 
@@ -3085,6 +3099,7 @@ mod lbp_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			create_lbp_pool(HDX, DAI);
 			start_lbp_campaign();
 
@@ -3676,6 +3691,7 @@ mod xyk_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			create_xyk_pool(HDX, DOT);
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE);
@@ -4892,6 +4908,7 @@ mod with_on_chain_and_default_route {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
 				init_omnipool();
@@ -5123,6 +5140,7 @@ mod with_on_chain_and_default_route {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			let amount_to_sell = 10 * UNITS;
@@ -5161,6 +5179,7 @@ mod with_on_chain_and_default_route {
 
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			let amount_to_buy = UNITS * 100000;
@@ -5257,6 +5276,7 @@ mod route_spot_price {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, _) =
 					init_stableswap_with_details(1_000_000_000_000_000_000u128, 300_000_000_000_000_000u128, 12)
 						.unwrap();
@@ -5424,6 +5444,7 @@ mod sell_all {
 			let bob_hdx_balance = Currencies::free_balance(HDX, &BOB.into());
 
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			let trades = vec![Trade {
@@ -5466,6 +5487,7 @@ mod sell_all {
 			let bob_nonnative_balance = Currencies::free_balance(DAI, &BOB.into());
 
 			//Arrange
+			disable_slip_fee();
 			init_omnipool();
 
 			let trades = vec![Trade {

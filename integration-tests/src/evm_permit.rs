@@ -1217,6 +1217,8 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 	let sufficient_currency = HDX;
 
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		let _ = with_transaction(|| {
 			init_omnipool_with_oracle_for_block_10();
 			pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
@@ -1411,6 +1413,8 @@ fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset()
 	let sufficient_currency = HDX;
 
 	Hydra::execute_with(|| {
+		disable_slip_fee();
+
 		let _ = with_transaction(|| {
 			init_omnipool_with_oracle_for_block_10();
 			pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(

@@ -407,6 +407,7 @@ pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	omnipool_liquidity: Vec<(AccountId, AssetId, Balance)>, //who, asset, amount/
+	disable_slip_fee: bool,
 }
 
 impl Default for ExtBuilder {
@@ -430,11 +431,17 @@ impl Default for ExtBuilder {
 			],
 			init_pool: Some((FixedU128::from_float(0.5), FixedU128::from(1))),
 			omnipool_liquidity: vec![(ALICE, KSM, 5_000 * ONE)],
+			disable_slip_fee: false,
 		}
 	}
 }
 
 impl ExtBuilder {
+	pub fn disable_slip_fee(mut self) -> Self {
+		self.disable_slip_fee = true;
+		self
+	}
+
 	pub fn build(self) -> (sp_io::TestExternalities, Arc<parking_lot::RwLock<PoolState>>) {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
@@ -521,6 +528,16 @@ impl ExtBuilder {
 		ext.execute_with(|| {
 			System::set_block_number(1);
 		});
+
+		if self.disable_slip_fee {
+			ext.execute_with(|| {
+				assert_ok!(Omnipool::set_slip_fee(
+					RuntimeOrigin::root(),
+					false,
+					Omnipool::max_slip_fee()
+				));
+			});
+		}
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			ext.execute_with(|| {

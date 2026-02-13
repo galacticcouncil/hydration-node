@@ -90,7 +90,7 @@ construct_runtime!(
 	{
 		System: frame_system,
 		Balances: pallet_balances,
-		Omnipool: pallet_omnipool,
+		Omnipool: pallet_omnipool, // Note: Slip fee is disabled by default
 		Tokens: orml_tokens,
 		Broadcast: pallet_broadcast,
 	}
@@ -508,6 +508,12 @@ impl ExtBuilder {
 
 		r.execute_with(|| {
 			System::set_block_number(1);
+			// Note: Slip fee is disabled by default
+			assert_ok!(Omnipool::set_slip_fee(
+				RuntimeOrigin::root(),
+				false,
+				Omnipool::max_slip_fee()
+			));
 		});
 
 		r

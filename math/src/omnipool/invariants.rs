@@ -1,9 +1,11 @@
 use crate::assert_approx_eq;
+use crate::omnipool::types::slip_fee::SlipFeeConfig;
 use crate::omnipool::types::{AssetReserveState, Position};
 use crate::omnipool::*;
 use crate::to_balance;
 use crate::types::Balance;
 use crate::MathError::Overflow;
+use num_traits::One;
 use primitive_types::U256;
 use proptest::prelude::*;
 use sp_arithmetic::{traits::Zero, FixedPointNumber, FixedU128, Permill};
@@ -113,6 +115,7 @@ proptest! {
 			Permill::from_percent(0),
 			Permill::from_percent(0),
 			Permill::from_percent(0),
+			&SlipFeeConfig::default(),
 		);
 
 		assert!(result.is_some());
@@ -139,6 +142,7 @@ proptest! {
 	) {
 		let result = calculate_sell_hub_state_changes(&asset_out, amount,
 			Permill::from_percent(0),
+			&Default::default(),
 		);
 
 		assert!(result.is_some());
@@ -159,6 +163,7 @@ proptest! {
 	) {
 		let result = calculate_sell_hub_state_changes(&asset_out, amount,
 			Permill::from_percent(0),
+			&Default::default(),
 		);
 
 		assert!(result.is_some());
@@ -180,6 +185,8 @@ proptest! {
 	) {
 		let result = calculate_sell_hub_state_changes(&asset_out, amount,
 			asset_fee,
+			// TODO: with fees case
+			&SlipFeeConfig::new_from_asset_state(&Default::default(), &asset_out, FixedU128::zero(), FixedU128::one()),
 		);
 
 		assert!(result.is_some());
@@ -200,6 +207,7 @@ proptest! {
 	) {
 		let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
 			Permill::from_percent(0),
+			&SlipFeeConfig::new_from_asset_state(&Default::default(), &asset_out, FixedU128::zero(), FixedU128::one()),
 		);
 
 		assert!(result.is_some());
@@ -221,6 +229,8 @@ proptest! {
 	) {
 		let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
 			asset_fee,
+			// TODO: with fees case
+			&SlipFeeConfig::new_from_asset_state(&Default::default(), &asset_out, FixedU128::zero(), FixedU128::one()),
 		);
 
 		assert!(result.is_some());
@@ -256,6 +266,7 @@ fn buy_update_invariants_no_fees_case() {
 		Permill::from_percent(0),
 		Permill::from_percent(0),
 		Permill::from_percent(0),
+		&SlipFeeConfig::new_from_asset_state(&asset_in, &asset_out, FixedU128::zero(), FixedU128::one()),
 	);
 
 	assert!(result.is_none()); // This fails because of not enough asset out in pool out
@@ -271,6 +282,7 @@ proptest! {
 			Permill::from_percent(0),
 			Permill::from_percent(0),
 			Permill::from_percent(0),
+			&SlipFeeConfig::new_from_asset_state(&asset_in, &asset_out, FixedU128::zero(), FixedU128::one()),
 		);
 
 		// perform assertion only when result is valid

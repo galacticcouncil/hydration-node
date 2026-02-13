@@ -177,6 +177,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 
 			let dca_budget = 1000 * UNITS;
@@ -211,6 +212,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 
 			let dca_budget = 1000 * UNITS;
@@ -463,6 +465,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 
 			let dca_budget = 1000 * UNITS;
@@ -487,6 +490,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
@@ -510,6 +514,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
@@ -544,6 +549,8 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
+
 			let alice_init_lrna_balance = 5000 * UNITS;
 			set_alice_lrna_balance(alice_init_lrna_balance);
 
@@ -571,6 +578,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			let alice_init_lrna_balance = 5000 * UNITS;
 			set_alice_lrna_balance(alice_init_lrna_balance);
 
@@ -597,6 +605,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			let alice_init_lrna_balance = 5000 * UNITS;
 			set_alice_lrna_balance(alice_init_lrna_balance);
 
@@ -762,6 +771,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::force_set_balance(
@@ -799,6 +809,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::force_set_balance(
@@ -1284,9 +1295,9 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
-				hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
-
 				//Arrange
+				disable_slip_fee();
+				AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
 				init_omnipool_with_oracle_for_block_10();
 				add_dot_as_payment_currency();
 
@@ -1532,6 +1543,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 
 			let alice_init_hdx_balance = 5000 * UNITS;
@@ -1648,6 +1660,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 
 			let alice_init_hub_balance = 5000 * UNITS;
@@ -1689,6 +1702,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::force_set_balance(
@@ -1720,6 +1734,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::force_set_balance(
@@ -1746,6 +1761,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::force_set_balance(
@@ -1783,6 +1799,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_lrna_balance = 5000 * UNITS;
 			set_alice_lrna_balance(alice_init_lrna_balance);
@@ -1812,6 +1829,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 
 			let alice_init_lrna_balance = 5000 * UNITS;
@@ -1838,6 +1856,7 @@ mod omnipool {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_lrna_balance = 5000 * UNITS;
 			set_alice_lrna_balance(alice_init_lrna_balance);
@@ -2447,6 +2466,7 @@ mod stableswap {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 
 				assert_ok!(Currencies::update_balance(
@@ -2700,6 +2720,7 @@ mod stableswap {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 
 				//To populate stableswap oracle
@@ -3033,6 +3054,7 @@ mod stableswap {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 
 				//To populate stableswap oracle
@@ -3205,6 +3227,7 @@ mod stableswap {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 
 				//Set stable asset 1 as accepted payment currency
@@ -3820,6 +3843,7 @@ mod all_pools {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				//Create stableswap and populate oracle
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 
@@ -4095,6 +4119,7 @@ mod with_onchain_route {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 
 				assert_ok!(Currencies::update_balance(
@@ -4210,6 +4235,7 @@ mod with_onchain_route {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipol();
 			assert_ok!(Currencies::update_balance(
 				RuntimeOrigin::root(),
@@ -4454,6 +4480,7 @@ mod with_onchain_route {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
+			disable_slip_fee();
 			init_omnipol();
 
 			do_trade_to_populate_oracle(DAI, HDX, 10000000 * UNITS);

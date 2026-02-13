@@ -945,7 +945,7 @@ pub fn init_omnipool() {
 	let native_position_id = hydradx_runtime::Omnipool::next_position_id();
 
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
+		RuntimeOrigin::root(),
 		HDX,
 		native_price,
 		Permill::from_percent(10),
@@ -955,7 +955,7 @@ pub fn init_omnipool() {
 	let stable_position_id = hydradx_runtime::Omnipool::next_position_id();
 
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
+		RuntimeOrigin::root(),
 		DAI,
 		stable_price,
 		Permill::from_percent(100),
@@ -963,17 +963,26 @@ pub fn init_omnipool() {
 	));
 
 	assert_ok!(hydradx_runtime::Omnipool::sacrifice_position(
-		hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+		RuntimeOrigin::signed(ALICE.into()),
 		native_position_id,
 	));
 
 	assert_ok!(hydradx_runtime::Omnipool::sacrifice_position(
-		hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+		RuntimeOrigin::signed(ALICE.into()),
 		stable_position_id,
 	));
 
 	set_zero_reward_for_referrals(DAI);
 	set_zero_reward_for_referrals(HDX);
+}
+
+/// Used to keep existing tests working.
+pub fn disable_slip_fee() {
+	assert_ok!(hydradx_runtime::Omnipool::set_slip_fee(
+		RuntimeOrigin::root(),
+		false,
+		hydradx_runtime::Omnipool::max_slip_fee(),
+	));
 }
 
 /// Clears the EMA oracle accumulator for XCM integration tests.
