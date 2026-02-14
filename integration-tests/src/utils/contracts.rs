@@ -1,3 +1,4 @@
+use ethabi::{encode, Token};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV6;
 use frame_support::assert_ok;
 use hydradx_runtime::EVMAccounts;
@@ -48,4 +49,10 @@ pub fn deploy_contract_code(code: Vec<u8>, deployer: EvmAddress) -> EvmAddress {
 
 pub fn deploy_contract(name: &str, deployer: EvmAddress) -> EvmAddress {
 	deploy_contract_code(get_contract_bytecode(name), deployer)
+}
+
+pub fn append_constructor_args(mut initcode: Vec<u8>, args: Vec<Token>) -> Vec<u8> {
+	let encoded = encode(&args);
+	initcode.extend_from_slice(&encoded);
+	initcode
 }

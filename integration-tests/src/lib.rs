@@ -35,6 +35,7 @@ mod oracle;
 mod otc;
 mod parameters;
 mod polkadot_test_net;
+mod price_aggregator;
 mod referrals;
 mod router;
 mod stableswap;
