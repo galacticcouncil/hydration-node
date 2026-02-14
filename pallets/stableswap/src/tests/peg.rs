@@ -3,6 +3,7 @@
 use crate::assert_balance;
 use crate::tests::mock::*;
 use crate::types::{BoundedPegSources, PegSource};
+use crate::{PoolPegs, Pools};
 use frame_support::traits::Hooks;
 use hydradx_traits::stableswap::AssetAmount;
 
@@ -394,8 +395,9 @@ fn sell_with_drifting_peg_should_work() {
 				Balance::zero(),
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
-			System::set_block_number(2);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
+
+			System::set_block_number(5);
 
 			assert_balance!(BOB, asset_b, 0);
 			assert_ok!(Stableswap::sell(
@@ -477,8 +479,9 @@ fn sell_with_drifting_peg_should_not_exceed_max_peg_update() {
 				Balance::zero(),
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
-			System::set_block_number(2);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
+
+			System::set_block_number(5);
 
 			assert_balance!(BOB, asset_b, 0);
 			assert_ok!(Stableswap::sell(
@@ -727,8 +730,8 @@ fn add_liquidity_should_work_correctly_with_different_pegs() {
 				Balance::zero(),
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
-			System::set_block_number(2);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
+			System::set_block_number(5);
 
 			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
@@ -809,8 +812,8 @@ fn add_liquidity_shares_should_work_correctly_with_different_pegs() {
 				Balance::zero(),
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
-			System::set_block_number(2);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
+			System::set_block_number(5);
 
 			assert_ok!(Stableswap::add_liquidity_shares(
 				RuntimeOrigin::signed(BOB),
@@ -892,8 +895,8 @@ fn remove_liquidity_for_one_asset_should_work_correctly_with_different_pegs() {
 				Balance::zero(),
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
-			System::set_block_number(2);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
+			System::set_block_number(5);
 
 			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
@@ -918,7 +921,7 @@ fn remove_liquidity_for_one_asset_should_work_correctly_with_different_pegs() {
 			let bob_shares = Tokens::free_balance(pool_id, &BOB);
 			assert_eq!(bob_shares, 0);
 			let bob_b_balance = Tokens::free_balance(asset_b, &BOB);
-			assert_eq!(bob_b_balance, 9311925821564); // not same as python because fees are not recalculated in same block
+			assert_eq!(bob_b_balance, 9649832005958); // same as python
 		});
 }
 
@@ -987,8 +990,8 @@ fn remove_liquidity_given_asset_amount_should_work_correctly_with_different_pegs
 				Balance::zero(),
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
-			System::set_block_number(2);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
+			System::set_block_number(5);
 
 			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
@@ -1011,10 +1014,9 @@ fn remove_liquidity_given_asset_amount_should_work_correctly_with_different_pegs
 			));
 
 			let bob_shares_left = Tokens::free_balance(pool_id, &BOB);
-			assert_eq!(bob_shares_left, 163475039151683765);
+			assert_eq!(bob_shares_left, 317410783783205889);
 			let bob_shares_used = 4713465477960257850u128 - Tokens::free_balance(pool_id, &BOB);
-			assert_eq!(bob_shares_used, 4_549_990_438_808_574_085); //not same as python becasue fees are
-														   //not recalculated in same block
+			assert_eq!(bob_shares_used, 4_396_054_694_177_051_961); //same as python
 			let bob_b_balance = Tokens::free_balance(asset_b, &BOB);
 			assert_eq!(bob_b_balance, 9 * ONE);
 		});
@@ -1085,8 +1087,8 @@ fn remove_liquidity_uniform_should_work_correctly_with_different_pegs() {
 				Balance::zero(),
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
-			System::set_block_number(2);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
+			System::set_block_number(5);
 
 			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
@@ -1191,8 +1193,8 @@ fn asset_oracle_peg_should_work() {
 			));
 
 			// Change the oracle price using the oracle_asset instead of first_asset
-			set_peg_oracle_value(oracle_asset, asset_b, (48, 100), 2);
-			System::set_block_number(2);
+			set_peg_oracle_value(oracle_asset, asset_b, (48, 100), 4);
+			System::set_block_number(5);
 
 			assert_balance!(BOB, asset_b, 0);
 			assert_ok!(Stableswap::sell(
@@ -1208,6 +1210,262 @@ fn asset_oracle_peg_should_work() {
 			assert_balance!(BOB, asset_b, 190961826574751);
 			let pegs = Stableswap::pool_peg_info(pool_id).unwrap();
 			assert_eq!(pegs.current.to_vec(), vec![(1, 1), (192, 400), (1, 3)]);
+		});
+}
+
+#[test]
+fn unsorted_assets_with_pegs_are_reordered_correctly() {
+	let asset_a: AssetId = 3;
+	let asset_b: AssetId = 1;
+	let asset_c: AssetId = 2;
+	let pool_id = 100;
+
+	ExtBuilder::default()
+		.with_registered_asset("one".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_c, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				100,
+				Permill::from_percent(0),
+				BoundedPegSources::truncate_from(vec![
+					PegSource::Value((3, 1)),
+					PegSource::Value((1, 1)),
+					PegSource::Value((2, 1)),
+				]),
+				Perbill::from_percent(100),
+			));
+
+			let pool_info = Pools::<Test>::get(pool_id).unwrap();
+			let peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
+
+			assert_eq!(pool_info.assets.to_vec(), vec![1, 2, 3]);
+			assert_eq!(peg_info.current.to_vec(), vec![(1, 1), (2, 1), (3, 1)]);
+			assert_eq!(
+				peg_info.source.to_vec(),
+				vec![
+					PegSource::Value((1, 1)),
+					PegSource::Value((2, 1)),
+					PegSource::Value((3, 1)),
+				]
+			);
+		});
+}
+
+#[test]
+fn sorted_assets_with_pegs_work_correctly() {
+	let pool_id = 100;
+
+	ExtBuilder::default()
+		.with_registered_asset("one".as_bytes().to_vec(), 1, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), 2, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), 3, 12)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![1, 2, 3]),
+				100,
+				Permill::from_percent(0),
+				BoundedPegSources::truncate_from(vec![
+					PegSource::Value((1, 1)),
+					PegSource::Value((2, 1)),
+					PegSource::Value((3, 1)),
+				]),
+				Perbill::from_percent(100),
+			));
+
+			let pool_info = Pools::<Test>::get(pool_id).unwrap();
+			let peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
+
+			assert_eq!(pool_info.assets.to_vec(), vec![1, 2, 3]);
+			assert_eq!(peg_info.current.to_vec(), vec![(1, 1), (2, 1), (3, 1)]);
+		});
+}
+
+#[test]
+fn peg_retrieval_uses_correct_index() {
+	let pool_id = 100;
+
+	ExtBuilder::default()
+		.with_registered_asset("one".as_bytes().to_vec(), 1, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), 2, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), 3, 12)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![3, 1, 2]),
+				100,
+				Permill::from_percent(0),
+				BoundedPegSources::truncate_from(vec![
+					PegSource::Value((100, 1)),
+					PegSource::Value((10, 1)),
+					PegSource::Value((50, 1)),
+				]),
+				Perbill::from_percent(100),
+			));
+
+			let pool_info = Pools::<Test>::get(pool_id).unwrap();
+			let peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
+
+			assert_eq!(pool_info.assets.to_vec(), vec![1, 2, 3]);
+			assert_eq!(peg_info.current.to_vec(), vec![(10, 1), (50, 1), (100, 1)]);
+
+			let asset_1_index = pool_info.find_asset(1).unwrap();
+			assert_eq!(peg_info.current[asset_1_index], (10, 1));
+		});
+}
+
+#[test]
+fn reverse_order_assets_with_pegs_are_reordered() {
+	let pool_id = 100;
+
+	ExtBuilder::default()
+		.with_registered_asset("one".as_bytes().to_vec(), 1, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), 2, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), 3, 12)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![3, 2, 1]),
+				100,
+				Permill::from_percent(0),
+				BoundedPegSources::truncate_from(vec![
+					PegSource::Value((30, 10)),
+					PegSource::Value((20, 10)),
+					PegSource::Value((10, 10)),
+				]),
+				Perbill::from_percent(100),
+			));
+
+			let peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
+			assert_eq!(peg_info.current.to_vec(), vec![(10, 10), (20, 10), (30, 10)]);
+		});
+}
+
+#[test]
+fn two_asset_pool_with_unsorted_pegs_works() {
+	let pool_id = 100;
+
+	ExtBuilder::default()
+		.with_registered_asset("one".as_bytes().to_vec(), 1, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), 2, 12)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![2, 1]),
+				100,
+				Permill::from_percent(0),
+				BoundedPegSources::truncate_from(vec![PegSource::Value((2, 1)), PegSource::Value((1, 1)),]),
+				Perbill::from_percent(100),
+			));
+
+			let pool_info = Pools::<Test>::get(pool_id).unwrap();
+			let peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
+
+			assert_eq!(pool_info.assets.to_vec(), vec![1, 2]);
+			assert_eq!(peg_info.current.to_vec(), vec![(1, 1), (2, 1)]);
+		});
+}
+
+#[test]
+fn five_asset_pool_with_complex_ordering_works() {
+	let pool_id = 100;
+
+	ExtBuilder::default()
+		.with_registered_asset("one".as_bytes().to_vec(), 1, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), 2, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), 3, 12)
+		.with_registered_asset("four".as_bytes().to_vec(), 4, 12)
+		.with_registered_asset("five".as_bytes().to_vec(), 5, 12)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![5, 2, 4, 1, 3]),
+				100,
+				Permill::from_percent(0),
+				BoundedPegSources::truncate_from(vec![
+					PegSource::Value((50, 10)),
+					PegSource::Value((20, 10)),
+					PegSource::Value((40, 10)),
+					PegSource::Value((10, 10)),
+					PegSource::Value((30, 10)),
+				]),
+				Perbill::from_percent(100),
+			));
+
+			let pool_info = Pools::<Test>::get(pool_id).unwrap();
+			let peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
+
+			assert_eq!(pool_info.assets.to_vec(), vec![1, 2, 3, 4, 5]);
+			assert_eq!(
+				peg_info.current.to_vec(),
+				vec![(10, 10), (20, 10), (30, 10), (40, 10), (50, 10)]
+			);
+
+			for (idx, asset_id) in pool_info.assets.iter().enumerate() {
+				let expected_peg = (*asset_id as u128 * 10, 10);
+				assert_eq!(peg_info.current[idx], expected_peg);
+			}
+		});
+}
+
+#[test]
+fn peg_sources_maintain_asset_association_after_sort() {
+	let pool_id = 100;
+
+	ExtBuilder::default()
+		.with_registered_asset("one".as_bytes().to_vec(), 10, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), 20, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), 30, 12)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![30, 10, 20]),
+				100,
+				Permill::from_percent(0),
+				BoundedPegSources::truncate_from(vec![
+					PegSource::Value((3, 1)),
+					PegSource::Value((1, 1)),
+					PegSource::Value((2, 1)),
+				]),
+				Perbill::from_percent(100),
+			));
+
+			let pool_info = Pools::<Test>::get(pool_id).unwrap();
+			let peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
+
+			assert_eq!(pool_info.assets.to_vec(), vec![10, 20, 30]);
+
+			let idx_10 = pool_info.find_asset(10).unwrap();
+			let idx_20 = pool_info.find_asset(20).unwrap();
+			let idx_30 = pool_info.find_asset(30).unwrap();
+
+			assert_eq!(peg_info.current[idx_10], (1, 1));
+			assert_eq!(peg_info.current[idx_20], (2, 1));
+			assert_eq!(peg_info.current[idx_30], (3, 1));
 		});
 }
 
