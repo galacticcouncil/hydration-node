@@ -57,6 +57,7 @@ std = [
     "serde_json/std",
     "pallet-currencies/std",
     "pallet-signet/std",
+    "pallet-asset-registry/std",
     "hex/std",
 
 ]
