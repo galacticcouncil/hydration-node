@@ -21,6 +21,7 @@ use crate::evm::Erc20Currency;
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
+use aave_simulator::AaveSimulator;
 use core::ops::RangeInclusive;
 use frame_support::{
 	ensure, parameter_types,
@@ -31,8 +32,8 @@ use frame_support::{
 	},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, ExistenceRequirement,
-		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
+		AsEnsureOriginWithArg, ConstU32, ConstU64, Contains, Currency, Defensive, EitherOf, EnsureOrigin,
+		ExistenceRequirement, Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
 	},
 	BoundedVec, PalletId,
 };
@@ -699,6 +700,7 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			BondsPalletId::get().into_account_truncating(),
 			pallet_route_executor::Pallet::<Runtime>::router_account(),
 			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS),
+			IcePalletId::get().into_account_truncating(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
@@ -1862,6 +1864,62 @@ impl pallet_hsm::Config for Runtime {
 	type WeightInfo = weights::pallet_hsm::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
+}
+
+impl pallet_lazy_executor::Config for Runtime {
+	//TODO:
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type UnsignedLongevity = ConstU64<2>;
+	type UnsignedPriority = ConstU64<100>;
+	type WeightInfo = weights::pallet_lazy_executor::HydraWeight<Runtime>;
+}
+
+parameter_types! {
+	//24 hours
+	pub const MaxIntentDuration: u64  = 24 * 3_600 * 1_000;
+}
+
+impl pallet_intent::Config for Runtime {
+	//TODO:
+	type RuntimeEvent = RuntimeEvent;
+	type LazyExecutorHandler = LazyExecutor;
+	type RegistryHandler = AssetRegistry;
+	type Currency = Currencies;
+	type MaxAllowedIntentDuration = MaxIntentDuration;
+	type TimestampProvider = Timestamp;
+	type HubAssetId = LRNA;
+	type WeightInfo = weights::pallet_intent::HydraWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const IcePalletId: PalletId = PalletId(*b"ice_ice#");
+	pub const SimulatorHubAsset: AssetId = 0;
+
+}
+
+/// Simulator configuration for the ICE pallet
+/// Bundles simulators and route provider for the solver
+pub struct HydrationSimulatorConfig;
+
+impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
+	type Simulators = (
+		Omnipool,
+		Stableswap,
+		AaveSimulator<evm::Executor<Runtime>, evm::precompiles::erc20_mapping::HydraErc20Mapping, Runtime>,
+	);
+	type RouteProvider = Router;
+	type PriceDenominator = SimulatorHubAsset;
+}
+
+impl pallet_ice::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Currencies;
+	type PalletId = IcePalletId;
+	type BlockNumberProvider = System;
+	type RegistryHandler = AssetRegistry;
+	type Simulator = HydrationSimulatorConfig;
+	type WeightInfo = weights::pallet_ice::HydraWeight<Runtime>;
 }
 
 parameter_types! {

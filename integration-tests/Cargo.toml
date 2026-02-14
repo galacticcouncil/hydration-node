@@ -58,6 +58,13 @@ pallet-referenda = { workspace = true }
 pallet-conviction-voting = { workspace = true }
 pallet-dispatcher = { workspace = true }
 pallet-hsm = { workspace = true }
+pallet-intent = { workspace = true }
+pallet-ice = { workspace = true }
+amm-simulator = { workspace = true }
+aave-simulator = { workspace = true }
+
+ice-solver = {workspace = true}
+ice-support = {workspace = true}
 
 # collator support
 pallet-collator-selection = { workspace = true }
@@ -238,6 +245,12 @@ std = [
     "ethereum/std",
     "pallet-ethereum/std",
     "fp-self-contained/std",
+    "fp-self-contained/std",
+    "pallet-intent/std",
+    "pallet-ice/std",
+    "ice-solver/std",
+    "ice-support/std",
+    "amm-simulator/std",
 ]
 
 # we don't include integration tests when benchmarking feature is enabled

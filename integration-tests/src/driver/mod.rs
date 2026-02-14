@@ -3,15 +3,18 @@ mod example;
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
+use frame_support::traits::Time;
 use frame_support::BoundedVec;
 use hydradx_runtime::bifrost_account;
 use hydradx_runtime::AssetLocation;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AggregatedPriceOracle;
+use ice_support::{IntentData, SwapData, SwapType};
 use pallet_asset_registry::AssetType;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
+use primitives::constants::time::MILLISECS_PER_BLOCK;
 use primitives::{AccountId, AssetId};
 use sp_runtime::{FixedU128, Permill};
 use sp_std::cell::RefCell;
@@ -381,6 +384,70 @@ impl HydrationTestDriver {
 	pub fn new_block(&self) -> &Self {
 		self.execute(|| {
 			hydradx_run_to_next_block();
+		});
+		self
+	}
+
+	pub fn submit_sell_intent(
+		&self,
+		who: AccountId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		amount_out: Balance,
+		deadline_in_blocks: u32,
+	) -> &Self {
+		self.execute(|| {
+			let ts = Timestamp::now();
+			let deadline = MILLISECS_PER_BLOCK * deadline_in_blocks as u64 + ts;
+			assert_ok!(Intent::submit_intent(
+				RuntimeOrigin::signed(who),
+				pallet_intent::types::Intent {
+					data: IntentData::Swap(SwapData {
+						asset_in,
+						asset_out,
+						amount_in,
+						amount_out,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+					deadline,
+					on_success: None,
+					on_failure: None,
+				}
+			));
+		});
+		self
+	}
+	pub fn submit_buy_intent(
+		&self,
+		who: AccountId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		amount_out: Balance,
+		deadline_in_blocks: u32,
+	) -> &Self {
+		self.execute(|| {
+			let ts = Timestamp::now();
+			let deadline = MILLISECS_PER_BLOCK * deadline_in_blocks as u64 + ts;
+
+			assert_ok!(Intent::submit_intent(
+				RuntimeOrigin::signed(who),
+				pallet_intent::types::Intent {
+					data: IntentData::Swap(SwapData {
+						asset_in,
+						asset_out,
+						amount_in,
+						amount_out,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+					deadline,
+					on_success: None,
+					on_failure: None,
+				}
+			));
 		});
 		self
 	}

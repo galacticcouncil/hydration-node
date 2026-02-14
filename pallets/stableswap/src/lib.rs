@@ -77,6 +77,7 @@ use sp_std::vec;
 #[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::FixedU128;
 
+pub mod simulator;
 mod trade_execution;
 pub mod traits;
 pub mod types;
@@ -112,8 +113,8 @@ pub const POOL_IDENTIFIER: &[u8] = b"sts";
 
 pub const MAX_ASSETS_IN_POOL: u32 = 5;
 
-const D_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_D_ITERATIONS;
-const Y_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_Y_ITERATIONS;
+pub(crate) const D_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_D_ITERATIONS;
+pub(crate) const Y_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_Y_ITERATIONS;
 
 #[frame_support::pallet]
 pub mod pallet {

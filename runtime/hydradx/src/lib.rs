@@ -201,6 +201,11 @@ construct_runtime!(
 		Signet: pallet_signet = 84,
 		EthDispenser: pallet_dispenser = 85,
 
+		//ICE
+		LazyExecutor: pallet_lazy_executor = 86,
+		Intent: pallet_intent = 87,
+		ICE: pallet_ice = 88,
+
 		// ORML related modules
 		Tokens: orml_tokens = 77,
 		Currencies: pallet_currencies = 79,
@@ -386,6 +391,9 @@ mod benches {
 		//[pallet_token_gateway_ismp, benchmarking::token_gateway_ismp::Benchmark]
 		[pallet_evm_accounts, benchmarking::evm_accounts::Benchmark]
 		[pallet_migrations, MultiBlockMigrations]
+		[pallet_intent, benchmarking::intent::Benchmark]
+		[pallet_lazy_executor, benchmarking::lazy_executor::Benchmark]
+		[pallet_ice, benchmarking::ice::Benchmark]
 	);
 }
 

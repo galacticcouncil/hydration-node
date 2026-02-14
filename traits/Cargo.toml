@@ -16,6 +16,7 @@ sp-arithmetic = { workspace = true }
 
 # Local dependencies
 primitives = { workspace = true }
+hydra-dx-math = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
@@ -33,4 +34,5 @@ std = [
     "sp-std/std",
     "primitives/std",
     "pallet-evm/std",
+    "hydra-dx-math/std",
 ]
