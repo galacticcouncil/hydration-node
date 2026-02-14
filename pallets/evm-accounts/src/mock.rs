@@ -92,7 +92,6 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type FeeMultiplier = sp_core::ConstU32<10>;
 	type EvmNonceProvider = EvmNonceProviderMock;
 	type ControllerOrigin = EnsureRoot<AccountId>;
@@ -168,7 +167,6 @@ impl pallet_balances::Config for Test {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
@@ -180,7 +178,6 @@ impl pallet_currencies::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -202,7 +199,6 @@ parameter_types! {
 }
 
 impl pallet_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EnsureRoot<AccountId>;
 	type Currency = Tokens;
 	type UpdateOrigin = EnsureSigned<AccountId>;
