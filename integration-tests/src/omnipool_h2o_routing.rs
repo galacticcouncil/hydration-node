@@ -62,7 +62,7 @@ fn sell_h2o_for_asset_should_route_to_treasury() {
 			sell_amount != 0 && dai_received != 0,
 			"trade amounts should not be zero"
 		);
-		// Assert Swapped3 event using get_last_swapped_events pattern (like dca.rs)
+
 		let swapped_events = get_last_swapped_events();
 		pretty_assertions::assert_eq!(
 			swapped_events.last().unwrap(),
@@ -140,7 +140,7 @@ fn sell_h2o_for_hdx_should_route_to_treasury() {
 			"trade amounts should not be zero"
 		);
 
-		// Assert Swapped3 event using get_last_swapped_events pattern (like dca.rs)
+		// Assert
 		let swapped_events = get_last_swapped_events();
 		pretty_assertions::assert_eq!(
 			swapped_events.last().unwrap(),
@@ -201,14 +201,9 @@ fn buy_with_h2o_from_treasury_should_not_route_back_to_treasury() {
 		let dai_received = final_treasury_dai - initial_treasury_dai;
 		assert_eq!(dai_received, buy_amount, "Treasury should have received exact buy_amount of DAI");
 
-		// The bug: HubDestination routing sends the spent H2O back to Treasury,
-		// so net H2O cost is zero. Treasury H2O should decrease after buying.
 		assert!(
 			final_treasury_h2o < initial_treasury_h2o,
-			"Treasury H2O should decrease after buying DAI, but got {} back via HubDestination routing (initial: {}, final: {})",
-			final_treasury_h2o.saturating_sub(initial_treasury_h2o.saturating_sub(buy_amount)),
-			initial_treasury_h2o,
-			final_treasury_h2o,
+			"Treasury H2O should decrease after buying DAI",
 		);
 	});
 }
@@ -236,7 +231,7 @@ fn sell_h2o_from_treasury_should_not_route_back_to_treasury() {
 		let initial_treasury_h2o = hydradx_runtime::Tokens::free_balance(LRNA, &treasury);
 		let initial_treasury_dai = hydradx_runtime::Tokens::free_balance(DAI, &treasury);
 
-		// Act - Treasury sells H2O for DAI
+		// Act
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(treasury.clone()),
 			LRNA,
@@ -251,12 +246,11 @@ fn sell_h2o_from_treasury_should_not_route_back_to_treasury() {
 		// Assert
 		assert!(final_treasury_dai > initial_treasury_dai, "Treasury should have received DAI");
 
-		// Treasury should have spent exactly sell_amount of H2O — no routing back
+		// Treasury
 		assert_eq!(
 			final_treasury_h2o,
 			initial_treasury_h2o - sell_amount,
-			"Treasury H2O balance should be initial minus sell_amount, but got {} back via HubDestination routing",
-			final_treasury_h2o - (initial_treasury_h2o - sell_amount),
+			"Treasury H2O balance should be initial minus sell_amount",
 		);
 	});
 }
