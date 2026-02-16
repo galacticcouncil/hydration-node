@@ -1976,9 +1976,9 @@ impl<T: Config> Pallet<T> {
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
-		// delta_hub_reserve = effective hub asset that enters the pool (after slip deduction).
-		// The user pays `amount` (the full input); slip fee = amount - effective.
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
+		// When seller is HubDestination (Treasury), let hub_reserve flow into the traded asset
+		// normally, so we dont decrease the price impact
 		if who != &T::HubDestination::get() {
 			state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
 		}
@@ -2122,9 +2122,9 @@ impl<T: Config> Pallet<T> {
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
-		// When seller is HubDestination (Treasury), let hub_reserve flow into the traded asset
-		// normally (pre-rerouting behavior). Otherwise, zero it and route to HubDestination.
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
+		// When seller is HubDestination (Treasury), let hub_reserve flow into the traded asset
+		// normally, so we dont decrease the price impact
 		if who != &T::HubDestination::get() {
 			state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
 		}
