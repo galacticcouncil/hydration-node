@@ -632,9 +632,8 @@ pub mod pallet {
 
 		/// Add all available liquidity of asset `asset` to Omnipool.
 		///
-		/// Deposits the caller's entire free balance of `asset` minus the existential deposit,
-		/// so that the account remains alive. Equivalent to calling `add_liquidity_with_limit`
-		/// with `amount = free_balance(asset) - existential_deposit(asset)`.
+		/// Deposits the caller's entire free balance of `asset`. Equivalent to calling
+		/// `add_liquidity_with_limit` with `amount = free_balance(asset)`.
 		///
 		/// Asset's tradable state must contain ADD_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
 		///
@@ -660,8 +659,7 @@ pub mod pallet {
 		pub fn add_all_liquidity(origin: OriginFor<T>, asset: T::AssetId, min_shares_limit: Balance) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
-			let ed = T::Currency::minimum_balance(asset);
-			let amount = T::Currency::free_balance(asset, &who).saturating_sub(ed);
+			let amount = T::Currency::free_balance(asset, &who);
 
 			ensure!(amount > Balance::zero(), Error::<T>::InsufficientBalance);
 

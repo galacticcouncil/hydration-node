@@ -1,7 +1,6 @@
 use super::*;
 use crate::types::Tradability;
 use frame_support::assert_noop;
-use orml_traits::MultiCurrencyExtended;
 
 #[test]
 fn add_all_liquidity_works() {
@@ -12,8 +11,7 @@ fn add_all_liquidity_works() {
 		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			let ed = <Test as crate::Config>::Currency::minimum_balance(1_000);
-			let expected_amount = 5000 * ONE - ed;
+			let expected_amount = 5000 * ONE;
 
 			let position_id = last_position_id();
 
@@ -23,14 +21,14 @@ fn add_all_liquidity_works() {
 				Balance::MIN,
 			));
 
-			// LP1 should hold exactly the ED
-			assert_balance!(LP1, 1_000, ed);
+			// LP1's entire balance was deposited — account now has zero
+			assert_balance!(LP1, 1_000, 0);
 
 			// A position NFT was minted for LP1
 			let minted = POSITIONS.with(|v| v.borrow().get(&position_id).copied());
 			assert_eq!(minted, Some(LP1));
 
-			// Pool received the full amount minus ED
+			// Pool received the full balance
 			let state = Assets::<Test>::get(1_000).unwrap();
 			assert_eq!(state.shares, 2000 * ONE + expected_amount);
 		});
@@ -48,8 +46,7 @@ fn add_all_liquidity_and_add_liquidity_with_limit_produce_same_result() {
 			.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 			.build()
 			.execute_with(|| {
-				let ed = <Test as crate::Config>::Currency::minimum_balance(1_000);
-				let amount = 5000 * ONE - ed;
+				let amount = 5000 * ONE;
 
 				if use_all {
 					assert_ok!(Omnipool::add_all_liquidity(
@@ -82,25 +79,6 @@ fn add_all_liquidity_fails_when_balance_is_zero() {
 		.build()
 		.execute_with(|| {
 			// LP3 has no balance of asset 1_000
-			assert_noop!(
-				Omnipool::add_all_liquidity(RuntimeOrigin::signed(LP3), 1_000, Balance::MIN),
-				Error::<Test>::InsufficientBalance
-			);
-		});
-}
-
-#[test]
-fn add_all_liquidity_fails_when_balance_equals_ed() {
-	ExtBuilder::default()
-		.add_endowed_accounts((LP2, 1_000, 5000 * ONE))
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.build()
-		.execute_with(|| {
-			let ed = <Test as crate::Config>::Currency::minimum_balance(1_000);
-			// Give LP3 exactly the ED — after subtracting ED the amount becomes zero
-			Tokens::update_balance(1_000, &LP3, ed as i128).unwrap();
-
 			assert_noop!(
 				Omnipool::add_all_liquidity(RuntimeOrigin::signed(LP3), 1_000, Balance::MIN),
 				Error::<Test>::InsufficientBalance
