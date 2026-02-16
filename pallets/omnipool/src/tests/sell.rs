@@ -1485,7 +1485,7 @@ fn sell_hub_asset_from_hub_destination_should_not_reroute() {
 
 			let final_treasury_lrna = Tokens::free_balance(LRNA, &TREASURY);
 
-			// Assert - Treasury balance should decrease (no refund via HubDestination)
+			// Assert
 			assert_eq!(
 				final_treasury_lrna,
 				initial_treasury_lrna - sell_amount,
