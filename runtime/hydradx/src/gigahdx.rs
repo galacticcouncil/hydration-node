@@ -18,7 +18,7 @@ parameter_types! {
 	pub const MaxFeeConversionsPerBlock: u32 = 5;
 }
 
-/// Staking fee receiver — accumulates HDX in staking pot, no callback needed.
+/// Staking fee receiver for non-HDX path — 50% of converted HDX.
 pub struct StakingFeeReceiver;
 
 impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for StakingFeeReceiver {
@@ -30,6 +30,30 @@ impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for StakingFeeRece
 
 	fn percentage() -> Permill {
 		Permill::from_percent(50)
+	}
+
+	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+
+	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+}
+
+/// Staking fee receiver for HDX path — receives 100% of HDX trade fees.
+/// HDX fees bypass referrals entirely and go straight to staking.
+pub struct HdxStakingFeeReceiver;
+
+impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for HdxStakingFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_staking::Pallet::<Runtime>::pot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(100)
 	}
 
 	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
@@ -59,8 +83,8 @@ impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for ReferralsFeeRe
 		pallet_referrals::Pallet::<Runtime>::on_fee_received(trader, amount)
 	}
 
-	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
-		Ok(())
+	fn on_fee_received(amount: Balance) -> Result<(), Self::Error> {
+		pallet_referrals::Pallet::<Runtime>::on_hdx_deposited(amount)
 	}
 }
 
@@ -80,6 +104,6 @@ impl pallet_fee_processor::Config for Runtime {
 	type MinConversionAmount = MinFeeConversionAmount;
 	type MaxConversionsPerBlock = MaxFeeConversionsPerBlock;
 	type FeeReceivers = (StakingFeeReceiver, ReferralsFeeReceiver);
-	type HdxFeeReceivers = (StakingFeeReceiver, ReferralsFeeReceiver);
+	type HdxFeeReceivers = HdxStakingFeeReceiver;
 	type WeightInfo = ();
 }

@@ -5,9 +5,8 @@ use frame_support::{assert_ok, traits::Hooks};
 use frame_system::RawOrigin;
 use hydradx_runtime::{Currencies, FeeProcessor, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens};
 use orml_traits::MultiCurrency;
-use pallet_referrals::{FeeDistribution, Level, ReferralCode};
+use pallet_referrals::ReferralCode;
 use primitives::AccountId;
-use sp_runtime::Permill;
 use xcm_emulator::TestExt;
 
 // ---------------------------------------------------------------------------
@@ -73,11 +72,11 @@ fn fee_processor_pot() -> AccountId {
 }
 
 // ---------------------------------------------------------------------------
-// Tests: HDX fee distribution
+// Tests: HDX fee distribution — goes only to staking
 // ---------------------------------------------------------------------------
 
 #[test]
-fn hdx_fee_from_omnipool_trade_is_distributed_to_staking_and_referrals_pots() {
+fn hdx_fee_from_omnipool_trade_goes_only_to_staking() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -101,30 +100,56 @@ fn hdx_fee_from_omnipool_trade_is_distributed_to_staking_and_referrals_pots() {
 		let staking_increase = staking_after.saturating_sub(staking_before);
 		let referrals_increase = referrals_after.saturating_sub(referrals_before);
 
-		// HdxFeeReceivers: Staking 50%, Referrals 30% → ratio 50:30 ≈ 62.5%:37.5%
+		// HdxFeeReceivers = HdxStakingFeeReceiver (100%)
 		assert!(staking_increase > 0, "Staking pot should receive HDX fees");
-		assert!(referrals_increase > 0, "Referrals pot should receive HDX fees");
+		assert_eq!(referrals_increase, 0, "Referrals pot should NOT receive any HDX fees");
+	});
+}
 
-		let total_fees = staking_increase + referrals_increase;
-		let staking_pct = Permill::from_rational(staking_increase, total_fees);
-		let referrals_pct = Permill::from_rational(referrals_increase, total_fees);
+#[test]
+fn hdx_fee_does_not_generate_referral_shares() {
+	TestNet::reset();
 
-		// Allow 1% tolerance due to rounding
-		assert!(
-			staking_pct >= Permill::from_percent(61) && staking_pct <= Permill::from_percent(64),
-			"Staking should get ~62.5%, got {:?}",
-			staking_pct
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		// Set up referral code
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"FEETEST".to_vec());
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE.into()),
+			code.clone()
+		));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
+
+		let referrer_shares_before = Referrals::referrer_shares(AccountId::from(ALICE));
+		let trader_shares_before = Referrals::trader_shares(AccountId::from(BOB));
+
+		// DAI→HDX trade generates HDX fees — should NOT trigger referrals callbacks
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			DAI,
+			HDX,
+			10 * UNITS,
+			0,
+		));
+
+		let referrer_shares_after = Referrals::referrer_shares(AccountId::from(ALICE));
+		let trader_shares_after = Referrals::trader_shares(AccountId::from(BOB));
+
+		assert_eq!(
+			referrer_shares_before, referrer_shares_after,
+			"Referrer shares should NOT increase from HDX fee trade"
 		);
-		assert!(
-			referrals_pct >= Permill::from_percent(36) && referrals_pct <= Permill::from_percent(39),
-			"Referrals should get ~37.5%, got {:?}",
-			referrals_pct
+		assert_eq!(
+			trader_shares_before, trader_shares_after,
+			"Trader shares should NOT increase from HDX fee trade"
 		);
 	});
 }
 
 // ---------------------------------------------------------------------------
-// Tests: Non-HDX fee accumulation and conversion
+// Tests: Non-HDX fee — goes to both staking and referrals after conversion
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -147,7 +172,6 @@ fn non_hdx_fee_from_omnipool_trade_is_accumulated_in_fee_processor_pot() {
 
 		let pot_dai_after = Currencies::free_balance(DAI, &fee_processor_pot());
 
-		// DAI fee should be accumulated in fee processor pot
 		assert!(
 			pot_dai_after > pot_dai_before,
 			"Fee processor pot should accumulate DAI fees. Before: {}, After: {}",
@@ -155,7 +179,6 @@ fn non_hdx_fee_from_omnipool_trade_is_accumulated_in_fee_processor_pot() {
 			pot_dai_after
 		);
 
-		// Should be marked as pending conversion
 		assert!(
 			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
 			"DAI should be marked pending for conversion"
@@ -164,7 +187,7 @@ fn non_hdx_fee_from_omnipool_trade_is_accumulated_in_fee_processor_pot() {
 }
 
 #[test]
-fn non_hdx_fee_is_converted_via_manual_convert_extrinsic() {
+fn non_hdx_fee_conversion_distributes_to_both_staking_and_referrals() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -186,7 +209,7 @@ fn non_hdx_fee_is_converted_via_manual_convert_extrinsic() {
 		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
 
 		// Manually trigger conversion
-		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI,));
+		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 
 		// DAI should be gone from pot (swapped to HDX)
 		let pot_dai_after = Currencies::free_balance(DAI, &fee_processor_pot());
@@ -195,13 +218,12 @@ fn non_hdx_fee_is_converted_via_manual_convert_extrinsic() {
 			"DAI should be consumed from pot after conversion"
 		);
 
-		// Pending should be removed
 		assert!(
 			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
 			"DAI should no longer be pending"
 		);
 
-		// HDX should be distributed to receiver pots
+		// HDX should be distributed to BOTH receiver pots (FeeReceivers: Staking 50% + Referrals 30%)
 		let staking_after = Currencies::free_balance(HDX, &staking_pot());
 		let referrals_after = Currencies::free_balance(HDX, &referrals_pot());
 
@@ -243,13 +265,11 @@ fn non_hdx_fee_is_converted_on_idle() {
 		let weight = frame_support::weights::Weight::from_parts(1_000_000_000_000, u64::MAX);
 		pallet_fee_processor::Pallet::<Runtime>::on_idle(hydradx_runtime::System::block_number(), weight);
 
-		// Pending should be cleared
 		assert!(
 			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
 			"DAI should be converted and no longer pending"
 		);
 
-		// Staking pot should have received HDX
 		let staking_after = Currencies::free_balance(HDX, &staking_pot());
 		assert!(
 			staking_after > staking_before,
@@ -258,12 +278,8 @@ fn non_hdx_fee_is_converted_on_idle() {
 	});
 }
 
-// ---------------------------------------------------------------------------
-// Tests: Referrals callback integration
-// ---------------------------------------------------------------------------
-
 #[test]
-fn referrals_callback_records_shares_for_linked_trader() {
+fn non_hdx_fee_generates_referral_shares_for_linked_trader() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -278,35 +294,22 @@ fn referrals_callback_records_shares_for_linked_trader() {
 		));
 		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
 
-		// Set non-zero referral rewards for HDX
-		assert_ok!(Referrals::set_reward_percentage(
-			RawOrigin::Root.into(),
-			HDX,
-			Level::Tier0,
-			FeeDistribution {
-				referrer: Permill::from_percent(10),
-				trader: Permill::from_percent(10),
-				external: Permill::zero(),
-			},
-		));
-
 		let referrer_shares_before = Referrals::referrer_shares(AccountId::from(ALICE));
 
-		// BOB trades DAI->HDX which generates HDX fees, triggering callbacks
+		// HDX→DAI trade generates DAI fees — non-HDX path triggers referrals callbacks
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
-			DAI,
 			HDX,
+			DAI,
 			10 * UNITS,
 			0,
 		));
 
-		// Verify referrer shares were recorded via the on_fee_received callback
 		let referrer_shares_after = Referrals::referrer_shares(AccountId::from(ALICE));
 
 		assert!(
 			referrer_shares_after > referrer_shares_before,
-			"Referrer shares should increase after trade. Before: {}, After: {}",
+			"Referrer shares should increase from non-HDX fee trade. Before: {}, After: {}",
 			referrer_shares_before,
 			referrer_shares_after
 		);
@@ -325,8 +328,7 @@ fn lrna_fees_are_not_processed_by_fee_processor() {
 		init_omnipool_with_oracle_for_block_24();
 
 		let pot_lrna_before = Currencies::free_balance(LRNA, &fee_processor_pot());
-		// LRNA trades generate protocol fees (in LRNA), not trade fees through fee processor
-		// Sell LRNA for DAI — LRNA side fee should be skipped by OmnipoolHookAdapter
+
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
@@ -343,14 +345,12 @@ fn lrna_fees_are_not_processed_by_fee_processor() {
 			0,
 		));
 
-		// Fee processor should NOT have accumulated LRNA
 		let pot_lrna_after = Currencies::free_balance(LRNA, &fee_processor_pot());
 		assert_eq!(
 			pot_lrna_before, pot_lrna_after,
 			"Fee processor pot should not accumulate LRNA"
 		);
 
-		// LRNA should NOT be pending
 		assert!(
 			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(LRNA),
 			"LRNA should never be pending for conversion"
@@ -359,11 +359,11 @@ fn lrna_fees_are_not_processed_by_fee_processor() {
 }
 
 // ---------------------------------------------------------------------------
-// Tests: Multiple trades accumulate correctly
+// Tests: Multiple trades
 // ---------------------------------------------------------------------------
 
 #[test]
-fn multiple_trades_accumulate_fees_correctly() {
+fn multiple_hdx_trades_accumulate_only_in_staking() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -383,26 +383,16 @@ fn multiple_trades_accumulate_fees_correctly() {
 			));
 		}
 
-		let staking_after = Currencies::free_balance(HDX, &staking_pot());
-		let referrals_after = Currencies::free_balance(HDX, &referrals_pot());
+		let staking_total = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_initial);
+		let referrals_total = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_initial);
 
-		let staking_total = staking_after.saturating_sub(staking_initial);
-		let referrals_total = referrals_after.saturating_sub(referrals_initial);
-
-		// Both pots should have accumulated fees from all 3 trades
-		assert!(staking_total > 0, "Staking pot should accumulate from multiple trades");
 		assert!(
-			referrals_total > 0,
-			"Referrals pot should accumulate from multiple trades"
+			staking_total > 0,
+			"Staking pot should accumulate from multiple HDX trades"
 		);
-
-		// HdxFeeReceivers: 50:30 ratio → ~62.5% staking
-		let total = staking_total + referrals_total;
-		let staking_pct = Permill::from_rational(staking_total, total);
-		assert!(
-			staking_pct >= Permill::from_percent(61) && staking_pct <= Permill::from_percent(64),
-			"Staking percentage should remain ~62.5% across multiple trades, got {:?}",
-			staking_pct
+		assert_eq!(
+			referrals_total, 0,
+			"Referrals pot should NOT receive anything from HDX trades"
 		);
 	});
 }
@@ -418,7 +408,6 @@ fn fee_received_event_is_emitted_for_hdx_fee() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_24();
 
-		// Trade that generates HDX fees
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
 			DAI,
@@ -427,7 +416,6 @@ fn fee_received_event_is_emitted_for_hdx_fee() {
 			0,
 		));
 
-		// Check for FeeReceived event
 		let events = last_hydra_events(100);
 		let fee_received = events.iter().any(|e| {
 			matches!(
@@ -449,7 +437,6 @@ fn fee_received_event_is_emitted_for_non_hdx_fee() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_24();
 
-		// Trade that generates DAI fees (sell HDX for DAI)
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
 			HDX,
@@ -458,7 +445,6 @@ fn fee_received_event_is_emitted_for_non_hdx_fee() {
 			0,
 		));
 
-		// Check for FeeReceived event with DAI asset
 		let events = last_hydra_events(100);
 		let fee_received = events.iter().any(|e| {
 			matches!(
@@ -480,7 +466,6 @@ fn converted_event_is_emitted_after_manual_conversion() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_24();
 
-		// Generate DAI fees
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
 			HDX,
@@ -489,10 +474,8 @@ fn converted_event_is_emitted_after_manual_conversion() {
 			0,
 		));
 
-		// Convert
-		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI,));
+		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 
-		// Check for Converted event
 		let events = last_hydra_events(100);
 		let converted = events.iter().any(|e| {
 			matches!(

@@ -193,19 +193,16 @@ pub mod pallet {
 			}
 
 			if asset == T::HdxAssetId::get() {
-				log::trace!(target:"fee", "HDX fee");
-				// Already HDX — transfer to our pot first (so Omnipool can track),
+				// Already HDX — transfer to our pot first
 				// then distribute from our pot to receiver pots.
 				let pot = Self::pot_account_id();
 				T::Currency::transfer(asset, &source, &pot, amount, Preservation::Expendable)?;
 				// — execute pre-deposit callbacks with trader context (HDX-specific receivers)
 				T::HdxFeeReceivers::on_pre_fee_deposit(trader.clone(), amount)?;
-				log::trace!(target:"fee", "distributing to pots");
 				Self::distribute_to_pots(&pot, amount, T::HdxFeeReceivers::destinations())?;
 				// — execute post-deposit callbacks (HDX-specific receivers)
 				T::HdxFeeReceivers::on_fee_received(amount)?;
 
-				log::trace!(target:"fee", "distributing to pots done");
 				Self::deposit_event(Event::FeeReceived {
 					asset,
 					amount,

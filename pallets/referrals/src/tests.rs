@@ -29,6 +29,7 @@ use crate::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::{Fortitude, Precision};
 use frame_support::{
 	assert_noop, assert_ok, construct_runtime, parameter_types,
@@ -53,6 +54,7 @@ pub(crate) type AccountId = u64;
 pub(crate) type AssetId = u32;
 
 pub(crate) const ONE: Balance = 1_000_000_000_000;
+pub(crate) const ONE_E18: u128 = 1_000_000_000_000_000_000;
 
 pub const HDX: AssetId = 0;
 pub const DAI: AssetId = 2;
@@ -213,6 +215,9 @@ pub struct ExtBuilder {
 	trader_shares: Vec<(AccountId, Balance)>,
 	tiers: Vec<(AssetId, Level, FeeDistribution)>,
 	assets: Vec<AssetId>,
+	reward_per_share: Option<U256>,
+	user_reward_debts: Vec<(AccountId, U256)>,
+	user_accumulated_rewards: Vec<(AccountId, Balance)>,
 }
 
 impl Default for ExtBuilder {
@@ -241,6 +246,9 @@ impl Default for ExtBuilder {
 			trader_shares: vec![],
 			tiers: vec![],
 			assets: vec![],
+			reward_per_share: None,
+			user_reward_debts: vec![],
+			user_accumulated_rewards: vec![],
 		}
 	}
 }
@@ -307,6 +315,21 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_reward_per_share(mut self, rps: U256) -> Self {
+		self.reward_per_share = Some(rps);
+		self
+	}
+
+	pub fn with_user_reward_debts(mut self, debts: Vec<(AccountId, U256)>) -> Self {
+		self.user_reward_debts.extend(debts);
+		self
+	}
+
+	pub fn with_user_accumulated_rewards(mut self, rewards: Vec<(AccountId, Balance)>) -> Self {
+		self.user_accumulated_rewards.extend(rewards);
+		self
+	}
+
 	#[cfg(feature = "runtime-benchmarks")]
 	pub fn with_default_volumes(self) -> Self {
 		let mut volumes = HashMap::new();
@@ -336,6 +359,10 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 
+		let reward_per_share = self.reward_per_share;
+		let user_reward_debts = self.user_reward_debts.clone();
+		let user_accumulated_rewards = self.user_accumulated_rewards.clone();
+
 		r.execute_with(|| {
 			for (acc, amount) in self.referrer_shares.iter() {
 				ReferrerShares::<Test>::insert(acc, amount);
@@ -348,6 +375,17 @@ impl ExtBuilder {
 				TotalShares::<Test>::mutate(|v| {
 					*v = v.saturating_add(*amount);
 				});
+			}
+
+			// Set accumulator state
+			if let Some(rps) = reward_per_share {
+				RewardPerShare::<Test>::put(rps);
+			}
+			for (acc, debt) in user_reward_debts.iter() {
+				UserRewardDebt::<Test>::insert(acc, debt);
+			}
+			for (acc, rewards) in user_accumulated_rewards.iter() {
+				UserAccumulatedRewards::<Test>::insert(acc, rewards);
 			}
 		});
 
@@ -446,6 +484,10 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 
 		println!("on_trade_fee: hdx: {:?}", hdx_amount);
 
+		// Mint shares (on_pre_fee_deposit equivalent)
+		Referrals::on_fee_received(*trader, hdx_amount)?;
+
+		// Deposit HDX to pot
 		Tokens::mint_into(HDX, &Referrals::pot_account_id(), hdx_amount)?;
 
 		Tokens::burn_from(
@@ -458,7 +500,8 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 		)
 		.expect("remove from source");
 
-		Referrals::on_fee_received(*trader, hdx_amount)?;
+		// Bump accumulator (on_fee_received equivalent)
+		Referrals::on_hdx_deposited(hdx_amount)?;
 		Ok(())
 	}
 }

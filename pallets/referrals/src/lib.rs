@@ -50,10 +50,9 @@ mod tests;
 pub mod traits;
 
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use frame_support::ensure;
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use frame_support::traits::fungibles::{Inspect, Mutate};
 use frame_support::traits::tokens::Preservation;
-use frame_support::{defensive, ensure, transactional};
 use frame_system::{
 	ensure_signed,
 	pallet_prelude::{BlockNumberFor, OriginFor},
@@ -63,9 +62,7 @@ use orml_traits::GetByKey;
 use scale_info::TypeInfo;
 use sp_core::bounded::BoundedVec;
 use sp_core::U256;
-use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::Rounding;
 use sp_runtime::{
 	traits::{CheckedAdd, Zero},
 	ArithmeticError, DispatchError, Permill, RuntimeDebug,
@@ -178,10 +175,13 @@ pub mod pallet {
 	use crate::traits::Convert;
 	use frame_support::pallet_prelude::*;
 	use frame_support::sp_runtime::ArithmeticError;
-	use frame_support::traits::fungibles::{Inspect, Mutate};
+	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use hydra_dx_math::ema::EmaPrice;
 	use sp_runtime::traits::Zero;
+
+	/// Precision multiplier for the reward-per-share accumulator (10^18).
+	pub(crate) const PRECISION: u128 = 1_000_000_000_000_000_000;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -299,6 +299,18 @@ pub mod pallet {
 	#[pallet::getter(fn pending_conversions)]
 	pub(super) type PendingConversions<T: Config> = CountedStorageMap<_, Blake2_128Concat, T::AssetId, ()>;
 	//TODO: we need to remove this storage - we need migration to kill it once ren
+
+	/// Global reward-per-share accumulator (scaled by PRECISION = 10^18).
+	#[pallet::storage]
+	pub type RewardPerShare<T: Config> = StorageValue<_, U256, ValueQuery>;
+
+	/// Per-user reward debt: snapshot of (total_user_shares * RewardPerShare / PRECISION) at last checkpoint.
+	#[pallet::storage]
+	pub type UserRewardDebt<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, U256, ValueQuery>;
+
+	/// Per-user accumulated rewards frozen at checkpoint time, waiting to be claimed.
+	#[pallet::storage]
+	pub type UserAccumulatedRewards<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -475,40 +487,44 @@ pub mod pallet {
 		})]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let referrer_shares = ReferrerShares::<T>::take(&who);
-			let trader_shares = TraderShares::<T>::take(&who);
-			let total_shares = referrer_shares.saturating_add(trader_shares);
-			if total_shares == Balance::zero() {
+			let referrer_shares = ReferrerShares::<T>::get(&who);
+			let trader_shares = TraderShares::<T>::get(&who);
+			let total_user_shares = referrer_shares.saturating_add(trader_shares);
+
+			if total_user_shares == 0 {
 				return Ok(());
 			}
 
-			let reward_reserve = T::Currency::balance(T::RewardAsset::get(), &Self::pot_account_id());
-			let reward_reserve = reward_reserve.saturating_sub(T::SeedNativeAmount::get());
+			// Calculate pending from accumulator
+			let rps = RewardPerShare::<T>::get();
+			let debt = UserRewardDebt::<T>::get(&who);
+			let current = U256::from(total_user_shares).saturating_mul(rps) / U256::from(PRECISION);
+			let pending = Balance::try_from(current.saturating_sub(debt)).map_err(|_| ArithmeticError::Overflow)?;
+
+			let accumulated = UserAccumulatedRewards::<T>::get(&who);
+			let total_rewards = accumulated.checked_add(pending).ok_or(ArithmeticError::Overflow)?;
+
+			if total_rewards == 0 {
+				return Ok(());
+			}
+
+			// Split proportionally for referrer/trader attribution
+			let referrer_rewards = U256::from(total_rewards)
+				.saturating_mul(U256::from(referrer_shares))
+				.checked_div(U256::from(total_user_shares))
+				.and_then(|v| Balance::try_from(v).ok())
+				.unwrap_or(0);
+			let trader_rewards = total_rewards.saturating_sub(referrer_rewards);
+
 			let share_issuance = TotalShares::<T>::get();
 
-			let convert_shares = |to_convert: Balance| -> Option<Balance> {
-				let shares_hp = U256::from(to_convert);
-				let reward_reserve_hp = U256::from(reward_reserve);
-				let share_issuance_hp = U256::from(share_issuance);
-				let r = shares_hp
-					.checked_mul(reward_reserve_hp)?
-					.checked_div(share_issuance_hp)?;
-				Balance::try_from(r).ok()
-			};
-
-			let referrer_rewards = convert_shares(referrer_shares).ok_or(ArithmeticError::Overflow)?;
-			let trader_rewards = convert_shares(trader_shares).ok_or(ArithmeticError::Overflow)?;
-			let total_rewards = referrer_rewards
-				.checked_add(trader_rewards)
-				.ok_or(ArithmeticError::Overflow)?;
-			ensure!(total_rewards <= reward_reserve, Error::<T>::IncorrectRewardCalculation);
-
-			// Make sure that we can transfer all the rewards if all shares withdrawn.
-			let keep_pot_alive = match total_shares != share_issuance {
+			// Allow pot to be drained when last shares are claimed
+			let keep_pot_alive = match total_user_shares != share_issuance {
 				true => Preservation::Preserve,
 				false => Preservation::Expendable,
 			};
 
+			// Transfer
 			T::Currency::transfer(
 				T::RewardAsset::get(),
 				&Self::pot_account_id(),
@@ -516,9 +532,17 @@ pub mod pallet {
 				total_rewards,
 				keep_pot_alive,
 			)?;
+
+			// Burn shares and reset accumulator state
+			ReferrerShares::<T>::remove(&who);
+			TraderShares::<T>::remove(&who);
 			TotalShares::<T>::mutate(|v| {
-				*v = v.saturating_sub(total_shares);
+				*v = v.saturating_sub(total_user_shares);
 			});
+			UserRewardDebt::<T>::remove(&who);
+			UserAccumulatedRewards::<T>::remove(&who);
+
+			// Update referrer level
 			Referrer::<T>::mutate(who.clone(), |v| {
 				if let Some((level, total)) = v {
 					*total = total.saturating_add(referrer_rewards);
@@ -627,6 +651,21 @@ impl<T: Config> Pallet<T> {
 			0
 		};
 
+		// Checkpoint affected users before share mutations
+		if let Some(ref acc) = ref_account {
+			if referrer_shares > 0 {
+				Self::checkpoint_user(acc)?;
+			}
+		}
+		if trader_shares > 0 {
+			Self::checkpoint_user(&trader)?;
+		}
+		if let Some(ref acc) = T::ExternalAccount::get() {
+			if external_shares > 0 {
+				Self::checkpoint_user(acc)?;
+			}
+		}
+
 		let total_shares = referrer_shares
 			.saturating_add(trader_shares)
 			.saturating_add(external_shares);
@@ -635,10 +674,12 @@ impl<T: Config> Pallet<T> {
 			*v = v.saturating_add(total_shares);
 		});
 
-		if let Some(acc) = ref_account {
-			ReferrerShares::<T>::mutate(acc, |v| {
-				*v = v.saturating_add(referrer_shares);
-			});
+		if let Some(ref acc) = ref_account {
+			if referrer_shares > 0 {
+				ReferrerShares::<T>::mutate(acc, |v| {
+					*v = v.saturating_add(referrer_shares);
+				});
+			}
 		}
 
 		if !trader_shares.is_zero() {
@@ -647,12 +688,75 @@ impl<T: Config> Pallet<T> {
 			});
 		}
 
-		if let Some(acc) = T::ExternalAccount::get() {
-			TraderShares::<T>::mutate(acc, |v| {
-				*v = v.saturating_add(external_shares);
-			});
+		if let Some(ref acc) = T::ExternalAccount::get() {
+			if external_shares > 0 {
+				TraderShares::<T>::mutate(acc, |v| {
+					*v = v.saturating_add(external_shares);
+				});
+			}
+		}
+
+		// Set debt for affected users after share mutations
+		if let Some(ref acc) = ref_account {
+			if referrer_shares > 0 {
+				Self::set_user_debt(acc);
+			}
+		}
+		if trader_shares > 0 {
+			Self::set_user_debt(&trader);
+		}
+		if let Some(ref acc) = T::ExternalAccount::get() {
+			if external_shares > 0 {
+				Self::set_user_debt(acc);
+			}
 		}
 
 		Ok(())
+	}
+
+	/// Called when HDX actually arrives to the pot (after conversion or direct deposit).
+	/// Bumps the global RewardPerShare accumulator.
+	pub fn on_hdx_deposited(hdx_amount: Balance) -> DispatchResult {
+		let total = TotalShares::<T>::get();
+		if total > 0 && hdx_amount > 0 {
+			let increment = U256::from(hdx_amount).saturating_mul(U256::from(pallet::PRECISION)) / U256::from(total);
+			RewardPerShare::<T>::mutate(|v| {
+				*v = v.saturating_add(increment);
+			});
+		}
+		Ok(())
+	}
+
+	/// Checkpoint: freeze pending rewards for a user before their shares change.
+	fn checkpoint_user(account: &T::AccountId) -> DispatchResult {
+		let referrer = ReferrerShares::<T>::get(account);
+		let trader = TraderShares::<T>::get(account);
+		let total = U256::from(referrer.saturating_add(trader));
+		if total.is_zero() {
+			return Ok(());
+		}
+
+		let rps = RewardPerShare::<T>::get();
+		let debt = UserRewardDebt::<T>::get(account);
+		let pending = total.saturating_mul(rps) / U256::from(pallet::PRECISION);
+		let earned = pending.saturating_sub(debt);
+
+		if !earned.is_zero() {
+			let earned_balance = Balance::try_from(earned).map_err(|_| ArithmeticError::Overflow)?;
+			UserAccumulatedRewards::<T>::mutate(account, |v| {
+				*v = v.saturating_add(earned_balance);
+			});
+		}
+		Ok(())
+	}
+
+	/// Reset debt after share changes so user doesn't double-claim.
+	fn set_user_debt(account: &T::AccountId) {
+		let referrer = ReferrerShares::<T>::get(account);
+		let trader = TraderShares::<T>::get(account);
+		let total = U256::from(referrer.saturating_add(trader));
+		let rps = RewardPerShare::<T>::get();
+		let debt = total.saturating_mul(rps) / U256::from(pallet::PRECISION);
+		UserRewardDebt::<T>::insert(account, debt);
 	}
 }

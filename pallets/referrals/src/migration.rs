@@ -14,9 +14,11 @@
 // limitations under the License.
 
 use super::*;
+use frame_support::traits::fungibles::Inspect;
 use frame_support::{traits::Get, weights::Weight};
 use hex_literal::hex;
 use sp_core::crypto::AccountId32;
+use sp_core::U256;
 
 pub fn preregister_parachain_codes<T: Config>() -> Weight
 where
@@ -111,4 +113,24 @@ where
 		}
 	}
 	weight
+}
+
+/// Initializes the RewardPerShare accumulator from existing pot balance and total shares.
+///
+/// After migration, all existing share holders can claim the same amount as before:
+///   pending = shares * rps / PRECISION - debt(=0) = shares * (pot / total_shares) = old formula.
+///
+/// UserRewardDebt and UserAccumulatedRewards default to 0 (ValueQuery), which is correct.
+pub fn migrate_to_accumulator<T: Config>() -> Weight {
+	let total_shares = TotalShares::<T>::get();
+	if total_shares == 0 {
+		return T::DbWeight::get().reads(1);
+	}
+	let pot_balance = T::Currency::balance(T::RewardAsset::get(), &Pallet::<T>::pot_account_id());
+	let effective_balance = pot_balance.saturating_sub(T::SeedNativeAmount::get());
+
+	let rps = U256::from(effective_balance).saturating_mul(U256::from(pallet::PRECISION)) / U256::from(total_shares);
+	RewardPerShare::<T>::put(rps);
+
+	T::DbWeight::get().reads_writes(3, 1)
 }
