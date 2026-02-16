@@ -71,7 +71,7 @@ clean:
 	$(cargo) clean
 
 .PHONY: docker
-docker:
+docker: build
 	docker build -t hydra-dx .
 	docker tag hydra-dx galacticcouncil/hydra-dx:latest
 
