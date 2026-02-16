@@ -1453,3 +1453,63 @@ fn protocol_fee_calls_oracle_hook_for_hdx_subpool() {
 			assert!(hdx_info.after.hub_reserve > hdx_info.before.hub_reserve);
 		});
 }
+
+#[test]
+fn sell_hub_asset_from_hub_destination_should_not_reroute() {
+	let initial_asset_200_reserve = 2000 * ONE;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, 200, 5000 * ONE),
+			(TREASURY, LRNA, 1000 * ONE),
+		])
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(200, FixedU128::from_float(0.65), LP1, initial_asset_200_reserve)
+		.build()
+		.execute_with(|| {
+			let sell_amount = 50 * ONE;
+			let initial_treasury_lrna = Tokens::free_balance(LRNA, &TREASURY);
+			let initial_asset_state = Omnipool::load_asset_state(200).unwrap();
+
+			// Act
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(TREASURY),
+				LRNA,
+				200,
+				sell_amount,
+				0
+			));
+
+			let final_treasury_lrna = Tokens::free_balance(LRNA, &TREASURY);
+			let final_asset_state = Omnipool::load_asset_state(200).unwrap();
+
+			// Assert - Treasury balance should decrease (no refund via HubDestination)
+			assert_eq!(
+				final_treasury_lrna,
+				initial_treasury_lrna - sell_amount,
+				"Treasury LRNA should decrease by sell_amount"
+			);
+
+			// Assert - traded asset's hub_reserve should increase (original pre-rerouting behavior)
+			assert!(
+				final_asset_state.hub_reserve > initial_asset_state.hub_reserve,
+				"Traded asset hub_reserve should increase when Treasury is seller"
+			);
+
+			// Assert - HDX subpool unchanged (no rerouting to HDX or Treasury)
+			assert_asset_state!(
+				HDX,
+				AssetReserveState {
+					reserve: 10_000_000_000_000_000,
+					hub_reserve: NATIVE_AMOUNT,
+					shares: 10_000_000_000_000_000,
+					protocol_shares: 0,
+					cap: DEFAULT_WEIGHT_CAP,
+					tradable: Tradability::default(),
+				}
+			);
+		});
+}

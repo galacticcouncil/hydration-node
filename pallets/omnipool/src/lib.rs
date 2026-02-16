@@ -1979,7 +1979,9 @@ impl<T: Config> Pallet<T> {
 		// delta_hub_reserve = effective hub asset that enters the pool (after slip deduction).
 		// The user pays `amount` (the full input); slip fee = amount - effective.
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
-		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+		if who != &T::HubDestination::get() {
+			state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+		}
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
@@ -2014,6 +2016,8 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
+		// Route H2O to HubDestination to reduce value leaked to arbitrage.
+		// Skip when seller is HubDestination — hub_reserve already updated in asset state.
 		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta);
 
 		// To reduce value leaked to arbitrage through external markets
@@ -2118,9 +2122,12 @@ impl<T: Config> Pallet<T> {
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
-		// delta_hub_reserve = d_net (effective hub asset entering pool, after slip deduction)
+		// When seller is HubDestination (Treasury), let hub_reserve flow into the traded asset
+		// normally (pre-rerouting behavior). Otherwise, zero it and route to HubDestination.
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
-		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+		if who != &T::HubDestination::get() {
+			state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+		}
 
 		// Full user cost = d_net + slip fee
 		let user_hub_cost = hub_reserve_delta
@@ -2162,7 +2169,8 @@ impl<T: Config> Pallet<T> {
 
 		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta);
 
-		// To reduce value leaked to arbitrage through external markets
+		// Route H2O to HubDestination to reduce value leaked to arbitrage.
+		// Skip when seller is HubDestination — hub_reserve already updated in asset state.
 		if who != &T::HubDestination::get() {
 			T::Currency::transfer(
 				T::HubAssetId::get(),
