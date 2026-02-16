@@ -1763,13 +1763,15 @@ impl<T: Config> Pallet<T> {
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
 		// To reduce value leaked to arbitrage through external markets
-		T::Currency::transfer(
-			T::HubAssetId::get(),
-			&Self::protocol_account(),
-			&T::HubDestination::get(),
-			hub_reserve_delta,
-			ExistenceRequirement::AllowDeath,
-		)?;
+		if who != &T::HubDestination::get() {
+			T::Currency::transfer(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				&T::HubDestination::get(),
+				hub_reserve_delta,
+				ExistenceRequirement::AllowDeath,
+			)?;
+		}
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
@@ -1893,13 +1895,15 @@ impl<T: Config> Pallet<T> {
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
 		// To reduce value leaked to arbitrage through external markets
-		T::Currency::transfer(
-			T::HubAssetId::get(),
-			&Self::protocol_account(),
-			&T::HubDestination::get(),
-			hub_reserve_delta,
-			ExistenceRequirement::AllowDeath,
-		)?;
+		if who != &T::HubDestination::get() {
+			T::Currency::transfer(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				&T::HubDestination::get(),
+				hub_reserve_delta,
+				ExistenceRequirement::AllowDeath,
+			)?;
+		}
 
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::BuyExecuted {
