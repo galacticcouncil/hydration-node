@@ -184,6 +184,7 @@ fn buy_with_h2o_from_treasury_should_not_route_back_to_treasury() {
 
 		let initial_treasury_h2o = hydradx_runtime::Tokens::free_balance(LRNA, &treasury);
 		let initial_treasury_dai = hydradx_runtime::Tokens::free_balance(DAI, &treasury);
+		let initial_dai_state = Omnipool::load_asset_state(DAI).unwrap();
 
 		// Act - Treasury buys DAI with H2O
 		assert_ok!(Omnipool::buy(
@@ -196,6 +197,7 @@ fn buy_with_h2o_from_treasury_should_not_route_back_to_treasury() {
 
 		let final_treasury_h2o = hydradx_runtime::Tokens::free_balance(LRNA, &treasury);
 		let final_treasury_dai = hydradx_runtime::Tokens::free_balance(DAI, &treasury);
+		let final_dai_state = Omnipool::load_asset_state(DAI).unwrap();
 
 		// Assert
 		let dai_received = final_treasury_dai - initial_treasury_dai;
@@ -207,6 +209,12 @@ fn buy_with_h2o_from_treasury_should_not_route_back_to_treasury() {
 		assert!(
 			final_treasury_h2o < initial_treasury_h2o,
 			"Treasury H2O should decrease after buying DAI",
+		);
+
+		// Hub reserve should increase on the traded asset (original pre-rerouting behavior)
+		assert!(
+			final_dai_state.hub_reserve > initial_dai_state.hub_reserve,
+			"DAI hub_reserve should increase when Treasury buys with H2O"
 		);
 	});
 }
@@ -233,6 +241,7 @@ fn sell_h2o_from_treasury_should_not_route_back_to_treasury() {
 
 		let initial_treasury_h2o = hydradx_runtime::Tokens::free_balance(LRNA, &treasury);
 		let initial_treasury_dai = hydradx_runtime::Tokens::free_balance(DAI, &treasury);
+		let initial_dai_state = Omnipool::load_asset_state(DAI).unwrap();
 
 		// Act
 		assert_ok!(Omnipool::sell(
@@ -245,6 +254,7 @@ fn sell_h2o_from_treasury_should_not_route_back_to_treasury() {
 
 		let final_treasury_h2o = hydradx_runtime::Tokens::free_balance(LRNA, &treasury);
 		let final_treasury_dai = hydradx_runtime::Tokens::free_balance(DAI, &treasury);
+		let final_dai_state = Omnipool::load_asset_state(DAI).unwrap();
 
 		// Assert
 		assert!(
@@ -252,11 +262,16 @@ fn sell_h2o_from_treasury_should_not_route_back_to_treasury() {
 			"Treasury should have received DAI"
 		);
 
-		// Treasury
 		assert_eq!(
 			final_treasury_h2o,
 			initial_treasury_h2o - sell_amount,
 			"Treasury H2O balance should be initial minus sell_amount",
+		);
+
+		// Hub reserve should increase on the traded asset (original pre-rerouting behavior)
+		assert!(
+			final_dai_state.hub_reserve > initial_dai_state.hub_reserve,
+			"DAI hub_reserve should increase when Treasury sells H2O"
 		);
 	});
 }

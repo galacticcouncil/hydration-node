@@ -1725,9 +1725,12 @@ impl<T: Config> Pallet<T> {
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
-		// Store original hub reserve delta for routing to HDX subpool, then zero it
+		// When seller is HubDestination (Treasury), let hub_reserve flow into the traded asset
+		// normally (pre-rerouting behavior). Otherwise, zero it and route to HubDestination.
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
-		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+		if who != &T::HubDestination::get() {
+			state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+		}
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
@@ -1762,7 +1765,8 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		// To reduce value leaked to arbitrage through external markets
+		// Route H2O to HubDestination to reduce value leaked to arbitrage.
+		// Skip when seller is HubDestination — hub_reserve already updated in asset state.
 		if who != &T::HubDestination::get() {
 			T::Currency::transfer(
 				T::HubAssetId::get(),
@@ -1858,9 +1862,12 @@ impl<T: Config> Pallet<T> {
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
-		// Store original hub reserve delta for routing to HDX subpool, then zero it
+		// When seller is HubDestination (Treasury), let hub_reserve flow into the traded asset
+		// normally (pre-rerouting behavior). Otherwise, zero it and route to HubDestination.
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
-		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+		if who != &T::HubDestination::get() {
+			state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+		}
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
@@ -1894,7 +1901,8 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		// To reduce value leaked to arbitrage through external markets
+		// Route H2O to HubDestination to reduce value leaked to arbitrage.
+		// Skip when seller is HubDestination — hub_reserve already updated in asset state.
 		if who != &T::HubDestination::get() {
 			T::Currency::transfer(
 				T::HubAssetId::get(),

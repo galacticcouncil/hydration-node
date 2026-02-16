@@ -1226,3 +1226,69 @@ fn buy_for_hub_asset_calls_oracle_hook_for_traded_asset() {
 			assert!(traded_asset_info.after.reserve < traded_asset_info.before.reserve);
 		});
 }
+
+#[test]
+fn buy_for_hub_asset_from_hub_destination_should_not_reroute() {
+	let initial_asset_200_reserve = 2000 * ONE;
+	let buy_amount = 50 * ONE;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, 200, 5000 * ONE),
+			(TREASURY, LRNA, 1000 * ONE),
+		])
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(200, FixedU128::from_float(0.65), LP1, initial_asset_200_reserve)
+		.build()
+		.execute_with(|| {
+			let initial_treasury_lrna = Tokens::free_balance(LRNA, &TREASURY);
+			let initial_asset_state = Omnipool::load_asset_state(200).unwrap();
+
+			// Act
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(TREASURY),
+				200,
+				LRNA,
+				buy_amount,
+				Balance::MAX
+			));
+
+			let final_treasury_lrna = Tokens::free_balance(LRNA, &TREASURY);
+			let final_asset_state = Omnipool::load_asset_state(200).unwrap();
+
+			// Assert - Treasury balance should decrease (no refund via HubDestination)
+			assert!(
+				final_treasury_lrna < initial_treasury_lrna,
+				"Treasury LRNA should decrease"
+			);
+
+			// Assert - traded asset's hub_reserve should increase (original pre-rerouting behavior)
+			assert!(
+				final_asset_state.hub_reserve > initial_asset_state.hub_reserve,
+				"Traded asset hub_reserve should increase when Treasury is buyer"
+			);
+
+			// Assert - HDX subpool unchanged
+			assert_asset_state!(
+				HDX,
+				AssetReserveState {
+					reserve: 10_000_000_000_000_000,
+					hub_reserve: NATIVE_AMOUNT,
+					shares: 10_000_000_000_000_000,
+					protocol_shares: 0,
+					cap: DEFAULT_WEIGHT_CAP,
+					tradable: Tradability::default(),
+				}
+			);
+
+			// Assert - Treasury received the bought asset
+			assert_eq!(
+				Tokens::free_balance(200, &TREASURY),
+				buy_amount,
+				"Treasury should receive bought tokens"
+			);
+		});
+}
