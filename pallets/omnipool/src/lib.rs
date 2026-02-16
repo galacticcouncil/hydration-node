@@ -2017,13 +2017,15 @@ impl<T: Config> Pallet<T> {
 		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta);
 
 		// To reduce value leaked to arbitrage through external markets
-		T::Currency::transfer(
-			T::HubAssetId::get(),
-			&Self::protocol_account(),
-			&T::HubDestination::get(),
-			amount,
-			ExistenceRequirement::AllowDeath,
-		)?;
+		if who != &T::HubDestination::get() {
+			T::Currency::transfer(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				&T::HubDestination::get(),
+				hub_reserve_delta,
+				ExistenceRequirement::AllowDeath,
+			)?;
+		}
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
@@ -2161,13 +2163,15 @@ impl<T: Config> Pallet<T> {
 		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta);
 
 		// To reduce value leaked to arbitrage through external markets
-		T::Currency::transfer(
-			T::HubAssetId::get(),
-			&Self::protocol_account(),
-			&T::HubDestination::get(),
-			user_hub_cost,
-			ExistenceRequirement::AllowDeath,
-		)?;
+		if who != &T::HubDestination::get() {
+			T::Currency::transfer(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				&T::HubDestination::get(),
+				hub_reserve_delta,
+				ExistenceRequirement::AllowDeath,
+			)?;
+		}
 
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::BuyExecuted {
