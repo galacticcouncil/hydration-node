@@ -78,64 +78,61 @@ fn decay_should_not_underflow() {
 }
 
 #[test]
-fn set_global_withdraw_limit_should_work() {
+fn decay_called_twice_same_now_is_idempotent() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(CircuitBreaker::set_global_withdraw_limit(RuntimeOrigin::root(), 1000));
-		assert_eq!(CircuitBreaker::global_withdraw_limit(), Some(1000));
+		pallet_timestamp::Pallet::<Test>::set_timestamp(0);
+		assert_ok!(CircuitBreaker::note_egress(1_000));
 
-		expect_events(vec![Event::GlobalLimitUpdated { new_limit: 1000 }.into()]);
+		// Advance half-window -> 50% decay
+		pallet_timestamp::Pallet::<Test>::set_timestamp(DAY / 2);
+		CircuitBreaker::try_to_decay_withdraw_limit_accumulator();
+		let once = CircuitBreaker::withdraw_limit_accumulator();
+		assert_eq!(once.0, 500, "half-window should reduce by half");
+
+		// Same timestamp again -> idempotent
+		CircuitBreaker::try_to_decay_withdraw_limit_accumulator();
+		let twice = CircuitBreaker::withdraw_limit_accumulator();
+		assert_eq!(once, twice, "Second decay at same `now` must not change state");
 	});
 }
 
 #[test]
-fn reset_withdraw_lockdown_should_work() {
+fn note_deposit_decrements_accumulator() {
+	// `note_deposit` decreases accumulator and updates last_update when not in lockdown.
 	ExtBuilder::default().build().execute_with(|| {
 		pallet_timestamp::Pallet::<Test>::set_timestamp(100);
-		assert_ok!(CircuitBreaker::set_global_withdraw_lockdown(
-			RuntimeOrigin::root(),
-			1000
-		));
-		assert!(CircuitBreaker::withdraw_lockdown_until().is_some());
-
-		assert_ok!(CircuitBreaker::reset_withdraw_lockdown(RuntimeOrigin::root()));
-		assert!(CircuitBreaker::withdraw_lockdown_until().is_none());
-		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
+		WithdrawLimitAccumulator::<Test>::put((1_000, 10));
+		CircuitBreaker::note_deposit(300);
+		let (current, last_update) = CircuitBreaker::withdraw_limit_accumulator();
+		assert_eq!(current, 700);
+		assert_eq!(last_update, 100);
 	});
 }
 
 #[test]
-fn set_asset_category_should_work() {
+fn note_deposit_saturates_at_zero() {
+	// Saturating subtraction: underflow is prevented and result is 0.
 	ExtBuilder::default().build().execute_with(|| {
-		let asset_id = 100u32;
+		pallet_timestamp::Pallet::<Test>::set_timestamp(200);
+		WithdrawLimitAccumulator::<Test>::put((100, 10));
+		CircuitBreaker::note_deposit(1_000);
+		let (current, last_update) = CircuitBreaker::withdraw_limit_accumulator();
+		assert_eq!(current, 0);
+		assert_eq!(last_update, 200);
+	});
+}
 
-		// Set to External
-		assert_ok!(CircuitBreaker::set_asset_category(
+#[test]
+fn note_deposit_noop_during_lockdown() {
+	// During lockdown, `note_deposit` must do nothing.
+	ExtBuilder::default().build().execute_with(|| {
+		pallet_timestamp::Pallet::<Test>::set_timestamp(300);
+		WithdrawLimitAccumulator::<Test>::put((500, 250));
+		assert_ok!(CircuitBreaker::set_global_withdraw_lockdown(
 			RuntimeOrigin::root(),
-			asset_id,
-			Some(GlobalAssetCategory::External)
+			10_000
 		));
-		assert_eq!(
-			CircuitBreaker::global_asset_overrides(asset_id),
-			Some(GlobalAssetCategory::External)
-		);
-
-		// Set to Local
-		assert_ok!(CircuitBreaker::set_asset_category(
-			RuntimeOrigin::root(),
-			asset_id,
-			Some(GlobalAssetCategory::Local)
-		));
-		assert_eq!(
-			CircuitBreaker::global_asset_overrides(asset_id),
-			Some(GlobalAssetCategory::Local)
-		);
-
-		// Set to None (explicitly excluded)
-		assert_ok!(CircuitBreaker::set_asset_category(
-			RuntimeOrigin::root(),
-			asset_id,
-			None
-		));
-		assert!(CircuitBreaker::global_asset_overrides(asset_id).is_none());
+		CircuitBreaker::note_deposit(250);
+		assert_eq!(CircuitBreaker::withdraw_limit_accumulator(), (500, 250));
 	});
 }

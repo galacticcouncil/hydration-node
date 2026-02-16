@@ -14,7 +14,7 @@ use sp_std::marker::PhantomData;
 pub struct WithdrawLimitHandler<RC>(PhantomData<RC>);
 impl<RC: Get<AssetId>> AssetWithdrawHandler<AccountId, AssetId, Balance> for WithdrawLimitHandler<RC> {
 	type OnWithdraw = OnWithdrawHook<RC>;
-	type OnDeposit = ();
+	type OnDeposit = OnDepositHook<RC>;
 	type OnTransfer = OnTransferHook<RC>;
 }
 
@@ -62,9 +62,14 @@ impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrency
 	}
 
 	pub fn should_account_deposit_operation(asset_id: AssetId, maybe_source: Option<AccountId>) -> bool {
+		let is_source_egress = maybe_source
+			.clone()
+			.and_then(CircuitBreaker::is_account_egress)
+			.is_some();
+
 		match Self::global_asset_category(asset_id) {
-			Some(GlobalAssetCategory::External) => true,
-			Some(GlobalAssetCategory::Local) => maybe_source.and_then(CircuitBreaker::is_account_egress).is_some(),
+			Some(GlobalAssetCategory::External) | Some(GlobalAssetCategory::Local) if is_source_egress => true,
+			Some(GlobalAssetCategory::External) if maybe_source.is_none() => true,
 			_ => false,
 		}
 	}
@@ -118,8 +123,9 @@ impl<RC: Get<AssetId>> orml_traits::Handler<(AssetId, Balance, Option<AccountId>
 		let (asset_id, amount, maybe_from) = t;
 
 		if WithdrawCircuitBreaker::<RC>::should_account_deposit_operation(*asset_id, maybe_from.clone()) {
-			let amount_ref_currency = WithdrawCircuitBreaker::<RC>::convert_to_hdx(*asset_id, *amount)
-				.ok_or(pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset)?;
+			let Some(amount_ref_currency) = WithdrawCircuitBreaker::<RC>::convert_to_hdx(*asset_id, *amount) else {
+				return Ok(());
+			};
 
 			CircuitBreaker::note_deposit(amount_ref_currency)
 		}
