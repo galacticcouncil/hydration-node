@@ -199,7 +199,10 @@ fn buy_with_h2o_from_treasury_should_not_route_back_to_treasury() {
 
 		// Assert
 		let dai_received = final_treasury_dai - initial_treasury_dai;
-		assert_eq!(dai_received, buy_amount, "Treasury should have received exact buy_amount of DAI");
+		assert_eq!(
+			dai_received, buy_amount,
+			"Treasury should have received exact buy_amount of DAI"
+		);
 
 		assert!(
 			final_treasury_h2o < initial_treasury_h2o,
@@ -244,7 +247,10 @@ fn sell_h2o_from_treasury_should_not_route_back_to_treasury() {
 		let final_treasury_dai = hydradx_runtime::Tokens::free_balance(DAI, &treasury);
 
 		// Assert
-		assert!(final_treasury_dai > initial_treasury_dai, "Treasury should have received DAI");
+		assert!(
+			final_treasury_dai > initial_treasury_dai,
+			"Treasury should have received DAI"
+		);
 
 		// Treasury
 		assert_eq!(
