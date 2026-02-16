@@ -1258,15 +1258,12 @@ fn buy_for_hub_asset_from_hub_destination_should_not_reroute() {
 
 			let final_treasury_lrna = Tokens::free_balance(LRNA, &TREASURY);
 			let lrna_spent = initial_treasury_lrna - final_treasury_lrna;
-			let final_asset_state = Omnipool::load_asset_state(200).unwrap();
 
-			// Assert - Treasury balance should decrease (no refund via HubDestination)
 			assert!(
 				final_treasury_lrna < initial_treasury_lrna,
 				"Treasury LRNA should decrease"
 			);
 
-			// Assert - asset 200: reserve decreased, hub_reserve increased (original pre-rerouting behavior)
 			assert_asset_state!(
 				200,
 				AssetReserveState {
@@ -1279,7 +1276,7 @@ fn buy_for_hub_asset_from_hub_destination_should_not_reroute() {
 				}
 			);
 
-			// Assert - HDX subpool unchanged
+			// Assert
 			assert_asset_state!(
 				HDX,
 				AssetReserveState {
