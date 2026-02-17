@@ -446,6 +446,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 		let ref_account = Referrals::pot_account_id();
 		let orig_balance = Currencies::free_balance(DAI, &ref_account);
 		let stak_orig_balance = Currencies::free_balance(HDX, &staking_acc);
+
 		assert_ok!(Omnipool::buy(
 			RuntimeOrigin::signed(BOB.into()),
 			HDX,
@@ -459,12 +460,12 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				who: BOB.into(),
 				asset_in: DAI,
 				asset_out: HDX,
-				amount_in: 27034239540904000,
+				amount_in: 27_034_239_540_904_000,
 				amount_out: 1_000_000_000_000,
-				hub_amount_in: 1218703819,
-				hub_amount_out: 1218094469,
-				asset_fee_amount: 10215297085,
-				protocol_fee_amount: 609351,
+				hub_amount_in: 1_218_703_819,
+				hub_amount_out: 1_218_094_469,
+				asset_fee_amount: 10_215_297_085,
+				protocol_fee_amount: 609_351,
 			}
 			.into(),
 			pallet_broadcast::Event::Swapped3 {
@@ -472,8 +473,8 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				filler: Omnipool::protocol_account(),
 				filler_type: Filler::Omnipool,
 				operation: TradeOperation::ExactOut,
-				inputs: vec![Asset::new(DAI, 27034239540904000)],
-				outputs: vec![Asset::new(LRNA, 1218703819)],
+				inputs: vec![Asset::new(DAI, 27_034_239_540_904_000)],
+				outputs: vec![Asset::new(LRNA, 1_218_703_819)],
 				fees: vec![Fee::new(
 					LRNA,
 					609351,
@@ -487,11 +488,11 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				filler: Omnipool::protocol_account(),
 				filler_type: Filler::Omnipool,
 				operation: TradeOperation::ExactOut,
-				inputs: vec![Asset::new(LRNA, 1218094468)],
+				inputs: vec![Asset::new(LRNA, 1_218_094_468)],
 				outputs: vec![Asset::new(HDX, 1_000_000_000_000)],
 				fees: vec![
 					Fee::new(HDX, 1, Destination::Account(Omnipool::protocol_account())),
-					Fee::new(HDX, 10215297084, Destination::Account(Staking::pot_account_id())),
+					Fee::new(HDX, 10_215_297_084, Destination::Account(Staking::pot_account_id())),
 				],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
@@ -501,7 +502,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
 		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 0);
-		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 10215297084);
+		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 10_215_297_084);
 	});
 }
 

@@ -736,7 +736,7 @@ fn two_buys_in_one_direction_should_increase_fee() {
 				hub_asset_block_state_in,
 				HubAssetBlockState::<Balance> {
 					hub_reserve_at_block_start: 1_560 * ONE,
-					current_delta_hub_reserve: Decrease(73_936_654_730_323),
+					current_delta_hub_reserve: Decrease(73_881_142_035_403),
 				}
 			);
 			assert_eq!(
@@ -751,9 +751,9 @@ fn two_buys_in_one_direction_should_increase_fee() {
 				who: LP1,
 				asset_in: 100,
 				asset_out: 200,
-				amount_in: 64_302_806_058_682,
+				amount_in: 64_208_695_731_372,
 				amount_out: 50 * ONE,
-				hub_amount_in: 38_922_177_424_333,
+				hub_amount_in: 38_866_664_729_413,
 				hub_amount_out: 35_087_719_298_246,
 				asset_fee_amount: 0,
 				protocol_fee_amount: 0,

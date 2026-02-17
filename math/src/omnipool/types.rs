@@ -598,10 +598,9 @@ pub mod slip_fee {
 					valid_ds.iter().min().cloned()
 				} else {
 					let k_sat = FixedU128::one().checked_sub(&self.max_slip_fee)?;
-					let result = FixedU128::from(delta_hub_reserve_out_net)
+					FixedU128::from(delta_hub_reserve_out_net)
 						.checked_div(&k_sat)?
-						.checked_div_int(1u128);
-					result
+						.checked_div_int(1u128)
 				};
 
 				result
@@ -615,8 +614,14 @@ pub mod slip_fee {
 			delta_hub_reserve_out_gross: Balance,
 			protocol_fee: &Permill,
 		) -> Option<Balance> {
+			if self.slip_factor.is_zero() {
+				return Some(FixedU128::from_inner(delta_hub_reserve_out_gross).checked_div(
+					&Permill::from_percent(100).checked_sub(protocol_fee)?.into()
+				)?
+					.into_inner());
+			}
+
 			let k = FixedU128::one().checked_sub(&(*protocol_fee).into())?;
-			// TODO: C is slightly different compared to python
 			let c_k = self.hub_state_in.current_delta_hub_reserve.checked_mul_fixed(k)?;
 
 			let mut is_p_neg = false;
@@ -661,12 +666,10 @@ pub mod slip_fee {
 				} else {
 					Increase((*r).checked_mul(2)?.checked_div((*q).checked_add(sd)?)?)
 				}
+			} else if r.is_positive() {
+				Increase((*r).checked_mul(2)?.checked_div((*q).checked_add(sd)?)?)
 			} else {
-				if r.is_positive() {
-					Increase((*r).checked_mul(2)?.checked_div((*q).checked_add(sd)?)?)
-				} else {
-					Decrease((*r).checked_mul(2)?.checked_div((*q).checked_add(sd)?)?)
-				}
+				Decrease((*r).checked_mul(2)?.checked_div((*q).checked_add(sd)?)?)
 			};
 
 			let delta_hub_reserve_in = *(self.hub_state_in.current_delta_hub_reserve.checked_sub(&u)?);

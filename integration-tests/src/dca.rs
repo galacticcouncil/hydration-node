@@ -2566,6 +2566,7 @@ mod stableswap {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 				assert_ok!(Currencies::update_balance(
 					RuntimeOrigin::root(),
@@ -2634,6 +2635,7 @@ mod stableswap {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 				assert_ok!(Currencies::update_balance(
 					RuntimeOrigin::root(),
@@ -2841,6 +2843,7 @@ mod stableswap {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 
 				//To populate stableswap oracle
@@ -2942,6 +2945,7 @@ mod stableswap {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
+				disable_slip_fee();
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 
 				//To populate stableswap oracle
