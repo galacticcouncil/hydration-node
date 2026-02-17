@@ -435,7 +435,7 @@ pub mod slip_fee {
 	use crate::types::Balance;
 	use crate::{to_balance, to_u256};
 	use codec::{Decode, Encode, MaxEncodedLen};
-	use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, SaturatingAdd, Zero};
+	use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 	use primitive_types::U256;
 	use scale_info::TypeInfo;
 	use sp_arithmetic::ArithmeticError::Overflow;
@@ -464,7 +464,7 @@ pub mod slip_fee {
 	/// Configuration for slip fee calculation
 	#[derive(Default, Debug)]
 	pub struct SlipFeeConfig<Balance> {
-		/// Slip factor (s) - typically 0.0 to 2.0
+		/// Slip factor - 0 disabled, 1 enabled
 		pub slip_factor: FixedU128,
 
 		/// Maximum slip fee cap

@@ -18,8 +18,14 @@ fn slip_fee_for_single_sell_should_provide_correct_results() {
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool();
-
 		System::reset_events();
+
+		let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+		pretty_assertions::assert_eq!(initial_hdx_state.reserve, 936329588000000000);
+		pretty_assertions::assert_eq!(initial_hdx_state.hub_reserve, 1124999999982000);
+		let initial_dot_state = Omnipool::load_asset_state(DOT).unwrap();
+		pretty_assertions::assert_eq!(initial_dot_state.reserve, 87719298250000);
+		pretty_assertions::assert_eq!(initial_dot_state.hub_reserve, 2250000000112500);
 
 		//Act
 		assert_ok!(Omnipool::sell(
@@ -30,12 +36,21 @@ fn slip_fee_for_single_sell_should_provide_correct_results() {
 			0,
 		));
 
+		// results from the Python implementation
+		// delta_ra=mpf('425.10448515157410266002694435091570953512559806778283')
+		// delta_qi=mpf('-0.51288306266171900644296117704645027370135884899976081')
+		// delta_qj=mpf('0.51227630906395000763066977688365571365222163350224179')
+		// asset_fee_total=mpf('1.0654247748159751946366590083982849863035729274881772')
+		// lrna_fee_total=mpf('0.00025644153133085950322148058852322513685067942449988082')
+		// slip_fee_buy=mpf('0.0002333747281571142325827135540903374280109443826342537')
+		// slip_fee_sell=mpf('0.00011693733828102507648720602018099748427559169038469382')
 		let amount_in = 20_000_000_000;
 		let amount_out = 425_104_485_150_786;
 		let hub_amount_in = 512_883_062_661;
-		let hub_amount_out = 513_790_957_735;
+		let hub_amount_out = 512_509_683_792;
 		let asset_fee_amount = 1_065_424_774_814;
 		let protocol_fee_amount = 373_378_869;
+		let extra_hub_reserve_amount = 1_281_273_943;
 
 		expect_hydra_events(vec![pallet_omnipool::Event::SellExecuted {
 			who: ALICE.into(),
@@ -44,7 +59,7 @@ fn slip_fee_for_single_sell_should_provide_correct_results() {
 			amount_in,
 			amount_out,
 			hub_amount_in,
-			hub_amount_out,
+			hub_amount_out: hub_amount_out + extra_hub_reserve_amount,
 			asset_fee_amount,
 			protocol_fee_amount,
 		}
@@ -55,17 +70,31 @@ fn slip_fee_for_single_sell_should_provide_correct_results() {
 		pretty_assertions::assert_eq!(
 			hub_asset_block_state_in,
 			HubAssetBlockState::<pallet_omnipool::types::Balance> {
-				hub_reserve_at_block_start: 2_250_000_000_112_500,
-				current_delta_hub_reserve: Decrease(512_883_062_661),
+				hub_reserve_at_block_start: initial_dot_state.hub_reserve,
+				current_delta_hub_reserve: Decrease(hub_amount_in),
 			}
 		);
 		pretty_assertions::assert_eq!(
 			hub_asset_block_state_out,
 			HubAssetBlockState::<pallet_omnipool::types::Balance> {
-				hub_reserve_at_block_start: 1_124_999_999_982_000,
-				current_delta_hub_reserve: Increase(512_509_683_792),
+				hub_reserve_at_block_start: initial_hdx_state.hub_reserve,
+				current_delta_hub_reserve: Increase(hub_amount_out),
 			}
 		);
+
+		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+		pretty_assertions::assert_eq!(hdx_state.reserve, initial_hdx_state.reserve - amount_out); // 935904.483514849214
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, initial_hdx_state.hub_reserve + hub_amount_out + extra_hub_reserve_amount + protocol_fee_amount); // 1125.514164318604
+		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
+		pretty_assertions::assert_eq!(dot_state.reserve, initial_dot_state.reserve + amount_in); // 8773.9298250000
+		pretty_assertions::assert_eq!(dot_state.hub_reserve, initial_dot_state.hub_reserve - hub_amount_in); // 2249.487117049839
+		// results from the Python implementation
+		// 'HDX':
+		//     'liquidity': 935904.48351484841472146907766990689679046487440193,
+		//     'LRNA': 1125.5135569810396782676320965818939714570200686377,
+		// 'DOT':
+		//     'liquidity': 8773.9298249999992549419403076171875,
+		//     'LRNA': 2249.487117049838228129359397211854306562236141151,
 	});
 }
 
@@ -76,8 +105,11 @@ fn slip_fee_for_single_sell_lrna_should_provide_correct_results() {
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool();
-
 		System::reset_events();
+
+		let initial_dot_state = Omnipool::load_asset_state(DOT).unwrap();
+		pretty_assertions::assert_eq!(initial_dot_state.reserve, 87719298250000);
+		pretty_assertions::assert_eq!(initial_dot_state.hub_reserve, 2250000000112500);
 
 		//Act
 		assert_ok!(Omnipool::sell(
@@ -88,12 +120,21 @@ fn slip_fee_for_single_sell_lrna_should_provide_correct_results() {
 			0,
 		));
 
+		// results from the Python implementation
+		// delta_ra=mpf('7.7639751552801915346390711887043757385102148728396952')
+		// delta_qi=0.0
+		// delta_qj=mpf('1.9982238010658080916013318197988055676012781459299828')
+		// asset_fee_total=mpf('0.01945858434907316174095005310452224495867221772641527')
+		// lrna_fee_total=0.0
+		// slip_fee_buy=mpf('0.0017761989341919083986681802011944323987218540700185338')
+		// slip_fee_sell=0.0
 		let amount_in = 2_000_000_000_000;
 		let amount_out = 77_639_751_552;
 		let hub_amount_in = 0;
 		let hub_amount_out = 0;
 		let asset_fee_amount = 194_585_844;
 		let protocol_fee_amount = 0;
+		let extra_hub_reserve_amount = 5_004_444_444;
 
 		expect_hydra_events(vec![pallet_omnipool::Event::SellExecuted {
 			who: ALICE.into(),
@@ -112,10 +153,18 @@ fn slip_fee_for_single_sell_lrna_should_provide_correct_results() {
 		pretty_assertions::assert_eq!(
 			hub_asset_block_state_out,
 			HubAssetBlockState::<pallet_omnipool::types::Balance> {
-				hub_reserve_at_block_start: 2_250_000_000_112_500,
-				current_delta_hub_reserve: Increase(2_000_000_000_000),
+				hub_reserve_at_block_start: initial_dot_state.hub_reserve,
+				current_delta_hub_reserve: Increase(amount_in),
 			}
 		);
+
+		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
+		pretty_assertions::assert_eq!(dot_state.reserve, initial_dot_state.reserve - amount_out); // 8764.1658498448
+		pretty_assertions::assert_eq!(dot_state.hub_reserve, initial_dot_state.hub_reserve + amount_in + extra_hub_reserve_amount); // 2252.005004556944
+		// results from the Python implementation
+		// 'DOT': {
+		//     'liquidity': 8764.1658498447190634073012364284831242614897851272,
+		//     'LRNA': 2252.0032194612411152209616668126535007887691892918,
 	});
 }
 
@@ -243,8 +292,14 @@ fn slip_fee_for_single_buy_should_provide_correct_results() {
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool();
-
 		System::reset_events();
+
+		let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+		pretty_assertions::assert_eq!(initial_hdx_state.reserve, 936329588000000000);
+		pretty_assertions::assert_eq!(initial_hdx_state.hub_reserve, 1124999999982000);
+		let initial_dot_state = Omnipool::load_asset_state(DOT).unwrap();
+		pretty_assertions::assert_eq!(initial_dot_state.reserve, 87719298250000);
+		pretty_assertions::assert_eq!(initial_dot_state.hub_reserve, 2250000000112500);
 
 		//Act
 		assert_ok!(Omnipool::buy(
@@ -255,12 +310,21 @@ fn slip_fee_for_single_buy_should_provide_correct_results() {
 			u128::MAX,
 		));
 
+		// results from the Python implementation
+		// delta_ra=mpf('0.0093966594840238465007815333366938857728766769893578331')
+		// delta_qi=mpf('-0.0024102405757561808993746609079017228297585398765218622')
+		// delta_qj=mpf('0.0024090277149706257736363698232416045948288234720429954')
+		// asset_fee_total=mpf('0.0050125313283208020050125313283208020050125313283199446')
+		// lrna_fee_total=mpf('0.0000012051202878780904496873304539508614148792699382609338')
+		// slip_fee_buy=mpf('0.0000000051586017411591240395712743313581216264233695892076958')
+		// slip_fee_sell=mpf('0.0000000025818959358761645641829318360153932107111710163343582')
 		let amount_in = 93_966_595;
 		let amount_out = 2_000_000_000_000;
 		let hub_amount_in = 2_410_240_575;
 		let hub_amount_out = 2_409_027_715;
 		let asset_fee_amount = 5_012_531_329;
 		let protocol_fee_amount = 1_205_120;
+		let extra_hub_reserve_amount = 6_022_582;
 
 		expect_hydra_events(vec![pallet_omnipool::Event::BuyExecuted {
 			who: ALICE.into(),
@@ -269,28 +333,42 @@ fn slip_fee_for_single_buy_should_provide_correct_results() {
 			amount_in,
 			amount_out,
 			hub_amount_in,
-			hub_amount_out: hub_amount_out + 6_022_582, // hub_amount_out + extra_hub_reserve_amount
+			hub_amount_out: hub_amount_out + extra_hub_reserve_amount,
 			asset_fee_amount,
 			protocol_fee_amount,
 		}
 		.into()]);
 
 		let hub_asset_block_state_in = Omnipool::hub_asset_block_state(DOT).unwrap();
-		let hub_asset_block_state_out = Omnipool::hub_asset_block_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(
 			hub_asset_block_state_in,
 			HubAssetBlockState::<pallet_omnipool::types::Balance> {
-				hub_reserve_at_block_start: 2_250_000_000_112_500,
-				current_delta_hub_reserve: Decrease(2_410_240_575),
+				hub_reserve_at_block_start: initial_dot_state.hub_reserve,
+				current_delta_hub_reserve: Decrease(hub_amount_in),
 			}
 		);
+		let hub_asset_block_state_out = Omnipool::hub_asset_block_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(
 			hub_asset_block_state_out,
 			HubAssetBlockState::<pallet_omnipool::types::Balance> {
-				hub_reserve_at_block_start: 1_124_999_999_982_000,
-				current_delta_hub_reserve: Increase(2_409_027_715),
+				hub_reserve_at_block_start: initial_hdx_state.hub_reserve,
+				current_delta_hub_reserve: Increase(hub_amount_out),
 			}
 		);
+
+		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+		pretty_assertions::assert_eq!(hdx_state.reserve, initial_hdx_state.reserve - amount_out); // 936327.588000000000
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, initial_hdx_state.hub_reserve + hub_amount_out + protocol_fee_amount + extra_hub_reserve_amount); // 1125.002416237417
+		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
+		pretty_assertions::assert_eq!(dot_state.reserve, initial_dot_state.reserve + amount_in); // 8771.9392216595
+		pretty_assertions::assert_eq!(dot_state.hub_reserve, initial_dot_state.hub_reserve - hub_amount_in); // 2249.997589871925
+		// results from the Python implementation
+		// 'HDX': {
+		//     'liquidity': 936327.5879999999888241291046142578125,
+		//     'LRNA': 1125.0024150322842209530265665070701128325594859802,
+		// 'DOT': {
+		//     'liquidity': 8771.939221659483278788441089150524193885772876677,
+		//     'LRNA': 2249.9975898719241909549029837279928551131077414601,
 	});
 }
 
@@ -301,8 +379,11 @@ fn slip_fee_for_single_buy_for_lrna_should_provide_correct_results() {
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool();
-
 		System::reset_events();
+
+		let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+		pretty_assertions::assert_eq!(initial_hdx_state.reserve, 936329588000000000);
+		pretty_assertions::assert_eq!(initial_hdx_state.hub_reserve, 1124999999982000);
 
 		//Act
 		assert_ok!(Omnipool::buy(
@@ -313,12 +394,21 @@ fn slip_fee_for_single_buy_for_lrna_should_provide_correct_results() {
 			u128::MAX,
 		));
 
+		// results from the Python implementation
+		// delta_ra=mpf('0.0024090328735723669327604093945159359529504498954125827')
+		// delta_qi=0.0
+		// delta_qj=mpf('0.0024090277149706257736363698232416045948288234720429954')
+		// asset_fee_total=mpf('0.0050125313283208020050125313283208020050125313283199446')
+		// lrna_fee_total=0.0
+		// slip_fee_buy=mpf('0.0000000051586017411591240395712743313581216264233695892076958')
+		// slip_fee_sell=0.0
 		let amount_in = 2_409_032_873;
 		let amount_out = 2_000_000_000_000;
 		let hub_amount_in = 0;
 		let hub_amount_out = 0;
 		let asset_fee_amount = 5_012_531_329;
 		let protocol_fee_amount = 0;
+		let extra_hub_reserve_amount = 6_022_582;
 
 		expect_hydra_events(vec![pallet_omnipool::Event::BuyExecuted {
 			who: ALICE.into(),
@@ -337,10 +427,18 @@ fn slip_fee_for_single_buy_for_lrna_should_provide_correct_results() {
 		pretty_assertions::assert_eq!(
 			hub_asset_block_state_out,
 			HubAssetBlockState::<pallet_omnipool::types::Balance> {
-				hub_reserve_at_block_start: 1_124_999_999_982_000,
-				current_delta_hub_reserve: Increase(2_409_032_873),
+				hub_reserve_at_block_start: initial_hdx_state.hub_reserve,
+				current_delta_hub_reserve: Increase(amount_in),
 			}
 		);
+
+		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+		pretty_assertions::assert_eq!(hdx_state.reserve, initial_hdx_state.reserve - amount_out); // 936327.588000000000
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, initial_hdx_state.hub_reserve + amount_in + extra_hub_reserve_amount); // 1125.002415037455
+		// results from the Python implementation
+		// 'HDX': {
+		//     'liquidity': 936327.5879999999888241291046142578125,
+		//     'LRNA': 1125.0024150322842209530265665070701128325594859802,
 	});
 }
 
