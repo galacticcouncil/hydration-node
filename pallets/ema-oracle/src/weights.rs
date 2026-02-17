@@ -19,6 +19,11 @@ pub trait WeightInfo {
 	fn on_trade_multiple_tokens(b: u32) -> Weight;
 	fn on_liquidity_changed_multiple_tokens(b: u32) -> Weight;
 	fn get_entry() -> Weight;
+	fn set_external_oracle() -> Weight;
+	fn register_external_source() -> Weight;
+	fn remove_external_source() -> Weight;
+	fn add_authorized_account() -> Weight;
+	fn remove_authorized_account() -> Weight;
 }
 
 /// Weights for `pallet_ema_oracle` using the HydraDX node and recommended hardware.
@@ -51,6 +56,26 @@ impl WeightInfo for () {
 	}
 
 	fn update_bifrost_oracle() -> Weight {
+		Weight::zero()
+	}
+
+	fn set_external_oracle() -> Weight {
+		Weight::zero()
+	}
+
+	fn register_external_source() -> Weight {
+		Weight::zero()
+	}
+
+	fn remove_external_source() -> Weight {
+		Weight::zero()
+	}
+
+	fn add_authorized_account() -> Weight {
+		Weight::zero()
+	}
+
+	fn remove_authorized_account() -> Weight {
 		Weight::zero()
 	}
 
