@@ -40,9 +40,9 @@ use frame_support::{
 use sp_core::H256;
 
 use crate::tests::mock_amm::{Hooks, TradeResult};
-use crate::traits::Convert;
 use frame_system::EnsureRoot;
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::price::PriceProvider;
 use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
@@ -134,8 +134,6 @@ impl Config for Test {
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type AssetId = AssetId;
 	type Currency = Tokens;
-	type Convert = AssetConvert;
-	type PriceProvider = ConversionPrice;
 	type RewardAsset = RewardAsset;
 	type PalletId = RefarralPalletId;
 	type RegistrationFee = RegistrationFee;
@@ -145,9 +143,6 @@ impl Config for Test {
 	type ExternalAccount = ExtAccount;
 	type SeedNativeAmount = SeedAmount;
 	type WeightInfo = ();
-
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = Benchmarking;
 }
 
 impl frame_system::Config for Test {
@@ -214,7 +209,6 @@ pub struct ExtBuilder {
 	referrer_shares: Vec<(AccountId, Balance)>,
 	trader_shares: Vec<(AccountId, Balance)>,
 	tiers: Vec<(AssetId, Level, FeeDistribution)>,
-	assets: Vec<AssetId>,
 	reward_per_share: Option<U256>,
 	user_reward_debts: Vec<(AccountId, U256)>,
 	user_accumulated_rewards: Vec<(AccountId, Balance)>,
@@ -245,7 +239,6 @@ impl Default for ExtBuilder {
 			referrer_shares: vec![],
 			trader_shares: vec![],
 			tiers: vec![],
-			assets: vec![],
 			reward_per_share: None,
 			user_reward_debts: vec![],
 			user_accumulated_rewards: vec![],
@@ -269,10 +262,6 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_assets(mut self, shares: Vec<AssetId>) -> Self {
-		self.assets.extend(shares);
-		self
-	}
 	pub fn with_tiers(mut self, shares: Vec<(AssetId, Level, FeeDistribution)>) -> Self {
 		self.tiers.extend(shares);
 		self
@@ -395,11 +384,6 @@ impl ExtBuilder {
 			}
 		});
 		r.execute_with(|| {
-			for asset in self.assets.iter() {
-				PendingConversions::<Test>::insert(asset, ());
-			}
-		});
-		r.execute_with(|| {
 			let seed_amount = SEED_AMOUNT.with(|v| *v.borrow());
 			Tokens::update_balance(HDX, &Referrals::pot_account_id(), seed_amount as i128).unwrap();
 		});
@@ -414,27 +398,6 @@ impl ExtBuilder {
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
-}
-
-pub struct AssetConvert;
-
-impl Convert<AccountId, AssetId, Balance> for AssetConvert {
-	type Error = DispatchError;
-
-	fn convert(
-		who: AccountId,
-		asset_from: AssetId,
-		asset_to: AssetId,
-		amount: Balance,
-	) -> Result<Balance, Self::Error> {
-		let price = CONVERSION_RATE
-			.with(|v| v.borrow().get(&(asset_to, asset_from)).copied())
-			.ok_or(Error::<Test>::ConversionMinTradingAmountNotReached)?;
-		let result = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down).unwrap();
-		Tokens::update_balance(asset_from, &who, -(amount as i128)).unwrap();
-		Tokens::update_balance(asset_to, &who, result as i128).unwrap();
-		Ok(result)
-	}
 }
 
 #[macro_export]
@@ -519,22 +482,3 @@ impl PriceProvider<AssetId> for ConversionPrice {
 	}
 }
 
-#[cfg(feature = "runtime-benchmarks")]
-use crate::traits::BenchmarkHelper;
-
-#[cfg(feature = "runtime-benchmarks")]
-pub struct Benchmarking;
-
-#[cfg(feature = "runtime-benchmarks")]
-impl BenchmarkHelper<AssetId, Balance> for Benchmarking {
-	fn prepare_convertible_asset_and_amount() -> (AssetId, Balance) {
-		let price = EmaPrice::new(1_000_000_000_000, 1_000_000_000_000);
-		CONVERSION_RATE.with(|v| {
-			let mut m = v.borrow_mut();
-			m.insert((1234, HDX), price);
-			m.insert((HDX, 1234), price.inverted());
-		});
-
-		(1234, 1_000_000_000_000)
-	}
-}

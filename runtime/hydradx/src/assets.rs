@@ -1442,7 +1442,7 @@ use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;
 use pallet_hsm::WeightInfo;
-use pallet_referrals::traits::Convert;
+use hydradx_traits::gigahdx::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::types::PegType;
@@ -1756,12 +1756,6 @@ impl pallet_referrals::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
-	type Convert = ConvertViaOmnipool<Omnipool>;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type PriceProvider =
-		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type PriceProvider = ReferralsDummyPriceProvider;
 	type RewardAsset = NativeAssetId;
 	type PalletId = ReferralsPalletId;
 	type RegistrationFee = RegistrationFee;
@@ -1771,8 +1765,6 @@ impl pallet_referrals::Config for Runtime {
 	type ExternalAccount = ReferralsExternalRewardAccount;
 	type SeedNativeAmount = ReferralsSeedAmount;
 	type WeightInfo = weights::pallet_referrals::HydraWeight<Runtime>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ReferralsBenchmarkHelper;
 }
 
 parameter_types! {
@@ -1938,27 +1930,21 @@ where
 		amount: Balance,
 	) -> Result<Balance, Self::Error> {
 		if amount < <Runtime as pallet_omnipool::Config>::MinimumTradingLimit::get() {
-			return Err(pallet_referrals::Error::<Runtime>::ConversionMinTradingAmountNotReached.into());
+			return Err(DispatchError::Other("ConversionMinTradingAmountNotReached"));
 		}
-		let price = SP::spot_price(asset_to, asset_from).ok_or(pallet_referrals::Error::<Runtime>::PriceNotFound)?;
+		let price = SP::spot_price(asset_to, asset_from).ok_or(DispatchError::Other("PriceNotFound"))?;
 		let amount_to_receive = price.saturating_mul_int(amount);
 		let min_expected = amount_to_receive
 			.saturating_sub(Permill::from_percent(5).mul_floor(amount_to_receive))
 			.max(1);
 		let balance = Currencies::free_balance(asset_to, &who);
-		let r = Omnipool::sell(
+		Omnipool::sell(
 			RuntimeOrigin::signed(who.clone()),
 			asset_from,
 			asset_to,
 			amount,
 			min_expected,
-		);
-		if let Err(error) = r {
-			if error == pallet_omnipool::Error::<Runtime>::ZeroAmountOut.into() {
-				return Err(pallet_referrals::Error::<Runtime>::ConversionZeroAmountReceived.into());
-			}
-			return Err(error);
-		}
+		)?;
 		let balance_after = Currencies::free_balance(asset_to, &who);
 		let received = balance_after.saturating_sub(balance);
 		Ok(received)
@@ -2015,73 +2001,7 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
 use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
-#[cfg(feature = "runtime-benchmarks")]
-use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
-
-#[cfg(feature = "runtime-benchmarks")]
-pub struct ReferralsBenchmarkHelper;
-
-#[cfg(feature = "runtime-benchmarks")]
-impl RefBenchmarkHelper<AssetId, Balance> for ReferralsBenchmarkHelper {
-	fn prepare_convertible_asset_and_amount() -> (AssetId, Balance) {
-		let asset_id: u32 = 1234u32;
-		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id.to_le_bytes().to_vec().try_into().unwrap();
-
-		with_transaction(|| {
-			TransactionOutcome::Commit(AssetRegistry::register_asset(
-				Some(asset_id),
-				Some(asset_name.clone()),
-				AssetKind::Token,
-				Some(1_000_000),
-				Some(asset_name),
-				Some(18),
-				None,
-				None,
-				true,
-			))
-		})
-		.unwrap();
-
-		let native_price = FixedU128::from_inner(1201500000000000);
-		let asset_price = FixedU128::from_inner(45_000_000_000);
-
-		Currencies::update_balance(
-			RuntimeOrigin::root(),
-			Omnipool::protocol_account(),
-			NativeAssetId::get(),
-			1_000_000_000_000_000_000,
-		)
-		.unwrap();
-
-		Currencies::update_balance(
-			RuntimeOrigin::root(),
-			Omnipool::protocol_account(),
-			asset_id,
-			1_000_000_000_000_000_000_000_000,
-		)
-		.unwrap();
-
-		Omnipool::add_token(
-			RuntimeOrigin::root(),
-			NativeAssetId::get(),
-			native_price,
-			Permill::from_percent(10),
-			TreasuryAccount::get(),
-		)
-		.unwrap();
-
-		Omnipool::add_token(
-			RuntimeOrigin::root(),
-			asset_id,
-			asset_price,
-			Permill::from_percent(10),
-			TreasuryAccount::get(),
-		)
-		.unwrap();
-		(1234, 1_000_000_000_000_000_000)
-	}
-}
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsDummyPriceProvider;
