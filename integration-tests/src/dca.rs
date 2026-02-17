@@ -3685,6 +3685,73 @@ mod stableswap {
 			});
 		});
 	}
+
+	#[test]
+	fn sell_should_be_retried_when_stableshare_is_in_lockdown() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				// Arrange
+				let (pool_id, stable_asset_1, _stable_asset_2) = init_stableswap().unwrap();
+
+				assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+					RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_rational(88, 100),
+				));
+
+				let alice_init_stable_balance = 5000 * UNITS;
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					ALICE.into(),
+					stable_asset_1,
+					alice_init_stable_balance as i128,
+				));
+
+				// Trigger lockdown on the stableshare (pool_id) by exceeding deposit limit
+				let deposit_limit = UNITS;
+				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
+				assert_ok!(Currencies::deposit(
+					pool_id,
+					&AccountId::from(BOB),
+					deposit_limit + UNITS
+				));
+
+				let dca_budget = 1100 * UNITS;
+				let amount_to_sell = 100 * UNITS;
+				let schedule = schedule_fake_with_sell_order(
+					ALICE,
+					PoolType::Stableswap(pool_id),
+					dca_budget,
+					stable_asset_1,
+					pool_id,
+					amount_to_sell,
+				);
+
+				go_to_block(10);
+				create_schedule(ALICE, schedule);
+
+				// Act
+				go_to_block(12);
+
+				// Assert - DCA should be retried (not terminated) because lockdown is temporary
+				let terminated = count_terminated_trade_events();
+				assert_eq!(
+					terminated, 0,
+					"DCA should not be terminated when stableshare is in lockdown"
+				);
+
+				let schedule_id = 0;
+				assert_eq!(
+					DCA::retries_on_error(schedule_id),
+					1,
+					"DCA retry count should be incremented"
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
 }
 
 mod xyk {
