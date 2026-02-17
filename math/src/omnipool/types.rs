@@ -510,15 +510,14 @@ pub mod slip_fee {
 		pub fn calculate_slip_fee_sell(&self, delta_hub_reserve_in: Balance) -> Option<FixedU128> {
 			// add new delta to existing delta
 			let delta_hub_in = BalanceUpdate::<Balance>::Decrease(delta_hub_reserve_in)
-				.saturating_add(&self.hub_state_in.current_delta_hub_reserve);
+				.checked_add(&self.hub_state_in.current_delta_hub_reserve)?;
 			let slip_fee_sell = self.calculate_slip_fee(delta_hub_in, self.hub_state_in.hub_reserve_at_block_start)?;
 			Some(sp_std::cmp::min(slip_fee_sell, self.max_slip_fee))
 		}
 
 		pub fn calculate_slip_fee_buy(&self, delta_hub_reserve_out: Balance) -> Option<FixedU128> {
 			let delta_hub_out = BalanceUpdate::<Balance>::Increase(delta_hub_reserve_out)
-				// TODO: saturating_add?
-				.saturating_add(&self.hub_state_out.current_delta_hub_reserve);
+				.checked_add(&self.hub_state_out.current_delta_hub_reserve)?;
 			let slip_fee_buy = self.calculate_slip_fee(delta_hub_out, self.hub_state_out.hub_reserve_at_block_start)?;
 			Some(sp_std::cmp::min(slip_fee_buy, self.max_slip_fee))
 		}
