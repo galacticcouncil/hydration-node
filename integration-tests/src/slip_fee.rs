@@ -30,7 +30,6 @@ fn slip_fee_for_single_sell_should_provide_correct_results() {
 			0,
 		));
 
-
 		let amount_in = 20_000_000_000;
 		let amount_out = 425_104_485_150_786;
 		let hub_amount_in = 512_883_062_661;
@@ -155,7 +154,7 @@ fn slip_fee_for_two_sells_should_provide_correct_results() {
 			asset_fee_amount,
 			protocol_fee_amount,
 		}
-			.into()]);
+		.into()]);
 
 		let hub_asset_block_state_in = Omnipool::hub_asset_block_state(DOT).unwrap();
 		let hub_asset_block_state_out = Omnipool::hub_asset_block_state(HDX).unwrap();
@@ -382,7 +381,7 @@ fn slip_fee_for_two_buys_should_provide_correct_results() {
 			asset_fee_amount,
 			protocol_fee_amount,
 		}
-			.into()]);
+		.into()]);
 
 		let hub_asset_block_state_in = Omnipool::hub_asset_block_state(DOT).unwrap();
 		let hub_asset_block_state_out = Omnipool::hub_asset_block_state(HDX).unwrap();

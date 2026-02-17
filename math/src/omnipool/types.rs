@@ -615,10 +615,11 @@ pub mod slip_fee {
 			protocol_fee: &Permill,
 		) -> Option<Balance> {
 			if self.slip_factor.is_zero() {
-				return Some(FixedU128::from_inner(delta_hub_reserve_out_gross).checked_div(
-					&Permill::from_percent(100).checked_sub(protocol_fee)?.into()
-				)?
-					.into_inner());
+				return Some(
+					FixedU128::from_inner(delta_hub_reserve_out_gross)
+						.checked_div(&Permill::from_percent(100).checked_sub(protocol_fee)?.into())?
+						.into_inner(),
+				);
 			}
 
 			let k = FixedU128::one().checked_sub(&(*protocol_fee).into())?;
