@@ -6,8 +6,8 @@ use frame_support::assert_ok;
 use hydra_dx_math::omnipool::types::slip_fee::HubAssetBlockState;
 use hydra_dx_math::omnipool::types::BalanceUpdate::{Decrease, Increase};
 use hydradx_runtime::{FixedU128, Omnipool, Permill, Runtime, RuntimeOrigin, System, Tokens};
-use xcm_emulator::TestExt;
 use orml_traits::MultiCurrency;
+use xcm_emulator::TestExt;
 
 const ONE: u128 = 1_000_000_000_000;
 const ONE_DOT: u128 = 10_000_000_000;
@@ -241,8 +241,7 @@ fn slip_fee_for_two_sells_should_provide_correct_results() {
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 935904483514849214);
-		pretty_assertions::assert_eq!(
-			hdx_state.hub_reserve, 1125514164318604);
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1125514164318604);
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2249487117049839);
@@ -500,7 +499,7 @@ fn slip_fee_for_two_buys_should_provide_correct_results() {
 		));
 
 		let amount_in = 93_966_595;
-		let amount_out =  2_000_000_000_000;
+		let amount_out = 2_000_000_000_000;
 		let hub_amount_in = 2_410_240_575;
 		let hub_amount_out = 2_409_027_715;
 		let asset_fee_amount = 5_012_531_329;
@@ -646,12 +645,10 @@ fn slip_fee_for_two_trades_in_opposite_direction_should_provide_correct_results(
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 935904483514849214);
-		pretty_assertions::assert_eq!(
-			hdx_state.hub_reserve, 1125514164318604);
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1125514164318604);
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2249487117049839);
-
 
 		System::reset_events();
 
@@ -703,10 +700,7 @@ fn slip_fee_for_two_trades_in_opposite_direction_should_provide_correct_results(
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 935904483514849214 + amount_in);
-		pretty_assertions::assert_eq!(
-			hdx_state.hub_reserve,
-			1124999994370238
-		);
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1124999994370238);
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000 - amount_out);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2250002571543277);
@@ -758,12 +752,10 @@ fn slip_fee_for_sell_and_smaller_buy_should_provide_correct_results() {
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 935904483514849214);
-		pretty_assertions::assert_eq!(
-			hdx_state.hub_reserve, 1125514164318604);
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1125514164318604);
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2249487117049839);
-
 
 		System::reset_events();
 
@@ -794,7 +786,7 @@ fn slip_fee_for_sell_and_smaller_buy_should_provide_correct_results() {
 			asset_fee_amount,
 			protocol_fee_amount,
 		}
-			.into()]);
+		.into()]);
 
 		let hub_asset_block_state_out = Omnipool::hub_asset_block_state(HDX).unwrap();
 		let hub_asset_block_state_in = Omnipool::hub_asset_block_state(DOT).unwrap();
@@ -815,10 +807,7 @@ fn slip_fee_for_sell_and_smaller_buy_should_provide_correct_results() {
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 935904483514849214 + amount_in);
-		pretty_assertions::assert_eq!(
-			hdx_state.hub_reserve,
-			1125257021720579
-		);
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1125257021720579);
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000 - amount_out);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2249744814771912);
@@ -870,12 +859,10 @@ fn slip_fee_for_sell_and_larger_buy_should_provide_correct_results() {
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 935904483514849214);
-		pretty_assertions::assert_eq!(
-			hdx_state.hub_reserve, 1125514164318604);
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1125514164318604);
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2249487117049839);
-
 
 		System::reset_events();
 
@@ -906,7 +893,7 @@ fn slip_fee_for_sell_and_larger_buy_should_provide_correct_results() {
 			asset_fee_amount,
 			protocol_fee_amount,
 		}
-			.into()]);
+		.into()]);
 
 		let hub_asset_block_state_out = Omnipool::hub_asset_block_state(HDX).unwrap();
 		let hub_asset_block_state_in = Omnipool::hub_asset_block_state(DOT).unwrap();
@@ -927,10 +914,7 @@ fn slip_fee_for_sell_and_larger_buy_should_provide_correct_results() {
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 935904483514849214 + amount_in);
-		pretty_assertions::assert_eq!(
-			hdx_state.hub_reserve,
-			1124484882078918
-		);
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1124484882078918);
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000 - amount_out);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2250518262315085);
@@ -982,7 +966,7 @@ fn slip_fee_for_buy_and_smaller_sell_should_provide_correct_results() {
 			asset_fee_amount,
 			protocol_fee_amount,
 		}
-			.into()]);
+		.into()]);
 
 		let hub_asset_block_state_in = Omnipool::hub_asset_block_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(
@@ -1040,7 +1024,7 @@ fn slip_fee_for_buy_and_smaller_sell_should_provide_correct_results() {
 			asset_fee_amount,
 			protocol_fee_amount,
 		}
-			.into()]);
+		.into()]);
 
 		let hub_asset_block_state_out = Omnipool::hub_asset_block_state(HDX).unwrap();
 		let hub_asset_block_state_in = Omnipool::hub_asset_block_state(DOT).unwrap();
@@ -1061,10 +1045,7 @@ fn slip_fee_for_buy_and_smaller_sell_should_provide_correct_results() {
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 936327588000000000 + amount_in);
-		pretty_assertions::assert_eq!(
-			hdx_state.hub_reserve,
-			1125001215335595
-		);
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1125001215335595);
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87719392216595 - amount_out);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2249998793776001);
@@ -1116,7 +1097,7 @@ fn slip_fee_for_buy_and_larger_sell_should_provide_correct_results() {
 			asset_fee_amount,
 			protocol_fee_amount,
 		}
-			.into()]);
+		.into()]);
 
 		let hub_asset_block_state_in = Omnipool::hub_asset_block_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(
@@ -1174,7 +1155,7 @@ fn slip_fee_for_buy_and_larger_sell_should_provide_correct_results() {
 			asset_fee_amount,
 			protocol_fee_amount,
 		}
-			.into()]);
+		.into()]);
 
 		let hub_asset_block_state_out = Omnipool::hub_asset_block_state(HDX).unwrap();
 		let hub_asset_block_state_in = Omnipool::hub_asset_block_state(DOT).unwrap();
@@ -1195,10 +1176,7 @@ fn slip_fee_for_buy_and_larger_sell_should_provide_correct_results() {
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 936327588000000000 + amount_in);
-		pretty_assertions::assert_eq!(
-			hdx_state.hub_reserve,
-			1124997612650600
-		);
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1124997612650600);
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87719392216595 - amount_out);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2250002405467721);
@@ -1221,27 +1199,44 @@ fn hub_reserve_invariant_should_hold_after_multiple_hdx_trades() {
 		);
 	}
 
-
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool();
 		System::reset_events();
-		
+
 		let initial_hub_token_supply = Tokens::total_issuance(LRNA);
 
 		//Act & Assert
 		for _ in 0..3 {
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(ALICE.into()), HDX, DOT, 5 * ONE, 0));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				HDX,
+				DOT,
+				5 * ONE,
+				0
+			));
 			assert_hub_asset_invariant();
 		}
 
 		for _ in 0..3 {
-			assert_ok!(Omnipool::buy(RuntimeOrigin::signed(ALICE.into()), HDX, DOT, 5 * ONE, 500 * ONE));
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(ALICE.into()),
+				HDX,
+				DOT,
+				5 * ONE,
+				500 * ONE
+			));
 			assert_hub_asset_invariant();
 		}
 
 		for _ in 0..3 {
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(ALICE.into()), DOT, HDX, 5 * ONE, 0));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				DOT,
+				HDX,
+				5 * ONE,
+				0
+			));
 			assert_hub_asset_invariant();
 		}
 
