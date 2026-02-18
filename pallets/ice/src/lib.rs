@@ -502,16 +502,16 @@ impl<T: Config> Pallet<T> {
 			})
 			.collect();
 
-		if intents.is_empty() {
-			return None;
-		}
-
 		let state = <<T as Config>::Simulator as SimulatorConfig>::Simulators::initial_state();
 
 		let Some(solution) = solve(intents, state) else {
 			log::debug!(target: OCW_LOG_TARGET, "no solution found, block: {:?}", block_no);
 			return None;
 		};
+
+		if solution.resolved_intents.is_empty() {
+			return None;
+		}
 
 		if let Err(e) = Self::validate_unsigned_solution(&solution) {
 			log::error!(target: OCW_LOG_TARGET, "validate solution, err: {:?}, block: {:?}", e, block_no);
