@@ -2120,6 +2120,11 @@ impl<T: Config> Pallet<T> {
 		Assets::<T>::contains_key(asset)
 	}
 
+	/// Returns omnipool assets. Hub asset is not included.
+	pub fn list_assets() -> Vec<T::AssetId> {
+		Assets::<T>::iter().map(|v| v.0).collect()
+	}
+
 	/// Calls `on_trade_fee` hook and ensures that no more than the fee amount is transferred.
 	#[allow(clippy::type_complexity)]
 	fn process_trade_fee(
