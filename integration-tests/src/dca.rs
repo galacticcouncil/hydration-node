@@ -3435,12 +3435,12 @@ mod stableswap {
 	/// It fails because stable share is locked in an intermediary trade,
 	/// and in the next hop the user has not enough balance to continue the trade
 	#[test]
-	fn dca_buy_also_fails_when_circuit_breaker_triggers_on_intermediate_shares_trade() {
+	fn buy_should_be_retried_when_circuit_breaker_triggers_on_intermediate_shares_trade() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
-				//Arrange
+				// Arrange
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 
 				assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
@@ -3464,7 +3464,6 @@ mod stableswap {
 					0u128,
 				));
 
-				//Init omnipool and add pool id as token
 				init_omnipol();
 				assert_ok!(Currencies::update_balance(
 					RuntimeOrigin::root(),
@@ -3496,7 +3495,6 @@ mod stableswap {
 					alice_init_stable1_balance as i128,
 				));
 
-				// First step MINTS shares - circuit breaker triggers here!
 				let trades = vec![
 					Trade {
 						pool: PoolType::Stableswap(pool_id),
@@ -3531,32 +3529,21 @@ mod stableswap {
 
 				create_schedule(ALICE, schedule);
 
-				let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
-				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
-				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget);
-
-				//Act - Execute DCA
+				// Act
 				go_to_block(12);
 
-				//Assert
-				let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
-				let alice_stable1_reserved = Currencies::reserved_balance(stable_asset_1, &ALICE.into());
-				let router_reserved_shares = Currencies::reserved_balance(pool_id, &Router::router_account());
-
+				// Assert - DCA should be retried (not terminated) because lockdown is temporary
+				let terminated = count_terminated_trade_events();
 				assert_eq!(
-					alice_stable1_reserved, 0,
-					"All reserved stable_asset_1 should be freed after rollback"
-				);
-				assert_eq!(
-					alice_hdx_after, alice_hdx_before,
-					"DCA Buy should fail when circuit breaker triggers on intermediate shares. HDX before: {}, after: {}",
-					alice_hdx_before, alice_hdx_after
+					terminated, 0,
+					"DCA should not be terminated when circuit breaker triggers on intermediate shares"
 				);
 
+				let schedule_id = 0;
 				assert_eq!(
-					router_reserved_shares, 0,
-					"No shares should be reserved since DCA was rolled back. Reserved: {}",
-					router_reserved_shares
+					DCA::retries_on_error(schedule_id),
+					1,
+					"DCA retry count should be incremented"
 				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
