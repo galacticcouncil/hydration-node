@@ -501,6 +501,11 @@ impl<T: Config> Pallet<T> {
 				data: x.1.data.to_owned(),
 			})
 			.collect();
+
+		if intents.is_empty() {
+			return None;
+		}
+
 		let state = <<T as Config>::Simulator as SimulatorConfig>::Simulators::initial_state();
 
 		let Some(solution) = solve(intents, state) else {
