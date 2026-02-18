@@ -3529,6 +3529,8 @@ mod stableswap {
 
 				create_schedule(ALICE, schedule);
 
+				let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
+
 				// Act
 				go_to_block(12);
 
@@ -3545,6 +3547,18 @@ mod stableswap {
 					1,
 					"DCA retry count should be incremented"
 				);
+
+				let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
+				assert_eq!(
+					alice_hdx_after, alice_hdx_before,
+					"Alice HDX balance should be unchanged"
+				);
+
+				let alice_shares = Currencies::free_balance(pool_id, &ALICE.into());
+				assert_eq!(alice_shares, 0, "Alice should have zero stableshare balance");
+
+				let router_reserved_shares = Currencies::reserved_balance(pool_id, &Router::router_account());
+				assert_eq!(router_reserved_shares, 0, "Router should have zero reserved shares");
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
