@@ -70,6 +70,14 @@ impl<AssetId> AssetPair<AssetId> {
 }
 
 pub trait RouteProvider<AssetId> {
+	/// Get the explicitly configured route from storage, if any.
+	/// Returns None if no route is explicitly configured (will use default).
+	fn get_onchain_route(_asset_pair: AssetPair<AssetId>) -> Option<Route<AssetId>> {
+		// Default: no explicit routes stored
+		None
+	}
+
+	/// Get route for asset pair (explicit or default).
 	fn get_route(asset_pair: AssetPair<AssetId>) -> Route<AssetId> {
 		BoundedVec::truncate_from(vec![Trade {
 			pool: PoolType::Omnipool,

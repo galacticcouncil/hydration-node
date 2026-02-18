@@ -1,0 +1,85 @@
+[package]
+name = "pallet-ice"
+version = "1.0.0"
+authors = ['GalacticCouncil']
+edition = "2021"
+license = "Apache-2.0"
+homepage = 'https://github.com/galacticcouncil/hydration-node'
+repository = 'https://github.com/galacticcouncil/hydration-node'
+description = ""
+readme = "README.md"
+
+[dependencies]
+# parity
+codec = { workspace = true, features = ["derive", "max-encoded-len"] }
+scale-info = { workspace = true }
+log = { workspace = true}
+
+# primitives
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+sp-runtime-interface = {workspace = true}
+sp-externalities = {workspace = true}
+
+# FRAME
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+# Hydration dependencies
+hydradx-traits = { workspace = true }
+pallet-intent = { workspace = true}
+pallet-route-executor = { workspace = true}
+ice-support = { workspace = true }
+ice-solver = { workspace = true }
+amm-simulator = { workspace = true }
+
+# Math
+hydra-dx-math = { workspace = true }
+
+# ORML dependencies
+orml-traits = { workspace = true }
+
+# Optional imports for benchmarking
+frame-benchmarking = { workspace = true, optional = true }
+
+[dev-dependencies]
+sp-io = { workspace = true }
+test-utils = { workspace = true }
+pretty_assertions = { workspace = true }
+orml-tokens = { workspace = true, features=["std"] }
+pallet-timestamp = { workspace = true }
+primitives = { workspace = true }
+pallet-broadcast = { workspace = true }
+
+
+[features]
+default = ['std']
+std = [
+    'codec/std',
+    'scale-info/std',
+    'sp-runtime/std',
+    'sp-core/std',
+    'sp-io/std',
+    'sp-std/std',
+    'frame-benchmarking/std',
+    'hydradx-traits/std',
+    'pallet-intent/std',
+    "sp-runtime-interface/std",
+    "sp-externalities/std",
+    "hydra-dx-math/std",
+    "pallet-route-executor/std",
+    "orml-traits/std",
+    "ice-support/std",
+    "ice-solver/std",
+    "amm-simulator/std",
+]
+
+runtime-benchmarks = [
+    "frame-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "hydra-dx-math/runtime-benchmarks",
+    "pallet-route-executor/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]

@@ -137,7 +137,7 @@ where
 }
 
 /// Asset state representation including asset pool reserve.
-#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct AssetReserveState<Balance> {
 	/// Quantity of asset in omnipool
 	pub reserve: Balance,
