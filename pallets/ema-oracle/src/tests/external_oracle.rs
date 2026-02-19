@@ -366,7 +366,6 @@ fn multiple_sources_in_same_block() {
 	});
 }
 
-// --- soft limit ---
 
 #[test]
 fn amm_trades_are_limited_to_max_unique_entries() {
