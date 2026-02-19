@@ -214,7 +214,7 @@ pub fn run() -> sc_cli::Result<()> {
 					let db = partials.backend.expose_db();
 					let storage = partials.backend.expose_storage();
 
-					cmd.run(config, partials.client, db, storage)
+					cmd.run(config, partials.client, db, storage, None)
 				}),
 				BenchmarkCmd::Overhead(_) | BenchmarkCmd::Extrinsic(_) => {
 					Err("Unsupported benchmarking command".into())

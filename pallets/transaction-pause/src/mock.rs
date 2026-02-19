@@ -103,7 +103,6 @@ parameter_types! {
 }
 
 impl orml_tokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = CurrencyId;
@@ -121,7 +120,6 @@ ord_parameter_types! {
 }
 
 impl Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type UpdateOrigin = EnsureSignedBy<One, AccountId>;
 	type WeightInfo = ();
 }

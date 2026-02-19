@@ -91,7 +91,6 @@ parameter_type_with_key! {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Test>;
 	type Router = Router;
 	type ProfitReceiver = TreasuryAccount;
@@ -107,7 +106,6 @@ impl pallet_otc::Config for Test {
 	type AssetId = AssetId;
 	type AssetRegistry = AssetRegistry;
 	type Currency = Currencies;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type Fee = OtcFee;
@@ -135,7 +133,6 @@ impl PriceOracle<AssetId> for PriceProviderMock {
 }
 
 impl pallet_route_executor::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = HDXAssetId;
@@ -188,7 +185,6 @@ impl frame_system::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -241,7 +237,6 @@ impl pallet_balances::Config for Test {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
@@ -253,9 +248,7 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 parameter_types! {
 	pub const MinTradingLimit: Balance = 1_000;
@@ -272,7 +265,6 @@ parameter_types! {
 type AssetLocation = u8;
 
 impl pallet_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EnsureRoot<AccountId>;
 	type Currency = Tokens;
 	type UpdateOrigin = EnsureSigned<u64>;
@@ -301,7 +293,6 @@ impl hydradx_traits::pools::DustRemovalAccountWhitelist<AccountId> for DummyDust
 }
 
 impl pallet_omnipool::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Currencies;

@@ -189,7 +189,6 @@ impl SortedMembers<u64> for OneToFive {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = pallet_balances::Pallet<Self>;
 	type EnactmentPeriod = ConstU64<2>;
 	type LaunchPeriod = ConstU64<2>;

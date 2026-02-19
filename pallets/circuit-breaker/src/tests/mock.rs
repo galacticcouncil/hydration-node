@@ -126,7 +126,6 @@ parameter_types! {
 pub type Amount = i128;
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
@@ -185,7 +184,6 @@ parameter_types! {
 }
 
 impl pallet_circuit_breaker::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
@@ -268,7 +266,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -299,7 +296,6 @@ parameter_types! {
 }
 
 impl pallet_omnipool::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Tokens;
@@ -325,9 +321,7 @@ impl pallet_omnipool::Config for Test {
 	type HubDestination = TreasuryAccount;
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 pub struct CircuitBreakerHooks<T>(PhantomData<T>);
 

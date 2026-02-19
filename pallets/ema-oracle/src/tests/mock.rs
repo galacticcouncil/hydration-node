@@ -145,7 +145,6 @@ impl SortedMembers<AccountId> for BifrostAcc {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;

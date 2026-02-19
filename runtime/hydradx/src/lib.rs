@@ -1310,7 +1310,7 @@ impl_runtime_apis! {
 						]);
 			}
 
-			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Assets, Parent, ParentThen, Parachain};
+			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Assets, Parent, ParentThen, Parachain, WeightLimit};
 
 			impl pallet_xcm::benchmarking::Config for Runtime {
 				type DeliveryHelper = ();
@@ -1491,11 +1491,11 @@ impl_runtime_apis! {
 					Ok((origin, ticket, assets))
 				}
 
-				fn fee_asset() -> Result<Asset, BenchmarkError> {
-					Ok(Asset {
+				fn worst_case_for_trader() -> Result<(Asset, WeightLimit), BenchmarkError> {
+					Ok((Asset {
 						id: AssetId(CoreAssetLocation::get()),
 						fun: Fungible(UNITS),
-					})
+					}, WeightLimit::Unlimited))
 				}
 
 				fn unlockable_asset() -> Result<(Location, Location, Asset), BenchmarkError> {

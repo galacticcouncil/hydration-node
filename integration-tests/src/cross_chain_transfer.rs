@@ -941,7 +941,7 @@ fn xcm_for_deposit_reserve_asset_to_hydra<RC: Decode + GetDispatchInfo>(
 			},
 		]);
 		// use local weight for remote message and hope for the best.
-		let remote_weight = Weigher::weight(&mut remote_message).expect("weighing should not fail");
+		let remote_weight = Weigher::weight(&mut remote_message, Weight::MAX).expect("weighing should not fail");
 		Limited(remote_weight)
 	};
 
@@ -1178,7 +1178,7 @@ fn xcm_transfer_reserve_asset_and_deposit_asset_to_hydra<RC: Decode + GetDispatc
 			},
 		]);
 		// use local weight for remote message and hope for the best.
-		let remote_weight = Weigher::weight(&mut remote_message).expect("weighing should not fail");
+		let remote_weight = Weigher::weight(&mut remote_message, Weight::MAX).expect("weighing should not fail");
 		Limited(remote_weight)
 	};
 	// executed on remote (on hydra)

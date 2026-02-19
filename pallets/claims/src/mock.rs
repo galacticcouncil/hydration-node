@@ -103,7 +103,6 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type Prefix = Prefix;
 	type WeightInfo = ();

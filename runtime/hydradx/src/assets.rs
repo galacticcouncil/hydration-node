@@ -402,7 +402,6 @@ impl RefundAndLockedEdCalculator {
 }
 
 impl orml_tokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -423,7 +422,6 @@ parameter_types! {
 // The infrastructure relies on the events from this pallet, so we use the latest version of
 // the pallet that contains and emit events and was updated to the polkadot version we use.
 impl pallet_currencies::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 	type Erc20Currency = Erc20Currency<Runtime>;
@@ -461,7 +459,6 @@ parameter_types! {
 }
 
 impl orml_vesting::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
 	type VestedTransferOrigin = RootAsVestingPallet;
@@ -475,7 +472,6 @@ parameter_types! {
 }
 
 impl pallet_claims::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Prefix = ClaimMessagePrefix;
 	type WeightInfo = weights::pallet_claims::HydraWeight<Runtime>;
 	type Currency = Balances;
@@ -492,7 +488,6 @@ parameter_types! {
 }
 
 impl pallet_asset_registry::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Runtime>;
@@ -554,7 +549,6 @@ parameter_types! {
 }
 
 impl pallet_omnipool::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = Currencies;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, OmnipoolAdmin>;
@@ -625,7 +619,6 @@ parameter_types! {
 }
 
 impl pallet_circuit_breaker::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, OmnipoolAdmin>>;
@@ -674,7 +667,6 @@ impl SortedMembers<AccountId> for BifrostAcc {
 }
 
 impl pallet_ema_oracle::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
@@ -717,7 +709,6 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 }
 
 impl pallet_duster::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type MultiCurrency = FungibleCurrencies<Runtime>;
 	type ExistentialDeposit = AssetRegistry;
@@ -740,7 +731,6 @@ parameter_types! {
 
 pub type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
 impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type MultiCurrency = Currencies;
 	type PalletId = OmniWarehouseLMPalletId;
@@ -769,7 +759,6 @@ parameter_types! {
 }
 
 impl pallet_omnipool_liquidity_mining::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
 	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, OmnipoolAdmin>;
 	type PalletId = OmniLMPalletId;
@@ -796,7 +785,6 @@ parameter_types! {
 
 pub type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
 impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type MultiCurrency = Currencies;
 	type PalletId = XYKWarehouseLMPalletId;
@@ -824,7 +812,6 @@ parameter_types! {
 }
 
 impl pallet_xyk_liquidity_mining::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currencies = Currencies;
 	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type PalletId = XYKLmPalletId;
@@ -958,7 +945,6 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 }
 
 impl pallet_dca::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type TerminateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Currencies = Currencies;
@@ -1322,7 +1308,6 @@ parameter_types! {
 }
 
 impl pallet_route_executor::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type Currency = FungibleCurrencies<Runtime>;
@@ -1346,7 +1331,6 @@ impl pallet_otc::Config for Runtime {
 	type AssetId = AssetId;
 	type AssetRegistry = AssetRegistry;
 	type Currency = Currencies;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = AssetRegistry;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type Fee = OtcFee;
@@ -1356,7 +1340,6 @@ impl pallet_otc::Config for Runtime {
 
 impl pallet_otc_settlements::Config for Runtime {
 	type Currency = FungibleCurrencies<Runtime>;
-	type RuntimeEvent = RuntimeEvent;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Router = Router;
 	#[cfg(feature = "runtime-benchmarks")]
@@ -1390,7 +1373,6 @@ parameter_types! {
 }
 
 impl pallet_dynamic_fees::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 	type Fee = Permill;
 	type AssetId = AssetId;
@@ -1572,7 +1554,6 @@ impl<T: pallet_ema_oracle::Config> pallet_ema_oracle::BenchmarkHelper<AssetId> f
 }
 
 impl pallet_stableswap::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 	type AssetId = AssetId;
 	type Currency = Currencies;
@@ -1605,7 +1586,6 @@ impl Contains<AssetKind> for AssetTypeWhitelist {
 }
 
 impl pallet_bonds::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Currency = Currencies;
 	type AssetRegistry = AssetRegistry;
@@ -1655,7 +1635,6 @@ parameter_types! {
 }
 
 impl pallet_staking::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
 	type Currency = Currencies;
@@ -1710,7 +1689,6 @@ where
 }
 
 impl pallet_lbp::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type LockedBalance = MultiCurrencyLockedBalance<Runtime, NativeAssetId>;
 	type CreatePoolOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
@@ -1730,7 +1708,6 @@ parameter_types! {
 }
 
 impl pallet_xyk::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetRegistry = AssetRegistry;
 	type AssetPairAccountId = AssetPairAccountId<Self>;
 	type Currency = Currencies;
@@ -1758,7 +1735,6 @@ parameter_types! {
 }
 
 impl pallet_referrals::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
@@ -1812,7 +1788,6 @@ impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
 }
 
 impl pallet_liquidation::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Runtime>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Evm = evm::Executor<Runtime>;
@@ -1835,9 +1810,7 @@ impl pallet_liquidation::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 }
 
-impl pallet_broadcast::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Runtime {}
 
 parameter_types! {
 	pub const HsmGasLimit: u64 = 400_000;
@@ -1848,7 +1821,6 @@ parameter_types! {
 }
 
 impl pallet_hsm::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type HollarId = HOLLAR;
 	type PalletId = HsmPalletId;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<EconomicParameters, GeneralAdmin>>;
@@ -1879,7 +1851,6 @@ parameter_types! {
 }
 
 impl pallet_signet::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
 	type MaxChainIdLength = MaxChainIdLength;
@@ -1916,7 +1887,6 @@ impl frame_support::traits::Get<EvmAddress> for SigEthFaucetContractAddr {
 }
 
 impl pallet_dispenser::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Runtime>;
 	type MinimumRequestAmount = SigEthFaucetMinRequest;
 	type MaxDispenseAmount = SigEthFaucetMaxDispense;

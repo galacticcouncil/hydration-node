@@ -153,4 +153,9 @@ impl<T: frame_system::Config> pallet_token_gateway::WeightInfo for HydraWeight<T
 			.saturating_add(Weight::from_parts(1_976_501, 0).saturating_mul(x.into()))
 			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(x.into())))
 	}
+	fn register_asset_locally(_x: u32) -> Weight {
+		Weight::from_parts(50_000_000, 4026)
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(T::DbWeight::get().writes(4_u64))
+	}
 }

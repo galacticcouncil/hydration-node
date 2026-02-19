@@ -84,8 +84,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_broadcast::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Registry support
 		type AssetRegistry: Create<Balance, AssetId = AssetId, Error = DispatchError>;
 
