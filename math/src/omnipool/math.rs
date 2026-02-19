@@ -279,8 +279,6 @@ pub fn calculate_buy_state_changes(
 
 	let delta_hub_reserve_in = slip_fee_config.invert_sell_side_slip_fee(delta_hub_reserve_out_gross, &protocol_fee)?;
 
-	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
-
 	let (delta_hub_reserve_in_hp, in_hub_reserve_hp, in_reserve_hp) =
 		to_u256!(delta_hub_reserve_in, asset_in_state.hub_reserve, asset_in_state.reserve);
 	let delta_reserve_in = in_reserve_hp
@@ -294,6 +292,7 @@ pub fn calculate_buy_state_changes(
 	}
 
 	let asset_fee_amount = calculate_fee_amount_for_buy(asset_fee, amount);
+	let protocol_fee_amount = delta_hub_reserve_in.checked_sub(delta_hub_reserve_out)?;
 
 	// mint amount to account for asset fee that stays in the pool
 	let (out_hub_reserve_hp, delta_hub_reserve_out_net_hp) =

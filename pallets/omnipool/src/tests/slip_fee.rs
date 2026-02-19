@@ -452,7 +452,7 @@ fn single_buy_works() {
 			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
 			assert_eq!(
 				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
-				13_358_318_856_027_344
+				13_360_000_000_000_000
 			);
 			assert_eq!(
 				Tokens::free_balance(100, &Omnipool::protocol_account()),
@@ -460,7 +460,7 @@ fn single_buy_works() {
 			);
 			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), 1_950 * ONE);
 
-			assert_pool_state!(13_358_318_856_027_344, 26_720 * ONE);
+			assert_pool_state!(13_360 * ONE, 26_720 * ONE);
 
 			assert_asset_state!(
 				100,
@@ -494,7 +494,7 @@ fn single_buy_works() {
 				hub_amount_in: 35_014_477_305_990,
 				hub_amount_out: 33_333_333_333_334,
 				asset_fee_amount: 0,
-				protocol_fee_amount: 0,
+				protocol_fee_amount: 1_681_143_972_656,
 			}
 			.into()]);
 		});
@@ -674,7 +674,7 @@ fn two_buys_in_one_direction_should_increase_fee() {
 			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
 			assert_eq!(
 				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
-				13_358_318_856_027_344
+				13_360_000_000_000_000
 			);
 			assert_eq!(
 				Tokens::free_balance(100, &Omnipool::protocol_account()),
@@ -682,7 +682,7 @@ fn two_buys_in_one_direction_should_increase_fee() {
 			);
 			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), 1_950 * ONE);
 
-			assert_pool_state!(13_358_318_856_027_344, 26_720 * ONE);
+			assert_pool_state!(13_360 * ONE, 26_720 * ONE);
 
 			assert_asset_state!(
 				100,
@@ -716,7 +716,7 @@ fn two_buys_in_one_direction_should_increase_fee() {
 				hub_amount_in: 35_014_477_305_990,
 				hub_amount_out: 33_333_333_333_334,
 				asset_fee_amount: 0,
-				protocol_fee_amount: 0,
+				protocol_fee_amount: 1_681_143_972_656,
 			}
 			.into()]);
 
@@ -756,7 +756,7 @@ fn two_buys_in_one_direction_should_increase_fee() {
 				hub_amount_in: 38_866_664_729_413,
 				hub_amount_out: 35_087_719_298_246,
 				asset_fee_amount: 0,
-				protocol_fee_amount: 0,
+				protocol_fee_amount: 3_778_945_431_167,
 			}
 			.into()]);
 		});
@@ -911,7 +911,7 @@ fn slip_fee_should_be_symmetric() {
 				hub_amount_in: 34_874_389_140_278,
 				hub_amount_out: 33_191_489_361_703,
 				asset_fee_amount: 0,
-				protocol_fee_amount: 0,
+				protocol_fee_amount: 1_682_899_778_575,
 			}
 			.into()]);
 
@@ -1059,7 +1059,7 @@ fn sell_and_buy_can_cancel_out_and_bring_slip_fee_to_initial_state() {
 				hub_amount_in: 31_853_403_580_016,
 				hub_amount_out: 31_836_734_693_878,
 				asset_fee_amount: 0,
-				protocol_fee_amount: 0,
+				protocol_fee_amount: 16_668_886_138,
 			}
 			.into()]);
 
