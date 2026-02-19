@@ -7,12 +7,12 @@ import {GasVoucher} from "../src/GasVoucher.sol";
 
 contract GasFaucetScript is Script {
     uint256 public constant MIN_ETH_THRESHOLD = 0.1 ether;
-    uint256 public constant INITIAL_FUNDING = 1 ether;
+    uint256 public constant INITIAL_FUNDING = 0.01 ether;
     // --------DO NOT CHANGE--------
     // Keep these constant forever if we want the *same* CREATE2 addresses every time.
     // If you change salts OR constructor args, the address changes.
     bytes32 internal constant SALT_VOUCHER = keccak256("GAS_VOUCHER_V1");
-    bytes32 internal constant SALT_FAUCET  = keccak256("GAS_FAUCET_V1");
+    bytes32 internal constant SALT_FAUCET = keccak256("GAS_FAUCET_V1");
 
     function run() public {
         // export PRIVATE_KEY=0x...
@@ -48,7 +48,9 @@ contract GasFaucetScript is Script {
         console.log("Set GasFaucet as faucet in GasVoucher");
 
         // Fund the faucet
-        (bool success, ) = payable(address(gasFaucet)).call{value: INITIAL_FUNDING}("");
+        (bool success, ) = payable(address(gasFaucet)).call{
+            value: INITIAL_FUNDING
+        }("");
         require(success, "Funding GasFaucet failed");
 
         console.log("Funded GasFaucet with:", INITIAL_FUNDING);

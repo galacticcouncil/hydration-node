@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@polkadot/api": "^16.5.4"
+  }
+}
