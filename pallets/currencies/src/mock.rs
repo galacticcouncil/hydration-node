@@ -114,6 +114,7 @@ impl Config for Runtime {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type RegistryInspect = MockBoundErc20<Runtime>;
+	type EgressHandler = MockEgressHandler<Runtime>;
 	type WeightInfo = ();
 }
 pub type NativeCurrency = NativeCurrencyOf<Runtime>;

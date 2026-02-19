@@ -2,6 +2,7 @@ mod add_liquidity_limit;
 mod deposit_limit;
 mod ensure_add_liquidity_limit;
 mod ensure_remove_liquidity_limit;
+mod global_withdraw_limit;
 mod lockdown_asset;
 pub(crate) mod mock;
 mod omnipool;
