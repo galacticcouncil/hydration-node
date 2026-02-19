@@ -31,7 +31,10 @@ use crate::tests::mock::ALICE;
 use polkadot_xcm::v5::prelude::*;
 
 fn setup_bifrost_auth() {
-	assert_ok!(EmaOracle::register_external_source(RuntimeOrigin::root(), BIFROST_SOURCE));
+	assert_ok!(EmaOracle::register_external_source(
+		RuntimeOrigin::root(),
+		BIFROST_SOURCE
+	));
 	assert_ok!(EmaOracle::add_authorized_account(
 		RuntimeOrigin::root(),
 		BIFROST_SOURCE,
@@ -177,12 +180,7 @@ fn should_fail_when_price_is_zero() {
 		);
 
 		assert_noop!(
-			EmaOracle::update_bifrost_oracle(
-				RuntimeOrigin::signed(ALICE),
-				Box::new(hdx),
-				Box::new(dot),
-				(100, 0)
-			),
+			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE), Box::new(hdx), Box::new(dot), (100, 0)),
 			Error::<Test>::PriceIsZero
 		);
 	});
