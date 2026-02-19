@@ -32,7 +32,7 @@ use frame_support::{
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, ExistenceRequirement,
-		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
+		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced,
 	},
 	BoundedVec, PalletId,
 };
@@ -647,7 +647,6 @@ parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<{ pallet_ema_oracle::MAX_PERIODS }>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 
-	pub MaxAllowedPriceDifferenceForBifrostOracleUpdate: Permill = Permill::from_percent(10);
 }
 
 pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);
@@ -666,17 +665,9 @@ where
 pub fn bifrost_account() -> AccountId {
 	hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into()
 }
-pub struct BifrostAcc;
-impl SortedMembers<AccountId> for BifrostAcc {
-	fn sorted_members() -> Vec<AccountId> {
-		vec![bifrost_account()]
-	}
-}
-
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
-	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
@@ -691,7 +682,6 @@ impl pallet_ema_oracle::Config for Runtime {
 	/// Should take care of the overhead introduced by `OracleWhitelist`.
 	type BenchmarkHelper = RegisterAsset<Runtime>;
 	type LocationToAssetIdConversion = CurrencyIdConvert;
-	type MaxAllowedPriceDifference = MaxAllowedPriceDifferenceForBifrostOracleUpdate;
 }
 
 pub struct ExtendedDustRemovalWhitelist;

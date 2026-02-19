@@ -26,7 +26,7 @@ use frame_support::BoundedVec;
 use hydradx_traits::liquidity_mining::PriceAdjustment;
 use pallet_omnipool;
 
-use frame_support::traits::{ConstU128, Contains, Everything, SortedMembers};
+use frame_support::traits::{ConstU128, Contains, Everything};
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -296,15 +296,7 @@ parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 
-	pub PriceDifference: Permill = Permill::from_percent(10);
 
-}
-
-pub struct BifrostAcc;
-impl SortedMembers<AccountId> for BifrostAcc {
-	fn sorted_members() -> Vec<AccountId> {
-		vec![ALICE]
-	}
 }
 
 impl pallet_ema_oracle::Config for Test {
@@ -314,9 +306,7 @@ impl pallet_ema_oracle::Config for Test {
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
-	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	type LocationToAssetIdConversion = ();
-	type MaxAllowedPriceDifference = PriceDifference;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type WeightInfo = ();
