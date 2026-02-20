@@ -309,8 +309,8 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 	}
 
 	fn get_spot_price(
-		asset_in: primitives::AssetId,
-		asset_out: primitives::AssetId,
+		asset_in: AssetId,
+		asset_out: AssetId,
 		snapshot: &Self::Snapshot,
 	) -> Result<Price, SimulatorError> {
 		if snapshot.reserves.get(&asset_in).is_none() && snapshot.reserves.get(&asset_out).is_none() {
@@ -319,11 +319,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		Ok(Ratio { n: 1, d: 1 })
 	}
 
-	fn can_trade(
-		_asset_in: primitives::AssetId,
-		_asset_out: primitives::AssetId,
-		_snapshot: &Self::Snapshot,
-	) -> Option<PoolType<AssetId>> {
+	fn can_trade(_asset_in: AssetId, _asset_out: AssetId, _snapshot: &Self::Snapshot) -> Option<PoolType<AssetId>> {
 		// no, Dave, you cannot trade this now.
 		None
 	}

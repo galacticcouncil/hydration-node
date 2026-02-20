@@ -10,6 +10,10 @@ use primitive_types::U512;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
 
+pub mod aave;
+pub mod omnipool;
+pub mod stableswap;
+
 /// The Hydration simulator compositor.
 ///
 /// Implements AMMInterface by composing multiple individual AMM simulators

@@ -67,10 +67,8 @@ pallet-parameters = { workspace = true }
 pallet-intent = { workspace = true }
 pallet-ice = { workspace = true }
 pallet-lazy-executor = { workspace = true }
+amm-simulator = { workspace = true }
 ice-support = { workspace = true }
-aave-simulator = { workspace = true }
-omnipool-simulator = { workspace = true }
-stableswap-simulator = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -406,9 +404,7 @@ std = [
     "pallet-intent/std",
     "pallet-ice/std",
     "pallet-lazy-executor/std",
-    "aave-simulator/std",
-    "omnipool-simulator/std",
-    "stableswap-simulator/std",
+    "amm-simulator/std",
     "ice-support/std",
     # Hyperbridge
     "anyhow/std",

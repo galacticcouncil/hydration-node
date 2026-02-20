@@ -54,9 +54,9 @@ pub use hydradx_traits::{
 	AMM,
 };
 
-use aave_simulator::Simulator as AaveSimulator;
-use omnipool_simulator::Simulator as OmnipoolSimulator;
-use stableswap_simulator::Simulator as StableSwapSimulator;
+use amm_simulator::aave::Simulator as AaveSimulator;
+use amm_simulator::omnipool::Simulator as OmnipoolSimulator;
+use amm_simulator::stableswap::Simulator as StableSwapSimulator;
 
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},

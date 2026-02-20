@@ -11,6 +11,20 @@ frame-support = { workspace = true }
 sp-std = { workspace = true }
 log = { workspace = true }
 primitive-types = { workspace = true }
+primitives = { workspace = true }
+sp-arithmetic = { workspace = true }
+module-evm-utility-macro = { workspace = true }
+num_enum = { workspace = true }
+codec = { workspace = true }
+ethabi = { workspace = true }
+precompile-utils = { workspace = true }
+evm = { workspace = true, features = ["with-codec"] }
+hex-literal = { workspace = true }
+pallet-liquidation = { workspace = true }
+sp-runtime = { workspace = true }
+pallet-omnipool = { workspace = true }
+pallet-stableswap = { workspace = true }
+
 
 [features]
 default = ['std']
@@ -22,4 +36,15 @@ std = [
     "sp-std/std",
     "log/std",
     "primitive-types/std",
+    "primitives/std",
+    'sp-arithmetic/std',
+    'codec/std',
+    'ethabi/std',
+    'precompile-utils/std',
+    'evm/std',
+    'sp-std/std',
+    'pallet-liquidation/std',
+    'sp-runtime/std',
+    'pallet-omnipool/std',
+    'pallet-stableswap/std',
 ]

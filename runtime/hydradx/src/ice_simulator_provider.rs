@@ -10,7 +10,7 @@ use orml_traits::MultiCurrency;
 use sp_runtime::Permill;
 use sp_std::vec::Vec;
 
-use omnipool_simulator::DataProvider as OmnipoolDataProvider;
+use amm_simulator::omnipool::DataProvider as OmnipoolDataProvider;
 use pallet_omnipool::types::AssetState;
 
 pub struct Omnipool<T>(PhantomData<T>);
@@ -51,11 +51,11 @@ impl<T: pallet_omnipool::Config<AssetId = AssetId>> OmnipoolDataProvider for Omn
 	}
 }
 
+use amm_simulator::stableswap::DataProvider as StableswapDataProvider;
 use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_stableswap::types::PoolInfo;
 use pallet_stableswap::types::PoolPegInfo;
 use pallet_stableswap::types::PoolSnapshot;
-use stableswap_simulator::DataProvider as StableswapDataProvider;
 
 pub struct Stableswap<T>(PhantomData<T>);
 
@@ -81,7 +81,7 @@ impl<T: pallet_stableswap::Config<AssetId = AssetId>> StableswapDataProvider for
 
 use crate::evm::executor::BalanceOf;
 use crate::evm::executor::NonceIdOf;
-use aave_simulator::DataProvider as AaveDataProvider;
+use amm_simulator::aave::DataProvider as AaveDataProvider;
 use evm::ExitReason;
 use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::Erc20Mapping;

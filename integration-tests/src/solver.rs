@@ -1,9 +1,11 @@
 use crate::polkadot_test_net::{TestNet, ALICE, BOB, CHARLIE, DAVE, EVE};
+use amm_simulator::omnipool::Simulator as OmnipoolSimulator;
+use amm_simulator::stableswap::Simulator as StableswapSimulator;
 use amm_simulator::HydrationSimulator;
 use frame_support::assert_ok;
 use frame_support::traits::{Get, Time};
 use hydradx_runtime::{
-	AssetRegistry, Currencies, LazyExecutor, Omnipool, Router, Runtime, RuntimeOrigin, Stableswap, Timestamp,
+	ice_simulator_provider, AssetRegistry, Currencies, LazyExecutor, Router, Runtime, RuntimeOrigin, Timestamp,
 };
 use hydradx_traits::amm::{AmmSimulator, SimulatorConfig, SimulatorSet};
 use hydradx_traits::router::RouteProvider;
@@ -45,7 +47,7 @@ type HollarSolver = SolverV1<HollarSimulator>;
 fn test_simulator_snapshot() {
 	TestNet::reset();
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
-		let snapshot = <Omnipool as AmmSimulator>::snapshot();
+		let snapshot = OmnipoolSimulator::<ice_simulator_provider::Omnipool<Runtime>>::snapshot();
 
 		assert!(!snapshot.assets.is_empty(), "Snapshot should contain assets");
 		assert!(snapshot.hub_asset_id > 0, "Hub asset id should be set");
@@ -58,7 +60,7 @@ fn test_simulator_sell() {
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
 		use hydradx_traits::amm::SimulatorError;
 
-		let snapshot = <Omnipool as AmmSimulator>::snapshot();
+		let snapshot = OmnipoolSimulator::<ice_simulator_provider::Omnipool<Runtime>>::snapshot();
 
 		let assets: Vec<_> = snapshot.assets.keys().copied().collect();
 		assert!(assets.len() >= 2, "Snapshot should have at least 2 assets");
@@ -73,7 +75,9 @@ fn test_simulator_sell() {
 
 		let amount_in = 1_000_000_000_000u128;
 
-		let result = <Omnipool as AmmSimulator>::simulate_sell(asset_in, asset_out, amount_in, 0, &snapshot);
+		let result = <OmnipoolSimulator<ice_simulator_provider::Omnipool<Runtime>> as AmmSimulator>::simulate_sell(
+			asset_in, asset_out, amount_in, 0, &snapshot,
+		);
 
 		match result {
 			Ok((new_snapshot, trade_result)) => {
@@ -106,7 +110,7 @@ fn test_simulator_sell() {
 fn test_stableswap_snapshot() {
 	TestNet::reset();
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
-		let stableswap_snapshot = <Stableswap as AmmSimulator>::snapshot();
+		let stableswap_snapshot = StableswapSimulator::<ice_simulator_provider::Stableswap<Runtime>>::snapshot();
 
 		assert!(!stableswap_snapshot.pools.is_empty(), "Should have stableswap pools");
 		assert!(
@@ -135,7 +139,7 @@ fn test_stableswap_snapshot() {
 fn test_stableswap_simulator_direct() {
 	TestNet::reset();
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
-		let snapshot = <Stableswap as AmmSimulator>::snapshot();
+		let snapshot = StableswapSimulator::<ice_simulator_provider::Stableswap<Runtime>>::snapshot();
 
 		let pool_id = 104u32;
 		let Some(pool) = snapshot.pools.get(&pool_id) else {
@@ -151,8 +155,10 @@ fn test_stableswap_simulator_direct() {
 
 		// Test simulate_sell
 		let (new_snapshot, result) =
-			<Stableswap as AmmSimulator>::simulate_sell(asset_a, asset_b, amount_in, 0, &snapshot)
-				.expect("simulate_sell should succeed");
+			<StableswapSimulator<ice_simulator_provider::Stableswap<Runtime>> as AmmSimulator>::simulate_sell(
+				asset_a, asset_b, amount_in, 0, &snapshot,
+			)
+			.expect("simulate_sell should succeed");
 
 		assert!(result.amount_in > 0, "Amount in should be positive");
 		assert!(result.amount_out > 0, "Amount out should be positive");
@@ -177,14 +183,22 @@ fn test_stableswap_simulator_direct() {
 		// Test simulate_buy
 		let amount_out = 10u128.pow(decimals_a as u32);
 		let (_new_snapshot, buy_result) =
-			<Stableswap as AmmSimulator>::simulate_buy(asset_a, asset_b, amount_out, u128::MAX, &snapshot)
-				.expect("simulate_buy should succeed");
+			<StableswapSimulator<ice_simulator_provider::Stableswap<Runtime>> as AmmSimulator>::simulate_buy(
+				asset_a,
+				asset_b,
+				amount_out,
+				u128::MAX,
+				&snapshot,
+			)
+			.expect("simulate_buy should succeed");
 
 		assert_eq!(buy_result.amount_out, amount_out, "Amount out should match requested");
 
 		// Test get_spot_price
-		let price = <Stableswap as AmmSimulator>::get_spot_price(asset_a, asset_b, &snapshot)
-			.expect("get_spot_price should succeed");
+		let price = <StableswapSimulator<ice_simulator_provider::Stableswap<Runtime>> as AmmSimulator>::get_spot_price(
+			asset_a, asset_b, &snapshot,
+		)
+		.expect("get_spot_price should succeed");
 
 		assert!(price.n > 0, "Price numerator should be positive");
 		assert!(price.d > 0, "Price denominator should be positive");
@@ -198,7 +212,7 @@ fn test_stableswap_intent() {
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
 		use hydradx_traits::router::{AssetPair, RouteProvider};
 
-		let stableswap_snapshot = <Stableswap as AmmSimulator>::snapshot();
+		let stableswap_snapshot = StableswapSimulator::<ice_simulator_provider::Stableswap<Runtime>>::snapshot();
 		let hdx = 0u32;
 
 		// Find a suitable stableswap pool with routes to HDX
