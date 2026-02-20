@@ -43,20 +43,18 @@ pub fn calculate_sell_state_changes(
 	let delta_hub_reserve_out = delta_hub_reserve_in.checked_sub(protocol_fee_amount)?;
 
 	let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out)?;
+	let slip_fee_buy_amount = slip_fee_buy.checked_mul_int(delta_hub_reserve_out)?;
+	let delta_hub_reserve_out = delta_hub_reserve_out.checked_sub(slip_fee_buy_amount)?;
 
-	let delta_hub_reserve_net = FixedU128::one()
-		.checked_sub(&slip_fee_buy)?
-		.checked_mul_int(delta_hub_reserve_out)?;
-
-	let (out_reserve_hp, out_hub_reserve_hp, delta_hub_reserve_net_hp) = to_u256!(
+	let (out_reserve_hp, out_hub_reserve_hp, delta_hub_reserve_out_hp) = to_u256!(
 		asset_out_state.reserve,
 		asset_out_state.hub_reserve,
-		delta_hub_reserve_net
+		delta_hub_reserve_out
 	);
 
 	let delta_reserve_out_hp = out_reserve_hp
-		.checked_mul(delta_hub_reserve_net_hp)
-		.and_then(|v| v.checked_div(out_hub_reserve_hp.checked_add(delta_hub_reserve_net_hp)?))?;
+		.checked_mul(delta_hub_reserve_out_hp)
+		.and_then(|v| v.checked_div(out_hub_reserve_hp.checked_add(delta_hub_reserve_out_hp)?))?;
 
 	let amount_out = to_balance!(delta_reserve_out_hp).ok()?;
 	let delta_reserve_out = amount_without_fee(amount_out, asset_dynamic_fee)?;
@@ -66,8 +64,8 @@ pub fn calculate_sell_state_changes(
 	// calculate amount to mint to account for asset fee that stays in the pool
 	let delta_out_m = asset_dynamic_fee.mul_floor(
 		to_balance!(out_hub_reserve_hp
-			.checked_add(delta_hub_reserve_net_hp)?
-			.checked_mul(delta_hub_reserve_net_hp)?
+			.checked_add(delta_hub_reserve_out_hp.checked_sub(U256::from(slip_fee_buy_amount))?)?
+			.checked_mul(delta_hub_reserve_out_hp.checked_sub(U256::from(slip_fee_buy_amount))?)?
 			.checked_div(out_hub_reserve_hp)?)
 		.ok()?,
 	);
