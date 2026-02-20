@@ -77,7 +77,6 @@ use sp_std::vec;
 #[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::FixedU128;
 
-pub mod simulator;
 mod trade_execution;
 pub mod traits;
 pub mod types;

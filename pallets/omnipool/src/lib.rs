@@ -113,7 +113,6 @@ mod tests;
 pub mod migration;
 pub mod provider;
 pub mod router_execution;
-pub mod simulator;
 pub mod traits;
 pub mod types;
 pub mod weights;

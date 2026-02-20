@@ -41,8 +41,8 @@ mod system;
 pub mod types;
 pub mod xcm;
 
-// TMP. implemenation of ice simualtors' data providers
-mod ice_simulator_provider;
+// tmp. implemenation of ice simualtors' data providers
+pub mod ice_simulator_provider;
 
 extern crate alloc;
 use alloc::borrow::Cow;

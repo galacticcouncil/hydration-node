@@ -5,8 +5,8 @@ use frame_support::traits::{Get, Time};
 use hydradx_runtime::{
 	AssetRegistry, Currencies, LazyExecutor, Omnipool, Router, Runtime, RuntimeOrigin, Stableswap, Timestamp,
 };
-use hydradx_traits::amm::{AMMInterface, AmmSimulator, SimulatorConfig, SimulatorSet};
-use hydradx_traits::router::{AssetPair, RouteProvider, RouteSpotPriceProvider};
+use hydradx_traits::amm::{AmmSimulator, SimulatorConfig, SimulatorSet};
+use hydradx_traits::router::RouteProvider;
 use hydradx_traits::BoundErc20;
 use ice_solver::v1::SolverV1;
 use ice_support::Solution;

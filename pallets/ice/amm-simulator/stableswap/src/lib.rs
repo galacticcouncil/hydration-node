@@ -592,4 +592,49 @@ fn find_pool_id_for_snapshot(
 	Err(SimulatorError::AssetNotFound)
 }
 
-//TODO: copy tests from simulator
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_find_pool_with_share_asset() {
+		let mut pools = BTreeMap::new();
+
+		let pool_100 = PoolSnapshot {
+			assets: vec![10u32, 11, 12].try_into().unwrap(),
+			reserves: vec![
+				AssetReserve::new(1000, 18),
+				AssetReserve::new(1000, 18),
+				AssetReserve::new(1000, 18),
+			]
+			.try_into()
+			.unwrap(),
+			amplification: 100,
+			fee: sp_runtime::Permill::from_percent(1),
+			block_fee: sp_runtime::Permill::from_percent(1),
+			pegs: vec![(1, 1), (1, 1), (1, 1)].try_into().unwrap(),
+			share_issuance: 3000,
+		};
+		pools.insert(100, pool_100);
+
+		let snapshot = StableswapSnapshot {
+			pools,
+			min_trading_limit: 1000,
+		};
+
+		let result = find_pool(10, 11, &snapshot);
+		assert!(result.is_ok());
+		assert_eq!(result.unwrap().0, 100);
+
+		let result = find_pool(100, 10, &snapshot);
+		assert!(result.is_ok());
+		assert_eq!(result.unwrap().0, 100);
+
+		let result = find_pool(11, 100, &snapshot);
+		assert!(result.is_ok());
+		assert_eq!(result.unwrap().0, 100);
+
+		let result = find_pool(99, 98, &snapshot);
+		assert!(result.is_err());
+	}
+}
