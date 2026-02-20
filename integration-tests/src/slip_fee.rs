@@ -1279,6 +1279,32 @@ fn assert_hub_asset_invariant() {
 }
 
 #[test]
+fn test_me() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+		System::reset_events();
+
+		let initial_hub_token_supply = Tokens::total_issuance(LRNA);
+
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			HDX,
+			2 * ONE_DOT,
+			0
+		));
+		assert_hub_asset_invariant();
+
+		let final_hub_token_supply = Tokens::total_issuance(LRNA);
+		pretty_assertions::assert_eq!(initial_hub_token_supply, final_hub_token_supply);
+		// 23007_607_932_702_426 23007_608_980_017_673
+		// 1_047_315_247
+	});
+}
+
+#[test]
 fn hub_reserve_invariant_should_hold_after_multiple_hdx_trades() {
 	TestNet::reset();
 	Hydra::execute_with(|| {

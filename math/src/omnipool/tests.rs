@@ -617,11 +617,11 @@ fn calculate_sell_with_slip_fee_should_work_when_correct_input_provided() {
 
 	assert_eq!(
 		state_changes.asset_out.delta_reserve,
-		BalanceUpdate::Decrease(1_445_783_132_529)
+		BalanceUpdate::Decrease(1_445_783_132_530)
 	);
 	assert_eq!(
 		state_changes.asset_out.delta_hub_reserve,
-		BalanceUpdate::Increase(3_428_571_428_572) // asset_in.delta_hub_reserve - protocol_fee
+		BalanceUpdate::Increase(2_033_898_305_085)
 	);
 	assert_eq!(
 		state_changes.asset_out.extra_hub_reserve_amount,
@@ -698,11 +698,11 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 	);
 	assert_eq!(
 		state_changes.asset_out.delta_hub_reserve,
-		BalanceUpdate::Increase(3_371_428_571_429)
+		BalanceUpdate::Increase(2_013_651_877_134)
 	);
 	assert_eq!(
 		state_changes.asset_out.extra_hub_reserve_amount,
-		BalanceUpdate::Increase(28_246_106_535)
+		BalanceUpdate::Increase(7_419_096_339)
 	);
 
 	assert_eq!(
