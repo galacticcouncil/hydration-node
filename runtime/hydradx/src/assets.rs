@@ -21,7 +21,6 @@ use crate::evm::Erc20Currency;
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
-use aave_simulator::AaveSimulator;
 use core::ops::RangeInclusive;
 use frame_support::{
 	ensure, parameter_types,
@@ -54,6 +53,10 @@ pub use hydradx_traits::{
 	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
 	AMM,
 };
+
+use aave_simulator::Simulator as AaveSimulator;
+use omnipool_simulator::Simulator as OmnipoolSimulator;
+use stableswap_simulator::Simulator as StableSwapSimulator;
 
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
@@ -1904,9 +1907,9 @@ pub struct HydrationSimulatorConfig;
 
 impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
 	type Simulators = (
-		Omnipool,
-		Stableswap,
-		AaveSimulator<evm::Executor<Runtime>, evm::precompiles::erc20_mapping::HydraErc20Mapping, Runtime>,
+		OmnipoolSimulator<ice_simulator_provider::Omnipool<Runtime>>,
+		StableSwapSimulator<ice_simulator_provider::Stableswap<Runtime>>,
+		AaveSimulator<ice_simulator_provider::Aave<Runtime>>,
 	);
 	type RouteProvider = Router;
 	type PriceDenominator = SimulatorHubAsset;

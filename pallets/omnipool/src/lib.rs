@@ -250,7 +250,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// State of an asset in the omnipool
 	#[pallet::getter(fn assets)]
-	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
+	pub type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
 
 	// LRNA is only allowed to be sold
 	#[pallet::type_value]

@@ -12,16 +12,12 @@ use frame_support::pallet_prelude::RuntimeDebug;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{AmmSimulator, SimulatorError, TradeResult};
 use hydradx_traits::evm::CallContext;
-use hydradx_traits::evm::CallResult;
-use hydradx_traits::evm::Erc20Mapping;
-use hydradx_traits::evm::EVM;
 use hydradx_traits::router::PoolType;
 use ice_support::AssetId;
 use ice_support::Balance;
 use ice_support::Price;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
-use pallet_liquidation::BorrowingContract;
 use precompile_utils::evm::writer::EvmDataWriter;
 use primitive_types::U256;
 use primitives::EvmAddress;
@@ -30,6 +26,14 @@ use sp_std::boxed::Box;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec;
 use sp_std::vec::Vec;
+
+pub trait DataProvider {
+	fn view(context: CallContext, data: Vec<u8>, gas: u64) -> (ExitReason, Vec<u8>);
+
+	fn borrowing_contract() -> EvmAddress;
+
+	fn address_to_asset(address: EvmAddress) -> Option<AssetId>;
+}
 
 const GAS_LIMIT: u64 = 1000_000;
 const LOG_TARGET: &str = "aave_simulator";
@@ -114,25 +118,14 @@ pub struct Snapshot {
 }
 
 //NOTE: This is tmp. dummy impl. of aave simulator that always trade 1:1 and doesn't do any checks.
-pub struct AaveSimulator<Evm, ErcMapping, R>(PhantomData<(Evm, ErcMapping, R)>);
+pub struct Simulator<DataProvider>(PhantomData<DataProvider>);
 
-impl<Evm, ErcMapping, R> AaveSimulator<Evm, ErcMapping, R>
-where
-	Evm: EVM<CallResult>,
-	ErcMapping: Erc20Mapping<AssetId>,
-	R: pallet_liquidation::Config,
-{
+impl<DP: DataProvider> Simulator<DP> {
 	fn get_reserves_list(aave: EvmAddress) -> Result<Vec<EvmAddress>, SimulatorError> {
 		let ctx = CallContext::new_view(aave);
 		let data = EvmDataWriter::new_with_selector(Function::GetReservesList).build();
 
-		let CallResult {
-			exit_reason,
-			value,
-			contract: _,
-			gas_used: _,
-			gas_limit: _,
-		} = Evm::view(ctx, data, GAS_LIMIT);
+		let (exit_reason, value) = DP::view(ctx, data, GAS_LIMIT);
 		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 			log::error!(target: LOG_TARGET, "to get reserves list reason: {:?}, value: {:?}", exit_reason, value);
 			return Err(SimulatorError::Other);
@@ -164,13 +157,7 @@ where
 			.write(reserve)
 			.build();
 
-		let CallResult {
-			exit_reason,
-			value,
-			contract: _,
-			gas_used: _,
-			gas_limit: _,
-		} = Evm::view(ctc, data, GAS_LIMIT);
+		let (exit_reason, value) = DP::view(ctc, data, GAS_LIMIT);
 		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 			log::error!(target: LOG_TARGET, "to get reserves data, reason: {:?}, value: {:?}", exit_reason, value);
 			return Err(SimulatorError::Other);
@@ -224,7 +211,7 @@ where
 				decoded[11].clone().into_address().unwrap_or_default().as_ref(),
 			),
 			accrued_to_treasury: decoded[12].clone().into_uint().unwrap_or_default(),
-			scaled_total_supply: AaveSimulator::<Evm, ErcMapping, R>::get_scaled_total_supply(a_token)?,
+			scaled_total_supply: Simulator::<DP>::get_scaled_total_supply(a_token)?,
 		})
 	}
 
@@ -232,13 +219,7 @@ where
 		let ctx = CallContext::new_view(reserve);
 		let data = EvmDataWriter::new_with_selector(Function::ScaledTotalSupply).build();
 
-		let CallResult {
-			exit_reason,
-			value,
-			contract: _,
-			gas_used: _,
-			gas_limit: _,
-		} = Evm::view(ctx, data, GAS_LIMIT);
+		let (exit_reason, value) = DP::view(ctx, data, GAS_LIMIT);
 		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 			log::error!(target: LOG_TARGET, "to get scaled total supply, reserve: {:?}, reason: {:?}, value: {:?}", reserve, exit_reason, value );
 			return Err(SimulatorError::Other);
@@ -252,18 +233,13 @@ where
 	}
 }
 
-impl<Evm, ErcMapping, R> AmmSimulator for AaveSimulator<Evm, ErcMapping, R>
-where
-	Evm: EVM<CallResult>,
-	ErcMapping: Erc20Mapping<AssetId>,
-	R: pallet_liquidation::Config,
-{
+impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 	type Snapshot = Snapshot;
 
 	fn snapshot() -> Self::Snapshot {
 		let mut snapshot = Snapshot {
 			reserves: BTreeMap::new(),
-			contract: BorrowingContract::<R>::get(),
+			contract: DP::borrowing_contract(),
 		};
 
 		let Ok(reserves) = Self::get_reserves_list(snapshot.contract) else {
@@ -276,7 +252,7 @@ where
 				break;
 			};
 
-			let Some(asset_id) = ErcMapping::address_to_asset(addr) else {
+			let Some(asset_id) = DP::address_to_asset(addr) else {
 				log::error!(target: LOG_TARGET, "to map reserve address to asset, reserve: {:?}", addr);
 				snapshot.reserves.clear();
 				break;

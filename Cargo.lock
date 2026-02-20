@@ -6243,6 +6243,7 @@ dependencies = [
  "log",
  "module-evm-utility-macro",
  "num_enum",
+ "omnipool-simulator",
  "orml-benchmarking",
  "orml-tokens",
  "orml-traits",
@@ -6364,6 +6365,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-trie",
  "sp-version",
+ "stableswap-simulator",
  "staging-parachain-info",
  "staging-xcm",
  "staging-xcm-builder",
@@ -8890,6 +8892,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12f40cff3dde1b6087cc5d5f5d4d65712f34016a03ed60e9c08dcc392736b5b7"
 dependencies = [
  "asn1-rs 0.7.1",
+]
+
+[[package]]
+name = "omnipool-simulator"
+version = "1.0.0"
+dependencies = [
+ "hydra-dx-math",
+ "hydradx-traits",
+ "ice-support",
+ "pallet-omnipool",
+ "parity-scale-codec",
+ "primitive-types 0.13.1",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -19026,6 +19042,21 @@ name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
+
+[[package]]
+name = "stableswap-simulator"
+version = "1.0.0"
+dependencies = [
+ "hydra-dx-math",
+ "hydradx-traits",
+ "ice-support",
+ "pallet-stableswap",
+ "parity-scale-codec",
+ "primitive-types 0.13.1",
+ "primitives",
+ "sp-runtime",
+ "sp-std",
+]
 
 [[package]]
 name = "staging-chain-spec-builder"

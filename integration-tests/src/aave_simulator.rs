@@ -4,8 +4,8 @@ use crate::polkadot_test_net::TestNet;
 use crate::polkadot_test_net::HDX;
 use crate::polkadot_test_net::LRNA;
 use crate::polkadot_test_net::UNITS;
-use aave_simulator::AaveSimulator;
 use aave_simulator::ReserveData;
+use aave_simulator::Simulator;
 use frame_support::assert_err;
 use hex_literal::hex;
 use hydra_dx_math::types::Ratio;
@@ -115,7 +115,7 @@ fn create_snapshot_should_work() {
 			scaled_total_supply: U256::from_dec_str("9468205889716").unwrap(),
 		};
 
-		let snapshot = AaveSimulator::<Executor<Runtime>, HydraErc20Mapping, Runtime>::snapshot();
+		let snapshot = Simulator::<Executor<Runtime>, HydraErc20Mapping, Runtime>::snapshot();
 
 		assert_eq!(snapshot.reserves.get(&5), Some(&expected_dot));
 		assert_eq!(snapshot.reserves.get(&222), Some(&expected_hollar));
@@ -133,7 +133,7 @@ fn simulate_sell_should_fail_when_no_asset_is_reserve_asset() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		hydradx_run_to_next_block();
 
-		type Sim = AaveSimulator<Executor<Runtime>, HydraErc20Mapping, Runtime>;
+		type Sim = Simulator<Executor<Runtime>, HydraErc20Mapping, Runtime>;
 		let snapshot = Sim::snapshot();
 
 		assert_err!(
@@ -149,7 +149,7 @@ fn simulate_buy_should_fail_when_no_asset_is_reserve_asset() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		hydradx_run_to_next_block();
 
-		type Sim = AaveSimulator<Executor<Runtime>, HydraErc20Mapping, Runtime>;
+		type Sim = Simulator<Executor<Runtime>, HydraErc20Mapping, Runtime>;
 		let snapshot = Sim::snapshot();
 
 		assert_err!(
@@ -165,7 +165,7 @@ fn simulate_sell_should_work() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		hydradx_run_to_next_block();
 
-		type Sim = AaveSimulator<Executor<Runtime>, HydraErc20Mapping, Runtime>;
+		type Sim = Simulator<Executor<Runtime>, HydraErc20Mapping, Runtime>;
 		let snapshot = Sim::snapshot();
 
 		let (s, r) = Sim::simulate_sell(DOT, A_DOT, 1_000 * UNITS, 1, &snapshot).unwrap();
@@ -187,7 +187,7 @@ fn simulate_buy_should_work() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		hydradx_run_to_next_block();
 
-		type Sim = AaveSimulator<Executor<Runtime>, HydraErc20Mapping, Runtime>;
+		type Sim = Simulator<Executor<Runtime>, HydraErc20Mapping, Runtime>;
 		let snapshot = Sim::snapshot();
 
 		let (s, r) = Sim::simulate_buy(DOT, A_DOT, 1_000 * UNITS, 1, &snapshot).unwrap();
@@ -209,7 +209,7 @@ fn get_spot_price_should_fail_when_no_asset_is_reserve_asset() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		hydradx_run_to_next_block();
 
-		type Sim = AaveSimulator<Executor<Runtime>, HydraErc20Mapping, Runtime>;
+		type Sim = Simulator<Executor<Runtime>, HydraErc20Mapping, Runtime>;
 		let snapshot = Sim::snapshot();
 
 		assert_err!(Sim::get_spot_price(HDX, LRNA, &snapshot), SimulatorError::AssetNotFound);
@@ -222,7 +222,7 @@ fn get_spot_price_should_work() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		hydradx_run_to_next_block();
 
-		type Sim = AaveSimulator<Executor<Runtime>, HydraErc20Mapping, Runtime>;
+		type Sim = Simulator<Executor<Runtime>, HydraErc20Mapping, Runtime>;
 		let snapshot = Sim::snapshot();
 
 		let sp = Sim::get_spot_price(DOT, A_DOT, &snapshot).unwrap();
