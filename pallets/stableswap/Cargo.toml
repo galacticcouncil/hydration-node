@@ -54,6 +54,8 @@ proptest = { workspace = true }
 test-utils = { workspace = true }
 pretty_assertions = "1.4.0"
 pallet-circuit-breaker = { workspace = true }
+pallet-timestamp = { workspace = true }
+primitives = { workspace = true }
 hex-literal = { workspace = true }
 
 [features]

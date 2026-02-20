@@ -62,6 +62,7 @@ pub mod permit;
 pub mod precompiles;
 mod runner;
 
+use crate::circuit_breaker::IgnoreWithdrawFuse;
 pub use erc20_currency::Erc20Currency;
 pub use erc20_currency::Function;
 pub use erc20_currency::HOLDING_ADDRESS;
@@ -204,6 +205,7 @@ impl pallet_evm::Config for Runtime {
 		FungibleCurrencies<Runtime>, // Multi currency support
 		XykPaymentAssetSupport,
 		DotAssetId,
+		IgnoreWithdrawFuse<Runtime>,
 	>;
 	type OnCreate = ();
 	type FindAuthor = FindAuthorTruncated<Runtime, Aura>;
