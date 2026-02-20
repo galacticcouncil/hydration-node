@@ -147,7 +147,7 @@ fn slip_fee_for_single_sell_without_hdx_should_provide_correct_results() {
 			asset_fee_amount,
 			protocol_fee_amount,
 		}
-			.into()]);
+		.into()]);
 
 		let hub_asset_block_state_in = Omnipool::hub_asset_block_state(DOT).unwrap();
 		let hub_asset_block_state_out = Omnipool::hub_asset_block_state(DAI).unwrap();

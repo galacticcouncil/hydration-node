@@ -64,7 +64,10 @@ fn single_sell_works() {
 			let received = 45_764_362_220_059;
 			assert_eq!(Tokens::free_balance(100, &LP1), 500 * ONE + sell_amount);
 			assert_eq!(Tokens::free_balance(200, &LP1), received);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_359_269_978_544_483);
+			assert_eq!(
+				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
+				13_359_269_978_544_483
+			);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2_450 * ONE);
 			assert_eq!(
 				Tokens::free_balance(200, &Omnipool::protocol_account()),
@@ -289,7 +292,10 @@ fn two_sells_in_one_direction_should_increase_fee() {
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 550 * ONE);
 			assert_eq!(Tokens::free_balance(200, &LP1), 45_764_362_220_059);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_359_269_978_544_483);
+			assert_eq!(
+				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
+				13_359_269_978_544_483
+			);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2_450 * ONE);
 			assert_eq!(
 				Tokens::free_balance(200, &Omnipool::protocol_account()),
@@ -805,7 +811,10 @@ fn sell_and_buy_can_cancel_out_and_bring_slip_fee_to_initial_state() {
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 550 * ONE);
 			assert_eq!(Tokens::free_balance(200, &LP1), 1_045_764_362_220_059);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_359_269_978_544_483);
+			assert_eq!(
+				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
+				13_359_269_978_544_483
+			);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2_450 * ONE);
 			assert_eq!(
 				Tokens::free_balance(200, &Omnipool::protocol_account()),
