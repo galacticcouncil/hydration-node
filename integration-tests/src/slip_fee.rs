@@ -347,6 +347,14 @@ fn slip_fee_for_two_sells_should_provide_correct_results() {
 		let protocol_fee_amount = 490_092_725;
 		let extra_hub_reserve_amount = 1278648761;
 
+		// results from the Python implementation
+		// delta_ra=mpf('424.23402400243513804749440115445914594594568668965051')
+		// delta_qi=mpf('-0.51264929458340066412418099747065621671532325215935861')
+		// delta_qj=mpf('0.51169266722786664215104953541223011098239671877856259')
+		// asset_fee_total=mpf('1.0632431679259026016227929853495216690374578613775697')
+		// lrna_fee_total=mpf('0.00025632464729170033206209049873532810835766162607967942')
+		// slip_fee_buy=mpf('0.00046653462992397932228919198389672063853327491431479485')
+		// slip_fee_sell=mpf('0.0002337680783183423187801795757940569860355968404017346')
 		expect_hydra_events(vec![pallet_omnipool::Event::SellExecuted {
 			who: ALICE.into(),
 			asset_in: DOT,
@@ -636,6 +644,14 @@ fn slip_fee_for_two_buys_should_provide_correct_results() {
 			u128::MAX,
 		));
 
+		// results from the Python implementation
+		// delta_ra=mpf('0.0093967501025340413925238442852480902904933930551039794')
+		// delta_qi=mpf('-0.0024102586555236411330982850358753297512809864377820228')
+		// delta_qj=mpf('0.0024090380321740528595243310994567412197428448855997889')
+		// asset_fee_total=mpf('0.0050125313283208020050125313283208020050125313283199446')
+		// lrna_fee_total=mpf('0.0000012051293277618205665491425179376648756404932188910135')
+		// slip_fee_buy=mpf('0.000000010330166320711757691659480821795053306020274480507411')
+		// slip_fee_sell=mpf('0.0000000051638555057412497131344198290716091950386888602560828')
 		let amount_in = 93_967_501;
 		let amount_out = 2_000_000_000_000;
 		let hub_amount_in = 2_410_258_644;
@@ -680,6 +696,13 @@ fn slip_fee_for_two_buys_should_provide_correct_results() {
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 936325588000000000);
 		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1125004832526408);
+		// results from the Python implementation
+		// 'HDX':
+		//     'liquidity': 936325.5879999999888241291046142578125,
+		//     'LRNA': 1125.0048300928985464741295812857080084205011302247,
+		// 'DOT':
+		//     'liquidity': 8771.9486184095858128298336129948094419760633700701,
+		//     'LRNA': 2249.9951796132686673137698854429569797833564604737,
 	});
 }
 
@@ -743,6 +766,14 @@ fn slip_fee_for_two_trades_in_opposite_direction_should_provide_correct_results(
 			u128::MAX,
 		));
 
+		// results from the Python implementation
+		// delta_ra=mpf('428.84205768471479692962474687490919397396885641487056')
+		// delta_qi=mpf('-0.51501588455802333909180556431661517625249377639306208')
+		// delta_qj=mpf('0.51440388007087671934321319423774487153458148454058335')
+		// asset_fee_total=mpf('0.0050125313283208020050125313283208020050125313283199446')
+		// lrna_fee_total=mpf('0.0002575079422790116695459027821583075881262468881965311')
+		// slip_fee_buy=mpf('0.00011821996365192522075759986082934537361437737134925755')
+		// slip_fee_sell=mpf('0.00023627658121568285828886743588265175617166759293100832')
 		let amount_in = 427_959_999_942_791;
 		let amount_out = 20_000_000_000;
 		let hub_amount_in = 514_427_268_764;
@@ -787,6 +818,13 @@ fn slip_fee_for_two_trades_in_opposite_direction_should_provide_correct_results(
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000 - amount_out);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2250002571543277);
+		// results from the Python implementation
+		// 'HDX':
+		//     'liquidity': 936761.28522663429641023157275690225833442187029611,
+		//     'LRNA': 1124.4841144139012804698561289965986956788231076554,
+		// 'DOT':
+		//     'liquidity': 8769.9298249999992549419403076171875,
+		//     'LRNA': 2250.5182614306387260303931719295121233113215857116,
 	});
 }
 
@@ -850,6 +888,7 @@ fn slip_fee_for_sell_and_smaller_buy_should_provide_correct_results() {
 			u128::MAX,
 		));
 
+		// results from the Python implementation
 		let amount_in = 213978961269560;
 		let amount_out = 10_000_000_000;
 		let hub_amount_in = 257271180269;
