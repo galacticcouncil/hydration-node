@@ -19,6 +19,7 @@ mod refund;
 mod remove_all_liquidity;
 mod remove_liquidity_with_limit;
 mod remove_token;
+mod slip_fee;
 mod spot_price;
 mod tradability;
 mod types;

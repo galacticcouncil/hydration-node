@@ -113,6 +113,14 @@ where
 	}
 }
 
+/// Runtime-configurable slip fee parameters.
+/// When present in storage, slip fees are enabled.
+#[derive(Clone, Debug, Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, TypeInfo, PartialEq, Eq)]
+pub struct SlipFeeConfig {
+	/// Maximum slip fee rate per side
+	pub max_slip_fee: Permill,
+}
+
 impl<Balance, AssetId> Position<Balance, AssetId>
 where
 	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,

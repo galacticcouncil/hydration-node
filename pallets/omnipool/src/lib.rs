@@ -94,7 +94,7 @@ use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydra_dx_math::ema::EmaPrice;
-use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
+use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeSlipFees, TradeSlipFees};
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::MultiCurrency;
@@ -118,7 +118,7 @@ pub mod types;
 pub mod weights;
 
 use crate::traits::{AssetInfo, OmnipoolHooks};
-use crate::types::{AssetReserveState, AssetState, Balance, Position, Tradability};
+use crate::types::{AssetReserveState, AssetState, Balance, Position, SlipFeeConfig, Tradability};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -273,6 +273,23 @@ pub mod pallet {
 	/// Position ids sequencer
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
 
+	/// Global slip fee configuration.
+	/// `None` = slip fees disabled (default). `Some(config)` = enabled.
+	/// Set via `set_slip_fee` extrinsic (governance).
+	#[pallet::storage]
+	pub type SlipFee<T: Config> = StorageValue<_, SlipFeeConfig, OptionQuery>;
+
+	/// Snapshot of each asset's hub_reserve at the start of the current block.
+	/// Lazily populated on first trade per asset per block, cleared in on_finalize.
+	#[pallet::storage]
+	pub type SlipFeeLrnaAtBlockStart<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Balance, OptionQuery>;
+
+	/// Cumulative net LRNA delta per asset in the current block.
+	/// Negative = net LRNA outflow, positive = net LRNA inflow.
+	/// Cleared in on_finalize.
+	#[pallet::storage]
+	pub type SlipFeeDelta<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, i128, ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -374,6 +391,9 @@ pub mod pallet {
 
 		/// Asset's weight cap has been updated.
 		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
+
+		/// Slip fee configuration was updated.
+		SlipFeeSet { slip_fee: Option<SlipFeeConfig> },
 	}
 
 	#[pallet::error]
@@ -846,6 +866,13 @@ pub mod pallet {
 			let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_out_state.reserve));
 			let (_, protocol_fee) = T::Fee::get_and_store((asset_in, asset_in_state.reserve));
 
+			let slip = Self::load_trade_slip_fees(
+				asset_in,
+				asset_in_state.hub_reserve,
+				asset_out,
+				asset_out_state.hub_reserve,
+			);
+
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state).into(),
 				&(&asset_out_state).into(),
@@ -853,6 +880,7 @@ pub mod pallet {
 				asset_fee,
 				protocol_fee,
 				T::BurnProtocolFee::get(),
+				slip.as_ref(),
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -943,6 +971,13 @@ pub mod pallet {
 
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
+
+			Self::update_slip_fee_delta(
+				asset_in,
+				*state_changes.asset_in.delta_hub_reserve,
+				asset_out,
+				*state_changes.asset_out.delta_hub_reserve,
+			);
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
@@ -1074,6 +1109,14 @@ pub mod pallet {
 
 			let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_out_state.reserve));
 			let (_, protocol_fee) = T::Fee::get_and_store((asset_in, asset_in_state.reserve));
+
+			let slip = Self::load_trade_slip_fees(
+				asset_in,
+				asset_in_state.hub_reserve,
+				asset_out,
+				asset_out_state.hub_reserve,
+			);
+
 			let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 				&(&asset_in_state).into(),
 				&(&asset_out_state).into(),
@@ -1081,6 +1124,7 @@ pub mod pallet {
 				asset_fee,
 				protocol_fee,
 				T::BurnProtocolFee::get(),
+				slip.as_ref(),
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1173,6 +1217,13 @@ pub mod pallet {
 
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
+
+			Self::update_slip_fee_delta(
+				asset_in,
+				*state_changes.asset_in.delta_hub_reserve,
+				asset_out,
+				*state_changes.asset_out.delta_hub_reserve,
+			);
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
@@ -1483,10 +1534,43 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		/// Set or clear slip fee configuration.
+		///
+		/// When set to `Some(config)`, slip fees are enabled with the given parameters.
+		/// When set to `None`, slip fees are disabled.
+		///
+		/// Can only be called by `AuthorityOrigin`.
+		///
+		/// Emits `SlipFeeSet` event.
+		#[pallet::call_index(16)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_slip_fee())]
+		#[transactional]
+		pub fn set_slip_fee(origin: OriginFor<T>, slip_fee: Option<SlipFeeConfig>) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			match slip_fee {
+				Some(ref config) => {
+					SlipFee::<T>::put(config);
+				}
+				None => {
+					SlipFee::<T>::kill();
+				}
+			}
+
+			Self::deposit_event(Event::SlipFeeSet { slip_fee });
+
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			let _ = SlipFeeLrnaAtBlockStart::<T>::clear(u32::MAX, None);
+			let _ = SlipFeeDelta::<T>::clear(u32::MAX, None);
+		}
+
 		fn integrity_test() {
 			assert_ne!(
 				T::MinimumPoolLiquidity::get(),
@@ -1548,6 +1632,110 @@ impl<T: Config> Pallet<T> {
 		let state = <Assets<T>>::get(asset_id).ok_or(Error::<T>::AssetNotFound)?;
 		let reserve = T::Currency::free_balance(asset_id, &Self::protocol_account());
 		Ok((state, reserve).into())
+	}
+
+	/// Load slip fee parameters for a two-asset trade, lazily snapshotting Q₀
+	/// for both assets on first call per block.
+	/// Returns None if slip fees are disabled (SlipFee storage is None).
+	/// Writes to storage (snapshots Q₀) — use only in extrinsic execution context.
+	fn load_trade_slip_fees(
+		asset_in: T::AssetId,
+		asset_in_hub_reserve: Balance,
+		asset_out: T::AssetId,
+		asset_out_hub_reserve: Balance,
+	) -> Option<TradeSlipFees> {
+		let config = SlipFee::<T>::get()?;
+
+		Some(TradeSlipFees {
+			asset_in_hub_reserve: Self::snapshot_q0(asset_in, asset_in_hub_reserve),
+			asset_in_delta: SlipFeeDelta::<T>::get(asset_in),
+			asset_out_hub_reserve: Self::snapshot_q0(asset_out, asset_out_hub_reserve),
+			asset_out_delta: SlipFeeDelta::<T>::get(asset_out),
+			max_slip_fee: config.max_slip_fee,
+		})
+	}
+
+	/// Load slip fee parameters for a hub asset trade (buy-side only).
+	/// Returns None if slip fees are disabled.
+	fn load_hub_trade_slip_fees(asset_out: T::AssetId, asset_out_hub_reserve: Balance) -> Option<HubTradeSlipFees> {
+		let config = SlipFee::<T>::get()?;
+
+		Some(HubTradeSlipFees {
+			asset_hub_reserve: Self::snapshot_q0(asset_out, asset_out_hub_reserve),
+			asset_delta: SlipFeeDelta::<T>::get(asset_out),
+			max_slip_fee: config.max_slip_fee,
+		})
+	}
+
+	/// Lazily snapshot Q₀ for an asset. Returns the snapshotted value.
+	fn snapshot_q0(asset_id: T::AssetId, current_hub_reserve: Balance) -> Balance {
+		match SlipFeeLrnaAtBlockStart::<T>::get(asset_id) {
+			Some(q0) => q0,
+			None => {
+				SlipFeeLrnaAtBlockStart::<T>::insert(asset_id, current_hub_reserve);
+				current_hub_reserve
+			}
+		}
+	}
+
+	/// Read-only version of load_trade_slip_fees for router quotes.
+	/// Falls back to current_hub_reserve if Q₀ has not been snapshotted yet this block.
+	fn peek_trade_slip_fees(
+		asset_in: T::AssetId,
+		asset_in_hub_reserve: Balance,
+		asset_out: T::AssetId,
+		asset_out_hub_reserve: Balance,
+	) -> Option<TradeSlipFees> {
+		let config = SlipFee::<T>::get()?;
+
+		Some(TradeSlipFees {
+			asset_in_hub_reserve: SlipFeeLrnaAtBlockStart::<T>::get(asset_in).unwrap_or(asset_in_hub_reserve),
+			asset_in_delta: SlipFeeDelta::<T>::get(asset_in),
+			asset_out_hub_reserve: SlipFeeLrnaAtBlockStart::<T>::get(asset_out).unwrap_or(asset_out_hub_reserve),
+			asset_out_delta: SlipFeeDelta::<T>::get(asset_out),
+			max_slip_fee: config.max_slip_fee,
+		})
+	}
+
+	/// Read-only version of load_hub_trade_slip_fees for router quotes.
+	fn peek_hub_trade_slip_fees(asset_out: T::AssetId, asset_out_hub_reserve: Balance) -> Option<HubTradeSlipFees> {
+		let config = SlipFee::<T>::get()?;
+
+		Some(HubTradeSlipFees {
+			asset_hub_reserve: SlipFeeLrnaAtBlockStart::<T>::get(asset_out).unwrap_or(asset_out_hub_reserve),
+			asset_delta: SlipFeeDelta::<T>::get(asset_out),
+			max_slip_fee: config.max_slip_fee,
+		})
+	}
+
+	/// Update the cumulative LRNA deltas after a successful two-asset trade.
+	fn update_slip_fee_delta(
+		asset_in: T::AssetId,
+		delta_hub_in: Balance,
+		asset_out: T::AssetId,
+		delta_hub_out: Balance,
+	) {
+		if SlipFee::<T>::get().is_none() {
+			return;
+		}
+		// Sell pool: LRNA leaves → negative delta
+		SlipFeeDelta::<T>::mutate(asset_in, |d| {
+			*d = d.saturating_sub(delta_hub_in as i128);
+		});
+		// Buy pool: LRNA enters → positive delta (D_net, the actual amount entering)
+		SlipFeeDelta::<T>::mutate(asset_out, |d| {
+			*d = d.saturating_add(delta_hub_out as i128);
+		});
+	}
+
+	/// Update slip fee delta for hub asset trades (only buy side).
+	fn update_slip_fee_delta_hub_trade(asset_out: T::AssetId, delta_hub_out: Balance) {
+		if SlipFee::<T>::get().is_none() {
+			return;
+		}
+		SlipFeeDelta::<T>::mutate(asset_out, |d| {
+			*d = d.saturating_add(delta_hub_out as i128);
+		});
 	}
 
 	/// Set new state of asset.
@@ -1700,9 +1888,15 @@ impl<T: Config> Pallet<T> {
 
 		let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_state.reserve));
 
-		let state_changes =
-			hydra_dx_math::omnipool::calculate_sell_hub_state_changes(&(&asset_state).into(), amount, asset_fee)
-				.ok_or(ArithmeticError::Overflow)?;
+		let slip = Self::load_hub_trade_slip_fees(asset_out, asset_state.hub_reserve);
+
+		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
+			&(&asset_state).into(),
+			amount,
+			asset_fee,
+			slip.as_ref(),
+		)
+		.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
 			*state_changes.asset.delta_reserve >= limit,
@@ -1725,7 +1919,8 @@ impl<T: Config> Pallet<T> {
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
-		// Store original hub reserve delta for routing to HDX subpool, then zero it
+		// delta_hub_reserve = effective LRNA that enters the pool (after slip deduction).
+		// The user pays `amount` (the full input); slip fee = amount - effective.
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
 		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
 
@@ -1733,12 +1928,12 @@ impl<T: Config> Pallet<T> {
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		// Token updates
+		// Token updates — user pays the full `amount` they specified (same as regular sell)
 		T::Currency::transfer(
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			hub_reserve_delta,
+			amount,
 			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
@@ -1762,12 +1957,15 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
+		// Delta tracking: hub_reserve_delta = effective LRNA entering the pool
+		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta);
+
 		// To reduce value leaked to arbitrage through external markets
 		T::Currency::transfer(
 			T::HubAssetId::get(),
 			&Self::protocol_account(),
 			&T::HubDestination::get(),
-			hub_reserve_delta,
+			amount,
 			ExistenceRequirement::AllowDeath,
 		)?;
 
@@ -1775,7 +1973,7 @@ impl<T: Config> Pallet<T> {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
 			asset_out,
-			amount_in: hub_reserve_delta,
+			amount_in: amount,
 			amount_out: *state_changes.asset.delta_reserve,
 			hub_amount_in: 0,
 			hub_amount_out: 0,
@@ -1789,7 +1987,7 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_broadcast::types::Filler::Omnipool,
 			pallet_broadcast::types::TradeOperation::ExactIn,
-			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
+			vec![Asset::new(T::HubAssetId::get().into(), amount)],
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
 		);
@@ -1828,17 +2026,23 @@ impl<T: Config> Pallet<T> {
 
 		let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_state.reserve));
 
+		let slip = Self::load_hub_trade_slip_fees(asset_out, asset_state.hub_reserve);
+
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
 			amount,
 			asset_fee,
+			slip.as_ref(),
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
-		ensure!(
-			*state_changes.asset.delta_hub_reserve <= limit,
-			Error::<T>::SellLimitExceeded
-		);
+		// delta_hub_reserve = d_net (effective LRNA entering pool).
+		// User pays d_net + slip_buy_amount; check limit against full cost.
+		let user_hub_cost = (*state_changes.asset.delta_hub_reserve)
+			.checked_add(state_changes.fee.protocol_fee)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(user_hub_cost <= limit, Error::<T>::SellLimitExceeded);
 
 		ensure!(
 			*state_changes.asset.delta_hub_reserve
@@ -1856,19 +2060,25 @@ impl<T: Config> Pallet<T> {
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
-		// Store original hub reserve delta for routing to HDX subpool, then zero it
+		// delta_hub_reserve = d_net (effective LRNA entering pool, after slip deduction)
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
 		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+
+		// Full user cost = d_net + slip fee
+		let user_hub_cost = hub_reserve_delta
+			.checked_add(state_changes.fee.protocol_fee)
+			.ok_or(ArithmeticError::Overflow)?;
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
+		// User pays full cost (d_net + slip fee)
 		T::Currency::transfer(
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			hub_reserve_delta, //note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
+			user_hub_cost,
 			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
@@ -1892,12 +2102,15 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
+		// Delta tracking: hub_reserve_delta = d_net = effective LRNA entering the pool
+		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta);
+
 		// To reduce value leaked to arbitrage through external markets
 		T::Currency::transfer(
 			T::HubAssetId::get(),
 			&Self::protocol_account(),
 			&T::HubDestination::get(),
-			hub_reserve_delta,
+			user_hub_cost,
 			ExistenceRequirement::AllowDeath,
 		)?;
 
@@ -1906,7 +2119,7 @@ impl<T: Config> Pallet<T> {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
 			asset_out,
-			amount_in: hub_reserve_delta,
+			amount_in: user_hub_cost,
 			amount_out: *state_changes.asset.delta_reserve,
 			hub_amount_in: 0,
 			hub_amount_out: 0,
@@ -1920,7 +2133,7 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_broadcast::types::Filler::Omnipool,
 			pallet_broadcast::types::TradeOperation::ExactOut,
-			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
+			vec![Asset::new(T::HubAssetId::get().into(), user_hub_cost)],
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
 		);
