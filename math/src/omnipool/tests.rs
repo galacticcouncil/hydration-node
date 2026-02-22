@@ -702,7 +702,7 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 	);
 	assert_eq!(
 		state_changes.asset_out.extra_hub_reserve_amount,
-		BalanceUpdate::Increase(7_419_096_339)
+		BalanceUpdate::Increase(28_246_106_535)
 	);
 
 	assert_eq!(

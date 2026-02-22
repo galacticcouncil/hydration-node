@@ -64,8 +64,8 @@ pub fn calculate_sell_state_changes(
 	// calculate amount to mint to account for asset fee that stays in the pool
 	let delta_out_m = asset_dynamic_fee.mul_floor(
 		to_balance!(out_hub_reserve_hp
-			.checked_add(delta_hub_reserve_out_hp.checked_sub(U256::from(slip_fee_buy_amount))?)?
-			.checked_mul(delta_hub_reserve_out_hp.checked_sub(U256::from(slip_fee_buy_amount))?)?
+			.checked_add(delta_hub_reserve_out_hp)?
+			.checked_mul(delta_hub_reserve_out_hp)?
 			.checked_div(out_hub_reserve_hp)?)
 		.ok()?,
 	);
