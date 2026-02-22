@@ -98,7 +98,12 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			)
 			.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
-			return Ok(*state_changes.asset.delta_hub_reserve);
+			// delta_hub_reserve is the net LRNA entering the pool (d_net).
+			// The total user cost includes the slip fee (stored in protocol_fee).
+			let user_hub_cost = (*state_changes.asset.delta_hub_reserve)
+				.checked_add(state_changes.fee.protocol_fee)
+				.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+			return Ok(user_hub_cost);
 		}
 
 		let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
