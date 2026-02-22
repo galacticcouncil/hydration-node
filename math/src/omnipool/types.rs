@@ -1,8 +1,9 @@
 use crate::omnipool::calculate_burn_amount_based_on_fee_taken;
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
+use crate::types::Balance;
 use num_traits::{CheckedAdd, CheckedSub, SaturatingAdd};
 use sp_arithmetic::traits::Saturating;
-use sp_arithmetic::{FixedPointNumber, FixedU128};
+use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::{Add, Deref};
 
 /// Asset state representation including asset pool reserve.
@@ -291,6 +292,34 @@ where
 	pub fn price(&self) -> Option<FixedU128> {
 		FixedU128::checked_from_rational(self.price.0.into(), self.price.1.into())
 	}
+}
+
+/// Slip fee parameters for a two-asset trade.
+/// Single struct bundles both sides — either slip fees are fully enabled
+/// (both in and out) or fully disabled (None). No slip_factor field needed;
+/// s is either 0 (caller passes None) or 1 (caller passes Some).
+pub struct TradeSlipFees {
+	/// Q₀ for sell-side asset (hub reserve at block start)
+	pub asset_in_hub_reserve: Balance,
+	/// Cumulative LRNA delta for sell-side asset before this trade
+	pub asset_in_delta: i128,
+	/// Q₀ for buy-side asset (hub reserve at block start)
+	pub asset_out_hub_reserve: Balance,
+	/// Cumulative LRNA delta for buy-side asset before this trade
+	pub asset_out_delta: i128,
+	/// Maximum slip fee rate (per-side cap, shared)
+	pub max_slip_fee: Permill,
+}
+
+/// Slip fee parameters for a hub asset trade (one-sided — buy side only).
+/// Used by `calculate_sell_hub_state_changes` and `calculate_buy_for_hub_asset_state_changes`.
+pub struct HubTradeSlipFees {
+	/// Q₀ for the target asset (hub reserve at block start)
+	pub asset_hub_reserve: Balance,
+	/// Cumulative LRNA delta for the target asset before this trade
+	pub asset_delta: i128,
+	/// Maximum slip fee rate (per-side cap)
+	pub max_slip_fee: Permill,
 }
 
 #[cfg(test)]
