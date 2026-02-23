@@ -382,8 +382,8 @@ fn block_reset_clears_tracking() {
 			// Verify deltas are non-zero
 			assert!(!SlipFeeDelta::<Test>::get(100).is_zero());
 			assert!(!SlipFeeDelta::<Test>::get(HDX).is_zero());
-			assert!(SlipFeeLrnaAtBlockStart::<Test>::get(100).is_some());
-			assert!(SlipFeeLrnaAtBlockStart::<Test>::get(HDX).is_some());
+			assert!(SlipFeeHubReserveAtBlockStart::<Test>::get(100).is_some());
+			assert!(SlipFeeHubReserveAtBlockStart::<Test>::get(HDX).is_some());
 
 			// Simulate end of block
 			<Omnipool as Hooks<u64>>::on_finalize(System::block_number());
@@ -391,8 +391,8 @@ fn block_reset_clears_tracking() {
 			// Deltas should be cleared
 			assert!(SlipFeeDelta::<Test>::get(100).is_zero());
 			assert!(SlipFeeDelta::<Test>::get(HDX).is_zero());
-			assert!(SlipFeeLrnaAtBlockStart::<Test>::get(100).is_none());
-			assert!(SlipFeeLrnaAtBlockStart::<Test>::get(HDX).is_none());
+			assert!(SlipFeeHubReserveAtBlockStart::<Test>::get(100).is_none());
+			assert!(SlipFeeHubReserveAtBlockStart::<Test>::get(HDX).is_none());
 		});
 }
 
@@ -424,16 +424,24 @@ fn delta_tracking_is_correct() {
 			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 50 * ONE, 0));
 
 			// Q0 snapshots should match the initial hub reserves
-			assert_eq!(SlipFeeLrnaAtBlockStart::<Test>::get(100).unwrap(), q0_100);
-			assert_eq!(SlipFeeLrnaAtBlockStart::<Test>::get(HDX).unwrap(), q0_hdx);
+			assert_eq!(SlipFeeHubReserveAtBlockStart::<Test>::get(100).unwrap(), q0_100);
+			assert_eq!(SlipFeeHubReserveAtBlockStart::<Test>::get(HDX).unwrap(), q0_hdx);
 
 			// Delta for sell asset (100) should be negative (LRNA left the pool)
 			let delta_100 = SlipFeeDelta::<Test>::get(100);
-			assert!(delta_100.is_negative(), "Sell-side delta should be negative: {:?}", delta_100);
+			assert!(
+				delta_100.is_negative(),
+				"Sell-side delta should be negative: {:?}",
+				delta_100
+			);
 
 			// Delta for buy asset (HDX) should be positive (LRNA entered the pool)
 			let delta_hdx = SlipFeeDelta::<Test>::get(HDX);
-			assert!(delta_hdx.is_positive(), "Buy-side delta should be positive: {:?}", delta_hdx);
+			assert!(
+				delta_hdx.is_positive(),
+				"Buy-side delta should be positive: {:?}",
+				delta_hdx
+			);
 		});
 }
 
@@ -456,7 +464,7 @@ fn q0_snapshot_is_lazy_and_persistent() {
 			});
 
 			// Before any trade, no snapshot exists
-			assert!(SlipFeeLrnaAtBlockStart::<Test>::get(100).is_none());
+			assert!(SlipFeeHubReserveAtBlockStart::<Test>::get(100).is_none());
 
 			let initial_state = Omnipool::load_asset_state(100).unwrap();
 			let initial_hub_reserve = initial_state.hub_reserve;
@@ -464,7 +472,7 @@ fn q0_snapshot_is_lazy_and_persistent() {
 			// First trade snapshots Q0
 			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 50 * ONE, 0));
 
-			let q0 = SlipFeeLrnaAtBlockStart::<Test>::get(100).unwrap();
+			let q0 = SlipFeeHubReserveAtBlockStart::<Test>::get(100).unwrap();
 			assert_eq!(q0, initial_hub_reserve);
 
 			// After trade, hub_reserve has changed
@@ -474,7 +482,7 @@ fn q0_snapshot_is_lazy_and_persistent() {
 			// Second trade should still use the same Q0 (not the updated hub_reserve)
 			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 50 * ONE, 0));
 
-			let q0_still = SlipFeeLrnaAtBlockStart::<Test>::get(100).unwrap();
+			let q0_still = SlipFeeHubReserveAtBlockStart::<Test>::get(100).unwrap();
 			assert_eq!(q0_still, initial_hub_reserve, "Q0 should remain from first snapshot");
 		});
 }

@@ -303,11 +303,11 @@ where
 pub struct TradeSlipFees {
 	/// Q₀ for sell-side asset (hub reserve at block start)
 	pub asset_in_hub_reserve: Balance,
-	/// Cumulative LRNA delta for sell-side asset before this trade
+	/// Cumulative hub asset delta for sell-side asset before this trade
 	pub asset_in_delta: SignedBalance,
 	/// Q₀ for buy-side asset (hub reserve at block start)
 	pub asset_out_hub_reserve: Balance,
-	/// Cumulative LRNA delta for buy-side asset before this trade
+	/// Cumulative hub asset delta for buy-side asset before this trade
 	pub asset_out_delta: SignedBalance,
 	/// Maximum slip fee rate (per-side cap, shared)
 	pub max_slip_fee: Permill,
@@ -318,14 +318,14 @@ pub struct TradeSlipFees {
 pub struct HubTradeSlipFees {
 	/// Q₀ for the target asset (hub reserve at block start)
 	pub asset_hub_reserve: Balance,
-	/// Cumulative LRNA delta for the target asset before this trade
+	/// Cumulative hub asset delta for the target asset before this trade
 	pub asset_delta: SignedBalance,
 	/// Maximum slip fee rate (per-side cap)
 	pub max_slip_fee: Permill,
 }
 
 /// Signed balance type that stores an unsigned `Balance` (u128) plus a sign variant.
-/// Eliminates overflow risk from `u128 as i128` casts when tracking cumulative LRNA deltas.
+/// Eliminates overflow risk from `u128 as i128` casts when tracking cumulative hub asset deltas.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Encode, Decode, MaxEncodedLen, TypeInfo)]
 pub enum SignedBalance {
 	Positive(Balance),

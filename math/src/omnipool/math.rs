@@ -39,7 +39,7 @@ pub fn calculate_sell_state_changes(
 
 	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
 
-	// Sell-side slip fee: LRNA leaves the sell pool (negative delta)
+	// Sell-side slip fee: hub asset leaves the sell pool (negative delta)
 	let slip_sell_amount = if let Some(slip) = slip {
 		calculate_slip_fee_amount(
 			slip.asset_in_hub_reserve,
@@ -56,7 +56,7 @@ pub fn calculate_sell_state_changes(
 		.checked_sub(protocol_fee_amount)?
 		.checked_sub(slip_sell_amount)?;
 
-	// Buy-side slip fee: LRNA enters the buy pool (positive delta)
+	// Buy-side slip fee: hub asset enters the buy pool (positive delta)
 	let slip_buy_amount = if let Some(slip) = slip {
 		calculate_slip_fee_amount(
 			slip.asset_out_hub_reserve,
@@ -125,7 +125,7 @@ pub fn calculate_sell_hub_state_changes(
 	asset_fee: Permill,
 	slip: Option<&HubTradeSlipFees>,
 ) -> Option<HubTradeStateChange<Balance>> {
-	// Buy-side slip: LRNA enters the buy pool (positive delta)
+	// Buy-side slip: hub asset enters the buy pool (positive delta)
 	let slip_buy_amount = if let Some(slip) = slip {
 		calculate_slip_fee_amount(
 			slip.asset_hub_reserve,
@@ -216,7 +216,7 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 
 	let d_net = to_balance!(d_net_hp).ok()?;
 
-	// Invert buy-side slip to find how much LRNA the user must provide
+	// Invert buy-side slip to find how much hub asset the user must provide
 	let slip_buy_amount = if let Some(slip) = slip {
 		let d_gross = invert_buy_side_slip(d_net, slip.asset_hub_reserve, slip.asset_delta)?;
 		d_gross.checked_sub(d_net)?
@@ -265,7 +265,7 @@ pub fn calculate_buy_state_changes(
 	let (out_hub_reserve_hp, out_reserve_no_fee_hp, out_amount_hp) =
 		to_u256!(asset_out_state.hub_reserve, reserve_no_fee, amount);
 
-	// Step 1: D_net = LRNA needed for desired token output (same as original delta_hub_reserve_out)
+	// Step 1: D_net = hub asset needed for desired token output (same as original delta_hub_reserve_out)
 	let d_net_hp = out_hub_reserve_hp
 		.checked_mul(out_amount_hp)
 		.and_then(|v| v.checked_div(out_reserve_no_fee_hp.checked_sub(out_amount_hp)?))?;

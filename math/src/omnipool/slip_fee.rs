@@ -15,19 +15,19 @@ use sp_arithmetic::Permill;
 ///
 /// When the rate hits the cap, falls back to `max_slip_fee.mul_floor(base_amount)`.
 pub fn calculate_slip_fee_amount(
-	lrna_at_block_start: Balance,
+	hub_reserve_at_block_start: Balance,
 	prior_delta: SignedBalance,
 	delta_q: SignedBalance,
 	max_slip_fee: Permill,
 	base_amount: Balance,
 ) -> Option<Balance> {
-	if lrna_at_block_start == 0 || base_amount == 0 {
+	if hub_reserve_at_block_start == 0 || base_amount == 0 {
 		return Some(0);
 	}
 
 	let cumulative = prior_delta.checked_add(delta_q)?;
 
-	let denom = cumulative.add_to_unsigned(lrna_at_block_start)?;
+	let denom = cumulative.add_to_unsigned(hub_reserve_at_block_start)?;
 	if denom == 0 {
 		return None;
 	}
@@ -57,14 +57,14 @@ pub fn calculate_slip_fee_amount(
 	}
 }
 
-/// Invert buy-side slip fee: given D_net (LRNA actually entering buy pool),
-/// find D_gross (LRNA before buy-side slip deduction).
+/// Invert buy-side slip fee: given D_net (hub asset actually entering buy pool),
+/// find D_gross (hub asset before buy-side slip deduction).
 ///
 /// Forward formula: `D_net = D_gross - |cum| * D_gross / (L + cum)` where `cum = C + D_gross`.
 ///
-/// - `d_net` — LRNA entering the buy pool after slip deduction
+/// - `d_net` — hub asset entering the buy pool after slip deduction
 /// - `l` — hub reserve at block start (Q₀)
-/// - `c` — cumulative signed LRNA delta before this trade
+/// - `c` — cumulative signed hub asset delta before this trade
 ///
 /// Two cases based on the sign of cumulative after the trade:
 /// - Case 1 (cum >= 0): `D_gross = D_net * (L+C) / (L - D_net)` (linear)
@@ -133,17 +133,17 @@ pub(crate) fn invert_buy_side_slip(d_net: Balance, l: Balance, c: SignedBalance)
 }
 
 /// Invert sell-side fees (protocol_fee + sell-side slip) to find `delta_hub_reserve_in`
-/// given D_gross (LRNA after sell-side deductions).
+/// given D_gross (hub asset after sell-side deductions).
 ///
 /// Forward formula: `D_gross = u*(1-pf) - slip_fee(u)` where `u = delta_hub_reserve_in`,
 /// `pf = protocol_fee`, and `slip_fee = |C - u| * u / (L + C - u)`.
 ///
-/// - `d_gross` — LRNA remaining after protocol fee and sell-side slip
+/// - `d_gross` — hub asset remaining after protocol fee and sell-side slip
 /// - `protocol_fee` — protocol fee rate
 /// - `l` — hub reserve at block start (Q₀) for the sell pool
-/// - `c` — cumulative signed LRNA delta before this trade (for the sell pool)
+/// - `c` — cumulative signed hub asset delta before this trade (for the sell pool)
 ///
-/// Two cases based on the sign of cumulative = C - u (LRNA outflow is negative):
+/// Two cases based on the sign of cumulative = C - u (hub asset outflow is negative):
 /// - Case A (u > C, cumulative < 0): `(k+1)*u² - (kS + C + D)*u + DS = 0`
 /// - Case B (u <= C, C > 0, opposing flow): `pf*u² + (D + kS - C)*u - DS = 0`
 pub(crate) fn invert_sell_side_fees(

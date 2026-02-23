@@ -282,10 +282,11 @@ pub mod pallet {
 	/// Snapshot of each asset's hub_reserve at the start of the current block.
 	/// Lazily populated on first trade per asset per block, cleared in on_finalize.
 	#[pallet::storage]
-	pub type SlipFeeLrnaAtBlockStart<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Balance, OptionQuery>;
+	pub type SlipFeeHubReserveAtBlockStart<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, Balance, OptionQuery>;
 
-	/// Cumulative net LRNA delta per asset in the current block.
-	/// Negative = net LRNA outflow, positive = net LRNA inflow.
+	/// Cumulative net hub asset delta per asset in the current block.
+	/// Negative = net hub asset outflow, positive = net hub asset inflow.
 	/// Cleared in on_finalize.
 	#[pallet::storage]
 	pub type SlipFeeDelta<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, SignedBalance, ValueQuery>;
@@ -1567,7 +1568,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
-			let _ = SlipFeeLrnaAtBlockStart::<T>::clear(u32::MAX, None);
+			let _ = SlipFeeHubReserveAtBlockStart::<T>::clear(u32::MAX, None);
 			let _ = SlipFeeDelta::<T>::clear(u32::MAX, None);
 		}
 
@@ -1669,10 +1670,10 @@ impl<T: Config> Pallet<T> {
 
 	/// Lazily snapshot Q₀ for an asset. Returns the snapshotted value.
 	fn snapshot_q0(asset_id: T::AssetId, current_hub_reserve: Balance) -> Balance {
-		match SlipFeeLrnaAtBlockStart::<T>::get(asset_id) {
+		match SlipFeeHubReserveAtBlockStart::<T>::get(asset_id) {
 			Some(q0) => q0,
 			None => {
-				SlipFeeLrnaAtBlockStart::<T>::insert(asset_id, current_hub_reserve);
+				SlipFeeHubReserveAtBlockStart::<T>::insert(asset_id, current_hub_reserve);
 				current_hub_reserve
 			}
 		}
@@ -1689,9 +1690,9 @@ impl<T: Config> Pallet<T> {
 		let config = SlipFee::<T>::get()?;
 
 		Some(TradeSlipFees {
-			asset_in_hub_reserve: SlipFeeLrnaAtBlockStart::<T>::get(asset_in).unwrap_or(asset_in_hub_reserve),
+			asset_in_hub_reserve: SlipFeeHubReserveAtBlockStart::<T>::get(asset_in).unwrap_or(asset_in_hub_reserve),
 			asset_in_delta: SlipFeeDelta::<T>::get(asset_in),
-			asset_out_hub_reserve: SlipFeeLrnaAtBlockStart::<T>::get(asset_out).unwrap_or(asset_out_hub_reserve),
+			asset_out_hub_reserve: SlipFeeHubReserveAtBlockStart::<T>::get(asset_out).unwrap_or(asset_out_hub_reserve),
 			asset_out_delta: SlipFeeDelta::<T>::get(asset_out),
 			max_slip_fee: config.max_slip_fee,
 		})
@@ -1702,13 +1703,13 @@ impl<T: Config> Pallet<T> {
 		let config = SlipFee::<T>::get()?;
 
 		Some(HubTradeSlipFees {
-			asset_hub_reserve: SlipFeeLrnaAtBlockStart::<T>::get(asset_out).unwrap_or(asset_out_hub_reserve),
+			asset_hub_reserve: SlipFeeHubReserveAtBlockStart::<T>::get(asset_out).unwrap_or(asset_out_hub_reserve),
 			asset_delta: SlipFeeDelta::<T>::get(asset_out),
 			max_slip_fee: config.max_slip_fee,
 		})
 	}
 
-	/// Update the cumulative LRNA deltas after a successful two-asset trade.
+	/// Update the cumulative hub asset deltas after a successful two-asset trade.
 	fn update_slip_fee_delta(
 		asset_in: T::AssetId,
 		delta_hub_in: Balance,
@@ -1718,11 +1719,11 @@ impl<T: Config> Pallet<T> {
 		if SlipFee::<T>::get().is_none() {
 			return;
 		}
-		// Sell pool: LRNA leaves → negative delta
+		// Sell pool: hub asset leaves → negative delta
 		SlipFeeDelta::<T>::mutate(asset_in, |d| {
 			*d = d.checked_add(SignedBalance::Negative(delta_hub_in)).unwrap_or(*d);
 		});
-		// Buy pool: LRNA enters → positive delta (D_net, the actual amount entering)
+		// Buy pool: hub asset enters → positive delta (D_net, the actual amount entering)
 		SlipFeeDelta::<T>::mutate(asset_out, |d| {
 			*d = d.checked_add(SignedBalance::Positive(delta_hub_out)).unwrap_or(*d);
 		});
@@ -1919,7 +1920,7 @@ impl<T: Config> Pallet<T> {
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
-		// delta_hub_reserve = effective LRNA that enters the pool (after slip deduction).
+		// delta_hub_reserve = effective hub asset that enters the pool (after slip deduction).
 		// The user pays `amount` (the full input); slip fee = amount - effective.
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
 		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
@@ -1957,7 +1958,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		// Delta tracking: hub_reserve_delta = effective LRNA entering the pool
+		// Delta tracking: hub_reserve_delta = effective hub asset entering the pool
 		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta);
 
 		// To reduce value leaked to arbitrage through external markets
@@ -2036,7 +2037,7 @@ impl<T: Config> Pallet<T> {
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
-		// delta_hub_reserve = d_net (effective LRNA entering pool).
+		// delta_hub_reserve = d_net (effective hub asset entering pool).
 		// User pays d_net + slip_buy_amount; check limit against full cost.
 		let user_hub_cost = (*state_changes.asset.delta_hub_reserve)
 			.checked_add(state_changes.fee.protocol_fee)
@@ -2060,7 +2061,7 @@ impl<T: Config> Pallet<T> {
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
-		// delta_hub_reserve = d_net (effective LRNA entering pool, after slip deduction)
+		// delta_hub_reserve = d_net (effective hub asset entering pool, after slip deduction)
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
 		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
 
@@ -2102,7 +2103,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		// Delta tracking: hub_reserve_delta = d_net = effective LRNA entering the pool
+		// Delta tracking: hub_reserve_delta = d_net = effective hub asset entering the pool
 		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta);
 
 		// To reduce value leaked to arbitrage through external markets

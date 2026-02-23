@@ -1192,7 +1192,13 @@ fn calculate_buy_should_charge_more_when_fee_is_not_zero() {
 
 #[test]
 fn slip_fee_amount_zero_when_q0_is_zero() {
-	let result = calculate_slip_fee_amount(0, SignedBalance::zero(), SignedBalance::Negative(1000), Permill::from_percent(5), 1_000_000 * UNIT);
+	let result = calculate_slip_fee_amount(
+		0,
+		SignedBalance::zero(),
+		SignedBalance::Negative(1000),
+		Permill::from_percent(5),
+		1_000_000 * UNIT,
+	);
 	assert_eq!(result, Some(0));
 }
 
@@ -1210,7 +1216,7 @@ fn slip_fee_amount_zero_when_base_is_zero() {
 
 #[test]
 fn slip_fee_amount_basic_negative_delta() {
-	// Q0 = 10M, prior_delta = 0, delta_q = -99000 (LRNA leaving)
+	// Q0 = 10M, prior_delta = 0, delta_q = -99000 (hub asset leaving)
 	// rate = 99000 / (10_000_000 - 99000) = 99000 / 9_901_000 ≈ 0.9998%
 	// amount = 99000 * base / 9_901_000 (full precision)
 	let base = 1_000_000 * UNIT;
@@ -1232,7 +1238,7 @@ fn slip_fee_amount_basic_negative_delta() {
 
 #[test]
 fn slip_fee_amount_basic_positive_delta() {
-	// Q0 = 5M, prior_delta = 0, delta_q = +97516 (LRNA entering buy pool)
+	// Q0 = 5M, prior_delta = 0, delta_q = +97516 (hub asset entering buy pool)
 	// rate = 97516 / (5_000_000 + 97516) = 97516 / 5_097_516 ≈ 1.913%
 	let base = 1_000_000 * UNIT;
 	let result = calculate_slip_fee_amount(
@@ -1254,7 +1260,13 @@ fn slip_fee_amount_capped_at_max() {
 	// Q0 = 1000, delta = -900 → rate = 900/100 = 900% → capped at max (5%)
 	let base = 1_000_000 * UNIT;
 	let max_fee = Permill::from_percent(5);
-	let result = calculate_slip_fee_amount(1000 * UNIT, SignedBalance::zero(), SignedBalance::Negative(900 * UNIT), max_fee, base);
+	let result = calculate_slip_fee_amount(
+		1000 * UNIT,
+		SignedBalance::zero(),
+		SignedBalance::Negative(900 * UNIT),
+		max_fee,
+		base,
+	);
 	assert_eq!(result, Some(max_fee.mul_floor(base)));
 }
 
@@ -1288,17 +1300,35 @@ fn slip_fee_amount_cumulative_grows() {
 fn slip_fee_amount_infeasible_returns_none() {
 	let base = 1_000_000 * UNIT;
 	// denom <= 0: Q0 = 1000, cumulative = -1000 → denom = 0
-	let result = calculate_slip_fee_amount(1000 * UNIT, SignedBalance::zero(), SignedBalance::Negative(1000 * UNIT), Permill::from_percent(5), base);
+	let result = calculate_slip_fee_amount(
+		1000 * UNIT,
+		SignedBalance::zero(),
+		SignedBalance::Negative(1000 * UNIT),
+		Permill::from_percent(5),
+		base,
+	);
 	assert_eq!(result, None);
 
 	// denom < 0: Q0 = 1000, cumulative = -1500 → denom = -500
-	let result = calculate_slip_fee_amount(1000 * UNIT, SignedBalance::zero(), SignedBalance::Negative(1500 * UNIT), Permill::from_percent(5), base);
+	let result = calculate_slip_fee_amount(
+		1000 * UNIT,
+		SignedBalance::zero(),
+		SignedBalance::Negative(1500 * UNIT),
+		Permill::from_percent(5),
+		base,
+	);
 	assert_eq!(result, None);
 }
 
 #[test]
 fn slip_fee_amount_zero_delta() {
-	let result = calculate_slip_fee_amount(10_000_000 * UNIT, SignedBalance::zero(), SignedBalance::zero(), Permill::from_percent(5), 1_000_000 * UNIT);
+	let result = calculate_slip_fee_amount(
+		10_000_000 * UNIT,
+		SignedBalance::zero(),
+		SignedBalance::zero(),
+		Permill::from_percent(5),
+		1_000_000 * UNIT,
+	);
 	assert_eq!(result, Some(0));
 }
 
@@ -1419,8 +1449,8 @@ fn sell_with_slip_invariant_holds() {
 #[test]
 fn sell_with_slip_spec_example() {
 	// Spec example: Sell 100K HDX→DOT
-	// HDX: Q₀ = 10M LRNA, R = 10M HDX
-	// DOT: Q₀ = 5M LRNA, R = 500K DOT
+	// HDX: Q₀ = 10M hub asset, R = 10M HDX
+	// DOT: Q₀ = 5M hub asset, R = 500K DOT
 	// s = 1, max_slip_fee = 5%
 	// protocol_fee = 0.05%, asset_fee = 0.25%
 	let asset_in_state = AssetReserveState {
@@ -1456,22 +1486,22 @@ fn sell_with_slip_spec_example() {
 	.unwrap();
 
 	// SELL SIDE:
-	// delta_qi = 10M * 100K / (10M + 100K) = 10^12 / 10.1M ≈ 99009.9009... LRNA
+	// delta_qi = 10M * 100K / (10M + 100K) = 10^12 / 10.1M ≈ 99009.9009... hub asset
 	let delta_hub_in = *result.asset_in.delta_hub_reserve;
-	// This is ~99009.9 LRNA (in 12 decimal units)
+	// This is ~99009.9 hub asset (in 12 decimal units)
 	assert!(delta_hub_in > 99_009 * UNIT && delta_hub_in < 99_010 * UNIT);
 
 	// Slip sell rate ≈ 0.999% (from spec)
 	// Protocol fee = 0.05% of delta_hub_in
-	// D_gross ≈ 97,516 LRNA (from spec: 99000 * (1 - 0.05% - 0.999%))
+	// D_gross ≈ 97,516 hub asset (from spec: 99000 * (1 - 0.05% - 0.999%))
 	// Slip buy rate ≈ 1.91%
-	// D_net ≈ 95,654 LRNA (from spec: 97516 * (1 - 1.91%))
+	// D_net ≈ 95,654 hub asset (from spec: 97516 * (1 - 1.91%))
 	let d_net = *result.asset_out.delta_hub_reserve;
 	// D_net should be roughly 95,654 * UNIT
 	// Allow some tolerance for rounding differences
 	assert!(
 		d_net > 95_000 * UNIT && d_net < 96_500 * UNIT,
-		"D_net should be ~95,654 LRNA, got {}",
+		"D_net should be ~95,654 hub asset, got {}",
 		d_net / UNIT
 	);
 
@@ -1804,7 +1834,7 @@ fn buy_for_hub_with_slip_increases_cost() {
 	let with_slip =
 		calculate_buy_for_hub_asset_state_changes(&asset_out_state, amount_to_buy, asset_fee, Some(&slip)).unwrap();
 
-	// With slip, D_net stays the same (same tokens out) but total LRNA cost is higher
+	// With slip, D_net stays the same (same tokens out) but total hub asset cost is higher
 	// The delta_hub_reserve should be D_net (same), but protocol_fee has the slip amount
 	assert!(
 		with_slip.fee.protocol_fee > no_slip.fee.protocol_fee,
@@ -1823,7 +1853,7 @@ fn sell_hub_buy_hub_roundtrip_with_slip() {
 		protocol_shares: 0,
 	};
 
-	let lrna_amount = 10_000 * UNIT;
+	let hub_amount = 10_000 * UNIT;
 	let asset_fee = Permill::zero();
 
 	let slip = HubTradeSlipFees {
@@ -1832,32 +1862,32 @@ fn sell_hub_buy_hub_roundtrip_with_slip() {
 		max_slip_fee: Permill::from_percent(5),
 	};
 
-	// Sell X LRNA → get Y tokens
-	let sell_result = calculate_sell_hub_state_changes(&asset_out_state, lrna_amount, asset_fee, Some(&slip)).unwrap();
+	// Sell X hub asset → get Y tokens
+	let sell_result = calculate_sell_hub_state_changes(&asset_out_state, hub_amount, asset_fee, Some(&slip)).unwrap();
 
 	let tokens_received = *sell_result.asset.delta_reserve;
 
-	// Buy Y tokens → costs how much LRNA?
+	// Buy Y tokens → costs how much hub asset?
 	let buy_result =
 		calculate_buy_for_hub_asset_state_changes(&asset_out_state, tokens_received, asset_fee, Some(&slip)).unwrap();
 
 	let d_net = *buy_result.asset.delta_hub_reserve;
 	let slip_buy_amount = buy_result.fee.protocol_fee;
-	let total_lrna_cost = d_net + slip_buy_amount;
+	let total_hub_cost = d_net + slip_buy_amount;
 
-	// Round-trip: cost should be approximately equal to original lrna_amount
-	let diff = if total_lrna_cost > lrna_amount {
-		total_lrna_cost - lrna_amount
+	// Round-trip: cost should be approximately equal to original hub_amount
+	let diff = if total_hub_cost > hub_amount {
+		total_hub_cost - hub_amount
 	} else {
-		lrna_amount - total_lrna_cost
+		hub_amount - total_hub_cost
 	};
 
 	assert!(
 		diff <= UNIT / 1000,
 		"Hub round-trip should be approximately equal: sold {} got tokens {} cost_back {} diff {}",
-		lrna_amount,
+		hub_amount,
 		tokens_received,
-		total_lrna_cost,
+		total_hub_cost,
 		diff
 	);
 }
@@ -1892,8 +1922,8 @@ fn assert_within_tolerance(rust_val: u128, python_val: u128, tolerance: u128, la
 #[test]
 fn cross_validate_scenario1_sell_hdx_for_dot() {
 	// Python scenario 1: Sell 100K HDX → DOT
-	// Pool: HDX(10M liquidity, 10M LRNA), DOT(500K liquidity, 5M LRNA)
-	// lrna_fee=0.0005, asset_fee=0.0025, slip_factor=1.0
+	// Pool: HDX(10M liquidity, 10M hub asset), DOT(500K liquidity, 5M hub asset)
+	// hub_fee=0.0005, asset_fee=0.0025, slip_factor=1.0
 	let asset_in_state = AssetReserveState {
 		reserve: 10_000_000 * UNIT,
 		hub_reserve: 10_000_000 * UNIT,
@@ -1945,9 +1975,9 @@ fn cross_validate_scenario1_sell_hdx_for_dot() {
 }
 
 #[test]
-fn cross_validate_scenario2_sell_lrna_for_dot() {
-	// Python scenario 2: Sell 10K LRNA → DOT (hub trade, buy-side slip only)
-	// Pool: DOT(500K liquidity, 5M LRNA), asset_fee=0.0025, slip_factor=1.0
+fn cross_validate_scenario2_sell_hub_for_dot() {
+	// Python scenario 2: Sell 10K hub asset → DOT (hub trade, buy-side slip only)
+	// Pool: DOT(500K liquidity, 5M hub asset), asset_fee=0.0025, slip_factor=1.0
 	let asset_out_state = AssetReserveState {
 		reserve: 500_000 * UNIT,
 		hub_reserve: 5_000_000 * UNIT,
@@ -1984,7 +2014,7 @@ fn cross_validate_scenario2_sell_lrna_for_dot() {
 #[test]
 fn cross_validate_scenario3_buy_dot_with_hdx() {
 	// Python scenario 3: Buy 1000 DOT with HDX (buy-specified, quadratic inversion)
-	// Pool: HDX(10M/10M), DOT(500K/5M), lrna_fee=0.0005, asset_fee=0.0025, slip_factor=1.0
+	// Pool: HDX(10M/10M), DOT(500K/5M), hub_fee=0.0005, asset_fee=0.0025, slip_factor=1.0
 	let asset_in_state = AssetReserveState {
 		reserve: 10_000_000 * UNIT,
 		hub_reserve: 10_000_000 * UNIT,
@@ -2117,8 +2147,8 @@ fn cross_validate_scenario4_consecutive_sells() {
 	};
 
 	// Python-computed deltas after trade 1
-	let hdx_delta = SignedBalance::Negative(49_751_243_781_094_527); // LRNA left HDX pool
-	let dot_delta = SignedBalance::Positive(49_115_249_061_335_511); // LRNA entered DOT pool
+	let hdx_delta = SignedBalance::Negative(49_751_243_781_094_527); // hub asset left HDX pool
+	let dot_delta = SignedBalance::Positive(49_115_249_061_335_511); // hub asset entered DOT pool
 
 	// Trade 2 with accumulated deltas
 	let slip2 = TradeSlipFees {
@@ -2180,11 +2210,11 @@ fn cross_validate_scenario4_consecutive_sells() {
 
 #[test]
 fn cross_validate_scenario5_opposing_flow() {
-	// Trade 1: Sell 50K HDX → DOT (HDX loses LRNA, DOT gains LRNA)
+	// Trade 1: Sell 50K HDX → DOT (HDX loses hub asset, DOT gains hub asset)
 	// Trade 2: Sell 5K DOT → HDX (opposing direction: reverses the deltas partially)
 	//
-	// For trade 2, DOT is sell pool with positive prior delta (LRNA entered before),
-	// HDX is buy pool with negative prior delta (LRNA left before).
+	// For trade 2, DOT is sell pool with positive prior delta (hub asset entered before),
+	// HDX is buy pool with negative prior delta (hub asset left before).
 	// Opposing flow should produce LOWER slip fees.
 	//
 	// Using Python-computed intermediate state to isolate trade 2 cross-validation.
@@ -2204,16 +2234,16 @@ fn cross_validate_scenario5_opposing_flow() {
 	};
 
 	// Python-computed deltas after trade 1
-	let hdx_delta = SignedBalance::Negative(49_751_243_781_094_527); // LRNA left HDX pool (negative)
-	let dot_delta = SignedBalance::Positive(49_115_249_061_335_511); // LRNA entered DOT pool (positive)
+	let hdx_delta = SignedBalance::Negative(49_751_243_781_094_527); // hub asset left HDX pool (negative)
+	let dot_delta = SignedBalance::Positive(49_115_249_061_335_511); // hub asset entered DOT pool (positive)
 
 	// Trade 2: DOT → HDX (opposing flow)
 	// Now DOT is sell pool (prior_delta > 0), HDX is buy pool (prior_delta < 0)
 	let slip2 = TradeSlipFees {
 		asset_in_hub_reserve: 5_000_000 * UNIT,   // DOT Q0
-		asset_in_delta: dot_delta,                // positive (LRNA entered)
+		asset_in_delta: dot_delta,                // positive (hub asset entered)
 		asset_out_hub_reserve: 10_000_000 * UNIT, // HDX Q0
-		asset_out_delta: hdx_delta,               // negative (LRNA left)
+		asset_out_delta: hdx_delta,               // negative (hub asset left)
 		max_slip_fee: Permill::from_percent(100),
 	};
 
@@ -2256,12 +2286,12 @@ fn cross_validate_scenario5_opposing_flow() {
 #[test]
 fn cross_validate_scenario6_buy_hub_with_prior_delta() {
 	// Trade 1: Sell 20K HDX → DOT (establishes positive delta on DOT)
-	// Trade 2: Buy 100 DOT for LRNA (hub trade, with prior delta on buy pool)
+	// Trade 2: Buy 100 DOT for hub asset (hub trade, with prior delta on buy pool)
 	//
 	// Using Python-computed intermediate state to isolate trade 2 cross-validation.
 
-	// Python-computed DOT delta and pool state after trade 1 (20K HDX→DOT, lrna_fee=0)
-	let dot_delta = SignedBalance::Positive(19_890_712_487_233_615); // positive (LRNA entered DOT pool)
+	// Python-computed DOT delta and pool state after trade 1 (20K HDX→DOT, hub_fee=0)
+	let dot_delta = SignedBalance::Positive(19_890_712_487_233_615); // positive (hub asset entered DOT pool)
 
 	let dot_state2 = AssetReserveState {
 		reserve: 498_028_671_741_334_516,       // DOT reserve after trade 1
@@ -2270,7 +2300,7 @@ fn cross_validate_scenario6_buy_hub_with_prior_delta() {
 		protocol_shares: 0,
 	};
 
-	// Trade 2: Buy 100 DOT for LRNA (hub trade with prior positive delta)
+	// Trade 2: Buy 100 DOT for hub asset (hub trade with prior positive delta)
 	let hub_slip = HubTradeSlipFees {
 		asset_hub_reserve: 5_000_000 * UNIT, // Q0 at block start
 		asset_delta: dot_delta,              // positive from trade 1
@@ -2294,7 +2324,7 @@ fn cross_validate_scenario6_buy_hub_with_prior_delta() {
 	assert_within_one(r2.fee.protocol_fee, py_slip_buy, "S6 slip_buy");
 	assert_within_one(r2.fee.asset_fee, py_asset_fee, "S6 asset_fee");
 
-	// Buy with prior positive delta should cost MORE LRNA than fresh block
+	// Buy with prior positive delta should cost MORE hub asset than fresh block
 	let r2_fresh = calculate_buy_for_hub_asset_state_changes(
 		&dot_state2,
 		100 * UNIT,
@@ -2495,8 +2525,8 @@ fn cross_validate_scenario8_buy_after_prior_sell() {
 #[test]
 fn cross_validate_scenario9_buy_opposing_flow() {
 	// Buy-specified HDX with DOT after a prior sell HDX→DOT (opposing direction).
-	// Trade 1: Sell 50K HDX → DOT (HDX loses LRNA, DOT gains LRNA)
-	// Trade 2: Buy 5000 HDX with DOT (opposing: DOT sells LRNA out, HDX receives LRNA)
+	// Trade 1: Sell 50K HDX → DOT (HDX loses hub asset, DOT gains hub asset)
+	// Trade 2: Buy 5000 HDX with DOT (opposing: DOT sells hub asset out, HDX receives hub asset)
 	//
 	// Using Python-computed intermediate state to isolate trade 2.
 
@@ -2516,8 +2546,8 @@ fn cross_validate_scenario9_buy_opposing_flow() {
 	};
 
 	// Python-computed deltas after trade 1
-	// DOT (now sell pool) had positive delta (LRNA entered)
-	// HDX (now buy pool) had negative delta (LRNA left)
+	// DOT (now sell pool) had positive delta (hub asset entered)
+	// HDX (now buy pool) had negative delta (hub asset left)
 	let dot_delta = SignedBalance::Positive(49_115_249_061_335_511); // positive
 	let hdx_delta = SignedBalance::Negative(49_751_243_781_094_527); // negative
 
@@ -2591,9 +2621,9 @@ fn cross_validate_scenario9_buy_opposing_flow() {
 	// Compare against buying 5000 HDX with same-direction deltas
 	let slip_same_dir = TradeSlipFees {
 		asset_in_hub_reserve: 5_000_000 * UNIT,
-		asset_in_delta: dot_delta.negate(), // flip to same direction (negative = LRNA left)
+		asset_in_delta: dot_delta.negate(), // flip to same direction (negative = hub asset left)
 		asset_out_hub_reserve: 10_000_000 * UNIT,
-		asset_out_delta: hdx_delta.negate(), // flip to same direction (positive = LRNA entered)
+		asset_out_delta: hdx_delta.negate(), // flip to same direction (positive = hub asset entered)
 		max_slip_fee: Permill::from_percent(100),
 	};
 	let same_dir = calculate_buy_state_changes(
@@ -2624,8 +2654,8 @@ fn cross_validate_scenario9_buy_opposing_flow() {
 struct PoolAsset {
 	reserve: Balance,
 	hub_reserve: Balance,
-	q0: Balance,            // LRNA at block start (fixed for the block)
-	delta: SignedBalance,   // cumulative intra-block LRNA delta
+	q0: Balance,          // hub asset at block start (fixed for the block)
+	delta: SignedBalance, // cumulative intra-block hub asset delta
 	shares: Balance,
 }
 
@@ -2674,7 +2704,7 @@ fn exec_sell(
 	sell_asset.delta = sell_asset
 		.delta
 		.checked_add(SignedBalance::Negative(*r.asset_in.delta_hub_reserve))
-		.unwrap(); // LRNA left
+		.unwrap(); // hub asset left
 
 	// Update buy pool
 	buy_asset.reserve -= *r.asset_out.delta_reserve;
@@ -2734,16 +2764,16 @@ fn exec_buy(
 	(*r.asset_in.delta_reserve, r.fee.protocol_fee)
 }
 
-/// Execute a sell-LRNA-for-token trade and update pool state + delta.
+/// Execute a sell-hub-asset-for-token trade and update pool state + delta.
 /// Returns (tokens_out, slip_fee).
-fn exec_sell_hub(buy_asset: &mut PoolAsset, lrna_amount: Balance, asset_fee: Permill) -> (Balance, Balance) {
+fn exec_sell_hub(buy_asset: &mut PoolAsset, hub_amount: Balance, asset_fee: Permill) -> (Balance, Balance) {
 	let slip = HubTradeSlipFees {
 		asset_hub_reserve: buy_asset.q0,
 		asset_delta: buy_asset.delta,
 		max_slip_fee: Permill::from_percent(100),
 	};
 
-	let r = calculate_sell_hub_state_changes(&buy_asset.state(), lrna_amount, asset_fee, Some(&slip))
+	let r = calculate_sell_hub_state_changes(&buy_asset.state(), hub_amount, asset_fee, Some(&slip))
 		.expect("sell_hub failed");
 
 	buy_asset.reserve -= *r.asset.delta_reserve;
@@ -2855,7 +2885,7 @@ fn run_order_a() -> SequenceResult {
 	fees.push(fee);
 	outputs.push(out);
 
-	// Trade 6: Sell 5K LRNA → ETH (hub trade, buy-side only)
+	// Trade 6: Sell 5K hub asset → ETH (hub trade, buy-side only)
 	let (out, fee) = exec_sell_hub(&mut eth, 5_000 * UNIT, AF);
 	fees.push(fee);
 	outputs.push(out);
@@ -2875,7 +2905,7 @@ fn run_order_a() -> SequenceResult {
 	fees.push(fee);
 	outputs.push(out);
 
-	// Trade 10: Sell 5K DOT → HDX (opposing on HDX which lost a lot of LRNA)
+	// Trade 10: Sell 5K DOT → HDX (opposing on HDX which lost a lot of hub asset)
 	let (out, fee) = exec_sell(&mut dot, &mut hdx, 5_000 * UNIT, AF, PF);
 	fees.push(fee);
 	outputs.push(out);
@@ -2915,7 +2945,7 @@ fn run_order_b() -> SequenceResult {
 	fees.push(fee);
 	outputs.push(out);
 
-	// Trade 4: Sell 5K LRNA → ETH (was trade 6)
+	// Trade 4: Sell 5K hub asset → ETH (was trade 6)
 	let (out, fee) = exec_sell_hub(&mut eth, 5_000 * UNIT, AF);
 	fees.push(fee);
 	outputs.push(out);
@@ -2977,10 +3007,10 @@ fn multi_trade_sequence_order_a() {
 	assert!(result.total_protocol_fees > 0, "Total protocol fees should be positive");
 
 	// Invariant: for each asset, hub_reserve should equal Q0 + delta
-	// (hub_reserve = starting_hub_reserve + net LRNA movement, and delta tracks that net movement)
+	// (hub_reserve = starting_hub_reserve + net hub asset movement, and delta tracks that net movement)
 	let check_hub_delta = |name: &str, hub: Balance, q0: Balance, delta: SignedBalance| {
 		let expected = delta.add_to_unsigned(q0).expect("delta + q0 should not underflow");
-		// The hub_reserve tracks actual pool state; delta tracks LRNA movement at the pool level.
+		// The hub_reserve tracks actual pool state; delta tracks hub asset movement at the pool level.
 		// Protocol fees are burned (removed from system) so hub_reserve = Q0 + delta is only
 		// approximate — the delta reflects D_net (what actually entered the pool), not the full
 		// delta_hub_reserve_in. The relationship is exact per construction.
@@ -3053,7 +3083,7 @@ fn multi_trade_sequence_path_dependence() {
 }
 
 // Cross-validation against Python reference implementation.
-// Python values from test_slip_fee_cross_validation.py (lrna_mint_pct=0, slip_factor=1.0).
+// Python values from test_slip_fee_cross_validation.py (hub_mint_pct=0, slip_factor=1.0).
 // Each trade accumulates deltas sequentially, so small rounding differences compound.
 // We use a tolerance of ±10 per trade (generous for 12-step sequences).
 
@@ -3070,7 +3100,7 @@ fn multi_trade_cross_validation_order_a() {
 		20_295_462_425_632_054, // trade 3: sell 2K DOT→HDX
 		5_209_737_707_659_164,  // trade 4: buy 500 DOT w/ HDX
 		3_851_018_736_816_717,  // trade 5: sell 1K ETH→DOT
-		124_857_762_387_519,    // trade 6: sell 5K LRNA→ETH
+		124_857_762_387_519,    // trade 6: sell 5K hub asset→ETH
 		8_843_311_999_565_970,  // trade 7: sell 100K HDX→DOT
 		42_848_093_783_104_215, // trade 8: buy 1K ETH w/ HDX
 		2_478_611_431_987_756,  // trade 9: sell 10K DOT→ETH
@@ -3120,7 +3150,7 @@ fn multi_trade_cross_validation_order_b() {
 		19_702_956_005_166_758, // trade 1: sell 2K DOT→HDX
 		3_933_234_564_918_534,  // trade 2: sell 1K ETH→DOT
 		4_811_914_373_078_129,  // trade 3: sell 50K HDX→DOT
-		125_308_889_078_455,    // trade 4: sell 5K LRNA→ETH
+		125_308_889_078_455,    // trade 4: sell 5K hub asset→ETH
 		5_288_097_354_767_135,  // trade 5: buy 500 DOT w/ HDX
 		738_612_284_018_721,    // trade 6: sell 30K HDX→ETH
 		50_914_925_986_396_112, // trade 7: sell 5K DOT→HDX
