@@ -44,6 +44,7 @@ pub fn calculate_sell_state_changes(
 
 	let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out)?;
 	let slip_fee_buy_amount = slip_fee_buy.checked_mul_int(delta_hub_reserve_out)?;
+
 	let delta_hub_reserve_out = delta_hub_reserve_out.checked_sub(slip_fee_buy_amount)?;
 
 	let (out_reserve_hp, out_hub_reserve_hp, delta_hub_reserve_out_hp) = to_u256!(
@@ -69,6 +70,7 @@ pub fn calculate_sell_state_changes(
 			.checked_div(out_hub_reserve_hp)?)
 		.ok()?,
 	);
+	let protocol_fee_amount = delta_hub_reserve_in.checked_sub(delta_hub_reserve_out)?;
 
 	// burn part of protocol fee and rest is to be transferred to treasury or buybacks
 	// note that we dont need to include burned amount anywhere, as it is already part of delta_hub_reserve_in value.

@@ -133,6 +133,51 @@ fn hub_reserve_invariant_should_hold_after_multiple_trades() {
 }
 
 #[test]
+fn hub_reserve_invariant_should_hold_after_multiple_trades_with_slip_fee() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 5000 * ONE),
+			(LP3, 200, 5000 * ONE),
+			(LP1, 100, 2000 * ONE),
+			(LP1, 200, 2000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+		.with_protocol_fee(Permill::from_percent(10))
+		.build()
+		.execute_with(|| {
+			assert_ok!(Omnipool::set_slip_fee(
+				RuntimeOrigin::root(),
+				true,
+				FixedU128::from_rational(5, 100)
+			));
+
+			let initial_hub_token_supply = Tokens::total_issuance(LRNA);
+
+			for _ in 0..5 {
+				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, 10 * ONE, 0));
+				assert_hub_asset!();
+			}
+
+			for _ in 0..3 {
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(LP1), 200, 100, 5 * ONE, 100 * ONE));
+				assert_hub_asset!();
+			}
+
+			let final_hub_token_supply = Tokens::total_issuance(LRNA);
+			assert_eq!(
+				initial_hub_token_supply, final_hub_token_supply,
+				"Hub token supply should remain unchanged after all trades (no burning)"
+			);
+		});
+}
+
+#[test]
 fn protocol_fee_amount_should_match_hdx_hub_reserve_increase() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -334,6 +379,50 @@ fn hub_reserve_invariant_should_hold_after_multiple_hdx_trades() {
 		.with_protocol_fee(Permill::from_percent(10))
 		.build()
 		.execute_with(|| {
+			let initial_hub_token_supply = Tokens::total_issuance(LRNA);
+
+			for _ in 0..3 {
+				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), HDX, 100, 50 * ONE, 0));
+				assert_hub_asset!();
+			}
+
+			for _ in 0..3 {
+				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 50 * ONE, 0));
+				assert_hub_asset!();
+			}
+
+			for _ in 0..3 {
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(LP1), HDX, 100, 50 * ONE, 500 * ONE));
+				assert_hub_asset!();
+			}
+
+			let final_hub_token_supply = Tokens::total_issuance(LRNA);
+			assert_eq!(initial_hub_token_supply, final_hub_token_supply);
+		});
+}
+
+#[test]
+fn hub_reserve_invariant_should_hold_after_multiple_hdx_trades_with_slip_fee() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP1, 100, 5000 * ONE),
+			(LP1, HDX, 5000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_protocol_fee(Permill::from_rational(1, 2000u32))
+		.build()
+		.execute_with(|| {
+			assert_ok!(Omnipool::set_slip_fee(
+				RuntimeOrigin::root(),
+				true,
+				FixedU128::from_rational(5, 100)
+			));
+
 			let initial_hub_token_supply = Tokens::total_issuance(LRNA);
 
 			for _ in 0..3 {

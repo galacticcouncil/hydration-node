@@ -631,7 +631,7 @@ fn calculate_sell_with_slip_fee_should_work_when_correct_input_provided() {
 		state_changes.fee,
 		TradeFee {
 			asset_fee: 0,
-			protocol_fee: 2_285_714_285_713,
+			protocol_fee: 3_680_387_409_200,
 			burned_protocol_fee: 0
 		}
 	);
@@ -709,12 +709,12 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 		state_changes.fee,
 		TradeFee {
 			asset_fee: 14_355_231_144,
-			protocol_fee: 2_342_857_142_856,
-			burned_protocol_fee: 1_171_428_571_428
+			protocol_fee: 3_700_633_837_151,
+			burned_protocol_fee: 1_850_316_918_575
 		}
 	);
 
-	let zero_fee_amount = 2_342_857_142_856;
+	let zero_fee_amount = 3_700_633_837_151;
 	let burn_amount = burn_fee.mul_floor(zero_fee_amount);
 	assert_eq!(state_changes.fee.burned_protocol_fee, burn_amount);
 }
