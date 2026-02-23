@@ -1,3 +1,4 @@
+use crate::omnipool::slip_fee::{calculate_slip_fee_amount, invert_buy_side_slip, invert_sell_side_fees};
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
 use crate::omnipool::types::{
 	AssetReserveState, AssetStateChange, HubTradeSlipFees, HubTradeStateChange, LiquidityStateChange, Position,
@@ -15,130 +16,6 @@ use sp_std::ops::{Div, Sub};
 #[inline]
 fn amount_without_fee(amount: Balance, fee: Permill) -> Option<Balance> {
 	Some(Permill::from_percent(100).checked_sub(&fee)?.mul_floor(amount))
-}
-
-/// Integer square root of a U256 value using Newton's method.
-/// Returns floor(sqrt(n)).
-pub fn isqrt_u256(n: U256) -> U256 {
-	if n.is_zero() {
-		return U256::zero();
-	}
-	if n == U256::one() {
-		return U256::one();
-	}
-	let mut x = (n + U256::one()) / 2;
-	let mut y = (x + n / x) / 2;
-	while y < x {
-		x = y;
-		y = (x + n / x) / 2;
-	}
-	x
-}
-
-/// Calculate the slip fee rate for a single side of a trade.
-///
-/// # Parameters
-/// - `lrna_at_block_start` — Q₀, the hub reserve snapshot at block start
-/// - `prior_delta` — cumulative signed LRNA delta before this trade (i128)
-/// - `delta_q` — this trade's LRNA delta (negative = outflow, positive = inflow)
-/// - `max_slip_fee` — per-side cap
-///
-/// # Returns
-/// - `Some(Permill)` — the slip fee rate (0 if Q₀ is 0 or cumulative is zero)
-/// - `None` — if denominator (Q₀ + cumulative_delta) ≤ 0 (infeasible trade)
-///
-/// # Formula (s=1)
-/// ```text
-/// cumulative = prior_delta + delta_q
-/// rate = |cumulative| / (Q₀ + cumulative)
-/// result = min(rate, max_slip_fee)
-/// ```
-pub fn calculate_slip_fee(
-	lrna_at_block_start: Balance,
-	prior_delta: i128,
-	delta_q: i128,
-	max_slip_fee: Permill,
-) -> Option<Permill> {
-	if lrna_at_block_start == 0 {
-		return Some(Permill::zero());
-	}
-
-	let cumulative = prior_delta.checked_add(delta_q)?;
-
-	let q0 = lrna_at_block_start as i128;
-	let denom = q0.checked_add(cumulative)?;
-	if denom <= 0 {
-		return None;
-	}
-
-	if cumulative == 0 {
-		return Some(Permill::zero());
-	}
-
-	let abs_cumulative = cumulative.unsigned_abs();
-	let denom_u128 = denom as u128;
-
-	// rate = |cumulative| * 1_000_000 / denom, using U256 to avoid overflow
-	let numerator = U256::from(abs_cumulative) * U256::from(1_000_000u64);
-	let rate = numerator / U256::from(denom_u128);
-	let rate_u32 = if rate > U256::from(1_000_000u64) {
-		1_000_000u32
-	} else {
-		rate.low_u32()
-	};
-
-	let slip_fee = Permill::from_parts(rate_u32);
-	Some(sp_std::cmp::min(slip_fee, max_slip_fee))
-}
-
-/// Calculate the slip fee *amount* at full U256 precision, avoiding Permill truncation.
-///
-/// Computes: `min(|cumulative| / (Q₀ + cumulative), max_slip_fee) × base_amount`
-///
-/// When the rate is below `max_slip_fee`, the amount is computed as:
-///   `|cumulative| × base_amount / (Q₀ + cumulative)` — full precision, only ±1 from integer division.
-///
-/// When the rate hits the cap, falls back to `max_slip_fee.mul_floor(base_amount)`.
-pub fn calculate_slip_fee_amount(
-	lrna_at_block_start: Balance,
-	prior_delta: i128,
-	delta_q: i128,
-	max_slip_fee: Permill,
-	base_amount: Balance,
-) -> Option<Balance> {
-	if lrna_at_block_start == 0 || base_amount == 0 {
-		return Some(0);
-	}
-
-	let cumulative = prior_delta.checked_add(delta_q)?;
-
-	let q0 = lrna_at_block_start as i128;
-	let denom = q0.checked_add(cumulative)?;
-	if denom <= 0 {
-		return None;
-	}
-
-	if cumulative == 0 {
-		return Some(0);
-	}
-
-	let abs_cumulative = cumulative.unsigned_abs();
-	let denom_u128 = denom as u128;
-
-	// Check if rate exceeds max_slip_fee: |cum| * 1_000_000 / denom > max_parts?
-	let rate_millionths = U256::from(abs_cumulative) * U256::from(1_000_000u64) / U256::from(denom_u128);
-	let max_parts = max_slip_fee.deconstruct() as u64;
-
-	if rate_millionths > U256::from(max_parts) {
-		// Capped: use Permill for the capped amount
-		Some(max_slip_fee.mul_floor(base_amount))
-	} else {
-		// Full precision: |cumulative| * base_amount / denom
-		let amount_hp = U256::from(abs_cumulative)
-			.checked_mul(U256::from(base_amount))?
-			.checked_div(U256::from(denom_u128))?;
-		to_balance!(amount_hp).ok()
-	}
 }
 
 /// Calculate delta changes of a sell trade given current state of asset in and out.
@@ -339,31 +216,11 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 	let d_net = to_balance!(d_net_hp).ok()?;
 
 	// Invert buy-side slip to find how much LRNA the user must provide
-	let (_delta_hub_reserve, slip_buy_amount) = if let Some(slip) = slip {
-		// D_gross = D_net * (L + C) / (L - D_net)
-		let l = slip.asset_hub_reserve as i128;
-		let c = slip.asset_delta;
-		let l_plus_c = l.checked_add(c)?;
-		if l_plus_c <= 0 {
-			return None;
-		}
-		let l_plus_c = l_plus_c as u128;
-
-		if d_net >= slip.asset_hub_reserve {
-			return None;
-		}
-		let l_minus_d = slip.asset_hub_reserve.checked_sub(d_net)?;
-
-		let (d_net_hp, l_plus_c_hp, l_minus_d_hp) = to_u256!(d_net, l_plus_c, l_minus_d);
-		let d_gross_hp = d_net_hp
-			.checked_mul(l_plus_c_hp)?
-			.checked_div(l_minus_d_hp)?
-			.checked_add(U256::one())?;
-		let d_gross = to_balance!(d_gross_hp).ok()?;
-		let slip_amount = d_gross.checked_sub(d_net)?;
-		(d_gross, slip_amount)
+	let slip_buy_amount = if let Some(slip) = slip {
+		let d_gross = invert_buy_side_slip(d_net, slip.asset_hub_reserve, slip.asset_delta)?;
+		d_gross.checked_sub(d_net)?
 	} else {
-		(d_net, 0)
+		0
 	};
 
 	let fee_amount = calculate_fee_amount_for_buy(asset_fee, asset_out_amount);
@@ -416,202 +273,15 @@ pub fn calculate_buy_state_changes(
 	let d_net = d_net.checked_add(Balance::one())?;
 
 	// Step 2: Invert buy-side slip to find D_gross from D_net
-	//
-	// Forward: D_net = D_gross - |cum| * D_gross / (L + cum)
-	// where cum = C + D_gross, L = Q0_buy, C = prior_delta_buy
-	//
-	// Case 1 (cum >= 0, i.e., C + D_gross >= 0):
-	//   D_gross = D_net * (L + C) / (L - D_net)     [linear]
-	//
-	// Case 2 (cum < 0, i.e., C < 0 and D_gross < |C|, opposing flow):
-	//   2*D_gross² + (L + 2C - D_net)*D_gross - D_net*(L+C) = 0   [quadratic]
-	//
 	let d_gross = if let Some(slip) = slip {
-		let l = slip.asset_out_hub_reserve; // Q0 buy
-		let c = slip.asset_out_delta; // prior delta buy
-		let l_i = l as i128;
-		let s_buy = l_i.checked_add(c)?; // L + C
-		if s_buy <= 0 {
-			return None;
-		}
-		let s_buy = s_buy as u128;
-
-		if d_net >= l {
-			return None;
-		}
-
-		// Try Case 1 (linear): D_gross = D_net * S_buy / (L - D_net)
-		let l_minus_d = l.checked_sub(d_net)?;
-		let (d_net_hp, s_buy_hp, l_minus_d_hp) = to_u256!(d_net, s_buy, l_minus_d);
-		let d_gross_case1_hp = d_net_hp
-			.checked_mul(s_buy_hp)?
-			.checked_div(l_minus_d_hp)?
-			.checked_add(U256::one())?;
-		let d_gross_case1 = to_balance!(d_gross_case1_hp).ok()?;
-
-		if c >= 0 || d_gross_case1 >= c.unsigned_abs() {
-			// Case 1 valid: cum = C + D_gross >= 0
-			d_gross_case1
-		} else {
-			// Case 2: C < 0, D_gross < |C|, cum stays negative
-			// 2*D_gross² + (L + 2C - D_net)*D_gross - D_net*S_buy = 0
-			let abs_c = c.unsigned_abs();
-			let two_c = abs_c.checked_mul(2)?;
-
-			// b = L + 2C - D_net. Since C < 0: b = L - 2|C| - D_net
-			let l_minus_2c = if l >= two_c { l - two_c } else { return None };
-			let b_positive = l_minus_2c >= d_net;
-			let b_abs = if b_positive {
-				l_minus_2c - d_net
-			} else {
-				d_net - l_minus_2c
-			};
-
-			// disc = b² + 8*D_net*S_buy
-			let b_abs_hp = U256::from(b_abs);
-			let b_sq = b_abs_hp.checked_mul(b_abs_hp)?;
-			let eight_ds = U256::from(8u64).checked_mul(d_net_hp)?.checked_mul(s_buy_hp)?;
-			let disc = b_sq + eight_ds;
-			let sqrt_disc = isqrt_u256(disc);
-
-			// D_gross = (-b + sqrt(disc)) / 4
-			// When b > 0: use numerically stable form D_gross = 2*D_net*S_buy / (b + sqrt(disc))
-			let d_gross_hp = if b_positive {
-				let denom = b_abs_hp + sqrt_disc;
-				U256::from(2u64)
-					.checked_mul(d_net_hp)?
-					.checked_mul(s_buy_hp)?
-					.checked_div(denom)?
-			} else {
-				(b_abs_hp + sqrt_disc) / U256::from(4u64)
-			};
-			let d_gross = to_balance!(d_gross_hp).ok()?;
-			d_gross.checked_add(Balance::one())?
-		}
+		invert_buy_side_slip(d_net, slip.asset_out_hub_reserve, slip.asset_out_delta)?
 	} else {
 		d_net
 	};
 
 	// Step 3: Invert sell-side fees (protocol_fee + sell slip) to find delta_hub_reserve_in
 	let delta_hub_reserve_in = if let Some(slip) = slip {
-		// Solve: D_gross = k*u - u*|C - u| / (S - u)
-		// where k = 1 - protocol_fee, L = Q0_sell, C = prior_delta_sell,
-		// S = L + C, u = delta_hub_reserve_in
-		//
-		// Two cases based on sign of cumulative = C - u:
-		//
-		// Case A (u > C, cumulative < 0): |C-u| = u - C
-		//   → (k+1)*u² - (kS + C + D)*u + DS = 0
-		//   Applies when C <= 0 (always) or when C > 0 and u > C.
-		//
-		// Case B (u <= C, cumulative >= 0): |C-u| = C - u
-		//   → pf*u² + (D + kS - C)*u - DS = 0
-		//   Applies when C > 0 and the trade only partially reverses the prior delta.
-		//
-		// All computed in U256 (scaled by 10^6) to avoid overflow.
-
-		let l = slip.asset_in_hub_reserve; // Q0 sell, u128
-		let c = slip.asset_in_delta; // prior delta
-		let abs_c = c.unsigned_abs();
-		let c_is_positive = c > 0;
-
-		// S = L + C (must be > 0)
-		let s: u128 = if c_is_positive {
-			l.checked_add(abs_c)?
-		} else {
-			l.checked_sub(abs_c)?
-		};
-
-		let pf_parts = protocol_fee.deconstruct() as u128;
-		let k_parts = 1_000_000u128 - pf_parts;
-		let scale = U256::from(1_000_000u64);
-
-		// Case A solver: (k+1)u² - (kS + C + D)u + DS = 0
-		let solve_case_a = || -> Option<Balance> {
-			let a_u256 = U256::from(k_parts + 1_000_000);
-			let ks = U256::from(k_parts) * U256::from(s);
-			let d_scaled = U256::from(d_gross) * scale;
-			let c_scaled = U256::from(abs_c) * scale;
-			// b = kS + (C + D)*10^6  (treating C with its sign)
-			let b_u256 = if c_is_positive {
-				ks + d_scaled + c_scaled
-			} else {
-				let sum = ks + d_scaled;
-				sum.checked_sub(c_scaled)?
-			};
-			let c_u256 = U256::from(d_gross) * U256::from(s) * scale;
-			let b_sq = b_u256.checked_mul(b_u256)?;
-			let four_ac = U256::from(4u64).checked_mul(a_u256)?.checked_mul(c_u256)?;
-			if b_sq < four_ac {
-				return None;
-			}
-			let disc = b_sq - four_ac;
-			let sqrt_disc = isqrt_u256(disc);
-			let two_a = a_u256 * U256::from(2u64);
-			if b_u256 < sqrt_disc {
-				return None;
-			}
-			let u_hp = (b_u256 - sqrt_disc) / two_a;
-			let u = to_balance!(u_hp).ok()?;
-			u.checked_add(Balance::one())
-		};
-
-		if c_is_positive {
-			// C > 0 (opposing flow): try Case B first (assuming u <= C)
-			// pf*u² + (D + kS - C)*u - DS = 0
-			let u_b = if pf_parts == 0 {
-				// Linear: (D + kS - C)u = DS. With k=1: (D + S - C)u = DS → (D + L)u = DS
-				let num = U256::from(d_gross) * U256::from(s);
-				let denom = U256::from(d_gross) + U256::from(l);
-				let u_hp = num.checked_div(denom)?;
-				let u = to_balance!(u_hp).ok()?;
-				u.checked_add(Balance::one())
-			} else {
-				// Quadratic: pf_parts*u² + (kS + (D-C)*10^6)*u - DS*10^6 = 0
-				let a_u256 = U256::from(pf_parts);
-				let ks = U256::from(k_parts) * U256::from(s);
-				let d_scaled = U256::from(d_gross) * scale;
-				let c_scaled = U256::from(abs_c) * scale;
-
-				// b = kS + D*10^6 - C*10^6 (can be negative)
-				let b_sum = ks + d_scaled;
-				let b_positive = b_sum >= c_scaled;
-				let b_abs = if b_positive { b_sum - c_scaled } else { c_scaled - b_sum };
-
-				// disc = b² + 4*a*D*S*10^6 (always positive since last term > 0)
-				let b_sq = b_abs.checked_mul(b_abs)?;
-				let four_a_ds = U256::from(4u64)
-					.checked_mul(a_u256)?
-					.checked_mul(U256::from(d_gross))?
-					.checked_mul(U256::from(s))?
-					.checked_mul(scale)?;
-				let disc = b_sq + four_a_ds;
-				let sqrt_disc = isqrt_u256(disc);
-				let two_a = a_u256 * U256::from(2u64);
-
-				// Solve for positive root of a*u² + b*u - c = 0
-				// When b > 0: use u = 2c / (b + sqrt(disc)) to avoid catastrophic cancellation
-				// When b <= 0: use u = (-b + sqrt(disc)) / (2a)
-				let c_u256 = U256::from(d_gross) * U256::from(s) * scale;
-				let u_hp = if b_positive {
-					let denom = b_abs + sqrt_disc;
-					U256::from(2u64).checked_mul(c_u256)?.checked_div(denom)?
-				} else {
-					let numerator = b_abs + sqrt_disc;
-					numerator / two_a
-				};
-				let u = to_balance!(u_hp).ok()?;
-				u.checked_add(Balance::one())
-			};
-
-			match u_b {
-				Some(u) if u <= abs_c => u,
-				_ => solve_case_a()?, // u > C or Case B failed: use Case A
-			}
-		} else {
-			// C <= 0: always Case A (u > 0 > C, so u > C)
-			solve_case_a()?
-		}
+		invert_sell_side_fees(d_gross, protocol_fee, slip.asset_in_hub_reserve, slip.asset_in_delta)?
 	} else {
 		// No slip — original inversion
 		FixedU128::from_inner(d_net)

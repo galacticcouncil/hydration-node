@@ -2,8 +2,8 @@ use crate::omnipool::types::{AssetReserveState, BalanceUpdate, HubTradeSlipFees,
 use crate::omnipool::{
 	calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
 	calculate_cap_difference, calculate_fee_amount_for_buy, calculate_remove_liquidity_state_changes,
-	calculate_sell_hub_state_changes, calculate_sell_state_changes, calculate_slip_fee, calculate_tvl_cap_difference,
-	calculate_withdrawal_fee, isqrt_u256, verify_asset_cap,
+	calculate_sell_hub_state_changes, calculate_sell_state_changes, calculate_slip_fee_amount,
+	calculate_tvl_cap_difference, calculate_withdrawal_fee, verify_asset_cap,
 };
 use crate::types::Balance;
 use num_traits::{One, Zero};
@@ -1186,129 +1186,118 @@ fn calculate_buy_should_charge_more_when_fee_is_not_zero() {
 // Slip fee unit tests
 // ============================================================================
 
-// --- isqrt_u256 tests ---
+// --- calculate_slip_fee_amount tests ---
 
 #[test]
-fn isqrt_zero() {
-	assert_eq!(isqrt_u256(U256::zero()), U256::zero());
+fn slip_fee_amount_zero_when_q0_is_zero() {
+	let result = calculate_slip_fee_amount(0, 0, -1000, Permill::from_percent(5), 1_000_000 * UNIT);
+	assert_eq!(result, Some(0));
 }
 
 #[test]
-fn isqrt_one() {
-	assert_eq!(isqrt_u256(U256::one()), U256::one());
+fn slip_fee_amount_zero_when_base_is_zero() {
+	let result = calculate_slip_fee_amount(
+		10_000_000 * UNIT,
+		0,
+		-(99_000 * UNIT as i128),
+		Permill::from_percent(5),
+		0,
+	);
+	assert_eq!(result, Some(0));
 }
 
 #[test]
-fn isqrt_perfect_squares() {
-	assert_eq!(isqrt_u256(U256::from(4)), U256::from(2));
-	assert_eq!(isqrt_u256(U256::from(9)), U256::from(3));
-	assert_eq!(isqrt_u256(U256::from(10000)), U256::from(100));
-	assert_eq!(isqrt_u256(U256::from(1000000)), U256::from(1000));
-}
-
-#[test]
-fn isqrt_non_perfect() {
-	assert_eq!(isqrt_u256(U256::from(5)), U256::from(2));
-	assert_eq!(isqrt_u256(U256::from(8)), U256::from(2));
-	assert_eq!(isqrt_u256(U256::from(10)), U256::from(3));
-	assert_eq!(isqrt_u256(U256::from(99)), U256::from(9));
-}
-
-#[test]
-fn isqrt_large() {
-	// Test with a large value: 10^36
-	let n = U256::from(10u64).pow(U256::from(36));
-	let result = isqrt_u256(n);
-	assert_eq!(result, U256::from(10u64).pow(U256::from(18)));
-	// Verify: result^2 <= n < (result+1)^2
-	assert!(result * result <= n);
-	assert!((result + 1) * (result + 1) > n);
-
-	// Non-perfect large square
-	let n2 = U256::from(10u64).pow(U256::from(36)) + U256::from(1u64);
-	let r2 = isqrt_u256(n2);
-	assert!(r2 * r2 <= n2);
-	assert!((r2 + 1) * (r2 + 1) > n2);
-}
-
-// --- calculate_slip_fee tests ---
-
-#[test]
-fn slip_fee_zero_when_q0_is_zero() {
-	let result = calculate_slip_fee(0, 0, -1000, Permill::from_percent(5));
-	assert_eq!(result, Some(Permill::zero()));
-}
-
-#[test]
-fn slip_fee_basic_negative_delta() {
+fn slip_fee_amount_basic_negative_delta() {
 	// Q0 = 10M, prior_delta = 0, delta_q = -99000 (LRNA leaving)
-	// cumulative = -99000
-	// rate = 99000 / (10_000_000 - 99000) = 99000 / 9_901_000 ≈ 0.009999... ≈ 0.999%
-	let result = calculate_slip_fee(10_000_000 * UNIT, 0, -(99_000 * UNIT as i128), Permill::from_percent(5));
+	// rate = 99000 / (10_000_000 - 99000) = 99000 / 9_901_000 ≈ 0.9998%
+	// amount = 99000 * base / 9_901_000 (full precision)
+	let base = 1_000_000 * UNIT;
+	let result = calculate_slip_fee_amount(
+		10_000_000 * UNIT,
+		0,
+		-(99_000 * UNIT as i128),
+		Permill::from_percent(5),
+		base,
+	);
 	assert!(result.is_some());
-	let fee = result.unwrap();
-	// 99000 / 9901000 = 0.009998... → Permill = 9998 (truncated)
-	assert_eq!(fee, Permill::from_parts(9998));
+	let amount = result.unwrap();
+	// expected ≈ 0.009998... * base = 9_998_989_999...
+	assert!(amount > 0);
+	// rate ≈ 0.9998%, so amount should be close to 0.9998% of base
+	assert!(amount > Permill::from_parts(9998).mul_floor(base));
+	assert!(amount < Permill::from_parts(9999).mul_floor(base));
 }
 
 #[test]
-fn slip_fee_basic_positive_delta() {
+fn slip_fee_amount_basic_positive_delta() {
 	// Q0 = 5M, prior_delta = 0, delta_q = +97516 (LRNA entering buy pool)
-	// cumulative = 97516
-	// rate = 97516 / (5_000_000 + 97516) = 97516 / 5_097_516 ≈ 0.01913...
-	let result = calculate_slip_fee(5_000_000 * UNIT, 0, 97_516 * UNIT as i128, Permill::from_percent(5));
+	// rate = 97516 / (5_000_000 + 97516) = 97516 / 5_097_516 ≈ 1.913%
+	let base = 1_000_000 * UNIT;
+	let result = calculate_slip_fee_amount(
+		5_000_000 * UNIT,
+		0,
+		97_516 * UNIT as i128,
+		Permill::from_percent(5),
+		base,
+	);
 	assert!(result.is_some());
-	let fee = result.unwrap();
-	// 97516 / 5097516 ≈ 0.019130... → Permill = 19130 (truncated)
-	assert_eq!(fee, Permill::from_parts(19130));
+	let amount = result.unwrap();
+	// rate ≈ 1.913%, so amount should be close to 1.913% of base
+	assert!(amount > Permill::from_parts(19130).mul_floor(base));
+	assert!(amount < Permill::from_parts(19131).mul_floor(base));
 }
 
 #[test]
-fn slip_fee_capped_at_max() {
-	// Q0 = 1000, delta = -900 → cumulative = -900, denom = 100
-	// rate = 900/100 = 9.0 = 900% → capped at max (5%)
-	let result = calculate_slip_fee(1000 * UNIT, 0, -(900 * UNIT as i128), Permill::from_percent(5));
-	assert_eq!(result, Some(Permill::from_percent(5)));
+fn slip_fee_amount_capped_at_max() {
+	// Q0 = 1000, delta = -900 → rate = 900/100 = 900% → capped at max (5%)
+	let base = 1_000_000 * UNIT;
+	let max_fee = Permill::from_percent(5);
+	let result = calculate_slip_fee_amount(1000 * UNIT, 0, -(900 * UNIT as i128), max_fee, base);
+	assert_eq!(result, Some(max_fee.mul_floor(base)));
 }
 
 #[test]
-fn slip_fee_cumulative_grows() {
+fn slip_fee_amount_cumulative_grows() {
+	let base = 1_000_000 * UNIT;
 	// First call: Q0 = 10M, prior = 0, delta = -100K
-	let fee1 = calculate_slip_fee(
+	let fee1 = calculate_slip_fee_amount(
 		10_000_000 * UNIT,
 		0,
 		-(100_000 * UNIT as i128),
 		Permill::from_percent(10),
+		base,
 	)
 	.unwrap();
 
 	// Second call: Q0 = 10M, prior = -100K (from first trade), delta = -100K
-	let fee2 = calculate_slip_fee(
+	let fee2 = calculate_slip_fee_amount(
 		10_000_000 * UNIT,
 		-(100_000 * UNIT as i128),
 		-(100_000 * UNIT as i128),
 		Permill::from_percent(10),
+		base,
 	)
 	.unwrap();
 
-	assert!(fee2 > fee1, "Second trade should have higher slip fee");
+	assert!(fee2 > fee1, "Second trade should have higher slip fee amount");
 }
 
 #[test]
-fn slip_fee_infeasible_returns_none() {
+fn slip_fee_amount_infeasible_returns_none() {
+	let base = 1_000_000 * UNIT;
 	// denom <= 0: Q0 = 1000, cumulative = -1000 → denom = 0
-	let result = calculate_slip_fee(1000 * UNIT, 0, -(1000 * UNIT as i128), Permill::from_percent(5));
+	let result = calculate_slip_fee_amount(1000 * UNIT, 0, -(1000 * UNIT as i128), Permill::from_percent(5), base);
 	assert_eq!(result, None);
 
 	// denom < 0: Q0 = 1000, cumulative = -1500 → denom = -500
-	let result = calculate_slip_fee(1000 * UNIT, 0, -(1500 * UNIT as i128), Permill::from_percent(5));
+	let result = calculate_slip_fee_amount(1000 * UNIT, 0, -(1500 * UNIT as i128), Permill::from_percent(5), base);
 	assert_eq!(result, None);
 }
 
 #[test]
-fn slip_fee_zero_delta() {
-	let result = calculate_slip_fee(10_000_000 * UNIT, 0, 0, Permill::from_percent(5));
-	assert_eq!(result, Some(Permill::zero()));
+fn slip_fee_amount_zero_delta() {
+	let result = calculate_slip_fee_amount(10_000_000 * UNIT, 0, 0, Permill::from_percent(5), 1_000_000 * UNIT);
+	assert_eq!(result, Some(0));
 }
 
 // --- sell state changes with slip ---

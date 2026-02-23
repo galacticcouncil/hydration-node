@@ -1,4 +1,5 @@
 mod math;
+pub(crate) mod slip_fee;
 pub mod types;
 
 #[cfg(test)]
@@ -7,3 +8,4 @@ mod invariants;
 mod tests;
 
 pub use math::*;
+pub use slip_fee::calculate_slip_fee_amount;
