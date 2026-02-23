@@ -380,8 +380,8 @@ fn block_reset_clears_tracking() {
 			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 50 * ONE, 0));
 
 			// Verify deltas are non-zero
-			assert_ne!(SlipFeeDelta::<Test>::get(100), 0);
-			assert_ne!(SlipFeeDelta::<Test>::get(HDX), 0);
+			assert!(!SlipFeeDelta::<Test>::get(100).is_zero());
+			assert!(!SlipFeeDelta::<Test>::get(HDX).is_zero());
 			assert!(SlipFeeLrnaAtBlockStart::<Test>::get(100).is_some());
 			assert!(SlipFeeLrnaAtBlockStart::<Test>::get(HDX).is_some());
 
@@ -389,8 +389,8 @@ fn block_reset_clears_tracking() {
 			<Omnipool as Hooks<u64>>::on_finalize(System::block_number());
 
 			// Deltas should be cleared
-			assert_eq!(SlipFeeDelta::<Test>::get(100), 0);
-			assert_eq!(SlipFeeDelta::<Test>::get(HDX), 0);
+			assert!(SlipFeeDelta::<Test>::get(100).is_zero());
+			assert!(SlipFeeDelta::<Test>::get(HDX).is_zero());
 			assert!(SlipFeeLrnaAtBlockStart::<Test>::get(100).is_none());
 			assert!(SlipFeeLrnaAtBlockStart::<Test>::get(HDX).is_none());
 		});
@@ -429,11 +429,11 @@ fn delta_tracking_is_correct() {
 
 			// Delta for sell asset (100) should be negative (LRNA left the pool)
 			let delta_100 = SlipFeeDelta::<Test>::get(100);
-			assert!(delta_100 < 0, "Sell-side delta should be negative: {}", delta_100);
+			assert!(delta_100.is_negative(), "Sell-side delta should be negative: {:?}", delta_100);
 
 			// Delta for buy asset (HDX) should be positive (LRNA entered the pool)
 			let delta_hdx = SlipFeeDelta::<Test>::get(HDX);
-			assert!(delta_hdx > 0, "Buy-side delta should be positive: {}", delta_hdx);
+			assert!(delta_hdx.is_positive(), "Buy-side delta should be positive: {:?}", delta_hdx);
 		});
 }
 
@@ -787,7 +787,7 @@ fn buy_for_hub_asset_charges_exactly_slip_fee_on_top() {
 			// Compute expected cost using the math layer directly
 			let slip = hydra_dx_math::omnipool::types::HubTradeSlipFees {
 				asset_hub_reserve: q0,
-				asset_delta: 0,
+				asset_delta: hydra_dx_math::omnipool::types::SignedBalance::zero(),
 				max_slip_fee: Permill::from_percent(100),
 			};
 			let math_result = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(

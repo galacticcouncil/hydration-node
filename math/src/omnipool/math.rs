@@ -1,5 +1,6 @@
 use crate::omnipool::slip_fee::{calculate_slip_fee_amount, invert_buy_side_slip, invert_sell_side_fees};
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
+use crate::omnipool::types::SignedBalance;
 use crate::omnipool::types::{
 	AssetReserveState, AssetStateChange, HubTradeSlipFees, HubTradeStateChange, LiquidityStateChange, Position,
 	TradeFee, TradeSlipFees, TradeStateChange,
@@ -43,7 +44,7 @@ pub fn calculate_sell_state_changes(
 		calculate_slip_fee_amount(
 			slip.asset_in_hub_reserve,
 			slip.asset_in_delta,
-			-(delta_hub_reserve_in as i128),
+			SignedBalance::Negative(delta_hub_reserve_in),
 			slip.max_slip_fee,
 			delta_hub_reserve_in,
 		)?
@@ -60,7 +61,7 @@ pub fn calculate_sell_state_changes(
 		calculate_slip_fee_amount(
 			slip.asset_out_hub_reserve,
 			slip.asset_out_delta,
-			d_gross as i128,
+			SignedBalance::Positive(d_gross),
 			slip.max_slip_fee,
 			d_gross,
 		)?
@@ -129,7 +130,7 @@ pub fn calculate_sell_hub_state_changes(
 		calculate_slip_fee_amount(
 			slip.asset_hub_reserve,
 			slip.asset_delta,
-			hub_asset_amount as i128,
+			SignedBalance::Positive(hub_asset_amount),
 			slip.max_slip_fee,
 			hub_asset_amount,
 		)?
@@ -311,7 +312,7 @@ pub fn calculate_buy_state_changes(
 		calculate_slip_fee_amount(
 			slip.asset_in_hub_reserve,
 			slip.asset_in_delta,
-			-(delta_hub_reserve_in as i128),
+			SignedBalance::Negative(delta_hub_reserve_in),
 			slip.max_slip_fee,
 			delta_hub_reserve_in,
 		)?
@@ -327,7 +328,7 @@ pub fn calculate_buy_state_changes(
 		calculate_slip_fee_amount(
 			slip.asset_out_hub_reserve,
 			slip.asset_out_delta,
-			d_gross_forward as i128,
+			SignedBalance::Positive(d_gross_forward),
 			slip.max_slip_fee,
 			d_gross_forward,
 		)?

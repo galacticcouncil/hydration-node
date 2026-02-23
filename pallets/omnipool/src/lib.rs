@@ -94,7 +94,7 @@ use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydra_dx_math::ema::EmaPrice;
-use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeSlipFees, TradeSlipFees};
+use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeSlipFees, SignedBalance, TradeSlipFees};
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::MultiCurrency;
@@ -288,7 +288,7 @@ pub mod pallet {
 	/// Negative = net LRNA outflow, positive = net LRNA inflow.
 	/// Cleared in on_finalize.
 	#[pallet::storage]
-	pub type SlipFeeDelta<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, i128, ValueQuery>;
+	pub type SlipFeeDelta<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, SignedBalance, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -1720,11 +1720,11 @@ impl<T: Config> Pallet<T> {
 		}
 		// Sell pool: LRNA leaves → negative delta
 		SlipFeeDelta::<T>::mutate(asset_in, |d| {
-			*d = d.saturating_sub(delta_hub_in as i128);
+			*d = d.checked_add(SignedBalance::Negative(delta_hub_in)).unwrap_or(*d);
 		});
 		// Buy pool: LRNA enters → positive delta (D_net, the actual amount entering)
 		SlipFeeDelta::<T>::mutate(asset_out, |d| {
-			*d = d.saturating_add(delta_hub_out as i128);
+			*d = d.checked_add(SignedBalance::Positive(delta_hub_out)).unwrap_or(*d);
 		});
 	}
 
@@ -1734,7 +1734,7 @@ impl<T: Config> Pallet<T> {
 			return;
 		}
 		SlipFeeDelta::<T>::mutate(asset_out, |d| {
-			*d = d.saturating_add(delta_hub_out as i128);
+			*d = d.checked_add(SignedBalance::Positive(delta_hub_out)).unwrap_or(*d);
 		});
 	}
 

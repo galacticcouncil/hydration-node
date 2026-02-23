@@ -1,7 +1,8 @@
+use crate::omnipool::types::SignedBalance;
 use crate::types::Balance;
 use crate::MathError::Overflow;
 use crate::{to_balance, to_u256};
-use num_traits::{CheckedDiv, CheckedMul, One};
+use num_traits::One;
 use primitive_types::U256;
 use sp_arithmetic::Permill;
 
@@ -15,8 +16,8 @@ use sp_arithmetic::Permill;
 /// When the rate hits the cap, falls back to `max_slip_fee.mul_floor(base_amount)`.
 pub fn calculate_slip_fee_amount(
 	lrna_at_block_start: Balance,
-	prior_delta: i128,
-	delta_q: i128,
+	prior_delta: SignedBalance,
+	delta_q: SignedBalance,
 	max_slip_fee: Permill,
 	base_amount: Balance,
 ) -> Option<Balance> {
@@ -26,24 +27,22 @@ pub fn calculate_slip_fee_amount(
 
 	let cumulative = prior_delta.checked_add(delta_q)?;
 
-	let q0 = lrna_at_block_start as i128;
-	let denom = q0.checked_add(cumulative)?;
-	if denom <= 0 {
+	let denom = cumulative.add_to_unsigned(lrna_at_block_start)?;
+	if denom == 0 {
 		return None;
 	}
 
-	if cumulative == 0 {
+	if cumulative.is_zero() {
 		return Some(0);
 	}
 
-	let abs_cumulative = cumulative.unsigned_abs();
-	let denom_u128 = denom as u128;
+	let abs_cumulative = cumulative.abs();
 
 	// Check if rate exceeds max_slip_fee: |cum| * 1_000_000 / denom > max_parts?
 	// Safe: u128 * 1_000_000 fits in U256
 	let rate_millionths = U256::from(abs_cumulative)
 		.saturating_mul(U256::from(1_000_000u64))
-		.checked_div(U256::from(denom_u128))?;
+		.checked_div(U256::from(denom))?;
 	let max_parts = max_slip_fee.deconstruct() as u64;
 
 	if rate_millionths > U256::from(max_parts) {
@@ -53,7 +52,7 @@ pub fn calculate_slip_fee_amount(
 		// Full precision: |cumulative| * base_amount / denom
 		let amount_hp = U256::from(abs_cumulative)
 			.checked_mul(U256::from(base_amount))?
-			.checked_div(U256::from(denom_u128))?;
+			.checked_div(U256::from(denom))?;
 		to_balance!(amount_hp).ok()
 	}
 }
@@ -70,13 +69,11 @@ pub fn calculate_slip_fee_amount(
 /// Two cases based on the sign of cumulative after the trade:
 /// - Case 1 (cum >= 0): `D_gross = D_net * (L+C) / (L - D_net)` (linear)
 /// - Case 2 (C < 0, D_gross < |C|): quadratic inversion
-pub(crate) fn invert_buy_side_slip(d_net: Balance, l: Balance, c: i128) -> Option<Balance> {
-	let l_i = l as i128;
-	let s_buy = l_i.checked_add(c)?; // L + C
-	if s_buy <= 0 {
+pub(crate) fn invert_buy_side_slip(d_net: Balance, l: Balance, c: SignedBalance) -> Option<Balance> {
+	let s_buy = c.add_to_unsigned(l)?; // L + C
+	if s_buy == 0 {
 		return None;
 	}
-	let s_buy = s_buy as u128;
 
 	if d_net >= l {
 		return None;
@@ -91,14 +88,14 @@ pub(crate) fn invert_buy_side_slip(d_net: Balance, l: Balance, c: i128) -> Optio
 		.checked_add(U256::one())?;
 	let d_gross_case1 = to_balance!(d_gross_case1_hp).ok()?;
 
-	if c >= 0 || d_gross_case1 >= c.unsigned_abs() {
+	if !c.is_negative() || d_gross_case1 >= c.abs() {
 		// Case 1 valid: cum = C + D_gross >= 0
 		return Some(d_gross_case1);
 	}
 
 	// Case 2: C < 0, D_gross < |C|, cum stays negative
 	// 2*D_gross² + (L + 2C - D_net)*D_gross - D_net*S_buy = 0
-	let abs_c = c.unsigned_abs();
+	let abs_c = c.abs();
 	let two_c = abs_c.checked_mul(2)?;
 
 	// b = L + 2C - D_net. Since C < 0: b = L - 2|C| - D_net
@@ -149,9 +146,14 @@ pub(crate) fn invert_buy_side_slip(d_net: Balance, l: Balance, c: i128) -> Optio
 /// Two cases based on the sign of cumulative = C - u (LRNA outflow is negative):
 /// - Case A (u > C, cumulative < 0): `(k+1)*u² - (kS + C + D)*u + DS = 0`
 /// - Case B (u <= C, C > 0, opposing flow): `pf*u² + (D + kS - C)*u - DS = 0`
-pub(crate) fn invert_sell_side_fees(d_gross: Balance, protocol_fee: Permill, l: Balance, c: i128) -> Option<Balance> {
-	let abs_c = c.unsigned_abs();
-	let c_is_positive = c > 0;
+pub(crate) fn invert_sell_side_fees(
+	d_gross: Balance,
+	protocol_fee: Permill,
+	l: Balance,
+	c: SignedBalance,
+) -> Option<Balance> {
+	let abs_c = c.abs();
+	let c_is_positive = c.is_positive();
 
 	// S = L + C (must be > 0)
 	let s: u128 = if c_is_positive {
