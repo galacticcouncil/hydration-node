@@ -464,6 +464,8 @@ pub mod pallet {
 		SlippageLimit,
 		/// Extra protocol fee has not been consumed.
 		ProtocolFeeNotConsumed,
+		/// Slip fee configuration exceeds the allowed maximum (50%).
+		MaxSlipFeeTooHigh,
 	}
 
 	#[pallet::call]
@@ -1550,6 +1552,13 @@ pub mod pallet {
 		pub fn set_slip_fee(origin: OriginFor<T>, slip_fee: Option<SlipFeeConfig>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
+			if let Some(ref config) = slip_fee {
+				ensure!(
+					config.max_slip_fee <= Permill::from_percent(50),
+					Error::<T>::MaxSlipFeeTooHigh
+				);
+			}
+
 			match slip_fee {
 				Some(ref config) => {
 					SlipFee::<T>::put(config);
@@ -1567,9 +1576,27 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			if SlipFee::<T>::get().is_none() {
+				return T::DbWeight::get().reads(1);
+			}
+			// Reserve weight for clearing both maps in on_finalize.
+			// Worst case: every omnipool asset was touched this block.
+			let max_entries = Assets::<T>::iter_keys().count() as u64;
+			T::DbWeight::get()
+				.reads(1) // SlipFee config read
+				.saturating_add(T::DbWeight::get().reads_writes(max_entries * 2, max_entries * 2))
+		}
+
 		fn on_finalize(_n: BlockNumberFor<T>) {
-			let _ = SlipFeeHubReserveAtBlockStart::<T>::clear(u32::MAX, None);
-			let _ = SlipFeeDelta::<T>::clear(u32::MAX, None);
+			let r = SlipFeeHubReserveAtBlockStart::<T>::clear(u32::MAX, None);
+			if r.maybe_cursor.is_some() {
+				defensive!("SlipFeeHubReserveAtBlockStart::clear did not complete");
+			}
+			let r = SlipFeeDelta::<T>::clear(u32::MAX, None);
+			if r.maybe_cursor.is_some() {
+				defensive!("SlipFeeDelta::clear did not complete");
+			}
 		}
 
 		fn integrity_test() {
@@ -1620,7 +1647,7 @@ pub mod pallet {
 }
 
 use crate::traits::ExternalPriceProvider;
-use frame_support::traits::DefensiveOption;
+use frame_support::{defensive, traits::DefensiveOption};
 
 impl<T: Config> Pallet<T> {
 	/// Protocol account address
@@ -1679,8 +1706,21 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Ensure Q₀ is snapshotted for an asset if slip fees are enabled.
+	/// No-op when slip fees are disabled. Used by LP operations to capture
+	/// pre-manipulation hub_reserve before state changes.
+	fn ensure_q0_snapshot(asset_id: T::AssetId, current_hub_reserve: Balance) {
+		if SlipFee::<T>::get().is_some() {
+			Self::snapshot_q0(asset_id, current_hub_reserve);
+		}
+	}
+
 	/// Read-only version of load_trade_slip_fees for router quotes.
 	/// Falls back to current_hub_reserve if Q₀ has not been snapshotted yet this block.
+	///
+	/// Note: Quoted amounts may diverge from execution if intervening trades modify
+	/// the cumulative deltas between quote time and execution. Users are protected
+	/// by their slippage limit parameters.
 	fn peek_trade_slip_fees(
 		asset_in: T::AssetId,
 		asset_in_hub_reserve: Balance,
@@ -1719,13 +1759,24 @@ impl<T: Config> Pallet<T> {
 		if SlipFee::<T>::get().is_none() {
 			return;
 		}
-		// Sell pool: hub asset leaves → negative delta
+		// Sell pool: hub asset leaves → negative delta.
+		// On overflow the delta is intentionally kept unchanged — this is practically
+		// unreachable since it would require cumulative hub deltas exceeding u128::MAX
+		// within a single block.
 		SlipFeeDelta::<T>::mutate(asset_in, |d| {
-			*d = d.checked_add(SignedBalance::Negative(delta_hub_in)).unwrap_or(*d);
+			if let Some(new_d) = d.checked_add(SignedBalance::Negative(delta_hub_in)) {
+				*d = new_d;
+			} else {
+				defensive!("slip fee delta overflow for asset_in");
+			}
 		});
 		// Buy pool: hub asset enters → positive delta (D_net, the actual amount entering)
 		SlipFeeDelta::<T>::mutate(asset_out, |d| {
-			*d = d.checked_add(SignedBalance::Positive(delta_hub_out)).unwrap_or(*d);
+			if let Some(new_d) = d.checked_add(SignedBalance::Positive(delta_hub_out)) {
+				*d = new_d;
+			} else {
+				defensive!("slip fee delta overflow for asset_out");
+			}
 		});
 	}
 
@@ -1734,8 +1785,13 @@ impl<T: Config> Pallet<T> {
 		if SlipFee::<T>::get().is_none() {
 			return;
 		}
+		// On overflow the delta is intentionally kept unchanged — practically unreachable.
 		SlipFeeDelta::<T>::mutate(asset_out, |d| {
-			*d = d.checked_add(SignedBalance::Positive(delta_hub_out)).unwrap_or(*d);
+			if let Some(new_d) = d.checked_add(SignedBalance::Positive(delta_hub_out)) {
+				*d = new_d;
+			} else {
+				defensive!("slip fee delta overflow for hub trade asset_out");
+			}
 		});
 	}
 
@@ -1958,7 +2014,6 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		// Delta tracking: hub_reserve_delta = effective hub asset entering the pool
 		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta);
 
 		// To reduce value leaked to arbitrage through external markets
@@ -2103,7 +2158,6 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		// Delta tracking: hub_reserve_delta = d_net = effective hub asset entering the pool
 		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta);
 
 		// To reduce value leaked to arbitrage through external markets
@@ -2336,6 +2390,10 @@ impl<T: Config> Pallet<T> {
 
 		let asset_state = Self::load_asset_state(asset)?;
 
+		// Snapshot Q0 before any state changes so slip fee denominator
+		// captures the pre-LP hub_reserve (prevents manipulation via add_liquidity).
+		Self::ensure_q0_snapshot(asset, asset_state.hub_reserve);
+
 		ensure!(
 			asset_state.tradable.contains(Tradability::ADD_LIQUIDITY),
 			Error::<T>::NotAllowed
@@ -2465,6 +2523,10 @@ impl<T: Config> Pallet<T> {
 		let asset_id = position.asset_id;
 
 		let asset_state = Self::load_asset_state(asset_id)?;
+
+		// Snapshot Q0 before any state changes so slip fee denominator
+		// captures the pre-LP hub_reserve (prevents manipulation via remove_liquidity).
+		Self::ensure_q0_snapshot(asset_id, asset_state.hub_reserve);
 
 		ensure!(
 			asset_state.tradable.contains(Tradability::REMOVE_LIQUIDITY),

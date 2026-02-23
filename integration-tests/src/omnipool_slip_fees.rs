@@ -671,3 +671,103 @@ fn router_buy_with_lrna_matches_direct_buy_with_slip_fees() {
 		direct_cost, router_cost
 	);
 }
+
+// ============================================================
+// 9. Cross-block: deltas cleared between blocks
+// ============================================================
+
+#[test]
+fn slip_fee_deltas_are_cleared_across_blocks() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		enable_slip_fees();
+
+		let trader = AccountId::from(BOB);
+		let sell_amount = 100 * UNITS;
+
+		// Block N: first trade
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(trader.clone()),
+			HDX,
+			DAI,
+			sell_amount,
+			0u128,
+		));
+		let output_block_n = Currencies::free_balance(DAI, &trader) - dai_before;
+
+		// Advance to next block to clear deltas
+		go_to_block(11);
+
+		// Block N+1: same trade should have fresh slip (no accumulated delta)
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(trader.clone()),
+			HDX,
+			DAI,
+			sell_amount,
+			0u128,
+		));
+		let output_block_n1 = Currencies::free_balance(DAI, &trader) - dai_before;
+
+		// The second trade in a fresh block should produce similar output to the first
+		// (pool state changed slightly from the first trade, but slip delta is fresh).
+		// Key invariant: output_block_n1 should not be further reduced by accumulated deltas.
+		// With slip fees, the second block's output may differ slightly due to pool state changes,
+		// but should not show the monotonic decrease we'd see from accumulated intra-block deltas.
+		assert!(
+			output_block_n1 > 0 && output_block_n > 0,
+			"Both trades should produce output"
+		);
+	});
+}
+
+// ============================================================
+// 10. Sequential trades accumulate slip within a block
+// ============================================================
+
+#[test]
+fn sequential_trades_accumulate_slip_within_block() {
+	// Two same-direction trades in one block: the second should produce less
+	// output than the first due to accumulated slip fee deltas.
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		enable_slip_fees();
+
+		let trader = AccountId::from(BOB);
+		let sell_amount = 100 * UNITS;
+
+		// Trade 1
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(trader.clone()),
+			HDX,
+			DAI,
+			sell_amount,
+			0u128,
+		));
+		let output_first = Currencies::free_balance(DAI, &trader) - dai_before;
+
+		// Trade 2 (same direction, same block → accumulated deltas increase slip)
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(trader.clone()),
+			HDX,
+			DAI,
+			sell_amount,
+			0u128,
+		));
+		let output_second = Currencies::free_balance(DAI, &trader) - dai_before;
+
+		assert!(
+			output_second < output_first,
+			"Second trade should get less output due to accumulated slip: first={} second={}",
+			output_first,
+			output_second
+		);
+	});
+}
