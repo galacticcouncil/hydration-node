@@ -33,6 +33,7 @@ mod omnipool_init;
 mod omnipool_liquidity_mining;
 mod omnipool_remove_all_liquidity;
 mod omnipool_slip_fees;
+mod omnipool_slip_fees_xval;
 mod oracle;
 mod otc;
 mod parameters;
