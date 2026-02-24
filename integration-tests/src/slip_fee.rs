@@ -83,19 +83,23 @@ fn slip_fee_for_single_sell_should_provide_correct_results() {
 		);
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
-		pretty_assertions::assert_eq!(hdx_state.reserve, initial_hdx_state.reserve - amount_out); // 935904.483514849214
+		pretty_assertions::assert_eq!(hdx_state.reserve, initial_hdx_state.reserve - amount_out);
+		pretty_assertions::assert_eq!(hdx_state.reserve, 935904483514848386);
 		pretty_assertions::assert_eq!(
 			hdx_state.hub_reserve,
 			initial_hdx_state.hub_reserve + hub_amount_out + extra_hub_reserve_amount + protocol_fee_amount
-		); // 1125.514164318604
+		);
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1125514164318604);
+
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
-		pretty_assertions::assert_eq!(dot_state.reserve, initial_dot_state.reserve + amount_in); // 8773.9298250000
+		pretty_assertions::assert_eq!(dot_state.reserve, initial_dot_state.reserve + amount_in);
+		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, initial_dot_state.hub_reserve - hub_amount_in);
-		// 2249.487117049839
+		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2249487117049839);
 		// results from the Python implementation
 		// 'HDX':
 		//     'liquidity': 935904.48351484841472146907766990689679046487440193,
-		//     'LRNA': 1125.5135569810396782676320965818939714570200686377,
+		//     'LRNA': 1125.5141637346374472664443879820567660170692058532,
 		// 'DOT':
 		//     'liquidity': 8773.9298249999992549419403076171875,
 		//     'LRNA': 2249.487117049838228129359397211854306562236141151,
@@ -166,15 +170,19 @@ fn slip_fee_for_single_sell_without_hdx_should_provide_correct_results() {
 		);
 
 		let dai_state = Omnipool::load_asset_state(DAI).unwrap();
-		pretty_assertions::assert_eq!(dai_state.reserve, initial_dai_state.reserve - amount_out); // 49988644541.815744431102
+		pretty_assertions::assert_eq!(dai_state.reserve, initial_dai_state.reserve - amount_out);
+		pretty_assertions::assert_eq!(dai_state.reserve, 49988644541815744431102);
 		pretty_assertions::assert_eq!(
 			dai_state.hub_reserve,
 			initial_dai_state.hub_reserve + hub_amount_out + extra_hub_reserve_amount
-		); // 2250.513674243998
+		);
+		pretty_assertions::assert_eq!(dai_state.hub_reserve, 2250513674243998);
+
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
-		pretty_assertions::assert_eq!(dot_state.reserve, initial_dot_state.reserve + amount_in); // 8773.9298250000
+		pretty_assertions::assert_eq!(dot_state.reserve, initial_dot_state.reserve + amount_in);
+		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, initial_dot_state.hub_reserve - hub_amount_in);
-		// 2249.487117049839
+		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2249487117049839);
 		// results from the Python implementation
 		// 'DOT':
 		//     'liquidity': 8773.9298249999992549419403076171875,
@@ -246,11 +254,13 @@ fn slip_fee_for_single_sell_lrna_should_provide_correct_results() {
 		);
 
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
-		pretty_assertions::assert_eq!(dot_state.reserve, initial_dot_state.reserve - amount_out); // 8764.1658498448
+		pretty_assertions::assert_eq!(dot_state.reserve, initial_dot_state.reserve - amount_out);
+		pretty_assertions::assert_eq!(dot_state.reserve, 87641658498448);
 		pretty_assertions::assert_eq!(
 			dot_state.hub_reserve,
 			initial_dot_state.hub_reserve + extra_hub_reserve_amount
-		); // 2252.005004556944
+		);
+		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2250005004556944);
 		 // results from the Python implementation
 		 // 'DOT': {
 		 //     'liquidity': 8764.1658498447190634073012364284831242614897851272,
@@ -390,9 +400,10 @@ fn slip_fee_for_two_sells_should_provide_correct_results() {
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 935480249237376490);
 		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1126028093427888);
+		// results from the Python implementation
 		// 'HDX': {
 		//     'liquidity': 935480.24949084597958342158326875243764451892871524,
-		//     'LRNA': 1126.0265282941166111230950843235114898638691192951,
+		//     'LRNA': 1126.0280916750696011925767048309275477522271454752,
 		// 'DOT': {
 		//     'liquidity': 8775.9298249999992549419403076171875,
 		//     'LRNA': 2248.9744677552548274652352162143836503455208178988,
@@ -471,15 +482,19 @@ fn slip_fee_for_single_buy_should_provide_correct_results() {
 		);
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
-		pretty_assertions::assert_eq!(hdx_state.reserve, initial_hdx_state.reserve - amount_out); // 936327.588000000000
+		pretty_assertions::assert_eq!(hdx_state.reserve, initial_hdx_state.reserve - amount_out);
+		pretty_assertions::assert_eq!(hdx_state.reserve, 936327588000000000);
 		pretty_assertions::assert_eq!(
 			hdx_state.hub_reserve,
 			initial_hdx_state.hub_reserve + hub_amount_out + protocol_fee_amount + extra_hub_reserve_amount
-		); // 1125.002416237417
+		);
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1125002416245157);
+
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
-		pretty_assertions::assert_eq!(dot_state.reserve, initial_dot_state.reserve + amount_in); // 8771.9392216595
+		pretty_assertions::assert_eq!(dot_state.reserve, initial_dot_state.reserve + amount_in);
+		pretty_assertions::assert_eq!(dot_state.reserve, 87719392216595);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, initial_dot_state.hub_reserve - hub_amount_in);
-		// 2249.997589871925
+		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2249997589871925);
 		// results from the Python implementation
 		// 'HDX': {
 		//     'liquidity': 936327.5879999999888241291046142578125,
@@ -551,11 +566,13 @@ fn slip_fee_for_single_buy_for_lrna_should_provide_correct_results() {
 		);
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
-		pretty_assertions::assert_eq!(hdx_state.reserve, initial_hdx_state.reserve - amount_out); // 936327.588000000000
+		pretty_assertions::assert_eq!(hdx_state.reserve, initial_hdx_state.reserve - amount_out);
+		pretty_assertions::assert_eq!(hdx_state.reserve, 936327588000000000);
 		pretty_assertions::assert_eq!(
 			hdx_state.hub_reserve,
 			initial_hdx_state.hub_reserve + extra_hub_reserve_amount
-		); // 1125.002415037455
+		);
+		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1125000006004582);
 		 // results from the Python implementation
 		 // 'HDX': {
 		 //     'liquidity': 936327.5879999999888241291046142578125,
@@ -818,12 +835,12 @@ fn slip_fee_for_two_trades_in_opposite_direction_should_provide_correct_results(
 		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000 - amount_out);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2250002571543277);
 		// results from the Python implementation
-		// 'HDX':
-		//     'liquidity': 936761.28522663429641023157275690225833442187029611,
-		//     'LRNA': 1124.4841144139012804698561289965986956788231076554,
-		// 'DOT':
-		//     'liquidity': 8769.9298249999992549419403076171875,
-		//     'LRNA': 2250.5182614306387260303931719295121233113215857116,
+		// 'HDX': {
+		//     'liquidity': 936332.44316894958161330194801002734914044790143969,
+		//     'LRNA': 1124.9997370520570728077602259610781054151247386473,
+		// 'DOT': {
+		//     'liquidity': 8771.9298249999992549419403076171875,
+		//     'LRNA': 2250.002829447438674890524668463813081491713089791,
 	});
 }
 
@@ -888,6 +905,14 @@ fn slip_fee_for_sell_and_smaller_buy_should_provide_correct_results() {
 		));
 
 		// results from the Python implementation
+		// delta_ra=mpf('213.97927592840943636570491092013664187883283014133663')
+		// delta_qi=mpf('-0.25727147315567754252048239788941071526754645870203376')
+		// delta_qj=mpf('0.25705501110872270545365398505170635112617781758142905')
+		// asset_fee_total=mpf('0.0025062656641604010025062656641604010025062656641599723')
+		// lrna_fee_total=mpf('0.00012863573657783877126024119894470535763377322935101692')
+		// slip_fee_buy=mpf('0.00002923081027463343670463466045586323202747915295086526')
+		// slip_fee_sell=mpf('0.00005859550010236485886353697830379555170738873830174605')
+		// protocol_fee=mpf('0.00021646204695483706682841283770436414136864112060362844')
 		let amount_in = 213_978_916_779_951;
 		let amount_out = 10_000_000_000;
 		let hub_amount_in = 257_271_180_269;
@@ -932,6 +957,13 @@ fn slip_fee_for_sell_and_smaller_buy_should_provide_correct_results() {
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000 - amount_out);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2249744814771912);
+		// results from the Python implementation
+		// 'HDX': {
+		//     'liquidity': 936118.46279077682415783478258082703343234370723207,
+		//     'LRNA': 1125.2568922614817697239239055841673553018016593945,
+		// 'DOT': {
+		//     'liquidity': 8772.9298249999992549419403076171875,
+		//     'LRNA': 2249.7450311608638894899685328566928808625899769282,
 	});
 }
 
@@ -995,6 +1027,15 @@ fn slip_fee_for_sell_and_larger_buy_should_provide_correct_results() {
 			u128::MAX,
 		));
 
+		// results from the Python implementation
+		// delta_ra=mpf('857.09628955737522248859267151668876997230445904063994')
+		// delta_qi=mpf('-1.0297961768846184859307051487205526268387024711448435')
+		// delta_qj=mpf('1.0285726578203751990200618834191573500968883126131935')
+		// asset_fee_total=mpf('0.010025062656641604010025062656641604010025062656639889')
+		// lrna_fee_total=mpf('0.00051489808844230924296535257436027631341935123557242236')
+		// slip_fee_buy=mpf('0.00023585191480310222862882325842922160952151201062870855')
+		// slip_fee_sell=mpf('0.00047276906099787543904908946860577881887329528544438868')
+		// protocol_fee=mpf('0.0012235190642432869106432653013952767418141585316455199')
 		let amount_in = 857_096_805_976_184;
 		let amount_out = 40_000_000_000;
 		let hub_amount_in = 1_029_797_352_479;
@@ -1039,6 +1080,13 @@ fn slip_fee_for_sell_and_larger_buy_should_provide_correct_results() {
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87739298250000 - amount_out);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2250518262315085);
+		// results from the Python implementation
+		// 'HDX': {
+		//     'liquidity': 936761.57980440578994395767034142358556043717886097,
+		//     'LRNA': 1124.484367557752828780513682833336213390230503382,
+		// 'DOT': {
+		//     'liquidity': 8769.9298249999992549419403076171875,
+		//     'LRNA': 2250.5194852439794894220554156806840146661752082027,
 	});
 }
 
@@ -1126,6 +1174,15 @@ fn slip_fee_for_buy_and_smaller_sell_should_provide_correct_results() {
 			0,
 		));
 
+		// results from the Python implementation
+		// delta_ra=mpf('0.0046701787307855095974808448140633381174625216528677702')
+		// delta_qi=mpf('-0.0012015038637751654549887612388660100740953324689315007')
+		// delta_qj=mpf('0.0012009011703072006334167235748371562672056214547464161')
+		// asset_fee_total=mpf('0.000011704708598459923803210137378604857437249427701422994')
+		// lrna_fee_total=mpf('0.0000006007519318875827274943806194330050370476662344657512')
+		// slip_fee_buy=mpf('0.00000000064546573033892474214834919774982176991380120893291737')
+		// slip_fee_sell=mpf('0.0000000012960703468999198011350602230520308934341494100826877')
+		// protocol_fee=mpf('0.00000060269346796482157203766402885380688971101418508476737')
 		let amount_in = 1_000_000_000_000;
 		let amount_out = 46_701_786;
 		let hub_amount_in = 1_201_503_863;
@@ -1166,10 +1223,20 @@ fn slip_fee_for_buy_and_smaller_sell_should_provide_correct_results() {
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 936327588000000000 + amount_in);
+		pretty_assertions::assert_eq!(hdx_state.reserve, 936328588000000000);
 		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1125001215343980);
+
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87719392216595 - amount_out);
+		pretty_assertions::assert_eq!(dot_state.reserve, 87719345514809);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2249998793775356);
+		// results from the Python implementation
+        // 'HDX': {
+		//     'liquidity': 936328.5879999999888241291046142578125,
+		//     'LRNA': 1125.0012147412812313426973160369159069407203203641,
+		// 'DOT': {
+		//     'liquidity': 8771.9345514807524932788436083057101305476554141553,
+		//     'LRNA': 2249.9987943780408806280507799224573774978481751048,
 	});
 }
 
@@ -1257,6 +1324,15 @@ fn slip_fee_for_buy_and_larger_sell_should_provide_correct_results() {
 			0,
 		));
 
+		// results from the Python implementation
+		// delta_ra=mpf('0.018680595768106318674636587622958878939714784877056337')
+		// delta_qi=mpf('-0.0048060000566600345002392949020552818812992451835723951')
+		// delta_qj=mpf('0.0048035817328571563284325488392187591341441583641861894')
+		// asset_fee_total=mpf('0.000046818535759664959084302224618944558746152343050266505')
+		// lrna_fee_total=mpf('0.0000024030000283300172501196474510276409406496225917862012')
+		// slip_fee_buy=mpf('0.0000000051096152918334673324117811683098564100811589950913729')
+		// slip_fee_sell=mpf('0.000000010214159256321089294003604326796358027115635424784292')
+		// protocol_fee=mpf('0.0000024183238028781718067460628365227471550868193862060766')
 		let amount_in = 4_000_000_000_000;
 		let amount_out = 186_805_956;
 		let hub_amount_in = 4_806_000_056;
@@ -1297,9 +1373,19 @@ fn slip_fee_for_buy_and_larger_sell_should_provide_correct_results() {
 
 		let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 		pretty_assertions::assert_eq!(hdx_state.reserve, 936327588000000000 + amount_in);
+		pretty_assertions::assert_eq!(hdx_state.reserve, 936331588000000000);
 		pretty_assertions::assert_eq!(hdx_state.hub_reserve, 1124997612663449);
+
 		let dot_state = Omnipool::load_asset_state(DOT).unwrap();
 		pretty_assertions::assert_eq!(dot_state.reserve, 87719392216595 - amount_out);
+		pretty_assertions::assert_eq!(dot_state.reserve, 87719205410639);
 		pretty_assertions::assert_eq!(dot_state.hub_reserve, 2250002405462612);
+		// results from the Python implementation
+		// 'HDX': {
+		//     'liquidity': 936331.5879999999888241291046142578125,
+		//     'LRNA': 1124.9976102450883464736520655032527176689131164514,
+		// 'DOT': {
+		//     'liquidity': 8771.9205410637151724697664525629012350068331618921,
+		//     'LRNA': 2250.0024078809480472863887788436355979901783831907,
 	});
 }
