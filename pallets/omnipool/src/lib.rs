@@ -71,6 +71,7 @@
 //!
 //! * `add_token` - Adds token to the pool. Initial liquidity must be transffered to pool account prior to calling add_token.
 //! * `add_liquidity` - Adds liquidity of selected asset to the pool. Mints corresponding position NFT.
+//! * `add_all_liquidity` - Add all liquidity of selected asset to the pool. Mints corresponding position NFT.
 //! * `remove_liquidity` - Removes liquidity of selected position from the pool. Partial withdrawals are allowed.
 //! * `remove_all_liquidity` - Removes all liquidity from a selected position.
 //! * `sell` - Trades an asset in for asset out by selling given amount of asset in.
@@ -624,6 +625,44 @@ pub mod pallet {
 			amount: Balance,
 			min_shares_limit: Balance,
 		) -> DispatchResult {
+			let _ = Self::do_add_liquidity(origin, asset, amount, min_shares_limit)?;
+
+			Ok(())
+		}
+
+		/// Add all available liquidity of asset `asset` to Omnipool.
+		///
+		/// Deposits the caller's entire free balance of `asset`. Equivalent to calling
+		/// `do_add_liquidity` with `amount = free_balance(asset)`.
+		///
+		/// Asset's tradable state must contain ADD_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
+		///
+		/// NFT is minted using NTFHandler which implements non-fungibles traits from frame_support.
+		///
+		/// Asset weight cap must be respected, otherwise `AssetWeightExceeded` error is returned.
+		/// Asset weight is ratio between new HubAsset reserve and total reserve of Hub asset in Omnipool.
+		///
+		/// Fails if price difference between spot price and oracle price is higher than allowed by `PriceBarrier`.
+		///
+		/// Parameters:
+		/// - `asset`: The identifier of the asset to add. Must already be in the pool.
+		/// - `min_shares_limit`: The minimum amount of shares the caller expects to receive in the position.
+		///
+		/// Emits `LiquidityAdded` event when successful.
+		///
+		#[pallet::call_index(16)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_all_liquidity()
+		.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()
+		.saturating_add(T::ExternalPriceOracle::get_price_weight()))
+		)]
+		#[transactional]
+		pub fn add_all_liquidity(origin: OriginFor<T>, asset: T::AssetId, min_shares_limit: Balance) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+
+			let amount = T::Currency::free_balance(asset, &who);
+
+			ensure!(amount > Balance::zero(), Error::<T>::InsufficientBalance);
+
 			let _ = Self::do_add_liquidity(origin, asset, amount, min_shares_limit)?;
 
 			Ok(())

@@ -193,6 +193,41 @@ runtime_benchmarks! {
 		assert!(hub_issuance_after < hub_issuance);
 	}
 
+	add_all_liquidity {
+		init()?;
+
+		let acc = Omnipool::protocol_account();
+		// Register new asset in asset registry
+		let token_id = register_asset(b"FCK".to_vec(), Balance::one()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		// Create account for token provider and set balance
+		let owner: AccountId = account("owner", 0, 1);
+
+		let token_price = FixedU128::from((1,5));
+		let token_amount = 200_000_000_000_000u128;
+
+		update_balance(token_id, &acc, token_amount);
+
+		// Add the token to the pool
+		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner)?;
+
+		// LP balance must stay within the circuit-breaker's per-block add-liquidity limit
+		// (5% of pool reserve). Pool reserve = token_amount = 200_000_000_000_000,
+		// 5% = 10_000_000_000_000. We use 5_000_000_000_000 (~2.5% of pool).
+		let lp_provider: AccountId = account("provider", 1, 1);
+		let lp_total = 5_000_000_000_000u128;
+		update_balance(token_id, &lp_provider, lp_total);
+
+		let current_position_id = Omnipool::next_position_id();
+
+		run_to_block(10);
+		update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
+
+	}: { Omnipool::add_all_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, Balance::zero())? }
+	verify {
+		assert!(Omnipool::positions(current_position_id).is_some());
+	}
+
 	remove_all_liquidity {
 		init()?;
 		let acc = Omnipool::protocol_account();

@@ -27,6 +27,7 @@ mod insufficient_assets_ed;
 mod liquidation;
 mod multi_payment;
 mod non_native_fee;
+mod omnipool_add_all_liquidity;
 mod omnipool_fixed_fees;
 mod omnipool_h2o_routing;
 mod omnipool_init;

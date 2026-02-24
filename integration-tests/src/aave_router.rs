@@ -1536,7 +1536,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
 	})
 }
 
-fn set_ed(asset_id: AssetId, ed: u128) {
+pub fn set_ed(asset_id: AssetId, ed: u128) {
 	AssetRegistry::update(
 		hydradx_runtime::RuntimeOrigin::root(),
 		asset_id,
