@@ -220,7 +220,6 @@ fn add_all_liquidity_position_matches_explicit_add_liquidity_with_limit() {
 fn add_all_liquidity_should_work_with_atoken() {
 	// with_atoken loads a live EVM snapshot and gives ALICE BAG (100_000 * ONE) ADOT.
 	with_atoken(|| {
-
 		// add_token requires ed > 0 (it checks amount >= ed * 20 as minimum_pool_liquidity).
 		// ADOT's registered ED in the snapshot is 0, so we must set it to 1 first.
 		set_ed(ADOT, 1);
@@ -303,8 +302,7 @@ fn add_all_liquidity_should_work_with_atoken() {
 		));
 
 		// Pool reserve grew by at least alice_balance_before (±1 atoken rounding on receive).
-		let pool_state =
-			pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_asset_state(ADOT).unwrap();
+		let pool_state = pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_asset_state(ADOT).unwrap();
 		assert!(
 			pool_state.reserve >= initial_liquidity + alice_balance_before,
 			"Pool reserve should have grown by at least alice_balance_before (atoken rounding may add +1)",
