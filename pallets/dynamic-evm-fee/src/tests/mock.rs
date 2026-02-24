@@ -242,6 +242,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = ();
 	type GetNativeCurrencyId = HdxAssetId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 

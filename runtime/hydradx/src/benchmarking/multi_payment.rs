@@ -44,6 +44,7 @@ use sp_runtime::FixedU128;
 type MultiPaymentPallet<T> = pallet_transaction_multi_payment::Pallet<T>;
 type XykPallet<T> = pallet_xyk::Pallet<T>;
 type Router<T> = pallet_route_executor::Pallet<T>;
+use crate::circuit_breaker::IgnoreWithdrawFuse;
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::Trade;
 use hydradx_traits::OraclePeriod;
@@ -227,7 +228,7 @@ runtime_benchmarks! {
 		let tip = 0;
 		let mut tx_result : Result<Option<PaymentInfo<Balance, pallet_transaction_multi_payment::AssetIdOf<Runtime>, Price>>, TransactionValidityError> = Err(TransactionValidityError::Invalid(InvalidTransaction::Payment));
 	}: {
-		tx_result = <TransferFees<Runtime, Currencies, DepositAll<Runtime>, TreasuryAccount> as OnChargeTransaction<Runtime>>::withdraw_fee(&from, &call, &info, fee, tip);
+		tx_result = <TransferFees<Runtime, Currencies, DepositAll<Runtime>, TreasuryAccount, IgnoreWithdrawFuse<Runtime>> as OnChargeTransaction<Runtime>>::withdraw_fee(&from, &call, &info, fee, tip);
 	}
 	verify {
 		assert!(tx_result.is_ok());
