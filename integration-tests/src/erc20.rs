@@ -1,4 +1,4 @@
-use crate::evm::MockHandle;
+use crate::evm::{init_omnipool_with_oracle_for_block_10, MockHandle};
 use crate::polkadot_test_net::*;
 use crate::utils::contracts::*;
 use ethabi::ethereum_types::BigEndianHash;
@@ -15,10 +15,10 @@ use sp_runtime::traits::Convert;
 use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoder;
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::{Erc20Currency, EvmNonceProvider as AccountNonce, Executor, Function};
-use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::RuntimeCall;
 use hydradx_runtime::RuntimeOrigin;
 use hydradx_runtime::{AssetLocation, Currencies};
+use hydradx_runtime::{AssetRegistry, DOT_ASSET_LOCATION};
 use hydradx_runtime::{EVMAccounts, Runtime};
 use hydradx_traits::evm::CallContext;
 use hydradx_traits::evm::ERC20;
@@ -440,9 +440,22 @@ fn deposit_fails_when_unsufficient_funds_in_hold() {
 fn withdraw() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		// Arrange
 		let contract = deploy_token_contract();
 		let asset = bind_erc20(contract);
 
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
+		assert_ok!(hydradx_runtime::XYK::create_pool(
+			RuntimeOrigin::signed(ALICE.into()),
+			asset,
+			100 * UNITS,
+			DOT,
+			100 * UNITS,
+		));
+		hydradx_run_to_next_block();
+
+		// Act
 		assert_ok!(Currencies::withdraw(
 			asset,
 			&ALICE.into(),
@@ -456,8 +469,22 @@ fn withdraw() {
 fn deposit() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		// Arrange
 		let contract = deploy_token_contract();
 		let asset = bind_erc20(contract);
+
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
+		assert_ok!(hydradx_runtime::XYK::create_pool(
+			RuntimeOrigin::signed(ALICE.into()),
+			asset,
+			100 * UNITS,
+			DOT,
+			100 * UNITS,
+		));
+		hydradx_run_to_next_block();
+
+		// Act
 		assert_ok!(Currencies::withdraw(
 			asset,
 			&ALICE.into(),
