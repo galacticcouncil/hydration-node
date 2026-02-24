@@ -220,7 +220,7 @@ fn slip_fee_for_single_sell_lrna_should_provide_correct_results() {
 		let hub_amount_in = 0;
 		let hub_amount_out = 0;
 		let asset_fee_amount = 194_585_844;
-		let protocol_fee_amount = 0;
+		let protocol_fee_amount = 1_776_198_934;
 		let extra_hub_reserve_amount = 5_004_444_444;
 
 		expect_hydra_events(vec![pallet_omnipool::Event::SellExecuted {
@@ -525,7 +525,7 @@ fn slip_fee_for_single_buy_for_lrna_should_provide_correct_results() {
 		let hub_amount_in = 0;
 		let hub_amount_out = 0;
 		let asset_fee_amount = 5_012_531_329;
-		let protocol_fee_amount = 0;
+		let protocol_fee_amount = 5_158;
 		let extra_hub_reserve_amount = 6_022_582;
 
 		expect_hydra_events(vec![pallet_omnipool::Event::BuyExecuted {

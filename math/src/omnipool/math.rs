@@ -107,10 +107,9 @@ pub fn calculate_sell_hub_state_changes(
 	let delta_hub_reserve_out = hub_asset_amount;
 
 	let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve_out)?;
+	let slip_fee_buy_amount = slip_fee_buy.checked_mul_int(delta_hub_reserve_out)?;
 
-	let delta_hub_reserve_net = FixedU128::one()
-		.checked_sub(&slip_fee_buy)?
-		.checked_mul_int(delta_hub_reserve_out)?;
+	let delta_hub_reserve_net = delta_hub_reserve_out.checked_sub(slip_fee_buy_amount)?;
 
 	let (out_reserve_hp, out_hub_reserve_hp, delta_hub_reserve_net_hp) = to_u256!(
 		asset_out_state.reserve,
@@ -148,6 +147,7 @@ pub fn calculate_sell_hub_state_changes(
 		},
 		fee: TradeFee {
 			asset_fee: asset_fee_amount,
+			protocol_fee: slip_fee_buy_amount,
 			..Default::default()
 		},
 	})
@@ -198,6 +198,8 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 		slip_fee_config.invert_buy_side_slip_fee(delta_hub_reserve_out_net)?
 	};
 
+	let slip_fee_buy = slip_fee_config.calculate_slip_fee_buy(delta_hub_reserve)?;
+	let slip_fee_buy_amount = slip_fee_buy.checked_mul_int(delta_hub_reserve)?;
 	let asset_fee_amount = calculate_fee_amount_for_buy(asset_fee, asset_out_amount);
 
 	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
@@ -223,6 +225,7 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 		},
 		fee: TradeFee {
 			asset_fee: asset_fee_amount,
+			protocol_fee: slip_fee_buy_amount,
 			..Default::default()
 		},
 	})
