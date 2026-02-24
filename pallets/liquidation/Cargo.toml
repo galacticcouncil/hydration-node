@@ -1,6 +1,6 @@
 [package]
 name = "pallet-liquidation"
-version = "2.3.0"
+version = "2.3.1"
 description = "A pallet for money market liquidations"
 authors = ["GalacticCouncil"]
 edition = "2021"
