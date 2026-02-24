@@ -522,10 +522,7 @@ fn buy_for_hub_asset_works() {
 
 			assert_eq!(Tokens::free_balance(HDX, &Omnipool::protocol_account()), NATIVE_AMOUNT);
 			assert_eq!(Tokens::free_balance(2, &Omnipool::protocol_account()), 1_000 * ONE);
-			assert_eq!(
-				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
-				13_360 * ONE
-			);
+			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_360 * ONE);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2_400 * ONE);
 			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), 1_950 * ONE);
 
