@@ -826,7 +826,7 @@ fn calculate_sell_hub_asset_with_slip_fee_should_work_when_correct_input_provide
 		state_changes.fee,
 		TradeFee {
 			asset_fee: 0,
-			protocol_fee: 0,
+			protocol_fee: 666666666666,
 			burned_protocol_fee: 0,
 		}
 	);

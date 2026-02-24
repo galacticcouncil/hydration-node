@@ -2410,7 +2410,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		//Assert
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
-			1000000184023703,
+			1000000184187279,
 		);
 
 		//NOTE:	omnipool position should not be unlocked because deposit wasn't destroyed(it has 1
@@ -2647,7 +2647,7 @@ fn withdraw_shares_should_send_reward_to_user_when_reward_is_less_than_ed_but_us
 			yield_farm_2_id
 		));
 
-		let expected_claimed_amount = 184_023_703u128;
+		let expected_claimed_amount = 184_187_279u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			1000 * UNITS + expected_claimed_amount
@@ -2759,7 +2759,7 @@ fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_an
 
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get()),
-			1000000184023703,
+			1000000184187279,
 		);
 
 		expect_reward_claimed_events(vec![]);
@@ -3118,7 +3118,7 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 		//Assert
 		let global_farm = hydradx_runtime::OmnipoolWarehouseLM::global_farm(global_farm_1_id).unwrap();
 		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
-		assert_eq!(price_adjustment, FixedU128::from_inner(830_815305689849957936u128));
+		assert_eq!(price_adjustment, FixedU128::from_inner(831_553806541236537197u128));
 	});
 }
 
@@ -3222,13 +3222,13 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(bond_id, &CHARLIE.into()),
-			2000622849461,
+			2000623403103,
 		);
 
 		// NOTE: make sure oracle's price adjustment was used.
 		let global_farm = hydradx_runtime::OmnipoolWarehouseLM::global_farm(global_farm_1_id).unwrap();
 		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
-		assert_eq!(price_adjustment, FixedU128::from_inner(830_815305689849957936u128));
+		assert_eq!(price_adjustment, FixedU128::from_inner(831_553806541236537197u128));
 	});
 }
 
@@ -3342,7 +3342,7 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			charlie_new_hdx_balance_after_first_claim > charlie_hdx_balance_0,
 			"Charlie's balance should be increased"
 		);
-		assert_eq!(charlie_new_hdx_balance_after_first_claim, 1000030740467093);
+		assert_eq!(charlie_new_hdx_balance_after_first_claim, 1000030767791892);
 
 		//Act 2 - claim rewards for differnt yield-farm-entry in the same period should work.
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
@@ -3358,7 +3358,7 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			charlie_new_hdx_balance_after_2nd_claim > charlie_new_hdx_balance_after_first_claim,
 			"Charlie's balance should be increased"
 		);
-		assert_eq!(charlie_new_hdx_balance_after_2nd_claim, 1000031130625358);
+		assert_eq!(charlie_new_hdx_balance_after_2nd_claim, 1000031158296964);
 	});
 }
 

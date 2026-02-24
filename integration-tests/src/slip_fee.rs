@@ -249,7 +249,7 @@ fn slip_fee_for_single_sell_lrna_should_provide_correct_results() {
 		pretty_assertions::assert_eq!(dot_state.reserve, initial_dot_state.reserve - amount_out); // 8764.1658498448
 		pretty_assertions::assert_eq!(
 			dot_state.hub_reserve,
-			initial_dot_state.hub_reserve + amount_in + extra_hub_reserve_amount
+			initial_dot_state.hub_reserve + extra_hub_reserve_amount
 		); // 2252.005004556944
 		 // results from the Python implementation
 		 // 'DOT': {
@@ -554,7 +554,7 @@ fn slip_fee_for_single_buy_for_lrna_should_provide_correct_results() {
 		pretty_assertions::assert_eq!(hdx_state.reserve, initial_hdx_state.reserve - amount_out); // 936327.588000000000
 		pretty_assertions::assert_eq!(
 			hdx_state.hub_reserve,
-			initial_hdx_state.hub_reserve + amount_in + extra_hub_reserve_amount
+			initial_hdx_state.hub_reserve + extra_hub_reserve_amount
 		); // 1125.002415037455
 		 // results from the Python implementation
 		 // 'HDX': {

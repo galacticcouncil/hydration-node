@@ -7,6 +7,9 @@ else
     sha256sum := sha256sum
 endif
 
+# Fail on warnings
+export RUSTFLAGS := -D warnings
+
 .PHONY: build
 build:
 	$(cargo) build --release --locked
@@ -68,16 +71,16 @@ clean:
 	$(cargo) clean
 
 .PHONY: docker
-docker:
+docker: build
 	docker build -t hydra-dx .
 	docker tag hydra-dx galacticcouncil/hydra-dx:latest
 
 checksum:
 	$(sha256sum) target/release/hydradx > target/release/hydradx.sha256
-	cp target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm target/release/
+	cp runtime/hydradx/target/srtool/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm target/release/
 	$(sha256sum) target/release/hydradx_runtime.compact.compressed.wasm > target/release/hydradx_runtime.compact.compressed.wasm.sha256
 
-release: build-release checksum
+release: build srbuild checksum
 
 all: clippy build-benchmarks test-benchmarks test build checksum
 
@@ -85,4 +88,7 @@ chopstics: release
 	npx @acala-network/chopsticks xcm --parachain=launch-configs/chopsticks/hydradx.yml --parachain=launch-configs/chopsticks/assethub.yml
 
 srbuild:
-	srtool -e docker build -p "hydradx-runtime" --app --image docker.io/paritytech/srtool --build-opts="--features=metadata-hash" --root
+	docker run --rm --user $(id -u):$(id -g) -v "$(CURDIR):/build" -e PACKAGE=hydradx-runtime -e RUNTIME_DIR=runtime/hydradx -e BUILD_OPTS="--features=metadata-hash" paritytech/srtool:1.84.1 build --app
+
+check-papi-problems: checksum
+	npx @polkadot-api/check-runtime problems wss://rpc.hydradx.cloud --wasm target/release/hydradx_runtime.compact.compressed.wasm

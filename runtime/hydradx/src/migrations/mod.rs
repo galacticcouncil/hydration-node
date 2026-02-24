@@ -13,15 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::migrations::asset_registry::MigrateAssetRegistryToXcmV5;
 use crate::Runtime;
 
-mod asset_registry;
-
 // New migrations which need to be cleaned up after every Runtime upgrade
-pub type UnreleasedSingleBlockMigrations = MigrateAssetRegistryToXcmV5<Runtime>;
+pub type UnreleasedSingleBlockMigrations = ();
 
 // These migrations can run on every runtime upgrade
 pub type PermanentSingleBlockMigrations = pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>;
 
-pub type Migrations = (PermanentSingleBlockMigrations, UnreleasedSingleBlockMigrations);
+pub type SingleBlockMigrationsList = (PermanentSingleBlockMigrations, UnreleasedSingleBlockMigrations);
+
+// Multi-block migrations executed by pallet-migrations
+#[cfg(not(feature = "runtime-benchmarks"))]
+pub type MultiBlockMigrationsList = ();

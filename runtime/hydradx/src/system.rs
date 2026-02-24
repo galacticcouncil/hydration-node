@@ -29,8 +29,10 @@ use primitives::constants::{
 	time::{DAYS, HOURS, SLOT_DURATION},
 };
 
+use crate::circuit_breaker::IgnoreWithdrawFuse;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::cmp::Ordering;
+use frame_support::migrations::FailedMigrationHandling;
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
@@ -221,12 +223,45 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type SingleBlockMigrations = ();
-	type MultiBlockMigrator = ();
+	type SingleBlockMigrations = migrations::SingleBlockMigrationsList;
+	type MultiBlockMigrator = MultiBlockMigrations;
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
 	type ExtensionsWeightInfo = weights::frame_system_extensions::HydraWeight<Runtime>;
+}
+
+parameter_types! {
+	pub MaxServiceWeight: Weight = NORMAL_DISPATCH_RATIO * BlockWeights::get().max_block;
+}
+
+impl pallet_migrations::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Migrations = migrations::MultiBlockMigrationsList;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
+	type CursorMaxLen = ConstU32<65_536>;
+	type IdentifierMaxLen = ConstU32<256>;
+	type MigrationStatusHandler = ();
+	type FailedMigrationHandler = LogErrorAndForceUnstuck;
+	type MaxServiceWeight = MaxServiceWeight;
+	type WeightInfo = weights::pallet_migrations::HydraWeight<Runtime>;
+}
+
+pub struct LogErrorAndForceUnstuck;
+impl frame_support::migrations::FailedMigrationHandler for LogErrorAndForceUnstuck {
+	fn failed(migration: Option<u32>) -> FailedMigrationHandling {
+		log::error!(
+			target: "runtime::migrations",
+			"Migration {:?} failed - halting all migrations and resuming chain",
+			migration
+		);
+
+		// Clear the migration cursor entirely. Transactions resume, remaining migrations are
+		// skipped. State may be inconsistent.
+		FailedMigrationHandling::ForceUnstuck
+	}
 }
 
 parameter_types! {
@@ -622,7 +657,8 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = TransferFees<Runtime, Currencies, DepositAll<Runtime>, TreasuryAccount>;
+	type OnChargeTransaction =
+		TransferFees<Runtime, Currencies, DepositAll<Runtime>, TreasuryAccount, IgnoreWithdrawFuse<Runtime>>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
@@ -632,8 +668,7 @@ impl pallet_transaction_payment::Config for Runtime {
 
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AcceptedCurrencyOrigin =
-		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type AcceptedCurrencyOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Currencies = Currencies;
 	type RouteProvider = Router;
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
@@ -687,7 +722,7 @@ impl pallet_collator_rewards::Config for Runtime {
 
 impl pallet_transaction_pause::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type WeightInfo = weights::pallet_transaction_pause::HydraWeight<Runtime>;
 }
 

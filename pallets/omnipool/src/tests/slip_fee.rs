@@ -150,15 +150,15 @@ fn sell_hub_works() {
 				min_limit
 			));
 
-			let received = 71_428_571_428_571;
+			let received = 71_428_571_428_572;
 
 			assert_eq!(Tokens::free_balance(HDX, &Omnipool::protocol_account()), NATIVE_AMOUNT);
 			assert_eq!(Tokens::free_balance(2, &Omnipool::protocol_account()), 1_000 * ONE);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_410 * ONE);
+			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13_360 * ONE);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2_400 * ONE);
 			assert_eq!(
 				Tokens::free_balance(200, &Omnipool::protocol_account()),
-				1_928_571_428_571_429
+				1_928_571_428_571_428
 			);
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 3_000 * ONE);
@@ -207,8 +207,8 @@ fn sell_hub_works() {
 			assert_asset_state!(
 				200,
 				AssetReserveState {
-					reserve: 1_928_571_428_571_429,
-					hub_reserve: 1_350 * ONE,
+					reserve: 1_928_571_428_571_428,
+					hub_reserve: 1_300 * ONE,
 					shares: 2_000 * ONE,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
@@ -216,18 +216,18 @@ fn sell_hub_works() {
 				}
 			);
 
-			assert_pool_state!(13_410 * ONE, 26_820 * ONE);
+			assert_pool_state!(13_360 * ONE, 26_820 * ONE);
 
 			expect_events(vec![Event::SellExecuted {
 				who: LP3,
 				asset_in: LRNA,
 				asset_out: 200,
 				amount_in: 50 * ONE,
-				amount_out: 71428571428571,
+				amount_out: 71428571428572,
 				hub_amount_in: 0,
 				hub_amount_out: 0,
 				asset_fee_amount: 0,
-				protocol_fee_amount: 0,
+				protocol_fee_amount: 1851851851851,
 			}
 			.into()]);
 		});
@@ -524,7 +524,7 @@ fn buy_for_hub_asset_works() {
 			assert_eq!(Tokens::free_balance(2, &Omnipool::protocol_account()), 1_000 * ONE);
 			assert_eq!(
 				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
-				13_394_210_526_315_790
+				13_360 * ONE
 			);
 			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2_400 * ONE);
 			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), 1_950 * ONE);
@@ -576,7 +576,7 @@ fn buy_for_hub_asset_works() {
 				200,
 				AssetReserveState {
 					reserve: 1_950 * ONE,
-					hub_reserve: 1_300 * ONE + sold,
+					hub_reserve: 1_300 * ONE,
 					shares: 2_000 * ONE,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
@@ -584,7 +584,7 @@ fn buy_for_hub_asset_works() {
 				}
 			);
 
-			assert_pool_state!(13_360 * ONE + sold, 26_786_666_666_666_668);
+			assert_pool_state!(13_360 * ONE, 26_786_666_666_666_668);
 
 			expect_events(vec![Event::BuyExecuted {
 				who: LP3,
@@ -595,7 +595,7 @@ fn buy_for_hub_asset_works() {
 				hub_amount_in: 0,
 				hub_amount_out: 0,
 				asset_fee_amount: 0,
-				protocol_fee_amount: 0,
+				protocol_fee_amount: 877192982456,
 			}
 			.into()]);
 		});
