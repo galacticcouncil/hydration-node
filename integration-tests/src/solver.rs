@@ -262,7 +262,7 @@ fn stableswap_intent() {
 					asset_in: asset_a,
 					asset_out: asset_b,
 					amount_in,
-					amount_out: 10_000_000,
+					amount_out: 10_000_000_000_000_000u128,
 					swap_type: ice_support::SwapType::ExactIn,
 					partial: false,
 				}),
@@ -560,7 +560,7 @@ fn solver_mixed_sell_and_buy_intents() {
 	let sell_hdx_amount = 100_000_000_000_000u128;
 	let sell_bnc_amount = 100_000_000_000u128;
 	let buy_hdx_amount = 100_000_000_000_000u128;
-	let buy_bnc_amount = 20_000_000_000u128;
+	let buy_bnc_amount = 68_795_189_840u128;
 	let max_pay = 10_000_000_000_000_000u128;
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
@@ -572,11 +572,11 @@ fn solver_mixed_sell_and_buy_intents() {
 		.endow_account(charlie.clone(), bnc, max_pay)
 		.endow_account(dave.clone(), hdx, max_pay)
 		.endow_account(dave.clone(), bnc, max_pay)
-		.submit_sell_intent(alice.clone(), hdx, bnc, sell_hdx_amount, 68_795_189_840u128, 10)
+		.submit_sell_intent(alice.clone(), hdx, bnc, sell_hdx_amount, buy_bnc_amount, 10)
 		.submit_buy_intent(bob.clone(), bnc, hdx, max_pay, buy_hdx_amount, 10)
 		.submit_sell_intent(charlie.clone(), bnc, hdx, sell_bnc_amount, 1_000_000_000_000u128, 10)
 		.submit_buy_intent(dave.clone(), hdx, bnc, max_pay, buy_bnc_amount, 10)
-		.submit_sell_intent(alice.clone(), hdx, bnc, sell_hdx_amount, 68_795_189_840u128, 10)
+		.submit_sell_intent(alice.clone(), hdx, bnc, sell_hdx_amount, buy_bnc_amount, 10)
 		.execute(|| {
 			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
 			let alice_bnc_before = Currencies::total_balance(bnc, &alice);

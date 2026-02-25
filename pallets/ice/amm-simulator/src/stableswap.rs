@@ -267,15 +267,28 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return Ok(Ratio::new(shares_out, test_amount));
 		}
 
+		let mut decimals_in = 0;
+		let mut decimals_out = 0;
 		let assets_with_reserves: Vec<(u32, AssetReserve)> = pool_snapshot
 			.assets
 			.iter()
 			.zip(pool_snapshot.reserves.iter())
-			.map(|(id, r)| (*id, *r))
+			.map(|(id, r)| {
+				if *id == asset_in {
+					decimals_in = r.decimals
+				}
+
+				if *id == asset_out {
+					decimals_out = r.decimals
+				}
+
+				(*id, *r)
+			})
 			.collect();
 
 		let pegs: Vec<(Balance, Balance)> = pool_snapshot.pegs.to_vec();
 
+		//NOTE: calculate_spot_price returns [in/out] so we have to do 1/spot_price
 		let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 			pool_id,
 			assets_with_reserves,
@@ -287,7 +300,24 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			Some(pool_snapshot.block_fee),
 			&pegs,
 		)
+		.ok_or(SimulatorError::MathError)?
+		.reciprocal()
 		.ok_or(SimulatorError::MathError)?;
+
+		//NOTE: spot price between 2 assets is normalized to 18 dec. so we have to demormalize it
+		if decimals_in > decimals_out {
+			let m = 10u128.pow((decimals_in - decimals_out) as u32);
+			return Ok(Ratio::new(
+				spot_price.into_inner(),
+				sp_runtime::FixedU128::DIV.saturating_mul(m),
+			));
+		} else if decimals_out > decimals_in {
+			let m = 10u128.pow((decimals_out - decimals_in) as u32);
+			return Ok(Ratio::new(
+				spot_price.into_inner().saturating_mul(m),
+				sp_runtime::FixedU128::DIV,
+			));
+		}
 
 		Ok(Ratio::new(spot_price.into_inner(), sp_runtime::FixedU128::DIV))
 	}
