@@ -448,13 +448,13 @@ impl<T: Config> Pallet<T> {
 	/// Function validates intent's `amount_in` and `amount_out` values are bigger than existential
 	/// deposit.
 	fn validate_intent_amounts(intent: &IntentData) -> Result<(), DispatchError> {
-		let in_ed =
+		let ed_in =
 			<T as Config>::RegistryHandler::existential_deposit(intent.asset_in()).ok_or(Error::<T>::AssetNotFound)?;
-		let out_ed =
+		let ed_out =
 			<T as Config>::RegistryHandler::existential_deposit(intent.asset_out()).ok_or(Error::<T>::AssetNotFound)?;
 
-		ensure!(intent.amount_in() >= in_ed, Error::<T>::InvalidAmount);
-		ensure!(intent.amount_out() >= out_ed, Error::<T>::InvalidAmount);
+		ensure!(intent.amount_in() >= ed_in, Error::<T>::InvalidAmount);
+		ensure!(intent.amount_out() >= ed_out, Error::<T>::InvalidAmount);
 
 		Ok(())
 	}

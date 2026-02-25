@@ -374,14 +374,14 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::InvalidDeadline
 		);
 
-		let in_ed = T::RegistryHandler::existential_deposit(intent.data.asset_in()).ok_or(Error::<T>::AssetNotFound)?;
-		let out_ed =
+		let ed_in = T::RegistryHandler::existential_deposit(intent.data.asset_in()).ok_or(Error::<T>::AssetNotFound)?;
+		let ed_out =
 			T::RegistryHandler::existential_deposit(intent.data.asset_out()).ok_or(Error::<T>::AssetNotFound)?;
 
 		match intent.data {
 			IntentData::Swap(ref data) => {
-				ensure!(data.amount_in >= in_ed, Error::<T>::InvalidIntent);
-				ensure!(data.amount_out >= out_ed, Error::<T>::InvalidIntent);
+				ensure!(data.amount_in >= ed_in, Error::<T>::InvalidIntent);
+				ensure!(data.amount_out >= ed_out, Error::<T>::InvalidIntent);
 				ensure!(data.asset_in != data.asset_out, Error::<T>::InvalidIntent);
 				ensure!(data.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
 
