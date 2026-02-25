@@ -952,6 +952,7 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
 			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
 			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
+			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];
 		errors.contains(t)
 	}
