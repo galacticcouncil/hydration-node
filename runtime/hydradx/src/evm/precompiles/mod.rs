@@ -99,6 +99,7 @@ pub const BN_ADD: H160 = H160(hex!("0000000000000000000000000000000000000006"));
 pub const BN_MUL: H160 = H160(hex!("0000000000000000000000000000000000000007"));
 pub const BN_PAIRING: H160 = H160(hex!("0000000000000000000000000000000000000008"));
 pub const BLAKE2F: H160 = H160(hex!("0000000000000000000000000000000000000009"));
+pub const LOCK_MANAGER: H160 = H160(hex!("0000000000000000000000000000000000000806"));
 pub const CALLPERMIT: H160 = H160(hex!("000000000000000000000000000000000000080a"));
 pub const FLASH_LOAN_RECEIVER: H160 = H160(hex!("000000000000000000000000000000000000090a"));
 
@@ -127,7 +128,8 @@ where
 		+ pallet_evm_accounts::Config
 		+ pallet_stableswap::Config
 		+ pallet_liquidation::Config
-		+ pallet_hsm::Config,
+		+ pallet_hsm::Config
+		+ pallet_gigahdx_voting::Config,
 	<R as frame_system::Config>::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
 	<<R as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<pallet_evm::AccountIdOf<R>>>,
 	MultiCurrencyPrecompile<R>: Precompile,
@@ -176,6 +178,8 @@ where
 				R,
 				AllowedFlashLoanCallers,
 			>::execute(handle))
+		} else if address == LOCK_MANAGER {
+			Some(pallet_evm_precompile_lock_manager::LockManagerPrecompile::<R>::execute(handle))
 		} else if address == DISPATCH_ADDR {
 			let caller_account = R::AddressMapping::into_account_id(handle.context().caller);
 			let original_nonce = frame_system::Pallet::<R>::account_nonce(caller_account.clone());

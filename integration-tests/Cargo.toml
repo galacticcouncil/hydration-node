@@ -79,6 +79,7 @@ orml-unknown-tokens = { workspace = true }
 
 precompile-utils = { workspace = true }
 pallet-evm-precompile-call-permit = { workspace = true }
+pallet-evm-precompile-lock-manager = { workspace = true }
 
 # Evm
 pallet-evm = { workspace = true }

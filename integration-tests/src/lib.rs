@@ -25,6 +25,7 @@ mod hsm;
 //mod hyperbridge;
 mod gigahdx_voting;
 mod insufficient_assets_ed;
+mod lock_manager;
 mod liquidation;
 mod multi_payment;
 mod non_native_fee;

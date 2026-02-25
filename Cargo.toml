@@ -45,6 +45,7 @@ members = [
     'pallets/liquidation',
     'precompiles/call-permit',
     'precompiles/flash-loan',
+    'precompiles/lock-manager',
     'runtime-mock',
     'pallets/broadcast',
     'liquidation-worker-support',
@@ -178,6 +179,7 @@ integration-tests = { path = "integration-tests", default-features = false }
 
 pallet-evm-precompile-call-permit = { path = "precompiles/call-permit", default-features = false }
 pallet-evm-precompile-flash-loan = { path = "precompiles/flash-loan", default-features = false }
+pallet-evm-precompile-lock-manager = { path = "precompiles/lock-manager", default-features = false }
 precompile-utils = { path = "precompiles/utils", default-features = false }
 
 # Frame

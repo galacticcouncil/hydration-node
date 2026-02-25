@@ -6246,6 +6246,7 @@ dependencies = [
  "pallet-evm-precompile-call-permit",
  "pallet-evm-precompile-dispatch",
  "pallet-evm-precompile-flash-loan",
+ "pallet-evm-precompile-lock-manager",
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
  "pallet-fee-processor",
@@ -10349,6 +10350,25 @@ dependencies = [
  "parity-scale-codec",
  "precompile-utils",
  "primitives",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-evm-precompile-lock-manager"
+version = "1.0.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "log",
+ "num_enum",
+ "pallet-evm",
+ "pallet-gigahdx-voting",
+ "parity-scale-codec",
+ "precompile-utils",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -15425,6 +15445,7 @@ dependencies = [
  "pallet-evm",
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
+ "pallet-evm-precompile-lock-manager",
  "pallet-fee-processor",
  "pallet-gigahdx",
  "pallet-gigahdx-voting",
