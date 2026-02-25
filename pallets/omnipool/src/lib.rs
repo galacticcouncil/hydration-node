@@ -1550,7 +1550,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::set_slip_fee())]
 		#[transactional]
 		pub fn set_slip_fee(origin: OriginFor<T>, slip_fee: Option<SlipFeeConfig>) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
+			T::UpdateTradabilityOrigin::ensure_origin(origin)?;
 
 			if let Some(ref config) = slip_fee {
 				ensure!(
