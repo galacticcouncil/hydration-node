@@ -821,30 +821,13 @@ where
 
 impl<T, MC, DF, FR, WF> TransferFees<T, MC, DF, FR, WF>
 where
-	T: Config + pallet_utility::Config,
+	T: Config,
 	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
 	AssetIdOf<T>: Into<MC::CurrencyId>,
-	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
-	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
 	WF: WithdrawFuseControl,
 {
 	fn resolve_currency_from_call(who: &T::AccountId, call: &<T as frame_system::Config>::RuntimeCall) -> AssetIdOf<T> {
-		if let Some(Call::set_currency { currency }) = call.is_sub_type() {
-			*currency
-		} else if let Some(pallet_utility::pallet::Call::batch { calls })
-		| Some(pallet_utility::pallet::Call::batch_all { calls })
-		| Some(pallet_utility::pallet::Call::force_batch { calls }) = call.is_sub_type()
-		{
-			match calls.first() {
-				Some(first_call) => match first_call.is_sub_type() {
-					Some(Call::set_currency { currency }) => *currency,
-					_ => Pallet::<T>::account_currency(who),
-				},
-				None => Pallet::<T>::account_currency(who),
-			}
-		} else {
-			Pallet::<T>::account_currency(who)
-		}
+		T::TryCallCurrency::try_convert(call).unwrap_or_else(|_| Pallet::<T>::account_currency(who))
 	}
 }
 
