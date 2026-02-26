@@ -23,6 +23,7 @@ mod fee_calculation;
 mod fee_processor;
 mod hsm;
 //mod hyperbridge;
+mod gigahdx;
 mod gigahdx_voting;
 mod insufficient_assets_ed;
 mod lock_manager;

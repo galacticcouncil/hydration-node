@@ -83,6 +83,7 @@ pub mod chain {
 	pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 	pub const STABLESWAP_SOURCE: [u8; 8] = *b"stablesw";
 	pub const XYK_SOURCE: [u8; 8] = *b"hydraxyk";
+	pub const GIGAHDX_SOURCE: [u8; 8] = *b"gigahdxs";
 
 	/// Maximum number of blocks simultaneously accepted by the Runtime, not yet included into the
 	/// relay chain.

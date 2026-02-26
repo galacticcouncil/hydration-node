@@ -288,7 +288,9 @@ pub mod pallet {
 			destinations: Vec<(T::AccountId, Permill)>,
 		) -> DispatchResult {
 			for (dest, percentage) in destinations {
-				let balance = T::Currency::balance(T::HdxAssetId::get(), source);
+                                //TODO: why not used balance here ?
+				let _balance = T::Currency::balance(T::HdxAssetId::get(), source);
+                                
 				let amount = percentage.mul_floor(total);
 				if amount > 0 {
 					// Use Expendable: fee source account may be fully drained

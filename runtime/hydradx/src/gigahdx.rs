@@ -2,8 +2,13 @@
 // pallet-gigahdx and pallet-gigahdx-voting.
 
 use super::*;
+use crate::evm::aave_trade_executor::Aave;
+use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+use crate::evm::Erc20Currency;
 use frame_support::{parameter_types, PalletId};
+use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, ERC20};
 use pallet_currencies::fungibles::FungibleCurrencies;
+use pallet_liquidation::BorrowingContract;
 use primitives::constants::time::DAYS;
 use sp_runtime::{DispatchError, Permill};
 
@@ -15,9 +20,8 @@ use hydradx_adapters::{price::OraclePriceProviderUsingRoute, OraclePriceProvider
 // ---------------------------------------------------------------------------
 
 parameter_types! {
-	pub const SimpleMoneyMarketPalletId: PalletId = PalletId(*b"simplemm");
-	pub const StHdxAssetId: AssetId = 12344;
-	pub const GigaHdxAssetIdConst: AssetId = 12345;
+	pub const StHdxAssetId: AssetId = 670;
+	pub const GigaHdxAssetIdConst: AssetId = 67;
 	pub const GigaHdxPalletId: PalletId = PalletId(*b"gigahdx!");
 	pub const GigaRewardPotId: PalletId = PalletId(*b"gigarwd!");
 	pub const GigaHdxCooldownPeriod: BlockNumber = 222 * DAYS;
@@ -27,57 +31,33 @@ parameter_types! {
 }
 
 // ---------------------------------------------------------------------------
-// SimpleMoneyMarket — 1:1 stHDX ↔ GIGAHDX exchange via holding account
+// AaveMoneyMarket — supply/withdraw stHDX via real AAVE Pool contract
 // ---------------------------------------------------------------------------
 
-pub struct SimpleMoneyMarket;
+pub struct AaveMoneyMarket;
 
-impl hydradx_traits::gigahdx::MoneyMarketOperations<AccountId, AssetId, Balance> for SimpleMoneyMarket {
-	fn supply(who: &AccountId, _underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
-		use frame_support::traits::fungibles::Mutate;
-		use frame_support::traits::tokens::Preservation;
+impl hydradx_traits::gigahdx::MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
+	fn supply(who: &AccountId, underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
+		let _ = pallet_evm_accounts::Pallet::<Runtime>::bind_evm_address(RuntimeOrigin::signed(who.clone()));
 
-		let holding = SimpleMoneyMarketPalletId::get().into_account_truncating();
+		let asset_evm = HydraErc20Mapping::asset_address(underlying_asset);
+		let who_evm = pallet_evm_accounts::Pallet::<Runtime>::evm_address(who);
+		let pool = BorrowingContract::<Runtime>::get();
 
-		// Transfer stHDX from user → holding account.
-		<FungibleCurrencies<Runtime> as Mutate<AccountId>>::transfer(
-			StHdxAssetId::get(),
-			who,
-			&holding,
-			amount,
-			Preservation::Expendable,
-		)?;
+		// Approve the AAVE Pool to transferFrom the user's stHDX.
+		let ctx = CallContext::new_call(asset_evm, who_evm);
+		Erc20Currency::<Runtime>::approve(ctx, pool, amount)?;
 
-		// Mint GIGAHDX to user (1:1).
-		<FungibleCurrencies<Runtime> as Mutate<AccountId>>::mint_into(GigaHdxAssetIdConst::get(), who, amount)?;
+		Aave::do_supply_on_behalf_of(who, who, asset_evm, amount)?;
 
 		Ok(amount)
 	}
 
-	fn withdraw(who: &AccountId, _underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
-		use frame_support::traits::fungibles::Mutate;
-		use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
+	fn withdraw(who: &AccountId, underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
+		let _ = pallet_evm_accounts::Pallet::<Runtime>::bind_evm_address(RuntimeOrigin::signed(who.clone()));
 
-		let holding: AccountId = SimpleMoneyMarketPalletId::get().into_account_truncating();
-
-		// Burn GIGAHDX from user.
-		<FungibleCurrencies<Runtime> as Mutate<AccountId>>::burn_from(
-			GigaHdxAssetIdConst::get(),
-			who,
-			amount,
-			Preservation::Expendable,
-			Precision::Exact,
-			Fortitude::Polite,
-		)?;
-
-		// Transfer stHDX from holding account → user (1:1).
-		<FungibleCurrencies<Runtime> as Mutate<AccountId>>::transfer(
-			StHdxAssetId::get(),
-			&holding,
-			who,
-			amount,
-			Preservation::Expendable,
-		)?;
+		let asset_evm = HydraErc20Mapping::asset_address(underlying_asset);
+		Aave::withdraw(RuntimeOrigin::signed(who.clone()), asset_evm, amount)?;
 
 		Ok(amount)
 	}
@@ -179,7 +159,7 @@ impl pallet_gigahdx::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Runtime>;
 	type LockableCurrency = Currencies;
-	type MoneyMarket = SimpleMoneyMarket;
+	type MoneyMarket = AaveMoneyMarket;
 	type Hooks = GigaHdxVoting;
 	type PalletId = GigaHdxPalletId;
 	type HdxAssetId = NativeAssetId;

@@ -703,7 +703,6 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			crate::gigahdx::FeeProcessorPalletId::get().into_account_truncating(),
 			crate::gigahdx::GigaHdxPalletId::get().into_account_truncating(),
 			crate::gigahdx::GigaRewardPotId::get().into_account_truncating(),
-			crate::gigahdx::SimpleMoneyMarketPalletId::get().into_account_truncating(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
@@ -1428,7 +1427,6 @@ where
 use pallet_currencies::fungibles::FungibleCurrencies;
 
 #[cfg(not(feature = "runtime-benchmarks"))]
-use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 use crate::evm::evm_error_decoder::EvmErrorDecoder;
 #[cfg(feature = "runtime-benchmarks")]

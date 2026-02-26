@@ -302,7 +302,7 @@ where
 		Self::do_supply_on_behalf_of(&who, &who, asset, amount)
 	}
 
-	fn do_supply_on_behalf_of(
+	pub(crate) fn do_supply_on_behalf_of(
 		who: &T::AccountId,
 		on_behalf_of: &T::AccountId,
 		asset: EvmAddress,
@@ -322,7 +322,7 @@ where
 
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
 	}
-	fn withdraw(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
+	pub(crate) fn withdraw(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
 		let who = ensure_signed(origin)?;
 		let to = <T as pallet_liquidation::Config>::EvmAccounts::evm_address(&who);
 

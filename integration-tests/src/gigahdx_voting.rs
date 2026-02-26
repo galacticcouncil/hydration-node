@@ -98,10 +98,8 @@ fn aye_with_conviction(amount: u128, conviction: Conviction) -> AccountVote<u128
 fn init_gigahdx() {
 	let gigapot = pallet_gigahdx::Pallet::<hydradx_runtime::Runtime>::gigapot_account_id();
 	let reward_pot = pallet_gigahdx_voting::Pallet::<hydradx_runtime::Runtime>::giga_reward_pot_account();
-	let mm_holding: AccountId = hydradx_runtime::gigahdx::SimpleMoneyMarketPalletId::get().into_account_truncating();
 
 	// Fund holding accounts with ED so they exist.
-	assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), mm_holding, UNITS));
 	assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), gigapot, UNITS));
 	assert_ok!(Balances::force_set_balance(
 		RawOrigin::Root.into(),
@@ -134,8 +132,6 @@ fn giga_stake_produces_gigahdx() {
 
 		let alice: AccountId = ALICE.into();
 		let gigapot = pallet_gigahdx::Pallet::<hydradx_runtime::Runtime>::gigapot_account_id();
-		let mm_holding: AccountId =
-			hydradx_runtime::gigahdx::SimpleMoneyMarketPalletId::get().into_account_truncating();
 
 		let alice_hdx_before = Currencies::free_balance(HDX, &alice);
 
@@ -151,10 +147,6 @@ fn giga_stake_produces_gigahdx() {
 		// HDX should have moved to gigapot.
 		let gigapot_hdx = Currencies::free_balance(HDX, &gigapot);
 		assert!(gigapot_hdx >= 100 * UNITS); // at least the staked amount (plus ED)
-
-		// stHDX should be in MM holding.
-		let sthdx_in_holding = Currencies::free_balance(ST_HDX, &mm_holding);
-		assert_eq!(sthdx_in_holding, 100 * UNITS);
 
 		// ALICE's HDX should have decreased.
 		let alice_hdx_after = Currencies::free_balance(HDX, &alice);
