@@ -561,6 +561,47 @@ impl<T: Config> Pallet<T> {
 
 		new_value >= lower_bound && new_value <= upper_bound
 	}
+
+	/// Clears all oracle-related storage for a given asset paired with hub asset
+	///
+	/// This function removes:
+	/// - Oracle entries for all supported periods
+	/// - Whitelist entry
+	/// - Accumulator entry (if present)
+	///
+	/// It emits a `RemovedFromWhitelist` event.
+	///
+	/// # Arguments
+	/// * `source` - The source of the oracle data
+	/// * `asset_id` - The asset ID to clear oracle data for
+	/// * `hub_asset` - The hub asset that `asset_id` is paired with
+	///
+	/// # Returns
+	/// Weight of the operation
+	pub fn clear_asset_oracle(source: Source, asset_id: AssetId, hub_asset: AssetId) -> Weight {
+		let assets = ordered_pair(asset_id, hub_asset);
+
+		// Remove from whitelist
+		WhitelistedAssets::<T>::mutate(|list| {
+			list.remove(&(source, assets));
+		});
+
+		// Remove oracle storage entries for all supported periods
+		let supported_periods = T::SupportedPeriods::get();
+		for period in supported_periods.into_iter() {
+			Oracles::<T>::remove((source, assets, period));
+		}
+
+		// Remove from accumulator if present
+		let _ = Accumulator::<T>::mutate(|accumulator| {
+			accumulator.remove(&(source, assets));
+			Ok::<(), ()>(())
+		});
+
+		Self::deposit_event(Event::RemovedFromWhitelist { source, assets });
+
+		T::WeightInfo::remove_oracle()
+	}
 }
 
 /// A callback handler for trading and liquidity activity that schedules oracle updates.

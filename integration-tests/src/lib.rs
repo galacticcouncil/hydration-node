@@ -32,6 +32,7 @@ mod omnipool_h2o_routing;
 mod omnipool_init;
 mod omnipool_liquidity_mining;
 mod omnipool_remove_all_liquidity;
+mod omnipool_remove_token;
 mod oracle;
 mod otc;
 mod parameters;

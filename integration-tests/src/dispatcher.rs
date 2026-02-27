@@ -12,7 +12,6 @@ use hydradx_runtime::*;
 use orml_traits::MultiCurrency;
 use pallet_evm::{ExitReason, ExitSucceed};
 use pallet_evm_accounts::EvmNonceProvider;
-use pallet_transaction_multi_payment::EVMPermit;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use precompile_utils::prelude::PrecompileOutput;
 use primitives::EvmAddress;

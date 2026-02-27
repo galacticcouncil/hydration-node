@@ -81,6 +81,7 @@ thread_local! {
 	pub static WITHDRAWAL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 	pub static ON_TRADE_WITHDRAWAL: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static ASSET_REMOVED_HOOK_CALLED: RefCell<Option<AssetId>> = const { RefCell::new(None) };
 	pub static ON_TRADE_WITHDRAWAL_EXTRA: RefCell<Balance> = const { RefCell::new(0) };
 	pub static HUB_ASSET_TRADE_HOOK_CALLS: RefCell<Vec<AssetInfo<AssetId, Balance>>> = const { RefCell::new(vec![]) };
 }
@@ -835,5 +836,15 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 			)?;
 		}
 		Ok(Some((amount, PROTOCOL_FEE_COLLECTOR)))
+	}
+
+	fn on_asset_removed(asset_id: AssetId) {
+		ASSET_REMOVED_HOOK_CALLED.with(|v| {
+			*v.borrow_mut() = Some(asset_id);
+		});
+	}
+
+	fn on_asset_removed_weight() -> Weight {
+		Weight::zero()
 	}
 }
