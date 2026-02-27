@@ -1,7 +1,9 @@
+use crate::omnipool::slip_fee::{calculate_slip_fee_amount, invert_buy_side_slip, invert_sell_side_fees};
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
+use crate::omnipool::types::SignedBalance;
 use crate::omnipool::types::{
-	AssetReserveState, AssetStateChange, HubTradeStateChange, LiquidityStateChange, Position, TradeFee,
-	TradeStateChange,
+	AssetReserveState, AssetStateChange, HubTradeSlipFees, HubTradeStateChange, LiquidityStateChange, Position,
+	TradeFee, TradeSlipFees, TradeStateChange,
 };
 use crate::types::Balance;
 use crate::MathError::Overflow;
@@ -25,6 +27,7 @@ pub fn calculate_sell_state_changes(
 	asset_fee: Permill,
 	protocol_fee: Permill,
 	m: Permill,
+	slip: Option<&TradeSlipFees>,
 ) -> Option<TradeStateChange<Balance>> {
 	let (in_hub_reserve, in_reserve, in_amount) = to_u256!(asset_in_state.hub_reserve, asset_in_state.reserve, amount);
 
@@ -36,17 +39,44 @@ pub fn calculate_sell_state_changes(
 
 	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
 
-	let delta_hub_reserve_out = delta_hub_reserve_in.checked_sub(protocol_fee_amount)?;
+	// Sell-side slip fee: hub asset leaves the sell pool (negative delta)
+	let slip_sell_amount = if let Some(slip) = slip {
+		calculate_slip_fee_amount(
+			slip.asset_in_hub_reserve,
+			slip.asset_in_delta,
+			SignedBalance::Negative(delta_hub_reserve_in),
+			slip.max_slip_fee,
+			delta_hub_reserve_in,
+		)?
+	} else {
+		0
+	};
 
-	let (out_reserve_hp, out_hub_reserve_hp, delta_hub_reserve_out_hp) = to_u256!(
-		asset_out_state.reserve,
-		asset_out_state.hub_reserve,
-		delta_hub_reserve_out
-	);
+	let d_gross = delta_hub_reserve_in
+		.checked_sub(protocol_fee_amount)?
+		.checked_sub(slip_sell_amount)?;
+
+	// Buy-side slip fee: hub asset enters the buy pool (positive delta)
+	let slip_buy_amount = if let Some(slip) = slip {
+		calculate_slip_fee_amount(
+			slip.asset_out_hub_reserve,
+			slip.asset_out_delta,
+			SignedBalance::Positive(d_gross),
+			slip.max_slip_fee,
+			d_gross,
+		)?
+	} else {
+		0
+	};
+
+	let d_net = d_gross.checked_sub(slip_buy_amount)?;
+
+	let (out_reserve_hp, out_hub_reserve_hp, d_net_hp) =
+		to_u256!(asset_out_state.reserve, asset_out_state.hub_reserve, d_net);
 
 	let delta_reserve_out_hp = out_reserve_hp
-		.checked_mul(delta_hub_reserve_out_hp)
-		.and_then(|v| v.checked_div(out_hub_reserve_hp.checked_add(delta_hub_reserve_out_hp)?))?;
+		.checked_mul(d_net_hp)
+		.and_then(|v| v.checked_div(out_hub_reserve_hp.checked_add(d_net_hp)?))?;
 
 	let amount_out = to_balance!(delta_reserve_out_hp).ok()?;
 	let delta_reserve_out = amount_without_fee(amount_out, asset_fee)?;
@@ -56,16 +86,17 @@ pub fn calculate_sell_state_changes(
 	// calculate amount to mint to account for asset fee that stays in the pool
 	let delta_out_m = asset_fee.mul_floor(
 		to_balance!(out_hub_reserve_hp
-			.checked_add(delta_hub_reserve_out_hp)?
-			.checked_mul(delta_hub_reserve_out_hp)?
+			.checked_add(d_net_hp)?
+			.checked_mul(d_net_hp)?
 			.checked_div(out_hub_reserve_hp)?)
 		.ok()?,
 	);
 
 	// burn part of protocol fee and rest is to be transferred to treasury or buybacks
-	// note that we dont need to include burned amount anywhere, as it is already part of delta_hub_reserve_in value.
-	// we only to need to include extra_protocol_fee when the deltas are calculated, as it used to be done for hdx hub amount.
-	let burned_protocol_fee = m.mul_floor(protocol_fee_amount);
+	let total_protocol_fee = protocol_fee_amount
+		.checked_add(slip_sell_amount)?
+		.checked_add(slip_buy_amount)?;
+	let burned_protocol_fee = m.mul_floor(total_protocol_fee);
 
 	Some(TradeStateChange {
 		asset_in: AssetStateChange {
@@ -75,13 +106,13 @@ pub fn calculate_sell_state_changes(
 		},
 		asset_out: AssetStateChange {
 			delta_reserve: Decrease(delta_reserve_out),
-			delta_hub_reserve: Increase(delta_hub_reserve_out),
+			delta_hub_reserve: Increase(d_net),
 			extra_hub_reserve_amount: Increase(delta_out_m),
 			..Default::default()
 		},
 		fee: TradeFee {
 			asset_fee: asset_fee_amount,
-			protocol_fee: protocol_fee_amount,
+			protocol_fee: total_protocol_fee,
 			burned_protocol_fee,
 		},
 	})
@@ -92,13 +123,29 @@ pub fn calculate_sell_hub_state_changes(
 	asset_out_state: &AssetReserveState<Balance>,
 	hub_asset_amount: Balance,
 	asset_fee: Permill,
+	slip: Option<&HubTradeSlipFees>,
 ) -> Option<HubTradeStateChange<Balance>> {
-	let (reserve_hp, hub_reserve_hp, amount_hp) =
-		to_u256!(asset_out_state.reserve, asset_out_state.hub_reserve, hub_asset_amount);
+	// Buy-side slip: hub asset enters the buy pool (positive delta)
+	let slip_buy_amount = if let Some(slip) = slip {
+		calculate_slip_fee_amount(
+			slip.asset_hub_reserve,
+			slip.asset_delta,
+			SignedBalance::Positive(hub_asset_amount),
+			slip.max_slip_fee,
+			hub_asset_amount,
+		)?
+	} else {
+		0
+	};
+
+	let effective_hub = hub_asset_amount.checked_sub(slip_buy_amount)?;
+
+	let (reserve_hp, hub_reserve_hp, effective_hp) =
+		to_u256!(asset_out_state.reserve, asset_out_state.hub_reserve, effective_hub);
 
 	let delta_reserve_out_hp = reserve_hp
-		.checked_mul(amount_hp)
-		.and_then(|v| v.checked_div(hub_reserve_hp.checked_add(amount_hp)?))?;
+		.checked_mul(effective_hp)
+		.and_then(|v| v.checked_div(hub_reserve_hp.checked_add(effective_hp)?))?;
 
 	let amount_out = to_balance!(delta_reserve_out_hp).ok()?;
 	let delta_reserve_out = amount_without_fee(amount_out, asset_fee)?;
@@ -107,8 +154,8 @@ pub fn calculate_sell_hub_state_changes(
 	// mint amount to account for asset fee that stays in the pool
 	let delta_q_m = asset_fee.mul_floor(
 		to_balance!(hub_reserve_hp
-			.checked_add(amount_hp)?
-			.checked_mul(amount_hp)?
+			.checked_add(effective_hp)?
+			.checked_mul(effective_hp)?
 			.checked_div(hub_reserve_hp)?)
 		.ok()?,
 	);
@@ -116,12 +163,13 @@ pub fn calculate_sell_hub_state_changes(
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Decrease(delta_reserve_out),
-			delta_hub_reserve: Increase(hub_asset_amount),
+			delta_hub_reserve: Increase(effective_hub),
 			extra_hub_reserve_amount: Increase(delta_q_m),
 			..Default::default()
 		},
 		fee: TradeFee {
 			asset_fee: asset_fee_amount,
+			protocol_fee: slip_buy_amount,
 			..Default::default()
 		},
 	})
@@ -153,6 +201,7 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 	asset_out_state: &AssetReserveState<Balance>,
 	asset_out_amount: Balance,
 	asset_fee: Permill,
+	slip: Option<&HubTradeSlipFees>,
 ) -> Option<HubTradeStateChange<Balance>> {
 	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
 	let hub_denominator = reserve_no_fee.checked_sub(asset_out_amount)?;
@@ -160,15 +209,25 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 	let (hub_reserve_hp, amount_hp, hub_denominator_hp) =
 		to_u256!(asset_out_state.hub_reserve, asset_out_amount, hub_denominator);
 
-	let delta_hub_reserve_hp = hub_reserve_hp.checked_mul(amount_hp).and_then(|v| {
+	let d_net_hp = hub_reserve_hp.checked_mul(amount_hp).and_then(|v| {
 		v.checked_div(hub_denominator_hp)
 			.and_then(|v| v.checked_add(U256::one()))
 	})?;
 
-	let delta_hub_reserve = to_balance!(delta_hub_reserve_hp).ok()?;
+	let d_net = to_balance!(d_net_hp).ok()?;
+
+	// Invert buy-side slip to find how much hub asset the user must provide
+	let slip_buy_amount = if let Some(slip) = slip {
+		let d_gross = invert_buy_side_slip(d_net, slip.asset_hub_reserve, slip.asset_delta)?;
+		d_gross.checked_sub(d_net)?
+	} else {
+		0
+	};
+
 	let fee_amount = calculate_fee_amount_for_buy(asset_fee, asset_out_amount);
 
 	// mint amount to account for asset fee that stays in the pool
+	let delta_hub_reserve_hp = to_u256!(d_net);
 	let n = asset_fee.mul_floor(
 		to_balance!(hub_reserve_hp
 			.checked_add(delta_hub_reserve_hp)?
@@ -180,12 +239,13 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Decrease(asset_out_amount),
-			delta_hub_reserve: Increase(delta_hub_reserve),
+			delta_hub_reserve: Increase(d_net),
 			extra_hub_reserve_amount: Increase(delta_q_m),
 			..Default::default()
 		},
 		fee: TradeFee {
 			asset_fee: fee_amount,
+			protocol_fee: slip_buy_amount,
 			..Default::default()
 		},
 	})
@@ -199,25 +259,36 @@ pub fn calculate_buy_state_changes(
 	asset_fee: Permill,
 	protocol_fee: Permill,
 	m: Permill,
+	slip: Option<&TradeSlipFees>,
 ) -> Option<TradeStateChange<Balance>> {
 	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
 	let (out_hub_reserve_hp, out_reserve_no_fee_hp, out_amount_hp) =
 		to_u256!(asset_out_state.hub_reserve, reserve_no_fee, amount);
 
-	let delta_hub_reserve_out_hp = out_hub_reserve_hp
+	// Step 1: D_net = hub asset needed for desired token output (same as original delta_hub_reserve_out)
+	let d_net_hp = out_hub_reserve_hp
 		.checked_mul(out_amount_hp)
 		.and_then(|v| v.checked_div(out_reserve_no_fee_hp.checked_sub(out_amount_hp)?))?;
 
-	//TODO: verify with colin - this make sell and buy exact amounts
-	//let delta_hub_reserve_out_hp = delta_hub_reserve_out_hp.checked_add(U256::one())?;
+	let d_net = to_balance!(d_net_hp).ok()?;
+	let d_net = d_net.checked_add(Balance::one())?;
 
-	let delta_hub_reserve_out = to_balance!(delta_hub_reserve_out_hp).ok()?;
-	let delta_hub_reserve_out = delta_hub_reserve_out.checked_add(Balance::one())?;
+	// Step 2: Invert buy-side slip to find D_gross from D_net
+	let d_gross = if let Some(slip) = slip {
+		invert_buy_side_slip(d_net, slip.asset_out_hub_reserve, slip.asset_out_delta)?
+	} else {
+		d_net
+	};
 
-	// Negative
-	let delta_hub_reserve_in: Balance = FixedU128::from_inner(delta_hub_reserve_out)
-		.checked_div(&Permill::from_percent(100).sub(protocol_fee).into())?
-		.into_inner();
+	// Step 3: Invert sell-side fees (protocol_fee + sell slip) to find delta_hub_reserve_in
+	let delta_hub_reserve_in = if let Some(slip) = slip {
+		invert_sell_side_fees(d_gross, protocol_fee, slip.asset_in_hub_reserve, slip.asset_in_delta)?
+	} else {
+		// No slip — original inversion
+		FixedU128::from_inner(d_net)
+			.checked_div(&Permill::from_percent(100).sub(protocol_fee).into())?
+			.into_inner()
+	};
 
 	if delta_hub_reserve_in >= asset_in_state.hub_reserve {
 		return None;
@@ -236,18 +307,53 @@ pub fn calculate_buy_state_changes(
 	let asset_fee_amount = calculate_fee_amount_for_buy(asset_fee, amount);
 	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
 
+	// Compute actual slip amounts from delta_hub_reserve_in using the forward direction
+	let slip_sell_amount = if let Some(slip) = slip {
+		calculate_slip_fee_amount(
+			slip.asset_in_hub_reserve,
+			slip.asset_in_delta,
+			SignedBalance::Negative(delta_hub_reserve_in),
+			slip.max_slip_fee,
+			delta_hub_reserve_in,
+		)?
+	} else {
+		0
+	};
+
+	let d_gross_forward = delta_hub_reserve_in
+		.checked_sub(protocol_fee_amount)?
+		.checked_sub(slip_sell_amount)?;
+
+	let slip_buy_amount = if let Some(slip) = slip {
+		calculate_slip_fee_amount(
+			slip.asset_out_hub_reserve,
+			slip.asset_out_delta,
+			SignedBalance::Positive(d_gross_forward),
+			slip.max_slip_fee,
+			d_gross_forward,
+		)?
+	} else {
+		0
+	};
+
+	let d_net_forward = d_gross_forward.checked_sub(slip_buy_amount)?;
+
+	let total_protocol_fee = protocol_fee_amount
+		.checked_add(slip_sell_amount)?
+		.checked_add(slip_buy_amount)?;
+
 	// mint amount to account for asset fee that stays in the pool
-	let delta_hub_reserve_out_hp = to_u256!(delta_hub_reserve_out);
+	let d_net_forward_hp = to_u256!(d_net_forward);
 	let delta_out_m = asset_fee.mul_floor(
 		to_balance!(out_hub_reserve_hp
-			.checked_add(delta_hub_reserve_out_hp)?
-			.checked_mul(delta_hub_reserve_out_hp)?
+			.checked_add(d_net_forward_hp)?
+			.checked_mul(d_net_forward_hp)?
 			.checked_div(out_hub_reserve_hp)?)
 		.ok()?,
 	);
 
 	// Protocol fee to burn and transfer
-	let burned_protocol_fee = m.mul_floor(protocol_fee_amount);
+	let burned_protocol_fee = m.mul_floor(total_protocol_fee);
 
 	Some(TradeStateChange {
 		asset_in: AssetStateChange {
@@ -257,13 +363,13 @@ pub fn calculate_buy_state_changes(
 		},
 		asset_out: AssetStateChange {
 			delta_reserve: Decrease(amount),
-			delta_hub_reserve: Increase(delta_hub_reserve_out),
+			delta_hub_reserve: Increase(d_net_forward),
 			extra_hub_reserve_amount: Increase(delta_out_m),
 			..Default::default()
 		},
 		fee: TradeFee {
 			asset_fee: asset_fee_amount,
-			protocol_fee: protocol_fee_amount,
+			protocol_fee: total_protocol_fee,
 			burned_protocol_fee,
 		},
 	})

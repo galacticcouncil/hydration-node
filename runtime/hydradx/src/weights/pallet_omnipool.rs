@@ -670,4 +670,8 @@ impl<T: frame_system::Config> pallet_omnipool::WeightInfo for HydraWeight<T> {
 		Weight::from_parts(74_660_000, 6190)
 			.saturating_add(T::DbWeight::get().reads(10_u64))
 	}
+
+	fn set_slip_fee() -> Weight {
+		Weight::default()
+	}
 }

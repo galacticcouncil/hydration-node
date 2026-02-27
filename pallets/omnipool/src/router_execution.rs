@@ -32,10 +32,13 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		if asset_in == T::HubAssetId::get() {
 			let (asset_fee, _) = T::Fee::get((asset_out, asset_out_state.reserve));
 
+			let slip = Self::peek_hub_trade_slip_fees(asset_out, asset_out_state.hub_reserve);
+
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
 				&(&asset_out_state).into(),
 				amount_in,
 				asset_fee,
+				slip.as_ref(),
 			)
 			.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
@@ -46,6 +49,13 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		let (asset_fee, _) = T::Fee::get((asset_out, asset_out_state.reserve));
 		let (_, protocol_fee) = T::Fee::get((asset_in, asset_in_state.reserve));
 
+		let slip = Self::peek_trade_slip_fees(
+			asset_in,
+			asset_in_state.hub_reserve,
+			asset_out,
+			asset_out_state.hub_reserve,
+		);
+
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 			&(&asset_in_state).into(),
 			&(&asset_out_state).into(),
@@ -53,6 +63,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			asset_fee,
 			protocol_fee,
 			T::BurnProtocolFee::get(),
+			slip.as_ref(),
 		)
 		.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
@@ -77,20 +88,35 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		if asset_in == T::HubAssetId::get() {
 			let (asset_fee, _) = T::Fee::get((asset_out, asset_out_state.reserve));
 
+			let slip = Self::peek_hub_trade_slip_fees(asset_out, asset_out_state.hub_reserve);
+
 			let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 				&(&asset_out_state).into(),
 				amount_out,
 				asset_fee,
+				slip.as_ref(),
 			)
 			.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
-			return Ok(*state_changes.asset.delta_hub_reserve);
+			// delta_hub_reserve is the net hub asset entering the pool (d_net).
+			// The total user cost includes the slip fee (stored in protocol_fee).
+			let user_hub_cost = (*state_changes.asset.delta_hub_reserve)
+				.checked_add(state_changes.fee.protocol_fee)
+				.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+			return Ok(user_hub_cost);
 		}
 
 		let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
 
 		let (asset_fee, _) = T::Fee::get((asset_out, asset_out_state.reserve));
 		let (_, protocol_fee) = T::Fee::get((asset_in, asset_in_state.reserve));
+
+		let slip = Self::peek_trade_slip_fees(
+			asset_in,
+			asset_in_state.hub_reserve,
+			asset_out,
+			asset_out_state.hub_reserve,
+		);
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 			&(&asset_in_state).into(),
@@ -99,6 +125,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			asset_fee,
 			protocol_fee,
 			T::BurnProtocolFee::get(),
+			slip.as_ref(),
 		)
 		.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
