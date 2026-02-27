@@ -15,6 +15,8 @@
 
 use crate::Runtime;
 
+pub mod cleanup_ismp_storage;
+
 // New migrations which need to be cleaned up after every Runtime upgrade
 pub type UnreleasedSingleBlockMigrations = ();
 
@@ -25,4 +27,4 @@ pub type SingleBlockMigrationsList = (PermanentSingleBlockMigrations, Unreleased
 
 // Multi-block migrations executed by pallet-migrations
 #[cfg(not(feature = "runtime-benchmarks"))]
-pub type MultiBlockMigrationsList = ();
+pub type MultiBlockMigrationsList = (cleanup_ismp_storage::CleanupIsmpStorage<Runtime>,);
