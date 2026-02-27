@@ -1,5 +1,7 @@
 # Hydration node
 
+![Build](https://github.com/AdekunleBamz/hydration-node/actions/workflows/tests.yml/badge.svg)
+
 CROSS-CHAIN LIQUIDITY PROTOCOL BUILT ON SUBSTRATE (Formerly HydraDX)
 
 ## Contributions & Code of Conduct
