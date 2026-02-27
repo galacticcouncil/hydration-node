@@ -1,7 +1,7 @@
 use crate::origins::GeneralAdmin;
 use crate::{
-	weights, Balances, EVMAccounts, Ismp, IsmpParachain, NativeAssetId, Runtime, RuntimeEvent,
-	TechCommitteeSuperMajority, Timestamp, TokenGateway, TreasuryAccount,
+	weights, Balances, EVMAccounts, Ismp, IsmpParachain, NativeAssetId, Parameters, Runtime, RuntimeEvent,
+	TechCommitteeMajority, Timestamp, TokenGateway, TreasuryAccount,
 };
 use frame_support::parameter_types;
 use frame_support::traits::fungible::ItemOf;
@@ -18,6 +18,7 @@ use pallet_token_gateway::types::EvmToSubstrate;
 use primitive_types::H160;
 use primitives::constants::currency::NATIVE_DECIMALS;
 use primitives::{AccountId, AssetId, Balance};
+use sp_core::Get;
 use sp_std::{boxed::Box, vec::Vec};
 
 impl pallet_hyperbridge::Config for Runtime {
@@ -27,38 +28,48 @@ impl pallet_hyperbridge::Config for Runtime {
 }
 
 parameter_types! {
-	// The hyperbridge parachain on Polkadot
-	pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Polkadot(3367));
-
-	// The host state machine of this pallet on Polkadot
-	pub const HostStateMachine: StateMachine = StateMachine::Polkadot(2034);
-
-	// The hyperbridge parachain on Paseo
-	// pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Kusama(4009));
-
-	// The host state machine of this pallet on Paseo
-	// pub const HostStateMachine: StateMachine = StateMachine::Kusama(2034);
-
 	pub const USDC: AssetId = 22; // USDC asset id on Hydration
+}
+
+pub struct IsmpCoprocessor;
+impl Get<Option<StateMachine>> for IsmpCoprocessor {
+	fn get() -> Option<StateMachine> {
+		if Parameters::is_testnet() {
+			Some(StateMachine::Kusama(4009))
+		} else {
+			Some(StateMachine::Polkadot(3367))
+		}
+	}
+}
+
+pub struct IsmpHostStateMachine;
+impl Get<StateMachine> for IsmpHostStateMachine {
+	fn get() -> StateMachine {
+		if Parameters::is_testnet() {
+			StateMachine::Kusama(2034)
+		} else {
+			StateMachine::Polkadot(2034)
+		}
+	}
 }
 
 impl pallet_ismp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// Modify the consensus client's permissions, for example, TechAdmin
-	type AdminOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type AdminOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type TimestampProvider = Timestamp;
 	type Balance = Balance;
 	// The token used to collect fees, only stablecoins are supported
 	type Currency = ItemOf<FungibleCurrencies<Runtime>, USDC, AccountId>;
 	// The state machine identifier of the chain -- parachain id
-	type HostStateMachine = HostStateMachine;
+	type HostStateMachine = IsmpHostStateMachine;
 	// Co-processor
-	type Coprocessor = Coprocessor;
+	type Coprocessor = IsmpCoprocessor;
 	// The router provides the implementation for the IsmpModule as the module id.
 	type Router = IsmpRouterStruct;
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
 	type ConsensusClients = (ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>,);
-	type WeightProvider = IsmpWeightProvider;
+	type FeeHandler = pallet_ismp::fee_handler::WeightFeeHandler<IsmpWeightProvider>;
 	type OffchainDB = ();
 }
 
@@ -68,7 +79,7 @@ pub struct IsmpRouterStruct;
 impl IsmpRouter for IsmpRouterStruct {
 	fn module_for_id(&self, id: Vec<u8>) -> Result<Box<dyn IsmpModule>, anyhow::Error> {
 		match id.as_slice() {
-			id if TokenGateway::is_token_gateway(&id) => Ok(Box::new(TokenGateway::default())),
+			id if TokenGateway::is_token_gateway(id) => Ok(Box::new(TokenGateway::default())),
 			pallet_hyperbridge::PALLET_HYPERBRIDGE_ID => Ok(Box::new(pallet_hyperbridge::Pallet::<Runtime>::default())),
 			_ => Err(ismp::Error::ModuleNotFound(id))?,
 		}
@@ -79,6 +90,7 @@ impl ismp_parachain::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// pallet-ismp implements the IsmpHost
 	type IsmpHost = Ismp;
+	type RootOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type WeightInfo = weights::ismp_parachain::HydraWeight<Runtime>;
 }
 
@@ -91,7 +103,7 @@ impl pallet_token_gateway::Config for Runtime {
 	type Dispatcher = Ismp;
 	type NativeCurrency = Balances;
 	type AssetAdmin = TreasuryAccount;
-	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Assets = FungibleCurrencies<Runtime>;
 	type NativeAssetId = NativeAssetId;
 	type Decimals = NativeTokenDecimals;

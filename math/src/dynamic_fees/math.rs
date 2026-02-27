@@ -76,6 +76,15 @@ where
 		return previous_fee;
 	}
 
+	debug_assert!(!liquidity.is_zero(), "dynamic fee calc: current liquidity is zero");
+	debug_assert!(
+		!last_entry.liquidity.is_zero(),
+		"dynamic fee calc: oracle liquidity is zero"
+	);
+	if liquidity.is_zero() || last_entry.liquidity.is_zero() {
+		return previous_fee;
+	}
+
 	let (net_volume, volume_neg) = last_entry.net_volume(net_direction);
 	let (net_liquidity, liquid_neg) = (
 		last_entry.liquidity.abs_diff(liquidity),

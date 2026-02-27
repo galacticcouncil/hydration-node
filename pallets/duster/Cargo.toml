@@ -1,6 +1,6 @@
 [package]
 name = "pallet-duster"
-version = "3.5.0"
+version = "3.7.0"
 description = "Account duster"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -36,12 +36,12 @@ frame-system = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
-lazy_static = { workspace = true }
 sp-io = { workspace = true }
 sp-core = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-currencies = { workspace = true }
 orml-tokens = { workspace = true }
+primitives = { workspace = true }
 
 [features]
 default = ["std"]
@@ -62,6 +62,7 @@ std = [
     "scale-info/std",
     "orml-tokens/std",
     "hydradx-traits/std",
-    "pallet-balances/std"
+    "pallet-balances/std",
+    "pallet-currencies/std"
 ]
 try-runtime = ["frame-support/try-runtime"]

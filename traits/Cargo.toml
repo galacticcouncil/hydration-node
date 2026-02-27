@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-traits"
-version = "4.4.1"
+version = "4.7.0"
 description = "Shared traits"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -19,8 +19,11 @@ primitives = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
+frame-system = { workspace = true }
 sp-std = { workspace = true }
 pallet-evm = { workspace = true }
+
+orml-traits = { workspace = true }
 
 [features]
 default = ["std"]
@@ -28,6 +31,9 @@ std = [
     "serde/std",
     "codec/std",
     "frame-support/std",
+    "frame-system/std",
     "sp-std/std",
     "primitives/std",
+    "pallet-evm/std",
+    "orml-traits/std",
 ]

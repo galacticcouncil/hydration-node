@@ -110,6 +110,7 @@ construct_runtime!(
 		XYK: pallet_xyk,
 		Broadcast: pallet_broadcast,
 		CircuitBreaker: pallet_circuit_breaker,
+		Timestamp: pallet_timestamp,
 	}
 );
 
@@ -143,6 +144,18 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
+}
+
+parameter_types! {
+	pub const MinimumPeriod: u64 = primitives::constants::time::SLOT_DURATION / 2;
+}
+
+impl pallet_timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
 }
 
 impl pallet_balances::Config for Test {
@@ -159,6 +172,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_type_with_key! {
@@ -228,6 +242,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type BurnProtocolFee = BurnFee;
+	type HubDestination = ReserveAccount;
 }
 
 pub struct FeeProvider;
@@ -252,6 +267,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 parameter_types! {
@@ -300,7 +316,6 @@ parameter_types! {
 	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = LRNA;
-
 }
 
 pub struct NoIssuanceIncreaseLimit<T>(PhantomData<T>);
@@ -329,12 +344,17 @@ impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositLimiter {
 	type OnDepositRelease = ();
 }
 
+parameter_types! {
+	pub const GlobalWithdrawWindow: primitives::Moment = primitives::constants::time::unix_time::DAY;
+}
+
 impl pallet_circuit_breaker::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DepositLockWhitelist = frame_support::traits::Nothing;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
@@ -344,6 +364,8 @@ impl pallet_circuit_breaker::Config for Test {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type GlobalWithdrawWindow = GlobalWithdrawWindow;
+	type TimestampProvider = Timestamp;
 }
 
 pub struct Whitelist;
@@ -579,6 +601,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: initial_native_accounts,
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

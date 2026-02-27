@@ -1,6 +1,6 @@
 [package]
 name = "pallet-xyk-liquidity-mining"
-version = "1.6.1"
+version = "1.7.0"
 description = "Liquidity mining"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -46,20 +46,20 @@ test-utils = { workspace = true }
 [features]
 default = ["std"]
 std = [
-  "codec/std",
-  "scale-info/std",
-  "sp-runtime/std",
-  "sp-std/std",
-  "frame-support/std",
-  "frame-system/std",
-  "sp-core/std",
-  "sp-io/std",
-  "pallet-balances/std",
-  "orml-tokens/std",
-  "pallet-xyk/std",
-  "pallet-liquidity-mining/std",
-  "primitives/std",
-  "hydradx-traits/std",
-  "log/std",
+    "codec/std",
+    "scale-info/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-core/std",
+    "sp-io/std",
+    "pallet-balances/std",
+    "orml-tokens/std",
+    "pallet-xyk/std",
+    "pallet-liquidity-mining/std",
+    "primitives/std",
+    "hydradx-traits/std",
+    "log/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

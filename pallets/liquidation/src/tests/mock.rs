@@ -2,7 +2,7 @@ use crate as pallet_liquidation;
 use crate::*;
 use ethabi::ethereum_types::H160;
 use evm::{ExitError, ExitSucceed};
-use frame_support::sp_runtime::traits::{CheckedConversion, Convert};
+use frame_support::sp_runtime::traits::Convert;
 use frame_support::{
 	assert_ok, parameter_types,
 	sp_runtime::{
@@ -86,7 +86,7 @@ fn decode_liquidation_call_data(data: Vec<u8>) -> Option<(EvmAddress, EvmAddress
 		let collateral_asset = EvmAddress::from(H256::from_slice(&data[4..36]));
 		let debt_asset = EvmAddress::from(H256::from_slice(&data[36..68]));
 		let user = EvmAddress::from(H256::from_slice(&data[68..100]));
-		let debt_to_cover = Balance::try_from(U256::checked_from(&data[100..132])?).ok()?;
+		let debt_to_cover = Balance::try_from(U256::from_big_endian(&data[100..132])).ok()?;
 		let receive_atoken = !H256(data[132..164].try_into().unwrap()).is_zero();
 
 		Some((collateral_asset, debt_asset, user, debt_to_cover, receive_atoken))
@@ -109,6 +109,8 @@ impl EVM<CallResult> for EvmMock {
 						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
 						value: vec![],
 						contract: context.contract,
+						gas_used: U256::zero(),
+						gas_limit: U256::zero(),
 					};
 				};
 
@@ -137,6 +139,8 @@ impl EVM<CallResult> for EvmMock {
 						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
 						value: vec![],
 						contract: context.contract,
+						gas_used: U256::zero(),
+						gas_limit: U256::zero(),
 					};
 				}
 			}
@@ -145,6 +149,8 @@ impl EVM<CallResult> for EvmMock {
 					exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
 					value: vec![],
 					contract: context.contract,
+					gas_used: U256::zero(),
+					gas_limit: U256::zero(),
 				}
 			}
 		}
@@ -153,6 +159,8 @@ impl EVM<CallResult> for EvmMock {
 			exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 			value: vec![],
 			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
 		}
 	}
 
@@ -235,7 +243,7 @@ impl Config for Test {
 pub struct EvmErrorDecodeMock;
 
 impl Convert<CallResult, DispatchError> for EvmErrorDecodeMock {
-	fn convert(call_result: CallResult) -> DispatchError {
+	fn convert(_call_result: CallResult) -> DispatchError {
 		DispatchError::Other("Call failed")
 	}
 }
@@ -313,6 +321,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl orml_tokens::Config for Test {
@@ -365,6 +374,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 impl pallet_currencies::Config for Test {
@@ -376,6 +386,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 
@@ -428,6 +439,7 @@ impl pallet_omnipool::Config for Test {
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
 	type BurnProtocolFee = BurnFee;
+	type HubDestination = TreasuryAccount;
 }
 
 pub struct DummyNFT;
@@ -601,6 +613,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: initial_native_accounts,
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

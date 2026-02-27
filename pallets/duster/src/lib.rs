@@ -28,11 +28,18 @@ mod tests;
 pub mod migration;
 pub mod weights;
 pub use crate::weights::WeightInfo;
-use frame_support::sp_runtime::DispatchError;
-use frame_support::traits::fungibles::Inspect;
-use frame_support::traits::fungibles::Mutate;
-use frame_support::traits::tokens::Preservation;
-use frame_support::{dispatch::DispatchResult, ensure, traits::Contains, traits::Get};
+
+use frame_support::{
+	dispatch::DispatchResult,
+	ensure,
+	sp_runtime::DispatchError,
+	traits::{
+		fungibles::{Inspect, Mutate},
+		tokens::Preservation,
+		Contains, Get,
+	},
+};
+
 use frame_system::ensure_signed;
 use hydradx_traits::evm::Erc20Inspect;
 use hydradx_traits::evm::Erc20OnDust;
@@ -157,7 +164,8 @@ pub mod pallet {
 		/// IF account balance is < min. existential deposit of given currency, and account is allowed to
 		/// be dusted, the remaining balance is transferred to treasury account.
 		///
-		/// In case of AToken, we perform an erc20 dust, which does a wihtdraw all then supply atoken on behalf of the dust receiver
+		/// In case of AToken, we perform an erc20 dust, which does a wihtdraw all to the treasury account
+		/// Note that in this case, the treasury will just receive the underlying token, not the atoken variant.
 		///
 		/// The transaction fee is returned back in case of successful dusting.
 		///
@@ -187,10 +195,7 @@ pub mod pallet {
 			let dust_dest_account = T::TreasuryAccountId::get();
 
 			if T::Erc20Support::is_atoken(currency_id) {
-				//Temporarily adding the account to whitelist to prevent ED error when AToken is withdrawn from contract
-				Self::add_account(&account)?;
 				T::Erc20Support::on_dust(&account, &dust_dest_account, currency_id)?;
-				Self::remove_account(&account)?;
 			} else {
 				Self::transfer_dust(&account, &dust_dest_account, currency_id, dust)?;
 			}

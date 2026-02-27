@@ -2,8 +2,8 @@ use crate::evm::evm_error_decoder::EvmErrorDecoder;
 use crate::evm::executor::{BalanceOf, NonceIdOf};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
+use crate::evm::Erc20Currency;
 use crate::evm::Executor;
-use crate::evm::{Erc20Currency, EvmAccounts};
 use crate::{Runtime, Vec};
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethabi::{decode, ParamType};
@@ -27,16 +27,13 @@ use pallet_evm::GasWeightMapping;
 use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
 use pallet_liquidation::BorrowingContract;
-use polkadot_xcm::v3::MultiLocation;
-use primitive_types::{H256, U256};
+use polkadot_xcm::v5::Location;
+use primitive_types::{H160, U256};
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
 use scale_info::prelude::string::String;
 use sp_arithmetic::traits::SaturatedConversion;
-use sp_arithmetic::{ArithmeticError, FixedU128};
+use sp_arithmetic::FixedU128;
 use sp_core::crypto::AccountId32;
-use sp_runtime::format;
-use sp_runtime::traits::CheckedConversion;
-use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchError, RuntimeDebug};
 use sp_std::boxed::Box;
 use sp_std::marker::PhantomData;
@@ -130,7 +127,7 @@ where
 		+ pallet_broadcast::Config
 		+ pallet_dispatcher::Config
 		+ frame_system::Config<AccountId = sp_runtime::AccountId32>,
-	T::AssetNativeLocation: Into<MultiLocation>,
+	T::AssetNativeLocation: Into<Location>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
@@ -153,29 +150,7 @@ where
 			return Err(DispatchError::Other("Not an Aave token"));
 		};
 
-		let underlying_balance_before = <Erc20Currency<T> as ERC20>::balance_of(
-			CallContext::new_view(underlying_asset),
-			EvmAccounts::<T>::evm_address(&from),
-		);
-
-		AaveTradeExecutor::<T>::do_withdraw_all(&from, underlying_asset)?;
-
-		let underlying_balance_after = <Erc20Currency<T> as ERC20>::balance_of(
-			CallContext::new_view(underlying_asset),
-			EvmAccounts::<T>::evm_address(&from),
-		);
-
-		let amount_to_supply = underlying_balance_after
-			.checked_sub(underlying_balance_before)
-			.ok_or(ArithmeticError::Underflow)?;
-
-		//Sanity check to be sure that the AAVE rounding error cannot be exploited with zero supply amount, so cannot be spammed by free extrinsics like dust_account
-		ensure!(
-			!amount_to_supply.is_zero(),
-			DispatchError::Other("No underlying asset withdrawn")
-		);
-
-		Self::do_supply_on_behalf_of(from, to, underlying_asset, amount_to_supply)
+		AaveTradeExecutor::<T>::do_withdraw_all_to(from, to, underlying_asset)
 	}
 
 	pub fn get_reserves_list(pool: EvmAddress) -> Result<Vec<EvmAddress>, ExecutorError<DispatchError>> {
@@ -293,8 +268,11 @@ where
 			matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("Failed to get scaled total supply".into())
 		);
-		U256::checked_from(call_result.value.as_slice())
-			.ok_or(ExecutorError::Error("Failed to decode scaled total supply".into()))
+		ensure!(
+			call_result.value.len() == 32,
+			ExecutorError::Error("Invalid response length for scaled total supply".into())
+		);
+		Ok(U256::from_big_endian(call_result.value.as_slice()))
 	}
 
 	fn get_underlying_asset(atoken: AssetId) -> Option<EvmAddress> {
@@ -310,12 +288,12 @@ where
 
 		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
-		if !matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)) {
-			// not a token
+		if !matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)) || call_result.value.len() < 32 {
+			// not a token or invalid response
 			return None;
 		}
 
-		Some(EvmAddress::from(H256::from_slice(&call_result.value)))
+		Some(EvmAddress::from(H160::from_slice(&call_result.value[12..32])))
 	}
 
 	fn supply(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
@@ -358,14 +336,15 @@ where
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
 	}
 
-	fn do_withdraw_all(from: &T::AccountId, asset: EvmAddress) -> Result<(), DispatchError> {
+	fn do_withdraw_all_to(from: &T::AccountId, to: &T::AccountId, asset: EvmAddress) -> Result<(), DispatchError> {
 		let from = T::EvmAccounts::evm_address(from);
+		let to = T::EvmAccounts::evm_address(to);
 
 		let context = CallContext::new_call(<BorrowingContract<T>>::get(), from);
 		let data = EvmDataWriter::new_with_selector(Function::Withdraw)
 			.write(asset)
 			.write(U256::MAX)
-			.write(from)
+			.write(to)
 			.build();
 
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
@@ -446,7 +425,7 @@ where
 		+ pallet_broadcast::Config
 		+ frame_system::Config<AccountId = sp_runtime::AccountId32>
 		+ pallet_dispatcher::Config,
-	T::AssetNativeLocation: Into<MultiLocation>,
+	T::AssetNativeLocation: Into<Location>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
@@ -601,8 +580,6 @@ pub struct PoolData<Balance> {
 }
 
 pub mod runtime_api {
-	#![cfg_attr(not(feature = "std"), no_std)]
-
 	use super::AssetId;
 	use super::PoolData;
 	use crate::Vec;

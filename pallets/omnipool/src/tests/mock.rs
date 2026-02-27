@@ -23,7 +23,7 @@ use std::collections::HashMap;
 
 use crate as pallet_omnipool;
 
-use crate::traits::ExternalPriceProvider;
+use crate::traits::{AssetInfo, ExternalPriceProvider};
 use frame_support::traits::{ConstU128, Everything};
 use frame_support::weights::Weight;
 use frame_support::{
@@ -57,6 +57,7 @@ pub const LP2: u64 = 2;
 pub const LP3: u64 = 3;
 pub const PROTOCOL_FEE_COLLECTOR: u64 = 4;
 pub const TRADE_FEE_COLLECTOR: u64 = 5;
+pub const TREASURY: u64 = 100;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -81,6 +82,8 @@ thread_local! {
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 	pub static ON_TRADE_WITHDRAWAL: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static ASSET_REMOVED_HOOK_CALLED: RefCell<Option<AssetId>> = const { RefCell::new(None) };
+	pub static ON_TRADE_WITHDRAWAL_EXTRA: RefCell<Balance> = const { RefCell::new(0) };
+	pub static HUB_ASSET_TRADE_HOOK_CALLS: RefCell<Vec<AssetInfo<AssetId, Balance>>> = const { RefCell::new(vec![]) };
 }
 
 construct_runtime!(
@@ -124,6 +127,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl pallet_balances::Config for Test {
@@ -140,6 +144,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_type_with_key! {
@@ -184,6 +189,7 @@ parameter_types! {
 	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
+	pub const TreasuryAccount: u64 = TREASURY;
 }
 
 impl pallet_broadcast::Config for Test {
@@ -217,6 +223,7 @@ impl Config for Test {
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
 	type BurnProtocolFee = BurnFee;
+	type HubDestination = TreasuryAccount;
 }
 
 pub struct ExtBuilder {
@@ -280,6 +287,15 @@ impl Default for ExtBuilder {
 		});
 		WITHDRAWAL_ADJUSTMENT.with(|v| {
 			*v.borrow_mut() = (0, 0, false);
+		});
+		ON_TRADE_WITHDRAWAL.with(|v| {
+			*v.borrow_mut() = Permill::from_percent(0);
+		});
+		ON_TRADE_WITHDRAWAL_EXTRA.with(|v| {
+			*v.borrow_mut() = Balance::zero();
+		});
+		HUB_ASSET_TRADE_HOOK_CALLS.with(|v| {
+			v.borrow_mut().clear();
 		});
 
 		Self {
@@ -381,6 +397,17 @@ impl ExtBuilder {
 
 	pub fn with_on_trade_withdrawal(self, p: Permill) -> Self {
 		ON_TRADE_WITHDRAWAL.with(|v| *v.borrow_mut() = p);
+		self
+	}
+
+	pub fn with_on_trade_withdrawal_extra(self, extra: Balance) -> Self {
+		ON_TRADE_WITHDRAWAL_EXTRA.with(|v| *v.borrow_mut() = extra);
+		self
+	}
+
+	/// Fund treasury with LRNA - needed for tests that sell hub asset (H2O routes to treasury), to prevent ED error
+	pub fn with_treasury_lrna(mut self, amount: Balance) -> Self {
+		self.endowed_accounts.push((TREASURY, LRNA, amount));
 		self
 	}
 
@@ -594,6 +621,27 @@ pub(crate) fn last_position_id() -> u32 {
 	Omnipool::next_position_id()
 }
 
+// Helper to get recorded hub asset trade hook calls
+pub fn get_hub_asset_trade_hook_calls() -> Vec<AssetInfo<AssetId, Balance>> {
+	HUB_ASSET_TRADE_HOOK_CALLS.with(|v| {
+		v.borrow()
+			.iter()
+			.map(|info| AssetInfo {
+				asset_id: info.asset_id,
+				before: info.before,
+				after: info.after,
+				delta_changes: info.delta_changes.clone(),
+				safe_withdrawal: info.safe_withdrawal,
+			})
+			.collect()
+	})
+}
+
+// Helper to clear recorded hub asset trade hook calls
+pub fn clear_hub_asset_trade_hook_calls() {
+	HUB_ASSET_TRADE_HOOK_CALLS.with(|v| v.borrow_mut().clear());
+}
+
 pub struct MockOracle;
 
 impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
@@ -728,7 +776,11 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		Ok(Weight::zero())
 	}
 
-	fn on_hub_asset_trade(_origin: RuntimeOrigin, _asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+	fn on_hub_asset_trade(_origin: RuntimeOrigin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+		// Record the complete AssetInfo
+		HUB_ASSET_TRADE_HOOK_CALLS.with(|v| {
+			v.borrow_mut().push(asset);
+		});
 		Ok(Weight::zero())
 	}
 
@@ -748,8 +800,15 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		let percentage = ON_TRADE_WITHDRAWAL.with(|v| *v.borrow());
 		let to_take = percentage.mul_floor(amount);
-		<Tokens as MultiCurrency<AccountId>>::transfer(asset, &fee_account, &TRADE_FEE_COLLECTOR, to_take)?;
-		Ok(vec![Some((to_take, TRADE_FEE_COLLECTOR))])
+		let add_extra = ON_TRADE_WITHDRAWAL_EXTRA.with(|v| *v.borrow());
+		<Tokens as MultiCurrency<AccountId>>::transfer(
+			asset,
+			&fee_account,
+			&TRADE_FEE_COLLECTOR,
+			to_take + add_extra,
+			ExistenceRequirement::AllowDeath,
+		)?;
+		Ok(vec![Some((to_take + add_extra, TRADE_FEE_COLLECTOR))])
 	}
 
 	fn consume_protocol_fee(
@@ -761,9 +820,20 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		}
 		if amount < 400_000_000 {
 			//less than ED -> dust
-			<Tokens as MultiCurrency<AccountId>>::withdraw(LRNA, &fee_account, amount)?;
+			<Tokens as MultiCurrency<AccountId>>::withdraw(
+				LRNA,
+				&fee_account,
+				amount,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)?;
 		} else {
-			<Tokens as MultiCurrency<AccountId>>::transfer(LRNA, &fee_account, &PROTOCOL_FEE_COLLECTOR, amount)?;
+			<Tokens as MultiCurrency<AccountId>>::transfer(
+				LRNA,
+				&fee_account,
+				&PROTOCOL_FEE_COLLECTOR,
+				amount,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)?;
 		}
 		Ok(Some((amount, PROTOCOL_FEE_COLLECTOR)))
 	}

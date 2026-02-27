@@ -90,6 +90,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 pub type Amount = i128;
@@ -134,6 +135,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 impl pallet_currencies::Config for Test {
@@ -145,6 +147,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 
@@ -299,6 +302,7 @@ impl ExtBuilder {
 				(ALICE, ALICE_INITIAL_NATIVE_BALANCE),
 				(ASSET_PAIR_ACCOUNT, ALICE_INITIAL_NATIVE_BALANCE),
 			],
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

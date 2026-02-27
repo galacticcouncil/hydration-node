@@ -1,9 +1,8 @@
 use codec::{Decode, Encode};
-use frame_support::sp_runtime;
-use frame_support::sp_runtime::app_crypto::sp_core;
-use frame_support::sp_runtime::app_crypto::sp_core::{H160, U256};
-use frame_support::sp_runtime::{DispatchResult, RuntimeDebug};
+use frame_support::sp_runtime::app_crypto::sp_core::U256;
+use frame_support::sp_runtime::{DispatchError, DispatchResult, RuntimeDebug};
 use pallet_evm::ExitReason;
+use primitives::EvmAddress;
 use sp_std::vec::Vec;
 
 pub trait InspectEvmAccounts<AccountId> {
@@ -29,8 +28,6 @@ pub trait InspectEvmAccounts<AccountId> {
 	/// Returns `True` if the address is allowed to manage balances and tokens.
 	fn is_approved_contract(address: EvmAddress) -> bool;
 }
-
-pub type EvmAddress = H160;
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug)]
 pub struct CallContext {
@@ -71,7 +68,9 @@ impl CallContext {
 pub struct CallResult {
 	pub exit_reason: ExitReason,
 	pub value: Vec<u8>,
-	pub contract: sp_core::H160,
+	pub contract: EvmAddress,
+	pub gas_used: U256,
+	pub gas_limit: U256,
 }
 
 pub trait EVM<EvmResult> {
@@ -122,4 +121,15 @@ pub trait Erc20OnDust<AccountId, CurrencyId> {
 		dust_dest_account: &AccountId,
 		currency_id: CurrencyId,
 	) -> frame_support::dispatch::DispatchResult;
+}
+
+/// Support for providing extra gas to EVM calls.
+/// Used when an operation runs out of gas and needs additional gas for retries.
+pub trait ExtraGasSupport {
+	/// Set extra gas to be added to subsequent EVM calls
+	fn set_extra_gas(gas: u64);
+	/// Clear any previously set extra gas
+	fn clear_extra_gas();
+	/// Returns the dispatch error that indicates an out of gas condition
+	fn out_of_gas_error() -> DispatchError;
 }

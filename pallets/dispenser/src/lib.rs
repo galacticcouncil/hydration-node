@@ -16,17 +16,16 @@ use alloc::{string::String, vec};
 
 use alloy_primitives::U256;
 use alloy_sol_types::{sol, SolCall};
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Inspect;
-use frame_support::traits::{fungibles::Mutate, tokens::Preservation, Currency};
+use frame_support::traits::{fungibles::Mutate, tokens::Preservation};
 use frame_support::PalletId;
 use frame_support::{dispatch::DispatchResult, BoundedVec};
 use frame_system::pallet_prelude::*;
-use sp_core::H160;
+use primitives::EvmAddress;
 use sp_std::vec::Vec;
 
-#[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 pub mod types;
 pub mod weights;
@@ -51,7 +50,7 @@ sol! {
 ///
 /// These values are provided by the caller and used to construct the RLP-encoded
 /// transaction which SigNet will sign.
-#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq)]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, Debug, PartialEq)]
 pub struct EvmTransactionParams {
 	/// ETH value (in wei) sent with the EVM transaction.
 	pub value: u128,
@@ -227,7 +226,7 @@ pub mod pallet {
 		/// - Charges the configured fee in `FeeAsset`.
 		/// - Transfers the requested faucet asset from the user to `FeeDestination`.
 		/// - Builds an EVM transaction calling `IGasFaucet::fund`.
-		/// - Submits a signing request to SigNet via `pallet_signet::sign_respond`.
+		/// - Submits a signing request to SigNet via `pallet_signet::sign_bidirectional`.
 		///
 		/// The `request_id` must match the ID derived internally from the inputs,
 		/// otherwise the call will fail with `InvalidRequestId`.
@@ -252,7 +251,7 @@ pub mod pallet {
 			Self::ensure_not_paused()?;
 
 			// Basic validation of parameters.
-			ensure!(to != [0u8; 20], Error::<T>::InvalidAddress);
+			ensure!(to != EvmAddress::zero(), Error::<T>::InvalidAddress);
 			ensure!(amount >= T::MinimumRequestAmount::get(), Error::<T>::AmountTooSmall);
 			ensure!(amount <= T::MaxDispenseAmount::get(), Error::<T>::AmountTooLarge);
 
@@ -272,14 +271,14 @@ pub mod pallet {
 
 			// Build the EVM call to the faucet.
 			let call = IGasFaucet::fundCall {
-				to: alloy_primitives::Address::from_slice(&to),
+				to: alloy_primitives::Address::from_slice(to.as_bytes()),
 				amount: U256::from(amount),
 			};
 
 			// Build EVM transaction bytes using pallet_signet helper.
 			let rlp = pallet_signet::Pallet::<T>::build_evm_tx(
 				frame_system::RawOrigin::Signed(requester.clone()).into(),
-				Some(H160::from(T::FaucetAddress::get())),
+				Some(T::FaucetAddress::get()),
 				0u128,
 				call.abi_encode(),
 				tx.nonce,
@@ -295,8 +294,12 @@ pub mod pallet {
 			path.extend_from_slice(b"0x");
 			path.extend_from_slice(hex::encode(requester.encode()).as_bytes());
 
+			// CAIP-2 chain ID (e.g., "eip155:1" for Ethereum mainnet)
+			let caip2_id = alloc::format!("eip155:{}", tx.chain_id);
+
 			// Derive canonical request ID and compare with user-supplied one.
-			let req_id = Self::generate_request_id(&pallet_acc, &rlp, 60, 0, &path, ECDSA, ETHEREUM, b"");
+			let req_id = Self::generate_request_id(&pallet_acc, &rlp, &caip2_id, 0, &path, ECDSA, ETHEREUM, b"");
+
 			ensure!(req_id == request_id, Error::<T>::InvalidRequestId);
 			ensure!(
 				UsedRequestIds::<T>::get(request_id).is_none(),
@@ -328,24 +331,22 @@ pub mod pallet {
 				Preservation::Expendable,
 			)?;
 
-			let explorer_schema = Vec::<u8>::new();
-			let callback_schema =
+			let output_deserialization_schema = Vec::<u8>::new();
+			let respond_serialization_schema =
 				serde_json::to_vec(&serde_json::json!("bool")).map_err(|_| Error::<T>::Serialization)?;
 
 			// Submit signing request to SigNet.
-			pallet_signet::Pallet::<T>::sign_respond(
+			pallet_signet::Pallet::<T>::sign_bidirectional(
 				frame_system::RawOrigin::Signed(pallet_acc.clone()).into(),
-				BoundedVec::<u8, ConstU32<65536>>::try_from(rlp).map_err(|_| Error::<T>::Serialization)?,
-				60,
+				BoundedVec::try_from(rlp).map_err(|_| Error::<T>::Serialization)?,
+				BoundedVec::try_from(caip2_id.into_bytes()).map_err(|_| Error::<T>::Serialization)?,
 				0,
 				BoundedVec::try_from(path).map_err(|_| Error::<T>::Serialization)?,
 				BoundedVec::try_from(ECDSA.to_vec()).map_err(|_| Error::<T>::Serialization)?,
 				BoundedVec::try_from(ETHEREUM.to_vec()).map_err(|_| Error::<T>::Serialization)?,
-				BoundedVec::try_from(Vec::new()).map_err(|_| Error::<T>::Serialization)?,
-				pallet_signet::SerializationFormat::AbiJson,
-				BoundedVec::try_from(explorer_schema).map_err(|_| Error::<T>::Serialization)?,
-				pallet_signet::SerializationFormat::Borsh,
-				BoundedVec::try_from(callback_schema).map_err(|_| Error::<T>::Serialization)?,
+				BoundedVec::try_from(vec![]).map_err(|_| Error::<T>::Serialization)?,
+				BoundedVec::try_from(output_deserialization_schema).map_err(|_| Error::<T>::Serialization)?,
+				BoundedVec::try_from(respond_serialization_schema).map_err(|_| Error::<T>::Serialization)?,
 			)?;
 
 			// Mark request ID as used and update tracked faucet balance.
@@ -426,18 +427,18 @@ pub mod pallet {
 		/// Derive a deterministic request ID from the given parameters.
 		///
 		/// The ID is computed as:
-		/// - Encode `(sender_ss58, transaction_data, slip44_chain_id, key_version,
+		/// - Encode `(sender_ss58, transaction_data, caip2_id, key_version,
 		///   path_str, algo_str, dest_str, params_str)` using Solidity's
 		///   `abi_encode_packed`.
 		/// - Apply `keccak256` to the result.
 		///
 		/// This mirrors the off-chain logic used by SigNet clients and prevents
 		/// clients from supplying arbitrary request IDs.
-
+		#[allow(clippy::too_many_arguments)]
 		pub fn generate_request_id(
 			sender: &T::AccountId,
 			transaction_data: &[u8],
-			slip44_chain_id: u32,
+			caip2_id: &str,
 			key_version: u32,
 			path: &[u8],
 			algo: &[u8],
@@ -458,7 +459,7 @@ pub mod pallet {
 			let encoded = (
 				sender_ss58.as_str(),
 				transaction_data,
-				slip44_chain_id,
+				caip2_id,
 				key_version,
 				core::str::from_utf8(path).unwrap_or(""),
 				core::str::from_utf8(algo).unwrap_or(""),

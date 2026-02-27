@@ -14,6 +14,7 @@ mod add_liquidity_with_limit;
 mod barrier;
 pub(crate) mod mock;
 mod positions;
+mod protocol_fee;
 mod refund;
 mod remove_all_liquidity;
 mod remove_liquidity_with_limit;

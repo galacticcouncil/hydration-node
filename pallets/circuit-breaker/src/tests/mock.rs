@@ -23,7 +23,9 @@ pub use frame_support::{assert_noop, assert_ok, parameter_types};
 use frame_support::PalletId;
 use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
-use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, MultiCurrency, NamedMultiReservableCurrency};
+#[cfg(feature = "runtime-benchmarks")]
+use orml_traits::MultiCurrency;
+use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, NamedMultiReservableCurrency};
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, ConstU128, ConstU32, Zero};
 use sp_runtime::DispatchResult;
@@ -46,6 +48,7 @@ pub type Balance = u128;
 pub const ALICE: u64 = 1;
 pub const BOB: u64 = 2;
 pub const WHITELISTED_ACCCOUNT: u64 = 2;
+pub const DEPOSIT_LOCK_WHITELISTED_ACCOUNT: u64 = 999;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
@@ -92,6 +95,7 @@ frame_support::construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
+		Timestamp: pallet_timestamp,
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
@@ -100,6 +104,17 @@ frame_support::construct_runtime!(
 		Currencies: pallet_currencies
 	}
 );
+
+parameter_types! {
+	pub const MinimumPeriod: u64 = primitives::constants::time::SLOT_DURATION / 2;
+}
+
+impl pallet_timestamp::Config for Test {
+	type Moment = primitives::Moment;
+	type OnTimestampSet = ();
+	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
+}
 
 parameter_types! {
 	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
@@ -119,6 +134,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 
@@ -157,6 +173,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_types! {
@@ -164,7 +181,7 @@ parameter_types! {
 	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = LRNA;
-
+	pub const GlobalWithdrawWindow: primitives::Moment = primitives::constants::time::unix_time::DAY;
 }
 
 impl pallet_circuit_breaker::Config for Test {
@@ -173,12 +190,15 @@ impl pallet_circuit_breaker::Config for Test {
 	type Balance = Balance;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DepositLockWhitelist = DepositLockWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
 	type OmnipoolHubAsset = OmnipoolHubAsset;
 	type WeightInfo = ();
 	type DepositLimiter = DepositLimiter;
+	type GlobalWithdrawWindow = GlobalWithdrawWindow;
+	type TimestampProvider = Timestamp;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = BenchmarkHelperMock;
@@ -216,6 +236,14 @@ impl Contains<AccountId> for CircuitBreakerWhitelist {
 	}
 }
 
+pub struct DepositLockWhitelist;
+
+impl Contains<AccountId> for DepositLockWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		DEPOSIT_LOCK_WHITELISTED_ACCOUNT == *a
+	}
+}
+
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
@@ -230,6 +258,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_type_with_key! {
@@ -293,6 +322,7 @@ impl pallet_omnipool::Config for Test {
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
 	type BurnProtocolFee = BurnFee;
+	type HubDestination = TreasuryAccount;
 }
 
 impl pallet_broadcast::Config for Test {

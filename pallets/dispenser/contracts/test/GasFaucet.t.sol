@@ -10,6 +10,44 @@ import {GasVoucher} from "../src/GasVoucher.sol";
 import {IGasVoucher} from "../src/interfaces/IGasVoucher.sol";
 import "../src/utils/Errors.sol";
 
+// Mock contract that rejects ETH transfers
+contract RejectETH {
+    // No fallback or receive function, so it rejects ETH
+}
+
+// Mock contract that accepts ETH
+contract AcceptETH {
+    receive() external payable {}
+}
+
+// Reentrancy attacker contract
+contract ReentrancyAttacker {
+    GasFaucet public faucet;
+    GasVoucher public voucher;
+    bool public attackAttempted;
+    bool public attackSucceeded;
+
+    constructor(address _faucet, address _voucher) {
+        faucet = GasFaucet(payable(_faucet));
+        voucher = GasVoucher(_voucher);
+    }
+
+    receive() external payable {
+        if (!attackAttempted && address(faucet).balance > 0) {
+            attackAttempted = true;
+            // Try to reenter via redeem (should fail due to reentrancy guard)
+            if (voucher.balanceOf(address(this)) > 0) {
+                try faucet.redeem(0.1 ether) {
+                    attackSucceeded = true; // This should never happen
+                } catch {
+                    // Attack was blocked by reentrancy guard
+                    attackSucceeded = false;
+                }
+            }
+        }
+    }
+}
+
 contract GasFaucetTest is Test {
     GasFaucet faucet;
     GasVoucher voucher;
@@ -252,5 +290,170 @@ contract GasFaucetTest is Test {
 
         assertEq(aliceVoucherBalBefore - aliceVoucherBalAfter, 1 ether);
         assertEq(aliceEthBalAfter - aliceEthBalBefore, 1 ether);
+    }
+
+    // New security tests
+
+    function test_fund_fallback_to_vouchers_when_eth_transfer_fails() public {
+        // Deploy a contract that rejects ETH
+        RejectETH rejecter = new RejectETH();
+        address rejecterAddr = address(rejecter);
+
+        // Fund the faucet with enough ETH
+        vm.deal(address(faucet), 10 ether);
+
+        uint256 amount = 1 ether;
+
+        // MPC tries to fund the rejecter contract
+        // Should fallback to issuing vouchers instead of reverting
+        vm.prank(mpc);
+        vm.expectEmit(true, true, true, true);
+        emit IGasFaucet.VoucherIssued(rejecterAddr, amount);
+        faucet.fund(rejecterAddr, amount);
+
+        // Verify vouchers were issued instead of ETH
+        assertEq(rejecterAddr.balance, 0, "No ETH sent");
+        assertEq(
+            voucher.balanceOf(rejecterAddr),
+            amount,
+            "Vouchers issued as fallback"
+        );
+    }
+
+    function test_fund_succeeds_for_contract_that_accepts_eth() public {
+        // Deploy a contract that accepts ETH
+        AcceptETH accepter = new AcceptETH();
+        address accepterAddr = address(accepter);
+
+        // Fund the faucet with enough ETH
+        vm.deal(address(faucet), 10 ether);
+
+        uint256 amount = 1 ether;
+        uint256 before = accepterAddr.balance;
+
+        // MPC funds the accepter contract
+        vm.prank(mpc);
+        vm.expectEmit(true, true, true, true);
+        emit IGasFaucet.Funded(accepterAddr, amount);
+        faucet.fund(accepterAddr, amount);
+
+        // Verify ETH was sent
+        assertEq(accepterAddr.balance, before + amount, "ETH sent successfully");
+        assertEq(voucher.balanceOf(accepterAddr), 0, "No vouchers issued");
+    }
+
+    function test_pause_unpause_only_owner() public {
+        vm.deal(address(faucet), 10 ether);
+
+        // Non-owner cannot pause
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                alice
+            )
+        );
+        faucet.pause();
+
+        // Owner can pause
+        vm.prank(owner);
+        faucet.pause();
+
+        // Fund should fail when paused
+        vm.prank(mpc);
+        vm.expectRevert();
+        faucet.fund(alice, 1 ether);
+
+        // Redeem should fail when paused
+        vm.prank(alice);
+        vm.expectRevert();
+        faucet.redeem(0.5 ether);
+
+        // Non-owner cannot unpause
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                alice
+            )
+        );
+        faucet.unpause();
+
+        // Owner can unpause
+        vm.prank(owner);
+        faucet.unpause();
+
+        // Should work after unpause
+        vm.prank(mpc);
+        faucet.fund(alice, 1 ether);
+        assertEq(alice.balance, 1 ether);
+    }
+
+    function test_reentrancy_protection_on_redeem() public {
+        // Setup: Give faucet some ETH and fund the attacker with vouchers
+        vm.deal(address(faucet), 10 ether);
+
+        ReentrancyAttacker attacker = new ReentrancyAttacker(
+            address(faucet),
+            address(voucher)
+        );
+        address attackerAddr = address(attacker);
+
+        // Fund attacker with vouchers by minting through faucet
+        vm.deal(address(faucet), 0.1 ether); // Low balance to trigger voucher issuance
+        vm.prank(mpc);
+        faucet.fund(attackerAddr, 1 ether);
+
+        assertEq(voucher.balanceOf(attackerAddr), 1 ether, "Attacker has vouchers");
+
+        // Refill faucet
+        vm.deal(address(faucet), 10 ether);
+
+        uint256 faucetBalBefore = address(faucet).balance;
+
+        // Attacker tries to redeem and reenter
+        vm.prank(attackerAddr);
+        faucet.redeem(0.1 ether);
+
+        // Verify the attack was prevented
+        // Attacker should only have received 0.1 ETH (not more through reentrancy)
+        assertEq(attackerAddr.balance, 0.1 ether, "Only single redeem succeeded");
+        assertEq(
+            address(faucet).balance,
+            faucetBalBefore - 0.1 ether,
+            "Faucet only sent 0.1 ETH"
+        );
+        assertEq(
+            voucher.balanceOf(attackerAddr),
+            0.9 ether,
+            "Correct vouchers burned"
+        );
+        assertTrue(attacker.attackAttempted(), "Reentry was attempted");
+        assertFalse(attacker.attackSucceeded(), "Reentry attack was blocked");
+    }
+
+    function test_withdraw_works_even_when_paused() public {
+        vm.deal(address(faucet), 10 ether);
+
+        // Pause the faucet
+        vm.prank(owner);
+        faucet.pause();
+
+        // Withdraw should still work (for emergency recovery)
+        uint256 before = bob.balance;
+        vm.prank(owner);
+        faucet.withdraw(payable(bob), 1 ether);
+
+        assertEq(bob.balance, before + 1 ether, "Withdraw works when paused");
+    }
+
+    function test_constructor_reverts_zero_mpc() public {
+        vm.expectRevert(ZeroAddress.selector);
+        new GasFaucet(address(0), address(voucher), THRESH, owner);
+    }
+
+    function test_constructor_reverts_zero_voucher() public {
+        vm.expectRevert(ZeroAddress.selector);
+        new GasFaucet(mpc, address(0), THRESH, owner);
     }
 }

@@ -27,7 +27,10 @@ mod tests;
 
 pub mod migration;
 
-use frame_support::{traits::Get, BoundedVec};
+use frame_support::{
+	traits::{ExistenceRequirement, Get},
+	BoundedVec,
+};
 
 use orml_traits::MultiCurrency;
 use pallet_session::SessionManager;
@@ -142,7 +145,13 @@ impl<T: Config> SessionManager<T::AccountId> for Pallet<T> {
 		for collator in Collators::<T>::take(index) {
 			if !excluded.contains(&collator) {
 				let (currency, amount) = (T::RewardCurrencyId::get(), T::RewardPerCollator::get());
-				match T::Currency::transfer(currency, &T::RewardsBag::get(), &collator, amount) {
+				match T::Currency::transfer(
+					currency,
+					&T::RewardsBag::get(),
+					&collator,
+					amount,
+					ExistenceRequirement::AllowDeath,
+				) {
 					Ok(_) => Self::deposit_event(Event::CollatorRewarded {
 						who: collator,
 						amount,

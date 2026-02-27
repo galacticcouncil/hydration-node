@@ -18,10 +18,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::upper_case_acronyms)]
 
+pub mod circuit_breaker;
 pub mod evm;
 pub mod fee;
 pub mod liquidity_mining;
 pub mod nft;
+pub mod offchain;
 pub mod oracle;
 pub mod pools;
 pub mod price;
@@ -29,6 +31,7 @@ pub mod registry;
 pub mod router;
 pub mod stableswap;
 
+pub use offchain::*;
 pub use oracle::*;
 pub use registry::*;
 

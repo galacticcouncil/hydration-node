@@ -5,14 +5,10 @@ on:
     tags:
       - v*
   workflow_dispatch:
-    inputs:
-      # Get the SR Tool image used to build
-      srtool_image:
-        description: Default to use the latest. You can use an alternate image, use with caution!
-        required: false
 
 env:
   SUBWASM_VERSION: 0.21.3
+  SRTOOL_VERSION: 1.84.1
   CHAIN: hydradx
 
 permissions:
@@ -32,14 +28,6 @@ jobs:
         with:
           rustflags: ''
 
-      - name: Install srtool
-        run: |
-          [[ -n "${{ github.event.inputs.srtool_image }}" ]] \
-            && TAG="--tag ${{ github.event.inputs.srtool_image }}" || TAG=""
-
-          cargo install --force --locked --git https://github.com/chevdor/srtool-cli $TAG
-          type srtool # Verify the installation
-
       - name: Fix permissions before srtool build
         run: |
           sudo chown -R $USER:1001 ${{ github.workspace }}
@@ -48,19 +36,23 @@ jobs:
       - name: Build runtime with srtool
         id: srtool_build
         run: |
-          srtool -e docker build -p "${{ env.CHAIN }}-runtime" -r "runtime/${{ env.CHAIN }}" --build-opts="--features=metadata-hash" --app --json \
+          docker run --rm -v "${{ github.workspace }}:/build" \
+            -e PACKAGE=${{ env.CHAIN }}-runtime \
+            -e RUNTIME_DIR=runtime/${{ env.CHAIN }} \
+            -e BUILD_OPTS="--features=metadata-hash" \
+            paritytech/srtool:${{ env.SRTOOL_VERSION }} build --app \
             | tee srtool-build.log
 
-          JSON=$(cat srtool-build.log | tail -n 1)
+          JSON=$(cat srtool-build.log | grep -E '^\{' | tail -n 1)
           echo "json=$JSON" >> $GITHUB_OUTPUT
 
-          PROP=`echo $JSON | jq -r .runtimes.compact.prop`
+          PROP=$(echo $JSON | jq -r .runtimes.compact.prop)
           echo "proposal_hash=$PROP" >> $GITHUB_OUTPUT
 
-          WASM=`echo $JSON | jq -r .runtimes.compact.wasm`
+          WASM=$(echo $JSON | jq -r .runtimes.compact.wasm)
           echo "wasm=$WASM" >> $GITHUB_OUTPUT
 
-          Z_WASM=`echo $JSON | jq -r .runtimes.compressed.wasm`
+          Z_WASM=$(echo $JSON | jq -r .runtimes.compressed.wasm)
           echo "wasm_compressed=$Z_WASM" >> $GITHUB_OUTPUT
 
       - name: Build Summary

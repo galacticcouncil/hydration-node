@@ -21,15 +21,15 @@ use hydradx_runtime::{
 	Router, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
 };
 use hydradx_traits::{
-	evm::{CallContext, Erc20Encoding, EvmAddress, EVM},
-	router::{AssetPair, PoolType, RouteProvider, Trade},
+	evm::{CallContext, Erc20Encoding, EVM},
+	router::{AssetPair, RouteProvider},
 };
 use liquidation_worker_support::*;
 use orml_traits::currency::MultiCurrency;
 use pallet_currencies_rpc_runtime_api::runtime_decl_for_currencies_api::CurrenciesApi;
+use primitives::EvmAddress;
 use sp_api::ApiError;
 use sp_core::{H256, U256};
-use sp_runtime::traits::CheckedConversion;
 use xcm_runtime_apis::dry_run::{
 	runtime_decl_for_dry_run_api::DryRunApi, CallDryRunEffects, Error as XcmDryRunApiError,
 };
@@ -46,6 +46,7 @@ pub const ORACLE_ADDRESS: EvmAddress = H160(hex!("C756bD338A97c1d2FAAB4F13B5444a
 // pub const ORACLE_CALLER: EvmAddress = H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e"));
 // pub const ORACLE_ADDRESS: EvmAddress = H160(hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e"));
 
+const HDX: AssetId = 0;
 const DOT: AssetId = 5;
 const DOT_UNIT: Balance = 10_000_000_000;
 const WETH: AssetId = 20;
@@ -113,12 +114,12 @@ pub fn get_user_account_data(mm_pool: EvmAddress, user: EvmAddress) -> Option<Us
 		hex::encode(call_result.value)
 	);
 
-	let total_collateral_base = U256::checked_from(&call_result.value[0..32])?;
-	let total_debt_base = U256::checked_from(&call_result.value[32..64])?;
-	let available_borrows_base = U256::checked_from(&call_result.value[64..96])?;
-	let current_liquidation_threshold = U256::checked_from(&call_result.value[96..128])?;
-	let ltv = U256::checked_from(&call_result.value[128..160])?;
-	let health_factor = U256::checked_from(&call_result.value[160..192])?;
+	let total_collateral_base = U256::from_big_endian(&call_result.value[0..32]);
+	let total_debt_base = U256::from_big_endian(&call_result.value[32..64]);
+	let available_borrows_base = U256::from_big_endian(&call_result.value[64..96]);
+	let current_liquidation_threshold = U256::from_big_endian(&call_result.value[96..128]);
+	let ltv = U256::from_big_endian(&call_result.value[128..160]);
+	let health_factor = U256::from_big_endian(&call_result.value[160..192]);
 
 	Some(UserAccountData {
 		total_collateral_base,
@@ -173,8 +174,8 @@ pub fn get_oracle_price(asset_pair: &str) -> Option<(U256, U256)> {
 
 		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 5_000_000);
 		if call_result.exit_reason == Succeed(Returned) {
-			let price = U256::checked_from(&call_result.value[0..32]).unwrap();
-			let timestamp = U256::checked_from(&call_result.value[32..64]).unwrap();
+			let price = U256::from_big_endian(&call_result.value[0..32]);
+			let timestamp = U256::from_big_endian(&call_result.value[32..64]);
 
 			if !price.is_zero() {
 				return Some((price, timestamp));
@@ -195,6 +196,8 @@ fn liquidation_should_work() {
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		let pallet_acc = Liquidation::account_id();
 		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
 		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
@@ -261,7 +264,7 @@ fn liquidation_should_work() {
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price(
-			vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())],
+			vec![("DOT/USD", U256::from_big_endian(&data[0..32]))],
 			ORACLE_ADDRESS,
 			ORACLE_CALLER,
 		);
@@ -272,7 +275,7 @@ fn liquidation_should_work() {
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price(
-			vec![("WETH/USD", U256::checked_from(&data[0..32]).unwrap())],
+			vec![("WETH/USD", U256::from_big_endian(&data[0..32]))],
 			ORACLE_ADDRESS,
 			ORACLE_CALLER,
 		);
@@ -308,11 +311,132 @@ fn liquidation_should_work() {
 }
 
 #[test]
+fn liquidation_should_fail_when_debt_asset_is_under_deposit_lockdown() {
+	TestNet::reset();
+	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		// Arrange
+		deposit_hdx_to_protocol_account();
+
+		let pallet_acc = Liquidation::account_id();
+		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
+		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
+
+		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
+		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
+
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into()),));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(BOB.into()),));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(pallet_acc.clone()),));
+
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+
+		// get Pool contract address
+		let block_number = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(block_number);
+		let pool_contract = MoneyMarketData::<Block, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool::<
+			ApiProvider<Runtime>,
+		>(&ApiProvider::<Runtime>(Runtime), hash, PAP_CONTRACT, alice_evm_address)
+		.unwrap();
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			pool_contract
+		));
+
+		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+		let collateral_weth_amount: Balance = 10 * WETH_UNIT;
+		let collateral_dot_amount = 5_000 * DOT_UNIT;
+		supply(
+			pool_contract,
+			alice_evm_address,
+			weth_asset_address,
+			collateral_weth_amount,
+		);
+		supply(
+			pool_contract,
+			alice_evm_address,
+			dot_asset_address,
+			collateral_dot_amount,
+		);
+
+		let borrow_dot_amount: Balance = 5_000 * DOT_UNIT;
+		borrow(pool_contract, alice_evm_address, dot_asset_address, borrow_dot_amount);
+
+		// Manipulate prices to make the position liquidatable (health_factor < 1)
+		let (price, timestamp) = get_oracle_price("DOT/USD").unwrap();
+		let price = price.as_u128() * 5;
+		let timestamp = timestamp.as_u128() + 6;
+		let mut data = price.to_be_bytes().to_vec();
+		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
+		update_oracle_price(
+			vec![("DOT/USD", U256::from_big_endian(&data[0..32]))],
+			ORACLE_ADDRESS,
+			ORACLE_CALLER,
+		);
+
+		let (price, timestamp) = get_oracle_price("WETH/USD").unwrap();
+		let price = price.as_u128() / 5;
+		let timestamp = timestamp.as_u128() + 6;
+		let mut data = price.to_be_bytes().to_vec();
+		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
+		update_oracle_price(
+			vec![("WETH/USD", U256::from_big_endian(&data[0..32]))],
+			ORACLE_ADDRESS,
+			ORACLE_CALLER,
+		);
+
+		// Ensure that the health_factor < 1 (position is liquidatable)
+		let user_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
+		assert!(user_data.health_factor < U256::from(1_000_000_000_000_000_000u128));
+
+		let route = Router::get_route(AssetPair {
+			asset_in: WETH,
+			asset_out: DOT,
+		});
+
+		// Set a deposit limit on the debt asset (DOT) and trigger lockdown.
+		// This demonstrates what happens when any asset with xcm_rate_limit enters
+		// lockdown and a liquidation needs to mint that asset into the pallet account.
+		let deposit_limit = DOT_UNIT;
+		crate::deposit_limiter::update_deposit_limit(DOT, deposit_limit).unwrap();
+
+		// Trigger lockdown by depositing more than the limit
+		assert_ok!(Currencies::deposit(
+			DOT,
+			&AccountId::from(BOB),
+			deposit_limit + DOT_UNIT
+		));
+
+		// Act - Liquidation should fail because the debt asset is under deposit lockdown.
+		assert!(Liquidation::liquidate(
+			RuntimeOrigin::signed(BOB.into()),
+			WETH,
+			DOT,
+			alice_evm_address,
+			borrow_dot_amount,
+			route
+		)
+		.is_err());
+
+		// Assert - no funds should be stuck on the pallet account
+		assert_eq!(Currencies::free_balance(DOT, &pallet_acc), 0);
+		assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
+
+		// The user's position is still unchanged
+		let user_data_after = get_user_account_data(pool_contract, alice_evm_address).unwrap();
+		assert!(user_data_after.health_factor < U256::from(1_000_000_000_000_000_000u128));
+	});
+}
+
+#[test]
 fn liquidation_should_revert_correctly_when_evm_call_fails() {
 	TestNet::reset();
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		let pallet_acc = Liquidation::account_id();
 		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
 		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
@@ -417,6 +541,8 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		hydradx_run_to_next_block();
 
 		let pallet_acc = Liquidation::account_id();
@@ -535,7 +661,7 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price(
-			vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())],
+			vec![("DOT/USD", U256::from_big_endian(&data[0..32]))],
 			ORACLE_ADDRESS,
 			ORACLE_CALLER,
 		);
@@ -566,6 +692,8 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		hydradx_run_to_next_block();
 
 		let pallet_acc = Liquidation::account_id();
@@ -661,7 +789,7 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price(
-			vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())],
+			vec![("DOT/USD", U256::from_big_endian(&data[0..32]))],
 			ORACLE_ADDRESS,
 			ORACLE_CALLER,
 		);
@@ -692,6 +820,8 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		hydradx_run_to_next_block();
 
 		let pallet_acc = Liquidation::account_id();
@@ -786,7 +916,7 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price(
-			vec![("WETH/USD", U256::checked_from(&data[0..32]).unwrap())],
+			vec![("WETH/USD", U256::from_big_endian(&data[0..32]))],
 			ORACLE_ADDRESS,
 			ORACLE_CALLER,
 		);
@@ -856,6 +986,8 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		hydradx_run_to_next_block();
 
 		let pallet_acc = Liquidation::account_id();
@@ -951,7 +1083,7 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price(
-			vec![("WETH/USD", U256::checked_from(&data[0..32]).unwrap())],
+			vec![("WETH/USD", U256::from_big_endian(&data[0..32]))],
 			ORACLE_ADDRESS,
 			ORACLE_CALLER,
 		);
@@ -982,6 +1114,8 @@ fn calculate_debt_to_liquidate_with_two_different_assets() {
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Arrange
+		deposit_hdx_to_protocol_account();
+
 		hydradx_run_to_next_block();
 
 		let pallet_acc = Liquidation::account_id();
@@ -1073,7 +1207,7 @@ fn calculate_debt_to_liquidate_with_two_different_assets() {
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price(
-			vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())],
+			vec![("DOT/USD", U256::from_big_endian(&data[0..32]))],
 			ORACLE_ADDRESS,
 			ORACLE_CALLER,
 		);
@@ -1132,6 +1266,7 @@ where
 			None,
 			true,
 			None,
+			None,
 		)
 		.map_err(|_| sp_runtime::DispatchError::Other("Calling EthereumRuntimeRPCApi::Call failed.")))
 	}
@@ -1159,6 +1294,8 @@ where
 fn calculate_debt_to_liquidate_with_three_different_assets() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		deposit_hdx_to_protocol_account();
+
 		hydradx_run_to_next_block();
 
 		let pallet_acc = Liquidation::account_id();
@@ -1285,7 +1422,7 @@ fn calculate_debt_to_liquidate_with_three_different_assets() {
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price(
-			vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())],
+			vec![("DOT/USD", U256::from_big_endian(&data[0..32]))],
 			ORACLE_ADDRESS,
 			ORACLE_CALLER,
 		);
@@ -1303,4 +1440,15 @@ fn calculate_debt_to_liquidate_with_three_different_assets() {
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 		assert_health_factor_is_within_tolerance(usr_data.health_factor, target_health_factor);
 	});
+}
+
+fn deposit_hdx_to_protocol_account() {
+	// We need to deposit HDX to omnipool account since the snapshot doesn't include System pallet
+	// (native HDX balance is stored in frame_system::Account, not orml_tokens)
+	let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+	assert_ok!(Currencies::deposit(
+		HDX,
+		&omnipool_account,
+		1_000_000_000_000_000_000_000u128
+	));
 }

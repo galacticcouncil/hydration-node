@@ -17,7 +17,7 @@ mod benches {
 	use alloy_primitives::{Address, U256};
 	use alloy_sol_types::SolCall;
 	use core::ops::{Add, Mul};
-	use sp_core::H160;
+	use frame_support::traits::Currency;
 
 	#[benchmark]
 	fn set_faucet_balance() {
@@ -91,10 +91,9 @@ mod benches {
 		));
 
 		let caller: T::AccountId = whitelisted_caller();
-		let treasury = T::FeeDestination::get();
 
 		let amount: u128 = 100_000;
-		let to: [u8; 20] = [1u8; 20];
+		let to = EvmAddress::from([1u8; 20]);
 
 		let tx = EvmTransactionParams {
 			value: 0,
@@ -106,14 +105,14 @@ mod benches {
 		};
 
 		let call = crate::IGasFaucet::fundCall {
-			to: Address::from_slice(&to),
+			to: Address::from_slice(to.as_bytes()),
 			amount: U256::from(amount),
 		};
 
 		let faucet_addr = T::FaucetAddress::get();
 		let rlp = pallet_signet::Pallet::<T>::build_evm_tx(
 			RawOrigin::Signed(caller.clone()).into(),
-			Some(H160::from(faucet_addr)),
+			Some(faucet_addr),
 			0u128,
 			call.abi_encode(),
 			tx.nonce,
@@ -132,10 +131,13 @@ mod benches {
 			s.into_bytes()
 		};
 
+		// CAIP-2 chain ID format
+		let caip2_id = alloc::format!("eip155:{}", tx.chain_id);
+
 		let req_id = Pallet::<T>::generate_request_id(
 			&Pallet::<T>::account_id(),
 			&rlp,
-			60,
+			&caip2_id,
 			0,
 			&path_bytes,
 			b"ecdsa",

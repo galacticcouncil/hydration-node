@@ -10,7 +10,7 @@ pub mod multi_payment;
 pub mod omnipool;
 pub mod omnipool_liquidity_mining;
 pub mod route_executor;
-pub mod token_gateway_ismp;
+//pub mod token_gateway_ismp;
 pub mod tokens;
 pub mod vesting;
 pub mod xyk;
@@ -29,30 +29,21 @@ use frame_support::traits::OnInitialize;
 use frame_system::RawOrigin;
 use hydradx_traits::evm::{InspectEvmAccounts, ERC20};
 use hydradx_traits::{registry::Create, AssetKind};
-use orml_benchmarking::runtime_benchmarks;
 
-use orml_traits::MultiCurrency;
-use orml_traits::MultiCurrencyExtended;
 use pallet_transaction_multi_payment::Price;
 use primitives::{AccountId, AssetId, BlockNumber};
 use sp_runtime::traits::One;
 use sp_std::vec;
 use sp_std::vec::Vec;
 pub const BSX: Balance = primitives::constants::currency::UNITS;
-use crate::{Amount, Balance, Currencies, NativeAssetId};
-use primitives::constants::currency::NATIVE_EXISTENTIAL_DEPOSIT;
+use crate::Balance;
 
 use sp_std::prelude::*;
 
-use frame_benchmarking::{account, whitelisted_caller};
-use sp_runtime::traits::{StaticLookup, UniqueSaturatedInto};
-use sp_runtime::SaturatedConversion;
-
-use hydradx_traits::evm::{CallContext, EvmAddress};
-use polkadot_xcm::v3::Junction::AccountKey20;
-use polkadot_xcm::v3::Junctions::X1;
-use polkadot_xcm::v3::MultiLocation;
+use hydradx_traits::evm::CallContext;
+use polkadot_xcm::v5::{Junction::AccountKey20, Location};
 use primitive_types::U256;
+use primitives::EvmAddress;
 
 use frame_support::storage::with_transaction;
 use hydradx_traits::Mutate;
@@ -265,6 +256,7 @@ pub fn deploy_contract_code(code: Vec<u8>, deployer: EvmAddress) -> EvmAddress {
 		None,
 		false,
 		None,
+		None,
 	);
 
 	let address = match info.clone().unwrap().exit_reason {
@@ -300,12 +292,12 @@ pub fn bind_erc20(contract: EvmAddress) -> AssetId {
 			1,
 			Some(Erc20Currency::<Runtime>::symbol(token).unwrap().try_into().unwrap()),
 			Some(Erc20Currency::<Runtime>::decimals(token).unwrap()),
-			Some(AssetLocation(MultiLocation::new(
+			Some(AssetLocation(Location::new(
 				0,
-				X1(AccountKey20 {
+				[AccountKey20 {
 					key: contract.into(),
 					network: None,
-				}),
+				}],
 			))),
 			None,
 		))

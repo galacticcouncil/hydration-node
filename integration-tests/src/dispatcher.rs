@@ -18,7 +18,9 @@ use primitives::EvmAddress;
 use sp_core::Get;
 use sp_core::{ByteArray, U256};
 use sp_core::{Encode, Pair};
-use sp_runtime::traits::{IdentifyAccount, SignedExtension};
+use sp_runtime::traits::IdentifyAccount;
+
+use sp_runtime::traits::{DispatchTransaction, TransactionExtension};
 use sp_runtime::{DispatchErrorWithPostInfo, MultiSigner};
 use test_utils::last_events;
 use xcm_emulator::TestExt;
@@ -79,6 +81,7 @@ fn dispatch_as_aave_admin_can_modify_supply_cap_on_testnet() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		}));
 		assert_ok!(Dispatcher::dispatch_as_aave_manager(
 			RuntimeOrigin::root(),
@@ -185,14 +188,15 @@ fn dispatch_with_extra_gas_should_pay_for_extra_gas_used_when_it_is_not_used() {
 
 		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
+			.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &dispatch_call, &info, info_len, 0);
 		assert_ok!(&pre);
+		let (pre_data, _origin) = pre.unwrap();
 		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
 		assert_ok!(result);
 		assert_ok!(ChargeTransactionPayment::<Runtime>::post_dispatch(
-			Some(pre.unwrap()),
+			pre_data,
 			&info,
-			&result.unwrap(),
+			&mut result.unwrap(),
 			info_len,
 			&Ok(())
 		));
@@ -221,14 +225,15 @@ fn dispatch_with_extra_gas_should_pay_for_extra_gas_used_when_it_is_not_used() {
 
 		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
+			.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &dispatch_call, &info, info_len, 0);
 		assert_ok!(&pre);
+		let (pre_data, _origin) = pre.unwrap();
 		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
 		assert_ok!(result);
 		assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-			Some(pre.unwrap()),
+			pre_data,
 			&info,
-			&result.unwrap(),
+			&mut result.unwrap(),
 			info_len,
 			&Ok(())
 		));
@@ -282,17 +287,18 @@ fn dispatch_with_extra_gas_should_not_refund_extra_gas_correctly() {
 
 		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
+			.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &dispatch_call, &info, info_len, 0);
 		assert_ok!(&pre);
+		let (pre_data, _origin) = pre.unwrap();
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		fee_charge_1 = initial_alice_hdx_balance - alice_hdx_balance;
 
 		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
 		assert_ok!(result);
 		assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-			Some(pre.unwrap()),
+			pre_data,
 			&info,
-			&result.unwrap(),
+			&mut result.unwrap(),
 			info_len,
 			&Ok(())
 		));
@@ -328,17 +334,18 @@ fn dispatch_with_extra_gas_should_not_refund_extra_gas_correctly() {
 
 		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
+			.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &dispatch_call, &info, info_len, 0);
 		assert_ok!(&pre);
+		let (pre_data, _origin) = pre.unwrap();
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		fee_charge_2 = initial_alice_hdx_balance - alice_hdx_balance;
 
 		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
 		assert_ok!(result);
 		assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-			Some(pre.unwrap()),
+			pre_data,
 			&info,
-			&result.unwrap(),
+			&mut result.unwrap(),
 			info_len,
 			&Ok(())
 		));
@@ -388,16 +395,17 @@ fn dispatch_with_extra_gas_should_charge_extra_gas_when_calls_fail() {
 
 		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
+			.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &dispatch_call, &info, info_len, 0);
 		assert_ok!(&pre);
+		let (pre_data, _origin) = pre.unwrap();
 
 		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
 		assert!(result.is_err());
 		let r = result.unwrap_err();
 		let _ = ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-			Some(pre.unwrap()),
+			pre_data,
 			&info,
-			&r.post_info,
+			&mut r.post_info.clone(),
 			info_len,
 			&Ok(()),
 		);
@@ -414,15 +422,16 @@ fn dispatch_with_extra_gas_should_charge_extra_gas_when_calls_fail() {
 
 		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
+			.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &dispatch_call, &info, info_len, 0);
 		assert_ok!(&pre);
+		let (pre_data, _origin) = pre.unwrap();
 		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
 		assert!(result.is_err());
 		let r = result.unwrap_err();
 		let _ = ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-			Some(pre.unwrap()),
+			pre_data,
 			&info,
-			&r.post_info,
+			&mut r.post_info.clone(),
 			info_len,
 			&Ok(()),
 		);
@@ -470,6 +479,7 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 				max_priority_fee_per_gas: None,
 				nonce: None,
 				access_list: vec![],
+				authorization_list: vec![],
 			}))
 		};
 
@@ -540,6 +550,7 @@ fn dispatch_evm_call_should_fail_with_invalid_function_selector() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 		let call_data = call.get_dispatch_info();
 		let boxed_call = Box::new(call);
@@ -629,6 +640,7 @@ fn dispatch_evm_call_via_precompile_should_work() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 
 		let outer_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_evm_call {
@@ -692,6 +704,7 @@ fn dispatch_evm_call_with_batch_should_not_increase_nonce_internally() {
 				max_priority_fee_per_gas: None,
 				nonce: None,
 				access_list: vec![],
+				authorization_list: vec![],
 			})),
 		});
 		let call2 = call1.clone();
@@ -788,6 +801,7 @@ fn dispatch_evm_call_batch_via_call_permit_should_increase_permit_nonce_once() {
 				max_priority_fee_per_gas: None,
 				nonce: None,
 				access_list: vec![],
+				authorization_list: vec![],
 			})),
 		});
 		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
@@ -884,6 +898,7 @@ fn dispatch_evm_call_with_failing_signed_batch_should_increase_nonce_once() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
 			calls: vec![inner_evm_call.clone(), inner_evm_call.clone(), inner_evm_call],
@@ -900,6 +915,7 @@ fn dispatch_evm_call_with_failing_signed_batch_should_increase_nonce_once() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 
 		// Act: dispatch as a signed extrinsic
@@ -949,6 +965,7 @@ fn dispatch_evm_call_with_params(is_batch: bool, max_priority_fee_per_gas: Optio
 			max_priority_fee_per_gas,
 			nonce,
 			access_list: vec![],
+			authorization_list: vec![],
 		})),
 	});
 	let mut call = inner_call.clone();
@@ -1002,13 +1019,13 @@ fn dispatch_evm_call_without_batch_should_increase_nonce_correctly() {
 		assert_eq!(account.nonce(), initial_nonce + 1);
 		assert_eq!(last_evm_nonce, initial_evm_nonce + 1);
 
-		dispatch_evm_call_with_params(false, None, Some(last_evm_nonce.into()));
+		dispatch_evm_call_with_params(false, None, Some(last_evm_nonce));
 		let last_evm_nonce = evm::EvmNonceProvider::get_nonce(evm_address());
 
 		assert_eq!(account.nonce(), initial_nonce + 2);
 		assert_eq!(last_evm_nonce, initial_evm_nonce + 2);
 
-		dispatch_evm_call_with_params(false, Some(15_000.into()), Some(last_evm_nonce.into()));
+		dispatch_evm_call_with_params(false, Some(15_000.into()), Some(last_evm_nonce));
 		assert_eq!(account.nonce(), initial_nonce + 3);
 		assert_eq!(evm::EvmNonceProvider::get_nonce(evm_address()), initial_evm_nonce + 3);
 
@@ -1059,5 +1076,104 @@ fn dispatch_evm_call_with_batch_should_increase_nonce_correctly() {
 			),
 			initial_permit_nonce
 		);
+	});
+}
+
+#[test]
+fn dispatch_with_extra_should_charge_more_than_inner_call_when_when_inner_calls_acutual_weight_is_none() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			HDX,
+			1_000_000_000_000_000
+		));
+
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			DOT,
+			50_000_000_000
+		));
+
+		let tokens_transfer = RuntimeCall::Tokens(orml_tokens::Call::transfer {
+			dest: BOB.into(),
+			currency_id: DOT,
+			amount: 20_000_000_000,
+		});
+
+		let unwrapped_fees = {
+			let call_info = tokens_transfer.get_dispatch_info();
+			let call_len = tokens_transfer.encoded_size();
+
+			let alice_hdx_0 = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+			let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(
+					Some(AccountId::from(ALICE)).into(),
+					&tokens_transfer,
+					&call_info,
+					call_len,
+					0,
+				);
+			assert_ok!(&pre);
+			let (pre_data, _) = pre.unwrap();
+
+			let result = tokens_transfer.clone().dispatch(RuntimeOrigin::signed(ALICE.into()));
+			assert_ok!(result);
+
+			let mut post_info = result.unwrap();
+			assert_eq!(post_info.actual_weight, None);
+
+			assert_ok!(ChargeTransactionPayment::<Runtime>::post_dispatch(
+				pre_data,
+				&call_info,
+				&mut post_info,
+				call_len,
+				&Ok(())
+			));
+
+			let alice_hdx_1 = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+			let paid_fees = alice_hdx_0 - alice_hdx_1;
+			assert_ne!(paid_fees, 0);
+
+			paid_fees
+		};
+
+		let wrapped_fees = {
+			let extra_gas = 1;
+			let call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
+				call: Box::new(tokens_transfer),
+				extra_gas,
+			});
+
+			let call_info = call.get_dispatch_info();
+			let call_len = call.encoded_size();
+
+			let alice_hdx_0 = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+			let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &call, &call_info, call_len, 0);
+			assert_ok!(&pre);
+			let (pre_data, _) = pre.unwrap();
+
+			let result = call.dispatch(RuntimeOrigin::signed(ALICE.into()));
+			assert_ok!(result);
+
+			assert_ok!(ChargeTransactionPayment::<Runtime>::post_dispatch(
+				pre_data,
+				&call_info,
+				&mut result.unwrap(),
+				call_len,
+				&Ok(())
+			));
+
+			let alice_hdx_1 = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+			let paid_fees = alice_hdx_0 - alice_hdx_1;
+			assert_ne!(paid_fees, 0);
+
+			paid_fees
+		};
+
+		assert!(wrapped_fees > unwrapped_fees);
 	});
 }

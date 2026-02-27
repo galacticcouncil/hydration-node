@@ -30,7 +30,6 @@ pub use fc_rpc::{EthBlockDataCacheTask, StorageOverride, StorageOverrideHandler}
 pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
 use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
-use pallet_ismp_rpc::{IsmpApiServer, IsmpRpcHandler};
 use sc_client_api::{
 	backend::{Backend, StateBackend, StorageProvider},
 	client::BlockchainEvents,
@@ -39,7 +38,6 @@ use sc_client_api::{
 use sc_network::service::traits::NetworkService;
 use sc_network_sync::SyncingService;
 use sc_rpc::SubscriptionTaskExecutor;
-use sc_transaction_pool::{ChainApi, Pool};
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
@@ -70,13 +68,13 @@ pub struct FullDeps<C, P, B> {
 }
 
 /// Extra dependencies for Ethereum compatibility.
-pub struct Deps<C, P, A: ChainApi, CT> {
+pub struct Deps<C, P, CT> {
 	/// The client instance to use.
 	pub client: Arc<C>,
 	/// Transaction pool instance.
 	pub pool: Arc<P>,
 	/// Graph pool instance.
-	pub graph: Arc<Pool<A>>,
+	pub graph: Arc<P>,
 	/// Ethereum transaction converter.
 	pub converter: Option<CT>,
 	/// The Node authority flag
@@ -117,7 +115,8 @@ where
 	C: Send + Sync + 'static,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
-	C::Api: pallet_ismp_runtime_api::IsmpRuntimeApi<Block, sp_core::H256>,
+	// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
+	// C::Api: pallet_ismp_runtime_api::IsmpRuntimeApi<Block, sp_core::H256>,
 	C::Api: BlockBuilderApi<Block>,
 	P: TransactionPool + Sync + Send + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
@@ -140,16 +139,17 @@ where
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 	module.merge(StateMigration::new(client.clone(), backend.clone()).into_rpc())?;
 
-	module.merge(IsmpRpcHandler::new(client, backend)?.into_rpc())?;
+	// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
+	// module.merge(IsmpRpcHandler::new(client, backend)?.into_rpc())?;
 	module.merge(LiquidationWorker::new(liquidation_task_data).into_rpc())?;
 
 	Ok(module)
 }
 
 /// Instantiate Ethereum-compatible RPC extensions.
-pub fn create<C, BE, P, A, CT>(
+pub fn create<C, BE, P, CT>(
 	mut io: RpcExtension,
-	deps: Deps<C, P, A, CT>,
+	deps: Deps<C, P, CT>,
 	subscription_task_executor: SubscriptionTaskExecutor,
 	pubsub_notification_sinks: Arc<
 		fc_mapping_sync::EthereumBlockNotificationSinks<fc_mapping_sync::EthereumBlockNotification<Block>>,
@@ -163,8 +163,7 @@ where
 	C: CallApiAt<Block>,
 	BE: Backend<Block> + 'static,
 	BE::State: StateBackend<BlakeTwo256>,
-	P: TransactionPool<Block = Block> + 'static,
-	A: ChainApi<Block = Block> + 'static,
+	P: TransactionPool<Block = Block, Hash = sp_core::H256> + 'static,
 	CT: ConvertTransaction<<Block as BlockT>::Extrinsic> + Send + Sync + 'static,
 {
 	use fc_rpc::{
@@ -220,7 +219,7 @@ where
 	};
 
 	io.merge(
-		Eth::<_, _, _, _, _, _, _, HydraDxEthConfig<_, _>>::new(
+		Eth::<_, _, _, _, _, _, HydraDxEthConfig<_, _>>::new(
 			client.clone(),
 			pool.clone(),
 			graph.clone(),
@@ -283,7 +282,7 @@ where
 	Ok(io)
 }
 
-impl<C, P, A: ChainApi, CT: Clone> Clone for Deps<C, P, A, CT> {
+impl<C, P, CT: Clone> Clone for Deps<C, P, CT> {
 	fn clone(&self) -> Self {
 		Self {
 			client: self.client.clone(),

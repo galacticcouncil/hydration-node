@@ -1,6 +1,6 @@
 [package]
 name = "pallet-hsm"
-version = "1.5.0"
+version = "1.6.0"
 edition = "2021"
 description = "Hollar stability module"
 authors = ["GalacticCouncil"]
@@ -36,6 +36,7 @@ pallet-stableswap = { workspace = true }
 hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
 pallet-broadcast = { workspace = true }
+primitives = { workspace = true }
 
 # EVM dependencies
 evm = { workspace = true, features = ["with-codec"] }

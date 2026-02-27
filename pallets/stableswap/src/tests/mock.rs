@@ -45,7 +45,7 @@ pub use num_traits::Zero;
 use orml_traits::currency::MutationHooks;
 pub use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, NamedMultiReservableCurrency};
-use sp_core::H256;
+use sp_core::{H160, H256};
 use sp_runtime::Perbill;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
@@ -94,6 +94,7 @@ construct_runtime!(
 		Stableswap: pallet_stableswap,
 		Broadcast: pallet_broadcast,
 		CircuitBreaker: pallet_circuit_breaker,
+		Timestamp: pallet_timestamp,
 	}
 );
 
@@ -127,6 +128,18 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
+}
+
+parameter_types! {
+	pub const MinimumPeriod: u64 = primitives::constants::time::SLOT_DURATION / 2;
+}
+
+impl pallet_timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
 }
 
 parameter_type_with_key! {
@@ -577,6 +590,32 @@ impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
 				shares_issuance: Default::default(),
 				updated_at: System::block_number(),
 			}),
+			PegSource::MMOracle(H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])) => Ok(RawEntry {
+				price: (1, 1),
+				volume: Default::default(),
+				liquidity: Default::default(),
+				shares_issuance: Default::default(),
+				updated_at: System::block_number(),
+			}),
+			PegSource::MMOracle(H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])) => {
+				if System::block_number() == 2 {
+					return Ok(RawEntry {
+						price: (48, 100),
+						volume: Default::default(),
+						liquidity: Default::default(),
+						shares_issuance: Default::default(),
+						updated_at: System::block_number(),
+					});
+				}
+
+				Ok(RawEntry {
+					price: (1, 2),
+					volume: Default::default(),
+					liquidity: Default::default(),
+					shares_issuance: Default::default(),
+					updated_at: System::block_number(),
+				})
+			}
 			_ => panic!("unusupported oracle types: {:?}", source),
 		}
 	}
@@ -596,6 +635,7 @@ parameter_types! {
 	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = 111;
+	pub const GlobalWithdrawWindow: primitives::Moment = primitives::constants::time::unix_time::DAY;
 }
 
 pub struct DepositLimiter;
@@ -691,6 +731,7 @@ impl pallet_circuit_breaker::Config for Test {
 	type Balance = Balance;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DepositLockWhitelist = frame_support::traits::Nothing;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
@@ -699,4 +740,6 @@ impl pallet_circuit_breaker::Config for Test {
 	type DepositLimiter = DepositLimiter;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type GlobalWithdrawWindow = GlobalWithdrawWindow;
+	type TimestampProvider = Timestamp;
 }

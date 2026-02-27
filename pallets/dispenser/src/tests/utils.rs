@@ -3,7 +3,6 @@ use alloy_sol_types::SolCall;
 use alloy_sol_types::SolValue;
 use codec::Encode;
 use sp_core::Get;
-use sp_core::H160;
 use sp_io::hashing::keccak_256;
 use sp_runtime::{AccountId32, BoundedVec};
 
@@ -28,27 +27,27 @@ pub fn create_test_tx_params() -> EvmTransactionParams {
 	}
 }
 
-pub fn create_test_receiver_address() -> [u8; 20] {
-	[1u8; 20]
+pub fn create_test_receiver_address() -> primitives::EvmAddress {
+	primitives::EvmAddress::from([1u8; 20])
 }
 
 pub fn compute_request_id(
 	requester: AccountId32,
-	to: [u8; 20],
+	to: primitives::EvmAddress,
 	amount_wei: u128,
 	tx_params: &EvmTransactionParams,
 ) -> [u8; 32] {
 	use sp_core::crypto::Ss58Codec;
 
 	let call = crate::IGasFaucet::fundCall {
-		to: Address::from_slice(&to),
+		to: Address::from_slice(to.as_bytes()),
 		amount: U256::from(amount_wei),
 	};
 
 	let faucet_addr = <Test as crate::Config>::FaucetAddress::get();
 	let rlp_encoded = pallet_signet::Pallet::<Test>::build_evm_tx(
 		frame_system::RawOrigin::Signed(requester.clone()).into(),
-		Some(H160::from(faucet_addr)),
+		Some(faucet_addr),
 		0u128,
 		call.abi_encode(),
 		tx_params.nonce,
@@ -76,10 +75,13 @@ pub fn compute_request_id(
 		s
 	};
 
+	// CAIP-2 chain ID format
+	let caip2_id = format!("eip155:{}", tx_params.chain_id);
+
 	let packed = (
 		sender_ss58.as_str(),
 		rlp_encoded.as_slice(),
-		60u32,
+		caip2_id.as_str(),
 		0u32,
 		path.as_str(),
 		"ecdsa",

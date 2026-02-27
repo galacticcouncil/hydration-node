@@ -6,6 +6,7 @@ use frame_support::dispatch::GetDispatchInfo;
 use frame_support::dispatch::PostDispatchInfo;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
+use hydradx_runtime::Router;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::{AssetRegistry, TreasuryAccount};
 use hydradx_runtime::{FixedU128, Omnipool};
@@ -14,8 +15,9 @@ use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::constants::currency::UNITS;
-use sp_runtime::traits::SignedExtension;
+use sp_runtime::traits::{DispatchTransaction, TransactionExtension};
 use sp_runtime::DispatchResult;
+use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
 use xcm_emulator::TestExt;
 
@@ -59,7 +61,7 @@ fn insufficient_asset_can_be_used_as_fee_currency() {
 			.unwrap();
 			create_xyk_pool(insufficient_asset, 1000000 * UNITS, DOT, 3000000 * UNITS);
 
-			set_relaychain_block_number(11);
+			go_to_block(11);
 
 			let alice_init_insuff_balance = 10 * UNITS;
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -90,12 +92,13 @@ fn insufficient_asset_can_be_used_as_fee_currency() {
 
 			//Act
 			let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-				.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, info_len);
+				.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &omni_sell, &info, info_len, 0);
 			assert_ok!(&pre);
+			let (pre_data, _origin) = pre.unwrap();
 			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-				Some(pre.unwrap()),
+				pre_data,
 				&info,
-				&PostDispatchInfo::default(),
+				&mut PostDispatchInfo::default(),
 				info_len,
 				&Ok(())
 			));
@@ -199,7 +202,7 @@ fn sufficient_but_not_accepted_asset_can_be_used_as_fee_currency() {
 			.unwrap();
 			create_xyk_pool(sufficient_but_not_accepted_asset, 1000000 * UNITS, DOT, 3000000 * UNITS);
 
-			set_relaychain_block_number(11);
+			go_to_block(11);
 
 			let alice_init_suff_balance = 10 * UNITS;
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -230,12 +233,13 @@ fn sufficient_but_not_accepted_asset_can_be_used_as_fee_currency() {
 
 			//Act
 			let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-				.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, info_len);
+				.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &omni_sell, &info, info_len, 0);
 			assert_ok!(&pre);
+			let (pre_data, _origin) = pre.unwrap();
 			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-				Some(pre.unwrap()),
+				pre_data,
 				&info,
-				&PostDispatchInfo::default(),
+				&mut PostDispatchInfo::default(),
 				info_len,
 				&Ok(())
 			));
@@ -298,12 +302,13 @@ fn erc20_can_be_used_as_fee_currency() {
 
 			//Act
 			let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-				.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, info_len);
+				.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &omni_sell, &info, info_len, 0)
+				.map(|(pre, _)| pre);
 			assert_ok!(&pre);
 			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-				Some(pre.unwrap()),
+				pre.unwrap(),
 				&info,
-				&PostDispatchInfo::default(),
+				&mut PostDispatchInfo::default(),
 				info_len,
 				&Ok(())
 			));
@@ -319,4 +324,105 @@ fn erc20_can_be_used_as_fee_currency() {
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
 	});
+}
+
+#[test]
+fn set_currency_in_batch_should_fail_for_unaccepted_asset_with_oracle_price() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			// Arrange
+			let dot = DOT;
+			crate::dca::init_omnipool_with_oracle_for_block_10();
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				dot,
+				1000 * UNITS as i128,
+			));
+			assert_ok!(Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				dot,
+				FixedU128::from_rational(1, 100),
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
+			assert_ok!(hydradx_runtime::AssetRegistry::set_location(dot, DOT_ASSET_LOCATION));
+			set_ed(dot, 100000);
+
+			assert_ok!(Router::sell(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				HDX,
+				dot,
+				UNITS,
+				u128::MIN,
+				vec![].try_into().unwrap(),
+			));
+			hydradx_run_to_next_block();
+
+			//create_xyk_pool(dot, 1000000 * UNITS, DAI, 3000000 * UNITS);
+
+			// Ensure DAI is removed from accepted currencies.
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::remove_currency(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DAI,
+			));
+
+			// Verify set_currency fails individually
+			assert_noop!(
+				hydradx_runtime::MultiTransactionPayment::set_currency(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					DAI,
+				),
+				pallet_transaction_multi_payment::Error::<hydradx_runtime::Runtime>::UnsupportedCurrency
+			);
+
+			// Act: Batch with set_currency as first item
+			let set_currency_call =
+				hydradx_runtime::RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::<
+					hydradx_runtime::Runtime,
+				>::set_currency {
+					currency: DAI,
+				});
+
+			let batch =
+				hydradx_runtime::RuntimeCall::Utility(pallet_utility::Call::<hydradx_runtime::Runtime>::batch {
+					calls: vec![set_currency_call],
+				});
+
+			let info = batch.get_dispatch_info();
+			let info_len = 146;
+
+			let alice_init_dai_balance = hydradx_runtime::Currencies::free_balance(DAI, &ALICE.into());
+
+			let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &batch, &info, info_len, 0)
+				.map(|(pre, _)| pre);
+
+			let alice_dai_balance_after = hydradx_runtime::Currencies::free_balance(DAI, &ALICE.into());
+			let dai_fee_charged = alice_init_dai_balance - alice_dai_balance_after;
+			assert_eq!(dai_fee_charged, 0, "No fee should be charged if pre-dispatch fails");
+
+			assert!(pre.is_err(), "Should fail to pay fee with unaccepted currency in batch");
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}
+
+fn set_ed(asset_id: AssetId, ed: u128) {
+	AssetRegistry::update(
+		hydradx_runtime::RuntimeOrigin::root(),
+		asset_id,
+		None,
+		None,
+		Some(ed),
+		None,
+		None,
+		None,
+		None,
+		None,
+	)
+	.unwrap();
 }

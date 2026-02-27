@@ -34,7 +34,7 @@ use crate::{
 	Currencies,
 };
 use codec::{Encode, EncodeLike};
-use frame_support::traits::{IsType, OriginTrait};
+use frame_support::traits::{ExistenceRequirement, IsType, OriginTrait};
 use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
@@ -66,14 +66,12 @@ where
 		if let Some(asset_id) = HydraErc20Mapping::decode_evm_address(address) {
 			log::debug!(target: "evm", "multicurrency: currency id: {:?}", asset_id);
 
-			let selector = match handle.read_selector() {
-				Ok(selector) => selector,
-				Err(e) => return Err(e),
-			};
+			let selector = handle.read_selector()?;
 
 			handle.check_function_modifier(match selector {
 				Function::Transfer => FunctionModifier::NonPayable,
 				Function::TransferFrom => FunctionModifier::NonPayable,
+				Function::Approve => FunctionModifier::NonPayable,
 				_ => FunctionModifier::View,
 			})?;
 
@@ -84,8 +82,8 @@ where
 				Function::TotalSupply => Self::total_supply(asset_id, handle),
 				Function::BalanceOf => Self::balance_of(asset_id, handle),
 				Function::Transfer => Self::transfer(asset_id, handle),
-				Function::Allowance => Self::allowance(handle),
-				Function::Approve => Self::not_supported(),
+				Function::Allowance => Self::allowance(asset_id, handle),
+				Function::Approve => Self::approve(asset_id, handle),
 				Function::TransferFrom => Self::transfer_from(asset_id, handle),
 			};
 		}
@@ -229,6 +227,7 @@ where
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(origin)),
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
 			amount,
+			ExistenceRequirement::AllowDeath,
 		)
 		.map_err(|e| PrecompileFailure::Revert {
 			exit_status: ExitRevert::Reverted,
@@ -238,27 +237,43 @@ where
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
-	fn allowance(handle: &mut impl PrecompileHandle) -> PrecompileResult {
+	fn allowance(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
 		// Parse input
 		let mut input = handle.read_input()?;
 		input.expect_arguments(2)?;
 
-		let _owner: H160 = input.read::<Address>()?.into();
+		let owner: H160 = input.read::<Address>()?.into();
 		let spender: H160 = input.read::<Address>()?.into();
 
 		let allowance =
 			if <pallet_evm_accounts::Pallet<Runtime> as InspectEvmAccounts<Runtime::AccountId>>::is_approved_contract(
 				spender,
 			) {
-				u128::MAX
+				Balance::MAX
 			} else {
-				0
+				pallet_evm_accounts::Pallet::<Runtime>::get_allowance(asset_id.into(), owner, spender)
 			};
 
 		let encoded = Output::encode_uint::<u128>(allowance);
 		Ok(succeed(encoded))
+	}
+
+	fn approve(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		let mut input = handle.read_input()?;
+		input.expect_arguments(2)?;
+
+		let spender: H160 = input.read::<Address>()?.into();
+		let amount: Balance = input.read::<Balance>()?;
+
+		let owner: H160 = handle.context().caller;
+
+		pallet_evm_accounts::Pallet::<Runtime>::set_allowance(asset_id.into(), owner, spender, amount);
+
+		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
 	fn transfer_from(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
@@ -273,34 +288,48 @@ where
 		let to: H160 = input.read::<Address>()?.into();
 		let amount = input.read::<Balance>()?;
 
+		let spender_is_approved =
+			<pallet_evm_accounts::Pallet<Runtime> as InspectEvmAccounts<Runtime::AccountId>>::is_approved_contract(
+				origin,
+			);
+
+		if !spender_is_approved {
+			let allowed: Balance = pallet_evm_accounts::Pallet::<Runtime>::get_allowance(asset_id.into(), from, origin);
+
+			if allowed < amount {
+				return Err(revert("ERC20: insufficient allowance"));
+			}
+
+			// Some ERC-20 tokens treat `type(uint256).max` as an “infinite allowance” and do not decrement it
+			// on `transferFrom`. We mirror that behavior: if `allowed == Balance::MAX`, we skip updating the
+			// stored allowance; otherwise we decrement by `amount`.
+			if allowed != Balance::MAX {
+				pallet_evm_accounts::Pallet::<Runtime>::set_allowance(
+					asset_id.into(),
+					from,
+					origin,
+					allowed.saturating_sub(amount),
+				);
+			}
+		}
+
 		let from = ExtendedAddressMapping::into_account_id(from);
 		let to = ExtendedAddressMapping::into_account_id(to);
 
 		log::debug!(target: "evm", "multicurrency: transferFrom from: {:?}, to: {:?}, amount: {:?}", from, to, amount);
 
-		if <pallet_evm_accounts::Pallet<Runtime> as InspectEvmAccounts<Runtime::AccountId>>::is_approved_contract(
-			origin,
-		) {
-			<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
-				asset_id,
-				&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from)),
-				&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
-				amount,
-			)
-			.map_err(|e| PrecompileFailure::Revert {
-				exit_status: ExitRevert::Reverted,
-				output: e.encode(),
-			})?;
+		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
+			asset_id,
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from)),
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
+			amount,
+			ExistenceRequirement::AllowDeath,
+		)
+		.map_err(|e| PrecompileFailure::Revert {
+			exit_status: ExitRevert::Reverted,
+			output: e.encode(),
+		})?;
 
-			Ok(succeed(EvmDataWriter::new().write(true).build()))
-		} else {
-			Err(revert("Not approved contract"))
-		}
-	}
-
-	fn not_supported() -> PrecompileResult {
-		Err(PrecompileFailure::Error {
-			exit_status: pallet_evm::ExitError::Other("not supported".into()),
-		})
+		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 }

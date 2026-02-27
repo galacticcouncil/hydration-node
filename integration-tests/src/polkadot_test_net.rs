@@ -16,17 +16,53 @@ use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use frame_support::traits::OnRuntimeUpgrade;
 pub use frame_system::RawOrigin;
 use hex_literal::hex;
-use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeEvent, RuntimeOrigin};
+use hydradx_runtime::{evm::weth_asset_location, Referrals, RuntimeEvent, RuntimeOrigin};
 pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
 pub use num_traits::Zero;
 use pallet_referrals::{FeeDistribution, Level};
+use polkadot_primitives::runtime_api::runtime_decl_for_parachain_host::ParachainHostV13;
 pub use polkadot_primitives::v8::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::storage::Storage;
 use sp_core::H160;
 pub use xcm_emulator::Network;
-use xcm_emulator::{decl_test_networks, decl_test_parachains, decl_test_relay_chains};
+use xcm_emulator::{decl_test_networks, decl_test_parachains, decl_test_relay_chains, Parachain};
+
+/// Wrapper for XcmpQueue that ensures MultiTransactionPayment prices are initialized
+/// before processing XCM messages. This is needed because AcceptedCurrencyPrice is
+/// transient storage that must be populated by on_initialize before XCM fee payment works.
+pub struct XcmpQueueWithPrices;
+
+impl polkadot_parachain::primitives::XcmpMessageHandler for XcmpQueueWithPrices {
+	fn handle_xcmp_messages<'a, I: Iterator<Item = (ParaId, polkadot_primitives::v8::BlockNumber, &'a [u8])>>(
+		iter: I,
+		max_weight: frame_support::weights::Weight,
+	) -> frame_support::weights::Weight {
+		use frame_support::traits::OnInitialize;
+		let block = hydradx_runtime::System::block_number();
+		hydradx_runtime::MultiTransactionPayment::on_initialize(block);
+
+		// Override DAI price to a reasonable value (1 DAI = 10 HDX) for test XCM fees
+		// The oracle price can be too high, making fees unaffordable in tests
+		pallet_transaction_multi_payment::AcceptedCurrencyPrice::<hydradx_runtime::Runtime>::insert(
+			DAI,
+			Price::from_inner(10_000_000_000_000_000_000), // 10 in FixedU128
+		);
+
+		// Override ACA (asset 1234) price to 1.0 for test XCM fees to match test expectations
+		// Tests expect fallback price (1.0) but oracle now provides actual price after omnipool init
+		pallet_transaction_multi_payment::AcceptedCurrencyPrice::<hydradx_runtime::Runtime>::insert(
+			1234u32,                                      // ACA
+			Price::from_inner(1_000_000_000_000_000_000), // 1.0 in FixedU128
+		);
+
+		// Delegate to the actual handler
+		<hydradx_runtime::XcmpQueue as polkadot_parachain::primitives::XcmpMessageHandler>::handle_xcmp_messages(
+			iter, max_weight,
+		)
+	}
+}
 
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
@@ -48,6 +84,11 @@ pub fn evm_account() -> AccountId {
 pub fn evm_address2() -> H160 {
 	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D81"].into()
 }
+
+pub fn evm_address3() -> H160 {
+	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D82"].into()
+}
+
 pub fn evm_account2() -> AccountId {
 	hydradx_runtime::EVMAccounts::truncated_account_id(evm_address2())
 }
@@ -145,15 +186,12 @@ decl_test_parachains! {
 		genesis = hydra::genesis(),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
-			hydradx_runtime::Timestamp::set_timestamp(NOW);
-			hydradx_runtime::AuraExt::on_initialize(1);
-			// Make sure the prices are up-to-date.
 			hydradx_runtime::MultiTransactionPayment::on_initialize(1);
-			hydradx_runtime::AssetRegistry::set_location(WETH, WETH_ASSET_LOCATION).unwrap();
+			hydradx_runtime::AssetRegistry::set_location(WETH, weth_asset_location()).unwrap();
 		},
 		runtime = hydradx_runtime,
 		core = {
-			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			XcmpMessageHandler: XcmpQueueWithPrices,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
@@ -167,11 +205,10 @@ decl_test_parachains! {
 		genesis = para::genesis(ACALA_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
-			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
-			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			XcmpMessageHandler: XcmpQueueWithPrices,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
@@ -185,11 +222,10 @@ decl_test_parachains! {
 		genesis = para::genesis(MOONBEAM_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
-			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
-			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			XcmpMessageHandler: XcmpQueueWithPrices,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
@@ -203,11 +239,10 @@ decl_test_parachains! {
 		genesis = para::genesis(INTERLAY_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
-			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
-			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			XcmpMessageHandler: XcmpQueueWithPrices,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
@@ -221,11 +256,10 @@ decl_test_parachains! {
 		genesis = para::genesis(ASSET_HUB_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
-			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
-			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			XcmpMessageHandler: XcmpQueueWithPrices,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
@@ -239,11 +273,10 @@ decl_test_parachains! {
 		genesis = para::genesis(ZEITGEIST_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
-			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
-			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			XcmpMessageHandler: XcmpQueueWithPrices,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
 			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
@@ -376,6 +409,7 @@ pub mod rococo {
 					(AccountId::from(ALICE), 2_002 * UNITS),
 					(ParaId::from(HYDRA_PARA_ID).into_account_truncating(), 10 * UNITS),
 				],
+				dev_accounts: None,
 			},
 			session: rococo_runtime::SessionConfig {
 				keys: initial_authorities()
@@ -401,7 +435,7 @@ pub mod rococo {
 				config: get_host_configuration(),
 			},
 			xcm_pallet: rococo_runtime::XcmPalletConfig {
-				safe_xcm_version: Some(3),
+				safe_xcm_version: Some(5),
 				..Default::default()
 			},
 			babe: rococo_runtime::BabeConfig {
@@ -481,6 +515,7 @@ pub mod hydra {
 					(vesting_account(), 10_000 * UNITS),
 					(staking_account, UNITS),
 				],
+				dev_accounts: None,
 			},
 			collator_selection: hydradx_runtime::CollatorSelectionConfig {
 				invulnerables: collators::invulnerables().iter().cloned().map(|(acc, _)| acc).collect(),
@@ -615,7 +650,7 @@ pub mod hydra {
 				],
 			},
 			polkadot_xcm: hydradx_runtime::PolkadotXcmConfig {
-				safe_xcm_version: Some(3),
+				safe_xcm_version: Some(5),
 				..Default::default()
 			},
 			multi_transaction_payment: hydradx_runtime::MultiTransactionPaymentConfig {
@@ -644,6 +679,7 @@ pub mod para {
 		let genesis_config = hydradx_runtime::RuntimeGenesisConfig {
 			balances: hydradx_runtime::BalancesConfig {
 				balances: vec![(AccountId::from(ALICE), ALICE_INITIAL_NATIVE_BALANCE)],
+				dev_accounts: None,
 			},
 			collator_selection: hydradx_runtime::CollatorSelectionConfig {
 				invulnerables: collators::invulnerables().iter().cloned().map(|(acc, _)| acc).collect(),
@@ -668,7 +704,7 @@ pub mod para {
 				..Default::default()
 			},
 			polkadot_xcm: hydradx_runtime::PolkadotXcmConfig {
-				safe_xcm_version: Some(3),
+				safe_xcm_version: Some(5),
 				..Default::default()
 			},
 			duster: hydradx_runtime::DusterConfig {
@@ -705,15 +741,52 @@ pub fn expect_hydra_events(event: Vec<hydradx_runtime::RuntimeEvent>) {
 	}
 }
 
-pub fn set_relaychain_block_number(number: BlockNumber) {
+use frame_support::traits::OnFinalize;
+
+pub fn go_to_block(number: BlockNumber) {
+	use frame_support::storage::unhashed;
 	use hydradx_runtime::ParachainSystem;
 	use sp_core::{Encode, Get};
 	use xcm_emulator::HeaderT;
 
-	// We need to set block number this way as well because tarpaulin code coverage tool does not like the way
-	// how we set the block number with `cumulus-test-relay-sproof-builder` package
-	rococo_run_to_block(number);
+	let current_block = hydradx_runtime::System::block_number();
 
+	// Clear AuraExt storage when starting a new test (block 1) or when resetting
+	// This prevents "Slot moved backwards" errors from previous test runs
+	let aura_key = frame_support::storage::storage_prefix(b"AuraExt", b"RelaySlotInfo");
+
+	if number == 1 || current_block > number {
+		unhashed::kill(&aura_key);
+	} else if let Some(data) = unhashed::get_raw(&aura_key) {
+		// Also check if stored slot exists and is greater than what we're about to set
+		// This indicates storage wasn't properly cleared after previous test
+		use sp_consensus_aura::Slot;
+		use sp_core::Decode;
+		if let Ok((stored_slot, _)) = <(Slot, u32)>::decode(&mut &data[..]) {
+			// If stored slot is greater than or equal to the number we're setting, clear it
+			if u64::from(stored_slot) >= number as u64 {
+				unhashed::kill(&aura_key);
+			}
+		}
+	}
+
+	// Finalize current block if we're advancing
+	if current_block < number {
+		hydradx_runtime::System::on_finalize(current_block);
+		hydradx_runtime::Ethereum::on_finalize(current_block);
+		hydradx_runtime::TransactionPayment::on_finalize(current_block);
+		hydradx_runtime::MultiTransactionPayment::on_finalize(current_block);
+		hydradx_runtime::CircuitBreaker::on_finalize(current_block);
+		hydradx_runtime::DCA::on_finalize(current_block);
+		hydradx_runtime::Dispatcher::on_finalize(current_block);
+		hydradx_runtime::EmaOracle::on_finalize(current_block);
+		hydradx_runtime::EVM::on_finalize(current_block);
+		hydradx_runtime::EVMAccounts::on_finalize(current_block);
+		hydradx_runtime::Stableswap::on_finalize(current_block);
+		hydradx_runtime::HSM::on_finalize(current_block);
+	}
+
+	// Set relay chain validation data BEFORE initializing the new block
 	ParachainSystem::on_initialize(number);
 
 	let mut sproof_builder = RelayStateSproofBuilder::default();
@@ -732,6 +805,10 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 	sproof_builder.para_id = hydradx_runtime::ParachainInfo::get();
 	sproof_builder.included_para_head = Some(parent_head_data.clone());
 
+	// Set the relay chain slot based on the block number
+	// This ensures slots always increase with block numbers and reset with TestNet::reset()
+	sproof_builder.current_slot = (number as u64).into();
+
 	let (relay_storage_root, proof) = sproof_builder.into_state_root_and_proof();
 
 	assert_ok!(ParachainSystem::set_validation_data(
@@ -748,50 +825,35 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 			horizontal_messages: Default::default(),
 		}
 	));
+
+	// Now initialize the new block with proper relay chain context
+	hydradx_runtime::System::set_block_number(number);
+	hydradx_runtime::System::on_initialize(number);
+	hydradx_runtime::Ethereum::on_initialize(number);
+	hydradx_runtime::AuraExt::on_initialize(number); // Now AuraExt has proper relay chain data
+	hydradx_runtime::MultiTransactionPayment::on_initialize(number);
+	hydradx_runtime::CircuitBreaker::on_initialize(number);
+	hydradx_runtime::DynamicEvmFee::on_initialize(number);
+	hydradx_runtime::DCA::on_initialize(number);
+	hydradx_runtime::EmaOracle::on_initialize(number);
+	hydradx_runtime::EVM::on_initialize(number);
+	hydradx_runtime::Ethereum::on_initialize(number);
+	hydradx_runtime::EVMAccounts::on_initialize(number);
+	hydradx_runtime::Stableswap::on_initialize(number);
+	hydradx_runtime::HSM::on_initialize(number);
 }
 
 pub fn hydradx_run_to_next_block() {
-	use frame_support::traits::OnFinalize;
-
 	let b = hydradx_runtime::System::block_number();
-	hydradx_runtime::System::on_finalize(b);
-	hydradx_runtime::Ethereum::on_finalize(b);
-	hydradx_runtime::TransactionPayment::on_finalize(b);
-	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-	hydradx_runtime::CircuitBreaker::on_finalize(b);
-	hydradx_runtime::DCA::on_finalize(b);
-	hydradx_runtime::Dispatcher::on_finalize(b);
-	hydradx_runtime::EmaOracle::on_finalize(b);
-	hydradx_runtime::EVM::on_finalize(b);
-	hydradx_runtime::Ethereum::on_finalize(b);
-	hydradx_runtime::EVMAccounts::on_finalize(b);
-	hydradx_runtime::Stableswap::on_finalize(b);
-	hydradx_runtime::HSM::on_finalize(b);
-
-	hydradx_runtime::System::set_block_number(b + 1);
-	hydradx_runtime::System::on_initialize(b + 1);
-	hydradx_runtime::Ethereum::on_initialize(b + 1);
-	hydradx_runtime::AuraExt::on_initialize(b + 1);
-	hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
-	hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
-	hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
-	hydradx_runtime::DCA::on_initialize(b + 1);
-	hydradx_runtime::EmaOracle::on_initialize(b + 1);
-	hydradx_runtime::EVM::on_initialize(b + 1);
-	hydradx_runtime::Ethereum::on_initialize(b + 1);
-	hydradx_runtime::EVMAccounts::on_initialize(b + 1);
-	hydradx_runtime::Stableswap::on_initialize(b + 1);
-	hydradx_runtime::HSM::on_initialize(b + 1);
-
-	hydradx_runtime::System::set_block_number(b + 1);
+	go_to_block(b + 1);
 }
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
 	let b = hydradx_runtime::System::block_number();
 	assert!(b <= to, "the current block number {:?} is higher than expected.", b);
 
-	while hydradx_runtime::System::block_number() < to {
-		hydradx_run_to_next_block();
+	if b < to {
+		go_to_block(to);
 	}
 }
 
@@ -802,7 +864,6 @@ pub fn hydradx_finalize_block() {
 
 	hydradx_runtime::System::on_finalize(b);
 	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-	hydradx_runtime::EmaOracle::on_finalize(b);
 }
 
 pub fn rococo_run_to_block(to: BlockNumber) {
@@ -867,10 +928,11 @@ pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
 			let call_p = call.get_call_metadata().pallet_name;
 
 			if pallet_whitelist.contains(&call_p) {
-				let acc = &tx.0.signature.as_ref().unwrap().0;
-				assert_ok!(call
-					.clone()
-					.dispatch(hydradx_runtime::RuntimeOrigin::signed(acc.clone())));
+				if let sp_runtime::generic::Preamble::Signed(ref acc, _, _) = tx.0.preamble {
+					assert_ok!(call
+						.clone()
+						.dispatch(hydradx_runtime::RuntimeOrigin::signed(acc.clone())));
+				}
 			}
 		}
 	}
@@ -912,6 +974,33 @@ pub fn init_omnipool() {
 
 	set_zero_reward_for_referrals(DAI);
 	set_zero_reward_for_referrals(HDX);
+}
+
+/// Clears the EMA oracle accumulator for XCM integration tests.
+///
+/// This function must be called before xcm-emulator takes over block management
+/// in XCM integration tests. The xcm-emulator maintains its own block lifecycle
+/// and calls `on_finalize` when processing XCM messages.
+///
+/// The EMA oracle requires `elapsed >= 1` (incoming.updated_at - prev.updated_at)
+/// when updating values. If data accumulated during test setup (e.g., from
+/// `init_omnipool` or `add_token`) is processed in the same block as the XCM
+/// swap data, the oracle entries get updated twice for the same block, causing
+/// "Updating to new value should not fail" because elapsed would be 0.
+///
+/// By clearing the accumulator before XCM processing:
+/// - Test setup data (omnipool initialization) is discarded
+/// - Only the XCM swap data gets processed by xcm-emulator's `on_finalize`
+/// - Oracle updates work correctly with elapsed >= 1
+///
+/// Note: This means oracle data from test setup is not persisted, which is
+/// acceptable for XCM tests that focus on cross-chain message handling rather
+/// than oracle accuracy.
+///
+/// Call this at the end of your test setup, after `init_omnipool()` and any
+/// additional omnipool operations, but before triggering XCM message exchange.
+pub fn clear_ema_oracle_accumulator_for_xcm_tests() {
+	pallet_ema_oracle::Accumulator::<hydradx_runtime::Runtime>::kill();
 }
 
 pub fn set_zero_reward_for_referrals(asset_id: AssetId) {

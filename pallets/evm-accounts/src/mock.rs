@@ -72,7 +72,7 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
 	type AssetId = AssetId;
 
 	fn get(a: &AccountId) -> Self::AssetId {
-		FEE_ASSET.with(|v| v.borrow().get(&a).copied()).unwrap_or_default()
+		FEE_ASSET.with(|v| v.borrow().get(a).copied()).unwrap_or_default()
 	}
 	fn set(who: &AccountId, asset_id: Self::AssetId) -> DispatchResult {
 		FEE_ASSET.with(|v| {
@@ -133,6 +133,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_type_with_key! {
@@ -163,6 +164,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 impl pallet_currencies::Config for Test {
@@ -174,6 +176,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 

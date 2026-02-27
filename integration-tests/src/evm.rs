@@ -2,15 +2,12 @@
 
 use crate::utils::executive::assert_executive_apply_signed_extrinsic;
 use crate::{assert_balance, polkadot_test_net::*};
-use codec::Decode;
 
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::dispatch::DispatchInfo;
-use frame_support::pallet_prelude::InvalidTransaction;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
-use frame_support::unsigned::TransactionValidityError;
 use frame_support::weights::Weight;
 use hydradx_runtime::evm::precompiles::CALLPERMIT;
 
@@ -34,9 +31,7 @@ use libsecp256k1::Message;
 use libsecp256k1::SecretKey;
 use sp_core::bounded_vec::BoundedVec;
 
-use crate::utils::accounts::*;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
-use hydradx_runtime::evm::EvmAddress;
 use hydradx_runtime::evm::ExtendedAddressMapping;
 use hydradx_runtime::evm::Function;
 use hydradx_runtime::XYK;
@@ -55,11 +50,15 @@ use pallet_evm::*;
 use pallet_evm_accounts::EvmNonceProvider;
 use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
+use primitives::EvmAddress;
 use primitives::{AssetId, Balance};
 use sp_core::{blake2_256, Get, Pair, H160, H256, U256};
 use sp_runtime::traits::IdentifyAccount;
 use sp_runtime::TransactionOutcome;
-use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
+use sp_runtime::{
+	traits::{DispatchTransaction, TransactionExtension},
+	DispatchError, FixedU128, Permill,
+};
 use std::{borrow::Cow, cmp::Ordering};
 use xcm_emulator::TestExt;
 
@@ -157,7 +156,8 @@ mod account_conversion {
 				gas_price(),
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Assert
@@ -313,6 +313,7 @@ mod account_conversion {
 				None,
 				false,
 				None,
+				None,
 			));
 		});
 	}
@@ -340,6 +341,7 @@ mod account_conversion {
 				None,
 				None,
 				false,
+				None,
 				None,
 			);
 
@@ -379,6 +381,7 @@ mod account_conversion {
 					None,
 					false,
 					None,
+					None,
 				),
 				pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed
 			);
@@ -410,6 +413,7 @@ mod account_conversion {
 				None,
 				None,
 				true,
+				None,
 				None,
 			));
 		});
@@ -512,18 +516,21 @@ mod account_conversion {
 			});
 
 			let info = DispatchInfo {
-				weight: Weight::from_parts(106_957_000, 0),
+				call_weight: Weight::from_parts(106_957_000, 0),
 				..Default::default()
 			};
 			let len: usize = 10;
 
+			// Before claiming, transaction payment should fail (no balance in Substrate account)
 			let nonce = System::account_nonce(&account);
-			let check_nonce_pre =
-				frame_system::CheckNonce::<Runtime>::from(nonce).pre_dispatch(&account, &call, &info, len);
-			assert_noop!(
-				check_nonce_pre,
-				TransactionValidityError::Invalid(InvalidTransaction::Payment)
+			let check_nonce_pre = frame_system::CheckNonce::<Runtime>::from(nonce).validate_and_prepare(
+				Some(account.clone()).into(),
+				&call,
+				&info,
+				len,
+				0,
 			);
+			assert!(check_nonce_pre.is_err());
 
 			let signature = pallet_evm_accounts::sign_message::<Runtime>(pair, &account, asset);
 
@@ -535,28 +542,39 @@ mod account_conversion {
 				signature
 			),);
 
-			// Assert
+			// Assert - after claiming, transaction should succeed
 			let nonce = System::account_nonce(&account);
-			let check_nonce_pre =
-				frame_system::CheckNonce::<Runtime>::from(nonce).pre_dispatch(&account, &call, &info, len);
+			let check_nonce_pre = frame_system::CheckNonce::<Runtime>::from(nonce).validate_and_prepare(
+				Some(account.clone()).into(),
+				&call,
+				&info,
+				len,
+				0,
+			);
+			assert_ok!(&check_nonce_pre);
 
-			let pre = pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0)
-				.pre_dispatch(&account, &call, &info, len);
+			let pre = pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0).validate_and_prepare(
+				Some(account.clone()).into(),
+				&call,
+				&info,
+				len,
+				0,
+			);
 			assert_ok!(&pre);
+			let (pre_data, _origin) = pre.unwrap();
 
-			let result = call.clone().dispatch(RuntimeOrigin::signed(account.clone().into()));
+			let result = call.clone().dispatch(RuntimeOrigin::signed(account.clone()));
 			assert_ok!(result);
 
 			assert_ok!(
 				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::post_dispatch(
-					Some(pre.unwrap()),
+					pre_data,
 					&info,
-					&frame_support::dispatch::PostDispatchInfo::default(),
+					&mut frame_support::dispatch::PostDispatchInfo::default(),
 					len,
 					&Ok(())
 				)
 			);
-			assert_ok!(check_nonce_pre);
 		});
 	}
 
@@ -605,7 +623,8 @@ mod account_conversion {
 				contract,
 				&account,
 				&AccountId::from(BOB),
-				1_000_000_000_000_000_000
+				1_000_000_000_000_000_000,
+				frame_support::traits::ExistenceRequirement::AllowDeath
 			));
 
 			std::assert_eq!(Erc20Currency::<Runtime>::free_balance(contract, &account), 0);
@@ -644,6 +663,7 @@ mod standard_precompiles {
 			None,
 			None,
 			None,
+			Default::default(),
 			Default::default(),
 			false,
 			true,
@@ -1215,11 +1235,152 @@ mod currency_precompile {
 	}
 
 	#[test]
-	fn precompile_for_currency_approve_allowance_should_fail_as_not_supported() {
+	fn precompile_for_currency_approve_should_set_allowance() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
-			//Arrange
+			let owner = evm_address();
+			let spender = evm_address2();
+			let amount = 50u128 * UNITS;
+
+			let data = EvmDataWriter::new_with_selector(Function::Approve)
+				.write(Address::from(spender))
+				.write(U256::from(amount))
+				.build();
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: owner,
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(), // HDX “ERC20 address”
+				is_static: false,
+			};
+
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			assert_eq!(
+				result,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["0000000000000000000000000000000000000000000000000000000000000001"].to_vec()
+				})
+			);
+
+			let stored = pallet_evm_accounts::Pallet::<Runtime>::get_allowance(HDX, owner, spender);
+			assert_eq!(stored, amount);
+		});
+	}
+
+	#[test]
+	fn precompile_for_currency_allowance_should_reflect_approved_amount() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let owner = evm_address();
+			let spender = evm_address2();
+			let amount = 50u128 * UNITS;
+
+			let approve_data = EvmDataWriter::new_with_selector(Function::Approve)
+				.write(Address::from(spender))
+				.write(U256::from(amount))
+				.build();
+
+			let mut approve_handle = MockHandle {
+				input: approve_data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: owner,
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: false,
+			};
+
+			assert_ok!(CurrencyPrecompile::execute(&mut approve_handle));
+
+			let allowance_data = EvmDataWriter::new_with_selector(Function::Allowance)
+				.write(Address::from(owner))
+				.write(Address::from(spender))
+				.build();
+
+			let mut allowance_handle = MockHandle {
+				input: allowance_data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: true,
+			};
+
+			let result = CurrencyPrecompile::execute(&mut allowance_handle);
+
+			assert_eq!(
+				result,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["00000000000000000000000000000000000000000000000000002d79883d2000"].to_vec()
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn precompile_for_currency_approve_should_overwrite_and_clear() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let owner = evm_address();
+			let spender = evm_address2();
+
+			let approve = |amt: u128| {
+				let data = EvmDataWriter::new_with_selector(Function::Approve)
+					.write(Address::from(spender))
+					.write(U256::from(amt))
+					.build();
+
+				let mut handle = MockHandle {
+					input: data,
+					context: Context {
+						address: native_asset_ethereum_address(),
+						caller: owner,
+						apparent_value: U256::from(0),
+					},
+					code_address: native_asset_ethereum_address(),
+					is_static: false,
+				};
+
+				CurrencyPrecompile::execute(&mut handle).unwrap();
+			};
+
+			approve(80u128 * UNITS);
+			assert_eq!(
+				pallet_evm_accounts::Pallet::<Runtime>::get_allowance(HDX, owner, spender),
+				80u128 * UNITS
+			);
+
+			approve(0);
+			assert_eq!(
+				pallet_evm_accounts::Pallet::<Runtime>::get_allowance(HDX, owner, spender),
+				0
+			);
+		});
+	}
+
+	#[test]
+	fn precompile_for_transfer_from_approved_contract_should_have_max_allowance_and_not_require_approve() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let owner = evm_address();
+			let to = evm_address2();
+			let spender = native_asset_ethereum_address();
+			let amount = 50u128 * UNITS;
+
 			assert_ok!(Currencies::update_balance(
 				RuntimeOrigin::root(),
 				evm_account(),
@@ -1227,32 +1388,177 @@ mod currency_precompile {
 				100 * UNITS as i128,
 			));
 
-			let data = EvmDataWriter::new_with_selector(Function::Approve)
-				.write(Address::from(evm_address2()))
-				.write(U256::from(50u128 * UNITS))
+			assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), spender));
+
+			let allowance_data = EvmDataWriter::new_with_selector(Function::Allowance)
+				.write(Address::from(owner))
+				.write(Address::from(spender))
 				.build();
 
-			let mut handle = MockHandle {
-				input: data,
+			let mut allowance_handle = MockHandle {
+				input: allowance_data,
 				context: Context {
-					address: evm_address(),
-					caller: native_asset_ethereum_address(),
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
 				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
-			//Act
-			let result = CurrencyPrecompile::execute(&mut handle);
-
-			//Assert
+			let allowance_res = CurrencyPrecompile::execute(&mut allowance_handle);
 			assert_eq!(
-				result,
-				Err(PrecompileFailure::Error {
-					exit_status: ExitError::Other("not supported".into())
+				allowance_res,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["00000000000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"].to_vec()
 				})
 			);
+
+			let tf_data = EvmDataWriter::new_with_selector(Function::TransferFrom)
+				.write(Address::from(owner))
+				.write(Address::from(to))
+				.write(U256::from(amount))
+				.build();
+
+			let mut tf_handle = MockHandle {
+				input: tf_data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: spender,
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: false,
+			};
+
+			let tf_res = CurrencyPrecompile::execute(&mut tf_handle);
+			assert_eq!(
+				tf_res,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["0000000000000000000000000000000000000000000000000000000000000001"].to_vec(),
+				})
+			);
+
+			assert_balance!(evm_account2(), HDX, amount);
+
+			let allowance_data2 = EvmDataWriter::new_with_selector(Function::Allowance)
+				.write(Address::from(owner))
+				.write(Address::from(spender))
+				.build();
+
+			let mut allowance_handle2 = MockHandle {
+				input: allowance_data2,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: true,
+			};
+
+			let allowance_res2 = CurrencyPrecompile::execute(&mut allowance_handle2);
+			assert_eq!(
+				allowance_res2,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["00000000000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"].to_vec()
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn precompile_for_transfer_from_should_deduct_allowance_for_non_approved_spender() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let owner = evm_address();
+			let to = evm_address2();
+			let spender = evm_address3();
+
+			let approve_amt = 80u128 * UNITS;
+			let spend_amt = 50u128 * UNITS;
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				evm_account(),
+				HDX,
+				100 * UNITS as i128,
+			));
+
+			let approve_data = EvmDataWriter::new_with_selector(Function::Approve)
+				.write(Address::from(spender))
+				.write(U256::from(approve_amt))
+				.build();
+
+			let mut approve_handle = MockHandle {
+				input: approve_data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: owner,
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: false,
+			};
+
+			let approve_res = CurrencyPrecompile::execute(&mut approve_handle);
+			assert_eq!(approve_res.unwrap().exit_status, ExitSucceed::Returned);
+
+			let tf_data = EvmDataWriter::new_with_selector(Function::TransferFrom)
+				.write(Address::from(owner))
+				.write(Address::from(to))
+				.write(U256::from(spend_amt))
+				.build();
+
+			let mut tf_handle = MockHandle {
+				input: tf_data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: spender,
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: false,
+			};
+
+			let tf_res = CurrencyPrecompile::execute(&mut tf_handle);
+			assert_eq!(
+				tf_res,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["0000000000000000000000000000000000000000000000000000000000000001"].to_vec(),
+				})
+			);
+
+			assert_balance!(evm_account2(), HDX, spend_amt);
+
+			let allowance_data = EvmDataWriter::new_with_selector(Function::Allowance)
+				.write(Address::from(owner))
+				.write(Address::from(spender))
+				.build();
+
+			let mut allowance_handle = MockHandle {
+				input: allowance_data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: true,
+			};
+
+			let allowance_res = CurrencyPrecompile::execute(&mut allowance_handle).unwrap();
+
+			let expected_leftover = approve_amt - spend_amt;
+			let expected_output = U256::from(expected_leftover).to_big_endian().to_vec();
+
+			assert_eq!(allowance_res.exit_status, ExitSucceed::Returned);
+			assert_eq!(allowance_res.output, expected_output);
 		});
 	}
 
@@ -1398,12 +1704,11 @@ mod currency_precompile {
 				is_static: false,
 			};
 
-			//Act & Assert
 			assert_noop!(
 				CurrencyPrecompile::execute(&mut handle),
 				PrecompileFailure::Revert {
 					exit_status: Reverted,
-					output: "Not approved contract".as_bytes().to_vec()
+					output: "ERC20: insufficient allowance".as_bytes().to_vec()
 				}
 			);
 			assert_balance!(evm_account2(), HDX, 0);
@@ -1488,13 +1793,14 @@ mod chainlink_precompile {
 		evm::precompiles::chainlink_adapter::{encode_oracle_address, AggregatorInterface, ChainlinkOraclePrecompile},
 		EmaOracle, Inspect, Router, Runtime,
 	};
+	use hydradx_traits::evm::CallContext;
 	use hydradx_traits::evm::EVM;
-	use hydradx_traits::evm::{CallContext, EvmAddress};
 	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::{router::AssetPair, AggregatedPriceOracle, OraclePeriod};
 	use pallet_ema_oracle::Price;
 	use pallet_lbp::AssetId;
 	use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
+	use primitives::EvmAddress;
 
 	fn assert_prices_are_same(ema_price: Price, precompile_price: U256, asset_a_decimals: u8, asset_b_decimals: u8) {
 		// EMA price does not take into account decimals of the asset. Adjust the price accordingly.
@@ -2163,7 +2469,7 @@ mod chainlink_precompile {
 			};
 			let PrecompileOutput { output, .. } =
 				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
-			let precompile_price = U256::from(output.as_slice());
+			let precompile_price = U256::from_big_endian(output.as_slice());
 
 			let call_result = Executor::<Runtime>::view(
 				CallContext {
@@ -2174,7 +2480,7 @@ mod chainlink_precompile {
 				input,
 				100_000,
 			);
-			let dia_price = U256::from(call_result.value.as_slice());
+			let dia_price = U256::from_big_endian(call_result.value.as_slice());
 
 			// Prices doesn't need to be exactly same, but comparable within 5%
 			let tolerance = dia_price
@@ -2227,7 +2533,7 @@ mod chainlink_precompile {
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
 			let expected_decimals: u8 = 8;
-			let r: u8 = U256::from(output.as_slice()).try_into().unwrap();
+			let r: u8 = U256::from_big_endian(output.as_slice()).try_into().unwrap();
 			pretty_assertions::assert_eq!(r, expected_decimals);
 		});
 	}
@@ -2254,6 +2560,7 @@ mod contract_deployment {
 					None,
 					false,
 					None,
+					None,
 				),
 				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::AddressNotWhitelisted
 			);
@@ -2277,6 +2584,7 @@ mod contract_deployment {
 				None,
 				None,
 				false,
+				None,
 				None,
 			));
 		});
@@ -2323,7 +2631,8 @@ mod account_marking {
 				gas_price(),
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			assert!(hydradx_runtime::EVMAccounts::marked_evm_accounts(&account_id).is_some());
@@ -2364,7 +2673,8 @@ mod account_marking {
 				gas_price(),
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			let sufficients_after_first = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
@@ -2380,7 +2690,8 @@ mod account_marking {
 				gas_price(),
 				None,
 				Some(U256::from(1)),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			let sufficients_after_second = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
@@ -2396,7 +2707,8 @@ mod account_marking {
 				gas_price(),
 				None,
 				Some(U256::from(2)),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			let sufficients_after_third = frame_system::Pallet::<hydradx_runtime::Runtime>::sufficients(&account_id);
@@ -2459,7 +2771,8 @@ mod account_marking {
 				gas_price(),
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Assert
@@ -2481,7 +2794,8 @@ mod account_marking {
 				gas_price(),
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Assert
@@ -2539,7 +2853,8 @@ mod account_marking {
 				gas_price * 10,
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Assert
@@ -2575,7 +2890,7 @@ mod account_marking {
 				10000 * UNITS as i128,
 			));
 
-			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			let state = frame_system::Pallet::<Runtime>::account(user_acc.address());
 			assert_eq!(state.providers, 1);
 			assert_eq!(state.sufficients, 0);
 			assert_eq!(state.nonce, 0);
@@ -2593,7 +2908,8 @@ mod account_marking {
 				gas_price * 10,
 				None,
 				Some(U256::zero()),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Execute second EVM transaction (nonce 1)
@@ -2607,7 +2923,8 @@ mod account_marking {
 				gas_price * 10,
 				None,
 				Some(U256::from(1)),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Execute third EVM transaction (nonce 2)
@@ -2621,11 +2938,12 @@ mod account_marking {
 				gas_price * 10,
 				None,
 				Some(U256::from(2)),
-				[].into()
+				[].into(),
+				vec![],
 			));
 
 			// Verify the nonce and sufficients were incremented through EVM transactions
-			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			let state = frame_system::Pallet::<Runtime>::account(user_acc.address());
 			assert_eq!(state.providers, 1);
 			assert_eq!(state.sufficients, 1);
 			assert_eq!(state.nonce, 3,);
@@ -2634,12 +2952,12 @@ mod account_marking {
 
 			let contract = crate::erc20::deploy_token_contract();
 			let erc20 = crate::erc20::bind_erc20(contract);
-			let balance = Currencies::free_balance(erc20, &ALICE.into());
+			let _balance = Currencies::free_balance(erc20, &ALICE.into());
 			let erc20_balance = 2000000000000000;
 			assert_eq!(erc20_balance, 2000000000000000);
 			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
 				CallContext {
-					contract: contract,
+					contract,
 					sender: crate::erc20::deployer(),
 					origin: crate::erc20::deployer()
 				},
@@ -2690,7 +3008,7 @@ mod account_marking {
 				initial_amount as i128,
 			));
 
-			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			let state = frame_system::Pallet::<Runtime>::account(user_acc.address());
 			assert_eq!(state.providers, 1);
 
 			assert_ok!(Omnipool::sell(
@@ -2753,7 +3071,7 @@ mod account_marking {
 			let free_hdx = Currencies::free_balance(HDX, &user_acc.address());
 			assert_eq!(free_hdx, 0);
 
-			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			let state = frame_system::Pallet::<Runtime>::account(user_acc.address());
 			assert_eq!(state.providers, 0);
 			assert_eq!(state.sufficients, 1);
 			assert_eq!(state.nonce, 3);
@@ -2775,12 +3093,12 @@ mod account_marking {
 			//Deploy and use erc20
 			let contract = crate::erc20::deploy_token_contract();
 			let erc20 = crate::erc20::bind_erc20(contract);
-			let balance = Currencies::free_balance(erc20, &ALICE.into());
+			let _balance = Currencies::free_balance(erc20, &ALICE.into());
 			let erc20_balance = 2000000000000000;
 			assert_eq!(erc20_balance, 2000000000000000);
 			assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
 				CallContext {
-					contract: contract,
+					contract,
 					sender: crate::erc20::deployer(),
 					origin: crate::erc20::deployer()
 				},
@@ -2831,7 +3149,7 @@ mod account_marking {
 				initial_amount as i128,
 			));
 
-			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			let state = frame_system::Pallet::<Runtime>::account(user_acc.address());
 			assert_eq!(state.providers, 1);
 
 			assert_ok!(Omnipool::sell(
@@ -2896,7 +3214,7 @@ mod account_marking {
 			let free_hdx = Currencies::free_balance(HDX, &user_acc.address());
 			assert!(free_hdx > 0);
 
-			let state = frame_system::Pallet::<Runtime>::account(&user_acc.address());
+			let state = frame_system::Pallet::<Runtime>::account(user_acc.address());
 			assert_eq!(state.providers, 1);
 			assert_eq!(state.sufficients, 1);
 			assert_eq!(state.nonce, 0);
@@ -2969,7 +3287,8 @@ fn dispatch_should_work_with_transfer() {
 			gas_price * 10,
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
+			vec![],
 		));
 
 		//Assert
@@ -3061,7 +3380,8 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 			gas_price * 10,
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
+			vec![],
 		));
 
 		//EVM call passes even when the substrate tx fails, so we need to check if the tx is executed
@@ -3093,6 +3413,7 @@ fn dispatch_transfer_should_not_work_with_insufficient_fees() {
 			None,
 			Some(U256::zero()),
 			[].into(),
+			vec![],
 		);
 
 		//Assert
@@ -3147,6 +3468,7 @@ fn dispatch_should_respect_call_filter() {
 			None,
 			Some(U256::zero()),
 			[].into(),
+			vec![],
 		));
 
 		//Assert
@@ -3224,6 +3546,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 			None,
 			Some(U256::zero()),
 			[].into(),
+			vec![],
 		));
 
 		let new_treasury_currency_balance = Currencies::free_balance(fee_currency, &Treasury::account_id());
@@ -3236,7 +3559,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		let info = omni_sell.get_dispatch_info();
 		let len: usize = 146;
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, len);
+			.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &omni_sell, &info, len, 0);
 		assert_ok!(&pre);
 
 		let alice_currency_balance_pre_dispatch = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));
@@ -3303,7 +3626,8 @@ fn substrate_account_should_pay_gas_with_payment_currency() {
 			U256::from(1000000000),
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
+			vec![],
 		));
 
 		// Assert
@@ -3353,7 +3677,8 @@ fn evm_account_pays_with_weth_for_evm_call_if_payment_currency_not_set() {
 			U256::from(1000000000),
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
+			vec![],
 		));
 
 		// Assert
@@ -3411,7 +3736,8 @@ fn evm_account_should_pay_gas_with_payment_currency_for_evm_call() {
 			U256::from(1000000000),
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
+			vec![],
 		));
 
 		let hdx_balance = Currencies::free_balance(HDX, &evm_account());
@@ -3456,6 +3782,7 @@ fn dispatch_permit_with_params(is_batch: bool, max_priority_fee_per_gas: Option<
 		max_priority_fee_per_gas,
 		nonce,
 		access_list: vec![],
+		authorization_list: vec![],
 	});
 	let mut call = inner_call.clone();
 	if is_batch {
@@ -3577,7 +3904,9 @@ fn dispatch_permit_with_batch_should_increase_permit_nonce_correctly() {
 }
 
 fn raw_eip1559_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>) {
-	use ethereum::{EIP1559Transaction, EIP1559TransactionMessage, TransactionAction, TransactionV2};
+	use ethereum::{
+		eip2930::TransactionSignature, EIP1559Transaction, EIP1559TransactionMessage, TransactionAction, TransactionV2,
+	};
 
 	let account = MockAccount::new(alith_evm_account());
 	let evm_address = alith_evm_address();
@@ -3607,6 +3936,7 @@ fn raw_eip1559_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>)
 		max_priority_fee_per_gas: Some(max_priority_fee_per_gas),
 		nonce: Some(nonce),
 		access_list: vec![],
+		authorization_list: vec![],
 	});
 	let mut call_data = inner_evm_call.clone();
 	if is_batch {
@@ -3626,7 +3956,7 @@ fn raw_eip1559_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>)
 		gas_limit: gas_limit.into(),
 		action: TransactionAction::Call(DISPATCH_ADDR),
 		value: U256::zero(),
-		input: input_data.clone().into(),
+		input: input_data.clone(),
 		access_list: vec![],
 	};
 
@@ -3639,6 +3969,8 @@ fn raw_eip1559_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>)
 	let message = Message::parse(&hash_bytes);
 	let (rs, v) = sign(&message, &secret_key);
 	let odd_y_parity = v.serialize() != 0;
+	let signature = TransactionSignature::new(odd_y_parity, H256::from(rs.r.b32()), H256::from(rs.s.b32()))
+		.expect("valid signature");
 
 	let signed_tx = EIP1559Transaction {
 		chain_id,
@@ -3648,18 +3980,18 @@ fn raw_eip1559_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>)
 		gas_limit: gas_limit.into(),
 		action: TransactionAction::Call(DISPATCH_ADDR),
 		value: U256::zero(),
-		input: input_data.into(),
+		input: input_data,
 		access_list: vec![],
-		odd_y_parity,
-		r: H256::from(rs.r.b32()),
-		s: H256::from(rs.s.b32()),
+		signature,
 	};
 
 	let transaction = TransactionV2::EIP1559(signed_tx);
 
 	// Act: submit the raw Ethereum transaction via Executive unsigned self-contained extrinsic
 	crate::utils::executive::assert_executive_apply_unsigned_extrinsic(hydradx_runtime::RuntimeCall::Ethereum(
-		pallet_ethereum::Call::transact { transaction },
+		pallet_ethereum::Call::transact {
+			transaction: transaction.into(),
+		},
 	));
 }
 
@@ -3707,7 +4039,7 @@ fn raw_eip1559_eth_should_increment_nonce_correctly() {
 
 fn raw_legacy_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>) {
 	use ethereum::{
-		LegacyTransaction, LegacyTransactionMessage, TransactionAction, TransactionSignature, TransactionV2,
+		legacy::TransactionSignature, LegacyTransaction, LegacyTransactionMessage, TransactionAction, TransactionV2,
 	};
 
 	let account = MockAccount::new(alith_evm_account());
@@ -3738,6 +4070,7 @@ fn raw_legacy_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>) 
 		max_priority_fee_per_gas: None,
 		nonce: Some(nonce),
 		access_list: vec![],
+		authorization_list: vec![],
 	});
 	let mut call_data = inner_evm_call.clone();
 	if is_batch {
@@ -3754,7 +4087,7 @@ fn raw_legacy_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>) 
 		gas_limit: gas_limit.into(),
 		action: TransactionAction::Call(DISPATCH_ADDR),
 		value: U256::zero(),
-		input: input_data.clone().into(),
+		input: input_data.clone(),
 		chain_id: None,
 	};
 
@@ -3778,7 +4111,7 @@ fn raw_legacy_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>) 
 		gas_limit: gas_limit.into(),
 		action: TransactionAction::Call(DISPATCH_ADDR),
 		value: U256::zero(),
-		input: input_data.into(),
+		input: input_data,
 		signature,
 	};
 
@@ -3786,7 +4119,9 @@ fn raw_legacy_eth_call_with_params(is_batch: bool, nonce: U256, input: Vec<u8>) 
 
 	// Act: submit the raw Ethereum transaction via Executive unsigned self-contained extrinsic
 	crate::utils::executive::assert_executive_apply_unsigned_extrinsic(hydradx_runtime::RuntimeCall::Ethereum(
-		pallet_ethereum::Call::transact { transaction },
+		pallet_ethereum::Call::transact {
+			transaction: transaction.into(),
+		},
 	));
 }
 
@@ -3923,6 +4258,7 @@ fn substrate_signed_evm_with_batch_should_increment_nonce_once() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 		let batch_data = RuntimeCall::Utility(pallet_utility::Call::batch_all {
 			calls: vec![inner_evm_call.clone(), inner_evm_call.clone(), inner_evm_call],
@@ -3938,6 +4274,7 @@ fn substrate_signed_evm_with_batch_should_increment_nonce_once() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 
 		// Dispatch the EVM call as a signed extrinsic from the bound Substrate account
@@ -3976,6 +4313,7 @@ fn evm_input_through_precompile_should_increase_nonce_correctly() {
 			max_priority_fee_per_gas: Some(15_000.into()),
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 		let mut handle = create_dispatch_handle(evm_call.encode());
 
@@ -4021,6 +4359,7 @@ fn batched_evm_input_through_precompile_should_increase_nonce_correctly() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
+			authorization_list: vec![],
 		});
 		let batch_call = RuntimeCall::Utility(pallet_utility::Call::batch_all {
 			calls: vec![evm_call.clone(), evm_call],
@@ -4040,7 +4379,8 @@ fn batched_evm_input_through_precompile_should_increase_nonce_correctly() {
 			gas_price(),
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
+			vec![],
 		));
 
 		//Assert
@@ -4155,7 +4495,8 @@ pub fn init_omnipol() {
 
 // TODO: test that we charge approximatelly same fee on evm as with extrinsics directly
 pub fn gas_price() -> U256 {
-	U256::from(hydradx_runtime::evm::DEFAULT_BASE_FEE_PER_GAS)
+	// Fetch current base evm fee from storage
+	hydradx_runtime::DynamicEvmFee::base_evm_fee()
 }
 
 impl MockHandle {
@@ -4308,7 +4649,7 @@ mod evm_error_decoder {
 	use proptest::test_runner::{Config, TestRunner};
 	use sp_core::Get;
 	use sp_runtime::traits::Convert;
-	use sp_runtime::{DispatchError, DispatchResult};
+	use sp_runtime::DispatchError;
 
 	fn arbitrary_value() -> impl Strategy<Value = Vec<u8>> {
 		prop::collection::vec(any::<u8>(), 0..256)
@@ -4344,8 +4685,8 @@ mod evm_error_decoder {
 		]
 	}
 
-	/// Property-based test to ensure EvmErrorDecoder never panics
-	/// with arbitrary input values, exit reasons, and contract addresses
+	// Property-based test to ensure EvmErrorDecoder never panics
+	// with arbitrary input values, exit reasons, and contract addresses
 	proptest! {
 		#![proptest_config(ProptestConfig::with_cases(10000))]
 		#[test]
@@ -4358,7 +4699,8 @@ mod evm_error_decoder {
 					exit_reason,
 					value,
 					contract,
-				};
+					gas_used: sp_core::U256::zero(),
+					gas_limit: sp_core::U256::zero(),				};
 
 			let _result = EvmErrorDecoder::convert(call_result);
 		}
@@ -4378,12 +4720,14 @@ mod evm_error_decoder {
 				..Config::default()
 			});
 
-			let _ = runner
+			runner
 				.run(&random_error_string(), |value| {
 					let call_result = CallResult {
 						exit_reason: ExitReason::Error(ExitError::Other("Some error".into())),
 						value,
 						contract: hydradx_runtime::Liquidation::get(),
+						gas_used: sp_core::U256::zero(),
+						gas_limit: sp_core::U256::zero(),
 					};
 
 					let _result = EvmErrorDecoder::convert(call_result);
@@ -4400,6 +4744,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: vec![],
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let _error = EvmErrorDecoder::convert(call_result);
@@ -4411,6 +4757,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: vec![0x01, 0x02],
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let _error = EvmErrorDecoder::convert(call_result);
@@ -4439,6 +4787,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: value.clone(),
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4454,6 +4804,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: value.clone(),
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4469,6 +4821,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: value.clone(),
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4484,6 +4838,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: value.clone(),
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4499,6 +4855,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: value.clone(),
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4523,6 +4881,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -4541,6 +4901,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value,
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4558,6 +4920,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -4583,6 +4947,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -4604,6 +4970,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -4618,14 +4986,14 @@ mod evm_error_decoder {
 		let mut nested_data = vec![0x00u8]; // Start with valid discriminant
 
 		// Add many layers of nesting indicators
-		for _ in 0..300 {
-			nested_data.push(0x01); // Indicate nested structure
-		}
+		nested_data.resize(301, 0x01); // Indicate nested structure
 
 		let call_result = CallResult {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value: nested_data,
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: sp_core::U256::zero(),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4651,6 +5019,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -4672,6 +5042,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -4688,6 +5060,8 @@ mod evm_error_decoder {
 			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 			value,
 			contract: sp_core::H160::zero(),
+			gas_used: sp_core::U256::zero(),
+			gas_limit: U256::from(400_000),
 		};
 
 		let result = EvmErrorDecoder::convert(call_result);
@@ -4704,6 +5078,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -4714,7 +5090,7 @@ mod evm_error_decoder {
 
 	#[test]
 	fn test_scale_decode_malicious_payload() {
-		let malicious_payloads = vec![
+		let malicious_payloads = [
 			// Looks like Module error (discriminant 3) with crafted data
 			vec![0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00],
 			// Looks like Other variant (discriminant 0) with invalid string data
@@ -4730,6 +5106,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value: value.clone(),
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let _result = EvmErrorDecoder::convert(call_result);
@@ -4737,7 +5115,7 @@ mod evm_error_decoder {
 	}
 
 	#[test]
-	fn dispatch_decode_with_malformed_scawle_payloads_should_not_panic() {
+	fn dispatch_decode_with_malformed_scale_payloads_should_not_panic() {
 		// Test various malicious/malformed SCALE-encoded payloads
 		// that could trigger panics in decode_with_depth_limit
 		let test_cases = vec![
@@ -4770,21 +5148,25 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 				value,
 				contract: sp_core::H160::zero(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let _result = EvmErrorDecoder::convert(call_result.clone());
-			DispatchError::decode_with_depth_limit(MAX_DECODE_DEPTH, &mut &call_result.value[..]);
+			let _ = DispatchError::decode_with_depth_limit(MAX_DECODE_DEPTH, &mut &call_result.value[..]);
 		}
 	}
 
 	#[test]
-	fn dispatch_decode_cannot_pani_for_different_multi_byte_patterns() {
+	fn dispatch_decode_cannot_panic_for_different_multi_byte_patterns() {
 		for byte1 in [0x00, 0x03, 0x06, 0x07, 0xFF].iter() {
 			for byte2 in [0x00, 0xFF].iter() {
 				let call_result = CallResult {
 					exit_reason: ExitReason::Revert(ExitRevert::Reverted),
 					value: vec![*byte1, *byte2],
 					contract: sp_core::H160::zero(),
+					gas_used: sp_core::U256::zero(),
+					gas_limit: sp_core::U256::zero(),
 				};
 
 				let _result = EvmErrorDecoder::convert(call_result.clone());
@@ -4806,6 +5188,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 				value: error_data,
 				contract: hydradx_runtime::Liquidation::get(),
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);
@@ -4830,6 +5214,8 @@ mod evm_error_decoder {
 				exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 				value: error_data,
 				contract: H160::from_low_u64_be(12345), // Different contract
+				gas_used: sp_core::U256::zero(),
+				gas_limit: sp_core::U256::zero(),
 			};
 
 			let result = EvmErrorDecoder::convert(call_result);

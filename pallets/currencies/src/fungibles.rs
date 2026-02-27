@@ -2,11 +2,17 @@ use crate::module::{BalanceOf, CurrencyIdOf};
 use crate::{Config, Error, Pallet};
 use frame_support::fail;
 use frame_support::traits::fungibles::Inspect as FungibleInspect;
-use frame_support::traits::tokens::{
-	fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
+use frame_support::traits::{
+	tokens::{
+		fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
+	},
+	ExistenceRequirement,
 };
+
+use hydradx_traits::circuit_breaker::AssetWithdrawHandler;
 use hydradx_traits::{BoundErc20, Inspect};
-use orml_traits::MultiCurrency;
+use orml_traits::currency::OnTransfer;
+use orml_traits::{Handler, MultiCurrency};
 #[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::traits::Zero;
 use sp_runtime::traits::{CheckedSub, Get};
@@ -142,20 +148,11 @@ where
 		From<WithdrawConsequence<<T::NativeCurrency as fungible::Inspect<T::AccountId>>::Balance>>,
 {
 	fn name(asset: Self::AssetId) -> Vec<u8> {
-		// Prefer registry for metadata; fall back to sensible defaults
-		if let Some(name) = T::RegistryInspect::asset_name(asset) {
-			name
-		} else {
-			Vec::new()
-		}
+		T::RegistryInspect::asset_name(asset).unwrap_or_default()
 	}
 
 	fn symbol(asset: Self::AssetId) -> Vec<u8> {
-		if let Some(sym) = T::RegistryInspect::asset_symbol(asset) {
-			sym
-		} else {
-			Vec::new()
-		}
+		T::RegistryInspect::asset_symbol(asset).unwrap_or_default()
 	}
 
 	fn decimals(asset: Self::AssetId) -> u8 {
@@ -261,7 +258,7 @@ where
 		who: &T::AccountId,
 		amount: Self::Balance,
 	) -> Result<Self::Balance, DispatchError> {
-		if asset == T::GetNativeCurrencyId::get() {
+		let result = if asset == T::GetNativeCurrencyId::get() {
 			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::mint_into(who, amount.into()).into()
 		} else {
 			match T::BoundErc20::contract_address(asset) {
@@ -279,7 +276,15 @@ where
 						.into()
 				}
 			}
+		};
+
+		if result.is_ok() {
+			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnDeposit::handle(
+				&(asset, amount, None),
+			)?;
 		}
+
+		result
 	}
 
 	fn burn_from(
@@ -290,7 +295,7 @@ where
 		precision: Precision,
 		force: Fortitude,
 	) -> Result<Self::Balance, DispatchError> {
-		if asset == T::GetNativeCurrencyId::get() {
+		let result = if asset == T::GetNativeCurrencyId::get() {
 			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::burn_from(
 				who,
 				amount.into(),
@@ -303,7 +308,7 @@ where
 			match T::BoundErc20::contract_address(asset) {
 				Some(contract) => {
 					let old_balance = Self::balance(asset, who);
-					T::Erc20Currency::withdraw(contract, who, amount)?;
+					T::Erc20Currency::withdraw(contract, who, amount, ExistenceRequirement::AllowDeath)?;
 					let new_balance = Self::balance(asset, who);
 					let burnt = old_balance
 						.checked_sub(&new_balance)
@@ -321,7 +326,15 @@ where
 				)
 				.into(),
 			}
+		};
+
+		if result.is_ok() {
+			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnWithdraw::handle(
+				&(asset, amount)
+			)?;
 		}
+
+		result
 	}
 
 	fn transfer(
@@ -344,7 +357,10 @@ where
 				.into()
 		} else {
 			match T::BoundErc20::contract_address(asset) {
-				Some(contract) => T::Erc20Currency::transfer(contract, source, dest, amount).map(|_| amount),
+				Some(contract) => {
+					T::Erc20Currency::transfer(contract, source, dest, amount, ExistenceRequirement::AllowDeath)
+						.map(|_| amount)
+				}
 				None => <T::MultiCurrency as fungibles::Mutate<T::AccountId>>::transfer(
 					asset.into(),
 					source,
@@ -356,23 +372,33 @@ where
 			}
 		};
 
-		#[cfg(any(feature = "try-runtime", test))]
 		if result.is_ok() {
-			let (final_source_balance, final_dest_balance) = {
-				(
-					<Self as fungibles::Inspect<T::AccountId>>::total_balance(asset, source),
-					<Self as fungibles::Inspect<T::AccountId>>::total_balance(asset, dest),
-				)
-			};
-			debug_assert!(
-				final_source_balance == initial_source_balance - amount || final_source_balance.is_zero(),
-				"Transfer - source sent incorrect amount"
-			);
-			debug_assert_eq!(
-				initial_dest_balance + amount,
-				final_dest_balance,
-				"Transfer - dest received incorrect amount"
-			);
+			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnTransfer::on_transfer(
+				asset, source, dest, amount
+			)?;
+
+			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnDeposit::handle(
+				&(asset, amount, Some(source.clone())),
+			)?;
+
+			#[cfg(any(feature = "try-runtime", test))]
+			{
+				let (final_source_balance, final_dest_balance) = {
+					(
+						<Self as fungibles::Inspect<T::AccountId>>::total_balance(asset, source),
+						<Self as fungibles::Inspect<T::AccountId>>::total_balance(asset, dest),
+					)
+				};
+				debug_assert!(
+					final_source_balance == initial_source_balance - amount || final_source_balance.is_zero(),
+					"Transfer - source sent incorrect amount"
+				);
+				debug_assert_eq!(
+					initial_dest_balance + amount,
+					final_dest_balance,
+					"Transfer - dest received incorrect amount"
+				);
+			}
 		}
 
 		result

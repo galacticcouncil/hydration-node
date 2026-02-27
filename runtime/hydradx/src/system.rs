@@ -29,8 +29,10 @@ use primitives::constants::{
 	time::{DAYS, HOURS, SLOT_DURATION},
 };
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use crate::circuit_breaker::IgnoreWithdrawFuse;
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::cmp::Ordering;
+use frame_support::migrations::FailedMigrationHandling;
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
@@ -221,11 +223,45 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type SingleBlockMigrations = ();
-	type MultiBlockMigrator = ();
+	type SingleBlockMigrations = migrations::SingleBlockMigrationsList;
+	type MultiBlockMigrator = MultiBlockMigrations;
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = weights::frame_system_extensions::HydraWeight<Runtime>;
+}
+
+parameter_types! {
+	pub MaxServiceWeight: Weight = NORMAL_DISPATCH_RATIO * BlockWeights::get().max_block;
+}
+
+impl pallet_migrations::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Migrations = migrations::MultiBlockMigrationsList;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
+	type CursorMaxLen = ConstU32<65_536>;
+	type IdentifierMaxLen = ConstU32<256>;
+	type MigrationStatusHandler = ();
+	type FailedMigrationHandler = LogErrorAndForceUnstuck;
+	type MaxServiceWeight = MaxServiceWeight;
+	type WeightInfo = weights::pallet_migrations::HydraWeight<Runtime>;
+}
+
+pub struct LogErrorAndForceUnstuck;
+impl frame_support::migrations::FailedMigrationHandler for LogErrorAndForceUnstuck {
+	fn failed(migration: Option<u32>) -> FailedMigrationHandling {
+		log::error!(
+			target: "runtime::migrations",
+			"Migration {:?} failed - halting all migrations and resuming chain",
+			migration
+		);
+
+		// Clear the migration cursor entirely. Transactions resume, remaining migrations are
+		// skipped. State may be inconsistent.
+		FailedMigrationHandling::ForceUnstuck
+	}
 }
 
 parameter_types! {
@@ -263,6 +299,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
 	type ConsensusHook = ConsensusHook;
+	type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
 }
 
 parameter_types! {
@@ -345,6 +382,7 @@ impl pallet_scheduler::Config for Runtime {
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = weights::pallet_scheduler::HydraWeight<Runtime>;
 	type Preimages = Preimage;
+	type BlockNumberProvider = System;
 }
 
 /// Used the compare the privilege of an origin inside the scheduler.
@@ -383,6 +421,7 @@ impl pallet_session::Config for Runtime {
 	type SessionHandler = <opaque::SessionKeys as sp_runtime::traits::OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = opaque::SessionKeys;
 	type WeightInfo = ();
+	type DisablingStrategy = ();
 }
 
 impl pallet_utility::Config for Runtime {
@@ -419,6 +458,7 @@ parameter_types! {
 	pub const PendingUserNameExpiration: u32 = 7 * DAYS;
 	pub const MaxSuffixLength: u32 = 7;
 	pub const MaxUsernameLength: u32 = 32;
+	pub const UsernameDeposit: Balance = 5 * DOLLARS;
 }
 
 impl pallet_identity::Config for Runtime {
@@ -440,10 +480,25 @@ impl pallet_identity::Config for Runtime {
 	type MaxSuffixLength = MaxSuffixLength;
 	type MaxUsernameLength = MaxUsernameLength;
 	type WeightInfo = weights::pallet_identity::HydraWeight<Runtime>;
+	type UsernameDeposit = UsernameDeposit;
+	type UsernameGracePeriod = ConstU32<{ 30 * DAYS }>;
 }
 
 /// The type used to represent the kinds of proxying allowed.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+)]
 pub enum ProxyType {
 	Any,
 	CancelProxy,
@@ -527,6 +582,7 @@ impl pallet_proxy::Config for Runtime {
 	type CallHasher = BlakeTwo256;
 	type AnnouncementDepositBase = AnnouncementDepositBase;
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -543,6 +599,7 @@ impl pallet_multisig::Config for Runtime {
 	type DepositFactor = DepositFactor;
 	type MaxSignatories = MaxSignatories;
 	type WeightInfo = weights::pallet_multisig::HydraWeight<Runtime>;
+	type BlockNumberProvider = System;
 }
 
 impl pallet_genesis_history::Config for Runtime {}
@@ -600,17 +657,18 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = TransferFees<Currencies, DepositAll<Runtime>, TreasuryAccount>;
+	type OnChargeTransaction =
+		TransferFees<Runtime, Currencies, DepositAll<Runtime>, TreasuryAccount, IgnoreWithdrawFuse<Runtime>>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
+	type WeightInfo = weights::pallet_transaction_payment::HydraWeight<Runtime>;
 }
 
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AcceptedCurrencyOrigin =
-		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type AcceptedCurrencyOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Currencies = Currencies;
 	type RouteProvider = Router;
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
@@ -664,7 +722,7 @@ impl pallet_collator_rewards::Config for Runtime {
 
 impl pallet_transaction_pause::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type WeightInfo = weights::pallet_transaction_pause::HydraWeight<Runtime>;
 }
 
@@ -695,4 +753,8 @@ impl pallet_state_trie_migration::Config for Runtime {
 	type SignedDepositPerItem = MigrationSignedDepositPerItem;
 	type SignedDepositBase = MigrationSignedDepositBase;
 	type WeightInfo = weights::pallet_state_trie_migration::HydraWeight<Runtime>;
+}
+
+impl cumulus_pallet_weight_reclaim::Config for Runtime {
+	type WeightInfo = weights::cumulus_pallet_weight_reclaim::HydraWeight<Runtime>;
 }

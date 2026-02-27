@@ -17,7 +17,7 @@
 
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
-use crate::evm::{Erc20Currency, WethAssetId};
+use crate::evm::Erc20Currency;
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
@@ -31,8 +31,8 @@ use frame_support::{
 	},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, Imbalance,
-		LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
+		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, ExistenceRequirement,
+		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
 	},
 	BoundedVec, PalletId,
 };
@@ -119,6 +119,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxReserves = MaxReserves;
 	type MaxFreezes = MaxFreezes;
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 pub struct CurrencyHooks;
@@ -250,6 +251,7 @@ impl SufficiencyCheck {
 					paying_account,
 					&TreasuryAccount::get(),
 					ed_in_fee_asset,
+					ExistenceRequirement::AllowDeath,
 				)
 				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
@@ -371,6 +373,7 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			&TreasuryAccount::get(),
 			who,
 			ed_to_refund,
+			ExistenceRequirement::AllowDeath,
 		);
 
 		frame_system::Pallet::<Runtime>::dec_sufficients(who);
@@ -428,6 +431,7 @@ impl pallet_currencies::Config for Runtime {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeAssetId;
 	type RegistryInspect = AssetRegistry;
+	type EgressHandler = circuit_breaker::WithdrawLimitHandler<NativeAssetId>;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
 
@@ -490,7 +494,7 @@ parameter_types! {
 impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
-	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Runtime>;
 	type AssetId = AssetId;
 	type AssetNativeLocation = AssetLocation;
@@ -546,7 +550,7 @@ parameter_types! {
 	pub const EmaOracleSpotPriceShort: OraclePeriod = OraclePeriod::Short;
 	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
-	pub BurnProtocolFee : Permill = Permill::from_percent(50);
+	pub BurnProtocolFee : Permill = Permill::from_percent(0);
 }
 
 impl pallet_omnipool::Config for Runtime {
@@ -555,7 +559,7 @@ impl pallet_omnipool::Config for Runtime {
 	type Currency = Currencies;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, OmnipoolAdmin>;
 	type UpdateTradabilityOrigin =
-		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
+		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, OmnipoolAdmin>>;
 	type AssetRegistry = AssetRegistry;
 	type HdxAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
@@ -590,6 +594,7 @@ impl pallet_omnipool::Config for Runtime {
 	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
 	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
 	type BurnProtocolFee = BurnProtocolFee;
+	type HubDestination = TreasuryAccount;
 }
 
 pub struct CircuitBreakerWhitelist;
@@ -600,17 +605,32 @@ impl Contains<AccountId> for CircuitBreakerWhitelist {
 	}
 }
 
+/// Accounts exempt from deposit locking in the circuit breaker.
+/// When the circuit breaker would normally lock deposits for these accounts,
+/// it returns an error instead to prevent funds being stuck.
+pub struct DepositLockWhitelist;
+
+impl Contains<AccountId> for DepositLockWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		pallet_route_executor::Pallet::<Runtime>::router_account() == *a
+	}
+}
+
 parameter_types! {
 	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (5_000, 10_000);	// 50%
 	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((500, 10_000));	// 5%
+
+	// Global withdraw limit parameters
+	pub const GlobalWithdrawWindow: primitives::Moment = primitives::constants::time::unix_time::DAY;
 }
 
 impl pallet_circuit_breaker::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, OmnipoolAdmin>>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DepositLockWhitelist = DepositLockWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
@@ -619,6 +639,8 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type DepositLimiter = DepositCircuitBreaker;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = CircuitBreakerBenchmarkHelper<Runtime>;
+	type GlobalWithdrawWindow = GlobalWithdrawWindow;
+	type TimestampProvider = Timestamp;
 }
 
 parameter_types! {
@@ -881,7 +903,7 @@ impl SpotPriceProvider<AssetId> for DummySpotPriceProvider {
 	}
 }
 
-pub const DOT_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v3::MultiLocation::parent());
+pub const DOT_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v5::Location::parent());
 
 pub struct DotAssetId;
 impl Get<AssetId> for DotAssetId {
@@ -929,6 +951,8 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 		let errors: Vec<DispatchError> = vec![
 			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
 			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
+			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
+			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];
 		errors.contains(t)
 	}
@@ -937,7 +961,7 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 impl pallet_dca::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
-	type TerminateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type TerminateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Currencies = Currencies;
 	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
 	type RandomnessProvider = DCA;
@@ -978,6 +1002,8 @@ impl pallet_dca::Config for Runtime {
 	type RetryOnError = RetryOnErrorForDca;
 	type PolkadotNativeAssetId = DotAssetId;
 	type SwappablePaymentAssetSupport = XykPaymentAssetSupport;
+	type ExtraGasSupport = Dispatcher;
+	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -1305,7 +1331,7 @@ impl pallet_route_executor::Config for Runtime {
 	type AMM = (Omnipool, Stableswap, XYK, LBP, Aave, HSM);
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
-	type ForceInsertOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type ForceInsertOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type OraclePeriod = RouteValidationOraclePeriod;
 }
@@ -1373,7 +1399,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 	type WeightInfo = weights::pallet_dynamic_fees::HydraWeight<Runtime>;
-	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, OmnipoolAdmin>>;
 }
 
 // Stableswap
@@ -1554,7 +1580,7 @@ impl pallet_stableswap::Config for Runtime {
 	type ShareAccountId = StableswapAccountIdConstructor<Runtime>;
 	type AssetInspection = AssetRegistry;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, OmnipoolAdmin>;
-	type UpdateTradabilityOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeSuperMajority>;
+	type UpdateTradabilityOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type DustAccountHandler = Duster;
 	type Hooks = StableswapHooksAdapter<Runtime>;
 	type MinPoolLiquidity = MinPoolLiquidity;
@@ -1770,6 +1796,8 @@ impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
 			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
 			value: vec![],
 			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
 		}
 	}
 
@@ -1778,6 +1806,8 @@ impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
 			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
 			value: vec![],
 			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
 		}
 	}
 }
@@ -1803,7 +1833,7 @@ impl pallet_liquidation::Config for Runtime {
 	type HollarId = HOLLAR;
 	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
 	type EvmErrorDecoder = EvmErrorDecoder;
-	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 }
 
 impl pallet_broadcast::Config for Runtime {
@@ -1879,12 +1909,10 @@ impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
 }
 
 pub struct SigEthFaucetContractAddr;
-impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetContractAddr {
-	fn get() -> [u8; 20] {
-		[
-			0x52, 0xBE, 0x07, 0x7E, 0x67, 0x49, 0x6C, 0x97, 0x63, 0xCC, 0xEF, 0x66, 0xC1, 0x11, 0x7D, 0xD2, 0x34, 0xCA,
-			0x8C, 0xFC,
-		]
+impl frame_support::traits::Get<EvmAddress> for SigEthFaucetContractAddr {
+	fn get() -> EvmAddress {
+		// 0x189d33ea9A9701fdb67C21df7420868193dcf578
+		EvmAddress::from(hex_literal::hex!("189d33ea9A9701fdb67C21df7420868193dcf578"))
 	}
 }
 
@@ -2171,7 +2199,7 @@ impl Erc20OnDust<AccountId, AssetId> for ATokenAccountDuster {
 			return Err(DispatchError::Token(TokenError::UnknownAsset));
 		};
 
-		AaveTradeExecutor::<Runtime>::withdraw_all_to(contract, &account, &dust_dest_account)?;
+		AaveTradeExecutor::<Runtime>::withdraw_all_to(contract, account, dust_dest_account)?;
 
 		Ok(())
 	}

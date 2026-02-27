@@ -86,6 +86,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			},
 			balances: BalancesConfig {
 				balances: native_endowed_accounts,
+				dev_accounts: None,
 			},
 			technical_committee: TechnicalCommitteeConfig {
 				members: get_technical_committee(),
@@ -132,7 +133,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			evm: Default::default(),
 			xyk_warehouse_lm: Default::default(),
 			xyk_liquidity_mining: Default::default(),
-			ismp_parachain: Default::default(),
+			// ismp_parachain: Default::default(),
 		}
 		.build_storage()
 		.unwrap()

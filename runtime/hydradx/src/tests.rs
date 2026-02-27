@@ -17,7 +17,6 @@ use polkadot_xcm::opaque::VersionedXcm;
 use polkadot_xcm::{VersionedAssets, VersionedLocation};
 use sp_core::crypto::Ss58Codec;
 use sp_runtime::{BuildStorage, FixedU128};
-use sp_std::sync::Arc;
 use xcm_builder::GlobalConsensusConvertsFor;
 use xcm_executor::traits::ConvertLocation;
 
@@ -74,7 +73,7 @@ fn transfer_cost() {
 		println!(
 			"len = {:?} // weight = {:?} // base fee = {:?} // len fee = {:?} // adjusted weight_fee = {:?} // full transfer fee = {:?}\n",
 			len,
-			info.weight,
+			info.call_weight,
 			fee_raw.inclusion_fee.clone().unwrap().base_fee,
 			fee_raw.inclusion_fee.clone().unwrap().len_fee,
 			fee_raw.inclusion_fee.unwrap().adjusted_weight_fee,
@@ -187,7 +186,7 @@ fn max_multiplier() {
 mod xcm_fee_payment_api_tests {
 	use super::*;
 	use frame_support::assert_ok;
-	use polkadot_xcm::{v4::prelude::*, VersionedAssetId::V4};
+	use polkadot_xcm::{v5::prelude::*, VersionedAssetId::V5};
 	use xcm_runtime_apis::fees::{runtime_decl_for_xcm_payment_api::XcmPaymentApiV1, Error as XcmPaymentApiError};
 
 	#[test]
@@ -196,31 +195,31 @@ mod xcm_fee_payment_api_tests {
 			// register new asset in the asset registry
 			assert_ok!(AssetRegistry::register_external(
 				RuntimeOrigin::signed([0u8; 32].into()),
-				crate::xcm::AssetLocation(polkadot_xcm::v3::Location::new(
+				crate::xcm::AssetLocation(polkadot_xcm::v5::Location::new(
 					1,
-					polkadot_xcm::v3::Junctions::X2(
-						polkadot_xcm::v3::Junction::Parachain(123),
-						polkadot_xcm::v3::Junction::GeneralIndex(123)
-					)
+					[
+						polkadot_xcm::v5::Junction::Parachain(123),
+						polkadot_xcm::v5::Junction::GeneralIndex(123)
+					]
 				))
 			));
 
 			assert_eq!(
-				Runtime::query_acceptable_payment_assets(4u32),
+				Runtime::query_acceptable_payment_assets(5u32),
 				Ok(vec![
 					// HDX locations
-					V4(AssetId(Location {
+					V5(AssetId(Location {
 						parents: 1,
-						interior: Junctions::X2([Parachain(100), GeneralIndex(0)].into())
+						interior: [Parachain(100), GeneralIndex(0)].into()
 					})),
-					V4(AssetId(Location {
+					V5(AssetId(Location {
 						parents: 0,
-						interior: Junctions::X1([GeneralIndex(0)].into())
+						interior: [GeneralIndex(0)].into()
 					})),
 					// asset from the asset registry
-					V4(AssetId(Location {
+					V5(AssetId(Location {
 						parents: 1,
-						interior: Junctions::X2([Parachain(123), GeneralIndex(123)].into())
+						interior: [Parachain(123), GeneralIndex(123)].into()
 					})),
 				])
 			);
@@ -234,23 +233,23 @@ mod xcm_fee_payment_api_tests {
 			let registered_asset_with_price = AssetRegistry::next_asset_id().unwrap();
 			assert_ok!(AssetRegistry::register_external(
 				RuntimeOrigin::signed([0u8; 32].into()),
-				crate::xcm::AssetLocation(polkadot_xcm::v3::Location::new(
+				crate::xcm::AssetLocation(polkadot_xcm::v5::Location::new(
 					1,
-					polkadot_xcm::v3::Junctions::X2(
-						polkadot_xcm::v3::Junction::Parachain(123),
-						polkadot_xcm::v3::Junction::GeneralIndex(123)
-					)
+					[
+						polkadot_xcm::v5::Junction::Parachain(123),
+						polkadot_xcm::v5::Junction::GeneralIndex(123)
+					]
 				))
 			));
 
 			assert_ok!(AssetRegistry::register_external(
 				RuntimeOrigin::signed([0u8; 32].into()),
-				crate::xcm::AssetLocation(polkadot_xcm::v3::Location::new(
+				crate::xcm::AssetLocation(polkadot_xcm::v5::Location::new(
 					1,
-					polkadot_xcm::v3::Junctions::X2(
-						polkadot_xcm::v3::Junction::Parachain(123),
-						polkadot_xcm::v3::Junction::GeneralIndex(456)
-					)
+					[
+						polkadot_xcm::v5::Junction::Parachain(123),
+						polkadot_xcm::v5::Junction::GeneralIndex(456)
+					]
 				))
 			));
 
@@ -262,15 +261,12 @@ mod xcm_fee_payment_api_tests {
 			));
 			MultiTransactionPayment::on_initialize(1);
 
-			let expected_fee = 155655590214;
+			let expected_fee = 154096976308;
 			// HDX fee
 			assert_eq!(
 				Runtime::query_weight_to_asset_fee(
 					Weight::from_parts(1_000_000_000, 1_000_000_000),
-					V4(AssetId(Location::new(
-						1,
-						Junctions::X2(Arc::new([Parachain(100), GeneralIndex(0)]))
-					)))
+					V5(AssetId(Location::new(1, [Parachain(100), GeneralIndex(0)])))
 				),
 				Ok(expected_fee)
 			);
@@ -278,10 +274,7 @@ mod xcm_fee_payment_api_tests {
 			assert_eq!(
 				Runtime::query_weight_to_asset_fee(
 					Weight::from_parts(1_000_000_000, 1_000_000_000),
-					V4(AssetId(Location::new(
-						1,
-						Junctions::X2(Arc::new([Parachain(123), GeneralIndex(123)]))
-					)))
+					V5(AssetId(Location::new(1, [Parachain(123), GeneralIndex(123)])))
 				),
 				Ok(2 * expected_fee)
 			);
@@ -289,10 +282,7 @@ mod xcm_fee_payment_api_tests {
 			assert_err!(
 				Runtime::query_weight_to_asset_fee(
 					Weight::from_parts(1_000_000_000, 1_000_000_000),
-					V4(AssetId(Location::new(
-						1,
-						Junctions::X2(Arc::new([Parachain(666), GeneralIndex(0)]))
-					)))
+					V5(AssetId(Location::new(1, [Parachain(666), GeneralIndex(0)])))
 				),
 				XcmPaymentApiError::AssetNotFound
 			);
@@ -300,10 +290,7 @@ mod xcm_fee_payment_api_tests {
 			assert_err!(
 				Runtime::query_weight_to_asset_fee(
 					Weight::from_parts(1_000_000_000, 1_000_000_000),
-					V4(AssetId(Location::new(
-						1,
-						Junctions::X2(Arc::new([Parachain(123), GeneralIndex(456)]))
-					)))
+					V5(AssetId(Location::new(1, [Parachain(123), GeneralIndex(456)])))
 				),
 				XcmPaymentApiError::WeightNotComputable
 			);
@@ -313,7 +300,7 @@ mod xcm_fee_payment_api_tests {
 	#[test]
 	fn query_xcm_weight_should_return_weight_for_xcm() {
 		sp_io::TestExternalities::new_empty().execute_with(|| {
-			let hdx_loc = Location::new(1, Junctions::X2(Arc::new([Parachain(100), GeneralIndex(0)])));
+			let hdx_loc = Location::new(1, [Parachain(100), GeneralIndex(0)]);
 
 			let asset_to_withdraw: Asset = Asset {
 				id: AssetId(hdx_loc.clone()),
@@ -337,7 +324,7 @@ mod xcm_fee_payment_api_tests {
 	#[test]
 	fn query_delivery_fees_should_return_no_assets() {
 		sp_io::TestExternalities::new_empty().execute_with(|| {
-			let hdx_loc = Location::new(1, Junctions::X2(Arc::new([Parachain(100), GeneralIndex(0)])));
+			let hdx_loc = Location::new(1, [Parachain(100), GeneralIndex(0)]);
 
 			let asset_to_withdraw: Asset = Asset {
 				id: AssetId(hdx_loc.clone()),
@@ -351,16 +338,16 @@ mod xcm_fee_payment_api_tests {
 				},
 			]);
 
-			let destination = Location::new(1, Junctions::X1(Arc::new([Parachain(100)])));
+			let destination = Location::new(1, [Parachain(100)]);
 
 			// set default XCM version
 			assert_ok!(PolkadotXcm::force_default_xcm_version(
 				RuntimeOrigin::root(),
-				Some(3u32)
+				Some(5u32)
 			));
 			assert_eq!(
-				Runtime::query_delivery_fees(VersionedLocation::V4(destination), VersionedXcm::from(xcm_message)),
-				Ok(VersionedAssets::V4(Assets::new()))
+				Runtime::query_delivery_fees(VersionedLocation::V5(destination), VersionedXcm::from(xcm_message)),
+				Ok(VersionedAssets::V5(Assets::new()))
 			);
 		});
 	}

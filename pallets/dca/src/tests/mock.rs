@@ -206,6 +206,7 @@ impl system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 pub type Amount = i128;
@@ -277,6 +278,7 @@ impl pallet_omnipool::Config for Test {
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
 	type BurnProtocolFee = BurnFee;
+	type HubDestination = TreasuryAccount;
 }
 
 pub struct WithdrawFeePriceOracle;
@@ -349,6 +351,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 impl pallet_currencies::Config for Test {
@@ -360,6 +363,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 
@@ -712,6 +716,32 @@ impl Config for Test {
 	type RetryOnError = ();
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
 	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
+	type ExtraGasSupport = ExtraGasSetterMock;
+	type GasWeightMapping = MockGasWeightMapping;
+}
+
+pub struct ExtraGasSetterMock;
+
+impl ExtraGasSupport for ExtraGasSetterMock {
+	fn set_extra_gas(_gas: u64) {}
+
+	fn clear_extra_gas() {}
+
+	fn out_of_gas_error() -> DispatchError {
+		DispatchError::Other("Out of gas")
+	}
+}
+
+pub struct MockGasWeightMapping;
+impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
+	fn gas_to_weight(gas: u64, _without_base_weight: bool) -> Weight {
+		// Convert gas to weight with a simple ratio: 1 gas = 1 weight unit
+		// This ensures extra gas actually affects the weight calculation in tests
+		Weight::from_parts(gas, 0)
+	}
+	fn weight_to_gas(weight: Weight) -> u64 {
+		weight.ref_time()
+	}
 }
 
 pub struct MockedInsufficientAssetSupport;
@@ -785,6 +815,7 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
+use hydradx_traits::evm::ExtraGasSupport;
 use hydradx_traits::fee::{GetDynamicFee, InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
@@ -973,6 +1004,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: initial_native_accounts,
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

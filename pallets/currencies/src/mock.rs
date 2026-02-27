@@ -47,6 +47,7 @@ impl frame_system::Config for Runtime {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 type CurrencyId = u32;
@@ -66,6 +67,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_type_with_key! {
@@ -112,6 +114,7 @@ impl Config for Runtime {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type RegistryInspect = MockBoundErc20<Runtime>;
+	type EgressHandler = MockEgressHandler<Runtime>;
 	type WeightInfo = ();
 }
 pub type NativeCurrency = NativeCurrencyOf<Runtime>;
@@ -169,6 +172,7 @@ impl ExtBuilder {
 				.filter(|(_, currency_id, _)| *currency_id == NATIVE_CURRENCY_ID)
 				.map(|(account_id, _, initial_balance)| (account_id, initial_balance))
 				.collect::<Vec<_>>(),
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
