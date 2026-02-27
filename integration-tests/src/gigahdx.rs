@@ -1,8 +1,13 @@
 use crate::polkadot_test_net::hydra_live_ext;
-use crate::polkadot_test_net::{TestNet, ALICE, HDX};
-use frame_support::assert_ok;
-use hydradx_runtime::{Currencies, GigaHdx, RuntimeOrigin};
+use crate::polkadot_test_net::{TestNet, ALICE, BOB, CHARLIE, DAVE, HDX};
+use frame_support::{assert_ok, traits::{OnInitialize, StorePreimage}};
+use frame_system::RawOrigin;
+use hydradx_runtime::{
+	Balances, Currencies, ConvictionVoting, Democracy, GigaHdx, Preimage, Referenda, RuntimeOrigin, Scheduler, System,
+};
 use orml_traits::MultiCurrency;
+use pallet_conviction_voting::{AccountVote, Conviction, Vote};
+use primitives::constants::time::DAYS;
 use primitives::Balance;
 use xcm_emulator::Network;
 
@@ -56,5 +61,192 @@ fn giga_stake_should_work_on_mainnet_snapshot() {
 		assert_eq!(GigaHdx::total_hdx(), stake_amount);
 		assert_eq!(GigaHdx::total_st_hdx_supply(), stake_amount);
 		assert_eq!(GigaHdx::exchange_rate(), sp_runtime::FixedU128::from_u32(1));
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for snapshot-based voting tests
+// ---------------------------------------------------------------------------
+
+fn next_block() {
+	System::set_block_number(System::block_number() + 1);
+	Scheduler::on_initialize(System::block_number());
+	Democracy::on_initialize(System::block_number());
+}
+
+fn fast_forward_to(n: u32) {
+	while System::block_number() < n {
+		next_block();
+	}
+}
+
+fn aye(amount: u128) -> AccountVote<u128> {
+	AccountVote::Standard {
+		vote: Vote {
+			aye: true,
+			conviction: Conviction::None,
+		},
+		balance: amount,
+	}
+}
+
+fn aye_with_conviction(amount: u128, conviction: Conviction) -> AccountVote<u128> {
+	AccountVote::Standard {
+		vote: Vote { aye: true, conviction },
+		balance: amount,
+	}
+}
+
+/// Helper: set up ALICE with GIGAHDX by staking all her HDX.
+/// Returns the stake amount.
+fn setup_alice_with_only_gigahdx(stake_amount: Balance) {
+	let alice = sp_runtime::AccountId32::from(ALICE);
+
+	assert_ok!(Balances::force_set_balance(
+		RawOrigin::Root.into(),
+		alice.clone(),
+		stake_amount,
+	));
+	assert_ok!(GigaHdx::giga_stake(
+		RuntimeOrigin::signed(alice.clone()),
+		stake_amount,
+	));
+}
+
+/// Helper: create a referendum submitted by BOB.
+fn begin_referendum_by_bob() -> u32 {
+	let bob = sp_runtime::AccountId32::from(BOB);
+	let referendum_index = pallet_referenda::pallet::ReferendumCount::<hydradx_runtime::Runtime>::get();
+	let now = System::block_number();
+
+	assert_ok!(Balances::force_set_balance(
+		RawOrigin::Root.into(),
+		bob.clone(),
+		1_000_000 * UNITS,
+	));
+	let proposal = {
+		let inner = pallet_balances::Call::force_set_balance {
+			who: sp_runtime::AccountId32::from(CHARLIE),
+			new_free: 2,
+		};
+		let outer = hydradx_runtime::RuntimeCall::Balances(inner);
+		Preimage::bound(outer).unwrap()
+	};
+	assert_ok!(Referenda::submit(
+		RuntimeOrigin::signed(bob),
+		Box::new(RawOrigin::Root.into()),
+		proposal,
+		frame_support::traits::schedule::DispatchTime::At(now + 10 * DAYS),
+	));
+
+	assert_ok!(Balances::force_set_balance(
+		RawOrigin::Root.into(),
+		sp_runtime::AccountId32::from(DAVE),
+		2_000_000_000 * UNITS,
+	));
+	assert_ok!(Referenda::place_decision_deposit(
+		RuntimeOrigin::signed(sp_runtime::AccountId32::from(DAVE)),
+		referendum_index,
+	));
+
+	fast_forward_to(now + 5 * DAYS);
+
+	referendum_index
+}
+
+/// User with zero HDX can vote using only GIGAHDX received from giga_stake.
+#[test]
+fn vote_with_only_gigahdx_on_mainnet_snapshot() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+		let stake_amount = 1_000 * UNITS;
+
+		setup_alice_with_only_gigahdx(stake_amount);
+
+		assert_eq!(Currencies::free_balance(HDX, &alice), 0);
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), stake_amount);
+
+		let referendum_index = begin_referendum_by_bob();
+
+		// ALICE votes with GIGAHDX only (0 HDX).
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			referendum_index,
+			aye(stake_amount),
+		));
+
+		// Vote should be recorded in GigaHdxVotes.
+		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, referendum_index);
+		assert!(vote.is_some(), "GIGAHDX vote should be recorded");
+		assert_eq!(vote.unwrap().amount, stake_amount);
+
+		// LockSplit should show entire amount as gigahdx (no HDX portion).
+		let split = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(split.gigahdx_amount, stake_amount);
+		assert_eq!(split.hdx_amount, 0);
+	});
+}
+
+/// GIGAHDX can be transferred when not locked by voting.
+#[test]
+fn gigahdx_transfer_succeeds_when_unlocked() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+		let bob = sp_runtime::AccountId32::from(BOB);
+		let stake_amount = 1_000 * UNITS;
+		let transfer_amount = 400 * UNITS;
+
+		setup_alice_with_only_gigahdx(stake_amount);
+
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), stake_amount);
+		let bob_gigahdx_before = Currencies::free_balance(GIGAHDX, &bob);
+
+		// Transfer GIGAHDX to BOB — no voting lock, should succeed.
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(alice.clone()),
+			bob.clone(),
+			GIGAHDX,
+			transfer_amount,
+		));
+
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), stake_amount - transfer_amount);
+		assert_eq!(Currencies::free_balance(GIGAHDX, &bob), bob_gigahdx_before + transfer_amount);
+	});
+}
+
+/// GIGAHDX transfer fails when the balance is locked by a conviction vote.
+#[test]
+fn gigahdx_transfer_fails_when_locked_by_conviction_vote() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+		let bob = sp_runtime::AccountId32::from(BOB);
+		let stake_amount = 1_000 * UNITS;
+
+		setup_alice_with_only_gigahdx(stake_amount);
+
+		let referendum_index = begin_referendum_by_bob();
+
+		// ALICE votes with Locked1x conviction — locks all her GIGAHDX.
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			referendum_index,
+			aye_with_conviction(stake_amount, Conviction::Locked1x),
+		));
+
+		// Verify the lock is set.
+		let lock = pallet_gigahdx_voting::GigaHdxVotingLock::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(lock, stake_amount);
+
+		// Transferring any GIGAHDX should fail — entire balance is locked.
+		assert!(Currencies::transfer(
+			RuntimeOrigin::signed(alice.clone()),
+			bob.clone(),
+			GIGAHDX,
+			1 * UNITS,
+		)
+		.is_err());
 	});
 }
