@@ -1,0 +1,11 @@
+=== Signet Initialization Proposal ===
+
+Admin: 15oF4uVJwmo4TdGW7VfQxNLavjCXviqxT9S1MgbjMNHr6Sp5
+Signature Deposit: 1000000000000
+Chain ID: polkadot:e6b50b06e72a81194e9c96c488175ecd
+
+Preimage Hash: 0xbf2251a60d0d50bd28990c4026e8535eeed4831accd77c3cbaa0070a810ec44d
+Preimage Length: 92
+
+--- Referendum Submission Hex (submit via governance UI on root track) ---
+0x2500010002bf2251a60d0d50bd28990c4026e8535eeed4831accd77c3cbaa0070a810ec44d5c0000000101000000
