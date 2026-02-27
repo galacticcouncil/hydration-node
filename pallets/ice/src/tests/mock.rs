@@ -248,6 +248,7 @@ impl pallet_broadcast::Config for Test {
 
 parameter_types! {
 	pub const IceId: PalletId = PalletId(*b"iceTest#");
+	pub const BuySellTolerance: Permill = Permill::from_percent(1);
 }
 
 impl pallet_ice::Config for Test {
@@ -257,6 +258,7 @@ impl pallet_ice::Config for Test {
 	type RegistryHandler = DummyRegistry;
 	type BlockNumberProvider = System;
 	type Simulator = TestSimulatorConfig;
+	type BuyVsSellPriceTolerance = BuySellTolerance;
 	type WeightInfo = ();
 }
 
