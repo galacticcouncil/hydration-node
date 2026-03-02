@@ -660,6 +660,15 @@ proptest! {
 
 				let initial_treasury = 1000 * ONE;
 				assert!(Tokens::free_balance(LRNA, &TREASURY) > initial_treasury, "Treasury received H2O");
+
+				// After a hub trade the protocol account holds sum(hub_reserves) + slip fee,
+				// so protocol balance >= sum of asset hub reserves.
+				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
+				assert!(
+					new_hub_liquidity >= new_asset_hub_liquidity,
+					"Protocol LRNA should be >= sum of hub reserves: protocol={new_hub_liquidity}, sum={new_asset_hub_liquidity}"
+				);
 			});
 	}
 }

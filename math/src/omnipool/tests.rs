@@ -9,7 +9,6 @@ use crate::omnipool::{
 };
 use crate::types::Balance;
 use num_traits::{One, Zero};
-use primitive_types::U256;
 use sp_arithmetic::{FixedU128, Permill};
 use std::str::FromStr;
 
@@ -1834,13 +1833,12 @@ fn buy_for_hub_with_slip_increases_cost() {
 	let with_slip =
 		calculate_buy_for_hub_asset_state_changes(&asset_out_state, amount_to_buy, asset_fee, Some(&slip)).unwrap();
 
-	// With slip, D_net stays the same (same tokens out) but total hub asset cost is higher
-	// The delta_hub_reserve should be D_net (same), but protocol_fee has the slip amount
+	// With slip, delta_hub_reserve includes the slip fee so it should be larger
 	assert!(
-		with_slip.fee.protocol_fee > no_slip.fee.protocol_fee,
-		"Slip should add to protocol fee: {} > {}",
-		with_slip.fee.protocol_fee,
-		no_slip.fee.protocol_fee
+		*with_slip.asset.delta_hub_reserve > *no_slip.asset.delta_hub_reserve,
+		"Slip should increase delta_hub_reserve: {} > {}",
+		*with_slip.asset.delta_hub_reserve,
+		*no_slip.asset.delta_hub_reserve
 	);
 }
 
@@ -1871,9 +1869,7 @@ fn sell_hub_buy_hub_roundtrip_with_slip() {
 	let buy_result =
 		calculate_buy_for_hub_asset_state_changes(&asset_out_state, tokens_received, asset_fee, Some(&slip)).unwrap();
 
-	let d_net = *buy_result.asset.delta_hub_reserve;
-	let slip_buy_amount = buy_result.fee.protocol_fee;
-	let total_hub_cost = d_net + slip_buy_amount;
+	let total_hub_cost = *buy_result.asset.delta_hub_reserve;
 
 	// Round-trip: cost should be approximately equal to original hub_amount
 	let diff = if total_hub_cost > hub_amount {
@@ -2005,7 +2001,12 @@ fn cross_validate_scenario2_sell_hub_for_dot() {
 	let py_asset_fee: u128 = 2_490_039_840_637;
 	let py_slip_buy: u128 = 19_960_079_840_319;
 
-	assert_within_one(*result.asset.delta_hub_reserve, py_d_net, "D_net");
+	// delta_hub_reserve now includes slip fee (full amount)
+	assert_within_one(
+		*result.asset.delta_hub_reserve,
+		py_d_net + py_slip_buy,
+		"hub_amount (D_net + slip)",
+	);
 	assert_within_one(*result.asset.delta_reserve, py_tokens_out, "tokens_out");
 	assert_within_one(result.fee.asset_fee, py_asset_fee, "asset_fee");
 	assert_within_one(result.fee.protocol_fee, py_slip_buy, "slip_buy_amount");
@@ -2320,7 +2321,9 @@ fn cross_validate_scenario6_buy_hub_with_prior_delta() {
 	let py_slip_buy: u128 = 4_225_785_912_543;
 	let py_asset_fee: u128 = 250_626_566_416;
 
-	assert_within_one(*r2.asset.delta_hub_reserve, py_d_net, "S6 D_net");
+	// delta_hub_reserve now includes slip fee (D_gross = D_net + slip)
+	// Tolerance ±2 because D_gross sums two independently-rounded Python values
+	assert_within_tolerance(*r2.asset.delta_hub_reserve, py_d_net + py_slip_buy, 2, "S6 D_gross");
 	assert_within_one(r2.fee.protocol_fee, py_slip_buy, "S6 slip_buy");
 	assert_within_one(r2.fee.asset_fee, py_asset_fee, "S6 asset_fee");
 
@@ -2337,8 +2340,8 @@ fn cross_validate_scenario6_buy_hub_with_prior_delta() {
 	)
 	.unwrap();
 
-	let cost_with_delta = *r2.asset.delta_hub_reserve + r2.fee.protocol_fee;
-	let cost_fresh = *r2_fresh.asset.delta_hub_reserve + r2_fresh.fee.protocol_fee;
+	let cost_with_delta = *r2.asset.delta_hub_reserve;
+	let cost_fresh = *r2_fresh.asset.delta_hub_reserve;
 	assert!(
 		cost_with_delta > cost_fresh,
 		"Prior positive delta should increase hub buy cost: {} > {}",
@@ -2776,12 +2779,11 @@ fn exec_sell_hub(buy_asset: &mut PoolAsset, hub_amount: Balance, asset_fee: Perm
 	let r = calculate_sell_hub_state_changes(&buy_asset.state(), hub_amount, asset_fee, Some(&slip))
 		.expect("sell_hub failed");
 
+	// Only D_net (effective hub) enters the pool; slip fee goes to treasury
+	let d_net = *r.asset.delta_hub_reserve - r.fee.protocol_fee;
 	buy_asset.reserve -= *r.asset.delta_reserve;
-	buy_asset.hub_reserve += *r.asset.delta_hub_reserve;
-	buy_asset.delta = buy_asset
-		.delta
-		.checked_add(SignedBalance::Positive(*r.asset.delta_hub_reserve))
-		.unwrap(); // D_net entered
+	buy_asset.hub_reserve += d_net;
+	buy_asset.delta = buy_asset.delta.checked_add(SignedBalance::Positive(d_net)).unwrap(); // D_net entered
 
 	(*r.asset.delta_reserve, r.fee.protocol_fee)
 }

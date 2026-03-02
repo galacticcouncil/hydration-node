@@ -163,7 +163,7 @@ pub fn calculate_sell_hub_state_changes(
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Decrease(delta_reserve_out),
-			delta_hub_reserve: Increase(effective_hub),
+			delta_hub_reserve: Increase(hub_asset_amount),
 			extra_hub_reserve_amount: Increase(delta_q_m),
 			..Default::default()
 		},
@@ -236,10 +236,12 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 	);
 	let delta_q_m = n.checked_div(hub_denominator)?;
 
+	let d_gross = d_net.checked_add(slip_buy_amount)?;
+
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Decrease(asset_out_amount),
-			delta_hub_reserve: Increase(d_net),
+			delta_hub_reserve: Increase(d_gross),
 			extra_hub_reserve_amount: Increase(delta_q_m),
 			..Default::default()
 		},

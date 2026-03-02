@@ -980,7 +980,7 @@ pub mod pallet {
 				*state_changes.asset_in.delta_hub_reserve,
 				asset_out,
 				*state_changes.asset_out.delta_hub_reserve,
-			);
+			)?;
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
@@ -1226,7 +1226,7 @@ pub mod pallet {
 				*state_changes.asset_in.delta_hub_reserve,
 				asset_out,
 				*state_changes.asset_out.delta_hub_reserve,
-			);
+			)?;
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
@@ -1543,7 +1543,7 @@ pub mod pallet {
 		/// When set to `Some(config)`, slip fees are enabled with the given parameters.
 		/// When set to `None`, slip fees are disabled.
 		///
-		/// Can only be called by `AuthorityOrigin`.
+		/// Can only be called by `UpdateTradabilityOrigin`.
 		///
 		/// Emits `SlipFeeSet` event.
 		#[pallet::call_index(16)]
@@ -1755,44 +1755,39 @@ impl<T: Config> Pallet<T> {
 		delta_hub_in: Balance,
 		asset_out: T::AssetId,
 		delta_hub_out: Balance,
-	) {
+	) -> DispatchResult {
 		if SlipFee::<T>::get().is_none() {
-			return;
+			return Ok(());
 		}
 		// Sell pool: hub asset leaves → negative delta.
-		// On overflow the delta is intentionally kept unchanged — this is practically
-		// unreachable since it would require cumulative hub deltas exceeding u128::MAX
-		// within a single block.
-		SlipFeeDelta::<T>::mutate(asset_in, |d| {
-			if let Some(new_d) = d.checked_add(SignedBalance::Negative(delta_hub_in)) {
-				*d = new_d;
-			} else {
-				defensive!("slip fee delta overflow for asset_in");
-			}
-		});
+		SlipFeeDelta::<T>::try_mutate(asset_in, |d| -> DispatchResult {
+			*d = d
+				.checked_add(SignedBalance::Negative(delta_hub_in))
+				.ok_or(ArithmeticError::Overflow)?;
+			Ok(())
+		})?;
 		// Buy pool: hub asset enters → positive delta (D_net, the actual amount entering)
-		SlipFeeDelta::<T>::mutate(asset_out, |d| {
-			if let Some(new_d) = d.checked_add(SignedBalance::Positive(delta_hub_out)) {
-				*d = new_d;
-			} else {
-				defensive!("slip fee delta overflow for asset_out");
-			}
-		});
+		SlipFeeDelta::<T>::try_mutate(asset_out, |d| -> DispatchResult {
+			*d = d
+				.checked_add(SignedBalance::Positive(delta_hub_out))
+				.ok_or(ArithmeticError::Overflow)?;
+			Ok(())
+		})?;
+		Ok(())
 	}
 
 	/// Update slip fee delta for hub asset trades (only buy side).
-	fn update_slip_fee_delta_hub_trade(asset_out: T::AssetId, delta_hub_out: Balance) {
+	fn update_slip_fee_delta_hub_trade(asset_out: T::AssetId, delta_hub_out: Balance) -> DispatchResult {
 		if SlipFee::<T>::get().is_none() {
-			return;
+			return Ok(());
 		}
-		// On overflow the delta is intentionally kept unchanged — practically unreachable.
-		SlipFeeDelta::<T>::mutate(asset_out, |d| {
-			if let Some(new_d) = d.checked_add(SignedBalance::Positive(delta_hub_out)) {
-				*d = new_d;
-			} else {
-				defensive!("slip fee delta overflow for hub trade asset_out");
-			}
-		});
+		SlipFeeDelta::<T>::try_mutate(asset_out, |d| -> DispatchResult {
+			*d = d
+				.checked_add(SignedBalance::Positive(delta_hub_out))
+				.ok_or(ArithmeticError::Overflow)?;
+			Ok(())
+		})?;
+		Ok(())
 	}
 
 	/// Set new state of asset.
@@ -1976,6 +1971,9 @@ impl<T: Config> Pallet<T> {
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
+
+		debug_assert_eq!(*state_changes.asset.delta_hub_reserve, amount);
+
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
 		// When seller is HubDestination (Treasury), let hub_reserve flow into the traded asset
 		// normally, so we dont decrease the price impact
@@ -2016,11 +2014,10 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
+		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta)?;
+
 		// Route H2O to HubDestination to reduce value leaked to arbitrage.
 		// Skip when seller is HubDestination — hub_reserve already updated in asset state.
-		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta);
-
-		// To reduce value leaked to arbitrage through external markets
 		if who != &T::HubDestination::get() {
 			T::Currency::transfer(
 				T::HubAssetId::get(),
@@ -2098,14 +2095,6 @@ impl<T: Config> Pallet<T> {
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
-		// delta_hub_reserve = d_net (effective hub asset entering pool).
-		// User pays d_net + slip_buy_amount; check limit against full cost.
-		let user_hub_cost = (*state_changes.asset.delta_hub_reserve)
-			.checked_add(state_changes.fee.protocol_fee)
-			.ok_or(ArithmeticError::Overflow)?;
-
-		ensure!(user_hub_cost <= limit, Error::<T>::SellLimitExceeded);
-
 		ensure!(
 			*state_changes.asset.delta_hub_reserve
 				<= asset_state
@@ -2115,24 +2104,22 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxInRatioExceeded
 		);
 
-		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
-		let mut state_changes = state_changes.account_for_fee_taken(taken_fee);
-
 		ensure!(
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
+
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
+		ensure!(hub_reserve_delta <= limit, Error::<T>::SellLimitExceeded);
+
+		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
+		let mut state_changes = state_changes.account_for_fee_taken(taken_fee);
+
 		// When seller is HubDestination (Treasury), let hub_reserve flow into the traded asset
 		// normally, so we dont decrease the price impact
 		if who != &T::HubDestination::get() {
 			state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
 		}
-
-		// Full user cost = d_net + slip fee
-		let user_hub_cost = hub_reserve_delta
-			.checked_add(state_changes.fee.protocol_fee)
-			.ok_or(ArithmeticError::Overflow)?;
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
@@ -2143,7 +2130,7 @@ impl<T: Config> Pallet<T> {
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			user_hub_cost,
+			hub_reserve_delta,
 			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
@@ -2167,7 +2154,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta);
+		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta)?;
 
 		// Route H2O to HubDestination to reduce value leaked to arbitrage.
 		// Skip when seller is HubDestination — hub_reserve already updated in asset state.
@@ -2186,7 +2173,7 @@ impl<T: Config> Pallet<T> {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
 			asset_out,
-			amount_in: user_hub_cost,
+			amount_in: hub_reserve_delta,
 			amount_out: *state_changes.asset.delta_reserve,
 			hub_amount_in: 0,
 			hub_amount_out: 0,
@@ -2200,7 +2187,7 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_broadcast::types::Filler::Omnipool,
 			pallet_broadcast::types::TradeOperation::ExactOut,
-			vec![Asset::new(T::HubAssetId::get().into(), user_hub_cost)],
+			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
 		);

@@ -815,12 +815,12 @@ fn buy_for_hub_asset_charges_exactly_slip_fee_on_top() {
 			)
 			.unwrap();
 
-			let expected_cost = *math_result.asset.delta_hub_reserve + math_result.fee.protocol_fee;
+			let expected_cost = *math_result.asset.delta_hub_reserve;
 
 			assert_eq!(
 				lrna_spent, expected_cost,
-				"User LRNA cost should equal d_net + slip: spent={} d_net={} slip={} expected={}",
-				lrna_spent, *math_result.asset.delta_hub_reserve, math_result.fee.protocol_fee, expected_cost
+				"User LRNA cost should equal delta_hub_reserve: spent={} expected={}",
+				lrna_spent, expected_cost
 			);
 		});
 }
@@ -966,43 +966,69 @@ fn add_liquidity_does_not_affect_delta_but_snapshots_q0() {
 fn max_cap_is_respected_during_trade_sequence() {
 	// Execute a series of same-direction trades that push accumulated slip toward the cap.
 	// Verify the cap is respected.
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP2, 100, 10000 * ONE),
-			(LP1, 100, 10000 * ONE),
-		])
-		.with_registered_asset(100)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.build()
-		.execute_with(|| {
-			let very_low_cap = Permill::from_parts(5000); // 0.5%
-			SlipFee::<Test>::put(SlipFeeConfig {
-				max_slip_fee: very_low_cap,
+	// First run: no slip fees (baseline)
+	let total_out_no_slip = {
+		let mut result = 0u128;
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, 1000 * ONE),
+				(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+				(LP2, 100, 10000 * ONE),
+				(LP1, 100, 10000 * ONE),
+			])
+			.with_registered_asset(100)
+			.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+			.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+			.build()
+			.execute_with(|| {
+				for _ in 0..5 {
+					let before = Tokens::free_balance(HDX, &LP1);
+					assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 100 * ONE, 0));
+					result += Tokens::free_balance(HDX, &LP1) - before;
+				}
 			});
+		result
+	};
 
-			// Do 5 consecutive same-direction trades to accumulate slip
-			let mut total_out = 0u128;
+	// Second run: with slip fees (low cap)
+	let total_out_with_slip = {
+		let mut result = 0u128;
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, 1000 * ONE),
+				(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+				(LP2, 100, 10000 * ONE),
+				(LP1, 100, 10000 * ONE),
+			])
+			.with_registered_asset(100)
+			.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+			.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+			.build()
+			.execute_with(|| {
+				let very_low_cap = Permill::from_parts(5000); // 0.5%
+				SlipFee::<Test>::put(SlipFeeConfig {
+					max_slip_fee: very_low_cap,
+				});
 
-			for _ in 0..5 {
-				let before = Tokens::free_balance(HDX, &LP1);
-				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 100 * ONE, 0));
-				let output = Tokens::free_balance(HDX, &LP1) - before;
-				total_out += output;
-			}
+				for _ in 0..5 {
+					let before = Tokens::free_balance(HDX, &LP1);
+					assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 100 * ONE, 0));
+					result += Tokens::free_balance(HDX, &LP1) - before;
+				}
+			});
+		result
+	};
 
-			// The effective fee rate across all trades should not exceed the cap significantly.
-			// Since the cap limits each trade's slip fee individually, the weighted average
-			// should also be bounded.
-			assert!(total_out > 0, "Should have received some output");
-
-			// Compare against uncapped scenario: with a high cap the output would be lower
-			// (because higher slip fees). With our low cap, output should be higher.
-			// We already tested this in max_cap_is_applied; here we just verify the sequence
-			// doesn't panic or produce zero output.
-		});
+	// Slip fees should reduce output
+	assert!(
+		total_out_with_slip < total_out_no_slip,
+		"Slip fees should reduce output: with_slip={total_out_with_slip}, no_slip={total_out_no_slip}"
+	);
+	// But the cap keeps the reduction bounded (less than 1% of baseline, since cap is 0.5%)
+	assert!(
+		total_out_with_slip > total_out_no_slip * 99 / 100,
+		"Cap should keep output close to baseline: with_slip={total_out_with_slip}, no_slip={total_out_no_slip}"
+	);
 }
 
 // ========== on_initialize / on_finalize tests ==========
