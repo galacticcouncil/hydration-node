@@ -7,13 +7,13 @@
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::weights::WeightMeter;
-use sp_core::Get;
 use sp_io::hashing::twox_128;
 
 #[cfg(feature = "try-runtime")]
 use alloc::vec::Vec;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_io::KillStorageResult;
+use sp_runtime::traits::Get;
 
 /// Stages of the cleanup migration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode, MaxEncodedLen, scale_info::TypeInfo)]
@@ -86,7 +86,7 @@ impl<T: frame_system::Config> frame_support::migrations::SteppedMigration for Cl
 	}
 
 	fn max_steps() -> Option<u32> {
-		Some(20)
+		None
 	}
 
 	fn step(
@@ -101,8 +101,8 @@ impl<T: frame_system::Config> frame_support::migrations::SteppedMigration for Cl
 		let stage = cursor.stage;
 		let prefix = stage.storage_prefix();
 
-		// Estimate weight for reading and deleting keys.
-		let weight_per_key = T::DbWeight::get().reads_writes(1, 1);
+		// Conservative per-key cost: iteration + delete.
+		let weight_per_key = T::DbWeight::get().reads_writes(2, 1);
 		let max_keys = meter
 			.remaining()
 			.checked_div_per_component(&weight_per_key)
@@ -228,10 +228,6 @@ mod tests {
 		count
 	}
 
-	fn weight_per_key() -> Weight {
-		TestRuntime::DbWeight::get().reads_writes(2, 1)
-	}
-
 	#[test]
 	fn test_cleanup_empty_storage() {
 		TestExternalities::new_empty().execute_with(|| {
@@ -320,15 +316,37 @@ mod tests {
 
 	#[test]
 	fn test_bounded_deletion() {
-		TestExternalities::new_empty().execute_with(|| {
-			let mut meter = WeightMeter::with_limit(Weight::from_parts(1_000_000_000, 0));
-			let prefix = Stage::StateCommitments.storage_prefix();
+		use sp_std::collections::btree_map::BTreeMap;
 
-			let max_keys_per_step = meter.remaining().checked_div_per_component(&weight_per_key())
-				.unwrap_or(0).into();
-			let total_keys = max_keys_per_step * 3;
+		let prefix = Stage::StateCommitments.storage_prefix();
+		let total_keys = 2_500_000u32;
 
-			insert_test_keys(&prefix, total_keys);
+		let mut top = BTreeMap::new();
+		for i in 0..total_keys {
+			let mut key = prefix.to_vec();
+			key.extend_from_slice(&i.to_le_bytes());
+			top.insert(key, i.encode());
+		}
+
+		let storage = sp_runtime::Storage {
+			top,
+			children_default: Default::default(),
+		};
+
+		let mut ext = TestExternalities::new(storage);
+		ext.execute_with(|| {
+			let meter_weight_limit = <TestRuntime as frame_system::Config>::BlockWeights::get().max_block;
+
+			let mut meter = WeightMeter::with_limit(meter_weight_limit);
+
+			let weight_per_key = <TestRuntime as frame_system::Config>::DbWeight::get().reads_writes(2, 1);
+			let max_keys_per_step: u32 = meter
+				.remaining()
+				.checked_div_per_component(&weight_per_key)
+				.unwrap_or(0)
+				.saturated_into();
+
+			// insert_test_keys(&prefix, total_keys);
 
 			assert_eq!(count_test_keys(&prefix), total_keys);
 
@@ -345,7 +363,8 @@ mod tests {
 			let deleted = total_keys - remaining_keys;
 			assert!(
 				deleted <= max_keys_per_step,
-				"Should delete at most MAX_KEYS_PER_STEP keys, deleted: {}",
+				"Should delete at most {} keys, deleted: {}",
+				max_keys_per_step,
 				deleted
 			);
 
