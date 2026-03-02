@@ -37,10 +37,11 @@ describe('ERC20 Vault Integration', () => {
     const feeAsset = (api.consts.ethDispenser.feeAsset as any).toNumber()
     const faucetAsset = (api.consts.ethDispenser.faucetAsset as any).toNumber()
 
+    const dispenserCfg = await (api.query as any).ethDispenser.dispenserConfig()
     console.log(
       `feeAsset = ${feeAsset}`,
       `faucetAsset = ${faucetAsset}`,
-      `faucetAddress = ${api.consts.ethDispenser.faucetAddress.toString()}`,
+      `dispenserConfig = ${JSON.stringify(dispenserCfg.toJSON())}`,
     )
 
     const { requester: acc } = createKeyringAndAccounts(ENV.TEST_ACCOUNT_URI)

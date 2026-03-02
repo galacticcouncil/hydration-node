@@ -18,18 +18,36 @@ mod benches {
 	use alloy_sol_types::SolCall;
 	use core::ops::{Add, Mul};
 	use frame_support::traits::Currency;
+	use primitives::EvmAddress;
 
 	#[benchmark]
 	fn set_faucet_balance() {
-		DispenserConfig::<T>::put(DispenserConfigData { paused: false });
+		DispenserConfig::<T>::put(DispenserConfigData::default());
 		#[extrinsic_call]
 		set_faucet_balance(RawOrigin::Root, 123u128);
-		assert_eq!(FaucetBalanceWei::<T>::get(), 123u128);
+		assert_eq!(DispenserConfig::<T>::get().unwrap().faucet_balance_wei, 123u128);
+	}
+
+	#[benchmark]
+	fn set_faucet_params() {
+		let addr = EvmAddress::from([1u8; 20]);
+		let threshold = 50_000_000_000_000_000u128;
+		let min_request = 100u128;
+		let max_dispense = 1_000_000_000u128;
+		let fee = 10u128;
+		#[extrinsic_call]
+		set_faucet_params(RawOrigin::Root, addr, threshold, min_request, max_dispense, fee);
+		let config = DispenserConfig::<T>::get().unwrap();
+		assert_eq!(config.faucet_address, addr);
+		assert_eq!(config.min_faucet_threshold, threshold);
+		assert_eq!(config.min_request, min_request);
+		assert_eq!(config.max_dispense, max_dispense);
+		assert_eq!(config.dispenser_fee, fee);
 	}
 
 	#[benchmark]
 	fn pause() {
-		DispenserConfig::<T>::put(DispenserConfigData { paused: false });
+		DispenserConfig::<T>::put(DispenserConfigData::default());
 
 		#[extrinsic_call]
 		pause(RawOrigin::Root);
@@ -39,7 +57,7 @@ mod benches {
 
 	#[benchmark]
 	fn unpause() {
-		DispenserConfig::<T>::put(DispenserConfigData { paused: true });
+		DispenserConfig::<T>::put(DispenserConfigData { paused: true, ..Default::default() });
 
 		#[extrinsic_call]
 		unpause(RawOrigin::Root);
@@ -84,6 +102,17 @@ mod benches {
 		let _ = <T as pallet_signet::Config>::Currency::deposit_creating(&pallet_account, requester_needed);
 		let _ = <T as pallet_signet::Config>::Currency::deposit_creating(&signet_pallet_account, requester_needed);
 
+		let faucet_addr = EvmAddress::from([1u8; 20]);
+		let min_threshold = 1u128;
+		assert_ok!(Pallet::<T>::set_faucet_params(
+			RawOrigin::Root.into(),
+			faucet_addr,
+			min_threshold,
+			0u128,
+			u128::MAX,
+			10u128,
+		));
+
 		let current_faucet_bal: u128 = (u64::MAX - 1) as u128;
 		assert_ok!(Pallet::<T>::set_faucet_balance(
 			RawOrigin::Root.into(),
@@ -109,7 +138,6 @@ mod benches {
 			amount: U256::from(amount),
 		};
 
-		let faucet_addr = T::FaucetAddress::get();
 		let rlp = pallet_signet::Pallet::<T>::build_evm_tx(
 			RawOrigin::Signed(caller.clone()).into(),
 			Some(faucet_addr),
@@ -124,13 +152,6 @@ mod benches {
 		)
 		.expect("build_evm_tx ok in benchmark");
 
-		let path_bytes: Vec<u8> = {
-			let enc = caller.encode();
-			let mut s = String::from("0x");
-			s.push_str(&hex::encode(enc));
-			s.into_bytes()
-		};
-
 		// CAIP-2 chain ID format
 		let caip2_id = alloc::format!("eip155:{}", tx.chain_id);
 
@@ -139,7 +160,7 @@ mod benches {
 			&rlp,
 			&caip2_id,
 			0,
-			&path_bytes,
+			SIGNING_PATH,
 			b"ecdsa",
 			b"ethereum",
 			b"",

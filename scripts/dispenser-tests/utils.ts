@@ -417,12 +417,12 @@ export async function initializeVaultIfNeeded(api: ApiPromise) {
     )
   }
 
-  const current = (
-    await (api.query as any).ethDispenser.faucetBalanceWei()
-  ).toBigInt()
-  const threshold = (
-    (api.consts as any).ethDispenser.minFaucetEthThreshold as any
-  ).toBigInt()
+  // Initialize faucet params if not yet set (or update them)
+  await initializeFaucetParams(api)
+
+  const cfgAfterParams = (await (api.query as any).ethDispenser.dispenserConfig()).toJSON()
+  const current = BigInt(cfgAfterParams?.faucetBalanceWei ?? 0)
+  const threshold = ENV.MIN_FAUCET_ETH_THRESHOLD
 
   console.log('Current faucetBalanceWei =', current.toString())
   console.log('MinFaucetEthThreshold =', threshold.toString())
@@ -445,8 +445,37 @@ export async function initializeVaultIfNeeded(api: ApiPromise) {
     'Top up ethDispenser faucet balance via Root',
   )
 
-  const after = await (api.query as any).ethDispenser.faucetBalanceWei()
-  console.log('faucetBalanceWei after =', after.toString())
+  const cfgAfterTopup = (await (api.query as any).ethDispenser.dispenserConfig()).toJSON()
+  console.log('faucetBalanceWei after =', cfgAfterTopup?.faucetBalanceWei ?? 0)
+}
+
+export async function initializeFaucetParams(api: ApiPromise) {
+  const existing = await (api.query as any).ethDispenser.dispenserConfig()
+  console.log('Current dispenserConfig =', existing.toJSON())
+
+  const setParamsCall = (api.tx as any).ethDispenser.setFaucetParams(
+    ENV.FAUCET_ADDRESS,
+    ENV.MIN_FAUCET_ETH_THRESHOLD.toString(),
+    ENV.MIN_REQUEST_AMOUNT.toString(),
+    ENV.MAX_DISPENSE_AMOUNT.toString(),
+    ENV.DISPENSER_FEE.toString(),
+  )
+
+  console.log('Setting faucet params via Root...')
+  console.log(`  faucetAddress:       ${ENV.FAUCET_ADDRESS}`)
+  console.log(`  minFaucetThreshold:  ${ENV.MIN_FAUCET_ETH_THRESHOLD}`)
+  console.log(`  minRequestAmount:    ${ENV.MIN_REQUEST_AMOUNT}`)
+  console.log(`  maxDispenseAmount:   ${ENV.MAX_DISPENSE_AMOUNT}`)
+  console.log(`  dispenserFee:        ${ENV.DISPENSER_FEE}`)
+
+  await executeAsRootViaScheduler(
+    api,
+    setParamsCall,
+    'Set ethDispenser faucet params via Root',
+  )
+
+  const afterCfg = await (api.query as any).ethDispenser.dispenserConfig()
+  console.log('Dispenser config after set:', afterCfg.toJSON())
 }
 
 // ---------------------------------------------------------------------------

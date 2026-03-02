@@ -79,6 +79,12 @@ const TEST_ACCOUNT_URI = process.env.TEST_ACCOUNT_URI || '//Alice'
 const TARGET_ADDRESS = validateEthAddress('TARGET_ADDRESS', required('TARGET_ADDRESS'))
 const REQUEST_FUND_AMOUNT = optionalBigInt('REQUEST_FUND_AMOUNT_WEI', 1_000_000_000_000n) // 0.000001 ETH
 
+// Dispenser governance params
+const DISPENSER_FEE = optionalBigInt('DISPENSER_FEE', 5_000n)
+const MIN_REQUEST_AMOUNT = optionalBigInt('MIN_REQUEST_AMOUNT', 0n)
+const MAX_DISPENSE_AMOUNT = optionalBigInt('MAX_DISPENSE_AMOUNT', 1_000_000_000_000_000_000n)
+const MIN_FAUCET_ETH_THRESHOLD = optionalBigInt('MIN_FAUCET_ETH_THRESHOLD', 50_000_000_000_000_000n)
+
 const GAS_LIMIT = optionalBigInt('GAS_LIMIT', 100_000n)
 const DEFAULT_MAX_FEE_PER_GAS = optionalBigInt('DEFAULT_MAX_FEE_PER_GAS', 30_000_000_000n)
 const DEFAULT_MAX_PRIORITY_FEE_PER_GAS = optionalBigInt('DEFAULT_MAX_PRIORITY_FEE_PER_GAS', 2_000_000_000n)
@@ -102,6 +108,12 @@ export const ENV = {
   TARGET_ADDRESS,
   REQUEST_FUND_AMOUNT,
 
+  // Dispenser governance params
+  DISPENSER_FEE,
+  MIN_REQUEST_AMOUNT,
+  MAX_DISPENSE_AMOUNT,
+  MIN_FAUCET_ETH_THRESHOLD,
+
   // Gas
   GAS_LIMIT,
   DEFAULT_MAX_FEE_PER_GAS,
@@ -118,4 +130,8 @@ console.log(`  Substrate WS:     ${ENV.SUBSTRATE_WS_ENDPOINT}`)
 console.log(`  Substrate Chain:  ${ENV.SUBSTRATE_CHAIN_ID}`)
 console.log(`  Test account:     ${ENV.TEST_ACCOUNT_URI}`)
 console.log(`  Target address:   ${ENV.TARGET_ADDRESS}`)
+console.log(`  Dispenser fee:    ${ENV.DISPENSER_FEE}`)
+console.log(`  Min request:      ${ENV.MIN_REQUEST_AMOUNT}`)
+console.log(`  Max dispense:     ${ENV.MAX_DISPENSE_AMOUNT}`)
+console.log(`  Min ETH threshold:${ENV.MIN_FAUCET_ETH_THRESHOLD}`)
 console.log(`----------------------------\n`)

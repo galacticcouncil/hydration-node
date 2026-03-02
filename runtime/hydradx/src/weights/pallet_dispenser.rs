@@ -93,6 +93,11 @@ impl<T: frame_system::Config> pallet_dispenser::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	fn set_faucet_params() -> Weight {
+		Weight::from_parts(12_645_000, 1501)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 	/// Storage: `EthDispenser::DispenserConfig` (r:1 w:0)
 	/// Proof: `EthDispenser::DispenserConfig` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
 	/// Storage: `EthDispenser::FaucetBalanceWei` (r:1 w:1)

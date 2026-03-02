@@ -160,34 +160,26 @@ impl pallet_signet::Config for Test {
 
 parameter_types! {
 	pub const DispenserPalletId: PalletId = PalletId(*b"py/erc20");
-	pub const SigEthFaucetDispenserFee: u128 = 10;
-	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000;
-	pub const SigEthFaucetMinRequest: u128 = 100;
 	pub const SigEthFaucetFeeAssetId: AssetId = 0;
 	pub const SigEthFaucetFaucetAssetId: AssetId = 20;
-	pub const SigEthMinFaucetThreshold: u128 = 1;
 }
 
-pub struct SigEthFaucetMpcRoot;
-impl frame_support::traits::Get<primitives::EvmAddress> for SigEthFaucetMpcRoot {
-	fn get() -> primitives::EvmAddress {
-		// 0x3c44CdDdB6a900fa2b585dd299e03d12FA4293BC
-		primitives::EvmAddress::from(hex!("3c44CdDdB6a900fa2b585dd299e03d12FA4293BC"))
-	}
+pub fn test_faucet_address() -> primitives::EvmAddress {
+	primitives::EvmAddress::from(hex!("3c44CdDdB6a900fa2b585dd299e03d12FA4293BC"))
 }
+
+pub const TEST_MIN_FAUCET_THRESHOLD: u128 = 1;
+pub const TEST_DISPENSER_FEE: u128 = 10;
+pub const TEST_MAX_DISPENSE: u128 = 1_000_000_000;
+pub const TEST_MIN_REQUEST: u128 = 100;
 
 impl pallet_dispenser::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type PalletId = DispenserPalletId;
 	type Currency = FungibleCurrencies<Test>;
-	type MinimumRequestAmount = SigEthFaucetMinRequest;
-	type MaxDispenseAmount = SigEthFaucetMaxDispense;
-	type DispenserFee = SigEthFaucetDispenserFee;
 	type FeeAsset = SigEthFaucetFeeAssetId;
 	type FaucetAsset = SigEthFaucetFaucetAssetId;
 	type FeeDestination = TreasuryAccount;
-	type FaucetAddress = SigEthFaucetMpcRoot;
-	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 
@@ -224,6 +216,14 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		let pallet_account = Dispenser::account_id();
 		let _ = <Balances as CurrencyTrait<_>>::deposit_creating(&pallet_account, 10_000);
 
+		assert_ok!(Dispenser::set_faucet_params(
+			RuntimeOrigin::root(),
+			test_faucet_address(),
+			TEST_MIN_FAUCET_THRESHOLD,
+			TEST_MIN_REQUEST,
+			TEST_MAX_DISPENSE,
+			TEST_DISPENSER_FEE,
+		));
 		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), MIN_WEI_BALANCE));
 	});
 	ext

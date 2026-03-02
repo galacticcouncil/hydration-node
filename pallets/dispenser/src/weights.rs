@@ -73,6 +73,12 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
+	fn set_faucet_params() -> Weight {
+		Weight::from_parts(9_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 1501))
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
 	/// Storage: `EthDispenser::DispenserConfig` (r:1 w:0)
 	/// Proof: `EthDispenser::DispenserConfig` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
 	/// Storage: `EthDispenser::FaucetBalanceWei` (r:1 w:1)
