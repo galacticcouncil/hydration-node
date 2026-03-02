@@ -249,13 +249,13 @@ export async function ensureAccountHasAssets(
   const needsFee = feeBalance < ethers.parseEther('1')
 
   if ((needsNative || needsFaucet || needsFee) && requesterUri !== '//Alice') {
-    console.log(`Funding ${requesterUri} from //Alice...`)
+    console.log(`Funding account from //Alice...`)
     const keyring = new Keyring({ type: 'sr25519' })
     const alice = keyring.addFromUri('//Alice')
 
     if (needsNative) {
       const tx = api.tx.balances.transferKeepAlive(account.address, NATIVE_TOPUP)
-      await submitWithRetry(tx, alice, api, `Fund ${requesterUri} native`)
+      await submitWithRetry(tx, alice, api, 'Fund requester native')
     }
 
     if (needsFaucet) {
@@ -265,14 +265,14 @@ export async function ensureAccountHasAssets(
         account.address,
         faucetAsset,
         ethers.parseEther('100'),
-        `Fund ${requesterUri} faucet asset ${faucetAsset}`,
+        `Fund requester faucet asset ${faucetAsset}`,
       )
     }
 
     if (needsFee) {
       if (feeAsset === 0) {
         const tx = api.tx.balances.transferKeepAlive(account.address, NATIVE_TOPUP)
-        await submitWithRetry(tx, alice, api, `Fund ${requesterUri} fee asset ${feeAsset}`)
+        await submitWithRetry(tx, alice, api, `Fund requester fee asset ${feeAsset}`)
       } else {
         await transferAsset(
           api,
@@ -280,7 +280,7 @@ export async function ensureAccountHasAssets(
           account.address,
           feeAsset,
           ethers.parseEther('100'),
-          `Fund ${requesterUri} fee asset ${feeAsset}`,
+          `Fund requester fee asset ${feeAsset}`,
         )
       }
     }

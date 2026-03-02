@@ -212,7 +212,10 @@ fn governance_sets_faucet_balance_and_emits_event() {
 	new_test_ext().execute_with(|| {
 		let old = Dispenser::dispenser_config().unwrap().faucet_balance_wei;
 		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), 42u128));
-		assert_eq!(Dispenser::dispenser_config().unwrap().faucet_balance_wei, MIN_WEI_BALANCE + 42u128);
+		assert_eq!(
+			Dispenser::dispenser_config().unwrap().faucet_balance_wei,
+			MIN_WEI_BALANCE + 42u128
+		);
 
 		let ev = System::events().into_iter().any(|rec| {
 			matches!(rec.event,
@@ -233,7 +236,10 @@ fn non_governance_cannot_set_faucet_balance() {
 			Dispenser::set_faucet_balance(RuntimeOrigin::signed(alice), 7u128),
 			sp_runtime::DispatchError::BadOrigin
 		);
-		assert_eq!(Dispenser::dispenser_config().unwrap().faucet_balance_wei, MIN_WEI_BALANCE);
+		assert_eq!(
+			Dispenser::dispenser_config().unwrap().faucet_balance_wei,
+			MIN_WEI_BALANCE
+		);
 	});
 }
 
@@ -318,7 +324,10 @@ fn request_reduces_faucet_balance() {
 		));
 
 		let expected_balance = initial_balance.saturating_sub(amount).saturating_add(MIN_WEI_BALANCE);
-		assert_eq!(Dispenser::dispenser_config().unwrap().faucet_balance_wei, expected_balance);
+		assert_eq!(
+			Dispenser::dispenser_config().unwrap().faucet_balance_wei,
+			expected_balance
+		);
 
 		assert_eq!(
 			Currencies::free_balance(fee_asset, &requester),

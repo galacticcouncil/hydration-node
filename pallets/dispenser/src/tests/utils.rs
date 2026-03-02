@@ -43,7 +43,9 @@ pub fn compute_request_id(
 		amount: U256::from(amount_wei),
 	};
 
-	let faucet_addr = crate::DispenserConfig::<Test>::get().expect("dispenser config must be set").faucet_address;
+	let faucet_addr = crate::DispenserConfig::<Test>::get()
+		.expect("dispenser config must be set")
+		.faucet_address;
 	let rlp_encoded = pallet_signet::Pallet::<Test>::build_evm_tx(
 		frame_system::RawOrigin::Signed(requester.clone()).into(),
 		Some(faucet_addr),

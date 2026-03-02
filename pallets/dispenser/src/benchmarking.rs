@@ -57,7 +57,10 @@ mod benches {
 
 	#[benchmark]
 	fn unpause() {
-		DispenserConfig::<T>::put(DispenserConfigData { paused: true, ..Default::default() });
+		DispenserConfig::<T>::put(DispenserConfigData {
+			paused: true,
+			..Default::default()
+		});
 
 		#[extrinsic_call]
 		unpause(RawOrigin::Root);

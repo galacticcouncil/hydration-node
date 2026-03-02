@@ -239,9 +239,7 @@ pub mod pallet {
 			// Check tracked faucet balance vs. threshold.
 			let observed = config.faucet_balance_wei;
 			let min_threshold = config.min_faucet_threshold;
-			let needed = min_threshold
-				.checked_add(amount)
-				.ok_or(Error::<T>::InvalidOutput)?;
+			let needed = min_threshold.checked_add(amount).ok_or(Error::<T>::InvalidOutput)?;
 			ensure!(observed >= needed, Error::<T>::FaucetBalanceBelowThreshold);
 
 			// EIP-1559 fee sanity checks.
