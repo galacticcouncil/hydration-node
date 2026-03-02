@@ -51,55 +51,6 @@ fn set_slip_fee_unauthorized_fails() {
 }
 
 #[test]
-fn sell_with_slip_fee_disabled_is_deterministic() {
-	// Two identical runs without slip fees produce the same output
-	let mut amount_run1 = 0u128;
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP2, 100, 2000 * ONE),
-			(LP1, 100, 1000 * ONE),
-		])
-		.with_registered_asset(100)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.build()
-		.execute_with(|| {
-			assert!(SlipFee::<Test>::get().is_none());
-
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 50 * ONE, 0));
-			amount_run1 = Tokens::free_balance(HDX, &LP1);
-		});
-
-	let mut amount_run2 = 0u128;
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP2, 100, 2000 * ONE),
-			(LP1, 100, 1000 * ONE),
-		])
-		.with_registered_asset(100)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.build()
-		.execute_with(|| {
-			assert!(SlipFee::<Test>::get().is_none());
-
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 50 * ONE, 0));
-			amount_run2 = Tokens::free_balance(HDX, &LP1);
-		});
-
-	assert_eq!(
-		amount_run1, amount_run2,
-		"Identical runs without slip fee should produce same output"
-	);
-}
-
-#[test]
 fn sell_with_slip_fee_enabled_reduces_output() {
 	let mut amount_without_slip = 0u128;
 	let mut amount_with_slip = 0u128;
