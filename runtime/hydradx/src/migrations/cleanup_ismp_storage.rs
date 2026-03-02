@@ -6,15 +6,14 @@
 //! - ismp_parachain::RelayChainStateCommitments
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{storage::unhashed, weights::WeightMeter};
+use frame_support::weights::WeightMeter;
 use sp_core::Get;
 use sp_io::hashing::twox_128;
 
 #[cfg(feature = "try-runtime")]
 use alloc::vec::Vec;
-
-/// Maximum number of keys to delete per step execution.
-const MAX_KEYS_PER_STEP: u32 = 1000;
+use sp_arithmetic::traits::SaturatedConversion;
+use sp_io::KillStorageResult;
 
 /// Stages of the cleanup migration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode, MaxEncodedLen, scale_info::TypeInfo)]
@@ -87,9 +86,7 @@ impl<T: frame_system::Config> frame_support::migrations::SteppedMigration for Cl
 	}
 
 	fn max_steps() -> Option<u32> {
-		// Allow a reasonable number of steps. With MAX_KEYS_PER_STEP=1000,
-		// this allows cleaning up to 10M keys total across all three maps.
-		Some(10_000)
+		Some(20)
 	}
 
 	fn step(
@@ -109,8 +106,7 @@ impl<T: frame_system::Config> frame_support::migrations::SteppedMigration for Cl
 		let max_keys = meter
 			.remaining()
 			.checked_div_per_component(&weight_per_key)
-			.unwrap_or(0)
-			.min(MAX_KEYS_PER_STEP as u64) as u32;
+			.unwrap_or(0);
 
 		if max_keys == 0 {
 			return Err(frame_support::migrations::SteppedMigrationError::InsufficientWeight {
@@ -118,44 +114,16 @@ impl<T: frame_system::Config> frame_support::migrations::SteppedMigration for Cl
 			});
 		}
 
-		// Collect keys to delete (bounded by max_keys).
-		let mut keys_to_delete = alloc::vec::Vec::new();
-		let mut keys_remaining = false;
+		let max_keys_bounded = max_keys.saturated_into::<u32>();
 
-		// Iterate over keys with the given prefix.
-		let mut iter = sp_io::storage::next_key(&prefix);
-		while let Some(key) = iter {
-			// Check if the key still has our prefix.
-			if !key.starts_with(&prefix) {
-				break;
-			}
-
-			keys_to_delete.push(key.clone());
-
-			if keys_to_delete.len() >= max_keys as usize {
-				// Check if there are more keys.
-				if let Some(next) = sp_io::storage::next_key(&key) {
-					if next.starts_with(&prefix) {
-						keys_remaining = true;
-					}
-				}
-				break;
-			}
-
-			iter = sp_io::storage::next_key(&key);
-		}
-
-		// Delete the collected keys.
-		let deleted_count = keys_to_delete.len() as u32;
-		for key in keys_to_delete {
-			unhashed::kill(&key);
-		}
+		// Try to clean the specified number of keys at prefix.
+		let clean_result = sp_io::storage::clear_prefix(&prefix, Some(max_keys_bounded));
 
 		// Charge weight for the operations performed.
-		meter.consume(weight_per_key.saturating_mul(deleted_count as u64));
+		meter.consume(weight_per_key.saturating_mul(max_keys_bounded.into()).into());
 
 		// Determine the next cursor.
-		if keys_remaining {
+		if let KillStorageResult::SomeRemaining(_) = clean_result {
 			// More keys in this stage, continue with the same stage.
 			Ok(Some(Cursor { stage }))
 		} else {
@@ -260,6 +228,10 @@ mod tests {
 		count
 	}
 
+	fn weight_per_key() -> Weight {
+		TestRuntime::DbWeight::get().reads_writes(2, 1)
+	}
+
 	#[test]
 	fn test_cleanup_empty_storage() {
 		TestExternalities::new_empty().execute_with(|| {
@@ -349,14 +321,18 @@ mod tests {
 	#[test]
 	fn test_bounded_deletion() {
 		TestExternalities::new_empty().execute_with(|| {
+			let mut meter = WeightMeter::with_limit(Weight::from_parts(1_000_000_000, 0));
 			let prefix = Stage::StateCommitments.storage_prefix();
-			let total_keys = MAX_KEYS_PER_STEP * 3;
+
+			let max_keys_per_step = meter.remaining().checked_div_per_component(&weight_per_key())
+				.unwrap_or(0).into();
+			let total_keys = max_keys_per_step * 3;
+
 			insert_test_keys(&prefix, total_keys);
 
 			assert_eq!(count_test_keys(&prefix), total_keys);
 
 			// Run one step with sufficient weight
-			let mut meter = WeightMeter::with_limit(Weight::from_parts(1_000_000_000, 0));
 			let initial_remaining = meter.remaining();
 			let result = CleanupIsmpStorage::<TestRuntime>::step(None, &mut meter);
 
@@ -364,11 +340,11 @@ mod tests {
 			let cursor = result.unwrap();
 			assert!(cursor.is_some(), "Should not complete in one step");
 
-			// Verify that we deleted at most MAX_KEYS_PER_STEP
+			// Verify that we deleted at most max_keys_per_step
 			let remaining_keys = count_test_keys(&prefix);
 			let deleted = total_keys - remaining_keys;
 			assert!(
-				deleted <= MAX_KEYS_PER_STEP,
+				deleted <= max_keys_per_step,
 				"Should delete at most MAX_KEYS_PER_STEP keys, deleted: {}",
 				deleted
 			);
