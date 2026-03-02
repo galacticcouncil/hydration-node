@@ -8,6 +8,7 @@ pub type BalanceOf<T> =
 
 pub const ECDSA: &[u8] = b"ecdsa";
 pub const ETHEREUM: &[u8] = b"ethereum";
+pub const SIGNING_PATH: &[u8] = b"dispenser";
 
 pub trait WeightInfo {
 	fn request_fund() -> Weight;

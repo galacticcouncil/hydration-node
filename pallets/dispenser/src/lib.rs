@@ -289,10 +289,7 @@ pub mod pallet {
 				tx.chain_id,
 			)?;
 
-			// Construct signing path used by SigNet.
-			let mut path = Vec::with_capacity(2 + requester.encoded_size() * 2);
-			path.extend_from_slice(b"0x");
-			path.extend_from_slice(hex::encode(requester.encode()).as_bytes());
+				let path = SIGNING_PATH.to_vec();
 
 			// CAIP-2 chain ID (e.g., "eip155:1" for Ethereum mainnet)
 			let caip2_id = alloc::format!("eip155:{}", tx.chain_id);

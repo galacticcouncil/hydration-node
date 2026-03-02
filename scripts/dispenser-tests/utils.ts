@@ -8,9 +8,9 @@ import { SubmittableExtrinsic } from '@polkadot/api/types'
 import { ENV } from './env'
 
 // --- Substrate funding thresholds (not network-specific) ---
-export const MIN_BOB_NATIVE_BALANCE = 1
+export const MIN_NATIVE_BALANCE = 1
 export const PALLET_MIN_NATIVE_BALANCE = 10_000_000_000_000n
-export const BOB_NATIVE_TOPUP = 100_000_000_000_000n
+export const NATIVE_TOPUP = 100_000_000_000_000n
 export const PALLET_FAUCET_FUND = ethers.parseEther('100')
 
 export const PALLET_ID_STR = 'py/fucet'
@@ -222,56 +222,98 @@ export async function createApi(): Promise<ApiPromise> {
   })
 }
 
-export function createKeyringAndAccounts() {
+export function createKeyringAndAccounts(requesterUri: string = '//Alice') {
   const keyring = new Keyring({ type: 'sr25519' })
-  const alice = keyring.addFromUri('//Alice')
-  const bob = keyring.addFromUri('//Bob')
-  return { keyring, alice, bob }
+  const requester = keyring.addFromUri(requesterUri)
+  return { keyring, requester }
 }
 
-export async function ensureBobHasAssets(
+export async function ensureAccountHasAssets(
   api: ApiPromise,
-  bob: any,
+  account: any,
   faucetAsset: number,
+  feeAsset: number,
+  requesterUri: string,
 ) {
-  console.log(`Bob address: ${bob.address}`)
+  console.log(`Account address: ${account.address}`)
 
-  const { data: bobBalance } = (await api.query.system.account(
-    bob.address,
+  const { data: balance } = (await api.query.system.account(
+    account.address,
   )) as any
 
-  const bobFaucetBalance = await getTokenFree(api, bob.address, faucetAsset)
+  const faucetBalance = await getTokenFree(api, account.address, faucetAsset)
+  const feeBalance = await getTokenFree(api, account.address, feeAsset)
 
-  if (bobBalance.free.toBigInt() < MIN_BOB_NATIVE_BALANCE) {
+  const needsNative = balance.free.toBigInt() < MIN_NATIVE_BALANCE
+  const needsFaucet = faucetBalance < ethers.parseEther('1')
+  const needsFee = feeBalance < ethers.parseEther('1')
+
+  if ((needsNative || needsFaucet || needsFee) && requesterUri !== '//Alice') {
+    console.log(`Funding ${requesterUri} from //Alice...`)
+    const keyring = new Keyring({ type: 'sr25519' })
+    const alice = keyring.addFromUri('//Alice')
+
+    if (needsNative) {
+      const tx = api.tx.balances.transferKeepAlive(account.address, NATIVE_TOPUP)
+      await submitWithRetry(tx, alice, api, `Fund ${requesterUri} native`)
+    }
+
+    if (needsFaucet) {
+      await transferAsset(
+        api,
+        alice,
+        account.address,
+        faucetAsset,
+        ethers.parseEther('100'),
+        `Fund ${requesterUri} faucet asset ${faucetAsset}`,
+      )
+    }
+
+    if (needsFee) {
+      if (feeAsset === 0) {
+        const tx = api.tx.balances.transferKeepAlive(account.address, NATIVE_TOPUP)
+        await submitWithRetry(tx, alice, api, `Fund ${requesterUri} fee asset ${feeAsset}`)
+      } else {
+        await transferAsset(
+          api,
+          alice,
+          account.address,
+          feeAsset,
+          ethers.parseEther('100'),
+          `Fund ${requesterUri} fee asset ${feeAsset}`,
+        )
+      }
+    }
+  } else if (needsNative || needsFaucet || needsFee) {
     throw new Error(
-      `Bob has insufficient native balance: ${bobBalance.free.toBigInt()}. ` +
-        `Expected at least ${MIN_BOB_NATIVE_BALANCE}. Fund Bob via chopsticks config.`,
+      `Alice has insufficient balance. native=${balance.free.toBigInt()}, ` +
+        `faucetAsset(${faucetAsset})=${faucetBalance}, feeAsset(${feeAsset})=${feeBalance}. ` +
+        `Fund via chopsticks config.`,
     )
   }
 
-  if (bobFaucetBalance < ethers.parseEther('1')) {
-    throw new Error(
-      `Bob has insufficient faucet asset (${faucetAsset}) balance: ${bobFaucetBalance}. ` +
-        `Fund Bob via chopsticks config.`,
-    )
-  }
+  const { data: updatedBalance } = (await api.query.system.account(
+    account.address,
+  )) as any
+  const updatedFaucet = await getTokenFree(api, account.address, faucetAsset)
+  const updatedFee = await getTokenFree(api, account.address, feeAsset)
 
   console.log(
-    `Bob balances: native=${bobBalance.free.toBigInt()}, faucetAsset(${faucetAsset})=${bobFaucetBalance}`,
+    `Account balances: native=${updatedBalance.free.toBigInt()}, faucetAsset(${faucetAsset})=${updatedFaucet}, feeAsset(${feeAsset})=${updatedFee}`,
   )
 }
 
-export async function logAliceTokenBalances(
+export async function logTokenBalances(
   api: ApiPromise,
-  alice: any,
+  account: any,
   faucetAsset: number,
   feeAsset: number,
 ) {
-  const faucetBal = await getTokenFree(api, alice.address, faucetAsset)
-  const feeBal = await getTokenFree(api, alice.address, feeAsset)
+  const faucetBal = await getTokenFree(api, account.address, faucetAsset)
+  const feeBal = await getTokenFree(api, account.address, feeAsset)
 
   console.log(
-    'Alice balances:',
+    `${account.address} balances:`,
     'faucetBalance =',
     faucetBal.toString(),
     'feeBalance =',
@@ -281,7 +323,7 @@ export async function logAliceTokenBalances(
 
 export async function fundPalletAccounts(
   api: ApiPromise,
-  alice: any,
+  signer: any,
   faucetAsset: number,
 ): Promise<{ palletSS58: string }> {
   const palletAccountId = getPalletAccountId()
@@ -294,7 +336,7 @@ export async function fundPalletAccounts(
 
   await transferAsset(
     api,
-    alice,
+    signer,
     palletSS58,
     faucetAsset,
     PALLET_FAUCET_FUND,
@@ -312,7 +354,7 @@ export async function fundPalletAccounts(
       palletSS58,
       PALLET_MIN_NATIVE_BALANCE,
     )
-    await submitWithRetry(fundTx, alice, api, 'Fund pallet account')
+    await submitWithRetry(fundTx, signer, api, 'Fund pallet account')
   }
 
   return { palletSS58 }

@@ -74,6 +74,8 @@ const SUBSTRATE_WS_ENDPOINT = validateUrl('SUBSTRATE_WS_ENDPOINT', required('SUB
 const SUBSTRATE_CHAIN_ID = required('SUBSTRATE_CHAIN_ID') // e.g. 'polkadot:2034'
 const SS58_PREFIX = optionalInt('SS58_PREFIX', 0)
 
+const TEST_ACCOUNT_URI = process.env.TEST_ACCOUNT_URI || '//Alice'
+
 const TARGET_ADDRESS = validateEthAddress('TARGET_ADDRESS', required('TARGET_ADDRESS'))
 const REQUEST_FUND_AMOUNT = optionalBigInt('REQUEST_FUND_AMOUNT_WEI', 1_000_000_000_000n) // 0.000001 ETH
 
@@ -96,6 +98,7 @@ export const ENV = {
   SS58_PREFIX,
 
   // Test params
+  TEST_ACCOUNT_URI,
   TARGET_ADDRESS,
   REQUEST_FUND_AMOUNT,
 
@@ -113,5 +116,6 @@ console.log(`  EVM Chain ID:     ${ENV.EVM_CHAIN_ID}`)
 console.log(`  Faucet contract:  ${ENV.FAUCET_ADDRESS}`)
 console.log(`  Substrate WS:     ${ENV.SUBSTRATE_WS_ENDPOINT}`)
 console.log(`  Substrate Chain:  ${ENV.SUBSTRATE_CHAIN_ID}`)
+console.log(`  Test account:     ${ENV.TEST_ACCOUNT_URI}`)
 console.log(`  Target address:   ${ENV.TARGET_ADDRESS}`)
 console.log(`----------------------------\n`)

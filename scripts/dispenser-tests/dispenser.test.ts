@@ -1,6 +1,5 @@
-import { ApiPromise } from '@polkadot/api'
+import { ApiPromise, Keyring } from '@polkadot/api'
 import { waitReady } from '@polkadot/wasm-crypto'
-import { u8aToHex } from '@polkadot/util'
 import { ethers } from 'ethers'
 import { SignetClient } from './signet-client'
 import { ENV } from './env'
@@ -10,8 +9,8 @@ import {
   waitForReadResponse,
   createApi,
   createKeyringAndAccounts,
-  ensureBobHasAssets,
-  logAliceTokenBalances,
+  ensureAccountHasAssets,
+  logTokenBalances,
   fundPalletAccounts,
   deriveEthAddress,
   ensureDerivedEthHasGas,
@@ -24,12 +23,10 @@ import {
 
 describe('ERC20 Vault Integration', () => {
   let api: ApiPromise
-  let alice: any
+  let requester: any
   let signetClient: SignetClient
   let evmProvider: ethers.JsonRpcProvider
   let derivedEthAddress: string
-  let derivedPubKey: string
-  let aliceHexPath: string
   let palletSS58: string
 
   beforeAll(async () => {
@@ -46,30 +43,27 @@ describe('ERC20 Vault Integration', () => {
       `faucetAddress = ${api.consts.ethDispenser.faucetAddress.toString()}`,
     )
 
-    const { keyring, alice: aliceAcc, bob } = createKeyringAndAccounts()
-    alice = aliceAcc
+    const { requester: acc } = createKeyringAndAccounts(ENV.TEST_ACCOUNT_URI)
+    requester = acc
 
-    const aliceAccountId = keyring.decodeAddress(alice.address)
-    aliceHexPath = '0x' + u8aToHex(aliceAccountId).slice(2)
-
-    await logAliceTokenBalances(api, alice, faucetAsset, feeAsset)
-    await ensureBobHasAssets(api, bob, faucetAsset)
-
+    const alice = new Keyring({ type: 'sr25519' }).addFromUri('//Alice')
     const palletFunding = await fundPalletAccounts(api, alice, faucetAsset)
+
+    await ensureAccountHasAssets(api, requester, faucetAsset, feeAsset, ENV.TEST_ACCOUNT_URI)
+    await logTokenBalances(api, requester, faucetAsset, feeAsset)
     palletSS58 = palletFunding.palletSS58
 
-    signetClient = new SignetClient(api, alice)
+    signetClient = new SignetClient(api, requester)
     evmProvider = new ethers.JsonRpcProvider(ENV.EVM_RPC_URL)
 
     await signetClient.ensureSignetInitializedViaReferendum(
       api,
-      alice,
+      requester,
       ENV.SUBSTRATE_CHAIN_ID,
     )
 
     const derived = deriveEthAddress()
     derivedEthAddress = derived.derivedEthAddress
-    derivedPubKey = derived.derivedPubKey
 
     await ensureDerivedEthHasGas(evmProvider, derivedEthAddress)
   }, 600_000)
@@ -129,7 +123,7 @@ describe('ERC20 Vault Integration', () => {
       {
         caip2_id: `eip155:${ENV.EVM_CHAIN_ID}`,
         keyVersion: 0,
-        path: aliceHexPath,
+        path: 'dispenser',
         algo: 'ecdsa',
         dest: 'ethereum',
         params: '',
@@ -151,7 +145,7 @@ describe('ERC20 Vault Integration', () => {
     console.log('Submitting requestFund transaction...')
     const depositResult = await submitWithRetry(
       depositTx,
-      alice,
+      requester,
       api,
       'Request Fund',
     )
