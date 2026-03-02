@@ -447,6 +447,24 @@ fn xval_multiple_buys_opposite_direction() {
 // Scenario 7: Mixed sells and buys - mixed directions
 #[test]
 fn xval_mixed_trades() {
+	// Baseline: first trade without slip fees
+	TestNet::reset();
+	let mut t1_no_slip = 0u128;
+	Hydra::execute_with(|| {
+		init_omnipool();
+		let trader = AccountId::from(BOB);
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(trader.clone()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0u128,
+		));
+		t1_no_slip = Currencies::free_balance(DAI, &trader) - dai_before;
+	});
+
+	// With slip fees
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -528,5 +546,13 @@ fn xval_mixed_trades() {
 		assert_approx(t3, py_t3, tol(py_t3), "mixed trade3 sell DAI->HDX");
 		assert_approx(t4, py_t4, tol(py_t4), "mixed trade4 buy HDX w/ DAI");
 		assert_approx(t5, py_t5, tol(py_t5), "mixed trade5 sell HDX->DAI");
+
+		// Slip fees must reduce trade 1 output vs no-slip baseline
+		assert!(
+			t1 < t1_no_slip,
+			"Slip fee should reduce trade1 output: no_slip={} with_slip={}",
+			t1_no_slip,
+			t1
+		);
 	});
 }

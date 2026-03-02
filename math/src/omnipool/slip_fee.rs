@@ -99,12 +99,12 @@ pub(crate) fn invert_buy_side_slip(d_net: Balance, l: Balance, c: SignedBalance)
 	let two_c = abs_c.checked_mul(2)?;
 
 	// b = L + 2C - D_net. Since C < 0: b = L - 2|C| - D_net
-	let l_minus_2c = if l >= two_c { l - two_c } else { return None };
+	let l_minus_2c = l.checked_sub(two_c)?;
 	let b_positive = l_minus_2c >= d_net;
 	let b_abs = if b_positive {
-		l_minus_2c - d_net
+		l_minus_2c.checked_sub(d_net)?
 	} else {
-		d_net - l_minus_2c
+		d_net.checked_sub(l_minus_2c)?
 	};
 
 	// disc = b² + 8*D_net*S_buy
