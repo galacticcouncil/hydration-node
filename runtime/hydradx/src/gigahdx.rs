@@ -197,18 +197,18 @@ parameter_types! {
 	pub const MaxFeeConversionsPerBlock: u32 = 5;
 }
 
-/// Staking fee receiver for non-HDX path — 50% of converted HDX.
-pub struct StakingFeeReceiver;
+/// GigaHDX fee receiver — deposits HDX to gigapot, increasing exchange rate for all holders.
+pub struct GigaHdxFeeReceiver;
 
-impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for StakingFeeReceiver {
+impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for GigaHdxFeeReceiver {
 	type Error = sp_runtime::DispatchError;
 
 	fn destination() -> AccountId {
-		pallet_staking::Pallet::<Runtime>::pot_account_id()
+		pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id()
 	}
 
 	fn percentage() -> Permill {
-		Permill::from_percent(50)
+		Permill::from_percent(60)
 	}
 
 	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
@@ -220,8 +220,76 @@ impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for StakingFeeRece
 	}
 }
 
-/// Staking fee receiver for HDX path — receives 100% of HDX trade fees.
-/// HDX fees bypass referrals entirely and go straight to staking.
+/// GigaHDX reward fee receiver — deposits HDX to the GigaReward pot for governance voting rewards.
+pub struct GigaHdxRewardFeeReceiver;
+
+impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for GigaHdxRewardFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_gigahdx_voting::Pallet::<Runtime>::giga_reward_pot_account()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(20)
+	}
+
+	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+
+	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+}
+
+/// Staking fee receiver for non-HDX path — 10% of converted HDX.
+pub struct StakingFeeReceiver;
+
+impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for StakingFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_staking::Pallet::<Runtime>::pot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(10)
+	}
+
+	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+
+	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+}
+
+/// GigaHDX fee receiver for HDX path — 70% (no referrals, so gets extra 10%).
+pub struct HdxGigaHdxFeeReceiver;
+
+impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for HdxGigaHdxFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(70)
+	}
+
+	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+
+	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+}
+
+/// Staking fee receiver for HDX path — 10% of HDX trade fees.
 pub struct HdxStakingFeeReceiver;
 
 impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for HdxStakingFeeReceiver {
@@ -232,7 +300,7 @@ impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for HdxStakingFeeR
 	}
 
 	fn percentage() -> Permill {
-		Permill::from_percent(100)
+		Permill::from_percent(10)
 	}
 
 	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
@@ -255,7 +323,7 @@ impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for ReferralsFeeRe
 	}
 
 	fn percentage() -> Permill {
-		Permill::from_percent(30)
+		Permill::from_percent(10)
 	}
 
 	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
@@ -282,7 +350,7 @@ impl pallet_fee_processor::Config for Runtime {
 	type LrnaAssetId = LRNA;
 	type MinConversionAmount = MinFeeConversionAmount;
 	type MaxConversionsPerBlock = MaxFeeConversionsPerBlock;
-	type FeeReceivers = (StakingFeeReceiver, ReferralsFeeReceiver);
-	type HdxFeeReceivers = HdxStakingFeeReceiver;
+	type FeeReceivers = (GigaHdxFeeReceiver, GigaHdxRewardFeeReceiver, StakingFeeReceiver, ReferralsFeeReceiver);
+	type HdxFeeReceivers = (HdxGigaHdxFeeReceiver, GigaHdxRewardFeeReceiver, HdxStakingFeeReceiver);
 	type WeightInfo = ();
 }
