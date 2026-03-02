@@ -88,14 +88,14 @@ pub(crate) fn invert_buy_side_slip(d_net: Balance, l: Balance, c: SignedBalance)
 		.checked_add(U256::one())?;
 	let d_gross_case1 = to_balance!(d_gross_case1_hp).ok()?;
 
-	if !c.is_negative() || d_gross_case1 >= c.abs() {
+	let abs_c = c.abs();
+	if c.is_positive() || d_gross_case1 >= abs_c {
 		// Case 1 valid: cum = C + D_gross >= 0
 		return Some(d_gross_case1);
 	}
 
 	// Case 2: C < 0, D_gross < |C|, cum stays negative
 	// 2*D_gross² + (L + 2C - D_net)*D_gross - D_net*S_buy = 0
-	let abs_c = c.abs();
 	let two_c = abs_c.checked_mul(2)?;
 
 	// b = L + 2C - D_net. Since C < 0: b = L - 2|C| - D_net
@@ -166,44 +166,8 @@ pub(crate) fn invert_sell_side_fees(
 	let k_parts = 1_000_000u128 - pf_parts;
 	let scale = U256::from(1_000_000u64);
 
-	// Case A solver: (k+1)u² - (kS + C + D)u + DS = 0
-	let solve_case_a = || -> Option<Balance> {
-		let a_u256 = U256::from(k_parts + 1_000_000);
-		// Safe: u128 * u128 fits in U256
-		let ks = U256::from(k_parts).saturating_mul(U256::from(s));
-		let d_scaled = U256::from(d_gross).saturating_mul(scale);
-		let c_scaled = U256::from(abs_c).saturating_mul(scale);
-		// b = kS + (C + D)*10^6  (treating C with its sign)
-		// Safe: all terms are products of u128 values, sum fits in U256
-		let b_u256 = if c_is_positive {
-			ks.saturating_add(d_scaled).saturating_add(c_scaled)
-		} else {
-			let sum = ks.saturating_add(d_scaled);
-			sum.checked_sub(c_scaled)?
-		};
-		// Safe: u128 * u128 * 10^6 fits in U256
-		let c_u256 = U256::from(d_gross).saturating_mul(U256::from(s)).saturating_mul(scale);
-		let b_sq = b_u256.checked_mul(b_u256)?;
-		let four_ac = U256::from(4u64).checked_mul(a_u256)?.checked_mul(c_u256)?;
-		if b_sq < four_ac {
-			return None;
-		}
-		// Safe: guarded by b_sq >= four_ac check above
-		let disc = b_sq.saturating_sub(four_ac);
-		let sqrt_disc = disc.integer_sqrt();
-		// Safe: small constant * u128 fits in U256
-		let two_a = a_u256.saturating_mul(U256::from(2u64));
-		if b_u256 < sqrt_disc {
-			return None;
-		}
-		// Safe: guarded by b_u256 >= sqrt_disc check above
-		let u_hp = (b_u256.saturating_sub(sqrt_disc)).checked_div(two_a)?;
-		let u = to_balance!(u_hp).ok()?;
-		u.checked_add(Balance::one())
-	};
-
+	// Try Case B first when C > 0 (opposing flow, u <= C)
 	if c_is_positive {
-		// C > 0 (opposing flow): try Case B first (assuming u <= C)
 		// pf*u² + (D + kS - C)*u - DS = 0
 		let u_b = if pf_parts == 0 {
 			// Linear: (D + kS - C)u = DS. With k=1: (D + S - C)u = DS → (D + L)u = DS
@@ -263,12 +227,46 @@ pub(crate) fn invert_sell_side_fees(
 			u.checked_add(Balance::one())
 		};
 
-		match u_b {
-			Some(u) if u <= abs_c => Some(u),
-			_ => solve_case_a(), // u > C or Case B failed: use Case A
+		if let Some(u) = u_b {
+			if u <= abs_c {
+				return Some(u);
+			}
 		}
-	} else {
-		// C <= 0: always Case A (u > 0 > C, so u > C)
-		solve_case_a()
+		// u > C or Case B failed: fall through to Case A
 	}
+
+	// Case A: (k+1)u² - (kS + C + D)u + DS = 0
+	// Applies when C <= 0 (always) or when C > 0 but Case B yielded u > C.
+	let a_u256 = U256::from(k_parts + 1_000_000);
+	// Safe: u128 * u128 fits in U256
+	let ks = U256::from(k_parts).saturating_mul(U256::from(s));
+	let d_scaled = U256::from(d_gross).saturating_mul(scale);
+	let c_scaled = U256::from(abs_c).saturating_mul(scale);
+	// b = kS + (C + D)*10^6  (treating C with its sign)
+	// Safe: all terms are products of u128 values, sum fits in U256
+	let b_u256 = if c_is_positive {
+		ks.saturating_add(d_scaled).saturating_add(c_scaled)
+	} else {
+		let sum = ks.saturating_add(d_scaled);
+		sum.checked_sub(c_scaled)?
+	};
+	// Safe: u128 * u128 * 10^6 fits in U256
+	let c_u256 = U256::from(d_gross).saturating_mul(U256::from(s)).saturating_mul(scale);
+	let b_sq = b_u256.checked_mul(b_u256)?;
+	let four_ac = U256::from(4u64).checked_mul(a_u256)?.checked_mul(c_u256)?;
+	if b_sq < four_ac {
+		return None;
+	}
+	// Safe: guarded by b_sq >= four_ac check above
+	let disc = b_sq.saturating_sub(four_ac);
+	let sqrt_disc = disc.integer_sqrt();
+	// Safe: small constant * u128 fits in U256
+	let two_a = a_u256.saturating_mul(U256::from(2u64));
+	if b_u256 < sqrt_disc {
+		return None;
+	}
+	// Safe: guarded by b_u256 >= sqrt_disc check above
+	let u_hp = (b_u256.saturating_sub(sqrt_disc)).checked_div(two_a)?;
+	let u = to_balance!(u_hp).ok()?;
+	u.checked_add(Balance::one())
 }

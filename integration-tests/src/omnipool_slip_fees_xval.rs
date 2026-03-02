@@ -122,15 +122,33 @@ fn xval_single_sell() {
 // Scenario 2: Single buy (buy 100 DAI with HDX)
 #[test]
 fn xval_single_buy() {
-	TestNet::reset();
+	let buy_amount = 100 * UNITS;
 
+	// Baseline: no slip fees
+	TestNet::reset();
+	let mut cost_no_slip = 0u128;
+	Hydra::execute_with(|| {
+		init_omnipool();
+		let trader = AccountId::from(BOB);
+		let hdx_before = hydradx_runtime::Balances::free_balance(&trader);
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(trader.clone()),
+			DAI,
+			HDX,
+			buy_amount,
+			u128::MAX,
+		));
+		cost_no_slip = hdx_before - hydradx_runtime::Balances::free_balance(&trader);
+	});
+
+	// With slip fees
+	TestNet::reset();
+	let mut hdx_spent = 0u128;
 	Hydra::execute_with(|| {
 		init_omnipool();
 		enable_slip_fees();
 
 		let trader = AccountId::from(BOB);
-		let buy_amount = 100 * UNITS;
-
 		let hdx_before = hydradx_runtime::Balances::free_balance(&trader);
 
 		assert_ok!(Omnipool::buy(
@@ -141,11 +159,19 @@ fn xval_single_buy() {
 			u128::MAX,
 		));
 
-		let hdx_spent = hdx_before - hydradx_runtime::Balances::free_balance(&trader);
-
-		let py_hdx_spent: u128 = 3756583451;
-		assert_approx(hdx_spent, py_hdx_spent, tol(py_hdx_spent), "single buy hdx_spent");
+		hdx_spent = hdx_before - hydradx_runtime::Balances::free_balance(&trader);
 	});
+
+	let py_hdx_spent: u128 = 3756583451;
+	assert_approx(hdx_spent, py_hdx_spent, tol(py_hdx_spent), "single buy hdx_spent");
+
+	// Slip fees must increase cost vs baseline
+	assert!(
+		hdx_spent > cost_no_slip,
+		"Slip fee should increase buy cost: with_slip={} no_slip={}",
+		hdx_spent,
+		cost_no_slip
+	);
 }
 
 // Scenario 3: Multiple sells - same direction (50 HDX->DAI, 50 HDX->DAI)
@@ -243,7 +269,34 @@ fn xval_multiple_sells_opposite_direction() {
 // Scenario 5: Multiple buys - same direction (buy 50 DAI, buy 50 DAI)
 #[test]
 fn xval_multiple_buys_same_direction() {
+	// Baseline: no slip fees
 	TestNet::reset();
+	let mut no_slip_total = 0u128;
+	Hydra::execute_with(|| {
+		init_omnipool();
+		let trader = AccountId::from(BOB);
+		let hdx_before = hydradx_runtime::Balances::free_balance(&trader);
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(trader.clone()),
+			DAI,
+			HDX,
+			50 * UNITS,
+			u128::MAX
+		));
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(trader.clone()),
+			DAI,
+			HDX,
+			50 * UNITS,
+			u128::MAX
+		));
+		no_slip_total = hdx_before - hydradx_runtime::Balances::free_balance(&trader);
+	});
+
+	// With slip fees
+	TestNet::reset();
+	let mut trade1_cost = 0u128;
+	let mut trade2_cost = 0u128;
 
 	Hydra::execute_with(|| {
 		init_omnipool();
@@ -260,7 +313,7 @@ fn xval_multiple_buys_same_direction() {
 			50 * UNITS,
 			u128::MAX,
 		));
-		let trade1_cost = hdx_before - hydradx_runtime::Balances::free_balance(&trader);
+		trade1_cost = hdx_before - hydradx_runtime::Balances::free_balance(&trader);
 
 		// Trade 2
 		let hdx_before = hydradx_runtime::Balances::free_balance(&trader);
@@ -271,23 +324,68 @@ fn xval_multiple_buys_same_direction() {
 			50 * UNITS,
 			u128::MAX,
 		));
-		let trade2_cost = hdx_before - hydradx_runtime::Balances::free_balance(&trader);
-
-		let py_trade1: u128 = 1878291714;
-		let py_trade2: u128 = 1878291731;
-
-		assert_approx(trade1_cost, py_trade1, tol(py_trade1), "buys_same trade1");
-		assert_approx(trade2_cost, py_trade2, tol(py_trade2), "buys_same trade2");
-
-		// Second buy should cost more
-		assert!(trade2_cost > trade1_cost, "Second buy should cost more");
+		trade2_cost = hdx_before - hydradx_runtime::Balances::free_balance(&trader);
 	});
+
+	let py_trade1: u128 = 1878291714;
+	let py_trade2: u128 = 1878291731;
+
+	assert_approx(trade1_cost, py_trade1, tol(py_trade1), "buys_same trade1");
+	assert_approx(trade2_cost, py_trade2, tol(py_trade2), "buys_same trade2");
+
+	// Second buy should cost more
+	assert!(trade2_cost > trade1_cost, "Second buy should cost more");
+
+	// Slip fees must increase total cost vs baseline
+	let slip_total = trade1_cost + trade2_cost;
+	assert!(
+		slip_total > no_slip_total,
+		"Slip fees should increase total buy cost: with_slip={} no_slip={}",
+		slip_total,
+		no_slip_total
+	);
 }
 
 // Scenario 6: Multiple buys - opposite direction (buy 50 DAI, buy 50 HDX)
 #[test]
 fn xval_multiple_buys_opposite_direction() {
+	// Baseline: no slip fees
 	TestNet::reset();
+	let mut no_slip_trade1 = 0u128;
+	let mut no_slip_trade2 = 0u128;
+	Hydra::execute_with(|| {
+		init_omnipool();
+		let trader = AccountId::from(BOB);
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			trader.clone(),
+			DAI,
+			(10_000 * UNITS) as i128,
+		));
+		let hdx_before = hydradx_runtime::Balances::free_balance(&trader);
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(trader.clone()),
+			DAI,
+			HDX,
+			50 * UNITS,
+			u128::MAX
+		));
+		no_slip_trade1 = hdx_before - hydradx_runtime::Balances::free_balance(&trader);
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(trader.clone()),
+			HDX,
+			DAI,
+			50 * UNITS,
+			u128::MAX
+		));
+		no_slip_trade2 = dai_before - Currencies::free_balance(DAI, &trader);
+	});
+
+	// With slip fees
+	TestNet::reset();
+	let mut trade1_cost = 0u128;
+	let mut trade2_cost = 0u128;
 
 	Hydra::execute_with(|| {
 		init_omnipool();
@@ -311,7 +409,7 @@ fn xval_multiple_buys_opposite_direction() {
 			50 * UNITS,
 			u128::MAX,
 		));
-		let trade1_cost = hdx_before - hydradx_runtime::Balances::free_balance(&trader);
+		trade1_cost = hdx_before - hydradx_runtime::Balances::free_balance(&trader);
 
 		// Trade 2: buy 50 HDX with DAI
 		let dai_before = Currencies::free_balance(DAI, &trader);
@@ -322,14 +420,28 @@ fn xval_multiple_buys_opposite_direction() {
 			50 * UNITS,
 			u128::MAX,
 		));
-		let trade2_cost = dai_before - Currencies::free_balance(DAI, &trader);
-
-		let py_trade1: u128 = 1878291714;
-		let py_trade2: u128 = 1339230498425223571;
-
-		assert_approx(trade1_cost, py_trade1, tol(py_trade1), "buys_opp trade1");
-		assert_approx(trade2_cost, py_trade2, tol(py_trade2), "buys_opp trade2");
+		trade2_cost = dai_before - Currencies::free_balance(DAI, &trader);
 	});
+
+	let py_trade1: u128 = 1878291714;
+	let py_trade2: u128 = 1339230498425223571;
+
+	assert_approx(trade1_cost, py_trade1, tol(py_trade1), "buys_opp trade1");
+	assert_approx(trade2_cost, py_trade2, tol(py_trade2), "buys_opp trade2");
+
+	// Slip fees must increase costs vs baseline
+	assert!(
+		trade1_cost > no_slip_trade1,
+		"Slip fee should increase trade1 cost: with_slip={} no_slip={}",
+		trade1_cost,
+		no_slip_trade1
+	);
+	assert!(
+		trade2_cost > no_slip_trade2,
+		"Slip fee should increase trade2 cost: with_slip={} no_slip={}",
+		trade2_cost,
+		no_slip_trade2
+	);
 }
 
 // Scenario 7: Mixed sells and buys - mixed directions

@@ -698,10 +698,10 @@ fn slip_fee_deltas_are_cleared_across_blocks() {
 		));
 		let output_block_n = Currencies::free_balance(DAI, &trader) - dai_before;
 
-		// Advance to next block to clear deltas
+		// Advance to a new block to clear deltas
 		go_to_block(11);
 
-		// Block N+1: same trade should have fresh slip (no accumulated delta)
+		// New block: same trade should have fresh slip (no accumulated delta)
 		let dai_before = Currencies::free_balance(DAI, &trader);
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(trader.clone()),
@@ -712,14 +712,19 @@ fn slip_fee_deltas_are_cleared_across_blocks() {
 		));
 		let output_block_n1 = Currencies::free_balance(DAI, &trader) - dai_before;
 
-		// The second trade in a fresh block should produce similar output to the first
-		// (pool state changed slightly from the first trade, but slip delta is fresh).
-		// Key invariant: output_block_n1 should not be further reduced by accumulated deltas.
-		// With slip fees, the second block's output may differ slightly due to pool state changes,
-		// but should not show the monotonic decrease we'd see from accumulated intra-block deltas.
+		// If deltas carried over, the new-block trade would suffer higher slip and produce less.
+		// With cleared deltas, both trades start fresh and the pool state change from the first
+		// trade is small enough that output_block_n1 should be very close to output_block_n.
+		// We check that the new-block output is NOT significantly worse (within 1% of block N).
 		assert!(
 			output_block_n1 > 0 && output_block_n > 0,
 			"Both trades should produce output"
+		);
+		assert!(
+			output_block_n1 >= output_block_n * 99 / 100,
+			"New-block trade should not be penalized by stale deltas: block_n={} new_block={}",
+			output_block_n,
+			output_block_n1
 		);
 	});
 }
@@ -732,16 +737,51 @@ fn slip_fee_deltas_are_cleared_across_blocks() {
 fn sequential_trades_accumulate_slip_within_block() {
 	// Two same-direction trades in one block: the second should produce less
 	// output than the first due to accumulated slip fee deltas.
+	// We compare against a no-slip baseline to prove the extra reduction comes from slip fees.
+	let sell_amount = 100 * UNITS;
+
+	// Run 1: no slip fees — measure the drop from AMM state change alone
 	TestNet::reset();
+	let mut no_slip_first = 0u128;
+	let mut no_slip_second = 0u128;
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+
+		let trader = AccountId::from(BOB);
+
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(trader.clone()),
+			HDX,
+			DAI,
+			sell_amount,
+			0u128,
+		));
+		no_slip_first = Currencies::free_balance(DAI, &trader) - dai_before;
+
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(trader.clone()),
+			HDX,
+			DAI,
+			sell_amount,
+			0u128,
+		));
+		no_slip_second = Currencies::free_balance(DAI, &trader) - dai_before;
+	});
+
+	// Run 2: with slip fees
+	TestNet::reset();
+	let mut slip_first = 0u128;
+	let mut slip_second = 0u128;
 
 	Hydra::execute_with(|| {
 		init_omnipool();
 		enable_slip_fees();
 
 		let trader = AccountId::from(BOB);
-		let sell_amount = 100 * UNITS;
 
-		// Trade 1
 		let dai_before = Currencies::free_balance(DAI, &trader);
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(trader.clone()),
@@ -750,9 +790,8 @@ fn sequential_trades_accumulate_slip_within_block() {
 			sell_amount,
 			0u128,
 		));
-		let output_first = Currencies::free_balance(DAI, &trader) - dai_before;
+		slip_first = Currencies::free_balance(DAI, &trader) - dai_before;
 
-		// Trade 2 (same direction, same block → accumulated deltas increase slip)
 		let dai_before = Currencies::free_balance(DAI, &trader);
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(trader.clone()),
@@ -761,13 +800,26 @@ fn sequential_trades_accumulate_slip_within_block() {
 			sell_amount,
 			0u128,
 		));
-		let output_second = Currencies::free_balance(DAI, &trader) - dai_before;
-
-		assert!(
-			output_second < output_first,
-			"Second trade should get less output due to accumulated slip: first={} second={}",
-			output_first,
-			output_second
-		);
+		slip_second = Currencies::free_balance(DAI, &trader) - dai_before;
 	});
+
+	// Basic: second trade gets less output in both cases
+	assert!(
+		slip_second < slip_first,
+		"Second trade should get less output due to accumulated slip: first={} second={}",
+		slip_first,
+		slip_second
+	);
+
+	// The drop between first and second trade should be LARGER with slip fees than without.
+	// Without slip fees, the drop is purely from AMM pool state changes.
+	// With slip fees, the drop includes accumulated slip on top of pool state changes.
+	let no_slip_drop = no_slip_first - no_slip_second;
+	let slip_drop = slip_first - slip_second;
+	assert!(
+		slip_drop > no_slip_drop,
+		"Slip fees should cause a larger drop between sequential trades: slip_drop={} no_slip_drop={}",
+		slip_drop,
+		no_slip_drop
+	);
 }

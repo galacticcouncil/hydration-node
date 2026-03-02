@@ -990,6 +990,7 @@ pub mod pallet {
 				state_changes.fee.burned_protocol_fee,
 			)?;
 
+			// Note: protocol_fee_amount includes the slip fee component (if enabled).
 			Self::deposit_event(Event::SellExecuted {
 				who: who.clone(),
 				asset_in,
@@ -1236,6 +1237,7 @@ pub mod pallet {
 				state_changes.fee.burned_protocol_fee,
 			)?;
 
+			// Note: protocol_fee_amount includes the slip fee component (if enabled).
 			Self::deposit_event(Event::BuyExecuted {
 				who: who.clone(),
 				asset_in,
@@ -1548,13 +1550,12 @@ pub mod pallet {
 		/// Emits `SlipFeeSet` event.
 		#[pallet::call_index(16)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_slip_fee())]
-		#[transactional]
 		pub fn set_slip_fee(origin: OriginFor<T>, slip_fee: Option<SlipFeeConfig>) -> DispatchResult {
 			T::UpdateTradabilityOrigin::ensure_origin(origin)?;
 
 			if let Some(ref config) = slip_fee {
 				ensure!(
-					config.max_slip_fee <= Permill::from_percent(50),
+					config.max_slip_fee <= Permill::from_percent(90),
 					Error::<T>::MaxSlipFeeTooHigh
 				);
 			}

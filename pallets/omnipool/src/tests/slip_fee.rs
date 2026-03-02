@@ -51,9 +51,9 @@ fn set_slip_fee_unauthorized_fails() {
 }
 
 #[test]
-fn sell_with_slip_fee_disabled_is_noop() {
-	// Run a sell without slip fees and verify the output matches
-	let mut amount_without_slip = 0u128;
+fn sell_with_slip_fee_disabled_is_deterministic() {
+	// Two identical runs without slip fees produce the same output
+	let mut amount_run1 = 0u128;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -67,14 +67,13 @@ fn sell_with_slip_fee_disabled_is_noop() {
 		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			// SlipFee is None by default
 			assert!(SlipFee::<Test>::get().is_none());
 
 			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 50 * ONE, 0));
-			amount_without_slip = Tokens::free_balance(HDX, &LP1);
+			amount_run1 = Tokens::free_balance(HDX, &LP1);
 		});
 
-	let mut amount_with_slip_disabled = 0u128;
+	let mut amount_run2 = 0u128;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -88,14 +87,16 @@ fn sell_with_slip_fee_disabled_is_noop() {
 		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			// Explicitly no slip fee
 			assert!(SlipFee::<Test>::get().is_none());
 
 			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 50 * ONE, 0));
-			amount_with_slip_disabled = Tokens::free_balance(HDX, &LP1);
+			amount_run2 = Tokens::free_balance(HDX, &LP1);
 		});
 
-	assert_eq!(amount_without_slip, amount_with_slip_disabled);
+	assert_eq!(
+		amount_run1, amount_run2,
+		"Identical runs without slip fee should produce same output"
+	);
 }
 
 #[test]
@@ -552,15 +553,6 @@ fn max_cap_is_applied() {
 	);
 }
 
-// ========== Hub asset trade verification tests ==========
-//
-// Pool setup: asset 100 at price 0.65 with 2000*ONE reserve → hub_reserve = 1300*ONE
-// Asset fee = 0.25% (non-zero to test interaction with slip)
-//
-// For sell_hub (first trade in block):
-//   slip_rate = |delta_q| / (Q0 + delta_q) where delta_q = amount (LRNA entering pool)
-//   e.g. sell 50*ONE LRNA: slip_rate = 50 / (1300 + 50) ≈ 3.703%
-
 #[test]
 fn sell_hub_asset_with_fee_and_slip_verification() {
 	let sell_amount = 50 * ONE;
@@ -834,7 +826,7 @@ fn set_slip_fee_too_high_fails() {
 			Omnipool::set_slip_fee(
 				RuntimeOrigin::root(),
 				Some(SlipFeeConfig {
-					max_slip_fee: Permill::from_percent(51),
+					max_slip_fee: Permill::from_percent(91),
 				})
 			),
 			Error::<Test>::MaxSlipFeeTooHigh
