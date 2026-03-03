@@ -5,7 +5,8 @@ use amm_simulator::HydrationSimulator;
 use frame_support::assert_ok;
 use frame_support::traits::{Get, Time};
 use hydradx_runtime::{
-	ice_simulator_provider, AssetRegistry, Currencies, LazyExecutor, Router, Runtime, RuntimeOrigin, Timestamp,
+	ice_simulator_provider, AssetRegistry, Currencies, LazyExecutor, Omnipool, Router, Runtime, RuntimeOrigin,
+	Timestamp,
 };
 use hydradx_traits::amm::{AmmSimulator, SimulatorConfig, SimulatorSet};
 use hydradx_traits::router::RouteProvider;
@@ -13,7 +14,9 @@ use hydradx_traits::BoundErc20;
 use ice_solver::v1::SolverV1;
 use ice_support::Solution;
 use orml_traits::MultiCurrency;
+use pallet_omnipool::types::SlipFeeConfig;
 use primitives::AccountId;
+use sp_runtime::Permill;
 use xcm_emulator::Network;
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/mainnet_nov4";
@@ -34,6 +37,15 @@ impl Get<u32> for HollarPriceDenominator {
 	}
 }
 
+fn enable_slip_fees() {
+	assert_ok!(Omnipool::set_slip_fee(
+		RuntimeOrigin::root(),
+		Some(SlipFeeConfig {
+			max_slip_fee: Permill::from_percent(5),
+		})
+	));
+}
+
 impl SimulatorConfig for HollarSimulatorConfig {
 	type Simulators = <hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators;
 	type RouteProvider = <hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::RouteProvider;
@@ -46,11 +58,14 @@ type HollarSolver = SolverV1<HollarSimulator>;
 #[test]
 fn simulator_snapshot() {
 	TestNet::reset();
+
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		enable_slip_fees();
 		let snapshot = OmnipoolSimulator::<ice_simulator_provider::Omnipool<Runtime>>::snapshot();
 
 		assert!(!snapshot.assets.is_empty(), "Snapshot should contain assets");
 		assert!(snapshot.hub_asset_id > 0, "Hub asset id should be set");
+		assert!(snapshot.slip_fee.is_some(), "Snapshot should contain slip fees");
 	});
 }
 
@@ -58,6 +73,7 @@ fn simulator_snapshot() {
 fn simulator_sell() {
 	TestNet::reset();
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		enable_slip_fees();
 		use hydradx_traits::amm::SimulatorError;
 
 		let snapshot = OmnipoolSimulator::<ice_simulator_provider::Omnipool<Runtime>>::snapshot();
@@ -91,6 +107,29 @@ fn simulator_sell() {
 				let old_reserve_out = snapshot.assets.get(&asset_out).unwrap().reserve;
 				let new_reserve_out = new_snapshot.assets.get(&asset_out).unwrap().reserve;
 				assert!(new_reserve_out < old_reserve_out, "Asset out reserve should decrease");
+				assert!(
+					new_snapshot.slip_fee.is_some(),
+					"New snapshot should have slip fee config"
+				);
+				assert!(
+					new_snapshot.slip_fee_delta.get(&asset_in).is_some(),
+					"Asset in slip fee delta should be in snapshot"
+				);
+				assert!(
+					new_snapshot.slip_fee_delta.get(&asset_out).is_some(),
+					"Asset out slip fee delta should be in snapshot"
+				);
+				assert!(
+					new_snapshot.slip_fee_hubreserve_at_block_start.get(&asset_in).is_some(),
+					"Asset in slip fee hub reserve at block start should be in snapshot"
+				);
+				assert!(
+					new_snapshot
+						.slip_fee_hubreserve_at_block_start
+						.get(&asset_out)
+						.is_some(),
+					"Asset out slip fee hub reserve at block start should be in snapshot"
+				);
 			}
 			Err(e) => {
 				assert!(
@@ -311,6 +350,7 @@ fn solver_two_intents() {
 		.submit_sell_intent(ALICE.into(), 0, 5, 1_000_000_000_000, 17_540_000u128, 2)
 		.submit_sell_intent(BOB.into(), 5, 0, 1_000_000_000_000, 1_000_000_000_000u128, 2)
 		.execute(|| {
+			enable_slip_fees();
 			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
 			assert_eq!(intents.len(), 2, "Should have 2 intents");
 
@@ -351,6 +391,7 @@ fn solver_execute_solution1() {
 		.submit_sell_intent(alice.clone(), asset_a, asset_b, amount, min_amount_out_b, 10)
 		.submit_sell_intent(bob.clone(), asset_b, asset_a, amount, min_amount_out_a, 10)
 		.execute(|| {
+			enable_slip_fees();
 			let alice_balance_a_before = Currencies::total_balance(asset_a, &alice);
 			let alice_balance_b_before = Currencies::total_balance(asset_b, &alice);
 			let bob_balance_a_before = Currencies::total_balance(asset_a, &bob);
@@ -474,6 +515,7 @@ fn solver_execute_solution_with_buy_intents() {
 		.endow_account(alice.clone(), asset_a, alice_max_pay * 10)
 		.submit_buy_intent(alice.clone(), asset_a, asset_b, alice_max_pay, alice_wants_to_buy, 10)
 		.execute(|| {
+			enable_slip_fees();
 			let alice_balance_a_before = Currencies::total_balance(asset_a, &alice);
 			let alice_balance_b_before = Currencies::total_balance(asset_b, &alice);
 
@@ -578,6 +620,7 @@ fn solver_mixed_sell_and_buy_intents() {
 		.submit_buy_intent(dave.clone(), hdx, bnc, max_pay, buy_bnc_amount, 10)
 		.submit_sell_intent(alice.clone(), hdx, bnc, sell_hdx_amount, buy_bnc_amount, 10)
 		.execute(|| {
+			enable_slip_fees();
 			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
 			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
 			let bob_hdx_before = Currencies::total_balance(hdx, &bob);
@@ -675,6 +718,7 @@ fn solver_v1_single_intent() {
 		.endow_account(alice.clone(), hdx, amount * 10)
 		.submit_sell_intent(alice.clone(), hdx, bnc, amount, min_amount_out, 10)
 		.execute(|| {
+			enable_slip_fees();
 			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
 			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
 
@@ -783,6 +827,7 @@ fn solver_v1_two_intents_partial_cow_match() {
 		.submit_sell_intent(alice.clone(), hdx, bnc, alice_hdx_amount, 68_795_189_840u128, 10)
 		.submit_sell_intent(bob.clone(), bnc, hdx, bob_bnc_amount, 1_000_000_000_000u128, 10)
 		.execute(|| {
+			enable_slip_fees();
 			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
 			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
 			let bob_hdx_before = Currencies::total_balance(hdx, &bob);
@@ -883,6 +928,7 @@ fn solver_v1_five_mixed_intents() {
 		// Eve: buy 500 HDX with max 50 BNC (ExactOut)
 		.submit_buy_intent(eve.clone(), bnc, hdx, 50 * bnc_unit, 500 * hdx_unit, 10)
 		.execute(|| {
+			enable_slip_fees();
 			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
 			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
 			let bob_hdx_before = Currencies::total_balance(hdx, &bob);
@@ -964,6 +1010,7 @@ fn solver_v1_uniform_price_all_sells() {
 		.submit_sell_intent(dave.clone(), hdx, bnc, 100 * hdx_unit, 68_795_189_840u128, 10)
 		.submit_sell_intent(eve.clone(), hdx, bnc, 500 * hdx_unit, 68_795_189_840u128, 10) // Same as Alice
 		.execute(|| {
+			enable_slip_fees();
 			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
 			assert_eq!(intents.len(), 5, "Should have 5 intents");
 
@@ -1053,6 +1100,7 @@ fn solver_v1_uniform_price_opposite_sells() {
 		// Bob sells BNC for HDX (same direction as Eve)
 		.submit_sell_intent(bob.clone(), bnc, hdx, 200 * bnc_unit, 1_000_000_000_000u128, 10)
 		.execute(|| {
+			enable_slip_fees();
 			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
 			assert_eq!(intents.len(), 3, "Should have 3 intents");
 
@@ -1138,6 +1186,7 @@ fn intent_with_on_success_callback() {
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(alice.clone(), bnc, 10 * bnc_unit)
 		.execute(|| {
+			enable_slip_fees();
 			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
 			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
 			let bob_hdx_before = Currencies::total_balance(hdx, &bob);
@@ -1256,6 +1305,7 @@ fn usdt_weth_single_intent() {
 		.endow_account(alice.clone(), usdt, amount_in * 10)
 		.submit_sell_intent(alice.clone(), usdt, weth, amount_in, min_amount_out, 10)
 		.execute(|| {
+			enable_slip_fees();
 			let alice_usdt_before = Currencies::total_balance(usdt, &alice);
 			let alice_weth_before = Currencies::total_balance(weth, &alice);
 
@@ -1376,6 +1426,7 @@ fn usdt_weth_solver_vs_router() {
 		.endow_account(bob.clone(), usdt, amount_in * 10)
 		.submit_sell_intent(alice.clone(), usdt, weth, amount_in, 5_390_835_579_515u128, 10)
 		.execute(|| {
+			enable_slip_fees();
 			// ========== SOLVER PATH (Alice) ==========
 			let alice_usdt_before = Currencies::total_balance(usdt, &alice);
 			let alice_weth_before = Currencies::total_balance(weth, &alice);
@@ -1479,6 +1530,7 @@ fn usdt_weth_two_opposing_intents() {
 		// Bob: sell WETH for USDT (opposite direction)
 		.submit_sell_intent(bob.clone(), weth, usdt, bob_weth_amount, 10_000, 10)
 		.execute(|| {
+			enable_slip_fees();
 			let alice_weth_before = Currencies::total_balance(weth, &alice);
 			let bob_usdt_before = Currencies::total_balance(usdt, &bob);
 
@@ -1549,6 +1601,7 @@ fn eth_3pool_single_intent() {
 			10,
 		)
 		.execute(|| {
+			enable_slip_fees();
 			let alice_eth_before = Currencies::total_balance(eth, &alice);
 			let alice_3pool_before = Currencies::total_balance(pool3, &alice);
 
@@ -1618,6 +1671,7 @@ fn eth_3pool_solver_vs_router() {
 			10,
 		)
 		.execute(|| {
+			enable_slip_fees();
 			// ========== SOLVER PATH (Alice) ==========
 			let alice_eth_before = Currencies::total_balance(eth, &alice);
 			let alice_3pool_before = Currencies::total_balance(pool3, &alice);
@@ -1737,6 +1791,7 @@ fn _eth_3pool_two_opposing_intents() {
 			10,
 		)
 		.execute(|| {
+			enable_slip_fees();
 			let alice_3pool_before = Currencies::total_balance(pool3, &alice);
 			let bob_eth_before = Currencies::total_balance(eth, &bob);
 

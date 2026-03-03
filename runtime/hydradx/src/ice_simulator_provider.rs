@@ -49,6 +49,10 @@ impl<T: pallet_omnipool::Config<AssetId = AssetId>> OmnipoolDataProvider for Omn
 	fn max_out_ratio() -> Balance {
 		T::MaxOutRatio::get()
 	}
+
+	fn slip_fee() -> Option<pallet_omnipool::types::SlipFeeConfig> {
+		pallet_omnipool::pallet::SlipFee::<T>::get()
+	}
 }
 
 use amm_simulator::stableswap::DataProvider as StableswapDataProvider;

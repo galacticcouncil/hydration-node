@@ -3,6 +3,8 @@
 use codec::Decode;
 use codec::Encode;
 use core::marker::PhantomData;
+use hydra_dx_math::omnipool::types::SignedBalance;
+use hydra_dx_math::omnipool::types::TradeSlipFees;
 use hydra_dx_math::support::rational::round_to_rational;
 use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::types::Ratio;
@@ -14,6 +16,7 @@ use ice_support::AssetId;
 use ice_support::Balance;
 use pallet_omnipool::types::AssetReserveState;
 use pallet_omnipool::types::AssetState;
+use pallet_omnipool::types::SlipFeeConfig;
 use pallet_omnipool::types::Tradability;
 use primitive_types::U256;
 use sp_runtime::traits::Zero;
@@ -38,6 +41,8 @@ pub trait DataProvider {
 	fn max_in_ratio() -> Balance;
 
 	fn max_out_ratio() -> Balance;
+
+	fn slip_fee() -> Option<SlipFeeConfig>;
 }
 
 /// Snapshot of Omnipool state for simulation purposes.
@@ -59,6 +64,12 @@ pub struct OmnipoolSnapshot {
 	pub max_in_ratio: Balance,
 	/// Max out ratio
 	pub max_out_ratio: Balance,
+	/// Global slip fee configuration.
+	pub slip_fee: Option<SlipFeeConfig>,
+	/// Snapshot of each asset's hub_reserve at the start of the current block.
+	pub slip_fee_hubreserve_at_block_start: BTreeMap<AssetId, Balance>,
+	/// Cumulative net hub asset delta per asset in the current block.
+	pub slip_fee_delta: BTreeMap<AssetId, SignedBalance>,
 }
 
 impl OmnipoolSnapshot {
@@ -76,6 +87,56 @@ impl OmnipoolSnapshot {
 	pub fn with_updated_asset(mut self, asset_id: AssetId, state: AssetReserveState<Balance>) -> Self {
 		self.assets.insert(asset_id, state);
 		self
+	}
+
+	pub fn with_q0(mut self, asset_id: AssetId, hub_reserve: Balance) -> Self {
+		self.slip_fee_hubreserve_at_block_start.insert(asset_id, hub_reserve);
+		self
+	}
+
+	pub fn with_slip_delta(mut self, asset_id: AssetId, delta: SignedBalance) -> Self {
+		self.slip_fee_delta.insert(asset_id, delta);
+		self
+	}
+
+	pub fn load_trade_slip_fees(
+		&self,
+		asset_in: AssetId,
+		asset_in_hub_reserve: Balance,
+		asset_out: AssetId,
+		asset_out_hub_reserve: Balance,
+	) -> Option<TradeSlipFees> {
+		let cfg = self.slip_fee.clone()?;
+
+		Some(TradeSlipFees {
+			asset_in_hub_reserve: *self
+				.slip_fee_hubreserve_at_block_start
+				.get(&asset_in)
+				.unwrap_or(&asset_in_hub_reserve),
+			asset_in_delta: *self.slip_fee_delta.get(&asset_in).unwrap_or(&SignedBalance::default()),
+			asset_out_hub_reserve: *self
+				.slip_fee_hubreserve_at_block_start
+				.get(&asset_out)
+				.unwrap_or(&asset_out_hub_reserve),
+			asset_out_delta: *self.slip_fee_delta.get(&asset_out).unwrap_or(&SignedBalance::default()),
+			max_slip_fee: cfg.max_slip_fee,
+		})
+	}
+
+	pub fn get_updated_fee_delta(
+		&self,
+		asset_in: AssetId,
+		delta_hub_in: Balance,
+		asset_out: AssetId,
+		delta_hub_out: Balance,
+	) -> Option<(SignedBalance, SignedBalance)> {
+		let d_in = (*self.slip_fee_delta.get(&asset_in).unwrap_or(&SignedBalance::default()))
+			.checked_add(SignedBalance::Negative(delta_hub_in))?;
+
+		let d_out = (*self.slip_fee_delta.get(&asset_out).unwrap_or(&SignedBalance::default()))
+			.checked_add(SignedBalance::Positive(delta_hub_out))?;
+
+		Some((d_in, d_out))
 	}
 }
 
@@ -110,6 +171,10 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			min_trading_limit: DP::min_trading_limit(),
 			max_in_ratio: DP::max_in_ratio(),
 			max_out_ratio: DP::max_out_ratio(),
+			slip_fee: DP::slip_fee(),
+			//NOTE: these are per block and solver is always first in the block so they should be empty
+			slip_fee_hubreserve_at_block_start: BTreeMap::new(),
+			slip_fee_delta: BTreeMap::new(),
 		}
 	}
 
@@ -157,6 +222,13 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		let (_, protocol_fee) = snapshot.get_fees(asset_in);
 		let withdraw_fee = Permill::from_percent(0); // Not used in trades
 
+		let slip = snapshot.load_trade_slip_fees(
+			asset_in,
+			asset_in_state.hub_reserve,
+			asset_out,
+			asset_out_state.hub_reserve,
+		);
+
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 			&asset_in_state.into(),
 			&asset_out_state.into(),
@@ -164,6 +236,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			asset_fee,
 			protocol_fee,
 			withdraw_fee,
+			slip.as_ref(),
 		)
 		.ok_or(SimulatorError::MathError)?;
 
@@ -189,10 +262,27 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		let new_asset_in_state = apply_state_changes(asset_in_state, &state_changes.asset_in)?;
 		let new_asset_out_state = apply_state_changes(asset_out_state, &state_changes.asset_out)?;
 
-		let new_snapshot = snapshot
+		let mut new_snapshot = snapshot
 			.clone()
 			.with_updated_asset(asset_in, new_asset_in_state)
 			.with_updated_asset(asset_out, new_asset_out_state);
+
+		if let Some(s_fees) = slip {
+			let (d_in, d_out) = snapshot
+				.get_updated_fee_delta(
+					asset_in,
+					*state_changes.asset_in.delta_hub_reserve,
+					asset_out,
+					*state_changes.asset_out.delta_hub_reserve,
+				)
+				.ok_or(SimulatorError::Other)?;
+
+			new_snapshot = new_snapshot
+				.with_q0(asset_in, s_fees.asset_in_hub_reserve)
+				.with_q0(asset_out, s_fees.asset_out_hub_reserve)
+				.with_slip_delta(asset_in, d_in)
+				.with_slip_delta(asset_out, d_out);
+		}
 
 		Ok((new_snapshot, TradeResult::new(amount_in, amount_out)))
 	}
@@ -226,6 +316,13 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		let (_, protocol_fee) = snapshot.get_fees(asset_in);
 		let withdraw_fee = Permill::from_percent(0); // Not used in trades
 
+		let slip = snapshot.load_trade_slip_fees(
+			asset_in,
+			asset_in_state.hub_reserve,
+			asset_out,
+			asset_out_state.hub_reserve,
+		);
+
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 			&asset_in_state.into(),
 			&asset_out_state.into(),
@@ -233,6 +330,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			asset_fee,
 			protocol_fee,
 			withdraw_fee,
+			slip.as_ref(),
 		)
 		.ok_or(SimulatorError::MathError)?;
 
@@ -267,10 +365,27 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		let new_asset_in_state = apply_state_changes(asset_in_state, &state_changes.asset_in)?;
 		let new_asset_out_state = apply_state_changes(asset_out_state, &state_changes.asset_out)?;
 
-		let new_snapshot = snapshot
+		let mut new_snapshot = snapshot
 			.clone()
 			.with_updated_asset(asset_in, new_asset_in_state)
 			.with_updated_asset(asset_out, new_asset_out_state);
+
+		if let Some(s_fees) = slip {
+			let (d_in, d_out) = snapshot
+				.get_updated_fee_delta(
+					asset_in,
+					*state_changes.asset_in.delta_hub_reserve,
+					asset_out,
+					*state_changes.asset_out.delta_hub_reserve,
+				)
+				.ok_or(SimulatorError::Other)?;
+
+			new_snapshot = new_snapshot
+				.with_q0(asset_in, s_fees.asset_in_hub_reserve)
+				.with_q0(asset_out, s_fees.asset_out_hub_reserve)
+				.with_slip_delta(asset_in, d_in)
+				.with_slip_delta(asset_out, d_out);
+		}
 
 		Ok((new_snapshot, TradeResult::new(amount_in, amount_out)))
 	}
