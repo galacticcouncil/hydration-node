@@ -19,6 +19,7 @@
 #![allow(clippy::upper_case_acronyms)]
 
 pub mod amm;
+pub mod circuit_breaker;
 pub mod evm;
 pub mod fee;
 pub mod lazy_executor;

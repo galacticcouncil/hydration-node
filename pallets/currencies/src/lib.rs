@@ -54,9 +54,9 @@ use frame_system::{ensure_root, ensure_signed, pallet_prelude::*};
 use hydradx_traits::{AssetKind, BoundErc20};
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
-	currency::TransferAll,
+	currency::{OnTransfer, TransferAll},
 	BalanceStatus, BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency, GetByKey,
-	LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
+	Handler, LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
 	NamedBasicReservableCurrency, NamedMultiReservableCurrency,
 };
 use orml_utilities::with_transaction_result;
@@ -121,6 +121,9 @@ pub mod module {
 
 		/// Registry inspection provider (e.g., asset registry) decoupled via trait.
 		type RegistryInspect: hydradx_traits::registry::Inspect<AssetId = CurrencyIdOf<Self>>;
+
+		/// Egress handler for tracking token outflows.
+		type EgressHandler: AssetWithdrawHandler<Self::AccountId, CurrencyIdOf<Self>, BalanceOf<Self>>;
 
 		/// Weight information for extrinsics in this module.
 		type WeightInfo: WeightInfo;
@@ -312,6 +315,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if amount.is_zero() || from == to {
 			return Ok(());
 		}
+
 		#[cfg(any(feature = "try-runtime", test))]
 		let (initial_source_balance, initial_dest_balance) = {
 			(
@@ -328,6 +332,20 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 				None => T::MultiCurrency::transfer(currency_id, from, to, amount, existence_requirement)?,
 			};
 		}
+
+		<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnTransfer::on_transfer(
+			currency_id,
+			from,
+			to,
+			amount
+		)?;
+
+		<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnDeposit::handle(&(
+			currency_id,
+			amount,
+			Some(from.clone()),
+		))?;
+
 		Self::deposit_event(Event::Transferred {
 			currency_id,
 			from: from.clone(),
@@ -365,6 +383,13 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 				None => T::MultiCurrency::deposit(currency_id, who, amount)?,
 			}
 		}
+
+		<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnDeposit::handle(&(
+			currency_id,
+			amount,
+			None,
+		))?;
+
 		Self::deposit_event(Event::Deposited {
 			currency_id,
 			who: who.clone(),
@@ -382,6 +407,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if amount.is_zero() {
 			return Ok(());
 		}
+
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::withdraw(who, amount, existence_requirement)?;
 		} else {
@@ -390,6 +416,11 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 				None => T::MultiCurrency::withdraw(currency_id, who, amount, existence_requirement)?,
 			}
 		}
+
+		<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnWithdraw::handle(
+			&(currency_id, amount),
+		)?;
+
 		Self::deposit_event(Event::Withdrawn {
 			currency_id,
 			who: who.clone(),
@@ -1037,6 +1068,7 @@ impl<T: Config> TransferAll<T::AccountId> for Pallet<T> {
 
 use frame_support::traits::fungible::{Dust, Inspect, Mutate, Unbalanced};
 use frame_support::traits::tokens::{DepositConsequence, Fortitude, Preservation, Provenance, WithdrawConsequence};
+use hydradx_traits::circuit_breaker::AssetWithdrawHandler;
 
 impl<T: Config, AccountId, Currency, Amount, Moment> Inspect<AccountId>
 	for BasicCurrencyAdapter<T, Currency, Amount, Moment>
@@ -1233,4 +1265,11 @@ impl<T: Config> BoundErc20 for MockBoundErc20<T> {
 	fn contract_address(_id: Self::AssetId) -> Option<EvmAddress> {
 		None
 	}
+}
+
+pub struct MockEgressHandler<T>(PhantomData<T>);
+impl<T: Config> AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>> for MockEgressHandler<T> {
+	type OnWithdraw = ();
+	type OnDeposit = ();
+	type OnTransfer = ();
 }

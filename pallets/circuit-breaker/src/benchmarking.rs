@@ -21,7 +21,7 @@ use super::*;
 
 use crate::types::BenchmarkHelper;
 use frame_benchmarking::{account, benchmarks};
-use frame_support::traits::Hooks;
+use frame_support::{assert_ok, traits::Hooks};
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
 
@@ -48,7 +48,28 @@ fn whitelist_storage_maps<T: Config>() {
 
 benchmarks! {
 	 where_clause {
-		where T::AssetId: From<u32>,
+		where
+			T::AssetId: From<u32>,
+			T: pallet_timestamp::Config<Moment = u64>
+	}
+
+	on_initialize_skip_lockdown_lifting {
+		let block_num: BlockNumberFor<T> = 1u32.into();
+		frame_system::Pallet::<T>::set_block_number(block_num);
+	}: { Pallet::<T>::on_initialize(block_num); }
+	verify {}
+
+	on_initialize_lift_lockdown {
+		let block_num = frame_system::Pallet::<T>::block_number();
+
+		let until = crate::Pallet::<T>::timestamp_now() + (primitives::constants::time::MILLISECS_PER_BLOCK * 4);
+		assert_ok!(crate::Pallet::<T>::set_global_withdraw_lockdown(RawOrigin::Root.into(), until));
+
+		pallet_timestamp::Pallet::<T>::set_timestamp(until);
+		assert!(crate::Pallet::<T>::withdraw_lockdown_until().is_some());
+	}: { Pallet::<T>::on_initialize(block_num); }
+	verify {
+		assert!(crate::Pallet::<T>::withdraw_lockdown_until().is_none());
 	}
 
 	on_finalize {
@@ -138,6 +159,72 @@ benchmarks! {
 	}: _(RawOrigin::Root, asset_id, trade_limit)
 	verify {
 		assert_eq!(LiquidityRemoveLimitPerAsset::<T>::get(asset_id), trade_limit);
+	}
+
+	set_global_withdraw_limit {
+		let balance = T::Balance::from(1_000_000u32);
+	}: _(RawOrigin::Root, balance)
+	verify {
+		assert_eq!(crate::Pallet::<T>::global_withdraw_limit(), Some(balance));
+	}
+
+	reset_withdraw_lockdown {
+		let now = crate::Pallet::<T>::timestamp_now();
+		let init_value = (T::Balance::from(1_000_000u32), now - 1);
+		WithdrawLimitAccumulator::<T>::put(init_value);
+		WithdrawLockdownUntil::<T>::put(now);
+	}: _(RawOrigin::Root)
+	verify {
+		assert!(crate::Pallet::<T>::withdraw_lockdown_until().is_none());
+		assert_eq!(crate::Pallet::<T>::withdraw_limit_accumulator(), (T::Balance::zero(), now));
+	}
+
+	set_global_withdraw_lockdown {
+		let until = crate::Pallet::<T>::timestamp_now() + 1;
+	}: _(RawOrigin::Root, until)
+	verify {
+		assert_eq!(crate::Pallet::<T>::withdraw_lockdown_until(), Some(until));
+	}
+
+	add_egress_accounts {
+		let n in 0 .. 100;
+		let mut accounts: Vec<T::AccountId> = Vec::with_capacity(n as usize);
+		for i in 0..n {
+			// deterministic accounts; any method ok
+			let acc: T::AccountId = frame_benchmarking::account("egress", i, 0);
+			accounts.push(acc);
+		}
+	}: _(RawOrigin::Root, accounts) // or the proper AuthorityOrigin if not Root
+	verify {
+		// spot check: last inserted exists
+		if n > 0 {
+			let last = frame_benchmarking::account::<T::AccountId>("egress", n-1, 0);
+			assert!(EgressAccounts::<T>::contains_key(last));
+		}
+	}
+
+	remove_egress_accounts {
+		let n in 0 .. 100;
+		let mut accounts: Vec<T::AccountId> = Vec::with_capacity(n as usize);
+		for i in 0..n {
+			let acc: T::AccountId = frame_benchmarking::account("egress", i, 0);
+			EgressAccounts::<T>::insert(&acc, ());
+			accounts.push(acc);
+		}
+	}: _(RawOrigin::Root, accounts)
+	verify {
+		if n > 0 {
+			let last = frame_benchmarking::account::<T::AccountId>("egress", n-1, 0);
+			assert!(!EgressAccounts::<T>::contains_key(last));
+		}
+	}
+
+	set_asset_category {
+		let asset_id = T::AssetId::from(0u32);
+		let expected_category = Some(GlobalAssetCategory::Local);
+	}: _(RawOrigin::Root, asset_id, expected_category.clone())
+	verify {
+		assert_eq!(crate::Pallet::<T>::global_asset_overrides(asset_id), expected_category);
 	}
 
 	ensure_add_liquidity_limit {
