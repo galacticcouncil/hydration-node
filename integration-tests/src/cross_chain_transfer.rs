@@ -1000,9 +1000,9 @@ fn register_dot() {
 	));
 }
 
-pub(crate) fn register_hollar() {
+fn register_hollar() {
 	assert_ok!(AssetRegistry::register_sufficient_asset(
-		Some(HOLLAR),
+		Some(222),
 		Some(b"HOLLAR".to_vec().try_into().unwrap()),
 		AssetKind::Token,
 		1_000_000,
@@ -1013,7 +1013,7 @@ pub(crate) fn register_hollar() {
 	));
 }
 
-pub(crate) fn add_currency_price(asset_id: u32, price: FixedU128) {
+fn add_currency_price(asset_id: u32, price: FixedU128) {
 	assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 		hydradx_runtime::RuntimeOrigin::root(),
 		asset_id,
