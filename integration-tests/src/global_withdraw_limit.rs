@@ -2,10 +2,10 @@
 
 use crate::evm::{gas_price, init_omnipool_with_oracle_for_block_10};
 use crate::polkadot_test_net::*;
+use frame_support::storage::with_transaction;
 use frame_support::weights::Weight;
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_runtime::{AssetRegistry, CircuitBreaker, RuntimeCall, DOT_ASSET_LOCATION, EVM};
-use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_circuit_breaker::GlobalAssetCategory;
 use pallet_transaction_payment::OnChargeTransaction;
@@ -15,7 +15,7 @@ use primitives::constants::time::unix_time::DAY;
 use primitives::constants::time::MILLISECS_PER_BLOCK;
 use sp_core::U256;
 use sp_runtime::traits::Dispatchable;
-use sp_runtime::FixedU128;
+use sp_runtime::{DispatchResult, FixedU128, TransactionOutcome};
 use xcm_emulator::TestExt;
 use xcm_executor::traits::{ConvertLocation, TransferType};
 
@@ -560,16 +560,40 @@ fn transfer_to_sink_should_be_accounted_for_participating_assets() {
 		);
 
 		// 2. Local HOLLAR -> Accounted (Override HOLLAR to Local)
+		let _ = with_transaction(|| {
+			crate::cross_chain_transfer::register_hollar();
+			crate::cross_chain_transfer::add_currency_price(222, FixedU128::from(1));
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+		assert_ok!(hydradx_runtime::Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			HOLLAR,
+			100_000_000_000_000,
+			0,
+		));
+
 		assert_ok!(CircuitBreaker::set_asset_category(
 			hydradx_runtime::RuntimeOrigin::root(),
 			HOLLAR,
 			Some(GlobalAssetCategory::Local)
 		));
-		assert_ok!(Currencies::transfer(
+
+		assert_ok!(hydradx_runtime::XTokens::transfer(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			sink.clone(),
-			HOLLAR,
-			amount
+			222,
+			30 * UNITS,
+			Box::new(
+				Location::new(
+					1,
+					[
+						Junction::Parachain(ACALA_PARA_ID),
+						Junction::AccountId32 { id: BOB, network: None }
+					]
+				)
+				.into_versioned()
+			),
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 		let accumulator_after_local = CircuitBreaker::withdraw_limit_accumulator().0;
 		assert!(
