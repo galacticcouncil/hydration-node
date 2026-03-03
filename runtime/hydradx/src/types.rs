@@ -17,6 +17,5 @@ pub type LastBlockOraclePrice =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, LastBlockPeriod>;
 pub type ShortOraclePrice =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ShortPeriod>;
-
 pub type TenMinutesOraclePrice =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, TenMinutesPeriod>;
