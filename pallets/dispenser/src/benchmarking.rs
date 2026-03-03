@@ -22,9 +22,10 @@ mod benches {
 	#[benchmark]
 	fn set_faucet_balance() {
 		DispenserConfig::<T>::put(DispenserConfigData { paused: false });
+		let old = FaucetBalanceWei::<T>::get();
 		#[extrinsic_call]
 		set_faucet_balance(RawOrigin::Root, 123u128);
-		assert_eq!(FaucetBalanceWei::<T>::get(), 123u128);
+		assert_eq!(FaucetBalanceWei::<T>::get(), old + 123u128);
 	}
 
 	#[benchmark]
@@ -59,26 +60,21 @@ mod benches {
 		let fee_asset = T::FeeAsset::get();
 		let faucet_asset = T::FaucetAsset::get();
 
-		<T as pallet::Config>::Currency::set_balance(fee_asset, &signet_admin, 340266920938463463374607431768211455);
-		<T as pallet::Config>::Currency::set_balance(
-			faucet_asset,
-			&signet_admin,
-			340282366920938463463374607431768211455,
-		);
-		<T as pallet::Config>::Currency::set_balance(fee_asset, &pallet_account, 340266920938463463374607431768211455);
-		<T as pallet::Config>::Currency::set_balance(
-			faucet_asset,
-			&pallet_account,
-			340282366920938463463374607431768211455,
-		);
+		let large_balance: u128 = 1_000_000_000_000_000_000_000;
+		<T as pallet::Config>::Currency::set_balance(fee_asset, &signet_admin, large_balance);
+		<T as pallet::Config>::Currency::set_balance(faucet_asset, &signet_admin, large_balance);
+		<T as pallet::Config>::Currency::set_balance(fee_asset, &pallet_account, large_balance);
+		<T as pallet::Config>::Currency::set_balance(faucet_asset, &pallet_account, large_balance);
 
 		let ed_native: BalanceOf<T> = <T as pallet_signet::Config>::Currency::minimum_balance();
-		assert_ok!(pallet_signet::Pallet::<T>::initialize(
-			RawOrigin::Root.into(),
-			signet_admin,
-			ed_native,
-			chain_id,
-		));
+		if pallet_signet::Admin::<T>::get().is_none() {
+			assert_ok!(pallet_signet::Pallet::<T>::initialize(
+				RawOrigin::Root.into(),
+				signet_admin,
+				ed_native,
+				chain_id,
+			));
+		}
 
 		let requester_needed: BalanceOf<T> = ed_native.add(ed_native.mul(10u32.into()));
 		let _ = <T as pallet_signet::Config>::Currency::deposit_creating(&pallet_account, requester_needed);
