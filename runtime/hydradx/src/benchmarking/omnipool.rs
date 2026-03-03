@@ -17,7 +17,7 @@ use frame_system::RawOrigin;
 use hydradx_traits::router::{PoolType, TradeExecution};
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use pallet_omnipool::types::Tradability;
+use pallet_omnipool::types::{SlipFeeConfig, Tradability};
 use pallet_referrals::ReferralCode;
 
 pub fn update_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
@@ -396,6 +396,12 @@ runtime_benchmarks! {
 	verify {
 		let asset_state = Omnipool::assets(DAI).unwrap();
 		assert!(asset_state.cap == 100_000_000_000_000_000u128);
+	}
+
+	set_slip_fee {
+	}: { Omnipool::set_slip_fee(RawOrigin::Root.into(), Some(SlipFeeConfig { max_slip_fee: Permill::from_percent(50) }))? }
+	verify {
+		assert!(pallet_omnipool::SlipFee::<Runtime>::get().is_some());
 	}
 
 	withdraw_protocol_liquidity {

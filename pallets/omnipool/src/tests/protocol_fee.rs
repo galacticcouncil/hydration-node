@@ -334,6 +334,10 @@ fn hub_reserve_invariant_should_hold_after_multiple_hdx_trades() {
 		.with_protocol_fee(Permill::from_percent(10))
 		.build()
 		.execute_with(|| {
+			SlipFee::<Test>::put(SlipFeeConfig {
+				max_slip_fee: Permill::from_parts(1000), // 0.1% cap
+			});
+
 			let initial_hub_token_supply = Tokens::total_issuance(LRNA);
 
 			for _ in 0..3 {
