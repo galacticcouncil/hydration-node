@@ -1,10 +1,11 @@
 #![cfg(test)]
 
-use crate::evm::init_omnipool_with_oracle_for_block_10;
+use crate::evm::{gas_price, init_omnipool_with_oracle_for_block_10};
 use crate::polkadot_test_net::*;
 use frame_support::weights::Weight;
 use frame_support::{assert_err, assert_noop, assert_ok};
-use hydradx_runtime::{AssetRegistry, CircuitBreaker, RuntimeCall, DOT_ASSET_LOCATION};
+use hydradx_runtime::{AssetRegistry, CircuitBreaker, RuntimeCall, DOT_ASSET_LOCATION, EVM};
+use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_circuit_breaker::GlobalAssetCategory;
 use pallet_transaction_payment::OnChargeTransaction;
@@ -12,6 +13,7 @@ use polkadot_xcm::v5::prelude::*;
 use polkadot_xcm::{VersionedAssetId, VersionedXcm};
 use primitives::constants::time::unix_time::DAY;
 use primitives::constants::time::MILLISECS_PER_BLOCK;
+use sp_core::U256;
 use sp_runtime::traits::Dispatchable;
 use sp_runtime::FixedU128;
 use xcm_emulator::TestExt;
@@ -322,6 +324,75 @@ fn on_charge_transaction_skips_global_withdraw_accounting_for_external_asset() {
 }
 
 #[test]
+fn evm_on_charge_transaction_skips_global_withdraw_accounting() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+
+		// Arrange
+		let evm_addr = evm_address();
+		let evm_account = hydradx_runtime::EVMAccounts::truncated_account_id(evm_addr);
+
+		// Ensure WETH has sufficient balance for the EVM account
+		assert_ok!(Currencies::deposit(WETH, &evm_account, 100 * UNITS));
+
+		// Set WETH as External to make it a participating asset
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			WETH,
+			Some(GlobalAssetCategory::External)
+		));
+
+		// Activate global lockdown
+		let now = CircuitBreaker::timestamp_now();
+		assert_ok!(CircuitBreaker::set_global_withdraw_lockdown(
+			hydradx_runtime::RuntimeOrigin::root(),
+			now + 1000
+		));
+
+		let initial_balance = Currencies::free_balance(WETH, &evm_account);
+
+		// Act - Make an EVM call that will charge fees
+		// Simple transfer to self with some data
+		assert_ok!(EVM::call(
+			evm_signed_origin(evm_addr),
+			evm_addr,
+			evm_addr,
+			vec![1, 2, 3],
+			U256::from(0),
+			100000,
+			gas_price(),
+			None,
+			Some(U256::zero()),
+			[].into(),
+			vec![],
+		));
+
+		// Assert
+		// Fee should be charged from WETH balance
+		let after_balance = Currencies::free_balance(WETH, &evm_account);
+		assert!(after_balance < initial_balance, "EVM fee should be charged");
+
+		// Verify global-withdraw accounting was skipped for the EVM fee withdraw
+		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
+
+		// Also assert lockdown is still active
+		assert!(CircuitBreaker::withdraw_lockdown_until().is_some());
+
+		// Negative control: normal (non-fee) operations with participating asset are blocked during lockdown
+		assert_err!(
+			Currencies::withdraw(
+				WETH,
+				&evm_account,
+				1 * UNITS,
+				frame_support::traits::ExistenceRequirement::AllowDeath
+			),
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::WithdrawLockdownActive
+		);
+	});
+}
+
+#[test]
 fn xcm_transfer_assets_blocked_during_lockdown() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
@@ -470,7 +541,7 @@ fn transfer_to_sink_should_be_accounted_for_participating_assets() {
 			"Accumulator should increase for External transfer to sink"
 		);
 
-		// 2. Local -> Accounted (Override HDX to Local)
+		// 2. Local native -> Accounted (Override HDX to Local)
 		assert_ok!(CircuitBreaker::set_asset_category(
 			hydradx_runtime::RuntimeOrigin::root(),
 			HDX,
@@ -482,10 +553,28 @@ fn transfer_to_sink_should_be_accounted_for_participating_assets() {
 			HDX,
 			amount
 		));
+		let accumulator_after_local_native = CircuitBreaker::withdraw_limit_accumulator().0;
+		assert!(
+			accumulator_after_local_native > accumulator_after_ext,
+			"Accumulator should increase for Local transfer to sink"
+		);
+
+		// 2. Local HOLLAR -> Accounted (Override HOLLAR to Local)
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			HOLLAR,
+			Some(GlobalAssetCategory::Local)
+		));
+		assert_ok!(Currencies::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			sink.clone(),
+			HOLLAR,
+			amount
+		));
 		let accumulator_after_local = CircuitBreaker::withdraw_limit_accumulator().0;
 		assert!(
-			accumulator_after_local > accumulator_after_ext,
-			"Accumulator should increase for Local transfer to sink"
+			accumulator_after_local > accumulator_after_local_native,
+			"Accumulator should increase for Local HOLLAR transfer to sink"
 		);
 	});
 }
