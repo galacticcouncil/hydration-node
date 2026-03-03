@@ -126,7 +126,6 @@ pub fn parachain_reserve_account() -> AccountId {
 }
 
 pub const HDX: AssetId = 0;
-pub const HOLLAR: AssetId = 222;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 3;

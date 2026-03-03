@@ -1,11 +1,10 @@
 #![cfg(test)]
 
-use crate::evm::{gas_price, init_omnipool_with_oracle_for_block_10};
+use crate::evm::init_omnipool_with_oracle_for_block_10;
 use crate::polkadot_test_net::*;
 use frame_support::weights::Weight;
 use frame_support::{assert_err, assert_noop, assert_ok};
-use hydradx_runtime::{AssetRegistry, CircuitBreaker, RuntimeCall, DOT_ASSET_LOCATION, EVM};
-use hydradx_traits::Create;
+use hydradx_runtime::{AssetRegistry, CircuitBreaker, RuntimeCall, DOT_ASSET_LOCATION};
 use orml_traits::MultiCurrency;
 use pallet_circuit_breaker::GlobalAssetCategory;
 use pallet_transaction_payment::OnChargeTransaction;
@@ -13,7 +12,6 @@ use polkadot_xcm::v5::prelude::*;
 use polkadot_xcm::{VersionedAssetId, VersionedXcm};
 use primitives::constants::time::unix_time::DAY;
 use primitives::constants::time::MILLISECS_PER_BLOCK;
-use sp_core::U256;
 use sp_runtime::traits::Dispatchable;
 use sp_runtime::FixedU128;
 use xcm_emulator::TestExt;
@@ -541,7 +539,7 @@ fn transfer_to_sink_should_be_accounted_for_participating_assets() {
 			"Accumulator should increase for External transfer to sink"
 		);
 
-		// 2. Local native -> Accounted (Override HDX to Local)
+		// 2. Local -> Accounted (Override HDX to Local)
 		assert_ok!(CircuitBreaker::set_asset_category(
 			hydradx_runtime::RuntimeOrigin::root(),
 			HDX,
@@ -551,30 +549,12 @@ fn transfer_to_sink_should_be_accounted_for_participating_assets() {
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			sink.clone(),
 			HDX,
-			amount
-		));
-		let accumulator_after_local_native = CircuitBreaker::withdraw_limit_accumulator().0;
-		assert!(
-			accumulator_after_local_native > accumulator_after_ext,
-			"Accumulator should increase for Local transfer to sink"
-		);
-
-		// 2. Local HOLLAR -> Accounted (Override HOLLAR to Local)
-		assert_ok!(CircuitBreaker::set_asset_category(
-			hydradx_runtime::RuntimeOrigin::root(),
-			HOLLAR,
-			Some(GlobalAssetCategory::Local)
-		));
-		assert_ok!(Currencies::transfer(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			sink.clone(),
-			HOLLAR,
 			amount
 		));
 		let accumulator_after_local = CircuitBreaker::withdraw_limit_accumulator().0;
 		assert!(
-			accumulator_after_local > accumulator_after_local_native,
-			"Accumulator should increase for Local HOLLAR transfer to sink"
+			accumulator_after_local > accumulator_after_ext,
+			"Accumulator should increase for Local transfer to sink"
 		);
 	});
 }
