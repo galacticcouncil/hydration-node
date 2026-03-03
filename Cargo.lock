@@ -10574,6 +10574,7 @@ dependencies = [
  "ice-solver",
  "ice-support",
  "log",
+ "num-traits",
  "orml-tokens",
  "orml-traits",
  "pallet-broadcast",

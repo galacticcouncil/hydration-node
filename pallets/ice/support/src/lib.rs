@@ -113,6 +113,12 @@ impl IntentData {
 			},
 		}
 	}
+
+	pub fn swap_type(&self) -> SwapType {
+		let IntentData::Swap(s) = &self;
+
+		s.swap_type
+	}
 }
 
 #[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -125,10 +131,33 @@ pub struct SwapData {
 	pub partial: bool,
 }
 
-#[derive(Copy, DecodeWithMemTracking, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Copy,
+	DecodeWithMemTracking,
+	Clone,
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+	PartialOrd,
+	Ord,
+)]
 pub enum SwapType {
 	ExactIn,
 	ExactOut,
+}
+
+impl SwapType {
+	pub fn reverse(&self) -> Self {
+		if *self == SwapType::ExactIn {
+			return SwapType::ExactOut;
+		}
+
+		Self::ExactIn
+	}
 }
 
 #[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq, DecodeWithMemTracking, Eq)]
