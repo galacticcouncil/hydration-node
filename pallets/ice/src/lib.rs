@@ -54,18 +54,15 @@ use ice_support::ResolvedIntent;
 use ice_support::Score;
 use ice_support::Solution;
 use ice_support::SwapType;
-use ice_support::MAX_NUMBER_OF_RESOLVED_INTENTS;
 use num_traits::{SaturatingMul, SaturatingSub};
 use orml_traits::MultiCurrency;
 use pallet_route_executor::AmmTradeWeights;
 use sp_core::U256;
-use sp_core::U512;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::CheckedConversion;
 use sp_runtime::traits::One;
 use sp_runtime::traits::Saturating;
-use sp_runtime::traits::Zero;
 use sp_runtime::Permill;
 use sp_std::borrow::ToOwned;
 use sp_std::collections::btree_map::BTreeMap;
@@ -75,7 +72,6 @@ use sp_std::vec::Vec;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-//TODO: make sure tx is always first in the block(same as liquidations), this is tmp
 pub const UNSIGNED_TXS_PRIORITY: u64 = u64::max_value();
 const OCW_LOG_TARGET: &str = "ice::offchain_worker";
 pub(crate) const OCW_TAG_PREFIX: &str = "ice-solution";
@@ -157,18 +153,10 @@ pub mod pallet {
 		IntentOwnerNotFound,
 		/// Resolution violates user's limit.
 		LimitViolation,
-		/// Trade price doesn't match clearing price.
+		/// Trade price doesn't match execution price.
 		PriceInconsistency,
-		/// Asset involved in trade has no clearing price defined.
-		MissingClearingPrice,
 		/// Intent was referenced multiple times.
 		DuplicateIntent,
-		/// Asset has multiple clearing prices.
-		DuplicateClearingPrice,
-		/// Price ratio has zero numerator or denominator.
-		InvalidPriceRatio,
-		/// Provided list of clearing prices overflows allowed length.
-		ClearingPricesInvalidLength,
 		/// Trade's route is invalid.
 		InvalidRoute,
 		/// Provided score doesn't match execution score.
@@ -230,8 +218,6 @@ pub mod pallet {
 
 			// V1 solver may produce solutions with no trades (perfect CoW matching)
 			ensure!(!solution.resolved_intents.is_empty(), Error::<T>::InvalidSolution);
-
-			Self::validate_clearing_prices(&solution.clearing_prices)?;
 
 			let mut processed_intents: BTreeSet<IntentId> = BTreeSet::new();
 			let holding_pot = Self::get_pallet_account();
@@ -395,22 +381,9 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_account_truncating()
 	}
 
-	/// Function validates clearing prices(length and values) provided by solver.
-	#[inline(always)]
-	fn validate_clearing_prices(clearing_prices: &BTreeMap<AssetId, Price>) -> Result<(), DispatchError> {
-		ensure!(
-			clearing_prices.len() <= (MAX_NUMBER_OF_RESOLVED_INTENTS * 2) as usize,
-			Error::<T>::ClearingPricesInvalidLength
-		);
-
-		for cp in clearing_prices {
-			ensure!(!cp.1.n.is_zero() && !cp.1.d.is_zero(), Error::<T>::InvalidPriceRatio);
-		}
-
-		Ok(())
-	}
-
-	/// Function validates if intent was resolved based on clearing price.
+	/// Function validates if intent was resolved based on execution price.
+	/// Execution prices are computed on demand based on first trade trading `resolve`'s assets in same
+	/// direction.
 	/// `exeuction_prices` are [out/in] => [in] * [out/in] = [out]
 	fn validate_price_consitency(
 		execution_prices: &mut BTreeMap<(AssetId, AssetId, SwapType), Price>,
@@ -462,24 +435,6 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// Function calculates amount out based on asset in and asset out prices denominated in common asset.
-	/// ```ignore
-	/// rate = price_in / price_out
-	///		= (num_in / denom_in) / (num_out / denom_out)
-	///		= (num_in × denom_out) / (denom_in × num_out)
-	///	```
-	/// ```ignore
-	/// out = amount_in × rate
-	///		= amount_in × (num_in × denom_out) / (denom_in × num_out)
-	///	```
-	#[allow(dead_code)]
-	fn calc_amount_out(amount_in: Balance, price_in: &Price, price_out: &Price) -> Option<u128> {
-		let n = U512::from(price_in.n).checked_mul(U512::from(price_out.d))?;
-		let d = U512::from(price_in.d).checked_mul(U512::from(price_out.n))?;
-
-		n.checked_mul(U512::from(amount_in))?.checked_div(d)?.checked_into()
-	}
-
 	/// Function validates intent's `amount_in` and `amount_out` values are bigger than existential
 	/// deposit.
 	fn validate_intent_amounts(intent: &IntentData) -> Result<(), DispatchError> {
@@ -499,8 +454,6 @@ impl<T: Config> Pallet<T> {
 	fn validate_unsigned_solution(solution: &Solution) -> Result<(), DispatchError> {
 		//TODO:
 		// * add weight rule and make sure solution respects it.
-
-		Self::validate_clearing_prices(&solution.clearing_prices)?;
 
 		let mut processed_intents: BTreeSet<IntentId> = BTreeSet::new();
 		let mut score: Score = 0;

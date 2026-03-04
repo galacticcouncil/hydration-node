@@ -413,14 +413,6 @@ fn solver_execute_solution1() {
 			// Verify solution structure
 			assert_eq!(solution.resolved_intents.len(), 2, "Should resolve both intents");
 			assert!(solution.score > 0, "Solution score should be positive");
-			assert!(
-				solution.clearing_prices.contains_key(&asset_a),
-				"Should have price for asset_a"
-			);
-			assert!(
-				solution.clearing_prices.contains_key(&asset_b),
-				"Should have price for asset_b"
-			);
 
 			// Verify each resolved intent
 			for resolved in solution.resolved_intents.iter() {
@@ -756,16 +748,6 @@ fn solver_v1_single_intent() {
 				"Should be ExactIn swap"
 			);
 
-			// Verify clearing prices contain both assets
-			assert!(
-				solution.clearing_prices.contains_key(&hdx),
-				"Should have HDX clearing price"
-			);
-			assert!(
-				solution.clearing_prices.contains_key(&bnc),
-				"Should have BNC clearing price"
-			);
-
 			// Verify trades are valid
 			assert!(!solution.trades.is_empty(), "Should have at least one trade");
 			for trade in solution.trades.iter() {
@@ -847,8 +829,6 @@ fn solver_v1_two_intents_partial_cow_match() {
 			// Verify both intents resolved
 			assert_eq!(solution.resolved_intents.len(), 2, "Both intents should be resolved");
 			assert!(solution.score > 0, "Solution score should be positive");
-			assert!(solution.clearing_prices.contains_key(&hdx), "Should have HDX price");
-			assert!(solution.clearing_prices.contains_key(&bnc), "Should have BNC price");
 
 			crate::polkadot_test_net::hydradx_run_to_next_block();
 			let new_block = hydradx_runtime::System::block_number();
@@ -1343,16 +1323,6 @@ fn usdt_weth_single_intent() {
 				swap_data.swap_type,
 				ice_support::SwapType::ExactIn,
 				"Should be ExactIn swap"
-			);
-
-			// Verify clearing prices contain both assets
-			assert!(
-				solution.clearing_prices.contains_key(&usdt),
-				"Should have USDT clearing price"
-			);
-			assert!(
-				solution.clearing_prices.contains_key(&weth),
-				"Should have WETH clearing price"
 			);
 
 			// Verify trades are valid

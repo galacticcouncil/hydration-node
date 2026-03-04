@@ -34,7 +34,6 @@ impl<A: AMMInterface> SolverV1<A> {
 			return Ok(Solution {
 				resolved_intents: ResolvedIntents::truncate_from(Vec::new()),
 				trades: SolutionTrades::truncate_from(Vec::new()),
-				clearing_prices: BTreeMap::new(),
 				score: 0,
 			});
 		}
@@ -69,7 +68,6 @@ impl<A: AMMInterface> SolverV1<A> {
 			return Ok(Solution {
 				resolved_intents: ResolvedIntents::truncate_from(Vec::new()),
 				trades: SolutionTrades::truncate_from(Vec::new()),
-				clearing_prices: BTreeMap::new(),
 				score: 0,
 			});
 		}
@@ -108,7 +106,6 @@ impl<A: AMMInterface> SolverV1<A> {
 					return Ok(Solution {
 						resolved_intents: ResolvedIntents::truncate_from(Vec::new()),
 						trades: SolutionTrades::truncate_from(Vec::new()),
-						clearing_prices: BTreeMap::new(),
 						score: 0,
 					});
 				}
@@ -405,12 +402,9 @@ impl<A: AMMInterface> SolverV1<A> {
 			}
 		}
 
-		let clearing_prices: BTreeMap<AssetId, Ratio> = actual_prices;
-
 		Ok(Solution {
 			resolved_intents: ResolvedIntents::truncate_from(resolved_intents),
 			trades: SolutionTrades::truncate_from(executed_trades),
-			clearing_prices,
 			score: total_score,
 		})
 	}
