@@ -149,7 +149,7 @@ impl<T: frame_system::Config> pallet_circuit_breaker::WeightInfo for HydraWeight
 	}
 	/// Storage: `CircuitBreaker::GlobalWithdrawLimit` (r:0 w:1)
 	/// Proof: `CircuitBreaker::GlobalWithdrawLimit` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	fn set_global_withdraw_limit() -> Weight {
+	fn set_global_withdraw_limit_params() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
