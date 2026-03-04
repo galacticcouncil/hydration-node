@@ -26,6 +26,7 @@ pub trait WeightInfo {
 	fn remove_token() -> Weight;
 	fn calculate_spot_price_with_fee() -> Weight;
 	fn remove_all_liquidity() -> Weight;
+	fn set_slip_fee() -> Weight;
 }
 
 /// Weights for pallet_omnipool using the hydraDX node and recommended hardware.
@@ -621,5 +622,11 @@ impl WeightInfo for () {
 		// Minimum execution time: 75_110_000 picoseconds.
 		Weight::from_parts(75_941_000, 6190)
 			.saturating_add(RocksDbWeight::get().reads(10_u64))
+	}
+
+	fn set_slip_fee() -> Weight {
+		Weight::from_parts(10_000_000, 0)
+			.saturating_add(RocksDbWeight::get().reads(0_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }

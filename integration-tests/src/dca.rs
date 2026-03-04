@@ -3435,12 +3435,12 @@ mod stableswap {
 	/// It fails because stable share is locked in an intermediary trade,
 	/// and in the next hop the user has not enough balance to continue the trade
 	#[test]
-	fn dca_buy_also_fails_when_circuit_breaker_triggers_on_intermediate_shares_trade() {
+	fn buy_should_be_retried_when_circuit_breaker_triggers_on_intermediate_shares_trade() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
-				//Arrange
+				// Arrange
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 
 				assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
@@ -3464,7 +3464,6 @@ mod stableswap {
 					0u128,
 				));
 
-				//Init omnipool and add pool id as token
 				init_omnipol();
 				assert_ok!(Currencies::update_balance(
 					RuntimeOrigin::root(),
@@ -3496,7 +3495,6 @@ mod stableswap {
 					alice_init_stable1_balance as i128,
 				));
 
-				// First step MINTS shares - circuit breaker triggers here!
 				let trades = vec![
 					Trade {
 						pool: PoolType::Stableswap(pool_id),
@@ -3532,32 +3530,35 @@ mod stableswap {
 				create_schedule(ALICE, schedule);
 
 				let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
-				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
-				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget);
 
-				//Act - Execute DCA
+				// Act
 				go_to_block(12);
 
-				//Assert
-				let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
-				let alice_stable1_reserved = Currencies::reserved_balance(stable_asset_1, &ALICE.into());
-				let router_reserved_shares = Currencies::reserved_balance(pool_id, &Router::router_account());
-
+				// Assert - DCA should be retried (not terminated) because lockdown is temporary
+				let terminated = count_terminated_trade_events();
 				assert_eq!(
-					alice_stable1_reserved, 0,
-					"All reserved stable_asset_1 should be freed after rollback"
+					terminated, 0,
+					"DCA should not be terminated when circuit breaker triggers on intermediate shares"
 				);
+
+				let schedule_id = 0;
+				assert_eq!(
+					DCA::retries_on_error(schedule_id),
+					1,
+					"DCA retry count should be incremented"
+				);
+
+				let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
 				assert_eq!(
 					alice_hdx_after, alice_hdx_before,
-					"DCA Buy should fail when circuit breaker triggers on intermediate shares. HDX before: {}, after: {}",
-					alice_hdx_before, alice_hdx_after
+					"Alice HDX balance should be unchanged"
 				);
 
-				assert_eq!(
-					router_reserved_shares, 0,
-					"No shares should be reserved since DCA was rolled back. Reserved: {}",
-					router_reserved_shares
-				);
+				let alice_shares = Currencies::free_balance(pool_id, &ALICE.into());
+				assert_eq!(alice_shares, 0, "Alice should have zero stableshare balance");
+
+				let router_reserved_shares = Currencies::reserved_balance(pool_id, &Router::router_account());
+				assert_eq!(router_reserved_shares, 0, "Router should have zero reserved shares");
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -3679,6 +3680,152 @@ mod stableswap {
 					router_reserved_shares, 0,
 					"Router should have 0 reserved shares. Got {}",
 					router_reserved_shares
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn sell_should_be_retried_when_stableshare_is_in_lockdown() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				// Arrange
+				let (pool_id, stable_asset_1, _stable_asset_2) = init_stableswap().unwrap();
+
+				assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+					RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_rational(88, 100),
+				));
+
+				let alice_init_stable_balance = 5000 * UNITS;
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					ALICE.into(),
+					stable_asset_1,
+					alice_init_stable_balance as i128,
+				));
+
+				// Trigger lockdown on the stableshare (pool_id) by exceeding deposit limit
+				let deposit_limit = UNITS;
+				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
+				assert_ok!(Currencies::deposit(
+					pool_id,
+					&AccountId::from(BOB),
+					deposit_limit + UNITS
+				));
+
+				let dca_budget = 1100 * UNITS;
+				let amount_to_sell = 100 * UNITS;
+				let schedule = schedule_fake_with_sell_order(
+					ALICE,
+					PoolType::Stableswap(pool_id),
+					dca_budget,
+					stable_asset_1,
+					pool_id,
+					amount_to_sell,
+				);
+
+				go_to_block(10);
+				create_schedule(ALICE, schedule);
+
+				// Act
+				go_to_block(12);
+
+				// Assert - DCA should be retried (not terminated) because lockdown is temporary
+				let terminated = count_terminated_trade_events();
+				assert_eq!(
+					terminated, 0,
+					"DCA should not be terminated when stableshare is in lockdown"
+				);
+
+				let schedule_id = 0;
+				assert_eq!(
+					DCA::retries_on_error(schedule_id),
+					1,
+					"DCA retry count should be incremented"
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn sell_should_succeed_after_lockdown_is_lifted() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				// Arrange
+				let (pool_id, stable_asset_1, _stable_asset_2) = init_stableswap().unwrap();
+
+				assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+					RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_rational(88, 100),
+				));
+
+				let alice_init_stable_balance = 5000 * UNITS;
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					ALICE.into(),
+					stable_asset_1,
+					alice_init_stable_balance as i128,
+				));
+
+				// Trigger lockdown on the stableshare (pool_id) by exceeding deposit limit
+				let deposit_limit = UNITS;
+				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
+				assert_ok!(Currencies::deposit(
+					pool_id,
+					&AccountId::from(BOB),
+					deposit_limit + UNITS
+				));
+
+				let dca_budget = 1100 * UNITS;
+				let amount_to_sell = 100 * UNITS;
+				let schedule = schedule_fake_with_sell_order(
+					ALICE,
+					PoolType::Stableswap(pool_id),
+					dca_budget,
+					stable_asset_1,
+					pool_id,
+					amount_to_sell,
+				);
+
+				go_to_block(10);
+				create_schedule(ALICE, schedule);
+
+				// Act - first execution fails due to lockdown
+				go_to_block(12);
+
+				let schedule_id = 0;
+				assert_eq!(DCA::retries_on_error(schedule_id), 1);
+				assert_eq!(count_terminated_trade_events(), 0);
+
+				// Lift the lockdown and raise the deposit limit so the retry trade can go through
+				assert_ok!(hydradx_runtime::CircuitBreaker::force_lift_lockdown(
+					RuntimeOrigin::root(),
+					pool_id,
+				));
+				crate::deposit_limiter::update_deposit_limit(pool_id, 1_000_000 * UNITS).unwrap();
+
+				// Act - retry is scheduled at block 12 + 20 = 32
+				go_to_block(32);
+
+				// Assert
+				assert_eq!(
+					DCA::retries_on_error(schedule_id),
+					0,
+					"Retry count should reset after successful trade"
+				);
+				assert_eq!(count_terminated_trade_events(), 0, "DCA should not be terminated");
+				assert!(
+					Currencies::free_balance(pool_id, &AccountId::from(ALICE)) > 0,
+					"Alice should have received stableshares"
 				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))

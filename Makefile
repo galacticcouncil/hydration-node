@@ -9,6 +9,7 @@ endif
 
 # Fail on warnings
 export RUSTFLAGS := -D warnings
+export CXXFLAGS := -include cstdint
 
 .PHONY: build
 build:
