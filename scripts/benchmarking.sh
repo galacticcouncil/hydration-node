@@ -172,8 +172,12 @@ elif [[ "${ARGS[0]}" == *","* ]]; then
             bench "${_pallet_trimmed}" '*' "${CHECK}" "${_path}"
         fi
     done
-elif [[ ${#ARGS[@]} -eq 1 && "${ARGS[0]}" == "pallet_xcm_benchmarks" ]]; then
-    bench_xcm "${CHECK}"
+elif [[ ${#ARGS[@]} -eq 1 ]]; then
+    if [[ "${ARGS[0]}" == "pallet_xcm_benchmarks" ]]; then
+        bench_xcm "${CHECK}"
+    else
+        bench "${ARGS[0]}" '*' "${CHECK}"
+    fi
 elif [[ ${#ARGS[@]} -ne 2 && ${#ARGS[@]} -ne 3 ]]; then
     choose_and_bench "${CHECK}"
 else
