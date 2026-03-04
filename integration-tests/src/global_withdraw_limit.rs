@@ -6,6 +6,7 @@ use frame_support::weights::Weight;
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_runtime::{AssetRegistry, CircuitBreaker, RuntimeCall, DOT_ASSET_LOCATION, EVM};
 use orml_traits::MultiCurrency;
+use pallet_circuit_breaker::types::GlobalWithdrawLimitParameters;
 use pallet_circuit_breaker::GlobalAssetCategory;
 use pallet_transaction_payment::OnChargeTransaction;
 use polkadot_xcm::v5::prelude::*;
@@ -83,11 +84,23 @@ fn set_dot_external_and_get_transfer_call() -> hydradx_runtime::RuntimeCall {
 	})
 }
 
+fn init_global_withdraw_limit_params() {
+	let params = GlobalWithdrawLimitParameters {
+		limit: 1_000_000 * UNITS,
+		window: DAY,
+	};
+	assert_ok!(CircuitBreaker::set_global_withdraw_limit_params(
+		hydradx_runtime::RuntimeOrigin::root(),
+		params
+	));
+}
+
 #[test]
 fn polkadot_xcm_execute_should_fail_when_lockdown_active_and_asset_is_egress() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Arrange
+		init_global_withdraw_limit_params();
 		let now = CircuitBreaker::timestamp_now();
 
 		assert_ok!(CircuitBreaker::set_asset_category(
@@ -153,6 +166,8 @@ fn xtokens_transfer_should_fail_when_lockdown_active_and_asset_is_egress() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Arrange
+		init_global_withdraw_limit_params();
+
 		let now = CircuitBreaker::timestamp_now();
 
 		assert_ok!(CircuitBreaker::set_asset_category(
@@ -196,6 +211,7 @@ fn on_charge_transaction_skips_global_withdraw_accounting_for_native_asset() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Arrange
+		init_global_withdraw_limit_params();
 		let alice: AccountId = ALICE.into();
 
 		// Ensure HDX is a participating asset for the global-withdraw logic
@@ -255,6 +271,7 @@ fn on_charge_transaction_skips_global_withdraw_accounting_for_external_asset() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
+		init_global_withdraw_limit_params();
 
 		// Arrange
 		let alice: AccountId = ALICE.into();
@@ -327,6 +344,7 @@ fn evm_on_charge_transaction_skips_global_withdraw_accounting() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
+		init_global_withdraw_limit_params();
 
 		// Arrange
 		let evm_addr = evm_address();
@@ -397,6 +415,7 @@ fn xcm_transfer_assets_blocked_during_lockdown() {
 	Hydra::execute_with(|| {
 		// Arrange
 		init_omnipool_with_oracle_for_block_10();
+		init_global_withdraw_limit_params();
 
 		let now = CircuitBreaker::timestamp_now();
 		let until = now + MILLISECS_PER_BLOCK * 11;
@@ -421,9 +440,11 @@ fn lockdown_expiry_allows_egress() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Arrange
+		init_omnipool_with_oracle_for_block_10();
+		init_global_withdraw_limit_params();
+
 		let now = CircuitBreaker::timestamp_now();
 		let until = now + MILLISECS_PER_BLOCK * 11;
-		init_omnipool_with_oracle_for_block_10();
 
 		assert_ok!(CircuitBreaker::set_global_withdraw_lockdown(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -454,6 +475,8 @@ fn lockdown_expiry_allows_egress() {
 fn withdraw_external_should_be_accounted() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		init_global_withdraw_limit_params();
+
 		// Set HDX as External to avoid conversion issues
 		assert_ok!(CircuitBreaker::set_asset_category(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -510,6 +533,7 @@ fn transfer_to_sink_should_be_accounted_for_participating_assets() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
+		init_global_withdraw_limit_params();
 
 		let sink: AccountId = [99u8; 32].into();
 		assert_ok!(CircuitBreaker::add_egress_accounts(
@@ -517,7 +541,7 @@ fn transfer_to_sink_should_be_accounted_for_participating_assets() {
 			vec![sink.clone()]
 		));
 
-		let amount = 100 * UNITS;
+		let amount = 10 * UNITS;
 
 		// 1. External -> Accounted (Override DOT to External)
 		assert_ok!(CircuitBreaker::set_asset_category(
@@ -565,6 +589,7 @@ fn should_account_withdraw_operation_accounts_external_and_local() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
+		init_global_withdraw_limit_params();
 
 		let who: AccountId = ALICE.into();
 		let amount = 10 * UNITS;
@@ -650,6 +675,8 @@ fn ingress_deposit_decrements_accumulator_for_external() {
 	// External deposits are always accounted as ingress and decrement the accumulator.
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		init_global_withdraw_limit_params();
+
 		let who: AccountId = ALICE.into();
 		let amount = 10 * UNITS;
 
@@ -690,6 +717,8 @@ fn ingress_deposit_decrements_accumulator_for_local_only_when_source_is_egress()
 	// Local deposits are accounted only when `maybe_from` is an egress account.
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		init_global_withdraw_limit_params();
+
 		let alice: AccountId = ALICE.into();
 		let egress_src: AccountId = [9u8; 32].into();
 		let non_egress_src: AccountId = [10u8; 32].into();
@@ -754,6 +783,7 @@ fn dot_external_limit_trigger_fails_then_decays_to_zero() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
+		init_global_withdraw_limit_params();
 		assert_ok!(CircuitBreaker::reset_withdraw_lockdown(
 			hydradx_runtime::RuntimeOrigin::root()
 		));
@@ -826,6 +856,7 @@ fn dot_external_lockdown_blocks_withdraw_but_regular_dot_transfer_still_works() 
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
+		init_global_withdraw_limit_params();
 		assert_ok!(CircuitBreaker::reset_withdraw_lockdown(
 			hydradx_runtime::RuntimeOrigin::root()
 		));
