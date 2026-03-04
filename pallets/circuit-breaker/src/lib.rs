@@ -390,12 +390,12 @@ pub mod pallet {
 
 		/// Global withdraw lockdown was lifted (either automatically or by reset).
 		WithdrawLockdownLifted,
-		/// Withdraw lockdown accumulator and state were reset by governance.
+		/// Withdraw lockdown accumulator and states were reset by governance.
 		WithdrawLockdownReset,
-		/// Withdraw limit value updated by governance (in reference currency).
+		/// Global withdraw limit config parameters were updated.
 		WithdrawLimitConfigUpdated {
-			new_limit: T::Balance,
-			new_period: primitives::Moment,
+			limit: T::Balance,
+			window: primitives::Moment,
 		},
 		/// Global withdraw lockdown was set by governance.
 		WithdrawLockdownTriggered { until: primitives::Moment },
@@ -643,13 +643,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
-			let GlobalWithdrawLimitParameters { limit, window: period } = parameters;
+			let GlobalWithdrawLimitParameters { limit, window } = parameters;
 
 			GlobalWithdrawLimitConfig::<T>::put(parameters);
-			Self::deposit_event(Event::WithdrawLimitConfigUpdated {
-				new_limit: limit,
-				new_period: period,
-			});
+			Self::deposit_event(Event::WithdrawLimitConfigUpdated { limit, window });
 			Ok(())
 		}
 
