@@ -148,10 +148,11 @@ pub mod pallet {
 			let lockdown_until = Self::withdraw_lockdown_until();
 			if lockdown_until.is_some_and(|until| Self::timestamp_now() >= until) {
 				WithdrawLockdownUntil::<T>::kill();
-				Self::deposit_event(Event::GlobalLockdownLifted);
+				Self::deposit_event(Event::WithdrawLockdownLifted);
+				return T::WeightInfo::on_initialize_lift_lockdown();
 			}
 
-			T::WeightInfo::on_finalize(0, 0)
+			T::WeightInfo::on_initialize_skip_lockdown_lifting()
 		}
 
 		fn on_finalize(_n: BlockNumberFor<T>) {
@@ -387,19 +388,17 @@ pub mod pallet {
 		/// All reserved amount of deposit was released
 		DepositReleased { who: T::AccountId, asset_id: T::AssetId },
 
-		/// Global lockdown triggered until given timestamp (ms).
-		GlobalLockdownTriggered { until: u64 },
-		/// Global lockdown was lifted (either automatically or by reset).
-		GlobalLockdownLifted,
-		/// Global lockdown accumulator and state were reset by governance.
-		GlobalLockdownReset,
-		/// Global limit value updated by governance (in reference currency).
-		GlobalWithdrawLimitConfigUpdated {
+		/// Global withdraw lockdown was lifted (either automatically or by reset).
+		WithdrawLockdownLifted,
+		/// Withdraw lockdown accumulator and state were reset by governance.
+		WithdrawLockdownReset,
+		/// Withdraw limit value updated by governance (in reference currency).
+		WithdrawLimitConfigUpdated {
 			new_limit: T::Balance,
 			new_period: primitives::Moment,
 		},
 		/// Global withdraw lockdown was set by governance.
-		GlobalLockdownSet { until: primitives::Moment },
+		WithdrawLockdownTriggered { until: primitives::Moment },
 		/// A number of egress accounts added to a list.
 		EgressAccountsAdded { count: u32 },
 		/// A number of egress accounts removed from a list.
@@ -647,7 +646,7 @@ pub mod pallet {
 			let GlobalWithdrawLimitParameters { limit, window: period } = parameters;
 
 			GlobalWithdrawLimitConfig::<T>::put(parameters);
-			Self::deposit_event(Event::GlobalWithdrawLimitConfigUpdated {
+			Self::deposit_event(Event::WithdrawLimitConfigUpdated {
 				new_limit: limit,
 				new_period: period,
 			});
@@ -665,7 +664,7 @@ pub mod pallet {
 			WithdrawLimitAccumulator::<T>::put((T::Balance::zero(), now));
 
 			WithdrawLockdownUntil::<T>::kill();
-			Self::deposit_event(Event::GlobalLockdownReset);
+			Self::deposit_event(Event::WithdrawLockdownReset);
 
 			Ok(())
 		}
@@ -706,7 +705,7 @@ pub mod pallet {
 		pub fn set_global_withdraw_lockdown(origin: OriginFor<T>, until: primitives::Moment) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 			WithdrawLockdownUntil::<T>::put(until);
-			Self::deposit_event(Event::GlobalLockdownSet { until });
+			Self::deposit_event(Event::WithdrawLockdownTriggered { until });
 			Ok(())
 		}
 
