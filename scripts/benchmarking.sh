@@ -47,6 +47,25 @@ function choose_and_bench {
     done
 }
 
+function bench_xcm {
+    XCM_ADD=(
+      "pallet_xcm_benchmarks::fungible withdraw_asset,transfer_asset,transfer_reserve_asset,reserve_asset_deposited,initiate_reserve_withdraw,receive_teleported_asset,deposit_asset,deposit_reserve_asset pallet_xcm_benchmarks_fungible.rs"
+      "pallet_xcm_benchmarks::generic report_holding,buy_execution,query_response,transact,refund_surplus,set_error_handler,set_appendix,clear_error,descend_origin,clear_origin,report_error,claim_asset,trap,subscribe_version,unsubscribe_version,initiate_reserve_withdraw,burn_asset,expect_asset,expect_origin,expect_error,expect_transact_status,query_pallet,expect_pallet,report_transact_status,clear_transact_status,set_topic,clear_topic,set_fees_mode,unpaid_execution,exchange_asset pallet_xcm_benchmarks_generic.rs"
+    )
+    XCM_OUTPUT="${OUTPUT}xcm/"
+    mkdir -p "$XCM_OUTPUT"
+
+    for xcm_entry in "${XCM_ADD[@]}"; do
+      # Convert string to array
+      eval "entry=($xcm_entry)"
+      pallet="${entry[0]}"
+      extrinsics="${entry[1]}"
+      output_file="${entry[2]}"
+
+      bench "$pallet" "$extrinsics" "${1}" "${XCM_OUTPUT}${output_file}" "scripts/xcm-weight-template.hbs"
+    done
+}
+
 function bench {
     if [[ ! -f "${BINARY}" ]]; then
         echo "binary '${BINARY}' does not exist."
@@ -111,23 +130,7 @@ if [[ "${ALL}" -eq 1 ]]; then
     # FIXME: This is a temporary solution to handle XCM benchmarks correctly
     BENCH_EXCLUDE=("pallet_xcm_benchmarks::fungible" "pallet_xcm_benchmarks::generic" "pallet_scheduler", "pallet_token_gateway_ismp")
 
-    XCM_ADD=(
-      "pallet_xcm_benchmarks::fungible withdraw_asset,transfer_asset,transfer_reserve_asset,reserve_asset_deposited,initiate_reserve_withdraw,receive_teleported_asset,deposit_asset,deposit_reserve_asset pallet_xcm_benchmarks_fungible.rs"
-      "pallet_xcm_benchmarks::generic report_holding,buy_execution,query_response,transact,refund_surplus,set_error_handler,set_appendix,clear_error,descend_origin,clear_origin,report_error,claim_asset,trap,subscribe_version,unsubscribe_version,initiate_reserve_withdraw,burn_asset,expect_asset,expect_origin,expect_error,expect_transact_status,query_pallet,expect_pallet,report_transact_status,clear_transact_status,set_topic,clear_topic,set_fees_mode,unpaid_execution,exchange_asset pallet_xcm_benchmarks_generic.rs"
-    )
-    XCM_OUTPUT="${OUTPUT}xcm/"
-    mkdir -p "$XCM_OUTPUT"
-
-    # First, process the XCM_ADD array to run those specific benchmarks
-    for xcm_entry in "${XCM_ADD[@]}"; do
-      # Convert string to array
-      eval "entry=($xcm_entry)"
-      pallet="${entry[0]}"
-      extrinsics="${entry[1]}"
-      output_file="${entry[2]}"
-
-      bench "$pallet" "$extrinsics" "$CHECK" "${XCM_OUTPUT}${output_file}" "scripts/xcm-weight-template.hbs"
-    done
+    bench_xcm "${CHECK}"
 
 #    ISMP_ADD=("pallet_token_gateway_ismp")
 #    for ismp_entry in "${ISMP_ADD[@]}"; do
@@ -161,10 +164,20 @@ elif [[ "${ARGS[0]}" == *","* ]]; then
     mkdir -p "$OUTPUT"
     for _pallet in "${_pallets[@]}"; do
         _pallet_trimmed="$(echo "${_pallet}" | xargs)"
-        _path="${OUTPUT}${_pallet_trimmed}.rs"
-        touch "${_path}" # TODO: Remove this once benchmarking-cli doesn't fail on missing files
-        bench "${_pallet_trimmed}" '*' "${CHECK}" "${_path}"
+        if [[ "${_pallet_trimmed}" == "pallet_xcm_benchmarks" ]]; then
+            bench_xcm "${CHECK}"
+        else
+            _path="${OUTPUT}${_pallet_trimmed}.rs"
+            touch "${_path}" # TODO: Remove this once benchmarking-cli doesn't fail on missing files
+            bench "${_pallet_trimmed}" '*' "${CHECK}" "${_path}"
+        fi
     done
+elif [[ ${#ARGS[@]} -eq 1 ]]; then
+    if [[ "${ARGS[0]}" == "pallet_xcm_benchmarks" ]]; then
+        bench_xcm "${CHECK}"
+    else
+        bench "${ARGS[0]}" '*' "${CHECK}"
+    fi
 elif [[ ${#ARGS[@]} -ne 2 && ${#ARGS[@]} -ne 3 ]]; then
     choose_and_bench "${CHECK}"
 else

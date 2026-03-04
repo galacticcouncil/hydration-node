@@ -1,6 +1,6 @@
 use super::*;
 use crate::assets::XykPaymentAssetSupport;
-use crate::types::ShortOraclePrice;
+use crate::types::TenMinutesOraclePrice;
 use hydradx_adapters::price::ConvertBalance;
 use hydradx_traits::circuit_breaker::{AssetWithdrawHandler, WithdrawFuseControl};
 use pallet_asset_registry::AssetType;
@@ -26,7 +26,7 @@ impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrency
 			return Some(amount);
 		}
 
-		let (converted, _) = ConvertBalance::<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>::convert((
+		let (converted, _) = ConvertBalance::<TenMinutesOraclePrice, XykPaymentAssetSupport, DotAssetId>::convert((
 			asset_id,
 			ref_currency,
 			amount,

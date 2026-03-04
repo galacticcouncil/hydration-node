@@ -1,6 +1,6 @@
-use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::__private::RuntimeDebug;
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::TypeInfo;
+use sp_core::RuntimeDebug;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::DispatchResult;
 
@@ -15,6 +15,12 @@ pub enum LockdownStatus<BlockNumber, Balance> {
 pub enum EgressOperationKind {
 	Withdraw,
 	Transfer,
+}
+
+#[derive(Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, DecodeWithMemTracking, TypeInfo, Eq, PartialEq)]
+pub struct GlobalWithdrawLimitParameters<Balance, Moment> {
+	pub limit: Balance,
+	pub window: Moment,
 }
 
 #[cfg(feature = "runtime-benchmarks")]
