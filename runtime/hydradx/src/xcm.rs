@@ -8,7 +8,6 @@ use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFee
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::{AssetId, Price};
 
-use crate::circuit_breaker::IgnoreWithdrawFuse;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	parameter_types,
@@ -19,7 +18,6 @@ use frame_support::{
 use frame_system::unique;
 use frame_system::EnsureRoot;
 use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
-use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_evm::AddressMapping;
@@ -272,8 +270,8 @@ impl cumulus_pallet_xcm::Config for Runtime {
 
 pub struct WithUnifiedEventSupport<Inner>(PhantomData<Inner>);
 
-impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>, WithdrawLimitControl: WithdrawFuseControl>
-	ExecuteXcm<<XcmConfig as Config>::RuntimeCall> for WithUnifiedEventSupport<Inner, WithdrawLimitControl>
+impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfig as Config>::RuntimeCall>
+	for WithUnifiedEventSupport<Inner>
 {
 	type Prepared = <Inner as cumulus_primitives_core::ExecuteXcm<RuntimeCall>>::Prepared;
 
@@ -327,9 +325,7 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>, WithdrawLimitControl
 	}
 }
 
-impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>, WF> XcmAssetTransfers
-	for WithUnifiedEventSupport<Inner, WF>
-{
+impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> XcmAssetTransfers for WithUnifiedEventSupport<Inner> {
 	type IsReserve = <XcmConfig as Config>::IsReserve;
 	type IsTeleporter = <XcmConfig as Config>::IsTeleporter;
 	type AssetTransactor = <XcmConfig as Config>::AssetTransactor;
