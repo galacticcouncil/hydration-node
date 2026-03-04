@@ -120,7 +120,7 @@ impl<T: frame_system::Config> frame_support::migrations::SteppedMigration for Cl
 		let clean_result = sp_io::storage::clear_prefix(&prefix, Some(max_keys_bounded));
 
 		// Charge weight for the operations performed.
-		meter.consume(weight_per_key.saturating_mul(max_keys_bounded.into()).into());
+		meter.consume(weight_per_key.saturating_mul(max_keys_bounded.into()));
 
 		// Determine the next cursor.
 		if let KillStorageResult::SomeRemaining(_) = clean_result {
