@@ -4,12 +4,13 @@ use crate::evm::init_omnipool_with_oracle_for_block_10;
 use crate::polkadot_test_net::*;
 use frame_support::weights::Weight;
 use frame_support::{assert_err, assert_noop, assert_ok};
-use hydradx_runtime::{AssetRegistry, CircuitBreaker, RuntimeCall, DOT_ASSET_LOCATION};
+use hydradx_runtime::{AssetRegistry, CircuitBreaker, RuntimeCall, DOT_ASSET_LOCATION, EVM};
 use orml_traits::MultiCurrency;
 use pallet_circuit_breaker::GlobalAssetCategory;
 use pallet_transaction_payment::OnChargeTransaction;
 use polkadot_xcm::v5::prelude::*;
 use polkadot_xcm::{VersionedAssetId, VersionedXcm};
+use sp_core::U256;
 use primitives::constants::time::unix_time::DAY;
 use primitives::constants::time::MILLISECS_PER_BLOCK;
 use sp_runtime::traits::Dispatchable;
@@ -359,7 +360,7 @@ fn evm_on_charge_transaction_skips_global_withdraw_accounting() {
 			vec![1, 2, 3],
 			U256::from(0),
 			100000,
-			gas_price(),
+			crate::evm::gas_price(),
 			None,
 			Some(U256::zero()),
 			[].into(),
@@ -787,9 +788,12 @@ fn dot_external_limit_trigger_fails_then_decays_to_zero() {
 		);
 
 		// Set a limit that allows the first withdraw but blocks the next one.
-		assert_ok!(CircuitBreaker::set_global_withdraw_limit(
+		assert_ok!(CircuitBreaker::set_global_withdraw_limit_params(
 			hydradx_runtime::RuntimeOrigin::root(),
-			acc_after_first + 1
+			pallet_circuit_breaker::types::GlobalWithdrawLimitParameters {
+				limit: acc_after_first + 1,
+				window: DAY
+			}
 		));
 
 		assert_err!(
