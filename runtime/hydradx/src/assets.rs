@@ -619,9 +619,6 @@ impl Contains<AccountId> for DepositLockWhitelist {
 parameter_types! {
 	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (5_000, 10_000);	// 50%
 	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((500, 10_000));	// 5%
-
-	// Global withdraw limit parameters
-	pub const GlobalWithdrawWindow: primitives::Moment = primitives::constants::time::unix_time::DAY;
 }
 
 impl pallet_circuit_breaker::Config for Runtime {
@@ -639,7 +636,6 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type DepositLimiter = DepositCircuitBreaker;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = CircuitBreakerBenchmarkHelper<Runtime>;
-	type GlobalWithdrawWindow = GlobalWithdrawWindow;
 	type TimestampProvider = Timestamp;
 }
 
@@ -952,6 +948,7 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
 			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
 			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
+			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];
 		errors.contains(t)
 	}

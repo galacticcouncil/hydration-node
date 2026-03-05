@@ -20,7 +20,7 @@ pub trait WeightInfo {
 	fn set_trade_volume_limit() -> Weight;
 	fn set_add_liquidity_limit() -> Weight;
 	fn set_remove_liquidity_limit() -> Weight;
-	fn set_global_withdraw_limit() -> Weight;
+	fn set_global_withdraw_limit_params() -> Weight;
 	fn reset_withdraw_lockdown() -> Weight;
 	fn set_global_withdraw_lockdown() -> Weight;
 	fn add_egress_accounts(n: u32) -> Weight;
@@ -124,7 +124,7 @@ impl WeightInfo for () {
 	}
 	/// Storage: `CircuitBreaker::GlobalWithdrawLimit` (r:0 w:1)
 	/// Proof: `CircuitBreaker::GlobalWithdrawLimit` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	fn set_global_withdraw_limit() -> Weight {
+	fn set_global_withdraw_limit_params() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
