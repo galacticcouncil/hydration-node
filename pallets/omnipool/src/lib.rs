@@ -673,7 +673,7 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityAdded` event when successful.
 		///
-		#[pallet::call_index(16)]
+		#[pallet::call_index(17)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_all_liquidity()
 		.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()
 		.saturating_add(T::ExternalPriceOracle::get_price_weight()))
