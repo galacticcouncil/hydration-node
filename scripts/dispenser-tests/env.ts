@@ -2,7 +2,9 @@ import { config } from 'dotenv'
 import { ethers } from 'ethers'
 import path from 'path'
 
-config({ path: path.resolve(__dirname, '.env') })
+// Load from ENV_FILE if set (e.g. ENV_FILE=.env.custom), otherwise .env
+const envFile = process.env.ENV_FILE || '.env'
+config({ path: path.resolve(__dirname, envFile) })
 
 function required(key: string): string {
   const value = process.env[key]

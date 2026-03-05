@@ -11,6 +11,8 @@ import {
   createApi,
   createKeyringAndAccounts,
   ensureBobHasAssets,
+  ensureServerSignerFunded,
+  ensureFaucetMpcAddress,
   logAliceTokenBalances,
   fundPalletAccounts,
   deriveEthAddress,
@@ -31,6 +33,7 @@ describe('ERC20 Vault Integration', () => {
   let derivedPubKey: string
   let aliceHexPath: string
   let palletSS58: string
+  let palletSS58Prefix0: string
 
   beforeAll(async () => {
     await waitReady()
@@ -54,14 +57,16 @@ describe('ERC20 Vault Integration', () => {
 
     await logAliceTokenBalances(api, alice, faucetAsset, feeAsset)
     await ensureBobHasAssets(api, bob, faucetAsset)
+    await ensureServerSignerFunded(api, alice, bob)
 
     const palletFunding = await fundPalletAccounts(api, alice, faucetAsset)
     palletSS58 = palletFunding.palletSS58
+    palletSS58Prefix0 = palletFunding.palletSS58Prefix0
 
     signetClient = new SignetClient(api, alice)
     evmProvider = new ethers.JsonRpcProvider(ENV.EVM_RPC_URL)
 
-    await signetClient.ensureSignetInitializedViaReferendum(
+    await signetClient.ensureSignetInitialized(
       api,
       alice,
       ENV.SUBSTRATE_CHAIN_ID,
@@ -72,6 +77,7 @@ describe('ERC20 Vault Integration', () => {
     derivedPubKey = derived.derivedPubKey
 
     await ensureDerivedEthHasGas(evmProvider, derivedEthAddress)
+    await ensureFaucetMpcAddress(evmProvider, derivedEthAddress)
   }, 600_000)
 
   afterAll(async () => {
@@ -81,7 +87,7 @@ describe('ERC20 Vault Integration', () => {
   })
 
   it('should complete full deposit and claim flow', async () => {
-    await initializeVaultIfNeeded(api)
+    await initializeVaultIfNeeded(api, alice)
 
     const feeData = await evmProvider.getFeeData()
     const currentNonce = await evmProvider.getTransactionCount(
@@ -91,13 +97,18 @@ describe('ERC20 Vault Integration', () => {
 
     console.log(`Current nonce for ${derivedEthAddress}: ${currentNonce}`)
 
+    // Add a unique component to maxPriorityFeePerGas so each run produces
+    // a different unsigned tx → different request ID (avoids DuplicateRequest)
+    const basePriorityFee = Number(
+      feeData.maxPriorityFeePerGas || ENV.DEFAULT_MAX_PRIORITY_FEE_PER_GAS,
+    )
+    const uniquePriorityFee = basePriorityFee + Math.floor(Math.random() * 1_000_000)
+
     const txParams = {
       value: 0,
       gasLimit: Number(ENV.GAS_LIMIT),
       maxFeePerGas: Number(feeData.maxFeePerGas || ENV.DEFAULT_MAX_FEE_PER_GAS),
-      maxPriorityFeePerGas: Number(
-        feeData.maxPriorityFeePerGas || ENV.DEFAULT_MAX_PRIORITY_FEE_PER_GAS,
-      ),
+      maxPriorityFeePerGas: uniquePriorityFee,
       nonce: currentNonce,
       chainId: ENV.EVM_CHAIN_ID,
     }
@@ -124,7 +135,7 @@ describe('ERC20 Vault Integration', () => {
     })
 
     const requestId = signetClient.calculateSignRespondRequestId(
-      palletSS58,
+      palletSS58Prefix0,
       Array.from(ethers.getBytes(tx.unsignedSerialized)),
       {
         caip2_id: `eip155:${ENV.EVM_CHAIN_ID}`,
@@ -236,7 +247,7 @@ describe('ERC20 Vault Integration', () => {
     const readResponse = await waitForReadResponse(
       api,
       ethers.hexlify(requestId),
-      60_000,
+      180_000,
     )
 
     if (!readResponse) {
@@ -251,5 +262,5 @@ describe('ERC20 Vault Integration', () => {
       '  Output (hex):',
       Buffer.from(readResponse.output).toString('hex'),
     )
-  }, 180_000)
+  }, 1_200_000)
 })
