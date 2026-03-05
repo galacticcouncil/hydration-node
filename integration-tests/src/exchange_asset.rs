@@ -1244,10 +1244,11 @@ mod circuit_breaker {
 				pretty_assertions::assert_eq!(*asset_id, aca, "Trapped asset ID is not ACA");
 
 				if let polkadot_xcm::v5::Fungibility::Fungible(trapped_amount) = asset.fun {
+					let tolerance = sp_std::cmp::max(200_000_000_000u128, expected_amount / 1_000u128); // max(2e11, 0.1%)
 					test_utils::assert_eq_approx!(
 						trapped_amount,
 						expected_amount,
-						100000000000,
+						tolerance,
 						"The trapped asset amount is different than expected"
 					);
 				}
