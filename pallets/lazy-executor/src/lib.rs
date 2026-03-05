@@ -56,7 +56,6 @@ const NO_TIP: u32 = 0;
 const CALL_LEN_OFFSET: u32 = 158;
 const LOG_TARGET: &str = "runtime::pallet-lazy-executor";
 pub(crate) const OCW_TAG_PREFIX: &str = "lazy-executor-dispatch-top";
-pub(crate) const OCW_PROVIDES: &[u8; 12] = b"dispatch-top";
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -173,19 +172,21 @@ pub mod pallet {
 			log::debug!(target: LOG_TARGET, "run offchain worker on block: {:?}", block_number);
 
 			let mut next_id = Self::dispatch_next_id();
-			for i in 0..Self::max_txs_per_block() {
-				next_id = if let Some(n) = next_id.checked_add(i as u128) {
+			for _ in 0..Self::max_txs_per_block() {
+				next_id = if let Some(n) = next_id.checked_add(1_u128) {
 					n
 				} else {
 					log::debug!(target: LOG_TARGET, "queue is empty");
 					break;
 				};
 
-				if CallQueue::<T>::get(next_id).is_some() {
-					let call = Call::dispatch_top {};
+				if CallQueue::<T>::contains_key(next_id) {
+					let call = Call::dispatch_top { id: next_id };
 					let tx = T::create_bare(call.into());
-					let r = SubmitTransaction::<T, Call<T>>::submit_transaction(tx);
-					log::debug!(target: LOG_TARGET, "sutmitted dispatch_top transaction, result: {:?}", r,);
+					if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
+						debug_assert!(false, "laxy-executorn: failed to submit dispatch_top transaction");
+						log::error!(target: LOG_TARGET, "to submit dispatch_top call, err: {:?}", e);
+					}
 				} else {
 					break;
 				}
@@ -198,7 +199,7 @@ pub mod pallet {
 		type Call = Call<T>;
 
 		fn validate_unsigned(source: TransactionSource, unsigned_call: &self::Call<T>) -> TransactionValidity {
-			if let Call::dispatch_top {} = unsigned_call {
+			if let Call::dispatch_top { id } = unsigned_call {
 				// discard call not coming from the local node
 				match source {
 					TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ }
@@ -214,7 +215,7 @@ pub mod pallet {
 
 				return ValidTransaction::with_tag_prefix(OCW_TAG_PREFIX)
 					.priority(T::UnsignedPriority::get())
-					.and_provides(OCW_PROVIDES.to_vec())
+					.and_provides(id)
 					.longevity(T::UnsignedLongevity::get())
 					.propagate(false)
 					.build();
@@ -228,7 +229,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Extrinsics dispatches top call from the queue.
 		///
-		/// This is called from OWC.
+		/// This is called from OCW.
 		///
 		/// Emits:
 		/// - `Executed` when successful
@@ -256,7 +257,7 @@ pub mod pallet {
 
 			<T as pallet::Config>::WeightInfo::dispatch_top_base_weight().saturating_add(info.call_weight)
 		})]
-		pub fn dispatch_top(origin: OriginFor<T>) -> DispatchResult {
+		pub fn dispatch_top(origin: OriginFor<T>, _id: u128) -> DispatchResult {
 			ensure_none(origin)?;
 
 			DispatchNextId::<T>::try_mutate(|id| {
@@ -301,7 +302,7 @@ impl<T: Config> Pallet<T> {
 			return Err(Error::<T>::Overweight.into());
 		}
 
-		let len = Call::<T>::dispatch_top {}
+		let len = Call::<T>::dispatch_top { id: u128::max_value() }
 			.encoded_size()
 			.saturating_add(CALL_LEN_OFFSET.try_into().map_err(|_| Error::<T>::Overflow)?);
 

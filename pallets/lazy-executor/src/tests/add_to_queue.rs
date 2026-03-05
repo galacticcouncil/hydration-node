@@ -4,7 +4,7 @@ use pretty_assertions::assert_eq;
 use tests::{has_event, mock::*};
 
 #[test]
-fn add_to_queue_should_work_when_call_is_valid() {
+fn should_work_when_call_is_valid() {
 	ExtBuilder.build().execute_with(|| {
 		//Arrange
 		let call: BoundedCall = RuntimeCall::MockPallet(MockPalletCall::dummy_call {
@@ -24,7 +24,7 @@ fn add_to_queue_should_work_when_call_is_valid() {
 				id: 0,
 				src: Source::ICE(0),
 				who: ALICE,
-				fees: 108_159_159_u128
+				fees: 108_159_175_u128
 			}
 			.into()
 		))
@@ -32,7 +32,7 @@ fn add_to_queue_should_work_when_call_is_valid() {
 }
 
 #[test]
-fn add_to_queue_should_fail_when_call_is_not_decodeable() {
+fn should_fail_when_call_is_not_decodeable() {
 	ExtBuilder.build().execute_with(|| {
 		//Arrange
 		//NOTE: call encoded from PolkadotAPPs with removed last 2 characters
@@ -51,7 +51,7 @@ fn add_to_queue_should_fail_when_call_is_not_decodeable() {
 }
 
 #[test]
-fn add_to_queue_should_fail_when_call_is_overweight() {
+fn should_fail_when_call_is_overweight() {
 	ExtBuilder.build().execute_with(|| {
 		//Arrange
 		let max_allowed_weight = LazyExecutor::max_weight_per_call();
@@ -89,7 +89,7 @@ fn add_to_queue_should_fail_when_call_is_overweight() {
 }
 
 #[test]
-fn add_to_queue_should_fail_when_origin_cant_pay_fees() {
+fn should_fail_when_origin_cant_pay_fees() {
 	ExtBuilder.build().execute_with(|| {
 		//Arrange
 		let call: BoundedCall = RuntimeCall::MockPallet(MockPalletCall::dummy_call {

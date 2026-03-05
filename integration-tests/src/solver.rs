@@ -1235,7 +1235,10 @@ fn intent_with_on_success_callback() {
 			);
 
 			// Dispatch the callback from lazy executor queue
-			assert_ok!(LazyExecutor::dispatch_top(RuntimeOrigin::none()));
+			assert_ok!(LazyExecutor::dispatch_top(
+				RuntimeOrigin::none(),
+				LazyExecutor::dispatch_next_id()
+			));
 
 			// Verify final state
 			let alice_hdx_final = Currencies::total_balance(hdx, &alice);

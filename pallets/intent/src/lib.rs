@@ -300,7 +300,8 @@ pub mod pallet {
 				let call = Call::cleanup_intent { id: *intent_id };
 				let tx = T::create_bare(call.into());
 				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
-					log::error!(target: OCW_LOG_TARGET, "to sumbmit cleanup_intent call, err: {:?}", e);
+					debug_assert!(false, "laxy-executorn: failed to submit dispatch_top transaction");
+					log::error!(target: OCW_LOG_TARGET, "to submit cleanup_intent call, err: {:?}", e);
 				};
 			}
 		}

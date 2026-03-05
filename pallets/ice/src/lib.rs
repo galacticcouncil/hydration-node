@@ -281,7 +281,7 @@ pub mod pallet {
 					AllowDeath,
 				)?;
 
-				Self::validate_price_consitency(&mut exec_prices, resolve)?;
+				Self::validate_price_consistency(&mut exec_prices, resolve)?;
 
 				Self::deposit_event(Event::IntentSettled {
 					intent_id: *id,
@@ -385,7 +385,7 @@ impl<T: Config> Pallet<T> {
 	/// Execution prices are computed on demand based on first trade trading `resolve`'s assets in same
 	/// direction.
 	/// `exeuction_prices` are [out/in] => [in] * [out/in] = [out]
-	fn validate_price_consitency(
+	fn validate_price_consistency(
 		execution_prices: &mut BTreeMap<(AssetId, AssetId, SwapType), Price>,
 		resolve: &IntentData,
 	) -> Result<(), DispatchError> {
@@ -469,7 +469,7 @@ impl<T: Config> Pallet<T> {
 
 			pallet_intent::Pallet::<T>::validate_resolve(&intent, resolve)?;
 
-			Self::validate_price_consitency(&mut exec_prices, resolve)?;
+			Self::validate_price_consistency(&mut exec_prices, resolve)?;
 		}
 
 		ensure!(solution.score == score, Error::<T>::ScoreMismatch);

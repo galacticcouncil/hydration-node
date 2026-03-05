@@ -28,7 +28,7 @@ fn should_work_when_price_wasnt_computed_yet_and_reverse_price_is_missing() {
 	});
 
 	let mut exec_prices: BTreeMap<(AssetId, AssetId, SwapType), Price> = BTreeMap::new();
-	assert_ok!(ICE::validate_price_consitency(&mut exec_prices, &resolve));
+	assert_ok!(ICE::validate_price_consistency(&mut exec_prices, &resolve));
 
 	assert_eq!(
 		*exec_prices
@@ -48,7 +48,7 @@ fn should_work_when_price_wasnt_computed_yet_and_reverse_price_is_missing() {
 	});
 
 	let mut exec_prices: BTreeMap<(AssetId, AssetId, SwapType), Price> = BTreeMap::new();
-	assert_ok!(ICE::validate_price_consitency(&mut exec_prices, &resolve));
+	assert_ok!(ICE::validate_price_consistency(&mut exec_prices, &resolve));
 
 	assert_eq!(
 		*exec_prices
@@ -82,7 +82,7 @@ fn should_work_when_computes_new_price_and_is_within_price_tolerance_or_reverse_
 		Ratio::new(amount_out, amount_in),
 	);
 
-	assert_ok!(ICE::validate_price_consitency(&mut exec_prices, &resolve));
+	assert_ok!(ICE::validate_price_consistency(&mut exec_prices, &resolve));
 
 	assert_eq!(
 		*exec_prices
@@ -115,7 +115,7 @@ fn should_work_when_computes_new_price_and_is_within_price_tolerance_or_reverse_
 		Ratio::new(amount_out, amount_in),
 	);
 
-	assert_ok!(ICE::validate_price_consitency(&mut exec_prices, &resolve));
+	assert_ok!(ICE::validate_price_consistency(&mut exec_prices, &resolve));
 
 	assert_eq!(
 		*exec_prices
@@ -157,7 +157,7 @@ fn should_not_work_when_computes_new_price_and_is_not_within_price_tolerance_or_
 	exec_prices.insert((asset_in, asset_out, swap_type.reverse()), reverse_price);
 
 	assert_err!(
-		ICE::validate_price_consitency(&mut exec_prices, &resolve),
+		ICE::validate_price_consistency(&mut exec_prices, &resolve),
 		Error::<Test>::PriceToleranceInconsistency
 	);
 
@@ -193,7 +193,7 @@ fn should_fail_when_not_resolved_at_execution_price() {
 	exec_prices.insert((asset_in, asset_out, swap_type), Ratio::new(amount_out, amount_in));
 
 	assert_err!(
-		ICE::validate_price_consitency(&mut exec_prices, &resolve),
+		ICE::validate_price_consistency(&mut exec_prices, &resolve),
 		Error::<Test>::PriceInconsistency
 	);
 
@@ -227,7 +227,7 @@ fn should_work_when_not_resolved_within_execution_price_tolerance() {
 	let mut exec_prices: BTreeMap<(AssetId, AssetId, SwapType), Price> = BTreeMap::new();
 	exec_prices.insert((asset_in, asset_out, swap_type), Ratio::new(amount_out, amount_in));
 
-	assert_ok!(ICE::validate_price_consitency(&mut exec_prices, &resolve),);
+	assert_ok!(ICE::validate_price_consistency(&mut exec_prices, &resolve),);
 
 	assert_eq!(exec_prices.len(), 1);
 	assert_eq!(
@@ -262,7 +262,7 @@ fn should_work_when_price_and_amount_are_within_tolerances() {
 	reverse_price = reverse_price.saturating_add(&tolerance);
 	exec_prices.insert((asset_in, asset_out, swap_type.reverse()), reverse_price);
 
-	assert_ok!(ICE::validate_price_consitency(&mut exec_prices, &resolve));
+	assert_ok!(ICE::validate_price_consistency(&mut exec_prices, &resolve));
 
 	assert_eq!(exec_prices.len(), 2);
 

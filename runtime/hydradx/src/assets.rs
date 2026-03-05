@@ -1904,7 +1904,7 @@ impl pallet_intent::Config for Runtime {
 
 parameter_types! {
 	pub const IcePalletId: PalletId = PalletId(*b"ice_ice#");
-	pub const SimulatorHubAsset: AssetId = 0;
+	pub const SimulatorPriceDenom: AssetId = CORE_ASSET_ID;
 	pub const BuySellPriceTolerance: Permill = Permill::from_percent(20);
 }
 
@@ -1919,7 +1919,7 @@ impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
 		AaveSimulator<ice_simulator_provider::Aave<Runtime>>,
 	);
 	type RouteProvider = Router;
-	type PriceDenominator = SimulatorHubAsset;
+	type PriceDenominator = SimulatorPriceDenom;
 }
 
 impl pallet_ice::Config for Runtime {

@@ -30,6 +30,9 @@ use sp_std::vec::Vec;
 const D_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_D_ITERATIONS;
 const Y_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_Y_ITERATIONS;
 
+//0.01%
+const TEST_SHARES_PERCENTAGE: Balance = 10_000;
+
 pub struct Simulator<DataProvider>(PhantomData<DataProvider>);
 
 /// Snapshot of all Stableswap pools for simulation purposes.
@@ -85,6 +88,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			// but verify!
 			if let Some(peg_info) = DP::pool_pegs(pool_id) {
 				if peg_info.current.len() != pool.assets.len() {
+					debug_assert!(false, "all asssets should have pegs");
 					continue;
 				}
 			}
@@ -92,6 +96,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			if let Some(pool_snapshot) = DP::create_snapshot(pool_id) {
 				// TODO: same here as above
 				if pool_snapshot.pegs.len() != pool_snapshot.reserves.len() {
+					debug_assert!(false, "all reserves should have pegs");
 					continue;
 				}
 
@@ -153,15 +158,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return simulate_add_liquidity_sell(pool_id, asset_in, amount_in, min_amount_out, pool_snapshot, snapshot);
 		}
 
-		simulate_regular_sell(
-			pool_id,
-			asset_in,
-			asset_out,
-			amount_in,
-			min_amount_out,
-			pool_snapshot,
-			snapshot,
-		)
+		simulate_regular_sell(asset_in, asset_out, amount_in, min_amount_out, pool_snapshot, snapshot)
 	}
 
 	fn simulate_buy(
@@ -192,15 +189,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return simulate_add_liquidity_buy(pool_id, asset_in, amount_out, max_amount_in, pool_snapshot, snapshot);
 		}
 
-		simulate_regular_buy(
-			pool_id,
-			asset_in,
-			asset_out,
-			amount_out,
-			max_amount_in,
-			pool_snapshot,
-			snapshot,
-		)
+		simulate_regular_buy(asset_in, asset_out, amount_out, max_amount_in, pool_snapshot, snapshot)
 	}
 
 	fn get_spot_price(
@@ -213,7 +202,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		if asset_in == pool_id {
 			// Price = how much asset_out you get per 1 share
 			// Using a small simulation to determine spot price
-			let test_shares = pool_snapshot.share_issuance / 10000; // 0.01% of total shares
+			let test_shares = pool_snapshot.share_issuance / TEST_SHARES_PERCENTAGE;
 			if test_shares == 0 {
 				return Err(SimulatorError::InsufficientLiquidity);
 			}
@@ -361,7 +350,6 @@ fn find_pool(
 }
 
 fn simulate_regular_sell(
-	_pool_id: AssetId,
 	asset_in: AssetId,
 	asset_out: AssetId,
 	amount_in: Balance,
@@ -409,7 +397,6 @@ fn simulate_regular_sell(
 }
 
 fn simulate_regular_buy(
-	_pool_id: AssetId,
 	asset_in: AssetId,
 	asset_out: AssetId,
 	amount_out: Balance,

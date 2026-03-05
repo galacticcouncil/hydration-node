@@ -103,7 +103,6 @@ where
 	T::AddressMapping: AddressMapping<T::AccountId>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 	NonceIdOf<T>: Into<T::Nonce>,
-	T::AddressMapping: AddressMapping<T::AccountId>,
 {
 	fn view(context: hydradx_traits::evm::CallContext, data: Vec<u8>, gas: u64) -> (ExitReason, Vec<u8>) {
 		let CallResult {

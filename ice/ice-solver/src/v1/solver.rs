@@ -15,6 +15,7 @@ use ice_support::{
 };
 use sp_core::{U256, U512};
 use sp_std::collections::btree_map::BTreeMap;
+use sp_std::collections::btree_set::BTreeSet;
 use sp_std::marker::PhantomData;
 use sp_std::vec::Vec;
 
@@ -87,7 +88,7 @@ impl<A: AMMInterface> SolverV1<A> {
 			};
 
 			match trade_result {
-				Ok((new_state, trade_execution)) => {
+				Ok((_new_state, trade_execution)) => {
 					let price_ratio = Ratio::new(trade_execution.amount_out, trade_execution.amount_in);
 					actual_prices.insert(swap.asset_in, price_ratio);
 					let inverse_ratio = Ratio::new(trade_execution.amount_in, trade_execution.amount_out);
@@ -99,8 +100,6 @@ impl<A: AMMInterface> SolverV1<A> {
 						amount_out: trade_execution.amount_out,
 						route: trade_execution.route,
 					});
-
-					state = new_state;
 				}
 				Err(_) => {
 					return Ok(Solution {
@@ -273,13 +272,9 @@ impl<A: AMMInterface> SolverV1<A> {
 			}
 
 			let mut ideal_resolutions: Vec<(usize, ResolvedIntent)> = Vec::new();
-			let mut total_output_per_asset: BTreeMap<AssetId, Balance> = BTreeMap::new();
 
 			for (idx, intent) in satisfiable_intents.iter().enumerate() {
 				if let Some(resolved) = Self::resolve_intent(intent, &actual_prices) {
-					let amount_out = resolved.data.amount_out();
-					let asset_out = resolved.data.asset_out();
-					*total_output_per_asset.entry(asset_out).or_default() += amount_out;
 					ideal_resolutions.push((idx, resolved));
 				}
 			}
@@ -409,17 +404,13 @@ impl<A: AMMInterface> SolverV1<A> {
 		})
 	}
 
-	fn collect_unique_assets(intents: &[Intent]) -> Vec<AssetId> {
-		let mut assets: Vec<AssetId> = Vec::new();
+	fn collect_unique_assets(intents: &[Intent]) -> BTreeSet<AssetId> {
+		let mut assets: BTreeSet<AssetId> = BTreeSet::new();
 		for intent in intents {
 			match &intent.data {
 				IntentData::Swap(swap) => {
-					if !assets.contains(&swap.asset_in) {
-						assets.push(swap.asset_in);
-					}
-					if !assets.contains(&swap.asset_out) {
-						assets.push(swap.asset_out);
-					}
+					assets.insert(swap.asset_in);
+					assets.insert(swap.asset_out);
 				}
 			}
 		}
