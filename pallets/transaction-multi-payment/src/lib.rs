@@ -416,7 +416,7 @@ pub mod pallet {
 
 			let encoded = data.clone();
 			let mut encoded_extrinsic = encoded.as_slice();
-			let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> =
+			let maybe_call: Result<T::RuntimeCall, _> =
 				DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
 			let currency = if let Ok(call) = maybe_call {
@@ -486,7 +486,7 @@ pub mod pallet {
 
 						let encoded = data.clone();
 						let mut encoded_extrinsic = encoded.as_slice();
-						let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> =
+						let maybe_call: Result<T::RuntimeCall, _> =
 							DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
 						let currency = if let Ok(call) = maybe_call {
@@ -588,7 +588,7 @@ impl<T: Config> Pallet<T> {
 	where
 		BalanceOf<T>: FixedPointOperand,
 	{
-		if let Some(price) = Self::price(currency) {
+		if let Some(price) = <Pallet<T> as NativePriceOracle<AssetIdOf<T>, Price>>::price(currency) {
 			Some(price)
 		} else {
 			// If not loaded in on_init, let's try first the spot price provider again
@@ -637,14 +637,12 @@ pub struct TransferFees<T, MC, DF, FR, WF>(PhantomData<(T, MC, DF, FR, WF)>);
 
 impl<T, MC, DF, FR, WF> OnChargeTransaction<T> for TransferFees<T, MC, DF, FR, WF>
 where
-	T: Config + pallet_utility::Config,
+	T: Config,
 	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
 	AssetIdOf<T>: Into<MC::CurrencyId>,
 	MC::Balance: FixedPointOperand,
 	FR: Get<T::AccountId>,
 	DF: DepositFee<T::AccountId, MC::CurrencyId, MC::Balance>,
-	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
-	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
 	BalanceOf<T>: FixedPointOperand,
 	BalanceOf<T>: From<MC::Balance>,
 	WF: WithdrawFuseControl,
@@ -657,8 +655,8 @@ where
 	/// Note: The `fee` already includes the `tip`.
 	fn withdraw_fee(
 		who: &T::AccountId,
-		call: &<T as frame_system::Config>::RuntimeCall,
-		_info: &DispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
+		call: &T::RuntimeCall,
+		_info: &DispatchInfoOf<T::RuntimeCall>,
 		fee: Self::Balance,
 		_tip: Self::Balance,
 	) -> Result<Self::LiquidityInfo, TransactionValidityError> {
@@ -729,8 +727,8 @@ where
 	/// Note: The `fee` already includes the `tip`.
 	fn correct_and_deposit_fee(
 		who: &T::AccountId,
-		_dispatch_info: &DispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
-		_post_info: &PostDispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
+		_dispatch_info: &DispatchInfoOf<T::RuntimeCall>,
+		_post_info: &PostDispatchInfoOf<T::RuntimeCall>,
 		corrected_fee: Self::Balance,
 		tip: Self::Balance,
 		already_withdrawn: Self::LiquidityInfo,
@@ -781,8 +779,8 @@ where
 
 	fn can_withdraw_fee(
 		who: &T::AccountId,
-		call: &<T as frame_system::Config>::RuntimeCall,
-		_info: &DispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
+		call: &T::RuntimeCall,
+		_info: &DispatchInfoOf<T::RuntimeCall>,
 		fee: Self::Balance,
 		_tip: Self::Balance,
 	) -> Result<(), TransactionValidityError> {
@@ -819,14 +817,13 @@ where
 	}
 }
 
-impl<T, MC, DF, FR, WF> TransferFees<T, MC, DF, FR, WF>
+impl<T: Config, MC, DF, FR, WF> TransferFees<T, MC, DF, FR, WF>
 where
-	T: Config,
-	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
+	MC: MultiCurrency<T::AccountId>,
 	AssetIdOf<T>: Into<MC::CurrencyId>,
 	WF: WithdrawFuseControl,
 {
-	fn resolve_currency_from_call(who: &T::AccountId, call: &<T as frame_system::Config>::RuntimeCall) -> AssetIdOf<T> {
+	fn resolve_currency_from_call(who: &T::AccountId, call: &T::RuntimeCall) -> AssetIdOf<T> {
 		T::TryCallCurrency::try_convert(call).unwrap_or_else(|_| Pallet::<T>::account_currency(who))
 	}
 }

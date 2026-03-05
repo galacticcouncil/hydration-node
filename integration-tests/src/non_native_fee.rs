@@ -208,12 +208,10 @@ fn set_currency_should_work_in_dispatch_with_extra_gas() {
 		let bob_hdx_after = hydradx_runtime::Balances::free_balance(AccountId::from(BOB));
 		let bob_btc_after = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 
-		// Fee must be charged in BTC (the new currency declared inside dispatch_with_extra_gas).
 		assert!(
 			bob_btc_after < bob_btc_before,
 			"BTC balance should decrease — fee must be charged in the new currency"
 		);
-		// HDX must not be touched.
 		assert_eq!(bob_hdx_after, bob_hdx_before, "HDX must not be charged");
 	});
 }
@@ -245,7 +243,6 @@ fn set_currency_should_work_in_dispatch_with_extra_gas_for_evm_account() {
 			1_000_000_000_000_000_000i128,
 		));
 
-		// EVM accounts have WETH automatically set as their fee currency on account creation
 		assert_eq!(
 			MultiTransactionPayment::get_currency(evm_acc.clone()),
 			Some(WETH),
@@ -275,12 +272,10 @@ fn set_currency_should_work_in_dispatch_with_extra_gas_for_evm_account() {
 		let weth_after = hydradx_runtime::Tokens::free_balance(WETH, &evm_acc);
 		let dai_after = hydradx_runtime::Tokens::free_balance(DAI, &evm_acc);
 
-		// Fee must be charged in DAI (the new currency), not WETH (EVM default).
 		assert!(
 			dai_after < dai_before,
 			"DAI balance should decrease — fee must be charged in the new currency"
 		);
-		// WETH must not be touched.
 		assert_eq!(weth_after, weth_before, "WETH must not be charged");
 	});
 }
@@ -323,7 +318,6 @@ fn set_currency_should_not_work_in_dispatch_with_extra_gas_when_not_direct_inner
 
 		let bob_btc_after = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 
-		// BTC must not be charged — the resolver did not reach the nested set_currency.
 		assert_eq!(
 			bob_btc_after, bob_btc_before,
 			"BTC must not be charged when set_currency is nested deeper than the direct inner call"
