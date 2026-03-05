@@ -701,7 +701,7 @@ impl<T: frame_system::Config> pallet_omnipool::WeightInfo for HydraWeight<T> {
 	/// Proof: `Broadcast::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_sell(c: u32, e: u32, ) -> Weight {
+	fn router_execution_sell(_c: u32, e: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `2455 + e * (6433 ±0)`
 		//  Estimated: `6190 + e * (10332 ±3_621_787_987_402_843)`
