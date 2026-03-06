@@ -408,10 +408,11 @@ fn amm_trades_are_limited_to_max_unique_entries() {
 }
 
 #[test]
-fn external_sources_can_add_entries_beyond_max_unique_entries() {
+fn soft_limit_only_applies_to_non_external_sources() {
 	new_test_ext().execute_with(|| {
-		//Arrange - fill accumulator to max with AMM trades
 		let max_entries = <<Test as crate::Config>::MaxUniqueEntries as Get<u32>>::get();
+
+		// Fill the accumulator to max with AMM trades
 		for i in 0..max_entries {
 			assert_ok!(OnActivityHandler::<Test>::on_trade(
 				SOURCE,
@@ -426,58 +427,7 @@ fn external_sources_can_add_entries_beyond_max_unique_entries() {
 			));
 		}
 
-		assert_ok!(EmaOracle::register_external_source(
-			RuntimeOrigin::root(),
-			EXTERNAL_SOURCE
-		));
-		assert_ok!(EmaOracle::add_authorized_account(
-			RuntimeOrigin::root(),
-			EXTERNAL_SOURCE,
-			ALICE
-		));
-
-		let hdx = polkadot_xcm::v5::Location::new(
-			0,
-			polkadot_xcm::v5::Junctions::X1([polkadot_xcm::v5::Junction::GeneralIndex(0)].into()),
-		)
-		.into_versioned();
-		let dot = polkadot_xcm::v5::Location::parent().into_versioned();
-
-		//Act - external source adds entry beyond the soft limit
-		assert_ok!(EmaOracle::set_external_oracle(
-			RuntimeOrigin::signed(ALICE),
-			EXTERNAL_SOURCE,
-			Box::new(hdx),
-			Box::new(dot),
-			(100, 99),
-		));
-
-		//Assert - accumulator has more entries than MaxUniqueEntries
-		assert_eq!(Accumulator::<Test>::get().len(), (max_entries + 1) as usize);
-	});
-}
-
-#[test]
-fn soft_limit_only_for_non_external_sources() {
-	new_test_ext().execute_with(|| {
-		let max_entries = <<Test as crate::Config>::MaxUniqueEntries as Get<u32>>::get();
-
-		// Fill the accumulator with non-external entries
-		for i in 0..max_entries {
-			assert_ok!(OnActivityHandler::<Test>::on_trade(
-				SOURCE,
-				i,
-				i + 1,
-				1_000,
-				1_000,
-				2_000,
-				2_000,
-				Price::new(2_000, 2_000),
-				Some(1_000_u128),
-			));
-		}
-
-		// Non-external source should fail
+		// Non-external source should fail when accumulator is full
 		assert_noop!(
 			OnActivityHandler::<Test>::on_trade(
 				SOURCE,
@@ -494,7 +444,7 @@ fn soft_limit_only_for_non_external_sources() {
 			Error::<Test>::TooManyUniqueEntries
 		);
 
-		// But external sources should still be able to insert
+		// But external sources should still be able to insert beyond the limit
 		assert_ok!(EmaOracle::register_external_source(
 			RuntimeOrigin::root(),
 			EXTERNAL_SOURCE
@@ -512,7 +462,6 @@ fn soft_limit_only_for_non_external_sources() {
 		.into_versioned();
 		let dot = polkadot_xcm::v5::Location::parent().into_versioned();
 
-		// External source can still insert past the soft limit
 		assert_ok!(EmaOracle::set_external_oracle(
 			RuntimeOrigin::signed(ALICE),
 			EXTERNAL_SOURCE,
@@ -520,5 +469,8 @@ fn soft_limit_only_for_non_external_sources() {
 			Box::new(dot),
 			(100, 99),
 		));
+
+		// Accumulator has more entries than MaxUniqueEntries
+		assert_eq!(Accumulator::<Test>::get().len(), (max_entries + 1) as usize);
 	});
 }
