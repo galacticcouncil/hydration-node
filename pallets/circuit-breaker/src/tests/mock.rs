@@ -181,7 +181,6 @@ parameter_types! {
 	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = LRNA;
-	pub const GlobalWithdrawWindow: primitives::Moment = primitives::constants::time::unix_time::DAY;
 }
 
 impl pallet_circuit_breaker::Config for Test {
@@ -197,7 +196,6 @@ impl pallet_circuit_breaker::Config for Test {
 	type OmnipoolHubAsset = OmnipoolHubAsset;
 	type WeightInfo = ();
 	type DepositLimiter = DepositLimiter;
-	type GlobalWithdrawWindow = GlobalWithdrawWindow;
 	type TimestampProvider = Timestamp;
 
 	#[cfg(feature = "runtime-benchmarks")]

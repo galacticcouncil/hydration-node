@@ -23,7 +23,7 @@ use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
 pub use crate::evm::gas_to_weight_mapping::FixedHydraGasWeightMapping;
 use crate::evm::runner::WrapRunner;
 use crate::origins::GeneralAdmin;
-use crate::types::ShortOraclePrice;
+use crate::types::TenMinutesOraclePrice;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
@@ -192,7 +192,7 @@ impl pallet_evm::Config for Runtime {
 		pallet_evm::runner::stack::Runner<Self>, // Evm runner that we wrap
 		hydradx_adapters::price::FeeAssetBalanceInCurrency<
 			Runtime,
-			ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
+			ConvertBalance<TenMinutesOraclePrice, XykPaymentAssetSupport, DotAssetId>,
 			FeeCurrencyOverrideOrDefault, // Get account's fee payment asset
 			FungibleCurrencies<Runtime>,  // Account balance inspector
 		>,
@@ -201,7 +201,7 @@ impl pallet_evm::Config for Runtime {
 		evm_fee::DepositEvmFeeToTreasury,
 		FeeCurrencyOverrideOrDefault, // Get account's fee payment asset
 		WethAssetId,
-		ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
+		ConvertBalance<TenMinutesOraclePrice, XykPaymentAssetSupport, DotAssetId>,
 		FungibleCurrencies<Runtime>, // Multi currency support
 		XykPaymentAssetSupport,
 		DotAssetId,
