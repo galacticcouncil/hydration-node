@@ -872,6 +872,21 @@ macro_rules! handle_execution_error {
 }
 
 impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
+	fn get_onchain_route(asset_pair: AssetPair<T::AssetId>) -> Option<Route<T::AssetId>> {
+		let onchain_route = Routes::<T>::get(asset_pair.ordered_pair());
+
+		match onchain_route {
+			Some(route) => {
+				if asset_pair.is_ordered() {
+					Some(route)
+				} else {
+					Some(inverse_route(route))
+				}
+			}
+			None => None,
+		}
+	}
+
 	fn get_route(asset_pair: AssetPair<T::AssetId>) -> Route<T::AssetId> {
 		let onchain_route = Routes::<T>::get(asset_pair.ordered_pair());
 
