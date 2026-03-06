@@ -714,14 +714,25 @@ export async function ensureDerivedEthHasGas(
     `   Estimated gas needed: ${ethers.formatEther(estimatedGas)} ETH\n`,
   )
 
-  if (ethBalance < estimatedGas) {
-    throw new Error(
-      `Insufficient ETH at ${derivedEthAddress}\n` +
-        `   Need: ${ethers.formatEther(estimatedGas)} ETH\n` +
-        `   Have: ${ethers.formatEther(ethBalance)} ETH\n` +
-        `   Please fund this address with ETH for gas`,
-    )
+  if (ethBalance >= estimatedGas) return
+
+  if (ENV.EVM_NETWORK === 'anvil') {
+    const ANVIL_DEFAULT_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+    const funder = new ethers.Wallet(ANVIL_DEFAULT_KEY, provider)
+    const fundAmount = estimatedGas * 10n
+    console.log(`Funding ${derivedEthAddress} with ${ethers.formatEther(fundAmount)} ETH from Anvil account...`)
+    const tx = await funder.sendTransaction({ to: derivedEthAddress, value: fundAmount })
+    await tx.wait()
+    console.log(`Funded. Tx: ${tx.hash}`)
+    return
   }
+
+  throw new Error(
+    `Insufficient ETH at ${derivedEthAddress}\n` +
+      `   Need: ${ethers.formatEther(estimatedGas)} ETH\n` +
+      `   Have: ${ethers.formatEther(ethBalance)} ETH\n` +
+      `   Please fund this address with ETH for gas`,
+  )
 }
 
 /**

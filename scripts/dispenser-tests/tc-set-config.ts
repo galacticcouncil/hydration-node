@@ -186,14 +186,34 @@ async function proposeViaTechCommittee(api: ApiPromise) {
 
 // ---- Verify ----
 
-async function verifyConfigs(api: ApiPromise) {
+async function verifyConfigs(api: ApiPromise, expectSet: boolean) {
   console.log('\n--- Verifying configs ---')
 
   const signetCfg = await (api.query as any).signet.signetConfig()
-  console.log('Signet config:', signetCfg.toJSON())
+  const signet = signetCfg.toJSON()
+  console.log('Signet config:', signet)
 
   const dispenserCfg = await (api.query as any).ethDispenser.dispenserConfig()
-  console.log('Dispenser config:', dispenserCfg.toJSON())
+  const dispenser = dispenserCfg.toJSON()
+  console.log('Dispenser config:', dispenser)
+
+  if (expectSet) {
+    if (!signet) {
+      console.error('ERROR: Signet config is null after storage write!')
+      process.exit(1)
+    }
+    if (!dispenser) {
+      console.error('ERROR: Dispenser config is null after storage write!')
+      process.exit(1)
+    }
+    if (dispenser.dispenserFee < 1_000_000_000_000) {
+      console.error(`ERROR: dispenserFee (${dispenser.dispenserFee}) is below HDX existential deposit (1e12)!`)
+      process.exit(1)
+    }
+    console.log('Configs verified.')
+  } else {
+    console.log('TC proposal submitted — configs will be set after the proposal passes.')
+  }
 }
 
 // ---- Main ----
@@ -212,12 +232,12 @@ async function main() {
   if (chopsticks) {
     console.log('Mode: Chopsticks (dev_setStorage)\n')
     await executeOnChopsticks(api)
+    await verifyConfigs(api, true)
   } else {
     console.log('Mode: Real network (TC proposal)\n')
     await proposeViaTechCommittee(api)
+    await verifyConfigs(api, false)
   }
-
-  await verifyConfigs(api)
   await api.disconnect()
   console.log('\nDone.')
 }

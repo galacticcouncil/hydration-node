@@ -178,13 +178,7 @@ describe('ERC20 Vault Integration', () => {
       `Found ${signetEvents.length} SignBidirectionalRequested event(s)`,
     )
 
-    if (signetEvents.length > 0) {
-      console.log(
-        'SignBidirectionalRequested event emitted - MPC should pick it up',
-      )
-    } else {
-      console.log('No SignBidirectionalRequested event found!')
-    }
+    expect(signetEvents.length).toBeGreaterThan(0)
 
     console.log('Waiting for MPC signature...')
 
@@ -243,7 +237,9 @@ describe('ERC20 Vault Integration', () => {
     console.log(`   Tx Hash: ${txResponse.hash}`)
 
     const receipt = await txResponse.wait()
-    console.log(`Transaction confirmed in block ${receipt?.blockNumber}\n`)
+    expect(receipt).not.toBeNull()
+    expect(receipt!.status).toBe(1)
+    console.log(`Transaction confirmed in block ${receipt!.blockNumber}\n`)
 
     console.log('Waiting for MPC to read transaction result...')
     const readResponse = await waitForReadResponse(
