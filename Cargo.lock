@@ -9856,7 +9856,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.15.0"
+version = "1.15.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -10152,7 +10152,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11034,7 +11034,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "3.2.0"
+version = "3.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

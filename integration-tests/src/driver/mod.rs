@@ -132,6 +132,14 @@ impl HydrationTestDriver {
 		price: (Balance, Balance),
 	) -> &Self {
 		self.execute(|| {
+			// Ensure BIFROST_SOURCE is registered and bifrost_account is authorized
+			// We need this because we added support for multiple oracle sources which required migration
+			let _ = EmaOracle::register_external_source(RuntimeOrigin::root(), pallet_ema_oracle::BIFROST_SOURCE);
+			let _ = EmaOracle::add_authorized_account(
+				RuntimeOrigin::root(),
+				pallet_ema_oracle::BIFROST_SOURCE,
+				bifrost_account(),
+			);
 			assert_ok!(EmaOracle::update_bifrost_oracle(
 				RuntimeOrigin::signed(bifrost_account()),
 				asset_a,

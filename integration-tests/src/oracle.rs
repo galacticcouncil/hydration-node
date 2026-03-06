@@ -30,7 +30,6 @@ use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
 use sp_runtime::traits::{DispatchTransaction, TransactionExtension};
-use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
 use sp_std::collections::btree_map::BTreeMap;
@@ -447,6 +446,17 @@ fn bifrost_oracle_should_be_updated() {
 	let (asset_a_id, asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
 
 	Hydra::execute_with(|| {
+		// Register BIFROST_SOURCE as external source and authorize bifrost account
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+			bifrost_account(),
+		));
+
 		assert_ok!(EmaOracle::add_oracle(
 			RuntimeOrigin::root(),
 			BIFROST_SOURCE,
@@ -483,7 +493,18 @@ fn bifrost_oracle_should_be_added_when_pair_not_whitelisted() {
 	let (asset_a_id, asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
 
 	Hydra::execute_with(|| {
-		// act
+		// Register BIFROST_SOURCE as external source and authorize bifrost account
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+			bifrost_account(),
+		));
+
+		// act - no whitelist setup, external sources bypass whitelist
 		assert_ok!(EmaOracle::update_bifrost_oracle(
 			RuntimeOrigin::signed(bifrost_account()),
 			asset_a,
@@ -513,6 +534,17 @@ fn bifrost_oracle_update_should_return_fee() {
 	let (_asset_a_id, _asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
 	let balance = 10 * UNITS;
 	Hydra::execute_with(|| {
+		// Register BIFROST_SOURCE as external source and authorize bifrost account
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+			bifrost_account(),
+		));
+
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			bifrost_account(),
@@ -564,6 +596,12 @@ fn bifrost_oracle_update_fail_should_charge_fee() {
 	TestNet::reset();
 	let (_asset_a_id, _asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
 	Hydra::execute_with(|| {
+		// Register BIFROST_SOURCE but do NOT authorize ALICE
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+		));
+
 		let balance = hydradx_runtime::Currencies::free_balance(0, &ALICE.into());
 		let oracle_call = hydradx_runtime::RuntimeCall::EmaOracle(
 			pallet_ema_oracle::Call::<hydradx_runtime::Runtime>::update_bifrost_oracle {
@@ -586,7 +624,10 @@ fn bifrost_oracle_update_fail_should_charge_fee() {
 			"fee should be withdrawn"
 		);
 		let exec = EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE.into()), asset_a, asset_b, (50, 100));
-		assert_noop!(exec.clone(), BadOrigin);
+		assert_noop!(
+			exec.clone(),
+			pallet_ema_oracle::Error::<hydradx_runtime::Runtime>::NotAuthorized
+		);
 		let mut exec_err_post_info = exec.err().unwrap().post_info;
 		assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
 			pre_data,
