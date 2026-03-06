@@ -24,7 +24,7 @@ fn should_work_when_intent_is_valid() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - 1,
+					deadline: Some(MAX_INTENT_DEADLINE - 1),
 					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
 					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
 				};
@@ -34,8 +34,7 @@ fn should_work_when_intent_is_valid() {
 				let id = match r {
 					Ok(id) => id,
 					_ => {
-						assert!(false, "Expected Ok(_). Got {:#?}", r);
-						0
+						panic!("Expected Ok(_). Got {:#?}", r);
 					}
 				};
 
@@ -69,7 +68,7 @@ fn should_not_work_when_deadline_is_less_than_now() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - 1,
+					deadline: Some(MAX_INTENT_DEADLINE - 1),
 					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
 					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
 				};
@@ -99,7 +98,7 @@ fn should_not_work_when_deadline_bigger_than_max_allowed_intent_duration() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE + 1,
+					deadline: Some(MAX_INTENT_DEADLINE + 1),
 					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
 					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
 				};
@@ -129,7 +128,7 @@ fn should_not_work_when_amount_in_is_zero() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - 1,
+					deadline: Some(MAX_INTENT_DEADLINE - 1),
 					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
 					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
 				};
@@ -156,7 +155,7 @@ fn should_not_work_when_amount_out_is_zero() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - 1,
+					deadline: Some(MAX_INTENT_DEADLINE - 1),
 					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
 					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
 				};
@@ -183,7 +182,7 @@ fn should_not_work_when_asset_in_eq_asset_out() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - 1,
+					deadline: Some(MAX_INTENT_DEADLINE - 1),
 					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
 					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
 				};
@@ -210,7 +209,7 @@ fn should_not_work_when_asset_out_is_hub_asset() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - 1,
+					deadline: Some(MAX_INTENT_DEADLINE - 1),
 					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
 					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
 				};
@@ -240,7 +239,7 @@ fn should_not_work_when_cant_reserve_funds() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - 1,
+					deadline: Some(MAX_INTENT_DEADLINE - 1),
 					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
 					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
 				};
@@ -275,7 +274,7 @@ fn should_not_work_when_amount_in_is_less_than_ed() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - 1,
+					deadline: Some(MAX_INTENT_DEADLINE - 1),
 					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
 					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
 				};
@@ -309,13 +308,58 @@ fn should_not_work_when_amount_out_is_less_than_ed() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - 1,
+					deadline: Some(MAX_INTENT_DEADLINE - 1),
 					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
 					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
 				};
 
 				//Act&Assert
 				assert_noop!(IntentPallet::add_intent(ALICE, intent), Error::<Test>::InvalidIntent);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn should_work_when_intent_has_no_deadline() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX), (BOB, ETH, 5 * ONE_QUINTIL)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				assert_eq!(Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE), 0);
+				assert_eq!(Intents::<Test>::iter_keys().count(), 0);
+
+				let intent_0 = Intent {
+					data: IntentData::Swap(SwapData {
+						asset_in: HDX,
+						asset_out: DOT,
+						amount_in: 10 * ONE_HDX,
+						amount_out: 1_000 * ONE_DOT,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+					deadline: None,
+					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
+					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+				};
+
+				//Act
+				let r = IntentPallet::add_intent(ALICE, intent_0.clone());
+				let id = match r {
+					Ok(id) => id,
+					_ => {
+						panic!("Expected Ok(_). Got {:#?}", r);
+					}
+				};
+
+				assert_eq!(IntentPallet::get_intent(id), Some(intent_0));
+				assert_eq!(IntentPallet::intent_owner(id), Some(ALICE));
+				assert_eq!(
+					Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE),
+					10 * ONE_HDX
+				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});

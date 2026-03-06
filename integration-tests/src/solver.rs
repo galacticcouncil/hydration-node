@@ -293,7 +293,7 @@ fn stableswap_intent() {
 		let alice_b_before = Currencies::total_balance(asset_b, &ALICE.into());
 
 		let ts = Timestamp::now();
-		let deadline = 6000u64 * 10 + ts;
+		let deadline = Some(6000u64 * 10 + ts);
 		assert_ok!(pallet_intent::Pallet::<Runtime>::submit_intent(
 			RuntimeOrigin::signed(ALICE.into()),
 			pallet_intent::types::Intent {
@@ -347,8 +347,8 @@ fn solver_two_intents() {
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(ALICE.into(), 0, 1_000_000_000_000_000)
 		.endow_account(BOB.into(), 5, 1_000_000_000_000_000)
-		.submit_sell_intent(ALICE.into(), 0, 5, 1_000_000_000_000, 17_540_000u128, 2)
-		.submit_sell_intent(BOB.into(), 5, 0, 1_000_000_000_000, 1_000_000_000_000u128, 2)
+		.submit_sell_intent(ALICE.into(), 0, 5, 1_000_000_000_000, 17_540_000u128, Some(2))
+		.submit_sell_intent(BOB.into(), 5, 0, 1_000_000_000_000, 1_000_000_000_000u128, Some(2))
 		.execute(|| {
 			enable_slip_fees();
 			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
@@ -388,8 +388,8 @@ fn solver_execute_solution1() {
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(alice.clone(), asset_a, amount * 10)
 		.endow_account(bob.clone(), asset_b, amount * 10)
-		.submit_sell_intent(alice.clone(), asset_a, asset_b, amount, min_amount_out_b, 10)
-		.submit_sell_intent(bob.clone(), asset_b, asset_a, amount, min_amount_out_a, 10)
+		.submit_sell_intent(alice.clone(), asset_a, asset_b, amount, min_amount_out_b, Some(10))
+		.submit_sell_intent(bob.clone(), asset_b, asset_a, amount, min_amount_out_a, None) //no deadline
 		.execute(|| {
 			enable_slip_fees();
 			let alice_balance_a_before = Currencies::total_balance(asset_a, &alice);
@@ -505,7 +505,14 @@ fn solver_execute_solution_with_buy_intents() {
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(alice.clone(), asset_a, alice_max_pay * 10)
-		.submit_buy_intent(alice.clone(), asset_a, asset_b, alice_max_pay, alice_wants_to_buy, 10)
+		.submit_buy_intent(
+			alice.clone(),
+			asset_a,
+			asset_b,
+			alice_max_pay,
+			alice_wants_to_buy,
+			Some(10),
+		)
 		.execute(|| {
 			enable_slip_fees();
 			let alice_balance_a_before = Currencies::total_balance(asset_a, &alice);
@@ -606,11 +613,18 @@ fn solver_mixed_sell_and_buy_intents() {
 		.endow_account(charlie.clone(), bnc, max_pay)
 		.endow_account(dave.clone(), hdx, max_pay)
 		.endow_account(dave.clone(), bnc, max_pay)
-		.submit_sell_intent(alice.clone(), hdx, bnc, sell_hdx_amount, buy_bnc_amount, 10)
-		.submit_buy_intent(bob.clone(), bnc, hdx, max_pay, buy_hdx_amount, 10)
-		.submit_sell_intent(charlie.clone(), bnc, hdx, sell_bnc_amount, 1_000_000_000_000u128, 10)
-		.submit_buy_intent(dave.clone(), hdx, bnc, max_pay, buy_bnc_amount, 10)
-		.submit_sell_intent(alice.clone(), hdx, bnc, sell_hdx_amount, buy_bnc_amount, 10)
+		.submit_sell_intent(alice.clone(), hdx, bnc, sell_hdx_amount, buy_bnc_amount, Some(10))
+		.submit_buy_intent(bob.clone(), bnc, hdx, max_pay, buy_hdx_amount, Some(10))
+		.submit_sell_intent(
+			charlie.clone(),
+			bnc,
+			hdx,
+			sell_bnc_amount,
+			1_000_000_000_000u128,
+			Some(10),
+		)
+		.submit_buy_intent(dave.clone(), hdx, bnc, max_pay, buy_bnc_amount, Some(10))
+		.submit_sell_intent(alice.clone(), hdx, bnc, sell_hdx_amount, buy_bnc_amount, Some(10))
 		.execute(|| {
 			enable_slip_fees();
 			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
@@ -708,7 +722,7 @@ fn solver_v1_single_intent() {
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(alice.clone(), hdx, amount * 10)
-		.submit_sell_intent(alice.clone(), hdx, bnc, amount, min_amount_out, 10)
+		.submit_sell_intent(alice.clone(), hdx, bnc, amount, min_amount_out, Some(10))
 		.execute(|| {
 			enable_slip_fees();
 			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
@@ -806,8 +820,8 @@ fn solver_v1_two_intents_partial_cow_match() {
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(alice.clone(), hdx, alice_hdx_amount * 10)
 		.endow_account(bob.clone(), bnc, bob_bnc_amount * 10)
-		.submit_sell_intent(alice.clone(), hdx, bnc, alice_hdx_amount, 68_795_189_840u128, 10)
-		.submit_sell_intent(bob.clone(), bnc, hdx, bob_bnc_amount, 1_000_000_000_000u128, 10)
+		.submit_sell_intent(alice.clone(), hdx, bnc, alice_hdx_amount, 68_795_189_840u128, Some(10))
+		.submit_sell_intent(bob.clone(), bnc, hdx, bob_bnc_amount, 1_000_000_000_000u128, Some(10))
 		.execute(|| {
 			enable_slip_fees();
 			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
@@ -898,15 +912,15 @@ fn solver_v1_five_mixed_intents() {
 		.endow_account(dave.clone(), hdx, 500 * hdx_unit)
 		.endow_account(eve.clone(), bnc, 100 * bnc_unit)
 		// Alice: sell 500 HDX for BNC (ExactIn)
-		.submit_sell_intent(alice.clone(), hdx, bnc, 500 * hdx_unit, 68_795_189_840u128, 10)
+		.submit_sell_intent(alice.clone(), hdx, bnc, 500 * hdx_unit, 68_795_189_840u128, Some(10))
 		// Bob: sell 300 BNC for HDX (ExactIn)
-		.submit_sell_intent(bob.clone(), bnc, hdx, 300 * bnc_unit, 1_000_000_000_000u128, 10)
+		.submit_sell_intent(bob.clone(), bnc, hdx, 300 * bnc_unit, 1_000_000_000_000u128, Some(10))
 		// Charlie: sell 200 HDX for BNC (ExactIn)
-		.submit_sell_intent(charlie.clone(), hdx, bnc, 200 * hdx_unit, 168_795_189_840u128, 10)
+		.submit_sell_intent(charlie.clone(), hdx, bnc, 200 * hdx_unit, 168_795_189_840u128, Some(10))
 		// Dave: buy 10 BNC with max 400 HDX (ExactOut)
-		.submit_buy_intent(dave.clone(), hdx, bnc, 400 * hdx_unit, 10 * bnc_unit, 10)
+		.submit_buy_intent(dave.clone(), hdx, bnc, 400 * hdx_unit, 10 * bnc_unit, Some(10))
 		// Eve: buy 500 HDX with max 50 BNC (ExactOut)
-		.submit_buy_intent(eve.clone(), bnc, hdx, 50 * bnc_unit, 500 * hdx_unit, 10)
+		.submit_buy_intent(eve.clone(), bnc, hdx, 50 * bnc_unit, 500 * hdx_unit, Some(10))
 		.execute(|| {
 			enable_slip_fees();
 			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
@@ -984,11 +998,11 @@ fn solver_v1_uniform_price_all_sells() {
 		.endow_account(dave.clone(), hdx, 500 * hdx_unit)
 		.endow_account(eve.clone(), hdx, 1000 * hdx_unit)
 		// All ExactIn (sell) intents
-		.submit_sell_intent(alice.clone(), hdx, bnc, 500 * hdx_unit, 68_795_189_840u128, 10)
-		.submit_sell_intent(bob.clone(), bnc, hdx, 300 * bnc_unit, 1_000_000_000_000u128, 10)
-		.submit_sell_intent(charlie.clone(), hdx, bnc, 200 * hdx_unit, 68_795_189_840u128, 10)
-		.submit_sell_intent(dave.clone(), hdx, bnc, 100 * hdx_unit, 68_795_189_840u128, 10)
-		.submit_sell_intent(eve.clone(), hdx, bnc, 500 * hdx_unit, 68_795_189_840u128, 10) // Same as Alice
+		.submit_sell_intent(alice.clone(), hdx, bnc, 500 * hdx_unit, 68_795_189_840u128, Some(10))
+		.submit_sell_intent(bob.clone(), bnc, hdx, 300 * bnc_unit, 1_000_000_000_000u128, Some(10))
+		.submit_sell_intent(charlie.clone(), hdx, bnc, 200 * hdx_unit, 68_795_189_840u128, Some(10))
+		.submit_sell_intent(dave.clone(), hdx, bnc, 100 * hdx_unit, 68_795_189_840u128, Some(10))
+		.submit_sell_intent(eve.clone(), hdx, bnc, 500 * hdx_unit, 68_795_189_840u128, Some(10)) // Same as Alice
 		.execute(|| {
 			enable_slip_fees();
 			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
@@ -1074,11 +1088,11 @@ fn solver_v1_uniform_price_opposite_sells() {
 		.endow_account(eve.clone(), bnc, 100 * bnc_unit)
 		.endow_account(bob.clone(), bnc, 500 * bnc_unit)
 		// Alice sells HDX for BNC
-		.submit_sell_intent(alice.clone(), hdx, bnc, 500 * hdx_unit, 68_795_189_840u128, 10)
+		.submit_sell_intent(alice.clone(), hdx, bnc, 500 * hdx_unit, 68_795_189_840u128, Some(10))
 		// Eve sells BNC for HDX (opposite direction)
-		.submit_sell_intent(eve.clone(), bnc, hdx, eve_bnc_sell, 1_000_000_000_000u128, 10)
+		.submit_sell_intent(eve.clone(), bnc, hdx, eve_bnc_sell, 1_000_000_000_000u128, Some(10))
 		// Bob sells BNC for HDX (same direction as Eve)
-		.submit_sell_intent(bob.clone(), bnc, hdx, 200 * bnc_unit, 1_000_000_000_000u128, 10)
+		.submit_sell_intent(bob.clone(), bnc, hdx, 200 * bnc_unit, 1_000_000_000_000u128, Some(10))
 		.execute(|| {
 			enable_slip_fees();
 			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
@@ -1181,7 +1195,7 @@ fn intent_with_on_success_callback() {
 				transfer_call.encode().try_into().expect("callback should fit");
 
 			let ts = Timestamp::now();
-			let deadline = ts + 6000 * 10;
+			let deadline = Some(ts + 6000 * 10);
 
 			let min_hdx_out = 1_000_000_000_000u128;
 
@@ -1286,7 +1300,7 @@ fn usdt_weth_single_intent() {
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(alice.clone(), usdt, amount_in * 10)
-		.submit_sell_intent(alice.clone(), usdt, weth, amount_in, min_amount_out, 10)
+		.submit_sell_intent(alice.clone(), usdt, weth, amount_in, min_amount_out, Some(10))
 		.execute(|| {
 			enable_slip_fees();
 			let alice_usdt_before = Currencies::total_balance(usdt, &alice);
@@ -1397,7 +1411,7 @@ fn usdt_weth_solver_vs_router() {
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(alice.clone(), usdt, amount_in * 10)
 		.endow_account(bob.clone(), usdt, amount_in * 10)
-		.submit_sell_intent(alice.clone(), usdt, weth, amount_in, 5_390_835_579_515u128, 10)
+		.submit_sell_intent(alice.clone(), usdt, weth, amount_in, 5_390_835_579_515u128, Some(10))
 		.execute(|| {
 			enable_slip_fees();
 			// ========== SOLVER PATH (Alice) ==========
@@ -1499,9 +1513,16 @@ fn usdt_weth_two_opposing_intents() {
 		.endow_account(alice.clone(), weth, weth_unit)
 		.endow_account(bob.clone(), usdt, 1000 * usdt_unit)
 		// Alice: sell USDT for WETH
-		.submit_sell_intent(alice.clone(), usdt, weth, alice_usdt_amount, 5_390_835_579_515u128, 10)
+		.submit_sell_intent(
+			alice.clone(),
+			usdt,
+			weth,
+			alice_usdt_amount,
+			5_390_835_579_515u128,
+			Some(10),
+		)
 		// Bob: sell WETH for USDT (opposite direction)
-		.submit_sell_intent(bob.clone(), weth, usdt, bob_weth_amount, 10_000, 10)
+		.submit_sell_intent(bob.clone(), weth, usdt, bob_weth_amount, 10_000, Some(10))
 		.execute(|| {
 			enable_slip_fees();
 			let alice_weth_before = Currencies::total_balance(weth, &alice);
@@ -1571,7 +1592,7 @@ fn eth_3pool_single_intent() {
 			pool3,
 			alice_eth_amount,
 			20_000_000_000_000_000u128, //ED
-			10,
+			Some(10),
 		)
 		.execute(|| {
 			enable_slip_fees();
@@ -1641,7 +1662,7 @@ fn eth_3pool_solver_vs_router() {
 			pool3,
 			amount_in,
 			20_000_000_000_000_000u128, //ED
-			10,
+			Some(10),
 		)
 		.execute(|| {
 			enable_slip_fees();
@@ -1752,7 +1773,7 @@ fn _eth_3pool_two_opposing_intents() {
 			pool3,
 			alice_eth_amount,
 			20_000_000_000_000_000u128, //ED
-			10,
+			Some(10),
 		)
 		// Bob: sell 3pool for ETH (opposite direction)
 		.submit_sell_intent(
@@ -1761,7 +1782,7 @@ fn _eth_3pool_two_opposing_intents() {
 			eth,
 			bob_3pool_amount,
 			20_000_000_000_000_000u128, //ED
-			10,
+			Some(10),
 		)
 		.execute(|| {
 			enable_slip_fees();

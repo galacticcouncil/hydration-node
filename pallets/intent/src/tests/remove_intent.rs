@@ -25,7 +25,7 @@ fn should_work_when_canceled_by_owner() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -41,7 +41,7 @@ fn should_work_when_canceled_by_owner() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -57,7 +57,7 @@ fn should_work_when_canceled_by_owner() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -65,7 +65,7 @@ fn should_work_when_canceled_by_owner() {
 		])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464000_u128;
+			let id = 0_u128;
 			let intent = IntentPallet::get_intent(id).expect("Intent to exists");
 			let owner = ALICE;
 
@@ -107,7 +107,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -123,7 +123,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -139,7 +139,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -147,7 +147,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 		])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464000_u128;
+			let id = 0_u128;
 			let mut resolve = IntentPallet::get_intent(id).expect("Intent to exists");
 			let owner = ALICE;
 
@@ -216,7 +216,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -232,7 +232,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -248,7 +248,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -287,7 +287,7 @@ fn should_not_work_when_canceled_non_owner() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -303,7 +303,7 @@ fn should_not_work_when_canceled_non_owner() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -311,7 +311,7 @@ fn should_not_work_when_canceled_non_owner() {
 		])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464000_u128;
+			let id = 0_u128;
 			let non_owner = BOB;
 
 			//Act & Assert;
@@ -342,7 +342,7 @@ fn should_not_work_when_origin_is_none() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -358,7 +358,7 @@ fn should_not_work_when_origin_is_none() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},

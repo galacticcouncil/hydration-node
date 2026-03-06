@@ -18,7 +18,7 @@ pub enum CallbackType {
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, DecodeWithMemTracking, TypeInfo)]
 pub struct Intent {
 	pub data: IntentData,
-	pub deadline: Moment,
+	pub deadline: Option<Moment>,
 	pub on_success: Option<CallData>,
 	pub on_failure: Option<CallData>,
 }

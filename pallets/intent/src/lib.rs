@@ -255,7 +255,10 @@ pub mod pallet {
 			Intents::<T>::try_mutate_exists(id, |maybe_intent| {
 				let intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
 
-				ensure!(intent.deadline <= T::TimestampProvider::now(), Error::<T>::IntentActive);
+				ensure!(
+					intent.deadline.ok_or(Error::<T>::IntentActive)? <= T::TimestampProvider::now(),
+					Error::<T>::IntentActive
+				);
 
 				IntentOwner::<T>::try_mutate_exists(id, |maybe_owner| -> Result<(), DispatchError> {
 					let owner = maybe_owner.as_ref().ok_or(Error::<T>::IntentOwnerNotFound)?;
@@ -325,7 +328,11 @@ pub mod pallet {
 					return InvalidTransaction::Call.into();
 				};
 
-				ensure!(intent.deadline <= T::TimestampProvider::now(), InvalidTransaction::Call);
+				let Some(deadline) = intent.deadline else {
+					return Err(TransactionValidityError::Invalid(InvalidTransaction::Call));
+				};
+
+				ensure!(deadline <= T::TimestampProvider::now(), InvalidTransaction::Call);
 
 				return ValidTransaction::with_tag_prefix(OCW_TAG_PREFIX)
 					.priority(UNSIGNED_TXS_PRIORITY)
@@ -369,11 +376,13 @@ impl<T: Config> Pallet<T> {
 	#[require_transactional]
 	pub fn add_intent(owner: T::AccountId, intent: Intent) -> Result<IntentId, DispatchError> {
 		let now = T::TimestampProvider::now();
-		ensure!(intent.deadline > now, Error::<T>::InvalidDeadline);
-		ensure!(
-			intent.deadline < (now.saturating_add(T::MaxAllowedIntentDuration::get())),
-			Error::<T>::InvalidDeadline
-		);
+		if let Some(deadline) = intent.deadline {
+			ensure!(deadline > now, Error::<T>::InvalidDeadline);
+			ensure!(
+				deadline < (now.saturating_add(T::MaxAllowedIntentDuration::get())),
+				Error::<T>::InvalidDeadline
+			);
+		}
 
 		let ed_in = T::RegistryHandler::existential_deposit(intent.data.asset_in()).ok_or(Error::<T>::AssetNotFound)?;
 		let ed_out =
@@ -390,7 +399,7 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		let id = Self::generate_new_intent_id(intent.deadline);
+		let id = Self::generate_new_intent_id(now);
 		Intents::<T>::insert(id, &intent);
 		IntentOwner::<T>::insert(id, &owner);
 		Self::deposit_event(Event::IntentSubmitted { id, owner, intent });
@@ -404,7 +413,7 @@ impl<T: Config> Pallet<T> {
 		intents.sort_by_key(|(_, intent)| intent.deadline);
 
 		let now = T::TimestampProvider::now();
-		intents.retain(|(_, intent)| intent.deadline <= now);
+		intents.retain(|(_, intent)| intent.deadline.unwrap_or(Moment::MAX) <= now);
 
 		intents.iter().map(|x| x.0).collect::<Vec<IntentId>>()
 	}
@@ -412,17 +421,16 @@ impl<T: Config> Pallet<T> {
 	/// Function returns valid intents
 	pub fn get_valid_intents() -> Vec<(IntentId, Intent)> {
 		let mut intents: Vec<(IntentId, Intent)> = Intents::<T>::iter().collect();
-		intents.sort_by_key(|(_, intent)| intent.deadline);
-
-		let now = T::TimestampProvider::now();
-		intents.retain(|(_, intent)| intent.deadline > now);
+		intents.sort_by_key(|(id, _)| Reverse(*id));
 
 		intents
 	}
 
 	/// Function validates if intent was resolved correctly
 	pub fn validate_resolve(intent: &Intent, resolve: &IntentData) -> Result<(), DispatchError> {
-		ensure!(intent.deadline > T::TimestampProvider::now(), Error::<T>::IntentExpired);
+		if let Some(deadline) = intent.deadline {
+			ensure!(deadline > T::TimestampProvider::now(), Error::<T>::IntentExpired);
+		}
 
 		ensure!(
 			intent.data.asset_in() == resolve.asset_in(),
@@ -496,11 +504,10 @@ impl<T: Config> Pallet<T> {
 
 			Self::validate_resolve(intent, resolve)?;
 
-			let fully_resolved;
-			match intent.data {
+			let fully_resolved = match intent.data {
 				IntentData::Swap(ref mut s) => {
 					let IntentData::Swap(ref r) = resolve;
-					fully_resolved = Self::resolve_swap_intent(s, r)?;
+					Self::resolve_swap_intent(s, r)?
 				}
 			};
 
@@ -590,7 +597,7 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> Pallet<T> {
 	fn generate_new_intent_id(deadline: Moment) -> IntentId {
 		// We deliberately overflow here, so if we , for some reason, hit to max value, we will start from 0 again
-		// it is not an issue, we create new intent id together with deadline, so it is not possible to create two intents with the same id
+		// it is not an issue, we create new intent id together with created at timestamp, so it is not possible to create two intents with the same id
 		let incremental_id = NextIncrementalId::<T>::mutate(|id| -> IncrementalIntentId {
 			let current_id = *id;
 			(*id, _) = id.overflowing_add(1);

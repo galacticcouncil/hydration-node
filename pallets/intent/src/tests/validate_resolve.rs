@@ -16,7 +16,7 @@ fn non_partial_swap_intent_should_work_when_resolved_exactly() {
 				swap_type: SwapType::ExactIn,
 				partial: false,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -35,7 +35,50 @@ fn non_partial_swap_intent_should_work_when_resolved_exactly() {
 				swap_type: SwapType::ExactOut,
 				partial: false,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
+			on_success: None,
+			on_failure: None,
+		};
+
+		let resolve = intent.clone();
+
+		assert_ok!(IntentPallet::validate_resolve(&intent, &resolve.data));
+	});
+}
+
+#[test]
+fn should_work_when_resolved_exactly_and_intent_has_no_deadline() {
+	ExtBuilder::default().build().execute_with(|| {
+		//ExactIn
+		let intent = Intent {
+			data: IntentData::Swap(SwapData {
+				asset_in: DOT,
+				asset_out: HDX,
+				amount_in: 20_000 * ONE_DOT,
+				amount_out: 10_000 * ONE_HDX,
+				swap_type: SwapType::ExactIn,
+				partial: false,
+			}),
+			deadline: None,
+			on_success: None,
+			on_failure: None,
+		};
+
+		let resolve = intent.clone();
+
+		assert_ok!(IntentPallet::validate_resolve(&intent, &resolve.data));
+
+		//ExactOut
+		let intent = Intent {
+			data: IntentData::Swap(SwapData {
+				asset_in: DOT,
+				asset_out: HDX,
+				amount_in: 20_000 * ONE_DOT,
+				amount_out: 10_000 * ONE_HDX,
+				swap_type: SwapType::ExactOut,
+				partial: false,
+			}),
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -59,7 +102,7 @@ fn non_partial_swap_intent_should_work_when_resolved_better() {
 				swap_type: SwapType::ExactIn,
 				partial: false,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -80,7 +123,7 @@ fn non_partial_swap_intent_should_work_when_resolved_better() {
 				swap_type: SwapType::ExactOut,
 				partial: false,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -106,7 +149,7 @@ fn partial_swap_intent_should_work_when_resolved_exactly() {
 				swap_type: SwapType::ExactIn,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -125,7 +168,7 @@ fn partial_swap_intent_should_work_when_resolved_exactly() {
 				swap_type: SwapType::ExactOut,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -149,7 +192,7 @@ fn partial_swap_intent_should_work_when_resolved_better() {
 				swap_type: SwapType::ExactIn,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -170,7 +213,7 @@ fn partial_swap_intent_should_work_when_resolved_better() {
 				swap_type: SwapType::ExactOut,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -196,7 +239,7 @@ fn partial_should_work_when_resolved_partially() {
 				swap_type: SwapType::ExactIn,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -218,7 +261,7 @@ fn partial_should_work_when_resolved_partially() {
 				swap_type: SwapType::ExactOut,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -244,7 +287,7 @@ fn swap_intent_should_not_work_when_asset_in_does_not_match() {
 				swap_type: SwapType::ExactIn,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -272,7 +315,7 @@ fn swap_intent_should_not_work_when_asset_out_does_not_match() {
 				swap_type: SwapType::ExactIn,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -300,7 +343,7 @@ fn swap_intent_should_not_work_when_swap_type_does_not_match() {
 				swap_type: SwapType::ExactIn,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -328,7 +371,7 @@ fn swap_intent_should_not_work_when_partiality_does_not_match() {
 				swap_type: SwapType::ExactIn,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -356,7 +399,7 @@ fn non_partial_swap_exact_in_intent_should_not_work_when_amount_out_is_less_than
 				swap_type: SwapType::ExactIn,
 				partial: false,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -384,7 +427,7 @@ fn non_partial_swap_exact_in_intent_should_not_work_when_amount_in_is_not_exact(
 				swap_type: SwapType::ExactIn,
 				partial: false,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -423,7 +466,7 @@ fn non_partial_swap_exact_out_intent_should_not_work_when_amount_in_is_bigger_th
 				swap_type: SwapType::ExactOut,
 				partial: false,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -451,7 +494,7 @@ fn non_partial_swap_exact_out_intent_should_not_work_when_amount_out_not_exact()
 				swap_type: SwapType::ExactOut,
 				partial: false,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -490,7 +533,7 @@ fn partial_swap_exact_in_should_not_work_when_resolved_fully_and_amount_out_is_l
 				swap_type: SwapType::ExactIn,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -518,7 +561,7 @@ fn partial_swap_exact_in_should_not_work_when_amount_in_is_bigger_limit() {
 				swap_type: SwapType::ExactIn,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -546,7 +589,7 @@ fn partial_swap_exact_in_should_not_work_when_resolved_partially_and_amount_out_
 				swap_type: SwapType::ExactIn,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -576,7 +619,7 @@ fn partial_swap_exact_out_should_not_work_when_resolved_fully_and_amount_in_is_b
 				swap_type: SwapType::ExactOut,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -604,7 +647,7 @@ fn partial_swap_exact_out_should_not_work_when_amount_out_is_bigger_limit() {
 				swap_type: SwapType::ExactOut,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};
@@ -632,7 +675,7 @@ fn partial_swap_exact_out_should_not_work_when_resolved_partially_and_amount_in_
 				swap_type: SwapType::ExactOut,
 				partial: true,
 			}),
-			deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 			on_success: None,
 			on_failure: None,
 		};

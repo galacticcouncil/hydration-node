@@ -395,11 +395,11 @@ impl HydrationTestDriver {
 		asset_out: AssetId,
 		amount_in: Balance,
 		amount_out: Balance,
-		deadline_in_blocks: u32,
+		deadline_in_blocks: Option<u32>,
 	) -> &Self {
 		self.execute(|| {
 			let ts = Timestamp::now();
-			let deadline = MILLISECS_PER_BLOCK * deadline_in_blocks as u64 + ts;
+			let deadline = deadline_in_blocks.map(|d| MILLISECS_PER_BLOCK * d as u64 + ts);
 			assert_ok!(Intent::submit_intent(
 				RuntimeOrigin::signed(who),
 				pallet_intent::types::Intent {
@@ -426,12 +426,11 @@ impl HydrationTestDriver {
 		asset_out: AssetId,
 		amount_in: Balance,
 		amount_out: Balance,
-		deadline_in_blocks: u32,
+		deadline_in_blocks: Option<u32>,
 	) -> &Self {
 		self.execute(|| {
 			let ts = Timestamp::now();
-			let deadline = MILLISECS_PER_BLOCK * deadline_in_blocks as u64 + ts;
-
+			let deadline = deadline_in_blocks.map(|d| MILLISECS_PER_BLOCK * d as u64 + ts);
 			assert_ok!(Intent::submit_intent(
 				RuntimeOrigin::signed(who),
 				pallet_intent::types::Intent {

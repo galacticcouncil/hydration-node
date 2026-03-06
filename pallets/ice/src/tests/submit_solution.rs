@@ -34,7 +34,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -50,7 +50,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: None,
 					on_success: None,
 					on_failure: None,
 				},
@@ -66,7 +66,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -94,7 +94,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 		.execute_with(|| {
 			let resolved = vec![
 				ResolvedIntent {
-					id: 73786976294838206464002_u128,
+					id: 2_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 4,
 						asset_out: 0,
@@ -105,7 +105,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464001_u128,
+					id: 1_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 0,
 						asset_out: 2,
@@ -116,7 +116,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464000_u128,
+					id: 0_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 0,
 						asset_out: 2,
@@ -188,7 +188,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -204,7 +204,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -220,7 +220,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -248,7 +248,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 		.execute_with(|| {
 			let resolved = vec![
 				ResolvedIntent {
-					id: 73786976294838206464002_u128,
+					id: 2_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 4,
 						asset_out: 0,
@@ -259,7 +259,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464001_u128,
+					id: 1_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 0,
 						asset_out: 2,
@@ -270,7 +270,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464000_u128,
+					id: 0_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 0,
 						asset_out: 2,
@@ -345,7 +345,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -361,7 +361,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -377,7 +377,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -405,7 +405,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 		.execute_with(|| {
 			let resolved = vec![
 				ResolvedIntent {
-					id: 73786976294838206464002_u128,
+					id: 2_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 4,
 						asset_out: 0,
@@ -416,7 +416,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464001_u128,
+					id: 1_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 0,
 						asset_out: 2,
@@ -427,7 +427,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464000_u128,
+					id: 0_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 0,
 						asset_out: 2,
@@ -502,7 +502,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -518,7 +518,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -534,7 +534,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -550,7 +550,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -578,7 +578,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 		.execute_with(|| {
 			let resolved = vec![
 				ResolvedIntent {
-					id: 73786976294838206464002_u128,
+					id: 2_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 4,
 						asset_out: 0,
@@ -589,7 +589,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464001_u128,
+					id: 1_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 0,
 						asset_out: 2,
@@ -600,7 +600,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464000_u128,
+					id: 0_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 0,
 						asset_out: 2,
@@ -611,7 +611,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464002_u128,
+					id: 2_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 4,
 						asset_out: 0,
@@ -686,7 +686,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -702,7 +702,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -718,7 +718,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -757,7 +757,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464001_u128,
+					id: 1_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 0,
 						asset_out: 2,
@@ -768,7 +768,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464000_u128,
+					id: 0_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: 0,
 						asset_out: 2,
@@ -843,7 +843,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -859,7 +859,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -875,7 +875,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -893,7 +893,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 		.build()
 		.execute_with(|| {
 			let resolved = vec![ResolvedIntent {
-				id: 73786976294838206464000_u128,
+				id: 0_u128,
 				data: IntentData::Swap(SwapData {
 					asset_in: 0,
 					asset_out: 2,
@@ -950,7 +950,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -966,7 +966,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -982,7 +982,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1000,7 +1000,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 		.build()
 		.execute_with(|| {
 			let resolved = vec![ResolvedIntent {
-				id: 73786976294838206464000_u128,
+				id: 0_u128,
 				data: IntentData::Swap(SwapData {
 					asset_in: 0,
 					asset_out: 2,
@@ -1057,7 +1057,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1073,7 +1073,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1089,7 +1089,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1117,7 +1117,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 		.execute_with(|| {
 			let resolved = vec![
 				ResolvedIntent {
-					id: 73786976294838206464002_u128,
+					id: 2_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
@@ -1128,7 +1128,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464001_u128,
+					id: 1_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
@@ -1139,7 +1139,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464000_u128,
+					id: 0_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
@@ -1214,7 +1214,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1230,7 +1230,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1246,7 +1246,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1274,7 +1274,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 		.execute_with(|| {
 			let resolved = vec![
 				ResolvedIntent {
-					id: 73786976294838206464002_u128,
+					id: 2_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
@@ -1285,7 +1285,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464001_u128,
+					id: 1_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
@@ -1296,7 +1296,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464000_u128,
+					id: 0_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
@@ -1371,7 +1371,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1387,7 +1387,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1403,7 +1403,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1431,7 +1431,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 		.execute_with(|| {
 			let resolved = vec![
 				ResolvedIntent {
-					id: 73786976294838206464002_u128,
+					id: 2_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
@@ -1442,7 +1442,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464001_u128,
+					id: 1_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
@@ -1453,7 +1453,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464000_u128,
+					id: 0_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
@@ -1528,7 +1528,7 @@ fn solution_execution_should_not_work_when_execution_prices_are_not_consistent()
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1544,7 +1544,7 @@ fn solution_execution_should_not_work_when_execution_prices_are_not_consistent()
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1560,7 +1560,7 @@ fn solution_execution_should_not_work_when_execution_prices_are_not_consistent()
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1588,7 +1588,7 @@ fn solution_execution_should_not_work_when_execution_prices_are_not_consistent()
 		.execute_with(|| {
 			let resolved = vec![
 				ResolvedIntent {
-					id: 73786976294838206464002_u128,
+					id: 2_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
@@ -1599,7 +1599,7 @@ fn solution_execution_should_not_work_when_execution_prices_are_not_consistent()
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464001_u128,
+					id: 1_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
@@ -1610,7 +1610,7 @@ fn solution_execution_should_not_work_when_execution_prices_are_not_consistent()
 					}),
 				},
 				ResolvedIntent {
-					id: 73786976294838206464000_u128,
+					id: 0_u128,
 					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,

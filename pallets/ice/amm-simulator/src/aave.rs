@@ -35,7 +35,7 @@ pub trait DataProvider {
 	fn address_to_asset(address: EvmAddress) -> Option<AssetId>;
 }
 
-const GAS_LIMIT: u64 = 1000_000;
+const GAS_LIMIT: u64 = 1_000_000;
 const LOG_TARGET: &str = "aave_simulator";
 
 #[module_evm_utility_macro::generate_function_selector]
@@ -275,7 +275,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		_max_amount_in: Balance,
 		snapshot: &Self::Snapshot,
 	) -> Result<(Self::Snapshot, TradeResult), SimulatorError> {
-		if snapshot.reserves.get(&asset_in).is_none() && snapshot.reserves.get(&asset_out).is_none() {
+		if !snapshot.reserves.contains_key(&asset_in) && !snapshot.reserves.contains_key(&asset_out) {
 			return Err(SimulatorError::AssetNotFound);
 		}
 
@@ -295,7 +295,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		_min_amount_out: Balance,
 		snapshot: &Self::Snapshot,
 	) -> Result<(Self::Snapshot, TradeResult), SimulatorError> {
-		if snapshot.reserves.get(&asset_in).is_none() && snapshot.reserves.get(&asset_out).is_none() {
+		if !snapshot.reserves.contains_key(&asset_in) && !snapshot.reserves.contains_key(&asset_out) {
 			return Err(SimulatorError::AssetNotFound);
 		}
 
@@ -313,7 +313,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		asset_out: AssetId,
 		snapshot: &Self::Snapshot,
 	) -> Result<Price, SimulatorError> {
-		if snapshot.reserves.get(&asset_in).is_none() && snapshot.reserves.get(&asset_out).is_none() {
+		if !snapshot.reserves.contains_key(&asset_in) && !snapshot.reserves.contains_key(&asset_out) {
 			return Err(SimulatorError::AssetNotFound);
 		}
 		Ok(Ratio { n: 1, d: 1 })

@@ -4,7 +4,7 @@ use frame_support::{assert_noop, assert_ok};
 use pretty_assertions::assert_eq;
 
 #[test]
-fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
+fn should_work_with_intent_without_deadline() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX), (BOB, ETH, 5 * ONE_QUINTIL)])
 		.with_intents(vec![
@@ -19,7 +19,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -35,7 +35,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: None,
 					on_success: Some(BoundedVec::new()),
 					on_failure: None,
 				},
@@ -43,8 +43,65 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
 		])
 		.build()
 		.execute_with(|| {
-			let (id, resolve) = IntentPallet::get_valid_intents()[0].to_owned();
-			let who = IntentPallet::intent_owner(id).expect("intent owner to exists");
+			let id = 1;
+			let resolve = IntentPallet::get_intent(1).expect("intent to exist");
+			let who = IntentPallet::intent_owner(id).expect("intent owner to exist");
+			assert_eq!(get_queued_task(Source::ICE(id)), None);
+
+			assert_ok!(IntentPallet::intent_resolved(
+				&who,
+				&ResolvedIntent { id, data: resolve.data }
+			));
+
+			assert_eq!(IntentPallet::get_intent(id), None);
+			assert_eq!(IntentPallet::intent_owner(id), None);
+			assert_eq!(get_queued_task(Source::ICE(id)), Some((Source::ICE(id), who)));
+		});
+}
+
+#[test]
+fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX), (BOB, ETH, 5 * ONE_QUINTIL)])
+		.with_intents(vec![
+			(
+				ALICE,
+				Intent {
+					data: IntentData::Swap(SwapData {
+						asset_in: HDX,
+						asset_out: DOT,
+						amount_in: 10 * ONE_HDX,
+						amount_out: 100 * ONE_DOT,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
+					on_success: None,
+					on_failure: None,
+				},
+			),
+			(
+				BOB,
+				Intent {
+					data: IntentData::Swap(SwapData {
+						asset_in: ETH,
+						asset_out: DOT,
+						amount_in: ONE_QUINTIL,
+						amount_out: 1_500 * ONE_DOT,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
+					on_success: Some(BoundedVec::new()),
+					on_failure: None,
+				},
+			),
+		])
+		.build()
+		.execute_with(|| {
+			let id = 1;
+			let resolve = IntentPallet::get_intent(1).expect("intent to exist");
+			let who = IntentPallet::intent_owner(id).expect("intent owner to exist");
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
 
 			assert_ok!(IntentPallet::intent_resolved(
@@ -74,7 +131,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_better_than_limits()
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -90,7 +147,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_better_than_limits()
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -134,7 +191,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -150,7 +207,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -160,7 +217,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 		.execute_with(|| {
 			//NOTE: ExactOut
 			let who = BOB;
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			//amout out is < than ExactOut
@@ -194,7 +251,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 
 			//NOTE: ExactIn
 			let who = ALICE;
-			let id = 73786976294838206464000_u128;
+			let id = 0_u128;
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			//amout in is < than ExactIn
@@ -244,7 +301,7 @@ fn should_not_work_when_non_partial_intent_resolved_partially() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -260,7 +317,7 @@ fn should_not_work_when_non_partial_intent_resolved_partially() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -268,7 +325,7 @@ fn should_not_work_when_non_partial_intent_resolved_partially() {
 		])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			let who = BOB;
 
@@ -299,7 +356,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_exactly() {
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -315,7 +372,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_exactly() {
 						swap_type: SwapType::ExactOut,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: Some(BoundedVec::new()),
 					on_failure: None,
 				},
@@ -323,8 +380,9 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_exactly() {
 		])
 		.build()
 		.execute_with(|| {
-			let (id, resolve) = IntentPallet::get_valid_intents()[0].to_owned();
-			let who = IntentPallet::intent_owner(id).expect("intent owner to exists");
+			let id = 1;
+			let resolve = IntentPallet::get_intent(id).expect("intent to exit");
+			let who = IntentPallet::intent_owner(id).expect("intent owner to exist");
 
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
 
@@ -355,7 +413,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -371,7 +429,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 						swap_type: SwapType::ExactOut,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: Some(BoundedVec::new()),
 					on_failure: None,
 				},
@@ -379,8 +437,9 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 		])
 		.build()
 		.execute_with(|| {
-			let (id, mut resolve) = IntentPallet::get_valid_intents()[0].to_owned();
-			let who = IntentPallet::intent_owner(id).expect("intent owner to exists");
+			let id = 1;
+			let mut resolve = IntentPallet::get_intent(1).expect("intent to exist");
+			let who = IntentPallet::intent_owner(id).expect("intent owner to exist");
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
 
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
@@ -417,7 +476,7 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -433,7 +492,7 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 						swap_type: SwapType::ExactOut,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -441,7 +500,7 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 		])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			let who = IntentPallet::intent_owner(id).expect("intent owner to exists");
 
@@ -463,7 +522,7 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 					swap_type: SwapType::ExactOut,
 					partial: true,
 				}),
-				deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+				deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 				on_success: None,
 				on_failure: None,
 			};
@@ -489,7 +548,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -505,7 +564,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 						swap_type: SwapType::ExactOut,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -514,7 +573,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 		.build()
 		.execute_with(|| {
 			//NOTE: partial ExactOut
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 			let who = BOB;
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
@@ -539,7 +598,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 
 			//NOTE: partial ExactIn
 			let who = ALICE;
-			let id = 73786976294838206464000_u128;
+			let id = 0_u128;
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			//amount in > intent.exactIn
@@ -579,7 +638,7 @@ fn partial_intent_should_not_work_when_resolved_partially_and_bellow_limit() {
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -595,7 +654,7 @@ fn partial_intent_should_not_work_when_resolved_partially_and_bellow_limit() {
 						swap_type: SwapType::ExactOut,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -604,7 +663,7 @@ fn partial_intent_should_not_work_when_resolved_partially_and_bellow_limit() {
 		.build()
 		.execute_with(|| {
 			//NOTE: partial ExactOut
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 			let who = BOB;
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
@@ -619,7 +678,7 @@ fn partial_intent_should_not_work_when_resolved_partially_and_bellow_limit() {
 
 			//NOTE: partial ExactIn
 			let who = ALICE;
-			let id = 73786976294838206464000_u128;
+			let id = 0_u128;
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			let IntentData::Swap(ref mut r_swap) = resolve.data;
@@ -649,7 +708,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -665,7 +724,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						swap_type: SwapType::ExactOut,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -673,7 +732,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 		])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			let who = IntentPallet::intent_owner(id).expect("intent owner to exists");
 
@@ -681,7 +740,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 			r_swap.amount_in /= 2;
 			r_swap.amount_out /= 2;
 
-			let non_existing_id = 1;
+			let non_existing_id = 1_000_000_000_000_000_u128;
 			assert_noop!(
 				IntentPallet::intent_resolved(
 					&who,
@@ -711,7 +770,7 @@ fn should_not_work_when_resolved_as_not_an_owner() {
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -727,7 +786,7 @@ fn should_not_work_when_resolved_as_not_an_owner() {
 						swap_type: SwapType::ExactOut,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -735,7 +794,7 @@ fn should_not_work_when_resolved_as_not_an_owner() {
 		])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			let non_owner = CHARLIE;
 
@@ -766,7 +825,7 @@ fn should_not_work_when_intent_expired() {
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -782,7 +841,7 @@ fn should_not_work_when_intent_expired() {
 						swap_type: SwapType::ExactOut,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -790,11 +849,14 @@ fn should_not_work_when_intent_expired() {
 		])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 			let resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			let who = BOB;
 
-			assert_ok!(Timestamp::set(RuntimeOrigin::none(), resolve.deadline + 1));
+			assert_ok!(Timestamp::set(
+				RuntimeOrigin::none(),
+				resolve.deadline.expect("intent with deadline") + 1
+			));
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
@@ -819,7 +881,7 @@ fn should_not_work_when_assets_doesnt_match() {
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -835,7 +897,7 @@ fn should_not_work_when_assets_doesnt_match() {
 						swap_type: SwapType::ExactOut,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -843,7 +905,7 @@ fn should_not_work_when_assets_doesnt_match() {
 		])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 			let who = BOB;
 
 			//NOTE: different assetIn
@@ -883,14 +945,14 @@ fn should_not_work_when_swap_type_doesnt_match() {
 					swap_type: SwapType::ExactIn,
 					partial: true,
 				}),
-				deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+				deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 				on_success: None,
 				on_failure: None,
 			},
 		)])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464000_u128;
+			let id = 0_u128;
 			let who = ALICE;
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
@@ -919,14 +981,14 @@ fn should_not_work_when_partial_doesnt_match() {
 					swap_type: SwapType::ExactIn,
 					partial: true,
 				}),
-				deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+				deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 				on_success: None,
 				on_failure: None,
 			},
 		)])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464000_u128;
+			let id = 0_u128;
 			let who = ALICE;
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
@@ -956,7 +1018,7 @@ fn non_partial_exact_out_should_unreserve_surplus_when_resolved_better_than_limi
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -972,7 +1034,7 @@ fn non_partial_exact_out_should_unreserve_surplus_when_resolved_better_than_limi
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -980,7 +1042,7 @@ fn non_partial_exact_out_should_unreserve_surplus_when_resolved_better_than_limi
 		])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 			let who = BOB;
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
@@ -1033,7 +1095,7 @@ fn partial_exact_out_should_unreserve_surplus_when_fully_resolved_better_than_li
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1049,7 +1111,7 @@ fn partial_exact_out_should_unreserve_surplus_when_fully_resolved_better_than_li
 						swap_type: SwapType::ExactOut,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1057,7 +1119,7 @@ fn partial_exact_out_should_unreserve_surplus_when_fully_resolved_better_than_li
 		])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 			let who = BOB;
 
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
@@ -1110,7 +1172,7 @@ fn partial_exact_out_should_not_unreserve_funds_when_resolved_patially() {
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1126,7 +1188,7 @@ fn partial_exact_out_should_not_unreserve_funds_when_resolved_patially() {
 						swap_type: SwapType::ExactOut,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1134,7 +1196,7 @@ fn partial_exact_out_should_not_unreserve_funds_when_resolved_patially() {
 		])
 		.build()
 		.execute_with(|| {
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 			let mut resolve = IntentPallet::get_intent(id).expect("intent to exists");
 			let who = IntentPallet::intent_owner(id).expect("intent owner to exists");
 
@@ -1175,7 +1237,7 @@ fn partial_exact_out_should_not_unreserve_funds_when_resolved_patially() {
 					swap_type: SwapType::ExactOut,
 					partial: true,
 				}),
-				deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+				deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 				on_success: None,
 				on_failure: None,
 			};
@@ -1205,7 +1267,7 @@ fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -1221,7 +1283,7 @@ fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
 						swap_type: SwapType::ExactOut,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: Some(BoundedVec::new()),
 					on_failure: None,
 				},
@@ -1230,7 +1292,7 @@ fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
 		.build()
 		.execute_with(|| {
 			//NOTE: partial ExactOut
-			let id = 73786976294838206464001_u128;
+			let id = 1_u128;
 			let who = BOB;
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
 

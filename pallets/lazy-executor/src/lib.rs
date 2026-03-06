@@ -302,7 +302,7 @@ impl<T: Config> Pallet<T> {
 			return Err(Error::<T>::Overweight.into());
 		}
 
-		let len = Call::<T>::dispatch_top { id: u128::max_value() }
+		let len = Call::<T>::dispatch_top { id: u128::MAX }
 			.encoded_size()
 			.saturating_add(CALL_LEN_OFFSET.try_into().map_err(|_| Error::<T>::Overflow)?);
 

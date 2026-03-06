@@ -26,7 +26,7 @@ fn should_work_when_canceled_by_owner() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -42,7 +42,7 @@ fn should_work_when_canceled_by_owner() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -58,7 +58,7 @@ fn should_work_when_canceled_by_owner() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -67,7 +67,7 @@ fn should_work_when_canceled_by_owner() {
 		.build()
 		.execute_with(|| {
 			let _ = with_transaction(|| {
-				let id = 73786976294838206464000_u128;
+				let id = 0_u128;
 				let intent = IntentPallet::get_intent(id).expect("Intent to exists");
 				let owner = ALICE;
 
@@ -112,7 +112,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 						swap_type: SwapType::ExactIn,
 						partial: true,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -128,7 +128,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -144,7 +144,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -153,7 +153,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 		.build()
 		.execute_with(|| {
 			let _ = with_transaction(|| {
-				let id = 73786976294838206464000_u128;
+				let id = 0_u128;
 				let mut resolve = IntentPallet::get_intent(id).expect("Intent to exists");
 				let owner = ALICE;
 
@@ -225,7 +225,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -241,7 +241,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -257,7 +257,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -297,7 +297,7 @@ fn should_not_work_when_canceled_non_owner() {
 						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -313,7 +313,7 @@ fn should_not_work_when_canceled_non_owner() {
 						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
-					deadline: MAX_INTENT_DEADLINE - ONE_SECOND,
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 					on_success: None,
 					on_failure: None,
 				},
@@ -322,11 +322,97 @@ fn should_not_work_when_canceled_non_owner() {
 		.build()
 		.execute_with(|| {
 			let _ = with_transaction(|| {
-				let id = 73786976294838206464000_u128;
+				let id = 0_u128;
 				let not_owner = BOB;
 
 				//Act & Assert;
 				assert_noop!(IntentPallet::cancel_intent(not_owner, id), Error::<Test>::InvalidOwner);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn should_work_when_intent_has_no_deadline_and_canceled_by_owner() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(ALICE, HDX, 100 * ONE_HDX),
+			(ALICE, ETH, 30 * ONE_QUINTIL),
+			(BOB, ETH, 5 * ONE_QUINTIL),
+		])
+		.with_intents(vec![
+			(
+				ALICE,
+				Intent {
+					data: IntentData::Swap(SwapData {
+						asset_in: HDX,
+						asset_out: DOT,
+						amount_in: 10 * ONE_HDX,
+						amount_out: 100 * ONE_DOT,
+						swap_type: SwapType::ExactIn,
+						partial: false,
+					}),
+					deadline: None,
+					on_success: None,
+					on_failure: None,
+				},
+			),
+			(
+				BOB,
+				Intent {
+					data: IntentData::Swap(SwapData {
+						asset_in: ETH,
+						asset_out: DOT,
+						amount_in: ONE_QUINTIL,
+						amount_out: 1_500 * ONE_DOT,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
+					on_success: None,
+					on_failure: None,
+				},
+			),
+			(
+				ALICE,
+				Intent {
+					data: IntentData::Swap(SwapData {
+						asset_in: ETH,
+						asset_out: BTC,
+						amount_in: 30 * ONE_QUINTIL,
+						amount_out: ONE_QUINTIL,
+						swap_type: SwapType::ExactOut,
+						partial: false,
+					}),
+					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
+					on_success: None,
+					on_failure: None,
+				},
+			),
+		])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let id = 0_u128;
+				let intent = IntentPallet::get_intent(id).expect("Intent to exists");
+				let owner = ALICE;
+
+				assert_eq!(
+					Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+					intent.data.amount_in(),
+				);
+
+				//Act
+				assert_ok!(IntentPallet::cancel_intent(owner, id));
+
+				//Assert
+				assert_eq!(IntentPallet::get_intent(id), None);
+				assert_eq!(IntentPallet::intent_owner(id), None);
+				assert_eq!(
+					Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
+					0
+				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
