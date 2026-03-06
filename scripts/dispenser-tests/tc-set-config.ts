@@ -1,35 +1,52 @@
 /**
- * TC script to set Signet and Dispenser configs.
+ * Set Signet and Dispenser on-chain configs.
  *
- * Modes:
- *   - Chopsticks (auto-detected): directly sets storage via dev_setStorage
+ * Modes (auto-detected):
+ *   - Chopsticks: writes storage directly via dev_setStorage
  *   - Real network (lark/mainnet): creates a TC proposal via technicalCommittee.propose()
  *
  * Usage:
- *   # Chopsticks
- *   SUBSTRATE_WS_ENDPOINT=ws://localhost:8000 npx ts-node tc-set-config.ts
+ *   # Uses SUBSTRATE_NETWORK from .env (defaults to chopsticks)
+ *   npx ts-node tc-set-config.ts
  *
- *   # Real network — requires SURI of a TC member
- *   SUBSTRATE_WS_ENDPOINT=wss://1.lark.hydration.cloud SURI=//Alice npx ts-node tc-set-config.ts
+ *   # Override for lark — requires SURI of a TC member
+ *   SUBSTRATE_NETWORK=lark SURI=//Alice npx ts-node tc-set-config.ts
  */
 
 import { ApiPromise, WsProvider } from '@polkadot/api'
 import { Keyring } from '@polkadot/keyring'
+import { config } from 'dotenv'
+import path from 'path'
+import {
+  SUBSTRATE_PRESETS,
+  DEFAULT_FAUCET_ADDRESS,
+  type SubstrateNetwork,
+} from './networks'
 
-// ---- Configuration values (update before running) ----
+config({ path: path.resolve(__dirname, '.env') })
+
+// ---- Resolve substrate network ----
+
+const networkName = (process.env.SUBSTRATE_NETWORK || 'chopsticks') as SubstrateNetwork
+const preset = SUBSTRATE_PRESETS[networkName]
+if (!preset) {
+  console.error(`Unknown SUBSTRATE_NETWORK: ${networkName}`)
+  process.exit(1)
+}
+const wsEndpoint = process.env.SUBSTRATE_WS_ENDPOINT || preset.wsEndpoint
+const chainId = process.env.SUBSTRATE_CHAIN_ID || preset.chainId
+
+// ---- Configuration values ----
 
 const SIGNET_CONFIG = {
-  signatureDeposit: 100_000_000_000n, // 0.01 HDX
+  signatureDeposit: 100_000_000_000n, // 0.1 HDX
   maxChainIdLength: 128,
   maxEvmDataLength: 100_000,
-  // CAIP-2 chain ID — update to match target chain's genesis hash prefix
-  // Lark:    polkadot:e6b50b06e72a81194e9c96c488175ecd
-  // Mainnet: polkadot:d2a620c27ec5cbc5621ff9a522689895
-  chainId: process.env.SUBSTRATE_CHAIN_ID || 'polkadot:e6b50b06e72a81194e9c96c488175ecd',
+  chainId,
 }
 
 const DISPENSER_CONFIG = {
-  faucetAddress: '0x189d33ea9A9701fdb67C21df7420868193dcf578',
+  faucetAddress: process.env.FAUCET_ADDRESS || DEFAULT_FAUCET_ADDRESS,
   minFaucetThreshold: 50_000_000_000_000_000n,   // 0.05 ETH
   minRequest: 0n,
   maxDispense: 1_000_000_000_000_000_000n,        // 1 ETH
@@ -182,10 +199,10 @@ async function verifyConfigs(api: ApiPromise) {
 // ---- Main ----
 
 async function main() {
-  const wsEndpoint =
-    process.env.SUBSTRATE_WS_ENDPOINT || 'ws://localhost:8000'
-
+  console.log(`Network: ${networkName}`)
   console.log(`Connecting to ${wsEndpoint}...`)
+  console.log(`Signet chain ID: ${chainId}`)
+
   const provider = new WsProvider(wsEndpoint, undefined, undefined, 180_000)
   const api = await ApiPromise.create({ provider })
   console.log(`Connected to chain: ${(await api.rpc.system.chain()).toString()}`)
