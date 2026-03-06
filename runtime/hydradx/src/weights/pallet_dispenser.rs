@@ -60,76 +60,22 @@ pub struct WeightInfo<T>(PhantomData<T>);
 /// Weights for `pallet_dispenser` using the HydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_dispenser::WeightInfo for HydraWeight<T> {
-	fn set_faucet_balance() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `232`
-		//  Estimated: `1501`
-		// Minimum execution time: 12_496_000 picoseconds.
+	fn set_config() -> Weight {
 		Weight::from_parts(12_645_000, 1501)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	/// Storage: `EthDispenser::DispenserConfig` (r:1 w:1)
-	/// Proof: `EthDispenser::DispenserConfig` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
 	fn pause() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `232`
-		//  Estimated: `1486`
-		// Minimum execution time: 12_981_000 picoseconds.
 		Weight::from_parts(13_290_000, 1486)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	/// Storage: `EthDispenser::DispenserConfig` (r:1 w:1)
-	/// Proof: `EthDispenser::DispenserConfig` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
 	fn unpause() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `232`
-		//  Estimated: `1486`
-		// Minimum execution time: 12_933_000 picoseconds.
 		Weight::from_parts(13_220_000, 1486)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	/// Storage: `EthDispenser::DispenserConfig` (r:1 w:0)
-	/// Proof: `EthDispenser::DispenserConfig` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	/// Storage: `EthDispenser::FaucetBalanceWei` (r:1 w:1)
-	/// Proof: `EthDispenser::FaucetBalanceWei` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	/// Storage: `EthDispenser::UsedRequestIds` (r:1 w:1)
-	/// Proof: `EthDispenser::UsedRequestIds` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
-	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::Accounts` (r:2 w:2)
-	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:3 w:3)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `EVMAccounts::AccountExtension` (r:1 w:0)
-	/// Proof: `EVMAccounts::AccountExtension` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `HSM::FlashMinter` (r:1 w:0)
-	/// Proof: `HSM::FlashMinter` (`max_values`: Some(1), `max_size`: Some(20), added: 515, mode: `MaxEncodedLen`)
-	/// Storage: `Duster::AccountWhitelist` (r:1 w:0)
-	/// Proof: `Duster::AccountWhitelist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::BannedAssets` (r:1 w:0)
-	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:2 w:0)
-	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Locks` (r:1 w:1)
-	/// Proof: `Balances::Locks` (`max_values`: None, `max_size`: Some(1299), added: 3774, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Freezes` (r:1 w:0)
-	/// Proof: `Balances::Freezes` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::ExistentialDepositCounter` (r:1 w:1)
-	/// Proof: `AssetRegistry::ExistentialDepositCounter` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:1 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `Signet::Admin` (r:1 w:0)
-	/// Proof: `Signet::Admin` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-	/// Storage: `Signet::SignatureDeposit` (r:1 w:0)
-	/// Proof: `Signet::SignatureDeposit` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
 	fn request_fund() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1792`
-		//  Estimated: `8799`
-		// Minimum execution time: 470_146_000 picoseconds.
 		Weight::from_parts(471_759_000, 8799)
 			.saturating_add(T::DbWeight::get().reads(22_u64))
 			.saturating_add(T::DbWeight::get().writes(9_u64))

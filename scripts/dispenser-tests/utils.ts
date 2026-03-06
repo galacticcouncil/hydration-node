@@ -365,7 +365,25 @@ export async function initializeVaultIfNeeded(api: ApiPromise) {
   const cfg = cfgOpt.toJSON() as any
   console.log('Dispenser config JSON ->', cfg)
 
-  if (cfg?.paused === true) {
+  if (!cfg) {
+    console.log('Dispenser not configured; setting config via Root...')
+    const setConfigCall = (api.tx as any).ethDispenser.setConfig(
+      ENV.FAUCET_ADDRESS,                         // faucet_address
+      ethers.parseEther('0.05').toString(),        // min_faucet_threshold (0.05 ETH)
+      '0',                                        // min_request
+      ethers.parseEther('1').toString(),           // max_dispense (1 ETH)
+      '5000',                                     // dispenser_fee (HDX)
+      ethers.parseEther('10').toString(),          // faucet_balance_wei (10 ETH)
+    )
+    await executeAsRootViaScheduler(
+      api,
+      setConfigCall,
+      'Set ethDispenser config via Root',
+    )
+    return
+  }
+
+  if (cfg.paused === true) {
     console.log('Dispenser is paused; unpausing via Root...')
     const unpauseCall = (api.tx as any).ethDispenser.unpause()
     await executeAsRootViaScheduler(
@@ -375,36 +393,36 @@ export async function initializeVaultIfNeeded(api: ApiPromise) {
     )
   }
 
-  const current = (
-    await (api.query as any).ethDispenser.faucetBalanceWei()
-  ).toBigInt()
-  const threshold = (
-    (api.consts as any).ethDispenser.minFaucetEthThreshold as any
-  ).toBigInt()
+  const currentBalance = BigInt(cfg.faucetBalanceWei || '0')
+  const threshold = BigInt(cfg.minFaucetThreshold || '0')
 
-  console.log('Current faucetBalanceWei =', current.toString())
-  console.log('MinFaucetEthThreshold =', threshold.toString())
+  console.log('Current faucetBalanceWei =', currentBalance.toString())
+  console.log('minFaucetThreshold =', threshold.toString())
 
   const targetMin = threshold + ENV.REQUEST_FUND_AMOUNT + ethers.parseEther('1')
-  if (current >= targetMin) {
-    console.log('FaucetBalanceWei already sufficient, skipping top-up')
+  if (currentBalance >= targetMin) {
+    console.log('FaucetBalanceWei already sufficient, skipping reconfigure')
     return
   }
 
-  const addWei = targetMin - current
-  console.log('Topping up faucet balance via Root, add =', addWei.toString())
-
-  const setBalCall = (api.tx as any).ethDispenser.setFaucetBalance(
-    addWei.toString(),
+  console.log('Reconfiguring dispenser with higher faucet balance via Root...')
+  const setConfigCall = (api.tx as any).ethDispenser.setConfig(
+    cfg.faucetAddress,
+    cfg.minFaucetThreshold.toString(),
+    cfg.minRequest.toString(),
+    cfg.maxDispense.toString(),
+    cfg.dispenserFee.toString(),
+    targetMin.toString(),
   )
   await executeAsRootViaScheduler(
     api,
-    setBalCall,
-    'Top up ethDispenser faucet balance via Root',
+    setConfigCall,
+    'Update ethDispenser faucet balance via Root',
   )
 
-  const after = await (api.query as any).ethDispenser.faucetBalanceWei()
-  console.log('faucetBalanceWei after =', after.toString())
+  const afterOpt = await (api.query as any).ethDispenser.dispenserConfig()
+  const afterCfg = afterOpt.toJSON() as any
+  console.log('faucetBalanceWei after =', afterCfg?.faucetBalanceWei)
 }
 
 // ---------------------------------------------------------------------------

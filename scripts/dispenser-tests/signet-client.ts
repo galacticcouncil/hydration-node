@@ -2,13 +2,9 @@ import { ApiPromise } from '@polkadot/api'
 import { EventRecord } from '@polkadot/types/interfaces'
 import { Vec } from '@polkadot/types'
 import { u8aToHex } from '@polkadot/util'
-import { ISubmittableResult } from '@polkadot/types/types'
 import { ethers } from 'ethers'
 import { keccak256, recoverAddress } from 'viem'
-import {
-  executeAsRootViaReferendum,
-  executeAsRootViaScheduler,
-} from './utils'
+import { executeAsRootViaScheduler } from './utils'
 
 export class SignetClient {
   constructor(
@@ -16,21 +12,21 @@ export class SignetClient {
     private signer: any,
   ) {}
 
-  async ensureSignetInitializedViaReferendum(
+  async ensureSignetConfiguredViaRoot(
     api: ApiPromise,
-    signer: any,
     chainId: string,
   ) {
     const chainIdBytes = Array.from(new TextEncoder().encode(chainId))
-    const signetInitCall = api.tx.signet.initialize(
-      signer.address,
-      1_000_000_000_000n,
-      chainIdBytes,
+    const setConfigCall = api.tx.signet.setConfig(
+      100_000_000_000n,  // signature_deposit
+      128,               // max_chain_id_length
+      100_000,           // max_evm_data_length
+      chainIdBytes,      // chain_id
     )
     await executeAsRootViaScheduler(
       api,
-      signetInitCall,
-      'Initialize signet via Root',
+      setConfigCall,
+      'Set signet config via Root',
     )
   }
 

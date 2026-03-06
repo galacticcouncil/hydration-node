@@ -1881,12 +1881,8 @@ impl pallet_signet::Config for Runtime {
 
 parameter_types! {
 	pub const SigEthPalletId: PalletId = PalletId(*b"py/fucet");
-	pub const SigEthFaucetDispenserFee: u128 = 5_000;
-	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000_000_000_000;
-	pub const SigEthFaucetMinRequest: u64 = 0;
 	pub const SigEthFaucetFeeAssetId: AssetId = 0;
 	pub const SigEthFaucetFaucetAssetId: AssetId = 20;
-	pub const SigEthMinFaucetThreshold: u128 = 50_000_000_000_000_000u128;
 }
 
 // Treasury as the fee receiver (reuses the Treasury pallet account)
@@ -1897,27 +1893,14 @@ impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
 	}
 }
 
-pub struct SigEthFaucetContractAddr;
-impl frame_support::traits::Get<EvmAddress> for SigEthFaucetContractAddr {
-	fn get() -> EvmAddress {
-		// 0x189d33ea9A9701fdb67C21df7420868193dcf578
-		EvmAddress::from(hex_literal::hex!("189d33ea9A9701fdb67C21df7420868193dcf578"))
-	}
-}
-
 impl pallet_dispenser::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type Currency = FungibleCurrencies<Runtime>;
-	type MinimumRequestAmount = SigEthFaucetMinRequest;
-	type MaxDispenseAmount = SigEthFaucetMaxDispense;
-	type DispenserFee = SigEthFaucetDispenserFee;
 	type FeeAsset = SigEthFaucetFeeAssetId;
 	type FaucetAsset = SigEthFaucetFaucetAssetId;
 	type FeeDestination = SigEthFaucetTreasuryAccount;
-	type FaucetAddress = SigEthFaucetContractAddr;
 	type PalletId = SigEthPalletId;
-	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
 }
 

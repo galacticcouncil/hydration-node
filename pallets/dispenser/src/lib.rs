@@ -80,23 +80,11 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Origin that is allowed to call administrative extrinsics
-		/// (pause, unpause, set_faucet_balance).
+		/// (set_config, pause, unpause).
 		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Multi-asset fungible currency implementation used for fees and faucet tokens.
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
-
-		/// Minimum amount of faucet asset that can be requested in a single call.
-		#[pallet::constant]
-		type MinimumRequestAmount: Get<Balance>;
-
-		/// Maximum amount of faucet asset that can be requested in a single call.
-		#[pallet::constant]
-		type MaxDispenseAmount: Get<Balance>;
-
-		/// Flat fee charged in `FeeAsset` for each faucet request.
-		#[pallet::constant]
-		type DispenserFee: Get<Balance>;
 
 		/// Asset ID used to charge the faucet request fee.
 		/// (HDX - 0)
@@ -112,19 +100,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type FeeDestination: Get<Self::AccountId>;
 
-		/// EVM address of the external gas faucet contract.
-		#[pallet::constant]
-		type FaucetAddress: Get<EvmAddress>;
-
 		/// Pallet ID used to derive the pallet's sovereign account.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
-
-		/// Minimum remaining ETH (in wei) that must be available in the faucet
-		/// after servicing a request. Requests are rejected if this threshold
-		/// would be breached.
-		#[pallet::constant]
-		type MinFaucetEthThreshold: Get<Balance>;
 
 		/// Weight information provider for extrinsics of this pallet.
 		type WeightInfo: crate::WeightInfo;
@@ -134,25 +112,29 @@ pub mod pallet {
 
 	/// Global configuration for the dispenser.
 	///
-	/// Currently only tracks whether the pallet is paused. If `None`, defaults
-	/// to unpaused.
+	/// If `None`, the pallet has not been configured and cannot process requests.
 	#[pallet::storage]
 	#[pallet::getter(fn dispenser_config)]
 	pub type DispenserConfig<T> = StorageValue<_, DispenserConfigData, OptionQuery>;
-
-	/// Tracked ETH balance (in wei) currently available in the external faucet.
-	///
-	/// This value is updated manually via governance and is used as a guardrail
-	/// to prevent issuing requests that would over-spend the faucet.
-	#[pallet::storage]
-	#[pallet::getter(fn current_faucet_balance_wei)]
-	pub type FaucetBalanceWei<T> = StorageValue<_, Balance, ValueQuery>;
 
 	/// Dispenser configuration data.
 	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, MaxEncodedLen)]
 	pub struct DispenserConfigData {
 		/// If `true`, all user-facing requests are blocked.
 		pub paused: bool,
+		/// Tracked ETH balance (in wei) currently available in the external faucet.
+		pub faucet_balance_wei: Balance,
+		/// EVM address of the external gas faucet contract.
+		pub faucet_address: EvmAddress,
+		/// Minimum remaining ETH (in wei) that must be available in the faucet
+		/// after servicing a request.
+		pub min_faucet_threshold: Balance,
+		/// Minimum amount of faucet asset that can be requested in a single call.
+		pub min_request: Balance,
+		/// Maximum amount of faucet asset that can be requested in a single call.
+		pub max_dispense: Balance,
+		/// Flat fee charged in `FeeAsset` for each faucet request.
+		pub dispenser_fee: Balance,
 	}
 
 	/// Request IDs that have already been used.
@@ -165,6 +147,14 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// Dispenser configuration has been set or updated.
+		ConfigUpdated {
+			faucet_address: EvmAddress,
+			min_faucet_threshold: Balance,
+			min_request: Balance,
+			max_dispense: Balance,
+			dispenser_fee: Balance,
+		},
 		/// Dispenser has been paused. No new requests will be accepted.
 		Paused,
 		/// Dispenser has been unpaused. New requests are allowed again.
@@ -183,18 +173,13 @@ pub mod pallet {
 			/// Requested amount of ETH (in wei).
 			amount: Balance,
 		},
-		/// Tracked faucet ETH balance has been updated.
-		FaucetBalanceUpdated {
-			/// Previous tracked balance (in wei).
-			old_balance_wei: Balance,
-			/// New tracked balance (in wei).
-			new_balance_wei: Balance,
-		},
 	}
 
 	/// Pallet errors.
 	#[pallet::error]
 	pub enum Error<T> {
+		/// The pallet has not been configured yet.
+		NotConfigured,
 		/// Request ID has already been used.
 		DuplicateRequest,
 		/// Failed to (de)serialize data.
@@ -224,17 +209,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Request ETH from the external faucet for a given EVM address.
 		///
-		/// This call:
-		/// - Verifies amount bounds and EVM transaction parameters.
-		/// - Checks the tracked faucet ETH balance against `MinFaucetEthThreshold`.
-		/// - Charges the configured fee in `FeeAsset`.
-		/// - Transfers the requested faucet asset from the user to `FeeDestination`.
-		/// - Builds an EVM transaction calling `IGasFaucet::fund`.
-		/// - Submits a signing request to SigNet via `pallet_signet::sign_bidirectional`.
-		///
-		/// The `request_id` must match the ID derived internally from the inputs,
-		/// otherwise the call will fail with `InvalidRequestId`.
-		///  Parameters:
+		/// Parameters:
 		/// - `to`: Target EVM address to receive ETH.
 		/// - `amount`: Amount of ETH (in wei) to request.
 		/// - `request_id`: Client-supplied request ID; must match derived ID.
@@ -251,20 +226,21 @@ pub mod pallet {
 			let requester = ensure_signed(origin)?;
 			let pallet_acc = Self::account_id();
 
-			// Pallet must not be paused.
-			Self::ensure_not_paused()?;
+			// Pallet must be configured and not paused.
+			let config = DispenserConfig::<T>::get().ok_or(Error::<T>::NotConfigured)?;
+			ensure!(!config.paused, Error::<T>::Paused);
 
 			// Basic validation of parameters.
 			ensure!(to != EvmAddress::zero(), Error::<T>::InvalidAddress);
-			ensure!(amount >= T::MinimumRequestAmount::get(), Error::<T>::AmountTooSmall);
-			ensure!(amount <= T::MaxDispenseAmount::get(), Error::<T>::AmountTooLarge);
+			ensure!(amount >= config.min_request, Error::<T>::AmountTooSmall);
+			ensure!(amount <= config.max_dispense, Error::<T>::AmountTooLarge);
 
 			// Check tracked faucet balance vs. threshold.
-			let observed = FaucetBalanceWei::<T>::get();
-			let needed = T::MinFaucetEthThreshold::get()
+			let needed = config
+				.min_faucet_threshold
 				.checked_add(amount)
 				.ok_or(Error::<T>::InvalidOutput)?;
-			ensure!(observed >= needed, Error::<T>::FaucetBalanceBelowThreshold);
+			ensure!(config.faucet_balance_wei >= needed, Error::<T>::FaucetBalanceBelowThreshold);
 
 			// EIP-1559 fee sanity checks.
 			ensure!(tx.gas_limit > 0, Error::<T>::InvalidOutput);
@@ -282,7 +258,7 @@ pub mod pallet {
 			// Build EVM transaction bytes using pallet_signet helper.
 			let rlp = pallet_signet::Pallet::<T>::build_evm_tx(
 				frame_system::RawOrigin::Signed(requester.clone()).into(),
-				Some(T::FaucetAddress::get()),
+				Some(config.faucet_address),
 				0u128,
 				call.abi_encode(),
 				tx.nonce,
@@ -293,10 +269,8 @@ pub mod pallet {
 				tx.chain_id,
 			)?;
 
-			// Construct signing path used by SigNet.
-			let mut path = Vec::with_capacity(2 + requester.encoded_size() * 2);
-			path.extend_from_slice(b"0x");
-			path.extend_from_slice(hex::encode(requester.encode()).as_bytes());
+			// Fixed signing path — all requests derive the same MPC key.
+			let path = SIGNING_PATH.to_vec();
 
 			// CAIP-2 chain ID (e.g., "eip155:1" for Ethereum mainnet)
 			let caip2_id = alloc::format!("eip155:{}", tx.chain_id);
@@ -311,7 +285,7 @@ pub mod pallet {
 			);
 
 			// Check balances for fee and faucet asset.
-			let fee = T::DispenserFee::get();
+			let fee = config.dispenser_fee;
 			let fee_bal = <T as Config>::Currency::balance(T::FeeAsset::get(), &requester);
 			let faucet_bal = <T as Config>::Currency::balance(T::FaucetAsset::get(), &requester);
 			ensure!(fee_bal >= fee, Error::<T>::NotEnoughFeeFunds);
@@ -355,13 +329,66 @@ pub mod pallet {
 
 			// Mark request ID as used and update tracked faucet balance.
 			UsedRequestIds::<T>::insert(request_id, ());
-			FaucetBalanceWei::<T>::mutate(|b| *b = b.saturating_sub(amount));
+			DispenserConfig::<T>::mutate(|c| {
+				if let Some(cfg) = c.as_mut() {
+					cfg.faucet_balance_wei = cfg.faucet_balance_wei.saturating_sub(amount);
+				}
+			});
 
 			Self::deposit_event(Event::FundRequested {
 				request_id: req_id,
 				requester,
 				to,
 				amount,
+			});
+
+			Ok(())
+		}
+
+		/// Set or update the dispenser configuration.
+		///
+		/// On first call, the pallet starts unpaused. On subsequent calls,
+		/// `paused` state is preserved.
+		///
+		/// Parameters:
+		/// - `origin`: Must satisfy `UpdateOrigin`.
+		/// - `faucet_address`: EVM address of the external gas faucet contract.
+		/// - `min_faucet_threshold`: Minimum remaining ETH (wei) after a request.
+		/// - `min_request`: Minimum request amount.
+		/// - `max_dispense`: Maximum request amount.
+		/// - `dispenser_fee`: Flat fee in `FeeAsset` per request.
+		/// - `faucet_balance_wei`: Tracked faucet ETH balance (in wei).
+		#[pallet::call_index(1)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_config())]
+		pub fn set_config(
+			origin: OriginFor<T>,
+			faucet_address: EvmAddress,
+			min_faucet_threshold: Balance,
+			min_request: Balance,
+			max_dispense: Balance,
+			dispenser_fee: Balance,
+			faucet_balance_wei: Balance,
+		) -> DispatchResult {
+			<T as pallet::Config>::UpdateOrigin::ensure_origin(origin)?;
+
+			let paused = DispenserConfig::<T>::get().map(|c| c.paused).unwrap_or(false);
+
+			DispenserConfig::<T>::put(DispenserConfigData {
+				paused,
+				faucet_balance_wei,
+				faucet_address,
+				min_faucet_threshold,
+				min_request,
+				max_dispense,
+				dispenser_fee,
+			});
+
+			Self::deposit_event(Event::ConfigUpdated {
+				faucet_address,
+				min_faucet_threshold,
+				min_request,
+				max_dispense,
+				dispenser_fee,
 			});
 
 			Ok(())
@@ -375,11 +402,11 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::pause())]
 		pub fn pause(origin: OriginFor<T>) -> DispatchResult {
 			<T as pallet::Config>::UpdateOrigin::ensure_origin(origin)?;
-			if DispenserConfig::<T>::get().is_none() {
-				DispenserConfig::<T>::put(DispenserConfigData { paused: true });
-			} else {
-				DispenserConfig::<T>::mutate_exists(|p| p.as_mut().unwrap().paused = true);
-			};
+			DispenserConfig::<T>::mutate(|maybe| {
+				if let Some(cfg) = maybe.as_mut() {
+					cfg.paused = true;
+				}
+			});
 
 			Self::deposit_event(Event::Paused);
 			Ok(())
@@ -393,51 +420,22 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::unpause())]
 		pub fn unpause(origin: OriginFor<T>) -> DispatchResult {
 			<T as pallet::Config>::UpdateOrigin::ensure_origin(origin)?;
-			if DispenserConfig::<T>::get().is_none() {
-				DispenserConfig::<T>::put(DispenserConfigData { paused: false });
-			} else {
-				DispenserConfig::<T>::mutate_exists(|p| p.as_mut().unwrap().paused = false);
-			};
+			DispenserConfig::<T>::mutate(|maybe| {
+				if let Some(cfg) = maybe.as_mut() {
+					cfg.paused = false;
+				}
+			});
+
 			Self::deposit_event(Event::Unpaused);
 			Ok(())
 		}
 
-		/// Increase the tracked faucet ETH balance (in wei).
-		///
-		/// This is an accounting helper used to keep `FaucetBalanceWei`
-		/// roughly in sync with the real faucet balance on the EVM chain.
-		///
-		/// Parameters:
-		/// - `origin`: Must satisfy `UpdateOrigin`.
-		/// - `balance_wei`: Amount (in wei) to add to the currently stored balance.
-		#[pallet::call_index(4)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_faucet_balance())]
-		pub fn set_faucet_balance(origin: OriginFor<T>, balance_wei: Balance) -> DispatchResult {
-			<T as pallet::Config>::UpdateOrigin::ensure_origin(origin)?;
-			let old = FaucetBalanceWei::<T>::get();
-			let new_balance = old + balance_wei;
-			FaucetBalanceWei::<T>::put(new_balance);
-			Self::deposit_event(Event::FaucetBalanceUpdated {
-				old_balance_wei: old,
-				new_balance_wei: new_balance,
-			});
-			Ok(())
-		}
 	}
 
 	// ========================= Helper Functions =========================
 
 	impl<T: Config> Pallet<T> {
 		/// Derive a deterministic request ID from the given parameters.
-		///
-		/// The ID is computed as:
-		/// - Encode `(sender_ss58, transaction_data, caip2_id, key_version,
-		///   path_str, algo_str, dest_str, params_str)` using Solidity's
-		///   `abi_encode_packed`.
-		/// - Apply `keccak256` to the result.
-		///
-		/// This mirrors the off-chain logic used by SigNet clients and prevents
-		/// clients from supplying arbitrary request IDs.
 		#[allow(clippy::too_many_arguments)]
 		pub fn generate_request_id(
 			sender: &T::AccountId,
@@ -478,22 +476,8 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		/// Returns the pallet's sovereign account ID.
-		///
-		/// This account is derived from `PalletId` and is used as the logical
-		/// owner of outbound EVM transactions and SigNet requests.
 		pub fn account_id() -> T::AccountId {
 			<T as pallet::Config>::PalletId::get().into_account_truncating()
-		}
-
-		/// Ensures that the dispenser is not paused.
-		///
-		/// Returns `Ok(())` if the dispenser is active, otherwise `Error::Paused`.
-		#[inline]
-		fn ensure_not_paused() -> Result<(), Error<T>> {
-			match DispenserConfig::<T>::get() {
-				Some(DispenserConfigData { paused: true, .. }) => Err(Error::<T>::Paused),
-				_ => Ok(()),
-			}
 		}
 	}
 }
