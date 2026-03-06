@@ -9,9 +9,14 @@ pub type BalanceOf<T> =
 pub const ECDSA: &[u8] = b"ecdsa";
 pub const ETHEREUM: &[u8] = b"ethereum";
 
+/// Fixed signing derivation path — all dispenser requests use the same
+/// MPC-derived key so that only one EVM wallet needs to be funded and
+/// whitelisted on the faucet contract.
+pub const SIGNING_PATH: &[u8] = b"dispenser";
+
 pub trait WeightInfo {
 	fn request_fund() -> Weight;
-	fn set_faucet_balance() -> Weight;
+	fn set_config() -> Weight;
 	fn pause() -> Weight;
 	fn unpause() -> Weight;
 }
