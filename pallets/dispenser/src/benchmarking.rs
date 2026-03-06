@@ -12,8 +12,8 @@ mod benches {
 	use alloy_primitives::{Address, U256};
 	use alloy_sol_types::SolCall;
 	use core::ops::{Add, Mul};
-	use frame_support::traits::Currency;
 	use frame_support::traits::fungibles::Mutate as FungiblesMutate;
+	use frame_support::traits::Currency;
 
 	fn test_config_data() -> DispenserConfigData {
 		DispenserConfigData {

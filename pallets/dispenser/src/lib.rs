@@ -240,7 +240,10 @@ pub mod pallet {
 				.min_faucet_threshold
 				.checked_add(amount)
 				.ok_or(Error::<T>::InvalidOutput)?;
-			ensure!(config.faucet_balance_wei >= needed, Error::<T>::FaucetBalanceBelowThreshold);
+			ensure!(
+				config.faucet_balance_wei >= needed,
+				Error::<T>::FaucetBalanceBelowThreshold
+			);
 
 			// EIP-1559 fee sanity checks.
 			ensure!(tx.gas_limit > 0, Error::<T>::InvalidOutput);
@@ -429,7 +432,6 @@ pub mod pallet {
 			Self::deposit_event(Event::Unpaused);
 			Ok(())
 		}
-
 	}
 
 	// ========================= Helper Functions =========================

@@ -1,11 +1,10 @@
 use crate::{self as pallet_dispenser};
 use crate::{
 	tests::{
-		new_test_ext,
+		new_test_ext, test_faucet_address,
 		utils::{acct, compute_request_id, create_test_receiver_address, create_test_tx_params},
-		Currencies, Dispenser, RuntimeEvent, RuntimeOrigin, System, Test, MIN_WEI_BALANCE,
-		TEST_DISPENSER_FEE, TEST_MAX_DISPENSE, TEST_MIN_FAUCET_THRESHOLD, TEST_MIN_REQUEST,
-		test_faucet_address,
+		Currencies, Dispenser, RuntimeEvent, RuntimeOrigin, System, Test, MIN_WEI_BALANCE, TEST_DISPENSER_FEE,
+		TEST_MAX_DISPENSE, TEST_MIN_FAUCET_THRESHOLD, TEST_MIN_REQUEST,
 	},
 	Error, Event,
 };
@@ -285,7 +284,11 @@ fn non_governance_cannot_set_config() {
 			Dispenser::set_config(
 				RuntimeOrigin::signed(alice),
 				test_faucet_address(),
-				1, 100, 1_000_000_000, 10, MIN_WEI_BALANCE,
+				1,
+				100,
+				1_000_000_000,
+				10,
+				MIN_WEI_BALANCE,
 			),
 			sp_runtime::DispatchError::BadOrigin
 		);
