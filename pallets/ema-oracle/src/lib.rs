@@ -103,6 +103,11 @@ pub const BIFROST_SOURCE: [u8; 8] = *b"bifrosto";
 /// Rounded up to 300 for safety margin.
 pub const MAX_EXTERNAL_ENTRIES_PER_BLOCK: u32 = 300;
 
+/// Upper bound on the number of authorized accounts per external oracle source.
+/// Used for worst-case weight estimation when removing a source, as `clear_prefix`
+/// must delete all associated authorized accounts.
+pub const MAX_AUTHORIZED_ACCOUNTS_PER_SOURCE: u32 = 20;
+
 const LOG_TARGET: &str = "runtime::ema-oracle";
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -380,7 +385,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_external_source())]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_external_source(MAX_AUTHORIZED_ACCOUNTS_PER_SOURCE))]
 		pub fn remove_external_source(origin: OriginFor<T>, source: Source) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
