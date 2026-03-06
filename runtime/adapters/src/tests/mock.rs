@@ -344,10 +344,6 @@ impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositLimiter {
 	type OnDepositRelease = ();
 }
 
-parameter_types! {
-	pub const GlobalWithdrawWindow: primitives::Moment = primitives::constants::time::unix_time::DAY;
-}
-
 impl pallet_circuit_breaker::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -364,7 +360,6 @@ impl pallet_circuit_breaker::Config for Test {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
-	type GlobalWithdrawWindow = GlobalWithdrawWindow;
 	type TimestampProvider = Timestamp;
 }
 

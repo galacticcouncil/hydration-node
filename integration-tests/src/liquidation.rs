@@ -311,6 +311,125 @@ fn liquidation_should_work() {
 }
 
 #[test]
+fn liquidation_should_fail_when_debt_asset_is_under_deposit_lockdown() {
+	TestNet::reset();
+	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		// Arrange
+		deposit_hdx_to_protocol_account();
+
+		let pallet_acc = Liquidation::account_id();
+		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
+		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
+
+		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
+		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
+
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into()),));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(BOB.into()),));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(pallet_acc.clone()),));
+
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+
+		// get Pool contract address
+		let block_number = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(block_number);
+		let pool_contract = MoneyMarketData::<Block, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool::<
+			ApiProvider<Runtime>,
+		>(&ApiProvider::<Runtime>(Runtime), hash, PAP_CONTRACT, alice_evm_address)
+		.unwrap();
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			pool_contract
+		));
+
+		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+		let collateral_weth_amount: Balance = 10 * WETH_UNIT;
+		let collateral_dot_amount = 5_000 * DOT_UNIT;
+		supply(
+			pool_contract,
+			alice_evm_address,
+			weth_asset_address,
+			collateral_weth_amount,
+		);
+		supply(
+			pool_contract,
+			alice_evm_address,
+			dot_asset_address,
+			collateral_dot_amount,
+		);
+
+		let borrow_dot_amount: Balance = 5_000 * DOT_UNIT;
+		borrow(pool_contract, alice_evm_address, dot_asset_address, borrow_dot_amount);
+
+		// Manipulate prices to make the position liquidatable (health_factor < 1)
+		let (price, timestamp) = get_oracle_price("DOT/USD").unwrap();
+		let price = price.as_u128() * 5;
+		let timestamp = timestamp.as_u128() + 6;
+		let mut data = price.to_be_bytes().to_vec();
+		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
+		update_oracle_price(
+			vec![("DOT/USD", U256::from_big_endian(&data[0..32]))],
+			ORACLE_ADDRESS,
+			ORACLE_CALLER,
+		);
+
+		let (price, timestamp) = get_oracle_price("WETH/USD").unwrap();
+		let price = price.as_u128() / 5;
+		let timestamp = timestamp.as_u128() + 6;
+		let mut data = price.to_be_bytes().to_vec();
+		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
+		update_oracle_price(
+			vec![("WETH/USD", U256::from_big_endian(&data[0..32]))],
+			ORACLE_ADDRESS,
+			ORACLE_CALLER,
+		);
+
+		// Ensure that the health_factor < 1 (position is liquidatable)
+		let user_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
+		assert!(user_data.health_factor < U256::from(1_000_000_000_000_000_000u128));
+
+		let route = Router::get_route(AssetPair {
+			asset_in: WETH,
+			asset_out: DOT,
+		});
+
+		// Set a deposit limit on the debt asset (DOT) and trigger lockdown.
+		// This demonstrates what happens when any asset with xcm_rate_limit enters
+		// lockdown and a liquidation needs to mint that asset into the pallet account.
+		let deposit_limit = DOT_UNIT;
+		crate::deposit_limiter::update_deposit_limit(DOT, deposit_limit).unwrap();
+
+		// Trigger lockdown by depositing more than the limit
+		assert_ok!(Currencies::deposit(
+			DOT,
+			&AccountId::from(BOB),
+			deposit_limit + DOT_UNIT
+		));
+
+		// Act - Liquidation should fail because the debt asset is under deposit lockdown.
+		assert!(Liquidation::liquidate(
+			RuntimeOrigin::signed(BOB.into()),
+			WETH,
+			DOT,
+			alice_evm_address,
+			borrow_dot_amount,
+			route
+		)
+		.is_err());
+
+		// Assert - no funds should be stuck on the pallet account
+		assert_eq!(Currencies::free_balance(DOT, &pallet_acc), 0);
+		assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
+
+		// The user's position is still unchanged
+		let user_data_after = get_user_account_data(pool_contract, alice_evm_address).unwrap();
+		assert!(user_data_after.health_factor < U256::from(1_000_000_000_000_000_000u128));
+	});
+}
+
+#[test]
 fn liquidation_should_revert_correctly_when_evm_call_fails() {
 	TestNet::reset();
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets

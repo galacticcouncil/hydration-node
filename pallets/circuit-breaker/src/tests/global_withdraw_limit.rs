@@ -7,6 +7,15 @@ const DAY: primitives::Moment = primitives::constants::time::unix_time::DAY;
 #[test]
 fn note_egress_should_increment_accumulator() {
 	ExtBuilder::default().build().execute_with(|| {
+		let params = GlobalWithdrawLimitParameters {
+			limit: 1000,
+			window: primitives::constants::time::unix_time::DAY,
+		};
+		assert_ok!(CircuitBreaker::set_global_withdraw_limit_params(
+			RuntimeOrigin::root(),
+			params
+		));
+
 		assert_ok!(CircuitBreaker::note_egress(100));
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator(), (100, 0));
 
@@ -18,7 +27,14 @@ fn note_egress_should_increment_accumulator() {
 #[test]
 fn note_egress_should_not_trigger_lockdown_when_limit_exceeded() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(CircuitBreaker::set_global_withdraw_limit(RuntimeOrigin::root(), 1000));
+		let params = GlobalWithdrawLimitParameters {
+			limit: 1000,
+			window: primitives::constants::time::unix_time::DAY,
+		};
+		assert_ok!(CircuitBreaker::set_global_withdraw_limit_params(
+			RuntimeOrigin::root(),
+			params
+		));
 
 		assert_ok!(CircuitBreaker::note_egress(999));
 		// note_egress returns error when limit exceeded, and does NOT update storage or trigger lockdown
@@ -33,6 +49,15 @@ fn note_egress_should_not_trigger_lockdown_when_limit_exceeded() {
 #[test]
 fn note_egress_should_fail_during_manual_lockdown() {
 	ExtBuilder::default().build().execute_with(|| {
+		let params = GlobalWithdrawLimitParameters {
+			limit: 10_000,
+			window: primitives::constants::time::unix_time::DAY,
+		};
+		assert_ok!(CircuitBreaker::set_global_withdraw_limit_params(
+			RuntimeOrigin::root(),
+			params
+		));
+
 		pallet_timestamp::Pallet::<Test>::set_timestamp(100);
 		assert_ok!(CircuitBreaker::set_global_withdraw_lockdown(
 			RuntimeOrigin::root(),
@@ -48,6 +73,15 @@ fn note_egress_should_fail_during_manual_lockdown() {
 #[test]
 fn accumulator_should_decay_linearly() {
 	ExtBuilder::default().build().execute_with(|| {
+		let params = GlobalWithdrawLimitParameters {
+			limit: 10_000,
+			window: primitives::constants::time::unix_time::DAY,
+		};
+		assert_ok!(CircuitBreaker::set_global_withdraw_limit_params(
+			RuntimeOrigin::root(),
+			params
+		));
+
 		pallet_timestamp::Pallet::<Test>::set_timestamp(0);
 		assert_ok!(CircuitBreaker::note_egress(1000));
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator(), (1000, 0));
@@ -80,6 +114,15 @@ fn decay_should_not_underflow() {
 #[test]
 fn decay_called_twice_same_now_is_idempotent() {
 	ExtBuilder::default().build().execute_with(|| {
+		let params = GlobalWithdrawLimitParameters {
+			limit: 10_000,
+			window: primitives::constants::time::unix_time::DAY,
+		};
+		assert_ok!(CircuitBreaker::set_global_withdraw_limit_params(
+			RuntimeOrigin::root(),
+			params
+		));
+
 		pallet_timestamp::Pallet::<Test>::set_timestamp(0);
 		assert_ok!(CircuitBreaker::note_egress(1_000));
 
