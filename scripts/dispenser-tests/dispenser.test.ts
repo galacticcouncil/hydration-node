@@ -31,6 +31,7 @@ describe('ERC20 Vault Integration', () => {
   let derivedPubKey: string
   let aliceHexPath: string
   let palletSS58: string
+  let onChainFaucetAddress: string
 
   beforeAll(async () => {
     await waitReady()
@@ -40,10 +41,12 @@ describe('ERC20 Vault Integration', () => {
     const feeAsset = (api.consts.ethDispenser.feeAsset as any).toNumber()
     const faucetAsset = (api.consts.ethDispenser.faucetAsset as any).toNumber()
 
+    onChainFaucetAddress = (api.consts.ethDispenser.faucetAddress as any).toHex()
+
     console.log(
       `feeAsset = ${feeAsset}`,
       `faucetAsset = ${faucetAsset}`,
-      `faucetAddress = ${api.consts.ethDispenser.faucetAddress.toString()}`,
+      `faucetAddress = ${onChainFaucetAddress}`,
     )
 
     const { keyring, alice: aliceAcc, bob } = createKeyringAndAccounts()
@@ -53,7 +56,7 @@ describe('ERC20 Vault Integration', () => {
     aliceHexPath = '0x' + u8aToHex(aliceAccountId).slice(2)
 
     await logAliceTokenBalances(api, alice, faucetAsset, feeAsset)
-    await ensureBobHasAssets(api, bob, faucetAsset)
+    await ensureBobHasAssets(api, alice, bob, faucetAsset)
 
     const palletFunding = await fundPalletAccounts(api, alice, faucetAsset)
     palletSS58 = palletFunding.palletSS58
@@ -67,7 +70,7 @@ describe('ERC20 Vault Integration', () => {
       ENV.SUBSTRATE_CHAIN_ID,
     )
 
-    const derived = deriveEthAddress()
+    const derived = deriveEthAddress(palletSS58)
     derivedEthAddress = derived.derivedEthAddress
     derivedPubKey = derived.derivedPubKey
 
@@ -118,7 +121,7 @@ describe('ERC20 Vault Integration', () => {
       maxPriorityFeePerGas: txParams.maxPriorityFeePerGas,
       maxFeePerGas: txParams.maxFeePerGas,
       gasLimit: txParams.gasLimit,
-      to: ENV.FAUCET_ADDRESS,
+      to: onChainFaucetAddress,
       value: 0,
       data,
     })
@@ -129,7 +132,7 @@ describe('ERC20 Vault Integration', () => {
       {
         caip2_id: `eip155:${ENV.EVM_CHAIN_ID}`,
         keyVersion: 0,
-        path: aliceHexPath,
+        path: 'dispenser',
         algo: 'ecdsa',
         dest: 'ethereum',
         params: '',

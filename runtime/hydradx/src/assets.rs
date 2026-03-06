@@ -1907,8 +1907,8 @@ impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
 pub struct SigEthFaucetContractAddr;
 impl frame_support::traits::Get<EvmAddress> for SigEthFaucetContractAddr {
 	fn get() -> EvmAddress {
-		// 0x189d33ea9A9701fdb67C21df7420868193dcf578
-		EvmAddress::from(hex_literal::hex!("189d33ea9A9701fdb67C21df7420868193dcf578"))
+		// 0x24CE81819eFA8Bc4099FF133F8Af6f9155762511
+		EvmAddress::from(hex_literal::hex!("24CE81819eFA8Bc4099FF133F8Af6f9155762511"))
 	}
 }
 

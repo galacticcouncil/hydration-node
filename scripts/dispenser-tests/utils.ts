@@ -231,6 +231,7 @@ export function createKeyringAndAccounts() {
 
 export async function ensureBobHasAssets(
   api: ApiPromise,
+  alice: any,
   bob: any,
   faucetAsset: number,
 ) {
@@ -240,21 +241,23 @@ export async function ensureBobHasAssets(
     bob.address,
   )) as any
 
+  if (bobBalance.free.toBigInt() < 1000000000000n) {
+    console.log('Funding Bob from Alice...')
+    await new Promise<void>((resolve, reject) => {
+      api.tx.balances
+        .transferKeepAlive(bob.address, 100000000000000n)
+        .signAndSend(alice, (result: ISubmittableResult) => {
+          if (result.dispatchError) {
+            reject(result.dispatchError)
+          } else if (result.status.isInBlock) {
+            console.log("Bob's account funded!")
+            resolve()
+          }
+        })
+    })
+  }
+
   const bobFaucetBalance = await getTokenFree(api, bob.address, faucetAsset)
-
-  if (bobBalance.free.toBigInt() < MIN_BOB_NATIVE_BALANCE) {
-    throw new Error(
-      `Bob has insufficient native balance: ${bobBalance.free.toBigInt()}. ` +
-        `Expected at least ${MIN_BOB_NATIVE_BALANCE}. Fund Bob via chopsticks config.`,
-    )
-  }
-
-  if (bobFaucetBalance < ethers.parseEther('1')) {
-    throw new Error(
-      `Bob has insufficient faucet asset (${faucetAsset}) balance: ${bobFaucetBalance}. ` +
-        `Fund Bob via chopsticks config.`,
-    )
-  }
 
   console.log(
     `Bob balances: native=${bobBalance.free.toBigInt()}, faucetAsset(${faucetAsset})=${bobFaucetBalance}`,
@@ -318,12 +321,14 @@ export async function fundPalletAccounts(
   return { palletSS58 }
 }
 
-export function deriveEthAddress(): {
+export function deriveEthAddress(palletSS58: string): {
   derivedPubKey: string
   derivedEthAddress: string
 } {
   const derivedPubKey = KeyDerivation.derivePublicKey(
     ENV.ROOT_PUBLIC_KEY,
+    palletSS58,
+    'dispenser',
     ENV.SUBSTRATE_CHAIN_ID,
   )
 

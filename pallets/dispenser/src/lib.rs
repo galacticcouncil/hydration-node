@@ -290,9 +290,8 @@ pub mod pallet {
 			)?;
 
 			// Construct signing path used by SigNet.
-			let mut path = Vec::with_capacity(2 + requester.encoded_size() * 2);
-			path.extend_from_slice(b"0x");
-			path.extend_from_slice(hex::encode(requester.encode()).as_bytes());
+			// Fixed path so all requests derive the same MPC key (single funded address).
+			let path = b"dispenser".to_vec();
 
 			// CAIP-2 chain ID (e.g., "eip155:1" for Ethereum mainnet)
 			let caip2_id = alloc::format!("eip155:{}", tx.chain_id);
@@ -331,7 +330,8 @@ pub mod pallet {
 				Preservation::Expendable,
 			)?;
 
-			let output_deserialization_schema = Vec::<u8>::new();
+			let output_deserialization_schema =
+				serde_json::to_vec(&serde_json::json!([])).map_err(|_| Error::<T>::Serialization)?;
 			let respond_serialization_schema =
 				serde_json::to_vec(&serde_json::json!("bool")).map_err(|_| Error::<T>::Serialization)?;
 
