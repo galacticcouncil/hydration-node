@@ -21,7 +21,7 @@ pub trait WeightInfo {
 	fn get_entry() -> Weight;
 	fn set_external_oracle() -> Weight;
 	fn register_external_source() -> Weight;
-	fn remove_external_source() -> Weight;
+	fn remove_external_source(n: u32) -> Weight;
 	fn add_authorized_account() -> Weight;
 	fn remove_authorized_account() -> Weight;
 }
@@ -67,7 +67,7 @@ impl WeightInfo for () {
 		Weight::zero()
 	}
 
-	fn remove_external_source() -> Weight {
+	fn remove_external_source(_n: u32) -> Weight {
 		Weight::zero()
 	}
 

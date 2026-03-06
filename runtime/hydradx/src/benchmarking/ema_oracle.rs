@@ -18,7 +18,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use crate::bifrost_account;
+use hex_literal::hex;
 use hydradx_traits::oracle::OraclePeriod;
 use hydradx_traits::AggregatedEntry;
 use pallet_ema_oracle::ordered_pair;
@@ -43,6 +43,11 @@ use sp_core::{ConstU32, Get};
 
 /// Default oracle source.
 const SOURCE: Source = *b"dummysrc";
+
+// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
+pub fn bifrost_account() -> AccountId {
+	hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into()
+}
 
 fn fill_whitelist_storage(n: u32) {
 	for i in 0..n {
@@ -480,8 +485,13 @@ runtime_benchmarks! {
 	}
 
 	remove_external_source {
+		let n in 0 .. pallet_ema_oracle::MAX_AUTHORIZED_ACCOUNTS_PER_SOURCE;
 		let source: Source = *b"newsrcxx";
 		EmaOracle::register_external_source(RawOrigin::Root.into(), source).expect("error when registering external source");
+		for i in 0..n {
+			let account: AccountId = frame_benchmarking::account("authorized", i, 0);
+			EmaOracle::add_authorized_account(RawOrigin::Root.into(), source, account).expect("error when adding authorized account");
+		}
 	}: _(RawOrigin::Root, source)
 	verify {
 		assert!(!pallet_ema_oracle::ExternalSources::<Runtime>::contains_key(source));
