@@ -653,10 +653,6 @@ where
 	}
 }
 
-// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
-pub fn bifrost_account() -> AccountId {
-	hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into()
-}
 impl pallet_ema_oracle::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
