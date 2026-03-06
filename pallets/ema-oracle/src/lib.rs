@@ -467,7 +467,8 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<(), ()> {
-		if !T::OracleWhitelist::contains(&(src, assets.0, assets.1)) && !ExternalSources::<T>::contains_key(src) {
+		let is_external_source = ExternalSources::<T>::contains_key(src);
+		if !T::OracleWhitelist::contains(&(src, assets.0, assets.1)) && !is_external_source {
 			// if we don't track oracle for given asset pair, don't throw error
 			return Ok(());
 		}
@@ -477,7 +478,7 @@ impl<T: Config> Pallet<T> {
 				entry.accumulate_volume_and_update_from(&oracle_entry);
 				Ok(())
 			} else {
-				if !ExternalSources::<T>::contains_key(src) && accumulator.len() >= T::MaxUniqueEntries::get() as usize
+				if !is_external_source && accumulator.len() >= T::MaxUniqueEntries::get() as usize
 				{
 					//We have soft limit up to MaxUniqueEntries, only for AMM internal oracle updates
 					return Err(());
