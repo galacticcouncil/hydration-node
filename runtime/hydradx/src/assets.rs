@@ -657,10 +657,6 @@ where
 	}
 }
 
-// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
-pub fn bifrost_account() -> AccountId {
-	hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into()
-}
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
