@@ -220,7 +220,8 @@ describe('ERC20 Vault Integration', () => {
         `Signature verification failed!\n` +
           `   Expected: ${derivedEthAddress}\n` +
           `   Recovered: ${recoveredAddress}\n` +
-          `   This means the MPC signed with the wrong key or recovery ID is incorrect.`,
+          `   On chopsticks with mock-signature-host the mock MPC returns a dummy signature.\n` +
+          `   Run against a real network (lark/mainnet) with an actual MPC for the full flow.`,
       )
     }
 

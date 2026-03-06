@@ -27,18 +27,27 @@ export const DISPENSER_SIGNING_PATH = 'dispenser'
 let _isDevChain: boolean | null = null
 
 /**
- * Probe whether the connected node supports dev RPCs (dev_newBlock).
- * Result is cached for the lifetime of the process.
+ * Probe whether the connected node supports dev RPCs (chopsticks).
+ * Tries multiple detection methods. Result is cached for the lifetime of the process.
  */
 export async function isDevChain(api: ApiPromise): Promise<boolean> {
   if (_isDevChain !== null) return _isDevChain
-  try {
-    await (api.rpc as any)('dev_newBlock', { count: 0 })
-    _isDevChain = true
-  } catch {
-    _isDevChain = false
+  // Try dev_setBlockBuildMode which doesn't produce blocks — safest probe
+  for (const method of ['dev_setBlockBuildMode', 'dev_newBlock']) {
+    try {
+      if (method === 'dev_setBlockBuildMode') {
+        await (api.rpc as any)(method, 'Instant')
+      } else {
+        await (api.rpc as any)(method, { count: 1 })
+      }
+      _isDevChain = true
+      console.log(`Dev chain detected via ${method}`)
+      return true
+    } catch {}
   }
-  return _isDevChain
+  _isDevChain = false
+  console.log('Not a dev chain — will use governance for Root calls')
+  return false
 }
 
 // ---------------------------------------------------------------------------
@@ -584,7 +593,40 @@ export async function fundPalletAccounts(
     console.log(`Pallet native balance sufficient (${palletBalance.free.toBigInt()}), skipping`)
   }
 
+  // Fund the signet pallet account so it can receive signature deposits.
+  // sign_bidirectional transfers signature_deposit from the dispenser pallet
+  // to the signet pallet; if the signet pallet has 0 HDX the transfer fails
+  // with BelowMinimum because the deposit may be below the native ED.
+  await fundSignetPalletAccount(api, alice)
+
   return { palletSS58, palletSS58Prefix0 }
+}
+
+const SIGNET_PALLET_ID_STR = 'py/signt'
+
+async function fundSignetPalletAccount(api: ApiPromise, alice: any) {
+  const modl = new TextEncoder().encode(MODL_PREFIX)
+  const palletId = new TextEncoder().encode(SIGNET_PALLET_ID_STR)
+  const data = new Uint8Array(32)
+  data.set(modl, 0)
+  data.set(palletId, 4)
+  const signetSS58 = encodeAddress(data, ENV.SS58_PREFIX)
+
+  const { data: bal } = (await api.query.system.account(signetSS58)) as any
+  const free = bal.free.toBigInt()
+  console.log(`Signet pallet (${signetSS58}) native balance: ${free}`)
+
+  if (free >= PALLET_MIN_NATIVE_BALANCE) {
+    console.log('Signet pallet balance sufficient, skipping')
+    return
+  }
+
+  console.log(`Funding signet pallet account...`)
+  const fundTx = api.tx.balances.transferKeepAlive(
+    signetSS58,
+    PALLET_MIN_NATIVE_BALANCE,
+  )
+  await submitWithRetry(fundTx, alice, api, 'Fund signet pallet account')
 }
 
 /**
@@ -730,7 +772,7 @@ export async function initializeVaultIfNeeded(api: ApiPromise, signer?: any) {
       ethers.parseEther('0.05').toString(),        // min_faucet_threshold (0.05 ETH)
       '0',                                        // min_request
       ethers.parseEther('1').toString(),           // max_dispense (1 ETH)
-      '5000',                                     // dispenser_fee (HDX)
+      '1000000000000',                              // dispenser_fee (1 HDX, 12 decimals)
       ethers.parseEther('10').toString(),          // faucet_balance_wei (10 ETH)
     )
     if (signer) {
@@ -791,8 +833,10 @@ export async function initializeVaultIfNeeded(api: ApiPromise, signer?: any) {
 // ---------------------------------------------------------------------------
 
 /**
- * Execute a call as Root, auto-detecting whether to use dev_setStorage (chopsticks)
- * or the full referendum flow (live chain like lark).
+ * Execute a call with elevated origin, auto-detecting the best strategy:
+ *   1. Chopsticks → dev_setStorage scheduler (instant)
+ *   2. Signer is TC member → technicalCommittee.propose (fast)
+ *   3. Fallback → referendum (slow, but always works)
  */
 export async function executeAsRoot(
   api: ApiPromise,
@@ -802,9 +846,18 @@ export async function executeAsRoot(
 ) {
   if (await isDevChain(api)) {
     await executeAsRootViaScheduler(api, call, label)
-  } else {
-    await executeAsRootViaReferendum(api, signer, call, label)
+    return
   }
+
+  // Try TC path first — much faster than governance referendum
+  const isTcMember = await isSignerTcMember(api, signer)
+  if (isTcMember) {
+    await executeViaTechCommittee(api, signer, call, label)
+    return
+  }
+
+  console.log(`${label}: signer is not a TC member, falling back to referendum`)
+  await executeAsRootViaReferendum(api, signer, call, label)
 }
 
 /**
@@ -829,7 +882,7 @@ async function cleanupOldVotes(
     const votes = voting.casting.votes as [number, any][]
     console.log(`${label}: found ${votes.length} existing votes on track ${trackId}`)
 
-    if (votes.length < 20) {
+    if (votes.length < 10) {
       console.log(`${label}: vote count under limit, no cleanup needed`)
       return
     }
@@ -863,6 +916,109 @@ async function cleanupOldVotes(
   } catch (err: any) {
     console.warn(`${label}: failed to cleanup old votes: ${err.message || err}`)
   }
+}
+
+async function isSignerTcMember(api: ApiPromise, signer: any): Promise<boolean> {
+  try {
+    const members = await (api.query as any).technicalCommittee.members()
+    const memberList = members.toJSON() as string[]
+    const keyring = new Keyring()
+    const signerAccountId = u8aToHex(keyring.decodeAddress(signer.address))
+    return memberList.some(
+      (m) => u8aToHex(keyring.decodeAddress(m)) === signerAccountId,
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Execute a call via Tech Committee proposal.
+ * If signer is the only TC member, threshold=1 → executes immediately.
+ * Otherwise creates a proposal that other TC members must vote on.
+ */
+async function executeViaTechCommittee(
+  api: ApiPromise,
+  signer: any,
+  call: SubmittableExtrinsic<'promise'>,
+  label: string,
+) {
+  const members = await (api.query as any).technicalCommittee.members()
+  const memberList = members.toJSON() as string[]
+  const memberCount = memberList.length
+  // Majority threshold: floor(n/2) + 1
+  const threshold = Math.floor(memberCount / 2) + 1
+
+  console.log(`${label}: executing via TC (members: ${memberCount}, threshold: ${threshold})`)
+
+  const lengthBound = call.method.encodedLength + 100
+  const proposeTx = (api.tx as any).technicalCommittee.propose(
+    threshold,
+    call,
+    lengthBound,
+  )
+
+  const result = await submitWithRetry(proposeTx, signer, api, `${label} - TC propose`)
+
+  // If threshold=1, the call executed inline. Otherwise log the proposal index.
+  if (threshold > 1) {
+    for (const { event } of result.events) {
+      if (event.section === 'technicalCommittee' && event.method === 'Proposed') {
+        const proposalIndex = event.data[1]?.toString() ?? event.data[2]?.toString()
+        console.log(`${label}: TC proposal #${proposalIndex} created. Other TC members must vote Aye.`)
+      }
+    }
+  }
+
+  // Check if the call was executed (Executed event = threshold was 1 or auto-closed)
+  const executed = result.events.some(
+    (r: any) =>
+      r.event.section === 'technicalCommittee' &&
+      (r.event.method === 'Executed' || r.event.method === 'Closed'),
+  )
+
+  if (executed) {
+    console.log(`${label}: TC proposal executed immediately`)
+  } else if (threshold > 1) {
+    console.log(`${label}: TC proposal needs ${threshold - 1} more Aye votes from other members`)
+    // Poll for execution (other TC members may vote via separate process)
+    await pollForTcExecution(api, result, label)
+  }
+}
+
+/**
+ * Poll for TC proposal execution after other members vote.
+ */
+async function pollForTcExecution(
+  api: ApiPromise,
+  proposeResult: { events: any[] },
+  label: string,
+  timeoutMs = 600_000,
+) {
+  // Extract proposal hash from Proposed event
+  let proposalHash: string | null = null
+  for (const { event } of proposeResult.events) {
+    if (event.section === 'technicalCommittee' && event.method === 'Proposed') {
+      proposalHash = event.data[2]?.toHex?.() ?? event.data[2]?.toString()
+    }
+  }
+
+  if (!proposalHash) {
+    console.log(`${label}: could not find proposal hash, skipping poll`)
+    return
+  }
+
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    const proposal = await (api.query as any).technicalCommittee.proposalOf(proposalHash)
+    if (proposal.isNone) {
+      console.log(`${label}: TC proposal executed (no longer in storage)`)
+      return
+    }
+    console.log(`${label}: waiting for TC proposal to be voted on...`)
+    await new Promise((r) => setTimeout(r, 6_000))
+  }
+  console.warn(`${label}: TC proposal poll timed out after ${timeoutMs}ms`)
 }
 
 export async function executeAsRootViaReferendum(

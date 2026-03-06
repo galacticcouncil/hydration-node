@@ -22,7 +22,10 @@ const SIGNET_CONFIG = {
   signatureDeposit: 100_000_000_000n, // 0.01 HDX
   maxChainIdLength: 128,
   maxEvmDataLength: 100_000,
-  chainId: 'polkadot:d2a620c27ec5cbc5621ff9a522689895',
+  // CAIP-2 chain ID — update to match target chain's genesis hash prefix
+  // Lark:    polkadot:e6b50b06e72a81194e9c96c488175ecd
+  // Mainnet: polkadot:d2a620c27ec5cbc5621ff9a522689895
+  chainId: process.env.SUBSTRATE_CHAIN_ID || 'polkadot:e6b50b06e72a81194e9c96c488175ecd',
 }
 
 const DISPENSER_CONFIG = {
@@ -30,7 +33,7 @@ const DISPENSER_CONFIG = {
   minFaucetThreshold: 50_000_000_000_000_000n,   // 0.05 ETH
   minRequest: 0n,
   maxDispense: 1_000_000_000_000_000_000n,        // 1 ETH
-  dispenserFee: 5_000n,
+  dispenserFee: 1_000_000_000_000n,               // 1 HDX (12 decimals)
   faucetBalanceWei: 10_000_000_000_000_000_000n,  // 10 ETH
 }
 
