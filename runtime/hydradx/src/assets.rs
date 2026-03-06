@@ -1869,21 +1869,14 @@ impl pallet_hsm::Config for Runtime {
 
 parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
-	pub const MaxChainIdLength: u32 = 128;
-
-	pub const MaxEvmDataLength: u32 = 100_000;
-	pub const MaxSignatureDeposit: Balance = 200_000_000_000_000;
 }
 
 impl pallet_signet::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
-	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
-	type MaxDataLength = MaxEvmDataLength;
-	type UpdateOrigin = EnsureRoot<AccountId>;
-	type MaxSignatureDeposit = MaxSignatureDeposit;
+	type UpdateOrigin = EitherOf<EnsureRoot<AccountId>, TechCommitteeMajority>;
 }
 
 parameter_types! {
@@ -1914,6 +1907,7 @@ impl frame_support::traits::Get<EvmAddress> for SigEthFaucetContractAddr {
 
 impl pallet_dispenser::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type Currency = FungibleCurrencies<Runtime>;
 	type MinimumRequestAmount = SigEthFaucetMinRequest;
 	type MaxDispenseAmount = SigEthFaucetMaxDispense;

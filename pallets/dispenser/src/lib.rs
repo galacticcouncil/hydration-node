@@ -79,6 +79,10 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + pallet_signet::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+		/// Origin that is allowed to call administrative extrinsics
+		/// (pause, unpause, set_faucet_balance).
+		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Multi-asset fungible currency implementation used for fees and faucet tokens.
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 
@@ -370,7 +374,7 @@ pub mod pallet {
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::pause())]
 		pub fn pause(origin: OriginFor<T>) -> DispatchResult {
-			T::UpdateOrigin::ensure_origin(origin)?;
+			<T as pallet::Config>::UpdateOrigin::ensure_origin(origin)?;
 			if DispenserConfig::<T>::get().is_none() {
 				DispenserConfig::<T>::put(DispenserConfigData { paused: true });
 			} else {
@@ -388,7 +392,7 @@ pub mod pallet {
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::unpause())]
 		pub fn unpause(origin: OriginFor<T>) -> DispatchResult {
-			T::UpdateOrigin::ensure_origin(origin)?;
+			<T as pallet::Config>::UpdateOrigin::ensure_origin(origin)?;
 			if DispenserConfig::<T>::get().is_none() {
 				DispenserConfig::<T>::put(DispenserConfigData { paused: false });
 			} else {
@@ -409,7 +413,7 @@ pub mod pallet {
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_faucet_balance())]
 		pub fn set_faucet_balance(origin: OriginFor<T>, balance_wei: Balance) -> DispatchResult {
-			T::UpdateOrigin::ensure_origin(origin)?;
+			<T as pallet::Config>::UpdateOrigin::ensure_origin(origin)?;
 			let old = FaucetBalanceWei::<T>::get();
 			let new_balance = old + balance_wei;
 			FaucetBalanceWei::<T>::put(new_balance);

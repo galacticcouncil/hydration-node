@@ -6,11 +6,6 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use sp_runtime::traits::AccountIdConversion;
 
-fn bench_chain_id<T: Config>() -> BoundedVec<u8, <T as pallet_signet::Config>::MaxChainIdLength> {
-	let v: Vec<u8> = b"bench-chain".to_vec();
-	BoundedVec::try_from(v).expect("bench-chain fits MaxChainIdLength")
-}
-
 #[benchmarks(where T: Config)]
 mod benches {
 	use super::*;
@@ -18,13 +13,15 @@ mod benches {
 	use alloy_sol_types::SolCall;
 	use core::ops::{Add, Mul};
 	use frame_support::traits::Currency;
+	use frame_support::traits::fungibles::Mutate as FungiblesMutate;
 
 	#[benchmark]
 	fn set_faucet_balance() {
 		DispenserConfig::<T>::put(DispenserConfigData { paused: false });
+		let before = FaucetBalanceWei::<T>::get();
 		#[extrinsic_call]
 		set_faucet_balance(RawOrigin::Root, 123u128);
-		assert_eq!(FaucetBalanceWei::<T>::get(), 123u128);
+		assert_eq!(FaucetBalanceWei::<T>::get(), before + 123u128);
 	}
 
 	#[benchmark]
@@ -50,7 +47,6 @@ mod benches {
 	#[benchmark]
 	fn request_fund() {
 		let signet_admin: T::AccountId = whitelisted_caller();
-		let chain_id = super::bench_chain_id::<T>();
 
 		let pallet_account: T::AccountId = Pallet::<T>::account_id();
 		let signet_pallet_account: T::AccountId =
@@ -59,24 +55,21 @@ mod benches {
 		let fee_asset = T::FeeAsset::get();
 		let faucet_asset = T::FaucetAsset::get();
 
-		<T as pallet::Config>::Currency::set_balance(fee_asset, &signet_admin, 340266920938463463374607431768211455);
-		<T as pallet::Config>::Currency::set_balance(
-			faucet_asset,
-			&signet_admin,
-			340282366920938463463374607431768211455,
-		);
-		<T as pallet::Config>::Currency::set_balance(fee_asset, &pallet_account, 340266920938463463374607431768211455);
-		<T as pallet::Config>::Currency::set_balance(
-			faucet_asset,
-			&pallet_account,
-			340282366920938463463374607431768211455,
-		);
+		let large_balance: Balance = 340_266_920_938_463_463_374_607_431_768_211_455;
+		let _ = <T as pallet::Config>::Currency::mint_into(fee_asset, &signet_admin, large_balance);
+		let _ = <T as pallet::Config>::Currency::mint_into(faucet_asset, &signet_admin, large_balance);
+		let _ = <T as pallet::Config>::Currency::mint_into(fee_asset, &pallet_account, large_balance);
+		let _ = <T as pallet::Config>::Currency::mint_into(faucet_asset, &pallet_account, large_balance);
 
 		let ed_native: BalanceOf<T> = <T as pallet_signet::Config>::Currency::minimum_balance();
-		assert_ok!(pallet_signet::Pallet::<T>::initialize(
+		let chain_id: BoundedVec<u8, frame_support::traits::ConstU32<{ pallet_signet::MAX_CHAIN_ID_LENGTH }>> =
+			BoundedVec::try_from(b"bench-chain".to_vec()).expect("bench-chain fits");
+
+		assert_ok!(pallet_signet::Pallet::<T>::set_config(
 			RawOrigin::Root.into(),
-			signet_admin,
 			ed_native,
+			128u32,
+			100_000u32,
 			chain_id,
 		));
 

@@ -82,11 +82,10 @@ parameter_type_with_key! {
 
 parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
-	pub const MaxChainIdLength: u32 = 128;
 	pub const MaxReserves: u32 = 50;
 	pub const ExistentialDeposit: u128 = 1;
 	pub const HDXAssetId: AssetId = HDX;
-  pub const TreasuryPalletId: PalletId = PalletId(*b"py/treas");
+	pub const TreasuryPalletId: PalletId = PalletId(*b"py/treas");
 }
 
 impl pallet_balances::Config for Test {
@@ -142,20 +141,12 @@ impl frame_system::offchain::SigningTypes for Test {
 	type Signature = MultiSignature;
 }
 
-parameter_types! {
-	pub const MaxDataLength: u32 = 1024;
-	pub const MaxSignatureDeposit: u128 = 100_000_000_000;
-}
-
 impl pallet_signet::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
-	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = pallet_signet::weights::WeightInfo<Test>;
-	type MaxDataLength = MaxDataLength;
 	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
-	type MaxSignatureDeposit = MaxSignatureDeposit;
 }
 
 parameter_types! {
@@ -178,6 +169,7 @@ impl frame_support::traits::Get<primitives::EvmAddress> for SigEthFaucetMpcRoot 
 
 impl pallet_dispenser::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
 	type PalletId = DispenserPalletId;
 	type Currency = FungibleCurrencies<Test>;
 	type MinimumRequestAmount = SigEthFaucetMinRequest;
@@ -214,11 +206,11 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		let _ = Currencies::deposit(faucet_asset, alice, initial_balance);
 		let _ = Currencies::deposit(faucet_asset, bob, initial_balance);
 		let _ = Currencies::deposit(faucet_asset, charlie, initial_balance);
-		let requester = acct(1);
-		assert_ok!(pallet_signet::Pallet::<Test>::initialize(
+		assert_ok!(pallet_signet::Pallet::<Test>::set_config(
 			RuntimeOrigin::root(),
-			requester,
 			100_000_000,
+			128,
+			100_000,
 			bounded_chain_id(b"test-chain".to_vec()),
 		));
 		let pallet_account = Dispenser::account_id();

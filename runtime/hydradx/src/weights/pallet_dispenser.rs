@@ -60,8 +60,6 @@ pub struct WeightInfo<T>(PhantomData<T>);
 /// Weights for `pallet_dispenser` using the HydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_dispenser::WeightInfo for HydraWeight<T> {
-	/// Storage: `EthDispenser::FaucetBalanceWei` (r:1 w:1)
-	/// Proof: `EthDispenser::FaucetBalanceWei` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
 	fn set_faucet_balance() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `232`

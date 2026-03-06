@@ -37,8 +37,6 @@ use core::marker::PhantomData;
 /// Weight functions for `pallet_dispenser`.
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
-	/// Storage: `EthDispenser::FaucetBalanceWei` (r:1 w:1)
-	/// Proof: `EthDispenser::FaucetBalanceWei` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
 	fn set_faucet_balance() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `232`

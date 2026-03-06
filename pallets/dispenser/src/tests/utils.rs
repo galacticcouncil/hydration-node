@@ -7,12 +7,9 @@ use sp_io::hashing::keccak_256;
 use sp_runtime::{AccountId32, BoundedVec};
 
 use crate::tests::Dispenser;
-use crate::{
-	tests::{MaxChainIdLength, Test},
-	EvmTransactionParams,
-};
+use crate::{tests::Test, EvmTransactionParams};
 
-pub fn bounded_chain_id(v: Vec<u8>) -> BoundedVec<u8, MaxChainIdLength> {
+pub fn bounded_chain_id(v: Vec<u8>) -> BoundedVec<u8, frame_support::traits::ConstU32<128>> {
 	BoundedVec::try_from(v).unwrap()
 }
 
