@@ -1,16 +1,18 @@
 import { ApiPromise } from '@polkadot/api'
 import { waitReady } from '@polkadot/wasm-crypto'
-import { u8aToHex } from '@polkadot/util'
 import { ethers } from 'ethers'
 import { SignetClient } from './signet-client'
 import { ENV } from './env'
 import {
+  DISPENSER_SIGNING_PATH,
   submitWithRetry,
   constructSignedTransaction,
   waitForReadResponse,
   createApi,
   createKeyringAndAccounts,
   ensureBobHasAssets,
+  ensureServerSignerFunded,
+  ensureFaucetMpcAddress,
   logAliceTokenBalances,
   fundPalletAccounts,
   deriveEthAddress,
@@ -29,8 +31,8 @@ describe('ERC20 Vault Integration', () => {
   let evmProvider: ethers.JsonRpcProvider
   let derivedEthAddress: string
   let derivedPubKey: string
-  let aliceHexPath: string
   let palletSS58: string
+  let palletSS58Prefix0: string
 
   beforeAll(async () => {
     await waitReady()
@@ -43,25 +45,23 @@ describe('ERC20 Vault Integration', () => {
     console.log(
       `feeAsset = ${feeAsset}`,
       `faucetAsset = ${faucetAsset}`,
-      `faucetAddress = ${api.consts.ethDispenser.faucetAddress.toString()}`,
     )
 
     const { keyring, alice: aliceAcc, bob } = createKeyringAndAccounts()
     alice = aliceAcc
 
-    const aliceAccountId = keyring.decodeAddress(alice.address)
-    aliceHexPath = '0x' + u8aToHex(aliceAccountId).slice(2)
-
     await logAliceTokenBalances(api, alice, faucetAsset, feeAsset)
     await ensureBobHasAssets(api, bob, faucetAsset)
+    await ensureServerSignerFunded(api, alice, bob)
 
     const palletFunding = await fundPalletAccounts(api, alice, faucetAsset)
     palletSS58 = palletFunding.palletSS58
+    palletSS58Prefix0 = palletFunding.palletSS58Prefix0
 
     signetClient = new SignetClient(api, alice)
     evmProvider = new ethers.JsonRpcProvider(ENV.EVM_RPC_URL)
 
-    await signetClient.ensureSignetInitializedViaReferendum(
+    await signetClient.ensureSignetConfigured(
       api,
       alice,
       ENV.SUBSTRATE_CHAIN_ID,
@@ -72,6 +72,7 @@ describe('ERC20 Vault Integration', () => {
     derivedPubKey = derived.derivedPubKey
 
     await ensureDerivedEthHasGas(evmProvider, derivedEthAddress)
+    await ensureFaucetMpcAddress(evmProvider, derivedEthAddress)
   }, 600_000)
 
   afterAll(async () => {
@@ -81,7 +82,7 @@ describe('ERC20 Vault Integration', () => {
   })
 
   it('should complete full deposit and claim flow', async () => {
-    await initializeVaultIfNeeded(api)
+    await initializeVaultIfNeeded(api, alice)
 
     const feeData = await evmProvider.getFeeData()
     const currentNonce = await evmProvider.getTransactionCount(
@@ -91,13 +92,18 @@ describe('ERC20 Vault Integration', () => {
 
     console.log(`Current nonce for ${derivedEthAddress}: ${currentNonce}`)
 
+    // Add a unique component to maxPriorityFeePerGas so each run produces
+    // a different unsigned tx → different request ID (avoids DuplicateRequest)
+    const basePriorityFee = Number(
+      feeData.maxPriorityFeePerGas || ENV.DEFAULT_MAX_PRIORITY_FEE_PER_GAS,
+    )
+    const uniquePriorityFee = basePriorityFee + Math.floor(Math.random() * 1_000_000)
+
     const txParams = {
       value: 0,
       gasLimit: Number(ENV.GAS_LIMIT),
       maxFeePerGas: Number(feeData.maxFeePerGas || ENV.DEFAULT_MAX_FEE_PER_GAS),
-      maxPriorityFeePerGas: Number(
-        feeData.maxPriorityFeePerGas || ENV.DEFAULT_MAX_PRIORITY_FEE_PER_GAS,
-      ),
+      maxPriorityFeePerGas: uniquePriorityFee,
       nonce: currentNonce,
       chainId: ENV.EVM_CHAIN_ID,
     }
@@ -111,6 +117,11 @@ describe('ERC20 Vault Integration', () => {
       ENV.REQUEST_FUND_AMOUNT,
     ])
 
+    // Read faucet address from on-chain config (no longer a compile-time constant)
+    const dispenserCfg = await (api.query as any).ethDispenser.dispenserConfig()
+    const cfg = dispenserCfg.toJSON() as any
+    const faucetAddress = cfg?.faucetAddress || ENV.FAUCET_ADDRESS
+
     const tx = ethers.Transaction.from({
       type: 2,
       chainId: txParams.chainId,
@@ -118,18 +129,19 @@ describe('ERC20 Vault Integration', () => {
       maxPriorityFeePerGas: txParams.maxPriorityFeePerGas,
       maxFeePerGas: txParams.maxFeePerGas,
       gasLimit: txParams.gasLimit,
-      to: ENV.FAUCET_ADDRESS,
+      to: faucetAddress,
       value: 0,
       data,
     })
 
+    // Fixed signing path — all users derive the same MPC key
     const requestId = signetClient.calculateSignRespondRequestId(
-      palletSS58,
+      palletSS58Prefix0,
       Array.from(ethers.getBytes(tx.unsignedSerialized)),
       {
         caip2_id: `eip155:${ENV.EVM_CHAIN_ID}`,
         keyVersion: 0,
-        path: aliceHexPath,
+        path: DISPENSER_SIGNING_PATH,
         algo: 'ecdsa',
         dest: 'ethereum',
         params: '',
@@ -236,7 +248,7 @@ describe('ERC20 Vault Integration', () => {
     const readResponse = await waitForReadResponse(
       api,
       ethers.hexlify(requestId),
-      60_000,
+      180_000,
     )
 
     if (!readResponse) {
@@ -251,5 +263,5 @@ describe('ERC20 Vault Integration', () => {
       '  Output (hex):',
       Buffer.from(readResponse.output).toString('hex'),
     )
-  }, 180_000)
+  }, 1_200_000)
 })
