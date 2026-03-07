@@ -1450,7 +1450,46 @@ impl<T: Config> Pallet<T> {
 		let block_number = T::BlockNumberProvider::current_block_number();
 
 		let mut pool_assets = assets.to_vec();
-		pool_assets.sort();
+
+		// If peg_info is provided, sort assets together with their peg sources and current pegs
+		// to maintain correct associations
+		let sorted_peg_info = if let Some(p) = peg_info {
+			ensure!(p.current.len() == assets.len(), Error::<T>::IncorrectInitialPegs);
+			ensure!(p.source.len() == assets.len(), Error::<T>::IncorrectInitialPegs);
+
+			// Zip assets with their corresponding peg sources and current pegs, then sort together
+			let mut assets_with_pegs: sp_std::vec::Vec<(T::AssetId, PegSource<T::AssetId>, PegType)> =
+				pool_assets
+					.iter()
+					.cloned()
+					.zip(p.source.iter().cloned())
+					.zip(p.current.iter().cloned())
+					.map(|((asset, source), current)| (asset, source, current))
+					.collect();
+
+			assets_with_pegs.sort_by(|a, b| a.0.cmp(&b.0));
+
+			// Unzip the sorted data
+			let (sorted_assets, sorted_sources, sorted_current): (
+				sp_std::vec::Vec<T::AssetId>,
+				sp_std::vec::Vec<PegSource<T::AssetId>>,
+				sp_std::vec::Vec<PegType>,
+			) = assets_with_pegs
+				.into_iter()
+				.fold((Vec::new(), Vec::new(), Vec::new()), |mut acc, (a, s, c)| {
+					acc.0.push(a);
+					acc.1.push(s);
+					acc.2.push(c);
+					acc
+				});
+
+			pool_assets = sorted_assets;
+
+			Some((sorted_sources, sorted_current, p.max_peg_update))
+		} else {
+			pool_assets.sort();
+			None
+		};
 
 		let pool = PoolInfo {
 			assets: pool_assets
@@ -1472,10 +1511,9 @@ impl<T: Config> Pallet<T> {
 			ensure!(T::AssetInspection::exists(*asset), Error::<T>::AssetNotRegistered);
 		}
 
-		if let Some(p) = peg_info {
-			ensure!(p.current.len() == pool.assets.len(), Error::<T>::IncorrectInitialPegs);
-
-			let enforce_decimals = p.source.iter().any(|x| match x {
+		if let Some((sorted_sources, sorted_current, max_peg_update)) = sorted_peg_info {
+			// Only enforce decimal matching for Oracle peg sources
+			let enforce_decimals = sorted_sources.iter().any(|x| match x {
 				PegSource::Value(_) | PegSource::MMOracle(_) => false,
 				PegSource::Oracle(_) => true,
 			});
@@ -1496,7 +1534,14 @@ impl<T: Config> Pallet<T> {
 			} else {
 				return Err(Error::<T>::UnknownDecimals.into());
 			}
-			PoolPegs::<T>::insert(share_asset, p);
+
+			let reordered_peg_info = PoolPegInfo {
+				source: crate::types::BoundedPegSources::truncate_from(sorted_sources),
+				max_peg_update,
+				current: crate::types::BoundedPegs::truncate_from(sorted_current),
+			};
+
+			PoolPegs::<T>::insert(share_asset, reordered_peg_info);
 		}
 
 		Pools::<T>::insert(share_asset, pool);
