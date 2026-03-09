@@ -845,7 +845,14 @@ impl<T: Config> Pallet<T> {
 					last_block_slippage_min_limit
 				};
 
-				T::RouteExecutor::sell(origin, *asset_in, *asset_out, amount_to_sell, effective_min_limit, route.clone())?;
+				T::RouteExecutor::sell(
+					origin,
+					*asset_in,
+					*asset_out,
+					amount_to_sell,
+					effective_min_limit,
+					route.clone(),
+				)?;
 
 				Ok(AmountInAndOut {
 					amount_in: amount_to_sell,

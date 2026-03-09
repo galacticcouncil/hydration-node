@@ -2133,10 +2133,10 @@ mod omnipool {
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::force_set_balance(
-			RuntimeOrigin::root(),
-			ALICE.into(),
-			alice_init_hdx_balance,
-		));
+				RuntimeOrigin::root(),
+				ALICE.into(),
+				alice_init_hdx_balance,
+			));
 
 			let dca_budget = 1100 * UNITS;
 			let amount_to_sell = 100 * UNITS;
@@ -2171,7 +2171,10 @@ mod omnipool {
 
 			//Assert - DCA executed successfully and schedule is still alive
 			let alice_dai_after = Currencies::free_balance(DAI, &ALICE.into());
-			assert!(alice_dai_after > alice_dai_before, "ALICE should have received DAI from the trade");
+			assert!(
+				alice_dai_after > alice_dai_before,
+				"ALICE should have received DAI from the trade"
+			);
 
 			let schedule = DCA::schedules(0);
 			assert!(schedule.is_some(), "DCA schedule should still be alive after execution");
