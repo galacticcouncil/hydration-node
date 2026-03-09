@@ -12,7 +12,6 @@ mod benches {
 	use alloy_primitives::{Address, U256};
 	use alloy_sol_types::SolCall;
 	use core::ops::{Add, Mul};
-	use frame_support::traits::fungibles::Mutate as FungiblesMutate;
 	use frame_support::traits::Currency;
 
 	fn test_config_data() -> DispenserConfigData {
@@ -75,11 +74,15 @@ mod benches {
 		let fee_asset = T::FeeAsset::get();
 		let faucet_asset = T::FaucetAsset::get();
 
+		// Register assets in the registry so mint_into works in the real runtime.
+		assert_ok!(T::BenchmarkHelper::register_asset(fee_asset, 1));
+		assert_ok!(T::BenchmarkHelper::register_asset(faucet_asset, 1));
+
 		let large_balance: Balance = 340_266_920_938_463_463_374_607_431_768_211_455;
-		let _ = <T as pallet::Config>::Currency::mint_into(fee_asset, &signet_admin, large_balance);
-		let _ = <T as pallet::Config>::Currency::mint_into(faucet_asset, &signet_admin, large_balance);
-		let _ = <T as pallet::Config>::Currency::mint_into(fee_asset, &pallet_account, large_balance);
-		let _ = <T as pallet::Config>::Currency::mint_into(faucet_asset, &pallet_account, large_balance);
+		assert_ok!(T::BenchmarkHelper::mint(fee_asset, &signet_admin, large_balance));
+		assert_ok!(T::BenchmarkHelper::mint(faucet_asset, &signet_admin, large_balance));
+		assert_ok!(T::BenchmarkHelper::mint(fee_asset, &pallet_account, large_balance));
+		assert_ok!(T::BenchmarkHelper::mint(faucet_asset, &pallet_account, large_balance));
 
 		let ed_native: BalanceOf<T> = <T as pallet_signet::Config>::Currency::minimum_balance();
 		let chain_id: BoundedVec<u8, frame_support::traits::ConstU32<{ pallet_signet::MAX_CHAIN_ID_LENGTH }>> =

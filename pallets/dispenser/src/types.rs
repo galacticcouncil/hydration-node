@@ -20,3 +20,19 @@ pub trait WeightInfo {
 	fn pause() -> Weight;
 	fn unpause() -> Weight;
 }
+
+#[cfg(feature = "runtime-benchmarks")]
+pub trait BenchmarkHelper<AccountId> {
+	fn register_asset(asset_id: AssetId, min_balance: Balance) -> sp_runtime::DispatchResult;
+	fn mint(asset_id: AssetId, who: &AccountId, amount: Balance) -> sp_runtime::DispatchResult;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<AccountId> BenchmarkHelper<AccountId> for () {
+	fn register_asset(_asset_id: AssetId, _min_balance: Balance) -> sp_runtime::DispatchResult {
+		Ok(())
+	}
+	fn mint(_asset_id: AssetId, _who: &AccountId, _amount: Balance) -> sp_runtime::DispatchResult {
+		Ok(())
+	}
+}

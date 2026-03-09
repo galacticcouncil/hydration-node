@@ -172,6 +172,8 @@ impl pallet_dispenser::Config for Test {
 	type FaucetAsset = SigEthFaucetFaucetAssetId;
 	type FeeDestination = TreasuryAccount;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

@@ -106,6 +106,9 @@ pub mod pallet {
 
 		/// Weight information provider for extrinsics of this pallet.
 		type WeightInfo: crate::WeightInfo;
+
+		#[cfg(feature = "runtime-benchmarks")]
+		type BenchmarkHelper: crate::BenchmarkHelper<Self::AccountId>;
 	}
 
 	/*************************** STORAGE ***************************/

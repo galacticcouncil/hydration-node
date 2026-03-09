@@ -1902,6 +1902,44 @@ impl pallet_dispenser::Config for Runtime {
 	type FeeDestination = SigEthFaucetTreasuryAccount;
 	type PalletId = SigEthPalletId;
 	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = DispenserBenchmarkHelper;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct DispenserBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_dispenser::BenchmarkHelper<AccountId> for DispenserBenchmarkHelper {
+	fn register_asset(asset_id: AssetId, min_balance: Balance) -> DispatchResult {
+		if <AssetRegistry as hydradx_traits::registry::Inspect>::exists(asset_id) {
+			return Ok(());
+		}
+		let name: BoundedVec<u8, RegistryStrLimit> = asset_id
+			.to_le_bytes()
+			.to_vec()
+			.try_into()
+			.map_err(|_| DispatchError::Other("BoundedConversionFailed"))?;
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				Some(asset_id),
+				Some(name),
+				AssetKind::Token,
+				min_balance,
+				None,
+				None,
+				None,
+				None,
+			))
+		})?;
+		Ok(())
+	}
+
+	fn mint(asset_id: AssetId, who: &AccountId, amount: Balance) -> DispatchResult {
+		use frame_support::traits::fungibles::Mutate;
+		<FungibleCurrencies<Runtime> as Mutate<AccountId>>::mint_into(asset_id, who, amount)?;
+		Ok(())
+	}
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
