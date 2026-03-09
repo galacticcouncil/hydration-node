@@ -833,16 +833,19 @@ impl<T: Config> Pallet<T> {
 				let last_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_out = last_trade.amount_out;
 
-				if *min_amount_out > last_block_slippage_min_limit {
+				let effective_min_limit = if *min_amount_out > last_block_slippage_min_limit {
 					ensure!(amount_out >= *min_amount_out, Error::<T>::TradeLimitReached);
+					amount_out
 				} else {
 					ensure!(
 						amount_out >= last_block_slippage_min_limit,
 						Error::<T>::SlippageLimitReached
 					);
+					// Use slippage limit to mainly absorb aToken rounding errors
+					last_block_slippage_min_limit
 				};
 
-				T::RouteExecutor::sell(origin, *asset_in, *asset_out, amount_to_sell, amount_out, route.clone())?;
+				T::RouteExecutor::sell(origin, *asset_in, *asset_out, amount_to_sell, effective_min_limit, route.clone())?;
 
 				Ok(AmountInAndOut {
 					amount_in: amount_to_sell,
