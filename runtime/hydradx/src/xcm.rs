@@ -1,13 +1,14 @@
 use super::*;
 
 use crate::origins::GeneralAdmin;
-use sp_std::marker::PhantomData;
+use sp_std::{fmt::Debug, marker::PhantomData};
 
-use codec::{DecodeWithMemTracking, MaxEncodedLen};
+use codec::{DecodeWithMemTracking, FullCodec, MaxEncodedLen};
 use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::{AssetId, Price};
 
+use crate::circuit_breaker::IgnoreWithdrawFuse;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	parameter_types,
@@ -18,6 +19,7 @@ use frame_support::{
 use frame_system::unique;
 use frame_system::EnsureRoot;
 use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
+use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_evm::AddressMapping;
@@ -442,10 +444,13 @@ impl pallet_message_queue::Config for Runtime {
 	type MessageProcessor =
 		pallet_message_queue::mock_helpers::NoopMessageProcessor<cumulus_primitives_core::AggregateMessageOrigin>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type MessageProcessor = xcm_builder::ProcessXcmMessage<
+	type MessageProcessor = ProcessXcmWithBreaker<
 		AggregateMessageOrigin,
-		WithUnifiedEventSupport<XcmExecutor<XcmConfig>>,
-		RuntimeCall,
+		xcm_builder::ProcessXcmMessage<
+			AggregateMessageOrigin,
+			WithUnifiedEventSupport<XcmExecutor<XcmConfig>>,
+			RuntimeCall,
+		>,
 	>;
 	type Size = u32;
 	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
@@ -454,6 +459,28 @@ impl pallet_message_queue::Config for Runtime {
 	type MaxStale = MessageQueueMaxStale;
 	type ServiceWeight = MessageQueueServiceWeight;
 	type IdleMaxServiceWeight = ();
+}
+
+pub struct ProcessXcmWithBreaker<MessageOrigin, MessageProcessor>(PhantomData<(MessageOrigin, MessageProcessor)>);
+impl<MessageOrigin, MessageProcessor> frame_support::traits::ProcessMessage
+	for ProcessXcmWithBreaker<MessageOrigin, MessageProcessor>
+where
+	MessageOrigin: Into<Location> + FullCodec + MaxEncodedLen + Clone + Eq + PartialEq + TypeInfo + Debug,
+	MessageProcessor: frame_support::traits::ProcessMessage<Origin = MessageOrigin>,
+{
+	type Origin = MessageOrigin;
+
+	fn process_message(
+		message: &[u8],
+		origin: Self::Origin,
+		meter: &mut frame_support::weights::WeightMeter,
+		id: &mut [u8; 32],
+	) -> Result<bool, frame_support::traits::ProcessMessageError> {
+		IgnoreWithdrawFuse::<Runtime>::set_withdraw_fuse_active(false);
+		let result = MessageProcessor::process_message(message, origin, meter, id);
+		IgnoreWithdrawFuse::<Runtime>::set_withdraw_fuse_active(true);
+		result
+	}
 }
 
 pub struct CurrencyIdConvert;

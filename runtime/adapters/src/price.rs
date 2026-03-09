@@ -97,8 +97,11 @@ where
 			let converted = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Up)?;
 			Some((converted, price))
 		} else if !from_currency_is_tx_fee_asset && to_currency_is_tx_fee_asset {
-			let amount_in_dot =
-				SwappablePaymentAssetSupport::calculate_out_given_in(from_currency, dot, amount).ok()?;
+			let amount_in_dot = if from_currency == dot {
+				amount
+			} else {
+				SwappablePaymentAssetSupport::calculate_out_given_in(from_currency, dot, amount).ok()?
+			};
 
 			let price_between_to_currency_and_dot = PriceProv::get_price(to_currency, dot)?;
 			let amount_in_to_currency = multiply_by_rational_with_rounding(

@@ -896,4 +896,3 @@ cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/
 [patch."https://github.com/bifrost-io/open-runtime-module-library"]
 orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506" }
 orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506" }
-

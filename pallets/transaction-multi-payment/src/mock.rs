@@ -302,7 +302,7 @@ impl pallet_balances::Config for Test {
 
 impl pallet_transaction_payment::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = TransferFees<Test, Currencies, DepositAll<Test>, FeeReceiver>;
+	type OnChargeTransaction = TransferFees<Test, Currencies, DepositAll<Test>, FeeReceiver, ()>;
 	type LengthToFee = IdentityFee<Balance>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = IdentityFee<Balance>;
@@ -358,6 +358,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = HdxAssetId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 

@@ -33,6 +33,7 @@ mod migrations;
 pub mod weights;
 
 mod assets;
+pub mod circuit_breaker;
 pub mod evm;
 pub mod governance;
 mod helpers;
@@ -128,7 +129,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 395,
+	spec_version: 400,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,

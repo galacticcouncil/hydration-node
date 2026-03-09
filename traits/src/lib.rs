@@ -18,6 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::upper_case_acronyms)]
 
+pub mod circuit_breaker;
 pub mod evm;
 pub mod fee;
 pub mod liquidity_mining;

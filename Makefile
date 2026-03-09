@@ -9,6 +9,7 @@ endif
 
 # Fail on warnings
 export RUSTFLAGS := -D warnings
+export CXXFLAGS := -include cstdint
 
 .PHONY: build
 build:
@@ -71,7 +72,7 @@ clean:
 	$(cargo) clean
 
 .PHONY: docker
-docker:
+docker: build
 	docker build -t hydra-dx .
 	docker tag hydra-dx galacticcouncil/hydra-dx:latest
 

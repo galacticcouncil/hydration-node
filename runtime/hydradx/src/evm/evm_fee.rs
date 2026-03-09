@@ -23,6 +23,7 @@ use frame_support::dispatch::DispatchResult;
 use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 use frame_support::traits::{Get, IsType, TryDrop};
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::AccountFeeCurrency;
 use pallet_evm::{AddressMapping, Error};
@@ -68,7 +69,8 @@ impl<Price> TryDrop for EvmPaymentInfo<Price> {
 
 /// Implements the transaction payment for EVM transactions.
 /// Supports multi-currency fees based on what is provided by AC - account currency.
-pub struct TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId>(
+#[allow(clippy::type_complexity)]
+pub struct TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId, WF>(
 	PhantomData<(
 		OU,
 		AccountCurrency,
@@ -77,11 +79,12 @@ pub struct TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePay
 		MC,
 		SwappablePaymentAssetSupport,
 		DotAssetId,
+		WF,
 	)>,
 );
 
-impl<T, OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId> OnChargeEVMTransaction<T>
-	for TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId>
+impl<T, OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId, WF> OnChargeEVMTransaction<T>
+	for TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId, WF>
 where
 	T: pallet_evm::Config,
 	OU: OnUnbalanced<EvmPaymentInfo<EmaPrice>>,
@@ -96,6 +99,7 @@ where
 	DotAssetId: Get<AssetId>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	T::AccountId: IsType<AccountId>,
+	WF: WithdrawFuseControl,
 {
 	type LiquidityInfo = Option<EvmPaymentInfo<EmaPrice>>;
 
@@ -151,6 +155,7 @@ where
 			return Err(Error::<T>::WithdrawFailed);
 		}
 
+		WF::set_withdraw_fuse_active(false);
 		let burned = MC::burn_from(
 			fee_currency,
 			&account_id,
@@ -160,6 +165,7 @@ where
 			Fortitude::Polite,
 		)
 		.map_err(|_| Error::<T>::BalanceLow)?;
+		WF::set_withdraw_fuse_active(true);
 
 		Ok(Some(EvmPaymentInfo {
 			amount: burned,
@@ -194,6 +200,8 @@ where
 		if let Some(paid) = already_withdrawn {
 			let account_id = T::AddressMapping::into_account_id(*who);
 
+			WF::set_withdraw_fuse_active(false);
+
 			let adjusted_paid = if let Some(converted_corrected_fee) = multiply_by_rational_with_rounding(
 				corrected_fee.unique_saturated_into(),
 				paid.price.n,
@@ -226,6 +234,8 @@ where
 				// if conversion failed for some reason, we refund the whole amount back to treasury
 				paid.amount
 			};
+
+			WF::set_withdraw_fuse_active(true);
 
 			// We can simply refund all the remaining amount back to treasury
 			OU::on_unbalanced(EvmPaymentInfo {

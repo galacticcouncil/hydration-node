@@ -48,6 +48,7 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use hydradx_traits::fee::InspectTransactionFeeCurrency;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::{
@@ -605,7 +606,7 @@ impl<T: Config> Pallet<T> {
 	) -> Option<FixedU128> {
 		let on_chain_route = T::RouteProvider::get_route(AssetPair::new(asset_id, native_asset));
 
-		T::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
+		T::OraclePriceProvider::price(&on_chain_route, OraclePeriod::TenMinutes)
 			.map(|ratio| FixedU128::from_rational(ratio.n, ratio.d))
 	}
 }
@@ -629,9 +630,9 @@ impl<T: Config> DepositFee<T::AccountId, AssetIdOf<T>, BalanceOf<T>> for Deposit
 }
 
 /// Implements the transaction payment for native as well as non-native currencies
-pub struct TransferFees<T, MC, DF, FR>(PhantomData<(T, MC, DF, FR)>);
+pub struct TransferFees<T, MC, DF, FR, WF>(PhantomData<(T, MC, DF, FR, WF)>);
 
-impl<T, MC, DF, FR> OnChargeTransaction<T> for TransferFees<T, MC, DF, FR>
+impl<T, MC, DF, FR, WF> OnChargeTransaction<T> for TransferFees<T, MC, DF, FR, WF>
 where
 	T: Config + pallet_utility::Config,
 	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
@@ -643,6 +644,7 @@ where
 	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
 	BalanceOf<T>: FixedPointOperand,
 	BalanceOf<T>: From<MC::Balance>,
+	WF: WithdrawFuseControl,
 {
 	type LiquidityInfo = Option<PaymentInfo<Self::Balance, AssetIdOf<T>, Price>>;
 	type Balance = <MC as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -702,7 +704,8 @@ where
 			(fee_in_dot, T::PolkadotNativeAssetId::get(), dot_hdx_price)
 		};
 
-		match MC::withdraw(currency.into(), who, converted_fee, ExistenceRequirement::AllowDeath) {
+		WF::set_withdraw_fuse_active(false);
+		let res = match MC::withdraw(currency.into(), who, converted_fee, ExistenceRequirement::AllowDeath) {
 			Ok(()) => {
 				if currency == T::NativeAssetId::get() {
 					Ok(Some(PaymentInfo::Native(fee)))
@@ -711,7 +714,10 @@ where
 				}
 			}
 			Err(_) => Err(InvalidTransaction::Payment.into()),
-		}
+		};
+		WF::set_withdraw_fuse_active(true);
+
+		res
 	}
 
 	/// Since the predicted fee might have been too high, parts of the fee may
@@ -754,6 +760,8 @@ where
 				}
 			};
 
+			WF::set_withdraw_fuse_active(false);
+
 			// refund to the account that paid the fees
 			MC::deposit(currency, who, refund)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
@@ -761,6 +769,8 @@ where
 			// deposit the fee
 			DF::deposit_fee(&fee_receiver, currency, fee + tip)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+			WF::set_withdraw_fuse_active(true);
 		}
 
 		Ok(())
@@ -806,13 +816,14 @@ where
 	}
 }
 
-impl<T, MC, DF, FR> TransferFees<T, MC, DF, FR>
+impl<T, MC, DF, FR, WF> TransferFees<T, MC, DF, FR, WF>
 where
 	T: Config + pallet_utility::Config,
 	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
 	AssetIdOf<T>: Into<MC::CurrencyId>,
 	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
 	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
+	WF: WithdrawFuseControl,
 {
 	fn resolve_currency_from_call(who: &T::AccountId, call: &<T as frame_system::Config>::RuntimeCall) -> AssetIdOf<T> {
 		if let Some(Call::set_currency { currency }) = call.is_sub_type() {

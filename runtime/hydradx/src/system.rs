@@ -29,6 +29,7 @@ use primitives::constants::{
 	time::{DAYS, HOURS, SLOT_DURATION},
 };
 
+use crate::circuit_breaker::IgnoreWithdrawFuse;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::cmp::Ordering;
 use frame_support::migrations::FailedMigrationHandling;
@@ -237,7 +238,7 @@ parameter_types! {
 impl pallet_migrations::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type Migrations = migrations::MultiBlockMigrationsList<Runtime>;
+	type Migrations = migrations::MultiBlockMigrationsList;
 	#[cfg(feature = "runtime-benchmarks")]
 	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
 	type CursorMaxLen = ConstU32<65_536>;
@@ -659,7 +660,8 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = TransferFees<Runtime, Currencies, DepositAll<Runtime>, TreasuryAccount>;
+	type OnChargeTransaction =
+		TransferFees<Runtime, Currencies, DepositAll<Runtime>, TreasuryAccount, IgnoreWithdrawFuse<Runtime>>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
