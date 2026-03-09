@@ -124,7 +124,10 @@ fn polkadot_xcm_execute_should_fail_when_lockdown_active_and_asset_is_egress() {
 		let res = call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()));
 		assert_eq!(
 			res.map_err(|e| e.error),
-			Err(pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncompleteWithError(XcmError::Barrier).into())
+			Err(
+				pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncompleteWithError(XcmError::Barrier)
+					.into()
+			)
 		);
 
 		// Assert invariants
