@@ -116,9 +116,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_otc::Config + CreateBare<Call<Self>> {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Named reservable multi currency.
 		type Currency: Mutate<Self::AccountId, AssetId = AssetIdOf<Self>, Balance = Balance>;
 

@@ -257,7 +257,6 @@ impl MaybeEvmCall<RuntimeCall> for EvmCallChecker {
 }
 
 impl pallet_dispatcher::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type EvmCallIdentifier = EvmCallChecker;
 	type TreasuryManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;

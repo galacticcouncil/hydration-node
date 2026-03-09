@@ -175,7 +175,6 @@ parameter_types! {
 }
 
 impl omnipool_liquidity_mining::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Tokens;
 	type CreateOrigin = frame_system::EnsureRoot<AccountId>;
 	type PalletId = LMPalletId;
@@ -237,7 +236,6 @@ parameter_types! {
 }
 
 impl warehouse_liquidity_mining::Config<Instance1> for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type MultiCurrency = Tokens;
 	type PalletId = WarehouseLMPalletId;
@@ -277,7 +275,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -308,7 +305,6 @@ impl SortedMembers<AccountId> for BifrostAcc {
 }
 
 impl pallet_ema_oracle::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
@@ -339,7 +335,6 @@ parameter_types! {
 }
 
 impl pallet_omnipool::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u128;
 	type Currency = Tokens;
@@ -365,9 +360,7 @@ impl pallet_omnipool::Config for Test {
 	type HubDestination = TreasuryAccount;
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
