@@ -124,7 +124,7 @@ fn polkadot_xcm_execute_should_fail_when_lockdown_active_and_asset_is_egress() {
 		let res = call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()));
 		assert_eq!(
 			res.map_err(|e| e.error),
-			Err(pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncomplete.into())
+			Err(pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncompleteWithError(XcmError::Barrier).into())
 		);
 
 		// Assert invariants
@@ -430,7 +430,7 @@ fn xcm_transfer_assets_blocked_during_lockdown() {
 		// Act & Assert
 		assert_noop!(
 			call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
-			pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncomplete
+			pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncompleteWithError(XcmError::Barrier)
 		);
 	});
 }
@@ -458,7 +458,7 @@ fn lockdown_expiry_allows_egress() {
 		assert_noop!(
 			call.clone()
 				.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
-			pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncomplete
+			pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncompleteWithError(XcmError::Barrier)
 		);
 
 		// Advance time past lockdown
