@@ -125,6 +125,7 @@ impl HydrationTestDriver {
 		self
 	}
 
+	#[allow(deprecated)]
 	pub fn update_bifrost_oracle(
 		&self,
 		asset_a: Box<polkadot_xcm::VersionedLocation>,
