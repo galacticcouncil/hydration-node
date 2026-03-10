@@ -609,7 +609,7 @@ impl<T: Config> Pallet<T> {
 	) -> Option<FixedU128> {
 		let on_chain_route = T::RouteProvider::get_route(AssetPair::new(asset_id, native_asset));
 
-		T::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
+		T::OraclePriceProvider::price(&on_chain_route, OraclePeriod::TenMinutes)
 			.map(|ratio| FixedU128::from_rational(ratio.n, ratio.d))
 	}
 }

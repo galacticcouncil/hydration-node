@@ -161,11 +161,11 @@ benchmarks! {
 		assert_eq!(LiquidityRemoveLimitPerAsset::<T>::get(asset_id), trade_limit);
 	}
 
-	set_global_withdraw_limit {
-		let balance = T::Balance::from(1_000_000u32);
-	}: _(RawOrigin::Root, balance)
+	set_global_withdraw_limit_params {
+		let params = GlobalWithdrawLimitParameters { limit: T::Balance::from(1_000_000u32), window: 86_400_000u32.into() };
+	}: _(RawOrigin::Root, params.clone())
 	verify {
-		assert_eq!(crate::Pallet::<T>::global_withdraw_limit(), Some(balance));
+		assert_eq!(crate::Pallet::<T>::global_withdraw_limit_config(), Some(params));
 	}
 
 	reset_withdraw_lockdown {
