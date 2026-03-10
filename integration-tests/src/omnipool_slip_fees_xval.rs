@@ -556,3 +556,238 @@ fn xval_mixed_trades() {
 		);
 	});
 }
+
+// ============================================================
+// LRNA (hub asset) sell/buy scenarios
+// Hub trades have NO sell-side slip, NO protocol (LRNA) fee — only buy-side slip + asset fee.
+// ============================================================
+
+// Scenario 8: Sell LRNA -> DAI (fresh block)
+#[test]
+fn xval_sell_lrna_for_dai() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		enable_slip_fees();
+
+		let trader = AccountId::from(BOB);
+		let sell_amount = 100 * UNITS;
+
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		let lrna_before = Currencies::free_balance(LRNA, &trader);
+
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(trader.clone()),
+			LRNA,
+			DAI,
+			sell_amount,
+			0u128,
+		));
+
+		let dai_received = Currencies::free_balance(DAI, &trader) - dai_before;
+		let lrna_spent = lrna_before - Currencies::free_balance(LRNA, &trader);
+
+		let py_dai_received: u128 = 2035714285714285714285;
+		assert_approx(
+			dai_received,
+			py_dai_received,
+			tol(py_dai_received),
+			"sell_lrna->dai received",
+		);
+		assert_eq!(lrna_spent, sell_amount, "should spend exactly sell_amount LRNA");
+	});
+}
+
+// Scenario 9: Sell LRNA -> HDX (fresh block)
+#[test]
+fn xval_sell_lrna_for_hdx() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		enable_slip_fees();
+
+		let trader = AccountId::from(BOB);
+		let sell_amount = 100 * UNITS;
+
+		let hdx_before = hydradx_runtime::Balances::free_balance(&trader);
+
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(trader.clone()),
+			LRNA,
+			HDX,
+			sell_amount,
+			0u128,
+		));
+
+		let hdx_received = hydradx_runtime::Balances::free_balance(&trader) - hdx_before;
+
+		let py_hdx_received: u128 = 72728633265704192;
+		assert_approx(
+			hdx_received,
+			py_hdx_received,
+			tol(py_hdx_received),
+			"sell_lrna->hdx received",
+		);
+	});
+}
+
+// Scenario 10: Buy DAI with LRNA (fresh block)
+#[test]
+fn xval_buy_dai_with_lrna() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		enable_slip_fees();
+
+		let trader = AccountId::from(BOB);
+		let buy_amount = 100 * UNITS;
+
+		let lrna_before = Currencies::free_balance(LRNA, &trader);
+
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(trader.clone()),
+			DAI,
+			LRNA,
+			buy_amount,
+			u128::MAX,
+		));
+
+		let lrna_spent = lrna_before - Currencies::free_balance(LRNA, &trader);
+
+		let py_lrna_cost: u128 = 4511278;
+		assert_approx(lrna_spent, py_lrna_cost, tol(py_lrna_cost), "buy_dai lrna_cost");
+	});
+}
+
+// Scenario 11: Buy HDX with LRNA (fresh block)
+#[test]
+fn xval_buy_hdx_with_lrna() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		enable_slip_fees();
+
+		let trader = AccountId::from(BOB);
+		let buy_amount = 100 * UNITS;
+
+		let lrna_before = Currencies::free_balance(LRNA, &trader);
+
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(trader.clone()),
+			HDX,
+			LRNA,
+			buy_amount,
+			u128::MAX,
+		));
+
+		let lrna_spent = lrna_before - Currencies::free_balance(LRNA, &trader);
+
+		let py_lrna_cost: u128 = 120476926186;
+		assert_approx(lrna_spent, py_lrna_cost, tol(py_lrna_cost), "buy_hdx lrna_cost");
+	});
+}
+
+// Scenario 12: Sell HDX->DAI then sell LRNA->DAI (accumulated delta on DAI)
+#[test]
+fn xval_sell_lrna_for_dai_with_prior_delta() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		enable_slip_fees();
+
+		let trader = AccountId::from(BOB);
+
+		// Trade 1: sell 100 HDX -> DAI (builds positive delta on DAI)
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(trader.clone()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0u128,
+		));
+		let t1_dai = Currencies::free_balance(DAI, &trader) - dai_before;
+
+		// Trade 2: sell 100 LRNA -> DAI (with prior positive delta on DAI → higher slip)
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(trader.clone()),
+			LRNA,
+			DAI,
+			100 * UNITS,
+			0u128,
+		));
+		let t2_dai = Currencies::free_balance(DAI, &trader) - dai_before;
+
+		let py_t1: u128 = 2661140647206267099;
+		let py_t2: u128 = 2035402018544312661680;
+
+		assert_approx(t1_dai, py_t1, tol(py_t1), "sell_hdx->dai (trade1)");
+		assert_approx(t2_dai, py_t2, tol(py_t2), "sell_lrna->dai with delta (trade2)");
+
+		// With prior delta, trade2 should receive LESS than a fresh sell_lrna->dai
+		// (because positive delta on DAI means more hub entered → higher buy-side slip)
+		let py_fresh: u128 = 2035714285714285714285;
+		assert!(
+			t2_dai < py_fresh,
+			"Prior delta should reduce sell_lrna output: {} < {}",
+			t2_dai,
+			py_fresh
+		);
+	});
+}
+
+// Scenario 13: Sell HDX->DAI then buy DAI with LRNA (accumulated delta on DAI)
+#[test]
+fn xval_buy_dai_with_lrna_after_prior_sell() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		enable_slip_fees();
+
+		let trader = AccountId::from(BOB);
+
+		// Trade 1: sell 100 HDX -> DAI (builds positive delta on DAI)
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(trader.clone()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0u128,
+		));
+		let t1_dai = Currencies::free_balance(DAI, &trader) - dai_before;
+
+		// Trade 2: buy 100 DAI with LRNA (with prior positive delta on DAI)
+		let lrna_before = Currencies::free_balance(LRNA, &trader);
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(trader.clone()),
+			DAI,
+			LRNA,
+			100 * UNITS,
+			u128::MAX,
+		));
+		let t2_lrna_cost = lrna_before - Currencies::free_balance(LRNA, &trader);
+
+		let py_t1: u128 = 2661140647206267099;
+		let py_t2_cost: u128 = 4511999;
+
+		assert_approx(t1_dai, py_t1, tol(py_t1), "sell_hdx->dai (trade1)");
+		assert_approx(t2_lrna_cost, py_t2_cost, tol(py_t2_cost), "buy_dai with lrna (trade2)");
+
+		// With prior delta, buy should cost MORE than fresh
+		let py_fresh_cost: u128 = 4511278;
+		assert!(
+			t2_lrna_cost >= py_fresh_cost,
+			"Prior delta should increase buy_lrna cost: {} >= {}",
+			t2_lrna_cost,
+			py_fresh_cost
+		);
+	});
+}
