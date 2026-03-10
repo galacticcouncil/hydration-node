@@ -25,8 +25,7 @@ fn should_work_when_intent_is_valid() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
-					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
 				};
 
 				//Act
@@ -69,8 +68,7 @@ fn should_not_work_when_deadline_is_less_than_now() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
-					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
 				};
 
 				assert_noop!(
@@ -99,8 +97,7 @@ fn should_not_work_when_deadline_bigger_than_max_allowed_intent_duration() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE + 1),
-					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
-					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
 				};
 
 				assert_noop!(
@@ -129,8 +126,7 @@ fn should_not_work_when_amount_in_is_zero() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
-					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
 				};
 
 				assert_noop!(IntentPallet::add_intent(ALICE, intent_0), Error::<Test>::InvalidIntent);
@@ -156,8 +152,7 @@ fn should_not_work_when_amount_out_is_zero() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
-					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
 				};
 
 				assert_noop!(IntentPallet::add_intent(ALICE, intent_0), Error::<Test>::InvalidIntent);
@@ -183,8 +178,7 @@ fn should_not_work_when_asset_in_eq_asset_out() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
-					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
 				};
 
 				assert_noop!(IntentPallet::add_intent(ALICE, intent_0), Error::<Test>::InvalidIntent);
@@ -210,8 +204,7 @@ fn should_not_work_when_asset_out_is_hub_asset() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
-					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
 				};
 
 				assert_noop!(IntentPallet::add_intent(ALICE, intent_0), Error::<Test>::InvalidIntent);
@@ -240,8 +233,7 @@ fn should_not_work_when_cant_reserve_funds() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
-					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
 				};
 
 				assert_noop!(
@@ -275,8 +267,7 @@ fn should_not_work_when_amount_in_is_less_than_ed() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
-					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
 				};
 
 				//Act&Assert
@@ -309,8 +300,7 @@ fn should_not_work_when_amount_out_is_less_than_ed() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
-					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
 				};
 
 				//Act&Assert
@@ -341,8 +331,7 @@ fn should_work_when_intent_has_no_deadline() {
 						partial: false,
 					}),
 					deadline: None,
-					on_success: Some(BoundedVec::truncate_from(b"success".to_vec())),
-					on_failure: Some(BoundedVec::truncate_from(b"failure".to_vec())),
+					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
 				};
 
 				//Act

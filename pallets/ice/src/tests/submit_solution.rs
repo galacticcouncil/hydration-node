@@ -35,8 +35,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -51,8 +50,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 						partial: false,
 					}),
 					deadline: None,
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -67,8 +65,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -189,8 +186,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -205,8 +201,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -221,8 +216,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -346,8 +340,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -362,8 +355,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -378,8 +370,7 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -503,8 +494,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -519,8 +509,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -535,8 +524,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -551,8 +539,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -687,8 +674,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -703,8 +689,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -719,8 +704,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -844,8 +828,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -860,8 +843,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -876,8 +858,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -951,8 +932,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -967,8 +947,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -983,8 +962,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -1058,8 +1036,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1074,8 +1051,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1090,8 +1066,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -1215,8 +1190,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1231,8 +1205,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1247,8 +1220,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -1372,8 +1344,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1388,8 +1359,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1404,8 +1374,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -1529,8 +1498,7 @@ fn solution_execution_should_not_work_when_execution_prices_are_not_consistent()
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1545,8 +1513,7 @@ fn solution_execution_should_not_work_when_execution_prices_are_not_consistent()
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1561,8 +1528,7 @@ fn solution_execution_should_not_work_when_execution_prices_are_not_consistent()
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])

@@ -48,9 +48,8 @@ runtime_benchmarks! {
 				swap_type: SwapType::ExactIn,
 				partial: false,
 			}),
-			deadline: DEADLINE,
-			on_success: Some(cb.clone().try_into().unwrap()),
-			on_failure: Some(cb.try_into().unwrap()),
+			deadline: Some(DEADLINE),
+			on_resolved: Some(cb.clone().try_into().unwrap()),
 		};
 
 		let intents: Vec<(IntentId, IntentT)> = pallet_intent::Intents::<Runtime>::iter().collect();
@@ -79,9 +78,8 @@ runtime_benchmarks! {
 				swap_type: SwapType::ExactIn,
 				partial: false,
 			}),
-			deadline: DEADLINE,
-			on_success: Some(cb.clone().try_into().unwrap()),
-			on_failure: Some(cb.try_into().unwrap()),
+			deadline: Some(DEADLINE),
+			on_resolved: Some(cb.clone().try_into().unwrap()),
 		};
 
 		Intent::submit_intent(RawOrigin::Signed(caller.clone()).into(), intent)?;
@@ -110,15 +108,7 @@ runtime_benchmarks! {
 		fund(caller.clone(), DAI, 10_000 * QUINTIL)?;
 
 		//NOTE: it's ok to use junk, we are not really dispatching it.
-		let on_success: Vec<u8> = vec![255; MAX_DATA_SIZE as usize];
-
-		//NOTE: this must be valid(decodeable) call otherwise it won't be added to LazyExecutor's
-		//queue.
-		let on_failure: Vec<u8> = RuntimeCall::Tokens(orml_tokens::Call::transfer{
-			dest: caller.clone(),
-			currency_id: 5,
-			amount: 10 * TRIL
-		}).encode();
+		let on_resolved: Vec<u8> = vec![255; MAX_DATA_SIZE as usize];
 
 		let intent = IntentT {
 			data: IntentData::Swap(SwapData {
@@ -129,9 +119,8 @@ runtime_benchmarks! {
 				swap_type: SwapType::ExactIn,
 				partial: false,
 			}),
-			deadline: DEADLINE,
-			on_success: Some(on_success.clone().try_into().unwrap()),
-			on_failure: Some(on_failure.clone().try_into().unwrap()),
+			deadline: Some(DEADLINE),
+			on_resolved: Some(on_resolved.try_into().unwrap()),
 		};
 
 		Intent::submit_intent(RawOrigin::Signed(caller.clone()).into(), intent)?;
@@ -144,7 +133,6 @@ runtime_benchmarks! {
 	}: _(RawOrigin::Signed(cleaner), id)
 	verify {
 		assert_eq!(Intent::get_intent(id), None);
-		assert!(LazyExecutor::call_queue(0).is_some())
 	}
 }
 

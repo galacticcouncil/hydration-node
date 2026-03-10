@@ -17,8 +17,7 @@ fn non_partial_swap_intent_should_work_when_resolved_exactly() {
 				partial: false,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let resolve = intent.clone();
@@ -36,8 +35,7 @@ fn non_partial_swap_intent_should_work_when_resolved_exactly() {
 				partial: false,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let resolve = intent.clone();
@@ -60,8 +58,7 @@ fn should_work_when_resolved_exactly_and_intent_has_no_deadline() {
 				partial: false,
 			}),
 			deadline: None,
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let resolve = intent.clone();
@@ -79,8 +76,7 @@ fn should_work_when_resolved_exactly_and_intent_has_no_deadline() {
 				partial: false,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let resolve = intent.clone();
@@ -103,8 +99,7 @@ fn non_partial_swap_intent_should_work_when_resolved_better() {
 				partial: false,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -124,8 +119,7 @@ fn non_partial_swap_intent_should_work_when_resolved_better() {
 				partial: false,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -150,8 +144,7 @@ fn partial_swap_intent_should_work_when_resolved_exactly() {
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let resolve = intent.clone();
@@ -169,8 +162,7 @@ fn partial_swap_intent_should_work_when_resolved_exactly() {
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let resolve = intent.clone();
@@ -193,8 +185,7 @@ fn partial_swap_intent_should_work_when_resolved_better() {
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -214,8 +205,7 @@ fn partial_swap_intent_should_work_when_resolved_better() {
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -240,8 +230,7 @@ fn partial_should_work_when_resolved_partially() {
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -262,8 +251,7 @@ fn partial_should_work_when_resolved_partially() {
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -288,8 +276,7 @@ fn swap_intent_should_not_work_when_asset_in_does_not_match() {
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -316,8 +303,7 @@ fn swap_intent_should_not_work_when_asset_out_does_not_match() {
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -344,8 +330,7 @@ fn swap_intent_should_not_work_when_swap_type_does_not_match() {
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -372,8 +357,7 @@ fn swap_intent_should_not_work_when_partiality_does_not_match() {
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -400,8 +384,7 @@ fn non_partial_swap_exact_in_intent_should_not_work_when_amount_out_is_less_than
 				partial: false,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -428,8 +411,7 @@ fn non_partial_swap_exact_in_intent_should_not_work_when_amount_in_is_not_exact(
 				partial: false,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		//smaller than limit
@@ -467,8 +449,7 @@ fn non_partial_swap_exact_out_intent_should_not_work_when_amount_in_is_bigger_th
 				partial: false,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -495,8 +476,7 @@ fn non_partial_swap_exact_out_intent_should_not_work_when_amount_out_not_exact()
 				partial: false,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		//smaller than limit
@@ -534,8 +514,7 @@ fn partial_swap_exact_in_should_not_work_when_resolved_fully_and_amount_out_is_l
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -562,8 +541,7 @@ fn partial_swap_exact_in_should_not_work_when_amount_in_is_bigger_limit() {
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -590,8 +568,7 @@ fn partial_swap_exact_in_should_not_work_when_resolved_partially_and_amount_out_
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		//NOTE: resolve 50% of intent so amount_out >= pro-rata limit(50%)
@@ -620,8 +597,7 @@ fn partial_swap_exact_out_should_not_work_when_resolved_fully_and_amount_in_is_b
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -648,8 +624,7 @@ fn partial_swap_exact_out_should_not_work_when_amount_out_is_bigger_limit() {
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		let mut resolve = intent.clone();
@@ -676,8 +651,7 @@ fn partial_swap_exact_out_should_not_work_when_resolved_partially_and_amount_in_
 				partial: true,
 			}),
 			deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-			on_success: None,
-			on_failure: None,
+			on_resolved: None,
 		};
 
 		//NOTE: resolve 50% of intent so amount_in <= pro-rata limit(50%)

@@ -27,7 +27,7 @@ const TRIL: u128 = 1_000_000_000_000;
 const QUINTIL: u128 = 1_000_000_000_000_000_000;
 
 //Intent's deadline, 12hours
-const DEADLINE: u64 = 12 * 3_600 * 1_000;
+const DEADLINE: Option<u64> = Some(12 * 3_600 * 1_000);
 
 fn fund(to: AccountId, currency: AssetId, amount: Balance) -> DispatchResult {
 	Currencies::deposit(currency, &to, amount)
@@ -77,8 +77,7 @@ runtime_benchmarks! {
 		let intent = IntentT {
 			data: intent_data.clone(),
 			deadline: DEADLINE,
-			on_success: Some(cb.clone().try_into().unwrap()),
-			on_failure: Some(cb.clone().try_into().unwrap()),
+			on_resolved: Some(cb.clone().try_into().unwrap()),
 		};
 
 		Intent::submit_intent(RawOrigin::Signed(caller.clone()).into(), intent)?;
@@ -101,7 +100,6 @@ runtime_benchmarks! {
 		let s = Solution {
 			resolved_intents: resolved_intents.try_into().unwrap(),
 			trades: BoundedVec::new(),
-			clearing_prices: cp,
 			score,
 		};
 

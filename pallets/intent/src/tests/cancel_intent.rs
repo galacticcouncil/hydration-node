@@ -27,8 +27,7 @@ fn should_work_when_canceled_by_owner() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -43,8 +42,7 @@ fn should_work_when_canceled_by_owner() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -59,8 +57,7 @@ fn should_work_when_canceled_by_owner() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -113,8 +110,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -129,8 +125,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -145,8 +140,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -226,8 +220,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -242,8 +235,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -258,8 +250,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -298,8 +289,7 @@ fn should_not_work_when_canceled_non_owner() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -314,8 +304,7 @@ fn should_not_work_when_canceled_non_owner() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -354,8 +343,7 @@ fn should_work_when_intent_has_no_deadline_and_canceled_by_owner() {
 						partial: false,
 					}),
 					deadline: None,
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -370,8 +358,7 @@ fn should_work_when_intent_has_no_deadline_and_canceled_by_owner() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -386,8 +373,7 @@ fn should_work_when_intent_has_no_deadline_and_canceled_by_owner() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])

@@ -40,7 +40,7 @@ runtime_benchmarks! {
 		LazyExecutor::add_to_queue(Source::ICE(1_u128), acc, call.try_into().unwrap())?;
 
 		assert!(LazyExecutor::call_queue(0).is_some());
-	}: { LazyExecutor::dispatch_top(RawOrigin::None.into())? }
+	}: { LazyExecutor::dispatch_top(RawOrigin::None.into(), 0)? }
 	verify {
 		assert!(LazyExecutor::call_queue(0).is_none());
 	}

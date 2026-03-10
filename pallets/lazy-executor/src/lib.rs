@@ -39,7 +39,7 @@ pub use weights::WeightInfo;
 mod tests;
 
 pub type CallId = u128;
-pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
+pub const MAX_DATA_SIZE: u32 = 512;
 pub type BoundedCall = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
 type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
 

@@ -412,8 +412,7 @@ impl HydrationTestDriver {
 						partial: false,
 					}),
 					deadline,
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				}
 			));
 		});
@@ -443,8 +442,7 @@ impl HydrationTestDriver {
 						partial: false,
 					}),
 					deadline,
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				}
 			));
 		});

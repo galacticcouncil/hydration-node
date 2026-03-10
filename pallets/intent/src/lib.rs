@@ -34,7 +34,6 @@ mod tests;
 pub mod types;
 mod weights;
 
-use crate::types::CallbackType;
 use crate::types::IncrementalIntentId;
 use crate::types::Intent;
 use crate::types::Moment;
@@ -141,11 +140,7 @@ pub mod pallet {
 		IntentExpired { id: IntentId },
 
 		/// Failed to add intent's callback to queue for execution.
-		FailedToQueueCallback {
-			id: IntentId,
-			callback: CallbackType,
-			error: DispatchError,
-		},
+		FailedToQueueCallback { id: IntentId, error: DispatchError },
 	}
 
 	#[pallet::error]
@@ -262,17 +257,6 @@ pub mod pallet {
 
 				IntentOwner::<T>::try_mutate_exists(id, |maybe_owner| -> Result<(), DispatchError> {
 					let owner = maybe_owner.as_ref().ok_or(Error::<T>::IntentOwnerNotFound)?;
-
-					//NOTE: it's safe to take, intent will be removed.
-					if let Some(cb) = intent.on_failure.take() {
-						if let Err(e) = T::LazyExecutorHandler::queue(Source::ICE(id), owner.clone(), cb) {
-							Self::deposit_event(Event::FailedToQueueCallback {
-								id,
-								callback: CallbackType::OnFailure,
-								error: e,
-							});
-						}
-					}
 
 					Self::unlock_funds(owner, intent.data.asset_in(), intent.data.amount_in())?;
 
@@ -517,13 +501,9 @@ impl<T: Config> Pallet<T> {
 				}
 
 				//NOTE: it's ok to `take`, intent will be removed from storage.
-				if let Some(cb) = intent.on_success.take() {
+				if let Some(cb) = intent.on_resolved.take() {
 					if let Err(e) = T::LazyExecutorHandler::queue(Source::ICE(*id), who.clone(), cb) {
-						Self::deposit_event(Event::FailedToQueueCallback {
-							id: *id,
-							callback: CallbackType::OnSuccess,
-							error: e,
-						});
+						Self::deposit_event(Event::FailedToQueueCallback { id: *id, error: e });
 					};
 				}
 

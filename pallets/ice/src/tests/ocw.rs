@@ -33,8 +33,7 @@ fn validate_unsingned_should_work_when_submitted_solution_is_valid() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -49,8 +48,7 @@ fn validate_unsingned_should_work_when_submitted_solution_is_valid() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -65,8 +63,7 @@ fn validate_unsingned_should_work_when_submitted_solution_is_valid() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -201,8 +198,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_is_not_for_next_bl
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -217,8 +213,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_is_not_for_next_bl
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -233,8 +228,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_is_not_for_next_bl
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -405,8 +399,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -421,8 +414,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -437,8 +429,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -628,8 +619,7 @@ fn validate_unsingned_should_not_work_when_intentent_not_found() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -644,8 +634,7 @@ fn validate_unsingned_should_not_work_when_intentent_not_found() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -660,8 +649,7 @@ fn validate_unsingned_should_not_work_when_intentent_not_found() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -792,8 +780,7 @@ fn validate_unsingned_should_not_work_when_solution_has_duplicate_intents() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -808,8 +795,7 @@ fn validate_unsingned_should_not_work_when_solution_has_duplicate_intents() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -824,8 +810,7 @@ fn validate_unsingned_should_not_work_when_solution_has_duplicate_intents() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -957,8 +942,7 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_in_l
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -973,8 +957,7 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_in_l
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -989,8 +972,7 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_in_l
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -1119,8 +1101,7 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_out_
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1135,8 +1116,7 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_out_
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1151,8 +1131,7 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_out_
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -1281,8 +1260,7 @@ fn validate_unsigned_should_not_work_when_execution_prices_are_not_consistent() 
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1297,8 +1275,7 @@ fn validate_unsigned_should_not_work_when_execution_prices_are_not_consistent() 
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1313,8 +1290,7 @@ fn validate_unsigned_should_not_work_when_execution_prices_are_not_consistent() 
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -1425,8 +1401,7 @@ fn validate_unsigned_should_not_work_when_intent_is_not_resolved_at_execution_pr
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1441,8 +1416,7 @@ fn validate_unsigned_should_not_work_when_intent_is_not_resolved_at_execution_pr
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1457,8 +1431,7 @@ fn validate_unsigned_should_not_work_when_intent_is_not_resolved_at_execution_pr
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])

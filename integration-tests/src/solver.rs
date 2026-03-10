@@ -306,8 +306,7 @@ fn stableswap_intent() {
 					partial: false,
 				}),
 				deadline,
-				on_success: None,
-				on_failure: None,
+				on_resolved: None,
 			},
 		));
 
@@ -1211,8 +1210,7 @@ fn intent_with_on_success_callback() {
 						partial: false,
 					}),
 					deadline,
-					on_success: Some(callback_data),
-					on_failure: None,
+					on_resolved: Some(callback_data),
 				},
 			));
 

@@ -20,8 +20,7 @@ fn should_work_with_intent_without_deadline() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -36,8 +35,7 @@ fn should_work_with_intent_without_deadline() {
 						partial: false,
 					}),
 					deadline: None,
-					on_success: Some(BoundedVec::new()),
-					on_failure: None,
+					on_resolved: Some(BoundedVec::new()),
 				},
 			),
 		])
@@ -76,8 +74,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -92,8 +89,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: Some(BoundedVec::new()),
-					on_failure: None,
+					on_resolved: Some(BoundedVec::new()),
 				},
 			),
 		])
@@ -132,8 +128,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_better_than_limits()
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -148,8 +143,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_better_than_limits()
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -192,8 +186,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -208,8 +201,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -302,8 +294,7 @@ fn should_not_work_when_non_partial_intent_resolved_partially() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -318,8 +309,7 @@ fn should_not_work_when_non_partial_intent_resolved_partially() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -357,8 +347,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_exactly() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -373,8 +362,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_exactly() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: Some(BoundedVec::new()),
-					on_failure: None,
+					on_resolved: Some(BoundedVec::new()),
 				},
 			),
 		])
@@ -414,8 +402,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -430,8 +417,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: Some(BoundedVec::new()),
-					on_failure: None,
+					on_resolved: Some(BoundedVec::new()),
 				},
 			),
 		])
@@ -477,8 +463,7 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -493,8 +478,7 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -523,8 +507,7 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 					partial: true,
 				}),
 				deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-				on_success: None,
-				on_failure: None,
+				on_resolved: None,
 			};
 
 			assert_eq!(IntentPallet::get_intent(id), Some(expected_intent));
@@ -549,8 +532,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -565,8 +547,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -639,8 +620,7 @@ fn partial_intent_should_not_work_when_resolved_partially_and_bellow_limit() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -655,8 +635,7 @@ fn partial_intent_should_not_work_when_resolved_partially_and_bellow_limit() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -709,8 +688,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -725,8 +703,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -771,8 +748,7 @@ fn should_not_work_when_resolved_as_not_an_owner() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -787,8 +763,7 @@ fn should_not_work_when_resolved_as_not_an_owner() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -826,8 +801,7 @@ fn should_not_work_when_intent_expired() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -842,8 +816,7 @@ fn should_not_work_when_intent_expired() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -882,8 +855,7 @@ fn should_not_work_when_assets_doesnt_match() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -898,8 +870,7 @@ fn should_not_work_when_assets_doesnt_match() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -946,8 +917,7 @@ fn should_not_work_when_swap_type_doesnt_match() {
 					partial: true,
 				}),
 				deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-				on_success: None,
-				on_failure: None,
+				on_resolved: None,
 			},
 		)])
 		.build()
@@ -982,8 +952,7 @@ fn should_not_work_when_partial_doesnt_match() {
 					partial: true,
 				}),
 				deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-				on_success: None,
-				on_failure: None,
+				on_resolved: None,
 			},
 		)])
 		.build()
@@ -1019,8 +988,7 @@ fn non_partial_exact_out_should_unreserve_surplus_when_resolved_better_than_limi
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1035,8 +1003,7 @@ fn non_partial_exact_out_should_unreserve_surplus_when_resolved_better_than_limi
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -1096,8 +1063,7 @@ fn partial_exact_out_should_unreserve_surplus_when_fully_resolved_better_than_li
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1112,8 +1078,7 @@ fn partial_exact_out_should_unreserve_surplus_when_fully_resolved_better_than_li
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -1173,8 +1138,7 @@ fn partial_exact_out_should_not_unreserve_funds_when_resolved_patially() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1189,8 +1153,7 @@ fn partial_exact_out_should_not_unreserve_funds_when_resolved_patially() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 		])
@@ -1238,8 +1201,7 @@ fn partial_exact_out_should_not_unreserve_funds_when_resolved_patially() {
 					partial: true,
 				}),
 				deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-				on_success: None,
-				on_failure: None,
+				on_resolved: None,
 			};
 
 			assert_eq!(IntentPallet::get_intent(id), Some(expected_intent.clone()));
@@ -1268,8 +1230,7 @@ fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: None,
-					on_failure: None,
+					on_resolved: None,
 				},
 			),
 			(
@@ -1284,8 +1245,7 @@ fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_success: Some(BoundedVec::new()),
-					on_failure: None,
+					on_resolved: Some(BoundedVec::new()),
 				},
 			),
 		])
