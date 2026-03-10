@@ -341,8 +341,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// DEPRECATED - Use `set_external_oracle` instead.
-		/// This is kept for backward compatibility with bifrost and will be removed in the future.
+		#[deprecated(note = "Use `set_external_oracle` instead. Kept only for backward compatibility with bifrost and will be removed in the future")]
+		#[allow(deprecated)]
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_bifrost_oracle()
 			.saturating_add(fractional_on_finalize_weight::<T>(MAX_EXTERNAL_ENTRIES_PER_BLOCK)))]

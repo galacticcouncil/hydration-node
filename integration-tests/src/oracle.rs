@@ -440,6 +440,7 @@ fn arrange_bifrost_assets() -> (
 }
 
 #[test]
+#[allow(deprecated)]
 fn bifrost_oracle_should_be_updated() {
 	TestNet::reset();
 
@@ -487,6 +488,7 @@ fn bifrost_oracle_should_be_updated() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn bifrost_oracle_should_be_added_when_pair_not_whitelisted() {
 	TestNet::reset();
 
@@ -528,6 +530,7 @@ fn bifrost_oracle_should_be_added_when_pair_not_whitelisted() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn bifrost_oracle_update_should_return_fee() {
 	// arrange
 	TestNet::reset();
@@ -591,6 +594,7 @@ fn bifrost_oracle_update_should_return_fee() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn bifrost_oracle_update_fail_should_charge_fee() {
 	// arrange
 	TestNet::reset();

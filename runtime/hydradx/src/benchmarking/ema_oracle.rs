@@ -16,6 +16,7 @@
 // limitations under the License.
 
 #![cfg(feature = "runtime-benchmarks")]
+#![allow(deprecated)]
 
 use super::*;
 use hex_literal::hex;
