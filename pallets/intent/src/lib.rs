@@ -66,6 +66,7 @@ pub const NAMED_RESERVE_ID: [u8; 8] = *b"ICE_int#";
 
 pub const UNSIGNED_TXS_PRIORITY: u64 = 1000;
 const OCW_LOG_TARGET: &str = "intent::offchain_worker";
+const LOG_PREFIX: &str = "ICE#pallet_intent";
 pub(crate) const OCW_TAG_PREFIX: &str = "intent-cleanup";
 
 #[frame_support::pallet]
@@ -288,7 +289,7 @@ pub mod pallet {
 				let tx = T::create_bare(call.into());
 				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
 					debug_assert!(false, "laxy-executorn: failed to submit dispatch_top transaction");
-					log::error!(target: OCW_LOG_TARGET, "to submit cleanup_intent call, err: {:?}", e);
+					log::error!(target: OCW_LOG_TARGET, "{:?}: to submit cleanup_intent call, err: {:?}", LOG_PREFIX, e);
 				};
 			}
 		}
@@ -361,6 +362,9 @@ impl<T: Config> Pallet<T> {
 	pub fn add_intent(owner: T::AccountId, intent: Intent) -> Result<IntentId, DispatchError> {
 		let now = T::TimestampProvider::now();
 		if let Some(deadline) = intent.deadline {
+			log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), deadline: {:?}, now: {:?}, max_deadline: {:?}", 
+				LOG_PREFIX, deadline, now, now.saturating_add(T::MaxAllowedIntentDuration::get()));
+
 			ensure!(deadline > now, Error::<T>::InvalidDeadline);
 			ensure!(
 				deadline < (now.saturating_add(T::MaxAllowedIntentDuration::get())),
@@ -374,6 +378,9 @@ impl<T: Config> Pallet<T> {
 
 		match intent.data {
 			IntentData::Swap(ref data) => {
+				log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), asset_in: {:?}, ed_in: {:?}, amount_in: {:?}, aseet_out: {:?}, ed_out: {:?}, amount_out: {:?}", 
+					LOG_PREFIX, data.asset_in, ed_in, data.amount_in, data.asset_out, ed_out, data.amount_out);
+
 				ensure!(data.amount_in >= ed_in, Error::<T>::InvalidIntent);
 				ensure!(data.amount_out >= ed_out, Error::<T>::InvalidIntent);
 				ensure!(data.asset_in != data.asset_out, Error::<T>::InvalidIntent);
@@ -413,13 +420,21 @@ impl<T: Config> Pallet<T> {
 	/// Function validates if intent was resolved correctly
 	pub fn validate_resolve(intent: &Intent, resolve: &IntentData) -> Result<(), DispatchError> {
 		if let Some(deadline) = intent.deadline {
+			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_resolve(), deadline: {:?}, now: {:?}", 
+					LOG_PREFIX, deadline, T::TimestampProvider::now());
+
 			ensure!(deadline > T::TimestampProvider::now(), Error::<T>::IntentExpired);
 		}
 
+		log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_resolve(), orig_asset_in: {:?}, resolve_asset_in: {:?}", 
+					LOG_PREFIX, intent.data.asset_in(), resolve.asset_in());
 		ensure!(
 			intent.data.asset_in() == resolve.asset_in(),
 			Error::<T>::ResolveMismatch
 		);
+
+		log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_resolve(), orig_asset_out: {:?}, resolve_asset_out: {:?}", 
+					LOG_PREFIX, intent.data.asset_out(), resolve.asset_out());
 		ensure!(
 			intent.data.asset_out() == resolve.asset_out(),
 			Error::<T>::ResolveMismatch
@@ -438,21 +453,32 @@ impl<T: Config> Pallet<T> {
 		let IntentData::Swap(ref swap) = intent.data;
 		let IntentData::Swap(ref resolve_swap) = resolve;
 
+		log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), orig_swap_type: {:?}, swap_type: {:?}, orig_partial: {:?}, resolve_partial: {:?}", 
+			LOG_PREFIX, swap.swap_type, resolve_swap.swap_type, swap.partial, resolve_swap.partial);
+
 		ensure!(swap.swap_type == resolve_swap.swap_type, Error::<T>::ResolveMismatch);
 		ensure!(swap.partial == resolve_swap.partial, Error::<T>::ResolveMismatch);
 
 		match swap.swap_type {
 			SwapType::ExactIn => {
 				if swap.partial {
+					log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactIn(partial) resolved fully, amount_in: {:?}, amount_out: {:?}, resolved_amount_out: {:?}", 
+						LOG_PREFIX, swap.amount_in, swap.amount_out, resolve_swap.amount_out);
+
 					if resolve_swap.amount_in == swap.amount_in {
 						ensure!(resolve_swap.amount_out >= swap.amount_out, Error::<T>::LimitViolation);
 						return Ok(());
 					}
 
 					let limit = intent.data.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+
+					log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactIn(partial) resolved partially, amount_in: {:?}, resolve_amount_in: {:?}, limit: {:?}, resolve_amount_out: {:?}", LOG_PREFIX, swap.amount_in, resolve_swap.amount_in, limit, resolve_swap.amount_out);
+
 					ensure!(resolve_swap.amount_in < swap.amount_in, Error::<T>::LimitViolation);
 					ensure!(resolve_swap.amount_out >= limit, Error::<T>::LimitViolation);
 				} else {
+					log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactIn resolved, amount_in: {:?}, resolve_amount_in: {:?}, amount_out: {:?}, resolve_amount_out: {:?}", LOG_PREFIX, swap.amount_in, resolve_swap.amount_in, swap.amount_out, resolve_swap.amount_out);
+
 					ensure!(resolve_swap.amount_in == swap.amount_in, Error::<T>::LimitViolation);
 					ensure!(resolve_swap.amount_out >= swap.amount_out, Error::<T>::LimitViolation);
 				};
@@ -460,14 +486,22 @@ impl<T: Config> Pallet<T> {
 			SwapType::ExactOut => {
 				if swap.partial {
 					if resolve_swap.amount_out == swap.amount_out {
+						log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactOut(partial) resolved fully, amount_out: {:?}, amount_in: {:?}, resolved_amount_in: {:?}", 
+							LOG_PREFIX, swap.amount_out, swap.amount_in, resolve_swap.amount_in);
+
 						ensure!(resolve_swap.amount_in <= swap.amount_in, Error::<T>::LimitViolation);
 						return Ok(());
 					}
 
 					let limit = intent.data.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+
+					log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactOut(partial) resolved partially, amount_out: {:?}, resolve_amount_in: {:?}, limit: {:?}, resolve_amount_in: {:?}", LOG_PREFIX, swap.amount_out, resolve_swap.amount_out, limit, resolve_swap.amount_in);
+
 					ensure!(resolve_swap.amount_in <= limit, Error::<T>::LimitViolation);
 					ensure!(resolve_swap.amount_out < swap.amount_out, Error::<T>::LimitViolation);
 				} else {
+					log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactOut resolved, amount_in: {:?}, resolve_amount_in: {:?}, amount_out: {:?}, resolve_amount_out: {:?}", LOG_PREFIX, swap.amount_in, resolve_swap.amount_in, swap.amount_out, resolve_swap.amount_out);
+
 					ensure!(resolve_swap.amount_in <= swap.amount_in, Error::<T>::LimitViolation);
 					ensure!(resolve_swap.amount_out == swap.amount_out, Error::<T>::LimitViolation);
 				}

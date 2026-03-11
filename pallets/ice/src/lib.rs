@@ -73,7 +73,9 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 pub const UNSIGNED_TXS_PRIORITY: u64 = u64::max_value();
+const LOG_TARGET: &str = "ice";
 const OCW_LOG_TARGET: &str = "ice::offchain_worker";
+const LOG_PREFIX: &str = "ICE#pallet_ice";
 pub(crate) const OCW_TAG_PREFIX: &str = "ice-solution";
 pub(crate) const OCW_PROVIDES: &[u8; 15] = b"submit_solution";
 
@@ -129,16 +131,6 @@ pub mod pallet {
 			trades_executed: u64,
 			score: Score,
 		},
-
-		/// Intent was settled.
-		IntentSettled {
-			intent_id: IntentId,
-			owner: T::AccountId,
-			asset_in: AssetId,
-			asset_out: AssetId,
-			amount_in: Balance,
-			amount_out: Balance,
-		},
 	}
 
 	#[pallet::error]
@@ -184,7 +176,6 @@ pub mod pallet {
 		/// - `valid_for_block`: block number `solution` is valid for
 		///
 		/// Emits:
-		/// - `IntentSettled` when intent was resolved successfully
 		/// - `SolutionExecuted`when `solution` was executed successfully
 		///
 		#[pallet::call_index(0)]
@@ -211,10 +202,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_none(origin)?;
 
-			ensure!(
-				valid_for_block == T::BlockNumberProvider::current_block_number(),
-				Error::<T>::InvalidTargetBlock
-			);
+			log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), solution with {:?} resolved intesnts and {:?} trades", 
+				LOG_PREFIX, solution.resolved_intents.len(), solution.trades.len());
+
+			let now = T::BlockNumberProvider::current_block_number();
+			ensure!(valid_for_block == now, Error::<T>::InvalidTargetBlock);
+			log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), valid_for_block: {:?}, current_block: {:?}", LOG_PREFIX, valid_for_block, now);
 
 			// V1 solver may produce solutions with no trades (perfect CoW matching)
 			ensure!(!solution.resolved_intents.is_empty(), Error::<T>::InvalidSolution);
@@ -231,6 +224,9 @@ pub mod pallet {
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
 				pallet_intent::Pallet::<T>::unlock_funds(&owner, intent.asset_in(), intent.amount_in())?;
 
+				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), unlock and transfer amounts, owner: {:?}, asset: {:?}, amount: {:?}", 
+					LOG_PREFIX, owner, intent.asset_in(), intent.amount_in());
+
 				<T as Config>::Currency::transfer(
 					intent.asset_in(),
 					&owner,
@@ -243,6 +239,9 @@ pub mod pallet {
 			for t in &solution.trades {
 				match t.direction {
 					SwapType::ExactOut => {
+						log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), buying, asset_in: {:?}, asset_out: {:?}, amount_out: {:?}, max_amount_in: {:?}, route: {:?}", 
+							LOG_PREFIX, t.route.first(), t.route.last(), t.amount_out, t.amount_in, t.route);
+
 						pallet_route_executor::Pallet::<T>::buy(
 							holding_origin.clone(),
 							t.route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
@@ -253,6 +252,9 @@ pub mod pallet {
 						)?;
 					}
 					SwapType::ExactIn => {
+						log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), selling, asset_in: {:?}, asset_out: {:?}, amount_in: {:?}, min_amount_out: {:?}, route: {:?}", 
+							LOG_PREFIX, t.route.first(), t.route.last(), t.amount_in, t.amount_out, t.route);
+
 						pallet_route_executor::Pallet::<T>::sell(
 							holding_origin.clone(),
 							t.route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
@@ -269,9 +271,12 @@ pub mod pallet {
 			let mut exec_prices: BTreeMap<(AssetId, AssetId, SwapType), Price> = BTreeMap::new();
 			for resolved_intent in &solution.resolved_intents {
 				let ResolvedIntent { id, data: resolve } = resolved_intent;
+				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), resolving intent, id: {:?}", LOG_PREFIX, id);
+
 				ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
 
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
+				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), transferring, id: {:?}, to: {:?}, amount: {:?}", LOG_PREFIX, id, owner, resolve.amount_out());
 
 				<T as Config>::Currency::transfer(
 					resolve.asset_out(),
@@ -283,22 +288,15 @@ pub mod pallet {
 
 				Self::validate_price_consistency(&mut exec_prices, resolve)?;
 
-				Self::deposit_event(Event::IntentSettled {
-					intent_id: *id,
-					owner: owner.clone(),
-					asset_in: resolve.asset_in(),
-					asset_out: resolve.asset_out(),
-					amount_in: resolve.amount_in(),
-					amount_out: resolve.amount_out(),
-				});
-
 				let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
 				let surplus = intent.data.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), id: {:?}, surplus: {:?}", LOG_PREFIX, id, surplus);
 				exec_score = exec_score.checked_add(surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
 
 				pallet_intent::Pallet::<T>::intent_resolved(&owner, resolved_intent)?;
 			}
 
+			log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), solution execution finished, exec_score: {:?}, score: {:?}", LOG_PREFIX, exec_score, solution.score);
 			ensure!(solution.score == exec_score, Error::<T>::ScoreMismatch);
 
 			Self::deposit_event(Event::SolutionExecuted {
@@ -325,7 +323,7 @@ pub mod pallet {
 
 			let tx = <T as CreateBare<self::Call<T>>>::create_bare(call.into());
 			if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
-				log::error!(target: OCW_LOG_TARGET, "submit solution, err: {:?}", e);
+				log::error!(target: OCW_LOG_TARGET, "{:?}: submit solution, err: {:?}", LOG_PREFIX, e);
 			};
 		}
 	}
@@ -353,12 +351,12 @@ pub mod pallet {
 			} = call
 			{
 				if !valid_for_block.eq(&block_no.saturating_add(One::one())) {
-					log::error!(target: OCW_LOG_TARGET, "invalid target block,  target_block: {:?}, block: {:?}", valid_for_block, block_no);
+					log::error!(target: OCW_LOG_TARGET, "{:?}: invalid target block,  target_block: {:?}, block: {:?}", LOG_PREFIX, valid_for_block, block_no);
 					return InvalidTransaction::Call.into();
 				}
 
 				if let Err(e) = Self::validate_unsigned_solution(solution) {
-					log::error!(target: OCW_LOG_TARGET, "validate solution, err: {:?}, block: {:?}", e, block_no);
+					log::error!(target: OCW_LOG_TARGET, "{:?}: validate solution, err: {:?}, block: {:?}", LOG_PREFIX, e, block_no);
 					return InvalidTransaction::Call.into();
 				};
 
@@ -411,6 +409,8 @@ impl<T: Config> Pallet<T> {
 						reverse_price.saturating_sub(&new_price)
 					};
 
+					log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_price_consistency(), price: {:?}, reverse_price: {:?}, tolerance: {:?}, diff: {:?}",
+						LOG_PREFIX, new_price, reverse_price, tolerance, price_diff);
 					ensure!(price_diff <= tolerance, Error::<T>::PriceToleranceInconsistency);
 				}
 
@@ -425,6 +425,9 @@ impl<T: Config> Pallet<T> {
 				.ok_or(Error::<T>::ArithmeticOverflow)?
 				.checked_into()
 				.ok_or(Error::<T>::ArithmeticOverflow)?;
+
+			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_price_consistency(), price: {:?}, amount_in: {:?}, calculated_out: {:?}, intent_out: {:?}",
+						LOG_PREFIX, exec_price, resolve.amount_in(), expected_out, resolve.amount_out());
 
 			ensure!(
 				expected_out.abs_diff(resolve.amount_out()) <= 1,
@@ -443,6 +446,9 @@ impl<T: Config> Pallet<T> {
 		let ed_out =
 			<T as Config>::RegistryHandler::existential_deposit(intent.asset_out()).ok_or(Error::<T>::AssetNotFound)?;
 
+		log::debug!(target: LOG_TARGET, "{:?}: validate_intent_amounts(), ed_in: {:?}, amount_in: {:?}, ed_out: {:?}, amount_out: {:?}", 
+			LOG_PREFIX, ed_in, intent.amount_in(), ed_out, intent.asset_out());
+
 		ensure!(intent.amount_in() >= ed_in, Error::<T>::InvalidAmount);
 		ensure!(intent.amount_out() >= ed_out, Error::<T>::InvalidAmount);
 
@@ -459,10 +465,12 @@ impl<T: Config> Pallet<T> {
 		let mut score: Score = 0;
 		let mut exec_prices: BTreeMap<(AssetId, AssetId, SwapType), Price> = BTreeMap::new();
 		for ResolvedIntent { id, data: resolve } in &solution.resolved_intents {
+			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), resolved intent, id: {:?}", LOG_PREFIX, id);
 			Self::validate_intent_amounts(resolve)?;
 
 			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
 			let surplus = intent.data.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), id: {:?}, surplus: {:?}", LOG_PREFIX, id, surplus);
 			score = score.checked_add(surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
 
 			ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
@@ -472,6 +480,7 @@ impl<T: Config> Pallet<T> {
 			Self::validate_price_consistency(&mut exec_prices, resolve)?;
 		}
 
+		log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), exec_score: {:?}, score: {:?}", LOG_PREFIX, score, solution.score);
 		ensure!(solution.score == score, Error::<T>::ScoreMismatch);
 		Ok(())
 	}
@@ -494,7 +503,7 @@ impl<T: Config> Pallet<T> {
 		let state = <<T as Config>::Simulator as SimulatorConfig>::Simulators::initial_state();
 
 		let Some(solution) = solve(intents, state) else {
-			log::debug!(target: OCW_LOG_TARGET, "no solution found, block: {:?}", block_no);
+			log::debug!(target: OCW_LOG_TARGET, "{:?}: no solution found, block: {:?}", LOG_PREFIX, block_no);
 			return None;
 		};
 
@@ -503,7 +512,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		if let Err(e) = Self::validate_unsigned_solution(&solution) {
-			log::error!(target: OCW_LOG_TARGET, "validate solution, err: {:?}, block: {:?}", e, block_no);
+			log::error!(target: OCW_LOG_TARGET, "{:?}: validate solution, err: {:?}, block: {:?}", LOG_PREFIX, e, block_no);
 			return None;
 		}
 
