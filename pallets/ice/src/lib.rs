@@ -205,9 +205,7 @@ pub mod pallet {
 			log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), solution with {:?} resolved intesnts and {:?} trades", 
 				LOG_PREFIX, solution.resolved_intents.len(), solution.trades.len());
 
-			let now = T::BlockNumberProvider::current_block_number();
-			ensure!(valid_for_block == now, Error::<T>::InvalidTargetBlock);
-			log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), valid_for_block: {:?}, current_block: {:?}", LOG_PREFIX, valid_for_block, now);
+			Self::validate_solution_target_block(valid_for_block, T::BlockNumberProvider::current_block_number())?;
 
 			// V1 solver may produce solutions with no trades (perfect CoW matching)
 			ensure!(!solution.resolved_intents.is_empty(), Error::<T>::InvalidSolution);
@@ -350,8 +348,10 @@ pub mod pallet {
 				valid_for_block,
 			} = call
 			{
-				if !valid_for_block.eq(&block_no.saturating_add(One::one())) {
-					log::error!(target: OCW_LOG_TARGET, "{:?}: invalid target block,  target_block: {:?}, block: {:?}", LOG_PREFIX, valid_for_block, block_no);
+				//NOTE: solution should be executed in next block so exect_block is `now + 1`
+				let exec_block = block_no.saturating_add(One::one());
+				if Self::validate_solution_target_block(*valid_for_block, exec_block).is_err() {
+					log::error!(target: OCW_LOG_TARGET, "{:?}: invalid target block,  target_block: {:?}, exec_block: {:?}, now: {:?}", LOG_PREFIX, valid_for_block, exec_block, block_no);
 					return InvalidTransaction::Call.into();
 				}
 
@@ -377,6 +377,26 @@ impl<T: Config> Pallet<T> {
 	/// Function provides `holding_pot` account id.
 	pub fn get_pallet_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
+	}
+
+	/// Function validates solutions target block.
+	/// Target block must be equal to current block or -1 block.
+	/// e.g. `target_block` = 2 is valid for blocks 2 and 3.
+	/// `now - target_block <= 1`
+	fn validate_solution_target_block(
+		target_block: BlockNumberFor<T>,
+		exec_block: BlockNumberFor<T>,
+	) -> Result<(), DispatchError> {
+		log::debug!(target: LOG_TARGET, "{:?}: validate_solution_target_block(), target_block: {:?}, exec_block: {:?}, now: {:?}",
+			LOG_PREFIX, target_block, exec_block, T::BlockNumberProvider::current_block_number());
+
+		let diff = exec_block
+			.checked_sub(&target_block)
+			.ok_or(Error::<T>::InvalidTargetBlock)?;
+
+		ensure!(diff.le(&One::one()), Error::<T>::InvalidTargetBlock);
+
+		Ok(())
 	}
 
 	/// Function validates if intent was resolved based on execution price.

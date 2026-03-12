@@ -175,7 +175,7 @@ fn validate_unsingned_should_work_when_submitted_solution_is_valid() {
 }
 
 #[test]
-fn validate_unsingned_should_not_work_when_submitted_solution_is_not_for_next_block() {
+fn validate_unsigned_should_not_work_when_submitted_solution_is_not_for_one_of_next_two_blocks() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, HDX, 10_000 * ONE_HDX),
@@ -346,9 +346,15 @@ fn validate_unsingned_should_not_work_when_submitted_solution_is_not_for_next_bl
 				valid_for_block: current_block,
 			};
 
-			assert_noop!(
+			assert_eq!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
-				TransactionValidityError::Invalid(InvalidTransaction::Call)
+				Ok(ValidTransaction {
+					priority: UNSIGNED_TXS_PRIORITY,
+					requires: vec![],
+					provides: vec![(OCW_TAG_PREFIX, OCW_PROVIDES.to_vec()).encode()],
+					longevity: 1,
+					propagate: false
+				})
 			);
 
 			//solution for future block
@@ -526,10 +532,9 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 
 			let call = Call::submit_solution {
 				solution: s.clone(),
-				valid_for_block: current_block + 1,
+				valid_for_block: current_block,
 			};
 
-			//NOTE: just to make sure everything except `valid_for_block` is ok
 			assert_eq!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
 				Ok(ValidTransaction {
@@ -545,7 +550,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 			let mut s1 = s.clone();
 			s1.score -= 1;
 			let call = Call::submit_solution {
-				solution: s.clone(),
+				solution: s1,
 				valid_for_block: current_block,
 			};
 
@@ -558,7 +563,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 			let mut s2 = s.clone();
 			s2.score += 1;
 			let call = Call::submit_solution {
-				solution: s.clone(),
+				solution: s2,
 				valid_for_block: current_block,
 			};
 
@@ -571,7 +576,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 			let mut s3 = s.clone();
 			s3.score = 0;
 			let call = Call::submit_solution {
-				solution: s.clone(),
+				solution: s3,
 				valid_for_block: current_block,
 			};
 
@@ -584,7 +589,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 			let mut s4 = s.clone();
 			s4.score = Score::max_value();
 			let call = Call::submit_solution {
-				solution: s.clone(),
+				solution: s4,
 				valid_for_block: current_block,
 			};
 
