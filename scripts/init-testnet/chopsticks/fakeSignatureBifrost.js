@@ -1,5 +1,5 @@
-import { signFakeWithApi } from '@acala-network/chopsticks-utils';
-import { ApiPromise, WsProvider } from "@polkadot/api";
+import {signFakeWithApi} from '@acala-network/chopsticks-utils';
+import {ApiPromise, WsProvider} from "@polkadot/api";
 
 // Bifrost sovereign account: sibling:2030
 // Hex: 7369626cee070000000000000000000000000000000000000000000000000000
@@ -22,9 +22,9 @@ const main = async () => {
     const api = await ApiPromise.create({
         provider,
         signedExtensions: {
-            ValidateClaim: { extrinsic: {}, payload: {} },
-            CheckMetadataHash: { extrinsic: { mode: "u8" }, payload: {} },
-            StorageWeightReclaim: { extrinsic: {}, payload: {} },
+            ValidateClaim: {extrinsic: {}, payload: {}},
+            CheckMetadataHash: {extrinsic: {mode: "u8"}, payload: {}},
+            StorageWeightReclaim: {extrinsic: {}, payload: {}},
         },
     });
 
@@ -51,8 +51,8 @@ const main = async () => {
     console.log("Asset 15 location:", JSON.stringify(asset15Loc.toJSON(), null, 2));
 
     // DOT location: Location::parent() = { parents: 1, interior: "Here" }
-    const dotLocation = { V4: { parents: 1, interior: "Here" } };
-    const asset15VersionedLocation = { V4: asset15Loc.toJSON() };
+    const dotLocation = {V4: {parents: 1, interior: "Here"}};
+    const asset15VersionedLocation = {V4: asset15Loc.toJSON()};
 
     // Price: (numerator, denominator) — e.g. 1 DOT = 50 units of asset 15
     const price = [50_000_000_000_000, 1_000_000_000_000];
@@ -78,18 +78,6 @@ const main = async () => {
             }
         }).catch(reject);
     });
-
-    // Step 6: Verify oracle was updated
-    console.log("\nVerification — bifrost oracle entries:");
-    for (const period of ["LastBlock", "Short", "TenMinutes"]) {
-        const entry = await api.query.emaOracle.oracles(BIFROST_SOURCE, [5, 15], period);
-        const data = entry.toJSON();
-        if (data && data[0]) {
-            console.log(`  ${period}: price n=${data[0].price.n}, d=${data[0].price.d}`);
-        } else {
-            console.log(`  ${period}: NOT FOUND`);
-        }
-    }
 
     console.log("\nDONE");
     await api.disconnect();
