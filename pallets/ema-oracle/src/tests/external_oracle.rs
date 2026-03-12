@@ -15,12 +15,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::mock::{self, EmaOracle, ExtBuilder, RuntimeOrigin, System, Test, ALICE, BOB};
+use super::mock::{EmaOracle, ExtBuilder, RuntimeOrigin, System, Test, ALICE, BOB};
 use super::SOURCE;
 use crate::pallet::{AuthorizedAccounts, ExternalSources};
 use crate::*;
 
-use frame_support::pallet_prelude::*;
 use frame_support::{assert_noop, assert_ok};
 use pretty_assertions::assert_eq;
 
