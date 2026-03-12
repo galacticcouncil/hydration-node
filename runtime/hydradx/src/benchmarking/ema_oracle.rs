@@ -19,7 +19,7 @@
 #![allow(deprecated)]
 
 use super::*;
-use hex_literal::hex;
+use crate::assets::BifrostAccount;
 use hydradx_traits::oracle::OraclePeriod;
 use hydradx_traits::AggregatedEntry;
 use pallet_ema_oracle::ordered_pair;
@@ -45,9 +45,8 @@ use sp_core::{ConstU32, Get};
 /// Default oracle source.
 const SOURCE: Source = *b"dummysrc";
 
-// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
-pub fn bifrost_account() -> AccountId {
-	hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into()
+fn bifrost_account() -> AccountId {
+	BifrostAccount::get()
 }
 
 fn fill_whitelist_storage(n: u32) {
