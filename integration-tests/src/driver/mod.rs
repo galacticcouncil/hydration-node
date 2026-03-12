@@ -4,7 +4,6 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
 use frame_support::BoundedVec;
-use hydradx_runtime::bifrost_account;
 use hydradx_runtime::AssetLocation;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
