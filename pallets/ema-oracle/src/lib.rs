@@ -341,7 +341,9 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[deprecated(note = "Use `set_external_oracle` instead. Kept only for backward compatibility with bifrost and will be removed in the future")]
+		#[deprecated(
+			note = "Use `set_external_oracle` instead. Kept only for backward compatibility with bifrost and will be removed in the future"
+		)]
 		#[allow(deprecated)]
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_bifrost_oracle()
@@ -478,8 +480,7 @@ impl<T: Config> Pallet<T> {
 				entry.accumulate_volume_and_update_from(&oracle_entry);
 				Ok(())
 			} else {
-				if !is_external_source && accumulator.len() >= T::MaxUniqueEntries::get() as usize
-				{
+				if !is_external_source && accumulator.len() >= T::MaxUniqueEntries::get() as usize {
 					//We have soft limit up to MaxUniqueEntries, only for AMM internal oracle updates
 					return Err(());
 				}
