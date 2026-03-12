@@ -4,7 +4,6 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
 use frame_support::BoundedVec;
-use hydradx_runtime::bifrost_account;
 use hydradx_runtime::AssetLocation;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
@@ -125,6 +124,7 @@ impl HydrationTestDriver {
 		self
 	}
 
+	#[allow(deprecated)]
 	pub fn update_bifrost_oracle(
 		&self,
 		asset_a: Box<polkadot_xcm::VersionedLocation>,
@@ -132,6 +132,14 @@ impl HydrationTestDriver {
 		price: (Balance, Balance),
 	) -> &Self {
 		self.execute(|| {
+			// Ensure BIFROST_SOURCE is registered and bifrost_account is authorized
+			// We need this because we added support for multiple oracle sources which required migration
+			let _ = EmaOracle::register_external_source(RuntimeOrigin::root(), pallet_ema_oracle::BIFROST_SOURCE);
+			let _ = EmaOracle::add_authorized_account(
+				RuntimeOrigin::root(),
+				pallet_ema_oracle::BIFROST_SOURCE,
+				bifrost_account(),
+			);
 			assert_ok!(EmaOracle::update_bifrost_oracle(
 				RuntimeOrigin::signed(bifrost_account()),
 				asset_a,
