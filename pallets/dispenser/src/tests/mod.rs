@@ -25,6 +25,14 @@ pub type Amount = i128;
 pub const HDX: AssetId = 0;
 
 pub const MIN_WEI_BALANCE: u128 = 1_000_000_000_000_000_000_000;
+pub const TEST_DISPENSER_FEE: u128 = 10;
+pub const TEST_MAX_DISPENSE: u128 = 1_000_000_000;
+pub const TEST_MIN_REQUEST: u128 = 100;
+pub const TEST_MIN_FAUCET_THRESHOLD: u128 = 1;
+
+pub fn test_faucet_address() -> primitives::EvmAddress {
+	primitives::EvmAddress::from(hex!("3c44CdDdB6a900fa2b585dd299e03d12FA4293BC"))
+}
 
 frame_support::construct_runtime!(
 	pub enum Test {
@@ -82,11 +90,10 @@ parameter_type_with_key! {
 
 parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
-	pub const MaxChainIdLength: u32 = 128;
 	pub const MaxReserves: u32 = 50;
 	pub const ExistentialDeposit: u128 = 1;
 	pub const HDXAssetId: AssetId = HDX;
-  pub const TreasuryPalletId: PalletId = PalletId(*b"py/treas");
+	pub const TreasuryPalletId: PalletId = PalletId(*b"py/treas");
 }
 
 impl pallet_balances::Config for Test {
@@ -142,53 +149,31 @@ impl frame_system::offchain::SigningTypes for Test {
 	type Signature = MultiSignature;
 }
 
-parameter_types! {
-	pub const MaxDataLength: u32 = 1024;
-	pub const MaxSignatureDeposit: u128 = 100_000_000_000;
-}
-
 impl pallet_signet::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
-	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = pallet_signet::weights::WeightInfo<Test>;
-	type MaxDataLength = MaxDataLength;
 	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
-	type MaxSignatureDeposit = MaxSignatureDeposit;
 }
 
 parameter_types! {
 	pub const DispenserPalletId: PalletId = PalletId(*b"py/erc20");
-	pub const SigEthFaucetDispenserFee: u128 = 10;
-	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000;
-	pub const SigEthFaucetMinRequest: u128 = 100;
 	pub const SigEthFaucetFeeAssetId: AssetId = 0;
 	pub const SigEthFaucetFaucetAssetId: AssetId = 20;
-	pub const SigEthMinFaucetThreshold: u128 = 1;
-}
-
-pub struct SigEthFaucetMpcRoot;
-impl frame_support::traits::Get<primitives::EvmAddress> for SigEthFaucetMpcRoot {
-	fn get() -> primitives::EvmAddress {
-		// 0x3c44CdDdB6a900fa2b585dd299e03d12FA4293BC
-		primitives::EvmAddress::from(hex!("3c44CdDdB6a900fa2b585dd299e03d12FA4293BC"))
-	}
 }
 
 impl pallet_dispenser::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
 	type PalletId = DispenserPalletId;
 	type Currency = FungibleCurrencies<Test>;
-	type MinimumRequestAmount = SigEthFaucetMinRequest;
-	type MaxDispenseAmount = SigEthFaucetMaxDispense;
-	type DispenserFee = SigEthFaucetDispenserFee;
 	type FeeAsset = SigEthFaucetFeeAssetId;
 	type FaucetAsset = SigEthFaucetFaucetAssetId;
 	type FeeDestination = TreasuryAccount;
-	type FaucetAddress = SigEthFaucetMpcRoot;
-	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -214,17 +199,25 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		let _ = Currencies::deposit(faucet_asset, alice, initial_balance);
 		let _ = Currencies::deposit(faucet_asset, bob, initial_balance);
 		let _ = Currencies::deposit(faucet_asset, charlie, initial_balance);
-		let requester = acct(1);
-		assert_ok!(pallet_signet::Pallet::<Test>::initialize(
+		assert_ok!(pallet_signet::Pallet::<Test>::set_config(
 			RuntimeOrigin::root(),
-			requester,
 			100_000_000,
+			128,
+			100_000,
 			bounded_chain_id(b"test-chain".to_vec()),
 		));
 		let pallet_account = Dispenser::account_id();
 		let _ = <Balances as CurrencyTrait<_>>::deposit_creating(&pallet_account, 10_000);
 
-		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), MIN_WEI_BALANCE));
+		assert_ok!(Dispenser::set_config(
+			RuntimeOrigin::root(),
+			test_faucet_address(),
+			TEST_MIN_FAUCET_THRESHOLD,
+			TEST_MIN_REQUEST,
+			TEST_MAX_DISPENSE,
+			TEST_DISPENSER_FEE,
+			MIN_WEI_BALANCE,
+		));
 	});
 	ext
 }

@@ -1,14 +1,16 @@
 use crate::{self as pallet_dispenser};
 use crate::{
 	tests::{
-		new_test_ext,
+		new_test_ext, test_faucet_address,
 		utils::{acct, compute_request_id, create_test_receiver_address, create_test_tx_params},
-		Currencies, Dispenser, RuntimeEvent, RuntimeOrigin, System, Test, MIN_WEI_BALANCE,
+		Currencies, Dispenser, RuntimeEvent, RuntimeOrigin, System, Test, MIN_WEI_BALANCE, TEST_DISPENSER_FEE,
+		TEST_MAX_DISPENSE, TEST_MIN_FAUCET_THRESHOLD, TEST_MIN_REQUEST,
 	},
-	Error, Event, FaucetBalanceWei,
+	Error, Event,
 };
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
+use sp_runtime::BuildStorage;
 
 #[test]
 fn test_request_rejected_when_paused() {
@@ -31,6 +33,24 @@ fn test_request_rejected_when_paused() {
 
 		assert_eq!(Currencies::free_balance(1, &requester), hdx_before);
 		assert_eq!(Currencies::free_balance(2, &requester), eth_before);
+	});
+}
+
+#[test]
+fn test_request_rejected_when_not_configured() {
+	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	let mut ext = sp_io::TestExternalities::new(t);
+	ext.execute_with(|| {
+		frame_system::Pallet::<Test>::set_block_number(1);
+		let requester = acct(1);
+		let receiver = create_test_receiver_address();
+		let amount = 1_000u128;
+		let tx = create_test_tx_params();
+
+		assert_noop!(
+			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, [0u8; 32], tx),
+			Error::<Test>::NotConfigured
+		);
 	});
 }
 
@@ -71,7 +91,8 @@ fn test_fee_and_asset_routing() {
 		let tx = create_test_tx_params();
 		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
 
-		let fee = <Test as crate::Config>::DispenserFee::get();
+		let config = Dispenser::dispenser_config().unwrap();
+		let fee = config.dispenser_fee;
 		let treasury = <Test as crate::Config>::FeeDestination::get();
 		let pallet_account = Dispenser::account_id();
 
@@ -127,7 +148,7 @@ fn test_amount_too_small_and_too_large() {
 		let receiver = create_test_receiver_address();
 		let tx = create_test_tx_params();
 
-		let amt_small = <Test as crate::Config>::MinimumRequestAmount::get() - 1;
+		let amt_small = TEST_MIN_REQUEST - 1;
 		let rid_small = compute_request_id(requester.clone(), receiver, amt_small, &tx);
 		assert_noop!(
 			Dispenser::request_fund(
@@ -140,7 +161,7 @@ fn test_amount_too_small_and_too_large() {
 			Error::<Test>::AmountTooSmall
 		);
 
-		let amt_big = <Test as crate::Config>::MaxDispenseAmount::get() + 1;
+		let amt_big = TEST_MAX_DISPENSE + 1;
 		let rid_big = compute_request_id(requester.clone(), receiver, amt_big, &tx);
 		assert_noop!(
 			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amt_big, rid_big, tx),
@@ -195,9 +216,10 @@ fn test_deposit_erc20_success() {
 			)
 		}));
 
+		let config = Dispenser::dispenser_config().unwrap();
 		assert_eq!(
 			Currencies::free_balance(fee_asset, &requester),
-			hdx_balance_before - <Test as crate::Config>::DispenserFee::get()
+			hdx_balance_before - config.dispenser_fee
 		);
 
 		assert_eq!(
@@ -208,32 +230,68 @@ fn test_deposit_erc20_success() {
 }
 
 #[test]
-fn governance_sets_faucet_balance_and_emits_event() {
+fn test_set_config_works() {
 	new_test_ext().execute_with(|| {
-		let old = Dispenser::current_faucet_balance_wei();
-		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), 42u128));
-		assert_eq!(Dispenser::current_faucet_balance_wei(), MIN_WEI_BALANCE + 42u128);
+		let new_address = primitives::EvmAddress::from([2u8; 20]);
+		assert_ok!(Dispenser::set_config(
+			RuntimeOrigin::root(),
+			new_address,
+			500,
+			200,
+			2_000_000_000,
+			25,
+			999,
+		));
 
-		let ev = System::events().into_iter().any(|rec| {
-			matches!(rec.event,
-				RuntimeEvent::Dispenser(Event::FaucetBalanceUpdated {
-					old_balance_wei, new_balance_wei
-				}) if old_balance_wei == old && new_balance_wei == MIN_WEI_BALANCE + 42u128
-			)
-		});
-		assert!(ev, "FaucetBalanceUpdated event not found");
+		let config = Dispenser::dispenser_config().unwrap();
+		assert_eq!(config.faucet_address, new_address);
+		assert_eq!(config.min_faucet_threshold, 500);
+		assert_eq!(config.min_request, 200);
+		assert_eq!(config.max_dispense, 2_000_000_000);
+		assert_eq!(config.dispenser_fee, 25);
+		assert_eq!(config.faucet_balance_wei, 999);
+		// paused state preserved from previous set_config (was false)
+		assert!(!config.paused);
 	});
 }
 
 #[test]
-fn non_governance_cannot_set_faucet_balance() {
+fn test_set_config_preserves_paused_state() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::pause(RuntimeOrigin::root()));
+		assert!(Dispenser::dispenser_config().unwrap().paused);
+
+		assert_ok!(Dispenser::set_config(
+			RuntimeOrigin::root(),
+			test_faucet_address(),
+			1,
+			100,
+			1_000_000_000,
+			10,
+			MIN_WEI_BALANCE,
+		));
+
+		// paused should still be true
+		assert!(Dispenser::dispenser_config().unwrap().paused);
+	});
+}
+
+#[test]
+fn non_governance_cannot_set_config() {
 	new_test_ext().execute_with(|| {
 		let alice = acct(1);
 		assert_noop!(
-			Dispenser::set_faucet_balance(RuntimeOrigin::signed(alice), 7u128),
+			Dispenser::set_config(
+				RuntimeOrigin::signed(alice),
+				test_faucet_address(),
+				1,
+				100,
+				1_000_000_000,
+				10,
+				MIN_WEI_BALANCE,
+			),
 			sp_runtime::DispatchError::BadOrigin
 		);
-		assert_eq!(Dispenser::current_faucet_balance_wei(), MIN_WEI_BALANCE);
 	});
 }
 
@@ -242,9 +300,17 @@ fn request_rejected_when_balance_below_threshold() {
 	new_test_ext().execute_with(|| {
 		let requester = acct(1);
 		let receiver = create_test_receiver_address();
-		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), 10u128));
 
-		FaucetBalanceWei::<Test>::put(100u128);
+		// Set config with very low faucet balance
+		assert_ok!(Dispenser::set_config(
+			RuntimeOrigin::root(),
+			test_faucet_address(),
+			TEST_MIN_FAUCET_THRESHOLD,
+			TEST_MIN_REQUEST,
+			TEST_MAX_DISPENSE,
+			TEST_DISPENSER_FEE,
+			100u128, // low balance
+		));
 
 		let amount = 100u128;
 		let tx = create_test_tx_params();
@@ -267,8 +333,18 @@ fn request_rejected_when_balance_below_threshold() {
 fn request_allowed_at_or_above_threshold() {
 	new_test_ext().execute_with(|| {
 		let amount = 101u128;
-		let needed = <Test as crate::Config>::MinFaucetEthThreshold::get() + amount;
-		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), needed));
+		let needed = TEST_MIN_FAUCET_THRESHOLD + amount;
+
+		// Set config with enough balance
+		assert_ok!(Dispenser::set_config(
+			RuntimeOrigin::root(),
+			test_faucet_address(),
+			TEST_MIN_FAUCET_THRESHOLD,
+			TEST_MIN_REQUEST,
+			TEST_MAX_DISPENSE,
+			TEST_DISPENSER_FEE,
+			needed,
+		));
 
 		let requester = acct(1);
 		let receiver = create_test_receiver_address();
@@ -289,25 +365,22 @@ fn request_allowed_at_or_above_threshold() {
 fn request_reduces_faucet_balance() {
 	new_test_ext().execute_with(|| {
 		let amount: u128 = 1_000u128;
-		let min_threshold = <Test as crate::Config>::MinFaucetEthThreshold::get();
-		let initial_balance = min_threshold + amount + 1_000u128;
+		let initial_balance = TEST_MIN_FAUCET_THRESHOLD + amount + 1_000u128;
 
-		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), initial_balance));
-		assert_eq!(
-			Dispenser::current_faucet_balance_wei(),
-			MIN_WEI_BALANCE + initial_balance
-		);
+		assert_ok!(Dispenser::set_config(
+			RuntimeOrigin::root(),
+			test_faucet_address(),
+			TEST_MIN_FAUCET_THRESHOLD,
+			TEST_MIN_REQUEST,
+			TEST_MAX_DISPENSE,
+			TEST_DISPENSER_FEE,
+			initial_balance,
+		));
 
 		let requester = acct(1);
 		let receiver = create_test_receiver_address();
 		let tx = create_test_tx_params();
 		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
-
-		let fee_asset = <Test as pallet_dispenser::Config>::FeeAsset::get();
-		let faucet_asset = <Test as pallet_dispenser::Config>::FaucetAsset::get();
-
-		let hdx_before = Currencies::free_balance(fee_asset, &requester);
-		let weth_before = Currencies::free_balance(faucet_asset, &requester);
 
 		assert_ok!(Dispenser::request_fund(
 			RuntimeOrigin::signed(requester.clone()),
@@ -317,14 +390,8 @@ fn request_reduces_faucet_balance() {
 			tx
 		));
 
-		let expected_balance = initial_balance.saturating_sub(amount).saturating_add(MIN_WEI_BALANCE);
-		assert_eq!(Dispenser::current_faucet_balance_wei(), expected_balance);
-
-		assert_eq!(
-			Currencies::free_balance(fee_asset, &requester),
-			hdx_before - <Test as crate::Config>::DispenserFee::get()
-		);
-		assert_eq!(Currencies::free_balance(faucet_asset, &requester), weth_before - amount);
+		let config = Dispenser::dispenser_config().unwrap();
+		assert_eq!(config.faucet_balance_wei, initial_balance - amount);
 	});
 }
 
@@ -373,11 +440,10 @@ fn request_fails_when_insufficient_faucet_balance() {
 		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
 
 		let fee_asset = <Test as pallet_dispenser::Config>::FeeAsset::get();
-
-		let fee = <Test as crate::Config>::DispenserFee::get();
+		let config = Dispenser::dispenser_config().unwrap();
+		let fee = config.dispenser_fee;
 
 		let _ = Currencies::deposit(fee_asset, &requester, 1_000_000_000_000_000_000_000);
-
 		assert_ok!(Currencies::deposit(1, &requester, fee));
 
 		assert_noop!(
@@ -414,14 +480,9 @@ fn request_fails_with_duplicate_request_id() {
 #[test]
 fn request_fails_with_zero_gas_limit() {
 	new_test_ext().execute_with(|| {
-		let amount = 10_000u128;
-		let min_threshold = <Test as crate::Config>::MinFaucetEthThreshold::get();
-		let initial_balance = min_threshold + amount + 1_000u128;
-
-		assert_ok!(Dispenser::set_faucet_balance(RuntimeOrigin::root(), initial_balance));
-
 		let requester = acct(1);
 		let receiver = create_test_receiver_address();
+		let amount = 10_000u128;
 		let mut tx = create_test_tx_params();
 		tx.gas_limit = 0;
 
