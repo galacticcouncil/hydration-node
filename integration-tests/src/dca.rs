@@ -2124,6 +2124,62 @@ mod omnipool {
 			assert_balance!(ALICE.into(), HDX, 0);
 		});
 	}
+
+	#[test]
+	fn sell_schedule_should_use_slippage_limit_when_min_amount_out_is_zero() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+			let alice_init_hdx_balance = 5000 * UNITS;
+			assert_ok!(Balances::force_set_balance(
+				RuntimeOrigin::root(),
+				ALICE.into(),
+				alice_init_hdx_balance,
+			));
+
+			let dca_budget = 1100 * UNITS;
+			let amount_to_sell = 100 * UNITS;
+
+			// Create sell schedule with min_amount_out = 0
+			// This means last_block_slippage_min_limit will be used as the effective limit
+			let schedule = Schedule {
+				owner: AccountId::from(ALICE),
+				period: 5u32,
+				total_amount: dca_budget,
+				max_retries: None,
+				stability_threshold: None,
+				slippage: Some(Permill::from_percent(5)),
+				order: Order::Sell {
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: amount_to_sell,
+					min_amount_out: 0,
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DAI,
+					}]),
+				},
+			};
+			create_schedule(ALICE, schedule);
+
+			let alice_dai_before = Currencies::free_balance(DAI, &ALICE.into());
+
+			//Act
+			go_to_block(12);
+
+			//Assert - DCA executed successfully and schedule is still alive
+			let alice_dai_after = Currencies::free_balance(DAI, &ALICE.into());
+			assert!(
+				alice_dai_after > alice_dai_before,
+				"ALICE should have received DAI from the trade"
+			);
+
+			let schedule = DCA::schedules(0);
+			assert!(schedule.is_some(), "DCA schedule should still be alive after execution");
+		});
+	}
 }
 
 mod fee {
