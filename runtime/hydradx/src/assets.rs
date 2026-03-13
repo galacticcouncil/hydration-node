@@ -1901,7 +1901,6 @@ impl pallet_intent::Config for Runtime {
 parameter_types! {
 	pub const IcePalletId: PalletId = PalletId(*b"ice_ice#");
 	pub const SimulatorPriceDenom: AssetId = CORE_ASSET_ID;
-	pub const BuySellPriceTolerance: Permill = Permill::from_percent(20);
 }
 
 /// Simulator configuration for the ICE pallet
@@ -1925,7 +1924,6 @@ impl pallet_ice::Config for Runtime {
 	type BlockNumberProvider = System;
 	type RegistryHandler = AssetRegistry;
 	type Simulator = HydrationSimulatorConfig;
-	type BuyVsSellPriceTolerance = BuySellPriceTolerance;
 	type WeightInfo = weights::pallet_ice::HydraWeight<Runtime>;
 }
 

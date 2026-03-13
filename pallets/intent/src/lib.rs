@@ -54,7 +54,6 @@ use ice_support::IntentData;
 use ice_support::IntentId;
 use ice_support::ResolvedIntent;
 use ice_support::SwapData;
-use ice_support::SwapType;
 use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use sp_runtime::traits::Zero;
@@ -453,59 +452,34 @@ impl<T: Config> Pallet<T> {
 		let IntentData::Swap(ref swap) = intent.data;
 		let IntentData::Swap(ref resolve_swap) = resolve;
 
-		log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), orig_swap_type: {:?}, swap_type: {:?}, orig_partial: {:?}, resolve_partial: {:?}", 
-			LOG_PREFIX, swap.swap_type, resolve_swap.swap_type, swap.partial, resolve_swap.partial);
+		log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), partial: {:?}, resolve.partial: {:?}", 
+			LOG_PREFIX, swap.partial, resolve_swap.partial);
 
-		ensure!(swap.swap_type == resolve_swap.swap_type, Error::<T>::ResolveMismatch);
 		ensure!(swap.partial == resolve_swap.partial, Error::<T>::ResolveMismatch);
 
-		match swap.swap_type {
-			SwapType::ExactIn => {
-				if swap.partial {
-					log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactIn(partial) resolved fully, amount_in: {:?}, amount_out: {:?}, resolved_amount_out: {:?}", 
-						LOG_PREFIX, swap.amount_in, swap.amount_out, resolve_swap.amount_out);
+		if swap.partial {
+			if resolve_swap.amount_in == swap.amount_in {
+				log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), partial intent resolved fully, amount_in: {:?}, amount_out: {:?}, resolved.amount_out: {:?}", 
+					LOG_PREFIX, swap.amount_in, swap.amount_out, resolve_swap.amount_out);
 
-					if resolve_swap.amount_in == swap.amount_in {
-						ensure!(resolve_swap.amount_out >= swap.amount_out, Error::<T>::LimitViolation);
-						return Ok(());
-					}
+				ensure!(resolve_swap.amount_out >= swap.amount_out, Error::<T>::LimitViolation);
 
-					let limit = intent.data.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
-
-					log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactIn(partial) resolved partially, amount_in: {:?}, resolve_amount_in: {:?}, limit: {:?}, resolve_amount_out: {:?}", LOG_PREFIX, swap.amount_in, resolve_swap.amount_in, limit, resolve_swap.amount_out);
-
-					ensure!(resolve_swap.amount_in < swap.amount_in, Error::<T>::LimitViolation);
-					ensure!(resolve_swap.amount_out >= limit, Error::<T>::LimitViolation);
-				} else {
-					log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactIn resolved, amount_in: {:?}, resolve_amount_in: {:?}, amount_out: {:?}, resolve_amount_out: {:?}", LOG_PREFIX, swap.amount_in, resolve_swap.amount_in, swap.amount_out, resolve_swap.amount_out);
-
-					ensure!(resolve_swap.amount_in == swap.amount_in, Error::<T>::LimitViolation);
-					ensure!(resolve_swap.amount_out >= swap.amount_out, Error::<T>::LimitViolation);
-				};
+				return Ok(());
 			}
-			SwapType::ExactOut => {
-				if swap.partial {
-					if resolve_swap.amount_out == swap.amount_out {
-						log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactOut(partial) resolved fully, amount_out: {:?}, amount_in: {:?}, resolved_amount_in: {:?}", 
-							LOG_PREFIX, swap.amount_out, swap.amount_in, resolve_swap.amount_in);
 
-						ensure!(resolve_swap.amount_in <= swap.amount_in, Error::<T>::LimitViolation);
-						return Ok(());
-					}
+			let limit = intent.data.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 
-					let limit = intent.data.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), partial intent resolved partially, amount_in: {:?}, resolve.amount_in: {:?}, limit: {:?}, resolve.amount_out: {:?}", 
+				LOG_PREFIX, swap.amount_in, resolve_swap.amount_in, limit, resolve_swap.amount_out);
 
-					log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactOut(partial) resolved partially, amount_out: {:?}, resolve_amount_in: {:?}, limit: {:?}, resolve_amount_in: {:?}", LOG_PREFIX, swap.amount_out, resolve_swap.amount_out, limit, resolve_swap.amount_in);
+			ensure!(resolve_swap.amount_in < swap.amount_in, Error::<T>::LimitViolation);
+			ensure!(resolve_swap.amount_out >= limit, Error::<T>::LimitViolation);
+		} else {
+			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactIn resolved, amount_in: {:?}, resolve.amount_in: {:?}, amount_out: {:?}, resolve.amount_out: {:?}", 
+				LOG_PREFIX, swap.amount_in, resolve_swap.amount_in, swap.amount_out, resolve_swap.amount_out);
 
-					ensure!(resolve_swap.amount_in <= limit, Error::<T>::LimitViolation);
-					ensure!(resolve_swap.amount_out < swap.amount_out, Error::<T>::LimitViolation);
-				} else {
-					log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactOut resolved, amount_in: {:?}, resolve_amount_in: {:?}, amount_out: {:?}, resolve_amount_out: {:?}", LOG_PREFIX, swap.amount_in, resolve_swap.amount_in, swap.amount_out, resolve_swap.amount_out);
-
-					ensure!(resolve_swap.amount_in <= swap.amount_in, Error::<T>::LimitViolation);
-					ensure!(resolve_swap.amount_out == swap.amount_out, Error::<T>::LimitViolation);
-				}
-			}
+			ensure!(resolve_swap.amount_in == swap.amount_in, Error::<T>::LimitViolation);
+			ensure!(resolve_swap.amount_out >= swap.amount_out, Error::<T>::LimitViolation);
 		}
 
 		Ok(())
@@ -565,36 +539,19 @@ impl<T: Config> Pallet<T> {
 
 	// Function updates intent's `SwapData` and returns `true` if intent was fully resolved.
 	fn resolve_swap_intent(intent: &mut SwapData, resolve: &SwapData) -> Result<bool, DispatchError> {
-		match intent.swap_type {
-			SwapType::ExactIn => {
-				intent.amount_in = intent
-					.amount_in
-					.checked_sub(resolve.amount_in)
-					.ok_or(Error::<T>::ArithmeticOverflow)?;
+		intent.amount_in = intent
+			.amount_in
+			.checked_sub(resolve.amount_in)
+			.ok_or(Error::<T>::ArithmeticOverflow)?;
 
-				intent.amount_out = intent.amount_out.saturating_sub(resolve.amount_out);
+		intent.amount_out = intent.amount_out.saturating_sub(resolve.amount_out);
 
-				if intent.amount_in.is_zero() {
-					ensure!(intent.amount_out.is_zero(), Error::<T>::LimitViolation);
-					return Ok(true);
-				}
-
-				Ok(false)
-			}
-			SwapType::ExactOut => {
-				intent.amount_in = intent
-					.amount_in
-					.checked_sub(resolve.amount_in)
-					.ok_or(Error::<T>::ArithmeticOverflow)?;
-
-				intent.amount_out = intent
-					.amount_out
-					.checked_sub(resolve.amount_out)
-					.ok_or(Error::<T>::ArithmeticOverflow)?;
-
-				Ok(intent.amount_out.is_zero())
-			}
+		if intent.amount_in.is_zero() {
+			ensure!(intent.amount_out.is_zero(), Error::<T>::LimitViolation);
+			return Ok(true);
 		}
+
+		Ok(false)
 	}
 
 	/// Function unlocks reserved `amount` of `asset_id` for `who`.

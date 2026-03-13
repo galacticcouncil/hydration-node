@@ -31,7 +31,6 @@ fn solution_execution_should_work_when_solution_is_valid() {
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 4 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -46,7 +45,6 @@ fn solution_execution_should_work_when_solution_is_valid() {
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 8 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: None,
@@ -59,9 +57,8 @@ fn solution_execution_should_work_when_solution_is_valid() {
 					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
-						amount_in: ONE_QUINTIL,
+						amount_in: ONE_QUINTIL / 2,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -83,9 +80,9 @@ fn solution_execution_should_work_when_solution_is_valid() {
 			PoolType::Omnipool,
 			ETH,
 			HDX,
-			16_000_000 * ONE_HDX,
+			17_000_000 * ONE_HDX,
 			ONE_QUINTIL / 2,
-			16_000_000 * ONE_HDX,
+			17_000_000 * ONE_HDX,
 		)
 		.build()
 		.execute_with(|| {
@@ -93,33 +90,30 @@ fn solution_execution_should_work_when_solution_is_valid() {
 				ResolvedIntent {
 					id: 2_u128,
 					data: IntentData::Swap(SwapData {
-						asset_in: 4,
-						asset_out: 0,
-						amount_in: 500000000000000000,
-						amount_out: 16000000000000000000,
-						swap_type: SwapType::ExactOut,
+						asset_in: ETH,
+						asset_out: HDX,
+						amount_in: 500_000_000_000_000_000,
+						amount_out: 17_000_000 * ONE_HDX,
 						partial: false,
 					}),
 				},
 				ResolvedIntent {
 					id: 1_u128,
 					data: IntentData::Swap(SwapData {
-						asset_in: 0,
-						asset_out: 2,
-						amount_in: 10000000000000000,
-						amount_out: 100000000000,
-						swap_type: SwapType::ExactIn,
+						asset_in: HDX,
+						asset_out: DOT,
+						amount_in: 10_000 * ONE_HDX,
+						amount_out: 10 * ONE_DOT,
 						partial: false,
 					}),
 				},
 				ResolvedIntent {
 					id: 0_u128,
 					data: IntentData::Swap(SwapData {
-						asset_in: 0,
-						asset_out: 2,
-						amount_in: 5000000000000000,
-						amount_out: 50000000000,
-						swap_type: SwapType::ExactIn,
+						asset_in: HDX,
+						asset_out: DOT,
+						amount_in: 5_000 * ONE_HDX,
+						amount_out: 5 * ONE_DOT,
 						partial: false,
 					}),
 				},
@@ -140,7 +134,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 				},
 				PoolTrade {
 					amount_in: ONE_QUINTIL / 2,
-					amount_out: 16_000_000 * ONE_HDX,
+					amount_out: 17_000_000 * ONE_HDX,
 					direction: SwapType::ExactOut,
 					route: vec![RTrade {
 						pool: PoolType::Omnipool,
@@ -155,7 +149,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 			let s = Solution {
 				resolved_intents: resolved.try_into().unwrap(),
 				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
+				score: 1_000_000_030_000_000_000_u128,
 			};
 
 			assert_ok!(ICE::submit_solution(RuntimeOrigin::none(), s, 1));
@@ -182,7 +176,6 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 4 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -197,10 +190,9 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 8 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
+					deadline: None,
 					on_resolved: None,
 				},
 			),
@@ -210,9 +202,8 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
-						amount_in: ONE_QUINTIL,
+						amount_in: ONE_QUINTIL / 2,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -234,9 +225,9 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 			PoolType::Omnipool,
 			ETH,
 			HDX,
-			16_000_000 * ONE_HDX,
+			17_000_000 * ONE_HDX,
 			ONE_QUINTIL / 2,
-			16_000_000 * ONE_HDX,
+			17_000_000 * ONE_HDX,
 		)
 		.build()
 		.execute_with(|| {
@@ -244,33 +235,30 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 				ResolvedIntent {
 					id: 2_u128,
 					data: IntentData::Swap(SwapData {
-						asset_in: 4,
-						asset_out: 0,
-						amount_in: 500000000000000000,
-						amount_out: 16000000000000000000,
-						swap_type: SwapType::ExactOut,
+						asset_in: ETH,
+						asset_out: HDX,
+						amount_in: 500_000_000_000_000_000,
+						amount_out: 17_000_000 * ONE_HDX,
 						partial: false,
 					}),
 				},
 				ResolvedIntent {
 					id: 1_u128,
 					data: IntentData::Swap(SwapData {
-						asset_in: 0,
-						asset_out: 2,
-						amount_in: 10000000000000000,
-						amount_out: 100000000000,
-						swap_type: SwapType::ExactIn,
+						asset_in: HDX,
+						asset_out: DOT,
+						amount_in: 10_000 * ONE_HDX,
+						amount_out: 10 * ONE_DOT,
 						partial: false,
 					}),
 				},
 				ResolvedIntent {
 					id: 0_u128,
 					data: IntentData::Swap(SwapData {
-						asset_in: 0,
-						asset_out: 2,
-						amount_in: 5000000000000000,
-						amount_out: 50000000000,
-						swap_type: SwapType::ExactIn,
+						asset_in: HDX,
+						asset_out: DOT,
+						amount_in: 5_000 * ONE_HDX,
+						amount_out: 5 * ONE_DOT,
 						partial: false,
 					}),
 				},
@@ -291,7 +279,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 				},
 				PoolTrade {
 					amount_in: ONE_QUINTIL / 2,
-					amount_out: 16_000_000 * ONE_HDX,
+					amount_out: 17_000_000 * ONE_HDX,
 					direction: SwapType::ExactOut,
 					route: vec![RTrade {
 						pool: PoolType::Omnipool,
@@ -336,7 +324,6 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 4 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -351,7 +338,6 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 8 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -366,7 +352,6 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -402,7 +387,6 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 						asset_out: 0,
 						amount_in: 500000000000000000,
 						amount_out: 16000000000000000000,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 				},
@@ -413,7 +397,6 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 						asset_out: 2,
 						amount_in: 10000000000000000,
 						amount_out: 100000000000,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 				},
@@ -424,7 +407,6 @@ fn solution_execution_should_not_work_when_solution_is_not_valid_for_current_blo
 						asset_out: 2,
 						amount_in: 5000000000000000,
 						amount_out: 50000000000,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 				},
@@ -490,7 +472,6 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 4 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -505,7 +486,6 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 8 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -520,7 +500,6 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -535,7 +514,6 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -567,44 +545,40 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 				ResolvedIntent {
 					id: 2_u128,
 					data: IntentData::Swap(SwapData {
-						asset_in: 4,
-						asset_out: 0,
-						amount_in: 500000000000000000,
-						amount_out: 16000000000000000000,
-						swap_type: SwapType::ExactOut,
+						asset_in: ETH,
+						asset_out: HDX,
+						amount_in: ONE_QUINTIL,
+						amount_out: 16_000_000 * ONE_HDX,
 						partial: false,
 					}),
 				},
 				ResolvedIntent {
 					id: 1_u128,
 					data: IntentData::Swap(SwapData {
-						asset_in: 0,
-						asset_out: 2,
-						amount_in: 10000000000000000,
-						amount_out: 100000000000,
-						swap_type: SwapType::ExactIn,
+						asset_in: HDX,
+						asset_out: DOT,
+						amount_in: 10_000 * ONE_HDX,
+						amount_out: 8 * ONE_DOT,
 						partial: false,
 					}),
 				},
 				ResolvedIntent {
 					id: 0_u128,
 					data: IntentData::Swap(SwapData {
-						asset_in: 0,
-						asset_out: 2,
-						amount_in: 5000000000000000,
-						amount_out: 50000000000,
-						swap_type: SwapType::ExactIn,
+						asset_in: HDX,
+						asset_out: DOT,
+						amount_in: 5_000 * ONE_HDX,
+						amount_out: 4 * ONE_DOT,
 						partial: false,
 					}),
 				},
 				ResolvedIntent {
 					id: 2_u128,
 					data: IntentData::Swap(SwapData {
-						asset_in: 4,
-						asset_out: 0,
-						amount_in: 500000000000000000,
-						amount_out: 16000000000000000000,
-						swap_type: SwapType::ExactOut,
+						asset_in: ETH,
+						asset_out: HDX,
+						amount_in: ONE_QUINTIL,
+						amount_out: 16_000_000 * ONE_HDX,
 						partial: false,
 					}),
 				},
@@ -624,7 +598,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 					.unwrap(),
 				},
 				PoolTrade {
-					amount_in: ONE_QUINTIL / 2,
+					amount_in: ONE_QUINTIL,
 					amount_out: 16_000_000 * ONE_HDX,
 					direction: SwapType::ExactOut,
 					route: vec![RTrade {
@@ -640,7 +614,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			let s = Solution {
 				resolved_intents: resolved.try_into().unwrap(),
 				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
+				score: 0_u128,
 			};
 
 			assert_noop!(
@@ -670,7 +644,6 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 4 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -685,7 +658,6 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 8 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -700,7 +672,6 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -736,7 +707,6 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						asset_out: 0,
 						amount_in: 500000000000000000,
 						amount_out: 16000000000000000000,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 				},
@@ -747,7 +717,6 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						asset_out: 2,
 						amount_in: 10000000000000000,
 						amount_out: 100000000000,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 				},
@@ -758,7 +727,6 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						asset_out: 2,
 						amount_in: 5000000000000000,
 						amount_out: 50000000000,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 				},
@@ -824,7 +792,6 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 4 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -839,7 +806,6 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 8 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -854,7 +820,6 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -880,7 +845,6 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 					asset_out: 2,
 					amount_in: 5000000000000000,
 					amount_out: 50000000000,
-					swap_type: SwapType::ExactIn,
 					partial: false,
 				}),
 			}];
@@ -928,7 +892,6 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 5 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -943,7 +906,6 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 8 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -958,7 +920,6 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -984,7 +945,6 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 					asset_out: 2,
 					amount_in: 5000000000000000,
 					amount_out: 50000000000,
-					swap_type: SwapType::ExactIn,
 					partial: false,
 				}),
 			}];
@@ -1032,7 +992,6 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 4 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -1047,7 +1006,6 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 8 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -1062,7 +1020,6 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -1098,7 +1055,6 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						asset_out: HDX,
 						amount_in: 500_000_000_000_000_000,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 				},
@@ -1109,7 +1065,6 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 10 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 				},
@@ -1120,7 +1075,6 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						asset_out: DOT,
 						amount_in: DummyRegistry::existential_deposit(HDX).expect("dummy registry to work") - 1,
 						amount_out: 5 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 				},
@@ -1186,7 +1140,6 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 4 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -1201,7 +1154,6 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 8 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -1216,7 +1168,6 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -1252,7 +1203,6 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						asset_out: HDX,
 						amount_in: 500000000000000000,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 				},
@@ -1263,7 +1213,6 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 10 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 				},
@@ -1274,7 +1223,6 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: DummyRegistry::existential_deposit(DOT).expect("dummy registry to work") - 1,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 				},
@@ -1340,7 +1288,6 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 4 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -1355,10 +1302,9 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 8 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
-					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
+					deadline: None,
 					on_resolved: None,
 				},
 			),
@@ -1368,9 +1314,8 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
-						amount_in: ONE_QUINTIL,
+						amount_in: ONE_QUINTIL / 2,
 						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
@@ -1385,16 +1330,16 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 			DOT,
 			15_000 * ONE_HDX,
 			15_000 * ONE_HDX,
-			16 * ONE_DOT,
+			15 * ONE_DOT,
 		)
 		.with_router_settlement(
 			SwapType::ExactOut,
 			PoolType::Omnipool,
 			ETH,
 			HDX,
-			16_000_000 * ONE_HDX,
+			17_000_000 * ONE_HDX,
 			ONE_QUINTIL / 2,
-			16_000_000 * ONE_HDX,
+			17_000_000 * ONE_HDX,
 		)
 		.build()
 		.execute_with(|| {
@@ -1404,9 +1349,8 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 					data: IntentData::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
-						amount_in: 500000000000000000,
-						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
+						amount_in: 500_000_000_000_000_000,
+						amount_out: 17_000_000 * ONE_HDX,
 						partial: false,
 					}),
 				},
@@ -1417,172 +1361,16 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 10 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 				},
 				ResolvedIntent {
 					id: 0_u128,
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 5_000 * ONE_HDX,
-						amount_out: 6 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
-						partial: false,
-					}),
-				},
-			];
-
-			let trades = vec![
-				PoolTrade {
-					amount_in: 15_000 * ONE_HDX,
-					amount_out: 12 * ONE_DOT,
-					direction: SwapType::ExactIn,
-					route: vec![RTrade {
-						pool: PoolType::XYK,
-						asset_in: HDX,
-						asset_out: DOT,
-					}]
-					.try_into()
-					.unwrap(),
-				},
-				PoolTrade {
-					amount_in: ONE_QUINTIL / 2,
-					amount_out: 16_000_000 * ONE_HDX,
-					direction: SwapType::ExactOut,
-					route: vec![RTrade {
-						pool: PoolType::Omnipool,
-						asset_in: ETH,
-						asset_out: HDX,
-					}]
-					.try_into()
-					.unwrap(),
-				},
-			];
-
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
-			};
-
-			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::none(), s, 1),
-				Error::<Test>::PriceInconsistency
-			);
-		});
-}
-
-#[test]
-fn solution_execution_should_not_work_when_execution_prices_are_not_consistent() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(ALICE, HDX, 10_000 * ONE_HDX),
-			(ALICE, DOT, 10_000 * ONE_DOT),
-			(BOB, HDX, 10_000 * ONE_HDX),
-			(BOB, ETH, 10_000 * ONE_QUINTIL),
-			(DAVE, HDX, 20_000 * ONE_HDX),
-			(DAVE, DOT, 20_000 * ONE_DOT),
-		])
-		.with_intents(vec![
-			(
-				ALICE,
-				Intent {
 					data: IntentData::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 4 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_resolved: None,
-				},
-			),
-			(
-				DAVE,
-				Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 10_000 * ONE_HDX,
-						amount_out: 8 * ONE_DOT,
-						swap_type: SwapType::ExactOut,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_resolved: None,
-				},
-			),
-			(
-				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: ETH,
-						asset_out: HDX,
-						amount_in: ONE_QUINTIL,
-						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_resolved: None,
-				},
-			),
-		])
-		.with_router_settlement(
-			SwapType::ExactIn,
-			PoolType::XYK,
-			HDX,
-			DOT,
-			15_000 * ONE_HDX,
-			15_000 * ONE_HDX,
-			16 * ONE_DOT,
-		)
-		.with_router_settlement(
-			SwapType::ExactOut,
-			PoolType::Omnipool,
-			ETH,
-			HDX,
-			16_000_000 * ONE_HDX,
-			ONE_QUINTIL / 2,
-			16_000_000 * ONE_HDX,
-		)
-		.build()
-		.execute_with(|| {
-			let resolved = vec![
-				ResolvedIntent {
-					id: 2_u128,
-					data: IntentData::Swap(SwapData {
-						asset_in: ETH,
-						asset_out: HDX,
-						amount_in: 500000000000000000,
-						amount_out: 16_000_000 * ONE_HDX,
-						swap_type: SwapType::ExactOut,
-						partial: false,
-					}),
-				},
-				ResolvedIntent {
-					id: 1_u128,
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 10_000 * ONE_HDX,
-						amount_out: 8 * ONE_DOT,
-						swap_type: SwapType::ExactOut,
-						partial: false,
-					}),
-				},
-				ResolvedIntent {
-					id: 0_u128,
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 5_000 * ONE_HDX,
-						amount_out: 6 * ONE_DOT,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 				},
@@ -1591,7 +1379,7 @@ fn solution_execution_should_not_work_when_execution_prices_are_not_consistent()
 			let trades = vec![
 				PoolTrade {
 					amount_in: 15_000 * ONE_HDX,
-					amount_out: 12 * ONE_DOT,
+					amount_out: 15 * ONE_DOT,
 					direction: SwapType::ExactIn,
 					route: vec![RTrade {
 						pool: PoolType::XYK,
@@ -1603,7 +1391,7 @@ fn solution_execution_should_not_work_when_execution_prices_are_not_consistent()
 				},
 				PoolTrade {
 					amount_in: ONE_QUINTIL / 2,
-					amount_out: 16_000_000 * ONE_HDX,
+					amount_out: 17_000_000 * ONE_HDX,
 					direction: SwapType::ExactOut,
 					route: vec![RTrade {
 						pool: PoolType::Omnipool,
@@ -1618,12 +1406,12 @@ fn solution_execution_should_not_work_when_execution_prices_are_not_consistent()
 			let s = Solution {
 				resolved_intents: resolved.try_into().unwrap(),
 				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
+				score: 1_000_000_030_000_000_000_u128,
 			};
 
 			assert_noop!(
 				ICE::submit_solution(RuntimeOrigin::none(), s, 1),
-				Error::<Test>::PriceToleranceInconsistency
+				Error::<Test>::PriceInconsistency
 			);
 		});
 }

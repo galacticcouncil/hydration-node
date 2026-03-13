@@ -53,8 +53,6 @@ use ice_support::Price;
 use ice_support::ResolvedIntent;
 use ice_support::Score;
 use ice_support::Solution;
-use ice_support::SwapType;
-use num_traits::{SaturatingMul, SaturatingSub};
 use orml_traits::MultiCurrency;
 use pallet_route_executor::AmmTradeWeights;
 use sp_core::U256;
@@ -63,7 +61,6 @@ use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::CheckedConversion;
 use sp_runtime::traits::One;
 use sp_runtime::traits::Saturating;
-use sp_runtime::Permill;
 use sp_std::borrow::ToOwned;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
@@ -115,9 +112,6 @@ pub mod pallet {
 		/// Simulator configuration - provides simulators and route provider for the solver
 		type Simulator: SimulatorConfig;
 
-		/// Allowed price difference between buy and sell prices for same asset pair.
-		type BuyVsSellPriceTolerance: Get<Permill>;
-
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -161,8 +155,6 @@ pub mod pallet {
 		AssetNotFound,
 		/// Traded amount is bellow limit.
 		InvalidAmount,
-		/// Difference buy vs sell price is bigger than tolerance.
-		PriceToleranceInconsistency,
 	}
 
 	#[pallet::call]
@@ -266,7 +258,7 @@ pub mod pallet {
 			}
 
 			let mut exec_score: Score = 0;
-			let mut exec_prices: BTreeMap<(AssetId, AssetId, SwapType), Price> = BTreeMap::new();
+			let mut exec_prices: BTreeMap<(AssetId, AssetId), Price> = BTreeMap::new();
 			for resolved_intent in &solution.resolved_intents {
 				let ResolvedIntent { id, data: resolve } = resolved_intent;
 				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), resolving intent, id: {:?}", LOG_PREFIX, id);
@@ -404,15 +396,14 @@ impl<T: Config> Pallet<T> {
 	/// direction.
 	/// `exeuction_prices` are [out/in] => [in] * [out/in] = [out]
 	fn validate_price_consistency(
-		execution_prices: &mut BTreeMap<(AssetId, AssetId, SwapType), Price>,
+		execution_prices: &mut BTreeMap<(AssetId, AssetId), Price>,
 		resolve: &IntentData,
 	) -> Result<(), DispatchError> {
 		{
 			let asset_in = resolve.asset_in();
 			let asset_out = resolve.asset_out();
-			let swap_type = resolve.swap_type();
 
-			let exec_price = if let Some(ep) = execution_prices.get(&(asset_in, asset_out, swap_type)) {
+			let exec_price = if let Some(ep) = execution_prices.get(&(asset_in, asset_out)) {
 				ep
 			} else {
 				let new_price = Ratio {
@@ -420,21 +411,8 @@ impl<T: Config> Pallet<T> {
 					d: resolve.amount_in(),
 				};
 
-				if let Some(reverse_price) = execution_prices.get(&(asset_in, asset_out, swap_type.reverse())) {
-					let tolerance = reverse_price.saturating_mul(&T::BuyVsSellPriceTolerance::get().into());
+				execution_prices.insert((asset_in, asset_out), new_price);
 
-					let price_diff = if new_price.gt(reverse_price) {
-						new_price.saturating_sub(reverse_price)
-					} else {
-						reverse_price.saturating_sub(&new_price)
-					};
-
-					log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_price_consistency(), price: {:?}, reverse_price: {:?}, tolerance: {:?}, diff: {:?}",
-						LOG_PREFIX, new_price, reverse_price, tolerance, price_diff);
-					ensure!(price_diff <= tolerance, Error::<T>::PriceToleranceInconsistency);
-				}
-
-				execution_prices.insert((asset_in, asset_out, swap_type), new_price);
 				&new_price.clone()
 			};
 
@@ -483,7 +461,7 @@ impl<T: Config> Pallet<T> {
 
 		let mut processed_intents: BTreeSet<IntentId> = BTreeSet::new();
 		let mut score: Score = 0;
-		let mut exec_prices: BTreeMap<(AssetId, AssetId, SwapType), Price> = BTreeMap::new();
+		let mut exec_prices: BTreeMap<(AssetId, AssetId), Price> = BTreeMap::new();
 		for ResolvedIntent { id, data: resolve } in &solution.resolved_intents {
 			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), resolved intent, id: {:?}", LOG_PREFIX, id);
 			Self::validate_intent_amounts(resolve)?;
