@@ -112,13 +112,19 @@ impl MaybeEvmCall<RuntimeCall> for EvmCallIdentifier {
 	}
 }
 
+parameter_types! {
+	pub EmergencyAdminAccount: AccountId = 99;
+}
+
 impl dispatcher::Config for Test {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type TreasuryManagerOrigin = EnsureRoot<AccountId>;
 	type AaveManagerOrigin = EnsureRoot<AccountId>;
+	type EmergencyAdminOrigin = EnsureRoot<AccountId>;
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = TreasuryAccount;
+	type DefaultEmergencyAdminAccount = EmergencyAdminAccount;
 	type WeightInfo = ();
 	type EvmCallIdentifier = EvmCallIdentifier;
 	type GasWeightMapping = MockGasWeightMapping;
@@ -290,6 +296,7 @@ impl Default for ExtBuilder {
 				(ALICE, DAI, 100),
 				(BOB, DAI, 100),
 				(TreasuryAccount::get(), HDX, 1_000_000),
+				(EmergencyAdminAccount::get(), HDX, 1_000_000),
 			],
 			registered_assets: vec![HDX, DAI],
 		}

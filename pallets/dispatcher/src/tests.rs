@@ -179,3 +179,86 @@ fn decrease_gas_limit_should_work() {
 		assert_eq!(ExtraGas::<Test>::get(), 0u64);
 	});
 }
+
+#[test]
+fn dispatch_as_emergency_admin_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let call = Box::new(RuntimeCall::Tokens(orml_tokens::Call::transfer {
+			dest: ALICE,
+			currency_id: HDX,
+			amount: 1_000,
+		}));
+
+		let call_hash = BlakeTwo256::hash_of(&call);
+		let admin_balance_before =
+			Tokens::free_balance(HDX, &crate::mock::EmergencyAdminAccount::get());
+
+		assert_ok!(Dispatcher::dispatch_as_emergency_admin(
+			RuntimeOrigin::root(),
+			call
+		));
+
+		let admin_balance_after =
+			Tokens::free_balance(HDX, &crate::mock::EmergencyAdminAccount::get());
+
+		assert_eq!(admin_balance_after, admin_balance_before - 1_000);
+
+		expect_events(vec![Event::EmergencyAdminCallDispatched {
+			call_hash,
+			result: Ok(PostDispatchInfo {
+				actual_weight: None,
+				pays_fee: Pays::Yes,
+			}),
+		}
+		.into()]);
+	});
+}
+
+#[test]
+fn dispatch_as_emergency_admin_should_fail_when_bad_origin() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call = Box::new(RuntimeCall::System(frame_system::Call::remark_with_event {
+			remark: vec![1],
+		}));
+
+		assert_noop!(
+			Dispatcher::dispatch_as_emergency_admin(RuntimeOrigin::signed(ALICE), call),
+			DispatchError::BadOrigin
+		);
+		expect_events(vec![]);
+	});
+}
+
+#[test]
+fn note_emergency_admin_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		let new_account: AccountId = 42;
+
+		assert_ok!(Dispatcher::note_emergency_admin(
+			RuntimeOrigin::root(),
+			new_account
+		));
+
+		assert_eq!(
+			Dispatcher::emergency_admin_account(),
+			new_account
+		);
+
+		expect_events(vec![Event::EmergencyAdminAccountNoted {
+			account: new_account,
+		}
+		.into()]);
+	});
+}
+
+#[test]
+fn note_emergency_admin_should_fail_when_not_root() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_noop!(
+			Dispatcher::note_emergency_admin(RuntimeOrigin::signed(ALICE), 42),
+			DispatchError::BadOrigin
+		);
+		expect_events(vec![]);
+	});
+}
