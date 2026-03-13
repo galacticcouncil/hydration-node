@@ -1,0 +1,44 @@
+[package]
+name = "ice-support"
+version = "1.0.0"
+authors = ['GalacticCouncil']
+edition = "2021"
+license = "Apache-2.0"
+homepage = 'https://github.com/galacticcouncil/hydration-node'
+repository = 'https://github.com/galacticcouncil/hydration-node'
+description = ""
+
+
+[dependencies]
+# parity
+codec = { workspace = true, features = ["derive", "max-encoded-len"] }
+scale-info = { workspace = true }
+
+# primitives
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+
+# FRAME
+frame-support = { workspace = true }
+
+# Hydration dependencies
+hydradx-traits = {workspace = true}
+
+# Math
+hydra-dx-math = { workspace = true }
+
+
+[dev-dependencies]
+
+
+[features]
+default = ['std']
+std = [
+    'codec/std',
+    'scale-info/std',
+    'frame-support/std',
+    'sp-std/std',
+    'sp-core/std',
+    'hydradx-traits/std',
+    'hydra-dx-math/std',
+]
