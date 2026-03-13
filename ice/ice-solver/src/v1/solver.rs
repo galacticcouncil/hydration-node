@@ -82,10 +82,7 @@ impl<A: AMMInterface> SolverV1<A> {
 			let intent = satisfiable_intents[0];
 			let IntentData::Swap(swap) = &intent.data;
 
-			let trade_result = match swap.swap_type {
-				SwapType::ExactIn => A::sell(swap.asset_in, swap.asset_out, swap.amount_in, None, &state),
-				SwapType::ExactOut => A::buy(swap.asset_in, swap.asset_out, swap.amount_out, None, &state),
-			};
+			let trade_result = A::sell(swap.asset_in, swap.asset_out, swap.amount_in, None, &state);
 
 			match trade_result {
 				Ok((_new_state, trade_execution)) => {
@@ -95,7 +92,7 @@ impl<A: AMMInterface> SolverV1<A> {
 					actual_prices.insert(swap.asset_out, inverse_ratio);
 
 					executed_trades.push(PoolTrade {
-						direction: swap.swap_type,
+						direction: SwapType::ExactIn,
 						amount_in: trade_execution.amount_in,
 						amount_out: trade_execution.amount_out,
 						route: trade_execution.route,
@@ -216,17 +213,8 @@ impl<A: AMMInterface> SolverV1<A> {
 			let IntentData::Swap(swap) = &intent.data;
 			let trade = &executed_trades[0];
 
-			let limits_ok = match swap.swap_type {
-				SwapType::ExactIn => trade.amount_out >= swap.amount_out,
-				SwapType::ExactOut => trade.amount_in <= swap.amount_in,
-			};
-
-			if limits_ok {
-				let surplus = match swap.swap_type {
-					SwapType::ExactIn => trade.amount_out.saturating_sub(swap.amount_out),
-					SwapType::ExactOut => swap.amount_in.saturating_sub(trade.amount_in),
-				};
-				total_score = surplus;
+			if trade.amount_out >= swap.amount_out {
+				total_score = trade.amount_out.saturating_sub(swap.amount_out);
 
 				resolved_intents.push(ResolvedIntent {
 					id: intent.id,
@@ -235,7 +223,6 @@ impl<A: AMMInterface> SolverV1<A> {
 						asset_out: swap.asset_out,
 						amount_in: trade.amount_in,
 						amount_out: trade.amount_out,
-						swap_type: swap.swap_type,
 						partial: false,
 					}),
 				});
@@ -246,19 +233,7 @@ impl<A: AMMInterface> SolverV1<A> {
 
 			for intent in &satisfiable_intents {
 				let IntentData::Swap(swap) = &intent.data;
-				let amount_in = match swap.swap_type {
-					SwapType::ExactIn => swap.amount_in,
-					SwapType::ExactOut => {
-						if let (Some(price_in), Some(price_out)) =
-							(actual_prices.get(&swap.asset_in), actual_prices.get(&swap.asset_out))
-						{
-							Self::calc_amount_in(swap.amount_out, price_in, price_out).unwrap_or(swap.amount_in)
-						} else {
-							swap.amount_in
-						}
-					}
-				};
-				*available.entry(swap.asset_in).or_default() += amount_in;
+				*available.entry(swap.asset_in).or_default() += swap.amount_in;
 			}
 
 			for trade in &executed_trades {
@@ -279,74 +254,8 @@ impl<A: AMMInterface> SolverV1<A> {
 				}
 			}
 
-			// Process ExactOut first (they need exact amounts), then ExactIn (can be scaled)
-			let mut committed_output: BTreeMap<AssetId, Balance> = BTreeMap::new();
-
-			for (idx, resolved) in ideal_resolutions.iter() {
-				let intent = satisfiable_intents[*idx];
-				let IntentData::Swap(swap) = &intent.data;
-
-				if swap.swap_type != SwapType::ExactOut {
-					continue;
-				}
-
-				let asset_out = resolved.data.asset_out();
-				let amount_out = swap.amount_out;
-				let avail = available.get(&asset_out).copied().unwrap_or(0);
-				let already_committed = committed_output.get(&asset_out).copied().unwrap_or(0);
-
-				if already_committed + amount_out > avail {
-					continue;
-				}
-
-				let (Some(price_in), Some(price_out)) =
-					(actual_prices.get(&swap.asset_in), actual_prices.get(&swap.asset_out))
-				else {
-					continue;
-				};
-
-				let Some(actual_in) = Self::calc_amount_in(amount_out, price_in, price_out) else {
-					continue;
-				};
-
-				if actual_in > swap.amount_in {
-					continue;
-				}
-
-				*committed_output.entry(asset_out).or_default() += amount_out;
-
-				let surplus = swap.amount_in.saturating_sub(actual_in);
-				total_score = total_score.saturating_add(surplus);
-
-				resolved_intents.push(ResolvedIntent {
-					id: intent.id,
-					data: IntentData::Swap(SwapData {
-						asset_in: swap.asset_in,
-						asset_out: swap.asset_out,
-						amount_in: actual_in,
-						amount_out,
-						swap_type: SwapType::ExactOut,
-						partial: false,
-					}),
-				});
-			}
-
-			// Process ExactIn intents with remaining availability
-			let mut remaining_avail: BTreeMap<AssetId, Balance> = BTreeMap::new();
-			for (asset, &avail) in &available {
-				let committed = committed_output.get(asset).copied().unwrap_or(0);
-				remaining_avail.insert(*asset, avail.saturating_sub(committed));
-			}
-
 			let mut exactin_demand: BTreeMap<AssetId, Balance> = BTreeMap::new();
-			for (idx, resolved) in ideal_resolutions.iter() {
-				let intent = satisfiable_intents[*idx];
-				let IntentData::Swap(swap) = &intent.data;
-
-				if swap.swap_type != SwapType::ExactIn {
-					continue;
-				}
-
+			for (_, resolved) in ideal_resolutions.iter() {
 				let asset_out = resolved.data.asset_out();
 				let ideal_amount = resolved.data.amount_out();
 				*exactin_demand.entry(asset_out).or_default() += ideal_amount;
@@ -356,13 +265,9 @@ impl<A: AMMInterface> SolverV1<A> {
 				let intent = satisfiable_intents[idx];
 				let IntentData::Swap(swap) = &intent.data;
 
-				if swap.swap_type != SwapType::ExactIn {
-					continue;
-				}
-
 				let asset_out = resolved.data.asset_out();
 				let ideal_amount = resolved.data.amount_out();
-				let remaining = remaining_avail.get(&asset_out).copied().unwrap_or(0);
+				let remaining = available.get(&asset_out).copied().unwrap_or(0);
 				let total_demand = exactin_demand.get(&asset_out).copied().unwrap_or(0);
 
 				// Scale down proportionally if total ExactIn demand exceeds remaining availability
@@ -390,7 +295,6 @@ impl<A: AMMInterface> SolverV1<A> {
 						asset_out: swap.asset_out,
 						amount_in: swap.amount_in,
 						amount_out: actual_out,
-						swap_type: SwapType::ExactIn,
 						partial: false,
 					}),
 				});
@@ -427,25 +331,16 @@ impl<A: AMMInterface> SolverV1<A> {
 					return false;
 				};
 
-				match swap.swap_type {
-					SwapType::ExactIn => {
-						let Some(calculated_out) = Self::calc_amount_out(swap.amount_in, price_in, price_out) else {
-							return false;
-						};
-						calculated_out >= swap.amount_out
-					}
-					SwapType::ExactOut => {
-						let Some(calculated_in) = Self::calc_amount_in(swap.amount_out, price_in, price_out) else {
-							return false;
-						};
-						calculated_in <= swap.amount_in
-					}
-				}
+				let Some(calculated_out) = Self::calc_amount_out(swap.amount_in, price_in, price_out) else {
+					return false;
+				};
+				calculated_out >= swap.amount_out
 			}
 		}
 	}
 
 	/// in = amount_out × (price_out / price_in)
+	#[allow(dead_code)]
 	fn calc_amount_in(amount_out: Balance, price_in: &Ratio, price_out: &Ratio) -> Option<Balance> {
 		let n = U512::from(price_out.n) * U512::from(price_in.d);
 		let d = U512::from(price_out.d) * U512::from(price_in.n);
@@ -462,19 +357,9 @@ impl<A: AMMInterface> SolverV1<A> {
 					if let (Some(price_in), Some(price_out)) =
 						(spot_prices.get(&swap.asset_in), spot_prices.get(&swap.asset_out))
 					{
-						match swap.swap_type {
-							SwapType::ExactIn => {
-								flows.entry(swap.asset_in).or_default().total_in += swap.amount_in;
-								if let Some(amount_out) = Self::calc_amount_out(swap.amount_in, price_in, price_out) {
-									flows.entry(swap.asset_out).or_default().total_out += amount_out;
-								}
-							}
-							SwapType::ExactOut => {
-								flows.entry(swap.asset_out).or_default().total_out += swap.amount_out;
-								if let Some(amount_in) = Self::calc_amount_in(swap.amount_out, price_in, price_out) {
-									flows.entry(swap.asset_in).or_default().total_in += amount_in;
-								}
-							}
+						flows.entry(swap.asset_in).or_default().total_in += swap.amount_in;
+						if let Some(amount_out) = Self::calc_amount_out(swap.amount_in, price_in, price_out) {
+							flows.entry(swap.asset_out).or_default().total_out += amount_out;
 						}
 					}
 				}
@@ -490,46 +375,22 @@ impl<A: AMMInterface> SolverV1<A> {
 				let price_in = prices.get(&swap.asset_in)?;
 				let price_out = prices.get(&swap.asset_out)?;
 
-				match swap.swap_type {
-					SwapType::ExactIn => {
-						let amount_out = Self::calc_amount_out(swap.amount_in, price_in, price_out)?;
+				let amount_out = Self::calc_amount_out(swap.amount_in, price_in, price_out)?;
 
-						if amount_out < swap.amount_out {
-							return None;
-						}
-
-						Some(ResolvedIntent {
-							id: intent.id,
-							data: IntentData::Swap(SwapData {
-								asset_in: swap.asset_in,
-								asset_out: swap.asset_out,
-								amount_in: swap.amount_in,
-								amount_out,
-								swap_type: SwapType::ExactIn,
-								partial: false,
-							}),
-						})
-					}
-					SwapType::ExactOut => {
-						let amount_in = Self::calc_amount_in(swap.amount_out, price_in, price_out)?;
-
-						if amount_in > swap.amount_in {
-							return None;
-						}
-
-						Some(ResolvedIntent {
-							id: intent.id,
-							data: IntentData::Swap(SwapData {
-								asset_in: swap.asset_in,
-								asset_out: swap.asset_out,
-								amount_in,
-								amount_out: swap.amount_out,
-								swap_type: SwapType::ExactOut,
-								partial: false,
-							}),
-						})
-					}
+				if amount_out < swap.amount_out {
+					return None;
 				}
+
+				Some(ResolvedIntent {
+					id: intent.id,
+					data: IntentData::Swap(SwapData {
+						asset_in: swap.asset_in,
+						asset_out: swap.asset_out,
+						amount_in: swap.amount_in,
+						amount_out,
+						partial: false,
+					}),
+				})
 			}
 		}
 	}
@@ -562,7 +423,6 @@ mod tests {
 				asset_out,
 				amount_in,
 				amount_out: min_out,
-				swap_type: SwapType::ExactIn,
 				partial: false,
 			}),
 		}

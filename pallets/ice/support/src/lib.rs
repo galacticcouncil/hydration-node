@@ -38,84 +38,58 @@ pub enum IntentData {
 
 impl IntentData {
 	pub fn is_partial(&self) -> bool {
-		match &self {
-			IntentData::Swap(s) => s.partial,
-		}
+		let IntentData::Swap(s) = self;
+
+		s.partial
 	}
 
 	pub fn asset_in(&self) -> AssetId {
-		match &self {
-			IntentData::Swap(s) => s.asset_in,
-		}
+		let IntentData::Swap(s) = self;
+
+		s.asset_in
 	}
 
 	pub fn asset_out(&self) -> AssetId {
-		match &self {
-			IntentData::Swap(s) => s.asset_out,
-		}
+		let IntentData::Swap(s) = self;
+
+		s.asset_out
 	}
 
 	pub fn amount_in(&self) -> Balance {
-		match &self {
-			IntentData::Swap(s) => s.amount_in,
-		}
+		let IntentData::Swap(s) = self;
+
+		return s.amount_in;
 	}
 
 	pub fn amount_out(&self) -> Balance {
-		match &self {
-			IntentData::Swap(s) => s.amount_out,
-		}
+		let IntentData::Swap(s) = self;
+
+		s.amount_out
 	}
 
 	/// Function calculates surplus amount from `resolved` intent.
 	///
 	/// Surplus must be >= zero
 	pub fn surplus(&self, resolve: &IntentData) -> Option<Balance> {
-		match &self {
-			IntentData::Swap(s) => match s.swap_type {
-				SwapType::ExactIn => {
-					let amt = if s.partial {
-						self.pro_rata(resolve)?
-					} else {
-						s.amount_out
-					};
+		let IntentData::Swap(s) = self;
 
-					resolve.amount_out().checked_sub(amt)
-				}
-				SwapType::ExactOut => {
-					let amt = if s.partial {
-						self.pro_rata(resolve)?
-					} else {
-						s.amount_in
-					};
+		let amt = if s.partial {
+			self.pro_rata(resolve)?
+		} else {
+			s.amount_out
+		};
 
-					amt.checked_sub(resolve.amount_in())
-				}
-			},
-		}
+		resolve.amount_out().checked_sub(amt)
 	}
 
 	// Function calculates pro rata amount based on `resolved` intent.
 	pub fn pro_rata(&self, resolve: &IntentData) -> Option<Balance> {
-		match &self {
-			IntentData::Swap(s) => match s.swap_type {
-				SwapType::ExactIn => U256::from(resolve.amount_in())
-					.checked_mul(U256::from(s.amount_out))?
-					.checked_div(U256::from(s.amount_in))?
-					.checked_into(),
+		let IntentData::Swap(s) = self;
 
-				SwapType::ExactOut => U256::from(resolve.amount_out())
-					.checked_mul(U256::from(s.amount_in))?
-					.checked_div(U256::from(s.amount_out))?
-					.checked_into(),
-			},
-		}
-	}
-
-	pub fn swap_type(&self) -> SwapType {
-		let IntentData::Swap(s) = &self;
-
-		s.swap_type
+		U256::from(resolve.amount_in())
+			.checked_mul(U256::from(s.amount_out))?
+			.checked_div(U256::from(s.amount_in))?
+			.checked_into()
 	}
 }
 
@@ -125,7 +99,6 @@ pub struct SwapData {
 	pub asset_out: AssetId,
 	pub amount_in: Balance,
 	pub amount_out: Balance,
-	pub swap_type: SwapType,
 	pub partial: bool,
 }
 
