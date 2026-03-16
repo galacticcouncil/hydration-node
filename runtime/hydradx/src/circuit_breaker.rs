@@ -20,18 +20,20 @@ impl<RC: Get<AssetId>> AssetWithdrawHandler<AccountId, AssetId, Balance> for Wit
 
 pub struct WithdrawCircuitBreaker<ReferenceCurrencyId>(PhantomData<ReferenceCurrencyId>);
 impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrencyId> {
-	fn convert_to_hdx(asset_id: AssetId, amount: Balance) -> Option<Balance> {
+	fn convert_to_hdx(asset_id: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
 		let ref_currency = ReferenceCurrencyId::get();
 		if asset_id == ref_currency {
-			return Some(amount);
+			return Ok(amount);
 		}
 
 		let (converted, _) = ConvertBalance::<TenMinutesOraclePrice, XykPaymentAssetSupport, DotAssetId>::convert((
 			asset_id,
 			ref_currency,
 			amount,
-		))?;
-		Some(converted)
+		))
+		.ok_or(pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset)?;
+
+		Ok(converted)
 	}
 
 	pub fn global_asset_category(asset_id: AssetId) -> Option<GlobalAssetCategory> {
@@ -71,13 +73,6 @@ impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrency
 		}
 	}
 
-	fn on_egress(asset_id: AssetId, amount: Balance) -> DispatchResult {
-		let amount_ref_currency = Self::convert_to_hdx(asset_id, amount)
-			.ok_or(pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset)?;
-
-		pallet_circuit_breaker::Pallet::<Runtime>::note_egress(amount_ref_currency)
-	}
-
 	pub fn is_lockdown_active() -> bool {
 		let now = pallet_circuit_breaker::Pallet::<Runtime>::timestamp_now();
 		pallet_circuit_breaker::Pallet::<Runtime>::is_lockdown_at(now)
@@ -99,19 +94,16 @@ impl<RC: Get<AssetId>> orml_traits::Handler<(AssetId, Balance)> for OnWithdrawHo
 			return Ok(());
 		}
 
-		let converted = WithdrawCircuitBreaker::<RC>::convert_to_hdx(*asset_id, *amount);
-		let Some(amount_ref_currency) = converted else {
-			return Ok(());
-		};
+		let amount_ref_currency = WithdrawCircuitBreaker::<RC>::convert_to_hdx(*asset_id, *amount)?;
 
 		if let Some(mut buffer) = pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::get() {
 			buffer.0 = buffer.0.saturating_add(amount_ref_currency);
 			pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::put(buffer);
+
 			return Ok(());
 		}
 
-		pallet_circuit_breaker::Pallet::<Runtime>::note_egress(amount_ref_currency)?;
-		Ok(())
+		pallet_circuit_breaker::Pallet::<Runtime>::note_egress(amount_ref_currency)
 	}
 }
 
@@ -125,12 +117,15 @@ impl<RC: Get<AssetId>> orml_traits::currency::OnTransfer<AccountId, AssetId, Bal
 			return Ok(());
 		}
 
+		let maybe_converted = WithdrawCircuitBreaker::<RC>::convert_to_hdx(asset_id, amount);
+
 		if WithdrawCircuitBreaker::<RC>::should_account_withdraw_operation(
 			asset_id,
 			EgressOperationKind::Transfer,
 			Some(to),
 		) {
-			WithdrawCircuitBreaker::<RC>::on_egress(asset_id, amount)?;
+			let amount_ref_currency = maybe_converted?;
+			pallet_circuit_breaker::Pallet::<Runtime>::note_egress(amount_ref_currency)?;
 		}
 
 		// Ingress: transfer FROM an egress account, only for Local assets
@@ -141,7 +136,7 @@ impl<RC: Get<AssetId>> orml_traits::currency::OnTransfer<AccountId, AssetId, Bal
 				WithdrawCircuitBreaker::<RC>::global_asset_category(asset_id),
 				Some(GlobalAssetCategory::Local)
 			) {
-			if let Some(amount_ref_currency) = WithdrawCircuitBreaker::<RC>::convert_to_hdx(asset_id, amount) {
+			if let Ok(amount_ref_currency) = maybe_converted {
 				CircuitBreaker::note_deposit(amount_ref_currency);
 			}
 		}
@@ -153,13 +148,12 @@ pub struct OnDepositHook<RC>(PhantomData<RC>);
 impl<RC: Get<AssetId>> orml_traits::Handler<(AssetId, Balance, Option<AccountId>)> for OnDepositHook<RC> {
 	fn handle(t: &(AssetId, Balance, Option<AccountId>)) -> DispatchResult {
 		let (asset_id, amount, maybe_dest) = t;
-		let converted = WithdrawCircuitBreaker::<RC>::convert_to_hdx(*asset_id, *amount);
 
 		if !WithdrawCircuitBreaker::<RC>::should_account_deposit_operation(*asset_id, maybe_dest.clone()) {
 			return Ok(());
 		}
 
-		let Some(amount_ref_currency) = converted else {
+		let Ok(amount_ref_currency) = WithdrawCircuitBreaker::<RC>::convert_to_hdx(*asset_id, *amount) else {
 			return Ok(());
 		};
 
