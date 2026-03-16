@@ -377,10 +377,6 @@ where
 				asset, source, dest, amount
 			)?;
 
-			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnDeposit::handle(
-				&(asset, amount, Some(dest.clone())),
-			)?;
-
 			#[cfg(any(feature = "try-runtime", test))]
 			{
 				let (final_source_balance, final_dest_balance) = {
