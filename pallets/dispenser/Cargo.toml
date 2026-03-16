@@ -1,6 +1,6 @@
 [package]
 name = "pallet-dispenser"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 
 [package.metadata.docs.rs]
@@ -27,7 +27,6 @@ pallet-signet = { path = "../signet", default-features = false }
 pallet-currencies = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, optional = true }
 log = { version = "0.4", default-features = false }
-pallet-asset-registry = { workspace = true }
 
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
