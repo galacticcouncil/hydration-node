@@ -1,0 +1,18 @@
+{
+  "name": "pepl-test-scenarios",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PEPL worker test scripts for oracle signer override and price updates",
+  "scripts": {
+    "check-signer": "node check-oracle-signer.js",
+    "override-signer": "node override-oracle-signer.js",
+    "update-oracle": "node update-oracle.js"
+  },
+  "dependencies": {
+    "@polkadot/api": "^14.0.0",
+    "@polkadot/keyring": "^13.0.0",
+    "@polkadot/util": "^13.0.0",
+    "@polkadot/util-crypto": "^13.0.0",
+    "ethers": "^6.0.0"
+  }
+}

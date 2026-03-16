@@ -1,0 +1,109 @@
+[package]
+name = "pepl-worker"
+version = "0.1.0"
+description = "PEPL Liquidation Worker — standalone and node-embedded modes"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/hydration-node"
+
+[dependencies]
+log = { workspace = true, default-features = true }
+ethabi = { workspace = true }
+hex-literal = { workspace = true }
+hex = { workspace = true, features = ["std"] }
+codec = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["std"] }
+ethereum-types = { workspace = true }
+
+# Substrate core (always needed for liquidation-worker-support std compilation)
+sp-core = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+sp-api = { workspace = true, features = ["std"] }
+sp-arithmetic = { workspace = true, features = ["std"] }
+sp-std = { workspace = true, features = ["std"] }
+frame-support = { workspace = true, features = ["std"] }
+fp-evm = { workspace = true, features = ["std"] }
+xcm-runtime-apis = { workspace = true, features = ["std"] }
+evm = { workspace = true, features = ["with-codec", "std"] }
+
+# Hydration dependencies
+liquidation-worker-support = { workspace = true }
+primitives = { workspace = true, features = ["std"] }
+
+# Node-mode dependencies (feature-gated)
+cumulus-primitives-core = { workspace = true, features = ["std"], optional = true }
+fp-rpc = { workspace = true, features = ["std"], optional = true }
+fp-self-contained = { workspace = true, features = ["std"], optional = true }
+sc-client-api = { workspace = true, optional = true }
+sc-service = { workspace = true, optional = true }
+sc-transaction-pool-api = { workspace = true, optional = true }
+sp-blockchain = { workspace = true, optional = true }
+sp-offchain = { workspace = true, features = ["std"], optional = true }
+pallet-currencies-rpc-runtime-api = { workspace = true, features = ["std"], optional = true }
+pallet-ethereum = { workspace = true, features = ["std"], optional = true }
+pallet-evm = { workspace = true, features = ["std"], optional = true }
+frame-system = { workspace = true, features = ["std"], optional = true }
+pallet-liquidation = { workspace = true, features = ["std"], optional = true }
+polkadot-primitives = { workspace = true, features = ["std"], optional = true }
+hydradx-runtime = { workspace = true, features = ["std"], optional = true }
+futures = { workspace = true, optional = true }
+tokio = { workspace = true, default-features = true, optional = true }
+threadpool = { version = "1.7", optional = true }
+num_cpus = { version = "1.13.1", optional = true }
+hyperv14 = { package = "hyper", features = ["http2", "stream", "tcp"], version = "0.14.29", default-features = true, optional = true }
+hyper-rustls = { version = "0.24.2", features = ["http1", "http2", "webpki-roots", "tokio-runtime"], default-features = false, optional = true }
+ethereum = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+jsonrpsee = { workspace = true, optional = true }
+
+# Standalone-mode dependencies (feature-gated)
+jsonrpsee-ws-client = { version = "0.24.3", optional = true }
+jsonrpsee-core = { version = "0.24.3", optional = true }
+reqwest = { version = "0.12", features = ["rustls-tls", "json"], optional = true, default-features = false }
+env_logger = { version = "0.11", optional = true }
+
+[features]
+default = []
+node = [
+    "cumulus-primitives-core",
+    "fp-rpc",
+    "fp-self-contained",
+    "sc-client-api",
+    "sc-service",
+    "sc-transaction-pool-api",
+    "sp-blockchain",
+    "sp-offchain",
+    "pallet-currencies-rpc-runtime-api",
+    "pallet-ethereum",
+    "pallet-evm",
+    "frame-system",
+    "pallet-liquidation",
+    "polkadot-primitives",
+    "hydradx-runtime",
+    "futures",
+    "tokio",
+    "threadpool",
+    "num_cpus",
+    "hyperv14",
+    "hyper-rustls",
+    "ethereum",
+    "clap",
+    "async-trait",
+    "jsonrpsee",
+]
+standalone = [
+    "tokio",
+    "clap",
+    "jsonrpsee-ws-client",
+    "jsonrpsee-core",
+    "reqwest",
+    "env_logger",
+]
+
+[[bin]]
+name = "hydra-liquidator"
+path = "src/standalone/main.rs"
+required-features = ["standalone"]

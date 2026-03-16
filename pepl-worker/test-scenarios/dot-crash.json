@@ -1,0 +1,10 @@
+{
+  "block": "latest",
+  "oracle_updates": [
+    {
+      "pair": "DOT/USD",
+      "price": 1.50,
+      "asset_address": "0x0000000000000000000000000000000000000805"
+    }
+  ]
+}
