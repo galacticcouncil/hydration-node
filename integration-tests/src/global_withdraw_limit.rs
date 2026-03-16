@@ -550,6 +550,7 @@ fn transfer_to_sink_should_be_accounted_for_participating_assets() {
 			Some(GlobalAssetCategory::External)
 		));
 		assert_ok!(AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
+
 		let initial_accumulator = CircuitBreaker::withdraw_limit_accumulator().0;
 		assert_ok!(Currencies::transfer(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
