@@ -412,7 +412,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		}
 
 		<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnWithdraw::handle(
-			&(currency_id, amount, who.clone()),
+			&(currency_id, amount),
 		)?;
 
 		Self::deposit_event(Event::Withdrawn {

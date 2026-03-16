@@ -330,7 +330,7 @@ where
 
 		if result.is_ok() {
 			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnWithdraw::handle(
-				&(asset, amount, who.clone())
+				&(asset, amount)
 			)?;
 		}
 

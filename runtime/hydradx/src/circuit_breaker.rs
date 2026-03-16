@@ -85,11 +85,11 @@ impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrency
 }
 
 pub struct OnWithdrawHook<RC>(PhantomData<RC>);
-impl<RC: Get<AssetId>> orml_traits::Handler<(AssetId, Balance, AccountId)> for OnWithdrawHook<RC> {
-	fn handle(t: &(AssetId, Balance, AccountId)) -> DispatchResult {
+impl<RC: Get<AssetId>> orml_traits::Handler<(AssetId, Balance)> for OnWithdrawHook<RC> {
+	fn handle(t: &(AssetId, Balance)) -> DispatchResult {
 		// `who` is not used: in XCM path all withdrawals go to buffer regardless of origin;
 		// in non-XCM path Withdraw is always accounted for both Local and External assets regardless of who.
-		let (asset_id, amount, _who) = t;
+		let (asset_id, amount) = t;
 
 		if !WithdrawCircuitBreaker::<RC>::should_account_withdraw_operation(
 			*asset_id,
