@@ -478,6 +478,118 @@ fn request_fails_with_duplicate_request_id() {
 }
 
 #[test]
+fn pause_fails_when_not_configured() {
+	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	let mut ext = sp_io::TestExternalities::new(t);
+	ext.execute_with(|| {
+		frame_system::Pallet::<Test>::set_block_number(1);
+		assert_noop!(Dispenser::pause(RuntimeOrigin::root()), Error::<Test>::NotConfigured);
+	});
+}
+
+#[test]
+fn unpause_fails_when_not_configured() {
+	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	let mut ext = sp_io::TestExternalities::new(t);
+	ext.execute_with(|| {
+		frame_system::Pallet::<Test>::set_block_number(1);
+		assert_noop!(Dispenser::unpause(RuntimeOrigin::root()), Error::<Test>::NotConfigured);
+	});
+}
+
+#[test]
+fn set_config_fails_with_zero_address() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Dispenser::set_config(
+				RuntimeOrigin::root(),
+				primitives::EvmAddress::zero(),
+				1,
+				100,
+				1_000_000_000,
+				10,
+				MIN_WEI_BALANCE,
+			),
+			Error::<Test>::InvalidAddress
+		);
+	});
+}
+
+#[test]
+fn set_config_fails_with_zero_max_dispense() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Dispenser::set_config(
+				RuntimeOrigin::root(),
+				test_faucet_address(),
+				1,
+				0,
+				0,
+				10,
+				MIN_WEI_BALANCE,
+			),
+			Error::<Test>::InvalidConfig
+		);
+	});
+}
+
+#[test]
+fn set_config_fails_when_min_request_exceeds_max_dispense() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Dispenser::set_config(
+				RuntimeOrigin::root(),
+				test_faucet_address(),
+				1,
+				1_000,
+				500,
+				10,
+				MIN_WEI_BALANCE,
+			),
+			Error::<Test>::InvalidConfig
+		);
+	});
+}
+
+#[test]
+fn set_config_emits_event_with_faucet_balance() {
+	new_test_ext().execute_with(|| {
+		let new_address = primitives::EvmAddress::from([2u8; 20]);
+		let balance_wei = 999u128;
+
+		assert_ok!(Dispenser::set_config(
+			RuntimeOrigin::root(),
+			new_address,
+			500,
+			200,
+			2_000_000_000,
+			25,
+			balance_wei,
+		));
+
+		let events = System::events();
+		assert!(events.iter().any(|e| {
+			matches!(
+				&e.event,
+				RuntimeEvent::Dispenser(Event::ConfigUpdated {
+					faucet_address,
+					min_faucet_threshold,
+					min_request,
+					max_dispense,
+					dispenser_fee,
+					faucet_balance_wei,
+				}) if *faucet_address == new_address
+					&& *min_faucet_threshold == 500
+					&& *min_request == 200
+					&& *max_dispense == 2_000_000_000
+					&& *dispenser_fee == 25
+					&& *faucet_balance_wei == balance_wei
+			)
+		}));
+	});
+}
+
+#[test]
 fn request_fails_with_zero_gas_limit() {
 	new_test_ext().execute_with(|| {
 		let requester = acct(1);

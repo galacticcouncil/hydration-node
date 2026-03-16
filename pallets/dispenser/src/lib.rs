@@ -157,6 +157,7 @@ pub mod pallet {
 			min_request: Balance,
 			max_dispense: Balance,
 			dispenser_fee: Balance,
+			faucet_balance_wei: Balance,
 		},
 		/// Dispenser has been paused. No new requests will be accepted.
 		Paused,
@@ -205,6 +206,8 @@ pub mod pallet {
 		NotEnoughFeeFunds,
 		/// Caller does not have enough balance of the faucet asset.
 		NotEnoughFaucetFunds,
+		/// Configuration parameters are invalid (e.g., min_request > max_dispense).
+		InvalidConfig,
 	}
 
 	/// Dispatchable functions.
@@ -282,7 +285,7 @@ pub mod pallet {
 			let caip2_id = alloc::format!("eip155:{}", tx.chain_id);
 
 			// Derive canonical request ID and compare with user-supplied one.
-			let req_id = Self::generate_request_id(&pallet_acc, &rlp, &caip2_id, 0, &path, ECDSA, ETHEREUM, b"");
+			let req_id = Self::generate_request_id(&pallet_acc, &rlp, &caip2_id, 0, &path, ECDSA, ETHEREUM, b"")?;
 
 			ensure!(req_id == request_id, Error::<T>::InvalidRequestId);
 			ensure!(
@@ -377,6 +380,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			<T as pallet::Config>::UpdateOrigin::ensure_origin(origin)?;
 
+			ensure!(faucet_address != EvmAddress::zero(), Error::<T>::InvalidAddress);
+			ensure!(max_dispense > 0, Error::<T>::InvalidConfig);
+			ensure!(min_request <= max_dispense, Error::<T>::InvalidConfig);
+
 			let paused = DispenserConfig::<T>::get().map(|c| c.paused).unwrap_or(false);
 
 			DispenserConfig::<T>::put(DispenserConfigData {
@@ -395,6 +402,7 @@ pub mod pallet {
 				min_request,
 				max_dispense,
 				dispenser_fee,
+				faucet_balance_wei,
 			});
 
 			Ok(())
@@ -408,11 +416,11 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::pause())]
 		pub fn pause(origin: OriginFor<T>) -> DispatchResult {
 			<T as pallet::Config>::UpdateOrigin::ensure_origin(origin)?;
-			DispenserConfig::<T>::mutate(|maybe| {
-				if let Some(cfg) = maybe.as_mut() {
-					cfg.paused = true;
-				}
-			});
+			DispenserConfig::<T>::mutate(|maybe| -> DispatchResult {
+				let cfg = maybe.as_mut().ok_or(Error::<T>::NotConfigured)?;
+				cfg.paused = true;
+				Ok(())
+			})?;
 
 			Self::deposit_event(Event::Paused);
 			Ok(())
@@ -426,11 +434,11 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::unpause())]
 		pub fn unpause(origin: OriginFor<T>) -> DispatchResult {
 			<T as pallet::Config>::UpdateOrigin::ensure_origin(origin)?;
-			DispenserConfig::<T>::mutate(|maybe| {
-				if let Some(cfg) = maybe.as_mut() {
-					cfg.paused = false;
-				}
-			});
+			DispenserConfig::<T>::mutate(|maybe| -> DispatchResult {
+				let cfg = maybe.as_mut().ok_or(Error::<T>::NotConfigured)?;
+				cfg.paused = false;
+				Ok(())
+			})?;
 
 			Self::deposit_event(Event::Unpaused);
 			Ok(())
@@ -451,7 +459,7 @@ pub mod pallet {
 			algo: &[u8],
 			dest: &[u8],
 			params: &[u8],
-		) -> Bytes32 {
+		) -> Result<Bytes32, DispatchError> {
 			use alloy_sol_types::SolValue;
 			use sp_core::crypto::Ss58Codec;
 
@@ -463,23 +471,26 @@ pub mod pallet {
 			let account_id32 = sp_runtime::AccountId32::from(account_bytes);
 			let sender_ss58 = account_id32.to_ss58check_with_version(sp_core::crypto::Ss58AddressFormat::custom(0));
 
+			let path_str = core::str::from_utf8(path).map_err(|_| Error::<T>::Serialization)?;
+			let algo_str = core::str::from_utf8(algo).map_err(|_| Error::<T>::Serialization)?;
+			let dest_str = core::str::from_utf8(dest).map_err(|_| Error::<T>::Serialization)?;
+			let params_str = core::str::from_utf8(params).map_err(|_| Error::<T>::Serialization)?;
+
 			let encoded = (
 				sender_ss58.as_str(),
 				transaction_data,
 				caip2_id,
 				key_version,
-				core::str::from_utf8(path).unwrap_or(""),
-				core::str::from_utf8(algo).unwrap_or(""),
-				core::str::from_utf8(dest).unwrap_or(""),
-				core::str::from_utf8(params).unwrap_or(""),
+				path_str,
+				algo_str,
+				dest_str,
+				params_str,
 			)
 				.abi_encode_packed();
 
-			sp_io::hashing::keccak_256(&encoded)
+			Ok(sp_io::hashing::keccak_256(&encoded))
 		}
-	}
 
-	impl<T: Config> Pallet<T> {
 		/// Returns the pallet's sovereign account ID.
 		pub fn account_id() -> T::AccountId {
 			<T as pallet::Config>::PalletId::get().into_account_truncating()

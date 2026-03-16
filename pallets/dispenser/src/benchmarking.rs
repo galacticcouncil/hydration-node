@@ -151,7 +151,7 @@ mod benches {
 			b"ecdsa",
 			b"ethereum",
 			b"",
-		);
+		)?;
 
 		#[extrinsic_call]
 		request_fund(RawOrigin::Signed(caller), to, amount, req_id, tx);

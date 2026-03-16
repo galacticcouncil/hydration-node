@@ -27,7 +27,6 @@ pallet-signet = { path = "../signet", default-features = false }
 pallet-currencies = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, optional = true }
 log = { version = "0.4", default-features = false }
-pallet-asset-registry = { workspace = true }
 
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
