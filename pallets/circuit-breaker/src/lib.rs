@@ -160,6 +160,7 @@ pub mod pallet {
 			let _ = <AllowedAddLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
 			let _ = <AllowedRemoveLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
 			IgnoreWithdrawLimit::<T>::kill();
+			XcmEgressBuffer::<T>::kill();
 		}
 
 		fn integrity_test() {
@@ -358,6 +359,13 @@ pub mod pallet {
 	/// Overrides for global asset categorization.
 	pub type GlobalAssetOverrides<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, GlobalAssetCategory, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::whitelist_storage]
+	#[pallet::getter(fn xcm_egress_buffer)]
+	/// Per-XCM-message buffer of (withdrawn_hdx, deposited_hdx).
+	/// None means buffer is inactive (not inside XCM message processing).
+	pub type XcmEgressBuffer<T: Config> = StorageValue<_, (T::Balance, T::Balance), OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]

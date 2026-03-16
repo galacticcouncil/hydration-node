@@ -8,7 +8,6 @@ use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFee
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::{AssetId, Price};
 
-use crate::circuit_breaker::IgnoreWithdrawFuse;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	parameter_types,
@@ -19,7 +18,6 @@ use frame_support::{
 use frame_system::unique;
 use frame_system::EnsureRoot;
 use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
-use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_evm::AddressMapping;
@@ -29,7 +27,10 @@ use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_parachain::primitives::Sibling;
 use polkadot_xcm::v5::{prelude::*, InteriorLocation, Location, Weight as XcmWeight};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::MaybeEquivalence, Perbill};
+use sp_runtime::{
+	traits::{MaybeEquivalence, Zero},
+	Perbill,
+};
 use xcm_builder::{
 	AccountId32Aliases, AliasChildLocation, AliasOriginRootUsingFilter, AllowKnownQueryResponses,
 	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin,
@@ -476,9 +477,16 @@ where
 		meter: &mut frame_support::weights::WeightMeter,
 		id: &mut [u8; 32],
 	) -> Result<bool, frame_support::traits::ProcessMessageError> {
-		IgnoreWithdrawFuse::<Runtime>::set_withdraw_fuse_active(false);
+		pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::put((0u128, 0u128));
+
 		let result = MessageProcessor::process_message(message, origin, meter, id);
-		IgnoreWithdrawFuse::<Runtime>::set_withdraw_fuse_active(true);
+
+		if let Some((withdrawn, deposited)) = pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::take() {
+			let net = withdrawn.saturating_sub(deposited);
+			if !net.is_zero() {
+				let _ = pallet_circuit_breaker::Pallet::<Runtime>::note_egress(net);
+			}
+		}
 		result
 	}
 }

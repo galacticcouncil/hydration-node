@@ -9,7 +9,7 @@ impl WithdrawFuseControl for () {
 }
 
 pub trait AssetWithdrawHandler<AccountId, AssetId, Balance> {
-	type OnWithdraw: Handler<(AssetId, Balance)>;
+	type OnWithdraw: Handler<(AssetId, Balance, AccountId)>;
 	type OnDeposit: Handler<(AssetId, Balance, Option<AccountId>)>;
 	type OnTransfer: OnTransfer<AccountId, AssetId, Balance>;
 }

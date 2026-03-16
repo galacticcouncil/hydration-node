@@ -672,13 +672,15 @@ fn transfer_to_non_egress_succeeds_during_lockdown_and_does_not_change_accumulat
 
 #[test]
 fn ingress_deposit_decrements_accumulator_for_external() {
-	// External deposits are always accounted as ingress and decrement the accumulator.
+	// External asset deposits are always treated as ingress and decrement of the
+	// withdraw accumulator, regardless of who receives them.
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		init_global_withdraw_limit_params();
 
 		let who: AccountId = ALICE.into();
 		let amount = 10 * UNITS;
+		let double_amount = amount * 2;
 
 		assert_ok!(CircuitBreaker::reset_withdraw_lockdown(
 			hydradx_runtime::RuntimeOrigin::root()
@@ -689,26 +691,18 @@ fn ingress_deposit_decrements_accumulator_for_external() {
 			Some(GlobalAssetCategory::External)
 		));
 
-		// Prime accumulator via an egress withdraw.
-		assert_ok!(Currencies::deposit(CORE_ASSET_ID, &who, amount * 2));
+		// Prime the accumulator with two withdrawals worth of egress.
 		assert_ok!(Currencies::withdraw(
 			CORE_ASSET_ID,
 			&who,
-			amount,
+			double_amount,
 			frame_support::traits::ExistenceRequirement::AllowDeath
 		));
-		let acc_after_withdraw = CircuitBreaker::withdraw_limit_accumulator().0;
-		assert!(
-			acc_after_withdraw >= amount,
-			"Accumulator must be >= deposit amount for exact decrement assertion"
-		);
+		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, double_amount);
 
-		// Ingress deposit (maybe_from = None) should decrement.
+		// A deposit of `amount` should decrement the accumulator by exactly that amount.
 		assert_ok!(Currencies::deposit(CORE_ASSET_ID, &who, amount));
-		assert_eq!(
-			CircuitBreaker::withdraw_limit_accumulator().0,
-			acc_after_withdraw - amount
-		);
+		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, amount);
 	});
 }
 

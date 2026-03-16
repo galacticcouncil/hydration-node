@@ -62,14 +62,11 @@ impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrency
 	}
 
 	pub fn should_account_deposit_operation(asset_id: AssetId, maybe_source: Option<AccountId>) -> bool {
-		let is_source_egress = maybe_source
-			.clone()
-			.and_then(CircuitBreaker::is_account_egress)
-			.is_some();
+		let is_source_egress = maybe_source.and_then(CircuitBreaker::is_account_egress).is_some();
 
 		match Self::global_asset_category(asset_id) {
-			Some(GlobalAssetCategory::External) | Some(GlobalAssetCategory::Local) if is_source_egress => true,
-			Some(GlobalAssetCategory::External) if maybe_source.is_none() => true,
+			Some(GlobalAssetCategory::External) => !is_source_egress,
+			Some(GlobalAssetCategory::Local) if is_source_egress => true,
 			_ => false,
 		}
 	}
@@ -88,16 +85,27 @@ impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrency
 }
 
 pub struct OnWithdrawHook<RC>(PhantomData<RC>);
-impl<RC: Get<AssetId>> orml_traits::Handler<(AssetId, Balance)> for OnWithdrawHook<RC> {
-	fn handle(t: &(AssetId, Balance)) -> DispatchResult {
-		let (asset_id, amount) = *t;
+impl<RC: Get<AssetId>> orml_traits::Handler<(AssetId, Balance, AccountId)> for OnWithdrawHook<RC> {
+	fn handle(t: &(AssetId, Balance, AccountId)) -> DispatchResult {
+		// `who` is not used: in XCM path all withdrawals go to buffer regardless of origin;
+		// in non-XCM path Withdraw is always accounted for both Local and External assets regardless of who.
+		let (asset_id, amount, _who) = t;
+		let converted = WithdrawCircuitBreaker::<RC>::convert_to_hdx(*asset_id, *amount);
+
+		if let Some(mut buffer) = pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::get() {
+			if let Some(converted_amount) = converted {
+				buffer.0 = buffer.0.saturating_add(converted_amount);
+				pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::put(buffer);
+			}
+			return Ok(());
+		}
 
 		if WithdrawCircuitBreaker::<RC>::should_account_withdraw_operation(
-			asset_id,
+			*asset_id,
 			EgressOperationKind::Withdraw,
 			None,
 		) {
-			WithdrawCircuitBreaker::<RC>::on_egress(asset_id, amount)?;
+			WithdrawCircuitBreaker::<RC>::on_egress(*asset_id, *amount)?;
 		}
 		Ok(())
 	}
@@ -120,10 +128,24 @@ impl<RC: Get<AssetId>> orml_traits::currency::OnTransfer<AccountId, AssetId, Bal
 pub struct OnDepositHook<RC>(PhantomData<RC>);
 impl<RC: Get<AssetId>> orml_traits::Handler<(AssetId, Balance, Option<AccountId>)> for OnDepositHook<RC> {
 	fn handle(t: &(AssetId, Balance, Option<AccountId>)) -> DispatchResult {
-		let (asset_id, amount, maybe_from) = t;
+		let (asset_id, amount, maybe_who) = t;
+		let converted = WithdrawCircuitBreaker::<RC>::convert_to_hdx(*asset_id, *amount);
 
-		if WithdrawCircuitBreaker::<RC>::should_account_deposit_operation(*asset_id, maybe_from.clone()) {
-			let Some(amount_ref_currency) = WithdrawCircuitBreaker::<RC>::convert_to_hdx(*asset_id, *amount) else {
+		if let Some(mut buffer) = pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::get() {
+			if let Some(converted_amount) = converted {
+				// If depositing to an egress account, skip (real egress, do not compensate)
+				let is_egress = maybe_who.as_ref().and_then(CircuitBreaker::is_account_egress).is_some();
+
+				if !is_egress {
+					buffer.1 = buffer.1.saturating_add(converted_amount);
+					pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::put(buffer);
+				}
+			}
+			return Ok(());
+		}
+
+		if WithdrawCircuitBreaker::<RC>::should_account_deposit_operation(*asset_id, maybe_who.clone()) {
+			let Some(amount_ref_currency) = converted else {
 				return Ok(());
 			};
 
