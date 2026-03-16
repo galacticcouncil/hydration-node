@@ -125,8 +125,11 @@ fn polkadot_xcm_execute_should_fail_when_lockdown_active_and_asset_is_egress() {
 		assert_eq!(
 			res.map_err(|e| e.error),
 			Err(
-				pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncompleteWithError(XcmError::Barrier)
-					.into()
+				pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncompleteWithError {
+					index: 0,
+					error: pallet_xcm::ExecutionError::FailedToTransactAsset,
+				}
+				.into()
 			)
 		);
 
@@ -433,7 +436,10 @@ fn xcm_transfer_assets_blocked_during_lockdown() {
 		// Act & Assert
 		assert_noop!(
 			call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
-			pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncompleteWithError(XcmError::Barrier)
+			pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncompleteWithError {
+				index: 0,
+				error: pallet_xcm::ExecutionError::FailedToTransactAsset,
+			}
 		);
 	});
 }
@@ -461,7 +467,10 @@ fn lockdown_expiry_allows_egress() {
 		assert_noop!(
 			call.clone()
 				.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
-			pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncompleteWithError(XcmError::Barrier)
+			pallet_xcm::Error::<hydradx_runtime::Runtime>::LocalExecutionIncompleteWithError {
+				index: 0,
+				error: pallet_xcm::ExecutionError::FailedToTransactAsset,
+			}
 		);
 
 		// Advance time past lockdown
