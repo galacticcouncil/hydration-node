@@ -9582,7 +9582,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9824,7 +9824,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-currencies"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -15289,7 +15289,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.71.0"
+version = "1.71.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
