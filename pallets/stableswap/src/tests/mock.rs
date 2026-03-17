@@ -612,7 +612,7 @@ impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
 					updated_at: System::block_number(),
 				})
 			}
-			_ => panic!("unusupported oracle types: {:?}", source),
+			_ => panic!("unusupported oracle types: {source:?}"),
 		}
 	}
 }

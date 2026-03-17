@@ -126,8 +126,7 @@ pub mod v2 {
 
 			log::info!(
 				target: "runtime::duster",
-				"Migrating {} accounts from AccountBlacklist to AccountWhitelist",
-				migrated_count
+				"Migrating {migrated_count} accounts from AccountBlacklist to AccountWhitelist",
 			);
 
 			// Remove all entries from the old storage
@@ -136,9 +135,7 @@ pub mod v2 {
 
 			log::info!(
 				target: "runtime::duster",
-				"Migration completed: {} accounts migrated, {} old entries removed",
-				migrated_count,
-				removed_keys
+				"Migration completed: {migrated_count} accounts migrated, {removed_keys} old entries removed",
 			);
 
 			T::DbWeight::get().reads_writes(reads, writes)

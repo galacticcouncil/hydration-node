@@ -1357,7 +1357,7 @@ proptest! {
 				let check_invariant = |msg: &str| {
 					let hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 					let asset_hub_liquidity = sum_asset_hub_liquidity();
-					assert_eq!(hub_liquidity, asset_hub_liquidity, "{}", msg);
+					assert_eq!(hub_liquidity, asset_hub_liquidity, "{msg}");
 				};
 
 				let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();

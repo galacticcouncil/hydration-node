@@ -18,6 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![allow(clippy::manual_inspect)]
+#![allow(clippy::useless_conversion)]
 
 use codec::{Decode, DecodeWithMemTracking, Encode};
 use frame_support::weights::Weight;

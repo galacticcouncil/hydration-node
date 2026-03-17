@@ -2715,9 +2715,7 @@ impl<T: Config> Pallet<T> {
 		let rq_plus = in_new_reserve.checked_mul(in_new_hub_reserve).unwrap();
 		debug_assert!(
 			rq_plus >= rq,
-			"Asset IN trade invariant, {:?}, {:?}",
-			new_in_state,
-			old_in_state
+			"Asset IN trade invariant, {new_in_state:?}, {old_in_state:?}",
 		);
 
 		//Ensure Hub reserve in protocol account is equal to sum of all subpool reserves
@@ -2768,10 +2766,7 @@ impl<T: Config> Pallet<T> {
 		debug_assert!(left <= middle, "Add liquidity first part");
 		debug_assert!(
 			middle <= right,
-			"Add liquidity second part - {:?} <= {:?} <= {:?}",
-			left,
-			middle,
-			right
+			"Add liquidity second part - {left:?} <= {middle:?} <= {right:?}",
 		);
 	}
 }

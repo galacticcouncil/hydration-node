@@ -20,6 +20,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::large_enum_variant)]
 #![allow(clippy::manual_inspect)]
+#![allow(clippy::useless_conversion)]
 
 pub mod weights;
 

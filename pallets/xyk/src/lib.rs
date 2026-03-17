@@ -739,9 +739,7 @@ impl<T: Config> Pallet<T> {
 
 			if r.is_err() {
 				log::trace!(
-				target: "xyk::remova_liquidity", "XYK: Failed to remove account {:?} from dust-removal whitelist. Reason {:?}",
-					pair_account,
-				r
+				target: "xyk::remova_liquidity", "XYK: Failed to remove account {pair_account:?} from dust-removal whitelist. Reason {r:?}",
 				);
 			}
 

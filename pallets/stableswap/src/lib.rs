@@ -2028,9 +2028,7 @@ impl<T: Config> Pallet<T> {
 				.unwrap();
 		assert!(
 			final_d >= initial_d,
-			"Add liquidity Invariant broken: D+ is less than initial D; {:?} <= {:?}",
-			initial_d,
-			final_d
+			"Add liquidity Invariant broken: D+ is less than initial D; {initial_d:?} <= {final_d:?}",
 		);
 		if initial_issuance.is_zero() {
 			return;
@@ -2040,9 +2038,7 @@ impl<T: Config> Pallet<T> {
 		let final_r = FixedU128::from_rational(final_d, current_share_issuance);
 		assert!(
 			final_r >= initial_r,
-			"Add liquidity Invariant broken: R+ is less than initial R; {:?} <= {:?}",
-			initial_r,
-			final_r
+			"Add liquidity Invariant broken: R+ is less than initial R; {initial_r:?} <= {final_r:?}",
 		);
 	}
 
@@ -2071,9 +2067,7 @@ impl<T: Config> Pallet<T> {
 				.unwrap();
 		assert!(
 			final_d <= initial_d,
-			"Remove liquidity Invariant broken: D+ is more than initial D; {:?} >= {:?}",
-			initial_d,
-			final_d
+			"Remove liquidity Invariant broken: D+ is more than initial D; {initial_d:?} >= {final_d:?}",
 		);
 		let current_share_issuance = T::Currency::total_issuance(pool_id);
 		if current_share_issuance.is_zero() {
@@ -2083,9 +2077,7 @@ impl<T: Config> Pallet<T> {
 		let final_r = FixedU128::from_rational(final_d, current_share_issuance);
 		assert!(
 			final_r >= initial_r,
-			"Remove liquidity Invariant broken: R+ is less than initial R; {:?} <= {:?}",
-			initial_r,
-			final_r
+			"Remove liquidity Invariant broken: R+ is less than initial R; {initial_r:?} <= {final_r:?}",
 		);
 	}
 	#[cfg(any(feature = "try-runtime", test))]
@@ -2107,9 +2099,7 @@ impl<T: Config> Pallet<T> {
 				.unwrap();
 		assert!(
 			final_d >= initial_d,
-			"Trade Invariant broken: D+ is less than initial D; {:?} <= {:?}",
-			initial_d,
-			final_d
+			"Trade Invariant broken: D+ is less than initial D; {initial_d:?} <= {final_d:?}",
 		);
 	}
 }

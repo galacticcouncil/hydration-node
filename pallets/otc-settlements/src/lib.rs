@@ -303,7 +303,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		log::debug!(
 			target: "offchain_worker::settle_otc",
-			"calling settle_otc(): otc_id: {:?} amount: {:?} route: {:?}", otc_id, amount, route);
+			"calling settle_otc(): otc_id: {otc_id:?} amount: {amount:?} route: {route:?}");
 
 		let pallet_acc = Self::account_id();
 
@@ -339,7 +339,7 @@ impl<T: Config> Pallet<T> {
 		if otc.partially_fillable && amount != otc.amount_in {
 			log::debug!(
 			target: "offchain_worker::settle_otc",
-				"calling partial fill order: amount {:?} ", amount);
+				"calling partial fill order: amount {amount:?} ");
 			pallet_otc::Pallet::<T>::partial_fill_order(RawOrigin::Signed(pallet_acc.clone()).into(), otc_id, amount)?;
 		} else {
 			log::debug!(
@@ -353,7 +353,7 @@ impl<T: Config> Pallet<T> {
 
 		log::debug!(
 			target: "offchain_worker::settle_otc",
-			"calling router sell: amount_in {:?} ", otc_amount_out);
+			"calling router sell: amount_in {otc_amount_out:?} ");
 
 		// Disable in the benchmarks and use existing weight from the router pallet.
 		#[cfg(not(feature = "runtime-benchmarks"))]
@@ -373,9 +373,7 @@ impl<T: Config> Pallet<T> {
 		let router_price_after = T::Router::spot_price_with_fee(&route).ok_or(Error::<T>::PriceNotAvailable)?;
 		log::debug!(
 			target: "offchain_worker::settle_otc",
-			"final router price: {:?}   otc_price: {:?} ",
-			router_price_after,
-			otc_price
+			"final router price: {router_price_after:?}   otc_price: {otc_price:?} ",
 		);
 
 		// Compare OTC and Router price.
@@ -505,7 +503,7 @@ impl<T: Config> Pallet<T> {
 				list.retain(|&(otc_id, otc_price, router_price_before, _)| {
 					log::debug!(
 						target: "offchain_worker::settle_otcs",
-						  "no arb, skipping OTC: {:?}", otc_id);
+						  "no arb, skipping OTC: {otc_id:?}");
 					router_price_before <= otc_price
 				});
 
@@ -533,7 +531,7 @@ impl<T: Config> Pallet<T> {
 		for otc_id in sorted_otcs.iter() {
 			log::debug!(
 			target: "offchain_worker::settle_otcs",
-				"test OTC id {:?} ", otc_id);
+				"test OTC id {otc_id:?} ");
 
 			let otc = <pallet_otc::Orders<T>>::get(otc_id).unwrap();
 			let route = T::Router::get_route(AssetPair {
@@ -544,9 +542,7 @@ impl<T: Config> Pallet<T> {
 			if let Some(sell_amt) = maybe_amount {
 				log::debug!(
 				target: "offchain_worker::settle_otcs",
-						"Sending TX for OTC id: {:?} amount: {:?}",
-						otc_id,
-						sell_amt
+						"Sending TX for OTC id: {otc_id:?} amount: {sell_amt:?}",
 					);
 
 				let call = Call::settle_otc_order {
@@ -581,17 +577,15 @@ impl<T: Config> Pallet<T> {
 		for i in 0..iters {
 			log::debug!(
 			target: "offchain_worker::settle_otcs",
-				"iteration: {:?}", i);
+				"iteration: {i:?}");
 			log::debug!(
 			target: "offchain_worker::settle_otcs::binary_search",
-				"\nsell_amt: {:?}\nsell_amt_up: {:?}\nsell_amt_down: {:?}", sell_amt, sell_amt_up, sell_amt_down);
+				"\nsell_amt: {sell_amt:?}\nsell_amt_up: {sell_amt_up:?}\nsell_amt_down: {sell_amt_down:?}");
 			match Self::settle_otc(otc_id, sell_amt, route.clone(), false) {
 				Ok(_) => {
 					log::debug!(
 					target: "offchain_worker::settle_otcs",
-								"Extrinsic executed successfully for OTC id: {:?} amount: {:?}",
-								otc_id,
-								sell_amt
+								"Extrinsic executed successfully for OTC id: {otc_id:?} amount: {sell_amt:?}",
 							);
 					return Some(sell_amt);
 				}
@@ -599,19 +593,19 @@ impl<T: Config> Pallet<T> {
 					if error == Error::<T>::TradeAmountTooHigh.into() {
 						log::debug!(
 						   target: "offchain_worker::settle_otcs",
-							"Extrinsic failed: trade amount too high for OTC id: {:?} amount: {:?}", otc_id, sell_amt);
+							"Extrinsic failed: trade amount too high for OTC id: {otc_id:?} amount: {sell_amt:?}");
 
 						sell_amt_up = sell_amt;
 					} else if error == Error::<T>::TradeAmountTooLow.into() {
 						log::debug!(
 						   target: "offchain_worker::settle_otcs",
-							"Extrinsic failed: trade amount too low for OTC id: {:?} amount: {:?}", otc_id, sell_amt);
+							"Extrinsic failed: trade amount too low for OTC id: {otc_id:?} amount: {sell_amt:?}");
 
 						sell_amt_down = sell_amt;
 					} else {
 						log::debug!(
 						   target: "offchain_worker::settle_otcs",
-							"Extrinsic failed with error for OTC id: {:?} amount: {:?} error: {:?}", otc_id, sell_amt, error);
+							"Extrinsic failed with error for OTC id: {otc_id:?} amount: {sell_amt:?} error: {error:?}");
 						return None;
 					}
 				}

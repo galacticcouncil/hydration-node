@@ -19,6 +19,7 @@
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::manual_inspect)]
+#![allow(clippy::useless_conversion)]
 
 #[cfg(test)]
 mod mock;

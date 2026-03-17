@@ -1337,10 +1337,7 @@ impl<T: Config> Pallet<T> {
 				.unwrap_or_else(|| T::MaxNumberOfRetriesOnError::get() as u64);
 
 			let Some(gas_increment) = MAX_EXTRA_GAS.checked_div(max_retries) else {
-				log::error!(
-					"Gas increment calculation overflowed for schedule_id: {:?}",
-					schedule_id
-				);
+				log::error!("Gas increment calculation overflowed for schedule_id: {schedule_id:?}",);
 				return;
 			};
 

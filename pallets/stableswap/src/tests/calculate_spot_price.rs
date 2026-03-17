@@ -144,11 +144,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() 
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
-			let difference = if calculated_amount_out > expected {
-				calculated_amount_out - expected
-			} else {
-				expected - calculated_amount_out
-			};
+			let difference = calculated_amount_out.abs_diff(expected);
 			let relative_difference = FixedU128::from_rational(difference, expected);
 			let tolerated_difference = FixedU128::from_rational(1, 100);
 			// The difference of the amount out calculated with spot price should be less than 1%
@@ -223,11 +219,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
-			let difference = if expected > calculated_amount_out {
-				expected - calculated_amount_out
-			} else {
-				calculated_amount_out - expected
-			};
+			let difference = expected.abs_diff(calculated_amount_out);
 			let relative_difference = FixedU128::from_rational(difference, expected);
 			let tolerated_difference = FixedU128::from_rational(1, 100);
 			// The difference of the amount out calculated with spot price should be less than 1%
@@ -305,11 +297,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
-			let difference = if calculated_amount_out > expected {
-				calculated_amount_out - expected
-			} else {
-				expected - calculated_amount_out
-			};
+			let difference = calculated_amount_out.abs_diff(expected);
 			let relative_difference = FixedU128::from_rational(difference, expected);
 
 			// The difference of the amount out calculated with spot price should be less than 0.1%
@@ -380,11 +368,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_18_decimals()
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
-			let difference = if calculated_amount_out > expected {
-				calculated_amount_out - expected
-			} else {
-				expected - calculated_amount_out
-			};
+			let difference = calculated_amount_out.abs_diff(expected);
 			let relative_difference = FixedU128::from_rational(difference, expected);
 			// The difference of the amount out calculated with spot price should be less than 1%
 			let tolerated_difference = FixedU128::from_rational(1, 1000);
@@ -519,11 +503,7 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
-			let difference = if expected > calculated_amount_out {
-				expected - calculated_amount_out
-			} else {
-				calculated_amount_out - expected
-			};
+			let difference = expected.abs_diff(calculated_amount_out);
 			let relative_difference = FixedU128::from_rational(difference, expected);
 			let tolerated_difference = FixedU128::from_rational(1, 1000);
 			assert_eq_approx!(
@@ -604,15 +584,11 @@ mod invariants {
 
 				//Check if spot price calculation is correct
 				let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
-				let difference = if calculated_amount_out > expected  {
-					calculated_amount_out - expected
-				} else {
-					expected - calculated_amount_out
-				};
+				let difference = calculated_amount_out.abs_diff(expected);
 				let relative_difference = FixedU128::from_rational(difference, expected);
 				let tolerated_difference = FixedU128::from_rational(1, 100);
 				// The difference of the amount out calculated with spot price should be less than 1%
-				assert!(relative_difference < tolerated_difference, "relative difference: {:?}, tolerated difference: {:?}", relative_difference, tolerated_difference);
+				assert!(relative_difference < tolerated_difference, "relative difference: {relative_difference:?}, tolerated difference: {tolerated_difference:?}");
 			});
 		}
 	}
