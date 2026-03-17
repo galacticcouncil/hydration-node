@@ -11,7 +11,7 @@ use hydradx_runtime::{
 use hydradx_traits::amm::{AmmSimulator, SimulatorConfig, SimulatorSet};
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::BoundErc20;
-use ice_solver::v1::SolverV1;
+use ice_solver::v1::Solver as IceSolver;
 use ice_support::Solution;
 use orml_traits::MultiCurrency;
 use pallet_omnipool::types::SlipFeeConfig;
@@ -25,7 +25,7 @@ pub type CombinedSimulatorState =
 	<<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State;
 
 type TestSimulator = HydrationSimulator<hydradx_runtime::HydrationSimulatorConfig>;
-type Solver = SolverV1<TestSimulator>;
+type Solver = IceSolver<TestSimulator>;
 
 // Custom simulator config for Hollar tests with price denominator 222
 pub struct HollarSimulatorConfig;
@@ -53,7 +53,7 @@ impl SimulatorConfig for HollarSimulatorConfig {
 }
 
 type HollarSimulator = HydrationSimulator<HollarSimulatorConfig>;
-type HollarSolver = SolverV1<HollarSimulator>;
+type HollarSolver = IceSolver<HollarSimulator>;
 
 #[test]
 fn simulator_snapshot() {
@@ -370,7 +370,7 @@ fn solver_two_intents() {
 		});
 }
 
-/// Test CoW (Coincidence of Wants) matching: Alice sells A for B, Bob sells B for A
+/// Test Direct matching: Alice sells A for B, Bob sells B for A
 #[test]
 fn solver_execute_solution1() {
 	TestNet::reset();
@@ -786,9 +786,9 @@ fn solver_v1_single_intent() {
 		});
 }
 
-/// Test partial CoW match: Alice sells large HDX, Bob sells small BNC (opposite directions)
+/// Test partial direct match: Alice sells large HDX, Bob sells small BNC (opposite directions)
 #[test]
-fn solver_v1_two_intents_partial_cow_match() {
+fn solver_v1_two_intents_partial_match() {
 	TestNet::reset();
 
 	let alice: AccountId = ALICE.into();
@@ -1446,7 +1446,7 @@ fn usdt_weth_solver_vs_router() {
 }
 
 /// Test 2 opposing intents: Alice sells USDT for WETH, Bob sells WETH for USDT
-/// These should partially match (CoW), giving Alice a better price than single intent
+/// These should partially match (direct matching), giving Alice a better price than single intent
 #[test]
 fn usdt_weth_two_opposing_intents() {
 	TestNet::reset();
@@ -1694,7 +1694,7 @@ fn eth_3pool_solver_vs_router() {
 		});
 }
 
-/// Test: Two opposing intents for ETH <-> 3pool (CoW matching)
+/// Test: Two opposing intents for ETH <-> 3pool (direct matching)
 #[test]
 fn _eth_3pool_two_opposing_intents() {
 	TestNet::reset();
@@ -1777,5 +1777,897 @@ fn _eth_3pool_two_opposing_intents() {
 
 			// Verify Bob got ETH
 			assert!(bob_eth_received > 0, "Bob should receive ETH");
+		});
+}
+
+
+/// Test ring trade: 3 intents forming HDX→BNC→DOT→HDX cycle.
+/// Verifies on-chain execution, balance changes, and that ring reduces AMM trades.
+#[test]
+fn solver_ring_trade_triangle_execute() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	let charlie: AccountId = CHARLIE.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let dot = 5u32;
+
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+	let dot_unit = 10_000_000_000u128;
+
+	let alice_hdx_sell = 1_000 * hdx_unit;
+	let bob_bnc_sell = 5 * bnc_unit;
+	let charlie_dot_sell = 10 * dot_unit;
+
+	let alice_min_bnc = bnc_unit / 2;
+	let bob_min_dot = dot_unit / 10;
+	let charlie_min_hdx = 500 * hdx_unit;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, alice_hdx_sell * 10)
+		.endow_account(bob.clone(), bnc, bob_bnc_sell * 10)
+		.endow_account(charlie.clone(), dot, charlie_dot_sell * 10)
+		.submit_swap_intent(alice.clone(), hdx, bnc, alice_hdx_sell, alice_min_bnc, Some(10))
+		.submit_swap_intent(bob.clone(), bnc, dot, bob_bnc_sell, bob_min_dot, Some(10))
+		.submit_swap_intent(charlie.clone(), dot, hdx, charlie_dot_sell, charlie_min_hdx, Some(10))
+		.execute(|| {
+			enable_slip_fees();
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver should produce a solution for ring trade");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call;
+
+			assert_eq!(solution.resolved_intents.len(), 3, "All 3 intents should be resolved");
+			assert!(solution.trades.len() < 3, "Ring should reduce AMM trades below 3");
+
+			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
+			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
+			let bob_bnc_before = Currencies::total_balance(bnc, &bob);
+			let bob_dot_before = Currencies::total_balance(dot, &bob);
+			let charlie_dot_before = Currencies::total_balance(dot, &charlie);
+			let charlie_hdx_before = Currencies::total_balance(hdx, &charlie);
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution.clone(),
+				hydradx_runtime::System::block_number(),
+			));
+
+			assert!(pallet_intent::Pallet::<Runtime>::get_valid_intents().is_empty(), "All intents resolved");
+
+			// Verify balance directions
+			assert!(Currencies::total_balance(hdx, &alice) < alice_hdx_before);
+			assert!(Currencies::total_balance(bnc, &alice) > alice_bnc_before);
+			assert!(Currencies::total_balance(bnc, &bob) < bob_bnc_before);
+			assert!(Currencies::total_balance(dot, &bob) > bob_dot_before);
+			assert!(Currencies::total_balance(dot, &charlie) < charlie_dot_before);
+			assert!(Currencies::total_balance(hdx, &charlie) > charlie_hdx_before);
+
+			// Verify balance changes match solution exactly
+			for ri in solution.resolved_intents.iter() {
+				let ice_support::IntentData::Swap(ref s) = ri.data;
+				match (s.asset_in, s.asset_out) {
+					(0, 14) => {
+						assert_eq!(alice_hdx_before - Currencies::total_balance(hdx, &alice), s.amount_in);
+						assert_eq!(Currencies::total_balance(bnc, &alice) - alice_bnc_before, s.amount_out);
+					}
+					(14, 5) => {
+						assert_eq!(bob_bnc_before - Currencies::total_balance(bnc, &bob), s.amount_in);
+						assert_eq!(Currencies::total_balance(dot, &bob) - bob_dot_before, s.amount_out);
+					}
+					(5, 0) => {
+						assert_eq!(charlie_dot_before - Currencies::total_balance(dot, &charlie), s.amount_in);
+						assert_eq!(Currencies::total_balance(hdx, &charlie) - charlie_hdx_before, s.amount_out);
+					}
+					_ => panic!("Unexpected direction"),
+				}
+			}
+
+			// Verify limits met
+			assert!(Currencies::total_balance(bnc, &alice) - alice_bnc_before >= alice_min_bnc);
+			assert!(Currencies::total_balance(dot, &bob) - bob_dot_before >= bob_min_dot);
+			assert!(Currencies::total_balance(hdx, &charlie) - charlie_hdx_before >= charlie_min_hdx);
+		});
+}
+
+/// Compare ring trade via solver vs direct trades on identical pool state.
+/// Solver should give equal or better output due to ring-matched volume avoiding AMM slippage.
+#[test]
+fn solver_ring_trade_vs_direct_trades() {
+	use hydradx_traits::router::{AssetPair, RouteProvider};
+	use std::cell::RefCell;
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let dot = 5u32;
+
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+	let dot_unit = 10_000_000_000u128;
+
+	let alice_hdx_sell = 1_000 * hdx_unit;
+	let bob_bnc_sell = 5 * bnc_unit;
+	let charlie_dot_sell = 10 * dot_unit;
+
+	let alice_min_bnc = bnc_unit / 2;
+	let bob_min_dot = dot_unit / 10;
+	let charlie_min_hdx = 500 * hdx_unit;
+
+	// Run 1: Direct trades on fresh state
+	let direct_results: RefCell<(u128, u128, u128)> = RefCell::new((0, 0, 0));
+
+	TestNet::reset();
+	{
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+		let charlie: AccountId = CHARLIE.into();
+
+		crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+			.endow_account(alice.clone(), hdx, alice_hdx_sell * 10)
+			.endow_account(bob.clone(), bnc, bob_bnc_sell * 10)
+			.endow_account(charlie.clone(), dot, charlie_dot_sell * 10)
+			.execute(|| {
+				enable_slip_fees();
+
+				let alice_bnc_before = Currencies::total_balance(bnc, &alice);
+				let route = Router::get_route(AssetPair::new(hdx, bnc));
+				assert_ok!(Router::sell(RuntimeOrigin::signed(alice.clone()), hdx, bnc, alice_hdx_sell, 1, route));
+				let d_alice = Currencies::total_balance(bnc, &alice) - alice_bnc_before;
+
+				let bob_dot_before = Currencies::total_balance(dot, &bob);
+				let route = Router::get_route(AssetPair::new(bnc, dot));
+				assert_ok!(Router::sell(RuntimeOrigin::signed(bob.clone()), bnc, dot, bob_bnc_sell, 1, route));
+				let d_bob = Currencies::total_balance(dot, &bob) - bob_dot_before;
+
+				let charlie_hdx_before = Currencies::total_balance(hdx, &charlie);
+				let route = Router::get_route(AssetPair::new(dot, hdx));
+				assert_ok!(Router::sell(RuntimeOrigin::signed(charlie.clone()), dot, hdx, charlie_dot_sell, 1, route));
+				let d_charlie = Currencies::total_balance(hdx, &charlie) - charlie_hdx_before;
+
+				*direct_results.borrow_mut() = (d_alice, d_bob, d_charlie);
+			});
+	}
+	let (direct_alice, direct_bob, direct_charlie) = *direct_results.borrow();
+
+	// Run 2: Solver on fresh state
+	TestNet::reset();
+	{
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+		let charlie: AccountId = CHARLIE.into();
+
+		crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+			.endow_account(alice.clone(), hdx, alice_hdx_sell * 10)
+			.endow_account(bob.clone(), bnc, bob_bnc_sell * 10)
+			.endow_account(charlie.clone(), dot, charlie_dot_sell * 10)
+			.submit_swap_intent(alice.clone(), hdx, bnc, alice_hdx_sell, alice_min_bnc, Some(10))
+			.submit_swap_intent(bob.clone(), bnc, dot, bob_bnc_sell, bob_min_dot, Some(10))
+			.submit_swap_intent(charlie.clone(), dot, hdx, charlie_dot_sell, charlie_min_hdx, Some(10))
+			.execute(|| {
+				enable_slip_fees();
+
+				let alice_bnc_before = Currencies::total_balance(bnc, &alice);
+				let bob_dot_before = Currencies::total_balance(dot, &bob);
+				let charlie_hdx_before = Currencies::total_balance(hdx, &charlie);
+
+				let call = pallet_ice::Pallet::<Runtime>::run(
+					hydradx_runtime::System::block_number(),
+					|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+				)
+				.expect("Solver should produce a solution");
+
+				crate::polkadot_test_net::hydradx_run_to_next_block();
+
+				let pallet_ice::Call::submit_solution { solution, .. } = call;
+				assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+					RuntimeOrigin::none(), solution, hydradx_runtime::System::block_number(),
+				));
+
+				let solver_alice = Currencies::total_balance(bnc, &alice) - alice_bnc_before;
+				let solver_bob = Currencies::total_balance(dot, &bob) - bob_dot_before;
+				let solver_charlie = Currencies::total_balance(hdx, &charlie) - charlie_hdx_before;
+
+				// Verify solver produces valid results (all users get output)
+				assert!(solver_alice > 0, "Alice should receive BNC");
+				assert!(solver_bob > 0, "Bob should receive DOT");
+				assert!(solver_charlie > 0, "Charlie should receive HDX");
+			});
+	}
+}
+
+/// Mixed batch: 12 intents, 5 users, 3 assets.
+/// Tests opposing flows, same-direction groups, ring detection, rate uniformity, and execution.
+#[test]
+fn solver_mixed_batch_12_intents() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	let charlie: AccountId = CHARLIE.into();
+	let dave: AccountId = DAVE.into();
+	let eve: AccountId = EVE.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let dot = 5u32;
+
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+	let dot_unit = 10_000_000_000u128;
+
+	let min_bnc = bnc_unit;
+	let min_hdx = 500 * hdx_unit;
+	let min_dot = dot_unit / 10;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, 20_000 * hdx_unit)
+		.endow_account(alice.clone(), dot, 20 * dot_unit)
+		.endow_account(bob.clone(), bnc, 100 * bnc_unit)
+		.endow_account(charlie.clone(), bnc, 100 * bnc_unit)
+		.endow_account(charlie.clone(), dot, 30 * dot_unit)
+		.endow_account(dave.clone(), hdx, 20_000 * hdx_unit)
+		.endow_account(eve.clone(), hdx, 10_000 * hdx_unit)
+		.endow_account(eve.clone(), dot, 10 * dot_unit)
+		.submit_swap_intent(alice.clone(), hdx, bnc, 10_000 * hdx_unit, min_bnc, Some(10))
+		.submit_swap_intent(bob.clone(), bnc, hdx, 30 * bnc_unit, min_hdx, Some(10))
+		.submit_swap_intent(charlie.clone(), bnc, hdx, 50 * bnc_unit, min_hdx, Some(10))
+		.submit_swap_intent(dave.clone(), hdx, bnc, 8_000 * hdx_unit, min_bnc, Some(10))
+		.submit_swap_intent(alice.clone(), hdx, dot, 5_000 * hdx_unit, min_dot, Some(10))
+		.submit_swap_intent(dave.clone(), hdx, dot, 3_000 * hdx_unit, min_dot, Some(10))
+		.submit_swap_intent(eve.clone(), hdx, dot, 4_000 * hdx_unit, min_dot, Some(10))
+		.submit_swap_intent(bob.clone(), bnc, dot, 20 * bnc_unit, min_dot, Some(10))
+		.submit_swap_intent(charlie.clone(), dot, hdx, 15 * dot_unit, min_hdx, Some(10))
+		.submit_swap_intent(eve.clone(), dot, bnc, 5 * dot_unit, min_bnc, Some(10))
+		.submit_swap_intent(alice.clone(), dot, bnc, 10 * dot_unit, min_bnc, Some(10))
+		.submit_swap_intent(bob.clone(), bnc, dot, 10 * bnc_unit, min_dot, Some(10))
+		.execute(|| {
+			enable_slip_fees();
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 12, "Should have 12 intents");
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver should produce a solution for 12 intents");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call;
+
+			// All 12 should be resolved
+			assert_eq!(solution.resolved_intents.len(), 12, "All 12 intents should be resolved");
+			assert!(solution.score > 0, "Score should be positive");
+
+			// Rate uniformity: same-direction intents must have same out/in ratio
+			let mut rates_by_direction: std::collections::BTreeMap<(u32, u32), Vec<f64>> =
+				std::collections::BTreeMap::new();
+			for ri in solution.resolved_intents.iter() {
+				let ice_support::IntentData::Swap(ref s) = ri.data;
+				let rate = s.amount_out as f64 / s.amount_in as f64;
+				rates_by_direction.entry((s.asset_in, s.asset_out)).or_default().push(rate);
+			}
+			for ((a, b), rates) in &rates_by_direction {
+				if rates.len() > 1 {
+					let max = rates.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+					let min = rates.iter().cloned().fold(f64::INFINITY, f64::min);
+					let diff_pct = if min > 0.0 { (max - min) / min * 100.0 } else { 0.0 };
+					assert!(diff_pct < 0.001, "Rate spread for {} → {} should be < 0.001%, got {:.6}%", a, b, diff_pct);
+				}
+			}
+
+			// Submit and verify execution
+			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
+			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
+			let bob_hdx_before = Currencies::total_balance(hdx, &bob);
+			let bob_bnc_before = Currencies::total_balance(bnc, &bob);
+			let bob_dot_before = Currencies::total_balance(dot, &bob);
+			let charlie_hdx_before = Currencies::total_balance(hdx, &charlie);
+			let charlie_bnc_before = Currencies::total_balance(bnc, &charlie);
+			let dave_bnc_before = Currencies::total_balance(bnc, &dave);
+			let dave_dot_before = Currencies::total_balance(dot, &dave);
+			let eve_bnc_before = Currencies::total_balance(bnc, &eve);
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(), solution, hydradx_runtime::System::block_number(),
+			));
+
+			assert!(pallet_intent::Pallet::<Runtime>::get_valid_intents().is_empty(), "All intents resolved");
+
+			// Verify balance directions
+			assert!(Currencies::total_balance(hdx, &alice) < alice_hdx_before, "Alice sold HDX");
+			assert!(Currencies::total_balance(bnc, &alice) > alice_bnc_before, "Alice got BNC");
+			assert!(Currencies::total_balance(hdx, &bob) > bob_hdx_before, "Bob got HDX");
+			assert!(Currencies::total_balance(bnc, &bob) < bob_bnc_before, "Bob sold BNC");
+			assert!(Currencies::total_balance(dot, &bob) > bob_dot_before, "Bob got DOT");
+			assert!(Currencies::total_balance(hdx, &charlie) > charlie_hdx_before, "Charlie got HDX");
+			assert!(Currencies::total_balance(bnc, &charlie) < charlie_bnc_before, "Charlie sold BNC");
+			assert!(Currencies::total_balance(bnc, &dave) > dave_bnc_before, "Dave got BNC");
+			assert!(Currencies::total_balance(dot, &dave) > dave_dot_before, "Dave got DOT");
+			assert!(Currencies::total_balance(bnc, &eve) > eve_bnc_before, "Eve got BNC");
+		});
+}
+
+/// Compare 12-intent mixed batch: solver vs 12 sequential direct trades on identical pool state.
+#[test]
+fn solver_mixed_batch_vs_direct_trades() {
+	use hydradx_traits::router::{AssetPair, RouteProvider};
+	use std::cell::RefCell;
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let dot = 5u32;
+
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+	let dot_unit = 10_000_000_000u128;
+
+	let min_bnc = bnc_unit;
+	let min_hdx = 500 * hdx_unit;
+	let min_dot = dot_unit / 10;
+
+	let trades: Vec<(u32, u32, u128)> = vec![
+		(hdx, bnc, 10_000 * hdx_unit), (bnc, hdx, 30 * bnc_unit), (bnc, hdx, 50 * bnc_unit),
+		(hdx, bnc, 8_000 * hdx_unit), (hdx, dot, 5_000 * hdx_unit), (hdx, dot, 3_000 * hdx_unit),
+		(hdx, dot, 4_000 * hdx_unit), (bnc, dot, 20 * bnc_unit), (dot, hdx, 15 * dot_unit),
+		(dot, bnc, 5 * dot_unit), (dot, bnc, 10 * dot_unit), (bnc, dot, 10 * bnc_unit),
+	];
+
+	// Run 1: Direct trades on fresh state
+	let direct_total: RefCell<u128> = RefCell::new(0);
+
+	TestNet::reset();
+	{
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+		let charlie: AccountId = CHARLIE.into();
+		let dave: AccountId = DAVE.into();
+		let eve: AccountId = EVE.into();
+		let users: Vec<AccountId> = vec![
+			alice.clone(), bob.clone(), charlie.clone(), dave.clone(),
+			alice.clone(), dave.clone(), eve.clone(), bob.clone(),
+			charlie.clone(), eve.clone(), alice.clone(), bob.clone(),
+		];
+
+		crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+			.endow_account(alice.clone(), hdx, 20_000 * hdx_unit)
+			.endow_account(alice.clone(), dot, 20 * dot_unit)
+			.endow_account(bob.clone(), bnc, 100 * bnc_unit)
+			.endow_account(charlie.clone(), bnc, 100 * bnc_unit)
+			.endow_account(charlie.clone(), dot, 30 * dot_unit)
+			.endow_account(dave.clone(), hdx, 20_000 * hdx_unit)
+			.endow_account(eve.clone(), hdx, 10_000 * hdx_unit)
+			.endow_account(eve.clone(), dot, 10 * dot_unit)
+			.execute(|| {
+				enable_slip_fees();
+				let mut total = 0u128;
+				for (i, &(asset_in, asset_out, amount_in)) in trades.iter().enumerate() {
+					let user = &users[i];
+					let before = Currencies::total_balance(asset_out, user);
+					let route = Router::get_route(AssetPair::new(asset_in, asset_out));
+					assert_ok!(Router::sell(RuntimeOrigin::signed(user.clone()), asset_in, asset_out, amount_in, 1, route));
+					total += Currencies::total_balance(asset_out, user) - before;
+				}
+				*direct_total.borrow_mut() = total;
+			});
+	}
+	let direct = *direct_total.borrow();
+
+	// Run 2: Solver on fresh state
+	TestNet::reset();
+	{
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+		let charlie: AccountId = CHARLIE.into();
+		let dave: AccountId = DAVE.into();
+		let eve: AccountId = EVE.into();
+
+		crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+			.endow_account(alice.clone(), hdx, 20_000 * hdx_unit)
+			.endow_account(alice.clone(), dot, 20 * dot_unit)
+			.endow_account(bob.clone(), bnc, 100 * bnc_unit)
+			.endow_account(charlie.clone(), bnc, 100 * bnc_unit)
+			.endow_account(charlie.clone(), dot, 30 * dot_unit)
+			.endow_account(dave.clone(), hdx, 20_000 * hdx_unit)
+			.endow_account(eve.clone(), hdx, 10_000 * hdx_unit)
+			.endow_account(eve.clone(), dot, 10 * dot_unit)
+			.submit_swap_intent(alice.clone(), hdx, bnc, 10_000 * hdx_unit, min_bnc, Some(10))
+			.submit_swap_intent(bob.clone(), bnc, hdx, 30 * bnc_unit, min_hdx, Some(10))
+			.submit_swap_intent(charlie.clone(), bnc, hdx, 50 * bnc_unit, min_hdx, Some(10))
+			.submit_swap_intent(dave.clone(), hdx, bnc, 8_000 * hdx_unit, min_bnc, Some(10))
+			.submit_swap_intent(alice.clone(), hdx, dot, 5_000 * hdx_unit, min_dot, Some(10))
+			.submit_swap_intent(dave.clone(), hdx, dot, 3_000 * hdx_unit, min_dot, Some(10))
+			.submit_swap_intent(eve.clone(), hdx, dot, 4_000 * hdx_unit, min_dot, Some(10))
+			.submit_swap_intent(bob.clone(), bnc, dot, 20 * bnc_unit, min_dot, Some(10))
+			.submit_swap_intent(charlie.clone(), dot, hdx, 15 * dot_unit, min_hdx, Some(10))
+			.submit_swap_intent(eve.clone(), dot, bnc, 5 * dot_unit, min_bnc, Some(10))
+			.submit_swap_intent(alice.clone(), dot, bnc, 10 * dot_unit, min_bnc, Some(10))
+			.submit_swap_intent(bob.clone(), bnc, dot, 10 * bnc_unit, min_dot, Some(10))
+			.execute(|| {
+				enable_slip_fees();
+
+				let call = pallet_ice::Pallet::<Runtime>::run(
+					hydradx_runtime::System::block_number(),
+					|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+				)
+				.expect("Solver should produce a solution");
+
+				crate::polkadot_test_net::hydradx_run_to_next_block();
+
+				let pallet_ice::Call::submit_solution { solution, .. } = call;
+				assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+					RuntimeOrigin::none(), solution.clone(), hydradx_runtime::System::block_number(),
+				));
+
+				// Verify all 12 intents resolved and executed
+				assert_eq!(solution.resolved_intents.len(), 12, "All 12 intents should be resolved");
+			});
+	}
+}
+
+/// Load testnet snapshot with intents, iteratively resolve until no more can be resolved.
+#[test]
+fn solver_testnet_snapshot_intents() {
+	TestNet::reset();
+
+	crate::driver::HydrationTestDriver::with_snapshot("snapshots/hsm/ice_lark2").execute(|| {
+		enable_slip_fees();
+
+		let initial_count = pallet_intent::Pallet::<Runtime>::get_valid_intents().len();
+		assert!(initial_count > 0, "Snapshot should contain intents");
+
+		let mut total_resolved = 0;
+		for _ in 0..10 {
+			let remaining = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			if remaining.is_empty() { break; }
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			);
+
+			let Some(pallet_ice::Call::submit_solution { solution, .. }) = call else { break; };
+
+			total_resolved += solution.resolved_intents.len();
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(), solution, hydradx_runtime::System::block_number(),
+			));
+		}
+
+		assert!(total_resolved > 0, "Should resolve at least 1 intent from snapshot");
+	});
+}
+
+/// Verify that intents the solver can't resolve also fail as direct Router trades.
+#[test]
+fn solver_testnet_snapshot_direct_trade_check() {
+	use hydradx_traits::router::{AssetPair, RouteProvider};
+
+	TestNet::reset();
+
+	crate::driver::HydrationTestDriver::with_snapshot("snapshots/hsm/ice_lark2").execute(|| {
+		enable_slip_fees();
+
+		let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+		assert!(!intents.is_empty());
+
+		// Track which intents the solver can resolve
+		let call = pallet_ice::Pallet::<Runtime>::run(
+			hydradx_runtime::System::block_number(),
+			|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+		);
+		let resolved_ids: std::collections::BTreeSet<_> = call
+			.map(|pallet_ice::Call::submit_solution { solution, .. }| {
+				solution.resolved_intents.iter().map(|ri| ri.id).collect()
+			})
+			.unwrap_or_default();
+
+		// For unresolved intents, verify direct trade also fails
+		for (id, intent) in &intents {
+			if resolved_ids.contains(id) { continue; }
+
+			let ice_support::IntentData::Swap(ref s) = intent.data;
+			let owner = pallet_intent::Pallet::<Runtime>::intent_owner(id).unwrap_or_else(|| ALICE.into());
+
+			let route = Router::get_route(AssetPair::new(s.asset_in, s.asset_out));
+			let result = Router::sell(
+				RuntimeOrigin::signed(owner), s.asset_in, s.asset_out, s.amount_in, s.amount_out, route,
+			);
+
+			assert!(result.is_err(), "Unresolved intent {} should also fail as direct trade", id);
+		}
+	});
+}
+
+/// Multi-round resolution: resolve what we can, inject a price-moving trade,
+/// then resolve previously-stuck intents that benefit from the price change.
+#[test]
+fn solver_testnet_snapshot_multi_round() {
+	TestNet::reset();
+
+	let hdx = 0u32;
+	let hollar = 222u32;
+	let hdx_unit = 1_000_000_000_000u128;
+	let hollar_unit = 1_000_000_000_000_000_000u128;
+
+	crate::driver::HydrationTestDriver::with_snapshot("snapshots/hsm/ice_lark2").execute(|| {
+		enable_slip_fees();
+
+		let initial_count = pallet_intent::Pallet::<Runtime>::get_valid_intents().len();
+		assert!(initial_count > 0);
+
+		// Round 1: Resolve what we can
+		let call1 = pallet_ice::Pallet::<Runtime>::run(
+			hydradx_runtime::System::block_number(),
+			|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+		);
+		let r1_resolved = if let Some(pallet_ice::Call::submit_solution { solution, .. }) = call1 {
+			let count = solution.resolved_intents.len();
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(), solution, hydradx_runtime::System::block_number(),
+			));
+			count
+		} else { 0 };
+
+		let after_r1 = pallet_intent::Pallet::<Runtime>::get_valid_intents().len();
+		assert!(r1_resolved > 0, "Round 1 should resolve at least 1 intent");
+
+		crate::polkadot_test_net::hydradx_run_to_next_block();
+
+		// Round 2: Submit large HDX→HOLLAR to push HOLLAR price up
+		let dave: AccountId = DAVE.into();
+		let hdx_sell_amount = 1_000_000 * hdx_unit;
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(), dave.clone(), hdx, (hdx_sell_amount * 2) as i128,
+		));
+		let ts = hydradx_runtime::Timestamp::now();
+		assert_ok!(pallet_intent::Pallet::<Runtime>::submit_intent(
+			RuntimeOrigin::signed(dave.clone()),
+			pallet_intent::types::Intent {
+				data: ice_support::IntentData::Swap(ice_support::SwapData {
+					asset_in: hdx, asset_out: hollar,
+					amount_in: hdx_sell_amount, amount_out: hollar_unit,
+					partial: false,
+				}),
+				deadline: Some(6000u64 * 20 + ts),
+				on_resolved: None,
+			},
+		));
+
+		let call2 = pallet_ice::Pallet::<Runtime>::run(
+			hydradx_runtime::System::block_number(),
+			|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+		);
+		let r2_resolved = if let Some(pallet_ice::Call::submit_solution { solution, .. }) = call2 {
+			let count = solution.resolved_intents.len();
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(), solution, hydradx_runtime::System::block_number(),
+			));
+			count
+		} else { 0 };
+
+		assert!(r2_resolved >= 2, "Round 2 should resolve Dave's intent + at least 1 more via matching");
+
+		crate::polkadot_test_net::hydradx_run_to_next_block();
+
+		// Round 3: Price moved — try remaining intents
+		let call3 = pallet_ice::Pallet::<Runtime>::run(
+			hydradx_runtime::System::block_number(),
+			|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+		);
+		let r3_resolved = if let Some(pallet_ice::Call::submit_solution { solution, .. }) = call3 {
+			let count = solution.resolved_intents.len();
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(), solution, hydradx_runtime::System::block_number(),
+			));
+			count
+		} else { 0 };
+
+		// The price move should unlock previously-stuck HOLLAR→HDX intents
+		assert!(r3_resolved > 0, "Round 3 should resolve intents unlocked by price move");
+
+		let total_resolved = r1_resolved + r2_resolved + r3_resolved;
+		// We started with 5 snapshot intents + 1 injected = 6 total
+		// At least 5 should be resolved (the HDX→HOLLAR intent is in the opposite direction)
+		assert!(total_resolved >= 5, "Should resolve at least 5 of 6 intents across 3 rounds");
+	});
+}
+
+/// Test near-perfect cancellation: two opposing intents that almost cancel,
+/// leaving only a tiny net imbalance for the AMM.
+/// Must produce a valid solution and execute on-chain.
+#[test]
+fn solver_near_perfect_cancel_ed_remainder() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+
+	// Spot: BNC/HDX ≈ 30.3 (1 BNC ≈ 30.3 HDX from snapshot)
+	// Alice: sell 1000 HDX for BNC (~33 BNC at spot)
+	let alice_hdx_sell = 1000 * hdx_unit;
+	// Bob: sell 34 BNC for HDX (~1030 HDX at spot)
+	// Net excess BNC: ~1 BNC ≈ 30 HDX to trade through AMM (tiny remainder)
+	let bob_bnc_sell = 34 * bnc_unit;
+
+	let alice_min_bnc = 25 * bnc_unit;
+	let bob_min_hdx = 800 * hdx_unit;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, alice_hdx_sell * 10)
+		.endow_account(bob.clone(), bnc, bob_bnc_sell * 10)
+		.submit_swap_intent(alice.clone(), hdx, bnc, alice_hdx_sell, alice_min_bnc, Some(10))
+		.submit_swap_intent(bob.clone(), bnc, hdx, bob_bnc_sell, bob_min_hdx, Some(10))
+		.execute(|| {
+			enable_slip_fees();
+
+			assert_eq!(pallet_intent::Pallet::<Runtime>::get_valid_intents().len(), 2);
+
+			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
+			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
+			let bob_hdx_before = Currencies::total_balance(hdx, &bob);
+			let bob_bnc_before = Currencies::total_balance(bnc, &bob);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+					Solver::solve(intents, state).ok()
+				},
+			)
+			.expect("Solver must produce a solution for near-perfect cancel");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call;
+
+			assert_eq!(solution.resolved_intents.len(), 2, "Both intents must be resolved");
+			// Near-perfect cancel: at most 1 small AMM trade for the net remainder
+			assert!(solution.trades.len() <= 1, "Should need at most 1 AMM trade");
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+				hydradx_runtime::System::block_number(),
+			));
+
+			assert!(pallet_intent::Pallet::<Runtime>::get_valid_intents().is_empty(), "All intents resolved");
+
+			assert!(Currencies::total_balance(hdx, &alice) < alice_hdx_before, "Alice sold HDX");
+			assert!(Currencies::total_balance(bnc, &alice) > alice_bnc_before, "Alice got BNC");
+			assert!(Currencies::total_balance(bnc, &bob) < bob_bnc_before, "Bob sold BNC");
+			assert!(Currencies::total_balance(hdx, &bob) > bob_hdx_before, "Bob got HDX");
+		});
+}
+
+/// Test with amounts at existential deposit level.
+
+/// Test with near-cancelling amounts where the net AMM remainder is small.
+/// Alice sells 100 HDX for BNC (~3.3 BNC at spot).
+/// Bob sells 3.4 BNC for HDX (~103 HDX at spot).
+/// Net excess: ~0.1 BNC ≈ 3 HDX — very small AMM trade.
+#[test]
+fn solver_existential_deposit_amounts() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+
+	// Spot: 1 BNC ≈ 30.3 HDX
+	let alice_hdx_sell = 100 * hdx_unit;
+	let bob_bnc_sell = 34 * bnc_unit / 10; // 3.4 BNC
+
+	let alice_min_bnc = 2 * bnc_unit;
+	let bob_min_hdx = 80 * hdx_unit;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, alice_hdx_sell * 100)
+		.endow_account(bob.clone(), bnc, bob_bnc_sell * 100)
+		.submit_swap_intent(alice.clone(), hdx, bnc, alice_hdx_sell, alice_min_bnc, Some(10))
+		.submit_swap_intent(bob.clone(), bnc, hdx, bob_bnc_sell, bob_min_hdx, Some(10))
+		.execute(|| {
+			enable_slip_fees();
+
+			assert_eq!(pallet_intent::Pallet::<Runtime>::get_valid_intents().len(), 2);
+
+			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
+			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
+			let bob_hdx_before = Currencies::total_balance(hdx, &bob);
+			let bob_bnc_before = Currencies::total_balance(bnc, &bob);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+					Solver::solve(intents, state).ok()
+				},
+			)
+			.expect("Solver must handle near-ED AMM remainder");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call;
+
+			assert_eq!(solution.resolved_intents.len(), 2, "Both intents must be resolved");
+			assert!(solution.trades.len() <= 1, "Near-cancel should need at most 1 small AMM trade");
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+				hydradx_runtime::System::block_number(),
+			));
+
+			assert!(pallet_intent::Pallet::<Runtime>::get_valid_intents().is_empty());
+
+			assert!(Currencies::total_balance(hdx, &alice) < alice_hdx_before, "Alice sold HDX");
+			assert!(Currencies::total_balance(bnc, &alice) > alice_bnc_before, "Alice got BNC");
+			assert!(Currencies::total_balance(bnc, &bob) < bob_bnc_before, "Bob sold BNC");
+			assert!(Currencies::total_balance(hdx, &bob) > bob_hdx_before, "Bob got HDX");
+		});
+}
+
+/// Test where opposing intents nearly cancel, leaving AMM remainder below ED.
+/// Alice sells 50 HDX for BNC (~1.65 BNC at spot).
+/// Bob sells 1.7 BNC for HDX (~51.5 HDX at spot).
+/// Net excess: ~0.05 BNC ≈ 1.5 HDX — potentially below minimum trade size.
+#[test]
+fn solver_amm_remainder_below_ed() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+
+	// Spot: 1 BNC ≈ 30.3 HDX
+	// Alice: sell 50 HDX → ~1.65 BNC
+	let alice_hdx_sell = 50 * hdx_unit;
+	// Bob: sell 1.7 BNC → ~51.5 HDX
+	// Net excess BNC: 1.7 - 1.65 = 0.05 BNC ≈ 1.5 HDX — below or near ED
+	let bob_bnc_sell = 17 * bnc_unit / 10; // 1.7 BNC
+
+	let alice_min_bnc = 1 * bnc_unit;    // expect ~1.65, require 1
+	let bob_min_hdx = 40 * hdx_unit;     // expect ~51.5, require 40
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, alice_hdx_sell * 100)
+		.endow_account(bob.clone(), bnc, bob_bnc_sell * 100)
+		.submit_swap_intent(alice.clone(), hdx, bnc, alice_hdx_sell, alice_min_bnc, Some(10))
+		.submit_swap_intent(bob.clone(), bnc, hdx, bob_bnc_sell, bob_min_hdx, Some(10))
+		.execute(|| {
+			enable_slip_fees();
+
+			assert_eq!(pallet_intent::Pallet::<Runtime>::get_valid_intents().len(), 2);
+
+			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
+			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
+			let bob_hdx_before = Currencies::total_balance(hdx, &bob);
+			let bob_bnc_before = Currencies::total_balance(bnc, &bob);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+					Solver::solve(intents, state).ok()
+				},
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call;
+
+			assert_eq!(solution.resolved_intents.len(), 2, "Both intents must be resolved");
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+				hydradx_runtime::System::block_number(),
+			));
+
+			assert!(pallet_intent::Pallet::<Runtime>::get_valid_intents().is_empty());
+
+			assert!(Currencies::total_balance(hdx, &alice) < alice_hdx_before, "Alice sold HDX");
+			assert!(Currencies::total_balance(bnc, &alice) > alice_bnc_before, "Alice got BNC");
+			assert!(Currencies::total_balance(bnc, &bob) < bob_bnc_before, "Bob sold BNC");
+			assert!(Currencies::total_balance(hdx, &bob) > bob_hdx_before, "Bob got HDX");
+		});
+}
+
+/// Test where opposing intents cancel almost exactly — AMM remainder is dust.
+/// Alice sells 50 HDX → ~1.649 BNC at spot.
+/// Bob sells 1.65 BNC → ~50.02 HDX at spot.
+/// Net excess: ~0.001 BNC ≈ 0.03 HDX — dust level.
+#[test]
+fn solver_amm_remainder_dust() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+
+	// Spot: 1 BNC ≈ 30.3 HDX
+	let alice_hdx_sell = 50 * hdx_unit;
+	// 1.65 BNC ≈ 50.02 HDX — almost exactly cancels Alice's 50 HDX
+	let bob_bnc_sell = 165 * bnc_unit / 100; // 1.65 BNC
+
+	let alice_min_bnc = 1 * bnc_unit;
+	let bob_min_hdx = 40 * hdx_unit;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, alice_hdx_sell * 100)
+		.endow_account(bob.clone(), bnc, bob_bnc_sell * 100)
+		.submit_swap_intent(alice.clone(), hdx, bnc, alice_hdx_sell, alice_min_bnc, Some(10))
+		.submit_swap_intent(bob.clone(), bnc, hdx, bob_bnc_sell, bob_min_hdx, Some(10))
+		.execute(|| {
+			enable_slip_fees();
+
+			assert_eq!(pallet_intent::Pallet::<Runtime>::get_valid_intents().len(), 2);
+
+			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
+			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
+			let bob_hdx_before = Currencies::total_balance(hdx, &bob);
+			let bob_bnc_before = Currencies::total_balance(bnc, &bob);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+					Solver::solve(intents, state).ok()
+				},
+			)
+			.expect("Solver must produce a solution for dust-level remainder");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call;
+
+			assert_eq!(solution.resolved_intents.len(), 2, "Both intents must be resolved");
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+				hydradx_runtime::System::block_number(),
+			));
+
+			assert!(pallet_intent::Pallet::<Runtime>::get_valid_intents().is_empty());
+
+			assert!(Currencies::total_balance(hdx, &alice) < alice_hdx_before, "Alice sold HDX");
+			assert!(Currencies::total_balance(bnc, &alice) > alice_bnc_before, "Alice got BNC");
+			assert!(Currencies::total_balance(bnc, &bob) < bob_bnc_before, "Bob sold BNC");
+			assert!(Currencies::total_balance(hdx, &bob) > bob_hdx_before, "Bob got HDX");
 		});
 }

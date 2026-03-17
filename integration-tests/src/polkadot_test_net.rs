@@ -785,6 +785,7 @@ pub fn go_to_block(number: BlockNumber) {
 		hydradx_runtime::EVMAccounts::on_finalize(current_block);
 		hydradx_runtime::Stableswap::on_finalize(current_block);
 		hydradx_runtime::HSM::on_finalize(current_block);
+		hydradx_runtime::Omnipool::on_finalize(current_block);
 	}
 
 	// Set relay chain validation data BEFORE initializing the new block
@@ -842,6 +843,7 @@ pub fn go_to_block(number: BlockNumber) {
 	hydradx_runtime::EVMAccounts::on_initialize(number);
 	hydradx_runtime::Stableswap::on_initialize(number);
 	hydradx_runtime::HSM::on_initialize(number);
+	hydradx_runtime::Omnipool::on_initialize(number);
 }
 
 pub fn hydradx_run_to_next_block() {

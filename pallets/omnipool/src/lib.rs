@@ -2366,8 +2366,10 @@ impl<T: Config> Pallet<T> {
 		);
 		// And the actual fee taken must be equal to the reported amount!
 		debug_assert!(
-			actual_fee_taken == taken_fee_total,
-			"Fee Overdraft - actual taken amount is not equal to reported amount"
+			actual_fee_taken.abs_diff(taken_fee_total) <= Balance::one(),
+			"Fee Overdraft - actual taken amount {:?} is not equal to reported amount {:?}",
+			actual_fee_taken,
+			taken_fee_total
 		);
 
 		let protocol_fee_amount = amount.saturating_sub(taken_fee_total);

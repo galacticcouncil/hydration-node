@@ -204,9 +204,6 @@ pub mod pallet {
 		pub fn submit_intent(origin: OriginFor<T>, intent: Intent) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			//NOTE: it's intentinally checked only in extrinsic so we can still test internal `add_intent()`.
-			ensure!(!intent.data.is_partial(), Error::<T>::NotImplemented);
-
 			Self::add_intent(who, intent)?;
 			Ok(())
 		}

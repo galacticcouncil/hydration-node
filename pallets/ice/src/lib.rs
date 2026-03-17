@@ -81,7 +81,7 @@ pub mod pallet {
 	use super::*;
 	use frame_system::offchain::SubmitTransaction;
 	use hydradx_traits::CreateBare;
-	use ice_solver::v1::SolverV1;
+	use ice_solver::v1::Solver;
 	use ice_support::SwapType;
 
 	#[pallet::pallet]
@@ -305,7 +305,7 @@ pub mod pallet {
 
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			let Some(call) = Self::run(block_number, |intents, state| {
-				SolverV1::<amm_simulator::HydrationSimulator<T::Simulator>>::solve(intents, state).ok()
+				Solver::<amm_simulator::HydrationSimulator<T::Simulator>>::solve(intents, state).ok()
 			}) else {
 				//No call/solution, nothing to do
 				return;

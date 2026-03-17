@@ -1,2 +1,3 @@
 mod solver;
-pub use solver::*;
+
+pub use solver::Solver;
