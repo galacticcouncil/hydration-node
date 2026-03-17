@@ -1674,8 +1674,7 @@ pub mod pallet {
 				assert_eq!(
 					state.shares - state.protocol_shares,
 					total,
-					"Asset {:?} shares in positions is not equal to shares in asset state",
-					asset_id
+					"Asset {asset_id:?} shares in positions is not equal to shares in asset state",
 				);
 			}
 			Ok(())

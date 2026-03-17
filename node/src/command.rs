@@ -118,7 +118,7 @@ impl SubstrateCli for RelayChainCli {
 	}
 }
 
-#[allow(clippy::borrowed_box)]
+#[allow(clippy::borrowed_box, clippy::result_large_err)]
 fn extract_genesis_wasm(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Result<Vec<u8>> {
 	let mut storage = chain_spec.build_storage()?;
 
@@ -129,6 +129,7 @@ fn extract_genesis_wasm(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Result<V
 }
 
 /// Parse and run command line arguments
+#[allow(clippy::result_large_err)]
 pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
 
@@ -326,9 +327,9 @@ pub fn run() -> sc_cli::Result<()> {
 
 				let collator_options = cli.run.base.collator_options();
 
-				info!("Parachain id: {:?}", para_id);
-				info!("Parachain Account: {}", parachain_account);
-				info!("Parachain genesis state: {}", genesis_state);
+				info!("Parachain id: {para_id:?}");
+				info!("Parachain Account: {parachain_account}");
+				info!("Parachain genesis state: {genesis_state}");
 				info!(
 					"Is collating: {}",
 					if config.role.is_authority() { "yes" } else { "no" }

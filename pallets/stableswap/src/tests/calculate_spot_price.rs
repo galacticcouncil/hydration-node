@@ -648,11 +648,7 @@ mod invariants {
 
 				//Check if spot price calculation is correct
 				let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
-				let difference = if calculated_amount_out > expected {
-					calculated_amount_out - expected
-				} else {
-					expected - calculated_amount_out
-				};
+				let difference = calculated_amount_out.abs_diff(expected);
 				let relative_difference = FixedU128::from_rational(difference, expected);
 				let tolerated_difference = FixedU128::from_rational(1, 100);
 				// The difference of the amount out calculated with spot price should be less than 1%

@@ -254,8 +254,7 @@ impl frame_support::migrations::FailedMigrationHandler for LogErrorAndForceUnstu
 	fn failed(migration: Option<u32>) -> FailedMigrationHandling {
 		log::error!(
 			target: "runtime::migrations",
-			"Migration {:?} failed - halting all migrations and resuming chain",
-			migration
+			"Migration {migration:?} failed - halting all migrations and resuming chain"
 		);
 
 		// Clear the migration cursor entirely. Transactions resume, remaining migrations are

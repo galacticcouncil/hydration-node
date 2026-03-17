@@ -154,8 +154,7 @@ pub mod v2 {
 			let whitelist_count = crate::AccountWhitelist::<T>::iter().count();
 			log::info!(
 				target: "runtime::duster",
-				"Duster v2 migration: POST checks successful! AccountWhitelist has {} entries",
-				whitelist_count
+				"Duster v2 migration: POST checks successful! AccountWhitelist has {whitelist_count} entries",
 			);
 			Ok(())
 		}
