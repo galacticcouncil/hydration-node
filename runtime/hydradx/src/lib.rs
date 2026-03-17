@@ -1312,8 +1312,27 @@ impl_runtime_apis! {
 
 			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Assets, Parent, ParentThen, Parachain, WeightLimit};
 
+			use primitives::constants::currency::UNITS;
+
+			frame_support::parameter_types! {
+				/// The asset ID for the asset that we use to pay for message delivery fees.
+			pub FeeAssetId: cumulus_primitives_core::AssetId = AssetId(xcm::PolkadotLocation::get());
+			/// The base fee for the message delivery fees.
+			pub const BaseDeliveryFee: u128 = CENTS.saturating_mul(3);
+				pub ExistentialDepositAsset: Option<Asset> = Some((
+					CoreAssetLocation::get(),
+					ExistentialDeposit::get()
+				).into());
+			}
+
+			pub type PriceForParentDelivery = ExponentialPrice<FeeAssetId, BaseDeliveryFee, TransactionByteFee, ParachainSystem>;
+
 			impl pallet_xcm::benchmarking::Config for Runtime {
-				type DeliveryHelper = ();
+				type DeliveryHelper = cumulus_primitives_utility::ToParentDeliveryHelper<
+					xcm::XcmConfig,
+					ExistentialDepositAsset,
+					PriceForParentDelivery,
+				>;
 
 				fn reachable_dest() -> Option<Location> {
 					Some(Parent.into())
@@ -1378,21 +1397,6 @@ impl_runtime_apis! {
 					}
 				}
 			}
-
-			use primitives::constants::currency::UNITS;
-
-			frame_support::parameter_types! {
-				/// The asset ID for the asset that we use to pay for message delivery fees.
-			pub FeeAssetId: cumulus_primitives_core::AssetId = AssetId(xcm::PolkadotLocation::get());
-			/// The base fee for the message delivery fees.
-			pub const BaseDeliveryFee: u128 = CENTS.saturating_mul(3);
-				pub ExistentialDepositAsset: Option<Asset> = Some((
-					CoreAssetLocation::get(),
-					ExistentialDeposit::get()
-				).into());
-			}
-
-			pub type PriceForParentDelivery = ExponentialPrice<FeeAssetId, BaseDeliveryFee, TransactionByteFee, ParachainSystem>;
 
 			impl pallet_xcm_benchmarks::Config for Runtime {
 				type XcmConfig = xcm::XcmConfig;
