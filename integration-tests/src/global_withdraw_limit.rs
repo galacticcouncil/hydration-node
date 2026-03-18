@@ -1030,7 +1030,8 @@ fn inbound_xcm_net_egress_is_accounted() {
 		]);
 
 		assert_eq!(
-			CircuitBreaker::withdraw_limit_accumulator().0, 0,
+			CircuitBreaker::withdraw_limit_accumulator().0,
+			0,
 			"The accumulator should be zero before send_xcm"
 		);
 
