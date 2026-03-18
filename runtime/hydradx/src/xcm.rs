@@ -482,9 +482,12 @@ where
 		let result = MessageProcessor::process_message(message, origin, meter, id);
 
 		if let Some((withdrawn, deposited)) = pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::take() {
-			let net = withdrawn.saturating_sub(deposited);
-			if !net.is_zero() {
-				let _ = pallet_circuit_breaker::Pallet::<Runtime>::note_egress(net);
+			if matches!(result, Ok(true)) {
+				let net = withdrawn.saturating_sub(deposited);
+				if !net.is_zero() {
+					pallet_circuit_breaker::Pallet::<Runtime>::note_egress(net)
+						.map_err(|_| frame_support::traits::ProcessMessageError::Corrupt)?;
+				}
 			}
 		}
 		result
