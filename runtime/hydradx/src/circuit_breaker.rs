@@ -149,7 +149,19 @@ impl<RC: Get<AssetId>> orml_traits::Handler<(AssetId, Balance, Option<AccountId>
 	fn handle(t: &(AssetId, Balance, Option<AccountId>)) -> DispatchResult {
 		let (asset_id, amount, maybe_dest) = t;
 
-		if !WithdrawCircuitBreaker::<RC>::should_account_deposit_operation(*asset_id, maybe_dest.clone()) {
+		let buffer_active = pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::exists();
+
+		// During XCM execution (buffer active), only check that the asset participates
+		// in accounting. All deposits of participating assets must be buffered so that
+		// the net egress is computed correctly (e.g. fee-escrow refunds cancel out the
+		// initial WithdrawAsset).
+		// Outside XCM, use the stricter should_account_deposit_operation check which,
+		// for Local assets, requires the source to be an egress account.
+		if buffer_active {
+			if WithdrawCircuitBreaker::<RC>::global_asset_category(*asset_id).is_none() {
+				return Ok(());
+			}
+		} else if !WithdrawCircuitBreaker::<RC>::should_account_deposit_operation(*asset_id, maybe_dest.clone()) {
 			return Ok(());
 		}
 
