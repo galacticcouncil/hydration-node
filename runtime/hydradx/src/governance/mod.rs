@@ -265,5 +265,6 @@ impl pallet_dispatcher::Config for Runtime {
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = AaveManagerAccount;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
+	type MigrationOperatorOrigin = EitherOf<EnsureRoot<AccountId>, TechCommitteeMajority>;
 	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
 }

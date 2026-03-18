@@ -50,6 +50,9 @@ use frame_support::pallet_prelude::Weight;
 use frame_support::traits::Get;
 pub use pallet::*;
 
+pub mod hyperbridge_cleanup;
+pub use hyperbridge_cleanup::{do_cleanup_step, Stage};
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -89,6 +92,9 @@ pub mod pallet {
 		type TreasuryAccount: Get<Self::AccountId>;
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
 
+		/// The origin to manage hyperbridge migration ongoing status.
+		type MigrationOperatorOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
 
@@ -107,6 +113,14 @@ pub mod pallet {
 	#[pallet::whitelist_storage]
 	#[pallet::getter(fn extra_gas)]
 	pub type ExtraGas<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+	/// Whether the background ISMP storage cleanup is active.
+	#[pallet::storage]
+	pub type CleanupEnabled<T: Config> = StorageValue<_, bool, ValueQuery>;
+
+	/// Current stage of the background ISMP storage cleanup.
+	#[pallet::storage]
+	pub type CleanupStage<T: Config> = StorageValue<_, Stage, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::whitelist_storage]
@@ -155,6 +169,51 @@ pub mod pallet {
 		/// Reset the last EVM call exit reason on block finalization.
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			LastEvmCallExitReason::<T>::kill();
+		}
+
+		/// Run a bounded chunk of ISMP storage cleanup during idle time.
+		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
+			if !CleanupEnabled::<T>::get() {
+				return Weight::zero();
+			}
+
+			// Use at most half of the remaining weight for cleanup.
+			let budget = remaining_weight.saturating_div(2);
+			let per_key_weight = T::DbWeight::get().reads_writes(2, 1);
+
+			let k_ref = budget.ref_time().checked_div(per_key_weight.ref_time()).unwrap_or(0);
+			let k_proof = if per_key_weight.proof_size() > 0 {
+				budget
+					.proof_size()
+					.checked_div(per_key_weight.proof_size())
+					.unwrap_or(0)
+			} else {
+				u64::MAX
+			};
+			let limit = k_ref.min(k_proof);
+
+			if limit == 0 {
+				return Weight::zero();
+			}
+
+			let limit_u32 = limit.min(u32::MAX as u64) as u32;
+
+			let stage = CleanupStage::<T>::get().unwrap_or(Stage::StateCommitments);
+
+			let (done, keys_deleted) = do_cleanup_step(stage, limit_u32);
+
+			if done {
+				match stage.next() {
+					Some(next) => CleanupStage::<T>::put(next),
+					None => {
+						// All stages complete.
+						CleanupEnabled::<T>::put(false);
+						CleanupStage::<T>::kill();
+					}
+				}
+			}
+
+			per_key_weight.saturating_mul(keys_deleted as u64)
 		}
 	}
 
@@ -327,6 +386,21 @@ pub mod pallet {
 					error: err.error,
 				}),
 			}
+		}
+
+		/// Enable/pause the background ISMP storage cleanup. If enabled for the first time,
+		/// starting from the first stage.
+		#[pallet::call_index(5)]
+		#[pallet::weight(T::DbWeight::get().reads_writes(2, 1))]
+		pub fn set_hyperbridge_cleanup(origin: OriginFor<T>, pause: bool) -> DispatchResult {
+			T::MigrationOperatorOrigin::ensure_origin(origin)?;
+
+			CleanupEnabled::<T>::put(!pause);
+			if !pause && CleanupStage::<T>::get().is_none() {
+				CleanupStage::<T>::put(Stage::StateCommitments);
+			}
+
+			Ok(())
 		}
 	}
 }

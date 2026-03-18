@@ -121,6 +121,7 @@ impl dispatcher::Config for Test {
 	type DefaultAaveManagerAccount = TreasuryAccount;
 	type WeightInfo = ();
 	type EvmCallIdentifier = EvmCallIdentifier;
+	type MigrationOperatorOrigin = EnsureRoot<AccountId>;
 	type GasWeightMapping = MockGasWeightMapping;
 }
 
