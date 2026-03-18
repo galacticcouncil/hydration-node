@@ -1051,6 +1051,88 @@ fn inbound_xcm_net_egress_is_accounted() {
 }
 
 #[test]
+fn inbound_xcm_net_egress_over_limit_should_fail_processing() {
+	TestNet::reset();
+
+	let sovereign = parachain_reserve_account();
+	let relay_sovereign: AccountId =
+		hydradx_runtime::LocationToAccountId::convert_location(&Location::parent()).unwrap();
+
+	Hydra::execute_with(|| {
+		assert_ok!(CircuitBreaker::set_global_withdraw_limit_params(
+			hydradx_runtime::RuntimeOrigin::root(),
+			GlobalWithdrawLimitParameters {
+				limit: 50 * UNITS,
+				window: DAY,
+			}
+		));
+
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			HDX,
+			Some(GlobalAssetCategory::Local)
+		));
+
+		// Register relay chain sovereign as egress so that DepositReserveAsset
+		// deposits (real outflow) are not buffered as refunds.
+		assert_ok!(CircuitBreaker::add_egress_accounts(
+			hydradx_runtime::RuntimeOrigin::root(),
+			vec![relay_sovereign]
+		));
+
+		// Fund sovereign account with HDX.
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			sovereign.clone(),
+			200 * UNITS,
+		));
+	});
+
+	let amount = 100 * UNITS;
+	Acala::execute_with(|| {
+		let hdx_loc = Location::new(
+			1,
+			[
+				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+				cumulus_primitives_core::Junction::GeneralIndex(0),
+			],
+		);
+		let asset: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc),
+			fun: Fungible(amount),
+		};
+
+		let message = Xcm(vec![
+			WithdrawAsset(asset.clone().into()),
+			BuyExecution {
+				fees: asset,
+				weight_limit: Unlimited,
+			},
+			DepositReserveAsset {
+				assets: All.into(),
+				dest: Location::parent(),
+				xcm: Xcm(vec![]),
+			},
+		]);
+
+		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
+			Here,
+			Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]),
+			message
+		));
+	});
+
+	Hydra::execute_with(|| {
+		assert_xcm_message_processing_failed();
+		assert_eq!(
+			CircuitBreaker::withdraw_limit_accumulator().0,
+			0,
+			"Accumulator must remain unchanged when the buffered net egress exceeds the limit"
+		);
+	});
+}
+
+#[test]
 fn inbound_xcm_partial_refund_accounts_only_net() {
 	TestNet::reset();
 
