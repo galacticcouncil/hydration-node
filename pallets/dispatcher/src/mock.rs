@@ -129,6 +129,10 @@ parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 63;
 	pub const MaxReserves: u32 = 50;
+	pub const MockDbWeight: frame_support::weights::RuntimeDbWeight = frame_support::weights::RuntimeDbWeight {
+		read: 25_000_000,
+		write: 100_000_000,
+	};
 }
 
 impl system::Config for Test {
@@ -146,7 +150,7 @@ impl system::Config for Test {
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
-	type DbWeight = ();
+	type DbWeight = MockDbWeight;
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = AccountData<u128>;
