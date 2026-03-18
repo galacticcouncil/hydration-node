@@ -1,5 +1,6 @@
+use crate::hyperbridge_cleanup::Stage;
 use crate::mock::*;
-use crate::{Event, ExtraGas};
+use crate::{CleanupEnabled, CleanupStage, Event, ExtraGas};
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays};
 use frame_support::{assert_noop, assert_ok, dispatch::PostDispatchInfo};
 use orml_tokens::Error;
@@ -178,4 +179,168 @@ fn decrease_gas_limit_should_work() {
 		assert_eq!(Dispatcher::extra_gas(), 0);
 		assert_eq!(ExtraGas::<Test>::get(), 0u64);
 	});
+}
+
+mod hyperbridge_cleanup_tests {
+	use super::*;
+	use frame_support::storage::unhashed;
+	use frame_support::weights::Weight;
+
+	fn insert_keys(prefix: &[u8; 32], count: u32) {
+		for i in 0..count {
+			let mut key = prefix.to_vec();
+			key.extend_from_slice(&i.to_le_bytes());
+			unhashed::put(&key, &i);
+		}
+	}
+
+	fn count_keys(prefix: &[u8; 32]) -> u32 {
+		let mut count = 0u32;
+		let mut iter = sp_io::storage::next_key(prefix);
+		while let Some(key) = iter {
+			if !key.starts_with(prefix) {
+				break;
+			}
+			count += 1;
+			iter = sp_io::storage::next_key(&key);
+		}
+		count
+	}
+
+	fn run_on_idle(weight: Weight) -> Weight {
+		<Dispatcher as frame_support::traits::Hooks<u64>>::on_idle(1, weight)
+	}
+
+	#[test]
+	fn start_cleanup_enables_and_sets_first_stage() {
+		ExtBuilder::default().build().execute_with(|| {
+			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+			assert!(CleanupEnabled::<Test>::get());
+			assert_eq!(CleanupStage::<Test>::get(), Some(Stage::StateCommitments));
+		});
+	}
+
+	#[test]
+	fn pause_cleanup_disables() {
+		ExtBuilder::default().build().execute_with(|| {
+			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), true));
+			assert!(!CleanupEnabled::<Test>::get());
+		});
+	}
+
+	#[test]
+	fn on_idle_does_nothing_when_disabled() {
+		ExtBuilder::default().build().execute_with(|| {
+			let prefix = Stage::StateCommitments.storage_prefix();
+			insert_keys(&prefix, 5);
+
+			let used = run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
+			assert_eq!(used, Weight::zero());
+			assert_eq!(count_keys(&prefix), 5);
+		});
+	}
+
+	#[test]
+	fn cleanup_works_on_empty_storage() {
+		ExtBuilder::default().build().execute_with(|| {
+			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+
+			// Run on_idle enough times to exhaust all three stages.
+			for _ in 0..10 {
+				run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
+				if !CleanupEnabled::<Test>::get() {
+					break;
+				}
+			}
+
+			assert!(!CleanupEnabled::<Test>::get());
+			assert_eq!(CleanupStage::<Test>::get(), None);
+		});
+	}
+
+	#[test]
+	fn cleanup_processes_stages_in_order() {
+		ExtBuilder::default().build().execute_with(|| {
+			let p1 = Stage::StateCommitments.storage_prefix();
+			let p2 = Stage::StateMachineUpdateTime.storage_prefix();
+			let p3 = Stage::RelayChainStateCommitments.storage_prefix();
+			insert_keys(&p1, 3);
+			insert_keys(&p2, 3);
+			insert_keys(&p3, 3);
+
+			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+			assert_eq!(CleanupStage::<Test>::get(), Some(Stage::StateCommitments));
+
+			// First on_idle clears stage 1 and advances.
+			run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
+			assert_eq!(count_keys(&p1), 0);
+			assert_eq!(CleanupStage::<Test>::get(), Some(Stage::StateMachineUpdateTime));
+
+			// Second on_idle clears stage 2 and advances.
+			run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
+			assert_eq!(count_keys(&p2), 0);
+			assert_eq!(CleanupStage::<Test>::get(), Some(Stage::RelayChainStateCommitments));
+
+			// Third on_idle clears stage 3 and finishes.
+			run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
+			assert_eq!(count_keys(&p3), 0);
+			assert!(!CleanupEnabled::<Test>::get());
+			assert_eq!(CleanupStage::<Test>::get(), None);
+		});
+	}
+
+	#[test]
+	fn cleanup_resumes_across_blocks() {
+		ExtBuilder::default().build().execute_with(|| {
+			let prefix = Stage::StateCommitments.storage_prefix();
+			insert_keys(&prefix, 10);
+
+			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+
+			// Simulate multiple blocks until stage 1 is done.
+			let mut iterations = 0;
+			while CleanupStage::<Test>::get() == Some(Stage::StateCommitments) {
+				run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
+				iterations += 1;
+				assert!(iterations < 100, "cleanup should finish in reasonable iterations");
+			}
+
+			assert_eq!(count_keys(&prefix), 0);
+		});
+	}
+
+	#[test]
+	fn cleanup_disables_itself_when_finished() {
+		ExtBuilder::default().build().execute_with(|| {
+			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+
+			for _ in 0..20 {
+				run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
+				if !CleanupEnabled::<Test>::get() {
+					break;
+				}
+			}
+
+			assert!(!CleanupEnabled::<Test>::get());
+			assert_eq!(CleanupStage::<Test>::get(), None);
+
+			// Running on_idle again should be a no-op.
+			let used = run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
+			assert_eq!(used, Weight::zero());
+		});
+	}
+
+	#[test]
+	fn start_cleanup_is_noop_when_already_running() {
+		ExtBuilder::default().build().execute_with(|| {
+			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+			// Advance stage manually.
+			CleanupStage::<Test>::put(Stage::StateMachineUpdateTime);
+
+			// Calling start_cleanup again should NOT reset the stage.
+			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+			assert_eq!(CleanupStage::<Test>::get(), Some(Stage::StateMachineUpdateTime));
+		});
+	}
 }
