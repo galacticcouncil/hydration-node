@@ -896,3 +896,356 @@ fn dot_external_lockdown_blocks_withdraw_but_regular_dot_transfer_still_works() 
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
 	});
 }
+
+#[test]
+fn inbound_xcm_fee_escrow_does_not_increment_accumulator() {
+	TestNet::reset();
+
+	let sovereign = parachain_reserve_account();
+
+	Hydra::execute_with(|| {
+		init_global_withdraw_limit_params();
+
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			HDX,
+			Some(GlobalAssetCategory::Local)
+		));
+
+		// Fund sovereign account with enough HDX for XCM fees.
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			sovereign.clone(),
+			100 * UNITS,
+		));
+	});
+
+	Acala::execute_with(|| {
+		let hdx_loc = Location::new(
+			1,
+			[
+				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+				cumulus_primitives_core::Junction::GeneralIndex(0),
+			],
+		);
+		let fee_amount = 10 * UNITS;
+		let asset: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc),
+			fun: Fungible(fee_amount),
+		};
+
+		// Fee-escrow message: withdraw, buy execution, refund surplus, deposit back.
+		let message = Xcm(vec![
+			WithdrawAsset(asset.clone().into()),
+			BuyExecution {
+				fees: asset,
+				weight_limit: Unlimited,
+			},
+			RefundSurplus,
+			DepositAsset {
+				assets: All.into(),
+				beneficiary: cumulus_primitives_core::Junction::AccountId32 {
+					id: sovereign.clone().into(),
+					network: None,
+				}
+				.into(),
+			},
+		]);
+
+		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
+			Here,
+			Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]),
+			message
+		));
+	});
+
+	Hydra::execute_with(|| {
+		assert_xcm_message_processing_passed();
+		assert_eq!(
+			CircuitBreaker::withdraw_limit_accumulator().0,
+			0,
+			"Fee-escrow XCM should not increment the accumulator"
+		);
+	});
+}
+
+#[test]
+fn inbound_xcm_net_egress_is_accounted() {
+	TestNet::reset();
+
+	let sovereign = parachain_reserve_account();
+	let relay_sovereign: AccountId =
+		hydradx_runtime::LocationToAccountId::convert_location(&Location::parent()).unwrap();
+
+	Hydra::execute_with(|| {
+		init_global_withdraw_limit_params();
+
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			HDX,
+			Some(GlobalAssetCategory::Local)
+		));
+
+		// Register relay chain sovereign as egress so that DepositReserveAsset
+		// deposits (real outflow) are not buffered as refunds.
+		assert_ok!(CircuitBreaker::add_egress_accounts(
+			hydradx_runtime::RuntimeOrigin::root(),
+			vec![relay_sovereign]
+		));
+
+		// Fund sovereign account with HDX.
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			sovereign.clone(),
+			200 * UNITS,
+		));
+	});
+
+	let amount = 100 * UNITS;
+	Acala::execute_with(|| {
+		let hdx_loc = Location::new(
+			1,
+			[
+				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+				cumulus_primitives_core::Junction::GeneralIndex(0),
+			],
+		);
+		let asset: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc),
+			fun: Fungible(amount),
+		};
+
+		// Real net egress: withdraw, buy execution, send HDX out via DepositReserveAsset.
+		let message = Xcm(vec![
+			WithdrawAsset(asset.clone().into()),
+			BuyExecution {
+				fees: asset,
+				weight_limit: Unlimited,
+			},
+			DepositReserveAsset {
+				assets: All.into(),
+				dest: Location::parent(),
+				xcm: Xcm(vec![]),
+			},
+		]);
+
+		assert_eq!(
+			CircuitBreaker::withdraw_limit_accumulator().0, 0,
+			"The accumulator should be zero before send_xcm"
+		);
+
+		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
+			Here,
+			Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]),
+			message
+		));
+	});
+
+	Hydra::execute_with(|| {
+		assert_xcm_message_processing_passed();
+		assert!(
+			CircuitBreaker::withdraw_limit_accumulator().0 > 0,
+			"Net egress XCM should increment the accumulator"
+		);
+	});
+}
+
+#[test]
+fn inbound_xcm_partial_refund_accounts_only_net() {
+	TestNet::reset();
+
+	let sovereign = parachain_reserve_account();
+
+	Hydra::execute_with(|| {
+		init_global_withdraw_limit_params();
+
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			HDX,
+			Some(GlobalAssetCategory::Local)
+		));
+
+		// Fund sovereign with a large amount.
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			sovereign.clone(),
+			500 * UNITS,
+		));
+	});
+
+	let large_amount = 100 * UNITS;
+
+	Acala::execute_with(|| {
+		let hdx_loc = Location::new(
+			1,
+			[
+				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+				cumulus_primitives_core::Junction::GeneralIndex(0),
+			],
+		);
+		let asset: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc.clone()),
+			fun: Fungible(large_amount),
+		};
+		let fee_asset: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc),
+			fun: Fungible(large_amount),
+		};
+
+		// Partial refund: withdraw large_amount, buy execution, refund surplus,
+		// deposit remainder back to sovereign. Net egress = fees consumed.
+		let message = Xcm(vec![
+			WithdrawAsset(asset.into()),
+			BuyExecution {
+				fees: fee_asset,
+				weight_limit: Unlimited,
+			},
+			RefundSurplus,
+			DepositAsset {
+				assets: All.into(),
+				beneficiary: cumulus_primitives_core::Junction::AccountId32 {
+					id: sovereign.clone().into(),
+					network: None,
+				}
+				.into(),
+			},
+		]);
+
+		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
+			Here,
+			Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]),
+			message
+		));
+	});
+
+	Hydra::execute_with(|| {
+		assert_xcm_message_processing_passed();
+		// The net egress is only the consumed fees (small amount).
+		// The accumulator should be much less than large_amount.
+		let acc = CircuitBreaker::withdraw_limit_accumulator().0;
+		assert!(
+			acc < large_amount / 2,
+			"Accumulator should reflect only the net egress (fees consumed), not the full withdrawn amount. Got: {acc}"
+		);
+	});
+}
+
+#[test]
+fn inbound_xcm_buffer_is_clean_between_messages() {
+	TestNet::reset();
+
+	let sovereign = parachain_reserve_account();
+
+	Hydra::execute_with(|| {
+		init_global_withdraw_limit_params();
+
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			HDX,
+			Some(GlobalAssetCategory::Local)
+		));
+
+		// Fund sovereign account for two fee-escrow messages.
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			sovereign.clone(),
+			200 * UNITS,
+		));
+	});
+
+	// First fee-escrow message.
+	Acala::execute_with(|| {
+		let hdx_loc = Location::new(
+			1,
+			[
+				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+				cumulus_primitives_core::Junction::GeneralIndex(0),
+			],
+		);
+		let fee_amount = 10 * UNITS;
+		let asset: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc),
+			fun: Fungible(fee_amount),
+		};
+
+		let message = Xcm(vec![
+			WithdrawAsset(asset.clone().into()),
+			BuyExecution {
+				fees: asset,
+				weight_limit: Unlimited,
+			},
+			RefundSurplus,
+			DepositAsset {
+				assets: All.into(),
+				beneficiary: cumulus_primitives_core::Junction::AccountId32 {
+					id: sovereign.clone().into(),
+					network: None,
+				}
+				.into(),
+			},
+		]);
+
+		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
+			Here,
+			Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]),
+			message
+		));
+	});
+
+	Hydra::execute_with(|| {
+		assert_xcm_message_processing_passed();
+		assert_eq!(
+			CircuitBreaker::withdraw_limit_accumulator().0,
+			0,
+			"First fee-escrow message should not increment the accumulator"
+		);
+	});
+
+	// Second fee-escrow message.
+	Acala::execute_with(|| {
+		let hdx_loc = Location::new(
+			1,
+			[
+				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+				cumulus_primitives_core::Junction::GeneralIndex(0),
+			],
+		);
+		let fee_amount = 10 * UNITS;
+		let asset: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc),
+			fun: Fungible(fee_amount),
+		};
+
+		let message = Xcm(vec![
+			WithdrawAsset(asset.clone().into()),
+			BuyExecution {
+				fees: asset,
+				weight_limit: Unlimited,
+			},
+			RefundSurplus,
+			DepositAsset {
+				assets: All.into(),
+				beneficiary: cumulus_primitives_core::Junction::AccountId32 {
+					id: sovereign.clone().into(),
+					network: None,
+				}
+				.into(),
+			},
+		]);
+
+		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
+			Here,
+			Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]),
+			message
+		));
+	});
+
+	Hydra::execute_with(|| {
+		assert_xcm_message_processing_passed();
+		assert_eq!(
+			CircuitBreaker::withdraw_limit_accumulator().0,
+			0,
+			"Second fee-escrow message should not increment the accumulator (buffer must be clean between messages)"
+		);
+	});
+}
