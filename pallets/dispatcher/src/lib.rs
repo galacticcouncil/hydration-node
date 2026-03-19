@@ -116,7 +116,10 @@ pub mod pallet {
 
 	/// Whether the background ISMP storage cleanup is active.
 	#[pallet::storage]
-	pub type CleanupEnabled<T: Config> = StorageValue<_, bool, ValueQuery>;
+	pub type CleanupEnabled<T: Config> = StorageValue<_, bool, ValueQuery, DefaultCleanupState>;
+
+	#[pallet::type_value]
+	pub fn DefaultCleanupState() -> bool { true }
 
 	/// Current stage of the background ISMP storage cleanup.
 	#[pallet::storage]
@@ -391,15 +394,10 @@ pub mod pallet {
 		/// Enable/pause the background ISMP storage cleanup. If enabled for the first time,
 		/// starting from the first stage.
 		#[pallet::call_index(5)]
-		#[pallet::weight(T::DbWeight::get().reads_writes(2, 1))]
-		pub fn set_hyperbridge_cleanup(origin: OriginFor<T>, pause: bool) -> DispatchResult {
+		#[pallet::weight(T::DbWeight::get().writes(1))]
+		pub fn pause_hyperbridge_cleanup(origin: OriginFor<T>, do_pause: bool) -> DispatchResult {
 			T::MigrationOperatorOrigin::ensure_origin(origin)?;
-
-			CleanupEnabled::<T>::put(!pause);
-			if !pause && CleanupStage::<T>::get().is_none() {
-				CleanupStage::<T>::put(Stage::StateCommitments);
-			}
-
+			CleanupEnabled::<T>::put(!do_pause);
 			Ok(())
 		}
 	}

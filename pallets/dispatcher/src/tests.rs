@@ -212,19 +212,11 @@ mod hyperbridge_cleanup_tests {
 	}
 
 	#[test]
-	fn start_cleanup_enables_and_sets_first_stage() {
-		ExtBuilder::default().build().execute_with(|| {
-			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
-			assert!(CleanupEnabled::<Test>::get());
-			assert_eq!(CleanupStage::<Test>::get(), Some(Stage::StateCommitments));
-		});
-	}
-
-	#[test]
 	fn pause_cleanup_disables() {
 		ExtBuilder::default().build().execute_with(|| {
-			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
-			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), true));
+			assert!(CleanupEnabled::<Test>::get());
+
+			assert_ok!(Dispatcher::pause_hyperbridge_cleanup(RuntimeOrigin::root(), true));
 			assert!(!CleanupEnabled::<Test>::get());
 		});
 	}
@@ -235,6 +227,8 @@ mod hyperbridge_cleanup_tests {
 			let prefix = Stage::StateCommitments.storage_prefix();
 			insert_keys(&prefix, 5);
 
+			assert_ok!(Dispatcher::pause_hyperbridge_cleanup(RuntimeOrigin::root(), true));
+
 			let used = run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
 			assert_eq!(used, Weight::zero());
 			assert_eq!(count_keys(&prefix), 5);
@@ -244,7 +238,7 @@ mod hyperbridge_cleanup_tests {
 	#[test]
 	fn cleanup_works_on_empty_storage() {
 		ExtBuilder::default().build().execute_with(|| {
-			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+			assert_ok!(Dispatcher::pause_hyperbridge_cleanup(RuntimeOrigin::root(), false));
 
 			// Run on_idle enough times to exhaust all three stages.
 			for _ in 0..10 {
@@ -269,8 +263,8 @@ mod hyperbridge_cleanup_tests {
 			insert_keys(&p2, 3);
 			insert_keys(&p3, 3);
 
-			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
-			assert_eq!(CleanupStage::<Test>::get(), Some(Stage::StateCommitments));
+			assert_ok!(Dispatcher::pause_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+			assert!(CleanupStage::<Test>::get().is_none());
 
 			// First on_idle clears stage 1 and advances.
 			run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
@@ -296,7 +290,7 @@ mod hyperbridge_cleanup_tests {
 			let prefix = Stage::StateCommitments.storage_prefix();
 			insert_keys(&prefix, 10);
 
-			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+			CleanupStage::<Test>::put(Stage::StateCommitments);
 
 			// Simulate multiple blocks until stage 1 is done.
 			let mut iterations = 0;
@@ -313,7 +307,7 @@ mod hyperbridge_cleanup_tests {
 	#[test]
 	fn cleanup_disables_itself_when_finished() {
 		ExtBuilder::default().build().execute_with(|| {
-			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+			assert_ok!(Dispatcher::pause_hyperbridge_cleanup(RuntimeOrigin::root(), false));
 
 			for _ in 0..20 {
 				run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
@@ -334,12 +328,12 @@ mod hyperbridge_cleanup_tests {
 	#[test]
 	fn start_cleanup_is_noop_when_already_running() {
 		ExtBuilder::default().build().execute_with(|| {
-			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+			assert_ok!(Dispatcher::pause_hyperbridge_cleanup(RuntimeOrigin::root(), false));
 			// Advance stage manually.
 			CleanupStage::<Test>::put(Stage::StateMachineUpdateTime);
 
 			// Calling start_cleanup again should NOT reset the stage.
-			assert_ok!(Dispatcher::set_hyperbridge_cleanup(RuntimeOrigin::root(), false));
+			assert_ok!(Dispatcher::pause_hyperbridge_cleanup(RuntimeOrigin::root(), false));
 			assert_eq!(CleanupStage::<Test>::get(), Some(Stage::StateMachineUpdateTime));
 		});
 	}
