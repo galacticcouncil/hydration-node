@@ -114,7 +114,6 @@ impl MaybeEvmCall<RuntimeCall> for EvmCallIdentifier {
 
 impl dispatcher::Config for Test {
 	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
 	type TreasuryManagerOrigin = EnsureRoot<AccountId>;
 	type AaveManagerOrigin = EnsureRoot<AccountId>;
 	type TreasuryAccount = TreasuryAccount;
@@ -164,7 +163,6 @@ impl system::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;

@@ -48,7 +48,7 @@ impl<T: crate::Config<AssetId = u32>> UncheckedOnRuntimeUpgrade for unversioned:
 		let current_block = T::BlockNumberProvider::current_block_number();
 
 		for (k, peg_info_v0) in v0::PoolPegs::<T>::iter() {
-			log::info!(target: LOG_TARGET, "updating pegs for pool_id: {:?}", k);
+			log::info!(target: LOG_TARGET, "updating pegs for pool_id: {k:?}");
 			//NOTE: 1 read for v0::PoolPegs
 			reads += 1;
 
@@ -56,7 +56,7 @@ impl<T: crate::Config<AssetId = u32>> UncheckedOnRuntimeUpgrade for unversioned:
 			let pool = if let Some(p) = Pools::<T>::get(k) {
 				p
 			} else {
-				log::error!(target: LOG_TARGET, "load pool from storage, pool_id: {:?}", k);
+				log::error!(target: LOG_TARGET, "load pool from storage, pool_id: {k:?}");
 				continue;
 			};
 
@@ -64,7 +64,7 @@ impl<T: crate::Config<AssetId = u32>> UncheckedOnRuntimeUpgrade for unversioned:
 			let target_pegs = match Pallet::<T>::get_target_pegs(&pool.assets, &peg_info_v0.source) {
 				Ok(p) => p,
 				Err(e) => {
-					log::error!(target: LOG_TARGET, "to get target pegs, pool_id: {:?}, err: {:?}", k, e);
+					log::error!(target: LOG_TARGET, "to get target pegs, pool_id: {k:?}, err: {e:?}");
 					continue;
 				}
 			};
@@ -92,7 +92,7 @@ impl<T: crate::Config<AssetId = u32>> UncheckedOnRuntimeUpgrade for unversioned:
 			) {
 				p
 			} else {
-				log::error!(target: LOG_TARGET, "to recalculate pegs, pool_id: {:?}", k);
+				log::error!(target: LOG_TARGET, "to recalculate pegs, pool_id: {k:?}");
 				continue;
 			};
 

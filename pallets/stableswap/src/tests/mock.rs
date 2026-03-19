@@ -149,7 +149,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -198,12 +197,9 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	}
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
@@ -616,7 +612,7 @@ impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
 					updated_at: System::block_number(),
 				})
 			}
-			_ => panic!("unusupported oracle types: {:?}", source),
+			_ => panic!("unusupported oracle types: {source:?}"),
 		}
 	}
 }
@@ -725,7 +721,6 @@ impl Contains<AccountId> for CircuitBreakerWhitelist {
 }
 
 impl pallet_circuit_breaker::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;

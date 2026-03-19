@@ -168,7 +168,7 @@ pub mod v2 {
 			Assets::<T>::insert(k, v);
 			log::info!(
 				target: "runtime::asset-registry",
-				"Migrated asset: {:?}", k
+				"Migrated asset: {k:?}"
 			);
 		}
 
@@ -189,7 +189,7 @@ pub mod v2 {
 
 			log::info!(
 				target: "runtime::asset-registry",
-				"Migrated asset's location: {:?}", k
+				"Migrated asset's location: {k:?}"
 			);
 		}
 

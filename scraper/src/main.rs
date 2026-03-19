@@ -125,7 +125,7 @@ fn main() {
 
 			// Post-process snapshot to exclude specified pallets
 			if !excluded_pallets.is_empty() {
-				println!("Filtering out excluded pallets: {:?}", excluded_pallets);
+				println!("Filtering out excluded pallets: {excluded_pallets:?}");
 				scraper::filter_snapshot_by_excluded_pallets::<Block>(&path, &excluded_pallets)
 					.expect("Failed to filter snapshot by excluded pallets");
 			}

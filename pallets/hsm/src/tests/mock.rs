@@ -138,9 +138,7 @@ impl frame_system::Config for Test {
 	type ExtensionsWeightInfo = ();
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
@@ -149,7 +147,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -164,7 +161,6 @@ impl orml_tokens::Config for Test {
 
 // Mock Stableswap implementation
 impl pallet_stableswap::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type ShareAccountId = DummyAccountIdConstructor;
@@ -578,7 +574,6 @@ impl BoundErc20 for GhoContractAddress {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type HollarId = HollarId;
 	type PalletId = PalletId;

@@ -47,9 +47,7 @@ construct_runtime!(
 	}
 );
 
-impl crate::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl crate::Config for Test {}
 
 impl frame_system::Config for Test {
 	type BaseCallFilter = Everything;
