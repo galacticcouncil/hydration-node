@@ -71,6 +71,7 @@
 //!
 //! * `add_token` - Adds token to the pool. Initial liquidity must be transffered to pool account prior to calling add_token.
 //! * `add_liquidity` - Adds liquidity of selected asset to the pool. Mints corresponding position NFT.
+//! * `add_all_liquidity` - Add all liquidity of selected asset to the pool. Mints corresponding position NFT.
 //! * `remove_liquidity` - Removes liquidity of selected position from the pool. Partial withdrawals are allowed.
 //! * `remove_all_liquidity` - Removes all liquidity from a selected position.
 //! * `sell` - Trades an asset in for asset out by selling given amount of asset in.
@@ -94,7 +95,7 @@ use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydra_dx_math::ema::EmaPrice;
-use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
+use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeSlipFees, SignedBalance, TradeSlipFees};
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::MultiCurrency;
@@ -118,7 +119,7 @@ pub mod types;
 pub mod weights;
 
 use crate::traits::{AssetInfo, OmnipoolHooks};
-use crate::types::{AssetReserveState, AssetState, Balance, Position, Tradability};
+use crate::types::{AssetReserveState, AssetState, Balance, Position, SlipFeeConfig, Tradability};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -273,6 +274,24 @@ pub mod pallet {
 	/// Position ids sequencer
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
 
+	/// Global slip fee configuration.
+	/// `None` = slip fees disabled (default). `Some(config)` = enabled.
+	/// Set via `set_slip_fee` extrinsic (governance).
+	#[pallet::storage]
+	pub type SlipFee<T: Config> = StorageValue<_, SlipFeeConfig, OptionQuery>;
+
+	/// Snapshot of each asset's hub_reserve at the start of the current block.
+	/// Lazily populated on first trade per asset per block, cleared in on_finalize.
+	#[pallet::storage]
+	pub type SlipFeeHubReserveAtBlockStart<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, Balance, OptionQuery>;
+
+	/// Cumulative net hub asset delta per asset in the current block.
+	/// Negative = net hub asset outflow, positive = net hub asset inflow.
+	/// Cleared in on_finalize.
+	#[pallet::storage]
+	pub type SlipFeeDelta<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, SignedBalance, ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -374,6 +393,9 @@ pub mod pallet {
 
 		/// Asset's weight cap has been updated.
 		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
+
+		/// Slip fee configuration was updated.
+		SlipFeeSet { slip_fee: Option<SlipFeeConfig> },
 	}
 
 	#[pallet::error]
@@ -443,6 +465,8 @@ pub mod pallet {
 		SlippageLimit,
 		/// Extra protocol fee has not been consumed.
 		ProtocolFeeNotConsumed,
+		/// Slip fee configuration exceeds the allowed maximum (50%).
+		MaxSlipFeeTooHigh,
 	}
 
 	#[pallet::call]
@@ -624,6 +648,44 @@ pub mod pallet {
 			amount: Balance,
 			min_shares_limit: Balance,
 		) -> DispatchResult {
+			let _ = Self::do_add_liquidity(origin, asset, amount, min_shares_limit)?;
+
+			Ok(())
+		}
+
+		/// Add all available liquidity of asset `asset` to Omnipool.
+		///
+		/// Deposits the caller's entire free balance of `asset`. Equivalent to calling
+		/// `do_add_liquidity` with `amount = free_balance(asset)`.
+		///
+		/// Asset's tradable state must contain ADD_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
+		///
+		/// NFT is minted using NTFHandler which implements non-fungibles traits from frame_support.
+		///
+		/// Asset weight cap must be respected, otherwise `AssetWeightExceeded` error is returned.
+		/// Asset weight is ratio between new HubAsset reserve and total reserve of Hub asset in Omnipool.
+		///
+		/// Fails if price difference between spot price and oracle price is higher than allowed by `PriceBarrier`.
+		///
+		/// Parameters:
+		/// - `asset`: The identifier of the asset to add. Must already be in the pool.
+		/// - `min_shares_limit`: The minimum amount of shares the caller expects to receive in the position.
+		///
+		/// Emits `LiquidityAdded` event when successful.
+		///
+		#[pallet::call_index(17)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_all_liquidity()
+		.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()
+		.saturating_add(T::ExternalPriceOracle::get_price_weight()))
+		)]
+		#[transactional]
+		pub fn add_all_liquidity(origin: OriginFor<T>, asset: T::AssetId, min_shares_limit: Balance) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+
+			let amount = T::Currency::free_balance(asset, &who);
+
+			ensure!(amount > Balance::zero(), Error::<T>::InsufficientBalance);
+
 			let _ = Self::do_add_liquidity(origin, asset, amount, min_shares_limit)?;
 
 			Ok(())
@@ -846,6 +908,13 @@ pub mod pallet {
 			let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_out_state.reserve));
 			let (_, protocol_fee) = T::Fee::get_and_store((asset_in, asset_in_state.reserve));
 
+			let slip = Self::load_trade_slip_fees(
+				asset_in,
+				asset_in_state.hub_reserve,
+				asset_out,
+				asset_out_state.hub_reserve,
+			);
+
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state).into(),
 				&(&asset_out_state).into(),
@@ -853,6 +922,7 @@ pub mod pallet {
 				asset_fee,
 				protocol_fee,
 				T::BurnProtocolFee::get(),
+				slip.as_ref(),
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -944,6 +1014,13 @@ pub mod pallet {
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
 
+			Self::update_slip_fee_delta(
+				asset_in,
+				*state_changes.asset_in.delta_hub_reserve,
+				asset_out,
+				*state_changes.asset_out.delta_hub_reserve,
+			)?;
+
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
 			let protocol_fees = Self::process_protocol_fee(
@@ -952,6 +1029,7 @@ pub mod pallet {
 				state_changes.fee.burned_protocol_fee,
 			)?;
 
+			// Note: protocol_fee_amount includes the slip fee component (if enabled).
 			Self::deposit_event(Event::SellExecuted {
 				who: who.clone(),
 				asset_in,
@@ -1074,6 +1152,14 @@ pub mod pallet {
 
 			let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_out_state.reserve));
 			let (_, protocol_fee) = T::Fee::get_and_store((asset_in, asset_in_state.reserve));
+
+			let slip = Self::load_trade_slip_fees(
+				asset_in,
+				asset_in_state.hub_reserve,
+				asset_out,
+				asset_out_state.hub_reserve,
+			);
+
 			let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 				&(&asset_in_state).into(),
 				&(&asset_out_state).into(),
@@ -1081,6 +1167,7 @@ pub mod pallet {
 				asset_fee,
 				protocol_fee,
 				T::BurnProtocolFee::get(),
+				slip.as_ref(),
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1174,6 +1261,13 @@ pub mod pallet {
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
 
+			Self::update_slip_fee_delta(
+				asset_in,
+				*state_changes.asset_in.delta_hub_reserve,
+				asset_out,
+				*state_changes.asset_out.delta_hub_reserve,
+			)?;
+
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
 			let protocol_fees = Self::process_protocol_fee(
@@ -1182,6 +1276,7 @@ pub mod pallet {
 				state_changes.fee.burned_protocol_fee,
 			)?;
 
+			// Note: protocol_fee_amount includes the slip fee component (if enabled).
 			Self::deposit_event(Event::BuyExecuted {
 				who: who.clone(),
 				asset_in,
@@ -1483,10 +1578,67 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		/// Set or clear slip fee configuration.
+		///
+		/// When set to `Some(config)`, slip fees are enabled with the given parameters.
+		/// When set to `None`, slip fees are disabled.
+		///
+		/// Can only be called by `UpdateTradabilityOrigin`.
+		///
+		/// Emits `SlipFeeSet` event.
+		#[pallet::call_index(16)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_slip_fee())]
+		pub fn set_slip_fee(origin: OriginFor<T>, slip_fee: Option<SlipFeeConfig>) -> DispatchResult {
+			T::UpdateTradabilityOrigin::ensure_origin(origin)?;
+
+			if let Some(ref config) = slip_fee {
+				ensure!(
+					config.max_slip_fee <= Permill::from_percent(90),
+					Error::<T>::MaxSlipFeeTooHigh
+				);
+			}
+
+			match slip_fee {
+				Some(ref config) => {
+					SlipFee::<T>::put(config);
+				}
+				None => {
+					SlipFee::<T>::kill();
+				}
+			}
+
+			Self::deposit_event(Event::SlipFeeSet { slip_fee });
+
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			if SlipFee::<T>::get().is_none() {
+				return T::DbWeight::get().reads(1);
+			}
+			// Reserve weight for clearing both maps in on_finalize.
+			// Worst case: every omnipool asset was touched this block.
+			let max_entries = Assets::<T>::iter_keys().count() as u64;
+			T::DbWeight::get()
+				.reads(1) // SlipFee config read
+				.saturating_add(T::DbWeight::get().reads_writes(max_entries * 2, max_entries * 2))
+		}
+
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			let r = SlipFeeHubReserveAtBlockStart::<T>::clear(u32::MAX, None);
+			if r.maybe_cursor.is_some() {
+				defensive!("SlipFeeHubReserveAtBlockStart::clear did not complete");
+			}
+			let r = SlipFeeDelta::<T>::clear(u32::MAX, None);
+			if r.maybe_cursor.is_some() {
+				defensive!("SlipFeeDelta::clear did not complete");
+			}
+		}
+
 		fn integrity_test() {
 			assert_ne!(
 				T::MinimumPoolLiquidity::get(),
@@ -1535,7 +1687,7 @@ pub mod pallet {
 }
 
 use crate::traits::ExternalPriceProvider;
-use frame_support::traits::DefensiveOption;
+use frame_support::{defensive, traits::DefensiveOption};
 
 impl<T: Config> Pallet<T> {
 	/// Protocol account address
@@ -1548,6 +1700,134 @@ impl<T: Config> Pallet<T> {
 		let state = <Assets<T>>::get(asset_id).ok_or(Error::<T>::AssetNotFound)?;
 		let reserve = T::Currency::free_balance(asset_id, &Self::protocol_account());
 		Ok((state, reserve).into())
+	}
+
+	/// Load slip fee parameters for a two-asset trade, lazily snapshotting Q₀
+	/// for both assets on first call per block.
+	/// Returns None if slip fees are disabled (SlipFee storage is None).
+	/// Writes to storage (snapshots Q₀) — use only in extrinsic execution context.
+	fn load_trade_slip_fees(
+		asset_in: T::AssetId,
+		asset_in_hub_reserve: Balance,
+		asset_out: T::AssetId,
+		asset_out_hub_reserve: Balance,
+	) -> Option<TradeSlipFees> {
+		let config = SlipFee::<T>::get()?;
+
+		Some(TradeSlipFees {
+			asset_in_hub_reserve: Self::snapshot_q0(asset_in, asset_in_hub_reserve),
+			asset_in_delta: SlipFeeDelta::<T>::get(asset_in),
+			asset_out_hub_reserve: Self::snapshot_q0(asset_out, asset_out_hub_reserve),
+			asset_out_delta: SlipFeeDelta::<T>::get(asset_out),
+			max_slip_fee: config.max_slip_fee,
+		})
+	}
+
+	/// Load slip fee parameters for a hub asset trade (buy-side only).
+	/// Returns None if slip fees are disabled.
+	fn load_hub_trade_slip_fees(asset_out: T::AssetId, asset_out_hub_reserve: Balance) -> Option<HubTradeSlipFees> {
+		let config = SlipFee::<T>::get()?;
+
+		Some(HubTradeSlipFees {
+			asset_hub_reserve: Self::snapshot_q0(asset_out, asset_out_hub_reserve),
+			asset_delta: SlipFeeDelta::<T>::get(asset_out),
+			max_slip_fee: config.max_slip_fee,
+		})
+	}
+
+	/// Lazily snapshot Q₀ for an asset. Returns the snapshotted value.
+	fn snapshot_q0(asset_id: T::AssetId, current_hub_reserve: Balance) -> Balance {
+		match SlipFeeHubReserveAtBlockStart::<T>::get(asset_id) {
+			Some(q0) => q0,
+			None => {
+				SlipFeeHubReserveAtBlockStart::<T>::insert(asset_id, current_hub_reserve);
+				current_hub_reserve
+			}
+		}
+	}
+
+	/// Ensure Q₀ is snapshotted for an asset if slip fees are enabled.
+	/// No-op when slip fees are disabled. Used by LP operations to capture
+	/// pre-manipulation hub_reserve before state changes.
+	fn ensure_q0_snapshot(asset_id: T::AssetId, current_hub_reserve: Balance) {
+		if SlipFee::<T>::get().is_some() {
+			Self::snapshot_q0(asset_id, current_hub_reserve);
+		}
+	}
+
+	/// Read-only version of load_trade_slip_fees for router quotes.
+	/// Falls back to current_hub_reserve if Q₀ has not been snapshotted yet this block.
+	///
+	/// Note: Quoted amounts may diverge from execution if intervening trades modify
+	/// the cumulative deltas between quote time and execution. Users are protected
+	/// by their slippage limit parameters.
+	fn peek_trade_slip_fees(
+		asset_in: T::AssetId,
+		asset_in_hub_reserve: Balance,
+		asset_out: T::AssetId,
+		asset_out_hub_reserve: Balance,
+	) -> Option<TradeSlipFees> {
+		let config = SlipFee::<T>::get()?;
+
+		Some(TradeSlipFees {
+			asset_in_hub_reserve: SlipFeeHubReserveAtBlockStart::<T>::get(asset_in).unwrap_or(asset_in_hub_reserve),
+			asset_in_delta: SlipFeeDelta::<T>::get(asset_in),
+			asset_out_hub_reserve: SlipFeeHubReserveAtBlockStart::<T>::get(asset_out).unwrap_or(asset_out_hub_reserve),
+			asset_out_delta: SlipFeeDelta::<T>::get(asset_out),
+			max_slip_fee: config.max_slip_fee,
+		})
+	}
+
+	/// Read-only version of load_hub_trade_slip_fees for router quotes.
+	fn peek_hub_trade_slip_fees(asset_out: T::AssetId, asset_out_hub_reserve: Balance) -> Option<HubTradeSlipFees> {
+		let config = SlipFee::<T>::get()?;
+
+		Some(HubTradeSlipFees {
+			asset_hub_reserve: SlipFeeHubReserveAtBlockStart::<T>::get(asset_out).unwrap_or(asset_out_hub_reserve),
+			asset_delta: SlipFeeDelta::<T>::get(asset_out),
+			max_slip_fee: config.max_slip_fee,
+		})
+	}
+
+	/// Update the cumulative hub asset deltas after a successful two-asset trade.
+	fn update_slip_fee_delta(
+		asset_in: T::AssetId,
+		delta_hub_in: Balance,
+		asset_out: T::AssetId,
+		delta_hub_out: Balance,
+	) -> DispatchResult {
+		if SlipFee::<T>::get().is_none() {
+			return Ok(());
+		}
+		// Sell pool: hub asset leaves → negative delta.
+		SlipFeeDelta::<T>::try_mutate(asset_in, |d| -> DispatchResult {
+			*d = d
+				.checked_add(SignedBalance::Negative(delta_hub_in))
+				.ok_or(ArithmeticError::Overflow)?;
+			Ok(())
+		})?;
+		// Buy pool: hub asset enters → positive delta (D_net, the actual amount entering)
+		SlipFeeDelta::<T>::try_mutate(asset_out, |d| -> DispatchResult {
+			*d = d
+				.checked_add(SignedBalance::Positive(delta_hub_out))
+				.ok_or(ArithmeticError::Overflow)?;
+			Ok(())
+		})?;
+		Ok(())
+	}
+
+	/// Update slip fee delta for hub asset trades (only buy side).
+	fn update_slip_fee_delta_hub_trade(asset_out: T::AssetId, delta_hub_out: Balance) -> DispatchResult {
+		if SlipFee::<T>::get().is_none() {
+			return Ok(());
+		}
+		SlipFeeDelta::<T>::try_mutate(asset_out, |d| -> DispatchResult {
+			*d = d
+				.checked_add(SignedBalance::Positive(delta_hub_out))
+				.ok_or(ArithmeticError::Overflow)?;
+			Ok(())
+		})?;
+		Ok(())
 	}
 
 	/// Set new state of asset.
@@ -1700,9 +1980,15 @@ impl<T: Config> Pallet<T> {
 
 		let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_state.reserve));
 
-		let state_changes =
-			hydra_dx_math::omnipool::calculate_sell_hub_state_changes(&(&asset_state).into(), amount, asset_fee)
-				.ok_or(ArithmeticError::Overflow)?;
+		let slip = Self::load_hub_trade_slip_fees(asset_out, asset_state.hub_reserve);
+
+		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
+			&(&asset_state).into(),
+			amount,
+			asset_fee,
+			slip.as_ref(),
+		)
+		.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
 			*state_changes.asset.delta_reserve >= limit,
@@ -1725,20 +2011,26 @@ impl<T: Config> Pallet<T> {
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
-		// Store original hub reserve delta for routing to HDX subpool, then zero it
+
+		debug_assert_eq!(*state_changes.asset.delta_hub_reserve, amount);
+
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
-		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+		// When seller is HubDestination (Treasury), let hub_reserve flow into the traded asset
+		// normally, so we dont decrease the price impact
+		if who != &T::HubDestination::get() {
+			state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+		}
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		// Token updates
+		// Token updates — user pays the full `amount` they specified (same as regular sell)
 		T::Currency::transfer(
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			hub_reserve_delta,
+			amount,
 			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
@@ -1762,20 +2054,25 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		// To reduce value leaked to arbitrage through external markets
-		T::Currency::transfer(
-			T::HubAssetId::get(),
-			&Self::protocol_account(),
-			&T::HubDestination::get(),
-			hub_reserve_delta,
-			ExistenceRequirement::AllowDeath,
-		)?;
+		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta)?;
+
+		// Route H2O to HubDestination to reduce value leaked to arbitrage.
+		// Skip when seller is HubDestination — hub_reserve already updated in asset state.
+		if who != &T::HubDestination::get() {
+			T::Currency::transfer(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				&T::HubDestination::get(),
+				hub_reserve_delta,
+				ExistenceRequirement::AllowDeath,
+			)?;
+		}
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
 			asset_out,
-			amount_in: hub_reserve_delta,
+			amount_in: amount,
 			amount_out: *state_changes.asset.delta_reserve,
 			hub_amount_in: 0,
 			hub_amount_out: 0,
@@ -1789,7 +2086,7 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_broadcast::types::Filler::Omnipool,
 			pallet_broadcast::types::TradeOperation::ExactIn,
-			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
+			vec![Asset::new(T::HubAssetId::get().into(), amount)],
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
 		);
@@ -1828,17 +2125,15 @@ impl<T: Config> Pallet<T> {
 
 		let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_state.reserve));
 
+		let slip = Self::load_hub_trade_slip_fees(asset_out, asset_state.hub_reserve);
+
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
 			amount,
 			asset_fee,
+			slip.as_ref(),
 		)
 		.ok_or(ArithmeticError::Overflow)?;
-
-		ensure!(
-			*state_changes.asset.delta_hub_reserve <= limit,
-			Error::<T>::SellLimitExceeded
-		);
 
 		ensure!(
 			*state_changes.asset.delta_hub_reserve
@@ -1849,26 +2144,33 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxInRatioExceeded
 		);
 
-		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
-		let mut state_changes = state_changes.account_for_fee_taken(taken_fee);
-
 		ensure!(
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
-		// Store original hub reserve delta for routing to HDX subpool, then zero it
+
 		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
-		state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+		ensure!(hub_reserve_delta <= limit, Error::<T>::SellLimitExceeded);
+
+		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
+		let mut state_changes = state_changes.account_for_fee_taken(taken_fee);
+
+		// When seller is HubDestination (Treasury), let hub_reserve flow into the traded asset
+		// normally, so we dont decrease the price impact
+		if who != &T::HubDestination::get() {
+			state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
+		}
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
+		// User pays full cost (d_net + slip fee)
 		T::Currency::transfer(
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			hub_reserve_delta, //note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
+			hub_reserve_delta,
 			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
@@ -1892,14 +2194,19 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		// To reduce value leaked to arbitrage through external markets
-		T::Currency::transfer(
-			T::HubAssetId::get(),
-			&Self::protocol_account(),
-			&T::HubDestination::get(),
-			hub_reserve_delta,
-			ExistenceRequirement::AllowDeath,
-		)?;
+		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta)?;
+
+		// Route H2O to HubDestination to reduce value leaked to arbitrage.
+		// Skip when seller is HubDestination — hub_reserve already updated in asset state.
+		if who != &T::HubDestination::get() {
+			T::Currency::transfer(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				&T::HubDestination::get(),
+				hub_reserve_delta,
+				ExistenceRequirement::AllowDeath,
+			)?;
+		}
 
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::BuyExecuted {
@@ -2122,6 +2429,10 @@ impl<T: Config> Pallet<T> {
 
 		let asset_state = Self::load_asset_state(asset)?;
 
+		// Snapshot Q0 before any state changes so slip fee denominator
+		// captures the pre-LP hub_reserve (prevents manipulation via add_liquidity).
+		Self::ensure_q0_snapshot(asset, asset_state.hub_reserve);
+
 		ensure!(
 			asset_state.tradable.contains(Tradability::ADD_LIQUIDITY),
 			Error::<T>::NotAllowed
@@ -2251,6 +2562,10 @@ impl<T: Config> Pallet<T> {
 		let asset_id = position.asset_id;
 
 		let asset_state = Self::load_asset_state(asset_id)?;
+
+		// Snapshot Q0 before any state changes so slip fee denominator
+		// captures the pre-LP hub_reserve (prevents manipulation via remove_liquidity).
+		Self::ensure_q0_snapshot(asset_id, asset_state.hub_reserve);
 
 		ensure!(
 			asset_state.tradable.contains(Tradability::REMOVE_LIQUIDITY),

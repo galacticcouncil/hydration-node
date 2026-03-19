@@ -1,8 +1,11 @@
 use crate::omnipool::calculate_burn_amount_based_on_fee_taken;
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
+use crate::types::Balance;
+use codec::{Decode, Encode, MaxEncodedLen};
 use num_traits::{CheckedAdd, CheckedSub, SaturatingAdd};
+use scale_info::TypeInfo;
 use sp_arithmetic::traits::Saturating;
-use sp_arithmetic::{FixedPointNumber, FixedU128};
+use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::{Add, Deref};
 
 /// Asset state representation including asset pool reserve.
@@ -290,6 +293,108 @@ where
 {
 	pub fn price(&self) -> Option<FixedU128> {
 		FixedU128::checked_from_rational(self.price.0.into(), self.price.1.into())
+	}
+}
+
+/// Slip fee parameters for a two-asset trade.
+/// Single struct bundles both sides — either slip fees are fully enabled
+/// (both in and out) or fully disabled (None). No slip_factor field needed;
+/// s is either 0 (caller passes None) or 1 (caller passes Some).
+pub struct TradeSlipFees {
+	/// Q₀ for sell-side asset (hub reserve at block start)
+	pub asset_in_hub_reserve: Balance,
+	/// Cumulative hub asset delta for sell-side asset before this trade
+	pub asset_in_delta: SignedBalance,
+	/// Q₀ for buy-side asset (hub reserve at block start)
+	pub asset_out_hub_reserve: Balance,
+	/// Cumulative hub asset delta for buy-side asset before this trade
+	pub asset_out_delta: SignedBalance,
+	/// Maximum slip fee rate (per-side cap, shared)
+	pub max_slip_fee: Permill,
+}
+
+/// Slip fee parameters for a hub asset trade (one-sided — buy side only).
+/// Used by `calculate_sell_hub_state_changes` and `calculate_buy_for_hub_asset_state_changes`.
+pub struct HubTradeSlipFees {
+	/// Q₀ for the target asset (hub reserve at block start)
+	pub asset_hub_reserve: Balance,
+	/// Cumulative hub asset delta for the target asset before this trade
+	pub asset_delta: SignedBalance,
+	/// Maximum slip fee rate (per-side cap)
+	pub max_slip_fee: Permill,
+}
+
+/// Signed balance type that stores an unsigned `Balance` (u128) plus a sign variant.
+/// Eliminates overflow risk from `u128 as i128` casts when tracking cumulative hub asset deltas.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Encode, Decode, MaxEncodedLen, TypeInfo)]
+pub enum SignedBalance {
+	Positive(Balance),
+	Negative(Balance),
+}
+
+impl SignedBalance {
+	pub fn zero() -> Self {
+		SignedBalance::Positive(0)
+	}
+
+	pub fn is_positive(&self) -> bool {
+		matches!(self, SignedBalance::Positive(v) if *v > 0)
+	}
+
+	pub fn is_negative(&self) -> bool {
+		matches!(self, SignedBalance::Negative(v) if *v > 0)
+	}
+
+	pub fn is_zero(&self) -> bool {
+		self.abs() == 0
+	}
+
+	pub fn abs(&self) -> Balance {
+		match self {
+			SignedBalance::Positive(v) | SignedBalance::Negative(v) => *v,
+		}
+	}
+
+	pub fn negate(self) -> Self {
+		match self {
+			SignedBalance::Positive(v) => SignedBalance::Negative(v),
+			SignedBalance::Negative(v) => SignedBalance::Positive(v),
+		}
+	}
+
+	/// Add two signed balances: handles all sign combinations with checked arithmetic.
+	pub fn checked_add(self, other: Self) -> Option<Self> {
+		match (self, other) {
+			(SignedBalance::Positive(a), SignedBalance::Positive(b)) => {
+				Some(SignedBalance::Positive(a.checked_add(b)?))
+			}
+			(SignedBalance::Negative(a), SignedBalance::Negative(b)) => {
+				Some(SignedBalance::Negative(a.checked_add(b)?))
+			}
+			(SignedBalance::Positive(a), SignedBalance::Negative(b))
+			| (SignedBalance::Negative(b), SignedBalance::Positive(a)) => {
+				if a >= b {
+					Some(SignedBalance::Positive(a - b))
+				} else {
+					Some(SignedBalance::Negative(b - a))
+				}
+			}
+		}
+	}
+
+	/// Apply signed value to unsigned balance: balance + self → Option<Balance>.
+	/// Returns None if result would be negative.
+	pub fn add_to_unsigned(self, balance: Balance) -> Option<Balance> {
+		match self {
+			SignedBalance::Positive(v) => balance.checked_add(v),
+			SignedBalance::Negative(v) => balance.checked_sub(v),
+		}
+	}
+}
+
+impl Default for SignedBalance {
+	fn default() -> Self {
+		Self::zero()
 	}
 }
 

@@ -431,6 +431,7 @@ impl pallet_currencies::Config for Runtime {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeAssetId;
 	type RegistryInspect = AssetRegistry;
+	type EgressHandler = circuit_breaker::WithdrawLimitHandler<NativeAssetId>;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
 
@@ -635,6 +636,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type DepositLimiter = DepositCircuitBreaker;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = CircuitBreakerBenchmarkHelper<Runtime>;
+	type TimestampProvider = Timestamp;
 }
 
 parameter_types! {
@@ -950,6 +952,7 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
 			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
 			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
+			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];
 		errors.contains(t)
 	}

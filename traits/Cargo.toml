@@ -23,6 +23,8 @@ frame-system = { workspace = true }
 sp-std = { workspace = true }
 pallet-evm = { workspace = true }
 
+orml-traits = { workspace = true }
+
 [features]
 default = ["std"]
 std = [
@@ -33,4 +35,5 @@ std = [
     "sp-std/std",
     "primitives/std",
     "pallet-evm/std",
+    "orml-traits/std",
 ]
