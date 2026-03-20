@@ -19,9 +19,12 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 use crate::{Runtime, TreasuryAccount};
+use codec::{Decode, DecodeWithMemTracking, Encode};
 use frame_support::dispatch::DispatchResult;
 use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 use frame_support::traits::{Get, IsType, TryDrop};
+use frame_support::weights::Weight;
+use frame_system::ExtensionsWeightInfo;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
@@ -30,7 +33,8 @@ use pallet_evm::{AddressMapping, Error};
 use pallet_transaction_multi_payment::{DepositAll, DepositFee};
 use primitives::{AccountId, AssetId, Balance};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::traits::Convert;
+use sp_runtime::traits::{Convert, DispatchInfoOf, TransactionExtension, ValidateResult};
+use sp_runtime::transaction_validity::{TransactionSource, TransactionValidityError, ValidTransaction};
 use sp_runtime::Rounding;
 use sp_std::marker::PhantomData;
 use {
@@ -39,6 +43,82 @@ use {
 	sp_core::{H160, U256},
 	sp_runtime::traits::UniqueSaturatedInto,
 };
+
+#[cfg(feature = "std")]
+mod fee_payer_override {
+	use core::cell::RefCell;
+	use primitives::AccountId;
+
+	thread_local! {
+		static FEE_PAYER: RefCell<Option<AccountId>> = const { RefCell::new(None) };
+	}
+
+	pub fn set(payer: AccountId) {
+		FEE_PAYER.with(|v| *v.borrow_mut() = Some(payer));
+	}
+
+	pub fn get() -> Option<AccountId> {
+		FEE_PAYER.with(|v| v.borrow().clone())
+	}
+
+	pub fn clear() {
+		FEE_PAYER.with(|v| *v.borrow_mut() = None);
+	}
+}
+
+#[cfg(not(feature = "std"))]
+mod fee_payer_override {
+	use primitives::AccountId;
+
+	static mut FEE_PAYER: Option<AccountId> = None;
+
+	pub fn set(payer: AccountId) {
+		unsafe {
+			FEE_PAYER = Some(payer);
+		}
+	}
+
+	pub fn get() -> Option<AccountId> {
+		unsafe { FEE_PAYER.clone() }
+	}
+
+	pub fn clear() {
+		unsafe {
+			FEE_PAYER = None;
+		}
+	}
+}
+
+pub fn set_evm_fee_payer(payer: AccountId) {
+	fee_payer_override::set(payer);
+}
+
+pub fn evm_fee_payer() -> Option<AccountId> {
+	fee_payer_override::get()
+}
+
+pub fn clear_evm_fee_payer() {
+	fee_payer_override::clear();
+}
+
+fn contains_evm_call(call: &crate::RuntimeCall) -> bool {
+	match call {
+		crate::RuntimeCall::EVM(pallet_evm::Call::call { .. }) => true,
+		crate::RuntimeCall::Utility(pallet_utility::Call::batch { calls })
+		| crate::RuntimeCall::Utility(pallet_utility::Call::batch_all { calls })
+		| crate::RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => calls.iter().any(contains_evm_call),
+		crate::RuntimeCall::Utility(pallet_utility::Call::as_derivative { call, .. }) => contains_evm_call(call),
+		_ => false,
+	}
+}
+
+fn is_proxy_wrapping_evm(call: &crate::RuntimeCall) -> bool {
+	match call {
+		crate::RuntimeCall::Proxy(pallet_proxy::Call::proxy { call, .. })
+		| crate::RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced { call, .. }) => contains_evm_call(call),
+		_ => false,
+	}
+}
 
 #[derive(Copy, Clone, Default)]
 pub struct EvmPaymentInfo<Price> {
@@ -107,11 +187,13 @@ where
 		if fee.is_zero() {
 			return Ok(None);
 		}
-		let account_id = T::AddressMapping::into_account_id(*who);
+		let evm_account_id = T::AddressMapping::into_account_id(*who);
 
-		pallet_evm_accounts::Pallet::<crate::Runtime>::mark_as_evm_account(&account_id.clone().into());
+		pallet_evm_accounts::Pallet::<crate::Runtime>::mark_as_evm_account(&evm_account_id.clone().into());
 
-		let account_fee_currency = AccountCurrency::get(&account_id);
+		let fee_payer = evm_fee_payer().map(|a| a.into()).unwrap_or(evm_account_id);
+
+		let account_fee_currency = AccountCurrency::get(&fee_payer);
 
 		let (converted, fee_currency, price) =
 			if SwappablePaymentAssetSupport::is_transaction_fee_currency(account_fee_currency) {
@@ -122,7 +204,6 @@ where
 				};
 				(converted, account_fee_currency, price)
 			} else {
-				//In case of insufficient asset we buy DOT with insufficient asset, and using that DOT and amount as fee currency
 				let dot = DotAssetId::get();
 				let Some((fee_in_dot, eth_dot_price)) =
 					C::convert((EvmFeeAsset::get(), dot, fee.unique_saturated_into()))
@@ -138,19 +219,18 @@ where
 				let max_limit = amount_in.saturating_add(pool_fee);
 
 				SwappablePaymentAssetSupport::buy(
-					&account_id,
+					&fee_payer,
 					account_fee_currency,
 					dot,
 					fee_in_dot,
 					max_limit,
-					&account_id,
+					&fee_payer,
 				)
 				.map_err(|_| Error::<T>::WithdrawFailed)?;
 
 				(fee_in_dot, dot, eth_dot_price)
 			};
 
-		// Ensure that converted fee is not zero
 		if converted == 0 {
 			return Err(Error::<T>::WithdrawFailed);
 		}
@@ -158,7 +238,7 @@ where
 		WF::set_withdraw_fuse_active(false);
 		let burned = MC::burn_from(
 			fee_currency,
-			&account_id,
+			&fee_payer,
 			converted,
 			Preservation::Expendable,
 			Precision::Exact,
@@ -175,18 +255,19 @@ where
 	}
 
 	fn can_withdraw(who: &H160, amount: U256) -> Result<(), pallet_evm::Error<T>> {
-		let account_id = T::AddressMapping::into_account_id(*who);
-		let fee_currency = AccountCurrency::get(&account_id);
+		let evm_account_id = T::AddressMapping::into_account_id(*who);
+		let fee_payer = evm_fee_payer().map(|a| a.into()).unwrap_or(evm_account_id);
+
+		let fee_currency = AccountCurrency::get(&fee_payer);
 		let Some((converted, _)) = C::convert((EvmFeeAsset::get(), fee_currency, amount.unique_saturated_into()))
 		else {
 			return Err(Error::<T>::BalanceLow);
 		};
 
-		// Ensure that converted amount is not zero
 		if converted == 0 {
 			return Err(Error::<T>::BalanceLow);
 		}
-		MC::can_withdraw(fee_currency, &account_id, converted)
+		MC::can_withdraw(fee_currency, &fee_payer, converted)
 			.into_result(false)
 			.map_err(|_| Error::<T>::BalanceLow)?;
 		Ok(())
@@ -198,7 +279,8 @@ where
 		already_withdrawn: Self::LiquidityInfo,
 	) -> Self::LiquidityInfo {
 		if let Some(paid) = already_withdrawn {
-			let account_id = T::AddressMapping::into_account_id(*who);
+			let evm_account_id = T::AddressMapping::into_account_id(*who);
+			let fee_payer = evm_fee_payer().map(|a| a.into()).unwrap_or(evm_account_id);
 
 			WF::set_withdraw_fuse_active(false);
 
@@ -208,13 +290,9 @@ where
 				paid.price.d,
 				Rounding::Up,
 			) {
-				// Calculate how much refund we should return
 				let refund_amount = paid.amount.saturating_sub(converted_corrected_fee);
 
-				// refund to the account that paid the fees. If this fails, the
-				// account might have dropped below the existential balance. In
-				// that case we don't refund anything.
-				let result = MC::mint_into(paid.asset_id, &account_id, refund_amount);
+				let result = MC::mint_into(paid.asset_id, &fee_payer, refund_amount);
 
 				let refund_imbalance = if let Ok(amount) = result {
 					// Ensure that we minted all amount, in case of partial refund for some reason,
@@ -305,5 +383,283 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault {
 		<pallet_transaction_multi_payment::Pallet<Runtime> as AccountFeeCurrency<AccountId>>::is_payment_currency(
 			asset_id,
 		)
+	}
+}
+
+#[derive(Default, Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, Debug, scale_info::TypeInfo)]
+pub struct SetEvmFeePayer;
+
+impl TransactionExtension<crate::RuntimeCall> for SetEvmFeePayer {
+	const IDENTIFIER: &'static str = "SetEvmFeePayer";
+
+	type Implicit = ();
+	type Val = ();
+	type Pre = Option<AccountId>;
+
+	fn weight(&self, call: &crate::RuntimeCall) -> Weight {
+		if is_proxy_wrapping_evm(call) {
+			<crate::Runtime as frame_system::Config>::ExtensionsWeightInfo::check_non_zero_sender()
+		} else {
+			Weight::zero()
+		}
+	}
+
+	fn validate(
+		&self,
+		origin: crate::RuntimeOrigin,
+		_call: &crate::RuntimeCall,
+		_info: &DispatchInfoOf<crate::RuntimeCall>,
+		_len: usize,
+		_implicit: Self::Implicit,
+		_implication: &impl sp_runtime::traits::Implication,
+		_source: TransactionSource,
+	) -> ValidateResult<Self::Val, crate::RuntimeCall> {
+		Ok((ValidTransaction::default(), (), origin))
+	}
+
+	fn prepare(
+		self,
+		_val: Self::Val,
+		origin: &crate::RuntimeOrigin,
+		call: &crate::RuntimeCall,
+		_info: &DispatchInfoOf<crate::RuntimeCall>,
+		_len: usize,
+	) -> Result<Self::Pre, TransactionValidityError> {
+		if is_proxy_wrapping_evm(call) {
+			if let Ok(signer) = frame_system::ensure_signed(origin.clone()) {
+				set_evm_fee_payer(signer.clone());
+				return Ok(Some(signer));
+			}
+		}
+		Ok(None)
+	}
+
+	fn post_dispatch_details(
+		pre: Self::Pre,
+		_info: &DispatchInfoOf<crate::RuntimeCall>,
+		_post_info: &sp_runtime::traits::PostDispatchInfoOf<crate::RuntimeCall>,
+		_len: usize,
+		_result: &DispatchResult,
+	) -> Result<Weight, TransactionValidityError> {
+		if pre.is_some() {
+			clear_evm_fee_payer();
+		}
+		Ok(Weight::zero())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn fee_payer_thread_local_set_get_clear() {
+		let alice: AccountId = [1u8; 32].into();
+
+		assert_eq!(evm_fee_payer(), None);
+
+		set_evm_fee_payer(alice.clone());
+		assert_eq!(evm_fee_payer(), Some(alice));
+
+		clear_evm_fee_payer();
+		assert_eq!(evm_fee_payer(), None);
+	}
+
+	#[test]
+	fn fee_payer_override_replaces_previous_value() {
+		let alice: AccountId = [1u8; 32].into();
+		let bob: AccountId = [2u8; 32].into();
+
+		set_evm_fee_payer(alice.clone());
+		assert_eq!(evm_fee_payer(), Some(alice));
+
+		set_evm_fee_payer(bob.clone());
+		assert_eq!(evm_fee_payer(), Some(bob));
+
+		clear_evm_fee_payer();
+	}
+
+	#[test]
+	fn contains_evm_call_detects_direct_evm_call() {
+		let call = crate::RuntimeCall::EVM(pallet_evm::Call::call {
+			source: H160::zero(),
+			target: H160::zero(),
+			input: vec![],
+			value: U256::zero(),
+			gas_limit: 0,
+			max_fee_per_gas: U256::zero(),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+			authorization_list: vec![],
+		});
+		assert!(contains_evm_call(&call));
+	}
+
+	#[test]
+	fn contains_evm_call_detects_batched_evm_call() {
+		let evm_call = crate::RuntimeCall::EVM(pallet_evm::Call::call {
+			source: H160::zero(),
+			target: H160::zero(),
+			input: vec![],
+			value: U256::zero(),
+			gas_limit: 0,
+			max_fee_per_gas: U256::zero(),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+			authorization_list: vec![],
+		});
+		let batch = crate::RuntimeCall::Utility(pallet_utility::Call::batch { calls: vec![evm_call] });
+		assert!(contains_evm_call(&batch));
+	}
+
+	#[test]
+	fn contains_evm_call_returns_false_for_non_evm_call() {
+		let call = crate::RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+		assert!(!contains_evm_call(&call));
+	}
+
+	#[test]
+	fn is_proxy_wrapping_evm_detects_proxy_evm() {
+		let evm_call = crate::RuntimeCall::EVM(pallet_evm::Call::call {
+			source: H160::zero(),
+			target: H160::zero(),
+			input: vec![],
+			value: U256::zero(),
+			gas_limit: 0,
+			max_fee_per_gas: U256::zero(),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+			authorization_list: vec![],
+		});
+		let proxy_call = crate::RuntimeCall::Proxy(pallet_proxy::Call::proxy {
+			real: AccountId::from([0u8; 32]),
+			force_proxy_type: None,
+			call: Box::new(evm_call),
+		});
+		assert!(is_proxy_wrapping_evm(&proxy_call));
+	}
+
+	#[test]
+	fn is_proxy_wrapping_evm_returns_false_for_proxy_non_evm() {
+		let remark = crate::RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+		let proxy_call = crate::RuntimeCall::Proxy(pallet_proxy::Call::proxy {
+			real: AccountId::from([0u8; 32]),
+			force_proxy_type: None,
+			call: Box::new(remark),
+		});
+		assert!(!is_proxy_wrapping_evm(&proxy_call));
+	}
+
+	#[test]
+	fn is_proxy_wrapping_evm_detects_proxy_batch_evm() {
+		let evm_call = crate::RuntimeCall::EVM(pallet_evm::Call::call {
+			source: H160::zero(),
+			target: H160::zero(),
+			input: vec![],
+			value: U256::zero(),
+			gas_limit: 0,
+			max_fee_per_gas: U256::zero(),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+			authorization_list: vec![],
+		});
+		let batch = crate::RuntimeCall::Utility(pallet_utility::Call::batch_all { calls: vec![evm_call] });
+		let proxy_call = crate::RuntimeCall::Proxy(pallet_proxy::Call::proxy {
+			real: AccountId::from([0u8; 32]),
+			force_proxy_type: None,
+			call: Box::new(batch),
+		});
+		assert!(is_proxy_wrapping_evm(&proxy_call));
+	}
+
+	#[test]
+	fn is_proxy_wrapping_evm_returns_false_for_direct_evm_call() {
+		let evm_call = crate::RuntimeCall::EVM(pallet_evm::Call::call {
+			source: H160::zero(),
+			target: H160::zero(),
+			input: vec![],
+			value: U256::zero(),
+			gas_limit: 0,
+			max_fee_per_gas: U256::zero(),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+			authorization_list: vec![],
+		});
+		assert!(!is_proxy_wrapping_evm(&evm_call));
+	}
+
+	#[test]
+	fn is_proxy_wrapping_evm_detects_proxy_announced() {
+		let evm_call = crate::RuntimeCall::EVM(pallet_evm::Call::call {
+			source: H160::zero(),
+			target: H160::zero(),
+			input: vec![],
+			value: U256::zero(),
+			gas_limit: 0,
+			max_fee_per_gas: U256::zero(),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+			authorization_list: vec![],
+		});
+		let proxy_announced = crate::RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced {
+			delegate: AccountId::from([1u8; 32]),
+			real: AccountId::from([0u8; 32]),
+			force_proxy_type: None,
+			call: Box::new(evm_call),
+		});
+		assert!(is_proxy_wrapping_evm(&proxy_announced));
+	}
+
+	#[test]
+	fn contains_evm_call_detects_as_derivative_wrapping() {
+		let evm_call = crate::RuntimeCall::EVM(pallet_evm::Call::call {
+			source: H160::zero(),
+			target: H160::zero(),
+			input: vec![],
+			value: U256::zero(),
+			gas_limit: 0,
+			max_fee_per_gas: U256::zero(),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+			authorization_list: vec![],
+		});
+		let as_derivative = crate::RuntimeCall::Utility(pallet_utility::Call::as_derivative {
+			index: 0,
+			call: Box::new(evm_call),
+		});
+		assert!(contains_evm_call(&as_derivative));
+	}
+
+	#[test]
+	fn is_proxy_wrapping_evm_detects_proxy_as_derivative_evm() {
+		let evm_call = crate::RuntimeCall::EVM(pallet_evm::Call::call {
+			source: H160::zero(),
+			target: H160::zero(),
+			input: vec![],
+			value: U256::zero(),
+			gas_limit: 0,
+			max_fee_per_gas: U256::zero(),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+			authorization_list: vec![],
+		});
+		let as_derivative = crate::RuntimeCall::Utility(pallet_utility::Call::as_derivative {
+			index: 0,
+			call: Box::new(evm_call),
+		});
+		let proxy_call = crate::RuntimeCall::Proxy(pallet_proxy::Call::proxy {
+			real: AccountId::from([0u8; 32]),
+			force_proxy_type: None,
+			call: Box::new(as_derivative),
+		});
+		assert!(is_proxy_wrapping_evm(&proxy_call));
 	}
 }
