@@ -38,7 +38,7 @@ use xcm_builder::{
 	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
 	TakeWeightCredit, TrailingSetTopicAsId, WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
 };
-use xcm_executor::{Config, XcmExecutor};
+use xcm_executor::{traits::MatchesFungible, traits::TransactAsset, Config, XcmExecutor};
 
 #[derive(Debug, Default, Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub Location);
@@ -485,8 +485,7 @@ where
 			if matches!(result, Ok(true)) {
 				let net = withdrawn.saturating_sub(deposited);
 				if !net.is_zero() {
-					pallet_circuit_breaker::Pallet::<Runtime>::note_egress(net)
-						.map_err(|_| frame_support::traits::ProcessMessageError::Corrupt)?;
+					let _ = pallet_circuit_breaker::Pallet::<Runtime>::note_egress(net);
 				}
 			}
 		}
@@ -645,7 +644,7 @@ impl Contains<(AssetId, AccountId)> for OmnipoolProtocolAccount {
 }
 
 /// We use `orml::Currencies` for asset transacting. Transfers to active Omnipool accounts are rerouted to the treasury.
-pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
+type BaseLocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	Currencies,
 	UnknownTokens,
 	IsNativeConcrete<AssetId, CurrencyIdConvert>,
@@ -657,3 +656,65 @@ pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	OmnipoolProtocolAccount,
 	TreasuryAccount,
 >;
+
+pub struct LocalAssetTransactor;
+impl TransactAsset for LocalAssetTransactor {
+	fn can_check_in(origin: &Location, what: &Asset, context: &XcmContext) -> XcmResult {
+		BaseLocalAssetTransactor::can_check_in(origin, what, context)
+	}
+
+	fn check_in(origin: &Location, what: &Asset, context: &XcmContext) {
+		BaseLocalAssetTransactor::check_in(origin, what, context)
+	}
+
+	fn can_check_out(dest: &Location, what: &Asset, context: &XcmContext) -> XcmResult {
+		BaseLocalAssetTransactor::can_check_out(dest, what, context)
+	}
+
+	fn check_out(dest: &Location, what: &Asset, context: &XcmContext) {
+		BaseLocalAssetTransactor::check_out(dest, what, context)
+	}
+
+	fn deposit_asset(what: &Asset, who: &Location, context: Option<&XcmContext>) -> XcmResult {
+		BaseLocalAssetTransactor::deposit_asset(what, who, context)
+	}
+
+	fn withdraw_asset(
+		what: &Asset,
+		who: &Location,
+		maybe_context: Option<&XcmContext>,
+	) -> Result<xcm_executor::AssetsInHolding, XcmError> {
+		if pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::exists() {
+			if let (Some(asset_id), Some(amount)) = (
+				CurrencyIdConvert::convert(what.clone()),
+				IsNativeConcrete::<AssetId, CurrencyIdConvert>::matches_fungible(what),
+			) {
+				crate::circuit_breaker::WithdrawCircuitBreaker::<NativeAssetId>::ensure_inbound_xcm_withdraw_can_proceed(
+					asset_id,
+					amount,
+				)
+				.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
+			}
+		}
+
+		BaseLocalAssetTransactor::withdraw_asset(what, who, maybe_context)
+	}
+
+	fn internal_transfer_asset(
+		asset: &Asset,
+		from: &Location,
+		to: &Location,
+		context: &XcmContext,
+	) -> Result<xcm_executor::AssetsInHolding, XcmError> {
+		BaseLocalAssetTransactor::internal_transfer_asset(asset, from, to, context)
+	}
+
+	fn transfer_asset(
+		asset: &Asset,
+		from: &Location,
+		to: &Location,
+		context: &XcmContext,
+	) -> Result<xcm_executor::AssetsInHolding, XcmError> {
+		BaseLocalAssetTransactor::transfer_asset(asset, from, to, context)
+	}
+}

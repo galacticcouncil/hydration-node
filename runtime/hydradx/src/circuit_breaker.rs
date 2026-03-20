@@ -77,6 +77,24 @@ impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrency
 		let now = pallet_circuit_breaker::Pallet::<Runtime>::timestamp_now();
 		pallet_circuit_breaker::Pallet::<Runtime>::is_lockdown_at(now)
 	}
+
+	pub fn ensure_inbound_xcm_withdraw_can_proceed(asset_id: AssetId, amount: Balance) -> DispatchResult {
+		if !pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::exists()
+			|| !Self::should_account_withdraw_operation(asset_id, EgressOperationKind::Withdraw, None)
+		{
+			return Ok(());
+		}
+
+		let amount_ref_currency = Self::convert_to_hdx(asset_id, amount)?;
+		let buffered_withdraw = pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::get()
+			.map(|buffer| buffer.0)
+			.unwrap_or_default();
+
+		pallet_circuit_breaker::Pallet::<Runtime>::ensure_xcm_withdraw_can_proceed(
+			amount_ref_currency,
+			buffered_withdraw,
+		)
+	}
 }
 
 pub struct OnWithdrawHook<RC>(PhantomData<RC>);

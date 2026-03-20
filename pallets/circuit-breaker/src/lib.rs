@@ -800,6 +800,35 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Conservative pre-check used by XCM before a local withdraw happens.
+	/// `buffered_egress` is the amount already buffered as withdrawn within the current XCM message.
+	/// This intentionally ignores buffered deposits/refunds so that the first over-limit message
+	/// is blocked before any local funds move.
+	pub fn ensure_xcm_withdraw_can_proceed(amount: T::Balance, buffered_egress: T::Balance) -> DispatchResult {
+		let Some(GlobalWithdrawLimitParameters { limit, window }) = Self::global_withdraw_limit_config() else {
+			return Ok(());
+		};
+
+		let now = Self::timestamp_now();
+		if Self::is_lockdown_at(now) {
+			return Err(Error::<T>::WithdrawLockdownActive.into());
+		}
+
+		Self::try_to_decay_withdraw_limit_accumulator();
+		if window < 1 {
+			return Ok(());
+		}
+
+		let (current, _) = Self::withdraw_limit_accumulator();
+		let projected = current
+			.checked_add(&buffered_egress)
+			.and_then(|v| v.checked_add(&amount))
+			.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(projected < limit, Error::<T>::GlobalWithdrawLimitExceeded);
+		Ok(())
+	}
+
 	pub fn note_deposit(amount: T::Balance) {
 		let now = Self::timestamp_now();
 		if !Self::is_lockdown_at(now) {

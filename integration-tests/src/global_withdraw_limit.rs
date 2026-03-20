@@ -1052,7 +1052,7 @@ fn inbound_xcm_net_egress_is_accounted() {
 }
 
 #[test]
-fn inbound_xcm_net_egress_over_limit_should_fail_processing() {
+fn inbound_xcm_over_limit_should_not_withdraw_from_hydra() {
 	TestNet::reset();
 
 	let sovereign = parachain_reserve_account();
@@ -1087,6 +1087,12 @@ fn inbound_xcm_net_egress_over_limit_should_fail_processing() {
 			sovereign.clone(),
 			200 * UNITS,
 		));
+
+		assert_eq!(
+			Currencies::free_balance(HDX, &sovereign),
+			200 * UNITS,
+			"Sovereign account should be funded before inbound XCM executes"
+		);
 	});
 
 	let amount = 100 * UNITS;
@@ -1124,12 +1130,122 @@ fn inbound_xcm_net_egress_over_limit_should_fail_processing() {
 	});
 
 	Hydra::execute_with(|| {
-		assert_xcm_message_processing_failed();
+		assert!(
+			!hydradx_runtime::System::events().iter().any(|r| matches!(
+				r.event,
+				hydradx_runtime::RuntimeEvent::MessageQueue(xcm_emulator::pallet_message_queue::Event::Processed {
+					success: true,
+					..
+				})
+			)),
+			"Over-limit inbound XCM must not complete successfully"
+		);
 		assert_eq!(
 			CircuitBreaker::withdraw_limit_accumulator().0,
 			0,
-			"Accumulator must remain unchanged when the buffered net egress exceeds the limit"
+			"Accumulator must remain unchanged when the inbound XCM withdraw is rejected pre-flight"
 		);
+		assert_eq!(
+			Currencies::free_balance(HDX, &sovereign),
+			200 * UNITS,
+			"Sovereign account balance must remain unchanged when inbound XCM exceeds the limit"
+		);
+	});
+}
+
+#[test]
+fn inbound_xcm_should_not_withdraw_from_hydra_when_lockdown_active() {
+	TestNet::reset();
+
+	let sovereign = parachain_reserve_account();
+	let relay_sovereign: AccountId =
+		hydradx_runtime::LocationToAccountId::convert_location(&Location::parent()).unwrap();
+
+	Hydra::execute_with(|| {
+		init_global_withdraw_limit_params();
+
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			HDX,
+			Some(GlobalAssetCategory::Local)
+		));
+
+		assert_ok!(CircuitBreaker::add_egress_accounts(
+			hydradx_runtime::RuntimeOrigin::root(),
+			vec![relay_sovereign]
+		));
+
+		let now = CircuitBreaker::timestamp_now();
+		assert_ok!(CircuitBreaker::set_global_withdraw_lockdown(
+			hydradx_runtime::RuntimeOrigin::root(),
+			now + 1_000
+		));
+
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			sovereign.clone(),
+			200 * UNITS,
+		));
+
+		assert_eq!(Currencies::free_balance(HDX, &sovereign), 200 * UNITS);
+	});
+
+	let amount = 100 * UNITS;
+	Acala::execute_with(|| {
+		let hdx_loc = Location::new(
+			1,
+			[
+				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+				cumulus_primitives_core::Junction::GeneralIndex(0),
+			],
+		);
+		let asset: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc),
+			fun: Fungible(amount),
+		};
+
+		let message = Xcm(vec![
+			WithdrawAsset(asset.clone().into()),
+			BuyExecution {
+				fees: asset,
+				weight_limit: Unlimited,
+			},
+			DepositReserveAsset {
+				assets: All.into(),
+				dest: Location::parent(),
+				xcm: Xcm(vec![]),
+			},
+		]);
+
+		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
+			Here,
+			Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]),
+			message
+		));
+	});
+
+	Hydra::execute_with(|| {
+		assert!(
+			!hydradx_runtime::System::events().iter().any(|r| matches!(
+				r.event,
+				hydradx_runtime::RuntimeEvent::MessageQueue(xcm_emulator::pallet_message_queue::Event::Processed {
+					success: true,
+					..
+				})
+			)),
+			"Inbound XCM must not complete successfully while withdrawal lockdown is active"
+		);
+		assert_eq!(
+			Currencies::free_balance(HDX, &sovereign),
+			200 * UNITS,
+			"Sovereign account balance must remain unchanged while lockdown is active"
+		);
+		assert_eq!(
+			CircuitBreaker::withdraw_limit_accumulator().0,
+			0,
+			"Accumulator must remain unchanged when inbound XCM is rejected during lockdown"
+		);
+		assert!(CircuitBreaker::withdraw_lockdown_until().is_some());
 	});
 }
 
