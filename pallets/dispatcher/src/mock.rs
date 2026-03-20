@@ -118,7 +118,6 @@ parameter_types! {
 
 impl dispatcher::Config for Test {
 	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
 	type TreasuryManagerOrigin = EnsureRoot<AccountId>;
 	type AaveManagerOrigin = EnsureRoot<AccountId>;
 	type EmergencyAdminOrigin = EnsureRoot<AccountId>;
@@ -170,7 +169,6 @@ impl system::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;

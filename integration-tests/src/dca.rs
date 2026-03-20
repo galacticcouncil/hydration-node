@@ -134,16 +134,16 @@ mod omnipool {
 				let block_id = 11;
 				go_to_block(block_id);
 
-				let budget = 5000 * UNITS;
+				let budget = 50000 * UNITS;
 				let schedule1 =
-					schedule_fake_with_buy_order(PoolType::XYK, insufficient_asset, DOT, 100 * UNITS, budget);
+					schedule_fake_with_buy_order(PoolType::XYK, insufficient_asset, DOT, 1000 * UNITS, budget);
 
 				//Act
 				assert_ok!(Currencies::update_balance(
 					RawOrigin::Root.into(),
 					ALICE.into(),
 					insufficient_asset,
-					5000 * UNITS as i128,
+					50000 * UNITS as i128,
 				));
 				assert_ok!(DCA::schedule(
 					RuntimeOrigin::signed(ALICE.into()),

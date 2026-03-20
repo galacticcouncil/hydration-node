@@ -153,7 +153,7 @@ pub mod pallet {
 				let Some(price_diff) =
 					FixedU128::checked_from_rational(eth_hdx_price.into_inner(), ETH_HDX_REFERENCE_PRICE.into_inner())
 				else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, current price: {}, reference price: {}", eth_hdx_price, ETH_HDX_REFERENCE_PRICE);
+					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, current price: {eth_hdx_price}, reference price: {ETH_HDX_REFERENCE_PRICE}");
 					return;
 				};
 

@@ -96,8 +96,6 @@ pub mod module {
 	where
 		<Self::MultiCurrency as MultiCurrency<Self::AccountId>>::CurrencyId: codec::DecodeWithMemTracking,
 	{
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		type MultiCurrency: TransferAll<Self::AccountId>
 			+ MultiCurrencyExtended<Self::AccountId>
 			+ MultiLockableCurrency<Self::AccountId>

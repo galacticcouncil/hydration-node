@@ -227,9 +227,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_broadcast::Config {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Asset id type
 		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
 
@@ -1340,10 +1337,7 @@ impl<T: Config> Pallet<T> {
 				.unwrap_or_else(|| T::MaxNumberOfRetriesOnError::get() as u64);
 
 			let Some(gas_increment) = MAX_EXTRA_GAS.checked_div(max_retries) else {
-				log::error!(
-					"Gas increment calculation overflowed for schedule_id: {:?}",
-					schedule_id
-				);
+				log::error!("Gas increment calculation overflowed for schedule_id: {schedule_id:?}",);
 				return;
 			};
 
