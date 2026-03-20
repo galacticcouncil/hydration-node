@@ -60,9 +60,6 @@ benchmarks! {
 		let call: <T as pallet::Config>::RuntimeCall = frame_system::Call::remark { remark }.into();
 	}: _(RawOrigin::Root, Box::new(call))
 
-	note_emergency_admin {
-	}: _(RawOrigin::Root, Pallet::<T>::emergency_admin_account())
-
 	dispatch_with_extra_gas{
 		let n in 1 .. 10_000;
 		let remark = sp_std::vec![1u8; n as usize];

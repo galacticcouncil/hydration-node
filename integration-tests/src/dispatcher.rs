@@ -44,11 +44,6 @@ fn emergency_admin_address() -> EvmAddress {
 	hex!["aa7e0000000000000000000000000000000aa7e1"].into()
 }
 
-fn emergency_admin_account() -> AccountId {
-	pad_to_32_bytes(emergency_admin_address().as_bytes()).into()
-}
-
-
 #[test]
 fn testnet_aave_manager_can_be_set_as_dispatcher() {
 	TestNet::reset();
@@ -1188,32 +1183,6 @@ fn dispatch_with_extra_should_charge_more_than_inner_call_when_when_inner_calls_
 	});
 }
 
-#[test]
-fn emergency_admin_account_can_be_noted() {
-	TestNet::reset();
-	Hydra::execute_with(|| {
-		assert_eq!(
-			hydradx_runtime::Dispatcher::emergency_admin_account(),
-			emergency_admin_account()
-		);
-		let new_admin = testnet_manager();
-		assert_ok!(hydradx_runtime::Dispatcher::note_emergency_admin(
-			hydradx_runtime::RuntimeOrigin::root(),
-			new_admin.clone()
-		));
-		assert_eq!(
-			hydradx_runtime::Dispatcher::emergency_admin_account(),
-			new_admin
-		);
-
-		expect_hydra_last_events(vec![
-			pallet_dispatcher::Event::EmergencyAdminAccountNoted {
-				account: new_admin,
-			}
-			.into(),
-		]);
-	});
-}
 
 #[test]
 fn dispatch_as_emergency_admin_can_pause_aave_reserve() {

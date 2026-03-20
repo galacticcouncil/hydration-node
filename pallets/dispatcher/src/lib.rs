@@ -89,7 +89,7 @@ pub mod pallet {
 
 		type TreasuryAccount: Get<Self::AccountId>;
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
-		type DefaultEmergencyAdminAccount: Get<Self::AccountId>;
+		type EmergencyAdminAccount: Get<Self::AccountId>;
 
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
@@ -104,11 +104,6 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn aave_manager_account)]
 	pub type AaveManagerAccount<T: Config> = StorageValue<_, T::AccountId, ValueQuery, T::DefaultAaveManagerAccount>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn emergency_admin_account)]
-	pub type EmergencyAdminAccount<T: Config> =
-		StorageValue<_, T::AccountId, ValueQuery, T::DefaultEmergencyAdminAccount>;
 
 	#[pallet::storage]
 	#[pallet::whitelist_storage]
@@ -160,9 +155,6 @@ pub mod pallet {
 		EmergencyAdminCallDispatched {
 			call_hash: T::Hash,
 			result: DispatchResultWithPostInfo,
-		},
-		EmergencyAdminAccountNoted {
-			account: T::AccountId,
 		},
 	}
 
@@ -375,7 +367,7 @@ pub mod pallet {
 			let call_len = call.encoded_size() as u32;
 
 			let (result, actual_weight) = Self::do_dispatch(
-				frame_system::Origin::<T>::Signed(EmergencyAdminAccount::<T>::get()).into(),
+				frame_system::Origin::<T>::Signed(T::EmergencyAdminAccount::get()).into(),
 				*call,
 			);
 			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_emergency_admin(call_len)));
@@ -385,20 +377,6 @@ pub mod pallet {
 			Ok(actual_weight.into())
 		}
 
-		/// Sets the emergency admin account to be used as origin for dispatching calls.
-		///
-		/// This doesn't actually change any ACL in the pool.
-		///
-		/// This is intended to be mainly used in testnet environments, where the admin account
-		/// can be different.
-		#[pallet::call_index(6)]
-		#[pallet::weight(T::WeightInfo::note_emergency_admin())]
-		pub fn note_emergency_admin(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
-			ensure_root(origin)?;
-			EmergencyAdminAccount::<T>::put(account.clone());
-			Self::deposit_event(Event::<T>::EmergencyAdminAccountNoted { account });
-			Ok(())
-		}
 	}
 }
 

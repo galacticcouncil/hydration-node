@@ -54,7 +54,6 @@ pub trait WeightInfo {
     fn dispatch_with_extra_gas(n: u32) -> Weight;
     fn dispatch_evm_call(n: u32) -> Weight;
     fn dispatch_as_emergency_admin(n: u32) -> Weight;
-    fn note_emergency_admin() -> Weight;
 }
 
 /// Weights for `pallet_dispatcher` using the HydraDX node and recommended hardware.
@@ -109,21 +108,11 @@ impl WeightInfo for () {
             // Standard Error: 5
             .saturating_add(Weight::from_parts(223, 0).saturating_mul(n.into()))
     }
-    /// Storage: `Dispatcher::EmergencyAdminAccount` (r:1 w:0)
-    /// Proof: `Dispatcher::EmergencyAdminAccount` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
     /// The range of component `n` is `[1, 10000]`.
     fn dispatch_as_emergency_admin(n: u32, ) -> Weight {
-        // Placeholder: uses dispatch_as_aave_manager weights
-        Weight::from_parts(13_660_881, 1517)
-            .saturating_add(Weight::from_parts(1_302, 0).saturating_mul(n.into()))
-            .saturating_add(RocksDbWeight::get().reads(1_u64))
-    }
-    /// Storage: `Dispatcher::EmergencyAdminAccount` (r:0 w:1)
-    /// Proof: `Dispatcher::EmergencyAdminAccount` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-    fn note_emergency_admin() -> Weight {
-        // Placeholder: uses note_aave_manager weights
-        Weight::from_parts(3_864_000, 0)
-            .saturating_add(RocksDbWeight::get().writes(1_u64))
+        // Placeholder: uses dispatch_as_treasury weights (no storage read needed)
+        Weight::from_parts(11_608_545, 0)
+            .saturating_add(Weight::from_parts(1_288, 0).saturating_mul(n.into()))
     }
 }
 
