@@ -1172,4 +1172,3 @@ fn buy_allows_tolerance_when_part_of_fee_is_taken() {
 			assert_eq!(initial_reserve, omnipool_200_reserve + buy_amount + fee_collector);
 		});
 }
-
