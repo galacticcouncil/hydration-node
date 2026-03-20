@@ -189,7 +189,7 @@ pub mod pallet {
 				frame_system::Origin::<T>::Signed(T::TreasuryAccount::get()).into(),
 				*call,
 			);
-			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury(call_len)));
+			let actual_weight = actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury(call_len)));
 
 			Self::deposit_event(Event::<T>::TreasuryManagerCallDispatched { call_hash, result });
 
@@ -217,7 +217,7 @@ pub mod pallet {
 				frame_system::Origin::<T>::Signed(AaveManagerAccount::<T>::get()).into(),
 				*call,
 			);
-			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_aave_manager(call_len)));
+			let actual_weight = actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_aave_manager(call_len)));
 
 			Self::deposit_event(Event::<T>::AaveManagerCallDispatched { call_hash, result });
 
@@ -370,7 +370,7 @@ pub mod pallet {
 				frame_system::Origin::<T>::Signed(T::EmergencyAdminAccount::get()).into(),
 				*call,
 			);
-			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_emergency_admin(call_len)));
+			let actual_weight = actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_emergency_admin(call_len)));
 
 			Self::deposit_event(Event::<T>::EmergencyAdminCallDispatched { call_hash, result });
 
