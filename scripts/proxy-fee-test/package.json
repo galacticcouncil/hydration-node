@@ -5,7 +5,8 @@
   "scripts": {
     "setup": "node scripts/setup-chain.js",
     "test": "npx tsx scripts/test-proxy-fee.ts",
-    "demo": "npm run setup && sleep 6 && npm run test"
+    "demo": "npm run setup && sleep 6 && npm run test",
+    "deploy:lark": "node scripts/deploy-lark.js"
   },
   "dependencies": {
     "@polkadot/api": "^15.0.1",

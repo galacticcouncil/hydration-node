@@ -34,7 +34,25 @@ When a controller uses `proxy.proxy(real=pureProxy, call=evm.call(...))`, `palle
 ```bash
 cd scripts/proxy-fee-test
 npm install
-WS_URL=ws://127.0.0.1:9999 npm test
+```
+
+### Against local zombienet (default)
+
+```bash
+npm test
+```
+
+### Against lark testnet
+
+```bash
+WS_URL=wss://2.lark.hydration.cloud EVM_RPC_URL=https://2.lark.hydration.cloud npm test
+```
+
+### Deploy runtime to lark
+
+```bash
+make build-release
+npm run deploy:lark
 ```
 
 ### Environment Variables

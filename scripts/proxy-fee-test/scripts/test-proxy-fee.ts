@@ -331,16 +331,18 @@ async function main() {
     if (
       err.message.includes("BalanceLow") ||
       err.message.includes("InsufficientBalance") ||
-      err.message.includes("WithdrawFailed")
+      err.message.includes("WithdrawFailed") ||
+      err.message.includes("Inability to pay") ||
+      err.message.includes("1010")
     ) {
       pass(
         "proxy(EVM::call) fails with no-funds controller",
-        `Expected error: ${err.message}`
+        `Expected error: ${err.message.slice(0, 120)}`
       );
     } else {
       fail(
         "proxy(EVM::call) fails with no-funds controller",
-        `Error: ${err.message}`
+        `Error: ${err.message.slice(0, 120)}`
       );
     }
   }
