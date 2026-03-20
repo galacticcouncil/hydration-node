@@ -6320,7 +6320,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.14.0"
+version = "1.13.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -9822,7 +9822,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.7.0"
+version = "1.6.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10096,7 +10096,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.17.0"
+version = "1.16.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -10921,7 +10921,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "2.5.0"
+version = "2.4.1"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -11311,7 +11311,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "3.4.0"
+version = "3.3.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11383,7 +11383,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.5.0"
+version = "1.4.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -15645,7 +15645,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.73.0"
+version = "1.72.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
