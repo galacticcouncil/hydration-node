@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use crate::gigahdx::PATH_TO_SNAPSHOT;
 use crate::polkadot_test_net::*;
 use frame_support::{
 	assert_noop, assert_ok,
@@ -16,8 +17,6 @@ use pallet_conviction_voting::{AccountVote, Conviction, Vote};
 use pallet_referenda::ReferendumIndex;
 use primitives::constants::time::DAYS;
 use primitives::AccountId;
-use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::AccountId32;
 use xcm_emulator::TestExt;
 
 type CallOf<T> = <T as frame_system::Config>::RuntimeCall;
@@ -127,7 +126,7 @@ fn init_gigahdx() {
 #[test]
 fn giga_stake_produces_gigahdx() {
 	TestNet::reset();
-	Hydra::execute_with(|| {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
 
 		let alice: AccountId = ALICE.into();
@@ -157,7 +156,7 @@ fn giga_stake_produces_gigahdx() {
 #[test]
 fn vote_with_gigahdx_records_vote() {
 	TestNet::reset();
-	Hydra::execute_with(|| {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
 
 		let alice: AccountId = ALICE.into();
@@ -193,7 +192,7 @@ fn vote_with_gigahdx_records_vote() {
 #[test]
 fn end_referendum_remove_vote_records_reward() {
 	TestNet::reset();
-	Hydra::execute_with(|| {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
 
 		let alice: AccountId = ALICE.into();
@@ -232,7 +231,7 @@ fn end_referendum_remove_vote_records_reward() {
 #[test]
 fn claim_rewards_converts_to_gigahdx() {
 	TestNet::reset();
-	Hydra::execute_with(|| {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
 
 		let alice: AccountId = ALICE.into();
@@ -277,7 +276,7 @@ fn claim_rewards_converts_to_gigahdx() {
 #[test]
 fn giga_unstake_blocked_during_ongoing() {
 	TestNet::reset();
-	Hydra::execute_with(|| {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
 
 		let alice: AccountId = ALICE.into();
@@ -306,7 +305,7 @@ fn giga_unstake_blocked_during_ongoing() {
 #[test]
 fn combined_voting_power() {
 	TestNet::reset();
-	Hydra::execute_with(|| {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
 
 		let alice: AccountId = ALICE.into();
@@ -341,7 +340,7 @@ fn combined_voting_power() {
 #[test]
 fn conviction_weighted_rewards() {
 	TestNet::reset();
-	Hydra::execute_with(|| {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
 
 		let alice: AccountId = ALICE.into();
@@ -407,7 +406,7 @@ fn conviction_weighted_rewards() {
 #[test]
 fn staking_hooks_still_work() {
 	TestNet::reset();
-	Hydra::execute_with(|| {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
 
 		// Initialize old staking.

@@ -11,7 +11,7 @@ use primitives::constants::time::DAYS;
 use primitives::Balance;
 use xcm_emulator::Network;
 
-pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/gigahdx";
+pub const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx";
 
 const UNITS: Balance = 1_000_000_000_000;
 const STHDX: u32 = 670;

@@ -6132,6 +6132,7 @@ dependencies = [
  "pallet-dispatcher",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",
+ "pallet-fee-processor",
  "pallet-lbp",
  "pallet-liquidity-mining",
  "pallet-omnipool",
@@ -6245,9 +6246,13 @@ dependencies = [
  "pallet-evm-precompile-call-permit",
  "pallet-evm-precompile-dispatch",
  "pallet-evm-precompile-flash-loan",
+ "pallet-evm-precompile-lock-manager",
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
+ "pallet-fee-processor",
  "pallet-genesis-history",
+ "pallet-gigahdx",
+ "pallet-gigahdx-voting",
  "pallet-hsm",
  "pallet-hyperbridge",
  "pallet-identity",
@@ -10354,6 +10359,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-evm-precompile-lock-manager"
+version = "1.0.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "log",
+ "num_enum",
+ "pallet-evm",
+ "pallet-gigahdx-voting",
+ "parity-scale-codec",
+ "precompile-utils",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-evm-precompile-modexp"
 version = "2.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2503#5b38fdfd0362f7f941d14e1ab9dea39ddf9efd65"
@@ -10391,6 +10415,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-fee-processor"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-genesis-history"
 version = "2.2.0"
 dependencies = [
@@ -10402,6 +10448,54 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-gigahdx"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-gigahdx-voting"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-conviction-voting",
+ "pallet-currencies",
+ "pallet-gigahdx",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "sp-arithmetic",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -15354,6 +15448,10 @@ dependencies = [
  "pallet-evm",
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
+ "pallet-evm-precompile-lock-manager",
+ "pallet-fee-processor",
+ "pallet-gigahdx",
+ "pallet-gigahdx-voting",
  "pallet-hsm",
  "pallet-im-online",
  "pallet-ismp",

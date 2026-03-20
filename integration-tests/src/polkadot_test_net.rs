@@ -136,8 +136,8 @@ pub const WETH: AssetId = 20;
 pub const FOREIGN_ASSET: AssetId = 21;
 pub const PEPE: AssetId = 420;
 pub const INSUFFICIENT_ASSET: AssetId = 500;
-pub const ST_HDX: AssetId = 12344;
-pub const GIGAHDX: AssetId = 12345;
+pub const ST_HDX: AssetId = 670;
+pub const GIGAHDX: AssetId = 67;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
