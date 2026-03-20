@@ -23,6 +23,7 @@
 use crate::common;
 use crate::common::flow_graph;
 use crate::common::ring_detection;
+use crate::common::FlowDirection;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::AMMInterface;
 use ice_support::{
@@ -39,6 +40,12 @@ pub struct Solver<A: AMMInterface> {
 	_phantom: PhantomData<A>,
 }
 
+/// Unordered pair key.
+type AssetPair = (AssetId, AssetId);
+
+/// Intents grouped by direction: (forward A→B, backward B→A).
+type DirectionGroups<T> = (Vec<T>, Vec<T>);
+
 /// Per-direction clearing rates for an unordered pair (A, B).
 #[derive(Debug, Clone)]
 struct PairClearing {
@@ -49,8 +56,6 @@ struct PairClearing {
 	backward_n: U256,
 	backward_d: U256,
 }
-
-/// Directed clearing rate: (numerator, denominator) for amount_out per amount_in.
 
 fn empty_solution() -> Solution {
 	Solution {
@@ -91,6 +96,9 @@ fn apply_rate(amount_in: Balance, n: U256, d: U256) -> Balance {
 /// has enough tokens from AMM trades to pay all resolved intents.
 ///
 /// 1 bps = 0.01%. Increase if simulation divergence grows (e.g. after AMM changes).
+///
+/// Note: for very small outputs (< 10,000), integer truncation means no deduction
+/// is applied. This is acceptable since production token amounts are typically 10^12+.
 const AMM_SIMULATION_TOLERANCE_BPS: Balance = 1;
 
 /// Reduce simulated AMM output by [`AMM_SIMULATION_TOLERANCE_BPS`] to ensure
@@ -127,8 +135,10 @@ impl<A: AMMInterface> Solver<A> {
 				}
 			}
 		}
-		log::trace!(target: "solver", "spot prices for {} assets: {:?}", spot_prices.len(),
-			spot_prices.iter().map(|(a, r)| (*a, r.n as f64 / r.d as f64)).collect::<Vec<_>>());
+		if log::log_enabled!(log::Level::Trace) {
+			log::trace!(target: "solver", "spot prices for {} assets: {:?}", spot_prices.len(),
+				spot_prices.iter().map(|(a, r)| (*a, r.n as f64 / r.d as f64)).collect::<Vec<_>>());
+		}
 
 		// 2. Filter satisfiable intents
 		let satisfiable_intents: Vec<&Intent> = intents
@@ -148,13 +158,13 @@ impl<A: AMMInterface> Solver<A> {
 
 		// 3. Iterative clearing price computation (simulation phase)
 		let mut included: Vec<&Intent> = satisfiable_intents;
-		let mut pair_clearings: BTreeMap<(AssetId, AssetId), PairClearing> = BTreeMap::new();
+		let mut pair_clearings: BTreeMap<AssetPair, PairClearing> = BTreeMap::new();
 
 		const MAX_ITERATIONS: u32 = 10;
 		for _ in 0..MAX_ITERATIONS {
 			pair_clearings.clear();
 
-			let mut pair_groups: BTreeMap<(AssetId, AssetId), (Vec<&Intent>, Vec<&Intent>)> = BTreeMap::new();
+			let mut pair_groups: BTreeMap<AssetPair, DirectionGroups<&Intent>> = BTreeMap::new();
 			for intent in &included {
 				let IntentData::Swap(swap) = &intent.data;
 				let up = unordered_pair(swap.asset_in, swap.asset_out);
@@ -208,13 +218,14 @@ impl<A: AMMInterface> Solver<A> {
 			return Self::solve_single_intent(included[0], &initial_state);
 		}
 
-		// 4. Ring detection
-		let included_owned: Vec<Intent> = included.iter().map(|i| (*i).clone()).collect();
-		let mut graph = flow_graph::build_flow_graph(&included_owned);
+		// 4. Ring detection (accepts &[&Intent] — no clone needed)
+		let mut graph = flow_graph::build_flow_graph(&included);
 
 		let rings = ring_detection::detect_rings(&mut graph, &spot_prices);
 
-		let mut ring_fills: BTreeMap<IntentId, (Balance, Balance)> = BTreeMap::new();
+		/// Ring fill accumulator: (total_amount_in, total_amount_out) matched via rings.
+		type RingFill = (Balance, Balance);
+		let mut ring_fills: BTreeMap<IntentId, RingFill> = BTreeMap::new();
 		for ring in &rings {
 			for (_pair, fills) in &ring.edges {
 				for fill in fills {
@@ -230,8 +241,7 @@ impl<A: AMMInterface> Solver<A> {
 		let mut executed_trades: Vec<PoolTrade> = Vec::new();
 
 		// Group by unordered pair with remaining (non-ring) volumes
-		let mut pair_groups: BTreeMap<(AssetId, AssetId), (Vec<(IntentId, &SwapData)>, Vec<(IntentId, &SwapData)>)> =
-			BTreeMap::new();
+		let mut pair_groups: BTreeMap<AssetPair, DirectionGroups<(IntentId, &SwapData)>> = BTreeMap::new();
 		for intent in &included {
 			let IntentData::Swap(swap) = &intent.data;
 			let up = unordered_pair(swap.asset_in, swap.asset_out);
@@ -246,7 +256,7 @@ impl<A: AMMInterface> Solver<A> {
 		// Per-direction canonical rates: (asset_in, asset_out) → Ratio
 		// The canonical ratio is derived from the first intent's computed amount_out
 		// to guarantee rounding consistency for validate_price_consistency.
-		let mut directed_rates: BTreeMap<(AssetId, AssetId), Ratio> = BTreeMap::new();
+		let mut directed_rates: BTreeMap<AssetPair, Ratio> = BTreeMap::new();
 
 		for (&(asset_a, asset_b), (forward, backward)) in &pair_groups {
 			let total_a_sold: Balance = forward
@@ -269,130 +279,114 @@ impl<A: AMMInterface> Solver<A> {
 				continue;
 			}
 
-			let price_a = spot_prices.get(&asset_a);
-			let price_b = spot_prices.get(&asset_b);
+			let Some(pa) = spot_prices.get(&asset_a) else {
+				continue;
+			};
+			let Some(pb) = spot_prices.get(&asset_b) else {
+				continue;
+			};
 
-			// Single direction: pure AMM trade
-			if total_a_sold == 0 || total_b_sold == 0 {
-				let (sell_asset, buy_asset, sell_amount) = if total_a_sold > 0 {
-					(asset_a, asset_b, total_a_sold)
-				} else {
-					(asset_b, asset_a, total_b_sold)
-				};
+			let flow = common::analyze_pair_flow(total_a_sold, total_b_sold, pa, pb);
 
-				match A::sell(sell_asset, buy_asset, sell_amount, None, &state) {
-					Ok((new_state, exec)) => {
-						// Single direction: rate from AMM execution
+			match flow {
+				FlowDirection::SingleForward { amount } => {
+					if let Ok((new_state, exec)) = A::sell(asset_a, asset_b, amount, None, &state) {
 						let adjusted_out = adjust_amm_output(exec.amount_out);
-						directed_rates.insert((sell_asset, buy_asset), Ratio::new(adjusted_out, exec.amount_in));
-
+						directed_rates.insert((asset_a, asset_b), Ratio::new(adjusted_out, exec.amount_in));
 						executed_trades.push(PoolTrade {
 							direction: SwapType::ExactIn,
 							amount_in: exec.amount_in,
-							amount_out: adjust_amm_output(exec.amount_out),
+							amount_out: adjusted_out,
 							route: exec.route,
 						});
 						state = new_state;
 					}
-					Err(_) => continue,
 				}
-				continue;
-			}
-
-			// Both directions have flow — compute net imbalance and per-direction rates
-			let (Some(pa), Some(pb)) = (price_a, price_b) else {
-				continue;
-			};
-
-			// Compare values using overflow-safe calc_amount_out
-			let a_as_b = common::calc_amount_out(total_a_sold, pa, pb).unwrap_or(0);
-
-			if a_as_b > total_b_sold {
-				// Excess A: more A value than B value
-				let matched_a_for_b = common::calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
-				let net_a = total_a_sold.saturating_sub(matched_a_for_b);
-
-				// B→A (scarce side): gets directly matched A at spot rate
-				if total_b_sold > 0 {
-					directed_rates.insert((asset_b, asset_a), Ratio::new(matched_a_for_b, total_b_sold));
+				FlowDirection::SingleBackward { amount } => {
+					if let Ok((new_state, exec)) = A::sell(asset_b, asset_a, amount, None, &state) {
+						let adjusted_out = adjust_amm_output(exec.amount_out);
+						directed_rates.insert((asset_b, asset_a), Ratio::new(adjusted_out, exec.amount_in));
+						executed_trades.push(PoolTrade {
+							direction: SwapType::ExactIn,
+							amount_in: exec.amount_in,
+							amount_out: adjusted_out,
+							route: exec.route,
+						});
+						state = new_state;
+					}
 				}
-
-				if net_a == 0 {
-					// Perfect cancel — A→B gets spot rate
+				FlowDirection::ExcessForward {
+					scarce_out,
+					direct_match,
+					net_sell,
+				} => {
+					// B→A (scarce): matched at spot rate
+					if total_b_sold > 0 {
+						directed_rates.insert((asset_b, asset_a), Ratio::new(scarce_out, total_b_sold));
+					}
+					// Sell net A through AMM
+					match A::sell(asset_a, asset_b, net_sell, None, &state) {
+						Ok((new_state, exec)) => {
+							let adjusted_out = adjust_amm_output(exec.amount_out);
+							let total_out = direct_match.saturating_add(adjusted_out);
+							if total_a_sold > 0 {
+								directed_rates.insert((asset_a, asset_b), Ratio::new(total_out, total_a_sold));
+							}
+							executed_trades.push(PoolTrade {
+								direction: SwapType::ExactIn,
+								amount_in: exec.amount_in,
+								amount_out: adjusted_out,
+								route: exec.route,
+							});
+							state = new_state;
+						}
+						Err(_) => {
+							// Fallback: A→B at spot rate
+							let fallback = common::calc_amount_out(total_a_sold, pa, pb).unwrap_or(0);
+							if total_a_sold > 0 {
+								directed_rates.insert((asset_a, asset_b), Ratio::new(fallback, total_a_sold));
+							}
+						}
+					}
+				}
+				FlowDirection::ExcessBackward {
+					scarce_out,
+					direct_match,
+					net_sell,
+				} => {
+					// A→B (scarce): matched at spot rate
+					if total_a_sold > 0 {
+						directed_rates.insert((asset_a, asset_b), Ratio::new(scarce_out, total_a_sold));
+					}
+					// Sell net B through AMM
+					match A::sell(asset_b, asset_a, net_sell, None, &state) {
+						Ok((new_state, exec)) => {
+							let adjusted_out = adjust_amm_output(exec.amount_out);
+							let total_out = direct_match.saturating_add(adjusted_out);
+							if total_b_sold > 0 {
+								directed_rates.insert((asset_b, asset_a), Ratio::new(total_out, total_b_sold));
+							}
+							executed_trades.push(PoolTrade {
+								direction: SwapType::ExactIn,
+								amount_in: exec.amount_in,
+								amount_out: adjusted_out,
+								route: exec.route,
+							});
+							state = new_state;
+						}
+						Err(_) => {
+							// Fallback: B→A at spot rate
+							let fallback = common::calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
+							if total_b_sold > 0 {
+								directed_rates.insert((asset_b, asset_a), Ratio::new(fallback, total_b_sold));
+							}
+						}
+					}
+				}
+				FlowDirection::PerfectCancel { a_as_b, b_as_a } => {
 					if total_a_sold > 0 {
 						directed_rates.insert((asset_a, asset_b), Ratio::new(a_as_b, total_a_sold));
 					}
-				} else {
-					// Sell net A through AMM
-					match A::sell(asset_a, asset_b, net_a, None, &state) {
-						Ok((new_state, exec)) => {
-							// A→B sellers get: total_b_sold (from direct match) + amm_b_out
-							let total_b_for_a_sellers = total_b_sold.saturating_add(adjust_amm_output(exec.amount_out));
-							if total_a_sold > 0 {
-								directed_rates
-									.insert((asset_a, asset_b), Ratio::new(total_b_for_a_sellers, total_a_sold));
-							}
-
-							executed_trades.push(PoolTrade {
-								direction: SwapType::ExactIn,
-								amount_in: exec.amount_in,
-								amount_out: adjust_amm_output(exec.amount_out),
-								route: exec.route,
-							});
-							state = new_state;
-						}
-						Err(_) => {
-							if total_a_sold > 0 {
-								directed_rates.insert((asset_a, asset_b), Ratio::new(a_as_b, total_a_sold));
-							}
-						}
-					}
-				}
-			} else if total_b_sold > a_as_b || a_as_b == 0 {
-				// Excess B (or can't compute)
-				let b_as_a = common::calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
-				let matched_b_for_a = common::calc_amount_out(total_a_sold, pa, pb).unwrap_or(0);
-				let net_b = total_b_sold.saturating_sub(matched_b_for_a);
-
-				// A→B (scarce side): gets directly matched B at spot rate
-				if total_a_sold > 0 {
-					directed_rates.insert((asset_a, asset_b), Ratio::new(matched_b_for_a, total_a_sold));
-				}
-
-				if net_b == 0 {
-					if total_b_sold > 0 {
-						directed_rates.insert((asset_b, asset_a), Ratio::new(b_as_a, total_b_sold));
-					}
-				} else {
-					match A::sell(asset_b, asset_a, net_b, None, &state) {
-						Ok((new_state, exec)) => {
-							let total_a_for_b_sellers = total_a_sold.saturating_add(adjust_amm_output(exec.amount_out));
-							if total_b_sold > 0 {
-								directed_rates
-									.insert((asset_b, asset_a), Ratio::new(total_a_for_b_sellers, total_b_sold));
-							}
-
-							executed_trades.push(PoolTrade {
-								direction: SwapType::ExactIn,
-								amount_in: exec.amount_in,
-								amount_out: adjust_amm_output(exec.amount_out),
-								route: exec.route,
-							});
-							state = new_state;
-						}
-						Err(_) => {
-							if total_b_sold > 0 {
-								directed_rates.insert((asset_b, asset_a), Ratio::new(b_as_a, total_b_sold));
-							}
-						}
-					}
-				}
-			} else {
-				// Perfect cancel — both sides get spot rate
-				if total_a_sold > 0 {
-					directed_rates.insert((asset_a, asset_b), Ratio::new(a_as_b, total_a_sold));
-				}
-				if let Some(b_as_a) = common::calc_amount_out(total_b_sold, pb, pa) {
 					if total_b_sold > 0 {
 						directed_rates.insert((asset_b, asset_a), Ratio::new(b_as_a, total_b_sold));
 					}
@@ -404,28 +398,30 @@ impl<A: AMMInterface> Solver<A> {
 		// For each directed pair: unified_rate = (ring_total_out + amm_portion_out) / total_in
 		// This ensures all intents in the same direction get the same rate,
 		// regardless of individual ring fill proportions.
-		let mut unified_rates: BTreeMap<(AssetId, AssetId), Ratio> = BTreeMap::new();
+		#[derive(Default)]
+		struct DirAccum {
+			total_in: Balance,
+			ring_in: Balance,
+			ring_out: Balance,
+		}
+
+		let mut unified_rates: BTreeMap<AssetPair, Ratio> = BTreeMap::new();
 		{
-			// Accumulate per-direction totals
-			let mut dir_total_in: BTreeMap<(AssetId, AssetId), Balance> = BTreeMap::new();
-			let mut dir_ring_in: BTreeMap<(AssetId, AssetId), Balance> = BTreeMap::new();
-			let mut dir_ring_out: BTreeMap<(AssetId, AssetId), Balance> = BTreeMap::new();
+			let mut accum: BTreeMap<AssetPair, DirAccum> = BTreeMap::new();
 
 			for intent in &included {
 				let IntentData::Swap(swap) = &intent.data;
 				let key = (swap.asset_in, swap.asset_out);
-				*dir_total_in.entry(key).or_default() += swap.amount_in;
+				let entry = accum.entry(key).or_default();
+				entry.total_in += swap.amount_in;
 				let (ri, ro) = ring_fills.get(&intent.id).copied().unwrap_or((0, 0));
-				*dir_ring_in.entry(key).or_default() += ri;
-				*dir_ring_out.entry(key).or_default() += ro;
+				entry.ring_in += ri;
+				entry.ring_out += ro;
 			}
 
-			for (key, total_in) in &dir_total_in {
-				let ring_in = dir_ring_in.get(key).copied().unwrap_or(0);
-				let ring_out = dir_ring_out.get(key).copied().unwrap_or(0);
-				let remaining_in = total_in.saturating_sub(ring_in);
+			for (key, dir) in &accum {
+				let remaining_in = dir.total_in.saturating_sub(dir.ring_in);
 
-				// AMM portion: use directed_rate for the remaining volume
 				let amm_out = if remaining_in > 0 {
 					if let Some(rate) = directed_rates.get(key) {
 						apply_rate(remaining_in, U256::from(rate.n), U256::from(rate.d))
@@ -436,16 +432,19 @@ impl<A: AMMInterface> Solver<A> {
 					0
 				};
 
-				let total_out = ring_out.saturating_add(amm_out);
-				if *total_in > 0 && total_out > 0 {
-					unified_rates.insert(*key, Ratio::new(total_out, *total_in));
+				let total_out = dir.ring_out.saturating_add(amm_out);
+				if dir.total_in > 0 && total_out > 0 {
+					unified_rates.insert(*key, Ratio::new(total_out, dir.total_in));
 				}
 			}
 		}
 
 		// Resolve intents: derive canonical Ratio from first intent's amount_out
 		// for rounding consistency, using the unified rate.
-		let mut canonical_prices: BTreeMap<(AssetId, AssetId), Ratio> = BTreeMap::new();
+		// Note: the first intent encountered per direction establishes the canonical
+		// Ratio. Iteration order of `included` affects rounding for subsequent intents.
+		// This is by design — validate_price_consistency tolerates ±1 difference.
+		let mut canonical_prices: BTreeMap<AssetPair, Ratio> = BTreeMap::new();
 		let mut resolved_intents: Vec<ResolvedIntent> = Vec::new();
 		let mut total_score: Balance = 0;
 
@@ -503,6 +502,12 @@ impl<A: AMMInterface> Solver<A> {
 	}
 
 	/// Single intent: direct AMM trade.
+	///
+	/// Note: the resolved intent gets the full `trade_execution.amount_out` (unadjusted),
+	/// while the pool trade gets `adjust_amm_output(...)`. This is intentional — for a
+	/// single intent, all AMM output goes directly to the user, so no tolerance buffer
+	/// is needed for the intent itself. The pool trade's adjusted value is the on-chain
+	/// `min_amount_out` safety net.
 	fn solve_single_intent(intent: &Intent, initial_state: &A::State) -> Result<Solution, A::Error> {
 		let IntentData::Swap(swap) = &intent.data;
 
@@ -541,7 +546,7 @@ impl<A: AMMInterface> Solver<A> {
 	}
 
 	/// Compute per-direction clearing prices for a pair.
-	/// Used during iterative filtering (price discovery only).
+	/// Used during iterative filtering (price discovery only, no state mutation).
 	fn compute_pair_clearing(
 		asset_a: AssetId,
 		asset_b: AssetId,
@@ -573,123 +578,63 @@ impl<A: AMMInterface> Solver<A> {
 		let pa = spot_prices.get(&asset_a)?;
 		let pb = spot_prices.get(&asset_b)?;
 
-		// Single direction: AMM rate for that direction, no opposing rate needed
-		if total_a_sold == 0 || total_b_sold == 0 {
-			let (sell_asset, _buy_asset, sell_amount) = if total_a_sold > 0 {
-				(asset_a, asset_b, total_a_sold)
-			} else {
-				(asset_b, asset_a, total_b_sold)
-			};
+		let flow = common::analyze_pair_flow(total_a_sold, total_b_sold, pa, pb);
 
-			match A::sell(sell_asset, _buy_asset, sell_amount, None, state) {
-				Ok((_new_state, exec)) => {
-					let (fwd_n, fwd_d, bwd_n, bwd_d) = if sell_asset == asset_a {
-						(
-							U256::from(exec.amount_out),
-							U256::from(exec.amount_in),
-							U256::zero(),
-							U256::one(),
-						)
-					} else {
-						(
-							U256::zero(),
-							U256::one(),
-							U256::from(exec.amount_out),
-							U256::from(exec.amount_in),
-						)
-					};
-					return Some(PairClearing {
-						forward_n: fwd_n,
-						forward_d: fwd_d,
-						backward_n: bwd_n,
-						backward_d: bwd_d,
-					});
-				}
-				Err(_) => return None,
+		match flow {
+			FlowDirection::SingleForward { amount } => {
+				let (_, exec) = A::sell(asset_a, asset_b, amount, None, state).ok()?;
+				let adjusted_out = adjust_amm_output(exec.amount_out);
+				Some(PairClearing {
+					forward_n: U256::from(adjusted_out),
+					forward_d: U256::from(exec.amount_in),
+					backward_n: U256::zero(),
+					backward_d: U256::one(),
+				})
 			}
-		}
-
-		// Both directions: compute net imbalance and per-direction rates.
-		// Convert volumes to common denomination to compare values.
-		// Use calc_amount_out to avoid overflow with large Ratio values.
-		let a_as_b = common::calc_amount_out(total_a_sold, pa, pb).unwrap_or(0);
-		// a_as_b = how much B the A sellers' volume is worth at spot
-
-		if a_as_b > total_b_sold {
-			// Excess A: more A value than B value
-			// B→A sellers (scarce): matched at spot rate
-			// net_a_to_amm: excess A that must go through AMM
-			let matched_b_for_a = total_b_sold; // all B sellers' volume goes to direct match
-			let matched_a_for_b = common::calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
-			let net_a = total_a_sold.saturating_sub(matched_a_for_b);
-
-			let backward_n = U256::from(matched_a_for_b);
-			let backward_d = U256::from(total_b_sold);
-
-			if net_a == 0 {
-				// Perfect cancel: A→B sellers also get spot
-				let forward_out = a_as_b;
-				return Some(PairClearing {
-					forward_n: U256::from(forward_out),
+			FlowDirection::SingleBackward { amount } => {
+				let (_, exec) = A::sell(asset_b, asset_a, amount, None, state).ok()?;
+				let adjusted_out = adjust_amm_output(exec.amount_out);
+				Some(PairClearing {
+					forward_n: U256::zero(),
+					forward_d: U256::one(),
+					backward_n: U256::from(adjusted_out),
+					backward_d: U256::from(exec.amount_in),
+				})
+			}
+			FlowDirection::ExcessForward {
+				scarce_out,
+				direct_match,
+				net_sell,
+			} => {
+				let (_, exec) = A::sell(asset_a, asset_b, net_sell, None, state).ok()?;
+				let adjusted_out = adjust_amm_output(exec.amount_out);
+				Some(PairClearing {
+					forward_n: U256::from(direct_match.saturating_add(adjusted_out)),
 					forward_d: U256::from(total_a_sold),
-					backward_n,
-					backward_d,
-				});
-			}
-
-			match A::sell(asset_a, asset_b, net_a, None, state) {
-				Ok((_new_state, exec)) => {
-					let total_b_for_a = matched_b_for_a.saturating_add(exec.amount_out);
-					Some(PairClearing {
-						forward_n: U256::from(total_b_for_a),
-						forward_d: U256::from(total_a_sold),
-						backward_n,
-						backward_d,
-					})
-				}
-				Err(_) => None,
-			}
-		} else if total_b_sold > a_as_b || a_as_b == 0 {
-			// Excess B (or can't compute): more B value than A value
-			let b_as_a = common::calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
-			let matched_a_for_b = total_a_sold; // all A sellers' volume goes to direct match
-			let matched_b_for_a = common::calc_amount_out(total_a_sold, pa, pb).unwrap_or(0);
-			let net_b = total_b_sold.saturating_sub(matched_b_for_a);
-
-			let forward_n = U256::from(matched_b_for_a);
-			let forward_d = U256::from(total_a_sold);
-
-			if net_b == 0 {
-				let backward_out = b_as_a;
-				return Some(PairClearing {
-					forward_n,
-					forward_d,
-					backward_n: U256::from(backward_out),
+					backward_n: U256::from(scarce_out),
 					backward_d: U256::from(total_b_sold),
-				});
+				})
 			}
-
-			match A::sell(asset_b, asset_a, net_b, None, state) {
-				Ok((_new_state, exec)) => {
-					let total_a_for_b = matched_a_for_b.saturating_add(exec.amount_out);
-					Some(PairClearing {
-						forward_n,
-						forward_d,
-						backward_n: U256::from(total_a_for_b),
-						backward_d: U256::from(total_b_sold),
-					})
-				}
-				Err(_) => None,
+			FlowDirection::ExcessBackward {
+				scarce_out,
+				direct_match,
+				net_sell,
+			} => {
+				let (_, exec) = A::sell(asset_b, asset_a, net_sell, None, state).ok()?;
+				let adjusted_out = adjust_amm_output(exec.amount_out);
+				Some(PairClearing {
+					forward_n: U256::from(scarce_out),
+					forward_d: U256::from(total_a_sold),
+					backward_n: U256::from(direct_match.saturating_add(adjusted_out)),
+					backward_d: U256::from(total_b_sold),
+				})
 			}
-		} else {
-			// Perfect cancel — both at spot (a_as_b == total_b_sold)
-			let b_as_a = common::calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
-			Some(PairClearing {
+			FlowDirection::PerfectCancel { a_as_b, b_as_a } => Some(PairClearing {
 				forward_n: U256::from(a_as_b),
 				forward_d: U256::from(total_a_sold),
 				backward_n: U256::from(b_as_a),
 				backward_d: U256::from(total_b_sold),
-			})
+			}),
 		}
 	}
 }
@@ -1065,5 +1010,158 @@ mod tests {
 		// Alice should get less than 400 (spot) due to slippage on excess
 		assert!(alice.data.amount_out() < 400);
 		assert!(alice.data.amount_out() >= 390);
+	}
+
+	#[test]
+	fn test_three_asset_ring() {
+		// 3-asset cycle: 1→2, 2→3, 3→1, all at 1:1
+		// Should be detected as a ring — no AMM trades needed
+		let intents = vec![
+			make_intent(1, 1, 2, 100, 90),
+			make_intent(2, 2, 3, 100, 90),
+			make_intent(3, 3, 1, 100, 90),
+		];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+
+		assert_eq!(result.resolved_intents.len(), 3);
+		// Ring fills all volume — no AMM trades needed
+		assert_eq!(result.trades.len(), 0, "Ring trade should avoid AMM entirely");
+
+		for ri in &result.resolved_intents {
+			assert_eq!(ri.data.amount_in(), 100);
+			assert_eq!(ri.data.amount_out(), 100);
+		}
+		assert_eq!(result.score, 30); // 3 * (100 - 90)
+	}
+
+	/// Mock AMM where sell of asset 1→2 fails for amounts > 50.
+	struct MockAMMPartialFailure;
+
+	impl AMMInterface for MockAMMPartialFailure {
+		type Error = ();
+		type State = ();
+
+		fn sell(
+			asset_in: u32,
+			asset_out: u32,
+			amount_in: u128,
+			_route: Option<Route<u32>>,
+			_state: &Self::State,
+		) -> Result<(Self::State, TradeExecution), Self::Error> {
+			if asset_in == 1 && asset_out == 2 && amount_in > 50 {
+				return Err(());
+			}
+			Ok((
+				(),
+				TradeExecution {
+					amount_in,
+					amount_out: amount_in,
+					route: Route::try_from(vec![Trade {
+						pool: hydradx_traits::router::PoolType::Omnipool,
+						asset_in,
+						asset_out,
+					}])
+					.unwrap(),
+				},
+			))
+		}
+
+		fn buy(
+			asset_in: u32,
+			asset_out: u32,
+			amount_out: u128,
+			_route: Option<Route<u32>>,
+			_state: &Self::State,
+		) -> Result<(Self::State, TradeExecution), Self::Error> {
+			Ok((
+				(),
+				TradeExecution {
+					amount_in: amount_out,
+					amount_out,
+					route: Route::try_from(vec![Trade {
+						pool: hydradx_traits::router::PoolType::Omnipool,
+						asset_in,
+						asset_out,
+					}])
+					.unwrap(),
+				},
+			))
+		}
+
+		fn get_spot_price(_asset_in: u32, _asset_out: u32, _state: &Self::State) -> Result<Ratio, Self::Error> {
+			Ok(Ratio::new(1, 1))
+		}
+
+		fn price_denominator() -> u32 {
+			0
+		}
+	}
+
+	#[test]
+	fn test_amm_failure_fallback() {
+		// AMM fails for sell(1→2) when amount > 50
+		// Intent 1: sell 200 of 1→2 (excess A)
+		// Intent 2: sell 50 of 2→1 (scarce B)
+		// Net A = 200 - 50 = 150 > 50, so AMM fails
+		// Both should resolve at spot rate via fallback
+		let intents = vec![make_intent(1, 1, 2, 200, 180), make_intent(2, 2, 1, 50, 45)];
+		let result = Solver::<MockAMMPartialFailure>::solve(intents, ()).unwrap();
+
+		assert_eq!(result.resolved_intents.len(), 2);
+		// No AMM trades executed (the sell failed)
+		assert_eq!(result.trades.len(), 0);
+
+		let r1 = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
+		let r2 = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
+
+		// Both get spot rate (1:1): 200 in → 200 out, 50 in → 50 out
+		assert_eq!(r1.data.amount_out(), 200);
+		assert_eq!(r2.data.amount_out(), 50);
+	}
+
+	#[test]
+	fn test_excess_backward_scarce_gets_spot() {
+		// Asset 1 worth 2x asset 2. AMM has 1% slippage.
+		// Alice: sell 100 of asset 2 → asset 1 (excess side — 100 B worth 100 B, but 50 B from Bob worth 100 B)
+		// Bob: sell 50 of asset 1 → asset 2 (scarce side — 50 A worth 100 B)
+		//
+		// ExcessBackward: B side has more value (100 B > 50 A equivalent of 100 B)
+		// Bob (scarce A→B): gets spot rate
+		// Alice (excess B→A): gets direct match + AMM for remainder
+		let intents = vec![
+			make_intent(1, 2, 1, 100, 45), // Alice: sell B, want A (excess)
+			make_intent(2, 1, 2, 50, 90),  // Bob: sell A, want B (scarce)
+		];
+		let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+
+		assert_eq!(result.resolved_intents.len(), 2);
+
+		let alice = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
+		let bob = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
+
+		// Bob (scarce A→B) should get spot rate: 50 A → 100 B
+		assert_eq!(bob.data.amount_out(), 100, "Bob should get spot rate (100 B for 50 A)");
+
+		// Alice (excess B→A) gets less than spot due to AMM slippage on remainder
+		assert!(alice.data.amount_out() > 0);
+		assert!(alice.data.amount_out() >= 45, "Alice should meet her minimum");
+	}
+
+	#[test]
+	fn test_large_amounts_overflow_safe() {
+		let unit: Balance = 1_000_000_000_000;
+		let intents = vec![
+			make_intent(1, 1, 2, 1_000_000 * unit, 900_000 * unit),
+			make_intent(2, 2, 1, 1_000_000 * unit, 900_000 * unit),
+		];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+
+		assert_eq!(result.resolved_intents.len(), 2);
+		// Perfect cancel at 1:1
+		assert_eq!(result.trades.len(), 0);
+		for ri in &result.resolved_intents {
+			assert_eq!(ri.data.amount_in(), 1_000_000 * unit);
+			assert_eq!(ri.data.amount_out(), 1_000_000 * unit);
+		}
 	}
 }

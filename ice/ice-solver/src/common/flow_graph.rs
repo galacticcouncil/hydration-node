@@ -20,15 +20,10 @@ pub struct IntentEntry {
 	pub limit_price: (U256, U256),
 	/// Remaining amount_in not yet matched
 	pub remaining_in: Balance,
-	/// Whether this intent supports partial fills
+	/// Whether this intent supports partial fills.
+	/// Currently unused in ring detection (ring partial fills are internal bookkeeping),
+	/// but stored for potential future use in fill prioritization.
 	pub partial: bool,
-}
-
-/// Clearing price as a ratio (numerator, denominator) representing asset_out per asset_in.
-#[derive(Debug, Clone, Copy)]
-pub struct ClearingPrice {
-	pub n: U256,
-	pub d: U256,
 }
 
 /// The flow graph: intents grouped by directed pair.
@@ -43,7 +38,7 @@ pub struct MatchFill {
 }
 
 /// Build flow graph from intents: group by directed pair, sort by limit price ascending.
-pub fn build_flow_graph(intents: &[Intent]) -> FlowGraph {
+pub fn build_flow_graph(intents: &[&Intent]) -> FlowGraph {
 	let mut graph: FlowGraph = BTreeMap::new();
 
 	for intent in intents {

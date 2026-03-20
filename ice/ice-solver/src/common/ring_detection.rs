@@ -20,7 +20,9 @@ pub struct RingTrade {
 	pub edges: Vec<(Pair, Vec<MatchFill>)>,
 }
 
-/// Detect and fill feasible 3-cycles in the remaining flow graph.
+/// Detect and fill feasible 3-asset cycles (A→B→C→A) in the remaining flow graph.
+///
+/// Only detects 3-asset rings. Longer cycles (4+ assets) are not attempted.
 ///
 /// Uses spot prices to compute fill rates (not limit prices).
 /// Limit prices are only used for the feasibility check — ensuring each
@@ -70,22 +72,13 @@ pub fn detect_rings(graph: &mut FlowGraph, spot_prices: &BTreeMap<AssetId, Ratio
 					continue;
 				};
 
-				// Compute spot rates for each edge
-				// A→B: how much B per unit of A at spot
-				let Some(ab_spot_out) = calc_amount_out(1_000_000_000_000u128, pa, pb) else {
-					continue;
-				};
-				if ab_spot_out == 0 {
-					continue;
-				}
-
 				// Feasibility: check that each edge's best intent can be satisfied at spot rate
-				let ab_best = first_with_remaining(graph.get(&(a, b)).unwrap());
-				let bc_best = first_with_remaining(graph.get(&(b, c)).unwrap());
-				let ca_best = first_with_remaining(graph.get(&(c, a)).unwrap());
+				let ab_best = first_with_remaining(graph.get(&(a, b)).expect("edge (a,b) verified above"));
+				let bc_best = first_with_remaining(graph.get(&(b, c)).expect("edge (b,c) verified above"));
+				let ca_best = first_with_remaining(graph.get(&(c, a)).expect("edge (c,a) verified above"));
 
 				let (ab_best, bc_best, ca_best) = match (ab_best, bc_best, ca_best) {
-					(Some(a), Some(b), Some(c)) => (a, b, c),
+					(Some(ab), Some(bc), Some(ca)) => (ab, bc, ca),
 					_ => continue,
 				};
 
@@ -134,7 +127,10 @@ pub fn detect_rings(graph: &mut FlowGraph, spot_prices: &BTreeMap<AssetId, Ratio
 				let bc_amount_in = ab_amount_out;
 				let bc_amount_out = calc_amount_out(bc_amount_in, pb, pc).unwrap_or(0);
 
-				// CA: input = bc_amount_out of C, output at spot
+				// CA: input = bc_amount_out of C, output at spot.
+				// Note: ca_amount_out may differ from ab_amount_in by ≤1 due to
+				// accumulated rounding across the 3 spot conversions. The protocol
+				// absorbs this dust difference.
 				let ca_amount_in = bc_amount_out;
 				let ca_amount_out = calc_amount_out(ca_amount_in, pc, pa).unwrap_or(0);
 
@@ -150,22 +146,34 @@ pub fn detect_rings(graph: &mut FlowGraph, spot_prices: &BTreeMap<AssetId, Ratio
 
 				// Final feasibility: verify each fill meets the intent's limit
 				// (spot rate should satisfy, but check after rounding)
-				let ab_entries = graph.get(&(a, b)).unwrap();
+				let ab_entries = graph.get(&(a, b)).expect("edge (a,b) verified above");
 				if !fills_meet_limits(ab_entries, ab_amount_in, ab_amount_out) {
 					continue;
 				}
-				let bc_entries = graph.get(&(b, c)).unwrap();
+				let bc_entries = graph.get(&(b, c)).expect("edge (b,c) verified above");
 				if !fills_meet_limits(bc_entries, bc_amount_in, bc_amount_out) {
 					continue;
 				}
-				let ca_entries = graph.get(&(c, a)).unwrap();
+				let ca_entries = graph.get(&(c, a)).expect("edge (c,a) verified above");
 				if !fills_meet_limits(ca_entries, ca_amount_in, ca_amount_out) {
 					continue;
 				}
 
-				let ab_fill = fill_intent(graph.get_mut(&(a, b)).unwrap(), ab_amount_in, ab_amount_out);
-				let bc_fill = fill_intent(graph.get_mut(&(b, c)).unwrap(), bc_amount_in, bc_amount_out);
-				let ca_fill = fill_intent(graph.get_mut(&(c, a)).unwrap(), ca_amount_in, ca_amount_out);
+				let ab_fill = fill_intent(
+					graph.get_mut(&(a, b)).expect("edge (a,b) verified above"),
+					ab_amount_in,
+					ab_amount_out,
+				);
+				let bc_fill = fill_intent(
+					graph.get_mut(&(b, c)).expect("edge (b,c) verified above"),
+					bc_amount_in,
+					bc_amount_out,
+				);
+				let ca_fill = fill_intent(
+					graph.get_mut(&(c, a)).expect("edge (c,a) verified above"),
+					ca_amount_in,
+					ca_amount_out,
+				);
 
 				rings.push(RingTrade {
 					edges: vec![((a, b), ab_fill), ((b, c), bc_fill), ((c, a), ca_fill)],
@@ -193,6 +201,11 @@ fn first_with_remaining(entries: &[IntentEntry]) -> Option<&IntentEntry> {
 }
 
 /// Check that filling `amount_in` with `amount_out` across entries meets all limits.
+///
+/// Note: ring fills may partially consume a non-partial intent. This is safe because
+/// the remaining volume goes through the normal AMM path, and the final resolution
+/// always uses the full `amount_in` with a unified rate. Ring partial fills are
+/// internal bookkeeping, not user-visible partial fills.
 fn fills_meet_limits(entries: &[IntentEntry], total_in: Balance, total_out: Balance) -> bool {
 	let mut remaining_in = total_in;
 	for entry in entries {
@@ -207,11 +220,13 @@ fn fills_meet_limits(entries: &[IntentEntry], total_in: Balance, total_out: Bala
 			.and_then(|v| v.try_into().ok())
 			.unwrap_or(0u128);
 
-		if fill_out < entry.min_amount_out && fill_in == entry.original_amount_in {
-			return false;
-		}
-		// For partial fills, check pro-rata
-		if fill_in < entry.original_amount_in {
+		if fill_in == entry.original_amount_in {
+			// Full fill: must meet the intent's absolute minimum
+			if fill_out < entry.min_amount_out {
+				return false;
+			}
+		} else {
+			// Partial fill: must meet pro-rata minimum
 			let pro_rata_min = mul_div(
 				U256::from(fill_in),
 				U256::from(entry.min_amount_out),
@@ -233,7 +248,7 @@ fn fill_intent(entries: &mut [IntentEntry], amount_in: Balance, amount_out: Bala
 	let mut remaining_in = amount_in;
 	let mut remaining_out = amount_out;
 
-	for entry in entries.iter_mut() {
+	for entry in entries {
 		if remaining_in == 0 {
 			break;
 		}
@@ -242,13 +257,9 @@ fn fill_intent(entries: &mut [IntentEntry], amount_in: Balance, amount_out: Bala
 		}
 
 		let fill_in = remaining_in.min(entry.remaining_in);
-		let fill_out = if remaining_in > 0 {
-			mul_div(U256::from(fill_in), U256::from(remaining_out), U256::from(remaining_in))
-				.and_then(|v| v.try_into().ok())
-				.unwrap_or(0)
-		} else {
-			0
-		};
+		let fill_out = mul_div(U256::from(fill_in), U256::from(remaining_out), U256::from(remaining_in))
+			.and_then(|v| v.try_into().ok())
+			.unwrap_or(0);
 
 		entry.remaining_in = entry.remaining_in.saturating_sub(fill_in);
 		remaining_in = remaining_in.saturating_sub(fill_in);

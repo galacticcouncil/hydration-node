@@ -214,7 +214,7 @@ pub mod pallet {
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
 				pallet_intent::Pallet::<T>::unlock_funds(&owner, intent.asset_in(), intent.amount_in())?;
 
-				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), unlock and transfer amounts, owner: {:?}, asset: {:?}, amount: {:?}", 
+				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), unlock and transfer amounts, owner: {:?}, asset: {:?}, amount: {:?}",
 					LOG_PREFIX, owner, intent.asset_in(), intent.amount_in());
 
 				<T as Config>::Currency::transfer(
@@ -229,7 +229,7 @@ pub mod pallet {
 			for t in &solution.trades {
 				match t.direction {
 					SwapType::ExactOut => {
-						log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), buying, asset_in: {:?}, asset_out: {:?}, amount_out: {:?}, max_amount_in: {:?}, route: {:?}", 
+						log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), buying, asset_in: {:?}, asset_out: {:?}, amount_out: {:?}, max_amount_in: {:?}, route: {:?}",
 							LOG_PREFIX, t.route.first(), t.route.last(), t.amount_out, t.amount_in, t.route);
 
 						pallet_route_executor::Pallet::<T>::buy(
@@ -242,7 +242,7 @@ pub mod pallet {
 						)?;
 					}
 					SwapType::ExactIn => {
-						log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), selling, asset_in: {:?}, asset_out: {:?}, amount_in: {:?}, min_amount_out: {:?}, route: {:?}", 
+						log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), selling, asset_in: {:?}, asset_out: {:?}, amount_in: {:?}, min_amount_out: {:?}, route: {:?}",
 							LOG_PREFIX, t.route.first(), t.route.last(), t.amount_in, t.amount_out, t.route);
 
 						pallet_route_executor::Pallet::<T>::sell(

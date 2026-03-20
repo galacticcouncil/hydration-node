@@ -9,12 +9,6 @@ use sp_core::U256;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
 
-#[derive(Default, Debug, Clone)]
-pub struct AssetFlow {
-	pub total_in: Balance,
-	pub total_out: Balance,
-}
-
 /// out = amount_in * (price_in / price_out)
 ///     = amount_in * price_in.n * price_out.d / (price_in.d * price_out.n)
 ///
@@ -78,73 +72,123 @@ pub fn mul_div(a: U256, b: U256, c: U256) -> Option<U256> {
 	base.checked_add(correction)
 }
 
-/// in = amount_out * (price_out / price_in)
-#[allow(dead_code)]
-pub fn calc_amount_in(amount_out: Balance, price_in: &Ratio, price_out: &Ratio) -> Option<Balance> {
-	let n = U256::from(price_out.n) * U256::from(price_in.d);
-	let d = U256::from(price_out.d) * U256::from(price_in.n);
-	let result = U256::from(amount_out).checked_mul(n)?.checked_div(d)?;
-	result.try_into().ok()
-}
-
 pub fn collect_unique_assets(intents: &[Intent]) -> BTreeSet<AssetId> {
-	let mut assets: BTreeSet<AssetId> = BTreeSet::new();
-	for intent in intents {
-		match &intent.data {
-			IntentData::Swap(swap) => {
-				assets.insert(swap.asset_in);
-				assets.insert(swap.asset_out);
-			}
-		}
-	}
-	assets
+	intents
+		.iter()
+		.flat_map(|i| {
+			let IntentData::Swap(swap) = &i.data;
+			[swap.asset_in, swap.asset_out]
+		})
+		.collect()
 }
 
 pub fn is_satisfiable(intent: &Intent, spot_prices: &BTreeMap<AssetId, Ratio>) -> bool {
-	match &intent.data {
-		IntentData::Swap(swap) => {
-			let Some(price_in) = spot_prices.get(&swap.asset_in) else {
-				log::trace!(target: "solver", "intent {}: not satisfiable — no spot price for asset_in {}", intent.id, swap.asset_in);
-				return false;
-			};
-			let Some(price_out) = spot_prices.get(&swap.asset_out) else {
-				log::trace!(target: "solver", "intent {}: not satisfiable — no spot price for asset_out {}", intent.id, swap.asset_out);
-				return false;
-			};
+	let IntentData::Swap(swap) = &intent.data;
 
-			let Some(calculated_out) = calc_amount_out(swap.amount_in, price_in, price_out) else {
-				log::trace!(target: "solver", "intent {}: not satisfiable — calc_amount_out overflow for {} → {}", intent.id, swap.asset_in, swap.asset_out);
-				return false;
-			};
-			if calculated_out < swap.amount_out {
-				log::trace!(target: "solver", "intent {}: not satisfiable — spot output {} < min_out {} for {} → {}",
-					intent.id, calculated_out, swap.amount_out, swap.asset_in, swap.asset_out);
-				return false;
-			}
-			log::trace!(target: "solver", "intent {}: satisfiable — spot output {} >= min_out {} for {} → {}",
-				intent.id, calculated_out, swap.amount_out, swap.asset_in, swap.asset_out);
-			true
-		}
+	let Some(price_in) = spot_prices.get(&swap.asset_in) else {
+		log::trace!(target: "solver", "intent {}: not satisfiable — no spot price for asset_in {}", intent.id, swap.asset_in);
+		return false;
+	};
+	let Some(price_out) = spot_prices.get(&swap.asset_out) else {
+		log::trace!(target: "solver", "intent {}: not satisfiable — no spot price for asset_out {}", intent.id, swap.asset_out);
+		return false;
+	};
+
+	let Some(calculated_out) = calc_amount_out(swap.amount_in, price_in, price_out) else {
+		log::trace!(target: "solver", "intent {}: not satisfiable — calc_amount_out overflow for {} → {}", intent.id, swap.asset_in, swap.asset_out);
+		return false;
+	};
+	if calculated_out < swap.amount_out {
+		log::trace!(target: "solver", "intent {}: not satisfiable — spot output {} < min_out {} for {} → {}",
+			intent.id, calculated_out, swap.amount_out, swap.asset_in, swap.asset_out);
+		return false;
 	}
+	log::trace!(target: "solver", "intent {}: satisfiable — spot output {} >= min_out {} for {} → {}",
+		intent.id, calculated_out, swap.amount_out, swap.asset_in, swap.asset_out);
+	true
 }
 
-pub fn calculate_flows(intents: &[&Intent], spot_prices: &BTreeMap<AssetId, Ratio>) -> BTreeMap<AssetId, AssetFlow> {
-	let mut flows: BTreeMap<AssetId, AssetFlow> = BTreeMap::new();
+/// Analysis of net flow between two assets in opposing directions.
+///
+/// Determines how to split volume between direct matching and AMM:
+/// - Scarce side (less total value) gets fully matched at spot rate
+/// - Excess side gets direct match + AMM for remainder
+#[derive(Debug, Clone, Copy)]
+pub enum FlowDirection {
+	/// Only forward (A→B) intents exist.
+	SingleForward { amount: Balance },
+	/// Only backward (B→A) intents exist.
+	SingleBackward { amount: Balance },
+	/// Both directions; A side has more value — excess A goes to AMM.
+	ExcessForward {
+		/// B→A rate output: amount of A given to B sellers via direct match
+		scarce_out: Balance,
+		/// Amount of B going to A sellers from direct match (= total_b_sold)
+		direct_match: Balance,
+		/// Net A to sell through AMM
+		net_sell: Balance,
+	},
+	/// Both directions; B side has more value — excess B goes to AMM.
+	ExcessBackward {
+		/// A→B rate output: amount of B given to A sellers via direct match
+		scarce_out: Balance,
+		/// Amount of A going to B sellers from direct match (= total_a_sold)
+		direct_match: Balance,
+		/// Net B to sell through AMM
+		net_sell: Balance,
+	},
+	/// Volumes cancel at spot — no AMM trade needed.
+	PerfectCancel { a_as_b: Balance, b_as_a: Balance },
+}
 
-	for intent in intents {
-		match &intent.data {
-			IntentData::Swap(swap) => {
-				if let (Some(price_in), Some(price_out)) =
-					(spot_prices.get(&swap.asset_in), spot_prices.get(&swap.asset_out))
-				{
-					flows.entry(swap.asset_in).or_default().total_in += swap.amount_in;
-					if let Some(amount_out) = calc_amount_out(swap.amount_in, price_in, price_out) {
-						flows.entry(swap.asset_out).or_default().total_out += amount_out;
-					}
-				}
-			}
-		}
+/// Analyze opposing flows to determine direct matching volumes and net AMM requirement.
+///
+/// Precondition: at least one of `total_a_sold`, `total_b_sold` must be > 0.
+pub fn analyze_pair_flow(total_a_sold: Balance, total_b_sold: Balance, pa: &Ratio, pb: &Ratio) -> FlowDirection {
+	debug_assert!(
+		total_a_sold > 0 || total_b_sold > 0,
+		"analyze_pair_flow called with both volumes zero"
+	);
+	if total_b_sold == 0 {
+		return FlowDirection::SingleForward { amount: total_a_sold };
+	}
+	if total_a_sold == 0 {
+		return FlowDirection::SingleBackward { amount: total_b_sold };
 	}
 
-	flows
+	let a_as_b = calc_amount_out(total_a_sold, pa, pb).unwrap_or(0);
+
+	if a_as_b > total_b_sold {
+		// Excess A: more A value than B value
+		let matched_a_for_b = calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
+		let net_a = total_a_sold.saturating_sub(matched_a_for_b);
+		if net_a == 0 {
+			return FlowDirection::PerfectCancel {
+				a_as_b,
+				b_as_a: matched_a_for_b,
+			};
+		}
+		FlowDirection::ExcessForward {
+			scarce_out: matched_a_for_b,
+			direct_match: total_b_sold,
+			net_sell: net_a,
+		}
+	} else if total_b_sold > a_as_b || a_as_b == 0 {
+		// Excess B: more B value than A value
+		let matched_b_for_a = a_as_b;
+		let net_b = total_b_sold.saturating_sub(matched_b_for_a);
+		if net_b == 0 {
+			let b_as_a = calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
+			return FlowDirection::PerfectCancel { a_as_b, b_as_a };
+		}
+		FlowDirection::ExcessBackward {
+			scarce_out: matched_b_for_a,
+			direct_match: total_a_sold,
+			net_sell: net_b,
+		}
+	} else {
+		// a_as_b == total_b_sold: perfect cancel
+		let b_as_a = calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
+		FlowDirection::PerfectCancel { a_as_b, b_as_a }
+	}
 }
