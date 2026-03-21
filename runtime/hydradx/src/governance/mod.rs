@@ -241,6 +241,7 @@ impl origins::pallet_custom_origins::Config for Runtime {}
 
 parameter_types! {
 	pub const AaveManagerAccount: AccountId = AccountId::new(hex!("aa7e0000000000000000000000000000000aa7e0000000000000000000000000"));
+	pub const EmergencyAdminAccount: AccountId = AccountId::new(hex!("aa7e0000000000000000000000000000000aa7e1000000000000000000000000"));
 }
 
 pub struct EvmCallChecker;
@@ -261,8 +262,10 @@ impl pallet_dispatcher::Config for Runtime {
 	type EvmCallIdentifier = EvmCallChecker;
 	type TreasuryManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
 	type AaveManagerOrigin = EitherOf<EnsureRoot<AccountId>, EconomicParameters>;
+	type EmergencyAdminOrigin = EitherOf<EnsureRoot<AccountId>, TechCommitteeMajority>;
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = AaveManagerAccount;
+	type EmergencyAdminAccount = EmergencyAdminAccount;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
 }
