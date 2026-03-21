@@ -1994,6 +1994,11 @@ impl<T: Config> Pallet<T> {
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 		let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
+		ensure!(
+			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
+			Error::<T>::HubAssetUpdateError
+		);
+
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -2111,6 +2116,11 @@ impl<T: Config> Pallet<T> {
 					.checked_div(T::MaxInRatio::get())
 					.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
 			Error::<T>::MaxInRatioExceeded
+		);
+
+		ensure!(
+			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
+			Error::<T>::HubAssetUpdateError
 		);
 
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;

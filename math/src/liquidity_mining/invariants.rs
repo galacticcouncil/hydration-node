@@ -1,4 +1,4 @@
-use crate::{assert_approx_eq, types::Balance};
+use crate::{assert_approx_eq, types::Balance, MathError};
 use proptest::prelude::*;
 use sp_arithmetic::traits::One;
 use sp_arithmetic::{
@@ -207,22 +207,17 @@ proptest! {
 		// Skip inputs that cause overflow — not a bug, just out-of-range values
 		let (user_rewards, unclaimable_rewards) = match result {
 			Ok(v) => v,
-			Err(_) => return Ok(()),
+			Err(MathError::Overflow) => return Ok(()),
+			Err(e) => panic!("{e:?}"),
 		};
 
-		let max_rewards = match user_rewards
-			.checked_add(unclaimable_rewards)
-			.and_then(|v| v.checked_add(accumulated_claimed_rewards)) {
-			Some(v) => v,
-			None => return Ok(()),
-		};
+		let max_rewards = user_rewards
+			.checked_add(unclaimable_rewards).unwrap()
+			.checked_add(accumulated_claimed_rewards).unwrap();
 
-		let p = match accumulated_rpvs_now
-			.checked_sub(accumulated_rpvs)
-			.and_then(|v| v.checked_mul(valued_shares)) {
-			Some(v) => v,
-			None => return Ok(()),
-		};
+		let p = accumulated_rpvs_now
+			.checked_sub(accumulated_rpvs).unwrap()
+			.checked_mul(valued_shares).unwrap();
 
 		assert!(max_rewards == p, "max_rewards ~= (accumulated_rpvs_now - accumulated_rpvs) * valued_shares");
 
