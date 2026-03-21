@@ -191,16 +191,11 @@ fn dispatch_as_emergency_admin_should_work() {
 		}));
 
 		let call_hash = BlakeTwo256::hash_of(&call);
-		let admin_balance_before =
-			Tokens::free_balance(HDX, &crate::mock::EmergencyAdminAccount::get());
+		let admin_balance_before = Tokens::free_balance(HDX, &crate::mock::EmergencyAdminAccount::get());
 
-		assert_ok!(Dispatcher::dispatch_as_emergency_admin(
-			RuntimeOrigin::root(),
-			call
-		));
+		assert_ok!(Dispatcher::dispatch_as_emergency_admin(RuntimeOrigin::root(), call));
 
-		let admin_balance_after =
-			Tokens::free_balance(HDX, &crate::mock::EmergencyAdminAccount::get());
+		let admin_balance_after = Tokens::free_balance(HDX, &crate::mock::EmergencyAdminAccount::get());
 
 		assert_eq!(admin_balance_after, admin_balance_before - 1_000);
 
@@ -229,4 +224,3 @@ fn dispatch_as_emergency_admin_should_fail_when_bad_origin() {
 		expect_events(vec![]);
 	});
 }
-

@@ -2,10 +2,10 @@ use crate::evm::{create_dispatch_handle, gas_price};
 use crate::polkadot_test_net::*;
 use crate::utils::accounts::MockAccount;
 use fp_evm::PrecompileSet;
-use frame_support::{assert_noop, assert_ok};
 use frame_support::dispatch::{
 	extract_actual_pays_fee, extract_actual_weight, GetDispatchInfo, Pays, PostDispatchInfo,
 };
+use frame_support::{assert_noop, assert_ok};
 use hydradx_runtime::evm::precompiles::{HydraDXPrecompiles, DISPATCH_ADDR};
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
@@ -1183,7 +1183,6 @@ fn dispatch_with_extra_should_charge_more_than_inner_call_when_when_inner_calls_
 	});
 }
 
-
 #[test]
 fn dispatch_as_emergency_admin_can_pause_aave_reserve() {
 	use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
@@ -1205,10 +1204,7 @@ fn dispatch_as_emergency_admin_can_pause_aave_reserve() {
 
 		// Use testnet_manager as aave manager — this address has DEFAULT_ADMIN_ROLE
 		// on the ACLManager in the snapshot
-		assert_ok!(Dispatcher::note_aave_manager(
-			RuntimeOrigin::root(),
-			testnet_manager()
-		));
+		assert_ok!(Dispatcher::note_aave_manager(RuntimeOrigin::root(), testnet_manager()));
 
 		// Fund testnet manager with WETH for EVM gas
 		assert_ok!(hydradx_runtime::Tokens::set_balance(
