@@ -45,11 +45,6 @@
 //!
 //! This is currently used to update on-chain oracle and in the circuit breaker.
 //!
-//! ### Hub Asset Trading
-//!
-//! When Hub Asset (H2O) is sold to the Omnipool, the incoming H2O is transferred to the treasury.
-//! This reduces the impact of H2O trades on the price of H2O and reduces arbitrage opportunities from external markets.
-//!
 //! ## Terminology
 //!
 //! * **LP:**  liquidity provider
@@ -238,10 +233,6 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type BurnProtocolFee: Get<Permill>;
-
-		/// Destination account when hub asset is sold
-		#[pallet::constant]
-		type HubDestination: Get<Self::AccountId>;
 	}
 
 	#[pallet::storage]
@@ -2001,32 +1992,23 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
-		let mut state_changes = state_changes.account_for_fee_taken(taken_fee);
+		let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
 		ensure!(
 			matches!(state_changes.asset.delta_hub_reserve, BalanceUpdate::Increase(_)),
 			Error::<T>::HubAssetUpdateError
 		);
 
-		debug_assert_eq!(*state_changes.asset.delta_hub_reserve, amount);
-
-		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
-		// When seller is HubDestination (Treasury), let hub_reserve flow into the traded asset
-		// normally, so we dont decrease the price impact
-		if who != &T::HubDestination::get() {
-			state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
-		}
-
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		// Token updates — user pays the full `amount` they specified (same as regular sell)
+		// Token updates
 		T::Currency::transfer(
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			amount,
+			*state_changes.asset.delta_hub_reserve, // note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
 			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
@@ -2050,25 +2032,13 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta)?;
-
-		// Route H2O to HubDestination to reduce value leaked to arbitrage.
-		// Skip when seller is HubDestination — hub_reserve already updated in asset state.
-		if who != &T::HubDestination::get() {
-			T::Currency::transfer(
-				T::HubAssetId::get(),
-				&Self::protocol_account(),
-				&T::HubDestination::get(),
-				hub_reserve_delta,
-				ExistenceRequirement::AllowDeath,
-			)?;
-		}
+		Self::update_slip_fee_delta_hub_trade(asset_out, *state_changes.asset.delta_hub_reserve)?;
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
 			asset_out,
-			amount_in: amount,
+			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
 			hub_amount_in: 0,
 			hub_amount_out: 0,
@@ -2082,7 +2052,10 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_broadcast::types::Filler::Omnipool,
 			pallet_broadcast::types::TradeOperation::ExactIn,
-			vec![Asset::new(T::HubAssetId::get().into(), amount)],
+			vec![Asset::new(
+				T::HubAssetId::get().into(),
+				*state_changes.asset.delta_hub_reserve,
+			)],
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
 		);
@@ -2132,6 +2105,11 @@ impl<T: Config> Pallet<T> {
 		.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
+			*state_changes.asset.delta_hub_reserve <= limit,
+			Error::<T>::SellLimitExceeded
+		);
+
+		ensure!(
 			*state_changes.asset.delta_hub_reserve
 				<= asset_state
 					.hub_reserve
@@ -2145,28 +2123,18 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::HubAssetUpdateError
 		);
 
-		let hub_reserve_delta = *state_changes.asset.delta_hub_reserve;
-		ensure!(hub_reserve_delta <= limit, Error::<T>::SellLimitExceeded);
-
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
-		let mut state_changes = state_changes.account_for_fee_taken(taken_fee);
-
-		// When seller is HubDestination (Treasury), let hub_reserve flow into the traded asset
-		// normally, so we dont decrease the price impact
-		if who != &T::HubDestination::get() {
-			state_changes.asset.delta_hub_reserve = BalanceUpdate::Increase(Balance::zero());
-		}
+		let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		// User pays full cost (d_net + slip fee)
 		T::Currency::transfer(
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			hub_reserve_delta,
+			*state_changes.asset.delta_hub_reserve, //note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
 			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
@@ -2190,26 +2158,14 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		Self::update_slip_fee_delta_hub_trade(asset_out, hub_reserve_delta)?;
-
-		// Route H2O to HubDestination to reduce value leaked to arbitrage.
-		// Skip when seller is HubDestination — hub_reserve already updated in asset state.
-		if who != &T::HubDestination::get() {
-			T::Currency::transfer(
-				T::HubAssetId::get(),
-				&Self::protocol_account(),
-				&T::HubDestination::get(),
-				hub_reserve_delta,
-				ExistenceRequirement::AllowDeath,
-			)?;
-		}
+		Self::update_slip_fee_delta_hub_trade(asset_out, *state_changes.asset.delta_hub_reserve)?;
 
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
 			asset_out,
-			amount_in: hub_reserve_delta,
+			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
 			hub_amount_in: 0,
 			hub_amount_out: 0,
@@ -2223,7 +2179,10 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_broadcast::types::Filler::Omnipool,
 			pallet_broadcast::types::TradeOperation::ExactOut,
-			vec![Asset::new(T::HubAssetId::get().into(), hub_reserve_delta)],
+			vec![Asset::new(
+				T::HubAssetId::get().into(),
+				*state_changes.asset.delta_hub_reserve,
+			)],
 			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			trade_fees,
 		);

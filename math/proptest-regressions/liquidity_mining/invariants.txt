@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 1c2d261442e8d9aa1da28820d44ab71c6aa11f7541a2f6f2d7d19dd0f00d529b # shrinks to accumulated_rpvs = 1, accumulated_rpvs_now = 1000000000000000, valued_shares = 1000, accumulated_claimed_rewards = 3408567473131778, loyalty_multiplier = 1000000
