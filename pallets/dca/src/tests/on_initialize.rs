@@ -2748,9 +2748,7 @@ fn dca_should_include_extra_gas_in_fee_calculation_on_retry() {
 
 			assert!(
 				fee_with_extra_gas > fee_without_extra_gas,
-				"Fee with extra gas ({}) should be higher than base fee ({})",
-				fee_with_extra_gas,
-				fee_without_extra_gas
+				"Fee with extra gas ({fee_with_extra_gas}) should be higher than base fee ({fee_without_extra_gas})",
 			);
 
 			// Act

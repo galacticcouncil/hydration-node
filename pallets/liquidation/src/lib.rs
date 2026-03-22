@@ -91,9 +91,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Multi currency.
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 
@@ -247,7 +244,7 @@ pub mod pallet {
 			debt_to_cover: Balance,
 			route: Route<AssetId>,
 		) -> DispatchResult {
-			log::trace!(target: "liquidation","liquidating debt asset: {:?} for amount: {:?}", debt_asset, debt_to_cover);
+			log::trace!(target: "liquidation","liquidating debt asset: {debt_asset:?} for amount: {debt_to_cover:?}");
 
 			if debt_asset == T::HollarId::get() {
 				let (flash_minter, loan_receiver) = T::FlashMinter::get().ok_or(Error::<T>::FlashMinterNotSet)?;
@@ -368,7 +365,7 @@ impl<T: Config> Pallet<T> {
 				.defensive_ok_or(ArithmeticError::Underflow)?;
 
 			log::trace!(target: "liquidation",
-				"Collateral earned: {:?} for asset: {:?}", collateral_earned, collateral_asset);
+				"Collateral earned: {collateral_earned:?} for asset: {collateral_asset:?}");
 
 			T::Router::sell(
 				RawOrigin::Signed(liquidator_account.clone()).into(),
@@ -390,7 +387,7 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::NotProfitable)?;
 
 		log::trace!(target: "liquidation",
-				"Profit: {:?} for asset: {:?}", profit, debt_asset);
+				"Profit: {profit:?} for asset: {debt_asset:?}");
 
 		<T as Config>::Currency::transfer(
 			debt_asset,
@@ -413,7 +410,7 @@ impl<T: Config> Pallet<T> {
 	/// Liquidates an existing money market position.
 	pub fn liquidate_position(liquidator: EvmAddress, loan_amount: Balance, data: &[u8]) -> DispatchResult {
 		let (collateral_asset_id, debt_asset_id, user, route) = Self::decode_liquidation_data(data)?;
-		log::trace!(target: "liquidation", "collateral_asset_id: {}, debt_asset_id: {}, user: {:?}, route: {:?}", collateral_asset_id, debt_asset_id, user, route);
+		log::trace!(target: "liquidation", "collateral_asset_id: {collateral_asset_id}, debt_asset_id: {debt_asset_id}, user: {user:?}, route: {route:?}");
 		Self::liquidate_position_internal(liquidator, collateral_asset_id, debt_asset_id, loan_amount, user, route)
 	}
 

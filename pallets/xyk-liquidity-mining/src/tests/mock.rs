@@ -272,7 +272,6 @@ parameter_types! {
 }
 
 impl liq_mining::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currencies = Tokens;
 	type CreateOrigin = frame_system::EnsureRoot<AccountId>;
 	type WeightInfo = ();
@@ -902,7 +901,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;

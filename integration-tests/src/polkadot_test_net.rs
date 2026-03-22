@@ -823,6 +823,8 @@ pub fn go_to_block(number: BlockNumber) {
 			relay_chain_state: proof,
 			downward_messages: Default::default(),
 			horizontal_messages: Default::default(),
+			collator_peer_id: None,
+			relay_parent_descendants: Default::default(),
 		}
 	));
 

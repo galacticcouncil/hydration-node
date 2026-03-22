@@ -17,6 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
+#![allow(clippy::useless_conversion)]
 
 use codec::{Decode, Encode};
 use frame_support::traits::{Contains, EnsureOrigin, Time};
@@ -193,9 +194,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Identifier for the class of asset.
 		type AssetId: Member
 			+ Parameter
