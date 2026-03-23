@@ -133,3 +133,17 @@ pub trait ExtraGasSupport {
 	/// Returns the dispatch error that indicates an out of gas condition
 	fn out_of_gas_error() -> DispatchError;
 }
+
+/// Support for overriding the EVM fee payer.
+/// Used when a controller account should pay EVM gas fees
+/// on behalf of another account (e.g., a pureProxy).
+pub trait EvmFeePayerSupport {
+	type AccountId;
+
+	/// Set the fee payer override, returning the previous value (for nesting support).
+	fn set_fee_payer(payer: Self::AccountId) -> Option<Self::AccountId>;
+	/// Clear the fee payer override, returning the previous value.
+	fn clear_fee_payer() -> Option<Self::AccountId>;
+	/// Restore a previously saved fee payer.
+	fn restore_fee_payer(previous: Option<Self::AccountId>);
+}

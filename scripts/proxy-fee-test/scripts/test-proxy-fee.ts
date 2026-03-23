@@ -7,9 +7,21 @@ import { ethers } from "ethers";
 const WS_URL = process.env.WS_URL || "ws://127.0.0.1:9999";
 const EVM_RPC_URL = process.env.EVM_RPC_URL || "http://127.0.0.1:9999";
 
-const WETH_ASSET_ID = 20;
 const HDX_ASSET_ID = 0;
 const UNITS = 1_000_000_000_000n;
+
+const WETH_LOCATION = {
+  parents: 1,
+  interior: {
+    X3: [
+      { Parachain: 2004 },
+      { PalletInstance: 110 },
+      { AccountKey20: { key: "0xab3f0245b83feb11d15aaffefd7ad465a59817ed" } },
+    ],
+  },
+};
+
+let WETH_ASSET_ID: number;
 
 interface TestResult {
   name: string;
@@ -54,7 +66,7 @@ function sendAndWait(
       if (status.isInBlock) {
         resolve({ blockHash: status.asInBlock.toString(), events });
       }
-    });
+    }).catch((err: any) => reject(err));
   });
 }
 
@@ -95,10 +107,24 @@ async function createPureProxy(
   return pureCreated.event.data[0].toString();
 }
 
+function makeEvmCall(api: ApiPromise, sourceEvmAddr: string) {
+  return api.tx.evm.call(
+    sourceEvmAddr,
+    "0x0000000000000000000000000000000000001234",
+    "0x",
+    0,
+    100000,
+    15000000,
+    null,
+    0,
+    [],
+    []
+  );
+}
+
 async function main() {
   console.log("=".repeat(64));
-  console.log("  Issue #1381: EVM Fee Payer Override for pureProxy");
-  console.log("  End-to-End Test");
+  console.log("  Issue #1381: EVM Fee Payer Override — dispatch_with_fee_payer");
   console.log("=".repeat(64));
   console.log(`\n  Substrate WS: ${WS_URL}`);
   console.log(`  EVM RPC:      ${EVM_RPC_URL}\n`);
@@ -121,17 +147,23 @@ async function main() {
   console.log(`  Alice (controller): ${aliceAddress}`);
   console.log(`  Bob:                ${bobAddress}\n`);
 
-  const wethLocation = await api.query.assetRegistry.assetLocations(WETH_ASSET_ID);
-  const wethAccepted = await api.query.multiTransactionPayment.acceptedCurrencies(WETH_ASSET_ID);
-
-  if (!wethLocation.isSome || !wethAccepted.isSome) {
-    console.log("  ERROR: WETH is not configured on this chain.");
+  const wethByLocation = await (api.query.assetRegistry as any).locationAssets(WETH_LOCATION);
+  if (!wethByLocation.isSome) {
+    console.log("  ERROR: WETH is not registered on this chain.");
     console.log("  Run: WS_URL=" + WS_URL + " npm run setup\n");
     await api.disconnect();
     process.exit(1);
   }
-  console.log("  WETH location: configured");
-  console.log("  WETH accepted: configured\n");
+  WETH_ASSET_ID = (wethByLocation as any).toJSON() as number;
+  const wethAccepted = await api.query.multiTransactionPayment.acceptedCurrencies(WETH_ASSET_ID);
+
+  if (!wethAccepted.isSome) {
+    console.log("  ERROR: WETH not accepted as fee currency.");
+    console.log("  Run: WS_URL=" + WS_URL + " npm run setup\n");
+    await api.disconnect();
+    process.exit(1);
+  }
+  console.log(`  WETH asset ID: ${WETH_ASSET_ID} (resolved by location)\n`);
 
   // ─────────────────────────────────────────────────────────────────
   // TEST 1: Direct EVM call charges the EVM source (baseline)
@@ -150,10 +182,7 @@ async function main() {
   console.log(`  WETH balance before: ${ethers.formatEther(balanceBefore)} WETH`);
 
   if (balanceBefore === 0n) {
-    fail(
-      "Direct EVM call",
-      "EVM account has no WETH. Ensure setup-chain.js funded this account."
-    );
+    fail("Direct EVM call", "EVM account has no WETH.");
   } else {
     try {
       const tx = await evmWallet.sendTransaction({
@@ -169,7 +198,7 @@ async function main() {
       if (gasCost > 0n) {
         pass(
           "Direct EVM call charges EVM source",
-          `Gas cost: ${ethers.formatEther(gasCost)} WETH (${receipt!.gasUsed} gas used)`
+          `Gas cost: ${ethers.formatEther(gasCost)} WETH (${receipt!.gasUsed} gas)`
         );
       } else {
         fail("Direct EVM call charges EVM source", "Balance unchanged");
@@ -180,90 +209,192 @@ async function main() {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // TEST 2: proxy.proxy(real=pureProxy, call=EVM::call) charges controller
-  //
-  // This is the core Issue #1381 scenario:
-  //   1. Alice creates a pureProxy (she's automatically the controller)
-  //   2. Alice calls proxy.proxy(real=pureProxy, call=EVM::call(...))
-  //   3. The SetEvmFeePayer extension detects the pattern
-  //   4. EVM gas fees are charged to Alice (controller), not the pureProxy
+  // TEST 2: dispatchWithFeePayer(proxy(pureProxy, EVM::call))
+  //   Controller wraps proxy+EVM in dispatcher — gas charged to controller
   // ─────────────────────────────────────────────────────────────────
 
   console.log(
-    "\n── Test 2: proxy(pureProxy, EVM::call) charges controller ──\n"
+    "\n── Test 2: dispatchWithFeePayer(proxy(EVM::call)) ──\n"
   );
 
   try {
     console.log("  Creating pureProxy for Alice...");
-    const pureProxyAddress = await createPureProxy(api, alice);
-    console.log(`  PureProxy: ${pureProxyAddress}`);
+    const pureProxy = await createPureProxy(api, alice);
+    console.log(`  PureProxy: ${pureProxy}`);
+    const pureProxyEvmAddr = substrateToEvmAddress(pureProxy);
 
-    const pureProxyEvmAddr = substrateToEvmAddress(pureProxyAddress);
-    console.log(`  PureProxy EVM addr: ${pureProxyEvmAddr}`);
-
-    const aliceHdxBefore = await getTokenBalance(api, aliceAddress, HDX_ASSET_ID);
     const aliceWethBefore = await getTokenBalance(api, aliceAddress, WETH_ASSET_ID);
-    console.log(`  Alice HDX before:  ${aliceHdxBefore / UNITS} UNITS`);
-    console.log(`  Alice WETH before: ${aliceWethBefore / UNITS} UNITS`);
+    const aliceHdxBefore = await getTokenBalance(api, aliceAddress, HDX_ASSET_ID);
 
-    const evmCall = api.tx.evm.call(
-      pureProxyEvmAddr,
-      "0x0000000000000000000000000000000000001234",
-      "0x",
-      0,
-      100000,
-      15000000,
-      null,
-      0,
-      [],
-      []
-    );
+    const evmCall = makeEvmCall(api, pureProxyEvmAddr);
+    const proxyCall = api.tx.proxy.proxy(pureProxy, null, evmCall);
+    const wrappedCall = api.tx.dispatcher.dispatchWithFeePayer(proxyCall);
 
-    const proxyCall = api.tx.proxy.proxy(pureProxyAddress, null, evmCall);
-
-    console.log("  Sending proxy(pureProxy, EVM::call)...");
-    const { events } = await sendAndWait(proxyCall, alice, api);
+    console.log("  Sending dispatchWithFeePayer(proxy(EVM::call))...");
+    const { events } = await sendAndWait(wrappedCall, alice, api);
 
     const proxyExecuted = events.find(
       ({ event }: any) =>
         event.section === "proxy" && event.method === "ProxyExecuted"
     );
     if (proxyExecuted) {
-      console.log(
-        `  ProxyExecuted: ${JSON.stringify(proxyExecuted.event.data[0].toJSON())}`
-      );
+      console.log(`  ProxyExecuted: ${JSON.stringify(proxyExecuted.event.data[0].toJSON())}`);
     }
 
-    const aliceHdxAfter = await getTokenBalance(api, aliceAddress, HDX_ASSET_ID);
     const aliceWethAfter = await getTokenBalance(api, aliceAddress, WETH_ASSET_ID);
-    console.log(`  Alice HDX after:   ${aliceHdxAfter / UNITS} UNITS`);
-    console.log(`  Alice WETH after:  ${aliceWethAfter / UNITS} UNITS`);
-
-    const hdxCharged = aliceHdxBefore - aliceHdxAfter;
+    const aliceHdxAfter = await getTokenBalance(api, aliceAddress, HDX_ASSET_ID);
     const wethCharged = aliceWethBefore - aliceWethAfter;
+    const hdxCharged = aliceHdxBefore - aliceHdxAfter;
 
     if (hdxCharged > 0n || wethCharged > 0n) {
       pass(
-        "proxy(pureProxy, EVM::call) charges controller",
+        "dispatchWithFeePayer(proxy(EVM::call)) charges controller",
         `Alice charged: HDX=${hdxCharged}, WETH=${wethCharged}`
       );
     } else {
       fail(
-        "proxy(pureProxy, EVM::call) charges controller",
-        `Alice balance unchanged. HDX diff: ${hdxCharged}, WETH diff: ${wethCharged}. ` +
-          `The inner EVM call may have failed — check ProxyExecuted event above.`
+        "dispatchWithFeePayer(proxy(EVM::call)) charges controller",
+        `Alice balance unchanged. HDX=${hdxCharged}, WETH=${wethCharged}`
       );
     }
   } catch (err: any) {
-    fail("proxy(pureProxy, EVM::call) charges controller", `Error: ${err.message}`);
+    fail("dispatchWithFeePayer(proxy(EVM::call))", `Error: ${err.message}`);
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // TEST 3: proxy(pureProxy, EVM::call) fails when controller has no funds
+  // TEST 3: batchAll([..., dispatchWithFeePayer(proxy(EVM::call))])
+  //   The real-world UI pattern: batch wrapping the dispatcher call
   // ─────────────────────────────────────────────────────────────────
 
   console.log(
-    "\n── Test 3: proxy(EVM::call) fails when controller has no funds ──\n"
+    "\n── Test 3: batchAll([dispatchWithFeePayer(proxy(EVM::call))]) ──\n"
+  );
+
+  try {
+    console.log("  Creating pureProxy for Alice...");
+    const pureProxy = await createPureProxy(api, alice);
+    console.log(`  PureProxy: ${pureProxy}`);
+    const pureProxyEvmAddr = substrateToEvmAddress(pureProxy);
+
+    const proxyWethBefore = await getTokenBalance(api, pureProxy, WETH_ASSET_ID);
+    const aliceWethBefore = await getTokenBalance(api, aliceAddress, WETH_ASSET_ID);
+    const aliceHdxBefore = await getTokenBalance(api, aliceAddress, HDX_ASSET_ID);
+    console.log(`  Proxy WETH: ${proxyWethBefore} (should be 0)`);
+
+    const evmCall = makeEvmCall(api, pureProxyEvmAddr);
+    const proxyCall = api.tx.proxy.proxy(pureProxy, null, evmCall);
+    const dispatcherCall = api.tx.dispatcher.dispatchWithFeePayer(proxyCall);
+    const remarkCall = api.tx.system.remark("0xdeadbeef");
+    const batchCall = api.tx.utility.batchAll([remarkCall, dispatcherCall]);
+
+    console.log("  Sending batchAll([remark, dispatchWithFeePayer(proxy(EVM::call))])...");
+    const { events } = await sendAndWait(batchCall, alice, api);
+
+    const proxyExecuted = events.find(
+      ({ event }: any) =>
+        event.section === "proxy" && event.method === "ProxyExecuted"
+    );
+    if (proxyExecuted) {
+      console.log(`  ProxyExecuted: ${JSON.stringify(proxyExecuted.event.data[0].toJSON())}`);
+    }
+
+    const proxyWethAfter = await getTokenBalance(api, pureProxy, WETH_ASSET_ID);
+    const aliceWethAfter = await getTokenBalance(api, aliceAddress, WETH_ASSET_ID);
+    const aliceHdxAfter = await getTokenBalance(api, aliceAddress, HDX_ASSET_ID);
+    const wethCharged = aliceWethBefore - aliceWethAfter;
+    const hdxCharged = aliceHdxBefore - aliceHdxAfter;
+
+    if (proxyWethBefore === 0n && proxyWethAfter === 0n && (hdxCharged > 0n || wethCharged > 0n)) {
+      pass(
+        "batchAll + dispatchWithFeePayer works (proxy has 0 WETH)",
+        `Alice charged: HDX=${hdxCharged}, WETH=${wethCharged}`
+      );
+    } else if (hdxCharged > 0n || wethCharged > 0n) {
+      pass(
+        "batchAll + dispatchWithFeePayer charges controller",
+        `Alice charged: HDX=${hdxCharged}, WETH=${wethCharged}`
+      );
+    } else {
+      fail(
+        "batchAll + dispatchWithFeePayer",
+        `Alice balance unchanged. HDX=${hdxCharged}, WETH=${wethCharged}`
+      );
+    }
+  } catch (err: any) {
+    fail("batchAll + dispatchWithFeePayer", `Error: ${err.message}`);
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // TEST 4: batchAll([dispatchWithExtraGas, bindEvmAddress, dispatchWithFeePayer(proxy(EVM::call))])
+  //   Full lark-style pattern matching the real UI flow
+  // ─────────────────────────────────────────────────────────────────
+
+  console.log(
+    "\n── Test 4: Full lark pattern (dispatchWithExtraGas + bind + dispatchWithFeePayer) ──\n"
+  );
+
+  try {
+    console.log("  Creating pureProxy for Alice...");
+    const pureProxy = await createPureProxy(api, alice);
+    console.log(`  PureProxy: ${pureProxy}`);
+    const pureProxyEvmAddr = substrateToEvmAddress(pureProxy);
+
+    const aliceWethBefore = await getTokenBalance(api, aliceAddress, WETH_ASSET_ID);
+    const aliceHdxBefore = await getTokenBalance(api, aliceAddress, HDX_ASSET_ID);
+
+    const transferCall = api.tx.currencies.transfer(pureProxy, HDX_ASSET_ID, 1_000_000_000_000);
+    const dispatchExtraGas = api.tx.dispatcher.dispatchWithExtraGas(transferCall, 1_000_000);
+
+    const bindCall = api.tx.proxy.proxy(pureProxy, "Any", api.tx.evmAccounts.bindEvmAddress());
+
+    const evmCall = makeEvmCall(api, pureProxyEvmAddr);
+    const proxyEvmCall = api.tx.proxy.proxy(pureProxy, "Any", evmCall);
+    const dispatchFeePayer = api.tx.dispatcher.dispatchWithFeePayer(proxyEvmCall);
+
+    const fullBatch = api.tx.utility.batchAll([
+      dispatchExtraGas,
+      bindCall,
+      dispatchFeePayer,
+    ]);
+
+    console.log("  Sending full lark-style batchAll...");
+    const { events } = await sendAndWait(fullBatch, alice, api);
+
+    const proxyEvents = events.filter(
+      ({ event }: any) =>
+        event.section === "proxy" && event.method === "ProxyExecuted"
+    );
+    console.log(`  ProxyExecuted events: ${proxyEvents.length}`);
+    for (const pe of proxyEvents) {
+      console.log(`    ${JSON.stringify(pe.event.data[0].toJSON())}`);
+    }
+
+    const aliceWethAfter = await getTokenBalance(api, aliceAddress, WETH_ASSET_ID);
+    const aliceHdxAfter = await getTokenBalance(api, aliceAddress, HDX_ASSET_ID);
+    const wethCharged = aliceWethBefore - aliceWethAfter;
+    const hdxCharged = aliceHdxBefore - aliceHdxAfter;
+
+    if (hdxCharged > 0n || wethCharged > 0n) {
+      pass(
+        "Full lark pattern charges controller",
+        `Alice charged: HDX=${hdxCharged}, WETH=${wethCharged}`
+      );
+    } else {
+      fail(
+        "Full lark pattern",
+        `Alice balance unchanged. HDX=${hdxCharged}, WETH=${wethCharged}`
+      );
+    }
+  } catch (err: any) {
+    fail("Full lark pattern", `Error: ${err.message}`);
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // TEST 5: dispatchWithFeePayer fails when controller has no funds
+  // ─────────────────────────────────────────────────────────────────
+
+  console.log(
+    "\n── Test 5: dispatchWithFeePayer fails when controller has no funds ──\n"
   );
 
   const dave = keyring.addFromUri("//Dave");
@@ -273,32 +404,17 @@ async function main() {
   try {
     console.log("  Creating pureProxy for Dave...");
     const davePureProxy = await createPureProxy(api, dave);
-    console.log(`  PureProxy: ${davePureProxy}`);
-
     const davePureEvmAddr = substrateToEvmAddress(davePureProxy);
 
-    const daveHdxBefore = await getTokenBalance(api, daveAddress, HDX_ASSET_ID);
-    const daveWethBefore = await getTokenBalance(api, daveAddress, WETH_ASSET_ID);
-    console.log(`  Dave HDX:  ${daveHdxBefore / UNITS} UNITS`);
-    console.log(`  Dave WETH: ${daveWethBefore / UNITS} UNITS`);
+    const daveWeth = await getTokenBalance(api, daveAddress, WETH_ASSET_ID);
+    console.log(`  Dave WETH: ${daveWeth}`);
 
-    const evmCall = api.tx.evm.call(
-      davePureEvmAddr,
-      "0x0000000000000000000000000000000000001234",
-      "0x",
-      0,
-      100000,
-      15000000,
-      null,
-      null,
-      [],
-      []
-    );
-
+    const evmCall = makeEvmCall(api, davePureEvmAddr);
     const proxyCall = api.tx.proxy.proxy(davePureProxy, null, evmCall);
+    const wrappedCall = api.tx.dispatcher.dispatchWithFeePayer(proxyCall);
 
-    console.log("  Sending proxy(pureProxy, EVM::call) as Dave...");
-    const { events } = await sendAndWait(proxyCall, dave, api);
+    console.log("  Sending dispatchWithFeePayer as Dave (no WETH)...");
+    const { events } = await sendAndWait(wrappedCall, dave, api);
 
     const proxyExecuted = events.find(
       ({ event }: any) =>
@@ -307,51 +423,46 @@ async function main() {
 
     if (proxyExecuted) {
       const resultJson = proxyExecuted.event.data[0].toJSON();
-      const isErr =
-        resultJson && typeof resultJson === "object" && "err" in resultJson;
+      const isErr = resultJson && typeof resultJson === "object" && "err" in resultJson;
 
       if (isErr) {
         pass(
-          "proxy(EVM::call) fails with no-funds controller",
-          `Inner dispatch error: ${JSON.stringify(resultJson)}`
+          "dispatchWithFeePayer fails with no-funds controller",
+          `Inner error: ${JSON.stringify(resultJson)}`
         );
       } else {
         fail(
-          "proxy(EVM::call) fails with no-funds controller",
-          `Expected inner error but got: ${JSON.stringify(resultJson)}`
+          "dispatchWithFeePayer fails with no-funds controller",
+          `Expected error but got: ${JSON.stringify(resultJson)}`
         );
       }
     } else {
-      fail(
-        "proxy(EVM::call) fails with no-funds controller",
-        "No ProxyExecuted event found"
-      );
+      fail("dispatchWithFeePayer fails with no-funds controller", "No ProxyExecuted event");
     }
   } catch (err: any) {
     if (
       err.message.includes("BalanceLow") ||
-      err.message.includes("InsufficientBalance") ||
       err.message.includes("WithdrawFailed") ||
       err.message.includes("Inability to pay") ||
       err.message.includes("1010")
     ) {
       pass(
-        "proxy(EVM::call) fails with no-funds controller",
+        "dispatchWithFeePayer fails with no-funds controller",
         `Expected error: ${err.message.slice(0, 120)}`
       );
     } else {
       fail(
-        "proxy(EVM::call) fails with no-funds controller",
+        "dispatchWithFeePayer fails with no-funds controller",
         `Error: ${err.message.slice(0, 120)}`
       );
     }
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // TEST 4: Non-EVM proxy call works normally (no interference)
+  // TEST 6: Non-EVM proxy call works normally without dispatcher wrapper
   // ─────────────────────────────────────────────────────────────────
 
-  console.log("\n── Test 4: Non-EVM proxy call works normally ──\n");
+  console.log("\n── Test 6: Non-EVM proxy call works normally ──\n");
 
   try {
     try {
@@ -362,24 +473,14 @@ async function main() {
       );
     } catch {}
 
-    const aliceHdxBeforeRemark = await getTokenBalance(
-      api,
-      aliceAddress,
-      HDX_ASSET_ID
-    );
+    const aliceHdxBefore = await getTokenBalance(api, aliceAddress, HDX_ASSET_ID);
 
     const remarkCall = api.tx.system.remark("0x1234");
     const proxyRemarkCall = api.tx.proxy.proxy(bobAddress, null, remarkCall);
-
     await sendAndWait(proxyRemarkCall, alice, api);
 
-    const aliceHdxAfterRemark = await getTokenBalance(
-      api,
-      aliceAddress,
-      HDX_ASSET_ID
-    );
-
-    const remarkFee = aliceHdxBeforeRemark - aliceHdxAfterRemark;
+    const aliceHdxAfter = await getTokenBalance(api, aliceAddress, HDX_ASSET_ID);
+    const remarkFee = aliceHdxBefore - aliceHdxAfter;
 
     if (remarkFee >= 0n) {
       pass(
@@ -387,81 +488,10 @@ async function main() {
         `Standard substrate fee: ${remarkFee} (${remarkFee / UNITS} UNITS HDX)`
       );
     } else {
-      fail(
-        "Non-EVM proxy call works normally",
-        `Unexpected balance increase: ${remarkFee}`
-      );
+      fail("Non-EVM proxy call works normally", `Unexpected balance increase: ${remarkFee}`);
     }
   } catch (err: any) {
     fail("Non-EVM proxy call works normally", `Error: ${err.message}`);
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // TEST 5: proxy(batch([EVM::call])) — nested pattern detection
-  // ─────────────────────────────────────────────────────────────────
-
-  console.log("\n── Test 5: proxy(batch([EVM::call])) charges controller ──\n");
-
-  try {
-    console.log("  Creating pureProxy for Alice...");
-    const pureProxy2 = await createPureProxy(api, alice);
-    console.log(`  PureProxy: ${pureProxy2}`);
-    const pureProxy2Evm = substrateToEvmAddress(pureProxy2);
-
-    const aliceHdxBeforeBatch = await getTokenBalance(api, aliceAddress, HDX_ASSET_ID);
-    const aliceWethBeforeBatch = await getTokenBalance(api, aliceAddress, WETH_ASSET_ID);
-
-    const evmCallForBatch = api.tx.evm.call(
-      pureProxy2Evm,
-      "0x0000000000000000000000000000000000005678",
-      "0x",
-      0,
-      100000,
-      15000000,
-      null,
-      null,
-      [],
-      []
-    );
-
-    const batchCall = api.tx.utility.batch([evmCallForBatch]);
-    const proxyBatchCall = api.tx.proxy.proxy(pureProxy2, null, batchCall);
-
-    console.log("  Sending proxy(pureProxy, batch([EVM::call]))...");
-    const { events } = await sendAndWait(proxyBatchCall, alice, api);
-
-    const proxyExecuted = events.find(
-      ({ event }: any) =>
-        event.section === "proxy" && event.method === "ProxyExecuted"
-    );
-    if (proxyExecuted) {
-      console.log(
-        `  ProxyExecuted: ${JSON.stringify(proxyExecuted.event.data[0].toJSON())}`
-      );
-    }
-
-    const aliceHdxAfterBatch = await getTokenBalance(api, aliceAddress, HDX_ASSET_ID);
-    const aliceWethAfterBatch = await getTokenBalance(api, aliceAddress, WETH_ASSET_ID);
-
-    const hdxDiff = aliceHdxBeforeBatch - aliceHdxAfterBatch;
-    const wethDiff = aliceWethBeforeBatch - aliceWethAfterBatch;
-
-    if (hdxDiff > 0n || wethDiff > 0n) {
-      pass(
-        "proxy(batch([EVM::call])) charges controller",
-        `Alice charged: HDX=${hdxDiff}, WETH=${wethDiff}`
-      );
-    } else {
-      fail(
-        "proxy(batch([EVM::call])) charges controller",
-        `Alice balance unchanged. HDX diff: ${hdxDiff}, WETH diff: ${wethDiff}`
-      );
-    }
-  } catch (err: any) {
-    fail(
-      "proxy(batch([EVM::call])) charges controller",
-      `Error: ${err.message}`
-    );
   }
 
   // ─────────────────────────────────────────────────────────────────

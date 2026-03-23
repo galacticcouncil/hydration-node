@@ -12,25 +12,30 @@ const WASM_PATH =
     "../../../target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm"
   );
 
-function sendAndWait(tx, signer, api) {
+function sendAndWait(tx, signer, api, timeoutMs = 120000) {
   return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Transaction timed out")), timeoutMs);
     tx.signAndSend(signer, ({ status, events, dispatchError }) => {
+      if (status.isReady) console.log("    tx: ready");
+      if (status.isBroadcast) console.log("    tx: broadcast");
       if (dispatchError) {
+        clearTimeout(timer);
         if (dispatchError.isModule) {
           const decoded = api.registry.findMetaError(dispatchError.asModule);
-          reject(
-            new Error(
-              `${decoded.section}.${decoded.name}: ${decoded.docs.join(" ")}`
-            )
-          );
+          reject(new Error(`${decoded.section}.${decoded.name}: ${decoded.docs.join(" ")}`));
         } else {
           reject(new Error(dispatchError.toString()));
         }
         return;
       }
       if (status.isInBlock) {
+        clearTimeout(timer);
+        console.log(`    tx: in block ${status.asInBlock.toString().slice(0, 18)}...`);
         resolve({ blockHash: status.asInBlock.toString(), events });
       }
+    }).catch((err) => {
+      clearTimeout(timer);
+      reject(err);
     });
   });
 }

@@ -39,6 +39,7 @@ mod benchmarking;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
+use hydradx_traits::evm::EvmFeePayerSupport;
 use hydradx_traits::evm::ExtraGasSupport;
 use hydradx_traits::evm::MaybeEvmCall;
 use pallet_evm::{ExitReason, GasWeightMapping};
@@ -91,6 +92,9 @@ pub mod pallet {
 
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
+
+		/// Support for overriding the EVM fee payer.
+		type EvmFeePayer: EvmFeePayerSupport<AccountId = Self::AccountId>;
 
 		/// The weight information for this pallet.
 		type WeightInfo: WeightInfo;
@@ -324,6 +328,48 @@ pub mod pallet {
 				Ok(_) => Ok(post_info),
 				Err(err) => Err(DispatchErrorWithPostInfo {
 					post_info,
+					error: err.error,
+				}),
+			}
+		}
+
+		/// Dispatch a call with the signer set as the EVM fee payer.
+		///
+		/// This sets the EVM fee payer override to the signer of this extrinsic,
+		/// dispatches the inner call, then restores the previous fee payer.
+		/// Used when a controller account needs to pay EVM gas fees
+		/// on behalf of a pureProxy account.
+		///
+		/// Supports nesting: if there is already a fee payer set (e.g., from
+		/// an outer `dispatch_with_fee_payer`), it is saved and restored after
+		/// the inner call completes.
+		#[pallet::call_index(5)]
+		#[pallet::weight({
+			let call_weight = call.get_dispatch_info().call_weight;
+			let call_len = call.encoded_size() as u32;
+			T::WeightInfo::dispatch_with_fee_payer(call_len)
+				.saturating_add(call_weight)
+		})]
+		pub fn dispatch_with_fee_payer(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			let signer = ensure_signed(origin.clone())?;
+
+			let previous = T::EvmFeePayer::set_fee_payer(signer);
+			let (result, actual_weight) = Self::do_dispatch(origin, *call);
+			T::EvmFeePayer::restore_fee_payer(previous);
+
+			match result {
+				Ok(_) => Ok(PostDispatchInfo {
+					actual_weight,
+					pays_fee: Pays::Yes,
+				}),
+				Err(err) => Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight,
+						pays_fee: Pays::Yes,
+					},
 					error: err.error,
 				}),
 			}

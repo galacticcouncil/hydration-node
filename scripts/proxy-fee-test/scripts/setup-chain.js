@@ -4,10 +4,14 @@ const { blake2AsHex } = require("@polkadot/util-crypto");
 
 const WS_URL = process.env.WS_URL || "ws://127.0.0.1:9999";
 
-function sendAndWait(tx, signer, api) {
+function sendAndWait(tx, signer, api, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Transaction timed out")), timeoutMs);
     tx.signAndSend(signer, ({ status, events, dispatchError }) => {
+      if (status.isReady) console.log("    tx: ready");
+      if (status.isBroadcast) console.log("    tx: broadcast");
       if (dispatchError) {
+        clearTimeout(timer);
         if (dispatchError.isModule) {
           const decoded = api.registry.findMetaError(dispatchError.asModule);
           reject(new Error(`${decoded.section}.${decoded.name}: ${decoded.docs.join(" ")}`));
@@ -17,8 +21,13 @@ function sendAndWait(tx, signer, api) {
         return;
       }
       if (status.isInBlock) {
+        clearTimeout(timer);
+        console.log(`    tx: in block ${status.asInBlock.toString().slice(0, 18)}...`);
         resolve({ blockHash: status.asInBlock, events });
       }
+    }).catch((err) => {
+      clearTimeout(timer);
+      reject(err);
     });
   });
 }
@@ -46,40 +55,51 @@ async function main() {
   const keyring = new Keyring({ type: "sr25519" });
   const alice = keyring.addFromUri("//Alice");
 
-  const wethLocation = await api.query.assetRegistry.assetLocations(20);
-  const wethAccepted = await api.query.multiTransactionPayment.acceptedCurrencies(20);
+  const wethLoc = {
+    parents: 1,
+    interior: {
+      X3: [
+        { Parachain: 2004 },
+        { PalletInstance: 110 },
+        { AccountKey20: { key: "0xab3f0245b83feb11d15aaffefd7ad465a59817ed" } },
+      ],
+    },
+  };
 
-  if (wethLocation.isSome && wethAccepted.isSome) {
-    console.log("  WETH location:  already set");
-    console.log("  WETH accepted:  already set");
+  const wethByLocation = await api.query.assetRegistry.locationAssets(wethLoc);
+  const wethId = wethByLocation.isSome ? wethByLocation.toJSON() : null;
+  const wethAccepted = wethId ? await api.query.multiTransactionPayment.acceptedCurrencies(wethId) : null;
+
+  console.log("  WETH asset ID:  " + (wethId || "NOT REGISTERED"));
+  console.log("  WETH accepted:  " + (wethAccepted && wethAccepted.isSome ? "set" : "NOT SET"));
+
+  if (wethId && wethAccepted && wethAccepted.isSome) {
     console.log("\n  Chain is already configured. Skipping setup.\n");
     await api.disconnect();
     return;
   }
 
-  console.log("  WETH location:  " + (wethLocation.isSome ? "set" : "NOT SET"));
-  console.log("  WETH accepted:  " + (wethAccepted.isSome ? "set" : "NOT SET"));
-
   const isTestnet = await api.query.parameters.isTestnet();
   const useTestnetFlow = isTestnet.isTrue;
 
   if (useTestnetFlow) {
-    console.log("  IsTestnet: true (using fast governance)\n");
+    console.log("\n  IsTestnet: true (using fast governance)\n");
     await setupViaGovernance(api, alice);
   } else {
-    console.log("  IsTestnet: false (using TC proposal)\n");
+    console.log("\n  IsTestnet: false (using TC proposal)\n");
     await setupViaTcProposal(api, keyring);
   }
 
   await sleep(6000);
 
-  const newLocation = await api.query.assetRegistry.assetLocations(20);
-  const newAccepted = await api.query.multiTransactionPayment.acceptedCurrencies(20);
+  const finalWeth = await api.query.assetRegistry.locationAssets(wethLoc);
+  const finalId = finalWeth.isSome ? finalWeth.toJSON() : null;
+  const finalAccepted = finalId ? await api.query.multiTransactionPayment.acceptedCurrencies(finalId) : null;
   console.log("\n  Verification:");
-  console.log("  WETH location: " + (newLocation.isSome ? "SET" : "MISSING"));
-  console.log("  WETH accepted: " + (newAccepted.isSome ? "SET" : "MISSING"));
+  console.log("  WETH asset ID:  " + (finalId || "MISSING"));
+  console.log("  WETH accepted:  " + (finalAccepted && finalAccepted.isSome ? "SET" : "MISSING"));
 
-  if (newLocation.isSome && newAccepted.isSome) {
+  if (finalId && finalAccepted && finalAccepted.isSome) {
     console.log("\n  Setup complete!\n");
   } else {
     console.log("\n  WARNING: Setup may still be pending. Wait a few blocks and re-run.\n");
@@ -148,6 +168,52 @@ async function setupViaGovernance(api, alice) {
   throw new Error("Timed out waiting for referendum");
 }
 
+async function executeTcProposal(api, alice, bob, call, label) {
+  const threshold = 2;
+  const proposalLen = call.method.encodedLength;
+
+  console.log(`  Proposing: ${label}...`);
+  const { events } = await sendAndWait(
+    api.tx.technicalCommittee.propose(threshold, call, proposalLen),
+    alice, api
+  );
+  const proposed = events.find(
+    ({ event }) => event.section === "technicalCommittee" && event.method === "Proposed"
+  );
+  if (!proposed) throw new Error("Proposed event not found");
+  const proposalIndex = proposed.event.data[1].toNumber();
+  const proposalHash = proposed.event.data[2].toHex();
+  console.log(`    Proposal #${proposalIndex}`);
+
+  await sendAndWait(
+    api.tx.technicalCommittee.vote(proposalHash, proposalIndex, true),
+    alice, api
+  );
+  await sendAndWait(
+    api.tx.technicalCommittee.vote(proposalHash, proposalIndex, true),
+    bob, api
+  );
+  console.log("    Alice + Bob voted aye");
+
+  const { events: closeEvents } = await sendAndWait(
+    api.tx.technicalCommittee.close(
+      proposalHash,
+      proposalIndex,
+      { refTime: 1000000000, proofSize: 100000 },
+      proposalLen
+    ),
+    alice, api
+  );
+
+  const executed = closeEvents.find(
+    ({ event }) => event.section === "technicalCommittee" && event.method === "Executed"
+  );
+  if (executed) {
+    const result = executed.event.data.toJSON();
+    console.log(`    Executed: ${JSON.stringify(result)}`);
+  }
+}
+
 async function setupViaTcProposal(api, keyring) {
   const alice = keyring.addFromUri("//Alice");
   const bob = keyring.addFromUri("//Bob");
@@ -163,91 +229,59 @@ async function setupViaTcProposal(api, keyring) {
     },
   };
 
-  const updateCall = api.tx.assetRegistry.update(20, null, null, null, null, null, null, null, wethLocation);
-  const addCurrencyCall = api.tx.multiTransactionPayment.addCurrency(20, "1000000000000000000");
-  const batchCall = api.tx.utility.batchAll([updateCall, addCurrencyCall]);
+  // Step 1: Register WETH via register_external (any signed origin, auto-assigns ID)
+  const wethAsset = await api.query.assetRegistry.assets(20);
+  const existingLocation = await api.query.assetRegistry.assetLocations(20);
 
-  const tcIndex = api.consts.technicalCommittee
-    ? undefined
-    : 2;
-
-  console.log("  [1/3] Submitting TC proposal...");
-  const encodedProposal = batchCall.method.toHex();
-  const proposalHash = blake2AsHex(encodedProposal);
-  const proposalLen = batchCall.method.encodedLength;
-
-  try {
-    await sendAndWait(
-      api.tx.preimage.notePreimage(encodedProposal),
-      alice, api
-    );
-    console.log("    Preimage noted");
-  } catch (err) {
-    if (!err.message.includes("AlreadyNoted")) throw err;
-    console.log("    Preimage already noted");
+  if (!existingLocation.isSome) {
+    // Check if an asset with this location already exists (from a previous register_external)
+    const locationAssets = await api.query.assetRegistry.locationAssets(wethLocation);
+    if (locationAssets.isSome) {
+      const existingId = locationAssets.toJSON();
+      console.log(`  WETH already registered as asset ${existingId} (via location lookup)`);
+    } else {
+      console.log("  Registering WETH via register_external...");
+      try {
+        const { events } = await sendAndWait(
+          api.tx.assetRegistry.registerExternal(wethLocation),
+          alice, api
+        );
+        const registered = events.find(
+          ({ event }) => event.section === "assetRegistry" && event.method === "Registered"
+        );
+        if (registered) {
+          const assetId = registered.event.data[0].toString();
+          console.log(`    WETH registered as asset ${assetId}`);
+        }
+      } catch (err) {
+        console.log(`    register_external error: ${err.message}`);
+      }
+    }
+  } else {
+    console.log("  WETH location already set for asset 20");
   }
 
-  let proposalIndex;
-  try {
-    const { events } = await sendAndWait(
-      api.tx.technicalCommittee.propose(
-        2,
-        batchCall,
-        proposalLen
-      ),
-      alice, api
-    );
-    const proposed = events.find(
-      ({ event }) => event.section === "technicalCommittee" && event.method === "Proposed"
-    );
-    if (proposed) {
-      proposalIndex = proposed.event.data[1].toNumber();
-      console.log(`    TC proposal #${proposalIndex}`);
-    }
-  } catch (err) {
-    console.log(`    TC propose error: ${err.message}`);
-    console.log("    Trying direct GeneralAdmin referendum instead...");
-    await setupViaGovernance(api, alice);
+  // Step 2: Resolve the WETH asset ID by location
+  await sleep(2000);
+  const resolvedAsset = await api.query.assetRegistry.locationAssets(wethLocation);
+  if (!resolvedAsset.isSome) {
+    console.log("  ERROR: Could not resolve WETH asset ID from location");
     return;
   }
+  const wethId = resolvedAsset.toJSON();
+  console.log(`  Resolved WETH asset ID: ${wethId}`);
 
-  console.log("  [2/3] Alice + Bob voting aye...");
-  const proposalHashFromChain = proposalHash;
-
-  try {
-    await sendAndWait(
-      api.tx.technicalCommittee.vote(proposalHashFromChain, proposalIndex, true),
-      alice, api
-    );
-    console.log("    Alice voted aye");
-  } catch (err) {
-    console.log(`    Alice vote: ${err.message}`);
-  }
-
-  try {
-    await sendAndWait(
-      api.tx.technicalCommittee.vote(proposalHashFromChain, proposalIndex, true),
-      bob, api
-    );
-    console.log("    Bob voted aye");
-  } catch (err) {
-    console.log(`    Bob vote: ${err.message}`);
-  }
-
-  console.log("  [3/3] Closing proposal...");
-  try {
-    await sendAndWait(
-      api.tx.technicalCommittee.close(
-        proposalHashFromChain,
-        proposalIndex,
-        { refTime: 1000000000, proofSize: 100000 },
-        proposalLen
-      ),
-      alice, api
-    );
-    console.log("    Proposal closed and executed");
-  } catch (err) {
-    console.log(`    Close: ${err.message}`);
+  // Step 3: Add WETH as accepted fee currency via TC
+  const wethAccepted = await api.query.multiTransactionPayment.acceptedCurrencies(wethId);
+  if (!wethAccepted.isSome) {
+    try {
+      const addCurrencyCall = api.tx.multiTransactionPayment.addCurrency(wethId, "1000000000000000000");
+      await executeTcProposal(api, alice, bob, addCurrencyCall, "addCurrency for WETH");
+    } catch (err) {
+      console.log(`    Error: ${err.message}`);
+    }
+  } else {
+    console.log("  WETH already accepted as fee currency");
   }
 }
 

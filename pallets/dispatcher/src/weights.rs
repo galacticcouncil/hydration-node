@@ -53,6 +53,7 @@ pub trait WeightInfo {
     fn note_aave_manager() -> Weight;
     fn dispatch_with_extra_gas(n: u32) -> Weight;
     fn dispatch_evm_call(n: u32) -> Weight;
+    fn dispatch_with_fee_payer(n: u32) -> Weight;
 }
 
 /// Weights for `pallet_dispatcher` using the HydraDX node and recommended hardware.
@@ -106,6 +107,12 @@ impl WeightInfo for () {
         Weight::from_parts(4_800_082, 0)
             // Standard Error: 5
             .saturating_add(Weight::from_parts(223, 0).saturating_mul(n.into()))
+    }
+    /// The range of component `n` is `[1, 10000]`.
+    fn dispatch_with_fee_payer(n: u32) -> Weight {
+        // Minimum execution time: 11_000_000 picoseconds (estimated)
+        Weight::from_parts(11_500_000, 0)
+            .saturating_add(Weight::from_parts(1_300, 0).saturating_mul(n.into()))
     }
 }
 

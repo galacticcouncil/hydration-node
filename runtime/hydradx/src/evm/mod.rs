@@ -20,7 +20,7 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
-pub use crate::evm::evm_fee::{clear_evm_fee_payer, evm_fee_payer, set_evm_fee_payer, SetEvmFeePayer};
+pub use crate::evm::evm_fee::{clear_evm_fee_payer, evm_fee_payer, set_evm_fee_payer, EvmFeePayerImpl};
 pub use crate::evm::gas_to_weight_mapping::FixedHydraGasWeightMapping;
 use crate::evm::runner::WrapRunner;
 use crate::origins::GeneralAdmin;

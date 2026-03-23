@@ -179,3 +179,74 @@ fn decrease_gas_limit_should_work() {
 		assert_eq!(ExtraGas::<Test>::get(), 0u64);
 	});
 }
+
+#[test]
+fn dispatch_with_fee_payer_should_set_and_clear_fee_payer() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_eq!(get_fee_payer(), None);
+
+		let call = Box::new(RuntimeCall::Tokens(orml_tokens::Call::transfer {
+			dest: BOB,
+			currency_id: HDX,
+			amount: 1_000,
+		}));
+
+		assert_ok!(Dispatcher::dispatch_with_fee_payer(
+			RuntimeOrigin::signed(ALICE),
+			call,
+		));
+
+		assert_eq!(get_fee_payer(), None);
+	});
+}
+
+#[test]
+fn dispatch_with_fee_payer_should_clear_on_failure() {
+	ExtBuilder::default().build().execute_with(|| {
+		let alice_initial_balance = Tokens::free_balance(HDX, &ALICE);
+
+		let call = Box::new(RuntimeCall::Tokens(orml_tokens::Call::transfer {
+			dest: BOB,
+			currency_id: HDX,
+			amount: alice_initial_balance + 1, // more than ALICE has
+		}));
+
+		assert!(Dispatcher::dispatch_with_fee_payer(RuntimeOrigin::signed(ALICE), call).is_err());
+
+		assert_eq!(get_fee_payer(), None);
+	});
+}
+
+#[test]
+fn dispatch_with_fee_payer_should_forward_dispatch_result() {
+	ExtBuilder::default().build().execute_with(|| {
+		let alice_initial_balance = Tokens::free_balance(HDX, &ALICE);
+		let bob_initial_balance = Tokens::free_balance(HDX, &BOB);
+
+		let call = Box::new(RuntimeCall::Tokens(orml_tokens::Call::transfer {
+			dest: BOB,
+			currency_id: HDX,
+			amount: 500,
+		}));
+
+		assert_ok!(Dispatcher::dispatch_with_fee_payer(
+			RuntimeOrigin::signed(ALICE),
+			call,
+		));
+
+		assert_eq!(Tokens::free_balance(HDX, &ALICE), alice_initial_balance - 500);
+		assert_eq!(Tokens::free_balance(HDX, &BOB), bob_initial_balance + 500);
+	});
+}
+
+#[test]
+fn dispatch_with_fee_payer_should_require_signed_origin() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call = Box::new(RuntimeCall::System(frame_system::Call::remark { remark: vec![] }));
+
+		assert_noop!(
+			Dispatcher::dispatch_with_fee_payer(RuntimeOrigin::root(), call),
+			DispatchError::BadOrigin
+		);
+	});
+}

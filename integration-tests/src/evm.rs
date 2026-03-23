@@ -5252,15 +5252,15 @@ mod proxy_fee_payer {
 	use frame_support::assert_ok;
 	use hex_literal::hex;
 	use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
-	use hydradx_runtime::evm::{clear_evm_fee_payer, evm_fee_payer, set_evm_fee_payer};
-	use hydradx_runtime::{Currencies, Proxy, ProxyType, RuntimeCall, RuntimeOrigin, Tokens, EVM};
+	use hydradx_runtime::evm::{evm_fee_payer, set_evm_fee_payer, clear_evm_fee_payer};
+	use hydradx_runtime::{Currencies, Dispatcher, RuntimeCall, RuntimeOrigin, Tokens, EVM};
 	use orml_traits::MultiCurrency;
 	use pallet_evm::FeeCalculator;
 	use sp_core::{H160, U256};
 	use xcm_emulator::TestExt;
 
 	#[test]
-	fn evm_call_with_fee_payer_override_should_charge_override_account() {
+	fn dispatch_with_fee_payer_should_charge_controller() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -5287,25 +5287,27 @@ mod proxy_fee_payer {
 			let controller_hdx_before = hydradx_runtime::Balances::free_balance(&controller);
 			let evm_acc_weth_before = Tokens::free_balance(WETH, &evm_acc);
 
-			set_evm_fee_payer(controller.clone());
-
 			let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
 
-			assert_ok!(EVM::call(
-				evm_signed_origin(evm_addr),
-				evm_addr,
-				H160::from_low_u64_be(0x1234),
-				vec![],
-				U256::from(0),
-				100_000,
-				gas_price,
-				None,
-				Some(U256::zero()),
-				[].into(),
-				vec![],
+			let evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+				source: evm_addr,
+				target: H160::from_low_u64_be(0x1234),
+				input: vec![],
+				value: U256::from(0),
+				gas_limit: 100_000,
+				max_fee_per_gas: gas_price,
+				max_priority_fee_per_gas: None,
+				nonce: Some(U256::zero()),
+				access_list: vec![],
+				authorization_list: vec![],
+			});
+
+			assert_ok!(Dispatcher::dispatch_with_fee_payer(
+				RuntimeOrigin::signed(controller.clone()),
+				Box::new(evm_call),
 			));
 
-			clear_evm_fee_payer();
+			assert_eq!(evm_fee_payer(), None);
 
 			let controller_weth_after = Tokens::free_balance(WETH, &controller);
 			let controller_hdx_after = hydradx_runtime::Balances::free_balance(&controller);
@@ -5373,7 +5375,7 @@ mod proxy_fee_payer {
 	}
 
 	#[test]
-	fn evm_call_with_fee_payer_override_should_fail_when_override_has_no_funds() {
+	fn dispatch_with_fee_payer_should_fail_when_controller_has_no_funds() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -5390,65 +5392,37 @@ mod proxy_fee_payer {
 				100_000 * UNITS as i128,
 			));
 
-			set_evm_fee_payer(controller.clone());
-
 			let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
 
-			let result = EVM::call(
-				evm_signed_origin(evm_addr),
-				evm_addr,
-				H160::from_low_u64_be(0x1234),
-				vec![],
-				U256::from(0),
-				100_000,
-				gas_price,
-				None,
-				Some(U256::zero()),
-				[].into(),
-				vec![],
-			);
+			let evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+				source: evm_addr,
+				target: H160::from_low_u64_be(0x1234),
+				input: vec![],
+				value: U256::from(0),
+				gas_limit: 100_000,
+				max_fee_per_gas: gas_price,
+				max_priority_fee_per_gas: None,
+				nonce: Some(U256::zero()),
+				access_list: vec![],
+				authorization_list: vec![],
+			});
 
-			clear_evm_fee_payer();
+			let result = Dispatcher::dispatch_with_fee_payer(
+				RuntimeOrigin::signed(controller.clone()),
+				Box::new(evm_call),
+			);
 
 			assert!(
 				result.is_err(),
 				"Should fail when fee payer override account has no funds"
 			);
-		});
-	}
-
-	#[test]
-	fn non_evm_proxy_call_should_not_set_fee_payer_override() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			let controller: AccountId = ALICE.into();
-			let delegate: AccountId = BOB.into();
-
-			assert_ok!(Proxy::add_proxy(
-				RuntimeOrigin::signed(delegate.clone()),
-				controller.clone().into(),
-				ProxyType::Any,
-				0,
-			));
-
-			let remark_call = RuntimeCall::System(frame_system::Call::remark { remark: vec![1, 2, 3] });
-
-			assert_eq!(evm_fee_payer(), None);
-
-			assert_ok!(Proxy::proxy(
-				RuntimeOrigin::signed(controller.clone()),
-				delegate.clone().into(),
-				None,
-				Box::new(remark_call),
-			));
 
 			assert_eq!(evm_fee_payer(), None);
 		});
 	}
 
 	#[test]
-	fn fee_payer_override_is_cleared_after_use() {
+	fn fee_payer_override_is_cleared_after_dispatch() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -5456,55 +5430,11 @@ mod proxy_fee_payer {
 
 			assert_eq!(evm_fee_payer(), None);
 
+			// Manually test set/clear still works
 			set_evm_fee_payer(controller.clone());
 			assert_eq!(evm_fee_payer(), Some(controller));
 
 			clear_evm_fee_payer();
-			assert_eq!(evm_fee_payer(), None);
-		});
-	}
-
-	#[test]
-	fn extension_prepare_does_not_set_override_for_non_proxy_calls() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			use frame_support::dispatch::GetDispatchInfo;
-			use sp_runtime::traits::TransactionExtension;
-
-			let controller: AccountId = ALICE.into();
-			let origin = RuntimeOrigin::signed(controller.clone());
-
-			let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
-
-			let evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
-				source: H160::from_low_u64_be(0x1234),
-				target: H160::from_low_u64_be(0x5678),
-				input: vec![],
-				value: U256::zero(),
-				gas_limit: 100_000,
-				max_fee_per_gas: gas_price,
-				max_priority_fee_per_gas: None,
-				nonce: None,
-				access_list: vec![],
-				authorization_list: vec![],
-			});
-
-			let remark_call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
-
-			let ext = hydradx_runtime::evm::SetEvmFeePayer;
-			let info = evm_call.get_dispatch_info();
-
-			assert_eq!(evm_fee_payer(), None);
-
-			let pre = ext.clone().prepare((), &origin, &evm_call, &info, 0);
-			assert_ok!(&pre);
-			assert_eq!(pre.unwrap(), None, "direct EVM call should NOT set fee payer");
-			assert_eq!(evm_fee_payer(), None);
-
-			let pre = ext.prepare((), &origin, &remark_call, &info, 0);
-			assert_ok!(&pre);
-			assert_eq!(pre.unwrap(), None, "remark should NOT set fee payer");
 			assert_eq!(evm_fee_payer(), None);
 		});
 	}

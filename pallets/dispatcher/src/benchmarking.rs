@@ -70,5 +70,13 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, 1);
 	}: _(RawOrigin::Signed(caller), Box::new(call))
 
+	dispatch_with_fee_payer {
+		let n in 1 .. 10_000;
+		let remark = sp_std::vec![1u8; n as usize];
+
+		let call: <T as pallet::Config>::RuntimeCall = frame_system::Call::remark { remark }.into();
+		let caller: T::AccountId = account("caller", 0, 1);
+	}: _(RawOrigin::Signed(caller), Box::new(call))
+
 	impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
 }

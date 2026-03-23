@@ -17,7 +17,6 @@ pub fn signed_extra(nonce: primitives::Index, extra_fee: Balance) -> hydradx_run
 		pallet_claims::ValidateClaim::<hydradx_runtime::Runtime>::decode(&mut &[][..])
 			.expect("PhantomData decodes from empty"),
 		frame_metadata_hash_extension::CheckMetadataHash::<hydradx_runtime::Runtime>::new(false),
-		hydradx_runtime::evm::SetEvmFeePayer,
 	);
 	hydradx_runtime::SignedExtra::new(inner)
 }
