@@ -59,8 +59,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Balance type
 		type Balance: Parameter
 			+ Member
@@ -126,7 +124,7 @@ impl<T: Config> SessionManager<T::AccountId> for Pallet<T> {
 			match maybe_collators_b {
 				Ok(collators_b) => Collators::<T>::insert(index, collators_b),
 				Err(_) => {
-					log::warn!(target: "runtime::collator-rewards", "Error reward collators: too many collators {:?}", collators);
+					log::warn!(target: "runtime::collator-rewards", "Error reward collators: too many collators {collators:?}");
 					return None;
 				}
 			}
@@ -157,7 +155,7 @@ impl<T: Config> SessionManager<T::AccountId> for Pallet<T> {
 						amount,
 						currency,
 					}),
-					Err(err) => log::warn!(target: "runtime::collator-rewards", "Error reward collators: {:?}", err),
+					Err(err) => log::warn!(target: "runtime::collator-rewards", "Error reward collators: {err:?}"),
 				}
 			}
 		}

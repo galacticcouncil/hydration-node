@@ -85,7 +85,7 @@ where
 			};
 
 			if !IssuanceIncreaseFuse::<Runtime>::can_mint(asset_in.into(), amount.into()) {
-				log::warn!(target: "xcm::exchange-asset", "Circuit breaker triggered for asset {:?}. Asset will be trapped.", asset_in);
+				log::warn!(target: "xcm::exchange-asset", "Circuit breaker triggered for asset {asset_in:?}. Asset will be trapped.");
 				return Err(give);
 			}
 
@@ -126,12 +126,12 @@ where
 			let Ok(amount_in) =
 				pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_in(&route, amount.into())
 			else {
-				log::warn!(target: "xcm::exchange-asset", "Failed to calculate expected amount in for route: {:?}", route);
+				log::warn!(target: "xcm::exchange-asset", "Failed to calculate expected amount in for route: {route:?}");
 				return Err(give);
 			};
 
 			if !IssuanceIncreaseFuse::<Runtime>::can_mint(asset_in.into(), amount_in.into().into()) {
-				log::warn!(target: "xcm::exchange-asset", "Circuit breaker triggered for asset {:?}. Asset will be trapped.", asset_in);
+				log::warn!(target: "xcm::exchange-asset", "Circuit breaker triggered for asset {asset_in:?}. Asset will be trapped.");
 				return Err(give);
 			}
 

@@ -8,7 +8,6 @@ use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFee
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::{AssetId, Price};
 
-use crate::circuit_breaker::IgnoreWithdrawFuse;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	parameter_types,
@@ -19,7 +18,6 @@ use frame_support::{
 use frame_system::unique;
 use frame_system::EnsureRoot;
 use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
-use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_evm::AddressMapping;
@@ -27,9 +25,12 @@ pub use pallet_xcm::GenesisConfig as XcmGenesisConfig;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_parachain::primitives::Sibling;
-use polkadot_xcm::v5::{prelude::*, InteriorLocation, Location, Weight as XcmWeight};
+use polkadot_xcm::v5::{prelude::*, InstructionError, InteriorLocation, Location, Weight as XcmWeight};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::MaybeEquivalence, Perbill};
+use sp_runtime::{
+	traits::{MaybeEquivalence, Zero},
+	Perbill,
+};
 use xcm_builder::{
 	AccountId32Aliases, AliasChildLocation, AliasOriginRootUsingFilter, AllowKnownQueryResponses,
 	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin,
@@ -37,7 +38,7 @@ use xcm_builder::{
 	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
 	TakeWeightCredit, TrailingSetTopicAsId, WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
 };
-use xcm_executor::{Config, XcmExecutor};
+use xcm_executor::{traits::MatchesFungible, traits::TransactAsset, Config, XcmExecutor};
 
 #[derive(Debug, Default, Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub Location);
@@ -279,7 +280,8 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 
 	fn prepare(
 		message: Xcm<<XcmConfig as Config>::RuntimeCall>,
-	) -> Result<Self::Prepared, Xcm<<XcmConfig as Config>::RuntimeCall>> {
+		weight_limit: XcmWeight,
+	) -> Result<Self::Prepared, InstructionError> {
 		//We populate the context in `prepare` as we have the xcm message at this point so we can get the unique topic id
 		let unique_id = if let Some(SetTopic(id)) = message.last() {
 			*id
@@ -290,15 +292,17 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 			.is_err()
 		{
 			log::error!(target: "xcm-executor", "Failed to add to broadcast context.");
-			return Err(message.clone());
+			return Err(InstructionError {
+				index: 0,
+				error: XcmError::ExceedsStackLimit,
+			});
 		}
 
-		let prepare_result = Inner::prepare(message.clone());
+		let prepare_result = Inner::prepare(message.clone(), weight_limit);
 
 		//In case of error we need to clean context as xcm execution won't happen
 		if prepare_result.is_err() && pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
 			log::error!(target: "xcm-executor", "Failed to remove from broadcast context.");
-			return Err(message);
 		}
 
 		prepare_result
@@ -314,9 +318,10 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 
 		// Context was added to the stack in `prepare` call.
 		if pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
-			return Outcome::Error {
+			return Outcome::Error(InstructionError {
+				index: 0,
 				error: XcmError::FailedToTransactAsset("Unexpected error at modifying broadcast execution stack"),
-			};
+			});
 		};
 
 		outcome
@@ -377,7 +382,6 @@ parameter_type_with_key! {
 }
 
 impl orml_xtokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type CurrencyId = AssetId;
 	type CurrencyIdConvert = CurrencyIdConvert;
@@ -395,12 +399,9 @@ impl orml_xtokens::Config for Runtime {
 	type RateLimiterId = ();
 }
 
-impl orml_unknown_tokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl orml_unknown_tokens::Config for Runtime {}
 
 impl orml_xcm::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type SovereignOrigin = EnsureRoot<Self::AccountId>;
 }
 
@@ -476,9 +477,18 @@ where
 		meter: &mut frame_support::weights::WeightMeter,
 		id: &mut [u8; 32],
 	) -> Result<bool, frame_support::traits::ProcessMessageError> {
-		IgnoreWithdrawFuse::<Runtime>::set_withdraw_fuse_active(false);
+		pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::put((0u128, 0u128));
+
 		let result = MessageProcessor::process_message(message, origin, meter, id);
-		IgnoreWithdrawFuse::<Runtime>::set_withdraw_fuse_active(true);
+
+		if let Some((withdrawn, deposited)) = pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::take() {
+			if matches!(result, Ok(true)) {
+				let net = withdrawn.saturating_sub(deposited);
+				if !net.is_zero() {
+					let _ = pallet_circuit_breaker::Pallet::<Runtime>::note_egress(net);
+				}
+			}
+		}
 		result
 	}
 }
@@ -634,7 +644,7 @@ impl Contains<(AssetId, AccountId)> for OmnipoolProtocolAccount {
 }
 
 /// We use `orml::Currencies` for asset transacting. Transfers to active Omnipool accounts are rerouted to the treasury.
-pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
+type BaseLocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	Currencies,
 	UnknownTokens,
 	IsNativeConcrete<AssetId, CurrencyIdConvert>,
@@ -646,3 +656,65 @@ pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	OmnipoolProtocolAccount,
 	TreasuryAccount,
 >;
+
+pub struct LocalAssetTransactor;
+impl TransactAsset for LocalAssetTransactor {
+	fn can_check_in(origin: &Location, what: &Asset, context: &XcmContext) -> XcmResult {
+		BaseLocalAssetTransactor::can_check_in(origin, what, context)
+	}
+
+	fn check_in(origin: &Location, what: &Asset, context: &XcmContext) {
+		BaseLocalAssetTransactor::check_in(origin, what, context)
+	}
+
+	fn can_check_out(dest: &Location, what: &Asset, context: &XcmContext) -> XcmResult {
+		BaseLocalAssetTransactor::can_check_out(dest, what, context)
+	}
+
+	fn check_out(dest: &Location, what: &Asset, context: &XcmContext) {
+		BaseLocalAssetTransactor::check_out(dest, what, context)
+	}
+
+	fn deposit_asset(what: &Asset, who: &Location, context: Option<&XcmContext>) -> XcmResult {
+		BaseLocalAssetTransactor::deposit_asset(what, who, context)
+	}
+
+	fn withdraw_asset(
+		what: &Asset,
+		who: &Location,
+		maybe_context: Option<&XcmContext>,
+	) -> Result<xcm_executor::AssetsInHolding, XcmError> {
+		if pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::exists() {
+			if let (Some(asset_id), Some(amount)) = (
+				CurrencyIdConvert::convert(what.clone()),
+				IsNativeConcrete::<AssetId, CurrencyIdConvert>::matches_fungible(what),
+			) {
+				crate::circuit_breaker::WithdrawCircuitBreaker::<NativeAssetId>::ensure_inbound_xcm_withdraw_can_proceed(
+					asset_id,
+					amount,
+				)
+				.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
+			}
+		}
+
+		BaseLocalAssetTransactor::withdraw_asset(what, who, maybe_context)
+	}
+
+	fn internal_transfer_asset(
+		asset: &Asset,
+		from: &Location,
+		to: &Location,
+		context: &XcmContext,
+	) -> Result<xcm_executor::AssetsInHolding, XcmError> {
+		BaseLocalAssetTransactor::internal_transfer_asset(asset, from, to, context)
+	}
+
+	fn transfer_asset(
+		asset: &Asset,
+		from: &Location,
+		to: &Location,
+		context: &XcmContext,
+	) -> Result<xcm_executor::AssetsInHolding, XcmError> {
+		BaseLocalAssetTransactor::transfer_asset(asset, from, to, context)
+	}
+}

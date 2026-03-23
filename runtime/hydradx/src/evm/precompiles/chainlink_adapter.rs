@@ -62,7 +62,7 @@ where
 	fn execute(handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		let address = handle.code_address();
 		if let Some((asset_id_a, asset_id_b, period, source)) = decode_oracle_address(address) {
-			log::debug!(target: "evm", "chainlink: asset_id_a: {:?}, asset_id_b: {:?}, period: {:?}, source: {:?}", asset_id_a, asset_id_b, period, source);
+			log::debug!(target: "evm", "chainlink: asset_id_a: {asset_id_a:?}, asset_id_b: {asset_id_b:?}, period: {period:?}, source: {source:?}");
 
 			let selector = handle.read_selector()?;
 
@@ -128,7 +128,7 @@ where
 				},
 			)?;
 
-			log::debug!(target: "evm", "chainlink: base asset: {:?}, quote asset: {:?}, price: {:?}, source {:?}", asset_id_a, asset_id_b, price, source);
+			log::debug!(target: "evm", "chainlink: base asset: {asset_id_a:?}, quote asset: {asset_id_b:?}, price: {price:?}, source {source:?}");
 			price
 		}
 		// special case: all Omnipool prices are quoted with LRNA asset
@@ -171,7 +171,7 @@ where
 			.map_err(|_| PrecompileFailure::Error {
 				exit_status: pallet_evm::ExitError::Other("Price not available".into()),
 			})?;
-			log::debug!(target: "evm", "chainlink: base asset: {:?}, quote asset: {:?}, price: {:?}, source {:?}", asset_id_a, asset_id_b, price, source);
+			log::debug!(target: "evm", "chainlink: base asset: {asset_id_a:?}, quote asset: {asset_id_b:?}, price: {price:?}, source {source:?}");
 			price
 		};
 

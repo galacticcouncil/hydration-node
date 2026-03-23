@@ -2,10 +2,10 @@ use crate::evm::{create_dispatch_handle, gas_price};
 use crate::polkadot_test_net::*;
 use crate::utils::accounts::MockAccount;
 use fp_evm::PrecompileSet;
-use frame_support::assert_ok;
 use frame_support::dispatch::{
 	extract_actual_pays_fee, extract_actual_weight, GetDispatchInfo, Pays, PostDispatchInfo,
 };
+use frame_support::{assert_noop, assert_ok};
 use hydradx_runtime::evm::precompiles::{HydraDXPrecompiles, DISPATCH_ADDR};
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
@@ -38,6 +38,10 @@ fn pad_to_32_bytes(bytes: &[u8]) -> [u8; 32] {
 
 fn testnet_manager() -> AccountId {
 	pad_to_32_bytes(testnet_manager_address().as_bytes()).into()
+}
+
+fn emergency_admin_address() -> EvmAddress {
+	hex!["aa7e0000000000000000000000000000000aa7e1"].into()
 }
 
 #[test]
@@ -1176,5 +1180,129 @@ fn dispatch_with_extra_should_charge_more_than_inner_call_when_when_inner_calls_
 		};
 
 		assert!(wrapped_fees > unwrapped_fees);
+	});
+}
+
+#[test]
+fn dispatch_as_emergency_admin_can_pause_aave_reserve() {
+	use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+	use hydradx_runtime::evm::Executor;
+	use hydradx_traits::evm::{CallContext, Erc20Encoding, EVM};
+	use hydradx_traits::router::PoolType::Aave;
+	use hydradx_traits::router::Trade;
+
+	crate::aave_router::with_aave(|| {
+		let pap: EvmAddress = hex!["82db570265c37bE24caf5bc943428a6848c3e9a6"].into();
+
+		// Query PoolConfigurator from PoolAddressesProvider (selector 0x631adfca)
+		let result = Executor::<Runtime>::view(CallContext::new_view(pap), hex!["631adfca"].to_vec(), 100_000);
+		let pool_configurator = EvmAddress::from_slice(&result.value[12..32]);
+
+		// Query ACLManager from PoolAddressesProvider (selector 0x707cd716)
+		let result = Executor::<Runtime>::view(CallContext::new_view(pap), hex!["707cd716"].to_vec(), 100_000);
+		let acl_manager = EvmAddress::from_slice(&result.value[12..32]);
+
+		// Use testnet_manager as aave manager — this address has DEFAULT_ADMIN_ROLE
+		// on the ACLManager in the snapshot
+		assert_ok!(Dispatcher::note_aave_manager(RuntimeOrigin::root(), testnet_manager()));
+
+		// Fund testnet manager with WETH for EVM gas
+		assert_ok!(hydradx_runtime::Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			EVMAccounts::account_id(testnet_manager_address()),
+			WethAssetId::get(),
+			1_000_000_000_000_000_000u128,
+			0
+		));
+
+		// Step 1: Register emergency admin in ACLManager via dispatch_as_aave_manager
+		// addEmergencyAdmin(address) selector = 0x179efb09
+		let mut add_admin_data = hex!["179efb09"].to_vec();
+		add_admin_data.extend_from_slice(&[0u8; 12]);
+		add_admin_data.extend_from_slice(emergency_admin_address().as_bytes());
+
+		let add_admin_call = Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
+			source: testnet_manager_address(),
+			target: acl_manager,
+			input: add_admin_data,
+			gas_limit: 200_000,
+			value: U256::zero(),
+			max_fee_per_gas: U256::from(233_460_000),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+			authorization_list: vec![],
+		}));
+
+		assert_ok!(Dispatcher::dispatch_as_aave_manager(
+			RuntimeOrigin::root(),
+			add_admin_call
+		));
+
+		// Verify emergency admin was registered
+		// isEmergencyAdmin(address) selector = 0x2500f2b6
+		let mut check_data = hex!["2500f2b6"].to_vec();
+		check_data.extend_from_slice(&[0u8; 12]);
+		check_data.extend_from_slice(emergency_admin_address().as_bytes());
+		let result = Executor::<Runtime>::view(CallContext::new_view(acl_manager), check_data, 100_000);
+		assert!(
+			result.value.iter().any(|&x| x != 0),
+			"Emergency admin should be registered in ACLManager"
+		);
+
+		// Step 2: Fund emergency admin with WETH for EVM gas
+		assert_ok!(hydradx_runtime::Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			EVMAccounts::account_id(emergency_admin_address()),
+			WethAssetId::get(),
+			1_000_000_000_000_000_000u128,
+			0
+		));
+
+		// Step 3: Pause DOT reserve via dispatch_as_emergency_admin
+		// setReservePause(address,bool) selector = 0x48d9fba9
+		let dot_evm_address = HydraErc20Mapping::encode_evm_address(crate::aave_router::DOT);
+		let mut pause_data = hex!["48d9fba9"].to_vec();
+		pause_data.extend_from_slice(&[0u8; 12]);
+		pause_data.extend_from_slice(dot_evm_address.as_bytes());
+		pause_data.extend_from_slice(&[0u8; 31]);
+		pause_data.push(1u8); // true = paused
+
+		let pause_call = Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
+			source: emergency_admin_address(),
+			target: pool_configurator,
+			input: pause_data,
+			gas_limit: 500_000,
+			value: U256::zero(),
+			max_fee_per_gas: U256::from(233_460_000),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+			authorization_list: vec![],
+		}));
+
+		assert_ok!(Dispatcher::dispatch_as_emergency_admin(
+			RuntimeOrigin::root(),
+			pause_call
+		));
+
+		// Step 4: Try to supply DOT — should fail because the reserve is paused
+		assert_noop!(
+			Router::sell(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				crate::aave_router::DOT,
+				crate::aave_router::ADOT,
+				10_u128.pow(10), // 1 DOT
+				0,
+				vec![Trade {
+					pool: Aave,
+					asset_in: crate::aave_router::DOT,
+					asset_out: crate::aave_router::ADOT,
+				}]
+				.try_into()
+				.unwrap(),
+			),
+			pallet_dispatcher::Error::<Runtime>::AaveReservePaused
+		);
 	});
 }
