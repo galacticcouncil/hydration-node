@@ -503,6 +503,10 @@ pub mod hydra {
 		let btc_amount = 1_000_000_000u128;
 		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		let gigapot = pallet_gigahdx::Pallet::<hydradx_runtime::Runtime>::gigapot_account_id();
+		let giga_reward_pot = pallet_gigahdx_voting::Pallet::<hydradx_runtime::Runtime>::giga_reward_pot_account();
+		let fee_processor_pot = pallet_fee_processor::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		let referrals_pot = pallet_referrals::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 
 		let existential_deposit = NativeExistentialDeposit::get();
 
@@ -516,6 +520,10 @@ pub mod hydra {
 					(omnipool_account.clone(), native_amount),
 					(vesting_account(), 10_000 * UNITS),
 					(staking_account, UNITS),
+					(gigapot, UNITS),
+					(giga_reward_pot, UNITS),
+					(fee_processor_pot, UNITS),
+					(referrals_pot, UNITS),
 				],
 				dev_accounts: None,
 			},
