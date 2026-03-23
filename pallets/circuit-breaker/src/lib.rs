@@ -161,6 +161,7 @@ pub mod pallet {
 			let _ = <AllowedAddLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
 			let _ = <AllowedRemoveLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
 			IgnoreWithdrawLimit::<T>::kill();
+			XcmEgressBuffer::<T>::kill();
 		}
 
 		fn integrity_test() {
@@ -356,6 +357,13 @@ pub mod pallet {
 	/// Overrides for global asset categorization.
 	pub type GlobalAssetOverrides<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, GlobalAssetCategory, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::whitelist_storage]
+	#[pallet::getter(fn xcm_egress_buffer)]
+	/// Per-XCM-message buffer of (withdrawn_hdx, deposited_hdx).
+	/// None means buffer is inactive (not inside XCM message processing).
+	pub type XcmEgressBuffer<T: Config> = StorageValue<_, (T::Balance, T::Balance), OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -787,6 +795,35 @@ impl<T: Config> Pallet<T> {
 
 		WithdrawLimitAccumulator::<T>::put((new_current, now));
 
+		Ok(())
+	}
+
+	/// Conservative pre-check used by XCM before a local withdraw happens.
+	/// `buffered_egress` is the amount already buffered as withdrawn within the current XCM message.
+	/// This intentionally ignores buffered deposits/refunds so that the first over-limit message
+	/// is blocked before any local funds move.
+	pub fn ensure_xcm_withdraw_can_proceed(amount: T::Balance, buffered_egress: T::Balance) -> DispatchResult {
+		let Some(GlobalWithdrawLimitParameters { limit, window }) = Self::global_withdraw_limit_config() else {
+			return Ok(());
+		};
+
+		let now = Self::timestamp_now();
+		if Self::is_lockdown_at(now) {
+			return Err(Error::<T>::WithdrawLockdownActive.into());
+		}
+
+		Self::try_to_decay_withdraw_limit_accumulator();
+		if window < 1 {
+			return Ok(());
+		}
+
+		let (current, _) = Self::withdraw_limit_accumulator();
+		let projected = current
+			.checked_add(&buffered_egress)
+			.and_then(|v| v.checked_add(&amount))
+			.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(projected < limit, Error::<T>::GlobalWithdrawLimitExceeded);
 		Ok(())
 	}
 

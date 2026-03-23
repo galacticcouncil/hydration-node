@@ -1044,6 +1044,7 @@ pub fn assert_xcm_message_processing_failed() {
 	assert!(hydradx_runtime::System::events().iter().any(|r| matches!(
 		r.event,
 		hydradx_runtime::RuntimeEvent::MessageQueue(pallet_message_queue::Event::Processed { success: false, .. })
+			| hydradx_runtime::RuntimeEvent::MessageQueue(pallet_message_queue::Event::ProcessingFailed { .. })
 	)));
 }
 
