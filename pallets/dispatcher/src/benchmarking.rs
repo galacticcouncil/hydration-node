@@ -54,6 +54,13 @@ benchmarks! {
 	note_aave_manager {
 	}: _(RawOrigin::Root, Pallet::<T>::aave_manager_account())
 
+	dispatch_as_emergency_admin {
+		let n in 1 .. 10_000;
+		let remark = sp_std::vec![1u8; n as usize];
+
+		let call: <T as pallet::Config>::RuntimeCall = frame_system::Call::remark { remark }.into();
+	}: _(RawOrigin::Root, Box::new(call))
+
 	dispatch_with_extra_gas{
 		let n in 1 .. 10_000;
 		let remark = sp_std::vec![1u8; n as usize];

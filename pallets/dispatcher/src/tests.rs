@@ -181,6 +181,51 @@ fn decrease_gas_limit_should_work() {
 	});
 }
 
+#[test]
+fn dispatch_as_emergency_admin_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let call = Box::new(RuntimeCall::Tokens(orml_tokens::Call::transfer {
+			dest: ALICE,
+			currency_id: HDX,
+			amount: 1_000,
+		}));
+
+		let call_hash = BlakeTwo256::hash_of(&call);
+		let admin_balance_before = Tokens::free_balance(HDX, &crate::mock::EmergencyAdminAccount::get());
+
+		assert_ok!(Dispatcher::dispatch_as_emergency_admin(RuntimeOrigin::root(), call));
+
+		let admin_balance_after = Tokens::free_balance(HDX, &crate::mock::EmergencyAdminAccount::get());
+
+		assert_eq!(admin_balance_after, admin_balance_before - 1_000);
+
+		expect_events(vec![Event::EmergencyAdminCallDispatched {
+			call_hash,
+			result: Ok(PostDispatchInfo {
+				actual_weight: None,
+				pays_fee: Pays::Yes,
+			}),
+		}
+		.into()]);
+	});
+}
+
+#[test]
+fn dispatch_as_emergency_admin_should_fail_when_bad_origin() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call = Box::new(RuntimeCall::System(frame_system::Call::remark_with_event {
+			remark: vec![1],
+		}));
+
+		assert_noop!(
+			Dispatcher::dispatch_as_emergency_admin(RuntimeOrigin::signed(ALICE), call),
+			DispatchError::BadOrigin
+		);
+		expect_events(vec![]);
+	});
+}
+
 mod hyperbridge_cleanup_tests {
 	use super::*;
 	use frame_support::storage::unhashed;

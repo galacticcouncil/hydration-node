@@ -124,8 +124,7 @@ fn selling_collateral_for_hollar_equals_buying_hollar_with_collateral() {
 		// Compare: collateral_amount should equal collateral_for_buy
 		assert_eq!(
 			collateral_amount, collateral_for_buy,
-			"Selling {} DAI for Hollar should equal buying {} Hollar with DAI",
-			collateral_amount, hollar_from_sell
+			"Selling {collateral_amount} DAI for Hollar should equal buying {hollar_from_sell} Hollar with DAI",
 		);
 	});
 }
@@ -185,8 +184,7 @@ fn selling_hollar_for_collateral_equals_buying_collateral_with_hollar() {
 		// Compare: hollar_amount should equal hollar_for_buy
 		assert_eq!(
 			hollar_amount, hollar_for_buy,
-			"Selling {} Hollar for DAI should equal buying {} DAI with Hollar",
-			hollar_amount, collateral_from_sell
+			"Selling {hollar_amount} Hollar for DAI should equal buying {collateral_from_sell} DAI with Hollar",
 		);
 	});
 }

@@ -1438,10 +1438,7 @@ fn sell_with_slip_invariant_holds() {
 	assert_eq!(
 		delta_hub_in - total_protocol_fee,
 		d_net,
-		"Invariant: delta_hub_in({}) - protocol_fee({}) should equal D_net({})",
-		delta_hub_in,
-		total_protocol_fee,
-		d_net
+		"Invariant: delta_hub_in({delta_hub_in}) - protocol_fee({total_protocol_fee}) should equal D_net({d_net})",
 	);
 }
 
@@ -1627,19 +1624,11 @@ fn buy_sell_roundtrip_with_slip() {
 
 	// Round-trip: cost should be approximately equal to original sell_amount
 	// With zero fees, the only difference is rounding (a few units at most)
-	let diff = if cost_to_buy > sell_amount {
-		cost_to_buy - sell_amount
-	} else {
-		sell_amount - cost_to_buy
-	};
+	let diff = cost_to_buy.abs_diff(sell_amount);
 	// Allow tolerance for multi-step Permill rounding (quadratic inversion + forward check)
 	assert!(
 		diff <= UNIT / 10,
-		"Round-trip should be approximately equal: sold {} got {} cost_to_buy_back {} diff {}",
-		sell_amount,
-		tokens_received,
-		cost_to_buy,
-		diff
+		"Round-trip should be approximately equal: sold {sell_amount} got {tokens_received} cost_to_buy_back {cost_to_buy} diff {diff}",
 	);
 }
 
@@ -1696,11 +1685,7 @@ fn buy_inversion_linear_only() {
 	// Forward sell should give approximately the desired output.
 	// Integer truncation across 5+ steps (quadratic, slip fees, AMM) can compound,
 	// so the forward result may be off by a few units in either direction.
-	let diff = if *forward.asset_out.delta_reserve >= amount_to_buy {
-		*forward.asset_out.delta_reserve - amount_to_buy
-	} else {
-		amount_to_buy - *forward.asset_out.delta_reserve
-	};
+	let diff = (*forward.asset_out.delta_reserve).abs_diff(amount_to_buy);
 	assert!(
 		diff <= UNIT / 1000,
 		"Forward check: sell {} should give ≈ {} got {} diff {}",
@@ -1763,11 +1748,7 @@ fn buy_inversion_quadratic() {
 	.unwrap();
 
 	// Forward sell should give approximately the desired output.
-	let diff = if *forward.asset_out.delta_reserve >= amount_to_buy {
-		*forward.asset_out.delta_reserve - amount_to_buy
-	} else {
-		amount_to_buy - *forward.asset_out.delta_reserve
-	};
+	let diff = (*forward.asset_out.delta_reserve).abs_diff(amount_to_buy);
 	assert!(
 		diff <= UNIT / 1000,
 		"Forward check: sell {} should give ≈ {} got {} diff {}",
@@ -1872,19 +1853,11 @@ fn sell_hub_buy_hub_roundtrip_with_slip() {
 	let total_hub_cost = *buy_result.asset.delta_hub_reserve;
 
 	// Round-trip: cost should be approximately equal to original hub_amount
-	let diff = if total_hub_cost > hub_amount {
-		total_hub_cost - hub_amount
-	} else {
-		hub_amount - total_hub_cost
-	};
+	let diff = total_hub_cost.abs_diff(hub_amount);
 
 	assert!(
 		diff <= UNIT / 1000,
-		"Hub round-trip should be approximately equal: sold {} got tokens {} cost_back {} diff {}",
-		hub_amount,
-		tokens_received,
-		total_hub_cost,
-		diff
+		"Hub round-trip should be approximately equal: sold {hub_amount} got tokens {tokens_received} cost_back {total_hub_cost} diff {diff}",
 	);
 }
 
@@ -1899,19 +1872,10 @@ fn assert_within_one(rust_val: u128, python_val: u128, label: &str) {
 
 /// Helper to assert within specified tolerance
 fn assert_within_tolerance(rust_val: u128, python_val: u128, tolerance: u128, label: &str) {
-	let diff = if rust_val >= python_val {
-		rust_val - python_val
-	} else {
-		python_val - rust_val
-	};
+	let diff = rust_val.abs_diff(python_val);
 	assert!(
 		diff <= tolerance,
-		"Cross-validation mismatch for {}: rust={} python={} diff={} (tolerance=±{})",
-		label,
-		rust_val,
-		python_val,
-		diff,
-		tolerance
+		"Cross-validation mismatch for {label}: rust={rust_val} python={python_val} diff={diff} (tolerance=±{tolerance})",
 	);
 }
 
@@ -2057,11 +2021,7 @@ fn cross_validate_scenario3_buy_dot_with_hdx() {
 	// Buy inversion has multi-step rounding → allow wider tolerance (UNIT/1000 = 10^9)
 	let tolerance: u128 = UNIT / 1000;
 
-	let diff_sell = if *result.asset_in.delta_reserve >= py_sell_quantity {
-		*result.asset_in.delta_reserve - py_sell_quantity
-	} else {
-		py_sell_quantity - *result.asset_in.delta_reserve
-	};
+	let diff_sell = (*result.asset_in.delta_reserve).abs_diff(py_sell_quantity);
 	assert!(
 		diff_sell <= tolerance,
 		"sell_quantity: rust={} python={} diff={}",
@@ -2070,11 +2030,7 @@ fn cross_validate_scenario3_buy_dot_with_hdx() {
 		diff_sell
 	);
 
-	let diff_hub = if *result.asset_in.delta_hub_reserve >= py_delta_hub_in {
-		*result.asset_in.delta_hub_reserve - py_delta_hub_in
-	} else {
-		py_delta_hub_in - *result.asset_in.delta_hub_reserve
-	};
+	let diff_hub = (*result.asset_in.delta_hub_reserve).abs_diff(py_delta_hub_in);
 	assert!(
 		diff_hub <= tolerance,
 		"delta_hub_in: rust={} python={} diff={}",
@@ -2083,11 +2039,7 @@ fn cross_validate_scenario3_buy_dot_with_hdx() {
 		diff_hub
 	);
 
-	let diff_dnet = if *result.asset_out.delta_hub_reserve >= py_d_net {
-		*result.asset_out.delta_hub_reserve - py_d_net
-	} else {
-		py_d_net - *result.asset_out.delta_hub_reserve
-	};
+	let diff_dnet = (*result.asset_out.delta_hub_reserve).abs_diff(py_d_net);
 	assert!(
 		diff_dnet <= tolerance,
 		"D_net: rust={} python={} diff={}",
@@ -2109,11 +2061,7 @@ fn cross_validate_scenario3_buy_dot_with_hdx() {
 	.unwrap();
 
 	// Forward check: allow small rounding tolerance (multi-step integer truncation)
-	let fwd_diff = if *forward.asset_out.delta_reserve >= 1000 * UNIT {
-		*forward.asset_out.delta_reserve - 1000 * UNIT
-	} else {
-		1000 * UNIT - *forward.asset_out.delta_reserve
-	};
+	let fwd_diff = (*forward.asset_out.delta_reserve).abs_diff(1000 * UNIT);
 	assert!(
 		fwd_diff <= UNIT / 1000,
 		"Forward check: sell {} should give ≈ 1000 DOT, got {} diff {}",
@@ -2344,9 +2292,7 @@ fn cross_validate_scenario6_buy_hub_with_prior_delta() {
 	let cost_fresh = *r2_fresh.asset.delta_hub_reserve;
 	assert!(
 		cost_with_delta > cost_fresh,
-		"Prior positive delta should increase hub buy cost: {} > {}",
-		cost_with_delta,
-		cost_fresh
+		"Prior positive delta should increase hub buy cost: {cost_with_delta} > {cost_fresh}",
 	);
 }
 
@@ -2485,11 +2431,7 @@ fn cross_validate_scenario8_buy_after_prior_sell() {
 	)
 	.unwrap();
 
-	let fwd_diff = if *forward.asset_out.delta_reserve >= 500 * UNIT {
-		*forward.asset_out.delta_reserve - 500 * UNIT
-	} else {
-		500 * UNIT - *forward.asset_out.delta_reserve
-	};
+	let fwd_diff = (*forward.asset_out.delta_reserve).abs_diff(500 * UNIT);
 	assert!(
 		fwd_diff <= UNIT / 1000,
 		"Forward check: sell {} should give ≈500 DOT, got {} diff {}",
@@ -2607,11 +2549,7 @@ fn cross_validate_scenario9_buy_opposing_flow() {
 	)
 	.unwrap();
 
-	let fwd_diff = if *forward.asset_out.delta_reserve >= 5_000 * UNIT {
-		*forward.asset_out.delta_reserve - 5_000 * UNIT
-	} else {
-		5_000 * UNIT - *forward.asset_out.delta_reserve
-	};
+	let fwd_diff = (*forward.asset_out.delta_reserve).abs_diff(5_000 * UNIT);
 	assert!(
 		fwd_diff <= UNIT / 1000,
 		"Forward check: sell {} DOT should give ≈5000 HDX, got {} diff {}",
@@ -3016,7 +2954,7 @@ fn multi_trade_sequence_order_a() {
 		// Protocol fees are burned (removed from system) so hub_reserve = Q0 + delta is only
 		// approximate — the delta reflects D_net (what actually entered the pool), not the full
 		// delta_hub_reserve_in. The relationship is exact per construction.
-		assert_eq!(hub, expected, "{} hub_reserve vs Q0+delta mismatch", name);
+		assert_eq!(hub, expected, "{name} hub_reserve vs Q0+delta mismatch");
 	};
 	check_hub_delta("HDX", result.hdx_hub, 10_000_000 * UNIT, result.hdx_delta);
 	check_hub_delta("DOT", result.dot_hub, 5_000_000 * UNIT, result.dot_delta);
@@ -3037,7 +2975,7 @@ fn multi_trade_sequence_order_b() {
 	// Hub-delta invariants
 	let check_hub_delta = |name: &str, hub: Balance, q0: Balance, delta: SignedBalance| {
 		let expected = delta.add_to_unsigned(q0).expect("delta + q0 should not underflow");
-		assert_eq!(hub, expected, "{} hub_reserve vs Q0+delta mismatch", name);
+		assert_eq!(hub, expected, "{name} hub_reserve vs Q0+delta mismatch");
 	};
 	check_hub_delta("HDX", result.hdx_hub, 10_000_000 * UNIT, result.hdx_delta);
 	check_hub_delta("DOT", result.dot_hub, 5_000_000 * UNIT, result.dot_delta);

@@ -84,8 +84,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_broadcast::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Registry support
 		type AssetRegistry: Create<Balance, AssetId = AssetId, Error = DispatchError>;
 
@@ -741,9 +739,7 @@ impl<T: Config> Pallet<T> {
 
 			if r.is_err() {
 				log::trace!(
-				target: "xyk::remova_liquidity", "XYK: Failed to remove account {:?} from dust-removal whitelist. Reason {:?}",
-					pair_account,
-				r
+				target: "xyk::remova_liquidity", "XYK: Failed to remove account {pair_account:?} from dust-removal whitelist. Reason {r:?}",
 				);
 			}
 
