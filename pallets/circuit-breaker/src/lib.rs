@@ -625,7 +625,7 @@ pub mod pallet {
 			let last_state = AssetLockdownState::<T>::get(asset_id);
 
 			if let Some(LockdownStatus::Locked(until)) = last_state {
-				if until >= current_block {
+				if until > current_block {
 					return Err(Error::<T>::AssetInLockdown.into());
 				}
 			}
@@ -830,6 +830,7 @@ impl<T: Config> Pallet<T> {
 	pub fn note_deposit(amount: T::Balance) {
 		let now = Self::timestamp_now();
 		if !Self::is_lockdown_at(now) {
+			Self::try_to_decay_withdraw_limit_accumulator();
 			let (current, _) = Self::withdraw_limit_accumulator();
 			let new_current = current.saturating_sub(amount);
 
