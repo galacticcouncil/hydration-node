@@ -156,7 +156,6 @@ impl hydradx_traits::gigahdx::TrackRewardConfig for RuntimeTrackRewards {
 // ---------------------------------------------------------------------------
 
 impl pallet_gigahdx::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Runtime>;
 	type LockableCurrency = Currencies;
 	type MoneyMarket = AaveMoneyMarket;
@@ -176,7 +175,6 @@ impl pallet_gigahdx::Config for Runtime {
 // ---------------------------------------------------------------------------
 
 impl pallet_gigahdx_voting::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type NativeCurrency = Balances;
 	type Referenda = RuntimeReferendumInfo;
 	type TrackRewards = RuntimeTrackRewards;
@@ -336,7 +334,6 @@ impl hydradx_traits::gigahdx::FeeReceiver<AccountId, Balance> for ReferralsFeeRe
 }
 
 impl pallet_fee_processor::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
 	type Convert = ConvertViaOmnipool<Omnipool>;

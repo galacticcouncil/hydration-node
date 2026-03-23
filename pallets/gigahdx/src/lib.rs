@@ -66,9 +66,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Multi-asset currency supporting transfers, inspection, minting/burning.
 		type Currency: Mutate<Self::AccountId, AssetId = u32, Balance = Balance>
 			+ Inspect<Self::AccountId, AssetId = u32, Balance = Balance>;

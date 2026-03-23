@@ -62,9 +62,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_gigahdx::Config {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Native currency (HDX via pallet-balances). Used for HDX portion of voting locks.
 		type NativeCurrency: frame_support::traits::LockableCurrency<Self::AccountId, Moment = BlockNumberFor<Self>, Balance = Balance>
 			+ frame_support::traits::ReservableCurrency<Self::AccountId, Balance = Balance>
