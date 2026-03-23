@@ -204,6 +204,28 @@ fn deposit_limit_should_block_multiple_small_deposits_within_the_same_period() {
 }
 
 #[test]
+fn can_mint_should_include_pending_amount_within_period() {
+	ExtBuilder::default()
+		.with_deposit_period(10)
+		.with_asset_limit(ASSET_ID, 100)
+		.build()
+		.execute_with(|| {
+			System::set_block_number(2);
+			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 60));
+
+			System::set_block_number(5);
+			assert!(
+				!crate::fuses::issuance::IssuanceIncreaseFuse::<Test>::can_mint(ASSET_ID, 50),
+				"`can_mint` must reject deposits that would push the current-period issuance above the limit"
+			);
+			assert!(
+				crate::fuses::issuance::IssuanceIncreaseFuse::<Test>::can_mint(ASSET_ID, 40),
+				"`can_mint` should still allow a deposit that exactly fits within the remaining headroom"
+			);
+		});
+}
+
+#[test]
 fn deposit_limit_should_trigger_when_limit_is_exactly_met_then_exceeded() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
