@@ -625,7 +625,7 @@ pub mod pallet {
 			let last_state = AssetLockdownState::<T>::get(asset_id);
 
 			if let Some(LockdownStatus::Locked(until)) = last_state {
-				if until >= current_block {
+				if until > current_block {
 					return Err(Error::<T>::AssetInLockdown.into());
 				}
 			}
