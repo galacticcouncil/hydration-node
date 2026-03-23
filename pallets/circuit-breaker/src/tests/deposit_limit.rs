@@ -226,6 +226,30 @@ fn can_mint_should_include_pending_amount_within_period() {
 }
 
 #[test]
+fn can_mint_should_match_deposit_outcome_within_period() {
+	ExtBuilder::default()
+		.with_deposit_period(10)
+		.with_asset_limit(ASSET_ID, 100)
+		.build()
+		.execute_with(|| {
+			System::set_block_number(2);
+			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 60));
+			assert_balance!(ALICE, ASSET_ID, 60);
+
+			System::set_block_number(5);
+			assert!(
+				!crate::fuses::issuance::IssuanceIncreaseFuse::<Test>::can_mint(ASSET_ID, 50),
+				"`can_mint` must reject the same deposit that would exceed the current-period limit"
+			);
+
+			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 50));
+			assert_balance!(ALICE, ASSET_ID, 100);
+			let state = AssetLockdownState::<Test>::get(ASSET_ID).unwrap();
+			assert_eq!(state, LockdownStatus::Locked(15));
+		});
+}
+
+#[test]
 fn deposit_limit_should_trigger_when_limit_is_exactly_met_then_exceeded() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
