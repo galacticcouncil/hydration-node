@@ -103,7 +103,6 @@ impl Contains<AssetKind> for AssetTypeWhitelist {
 }
 
 impl pallet_bonds::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Currency = Tokens;
 	type AssetRegistry = DummyRegistry<Test>;
@@ -151,7 +150,6 @@ impl frame_system::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;

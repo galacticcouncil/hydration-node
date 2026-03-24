@@ -15,7 +15,7 @@ impl<T: pallet::Config> OnRuntimeUpgrade for SetSixSecBlocksSince<T> {
 				*block_height = current_block_height
 			}
 
-			log::info!("SixSecBlocksSince set to: {:?}", current_block_height);
+			log::info!("SixSecBlocksSince set to: {current_block_height:?}");
 		});
 
 		T::DbWeight::get().reads_writes(1, 1)

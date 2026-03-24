@@ -126,8 +126,7 @@ pub mod v2 {
 
 			log::info!(
 				target: "runtime::duster",
-				"Migrating {} accounts from AccountBlacklist to AccountWhitelist",
-				migrated_count
+				"Migrating {migrated_count} accounts from AccountBlacklist to AccountWhitelist",
 			);
 
 			// Remove all entries from the old storage
@@ -136,9 +135,7 @@ pub mod v2 {
 
 			log::info!(
 				target: "runtime::duster",
-				"Migration completed: {} accounts migrated, {} old entries removed",
-				migrated_count,
-				removed_keys
+				"Migration completed: {migrated_count} accounts migrated, {removed_keys} old entries removed",
 			);
 
 			T::DbWeight::get().reads_writes(reads, writes)
@@ -157,8 +154,7 @@ pub mod v2 {
 			let whitelist_count = crate::AccountWhitelist::<T>::iter().count();
 			log::info!(
 				target: "runtime::duster",
-				"Duster v2 migration: POST checks successful! AccountWhitelist has {} entries",
-				whitelist_count
+				"Duster v2 migration: POST checks successful! AccountWhitelist has {whitelist_count} entries",
 			);
 			Ok(())
 		}

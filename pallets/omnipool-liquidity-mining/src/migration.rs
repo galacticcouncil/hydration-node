@@ -28,8 +28,7 @@ pub fn migrate_to_v1<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> fr
 
 	log::info!(
 		target: "runtime::omnipool-liquidity-mining",
-		"Running migration storage v1 for omnipool-liquidity-mining with storage version {:?}",
-		on_chain_storage_version,
+		"Running migration storage v1 for omnipool-liquidity-mining with storage version {on_chain_storage_version:?}",
 	);
 
 	if on_chain_storage_version < 1 {
@@ -50,15 +49,13 @@ pub fn migrate_to_v1<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> fr
 
 				log::info!(
 					target: "runtime::omnipool-liquidity-mining",
-					"Running migration storage v1 for omnipool-liquidity-mining with storage version {:?} was complete",
-					on_chain_storage_version,
+					"Running migration storage v1 for omnipool-liquidity-mining with storage version {on_chain_storage_version:?} was complete",
 				);
 			}
 			Err(e) => {
 				log::error!(
 					target: "runtime: omnipool-liquidity-mining",
-					"Error to create NFT collection: {:?}",
-					e
+					"Error to create NFT collection: {e:?}",
 				);
 				weight = weight.saturating_add(T::DbWeight::get().reads(1));
 			}
@@ -69,8 +66,7 @@ pub fn migrate_to_v1<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> fr
 	} else {
 		log::warn!(
 			target: "runtime::omnipool-liquidity-mining",
-			"Attempted to apply migration to v1 but failed because storage version is {:?}",
-			on_chain_storage_version,
+			"Attempted to apply migration to v1 but failed because storage version is {on_chain_storage_version:?}",
 		);
 		weight
 	}

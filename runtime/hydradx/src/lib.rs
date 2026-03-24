@@ -129,7 +129,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 399,
+	spec_version: 403,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1310,10 +1310,29 @@ impl_runtime_apis! {
 						]);
 			}
 
-			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Assets, Parent, ParentThen, Parachain};
+			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Assets, Parent, ParentThen, Parachain, WeightLimit};
+
+			use primitives::constants::currency::UNITS;
+
+			frame_support::parameter_types! {
+				/// The asset ID for the asset that we use to pay for message delivery fees.
+			pub FeeAssetId: cumulus_primitives_core::AssetId = AssetId(xcm::PolkadotLocation::get());
+			/// The base fee for the message delivery fees.
+			pub const BaseDeliveryFee: u128 = CENTS.saturating_mul(3);
+				pub ExistentialDepositAsset: Option<Asset> = Some((
+					CoreAssetLocation::get(),
+					ExistentialDeposit::get()
+				).into());
+			}
+
+			pub type PriceForParentDelivery = ExponentialPrice<FeeAssetId, BaseDeliveryFee, TransactionByteFee, ParachainSystem>;
 
 			impl pallet_xcm::benchmarking::Config for Runtime {
-				type DeliveryHelper = ();
+				type DeliveryHelper = cumulus_primitives_utility::ToParentDeliveryHelper<
+					xcm::XcmConfig,
+					ExistentialDepositAsset,
+					PriceForParentDelivery,
+				>;
 
 				fn reachable_dest() -> Option<Location> {
 					Some(Parent.into())
@@ -1378,21 +1397,6 @@ impl_runtime_apis! {
 					}
 				}
 			}
-
-			use primitives::constants::currency::UNITS;
-
-			frame_support::parameter_types! {
-				/// The asset ID for the asset that we use to pay for message delivery fees.
-			pub FeeAssetId: cumulus_primitives_core::AssetId = AssetId(xcm::PolkadotLocation::get());
-			/// The base fee for the message delivery fees.
-			pub const BaseDeliveryFee: u128 = CENTS.saturating_mul(3);
-				pub ExistentialDepositAsset: Option<Asset> = Some((
-					CoreAssetLocation::get(),
-					ExistentialDeposit::get()
-				).into());
-			}
-
-			pub type PriceForParentDelivery = ExponentialPrice<FeeAssetId, BaseDeliveryFee, TransactionByteFee, ParachainSystem>;
 
 			impl pallet_xcm_benchmarks::Config for Runtime {
 				type XcmConfig = xcm::XcmConfig;
@@ -1491,11 +1495,11 @@ impl_runtime_apis! {
 					Ok((origin, ticket, assets))
 				}
 
-				fn fee_asset() -> Result<Asset, BenchmarkError> {
-					Ok(Asset {
+				fn worst_case_for_trader() -> Result<(Asset, WeightLimit), BenchmarkError> {
+					Ok((Asset {
 						id: AssetId(CoreAssetLocation::get()),
 						fun: Fungible(UNITS),
-					})
+					}, WeightLimit::Unlimited))
 				}
 
 				fn unlockable_asset() -> Result<(Location, Location, Asset), BenchmarkError> {
