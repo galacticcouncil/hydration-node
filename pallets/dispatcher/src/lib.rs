@@ -119,7 +119,9 @@ pub mod pallet {
 	pub type CleanupEnabled<T: Config> = StorageValue<_, bool, ValueQuery, DefaultCleanupState>;
 
 	#[pallet::type_value]
-	pub fn DefaultCleanupState() -> bool { true }
+	pub fn DefaultCleanupState() -> bool {
+		true
+	}
 
 	/// Current stage of the background ISMP storage cleanup.
 	#[pallet::storage]
