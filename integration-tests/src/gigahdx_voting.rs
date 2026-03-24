@@ -1036,6 +1036,100 @@ fn lock_split_recalculates_when_gigahdx_balance_increases() {
 }
 
 #[test]
+fn liquidation_clears_all_votes_and_records_rewards_only_for_finished() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		let r_a = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r_a,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+		end_referendum();
+
+		let r_b = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r_b,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+
+		assert!(pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_a).is_some());
+		assert!(pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_b).is_some());
+
+		//Act
+		assert_ok!(GigaHdxVoting::prepare_for_liquidation(&alice));
+
+		//Assert
+		assert!(pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_a).is_none());
+		assert!(pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_b).is_none());
+
+
+		let pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
+		assert!(pending.iter().any(|e| e.referenda_id == r_a), "Should have reward for finished referendum A");
+		assert!(!pending.iter().any(|e| e.referenda_id == r_b), "Should NOT have reward for ongoing referendum B");
+	});
+}
+
+#[test]
+fn restake_and_revote_works_after_liquidation() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		let r_a = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r_a,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+
+		assert_ok!(GigaHdxVoting::prepare_for_liquidation(&alice));
+
+		assert!(pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_a).is_none());
+
+		//Act
+		end_referendum();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		let r_b = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r_b,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+
+		//Assert
+		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_b).unwrap();
+		assert_eq!(vote.amount, 50 * UNITS);
+
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 199_009_900_990_099);
+	});
+}
+
+#[test]
 fn received_gigahdx_is_transferable_while_existing_balance_is_locked() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
