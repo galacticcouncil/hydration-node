@@ -775,6 +775,81 @@ fn reward_pot_depletes_across_sequential_referenda() {
 }
 
 #[test]
+fn sequential_reward_claims_give_equal_gigahdx() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			100 * UNITS,
+		));
+
+		let r = begin_referendum();
+
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(100 * UNITS, Conviction::Locked1x),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			r,
+			aye_with_conviction(100 * UNITS, Conviction::Locked1x),
+		));
+
+		end_referendum();
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			Some(0),
+			r,
+		));
+
+		let alice_pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
+		let bob_pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&bob);
+		let alice_reward_hdx = alice_pending[0].reward_amount;
+		let bob_reward_hdx = bob_pending[0].reward_amount;
+
+		//Act - ALICE claims first
+		let rate_before_alice = GigaHdx::exchange_rate();
+		let alice_gigahdx_before = Currencies::free_balance(GIGAHDX, &alice);
+		assert_ok!(GigaHdxVoting::claim_rewards(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+		));
+		let alice_gigahdx_gained = Currencies::free_balance(GIGAHDX, &alice) - alice_gigahdx_before;
+
+		//Act - BOB claims second
+		let rate_before_bob = GigaHdx::exchange_rate();
+		let bob_gigahdx_before = Currencies::free_balance(GIGAHDX, &bob);
+		assert_ok!(GigaHdxVoting::claim_rewards(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+		));
+		let bob_gigahdx_gained = Currencies::free_balance(GIGAHDX, &bob) - bob_gigahdx_before;
+
+		//Assert
+		let alice_conversion_rate = alice_gigahdx_gained * UNITS / alice_reward_hdx;
+		let bob_conversion_rate = bob_gigahdx_gained * UNITS / bob_reward_hdx;
+		assert_eq!(alice_conversion_rate, 990_099_009_900);
+		assert_eq!(bob_conversion_rate, 990_099_009_900);
+		assert_eq!(alice_conversion_rate, bob_conversion_rate)
+	});
+}
+
+#[test]
 fn staking_hooks_still_work() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {

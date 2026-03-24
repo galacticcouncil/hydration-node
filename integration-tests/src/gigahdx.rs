@@ -188,6 +188,101 @@ fn vote_with_only_gigahdx_on_mainnet_snapshot() {
 	});
 }
 
+#[test]
+fn direct_hdx_transfer_to_gigapot_inflates_exchange_rate() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		let alice = sp_runtime::AccountId32::from(ALICE);
+		let bob = sp_runtime::AccountId32::from(BOB);
+		let gigapot = GigaHdx::gigapot_account_id();
+
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), gigapot.clone(), UNITS));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 1_000_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), 1_000_000 * UNITS));
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert_eq!(GigaHdx::exchange_rate(), sp_runtime::FixedU128::from_rational(101, 100));
+
+		//Act
+		assert_ok!(Currencies::transfer(RuntimeOrigin::signed(bob.clone()), gigapot.clone(), HDX, 1_000 * UNITS));
+
+		//Assert
+		let rate_after = GigaHdx::exchange_rate();
+		assert_eq!(rate_after, sp_runtime::FixedU128::from_rational(1101, 100));
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 100 * UNITS));
+		let bob_gigahdx = Currencies::free_balance(GIGAHDX, &bob);
+		assert!(
+			bob_gigahdx < 10 * UNITS,
+			"BOB should receive far fewer GIGAHDX due to inflated rate: got {}",
+			bob_gigahdx
+		);
+
+		let charlie = sp_runtime::AccountId32::from(CHARLIE);
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), charlie.clone(), 1_000 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(charlie), 10 * UNITS));
+	});
+}
+
+#[test]
+fn giga_unstake_works_at_extreme_exchange_rate() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		let alice = sp_runtime::AccountId32::from(ALICE);
+		let gigapot = GigaHdx::gigapot_account_id();
+
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 1_000_000 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 100 * UNITS);
+
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			gigapot.clone(),
+			1_000_000_000_000_000 * UNITS,
+		));
+
+		//Act
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		//Assert
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(positions.len(), 1);
+		assert_eq!(positions[0].amount, 1_000_000_000_000_000 * UNITS);
+	});
+}
+
+#[test]
+fn restake_works_after_full_exit() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		let alice = sp_runtime::AccountId32::from(ALICE);
+		let bob = sp_runtime::AccountId32::from(BOB);
+
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 1_000_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), 1_000_000 * UNITS));
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert_eq!(GigaHdx::total_st_hdx_supply(), 100 * UNITS);
+
+		//Act
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		//Assert
+		assert_eq!(GigaHdx::total_st_hdx_supply(), 0);
+		assert_eq!(GigaHdx::exchange_rate(), sp_runtime::FixedU128::from_u32(1));
+
+		//Act
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 100 * UNITS));
+
+		//Assert
+		assert_eq!(Currencies::free_balance(GIGAHDX, &bob), 100 * UNITS);
+		assert_eq!(GigaHdx::total_st_hdx_supply(), 100 * UNITS);
+	});
+}
+
 /// GIGAHDX can be transferred when not locked by voting.
 #[test]
 fn gigahdx_transfer_succeeds_when_unlocked() {
