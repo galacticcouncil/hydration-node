@@ -304,6 +304,153 @@ fn giga_unstake_blocked_during_ongoing() {
 }
 
 #[test]
+fn giga_unstake_force_removes_finished_votes_and_records_rewards() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+
+		end_referendum();
+
+		//Act
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			50 * UNITS,
+		));
+
+		//Assert
+		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r);
+		assert!(vote.is_none(), "Vote should be force-removed by unstake");
+
+		let pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
+		assert!(!pending.is_empty(), "Rewards should be recorded during force-removal");
+		assert!(pending[0].reward_amount > 0);
+
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(positions.len(), 1);
+		assert!(positions[0].amount > 0);
+
+		assert_ok!(GigaHdxVoting::claim_rewards(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+		));
+
+		let pending_after = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
+		assert!(pending_after.is_empty());
+	});
+}
+
+#[test]
+fn giga_unstake_applies_dynamic_cooldown_from_conviction_lock() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked6x),
+		));
+		end_referendum();
+
+		let block_before_unstake = System::block_number();
+
+		//Act
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			50 * UNITS,
+		));
+
+		//Assert
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(positions.len(), 1);
+		assert_eq!(positions[0].unlock_at, block_before_unstake + 222 * DAYS);
+	});
+}
+
+#[test]
+fn interleaved_stake_unstake_vote_operations() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 100 * UNITS);
+
+		//Act - partial unstake
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			40 * UNITS,
+		));
+
+		//Assert
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(positions.len(), 1);
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 60 * UNITS);
+
+		//Act - stake more
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		//Assert
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 159_009_900_990_099);
+
+		//Act - vote with new balance, then unstake after referendum
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+		end_referendum();
+
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			50 * UNITS,
+		));
+
+		//Assert
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(positions.len(), 2);
+
+		let pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
+		assert!(!pending.is_empty());
+
+		assert!(Currencies::free_balance(GIGAHDX, &alice) > 0);
+	});
+}
+
+#[test]
 fn combined_voting_power() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
