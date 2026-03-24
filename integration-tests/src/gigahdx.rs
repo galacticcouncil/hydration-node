@@ -1,14 +1,18 @@
 use crate::polkadot_test_net::hydra_live_ext;
 use crate::polkadot_test_net::{TestNet, ALICE, BOB, CHARLIE, DAVE, HDX};
-use frame_support::{assert_ok, traits::{OnInitialize, StorePreimage}};
+use frame_support::{
+	assert_noop, assert_ok,
+	traits::{OnInitialize, StorePreimage},
+};
 use frame_system::RawOrigin;
 use hydradx_runtime::{
-	Balances, Currencies, ConvictionVoting, Democracy, GigaHdx, Preimage, Referenda, RuntimeOrigin, Scheduler, System,
+	Balances, ConvictionVoting, Currencies, Democracy, GigaHdx, Preimage, Referenda, RuntimeOrigin, Scheduler, System,
 };
 use orml_traits::MultiCurrency;
 use pallet_conviction_voting::{AccountVote, Conviction, Vote};
 use primitives::constants::time::DAYS;
 use primitives::Balance;
+use sp_runtime::{DispatchError, TokenError};
 use xcm_emulator::Network;
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx";
@@ -39,10 +43,7 @@ fn giga_stake_should_work_on_mainnet_snapshot() {
 		let gigapot_hdx_before = Currencies::free_balance(HDX, &gigapot);
 
 		// Stake 1000 HDX
-		assert_ok!(GigaHdx::giga_stake(
-			RuntimeOrigin::signed(alice.clone()),
-			stake_amount
-		));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
 
 		// HDX transferred from ALICE to gigapot
 		assert_eq!(Currencies::free_balance(HDX, &alice), hdx_before - stake_amount);
@@ -107,10 +108,7 @@ fn setup_alice_with_only_gigahdx(stake_amount: Balance) {
 		alice.clone(),
 		stake_amount,
 	));
-	assert_ok!(GigaHdx::giga_stake(
-		RuntimeOrigin::signed(alice.clone()),
-		stake_amount,
-	));
+	assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount,));
 }
 
 /// Helper: create a referendum submitted by BOB.
@@ -197,15 +195,32 @@ fn direct_hdx_transfer_to_gigapot_inflates_exchange_rate() {
 		let bob = sp_runtime::AccountId32::from(BOB);
 		let gigapot = GigaHdx::gigapot_account_id();
 
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), gigapot.clone(), UNITS));
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 1_000_000 * UNITS));
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), 1_000_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			gigapot.clone(),
+			UNITS
+		));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			1_000_000 * UNITS
+		));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			bob.clone(),
+			1_000_000 * UNITS
+		));
 
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 		assert_eq!(GigaHdx::exchange_rate(), sp_runtime::FixedU128::from_rational(101, 100));
 
 		//Act
-		assert_ok!(Currencies::transfer(RuntimeOrigin::signed(bob.clone()), gigapot.clone(), HDX, 1_000 * UNITS));
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(bob.clone()),
+			gigapot.clone(),
+			HDX,
+			1_000 * UNITS
+		));
 
 		//Assert
 		let rate_after = GigaHdx::exchange_rate();
@@ -220,7 +235,11 @@ fn direct_hdx_transfer_to_gigapot_inflates_exchange_rate() {
 		);
 
 		let charlie = sp_runtime::AccountId32::from(CHARLIE);
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), charlie.clone(), 1_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			charlie.clone(),
+			1_000 * UNITS
+		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(charlie), 10 * UNITS));
 	});
 }
@@ -233,7 +252,11 @@ fn giga_unstake_works_at_extreme_exchange_rate() {
 		let alice = sp_runtime::AccountId32::from(ALICE);
 		let gigapot = GigaHdx::gigapot_account_id();
 
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 1_000_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			1_000_000 * UNITS
+		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 100 * UNITS);
 
@@ -261,8 +284,16 @@ fn restake_works_after_full_exit() {
 		let alice = sp_runtime::AccountId32::from(ALICE);
 		let bob = sp_runtime::AccountId32::from(BOB);
 
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 1_000_000 * UNITS));
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), 1_000_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			1_000_000 * UNITS
+		));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			bob.clone(),
+			1_000_000 * UNITS
+		));
 
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 		assert_eq!(GigaHdx::total_st_hdx_supply(), 100 * UNITS);
@@ -280,6 +311,68 @@ fn restake_works_after_full_exit() {
 		//Assert
 		assert_eq!(Currencies::free_balance(GIGAHDX, &bob), 100 * UNITS);
 		assert_eq!(GigaHdx::total_st_hdx_supply(), 100 * UNITS);
+	});
+}
+
+/// Lock ID collision: lock_id is derived from positions.len() at creation time.
+/// After partial unlock removes an earlier position, the next unstake could generate
+/// a lock_id that collides with an existing position's lock_id, freeing HDX early.
+#[test]
+fn lock_id_collides_after_partial_unlock() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		let alice = sp_runtime::AccountId32::from(ALICE);
+		let bob = sp_runtime::AccountId32::from(BOB);
+		let gigapot = GigaHdx::gigapot_account_id();
+
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), gigapot, UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			400 * UNITS
+		));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 400 * UNITS));
+		assert_eq!(Balances::free_balance(&alice), 0);
+
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		System::set_block_number(System::block_number() + 1);
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		System::set_block_number(System::block_number() + 1);
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		let lock_id_2 = positions[2].lock_id;
+
+		System::set_block_number(positions[0].unlock_at);
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), alice.clone()));
+
+		let usable_after_unlock = Balances::usable_balance(&alice);
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(alice.clone()),
+			usable_after_unlock
+		));
+
+		let usable_before = Balances::usable_balance(&alice);
+		assert_eq!(usable_before, 0);
+
+		//Act
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS));
+
+		//Assert
+
+		// BUG: due to lock_id collision, the old lock was overwritten with a smaller amount, so usable INCREASED, but it should not
+		let usable_after = Balances::usable_balance(&alice);
+		assert_eq!(usable_after, 0);
+
+		assert_noop!(
+			Balances::transfer_allow_death(RuntimeOrigin::signed(alice.clone()), bob.clone(), 10 * UNITS),
+			TokenError::FundsUnavailable
+		);
+
+		let final_positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		let new_lock_id = final_positions[2].lock_id;
+		assert_ne!(new_lock_id, lock_id_2);
 	});
 }
 
@@ -306,8 +399,14 @@ fn gigahdx_transfer_succeeds_when_unlocked() {
 			transfer_amount,
 		));
 
-		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), stake_amount - transfer_amount);
-		assert_eq!(Currencies::free_balance(GIGAHDX, &bob), bob_gigahdx_before + transfer_amount);
+		assert_eq!(
+			Currencies::free_balance(GIGAHDX, &alice),
+			stake_amount - transfer_amount
+		);
+		assert_eq!(
+			Currencies::free_balance(GIGAHDX, &bob),
+			bob_gigahdx_before + transfer_amount
+		);
 	});
 }
 
@@ -336,12 +435,6 @@ fn gigahdx_transfer_fails_when_locked_by_conviction_vote() {
 		assert_eq!(lock, stake_amount);
 
 		// Transferring any GIGAHDX should fail — entire balance is locked.
-		assert!(Currencies::transfer(
-			RuntimeOrigin::signed(alice.clone()),
-			bob.clone(),
-			GIGAHDX,
-			1 * UNITS,
-		)
-		.is_err());
+		assert!(Currencies::transfer(RuntimeOrigin::signed(alice.clone()), bob.clone(), GIGAHDX, 1 * UNITS,).is_err());
 	});
 }
