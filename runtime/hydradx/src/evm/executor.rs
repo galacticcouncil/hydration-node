@@ -65,7 +65,7 @@ where
 	fn call(context: CallContext, data: Vec<u8>, value: U256, gas: u64) -> CallResult {
 		let extra_gas = pallet_dispatcher::Pallet::<T>::extra_gas();
 		let gas_limit = gas.saturating_add(extra_gas);
-		log::trace!(target: "evm::executor", "Call with extra gas {:?}", extra_gas);
+		log::trace!(target: "evm::executor", "Call with extra gas {extra_gas:?}");
 
 		let source_evm_address = context.sender;
 		let source_account_id = T::AddressMapping::into_account_id(source_evm_address);
@@ -100,7 +100,7 @@ where
 					match u64::try_from(info.used_gas.effective) {
 						Ok(standard_gas_u64) => {
 							let extra_gas_used = standard_gas_u64.saturating_sub(gas);
-							log::trace!(target: "evm::executor", "Used extra gas -{:?}", extra_gas_used);
+							log::trace!(target: "evm::executor", "Used extra gas -{extra_gas_used:?}");
 							pallet_dispatcher::Pallet::<T>::decrease_extra_gas(extra_gas_used);
 						}
 						Err(_) => {
@@ -142,7 +142,7 @@ where
 	fn view(context: CallContext, data: Vec<u8>, gas: u64) -> CallResult {
 		let extra_gas = pallet_dispatcher::Pallet::<T>::extra_gas();
 		let gas_limit = gas.saturating_add(extra_gas);
-		log::trace!(target: "evm::executor", "View call with extra gas {:?}", extra_gas);
+		log::trace!(target: "evm::executor", "View call with extra gas {extra_gas:?}");
 
 		let mut extra_gas_used = 0u64;
 
@@ -160,7 +160,7 @@ where
 				let gas_used_val = executor.used_gas();
 				if extra_gas > 0 {
 					extra_gas_used = gas_used_val.saturating_sub(gas);
-					log::trace!(target: "evm::executor", "View used extra gas -{:?}", extra_gas_used);
+					log::trace!(target: "evm::executor", "View used extra gas -{extra_gas_used:?}");
 				}
 				CallResult {
 					exit_reason: result.0,
@@ -181,7 +181,7 @@ where
 		});
 
 		if extra_gas_used > 0 {
-			log::trace!(target: "evm::executor", "Used extra gas -{:?}", extra_gas_used);
+			log::trace!(target: "evm::executor", "Used extra gas -{extra_gas_used:?}");
 			pallet_dispatcher::Pallet::<T>::decrease_extra_gas(extra_gas_used);
 		}
 		result

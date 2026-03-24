@@ -96,8 +96,6 @@ pub mod module {
 	where
 		<Self::MultiCurrency as MultiCurrency<Self::AccountId>>::CurrencyId: codec::DecodeWithMemTracking,
 	{
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		type MultiCurrency: TransferAll<Self::AccountId>
 			+ MultiCurrencyExtended<Self::AccountId>
 			+ MultiLockableCurrency<Self::AccountId>
@@ -340,12 +338,6 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 			amount
 		)?;
 
-		<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnDeposit::handle(&(
-			currency_id,
-			amount,
-			Some(from.clone()),
-		))?;
-
 		Self::deposit_event(Event::Transferred {
 			currency_id,
 			from: from.clone(),
@@ -387,7 +379,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnDeposit::handle(&(
 			currency_id,
 			amount,
-			None,
+			Some(who.clone()),
 		))?;
 
 		Self::deposit_event(Event::Deposited {
