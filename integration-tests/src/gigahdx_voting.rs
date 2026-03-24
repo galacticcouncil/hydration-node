@@ -984,6 +984,57 @@ fn vote_with_more_than_balance_is_capped_at_gigahdx_balance() {
 	});
 }
 
+/// 1. ALICE stakes 500 HDX -> gets 500 GIGAHDX
+/// 2. Votes 800 on referendum A -> split: 500 GIGAHDX + 300 HDX
+/// 3. Stakes 200 more HDX -> now has ~700 GIGAHDX
+/// 4. Votes 800 on referendum B -> split should recalculate: ~700 GIGAHDX + ~100 HDX
+#[test]
+fn lock_split_recalculates_when_gigahdx_balance_increases() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			500 * UNITS,
+		));
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 500 * UNITS);
+
+		let r_a = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r_a,
+			aye_with_conviction(800 * UNITS, Conviction::Locked1x),
+		));
+
+		let split_a = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(split_a.gigahdx_amount, 500 * UNITS);
+		assert_eq!(split_a.hdx_amount, 300 * UNITS);
+
+		//Act
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			200 * UNITS,
+		));
+
+		let r_b = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r_b,
+			aye_with_conviction(800 * UNITS, Conviction::Locked1x),
+		));
+
+		//Assert
+		let alice_gigahdx = Currencies::free_balance(GIGAHDX, &alice);
+		let split_b = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(split_b.gigahdx_amount, alice_gigahdx);
+		assert_eq!(split_b.hdx_amount, 800 * UNITS - alice_gigahdx);
+	});
+}
+
 #[test]
 fn received_gigahdx_is_transferable_while_existing_balance_is_locked() {
 	TestNet::reset();
