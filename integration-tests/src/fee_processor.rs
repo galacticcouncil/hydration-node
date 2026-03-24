@@ -3,7 +3,9 @@
 use crate::polkadot_test_net::*;
 use frame_support::{assert_ok, traits::Hooks};
 use frame_system::RawOrigin;
-use hydradx_runtime::{Currencies, FeeProcessor, GigaHdx, GigaHdxVoting, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens};
+use hydradx_runtime::{
+	Currencies, FeeProcessor, GigaHdx, GigaHdxVoting, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens,
+};
 use orml_traits::MultiCurrency;
 use pallet_referrals::ReferralCode;
 use primitives::AccountId;
@@ -116,7 +118,10 @@ fn hdx_fee_distributes_to_gigapot_reward_pot_and_staking() {
 		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_before);
 
 		// HdxFeeReceivers = (HdxGigaHdxFeeReceiver 70%, GigaHdxRewardFeeReceiver 20%, HdxStakingFeeReceiver 10%)
-		assert!(gigapot_increase > 0, "Gigapot should receive the largest share of HDX fees");
+		assert!(
+			gigapot_increase > 0,
+			"Gigapot should receive the largest share of HDX fees"
+		);
 		assert!(reward_increase > 0, "GigaReward pot should receive HDX fees");
 		assert!(staking_increase > 0, "Staking pot should receive HDX fees");
 		assert_eq!(referrals_increase, 0, "Referrals pot should NOT receive any HDX fees");
@@ -266,7 +271,10 @@ fn non_hdx_fee_conversion_distributes_to_all_receivers() {
 		assert!(gigapot_increase > 0, "Gigapot should receive HDX from conversion");
 		assert!(reward_increase > 0, "GigaReward pot should receive HDX from conversion");
 		assert!(staking_increase > 0, "Staking pot should receive HDX from conversion");
-		assert!(referrals_increase > 0, "Referrals pot should receive HDX from conversion");
+		assert!(
+			referrals_increase > 0,
+			"Referrals pot should receive HDX from conversion"
+		);
 
 		// Verify proportions: gigapot (60%) > reward (20%) > staking (10%) = referrals (10%)
 		assert!(
@@ -453,10 +461,7 @@ fn multiple_hdx_trades_accumulate_in_all_hdx_receivers() {
 		let staking_total = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_initial);
 		let referrals_total = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_initial);
 
-		assert!(
-			gigapot_total > 0,
-			"Gigapot should accumulate from multiple HDX trades"
-		);
+		assert!(gigapot_total > 0, "Gigapot should accumulate from multiple HDX trades");
 		assert!(
 			reward_total > 0,
 			"GigaReward pot should accumulate from multiple HDX trades"
@@ -562,5 +567,34 @@ fn converted_event_is_emitted_after_manual_conversion() {
 		});
 
 		assert!(converted, "Converted event should be emitted after conversion");
+	});
+}
+
+#[test]
+fn tiny_hdx_fee_doesnt_round_to_zero_for_any_receivers() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		//Arrange
+		let source: AccountId = BOB.into();
+		let trader: AccountId = BOB.into();
+
+		let gigapot_before = Currencies::free_balance(HDX, &gigapot());
+		let reward_before = Currencies::free_balance(HDX, &giga_reward_pot());
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+
+		//Act
+		assert_ok!(FeeProcessor::process_trade_fee(source, trader, HDX, 10));
+
+		//Assert
+		let gigapot_increase = Currencies::free_balance(HDX, &gigapot()).saturating_sub(gigapot_before);
+		let reward_increase = Currencies::free_balance(HDX, &giga_reward_pot()).saturating_sub(reward_before);
+		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_before);
+
+		assert_eq!(gigapot_increase, 7);
+		assert_eq!(reward_increase, 2);
+		assert_eq!(staking_increase, 1);
 	});
 }

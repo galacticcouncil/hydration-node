@@ -3,9 +3,7 @@
 use crate::polkadot_test_net::*;
 
 use fp_evm::{Context, ExitSucceed, PrecompileOutput};
-use hydradx_runtime::evm::precompiles::{
-	handle::EvmDataWriter, Address, HydraDXPrecompiles, LOCK_MANAGER,
-};
+use hydradx_runtime::evm::precompiles::{handle::EvmDataWriter, Address, HydraDXPrecompiles, LOCK_MANAGER};
 use hydradx_runtime::evm::ExtendedAddressMapping;
 use hydradx_runtime::Runtime;
 use pallet_evm::*;
@@ -51,6 +49,7 @@ fn account_id_of(addr: H160) -> primitives::AccountId {
 
 /// Dummy token address (unused by precompile, but required by the ABI).
 const TOKEN: H160 = H160([0u8; 20]);
+const WRONG_TOKEN: H160 = H160([0xff; 20]);
 
 #[test]
 fn get_locked_balance_returns_zero_when_no_lock() {
@@ -62,8 +61,7 @@ fn get_locked_balance_returns_zero_when_no_lock() {
 		let data = build_call_data(TOKEN, query_addr);
 		let mut handle = build_handle(caller, data);
 
-		let result =
-			pallet_evm_precompile_lock_manager::LockManagerPrecompile::<Runtime>::execute(&mut handle);
+		let result = pallet_evm_precompile_lock_manager::LockManagerPrecompile::<Runtime>::execute(&mut handle);
 
 		let expected = U256::zero().to_big_endian();
 		assert_eq!(
@@ -91,8 +89,7 @@ fn get_locked_balance_returns_correct_value() {
 		let data = build_call_data(TOKEN, query_addr);
 		let mut handle = build_handle(query_addr, data);
 
-		let result =
-			pallet_evm_precompile_lock_manager::LockManagerPrecompile::<Runtime>::execute(&mut handle);
+		let result = pallet_evm_precompile_lock_manager::LockManagerPrecompile::<Runtime>::execute(&mut handle);
 
 		let expected = U256::from(lock_amount).to_big_endian();
 		assert_eq!(
@@ -120,8 +117,7 @@ fn get_locked_balance_after_lock_update() {
 		let data = build_call_data(TOKEN, query_addr);
 		let mut handle = build_handle(query_addr, data.clone());
 
-		let result =
-			pallet_evm_precompile_lock_manager::LockManagerPrecompile::<Runtime>::execute(&mut handle);
+		let result = pallet_evm_precompile_lock_manager::LockManagerPrecompile::<Runtime>::execute(&mut handle);
 
 		let expected = U256::from(initial).to_big_endian();
 		assert_eq!(
@@ -137,8 +133,7 @@ fn get_locked_balance_after_lock_update() {
 		pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::insert(&substrate_account, updated);
 
 		let mut handle2 = build_handle(query_addr, data);
-		let result2 =
-			pallet_evm_precompile_lock_manager::LockManagerPrecompile::<Runtime>::execute(&mut handle2);
+		let result2 = pallet_evm_precompile_lock_manager::LockManagerPrecompile::<Runtime>::execute(&mut handle2);
 
 		let expected2 = U256::from(updated).to_big_endian();
 		assert_eq!(
@@ -185,8 +180,7 @@ fn get_locked_balance_works_for_different_accounts() {
 		// Query Bob.
 		let data_bob = build_call_data(TOKEN, bob_evm);
 		let mut handle_bob = build_handle(bob_evm, data_bob);
-		let result_bob =
-			pallet_evm_precompile_lock_manager::LockManagerPrecompile::<Runtime>::execute(&mut handle_bob);
+		let result_bob = pallet_evm_precompile_lock_manager::LockManagerPrecompile::<Runtime>::execute(&mut handle_bob);
 
 		let expected_bob = U256::from(bob_lock).to_big_endian();
 		assert_eq!(
@@ -194,6 +188,48 @@ fn get_locked_balance_works_for_different_accounts() {
 			Ok(PrecompileOutput {
 				exit_status: ExitSucceed::Returned,
 				output: expected_bob.to_vec(),
+			})
+		);
+	});
+}
+
+#[test]
+fn get_locked_balance_ignores_token_address_because_only_gigahdx_is_lockable_for_now() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		let query_addr = evm_address();
+		let substrate_account = account_id_of(query_addr);
+		let lock_amount: u128 = 500 * UNITS;
+
+		pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::insert(&substrate_account, lock_amount);
+
+		//Act
+		let data_correct = build_call_data(TOKEN, query_addr);
+		let mut handle_correct = build_handle(query_addr, data_correct);
+		let result_correct =
+			pallet_evm_precompile_lock_manager::LockManagerPrecompile::<Runtime>::execute(&mut handle_correct);
+
+		let data_wrong = build_call_data(WRONG_TOKEN, query_addr);
+		let mut handle_wrong = build_handle(query_addr, data_wrong);
+		let result_wrong =
+			pallet_evm_precompile_lock_manager::LockManagerPrecompile::<Runtime>::execute(&mut handle_wrong);
+
+		//Assert
+		let expected = U256::from(lock_amount).to_big_endian();
+		assert_eq!(
+			result_correct,
+			Ok(PrecompileOutput {
+				exit_status: ExitSucceed::Returned,
+				output: expected.to_vec(),
+			})
+		);
+		assert_eq!(
+			result_wrong,
+			Ok(PrecompileOutput {
+				exit_status: ExitSucceed::Returned,
+				output: expected.to_vec(),
 			})
 		);
 	});
