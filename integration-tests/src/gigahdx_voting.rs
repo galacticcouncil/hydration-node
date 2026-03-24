@@ -65,6 +65,37 @@ fn end_referendum() {
 	fast_forward_to(now + 12 * DAYS);
 }
 
+fn begin_referendum_by_bob() -> ReferendumIndex {
+	let referendum_index = pallet_referenda::pallet::ReferendumCount::<hydradx_runtime::Runtime>::get();
+	let now = System::block_number();
+
+	assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), BOB.into(), 1_000_000 * UNITS));
+	let proposal = {
+		let inner = pallet_balances::Call::force_set_balance {
+			who: CHARLIE.into(),
+			new_free: 2,
+		};
+		let outer = hydradx_runtime::RuntimeCall::Balances(inner);
+		Preimage::bound(outer).unwrap()
+	};
+	assert_ok!(Referenda::submit(
+		hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+		Box::new(RawOrigin::Root.into()),
+		proposal,
+		DispatchTime::At(now + 10 * DAYS),
+	));
+
+	assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), DAVE.into(), 2_000_000_000 * UNITS));
+	assert_ok!(Referenda::place_decision_deposit(
+		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
+		referendum_index,
+	));
+
+	fast_forward_to(now + 5 * DAYS);
+
+	referendum_index
+}
+
 fn fast_forward_to(n: u32) {
 	while System::block_number() < n {
 		next_block();
@@ -846,6 +877,174 @@ fn sequential_reward_claims_give_equal_gigahdx() {
 		assert_eq!(alice_conversion_rate, 990_099_009_900);
 		assert_eq!(bob_conversion_rate, 990_099_009_900);
 		assert_eq!(alice_conversion_rate, bob_conversion_rate)
+	});
+}
+
+#[test]
+fn vote_after_transferring_free_gigahdx_uses_correct_balance() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			1_000 * UNITS,
+		));
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 1_000 * UNITS);
+
+		let r_a = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r_a,
+			aye_with_conviction(500 * UNITS, Conviction::Locked1x),
+		));
+
+		//Act
+		assert_ok!(Currencies::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			bob.clone(),
+			GIGAHDX,
+			300 * UNITS,
+		));
+
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 700 * UNITS);
+
+		let r_b = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r_b,
+			aye_with_conviction(600 * UNITS, Conviction::Locked1x),
+		));
+
+		//Assert
+		let vote_b = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_b).unwrap();
+		assert_eq!(
+			vote_b.amount, 600 * UNITS,
+			"GIGAHDX portion should be capped at current balance (700), vote is 600 so all from GIGAHDX"
+		);
+
+		let split = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(split.gigahdx_amount, 600 * UNITS);
+		assert_eq!(split.hdx_amount, 0);
+	});
+}
+
+
+#[test]
+fn vote_with_more_than_balance_is_capped_at_gigahdx_balance() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+		let gigapot = pallet_gigahdx::Pallet::<hydradx_runtime::Runtime>::gigapot_account_id();
+
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), gigapot, UNITS));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 1_000 * UNITS));
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			1_000 * UNITS,
+		));
+
+		assert_ok!(Currencies::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			bob.clone(),
+			GIGAHDX,
+			300 * UNITS,
+		));
+
+		assert_eq!(Currencies::free_balance(HDX, &alice), 0);
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 700 * UNITS);
+
+		let r = begin_referendum_by_bob();
+
+		//Act & Assert
+		assert_noop!(
+			ConvictionVoting::vote(
+				hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+				r,
+				aye_with_conviction(701 * UNITS, Conviction::Locked1x),
+			),
+			pallet_conviction_voting::Error::<hydradx_runtime::Runtime>::InsufficientFunds
+		);
+
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(700 * UNITS, Conviction::Locked1x),
+		));
+
+		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).unwrap();
+		assert_eq!(vote.amount, 700 * UNITS);
+	});
+}
+
+#[test]
+fn received_gigahdx_is_transferable_while_existing_balance_is_locked() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+		let charlie: AccountId = CHARLIE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			200 * UNITS,
+		));
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(100 * UNITS, Conviction::Locked1x),
+		));
+
+		let lock = pallet_gigahdx_voting::GigaHdxVotingLock::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(lock, 100 * UNITS);
+
+		//Act
+		let bob_gigahdx = Currencies::free_balance(GIGAHDX, &bob);
+		assert_ok!(Currencies::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			alice.clone(),
+			GIGAHDX,
+			bob_gigahdx,
+		));
+
+		//Assert
+		let alice_gigahdx = Currencies::free_balance(GIGAHDX, &alice);
+		assert_eq!(alice_gigahdx, 100 * UNITS + bob_gigahdx);
+
+		let lock_after = pallet_gigahdx_voting::GigaHdxVotingLock::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(lock_after, 100 * UNITS);
+
+		let free_gigahdx = alice_gigahdx - lock_after;
+		assert_ok!(Currencies::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			charlie.clone(),
+			GIGAHDX,
+			free_gigahdx,
+		));
+
+		assert!(Currencies::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			charlie.clone(),
+			GIGAHDX,
+			1 * UNITS,
+		)
+		.is_err());
 	});
 }
 
