@@ -441,7 +441,7 @@ pub mod pallet {
 
 		/// Enable/pause the background ISMP storage cleanup. If enabled for the first time,
 		/// starting from the first stage.
-		#[pallet::call_index(5)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(T::DbWeight::get().writes(1))]
 		pub fn pause_hyperbridge_cleanup(origin: OriginFor<T>, do_pause: bool) -> DispatchResult {
 			T::MigrationOperatorOrigin::ensure_origin(origin)?;
