@@ -227,9 +227,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_broadcast::Config {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Asset id type
 		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
 
@@ -833,16 +830,26 @@ impl<T: Config> Pallet<T> {
 				let last_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_out = last_trade.amount_out;
 
-				if *min_amount_out > last_block_slippage_min_limit {
+				let effective_min_limit = if *min_amount_out > last_block_slippage_min_limit {
 					ensure!(amount_out >= *min_amount_out, Error::<T>::TradeLimitReached);
+					amount_out
 				} else {
 					ensure!(
 						amount_out >= last_block_slippage_min_limit,
 						Error::<T>::SlippageLimitReached
 					);
+					// Use slippage limit to mainly absorb aToken rounding errors
+					last_block_slippage_min_limit
 				};
 
-				T::RouteExecutor::sell(origin, *asset_in, *asset_out, amount_to_sell, amount_out, route.clone())?;
+				T::RouteExecutor::sell(
+					origin,
+					*asset_in,
+					*asset_out,
+					amount_to_sell,
+					effective_min_limit,
+					route.clone(),
+				)?;
 
 				Ok(AmountInAndOut {
 					amount_in: amount_to_sell,
@@ -1340,10 +1347,7 @@ impl<T: Config> Pallet<T> {
 				.unwrap_or_else(|| T::MaxNumberOfRetriesOnError::get() as u64);
 
 			let Some(gas_increment) = MAX_EXTRA_GAS.checked_div(max_retries) else {
-				log::error!(
-					"Gas increment calculation overflowed for schedule_id: {:?}",
-					schedule_id
-				);
+				log::error!("Gas increment calculation overflowed for schedule_id: {schedule_id:?}",);
 				return;
 			};
 

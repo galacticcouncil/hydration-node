@@ -149,11 +149,7 @@ where
 				Err(_) => {
 					log::trace!(
 						target: "omnipool::should_allow_price_change",
-						"did not pass the price check: who: {:?}, asset_a: {:?}, asset_b: {:?}, current_prie: {:?}",
-						who,
-						asset_a,
-						asset_b,
-						current_price,
+						"did not pass the price check: who: {who:?}, asset_a: {asset_a:?}, asset_b: {asset_b:?}, current_prie: {current_price:?}",
 					);
 					return Err(());
 				},

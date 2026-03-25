@@ -766,12 +766,9 @@ fn test_cross_pallet_execution() {
 		);
 
 		println!("✅ Cross-pallet test passed!");
-		println!("   User {} called MockCaller", NON_ADMIN);
+		println!("   User {NON_ADMIN} called MockCaller");
 		println!("   MockCaller called Signet");
-		println!(
-			"   Signet saw sender as: {:?} (the pallet account)",
-			mock_pallet_account
-		);
-		println!("   NOT as: {} (the original user)", NON_ADMIN);
+		println!("   Signet saw sender as: {mock_pallet_account:?} (the pallet account)",);
+		println!("   NOT as: {NON_ADMIN} (the original user)");
 	});
 }

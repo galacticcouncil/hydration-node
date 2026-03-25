@@ -38,7 +38,7 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MultiplySchedulesPeriodBy2<T> {
 		// Increase on-chain StorageVersion
 		StorageVersion::new(2).put::<crate::Pallet<T>>();
 
-		log::info!("MultiplySchedulesPeriodBy2 processed schedules: {:?}", writes);
+		log::info!("MultiplySchedulesPeriodBy2 processed schedules: {writes:?}");
 		T::DbWeight::get().reads_writes(reads, writes)
 	}
 }

@@ -825,6 +825,8 @@ pub fn go_to_block(number: BlockNumber) {
 			relay_chain_state: proof,
 			downward_messages: Default::default(),
 			horizontal_messages: Default::default(),
+			collator_peer_id: None,
+			relay_parent_descendants: Default::default(),
 		}
 	));
 
@@ -1046,6 +1048,7 @@ pub fn assert_xcm_message_processing_failed() {
 	assert!(hydradx_runtime::System::events().iter().any(|r| matches!(
 		r.event,
 		hydradx_runtime::RuntimeEvent::MessageQueue(pallet_message_queue::Event::Processed { success: false, .. })
+			| hydradx_runtime::RuntimeEvent::MessageQueue(pallet_message_queue::Event::ProcessingFailed { .. })
 	)));
 }
 

@@ -64,7 +64,7 @@ where
 	fn execute(handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		let address = handle.code_address();
 		if let Some(asset_id) = HydraErc20Mapping::decode_evm_address(address) {
-			log::debug!(target: "evm", "multicurrency: currency id: {:?}", asset_id);
+			log::debug!(target: "evm", "multicurrency: currency id: {asset_id:?}");
 
 			let selector = handle.read_selector()?;
 
@@ -118,7 +118,7 @@ where
 
 		match <pallet_asset_registry::Pallet<Runtime>>::asset_name(asset_id.into()) {
 			Some(name) => {
-				log::debug!(target: "evm", "multicurrency: symbol: {:?}", name);
+				log::debug!(target: "evm", "multicurrency: symbol: {name:?}");
 
 				let encoded = Output::encode_bytes(name.as_slice());
 
@@ -139,7 +139,7 @@ where
 
 		match <pallet_asset_registry::Pallet<Runtime>>::asset_symbol(asset_id.into()) {
 			Some(symbol) => {
-				log::debug!(target: "evm", "multicurrency: name: {:?}", symbol);
+				log::debug!(target: "evm", "multicurrency: name: {symbol:?}");
 
 				let encoded = Output::encode_bytes(symbol.as_slice());
 
@@ -160,7 +160,7 @@ where
 
 		match <pallet_asset_registry::Pallet<Runtime>>::decimals(asset_id.into()) {
 			Some(decimals) => {
-				log::debug!(target: "evm", "multicurrency: decimals: {:?}", decimals);
+				log::debug!(target: "evm", "multicurrency: decimals: {decimals:?}");
 
 				let encoded = Output::encode_uint::<u8>(decimals);
 
@@ -181,7 +181,7 @@ where
 
 		let total_issuance = Currencies::total_issuance(asset_id);
 
-		log::debug!(target: "evm", "multicurrency: totalSupply: {:?}", total_issuance);
+		log::debug!(target: "evm", "multicurrency: totalSupply: {total_issuance:?}");
 
 		let encoded = Output::encode_uint::<u128>(total_issuance);
 
@@ -200,7 +200,7 @@ where
 
 		let free_balance = Currencies::free_balance(asset_id, &who);
 
-		log::debug!(target: "evm", "multicurrency: balanceOf: {:?}", free_balance);
+		log::debug!(target: "evm", "multicurrency: balanceOf: {free_balance:?}");
 
 		let encoded = Output::encode_uint::<u128>(free_balance);
 
@@ -220,7 +220,7 @@ where
 		let origin = ExtendedAddressMapping::into_account_id(handle.context().caller);
 		let to = ExtendedAddressMapping::into_account_id(to);
 
-		log::debug!(target: "evm", "multicurrency: transfer from: {:?}, to: {:?}, amount: {:?}", origin, to, amount);
+		log::debug!(target: "evm", "multicurrency: transfer from: {origin:?}, to: {to:?}, amount: {amount:?}");
 
 		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
 			asset_id,
@@ -316,7 +316,7 @@ where
 		let from = ExtendedAddressMapping::into_account_id(from);
 		let to = ExtendedAddressMapping::into_account_id(to);
 
-		log::debug!(target: "evm", "multicurrency: transferFrom from: {:?}, to: {:?}, amount: {:?}", from, to, amount);
+		log::debug!(target: "evm", "multicurrency: transferFrom from: {from:?}, to: {to:?}, amount: {amount:?}");
 
 		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
 			asset_id,

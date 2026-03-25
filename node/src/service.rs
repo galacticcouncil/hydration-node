@@ -285,7 +285,7 @@ async fn start_node_impl(
 	let backend = params.backend.clone();
 	let mut task_manager = params.task_manager;
 
-	let (relay_chain_interface, collator_key) = build_relay_chain_interface(
+	let (relay_chain_interface, collator_key, _, _) = build_relay_chain_interface(
 		polkadot_config,
 		&parachain_config,
 		telemetry_worker_handle,
@@ -311,6 +311,7 @@ async fn start_node_impl(
 		import_queue: params.import_queue,
 		net_config,
 		sybil_resistance_level: CollatorSybilResistance::Resistant, // because of Aura
+		metrics: sc_network::service::NotificationMetrics::new(prometheus_registry.as_ref()),
 	})
 	.await?;
 
@@ -480,6 +481,7 @@ async fn start_node_impl(
 		relay_chain_slot_duration,
 		recovery_handle: Box::new(overseer_handle.clone()),
 		sync_service: sync_service.clone(),
+		prometheus_registry: prometheus_registry.as_ref(),
 	})?;
 
 	if validator {

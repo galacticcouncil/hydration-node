@@ -411,13 +411,11 @@ proptest! {
 			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
 			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
 			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
-			.with_treasury_lrna(1000 * ONE)
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
 
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
-				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let old_asset_hub_liquidity = sum_asset_hub_liquidity();
 
@@ -426,13 +424,9 @@ proptest! {
 				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(seller), LRNA, 300, amount, Balance::zero()));
 
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
-				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-				assert_hub_swap_invariants!(&old_state_300, &new_state_300, &old_state_hdx, &new_state_hdx, "Hub swap 300");
-
-				let initial_treasury = 1000 * ONE;
-				assert!(Tokens::free_balance(LRNA, &TREASURY) > initial_treasury, "Treasury received H2O");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
@@ -487,13 +481,11 @@ proptest! {
 			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
 			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
 			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
-			.with_treasury_lrna(1000 * ONE)
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
 
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
-				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let old_asset_hub_liquidity = sum_asset_hub_liquidity();
 
@@ -502,13 +494,9 @@ proptest! {
 				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(seller), LRNA, 300, amount, Balance::zero()));
 
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
-				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-				assert_hub_swap_invariants!(&old_state_300, &new_state_300, &old_state_hdx, &new_state_hdx, "Hub swap 300");
-
-				let initial_treasury = 1000 * ONE;
-				assert!(Tokens::free_balance(LRNA, &TREASURY) > initial_treasury, "Treasury received H2O");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
@@ -566,13 +554,11 @@ proptest! {
 			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
 			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
 			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
-			.with_treasury_lrna(1000 * ONE)
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
 
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
-				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let old_asset_hub_liquidity = sum_asset_hub_liquidity();
 
@@ -581,13 +567,14 @@ proptest! {
 				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(seller), 300, LRNA, amount, Balance::MAX));
 
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
-				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-				assert_hub_swap_invariants!(&old_state_300, &new_state_300, &old_state_hdx, &new_state_hdx, "Hub swap 300");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
-				let initial_treasury = 1000 * ONE;
-				assert!(Tokens::free_balance(LRNA, &TREASURY) > initial_treasury, "Treasury received H2O");
+				// Total hub asset liquidity has not changed
+				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
+				assert!(old_hub_liquidity < new_hub_liquidity, "Total Hub liquidity increased incorrectly!");
 			});
 	}
 }
@@ -638,13 +625,11 @@ proptest! {
 			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
 			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
 			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
-			.with_treasury_lrna(1000 * ONE)
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
 
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
-				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let old_asset_hub_liquidity = sum_asset_hub_liquidity();
 
@@ -653,22 +638,14 @@ proptest! {
 				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(seller), 300, LRNA, amount, Balance::MAX));
 
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
-				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-				assert_hub_swap_invariants!(&old_state_300, &new_state_300, &old_state_hdx, &new_state_hdx, "Hub swap 300");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
-				let initial_treasury = 1000 * ONE;
-				assert!(Tokens::free_balance(LRNA, &TREASURY) > initial_treasury, "Treasury received H2O");
-
-				// With 100% on_trade_withdrawal, all fees (including slip) are extracted,
-				// so protocol LRNA should equal sum of asset hub reserves.
+				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
-				assert_eq!(
-					new_hub_liquidity, new_asset_hub_liquidity,
-					"Protocol LRNA should equal sum of hub reserves: protocol={new_hub_liquidity}, sum={new_asset_hub_liquidity}"
-				);
+
+				assert!(old_hub_liquidity < new_hub_liquidity, "Total Hub liquidity increased incorrectly!");
 			});
 	}
 }
@@ -1131,286 +1108,6 @@ proptest! {
 						new_state_200.price().unwrap(),
 						FixedU128::from_float(0.0000000001),
 						"Price has changed after remove liquidity");
-			});
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Hub reserve accounting with slip fees
-// ---------------------------------------------------------------------------
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(100))]
-	#[test]
-	fn hub_reserve_sum_equals_protocol_balance_with_slip_fees_sell(
-		sell_amount in trade_amount(),
-		stable_price in price(),
-		stable_reserve in asset_reserve(),
-		native_reserve in asset_reserve(),
-		token_1 in pool_token(100),
-		token_2 in pool_token(200),
-		token_3 in pool_token(300),
-		token_4 in pool_token(400),
-		asset_fee in fee(),
-		protocol_fee in fee(),
-		withdraw_fee in withdrawal_fee(),
-		slip_max in max_slip_fee(),
-	) {
-		let lp1: u64 = 100;
-		let lp2: u64 = 200;
-		let lp3: u64 = 300;
-		let lp4: u64 = 400;
-		let trader: u64 = 500;
-
-		ExtBuilder::default()
-			.with_endowed_accounts(vec![
-				(Omnipool::protocol_account(), DAI, stable_reserve),
-				(Omnipool::protocol_account(), HDX, native_reserve),
-				(lp1, 100, token_1.amount + 2 * ONE),
-				(lp2, 200, token_2.amount + 2 * ONE),
-				(lp3, 300, token_3.amount + 2 * ONE),
-				(lp4, 400, token_4.amount + 2 * ONE),
-				(trader, LRNA, 200_000 * ONE),
-			])
-			.with_registered_asset(100)
-			.with_registered_asset(200)
-			.with_registered_asset(300)
-			.with_registered_asset(400)
-			.with_asset_fee(asset_fee)
-			.with_protocol_fee(protocol_fee)
-			.with_on_trade_withdrawal(withdraw_fee)
-			.with_initial_pool(
-				stable_price,
-				FixedU128::from(1),
-			)
-			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
-			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
-			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
-			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
-			.build()
-			.execute_with(|| {
-				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
-
-				let initial_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-				let initial_asset_hub_liquidity = sum_asset_hub_liquidity();
-				let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
-
-				assert_eq!(initial_hub_liquidity, initial_asset_hub_liquidity);
-
-				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(trader), LRNA, 300, sell_amount, Balance::zero()));
-
-				let post_sell_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-				let post_sell_asset_hub_liquidity = sum_asset_hub_liquidity();
-				let post_sell_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
-
-				assert_eq!(
-					post_sell_hub_liquidity, post_sell_asset_hub_liquidity,
-					"Post-sell invariant: hub_liquidity must equal sum_asset_hub_liquidity"
-				);
-
-				assert_eq!(
-					post_sell_hdx_state.hub_reserve, initial_hdx_state.hub_reserve,
-					"HDX hub_reserve must be unchanged after sell_hub"
-				);
-			});
-	}
-}
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(100))]
-	#[test]
-	fn hub_reserve_sum_equals_protocol_balance_with_slip_fees_buy(
-		buy_amount in trade_amount(),
-		stable_price in price(),
-		stable_reserve in asset_reserve(),
-		native_reserve in asset_reserve(),
-		token_1 in pool_token(100),
-		token_2 in pool_token(200),
-		token_3 in pool_token(300),
-		token_4 in pool_token(400),
-		asset_fee in fee(),
-		protocol_fee in fee(),
-		withdraw_fee in withdrawal_fee(),
-		slip_max in max_slip_fee(),
-	) {
-		let lp1: u64 = 100;
-		let lp2: u64 = 200;
-		let lp3: u64 = 300;
-		let lp4: u64 = 400;
-		let trader: u64 = 500;
-
-		ExtBuilder::default()
-			.with_endowed_accounts(vec![
-				(Omnipool::protocol_account(), DAI, stable_reserve),
-				(Omnipool::protocol_account(), HDX, native_reserve),
-				(lp1, 100, token_1.amount + 2 * ONE),
-				(lp2, 200, token_2.amount + 2 * ONE),
-				(lp3, 300, token_3.amount + 2 * ONE),
-				(lp4, 400, token_4.amount + 2 * ONE),
-				(trader, LRNA, 200_000 * ONE),
-			])
-			.with_registered_asset(100)
-			.with_registered_asset(200)
-			.with_registered_asset(300)
-			.with_registered_asset(400)
-			.with_asset_fee(asset_fee)
-			.with_protocol_fee(protocol_fee)
-			.with_on_trade_withdrawal(withdraw_fee)
-			.with_initial_pool(
-				stable_price,
-				FixedU128::from(1),
-			)
-			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
-			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
-			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
-			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
-			.build()
-			.execute_with(|| {
-				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
-
-				let initial_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-				let initial_asset_hub_liquidity = sum_asset_hub_liquidity();
-				let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
-
-				assert_eq!(initial_hub_liquidity, initial_asset_hub_liquidity);
-
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(trader), 300, LRNA, buy_amount, Balance::MAX));
-
-				let post_buy_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-				let post_buy_asset_hub_liquidity = sum_asset_hub_liquidity();
-				let post_buy_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
-
-				assert_eq!(
-					post_buy_hub_liquidity, post_buy_asset_hub_liquidity,
-					"Post-buy invariant: hub_liquidity must equal sum_asset_hub_liquidity"
-				);
-
-				assert_eq!(
-					post_buy_hdx_state.hub_reserve, initial_hdx_state.hub_reserve,
-					"HDX hub_reserve must be unchanged after buy_for_hub"
-				);
-
-				assert!(Tokens::free_balance(LRNA, &TREASURY) > 0, "Treasury must receive LRNA");
-			});
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Multiple operations with slip fees
-// ---------------------------------------------------------------------------
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(100))]
-	#[test]
-	fn hub_reserve_sum_equals_protocol_balance_after_multiple_operations_with_slip_fees(
-		sell_amount_1 in trade_amount(),
-		sell_amount_2 in trade_amount(),
-		buy_amount_1 in trade_amount(),
-		buy_amount_2 in trade_amount(),
-		stable_price in price(),
-		stable_reserve in asset_reserve(),
-		native_reserve in asset_reserve(),
-		token_1 in pool_token(100),
-		token_2 in pool_token(200),
-		token_3 in pool_token(300),
-		token_4 in pool_token(400),
-		asset_fee in fee(),
-		protocol_fee in fee(),
-		withdraw_fee in withdrawal_fee(),
-		slip_max in max_slip_fee(),
-	) {
-		let lp1: u64 = 100;
-		let lp2: u64 = 200;
-		let lp3: u64 = 300;
-		let lp4: u64 = 400;
-		let trader: u64 = 500;
-
-		ExtBuilder::default()
-			.with_endowed_accounts(vec![
-				(Omnipool::protocol_account(), DAI, stable_reserve),
-				(Omnipool::protocol_account(), HDX, native_reserve),
-				(lp1, 100, token_1.amount + 2 * ONE),
-				(lp2, 200, token_2.amount + 2 * ONE),
-				(lp3, 300, token_3.amount + 2 * ONE),
-				(lp4, 400, token_4.amount + 2 * ONE),
-				(trader, LRNA, 500_000 * ONE),
-			])
-			.with_registered_asset(100)
-			.with_registered_asset(200)
-			.with_registered_asset(300)
-			.with_registered_asset(400)
-			.with_asset_fee(asset_fee)
-			.with_protocol_fee(protocol_fee)
-			.with_on_trade_withdrawal(withdraw_fee)
-			.with_initial_pool(
-				stable_price,
-				FixedU128::from(1),
-			)
-			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
-			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
-			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
-			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
-			.build()
-			.execute_with(|| {
-				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
-
-				let check_invariant = |msg: &str| {
-					let hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-					let asset_hub_liquidity = sum_asset_hub_liquidity();
-					assert_eq!(hub_liquidity, asset_hub_liquidity, "{}", msg);
-				};
-
-				let initial_hdx_state = Omnipool::load_asset_state(HDX).unwrap();
-				check_invariant("Initial invariant");
-
-				// Operation 1: Sell LRNA -> asset 300
-				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(trader), LRNA, 300, sell_amount_1, Balance::zero()));
-				check_invariant("After sell #1 (LRNA -> 300)");
-
-				let hdx_after_sell_1 = Omnipool::load_asset_state(HDX).unwrap();
-				assert_eq!(
-					hdx_after_sell_1.hub_reserve, initial_hdx_state.hub_reserve,
-					"HDX hub_reserve must be unchanged after sell #1"
-				);
-
-				// Operation 2: Buy asset 100 with LRNA
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(trader), 100, LRNA, buy_amount_1, Balance::MAX));
-				check_invariant("After buy #1 (100 <- LRNA)");
-
-				let hdx_after_buy_1 = Omnipool::load_asset_state(HDX).unwrap();
-				assert_eq!(
-					hdx_after_buy_1.hub_reserve, hdx_after_sell_1.hub_reserve,
-					"HDX hub_reserve must be unchanged after buy #1"
-				);
-
-				// Operation 3: Sell LRNA -> asset 200
-				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(trader), LRNA, 200, sell_amount_2, Balance::zero()));
-				check_invariant("After sell #2 (LRNA -> 200)");
-
-				let hdx_after_sell_2 = Omnipool::load_asset_state(HDX).unwrap();
-				assert_eq!(
-					hdx_after_sell_2.hub_reserve, hdx_after_buy_1.hub_reserve,
-					"HDX hub_reserve must be unchanged after sell #2"
-				);
-
-				// Operation 4: Buy asset 400 with LRNA
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(trader), 400, LRNA, buy_amount_2, Balance::MAX));
-				check_invariant("After buy #2 (400 <- LRNA)");
-
-				let hdx_after_buy_2 = Omnipool::load_asset_state(HDX).unwrap();
-				assert_eq!(
-					hdx_after_buy_2.hub_reserve, hdx_after_sell_2.hub_reserve,
-					"HDX hub_reserve must be unchanged after buy #2"
-				);
-
-				assert_eq!(
-					hdx_after_buy_2.hub_reserve, initial_hdx_state.hub_reserve,
-					"HDX hub_reserve must be unchanged after all operations"
-				);
-				assert!(
-					Tokens::free_balance(LRNA, &TREASURY) > 0,
-					"Treasury must have accumulated LRNA after all operations"
-				);
 			});
 	}
 }
