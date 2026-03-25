@@ -98,29 +98,69 @@ impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 12_785_000 picoseconds.
-		Weight::from_parts(13_265_882, 0)
-			// Standard Error: 1
-			.saturating_add(Weight::from_parts(1_187, 0).saturating_mul(n.into()))
+		// Minimum execution time: 7_000_000 picoseconds.
+		Weight::from_parts(7_893_103, 0)
+			// Standard Error: 7
+			.saturating_add(Weight::from_parts(1_229, 0).saturating_mul(n.into()))
 	}
 	/// The range of component `n` is `[1, 10000]`.
 	fn dispatch_with_extra_gas(n: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 7_016_000 picoseconds.
-		Weight::from_parts(7_289_848, 0)
-			// Standard Error: 1
-			.saturating_add(Weight::from_parts(348, 0).saturating_mul(n.into()))
+		// Minimum execution time: 4_000_000 picoseconds.
+		Weight::from_parts(4_629_318, 0)
+			// Standard Error: 5
+			.saturating_add(Weight::from_parts(134, 0).saturating_mul(n.into()))
 	}
 	/// The range of component `n` is `[1, 10000]`.
 	fn dispatch_evm_call(n: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 6_976_000 picoseconds.
-		Weight::from_parts(7_262_342, 0)
-			// Standard Error: 1
-			.saturating_add(Weight::from_parts(352, 0).saturating_mul(n.into()))
+		// Minimum execution time: 4_000_000 picoseconds.
+		Weight::from_parts(4_484_608, 0)
+			// Standard Error: 5
+			.saturating_add(Weight::from_parts(151, 0).saturating_mul(n.into()))
+	}
+	/// Storage: `Dispatcher::CleanupEnabled` (r:0 w:1)
+	/// Proof: `Dispatcher::CleanupEnabled` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+	fn pause_hyperbridge_cleanup() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 4_000_000 picoseconds.
+		Weight::from_parts(5_000_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	/// Storage: `Dispatcher::CleanupEnabled` (r:1 w:0)
+	/// Proof: `Dispatcher::CleanupEnabled` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+	/// Storage: `Dispatcher::CleanupStage` (r:1 w:0)
+	/// Proof: `Dispatcher::CleanupStage` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+	/// Storage: UNKNOWN KEY `0x103895530afb23bb607661426d55eb8bf0f16a60fa21b8baaa82ee16ed43643d` (r:5001 w:5000)
+	/// Proof: UNKNOWN KEY `0x103895530afb23bb607661426d55eb8bf0f16a60fa21b8baaa82ee16ed43643d` (r:5001 w:5000)
+	/// The range of component `n` is `[1, 5000]`.
+	fn cleanup_on_idle(n: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1227 + n * (9 ±0)`
+		//  Estimated: `4651 + n * (2484 ±0)`
+		// Minimum execution time: 23_000_000 picoseconds.
+		Weight::from_parts(25_000_000, 4651)
+			// Standard Error: 902
+			.saturating_add(Weight::from_parts(534_086, 0).saturating_mul(n.into()))
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(n.into())))
+			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(n.into())))
+			.saturating_add(Weight::from_parts(0, 2484).saturating_mul(n.into()))
+	}
+	/// Storage: `Dispatcher::CleanupEnabled` (r:1 w:0)
+	/// Proof: `Dispatcher::CleanupEnabled` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+	fn cleanup_on_idle_limit_zero() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `1486`
+		// Minimum execution time: 0_000 picoseconds.
+		Weight::from_parts(1_000_000, 1486)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 }
