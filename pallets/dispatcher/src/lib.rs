@@ -185,7 +185,7 @@ pub mod pallet {
 		/// Run a bounded chunk of ISMP storage cleanup during idle time.
 		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
 			if !CleanupEnabled::<T>::get() {
-				return Weight::zero();
+				return T::DbWeight::get().reads(1);
 			}
 
 			// Use at most half of the remaining weight for cleanup.
@@ -204,13 +204,11 @@ pub mod pallet {
 			let limit = k_ref.min(k_proof);
 
 			if limit == 0 {
-				return Weight::zero();
+				return T::WeightInfo::cleanup_on_idle_limit_zero();
 			}
 
 			let limit_u32 = limit.min(u32::MAX as u64) as u32;
-
 			let stage = CleanupStage::<T>::get().unwrap_or(Stage::StateCommitments);
-
 			let (done, keys_deleted) = do_cleanup_step(stage, limit_u32);
 
 			if done {
@@ -222,9 +220,10 @@ pub mod pallet {
 						CleanupStage::<T>::kill();
 					}
 				}
+				T::WeightInfo::cleanup_on_idle_stage_complete(keys_deleted)
+			} else {
+				T::WeightInfo::cleanup_on_idle(keys_deleted)
 			}
-
-			per_key_weight.saturating_mul(keys_deleted as u64)
 		}
 	}
 
@@ -444,7 +443,7 @@ pub mod pallet {
 		/// Enable/pause the background ISMP storage cleanup. If enabled for the first time,
 		/// starting from the first stage.
 		#[pallet::call_index(6)]
-		#[pallet::weight(T::DbWeight::get().writes(1))]
+		#[pallet::weight(T::WeightInfo::pause_hyperbridge_cleanup())]
 		pub fn pause_hyperbridge_cleanup(origin: OriginFor<T>, do_pause: bool) -> DispatchResult {
 			T::MigrationOperatorOrigin::ensure_origin(origin)?;
 			CleanupEnabled::<T>::put(!do_pause);
