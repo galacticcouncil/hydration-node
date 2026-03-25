@@ -69,7 +69,11 @@ fn begin_referendum_by_bob() -> ReferendumIndex {
 	let referendum_index = pallet_referenda::pallet::ReferendumCount::<hydradx_runtime::Runtime>::get();
 	let now = System::block_number();
 
-	assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), BOB.into(), 1_000_000 * UNITS));
+	assert_ok!(Balances::force_set_balance(
+		RawOrigin::Root.into(),
+		BOB.into(),
+		1_000_000 * UNITS
+	));
 	let proposal = {
 		let inner = pallet_balances::Call::force_set_balance {
 			who: CHARLIE.into(),
@@ -85,7 +89,11 @@ fn begin_referendum_by_bob() -> ReferendumIndex {
 		DispatchTime::At(now + 10 * DAYS),
 	));
 
-	assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), DAVE.into(), 2_000_000_000 * UNITS));
+	assert_ok!(Balances::force_set_balance(
+		RawOrigin::Root.into(),
+		DAVE.into(),
+		2_000_000_000 * UNITS
+	));
 	assert_ok!(Referenda::place_decision_deposit(
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 		referendum_index,
@@ -375,9 +383,9 @@ fn giga_unstake_force_removes_finished_votes_and_records_rewards() {
 		assert_eq!(positions.len(), 1);
 		assert!(positions[0].amount > 0);
 
-		assert_ok!(GigaHdxVoting::claim_rewards(
-			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
-		));
+		assert_ok!(GigaHdxVoting::claim_rewards(hydradx_runtime::RuntimeOrigin::signed(
+			alice.clone()
+		),));
 
 		let pending_after = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
 		assert!(pending_after.is_empty());
@@ -642,9 +650,9 @@ fn rewards_only_for_gigahdx_portion_when_voting_with_combined_balance() {
 
 		let gigahdx_before = Currencies::free_balance(GIGAHDX, &alice);
 
-		assert_ok!(GigaHdxVoting::claim_rewards(
-			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
-		));
+		assert_ok!(GigaHdxVoting::claim_rewards(hydradx_runtime::RuntimeOrigin::signed(
+			alice.clone()
+		),));
 
 		let gigahdx_after = Currencies::free_balance(GIGAHDX, &alice);
 		assert!(
@@ -712,10 +720,21 @@ fn multiple_referenda_rewards_claimed_at_once() {
 
 		//Assert
 		let pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
-		assert_eq!(pending.len(), 2, "Should have 2 pending reward entries, got {}", pending.len());
+		assert_eq!(
+			pending.len(),
+			2,
+			"Should have 2 pending reward entries, got {}",
+			pending.len()
+		);
 
-		let reward_a = pending.iter().find(|e| e.referenda_id == r_a).expect("Should have reward for referendum A");
-		let reward_b = pending.iter().find(|e| e.referenda_id == r_b).expect("Should have reward for referendum B");
+		let reward_a = pending
+			.iter()
+			.find(|e| e.referenda_id == r_a)
+			.expect("Should have reward for referendum A");
+		let reward_b = pending
+			.iter()
+			.find(|e| e.referenda_id == r_b)
+			.expect("Should have reward for referendum B");
 		assert!(reward_a.reward_amount > 0);
 		assert!(reward_b.reward_amount > 0);
 		let total_reward_hdx = reward_a.reward_amount + reward_b.reward_amount;
@@ -723,9 +742,9 @@ fn multiple_referenda_rewards_claimed_at_once() {
 		let rate_before = GigaHdx::exchange_rate();
 		let gigahdx_before = Currencies::free_balance(GIGAHDX, &alice);
 
-		assert_ok!(GigaHdxVoting::claim_rewards(
-			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
-		));
+		assert_ok!(GigaHdxVoting::claim_rewards(hydradx_runtime::RuntimeOrigin::signed(
+			alice.clone()
+		),));
 
 		let gigahdx_gained = Currencies::free_balance(GIGAHDX, &alice) - gigahdx_before;
 		let expected_gigahdx = rate_before.reciprocal().unwrap().saturating_mul_int(total_reward_hdx);
@@ -858,17 +877,17 @@ fn sequential_reward_claims_give_equal_gigahdx() {
 		//Act - ALICE claims first
 		let rate_before_alice = GigaHdx::exchange_rate();
 		let alice_gigahdx_before = Currencies::free_balance(GIGAHDX, &alice);
-		assert_ok!(GigaHdxVoting::claim_rewards(
-			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
-		));
+		assert_ok!(GigaHdxVoting::claim_rewards(hydradx_runtime::RuntimeOrigin::signed(
+			alice.clone()
+		),));
 		let alice_gigahdx_gained = Currencies::free_balance(GIGAHDX, &alice) - alice_gigahdx_before;
 
 		//Act - BOB claims second
 		let rate_before_bob = GigaHdx::exchange_rate();
 		let bob_gigahdx_before = Currencies::free_balance(GIGAHDX, &bob);
-		assert_ok!(GigaHdxVoting::claim_rewards(
-			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
-		));
+		assert_ok!(GigaHdxVoting::claim_rewards(hydradx_runtime::RuntimeOrigin::signed(
+			bob.clone()
+		),));
 		let bob_gigahdx_gained = Currencies::free_balance(GIGAHDX, &bob) - bob_gigahdx_before;
 
 		//Assert
@@ -923,7 +942,8 @@ fn vote_after_transferring_free_gigahdx_uses_correct_balance() {
 		//Assert
 		let vote_b = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_b).unwrap();
 		assert_eq!(
-			vote_b.amount, 600 * UNITS,
+			vote_b.amount,
+			600 * UNITS,
 			"GIGAHDX portion should be capped at current balance (700), vote is 600 so all from GIGAHDX"
 		);
 
@@ -932,7 +952,6 @@ fn vote_after_transferring_free_gigahdx_uses_correct_balance() {
 		assert_eq!(split.hdx_amount, 0);
 	});
 }
-
 
 #[test]
 fn vote_with_more_than_balance_is_capped_at_gigahdx_balance() {
@@ -944,7 +963,11 @@ fn vote_with_more_than_balance_is_capped_at_gigahdx_balance() {
 		let gigapot = pallet_gigahdx::Pallet::<hydradx_runtime::Runtime>::gigapot_account_id();
 
 		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), gigapot, UNITS));
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 1_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			1_000 * UNITS
+		));
 
 		assert_ok!(GigaHdx::giga_stake(
 			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
@@ -1074,10 +1097,15 @@ fn liquidation_clears_all_votes_and_records_rewards_only_for_finished() {
 		assert!(pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_a).is_none());
 		assert!(pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_b).is_none());
 
-
 		let pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
-		assert!(pending.iter().any(|e| e.referenda_id == r_a), "Should have reward for finished referendum A");
-		assert!(!pending.iter().any(|e| e.referenda_id == r_b), "Should NOT have reward for ongoing referendum B");
+		assert!(
+			pending.iter().any(|e| e.referenda_id == r_a),
+			"Should have reward for finished referendum A"
+		);
+		assert!(
+			!pending.iter().any(|e| e.referenda_id == r_b),
+			"Should NOT have reward for ongoing referendum B"
+		);
 	});
 }
 
@@ -1190,6 +1218,74 @@ fn received_gigahdx_is_transferable_while_existing_balance_is_locked() {
 			1 * UNITS,
 		)
 		.is_err());
+	});
+}
+
+//TODO: fix ot accept
+///  BUG: When PendingRewards is full (25 entries), removing a vote silently drops the reward
+/// because on_remove_vote ignores the MaxVotesReached error with `let _ =`.
+#[test]
+fn reward_lost_when_pending_rewards_full() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		// Pre-fill PendingRewards to MaxVotes (25) entries
+		pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::mutate(&alice, |entries| {
+			for i in 0..25u32 {
+				let _ = entries.try_push(pallet_gigahdx_voting::types::PendingRewardEntry {
+					referenda_id: 9000 + i,
+					reward_amount: 1 * UNITS,
+				});
+			}
+		});
+		assert_eq!(
+			pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice).len(),
+			25
+		);
+
+		// Skip referendum index 0 (sub-account collision)
+		let _ = begin_referendum();
+		end_referendum();
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+		end_referendum();
+
+		//Act
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			Some(0),
+			r,
+		));
+
+		//Assert
+		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r);
+		assert!(vote.is_none(), "Vote should be removed");
+
+		let pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(
+			pending.len(),
+			25,
+			"Still 25 entries - the 26th reward was silently lost"
+		);
+		assert!(
+			!pending.iter().any(|e| e.referenda_id == r),
+			"Reward for referendum {} was lost because PendingRewards was full",
+			r
+		);
 	});
 }
 
