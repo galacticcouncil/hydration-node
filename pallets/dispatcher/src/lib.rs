@@ -27,6 +27,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
+#![allow(clippy::useless_conversion)]
 
 #[cfg(test)]
 pub mod mock;
@@ -68,9 +69,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// The overarching call type.
 		type RuntimeCall: IsType<<Self as frame_system::Config>::RuntimeCall>
 			+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin, PostInfo = PostDispatchInfo>
@@ -85,9 +83,11 @@ pub mod pallet {
 
 		type TreasuryManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		type AaveManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type EmergencyAdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		type TreasuryAccount: Get<Self::AccountId>;
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
+		type EmergencyAdminAccount: Get<Self::AccountId>;
 
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
@@ -135,6 +135,8 @@ pub mod pallet {
 		AaveHealthFactorLowerThanLiquidationThreshold,
 		/// Aave - there is not enough collateral to cover a new borrow
 		CollateralCannotCoverNewBorrow,
+		/// Aave - the reserve is paused and no operations are allowed
+		AaveReservePaused,
 	}
 
 	#[pallet::event]
@@ -145,6 +147,10 @@ pub mod pallet {
 			result: DispatchResultWithPostInfo,
 		},
 		AaveManagerCallDispatched {
+			call_hash: T::Hash,
+			result: DispatchResultWithPostInfo,
+		},
+		EmergencyAdminCallDispatched {
 			call_hash: T::Hash,
 			result: DispatchResultWithPostInfo,
 		},
@@ -181,7 +187,7 @@ pub mod pallet {
 				frame_system::Origin::<T>::Signed(T::TreasuryAccount::get()).into(),
 				*call,
 			);
-			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury(call_len)));
+			let actual_weight = actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury(call_len)));
 
 			Self::deposit_event(Event::<T>::TreasuryManagerCallDispatched { call_hash, result });
 
@@ -209,7 +215,8 @@ pub mod pallet {
 				frame_system::Origin::<T>::Signed(AaveManagerAccount::<T>::get()).into(),
 				*call,
 			);
-			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_aave_manager(call_len)));
+			let actual_weight =
+				actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_aave_manager(call_len)));
 
 			Self::deposit_event(Event::<T>::AaveManagerCallDispatched { call_hash, result });
 
@@ -327,6 +334,47 @@ pub mod pallet {
 					error: err.error,
 				}),
 			}
+		}
+
+		/// Dispatch a call as the emergency admin account.
+		///
+		/// This is a fast path for the Technical Committee to react to emergencies
+		/// (e.g., pausing exploited markets) without waiting for a full referendum.
+		/// The inner call is dispatched as a Signed origin from the configured
+		/// emergency admin account.
+		///
+		/// Parameters:
+		/// - `origin`: Must satisfy `EmergencyAdminOrigin` (TC majority or Root).
+		/// - `call`: The runtime call to dispatch as the emergency admin.
+		///
+		/// Emits `EmergencyAdminCallDispatched` with the call hash and dispatch result.
+		#[pallet::call_index(5)]
+		#[pallet::weight({
+			let call_weight = call.get_dispatch_info().call_weight;
+			let call_len = call.encoded_size() as u32;
+
+			T::WeightInfo::dispatch_as_emergency_admin(call_len)
+				.saturating_add(call_weight)
+		})]
+		pub fn dispatch_as_emergency_admin(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			T::EmergencyAdminOrigin::ensure_origin(origin)?;
+
+			let call_hash = T::Hashing::hash_of(&call);
+			let call_len = call.encoded_size() as u32;
+
+			let (result, actual_weight) = Self::do_dispatch(
+				frame_system::Origin::<T>::Signed(T::EmergencyAdminAccount::get()).into(),
+				*call,
+			);
+			let actual_weight =
+				actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_emergency_admin(call_len)));
+
+			Self::deposit_event(Event::<T>::EmergencyAdminCallDispatched { call_hash, result });
+
+			Ok(actual_weight.into())
 		}
 	}
 }

@@ -130,9 +130,6 @@ pub mod pallet {
 	where
 		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Asset ID of Hollar
 		#[pallet::constant]
 		type HollarId: Get<Self::AssetId>;
@@ -384,7 +381,7 @@ pub mod pallet {
 				if let Ok(_guard) = lock.try_lock() {
 					log::debug!(
 						target: "hsm::offchain_worker",
-						"Processing arbitrage opportunities at block: {:?}", block_number
+						"Processing arbitrage opportunities at block: {block_number:?}"
 					);
 
 					if let Some(call) = Self::process_arbitrage_opportunities(block_number) {
@@ -392,7 +389,7 @@ pub mod pallet {
 						if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(xt) {
 							log::error!(
 								target: "hsm::offchain_worker",
-								"Failed to submit arbitrage transaction: {:?}", e
+								"Failed to submit arbitrage transaction: {e:?}"
 							);
 						}
 					}
@@ -1103,7 +1100,7 @@ where
 		let (final_hollar_amount, final_collateral_amount) =
 			calculate_final_amounts((sim_hollar_amount, sim_collateral_amount), buy_price)?;
 
-		log::trace!(target: "hsm", "Hollar amount {:?}, buyback limit {:?}", final_hollar_amount, buyback_limit);
+		log::trace!(target: "hsm", "Hollar amount {final_hollar_amount:?}, buyback limit {buyback_limit:?}");
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(
 			HollarAmountReceived::<T>::get(collateral_asset).saturating_add(final_hollar_amount) <= buyback_limit,
@@ -1174,7 +1171,7 @@ where
 		let peg = Self::get_asset_peg(collateral_asset, collateral_info.pool_id, &pool_state)?;
 		let purchase_price = hydra_dx_math::hsm::calculate_purchase_price(peg, collateral_info.purchase_fee);
 
-		log::trace!(target: "hsm", "Peg: {:?}, Purchase price {:?}", peg, purchase_price);
+		log::trace!(target: "hsm", "Peg: {peg:?}, Purchase price {purchase_price:?}");
 
 		let (hollar_amount, collateral_amount) = calculate_amounts(purchase_price)?;
 
@@ -1681,7 +1678,7 @@ where
 		let initial_acc_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
 
 		let hollar_balance = <T as Config>::Currency::balance(T::HollarId::get(), &flash_loan_account);
-		log::trace!(target: "hsm", "Hollar balance in flash loan account: {:?}", hollar_balance);
+		log::trace!(target: "hsm", "Hollar balance in flash loan account: {hollar_balance:?}");
 
 		if direction == ARBITRAGE_DIRECTION_SELL {
 			// Sell hollar to HSM for collateral
@@ -1723,7 +1720,7 @@ where
 			let final_acc_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
 			let remaining = final_acc_balance.saturating_sub(initial_acc_balance);
 			if remaining > 0 {
-				log::trace!(target: "hsm", "Collateral remaining : {:?}", remaining);
+				log::trace!(target: "hsm", "Collateral remaining : {remaining:?}");
 				// In case there is some collateral left after the buy,
 				// we transfer it to the HSM account
 				<T as Config>::Currency::transfer(
@@ -1763,7 +1760,7 @@ where
 			let remaining = final_balance.saturating_sub(initial_balance);
 
 			if remaining > 0 {
-				log::trace!(target: "hsm", "Collateral remaining : {:?}", remaining);
+				log::trace!(target: "hsm", "Collateral remaining : {remaining:?}");
 				<T as Config>::Currency::transfer(
 					collateral_asset_id,
 					&flash_loan_account,
@@ -1844,8 +1841,8 @@ where
 			let level: u128 = U256::from_big_endian(&call_result.value[32..64])
 				.try_into()
 				.unwrap_or(0);
-			log::trace!(target: "hsm", "Bucket capacity: {:?}", capacity);
-			log::trace!(target: "hsm", "Bucket level: {:?}", level);
+			log::trace!(target: "hsm", "Bucket capacity: {capacity:?}");
+			log::trace!(target: "hsm", "Bucket level: {level:?}");
 			capacity.saturating_sub(level)
 		}
 	}
