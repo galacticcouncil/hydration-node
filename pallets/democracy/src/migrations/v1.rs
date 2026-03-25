@@ -70,11 +70,11 @@ pub mod v1 {
 			);
 
 			let props_count = v0::PublicProps::<T>::get().len();
-			log::info!(target: TARGET, "{} public proposals will be migrated.", props_count,);
+			log::info!(target: TARGET, "{props_count} public proposals will be migrated.",);
 			ensure!(props_count <= T::MaxProposals::get() as usize, Error::<T>::TooMany);
 
 			let referenda_count = v0::ReferendumInfoOf::<T>::iter().count();
-			log::info!(target: TARGET, "{} referenda will be migrated.", referenda_count);
+			log::info!(target: TARGET, "{referenda_count} referenda will be migrated.");
 
 			Ok((props_count as u32, referenda_count as u32).encode())
 		}
@@ -146,9 +146,7 @@ pub mod v1 {
 
 			log::info!(
 				target: TARGET,
-				"{} public proposals migrated, {} referenda migrated",
-				new_props_count,
-				new_ref_count,
+				"{new_props_count} public proposals migrated, {new_ref_count} referenda migrated",
 			);
 			Ok(())
 		}

@@ -9,8 +9,7 @@ where
 	// Dev note: 1000 is an arbitrary number, it should be large enough to cover the number of events
 	assert!(
 		last_events::<TEvent, TRuntime>(1000).contains(&e),
-		"Expected event {:?} not found in the system events",
-		e
+		"Expected event {e:?} not found in the system events"
 	);
 }
 

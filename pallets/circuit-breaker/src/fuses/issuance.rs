@@ -40,7 +40,7 @@ impl<T: Config> IssuanceIncreaseFuse<T> {
 			}
 			DepositAction::WithinPeriod { last_issuance } => {
 				let issuance_increase_in_period = context.asset_issuance.saturating_sub(*last_issuance);
-				issuance_increase_in_period <= context.limit
+				issuance_increase_in_period.saturating_add(amount) <= context.limit
 			}
 		}
 	}

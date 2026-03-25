@@ -280,7 +280,7 @@ where
 
 		if result.is_ok() {
 			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnDeposit::handle(
-				&(asset, amount, None),
+				&(asset, amount, Some(who.clone())),
 			)?;
 		}
 
@@ -375,10 +375,6 @@ where
 		if result.is_ok() {
 			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnTransfer::on_transfer(
 				asset, source, dest, amount
-			)?;
-
-			<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnDeposit::handle(
-				&(asset, amount, Some(source.clone())),
 			)?;
 
 			#[cfg(any(feature = "try-runtime", test))]

@@ -109,7 +109,7 @@ where
 				let price_num: u128 = TryInto::try_into(price_num).unwrap_or_default();
 				if price_num.is_zero() {
 					log::error!(target: "stableswap-peg-oracle",
-						"Oracle's price can't be zero. Conract: {:?}, Price: {:?}, UpdatedAt: {:?}", addr, price_num, updated_at);
+						"Oracle's price can't be zero. Conract: {addr:?}, Price: {price_num:?}, UpdatedAt: {updated_at:?}");
 
 					return Err(DispatchError::Other("PegOracle not available"));
 				}

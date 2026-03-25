@@ -84,7 +84,7 @@ fn complex_scenario_works() {
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 2, 1000000000000000u128, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 1, 14252209513698901u128 - sell_amount, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 14252209513698901u128, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 100, 3589236949625567u128, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 200, 1638588974363038u128, 10);
 			assert_balance_approx!(LP1, 100, 3000000000000000u128, 10);
@@ -111,7 +111,7 @@ fn complex_scenario_works() {
 				0,
 				AssetReserveState {
 					reserve: 10000000000000000,
-					hub_reserve: 10000000000000000, // Unchanged as H2O now routed to treasury
+					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
@@ -135,7 +135,7 @@ fn complex_scenario_works() {
 				200,
 				AssetReserveState {
 					reserve: 1638588974363041,
-					hub_reserve: 2689090864095513, // unchanged - H2O routed to HDX
+					hub_reserve: 2709090864095513,
 					shares: 2008863636363636,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
@@ -143,7 +143,7 @@ fn complex_scenario_works() {
 				}
 			);
 
-			assert_pool_state!(14232209513698901, 28464419027397802); // 20*ONE routed to treasury
+			assert_pool_state!(14252209513698901, 28504419027397802);
 
 			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP3), 100, 200, 20000000000000, 1,));
 		});

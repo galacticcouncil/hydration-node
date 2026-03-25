@@ -62,3 +62,6 @@ zombienet
 rustc*.txt
 .claude/
 CLAUDE.md
+/scripts/dispenser-tests/solana-signet-program/.github
+
+findings/

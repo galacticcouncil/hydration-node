@@ -110,7 +110,6 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Fee = Fee;
 	type AssetId = AssetId;
 	type BlockNumberProvider = System;
