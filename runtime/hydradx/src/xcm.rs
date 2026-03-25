@@ -482,11 +482,9 @@ where
 		let result = MessageProcessor::process_message(message, origin, meter, id);
 
 		if let Some((withdrawn, deposited)) = pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::take() {
-			if matches!(result, Ok(true)) {
-				let net = withdrawn.saturating_sub(deposited);
-				if !net.is_zero() {
-					let _ = pallet_circuit_breaker::Pallet::<Runtime>::note_egress(net);
-				}
+			let net = withdrawn.saturating_sub(deposited);
+			if !net.is_zero() {
+				let _ = pallet_circuit_breaker::Pallet::<Runtime>::note_egress(net);
 			}
 		}
 		result
