@@ -135,14 +135,14 @@ impl<RC: Get<AssetId>> orml_traits::currency::OnTransfer<AccountId, AssetId, Bal
 			return Ok(());
 		}
 
-		let maybe_converted = WithdrawCircuitBreaker::<RC>::convert_to_hdx(asset_id, amount);
+		let try_convert = || WithdrawCircuitBreaker::<RC>::convert_to_hdx(asset_id, amount);
 
 		if WithdrawCircuitBreaker::<RC>::should_account_withdraw_operation(
 			asset_id,
 			EgressOperationKind::Transfer,
 			Some(to),
 		) {
-			let amount_ref_currency = maybe_converted?;
+			let amount_ref_currency = try_convert()?;
 			pallet_circuit_breaker::Pallet::<Runtime>::note_egress(amount_ref_currency)?;
 		}
 
@@ -154,7 +154,7 @@ impl<RC: Get<AssetId>> orml_traits::currency::OnTransfer<AccountId, AssetId, Bal
 				WithdrawCircuitBreaker::<RC>::global_asset_category(asset_id),
 				Some(GlobalAssetCategory::Local)
 			) {
-			if let Ok(amount_ref_currency) = maybe_converted {
+			if let Ok(amount_ref_currency) = try_convert() {
 				CircuitBreaker::note_deposit(amount_ref_currency);
 			}
 		}
