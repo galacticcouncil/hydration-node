@@ -231,7 +231,7 @@ pub mod pallet {
 					Some(next) => {
 						CleanupStage::<T>::put(next);
 						base_cleanup_weight.saturating_add(T::DbWeight::get().writes(1))
-					},
+					}
 					None => {
 						// All stages complete.
 						CleanupEnabled::<T>::put(false);
@@ -240,7 +240,7 @@ pub mod pallet {
 
 						base_cleanup_weight.saturating_add(T::DbWeight::get().writes(2))
 					}
-				}
+				};
 			}
 
 			T::WeightInfo::cleanup_on_idle(keys_deleted)
