@@ -223,22 +223,27 @@ pub mod pallet {
 				Self::deposit_event(Event::CleanupProgress { stage, keys_deleted });
 			}
 
+			let base_cleanup_weight = T::WeightInfo::cleanup_on_idle(keys_deleted);
 			if done {
 				Self::deposit_event(Event::CleanupStageCompleted { stage });
 
-				match stage.next() {
-					Some(next) => CleanupStage::<T>::put(next),
+				return match stage.next() {
+					Some(next) => {
+						CleanupStage::<T>::put(next);
+						base_cleanup_weight.saturating_add(T::DbWeight::get().writes(1))
+					},
 					None => {
 						// All stages complete.
 						CleanupEnabled::<T>::put(false);
 						CleanupStage::<T>::kill();
 						Self::deposit_event(Event::CleanupCompleted);
+
+						base_cleanup_weight.saturating_add(T::DbWeight::get().writes(2))
 					}
 				}
-				T::WeightInfo::cleanup_on_idle_stage_complete(keys_deleted)
-			} else {
-				T::WeightInfo::cleanup_on_idle(keys_deleted)
 			}
+
+			T::WeightInfo::cleanup_on_idle(keys_deleted)
 		}
 	}
 
