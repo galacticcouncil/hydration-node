@@ -37,6 +37,7 @@ mod weights;
 use crate::types::IncrementalIntentId;
 use crate::types::Intent;
 use crate::types::Moment;
+use core::cmp;
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::Time;
@@ -44,19 +45,25 @@ use frame_support::Blake2_128Concat;
 use frame_support::{dispatch::DispatchResult, require_transactional, traits::Get};
 use frame_system::offchain::SubmitTransaction;
 use frame_system::pallet_prelude::*;
+use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::lazy_executor::Mutate;
 use hydradx_traits::lazy_executor::Source;
 use hydradx_traits::registry::Inspect;
+use hydradx_traits::router::{PoolType, Trade as OracleTrade};
 use hydradx_traits::CreateBare;
+use hydradx_traits::{OraclePeriod, PriceOracle};
 use ice_support::AssetId;
 use ice_support::Balance;
+use ice_support::DcaData;
 use ice_support::IntentData;
 use ice_support::IntentId;
 use ice_support::ResolvedIntent;
 use ice_support::SwapData;
 use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
+use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::Zero;
+use sp_runtime::{FixedPointNumber, FixedU128, Permill};
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
 
@@ -106,6 +113,16 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxAllowedIntentDuration: Get<Moment>;
 
+		/// Oracle price provider for DCA dynamic slippage.
+		type OraclePriceProvider: PriceOracle<AssetId, Price = EmaPrice>;
+
+		/// Provider for the current block number (used for DCA scheduling).
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
+
+		/// Minimum DCA period in blocks.
+		#[pallet::constant]
+		type MinDcaPeriod: Get<u32>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -141,6 +158,17 @@ pub mod pallet {
 
 		/// Failed to add intent's callback to queue for execution.
 		FailedToQueueCallback { id: IntentId, error: DispatchError },
+
+		/// A single DCA trade was executed; intent stays in storage for the next period.
+		DcaTradeExecuted {
+			id: IntentId,
+			amount_in: Balance,
+			amount_out: Balance,
+			remaining_budget: Balance,
+		},
+
+		/// DCA intent completed (budget exhausted). Intent removed from storage.
+		DcaCompleted { id: IntentId },
 	}
 
 	#[pallet::error]
@@ -171,6 +199,12 @@ pub mod pallet {
 		NotImplemented,
 		/// Asset with specified id doesn't exists.
 		AssetNotFound,
+		/// DCA period is below minimum.
+		InvalidDcaPeriod,
+		/// DCA budget is less than a single trade amount.
+		InvalidDcaBudget,
+		/// DCA intent must not have a deadline.
+		InvalidDcaDeadline,
 	}
 
 	#[pallet::storage]
@@ -339,7 +373,11 @@ impl<T: Config> Pallet<T> {
 
 				ensure!(owner == who, Error::<T>::InvalidOwner);
 
-				Self::unlock_funds(&who, intent.data.asset_in(), intent.data.amount_in())?;
+				let unlock_amount = match intent.data {
+					IntentData::Swap(_) => intent.data.amount_in(),
+					IntentData::Dca(ref dca) => dca.remaining_budget,
+				};
+				Self::unlock_funds(&who, intent.data.asset_in(), unlock_amount)?;
 
 				Self::deposit_event(Event::<T>::IntentCanceled { id });
 
@@ -355,7 +393,7 @@ impl<T: Config> Pallet<T> {
 	/// Function validates and reserves funds for intent's execution and adds intent to storage
 	/// WARN: partial intents are not supported at the moment, look at `submit_intent()`
 	#[require_transactional]
-	pub fn add_intent(owner: T::AccountId, intent: Intent) -> Result<IntentId, DispatchError> {
+	pub fn add_intent(owner: T::AccountId, mut intent: Intent) -> Result<IntentId, DispatchError> {
 		let now = T::TimestampProvider::now();
 		if let Some(deadline) = intent.deadline {
 			log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), deadline: {:?}, now: {:?}, max_deadline: {:?}", 
@@ -374,7 +412,7 @@ impl<T: Config> Pallet<T> {
 
 		match intent.data {
 			IntentData::Swap(ref data) => {
-				log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), asset_in: {:?}, ed_in: {:?}, amount_in: {:?}, aseet_out: {:?}, ed_out: {:?}, amount_out: {:?}", 
+				log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), asset_in: {:?}, ed_in: {:?}, amount_in: {:?}, aseet_out: {:?}, ed_out: {:?}, amount_out: {:?}",
 					LOG_PREFIX, data.asset_in, ed_in, data.amount_in, data.asset_out, ed_out, data.amount_out);
 
 				ensure!(data.amount_in >= ed_in, Error::<T>::InvalidIntent);
@@ -383,6 +421,32 @@ impl<T: Config> Pallet<T> {
 				ensure!(data.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
 
 				T::Currency::reserve_named(&NAMED_RESERVE_ID, data.asset_in, &owner, data.amount_in)?;
+			}
+			IntentData::Dca(ref mut data) => {
+				// DCA intents must not have a deadline
+				ensure!(intent.deadline.is_none(), Error::<T>::InvalidDcaDeadline);
+
+				ensure!(data.period >= T::MinDcaPeriod::get(), Error::<T>::InvalidDcaPeriod);
+				ensure!(data.amount_in >= ed_in, Error::<T>::InvalidIntent);
+				ensure!(data.amount_out >= ed_out, Error::<T>::InvalidIntent);
+				ensure!(data.asset_in != data.asset_out, Error::<T>::InvalidIntent);
+				ensure!(data.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
+				let reserve_amount = match data.budget {
+					Some(budget) => {
+						ensure!(budget >= data.amount_in, Error::<T>::InvalidDcaBudget);
+						budget
+					}
+					None => data.amount_in.saturating_mul(2), // rolling: 2x buffer
+				};
+
+				T::Currency::reserve_named(&NAMED_RESERVE_ID, data.asset_in, &owner, reserve_amount)?;
+
+				// Initialize mutable fields
+				data.remaining_budget = reserve_amount;
+				let current_block: u32 = T::BlockNumberProvider::current_block_number()
+					.try_into()
+					.unwrap_or(u32::MAX);
+				data.last_execution_block = current_block;
 			}
 		}
 
@@ -405,11 +469,56 @@ impl<T: Config> Pallet<T> {
 		intents.iter().map(|x| x.0).collect::<Vec<IntentId>>()
 	}
 
-	/// Function returns valid intents
+	/// Function returns valid intents.
+	///
+	/// DCA intents are included only when their period has elapsed, budget is sufficient,
+	/// and oracle price indicates the trade is feasible (pre-filter).
+	/// They are transformed into `IntentData::Swap` with the hard limit as `amount_out`,
+	/// so the solver treats them as regular one-shot swaps.
+	/// The oracle effective limit is used only as a pre-filter gate — if the oracle-derived
+	/// minimum exceeds what the solver could reasonably fill, the intent is skipped for this block.
 	pub fn get_valid_intents() -> Vec<(IntentId, Intent)> {
-		let mut intents: Vec<(IntentId, Intent)> = Intents::<T>::iter().collect();
-		intents.sort_by_key(|(id, _)| Reverse(*id));
+		let current_block: u32 = T::BlockNumberProvider::current_block_number()
+			.try_into()
+			.unwrap_or(u32::MAX);
 
+		let mut intents: Vec<(IntentId, Intent)> = Intents::<T>::iter()
+			.filter_map(|(id, intent)| {
+				match &intent.data {
+					IntentData::Swap(_) => Some((id, intent)),
+					IntentData::Dca(dca) => {
+						// Period eligibility
+						if current_block < dca.last_execution_block.saturating_add(dca.period) {
+							return None;
+						}
+						// Budget sufficient for a trade
+						if dca.remaining_budget < dca.amount_in {
+							return None;
+						}
+						// Oracle pre-filter: skip if oracle indicates the trade is unlikely
+						// to satisfy the user's slippage tolerance at current prices.
+						// This prevents the solver from wasting time on intents that would
+						// fail due to market conditions.
+						if let Some(oracle_min) = Self::compute_dca_oracle_limit(dca) {
+							if oracle_min > 0 && dca.amount_out > oracle_min {
+								// Hard limit exceeds what oracle says market can provide
+								// with the user's slippage tolerance — skip this block
+								return None;
+							}
+						}
+						// Transform to Swap with hard limit for solver
+						let swap = dca.to_swap_data();
+						let transformed = Intent {
+							data: IntentData::Swap(swap),
+							deadline: intent.deadline,
+							on_resolved: intent.on_resolved.clone(),
+						};
+						Some((id, transformed))
+					}
+				}
+			})
+			.collect();
+		intents.sort_by_key(|(id, _)| Reverse(*id));
 		intents
 	}
 
@@ -440,14 +549,21 @@ impl<T: Config> Pallet<T> {
 			IntentData::Swap(_) => {
 				Self::validate_swap_intent_resolve(intent, resolve)?;
 			}
+			IntentData::Dca(ref dca) => {
+				Self::validate_dca_intent_resolve(dca, resolve)?;
+			}
 		}
 
 		Ok(())
 	}
 
 	fn validate_swap_intent_resolve(intent: &Intent, resolve: &IntentData) -> Result<(), DispatchError> {
-		let IntentData::Swap(ref swap) = intent.data;
-		let IntentData::Swap(ref resolve_swap) = resolve;
+		let IntentData::Swap(ref swap) = intent.data else {
+			return Err(Error::<T>::ResolveMismatch.into());
+		};
+		let IntentData::Swap(ref resolve_swap) = resolve else {
+			return Err(Error::<T>::ResolveMismatch.into());
+		};
 
 		log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), partial: {:?}, resolve.partial: {:?}", 
 			LOG_PREFIX, swap.partial, resolve_swap.partial);
@@ -493,16 +609,24 @@ impl<T: Config> Pallet<T> {
 
 			Self::validate_resolve(intent, resolve)?;
 
-			let fully_resolved = match intent.data {
+			let (fully_resolved, is_dca) = match intent.data {
 				IntentData::Swap(ref mut s) => {
-					let IntentData::Swap(ref r) = resolve;
-					Self::resolve_swap_intent(s, r)?
+					let IntentData::Swap(ref r) = resolve else {
+						return Err(Error::<T>::ResolveMismatch.into());
+					};
+					(Self::resolve_swap_intent(s, r)?, false)
 				}
+				IntentData::Dca(ref mut dca) => (Self::resolve_dca_intent(&owner, dca)?, true),
 			};
 
 			if fully_resolved {
-				if !intent.data.amount_in().is_zero() {
-					Self::unlock_funds(&owner, intent.data.asset_in(), intent.data.amount_in())?;
+				// Unreserve remaining funds
+				let unreserve_amount = match intent.data {
+					IntentData::Swap(_) => intent.data.amount_in(),
+					IntentData::Dca(ref dca) => dca.remaining_budget,
+				};
+				if !unreserve_amount.is_zero() {
+					Self::unlock_funds(&owner, intent.data.asset_in(), unreserve_amount)?;
 				}
 
 				//NOTE: it's ok to `take`, intent will be removed from storage.
@@ -515,20 +639,37 @@ impl<T: Config> Pallet<T> {
 				*maybe_intent = None;
 				IntentOwner::<T>::remove(id);
 
-				Self::deposit_event(Event::IntentResolved {
-					id: *id,
-					amount_in: resolve.amount_in(),
-					amount_out: resolve.amount_out(),
-				});
+				if is_dca {
+					Self::deposit_event(Event::DcaCompleted { id: *id });
+				} else {
+					Self::deposit_event(Event::IntentResolved {
+						id: *id,
+						amount_in: resolve.amount_in(),
+						amount_out: resolve.amount_out(),
+					});
+				}
 				return Ok(());
 			}
 
-			ensure!(intent.data.is_partial(), Error::<T>::LimitViolation);
-			Self::deposit_event(Event::IntentResovedPartially {
-				id: *id,
-				amount_in: resolve.amount_in(),
-				amount_out: resolve.amount_out(),
-			});
+			// Not fully resolved
+			match intent.data {
+				IntentData::Swap(_) => {
+					ensure!(intent.data.is_partial(), Error::<T>::LimitViolation);
+					Self::deposit_event(Event::IntentResovedPartially {
+						id: *id,
+						amount_in: resolve.amount_in(),
+						amount_out: resolve.amount_out(),
+					});
+				}
+				IntentData::Dca(ref dca) => {
+					Self::deposit_event(Event::DcaTradeExecuted {
+						id: *id,
+						amount_in: resolve.amount_in(),
+						amount_out: resolve.amount_out(),
+						remaining_budget: dca.remaining_budget,
+					});
+				}
+			}
 
 			Ok(())
 		})
@@ -549,6 +690,82 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(false)
+	}
+
+	/// Resolves a DCA intent after a single trade execution.
+	/// Returns `true` if the DCA is complete (budget exhausted).
+	fn resolve_dca_intent(owner: &T::AccountId, dca: &mut DcaData) -> Result<bool, DispatchError> {
+		let current_block: u32 = T::BlockNumberProvider::current_block_number()
+			.try_into()
+			.unwrap_or(u32::MAX);
+
+		// Deduct per-trade amount from remaining budget
+		dca.remaining_budget = dca
+			.remaining_budget
+			.checked_sub(dca.amount_in)
+			.ok_or(Error::<T>::ArithmeticOverflow)?;
+
+		// Update last execution block
+		dca.last_execution_block = current_block;
+
+		// Rolling DCA: try to re-reserve one unit from free balance
+		if dca.budget.is_none() {
+			if T::Currency::reserve_named(&NAMED_RESERVE_ID, dca.asset_in, owner, dca.amount_in).is_ok() {
+				dca.remaining_budget = dca.remaining_budget.saturating_add(dca.amount_in);
+			}
+			// If reserve fails, DCA may complete on next check
+		}
+
+		// DCA complete if insufficient budget for another trade
+		Ok(dca.remaining_budget < dca.amount_in)
+	}
+
+	/// Validates a DCA intent's resolution against hard limits.
+	/// Dynamic slippage is enforced in `get_valid_intents()` as a pre-filter, not here.
+	fn validate_dca_intent_resolve(dca: &DcaData, resolve: &IntentData) -> Result<(), DispatchError> {
+		// Resolve must spend exactly per-trade amount
+		ensure!(resolve.amount_in() == dca.amount_in, Error::<T>::LimitViolation);
+		// Hard limit check (always enforced regardless of oracle)
+		ensure!(resolve.amount_out() >= dca.amount_out, Error::<T>::LimitViolation);
+		Ok(())
+	}
+
+	/// Computes surplus for score matching.
+	/// For swap intents: delegates to `IntentData::surplus()`.
+	/// For DCA intents: uses the hard limit (`amount_out`) — same value used in
+	/// `get_valid_intents()` transform, ensuring OCW and on-chain produce identical scores.
+	pub fn compute_surplus(intent: &Intent, resolve: &IntentData) -> Option<Balance> {
+		intent.data.surplus(resolve)
+	}
+
+	/// Returns the effective minimum output for a DCA trade:
+	/// the tighter (higher) of the oracle-based limit and the user's hard limit.
+	pub fn compute_dca_effective_limit(dca: &DcaData) -> Balance {
+		match Self::compute_dca_oracle_limit(dca) {
+			Some(oracle_min) => cmp::max(oracle_min, dca.amount_out),
+			None => dca.amount_out, // oracle unavailable → hard limit only
+		}
+	}
+
+	/// Computes the oracle-based minimum output for a DCA trade.
+	/// Returns None if oracle data is unavailable.
+	fn compute_dca_oracle_limit(dca: &DcaData) -> Option<Balance> {
+		let route = sp_std::vec![OracleTrade {
+			pool: PoolType::Omnipool,
+			asset_in: dca.asset_in,
+			asset_out: dca.asset_out,
+		}];
+		let oracle_price = T::OraclePriceProvider::price(&route, OraclePeriod::Short)?;
+		// Oracle price for route A→B returns n/d representing asset_in per asset_out
+		// (i.e., how much A costs per unit of B).
+		// For sell: estimated_out = amount_in / price = amount_in * d / n
+		let estimated_out =
+			FixedU128::checked_from_rational(oracle_price.d, oracle_price.n)?.checked_mul_int(dca.amount_in)?;
+		if estimated_out == 0 {
+			return None;
+		}
+		let slippage_amount = dca.slippage.mul_floor(estimated_out);
+		estimated_out.checked_sub(slippage_amount)
 	}
 
 	/// Function unlocks reserved `amount` of `asset_id` for `who`.

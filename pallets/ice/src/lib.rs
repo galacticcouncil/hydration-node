@@ -197,7 +197,10 @@ pub mod pallet {
 			log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), solution with {:?} resolved intesnts and {:?} trades", 
 				LOG_PREFIX, solution.resolved_intents.len(), solution.trades.len());
 
-			Self::validate_solution_target_block(valid_for_block, T::BlockNumberProvider::current_block_number())?;
+			Self::validate_solution_target_block(
+				valid_for_block,
+				<T as pallet::Config>::BlockNumberProvider::current_block_number(),
+			)?;
 
 			// V1 solver may produce solutions with no trades (perfect CoW matching)
 			ensure!(!solution.resolved_intents.is_empty(), Error::<T>::InvalidSolution);
@@ -279,7 +282,8 @@ pub mod pallet {
 				Self::validate_price_consistency(&mut exec_prices, resolve)?;
 
 				let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
-				let surplus = intent.data.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+				let surplus = pallet_intent::Pallet::<T>::compute_surplus(&intent, resolve)
+					.ok_or(Error::<T>::ArithmeticOverflow)?;
 				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), id: {:?}, surplus: {:?}", LOG_PREFIX, id, surplus);
 				exec_score = exec_score.checked_add(surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
 
@@ -334,7 +338,7 @@ pub mod pallet {
 				}
 			};
 
-			let block_no = T::BlockNumberProvider::current_block_number();
+			let block_no = <T as pallet::Config>::BlockNumberProvider::current_block_number();
 			if let Call::submit_solution {
 				solution,
 				valid_for_block,
@@ -380,7 +384,7 @@ impl<T: Config> Pallet<T> {
 		exec_block: BlockNumberFor<T>,
 	) -> Result<(), DispatchError> {
 		log::debug!(target: LOG_TARGET, "{:?}: validate_solution_target_block(), target_block: {:?}, exec_block: {:?}, now: {:?}",
-			LOG_PREFIX, target_block, exec_block, T::BlockNumberProvider::current_block_number());
+			LOG_PREFIX, target_block, exec_block, <T as pallet::Config>::BlockNumberProvider::current_block_number());
 
 		let diff = exec_block
 			.checked_sub(&target_block)
@@ -467,7 +471,8 @@ impl<T: Config> Pallet<T> {
 			Self::validate_intent_amounts(resolve)?;
 
 			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
-			let surplus = intent.data.surplus(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+			let surplus =
+				pallet_intent::Pallet::<T>::compute_surplus(&intent, resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), id: {:?}, surplus: {:?}", LOG_PREFIX, id, surplus);
 			score = score.checked_add(surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
 

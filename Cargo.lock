@@ -10662,6 +10662,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hydra-dx-math",
  "hydradx-traits",
  "ice-support",
  "log",

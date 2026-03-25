@@ -42,7 +42,9 @@ pub fn build_flow_graph(intents: &[&Intent]) -> FlowGraph {
 	let mut graph: FlowGraph = BTreeMap::new();
 
 	for intent in intents {
-		let IntentData::Swap(swap) = &intent.data;
+		let IntentData::Swap(swap) = &intent.data else {
+			continue;
+		};
 		let pair = (swap.asset_in, swap.asset_out);
 
 		let limit_price = (U256::from(swap.amount_out), U256::from(swap.amount_in));

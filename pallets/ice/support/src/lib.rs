@@ -4,6 +4,7 @@
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{ConstU32, RuntimeDebug, TypeInfo};
 use frame_support::sp_runtime::traits::CheckedConversion;
+use frame_support::sp_runtime::Permill;
 use frame_support::BoundedVec;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::Route;
@@ -34,62 +35,71 @@ pub struct Intent {
 #[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum IntentData {
 	Swap(SwapData),
+	Dca(DcaData),
 }
 
 impl IntentData {
 	pub fn is_partial(&self) -> bool {
-		let IntentData::Swap(s) = self;
-
-		s.partial
+		match self {
+			IntentData::Swap(s) => s.partial,
+			IntentData::Dca(_) => false,
+		}
 	}
 
 	pub fn asset_in(&self) -> AssetId {
-		let IntentData::Swap(s) = self;
-
-		s.asset_in
+		match self {
+			IntentData::Swap(s) => s.asset_in,
+			IntentData::Dca(d) => d.asset_in,
+		}
 	}
 
 	pub fn asset_out(&self) -> AssetId {
-		let IntentData::Swap(s) = self;
-
-		s.asset_out
+		match self {
+			IntentData::Swap(s) => s.asset_out,
+			IntentData::Dca(d) => d.asset_out,
+		}
 	}
 
 	pub fn amount_in(&self) -> Balance {
-		let IntentData::Swap(s) = self;
-
-		return s.amount_in;
+		match self {
+			IntentData::Swap(s) => s.amount_in,
+			IntentData::Dca(d) => d.amount_in,
+		}
 	}
 
 	pub fn amount_out(&self) -> Balance {
-		let IntentData::Swap(s) = self;
-
-		s.amount_out
+		match self {
+			IntentData::Swap(s) => s.amount_out,
+			IntentData::Dca(d) => d.amount_out,
+		}
 	}
 
 	/// Function calculates surplus amount from `resolved` intent.
 	///
 	/// Surplus must be >= zero
 	pub fn surplus(&self, resolve: &IntentData) -> Option<Balance> {
-		let IntentData::Swap(s) = self;
-
-		let amt = if s.partial {
-			self.pro_rata(resolve)?
-		} else {
-			s.amount_out
-		};
-
-		resolve.amount_out().checked_sub(amt)
+		match self {
+			IntentData::Swap(s) => {
+				let amt = if s.partial {
+					self.pro_rata(resolve)?
+				} else {
+					s.amount_out
+				};
+				resolve.amount_out().checked_sub(amt)
+			}
+			IntentData::Dca(d) => resolve.amount_out().checked_sub(d.amount_out),
+		}
 	}
 
 	// Function calculates pro rata amount based on `resolved` intent.
 	pub fn pro_rata(&self, resolve: &IntentData) -> Option<Balance> {
-		let IntentData::Swap(s) = self;
-
-		U256::from(resolve.amount_in())
-			.checked_mul(U256::from(s.amount_out))?
-			.checked_div(U256::from(s.amount_in))?
-			.checked_into()
+		match self {
+			IntentData::Swap(s) => U256::from(resolve.amount_in())
+				.checked_mul(U256::from(s.amount_out))?
+				.checked_div(U256::from(s.amount_in))?
+				.checked_into(),
+			IntentData::Dca(_) => None, // DCA is never partial
+		}
 	}
 }
 
@@ -100,6 +110,41 @@ pub struct SwapData {
 	pub amount_in: Balance,
 	pub amount_out: Balance,
 	pub partial: bool,
+}
+
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct DcaData {
+	/// Asset being sold per trade
+	pub asset_in: AssetId,
+	/// Asset being bought per trade
+	pub asset_out: AssetId,
+	/// Per-trade exact sell amount
+	pub amount_in: Balance,
+	/// Per-trade hard minimum receive (user's absolute floor)
+	pub amount_out: Balance,
+	/// Dynamic slippage tolerance applied relative to oracle price
+	pub slippage: Permill,
+	/// Total budget: Some(amount) = fixed, None = rolling/indefinite
+	pub budget: Option<Balance>,
+	/// Remaining reserved funds (mutable, decremented after each trade)
+	pub remaining_budget: Balance,
+	/// Blocks between executions
+	pub period: u32,
+	/// Block when DCA was last executed (or created); updated on each resolution
+	pub last_execution_block: u32,
+}
+
+impl DcaData {
+	/// Convert DCA per-trade parameters to a SwapData for solver presentation.
+	pub fn to_swap_data(&self) -> SwapData {
+		SwapData {
+			asset_in: self.asset_in,
+			asset_out: self.asset_out,
+			amount_in: self.amount_in,
+			amount_out: self.amount_out,
+			partial: false,
+		}
+	}
 }
 
 #[derive(

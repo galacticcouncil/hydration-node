@@ -94,7 +94,9 @@ fn non_partial_swap_intent_should_work_when_resolved_better() {
 		};
 
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.amount_out += 2 * ONE_HDX;
 
 		assert_ok!(IntentPallet::validate_resolve(&intent, &resolve.data));
@@ -112,7 +114,9 @@ fn non_partial_swap_intent_should_work_when_resolved_better() {
 		};
 
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.amount_out += ONE_DOT;
 
 		assert_ok!(IntentPallet::validate_resolve(&intent, &resolve.data));
@@ -173,7 +177,9 @@ fn partial_swap_intent_should_work_when_resolved_better() {
 		};
 
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.amount_out += 2 * ONE_HDX;
 
 		assert_ok!(IntentPallet::validate_resolve(&intent, &resolve.data));
@@ -191,7 +197,9 @@ fn partial_swap_intent_should_work_when_resolved_better() {
 		};
 
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.amount_in -= ONE_HDX;
 
 		assert_ok!(IntentPallet::validate_resolve(&intent, &resolve.data));
@@ -214,7 +222,9 @@ fn partial_should_work_when_resolved_partially() {
 		};
 
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.amount_in /= 2;
 		r_swap.amount_out /= 2;
 
@@ -233,7 +243,9 @@ fn partial_should_work_when_resolved_partially() {
 		};
 
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.amount_in /= 2;
 		r_swap.amount_out /= 2;
 
@@ -257,7 +269,9 @@ fn swap_intent_should_not_work_when_asset_in_does_not_match() {
 		};
 
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.asset_in = ETH;
 
 		assert_noop!(
@@ -283,7 +297,9 @@ fn swap_intent_should_not_work_when_asset_out_does_not_match() {
 		};
 
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.asset_out = ETH;
 
 		assert_noop!(
@@ -309,7 +325,9 @@ fn swap_intent_should_not_work_when_partiality_does_not_match() {
 		};
 
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.partial = !r_swap.partial;
 
 		assert_noop!(
@@ -335,7 +353,9 @@ fn non_partial_swap_exact_in_intent_should_not_work_when_amount_out_is_less_than
 		};
 
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.amount_out -= 1;
 
 		assert_noop!(
@@ -362,7 +382,9 @@ fn non_partial_swap_exact_in_intent_should_not_work_when_amount_in_is_not_exact(
 
 		//smaller than limit
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.amount_in -= 1;
 
 		assert_noop!(
@@ -372,7 +394,9 @@ fn non_partial_swap_exact_in_intent_should_not_work_when_amount_in_is_not_exact(
 
 		//bigger than limit
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.amount_in += 1;
 
 		assert_noop!(
@@ -398,7 +422,9 @@ fn partial_swap_exact_in_should_not_work_when_resolved_fully_and_amount_out_is_l
 		};
 
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.amount_out -= 1;
 
 		assert_noop!(
@@ -424,7 +450,9 @@ fn partial_swap_exact_in_should_not_work_when_amount_in_is_bigger_limit() {
 		};
 
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.amount_in += 1;
 
 		assert_noop!(
@@ -451,7 +479,9 @@ fn partial_swap_exact_in_should_not_work_when_resolved_partially_and_amount_out_
 
 		//NOTE: resolve 50% of intent so amount_out >= pro-rata limit(50%)
 		let mut resolve = intent.clone();
-		let IntentData::Swap(ref mut r_swap) = resolve.data;
+		let IntentData::Swap(ref mut r_swap) = resolve.data else {
+			panic!("expected Swap");
+		};
 		r_swap.amount_in /= 2;
 		r_swap.amount_out = r_swap.amount_out / 2 - 1;
 

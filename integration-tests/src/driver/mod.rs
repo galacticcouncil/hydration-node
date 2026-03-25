@@ -10,7 +10,7 @@ use hydradx_runtime::AssetLocation;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AggregatedPriceOracle;
-use ice_support::{IntentData, SwapData};
+use ice_support::{DcaData, IntentData, SwapData};
 use pallet_asset_registry::AssetType;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
@@ -411,6 +411,40 @@ impl HydrationTestDriver {
 						partial: false,
 					}),
 					deadline,
+					on_resolved: None,
+				}
+			));
+		});
+		self
+	}
+
+	pub fn submit_dca_intent(
+		&self,
+		who: AccountId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		amount_out: Balance,
+		slippage: Permill,
+		budget: Option<Balance>,
+		period: u32,
+	) -> &Self {
+		self.execute(|| {
+			assert_ok!(Intent::submit_intent(
+				RuntimeOrigin::signed(who),
+				pallet_intent::types::Intent {
+					data: IntentData::Dca(DcaData {
+						asset_in,
+						asset_out,
+						amount_in,
+						amount_out,
+						slippage,
+						budget,
+						remaining_budget: 0, // set by add_intent
+						period,
+						last_execution_block: 0, // set by add_intent
+					}),
+					deadline: None,
 					on_resolved: None,
 				}
 			));

@@ -10,6 +10,7 @@ mod circuit_breaker;
 mod contracts;
 mod cross_chain_transfer;
 mod dca;
+mod dca_ice;
 mod deposit_limiter;
 mod dispatcher;
 mod driver;

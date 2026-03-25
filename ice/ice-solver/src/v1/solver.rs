@@ -166,7 +166,9 @@ impl<A: AMMInterface> Solver<A> {
 
 			let mut pair_groups: BTreeMap<AssetPair, DirectionGroups<&Intent>> = BTreeMap::new();
 			for intent in &included {
-				let IntentData::Swap(swap) = &intent.data;
+				let IntentData::Swap(swap) = &intent.data else {
+					continue;
+				};
 				let up = unordered_pair(swap.asset_in, swap.asset_out);
 				let entry = pair_groups.entry(up).or_default();
 				if swap.asset_in == up.0 {
@@ -187,7 +189,9 @@ impl<A: AMMInterface> Solver<A> {
 			// Filter intents unsatisfied at their direction's clearing price
 			let before_count = included.len();
 			included.retain(|intent| {
-				let IntentData::Swap(swap) = &intent.data;
+				let IntentData::Swap(swap) = &intent.data else {
+					return true;
+				};
 				let up = unordered_pair(swap.asset_in, swap.asset_out);
 				let Some(clearing) = pair_clearings.get(&up) else {
 					log::trace!(target: "solver", "intent {}: no clearing price for pair ({},{}), keeping", intent.id, up.0, up.1);
@@ -243,7 +247,9 @@ impl<A: AMMInterface> Solver<A> {
 		// Group by unordered pair with remaining (non-ring) volumes
 		let mut pair_groups: BTreeMap<AssetPair, DirectionGroups<(IntentId, &SwapData)>> = BTreeMap::new();
 		for intent in &included {
-			let IntentData::Swap(swap) = &intent.data;
+			let IntentData::Swap(swap) = &intent.data else {
+				continue;
+			};
 			let up = unordered_pair(swap.asset_in, swap.asset_out);
 			let entry = pair_groups.entry(up).or_default();
 			if swap.asset_in == up.0 {
@@ -410,7 +416,9 @@ impl<A: AMMInterface> Solver<A> {
 			let mut accum: BTreeMap<AssetPair, DirAccum> = BTreeMap::new();
 
 			for intent in &included {
-				let IntentData::Swap(swap) = &intent.data;
+				let IntentData::Swap(swap) = &intent.data else {
+					continue;
+				};
 				let key = (swap.asset_in, swap.asset_out);
 				let entry = accum.entry(key).or_default();
 				entry.total_in += swap.amount_in;
@@ -449,7 +457,9 @@ impl<A: AMMInterface> Solver<A> {
 		let mut total_score: Balance = 0;
 
 		for intent in &included {
-			let IntentData::Swap(swap) = &intent.data;
+			let IntentData::Swap(swap) = &intent.data else {
+				continue;
+			};
 			let directed_key = (swap.asset_in, swap.asset_out);
 
 			let total_in = swap.amount_in;
@@ -509,7 +519,9 @@ impl<A: AMMInterface> Solver<A> {
 	/// is needed for the intent itself. The pool trade's adjusted value is the on-chain
 	/// `min_amount_out` safety net.
 	fn solve_single_intent(intent: &Intent, initial_state: &A::State) -> Result<Solution, A::Error> {
-		let IntentData::Swap(swap) = &intent.data;
+		let IntentData::Swap(swap) = &intent.data else {
+			return Ok(empty_solution());
+		};
 
 		match A::sell(swap.asset_in, swap.asset_out, swap.amount_in, None, initial_state) {
 			Ok((_new_state, trade_execution)) => {
@@ -562,7 +574,9 @@ impl<A: AMMInterface> Solver<A> {
 		let total_a_sold: Balance = forward
 			.iter()
 			.map(|i| {
-				let IntentData::Swap(s) = &i.data;
+				let IntentData::Swap(s) = &i.data else {
+					return 0;
+				};
 				s.amount_in
 			})
 			.sum();
@@ -570,7 +584,9 @@ impl<A: AMMInterface> Solver<A> {
 		let total_b_sold: Balance = backward
 			.iter()
 			.map(|i| {
-				let IntentData::Swap(s) = &i.data;
+				let IntentData::Swap(s) = &i.data else {
+					return 0;
+				};
 				s.amount_in
 			})
 			.sum();

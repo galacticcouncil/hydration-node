@@ -414,7 +414,9 @@ fn solver_execute_solution1() {
 
 			// Verify each resolved intent
 			for resolved in solution.resolved_intents.iter() {
-				let ice_support::IntentData::Swap(ref swap_data) = resolved.data;
+				let ice_support::IntentData::Swap(ref swap_data) = resolved.data else {
+					panic!("expected Swap");
+				};
 				assert!(swap_data.amount_in > 0, "amount_in should be positive");
 				let min_amount_out = if swap_data.asset_out == asset_a {
 					min_amount_out_a
@@ -465,7 +467,9 @@ fn solver_execute_solution1() {
 				.resolved_intents
 				.iter()
 				.find(|r| {
-					let ice_support::IntentData::Swap(ref s) = r.data;
+					let ice_support::IntentData::Swap(ref s) = r.data else {
+						panic!("expected Swap");
+					};
 					s.asset_in == asset_a
 				})
 				.expect("Should find Alice's intent");
@@ -473,13 +477,19 @@ fn solver_execute_solution1() {
 				.resolved_intents
 				.iter()
 				.find(|r| {
-					let ice_support::IntentData::Swap(ref s) = r.data;
+					let ice_support::IntentData::Swap(ref s) = r.data else {
+						panic!("expected Swap");
+					};
 					s.asset_in == asset_b
 				})
 				.expect("Should find Bob's intent");
 
-			let ice_support::IntentData::Swap(ref alice_swap) = alice_resolved.data;
-			let ice_support::IntentData::Swap(ref bob_swap) = bob_resolved.data;
+			let ice_support::IntentData::Swap(ref alice_swap) = alice_resolved.data else {
+				panic!("expected Swap");
+			};
+			let ice_support::IntentData::Swap(ref bob_swap) = bob_resolved.data else {
+				panic!("expected Swap");
+			};
 
 			assert_eq!(alice_balance_a_before - alice_balance_a_after, alice_swap.amount_in);
 			assert_eq!(alice_balance_b_after - alice_balance_b_before, alice_swap.amount_out);
@@ -536,7 +546,9 @@ fn solver_execute_solution_with_buy_intents() {
 			// Verify solution structure
 			assert_eq!(solution.resolved_intents.len(), 1, "Should resolve intent");
 			let resolved = &solution.resolved_intents[0];
-			let ice_support::IntentData::Swap(ref swap_data) = resolved.data;
+			let ice_support::IntentData::Swap(ref swap_data) = resolved.data else {
+				panic!("expected Swap");
+			};
 			assert!(
 				swap_data.amount_out >= alice_wants_amount_out,
 				"Should buy >= amount requested"
@@ -736,7 +748,9 @@ fn solver_v1_single_intent() {
 			// Verify the resolved intent
 			let resolved = &solution.resolved_intents[0];
 			assert_eq!(resolved.id, original_intent_id, "Resolved intent ID should match");
-			let ice_support::IntentData::Swap(ref swap_data) = resolved.data;
+			let ice_support::IntentData::Swap(ref swap_data) = resolved.data else {
+				panic!("expected Swap");
+			};
 			assert_eq!(swap_data.asset_in, hdx, "asset_in should be HDX");
 			assert_eq!(swap_data.asset_out, bnc, "asset_out should be BNC");
 			assert_eq!(swap_data.amount_in, amount, "amount_in should match submitted amount");
@@ -854,7 +868,9 @@ fn solver_v1_two_intents_partial_match() {
 
 			// Verify balance changes match solution
 			for resolved in solution.resolved_intents.iter() {
-				let ice_support::IntentData::Swap(ref swap_data) = resolved.data;
+				let ice_support::IntentData::Swap(ref swap_data) = resolved.data else {
+					panic!("expected Swap");
+				};
 				if swap_data.asset_in == hdx {
 					// Alice's intent
 					assert_eq!(alice_hdx_before - alice_hdx_after, swap_data.amount_in);
@@ -1294,7 +1310,9 @@ fn usdt_weth_single_intent() {
 			// Verify the resolved intent
 			let resolved = &solution.resolved_intents[0];
 			assert_eq!(resolved.id, original_intent_id, "Resolved intent ID should match");
-			let ice_support::IntentData::Swap(ref swap_data) = resolved.data;
+			let ice_support::IntentData::Swap(ref swap_data) = resolved.data else {
+				panic!("expected Swap");
+			};
 			assert_eq!(swap_data.asset_in, usdt, "asset_in should be USDT");
 			assert_eq!(swap_data.asset_out, weth, "asset_out should be WETH");
 			assert_eq!(
@@ -1857,7 +1875,9 @@ fn solver_ring_trade_triangle_execute() {
 
 			// Verify balance changes match solution exactly
 			for ri in solution.resolved_intents.iter() {
-				let ice_support::IntentData::Swap(ref s) = ri.data;
+				let ice_support::IntentData::Swap(ref s) = ri.data else {
+					panic!("expected Swap");
+				};
 				match (s.asset_in, s.asset_out) {
 					(0, 14) => {
 						assert_eq!(alice_hdx_before - Currencies::total_balance(hdx, &alice), s.amount_in);
@@ -2085,7 +2105,9 @@ fn solver_mixed_batch_12_intents() {
 			let mut rates_by_direction: std::collections::BTreeMap<(u32, u32), Vec<f64>> =
 				std::collections::BTreeMap::new();
 			for ri in solution.resolved_intents.iter() {
-				let ice_support::IntentData::Swap(ref s) = ri.data;
+				let ice_support::IntentData::Swap(ref s) = ri.data else {
+					panic!("expected Swap");
+				};
 				let rate = s.amount_out as f64 / s.amount_in as f64;
 				rates_by_direction
 					.entry((s.asset_in, s.asset_out))
@@ -2374,7 +2396,9 @@ fn solver_testnet_snapshot_direct_trade_check() {
 				continue;
 			}
 
-			let ice_support::IntentData::Swap(ref s) = intent.data;
+			let ice_support::IntentData::Swap(ref s) = intent.data else {
+				panic!("expected Swap");
+			};
 			let owner = pallet_intent::Pallet::<Runtime>::intent_owner(id).unwrap_or_else(|| ALICE.into());
 
 			let route = Router::get_route(AssetPair::new(s.asset_in, s.asset_out));

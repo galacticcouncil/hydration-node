@@ -239,6 +239,9 @@ impl pallet_intent::Config for Test {
 	type TimestampProvider = Timestamp;
 	type HubAssetId = ConstU32<HUB_ASSET_ID>;
 	type MaxAllowedIntentDuration = ConstU64<MAX_INTENT_DEADLINE>;
+	type OraclePriceProvider = PriceProviderMock;
+	type BlockNumberProvider = System;
+	type MinDcaPeriod = ConstU32<5>;
 	type WeightInfo = ();
 }
 

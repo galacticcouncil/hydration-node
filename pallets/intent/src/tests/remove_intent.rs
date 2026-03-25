@@ -139,7 +139,9 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 			let mut resolve = IntentPallet::get_intent(id).expect("Intent to exists");
 			let owner = ALICE;
 
-			let IntentData::Swap(ref mut r_swap) = resolve.data;
+			let IntentData::Swap(ref mut r_swap) = resolve.data else {
+				panic!("expected Swap");
+			};
 			r_swap.amount_in /= 2;
 			r_swap.amount_out /= 2;
 

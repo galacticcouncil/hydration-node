@@ -20,8 +20,11 @@ use crate::Config;
 use frame_support::parameter_types;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Everything;
+use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::lazy_executor::Source;
 use hydradx_traits::registry::Inspect;
+use hydradx_traits::router::Trade as OracleTrade;
+use hydradx_traits::{OraclePeriod, PriceOracle};
 use ice_support::AssetId;
 use ice_support::Balance;
 use orml_traits::parameter_type_with_key;
@@ -31,10 +34,7 @@ use sp_core::ConstU64;
 use sp_core::H256;
 use sp_runtime::traits::BlakeTwo256;
 use sp_runtime::traits::IdentityLookup;
-use sp_runtime::BuildStorage;
-use sp_runtime::DispatchError;
-use sp_runtime::DispatchResult;
-use sp_runtime::TransactionOutcome;
+use sp_runtime::{BuildStorage, DispatchError, DispatchResult, TransactionOutcome};
 use std::cell::RefCell;
 use std::vec;
 
@@ -155,8 +155,38 @@ impl pallet_timestamp::Config for Test {
 	type WeightInfo = ();
 }
 
+pub(crate) const MIN_DCA_PERIOD: u32 = 5;
+
 thread_local! {
 	pub static QUEUD_TASKS: RefCell<Vec<(Source, AccountId)>> = RefCell::new(Vec::default());
+	pub static ORACLE_PRICE: RefCell<Option<EmaPrice>> = RefCell::new(None);
+	pub static BLOCK_NUMBER: RefCell<u64> = RefCell::new(1);
+}
+
+pub fn set_oracle_price(price: Option<EmaPrice>) {
+	ORACLE_PRICE.with(|v| *v.borrow_mut() = price);
+}
+
+pub fn set_block_number(n: u64) {
+	BLOCK_NUMBER.with(|v| *v.borrow_mut() = n);
+}
+
+pub struct MockOracleProvider;
+impl PriceOracle<AssetId> for MockOracleProvider {
+	type Price = EmaPrice;
+
+	fn price(_route: &[OracleTrade<AssetId>], _period: OraclePeriod) -> Option<Self::Price> {
+		ORACLE_PRICE.with(|v| *v.borrow())
+	}
+}
+
+pub struct MockBlockNumberProvider;
+impl sp_runtime::traits::BlockNumberProvider for MockBlockNumberProvider {
+	type BlockNumber = u64;
+
+	fn current_block_number() -> Self::BlockNumber {
+		BLOCK_NUMBER.with(|v| *v.borrow())
+	}
 }
 
 pub struct DummyLazyExecutor<T>(sp_std::marker::PhantomData<T>);
@@ -228,6 +258,10 @@ impl Inspect for DummyRegistry {
 	}
 }
 
+parameter_types! {
+	pub const MinDcaPeriod: u32 = MIN_DCA_PERIOD;
+}
+
 impl pallet_intent::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
@@ -236,6 +270,9 @@ impl pallet_intent::Config for Test {
 	type TimestampProvider = Timestamp;
 	type HubAssetId = ConstU32<HUB_ASSET_ID>;
 	type MaxAllowedIntentDuration = ConstU64<MAX_INTENT_DEADLINE>;
+	type OraclePriceProvider = MockOracleProvider;
+	type BlockNumberProvider = MockBlockNumberProvider;
+	type MinDcaPeriod = MinDcaPeriod;
 	type WeightInfo = ();
 }
 
@@ -249,6 +286,8 @@ impl Default for ExtBuilder {
 		QUEUD_TASKS.with(|v| {
 			v.borrow_mut().clear();
 		});
+		ORACLE_PRICE.with(|v| *v.borrow_mut() = None);
+		BLOCK_NUMBER.with(|v| *v.borrow_mut() = 1);
 
 		Self {
 			endowed_accounts: vec![],

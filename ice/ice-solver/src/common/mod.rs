@@ -75,15 +75,20 @@ pub fn mul_div(a: U256, b: U256, c: U256) -> Option<U256> {
 pub fn collect_unique_assets(intents: &[Intent]) -> BTreeSet<AssetId> {
 	intents
 		.iter()
-		.flat_map(|i| {
-			let IntentData::Swap(swap) = &i.data;
-			[swap.asset_in, swap.asset_out]
+		.filter_map(|i| {
+			let IntentData::Swap(swap) = &i.data else {
+				return None;
+			};
+			Some([swap.asset_in, swap.asset_out])
 		})
+		.flatten()
 		.collect()
 }
 
 pub fn is_satisfiable(intent: &Intent, spot_prices: &BTreeMap<AssetId, Ratio>) -> bool {
-	let IntentData::Swap(swap) = &intent.data;
+	let IntentData::Swap(swap) = &intent.data else {
+		return false;
+	};
 
 	let Some(price_in) = spot_prices.get(&swap.asset_in) else {
 		log::trace!(target: "solver", "intent {}: not satisfiable — no spot price for asset_in {}", intent.id, swap.asset_in);
