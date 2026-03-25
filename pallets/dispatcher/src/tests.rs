@@ -311,17 +311,17 @@ mod hyperbridge_cleanup_tests {
 			assert_ok!(Dispatcher::pause_hyperbridge_cleanup(RuntimeOrigin::root(), true));
 
 			let used = run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
-			assert_eq!(used, Weight::zero());
+			assert_eq!(used, MockDbWeight::get().reads(1));
 			assert_eq!(count_keys(&prefix), 5, "keys must not be touched when disabled");
 		});
 	}
 
 	#[test]
-	fn on_idle_returns_zero_weight_when_disabled() {
+	fn on_idle_returns_one_read_worth_weight_when_disabled() {
 		ExtBuilder::default().build().execute_with(|| {
 			assert_ok!(Dispatcher::pause_hyperbridge_cleanup(RuntimeOrigin::root(), true));
 			let used = run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
-			assert_eq!(used, Weight::zero());
+			assert_eq!(used, MockDbWeight::get().reads(1));
 		});
 	}
 
@@ -407,7 +407,11 @@ mod hyperbridge_cleanup_tests {
 
 			// Subsequent on_idle must be a no-op.
 			let used = run_on_idle(Weight::from_parts(1_000_000_000, 1_000_000));
-			assert_eq!(used, Weight::zero(), "on_idle must return zero after cleanup is done");
+			assert_eq!(
+				used,
+				MockDbWeight::get().reads(1),
+				"on_idle must return exactly 1 read after cleanup is done"
+			);
 		});
 	}
 
