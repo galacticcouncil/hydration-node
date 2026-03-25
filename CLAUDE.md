@@ -1,5 +1,12 @@
 # CLAUDE.md — hydration-node
 
+## Protocol context
+
+For Hydration protocol-level context (architecture, products, tokenomics, Omnipool mechanics), fetch the central context index via WebFetch:
+`https://raw.githubusercontent.com/galacticcouncil/hydration/main/CLAUDE.md`
+
+It lists available reference documents and their raw GitHub URLs.
+
 ## Project overview
 
 Substrate-based parachain (Polkadot ecosystem) implementing DeFi protocols — DEX (Omnipool, Stableswap, XYK, LBP), DCA, OTC, bonds, staking, governance, and EVM compatibility.
