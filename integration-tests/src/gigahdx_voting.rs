@@ -1290,6 +1290,509 @@ fn reward_lost_when_pending_rewards_full() {
 }
 
 #[test]
+fn last_voter_reward_is_fair_despite_rounding() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+		let charlie: AccountId = CHARLIE.into();
+
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			charlie.clone(),
+			1_000_000 * UNITS
+		));
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS
+		));
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			100 * UNITS
+		));
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(charlie.clone()),
+			100 * UNITS
+		));
+
+		// Skip referendum index 0 (sub-account collision)
+		let _ = begin_referendum();
+		end_referendum();
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(charlie.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+
+		end_referendum();
+
+		//Act
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			Some(0),
+			r
+		));
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			Some(0),
+			r
+		));
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(charlie.clone()),
+			Some(0),
+			r
+		));
+
+		//Assert
+		let alice_pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
+		let bob_pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&bob);
+		let charlie_pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&charlie);
+
+		let alice_reward = alice_pending[0].reward_amount;
+		let bob_reward = bob_pending[0].reward_amount;
+		let charlie_reward = charlie_pending[0].reward_amount;
+
+		let pool = pallet_gigahdx_voting::ReferendaRewardPool::<hydradx_runtime::Runtime>::get(r).unwrap();
+		let total_distributed = alice_reward + bob_reward + charlie_reward;
+
+		assert_eq!(alice_reward, bob_reward);
+		assert_eq!(bob_reward, charlie_reward);
+		assert!(total_distributed <= pool.total_reward);
+		assert_eq!(pool.remaining_reward, pool.total_reward - total_distributed);
+		assert_eq!(pool.remaining_reward, 1);
+	});
+}
+
+#[test]
+fn remove_vote_should_fail_for_referendum_user_never_voted_on() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		let r = begin_referendum();
+
+		//Act & Assert
+		assert_noop!(
+			ConvictionVoting::remove_vote(hydradx_runtime::RuntimeOrigin::signed(alice.clone()), Some(0), r,),
+			pallet_conviction_voting::Error::<hydradx_runtime::Runtime>::NotVoter
+		);
+	});
+}
+
+#[test]
+fn vote_update_on_same_referendum_replaces_conviction_without_double_counting() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		let r = begin_referendum();
+
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+
+		let vote_1 = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).unwrap();
+		assert_eq!(vote_1.amount, 50 * UNITS);
+		let weighted_1 = pallet_gigahdx_voting::ReferendaTotalWeightedVotes::<hydradx_runtime::Runtime>::get(r);
+		assert_eq!(weighted_1, 50 * UNITS);
+
+		//Act
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked6x),
+		));
+
+		//Assert
+		let vote_2 = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).unwrap();
+		assert_eq!(vote_2.amount, 50 * UNITS);
+
+		let weighted_2 = pallet_gigahdx_voting::ReferendaTotalWeightedVotes::<hydradx_runtime::Runtime>::get(r);
+		assert_eq!(weighted_2, 300 * UNITS);
+	});
+}
+
+#[test]
+fn vote_on_nonexistent_referendum_fails() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		//Act & Assert
+		assert!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			99999,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		)
+		.is_err());
+	});
+}
+
+#[test]
+fn double_claim_rewards_fails() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+		end_referendum();
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			Some(0),
+			r,
+		));
+
+		assert_ok!(GigaHdxVoting::claim_rewards(hydradx_runtime::RuntimeOrigin::signed(
+			alice.clone()
+		),));
+
+		//Act & Assert
+		assert_noop!(
+			GigaHdxVoting::claim_rewards(hydradx_runtime::RuntimeOrigin::signed(alice.clone()),),
+			pallet_gigahdx_voting::Error::<hydradx_runtime::Runtime>::NoPendingRewards
+		);
+	});
+}
+
+#[test]
+fn split_abstain_vote_uses_none_conviction() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		let r = begin_referendum();
+
+		//Act
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			AccountVote::SplitAbstain {
+				aye: 30 * UNITS,
+				nay: 20 * UNITS,
+				abstain: 10 * UNITS,
+			},
+		));
+
+		//Assert
+		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).unwrap();
+		assert_eq!(vote.amount, 60 * UNITS);
+		assert_eq!(vote.conviction, pallet_gigahdx_voting::types::Conviction::None);
+
+		let weighted = pallet_gigahdx_voting::ReferendaTotalWeightedVotes::<hydradx_runtime::Runtime>::get(r);
+		assert_eq!(weighted, 60 * UNITS);
+	});
+}
+
+/// ALICE votes Locked1x, then changes to Locked6x on the same referendum.
+/// BOB votes Locked1x. After referendum ends, rewards should reflect
+/// ALICE's final conviction (6x), not her original (1x).
+#[test]
+fn reward_reflects_updated_conviction_not_original() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			100 * UNITS,
+		));
+
+		// Skip referendum index 0 (sub-account collision)
+		let _ = begin_referendum();
+		end_referendum();
+
+		let r = begin_referendum();
+
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+
+		//Act
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked6x),
+		));
+
+		end_referendum();
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			Some(0),
+			r,
+		));
+
+		//Assert
+		let alice_pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
+		let bob_pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&bob);
+
+		let alice_reward = alice_pending[0].reward_amount;
+		let bob_reward = bob_pending[0].reward_amount;
+
+		assert!(
+			alice_reward > bob_reward * 5,
+			"ALICE (6x conviction) should get ~6x more reward than BOB (1x). Alice: {}, Bob: {}",
+			alice_reward,
+			bob_reward
+		);
+	});
+}
+
+#[test]
+fn no_reward_for_cancelled_referendum() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+
+		//Act
+		assert_ok!(Referenda::cancel(RawOrigin::Root.into(), r));
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			Some(0),
+			r,
+		));
+
+		//Assert
+		let pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
+		assert!(pending.is_empty(), "Cancelled referenda should not generate rewards");
+	});
+}
+
+/// BUG: Spec says Conviction::None should have 0.1x reward multiplier,
+/// but code uses 1x (same as Locked1x). This test documents the discrepancy.
+#[test]
+fn none_conviction_gets_same_reward_as_locked1x() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			100 * UNITS,
+		));
+
+		// Skip referendum index 0
+		let _ = begin_referendum();
+		end_referendum();
+
+		let r = begin_referendum();
+
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::None),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+
+		end_referendum();
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			Some(0),
+			r,
+		));
+
+		//Assert
+		let alice_pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
+		let bob_pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&bob);
+		let alice_reward = alice_pending[0].reward_amount;
+		let bob_reward = bob_pending[0].reward_amount;
+
+		// Per spec: None = 0.1x, Locked1x = 1x. Total weighted = 50*0.1 + 50*1 = 55.
+		// Alice should get 5/55 of pool, Bob should get 50/55.
+		// Currently both get 5_000_000_000_000_000 (equal) because code uses None = 1x.
+		assert_eq!(alice_reward, 909_090_909_090_909);
+		assert_eq!(bob_reward, 9_090_909_090_909_090);
+	});
+}
+
+/// User stakes more GIGAHDX AFTER voting but BEFORE removing vote.
+/// The reward should be based on the vote amount at time of voting, not current balance.
+#[test]
+fn reward_based_on_vote_amount_not_current_balance() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			100 * UNITS,
+		));
+
+		// Skip referendum index 0
+		let _ = begin_referendum();
+		end_referendum();
+
+		let r = begin_referendum();
+
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+
+		end_referendum();
+
+		//Act - ALICE stakes MORE before removing vote
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			500 * UNITS,
+		));
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(bob.clone()),
+			Some(0),
+			r,
+		));
+
+		//Assert
+		let alice_pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
+		let bob_pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&bob);
+		let alice_reward = alice_pending[0].reward_amount;
+		let bob_reward = bob_pending[0].reward_amount;
+
+		assert_eq!(
+			alice_reward, bob_reward,
+			"Rewards should be equal - ALICE's extra stake after voting should not affect reward"
+		);
+	});
+}
+
+#[test]
 fn staking_hooks_still_work() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {

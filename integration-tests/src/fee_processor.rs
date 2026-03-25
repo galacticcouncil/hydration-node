@@ -598,3 +598,28 @@ fn tiny_hdx_fee_doesnt_round_to_zero_for_any_receivers() {
 		assert_eq!(staking_increase, 1);
 	});
 }
+
+#[test]
+fn zero_amount_fee_is_noop() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		//Arrange
+		let source: AccountId = BOB.into();
+		let trader: AccountId = BOB.into();
+
+		let gigapot_before = Currencies::free_balance(HDX, &gigapot());
+		let reward_before = Currencies::free_balance(HDX, &giga_reward_pot());
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+
+		//Act
+		assert_ok!(FeeProcessor::process_trade_fee(source, trader, HDX, 0));
+
+		//Assert
+		assert_eq!(Currencies::free_balance(HDX, &gigapot()), gigapot_before);
+		assert_eq!(Currencies::free_balance(HDX, &giga_reward_pot()), reward_before);
+		assert_eq!(Currencies::free_balance(HDX, &staking_pot()), staking_before);
+	});
+}

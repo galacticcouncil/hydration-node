@@ -376,6 +376,47 @@ fn lock_id_collides_after_partial_unlock() {
 	});
 }
 
+#[test]
+fn unstake_more_than_balance_fails() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		let alice = sp_runtime::AccountId32::from(ALICE);
+
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 1_000_000 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		let gigahdx_before = Currencies::free_balance(GIGAHDX, &alice);
+		let hdx_before = Balances::free_balance(&alice);
+
+		//Act & Assert
+		assert!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 200 * UNITS).is_err());
+
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), gigahdx_before);
+		assert_eq!(Balances::free_balance(&alice), hdx_before);
+
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(positions.len(), 0);
+	});
+}
+
+#[test]
+fn giga_stake_at_min_amount_succeeds_and_below_min_fails() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//Arrange
+		let alice = sp_runtime::AccountId32::from(ALICE);
+
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 1_000_000 * UNITS));
+
+		//Act & Assert
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 10 * UNITS));
+		assert!(Currencies::free_balance(GIGAHDX, &alice) > 0);
+
+		assert!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 10 * UNITS - 1).is_err());
+	});
+}
+
 /// GIGAHDX can be transferred when not locked by voting.
 #[test]
 fn gigahdx_transfer_succeeds_when_unlocked() {
