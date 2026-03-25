@@ -274,8 +274,7 @@ mod hyperbridge_cleanup_tests {
 			assert_eq!(
 				count_keys(&stage.storage_prefix()),
 				0,
-				"{:?} must be empty after cleanup",
-				stage
+				"{stage:?} must be empty after cleanup",
 			);
 		}
 	}
