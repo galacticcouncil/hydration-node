@@ -5,11 +5,13 @@
 //! - `pallet_ismp::StateMachineUpdateTime`
 //! - `ismp_parachain::RelayChainStateCommitments`
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use sp_core::hashing::twox_128;
 
 /// Stages of the ISMP storage cleanup.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode, MaxEncodedLen, scale_info::TypeInfo)]
+#[derive(
+	Debug, Clone, Copy, PartialEq, Eq, Encode, Decode, MaxEncodedLen, DecodeWithMemTracking, scale_info::TypeInfo,
+)]
 pub enum Stage {
 	/// Cleaning pallet_ismp::StateCommitments
 	StateCommitments,

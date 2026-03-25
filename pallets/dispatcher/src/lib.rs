@@ -173,6 +173,14 @@ pub mod pallet {
 			call_hash: T::Hash,
 			result: DispatchResultWithPostInfo,
 		},
+		/// Emitted each block when cleanup deletes a batch of keys.
+		CleanupProgress { stage: Stage, keys_deleted: u32 },
+		/// Emitted when all keys in a stage are removed and cleanup advances.
+		CleanupStageCompleted { stage: Stage },
+		/// Emitted when all three stages are done and cleanup disables itself.
+		CleanupCompleted,
+		/// Emitted when cleanup is paused or resumed via extrinsic.
+		CleanupStatusChanged { paused: bool },
 	}
 
 	#[pallet::hooks]
@@ -211,13 +219,20 @@ pub mod pallet {
 			let stage = CleanupStage::<T>::get().unwrap_or(Stage::StateCommitments);
 			let (done, keys_deleted) = do_cleanup_step(stage, limit_u32);
 
+			if keys_deleted > 0 {
+				Self::deposit_event(Event::CleanupProgress { stage, keys_deleted });
+			}
+
 			if done {
+				Self::deposit_event(Event::CleanupStageCompleted { stage });
+
 				match stage.next() {
 					Some(next) => CleanupStage::<T>::put(next),
 					None => {
 						// All stages complete.
 						CleanupEnabled::<T>::put(false);
 						CleanupStage::<T>::kill();
+						Self::deposit_event(Event::CleanupCompleted);
 					}
 				}
 				T::WeightInfo::cleanup_on_idle_stage_complete(keys_deleted)
@@ -447,6 +462,8 @@ pub mod pallet {
 		pub fn pause_hyperbridge_cleanup(origin: OriginFor<T>, do_pause: bool) -> DispatchResult {
 			T::MigrationOperatorOrigin::ensure_origin(origin)?;
 			CleanupEnabled::<T>::put(!do_pause);
+
+			Self::deposit_event(Event::CleanupStatusChanged { paused: do_pause });
 			Ok(())
 		}
 	}
