@@ -174,13 +174,13 @@ pub mod pallet {
 			result: DispatchResultWithPostInfo,
 		},
 		/// Emitted each block when cleanup deletes a batch of keys.
-		CleanupProgress { stage: Stage, keys_deleted: u32 },
+		HyperbridgeCleanupProgress { stage: Stage, keys_deleted: u32 },
 		/// Emitted when all keys in a stage are removed and cleanup advances.
-		CleanupStageCompleted { stage: Stage },
+		HyperbridgeCleanupStageCompleted { stage: Stage },
 		/// Emitted when all three stages are done and cleanup disables itself.
-		CleanupCompleted,
+		HyperbridgeCleanupCompleted,
 		/// Emitted when cleanup is paused or resumed via extrinsic.
-		CleanupStatusChanged { paused: bool },
+		HyperbridgeCleanupStatusChanged { paused: bool },
 	}
 
 	#[pallet::hooks]
@@ -220,12 +220,12 @@ pub mod pallet {
 			let (done, keys_deleted) = do_cleanup_step(stage, limit_u32);
 
 			if keys_deleted > 0 {
-				Self::deposit_event(Event::CleanupProgress { stage, keys_deleted });
+				Self::deposit_event(Event::HyperbridgeCleanupProgress { stage, keys_deleted });
 			}
 
 			let base_cleanup_weight = T::WeightInfo::cleanup_on_idle(keys_deleted);
 			if done {
-				Self::deposit_event(Event::CleanupStageCompleted { stage });
+				Self::deposit_event(Event::HyperbridgeCleanupStageCompleted { stage });
 
 				return match stage.next() {
 					Some(next) => {
@@ -236,7 +236,7 @@ pub mod pallet {
 						// All stages complete.
 						CleanupEnabled::<T>::put(false);
 						CleanupStage::<T>::kill();
-						Self::deposit_event(Event::CleanupCompleted);
+						Self::deposit_event(Event::HyperbridgeCleanupCompleted);
 
 						base_cleanup_weight.saturating_add(T::DbWeight::get().writes(2))
 					}
@@ -468,7 +468,7 @@ pub mod pallet {
 			T::MigrationOperatorOrigin::ensure_origin(origin)?;
 			CleanupEnabled::<T>::put(!do_pause);
 
-			Self::deposit_event(Event::CleanupStatusChanged { paused: do_pause });
+			Self::deposit_event(Event::HyperbridgeCleanupStatusChanged { paused: do_pause });
 			Ok(())
 		}
 	}
