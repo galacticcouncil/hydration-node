@@ -4,11 +4,13 @@ use crate::polkadot_test_net::*;
 use frame_support::{assert_ok, traits::Hooks};
 use frame_system::RawOrigin;
 use hydradx_runtime::{
-	Currencies, FeeProcessor, GigaHdx, GigaHdxVoting, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens,
+	Currencies, FeeProcessor, GigaHdx, GigaHdxVoting, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, System,
+	Tokens,
 };
 use orml_traits::MultiCurrency;
 use pallet_referrals::ReferralCode;
 use primitives::AccountId;
+use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
 
 // ---------------------------------------------------------------------------
@@ -596,6 +598,161 @@ fn tiny_hdx_fee_doesnt_round_to_zero_for_any_receivers() {
 		assert_eq!(gigapot_increase, 7);
 		assert_eq!(reward_increase, 2);
 		assert_eq!(staking_increase, 1);
+	});
+}
+
+/// BUG: Failed on_idle conversion removes PendingConversions but leaves
+/// funds in the pot. The fees are permanently orphaned.
+///
+/// Scenario: DAI fees accumulate from trades, then governance disables
+/// DAI trading in the Omnipool. on_idle tries to convert, the Omnipool
+/// swap fails, PendingConversions is removed, but DAI stays in the pot.
+/// No future retry will happen. Funds are stuck forever.
+#[test]
+fn failed_on_idle_conversion_orphans_funds_when_trading_disabled() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		use pallet_omnipool::types::Tradability;
+
+		init_omnipool_with_oracle_for_block_24();
+
+		// Step 1: Generate DAI fees via a normal trade
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be pending for conversion"
+		);
+
+		let pot_dai = Currencies::free_balance(DAI, &fee_processor_pot());
+		assert!(pot_dai > 0, "Pot should have DAI fees");
+
+		// Step 2: Governance disables DAI trading in the Omnipool
+		assert_ok!(Omnipool::set_asset_tradable_state(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DAI,
+			Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY, // no SELL/BUY
+		));
+
+		// Step 3: on_idle tries to convert DAI → HDX, but the swap fails
+		let weight = frame_support::weights::Weight::from_parts(1_000_000_000_000, u64::MAX);
+		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
+
+		// BUG: PendingConversions removed even though conversion failed
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"BUG: PendingConversions should NOT be removed on failure — funds need retry"
+		);
+	});
+}
+
+/// BUG: MinConversionAmount doesn't account for asset decimals.
+///
+/// MinConversionAmount = 1_000_000_000_000 (assumes 12 decimals like HDX).
+/// For assets with fewer decimals (e.g., 6), even a meaningful trade fee
+/// will be below this threshold. The conversion fails with AmountTooLow
+/// and the fee is orphaned in the pot.
+///
+/// This reproduces the ConversionFailed events seen on lark testnet
+/// (blocks 25209-25821).
+#[test]
+fn conversion_fails_for_low_decimal_asset_due_to_min_amount_not_accounting_for_decimals() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		use frame_support::storage::with_transaction;
+		use sp_runtime::TransactionOutcome;
+		use hydradx_traits::registry::{AssetKind, Create};
+
+		init_omnipool_with_oracle_for_block_24();
+
+		// Register a new asset with 6 decimals (like USDC)
+		let low_dec_asset = with_transaction(|| {
+			TransactionOutcome::Commit(hydradx_runtime::AssetRegistry::register_sufficient_asset(
+				None,
+				Some(b"USDC6".to_vec().try_into().unwrap()),
+				AssetKind::Token,
+				1_000, // ED
+				None,
+				Some(6), // 6 decimals
+				None,
+				None,
+			))
+		})
+		.unwrap();
+
+		let one_usdc: Balance = 1_000_000; // 1 token with 6 decimals
+
+		// Fund omnipool and BOB with the low-decimal asset
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			Omnipool::protocol_account(),
+			low_dec_asset,
+			(10_000 * one_usdc) as i128,
+		));
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			BOB.into(),
+			low_dec_asset,
+			(10_000 * one_usdc) as i128,
+		));
+
+		// Add to omnipool
+		assert_ok!(Omnipool::add_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			low_dec_asset,
+			FixedU128::from_rational(1, 1), // 1:1 price
+			Permill::from_percent(100),
+			AccountId::from(ALICE),
+		));
+		set_zero_reward_for_referrals(low_dec_asset);
+
+		// Populate oracle for the new asset
+		do_trade_to_populate_oracle(low_dec_asset, HDX, one_usdc);
+		go_to_block(48);
+		do_trade_to_populate_oracle(low_dec_asset, HDX, one_usdc);
+
+		// Trade HDX → low_dec_asset: generates a fee in the 6-decimal asset
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			low_dec_asset,
+			UNITS / 10, // small trade to stay within pool limits
+			0,
+		));
+
+		let pot_balance = Currencies::free_balance(low_dec_asset, &fee_processor_pot());
+		assert!(pot_balance > 0, "Fee pot should have low-decimal asset fees: {}", pot_balance);
+		assert!(
+			pot_balance < UNITS, // below MinConversionAmount (1_000_000_000_000)
+			"Fee ({}) should be below MinConversionAmount ({}) due to 6 decimals",
+			pot_balance,
+			UNITS
+		);
+
+		// Trigger on_idle — conversion fails because raw balance < MinConversionAmount
+		let weight = frame_support::weights::Weight::from_parts(1_000_000_000_000, u64::MAX);
+		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
+
+		// Conversion should succeed — MinConversionAmount should account for decimals
+		let events = last_hydra_events(500);
+		let conversion_failed = events.iter().any(|e| {
+			matches!(
+				e,
+				hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::ConversionFailed { .. })
+			)
+		});
+		assert!(
+			!conversion_failed,
+			"BUG: ConversionFailed emitted for 6-decimal asset — MinConversionAmount doesn't account for decimals"
+		);
 	});
 }
 

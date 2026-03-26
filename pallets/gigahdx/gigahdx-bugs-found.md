@@ -51,3 +51,25 @@ When a user has 200 GIGAHDX and voted with 100 using Locked6x, unstaking 150 fai
 blocks withdrawal because 100 GIGAHDX is still conviction-locked. The system doesn't split the unstake into free (100)
 and voted (50) portions with separate cooldowns. Expected: 2 positions — 100 HDX with base cooldown, 50 HDX with
 conviction cooldown.
+
+### Bug 6: Failed on_idle Conversion Orphans Funds
+
+**Test:** `failed_on_idle_conversion_orphans_funds_when_trading_disabled` (FAILS)
+
+When `on_idle` tries to convert a non-HDX fee and the Omnipool swap fails (e.g., asset trading
+disabled by governance), `PendingConversions` is removed but the funds stay in the pot. No future
+`on_idle` will retry because the pending entry is gone. The fees are permanently stuck.
+
+**Impact:** Any temporary trading disruption (governance action, liquidity removal) permanently
+orphans accumulated fees. They can never be converted or recovered.
+
+### Bug 7: MinConversionAmount Doesn't Account for Asset Decimals
+
+**Test:** `conversion_fails_for_low_decimal_asset_due_to_min_amount_not_accounting_for_decimals` (FAILS)
+
+`MinConversionAmount = 1_000_000_000_000` assumes 12 decimals (like HDX). For assets with fewer
+decimals (e.g., 6), even a meaningful trade fee will be below this threshold. The conversion
+always fails with `AmountTooLow` and fees are orphaned.
+
+**Impact:** All non-HDX fees from low-decimal assets are permanently lost. Reproduces the
+`ConversionFailed` events seen on lark testnet (blocks 25209-25821).
