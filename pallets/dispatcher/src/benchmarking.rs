@@ -28,6 +28,7 @@
 use super::*;
 
 use frame_benchmarking::{account, benchmarks};
+use frame_support::traits::OnIdle;
 use frame_system::RawOrigin;
 use sp_std::boxed::Box;
 
@@ -76,6 +77,45 @@ benchmarks! {
 		let call: <T as pallet::Config>::RuntimeCall = frame_system::Call::remark { remark }.into();
 		let caller: T::AccountId = account("caller", 0, 1);
 	}: _(RawOrigin::Signed(caller), Box::new(call))
+
+	pause_hyperbridge_cleanup {
+	}: pause_hyperbridge_cleanup(RawOrigin::Root, true)
+	verify {
+		assert!(!CleanupEnabled::<T>::get());
+	}
+
+	cleanup_on_idle {
+		let n in 1..5_000;
+
+		let prefix = Stage::StateCommitments.storage_prefix();
+		let tail = 10_000u32;
+		for i in 0..(n + tail) {
+			let mut key = prefix.to_vec();
+			key.extend_from_slice(&i.to_le_bytes());
+			sp_io::storage::set(&key, &i.to_le_bytes());
+		}
+
+		let per_key = T::DbWeight::get().reads_writes(2, 1);
+		let remaining = per_key.saturating_mul(n as u64 * 2);
+	}: {
+		Pallet::<T>::on_idle(1u32.into(), remaining);
+	}
+	// No verify block — unit tests cover correctness.
+	// In TestExternalities clear_prefix ignores the limit (removes all keys at once),
+	// in production RocksDB it respects it. A verify that satisfies both is not possible.
+
+	cleanup_on_idle_limit_zero {
+		let mut key = Stage::StateCommitments.storage_prefix().to_vec();
+
+		let one_le_bytes = 1u32.to_le_bytes();
+		key.extend_from_slice(&one_le_bytes);
+		sp_io::storage::set(&key, &one_le_bytes);
+
+		let per_key = T::DbWeight::get().reads_writes(2, 1);
+	}: {
+		Pallet::<T>::on_idle(1u32.into(), per_key);
+	}
+	// No verify — same TestExternalities limitation as cleanup_on_idle.
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
 }
