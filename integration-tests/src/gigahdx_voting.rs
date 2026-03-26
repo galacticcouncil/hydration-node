@@ -1835,3 +1835,73 @@ fn staking_hooks_still_work() {
 		assert!(!stake_voting.votes.is_empty());
 	});
 }
+
+/// NOT YET IMPLEMENTED: Partial unstake should split into two positions when
+/// the unstaked amount spans both free and conviction-locked GIGAHDX.
+///
+/// Scenario:
+/// - ALICE stakes 200 HDX → receives 200 GIGAHDX
+/// - ALICE votes with 100 GIGAHDX using Locked6x conviction
+/// - Referendum ends (approved)
+/// - ALICE unstakes 150 GIGAHDX (100 free + 50 from voted portion)
+///
+/// Expected (not yet implemented):
+/// - giga_unstake(150) succeeds
+/// - Creates 2 unstake positions:
+///   - 100 HDX with base 222-day cooldown (the free, unvoted portion)
+///   - 50 HDX with conviction cooldown (the voted portion)
+///
+/// Actual: giga_unstake(150) fails because the conviction voting lock prevents
+/// AAVE from withdrawing the locked 100 GIGAHDX. The system doesn't split
+/// the unstake into free vs voted portions.
+#[test]
+fn partial_unstake_should_split_free_and_voted_portions() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		// Step 1: Stake 200 HDX → get 200 GIGAHDX.
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			200 * UNITS,
+		));
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 200 * UNITS);
+
+		// Step 2: Vote with only 100 GIGAHDX using Locked6x conviction.
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(100 * UNITS, Conviction::Locked6x),
+		));
+
+		// Verify: only 100 GIGAHDX is tracked in the vote.
+		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).unwrap();
+		assert_eq!(vote.amount, 100 * UNITS);
+
+		// Step 3: End referendum so unstake is allowed.
+		end_referendum();
+
+		let base_cooldown = 222 * DAYS;
+
+		// Step 4: Unstake 150 GIGAHDX.
+		// The system should split this into free (100) and voted (50) portions,
+		// removing the conviction lock on the 50 overlapping tokens and creating
+		// two separate positions with appropriate cooldowns.
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			150 * UNITS,
+		));
+
+		// Step 5: Verify two positions were created with different cooldowns.
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(
+			positions.len(),
+			2,
+			"Should create 2 positions (free + voted portions), got {}",
+			positions.len()
+		);
+	});
+}
