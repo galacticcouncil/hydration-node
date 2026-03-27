@@ -196,21 +196,21 @@ pub mod pallet {
 				return T::DbWeight::get().reads(1);
 			}
 
-			// Use at most half of the remaining weight for cleanup.
-			let budget = remaining_weight.saturating_div(2);
+			// Use the remaining weight capped to at most 70% of max_block.
+			let max_block = T::BlockWeights::get().max_block;
+			let cap_perbill = sp_runtime::Perbill::from_percent(70);
+			let cap = Weight::from_parts(
+				cap_perbill * max_block.ref_time(),
+				cap_perbill * max_block.proof_size(),
+			);
+
+			let budget = remaining_weight.min(cap);
 			let per_key_weight = T::DbWeight::get().reads_writes(2, 1);
 
 			let k_ref = budget.ref_time().checked_div(per_key_weight.ref_time()).unwrap_or(0);
-			let k_proof = if per_key_weight.proof_size() > 0 {
-				budget
-					.proof_size()
-					.checked_div(per_key_weight.proof_size())
-					.unwrap_or(0)
-			} else {
-				u64::MAX
-			};
-			let limit = k_ref.min(k_proof);
+			let k_proof = budget.proof_size().checked_div(per_key_weight.proof_size()).unwrap_or(k_ref);
 
+			let limit = k_ref.min(k_proof);
 			if limit == 0 {
 				return T::WeightInfo::cleanup_on_idle_limit_zero();
 			}
