@@ -314,6 +314,39 @@ fn restake_works_after_full_exit() {
 	});
 }
 
+/// BUG: Two concurrent unstake positions don't stack locks.
+/// set_lock uses max(locks) not sum(locks), so after two unstakes of 100 HDX each,
+/// only 100 is locked instead of 200 — the other 100 is freely spendable.
+#[test]
+fn second_unstake_makes_first_unstake_amount_usable() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+		let bob = sp_runtime::AccountId32::from(BOB);
+		let gigapot = GigaHdx::gigapot_account_id();
+
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), gigapot, UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			400 * UNITS
+		));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 400 * UNITS));
+
+		// First unstake: 100 HDX locked, 0 usable
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert_eq!(Balances::usable_balance(&alice), 0, "After first unstake, 0 should be usable");
+
+		// Second unstake: 200 HDX total should be locked, 0 usable
+		System::set_block_number(System::block_number() + 1);
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		// BUG: usable is ~100 instead of 0 because set_lock uses max(locks) not sum(locks)
+		let usable = Balances::usable_balance(&alice);
+		assert_eq!(usable, 0, "After second unstake, all HDX should still be locked");
+	});
+}
+
 /// Lock ID collision: lock_id is derived from positions.len() at creation time.
 /// After partial unlock removes an earlier position, the next unstake could generate
 /// a lock_id that collides with an existing position's lock_id, freeing HDX early.
