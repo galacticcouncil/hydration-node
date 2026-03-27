@@ -161,7 +161,7 @@ impl ExpectDeposit {
 
 impl DepositFee<AccountId, AssetId, Balance> for ExpectDeposit {
 	fn deposit_fee(who: &AccountId, asset: AssetId, amount: Balance) -> DispatchResult {
-		log::trace!("Depositing {} of {} to {}", amount, asset, who);
+		log::trace!("Depositing {amount} of {asset} to {who}");
 		assert!(
 			EXPECTED_DEPOSITS.with(|e| e.borrow_mut().remove(&(*who, asset, amount))),
 			"Unexpected combination of receiver and fee {:?} deposited that was not expected.",

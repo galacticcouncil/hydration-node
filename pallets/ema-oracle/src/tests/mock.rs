@@ -136,7 +136,6 @@ impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;

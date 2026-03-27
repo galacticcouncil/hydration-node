@@ -109,7 +109,6 @@ impl From<AssetLocation> for Location {
 }
 
 impl pallet_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Tokens;
 	type RegistryOrigin = frame_system::EnsureRoot<u64>;
 	type UpdateOrigin = frame_system::EnsureSigned<u64>;
@@ -130,7 +129,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;

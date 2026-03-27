@@ -94,9 +94,7 @@ fn sell_with_slip_fee_enabled_reduces_output() {
 	// With slip fees, output should be less
 	assert!(
 		amount_with_slip < amount_without_slip,
-		"Slip fee should reduce output: without_slip={} with_slip={}",
-		amount_without_slip,
-		amount_with_slip
+		"Slip fee should reduce output: without_slip={amount_without_slip} with_slip={amount_with_slip}",
 	);
 }
 
@@ -161,9 +159,7 @@ fn buy_with_slip_fee_enabled_increases_cost() {
 
 	assert!(
 		cost_with_slip > cost_without_slip,
-		"Slip fee should increase buy cost: without_slip={} with_slip={}",
-		cost_without_slip,
-		cost_with_slip
+		"Slip fee should increase buy cost: without_slip={cost_without_slip} with_slip={cost_with_slip}",
 	);
 }
 
@@ -210,9 +206,7 @@ fn sell_hub_asset_with_slip_reduces_output() {
 
 	assert!(
 		amount_with_slip < amount_without_slip,
-		"Hub sell with slip should produce less: without={} with={}",
-		amount_without_slip,
-		amount_with_slip
+		"Hub sell with slip should produce less: without={amount_without_slip} with={amount_with_slip}",
 	);
 }
 
@@ -275,9 +269,7 @@ fn buy_for_hub_asset_with_slip_increases_cost() {
 
 	assert!(
 		cost_with_slip > cost_without_slip,
-		"Hub buy with slip should cost more: without={} with={}",
-		cost_without_slip,
-		cost_with_slip
+		"Hub buy with slip should cost more: without={cost_without_slip} with={cost_with_slip}",
 	);
 }
 
@@ -312,9 +304,7 @@ fn consecutive_trades_have_increasing_fee() {
 
 			assert!(
 				output_second < output_first,
-				"Second trade should get less output: first={} second={}",
-				output_first,
-				output_second
+				"Second trade should get less output: first={output_first} second={output_second}",
 			);
 		});
 }
@@ -392,16 +382,14 @@ fn delta_tracking_is_correct() {
 			let delta_100 = SlipFeeDelta::<Test>::get(100);
 			assert!(
 				delta_100.is_negative(),
-				"Sell-side delta should be negative: {:?}",
-				delta_100
+				"Sell-side delta should be negative: {delta_100:?}",
 			);
 
 			// Delta for buy asset (HDX) should be positive (LRNA entered the pool)
 			let delta_hdx = SlipFeeDelta::<Test>::get(HDX);
 			assert!(
 				delta_hdx.is_positive(),
-				"Buy-side delta should be positive: {:?}",
-				delta_hdx
+				"Buy-side delta should be positive: {delta_hdx:?}",
 			);
 		});
 }
@@ -498,9 +486,7 @@ fn max_cap_is_applied() {
 	// With low cap, slip fee is limited, so output should be higher than with high cap
 	assert!(
 		amount_with_low_cap > amount_with_high_cap,
-		"Low cap should produce more output (less fee): low_cap={} high_cap={}",
-		amount_with_low_cap,
-		amount_with_high_cap
+		"Low cap should produce more output (less fee): low_cap={amount_with_low_cap} high_cap={amount_with_high_cap}",
 	);
 }
 
@@ -557,9 +543,7 @@ fn sell_hub_asset_with_fee_and_slip_verification() {
 
 	assert!(
 		output_with_slip < output_no_slip,
-		"Slip should reduce output: no_slip={} with_slip={}",
-		output_no_slip,
-		output_with_slip
+		"Slip should reduce output: no_slip={output_no_slip} with_slip={output_with_slip}",
 	);
 
 	// Verify the slip fee impact roughly matches the expected rate.
@@ -570,11 +554,7 @@ fn sell_hub_asset_with_fee_and_slip_verification() {
 															  // Expected ~37 (3.7%). Allow ±10 tolerance for AMM non-linearity.
 	assert!(
 		(27..=47).contains(&reduction_pct_x1000),
-		"Slip reduction should be ~3.7%: actual={}‰ (no_slip={}, with_slip={}, reduction={})",
-		reduction_pct_x1000,
-		output_no_slip,
-		output_with_slip,
-		reduction
+		"Slip reduction should be ~3.7%: actual={reduction_pct_x1000}‰ (no_slip={output_no_slip}, with_slip={output_with_slip}, reduction={reduction})",
 	);
 }
 
@@ -645,9 +625,7 @@ fn buy_for_hub_asset_with_fee_and_slip_verification() {
 
 	assert!(
 		cost_with_slip > cost_no_slip,
-		"Slip should increase buy cost: no_slip={} with_slip={}",
-		cost_no_slip,
-		cost_with_slip
+		"Slip should increase buy cost: no_slip={cost_no_slip} with_slip={cost_with_slip}",
 	);
 
 	// Verify the extra cost roughly matches expected slip rate.
@@ -659,11 +637,7 @@ fn buy_for_hub_asset_with_fee_and_slip_verification() {
 														   // Expected somewhere in the range of 0.3%-1.0%. Be generous with tolerance due to AMM non-linearity.
 	assert!(
 		(20..=150).contains(&extra_pct_x10000),
-		"Slip cost increase should be small for this trade size: actual={}bp (no_slip={}, with_slip={}, extra={})",
-		extra_pct_x10000,
-		cost_no_slip,
-		cost_with_slip,
-		extra_cost
+		"Slip cost increase should be small for this trade size: actual={extra_pct_x10000}bp (no_slip={cost_no_slip}, with_slip={cost_with_slip}, extra={extra_cost})",
 	);
 }
 
@@ -698,8 +672,7 @@ fn sell_hub_asset_does_not_take_more_lrna_than_specified() {
 			// The user must spend exactly sell_amount, not more
 			assert_eq!(
 				lrna_spent, sell_amount,
-				"User should spend exactly the specified amount: spent={} specified={}",
-				lrna_spent, sell_amount
+				"User should spend exactly the specified amount: spent={lrna_spent} specified={sell_amount}",
 			);
 		});
 }
@@ -762,8 +735,7 @@ fn buy_for_hub_asset_charges_exactly_slip_fee_on_top() {
 
 			assert_eq!(
 				lrna_spent, expected_cost,
-				"User LRNA cost should equal delta_hub_reserve: spent={} expected={}",
-				lrna_spent, expected_cost
+				"User LRNA cost should equal delta_hub_reserve: spent={lrna_spent} expected={expected_cost}",
 			);
 		});
 }
