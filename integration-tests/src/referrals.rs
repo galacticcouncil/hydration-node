@@ -782,6 +782,214 @@ fn buying_dai_with_hdx_should_accumulate_fee_in_fee_processor() {
 }
 
 // ---------------------------------------------------------------------------
+// Tests: Referrals hook pattern verification
+// ---------------------------------------------------------------------------
+
+#[test]
+fn referral_shares_match_spot_price_estimate() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+		register_and_link(ALICE, BOB);
+
+		let referrer_before = Referrals::referrer_shares::<AccountId>(ALICE.into());
+		let trader_before = Referrals::trader_shares::<AccountId>(BOB.into());
+
+		// Trade HDX→DAI (non-HDX fee path)
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0
+		));
+
+		// Get hdx_equivalent from the most recent FeeReceived event for DAI
+		let events = frame_system::Pallet::<Runtime>::events();
+		let hdx_equivalent = events
+			.iter()
+			.rev()
+			.find_map(|e| match &e.event {
+				hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::FeeReceived {
+					asset,
+					hdx_equivalent,
+					..
+				}) if *asset == DAI => Some(*hdx_equivalent),
+				_ => None,
+			})
+			.expect("FeeReceived event for DAI should exist");
+
+		let referrer_increase = Referrals::referrer_shares::<AccountId>(ALICE.into()) - referrer_before;
+		let trader_increase = Referrals::trader_shares::<AccountId>(BOB.into()) - trader_before;
+
+		// Referrals receiver gets 10% of hdx_equivalent via on_pre_fee_deposit (tuple dispatch)
+		let referrals_amount = Permill::from_percent(10).mul_floor(hdx_equivalent);
+
+		// At Tier0 (default for new referrer): referrer 3%, trader 2%
+		let expected_referrer = Permill::from_percent(3).mul_floor(referrals_amount);
+		let expected_trader = Permill::from_percent(2).mul_floor(referrals_amount);
+
+		assert_eq!(
+			referrer_increase, expected_referrer,
+			"Referrer shares should be 3% of 10% of hdx_equivalent ({}). Got {}, expected {}",
+			hdx_equivalent, referrer_increase, expected_referrer
+		);
+		assert_eq!(
+			trader_increase, expected_trader,
+			"Trader shares should be 2% of 10% of hdx_equivalent ({}). Got {}, expected {}",
+			hdx_equivalent, trader_increase, expected_trader
+		);
+	});
+}
+
+#[test]
+fn multiple_traders_get_individual_shares_but_single_conversion() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		// ALICE is referrer for both BOB and CHARLIE
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"MULTI2".to_vec());
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE.into()),
+			code.clone()
+		));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code.clone()));
+		assert_ok!(Referrals::link_code(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			code
+		));
+
+		// Fund CHARLIE with HDX
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			CHARLIE.into(),
+			HDX,
+			(1_000 * UNITS) as i128,
+		));
+
+		// Both trade HDX→DAI — each gets on_pre_fee_deposit with their trader context
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0
+		));
+
+		let bob_trader_shares = Referrals::trader_shares::<AccountId>(BOB.into());
+		let alice_referrer_after_bob = Referrals::referrer_shares::<AccountId>(ALICE.into());
+
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0
+		));
+
+		let charlie_trader_shares = Referrals::trader_shares::<AccountId>(CHARLIE.into());
+		let alice_referrer_after_both = Referrals::referrer_shares::<AccountId>(ALICE.into());
+
+		// Both traders should have individual shares
+		assert!(bob_trader_shares > 0, "BOB should have trader shares");
+		assert!(charlie_trader_shares > 0, "CHARLIE should have trader shares");
+		assert!(
+			alice_referrer_after_both > alice_referrer_after_bob,
+			"ALICE's referrer shares should increase after each trade"
+		);
+
+		// Single conversion for all accumulated DAI from both trades
+		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
+
+		// Verify exactly one Converted event for DAI
+		let events = frame_system::Pallet::<Runtime>::events();
+		let converted_count = events
+			.iter()
+			.filter(|e| {
+				matches!(
+					&e.event,
+					hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::Converted {
+						asset_id,
+						..
+					}) if *asset_id == DAI
+				)
+			})
+			.count();
+		assert_eq!(
+			converted_count, 1,
+			"Should have exactly one Converted event for DAI"
+		);
+
+		// RewardPerShare accumulator should be bumped
+		let rps = pallet_referrals::RewardPerShare::<Runtime>::get();
+		assert!(!rps.is_zero(), "RewardPerShare should be bumped after conversion");
+	});
+}
+
+#[test]
+fn exact_reward_amount_after_trade_convert_claim() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+		register_and_link(ALICE, BOB);
+
+		// Trade and convert
+		trade_and_convert(BOB, 100 * UNITS);
+
+		// Get hdx deposited to referrals from Converted event
+		let events = frame_system::Pallet::<Runtime>::events();
+		let hdx_out = events
+			.iter()
+			.find_map(|e| match &e.event {
+				hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::Converted {
+					hdx_out,
+					..
+				}) => Some(*hdx_out),
+				_ => None,
+			})
+			.expect("Converted event should exist");
+
+		// Referrals pot receives 10% of hdx_out via FeeReceivers
+		let referrals_hdx = Permill::from_percent(10).mul_floor(hdx_out);
+
+		let alice_referrer = Referrals::referrer_shares::<AccountId>(ALICE.into());
+		let alice_trader = Referrals::trader_shares::<AccountId>(ALICE.into());
+		let alice_total_shares = alice_referrer + alice_trader;
+		let total_shares = Referrals::total_shares();
+
+		assert!(alice_total_shares > 0, "ALICE should have shares");
+		assert!(total_shares > 0, "Total shares should be positive");
+
+		// Expected reward = alice_shares * referrals_hdx / total_shares
+		let expected_reward = alice_total_shares * referrals_hdx / total_shares;
+
+		let alice_before = Currencies::free_balance(HDX, &ALICE.into());
+		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE.into())));
+		let alice_after = Currencies::free_balance(HDX, &ALICE.into());
+		let claimed = alice_after - alice_before;
+
+		assert!(claimed > 0, "ALICE should receive rewards");
+
+		// Allow 1% tolerance for U256 precision rounding
+		let diff = claimed.abs_diff(expected_reward);
+		let tolerance = expected_reward / 100;
+		assert!(
+			diff <= tolerance.max(1),
+			"Claimed ({}) should match expected ({}). Diff: {}, Tolerance: {}",
+			claimed,
+			expected_reward,
+			diff,
+			tolerance
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
 // Tests: Event emission
 // ---------------------------------------------------------------------------
 
