@@ -780,11 +780,6 @@ fn buying_dai_with_hdx_should_accumulate_fee_in_fee_processor() {
 		);
 	});
 }
-
-// ---------------------------------------------------------------------------
-// Tests: Referrals hook pattern verification
-// ---------------------------------------------------------------------------
-
 #[test]
 fn referral_shares_match_spot_price_estimate() {
 	TestNet::reset();
@@ -851,17 +846,13 @@ fn multiple_traders_get_individual_shares_but_single_conversion() {
 		init_omnipool_with_oracle_for_block_24();
 
 		// ALICE is referrer for both BOB and CHARLIE
-		let code =
-			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"MULTI2".to_vec());
+		let code = ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"MULTI2".to_vec());
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE.into()),
 			code.clone()
 		));
 		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code.clone()));
-		assert_ok!(Referrals::link_code(
-			RuntimeOrigin::signed(CHARLIE.into()),
-			code
-		));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(CHARLIE.into()), code));
 
 		// Fund CHARLIE with HDX
 		assert_ok!(Currencies::update_balance(
@@ -919,10 +910,7 @@ fn multiple_traders_get_individual_shares_but_single_conversion() {
 				)
 			})
 			.count();
-		assert_eq!(
-			converted_count, 1,
-			"Should have exactly one Converted event for DAI"
-		);
+		assert_eq!(converted_count, 1, "Should have exactly one Converted event for DAI");
 
 		// RewardPerShare accumulator should be bumped
 		let rps = pallet_referrals::RewardPerShare::<Runtime>::get();
@@ -947,8 +935,7 @@ fn exact_reward_amount_after_trade_convert_claim() {
 			.iter()
 			.find_map(|e| match &e.event {
 				hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::Converted {
-					hdx_out,
-					..
+					hdx_out, ..
 				}) => Some(*hdx_out),
 				_ => None,
 			})
@@ -975,23 +962,16 @@ fn exact_reward_amount_after_trade_convert_claim() {
 
 		assert!(claimed > 0, "ALICE should receive rewards");
 
-		// Allow 1% tolerance for U256 precision rounding
-		let diff = claimed.abs_diff(expected_reward);
-		let tolerance = expected_reward / 100;
-		assert!(
-			diff <= tolerance.max(1),
-			"Claimed ({}) should match expected ({}). Diff: {}, Tolerance: {}",
+		assert_eq!(
 			claimed,
 			expected_reward,
-			diff,
-			tolerance
+			"Claimed ({}) should exactly match expected ({}). Diff: {}",
+			claimed,
+			expected_reward,
+			claimed.abs_diff(expected_reward)
 		);
 	});
 }
-
-// ---------------------------------------------------------------------------
-// Tests: Event emission
-// ---------------------------------------------------------------------------
 
 #[test]
 fn transfer_using_mutate_should_emit_event() {
