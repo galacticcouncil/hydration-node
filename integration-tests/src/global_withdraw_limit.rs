@@ -1460,3 +1460,71 @@ fn inbound_xcm_buffer_is_clean_between_messages() {
 		);
 	});
 }
+
+#[test]
+fn inbound_xcm_incomplete_message_still_accounts_egress() {
+	TestNet::reset();
+
+	let sovereign = parachain_reserve_account();
+
+	Hydra::execute_with(|| {
+		init_global_withdraw_limit_params();
+
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			HDX,
+			Some(GlobalAssetCategory::Local)
+		));
+
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			sovereign.clone(),
+			500 * UNITS,
+		));
+
+		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
+		assert_eq!(Currencies::free_balance(HDX, &sovereign), 500 * UNITS);
+	});
+
+	Acala::execute_with(|| {
+		let hdx_loc = Location::new(
+			1,
+			[
+				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+				cumulus_primitives_core::Junction::GeneralIndex(0),
+			],
+		);
+		let amount = 100 * UNITS;
+		let asset: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc),
+			fun: Fungible(amount),
+		};
+
+		let message = Xcm(vec![
+			WithdrawAsset(asset.clone().into()),
+			BuyExecution {
+				fees: asset,
+				weight_limit: Unlimited,
+			},
+			Trap(1),
+		]);
+
+		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
+			Here,
+			Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]),
+			message
+		));
+	});
+
+	Hydra::execute_with(|| {
+		assert_xcm_message_processing_failed();
+		assert!(
+			Currencies::free_balance(HDX, &sovereign) < 500 * UNITS,
+			"Incomplete inbound XCM must have withdrawn funds from the sovereign account"
+		);
+		assert!(
+			CircuitBreaker::withdraw_limit_accumulator().0 > 0,
+			"Incomplete inbound XCM with real egress must still increment the accumulator"
+		);
+	});
+}
