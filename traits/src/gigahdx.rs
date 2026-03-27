@@ -154,6 +154,24 @@ pub trait FeeReceiver<AccountId, Balance> {
 }
 
 // ---------------------------------------------------------------------------
+// PrepareForLiquidation — clear GIGAHDX voting locks before liquidation.
+// Used by pallet-liquidation when liquidating GIGAHDX collateral.
+// ---------------------------------------------------------------------------
+
+/// Clear GIGAHDX voting locks before liquidation.
+/// Implemented by pallet-gigahdx-voting.
+pub trait PrepareForLiquidation<AccountId> {
+	fn prepare_for_liquidation(who: &AccountId) -> DispatchResult;
+}
+
+/// No-op implementation (for runtimes without GIGAHDX voting).
+impl<AccountId> PrepareForLiquidation<AccountId> for () {
+	fn prepare_for_liquidation(_who: &AccountId) -> DispatchResult {
+		Ok(())
+	}
+}
+
+// ---------------------------------------------------------------------------
 // ForceRemoveVote — force-remove a user's vote from conviction-voting.
 // Used by pallet-gigahdx-voting during unstake and liquidation.
 // ---------------------------------------------------------------------------

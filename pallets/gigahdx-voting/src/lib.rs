@@ -302,7 +302,8 @@ impl<T: Config> Pallet<T> {
 			// Clean up our storage in case on_remove_vote didn't clear it
 			// (e.g., if ForceRemoveVote doesn't trigger VotingHooks).
 			if GigaHdxVotes::<T>::contains_key(who, ref_index) {
-				let weighted = vote.amount.saturating_mul(vote.conviction.reward_multiplier() as u128);
+				let weighted =
+					vote.amount.saturating_mul(vote.conviction.reward_multiplier() as u128) / REWARD_MULTIPLIER_SCALE;
 				ReferendaTotalWeightedVotes::<T>::mutate(ref_index, |total| {
 					*total = total.saturating_sub(weighted);
 				});
@@ -318,6 +319,16 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(())
+	}
+}
+
+// ---------------------------------------------------------------------------
+// PrepareForLiquidation implementation
+// ---------------------------------------------------------------------------
+
+impl<T: Config> hydradx_traits::gigahdx::PrepareForLiquidation<T::AccountId> for Pallet<T> {
+	fn prepare_for_liquidation(who: &T::AccountId) -> DispatchResult {
+		Self::prepare_for_liquidation(who)
 	}
 }
 
