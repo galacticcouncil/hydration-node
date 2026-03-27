@@ -179,7 +179,9 @@ where
 				AllowedFlashLoanCallers,
 			>::execute(handle))
 		} else if address == LOCK_MANAGER {
-			Some(pallet_evm_precompile_lock_manager::LockManagerPrecompile::<R>::execute(handle))
+			Some(pallet_evm_precompile_lock_manager::LockManagerPrecompile::<R>::execute(
+				handle,
+			))
 		} else if address == DISPATCH_ADDR {
 			let caller_account = R::AddressMapping::into_account_id(handle.context().caller);
 			let original_nonce = frame_system::Pallet::<R>::account_nonce(caller_account.clone());

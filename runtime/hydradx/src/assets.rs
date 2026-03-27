@@ -1411,12 +1411,12 @@ where
 use pallet_currencies::fungibles::FungibleCurrencies;
 
 #[cfg(not(feature = "runtime-benchmarks"))]
-
 use crate::evm::evm_error_decoder::EvmErrorDecoder;
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
 use frame_support::traits::IsSubType;
 use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
+use hydradx_traits::gigahdx::Convert;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1429,7 +1429,6 @@ use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;
 use pallet_hsm::WeightInfo;
-use hydradx_traits::gigahdx::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::types::PegType;

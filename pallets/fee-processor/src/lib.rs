@@ -56,10 +56,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type LrnaAssetId: Get<Self::AssetId>;
 
-		/// Minimum amount for conversion (prevent dust conversions).
-		#[pallet::constant]
-		type MinConversionAmount: Get<Balance>;
-
 		/// Maximum conversions per on_idle call.
 		#[pallet::constant]
 		type MaxConversionsPerBlock: Get<u32>;
@@ -109,8 +105,6 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Asset is already HDX, no conversion needed.
 		AlreadyHdx,
-		/// Amount too low for conversion.
-		AmountTooLow,
 		/// Conversion failed.
 		ConversionFailed,
 		/// Transfer failed.
@@ -155,7 +149,6 @@ pub mod pallet {
 					Ok(_) => {}
 					Err(e) => {
 						Self::deposit_event(Event::ConversionFailed { asset_id, reason: e });
-						PendingConversions::<T>::remove(asset_id);
 					}
 				}
 				used_weight = used_weight.saturating_add(convert_weight);
@@ -256,8 +249,6 @@ pub mod pallet {
 			let pot = Self::pot_account_id();
 			let balance = T::Currency::balance(asset_id, &pot);
 
-			ensure!(balance >= T::MinConversionAmount::get(), Error::<T>::AmountTooLow);
-
 			// Execute swap
 			let hdx_received = T::Convert::convert(pot.clone(), asset_id, T::HdxAssetId::get(), balance)?;
 
@@ -285,9 +276,9 @@ pub mod pallet {
 			destinations: Vec<(T::AccountId, Permill)>,
 		) -> DispatchResult {
 			for (dest, percentage) in destinations {
-                                //TODO: why not used balance here ?
+				//TODO: why not used balance here ?
 				let _balance = T::Currency::balance(T::HdxAssetId::get(), source);
-                                
+
 				let amount = percentage.mul_floor(total);
 				if amount > 0 {
 					// Use Expendable: fee source account may be fully drained

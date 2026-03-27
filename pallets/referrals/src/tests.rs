@@ -478,4 +478,3 @@ impl PriceProvider<AssetId> for ConversionPrice {
 		CONVERSION_RATE.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
 	}
 }
-

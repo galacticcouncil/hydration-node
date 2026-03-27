@@ -8,7 +8,7 @@
 //! It equals the sum of all remaining weighted votes plus the current voter's weighted value
 //! (since on_remove_vote already subtracted the current voter before calling us).
 
-use crate::types::{GigaHdxVote, PendingRewardEntry, ReferendaReward};
+use crate::types::{GigaHdxVote, PendingRewardEntry, ReferendaReward, REWARD_MULTIPLIER_SCALE};
 use crate::{
 	Config, Error, Event, Pallet, PendingRewards, ReferendaRewardPool, ReferendaTotalWeightedVotes, RewardAllocated,
 };
@@ -30,7 +30,8 @@ pub fn maybe_allocate_and_record<T: Config>(
 	ref_index: u32,
 	vote: &GigaHdxVote<frame_system::pallet_prelude::BlockNumberFor<T>>,
 ) -> Result<(), sp_runtime::DispatchError> {
-	let weighted_vote = vote.amount.saturating_mul(vote.conviction.reward_multiplier() as u128);
+	let weighted_vote =
+		vote.amount.saturating_mul(vote.conviction.reward_multiplier() as u128) / REWARD_MULTIPLIER_SCALE;
 
 	maybe_allocate_reward_pool::<T>(ref_index, weighted_vote)?;
 	record_user_reward::<T>(who, ref_index, weighted_vote)?;

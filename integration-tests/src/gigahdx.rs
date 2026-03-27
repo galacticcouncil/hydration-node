@@ -383,7 +383,11 @@ fn unstake_more_than_balance_fails() {
 		//Arrange
 		let alice = sp_runtime::AccountId32::from(ALICE);
 
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 1_000_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			1_000_000 * UNITS
+		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 
 		let gigahdx_before = Currencies::free_balance(GIGAHDX, &alice);
@@ -407,7 +411,11 @@ fn giga_stake_at_min_amount_succeeds_and_below_min_fails() {
 		//Arrange
 		let alice = sp_runtime::AccountId32::from(ALICE);
 
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 1_000_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			1_000_000 * UNITS
+		));
 
 		//Act & Assert
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 10 * UNITS));

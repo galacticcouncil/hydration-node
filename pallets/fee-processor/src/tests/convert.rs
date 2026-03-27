@@ -56,20 +56,6 @@ fn convert_fails_for_hdx() {
 }
 
 #[test]
-fn convert_fails_below_minimum() {
-	ExtBuilder::default().build().execute_with(|| {
-		let pot = FeeProcessor::pot_account_id();
-		// Fund pot with DOT below minimum (100)
-		<FungibleCurrencies<Test> as Mutate<AccountId>>::mint_into(DOT, &pot, 50).unwrap();
-
-		assert_noop!(
-			FeeProcessor::convert(RuntimeOrigin::signed(ALICE), DOT),
-			Error::<Test>::AmountTooLow
-		);
-	});
-}
-
-#[test]
 fn on_idle_converts_within_weight_budget() {
 	ExtBuilder::default().build().execute_with(|| {
 		let pot = FeeProcessor::pot_account_id();
@@ -103,7 +89,7 @@ fn on_idle_handles_conversion_failure_gracefully() {
 	ExtBuilder::default().build().execute_with(|| {
 		let pot = FeeProcessor::pot_account_id();
 
-		// Set up DOT pending conversion with amount above minimum
+		// Set up DOT pending conversion
 		<FungibleCurrencies<Test> as Mutate<AccountId>>::mint_into(DOT, &pot, 500 * ONE).unwrap();
 		PendingConversions::<Test>::insert(DOT, ());
 
@@ -113,8 +99,8 @@ fn on_idle_handles_conversion_failure_gracefully() {
 		let weight = frame_support::weights::Weight::from_parts(200_000_000, 0);
 		let _used = FeeProcessor::on_idle(1u64, weight);
 
-		// Pending should be removed even on failure
-		assert!(!PendingConversions::<Test>::contains_key(DOT));
+		// Pending should be kept on failure so on_idle retries next block
+		assert!(PendingConversions::<Test>::contains_key(DOT));
 
 		// ConversionFailed event emitted (DispatchError::Other loses string through encoding)
 		System::assert_has_event(

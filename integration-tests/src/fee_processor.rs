@@ -668,8 +668,8 @@ fn conversion_fails_for_low_decimal_asset_due_to_min_amount_not_accounting_for_d
 
 	Hydra::execute_with(|| {
 		use frame_support::storage::with_transaction;
-		use sp_runtime::TransactionOutcome;
 		use hydradx_traits::registry::{AssetKind, Create};
+		use sp_runtime::TransactionOutcome;
 
 		init_omnipool_with_oracle_for_block_24();
 
@@ -729,7 +729,11 @@ fn conversion_fails_for_low_decimal_asset_due_to_min_amount_not_accounting_for_d
 		));
 
 		let pot_balance = Currencies::free_balance(low_dec_asset, &fee_processor_pot());
-		assert!(pot_balance > 0, "Fee pot should have low-decimal asset fees: {}", pot_balance);
+		assert!(
+			pot_balance > 0,
+			"Fee pot should have low-decimal asset fees: {}",
+			pot_balance
+		);
 		assert!(
 			pot_balance < UNITS, // below MinConversionAmount (1_000_000_000_000)
 			"Fee ({}) should be below MinConversionAmount ({}) due to 6 decimals",

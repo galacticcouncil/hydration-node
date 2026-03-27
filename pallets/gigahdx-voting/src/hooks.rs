@@ -4,8 +4,9 @@
 //! It records GIGAHDX votes, tracks weighted votes per referendum,
 //! and triggers reward processing when votes are removed.
 
-use crate::types::{Conviction, GigaHdxVote};
+use crate::types::{Conviction, GigaHdxVote, REWARD_MULTIPLIER_SCALE};
 use crate::{Config, Event, GigaHdxVotes, Pallet, ReferendaTotalWeightedVotes, ReferendumTracks};
+use frame_support::defensive;
 use frame_support::dispatch::DispatchResult;
 use frame_support::pallet_prelude::Get;
 use frame_support::traits::fungibles::Inspect;
@@ -44,14 +45,16 @@ impl<T: Config> VotingHooks<T::AccountId, u32, Balance> for GigaHdxVotingHooks<T
 		let total_lock_blocks = vote_locking_period.saturating_mul(lock_periods.into());
 		let lock_expires_at = current_block.saturating_add(total_lock_blocks);
 
-		// Calculate new weighted vote.
-		let new_weighted = gigahdx_portion.saturating_mul(conviction.reward_multiplier() as u128);
+		// Calculate new weighted vote (scaled: divide by REWARD_MULTIPLIER_SCALE).
+		let new_weighted =
+			gigahdx_portion.saturating_mul(conviction.reward_multiplier() as u128) / REWARD_MULTIPLIER_SCALE;
 
 		// If updating an existing vote, subtract old weighted value first.
 		if let Some(old_vote) = GigaHdxVotes::<T>::get(who, ref_index) {
 			let old_weighted = old_vote
 				.amount
-				.saturating_mul(old_vote.conviction.reward_multiplier() as u128);
+				.saturating_mul(old_vote.conviction.reward_multiplier() as u128)
+				/ REWARD_MULTIPLIER_SCALE;
 			ReferendaTotalWeightedVotes::<T>::mutate(ref_index, |total| {
 				*total = total.saturating_sub(old_weighted);
 			});
@@ -99,14 +102,25 @@ impl<T: Config> VotingHooks<T::AccountId, u32, Balance> for GigaHdxVotingHooks<T
 		};
 
 		// Subtract from total weighted votes.
-		let weighted = vote.amount.saturating_mul(vote.conviction.reward_multiplier() as u128);
+		let weighted =
+			vote.amount.saturating_mul(vote.conviction.reward_multiplier() as u128) / REWARD_MULTIPLIER_SCALE;
 		ReferendaTotalWeightedVotes::<T>::mutate(ref_index, |total| {
 			*total = total.saturating_sub(weighted);
 		});
 
 		// If referendum completed, allocate rewards and record user's share.
+		// VotingHooks trait is infallible (returns ()), so if recording fails
+		// (e.g. PendingRewards full), restore the vote to preserve reward data.
+		// User must claim_rewards to make room, then remove the vote again.
 		if status == Status::Completed {
-			let _ = crate::rewards::maybe_allocate_and_record::<T>(who, ref_index, &vote);
+			if crate::rewards::maybe_allocate_and_record::<T>(who, ref_index, &vote).is_err() {
+				GigaHdxVotes::<T>::insert(who, ref_index, &vote);
+				ReferendaTotalWeightedVotes::<T>::mutate(ref_index, |total| {
+					*total = total.saturating_add(weighted);
+				});
+				defensive!("Reward recording failed — PendingRewards likely full. Vote preserved.");
+				return;
+			}
 		}
 
 		Pallet::<T>::deposit_event(Event::VoteRemoved {

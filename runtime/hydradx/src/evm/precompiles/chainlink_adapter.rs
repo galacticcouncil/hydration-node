@@ -23,7 +23,10 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_ema_oracle::Price;
 use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
 use primitive_types::{H160, U128, U256};
-use primitives::{constants::chain::{GIGAHDX_SOURCE, OMNIPOOL_SOURCE}, AssetId};
+use primitives::{
+	constants::chain::{GIGAHDX_SOURCE, OMNIPOOL_SOURCE},
+	AssetId,
+};
 use sp_runtime::{traits::Dispatchable, RuntimeDebug};
 use sp_std::{cmp::Ordering, marker::PhantomData};
 
@@ -378,8 +381,5 @@ fn encode_gigahdx_oracle_address_should_work() {
 	assert_eq!(period, OraclePeriod::TenMinutes);
 	assert_eq!(source, GIGAHDX_SOURCE);
 	// Verify the hex representation
-	assert_eq!(
-		addr,
-		H160::from(hex!("0000010267696761686478730000029e00000000"))
-	);
+	assert_eq!(addr, H160::from(hex!("0000010267696761686478730000029e00000000")));
 }

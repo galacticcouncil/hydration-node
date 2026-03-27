@@ -39,18 +39,23 @@ pub enum Conviction {
 	Locked6x,
 }
 
+/// Divisor for reward_multiplier values.
+/// None = 1/10 = 0.1x, Locked1x = 10/10 = 1x, etc.
+pub const REWARD_MULTIPLIER_SCALE: u128 = 10;
+
 impl Conviction {
-	/// Multiplier for reward calculation.
-	/// None = 1 (base participation reward), then matches conviction level.
+	/// Scaled multiplier for reward calculation.
+	/// Divide by REWARD_MULTIPLIER_SCALE to get the effective multiplier.
+	/// None = 0.1x, Locked1x = 1x, ..., Locked6x = 6x (matches legacy staking).
 	pub fn reward_multiplier(self) -> u32 {
 		match self {
 			Conviction::None => 1,
-			Conviction::Locked1x => 1,
-			Conviction::Locked2x => 2,
-			Conviction::Locked3x => 3,
-			Conviction::Locked4x => 4,
-			Conviction::Locked5x => 5,
-			Conviction::Locked6x => 6,
+			Conviction::Locked1x => 10,
+			Conviction::Locked2x => 20,
+			Conviction::Locked3x => 30,
+			Conviction::Locked4x => 40,
+			Conviction::Locked5x => 50,
+			Conviction::Locked6x => 60,
 		}
 	}
 

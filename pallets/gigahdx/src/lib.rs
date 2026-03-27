@@ -52,7 +52,7 @@ use primitives::Balance;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::{
 	traits::{AccountIdConversion, CheckedAdd, Zero},
-	FixedPointNumber, FixedU128, Rounding,
+	FixedPointNumber, FixedU128, Rounding, SaturatedConversion,
 };
 
 use types::UnstakePosition;
@@ -126,6 +126,11 @@ pub mod pallet {
 		BoundedVec<UnstakePosition<BlockNumberFor<T>>, T::MaxUnstakePositions>,
 		ValueQuery,
 	>;
+
+	/// Monotonic counter for generating unique lock IDs.
+	/// Combined with block number to produce collision-free identifiers.
+	#[pallet::storage]
+	pub type NextLockIndex<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	// -----------------------------------------------------------------------
 	// Events
@@ -300,7 +305,9 @@ pub mod pallet {
 				.ok_or(Error::<T>::Arithmetic)?;
 
 			UnstakePositions::<T>::try_mutate(&who, |positions| -> DispatchResult {
-				let lock_id = Self::generate_lock_id(positions.len() as u32);
+				let idx = NextLockIndex::<T>::get();
+				NextLockIndex::<T>::put(idx.wrapping_add(1));
+				let lock_id = Self::generate_lock_id(current_block, idx);
 
 				// Lock HDX in user's account.
 				T::LockableCurrency::set_lock(lock_id, T::HdxAssetId::get(), &who, hdx_amount)?;
@@ -462,14 +469,13 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Generate lock identifier for an unstake position.
-	/// Combines pallet prefix with position index to create unique 8-byte lock ID.
-	fn generate_lock_id(position_index: u32) -> LockIdentifier {
-		let mut id = *b"gigahdx_";
-		let bytes = position_index.to_le_bytes();
-		id[4] = bytes[0];
-		id[5] = bytes[1];
-		id[6] = bytes[2];
-		id[7] = bytes[3];
+	/// Combines block number (4 bytes) with counter index (4 bytes) for collision-free IDs.
+	/// Even if the counter wraps after ~4.3B unstakes, the block number will differ.
+	fn generate_lock_id(block_number: BlockNumberFor<T>, index: u32) -> LockIdentifier {
+		let mut id = [0u8; 8];
+		let block_bytes = block_number.saturated_into::<u32>().to_le_bytes();
+		id[..4].copy_from_slice(&block_bytes);
+		id[4..].copy_from_slice(&index.to_le_bytes());
 		id
 	}
 }

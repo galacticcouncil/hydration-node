@@ -68,7 +68,6 @@ parameter_types! {
 	pub const NativeAssetId: AssetId = HDX;
 	pub const LrnaAssetId: AssetId = LRNA;
 	pub const FeeProcessorPalletId: PalletId = PalletId(*b"feeproc/");
-	pub const MinConversionAmount: Balance = 100;
 	pub const MaxConversionsPerBlock: u32 = 5;
 	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
@@ -328,7 +327,6 @@ impl pallet_fee_processor::Config for Test {
 	type PalletId = FeeProcessorPalletId;
 	type HdxAssetId = NativeAssetId;
 	type LrnaAssetId = LrnaAssetId;
-	type MinConversionAmount = MinConversionAmount;
 	type MaxConversionsPerBlock = MaxConversionsPerBlock;
 	type FeeReceivers = (StakingFeeReceiver, ReferralsFeeReceiver);
 	type HdxFeeReceivers = (HdxStakingFeeReceiver, HdxReferralsFeeReceiver);

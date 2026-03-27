@@ -1542,7 +1542,7 @@ fn split_abstain_vote_uses_none_conviction() {
 		assert_eq!(vote.conviction, pallet_gigahdx_voting::types::Conviction::None);
 
 		let weighted = pallet_gigahdx_voting::ReferendaTotalWeightedVotes::<hydradx_runtime::Runtime>::get(r);
-		assert_eq!(weighted, 60 * UNITS);
+		assert_eq!(weighted, 6 * UNITS);
 	});
 }
 

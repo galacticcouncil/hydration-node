@@ -191,7 +191,6 @@ impl pallet_gigahdx_voting::Config for Runtime {
 
 parameter_types! {
 	pub const FeeProcessorPalletId: PalletId = PalletId(*b"feeproc/");
-	pub const MinFeeConversionAmount: Balance = 1_000_000_000_000; // 1 HDX equivalent
 	pub const MaxFeeConversionsPerBlock: u32 = 5;
 }
 
@@ -345,9 +344,13 @@ impl pallet_fee_processor::Config for Runtime {
 	type PalletId = FeeProcessorPalletId;
 	type HdxAssetId = NativeAssetId;
 	type LrnaAssetId = LRNA;
-	type MinConversionAmount = MinFeeConversionAmount;
 	type MaxConversionsPerBlock = MaxFeeConversionsPerBlock;
-	type FeeReceivers = (GigaHdxFeeReceiver, GigaHdxRewardFeeReceiver, StakingFeeReceiver, ReferralsFeeReceiver);
+	type FeeReceivers = (
+		GigaHdxFeeReceiver,
+		GigaHdxRewardFeeReceiver,
+		StakingFeeReceiver,
+		ReferralsFeeReceiver,
+	);
 	type HdxFeeReceivers = (HdxGigaHdxFeeReceiver, GigaHdxRewardFeeReceiver, HdxStakingFeeReceiver);
 	type WeightInfo = ();
 }

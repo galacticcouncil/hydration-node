@@ -351,7 +351,7 @@ impl<T: Config> LockableCurrency<T::AccountId> for GigaHdxVotingCurrency<T> {
 	fn extend_lock(id: LockIdentifier, who: &T::AccountId, amount: Balance, _reasons: WithdrawReasons) {
 		let current = LockSplit::<T>::get(who);
 		let current_total = current.gigahdx_amount.saturating_add(current.hdx_amount);
-		if amount > current_total {
+		if amount >= current_total {
 			Self::apply_lock_split(id, who, amount);
 		}
 	}
