@@ -1184,7 +1184,7 @@ fn manual_convert_recovers_after_asset_unfrozen() {
 }
 
 #[test]
-fn on_idle_orphans_fees_when_asset_frozen() {
+fn on_idle_retries_frozen_asset_after_unfreezing() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -1216,33 +1216,40 @@ fn on_idle_orphans_fees_when_asset_frozen() {
 			Tradability::FROZEN,
 		));
 
-		// on_idle runs — conversion fails and removes the pending entry
+		// on_idle runs — conversion fails but pending entry is preserved for retry
 		let weight = frame_support::weights::Weight::from_parts(1_000_000_000_000, u64::MAX);
 		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
 
-		// Pending entry is gone — on_idle removes it on failure
+		// Pending entry survives — on_idle does NOT remove it on failure
 		assert!(
-			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
-			"on_idle should remove PendingConversions entry even on failure"
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"on_idle should preserve PendingConversions entry on failure for retry"
 		);
 
-		// Funds are still in the pot but no longer tracked — orphaned
+		// Funds still in pot
 		let pot_dai_after = Currencies::free_balance(DAI, &fee_processor_pot());
-		assert!(
-			pot_dai_after > 0,
-			"DAI fees remain in pot but are orphaned — no pending entry to trigger future conversion"
-		);
+		assert_eq!(pot_dai, pot_dai_after, "DAI fees should remain in pot");
 
-		// Unfreeze DAI — but manual convert still fails because no pending entry
+		// Unfreeze DAI
 		assert_ok!(Omnipool::set_asset_tradable_state(
 			hydradx_runtime::RuntimeOrigin::root(),
 			DAI,
 			Tradability::SELL | Tradability::BUY | Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY,
 		));
 
+		// on_idle retries and now succeeds
+		let gigapot_before = Currencies::free_balance(HDX, &gigapot());
+		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
+
 		assert!(
-			FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI).is_err(),
-			"Convert should fail — no pending entry exists even though funds are in pot"
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be converted after unfreezing"
+		);
+
+		let gigapot_after = Currencies::free_balance(HDX, &gigapot());
+		assert!(
+			gigapot_after > gigapot_before,
+			"Gigapot should receive HDX after on_idle retries successfully"
 		);
 	});
 }
