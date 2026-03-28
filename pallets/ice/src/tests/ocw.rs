@@ -150,10 +150,7 @@ fn validate_unsingned_should_work_when_submitted_solution_is_valid() {
 				score: 1_000_000_030_000_000_000_u128,
 			};
 
-			let call = Call::submit_solution {
-				solution: s,
-				valid_for_block: 2,
-			};
+			let call = Call::submit_solution { solution: s };
 
 			assert_eq!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
@@ -164,207 +161,6 @@ fn validate_unsingned_should_work_when_submitted_solution_is_valid() {
 					longevity: 1,
 					propagate: false
 				})
-			);
-		});
-}
-
-#[test]
-fn validate_unsigned_should_not_work_when_submitted_solution_is_not_for_one_of_next_two_blocks() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(ALICE, HDX, 10_000 * ONE_HDX),
-			(ALICE, DOT, 10_000 * ONE_DOT),
-			(BOB, HDX, 10_000 * ONE_HDX),
-			(BOB, ETH, 10_000 * ONE_QUINTIL),
-			(DAVE, HDX, 20_000 * ONE_HDX),
-			(DAVE, DOT, 20_000 * ONE_DOT),
-		])
-		.with_intents(vec![
-			(
-				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 5_000 * ONE_HDX,
-						amount_out: 4 * ONE_DOT,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_resolved: None,
-				},
-			),
-			(
-				DAVE,
-				Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 10_000 * ONE_HDX,
-						amount_out: 8 * ONE_DOT,
-						partial: false,
-					}),
-					deadline: None,
-					on_resolved: None,
-				},
-			),
-			(
-				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: ETH,
-						asset_out: HDX,
-						amount_in: ONE_QUINTIL / 2,
-						amount_out: 16_000_000 * ONE_HDX,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_resolved: None,
-				},
-			),
-		])
-		.with_router_settlement(
-			SwapType::ExactIn,
-			PoolType::XYK,
-			HDX,
-			DOT,
-			15_000 * ONE_HDX,
-			15_000 * ONE_HDX,
-			15 * ONE_DOT,
-		)
-		.with_router_settlement(
-			SwapType::ExactOut,
-			PoolType::Omnipool,
-			ETH,
-			HDX,
-			17_000_000 * ONE_HDX,
-			ONE_QUINTIL / 2,
-			17_000_000 * ONE_HDX,
-		)
-		.build()
-		.execute_with(|| {
-			let resolved = vec![
-				ResolvedIntent {
-					id: 2_u128,
-					data: IntentData::Swap(SwapData {
-						asset_in: ETH,
-						asset_out: HDX,
-						amount_in: 500_000_000_000_000_000,
-						amount_out: 17_000_000 * ONE_HDX,
-						partial: false,
-					}),
-				},
-				ResolvedIntent {
-					id: 1_u128,
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 10_000 * ONE_HDX,
-						amount_out: 10 * ONE_DOT,
-						partial: false,
-					}),
-				},
-				ResolvedIntent {
-					id: 0_u128,
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 5_000 * ONE_HDX,
-						amount_out: 5 * ONE_DOT,
-						partial: false,
-					}),
-				},
-			];
-
-			let trades = vec![
-				PoolTrade {
-					amount_in: 15_000 * ONE_HDX,
-					amount_out: 12 * ONE_DOT,
-					direction: SwapType::ExactIn,
-					route: vec![RTrade {
-						pool: PoolType::XYK,
-						asset_in: HDX,
-						asset_out: DOT,
-					}]
-					.try_into()
-					.unwrap(),
-				},
-				PoolTrade {
-					amount_in: ONE_QUINTIL / 2,
-					amount_out: 17_000_000 * ONE_HDX,
-					direction: SwapType::ExactOut,
-					route: vec![RTrade {
-						pool: PoolType::Omnipool,
-						asset_in: ETH,
-						asset_out: HDX,
-					}]
-					.try_into()
-					.unwrap(),
-				},
-			];
-
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 1_000_000_030_000_000_000_u128,
-			};
-
-			let current_block = 1;
-
-			let call = Call::submit_solution {
-				solution: s.clone(),
-				valid_for_block: current_block + 1,
-			};
-
-			//NOTE: just to make sure everything except `valid_for_block` is ok
-			assert_eq!(
-				ICE::validate_unsigned(TransactionSource::Local, &call),
-				Ok(ValidTransaction {
-					priority: UNSIGNED_TXS_PRIORITY,
-					requires: vec![],
-					provides: vec![(OCW_TAG_PREFIX, OCW_PROVIDES.to_vec()).encode()],
-					longevity: 1,
-					propagate: false
-				})
-			);
-
-			//solution for current block
-			let call = Call::submit_solution {
-				solution: s.clone(),
-				valid_for_block: current_block,
-			};
-
-			assert_eq!(
-				ICE::validate_unsigned(TransactionSource::Local, &call),
-				Ok(ValidTransaction {
-					priority: UNSIGNED_TXS_PRIORITY,
-					requires: vec![],
-					provides: vec![(OCW_TAG_PREFIX, OCW_PROVIDES.to_vec()).encode()],
-					longevity: 1,
-					propagate: false
-				})
-			);
-
-			//solution for future block
-			let call = Call::submit_solution {
-				solution: s.clone(),
-				valid_for_block: current_block + 2,
-			};
-
-			assert_noop!(
-				ICE::validate_unsigned(TransactionSource::Local, &call),
-				TransactionValidityError::Invalid(InvalidTransaction::Call)
-			);
-
-			//solution for past block
-			let call = Call::submit_solution {
-				solution: s,
-				valid_for_block: current_block - 1,
-			};
-
-			assert_noop!(
-				ICE::validate_unsigned(TransactionSource::Local, &call),
-				TransactionValidityError::Invalid(InvalidTransaction::Call)
 			);
 		});
 }
@@ -510,12 +306,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 				score: 1_000_000_030_000_000_000_u128,
 			};
 
-			let current_block = 1;
-
-			let call = Call::submit_solution {
-				solution: s.clone(),
-				valid_for_block: current_block,
-			};
+			let call = Call::submit_solution { solution: s.clone() };
 
 			assert_eq!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
@@ -531,10 +322,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 			//Act 1
 			let mut s1 = s.clone();
 			s1.score -= 1;
-			let call = Call::submit_solution {
-				solution: s1,
-				valid_for_block: current_block,
-			};
+			let call = Call::submit_solution { solution: s1 };
 
 			assert_noop!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
@@ -544,10 +332,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 			//Act 2
 			let mut s2 = s.clone();
 			s2.score += 1;
-			let call = Call::submit_solution {
-				solution: s2,
-				valid_for_block: current_block,
-			};
+			let call = Call::submit_solution { solution: s2 };
 
 			assert_noop!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
@@ -557,10 +342,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 			//Act 3
 			let mut s3 = s.clone();
 			s3.score = 0;
-			let call = Call::submit_solution {
-				solution: s3,
-				valid_for_block: current_block,
-			};
+			let call = Call::submit_solution { solution: s3 };
 
 			assert_noop!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
@@ -570,10 +352,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 			//Act 4
 			let mut s4 = s.clone();
 			s4.score = Score::max_value();
-			let call = Call::submit_solution {
-				solution: s4,
-				valid_for_block: current_block,
-			};
+			let call = Call::submit_solution { solution: s4 };
 
 			assert_noop!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
@@ -723,12 +502,7 @@ fn validate_unsingned_should_not_work_when_intentent_not_found() {
 				score: 500_000_030_000_000_000_u128,
 			};
 
-			let current_block = 1;
-
-			let call = Call::submit_solution {
-				solution: s.clone(),
-				valid_for_block: current_block + 1,
-			};
+			let call = Call::submit_solution { solution: s.clone() };
 
 			assert_noop!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
@@ -879,12 +653,7 @@ fn validate_unsingned_should_not_work_when_solution_has_duplicate_intents() {
 				score: 500_000_030_000_000_000_u128,
 			};
 
-			let current_block = 1;
-
-			let call = Call::submit_solution {
-				solution: s.clone(),
-				valid_for_block: current_block + 1,
-			};
+			let call = Call::submit_solution { solution: s.clone() };
 
 			assert_noop!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
@@ -1034,10 +803,7 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_in_l
 				score: 500_000_030_000_000_000_u128,
 			};
 
-			let call = Call::submit_solution {
-				solution: s,
-				valid_for_block: 2,
-			};
+			let call = Call::submit_solution { solution: s };
 
 			assert_noop!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
@@ -1187,10 +953,7 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_out_
 				score: 500_000_030_000_000_000_u128,
 			};
 
-			let call = Call::submit_solution {
-				solution: s,
-				valid_for_block: 2,
-			};
+			let call = Call::submit_solution { solution: s };
 
 			assert_noop!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
@@ -1322,10 +1085,7 @@ fn validate_unsigned_should_not_work_when_execution_prices_are_not_consistent() 
 				score: 500_000_030_000_000_000_u128,
 			};
 
-			let call = Call::submit_solution {
-				solution: s,
-				valid_for_block: 2,
-			};
+			let call = Call::submit_solution { solution: s };
 
 			assert_noop!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),
@@ -1457,10 +1217,7 @@ fn validate_unsigned_should_not_work_when_intent_is_not_resolved_at_execution_pr
 				score: 500_000_030_000_000_000_u128,
 			};
 
-			let call = Call::submit_solution {
-				solution: s,
-				valid_for_block: 2,
-			};
+			let call = Call::submit_solution { solution: s };
 
 			assert_noop!(
 				ICE::validate_unsigned(TransactionSource::Local, &call),

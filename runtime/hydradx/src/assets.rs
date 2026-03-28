@@ -1845,7 +1845,6 @@ impl pallet_hsm::Config for Runtime {
 
 impl pallet_lazy_executor::Config for Runtime {
 	//TODO:
-	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type UnsignedLongevity = ConstU64<2>;
 	type UnsignedPriority = ConstU64<100>;
@@ -1859,7 +1858,6 @@ parameter_types! {
 
 impl pallet_intent::Config for Runtime {
 	//TODO:
-	type RuntimeEvent = RuntimeEvent;
 	type LazyExecutorHandler = LazyExecutor;
 	type RegistryHandler = AssetRegistry;
 	type Currency = Currencies;
@@ -1892,10 +1890,8 @@ impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
 }
 
 impl pallet_ice::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
 	type PalletId = IcePalletId;
-	type BlockNumberProvider = System;
 	type RegistryHandler = AssetRegistry;
 	type Simulator = HydrationSimulatorConfig;
 	type WeightInfo = weights::pallet_ice::HydraWeight<Runtime>;

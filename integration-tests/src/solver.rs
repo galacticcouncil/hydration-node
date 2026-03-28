@@ -323,12 +323,9 @@ fn stableswap_intent() {
 		assert_eq!(solution.resolved_intents.len(), 1, "Should resolve the intent");
 
 		crate::polkadot_test_net::hydradx_run_to_next_block();
-		let new_block = hydradx_runtime::System::block_number();
-
 		assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 			RuntimeOrigin::none(),
 			solution,
-			new_block,
 		));
 
 		let alice_a_after = Currencies::total_balance(asset_a, &ALICE.into());
@@ -427,12 +424,9 @@ fn solver_execute_solution1() {
 			}
 
 			crate::polkadot_test_net::hydradx_run_to_next_block();
-			let new_block = hydradx_runtime::System::block_number();
-
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution.clone(),
-				new_block,
 			));
 
 			// Verify intents removed from storage
@@ -556,12 +550,9 @@ fn solver_execute_solution_with_buy_intents() {
 			assert!(swap_data.amount_in == alice_amount_in, "Should equal to amount in");
 
 			crate::polkadot_test_net::hydradx_run_to_next_block();
-			let new_block = hydradx_runtime::System::block_number();
-
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution.clone(),
-				new_block,
 			));
 
 			let alice_balance_a_after = Currencies::total_balance(asset_a, &alice);
@@ -662,7 +653,6 @@ fn solver_mixed_intents() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 
 			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
@@ -772,7 +762,6 @@ fn solver_v1_single_intent() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution.clone(),
-				hydradx_runtime::System::block_number(),
 			));
 
 			// Verify intent was removed from storage
@@ -844,7 +833,6 @@ fn solver_v1_two_intents_partial_match() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution.clone(),
-				hydradx_runtime::System::block_number(),
 			));
 
 			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
@@ -948,7 +936,6 @@ fn solver_v1_five_mixed_intents() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 
 			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
@@ -1019,7 +1006,6 @@ fn solver_v1_uniform_price_all_sells() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 
 			let alice_bnc_after = Currencies::total_balance(bnc, &alice);
@@ -1111,7 +1097,6 @@ fn solver_v1_uniform_price_opposite_sells() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 
 			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
@@ -1221,7 +1206,6 @@ fn intent_with_on_success_callback() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 
 			// After solution, Alice should have received HDX
@@ -1337,7 +1321,6 @@ fn usdt_weth_single_intent() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution.clone(),
-				hydradx_runtime::System::block_number(),
 			));
 
 			let alice_usdt_after = Currencies::total_balance(usdt, &alice);
@@ -1411,7 +1394,6 @@ fn usdt_weth_solver_vs_router() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution.clone(),
-				hydradx_runtime::System::block_number(),
 			));
 
 			let alice_usdt_after = Currencies::total_balance(usdt, &alice);
@@ -1522,7 +1504,6 @@ fn usdt_weth_two_opposing_intents() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution.clone(),
-				hydradx_runtime::System::block_number(),
 			));
 
 			let alice_weth_after = Currencies::total_balance(weth, &alice);
@@ -1593,7 +1574,6 @@ fn eth_3pool_single_intent() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 
 			let alice_eth_after = Currencies::total_balance(eth, &alice);
@@ -1661,7 +1641,6 @@ fn eth_3pool_solver_vs_router() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 
 			let alice_eth_after = Currencies::total_balance(eth, &alice);
@@ -1778,7 +1757,6 @@ fn _eth_3pool_two_opposing_intents() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution.clone(),
-				hydradx_runtime::System::block_number(),
 			));
 
 			let alice_3pool_after = Currencies::total_balance(pool3, &alice);
@@ -1857,7 +1835,6 @@ fn solver_ring_trade_triangle_execute() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution.clone(),
-				hydradx_runtime::System::block_number(),
 			));
 
 			assert!(
@@ -2023,7 +2000,6 @@ fn solver_ring_trade_vs_direct_trades() {
 				assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 					RuntimeOrigin::none(),
 					solution,
-					hydradx_runtime::System::block_number(),
 				));
 
 				let solver_alice = Currencies::total_balance(bnc, &alice) - alice_bnc_before;
@@ -2146,7 +2122,6 @@ fn solver_mixed_batch_12_intents() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 
 			assert!(
@@ -2316,7 +2291,6 @@ fn solver_mixed_batch_vs_direct_trades() {
 				assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 					RuntimeOrigin::none(),
 					solution.clone(),
-					hydradx_runtime::System::block_number(),
 				));
 
 				// Verify all 12 intents resolved and executed
@@ -2358,7 +2332,6 @@ fn solver_testnet_snapshot_intents() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 		}
 
@@ -2448,7 +2421,6 @@ fn solver_testnet_snapshot_multi_round() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 			count
 		} else {
@@ -2495,7 +2467,6 @@ fn solver_testnet_snapshot_multi_round() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 			count
 		} else {
@@ -2520,7 +2491,6 @@ fn solver_testnet_snapshot_multi_round() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 			count
 		} else {
@@ -2598,7 +2568,6 @@ fn solver_near_perfect_cancel_ed_remainder() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 
 			assert!(
@@ -2679,7 +2648,6 @@ fn solver_existential_deposit_amounts() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 
 			assert!(pallet_intent::Pallet::<Runtime>::get_valid_intents().is_empty());
@@ -2754,7 +2722,6 @@ fn solver_amm_remainder_below_ed() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 
 			assert!(pallet_intent::Pallet::<Runtime>::get_valid_intents().is_empty());
@@ -2827,7 +2794,6 @@ fn solver_amm_remainder_dust() {
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
-				hydradx_runtime::System::block_number(),
 			));
 
 			assert!(pallet_intent::Pallet::<Runtime>::get_valid_intents().is_empty());
@@ -2914,10 +2880,6 @@ fn solver_three_intent_dust_remainder() {
 			// BNC's existential deposit of 68_795_189_840 (~0.069 BNC), so the transfer
 			// is rejected. Seeding the holding pot doesn't help — the issue is on the
 			// router account's receiving side.
-			let result = pallet_ice::Pallet::<Runtime>::submit_solution(
-				RuntimeOrigin::none(),
-				solution,
-				hydradx_runtime::System::block_number(),
-			);
+			let result = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
 		});
 }

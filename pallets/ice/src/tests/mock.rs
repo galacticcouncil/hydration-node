@@ -154,7 +154,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -232,7 +231,6 @@ impl Inspect for DummyRegistry {
 }
 
 impl pallet_intent::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
 	type LazyExecutorHandler = DummyLazyExecutor<Test>;
 	type RegistryHandler = DummyRegistry;
@@ -245,20 +243,16 @@ impl pallet_intent::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 parameter_types! {
 	pub const IceId: PalletId = PalletId(*b"iceTest#");
 }
 
 impl pallet_ice::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
 	type PalletId = IceId;
 	type RegistryHandler = DummyRegistry;
-	type BlockNumberProvider = System;
 	type Simulator = TestSimulatorConfig;
 	type WeightInfo = ();
 }
@@ -338,7 +332,6 @@ parameter_types! {
 }
 
 impl pallet_route_executor::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;

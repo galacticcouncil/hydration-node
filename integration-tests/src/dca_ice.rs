@@ -59,7 +59,6 @@ fn run_solver_and_submit() -> Solution {
 	assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 		RuntimeOrigin::none(),
 		solution,
-		hydradx_runtime::System::block_number(),
 	));
 
 	solution_clone

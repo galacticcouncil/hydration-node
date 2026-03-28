@@ -57,10 +57,7 @@ use orml_traits::MultiCurrency;
 use pallet_route_executor::AmmTradeWeights;
 use sp_core::U256;
 use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::CheckedConversion;
-use sp_runtime::traits::One;
-use sp_runtime::traits::Saturating;
 use sp_std::borrow::ToOwned;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
@@ -94,17 +91,12 @@ pub mod pallet {
 		+ pallet_route_executor::Config<AssetId = AssetId>
 		+ CreateBare<Call<Self>>
 	{
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Balance>;
 
 		/// Pallet id - used to create a holding account
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
-
-		/// Provider for current block number
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
 		/// Asset registry handler
 		type RegistryHandler: Inspect<AssetId = AssetId>;
@@ -131,8 +123,6 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Provided solution is not valid.
 		InvalidSolution,
-		/// Solution target doesn't match current block.
-		InvalidTargetBlock,
 		/// Referenced intent doesn't exist.
 		IntentNotFound,
 		/// Referenced intent's owner doesn't exist.
@@ -165,7 +155,6 @@ pub mod pallet {
 		///
 		/// Parameters:
 		/// - `solution`: solution to execute
-		/// - `valid_for_block`: block number `solution` is valid for
 		///
 		/// Emits:
 		/// - `SolutionExecuted`when `solution` was executed successfully
@@ -187,20 +176,11 @@ pub mod pallet {
 
 			total_w
 		})]
-		pub fn submit_solution(
-			origin: OriginFor<T>,
-			solution: Solution,
-			valid_for_block: BlockNumberFor<T>,
-		) -> DispatchResult {
+		pub fn submit_solution(origin: OriginFor<T>, solution: Solution) -> DispatchResult {
 			ensure_none(origin)?;
 
-			log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), solution with {:?} resolved intesnts and {:?} trades", 
+			log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), solution with {:?} resolved intesnts and {:?} trades",
 				LOG_PREFIX, solution.resolved_intents.len(), solution.trades.len());
-
-			Self::validate_solution_target_block(
-				valid_for_block,
-				<T as pallet::Config>::BlockNumberProvider::current_block_number(),
-			)?;
 
 			// V1 solver may produce solutions with no trades (perfect CoW matching)
 			ensure!(!solution.resolved_intents.is_empty(), Error::<T>::InvalidSolution);
@@ -338,21 +318,9 @@ pub mod pallet {
 				}
 			};
 
-			let block_no = <T as pallet::Config>::BlockNumberProvider::current_block_number();
-			if let Call::submit_solution {
-				solution,
-				valid_for_block,
-			} = call
-			{
-				//NOTE: solution should be executed in next block so exect_block is `now + 1`
-				let exec_block = block_no.saturating_add(One::one());
-				if Self::validate_solution_target_block(*valid_for_block, exec_block).is_err() {
-					log::error!(target: OCW_LOG_TARGET, "{:?}: invalid target block,  target_block: {:?}, exec_block: {:?}, now: {:?}", LOG_PREFIX, valid_for_block, exec_block, block_no);
-					return InvalidTransaction::Call.into();
-				}
-
+			if let Call::submit_solution { solution } = call {
 				if let Err(e) = Self::validate_unsigned_solution(solution) {
-					log::error!(target: OCW_LOG_TARGET, "{:?}: validate solution, err: {:?}, block: {:?}", LOG_PREFIX, e, block_no);
+					log::error!(target: OCW_LOG_TARGET, "{:?}: validate solution, err: {:?}", LOG_PREFIX, e);
 					return InvalidTransaction::Call.into();
 				};
 
@@ -373,26 +341,6 @@ impl<T: Config> Pallet<T> {
 	/// Function provides `holding_pot` account id.
 	pub fn get_pallet_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
-	}
-
-	/// Function validates solutions target block.
-	/// Target block must be equal to current block or -1 block.
-	/// e.g. `target_block` = 2 is valid for blocks 2 and 3.
-	/// `now - target_block <= 1`
-	fn validate_solution_target_block(
-		target_block: BlockNumberFor<T>,
-		exec_block: BlockNumberFor<T>,
-	) -> Result<(), DispatchError> {
-		log::debug!(target: LOG_TARGET, "{:?}: validate_solution_target_block(), target_block: {:?}, exec_block: {:?}, now: {:?}",
-			LOG_PREFIX, target_block, exec_block, <T as pallet::Config>::BlockNumberProvider::current_block_number());
-
-		let diff = exec_block
-			.checked_sub(&target_block)
-			.ok_or(Error::<T>::InvalidTargetBlock)?;
-
-		ensure!(diff.le(&One::one()), Error::<T>::InvalidTargetBlock);
-
-		Ok(())
 	}
 
 	/// Function validates if intent was resolved based on execution price.
@@ -519,9 +467,6 @@ impl<T: Config> Pallet<T> {
 			return None;
 		}
 
-		Some(Call::submit_solution {
-			solution,
-			valid_for_block: block_no.saturating_add(One::one()),
-		})
+		Some(Call::submit_solution { solution })
 	}
 }
