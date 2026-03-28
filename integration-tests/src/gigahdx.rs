@@ -351,6 +351,12 @@ fn second_unstake_makes_first_unstake_amount_usable() {
 		let hdx_after_second = Balances::free_balance(&alice);
 		assert!(hdx_after_second > hdx_after_first, "After second unstake, alice should have more HDX");
 
+		// BUG: alice should NOT be able to transfer 100 HDX, but she can because only ~100 is effectively locked
+		assert_noop!(
+			Balances::transfer_allow_death(RuntimeOrigin::signed(alice.clone()), bob.clone(), 100 * UNITS),
+			TokenError::Frozen
+		);
+
 		// BUG: should be 200 HDX locked, but only 100 is locked due to set_lock using max(locks) not sum(locks)
 		let locks = pallet_balances::Locks::<hydradx_runtime::Runtime>::get(&alice);
 		let total_locked: u128 = locks.iter().map(|l| l.amount).sum();
