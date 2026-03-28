@@ -331,19 +331,34 @@ fn second_unstake_makes_first_unstake_amount_usable() {
 			alice.clone(),
 			400 * UNITS
 		));
+
+		// Stake 400 HDX -> 0 HDX, 400 GIGAHDX
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 400 * UNITS));
+		assert_eq!(Balances::free_balance(&alice), 0, "After staking, alice should have 0 HDX");
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 400 * UNITS, "After staking, alice should have 400 GIGAHDX");
 
-		// First unstake: 100 HDX locked, 0 usable
+		// First unstake 100 GIGAHDX -> 300 GIGAHDX, ~100 locked HDX, 0 usable HDX
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
-		assert_eq!(Balances::usable_balance(&alice), 0, "After first unstake, 0 should be usable");
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 300 * UNITS, "After first unstake, alice should have 300 GIGAHDX");
+		let hdx_after_first = Balances::free_balance(&alice);
+		assert!(hdx_after_first > 0, "After first unstake, alice should have received HDX");
+		assert_eq!(Balances::usable_balance(&alice), 0, "After first unstake, all HDX should be locked");
 
-		// Second unstake: 200 HDX total should be locked, 0 usable
+		// Second unstake 100 GIGAHDX -> 200 GIGAHDX, ~200 locked HDX, 0 usable HDX
 		System::set_block_number(System::block_number() + 1);
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 200 * UNITS, "After second unstake, alice should have 200 GIGAHDX");
+		let hdx_after_second = Balances::free_balance(&alice);
+		assert!(hdx_after_second > hdx_after_first, "After second unstake, alice should have more HDX");
+
+		// BUG: should be 200 HDX locked, but only 100 is locked due to set_lock using max(locks) not sum(locks)
+		let locks = pallet_balances::Locks::<hydradx_runtime::Runtime>::get(&alice);
+		let total_locked: u128 = locks.iter().map(|l| l.amount).sum();
+		assert_eq!(total_locked, 200_500_000_000_000, "All received HDX should be locked");
 
 		// BUG: usable is ~100 instead of 0 because set_lock uses max(locks) not sum(locks)
 		let usable = Balances::usable_balance(&alice);
-		assert_eq!(usable, 0, "After second unstake, all HDX should still be locked");
+		assert_eq!(usable, 0, "After second unstake, all HDX should be locked, 0 usable");
 	});
 }
 
