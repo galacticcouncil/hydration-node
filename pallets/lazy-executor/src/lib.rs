@@ -72,8 +72,6 @@ pub mod pallet {
 		+ frame_system::Config
 		+ pallet_transaction_payment::Config<RuntimeCall = <Self as pallet::Config>::RuntimeCall>
 	{
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// The aggregated call type.
 		type RuntimeCall: Parameter
 			+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin, Info = DispatchInfo, PostInfo = PostDispatchInfo>

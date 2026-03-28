@@ -63,7 +63,7 @@ use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::Zero;
-use sp_runtime::{FixedPointNumber, FixedU128, Permill};
+use sp_runtime::{FixedPointNumber, FixedU128};
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
 
@@ -86,8 +86,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + CreateBare<Call<Self>> {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Provider for the current timestamp.
 		type TimestampProvider: Time<Moment = Moment>;
 
