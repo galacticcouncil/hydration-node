@@ -131,7 +131,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -263,7 +262,6 @@ parameter_types! {
 }
 
 impl pallet_intent::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
 	type LazyExecutorHandler = DummyLazyExecutor<Test>;
 	type RegistryHandler = DummyRegistry;

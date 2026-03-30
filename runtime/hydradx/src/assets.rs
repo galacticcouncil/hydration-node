@@ -1865,7 +1865,7 @@ impl pallet_intent::Config for Runtime {
 	type TimestampProvider = Timestamp;
 	type HubAssetId = LRNA;
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
-	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type BlockNumberProvider = System;
 	type MinDcaPeriod = MinimalPeriod;
 	type WeightInfo = weights::pallet_intent::HydraWeight<Runtime>;
 }
