@@ -199,25 +199,28 @@ pub mod pallet {
 			// Use the remaining weight capped to at most 70% of max_block.
 			let max_block = T::BlockWeights::get().max_block;
 			let cap_perbill = sp_runtime::Perbill::from_percent(70);
-			let cap = Weight::from_parts(
-				cap_perbill * max_block.ref_time(),
-				cap_perbill * max_block.proof_size(),
-			);
+			let cap = Weight::from_parts(cap_perbill * max_block.ref_time(), cap_perbill * max_block.proof_size());
 
 			let budget = remaining_weight.min(cap);
 			let per_key_weight = T::DbWeight::get().reads_writes(2, 1);
 
 			let k_ref = budget.ref_time().checked_div(per_key_weight.ref_time()).unwrap_or(0);
-			let k_proof = budget.proof_size().checked_div(per_key_weight.proof_size()).unwrap_or(k_ref);
+			// k_proof is a best-effort guard: benchmark proof_size per key was measured on a small
+			// trie and underestimates real production depth. MAX_KEYS_PER_BLOCK is the true
+			// proof_size safeguard; k_proof serves as an additional sanity check.
+			let k_proof = budget
+				.proof_size()
+				.checked_div(per_key_weight.proof_size())
+				.unwrap_or(k_ref);
 
-			let limit = k_ref.min(k_proof);
+			// Safe as far as it caps to MAX_KEYS_PER_BLOCK
+			let limit = k_ref.min(k_proof).min(hyperbridge_cleanup::MAX_KEYS_PER_BLOCK as u64) as u32;
 			if limit == 0 {
 				return T::WeightInfo::cleanup_on_idle_limit_zero();
 			}
 
-			let limit_u32 = limit.min(u32::MAX as u64) as u32;
 			let stage = CleanupStage::<T>::get().unwrap_or(Stage::StateCommitments);
-			let (done, keys_deleted) = do_cleanup_step(stage, limit_u32);
+			let (done, keys_deleted) = do_cleanup_step(stage, limit);
 
 			if keys_deleted > 0 {
 				Self::deposit_event(Event::HyperbridgeCleanupProgress { stage, keys_deleted });
@@ -243,7 +246,7 @@ pub mod pallet {
 				};
 			}
 
-			T::WeightInfo::cleanup_on_idle(keys_deleted)
+			base_cleanup_weight
 		}
 	}
 

@@ -8,6 +8,8 @@
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use sp_core::hashing::twox_128;
 
+pub(crate) const MAX_KEYS_PER_BLOCK: u32 = 2_500;
+
 /// Stages of the ISMP storage cleanup.
 #[derive(
 	Debug, Clone, Copy, PartialEq, Eq, Encode, Decode, MaxEncodedLen, DecodeWithMemTracking, scale_info::TypeInfo,

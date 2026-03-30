@@ -85,10 +85,10 @@ benchmarks! {
 	}
 
 	cleanup_on_idle {
-		let n in 1..5_000;
+		let n in 1..crate::hyperbridge_cleanup::MAX_KEYS_PER_BLOCK;
 
 		let prefix = Stage::StateCommitments.storage_prefix();
-		let tail = 10_000u32;
+		let tail = 100_000u32;
 		for i in 0..(n + tail) {
 			let mut key = prefix.to_vec();
 			key.extend_from_slice(&i.to_le_bytes());
@@ -105,15 +105,8 @@ benchmarks! {
 	// in production RocksDB it respects it. A verify that satisfies both is not possible.
 
 	cleanup_on_idle_limit_zero {
-		let mut key = Stage::StateCommitments.storage_prefix().to_vec();
-
-		let one_le_bytes = 1u32.to_le_bytes();
-		key.extend_from_slice(&one_le_bytes);
-		sp_io::storage::set(&key, &one_le_bytes);
-
-		let per_key = T::DbWeight::get().reads_writes(2, 1);
 	}: {
-		Pallet::<T>::on_idle(1u32.into(), per_key);
+		Pallet::<T>::on_idle(1u32.into(), Weight::zero());
 	}
 	// No verify — same TestExternalities limitation as cleanup_on_idle.
 
