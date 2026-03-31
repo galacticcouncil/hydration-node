@@ -236,10 +236,7 @@ fn dispatch_with_fee_payer_should_set_and_clear_fee_payer() {
 			amount: 1_000,
 		}));
 
-		assert_ok!(Dispatcher::dispatch_with_fee_payer(
-			RuntimeOrigin::signed(ALICE),
-			call,
-		));
+		assert_ok!(Dispatcher::dispatch_with_fee_payer(RuntimeOrigin::signed(ALICE), call,));
 
 		assert_eq!(get_fee_payer(), None);
 	});
@@ -274,10 +271,7 @@ fn dispatch_with_fee_payer_should_forward_dispatch_result() {
 			amount: 500,
 		}));
 
-		assert_ok!(Dispatcher::dispatch_with_fee_payer(
-			RuntimeOrigin::signed(ALICE),
-			call,
-		));
+		assert_ok!(Dispatcher::dispatch_with_fee_payer(RuntimeOrigin::signed(ALICE), call,));
 
 		assert_eq!(Tokens::free_balance(HDX, &ALICE), alice_initial_balance - 500);
 		assert_eq!(Tokens::free_balance(HDX, &BOB), bob_initial_balance + 500);

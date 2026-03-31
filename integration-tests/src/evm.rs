@@ -5252,8 +5252,8 @@ mod proxy_fee_payer {
 	use frame_support::assert_ok;
 	use hex_literal::hex;
 	use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
-	use hydradx_runtime::evm::{evm_fee_payer, set_evm_fee_payer, clear_evm_fee_payer};
-	use hydradx_runtime::{Currencies, Dispatcher, RuntimeCall, RuntimeOrigin, Tokens, EVM};
+	use hydradx_runtime::evm::{clear_evm_fee_payer, evm_fee_payer, set_evm_fee_payer};
+	use hydradx_runtime::{Currencies, Dispatcher, Proxy, ProxyType, RuntimeCall, RuntimeOrigin, Tokens, EVM};
 	use orml_traits::MultiCurrency;
 	use pallet_evm::FeeCalculator;
 	use sp_core::{H160, U256};
@@ -5278,9 +5278,22 @@ mod proxy_fee_payer {
 			));
 			assert_ok!(Currencies::update_balance(
 				RuntimeOrigin::root(),
+				evm_acc.clone(),
+				0,
+				100_000 * UNITS as i128,
+			));
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
 				controller.clone(),
 				WETH,
 				100_000 * UNITS as i128,
+			));
+
+			assert_ok!(Proxy::add_proxy(
+				RuntimeOrigin::signed(evm_acc.clone()),
+				controller.clone().into(),
+				ProxyType::Any,
+				0,
 			));
 
 			let controller_weth_before = Tokens::free_balance(WETH, &controller);
@@ -5302,9 +5315,15 @@ mod proxy_fee_payer {
 				authorization_list: vec![],
 			});
 
+			let proxy_call = RuntimeCall::Proxy(pallet_proxy::Call::proxy {
+				real: evm_acc.clone().into(),
+				force_proxy_type: None,
+				call: Box::new(evm_call),
+			});
+
 			assert_ok!(Dispatcher::dispatch_with_fee_payer(
 				RuntimeOrigin::signed(controller.clone()),
-				Box::new(evm_call),
+				Box::new(proxy_call),
 			));
 
 			assert_eq!(evm_fee_payer(), None);
@@ -5375,7 +5394,7 @@ mod proxy_fee_payer {
 	}
 
 	#[test]
-	fn dispatch_with_fee_payer_should_fail_when_controller_has_no_funds() {
+	fn dispatch_with_fee_payer_charges_controller_not_evm_source() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -5389,6 +5408,26 @@ mod proxy_fee_payer {
 				RuntimeOrigin::root(),
 				evm_acc.clone(),
 				WETH,
+				100_000 * UNITS as i128,
+			));
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				evm_acc.clone(),
+				0,
+				100_000 * UNITS as i128,
+			));
+
+			assert_ok!(Proxy::add_proxy(
+				RuntimeOrigin::signed(evm_acc.clone()),
+				controller.clone().into(),
+				ProxyType::Any,
+				0,
+			));
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				controller.clone(),
+				0,
 				100_000 * UNITS as i128,
 			));
 
@@ -5407,17 +5446,26 @@ mod proxy_fee_payer {
 				authorization_list: vec![],
 			});
 
-			let result = Dispatcher::dispatch_with_fee_payer(
-				RuntimeOrigin::signed(controller.clone()),
-				Box::new(evm_call),
-			);
+			let proxy_call = RuntimeCall::Proxy(pallet_proxy::Call::proxy {
+				real: evm_acc.clone().into(),
+				force_proxy_type: None,
+				call: Box::new(evm_call),
+			});
 
-			assert!(
-				result.is_err(),
-				"Should fail when fee payer override account has no funds"
-			);
+			let evm_acc_weth_before = Tokens::free_balance(WETH, &evm_acc);
+
+			assert_ok!(Dispatcher::dispatch_with_fee_payer(
+				RuntimeOrigin::signed(controller.clone()),
+				Box::new(proxy_call),
+			));
 
 			assert_eq!(evm_fee_payer(), None);
+
+			let evm_acc_weth_after = Tokens::free_balance(WETH, &evm_acc);
+			assert_eq!(
+				evm_acc_weth_after, evm_acc_weth_before,
+				"EVM source (pureProxy) WETH should be unchanged — controller pays via HDX"
+			);
 		});
 	}
 
