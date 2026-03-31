@@ -53,6 +53,8 @@ pub trait WeightInfo {
     fn note_aave_manager() -> Weight;
     fn dispatch_with_extra_gas(n: u32) -> Weight;
     fn dispatch_evm_call(n: u32) -> Weight;
+    fn dispatch_as_emergency_admin(n: u32) -> Weight;
+    fn dispatch_with_fee_payer(n: u32) -> Weight;
 }
 
 /// Weights for `pallet_dispatcher` using the HydraDX node and recommended hardware.

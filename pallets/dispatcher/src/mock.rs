@@ -113,6 +113,31 @@ impl MaybeEvmCall<RuntimeCall> for EvmCallIdentifier {
 	}
 }
 
+pub struct MockEvmFeePayer;
+impl hydradx_traits::evm::EvmFeePayerSupport for MockEvmFeePayer {
+	type AccountId = AccountId;
+
+	fn set_fee_payer(payer: AccountId) -> Option<AccountId> {
+		FEE_PAYER.with(|v| v.borrow_mut().replace(payer))
+	}
+
+	fn clear_fee_payer() -> Option<AccountId> {
+		FEE_PAYER.with(|v| v.borrow_mut().take())
+	}
+
+	fn restore_fee_payer(previous: Option<AccountId>) {
+		FEE_PAYER.with(|v| *v.borrow_mut() = previous);
+	}
+}
+
+pub fn get_fee_payer() -> Option<AccountId> {
+	FEE_PAYER.with(|v| *v.borrow())
+}
+
+parameter_types! {
+	pub EmergencyAdminAccount: AccountId = 99;
+}
+
 impl dispatcher::Config for Test {
 	type RuntimeCall = RuntimeCall;
 	type TreasuryManagerOrigin = EnsureRoot<AccountId>;
