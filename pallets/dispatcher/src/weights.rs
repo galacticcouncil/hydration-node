@@ -109,5 +109,15 @@ impl WeightInfo for () {
             // Standard Error: 5
             .saturating_add(Weight::from_parts(223, 0).saturating_mul(n.into()))
     }
+    /// The range of component `n` is `[1, 10000]`.
+    fn dispatch_as_emergency_admin(n: u32) -> Weight {
+        Weight::from_parts(11_500_000, 0)
+            .saturating_add(Weight::from_parts(1_300, 0).saturating_mul(n.into()))
+    }
+    /// The range of component `n` is `[1, 10000]`.
+    fn dispatch_with_fee_payer(n: u32) -> Weight {
+        Weight::from_parts(11_500_000, 0)
+            .saturating_add(Weight::from_parts(1_300, 0).saturating_mul(n.into()))
+    }
 }
 

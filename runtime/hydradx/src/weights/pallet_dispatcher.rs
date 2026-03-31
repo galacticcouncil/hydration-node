@@ -123,4 +123,10 @@ impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
 			// Standard Error: 1
 			.saturating_add(Weight::from_parts(308, 0).saturating_mul(n.into()))
 	}
+	/// The range of component `n` is `[1, 10000]`.
+	fn dispatch_with_fee_payer(n: u32, ) -> Weight {
+		Weight::from_parts(7_386_881, 0)
+			// Standard Error: 1
+			.saturating_add(Weight::from_parts(312, 0).saturating_mul(n.into()))
+	}
 }
