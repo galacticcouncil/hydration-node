@@ -79,7 +79,7 @@ thread_local! {
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
 	pub static EXISTENTIAL_DEPOSIT: RefCell<HashMap<AssetId, u128>>= RefCell::new(HashMap::default());
 	pub static PRECISIONS: RefCell<HashMap<AssetId, u32>>= RefCell::new(HashMap::default());
-	pub static FEE_PAYER: RefCell<Option<AccountId>> = RefCell::new(None);
+	pub static FEE_PAYER: RefCell<Option<AccountId>> = const { RefCell::new(None) };
 }
 
 parameter_types! {
