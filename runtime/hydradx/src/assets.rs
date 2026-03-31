@@ -1844,7 +1844,6 @@ impl pallet_hsm::Config for Runtime {
 }
 
 impl pallet_lazy_executor::Config for Runtime {
-	//TODO:
 	type RuntimeCall = RuntimeCall;
 	type UnsignedLongevity = ConstU64<2>;
 	type UnsignedPriority = ConstU64<100>;
@@ -1857,7 +1856,6 @@ parameter_types! {
 }
 
 impl pallet_intent::Config for Runtime {
-	//TODO:
 	type LazyExecutorHandler = LazyExecutor;
 	type RegistryHandler = AssetRegistry;
 	type Currency = Currencies;

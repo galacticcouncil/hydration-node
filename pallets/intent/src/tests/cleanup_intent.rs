@@ -15,8 +15,8 @@ fn should_work_when_intent_is_expired_and_origin_is_none() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -29,8 +29,8 @@ fn should_work_when_intent_is_expired_and_origin_is_none() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -83,8 +83,8 @@ fn should_work_when_intent_is_expired_and_origin_is_signed() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -97,8 +97,8 @@ fn should_work_when_intent_is_expired_and_origin_is_signed() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -151,8 +151,8 @@ fn should_not_work_when_intent_is_not_expired() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -165,8 +165,8 @@ fn should_not_work_when_intent_is_not_expired() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -233,8 +233,8 @@ fn should_not_collect_fees_when_intent_is_expired() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -247,8 +247,8 @@ fn should_not_collect_fees_when_intent_is_expired() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -302,8 +302,8 @@ fn should_not_work_when_intent_has_no_deadline() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -316,8 +316,8 @@ fn should_not_work_when_intent_has_no_deadline() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,

@@ -16,8 +16,8 @@ fn should_work_when_origin_signed() {
 			assert_eq!(Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE), 0);
 			assert_eq!(Intents::<Test>::iter_keys().count(), 0);
 
-			let intent_0 = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent_0 = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -29,12 +29,13 @@ fn should_work_when_origin_signed() {
 			};
 
 			//Act
-			assert_ok!(IntentPallet::submit_intent(
-				RuntimeOrigin::signed(ALICE),
-				intent_0.clone()
-			));
+			assert_ok!(IntentPallet::submit_intent(RuntimeOrigin::signed(ALICE), intent_0));
 
-			assert_eq!(IntentPallet::get_intent(id), Some(intent_0));
+			let stored = IntentPallet::get_intent(id).expect("intent should be stored");
+			assert_eq!(stored.data.asset_in(), HDX);
+			assert_eq!(stored.data.asset_out(), DOT);
+			assert_eq!(stored.data.amount_in(), 10 * ONE_HDX);
+			assert_eq!(stored.deadline, Some(MAX_INTENT_DEADLINE - 1));
 			assert_eq!(IntentPallet::intent_owner(id), Some(ALICE));
 			assert_eq!(
 				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE),
@@ -54,8 +55,8 @@ fn should_work_when_intent_has_no_deadline() {
 			assert_eq!(Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE), 0);
 			assert_eq!(Intents::<Test>::iter_keys().count(), 0);
 
-			let intent_0 = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent_0 = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -67,12 +68,12 @@ fn should_work_when_intent_has_no_deadline() {
 			};
 
 			//Act
-			assert_ok!(IntentPallet::submit_intent(
-				RuntimeOrigin::signed(ALICE),
-				intent_0.clone()
-			));
+			assert_ok!(IntentPallet::submit_intent(RuntimeOrigin::signed(ALICE), intent_0));
 
-			assert_eq!(IntentPallet::get_intent(id), Some(intent_0));
+			let stored = IntentPallet::get_intent(id).expect("intent should be stored");
+			assert_eq!(stored.data.asset_in(), HDX);
+			assert_eq!(stored.data.asset_out(), DOT);
+			assert_eq!(stored.deadline, None);
 			assert_eq!(IntentPallet::intent_owner(id), Some(ALICE));
 			assert_eq!(
 				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE),
@@ -92,8 +93,8 @@ fn should_not_work_when_origin_is_none() {
 			assert_eq!(Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE), 0);
 			assert_eq!(Intents::<Test>::iter_keys().count(), 0);
 
-			let intent_0 = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent_0 = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -117,8 +118,8 @@ fn should_not_work_when_deadline_is_less_than_now() {
 		.execute_with(|| {
 			assert_ok!(Timestamp::set(RuntimeOrigin::none(), 2 * MAX_INTENT_DEADLINE));
 
-			let intent_0 = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent_0 = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -142,8 +143,8 @@ fn should_not_work_when_deadline_bigger_than_max_allowed_intent_duration() {
 		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX), (BOB, ETH, 5 * ONE_QUINTIL)])
 		.build()
 		.execute_with(|| {
-			let intent_0 = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent_0 = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -167,8 +168,8 @@ fn should_not_work_when_amount_in_is_zero() {
 		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX), (BOB, ETH, 5 * ONE_QUINTIL)])
 		.build()
 		.execute_with(|| {
-			let intent_0 = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent_0 = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 0,
@@ -192,8 +193,8 @@ fn should_not_work_when_amount_out_is_zero() {
 		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX), (BOB, ETH, 5 * ONE_QUINTIL)])
 		.build()
 		.execute_with(|| {
-			let intent_0 = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent_0 = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -217,8 +218,8 @@ fn should_not_work_when_asset_in_eq_asset_out() {
 		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX), (BOB, ETH, 5 * ONE_QUINTIL)])
 		.build()
 		.execute_with(|| {
-			let intent_0 = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent_0 = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: HDX,
 					amount_in: 10 * ONE_HDX,
@@ -242,8 +243,8 @@ fn should_not_work_when_asset_out_is_hub_asset() {
 		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX), (BOB, ETH, 5 * ONE_QUINTIL)])
 		.build()
 		.execute_with(|| {
-			let intent_0 = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent_0 = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: HUB_ASSET_ID,
 					amount_in: 10 * ONE_HDX,
@@ -270,8 +271,8 @@ fn should_not_work_when_cant_reserve_funds() {
 			assert_eq!(Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE), 0);
 			assert_eq!(Intents::<Test>::iter_keys().count(), 0);
 
-			let intent_0 = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent_0 = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -295,8 +296,8 @@ fn should_work_when_intent_is_partial() {
 		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX), (BOB, ETH, 5 * ONE_QUINTIL)])
 		.build()
 		.execute_with(|| {
-			let intent_0 = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent_0 = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -325,8 +326,8 @@ fn should_not_work_when_amount_in_is_less_than_ed() {
 
 			let ed = DummyRegistry::existential_deposit(HDX).expect("dummy registry to work");
 
-			let intent = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: ed - 1,
@@ -358,8 +359,8 @@ fn should_not_work_when_amount_out_is_less_than_ed() {
 
 			let ed = DummyRegistry::existential_deposit(DOT).expect("dummy registry to work");
 
-			let intent = Intent {
-				data: IntentData::Swap(SwapData {
+			let intent = IntentInput {
+				data: IntentDataInput::Swap(SwapData {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,

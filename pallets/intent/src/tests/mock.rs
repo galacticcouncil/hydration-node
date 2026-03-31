@@ -15,7 +15,7 @@
 
 use crate as pallet_intent;
 use crate::types;
-use crate::types::Intent;
+use crate::types::IntentInput;
 use crate::Config;
 use frame_support::parameter_types;
 use frame_support::storage::with_transaction;
@@ -276,7 +276,7 @@ impl pallet_intent::Config for Test {
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
-	intents: Vec<(AccountId, Intent)>,
+	intents: Vec<(AccountId, IntentInput)>,
 }
 
 impl Default for ExtBuilder {
@@ -300,7 +300,7 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_intents(mut self, intents: Vec<(AccountId, Intent)>) -> Self {
+	pub fn with_intents(mut self, intents: Vec<(AccountId, IntentInput)>) -> Self {
 		self.intents = intents;
 		self
 	}

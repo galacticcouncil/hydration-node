@@ -36,6 +36,7 @@ mod weights;
 
 use crate::types::IncrementalIntentId;
 use crate::types::Intent;
+use crate::types::IntentInput;
 use crate::types::Moment;
 use core::cmp;
 use frame_support::pallet_prelude::StorageValue;
@@ -56,6 +57,7 @@ use ice_support::AssetId;
 use ice_support::Balance;
 use ice_support::DcaData;
 use ice_support::IntentData;
+use ice_support::IntentDataInput;
 use ice_support::IntentId;
 use ice_support::ResolvedIntent;
 use ice_support::SwapData;
@@ -233,7 +235,7 @@ pub mod pallet {
 		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
-		pub fn submit_intent(origin: OriginFor<T>, intent: Intent) -> DispatchResult {
+		pub fn submit_intent(origin: OriginFor<T>, intent: IntentInput) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			Self::add_intent(who, intent)?;
@@ -391,10 +393,10 @@ impl<T: Config> Pallet<T> {
 	/// Function validates and reserves funds for intent's execution and adds intent to storage
 	/// WARN: partial intents are not supported at the moment, look at `submit_intent()`
 	#[require_transactional]
-	pub fn add_intent(owner: T::AccountId, mut intent: Intent) -> Result<IntentId, DispatchError> {
+	pub fn add_intent(owner: T::AccountId, input: IntentInput) -> Result<IntentId, DispatchError> {
 		let now = T::TimestampProvider::now();
-		if let Some(deadline) = intent.deadline {
-			log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), deadline: {:?}, now: {:?}, max_deadline: {:?}", 
+		if let Some(deadline) = input.deadline {
+			log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), deadline: {:?}, now: {:?}, max_deadline: {:?}",
 				LOG_PREFIX, deadline, now, now.saturating_add(T::MaxAllowedIntentDuration::get()));
 
 			ensure!(deadline > now, Error::<T>::InvalidDeadline);
@@ -404,12 +406,12 @@ impl<T: Config> Pallet<T> {
 			);
 		}
 
-		let ed_in = T::RegistryHandler::existential_deposit(intent.data.asset_in()).ok_or(Error::<T>::AssetNotFound)?;
+		let ed_in = T::RegistryHandler::existential_deposit(input.data.asset_in()).ok_or(Error::<T>::AssetNotFound)?;
 		let ed_out =
-			T::RegistryHandler::existential_deposit(intent.data.asset_out()).ok_or(Error::<T>::AssetNotFound)?;
+			T::RegistryHandler::existential_deposit(input.data.asset_out()).ok_or(Error::<T>::AssetNotFound)?;
 
-		match intent.data {
-			IntentData::Swap(ref data) => {
+		let intent_data = match input.data {
+			IntentDataInput::Swap(ref data) => {
 				log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), asset_in: {:?}, ed_in: {:?}, amount_in: {:?}, aseet_out: {:?}, ed_out: {:?}, amount_out: {:?}",
 					LOG_PREFIX, data.asset_in, ed_in, data.amount_in, data.asset_out, ed_out, data.amount_out);
 
@@ -419,10 +421,12 @@ impl<T: Config> Pallet<T> {
 				ensure!(data.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
 
 				T::Currency::reserve_named(&NAMED_RESERVE_ID, data.asset_in, &owner, data.amount_in)?;
+
+				IntentData::Swap(data.clone())
 			}
-			IntentData::Dca(ref mut data) => {
+			IntentDataInput::Dca(ref data) => {
 				// DCA intents must not have a deadline
-				ensure!(intent.deadline.is_none(), Error::<T>::InvalidDcaDeadline);
+				ensure!(input.deadline.is_none(), Error::<T>::InvalidDcaDeadline);
 
 				ensure!(data.period >= T::MinDcaPeriod::get(), Error::<T>::InvalidDcaPeriod);
 				ensure!(data.amount_in >= ed_in, Error::<T>::InvalidIntent);
@@ -439,14 +443,19 @@ impl<T: Config> Pallet<T> {
 
 				T::Currency::reserve_named(&NAMED_RESERVE_ID, data.asset_in, &owner, reserve_amount)?;
 
-				// Initialize mutable fields
-				data.remaining_budget = reserve_amount;
 				let current_block: u32 = T::BlockNumberProvider::current_block_number()
 					.try_into()
 					.unwrap_or(u32::MAX);
-				data.last_execution_block = current_block;
+
+				IntentData::Dca(data.clone().into_data(reserve_amount, current_block))
 			}
-		}
+		};
+
+		let intent = Intent {
+			data: intent_data,
+			deadline: input.deadline,
+			on_resolved: input.on_resolved,
+		};
 
 		let id = Self::generate_new_intent_id(now);
 		Intents::<T>::insert(id, &intent);

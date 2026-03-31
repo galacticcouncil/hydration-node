@@ -16,8 +16,8 @@ fn should_work_when_canceled_by_owner() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -30,8 +30,8 @@ fn should_work_when_canceled_by_owner() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -44,8 +44,8 @@ fn should_work_when_canceled_by_owner() {
 			),
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,
@@ -92,8 +92,8 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -106,8 +106,8 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -120,8 +120,8 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 			),
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,
@@ -197,8 +197,8 @@ fn should_not_work_when_intent_doesnt_exist() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -211,8 +211,8 @@ fn should_not_work_when_intent_doesnt_exist() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -225,8 +225,8 @@ fn should_not_work_when_intent_doesnt_exist() {
 			),
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: BTC,
 						amount_in: 30 * ONE_QUINTIL,
@@ -262,8 +262,8 @@ fn should_not_work_when_canceled_non_owner() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -276,8 +276,8 @@ fn should_not_work_when_canceled_non_owner() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -313,8 +313,8 @@ fn should_not_work_when_origin_is_none() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -327,8 +327,8 @@ fn should_not_work_when_origin_is_none() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,

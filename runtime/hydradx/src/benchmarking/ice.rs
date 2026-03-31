@@ -7,6 +7,7 @@ use frame_system::RawOrigin;
 use hydra_dx_math::types::Ratio;
 use ice_support::Intent as IntentIce;
 use ice_support::IntentData;
+use ice_support::IntentDataInput;
 use ice_support::IntentId;
 use ice_support::Price;
 use ice_support::Solution;
@@ -15,6 +16,7 @@ use ice_support::SwapType;
 use ice_support::MAX_NUMBER_OF_RESOLVED_INTENTS;
 use orml_benchmarking::runtime_benchmarks;
 use pallet_intent::types::Intent as IntentT;
+use pallet_intent::types::IntentInput;
 use sp_runtime::DispatchResult;
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -65,17 +67,17 @@ runtime_benchmarks! {
 			amount: 10 * TRIL
 		}).encode();
 
-		let intent_data =  IntentData::Swap(SwapData {
+		let swap_data = SwapData {
 			asset_in: HDX,
 			asset_out: DAI,
 			amount_in: 3000 * TRIL,
 			amount_out: 10 * QUINTIL,
 			swap_type: SwapType::ExactIn,
 			partial: false,
-		});
+		};
 
-		let intent = IntentT {
-			data: intent_data.clone(),
+		let intent = IntentInput {
+			data: IntentDataInput::Swap(swap_data.clone()),
 			deadline: DEADLINE,
 			on_resolved: Some(cb.clone().try_into().unwrap()),
 		};
@@ -87,7 +89,7 @@ runtime_benchmarks! {
 
 		let resolved_intents = vec![IntentIce {
 			id,
-			data: intent_data,
+			data: IntentData::Swap(swap_data),
 		}];
 
 		let mut cp: BTreeMap<AssetId, Price> = BTreeMap::new();
@@ -105,7 +107,7 @@ runtime_benchmarks! {
 
 		assert!(LazyExecutor::call_queue(0).is_none());
 		assert!(Intent::get_intent(id).is_some());
-	}: { ICE::submit_solution(RawOrigin::None.into(), s, 1)? }
+	}: { ICE::submit_solution(RawOrigin::None.into(), s)? }
 	verify {
 		assert!(Intent::get_intent(id).is_none());
 		assert!(LazyExecutor::call_queue(0).is_some())

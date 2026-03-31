@@ -3,12 +3,13 @@ use crate::*;
 
 use frame_benchmarking::account;
 use frame_system::RawOrigin;
-use ice_support::IntentData;
+use ice_support::IntentDataInput;
 use ice_support::IntentId;
 use ice_support::SwapData;
 use ice_support::SwapType;
 use orml_benchmarking::runtime_benchmarks;
 use pallet_intent::types::Intent as IntentT;
+use pallet_intent::types::IntentInput;
 use pallet_intent::types::MAX_DATA_SIZE;
 use sp_runtime::DispatchResult;
 
@@ -39,8 +40,8 @@ runtime_benchmarks! {
 		//NOTE: it's ok to use junk, we are not really dispatching `cb`
 		let cb: Vec<u8> = vec![255; MAX_DATA_SIZE as usize];
 
-		let intent = IntentT {
-			data: IntentData::Swap(SwapData {
+		let intent = IntentInput {
+			data: IntentDataInput::Swap(SwapData {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: 3000 * TRIL,
@@ -69,8 +70,8 @@ runtime_benchmarks! {
 		//NOTE: it's ok to use junk, we are not really dispatching `cb`
 		let cb: Vec<u8> = vec![255; MAX_DATA_SIZE as usize];
 
-		let intent = IntentT {
-			data: IntentData::Swap(SwapData {
+		let intent = IntentInput {
+			data: IntentDataInput::Swap(SwapData {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: 3000 * TRIL,

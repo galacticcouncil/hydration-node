@@ -296,8 +296,8 @@ fn stableswap_intent() {
 		let deadline = Some(6000u64 * 10 + ts);
 		assert_ok!(pallet_intent::Pallet::<Runtime>::submit_intent(
 			RuntimeOrigin::signed(ALICE.into()),
-			pallet_intent::types::Intent {
-				data: ice_support::IntentData::Swap(ice_support::SwapData {
+			pallet_intent::types::IntentInput {
+				data: ice_support::IntentDataInput::Swap(ice_support::SwapData {
 					asset_in: asset_a,
 					asset_out: asset_b,
 					amount_in,
@@ -1176,8 +1176,8 @@ fn intent_with_on_success_callback() {
 
 			assert_ok!(pallet_intent::Pallet::<Runtime>::submit_intent(
 				RuntimeOrigin::signed(alice.clone()),
-				pallet_intent::types::Intent {
-					data: ice_support::IntentData::Swap(ice_support::SwapData {
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapData {
 						asset_in: bnc,
 						asset_out: hdx,
 						amount_in: bnc_to_sell,
@@ -2444,8 +2444,8 @@ fn solver_testnet_snapshot_multi_round() {
 		let ts = hydradx_runtime::Timestamp::now();
 		assert_ok!(pallet_intent::Pallet::<Runtime>::submit_intent(
 			RuntimeOrigin::signed(dave.clone()),
-			pallet_intent::types::Intent {
-				data: ice_support::IntentData::Swap(ice_support::SwapData {
+			pallet_intent::types::IntentInput {
+				data: ice_support::IntentDataInput::Swap(ice_support::SwapData {
 					asset_in: hdx,
 					asset_out: hollar,
 					amount_in: hdx_sell_amount,

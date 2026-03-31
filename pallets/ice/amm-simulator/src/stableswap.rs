@@ -88,7 +88,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			// but verify!
 			if let Some(peg_info) = DP::pool_pegs(pool_id) {
 				if peg_info.current.len() != pool.assets.len() {
-					debug_assert!(false, "all asssets should have pegs");
+					debug_assert!(false, "all assets should have pegs");
 					continue;
 				}
 			}

@@ -38,6 +38,30 @@ pub enum IntentData {
 	Dca(DcaData),
 }
 
+/// User-facing intent data for extrinsic submission.
+/// Uses DcaParams instead of DcaData to avoid exposing internal state fields.
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub enum IntentDataInput {
+	Swap(SwapData),
+	Dca(DcaParams),
+}
+
+impl IntentDataInput {
+	pub fn asset_in(&self) -> AssetId {
+		match self {
+			IntentDataInput::Swap(s) => s.asset_in,
+			IntentDataInput::Dca(d) => d.asset_in,
+		}
+	}
+
+	pub fn asset_out(&self) -> AssetId {
+		match self {
+			IntentDataInput::Swap(s) => s.asset_out,
+			IntentDataInput::Dca(d) => d.asset_out,
+		}
+	}
+}
+
 impl IntentData {
 	pub fn is_partial(&self) -> bool {
 		match self {
@@ -110,6 +134,43 @@ pub struct SwapData {
 	pub amount_in: Balance,
 	pub amount_out: Balance,
 	pub partial: bool,
+}
+
+/// User-facing DCA parameters for intent submission.
+/// Does not include internal state fields (remaining_budget, last_execution_block)
+/// which are initialized by the pallet.
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct DcaParams {
+	/// Asset being sold per trade
+	pub asset_in: AssetId,
+	/// Asset being bought per trade
+	pub asset_out: AssetId,
+	/// Per-trade exact sell amount
+	pub amount_in: Balance,
+	/// Per-trade hard minimum receive (user's absolute floor)
+	pub amount_out: Balance,
+	/// Dynamic slippage tolerance applied relative to oracle price
+	pub slippage: Permill,
+	/// Total budget: Some(amount) = fixed, None = rolling/indefinite
+	pub budget: Option<Balance>,
+	/// Blocks between executions
+	pub period: u32,
+}
+
+impl DcaParams {
+	pub fn into_data(self, remaining_budget: Balance, last_execution_block: u32) -> DcaData {
+		DcaData {
+			asset_in: self.asset_in,
+			asset_out: self.asset_out,
+			amount_in: self.amount_in,
+			amount_out: self.amount_out,
+			slippage: self.slippage,
+			budget: self.budget,
+			remaining_budget,
+			period: self.period,
+			last_execution_block,
+		}
+	}
 }
 
 #[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

@@ -10,7 +10,7 @@ use hydradx_runtime::AssetLocation;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AggregatedPriceOracle;
-use ice_support::{DcaData, IntentData, SwapData};
+use ice_support::{DcaParams, IntentDataInput, SwapData};
 use pallet_asset_registry::AssetType;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
@@ -402,8 +402,8 @@ impl HydrationTestDriver {
 			let deadline = deadline_in_blocks.map(|d| MILLISECS_PER_BLOCK * d as u64 + ts);
 			assert_ok!(Intent::submit_intent(
 				RuntimeOrigin::signed(who),
-				pallet_intent::types::Intent {
-					data: IntentData::Swap(SwapData {
+				pallet_intent::types::IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in,
 						asset_out,
 						amount_in,
@@ -432,17 +432,15 @@ impl HydrationTestDriver {
 		self.execute(|| {
 			assert_ok!(Intent::submit_intent(
 				RuntimeOrigin::signed(who),
-				pallet_intent::types::Intent {
-					data: IntentData::Dca(DcaData {
+				pallet_intent::types::IntentInput {
+					data: IntentDataInput::Dca(DcaParams {
 						asset_in,
 						asset_out,
 						amount_in,
 						amount_out,
 						slippage,
 						budget,
-						remaining_budget: 0, // set by add_intent
 						period,
-						last_execution_block: 0, // set by add_intent
 					}),
 					deadline: None,
 					on_resolved: None,

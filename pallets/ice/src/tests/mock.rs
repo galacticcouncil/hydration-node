@@ -32,7 +32,7 @@ use ice_support::SwapType;
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrency;
 use pallet_intent::types::CallData;
-use pallet_intent::types::Intent;
+use pallet_intent::types::IntentInput;
 use pallet_route_executor::ExecutorError;
 use pallet_route_executor::Trade;
 use pallet_route_executor::TradeExecution;
@@ -518,7 +518,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for RouterPoo
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
-	intents: Vec<(AccountId, Intent)>,
+	intents: Vec<(AccountId, IntentInput)>,
 	router_settlements: Vec<RouterSettlement>,
 }
 
@@ -542,7 +542,7 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_intents(mut self, intents: Vec<(AccountId, Intent)>) -> Self {
+	pub fn with_intents(mut self, intents: Vec<(AccountId, IntentInput)>) -> Self {
 		self.intents = intents;
 		self
 	}

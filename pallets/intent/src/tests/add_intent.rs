@@ -5,6 +5,26 @@ use frame_support::{assert_noop, assert_ok};
 use pretty_assertions::assert_eq;
 use sp_runtime::TransactionOutcome;
 
+fn swap_intent_input(
+	asset_in: AssetId,
+	asset_out: AssetId,
+	amount_in: Balance,
+	amount_out: Balance,
+	deadline: Option<Moment>,
+) -> IntentInput {
+	IntentInput {
+		data: IntentDataInput::Swap(SwapData {
+			asset_in,
+			asset_out,
+			amount_in,
+			amount_out,
+			partial: false,
+		}),
+		deadline,
+		on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
+	}
+}
+
 #[test]
 fn should_work_when_intent_is_valid() {
 	ExtBuilder::default()
@@ -15,20 +35,10 @@ fn should_work_when_intent_is_valid() {
 				assert_eq!(Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE), 0);
 				assert_eq!(Intents::<Test>::iter_keys().count(), 0);
 
-				let intent_0 = Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 10 * ONE_HDX,
-						amount_out: 1_000 * ONE_DOT,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
-				};
+				let input = swap_intent_input(HDX, DOT, 10 * ONE_HDX, 1_000 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1));
 
 				//Act
-				let r = IntentPallet::add_intent(ALICE, intent_0.clone());
+				let r = IntentPallet::add_intent(ALICE, input);
 				let id = match r {
 					Ok(id) => id,
 					_ => {
@@ -36,7 +46,12 @@ fn should_work_when_intent_is_valid() {
 					}
 				};
 
-				assert_eq!(IntentPallet::get_intent(id), Some(intent_0));
+				let stored = IntentPallet::get_intent(id).expect("intent should be stored");
+				assert_eq!(stored.data.asset_in(), HDX);
+				assert_eq!(stored.data.asset_out(), DOT);
+				assert_eq!(stored.data.amount_in(), 10 * ONE_HDX);
+				assert_eq!(stored.data.amount_out(), 1_000 * ONE_DOT);
+				assert_eq!(stored.deadline, Some(MAX_INTENT_DEADLINE - 1));
 				assert_eq!(IntentPallet::intent_owner(id), Some(ALICE));
 				assert_eq!(
 					Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE),
@@ -57,22 +72,9 @@ fn should_not_work_when_deadline_is_less_than_now() {
 			let _ = with_transaction(|| {
 				assert_ok!(Timestamp::set(RuntimeOrigin::none(), 2 * MAX_INTENT_DEADLINE));
 
-				let intent_0 = Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 10 * ONE_HDX,
-						amount_out: 1_000 * ONE_DOT,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
-				};
+				let input = swap_intent_input(HDX, DOT, 10 * ONE_HDX, 1_000 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1));
 
-				assert_noop!(
-					IntentPallet::add_intent(ALICE, intent_0),
-					Error::<Test>::InvalidDeadline
-				);
+				assert_noop!(IntentPallet::add_intent(ALICE, input), Error::<Test>::InvalidDeadline);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -85,22 +87,9 @@ fn should_not_work_when_deadline_bigger_than_max_allowed_intent_duration() {
 		.build()
 		.execute_with(|| {
 			let _ = with_transaction(|| {
-				let intent_0 = Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 10 * ONE_HDX,
-						amount_out: 1_000 * ONE_DOT,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE + 1),
-					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
-				};
+				let input = swap_intent_input(HDX, DOT, 10 * ONE_HDX, 1_000 * ONE_DOT, Some(MAX_INTENT_DEADLINE + 1));
 
-				assert_noop!(
-					IntentPallet::add_intent(ALICE, intent_0),
-					Error::<Test>::InvalidDeadline
-				);
+				assert_noop!(IntentPallet::add_intent(ALICE, input), Error::<Test>::InvalidDeadline);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -113,19 +102,9 @@ fn should_not_work_when_amount_in_is_zero() {
 		.build()
 		.execute_with(|| {
 			let _ = with_transaction(|| {
-				let intent_0 = Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 0,
-						amount_out: 1_000 * ONE_DOT,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
-				};
+				let input = swap_intent_input(HDX, DOT, 0, 1_000 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1));
 
-				assert_noop!(IntentPallet::add_intent(ALICE, intent_0), Error::<Test>::InvalidIntent);
+				assert_noop!(IntentPallet::add_intent(ALICE, input), Error::<Test>::InvalidIntent);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -138,19 +117,9 @@ fn should_not_work_when_amount_out_is_zero() {
 		.build()
 		.execute_with(|| {
 			let _ = with_transaction(|| {
-				let intent_0 = Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 10 * ONE_HDX,
-						amount_out: 0,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
-				};
+				let input = swap_intent_input(HDX, DOT, 10 * ONE_HDX, 0, Some(MAX_INTENT_DEADLINE - 1));
 
-				assert_noop!(IntentPallet::add_intent(ALICE, intent_0), Error::<Test>::InvalidIntent);
+				assert_noop!(IntentPallet::add_intent(ALICE, input), Error::<Test>::InvalidIntent);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -163,19 +132,9 @@ fn should_not_work_when_asset_in_eq_asset_out() {
 		.build()
 		.execute_with(|| {
 			let _ = with_transaction(|| {
-				let intent_0 = Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: HDX,
-						amount_in: 10 * ONE_HDX,
-						amount_out: 10 * ONE_HDX,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
-				};
+				let input = swap_intent_input(HDX, HDX, 10 * ONE_HDX, 10 * ONE_HDX, Some(MAX_INTENT_DEADLINE - 1));
 
-				assert_noop!(IntentPallet::add_intent(ALICE, intent_0), Error::<Test>::InvalidIntent);
+				assert_noop!(IntentPallet::add_intent(ALICE, input), Error::<Test>::InvalidIntent);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -188,19 +147,15 @@ fn should_not_work_when_asset_out_is_hub_asset() {
 		.build()
 		.execute_with(|| {
 			let _ = with_transaction(|| {
-				let intent_0 = Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: HUB_ASSET_ID,
-						amount_in: 10 * ONE_HDX,
-						amount_out: 10 * ONE_HDX,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
-				};
+				let input = swap_intent_input(
+					HDX,
+					HUB_ASSET_ID,
+					10 * ONE_HDX,
+					10 * ONE_HDX,
+					Some(MAX_INTENT_DEADLINE - 1),
+				);
 
-				assert_noop!(IntentPallet::add_intent(ALICE, intent_0), Error::<Test>::InvalidIntent);
+				assert_noop!(IntentPallet::add_intent(ALICE, input), Error::<Test>::InvalidIntent);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -216,20 +171,10 @@ fn should_not_work_when_cant_reserve_funds() {
 				assert_eq!(Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE), 0);
 				assert_eq!(Intents::<Test>::iter_keys().count(), 0);
 
-				let intent = Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 10 * ONE_HDX,
-						amount_out: 1_000 * ONE_DOT,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
-				};
+				let input = swap_intent_input(HDX, DOT, 10 * ONE_HDX, 1_000 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1));
 
 				assert_noop!(
-					IntentPallet::add_intent(ALICE, intent),
+					IntentPallet::add_intent(ALICE, input),
 					orml_tokens::Error::<Test>::BalanceTooLow
 				);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -249,20 +194,10 @@ fn should_not_work_when_amount_in_is_less_than_ed() {
 
 				let ed = DummyRegistry::existential_deposit(HDX).expect("dummy registry to work");
 
-				let intent = Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: ed - 1,
-						amount_out: 1_000 * ONE_DOT,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
-				};
+				let input = swap_intent_input(HDX, DOT, ed - 1, 1_000 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1));
 
 				//Act&Assert
-				assert_noop!(IntentPallet::add_intent(ALICE, intent), Error::<Test>::InvalidIntent);
+				assert_noop!(IntentPallet::add_intent(ALICE, input), Error::<Test>::InvalidIntent);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -281,20 +216,10 @@ fn should_not_work_when_amount_out_is_less_than_ed() {
 
 				let ed = DummyRegistry::existential_deposit(DOT).expect("dummy registry to work");
 
-				let intent = Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 10 * ONE_HDX,
-						amount_out: ed - 1,
-						partial: false,
-					}),
-					deadline: Some(MAX_INTENT_DEADLINE - 1),
-					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
-				};
+				let input = swap_intent_input(HDX, DOT, 10 * ONE_HDX, ed - 1, Some(MAX_INTENT_DEADLINE - 1));
 
 				//Act&Assert
-				assert_noop!(IntentPallet::add_intent(ALICE, intent), Error::<Test>::InvalidIntent);
+				assert_noop!(IntentPallet::add_intent(ALICE, input), Error::<Test>::InvalidIntent);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -311,20 +236,10 @@ fn should_work_when_intent_has_no_deadline() {
 				assert_eq!(Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE), 0);
 				assert_eq!(Intents::<Test>::iter_keys().count(), 0);
 
-				let intent_0 = Intent {
-					data: IntentData::Swap(SwapData {
-						asset_in: HDX,
-						asset_out: DOT,
-						amount_in: 10 * ONE_HDX,
-						amount_out: 1_000 * ONE_DOT,
-						partial: false,
-					}),
-					deadline: None,
-					on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
-				};
+				let input = swap_intent_input(HDX, DOT, 10 * ONE_HDX, 1_000 * ONE_DOT, None);
 
 				//Act
-				let r = IntentPallet::add_intent(ALICE, intent_0.clone());
+				let r = IntentPallet::add_intent(ALICE, input);
 				let id = match r {
 					Ok(id) => id,
 					_ => {
@@ -332,7 +247,10 @@ fn should_work_when_intent_has_no_deadline() {
 					}
 				};
 
-				assert_eq!(IntentPallet::get_intent(id), Some(intent_0));
+				let stored = IntentPallet::get_intent(id).expect("intent should be stored");
+				assert_eq!(stored.data.asset_in(), HDX);
+				assert_eq!(stored.data.asset_out(), DOT);
+				assert_eq!(stored.deadline, None);
 				assert_eq!(IntentPallet::intent_owner(id), Some(ALICE));
 				assert_eq!(
 					Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE),

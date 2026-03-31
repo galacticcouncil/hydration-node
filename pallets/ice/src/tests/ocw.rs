@@ -1,10 +1,11 @@
 use crate::tests::mock::*;
 use crate::*;
 use frame_support::assert_noop;
+use ice_support::IntentDataInput;
 use ice_support::PoolTrade;
 use ice_support::SwapData;
 use ice_support::SwapType;
-use pallet_intent::types::Intent;
+use pallet_intent::types::IntentInput;
 use pallet_route_executor::PoolType;
 use pallet_route_executor::Trade as RTrade;
 use pretty_assertions::assert_eq;
@@ -23,8 +24,8 @@ fn validate_unsingned_should_work_when_submitted_solution_is_valid() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -37,8 +38,8 @@ fn validate_unsingned_should_work_when_submitted_solution_is_valid() {
 			),
 			(
 				DAVE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -51,8 +52,8 @@ fn validate_unsingned_should_work_when_submitted_solution_is_valid() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL / 2,
@@ -179,8 +180,8 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -193,8 +194,8 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 			),
 			(
 				DAVE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -207,8 +208,8 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL / 2,
@@ -375,8 +376,8 @@ fn validate_unsingned_should_not_work_when_intentent_not_found() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -389,8 +390,8 @@ fn validate_unsingned_should_not_work_when_intentent_not_found() {
 			),
 			(
 				DAVE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -403,8 +404,8 @@ fn validate_unsingned_should_not_work_when_intentent_not_found() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -525,8 +526,8 @@ fn validate_unsingned_should_not_work_when_solution_has_duplicate_intents() {
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -539,8 +540,8 @@ fn validate_unsingned_should_not_work_when_solution_has_duplicate_intents() {
 			),
 			(
 				DAVE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -553,8 +554,8 @@ fn validate_unsingned_should_not_work_when_solution_has_duplicate_intents() {
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -676,8 +677,8 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_in_l
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -690,8 +691,8 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_in_l
 			),
 			(
 				DAVE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -704,8 +705,8 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_in_l
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -826,8 +827,8 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_out_
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -840,8 +841,8 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_out_
 			),
 			(
 				DAVE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -854,8 +855,8 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_out_
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -976,8 +977,8 @@ fn validate_unsigned_should_not_work_when_execution_prices_are_not_consistent() 
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -990,8 +991,8 @@ fn validate_unsigned_should_not_work_when_execution_prices_are_not_consistent() 
 			),
 			(
 				DAVE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -1004,8 +1005,8 @@ fn validate_unsigned_should_not_work_when_execution_prices_are_not_consistent() 
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -1108,8 +1109,8 @@ fn validate_unsigned_should_not_work_when_intent_is_not_resolved_at_execution_pr
 		.with_intents(vec![
 			(
 				ALICE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -1122,8 +1123,8 @@ fn validate_unsigned_should_not_work_when_intent_is_not_resolved_at_execution_pr
 			),
 			(
 				DAVE,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -1136,8 +1137,8 @@ fn validate_unsigned_should_not_work_when_intent_is_not_resolved_at_execution_pr
 			),
 			(
 				BOB,
-				Intent {
-					data: IntentData::Swap(SwapData {
+				IntentInput {
+					data: IntentDataInput::Swap(SwapData {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,

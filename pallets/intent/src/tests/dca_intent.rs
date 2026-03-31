@@ -1,24 +1,22 @@
 use crate::tests::mock::*;
-use crate::types::Intent;
+use crate::types::IntentInput;
 use crate::{Error, Event, IntentOwner, Intents};
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
 use hydra_dx_math::ema::EmaPrice;
-use ice_support::{DcaData, IntentData, SwapData};
+use ice_support::{DcaParams, IntentData, IntentDataInput, SwapData};
 use sp_runtime::{DispatchResult, Permill, TransactionOutcome};
 
-fn dca_intent(amount_in: u128, amount_out: u128, budget: Option<u128>) -> Intent {
-	Intent {
-		data: IntentData::Dca(DcaData {
+fn dca_intent(amount_in: u128, amount_out: u128, budget: Option<u128>) -> IntentInput {
+	IntentInput {
+		data: IntentDataInput::Dca(DcaParams {
 			asset_in: HDX,
 			asset_out: DOT,
 			amount_in,
 			amount_out,
 			slippage: Permill::from_percent(3),
 			budget,
-			remaining_budget: 0, // set by add_intent
 			period: 10,
-			last_execution_block: 0, // set by add_intent
 		}),
 		deadline: None,
 		on_resolved: None,
@@ -98,7 +96,7 @@ fn should_fail_dca_period_too_small() {
 		.execute_with(|| {
 			let _ = with_transaction(|| {
 				let mut intent = dca_intent(ONE_HDX, ONE_DOT, Some(5 * ONE_HDX));
-				if let IntentData::Dca(ref mut d) = intent.data {
+				if let IntentDataInput::Dca(ref mut d) = intent.data {
 					d.period = MIN_DCA_PERIOD - 1;
 				}
 				assert_noop!(

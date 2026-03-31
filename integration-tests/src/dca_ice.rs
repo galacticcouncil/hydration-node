@@ -78,17 +78,15 @@ fn submit_dca_hdx_bnc(who: AccountId, budget: Option<u128>) {
 fn submit_dca_hdx_bnc_with_slippage(who: AccountId, budget: Option<u128>, slippage: Permill) {
 	assert_ok!(hydradx_runtime::Intent::submit_intent(
 		RuntimeOrigin::signed(who),
-		pallet_intent::types::Intent {
-			data: ice_support::IntentData::Dca(ice_support::DcaData {
+		pallet_intent::types::IntentInput {
+			data: ice_support::IntentDataInput::Dca(ice_support::DcaParams {
 				asset_in: HDX,
 				asset_out: BNC,
 				amount_in: TRADE_AMOUNT,
 				amount_out: MIN_OUT_BNC,
 				slippage,
 				budget,
-				remaining_budget: 0,
 				period: PERIOD,
-				last_execution_block: 0,
 			}),
 			deadline: None,
 			on_resolved: None,
@@ -210,8 +208,8 @@ fn dca_matched_with_opposing_swap() {
 			let ts = hydradx_runtime::Timestamp::now();
 			assert_ok!(hydradx_runtime::Intent::submit_intent(
 				RuntimeOrigin::signed(bob.clone()),
-				pallet_intent::types::Intent {
-					data: ice_support::IntentData::Swap(ice_support::SwapData {
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapData {
 						asset_in: BNC,
 						asset_out: HDX,
 						amount_in: TRADE_AMOUNT,
