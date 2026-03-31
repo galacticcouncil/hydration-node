@@ -52,6 +52,23 @@ fn selector(sig: &str) -> Vec<u8> {
 	sp_io::hashing::keccak_256(sig.as_bytes())[0..4].to_vec()
 }
 
+fn borrow_should_fail(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: Balance) {
+	use hydradx_runtime::evm::precompiles::handle::EvmDataWriter;
+	let data = EvmDataWriter::new_with_selector(Function::Borrow)
+		.write(asset)
+		.write(amount)
+		.write(2u32)
+		.write(0u32)
+		.write(user)
+		.build();
+	let result = Executor::<Runtime>::call(CallContext::new_call(mm_pool, user), data, U256::zero(), 50_000_000);
+	assert!(
+		matches!(result.exit_reason, fp_evm::ExitReason::Revert(_)),
+		"Borrow should revert, but got: {:?}",
+		result.exit_reason
+	);
+}
+
 fn evm_call(target: EvmAddress, caller: EvmAddress, data: Vec<u8>, gas: u64, label: &str) {
 	let result = Executor::<Runtime>::call(CallContext::new_call(target, caller), data, U256::zero(), gas);
 	assert!(
@@ -235,7 +252,6 @@ fn gigahdx_liquidation_should_work() {
 		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
 
-
 		// ---- ALICE stakes HDX → gets GIGAHDX, enables as collateral, borrows HOLLAR ----
 		let stake_amount = 10_000 * UNITS;
 		assert_ok!(Balances::force_set_balance(
@@ -411,7 +427,6 @@ fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
 		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
 
-
 		// ALICE stakes HDX → gets GIGAHDX
 		let stake_amount = 10_000 * UNITS;
 		assert_ok!(Balances::force_set_balance(
@@ -469,5 +484,78 @@ fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
 			borrow_amount / 2,
 			BoundedVec::new(),
 		));
+	});
+}
+
+//TODO: verify and fix
+/// After giga_stake, stHDX is not auto-enabled as collateral because it's an isolated asset
+/// (debtCeiling != 0). This means the user has GIGAHDX but zero borrowing power.
+/// The UI handles this for PRIME by bundling a setUserUseReserveAsCollateral tx,
+/// but giga_stake bypasses the UI — so the pallet needs to handle it.
+#[test]
+fn giga_stake_does_not_enable_collateral_for_isolated_sthdx() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			GigaHdx::gigapot_account_id(),
+			UNITS,
+		));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
+
+		let alice_evm = EVMAccounts::evm_address(&alice);
+		let pool_contract = fetch_pool_contract(alice_evm);
+
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			pool_contract
+		));
+		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+		// Alice stakes HDX → gets GIGAHDX
+		let stake_amount = 10_000 * UNITS;
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			100_000 * UNITS
+		));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), stake_amount);
+
+		// Alice has GIGAHDX but Aave shows zero collateral — stHDX is isolated and not auto-enabled
+		let user_data = get_user_account_data(pool_contract, alice_evm).unwrap();
+		assert_eq!(
+			user_data.total_collateral_base,
+			U256::zero(),
+			"Collateral should be 0 — stHDX is isolated and not auto-enabled"
+		);
+		assert_eq!(
+			user_data.available_borrows_base,
+			U256::zero(),
+			"Borrowing power should be 0 without collateral enabled"
+		);
+
+		// Trying to borrow HOLLAR fails — no collateral enabled
+		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
+		borrow_should_fail(pool_contract, alice_evm, hollar_addr, 1 * HOLLAR_UNITS);
+
+		// After manually enabling stHDX as collateral, borrowing works
+		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
+		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
+
+		let user_data_after = get_user_account_data(pool_contract, alice_evm).unwrap();
+		assert!(
+			user_data_after.total_collateral_base > U256::zero(),
+			"Collateral should be non-zero after enabling"
+		);
+		assert!(
+			user_data_after.available_borrows_base > U256::zero(),
+			"Borrowing power should be non-zero after enabling"
+		);
+
+		// Now borrow succeeds
+		borrow(pool_contract, alice_evm, hollar_addr, 1 * HOLLAR_UNITS);
 	});
 }
