@@ -19,6 +19,7 @@
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::manual_inspect)]
+#![allow(clippy::useless_conversion)]
 
 #[cfg(test)]
 mod mock;
@@ -79,8 +80,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Asset type
 		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
 

@@ -27,6 +27,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
+#![allow(clippy::useless_conversion)]
 
 #[cfg(test)]
 pub mod mock;
@@ -69,9 +70,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// The overarching call type.
 		type RuntimeCall: IsType<<Self as frame_system::Config>::RuntimeCall>
 			+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin, PostInfo = PostDispatchInfo>
@@ -86,9 +84,11 @@ pub mod pallet {
 
 		type TreasuryManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		type AaveManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type EmergencyAdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		type TreasuryAccount: Get<Self::AccountId>;
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
+		type EmergencyAdminAccount: Get<Self::AccountId>;
 
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
@@ -139,6 +139,8 @@ pub mod pallet {
 		AaveHealthFactorLowerThanLiquidationThreshold,
 		/// Aave - there is not enough collateral to cover a new borrow
 		CollateralCannotCoverNewBorrow,
+		/// Aave - the reserve is paused and no operations are allowed
+		AaveReservePaused,
 	}
 
 	#[pallet::event]
@@ -149,6 +151,10 @@ pub mod pallet {
 			result: DispatchResultWithPostInfo,
 		},
 		AaveManagerCallDispatched {
+			call_hash: T::Hash,
+			result: DispatchResultWithPostInfo,
+		},
+		EmergencyAdminCallDispatched {
 			call_hash: T::Hash,
 			result: DispatchResultWithPostInfo,
 		},
@@ -185,7 +191,7 @@ pub mod pallet {
 				frame_system::Origin::<T>::Signed(T::TreasuryAccount::get()).into(),
 				*call,
 			);
-			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury(call_len)));
+			let actual_weight = actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury(call_len)));
 
 			Self::deposit_event(Event::<T>::TreasuryManagerCallDispatched { call_hash, result });
 
@@ -213,7 +219,8 @@ pub mod pallet {
 				frame_system::Origin::<T>::Signed(AaveManagerAccount::<T>::get()).into(),
 				*call,
 			);
-			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_aave_manager(call_len)));
+			let actual_weight =
+				actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_aave_manager(call_len)));
 
 			Self::deposit_event(Event::<T>::AaveManagerCallDispatched { call_hash, result });
 
@@ -328,48 +335,6 @@ pub mod pallet {
 				Ok(_) => Ok(post_info),
 				Err(err) => Err(DispatchErrorWithPostInfo {
 					post_info,
-					error: err.error,
-				}),
-			}
-		}
-
-		/// Dispatch a call with the signer set as the EVM fee payer.
-		///
-		/// This sets the EVM fee payer override to the signer of this extrinsic,
-		/// dispatches the inner call, then restores the previous fee payer.
-		/// Used when a controller account needs to pay EVM gas fees
-		/// on behalf of a pureProxy account.
-		///
-		/// Supports nesting: if there is already a fee payer set (e.g., from
-		/// an outer `dispatch_with_fee_payer`), it is saved and restored after
-		/// the inner call completes.
-		#[pallet::call_index(5)]
-		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().call_weight;
-			let call_len = call.encoded_size() as u32;
-			T::WeightInfo::dispatch_with_fee_payer(call_len)
-				.saturating_add(call_weight)
-		})]
-		pub fn dispatch_with_fee_payer(
-			origin: OriginFor<T>,
-			call: Box<<T as Config>::RuntimeCall>,
-		) -> DispatchResultWithPostInfo {
-			let signer = ensure_signed(origin.clone())?;
-
-			let previous = T::EvmFeePayer::set_fee_payer(signer);
-			let (result, actual_weight) = Self::do_dispatch(origin, *call);
-			T::EvmFeePayer::restore_fee_payer(previous);
-
-			match result {
-				Ok(_) => Ok(PostDispatchInfo {
-					actual_weight,
-					pays_fee: Pays::Yes,
-				}),
-				Err(err) => Err(DispatchErrorWithPostInfo {
-					post_info: PostDispatchInfo {
-						actual_weight,
-						pays_fee: Pays::Yes,
-					},
 					error: err.error,
 				}),
 			}

@@ -215,7 +215,7 @@ fn release_deposit_should_payable_when_fails() {
 }
 
 #[test]
-fn release_deposit_should_fail_when_in_the_last_block_of_lockdown() {
+fn release_deposit_should_work_when_in_the_last_block_of_lockdown() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -231,10 +231,12 @@ fn release_deposit_should_fail_when_in_the_last_block_of_lockdown() {
 		go_to_block(DAYS + 4);
 
 		//Act
-		assert_noop!(
-			CircuitBreaker::release_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI),
-			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::AssetInLockdown
-		);
+		assert_ok!(CircuitBreaker::release_deposit(
+			RuntimeOrigin::signed(ALICE.into()),
+			ALICE.into(),
+			DAI
+		));
+		assert_reserved_balance!(&ALICE.into(), DAI, 0);
 	});
 }
 

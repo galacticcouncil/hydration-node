@@ -466,9 +466,7 @@ fn arrange_unsorted_schedule_ids_per_block_600() -> (u64, ScheduleId, ScheduleId
 		DCA::schedule_ids_per_block(block_600).to_vec(),
 		vec![schedule_id_1, schedule_id_0]
 	);
-	assert!(DCA::schedule_ids_per_block(block_600)
-		.iter()
-		.any(|id| *id == schedule_id_1));
+	assert!(DCA::schedule_ids_per_block(block_600).contains(&schedule_id_1));
 
 	(block_600, schedule_id_0, schedule_id_1)
 }

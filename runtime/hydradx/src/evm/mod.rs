@@ -183,7 +183,6 @@ impl pallet_evm::Config for Runtime {
 	type WithdrawOrigin = EnsureAddressTruncated<EvmAccounts<Runtime>>;
 	type AddressMapping = ExtendedAddressMapping;
 	type Currency = WethCurrency;
-	type RuntimeEvent = crate::RuntimeEvent;
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
 	type ChainId = crate::EVMChainId;
@@ -221,7 +220,6 @@ impl pallet_evm::Config for Runtime {
 impl pallet_evm_chain_id::Config for Runtime {}
 
 impl pallet_ethereum::Config for Runtime {
-	type RuntimeEvent = crate::RuntimeEvent;
 	type StateRoot = pallet_ethereum::IntermediateStateRoot<Self::Version>;
 	type PostLogContent = PostLogContent;
 	type ExtraDataLength = sp_core::ConstU32<1>;
@@ -237,7 +235,6 @@ impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
 type EvmAccounts<T> = pallet_evm_accounts::Pallet<T>;
 
 impl pallet_evm_accounts::Config for Runtime {
-	type RuntimeEvent = crate::RuntimeEvent;
 	type EvmNonceProvider = EvmNonceProvider;
 	type FeeMultiplier = sp_core::ConstU32<50>;
 	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;

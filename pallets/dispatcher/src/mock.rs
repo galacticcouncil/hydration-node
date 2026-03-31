@@ -113,34 +113,14 @@ impl MaybeEvmCall<RuntimeCall> for EvmCallIdentifier {
 	}
 }
 
-pub struct MockEvmFeePayer;
-impl hydradx_traits::evm::EvmFeePayerSupport for MockEvmFeePayer {
-	type AccountId = AccountId;
-
-	fn set_fee_payer(payer: AccountId) -> Option<AccountId> {
-		FEE_PAYER.with(|v| v.borrow_mut().replace(payer))
-	}
-
-	fn clear_fee_payer() -> Option<AccountId> {
-		FEE_PAYER.with(|v| v.borrow_mut().take())
-	}
-
-	fn restore_fee_payer(previous: Option<AccountId>) {
-		FEE_PAYER.with(|v| *v.borrow_mut() = previous);
-	}
-}
-
-pub fn get_fee_payer() -> Option<AccountId> {
-	FEE_PAYER.with(|v| *v.borrow())
-}
-
 impl dispatcher::Config for Test {
 	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
 	type TreasuryManagerOrigin = EnsureRoot<AccountId>;
 	type AaveManagerOrigin = EnsureRoot<AccountId>;
+	type EmergencyAdminOrigin = EnsureRoot<AccountId>;
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = TreasuryAccount;
+	type EmergencyAdminAccount = EmergencyAdminAccount;
 	type WeightInfo = ();
 	type EvmCallIdentifier = EvmCallIdentifier;
 	type GasWeightMapping = MockGasWeightMapping;
@@ -187,7 +167,6 @@ impl system::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -316,6 +295,7 @@ impl Default for ExtBuilder {
 				(ALICE, DAI, 100),
 				(BOB, DAI, 100),
 				(TreasuryAccount::get(), HDX, 1_000_000),
+				(EmergencyAdminAccount::get(), HDX, 1_000_000),
 			],
 			registered_assets: vec![HDX, DAI],
 		}

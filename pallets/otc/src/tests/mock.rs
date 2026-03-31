@@ -85,7 +85,6 @@ impl otc::Config for Test {
 	type AssetId = AssetId;
 	type AssetRegistry = DummyRegistry<Test>;
 	type Currency = Tokens;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type Fee = OtcFee;
@@ -133,7 +132,6 @@ impl system::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -146,9 +144,7 @@ impl orml_tokens::Config for Test {
 	type CurrencyHooks = ();
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
