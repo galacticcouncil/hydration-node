@@ -215,8 +215,12 @@ impl EVM<CallResult> for EvmMock {
 				);
 
 				// Transfer collateral from contract to caller (seize)
-				// For receive_atoken=true, transfer collateral as-is (aToken)
-				// For receive_atoken=false, same behavior in mock (simplified)
+				// For receive_atoken=true, seize the aToken (GIGAHDX) not the underlying (stHDX).
+				let seized_asset = if receive_atoken && collateral_asset == 670 {
+					GigaHdxAssetId::get()
+				} else {
+					collateral_asset
+				};
 				let collateral_amount = if receive_atoken {
 					amount + amount / 10
 				} else {
@@ -225,7 +229,7 @@ impl EVM<CallResult> for EvmMock {
 				let second_transfer_result = Currencies::transfer(
 					RuntimeOrigin::signed(contract_addr),
 					caller,
-					collateral_asset,
+					seized_asset,
 					collateral_amount,
 				);
 

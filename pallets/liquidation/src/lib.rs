@@ -500,7 +500,11 @@ impl<T: Config> Pallet<T> {
 		// Step 3: Treasury calls liquidationCall with receive_atoken=true
 		let treasury_gigahdx_before = <T as Config>::Currency::balance(collateral_asset, &treasury_evm_account);
 
-		let liq_data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, true);
+		//TODO: if verified, create a pallet constnat for this or user get_underlying asset from AaveTradeExecuto
+		// Aave's liquidationCall expects the underlying asset (stHDX), not the aToken (GIGAHDX).
+		// Aave reserves are keyed by underlying; passing the aToken address reverts.
+		let sthdx_asset_id: AssetId = 670;
+		let liq_data = Self::encode_liquidation_call_data(sthdx_asset_id, debt_asset, user, debt_to_cover, true);
 		let liq_ctx = CallContext::new_call(contract, treasury_evm);
 		let liq_result = T::Evm::call(liq_ctx, liq_data, U256::zero(), T::GasLimit::get());
 		if liq_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
