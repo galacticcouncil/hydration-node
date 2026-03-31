@@ -70,16 +70,6 @@ fn set_use_as_collateral(pool: EvmAddress, user: EvmAddress, asset: EvmAddress) 
 	evm_call(pool, user, data, 500_000, "setUserUseReserveAsCollateral");
 }
 
-fn disable_oracle_sentinel() {
-	let result =
-		Executor::<Runtime>::view(CallContext::new_view(MAINNET_PAP_CONTRACT), hex!["8da5cb5b"].to_vec(), 100_000);
-	let pap_owner = EvmAddress::from_slice(&result.value[12..32]);
-
-	let mut data = selector("setPriceOracleSentinel(address)");
-	data.extend_from_slice(H256::from(EvmAddress::zero()).as_bytes());
-	evm_call(MAINNET_PAP_CONTRACT, pap_owner, data, 200_000, "disable_sentinel");
-}
-
 /// Deploy a minimal EVM contract that returns a fixed uint256 from any call.
 fn deploy_fixed_price_oracle(price: U256) -> EvmAddress {
 	let acl_admin = EvmAddress::from_slice(&hex!("aa7e0000000000000000000000000000000aa7e0"));
@@ -95,13 +85,18 @@ fn deploy_fixed_price_oracle(price: U256) -> EvmAddress {
 	let rt_len = runtime.len() as u8;
 	let code_offset = 12u8; // constructor is 12 bytes
 	let mut init_code = vec![
-		0x60, rt_len,       // PUSH1 rt_len
-		0x60, code_offset,  // PUSH1 code_offset
-		0x60, 0x00,         // PUSH1 0
-		0x39,               // CODECOPY
-		0x60, rt_len,       // PUSH1 rt_len
-		0x60, 0x00,         // PUSH1 0
-		0xF3,               // RETURN
+		0x60,
+		rt_len, // PUSH1 rt_len
+		0x60,
+		code_offset, // PUSH1 code_offset
+		0x60,
+		0x00, // PUSH1 0
+		0x39, // CODECOPY
+		0x60,
+		rt_len, // PUSH1 rt_len
+		0x60,
+		0x00, // PUSH1 0
+		0xF3, // RETURN
 	];
 	init_code.extend_from_slice(&runtime);
 
@@ -129,8 +124,7 @@ fn deploy_fixed_price_oracle(price: U256) -> EvmAddress {
 /// Query the current Aave oracle price for an asset.
 fn get_aave_asset_price(asset: EvmAddress) -> U256 {
 	let price_oracle_sel = Into::<u32>::into(Function::GetPriceOracle).to_be_bytes().to_vec();
-	let result =
-		Executor::<Runtime>::view(CallContext::new_view(MAINNET_PAP_CONTRACT), price_oracle_sel, 100_000);
+	let result = Executor::<Runtime>::view(CallContext::new_view(MAINNET_PAP_CONTRACT), price_oracle_sel, 100_000);
 	let price_oracle = EvmAddress::from_slice(&result.value[12..32]);
 
 	let mut data = selector("getAssetPrice(address)");
@@ -143,8 +137,7 @@ fn get_aave_asset_price(asset: EvmAddress) -> U256 {
 fn set_aave_price_source(asset: EvmAddress, source: EvmAddress) {
 	let acl_admin = EvmAddress::from_slice(&hex!("aa7e0000000000000000000000000000000aa7e0"));
 	let price_oracle_sel = Into::<u32>::into(Function::GetPriceOracle).to_be_bytes().to_vec();
-	let result =
-		Executor::<Runtime>::view(CallContext::new_view(MAINNET_PAP_CONTRACT), price_oracle_sel, 100_000);
+	let result = Executor::<Runtime>::view(CallContext::new_view(MAINNET_PAP_CONTRACT), price_oracle_sel, 100_000);
 	let price_oracle = EvmAddress::from_slice(&result.value[12..32]);
 
 	let mut data = selector("setAssetSources(address[],address[])");
@@ -226,7 +219,9 @@ fn gigahdx_liquidation_should_work() {
 			UNITS,
 		));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(BOB))));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(
+			BOB
+		))));
 
 		let alice_evm = EVMAccounts::evm_address(&alice);
 		let treasury_evm = EVMAccounts::evm_address(&treasury);
@@ -234,13 +229,20 @@ fn gigahdx_liquidation_should_work() {
 		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
 
-		assert_ok!(Liquidation::set_borrowing_contract(RuntimeOrigin::root(), pool_contract));
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			pool_contract
+		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
-		disable_oracle_sentinel();
+
 
 		// ---- ALICE stakes HDX → gets GIGAHDX, enables as collateral, borrows HOLLAR ----
 		let stake_amount = 10_000 * UNITS;
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 100_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			100_000 * UNITS
+		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), stake_amount);
 		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
@@ -249,8 +251,15 @@ fn gigahdx_liquidation_should_work() {
 		borrow(pool_contract, alice_evm, hollar_addr, borrow_amount);
 
 		// ---- Fund treasury with stHDX collateral (needed to borrow HOLLAR during liquidation) ----
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), treasury.clone(), 2_000_000 * UNITS));
-		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(treasury.clone()), 1_000_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			treasury.clone(),
+			2_000_000 * UNITS
+		));
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(treasury.clone()),
+			1_000_000 * UNITS
+		));
 		set_use_as_collateral(pool_contract, treasury_evm, sthdx_evm);
 
 		// ---- Drop stHDX price → ALICE's health factor drops below 1 ----
@@ -299,7 +308,10 @@ fn gigahdx_liquidation_should_work() {
 
 		let derived_gigahdx_after = Currencies::free_balance(GIGAHDX, &derived_account);
 		let gigahdx_seized = derived_gigahdx_after - derived_gigahdx_before;
-		assert!(gigahdx_seized > 0, "Derived account should have received seized GIGAHDX");
+		assert!(
+			gigahdx_seized > 0,
+			"Derived account should have received seized GIGAHDX"
+		);
 
 		let treasury_gigahdx_after = Currencies::free_balance(GIGAHDX, &treasury_evm_account);
 		assert_eq!(
@@ -383,7 +395,9 @@ fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
 			UNITS,
 		));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(BOB))));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(
+			BOB
+		))));
 
 		let alice_evm = EVMAccounts::evm_address(&alice);
 		let treasury_evm = EVMAccounts::evm_address(&treasury);
@@ -391,13 +405,20 @@ fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
 		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
 
-		assert_ok!(Liquidation::set_borrowing_contract(RuntimeOrigin::root(), pool_contract));
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			pool_contract
+		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
-		disable_oracle_sentinel();
+
 
 		// ALICE stakes HDX → gets GIGAHDX
 		let stake_amount = 10_000 * UNITS;
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 100_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			100_000 * UNITS
+		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
 		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
 
@@ -407,7 +428,10 @@ fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
 			RuntimeOrigin::signed(alice.clone()),
 			referendum_index,
 			AccountVote::Standard {
-				vote: Vote { aye: true, conviction: Conviction::Locked1x },
+				vote: Vote {
+					aye: true,
+					conviction: Conviction::Locked1x
+				},
 				balance: stake_amount,
 			},
 		));
@@ -421,13 +445,20 @@ fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
 		borrow(pool_contract, alice_evm, hollar_addr, borrow_amount);
 
 		// Fund treasury
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), treasury.clone(), 2_000_000 * UNITS));
-		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(treasury.clone()), 1_000_000 * UNITS));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			treasury.clone(),
+			2_000_000 * UNITS
+		));
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(treasury.clone()),
+			1_000_000 * UNITS
+		));
 		set_use_as_collateral(pool_contract, treasury_evm, sthdx_evm);
 
 		// Crash price → HF < 1
 		let original_price = get_aave_asset_price(sthdx_evm);
-		let mock_oracle = deploy_fixed_price_oracle(original_price * 40 / 100);
+		let mock_oracle = deploy_fixed_price_oracle(original_price * 20 / 100); // 80% drop
 		set_aave_price_source(sthdx_evm, mock_oracle);
 
 		assert_ok!(Liquidation::liquidate(
