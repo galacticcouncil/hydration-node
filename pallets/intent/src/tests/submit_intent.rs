@@ -41,6 +41,8 @@ fn should_work_when_origin_signed() {
 				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE),
 				10 * ONE_HDX
 			);
+			assert_eq!(AccountIntents::<Test>::get(ALICE, id), Some(()));
+			assert_eq!(IntentPallet::account_intent_count(ALICE), 1);
 		});
 }
 
@@ -79,6 +81,8 @@ fn should_work_when_intent_has_no_deadline() {
 				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE),
 				10 * ONE_HDX
 			);
+			assert_eq!(AccountIntents::<Test>::get(ALICE, id), Some(()));
+			assert_eq!(IntentPallet::account_intent_count(ALICE), 1);
 		});
 }
 

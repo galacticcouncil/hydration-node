@@ -51,6 +51,8 @@ fn should_work_with_intent_without_deadline() {
 
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
+			assert_eq!(AccountIntents::<Test>::get(who, id), None);
+			assert_eq!(IntentPallet::account_intent_count(who), 0);
 			assert_eq!(get_queued_task(Source::ICE(id)), Some((Source::ICE(id), who)));
 		});
 }
@@ -103,6 +105,8 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
 
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
+			assert_eq!(AccountIntents::<Test>::get(who, id), None);
+			assert_eq!(IntentPallet::account_intent_count(who), 0);
 			assert_eq!(get_queued_task(Source::ICE(id)), Some((Source::ICE(id), who)));
 		});
 }
@@ -158,6 +162,8 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_better_than_limits()
 
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
+			assert_eq!(AccountIntents::<Test>::get(who, id), None);
+			assert_eq!(IntentPallet::account_intent_count(who), 0);
 		});
 }
 
@@ -340,6 +346,8 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_exactly() {
 
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
+			assert_eq!(AccountIntents::<Test>::get(who, id), None);
+			assert_eq!(IntentPallet::account_intent_count(who), 0);
 			assert_eq!(get_queued_task(Source::ICE(id)), Some((Source::ICE(id), who)));
 		});
 }
@@ -397,6 +405,8 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 
 			assert_eq!(IntentPallet::get_intent(id), None);
 			assert_eq!(IntentPallet::intent_owner(id), None);
+			assert_eq!(AccountIntents::<Test>::get(who, id), None);
+			assert_eq!(IntentPallet::account_intent_count(who), 0);
 			assert_eq!(get_queued_task(Source::ICE(id)), Some((Source::ICE(id), who)));
 		});
 }
@@ -466,6 +476,9 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 
 			assert_eq!(IntentPallet::get_intent(id), Some(expected_intent));
 			assert!(IntentPallet::intent_owner(id).is_some());
+			// Partial resolution must NOT remove the account index
+			assert_eq!(AccountIntents::<Test>::get(who, id), Some(()));
+			assert_eq!(IntentPallet::account_intent_count(who), 1);
 		});
 }
 
@@ -906,5 +919,8 @@ fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
 			));
 
 			assert_eq!(get_queued_task(Source::ICE(id)), None);
+			// Partial resolution must keep account index
+			assert_eq!(AccountIntents::<Test>::get(who, id), Some(()));
+			assert_eq!(IntentPallet::account_intent_count(who), 1);
 		});
 }

@@ -80,6 +80,11 @@ fn should_work_when_canceled_by_owner() {
 					Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
 					0
 				);
+				assert_eq!(AccountIntents::<Test>::get(owner, id), None);
+				assert_eq!(IntentPallet::account_intent_count(owner), 1); // ALICE still has intent 2
+															  // Other intents unaffected
+				assert_eq!(AccountIntents::<Test>::get(BOB, 1_u128), Some(()));
+				assert_eq!(AccountIntents::<Test>::get(ALICE, 2_u128), Some(()));
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -189,6 +194,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 					Currencies::reserved_balance_named(&NAMED_RESERVE_ID, resolve.data.asset_in(), &owner),
 					0
 				);
+				assert_eq!(AccountIntents::<Test>::get(owner, id), None);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -387,6 +393,7 @@ fn should_work_when_intent_has_no_deadline_and_canceled_by_owner() {
 					Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
 					0
 				);
+				assert_eq!(AccountIntents::<Test>::get(owner, id), None);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});

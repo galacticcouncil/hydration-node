@@ -131,6 +131,10 @@ fn dca_single_trade_execution() {
 				}
 				_ => panic!("Expected DCA"),
 			}
+
+			// Account index still tracks the active DCA
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 1);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 1);
 		});
 }
 
@@ -154,6 +158,10 @@ fn dca_multi_period_completes() {
 
 			let _s3 = advance_and_solve(PERIOD);
 			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0, "Completed");
+
+			// Account index cleaned up after DCA completion
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 0);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 0);
 		});
 }
 
@@ -226,6 +234,12 @@ fn dca_matched_with_opposing_swap() {
 			assert_eq!(solution.resolved_intents.len(), 2);
 			assert!(solution.score > 0, "Surplus from direct matching");
 			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1, "DCA stays");
+
+			// Alice's DCA still tracked, Bob's swap resolved and cleaned up
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 1);
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 1);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&bob), 0);
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&bob).count(), 0);
 		});
 }
 
@@ -251,6 +265,10 @@ fn dca_cancel_mid_execution() {
 				id
 			));
 			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0);
+
+			// Account index cleaned up after cancellation
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 0);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 0);
 		});
 }
 
@@ -273,6 +291,12 @@ fn dca_multiple_users() {
 			let solution = advance_and_solve(PERIOD);
 			assert_eq!(solution.resolved_intents.len(), 2);
 			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 2);
+
+			// Each user has exactly 1 intent tracked
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 1);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&bob), 1);
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 1);
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&bob).count(), 1);
 		});
 }
 
@@ -299,6 +323,10 @@ fn dca_with_3_percent_slippage() {
 
 			let _s3 = advance_and_solve(PERIOD);
 			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0, "Completed");
+
+			// Account index cleaned up
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 0);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 0);
 		});
 }
 

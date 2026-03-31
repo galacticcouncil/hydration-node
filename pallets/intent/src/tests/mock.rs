@@ -271,6 +271,7 @@ impl pallet_intent::Config for Test {
 	type OraclePriceProvider = MockOracleProvider;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type MinDcaPeriod = MinDcaPeriod;
+	type MaxIntentsPerAccount = ConstU32<5>;
 	type WeightInfo = ();
 }
 

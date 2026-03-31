@@ -57,6 +57,8 @@ fn should_work_when_intent_is_valid() {
 					Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE),
 					10 * ONE_HDX
 				);
+				assert_eq!(AccountIntents::<Test>::get(ALICE, id), Some(()));
+				assert_eq!(IntentPallet::account_intent_count(ALICE), 1);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -256,6 +258,146 @@ fn should_work_when_intent_has_no_deadline() {
 					Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE),
 					10 * ONE_HDX
 				);
+				assert_eq!(AccountIntents::<Test>::get(ALICE, id), Some(()));
+				assert_eq!(IntentPallet::account_intent_count(ALICE), 1);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn account_intents_index_tracks_multiple_intents() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(ALICE, HDX, 100 * ONE_HDX),
+			(ALICE, ETH, 100 * ONE_QUINTIL),
+			(BOB, ETH, 5 * ONE_QUINTIL),
+		])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				// Create 3 intents for ALICE
+				let id0 = IntentPallet::add_intent(
+					ALICE,
+					swap_intent_input(HDX, DOT, 10 * ONE_HDX, 1_000 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1)),
+				)
+				.expect("should work");
+				let id1 = IntentPallet::add_intent(
+					ALICE,
+					swap_intent_input(HDX, DOT, 5 * ONE_HDX, 500 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1)),
+				)
+				.expect("should work");
+				let id2 = IntentPallet::add_intent(
+					ALICE,
+					swap_intent_input(ETH, DOT, ONE_QUINTIL, 1_000 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1)),
+				)
+				.expect("should work");
+
+				// Create 1 intent for BOB
+				let id3 = IntentPallet::add_intent(
+					BOB,
+					swap_intent_input(ETH, DOT, ONE_QUINTIL, 1_500 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1)),
+				)
+				.expect("should work");
+
+				// Verify counts
+				assert_eq!(IntentPallet::account_intent_count(ALICE), 3);
+				assert_eq!(IntentPallet::account_intent_count(BOB), 1);
+				assert_eq!(AccountIntents::<Test>::iter_prefix(ALICE).count(), 3);
+				assert_eq!(AccountIntents::<Test>::iter_prefix(BOB).count(), 1);
+
+				// Cancel one of ALICE's intents
+				assert_ok!(IntentPallet::cancel_intent(ALICE, id1));
+
+				assert_eq!(IntentPallet::account_intent_count(ALICE), 2);
+				assert_eq!(AccountIntents::<Test>::iter_prefix(ALICE).count(), 2);
+				assert_eq!(AccountIntents::<Test>::get(ALICE, id0), Some(()));
+				assert_eq!(AccountIntents::<Test>::get(ALICE, id1), None);
+				assert_eq!(AccountIntents::<Test>::get(ALICE, id2), Some(()));
+
+				// BOB unaffected
+				assert_eq!(IntentPallet::account_intent_count(BOB), 1);
+				assert_eq!(AccountIntents::<Test>::get(BOB, id3), Some(()));
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn should_not_work_when_max_intents_per_account_reached() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 1_000 * ONE_HDX), (BOB, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				// MaxIntentsPerAccount is 5 in mock
+				for i in 0..5u128 {
+					assert_ok!(IntentPallet::add_intent(
+						ALICE,
+						swap_intent_input(HDX, DOT, ONE_HDX, 100 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1)),
+					));
+					assert_eq!(IntentPallet::account_intent_count(ALICE), (i + 1) as u32);
+				}
+
+				// 6th intent should fail
+				assert_noop!(
+					IntentPallet::add_intent(
+						ALICE,
+						swap_intent_input(HDX, DOT, ONE_HDX, 100 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1)),
+					),
+					Error::<Test>::MaxIntentsReached
+				);
+
+				// BOB can still create intents (separate account)
+				assert_ok!(IntentPallet::add_intent(
+					BOB,
+					swap_intent_input(HDX, DOT, ONE_HDX, 100 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1)),
+				));
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn should_work_when_intent_canceled_and_slot_freed() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 1_000 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				// Fill up to max
+				let mut ids = Vec::new();
+				for _ in 0..5u128 {
+					let id = IntentPallet::add_intent(
+						ALICE,
+						swap_intent_input(HDX, DOT, ONE_HDX, 100 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1)),
+					)
+					.expect("should work");
+					ids.push(id);
+				}
+
+				// At limit — cannot add
+				assert_noop!(
+					IntentPallet::add_intent(
+						ALICE,
+						swap_intent_input(HDX, DOT, ONE_HDX, 100 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1)),
+					),
+					Error::<Test>::MaxIntentsReached
+				);
+
+				// Cancel one — frees a slot
+				assert_ok!(IntentPallet::cancel_intent(ALICE, ids[2]));
+				assert_eq!(IntentPallet::account_intent_count(ALICE), 4);
+
+				// Now can add again
+				assert_ok!(IntentPallet::add_intent(
+					ALICE,
+					swap_intent_input(HDX, DOT, ONE_HDX, 100 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1)),
+				));
+				assert_eq!(IntentPallet::account_intent_count(ALICE), 5);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});

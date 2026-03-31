@@ -69,6 +69,8 @@ fn should_work_when_intent_is_expired_and_origin_is_none() {
 				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
 				0
 			);
+			assert_eq!(AccountIntents::<Test>::get(owner, id), None);
+			assert_eq!(IntentPallet::account_intent_count(owner), 0);
 		});
 }
 
@@ -137,6 +139,8 @@ fn should_work_when_intent_is_expired_and_origin_is_signed() {
 				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
 				0
 			);
+			assert_eq!(AccountIntents::<Test>::get(owner, id), None);
+			assert_eq!(IntentPallet::account_intent_count(owner), 0);
 		});
 }
 
@@ -288,6 +292,8 @@ fn should_not_collect_fees_when_intent_is_expired() {
 				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, intent.data.asset_in(), &owner),
 				0
 			);
+			assert_eq!(AccountIntents::<Test>::get(owner, id), None);
+			assert_eq!(IntentPallet::account_intent_count(owner), 0);
 		});
 }
 

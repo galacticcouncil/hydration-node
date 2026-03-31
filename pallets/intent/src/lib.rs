@@ -123,6 +123,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type MinDcaPeriod: Get<u32>;
 
+		/// Maximum number of intents a single account can have at the same time.
+		#[pallet::constant]
+		type MaxIntentsPerAccount: Get<u32>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -205,6 +209,8 @@ pub mod pallet {
 		InvalidDcaBudget,
 		/// DCA intent must not have a deadline.
 		InvalidDcaDeadline,
+		/// Account has reached the maximum number of allowed intents.
+		MaxIntentsReached,
 	}
 
 	#[pallet::storage]
@@ -219,6 +225,16 @@ pub mod pallet {
 	/// Intent id sequencer
 	#[pallet::getter(fn next_incremental_id)]
 	pub(super) type NextIncrementalId<T: Config> = StorageValue<_, IncrementalIntentId, ValueQuery>;
+
+	#[pallet::storage]
+	/// Reverse index mapping account to its intent ids for easy lookup.
+	pub type AccountIntents<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, IntentId, (), OptionQuery>;
+
+	#[pallet::storage]
+	/// Number of intents per account.
+	#[pallet::getter(fn account_intent_count)]
+	pub type AccountIntentCount<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -293,6 +309,11 @@ pub mod pallet {
 
 					Self::deposit_event(Event::<T>::IntentExpired { id });
 
+					AccountIntents::<T>::remove(owner, id);
+					AccountIntentCount::<T>::mutate_exists(owner, |maybe_count| {
+						let count = maybe_count.unwrap_or(0).saturating_sub(1);
+						*maybe_count = if count > 0 { Some(count) } else { None };
+					});
 					*maybe_owner = None;
 					Ok(())
 				})?;
@@ -381,6 +402,11 @@ impl<T: Config> Pallet<T> {
 
 				Self::deposit_event(Event::<T>::IntentCanceled { id });
 
+				AccountIntents::<T>::remove(&owner, id);
+				AccountIntentCount::<T>::mutate_exists(&owner, |maybe_count| {
+					let count = maybe_count.unwrap_or(0).saturating_sub(1);
+					*maybe_count = if count > 0 { Some(count) } else { None };
+				});
 				*maybe_owner = None;
 				Ok(())
 			})?;
@@ -394,6 +420,11 @@ impl<T: Config> Pallet<T> {
 	/// WARN: partial intents are not supported at the moment, look at `submit_intent()`
 	#[require_transactional]
 	pub fn add_intent(owner: T::AccountId, input: IntentInput) -> Result<IntentId, DispatchError> {
+		ensure!(
+			Self::account_intent_count(&owner) < T::MaxIntentsPerAccount::get(),
+			Error::<T>::MaxIntentsReached
+		);
+
 		let now = T::TimestampProvider::now();
 		if let Some(deadline) = input.deadline {
 			log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), deadline: {:?}, now: {:?}, max_deadline: {:?}",
@@ -460,6 +491,8 @@ impl<T: Config> Pallet<T> {
 		let id = Self::generate_new_intent_id(now);
 		Intents::<T>::insert(id, &intent);
 		IntentOwner::<T>::insert(id, &owner);
+		AccountIntents::<T>::insert(&owner, id, ());
+		AccountIntentCount::<T>::mutate(&owner, |count| *count = count.saturating_add(1));
 		Self::deposit_event(Event::IntentSubmitted { id, owner, intent });
 
 		Ok(id)
@@ -645,6 +678,11 @@ impl<T: Config> Pallet<T> {
 
 				*maybe_intent = None;
 				IntentOwner::<T>::remove(id);
+				AccountIntents::<T>::remove(&owner, id);
+				AccountIntentCount::<T>::mutate_exists(&owner, |maybe_count| {
+					let count = maybe_count.unwrap_or(0).saturating_sub(1);
+					*maybe_count = if count > 0 { Some(count) } else { None };
+				});
 
 				if is_dca {
 					Self::deposit_event(Event::DcaCompleted { id: *id });

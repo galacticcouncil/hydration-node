@@ -1,6 +1,6 @@
 use crate::tests::mock::*;
 use crate::types::IntentInput;
-use crate::{Error, Event, IntentOwner, Intents};
+use crate::{AccountIntentCount, AccountIntents, Error, Event, IntentOwner, Intents};
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
 use hydra_dx_math::ema::EmaPrice;
@@ -50,6 +50,8 @@ fn should_add_dca_intent_with_fixed_budget() {
 				}
 
 				assert_eq!(orml_tokens::Pallet::<Test>::accounts(ALICE, HDX).reserved, budget);
+				assert_eq!(AccountIntents::<Test>::get(ALICE, id), Some(()));
+				assert_eq!(AccountIntentCount::<Test>::get(ALICE), 1);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -82,6 +84,8 @@ fn should_add_dca_intent_with_rolling_budget() {
 					orml_tokens::Pallet::<Test>::accounts(ALICE, HDX).reserved,
 					2 * amount_in
 				);
+				assert_eq!(AccountIntents::<Test>::get(ALICE, id), Some(()));
+				assert_eq!(AccountIntentCount::<Test>::get(ALICE), 1);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -166,6 +170,8 @@ fn should_cancel_dca_unreserve_remaining_budget() {
 
 				assert!(Intents::<Test>::get(id).is_none());
 				assert!(IntentOwner::<Test>::get(id).is_none());
+				assert_eq!(AccountIntents::<Test>::get(ALICE, id), None);
+				assert_eq!(AccountIntentCount::<Test>::get(ALICE), 0);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -345,6 +351,10 @@ fn should_resolve_dca_trade_and_update_state() {
 					_ => panic!("expected DCA intent"),
 				}
 
+				// Intent index still present (not exhausted yet)
+				assert_eq!(AccountIntents::<Test>::get(ALICE, id), Some(()));
+				assert_eq!(AccountIntentCount::<Test>::get(ALICE), 1);
+
 				// DcaTradeExecuted event
 				let events = frame_system::Pallet::<Test>::events();
 				assert!(events
@@ -402,6 +412,8 @@ fn should_complete_dca_when_budget_exhausted() {
 
 				assert!(Intents::<Test>::get(id).is_none());
 				assert!(IntentOwner::<Test>::get(id).is_none());
+				assert_eq!(AccountIntents::<Test>::get(ALICE, id), None);
+				assert_eq!(AccountIntentCount::<Test>::get(ALICE), 0);
 				// ICE unlocked 2*amount_in, intent_resolved unreserved remaining (0). Total reserve = 0.
 				assert_eq!(orml_tokens::Pallet::<Test>::accounts(ALICE, HDX).reserved, 0);
 
@@ -636,6 +648,8 @@ fn should_complete_rolling_dca_when_free_balance_insufficient() {
 
 				// DCA completed — removed from storage, no funds left
 				assert!(Intents::<Test>::get(id).is_none());
+				assert_eq!(AccountIntents::<Test>::get(ALICE, id), None);
+				assert_eq!(AccountIntentCount::<Test>::get(ALICE), 0);
 				assert_eq!(orml_tokens::Pallet::<Test>::accounts(ALICE, HDX).reserved, 0);
 				assert_eq!(orml_tokens::Pallet::<Test>::accounts(ALICE, HDX).free, 0);
 

@@ -433,6 +433,28 @@ fn solver_execute_solution1() {
 			let remaining_intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
 			assert!(remaining_intents.is_empty(), "All intents should be resolved");
 
+			// Verify account intent index cleaned up
+			assert_eq!(
+				pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(),
+				0,
+				"Alice's account intents index should be empty"
+			);
+			assert_eq!(
+				pallet_intent::AccountIntents::<Runtime>::iter_prefix(&bob).count(),
+				0,
+				"Bob's account intents index should be empty"
+			);
+			assert_eq!(
+				pallet_intent::Pallet::<Runtime>::account_intent_count(&alice),
+				0,
+				"Alice's intent count should be zero"
+			);
+			assert_eq!(
+				pallet_intent::Pallet::<Runtime>::account_intent_count(&bob),
+				0,
+				"Bob's intent count should be zero"
+			);
+
 			let alice_balance_a_after = Currencies::total_balance(asset_a, &alice);
 			let alice_balance_b_after = Currencies::total_balance(asset_b, &alice);
 			let bob_balance_a_after = Currencies::total_balance(asset_a, &bob);

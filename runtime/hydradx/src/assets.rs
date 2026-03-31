@@ -1865,6 +1865,7 @@ impl pallet_intent::Config for Runtime {
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type BlockNumberProvider = System;
 	type MinDcaPeriod = MinimalPeriod;
+	type MaxIntentsPerAccount = sp_core::ConstU32<100>;
 	type WeightInfo = weights::pallet_intent::HydraWeight<Runtime>;
 }
 
