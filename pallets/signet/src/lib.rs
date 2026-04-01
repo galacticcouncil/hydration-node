@@ -59,6 +59,8 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+		/// Origin that is allowed to call administrative extrinsics
+		/// (set_config, withdraw_funds, pause, unpause).
 		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Currency for handling deposits and fees

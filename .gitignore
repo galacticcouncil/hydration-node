@@ -57,5 +57,6 @@ zombienet
 /pallets/dispenser/contracts/lib
 /pallets/dispenser/contracts/cache
 /pallets/dispenser/contracts/out
+/scripts/dispenser-tests/solana-signet-program
 
-/scripts/dispenser-tests/solana-signet-program/.github
+findings/

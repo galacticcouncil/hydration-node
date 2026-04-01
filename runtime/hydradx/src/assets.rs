@@ -1865,6 +1865,7 @@ impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
 
 impl pallet_dispenser::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type Currency = FungibleCurrencies<Runtime>;
 	type FeeAsset = SigEthFaucetFeeAssetId;
 	type FaucetAsset = SigEthFaucetFaucetAssetId;

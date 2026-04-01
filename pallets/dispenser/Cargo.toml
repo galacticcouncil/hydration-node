@@ -1,6 +1,7 @@
 [package]
 name = "pallet-dispenser"
 version = "0.3.0"
+version = "0.3.0"
 edition = "2021"
 
 [package.metadata.docs.rs]
@@ -28,6 +29,7 @@ pallet-currencies = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, optional = true }
 log = { version = "0.4", default-features = false }
 pallet-asset-registry = { workspace = true }
+borsh = { version = "1.5", default-features = false, features = ["derive", "hashbrown"] }
 
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }

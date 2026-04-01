@@ -643,14 +643,5 @@ fn test_cross_pallet_execution() {
 			Balances::free_balance(mock_pallet_account),
 			PALLET_INITIAL_BALANCE - INITIAL_DEPOSIT
 		);
-
-		println!("✅ Cross-pallet test passed!");
-		println!("   User {} called MockCaller", NON_ADMIN);
-		println!("   MockCaller called Signet");
-		println!(
-			"   Signet saw sender as: {:?} (the pallet account)",
-			mock_pallet_account
-		);
-		println!("   NOT as: {} (the original user)", NON_ADMIN);
 	});
 }
