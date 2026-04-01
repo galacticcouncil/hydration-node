@@ -161,7 +161,6 @@ parameter_types! {
 }
 
 impl pallet_dispenser::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
 	type PalletId = DispenserPalletId;
 	type Currency = FungibleCurrencies<Test>;

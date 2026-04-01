@@ -76,9 +76,7 @@ pub mod pallet {
 
 	/// Pallet configuration trait.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_signet::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
+	pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> + pallet_signet::Config {
 		/// Origin that is allowed to call administrative extrinsics
 		/// (set_config, pause, unpause).
 		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
