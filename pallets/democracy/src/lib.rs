@@ -153,6 +153,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::manual_inspect)]
+#![allow(clippy::useless_conversion)]
 
 use codec::{Decode, Encode};
 use frame_support::{
@@ -223,8 +224,6 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + Sized {
 		type WeightInfo: WeightInfo;
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// The Scheduler.
 		type Scheduler: ScheduleNamed<BlockNumberFor<Self>, CallOf<Self>, Self::PalletsOrigin, Hasher = Self::Hashing>;
 
@@ -787,10 +786,8 @@ pub mod pallet {
 			// - `InstantAllowed` is `true` and `origin` is `InstantOrigin`.
 			let maybe_ensure_instant = if voting_period < T::FastTrackVotingPeriod::get() {
 				Some(origin)
-			} else if let Err(origin) = T::FastTrackOrigin::try_origin(origin) {
-				Some(origin)
 			} else {
-				None
+				T::FastTrackOrigin::try_origin(origin).err()
 			};
 			if let Some(ensure_instant) = maybe_ensure_instant {
 				T::InstantOrigin::ensure_origin(ensure_instant)?;
@@ -1763,8 +1760,7 @@ impl<T: Config> Pallet<T> {
 		//   runtime upgrade the formula should be adjusted but the bound should still be sensible.
 		<LowestUnbaked<T>>::mutate(|ref_index| {
 			while *ref_index < last
-				&& Self::referendum_info(*ref_index)
-					.map_or(true, |info| matches!(info, ReferendumInfo::Finished { .. }))
+				&& Self::referendum_info(*ref_index).is_none_or(|info| matches!(info, ReferendumInfo::Finished { .. }))
 			{
 				*ref_index += 1
 			}

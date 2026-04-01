@@ -206,7 +206,6 @@ fn compare_spot_price_with_and_without_fee_when_lrna_sold() {
 		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
 		.with_asset_fee(Permill::from_percent(3))
 		.with_protocol_fee(Permill::from_percent(5))
-		.with_treasury_lrna(1000 * ONE)
 		.build()
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
@@ -257,11 +256,7 @@ fn compare_spot_price_with_and_without_fee_when_lrna_sold() {
 				.unwrap()
 				.checked_mul_int(sell_amount)
 				.unwrap();
-			let difference = if calculated_amount_out_with_fee > received {
-				calculated_amount_out_with_fee - received
-			} else {
-				received - calculated_amount_out_with_fee
-			};
+			let difference = calculated_amount_out_with_fee.abs_diff(received);
 			let relative_difference_with_fee = FixedU128::from_rational(difference, received);
 			let tolerated_difference = FixedU128::from_rational(2, 1000);
 
