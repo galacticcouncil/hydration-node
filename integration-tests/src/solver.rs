@@ -48,7 +48,7 @@ fn enable_slip_fees() {
 
 impl SimulatorConfig for HollarSimulatorConfig {
 	type Simulators = <hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators;
-	type RouteProvider = <hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::RouteProvider;
+	type RouteDiscovery = <hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::RouteDiscovery;
 	type PriceDenominator = HollarPriceDenominator;
 }
 

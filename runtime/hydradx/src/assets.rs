@@ -1875,16 +1875,18 @@ parameter_types! {
 }
 
 /// Simulator configuration for the ICE pallet
-/// Bundles simulators and route provider for the solver
+/// Bundles simulators and route discovery strategy for the solver
 pub struct HydrationSimulatorConfig;
 
+type HydrationSimulators = (
+	OmnipoolSimulator<ice_simulator_provider::Omnipool<Runtime>>,
+	StableSwapSimulator<ice_simulator_provider::Stableswap<Runtime>>,
+	AaveSimulator<ice_simulator_provider::Aave<Runtime>>,
+);
+
 impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
-	type Simulators = (
-		OmnipoolSimulator<ice_simulator_provider::Omnipool<Runtime>>,
-		StableSwapSimulator<ice_simulator_provider::Stableswap<Runtime>>,
-		AaveSimulator<ice_simulator_provider::Aave<Runtime>>,
-	);
-	type RouteProvider = Router;
+	type Simulators = HydrationSimulators;
+	type RouteDiscovery = amm_simulator::OnChainRouteDiscovery<Router, HydrationSimulators>;
 	type PriceDenominator = SimulatorPriceDenom;
 }
 

@@ -23,9 +23,9 @@ use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::EnsureRoot;
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::amm::{SimulatorConfig, SimulatorError, SimulatorSet, TradeResult};
+use hydradx_traits::amm::{RouteDiscovery, SimulatorConfig, SimulatorError, SimulatorSet, TradeResult};
 use hydradx_traits::registry::Inspect;
-use hydradx_traits::router::{AssetPair, PoolType, Route, RouteProvider};
+use hydradx_traits::router::{PoolType, Route};
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
 use ice_support::SwapType;
@@ -263,7 +263,7 @@ pub struct TestSimulatorConfig;
 
 impl SimulatorConfig for TestSimulatorConfig {
 	type Simulators = MockSimulatorSet;
-	type RouteProvider = MockRouteProvider;
+	type RouteDiscovery = MockRouteDiscovery;
 	type PriceDenominator = NativeCurrencyId;
 }
 
@@ -315,12 +315,12 @@ impl SimulatorSet for MockSimulatorSet {
 	}
 }
 
-// Mock RouteProvider
-pub struct MockRouteProvider;
+// Mock RouteDiscovery
+pub struct MockRouteDiscovery;
 
-impl RouteProvider<AssetId> for MockRouteProvider {
-	fn get_route(_pair: AssetPair<AssetId>) -> Route<AssetId> {
-		Route::default()
+impl RouteDiscovery<()> for MockRouteDiscovery {
+	fn discover_route(_asset_in: AssetId, _asset_out: AssetId, _state: &()) -> Result<Route<AssetId>, SimulatorError> {
+		Err(SimulatorError::AssetNotFound)
 	}
 }
 

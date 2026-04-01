@@ -4,7 +4,9 @@ use frame_support::traits::Get;
 use frame_support::BoundedVec;
 use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::amm::{AMMInterface, SimulatorConfig, SimulatorError, SimulatorSet, TradeExecution};
+use hydradx_traits::amm::{
+	AMMInterface, RouteDiscovery, SimulatorConfig, SimulatorError, SimulatorSet, TradeExecution,
+};
 use hydradx_traits::router::{AssetPair, Route, RouteProvider, Trade};
 use primitive_types::U512;
 use sp_std::marker::PhantomData;
@@ -13,6 +15,43 @@ use sp_std::vec;
 pub mod aave;
 pub mod omnipool;
 pub mod stableswap;
+
+/// Route discovery using on-chain routes, simulator `can_trade`, and RouteProvider fallback.
+///
+/// This is the default strategy. It can be replaced in `SimulatorConfig` with a custom
+/// implementation (e.g., one that simulates sells across candidate routes).
+pub struct OnChainRouteDiscovery<RP, Sims>(PhantomData<(RP, Sims)>);
+
+impl<RP, Sims> RouteDiscovery<Sims::State> for OnChainRouteDiscovery<RP, Sims>
+where
+	RP: RouteProvider<u32>,
+	Sims: SimulatorSet,
+{
+	fn discover_route(asset_in: u32, asset_out: u32, state: &Sims::State) -> Result<Route<u32>, SimulatorError> {
+		let asset_pair = AssetPair::new(asset_in, asset_out);
+
+		// Priority 1: Check for explicitly configured on-chain route
+		if let Some(explicit_route) = RP::get_onchain_route(asset_pair) {
+			return Ok(explicit_route);
+		}
+
+		// Priority 2: Ask simulators if they can trade this pair directly
+		if let Some(pool_type) = Sims::can_trade(asset_in, asset_out, state) {
+			return Ok(BoundedVec::truncate_from(vec![Trade {
+				pool: pool_type,
+				asset_in,
+				asset_out,
+			}]));
+		}
+
+		// Priority 3: Fall back to the route provider's default
+		let route = RP::get_route(asset_pair);
+		if route.is_empty() {
+			return Err(SimulatorError::AssetNotFound);
+		}
+		Ok(route)
+	}
+}
 
 /// The Hydration simulator compositor.
 ///
@@ -31,33 +70,8 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 	type Error = SimulatorError;
 	type State = <C::Simulators as SimulatorSet>::State;
 
-	/// Discover a route for the asset pair with proper priority:
-	/// 1. Explicit on-chain route (if configured in Router storage)
-	/// 2. Simulator discovery (ask simulators via can_trade)
-	/// 3. Default route from RouteProvider
 	fn discover_route(asset_in: u32, asset_out: u32, state: &Self::State) -> Result<Route<u32>, Self::Error> {
-		let asset_pair = AssetPair::new(asset_in, asset_out);
-
-		// Priority 1: Check for explicitly configured on-chain route
-		if let Some(explicit_route) = C::RouteProvider::get_onchain_route(asset_pair) {
-			return Ok(explicit_route);
-		}
-
-		// Priority 2: Ask simulators if they can trade this pair directly
-		if let Some(pool_type) = C::Simulators::can_trade(asset_in, asset_out, state) {
-			return Ok(BoundedVec::truncate_from(vec![Trade {
-				pool: pool_type,
-				asset_in,
-				asset_out,
-			}]));
-		}
-
-		// Priority 3: Fall back to the route provider's default
-		let route = C::RouteProvider::get_route(asset_pair);
-		if route.is_empty() {
-			return Err(SimulatorError::AssetNotFound);
-		}
-		Ok(route)
+		C::RouteDiscovery::discover_route(asset_in, asset_out, state)
 	}
 
 	fn sell(
@@ -148,7 +162,6 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 			for trade in chunk.iter() {
 				let hop_price = C::Simulators::get_spot_price(trade.pool, trade.asset_in, trade.asset_out, state)?;
 
-				// Multiply: (n1/d1) * (n2/d2) = (n1*n2)/(d1*d2)
 				chunk_numerator = chunk_numerator
 					.checked_mul(U512::from(hop_price.n))
 					.ok_or(SimulatorError::MathError)?;

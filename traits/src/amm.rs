@@ -56,9 +56,17 @@ pub struct TradeExecution {
 	pub route: Route<AssetId>,
 }
 
+/// Trait for discovering trade routes given an asset pair and simulator state.
+///
+/// Implementations can use on-chain routes, simulator probing, or any custom strategy.
+/// The `State` generic allows implementations to inspect simulator state during discovery.
+pub trait RouteDiscovery<State> {
+	fn discover_route(asset_in: AssetId, asset_out: AssetId, state: &State) -> Result<Route<AssetId>, SimulatorError>;
+}
+
 /// Configuration trait for the simulator compositor.
 ///
-/// Bundles together the simulators and route provider.
+/// Bundles together the simulators and route discovery strategy.
 /// This is the main configuration type used by the ICE pallet.
 ///
 /// # Example
@@ -67,15 +75,15 @@ pub struct TradeExecution {
 ///
 /// impl SimulatorConfig for HydrationSimulatorConfig {
 ///     type Simulators = (Omnipool, Stableswap, Aave);
-///     type RouteProvider = Router;
+///     type RouteDiscovery = OnChainRouteDiscovery<Router, Self::Simulators>;
 ///     type PriceDenominator = LRNAAssetId;
 /// }
 /// ```
 pub trait SimulatorConfig {
 	/// Tuple of simulators implementing SimulatorSet
 	type Simulators: SimulatorSet;
-	/// Route provider for finding trade routes
-	type RouteProvider: crate::router::RouteProvider<AssetId>;
+	/// Strategy for discovering trade routes
+	type RouteDiscovery: RouteDiscovery<<Self::Simulators as SimulatorSet>::State>;
 	/// The reference asset all prices are denominated in (e.g., LRNA)
 	type PriceDenominator: Get<AssetId>;
 }
