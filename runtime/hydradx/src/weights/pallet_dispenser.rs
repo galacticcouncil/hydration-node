@@ -64,10 +64,10 @@ impl<T: frame_system::Config> pallet_dispenser::WeightInfo for HydraWeight<T> {
 	/// Proof: `EthDispenser::DispenserConfig` (`max_values`: Some(1), `max_size`: Some(101), added: 596, mode: `MaxEncodedLen`)
 	fn set_config() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `208`
-		//  Estimated: `1586`
-		// Minimum execution time: 7_000_000 picoseconds.
-		Weight::from_parts(8_000_000, 1586)
+		//  Measured:  `232`
+		//  Estimated: `1501`
+		// Minimum execution time: 12_496_000 picoseconds.
+		Weight::from_parts(12_645_000, 1501)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -75,10 +75,10 @@ impl<T: frame_system::Config> pallet_dispenser::WeightInfo for HydraWeight<T> {
 	/// Proof: `EthDispenser::DispenserConfig` (`max_values`: Some(1), `max_size`: Some(101), added: 596, mode: `MaxEncodedLen`)
 	fn pause() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `336`
-		//  Estimated: `1586`
-		// Minimum execution time: 9_000_000 picoseconds.
-		Weight::from_parts(10_000_000, 1586)
+		//  Measured:  `232`
+		//  Estimated: `1486`
+		// Minimum execution time: 12_981_000 picoseconds.
+		Weight::from_parts(13_290_000, 1486)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -86,10 +86,10 @@ impl<T: frame_system::Config> pallet_dispenser::WeightInfo for HydraWeight<T> {
 	/// Proof: `EthDispenser::DispenserConfig` (`max_values`: Some(1), `max_size`: Some(101), added: 596, mode: `MaxEncodedLen`)
 	fn unpause() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `336`
-		//  Estimated: `1586`
-		// Minimum execution time: 9_000_000 picoseconds.
-		Weight::from_parts(10_000_000, 1586)
+		//  Measured:  `232`
+		//  Estimated: `1486`
+		// Minimum execution time: 12_933_000 picoseconds.
+		Weight::from_parts(13_220_000, 1486)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -105,10 +105,6 @@ impl<T: frame_system::Config> pallet_dispenser::WeightInfo for HydraWeight<T> {
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
 	/// Storage: `System::Account` (r:3 w:3)
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `CircuitBreaker::GlobalAssetOverrides` (r:2 w:0)
-	/// Proof: `CircuitBreaker::GlobalAssetOverrides` (`max_values`: None, `max_size`: Some(21), added: 2496, mode: `MaxEncodedLen`)
-	/// Storage: `CircuitBreaker::EgressAccounts` (r:1 w:0)
-	/// Proof: `CircuitBreaker::EgressAccounts` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
 	/// Storage: `EVMAccounts::AccountExtension` (r:1 w:0)
 	/// Proof: `EVMAccounts::AccountExtension` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
 	/// Storage: `HSM::FlashMinter` (r:1 w:0)
@@ -123,11 +119,11 @@ impl<T: frame_system::Config> pallet_dispenser::WeightInfo for HydraWeight<T> {
 	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
 	fn request_fund() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `1773`
+		//  Measured:  `1792`
 		//  Estimated: `8799`
-		// Minimum execution time: 178_000_000 picoseconds.
-		Weight::from_parts(186_000_000, 8799)
-			.saturating_add(T::DbWeight::get().reads(19_u64))
-			.saturating_add(T::DbWeight::get().writes(7_u64))
+		// Minimum execution time: 470_146_000 picoseconds.
+		Weight::from_parts(471_759_000, 8799)
+			.saturating_add(T::DbWeight::get().reads(22_u64))
+			.saturating_add(T::DbWeight::get().writes(9_u64))
 	}
 }

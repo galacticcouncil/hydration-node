@@ -110,8 +110,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Provider for the current block number.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
@@ -285,7 +283,7 @@ where
 	/// # Returns
 	/// A tuple of (asset_fee, protocol_fee)
 	fn update_fee(asset_id: T::AssetId, asset_liquidity: Balance, store: bool) -> (T::Fee, T::Fee) {
-		log::trace!(target: "dynamic-fees", "update_fee for asset_id: {:?}", asset_id);
+		log::trace!(target: "dynamic-fees", "update_fee for asset_id: {asset_id:?}");
 		let block_number = T::BlockNumberProvider::current_block_number();
 
 		let asset_config = Self::asset_fee_config(asset_id);
@@ -295,7 +293,7 @@ where
 				asset_fee,
 				protocol_fee,
 			}) => {
-				log::trace!(target: "dynamic-fees", "using fixed fees: {:?} {:?}", asset_fee, protocol_fee);
+				log::trace!(target: "dynamic-fees", "using fixed fees: {asset_fee:?} {protocol_fee:?}");
 				(asset_fee, protocol_fee)
 			}
 			Some(AssetFeeConfig::Dynamic {
@@ -365,8 +363,8 @@ where
 			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
 		};
 
-		log::trace!(target: "dynamic-fees", "block number: {:?}", block_number);
-		log::trace!(target: "dynamic-fees", "delta blocks: {:?}", delta_blocks);
+		log::trace!(target: "dynamic-fees", "block number: {block_number:?}");
+		log::trace!(target: "dynamic-fees", "delta blocks: {delta_blocks:?}");
 		log::trace!(target: "dynamic-fees", "oracle entry: in {:?}, out {:?}, liquidity: {:?}", raw_entry.amount_in(), raw_entry.amount_out(), raw_entry.liquidity());
 
 		let period = T::RawOracle::period() as u128;
@@ -376,7 +374,7 @@ where
 			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
 		}
 		let decay_factor = FixedU128::from_rational(4u128, period);
-		log::trace!(target: "dynamic-fees", "decay factor: {:?}", decay_factor);
+		log::trace!(target: "dynamic-fees", "decay factor: {decay_factor:?}");
 
 		let fee_updated_at: u128 = current_fee_entry.timestamp.saturated_into();
 		if !fee_updated_at.is_zero() {
@@ -423,7 +421,7 @@ where
 				},
 			);
 		}
-		log::trace!(target: "dynamic-fees", "new fees: {:?} {:?}", asset_fee, protocol_fee);
+		log::trace!(target: "dynamic-fees", "new fees: {asset_fee:?} {protocol_fee:?}");
 		(asset_fee, protocol_fee)
 	}
 }

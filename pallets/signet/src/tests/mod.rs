@@ -130,7 +130,6 @@ parameter_types! {
 }
 
 impl pallet_signet::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
 	type WeightInfo = WeightInfo<Test>;

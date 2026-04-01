@@ -76,7 +76,6 @@ impl NftPermission<CollectionType> for NftTestPermissions {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type NftCollectionId = CollectionId;
 	type NftItemId = ItemId;

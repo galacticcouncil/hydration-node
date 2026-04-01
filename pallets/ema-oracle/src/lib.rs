@@ -65,6 +65,7 @@
 //! prices you should use a spot price or similar.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::useless_conversion)]
 #![allow(clippy::manual_inspect)]
 
 use frame_support::pallet_prelude::*;
@@ -128,8 +129,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
 
