@@ -206,15 +206,26 @@ pub trait SimulatorSet {
 ///
 /// This is the interface the solver uses - it handles routing
 /// and delegates to individual simulators via SimulatorSet.
+///
+/// Callers must discover the route explicitly via `discover_route` before
+/// calling `sell`, `buy`, or `get_spot_price`. This avoids cycles when
+/// route discovery itself needs to simulate trades.
 pub trait AMMInterface {
 	type Error;
 	type State: Clone;
+
+	/// Discover the best route for trading `asset_in` -> `asset_out`.
+	fn discover_route(
+		asset_in: AssetId,
+		asset_out: AssetId,
+		state: &Self::State,
+	) -> Result<Route<AssetId>, Self::Error>;
 
 	fn sell(
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_in: Balance,
-		route: Option<Route<AssetId>>,
+		route: Route<AssetId>,
 		state: &Self::State,
 	) -> Result<(Self::State, TradeExecution), Self::Error>;
 
@@ -222,13 +233,18 @@ pub trait AMMInterface {
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_out: Balance,
-		route: Option<Route<AssetId>>,
+		route: Route<AssetId>,
 		state: &Self::State,
 	) -> Result<(Self::State, TradeExecution), Self::Error>;
 
-	/// Get spot price for an asset pair (uses routing internally).
+	/// Get spot price for an asset pair along the given route.
 	/// Returns the price of asset_in in terms of asset_out.
-	fn get_spot_price(asset_in: AssetId, asset_out: AssetId, state: &Self::State) -> Result<Ratio, Self::Error>;
+	fn get_spot_price(
+		asset_in: AssetId,
+		asset_out: AssetId,
+		route: Route<AssetId>,
+		state: &Self::State,
+	) -> Result<Ratio, Self::Error>;
 
 	/// The reference asset all prices can be denominated in (e.g., LRNA)
 	fn price_denominator() -> AssetId;

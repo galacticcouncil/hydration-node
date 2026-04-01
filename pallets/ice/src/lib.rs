@@ -179,8 +179,8 @@ pub mod pallet {
 		pub fn submit_solution(origin: OriginFor<T>, solution: Solution) -> DispatchResult {
 			ensure_none(origin)?;
 
-			log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), solution with {:?} resolved intesnts and {:?} trades",
-				LOG_PREFIX, solution.resolved_intents.len(), solution.trades.len());
+			log::debug!(target: LOG_TARGET, "{:?}: submit_solution() [EXECUTION PHASE], solution with {:?} resolved intents, {:?} trades, score: {:?}",
+				LOG_PREFIX, solution.resolved_intents.len(), solution.trades.len(), solution.score);
 
 			// V1 solver may produce solutions with no trades (perfect CoW matching)
 			ensure!(!solution.resolved_intents.is_empty(), Error::<T>::InvalidSolution);
@@ -289,15 +289,20 @@ pub mod pallet {
 
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			let Some(call) = Self::run(block_number, |intents, state| {
-				Solver::<amm_simulator::HydrationSimulator<T::Simulator>>::solve(intents, state).ok()
+				match Solver::<amm_simulator::HydrationSimulator<T::Simulator>>::solve(intents, state) {
+					Ok(solution) => Some(solution),
+					Err(e) => {
+						log::error!(target: OCW_LOG_TARGET, "{:?}: solver failed, err: {:?}", LOG_PREFIX, e);
+						None
+					}
+				}
 			}) else {
-				//No call/solution, nothing to do
 				return;
 			};
 
 			let tx = <T as CreateBare<self::Call<T>>>::create_bare(call.into());
 			if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
-				log::error!(target: OCW_LOG_TARGET, "{:?}: submit solution, err: {:?}", LOG_PREFIX, e);
+				log::error!(target: OCW_LOG_TARGET, "{:?}: submit_transaction failed (validate_unsigned rejected the solution), err: {:?}", LOG_PREFIX, e);
 			};
 		}
 	}
@@ -320,7 +325,8 @@ pub mod pallet {
 
 			if let Call::submit_solution { solution } = call {
 				if let Err(e) = Self::validate_unsigned_solution(solution) {
-					log::error!(target: OCW_LOG_TARGET, "{:?}: validate solution, err: {:?}", LOG_PREFIX, e);
+					log::error!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned rejected solution ({} intents, {} trades, score: {}), err: {:?}",
+						LOG_PREFIX, solution.resolved_intents.len(), solution.trades.len(), solution.score, e);
 					return InvalidTransaction::Call.into();
 				};
 
@@ -396,11 +402,19 @@ impl<T: Config> Pallet<T> {
 		let ed_out =
 			<T as Config>::RegistryHandler::existential_deposit(intent.asset_out()).ok_or(Error::<T>::AssetNotFound)?;
 
-		log::debug!(target: LOG_TARGET, "{:?}: validate_intent_amounts(), ed_in: {:?}, amount_in: {:?}, ed_out: {:?}, amount_out: {:?}", 
-			LOG_PREFIX, ed_in, intent.amount_in(), ed_out, intent.asset_out());
+		log::debug!(target: LOG_TARGET, "{:?}: validate_intent_amounts(), ed_in: {:?}, amount_in: {:?}, ed_out: {:?}, amount_out: {:?}",
+			LOG_PREFIX, ed_in, intent.amount_in(), ed_out, intent.amount_out());
 
-		ensure!(intent.amount_in() >= ed_in, Error::<T>::InvalidAmount);
-		ensure!(intent.amount_out() >= ed_out, Error::<T>::InvalidAmount);
+		if intent.amount_in() < ed_in {
+			log::error!(target: LOG_TARGET, "{:?}: validate_intent_amounts() FAILED: amount_in {:?} < existential_deposit {:?} for asset {:?}",
+				LOG_PREFIX, intent.amount_in(), ed_in, intent.asset_in());
+			return Err(Error::<T>::InvalidAmount.into());
+		}
+		if intent.amount_out() < ed_out {
+			log::error!(target: LOG_TARGET, "{:?}: validate_intent_amounts() FAILED: amount_out {:?} < existential_deposit {:?} for asset {:?}",
+				LOG_PREFIX, intent.amount_out(), ed_out, intent.asset_out());
+			return Err(Error::<T>::InvalidAmount.into());
+		}
 
 		Ok(())
 	}
@@ -416,23 +430,43 @@ impl<T: Config> Pallet<T> {
 		let mut exec_prices: BTreeMap<(AssetId, AssetId), Price> = BTreeMap::new();
 		for ResolvedIntent { id, data: resolve } in &solution.resolved_intents {
 			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), resolved intent, id: {:?}", LOG_PREFIX, id);
-			Self::validate_intent_amounts(resolve)?;
 
-			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
+			if let Err(e) = Self::validate_intent_amounts(resolve) {
+				log::error!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), intent {:?} failed amount validation: {:?}", LOG_PREFIX, id, e);
+				return Err(e);
+			}
+
+			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or_else(|| {
+				log::error!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), intent {:?} not found in storage", LOG_PREFIX, id);
+				Error::<T>::IntentNotFound
+			})?;
+
 			let surplus =
 				pallet_intent::Pallet::<T>::compute_surplus(&intent, resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
 			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), id: {:?}, surplus: {:?}", LOG_PREFIX, id, surplus);
 			score = score.checked_add(surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
 
-			ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
+			if !processed_intents.insert(*id) {
+				log::error!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), intent {:?} is duplicate", LOG_PREFIX, id);
+				return Err(Error::<T>::DuplicateIntent.into());
+			}
 
-			pallet_intent::Pallet::<T>::validate_resolve(&intent, resolve)?;
+			if let Err(e) = pallet_intent::Pallet::<T>::validate_resolve(&intent, resolve) {
+				log::error!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), intent {:?} failed resolve validation: {:?}", LOG_PREFIX, id, e);
+				return Err(e);
+			}
 
-			Self::validate_price_consistency(&mut exec_prices, resolve)?;
+			if let Err(e) = Self::validate_price_consistency(&mut exec_prices, resolve) {
+				log::error!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), intent {:?} failed price consistency: {:?}", LOG_PREFIX, id, e);
+				return Err(e);
+			}
 		}
 
 		log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), exec_score: {:?}, score: {:?}", LOG_PREFIX, score, solution.score);
-		ensure!(solution.score == score, Error::<T>::ScoreMismatch);
+		if solution.score != score {
+			log::error!(target: OCW_LOG_TARGET, "{:?}: validate_unsigned_solution(), score mismatch: solution claims {:?}, computed {:?}", LOG_PREFIX, solution.score, score);
+			return Err(Error::<T>::ScoreMismatch.into());
+		}
 		Ok(())
 	}
 
@@ -451,14 +485,21 @@ impl<T: Config> Pallet<T> {
 			})
 			.collect();
 
+		log::debug!(target: OCW_LOG_TARGET, "{:?}: run(), block: {:?}, valid intents: {:?}", LOG_PREFIX, block_no, intents.len());
+
+		if intents.is_empty() {
+			return None;
+		}
+
 		let state = <<T as Config>::Simulator as SimulatorConfig>::Simulators::initial_state();
 
 		let Some(solution) = solve(intents, state) else {
-			log::debug!(target: OCW_LOG_TARGET, "{:?}: no solution found, block: {:?}", LOG_PREFIX, block_no);
+			log::debug!(target: OCW_LOG_TARGET, "{:?}: solver returned no solution, block: {:?}", LOG_PREFIX, block_no);
 			return None;
 		};
 
 		if solution.resolved_intents.is_empty() {
+			log::debug!(target: OCW_LOG_TARGET, "{:?}: solver returned empty solution (no resolvable intents), block: {:?}", LOG_PREFIX, block_no);
 			return None;
 		}
 

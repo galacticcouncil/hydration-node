@@ -113,7 +113,7 @@ impl<A: AMMInterface> Solver<A> {
 			return Ok(empty_solution());
 		}
 
-		log::trace!(target: "solver", "V3 solve() called with {} intents", intents.len());
+		log::debug!(target: "solver", "solve() called with {} intents", intents.len());
 
 		// 1. Get spot prices
 		let denominator = A::price_denominator();
@@ -124,12 +124,19 @@ impl<A: AMMInterface> Solver<A> {
 			if asset == denominator {
 				spot_prices.insert(asset, Ratio::one());
 			} else {
-				match A::get_spot_price(asset, denominator, &initial_state) {
+				let route = match A::discover_route(asset, denominator, &initial_state) {
+					Ok(r) => r,
+					Err(_) => {
+						log::debug!(target:"solver","no route for asset {} -> {}, skipping", asset, denominator);
+						continue;
+					}
+				};
+				match A::get_spot_price(asset, denominator, route, &initial_state) {
 					Ok(price) => {
 						spot_prices.insert(asset, price);
 					}
 					Err(_) => {
-						log::trace!(target:"solver","Failed to get spot price for asset {}", asset);
+						log::debug!(target:"solver","failed to get spot price for asset {}, skipping", asset);
 						continue;
 					}
 				}
@@ -143,12 +150,24 @@ impl<A: AMMInterface> Solver<A> {
 		// 2. Filter satisfiable intents
 		let satisfiable_intents: Vec<&Intent> = intents
 			.iter()
-			.filter(|intent| common::is_satisfiable(intent, &spot_prices))
+			.filter(|intent| {
+				let ok = common::is_satisfiable(intent, &spot_prices);
+				if !ok {
+					let IntentData::Swap(swap) = &intent.data else {
+						log::debug!(target:"solver","intent {}: unsatisfiable (non-swap intent type)", intent.id);
+						return false;
+					};
+					log::debug!(target:"solver","intent {}: unsatisfiable at spot price, {} -> {}, amount_in: {}, min_out: {}",
+						intent.id, swap.asset_in, swap.asset_out, swap.amount_in, swap.amount_out);
+				}
+				ok
+			})
 			.collect();
 
-		log::trace!(target: "solver", "satisfiable: {}/{} intents", satisfiable_intents.len(), intents.len());
+		log::debug!(target: "solver", "satisfiable: {}/{} intents", satisfiable_intents.len(), intents.len());
 
 		if satisfiable_intents.is_empty() {
+			log::debug!(target: "solver", "no satisfiable intents, returning empty solution");
 			return Ok(empty_solution());
 		}
 
@@ -204,7 +223,7 @@ impl<A: AMMInterface> Solver<A> {
 					apply_rate(swap.amount_in, clearing.backward_n, clearing.backward_d)
 				};
 				if amount_out < swap.amount_out {
-					log::trace!(target: "solver", "intent {}: filtered — clearing output {} < min_out {} for {} → {}",
+					log::debug!(target: "solver", "intent {}: filtered out — clearing output {} < min_out {} for {} -> {}",
 						intent.id, amount_out, swap.amount_out, swap.asset_in, swap.asset_out);
 				}
 				amount_out >= swap.amount_out
@@ -215,8 +234,11 @@ impl<A: AMMInterface> Solver<A> {
 			}
 		}
 		if included.is_empty() {
+			log::debug!(target: "solver", "all intents filtered out during iterative clearing, returning empty solution");
 			return Ok(empty_solution());
 		}
+
+		log::debug!(target: "solver", "after iterative clearing: {} intents remaining", included.len());
 
 		if included.len() == 1 {
 			return Self::solve_single_intent(included[0], &initial_state);
@@ -296,29 +318,47 @@ impl<A: AMMInterface> Solver<A> {
 
 			match flow {
 				FlowDirection::SingleForward { amount } => {
-					if let Ok((new_state, exec)) = A::sell(asset_a, asset_b, amount, None, &state) {
-						let adjusted_out = adjust_amm_output(exec.amount_out);
-						directed_rates.insert((asset_a, asset_b), Ratio::new(adjusted_out, exec.amount_in));
-						executed_trades.push(PoolTrade {
-							direction: SwapType::ExactIn,
-							amount_in: exec.amount_in,
-							amount_out: adjusted_out,
-							route: exec.route,
-						});
-						state = new_state;
+					if let Ok(route) = A::discover_route(asset_a, asset_b, &state) {
+						match A::sell(asset_a, asset_b, amount, route, &state) {
+							Ok((new_state, exec)) => {
+								let adjusted_out = adjust_amm_output(exec.amount_out);
+								directed_rates.insert((asset_a, asset_b), Ratio::new(adjusted_out, exec.amount_in));
+								executed_trades.push(PoolTrade {
+									direction: SwapType::ExactIn,
+									amount_in: exec.amount_in,
+									amount_out: adjusted_out,
+									route: exec.route,
+								});
+								state = new_state;
+							}
+							Err(_) => {
+								log::debug!(target: "solver", "AMM sell failed for single forward {} -> {}, amount: {}", asset_a, asset_b, amount);
+							}
+						}
+					} else {
+						log::debug!(target: "solver", "no route for single forward {} -> {}", asset_a, asset_b);
 					}
 				}
 				FlowDirection::SingleBackward { amount } => {
-					if let Ok((new_state, exec)) = A::sell(asset_b, asset_a, amount, None, &state) {
-						let adjusted_out = adjust_amm_output(exec.amount_out);
-						directed_rates.insert((asset_b, asset_a), Ratio::new(adjusted_out, exec.amount_in));
-						executed_trades.push(PoolTrade {
-							direction: SwapType::ExactIn,
-							amount_in: exec.amount_in,
-							amount_out: adjusted_out,
-							route: exec.route,
-						});
-						state = new_state;
+					if let Ok(route) = A::discover_route(asset_b, asset_a, &state) {
+						match A::sell(asset_b, asset_a, amount, route, &state) {
+							Ok((new_state, exec)) => {
+								let adjusted_out = adjust_amm_output(exec.amount_out);
+								directed_rates.insert((asset_b, asset_a), Ratio::new(adjusted_out, exec.amount_in));
+								executed_trades.push(PoolTrade {
+									direction: SwapType::ExactIn,
+									amount_in: exec.amount_in,
+									amount_out: adjusted_out,
+									route: exec.route,
+								});
+								state = new_state;
+							}
+							Err(_) => {
+								log::debug!(target: "solver", "AMM sell failed for single backward {} -> {}, amount: {}", asset_b, asset_a, amount);
+							}
+						}
+					} else {
+						log::debug!(target: "solver", "no route for single backward {} -> {}", asset_b, asset_a);
 					}
 				}
 				FlowDirection::ExcessForward {
@@ -331,7 +371,9 @@ impl<A: AMMInterface> Solver<A> {
 						directed_rates.insert((asset_b, asset_a), Ratio::new(scarce_out, total_b_sold));
 					}
 					// Sell net A through AMM
-					match A::sell(asset_a, asset_b, net_sell, None, &state) {
+					let sell_result = A::discover_route(asset_a, asset_b, &state)
+						.and_then(|route| A::sell(asset_a, asset_b, net_sell, route, &state));
+					match sell_result {
 						Ok((new_state, exec)) => {
 							let adjusted_out = adjust_amm_output(exec.amount_out);
 							let total_out = direct_match.saturating_add(adjusted_out);
@@ -347,7 +389,7 @@ impl<A: AMMInterface> Solver<A> {
 							state = new_state;
 						}
 						Err(_) => {
-							// Fallback: A→B at spot rate
+							log::debug!(target: "solver", "AMM sell failed for excess forward {} -> {}, net_sell: {}, falling back to spot rate", asset_a, asset_b, net_sell);
 							let fallback = common::calc_amount_out(total_a_sold, pa, pb).unwrap_or(0);
 							if total_a_sold > 0 {
 								directed_rates.insert((asset_a, asset_b), Ratio::new(fallback, total_a_sold));
@@ -365,7 +407,9 @@ impl<A: AMMInterface> Solver<A> {
 						directed_rates.insert((asset_a, asset_b), Ratio::new(scarce_out, total_a_sold));
 					}
 					// Sell net B through AMM
-					match A::sell(asset_b, asset_a, net_sell, None, &state) {
+					let sell_result = A::discover_route(asset_b, asset_a, &state)
+						.and_then(|route| A::sell(asset_b, asset_a, net_sell, route, &state));
+					match sell_result {
 						Ok((new_state, exec)) => {
 							let adjusted_out = adjust_amm_output(exec.amount_out);
 							let total_out = direct_match.saturating_add(adjusted_out);
@@ -381,7 +425,7 @@ impl<A: AMMInterface> Solver<A> {
 							state = new_state;
 						}
 						Err(_) => {
-							// Fallback: B→A at spot rate
+							log::debug!(target: "solver", "AMM sell failed for excess backward {} -> {}, net_sell: {}, falling back to spot rate", asset_b, asset_a, net_sell);
 							let fallback = common::calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
 							if total_b_sold > 0 {
 								directed_rates.insert((asset_b, asset_a), Ratio::new(fallback, total_b_sold));
@@ -477,7 +521,7 @@ impl<A: AMMInterface> Solver<A> {
 			};
 
 			if total_in == 0 || total_out == 0 {
-				log::trace!(target: "solver", "intent {}: skipped in resolution — no rate for {} → {}",
+				log::debug!(target: "solver", "intent {}: skipped in resolution — no rate for {} -> {}",
 					intent.id, swap.asset_in, swap.asset_out);
 				continue;
 			}
@@ -485,7 +529,7 @@ impl<A: AMMInterface> Solver<A> {
 			let min_required = swap.amount_out;
 
 			if total_out < min_required {
-				log::trace!(target: "solver", "intent {}: skipped in resolution — output {} < min_out {} for {} → {}",
+				log::debug!(target: "solver", "intent {}: skipped in resolution — output {} < min_out {} for {} -> {}",
 					intent.id, total_out, min_required, swap.asset_in, swap.asset_out);
 				continue;
 			}
@@ -504,6 +548,9 @@ impl<A: AMMInterface> Solver<A> {
 				}),
 			});
 		}
+		log::debug!(target: "solver", "solution: {} resolved intents, {} trades, score: {} (from {} included intents)",
+			resolved_intents.len(), executed_trades.len(), total_score, included.len());
+
 		Ok(Solution {
 			resolved_intents: ResolvedIntents::truncate_from(resolved_intents),
 			trades: SolutionTrades::truncate_from(executed_trades),
@@ -520,12 +567,19 @@ impl<A: AMMInterface> Solver<A> {
 	/// `min_amount_out` safety net.
 	fn solve_single_intent(intent: &Intent, initial_state: &A::State) -> Result<Solution, A::Error> {
 		let IntentData::Swap(swap) = &intent.data else {
+			log::debug!(target: "solver", "intent {}: single intent is non-swap type, skipping", intent.id);
 			return Ok(empty_solution());
 		};
 
-		match A::sell(swap.asset_in, swap.asset_out, swap.amount_in, None, initial_state) {
+		log::debug!(target: "solver", "solving single intent {}: {} -> {}, amount_in: {}, min_out: {}",
+			intent.id, swap.asset_in, swap.asset_out, swap.amount_in, swap.amount_out);
+
+		let route = A::discover_route(swap.asset_in, swap.asset_out, initial_state)?;
+		match A::sell(swap.asset_in, swap.asset_out, swap.amount_in, route, initial_state) {
 			Ok((_new_state, trade_execution)) => {
 				if trade_execution.amount_out < swap.amount_out {
+					log::debug!(target: "solver", "intent {}: AMM output {} < min_out {}, cannot satisfy",
+						intent.id, trade_execution.amount_out, swap.amount_out);
 					return Ok(empty_solution());
 				}
 
@@ -553,7 +607,11 @@ impl<A: AMMInterface> Solver<A> {
 					score: surplus,
 				})
 			}
-			Err(_) => Ok(empty_solution()),
+			Err(_) => {
+				log::debug!(target: "solver", "intent {}: AMM sell failed for {} -> {}, amount: {}",
+					intent.id, swap.asset_in, swap.asset_out, swap.amount_in);
+				Ok(empty_solution())
+			}
 		}
 	}
 
@@ -598,7 +656,8 @@ impl<A: AMMInterface> Solver<A> {
 
 		match flow {
 			FlowDirection::SingleForward { amount } => {
-				let (_, exec) = A::sell(asset_a, asset_b, amount, None, state).ok()?;
+				let route = A::discover_route(asset_a, asset_b, state).ok()?;
+				let (_, exec) = A::sell(asset_a, asset_b, amount, route, state).ok()?;
 				let adjusted_out = adjust_amm_output(exec.amount_out);
 				Some(PairClearing {
 					forward_n: U256::from(adjusted_out),
@@ -608,7 +667,8 @@ impl<A: AMMInterface> Solver<A> {
 				})
 			}
 			FlowDirection::SingleBackward { amount } => {
-				let (_, exec) = A::sell(asset_b, asset_a, amount, None, state).ok()?;
+				let route = A::discover_route(asset_b, asset_a, state).ok()?;
+				let (_, exec) = A::sell(asset_b, asset_a, amount, route, state).ok()?;
 				let adjusted_out = adjust_amm_output(exec.amount_out);
 				Some(PairClearing {
 					forward_n: U256::zero(),
@@ -622,7 +682,8 @@ impl<A: AMMInterface> Solver<A> {
 				direct_match,
 				net_sell,
 			} => {
-				let (_, exec) = A::sell(asset_a, asset_b, net_sell, None, state).ok()?;
+				let route = A::discover_route(asset_a, asset_b, state).ok()?;
+				let (_, exec) = A::sell(asset_a, asset_b, net_sell, route, state).ok()?;
 				let adjusted_out = adjust_amm_output(exec.amount_out);
 				Some(PairClearing {
 					forward_n: U256::from(direct_match.saturating_add(adjusted_out)),
@@ -636,7 +697,8 @@ impl<A: AMMInterface> Solver<A> {
 				direct_match,
 				net_sell,
 			} => {
-				let (_, exec) = A::sell(asset_b, asset_a, net_sell, None, state).ok()?;
+				let route = A::discover_route(asset_b, asset_a, state).ok()?;
+				let (_, exec) = A::sell(asset_b, asset_a, net_sell, route, state).ok()?;
 				let adjusted_out = adjust_amm_output(exec.amount_out);
 				Some(PairClearing {
 					forward_n: U256::from(scarce_out),
@@ -701,17 +763,30 @@ mod tests {
 		}
 	}
 
+	fn dummy_route(asset_in: u32, asset_out: u32) -> Route<u32> {
+		Route::try_from(vec![Trade {
+			pool: hydradx_traits::router::PoolType::Omnipool,
+			asset_in,
+			asset_out,
+		}])
+		.unwrap()
+	}
+
 	struct MockAMMOneToOne;
 
 	impl AMMInterface for MockAMMOneToOne {
 		type Error = ();
 		type State = ();
 
+		fn discover_route(asset_in: u32, asset_out: u32, _state: &Self::State) -> Result<Route<u32>, Self::Error> {
+			Ok(dummy_route(asset_in, asset_out))
+		}
+
 		fn sell(
 			asset_in: u32,
 			asset_out: u32,
 			amount_in: u128,
-			_route: Option<Route<u32>>,
+			_route: Route<u32>,
 			_state: &Self::State,
 		) -> Result<(Self::State, TradeExecution), Self::Error> {
 			Ok((
@@ -719,12 +794,7 @@ mod tests {
 				TradeExecution {
 					amount_in,
 					amount_out: amount_in,
-					route: Route::try_from(vec![Trade {
-						pool: hydradx_traits::router::PoolType::Omnipool,
-						asset_in,
-						asset_out,
-					}])
-					.unwrap(),
+					route: dummy_route(asset_in, asset_out),
 				},
 			))
 		}
@@ -733,7 +803,7 @@ mod tests {
 			asset_in: u32,
 			asset_out: u32,
 			amount_out: u128,
-			_route: Option<Route<u32>>,
+			_route: Route<u32>,
 			_state: &Self::State,
 		) -> Result<(Self::State, TradeExecution), Self::Error> {
 			Ok((
@@ -741,17 +811,17 @@ mod tests {
 				TradeExecution {
 					amount_in: amount_out,
 					amount_out,
-					route: Route::try_from(vec![Trade {
-						pool: hydradx_traits::router::PoolType::Omnipool,
-						asset_in,
-						asset_out,
-					}])
-					.unwrap(),
+					route: dummy_route(asset_in, asset_out),
 				},
 			))
 		}
 
-		fn get_spot_price(_asset_in: u32, _asset_out: u32, _state: &Self::State) -> Result<Ratio, Self::Error> {
+		fn get_spot_price(
+			_asset_in: u32,
+			_asset_out: u32,
+			_route: Route<u32>,
+			_state: &Self::State,
+		) -> Result<Ratio, Self::Error> {
 			Ok(Ratio::new(1, 1))
 		}
 
@@ -767,11 +837,15 @@ mod tests {
 		type Error = ();
 		type State = ();
 
+		fn discover_route(asset_in: u32, asset_out: u32, _state: &Self::State) -> Result<Route<u32>, Self::Error> {
+			Ok(dummy_route(asset_in, asset_out))
+		}
+
 		fn sell(
 			asset_in: u32,
 			asset_out: u32,
 			amount_in: u128,
-			_route: Option<Route<u32>>,
+			_route: Route<u32>,
 			_state: &Self::State,
 		) -> Result<(Self::State, TradeExecution), Self::Error> {
 			let base_out = if asset_in == 1 && asset_out == 2 {
@@ -787,12 +861,7 @@ mod tests {
 				TradeExecution {
 					amount_in,
 					amount_out,
-					route: Route::try_from(vec![Trade {
-						pool: hydradx_traits::router::PoolType::Omnipool,
-						asset_in,
-						asset_out,
-					}])
-					.unwrap(),
+					route: dummy_route(asset_in, asset_out),
 				},
 			))
 		}
@@ -801,7 +870,7 @@ mod tests {
 			asset_in: u32,
 			asset_out: u32,
 			amount_out: u128,
-			_route: Option<Route<u32>>,
+			_route: Route<u32>,
 			_state: &Self::State,
 		) -> Result<(Self::State, TradeExecution), Self::Error> {
 			let amount_in = if asset_in == 1 && asset_out == 2 {
@@ -816,17 +885,17 @@ mod tests {
 				TradeExecution {
 					amount_in,
 					amount_out,
-					route: Route::try_from(vec![Trade {
-						pool: hydradx_traits::router::PoolType::Omnipool,
-						asset_in,
-						asset_out,
-					}])
-					.unwrap(),
+					route: dummy_route(asset_in, asset_out),
 				},
 			))
 		}
 
-		fn get_spot_price(asset_in: u32, _asset_out: u32, _state: &Self::State) -> Result<Ratio, Self::Error> {
+		fn get_spot_price(
+			asset_in: u32,
+			_asset_out: u32,
+			_route: Route<u32>,
+			_state: &Self::State,
+		) -> Result<Ratio, Self::Error> {
 			match asset_in {
 				1 => Ok(Ratio::new(2, 1)),
 				2 => Ok(Ratio::new(1, 1)),
@@ -1057,11 +1126,15 @@ mod tests {
 		type Error = ();
 		type State = ();
 
+		fn discover_route(asset_in: u32, asset_out: u32, _state: &Self::State) -> Result<Route<u32>, Self::Error> {
+			Ok(dummy_route(asset_in, asset_out))
+		}
+
 		fn sell(
 			asset_in: u32,
 			asset_out: u32,
 			amount_in: u128,
-			_route: Option<Route<u32>>,
+			_route: Route<u32>,
 			_state: &Self::State,
 		) -> Result<(Self::State, TradeExecution), Self::Error> {
 			if asset_in == 1 && asset_out == 2 && amount_in > 50 {
@@ -1072,12 +1145,7 @@ mod tests {
 				TradeExecution {
 					amount_in,
 					amount_out: amount_in,
-					route: Route::try_from(vec![Trade {
-						pool: hydradx_traits::router::PoolType::Omnipool,
-						asset_in,
-						asset_out,
-					}])
-					.unwrap(),
+					route: dummy_route(asset_in, asset_out),
 				},
 			))
 		}
@@ -1086,7 +1154,7 @@ mod tests {
 			asset_in: u32,
 			asset_out: u32,
 			amount_out: u128,
-			_route: Option<Route<u32>>,
+			_route: Route<u32>,
 			_state: &Self::State,
 		) -> Result<(Self::State, TradeExecution), Self::Error> {
 			Ok((
@@ -1094,17 +1162,17 @@ mod tests {
 				TradeExecution {
 					amount_in: amount_out,
 					amount_out,
-					route: Route::try_from(vec![Trade {
-						pool: hydradx_traits::router::PoolType::Omnipool,
-						asset_in,
-						asset_out,
-					}])
-					.unwrap(),
+					route: dummy_route(asset_in, asset_out),
 				},
 			))
 		}
 
-		fn get_spot_price(_asset_in: u32, _asset_out: u32, _state: &Self::State) -> Result<Ratio, Self::Error> {
+		fn get_spot_price(
+			_asset_in: u32,
+			_asset_out: u32,
+			_route: Route<u32>,
+			_state: &Self::State,
+		) -> Result<Ratio, Self::Error> {
 			Ok(Ratio::new(1, 1))
 		}
 

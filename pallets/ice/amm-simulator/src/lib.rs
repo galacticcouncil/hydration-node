@@ -25,50 +25,48 @@ impl<C: SimulatorConfig> HydrationSimulator<C> {
 	pub fn initial_state() -> <C::Simulators as SimulatorSet>::State {
 		C::Simulators::initial_state()
 	}
-
-	/// Discover a route for the asset pair with proper priority:
-	/// 1. Explicit on-chain route (if configured in Router storage)
-	/// 2. Simulator discovery (ask simulators via can_trade)
-	/// 3. Default route from RouteProvider
-	fn discover_route(asset_in: u32, asset_out: u32, state: &<C::Simulators as SimulatorSet>::State) -> Route<u32> {
-		let asset_pair = AssetPair::new(asset_in, asset_out);
-
-		// Priority 1: Check for explicitly configured on-chain route
-		if let Some(explicit_route) = C::RouteProvider::get_onchain_route(asset_pair) {
-			return explicit_route;
-		}
-
-		// Priority 2: Ask simulators if they can trade this pair directly
-		if let Some(pool_type) = C::Simulators::can_trade(asset_in, asset_out, state) {
-			return BoundedVec::truncate_from(vec![Trade {
-				pool: pool_type,
-				asset_in,
-				asset_out,
-			}]);
-		}
-
-		// Priority 3: Fall back to the route provider's default
-		C::RouteProvider::get_route(asset_pair)
-	}
 }
 
 impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 	type Error = SimulatorError;
 	type State = <C::Simulators as SimulatorSet>::State;
 
-	fn sell(
-		asset_in: u32,
-		asset_out: u32,
-		amount_in: u128,
-		route: Option<Route<u32>>,
-		state: &Self::State,
-	) -> Result<(Self::State, TradeExecution), Self::Error> {
-		let route = route.unwrap_or_else(|| Self::discover_route(asset_in, asset_out, state));
+	/// Discover a route for the asset pair with proper priority:
+	/// 1. Explicit on-chain route (if configured in Router storage)
+	/// 2. Simulator discovery (ask simulators via can_trade)
+	/// 3. Default route from RouteProvider
+	fn discover_route(asset_in: u32, asset_out: u32, state: &Self::State) -> Result<Route<u32>, Self::Error> {
+		let asset_pair = AssetPair::new(asset_in, asset_out);
 
-		if route.is_empty() {
-			return Err(SimulatorError::Other);
+		// Priority 1: Check for explicitly configured on-chain route
+		if let Some(explicit_route) = C::RouteProvider::get_onchain_route(asset_pair) {
+			return Ok(explicit_route);
 		}
 
+		// Priority 2: Ask simulators if they can trade this pair directly
+		if let Some(pool_type) = C::Simulators::can_trade(asset_in, asset_out, state) {
+			return Ok(BoundedVec::truncate_from(vec![Trade {
+				pool: pool_type,
+				asset_in,
+				asset_out,
+			}]));
+		}
+
+		// Priority 3: Fall back to the route provider's default
+		let route = C::RouteProvider::get_route(asset_pair);
+		if route.is_empty() {
+			return Err(SimulatorError::AssetNotFound);
+		}
+		Ok(route)
+	}
+
+	fn sell(
+		_asset_in: u32,
+		_asset_out: u32,
+		amount_in: u128,
+		route: Route<u32>,
+		state: &Self::State,
+	) -> Result<(Self::State, TradeExecution), Self::Error> {
 		let mut current_state = state.clone();
 		let mut current_amount = amount_in;
 		let original_amount_in = amount_in;
@@ -98,18 +96,12 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 	}
 
 	fn buy(
-		asset_in: u32,
-		asset_out: u32,
+		_asset_in: u32,
+		_asset_out: u32,
 		amount_out: u128,
-		route: Option<Route<u32>>,
+		route: Route<u32>,
 		state: &Self::State,
 	) -> Result<(Self::State, TradeExecution), Self::Error> {
-		let route = route.unwrap_or_else(|| Self::discover_route(asset_in, asset_out, state));
-
-		if route.is_empty() {
-			return Err(SimulatorError::Other);
-		}
-
 		let mut current_required = amount_out;
 
 		let mut current_state = state.clone();
@@ -140,13 +132,12 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 		))
 	}
 
-	fn get_spot_price(asset_in: u32, asset_out: u32, state: &Self::State) -> Result<Ratio, Self::Error> {
-		let route = Self::discover_route(asset_in, asset_out, state);
-
-		if route.is_empty() {
-			return Err(SimulatorError::AssetNotFound);
-		}
-
+	fn get_spot_price(
+		_asset_in: u32,
+		_asset_out: u32,
+		route: Route<u32>,
+		state: &Self::State,
+	) -> Result<Ratio, Self::Error> {
 		let mut numerator = U512::from(1u128);
 		let mut denominator = U512::from(1u128);
 

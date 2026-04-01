@@ -528,21 +528,23 @@ impl<T: Config> Pallet<T> {
 					IntentData::Swap(_) => Some((id, intent)),
 					IntentData::Dca(dca) => {
 						// Period eligibility
-						if current_block < dca.last_execution_block.saturating_add(dca.period) {
+						let next_eligible = dca.last_execution_block.saturating_add(dca.period);
+						if current_block < next_eligible {
+							log::debug!(target: OCW_LOG_TARGET, "{:?}: get_valid_intents(), DCA intent {:?} skipped: period not elapsed (current_block: {}, next_eligible: {})",
+								LOG_PREFIX, id, current_block, next_eligible);
 							return None;
 						}
 						// Budget sufficient for a trade
 						if dca.remaining_budget < dca.amount_in {
+							log::debug!(target: OCW_LOG_TARGET, "{:?}: get_valid_intents(), DCA intent {:?} skipped: insufficient budget (remaining: {}, required: {})",
+								LOG_PREFIX, id, dca.remaining_budget, dca.amount_in);
 							return None;
 						}
-						// Oracle pre-filter: skip if oracle indicates the trade is unlikely
-						// to satisfy the user's slippage tolerance at current prices.
-						// This prevents the solver from wasting time on intents that would
-						// fail due to market conditions.
+						// Oracle pre-filter
 						if let Some(oracle_min) = Self::compute_dca_oracle_limit(dca) {
 							if oracle_min > 0 && dca.amount_out > oracle_min {
-								// Hard limit exceeds what oracle says market can provide
-								// with the user's slippage tolerance — skip this block
+								log::debug!(target: OCW_LOG_TARGET, "{:?}: get_valid_intents(), DCA intent {:?} skipped: oracle pre-filter (hard_limit: {} > oracle_min: {} for {} -> {})",
+									LOG_PREFIX, id, dca.amount_out, oracle_min, dca.asset_in, dca.asset_out);
 								return None;
 							}
 						}
@@ -757,8 +759,10 @@ impl<T: Config> Pallet<T> {
 		if dca.budget.is_none() {
 			if T::Currency::reserve_named(&NAMED_RESERVE_ID, dca.asset_in, owner, dca.amount_in).is_ok() {
 				dca.remaining_budget = dca.remaining_budget.saturating_add(dca.amount_in);
+			} else {
+				log::debug!(target: OCW_LOG_TARGET, "{:?}: resolve_dca_intent(), rolling DCA re-reserve failed for owner {:?}, asset: {:?}, amount: {:?} (insufficient free balance)",
+					LOG_PREFIX, owner, dca.asset_in, dca.amount_in);
 			}
-			// If reserve fails, DCA may complete on next check
 		}
 
 		// DCA complete if insufficient budget for another trade
