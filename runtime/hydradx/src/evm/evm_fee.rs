@@ -114,13 +114,6 @@ impl hydradx_traits::evm::EvmFeePayerSupport for EvmFeePayerImpl {
 		fee_payer_override::clear();
 		previous
 	}
-
-	fn restore_fee_payer(previous: Option<AccountId>) {
-		match previous {
-			Some(payer) => fee_payer_override::set(payer),
-			None => fee_payer_override::clear(),
-		}
-	}
 }
 
 #[derive(Copy, Clone, Default)]
@@ -440,20 +433,16 @@ mod tests {
 		let alice: AccountId = [1u8; 32].into();
 		let bob: AccountId = [2u8; 32].into();
 
-		// Set alice, save previous (None)
 		let prev = EvmFeePayerImpl::set_fee_payer(alice.clone());
 		assert_eq!(prev, None);
 
-		// Set bob, save previous (alice)
 		let prev2 = EvmFeePayerImpl::set_fee_payer(bob.clone());
 		assert_eq!(prev2, Some(alice.clone()));
 
-		// Restore alice
-		EvmFeePayerImpl::restore_fee_payer(prev2);
+		EvmFeePayerImpl::set_fee_payer(prev2.unwrap());
 		assert_eq!(evm_fee_payer(), Some(alice));
 
-		// Restore None
-		EvmFeePayerImpl::restore_fee_payer(prev);
+		EvmFeePayerImpl::clear_fee_payer();
 		assert_eq!(evm_fee_payer(), None);
 	}
 }

@@ -140,10 +140,6 @@ pub trait ExtraGasSupport {
 pub trait EvmFeePayerSupport {
 	type AccountId;
 
-	/// Set the fee payer override, returning the previous value (for nesting support).
 	fn set_fee_payer(payer: Self::AccountId) -> Option<Self::AccountId>;
-	/// Clear the fee payer override, returning the previous value.
 	fn clear_fee_payer() -> Option<Self::AccountId>;
-	/// Restore a previously saved fee payer.
-	fn restore_fee_payer(previous: Option<Self::AccountId>);
 }

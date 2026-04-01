@@ -381,16 +381,6 @@ pub mod pallet {
 			Ok(actual_weight.into())
 		}
 
-		/// Dispatch a call with the signer set as the EVM fee payer.
-		///
-		/// This sets the EVM fee payer override to the signer of this extrinsic,
-		/// dispatches the inner call, then restores the previous fee payer.
-		/// Used when a controller account needs to pay EVM gas fees
-		/// on behalf of a pureProxy account.
-		///
-		/// Supports nesting: if there is already a fee payer set (e.g., from
-		/// an outer `dispatch_with_fee_payer`), it is saved and restored after
-		/// the inner call completes.
 		#[pallet::call_index(6)]
 		#[pallet::weight({
 			let call_weight = call.get_dispatch_info().call_weight;
@@ -406,7 +396,10 @@ pub mod pallet {
 
 			let previous = T::EvmFeePayer::set_fee_payer(signer);
 			let (result, actual_weight) = Self::do_dispatch(origin, *call);
-			T::EvmFeePayer::restore_fee_payer(previous);
+			match previous {
+				Some(p) => T::EvmFeePayer::set_fee_payer(p),
+				None => T::EvmFeePayer::clear_fee_payer(),
+			};
 
 			match result {
 				Ok(_) => Ok(PostDispatchInfo {

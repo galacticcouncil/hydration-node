@@ -124,10 +124,6 @@ impl hydradx_traits::evm::EvmFeePayerSupport for MockEvmFeePayer {
 	fn clear_fee_payer() -> Option<AccountId> {
 		FEE_PAYER.with(|v| v.borrow_mut().take())
 	}
-
-	fn restore_fee_payer(previous: Option<AccountId>) {
-		FEE_PAYER.with(|v| *v.borrow_mut() = previous);
-	}
 }
 
 pub fn get_fee_payer() -> Option<AccountId> {
