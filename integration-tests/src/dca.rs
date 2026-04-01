@@ -5996,3 +5996,78 @@ pub(crate) mod extra_gas_erc20 {
 		crate::utils::contracts::deploy_contract_code(bytecode, deployer)
 	}
 }
+
+#[test]
+fn rolling_buy_dca_completes_prematurely_when_price_increases() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		// Give ALICE a lot of HDX so she will NOT run out of funds
+		let alice_balance = 10_000_000_000 * UNITS;
+		assert_ok!(Balances::force_set_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			alice_balance,
+		));
+
+		let trade_size = 500 * UNITS; // amount_out: 500 DAI to buy each period
+
+		// Create rolling buy DCA at the current (normal) price
+		// Use high max_retries so DCA survives oracle instability after the price move
+		let rolling_buy_schedule = Schedule {
+			owner: AccountId::from(ALICE),
+			period: 5u32,
+			total_amount: 0, // rolling
+			max_retries: Some(100),
+			stability_threshold: Some(Permill::from_percent(5)),
+			slippage: Some(Permill::from_percent(50)),
+			order: Order::Buy {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_out: trade_size,
+				max_amount_in: Balance::MAX,
+				route: create_bounded_vec(vec![Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DAI,
+				}]),
+			},
+		};
+
+		create_schedule(ALICE, rolling_buy_schedule);
+
+		let schedule_id = 0;
+		let remaining_amount = DCA::remaining_amounts(schedule_id).unwrap();
+
+		// Now move the price AFTER DCA creation: BOB sells a massive amount of HDX for DAI,
+		// making DAI much more expensive in HDX terms (~3x price increase).
+		// The omnipool has ~5 billion UNITS of each asset, so we need billions to move the price.
+		// This does NOT affect remaining_amount which is already stored.
+		let bob_balance = 5_000_000_000 * UNITS;
+		assert_ok!(Balances::force_set_balance(
+			RuntimeOrigin::root(),
+			BOB.into(),
+			bob_balance,
+		));
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			1_500_000_000 * UNITS,
+			0,
+		));
+
+		//Act - run enough blocks for oracle to stabilize and DCA to execute
+		// Retry delays grow exponentially (20, 40, 80, 160 blocks), so we need many blocks
+		run_to_block(11, 200);
+
+		//Assert
+		// Rolling DCA should NOT be terminated just because the price moved
+		assert!(
+			DCA::schedules(schedule_id).is_some(),
+			"Rolling DCA should still be active after price increase"
+		);
+	});
+}
