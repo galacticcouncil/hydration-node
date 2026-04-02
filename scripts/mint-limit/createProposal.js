@@ -23,7 +23,7 @@ const sdk = await createSdkContext(api);
 
 
 // Time range (days) for Grafana query
-const RANGE_DAYS = 90;
+const RANGE_DAYS = 365;
 
 // Technical Committee threshold (how many approvals needed to start motion)
 const TC_THRESHOLD = 4;
@@ -51,6 +51,7 @@ const MINT_LIMIT_OVERWRITES = {
     15: BigInt("9000000000000000"), //VDOT
     10: BigInt("5000000000000"), //USDT
     22: BigInt("5000000000000"), //UDSC
+    690: BigInt("506727271452772187242496"), // 2-Pool-GDOT ~$800k cap
 };
 
 /* ========= HELPERS ========= */
@@ -99,9 +100,9 @@ function buildTwoXMaxQuery(currencyId, fromIso, toIso) {
             ),
             percentiles AS (
         SELECT
-            PERCENTILE_CONT(0.01) WITHIN
+            PERCENTILE_CONT(0.05) WITHIN
         GROUP (ORDER BY net_deposits) AS p5,
-            PERCENTILE_CONT(0.99) WITHIN
+            PERCENTILE_CONT(0.95) WITHIN
         GROUP (ORDER BY net_deposits) AS p95
         FROM daily_data
             ), wins AS (
@@ -193,6 +194,7 @@ async function buildBatchCall({rpc, assetIds, rangeDays}) {
     const toIso = now.toISOString();
 
     const calls = [];
+    const results = [];
     for (const assetId of assetIds) {
         let finalLimit;
         let isOverwrite = false;
@@ -252,11 +254,20 @@ async function buildBatchCall({rpc, assetIds, rangeDays}) {
         ].filter(Boolean).join(', ');
 
         console.log(`${assetId} (${assetName}) -> mint limit = $${finalUsdAmount.toLocaleString()} | amount = ${adjustedLimit} ${statusFlags ? ` (${statusFlags})` : ''}`);
+
+        results.push({
+            'Asset ID': assetId,
+            'Name': assetName,
+            'Mint Limit ($)': `$${finalUsdAmount.toLocaleString()}`,
+            'Mint Limit (units)': adjustedLimit.toString(),
+            'Notes': statusFlags || '-',
+        });
+
         calls.push(buildUpdateCall(api, assetId, adjustedLimit));
     }
 
     const batch = api.tx.utility.batchAll(calls);
-    return {api, batch};
+    return {api, batch, results};
 }
 
 function buildTechnicalCommitteePropose(api, call, threshold) {
@@ -270,7 +281,7 @@ function buildTechnicalCommitteePropose(api, call, threshold) {
     try {
         if (!ASSETS.length) throw new Error('ASSETS is empty.');
 
-        const {api, batch} = await buildBatchCall({
+        const {api, batch, results} = await buildBatchCall({
             rpc: RPC,
             assetIds: ASSETS,
             rangeDays: RANGE_DAYS
@@ -278,6 +289,9 @@ function buildTechnicalCommitteePropose(api, call, threshold) {
 
         // Wrap in technicalCommittee.propose
         const tcProposal = buildTechnicalCommitteePropose(api, batch, TC_THRESHOLD);
+
+        console.log('\n--- Mint Limit Summary ---');
+        console.table(results);
 
         console.log('\n--- utility.batchAll (human) ---\n', batch.method.toHuman());
         console.log('\n--- TC propose (human) ---\n', tcProposal.method.toHuman());
