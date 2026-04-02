@@ -6258,7 +6258,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.10.0"
+version = "14.10.1"
 dependencies = [
  "async-trait",
  "clap",
@@ -6295,6 +6295,7 @@ dependencies = [
  "hyper-rustls 0.24.2",
  "ismp-parachain-inherent",
  "jsonrpsee",
+ "kvdb-rocksdb",
  "liquidation-worker-support",
  "log",
  "num_cpus",
