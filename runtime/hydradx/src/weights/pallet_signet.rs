@@ -39,32 +39,13 @@ pub struct WeightInfo<T>(PhantomData<T>);
 /// Weights for `pallet_signet` using the HydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_signet::WeightInfo for HydraWeight<T> {
-	/// Storage: `Signet::Admin` (r:1 w:1)
-	/// Proof: `Signet::Admin` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-	/// Storage: `Signet::SignatureDeposit` (r:0 w:1)
-	/// Proof: `Signet::SignatureDeposit` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	/// Storage: `Signet::ChainId` (r:0 w:1)
-	/// Proof: `Signet::ChainId` (`max_values`: Some(1), `max_size`: Some(130), added: 625, mode: `MaxEncodedLen`)
-	fn initialize() -> Weight {
+	fn set_config() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `4`
 		//  Estimated: `1517`
 		// Minimum execution time: 12_621_000 picoseconds.
 		Weight::from_parts(13_044_000, 1517)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
-			.saturating_add(T::DbWeight::get().writes(3_u64))
-	}
-	/// Storage: `Signet::Admin` (r:1 w:0)
-	/// Proof: `Signet::Admin` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-	/// Storage: `Signet::SignatureDeposit` (r:1 w:1)
-	/// Proof: `Signet::SignatureDeposit` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	fn update_deposit() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `128`
-		//  Estimated: `1517`
-		// Minimum execution time: 14_559_000 picoseconds.
-		Weight::from_parts(14_858_000, 1517)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	fn withdraw_funds() -> Weight {
