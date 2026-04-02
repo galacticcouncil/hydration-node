@@ -210,6 +210,24 @@ pub fn new_partial(
 		.build(),
 	);
 
+	// Workaround for upstream Frontier bug: the v2→v3 RocksDB migration tries to
+	// open an existing 4-column database with 5 columns, but kvdb-rocksdb doesn't
+	// set `create_missing_column_families`, so the open fails. We pre-add the 5th
+	// column here so the migration finds the expected schema.
+	if matches!(config.database, fc_db::kv::DatabaseSource::RocksDb { .. }) {
+		let frontier_db_path = fc_db::kv::frontier_database_dir(&evm::db_config_dir(config), "db");
+		if frontier_db_path.exists() {
+			let db_cfg = kvdb_rocksdb::DatabaseConfig::with_columns(4);
+			if let Ok(mut db) = kvdb_rocksdb::Database::open(&db_cfg, &frontier_db_path) {
+				if db.num_columns() == 4 {
+					if let Err(e) = db.add_column() {
+						log::warn!("Failed to pre-add Frontier DB column for v2→v3 migration: {e}");
+					}
+				}
+			}
+		}
+	}
+
 	let frontier_backend = Arc::new(FrontierBackend::open(
 		Arc::clone(&client),
 		&config.database,

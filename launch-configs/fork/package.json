@@ -5,7 +5,7 @@
   "scripts": {
     "state:get": "./get-state.sh",
     "state:download": "wget -O data/state.json ${STATE_SOURCE:-https://snapshots.play.hydration.cloud/state.json}",
-    "state:scrape": "../../target/release/scraper save-chainspec --uri ${STATE_RPC:-wss://4.rpc.hydration.cloud} ${STATE_BLOCK:+--at=${STATE_BLOCK}} --exclude Ismp IsmpParachain --path ./ && mkdir -p data && mv SNAPSHOT.json data/state.json",
+    "state:scrape": "../../target/release/scraper save-chainspec --uri ${STATE_RPC:-wss://node.parm.hydration.cloud} ${STATE_BLOCK:+--at=${STATE_BLOCK}} --exclude Ismp IsmpParachain --path ./ && mkdir -p data && mv SNAPSHOT.json data/state.json",
     "state:prepare": "node prepare-state-for-zombienet.js data/state.json data/forked-chainspec.json",
     "zombie:init": "zombienet -l text -fd data spawn config.json",
     "para:alice": "tail -F data/alice-1.log",
@@ -20,6 +20,7 @@
     "start:live": "run-s -n state:scrape state:prepare zombienet",
     "docker:build": "docker build --no-cache -t galacticcouncil/fork:latest .",
     "docker:build:next": "docker build --no-cache --build-arg HYDRATION_BIN_URL=https://snapshots.play.hydration.cloud -t galacticcouncil/fork:next .",
+    "docker:build:version": "docker build --no-cache --build-arg HYDRATION_BIN_URL=https://github.com/galacticcouncil/hydration-node/releases/download/v$VERSION -t galacticcouncil/fork:$VERSION .",
     "docker:push": "docker push galacticcouncil/fork:latest",
     "docker:push:next": "docker push galacticcouncil/fork:next",
     "docker:release": "run-s -n docker:build docker:push"
