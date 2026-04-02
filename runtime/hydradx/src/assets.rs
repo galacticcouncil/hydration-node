@@ -45,7 +45,7 @@ use hydradx_adapters::{
 };
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::evm::CallContext;
-use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
+use hydradx_traits::router::{Route, MAX_NUMBER_OF_TRADES};
 pub use hydradx_traits::{
 	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
 	registry::Inspect,
@@ -1441,6 +1441,7 @@ use sp_runtime::traits::TryConvert;
 use sp_runtime::TokenError;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
+use hydradx_traits::amm::{SimulatorError, SimulatorSet};
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);
@@ -1884,9 +1885,18 @@ type HydrationSimulators = (
 	AaveSimulator<ice_simulator_provider::Aave<Runtime>>,
 );
 
+pub struct SmartRouteFinder<S: SimulatorSet>(sp_std::marker::PhantomData<S>);
+
+impl<S: SimulatorSet> hydradx_traits::amm::RouteDiscovery<S::State> for SmartRouteFinder<S> {
+	fn discover_route(asset_in: AssetId, asset_out: AssetId, state: &S::State) -> Result<Route<AssetId>, SimulatorError> {
+		todo!()
+	}
+}
+
 impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
 	type Simulators = HydrationSimulators;
-	type RouteDiscovery = amm_simulator::OnChainRouteDiscovery<Router, HydrationSimulators>;
+	//type RouteDiscovery = amm_simulator::OnChainRouteDiscovery<Router, HydrationSimulators>;
+	type RouteDiscovery = SmartRouteFinder<HydrationSimulators>;
 	type PriceDenominator = SimulatorPriceDenom;
 }
 
