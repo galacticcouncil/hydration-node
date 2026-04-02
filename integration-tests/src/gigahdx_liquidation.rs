@@ -566,8 +566,8 @@ fn giga_stake_does_not_enable_collateral_for_isolated_sthdx() {
 	});
 }
 
-/// stHDX is an isolated asset — only HOLLAR should be borrowable against it.
-/// Other assets (USDC, USDT, DOT, etc.) must be rejected.
+/// stHDX is an isolated asset. HOLLAR, USDC, and USDT are borrowable in isolation
+/// (configured via setBorrowableInIsolation on prod). All other assets are rejected.
 #[test]
 fn isolated_sthdx_only_allows_borrowing_hollar() {
 	TestNet::reset();
@@ -594,15 +594,19 @@ fn isolated_sthdx_only_allows_borrowing_hollar() {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
 		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
 
-		// Borrowing HOLLAR succeeds
+		// Borrowable in isolation: HOLLAR, USDC, USDT
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
 		borrow(pool_contract, alice_evm, hollar_addr, 1 * HOLLAR_UNITS);
+
+		let usdc_addr = HydraErc20Mapping::encode_evm_address(22);
+		borrow(pool_contract, alice_evm, usdc_addr, 1_000_000); // 1 USDC
+
+		let usdt_addr = HydraErc20Mapping::encode_evm_address(10);
+		borrow(pool_contract, alice_evm, usdt_addr, 1_000_000); // 1 USDT
 
 		// All other borrowable assets should fail in isolation mode
 		// All revert with Aave error "60" = ASSET_NOT_BORROWABLE_IN_ISOLATION
 		let non_borrowable_in_isolation: Vec<(AssetId, Balance, &str)> = vec![
-			(22, 1_000_000, "USDC"),                      // 6 decimals
-			(10, 1_000_000, "USDT"),                      // 6 decimals
 			(19, 100_000, "WBTC"),                        // 8 decimals
 			(5, 10_000_000_000, "DOT"),                   // 10 decimals
 			(15, 10_000_000_000, "VDOT"),                 // 10 decimals
