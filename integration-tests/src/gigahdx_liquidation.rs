@@ -642,3 +642,110 @@ fn isolated_sthdx_only_allows_borrowing_hollar() {
 		}
 	});
 }
+
+/// Liquidation should fail when the user's health factor is above 1 (position is healthy).
+#[test]
+fn gigahdx_liquidation_fails_when_position_is_healthy() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+		let treasury = BorrowingTreasuryAccount::get();
+
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			GigaHdx::gigapot_account_id(),
+			UNITS,
+		));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(BOB))));
+
+		let alice_evm = EVMAccounts::evm_address(&alice);
+		let treasury_evm = EVMAccounts::evm_address(&treasury);
+		let pool_contract = fetch_pool_contract(alice_evm);
+		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
+		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
+
+		assert_ok!(Liquidation::set_borrowing_contract(RuntimeOrigin::root(), pool_contract));
+		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+		// Alice stakes and borrows a small amount — position is healthy
+		let stake_amount = 10_000 * UNITS;
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 100_000 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
+		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
+		borrow(pool_contract, alice_evm, hollar_addr, 1 * HOLLAR_UNITS);
+
+		// Fund treasury
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), treasury.clone(), 2_000_000 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(treasury.clone()), 1_000_000 * UNITS));
+		set_use_as_collateral(pool_contract, treasury_evm, sthdx_evm);
+
+		// Verify HF > 1
+		let user_data = get_user_account_data(pool_contract, alice_evm).unwrap();
+		assert!(
+			user_data.health_factor > U256::from(1_000_000_000_000_000_000u128),
+			"HF should be > 1"
+		);
+
+		// Liquidation should fail — position is healthy
+		assert!(Liquidation::liquidate(
+			RuntimeOrigin::signed(AccountId::from(BOB)),
+			GIGAHDX,
+			HOLLAR,
+			alice_evm,
+			1 * HOLLAR_UNITS,
+			BoundedVec::new(),
+		).is_err());
+	});
+}
+
+/// Treasury borrow fails when treasury has no collateral in the money market.
+#[test]
+fn gigahdx_liquidation_fails_when_treasury_has_no_collateral() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			GigaHdx::gigapot_account_id(),
+			UNITS,
+		));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(BOB))));
+
+		let alice_evm = EVMAccounts::evm_address(&alice);
+		let pool_contract = fetch_pool_contract(alice_evm);
+		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
+		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
+
+		assert_ok!(Liquidation::set_borrowing_contract(RuntimeOrigin::root(), pool_contract));
+		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+		// Alice stakes, enables collateral, borrows
+		let stake_amount = 10_000 * UNITS;
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 100_000 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
+		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
+		borrow(pool_contract, alice_evm, hollar_addr, 5 * HOLLAR_UNITS);
+
+		// Crash price → HF < 1
+		let original_price = get_aave_asset_price(sthdx_evm);
+		let mock_oracle = deploy_fixed_price_oracle(original_price * 30 / 100);
+		set_aave_price_source(sthdx_evm, mock_oracle);
+
+		// Do NOT fund treasury — no collateral to borrow against
+
+		// Liquidation should fail with BorrowFailed
+		let result = Liquidation::liquidate(
+			RuntimeOrigin::signed(AccountId::from(BOB)),
+			GIGAHDX,
+			HOLLAR,
+			alice_evm,
+			5 * HOLLAR_UNITS / 2,
+			BoundedVec::new(),
+		);
+		assert!(result.is_err(), "Should fail when treasury has no collateral");
+	});
+}
+
