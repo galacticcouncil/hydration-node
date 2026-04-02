@@ -52,7 +52,7 @@ fn selector(sig: &str) -> Vec<u8> {
 	sp_io::hashing::keccak_256(sig.as_bytes())[0..4].to_vec()
 }
 
-fn borrow_should_fail(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: Balance) {
+fn try_borrow(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: Balance) -> (fp_evm::ExitReason, Vec<u8>) {
 	use hydradx_runtime::evm::precompiles::handle::EvmDataWriter;
 	let data = EvmDataWriter::new_with_selector(Function::Borrow)
 		.write(asset)
@@ -62,10 +62,16 @@ fn borrow_should_fail(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, 
 		.write(user)
 		.build();
 	let result = Executor::<Runtime>::call(CallContext::new_call(mm_pool, user), data, U256::zero(), 50_000_000);
+	(result.exit_reason, result.value)
+}
+
+fn borrow_should_fail(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: Balance) {
+	let (reason, value) = try_borrow(mm_pool, user, asset, amount);
 	assert!(
-		matches!(result.exit_reason, fp_evm::ExitReason::Revert(_)),
-		"Borrow should revert, but got: {:?}",
-		result.exit_reason
+		matches!(reason, fp_evm::ExitReason::Revert(_)),
+		"Borrow should revert, but got: {:?} data={}",
+		reason,
+		hex::encode(&value)
 	);
 }
 
@@ -279,9 +285,9 @@ fn gigahdx_liquidation_should_work() {
 		set_use_as_collateral(pool_contract, treasury_evm, sthdx_evm);
 
 		// ---- Drop stHDX price → ALICE's health factor drops below 1 ----
-		// Use a gentle drop (~60%) rather than extreme crash so liquidation improves HF.
+		// Use a moderate drop so HF goes below 1 but liquidation still improves it.
 		let original_price = get_aave_asset_price(sthdx_evm);
-		let crashed_price = original_price * 20 / 100; // 80% drop
+		let crashed_price = original_price * 30 / 100; // 70% drop
 		let mock_oracle = deploy_fixed_price_oracle(crashed_price);
 		set_aave_price_source(sthdx_evm, mock_oracle);
 
@@ -473,7 +479,7 @@ fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
 
 		// Crash price → HF < 1
 		let original_price = get_aave_asset_price(sthdx_evm);
-		let mock_oracle = deploy_fixed_price_oracle(original_price * 20 / 100); // 80% drop
+		let mock_oracle = deploy_fixed_price_oracle(original_price * 30 / 100); // 70% drop
 		set_aave_price_source(sthdx_evm, mock_oracle);
 
 		assert_ok!(Liquidation::liquidate(
@@ -557,5 +563,78 @@ fn giga_stake_does_not_enable_collateral_for_isolated_sthdx() {
 
 		// Now borrow succeeds
 		borrow(pool_contract, alice_evm, hollar_addr, 1 * HOLLAR_UNITS);
+	});
+}
+
+/// stHDX is an isolated asset — only HOLLAR should be borrowable against it.
+/// Other assets (USDC, USDT, DOT, etc.) must be rejected.
+#[test]
+fn isolated_sthdx_only_allows_borrowing_hollar() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			GigaHdx::gigapot_account_id(),
+			UNITS,
+		));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
+
+		let alice_evm = EVMAccounts::evm_address(&alice);
+		let pool_contract = fetch_pool_contract(alice_evm);
+		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
+
+		assert_ok!(Liquidation::set_borrowing_contract(RuntimeOrigin::root(), pool_contract));
+		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+		// Alice stakes HDX → gets GIGAHDX, enable as collateral
+		let stake_amount = 10_000 * UNITS;
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 100_000 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
+		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
+
+		// Borrowing HOLLAR succeeds
+		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
+		borrow(pool_contract, alice_evm, hollar_addr, 1 * HOLLAR_UNITS);
+
+		// All other borrowable assets should fail in isolation mode
+		// All revert with Aave error "60" = ASSET_NOT_BORROWABLE_IN_ISOLATION
+		let non_borrowable_in_isolation: Vec<(AssetId, Balance, &str)> = vec![
+			(22, 1_000_000, "USDC"),                      // 6 decimals
+			(10, 1_000_000, "USDT"),                      // 6 decimals
+			(19, 100_000, "WBTC"),                        // 8 decimals
+			(5, 10_000_000_000, "DOT"),                   // 10 decimals
+			(15, 10_000_000_000, "VDOT"),                 // 10 decimals
+			(34, 1_000_000_000_000_000, "ETH"),           // 18 decimals
+			(43, 1_000_000, "PRIME"),                     // 6 decimals
+			(1000765, 1_000_000_000_000_000, "tBTC"),     // 18 decimals
+			(39, 1_000_000_000_000_000, "PAXG"),          // 18 decimals
+			(1000752, 1_000_000_000, "SOL"),              // 9 decimals
+			(44, 1_000_000, "EURC"),                      // 6 decimals
+		];
+
+		// Aave error "60" = ASSET_NOT_BORROWABLE_IN_ISOLATION encoded as Error(string)
+		let error_60 = hex::decode(
+			"08c379a0\
+			 0000000000000000000000000000000000000000000000000000000000000020\
+			 0000000000000000000000000000000000000000000000000000000000000002\
+			 3630000000000000000000000000000000000000000000000000000000000000"
+		).unwrap();
+
+		for (asset_id, amount, name) in non_borrowable_in_isolation {
+			let addr = HydraErc20Mapping::encode_evm_address(asset_id);
+			let (reason, value) = try_borrow(pool_contract, alice_evm, addr, amount);
+			assert!(
+				matches!(reason, fp_evm::ExitReason::Revert(_)),
+				"{name}: borrow should revert, but got: {:?}",
+				reason
+			);
+			assert_eq!(
+				value, error_60,
+				"{name}: expected ASSET_NOT_BORROWABLE_IN_ISOLATION (error 60), got: {}",
+				hex::encode(&value)
+			);
+		}
 	});
 }
