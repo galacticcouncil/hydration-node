@@ -40,6 +40,7 @@ mod benchmarking;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
+use hydradx_traits::evm::EvmFeePayerSupport;
 use hydradx_traits::evm::ExtraGasSupport;
 use hydradx_traits::evm::MaybeEvmCall;
 use pallet_evm::{ExitReason, GasWeightMapping};
@@ -91,6 +92,9 @@ pub mod pallet {
 
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
+
+		/// Support for overriding the EVM fee payer.
+		type EvmFeePayer: EvmFeePayerSupport<AccountId = Self::AccountId>;
 
 		/// The weight information for this pallet.
 		type WeightInfo: WeightInfo;
@@ -375,6 +379,41 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::EmergencyAdminCallDispatched { call_hash, result });
 
 			Ok(actual_weight.into())
+		}
+
+		#[pallet::call_index(6)]
+		#[pallet::weight({
+			let call_weight = call.get_dispatch_info().call_weight;
+			let call_len = call.encoded_size() as u32;
+			T::WeightInfo::dispatch_with_fee_payer(call_len)
+				.saturating_add(call_weight)
+		})]
+		pub fn dispatch_with_fee_payer(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			let signer = ensure_signed(origin.clone())?;
+
+			let previous = T::EvmFeePayer::set_fee_payer(signer);
+			let (result, actual_weight) = Self::do_dispatch(origin, *call);
+			match previous {
+				Some(p) => T::EvmFeePayer::set_fee_payer(p),
+				None => T::EvmFeePayer::clear_fee_payer(),
+			};
+
+			match result {
+				Ok(_) => Ok(PostDispatchInfo {
+					actual_weight,
+					pays_fee: Pays::Yes,
+				}),
+				Err(err) => Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight,
+						pays_fee: Pays::Yes,
+					},
+					error: err.error,
+				}),
+			}
 		}
 	}
 }
