@@ -919,23 +919,27 @@ impl<T: Config> Pallet<T> {
 			RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
 		let transaction_fee = Self::get_transaction_fee(&schedule.order, Some(schedule_id))?;
 		let min_amount_for_replanning = transaction_fee.saturating_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT);
-		if remaining_amount < min_amount_for_replanning || remaining_amount < T::MinimumTradingLimit::get() {
+		if !schedule.is_rolling()
+			&& (remaining_amount < min_amount_for_replanning || remaining_amount < T::MinimumTradingLimit::get())
+		{
 			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}
 
 		//In buy we complete with returning leftover, in sell we sell the leftover in the next trade
-		if let Order::Buy { amount_out, .. } = &schedule.order {
-			let route = schedule.order.get_route_or_default::<T::RouteProvider>();
-			let amount_to_unreserve: Balance = Self::get_amount_in_for_buy(amount_out, &route)?;
+		if !schedule.is_rolling() {
+			if let Order::Buy { amount_out, .. } = &schedule.order {
+				let route = schedule.order.get_route_or_default::<T::RouteProvider>();
+				let amount_to_unreserve: Balance = Self::get_amount_in_for_buy(amount_out, &route)?;
 
-			let amount_for_next_trade: Balance = amount_to_unreserve
-				.checked_add(transaction_fee)
-				.ok_or(ArithmeticError::Overflow)?;
+				let amount_for_next_trade: Balance = amount_to_unreserve
+					.checked_add(transaction_fee)
+					.ok_or(ArithmeticError::Overflow)?;
 
-			if remaining_amount < amount_for_next_trade {
-				Self::complete_schedule(schedule_id, schedule);
-				return Ok(());
+				if remaining_amount < amount_for_next_trade {
+					Self::complete_schedule(schedule_id, schedule);
+					return Ok(());
+				}
 			}
 		}
 
