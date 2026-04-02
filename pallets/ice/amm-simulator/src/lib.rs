@@ -7,10 +7,11 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{
 	AMMInterface, RouteDiscovery, SimulatorConfig, SimulatorError, SimulatorSet, TradeExecution,
 };
-use hydradx_traits::router::{AssetPair, Route, RouteProvider, Trade};
+use hydradx_traits::router::{AssetPair, PoolEdge, Route, RouteProvider, Trade};
 use primitive_types::U512;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
+use sp_std::vec::Vec;
 
 pub mod aave;
 pub mod omnipool;
@@ -184,5 +185,9 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 
 	fn price_denominator() -> u32 {
 		C::PriceDenominator::get()
+	}
+
+	fn pool_edges(state: &Self::State) -> Vec<PoolEdge<u32>> {
+		C::Simulators::pool_edges(state)
 	}
 }

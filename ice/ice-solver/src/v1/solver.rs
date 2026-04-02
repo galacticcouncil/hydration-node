@@ -722,7 +722,7 @@ mod tests {
 	use super::*;
 	use hydra_dx_math::types::Ratio;
 	use hydradx_traits::amm::{AMMInterface, TradeExecution};
-	use hydradx_traits::router::{Route, Trade};
+	use hydradx_traits::router::{PoolEdge, Route, Trade};
 	use ice_support::IntentId;
 
 	fn make_intent(
@@ -828,6 +828,10 @@ mod tests {
 		fn price_denominator() -> u32 {
 			0
 		}
+
+		fn pool_edges(_state: &Self::State) -> Vec<PoolEdge<u32>> {
+			Vec::new()
+		}
 	}
 
 	/// Mock AMM with 2:1 price (asset 1 worth 2x asset 2) and 1% slippage.
@@ -905,6 +909,10 @@ mod tests {
 
 		fn price_denominator() -> u32 {
 			0
+		}
+
+		fn pool_edges(_state: &Self::State) -> Vec<PoolEdge<u32>> {
+			Vec::new()
 		}
 	}
 
@@ -1178,6 +1186,10 @@ mod tests {
 
 		fn price_denominator() -> u32 {
 			0
+		}
+
+		fn pool_edges(_state: &Self::State) -> Vec<PoolEdge<u32>> {
+			Vec::new()
 		}
 	}
 

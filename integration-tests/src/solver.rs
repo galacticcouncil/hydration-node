@@ -19,7 +19,7 @@ use primitives::AccountId;
 use sp_runtime::Permill;
 use xcm_emulator::Network;
 
-pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/mainnet_nov4";
+pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/mainnet_march";
 
 pub type CombinedSimulatorState =
 	<<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State;

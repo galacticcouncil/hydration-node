@@ -1,4 +1,4 @@
-//! # route-suggester
+//! # route-findr
 //!
 //! Route discovery for Hydration DEX — enumerates **all valid multi-hop trading
 //! routes** for a given asset pair.
@@ -10,14 +10,9 @@
 //! Uses canonical types from [`hydradx_traits::router`] and [`primitives`]:
 //! - [`AssetId`] — concrete asset identifier from `primitives`
 //! - [`PoolType`] — pool type discriminant
+//! - [`PoolEdge`] — pool instance with its tradeable assets
 //! - [`Trade`] — a single swap step (pool + asset pair)
 //! - [`Route`] — bounded vector of trades (`BoundedVec<Trade, ConstU32<9>>`)
-//!
-//! ## State
-//!
-//! The [`PoolProvider`] trait accepts `&State` — the same snapshot pattern
-//! used by `AMMInterface` / `SimulatorSet` in `hydradx-traits`. This allows
-//! pool discovery to use the same on-chain state the solver operates on.
 //!
 //! ## Algorithm
 //!
@@ -28,19 +23,17 @@
 //! 3. BFS discovers all acyclic paths up to [`MAX_NUMBER_OF_TRADES`] hops,
 //!    preventing both asset revisits and same-pool reuse.
 //!
-//! ## Integration into hydration-node
+//! ## Usage
 //!
-//! 1. Add this crate as a dependency in the target pallet/crate.
-//! 2. Implement [`PoolProvider`] by querying each AMM pallet's storage
-//!    (or deriving from `SimulatorSet::can_trade` + state snapshots).
-//! 3. Use [`RouteSuggester`] or the standalone [`get_routes`] function.
+//! Pool edges come from `AMMInterface::pool_edges()` or `SimulatorSet::pool_edges()`.
+//! Pass them to [`get_routes`] for route discovery.
 //!
 //! [`AssetId`]: primitives::AssetId
 //! [`PoolType`]: hydradx_traits::router::PoolType
+//! [`PoolEdge`]: hydradx_traits::router::PoolEdge
 //! [`Trade`]: hydradx_traits::router::Trade
 //! [`Route`]: hydradx_traits::router::Route
 //! [`MAX_NUMBER_OF_TRADES`]: hydradx_traits::router::MAX_NUMBER_OF_TRADES
-//! [`PoolProvider`]: types::PoolProvider
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -67,26 +60,9 @@ pub mod types;
 pub mod testdata;
 
 use alloc::vec::Vec;
-use types::{AssetId, PoolEdge, PoolProvider, Route};
+use types::{AssetId, PoolEdge, Route};
 
-/// Route suggester parameterised by a [`PoolProvider`].
-///
-/// Use this when the pool list comes from runtime storage.
-pub struct RouteSuggester<P: PoolProvider>(core::marker::PhantomData<P>);
-
-impl<P: PoolProvider> RouteSuggester<P> {
-    /// Discover all valid routes between two assets.
-    pub fn get_routes(
-        asset_in: AssetId,
-        asset_out: AssetId,
-        state: &P::State,
-    ) -> Vec<Route<AssetId>> {
-        let pools = P::get_all_pools(state);
-        strategy::suggest_routes(asset_in, asset_out, pools)
-    }
-}
-
-/// Standalone route discovery — use when you already have the pool list.
+/// Discover all valid routes between two assets.
 pub fn get_routes(
     asset_in: AssetId,
     asset_out: AssetId,
@@ -316,34 +292,6 @@ mod tests {
         assert!(routes.is_empty());
     }
 
-    // -- PoolProvider with State --
-
-    #[test]
-    fn route_suggester_with_provider_and_state() {
-        struct TestPools;
-
-        impl PoolProvider for TestPools {
-            type State = ();
-
-            fn get_all_pools(_state: &()) -> Vec<PoolEdge> {
-                alloc::vec![
-                    PoolEdge {
-                        pool_type: PoolType::Omnipool,
-                        assets: alloc::vec![1, 2, 3],
-                    },
-                    PoolEdge {
-                        pool_type: PoolType::XYK,
-                        assets: alloc::vec![3, 4],
-                    },
-                ]
-            }
-        }
-
-        let routes = RouteSuggester::<TestPools>::get_routes(1, 4, &());
-        assert_eq!(routes.len(), 1);
-        assert_eq!(routes[0].len(), 2);
-    }
-
     // -- mainnet snapshot tests --
 
     mod mainnet {
@@ -440,22 +388,6 @@ mod tests {
             // HSM [222, 1002] — both in trusted
             let routes = get_routes(222, 1002, testdata::mainnet_pools());
             assert!(routes.iter().any(|r| r.iter().any(|t| t.pool == PoolType::HSM)));
-        }
-
-        #[test]
-        fn provider_with_mainnet_snapshot() {
-            struct MainnetPools;
-
-            impl PoolProvider for MainnetPools {
-                type State = ();
-
-                fn get_all_pools(_state: &()) -> Vec<PoolEdge> {
-                    testdata::mainnet_pools()
-                }
-            }
-
-            let routes = RouteSuggester::<MainnetPools>::get_routes(0, 222, &());
-            assert!(!routes.is_empty(), "HDX→WETH via RouteSuggester should find routes");
         }
     }
 }

@@ -1889,7 +1889,22 @@ pub struct SmartRouteFinder<S: SimulatorSet>(sp_std::marker::PhantomData<S>);
 
 impl<S: SimulatorSet> hydradx_traits::amm::RouteDiscovery<S::State> for SmartRouteFinder<S> {
 	fn discover_route(asset_in: AssetId, asset_out: AssetId, state: &S::State) -> Result<Route<AssetId>, SimulatorError> {
-		todo!()
+		let pool_edges = S::pool_edges(state);
+		//log::trace!(target: "aave", "Edges: {:?}", pool_edges);
+
+		let mut routes = route_findr::get_routes(asset_in, asset_out, pool_edges);
+
+		log::trace!(target: "aave", "Routes: {:?}", routes);
+
+		if routes.is_empty() {
+			log::warn!(target: "aave", "No routes found for {} -> {}", asset_in, asset_out);
+			return Err(SimulatorError::NotSupported);
+		}
+		if routes.len() > 1 {
+			//TODO: handle multiple routes
+			panic!("More than one route found for asset pair: {}-{}", asset_in, asset_out);
+		}
+		Ok(routes.swap_remove(0))
 	}
 }
 

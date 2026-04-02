@@ -8,8 +8,9 @@
 //! - [`SimulatorSet`] - Composite of multiple simulators with automatic dispatch
 //! - [`AMMInterface`] - High-level interface for the solver
 
-use crate::router::{PoolType, Route};
+use crate::router::{PoolEdge, PoolType, Route};
 use codec::{Decode, Encode};
+use sp_std::vec::Vec;
 use frame_support::traits::Get;
 use hydra_dx_math::types::Ratio;
 use primitives::{AssetId, Balance};
@@ -150,6 +151,9 @@ pub trait AmmSimulator {
 		// Default implementation: cannot determine trading capability
 		None
 	}
+
+	/// Return pool edges describing the tradeable asset sets in this simulator.
+	fn pool_edges(snapshot: &Self::Snapshot) -> Vec<PoolEdge<AssetId>>;
 }
 
 /// A set of simulators that can be dispatched to based on pool type.
@@ -208,6 +212,9 @@ pub trait SimulatorSet {
 	/// Find a simulator that can trade the given asset pair.
 	/// Returns Some(PoolType) from the first simulator that can handle it.
 	fn can_trade(asset_in: AssetId, asset_out: AssetId, state: &Self::State) -> Option<PoolType<AssetId>>;
+
+	/// Collect pool edges from all simulators.
+	fn pool_edges(state: &Self::State) -> Vec<PoolEdge<AssetId>>;
 }
 
 /// High-level AMM interface for the solver.
@@ -256,6 +263,9 @@ pub trait AMMInterface {
 
 	/// The reference asset all prices can be denominated in (e.g., LRNA)
 	fn price_denominator() -> AssetId;
+
+	/// Collect pool edges from all configured simulators.
+	fn pool_edges(state: &Self::State) -> Vec<PoolEdge<AssetId>>;
 }
 
 /// Blanket implementation for single simulator.
@@ -309,6 +319,10 @@ impl<S: AmmSimulator> SimulatorSet for S {
 
 	fn can_trade(asset_in: AssetId, asset_out: AssetId, state: &Self::State) -> Option<PoolType<AssetId>> {
 		S::can_trade(asset_in, asset_out, state)
+	}
+
+	fn pool_edges(state: &Self::State) -> Vec<PoolEdge<AssetId>> {
+		S::pool_edges(state)
 	}
 }
 
@@ -416,6 +430,12 @@ macro_rules! impl_simulator_set_for_tuple {
 					return Some(pool_type);
 				}
 				$B::can_trade(asset_in, asset_out, &state.$b)
+			}
+
+			fn pool_edges(state: &Self::State) -> Vec<PoolEdge<AssetId>> {
+				let mut edges = $A::pool_edges(&state.$a);
+				edges.extend($B::pool_edges(&state.$b));
+				edges
 			}
 		}
 	};
@@ -561,6 +581,13 @@ macro_rules! impl_simulator_set_for_tuple {
 					return Some(pool_type);
 				}
 				$C::can_trade(asset_in, asset_out, &state.$c)
+			}
+
+			fn pool_edges(state: &Self::State) -> Vec<PoolEdge<AssetId>> {
+				let mut edges = $A::pool_edges(&state.$a);
+				edges.extend($B::pool_edges(&state.$b));
+				edges.extend($C::pool_edges(&state.$c));
+				edges
 			}
 		}
 	};
@@ -767,6 +794,14 @@ macro_rules! impl_simulator_set_for_tuple {
 					return Some(pool_type);
 				}
 				$D::can_trade(asset_in, asset_out, &state.$d)
+			}
+
+			fn pool_edges(state: &Self::State) -> Vec<PoolEdge<AssetId>> {
+				let mut edges = $A::pool_edges(&state.$a);
+				edges.extend($B::pool_edges(&state.$b));
+				edges.extend($C::pool_edges(&state.$c));
+				edges.extend($D::pool_edges(&state.$d));
+				edges
 			}
 		}
 	};
@@ -1076,6 +1111,15 @@ macro_rules! impl_simulator_set_for_tuple {
 					return Some(pool_type);
 				}
 				$E::can_trade(asset_in, asset_out, &state.$e)
+			}
+
+			fn pool_edges(state: &Self::State) -> Vec<PoolEdge<AssetId>> {
+				let mut edges = $A::pool_edges(&state.$a);
+				edges.extend($B::pool_edges(&state.$b));
+				edges.extend($C::pool_edges(&state.$c));
+				edges.extend($D::pool_edges(&state.$d));
+				edges.extend($E::pool_edges(&state.$e));
+				edges
 			}
 		}
 	};
@@ -1452,6 +1496,16 @@ macro_rules! impl_simulator_set_for_tuple {
 					return Some(pool_type);
 				}
 				$F::can_trade(asset_in, asset_out, &state.$f)
+			}
+
+			fn pool_edges(state: &Self::State) -> Vec<PoolEdge<AssetId>> {
+				let mut edges = $A::pool_edges(&state.$a);
+				edges.extend($B::pool_edges(&state.$b));
+				edges.extend($C::pool_edges(&state.$c));
+				edges.extend($D::pool_edges(&state.$d));
+				edges.extend($E::pool_edges(&state.$e));
+				edges.extend($F::pool_edges(&state.$f));
+				edges
 			}
 		}
 	};

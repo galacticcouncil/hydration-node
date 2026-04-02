@@ -11,7 +11,7 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::AmmSimulator;
 use hydradx_traits::amm::SimulatorError;
 use hydradx_traits::amm::TradeResult;
-use hydradx_traits::router::PoolType;
+use hydradx_traits::router::{PoolEdge, PoolType};
 use ice_support::AssetId;
 use ice_support::Balance;
 use pallet_omnipool::types::AssetReserveState;
@@ -435,6 +435,17 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		} else {
 			None
 		}
+	}
+
+	fn pool_edges(snapshot: &Self::Snapshot) -> sp_std::vec::Vec<PoolEdge<AssetId>> {
+		let assets: sp_std::vec::Vec<AssetId> = snapshot.assets.keys().copied().collect();
+		if assets.is_empty() {
+			return sp_std::vec::Vec::new();
+		}
+		sp_std::vec![PoolEdge {
+			pool_type: PoolType::Omnipool,
+			assets,
+		}]
 	}
 }
 

@@ -17,7 +17,7 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::AmmSimulator;
 use hydradx_traits::amm::SimulatorError;
 use hydradx_traits::amm::TradeResult;
-use hydradx_traits::router::PoolType;
+use hydradx_traits::router::{PoolEdge, PoolType};
 use ice_support::AssetId;
 use ice_support::Balance;
 use pallet_stableswap::types::PoolInfo;
@@ -318,6 +318,25 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		} else {
 			None
 		}
+	}
+
+	fn pool_edges(snapshot: &Self::Snapshot) -> Vec<PoolEdge<AssetId>> {
+		snapshot
+			.pools
+			.iter()
+			.map(|(&pool_id, pool)| {
+				let mut assets = pool.assets.to_vec();
+				// Include the share asset (pool_id) so route discovery can find
+				// paths through the pool's share token (e.g., add/remove liquidity routes).
+				if !assets.contains(&pool_id) {
+					assets.push(pool_id);
+				}
+				PoolEdge {
+					pool_type: PoolType::Stableswap(pool_id),
+					assets,
+				}
+			})
+			.collect()
 	}
 }
 
