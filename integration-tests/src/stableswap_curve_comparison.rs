@@ -286,9 +286,8 @@ fn hydra_calc_shares(
 	let initial: Vec<AssetReserve> = old_balances.iter().map(|v| AssetReserve::new(*v, 18)).collect();
 	let updated: Vec<AssetReserve> = new_balances.iter().map(|v| AssetReserve::new(*v, 18)).collect();
 	let pegs: Vec<(u128, u128)> = vec![(1, 1); old_balances.len()];
-	let (shares, _fees) =
-		calculate_shares::<D_ITERATIONS>(&initial, &updated, amp, share_issuance, fee, &pegs)
-			.expect("hydra calculate_shares failed");
+	let (shares, _fees) = calculate_shares::<D_ITERATIONS>(&initial, &updated, amp, share_issuance, fee, &pegs)
+		.expect("hydra calculate_shares failed");
 	shares
 }
 
@@ -781,9 +780,33 @@ fn curve_comparison_shares_with_fee_single_sided() {
 		let amp = 100u128;
 		let supply = 2_000_000_000_000_000_000u128;
 
-		run_shares_with_fee_comparison("single-sided 0.04%", contract, &old, &new, amp, supply, Permill::from_parts(400));
-		run_shares_with_fee_comparison("single-sided 0.3%", contract, &old, &new, amp, supply, Permill::from_parts(3000));
-		run_shares_with_fee_comparison("single-sided 1%", contract, &old, &new, amp, supply, Permill::from_parts(10000));
+		run_shares_with_fee_comparison(
+			"single-sided 0.04%",
+			contract,
+			&old,
+			&new,
+			amp,
+			supply,
+			Permill::from_parts(400),
+		);
+		run_shares_with_fee_comparison(
+			"single-sided 0.3%",
+			contract,
+			&old,
+			&new,
+			amp,
+			supply,
+			Permill::from_parts(3000),
+		);
+		run_shares_with_fee_comparison(
+			"single-sided 1%",
+			contract,
+			&old,
+			&new,
+			amp,
+			supply,
+			Permill::from_parts(10000),
+		);
 	});
 }
 
@@ -798,8 +821,24 @@ fn curve_comparison_shares_with_fee_balanced_deposit() {
 		let supply = 2_000_000_000_000_000_000u128;
 
 		// Balanced deposit should have near-zero fee impact
-		run_shares_with_fee_comparison("balanced 0.3%", contract, &old, &new, amp, supply, Permill::from_parts(3000));
-		run_shares_with_fee_comparison("balanced 1%", contract, &old, &new, amp, supply, Permill::from_parts(10000));
+		run_shares_with_fee_comparison(
+			"balanced 0.3%",
+			contract,
+			&old,
+			&new,
+			amp,
+			supply,
+			Permill::from_parts(3000),
+		);
+		run_shares_with_fee_comparison(
+			"balanced 1%",
+			contract,
+			&old,
+			&new,
+			amp,
+			supply,
+			Permill::from_parts(10000),
+		);
 	});
 }
 
@@ -822,9 +861,33 @@ fn curve_comparison_shares_with_fee_3pool() {
 		let amp = 2000u128;
 		let supply = 3_000_000_000_000_000_000u128;
 
-		run_shares_with_fee_comparison("3-pool single-sided 0.04%", contract, &old, &new, amp, supply, Permill::from_parts(400));
-		run_shares_with_fee_comparison("3-pool single-sided 0.3%", contract, &old, &new, amp, supply, Permill::from_parts(3000));
-		run_shares_with_fee_comparison("3-pool single-sided 1%", contract, &old, &new, amp, supply, Permill::from_parts(10000));
+		run_shares_with_fee_comparison(
+			"3-pool single-sided 0.04%",
+			contract,
+			&old,
+			&new,
+			amp,
+			supply,
+			Permill::from_parts(400),
+		);
+		run_shares_with_fee_comparison(
+			"3-pool single-sided 0.3%",
+			contract,
+			&old,
+			&new,
+			amp,
+			supply,
+			Permill::from_parts(3000),
+		);
+		run_shares_with_fee_comparison(
+			"3-pool single-sided 1%",
+			contract,
+			&old,
+			&new,
+			amp,
+			supply,
+			Permill::from_parts(10000),
+		);
 	});
 }
 
@@ -843,15 +906,10 @@ fn curve_comparison_withdraw_no_fee() {
 		let amp = 100u128;
 
 		let (curve_dy, _) = curve_calc_withdraw_one_coin(contract, &balances, withdraw_shares, 0, total_supply, amp, 0);
-		let (hydra_dy, _) = hydra_calc_withdraw_one_asset(&balances, withdraw_shares, 0, total_supply, amp, Permill::zero());
+		let (hydra_dy, _) =
+			hydra_calc_withdraw_one_asset(&balances, withdraw_shares, 0, total_supply, amp, Permill::zero());
 
-		assert_parity(
-			"withdraw no fee amount",
-			curve_dy,
-			hydra_dy,
-			MAX_SWAP_TOLERANCE,
-			false,
-		);
+		assert_parity("withdraw no fee amount", curve_dy, hydra_dy, MAX_SWAP_TOLERANCE, false);
 	});
 }
 
@@ -870,7 +928,8 @@ fn curve_comparison_withdraw_imbalanced_no_fee() {
 		let amp = 500u128;
 
 		let (curve_dy, _) = curve_calc_withdraw_one_coin(contract, &balances, withdraw_shares, 0, total_supply, amp, 0);
-		let (hydra_dy, _) = hydra_calc_withdraw_one_asset(&balances, withdraw_shares, 0, total_supply, amp, Permill::zero());
+		let (hydra_dy, _) =
+			hydra_calc_withdraw_one_asset(&balances, withdraw_shares, 0, total_supply, amp, Permill::zero());
 
 		assert_parity(
 			"withdraw imbalanced 3-pool no fee",
@@ -924,9 +983,36 @@ fn curve_comparison_withdraw_with_fee_2pool() {
 		let withdraw_shares = 100_000_000_000_000_000u128;
 		let amp = 100u128;
 
-		run_withdraw_with_fee_comparison("2-pool 0.04%", contract, &balances, withdraw_shares, 0, total_supply, amp, Permill::from_parts(400));
-		run_withdraw_with_fee_comparison("2-pool 0.3%", contract, &balances, withdraw_shares, 0, total_supply, amp, Permill::from_parts(3000));
-		run_withdraw_with_fee_comparison("2-pool 1%", contract, &balances, withdraw_shares, 0, total_supply, amp, Permill::from_parts(10000));
+		run_withdraw_with_fee_comparison(
+			"2-pool 0.04%",
+			contract,
+			&balances,
+			withdraw_shares,
+			0,
+			total_supply,
+			amp,
+			Permill::from_parts(400),
+		);
+		run_withdraw_with_fee_comparison(
+			"2-pool 0.3%",
+			contract,
+			&balances,
+			withdraw_shares,
+			0,
+			total_supply,
+			amp,
+			Permill::from_parts(3000),
+		);
+		run_withdraw_with_fee_comparison(
+			"2-pool 1%",
+			contract,
+			&balances,
+			withdraw_shares,
+			0,
+			total_supply,
+			amp,
+			Permill::from_parts(10000),
+		);
 	});
 }
 
@@ -944,9 +1030,36 @@ fn curve_comparison_withdraw_with_fee_3pool() {
 		let withdraw_shares = 150_000_000_000_000_000u128; // 5%
 		let amp = 2000u128;
 
-		run_withdraw_with_fee_comparison("3-pool 0.04%", contract, &balances, withdraw_shares, 0, total_supply, amp, Permill::from_parts(400));
-		run_withdraw_with_fee_comparison("3-pool 0.3%", contract, &balances, withdraw_shares, 0, total_supply, amp, Permill::from_parts(3000));
-		run_withdraw_with_fee_comparison("3-pool 1%", contract, &balances, withdraw_shares, 0, total_supply, amp, Permill::from_parts(10000));
+		run_withdraw_with_fee_comparison(
+			"3-pool 0.04%",
+			contract,
+			&balances,
+			withdraw_shares,
+			0,
+			total_supply,
+			amp,
+			Permill::from_parts(400),
+		);
+		run_withdraw_with_fee_comparison(
+			"3-pool 0.3%",
+			contract,
+			&balances,
+			withdraw_shares,
+			0,
+			total_supply,
+			amp,
+			Permill::from_parts(3000),
+		);
+		run_withdraw_with_fee_comparison(
+			"3-pool 1%",
+			contract,
+			&balances,
+			withdraw_shares,
+			0,
+			total_supply,
+			amp,
+			Permill::from_parts(10000),
+		);
 	});
 }
 
@@ -964,8 +1077,26 @@ fn curve_comparison_withdraw_with_fee_imbalanced_3pool() {
 		let withdraw_shares = 100_000_000_000_000_000u128;
 		let amp = 500u128;
 
-		run_withdraw_with_fee_comparison("imbalanced 3-pool 0.3%", contract, &balances, withdraw_shares, 0, total_supply, amp, Permill::from_parts(3000));
-		run_withdraw_with_fee_comparison("imbalanced 3-pool 1%", contract, &balances, withdraw_shares, 0, total_supply, amp, Permill::from_parts(10000));
+		run_withdraw_with_fee_comparison(
+			"imbalanced 3-pool 0.3%",
+			contract,
+			&balances,
+			withdraw_shares,
+			0,
+			total_supply,
+			amp,
+			Permill::from_parts(3000),
+		);
+		run_withdraw_with_fee_comparison(
+			"imbalanced 3-pool 1%",
+			contract,
+			&balances,
+			withdraw_shares,
+			0,
+			total_supply,
+			amp,
+			Permill::from_parts(10000),
+		);
 	});
 }
 
@@ -1231,8 +1362,8 @@ fn run_add_remove_cycle(
 
 		let mut withdrawn: Vec<u128> = Vec::new();
 		for i in 0..n_assets {
-			let amount = calculate_liquidity_out(reserves[i], shares_received, share_issuance)
-				.expect("liquidity out failed");
+			let amount =
+				calculate_liquidity_out(reserves[i], shares_received, share_issuance).expect("liquidity out failed");
 			withdrawn.push(amount);
 		}
 
@@ -1279,37 +1410,58 @@ fn curve_comparison_add_remove_cycle_imbalanced_2pool() {
 		run_add_remove_cycle(
 			"2-pool 2:1 fee=0.05%",
 			vec![1_000_000_000_000_000_000, 500_000_000_000_000_000],
-			100, fee, 10, 100,
+			100,
+			fee,
+			10,
+			100,
 		);
 		run_add_remove_cycle(
 			"2-pool 2:1 fee=0",
 			vec![1_000_000_000_000_000_000, 500_000_000_000_000_000],
-			100, no_fee, 10, 1000,
+			100,
+			no_fee,
+			10,
+			1000,
 		);
 		run_add_remove_cycle(
 			"2-pool 10:1 fee=0.05%",
 			vec![1_000_000_000_000_000_000, 100_000_000_000_000_000],
-			100, fee, 10, 100,
+			100,
+			fee,
+			10,
+			100,
 		);
 		run_add_remove_cycle(
 			"2-pool 10:1 fee=0",
 			vec![1_000_000_000_000_000_000, 100_000_000_000_000_000],
-			100, no_fee, 10, 1000,
+			100,
+			no_fee,
+			10,
+			1000,
 		);
 		run_add_remove_cycle(
 			"2-pool 100:1 fee=0.05%",
 			vec![1_000_000_000_000_000_000, 10_000_000_000_000_000],
-			100, fee, 10, 100,
+			100,
+			fee,
+			10,
+			100,
 		);
 		run_add_remove_cycle(
 			"2-pool 100:1 fee=0",
 			vec![1_000_000_000_000_000_000, 10_000_000_000_000_000],
-			100, no_fee, 10, 1000,
+			100,
+			no_fee,
+			10,
+			1000,
 		);
 		run_add_remove_cycle(
 			"2-pool 1000:1 fee=0",
 			vec![1_000_000_000_000_000_000, 1_000_000_000_000_000],
-			100, no_fee, 10, 1000,
+			100,
+			no_fee,
+			10,
+			1000,
 		);
 	});
 }
@@ -1323,23 +1475,51 @@ fn curve_comparison_add_remove_cycle_imbalanced_3pool() {
 
 		run_add_remove_cycle(
 			"3-pool [1:2:0.5] fee=0.05%",
-			vec![1_000_000_000_000_000_000, 2_000_000_000_000_000_000, 500_000_000_000_000_000],
-			500, fee, 10, 100,
+			vec![
+				1_000_000_000_000_000_000,
+				2_000_000_000_000_000_000,
+				500_000_000_000_000_000,
+			],
+			500,
+			fee,
+			10,
+			100,
 		);
 		run_add_remove_cycle(
 			"3-pool [1:2:0.5] fee=0",
-			vec![1_000_000_000_000_000_000, 2_000_000_000_000_000_000, 500_000_000_000_000_000],
-			500, no_fee, 10, 1000,
+			vec![
+				1_000_000_000_000_000_000,
+				2_000_000_000_000_000_000,
+				500_000_000_000_000_000,
+			],
+			500,
+			no_fee,
+			10,
+			1000,
 		);
 		run_add_remove_cycle(
 			"3-pool [10:1:1] fee=0",
-			vec![10_000_000_000_000_000_000, 1_000_000_000_000_000_000, 1_000_000_000_000_000_000],
-			100, no_fee, 10, 1000,
+			vec![
+				10_000_000_000_000_000_000,
+				1_000_000_000_000_000_000,
+				1_000_000_000_000_000_000,
+			],
+			100,
+			no_fee,
+			10,
+			1000,
 		);
 		run_add_remove_cycle(
 			"3-pool [1:1:0.01] fee=0",
-			vec![1_000_000_000_000_000_000, 1_000_000_000_000_000_000, 10_000_000_000_000_000],
-			100, no_fee, 10, 1000,
+			vec![
+				1_000_000_000_000_000_000,
+				1_000_000_000_000_000_000,
+				10_000_000_000_000_000,
+			],
+			100,
+			no_fee,
+			10,
+			1000,
 		);
 	});
 }
@@ -1367,12 +1547,18 @@ fn curve_comparison_add_remove_cycle_small_deposits_imbalanced() {
 		run_add_remove_cycle(
 			"2-pool 10:1 tiny deposit fee=0",
 			vec![1_000_000_000_000_000_000, 100_000_000_000_000_000],
-			100, no_fee, 10000, 1000,
+			100,
+			no_fee,
+			10000,
+			1000,
 		);
 		run_add_remove_cycle(
 			"2-pool 10:1 micro deposit fee=0",
 			vec![1_000_000_000_000_000_000, 100_000_000_000_000_000],
-			100, no_fee, 1_000_000, 1000,
+			100,
+			no_fee,
+			1_000_000,
+			1000,
 		);
 	});
 }
