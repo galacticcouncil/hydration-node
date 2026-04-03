@@ -498,7 +498,7 @@ fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
 	});
 }
 
-//TODO: verify and fix
+//TODO: BUG: verify and fix
 /// After giga_stake, stHDX is not auto-enabled as collateral because it's an isolated asset
 /// (debtCeiling != 0). This means the user has GIGAHDX but zero borrowing power.
 /// The UI handles this for PRIME by bundling a setUserUseReserveAsCollateral tx,
