@@ -620,6 +620,61 @@ fn router_sell_via_xyk_should_work() {
 }
 
 // =============================================================================
+// Aave (supply via EVM)
+// =============================================================================
+
+#[test]
+fn aave_supply_dot_should_work() {
+	use hydradx_runtime::{
+		evm::{precompiles::erc20_mapping::HydraErc20Mapping, Executor},
+		AccountId, EVMAccounts, Runtime,
+	};
+	use hydradx_traits::evm::{CallContext, Erc20Encoding, InspectEvmAccounts, EVM};
+	use liquidation_worker_support::*;
+	use pallet_liquidation::BorrowingContract;
+	use sp_core::U256;
+	use fp_evm::ExitReason::Succeed;
+	use fp_evm::ExitSucceed::Returned;
+
+	const DOT: AssetId = 5;
+	const DOT_UNIT: Balance = 10_000_000_000;
+
+	let mut ext = hydra_live_ext(PATH_TO_SNAPSHOT);
+	ext.execute_with(|| {
+		// Don't call init_block() — Aave needs realistic timestamps for interest calculations
+
+		// BorrowingContract and ApprovedContract are already set from production state
+		let pool_contract = <BorrowingContract<Runtime>>::get();
+		println!("Pool contract from snapshot: {pool_contract:?}");
+
+		let alice = sp_runtime::AccountId32::from(ALICE);
+		assert_ok!(Currencies::deposit(DOT, &alice, 1_000 * DOT_UNIT));
+
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
+		let alice_evm = EVMAccounts::evm_address(&AccountId::from(ALICE));
+
+		// Supply DOT to Aave
+		let evm_dot = HydraErc20Mapping::encode_evm_address(DOT);
+		let context = CallContext::new_call(pool_contract, alice_evm);
+		let data = hydradx_runtime::evm::precompiles::handle::EvmDataWriter::new_with_selector(Function::Supply)
+			.write(evm_dot)
+			.write(100 * DOT_UNIT)
+			.write(alice_evm)
+			.write(0u32)
+			.build();
+
+		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 5_000_000);
+		assert_eq!(
+			call_result.exit_reason,
+			Succeed(Returned),
+			"Aave supply failed: {:?}",
+			hex::encode(call_result.value)
+		);
+		println!("Aave supply succeeded!");
+	});
+}
+
+// =============================================================================
 // Discovery (diagnostic, ignored by default)
 // =============================================================================
 
