@@ -25,6 +25,7 @@ mod hsm;
 //mod hyperbridge;
 mod insufficient_assets_ed;
 mod liquidation;
+mod slim_snapshot;
 mod multi_payment;
 mod non_native_fee;
 mod omnipool_add_all_liquidity;
