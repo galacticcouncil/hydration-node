@@ -28,11 +28,6 @@ const EGRESS_ACCOUNTS = [
   '7LCt6dFuhxZwCE6WaVt3vfRo4chW97idcQcwmBA2KrUh6QXS', // Neuroweb (2043)
   '7LCt6dF6pmXngyxLka1ZwFa1UzRmwfrT24gqujsXNbDKFVir', // Energy Web X (3345)
   '7LCt6dFBdgr99rDiTfV2ZeuhpAKmQLFPP7zZ4Hq1Ze2agqBW', // Mythos (3369)
-
-  // Additional Kraken accounts for HDX
-  '14n8ferDrb3uorc5esxHgt2gePPFDTSn4qvxBywVEosejVFL',
-  '12p8TxkyfmQBaSLooHA1NWRVjv7R8qgWfvKbVabEoH41L8jJ',
-  '12xtAYsRUrmbniiWQqJtECiBQrMn8AypQcXhnQAc6RB6XkLW',
 ];
 
 const LOCAL_ASSETS = [
