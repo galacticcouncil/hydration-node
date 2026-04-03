@@ -968,3 +968,411 @@ fn curve_comparison_withdraw_with_fee_imbalanced_3pool() {
 		run_withdraw_with_fee_comparison("imbalanced 3-pool 1%", contract, &balances, withdraw_shares, 0, total_supply, amp, Permill::from_parts(10000));
 	});
 }
+
+// =============================================================================
+// BALANCED ADD + PROPORTIONAL REMOVE CYCLE TEST
+// =============================================================================
+// Tests whether repeated balanced deposits and proportional withdrawals can
+// extract value from the pool through rounding.
+
+#[test]
+fn curve_comparison_balanced_add_remove_cycle_no_value_extraction() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let amp = 100u128;
+		let n_assets = 2usize;
+		let fee = Permill::from_parts(500); // 0.05%
+
+		// Initial pool state
+		let mut reserves = vec![1_000_000_000_000_000_000u128; n_assets];
+		let mut share_issuance = hydra_get_d(&reserves, amp);
+
+		// Attacker starts with these tokens
+		let deposit_per_asset = 100_000_000_000_000_000u128; // 0.1 token per asset
+		let mut attacker_balances: Vec<u128> = vec![deposit_per_asset; n_assets];
+
+		let iterations = 100u32;
+
+		for _ in 0..iterations {
+			// Step 1: Balanced deposit
+			let new_reserves: Vec<u128> = reserves
+				.iter()
+				.zip(attacker_balances.iter())
+				.map(|(r, a)| r + a)
+				.collect();
+
+			let shares_received = hydra_calc_shares(&reserves, &new_reserves, amp, share_issuance, fee);
+			assert!(shares_received > 0, "should receive shares");
+
+			// Update pool state after deposit
+			reserves = new_reserves;
+			share_issuance += shares_received;
+
+			// Step 2: Proportional withdrawal of all shares received
+			let mut withdrawn: Vec<u128> = Vec::new();
+			for i in 0..n_assets {
+				let amount = calculate_liquidity_out(reserves[i], shares_received, share_issuance)
+					.expect("liquidity out failed");
+				withdrawn.push(amount);
+			}
+
+			// Update pool state after withdrawal
+			for i in 0..n_assets {
+				reserves[i] -= withdrawn[i];
+			}
+			share_issuance -= shares_received;
+
+			// Update attacker balances
+			attacker_balances = withdrawn;
+		}
+
+		// Check: attacker should NOT have more than they started with
+		let initial_total = deposit_per_asset * n_assets as u128;
+		let final_total: u128 = attacker_balances.iter().sum();
+
+		eprintln!(
+			"balanced add+remove cycle ({}x): initial={} final={} diff={} ({})",
+			iterations,
+			initial_total,
+			final_total,
+			initial_total as i128 - final_total as i128,
+			if final_total <= initial_total {
+				"protocol safe"
+			} else {
+				"VALUE EXTRACTED"
+			}
+		);
+
+		assert!(
+			final_total <= initial_total,
+			"attacker extracted value! initial={} final={} profit={}",
+			initial_total,
+			final_total,
+			final_total - initial_total,
+		);
+	});
+}
+
+#[test]
+fn curve_comparison_balanced_add_remove_cycle_3pool() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let amp = 2000u128;
+		let n_assets = 3usize;
+		let fee = Permill::from_parts(500); // 0.05%
+
+		let mut reserves = vec![1_000_000_000_000_000_000u128; n_assets];
+		let mut share_issuance = hydra_get_d(&reserves, amp);
+
+		let deposit_per_asset = 100_000_000_000_000_000u128;
+		let mut attacker_balances: Vec<u128> = vec![deposit_per_asset; n_assets];
+
+		let iterations = 100u32;
+
+		for _ in 0..iterations {
+			let new_reserves: Vec<u128> = reserves
+				.iter()
+				.zip(attacker_balances.iter())
+				.map(|(r, a)| r + a)
+				.collect();
+
+			let shares_received = hydra_calc_shares(&reserves, &new_reserves, amp, share_issuance, fee);
+			assert!(shares_received > 0);
+
+			reserves = new_reserves;
+			share_issuance += shares_received;
+
+			let mut withdrawn: Vec<u128> = Vec::new();
+			for i in 0..n_assets {
+				let amount = calculate_liquidity_out(reserves[i], shares_received, share_issuance)
+					.expect("liquidity out failed");
+				withdrawn.push(amount);
+			}
+
+			for i in 0..n_assets {
+				reserves[i] -= withdrawn[i];
+			}
+			share_issuance -= shares_received;
+
+			attacker_balances = withdrawn;
+		}
+
+		let initial_total = deposit_per_asset * n_assets as u128;
+		let final_total: u128 = attacker_balances.iter().sum();
+
+		eprintln!(
+			"3-pool balanced add+remove cycle ({}x): initial={} final={} diff={} ({})",
+			iterations,
+			initial_total,
+			final_total,
+			initial_total as i128 - final_total as i128,
+			if final_total <= initial_total {
+				"protocol safe"
+			} else {
+				"VALUE EXTRACTED"
+			}
+		);
+
+		assert!(
+			final_total <= initial_total,
+			"attacker extracted value! initial={} final={} profit={}",
+			initial_total,
+			final_total,
+			final_total - initial_total,
+		);
+	});
+}
+
+#[test]
+fn curve_comparison_balanced_add_remove_cycle_zero_fee() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let amp = 100u128;
+		let n_assets = 2usize;
+		let fee = Permill::zero(); // no fee — worst case for protocol
+
+		let mut reserves = vec![1_000_000_000_000_000_000u128; n_assets];
+		let mut share_issuance = hydra_get_d(&reserves, amp);
+
+		let deposit_per_asset = 100_000_000_000_000_000u128;
+		let mut attacker_balances: Vec<u128> = vec![deposit_per_asset; n_assets];
+
+		let iterations = 1000u32;
+
+		for _ in 0..iterations {
+			let new_reserves: Vec<u128> = reserves
+				.iter()
+				.zip(attacker_balances.iter())
+				.map(|(r, a)| r + a)
+				.collect();
+
+			let shares_received = hydra_calc_shares(&reserves, &new_reserves, amp, share_issuance, fee);
+			assert!(shares_received > 0);
+
+			reserves = new_reserves;
+			share_issuance += shares_received;
+
+			let mut withdrawn: Vec<u128> = Vec::new();
+			for i in 0..n_assets {
+				let amount = calculate_liquidity_out(reserves[i], shares_received, share_issuance)
+					.expect("liquidity out failed");
+				withdrawn.push(amount);
+			}
+
+			for i in 0..n_assets {
+				reserves[i] -= withdrawn[i];
+			}
+			share_issuance -= shares_received;
+
+			attacker_balances = withdrawn;
+		}
+
+		let initial_total = deposit_per_asset * n_assets as u128;
+		let final_total: u128 = attacker_balances.iter().sum();
+
+		eprintln!(
+			"zero-fee balanced add+remove cycle ({}x): initial={} final={} diff={} ({})",
+			iterations,
+			initial_total,
+			final_total,
+			initial_total as i128 - final_total as i128,
+			if final_total <= initial_total {
+				"protocol safe"
+			} else {
+				"VALUE EXTRACTED"
+			}
+		);
+
+		assert!(
+			final_total <= initial_total,
+			"attacker extracted value! initial={} final={} profit={}",
+			initial_total,
+			final_total,
+			final_total - initial_total,
+		);
+	});
+}
+
+// =============================================================================
+// IMBALANCED POOL: BALANCED ADD + PROPORTIONAL REMOVE CYCLE TESTS
+// =============================================================================
+
+/// Helper: run proportional add + proportional remove cycle on any pool state.
+fn run_add_remove_cycle(
+	label: &str,
+	initial_reserves: Vec<u128>,
+	amp: u128,
+	fee: Permill,
+	deposit_fraction: u128, // deposit = reserve[i] / deposit_fraction
+	iterations: u32,
+) {
+	let n_assets = initial_reserves.len();
+	let mut reserves = initial_reserves;
+	let mut share_issuance = hydra_get_d(&reserves, amp);
+
+	// Attacker deposits proportional to current reserves
+	let mut attacker_balances: Vec<u128> = reserves.iter().map(|r| r / deposit_fraction).collect();
+	let initial_total: u128 = attacker_balances.iter().sum();
+
+	for _ in 0..iterations {
+		let new_reserves: Vec<u128> = reserves
+			.iter()
+			.zip(attacker_balances.iter())
+			.map(|(r, a)| r + a)
+			.collect();
+
+		let shares_received = hydra_calc_shares(&reserves, &new_reserves, amp, share_issuance, fee);
+		if shares_received == 0 {
+			break;
+		}
+
+		reserves = new_reserves;
+		share_issuance += shares_received;
+
+		let mut withdrawn: Vec<u128> = Vec::new();
+		for i in 0..n_assets {
+			let amount = calculate_liquidity_out(reserves[i], shares_received, share_issuance)
+				.expect("liquidity out failed");
+			withdrawn.push(amount);
+		}
+
+		for i in 0..n_assets {
+			reserves[i] -= withdrawn[i];
+		}
+		share_issuance -= shares_received;
+
+		attacker_balances = withdrawn;
+	}
+
+	let final_total: u128 = attacker_balances.iter().sum();
+
+	eprintln!(
+		"  {}: initial={} final={} diff={} ({})",
+		label,
+		initial_total,
+		final_total,
+		initial_total as i128 - final_total as i128,
+		if final_total <= initial_total {
+			"protocol safe"
+		} else {
+			"VALUE EXTRACTED"
+		}
+	);
+
+	assert!(
+		final_total <= initial_total,
+		"{}: attacker extracted value! initial={} final={} profit={}",
+		label,
+		initial_total,
+		final_total,
+		final_total - initial_total,
+	);
+}
+
+#[test]
+fn curve_comparison_add_remove_cycle_imbalanced_2pool() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let fee = Permill::from_parts(500); // 0.05%
+		let no_fee = Permill::zero();
+
+		run_add_remove_cycle(
+			"2-pool 2:1 fee=0.05%",
+			vec![1_000_000_000_000_000_000, 500_000_000_000_000_000],
+			100, fee, 10, 100,
+		);
+		run_add_remove_cycle(
+			"2-pool 2:1 fee=0",
+			vec![1_000_000_000_000_000_000, 500_000_000_000_000_000],
+			100, no_fee, 10, 1000,
+		);
+		run_add_remove_cycle(
+			"2-pool 10:1 fee=0.05%",
+			vec![1_000_000_000_000_000_000, 100_000_000_000_000_000],
+			100, fee, 10, 100,
+		);
+		run_add_remove_cycle(
+			"2-pool 10:1 fee=0",
+			vec![1_000_000_000_000_000_000, 100_000_000_000_000_000],
+			100, no_fee, 10, 1000,
+		);
+		run_add_remove_cycle(
+			"2-pool 100:1 fee=0.05%",
+			vec![1_000_000_000_000_000_000, 10_000_000_000_000_000],
+			100, fee, 10, 100,
+		);
+		run_add_remove_cycle(
+			"2-pool 100:1 fee=0",
+			vec![1_000_000_000_000_000_000, 10_000_000_000_000_000],
+			100, no_fee, 10, 1000,
+		);
+		run_add_remove_cycle(
+			"2-pool 1000:1 fee=0",
+			vec![1_000_000_000_000_000_000, 1_000_000_000_000_000],
+			100, no_fee, 10, 1000,
+		);
+	});
+}
+
+#[test]
+fn curve_comparison_add_remove_cycle_imbalanced_3pool() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let fee = Permill::from_parts(500);
+		let no_fee = Permill::zero();
+
+		run_add_remove_cycle(
+			"3-pool [1:2:0.5] fee=0.05%",
+			vec![1_000_000_000_000_000_000, 2_000_000_000_000_000_000, 500_000_000_000_000_000],
+			500, fee, 10, 100,
+		);
+		run_add_remove_cycle(
+			"3-pool [1:2:0.5] fee=0",
+			vec![1_000_000_000_000_000_000, 2_000_000_000_000_000_000, 500_000_000_000_000_000],
+			500, no_fee, 10, 1000,
+		);
+		run_add_remove_cycle(
+			"3-pool [10:1:1] fee=0",
+			vec![10_000_000_000_000_000_000, 1_000_000_000_000_000_000, 1_000_000_000_000_000_000],
+			100, no_fee, 10, 1000,
+		);
+		run_add_remove_cycle(
+			"3-pool [1:1:0.01] fee=0",
+			vec![1_000_000_000_000_000_000, 1_000_000_000_000_000_000, 10_000_000_000_000_000],
+			100, no_fee, 10, 1000,
+		);
+	});
+}
+
+#[test]
+fn curve_comparison_add_remove_cycle_imbalanced_varying_amp() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let no_fee = Permill::zero();
+		let reserves = vec![1_000_000_000_000_000_000u128, 100_000_000_000_000_000u128];
+
+		run_add_remove_cycle("10:1 amp=1 fee=0", reserves.clone(), 1, no_fee, 10, 1000);
+		run_add_remove_cycle("10:1 amp=100 fee=0", reserves.clone(), 100, no_fee, 10, 1000);
+		run_add_remove_cycle("10:1 amp=10000 fee=0", reserves.clone(), 10000, no_fee, 10, 1000);
+	});
+}
+
+#[test]
+fn curve_comparison_add_remove_cycle_small_deposits_imbalanced() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let no_fee = Permill::zero();
+
+		// Very small deposits — maximizes rounding impact relative to deposit size
+		run_add_remove_cycle(
+			"2-pool 10:1 tiny deposit fee=0",
+			vec![1_000_000_000_000_000_000, 100_000_000_000_000_000],
+			100, no_fee, 10000, 1000,
+		);
+		run_add_remove_cycle(
+			"2-pool 10:1 micro deposit fee=0",
+			vec![1_000_000_000_000_000_000, 100_000_000_000_000_000],
+			100, no_fee, 1_000_000, 1000,
+		);
+	});
+}
