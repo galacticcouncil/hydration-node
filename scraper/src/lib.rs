@@ -439,6 +439,13 @@ pub async fn fetch_all_storage(
 	Ok(all_pairs)
 }
 
+/// Slim snapshot filtering.
+///
+/// We use `sp_io::storage::clear()` inside `execute_with()` instead of filtering raw trie entries
+/// directly. The raw snapshot is a Merkle-Patricia trie — removing leaf entries from the raw bytes
+/// leaves parent/branch nodes still referencing them, breaking the trie with "Database missing
+/// expected key" errors. `sp_io::storage::clear()` goes through Substrate's storage layer which
+/// properly updates the trie structure.
 mod slim {
 	use std::collections::HashSet;
 
