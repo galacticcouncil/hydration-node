@@ -134,7 +134,7 @@ pub mod pallet {
 	/// Maps an EVM address to the last 12 bytes of a substrate account.
 	#[pallet::storage]
 	#[pallet::getter(fn account)]
-	pub(super) type AccountExtension<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, AccountIdLast12Bytes>;
+	pub type AccountExtension<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, AccountIdLast12Bytes>;
 
 	/// Whitelisted addresses that are allowed to deploy smart contracts.
 	#[pallet::storage]
