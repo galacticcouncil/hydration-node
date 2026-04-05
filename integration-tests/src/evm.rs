@@ -461,9 +461,8 @@ mod account_conversion {
 			let message = Message::parse(&hash_bytes);
 			let (rs, v) = sign(&message, &secret_key);
 			let odd_y_parity = v.serialize() != 0;
-			let signature =
-				TransactionSignature::new(odd_y_parity, H256::from(rs.r.b32()), H256::from(rs.s.b32()))
-					.expect("valid signature");
+			let signature = TransactionSignature::new(odd_y_parity, H256::from(rs.r.b32()), H256::from(rs.s.b32()))
+				.expect("valid signature");
 
 			let signed_tx = EIP1559Transaction {
 				chain_id,
@@ -548,9 +547,8 @@ mod account_conversion {
 			let message = Message::parse(&hash_bytes);
 			let (rs, v) = sign(&message, &secret_key);
 			let odd_y_parity = v.serialize() != 0;
-			let signature =
-				TransactionSignature::new(odd_y_parity, H256::from(rs.r.b32()), H256::from(rs.s.b32()))
-					.expect("valid signature");
+			let signature = TransactionSignature::new(odd_y_parity, H256::from(rs.r.b32()), H256::from(rs.s.b32()))
+				.expect("valid signature");
 
 			let signed_tx = EIP1559Transaction {
 				chain_id,
@@ -568,11 +566,11 @@ mod account_conversion {
 			let transaction = TransactionV2::EIP1559(signed_tx);
 
 			//Act & Assert - unbound address should pass pre_dispatch
-			crate::utils::executive::assert_executive_apply_unsigned_extrinsic(
-				hydradx_runtime::RuntimeCall::Ethereum(pallet_ethereum::Call::transact {
+			crate::utils::executive::assert_executive_apply_unsigned_extrinsic(hydradx_runtime::RuntimeCall::Ethereum(
+				pallet_ethereum::Call::transact {
 					transaction: transaction.into(),
-				}),
-			);
+				},
+			));
 		});
 	}
 
