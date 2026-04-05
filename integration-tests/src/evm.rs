@@ -355,7 +355,7 @@ mod account_conversion {
 	}
 
 	#[test]
-	fn evm_call_from_runtime_rpc_should_not_be_accepted_from_bound_addresses() {
+	fn evm_rpc_call_should_be_accepted_from_bound_addresses() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -368,41 +368,21 @@ mod account_conversion {
 
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 
-			//Act & Assert
-			assert_noop!(
-				hydradx_runtime::Runtime::call(
-					evm_address,   // from
-					DISPATCH_ADDR, // to
-					data,          // data
-					U256::from(1000u64),
-					U256::from(100000u64),
-					None,
-					None,
-					None,
-					false,
-					None,
-					None,
-				),
-				pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed
-			);
-		});
-	}
+			//Act & Assert - both estimate=false and estimate=true should work from RPC
+			assert_ok!(hydradx_runtime::Runtime::call(
+				evm_address,   // from
+				DISPATCH_ADDR, // to
+				data.clone(),  // data
+				U256::from(1000u64),
+				U256::from(100000u64),
+				None,
+				None,
+				None,
+				false,
+				None,
+				None,
+			));
 
-	#[test]
-	fn estimation_of_evm_call_should_be_accepted_even_from_bound_address() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			let data =
-				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
-					.to_vec();
-
-			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())),);
-
-			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
-
-			//Act & Assert
 			assert_ok!(hydradx_runtime::Runtime::call(
 				evm_address,   // from
 				DISPATCH_ADDR, // to
@@ -416,6 +396,183 @@ mod account_conversion {
 				None,
 				None,
 			));
+		});
+	}
+
+	#[test]
+	fn on_chain_evm_transaction_should_be_rejected_from_bound_address() {
+		use crate::utils::accounts::{alith_evm_account, alith_evm_address, alith_secret_key};
+		use ethereum::{
+			eip2930::TransactionSignature, EIP1559Transaction, EIP1559TransactionMessage, TransactionAction,
+			TransactionV2,
+		};
+		use libsecp256k1::{sign, Message, SecretKey};
+		use sp_runtime::transaction_validity::{InvalidTransaction, TransactionValidityError};
+
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let account = MockAccount::new(alith_evm_account());
+			let evm_address = alith_evm_address();
+
+			// fund the account
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				account.address(),
+				WETH,
+				1_000_000_000_000_000_000i128,
+			));
+
+			// simulate binding by inserting directly into storage
+			// (alith is a truncated account so bind_evm_address would fail)
+			let account_bytes: [u8; 32] = *account.address().as_ref();
+			let mut last_12: [u8; 12] = [0u8; 12];
+			last_12.copy_from_slice(&account_bytes[20..32]);
+			pallet_evm_accounts::AccountExtension::<Runtime>::insert(evm_address, last_12);
+
+			// verify binding works
+			assert!(EVMAccounts::bound_account_id(evm_address).is_some());
+
+			// build a simple evm transaction
+			let chain_id = <hydradx_runtime::Runtime as pallet_evm::Config>::ChainId::get();
+			let nonce = U256::zero();
+			let (base_gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+			let max_fee_per_gas = base_gas_price * 10;
+			let max_priority_fee_per_gas = base_gas_price;
+			let gas_limit: u64 = 100_000;
+
+			let tx_msg = EIP1559TransactionMessage {
+				chain_id,
+				nonce,
+				max_priority_fee_per_gas,
+				max_fee_per_gas,
+				gas_limit: gas_limit.into(),
+				action: TransactionAction::Call(DISPATCH_ADDR),
+				value: U256::zero(),
+				input: hex!("0107081337").to_vec(),
+				access_list: vec![],
+			};
+
+			let secret_key = SecretKey::parse(&alith_secret_key()).expect("valid secret key");
+			let hash = tx_msg.hash();
+			let mut hash_bytes = [0u8; 32];
+			hash_bytes.copy_from_slice(&hash.0);
+			let message = Message::parse(&hash_bytes);
+			let (rs, v) = sign(&message, &secret_key);
+			let odd_y_parity = v.serialize() != 0;
+			let signature =
+				TransactionSignature::new(odd_y_parity, H256::from(rs.r.b32()), H256::from(rs.s.b32()))
+					.expect("valid signature");
+
+			let signed_tx = EIP1559Transaction {
+				chain_id,
+				nonce,
+				max_priority_fee_per_gas,
+				max_fee_per_gas,
+				gas_limit: gas_limit.into(),
+				action: TransactionAction::Call(DISPATCH_ADDR),
+				value: U256::zero(),
+				input: hex!("0107081337").to_vec(),
+				access_list: vec![],
+				signature,
+			};
+
+			let transaction = TransactionV2::EIP1559(signed_tx);
+
+			//Act
+			let call = hydradx_runtime::RuntimeCall::Ethereum(pallet_ethereum::Call::transact {
+				transaction: transaction.into(),
+			});
+			let ue = hydradx_runtime::HydraUncheckedExtrinsic::new_bare(call);
+			let result = hydradx_runtime::Executive::apply_extrinsic(ue);
+
+			//Assert - transaction should be rejected with BadSigner
+			assert!(result.is_err());
+			assert_eq!(
+				result.unwrap_err(),
+				TransactionValidityError::Invalid(InvalidTransaction::BadSigner),
+			);
+		});
+	}
+
+	#[test]
+	fn on_chain_evm_transaction_should_work_from_unbound_address() {
+		use crate::utils::accounts::{alith_evm_account, alith_secret_key};
+		use ethereum::{
+			eip2930::TransactionSignature, EIP1559Transaction, EIP1559TransactionMessage, TransactionAction,
+			TransactionV2,
+		};
+		use libsecp256k1::{sign, Message, SecretKey};
+
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let account = MockAccount::new(alith_evm_account());
+
+			// fund the account but do NOT bind
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				account.address(),
+				WETH,
+				1_000_000_000_000_000_000i128,
+			));
+
+			init_omnipool_with_oracle_for_block_10();
+
+			// build a simple evm transaction
+			let chain_id = <hydradx_runtime::Runtime as pallet_evm::Config>::ChainId::get();
+			let nonce = U256::zero();
+			let (base_gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+			let max_fee_per_gas = base_gas_price * 10;
+			let max_priority_fee_per_gas = base_gas_price;
+			let gas_limit: u64 = 1_000_000;
+
+			let tx_msg = EIP1559TransactionMessage {
+				chain_id,
+				nonce,
+				max_priority_fee_per_gas,
+				max_fee_per_gas,
+				gas_limit: gas_limit.into(),
+				action: TransactionAction::Call(DISPATCH_ADDR),
+				value: U256::zero(),
+				input: hex!("0107081337").to_vec(),
+				access_list: vec![],
+			};
+
+			let secret_key = SecretKey::parse(&alith_secret_key()).expect("valid secret key");
+			let hash = tx_msg.hash();
+			let mut hash_bytes = [0u8; 32];
+			hash_bytes.copy_from_slice(&hash.0);
+			let message = Message::parse(&hash_bytes);
+			let (rs, v) = sign(&message, &secret_key);
+			let odd_y_parity = v.serialize() != 0;
+			let signature =
+				TransactionSignature::new(odd_y_parity, H256::from(rs.r.b32()), H256::from(rs.s.b32()))
+					.expect("valid signature");
+
+			let signed_tx = EIP1559Transaction {
+				chain_id,
+				nonce,
+				max_priority_fee_per_gas,
+				max_fee_per_gas,
+				gas_limit: gas_limit.into(),
+				action: TransactionAction::Call(DISPATCH_ADDR),
+				value: U256::zero(),
+				input: hex!("0107081337").to_vec(),
+				access_list: vec![],
+				signature,
+			};
+
+			let transaction = TransactionV2::EIP1559(signed_tx);
+
+			//Act & Assert - unbound address should pass pre_dispatch
+			crate::utils::executive::assert_executive_apply_unsigned_extrinsic(
+				hydradx_runtime::RuntimeCall::Ethereum(pallet_ethereum::Call::transact {
+					transaction: transaction.into(),
+				}),
+			);
 		});
 	}
 
