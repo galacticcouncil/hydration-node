@@ -115,48 +115,40 @@ impl<A: AMMInterface> Solver<A> {
 
 		log::debug!(target: "solver", "solve() called with {} intents", intents.len());
 
-		// 1. Get spot prices
+		// 1. Collect spot prices on demand and filter satisfiable intents in one pass
 		let denominator = A::price_denominator();
-		let unique_assets = common::collect_unique_assets(&intents);
 		let mut spot_prices: BTreeMap<AssetId, Ratio> = BTreeMap::new();
+		spot_prices.insert(denominator, Ratio::one());
 
-		for asset in unique_assets {
-			if asset == denominator {
-				spot_prices.insert(asset, Ratio::one());
-			} else {
-				let route = match A::discover_route(asset, denominator, &initial_state) {
-					Ok(r) => r,
-					Err(_) => {
-						log::debug!(target:"solver","no route for asset {} -> {}, skipping", asset, denominator);
-						continue;
-					}
-				};
-				match A::get_spot_price(asset, denominator, route, &initial_state) {
-					Ok(price) => {
-						spot_prices.insert(asset, price);
-					}
-					Err(_) => {
-						log::debug!(target:"solver","failed to get spot price for asset {}, skipping", asset);
-						continue;
-					}
-				}
-			}
-		}
-		if log::log_enabled!(log::Level::Trace) {
-			log::trace!(target: "solver", "spot prices for {} assets: {:?}", spot_prices.len(),
-				spot_prices.iter().map(|(a, r)| (*a, r.n as f64 / r.d as f64)).collect::<Vec<_>>());
-		}
-
-		// 2. Filter satisfiable intents
 		let satisfiable_intents: Vec<&Intent> = intents
 			.iter()
 			.filter(|intent| {
+				let IntentData::Swap(swap) = &intent.data else {
+					log::debug!(target:"solver","intent {}: unsatisfiable (non-swap intent type)", intent.id);
+					return false;
+				};
+
+				// Ensure spot prices are cached for both assets
+				for &asset in &[swap.asset_in, swap.asset_out] {
+					if spot_prices.contains_key(&asset) {
+						continue;
+					}
+					let route = match A::discover_route(asset, denominator, &initial_state) {
+						Ok(r) => r,
+						Err(_) => {
+							log::debug!(target:"solver","no route for asset {} -> {}, skipping", asset, denominator);
+							continue;
+						}
+					};
+					if let Ok(price) = A::get_spot_price(asset, denominator, route, &initial_state) {
+						spot_prices.insert(asset, price);
+					} else {
+						log::debug!(target:"solver","failed to get spot price for asset {}", asset);
+					}
+				}
+
 				let ok = common::is_satisfiable(intent, &spot_prices);
 				if !ok {
-					let IntentData::Swap(swap) = &intent.data else {
-						log::debug!(target:"solver","intent {}: unsatisfiable (non-swap intent type)", intent.id);
-						return false;
-					};
 					log::debug!(target:"solver","intent {}: unsatisfiable at spot price, {} -> {}, amount_in: {}, min_out: {}",
 						intent.id, swap.asset_in, swap.asset_out, swap.amount_in, swap.amount_out);
 				}
