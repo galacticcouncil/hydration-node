@@ -6266,6 +6266,7 @@ dependencies = [
  "hyper-rustls 0.24.2",
  "ismp-parachain-inherent",
  "jsonrpsee",
+ "kvdb-rocksdb",
  "liquidation-worker-support",
  "log",
  "num_cpus",
@@ -15645,7 +15646,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.75.1"
+version = "1.76.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
