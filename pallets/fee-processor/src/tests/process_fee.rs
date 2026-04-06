@@ -1,15 +1,18 @@
 use super::mock::*;
 use crate::*;
 use frame_support::assert_ok;
+use frame_support::storage::with_transaction;
 use frame_support::traits::fungibles::{Inspect, Mutate};
 use pallet_currencies::fungibles::FungibleCurrencies;
+use sp_runtime::TransactionOutcome;
 
 #[test]
 fn hdx_fee_distributes_to_pots_immediately() {
 	ExtBuilder::default().build().execute_with(|| {
 		let amount = 1000 * ONE;
+		let gigapot_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_GIGAPOT);
+		let reward_pot_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_REWARD_POT);
 		let staking_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_STAKING_POT);
-		let referrals_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_REFERRALS_POT);
 
 		let result = Pallet::<Test>::process_trade_fee(FEE_SOURCE, ALICE, HDX, amount);
 		assert!(result.is_ok());
@@ -18,12 +21,14 @@ fn hdx_fee_distributes_to_pots_immediately() {
 		assert_eq!(taken, amount);
 		assert_eq!(pot_account, FeeProcessor::pot_account_id());
 
+		let gigapot_after = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_GIGAPOT);
+		let reward_pot_after = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_REWARD_POT);
 		let staking_after = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_STAKING_POT);
-		let referrals_after = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_REFERRALS_POT);
 
-		// HdxFeeReceivers: 50% to staking, 50% to referrals
-		assert_eq!(staking_after - staking_before, 500 * ONE);
-		assert_eq!(referrals_after - referrals_before, 500 * ONE);
+		// HdxFeeReceivers: 70% gigapot, 20% reward pot, 10% staking
+		assert_eq!(gigapot_after - gigapot_before, 700 * ONE);
+		assert_eq!(reward_pot_after - reward_pot_before, 200 * ONE);
+		assert_eq!(staking_after - staking_before, 100 * ONE);
 	});
 }
 
@@ -34,16 +39,32 @@ fn hdx_fee_fires_callbacks_with_correct_amounts() {
 
 		let _ = Pallet::<Test>::process_trade_fee(FEE_SOURCE, ALICE, HDX, amount);
 
-		// HDX path uses HdxFeeReceivers (50/50 split)
-		let pre = hdx_pre_deposit_calls();
-		assert_eq!(pre.len(), 2);
-		assert_eq!(pre[0], (ALICE, 500 * ONE));
-		assert_eq!(pre[1], (ALICE, 500 * ONE));
+		// HdxGigaHdxFeeReceiver (70%) records to HDX_GIGAPOT_PRE_DEPOSIT_CALLS
+		let gigapot_pre = hdx_gigapot_pre_deposit_calls();
+		assert_eq!(gigapot_pre.len(), 1);
+		assert_eq!(gigapot_pre[0], (ALICE, 700 * ONE));
 
-		let post = hdx_deposit_calls();
-		assert_eq!(post.len(), 2);
-		assert_eq!(post[0], 500 * ONE);
-		assert_eq!(post[1], 500 * ONE);
+		let gigapot_post = hdx_gigapot_deposit_calls();
+		assert_eq!(gigapot_post.len(), 1);
+		assert_eq!(gigapot_post[0], 700 * ONE);
+
+		// HdxGigaRewardFeeReceiver (20%) records to HDX_REWARD_POT_PRE_DEPOSIT_CALLS
+		let reward_pre = hdx_reward_pot_pre_deposit_calls();
+		assert_eq!(reward_pre.len(), 1);
+		assert_eq!(reward_pre[0], (ALICE, 200 * ONE));
+
+		let reward_post = hdx_reward_pot_deposit_calls();
+		assert_eq!(reward_post.len(), 1);
+		assert_eq!(reward_post[0], 200 * ONE);
+
+		// HdxStakingFeeReceiver (10%) records to HDX_PRE_DEPOSIT_CALLS
+		let staking_pre = hdx_pre_deposit_calls();
+		assert_eq!(staking_pre.len(), 1);
+		assert_eq!(staking_pre[0], (ALICE, 100 * ONE));
+
+		let staking_post = hdx_deposit_calls();
+		assert_eq!(staking_post.len(), 1);
+		assert_eq!(staking_post[0], 100 * ONE);
 
 		// Non-HDX FeeReceivers should NOT have been called
 		assert!(pre_deposit_calls().is_empty());
@@ -210,22 +231,27 @@ fn hdx_and_non_hdx_use_different_receivers() {
 	ExtBuilder::default().build().execute_with(|| {
 		let pot = FeeProcessor::pot_account_id();
 
-		// --- HDX fee: uses HdxFeeReceivers (50/50) ---
+		// --- HDX fee: uses HdxFeeReceivers (70/20/10, no referrals) ---
 		let hdx_amount = 1000 * ONE;
-		let staking_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &STAKING_POT);
-		let referrals_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &REFERRALS_POT);
+		let gigapot_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_GIGAPOT);
+		let reward_pot_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_REWARD_POT);
+		let staking_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_STAKING_POT);
 
 		let _ = Pallet::<Test>::process_trade_fee(FEE_SOURCE, ALICE, HDX, hdx_amount);
 
-		let staking_after_hdx = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &STAKING_POT);
-		let referrals_after_hdx = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &REFERRALS_POT);
+		let gigapot_after = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_GIGAPOT);
+		let reward_pot_after = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_REWARD_POT);
+		let staking_after_hdx = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &HDX_STAKING_POT);
 
-		// HDX path: 50/50 via HdxFeeReceivers
-		assert_eq!(staking_after_hdx - staking_before, 500 * ONE);
-		assert_eq!(referrals_after_hdx - referrals_before, 500 * ONE);
+		// HDX path: 70% gigapot, 20% reward pot, 10% staking
+		assert_eq!(gigapot_after - gigapot_before, 700 * ONE);
+		assert_eq!(reward_pot_after - reward_pot_before, 200 * ONE);
+		assert_eq!(staking_after_hdx - staking_before, 100 * ONE);
 
-		// HDX callbacks fired, non-HDX callbacks did NOT fire
-		assert_eq!(hdx_pre_deposit_calls().len(), 2);
+		// HDX callbacks fired (gigapot + reward_pot + staking = 3), non-HDX callbacks did NOT fire
+		assert_eq!(hdx_gigapot_pre_deposit_calls().len(), 1);
+		assert_eq!(hdx_reward_pot_pre_deposit_calls().len(), 1);
+		assert_eq!(hdx_pre_deposit_calls().len(), 1);
 		assert!(pre_deposit_calls().is_empty());
 
 		// --- Non-HDX fee (conversion path): uses FeeReceivers (70/30) ---
