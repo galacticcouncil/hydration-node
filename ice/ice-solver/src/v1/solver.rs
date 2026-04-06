@@ -26,6 +26,7 @@ use crate::common::ring_detection;
 use crate::common::FlowDirection;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::AMMInterface;
+use hydradx_traits::router::Route;
 use ice_support::{
 	AssetId, Balance, Intent, IntentData, IntentId, PoolTrade, ResolvedIntent, ResolvedIntents, Solution,
 	SolutionTrades, SwapData, SwapType,
@@ -107,23 +108,37 @@ fn adjust_amm_output(simulated_out: Balance) -> Balance {
 	simulated_out.saturating_sub(simulated_out * AMM_SIMULATION_TOLERANCE_BPS / 10_000)
 }
 
-/// Select a single route from discovered routes.
-/// Panics if multiple routes are found — multi-route selection is not yet implemented.
-fn select_route(
-	routes: Vec<hydradx_traits::router::Route<AssetId>>,
-	asset_in: AssetId,
-	asset_out: AssetId,
-) -> hydradx_traits::router::Route<AssetId> {
-	assert!(
-		routes.len() == 1,
-		"multiple routes found for {} -> {}, multi-route selection not yet implemented",
-		asset_in,
-		asset_out,
-	);
-	routes.into_iter().next().unwrap()
-}
-
 impl<A: AMMInterface> Solver<A> {
+	/// Selects the best route by simulating a sell of `amount_in` along each candidate.
+	/// Returns the route with the highest output, its `amount_out`, and the resulting state.
+	/// Returns `None` if no route can execute the sell.
+	fn select_best_route(
+		routes: Vec<Route<AssetId>>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		state: &A::State,
+	) -> Option<(Route<AssetId>, Balance, A::State)> {
+		let best = routes
+			.into_iter()
+			.filter_map(|route| {
+				match A::sell(asset_in, asset_out, amount_in, route.clone(), state) {
+					Ok((new_state, exec)) => Some((route, exec.amount_out, new_state)),
+					Err(_) => {
+						log::debug!(target: "solver", "route simulation failed for {} -> {}", asset_in, asset_out);
+						None
+					}
+				}
+			})
+			.max_by_key(|(_, amount_out, _)| *amount_out);
+
+		if let Some((ref route, amount_out, _)) = best {
+			log::debug!(target: "solver", "best route for {} -> {}: {} hops, amount_out: {}",
+				asset_in, asset_out, route.as_slice().len(), amount_out);
+		}
+		best
+	}
+
 	pub fn solve(intents: Vec<Intent>, initial_state: A::State) -> Result<Solution, A::Error> {
 		if intents.is_empty() {
 			return Ok(empty_solution());
@@ -131,7 +146,7 @@ impl<A: AMMInterface> Solver<A> {
 
 		log::debug!(target: "solver", "solve() called with {} intents", intents.len());
 
-		// 1. Collect spot prices on demand and filter satisfiable intents in one pass
+		// 1. Filter satisfiable intents by simulating sells along discovered routes
 		let denominator = A::price_denominator();
 		let mut spot_prices: BTreeMap<AssetId, Ratio> = BTreeMap::new();
 		spot_prices.insert(denominator, Ratio::one());
@@ -144,25 +159,38 @@ impl<A: AMMInterface> Solver<A> {
 					return false;
 				};
 
-				// Ensure spot prices are cached for both assets
+				// Lazily collect spot prices (needed for flow analysis later)
 				for &asset in &[swap.asset_in, swap.asset_out] {
-					if spot_prices.contains_key(&asset) {
+					let Ok(price_routes) = A::discover_routes(asset, denominator, &initial_state) else {
 						continue;
-					}
-					let route = match A::discover_routes(asset, denominator, &initial_state) {
-						Ok(routes) => select_route(routes, asset, denominator),
-						Err(_) => {
-							log::debug!(target:"solver","no route for asset {} -> {}, skipping", asset, denominator);
-							continue;
-						}
 					};
-					if let Ok(price) = A::get_spot_price(asset, denominator, route, &initial_state) {
-						spot_prices.insert(asset, price);
-					} else {
-						log::debug!(target:"solver","failed to get spot price for asset {}", asset);
+					for route in price_routes {
+						if let Ok(price) = A::get_spot_price(asset, denominator, route, &initial_state) {
+							let better = spot_prices.get(&asset).map_or(true, |existing| {
+								U256::from(price.n) * U256::from(existing.d)
+									> U256::from(existing.n) * U256::from(price.d)
+							});
+							if better {
+								spot_prices.insert(asset, price);
+							}
+						}
 					}
 				}
 
+				// Simulation-based check: discover routes and simulate sell with intent's amount
+				if let Ok(routes) = A::discover_routes(swap.asset_in, swap.asset_out, &initial_state) {
+					if let Some((_, amount_out, _)) = Self::select_best_route(
+						routes, swap.asset_in, swap.asset_out, swap.amount_in, &initial_state,
+					) {
+						if amount_out >= swap.amount_out {
+							return true;
+						}
+						log::debug!(target:"solver","intent {}: best route output {} < min_out {} for {} -> {}",
+							intent.id, amount_out, swap.amount_out, swap.asset_in, swap.asset_out);
+					}
+				}
+
+				// Fallback: spot price check — intent may still resolve via direct matching
 				let ok = common::is_satisfiable(intent, &spot_prices);
 				if !ok {
 					log::debug!(target:"solver","intent {}: unsatisfiable at spot price, {} -> {}, amount_in: {}, min_out: {}",
@@ -326,49 +354,39 @@ impl<A: AMMInterface> Solver<A> {
 
 			match flow {
 				FlowDirection::SingleForward { amount } => {
-					if let Ok(routes) = A::discover_routes(asset_a, asset_b, &state) {
-						let route = select_route(routes, asset_a, asset_b);
-						match A::sell(asset_a, asset_b, amount, route, &state) {
-							Ok((new_state, exec)) => {
-								let adjusted_out = adjust_amm_output(exec.amount_out);
-								directed_rates.insert((asset_a, asset_b), Ratio::new(adjusted_out, exec.amount_in));
-								executed_trades.push(PoolTrade {
-									direction: SwapType::ExactIn,
-									amount_in: exec.amount_in,
-									amount_out: adjusted_out,
-									route: exec.route,
-								});
-								state = new_state;
-							}
-							Err(_) => {
-								log::debug!(target: "solver", "AMM sell failed for single forward {} -> {}, amount: {}", asset_a, asset_b, amount);
-							}
-						}
+					if let Some((route, amount_out, new_state)) = A::discover_routes(asset_a, asset_b, &state)
+						.ok()
+						.and_then(|routes| Self::select_best_route(routes, asset_a, asset_b, amount, &state))
+					{
+						let adjusted_out = adjust_amm_output(amount_out);
+						directed_rates.insert((asset_a, asset_b), Ratio::new(adjusted_out, amount));
+						executed_trades.push(PoolTrade {
+							direction: SwapType::ExactIn,
+							amount_in: amount,
+							amount_out: adjusted_out,
+							route,
+						});
+						state = new_state;
 					} else {
-						log::debug!(target: "solver", "no route for single forward {} -> {}", asset_a, asset_b);
+						log::debug!(target: "solver", "no viable route for single forward {} -> {}, amount: {}", asset_a, asset_b, amount);
 					}
 				}
 				FlowDirection::SingleBackward { amount } => {
-					if let Ok(routes) = A::discover_routes(asset_b, asset_a, &state) {
-						let route = select_route(routes, asset_b, asset_a);
-						match A::sell(asset_b, asset_a, amount, route, &state) {
-							Ok((new_state, exec)) => {
-								let adjusted_out = adjust_amm_output(exec.amount_out);
-								directed_rates.insert((asset_b, asset_a), Ratio::new(adjusted_out, exec.amount_in));
-								executed_trades.push(PoolTrade {
-									direction: SwapType::ExactIn,
-									amount_in: exec.amount_in,
-									amount_out: adjusted_out,
-									route: exec.route,
-								});
-								state = new_state;
-							}
-							Err(_) => {
-								log::debug!(target: "solver", "AMM sell failed for single backward {} -> {}, amount: {}", asset_b, asset_a, amount);
-							}
-						}
+					if let Some((route, amount_out, new_state)) = A::discover_routes(asset_b, asset_a, &state)
+						.ok()
+						.and_then(|routes| Self::select_best_route(routes, asset_b, asset_a, amount, &state))
+					{
+						let adjusted_out = adjust_amm_output(amount_out);
+						directed_rates.insert((asset_b, asset_a), Ratio::new(adjusted_out, amount));
+						executed_trades.push(PoolTrade {
+							direction: SwapType::ExactIn,
+							amount_in: amount,
+							amount_out: adjusted_out,
+							route,
+						});
+						state = new_state;
 					} else {
-						log::debug!(target: "solver", "no route for single backward {} -> {}", asset_b, asset_a);
+						log::debug!(target: "solver", "no viable route for single backward {} -> {}, amount: {}", asset_b, asset_a, amount);
 					}
 				}
 				FlowDirection::ExcessForward {
@@ -381,26 +399,26 @@ impl<A: AMMInterface> Solver<A> {
 						directed_rates.insert((asset_b, asset_a), Ratio::new(scarce_out, total_b_sold));
 					}
 					// Sell net A through AMM
-					let sell_result = A::discover_routes(asset_a, asset_b, &state)
-						.map(|routes| select_route(routes, asset_a, asset_b))
-						.and_then(|route| A::sell(asset_a, asset_b, net_sell, route, &state));
-					match sell_result {
-						Ok((new_state, exec)) => {
-							let adjusted_out = adjust_amm_output(exec.amount_out);
+					let best = A::discover_routes(asset_a, asset_b, &state)
+						.ok()
+						.and_then(|routes| Self::select_best_route(routes, asset_a, asset_b, net_sell, &state));
+					match best {
+						Some((route, amount_out, new_state)) => {
+							let adjusted_out = adjust_amm_output(amount_out);
 							let total_out = direct_match.saturating_add(adjusted_out);
 							if total_a_sold > 0 {
 								directed_rates.insert((asset_a, asset_b), Ratio::new(total_out, total_a_sold));
 							}
 							executed_trades.push(PoolTrade {
 								direction: SwapType::ExactIn,
-								amount_in: exec.amount_in,
+								amount_in: net_sell,
 								amount_out: adjusted_out,
-								route: exec.route,
+								route,
 							});
 							state = new_state;
 						}
-						Err(_) => {
-							log::debug!(target: "solver", "AMM sell failed for excess forward {} -> {}, net_sell: {}, falling back to spot rate", asset_a, asset_b, net_sell);
+						None => {
+							log::debug!(target: "solver", "no viable route for excess forward {} -> {}, net_sell: {}, falling back to spot rate", asset_a, asset_b, net_sell);
 							let fallback = common::calc_amount_out(total_a_sold, pa, pb).unwrap_or(0);
 							if total_a_sold > 0 {
 								directed_rates.insert((asset_a, asset_b), Ratio::new(fallback, total_a_sold));
@@ -418,26 +436,26 @@ impl<A: AMMInterface> Solver<A> {
 						directed_rates.insert((asset_a, asset_b), Ratio::new(scarce_out, total_a_sold));
 					}
 					// Sell net B through AMM
-					let sell_result = A::discover_routes(asset_b, asset_a, &state)
-						.map(|routes| select_route(routes, asset_b, asset_a))
-						.and_then(|route| A::sell(asset_b, asset_a, net_sell, route, &state));
-					match sell_result {
-						Ok((new_state, exec)) => {
-							let adjusted_out = adjust_amm_output(exec.amount_out);
+					let best = A::discover_routes(asset_b, asset_a, &state)
+						.ok()
+						.and_then(|routes| Self::select_best_route(routes, asset_b, asset_a, net_sell, &state));
+					match best {
+						Some((route, amount_out, new_state)) => {
+							let adjusted_out = adjust_amm_output(amount_out);
 							let total_out = direct_match.saturating_add(adjusted_out);
 							if total_b_sold > 0 {
 								directed_rates.insert((asset_b, asset_a), Ratio::new(total_out, total_b_sold));
 							}
 							executed_trades.push(PoolTrade {
 								direction: SwapType::ExactIn,
-								amount_in: exec.amount_in,
+								amount_in: net_sell,
 								amount_out: adjusted_out,
-								route: exec.route,
+								route,
 							});
 							state = new_state;
 						}
-						Err(_) => {
-							log::debug!(target: "solver", "AMM sell failed for excess backward {} -> {}, net_sell: {}, falling back to spot rate", asset_b, asset_a, net_sell);
+						None => {
+							log::debug!(target: "solver", "no viable route for excess backward {} -> {}, net_sell: {}, falling back to spot rate", asset_b, asset_a, net_sell);
 							let fallback = common::calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
 							if total_b_sold > 0 {
 								directed_rates.insert((asset_b, asset_a), Ratio::new(fallback, total_b_sold));
@@ -587,45 +605,42 @@ impl<A: AMMInterface> Solver<A> {
 			intent.id, swap.asset_in, swap.asset_out, swap.amount_in, swap.amount_out);
 
 		let routes = A::discover_routes(swap.asset_in, swap.asset_out, initial_state)?;
-		let route = select_route(routes, swap.asset_in, swap.asset_out);
-		match A::sell(swap.asset_in, swap.asset_out, swap.amount_in, route, initial_state) {
-			Ok((_new_state, trade_execution)) => {
-				if trade_execution.amount_out < swap.amount_out {
-					log::debug!(target: "solver", "intent {}: AMM output {} < min_out {}, cannot satisfy",
-						intent.id, trade_execution.amount_out, swap.amount_out);
-					return Ok(empty_solution());
-				}
+		let Some((route, amount_out, _)) = Self::select_best_route(
+			routes, swap.asset_in, swap.asset_out, swap.amount_in, initial_state,
+		) else {
+			log::debug!(target: "solver", "intent {}: no viable route for {} -> {}", intent.id, swap.asset_in, swap.asset_out);
+			return Ok(empty_solution());
+		};
 
-				let surplus = trade_execution.amount_out.saturating_sub(swap.amount_out);
-
-				let resolved = ResolvedIntent {
-					id: intent.id,
-					data: IntentData::Swap(SwapData {
-						asset_in: swap.asset_in,
-						asset_out: swap.asset_out,
-						amount_in: trade_execution.amount_in,
-						amount_out: trade_execution.amount_out,
-						partial: swap.partial,
-					}),
-				};
-
-				Ok(Solution {
-					resolved_intents: ResolvedIntents::truncate_from(vec![resolved]),
-					trades: SolutionTrades::truncate_from(vec![PoolTrade {
-						direction: SwapType::ExactIn,
-						amount_in: trade_execution.amount_in,
-						amount_out: adjust_amm_output(trade_execution.amount_out),
-						route: trade_execution.route,
-					}]),
-					score: surplus,
-				})
-			}
-			Err(_) => {
-				log::debug!(target: "solver", "intent {}: AMM sell failed for {} -> {}, amount: {}",
-					intent.id, swap.asset_in, swap.asset_out, swap.amount_in);
-				Ok(empty_solution())
-			}
+		if amount_out < swap.amount_out {
+			log::debug!(target: "solver", "intent {}: best route output {} < min_out {}, cannot satisfy",
+				intent.id, amount_out, swap.amount_out);
+			return Ok(empty_solution());
 		}
+
+		let surplus = amount_out.saturating_sub(swap.amount_out);
+
+		let resolved = ResolvedIntent {
+			id: intent.id,
+			data: IntentData::Swap(SwapData {
+				asset_in: swap.asset_in,
+				asset_out: swap.asset_out,
+				amount_in: swap.amount_in,
+				amount_out,
+				partial: swap.partial,
+			}),
+		};
+
+		Ok(Solution {
+			resolved_intents: ResolvedIntents::truncate_from(vec![resolved]),
+			trades: SolutionTrades::truncate_from(vec![PoolTrade {
+				direction: SwapType::ExactIn,
+				amount_in: swap.amount_in,
+				amount_out: adjust_amm_output(amount_out),
+				route,
+			}]),
+			score: surplus,
+		})
 	}
 
 	/// Compute per-direction clearing prices for a pair.
@@ -669,25 +684,25 @@ impl<A: AMMInterface> Solver<A> {
 
 		match flow {
 			FlowDirection::SingleForward { amount } => {
-				let route = select_route(A::discover_routes(asset_a, asset_b, state).ok()?, asset_a, asset_b);
-				let (_, exec) = A::sell(asset_a, asset_b, amount, route, state).ok()?;
-				let adjusted_out = adjust_amm_output(exec.amount_out);
+				let routes = A::discover_routes(asset_a, asset_b, state).ok()?;
+				let (_, amount_out, _) = Self::select_best_route(routes, asset_a, asset_b, amount, state)?;
+				let adjusted_out = adjust_amm_output(amount_out);
 				Some(PairClearing {
 					forward_n: U256::from(adjusted_out),
-					forward_d: U256::from(exec.amount_in),
+					forward_d: U256::from(amount),
 					backward_n: U256::zero(),
 					backward_d: U256::one(),
 				})
 			}
 			FlowDirection::SingleBackward { amount } => {
-				let route = select_route(A::discover_routes(asset_b, asset_a, state).ok()?, asset_b, asset_a);
-				let (_, exec) = A::sell(asset_b, asset_a, amount, route, state).ok()?;
-				let adjusted_out = adjust_amm_output(exec.amount_out);
+				let routes = A::discover_routes(asset_b, asset_a, state).ok()?;
+				let (_, amount_out, _) = Self::select_best_route(routes, asset_b, asset_a, amount, state)?;
+				let adjusted_out = adjust_amm_output(amount_out);
 				Some(PairClearing {
 					forward_n: U256::zero(),
 					forward_d: U256::one(),
 					backward_n: U256::from(adjusted_out),
-					backward_d: U256::from(exec.amount_in),
+					backward_d: U256::from(amount),
 				})
 			}
 			FlowDirection::ExcessForward {
@@ -695,9 +710,9 @@ impl<A: AMMInterface> Solver<A> {
 				direct_match,
 				net_sell,
 			} => {
-				let route = select_route(A::discover_routes(asset_a, asset_b, state).ok()?, asset_a, asset_b);
-				let (_, exec) = A::sell(asset_a, asset_b, net_sell, route, state).ok()?;
-				let adjusted_out = adjust_amm_output(exec.amount_out);
+				let routes = A::discover_routes(asset_a, asset_b, state).ok()?;
+				let (_, amount_out, _) = Self::select_best_route(routes, asset_a, asset_b, net_sell, state)?;
+				let adjusted_out = adjust_amm_output(amount_out);
 				Some(PairClearing {
 					forward_n: U256::from(direct_match.saturating_add(adjusted_out)),
 					forward_d: U256::from(total_a_sold),
@@ -710,9 +725,9 @@ impl<A: AMMInterface> Solver<A> {
 				direct_match,
 				net_sell,
 			} => {
-				let route = select_route(A::discover_routes(asset_b, asset_a, state).ok()?, asset_b, asset_a);
-				let (_, exec) = A::sell(asset_b, asset_a, net_sell, route, state).ok()?;
-				let adjusted_out = adjust_amm_output(exec.amount_out);
+				let routes = A::discover_routes(asset_b, asset_a, state).ok()?;
+				let (_, amount_out, _) = Self::select_best_route(routes, asset_b, asset_a, net_sell, state)?;
+				let adjusted_out = adjust_amm_output(amount_out);
 				Some(PairClearing {
 					forward_n: U256::from(scarce_out),
 					forward_d: U256::from(total_a_sold),
