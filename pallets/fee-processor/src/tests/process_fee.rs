@@ -275,3 +275,59 @@ fn hdx_and_non_hdx_use_different_receivers() {
 		assert_eq!(post[1], 300 * ONE);
 	});
 }
+
+#[test]
+fn process_trade_fee_same_asset_twice_does_not_duplicate_pending_count() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(Pallet::<Test>::process_trade_fee(FEE_SOURCE, ALICE, DOT, 100 * ONE));
+		assert_ok!(Pallet::<Test>::process_trade_fee(FEE_SOURCE, ALICE, DOT, 100 * ONE));
+
+		// CountedStorageMap::insert is idempotent for an existing key
+		assert_eq!(PendingConversions::<Test>::count(), 1);
+	});
+}
+
+#[test]
+fn process_trade_fee_fails_when_source_has_insufficient_balance() {
+	ExtBuilder::default().build().execute_with(|| {
+		let pot = FeeProcessor::pot_account_id();
+		let dot_on_pot_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(DOT, &pot);
+
+		// FEE_SOURCE has 100_000 * ONE DOT; request more than available
+		let result = Pallet::<Test>::process_trade_fee(FEE_SOURCE, ALICE, DOT, 200_000 * ONE);
+
+		assert!(result.is_err());
+		// Transfer failed before anything was written
+		let dot_on_pot_after = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(DOT, &pot);
+		assert_eq!(dot_on_pot_after, dot_on_pot_before);
+		assert!(!PendingConversions::<Test>::contains_key(DOT));
+	});
+}
+
+#[test]
+fn process_trade_fee_nothing_changes_when_pre_deposit_callback_fails() {
+	ExtBuilder::default().build().execute_with(|| {
+		let amount = 500 * ONE;
+		let pot = FeeProcessor::pot_account_id();
+		let dot_on_pot_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(DOT, &pot);
+
+		set_pre_deposit_fail(true);
+
+		// Wrap in a transaction to replicate extrinsic dispatch semantics:
+		// the runtime rolls back all storage changes when a call returns Err.
+		let result: Result<_, _> = with_transaction(|| {
+			let r = Pallet::<Test>::process_trade_fee(FEE_SOURCE, ALICE, DOT, amount);
+			if r.is_err() {
+				TransactionOutcome::Rollback(r.map(|_| ()))
+			} else {
+				TransactionOutcome::Commit(r.map(|_| ()))
+			}
+		});
+
+		assert!(result.is_err());
+		// Transaction rolled back — pot balance and pending state both unchanged
+		let dot_on_pot_after = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(DOT, &pot);
+		assert_eq!(dot_on_pot_after, dot_on_pot_before);
+		assert!(!PendingConversions::<Test>::contains_key(DOT));
+	});
+}
