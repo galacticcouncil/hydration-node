@@ -10,11 +10,11 @@
 
 use crate::router::{PoolEdge, PoolType, Route};
 use codec::{Decode, Encode};
-use sp_std::vec::Vec;
 use frame_support::traits::Get;
 use hydra_dx_math::types::Ratio;
 use primitives::{AssetId, Balance};
 use scale_info::TypeInfo;
+use sp_std::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo)]
 pub enum SimulatorError {
@@ -62,7 +62,11 @@ pub struct TradeExecution {
 /// Implementations can use on-chain routes, simulator probing, or any custom strategy.
 /// The `State` generic allows implementations to inspect simulator state during discovery.
 pub trait RouteDiscovery<State> {
-	fn discover_route(asset_in: AssetId, asset_out: AssetId, state: &State) -> Result<Route<AssetId>, SimulatorError>;
+	fn discover_routes(
+		asset_in: AssetId,
+		asset_out: AssetId,
+		state: &State,
+	) -> Result<Vec<Route<AssetId>>, SimulatorError>;
 }
 
 /// Configuration trait for the simulator compositor.
@@ -229,12 +233,12 @@ pub trait AMMInterface {
 	type Error;
 	type State: Clone;
 
-	/// Discover the best route for trading `asset_in` -> `asset_out`.
-	fn discover_route(
+	/// Discover all viable routes for trading `asset_in` -> `asset_out`.
+	fn discover_routes(
 		asset_in: AssetId,
 		asset_out: AssetId,
 		state: &Self::State,
-	) -> Result<Route<AssetId>, Self::Error>;
+	) -> Result<Vec<Route<AssetId>>, Self::Error>;
 
 	fn sell(
 		asset_in: AssetId,

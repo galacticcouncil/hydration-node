@@ -313,13 +313,21 @@ impl SimulatorSet for MockSimulatorSet {
 	) -> Option<PoolType<primitives::AssetId>> {
 		None
 	}
+
+	fn pool_edges(_state: &Self::State) -> Vec<hydradx_traits::router::PoolEdge<AssetId>> {
+		Vec::new()
+	}
 }
 
 // Mock RouteDiscovery
 pub struct MockRouteDiscovery;
 
 impl RouteDiscovery<()> for MockRouteDiscovery {
-	fn discover_route(_asset_in: AssetId, _asset_out: AssetId, _state: &()) -> Result<Route<AssetId>, SimulatorError> {
+	fn discover_routes(
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		_state: &(),
+	) -> Result<Vec<Route<AssetId>>, SimulatorError> {
 		Err(SimulatorError::AssetNotFound)
 	}
 }

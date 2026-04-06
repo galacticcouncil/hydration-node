@@ -107,6 +107,22 @@ fn adjust_amm_output(simulated_out: Balance) -> Balance {
 	simulated_out.saturating_sub(simulated_out * AMM_SIMULATION_TOLERANCE_BPS / 10_000)
 }
 
+/// Select a single route from discovered routes.
+/// Panics if multiple routes are found — multi-route selection is not yet implemented.
+fn select_route(
+	routes: Vec<hydradx_traits::router::Route<AssetId>>,
+	asset_in: AssetId,
+	asset_out: AssetId,
+) -> hydradx_traits::router::Route<AssetId> {
+	assert!(
+		routes.len() == 1,
+		"multiple routes found for {} -> {}, multi-route selection not yet implemented",
+		asset_in,
+		asset_out,
+	);
+	routes.into_iter().next().unwrap()
+}
+
 impl<A: AMMInterface> Solver<A> {
 	pub fn solve(intents: Vec<Intent>, initial_state: A::State) -> Result<Solution, A::Error> {
 		if intents.is_empty() {
@@ -133,8 +149,8 @@ impl<A: AMMInterface> Solver<A> {
 					if spot_prices.contains_key(&asset) {
 						continue;
 					}
-					let route = match A::discover_route(asset, denominator, &initial_state) {
-						Ok(r) => r,
+					let route = match A::discover_routes(asset, denominator, &initial_state) {
+						Ok(routes) => select_route(routes, asset, denominator),
 						Err(_) => {
 							log::debug!(target:"solver","no route for asset {} -> {}, skipping", asset, denominator);
 							continue;
@@ -310,7 +326,8 @@ impl<A: AMMInterface> Solver<A> {
 
 			match flow {
 				FlowDirection::SingleForward { amount } => {
-					if let Ok(route) = A::discover_route(asset_a, asset_b, &state) {
+					if let Ok(routes) = A::discover_routes(asset_a, asset_b, &state) {
+						let route = select_route(routes, asset_a, asset_b);
 						match A::sell(asset_a, asset_b, amount, route, &state) {
 							Ok((new_state, exec)) => {
 								let adjusted_out = adjust_amm_output(exec.amount_out);
@@ -332,7 +349,8 @@ impl<A: AMMInterface> Solver<A> {
 					}
 				}
 				FlowDirection::SingleBackward { amount } => {
-					if let Ok(route) = A::discover_route(asset_b, asset_a, &state) {
+					if let Ok(routes) = A::discover_routes(asset_b, asset_a, &state) {
+						let route = select_route(routes, asset_b, asset_a);
 						match A::sell(asset_b, asset_a, amount, route, &state) {
 							Ok((new_state, exec)) => {
 								let adjusted_out = adjust_amm_output(exec.amount_out);
@@ -363,7 +381,8 @@ impl<A: AMMInterface> Solver<A> {
 						directed_rates.insert((asset_b, asset_a), Ratio::new(scarce_out, total_b_sold));
 					}
 					// Sell net A through AMM
-					let sell_result = A::discover_route(asset_a, asset_b, &state)
+					let sell_result = A::discover_routes(asset_a, asset_b, &state)
+						.map(|routes| select_route(routes, asset_a, asset_b))
 						.and_then(|route| A::sell(asset_a, asset_b, net_sell, route, &state));
 					match sell_result {
 						Ok((new_state, exec)) => {
@@ -399,7 +418,8 @@ impl<A: AMMInterface> Solver<A> {
 						directed_rates.insert((asset_a, asset_b), Ratio::new(scarce_out, total_a_sold));
 					}
 					// Sell net B through AMM
-					let sell_result = A::discover_route(asset_b, asset_a, &state)
+					let sell_result = A::discover_routes(asset_b, asset_a, &state)
+						.map(|routes| select_route(routes, asset_b, asset_a))
 						.and_then(|route| A::sell(asset_b, asset_a, net_sell, route, &state));
 					match sell_result {
 						Ok((new_state, exec)) => {
@@ -566,7 +586,8 @@ impl<A: AMMInterface> Solver<A> {
 		log::debug!(target: "solver", "solving single intent {}: {} -> {}, amount_in: {}, min_out: {}",
 			intent.id, swap.asset_in, swap.asset_out, swap.amount_in, swap.amount_out);
 
-		let route = A::discover_route(swap.asset_in, swap.asset_out, initial_state)?;
+		let routes = A::discover_routes(swap.asset_in, swap.asset_out, initial_state)?;
+		let route = select_route(routes, swap.asset_in, swap.asset_out);
 		match A::sell(swap.asset_in, swap.asset_out, swap.amount_in, route, initial_state) {
 			Ok((_new_state, trade_execution)) => {
 				if trade_execution.amount_out < swap.amount_out {
@@ -648,7 +669,7 @@ impl<A: AMMInterface> Solver<A> {
 
 		match flow {
 			FlowDirection::SingleForward { amount } => {
-				let route = A::discover_route(asset_a, asset_b, state).ok()?;
+				let route = select_route(A::discover_routes(asset_a, asset_b, state).ok()?, asset_a, asset_b);
 				let (_, exec) = A::sell(asset_a, asset_b, amount, route, state).ok()?;
 				let adjusted_out = adjust_amm_output(exec.amount_out);
 				Some(PairClearing {
@@ -659,7 +680,7 @@ impl<A: AMMInterface> Solver<A> {
 				})
 			}
 			FlowDirection::SingleBackward { amount } => {
-				let route = A::discover_route(asset_b, asset_a, state).ok()?;
+				let route = select_route(A::discover_routes(asset_b, asset_a, state).ok()?, asset_b, asset_a);
 				let (_, exec) = A::sell(asset_b, asset_a, amount, route, state).ok()?;
 				let adjusted_out = adjust_amm_output(exec.amount_out);
 				Some(PairClearing {
@@ -674,7 +695,7 @@ impl<A: AMMInterface> Solver<A> {
 				direct_match,
 				net_sell,
 			} => {
-				let route = A::discover_route(asset_a, asset_b, state).ok()?;
+				let route = select_route(A::discover_routes(asset_a, asset_b, state).ok()?, asset_a, asset_b);
 				let (_, exec) = A::sell(asset_a, asset_b, net_sell, route, state).ok()?;
 				let adjusted_out = adjust_amm_output(exec.amount_out);
 				Some(PairClearing {
@@ -689,7 +710,7 @@ impl<A: AMMInterface> Solver<A> {
 				direct_match,
 				net_sell,
 			} => {
-				let route = A::discover_route(asset_b, asset_a, state).ok()?;
+				let route = select_route(A::discover_routes(asset_b, asset_a, state).ok()?, asset_b, asset_a);
 				let (_, exec) = A::sell(asset_b, asset_a, net_sell, route, state).ok()?;
 				let adjusted_out = adjust_amm_output(exec.amount_out);
 				Some(PairClearing {
@@ -770,8 +791,12 @@ mod tests {
 		type Error = ();
 		type State = ();
 
-		fn discover_route(asset_in: u32, asset_out: u32, _state: &Self::State) -> Result<Route<u32>, Self::Error> {
-			Ok(dummy_route(asset_in, asset_out))
+		fn discover_routes(
+			asset_in: u32,
+			asset_out: u32,
+			_state: &Self::State,
+		) -> Result<Vec<Route<u32>>, Self::Error> {
+			Ok(vec![dummy_route(asset_in, asset_out)])
 		}
 
 		fn sell(
@@ -833,8 +858,12 @@ mod tests {
 		type Error = ();
 		type State = ();
 
-		fn discover_route(asset_in: u32, asset_out: u32, _state: &Self::State) -> Result<Route<u32>, Self::Error> {
-			Ok(dummy_route(asset_in, asset_out))
+		fn discover_routes(
+			asset_in: u32,
+			asset_out: u32,
+			_state: &Self::State,
+		) -> Result<Vec<Route<u32>>, Self::Error> {
+			Ok(vec![dummy_route(asset_in, asset_out)])
 		}
 
 		fn sell(
@@ -1126,8 +1155,12 @@ mod tests {
 		type Error = ();
 		type State = ();
 
-		fn discover_route(asset_in: u32, asset_out: u32, _state: &Self::State) -> Result<Route<u32>, Self::Error> {
-			Ok(dummy_route(asset_in, asset_out))
+		fn discover_routes(
+			asset_in: u32,
+			asset_out: u32,
+			_state: &Self::State,
+		) -> Result<Vec<Route<u32>>, Self::Error> {
+			Ok(vec![dummy_route(asset_in, asset_out)])
 		}
 
 		fn sell(

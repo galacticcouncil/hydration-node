@@ -1418,6 +1418,7 @@ use crate::evm::evm_error_decoder::EvmErrorDecoder;
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
 use frame_support::traits::IsSubType;
+use hydradx_traits::amm::{SimulatorError, SimulatorSet};
 use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
@@ -1441,7 +1442,6 @@ use sp_runtime::traits::TryConvert;
 use sp_runtime::TokenError;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
-use hydradx_traits::amm::{SimulatorError, SimulatorSet};
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);
@@ -1888,23 +1888,21 @@ type HydrationSimulators = (
 pub struct SmartRouteFinder<S: SimulatorSet>(sp_std::marker::PhantomData<S>);
 
 impl<S: SimulatorSet> hydradx_traits::amm::RouteDiscovery<S::State> for SmartRouteFinder<S> {
-	fn discover_route(asset_in: AssetId, asset_out: AssetId, state: &S::State) -> Result<Route<AssetId>, SimulatorError> {
+	fn discover_routes(
+		asset_in: AssetId,
+		asset_out: AssetId,
+		state: &S::State,
+	) -> Result<Vec<Route<AssetId>>, SimulatorError> {
 		let pool_edges = S::pool_edges(state);
-		//log::trace!(target: "aave", "Edges: {:?}", pool_edges);
-
-		let mut routes = route_findr::get_routes(asset_in, asset_out, pool_edges);
-
-		log::trace!(target: "aave", "Routes: {:?}", routes);
+		let routes = route_findr::get_routes(asset_in, asset_out, pool_edges);
 
 		if routes.is_empty() {
-			log::warn!(target: "aave", "No routes found for {} -> {}", asset_in, asset_out);
+			log::debug!(target: "solver", "no routes found for {} -> {}", asset_in, asset_out);
 			return Err(SimulatorError::NotSupported);
 		}
-		if routes.len() > 1 {
-			//TODO: handle multiple routes
-			panic!("More than one route found for asset pair: {}-{}", asset_in, asset_out);
-		}
-		Ok(routes.swap_remove(0))
+
+		log::debug!(target: "solver", "found {} route(s) for {} -> {}", routes.len(), asset_in, asset_out);
+		Ok(routes)
 	}
 }
 

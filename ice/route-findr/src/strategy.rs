@@ -23,60 +23,55 @@ use crate::types::{AssetId, PoolEdge, PoolType, Route};
 
 /// Returns `true` for pool types considered "trusted" (non-XYK).
 fn is_trusted(pool_type: &PoolType<AssetId>) -> bool {
-    !matches!(pool_type, PoolType::XYK)
+	!matches!(pool_type, PoolType::XYK)
 }
 
 /// Check if an asset appears in any of the given pools.
 fn asset_in_pools(asset: AssetId, pools: &[PoolEdge]) -> bool {
-    pools.iter().any(|p| p.assets.contains(&asset))
+	pools.iter().any(|p| p.assets.contains(&asset))
 }
 
 /// Discover all valid routes between `asset_in` and `asset_out` using the
 /// trusted/isolated pool strategy.
-pub fn suggest_routes(
-    asset_in: AssetId,
-    asset_out: AssetId,
-    pools: Vec<PoolEdge>,
-) -> Vec<Route<AssetId>> {
-    let (trusted, isolated): (Vec<_>, Vec<_>) =
-        pools.into_iter().partition(|p| is_trusted(&p.pool_type));
+pub fn suggest_routes(asset_in: AssetId, asset_out: AssetId, pools: Vec<PoolEdge>) -> Vec<Route<AssetId>> {
+	let (trusted, isolated): (Vec<_>, Vec<_>) = pools.into_iter().partition(|p| is_trusted(&p.pool_type));
 
-    let in_trusted = asset_in_pools(asset_in, &trusted);
-    let out_trusted = asset_in_pools(asset_out, &trusted);
+	let in_trusted = asset_in_pools(asset_in, &trusted);
+	let out_trusted = asset_in_pools(asset_out, &trusted);
 
-    match (in_trusted, out_trusted) {
-        // Case 1: Neither token in trusted pools → isolated only
-        (false, false) => {
-            let relevant: Vec<_> = isolated
-                .into_iter()
-                .filter(|p| p.assets.contains(&asset_in) || p.assets.contains(&asset_out))
-                .collect();
-            let graph = build_graph(&relevant);
-            find_all_paths(&graph, asset_in, asset_out)
-        }
+	match (in_trusted, out_trusted) {
+		// Case 1: Neither token in trusted pools → isolated only
+		(false, false) => {
+			let relevant: Vec<_> = isolated
+				.into_iter()
+				.filter(|p| p.assets.contains(&asset_in) || p.assets.contains(&asset_out))
+				.collect();
+			let graph = build_graph(&relevant);
+			find_all_paths(&graph, asset_in, asset_out)
+		}
 
-        // Case 2: Both tokens in trusted pools → trusted only
-        (true, true) => {
-            let graph = build_graph(&trusted);
-            find_all_paths(&graph, asset_in, asset_out)
-        }
+		// Case 2: Both tokens in trusted pools → trusted only
+		(true, true) => {
+			let graph = build_graph(&trusted);
+			find_all_paths(&graph, asset_in, asset_out)
+		}
 
-        // Case 3: Mixed → trusted + relevant isolated
-        _ => {
-            let isolated_asset = if !in_trusted { asset_in } else { asset_out };
-            let relevant_isolated: Vec<_> = isolated
-                .into_iter()
-                .filter(|p| p.assets.contains(&isolated_asset))
-                .collect();
+		// Case 3: Mixed → trusted + relevant isolated
+		_ => {
+			let isolated_asset = if !in_trusted { asset_in } else { asset_out };
+			let relevant_isolated: Vec<_> = isolated
+				.into_iter()
+				.filter(|p| p.assets.contains(&isolated_asset))
+				.collect();
 
-            if relevant_isolated.is_empty() {
-                return Vec::new();
-            }
+			if relevant_isolated.is_empty() {
+				return Vec::new();
+			}
 
-            let mut combined = trusted;
-            combined.extend(relevant_isolated);
-            let graph = build_graph(&combined);
-            find_all_paths(&graph, asset_in, asset_out)
-        }
-    }
+			let mut combined = trusted;
+			combined.extend(relevant_isolated);
+			let graph = build_graph(&combined);
+			find_all_paths(&graph, asset_in, asset_out)
+		}
+	}
 }

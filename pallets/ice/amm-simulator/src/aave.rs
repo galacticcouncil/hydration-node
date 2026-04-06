@@ -244,7 +244,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		let mut snapshot = Snapshot {
 			reserves: BTreeMap::new(),
 			contract: DP::borrowing_contract(),
-			pairs:  DP::pairs(),
+			pairs: DP::pairs(),
 		};
 
 		let Ok(reserves) = Self::get_reserves_list(snapshot.contract) else {
@@ -331,6 +331,13 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 	}
 
 	fn pool_edges(_snapshot: &Self::Snapshot) -> sp_std::vec::Vec<hydradx_traits::router::PoolEdge<AssetId>> {
-		_snapshot.pairs.iter().map(|(a,b)| PoolEdge{ pool_type: PoolType::Aave, assets: vec![*a,*b] } ).collect()
+		_snapshot
+			.pairs
+			.iter()
+			.map(|(a, b)| PoolEdge {
+				pool_type: PoolType::Aave,
+				assets: vec![*a, *b],
+			})
+			.collect()
 	}
 }
