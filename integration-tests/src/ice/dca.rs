@@ -14,7 +14,7 @@ use sp_runtime::Permill;
 use xcm_emulator::Network;
 
 // Same snapshot as other solver tests
-pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/mainnet_nov4";
+pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/slim2";
 
 // Asset IDs proven to work in existing solver tests
 const HDX: u32 = 0;

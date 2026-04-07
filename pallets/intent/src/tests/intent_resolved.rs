@@ -46,7 +46,8 @@ fn should_work_with_intent_without_deadline() {
 
 			assert_ok!(IntentPallet::intent_resolved(
 				&who,
-				&ResolvedIntent { id, data: resolve.data }
+				&ResolvedIntent { id, data: resolve.data },
+				0,
 			));
 
 			assert_eq!(IntentPallet::get_intent(id), None);
@@ -100,7 +101,8 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
 
 			assert_ok!(IntentPallet::intent_resolved(
 				&who,
-				&ResolvedIntent { id, data: resolve.data }
+				&ResolvedIntent { id, data: resolve.data },
+				0,
 			));
 
 			assert_eq!(IntentPallet::get_intent(id), None);
@@ -157,7 +159,8 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_better_than_limits()
 
 			assert_ok!(IntentPallet::intent_resolved(
 				&who,
-				&ResolvedIntent { id, data: resolve.data }
+				&ResolvedIntent { id, data: resolve.data },
+				0,
 			));
 
 			assert_eq!(IntentPallet::get_intent(id), None);
@@ -214,7 +217,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 			r_swap.amount_in -= 1;
 
 			assert_noop!(
-				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
+				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }, 0),
 				Error::<Test>::LimitViolation
 			);
 
@@ -226,7 +229,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 			r_swap.amount_in += 1;
 
 			assert_noop!(
-				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
+				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }, 0),
 				Error::<Test>::LimitViolation
 			);
 
@@ -238,7 +241,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 			r_swap.amount_out -= 1;
 
 			assert_noop!(
-				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
+				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }, 0),
 				Error::<Test>::LimitViolation
 			);
 		});
@@ -291,7 +294,7 @@ fn should_not_work_when_non_partial_intent_resolved_partially() {
 			r_swap.amount_out /= 2;
 
 			assert_noop!(
-				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
+				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }, 0),
 				Error::<Test>::LimitViolation
 			);
 		});
@@ -341,7 +344,8 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_exactly() {
 
 			assert_ok!(IntentPallet::intent_resolved(
 				&who,
-				&ResolvedIntent { id, data: resolve.data }
+				&ResolvedIntent { id, data: resolve.data },
+				0,
 			),);
 
 			assert_eq!(IntentPallet::get_intent(id), None);
@@ -400,7 +404,8 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 
 			assert_ok!(IntentPallet::intent_resolved(
 				&who,
-				&ResolvedIntent { id, data: resolve.data }
+				&ResolvedIntent { id, data: resolve.data },
+				0,
 			),);
 
 			assert_eq!(IntentPallet::get_intent(id), None);
@@ -459,7 +464,8 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 
 			assert_ok!(IntentPallet::intent_resolved(
 				&who,
-				&ResolvedIntent { id, data: resolve.data }
+				&ResolvedIntent { id, data: resolve.data },
+				0,
 			),);
 
 			let expected_intent = Intent {
@@ -529,7 +535,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 			r_swap.amount_in += 1;
 
 			assert_noop!(
-				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
+				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }, 0),
 				Error::<Test>::LimitViolation
 			);
 
@@ -541,7 +547,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 			r_swap.amount_out -= 1;
 
 			assert_noop!(
-				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
+				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }, 0),
 				Error::<Test>::LimitViolation
 			);
 		});
@@ -594,7 +600,7 @@ fn partial_intent_should_not_work_when_resolved_partially_and_bellow_limit() {
 			r_swap.amount_out = r_swap.amount_out / 2 - 1; //bellow limit
 
 			assert_noop!(
-				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
+				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }, 0),
 				Error::<Test>::LimitViolation
 			);
 		});
@@ -653,7 +659,8 @@ fn should_not_work_when_intent_doesnt_exist() {
 					&ResolvedIntent {
 						id: non_existing_id,
 						data: resolve.data
-					}
+					},
+					0,
 				),
 				Error::<Test>::IntentNotFound
 			);
@@ -707,7 +714,7 @@ fn should_not_work_when_resolved_as_not_an_owner() {
 			r_swap.amount_out /= 2;
 
 			assert_noop!(
-				IntentPallet::intent_resolved(&non_owner, &ResolvedIntent { id, data: resolve.data }),
+				IntentPallet::intent_resolved(&non_owner, &ResolvedIntent { id, data: resolve.data }, 0),
 				Error::<Test>::InvalidOwner
 			);
 		});
@@ -759,7 +766,7 @@ fn should_not_work_when_intent_expired() {
 			));
 
 			assert_noop!(
-				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
+				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }, 0),
 				Error::<Test>::IntentExpired
 			);
 		});
@@ -812,7 +819,7 @@ fn should_not_work_when_assets_doesnt_match() {
 			r_swap.asset_in = HDX;
 
 			assert_noop!(
-				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
+				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }, 0),
 				Error::<Test>::ResolveMismatch
 			);
 
@@ -824,7 +831,7 @@ fn should_not_work_when_assets_doesnt_match() {
 			r_swap.asset_out = HDX;
 
 			assert_noop!(
-				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
+				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }, 0),
 				Error::<Test>::ResolveMismatch
 			);
 		});
@@ -860,7 +867,7 @@ fn should_not_work_when_partial_doesnt_match() {
 			r_swap.partial = !r_swap.partial;
 
 			assert_noop!(
-				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }),
+				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }, 0),
 				Error::<Test>::ResolveMismatch
 			);
 		});
@@ -915,7 +922,8 @@ fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
 
 			assert_ok!(IntentPallet::intent_resolved(
 				&who,
-				&ResolvedIntent { id, data: resolve.data }
+				&ResolvedIntent { id, data: resolve.data },
+				0,
 			));
 
 			assert_eq!(get_queued_task(Source::ICE(id)), None);

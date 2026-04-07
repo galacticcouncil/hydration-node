@@ -339,7 +339,7 @@ fn should_resolve_dca_trade_and_update_state() {
 						partial: false,
 					}),
 				};
-				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve));
+				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve, 0));
 
 				// Intent still exists
 				let stored = Intents::<Test>::get(id).unwrap();
@@ -392,7 +392,7 @@ fn should_complete_dca_when_budget_exhausted() {
 						partial: false,
 					}),
 				};
-				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve1));
+				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve1, 0));
 				assert!(Intents::<Test>::get(id).is_some());
 
 				// Second trade — budget exhausted — simulate ICE unlock
@@ -408,7 +408,7 @@ fn should_complete_dca_when_budget_exhausted() {
 						partial: false,
 					}),
 				};
-				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve2));
+				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve2, 0));
 
 				assert!(Intents::<Test>::get(id).is_none());
 				assert!(IntentOwner::<Test>::get(id).is_none());
@@ -452,7 +452,7 @@ fn should_validate_dca_hard_limit() {
 					}),
 				};
 				assert_noop!(
-					crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve),
+					crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve, 0),
 					Error::<Test>::LimitViolation
 				);
 
@@ -552,7 +552,7 @@ fn should_rolling_dca_re_reserve_after_trade() {
 						partial: false,
 					}),
 				};
-				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve));
+				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve, 0));
 
 				let stored = Intents::<Test>::get(id).unwrap();
 				match stored.data {
@@ -613,7 +613,7 @@ fn should_complete_rolling_dca_when_free_balance_insufficient() {
 						partial: false,
 					}),
 				};
-				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve));
+				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve, 0));
 
 				// remaining = 2x - 1x = 1x, re-reserve fails (no free), remaining stays 1x
 				let stored = Intents::<Test>::get(id).unwrap();
@@ -644,7 +644,7 @@ fn should_complete_rolling_dca_when_free_balance_insufficient() {
 						partial: false,
 					}),
 				};
-				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve2));
+				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve2, 0));
 
 				// DCA completed — removed from storage, no funds left
 				assert!(Intents::<Test>::get(id).is_none());

@@ -58,6 +58,7 @@ use pallet_route_executor::AmmTradeWeights;
 use sp_core::U256;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::CheckedConversion;
+use sp_runtime::Permill;
 use sp_std::borrow::ToOwned;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
@@ -103,6 +104,11 @@ pub mod pallet {
 
 		/// Simulator configuration - provides simulators and route provider for the solver
 		type Simulator: SimulatorConfig;
+
+		/// Protocol fee taken from each resolved intent's output amount.
+		/// Fee stays in the ICE holding account.
+		#[pallet::constant]
+		type Fee: Get<Permill>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -249,15 +255,13 @@ pub mod pallet {
 				ensure!(processed_intents.insert(*id), Error::<T>::DuplicateIntent);
 
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
-				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), transferring, id: {:?}, to: {:?}, amount: {:?}", LOG_PREFIX, id, owner, resolve.amount_out());
 
-				<T as Config>::Currency::transfer(
-					resolve.asset_out(),
-					&holding_pot,
-					&owner,
-					resolve.amount_out(),
-					AllowDeath,
-				)?;
+				let fee_amount = T::Fee::get().mul_floor(resolve.amount_out());
+				let payout = resolve.amount_out().saturating_sub(fee_amount);
+
+				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), transferring, id: {:?}, to: {:?}, amount: {:?}, fee: {:?}", LOG_PREFIX, id, owner, payout, fee_amount);
+
+				<T as Config>::Currency::transfer(resolve.asset_out(), &holding_pot, &owner, payout, AllowDeath)?;
 
 				Self::validate_price_consistency(&mut exec_prices, resolve)?;
 
@@ -267,7 +271,7 @@ pub mod pallet {
 				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), id: {:?}, surplus: {:?}", LOG_PREFIX, id, surplus);
 				exec_score = exec_score.checked_add(surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
 
-				pallet_intent::Pallet::<T>::intent_resolved(&owner, resolved_intent)?;
+				pallet_intent::Pallet::<T>::intent_resolved(&owner, resolved_intent, fee_amount)?;
 			}
 
 			log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), solution execution finished, exec_score: {:?}, score: {:?}", LOG_PREFIX, exec_score, solution.score);

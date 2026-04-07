@@ -1872,6 +1872,7 @@ impl pallet_intent::Config for Runtime {
 
 parameter_types! {
 	pub const IcePalletId: PalletId = PalletId(*b"ice_ice#");
+	pub const IceFee: Permill = Permill::from_parts(200); // 0.02%
 	pub const SimulatorPriceDenom: AssetId = CORE_ASSET_ID;
 }
 
@@ -1916,6 +1917,7 @@ impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
 impl pallet_ice::Config for Runtime {
 	type Currency = Currencies;
 	type PalletId = IcePalletId;
+	type Fee = IceFee;
 	type RegistryHandler = AssetRegistry;
 	type Simulator = HydrationSimulatorConfig;
 	type WeightInfo = weights::pallet_ice::HydraWeight<Runtime>;

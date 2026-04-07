@@ -145,6 +145,7 @@ pub mod pallet {
 			id: IntentId,
 			amount_in: Balance,
 			amount_out: Balance,
+			fee: Balance,
 		},
 
 		/// Portion of intent was resolved as part of ICE solution execution.
@@ -152,6 +153,7 @@ pub mod pallet {
 			id: IntentId,
 			amount_in: Balance,
 			amount_out: Balance,
+			fee: Balance,
 		},
 
 		/// Intent was canceled.
@@ -168,6 +170,7 @@ pub mod pallet {
 			id: IntentId,
 			amount_in: Balance,
 			amount_out: Balance,
+			fee: Balance,
 			remaining_budget: Balance,
 		},
 
@@ -641,7 +644,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Function resolves intent
-	pub fn intent_resolved(who: &T::AccountId, resolve: &ResolvedIntent) -> DispatchResult {
+	pub fn intent_resolved(who: &T::AccountId, resolve: &ResolvedIntent, fee: Balance) -> DispatchResult {
 		let ResolvedIntent { id, data: resolve } = resolve;
 		Intents::<T>::try_mutate_exists(id, |maybe_intent| {
 			let intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
@@ -692,7 +695,8 @@ impl<T: Config> Pallet<T> {
 					Self::deposit_event(Event::IntentResolved {
 						id: *id,
 						amount_in: resolve.amount_in(),
-						amount_out: resolve.amount_out(),
+						amount_out: resolve.amount_out().saturating_sub(fee),
+						fee,
 					});
 				}
 				return Ok(());
@@ -705,14 +709,16 @@ impl<T: Config> Pallet<T> {
 					Self::deposit_event(Event::IntentResovedPartially {
 						id: *id,
 						amount_in: resolve.amount_in(),
-						amount_out: resolve.amount_out(),
+						amount_out: resolve.amount_out().saturating_sub(fee),
+						fee,
 					});
 				}
 				IntentData::Dca(ref dca) => {
 					Self::deposit_event(Event::DcaTradeExecuted {
 						id: *id,
 						amount_in: resolve.amount_in(),
-						amount_out: resolve.amount_out(),
+						amount_out: resolve.amount_out().saturating_sub(fee),
+						fee,
 						remaining_budget: dca.remaining_budget,
 					});
 				}

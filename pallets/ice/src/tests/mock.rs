@@ -46,6 +46,7 @@ use sp_runtime::BuildStorage;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
+use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
 
 use std::cell::RefCell;
@@ -248,11 +249,13 @@ impl pallet_broadcast::Config for Test {}
 
 parameter_types! {
 	pub const IceId: PalletId = PalletId(*b"iceTest#");
+	pub const IceFee: Permill = Permill::from_percent(0);
 }
 
 impl pallet_ice::Config for Test {
 	type Currency = Currencies;
 	type PalletId = IceId;
+	type Fee = IceFee;
 	type RegistryHandler = DummyRegistry;
 	type Simulator = TestSimulatorConfig;
 	type WeightInfo = ();

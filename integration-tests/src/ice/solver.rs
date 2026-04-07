@@ -20,7 +20,7 @@ use sp_runtime::Permill;
 use xcm_emulator::Network;
 
 //pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/mainnet_nov4";
-pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/slim";
+pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/slim2";
 
 pub type CombinedSimulatorState =
 	<<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State;
@@ -508,10 +508,17 @@ fn solver_execute_solution1() {
 				panic!("expected Swap");
 			};
 
+			let ice_fee: Permill = <Runtime as pallet_ice::Config>::Fee::get();
 			assert_eq!(alice_balance_a_before - alice_balance_a_after, alice_swap.amount_in);
-			assert_eq!(alice_balance_b_after - alice_balance_b_before, alice_swap.amount_out);
+			assert_eq!(
+				alice_balance_b_after - alice_balance_b_before,
+				alice_swap.amount_out - ice_fee.mul_floor(alice_swap.amount_out)
+			);
 			assert_eq!(bob_balance_b_before - bob_balance_b_after, bob_swap.amount_in);
-			assert_eq!(bob_balance_a_after - bob_balance_a_before, bob_swap.amount_out);
+			assert_eq!(
+				bob_balance_a_after - bob_balance_a_before,
+				bob_swap.amount_out - ice_fee.mul_floor(bob_swap.amount_out)
+			);
 		});
 }
 
@@ -591,11 +598,16 @@ fn solver_execute_solution_with_buy_intents() {
 				"Alice's asset_b balance should increase after buying"
 			);
 
-			// Verify exact amounts match solution
+			// Verify exact amounts match solution (received = amount_out - fee)
+			let ice_fee: Permill = <Runtime as pallet_ice::Config>::Fee::get();
 			let paid = alice_balance_a_before - alice_balance_a_after;
 			let received = alice_balance_b_after - alice_balance_b_before;
 			assert_eq!(paid, swap_data.amount_in, "Paid amount should match solution");
-			assert_eq!(received, swap_data.amount_out, "Received amount should match solution");
+			assert_eq!(
+				received,
+				swap_data.amount_out - ice_fee.mul_floor(swap_data.amount_out),
+				"Received amount should match solution minus fee"
+			);
 
 			// Verify intent removed
 			let remaining_intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
@@ -797,7 +809,8 @@ fn solver_v1_single_intent() {
 			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
 			let alice_bnc_after = Currencies::total_balance(bnc, &alice);
 
-			// Verify balance changes match the solution
+			// Verify balance changes match the solution (received = amount_out - fee)
+			let ice_fee: Permill = <Runtime as pallet_ice::Config>::Fee::get();
 			let hdx_spent = alice_hdx_before - alice_hdx_after;
 			let bnc_received = alice_bnc_after - alice_bnc_before;
 
@@ -806,8 +819,9 @@ fn solver_v1_single_intent() {
 				"HDX spent should equal resolved amount_in"
 			);
 			assert_eq!(
-				bnc_received, swap_data.amount_out,
-				"BNC received should equal resolved amount_out"
+				bnc_received,
+				swap_data.amount_out - ice_fee.mul_floor(swap_data.amount_out),
+				"BNC received should equal resolved amount_out minus fee"
 			);
 		});
 }
@@ -877,19 +891,21 @@ fn solver_v1_two_intents_partial_match() {
 			assert!(bob_bnc_after < bob_bnc_before, "Bob should have less BNC after selling");
 			assert!(bob_hdx_after > bob_hdx_before, "Bob should have more HDX after selling");
 
-			// Verify balance changes match solution
+			// Verify balance changes match solution (received = amount_out - fee)
+			let ice_fee: Permill = <Runtime as pallet_ice::Config>::Fee::get();
 			for resolved in solution.resolved_intents.iter() {
 				let ice_support::IntentData::Swap(ref swap_data) = resolved.data else {
 					panic!("expected Swap");
 				};
+				let expected_payout = swap_data.amount_out - ice_fee.mul_floor(swap_data.amount_out);
 				if swap_data.asset_in == hdx {
 					// Alice's intent
 					assert_eq!(alice_hdx_before - alice_hdx_after, swap_data.amount_in);
-					assert_eq!(alice_bnc_after - alice_bnc_before, swap_data.amount_out);
+					assert_eq!(alice_bnc_after - alice_bnc_before, expected_payout);
 				} else {
 					// Bob's intent
 					assert_eq!(bob_bnc_before - bob_bnc_after, swap_data.amount_in);
-					assert_eq!(bob_hdx_after - bob_hdx_before, swap_data.amount_out);
+					assert_eq!(bob_hdx_after - bob_hdx_before, expected_payout);
 				}
 			}
 		});
@@ -1359,13 +1375,15 @@ fn usdt_weth_single_intent() {
 				"Alice should have more WETH after sell"
 			);
 
-			// Verify exact amounts match solution
+			// Verify exact amounts match solution (received = amount_out - fee)
+			let ice_fee: Permill = <Runtime as pallet_ice::Config>::Fee::get();
 			let usdt_spent = alice_usdt_before - alice_usdt_after;
 			let weth_received = alice_weth_after - alice_weth_before;
 			assert_eq!(usdt_spent, swap_data.amount_in, "USDT spent should match solution");
 			assert_eq!(
-				weth_received, swap_data.amount_out,
-				"WETH received should match solution"
+				weth_received,
+				swap_data.amount_out - ice_fee.mul_floor(swap_data.amount_out),
+				"WETH received should match solution minus fee"
 			);
 
 			// Verify intent was resolved
@@ -1873,19 +1891,24 @@ fn solver_ring_trade_triangle_execute() {
 			assert!(Currencies::total_balance(dot, &charlie) < charlie_dot_before);
 			assert!(Currencies::total_balance(hdx, &charlie) > charlie_hdx_before);
 
-			// Verify balance changes match solution exactly
+			// Verify balance changes match solution (received = amount_out - fee)
+			let ice_fee: Permill = <Runtime as pallet_ice::Config>::Fee::get();
 			for ri in solution.resolved_intents.iter() {
 				let ice_support::IntentData::Swap(ref s) = ri.data else {
 					panic!("expected Swap");
 				};
+				let expected_payout = s.amount_out - ice_fee.mul_floor(s.amount_out);
 				match (s.asset_in, s.asset_out) {
 					(0, 14) => {
 						assert_eq!(alice_hdx_before - Currencies::total_balance(hdx, &alice), s.amount_in);
-						assert_eq!(Currencies::total_balance(bnc, &alice) - alice_bnc_before, s.amount_out);
+						assert_eq!(
+							Currencies::total_balance(bnc, &alice) - alice_bnc_before,
+							expected_payout
+						);
 					}
 					(14, 5) => {
 						assert_eq!(bob_bnc_before - Currencies::total_balance(bnc, &bob), s.amount_in);
-						assert_eq!(Currencies::total_balance(dot, &bob) - bob_dot_before, s.amount_out);
+						assert_eq!(Currencies::total_balance(dot, &bob) - bob_dot_before, expected_payout);
 					}
 					(5, 0) => {
 						assert_eq!(
@@ -1894,7 +1917,7 @@ fn solver_ring_trade_triangle_execute() {
 						);
 						assert_eq!(
 							Currencies::total_balance(hdx, &charlie) - charlie_hdx_before,
-							s.amount_out
+							expected_payout
 						);
 					}
 					_ => panic!("Unexpected direction"),
@@ -2872,5 +2895,134 @@ fn solver_three_intent_dust_remainder() {
 			// is rejected. Seeding the holding pot doesn't help — the issue is on the
 			// router account's receiving side.
 			let result = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
+		});
+}
+
+/// Test that the ICE protocol fee is deducted from each resolved intent's output.
+/// Two opposing intents (HDX↔BNC) are resolved. Each recipient should receive
+/// amount_out * (1 - fee) where fee = 0.02% (Permill::from_parts(200)).
+/// The fee remains in the ICE holding pot.
+#[test]
+fn solver_ice_fee_is_deducted() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+
+	// At ~14.7 HDX/BNC:
+	// Alice: sell 1000 HDX → ~67 BNC
+	// Bob: sell 100 BNC → ~1474 HDX
+	// Large spread ensures both resolve comfortably
+	let alice_hdx_sell = 1000 * hdx_unit;
+	let bob_bnc_sell = 100 * bnc_unit;
+
+	let alice_min_bnc = 10 * bnc_unit;
+	let bob_min_hdx = 200 * hdx_unit;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, alice_hdx_sell * 10)
+		.endow_account(bob.clone(), bnc, bob_bnc_sell * 10)
+		.submit_swap_intent(alice.clone(), hdx, bnc, alice_hdx_sell, alice_min_bnc, Some(10))
+		.submit_swap_intent(bob.clone(), bnc, hdx, bob_bnc_sell, bob_min_hdx, Some(10))
+		.execute(|| {
+			enable_slip_fees();
+
+			assert_eq!(pallet_intent::Pallet::<Runtime>::get_valid_intents().len(), 2);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			assert_eq!(solution.resolved_intents.len(), 2, "Both intents must be resolved");
+
+			// Capture resolved amounts before execution
+			let mut alice_resolved_bnc = 0u128;
+			let mut bob_resolved_hdx = 0u128;
+			for ri in solution.resolved_intents.iter() {
+				let ice_support::IntentData::Swap(ref s) = ri.data else {
+					panic!("expected Swap");
+				};
+				if s.asset_out == bnc {
+					alice_resolved_bnc = s.amount_out;
+				} else if s.asset_out == hdx {
+					bob_resolved_hdx = s.amount_out;
+				}
+			}
+			assert!(alice_resolved_bnc > 0, "Alice should receive BNC");
+			assert!(bob_resolved_hdx > 0, "Bob should receive HDX");
+
+			let ice_fee: Permill = <Runtime as pallet_ice::Config>::Fee::get();
+
+			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
+			let bob_hdx_before = Currencies::total_balance(hdx, &bob);
+			let holding_pot = pallet_ice::Pallet::<Runtime>::get_pallet_account();
+
+			// Pre-fund the pot with native ED so it isn't reaped after the fee-only remainder.
+			// In production the pot persists across solutions and accumulates fees over time.
+			assert_ok!(hydradx_runtime::Balances::force_set_balance(
+				RuntimeOrigin::root(),
+				holding_pot.clone(),
+				hdx_unit,
+			));
+
+			let pot_bnc_before = Currencies::total_balance(bnc, &holding_pot);
+			let pot_hdx_before = Currencies::total_balance(hdx, &holding_pot);
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+
+			// Verify fee deduction: recipients get amount_out - fee
+			let alice_fee = ice_fee.mul_floor(alice_resolved_bnc);
+			let bob_fee = ice_fee.mul_floor(bob_resolved_hdx);
+			let alice_expected_payout = alice_resolved_bnc - alice_fee;
+			let bob_expected_payout = bob_resolved_hdx - bob_fee;
+
+			let alice_bnc_received = Currencies::total_balance(bnc, &alice) - alice_bnc_before;
+			let bob_hdx_received = Currencies::total_balance(hdx, &bob) - bob_hdx_before;
+
+			assert_eq!(
+				alice_bnc_received, alice_expected_payout,
+				"Alice should receive amount_out minus fee"
+			);
+			assert_eq!(
+				bob_hdx_received, bob_expected_payout,
+				"Bob should receive amount_out minus fee"
+			);
+
+			// Verify fees stayed in holding pot
+			assert!(alice_fee > 0, "Alice fee should be non-zero");
+			assert!(bob_fee > 0, "Bob fee should be non-zero");
+
+			// The holding pot balance after execution should have increased by the fee amounts
+			// (relative to what it would be with zero fees — i.e., the pot retains the fees)
+			let pot_bnc_after = Currencies::total_balance(bnc, &holding_pot);
+			let pot_hdx_after = Currencies::total_balance(hdx, &holding_pot);
+			assert!(
+				pot_bnc_after >= pot_bnc_before + alice_fee,
+				"Holding pot should retain BNC fee: before={}, after={}, fee={}",
+				pot_bnc_before,
+				pot_bnc_after,
+				alice_fee
+			);
+			assert!(
+				pot_hdx_after >= pot_hdx_before + bob_fee,
+				"Holding pot should retain HDX fee: before={}, after={}, fee={}",
+				pot_hdx_before,
+				pot_hdx_after,
+				bob_fee
+			);
 		});
 }
