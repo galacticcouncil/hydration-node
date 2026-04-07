@@ -10206,7 +10206,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispatcher"
-version = "1.7.0"
+version = "1.7.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
