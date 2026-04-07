@@ -739,7 +739,6 @@ pub fn save_slim_snapshot<B: BlockT<Hash = H256>>(
 	mut ext: sp_state_machine::TestExternalities<frame_support::sp_runtime::traits::HashingFor<B>>,
 	header: B::Header,
 	path: PathBuf,
-	_excluded_pallets: &[String],
 ) -> Result<(), &'static str> {
 	ext.execute_with(|| {
 		println!("Building slim allow-list...");

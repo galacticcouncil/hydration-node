@@ -109,6 +109,9 @@ fn main() {
 			let transport = Transport::Uri(cmd.shared.uri);
 
 			if slim {
+				if !excluded_pallets.is_empty() {
+					println!("Warning: --exclude is ignored in --slim mode (slim filters by account, not by pallet)");
+				}
 				// Slim mode: don't auto-save, capture externalities, filter in memory, write once
 				let online_config = OnlineConfig {
 					at: cmd.at,
@@ -127,7 +130,7 @@ fn main() {
 					.unwrap()
 					.block_on(async { builder.build().await.unwrap() });
 
-				scraper::save_slim_snapshot::<Block>(ext.inner_ext, ext.header, path.clone(), &excluded_pallets)
+				scraper::save_slim_snapshot::<Block>(ext.inner_ext, ext.header, path.clone())
 					.expect("Failed to save slim snapshot");
 			} else {
 				let snapshot_config = SnapshotConfig::new(path.clone());
