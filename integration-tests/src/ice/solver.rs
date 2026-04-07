@@ -19,7 +19,8 @@ use primitives::AccountId;
 use sp_runtime::Permill;
 use xcm_emulator::Network;
 
-pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/mainnet_nov4";
+//pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/mainnet_nov4";
+pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/notslim";
 
 pub type CombinedSimulatorState =
 	<<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State;
@@ -2057,7 +2058,7 @@ fn solver_mixed_batch_12_intents() {
 	let dot_unit = 10_000_000_000u128;
 
 	let min_bnc = bnc_unit;
-	let min_hdx = 500 * hdx_unit;
+	let min_hdx = 200 * hdx_unit;
 	let min_dot = dot_unit / 10;
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
@@ -2192,7 +2193,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 	let dot_unit = 10_000_000_000u128;
 
 	let min_bnc = bnc_unit;
-	let min_hdx = 500 * hdx_unit;
+	let min_hdx = 200 * hdx_unit;
 	let min_dot = dot_unit / 10;
 
 	let trades: Vec<(u32, u32, u128)> = vec![
@@ -2548,14 +2549,14 @@ fn solver_near_perfect_cancel_ed_remainder() {
 	let hdx_unit = 1_000_000_000_000u128;
 	let bnc_unit = 1_000_000_000_000u128;
 
-	// Spot: BNC/HDX ≈ 30.3 (1 BNC ≈ 30.3 HDX from snapshot)
-	// Alice: sell 1000 HDX for BNC (~33 BNC at spot)
+	// Spot: BNC/HDX ≈ 14.7 (1 BNC ≈ 14.7 HDX from snapshot)
+	// Alice: sell 1000 HDX for BNC (~67.8 BNC at spot)
 	let alice_hdx_sell = 1000 * hdx_unit;
-	// Bob: sell 34 BNC for HDX (~1030 HDX at spot)
-	// Net excess BNC: ~1 BNC ≈ 30 HDX to trade through AMM (tiny remainder)
-	let bob_bnc_sell = 34 * bnc_unit;
+	// Bob: sell 68 BNC for HDX (~1002 HDX at spot)
+	// Net excess BNC: ~0.2 BNC ≈ 3 HDX to trade through AMM (tiny remainder)
+	let bob_bnc_sell = 68 * bnc_unit;
 
-	let alice_min_bnc = 25 * bnc_unit;
+	let alice_min_bnc = 50 * bnc_unit;
 	let bob_min_hdx = 800 * hdx_unit;
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
@@ -2613,9 +2614,9 @@ fn solver_near_perfect_cancel_ed_remainder() {
 /// Test with amounts at existential deposit level.
 
 /// Test with near-cancelling amounts where the net AMM remainder is small.
-/// Alice sells 100 HDX for BNC (~3.3 BNC at spot).
-/// Bob sells 3.4 BNC for HDX (~103 HDX at spot).
-/// Net excess: ~0.1 BNC ≈ 3 HDX — very small AMM trade.
+/// Alice sells 100 HDX for BNC (~6.78 BNC at spot).
+/// Bob sells 7 BNC for HDX (~103 HDX at spot).
+/// Net excess: ~0.22 BNC ≈ 3 HDX — very small AMM trade.
 #[test]
 fn solver_existential_deposit_amounts() {
 	TestNet::reset();
@@ -2629,12 +2630,12 @@ fn solver_existential_deposit_amounts() {
 	let hdx_unit = 1_000_000_000_000u128;
 	let bnc_unit = 1_000_000_000_000u128;
 
-	// Spot: 1 BNC ≈ 30.3 HDX
+	// Spot: 1 BNC ≈ 14.7 HDX
 	let alice_hdx_sell = 100 * hdx_unit;
-	let bob_bnc_sell = 34 * bnc_unit / 10; // 3.4 BNC
+	let bob_bnc_sell = 7 * bnc_unit; // 7 BNC
 
-	let alice_min_bnc = 2 * bnc_unit;
-	let bob_min_hdx = 80 * hdx_unit;
+	let alice_min_bnc = 4 * bnc_unit;
+	let bob_min_hdx = 60 * hdx_unit;
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(alice.clone(), hdx, alice_hdx_sell * 100)
@@ -2834,9 +2835,9 @@ fn solver_amm_remainder_dust() {
 }
 
 /// 3-intent near-cancel with dust AMM remainder.
-/// Alice sells 100 HDX → BNC, Bob+Charlie each sell 1.65 BNC → HDX.
-/// Bob+Charlie total: 3.3 BNC ≈ 100.0 HDX — nearly exact cancel with Alice.
-/// Net excess BNC: ~0.00163 BNC (1_630_278_265) — below BNC's ED of 68_795_189_840.
+/// Alice sells 100 HDX → BNC, Bob+Charlie each sell 3.39 BNC → HDX.
+/// Bob+Charlie total: 6.78 BNC ≈ 100.0 HDX — nearly exact cancel with Alice.
+/// Net excess BNC is dust — below BNC's ED of 68_795_189_840.
 /// Fails with Token(BelowMinimum): the route executor can't transfer dust BNC to its
 /// router account because the amount is below BNC's existential deposit.
 #[test]
@@ -2853,15 +2854,15 @@ fn solver_three_intent_dust_remainder() {
 	let hdx_unit = 1_000_000_000_000u128;
 	let bnc_unit = 1_000_000_000_000u128;
 
-	// Spot: 1 BNC ≈ 30.3 HDX
+	// Spot: 1 BNC ≈ 14.7 HDX
 	let alice_hdx_sell = 100 * hdx_unit;
-	// 1.65 BNC ≈ 50.02 HDX each; total 3.3 BNC ≈ 100.0 HDX — nearly cancels Alice
-	let bob_bnc_sell = 165 * bnc_unit / 100; // 1.65 BNC
-	let charlie_bnc_sell = 165 * bnc_unit / 100; // 1.65 BNC
+	// 3.39 BNC ≈ 49.8 HDX each; total 6.78 BNC ≈ 100.0 HDX — nearly cancels Alice
+	let bob_bnc_sell = 339 * bnc_unit / 100; // 3.39 BNC
+	let charlie_bnc_sell = 339 * bnc_unit / 100; // 3.39 BNC
 
-	let alice_min_bnc = 2 * bnc_unit;
-	let bob_min_hdx = 40 * hdx_unit;
-	let charlie_min_hdx = 40 * hdx_unit;
+	let alice_min_bnc = 4 * bnc_unit;
+	let bob_min_hdx = 30 * hdx_unit;
+	let charlie_min_hdx = 30 * hdx_unit;
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(alice.clone(), hdx, alice_hdx_sell * 100)
