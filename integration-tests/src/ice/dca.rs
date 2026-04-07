@@ -13,8 +13,7 @@ use primitives::AccountId;
 use sp_runtime::Permill;
 use xcm_emulator::Network;
 
-// Same snapshot as other solver tests
-pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/slim2";
+use super::PATH_TO_SNAPSHOT;
 
 // Asset IDs proven to work in existing solver tests
 const HDX: u32 = 0;
