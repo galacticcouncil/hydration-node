@@ -473,19 +473,6 @@ mod slim {
 		account
 	}
 
-	/// Read a little-endian u128 from a byte slice.
-	fn read_u128_le(bytes: &[u8], offset: usize) -> u128 {
-		let mut buf = [0u8; 16];
-		buf.copy_from_slice(&bytes[offset..offset + 16]);
-		u128::from_le_bytes(buf)
-	}
-
-	fn read_u32_le(bytes: &[u8], offset: usize) -> u32 {
-		let mut buf = [0u8; 4];
-		buf.copy_from_slice(&bytes[offset..offset + 4]);
-		u32::from_le_bytes(buf)
-	}
-
 	/// Extract account from end of key (for single-key maps like System.Account, XYK.PoolAssets).
 	/// Key = prefix(32) + blake2_128_concat(account)(48). Account at last 32 bytes.
 	fn account_from_key_tail(key: &[u8]) -> Option<[u8; 32]> {
@@ -666,8 +653,13 @@ mod slim {
 		allow_list.contains(account)
 	}
 
-	/// Clear unwanted storage entries and recalculate issuances.
+	/// Clear unwanted storage entries.
 	/// Must be called inside execute_with().
+	///
+	/// Note: we intentionally do NOT recalculate TotalIssuance. Pools (especially Stableswap)
+	/// depend on the original share token issuance. Recalculating it from the remaining accounts
+	/// would set share issuance to zero (since LP holders are removed), breaking pool operations.
+	/// Slightly inflated issuance is harmless for testing.
 	pub fn clear_unwanted_entries(allow_list: &HashSet<[u8; 32]>) {
 		// (pallet, item, account_is_first_key)
 		// account_is_first_key=true: double map where AccountId is the first key (offset 48..80)
@@ -680,12 +672,6 @@ mod slim {
 			("MultiTransactionPayment", "AccountCurrencyMap", false),
 			("Vesting", "VestingSchedules", false),
 		];
-
-		let mut native_issuance: u128 = 0;
-		let mut token_issuances: std::collections::HashMap<u32, u128> = std::collections::HashMap::new();
-
-		let system_account_prefix = storage_prefix("System", "Account");
-		let tokens_accounts_prefix = storage_prefix("Tokens", "Accounts");
 
 		for (pallet, item, account_is_first_key) in &filterable {
 			let prefix = storage_prefix(pallet, item);
@@ -704,49 +690,12 @@ mod slim {
 					if !should_keep(&account, allow_list) {
 						sp_io::storage::clear(&key);
 						removed += 1;
-					} else if key.starts_with(&system_account_prefix) {
-						if let Some(val) = sp_io::storage::get(&key) {
-							if val.len() >= 48 {
-								let free = read_u128_le(&val, 16);
-								let reserved = read_u128_le(&val, 32);
-								native_issuance = native_issuance.saturating_add(free).saturating_add(reserved);
-							}
-						}
-					} else if key.starts_with(&tokens_accounts_prefix) {
-						// Tokens.Accounts key: prefix(32) + blake2_128(account)(16) + account(32) + twox64(currency)(8) + currency(4) = 92
-						// Currency is last 4 bytes
-						if key.len() >= 92 {
-							let currency_id = read_u32_le(&key, key.len() - 4);
-							if let Some(val) = sp_io::storage::get(&key) {
-								if val.len() >= 32 {
-									let free = read_u128_le(&val, 0);
-									let reserved = read_u128_le(&val, 16);
-									*token_issuances.entry(currency_id).or_insert(0) += free.saturating_add(reserved);
-								}
-							}
-						}
 					}
 				}
 			}
 
 			if removed > 0 {
 				println!("  Removed {removed}/{total} entries from {pallet}.{item}");
-			}
-		}
-
-		// Recalculate Balances.TotalIssuance
-		let balances_ti_key = storage_prefix("Balances", "TotalIssuance");
-		sp_io::storage::set(&balances_ti_key, &native_issuance.to_le_bytes());
-		println!("Recalculated Balances.TotalIssuance: {native_issuance}");
-
-		// Recalculate Tokens.TotalIssuance for each currency
-		let ti_prefix = storage_prefix("Tokens", "TotalIssuance");
-		for key in iter_keys_with_prefix(&ti_prefix) {
-			if key.len() >= 44 {
-				let currency_id = read_u32_le(&key, key.len() - 4);
-				if let Some(&new_issuance) = token_issuances.get(&currency_id) {
-					sp_io::storage::set(&key, &new_issuance.to_le_bytes());
-				}
 			}
 		}
 	}
