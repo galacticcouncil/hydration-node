@@ -734,12 +734,14 @@ mod slim {
 }
 
 /// Save a slim snapshot: filter out most user accounts, keep only protocol/pool/dev accounts.
-/// Uses execute_with() + sp_io::storage to properly modify trie-backed storage.
+/// Uses execute_with() + sp_io::storage to properly modify trie-backed storage,
+/// then rebuilds a fresh trie from the filtered entries to avoid dead trie node bloat.
 pub fn save_slim_snapshot<B: BlockT<Hash = H256>>(
 	mut ext: sp_state_machine::TestExternalities<frame_support::sp_runtime::traits::HashingFor<B>>,
 	header: B::Header,
 	path: PathBuf,
 ) -> Result<(), &'static str> {
+	// Phase 1: Clear unwanted entries through the proper storage API
 	ext.execute_with(|| {
 		println!("Building slim allow-list...");
 		let allow_list = slim::build_allow_list();
@@ -750,8 +752,33 @@ pub fn save_slim_snapshot<B: BlockT<Hash = H256>>(
 
 	ext.commit_all().map_err(|_| "Failed to commit storage changes")?;
 
-	let state_version = ext.state_version;
-	let (raw_storage, storage_root) = ext.into_raw_snapshot();
+	// Phase 2: Extract only the live storage key-value pairs and rebuild a clean trie.
+	// Without this, the PrefixedMemoryDB retains old trie nodes from before filtering,
+	// bloating the snapshot (e.g. 1.6M trie entries instead of ~270k).
+	let mut live_storage = BTreeMap::new();
+	ext.execute_with(|| {
+		let child_prefix = sp_core::storage::well_known_keys::CHILD_STORAGE_KEY_PREFIX;
+		let mut key = sp_io::storage::next_key(&[]);
+		while let Some(k) = key {
+			// Skip child storage keys — they can't go in top storage
+			if !k.starts_with(child_prefix) {
+				if let Some(v) = sp_io::storage::get(&k) {
+					live_storage.insert(k.clone(), v.to_vec());
+				}
+			}
+			key = sp_io::storage::next_key(&k);
+		}
+	});
+
+	println!("Rebuilding clean trie from {} live storage entries...", live_storage.len());
+
+	let fresh_ext = TestExternalities::new(Storage {
+		top: live_storage,
+		children_default: Default::default(),
+	});
+
+	let state_version = fresh_ext.state_version;
+	let (raw_storage, storage_root) = fresh_ext.into_raw_snapshot();
 
 	println!("Saving slim snapshot with {} trie entries...", raw_storage.len());
 	let snapshot = Snapshot::<B>::new(state_version, raw_storage, storage_root, header);
