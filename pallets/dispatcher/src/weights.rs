@@ -57,6 +57,7 @@ pub trait WeightInfo {
     fn pause_hyperbridge_cleanup() -> Weight;
     fn cleanup_on_idle(n: u32, ) -> Weight;
     fn cleanup_on_idle_limit_zero() -> Weight;
+    fn dispatch_with_fee_payer(n: u32) -> Weight;
 }
 
 /// Weights for `pallet_dispatcher` using the HydraDX node and recommended hardware.
@@ -112,10 +113,14 @@ impl WeightInfo for () {
             .saturating_add(Weight::from_parts(223, 0).saturating_mul(n.into()))
     }
     /// The range of component `n` is `[1, 10000]`.
-    fn dispatch_as_emergency_admin(n: u32, ) -> Weight {
-        // Placeholder: uses dispatch_as_treasury weights (no storage read needed)
-        Weight::from_parts(11_608_545, 0)
-            .saturating_add(Weight::from_parts(1_288, 0).saturating_mul(n.into()))
+    fn dispatch_as_emergency_admin(n: u32) -> Weight {
+        Weight::from_parts(11_500_000, 0)
+            .saturating_add(Weight::from_parts(1_300, 0).saturating_mul(n.into()))
+    }
+    /// The range of component `n` is `[1, 10000]`.
+    fn dispatch_with_fee_payer(n: u32) -> Weight {
+        Weight::from_parts(11_500_000, 0)
+            .saturating_add(Weight::from_parts(1_300, 0).saturating_mul(n.into()))
     }
     /// Storage: `Dispatcher::CleanupEnabled` (r:0 w:1)
     /// Proof: `Dispatcher::CleanupEnabled` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
