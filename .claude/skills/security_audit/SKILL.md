@@ -1,6 +1,7 @@
 ---
 name: security_audit
 description: Security audit of Substrate runtime built in Rust. Scans current dir by default, or a specific PR with --pr. Add --deep for adversarial reasoning.
+allowed-tools: Read, Glob, Grep, WebFetch, Bash, Agent
 ---
 
 # Substrate Security Audit
