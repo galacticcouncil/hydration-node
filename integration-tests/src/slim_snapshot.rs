@@ -2,9 +2,7 @@
 
 use crate::polkadot_test_net::{hydra_live_ext, ALICE, BOB};
 use frame_support::assert_ok;
-use hydradx_runtime::{
-	AssetId, Balance, Currencies, Omnipool, Router, RuntimeOrigin, Stableswap, System, XYK,
-};
+use hydradx_runtime::{AssetId, Balance, Currencies, Omnipool, Router, RuntimeOrigin, Stableswap, System, XYK};
 use hydradx_traits::router::{PoolType, Trade};
 use orml_traits::MultiCurrency;
 
@@ -96,7 +94,8 @@ fn find_stableswap_pool() -> Option<(AssetId, AssetId, AssetId)> {
 						// Require meaningful but not huge liquidity to avoid overflow
 						// Skip pools with very large balances (likely 18-decimal EVM assets)
 						let max_bal = 1_000_000_000_000_000_000_000u128; // 10^21
-						if bal_a > 1_000_000_000_000_000 && bal_b > 1_000_000_000_000_000
+						if bal_a > 1_000_000_000_000_000
+							&& bal_b > 1_000_000_000_000_000
 							&& bal_a < max_bal && bal_b < max_bal
 						{
 							return Some((pool_id, asset_a, asset_b));
@@ -204,7 +203,10 @@ fn omnipool_sell_hdx_should_work() {
 		));
 
 		let balance_after = Currencies::free_balance(asset_out, &alice);
-		assert!(balance_after > balance_before, "Alice should have received asset {asset_out}");
+		assert!(
+			balance_after > balance_before,
+			"Alice should have received asset {asset_out}"
+		);
 	});
 }
 
@@ -233,7 +235,10 @@ fn omnipool_buy_should_work() {
 		));
 
 		let balance_after = Currencies::free_balance(asset_out, &alice);
-		assert!(balance_after > balance_before, "Alice should have bought asset {asset_out}");
+		assert!(
+			balance_after > balance_before,
+			"Alice should have bought asset {asset_out}"
+		);
 	});
 }
 
@@ -269,7 +274,10 @@ fn omnipool_sell_between_two_non_hdx_assets_should_work() {
 		));
 
 		let balance_after = Currencies::free_balance(asset_b, &bob);
-		assert!(balance_after > balance_before, "Bob should have received asset {asset_b}");
+		assert!(
+			balance_after > balance_before,
+			"Bob should have received asset {asset_b}"
+		);
 	});
 }
 
@@ -447,10 +455,7 @@ fn router_sell_via_stableswap_should_work() {
 		));
 
 		let balance_after = Currencies::free_balance(asset_out, &alice);
-		assert!(
-			balance_after > balance_before,
-			"Router Stableswap sell should work"
-		);
+		assert!(balance_after > balance_before, "Router Stableswap sell should work");
 	});
 }
 
@@ -541,7 +546,11 @@ fn xyk_buy_should_work() {
 		let pool_account = sp_runtime::AccountId32::new(pool_account_bytes);
 		let pool_bal_b = Currencies::free_balance(asset_b, &pool_account);
 		let buy_amount = pool_bal_b / 10; // 10% of pool
-		assert_ok!(Currencies::deposit(asset_a, &bob, Currencies::free_balance(asset_a, &pool_account)));
+		assert_ok!(Currencies::deposit(
+			asset_a,
+			&bob,
+			Currencies::free_balance(asset_a, &pool_account)
+		));
 
 		let balance_before = Currencies::free_balance(asset_b, &bob);
 
@@ -612,10 +621,7 @@ fn router_sell_via_xyk_should_work() {
 		));
 
 		let balance_after = Currencies::free_balance(asset_b, &alice);
-		assert!(
-			balance_after > balance_before,
-			"Router XYK sell should work"
-		);
+		assert!(balance_after > balance_before, "Router XYK sell should work");
 	});
 }
 
@@ -625,6 +631,8 @@ fn router_sell_via_xyk_should_work() {
 
 #[test]
 fn aave_supply_dot_should_work() {
+	use fp_evm::ExitReason::Succeed;
+	use fp_evm::ExitSucceed::Returned;
 	use hydradx_runtime::{
 		evm::{precompiles::erc20_mapping::HydraErc20Mapping, Executor},
 		AccountId, EVMAccounts, Runtime,
@@ -633,8 +641,6 @@ fn aave_supply_dot_should_work() {
 	use liquidation_worker_support::*;
 	use pallet_liquidation::BorrowingContract;
 	use sp_core::U256;
-	use fp_evm::ExitReason::Succeed;
-	use fp_evm::ExitSucceed::Returned;
 
 	const DOT: AssetId = 5;
 	const DOT_UNIT: Balance = 10_000_000_000;

@@ -554,10 +554,29 @@ mod slim {
 
 		// PalletId accounts
 		for id in [
-			b"py/trsry", b"py/vstng", b"omnipool", b"stblpool", b"staking#", b"PotStake",
-			b"OmniWhLM", b"Omni//LM", b"xykLMpID", b"XYK///LM", b"pltbonds", b"referral",
-			b"gigahdx!", b"gigarwd!", b"feeproc/", b"py/hsmod", b"py/signt", b"py/fucet",
-			b"curreser", b"xcm/alte", b"otcsettl", b"routerex", b"lqdation",
+			b"py/trsry",
+			b"py/vstng",
+			b"omnipool",
+			b"stblpool",
+			b"staking#",
+			b"PotStake",
+			b"OmniWhLM",
+			b"Omni//LM",
+			b"xykLMpID",
+			b"XYK///LM",
+			b"pltbonds",
+			b"referral",
+			b"gigahdx!",
+			b"gigarwd!",
+			b"feeproc/",
+			b"py/hsmod",
+			b"py/signt",
+			b"py/fucet",
+			b"curreser",
+			b"xcm/alte",
+			b"otcsettl",
+			b"routerex",
+			b"lqdation",
 		] {
 			accounts.insert(pallet_account(id));
 		}
@@ -655,9 +674,9 @@ mod slim {
 		// account_is_first_key=false: single map where AccountId is the only key (last 32 bytes)
 		let filterable: [(&str, &str, bool); 6] = [
 			("System", "Account", false),
-			("Tokens", "Accounts", true),      // DoubleMap<AccountId, CurrencyId>
-			("Balances", "Locks", false),       // Map<AccountId>
-			("Tokens", "Locks", true),          // DoubleMap<AccountId, CurrencyId>
+			("Tokens", "Accounts", true), // DoubleMap<AccountId, CurrencyId>
+			("Balances", "Locks", false), // Map<AccountId>
+			("Tokens", "Locks", true),    // DoubleMap<AccountId, CurrencyId>
 			("MultiTransactionPayment", "AccountCurrencyMap", false),
 			("Vesting", "VestingSchedules", false),
 		];
@@ -770,7 +789,10 @@ pub fn save_slim_snapshot<B: BlockT<Hash = H256>>(
 		}
 	});
 
-	println!("Rebuilding clean trie from {} live storage entries...", live_storage.len());
+	println!(
+		"Rebuilding clean trie from {} live storage entries...",
+		live_storage.len()
+	);
 
 	let fresh_ext = TestExternalities::new(Storage {
 		top: live_storage,
