@@ -162,10 +162,20 @@ pub mod pallet {
 		EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice())
 	}
 
-	/// Borrowing market contract address
+	/// Borrowing market contract address (main Hydration Market pool)
 	#[pallet::storage]
 	#[pallet::getter(fn borrowing_contract)]
 	pub type BorrowingContract<T: Config> = StorageValue<_, EvmAddress, ValueQuery, DefaultBorrowingContract>;
+
+	#[pallet::type_value]
+	pub fn DefaultGigaHdxPoolContract() -> EvmAddress {
+		EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice())
+	}
+
+	/// GIGAHDX borrowing market contract address (second pool instance for stHDX/HOLLAR)
+	#[pallet::storage]
+	#[pallet::getter(fn gigahdx_pool_contract)]
+	pub type GigaHdxPoolContract<T: Config> = StorageValue<_, EvmAddress, ValueQuery, DefaultGigaHdxPoolContract>;
 
 	#[pallet::validate_unsigned]
 	impl<T: Config> ValidateUnsigned for Pallet<T>
@@ -336,6 +346,17 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Set the GIGAHDX pool contract address (second pool instance).
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_borrowing_contract())]
+		pub fn set_gigahdx_pool_contract(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			GigaHdxPoolContract::<T>::put(contract);
+
+			Ok(())
+		}
 	}
 }
 
@@ -475,7 +496,7 @@ impl<T: Config> Pallet<T> {
 		T::AccountId: AsRef<[u8; 32]>,
 	{
 		let collateral_asset = T::GigaHdxAssetId::get();
-		let contract = Self::borrowing_contract();
+		let contract = Self::gigahdx_pool_contract();
 
 		// Step 1: Clear voting locks
 		let user_account = T::EvmAccounts::account_id(user);
