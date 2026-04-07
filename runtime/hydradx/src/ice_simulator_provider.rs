@@ -8,6 +8,7 @@ use ice_support::AssetId;
 use ice_support::Balance;
 use orml_traits::MultiCurrency;
 use sp_runtime::Permill;
+use sp_std::vec;
 use sp_std::vec::Vec;
 
 use amm_simulator::omnipool::DataProvider as OmnipoolDataProvider;
@@ -83,14 +84,18 @@ impl<T: pallet_stableswap::Config<AssetId = AssetId>> StableswapDataProvider for
 	}
 }
 
+use crate::evm::aave_trade_executor::AaveTradeExecutor;
 use crate::evm::executor::BalanceOf;
 use crate::evm::executor::NonceIdOf;
+use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+use crate::Runtime;
 use amm_simulator::aave::DataProvider as AaveDataProvider;
 use evm::ExitReason;
 use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::evm::EVM;
 use pallet_evm::AddressMapping;
+use pallet_liquidation::BorrowingContract;
 use primitives::EvmAddress;
 use sp_core::U256;
 
@@ -122,5 +127,22 @@ where
 
 	fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
 		crate::evm::precompiles::erc20_mapping::HydraErc20Mapping::address_to_asset(address)
+	}
+
+	fn pairs() -> Vec<(AssetId, AssetId)> {
+		let pool = <BorrowingContract<Runtime>>::get();
+		let reserves = match AaveTradeExecutor::<Runtime>::get_reserves_list(pool) {
+			Ok(reserves) => reserves,
+			Err(_) => return vec![],
+		};
+		reserves
+			.into_iter()
+			.filter_map(|reserve| {
+				let data = AaveTradeExecutor::<Runtime>::get_reserve_data(pool, reserve).ok()?;
+				let reserve_asset = HydraErc20Mapping::address_to_asset(reserve)?;
+				let atoken_asset = HydraErc20Mapping::address_to_asset(data.atoken_address)?;
+				Some((reserve_asset, atoken_asset))
+			})
+			.collect()
 	}
 }

@@ -24,6 +24,8 @@ evm = { workspace = true, features = ["with-codec"] }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 
+route-findr = {workspace = true}
+
 # local dependencies
 primitives = { workspace = true }
 hydradx-adapters = { workspace = true }
@@ -415,6 +417,7 @@ std = [
     "ismp/std",
     "ismp-parachain/std",
     "ismp-parachain-runtime-api/std",
+    "route-findr/std",
 ]
 try-runtime = [
     "frame-try-runtime",

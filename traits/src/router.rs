@@ -111,6 +111,16 @@ pub struct Trade<AssetId> {
 	pub asset_out: AssetId,
 }
 
+/// A pool instance with its tradeable assets.
+///
+/// Used by route discovery to build a graph where every asset pair
+/// within a pool becomes a directed edge.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PoolEdge<AssetId> {
+	pub pool_type: PoolType<AssetId>,
+	pub assets: Vec<AssetId>,
+}
+
 #[derive(Debug, PartialEq)]
 pub struct AmountInAndOut<Balance> {
 	pub amount_in: Balance,

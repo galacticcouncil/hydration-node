@@ -6550,6 +6550,7 @@ dependencies = [
  "pretty_assertions",
  "primitive-types 0.13.1",
  "primitives",
+ "route-findr",
  "scale-info",
  "serde",
  "serde_json",
@@ -15696,6 +15697,16 @@ dependencies = [
  "sp-weights",
  "staging-xcm",
  "staging-xcm-builder",
+]
+
+[[package]]
+name = "route-findr"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "hydradx-traits",
+ "primitives",
+ "sp-runtime",
 ]
 
 [[package]]

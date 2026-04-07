@@ -12,7 +12,7 @@ use frame_support::pallet_prelude::RuntimeDebug;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{AmmSimulator, SimulatorError, TradeResult};
 use hydradx_traits::evm::CallContext;
-use hydradx_traits::router::PoolType;
+use hydradx_traits::router::{PoolEdge, PoolType};
 use ice_support::AssetId;
 use ice_support::Balance;
 use ice_support::Price;
@@ -33,6 +33,8 @@ pub trait DataProvider {
 	fn borrowing_contract() -> EvmAddress;
 
 	fn address_to_asset(address: EvmAddress) -> Option<AssetId>;
+
+	fn pairs() -> Vec<(AssetId, AssetId)>;
 }
 
 const GAS_LIMIT: u64 = 1_000_000;
@@ -115,6 +117,8 @@ pub struct Snapshot {
 	pub reserves: BTreeMap<AssetId, ReserveData>,
 	/// Aave pool contract address
 	pub contract: EvmAddress,
+
+	pub pairs: Vec<(AssetId, AssetId)>,
 }
 
 //NOTE: This is tmp. dummy impl. of aave simulator that always trade 1:1 and doesn't do any checks.
@@ -240,6 +244,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		let mut snapshot = Snapshot {
 			reserves: BTreeMap::new(),
 			contract: DP::borrowing_contract(),
+			pairs: DP::pairs(),
 		};
 
 		let Ok(reserves) = Self::get_reserves_list(snapshot.contract) else {
@@ -253,6 +258,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			};
 
 			let Some(asset_id) = DP::address_to_asset(addr) else {
+				debug_assert!(false, "Failed to map reserve address to asset, reserve: {:?}", addr);
 				log::error!(target: LOG_TARGET, "to map reserve address to asset, reserve: {:?}", addr);
 				snapshot.reserves.clear();
 				break;
@@ -322,5 +328,16 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 	fn can_trade(_asset_in: AssetId, _asset_out: AssetId, _snapshot: &Self::Snapshot) -> Option<PoolType<AssetId>> {
 		// no, Dave, you cannot trade this now.
 		None
+	}
+
+	fn pool_edges(_snapshot: &Self::Snapshot) -> sp_std::vec::Vec<hydradx_traits::router::PoolEdge<AssetId>> {
+		_snapshot
+			.pairs
+			.iter()
+			.map(|(a, b)| PoolEdge {
+				pool_type: PoolType::Aave,
+				assets: vec![*a, *b],
+			})
+			.collect()
 	}
 }

@@ -418,6 +418,7 @@ impl HydrationTestDriver {
 		self
 	}
 
+	#[expect(dead_code, reason = "will be used once DCA integration tests call this helper")]
 	pub fn submit_dca_intent(
 		&self,
 		who: AccountId,

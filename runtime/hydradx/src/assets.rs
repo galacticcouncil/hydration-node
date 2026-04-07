@@ -45,7 +45,7 @@ use hydradx_adapters::{
 };
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::evm::CallContext;
-use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
+use hydradx_traits::router::{Route, MAX_NUMBER_OF_TRADES};
 pub use hydradx_traits::{
 	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
 	registry::Inspect,
@@ -1418,6 +1418,7 @@ use crate::evm::evm_error_decoder::EvmErrorDecoder;
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
 use frame_support::traits::IsSubType;
+use hydradx_traits::amm::{SimulatorError, SimulatorSet};
 use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
@@ -1871,6 +1872,7 @@ impl pallet_intent::Config for Runtime {
 
 parameter_types! {
 	pub const IcePalletId: PalletId = PalletId(*b"ice_ice#");
+	pub const IceFee: Permill = Permill::from_parts(200); // 0.02%
 	pub const SimulatorPriceDenom: AssetId = CORE_ASSET_ID;
 }
 
@@ -1884,15 +1886,38 @@ type HydrationSimulators = (
 	AaveSimulator<ice_simulator_provider::Aave<Runtime>>,
 );
 
+pub struct SmartRouteFinder<S: SimulatorSet>(sp_std::marker::PhantomData<S>);
+
+impl<S: SimulatorSet> hydradx_traits::amm::RouteDiscovery<S::State> for SmartRouteFinder<S> {
+	fn discover_routes(
+		asset_in: AssetId,
+		asset_out: AssetId,
+		state: &S::State,
+	) -> Result<Vec<Route<AssetId>>, SimulatorError> {
+		let pool_edges = S::pool_edges(state);
+		let routes = route_findr::get_routes(asset_in, asset_out, pool_edges);
+
+		if routes.is_empty() {
+			log::debug!(target: "solver", "no routes found for {} -> {}", asset_in, asset_out);
+			return Err(SimulatorError::NotSupported);
+		}
+
+		log::debug!(target: "solver", "found {} route(s) for {} -> {}", routes.len(), asset_in, asset_out);
+		Ok(routes)
+	}
+}
+
 impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
 	type Simulators = HydrationSimulators;
-	type RouteDiscovery = amm_simulator::OnChainRouteDiscovery<Router, HydrationSimulators>;
+	//type RouteDiscovery = amm_simulator::OnChainRouteDiscovery<Router, HydrationSimulators>;
+	type RouteDiscovery = SmartRouteFinder<HydrationSimulators>;
 	type PriceDenominator = SimulatorPriceDenom;
 }
 
 impl pallet_ice::Config for Runtime {
 	type Currency = Currencies;
 	type PalletId = IcePalletId;
+	type Fee = IceFee;
 	type RegistryHandler = AssetRegistry;
 	type Simulator = HydrationSimulatorConfig;
 	type WeightInfo = weights::pallet_ice::HydraWeight<Runtime>;

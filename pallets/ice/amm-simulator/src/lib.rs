@@ -7,10 +7,11 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{
 	AMMInterface, RouteDiscovery, SimulatorConfig, SimulatorError, SimulatorSet, TradeExecution,
 };
-use hydradx_traits::router::{AssetPair, Route, RouteProvider, Trade};
+use hydradx_traits::router::{AssetPair, PoolEdge, Route, RouteProvider, Trade};
 use primitive_types::U512;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
+use sp_std::vec::Vec;
 
 pub mod aave;
 pub mod omnipool;
@@ -27,21 +28,21 @@ where
 	RP: RouteProvider<u32>,
 	Sims: SimulatorSet,
 {
-	fn discover_route(asset_in: u32, asset_out: u32, state: &Sims::State) -> Result<Route<u32>, SimulatorError> {
+	fn discover_routes(asset_in: u32, asset_out: u32, state: &Sims::State) -> Result<Vec<Route<u32>>, SimulatorError> {
 		let asset_pair = AssetPair::new(asset_in, asset_out);
 
 		// Priority 1: Check for explicitly configured on-chain route
 		if let Some(explicit_route) = RP::get_onchain_route(asset_pair) {
-			return Ok(explicit_route);
+			return Ok(vec![explicit_route]);
 		}
 
 		// Priority 2: Ask simulators if they can trade this pair directly
 		if let Some(pool_type) = Sims::can_trade(asset_in, asset_out, state) {
-			return Ok(BoundedVec::truncate_from(vec![Trade {
+			return Ok(vec![BoundedVec::truncate_from(vec![Trade {
 				pool: pool_type,
 				asset_in,
 				asset_out,
-			}]));
+			}])]);
 		}
 
 		// Priority 3: Fall back to the route provider's default
@@ -49,7 +50,7 @@ where
 		if route.is_empty() {
 			return Err(SimulatorError::AssetNotFound);
 		}
-		Ok(route)
+		Ok(vec![route])
 	}
 }
 
@@ -70,8 +71,8 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 	type Error = SimulatorError;
 	type State = <C::Simulators as SimulatorSet>::State;
 
-	fn discover_route(asset_in: u32, asset_out: u32, state: &Self::State) -> Result<Route<u32>, Self::Error> {
-		C::RouteDiscovery::discover_route(asset_in, asset_out, state)
+	fn discover_routes(asset_in: u32, asset_out: u32, state: &Self::State) -> Result<Vec<Route<u32>>, Self::Error> {
+		C::RouteDiscovery::discover_routes(asset_in, asset_out, state)
 	}
 
 	fn sell(
@@ -184,5 +185,9 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 
 	fn price_denominator() -> u32 {
 		C::PriceDenominator::get()
+	}
+
+	fn pool_edges(state: &Self::State) -> Vec<PoolEdge<u32>> {
+		C::Simulators::pool_edges(state)
 	}
 }

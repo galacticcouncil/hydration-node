@@ -70,6 +70,7 @@ borsh = { version = "1.5.7", default-features = false, features = ["derive"] }
 
 # ICE
 ice-solver = { path = "ice/ice-solver", default-features = false}
+route-findr= { path = "ice/route-findr", default-features = false }
 
 
 affix = "0.1.2"
