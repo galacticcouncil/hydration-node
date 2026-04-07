@@ -2008,7 +2008,7 @@ fn solver_ring_trade_vs_direct_trades() {
 				*direct_results.borrow_mut() = (d_alice, d_bob, d_charlie);
 			});
 	}
-	let (direct_alice, direct_bob, direct_charlie) = *direct_results.borrow();
+	let (_direct_alice, _direct_bob, _direct_charlie) = *direct_results.borrow();
 
 	// Run 2: Solver on fresh state
 	TestNet::reset();
@@ -2287,7 +2287,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 				*direct_total.borrow_mut() = total;
 			});
 	}
-	let direct = *direct_total.borrow();
+	let _direct = *direct_total.borrow();
 
 	// Run 2: Solver on fresh state
 	TestNet::reset();
@@ -2682,7 +2682,7 @@ fn solver_three_intent_dust_remainder() {
 			// BNC's existential deposit of 68_795_189_840 (~0.069 BNC), so the transfer
 			// is rejected. Seeding the holding pot doesn't help — the issue is on the
 			// router account's receiving side.
-			let result = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
+			let _result = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
 		});
 }
 
