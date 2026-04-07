@@ -2,7 +2,6 @@ use crate::fraction;
 use crate::types::{Balance, Fraction};
 
 use proptest::prelude::*;
-use rand::Rng;
 use rug::{Integer, Rational};
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 
@@ -217,5 +216,5 @@ pub fn any_rational() -> impl Strategy<Value = (u128, u128)> {
 /// `min` determines the minimum value a numerator or denominator can have, `max` the maximum.
 pub fn bigger_and_smaller_rational(min: u128, max: u128) -> impl Strategy<Value = ((u128, u128), (u128, u128))> {
 	((min + 1)..max, (min.max(1))..(max - 1))
-		.prop_perturb(move |(a, b), mut rng| ((a, b), (rng.gen_range(min..a), rng.gen_range(b..max))))
+		.prop_perturb(move |(a, b), mut rng| ((a, b), (rng.random_range(min..a), rng.random_range(b..max))))
 }
