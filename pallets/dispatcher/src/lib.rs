@@ -466,6 +466,53 @@ pub mod pallet {
 
 			Ok(actual_weight.into())
 		}
+
+		/// Enable/pause the background ISMP storage cleanup. If enabled for the first time,
+		/// starting from the first stage.
+		#[pallet::call_index(6)]
+		#[pallet::weight(T::WeightInfo::pause_hyperbridge_cleanup())]
+		pub fn pause_hyperbridge_cleanup(origin: OriginFor<T>, do_pause: bool) -> DispatchResult {
+			T::MigrationOperatorOrigin::ensure_origin(origin)?;
+			CleanupEnabled::<T>::put(!do_pause);
+
+			Self::deposit_event(Event::HyperbridgeCleanupStatusChanged { paused: do_pause });
+			Ok(())
+		}
+
+		#[pallet::call_index(7)]
+		#[pallet::weight({
+			let call_weight = call.get_dispatch_info().call_weight;
+			let call_len = call.encoded_size() as u32;
+			T::WeightInfo::dispatch_with_fee_payer(call_len)
+				.saturating_add(call_weight)
+		})]
+		pub fn dispatch_with_fee_payer(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			let signer = ensure_signed(origin.clone())?;
+
+			let previous = T::EvmFeePayer::set_fee_payer(signer);
+			let (result, actual_weight) = Self::do_dispatch(origin, *call);
+			match previous {
+				Some(p) => T::EvmFeePayer::set_fee_payer(p),
+				None => T::EvmFeePayer::clear_fee_payer(),
+			};
+
+			match result {
+				Ok(_) => Ok(PostDispatchInfo {
+					actual_weight,
+					pays_fee: Pays::Yes,
+				}),
+				Err(err) => Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight,
+						pays_fee: Pays::Yes,
+					},
+					error: err.error,
+				}),
+			}
+		}
 	}
 }
 
