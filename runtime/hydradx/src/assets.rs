@@ -1908,8 +1908,8 @@ impl<S: SimulatorSet> hydradx_traits::amm::RouteDiscovery<S::State> for SmartRou
 
 impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
 	type Simulators = HydrationSimulators;
-	type RouteDiscovery = amm_simulator::OnChainRouteDiscovery<Router, HydrationSimulators>;
-	//type RouteDiscovery = SmartRouteFinder<HydrationSimulators>;
+	//type RouteDiscovery = amm_simulator::OnChainRouteDiscovery<Router, HydrationSimulators>;
+	type RouteDiscovery = SmartRouteFinder<HydrationSimulators>;
 	type PriceDenominator = SimulatorPriceDenom;
 }
 
