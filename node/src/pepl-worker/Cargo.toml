@@ -1,0 +1,27 @@
+[package]
+name = "pepl-worker"
+version = "0.1.0"
+description = "PEPL Liquidation Worker"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/hydration-node"
+
+[dependencies]
+clap = { workspace = true }
+primitives = { workspace = true }
+sp-core = { workspace = true }
+hex-literal = { workspace = true }
+cumulus-primitives-core = { workspace = true  , features = ["std"] }
+sp-api = { workspace = true , features = ["std"] }
+frame-support = { workspace = true }
+log = { workspace = true }
+hyperv14 = { package = "hyper", features = ["http2", "stream", "tcp"], version = "0.14.29", default-features = true }
+hyper-rustls = { version = "0.24.2", features = ["http1", "http2", "webpki-roots", "tokio-runtime"], default-features = false }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["std"]}
+codec = { workspace = true }
+tokio = { workspace = true, default-features = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

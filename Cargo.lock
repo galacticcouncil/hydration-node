@@ -12741,6 +12741,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "pepl-worker"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "cumulus-primitives-core",
+ "frame-support",
+ "hex-literal",
+ "hyper 0.14.31",
+ "hyper-rustls 0.24.2",
+ "log",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "primitives",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-core",
+ "tokio",
+]
+
+[[package]]
+name = "pepl-worker-support"
+version = "0.1.0"
+dependencies = [
+ "ethabi",
+ "primitives",
+ "sp-core",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

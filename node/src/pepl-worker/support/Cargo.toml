@@ -1,0 +1,13 @@
+[package]
+name = "pepl-worker-support"
+version = "0.1.0"
+description = "PEPL Liquidation Worker"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/hydration-node"
+
+[dependencies]
+primitives = { workspace = true }
+sp-core = { workspace = true }
+ethabi = { workspace = true }
