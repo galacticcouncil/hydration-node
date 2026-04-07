@@ -121,15 +121,15 @@ impl<A: AMMInterface> Solver<A> {
 	) -> Option<(Route<AssetId>, Balance, A::State)> {
 		let best = routes
 			.into_iter()
-			.filter_map(|route| {
-				match A::sell(asset_in, asset_out, amount_in, route.clone(), state) {
+			.filter_map(
+				|route| match A::sell(asset_in, asset_out, amount_in, route.clone(), state) {
 					Ok((new_state, exec)) => Some((route, exec.amount_out, new_state)),
 					Err(_) => {
 						log::debug!(target: "solver", "route simulation failed for {} -> {}", asset_in, asset_out);
 						None
 					}
-				}
-			})
+				},
+			)
 			.max_by_key(|(_, amount_out, _)| *amount_out);
 
 		if let Some((ref route, amount_out, _)) = best {
@@ -179,9 +179,9 @@ impl<A: AMMInterface> Solver<A> {
 
 				// Simulation-based check: discover routes and simulate sell with intent's amount
 				if let Ok(routes) = A::discover_routes(swap.asset_in, swap.asset_out, &initial_state) {
-					if let Some((_, amount_out, _)) = Self::select_best_route(
-						routes, swap.asset_in, swap.asset_out, swap.amount_in, &initial_state,
-					) {
+					if let Some((_, amount_out, _)) =
+						Self::select_best_route(routes, swap.asset_in, swap.asset_out, swap.amount_in, &initial_state)
+					{
 						if amount_out >= swap.amount_out {
 							return true;
 						}
@@ -605,9 +605,9 @@ impl<A: AMMInterface> Solver<A> {
 			intent.id, swap.asset_in, swap.asset_out, swap.amount_in, swap.amount_out);
 
 		let routes = A::discover_routes(swap.asset_in, swap.asset_out, initial_state)?;
-		let Some((route, amount_out, _)) = Self::select_best_route(
-			routes, swap.asset_in, swap.asset_out, swap.amount_in, initial_state,
-		) else {
+		let Some((route, amount_out, _)) =
+			Self::select_best_route(routes, swap.asset_in, swap.asset_out, swap.amount_in, initial_state)
+		else {
 			log::debug!(target: "solver", "intent {}: no viable route for {} -> {}", intent.id, swap.asset_in, swap.asset_out);
 			return Ok(empty_solution());
 		};
