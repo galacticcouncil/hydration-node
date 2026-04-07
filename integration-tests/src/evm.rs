@@ -5291,7 +5291,7 @@ mod proxy_fee_payer {
 
 			assert_ok!(Proxy::add_proxy(
 				RuntimeOrigin::signed(evm_acc.clone()),
-				controller.clone().into(),
+				controller.clone(),
 				ProxyType::Any,
 				0,
 			));
@@ -5316,7 +5316,7 @@ mod proxy_fee_payer {
 			});
 
 			let proxy_call = RuntimeCall::Proxy(pallet_proxy::Call::proxy {
-				real: evm_acc.clone().into(),
+				real: evm_acc.clone(),
 				force_proxy_type: None,
 				call: Box::new(evm_call),
 			});
@@ -5341,8 +5341,7 @@ mod proxy_fee_payer {
 				controller_weth_after < controller_weth_before || controller_hdx_after < controller_hdx_before;
 			assert!(
 				controller_charged,
-				"Controller should have been charged gas fees. WETH: {} -> {}, HDX: {} -> {}",
-				controller_weth_before, controller_weth_after, controller_hdx_before, controller_hdx_after,
+				"Controller should have been charged gas fees. WETH: {controller_weth_before} -> {controller_weth_after}, HDX: {controller_hdx_before} -> {controller_hdx_after}",
 			);
 		});
 	}
@@ -5419,7 +5418,7 @@ mod proxy_fee_payer {
 
 			assert_ok!(Proxy::add_proxy(
 				RuntimeOrigin::signed(evm_acc.clone()),
-				controller.clone().into(),
+				controller.clone(),
 				ProxyType::Any,
 				0,
 			));
@@ -5447,7 +5446,7 @@ mod proxy_fee_payer {
 			});
 
 			let proxy_call = RuntimeCall::Proxy(pallet_proxy::Call::proxy {
-				real: evm_acc.clone().into(),
+				real: evm_acc.clone(),
 				force_proxy_type: None,
 				call: Box::new(evm_call),
 			});
