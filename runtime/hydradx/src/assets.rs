@@ -1922,6 +1922,7 @@ impl pallet_ice::Config for Runtime {
 	type Currency = Currencies;
 	type PalletId = IcePalletId;
 	type Fee = IceFee;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type RegistryHandler = AssetRegistry;
 	type Simulator = HydrationSimulatorConfig;
 	type WeightInfo = weights::pallet_ice::HydraWeight<Runtime>;

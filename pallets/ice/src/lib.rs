@@ -105,10 +105,14 @@ pub mod pallet {
 		/// Simulator configuration - provides simulators and route provider for the solver
 		type Simulator: SimulatorConfig;
 
-		/// Protocol fee taken from each resolved intent's output amount.
+		/// Default protocol fee taken from each resolved intent's output amount.
 		/// Fee stays in the ICE holding account.
+		/// Can be overridden via governance using `set_protocol_fee`.
 		#[pallet::constant]
 		type Fee: Get<Permill>;
+
+		/// Origin that can set the protocol fee (e.g. TechnicalCommittee or Root).
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -123,7 +127,15 @@ pub mod pallet {
 			trades_executed: u64,
 			score: Score,
 		},
+		/// Protocol fee has been updated.
+		ProtocolFeeSet { fee: Permill },
 	}
+
+	/// Protocol fee taken from each resolved intent's output amount.
+	/// Defaults to `T::Fee` constant. Can be overridden via `set_protocol_fee`.
+	#[pallet::storage]
+	#[pallet::getter(fn protocol_fee)]
+	pub type ProtocolFee<T: Config> = StorageValue<_, Permill, ValueQuery, T::Fee>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -270,7 +282,7 @@ pub mod pallet {
 
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
 
-				let fee_amount = T::Fee::get().mul_floor(resolve.amount_out());
+				let fee_amount = Self::protocol_fee().mul_floor(resolve.amount_out());
 				let payout = resolve.amount_out().saturating_sub(fee_amount);
 
 				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), transferring, id: {:?}, to: {:?}, amount: {:?}, fee: {:?}", LOG_PREFIX, id, owner, payout, fee_amount);
@@ -296,6 +308,30 @@ pub mod pallet {
 				trades_executed: solution.trades.len() as u64,
 				score: solution.score,
 			});
+
+			Ok(())
+		}
+
+		/// Set the protocol fee for resolved intents.
+		///
+		/// If `fee` matches the default constant (`T::Fee`), the storage override
+		/// is removed — there is no need to store the default value.
+		///
+		/// Can only be called by `AuthorityOrigin` (e.g. TechnicalCommittee or Root).
+		///
+		/// Emits `ProtocolFeeSet`.
+		#[pallet::call_index(1)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_protocol_fee())]
+		pub fn set_protocol_fee(origin: OriginFor<T>, fee: Permill) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			if fee == T::Fee::get() {
+				ProtocolFee::<T>::kill();
+			} else {
+				ProtocolFee::<T>::put(fee);
+			}
+
+			Self::deposit_event(Event::ProtocolFeeSet { fee });
 
 			Ok(())
 		}

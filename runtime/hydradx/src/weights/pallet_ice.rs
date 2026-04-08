@@ -101,4 +101,10 @@ impl<T: frame_system::Config> pallet_ice::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(22_u64))
 			.saturating_add(T::DbWeight::get().writes(11_u64))
 	}
+
+	fn set_protocol_fee() -> Weight {
+		Weight::from_parts(10_000_000, 0)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }

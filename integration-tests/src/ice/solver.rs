@@ -319,7 +319,9 @@ fn stableswap_intent() {
 		)
 		.expect("Solver should produce a solution for mixed intents");
 
-		let pallet_ice::Call::submit_solution { solution, .. } = call;
+		let pallet_ice::Call::submit_solution { solution, .. } = call else {
+			panic!("Expected submit_solution call");
+		};
 		assert_eq!(solution.resolved_intents.len(), 1, "Should resolve the intent");
 
 		crate::polkadot_test_net::hydradx_run_to_next_block();
@@ -357,7 +359,9 @@ fn solver_two_intents() {
 			)
 			.expect("Solver should produce a solution for mixed intents");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 
 			assert!(
 				!solution.resolved_intents.is_empty(),
@@ -403,7 +407,9 @@ fn solver_execute_solution1() {
 			)
 			.expect("Solver should produce a solution");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 
 			// Verify solution structure
 			assert_eq!(solution.resolved_intents.len(), 2, "Should resolve both intents");
@@ -674,7 +680,9 @@ fn solver_mixed_intents() {
 			)
 			.expect("Solver should produce a solution for mixed intents");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			// Verify solution structure
 			assert!(
 				!solution.resolved_intents.is_empty(),
@@ -763,7 +771,9 @@ fn solver_v1_single_intent() {
 			)
 			.expect("Solver should produce a solution");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 
 			// Verify solution structure
 			assert_eq!(solution.resolved_intents.len(), 1, "Should resolve exactly 1 intent");
@@ -859,7 +869,9 @@ fn solver_v1_two_intents_partial_match() {
 			)
 			.expect("V1 Solver should produce a solution");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			// Verify both intents resolved
 			assert_eq!(solution.resolved_intents.len(), 2, "Both intents should be resolved");
 			assert!(solution.score > 0, "Solution score should be positive");
@@ -961,7 +973,9 @@ fn solver_v1_five_mixed_intents() {
 			)
 			.expect("V1 Solver should produce a solution");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			// Verify solution structure
 			assert!(
 				!solution.resolved_intents.is_empty(),
@@ -1040,7 +1054,9 @@ fn solver_v1_uniform_price_all_sells() {
 
 			crate::polkadot_test_net::hydradx_run_to_next_block();
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
@@ -1120,7 +1136,9 @@ fn solver_v1_uniform_price_opposite_sells() {
 			)
 			.expect("V1 Solver should produce a solution");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			// Verify solution structure
 			assert!(!solution.resolved_intents.is_empty(), "Should resolve intents");
 			assert!(solution.score > 0, "Solution score should be positive");
@@ -1236,7 +1254,9 @@ fn intent_with_on_success_callback() {
 			)
 			.expect("Solver should produce a solution");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			assert_eq!(solution.resolved_intents.len(), 1, "Should resolve the intent");
 
 			crate::polkadot_test_net::hydradx_run_to_next_block();
@@ -1324,7 +1344,9 @@ fn usdt_weth_single_intent() {
 			)
 			.expect("Solver should produce a solution for USDT->WETH");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			// Verify solution structure
 			assert_eq!(solution.resolved_intents.len(), 1, "Should resolve exactly 1 intent");
 			assert!(solution.score > 0, "Solution score should be positive");
@@ -1430,7 +1452,9 @@ fn usdt_weth_solver_vs_router() {
 
 			crate::polkadot_test_net::hydradx_run_to_next_block();
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution.clone(),
@@ -1540,7 +1564,9 @@ fn usdt_weth_two_opposing_intents() {
 
 			crate::polkadot_test_net::hydradx_run_to_next_block();
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution.clone(),
@@ -1610,7 +1636,9 @@ fn eth_3pool_single_intent() {
 
 			crate::polkadot_test_net::hydradx_run_to_next_block();
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
@@ -1677,7 +1705,9 @@ fn eth_3pool_solver_vs_router() {
 
 			crate::polkadot_test_net::hydradx_run_to_next_block();
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution,
@@ -1793,7 +1823,9 @@ fn _eth_3pool_two_opposing_intents() {
 
 			crate::polkadot_test_net::hydradx_run_to_next_block();
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 				RuntimeOrigin::none(),
 				solution.clone(),
@@ -1858,7 +1890,9 @@ fn solver_ring_trade_triangle_execute() {
 			)
 			.expect("Solver should produce a solution for ring trade");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 
 			assert_eq!(solution.resolved_intents.len(), 3, "All 3 intents should be resolved");
 			assert!(solution.trades.len() < 3, "Ring should reduce AMM trades below 3");
@@ -2041,7 +2075,9 @@ fn solver_ring_trade_vs_direct_trades() {
 
 				crate::polkadot_test_net::hydradx_run_to_next_block();
 
-				let pallet_ice::Call::submit_solution { solution, .. } = call;
+				let pallet_ice::Call::submit_solution { solution, .. } = call else {
+					panic!("Expected submit_solution call");
+				};
 				assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 					RuntimeOrigin::none(),
 					solution,
@@ -2116,7 +2152,9 @@ fn solver_mixed_batch_12_intents() {
 			)
 			.expect("Solver should produce a solution for 12 intents");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 
 			// All 12 should be resolved
 			assert_eq!(solution.resolved_intents.len(), 12, "All 12 intents should be resolved");
@@ -2332,7 +2370,9 @@ fn solver_mixed_batch_vs_direct_trades() {
 
 				crate::polkadot_test_net::hydradx_run_to_next_block();
 
-				let pallet_ice::Call::submit_solution { solution, .. } = call;
+				let pallet_ice::Call::submit_solution { solution, .. } = call else {
+					panic!("Expected submit_solution call");
+				};
 				assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
 					RuntimeOrigin::none(),
 					solution.clone(),
@@ -2391,7 +2431,9 @@ fn solver_near_perfect_cancel_ed_remainder() {
 			)
 			.expect("Solver must produce a solution for near-perfect cancel");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 
 			assert_eq!(solution.resolved_intents.len(), 2, "Both intents must be resolved");
 			// Near-perfect cancel: at most 1 small AMM trade for the net remainder
@@ -2469,7 +2511,9 @@ fn solver_existential_deposit_amounts() {
 			)
 			.expect("Solver must handle near-ED AMM remainder");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 
 			assert_eq!(solution.resolved_intents.len(), 2, "Both intents must be resolved");
 			assert!(
@@ -2544,7 +2588,9 @@ fn solver_amm_remainder_below_ed() {
 			)
 			.expect("Solver must produce a solution");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 
 			assert_eq!(solution.resolved_intents.len(), 2, "Both intents must be resolved");
 
@@ -2600,7 +2646,9 @@ fn solver_amm_remainder_dust() {
 			)
 			.expect("Solver must produce a solution for dust-level remainder");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 
 			assert_eq!(solution.resolved_intents.len(), 2, "Both intents must be resolved");
 
@@ -2661,7 +2709,9 @@ fn solver_three_intent_dust_remainder() {
 			)
 			.expect("Solver must produce a solution for 3-intent dust remainder");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 
 			assert_eq!(solution.resolved_intents.len(), 3, "All three intents must be resolved");
 
@@ -2720,7 +2770,9 @@ fn solver_ice_fee_is_deducted() {
 			)
 			.expect("Solver must produce a solution");
 
-			let pallet_ice::Call::submit_solution { solution, .. } = call;
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
 			assert_eq!(solution.resolved_intents.len(), 2, "Both intents must be resolved");
 
 			// Capture resolved amounts before execution

@@ -256,6 +256,7 @@ impl pallet_ice::Config for Test {
 	type Currency = Currencies;
 	type PalletId = IceId;
 	type Fee = IceFee;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type RegistryHandler = DummyRegistry;
 	type Simulator = TestSimulatorConfig;
 	type WeightInfo = ();

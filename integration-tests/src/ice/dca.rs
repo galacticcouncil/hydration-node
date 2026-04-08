@@ -51,7 +51,9 @@ fn run_solver_and_submit() -> Solution {
 	)
 	.expect("Solver should produce a solution");
 
-	let pallet_ice::Call::submit_solution { solution, .. } = call;
+	let pallet_ice::Call::submit_solution { solution, .. } = call else {
+		panic!("Expected submit_solution call");
+	};
 	let solution_clone = solution.clone();
 
 	hydradx_run_to_next_block();
