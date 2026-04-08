@@ -354,7 +354,9 @@ impl<A: AMMInterface> Solver<A> {
 
 			match flow {
 				FlowDirection::SingleForward { amount } => {
-					if let Some((route, amount_out, new_state)) = A::discover_routes(asset_a, asset_b, &state)
+					if amount < A::existential_deposit(asset_a) {
+						log::debug!(target: "solver", "single forward {} -> {}: amount {} below ED, skipping", asset_a, asset_b, amount);
+					} else if let Some((route, amount_out, new_state)) = A::discover_routes(asset_a, asset_b, &state)
 						.ok()
 						.and_then(|routes| Self::select_best_route(routes, asset_a, asset_b, amount, &state))
 					{
@@ -372,7 +374,9 @@ impl<A: AMMInterface> Solver<A> {
 					}
 				}
 				FlowDirection::SingleBackward { amount } => {
-					if let Some((route, amount_out, new_state)) = A::discover_routes(asset_b, asset_a, &state)
+					if amount < A::existential_deposit(asset_b) {
+						log::debug!(target: "solver", "single backward {} -> {}: amount {} below ED, skipping", asset_b, asset_a, amount);
+					} else if let Some((route, amount_out, new_state)) = A::discover_routes(asset_b, asset_a, &state)
 						.ok()
 						.and_then(|routes| Self::select_best_route(routes, asset_b, asset_a, amount, &state))
 					{
@@ -398,30 +402,37 @@ impl<A: AMMInterface> Solver<A> {
 					if total_b_sold > 0 {
 						directed_rates.insert((asset_b, asset_a), Ratio::new(scarce_out, total_b_sold));
 					}
-					// Sell net A through AMM
-					let best = A::discover_routes(asset_a, asset_b, &state)
-						.ok()
-						.and_then(|routes| Self::select_best_route(routes, asset_a, asset_b, net_sell, &state));
-					match best {
-						Some((route, amount_out, new_state)) => {
-							let adjusted_out = adjust_amm_output(amount_out);
-							let total_out = direct_match.saturating_add(adjusted_out);
-							if total_a_sold > 0 {
-								directed_rates.insert((asset_a, asset_b), Ratio::new(total_out, total_a_sold));
-							}
-							executed_trades.push(PoolTrade {
-								direction: SwapType::ExactIn,
-								amount_in: net_sell,
-								amount_out: adjusted_out,
-								route,
-							});
-							state = new_state;
+					// Sell net A through AMM — skip if below ED (dust remainder from near-cancellation)
+					if net_sell < A::existential_deposit(asset_a) {
+						log::debug!(target: "solver", "excess forward {} -> {}: net_sell {} below ED, using direct match rate only", asset_a, asset_b, net_sell);
+						if total_a_sold > 0 {
+							directed_rates.insert((asset_a, asset_b), Ratio::new(direct_match, total_a_sold));
 						}
-						None => {
-							log::debug!(target: "solver", "no viable route for excess forward {} -> {}, net_sell: {}, falling back to spot rate", asset_a, asset_b, net_sell);
-							let fallback = common::calc_amount_out(total_a_sold, pa, pb).unwrap_or(0);
-							if total_a_sold > 0 {
-								directed_rates.insert((asset_a, asset_b), Ratio::new(fallback, total_a_sold));
+					} else {
+						let best = A::discover_routes(asset_a, asset_b, &state)
+							.ok()
+							.and_then(|routes| Self::select_best_route(routes, asset_a, asset_b, net_sell, &state));
+						match best {
+							Some((route, amount_out, new_state)) => {
+								let adjusted_out = adjust_amm_output(amount_out);
+								let total_out = direct_match.saturating_add(adjusted_out);
+								if total_a_sold > 0 {
+									directed_rates.insert((asset_a, asset_b), Ratio::new(total_out, total_a_sold));
+								}
+								executed_trades.push(PoolTrade {
+									direction: SwapType::ExactIn,
+									amount_in: net_sell,
+									amount_out: adjusted_out,
+									route,
+								});
+								state = new_state;
+							}
+							None => {
+								log::debug!(target: "solver", "no viable route for excess forward {} -> {}, net_sell: {}, falling back to spot rate", asset_a, asset_b, net_sell);
+								let fallback = common::calc_amount_out(total_a_sold, pa, pb).unwrap_or(0);
+								if total_a_sold > 0 {
+									directed_rates.insert((asset_a, asset_b), Ratio::new(fallback, total_a_sold));
+								}
 							}
 						}
 					}
@@ -435,30 +446,37 @@ impl<A: AMMInterface> Solver<A> {
 					if total_a_sold > 0 {
 						directed_rates.insert((asset_a, asset_b), Ratio::new(scarce_out, total_a_sold));
 					}
-					// Sell net B through AMM
-					let best = A::discover_routes(asset_b, asset_a, &state)
-						.ok()
-						.and_then(|routes| Self::select_best_route(routes, asset_b, asset_a, net_sell, &state));
-					match best {
-						Some((route, amount_out, new_state)) => {
-							let adjusted_out = adjust_amm_output(amount_out);
-							let total_out = direct_match.saturating_add(adjusted_out);
-							if total_b_sold > 0 {
-								directed_rates.insert((asset_b, asset_a), Ratio::new(total_out, total_b_sold));
-							}
-							executed_trades.push(PoolTrade {
-								direction: SwapType::ExactIn,
-								amount_in: net_sell,
-								amount_out: adjusted_out,
-								route,
-							});
-							state = new_state;
+					// Sell net B through AMM — skip if below ED (dust remainder from near-cancellation)
+					if net_sell < A::existential_deposit(asset_b) {
+						log::debug!(target: "solver", "excess backward {} -> {}: net_sell {} below ED, using direct match rate only", asset_b, asset_a, net_sell);
+						if total_b_sold > 0 {
+							directed_rates.insert((asset_b, asset_a), Ratio::new(direct_match, total_b_sold));
 						}
-						None => {
-							log::debug!(target: "solver", "no viable route for excess backward {} -> {}, net_sell: {}, falling back to spot rate", asset_b, asset_a, net_sell);
-							let fallback = common::calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
-							if total_b_sold > 0 {
-								directed_rates.insert((asset_b, asset_a), Ratio::new(fallback, total_b_sold));
+					} else {
+						let best = A::discover_routes(asset_b, asset_a, &state)
+							.ok()
+							.and_then(|routes| Self::select_best_route(routes, asset_b, asset_a, net_sell, &state));
+						match best {
+							Some((route, amount_out, new_state)) => {
+								let adjusted_out = adjust_amm_output(amount_out);
+								let total_out = direct_match.saturating_add(adjusted_out);
+								if total_b_sold > 0 {
+									directed_rates.insert((asset_b, asset_a), Ratio::new(total_out, total_b_sold));
+								}
+								executed_trades.push(PoolTrade {
+									direction: SwapType::ExactIn,
+									amount_in: net_sell,
+									amount_out: adjusted_out,
+									route,
+								});
+								state = new_state;
+							}
+							None => {
+								log::debug!(target: "solver", "no viable route for excess backward {} -> {}, net_sell: {}, falling back to spot rate", asset_b, asset_a, net_sell);
+								let fallback = common::calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
+								if total_b_sold > 0 {
+									directed_rates.insert((asset_b, asset_a), Ratio::new(fallback, total_b_sold));
+								}
 							}
 						}
 					}

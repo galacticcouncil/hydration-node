@@ -1912,6 +1912,10 @@ impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
 	//type RouteDiscovery = amm_simulator::OnChainRouteDiscovery<Router, HydrationSimulators>;
 	type RouteDiscovery = SmartRouteFinder<HydrationSimulators>;
 	type PriceDenominator = SimulatorPriceDenom;
+
+	fn existential_deposit(asset_id: AssetId) -> Balance {
+		<AssetRegistry as hydradx_traits::registry::Inspect>::existential_deposit(asset_id).unwrap_or(0)
+	}
 }
 
 impl pallet_ice::Config for Runtime {

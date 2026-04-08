@@ -216,6 +216,20 @@ pub mod pallet {
 			}
 
 			for t in &solution.trades {
+				let asset_in = t.route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in;
+				let asset_out = t.route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out;
+
+				let ed_in = <T as Config>::RegistryHandler::existential_deposit(asset_in).unwrap_or(Balance::MAX);
+				let ed_out = <T as Config>::RegistryHandler::existential_deposit(asset_out).unwrap_or(Balance::MAX);
+
+				// Skip dust trades where the amount is below the existential deposit —
+				// near-perfect intent matching can leave a negligible AMM remainder.
+				if t.amount_in < ed_in || t.amount_out < ed_out {
+					log::debug!(target: LOG_TARGET, "{:?}: submit_solution(), skipping dust trade: amount_in {:?} (ed {:?}), amount_out {:?} (ed {:?})",
+						LOG_PREFIX, t.amount_in, ed_in, t.amount_out, ed_out);
+					continue;
+				}
+
 				match t.direction {
 					SwapType::ExactOut => {
 						log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), buying, asset_in: {:?}, asset_out: {:?}, amount_out: {:?}, max_amount_in: {:?}, route: {:?}",
@@ -223,8 +237,8 @@ pub mod pallet {
 
 						pallet_route_executor::Pallet::<T>::buy(
 							holding_origin.clone(),
-							t.route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
-							t.route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
+							asset_in,
+							asset_out,
 							t.amount_out.into(),
 							t.amount_in.into(),
 							t.route.clone(),
@@ -236,8 +250,8 @@ pub mod pallet {
 
 						pallet_route_executor::Pallet::<T>::sell(
 							holding_origin.clone(),
-							t.route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
-							t.route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
+							asset_in,
+							asset_out,
 							t.amount_in.into(),
 							t.amount_out.into(),
 							t.route.clone(),

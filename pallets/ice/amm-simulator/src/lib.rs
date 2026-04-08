@@ -190,4 +190,8 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 	fn pool_edges(state: &Self::State) -> Vec<PoolEdge<u32>> {
 		C::Simulators::pool_edges(state)
 	}
+
+	fn existential_deposit(asset_id: u32) -> u128 {
+		C::existential_deposit(asset_id)
+	}
 }

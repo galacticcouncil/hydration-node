@@ -91,6 +91,12 @@ pub trait SimulatorConfig {
 	type RouteDiscovery: RouteDiscovery<<Self::Simulators as SimulatorSet>::State>;
 	/// The reference asset all prices are denominated in (e.g., LRNA)
 	type PriceDenominator: Get<AssetId>;
+
+	/// Existential deposit for the given asset.
+	/// Returns 0 when ED is unknown or not applicable.
+	fn existential_deposit(_asset_id: AssetId) -> Balance {
+		0
+	}
 }
 
 /// Individual pool simulator trait.
@@ -270,6 +276,12 @@ pub trait AMMInterface {
 
 	/// Collect pool edges from all configured simulators.
 	fn pool_edges(state: &Self::State) -> Vec<PoolEdge<AssetId>>;
+
+	/// Existential deposit for the given asset.
+	/// Returns 0 if the asset is unknown (no minimum).
+	fn existential_deposit(_asset_id: AssetId) -> Balance {
+		0
+	}
 }
 
 /// Blanket implementation for single simulator.

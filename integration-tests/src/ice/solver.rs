@@ -2617,8 +2617,8 @@ fn solver_amm_remainder_dust() {
 /// Alice sells 100 HDX → BNC, Bob+Charlie each sell 3.39 BNC → HDX.
 /// Bob+Charlie total: 6.78 BNC ≈ 100.0 HDX — nearly exact cancel with Alice.
 /// Net excess BNC is dust — below BNC's ED of 68_795_189_840.
-/// Fails with Token(BelowMinimum): the route executor can't transfer dust BNC to its
-/// router account because the amount is below BNC's existential deposit.
+/// The solver detects the dust remainder and skips the AMM trade,
+/// resolving all intents via direct matching only.
 #[test]
 fn solver_three_intent_dust_remainder() {
 	TestNet::reset();
@@ -2665,24 +2665,15 @@ fn solver_three_intent_dust_remainder() {
 
 			assert_eq!(solution.resolved_intents.len(), 3, "All three intents must be resolved");
 
-			// Verify the AMM trade is dust-level — below BNC's ED of 68_795_189_840
-			assert_eq!(solution.trades.len(), 1, "Should have exactly one AMM trade");
-			let dust_trade = &solution.trades[0];
-			assert!(
-				dust_trade.amount_in < 68_795_189_840,
-				"AMM trade amount_in should be below BNC ED (68_795_189_840), got: {}",
-				dust_trade.amount_in
-			);
+			// Dust remainder is below ED — solver skips the AMM trade entirely
+			assert_eq!(solution.trades.len(), 0, "No AMM trades — dust remainder skipped");
 
 			crate::polkadot_test_net::hydradx_run_to_next_block();
 
-			// The dust AMM trade (ExactIn sell ~1_630_278_265 BNC via Omnipool) fails with
-			// Token(BelowMinimum). The route executor transfers the dust BNC from the
-			// holding pot to its router account, but the amount (~0.00163 BNC) is below
-			// BNC's existential deposit of 68_795_189_840 (~0.069 BNC), so the transfer
-			// is rejected. Seeding the holding pot doesn't help — the issue is on the
-			// router account's receiving side.
-			let _result = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
 		});
 }
 
