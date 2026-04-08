@@ -3289,13 +3289,9 @@ fn sell_slip_fee_cap_invariant_holds() {
 		.expect("delta_hub_reserve_in must be >= total_protocol_fee");
 
 	assert_eq!(
-		d_net_actual,
-		d_net_expected,
+		d_net_actual, d_net_expected,
 		"sell-side slip fee cap not applied during inversion: \
 		buyer pays {} hub, fees = {}, net to pool = {} but pool needs {} hub for the trade",
-		delta_hub_reserve_in,
-		total_protocol_fee,
-		d_net_actual,
-		d_net_expected,
+		delta_hub_reserve_in, total_protocol_fee, d_net_actual, d_net_expected,
 	);
 }
