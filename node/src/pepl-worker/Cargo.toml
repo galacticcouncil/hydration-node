@@ -22,6 +22,14 @@ serde = { workspace = true }
 serde_json = { workspace = true, features = ["std"]}
 codec = { workspace = true }
 tokio = { workspace = true, default-features = true }
+frame-system = { workspace = true }
+sc-client-api = { workspace = true }
+hydradx-runtime = { workspace = true, features = ["std"] }
+pallet-evm = { workspace = true }
+pallet-ethereum = { workspace = true }
+sp-runtime = { workspace = true }
+fp-self-contained = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
+sc-service = { workspace = true }
