@@ -144,6 +144,10 @@ pub mod pallet {
 		/// Origin that can enable oracle for assets that would be rejected by `OracleWhitelist` otherwise.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		/// Origin that can manage external oracle sources and authorized accounts.
+		/// Should include the Technical Committee for fast emergency response.
+		type ExternalOracleOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Provider for the current block number.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
@@ -376,7 +380,7 @@ pub mod pallet {
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_external_source())]
 		pub fn register_external_source(origin: OriginFor<T>, source: Source) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
+			T::ExternalOracleOrigin::ensure_origin(origin)?;
 			ensure!(
 				!ExternalSources::<T>::contains_key(source),
 				Error::<T>::SourceAlreadyRegistered
@@ -389,7 +393,7 @@ pub mod pallet {
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_external_source(MAX_AUTHORIZED_ACCOUNTS_PER_SOURCE))]
 		pub fn remove_external_source(origin: OriginFor<T>, source: Source) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
+			T::ExternalOracleOrigin::ensure_origin(origin)?;
 			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
 			ExternalSources::<T>::remove(source);
 			let _ = AuthorizedAccounts::<T>::clear_prefix(source, u32::MAX, None);
@@ -400,7 +404,7 @@ pub mod pallet {
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_authorized_account())]
 		pub fn add_authorized_account(origin: OriginFor<T>, source: Source, account: T::AccountId) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
+			T::ExternalOracleOrigin::ensure_origin(origin)?;
 			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
 			AuthorizedAccounts::<T>::insert(source, &account, ());
 			Self::deposit_event(Event::AuthorizedAccountAdded { source, account });
@@ -414,7 +418,7 @@ pub mod pallet {
 			source: Source,
 			account: T::AccountId,
 		) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
+			T::ExternalOracleOrigin::ensure_origin(origin)?;
 			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
 			AuthorizedAccounts::<T>::remove(source, &account);
 			Self::deposit_event(Event::AuthorizedAccountRemoved { source, account });
