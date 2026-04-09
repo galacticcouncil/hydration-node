@@ -13,7 +13,7 @@ use hydradx_traits::router::RouteProvider;
 use hydradx_traits::BoundErc20;
 use ice_solver::v1::Solver as IceSolver;
 use ice_support::Solution;
-use orml_traits::MultiCurrency;
+use orml_traits::{MultiCurrency, MultiReservableCurrency, NamedMultiReservableCurrency};
 use pallet_omnipool::types::SlipFeeConfig;
 use primitives::AccountId;
 use sp_runtime::Permill;
@@ -2856,4 +2856,101 @@ fn solver_ice_fee_is_deducted() {
 				bob_fee
 			);
 		});
+}
+
+/// Reproduce FundsUnavailable on testnet snapshot with pre-existing intents.
+#[test]
+fn solver_funds_unavailable_snapshot() {
+	const FUNDS_SNAPSHOT: &str = "snapshots/SNAPSHOT_funds";
+
+	crate::driver::HydrationTestDriver::with_snapshot(FUNDS_SNAPSHOT).execute(|| {
+		enable_slip_fees();
+
+		let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+		println!("snapshot has {} valid intents", intents.len());
+		assert!(!intents.is_empty(), "Snapshot should contain intents");
+
+		for (id, intent) in &intents {
+			println!("intent {}: {:?}", id, intent.data);
+		}
+
+		let call = pallet_ice::Pallet::<Runtime>::run(
+			hydradx_runtime::System::block_number(),
+			|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+		)
+		.expect("Solver must produce a solution from snapshot intents");
+
+		let pallet_ice::Call::submit_solution { solution, .. } = call else {
+			panic!("Expected submit_solution call");
+		};
+
+		println!(
+			"solution: {} resolved intents, {} trades, score: {}",
+			solution.resolved_intents.len(),
+			solution.trades.len(),
+			solution.score
+		);
+
+		for (i, ri) in solution.resolved_intents.iter().enumerate() {
+			let owner = pallet_intent::Pallet::<Runtime>::intent_owner(ri.id);
+			let ice_support::IntentData::Swap(ref s) = ri.data else {
+				continue;
+			};
+			let named_reserved = owner
+				.as_ref()
+				.map(|o| Currencies::reserved_balance_named(&pallet_intent::NAMED_RESERVE_ID, s.asset_in, o));
+			let total_reserved = owner.as_ref().map(|o| Currencies::reserved_balance(s.asset_in, o));
+			let free = owner.as_ref().map(|o| Currencies::free_balance(s.asset_in, o));
+			println!(
+				"resolved[{}]: id={}, owner={:?}, asset_in={}, amount_in={}, named_reserved={:?}, total_reserved={:?}, free={:?}",
+				i, ri.id, owner, s.asset_in, s.amount_in, named_reserved, total_reserved, free
+			);
+		}
+		for (i, t) in solution.trades.iter().enumerate() {
+			println!(
+				"trade[{}]: {:?} amount_in={}, amount_out={}, route={:?}",
+				i, t.direction, t.amount_in, t.amount_out, t.route
+			);
+		}
+
+		// Check holding pot balances before execution
+		let holding_pot = pallet_ice::Pallet::<Runtime>::get_pallet_account();
+		let trade_assets: std::collections::BTreeSet<u32> = solution
+			.trades
+			.iter()
+			.flat_map(|t| {
+				let mut assets = vec![];
+				if let Some(first) = t.route.first() {
+					assets.push(first.asset_in);
+				}
+				if let Some(last) = t.route.last() {
+					assets.push(last.asset_out);
+				}
+				assets
+			})
+			.collect();
+		for &asset in &trade_assets {
+			let bal = Currencies::free_balance(asset, &holding_pot);
+			println!("holding_pot asset {} free_balance = {}", asset, bal);
+		}
+
+		// Also check all resolved intent assets
+		for ri in solution.resolved_intents.iter() {
+			let ice_support::IntentData::Swap(ref s) = ri.data else {
+				continue;
+			};
+			let bal_in = Currencies::free_balance(s.asset_in, &holding_pot);
+			let bal_out = Currencies::free_balance(s.asset_out, &holding_pot);
+			println!(
+				"holding_pot: asset_in={} bal={}, asset_out={} bal={}",
+				s.asset_in, bal_in, s.asset_out, bal_out
+			);
+		}
+
+		crate::polkadot_test_net::hydradx_run_to_next_block();
+
+		let result = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
+		println!("submit_solution result: {:?}", result);
+		assert_ok!(result);
+	});
 }
