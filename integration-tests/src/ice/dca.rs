@@ -4,7 +4,7 @@ use frame_support::assert_ok;
 use frame_support::traits::Time;
 use hydradx_runtime::{Currencies, Runtime, RuntimeOrigin};
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
-use ice_solver::v1::Solver as IceSolver;
+use ice_solver::v2::Solver as IceSolver;
 use ice_support::Solution;
 use orml_traits::MultiCurrency;
 use pallet_omnipool::types::SlipFeeConfig;
@@ -218,7 +218,7 @@ fn dca_matched_with_opposing_swap() {
 			assert_ok!(hydradx_runtime::Intent::submit_intent(
 				RuntimeOrigin::signed(bob.clone()),
 				pallet_intent::types::IntentInput {
-					data: ice_support::IntentDataInput::Swap(ice_support::SwapData {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
 						asset_in: BNC,
 						asset_out: HDX,
 						amount_in: TRADE_AMOUNT,

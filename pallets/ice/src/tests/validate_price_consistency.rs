@@ -3,6 +3,7 @@ use crate::*;
 use frame_support::assert_err;
 use frame_support::assert_ok;
 use ice_support::AssetId;
+use ice_support::Partial;
 use ice_support::Price;
 use ice_support::SwapData;
 use pretty_assertions::assert_eq;
@@ -20,7 +21,7 @@ fn should_work_when_price_wasnt_computed_yet_and_reverse_price_is_missing() {
 		asset_out,
 		amount_in,
 		amount_out,
-		partial: false,
+		partial: Partial::No,
 	});
 
 	let mut exec_prices: BTreeMap<(AssetId, AssetId), Price> = BTreeMap::new();
@@ -38,7 +39,7 @@ fn should_work_when_price_wasnt_computed_yet_and_reverse_price_is_missing() {
 		asset_out,
 		amount_in,
 		amount_out,
-		partial: false,
+		partial: Partial::No,
 	});
 
 	let mut exec_prices: BTreeMap<(AssetId, AssetId), Price> = BTreeMap::new();
@@ -64,7 +65,7 @@ fn should_fail_when_not_resolved_at_execution_price() {
 		asset_out,
 		amount_in,
 		amount_out: amount_out + 2,
-		partial: false,
+		partial: Partial::No,
 	});
 
 	let mut exec_prices: BTreeMap<(AssetId, AssetId), Price> = BTreeMap::new();
@@ -97,7 +98,7 @@ fn should_work_when_not_resolved_within_execution_price_tolerance() {
 		amount_in,
 		//NOTE: we have hadrcoded +-1 in case of rounding error
 		amount_out: amount_out - 1,
-		partial: false,
+		partial: Partial::No,
 	});
 
 	let mut exec_prices: BTreeMap<(AssetId, AssetId), Price> = BTreeMap::new();

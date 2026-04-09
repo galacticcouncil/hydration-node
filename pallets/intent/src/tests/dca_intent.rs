@@ -4,7 +4,7 @@ use crate::{AccountIntentCount, AccountIntents, Error, Event, IntentOwner, Inten
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
 use hydra_dx_math::ema::EmaPrice;
-use ice_support::{DcaParams, IntentData, IntentDataInput, SwapData};
+use ice_support::{DcaParams, IntentData, IntentDataInput, Partial, SwapData};
 use sp_runtime::{DispatchResult, Permill, TransactionOutcome};
 
 fn dca_intent(amount_in: u128, amount_out: u128, budget: Option<u128>) -> IntentInput {
@@ -244,7 +244,7 @@ fn should_transform_dca_to_swap_in_get_valid_intents() {
 						assert_eq!(swap.asset_out, DOT);
 						assert_eq!(swap.amount_in, ONE_HDX);
 						assert_eq!(swap.amount_out, ONE_DOT); // hard limit (no oracle)
-						assert!(!swap.partial);
+						assert_eq!(swap.partial, Partial::No);
 					}
 					_ => panic!("expected Swap (transformed from DCA)"),
 				}
@@ -336,7 +336,7 @@ fn should_resolve_dca_trade_and_update_state() {
 						asset_out: DOT,
 						amount_in: ONE_HDX,
 						amount_out: 2 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				};
 				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve, 0));
@@ -389,7 +389,7 @@ fn should_complete_dca_when_budget_exhausted() {
 						asset_out: DOT,
 						amount_in,
 						amount_out: 2 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				};
 				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve1, 0));
@@ -405,7 +405,7 @@ fn should_complete_dca_when_budget_exhausted() {
 						asset_out: DOT,
 						amount_in,
 						amount_out: 2 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				};
 				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve2, 0));
@@ -448,7 +448,7 @@ fn should_validate_dca_hard_limit() {
 						asset_out: DOT,
 						amount_in: ONE_HDX,
 						amount_out: ONE_DOT / 2, // below hard limit
-						partial: false,
+						partial: Partial::No,
 					}),
 				};
 				assert_noop!(
@@ -480,7 +480,7 @@ fn should_compute_surplus_from_hard_limit_for_dca() {
 					asset_out: DOT,
 					amount_in: ONE_HDX,
 					amount_out: 2 * ONE_DOT,
-					partial: false,
+					partial: Partial::No,
 				});
 
 				// Surplus computed against hard limit (ONE_DOT), not oracle
@@ -509,7 +509,7 @@ fn should_compute_surplus_with_hard_limit_when_no_oracle() {
 					asset_out: DOT,
 					amount_in: ONE_HDX,
 					amount_out: 2 * ONE_DOT,
-					partial: false,
+					partial: Partial::No,
 				});
 
 				let surplus = crate::Pallet::<Test>::compute_surplus(&intent, &resolve_data);
@@ -549,7 +549,7 @@ fn should_rolling_dca_re_reserve_after_trade() {
 						asset_out: DOT,
 						amount_in,
 						amount_out: 2 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				};
 				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve, 0));
@@ -610,7 +610,7 @@ fn should_complete_rolling_dca_when_free_balance_insufficient() {
 						asset_out: DOT,
 						amount_in,
 						amount_out: 2 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				};
 				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve, 0));
@@ -641,7 +641,7 @@ fn should_complete_rolling_dca_when_free_balance_insufficient() {
 						asset_out: DOT,
 						amount_in,
 						amount_out: 2 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				};
 				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve2, 0));

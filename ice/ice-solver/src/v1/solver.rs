@@ -802,7 +802,7 @@ mod tests {
 	use hydra_dx_math::types::Ratio;
 	use hydradx_traits::amm::{AMMInterface, TradeExecution};
 	use hydradx_traits::router::{PoolEdge, Route, Trade};
-	use ice_support::IntentId;
+	use ice_support::{IntentId, Partial};
 
 	fn make_intent(
 		id: IntentId,
@@ -818,7 +818,7 @@ mod tests {
 				asset_out,
 				amount_in,
 				amount_out: min_out,
-				partial: false,
+				partial: Partial::No,
 			}),
 		}
 	}
@@ -837,7 +837,7 @@ mod tests {
 				asset_out,
 				amount_in,
 				amount_out: min_out,
-				partial: true,
+				partial: Partial::Yes(0),
 			}),
 		}
 	}

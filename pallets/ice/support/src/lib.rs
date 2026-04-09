@@ -39,10 +39,10 @@ pub enum IntentData {
 }
 
 /// User-facing intent data for extrinsic submission.
-/// Uses DcaParams instead of DcaData to avoid exposing internal state fields.
+/// Uses SwapParams/DcaParams instead of SwapData/DcaData to avoid exposing internal state.
 #[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum IntentDataInput {
-	Swap(SwapData),
+	Swap(SwapParams),
 	Dca(DcaParams),
 }
 
@@ -65,7 +65,7 @@ impl IntentDataInput {
 impl IntentData {
 	pub fn is_partial(&self) -> bool {
 		match self {
-			IntentData::Swap(s) => s.partial,
+			IntentData::Swap(s) => s.partial.is_partial(),
 			IntentData::Dca(_) => false,
 		}
 	}
@@ -104,7 +104,7 @@ impl IntentData {
 	pub fn surplus(&self, resolve: &IntentData) -> Option<Balance> {
 		match self {
 			IntentData::Swap(s) => {
-				let amt = if s.partial {
+				let amt = if s.partial.is_partial() {
 					self.pro_rata(resolve)?
 				} else {
 					s.amount_out
@@ -127,13 +127,80 @@ impl IntentData {
 	}
 }
 
+/// Whether an intent supports partial fills.
+#[derive(Clone, Copy, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub enum Partial {
+	/// All-or-nothing: intent must be fully resolved or not at all.
+	No,
+	/// Partially fillable. `Balance` = cumulative amount_in already filled.
+	/// Original `amount_in` and `amount_out` are immutable; minimum rate is
+	/// always derived from their ratio.
+	Yes(Balance),
+}
+
+impl Partial {
+	/// Returns the cumulative filled amount, or 0 for non-partial intents.
+	pub fn filled(&self) -> Balance {
+		match self {
+			Partial::No => 0,
+			Partial::Yes(filled) => *filled,
+		}
+	}
+
+	pub fn is_partial(&self) -> bool {
+		matches!(self, Partial::Yes(_))
+	}
+}
+
+impl From<bool> for Partial {
+	fn from(partial: bool) -> Self {
+		if partial {
+			Partial::Yes(0)
+		} else {
+			Partial::No
+		}
+	}
+}
+
+/// User-facing swap parameters for intent submission.
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct SwapParams {
+	pub asset_in: AssetId,
+	pub asset_out: AssetId,
+	pub amount_in: Balance,
+	pub amount_out: Balance,
+	pub partial: bool,
+}
+
+/// Stored swap data with partial fill tracking.
+/// Original `amount_in` and `amount_out` are immutable — minimum rate is
+/// always derived from their ratio.
 #[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct SwapData {
 	pub asset_in: AssetId,
 	pub asset_out: AssetId,
 	pub amount_in: Balance,
 	pub amount_out: Balance,
-	pub partial: bool,
+	pub partial: Partial,
+}
+
+impl SwapData {
+	/// Remaining amount that can still be filled.
+	pub fn remaining(&self) -> Balance {
+		self.amount_in.saturating_sub(self.partial.filled())
+	}
+}
+
+impl From<&SwapParams> for SwapData {
+	fn from(params: &SwapParams) -> Self {
+		SwapData {
+			asset_in: params.asset_in,
+			asset_out: params.asset_out,
+			amount_in: params.amount_in,
+			amount_out: params.amount_out,
+			partial: Partial::from(params.partial),
+		}
+	}
 }
 
 /// User-facing DCA parameters for intent submission.
@@ -203,7 +270,7 @@ impl DcaData {
 			asset_out: self.asset_out,
 			amount_in: self.amount_in,
 			amount_out: self.amount_out,
-			partial: false,
+			partial: Partial::No,
 		}
 	}
 }

@@ -3,9 +3,11 @@ use crate::*;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
 use ice_support::IntentDataInput;
+use ice_support::Partial;
 use ice_support::PoolTrade;
 use ice_support::Solution;
 use ice_support::SwapData;
+use ice_support::SwapParams;
 use ice_support::SwapType;
 use pallet_intent::types::IntentInput;
 use pallet_route_executor::PoolType;
@@ -27,7 +29,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -41,7 +43,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 			(
 				DAVE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -55,7 +57,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL / 2,
@@ -95,7 +97,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 						asset_out: HDX,
 						amount_in: 500_000_000_000_000_000,
 						amount_out: 17_000_000 * ONE_HDX,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -105,7 +107,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 10 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -115,7 +117,7 @@ fn solution_execution_should_work_when_solution_is_valid() {
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 5 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 			];
@@ -172,7 +174,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -186,7 +188,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 			(
 				DAVE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -200,7 +202,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL / 2,
@@ -240,7 +242,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 						asset_out: HDX,
 						amount_in: 500_000_000_000_000_000,
 						amount_out: 17_000_000 * ONE_HDX,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -250,7 +252,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 10 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -260,7 +262,7 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 5 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 			];
@@ -320,7 +322,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -334,7 +336,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			(
 				DAVE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -348,7 +350,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -362,7 +364,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -402,7 +404,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
 						amount_out: 16_000_000 * ONE_HDX,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -412,7 +414,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 8 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -422,7 +424,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 4 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -432,7 +434,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
 						amount_out: 16_000_000 * ONE_HDX,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 			];
@@ -492,7 +494,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -506,7 +508,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 			(
 				DAVE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -520,7 +522,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -560,7 +562,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						asset_out: 0,
 						amount_in: 500000000000000000,
 						amount_out: 16000000000000000000,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -570,7 +572,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						asset_out: 2,
 						amount_in: 10000000000000000,
 						amount_out: 100000000000,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -580,7 +582,7 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 						asset_out: 2,
 						amount_in: 5000000000000000,
 						amount_out: 50000000000,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 			];
@@ -640,7 +642,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -654,7 +656,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 			(
 				DAVE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -668,7 +670,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -698,7 +700,7 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 					asset_out: 2,
 					amount_in: 5000000000000000,
 					amount_out: 50000000000,
-					partial: false,
+					partial: Partial::No,
 				}),
 			}];
 
@@ -740,7 +742,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -754,7 +756,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 			(
 				DAVE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -768,7 +770,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -798,7 +800,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 					asset_out: 2,
 					amount_in: 5000000000000000,
 					amount_out: 50000000000,
-					partial: false,
+					partial: Partial::No,
 				}),
 			}];
 
@@ -840,7 +842,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -854,7 +856,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 			(
 				DAVE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -868,7 +870,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -908,7 +910,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						asset_out: HDX,
 						amount_in: 500_000_000_000_000_000,
 						amount_out: 16_000_000 * ONE_HDX,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -918,7 +920,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 10 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -928,7 +930,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 						asset_out: DOT,
 						amount_in: DummyRegistry::existential_deposit(HDX).expect("dummy registry to work") - 1,
 						amount_out: 5 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 			];
@@ -988,7 +990,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -1002,7 +1004,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 			(
 				DAVE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -1016,7 +1018,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL,
@@ -1056,7 +1058,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						asset_out: HDX,
 						amount_in: 500000000000000000,
 						amount_out: 16_000_000 * ONE_HDX,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -1066,7 +1068,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 10 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -1076,7 +1078,7 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: DummyRegistry::existential_deposit(DOT).expect("dummy registry to work") - 1,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 			];
@@ -1136,7 +1138,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
@@ -1150,7 +1152,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 			(
 				DAVE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
@@ -1164,7 +1166,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: HDX,
 						amount_in: ONE_QUINTIL / 2,
@@ -1204,7 +1206,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 						asset_out: HDX,
 						amount_in: 500_000_000_000_000_000,
 						amount_out: 17_000_000 * ONE_HDX,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -1214,7 +1216,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 						asset_out: DOT,
 						amount_in: 10_000 * ONE_HDX,
 						amount_out: 10 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 				ResolvedIntent {
@@ -1224,7 +1226,7 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 						asset_out: DOT,
 						amount_in: 5_000 * ONE_HDX,
 						amount_out: 4 * ONE_DOT,
-						partial: false,
+						partial: Partial::No,
 					}),
 				},
 			];

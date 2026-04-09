@@ -59,8 +59,10 @@ use ice_support::DcaData;
 use ice_support::IntentData;
 use ice_support::IntentDataInput;
 use ice_support::IntentId;
+pub use ice_support::Partial;
 use ice_support::ResolvedIntent;
-use ice_support::SwapData;
+pub use ice_support::SwapData;
+pub use ice_support::SwapParams;
 use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use sp_runtime::traits::BlockNumberProvider;
@@ -308,7 +310,11 @@ pub mod pallet {
 				IntentOwner::<T>::try_mutate_exists(id, |maybe_owner| -> Result<(), DispatchError> {
 					let owner = maybe_owner.as_ref().ok_or(Error::<T>::IntentOwnerNotFound)?;
 
-					Self::unlock_funds(owner, intent.data.asset_in(), intent.data.amount_in())?;
+					let unlock_amount = match intent.data {
+						IntentData::Swap(ref s) => s.remaining(),
+						IntentData::Dca(ref dca) => dca.remaining_budget,
+					};
+					Self::unlock_funds(owner, intent.data.asset_in(), unlock_amount)?;
 
 					Self::deposit_event(Event::<T>::IntentExpired { id });
 
@@ -398,7 +404,7 @@ impl<T: Config> Pallet<T> {
 				ensure!(owner == who, Error::<T>::InvalidOwner);
 
 				let unlock_amount = match intent.data {
-					IntentData::Swap(_) => intent.data.amount_in(),
+					IntentData::Swap(ref s) => s.remaining(),
 					IntentData::Dca(ref dca) => dca.remaining_budget,
 				};
 				Self::unlock_funds(&who, intent.data.asset_in(), unlock_amount)?;
@@ -456,7 +462,7 @@ impl<T: Config> Pallet<T> {
 
 				T::Currency::reserve_named(&NAMED_RESERVE_ID, data.asset_in, &owner, data.amount_in)?;
 
-				IntentData::Swap(data.clone())
+				IntentData::Swap(ice_support::SwapData::from(data))
 			}
 			IntentDataInput::Dca(ref data) => {
 				// DCA intents must not have a deadline
@@ -610,30 +616,40 @@ impl<T: Config> Pallet<T> {
 			return Err(Error::<T>::ResolveMismatch.into());
 		};
 
-		log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), partial: {:?}, resolve.partial: {:?}", 
+		log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), partial: {:?}, resolve.partial: {:?}",
 			LOG_PREFIX, swap.partial, resolve_swap.partial);
 
-		ensure!(swap.partial == resolve_swap.partial, Error::<T>::ResolveMismatch);
+		ensure!(
+			swap.partial.is_partial() == resolve_swap.partial.is_partial(),
+			Error::<T>::ResolveMismatch
+		);
 
-		if swap.partial {
-			if resolve_swap.amount_in == swap.amount_in {
-				log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), partial intent resolved fully, amount_in: {:?}, amount_out: {:?}, resolved.amount_out: {:?}", 
-					LOG_PREFIX, swap.amount_in, swap.amount_out, resolve_swap.amount_out);
+		let remaining = swap.remaining();
 
-				ensure!(resolve_swap.amount_out >= swap.amount_out, Error::<T>::LimitViolation);
+		if swap.partial.is_partial() {
+			// Resolve amount must not exceed remaining
+			ensure!(resolve_swap.amount_in <= remaining, Error::<T>::LimitViolation);
 
-				return Ok(());
+			if resolve_swap.amount_in == remaining {
+				// Full fill of remaining — validate against original rate
+				// pro_rata uses original amount_out/amount_in, so this check is correct
+				let limit = intent.data.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+
+				log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), partial fully filling remaining={:?}, limit: {:?}, resolve.amount_out: {:?}",
+					LOG_PREFIX, remaining, limit, resolve_swap.amount_out);
+
+				ensure!(resolve_swap.amount_out >= limit, Error::<T>::LimitViolation);
+			} else {
+				// Partial fill — validate pro-rata minimum (uses original rate)
+				let limit = intent.data.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
+
+				log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), partial fill, remaining={:?}, resolve.amount_in: {:?}, limit: {:?}, resolve.amount_out: {:?}",
+					LOG_PREFIX, remaining, resolve_swap.amount_in, limit, resolve_swap.amount_out);
+
+				ensure!(resolve_swap.amount_out >= limit, Error::<T>::LimitViolation);
 			}
-
-			let limit = intent.data.pro_rata(resolve).ok_or(Error::<T>::ArithmeticOverflow)?;
-
-			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), partial intent resolved partially, amount_in: {:?}, resolve.amount_in: {:?}, limit: {:?}, resolve.amount_out: {:?}", 
-				LOG_PREFIX, swap.amount_in, resolve_swap.amount_in, limit, resolve_swap.amount_out);
-
-			ensure!(resolve_swap.amount_in < swap.amount_in, Error::<T>::LimitViolation);
-			ensure!(resolve_swap.amount_out >= limit, Error::<T>::LimitViolation);
 		} else {
-			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), ExactIn resolved, amount_in: {:?}, resolve.amount_in: {:?}, amount_out: {:?}, resolve.amount_out: {:?}", 
+			log::debug!(target: OCW_LOG_TARGET, "{:?}: validate_swap_intent_resolve(), non-partial, amount_in: {:?}, resolve.amount_in: {:?}, amount_out: {:?}, resolve.amount_out: {:?}",
 				LOG_PREFIX, swap.amount_in, resolve_swap.amount_in, swap.amount_out, resolve_swap.amount_out);
 
 			ensure!(resolve_swap.amount_in == swap.amount_in, Error::<T>::LimitViolation);
@@ -665,9 +681,12 @@ impl<T: Config> Pallet<T> {
 			};
 
 			if fully_resolved {
-				// Unreserve remaining funds
+				// Unreserve any remaining reserved funds.
+				// For swaps: submit_solution already unlocked and transferred the fill
+				// amount before calling intent_resolved, so nothing remains to unreserve.
+				// For DCA: remaining_budget tracks unspent reserved funds.
 				let unreserve_amount = match intent.data {
-					IntentData::Swap(_) => intent.data.amount_in(),
+					IntentData::Swap(_) => 0,
 					IntentData::Dca(ref dca) => dca.remaining_budget,
 				};
 				if !unreserve_amount.is_zero() {
@@ -728,21 +747,25 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	// Function updates intent's `SwapData` and returns `true` if intent was fully resolved.
+	/// Updates the intent's partial fill state. Original `amount_in`/`amount_out` are immutable.
+	/// Returns `true` if the intent is now fully resolved.
 	fn resolve_swap_intent(intent: &mut SwapData, resolve: &SwapData) -> Result<bool, DispatchError> {
-		intent.amount_in = intent
-			.amount_in
-			.checked_sub(resolve.amount_in)
-			.ok_or(Error::<T>::ArithmeticOverflow)?;
+		match intent.partial {
+			Partial::No => {
+				// Non-partial: must resolve the full amount in one go
+				ensure!(resolve.amount_in == intent.amount_in, Error::<T>::LimitViolation);
+				Ok(true)
+			}
+			Partial::Yes(filled) => {
+				let new_filled = filled
+					.checked_add(resolve.amount_in)
+					.ok_or(Error::<T>::ArithmeticOverflow)?;
+				ensure!(new_filled <= intent.amount_in, Error::<T>::ArithmeticOverflow);
 
-		intent.amount_out = intent.amount_out.saturating_sub(resolve.amount_out);
-
-		if intent.amount_in.is_zero() {
-			ensure!(intent.amount_out.is_zero(), Error::<T>::LimitViolation);
-			return Ok(true);
+				intent.partial = Partial::Yes(new_filled);
+				Ok(new_filled == intent.amount_in)
+			}
 		}
-
-		Ok(false)
 	}
 
 	/// Resolves a DCA intent after a single trade execution.

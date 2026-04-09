@@ -13,7 +13,7 @@ fn swap_intent_input(
 	deadline: Option<Moment>,
 ) -> IntentInput {
 	IntentInput {
-		data: IntentDataInput::Swap(SwapData {
+		data: IntentDataInput::Swap(SwapParams {
 			asset_in,
 			asset_out,
 			amount_in,

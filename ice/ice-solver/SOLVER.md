@@ -1,119 +1,122 @@
-# ICE Solver
+# ICE Solver — How It Works
 
-## Overview
+## What It Does
 
-The ICE (Intent Composing Engine) solver takes a batch of swap intents and produces a `Solution`: which intents to resolve, at what rates, and which AMM pool trades to execute.
+The ICE solver takes a batch of swap intents (users wanting to trade one asset for another) and figures out the best way to fulfill as many as possible. It does this by combining two strategies:
 
-The solver is generic over `AMMInterface` — any AMM simulator that can provide spot prices and simulate sell trades.
+- **Direct matching**: pairing users who want opposite trades (Alice sells HDX for HOLLAR, Bob sells HOLLAR for HDX — they trade with each other, no pool needed)
+- **AMM routing**: sending leftover volume through on-chain liquidity pools to complete the trades
 
-## Design Principle: Uniform Pricing, No Exploitation
+The solver runs off-chain, produces a solution, and submits it to the chain for execution.
 
-The solver enforces a single clearing rate per direction — all intents selling A→B get the same price, regardless of their individual slippage tolerance. This is a deliberate design choice that prevents exploitation:
+## Core Principle: Everyone Gets the Same Price
 
-- **No slippage extraction**: if one intent sets a loose limit (e.g., 50% slippage) and another sets a tight limit (e.g., 5%), both receive the same rate. A counterparty cannot take advantage of the loose limit to capture the difference — the surplus above each intent's minimum contributes to the solution score, not to any individual participant.
-- **Spot price as the ceiling**: the AMM spot price is the best rate theoretically achievable (the marginal price at zero volume). Any trade with actual volume gets equal or worse due to price impact. The satisfiability filter in Phase 1 uses this fact — if an intent's minimum output exceeds what spot prices would give, no combination of matching or AMM routing can ever fill it, so it is removed before it can distort clearing prices for other intents.
-- **Fair matching**: direct matching gives the scarce side approximately spot rate (peer-to-peer, no AMM impact). The excess side bears slippage only on the net imbalance sent to the AMM — still better than routing everything through the pool.
+All users trading in the same direction get the same rate. If ten people are all selling HDX for HOLLAR, they all receive the same HOLLAR-per-HDX rate — regardless of how much slippage each individual was willing to accept.
 
-## Algorithm — Per-Direction Clearing Prices with Direct Matching
+This prevents exploitation. A user who sets a loose limit (willing to accept a bad rate) cannot be taken advantage of — they receive the same rate as everyone else, and any surplus above their minimum contributes to the solution score.
 
-### Phase 1: Spot Prices & Satisfiability
+The two directions of a pair can have different rates. If HDX→HOLLAR sellers get 2000 HOLLAR per HDX, the HOLLAR→HDX sellers might get a slightly different rate. The gap between these rates is surplus captured from direct matching — value that would have been lost to pool slippage if everyone traded individually.
 
-Fetch spot prices for all assets referenced by intents (relative to a denominator asset). Filter out intents whose minimum output exceeds what spot prices would give — these can never be satisfied.
+## The Algorithm
 
-If only one satisfiable intent remains, short-circuit to a direct AMM trade.
+### 1. Filter Out Hopeless Intents
 
-### Phase 2: Iterative Clearing Price Discovery (Simulation)
+First, the solver checks each intent against current market prices. If selling 100 HDX can only get you 180 HOLLAR at the best available rate, but you're asking for 250 HOLLAR minimum — your intent is unsatisfiable and gets removed immediately. No point including it in the calculations.
 
-Group intents by unordered asset pair `(A, B)` and split into forward (A→B) and backward (B→A) directions. For each pair:
+This check uses two methods:
+- **Route simulation**: actually simulate the trade through available pool routes to see what output you'd get
+- **Spot price check**: compare against the best marginal price (the price you'd get for an infinitely small trade). If you can't meet the minimum even at this theoretical best, you definitely can't be satisfied
 
-1. **Analyze net flow** via `analyze_pair_flow` to classify the pair as:
-   - `SingleForward` / `SingleBackward` — only one direction has volume, pure AMM trade
-   - `ExcessForward` / `ExcessBackward` — both directions, one side has more value at spot; the scarce side is fully matched peer-to-peer, the excess remainder goes to AMM
-   - `PerfectCancel` — volumes cancel exactly at spot, no AMM needed
+### 2. Discover Clearing Prices
 
-2. **Simulate AMM sell** for the net imbalance to get per-direction clearing rates (with `adjust_amm_output` tolerance applied).
+The solver groups intents by asset pair and computes a **clearing price** — the rate at which all included intents can be fulfilled.
 
-3. **Filter**: remove intents whose minimum output exceeds what their direction's clearing rate would give.
+Here's the key insight: when multiple users sell the same asset through the same pool, they share the price impact. Ten users each selling 100 HDX is equivalent to one trade of 1000 HDX, which moves the price more than any individual trade would. The clearing price reflects this combined impact.
 
-4. **Repeat** until the set stabilizes or 10 iterations pass.
+This creates a tension: including more intents means more volume, which means worse rates, which means some intents can't meet their minimums. The solver resolves this by iterating:
 
-### Phase 3: Ring Trade Detection
+1. Start with all satisfiable intents
+2. Compute the clearing price for the combined volume
+3. Remove any intents whose minimum can't be met at this rate
+4. Recompute with the smaller set — the rate improves since there's less volume
+5. Repeat until stable — no more intents need to be removed
 
-Build a directed flow graph from remaining intents. Detect feasible 3-asset cycles (A→B→C→A) where all participants can be filled at spot-rate-consistent prices.
+This converges quickly because each round can only remove intents, never add them.
 
-Ring fills are peer-to-peer — no AMM interaction. Each ring is filled at the bottleneck volume (smallest edge converted to a common denomination). Multiple rings can be found iteratively.
+**Important**: This batch rate is why an intent might be rejected even though it would succeed as an individual trade. Trading alone, your 10 USDT might get you 5.25 HDX. But when 15 other people are also selling USDT for HDX at the same time, the combined 150 USDT pushes the pool price down, and everyone only gets 3.69 HDX per 10 USDT. If your minimum was 5.47 HDX, you get filtered out.
 
-### Phase 4: AMM Execution
+### 3. Find Ring Trades
 
-For each asset pair, subtract ring-filled volumes and execute the remaining net imbalance through the AMM. The AMM state is mutated sequentially across pairs.
+Before touching any pool, the solver looks for **ring trades** — cycles of three assets where users can trade peer-to-peer in a circle.
 
-Clearing rates from this phase are per-direction:
-- **Scarce side**: gets spot-rate output from direct matching
-- **Excess side**: gets (direct match output + adjusted AMM output) / total input
+Example: Alice sells HDX for HOLLAR, Bob sells HOLLAR for BNC, Charlie sells BNC for HDX. These three can trade directly with each other — Alice's HDX goes to Charlie, Charlie's BNC goes to Bob, Bob's HOLLAR goes to Alice. No pool needed, no slippage, no fees.
 
-On AMM failure, the excess side falls back to spot rate.
+The solver finds these 3-asset cycles, checks that all participants would get at least their minimum at spot prices, and fills them at the bottleneck volume (limited by the smallest leg of the cycle).
 
-### Phase 5: Rate Unification
+Ring trades are strictly better than pool trades — they capture maximum value from multi-asset matching.
 
-Blend ring fills and AMM fills into a single per-direction rate:
+### 4. Execute AMM Trades for the Remainder
 
-```
-unified_rate = (ring_total_out + amm_portion_out) / total_in
-```
+After ring matching, there's usually leftover volume that can't be matched peer-to-peer. For each asset pair, the solver computes the **net imbalance** — how much more is being sold in one direction than the other — and routes that excess through the AMM.
 
-This ensures all intents in the same direction get the same rate, regardless of individual ring fill proportions.
+The flow analysis for each pair works like this:
 
-### Phase 6: Intent Resolution
+- **One-sided flow** (only sellers in one direction): the entire volume goes through the pool
+- **Opposing flow with excess**: the smaller side is fully absorbed by direct matching (they get approximately spot rate — no slippage). Only the excess on the larger side goes to the pool
+- **Perfect cancellation**: volumes match exactly, no pool trade needed at all
 
-Apply the unified rate to each intent. The first intent per direction establishes a canonical `Ratio`; subsequent intents derive amounts from it, guaranteeing on-chain `validate_price_consistency` tolerance of ≤ 1.
+For each AMM trade, the solver discovers available routes (which may go through multiple pools), simulates each one, and picks the route with the best output. A small safety margin (0.01%) is subtracted from the simulated output to account for tiny differences between the simulator and the real pool math.
 
-Intents whose computed output falls below their minimum (due to rounding or rate adjustments) are dropped. Score = sum of surplus across all resolved intents.
+If the leftover amount is smaller than the asset's existential deposit (dust from near-perfect cancellation), the trade is skipped entirely.
 
-## Key Properties
+### 5. Blend Rates and Resolve Intents
 
-- **Per-direction clearing prices**: all intents selling A→B get the same rate. All intents selling B→A get the same rate. These two rates do NOT need to be inverses — the spread is surplus from direct matching.
-- **Asymmetric matching benefit**: the scarce side (less volume) gets approximately spot rate (matched peer-to-peer, no AMM slippage). The excess side bears AMM impact only on the net imbalance.
-- **Direct pair routing**: AMM trades go directly A→B (router finds optimal route), not forced through a hub/denominator asset.
-- **Ring trades**: 3-asset cycles are filled peer-to-peer at spot prices, avoiding AMM entirely. Longer cycles (4+) are not attempted.
-- **Simulation-execution consistency**: `adjust_amm_output` is applied in both the filtering phase (simulation) and the execution phase, preventing marginal intents from passing filtering but failing at resolution.
+Now the solver has two sources of output for each direction: ring fills (peer-to-peer) and AMM output. It blends these into a single **unified rate** per direction:
 
-## AMM Simulation Tolerance
+> unified rate = (ring output + AMM output) / total input
 
-The solver simulates AMM trades off-chain. On-chain execution may produce slightly different results due to rounding differences (e.g., slip fee calculations, intermediate precision).
+Every intent in the same direction gets this same rate applied to their individual amount. This ensures fairness — no one gets a better deal just because their portion happened to be matched via a ring.
 
-`AMM_SIMULATION_TOLERANCE_BPS` (currently 1 bps = 0.01%) is subtracted from simulated AMM output. This adjusted value is used for both `PoolTrade.amount_out` (on-chain `min_amount_out`) and clearing rate computation, ensuring the pallet account always has enough tokens from AMM trades to pay resolved intents.
+The solver then checks each intent: does the unified rate give them at least their minimum? If yes, they're resolved. If not, they're dropped.
 
-For very small outputs (< 10,000 units), integer truncation means no deduction is applied. This is acceptable since production token amounts are typically 10^12+.
+### 6. Stabilization
 
-## Overflow-Safe Arithmetic
+Sometimes an intent passes the initial clearing price check (step 2) but fails after the actual rates are computed (step 5), because the rates differ slightly due to ring fill blending, rounding, and the safety margin.
 
-Real AMM spot prices use 128-bit `Ratio` values (numerator/denominator). Cross-products can reach ~10^76, near U256 max (~1.15 × 10^77).
+If any intents are dropped during resolution, their volume was already baked into the AMM trades. The solver handles this by re-running steps 3–5 with only the actually-resolved intents. This produces new trades that match the real volumes, and new rates that might allow different intents to resolve.
 
-`calc_amount_out` uses multiple strategies to avoid overflow while preserving precision:
+This loop repeats until stable — no intents drop during resolution, meaning the trades perfectly match the resolved set.
 
-1. **Direct**: `amount_in * (pi.n * po.d) / (pi.d * po.n)` — most precise, tried first
-2. **Split**: when direct overflows but ratio ≥ 1, decompose into quotient + remainder
-3. **Cross-cancel**: `(amount_in * pi.n / po.n) * (po.d / pi.d)` — divides similar-magnitude values first
-4. **Step-by-step**: `(amount_in * pi.n / pi.d) * po.d / po.n` — divide early to keep values small
+### 7. Compute Score
 
-`mul_div(a, b, c)` computes `a * b / c` with the same overflow-protection approach.
+The **score** is the total surplus across all resolved intents: how much more each user receives compared to their stated minimum. Higher score means more value delivered to users.
 
-## Structure
+## On-Chain Execution
 
-```
-ice/ice-solver/src/
-├── lib.rs
-├── common/
-│   ├── mod.rs              calc_amount_out, mul_div, is_satisfiable,
-│                            collect_unique_assets, FlowDirection,
-│                            analyze_pair_flow
-│   ├── flow_graph.rs       FlowGraph, IntentEntry, MatchFill,
-│                            build_flow_graph
-│   └── ring_detection.rs   RingTrade, detect_rings, fills_meet_limits,
-│                            fill_intent
-└── v1/
-    ├── mod.rs
-    └── solver.rs            Solver<A>, PairClearing, DirAccum,
-                              solve, solve_single_intent,
-                              compute_pair_clearing
-```
+The solution is submitted as an unsigned transaction. The pallet executes it in three phases:
+
+1. **Unlock and collect**: For each resolved intent, unreserve the user's tokens (locked when they submitted the intent) and transfer them to the ICE holding account
+
+2. **Execute AMM trades**: Run each pool trade from the holding account. The holding account now has a mix of assets from step 1 and AMM outputs from this step
+
+3. **Pay out**: For each resolved intent, deduct the protocol fee from their output amount and transfer the remainder from the holding account to the user. Verify that all intents in the same direction received the same rate, and that the score matches
+
+## Summary of Matching Strategies
+
+| Strategy | How it works | Slippage | When used |
+|----------|-------------|----------|-----------|
+| **Direct matching** | Opposing intents trade with each other | None | When both directions have volume in a pair |
+| **Ring matching** | 3-asset cycles trade peer-to-peer | None | When A→B, B→C, C→A intents all exist |
+| **AMM routing** | Excess volume goes through liquidity pools | Yes — shared across all same-direction intents | For net imbalance after matching |
+
+## Known Limitations
+
+**Batch slippage can exclude viable intents.** All intents in the same direction share the AMM slippage from their combined volume. An intent that would succeed as an individual trade may be rejected because the batch rate is worse. The solver does not currently optimize which subset to include to maximize the number of resolved intents.
+
+**No partial fills.** An intent is either fully resolved or fully excluded. An intent that could be 90% filled at a good rate is excluded entirely rather than being partially satisfied.
+
+**Only 3-asset rings.** Longer cycles (4+ assets) are not detected. Some multi-asset matching opportunities are missed.
+
+**Single-pass route selection.** The solver picks the best route per pair independently. It does not consider how one trade's impact on pool state affects the available routes for other pairs.
+
+**Simulation tolerance.** A 0.01% safety margin covers typical rounding differences between the off-chain simulator and on-chain pool math. Larger divergences (from pool state changes between simulation and execution) could cause the on-chain execution to fail.

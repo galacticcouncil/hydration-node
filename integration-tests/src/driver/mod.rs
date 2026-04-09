@@ -10,7 +10,7 @@ use hydradx_runtime::AssetLocation;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AggregatedPriceOracle;
-use ice_support::{DcaParams, IntentDataInput, SwapData};
+use ice_support::{DcaParams, IntentDataInput, SwapParams};
 use pallet_asset_registry::AssetType;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
@@ -403,7 +403,7 @@ impl HydrationTestDriver {
 			assert_ok!(Intent::submit_intent(
 				RuntimeOrigin::signed(who),
 				pallet_intent::types::IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in,
 						asset_out,
 						amount_in,

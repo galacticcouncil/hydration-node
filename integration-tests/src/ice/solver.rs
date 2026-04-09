@@ -1,4 +1,4 @@
-use crate::polkadot_test_net::{TestNet, ALICE, BOB, CHARLIE, DAVE, EVE};
+use crate::polkadot_test_net::{hydradx_run_to_next_block, TestNet, ALICE, BOB, CHARLIE, DAVE, EVE};
 use amm_simulator::omnipool::Simulator as OmnipoolSimulator;
 use amm_simulator::stableswap::Simulator as StableswapSimulator;
 use amm_simulator::HydrationSimulator;
@@ -11,7 +11,7 @@ use hydradx_runtime::{
 use hydradx_traits::amm::{AmmSimulator, SimulatorConfig, SimulatorSet};
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::BoundErc20;
-use ice_solver::v1::Solver as IceSolver;
+use ice_solver::v2::Solver as IceSolver;
 use ice_support::Solution;
 use orml_traits::{MultiCurrency, MultiReservableCurrency, NamedMultiReservableCurrency};
 use pallet_omnipool::types::SlipFeeConfig;
@@ -297,7 +297,7 @@ fn stableswap_intent() {
 		assert_ok!(pallet_intent::Pallet::<Runtime>::submit_intent(
 			RuntimeOrigin::signed(ALICE.into()),
 			pallet_intent::types::IntentInput {
-				data: ice_support::IntentDataInput::Swap(ice_support::SwapData {
+				data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
 					asset_in: asset_a,
 					asset_out: asset_b,
 					amount_in,
@@ -1233,7 +1233,7 @@ fn intent_with_on_success_callback() {
 			assert_ok!(pallet_intent::Pallet::<Runtime>::submit_intent(
 				RuntimeOrigin::signed(alice.clone()),
 				pallet_intent::types::IntentInput {
-					data: ice_support::IntentDataInput::Swap(ice_support::SwapData {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
 						asset_in: bnc,
 						asset_out: hdx,
 						amount_in: bnc_to_sell,
@@ -2953,4 +2953,369 @@ fn solver_funds_unavailable_snapshot() {
 		println!("submit_solution result: {:?}", result);
 		assert_ok!(result);
 	});
+}
+
+/// Reproduce trading limit failure on testnet snapshot with pre-existing intents.
+#[test]
+fn solver_trading_limit_snapshot() {
+	const SNAPSHOT: &str = "snapshots/ice/SNAPSHOT_tradinglimit";
+
+	crate::driver::HydrationTestDriver::with_snapshot(SNAPSHOT).execute(|| {
+		//enable_slip_fees();
+		hydradx_run_to_next_block();
+
+		let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+		println!("snapshot has {} valid intents", intents.len());
+		assert!(!intents.is_empty(), "Snapshot should contain intents");
+
+		for (id, intent) in &intents {
+			println!("intent {}: {:?}", id, intent.data);
+		}
+
+		let call = pallet_ice::Pallet::<Runtime>::run(
+			hydradx_runtime::System::block_number(),
+			|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+		)
+		.expect("Solver must produce a solution");
+
+		let pallet_ice::Call::submit_solution { solution, .. } = call else {
+			panic!("Expected submit_solution call");
+		};
+
+		println!(
+			"solution: {} resolved intents, {} trades, score: {}",
+			solution.resolved_intents.len(),
+			solution.trades.len(),
+			solution.score
+		);
+
+		for (i, ri) in solution.resolved_intents.iter().enumerate() {
+			println!("resolved[{}]: id={}, {:?}", i, ri.id, ri.data);
+		}
+		for (i, t) in solution.trades.iter().enumerate() {
+			println!(
+				"trade[{}]: {:?} amount_in={}, amount_out={}, route={:?}",
+				i, t.direction, t.amount_in, t.amount_out, t.route
+			);
+		}
+
+		crate::polkadot_test_net::hydradx_run_to_next_block();
+
+		let result = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
+		println!("submit_solution result: {:?}", result);
+	});
+}
+
+/// Debug why intent ending with 6127 is excluded from the solution.
+#[test]
+fn solver_debug_intent_6127() {
+	const SNAPSHOT: &str = "snapshots/ice/SNAPSHOT_6127";
+
+	crate::driver::HydrationTestDriver::with_snapshot(SNAPSHOT).execute(|| {
+		enable_slip_fees();
+
+		let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+		println!("snapshot has {} valid intents", intents.len());
+
+		// Find the 6127 intent
+		let target_intent = intents.iter().find(|(id, _)| {
+			let id_str = format!("{}", id);
+			id_str.ends_with("6127")
+		});
+		if let Some((id, intent)) = target_intent {
+			println!("TARGET intent {}: {:?}", id, intent.data);
+		} else {
+			println!("WARNING: no intent ending with 6127 found!");
+			for (id, intent) in &intents {
+				println!("  intent {}: {:?}", id, intent.data);
+			}
+		}
+
+		// Find the 6127 intent's route via solver simulation
+		let call = pallet_ice::Pallet::<Runtime>::run(
+			hydradx_runtime::System::block_number(),
+			|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+				// Find 6127 intent
+				let target = intents.iter().find(|i| format!("{}", i.id).ends_with("6127"));
+				if let Some(intent) = target {
+					let ice_support::IntentData::Swap(ref swap) = intent.data else {
+						return None;
+					};
+					println!(
+						"6127 intent: sell {} of asset {} for asset {}, min_out: {}",
+						swap.amount_in, swap.asset_in, swap.asset_out, swap.amount_out
+					);
+
+					// Discover routes for this intent's pair
+					use hydradx_traits::amm::AMMInterface;
+					if let Ok(routes) = TestSimulator::discover_routes(swap.asset_in, swap.asset_out, &state) {
+						for (i, route) in routes.iter().enumerate() {
+							let sim = TestSimulator::sell(
+								swap.asset_in,
+								swap.asset_out,
+								swap.amount_in,
+								route.clone(),
+								&state,
+							);
+							match sim {
+								Ok((_, exec)) => {
+									println!("route[{}]: {:?} → simulated output: {}", i, route, exec.amount_out)
+								}
+								Err(e) => println!("route[{}]: {:?} → simulation failed: {:?}", i, route, e),
+							}
+						}
+					}
+				}
+
+				Solver::solve(intents, state).ok()
+			},
+		);
+
+		if let Some(pallet_ice::Call::submit_solution { ref solution, .. }) = call {
+			for (i, t) in solution.trades.iter().enumerate() {
+				println!("trade[{}]: route={:?}", i, t.route);
+			}
+		}
+
+		// Now do a direct router sell with the 6127 intent's parameters
+		// Intent: sell 10_000_000_000 of asset 10 → asset 0
+		// Use the Aave→Stableswap→Omnipool route discovered above
+		let asset_in = 10u32;
+		let asset_out = 0u32;
+		let amount_in = 10_000_000_000u128;
+
+		// Get the route from the router
+		let route = Router::get_route(hydradx_traits::router::AssetPair::new(asset_in, asset_out));
+		println!("on-chain route for {} -> {}: {:?}", asset_in, asset_out, route);
+
+		// Fund a test account and do the swap
+		let who: AccountId = [99u8; 32].into();
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			who.clone(),
+			asset_in,
+			amount_in as i128 * 10,
+		));
+
+		let balance_before = Currencies::free_balance(asset_out, &who);
+
+		crate::polkadot_test_net::hydradx_run_to_next_block();
+
+		let sell_result = pallet_route_executor::Pallet::<Runtime>::sell(
+			RuntimeOrigin::signed(who.clone()),
+			asset_in,
+			asset_out,
+			amount_in,
+			0, // no min out — just see what we get
+			route,
+		);
+		println!("direct router sell result: {:?}", sell_result);
+
+		let balance_after = Currencies::free_balance(asset_out, &who);
+		let received = balance_after.saturating_sub(balance_before);
+		println!(
+			"received: {} of asset {} (min_out was 5473500000000000000)",
+			received, asset_out
+		);
+	});
+}
+
+/// V2 partial fill test: small intents + whale.
+///
+/// 3 small intents sell 10,000 HDX → BNC each (partial: false, loose limit).
+/// 1 whale sells 5,000,000 HDX → BNC (partial: true, tight limit).
+///
+/// Without partial fills, the whale's volume would push the batch rate below
+/// its limit, and it would be excluded entirely. With v2, the whale gets a
+/// partial fill — only as much volume as the AMM can absorb at the minimum rate.
+#[test]
+fn solver_v2_partial_fill_whale() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into(); // small
+	let bob: AccountId = BOB.into(); // small
+	let charlie: AccountId = CHARLIE.into(); // small
+	let dave: AccountId = DAVE.into(); // whale
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let hdx_unit = 1_000_000_000_000u128;
+
+	// Spot: 1 HDX ≈ 0.068 BNC (from snapshot)
+	let small_amount = 10_000 * hdx_unit;
+	let whale_amount = 5_000_000 * hdx_unit;
+	// Loose limit for small intents: 1 BNC per 10,000 HDX (way below spot)
+	let small_min_bnc = 1_000_000_000_000u128;
+	// Tight limit for whale: require ~0.065 BNC per HDX (close to spot of ~0.068)
+	// 5,000,000 HDX * 0.065 = 325,000 BNC
+	let whale_min_bnc = 325_000 * 1_000_000_000_000u128;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, small_amount * 10)
+		.endow_account(bob.clone(), hdx, small_amount * 10)
+		.endow_account(charlie.clone(), hdx, small_amount * 10)
+		.endow_account(dave.clone(), hdx, whale_amount * 2)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			// Submit 3 small non-partial intents
+			for (who, label) in [
+				(alice.clone(), "alice"),
+				(bob.clone(), "bob"),
+				(charlie.clone(), "charlie"),
+			] {
+				assert_ok!(hydradx_runtime::Intent::submit_intent(
+					RuntimeOrigin::signed(who),
+					pallet_intent::types::IntentInput {
+						data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+							asset_in: hdx,
+							asset_out: bnc,
+							amount_in: small_amount,
+							amount_out: small_min_bnc,
+							partial: false,
+						}),
+						deadline,
+						on_resolved: None,
+					}
+				));
+				println!("{}: submitted {} HDX → BNC (non-partial)", label, small_amount);
+			}
+
+			// Submit whale partial intent
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(dave.clone()),
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+						asset_in: hdx,
+						asset_out: bnc,
+						amount_in: whale_amount,
+						amount_out: whale_min_bnc,
+						partial: true,
+					}),
+					deadline,
+					on_resolved: None,
+				}
+			));
+			println!(
+				"dave (whale): submitted {} HDX → BNC (partial, min_bnc={})",
+				whale_amount, whale_min_bnc
+			);
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			println!("total intents: {}", intents.len());
+			assert_eq!(intents.len(), 4);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			println!(
+				"\nsolution: {} resolved, {} trades, score: {}",
+				solution.resolved_intents.len(),
+				solution.trades.len(),
+				solution.score
+			);
+
+			let mut whale_resolved = false;
+			let mut whale_fill = 0u128;
+			for (i, ri) in solution.resolved_intents.iter().enumerate() {
+				let ice_support::IntentData::Swap(ref s) = ri.data else {
+					continue;
+				};
+				let is_whale = s.amount_in != small_amount || s.partial.is_partial();
+				println!(
+					"resolved[{}]: id={}, amount_in={}, amount_out={}, partial={:?} {}",
+					i,
+					ri.id,
+					s.amount_in,
+					s.amount_out,
+					s.partial,
+					if is_whale { "← WHALE" } else { "" }
+				);
+				if is_whale {
+					whale_resolved = true;
+					whale_fill = s.amount_in;
+				}
+			}
+
+			// All 3 small intents should be resolved
+			let small_count = solution
+				.resolved_intents
+				.iter()
+				.filter(|ri| {
+					let ice_support::IntentData::Swap(ref s) = ri.data else {
+						return false;
+					};
+					!s.partial.is_partial() && s.amount_in == small_amount
+				})
+				.count();
+			println!("\nsmall intents resolved: {}/3", small_count);
+			assert_eq!(small_count, 3, "All 3 small intents should be resolved");
+
+			// Whale should be resolved (possibly partially)
+			assert!(whale_resolved, "Whale should be in the solution");
+			println!(
+				"whale fill: {} / {} ({:.1}%)",
+				whale_fill,
+				whale_amount,
+				(whale_fill as f64 / whale_amount as f64) * 100.0
+			);
+
+			if whale_fill < whale_amount {
+				println!("whale was PARTIALLY filled — v2 partial fill working!");
+			} else {
+				println!("whale was FULLY filled");
+			}
+
+			// Execute the solution
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+			println!("submit_solution: OK");
+
+			// Check whale intent is still open if partially filled
+			if whale_fill < whale_amount {
+				let whale_intent_id = intents
+					.iter()
+					.find(|(_, intent)| {
+						let ice_support::IntentData::Swap(ref s) = intent.data else {
+							return false;
+						};
+						s.partial.is_partial() && s.amount_in == whale_amount
+					})
+					.map(|(id, _)| *id)
+					.expect("whale intent should exist");
+
+				let stored = pallet_intent::Pallet::<Runtime>::get_intent(whale_intent_id);
+				assert!(
+					stored.is_some(),
+					"Whale intent should still be in storage after partial fill"
+				);
+				let stored = stored.unwrap();
+				let ice_support::IntentData::Swap(ref s) = stored.data else {
+					panic!("expected Swap")
+				};
+				println!(
+					"whale intent after fill: amount_in={} (immutable), partial={:?}, remaining={}",
+					s.amount_in,
+					s.partial,
+					s.remaining()
+				);
+				assert_eq!(s.amount_in, whale_amount, "Original amount_in should be immutable");
+				assert_eq!(s.partial.filled(), whale_fill, "Filled counter should match");
+				assert!(s.remaining() > 0, "Should have remaining to fill");
+			}
+		});
 }

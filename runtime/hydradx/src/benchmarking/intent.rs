@@ -41,7 +41,7 @@ runtime_benchmarks! {
 		let cb: Vec<u8> = vec![255; MAX_DATA_SIZE as usize];
 
 		let intent = IntentInput {
-			data: IntentDataInput::Swap(SwapData {
+			data: IntentDataInput::Swap(SwapParams {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: 3000 * TRIL,
@@ -71,7 +71,7 @@ runtime_benchmarks! {
 		let cb: Vec<u8> = vec![255; MAX_DATA_SIZE as usize];
 
 		let intent = IntentInput {
-			data: IntentDataInput::Swap(SwapData {
+			data: IntentDataInput::Swap(SwapParams {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: 3000 * TRIL,

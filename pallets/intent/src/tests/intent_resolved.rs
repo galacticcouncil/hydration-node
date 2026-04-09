@@ -11,7 +11,7 @@ fn should_work_with_intent_without_deadline() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -25,7 +25,7 @@ fn should_work_with_intent_without_deadline() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -66,7 +66,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -80,7 +80,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -121,7 +121,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_better_than_limits()
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -135,7 +135,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_better_than_limits()
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -178,7 +178,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -192,7 +192,7 @@ fn non_partial_should_not_work_when_resolved_bellow_limits() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -255,7 +255,7 @@ fn should_not_work_when_non_partial_intent_resolved_partially() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -269,7 +269,7 @@ fn should_not_work_when_non_partial_intent_resolved_partially() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -308,7 +308,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_exactly() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -322,7 +322,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_exactly() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -364,7 +364,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -378,7 +378,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -424,7 +424,7 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -438,7 +438,7 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -472,9 +472,9 @@ fn partial_intent_should_not_remove_intent_and_owner_when_not_resolved_fully() {
 				data: IntentData::Swap(SwapData {
 					asset_in: ETH,
 					asset_out: DOT,
-					amount_in: ONE_QUINTIL / 2,
-					amount_out: 1_500 * ONE_DOT / 2,
-					partial: true,
+					amount_in: ONE_QUINTIL,
+					amount_out: 1_500 * ONE_DOT,
+					partial: Partial::Yes(ONE_QUINTIL / 2),
 				}),
 				deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
 				on_resolved: None,
@@ -496,7 +496,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -510,7 +510,7 @@ fn partial_intent_should_not_work_when_resolved_fully_and_bellow_limit() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -561,7 +561,7 @@ fn partial_intent_should_not_work_when_resolved_partially_and_bellow_limit() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -575,7 +575,7 @@ fn partial_intent_should_not_work_when_resolved_partially_and_bellow_limit() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -614,7 +614,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -628,7 +628,7 @@ fn should_not_work_when_intent_doesnt_exist() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -675,7 +675,7 @@ fn should_not_work_when_resolved_as_not_an_owner() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -689,7 +689,7 @@ fn should_not_work_when_resolved_as_not_an_owner() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -728,7 +728,7 @@ fn should_not_work_when_intent_expired() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -742,7 +742,7 @@ fn should_not_work_when_intent_expired() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -780,7 +780,7 @@ fn should_not_work_when_assets_doesnt_match() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -794,7 +794,7 @@ fn should_not_work_when_assets_doesnt_match() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -844,7 +844,7 @@ fn should_not_work_when_partial_doesnt_match() {
 		.with_intents(vec![(
 			ALICE,
 			IntentInput {
-				data: IntentDataInput::Swap(SwapData {
+				data: IntentDataInput::Swap(SwapParams {
 					asset_in: HDX,
 					asset_out: DOT,
 					amount_in: 10 * ONE_HDX,
@@ -864,7 +864,11 @@ fn should_not_work_when_partial_doesnt_match() {
 			let IntentData::Swap(ref mut r_swap) = resolve.data else {
 				panic!("expected Swap");
 			};
-			r_swap.partial = !r_swap.partial;
+			r_swap.partial = if r_swap.partial.is_partial() {
+				Partial::No
+			} else {
+				Partial::Yes(0)
+			};
 
 			assert_noop!(
 				IntentPallet::intent_resolved(&who, &ResolvedIntent { id, data: resolve.data }, 0),
@@ -881,7 +885,7 @@ fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -895,7 +899,7 @@ fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,

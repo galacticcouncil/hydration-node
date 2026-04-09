@@ -16,7 +16,7 @@ fn should_work_when_intent_is_expired_and_origin_is_none() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -30,7 +30,7 @@ fn should_work_when_intent_is_expired_and_origin_is_none() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -86,7 +86,7 @@ fn should_work_when_intent_is_expired_and_origin_is_signed() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -100,7 +100,7 @@ fn should_work_when_intent_is_expired_and_origin_is_signed() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -156,7 +156,7 @@ fn should_not_work_when_intent_is_not_expired() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -170,7 +170,7 @@ fn should_not_work_when_intent_is_not_expired() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -238,7 +238,7 @@ fn should_not_collect_fees_when_intent_is_expired() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -252,7 +252,7 @@ fn should_not_collect_fees_when_intent_is_expired() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,
@@ -309,7 +309,7 @@ fn should_not_work_when_intent_has_no_deadline() {
 			(
 				ALICE,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: HDX,
 						asset_out: DOT,
 						amount_in: 10 * ONE_HDX,
@@ -323,7 +323,7 @@ fn should_not_work_when_intent_has_no_deadline() {
 			(
 				BOB,
 				IntentInput {
-					data: IntentDataInput::Swap(SwapData {
+					data: IntentDataInput::Swap(SwapParams {
 						asset_in: ETH,
 						asset_out: DOT,
 						amount_in: ONE_QUINTIL,

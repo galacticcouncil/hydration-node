@@ -1,6 +1,6 @@
 //! Flow graph types and construction shared across solver versions.
 
-use ice_support::{AssetId, Balance, Intent, IntentData, IntentId};
+use ice_support::{AssetId, Balance, Intent, IntentData, IntentId, Partial};
 use sp_core::U256;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
@@ -21,9 +21,8 @@ pub struct IntentEntry {
 	/// Remaining amount_in not yet matched
 	pub remaining_in: Balance,
 	/// Whether this intent supports partial fills.
-	/// Currently unused in ring detection (ring partial fills are internal bookkeeping),
-	/// but stored for potential future use in fill prioritization.
-	pub partial: bool,
+	/// Partial fill state. Used by v2 solver for variable fill amounts.
+	pub partial: Partial,
 }
 
 /// The flow graph: intents grouped by directed pair.
