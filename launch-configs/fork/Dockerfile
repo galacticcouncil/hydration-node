@@ -15,12 +15,19 @@ RUN wget -q https://github.com/paritytech/zombienet/releases/download/v1.3.128/z
     chmod +x /usr/local/bin/zombienet
 RUN zombienet version
 
+ARG POLKADOT_SDK_VERSION=latest
+
 RUN mkdir -p /zombienet/polkadot-sdk/target/release
-RUN for binary in polkadot polkadot-execute-worker polkadot-prepare-worker; do \
-    wget -q https://github.com/paritytech/polkadot-sdk/releases/latest/download/$binary \
-        -O /zombienet/polkadot-sdk/target/release/$binary \
-    && chmod +x /zombienet/polkadot-sdk/target/release/$binary \
-    && /zombienet/polkadot-sdk/target/release/$binary --version; \
+RUN if [ "$POLKADOT_SDK_VERSION" = "latest" ]; then \
+        DOWNLOAD_URL="https://github.com/paritytech/polkadot-sdk/releases/latest/download"; \
+    else \
+        DOWNLOAD_URL="https://github.com/paritytech/polkadot-sdk/releases/download/$POLKADOT_SDK_VERSION"; \
+    fi && \
+    for binary in polkadot polkadot-execute-worker polkadot-prepare-worker; do \
+        wget -q $DOWNLOAD_URL/$binary \
+            -O /zombienet/polkadot-sdk/target/release/$binary \
+        && chmod +x /zombienet/polkadot-sdk/target/release/$binary \
+        && /zombienet/polkadot-sdk/target/release/$binary --version; \
     done
 
 ARG HYDRATION_BIN_URL=https://github.com/galacticcouncil/hydration-node/releases/latest/download
