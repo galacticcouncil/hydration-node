@@ -43,6 +43,7 @@ mod polkadot_test_net;
 mod referrals;
 mod router;
 mod stableswap;
+mod stableswap_curve_comparison;
 mod staking;
 mod transact_call_filter;
 mod utility;
