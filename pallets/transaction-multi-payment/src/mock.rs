@@ -176,7 +176,7 @@ impl Config for Test {
 	type EvmAssetId = EvmAssetId;
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = PermitDispatchHandler;
-	type TryCallCurrency<'a> = NoCallCurrency<Test>;
+	type TryCallCurrency<'a> = TestCallCurrency<Test>;
 	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
 }
 
