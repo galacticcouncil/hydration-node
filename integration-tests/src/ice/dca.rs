@@ -349,3 +349,42 @@ fn dca_with_1_percent_slippage() {
 			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1, "DCA still active");
 		});
 }
+
+#[test]
+fn ice_dca_driving() {
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	let budget = 3 * TRADE_AMOUNT;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), HDX, budget * 10)
+		.enable_slip_fees(Permill::from_percent(5))
+		.new_block()
+		.submit_dca_intent(
+			alice.clone(),
+			HDX,
+			BNC,
+			TRADE_AMOUNT,
+			MIN_OUT_BNC,
+			Permill::from_percent(3),
+			Some(budget),
+			PERIOD,
+		)
+		.advance(PERIOD)
+		.run_solver()
+		.execute(|| {
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1, "After trade 1");
+		})
+		.advance(PERIOD)
+		.run_solver()
+		.execute(|| {
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1, "After trade 2");
+		})
+		.advance(PERIOD)
+		.run_solver()
+		.execute(|| {
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0, "Completed");
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 0);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 0);
+		});
+}

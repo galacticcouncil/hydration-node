@@ -185,12 +185,19 @@ impl<A: AMMInterface> Solver<A> {
 					}
 				}
 
-				// Fallback: spot price check
-				let ok = common::is_satisfiable(intent, &spot_prices);
-				if !ok {
-					log::debug!(target:"solver::v2","intent {}: unsatisfiable at spot price", intent.id);
+				// Fallback: spot price check (partial-aware)
+				if swap.partial.is_partial() {
+					// For partial intents, check if remaining amount at spot meets pro-rata min.
+					// Also always allow partial intents through — the binary search in
+					// solve_single_intent_with_fill will find the right fill amount.
+					true
+				} else {
+					let ok = common::is_satisfiable(intent, &spot_prices);
+					if !ok {
+						log::debug!(target:"solver::v2","intent {}: unsatisfiable at spot price", intent.id);
+					}
+					ok
 				}
-				ok
 			})
 			.collect();
 

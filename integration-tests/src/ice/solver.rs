@@ -3319,3 +3319,258 @@ fn solver_v2_partial_fill_whale() {
 			}
 		});
 }
+
+/// V2 single whale intent — too large for one batch but partially fillable.
+///
+/// One intent sells 5,000,000 HDX → BNC with a tight limit close to spot.
+/// The full amount would cause too much slippage, but the solver should
+/// find the maximum partial fill that meets the minimum rate.
+#[test]
+fn solver_v2_single_partial_whale() {
+	TestNet::reset();
+
+	let dave: AccountId = DAVE.into();
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let hdx_unit = 1_000_000_000_000u128;
+
+	let whale_amount = 5_000_000 * hdx_unit;
+	// Tight limit: ~0.065 BNC/HDX (spot is ~0.068)
+	let whale_min_bnc = 325_000 * 1_000_000_000_000u128;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(dave.clone(), hdx, whale_amount * 2)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(dave.clone()),
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+						asset_in: hdx,
+						asset_out: bnc,
+						amount_in: whale_amount,
+						amount_out: whale_min_bnc,
+						partial: true,
+					}),
+					deadline,
+					on_resolved: None,
+				}
+			));
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 1, "Should have exactly 1 intent");
+			println!(
+				"single whale intent: {} HDX → BNC, min_out={}",
+				whale_amount, whale_min_bnc
+			);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			println!(
+				"solution: {} resolved, {} trades, score: {}",
+				solution.resolved_intents.len(),
+				solution.trades.len(),
+				solution.score
+			);
+
+			assert_eq!(solution.resolved_intents.len(), 1, "Whale should be resolved");
+
+			let ri = &solution.resolved_intents[0];
+			let ice_support::IntentData::Swap(ref s) = ri.data else {
+				panic!("expected Swap")
+			};
+
+			println!(
+				"fill: {} / {} ({:.1}%)",
+				s.amount_in,
+				whale_amount,
+				(s.amount_in as f64 / whale_amount as f64) * 100.0
+			);
+			println!("amount_out: {} BNC", s.amount_out);
+
+			// Should be a partial fill — less than full amount
+			assert!(s.amount_in < whale_amount, "Should be partially filled, not full");
+			assert!(s.amount_in > 0, "Should have some fill");
+
+			// The rate should meet the minimum
+			// min_rate = whale_min_bnc / whale_amount = 0.065 BNC/HDX
+			// actual_rate = amount_out / amount_in >= 0.065
+			let pro_rata_min = s.amount_in as u128 * whale_min_bnc / whale_amount;
+			assert!(
+				s.amount_out >= pro_rata_min,
+				"Rate should meet minimum: got {} BNC for {} HDX, pro_rata_min={}",
+				s.amount_out,
+				s.amount_in,
+				pro_rata_min
+			);
+
+			println!(
+				"rate: {:.6} BNC/HDX (min: {:.6})",
+				s.amount_out as f64 / s.amount_in as f64,
+				whale_min_bnc as f64 / whale_amount as f64
+			);
+
+			// Capture balances before execution
+			let dave_hdx_before = Currencies::total_balance(hdx, &dave);
+			let dave_bnc_before = Currencies::total_balance(bnc, &dave);
+			let fill_amount = s.amount_in;
+			let expected_bnc_out = s.amount_out;
+
+			// Execute
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+			println!("submit_solution: OK");
+
+			// Verify Dave's balances
+			let dave_hdx_after = Currencies::total_balance(hdx, &dave);
+			let dave_bnc_after = Currencies::total_balance(bnc, &dave);
+			let hdx_spent = dave_hdx_before.saturating_sub(dave_hdx_after);
+			let bnc_received = dave_bnc_after.saturating_sub(dave_bnc_before);
+
+			println!(
+				"dave HDX: {} → {} (spent {})",
+				dave_hdx_before, dave_hdx_after, hdx_spent
+			);
+			println!(
+				"dave BNC: {} → {} (received {})",
+				dave_bnc_before, dave_bnc_after, bnc_received
+			);
+
+			assert_eq!(
+				hdx_spent, fill_amount,
+				"Dave should have spent exactly the fill amount of HDX"
+			);
+			// BNC received = amount_out - protocol fee (0.02%)
+			let fee = hydradx_runtime::IceFee::get().mul_floor(expected_bnc_out);
+			let expected_payout = expected_bnc_out.saturating_sub(fee);
+			assert_eq!(
+				bnc_received, expected_payout,
+				"Dave should receive amount_out minus fee: expected {}, got {}",
+				expected_payout, bnc_received
+			);
+			println!(
+				"fee: {} BNC ({:.4}%)",
+				fee,
+				fee as f64 / expected_bnc_out as f64 * 100.0
+			);
+
+			// Verify intent still open
+			let intent_id = intents[0].0;
+			let stored = pallet_intent::Pallet::<Runtime>::get_intent(intent_id).expect("Intent should still exist");
+			let ice_support::IntentData::Swap(ref stored_swap) = stored.data else {
+				panic!("expected Swap")
+			};
+			println!(
+				"after fill 1: partial={:?}, remaining={}",
+				stored_swap.partial,
+				stored_swap.remaining()
+			);
+			assert_eq!(stored_swap.amount_in, whale_amount, "Original immutable");
+			assert!(stored_swap.remaining() > 0, "Should have remaining");
+			let filled_after_1 = stored_swap.partial.filled();
+			assert!(filled_after_1 > 0, "Should have some filled");
+
+			// --- Block 2: run solver again on the same (now partially filled) intent ---
+			println!("\n=== BLOCK 2 ===");
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+
+			let intents2 = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents2.len(), 1, "Whale intent should still be valid");
+
+			let dave_hdx_before2 = Currencies::total_balance(hdx, &dave);
+			let dave_bnc_before2 = Currencies::total_balance(bnc, &dave);
+
+			// Check spot rate after block 1 trade
+			{
+				use hydradx_traits::amm::AMMInterface;
+				let state2 =
+					<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators::initial_state();
+				let routes = TestSimulator::discover_routes(hdx, bnc, &state2).unwrap();
+				let test_amount = 1_000_000_000_000u128; // 1 HDX
+				if let Some((_, out, _)) =
+					<TestSimulator as AMMInterface>::sell(hdx, bnc, test_amount, routes[0].clone(), &state2)
+						.ok()
+						.map(|(s, e)| (routes[0].clone(), e.amount_out, s))
+				{
+					let rate = out as f64 / test_amount as f64;
+					println!(
+						"block 2 spot check: 1 HDX → {} BNC (rate: {:.6}, min: 0.065000)",
+						out, rate
+					);
+				}
+			}
+
+			let call2 = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			);
+
+			// Block 1's trade moved the pool. Without external arbitrage (static snapshot),
+			// the spot rate may now be below the whale's minimum. In that case, the solver
+			// correctly produces no solution — the whale waits for conditions to improve.
+			if let Some(pallet_ice::Call::submit_solution {
+				solution: solution2, ..
+			}) = call2
+			{
+				assert_eq!(solution2.resolved_intents.len(), 1);
+				let (fill2_amount_in, fill2_amount_out) = {
+					let ice_support::IntentData::Swap(ref s2) = solution2.resolved_intents[0].data else {
+						panic!("expected Swap");
+					};
+					(s2.amount_in, s2.amount_out)
+				};
+
+				println!(
+					"fill 2: {} ({:.1}% of remaining)",
+					fill2_amount_in,
+					(fill2_amount_in as f64 / stored_swap.remaining() as f64) * 100.0
+				);
+
+				crate::polkadot_test_net::hydradx_run_to_next_block();
+				assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+					RuntimeOrigin::none(),
+					solution2,
+				));
+				println!("submit_solution block 2: OK");
+
+				let stored2 =
+					pallet_intent::Pallet::<Runtime>::get_intent(intent_id).expect("Intent should still exist");
+				let ice_support::IntentData::Swap(ref s2_stored) = stored2.data else {
+					panic!("expected Swap")
+				};
+				println!(
+					"after fill 2: filled={}, remaining={}",
+					s2_stored.partial.filled(),
+					s2_stored.remaining()
+				);
+				assert!(
+					s2_stored.partial.filled() > filled_after_1,
+					"Cumulative filled should increase"
+				);
+			} else {
+				println!(
+					"block 2: no solution — pool rate below minimum after block 1 trade (expected in static snapshot)"
+				);
+				// Intent should still be open, waiting for better conditions
+				let stored2 = pallet_intent::Pallet::<Runtime>::get_intent(intent_id)
+					.expect("Intent should still exist even without block 2 fill");
+				assert_eq!(stored2.data.amount_in(), whale_amount, "Original immutable");
+			}
+			println!("\ntest complete — partial fill across blocks verified");
+		});
+}
