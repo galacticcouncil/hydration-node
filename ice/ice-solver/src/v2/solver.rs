@@ -214,7 +214,7 @@ impl<A: AMMInterface> Solver<A> {
 		// 2. Build fill plan: for each intent, determine its fill amount.
 		// Non-partial: full amount_in or excluded.
 		// Partial: variable fill up to remaining().
-		let mut fills: Vec<IntentFill> = satisfiable_intents
+		let fills: Vec<IntentFill> = satisfiable_intents
 			.iter()
 			.map(|&intent| {
 				let IntentData::Swap(swap) = &intent.data else {
