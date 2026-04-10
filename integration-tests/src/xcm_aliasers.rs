@@ -350,10 +350,7 @@ fn asset_hub_root_can_alias_system_parachain_descendants() {
 			);
 
 			// Deeper nested: PalletInstance + GeneralIndex
-			let target = Location::new(
-				1,
-				X3([Parachain(id), PalletInstance(8), GeneralIndex(9)].into()),
-			);
+			let target = Location::new(1, X3([Parachain(id), PalletInstance(8), GeneralIndex(9)].into()));
 			assert!(
 				<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
 				"Asset Hub root must be able to alias to deeper locations on {name} ({id})"
@@ -395,10 +392,7 @@ fn asset_hub_root_cannot_alias_non_system_parachain_descendants() {
 			);
 
 			// Deeper nested: PalletInstance + GeneralIndex
-			let target = Location::new(
-				1,
-				X3([Parachain(id), PalletInstance(8), GeneralIndex(9)].into()),
-			);
+			let target = Location::new(1, X3([Parachain(id), PalletInstance(8), GeneralIndex(9)].into()));
 			assert!(
 				!<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
 				"Asset Hub root must NOT be able to alias to deeper locations on Para {id}"
