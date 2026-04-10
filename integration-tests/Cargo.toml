@@ -1,6 +1,10 @@
 [package]
 name = "runtime-integration-tests"
+<<<<<<< eth_estimate_fix
+version = "1.75.2"
+=======
 version = "1.77.0"
+>>>>>>> master
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"

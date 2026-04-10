@@ -1,6 +1,10 @@
 [package]
 name = "hydradx-runtime"
+<<<<<<< eth_estimate_fix
+version = "406.0.0"
+=======
 version = "409.0.0"
+>>>>>>> master
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
