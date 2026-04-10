@@ -1,6 +1,10 @@
 [package]
 name = "runtime-integration-tests"
+<<<<<<< eth_estimate_fix
 version = "1.75.2"
+=======
+version = "1.77.0"
+>>>>>>> master
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -57,6 +61,7 @@ pallet-scheduler = { workspace = true }
 pallet-referenda = { workspace = true }
 pallet-conviction-voting = { workspace = true }
 pallet-dispatcher = { workspace = true }
+pallet-proxy = { workspace = true }
 pallet-hsm = { workspace = true }
 
 # collator support
