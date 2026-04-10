@@ -473,3 +473,101 @@ fn soft_limit_only_applies_to_non_external_sources() {
 		assert_eq!(Accumulator::<Test>::get().len(), (max_entries + 1) as usize);
 	});
 }
+
+// Verifies the accepted design: external oracles have priority and can consume
+// accumulator slots, causing AMM trades for *new* pairs to revert with
+// TooManyUniqueEntries when the accumulator is full. This locks in the current
+// behavior so future refactors don't silently change it.
+//
+// Important subtlety: the accumulator is keyed by (Source, AssetPair). So an external
+// entry under (EXTERNAL_SOURCE, pair) is a DIFFERENT key from an AMM entry under
+// (SOURCE, pair) — they don't alias. Only an AMM pair that was *already tracked by
+// SOURCE* earlier in the same block keeps working via get_mut.
+#[test]
+fn external_entries_blocking_amm_new_pairs_reverts_amm_trade() {
+	new_test_ext().execute_with(|| {
+		let max_entries = <<Test as crate::Config>::MaxUniqueEntries as Get<u32>>::get();
+
+		// 1. Place one AMM entry first — (SOURCE, (100, 101)) — so we can later verify
+		//    that updates to this specific key still work even when the accumulator is full.
+		assert_ok!(OnActivityHandler::<Test>::on_trade(
+			SOURCE,
+			100,
+			101,
+			1_000,
+			1_000,
+			2_000,
+			2_000,
+			Price::new(2_000, 2_000),
+			Some(1_000_u128),
+		));
+		assert_eq!(Accumulator::<Test>::get().len(), 1);
+
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE
+		));
+		for i in 0..(max_entries - 1) {
+			assert_ok!(OnActivityHandler::<Test>::on_trade(
+				EXTERNAL_SOURCE,
+				i,
+				i + 1,
+				1_000,
+				1_000,
+				2_000,
+				2_000,
+				Price::new(2_000, 2_000),
+				Some(1_000_u128),
+			));
+		}
+		assert_eq!(Accumulator::<Test>::get().len(), max_entries as usize);
+
+		// Actively traded pairs keep working.
+		assert_ok!(OnActivityHandler::<Test>::on_trade(
+			SOURCE,
+			100,
+			101,
+			1_000,
+			1_000,
+			2_000,
+			2_000,
+			Price::new(2_000, 2_000),
+			Some(1_000_u128),
+		));
+
+		assert_noop!(
+			OnActivityHandler::<Test>::on_trade(
+				SOURCE,
+				0,
+				1,
+				1_000,
+				1_000,
+				2_000,
+				2_000,
+				Price::new(2_000, 2_000),
+				Some(1_000_u128),
+			)
+			.map_err(|(_w, e)| e),
+			Error::<Test>::TooManyUniqueEntries
+		);
+
+		assert_noop!(
+			OnActivityHandler::<Test>::on_trade(
+				SOURCE,
+				2 * max_entries,
+				2 * max_entries + 1,
+				1_000,
+				1_000,
+				2_000,
+				2_000,
+				Price::new(2_000, 2_000),
+				Some(1_000_u128),
+			)
+			.map_err(|(_w, e)| e),
+			Error::<Test>::TooManyUniqueEntries
+		);
+
+		// Accumulator size unchanged — failed AMM insertions did not grow it.
+		assert_eq!(Accumulator::<Test>::get().len(), max_entries as usize);
+	});
+}
