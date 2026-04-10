@@ -133,6 +133,8 @@ async function updateChainSpec(inputFile, outputFile) {
 
     // Define keys to delete
     const KEYS_TO_DELETE = [
+        "0x26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac", // System.Number
+        "0x26aa394eea5630e07c48ae0c9558cef799e354094e5f3f9eddda2206fb22e261", // System.ParentHash
         "0x45323df7cc47150b3930e2666b0aa313911a5dd3f1155f5b7d0c5aa102a757f9", // ParachainSystem.lastDmqMqcHead
         "0x45323df7cc47150b3930e2666b0aa3133dca42deb008c6559ee789c9b9f70a2c", // ParachainSystem.lastHrmpMqcHeads
         "0x45323df7cc47150b3930e2666b0aa313a2bca190d36bd834cc73a38fc213ecbd", // ParachainSystem.lastRelayChainBlockNumber
