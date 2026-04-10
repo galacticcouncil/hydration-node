@@ -932,12 +932,10 @@ where
 		| Some(pallet_utility::pallet::Call::batch_all { calls })
 		| Some(pallet_utility::pallet::Call::force_batch { calls }) = call.is_sub_type()
 		{
-			match calls.first() {
-				Some(first_call) => match first_call.is_sub_type() {
-					Some(Call::set_currency { currency }) => return Ok(*currency),
-					_ => {}
-				},
-				_ => {}
+			if let Some(first_call) = calls.first() {
+				if let Some(Call::set_currency { currency }) = first_call.is_sub_type() {
+					return Ok(*currency);
+				}
 			}
 		}
 
