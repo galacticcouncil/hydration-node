@@ -51,32 +51,33 @@ where
 }
 
 pub type SnapshotVersion = Compact<u16>;
-pub const SNAPSHOT_VERSION: SnapshotVersion = Compact(3);
+pub const SNAPSHOT_VERSION: SnapshotVersion = Compact(4);
 
 /// The snapshot that we store on disk.
+/// Must match the format from `frame-remote-externalities`.
 #[derive(Decode, Encode, Clone)]
 pub struct Snapshot<B: BlockT> {
 	snapshot_version: SnapshotVersion,
 	state_version: StateVersion,
-	block_hash: B::Hash,
 	// <Vec<Key, (Value, MemoryDbRefCount)>>
 	raw_storage: Vec<(Vec<u8>, (Vec<u8>, i32))>,
 	storage_root: B::Hash,
+	header: B::Header,
 }
 
 impl<B: BlockT> Snapshot<B> {
 	pub fn new(
 		state_version: StateVersion,
-		block_hash: B::Hash,
 		raw_storage: Vec<(Vec<u8>, (Vec<u8>, i32))>,
 		storage_root: B::Hash,
+		header: B::Header,
 	) -> Self {
 		Self {
 			snapshot_version: SNAPSHOT_VERSION,
 			state_version,
-			block_hash,
 			raw_storage,
 			storage_root,
+			header,
 		}
 	}
 
@@ -111,7 +112,12 @@ pub fn save_externalities<B: BlockT<Hash = H256>>(ext: TestExternalities, path: 
 	let state_version = ext.state_version;
 	let (raw_storage, storage_root) = ext.into_raw_snapshot();
 
-	let snapshot = Snapshot::<B>::new(state_version, B::Hash::default(), raw_storage, storage_root);
+	// Construct a minimal header for the snapshot format.
+	// This is only used in tests; production snapshots use save_slim_snapshot which gets the real header.
+	let header = B::Header::decode(&mut frame_support::sp_runtime::traits::TrailingZeroInput::new(&[0u8]))
+		.expect("infinite input; qed");
+
+	let snapshot = Snapshot::<B>::new(state_version, raw_storage, storage_root, header);
 
 	let encoded = snapshot.encode();
 	fs::write(path, encoded).map_err(|_| "fs::write failed")?;
@@ -167,9 +173,9 @@ pub fn filter_snapshot_by_excluded_pallets<B: BlockT<Hash = H256>>(
 	// Create new snapshot with filtered storage
 	let filtered_snapshot = Snapshot::<B>::new(
 		snapshot.state_version,
-		snapshot.block_hash,
 		filtered_storage,
 		snapshot.storage_root,
+		snapshot.header,
 	);
 
 	// Save the filtered snapshot
@@ -182,7 +188,7 @@ pub fn filter_snapshot_by_excluded_pallets<B: BlockT<Hash = H256>>(
 pub fn load_snapshot<B: BlockT<Hash = H256>>(path: PathBuf) -> Result<TestExternalities, &'static str> {
 	let Snapshot {
 		snapshot_version: _,
-		block_hash: _,
+		header: _,
 		state_version,
 		raw_storage,
 		storage_root,
@@ -196,7 +202,7 @@ pub fn load_snapshot<B: BlockT<Hash = H256>>(path: PathBuf) -> Result<TestExtern
 pub fn load_snapshot_from_bytes<B: BlockT<Hash = H256>>(bytes: Vec<u8>) -> Result<TestExternalities, &'static str> {
 	let Snapshot {
 		snapshot_version: _,
-		block_hash: _,
+		header: _,
 		state_version,
 		raw_storage,
 		storage_root,
@@ -216,7 +222,7 @@ pub fn construct_backend_from_snapshot<B: BlockT<Hash = H256>>(
 ) -> Result<(sp_trie::PrefixedMemoryDB<sp_core::Blake2Hasher>, StateVersion, H256), &'static str> {
 	let Snapshot {
 		snapshot_version: _,
-		block_hash: _,
+		header: _,
 		state_version,
 		raw_storage,
 		storage_root,
@@ -260,7 +266,7 @@ pub fn create_externalities_from_snapshot<B: BlockT<Hash = H256>>(
 ) -> Result<TestExternalities, &'static str> {
 	let Snapshot {
 		snapshot_version: _,
-		block_hash: _,
+		header: _,
 		state_version,
 		raw_storage,
 		storage_root,
@@ -431,6 +437,327 @@ pub async fn fetch_all_storage(
 
 	pb.finish_with_message("✅ Done fetching all storage key-value pairs..");
 	Ok(all_pairs)
+}
+
+/// Slim snapshot filtering.
+///
+/// We use `sp_io::storage::clear()` inside `execute_with()` instead of filtering raw trie entries
+/// directly. The raw snapshot is a Merkle-Patricia trie — removing leaf entries from the raw bytes
+/// leaves parent/branch nodes still referencing them, breaking the trie with "Database missing
+/// expected key" errors. `sp_io::storage::clear()` goes through Substrate's storage layer which
+/// properly updates the trie structure.
+mod slim {
+	use std::collections::HashSet;
+
+	/// Compute `twox128(a) ++ twox128(b)` as a 32-byte storage prefix.
+	pub fn storage_prefix(pallet: &str, item: &str) -> Vec<u8> {
+		let mut prefix = Vec::with_capacity(32);
+		prefix.extend_from_slice(&sp_io::hashing::twox_128(pallet.as_bytes()));
+		prefix.extend_from_slice(&sp_io::hashing::twox_128(item.as_bytes()));
+		prefix
+	}
+
+	/// Build a PalletId-derived account: `b"modl" + id_bytes + zero_padding` to 32 bytes.
+	fn pallet_account(id: &[u8; 8]) -> [u8; 32] {
+		let mut account = [0u8; 32];
+		account[..4].copy_from_slice(b"modl");
+		account[4..12].copy_from_slice(id);
+		account
+	}
+
+	/// Build a truncated EVM account: `b"ETH\0" + h160 + 8_zero_bytes`.
+	fn evm_truncated_account(h160: &[u8; 20]) -> [u8; 32] {
+		let mut account = [0u8; 32];
+		account[..4].copy_from_slice(b"ETH\0");
+		account[4..24].copy_from_slice(h160);
+		account
+	}
+
+	/// Extract account from end of key (for single-key maps like System.Account, XYK.PoolAssets).
+	/// Key = prefix(32) + blake2_128_concat(account)(48). Account at last 32 bytes.
+	fn account_from_key_tail(key: &[u8]) -> Option<[u8; 32]> {
+		if key.len() < 32 {
+			return None;
+		}
+		let mut account = [0u8; 32];
+		account.copy_from_slice(&key[key.len() - 32..]);
+		Some(account)
+	}
+
+	/// Extract account from a Blake2_128Concat first key position.
+	/// Key = prefix(32) + blake2_128(account)(16) + account(32) + ...rest.
+	/// Account is at offset 48..80.
+	fn account_from_first_key(key: &[u8]) -> Option<[u8; 32]> {
+		if key.len() < 80 {
+			return None;
+		}
+		let mut account = [0u8; 32];
+		account.copy_from_slice(&key[48..80]);
+		Some(account)
+	}
+
+	/// Iterate all storage keys under a given prefix using sp_io.
+	fn iter_keys_with_prefix(prefix: &[u8]) -> Vec<Vec<u8>> {
+		let mut keys = Vec::new();
+		let mut current = sp_io::storage::next_key(prefix);
+		while let Some(key) = current {
+			if !key.starts_with(prefix) {
+				break;
+			}
+			keys.push(key.clone());
+			current = sp_io::storage::next_key(&key);
+		}
+		keys
+	}
+
+	/// Build allow-list by reading storage via sp_io (called inside execute_with).
+	pub fn build_allow_list() -> HashSet<[u8; 32]> {
+		let mut accounts = HashSet::new();
+
+		// Hardcoded dev accounts
+		for a in [
+			hex_literal::hex!("d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"),
+			hex_literal::hex!("8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"),
+			hex_literal::hex!("90b5ab205c6974c9ea841be688864633dc9ca8a6e38e35e40ef95fd7d98de856"),
+			hex_literal::hex!("306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20"),
+			hex_literal::hex!("e659a7a1628cdd93febc04a4e0646ea20e9f5f0ce097d9a05290d4a9e054df4e"),
+			hex_literal::hex!("1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c"),
+			hex_literal::hex!("aa7e0000000000000000000000000000000aa7e0000000000000000000000000"),
+			hex_literal::hex!("aa7e0000000000000000000000000000000aa7e1000000000000000000000000"),
+		] {
+			accounts.insert(a);
+		}
+
+		// EVM dev accounts
+		for h160 in [
+			hex_literal::hex!("8202C0aF5962B750123CE1A9B12e1C30A4973557"),
+			hex_literal::hex!("8aF7764663644989671A71Abe9738a3cF295f384"),
+			hex_literal::hex!("C19A2970A13ac19898c47d59Cbd0278D428EBC7c"),
+			hex_literal::hex!("222222ff7Be76052e023Ec1a306fCca8F9659D80"),
+			hex_literal::hex!("E52567fF06aCd6CBe7BA94dc777a3126e180B6d9"),
+		] {
+			accounts.insert(evm_truncated_account(&h160));
+		}
+
+		// PalletId accounts
+		for id in [
+			b"py/trsry",
+			b"py/vstng",
+			b"omnipool",
+			b"stblpool",
+			b"staking#",
+			b"PotStake",
+			b"OmniWhLM",
+			b"Omni//LM",
+			b"xykLMpID",
+			b"XYK///LM",
+			b"pltbonds",
+			b"referral",
+			b"gigahdx!",
+			b"gigarwd!",
+			b"feeproc/",
+			b"py/hsmod",
+			b"py/signt",
+			b"py/fucet",
+			b"curreser",
+			b"xcm/alte",
+			b"otcsettl",
+			b"routerex",
+			b"lqdation",
+		] {
+			accounts.insert(pallet_account(id));
+		}
+
+		// XYK pool accounts
+		for key in iter_keys_with_prefix(&storage_prefix("XYK", "PoolAssets")) {
+			if let Some(account) = account_from_key_tail(&key) {
+				accounts.insert(account);
+			}
+		}
+
+		// Stableswap pool accounts
+		for key in iter_keys_with_prefix(&storage_prefix("Stableswap", "Pools")) {
+			if key.len() >= 52 {
+				let mut hash_input = Vec::with_capacity(7);
+				hash_input.extend_from_slice(b"sts");
+				hash_input.extend_from_slice(&key[48..52]);
+				accounts.insert(sp_io::hashing::blake2_256(&hash_input));
+			}
+		}
+
+		// LBP pool accounts + owners
+		for key in iter_keys_with_prefix(&storage_prefix("LBP", "PoolData")) {
+			if let Some(account) = account_from_key_tail(&key) {
+				accounts.insert(account);
+			}
+			if let Some(value) = sp_io::storage::get(&key) {
+				if value.len() >= 32 {
+					let mut owner = [0u8; 32];
+					owner.copy_from_slice(&value[..32]);
+					accounts.insert(owner);
+				}
+			}
+		}
+
+		// EVM contract accounts
+		for key in iter_keys_with_prefix(&storage_prefix("EVM", "AccountCodes")) {
+			if key.len() >= 68 {
+				let mut h160 = [0u8; 20];
+				h160.copy_from_slice(&key[48..68]);
+				accounts.insert(evm_truncated_account(&h160));
+			}
+		}
+
+		// LM GlobalFarm owners
+		for prefix in [
+			storage_prefix("OmnipoolWarehouseLM", "GlobalFarm"),
+			storage_prefix("XYKWarehouseLM", "GlobalFarm"),
+		] {
+			for key in iter_keys_with_prefix(&prefix) {
+				if let Some(value) = sp_io::storage::get(&key) {
+					if value.len() >= 36 {
+						let mut owner = [0u8; 32];
+						owner.copy_from_slice(&value[4..36]);
+						accounts.insert(owner);
+					}
+				}
+			}
+		}
+
+		// Dispatcher AaveManagerAccount
+		if let Some(value) = sp_io::storage::get(&storage_prefix("Dispatcher", "AaveManagerAccount")) {
+			if value.len() >= 32 {
+				let mut account = [0u8; 32];
+				account.copy_from_slice(&value[..32]);
+				accounts.insert(account);
+			}
+		}
+
+		// Signet Admin
+		if let Some(value) = sp_io::storage::get(&storage_prefix("Signet", "Admin")) {
+			if value.len() >= 33 && value[0] == 1 {
+				let mut account = [0u8; 32];
+				account.copy_from_slice(&value[1..33]);
+				accounts.insert(account);
+			}
+		}
+
+		println!("Slim allow-list: {} accounts", accounts.len());
+		accounts
+	}
+
+	fn should_keep(account: &[u8; 32], allow_list: &HashSet<[u8; 32]>) -> bool {
+		if account[..4] == *b"modl" {
+			return true;
+		}
+		allow_list.contains(account)
+	}
+
+	/// Clear unwanted storage entries.
+	/// Must be called inside execute_with().
+	///
+	/// Note: we intentionally do NOT recalculate TotalIssuance. Pools (especially Stableswap)
+	/// depend on the original share token issuance. Recalculating it from the remaining accounts
+	/// would set share issuance to zero (since LP holders are removed), breaking pool operations.
+	/// Slightly inflated issuance is harmless for testing.
+	pub fn clear_unwanted_entries(allow_list: &HashSet<[u8; 32]>) {
+		// (pallet, item, account_is_first_key)
+		// account_is_first_key=true: double map where AccountId is the first key (offset 48..80)
+		// account_is_first_key=false: single map where AccountId is the only key (last 32 bytes)
+		let filterable: [(&str, &str, bool); 6] = [
+			("System", "Account", false),
+			("Tokens", "Accounts", true), // DoubleMap<AccountId, CurrencyId>
+			("Balances", "Locks", false), // Map<AccountId>
+			("Tokens", "Locks", true),    // DoubleMap<AccountId, CurrencyId>
+			("MultiTransactionPayment", "AccountCurrencyMap", false),
+			("Vesting", "VestingSchedules", false),
+		];
+
+		for (pallet, item, account_is_first_key) in &filterable {
+			let prefix = storage_prefix(pallet, item);
+			let keys = iter_keys_with_prefix(&prefix);
+			let total = keys.len();
+			let mut removed = 0usize;
+
+			for key in keys {
+				let account = if *account_is_first_key {
+					account_from_first_key(&key)
+				} else {
+					account_from_key_tail(&key)
+				};
+
+				if let Some(account) = account {
+					if !should_keep(&account, allow_list) {
+						sp_io::storage::clear(&key);
+						removed += 1;
+					}
+				}
+			}
+
+			if removed > 0 {
+				println!("  Removed {removed}/{total} entries from {pallet}.{item}");
+			}
+		}
+	}
+}
+
+/// Save a slim snapshot: filter out most user accounts, keep only protocol/pool/dev accounts.
+/// Uses execute_with() + sp_io::storage to properly modify trie-backed storage,
+/// then rebuilds a fresh trie from the filtered entries to avoid dead trie node bloat.
+pub fn save_slim_snapshot<B: BlockT<Hash = H256>>(
+	mut ext: sp_state_machine::TestExternalities<frame_support::sp_runtime::traits::HashingFor<B>>,
+	header: B::Header,
+	path: PathBuf,
+) -> Result<(), &'static str> {
+	// Phase 1: Clear unwanted entries through the proper storage API
+	ext.execute_with(|| {
+		println!("Building slim allow-list...");
+		let allow_list = slim::build_allow_list();
+
+		println!("Clearing unwanted storage entries...");
+		slim::clear_unwanted_entries(&allow_list);
+	});
+
+	ext.commit_all().map_err(|_| "Failed to commit storage changes")?;
+
+	// Phase 2: Extract only the live storage key-value pairs and rebuild a clean trie.
+	// Without this, the PrefixedMemoryDB retains old trie nodes from before filtering,
+	// bloating the snapshot (e.g. 1.6M trie entries instead of ~270k).
+	let mut live_storage = BTreeMap::new();
+	ext.execute_with(|| {
+		let child_prefix = sp_core::storage::well_known_keys::CHILD_STORAGE_KEY_PREFIX;
+		let mut key = sp_io::storage::next_key(&[]);
+		while let Some(k) = key {
+			// Skip child storage keys — they can't go in top storage
+			if !k.starts_with(child_prefix) {
+				if let Some(v) = sp_io::storage::get(&k) {
+					live_storage.insert(k.clone(), v.to_vec());
+				}
+			}
+			key = sp_io::storage::next_key(&k);
+		}
+	});
+
+	println!(
+		"Rebuilding clean trie from {} live storage entries...",
+		live_storage.len()
+	);
+
+	let fresh_ext = TestExternalities::new(Storage {
+		top: live_storage,
+		children_default: Default::default(),
+	});
+
+	let state_version = fresh_ext.state_version;
+	let (raw_storage, storage_root) = fresh_ext.into_raw_snapshot();
+
+	println!("Saving slim snapshot with {} trie entries...", raw_storage.len());
+	let snapshot = Snapshot::<B>::new(state_version, raw_storage, storage_root, header);
+	let encoded = snapshot.encode();
+	fs::write(&path, encoded).map_err(|_| "fs::write failed for slim snapshot")?;
+
+	println!("Slim snapshot saved to {path:?}");
+	Ok(())
 }
 
 #[cfg(test)]
