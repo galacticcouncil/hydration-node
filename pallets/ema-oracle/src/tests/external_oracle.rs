@@ -571,3 +571,85 @@ fn external_entries_blocking_amm_new_pairs_reverts_amm_trade() {
 		assert_eq!(Accumulator::<Test>::get().len(), max_entries as usize);
 	});
 }
+
+// Demonstrates that a SINGLE authorized external oracle account can submit
+// multiple `set_external_oracle` calls for DIFFERENT pairs in the SAME block.
+// There is no per-block rate limit per account, per source, or per pair count.
+#[test]
+fn single_authorized_account_can_update_many_pairs_in_one_block() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE,
+			ALICE
+		));
+
+		System::set_block_number(3);
+
+		// Build several distinct locations that the mock converter resolves to distinct asset IDs.
+		let loc_0 = polkadot_xcm::v5::Location::new(
+			0,
+			polkadot_xcm::v5::Junctions::X1([polkadot_xcm::v5::Junction::GeneralIndex(0)].into()),
+		)
+		.into_versioned();
+		let loc_1 = polkadot_xcm::v5::Location::new(
+			0,
+			polkadot_xcm::v5::Junctions::X1([polkadot_xcm::v5::Junction::GeneralIndex(1)].into()),
+		)
+		.into_versioned();
+		let loc_2 = polkadot_xcm::v5::Location::new(
+			0,
+			polkadot_xcm::v5::Junctions::X1([polkadot_xcm::v5::Junction::GeneralIndex(2)].into()),
+		)
+		.into_versioned();
+		let loc_4 = polkadot_xcm::v5::Location::new(
+			0,
+			polkadot_xcm::v5::Junctions::X1([polkadot_xcm::v5::Junction::GeneralIndex(3)].into()),
+		)
+		.into_versioned();
+		let loc_5 = polkadot_xcm::v5::Location::parent().into_versioned();
+
+		// ALICE submits 4 DISTINCT pair updates in the SAME block.
+		// No rate limit, no "one pair per source per block" constraint — all succeed.
+		assert_ok!(EmaOracle::set_external_oracle(
+			RuntimeOrigin::signed(ALICE),
+			EXTERNAL_SOURCE,
+			Box::new(loc_0.clone()),
+			Box::new(loc_1.clone()),
+			(100, 99),
+		));
+		assert_ok!(EmaOracle::set_external_oracle(
+			RuntimeOrigin::signed(ALICE),
+			EXTERNAL_SOURCE,
+			Box::new(loc_0.clone()),
+			Box::new(loc_2.clone()),
+			(200, 99),
+		));
+		assert_ok!(EmaOracle::set_external_oracle(
+			RuntimeOrigin::signed(ALICE),
+			EXTERNAL_SOURCE,
+			Box::new(loc_1.clone()),
+			Box::new(loc_4.clone()),
+			(300, 99),
+		));
+		assert_ok!(EmaOracle::set_external_oracle(
+			RuntimeOrigin::signed(ALICE),
+			EXTERNAL_SOURCE,
+			Box::new(loc_2),
+			Box::new(loc_5),
+			(400, 99),
+		));
+
+		// All 4 distinct pairs landed in the accumulator from a single account.
+		let acc = Accumulator::<Test>::get();
+		assert_eq!(acc.len(), 4);
+		assert!(acc.contains_key(&(EXTERNAL_SOURCE, ordered_pair(0, 1))));
+		assert!(acc.contains_key(&(EXTERNAL_SOURCE, ordered_pair(0, 2))));
+		assert!(acc.contains_key(&(EXTERNAL_SOURCE, ordered_pair(1, 4))));
+		assert!(acc.contains_key(&(EXTERNAL_SOURCE, ordered_pair(2, 5))));
+	});
+}
