@@ -308,3 +308,95 @@ fn asset_hub_root_can_alias_ethereum_accounts() {
 		);
 	});
 }
+
+#[test]
+fn asset_hub_root_can_alias_system_parachain_descendants() {
+	Hydra::execute_with(|| {
+		let origin = Location::new(1, X1([Parachain(1000)].into()));
+
+		// All real system parachains + boundary
+		let system_parachains: [(u32, &str); 6] = [
+			(1000, "Asset Hub"),
+			(1001, "Collectives"),
+			(1002, "BridgeHub"),
+			(1004, "People"),
+			(1005, "Coretime"),
+			(1999, "boundary (last valid)"),
+		];
+
+		for (id, name) in system_parachains {
+			// AccountId32 descendant
+			let target = Location::new(
+				1,
+				X2([
+					Parachain(id),
+					AccountId32 {
+						network: None,
+						id: [1u8; 32],
+					},
+				]
+				.into()),
+			);
+			assert!(
+				<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+				"Asset Hub root must be able to alias to an account on {name} ({id})"
+			);
+
+			// PalletInstance descendant
+			let target = Location::new(1, X2([Parachain(id), PalletInstance(8)].into()));
+			assert!(
+				<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+				"Asset Hub root must be able to alias to a pallet on {name} ({id})"
+			);
+
+			// Deeper nested: PalletInstance + GeneralIndex
+			let target = Location::new(1, X3([Parachain(id), PalletInstance(8), GeneralIndex(9)].into()));
+			assert!(
+				<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+				"Asset Hub root must be able to alias to deeper locations on {name} ({id})"
+			);
+		}
+	});
+}
+
+#[test]
+fn asset_hub_root_cannot_alias_non_system_parachain_descendants() {
+	Hydra::execute_with(|| {
+		let origin = Location::new(1, X1([Parachain(1000)].into()));
+
+		let non_system_parachains: [u32; 4] = [2000, 2001, 3000, 9999];
+
+		for id in non_system_parachains {
+			// AccountId32 descendant
+			let target = Location::new(
+				1,
+				X2([
+					Parachain(id),
+					AccountId32 {
+						network: None,
+						id: [1u8; 32],
+					},
+				]
+				.into()),
+			);
+			assert!(
+				!<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+				"Asset Hub root must NOT be able to alias to an account on Para {id}"
+			);
+
+			// PalletInstance descendant
+			let target = Location::new(1, X2([Parachain(id), PalletInstance(5)].into()));
+			assert!(
+				!<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+				"Asset Hub root must NOT be able to alias to a pallet on Para {id}"
+			);
+
+			// Deeper nested: PalletInstance + GeneralIndex
+			let target = Location::new(1, X3([Parachain(id), PalletInstance(8), GeneralIndex(9)].into()));
+			assert!(
+				!<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+				"Asset Hub root must NOT be able to alias to deeper locations on Para {id}"
+			);
+		}
+	});
+}
