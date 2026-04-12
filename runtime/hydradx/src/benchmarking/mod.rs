@@ -261,7 +261,7 @@ pub fn deploy_contract_code(code: Vec<u8>, deployer: EvmAddress) -> EvmAddress {
 
 	let address = match info.clone().unwrap().exit_reason {
 		ExitReason::Succeed(_) => info.unwrap().value,
-		reason => panic!("{:?}", reason),
+		reason => panic!("{reason:?}"),
 	};
 
 	let deployed = crate::Runtime::account_code_at(address);

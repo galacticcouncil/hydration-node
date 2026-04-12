@@ -1,0 +1,74 @@
+{
+  "settings": {
+    "provider": "native"
+  },
+  "relaychain": {
+    "default_command": "../polkadot-sdk/target/release/polkadot",
+    "chain": "rococo-local",
+    "default_args": [
+      "--no-hardware-benchmarks",
+      "--database=paritydb"
+    ],
+    "genesis": {
+      "runtimeGenesis": {
+        "patch": {
+          "configuration": {
+            "config": {
+              "async_backing_params": {
+                "max_candidate_depth": 3,
+                "allowed_ancestry_len": 2
+              }
+            }
+          }
+        }
+      }
+    },
+    "nodes": [
+      {
+        "name": "alice",
+        "command": "../polkadot-sdk/target/release/polkadot",
+        "args": ["--pruning=archive"],
+        "rpc_port": 9944,
+        "invulnerable": true
+      },
+      {
+        "name": "bob",
+        "rpc_port": 9955,
+        "invulnerable": true
+      },
+      {
+        "name": "charlie",
+        "rpc_port": 9966,
+        "invulnerable": true
+      },
+      {
+        "name": "dave",
+        "rpc_port": 9977,
+        "invulnerable": true
+      }
+    ]
+  },
+  "types": {},
+  "hrmp_channels": [],
+  "parachains": [
+    {
+      "id": 2032,
+      "cumulus_based": true,
+      "chain_spec_path": "chainspec-raw.json",
+      "collators": [
+        {
+          "name": "alice",
+          "command": "../../target/release/hydradx",
+          "args": [
+            "--no-hardware-benchmarks",
+            "--force-authoring",
+            "--database=paritydb",
+            "--pruning=archive"
+          ],
+          "rpc_port": 9988,
+          "rpc_port": 9999
+        }
+      ]
+    }
+  ]
+}

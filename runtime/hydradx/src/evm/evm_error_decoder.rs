@@ -81,6 +81,7 @@ impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
 			{
 				if let Some(error_code) = call_result.value.get(68..70) {
 					match error_code {
+						b"29" => return pallet_dispatcher::Error::<crate::Runtime>::AaveReservePaused.into(),
 						b"35" => return pallet_dispatcher::Error::<crate::Runtime>::AaveHealthFactorLowerThanLiquidationThreshold.into(),
 						b"36" => return pallet_dispatcher::Error::<crate::Runtime>::CollateralCannotCoverNewBorrow.into(),
 						b"45" => return pallet_dispatcher::Error::<crate::Runtime>::AaveHealthFactorNotBelowThreshold.into(),
