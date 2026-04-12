@@ -40,6 +40,7 @@ mod benchmarking;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
+use hydradx_traits::evm::EvmFeePayerSupport;
 use hydradx_traits::evm::ExtraGasSupport;
 use hydradx_traits::evm::MaybeEvmCall;
 use pallet_evm::{ExitReason, GasWeightMapping};
@@ -50,6 +51,9 @@ pub use weights::WeightInfo;
 use frame_support::pallet_prelude::Weight;
 use frame_support::traits::Get;
 pub use pallet::*;
+
+pub mod hyperbridge_cleanup;
+pub use hyperbridge_cleanup::{do_cleanup_step, Stage};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -89,8 +93,14 @@ pub mod pallet {
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
 		type EmergencyAdminAccount: Get<Self::AccountId>;
 
+		/// The origin to manage hyperbridge migration ongoing status.
+		type MigrationOperatorOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
+
+		/// Support for overriding the EVM fee payer.
+		type EvmFeePayer: EvmFeePayerSupport<AccountId = Self::AccountId>;
 
 		/// The weight information for this pallet.
 		type WeightInfo: WeightInfo;
@@ -107,6 +117,19 @@ pub mod pallet {
 	#[pallet::whitelist_storage]
 	#[pallet::getter(fn extra_gas)]
 	pub type ExtraGas<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+	/// Whether the background ISMP storage cleanup is active.
+	#[pallet::storage]
+	pub type CleanupEnabled<T: Config> = StorageValue<_, bool, ValueQuery, DefaultCleanupState>;
+
+	#[pallet::type_value]
+	pub fn DefaultCleanupState() -> bool {
+		true
+	}
+
+	/// Current stage of the background ISMP storage cleanup.
+	#[pallet::storage]
+	pub type CleanupStage<T: Config> = StorageValue<_, Stage, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::whitelist_storage]
@@ -154,6 +177,14 @@ pub mod pallet {
 			call_hash: T::Hash,
 			result: DispatchResultWithPostInfo,
 		},
+		/// Emitted each block when cleanup deletes a batch of keys.
+		HyperbridgeCleanupProgress { stage: Stage, keys_deleted: u32 },
+		/// Emitted when all keys in a stage are removed and cleanup advances.
+		HyperbridgeCleanupStageCompleted { stage: Stage },
+		/// Emitted when all three stages are done and cleanup disables itself.
+		HyperbridgeCleanupCompleted,
+		/// Emitted when cleanup is paused or resumed via extrinsic.
+		HyperbridgeCleanupStatusChanged { paused: bool },
 	}
 
 	#[pallet::hooks]
@@ -161,6 +192,65 @@ pub mod pallet {
 		/// Reset the last EVM call exit reason on block finalization.
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			LastEvmCallExitReason::<T>::kill();
+		}
+
+		/// Run a bounded chunk of ISMP storage cleanup during idle time.
+		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
+			if !CleanupEnabled::<T>::get() {
+				return T::DbWeight::get().reads(1);
+			}
+
+			// Use the remaining weight capped to at most 70% of max_block.
+			let max_block = T::BlockWeights::get().max_block;
+			let cap_perbill = sp_runtime::Perbill::from_percent(70);
+			let cap = Weight::from_parts(cap_perbill * max_block.ref_time(), cap_perbill * max_block.proof_size());
+
+			let budget = remaining_weight.min(cap);
+			let per_key_weight = T::DbWeight::get().reads_writes(2, 1);
+
+			let k_ref = budget.ref_time().checked_div(per_key_weight.ref_time()).unwrap_or(0);
+			// k_proof is a best-effort guard: benchmark proof_size per key was measured on a small
+			// trie and underestimates real production depth. MAX_KEYS_PER_BLOCK is the true
+			// proof_size safeguard; k_proof serves as an additional sanity check.
+			let k_proof = budget
+				.proof_size()
+				.checked_div(per_key_weight.proof_size())
+				.unwrap_or(k_ref);
+
+			// Safe as far as it caps to MAX_KEYS_PER_BLOCK
+			let limit = k_ref.min(k_proof).min(hyperbridge_cleanup::MAX_KEYS_PER_BLOCK as u64) as u32;
+			if limit == 0 {
+				return T::WeightInfo::cleanup_on_idle_limit_zero();
+			}
+
+			let stage = CleanupStage::<T>::get().unwrap_or(Stage::StateCommitments);
+			let (done, keys_deleted) = do_cleanup_step(stage, limit);
+
+			if keys_deleted > 0 {
+				Self::deposit_event(Event::HyperbridgeCleanupProgress { stage, keys_deleted });
+			}
+
+			let base_cleanup_weight = T::WeightInfo::cleanup_on_idle(keys_deleted);
+			if done {
+				Self::deposit_event(Event::HyperbridgeCleanupStageCompleted { stage });
+
+				return match stage.next() {
+					Some(next) => {
+						CleanupStage::<T>::put(next);
+						base_cleanup_weight.saturating_add(T::DbWeight::get().writes(1))
+					}
+					None => {
+						// All stages complete.
+						CleanupEnabled::<T>::put(false);
+						CleanupStage::<T>::kill();
+						Self::deposit_event(Event::HyperbridgeCleanupCompleted);
+
+						base_cleanup_weight.saturating_add(T::DbWeight::get().writes(2))
+					}
+				};
+			}
+
+			base_cleanup_weight
 		}
 	}
 
@@ -375,6 +465,53 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::EmergencyAdminCallDispatched { call_hash, result });
 
 			Ok(actual_weight.into())
+		}
+
+		/// Enable/pause the background ISMP storage cleanup. If enabled for the first time,
+		/// starting from the first stage.
+		#[pallet::call_index(6)]
+		#[pallet::weight(T::WeightInfo::pause_hyperbridge_cleanup())]
+		pub fn pause_hyperbridge_cleanup(origin: OriginFor<T>, do_pause: bool) -> DispatchResult {
+			T::MigrationOperatorOrigin::ensure_origin(origin)?;
+			CleanupEnabled::<T>::put(!do_pause);
+
+			Self::deposit_event(Event::HyperbridgeCleanupStatusChanged { paused: do_pause });
+			Ok(())
+		}
+
+		#[pallet::call_index(7)]
+		#[pallet::weight({
+			let call_weight = call.get_dispatch_info().call_weight;
+			let call_len = call.encoded_size() as u32;
+			T::WeightInfo::dispatch_with_fee_payer(call_len)
+				.saturating_add(call_weight)
+		})]
+		pub fn dispatch_with_fee_payer(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			let signer = ensure_signed(origin.clone())?;
+
+			let previous = T::EvmFeePayer::set_fee_payer(signer);
+			let (result, actual_weight) = Self::do_dispatch(origin, *call);
+			match previous {
+				Some(p) => T::EvmFeePayer::set_fee_payer(p),
+				None => T::EvmFeePayer::clear_fee_payer(),
+			};
+
+			match result {
+				Ok(_) => Ok(PostDispatchInfo {
+					actual_weight,
+					pays_fee: Pays::Yes,
+				}),
+				Err(err) => Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight,
+						pays_fee: Pays::Yes,
+					},
+					error: err.error,
+				}),
+			}
 		}
 	}
 }
