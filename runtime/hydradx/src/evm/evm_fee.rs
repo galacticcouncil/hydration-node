@@ -23,6 +23,7 @@ use frame_support::dispatch::DispatchResult;
 use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 use frame_support::traits::{Get, IsType, TryDrop};
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::AccountFeeCurrency;
 use pallet_evm::{AddressMapping, Error};
@@ -38,6 +39,82 @@ use {
 	sp_core::{H160, U256},
 	sp_runtime::traits::UniqueSaturatedInto,
 };
+
+#[cfg(feature = "std")]
+mod fee_payer_override {
+	use core::cell::RefCell;
+	use primitives::AccountId;
+
+	thread_local! {
+		static FEE_PAYER: RefCell<Option<AccountId>> = const { RefCell::new(None) };
+	}
+
+	pub fn set(payer: AccountId) {
+		FEE_PAYER.with(|v| *v.borrow_mut() = Some(payer));
+	}
+
+	pub fn get() -> Option<AccountId> {
+		FEE_PAYER.with(|v| v.borrow().clone())
+	}
+
+	pub fn clear() {
+		FEE_PAYER.with(|v| *v.borrow_mut() = None);
+	}
+}
+
+#[cfg(not(feature = "std"))]
+mod fee_payer_override {
+	use primitives::AccountId;
+
+	static mut FEE_PAYER: Option<AccountId> = None;
+
+	pub fn set(payer: AccountId) {
+		unsafe {
+			FEE_PAYER = Some(payer);
+		}
+	}
+
+	pub fn get() -> Option<AccountId> {
+		unsafe { FEE_PAYER.clone() }
+	}
+
+	pub fn clear() {
+		unsafe {
+			FEE_PAYER = None;
+		}
+	}
+}
+
+pub fn set_evm_fee_payer(payer: AccountId) {
+	fee_payer_override::set(payer);
+}
+
+pub fn evm_fee_payer() -> Option<AccountId> {
+	fee_payer_override::get()
+}
+
+pub fn clear_evm_fee_payer() {
+	fee_payer_override::clear();
+}
+
+/// Runtime implementation of [`EvmFeePayerSupport`] using the thread-local/static fee payer override.
+pub struct EvmFeePayerImpl;
+
+impl hydradx_traits::evm::EvmFeePayerSupport for EvmFeePayerImpl {
+	type AccountId = AccountId;
+
+	fn set_fee_payer(payer: AccountId) -> Option<AccountId> {
+		let previous = fee_payer_override::get();
+		fee_payer_override::set(payer);
+		previous
+	}
+
+	fn clear_fee_payer() -> Option<AccountId> {
+		let previous = fee_payer_override::get();
+		fee_payer_override::clear();
+		previous
+	}
+}
 
 #[derive(Copy, Clone, Default)]
 pub struct EvmPaymentInfo<Price> {
@@ -68,7 +145,8 @@ impl<Price> TryDrop for EvmPaymentInfo<Price> {
 
 /// Implements the transaction payment for EVM transactions.
 /// Supports multi-currency fees based on what is provided by AC - account currency.
-pub struct TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId>(
+#[allow(clippy::type_complexity)]
+pub struct TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId, WF>(
 	PhantomData<(
 		OU,
 		AccountCurrency,
@@ -77,11 +155,12 @@ pub struct TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePay
 		MC,
 		SwappablePaymentAssetSupport,
 		DotAssetId,
+		WF,
 	)>,
 );
 
-impl<T, OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId> OnChargeEVMTransaction<T>
-	for TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId>
+impl<T, OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId, WF> OnChargeEVMTransaction<T>
+	for TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId, WF>
 where
 	T: pallet_evm::Config,
 	OU: OnUnbalanced<EvmPaymentInfo<EmaPrice>>,
@@ -96,6 +175,7 @@ where
 	DotAssetId: Get<AssetId>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	T::AccountId: IsType<AccountId>,
+	WF: WithdrawFuseControl,
 {
 	type LiquidityInfo = Option<EvmPaymentInfo<EmaPrice>>;
 
@@ -103,11 +183,13 @@ where
 		if fee.is_zero() {
 			return Ok(None);
 		}
-		let account_id = T::AddressMapping::into_account_id(*who);
+		let evm_account_id = T::AddressMapping::into_account_id(*who);
 
-		pallet_evm_accounts::Pallet::<crate::Runtime>::mark_as_evm_account(&account_id.clone().into());
+		pallet_evm_accounts::Pallet::<crate::Runtime>::mark_as_evm_account(&evm_account_id.clone().into());
 
-		let account_fee_currency = AccountCurrency::get(&account_id);
+		let fee_payer = evm_fee_payer().map(|a| a.into()).unwrap_or(evm_account_id);
+
+		let account_fee_currency = AccountCurrency::get(&fee_payer);
 
 		let (converted, fee_currency, price) =
 			if SwappablePaymentAssetSupport::is_transaction_fee_currency(account_fee_currency) {
@@ -118,7 +200,6 @@ where
 				};
 				(converted, account_fee_currency, price)
 			} else {
-				//In case of insufficient asset we buy DOT with insufficient asset, and using that DOT and amount as fee currency
 				let dot = DotAssetId::get();
 				let Some((fee_in_dot, eth_dot_price)) =
 					C::convert((EvmFeeAsset::get(), dot, fee.unique_saturated_into()))
@@ -134,32 +215,33 @@ where
 				let max_limit = amount_in.saturating_add(pool_fee);
 
 				SwappablePaymentAssetSupport::buy(
-					&account_id,
+					&fee_payer,
 					account_fee_currency,
 					dot,
 					fee_in_dot,
 					max_limit,
-					&account_id,
+					&fee_payer,
 				)
 				.map_err(|_| Error::<T>::WithdrawFailed)?;
 
 				(fee_in_dot, dot, eth_dot_price)
 			};
 
-		// Ensure that converted fee is not zero
 		if converted == 0 {
 			return Err(Error::<T>::WithdrawFailed);
 		}
 
+		WF::set_withdraw_fuse_active(false);
 		let burned = MC::burn_from(
 			fee_currency,
-			&account_id,
+			&fee_payer,
 			converted,
 			Preservation::Expendable,
 			Precision::Exact,
 			Fortitude::Polite,
 		)
 		.map_err(|_| Error::<T>::BalanceLow)?;
+		WF::set_withdraw_fuse_active(true);
 
 		Ok(Some(EvmPaymentInfo {
 			amount: burned,
@@ -169,18 +251,19 @@ where
 	}
 
 	fn can_withdraw(who: &H160, amount: U256) -> Result<(), pallet_evm::Error<T>> {
-		let account_id = T::AddressMapping::into_account_id(*who);
-		let fee_currency = AccountCurrency::get(&account_id);
+		let evm_account_id = T::AddressMapping::into_account_id(*who);
+		let fee_payer = evm_fee_payer().map(|a| a.into()).unwrap_or(evm_account_id);
+
+		let fee_currency = AccountCurrency::get(&fee_payer);
 		let Some((converted, _)) = C::convert((EvmFeeAsset::get(), fee_currency, amount.unique_saturated_into()))
 		else {
 			return Err(Error::<T>::BalanceLow);
 		};
 
-		// Ensure that converted amount is not zero
 		if converted == 0 {
 			return Err(Error::<T>::BalanceLow);
 		}
-		MC::can_withdraw(fee_currency, &account_id, converted)
+		MC::can_withdraw(fee_currency, &fee_payer, converted)
 			.into_result(false)
 			.map_err(|_| Error::<T>::BalanceLow)?;
 		Ok(())
@@ -192,7 +275,10 @@ where
 		already_withdrawn: Self::LiquidityInfo,
 	) -> Self::LiquidityInfo {
 		if let Some(paid) = already_withdrawn {
-			let account_id = T::AddressMapping::into_account_id(*who);
+			let evm_account_id = T::AddressMapping::into_account_id(*who);
+			let fee_payer = evm_fee_payer().map(|a| a.into()).unwrap_or(evm_account_id);
+
+			WF::set_withdraw_fuse_active(false);
 
 			let adjusted_paid = if let Some(converted_corrected_fee) = multiply_by_rational_with_rounding(
 				corrected_fee.unique_saturated_into(),
@@ -200,13 +286,9 @@ where
 				paid.price.d,
 				Rounding::Up,
 			) {
-				// Calculate how much refund we should return
 				let refund_amount = paid.amount.saturating_sub(converted_corrected_fee);
 
-				// refund to the account that paid the fees. If this fails, the
-				// account might have dropped below the existential balance. In
-				// that case we don't refund anything.
-				let result = MC::mint_into(paid.asset_id, &account_id, refund_amount);
+				let result = MC::mint_into(paid.asset_id, &fee_payer, refund_amount);
 
 				let refund_imbalance = if let Ok(amount) = result {
 					// Ensure that we minted all amount, in case of partial refund for some reason,
@@ -226,6 +308,8 @@ where
 				// if conversion failed for some reason, we refund the whole amount back to treasury
 				paid.amount
 			};
+
+			WF::set_withdraw_fuse_active(true);
 
 			// We can simply refund all the remaining amount back to treasury
 			OU::on_unbalanced(EvmPaymentInfo {
@@ -295,5 +379,70 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault {
 		<pallet_transaction_multi_payment::Pallet<Runtime> as AccountFeeCurrency<AccountId>>::is_payment_currency(
 			asset_id,
 		)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn fee_payer_thread_local_set_get_clear() {
+		let alice: AccountId = [1u8; 32].into();
+
+		assert_eq!(evm_fee_payer(), None);
+
+		set_evm_fee_payer(alice.clone());
+		assert_eq!(evm_fee_payer(), Some(alice));
+
+		clear_evm_fee_payer();
+		assert_eq!(evm_fee_payer(), None);
+	}
+
+	#[test]
+	fn fee_payer_override_replaces_previous_value() {
+		let alice: AccountId = [1u8; 32].into();
+		let bob: AccountId = [2u8; 32].into();
+
+		set_evm_fee_payer(alice.clone());
+		assert_eq!(evm_fee_payer(), Some(alice));
+
+		set_evm_fee_payer(bob.clone());
+		assert_eq!(evm_fee_payer(), Some(bob));
+
+		clear_evm_fee_payer();
+	}
+
+	#[test]
+	fn evm_fee_payer_impl_set_returns_previous() {
+		use hydradx_traits::evm::EvmFeePayerSupport;
+
+		let alice: AccountId = [1u8; 32].into();
+		let bob: AccountId = [2u8; 32].into();
+
+		assert_eq!(EvmFeePayerImpl::set_fee_payer(alice.clone()), None);
+		assert_eq!(EvmFeePayerImpl::set_fee_payer(bob.clone()), Some(alice));
+		assert_eq!(EvmFeePayerImpl::clear_fee_payer(), Some(bob));
+		assert_eq!(EvmFeePayerImpl::clear_fee_payer(), None);
+	}
+
+	#[test]
+	fn evm_fee_payer_impl_restore() {
+		use hydradx_traits::evm::EvmFeePayerSupport;
+
+		let alice: AccountId = [1u8; 32].into();
+		let bob: AccountId = [2u8; 32].into();
+
+		let prev = EvmFeePayerImpl::set_fee_payer(alice.clone());
+		assert_eq!(prev, None);
+
+		let prev2 = EvmFeePayerImpl::set_fee_payer(bob.clone());
+		assert_eq!(prev2, Some(alice.clone()));
+
+		EvmFeePayerImpl::set_fee_payer(prev2.unwrap());
+		assert_eq!(evm_fee_payer(), Some(alice));
+
+		EvmFeePayerImpl::clear_fee_payer();
+		assert_eq!(evm_fee_payer(), None);
 	}
 }

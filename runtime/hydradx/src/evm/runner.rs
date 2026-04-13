@@ -23,6 +23,7 @@
 //! different currencies and to validate transactions based on the account's fee payment asset.
 //!
 //! Shamelessly copied from pallet-evm and modified to support multi-currency fees.
+use crate::evm::evm_fee::evm_fee_payer;
 use crate::evm::WethAssetId;
 use ethereum::AuthorizationList;
 use fp_evm::{Account, TransactionValidationError};
@@ -32,7 +33,7 @@ use pallet_evm::runner::Runner;
 use pallet_evm::{AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, RunnerError};
 use pallet_genesis_history::migration::Weight;
 use primitive_types::{H160, H256, U256};
-use primitives::{AssetId, Balance};
+use primitives::{AccountId, AssetId, Balance};
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
 
@@ -45,6 +46,7 @@ where
 	<R as pallet_evm::Runner<T>>::Error: core::convert::From<TransactionValidationError>,
 	B: AccountFeeCurrencyBalanceInCurrency<AssetId, T::AccountId, Output = (Balance, Weight)>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	T::AccountId: From<AccountId>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 {
 	type Error = R::Error;
@@ -68,9 +70,11 @@ where
 		let (base_fee, mut weight) = T::FeeCalculator::min_gas_price();
 
 		let evm_currency = WethAssetId::get();
-		let account_id = T::AddressMapping::into_account_id(source);
-		let account_nonce = T::AccountProvider::account_nonce(&account_id.clone().into());
-		let (balance, b_weight) = B::get_balance_in_currency(evm_currency, &account_id);
+		let evm_account_id = T::AddressMapping::into_account_id(source);
+		let account_nonce = T::AccountProvider::account_nonce(&evm_account_id.clone().into());
+
+		let fee_payer = evm_fee_payer().map(T::AccountId::from).unwrap_or(evm_account_id);
+		let (balance, b_weight) = B::get_balance_in_currency(evm_currency, &fee_payer);
 
 		let (source_account, inner_weight) = (
 			Account {

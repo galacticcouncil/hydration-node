@@ -110,6 +110,7 @@ construct_runtime!(
 		XYK: pallet_xyk,
 		Broadcast: pallet_broadcast,
 		CircuitBreaker: pallet_circuit_breaker,
+		Timestamp: pallet_timestamp,
 	}
 );
 
@@ -146,6 +147,17 @@ impl frame_system::Config for Test {
 	type ExtensionsWeightInfo = ();
 }
 
+parameter_types! {
+	pub const MinimumPeriod: u64 = primitives::constants::time::SLOT_DURATION / 2;
+}
+
+impl pallet_timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
+}
+
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
@@ -170,7 +182,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -204,7 +215,6 @@ parameter_types! {
 }
 
 impl pallet_omnipool::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Currencies;
@@ -230,7 +240,6 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type BurnProtocolFee = BurnFee;
-	type HubDestination = ReserveAccount;
 }
 
 pub struct FeeProvider;
@@ -247,7 +256,6 @@ impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
@@ -255,6 +263,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 parameter_types! {
@@ -267,7 +276,6 @@ parameter_types! {
 }
 
 impl pallet_xyk::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetRegistry = DummyRegistry<Test>;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currencies;
@@ -284,9 +292,7 @@ impl pallet_xyk::Config for Test {
 	type NonDustableWhitelistHandler = DummyDuster;
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 pub struct CircuitBreakerWhitelist;
 
@@ -303,7 +309,6 @@ parameter_types! {
 	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = LRNA;
-
 }
 
 pub struct NoIssuanceIncreaseLimit<T>(PhantomData<T>);
@@ -333,7 +338,6 @@ impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositLimiter {
 }
 
 impl pallet_circuit_breaker::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
@@ -348,6 +352,7 @@ impl pallet_circuit_breaker::Config for Test {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type TimestampProvider = Timestamp;
 }
 
 pub struct Whitelist;
@@ -416,7 +421,6 @@ parameter_types! {
 type Pools = (Omnipool, XYK);
 
 impl pallet_route_executor::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;

@@ -94,6 +94,7 @@ construct_runtime!(
 		Stableswap: pallet_stableswap,
 		Broadcast: pallet_broadcast,
 		CircuitBreaker: pallet_circuit_breaker,
+		Timestamp: pallet_timestamp,
 	}
 );
 
@@ -130,6 +131,17 @@ impl frame_system::Config for Test {
 	type ExtensionsWeightInfo = ();
 }
 
+parameter_types! {
+	pub const MinimumPeriod: u64 = primitives::constants::time::SLOT_DURATION / 2;
+}
+
+impl pallet_timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
+}
+
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		0
@@ -137,7 +149,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -186,12 +197,9 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	}
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
@@ -604,7 +612,7 @@ impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
 					updated_at: System::block_number(),
 				})
 			}
-			_ => panic!("unusupported oracle types: {:?}", source),
+			_ => panic!("unusupported oracle types: {source:?}"),
 		}
 	}
 }
@@ -713,7 +721,6 @@ impl Contains<AccountId> for CircuitBreakerWhitelist {
 }
 
 impl pallet_circuit_breaker::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
@@ -727,4 +734,5 @@ impl pallet_circuit_breaker::Config for Test {
 	type DepositLimiter = DepositLimiter;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type TimestampProvider = Timestamp;
 }

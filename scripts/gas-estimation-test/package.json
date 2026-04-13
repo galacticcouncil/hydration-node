@@ -1,0 +1,21 @@
+{
+  "name": "gas-estimation-test",
+  "version": "1.0.0",
+  "description": "Demonstrates HydraDX gas estimation issue #1133 and the rpc-binary-search-estimate fix",
+  "scripts": {
+    "setup": "node scripts/setup-chain.js",
+    "compile": "npx hardhat compile",
+    "test:gas": "npx hardhat run scripts/test-gas-estimation.js --network local",
+    "demo": "npm run setup && sleep 6 && npm run test:gas"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2",
+    "@polkadot/api": "^15.0.1",
+    "@polkadot/util": "^13.0.2",
+    "@polkadot/util-crypto": "^13.0.2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.10"
+  }
+}

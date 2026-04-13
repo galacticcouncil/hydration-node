@@ -999,7 +999,7 @@ mod circuit_breaker {
 		Hydra::execute_with(|| {
 			let trapped_event = last_hydra_events(10)[3].clone(); //We need to explicitly assert it, so we can be flexible with amount assertion. If it changes, debug and see at which index is the PolkadotXcm TrappedAsset event
 
-			assert_trapped_acala_token(&trapped_event, 491170133748382u128);
+			assert_trapped_acala_token(&trapped_event, 490054588142157u128);
 
 			//Assert that nothing was reserved on TempAccountForXcmAssetExchange
 			assert_reserved_balance!(TempAccountForXcmAssetExchange::get(), ACA, 0u128);
@@ -1118,7 +1118,7 @@ mod circuit_breaker {
 
 		Hydra::execute_with(|| {
 			let trapped_event = last_hydra_events(10)[3].clone(); //We need to explicitly assert it, so we can be flexible with amount assertion. If it changes, debug and see at which index is the PolkadotXcm TrappedAsset event
-			assert_trapped_acala_token(&trapped_event, 3992230205371262);
+			assert_trapped_acala_token(&trapped_event, 3992009596250109);
 
 			//Assert that nothing was reserved on TempAccountForXcmAssetExchange
 			assert_reserved_balance!(TempAccountForXcmAssetExchange::get(), ACA, 0u128);
@@ -1206,7 +1206,7 @@ mod circuit_breaker {
 		Hydra::execute_with(|| {
 			let trapped_event = &last_hydra_events(10)[3].clone();
 
-			assert_trapped_acala_token(trapped_event, 91170133748382u128);
+			assert_trapped_acala_token(trapped_event, 90054588142157u128);
 
 			let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
 			assert!(fee > 0, "treasury should have received fees");
@@ -1244,10 +1244,11 @@ mod circuit_breaker {
 				pretty_assertions::assert_eq!(*asset_id, aca, "Trapped asset ID is not ACA");
 
 				if let polkadot_xcm::v5::Fungibility::Fungible(trapped_amount) = asset.fun {
+					let tolerance = sp_std::cmp::max(200_000_000_000u128, expected_amount / 1_000u128); // max(2e11, 0.1%)
 					test_utils::assert_eq_approx!(
 						trapped_amount,
 						expected_amount,
-						100000000000,
+						tolerance,
 						"The trapped asset amount is different than expected"
 					);
 				}

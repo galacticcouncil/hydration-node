@@ -210,6 +210,24 @@ pub fn new_partial(
 		.build(),
 	);
 
+	// Workaround for upstream Frontier bug: the v2→v3 RocksDB migration tries to
+	// open an existing 4-column database with 5 columns, but kvdb-rocksdb doesn't
+	// set `create_missing_column_families`, so the open fails. We pre-add the 5th
+	// column here so the migration finds the expected schema.
+	if matches!(config.database, fc_db::kv::DatabaseSource::RocksDb { .. }) {
+		let frontier_db_path = fc_db::kv::frontier_database_dir(&evm::db_config_dir(config), "db");
+		if frontier_db_path.exists() {
+			let db_cfg = kvdb_rocksdb::DatabaseConfig::with_columns(4);
+			if let Ok(mut db) = kvdb_rocksdb::Database::open(&db_cfg, &frontier_db_path) {
+				if db.num_columns() == 4 {
+					if let Err(e) = db.add_column() {
+						log::warn!("Failed to pre-add Frontier DB column for v2→v3 migration: {e}");
+					}
+				}
+			}
+		}
+	}
+
 	let frontier_backend = Arc::new(FrontierBackend::open(
 		Arc::clone(&client),
 		&config.database,
@@ -285,7 +303,7 @@ async fn start_node_impl(
 	let backend = params.backend.clone();
 	let mut task_manager = params.task_manager;
 
-	let (relay_chain_interface, collator_key) = build_relay_chain_interface(
+	let (relay_chain_interface, collator_key, _, _) = build_relay_chain_interface(
 		polkadot_config,
 		&parachain_config,
 		telemetry_worker_handle,
@@ -311,6 +329,7 @@ async fn start_node_impl(
 		import_queue: params.import_queue,
 		net_config,
 		sybil_resistance_level: CollatorSybilResistance::Resistant, // because of Aura
+		metrics: sc_network::service::NotificationMetrics::new(prometheus_registry.as_ref()),
 	})
 	.await?;
 
@@ -480,6 +499,7 @@ async fn start_node_impl(
 		relay_chain_slot_duration,
 		recovery_handle: Box::new(overseer_handle.clone()),
 		sync_service: sync_service.clone(),
+		prometheus_registry: prometheus_registry.as_ref(),
 	})?;
 
 	if validator {

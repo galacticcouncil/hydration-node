@@ -83,7 +83,6 @@ parameter_types! {
 pub type ReserveIdentifier = [u8; 8];
 
 impl orml_tokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i64;
 	type CurrencyId = CurrencyId;
@@ -106,7 +105,6 @@ parameter_types! {
 }
 
 impl Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = AdaptedBasicCurrency;
 	type Erc20Currency = MockErc20Currency<Runtime>;
@@ -114,6 +112,7 @@ impl Config for Runtime {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type RegistryInspect = MockBoundErc20<Runtime>;
+	type EgressHandler = MockEgressHandler<Runtime>;
 	type WeightInfo = ();
 }
 pub type NativeCurrency = NativeCurrencyOf<Runtime>;

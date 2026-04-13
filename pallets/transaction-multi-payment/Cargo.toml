@@ -1,6 +1,6 @@
 [package]
 name = "pallet-transaction-multi-payment"
-version = "10.3.0"
+version = "10.5.0"
 description = "Transaction multi currency payment support module"
 authors = ["GalacticCoucil"]
 edition = "2021"
@@ -36,7 +36,7 @@ pallet-utility = { workspace = true }
 pallet-evm = { workspace = true, optional = true }
 
 [dev-dependencies]
-pallet-currencies = { workspace = true }
+pallet-currencies = { workspace = true, features = ["std"] }
 orml-tokens = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
 pallet-evm-accounts = { workspace = true, features = ["std"] }
@@ -58,6 +58,9 @@ std = [
     "scale-info/std",
     "pallet-evm/std",
     "primitives/std",
+    "pallet-utility/std",
+    "pallet-xyk/std",
+    "hydra-dx-math/std",
 ]
 try-runtime = ["frame-support/try-runtime"]
 evm = ["pallet-evm"]

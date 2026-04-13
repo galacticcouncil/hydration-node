@@ -79,6 +79,7 @@ thread_local! {
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
 	pub static EXISTENTIAL_DEPOSIT: RefCell<HashMap<AssetId, u128>>= RefCell::new(HashMap::default());
 	pub static PRECISIONS: RefCell<HashMap<AssetId, u32>>= RefCell::new(HashMap::default());
+	pub static FEE_PAYER: RefCell<Option<AccountId>> = const { RefCell::new(None) };
 }
 
 parameter_types! {
@@ -112,22 +113,50 @@ impl MaybeEvmCall<RuntimeCall> for EvmCallIdentifier {
 	}
 }
 
+pub struct MockEvmFeePayer;
+impl hydradx_traits::evm::EvmFeePayerSupport for MockEvmFeePayer {
+	type AccountId = AccountId;
+
+	fn set_fee_payer(payer: AccountId) -> Option<AccountId> {
+		FEE_PAYER.with(|v| v.borrow_mut().replace(payer))
+	}
+
+	fn clear_fee_payer() -> Option<AccountId> {
+		FEE_PAYER.with(|v| v.borrow_mut().take())
+	}
+}
+
+pub fn get_fee_payer() -> Option<AccountId> {
+	FEE_PAYER.with(|v| *v.borrow())
+}
+
+parameter_types! {
+	pub EmergencyAdminAccount: AccountId = 99;
+}
+
 impl dispatcher::Config for Test {
 	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
 	type TreasuryManagerOrigin = EnsureRoot<AccountId>;
 	type AaveManagerOrigin = EnsureRoot<AccountId>;
+	type EmergencyAdminOrigin = EnsureRoot<AccountId>;
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = TreasuryAccount;
+	type EmergencyAdminAccount = EmergencyAdminAccount;
 	type WeightInfo = ();
 	type EvmCallIdentifier = EvmCallIdentifier;
+	type MigrationOperatorOrigin = EnsureRoot<AccountId>;
 	type GasWeightMapping = MockGasWeightMapping;
+	type EvmFeePayer = MockEvmFeePayer;
 }
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 63;
 	pub const MaxReserves: u32 = 50;
+	pub const MockDbWeight: frame_support::weights::RuntimeDbWeight = frame_support::weights::RuntimeDbWeight {
+		read: 25_000_000,
+		write: 100_000_000,
+	};
 }
 
 impl system::Config for Test {
@@ -145,7 +174,7 @@ impl system::Config for Test {
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
-	type DbWeight = ();
+	type DbWeight = MockDbWeight;
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = AccountData<u128>;
@@ -164,7 +193,6 @@ impl system::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -282,6 +310,9 @@ impl Default for ExtBuilder {
 		EXISTENTIAL_DEPOSIT.with(|v| {
 			v.borrow_mut().clear();
 		});
+		FEE_PAYER.with(|v| {
+			*v.borrow_mut() = None;
+		});
 
 		Self {
 			endowed_accounts: vec![
@@ -290,6 +321,7 @@ impl Default for ExtBuilder {
 				(ALICE, DAI, 100),
 				(BOB, DAI, 100),
 				(TreasuryAccount::get(), HDX, 1_000_000),
+				(EmergencyAdminAccount::get(), HDX, 1_000_000),
 			],
 			registered_assets: vec![HDX, DAI],
 		}

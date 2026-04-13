@@ -296,7 +296,7 @@ pub async fn save_chainspec(
 	let wasm_code = StateApi::<H256>::storage(&rpc, StorageKey(code_key.to_vec()), at)
 		.await
 		.map_err(|e| {
-			println!("RPC error: {:?}", e);
+			println!("RPC error: {e:?}");
 			"Failed to fetch WASM code from chain"
 		})?
 		.ok_or("WASM code not found in chain state")?;
@@ -326,7 +326,7 @@ pub async fn save_chainspec(
 	let json = sc_service::chain_ops::build_spec(&input_spec, true).unwrap();
 
 	fs::write(path, json).map_err(|err| {
-		println!("Failed to write chainspec to file {:?}", err);
+		println!("Failed to write chainspec to file {err:?}");
 		"Failed to write chainspec file"
 	})?;
 
@@ -360,7 +360,7 @@ pub async fn fetch_all_storage(
 		.collect();
 
 	if !excluded_pallets.is_empty() {
-		println!("Excluding pallets: {:?}", excluded_pallets);
+		println!("Excluding pallets: {excluded_pallets:?}");
 	}
 
 	let mut all_pairs = Vec::new();

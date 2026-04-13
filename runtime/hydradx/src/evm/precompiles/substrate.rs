@@ -77,7 +77,7 @@ where
 		// computations.
 		let used_weight = call
 			.dispatch(origin)
-			.map_err(|e| revert(alloc::format!("Dispatched call failed with error: {:?}", e)))?
+			.map_err(|e| revert(alloc::format!("Dispatched call failed with error: {e:?}")))?
 			.actual_weight;
 
 		let used_gas = Runtime::GasWeightMapping::weight_to_gas(used_weight.unwrap_or(dispatch_info.call_weight));

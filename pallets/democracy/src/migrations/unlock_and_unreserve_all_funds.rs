@@ -204,11 +204,10 @@ where
 		let total_stake_to_unlock = account_locks.clone().into_values().sum::<BalanceOf<T>>();
 
 		log::info!(target: LOG_TARGET, "Total accounts: {:?}", all_accounts.len());
-		log::info!(target: LOG_TARGET, "Total stake to unlock: {:?}", total_stake_to_unlock);
+		log::info!(target: LOG_TARGET, "Total stake to unlock: {total_stake_to_unlock:?}");
 		log::info!(
 			target: LOG_TARGET,
-			"Total deposit to unreserve: {:?}",
-			total_deposits_to_unreserve
+			"Total deposit to unreserve: {total_deposits_to_unreserve:?}",
 		);
 		log::info!(
 			target: LOG_TARGET,
@@ -276,11 +275,7 @@ where
 			let expected_reserved_after = actual_reserved_before.saturating_sub(expected_amount_deducted);
 			assert!(
 				actual_reserved_after == expected_reserved_after,
-				"Reserved balance for {:?} is incorrect. actual before: {:?}, actual after, {:?}, expected deducted: {:?}",
-				account,
-				actual_reserved_before,
-				actual_reserved_after,
-				expected_amount_deducted,
+				"Reserved balance for {account:?} is incorrect. actual before: {actual_reserved_before:?}, actual after, {actual_reserved_after:?}, expected deducted: {expected_amount_deducted:?}",
 			);
 		}
 
@@ -355,7 +350,7 @@ mod test {
 
 			// Run the migration.
 			let bytes = UnlockAndUnreserveAllFunds::<UnlockConfigImpl>::pre_upgrade()
-				.unwrap_or_else(|e| panic!("pre_upgrade failed: {:?}", e));
+				.unwrap_or_else(|e| panic!("pre_upgrade failed: {e:?}"));
 			UnlockAndUnreserveAllFunds::<UnlockConfigImpl>::on_runtime_upgrade();
 			assert_ok!(UnlockAndUnreserveAllFunds::<UnlockConfigImpl>::post_upgrade(bytes));
 
@@ -399,7 +394,7 @@ mod test {
 
 			// Run the migration.
 			let bytes = UnlockAndUnreserveAllFunds::<UnlockConfigImpl>::pre_upgrade()
-				.unwrap_or_else(|e| panic!("pre_upgrade failed: {:?}", e));
+				.unwrap_or_else(|e| panic!("pre_upgrade failed: {e:?}"));
 			UnlockAndUnreserveAllFunds::<UnlockConfigImpl>::on_runtime_upgrade();
 			assert_ok!(UnlockAndUnreserveAllFunds::<UnlockConfigImpl>::post_upgrade(bytes));
 

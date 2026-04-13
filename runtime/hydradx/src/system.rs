@@ -29,6 +29,7 @@ use primitives::constants::{
 	time::{DAYS, HOURS, SLOT_DURATION},
 };
 
+use crate::circuit_breaker::IgnoreWithdrawFuse;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::cmp::Ordering;
 use frame_support::migrations::FailedMigrationHandling;
@@ -253,8 +254,7 @@ impl frame_support::migrations::FailedMigrationHandler for LogErrorAndForceUnstu
 	fn failed(migration: Option<u32>) -> FailedMigrationHandling {
 		log::error!(
 			target: "runtime::migrations",
-			"Migration {:?} failed - halting all migrations and resuming chain",
-			migration
+			"Migration {migration:?} failed - halting all migrations and resuming chain"
 		);
 
 		// Clear the migration cursor entirely. Transactions resume, remaining migrations are
@@ -299,6 +299,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
 	type ConsensusHook = ConsensusHook;
 	type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
+	type RelayParentOffset = ConstU32<0>;
 }
 
 parameter_types! {
@@ -481,6 +482,8 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = weights::pallet_identity::HydraWeight<Runtime>;
 	type UsernameDeposit = UsernameDeposit;
 	type UsernameGracePeriod = ConstU32<{ 30 * DAYS }>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 /// The type used to represent the kinds of proxying allowed.
@@ -656,7 +659,8 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = TransferFees<Runtime, Currencies, DepositAll<Runtime>, TreasuryAccount>;
+	type OnChargeTransaction =
+		TransferFees<Runtime, Currencies, DepositAll<Runtime>, TreasuryAccount, IgnoreWithdrawFuse<Runtime>>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
@@ -665,7 +669,6 @@ impl pallet_transaction_payment::Config for Runtime {
 }
 
 impl pallet_transaction_multi_payment::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type AcceptedCurrencyOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Currencies = Currencies;
 	type RouteProvider = Router;
@@ -682,7 +685,6 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 }
 
 impl pallet_relaychain_info::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type RelaychainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 }
 
@@ -704,7 +706,6 @@ parameter_types! {
 }
 
 impl pallet_collator_rewards::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type CurrencyId = AssetId;
 	type Currency = Currencies;
@@ -719,7 +720,6 @@ impl pallet_collator_rewards::Config for Runtime {
 }
 
 impl pallet_transaction_pause::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type WeightInfo = weights::pallet_transaction_pause::HydraWeight<Runtime>;
 }
