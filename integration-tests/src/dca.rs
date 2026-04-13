@@ -6035,7 +6035,6 @@ fn rolling_buy_dca_completes_prematurely_when_price_increases() {
 		create_schedule(ALICE, rolling_buy_schedule);
 
 		let schedule_id = 0;
-		let remaining_amount = DCA::remaining_amounts(schedule_id).unwrap();
 
 		// Now move the price AFTER DCA creation: BOB sells a massive amount of HDX for DAI,
 		// making DAI much more expensive in HDX terms (~3x price increase).
