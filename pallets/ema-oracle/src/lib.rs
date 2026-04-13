@@ -103,10 +103,10 @@ pub const BIFROST_SOURCE: [u8; 8] = *b"bifrosto";
 /// Rounded up to 300 for safety margin.
 pub const MAX_EXTERNAL_ENTRIES_PER_BLOCK: u32 = 300;
 
-/// Upper bound on the number of authorized accounts per external oracle source.
+/// Upper bound on the number of authorized (pair, account) entries per external oracle source.
 /// Used for worst-case weight estimation when removing a source, as `clear_prefix`
-/// must delete all associated authorized accounts.
-pub const MAX_AUTHORIZED_ACCOUNTS_PER_SOURCE: u32 = 20;
+/// must delete all associated authorization entries.
+pub const MAX_AUTHORIZED_ENTRIES_PER_SOURCE: u32 = 40;
 
 const LOG_TARGET: &str = "runtime::ema-oracle";
 
@@ -145,7 +145,6 @@ pub mod pallet {
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Origin that can manage external oracle sources and authorized accounts.
-		/// Should include the Technical Committee for fast emergency response.
 		type ExternalOracleOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Provider for the current block number.
@@ -179,7 +178,7 @@ pub mod pallet {
 		SourceAlreadyRegistered,
 		/// The external source was not found.
 		SourceNotFound,
-		/// The caller is not authorized for the given source.
+		/// The caller is not authorized for the given (source, pair).
 		NotAuthorized,
 		/// Price must not be zero.
 		PriceIsZero,
@@ -202,10 +201,18 @@ pub mod pallet {
 		ExternalSourceRegistered { source: Source },
 		/// An external oracle source was removed.
 		ExternalSourceRemoved { source: Source },
-		/// An authorized account was added for an external source.
-		AuthorizedAccountAdded { source: Source, account: T::AccountId },
-		/// An authorized account was removed for an external source.
-		AuthorizedAccountRemoved { source: Source, account: T::AccountId },
+		/// An account was authorized to update the given (source, pair).
+		AuthorizedAccountAdded {
+			source: Source,
+			pair: (AssetId, AssetId),
+			account: T::AccountId,
+		},
+		/// An authorization was removed for the given (source, pair, account).
+		AuthorizedAccountRemoved {
+			source: Source,
+			pair: (AssetId, AssetId),
+			account: T::AccountId,
+		},
 	}
 
 	/// Accumulator for oracle data in current block that will be recorded at the end of the block.
@@ -241,10 +248,22 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type ExternalSources<T: Config> = StorageMap<_, Twox64Concat, Source, (), OptionQuery>;
 
-	/// Authorized accounts per external oracle source.
+	/// Authorized accounts per (external oracle source, asset pair).
+	///
+	/// Authorization is scoped per-pair so that a compromised external oracle account can
+	/// only update the specific pairs it was authorized for, limiting DDoS blast radius.
+	/// The asset pair is stored in `ordered_pair` form.
 	#[pallet::storage]
-	pub type AuthorizedAccounts<T: Config> =
-		StorageDoubleMap<_, Twox64Concat, Source, Twox64Concat, T::AccountId, (), OptionQuery>;
+	pub type AuthorizedAccounts<T: Config> = StorageNMap<
+		_,
+		(
+			NMapKey<Twox64Concat, Source>,
+			NMapKey<Twox64Concat, (AssetId, AssetId)>,
+			NMapKey<Twox64Concat, T::AccountId>,
+		),
+		(),
+		OptionQuery,
+	>;
 
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
@@ -301,6 +320,14 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Add an oracle to the whitelist so it is tracked by the pallet.
+		///
+		/// Parameters:
+		/// - `origin`: `AuthorityOrigin`
+		/// - `source`: data source identifier
+		/// - `assets`: the asset pair to track
+		///
+		/// Emits `AddedToWhitelist` event when successful.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_oracle())]
 		pub fn add_oracle(origin: OriginFor<T>, source: Source, assets: (AssetId, AssetId)) -> DispatchResult {
@@ -318,6 +345,14 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Remove an oracle from the whitelist and delete all its stored entries.
+		///
+		/// Parameters:
+		/// - `origin`: `AuthorityOrigin`
+		/// - `source`: data source identifier
+		/// - `assets`: the asset pair to stop tracking
+		///
+		/// Emits `RemovedFromWhitelist` event when successful.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_oracle())]
 		pub fn remove_oracle(origin: OriginFor<T>, source: Source, assets: (AssetId, AssetId)) -> DispatchResult {
@@ -345,6 +380,15 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Update an oracle entry for BIFROST_SOURCE. Thin wrapper around `set_external_oracle`.
+		///
+		/// Parameters:
+		/// - `origin`: signed origin — must be authorized for the specific `(BIFROST_SOURCE, pair)`
+		/// - `asset_a`: XCM location of the first asset
+		/// - `asset_b`: XCM location of the second asset
+		/// - `price`: price as `(numerator, denominator)`
+		///
+		/// Emits `OracleUpdated` event on the next `on_finalize`.
 		#[deprecated(
 			note = "Use `set_external_oracle` instead. Kept only for backward compatibility with bifrost and will be removed in the future"
 		)]
@@ -363,6 +407,19 @@ pub mod pallet {
 			Self::do_set_oracle(who, BIFROST_SOURCE, asset_a, asset_b, price)
 		}
 
+		/// Submit an oracle price update for an external source.
+		///
+		/// The call is feeless on success (`Pays::No`).
+		///
+		/// Parameters:
+		/// - `origin`: signed origin — must be authorized for the specific `(source, pair)` via
+		///   `add_authorized_account`
+		/// - `source`: external source identifier (must be registered via `register_external_source`)
+		/// - `asset_a`: XCM location of the first asset
+		/// - `asset_b`: XCM location of the second asset
+		/// - `price`: price as `(numerator, denominator)` — both must be non-zero
+		///
+		/// Emits `OracleUpdated` event on the next `on_finalize`.
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_external_oracle()
 			.saturating_add(fractional_on_finalize_weight::<T>(MAX_EXTERNAL_ENTRIES_PER_BLOCK)))]
@@ -377,6 +434,13 @@ pub mod pallet {
 			Self::do_set_oracle(who, source, asset_a, asset_b, price)
 		}
 
+		/// Register a new external oracle source.
+		///
+		/// Parameters:
+		/// - `origin`: `ExternalOracleOrigin`
+		/// - `source`: 8-byte source identifier to register
+		///
+		/// Emits `ExternalSourceRegistered` event when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_external_source())]
 		pub fn register_external_source(origin: OriginFor<T>, source: Source) -> DispatchResult {
@@ -390,38 +454,74 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Remove an external oracle source and all its per-pair authorizations.
+		///
+		/// Parameters:
+		/// - `origin`: `ExternalOracleOrigin`
+		/// - `source`: source identifier to remove
+		///
+		/// Emits `ExternalSourceRemoved` event when successful.
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_external_source(MAX_AUTHORIZED_ACCOUNTS_PER_SOURCE))]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_external_source(MAX_AUTHORIZED_ENTRIES_PER_SOURCE))]
 		pub fn remove_external_source(origin: OriginFor<T>, source: Source) -> DispatchResult {
 			T::ExternalOracleOrigin::ensure_origin(origin)?;
 			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
 			ExternalSources::<T>::remove(source);
-			let _ = AuthorizedAccounts::<T>::clear_prefix(source, u32::MAX, None);
+			let _ = AuthorizedAccounts::<T>::clear_prefix((source,), u32::MAX, None);
 			Self::deposit_event(Event::ExternalSourceRemoved { source });
 			Ok(())
 		}
 
+		/// Authorize `account` to submit oracle updates for a specific `(source, pair)`.
+		///
+		/// Authorization is scoped per-pair so a compromised account can only update the
+		/// pairs it was explicitly granted, limiting DDoS blast radius.
+		///
+		/// Parameters:
+		/// - `origin`: `ExternalOracleOrigin`
+		/// - `source`: external source identifier (must already be registered)
+		/// - `assets`: the asset pair to authorize — stored in ordered form
+		/// - `account`: the account to authorize
+		///
+		/// Emits `AuthorizedAccountAdded` event when successful.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_authorized_account())]
-		pub fn add_authorized_account(origin: OriginFor<T>, source: Source, account: T::AccountId) -> DispatchResult {
+		pub fn add_authorized_account(
+			origin: OriginFor<T>,
+			source: Source,
+			assets: (AssetId, AssetId),
+			account: T::AccountId,
+		) -> DispatchResult {
 			T::ExternalOracleOrigin::ensure_origin(origin)?;
 			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
-			AuthorizedAccounts::<T>::insert(source, &account, ());
-			Self::deposit_event(Event::AuthorizedAccountAdded { source, account });
+			let pair = ordered_pair(assets.0, assets.1);
+			AuthorizedAccounts::<T>::insert((source, pair, &account), ());
+			Self::deposit_event(Event::AuthorizedAccountAdded { source, pair, account });
 			Ok(())
 		}
 
+		/// Revoke oracle-update authorization for `account` on a specific `(source, pair)`.
+		///
+		/// Parameters:
+		/// - `origin`: `ExternalOracleOrigin`
+		/// - `source`: external source identifier (must already be registered)
+		/// - `assets`: the asset pair to revoke — matched in ordered form
+		/// - `account`: the account to revoke
+		///
+		/// Emits `AuthorizedAccountRemoved` event when successful.
 		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_authorized_account())]
 		pub fn remove_authorized_account(
 			origin: OriginFor<T>,
 			source: Source,
+			assets: (AssetId, AssetId),
 			account: T::AccountId,
 		) -> DispatchResult {
 			T::ExternalOracleOrigin::ensure_origin(origin)?;
 			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
-			AuthorizedAccounts::<T>::remove(source, &account);
-			Self::deposit_event(Event::AuthorizedAccountRemoved { source, account });
+			let pair = ordered_pair(assets.0, assets.1);
+			AuthorizedAccounts::<T>::remove((source, pair, &account));
+			Self::deposit_event(Event::AuthorizedAccountRemoved { source, pair, account });
 			Ok(())
 		}
 	}
@@ -436,16 +536,17 @@ impl<T: Config> Pallet<T> {
 		price: (Balance, Balance),
 	) -> DispatchResultWithPostInfo {
 		ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
-		ensure!(
-			AuthorizedAccounts::<T>::contains_key(source, &who),
-			Error::<T>::NotAuthorized
-		);
 		ensure!(price.0 != 0 && price.1 != 0, Error::<T>::PriceIsZero);
 
 		let asset_a = T::LocationToAssetIdConversion::convert(*asset_a).ok_or(Error::<T>::AssetNotFound)?;
 		let asset_b = T::LocationToAssetIdConversion::convert(*asset_b).ok_or(Error::<T>::AssetNotFound)?;
 
 		let ordered = ordered_pair(asset_a, asset_b);
+
+		ensure!(
+			AuthorizedAccounts::<T>::contains_key((source, ordered, &who)),
+			Error::<T>::NotAuthorized
+		);
 		let entry: OracleEntry<BlockNumberFor<T>> = {
 			let e = OracleEntry::new(
 				EmaPrice::new(price.0, price.1),
@@ -484,9 +585,18 @@ impl<T: Config> Pallet<T> {
 				entry.accumulate_volume_and_update_from(&oracle_entry);
 				Ok(())
 			} else {
-				if !is_external_source && accumulator.len() >= T::MaxUniqueEntries::get() as usize {
-					//We have soft limit up to MaxUniqueEntries, only for AMM internal oracle updates
-					return Err(());
+				// The `MaxUniqueEntries` soft cap applies ONLY to non-external (AMM)
+				// entries. An authorized external caller must not be able to push
+				// legitimate AMM new-pair trades out of the accumulator by filling it
+				// with distinct external pairs.
+				if !is_external_source {
+					let non_external_len = accumulator
+						.keys()
+						.filter(|(s, _)| !ExternalSources::<T>::contains_key(s))
+						.count();
+					if non_external_len >= T::MaxUniqueEntries::get() as usize {
+						return Err(());
+					}
 				}
 				accumulator.insert((src, assets), oracle_entry);
 				Ok(())
@@ -710,7 +820,6 @@ impl<T: Config> OnTradeHandler<AssetId, Balance, Price> for OnActivityHandler<T>
 
 	fn on_trade_weight() -> Weight {
 		let max_entries = T::MaxUniqueEntries::get();
-		// on_trade + on_finalize / max_entries
 		T::WeightInfo::on_trade_multiple_tokens(max_entries)
 			.saturating_add(fractional_on_finalize_weight::<T>(MAX_EXTERNAL_ENTRIES_PER_BLOCK))
 	}
@@ -751,7 +860,6 @@ impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance, Price> for OnActivit
 
 	fn on_liquidity_changed_weight() -> Weight {
 		let max_entries = T::MaxUniqueEntries::get();
-		// on_liquidity + on_finalize / max_entries
 		T::WeightInfo::on_liquidity_changed_multiple_tokens(max_entries)
 			.saturating_add(fractional_on_finalize_weight::<T>(MAX_EXTERNAL_ENTRIES_PER_BLOCK))
 	}

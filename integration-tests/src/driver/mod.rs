@@ -17,6 +17,7 @@ use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
 use primitives::constants::time::MILLISECS_PER_BLOCK;
 use primitives::{AccountId, AssetId};
+use sp_runtime::traits::Convert;
 use sp_runtime::{FixedU128, Permill};
 use sp_std::cell::RefCell;
 use xcm_emulator::TestExt;
@@ -142,12 +143,22 @@ impl HydrationTestDriver {
 		price: (Balance, Balance),
 	) -> &Self {
 		self.execute(|| {
-			// Ensure BIFROST_SOURCE is registered and bifrost_account is authorized
-			// We need this because we added support for multiple oracle sources which required migration
+			let asset_a_id =
+				<hydradx_runtime::Runtime as pallet_ema_oracle::Config>::LocationToAssetIdConversion::convert(
+					(*asset_a).clone(),
+				)
+				.expect("driver: could not resolve asset_a location to asset id");
+			let asset_b_id =
+				<hydradx_runtime::Runtime as pallet_ema_oracle::Config>::LocationToAssetIdConversion::convert(
+					(*asset_b).clone(),
+				)
+				.expect("driver: could not resolve asset_b location to asset id");
+
 			let _ = EmaOracle::register_external_source(RuntimeOrigin::root(), pallet_ema_oracle::BIFROST_SOURCE);
 			let _ = EmaOracle::add_authorized_account(
 				RuntimeOrigin::root(),
 				pallet_ema_oracle::BIFROST_SOURCE,
+				(asset_a_id, asset_b_id),
 				bifrost_account(),
 			);
 			assert_ok!(EmaOracle::update_bifrost_oracle(

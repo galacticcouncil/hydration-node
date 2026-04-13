@@ -231,7 +231,12 @@ runtime_benchmarks! {
 		let b in 1 .. (<<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get() - 1);
 
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
+		let max_external = pallet_ema_oracle::MAX_EXTERNAL_ENTRIES_PER_BLOCK;
 		fill_whitelist_storage(max_entries);
+
+		let ext_source: Source = *b"benchex1";
+		EmaOracle::register_external_source(RawOrigin::Root.into(), ext_source)
+			.expect("error when registering external source");
 
 		let initial_data_block: BlockNumberFor<Runtime> = 5u32;
 		let block_num = initial_data_block.saturating_add(1_000_000u32);
@@ -243,6 +248,9 @@ runtime_benchmarks! {
 		let (amount_in, amount_out) = (1_000_000_000_000, 2_000_000_000_000);
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
 		let shares_issuance = 1_000_000_000_000;
+
+		// Pre-seed AMM pairs in the previous block so their `Oracles` rows exist and
+		// the measured call exercises the "already-tracked" path in update_oracle.
 		for i in 0 .. b {
 			let asset_a = (i + 1) * 1_000;
 			let asset_b = asset_a + 500;
@@ -252,6 +260,19 @@ runtime_benchmarks! {
 
 			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 				SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
+				EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
+		}
+		// Pre-seed the worst-case number of external pairs. Asset-id range is disjoint
+		// from the AMM one above (+100_000 offset) so no key collision in the registry.
+		for i in 0 .. max_external {
+			let asset_a = 100_000 + (i + 1) * 1_000;
+			let asset_b = asset_a + 500;
+
+			register_asset_with_id([b"EX1", asset_a.to_string().as_bytes()].concat(), asset_a).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+			register_asset_with_id([b"EX2", asset_b.to_string().as_bytes()].concat(), asset_b).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
+				ext_source, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
 				EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
 		}
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(initial_data_block);
@@ -265,6 +286,7 @@ runtime_benchmarks! {
 			updated_at: block_num,
 			shares_issuance: Some(shares_issuance),
 		};
+		// Refill the current block's accumulator with `b` AMM entries.
 		for i in 0 .. b {
 			let asset_a = (i + 1) * 1_000;
 			let asset_b = asset_a + 500;
@@ -272,6 +294,15 @@ runtime_benchmarks! {
 				SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
 				EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
 			entries.push(((SOURCE, ordered_pair(asset_a, asset_b)), entry.clone()));
+		}
+		// Refill the worst-case external state.
+		for i in 0 .. max_external {
+			let asset_a = 100_000 + (i + 1) * 1_000;
+			let asset_b = asset_a + 500;
+			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
+				ext_source, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
+				EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
+			entries.push(((ext_source, ordered_pair(asset_a, asset_b)), entry.clone()));
 		}
 		let asset_a = (b + 1) * 1_000;
 		let asset_b = asset_a + 500;
@@ -284,7 +315,7 @@ runtime_benchmarks! {
 			OnActivityHandler::<Runtime>::on_trade(
 				SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
 				EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance))
-				.map_err(|(_w, e)| e)
+				.map_err(|(_w, err)| err)
 		);
 	}
 	verify {
@@ -294,10 +325,17 @@ runtime_benchmarks! {
 		assert_eq!(pallet_ema_oracle::Pallet::<Runtime>::accumulator(), entries.into_iter().collect());
 	}
 
+	// See `on_trade_multiple_tokens` for the worst-case external accumulator state.
 	on_liquidity_changed_multiple_tokens {
 		let b in 1 .. (<<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get() - 1);
+
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
+		let max_external = pallet_ema_oracle::MAX_EXTERNAL_ENTRIES_PER_BLOCK;
 		fill_whitelist_storage(max_entries);
+
+		let ext_source: Source = *b"benchex2";
+		EmaOracle::register_external_source(RawOrigin::Root.into(), ext_source)
+			.expect("error when registering external source");
 
 		let initial_data_block: BlockNumberFor<Runtime> = 5u32;
 		let block_num = initial_data_block.saturating_add(1_000_000u32);
@@ -320,6 +358,17 @@ runtime_benchmarks! {
 				SOURCE, asset_a, asset_b, amount_a, amount_b, liquidity_asset_a, liquidity_asset_b,
 				EmaPrice::new(liquidity_asset_a, liquidity_asset_b), Some(shares_issuance)));
 		}
+		for i in 0 .. max_external {
+			let asset_a = 100_000 + (i + 1) * 1_000;
+			let asset_b = asset_a + 500;
+
+			register_asset_with_id([b"EX1", asset_a.to_string().as_bytes()].concat(), asset_a).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+			register_asset_with_id([b"EX2", asset_b.to_string().as_bytes()].concat(), asset_b).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
+				ext_source, asset_a, asset_b, amount_a, amount_b, liquidity_asset_a, liquidity_asset_b,
+				EmaPrice::new(liquidity_asset_a, liquidity_asset_b), Some(shares_issuance)));
+		}
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(initial_data_block);
 
 		frame_system::Pallet::<Runtime>::set_block_number(block_num);
@@ -339,6 +388,14 @@ runtime_benchmarks! {
 				EmaPrice::new(liquidity_asset_a, liquidity_asset_b), Some(shares_issuance)));
 			entries.push(((SOURCE, ordered_pair(asset_a, asset_b)), entry.clone()));
 		}
+		for i in 0 .. max_external {
+			let asset_a = 100_000 + (i + 1) * 1_000;
+			let asset_b = asset_a + 500;
+			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
+				ext_source, asset_a, asset_b, amount_a, amount_b, liquidity_asset_a, liquidity_asset_b,
+				EmaPrice::new(liquidity_asset_a, liquidity_asset_b), Some(shares_issuance)));
+			entries.push(((ext_source, ordered_pair(asset_a, asset_b)), entry.clone()));
+		}
 		let asset_a = (b + 1) * 1_000;
 		let asset_b = asset_a + 500;
 			register_asset_with_id([b"AS1", asset_a.to_string().as_bytes()].concat(), asset_a).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
@@ -350,7 +407,7 @@ runtime_benchmarks! {
 			OnActivityHandler::<Runtime>::on_liquidity_changed(
 				SOURCE, asset_a, asset_b, amount_a, amount_b, liquidity_asset_a, liquidity_asset_b,
 				EmaPrice::new(liquidity_asset_a, liquidity_asset_b), Some(shares_issuance))
-				.map_err(|(_w, e)| e)
+				.map_err(|(_w, err)| err)
 		);
 	}
 	verify {
@@ -418,9 +475,12 @@ runtime_benchmarks! {
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
 		fill_whitelist_storage(max_entries -  1);
 
-		// Register BIFROST_SOURCE as external source and authorize bifrost account
+		let asset_a_id: AssetId = 0;
+		let asset_b_id: AssetId = 3;
+
+		// Register BIFROST_SOURCE as external source and authorize bifrost account for this pair
 		EmaOracle::register_external_source(RawOrigin::Root.into(), pallet_ema_oracle::BIFROST_SOURCE).expect("error when registering external source");
-		EmaOracle::add_authorized_account(RawOrigin::Root.into(), pallet_ema_oracle::BIFROST_SOURCE, bifrost_account()).expect("error when adding authorized account");
+		EmaOracle::add_authorized_account(RawOrigin::Root.into(), pallet_ema_oracle::BIFROST_SOURCE, (asset_a_id, asset_b_id), bifrost_account()).expect("error when adding authorized account");
 
 		let initial_data_block: BlockNumberFor<Runtime> = 5u32;
 		let oracle_age: BlockNumberFor<Runtime> = 7u32;
@@ -428,15 +488,13 @@ runtime_benchmarks! {
 
 		frame_system::Pallet::<Runtime>::set_block_number(initial_data_block);
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(initial_data_block);
-		let asset_a = 0;
-		let asset_b = 3;
 
 		let hdx_loc = polkadot_xcm::v5::Location::new(0, [polkadot_xcm::v5::Junction::GeneralIndex(0)]);
 		let dot_loc = polkadot_xcm::v5::Location::new(1, [polkadot_xcm::v5::Junction::Parachain(1000), polkadot_xcm::v5::Junction::GeneralIndex(0)]);
 
 		let dot_asset_loc = AssetLocation::try_from(dot_loc.clone()).unwrap();
 
-		register_asset_with_id_and_loc(b"AS2".to_vec(), asset_b, dot_asset_loc).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		register_asset_with_id_and_loc(b"AS2".to_vec(), asset_b_id, dot_asset_loc).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		let asset_a = Box::new(hdx_loc.into_versioned());
 		let asset_b = Box::new(dot_loc.into_versioned());
@@ -456,8 +514,10 @@ runtime_benchmarks! {
 		fill_whitelist_storage(max_entries -  1);
 
 		let external_source: Source = *b"external";
+		// Pair expected after LocationToAssetIdConversion for (hdx_loc, dot_loc) used below.
+		let auth_pair: (AssetId, AssetId) = (0, 3);
 		EmaOracle::register_external_source(RawOrigin::Root.into(), external_source).expect("error when registering external source");
-		EmaOracle::add_authorized_account(RawOrigin::Root.into(), external_source, bifrost_account()).expect("error when adding authorized account");
+		EmaOracle::add_authorized_account(RawOrigin::Root.into(), external_source, auth_pair, bifrost_account()).expect("error when adding authorized account");
 
 		let initial_data_block: BlockNumberFor<Runtime> = 5u32;
 		frame_system::Pallet::<Runtime>::set_block_number(initial_data_block);
@@ -484,13 +544,17 @@ runtime_benchmarks! {
 		assert!(pallet_ema_oracle::ExternalSources::<Runtime>::contains_key(source));
 	}
 
+	// Worst-case: remove a source that has `n` (pair, account) authorization entries — all must
+	// be cleared by `clear_prefix`.
 	remove_external_source {
-		let n in 0 .. pallet_ema_oracle::MAX_AUTHORIZED_ACCOUNTS_PER_SOURCE;
+		let n in 0 .. pallet_ema_oracle::MAX_AUTHORIZED_ENTRIES_PER_SOURCE;
 		let source: Source = *b"newsrcxx";
 		EmaOracle::register_external_source(RawOrigin::Root.into(), source).expect("error when registering external source");
 		for i in 0..n {
 			let account: AccountId = frame_benchmarking::account("authorized", i, 0);
-			EmaOracle::add_authorized_account(RawOrigin::Root.into(), source, account).expect("error when adding authorized account");
+			// Spread entries across distinct pairs so clear_prefix must actually delete n entries.
+			let pair = (i, i + 1);
+			EmaOracle::add_authorized_account(RawOrigin::Root.into(), source, pair, account).expect("error when adding authorized account");
 		}
 	}: _(RawOrigin::Root, source)
 	verify {
@@ -499,19 +563,23 @@ runtime_benchmarks! {
 
 	add_authorized_account {
 		let source: Source = *b"newsrcxx";
+		let pair: (AssetId, AssetId) = (0, 3);
 		EmaOracle::register_external_source(RawOrigin::Root.into(), source).expect("error when registering external source");
-	}: _(RawOrigin::Root, source, bifrost_account())
+	}: _(RawOrigin::Root, source, pair, bifrost_account())
 	verify {
-		assert!(pallet_ema_oracle::AuthorizedAccounts::<Runtime>::contains_key(source, bifrost_account()));
+		let ordered = ordered_pair(pair.0, pair.1);
+		assert!(pallet_ema_oracle::AuthorizedAccounts::<Runtime>::contains_key((source, ordered, bifrost_account())));
 	}
 
 	remove_authorized_account {
 		let source: Source = *b"newsrcxx";
+		let pair: (AssetId, AssetId) = (0, 3);
 		EmaOracle::register_external_source(RawOrigin::Root.into(), source).expect("error when registering external source");
-		EmaOracle::add_authorized_account(RawOrigin::Root.into(), source, bifrost_account()).expect("error when adding authorized account");
-	}: _(RawOrigin::Root, source, bifrost_account())
+		EmaOracle::add_authorized_account(RawOrigin::Root.into(), source, pair, bifrost_account()).expect("error when adding authorized account");
+	}: _(RawOrigin::Root, source, pair, bifrost_account())
 	verify {
-		assert!(!pallet_ema_oracle::AuthorizedAccounts::<Runtime>::contains_key(source, bifrost_account()));
+		let ordered = ordered_pair(pair.0, pair.1);
+		assert!(!pallet_ema_oracle::AuthorizedAccounts::<Runtime>::contains_key((source, ordered, bifrost_account())));
 	}
 }
 
