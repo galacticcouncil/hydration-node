@@ -6207,7 +6207,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "13.2.0"
+version = "13.2.1"
 dependencies = [
  "approx",
  "criterion",
