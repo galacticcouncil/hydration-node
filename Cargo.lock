@@ -6378,7 +6378,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "409.0.0"
+version = "410.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -10097,7 +10097,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.17.0"
+version = "1.18.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -15646,7 +15646,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.77.1"
+version = "1.78.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
