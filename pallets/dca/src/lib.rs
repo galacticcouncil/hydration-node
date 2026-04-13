@@ -927,8 +927,8 @@ impl<T: Config> Pallet<T> {
 		}
 
 		//In buy we complete with returning leftover, in sell we sell the leftover in the next trade
-		if !schedule.is_rolling() {
-			if let Order::Buy { amount_out, .. } = &schedule.order {
+		if let Order::Buy { amount_out, .. } = &schedule.order {
+			if !schedule.is_rolling() {
 				let route = schedule.order.get_route_or_default::<T::RouteProvider>();
 				let amount_to_unreserve: Balance = Self::get_amount_in_for_buy(amount_out, &route)?;
 
