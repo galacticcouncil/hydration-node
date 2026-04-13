@@ -77,7 +77,7 @@ use pallet_staking::{
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, AssetIdOf, RemoveTxAssetOnKilled};
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use primitives::constants::{
-	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, XYK_SOURCE},
+	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, STABLESWAP_SOURCE, XYK_SOURCE},
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::DAYS,
 };
@@ -638,6 +638,14 @@ parameter_types! {
 	pub BifrostAccount: AccountId = hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into();
 }
 
+/// Identifies internal (AMM) oracle sources via hardcoded constants. Zero storage reads.
+pub struct InternalOracleSources;
+impl Contains<Source> for InternalOracleSources {
+	fn contains(s: &Source) -> bool {
+		matches!(s, &OMNIPOOL_SOURCE | &STABLESWAP_SOURCE | &XYK_SOURCE)
+	}
+}
+
 pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);
 impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist<Runtime>
 where
@@ -659,6 +667,7 @@ impl pallet_ema_oracle::Config for Runtime {
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = OracleWhitelist<Runtime>;
+	type InternalSources = InternalOracleSources;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
 	/// 40 seems a decent upper bound for the foreseeable future.
 	type MaxUniqueEntries = ConstU32<40>;

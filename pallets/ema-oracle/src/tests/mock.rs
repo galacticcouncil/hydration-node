@@ -135,12 +135,21 @@ impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist {
 	}
 }
 
+/// Identifies internal (AMM) sources by checking they are not registered as external.
+pub struct InternalSources;
+impl Contains<Source> for InternalSources {
+	fn contains(s: &Source) -> bool {
+		!ema_oracle::pallet::ExternalSources::<Test>::contains_key(s)
+	}
+}
+
 impl Config for Test {
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type ExternalOracleOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = OracleWhitelist;
+	type InternalSources = InternalSources;
 	type MaxUniqueEntries = ConstU32<45>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();

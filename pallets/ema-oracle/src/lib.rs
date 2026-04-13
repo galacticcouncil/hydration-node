@@ -156,6 +156,11 @@ pub mod pallet {
 		/// Whitelist determining what oracles are tracked by the pallet.
 		type OracleWhitelist: Contains<(Source, AssetId, AssetId)>;
 
+		/// Identifies internal (AMM) oracle sources.
+		/// Implemented with hardcoded source constants in the runtime (0 storage reads).
+		/// Used to count non-external entries in the accumulator without costly storage lookups.
+		type InternalSources: Contains<Source>;
+
 		/// Location to Asset Id converter
 		type LocationToAssetIdConversion: sp_runtime::traits::Convert<polkadot_xcm::VersionedLocation, Option<AssetId>>;
 
@@ -574,8 +579,8 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<(), ()> {
-		let is_external_source = ExternalSources::<T>::contains_key(src);
-		if !T::OracleWhitelist::contains(&(src, assets.0, assets.1)) && !is_external_source {
+		let is_internal_source = T::InternalSources::contains(&src);
+		if !T::OracleWhitelist::contains(&(src, assets.0, assets.1)) && is_internal_source {
 			// if we don't track oracle for given asset pair, don't throw error
 			return Ok(());
 		}
@@ -589,10 +594,10 @@ impl<T: Config> Pallet<T> {
 				// entries. An authorized external caller must not be able to push
 				// legitimate AMM new-pair trades out of the accumulator by filling it
 				// with distinct external pairs.
-				if !is_external_source {
+				if is_internal_source {
 					let non_external_len = accumulator
 						.keys()
-						.filter(|(s, _)| !ExternalSources::<T>::contains_key(s))
+						.filter(|(s, _)| T::InternalSources::contains(s))
 						.count();
 					if non_external_len >= T::MaxUniqueEntries::get() as usize {
 						return Err(());

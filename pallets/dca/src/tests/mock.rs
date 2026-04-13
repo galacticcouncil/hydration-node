@@ -147,6 +147,7 @@ impl pallet_ema_oracle::Config for Test {
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = Everything;
+	type InternalSources = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
 	type LocationToAssetIdConversion = ();
 	#[cfg(feature = "runtime-benchmarks")]
