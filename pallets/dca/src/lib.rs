@@ -919,9 +919,7 @@ impl<T: Config> Pallet<T> {
 			RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
 		let transaction_fee = Self::get_transaction_fee(&schedule.order, Some(schedule_id))?;
 		let min_amount_for_replanning = transaction_fee.saturating_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT);
-		if !schedule.is_rolling()
-			&& (remaining_amount < min_amount_for_replanning || remaining_amount < T::MinimumTradingLimit::get())
-		{
+		if remaining_amount < min_amount_for_replanning || remaining_amount < T::MinimumTradingLimit::get() {
 			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}
