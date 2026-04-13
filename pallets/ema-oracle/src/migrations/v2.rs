@@ -17,29 +17,26 @@ impl<T: crate::Config, BifrostAccount: Get<T::AccountId>> UncheckedOnRuntimeUpgr
 	fn on_runtime_upgrade() -> Weight {
 		log::info!(target: "runtime::ema-oracle", "v1->v2 migration started");
 
-		// Register BIFROST_SOURCE as an external source
 		ExternalSources::<T>::insert(BIFROST_SOURCE, ());
 
-		// Add the bifrost sovereign account as an authorized account for BIFROST_SOURCE
 		let bifrost_account = BifrostAccount::get();
-		AuthorizedAccounts::<T>::insert(BIFROST_SOURCE, &bifrost_account, ());
+		let dot_vdot = ordered_pair(5, 15);
+		AuthorizedAccounts::<T>::insert((BIFROST_SOURCE, dot_vdot, &bifrost_account), ());
 
-		log::info!(target: "runtime::ema-oracle", "v1->v2 migration finished: registered BIFROST_SOURCE and authorized bifrost account");
+		log::info!(target: "runtime::ema-oracle", "v1->v2 migration finished");
 
 		T::DbWeight::get().reads_writes(0, 2)
 	}
 
 	#[cfg(feature = "try-runtime")]
 	fn post_upgrade(_: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
-		assert!(
-			ExternalSources::<T>::contains_key(BIFROST_SOURCE),
-			"BIFROST_SOURCE should be registered as external source"
-		);
 		let bifrost_account = BifrostAccount::get();
-		assert!(
-			AuthorizedAccounts::<T>::contains_key(BIFROST_SOURCE, &bifrost_account),
-			"Bifrost account should be authorized for BIFROST_SOURCE"
-		);
+		assert!(ExternalSources::<T>::contains_key(BIFROST_SOURCE));
+		assert!(AuthorizedAccounts::<T>::contains_key((
+			BIFROST_SOURCE,
+			ordered_pair(5, 15),
+			&bifrost_account
+		)));
 		Ok(())
 	}
 }

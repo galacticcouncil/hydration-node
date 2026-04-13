@@ -32,6 +32,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 use crate::tests::mock::ALICE;
 use polkadot_xcm::v5::prelude::*;
 
+const BIFROST_HDX_DOT_PAIR: (crate::AssetId, crate::AssetId) = (0, 5);
+
 fn setup_bifrost_auth() {
 	assert_ok!(EmaOracle::register_external_source(
 		RuntimeOrigin::root(),
@@ -40,6 +42,7 @@ fn setup_bifrost_auth() {
 	assert_ok!(EmaOracle::add_authorized_account(
 		RuntimeOrigin::root(),
 		BIFROST_SOURCE,
+		BIFROST_HDX_DOT_PAIR,
 		ALICE
 	));
 }
@@ -184,6 +187,33 @@ fn should_fail_when_price_is_zero() {
 		assert_noop!(
 			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE), Box::new(hdx), Box::new(dot), (100, 0)),
 			Error::<Test>::PriceIsZero
+		);
+	});
+}
+
+#[test]
+fn bifrost_oracle_rejects_unauthorized_pair() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE
+		));
+		// Alice is authorized only for (0, 1), not for (0, 5).
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+			(0, 1),
+			ALICE
+		));
+
+		let hdx = polkadot_xcm::v5::Location::new(0, [polkadot_xcm::v5::Junction::GeneralIndex(0)]).into_versioned();
+		let dot = polkadot_xcm::v5::Location::parent().into_versioned();
+
+		System::set_block_number(3);
+
+		assert_noop!(
+			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE), Box::new(hdx), Box::new(dot), (100, 99)),
+			Error::<Test>::NotAuthorized
 		);
 	});
 }
