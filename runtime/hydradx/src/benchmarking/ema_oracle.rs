@@ -45,6 +45,12 @@ use sp_core::{ConstU32, Get};
 /// Default oracle source.
 const SOURCE: Source = *b"dummysrc";
 
+/// Benchmark range / worst-case pre-fill for external-oracle entries.
+/// Decoupled from `MAX_EXTERNAL_ENTRIES_PER_BLOCK`: the `on_finalize` weight formula
+/// is linear in entry count, so fitting it from a small range is both faster and
+/// more stable, and the formula extrapolates up to the runtime accounting value.
+const BENCH_EXTERNAL_ENTRIES: u32 = 10;
+
 fn bifrost_account() -> AccountId {
 	BifrostAccount::get()
 }
@@ -175,7 +181,7 @@ runtime_benchmarks! {
 	}
 
 	on_finalize_multiple_tokens {
-		let b in 1 .. pallet_ema_oracle::MAX_EXTERNAL_ENTRIES_PER_BLOCK;
+		let b in 1 .. BENCH_EXTERNAL_ENTRIES;
 
 		// Register an external source so on_trade bypasses the whitelist and soft limit
 		let external_source: Source = *b"benchext";
@@ -231,7 +237,7 @@ runtime_benchmarks! {
 		let b in 1 .. (<<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get() - 1);
 
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
-		let max_external = pallet_ema_oracle::MAX_EXTERNAL_ENTRIES_PER_BLOCK;
+		let max_external = BENCH_EXTERNAL_ENTRIES;
 		fill_whitelist_storage(max_entries);
 
 		let ext_source: Source = *b"benchex1";
@@ -330,7 +336,7 @@ runtime_benchmarks! {
 		let b in 1 .. (<<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get() - 1);
 
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
-		let max_external = pallet_ema_oracle::MAX_EXTERNAL_ENTRIES_PER_BLOCK;
+		let max_external = BENCH_EXTERNAL_ENTRIES;
 		fill_whitelist_storage(max_entries);
 
 		let ext_source: Source = *b"benchex2";

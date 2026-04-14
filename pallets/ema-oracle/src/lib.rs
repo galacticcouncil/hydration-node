@@ -98,10 +98,12 @@ pub const MAX_PERIODS: u32 = OraclePeriod::all_periods().len() as u32;
 
 pub const BIFROST_SOURCE: [u8; 8] = *b"bifrosto";
 
-/// Max external oracle entries per block based on proof_size budget:
-/// 75% of MAX_POV_SIZE (5MB) / ~14,197 bytes per set_external_oracle call ≈ 275.
-/// Rounded up to 300 for safety margin.
-pub const MAX_EXTERNAL_ENTRIES_PER_BLOCK: u32 = 300;
+/// Denominator used by `fractional_on_finalize_weight` to split the worst-case
+/// `on_finalize` cost across contributing calls. Not a hard cap — the `on_finalize`
+/// weight function is linear in entry count, so aggregate accounting stays correct
+/// even if more than this actually land in a block. Benchmarks measure a smaller
+/// range (see benchmarking file) and the linear formula extrapolates up to this value.
+pub const MAX_EXTERNAL_ENTRIES_PER_BLOCK: u32 = 100;
 
 /// Upper bound on the number of authorized (pair, account) entries per external oracle source.
 /// Used for worst-case weight estimation when removing a source, as `clear_prefix`
@@ -224,6 +226,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::unbounded]
 	#[pallet::getter(fn accumulator)]
+	#[pallet::whitelist_storage]
 	pub type Accumulator<T: Config> =
 		StorageValue<_, BTreeMap<(Source, (AssetId, AssetId)), OracleEntry<BlockNumberFor<T>>>, ValueQuery>;
 
