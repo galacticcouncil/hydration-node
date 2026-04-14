@@ -543,6 +543,26 @@ runtime_benchmarks! {
 		assert!(!Accumulator::<Runtime>::get().is_empty());
 	}
 
+	set_oracle_by_ids {
+		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
+		fill_whitelist_storage(max_entries - 1);
+
+		let external_source: Source = *b"extbyids";
+		let asset_a_id: AssetId = HDX;
+		let asset_b_id: AssetId = DOT;
+		let auth_pair = pallet_ema_oracle::ordered_pair(asset_a_id, asset_b_id);
+		EmaOracle::register_external_source(RawOrigin::Root.into(), external_source).expect("error when registering external source");
+		EmaOracle::add_authorized_account(RawOrigin::Root.into(), external_source, auth_pair, bifrost_account()).expect("error when adding authorized account");
+
+		let initial_data_block: BlockNumberFor<Runtime> = 5u32;
+		frame_system::Pallet::<Runtime>::set_block_number(initial_data_block);
+		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(initial_data_block);
+
+	}: _(RawOrigin::Signed(bifrost_account()), external_source, asset_a_id, asset_b_id, (100,99))
+	verify {
+		assert!(!Accumulator::<Runtime>::get().is_empty());
+	}
+
 	register_external_source {
 		let source: Source = *b"newsrcxx";
 	}: _(RawOrigin::Root, source)

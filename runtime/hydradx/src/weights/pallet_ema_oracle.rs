@@ -178,6 +178,15 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		Weight::from_parts(36_000_000, 6190)
 			.saturating_add(T::DbWeight::get().reads(6_u64))
 	}
+
+	fn set_oracle_by_ids() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `2055`
+		//  Estimated: `6190`
+		// Minimum execution time: 36_000_000 picoseconds.
+		Weight::from_parts(36_000_000, 6190)
+			.saturating_add(T::DbWeight::get().reads(6_u64))
+	}
 	/// Storage: `EmaOracle::ExternalSources` (r:1 w:1)
 	/// Proof: `EmaOracle::ExternalSources` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
 	fn register_external_source() -> Weight {

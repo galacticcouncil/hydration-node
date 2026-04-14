@@ -20,6 +20,7 @@ pub trait WeightInfo {
 	fn on_liquidity_changed_multiple_tokens(b: u32) -> Weight;
 	fn get_entry() -> Weight;
 	fn set_external_oracle() -> Weight;
+	fn set_oracle_by_ids() -> Weight;
 	fn register_external_source() -> Weight;
 	fn remove_external_source(n: u32) -> Weight;
 	fn add_authorized_account() -> Weight;
@@ -60,6 +61,10 @@ impl WeightInfo for () {
 	}
 
 	fn set_external_oracle() -> Weight {
+		Weight::zero()
+	}
+
+	fn set_oracle_by_ids() -> Weight {
 		Weight::zero()
 	}
 

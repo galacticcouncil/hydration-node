@@ -924,3 +924,168 @@ fn set_external_oracle_rejected_after_source_removed() {
 		);
 	});
 }
+
+#[test]
+fn set_oracle_by_ids_happy_path() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE,
+			HDX_DOT_PAIR,
+			ALICE
+		));
+
+		System::set_block_number(3);
+
+		let res = EmaOracle::set_oracle_by_ids(
+			RuntimeOrigin::signed(ALICE),
+			EXTERNAL_SOURCE,
+			HDX_DOT_PAIR.0,
+			HDX_DOT_PAIR.1,
+			(100, 99),
+		);
+		assert_eq!(res, Ok(Pays::No.into()));
+
+		let acc = Accumulator::<Test>::get();
+		assert!(acc.contains_key(&(EXTERNAL_SOURCE, ordered_pair(HDX_DOT_PAIR.0, HDX_DOT_PAIR.1))));
+	});
+}
+
+#[test]
+fn set_oracle_by_ids_unauthorized_rejected() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE
+		));
+
+		assert_noop!(
+			EmaOracle::set_oracle_by_ids(
+				RuntimeOrigin::signed(ALICE),
+				EXTERNAL_SOURCE,
+				HDX_DOT_PAIR.0,
+				HDX_DOT_PAIR.1,
+				(100, 99),
+			),
+			Error::<Test>::NotAuthorized
+		);
+	});
+}
+
+#[test]
+fn set_oracle_by_ids_unknown_asset_id_returns_not_authorized() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE
+		));
+		// Authorize ALICE only for the real pair.
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE,
+			HDX_DOT_PAIR,
+			ALICE
+		));
+
+		const BOGUS_ASSET_ID: AssetId = 99_999;
+		assert_noop!(
+			EmaOracle::set_oracle_by_ids(
+				RuntimeOrigin::signed(ALICE),
+				EXTERNAL_SOURCE,
+				HDX_DOT_PAIR.0,
+				BOGUS_ASSET_ID,
+				(100, 99),
+			),
+			Error::<Test>::NotAuthorized
+		);
+	});
+}
+
+#[test]
+fn set_oracle_by_ids_zero_price_rejected() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE,
+			HDX_DOT_PAIR,
+			ALICE
+		));
+
+		assert_noop!(
+			EmaOracle::set_oracle_by_ids(
+				RuntimeOrigin::signed(ALICE),
+				EXTERNAL_SOURCE,
+				HDX_DOT_PAIR.0,
+				HDX_DOT_PAIR.1,
+				(0, 100),
+			),
+			Error::<Test>::PriceIsZero
+		);
+
+		assert_noop!(
+			EmaOracle::set_oracle_by_ids(
+				RuntimeOrigin::signed(ALICE),
+				EXTERNAL_SOURCE,
+				HDX_DOT_PAIR.0,
+				HDX_DOT_PAIR.1,
+				(100, 0),
+			),
+			Error::<Test>::PriceIsZero
+		);
+	});
+}
+
+#[test]
+fn set_oracle_by_ids_unregistered_source_rejected() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			EmaOracle::set_oracle_by_ids(
+				RuntimeOrigin::signed(ALICE),
+				EXTERNAL_SOURCE,
+				HDX_DOT_PAIR.0,
+				HDX_DOT_PAIR.1,
+				(100, 99),
+			),
+			Error::<Test>::SourceNotFound
+		);
+	});
+}
+
+#[test]
+fn set_oracle_by_ids_accepts_reversed_id_order() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE
+		));
+		// Authorize the ordered pair (HDX_DOT_PAIR.0, HDX_DOT_PAIR.1) where .0 < .1.
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE,
+			HDX_DOT_PAIR,
+			ALICE
+		));
+
+		System::set_block_number(3);
+
+		// Caller passes the pair in reversed order; ordered_pair() normalizes it so auth still matches.
+		assert_ok!(EmaOracle::set_oracle_by_ids(
+			RuntimeOrigin::signed(ALICE),
+			EXTERNAL_SOURCE,
+			HDX_DOT_PAIR.1,
+			HDX_DOT_PAIR.0,
+			(100, 99),
+		));
+
+		let acc = Accumulator::<Test>::get();
+		assert!(acc.contains_key(&(EXTERNAL_SOURCE, ordered_pair(HDX_DOT_PAIR.0, HDX_DOT_PAIR.1))));
+	});
+}

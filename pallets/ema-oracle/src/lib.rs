@@ -442,6 +442,38 @@ pub mod pallet {
 			Self::do_set_oracle(who, source, asset_a, asset_b, price)
 		}
 
+		/// Update an external oracle entry using local `AssetId`s directly.
+		///
+		/// Cheaper variant of `set_external_oracle` for callers that already know the local
+		/// AssetIds — skips the `VersionedLocation` → `AssetId` conversion and the
+		/// `AssetRegistry::LocationAssets` storage read. Authorization shares the same
+		/// `AuthorizedAccounts` storage as the location variant.
+		///
+		/// Parameters:
+		/// - `origin`: signed origin — must be authorized for the specific `(source, pair)` via
+		///   `add_authorized_account`
+		/// - `source`: external source identifier (must be registered via `register_external_source`)
+		/// - `asset_a`: local AssetId of the first asset
+		/// - `asset_b`: local AssetId of the second asset
+		/// - `price`: price as `(numerator, denominator)` — both must be non-zero
+		///
+		/// The call is feeless on success (`Pays::No`).
+		///
+		/// Emits `OracleUpdated` event on the next `on_finalize`.
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_oracle_by_ids()
+			.saturating_add(fractional_on_finalize_weight::<T>(MAX_EXTERNAL_ENTRIES_PER_BLOCK)))]
+		pub fn set_oracle_by_ids(
+			origin: OriginFor<T>,
+			source: Source,
+			asset_a: AssetId,
+			asset_b: AssetId,
+			price: (Balance, Balance),
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			Self::do_set_oracle_inner(who, source, asset_a, asset_b, price)
+		}
+
 		/// Register a new external oracle source.
 		///
 		/// Parameters:
@@ -543,11 +575,21 @@ impl<T: Config> Pallet<T> {
 		asset_b: Box<polkadot_xcm::VersionedLocation>,
 		price: (Balance, Balance),
 	) -> DispatchResultWithPostInfo {
-		ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
-		ensure!(price.0 != 0 && price.1 != 0, Error::<T>::PriceIsZero);
-
 		let asset_a = T::LocationToAssetIdConversion::convert(*asset_a).ok_or(Error::<T>::AssetNotFound)?;
 		let asset_b = T::LocationToAssetIdConversion::convert(*asset_b).ok_or(Error::<T>::AssetNotFound)?;
+
+		Self::do_set_oracle_inner(who, source, asset_a, asset_b, price)
+	}
+
+	fn do_set_oracle_inner(
+		who: T::AccountId,
+		source: Source,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		price: (Balance, Balance),
+	) -> DispatchResultWithPostInfo {
+		ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
+		ensure!(price.0 != 0 && price.1 != 0, Error::<T>::PriceIsZero);
 
 		let ordered = ordered_pair(asset_a, asset_b);
 
