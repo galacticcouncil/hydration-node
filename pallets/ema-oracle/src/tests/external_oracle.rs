@@ -926,7 +926,7 @@ fn set_external_oracle_rejected_after_source_removed() {
 }
 
 #[test]
-fn set_oracle_by_ids_happy_path() {
+fn set_external_oracle_by_ids_happy_path() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(EmaOracle::register_external_source(
 			RuntimeOrigin::root(),
@@ -941,7 +941,7 @@ fn set_oracle_by_ids_happy_path() {
 
 		System::set_block_number(3);
 
-		let res = EmaOracle::set_oracle_by_ids(
+		let res = EmaOracle::set_external_oracle_by_ids(
 			RuntimeOrigin::signed(ALICE),
 			EXTERNAL_SOURCE,
 			HDX_DOT_PAIR.0,
@@ -956,7 +956,7 @@ fn set_oracle_by_ids_happy_path() {
 }
 
 #[test]
-fn set_oracle_by_ids_unauthorized_rejected() {
+fn set_external_oracle_by_ids_unauthorized_rejected() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(EmaOracle::register_external_source(
 			RuntimeOrigin::root(),
@@ -964,7 +964,7 @@ fn set_oracle_by_ids_unauthorized_rejected() {
 		));
 
 		assert_noop!(
-			EmaOracle::set_oracle_by_ids(
+			EmaOracle::set_external_oracle_by_ids(
 				RuntimeOrigin::signed(ALICE),
 				EXTERNAL_SOURCE,
 				HDX_DOT_PAIR.0,
@@ -977,7 +977,7 @@ fn set_oracle_by_ids_unauthorized_rejected() {
 }
 
 #[test]
-fn set_oracle_by_ids_unknown_asset_id_returns_not_authorized() {
+fn set_external_oracle_by_ids_unknown_asset_id_returns_not_authorized() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(EmaOracle::register_external_source(
 			RuntimeOrigin::root(),
@@ -993,7 +993,7 @@ fn set_oracle_by_ids_unknown_asset_id_returns_not_authorized() {
 
 		const BOGUS_ASSET_ID: AssetId = 99_999;
 		assert_noop!(
-			EmaOracle::set_oracle_by_ids(
+			EmaOracle::set_external_oracle_by_ids(
 				RuntimeOrigin::signed(ALICE),
 				EXTERNAL_SOURCE,
 				HDX_DOT_PAIR.0,
@@ -1006,7 +1006,7 @@ fn set_oracle_by_ids_unknown_asset_id_returns_not_authorized() {
 }
 
 #[test]
-fn set_oracle_by_ids_zero_price_rejected() {
+fn set_external_oracle_by_ids_zero_price_rejected() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(EmaOracle::register_external_source(
 			RuntimeOrigin::root(),
@@ -1020,7 +1020,7 @@ fn set_oracle_by_ids_zero_price_rejected() {
 		));
 
 		assert_noop!(
-			EmaOracle::set_oracle_by_ids(
+			EmaOracle::set_external_oracle_by_ids(
 				RuntimeOrigin::signed(ALICE),
 				EXTERNAL_SOURCE,
 				HDX_DOT_PAIR.0,
@@ -1031,7 +1031,7 @@ fn set_oracle_by_ids_zero_price_rejected() {
 		);
 
 		assert_noop!(
-			EmaOracle::set_oracle_by_ids(
+			EmaOracle::set_external_oracle_by_ids(
 				RuntimeOrigin::signed(ALICE),
 				EXTERNAL_SOURCE,
 				HDX_DOT_PAIR.0,
@@ -1044,10 +1044,10 @@ fn set_oracle_by_ids_zero_price_rejected() {
 }
 
 #[test]
-fn set_oracle_by_ids_unregistered_source_rejected() {
+fn set_external_oracle_by_ids_unregistered_source_rejected() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			EmaOracle::set_oracle_by_ids(
+			EmaOracle::set_external_oracle_by_ids(
 				RuntimeOrigin::signed(ALICE),
 				EXTERNAL_SOURCE,
 				HDX_DOT_PAIR.0,
@@ -1060,7 +1060,7 @@ fn set_oracle_by_ids_unregistered_source_rejected() {
 }
 
 #[test]
-fn set_oracle_by_ids_accepts_reversed_id_order() {
+fn set_external_oracle_by_ids_accepts_reversed_id_order() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(EmaOracle::register_external_source(
 			RuntimeOrigin::root(),
@@ -1077,7 +1077,7 @@ fn set_oracle_by_ids_accepts_reversed_id_order() {
 		System::set_block_number(3);
 
 		// Caller passes the pair in reversed order; ordered_pair() normalizes it so auth still matches.
-		assert_ok!(EmaOracle::set_oracle_by_ids(
+		assert_ok!(EmaOracle::set_external_oracle_by_ids(
 			RuntimeOrigin::signed(ALICE),
 			EXTERNAL_SOURCE,
 			HDX_DOT_PAIR.1,
