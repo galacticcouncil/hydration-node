@@ -179,7 +179,7 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(6_u64))
 	}
 
-	fn set_oracle_by_ids() -> Weight {
+	fn set_external_oracle_by_ids() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `2055`
 		//  Estimated: `6190`

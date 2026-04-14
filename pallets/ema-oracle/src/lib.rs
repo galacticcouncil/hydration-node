@@ -461,9 +461,9 @@ pub mod pallet {
 		///
 		/// Emits `OracleUpdated` event on the next `on_finalize`.
 		#[pallet::call_index(8)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_oracle_by_ids()
+		#[pallet::weight(<T as Config>::WeightInfo::set_external_oracle_by_ids()
 			.saturating_add(fractional_on_finalize_weight::<T>(MAX_EXTERNAL_ENTRIES_PER_BLOCK)))]
-		pub fn set_oracle_by_ids(
+		pub fn set_external_oracle_by_ids(
 			origin: OriginFor<T>,
 			source: Source,
 			asset_a: AssetId,

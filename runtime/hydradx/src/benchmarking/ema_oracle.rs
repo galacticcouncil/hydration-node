@@ -543,7 +543,7 @@ runtime_benchmarks! {
 		assert!(!Accumulator::<Runtime>::get().is_empty());
 	}
 
-	set_oracle_by_ids {
+	set_external_oracle_by_ids {
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
 		fill_whitelist_storage(max_entries - 1);
 
