@@ -9,6 +9,7 @@ use hydradx_runtime::{
 	Timestamp,
 };
 use hydradx_traits::amm::{AmmSimulator, SimulatorConfig, SimulatorSet};
+use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::BoundErc20;
 use ice_solver::v2::Solver as IceSolver;
@@ -3572,5 +3573,1183 @@ fn solver_v2_single_partial_whale() {
 				assert_eq!(stored2.data.amount_in(), whale_amount, "Original immutable");
 			}
 			println!("\ntest complete — partial fill across blocks verified");
+		});
+}
+
+/// All intents are partial, same direction (HDX → BNC).
+///
+/// Phase A (non-partial stabilization) is a no-op because `non_partial_fills` is empty.
+/// Phase B binary-searches each partial intent individually.
+/// Charlie has a tighter limit and should get a smaller fill percentage.
+#[test]
+fn solver_v2_all_partial_same_direction() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	let charlie: AccountId = CHARLIE.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let hdx_unit = 1_000_000_000_000u128;
+
+	// Spot: ~0.068 BNC/HDX
+	let alice_amount = 500_000 * hdx_unit;
+	let bob_amount = 300_000 * hdx_unit;
+	let charlie_amount = 200_000 * hdx_unit;
+
+	// Loose limit: 0.050 BNC/HDX
+	let alice_min = 25_000 * 1_000_000_000_000u128; // 500k * 0.050
+	let bob_min = 15_000 * 1_000_000_000_000u128; // 300k * 0.050
+											   // Tight limit: 0.066 BNC/HDX (close to spot ~0.068)
+	let charlie_min = 13_200 * 1_000_000_000_000u128; // 200k * 0.066
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, alice_amount * 2)
+		.endow_account(bob.clone(), hdx, bob_amount * 2)
+		.endow_account(charlie.clone(), hdx, charlie_amount * 2)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			// Submit all 3 as partial intents
+			for (who, amount, min_out, label) in [
+				(alice.clone(), alice_amount, alice_min, "alice"),
+				(bob.clone(), bob_amount, bob_min, "bob"),
+				(charlie.clone(), charlie_amount, charlie_min, "charlie"),
+			] {
+				assert_ok!(hydradx_runtime::Intent::submit_intent(
+					RuntimeOrigin::signed(who),
+					pallet_intent::types::IntentInput {
+						data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+							asset_in: hdx,
+							asset_out: bnc,
+							amount_in: amount,
+							amount_out: min_out,
+							partial: true,
+						}),
+						deadline,
+						on_resolved: None,
+					}
+				));
+				println!("{}: submitted {} HDX → BNC (partial)", label, amount / hdx_unit);
+			}
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 3, "Should have 3 intents");
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			println!(
+				"\nsolution: {} resolved, {} trades, score: {}",
+				solution.resolved_intents.len(),
+				solution.trades.len(),
+				solution.score
+			);
+
+			// At least some partial intents should be resolved.
+			// The solver processes partial intents sequentially in Phase B;
+			// later ones may not find viable fills if earlier fills consumed
+			// too much AMM capacity.
+			assert!(
+				!solution.resolved_intents.is_empty(),
+				"At least one partial intent should be resolved"
+			);
+			println!("resolved {} out of 3 intents", solution.resolved_intents.len());
+
+			// Track fills per account
+			let mut charlie_fill_pct = 0.0f64;
+			let mut alice_fill_pct = 0.0f64;
+			let mut bob_fill_pct = 0.0f64;
+
+			for ri in solution.resolved_intents.iter() {
+				let ice_support::IntentData::Swap(ref s) = ri.data else {
+					panic!("expected Swap");
+				};
+				assert!(s.partial.is_partial(), "All resolved intents should be partial");
+				assert!(s.amount_in > 0, "Fill amount must be > 0");
+
+				// Verify rate constraint: amount_out >= fill_amount * original_min / original_amount_in
+				let original = intents.iter().find(|(id, _)| *id == ri.id).expect("intent must exist");
+				let original_amount_in = original.1.data.amount_in();
+				let original_amount_out = original.1.data.amount_out();
+				let pro_rata_min = (sp_core::U256::from(s.amount_in) * sp_core::U256::from(original_amount_out)
+					/ sp_core::U256::from(original_amount_in))
+				.as_u128();
+				assert!(
+					s.amount_out >= pro_rata_min,
+					"Rate constraint violated: got {} out for {} in, pro_rata_min={}",
+					s.amount_out,
+					s.amount_in,
+					pro_rata_min
+				);
+
+				let pct = s.amount_in as f64 / original_amount_in as f64 * 100.0;
+				println!(
+					"resolved id={}: fill {} / {} ({:.1}%), amount_out={}",
+					ri.id, s.amount_in, original_amount_in, pct, s.amount_out
+				);
+
+				if original_amount_in == alice_amount {
+					alice_fill_pct = pct;
+				} else if original_amount_in == bob_amount {
+					bob_fill_pct = pct;
+				} else if original_amount_in == charlie_amount {
+					charlie_fill_pct = pct;
+				}
+			}
+
+			// Charlie (tight limit) should generally get a smaller fill % than Alice/Bob (loose limit)
+			// because the binary search is more constrained.
+			// Note: the solver processes partial intents sequentially, so this relationship
+			// depends on processing order. Log it for debugging.
+			println!(
+				"\nfill percentages: alice={:.1}%, bob={:.1}%, charlie={:.1}%",
+				alice_fill_pct, bob_fill_pct, charlie_fill_pct
+			);
+
+			assert!(solution.score > 0, "Score should be positive");
+
+			// Execute solution
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+			println!("submit_solution: OK");
+
+			// Verify ED guard invariant: each intent still in storage must have remaining >= ED
+			let hdx_ed = AssetRegistry::existential_deposit(hdx).unwrap_or(hdx_unit);
+			for (id, intent) in pallet_intent::Pallet::<Runtime>::get_valid_intents() {
+				let ice_support::IntentData::Swap(ref s) = intent.data else {
+					continue;
+				};
+				let remaining = s.remaining();
+				println!("intent {}: remaining={}", id, remaining);
+				assert!(
+					remaining == 0 || remaining >= hdx_ed,
+					"ED guard violated: intent {} has remaining={} < ED={}",
+					id,
+					remaining,
+					hdx_ed
+				);
+			}
+		});
+}
+
+/// A small partial intent should be fully filled and removed from storage,
+/// behaving identically to a non-partial intent.
+#[test]
+fn solver_v2_small_partial_fully_filled() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let hdx_unit = 1_000_000_000_000u128;
+
+	// Tiny amount: 1,000 HDX. No slippage concern.
+	let amount = 1_000 * hdx_unit;
+	// Loose limit: 0.050 BNC/HDX → min 50 BNC
+	let min_out = 50 * 1_000_000_000_000u128;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, amount * 10)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(alice.clone()),
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+						asset_in: hdx,
+						asset_out: bnc,
+						amount_in: amount,
+						amount_out: min_out,
+						partial: true,
+					}),
+					deadline,
+					on_resolved: None,
+				}
+			));
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 1);
+			let intent_id = intents[0].0;
+
+			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
+			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			assert_eq!(solution.resolved_intents.len(), 1);
+			let ri = &solution.resolved_intents[0];
+			let ice_support::IntentData::Swap(ref s) = ri.data else {
+				panic!("expected Swap");
+			};
+
+			// Small partial should be FULLY filled
+			assert_eq!(s.amount_in, amount, "Small partial intent should be fully filled");
+			assert!(s.amount_out >= min_out, "Rate constraint must be met");
+
+			println!(
+				"fully filled: {} HDX → {} BNC (rate: {:.6})",
+				s.amount_in as f64 / hdx_unit as f64,
+				s.amount_out as f64 / 1_000_000_000_000f64,
+				s.amount_out as f64 / s.amount_in as f64
+			);
+
+			let expected_bnc_out = s.amount_out;
+
+			// Execute
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+
+			// Intent should be REMOVED from storage (fully filled partial)
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(intent_id).is_none(),
+				"Fully filled partial intent should be removed from storage"
+			);
+
+			// Verify balances
+			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
+			let alice_bnc_after = Currencies::total_balance(bnc, &alice);
+			let hdx_spent = alice_hdx_before.saturating_sub(alice_hdx_after);
+			let bnc_received = alice_bnc_after.saturating_sub(alice_bnc_before);
+
+			assert_eq!(hdx_spent, amount, "Alice should spend exactly the fill amount");
+			let fee = hydradx_runtime::IceFee::get().mul_floor(expected_bnc_out);
+			assert_eq!(
+				bnc_received,
+				expected_bnc_out.saturating_sub(fee),
+				"Alice should receive amount_out minus fee"
+			);
+			println!("submit_solution: OK — intent fully resolved and removed");
+		});
+}
+
+/// Mixed: small partial intent alongside non-partial intents.
+/// All are small enough to be fully filled.
+#[test]
+fn solver_v2_mixed_small_partial_and_non_partial() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	let charlie: AccountId = CHARLIE.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let hdx_unit = 1_000_000_000_000u128;
+
+	let amount_ab = 10_000 * hdx_unit;
+	let amount_c = 5_000 * hdx_unit;
+	// Loose limit: 0.050 BNC/HDX
+	let min_ab = 500 * 1_000_000_000_000u128; // 10k * 0.050
+	let min_c = 250 * 1_000_000_000_000u128; // 5k * 0.050
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, amount_ab * 10)
+		.endow_account(bob.clone(), hdx, amount_ab * 10)
+		.endow_account(charlie.clone(), hdx, amount_c * 10)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			// Alice and Bob: non-partial
+			for (who, label) in [(alice.clone(), "alice"), (bob.clone(), "bob")] {
+				assert_ok!(hydradx_runtime::Intent::submit_intent(
+					RuntimeOrigin::signed(who),
+					pallet_intent::types::IntentInput {
+						data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+							asset_in: hdx,
+							asset_out: bnc,
+							amount_in: amount_ab,
+							amount_out: min_ab,
+							partial: false,
+						}),
+						deadline,
+						on_resolved: None,
+					}
+				));
+				println!("{}: {} HDX → BNC (non-partial)", label, amount_ab / hdx_unit);
+			}
+
+			// Charlie: partial
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(charlie.clone()),
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+						asset_in: hdx,
+						asset_out: bnc,
+						amount_in: amount_c,
+						amount_out: min_c,
+						partial: true,
+					}),
+					deadline,
+					on_resolved: None,
+				}
+			));
+			println!("charlie: {} HDX → BNC (partial)", amount_c / hdx_unit);
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 3);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			assert_eq!(solution.resolved_intents.len(), 3, "All 3 intents should be resolved");
+
+			// Verify all are fully filled
+			for ri in solution.resolved_intents.iter() {
+				let ice_support::IntentData::Swap(ref s) = ri.data else {
+					panic!("expected Swap");
+				};
+				let original = intents.iter().find(|(id, _)| *id == ri.id).expect("intent");
+				assert_eq!(
+					s.amount_in,
+					original.1.data.amount_in(),
+					"Intent {} should be fully filled",
+					ri.id
+				);
+				println!(
+					"id={}: fill={} (full), amount_out={}, partial={:?}",
+					ri.id, s.amount_in, s.amount_out, s.partial
+				);
+			}
+
+			// Execute
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+
+			// All intents should be removed from storage (fully resolved)
+			let remaining = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert!(
+				remaining.is_empty(),
+				"All intents should be removed after full resolution, but {} remain",
+				remaining.len()
+			);
+			println!("submit_solution: OK — all 3 intents fully resolved and removed");
+		});
+}
+
+/// Two partial intents in opposing directions (HDX→BNC and BNC→HDX).
+/// Both are partial, Phase A is a no-op.
+/// Direct matching between partials should give better rates than AMM-only.
+#[test]
+fn solver_v2_all_partial_opposing_directions() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+
+	// Alice: sell 500k HDX for BNC. Loose limit.
+	let alice_amount = 500_000 * hdx_unit;
+	let alice_min = 25_000 * bnc_unit; // 0.050 BNC/HDX
+
+	// Bob: sell 20k BNC for HDX. Loose limit.
+	// At spot ~14.7 HDX/BNC, 20k BNC = ~294k HDX
+	let bob_amount = 20_000 * bnc_unit;
+	let bob_min = 200_000 * hdx_unit; // 10 HDX/BNC (well below spot ~14.7)
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, alice_amount * 2)
+		.endow_account(bob.clone(), bnc, bob_amount * 2)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			// Alice: HDX → BNC (partial)
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(alice.clone()),
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+						asset_in: hdx,
+						asset_out: bnc,
+						amount_in: alice_amount,
+						amount_out: alice_min,
+						partial: true,
+					}),
+					deadline,
+					on_resolved: None,
+				}
+			));
+
+			// Bob: BNC → HDX (partial, opposing direction)
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(bob.clone()),
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+						asset_in: bnc,
+						asset_out: hdx,
+						amount_in: bob_amount,
+						amount_out: bob_min,
+						partial: true,
+					}),
+					deadline,
+					on_resolved: None,
+				}
+			));
+
+			println!(
+				"alice: {} HDX → BNC (partial), bob: {} BNC → HDX (partial)",
+				alice_amount / hdx_unit,
+				bob_amount / bnc_unit
+			);
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 2);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			println!(
+				"solution: {} resolved, {} trades, score: {}",
+				solution.resolved_intents.len(),
+				solution.trades.len(),
+				solution.score
+			);
+
+			// Both should be resolved
+			assert!(
+				solution.resolved_intents.len() >= 2,
+				"Both opposing partial intents should be resolved"
+			);
+
+			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
+			let alice_bnc_before = Currencies::total_balance(bnc, &alice);
+			let bob_hdx_before = Currencies::total_balance(hdx, &bob);
+			let bob_bnc_before = Currencies::total_balance(bnc, &bob);
+
+			for ri in solution.resolved_intents.iter() {
+				let ice_support::IntentData::Swap(ref s) = ri.data else {
+					panic!("expected Swap");
+				};
+				let original = intents.iter().find(|(id, _)| *id == ri.id).expect("intent");
+				let orig_in = original.1.data.amount_in();
+				let orig_out = original.1.data.amount_out();
+				let pro_rata_min = (sp_core::U256::from(s.amount_in) * sp_core::U256::from(orig_out)
+					/ sp_core::U256::from(orig_in))
+				.as_u128();
+
+				assert!(s.amount_in > 0, "Fill must be > 0");
+				assert!(
+					s.amount_out >= pro_rata_min,
+					"Rate constraint violated for intent {}: out={} < pro_rata_min={}",
+					ri.id,
+					s.amount_out,
+					pro_rata_min
+				);
+
+				println!(
+					"id={}: {} {} → {} {}, fill {:.1}%",
+					ri.id,
+					s.amount_in,
+					s.asset_in,
+					s.amount_out,
+					s.asset_out,
+					s.amount_in as f64 / orig_in as f64 * 100.0
+				);
+			}
+
+			// Execute
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+			println!("submit_solution: OK");
+
+			// Verify balance changes
+			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
+			let alice_bnc_after = Currencies::total_balance(bnc, &alice);
+			let bob_hdx_after = Currencies::total_balance(hdx, &bob);
+			let bob_bnc_after = Currencies::total_balance(bnc, &bob);
+
+			assert!(alice_hdx_after < alice_hdx_before, "Alice should have spent HDX");
+			assert!(alice_bnc_after > alice_bnc_before, "Alice should have received BNC");
+			assert!(bob_bnc_after < bob_bnc_before, "Bob should have spent BNC");
+			assert!(bob_hdx_after > bob_hdx_before, "Bob should have received HDX");
+
+			println!(
+				"alice: HDX {} → {}, BNC {} → {}",
+				alice_hdx_before, alice_hdx_after, alice_bnc_before, alice_bnc_after
+			);
+			println!(
+				"bob: BNC {} → {}, HDX {} → {}",
+				bob_bnc_before, bob_bnc_after, bob_hdx_before, bob_hdx_after
+			);
+
+			// ED guard: remaining intents should have remaining >= ED
+			let hdx_ed = AssetRegistry::existential_deposit(hdx).unwrap_or(hdx_unit);
+			let bnc_ed = AssetRegistry::existential_deposit(bnc).unwrap_or(bnc_unit);
+			for (id, intent) in pallet_intent::Pallet::<Runtime>::get_valid_intents() {
+				let ice_support::IntentData::Swap(ref s) = intent.data else {
+					continue;
+				};
+				let ed = if s.asset_in == hdx { hdx_ed } else { bnc_ed };
+				assert!(
+					s.remaining() >= ed,
+					"ED guard: intent {} has remaining={} < ED={}",
+					id,
+					s.remaining(),
+					ed
+				);
+			}
+		});
+}
+
+/// Two large partial intents in the same direction competing for limited AMM capacity.
+/// The pool can only absorb ~2-3M HDX total before slippage violates the tight rate.
+#[test]
+fn solver_v2_competing_partial_intents() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let hdx_unit = 1_000_000_000_000u128;
+
+	let amount = 3_000_000 * hdx_unit;
+	// Tight limit: ~0.066 BNC/HDX (spot ~0.068)
+	let min_out = 198_000 * 1_000_000_000_000u128; // 3M * 0.066
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, amount * 2)
+		.endow_account(bob.clone(), hdx, amount * 2)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			for (who, label) in [(alice.clone(), "alice"), (bob.clone(), "bob")] {
+				assert_ok!(hydradx_runtime::Intent::submit_intent(
+					RuntimeOrigin::signed(who),
+					pallet_intent::types::IntentInput {
+						data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+							asset_in: hdx,
+							asset_out: bnc,
+							amount_in: amount,
+							amount_out: min_out,
+							partial: true,
+						}),
+						deadline,
+						on_resolved: None,
+					}
+				));
+				println!("{}: {} HDX → BNC (partial, tight limit)", label, amount / hdx_unit);
+			}
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 2);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			println!(
+				"solution: {} resolved, {} trades, score: {}",
+				solution.resolved_intents.len(),
+				solution.trades.len(),
+				solution.score
+			);
+
+			// At least one should be resolved. The solver processes partial intents
+			// sequentially — the second may not find a viable fill if the first
+			// consumed the AMM capacity at the tight rate.
+			assert!(
+				!solution.resolved_intents.is_empty(),
+				"At least one partial intent should be resolved"
+			);
+			println!("resolved {} out of 2 intents", solution.resolved_intents.len());
+
+			let mut total_fill = 0u128;
+			for ri in solution.resolved_intents.iter() {
+				let ice_support::IntentData::Swap(ref s) = ri.data else {
+					panic!("expected Swap");
+				};
+				assert!(s.amount_in > 0, "Fill must be > 0");
+
+				let pro_rata_min = (sp_core::U256::from(s.amount_in) * sp_core::U256::from(min_out)
+					/ sp_core::U256::from(amount))
+				.as_u128();
+				assert!(
+					s.amount_out >= pro_rata_min,
+					"Rate constraint violated: out={} < min={}",
+					s.amount_out,
+					pro_rata_min
+				);
+
+				total_fill += s.amount_in;
+				println!(
+					"id={}: fill {} ({:.1}%), out={}",
+					ri.id,
+					s.amount_in,
+					s.amount_in as f64 / amount as f64 * 100.0,
+					s.amount_out
+				);
+			}
+
+			println!(
+				"total fill: {} HDX ({:.1}% of combined 6M)",
+				total_fill,
+				total_fill as f64 / (2.0 * amount as f64) * 100.0
+			);
+			assert!(solution.score > 0, "Score should be positive");
+
+			// Execute
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+			println!("submit_solution: OK");
+
+			// Resolved intents that were partially filled should remain in storage.
+			// Intents not included in the solution also remain (unfilled).
+			let remaining_intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			println!("{} intents remain in storage", remaining_intents.len());
+
+			let hdx_ed = AssetRegistry::existential_deposit(hdx).unwrap_or(hdx_unit);
+			for (id, intent) in &remaining_intents {
+				let ice_support::IntentData::Swap(ref s) = intent.data else {
+					continue;
+				};
+				assert!(s.remaining() > 0, "Intent {} should have remaining", id);
+				assert!(
+					s.remaining() >= hdx_ed,
+					"ED guard: intent {} remaining={} < ED={}",
+					id,
+					s.remaining(),
+					hdx_ed
+				);
+				println!(
+					"intent {}: filled={}, remaining={}",
+					id,
+					s.partial.filled(),
+					s.remaining()
+				);
+			}
+		});
+}
+
+/// Non-partial intent + partial intent in opposing directions.
+/// Phase A handles the non-partial, Phase B handles the partial.
+#[test]
+fn solver_v2_partial_with_non_partial_opposing() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+
+	// Alice: sell 100k HDX for BNC (non-partial, loose limit)
+	let alice_amount = 100_000 * hdx_unit;
+	let alice_min = 5_000 * bnc_unit; // 0.050 BNC/HDX
+
+	// Bob: sell 500k BNC for HDX (partial, loose limit)
+	// At spot ~14.7 HDX/BNC, 500k BNC = ~7.35M HDX. Alice's 100k HDX is ~6.8k BNC.
+	// So Alice is the scarce side; most of Bob's volume goes through AMM.
+	let bob_amount = 500_000 * bnc_unit;
+	let bob_min = 5_000_000 * hdx_unit; // 10 HDX/BNC
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, alice_amount * 2)
+		.endow_account(bob.clone(), bnc, bob_amount * 2)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			// Alice: non-partial
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(alice.clone()),
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+						asset_in: hdx,
+						asset_out: bnc,
+						amount_in: alice_amount,
+						amount_out: alice_min,
+						partial: false,
+					}),
+					deadline,
+					on_resolved: None,
+				}
+			));
+
+			// Bob: partial
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(bob.clone()),
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+						asset_in: bnc,
+						asset_out: hdx,
+						amount_in: bob_amount,
+						amount_out: bob_min,
+						partial: true,
+					}),
+					deadline,
+					on_resolved: None,
+				}
+			));
+
+			println!(
+				"alice: {} HDX → BNC (non-partial), bob: {} BNC → HDX (partial)",
+				alice_amount / hdx_unit,
+				bob_amount / bnc_unit
+			);
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 2);
+
+			// Find intent IDs
+			let alice_intent_id = intents
+				.iter()
+				.find(|(_, i)| {
+					let ice_support::IntentData::Swap(ref s) = i.data else {
+						return false;
+					};
+					s.asset_in == hdx && !s.partial.is_partial()
+				})
+				.map(|(id, _)| *id)
+				.expect("alice intent");
+
+			let bob_intent_id = intents
+				.iter()
+				.find(|(_, i)| {
+					let ice_support::IntentData::Swap(ref s) = i.data else {
+						return false;
+					};
+					s.asset_in == bnc && s.partial.is_partial()
+				})
+				.map(|(id, _)| *id)
+				.expect("bob intent");
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			println!(
+				"solution: {} resolved, {} trades, score: {}",
+				solution.resolved_intents.len(),
+				solution.trades.len(),
+				solution.score
+			);
+
+			// Both should be resolved
+			assert!(solution.resolved_intents.len() >= 2, "Both intents should be resolved");
+
+			// Alice should be fully resolved (non-partial)
+			let alice_resolved = solution
+				.resolved_intents
+				.iter()
+				.find(|ri| ri.id == alice_intent_id)
+				.expect("Alice should be in solution");
+			let ice_support::IntentData::Swap(ref alice_swap) = alice_resolved.data else {
+				panic!("expected Swap");
+			};
+			assert_eq!(
+				alice_swap.amount_in, alice_amount,
+				"Alice (non-partial) should be fully filled"
+			);
+			println!(
+				"alice: fully filled {} HDX → {} BNC",
+				alice_swap.amount_in, alice_swap.amount_out
+			);
+
+			// Bob should be resolved (possibly partially)
+			let bob_resolved = solution
+				.resolved_intents
+				.iter()
+				.find(|ri| ri.id == bob_intent_id)
+				.expect("Bob should be in solution");
+			let ice_support::IntentData::Swap(ref bob_swap) = bob_resolved.data else {
+				panic!("expected Swap");
+			};
+			assert!(bob_swap.amount_in > 0, "Bob should have some fill");
+			let bob_fill_amount = bob_swap.amount_in;
+			let bob_pro_rata = (sp_core::U256::from(bob_fill_amount) * sp_core::U256::from(bob_min)
+				/ sp_core::U256::from(bob_amount))
+			.as_u128();
+			assert!(bob_swap.amount_out >= bob_pro_rata, "Bob rate constraint violated");
+			println!(
+				"bob: fill {} / {} BNC ({:.1}%), out={} HDX",
+				bob_fill_amount,
+				bob_amount,
+				bob_fill_amount as f64 / bob_amount as f64 * 100.0,
+				bob_swap.amount_out
+			);
+
+			// Execute
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+			println!("submit_solution: OK");
+
+			// Alice's intent should be removed (non-partial, fully resolved)
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(alice_intent_id).is_none(),
+				"Alice's non-partial intent should be removed"
+			);
+
+			// Bob's intent should remain if partially filled
+			if bob_fill_amount < bob_amount {
+				let stored = pallet_intent::Pallet::<Runtime>::get_intent(bob_intent_id)
+					.expect("Bob's partial intent should remain");
+				let ice_support::IntentData::Swap(ref s) = stored.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.partial.filled(), bob_fill_amount);
+				assert!(s.remaining() > 0);
+				let bnc_ed = AssetRegistry::existential_deposit(bnc).unwrap_or(bnc_unit);
+				assert!(
+					s.remaining() >= bnc_ed,
+					"ED guard: remaining={} < ED={}",
+					s.remaining(),
+					bnc_ed
+				);
+				println!(
+					"bob intent remains: filled={}, remaining={}",
+					s.partial.filled(),
+					s.remaining()
+				);
+			} else {
+				assert!(
+					pallet_intent::Pallet::<Runtime>::get_intent(bob_intent_id).is_none(),
+					"Bob's intent should be removed if fully filled"
+				);
+				println!("bob intent fully resolved and removed");
+			}
+		});
+}
+
+/// Cancel a partially filled intent. The unfilled portion should be returned to the user.
+///
+/// Block 1: Dave submits a large partial intent, solver partially fills it.
+/// Block 2: Dave cancels the remaining portion via `remove_intent`.
+/// Verify: Dave gets back the unfilled HDX, keeps the BNC from the fill.
+#[test]
+fn solver_v2_cancel_after_partial_fill() {
+	TestNet::reset();
+
+	let dave: AccountId = DAVE.into();
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let hdx_unit = 1_000_000_000_000u128;
+
+	let total_amount = 5_000_000 * hdx_unit;
+	// Tight limit: ~0.065 BNC/HDX
+	let min_out = 325_000 * 1_000_000_000_000u128;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(dave.clone(), hdx, total_amount * 2)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(dave.clone()),
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+						asset_in: hdx,
+						asset_out: bnc,
+						amount_in: total_amount,
+						amount_out: min_out,
+						partial: true,
+					}),
+					deadline,
+					on_resolved: None,
+				}
+			));
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 1);
+			let intent_id = intents[0].0;
+
+			let dave_hdx_before = Currencies::total_balance(hdx, &dave);
+			let dave_bnc_before = Currencies::total_balance(bnc, &dave);
+
+			// --- Block 1: Solver partially fills Dave ---
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			assert_eq!(solution.resolved_intents.len(), 1);
+			let ice_support::IntentData::Swap(ref s) = solution.resolved_intents[0].data else {
+				panic!("expected Swap");
+			};
+			let fill_amount = s.amount_in;
+			let fill_bnc_out = s.amount_out;
+			assert!(fill_amount > 0, "Should have some fill");
+			assert!(fill_amount < total_amount, "Should be partial fill, not full");
+
+			println!(
+				"fill: {} HDX ({:.1}%), out: {} BNC",
+				fill_amount,
+				fill_amount as f64 / total_amount as f64 * 100.0,
+				fill_bnc_out
+			);
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+
+			// Verify partial fill state
+			let stored = pallet_intent::Pallet::<Runtime>::get_intent(intent_id)
+				.expect("Intent should still exist after partial fill");
+			let ice_support::IntentData::Swap(ref stored_swap) = stored.data else {
+				panic!("expected Swap");
+			};
+			assert_eq!(stored_swap.partial.filled(), fill_amount);
+			let remaining = stored_swap.remaining();
+			assert!(remaining > 0);
+			println!(
+				"after fill: filled={}, remaining={}",
+				stored_swap.partial.filled(),
+				remaining
+			);
+
+			let dave_hdx_after_fill = Currencies::total_balance(hdx, &dave);
+			let dave_bnc_after_fill = Currencies::total_balance(bnc, &dave);
+
+			// Dave should have spent the fill amount of HDX and received BNC (minus fee)
+			let hdx_spent = dave_hdx_before.saturating_sub(dave_hdx_after_fill);
+			assert_eq!(hdx_spent, fill_amount, "HDX spent should equal fill amount");
+
+			let fee = hydradx_runtime::IceFee::get().mul_floor(fill_bnc_out);
+			let expected_bnc = fill_bnc_out.saturating_sub(fee);
+			let bnc_received = dave_bnc_after_fill.saturating_sub(dave_bnc_before);
+			assert_eq!(bnc_received, expected_bnc, "BNC received should match payout");
+
+			// --- Block 2: Dave cancels the remaining intent ---
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+
+			assert_ok!(hydradx_runtime::Intent::remove_intent(
+				RuntimeOrigin::signed(dave.clone()),
+				intent_id
+			));
+
+			// Intent should be gone
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(intent_id).is_none(),
+				"Intent should be removed after cancellation"
+			);
+
+			// Dave should get back the remaining HDX (unreserved)
+			let dave_hdx_after_cancel = Currencies::total_balance(hdx, &dave);
+			let hdx_returned = dave_hdx_after_cancel.saturating_sub(dave_hdx_after_fill);
+			println!(
+				"after cancel: HDX returned={}, expected remaining={}",
+				hdx_returned, remaining
+			);
+			// The remaining amount was locked via named reserve. Cancellation unreserves it,
+			// which increases free balance but total_balance stays the same (reserved → free).
+			// We check that the total balance didn't change after cancellation (just reserve → free).
+			assert_eq!(
+				dave_hdx_after_cancel, dave_hdx_after_fill,
+				"Total HDX balance should not change on cancel (just unreserves)"
+			);
+
+			// Verify account cleanup
+			assert_eq!(
+				pallet_intent::AccountIntents::<Runtime>::iter_prefix(&dave).count(),
+				0,
+				"Account intent index should be cleaned up"
+			);
+			assert_eq!(
+				pallet_intent::Pallet::<Runtime>::account_intent_count(&dave),
+				0,
+				"Account intent count should be 0"
+			);
+
+			println!(
+				"\nfinal state: dave HDX={}, BNC={}",
+				dave_hdx_after_cancel, dave_bnc_after_fill
+			);
+			println!("cancel after partial fill: OK");
+		});
+}
+
+/// A large partial intent with an extremely loose limit gets fully filled.
+/// The minimum rate is trivially met, so the solver fills the entire amount.
+#[test]
+fn solver_v2_partial_loose_limit_full_fill() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let hdx_unit = 1_000_000_000_000u128;
+
+	let amount = 1_000_000 * hdx_unit;
+	// Absurdly loose limit: 1 BNC for 1,000,000 HDX
+	let min_out = 1_000_000_000_000u128; // 1 BNC
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, amount * 2)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(alice.clone()),
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+						asset_in: hdx,
+						asset_out: bnc,
+						amount_in: amount,
+						amount_out: min_out,
+						partial: true,
+					}),
+					deadline,
+					on_resolved: None,
+				}
+			));
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 1);
+			let intent_id = intents[0].0;
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			assert_eq!(solution.resolved_intents.len(), 1);
+			let ri = &solution.resolved_intents[0];
+			let ice_support::IntentData::Swap(ref s) = ri.data else {
+				panic!("expected Swap");
+			};
+
+			// With such a loose limit, the full amount should be fillable
+			assert_eq!(s.amount_in, amount, "Loose-limit partial intent should be fully filled");
+
+			// amount_out should be WAY above the 1 BNC minimum
+			// At spot ~0.068, 1M HDX → ~68k BNC
+			assert!(
+				s.amount_out > min_out * 1000,
+				"Output should massively exceed minimum: {} vs {}",
+				s.amount_out,
+				min_out
+			);
+
+			// Score should be very large (surplus = amount_out - pro_rata_min ≈ amount_out - 1 BNC)
+			assert!(
+				solution.score > s.amount_out / 2,
+				"Score should be substantial: {} vs amount_out {}",
+				solution.score,
+				s.amount_out
+			);
+
+			println!(
+				"fully filled: {} HDX → {} BNC (min was {} BNC), score={}",
+				s.amount_in / hdx_unit,
+				s.amount_out / 1_000_000_000_000u128,
+				min_out / 1_000_000_000_000u128,
+				solution.score
+			);
+
+			// Execute
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+
+			// Intent should be removed (fully filled)
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(intent_id).is_none(),
+				"Fully filled partial intent should be removed from storage"
+			);
+			println!("submit_solution: OK — loose-limit partial fully resolved and removed");
 		});
 }
