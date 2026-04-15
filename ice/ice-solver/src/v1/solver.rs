@@ -29,7 +29,7 @@ use hydradx_traits::amm::AMMInterface;
 use hydradx_traits::router::Route;
 use ice_support::{
 	AssetId, Balance, Intent, IntentData, IntentId, PoolTrade, ResolvedIntent, ResolvedIntents, Solution,
-	SolutionTrades, SwapData, SwapType,
+	SolutionTrades, SwapData, SwapType, MAX_NUMBER_OF_RESOLVED_INTENTS,
 };
 use sp_core::U256;
 use sp_std::collections::btree_map::BTreeMap;
@@ -276,6 +276,15 @@ impl<A: AMMInterface> Solver<A> {
 		}
 
 		log::debug!(target: "solver", "after iterative clearing: {} intents remaining", included.len());
+
+		// Cap to MAX_NUMBER_OF_RESOLVED_INTENTS to avoid score/solution mismatch
+		// from BoundedVec::truncate_from silently dropping intents after score is computed.
+		// TODO: implement smarter selection instead of just taking the first N.
+		if included.len() > MAX_NUMBER_OF_RESOLVED_INTENTS as usize {
+			log::debug!(target: "solver", "capping included intents from {} to {}",
+				included.len(), MAX_NUMBER_OF_RESOLVED_INTENTS);
+			included.truncate(MAX_NUMBER_OF_RESOLVED_INTENTS as usize);
+		}
 
 		if included.len() == 1 {
 			return Self::solve_single_intent(included[0], &initial_state);

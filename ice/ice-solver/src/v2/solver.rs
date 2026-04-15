@@ -21,7 +21,7 @@ use hydradx_traits::amm::AMMInterface;
 use hydradx_traits::router::Route;
 use ice_support::{
 	AssetId, Balance, Intent, IntentData, IntentId, PoolTrade, ResolvedIntent, ResolvedIntents, Solution,
-	SolutionTrades, SwapData, SwapType,
+	SolutionTrades, SwapData, SwapType, MAX_NUMBER_OF_RESOLVED_INTENTS,
 };
 use sp_core::U256;
 use sp_std::collections::btree_map::BTreeMap;
@@ -474,6 +474,17 @@ impl<A: AMMInterface> Solver<A> {
 		}
 
 		log::debug!(target: "solver::v2", "after iterative clearing: {} fills remaining", fills.len());
+
+		// Cap to MAX_NUMBER_OF_RESOLVED_INTENTS to avoid score/solution mismatch
+		// from BoundedVec::truncate_from silently dropping intents after score is computed.
+		// TODO: implement smarter selection (e.g. prioritize by surplus, matchability)
+		// instead of just taking the first N. For now this is fine — reaching 100 intents
+		// in a single solution is rare in practice.
+		if fills.len() > MAX_NUMBER_OF_RESOLVED_INTENTS as usize {
+			log::debug!(target: "solver::v2", "capping fills from {} to {}",
+				fills.len(), MAX_NUMBER_OF_RESOLVED_INTENTS);
+			fills.truncate(MAX_NUMBER_OF_RESOLVED_INTENTS as usize);
+		}
 
 		// Convert fills to included intents for the rest of the pipeline
 		// (ring detection, AMM trades, unified rates, resolution)
