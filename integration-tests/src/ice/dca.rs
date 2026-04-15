@@ -632,7 +632,8 @@ fn dca_through_stableswap_single_hop() {
 				None
 			}
 		});
-		let (asset_in, asset_out, decimals_in, decimals_out) = selected.expect("no suitable stableswap pool in snapshot");
+		let (asset_in, asset_out, decimals_in, decimals_out) =
+			selected.expect("no suitable stableswap pool in snapshot");
 
 		let per_trade_in = 100 * 10u128.pow(decimals_in as u32);
 		let per_trade_out_min = 10u128.pow(decimals_out as u32);
@@ -710,7 +711,10 @@ fn dca_through_omnipool_and_stableswap_multi_hop() {
 			.expect("no stableswap asset with HDX route in snapshot");
 
 		let per_trade_in = TRADE_AMOUNT;
-		let per_trade_out_min = <pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(stable_asset_id)
+		let per_trade_out_min =
+			<pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(
+				stable_asset_id,
+			)
 			.expect("stable asset has ED");
 		let budget = 2 * per_trade_in;
 
@@ -766,8 +770,10 @@ fn dca_through_aave_pair() {
 
 		let aave_snapshot = AaveSimulator::<ice_simulator_provider::Aave<Runtime>>::snapshot();
 		let picked = aave_snapshot.pairs.iter().find_map(|(a, b)| {
-			let ed_in = <pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(*a)?;
-			let ed_out = <pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(*b)?;
+			let ed_in =
+				<pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(*a)?;
+			let ed_out =
+				<pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(*b)?;
 			Some((*a, *b, ed_in, ed_out))
 		});
 
@@ -848,8 +854,9 @@ fn dca_stays_alive_when_trade_fails_until_lockdown_is_lifted() {
 
 		let per_trade_in = 10u128 * 10u128.pow(decimals_a as u32);
 		let budget = 2 * per_trade_in;
-		let ed_pool = <pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(pool_id)
-			.expect("pool_id has ED");
+		let ed_pool =
+			<pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(pool_id)
+				.expect("pool_id has ED");
 
 		assert_ok!(Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -891,10 +898,9 @@ fn dca_stays_alive_when_trade_fails_until_lockdown_is_lifted() {
 
 		// Solver operates off-chain (no circuit breaker there) so it produces a solution;
 		// on-chain dispatch rejects it because of the lockdown. Intent must stay untouched.
-		let call = pallet_ice::Pallet::<Runtime>::run(
-			hydradx_runtime::System::block_number(),
-			|intents, state| Solver::solve(intents, state).ok(),
-		);
+		let call = pallet_ice::Pallet::<Runtime>::run(hydradx_runtime::System::block_number(), |intents, state| {
+			Solver::solve(intents, state).ok()
+		});
 		if let Some(pallet_ice::Call::submit_solution { solution, .. }) = call {
 			hydradx_run_to_next_block();
 			let res = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
@@ -941,8 +947,9 @@ fn dca_works_when_free_balance_is_exactly_ed_after_reserve() {
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
 		enable_slip_fees();
 
-		let hdx_ed = <pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(HDX)
-			.expect("HDX has ED");
+		let hdx_ed =
+			<pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(HDX)
+				.expect("HDX has ED");
 
 		// force_set_balance (not endow) because we need the exact value `budget + ED`.
 		assert_ok!(Balances::force_set_balance(
@@ -1002,8 +1009,9 @@ fn dca_retries_every_block_until_success() {
 
 		let per_trade_in = 10u128 * 10u128.pow(decimals as u32);
 		let budget = 2 * per_trade_in;
-		let ed_pool = <pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(pool_id)
-			.expect("pool_id has ED");
+		let ed_pool =
+			<pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(pool_id)
+				.expect("pool_id has ED");
 
 		assert_ok!(Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -1042,10 +1050,9 @@ fn dca_retries_every_block_until_success() {
 			hydradx_run_to_next_block();
 		}
 
-		let call = pallet_ice::Pallet::<Runtime>::run(
-			hydradx_runtime::System::block_number(),
-			|intents, state| Solver::solve(intents, state).ok(),
-		);
+		let call = pallet_ice::Pallet::<Runtime>::run(hydradx_runtime::System::block_number(), |intents, state| {
+			Solver::solve(intents, state).ok()
+		});
 		if let Some(pallet_ice::Call::submit_solution { solution, .. }) = call {
 			hydradx_run_to_next_block();
 			let res = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
@@ -1113,7 +1120,10 @@ fn dca_residual_budget_returned_without_partial_trade() {
 			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0);
 
 			let residual = TRADE_AMOUNT / 2;
-			assert_eq!(Currencies::free_balance(HDX, &alice), hdx_free_before - budget + residual);
+			assert_eq!(
+				Currencies::free_balance(HDX, &alice),
+				hdx_free_before - budget + residual
+			);
 			assert_eq!(Currencies::reserved_balance(HDX, &alice), 0);
 			assert!(Currencies::total_balance(BNC, &alice) > bnc_before);
 		});

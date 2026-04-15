@@ -10160,7 +10160,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.17.0"
+version = "1.18.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -15799,7 +15799,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.77.0"
+version = "1.78.0"
 dependencies = [
  "amm-simulator",
  "cumulus-pallet-aura-ext",

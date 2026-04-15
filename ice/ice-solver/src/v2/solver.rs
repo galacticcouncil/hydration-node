@@ -318,6 +318,7 @@ impl<A: AMMInterface> Solver<A> {
 			};
 			let up = unordered_pair(swap.asset_in, swap.asset_out);
 			let ed = A::existential_deposit(swap.asset_in);
+			let ed_out = A::existential_deposit(swap.asset_out);
 			let (min_n, min_d) = min_rate(swap);
 
 			// Binary search for max fill where clearing rate meets minimum
@@ -382,7 +383,7 @@ impl<A: AMMInterface> Solver<A> {
 					};
 					let amount_out = apply_rate(mid, rate_n, rate_d);
 					let pro_rata_min = apply_rate(mid, min_n, min_d);
-					amount_out >= pro_rata_min
+					amount_out >= pro_rata_min && amount_out >= ed_out
 				} else {
 					false
 				};
@@ -880,6 +881,11 @@ impl<A: AMMInterface> Solver<A> {
 			return Ok(empty_solution());
 		};
 
+		let ed_out = A::existential_deposit(swap.asset_out);
+		if amount_out < ed_out {
+			return Ok(empty_solution());
+		}
+
 		let pro_rata_min = apply_rate(actual_fill, U256::from(swap.amount_out), U256::from(swap.amount_in));
 		let surplus = amount_out.saturating_sub(pro_rata_min);
 
@@ -915,6 +921,7 @@ impl<A: AMMInterface> Solver<A> {
 		state: &A::State,
 	) -> Option<(Balance, Balance, Route<AssetId>)> {
 		let ed = A::existential_deposit(swap.asset_in);
+		let ed_out = A::existential_deposit(swap.asset_out);
 		let (min_n, min_d) = min_rate(swap);
 
 		// First try the full remaining amount
@@ -922,7 +929,7 @@ impl<A: AMMInterface> Solver<A> {
 			Self::select_best_route(routes.to_vec(), swap.asset_in, swap.asset_out, max_fill, state)
 		{
 			let pro_rata_min = apply_rate(max_fill, min_n, min_d);
-			if amount_out >= pro_rata_min {
+			if amount_out >= pro_rata_min && amount_out >= ed_out {
 				return Some((max_fill, amount_out, route));
 			}
 		}
@@ -946,7 +953,7 @@ impl<A: AMMInterface> Solver<A> {
 				Self::select_best_route(routes.to_vec(), swap.asset_in, swap.asset_out, mid, state)
 			{
 				let pro_rata_min = apply_rate(mid, min_n, min_d);
-				if amount_out >= pro_rata_min {
+				if amount_out >= pro_rata_min && amount_out >= ed_out {
 					best = Some((mid, amount_out, route));
 					lo = mid.saturating_add(1); // try larger
 				} else {
@@ -971,7 +978,7 @@ impl<A: AMMInterface> Solver<A> {
 					Self::select_best_route(routes.to_vec(), swap.asset_in, swap.asset_out, fill_all, state)
 				{
 					let pro_rata_min = apply_rate(fill_all, min_n, min_d);
-					if all_out >= pro_rata_min {
+					if all_out >= pro_rata_min && all_out >= ed_out {
 						return Some((fill_all, all_out, route.clone()));
 					}
 				}
@@ -982,7 +989,7 @@ impl<A: AMMInterface> Solver<A> {
 						Self::select_best_route(routes.to_vec(), swap.asset_in, swap.asset_out, reduced, state)
 					{
 						let pro_rata_min = apply_rate(reduced, min_n, min_d);
-						if out >= pro_rata_min {
+						if out >= pro_rata_min && out >= ed_out {
 							return Some((reduced, out, route));
 						}
 					}

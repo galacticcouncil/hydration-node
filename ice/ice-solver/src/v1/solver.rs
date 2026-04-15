@@ -678,6 +678,13 @@ impl<A: AMMInterface> Solver<A> {
 			return Ok(empty_solution());
 		}
 
+		let ed_out = A::existential_deposit(swap.asset_out);
+		if amount_out < ed_out {
+			log::debug!(target: "solver", "intent {}: output {} < ed_out {} for asset {}, skipping",
+				intent.id, amount_out, ed_out, swap.asset_out);
+			return Ok(empty_solution());
+		}
+
 		let surplus = amount_out.saturating_sub(swap.amount_out);
 
 		let resolved = ResolvedIntent {
