@@ -570,21 +570,41 @@ runtime_benchmarks! {
 		assert!(pallet_ema_oracle::ExternalSources::<Runtime>::contains_key(source));
 	}
 
-	// Worst-case: remove a source that has `n` (pair, account) authorization entries — all must
-	// be cleared by `clear_prefix`.
+	// Worst-case: remove a source that has `n` (pair, account) authorization entries — each must
+	// be dropped by `clear_prefix` on both `AuthorizedAccounts` and `Oracles`. For every
+	// authorized pair we also pre-commit one full set of `Oracles` rows (one per supported
+	// period), so the benchmark measures the combined cost of the two clear_prefix calls plus
+	// the accumulator retain.
 	remove_external_source {
 		let n in 0 .. pallet_ema_oracle::MAX_AUTHORIZED_ENTRIES_PER_SOURCE;
 		let source: Source = *b"newsrcxx";
 		EmaOracle::register_external_source(RawOrigin::Root.into(), source).expect("error when registering external source");
+		let periods = <Runtime as pallet_ema_oracle::Config>::SupportedPeriods::get();
+		let seed_entry: OracleEntry<BlockNumberFor<Runtime>> = OracleEntry::new(
+			EmaPrice::new(1u128, 1u128),
+			Volume::default(),
+			Liquidity::default(),
+			None,
+			0u32.into(),
+		);
 		for i in 0..n {
 			let account: AccountId = frame_benchmarking::account("authorized", i, 0);
-			// Spread entries across distinct pairs so clear_prefix must actually delete n entries.
-			let pair = (i, i + 1);
+			// Spread entries across distinct pairs so clear_prefix must actually delete n entries
+			// in each storage. Using (i, i+n+1) keeps pairs disjoint and non-degenerate.
+			let pair = (i, i + n + 1);
+			let ordered = ordered_pair(pair.0, pair.1);
 			EmaOracle::add_authorized_account(RawOrigin::Root.into(), source, pair, account).expect("error when adding authorized account");
+			// Pre-populate `Oracles` rows for every supported period so the NEW cleanup path has
+			// the worst-case number of rows to clear.
+			for period in periods.iter().copied() {
+				pallet_ema_oracle::Oracles::<Runtime>::insert((source, ordered, period), (seed_entry.clone(), 0u32));
+			}
 		}
 	}: _(RawOrigin::Root, source)
 	verify {
 		assert!(!pallet_ema_oracle::ExternalSources::<Runtime>::contains_key(source));
+		// All per-source Oracles rows must be gone.
+		assert_eq!(pallet_ema_oracle::Oracles::<Runtime>::iter_prefix((source,)).count(), 0);
 	}
 
 	add_authorized_account {

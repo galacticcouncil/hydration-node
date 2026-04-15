@@ -15,9 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::mock::{expect_events, EmaOracle, ExtBuilder, RuntimeOrigin, System, Test, ALICE, BOB};
+use super::mock::{expect_events, EmaOracle, ExtBuilder, RuntimeOrigin, System, Test, ACA, ALICE, BOB, DOT, HDX};
 use super::SOURCE;
-use crate::pallet::{AuthorizedAccounts, ExternalSources};
+use crate::pallet::{AuthorizedAccounts, ExternalSources, Oracles};
 use crate::*;
 
 use frame_support::{assert_noop, assert_ok};
@@ -129,6 +129,356 @@ fn remove_external_source_clears_all_pair_authorizations() {
 			(0, 1),
 			BOB
 		)));
+	});
+}
+
+#[test]
+fn remove_external_source_clears_oracle_data_and_accumulator() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE,
+			HDX_DOT_PAIR,
+			ALICE
+		));
+
+		System::set_block_number(3);
+		assert_ok!(EmaOracle::set_external_oracle(
+			RuntimeOrigin::signed(ALICE),
+			EXTERNAL_SOURCE,
+			Box::new(hdx_location()),
+			Box::new(dot_location()),
+			(100, 99),
+		));
+
+		// In-flight accumulator entry exists pre-finalize.
+		let ordered = ordered_pair(HDX_DOT_PAIR.0, HDX_DOT_PAIR.1);
+		assert!(Accumulator::<Test>::get().contains_key(&(EXTERNAL_SOURCE, ordered)));
+
+		// Flush to persistent Oracles via on_finalize.
+		EmaOracle::on_finalize(3);
+		System::set_block_number(4);
+		let stored_before: Vec<_> = Oracles::<Test>::iter_prefix((EXTERNAL_SOURCE,)).collect();
+		assert!(!stored_before.is_empty(), "Oracles row must exist pre-removal");
+
+		// Also seed an in-flight accumulator entry for a different pair in the new block so we
+		// exercise the Accumulator::retain path too.
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE,
+			(1, 2),
+			ALICE
+		));
+		assert_ok!(EmaOracle::set_external_oracle_by_ids(
+			RuntimeOrigin::signed(ALICE),
+			EXTERNAL_SOURCE,
+			1,
+			2,
+			(123, 456),
+		));
+		assert!(Accumulator::<Test>::get().contains_key(&(EXTERNAL_SOURCE, ordered_pair(1, 2))));
+
+		assert_ok!(EmaOracle::remove_external_source(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE
+		));
+
+		// 1. Source registration gone.
+		assert!(!ExternalSources::<Test>::contains_key(EXTERNAL_SOURCE));
+		// 2. Authorizations gone (existing coverage, re-asserted here for integration).
+		assert!(!AuthorizedAccounts::<Test>::contains_key((
+			EXTERNAL_SOURCE,
+			ordered,
+			ALICE
+		)));
+		// 3. Committed Oracles rows gone — this is the new guarantee.
+		assert_eq!(
+			Oracles::<Test>::iter_prefix((EXTERNAL_SOURCE,)).count(),
+			0,
+			"committed Oracles rows must be cleared across every supported period"
+		);
+		// 4. In-flight accumulator entries for this source also dropped.
+		let acc = Accumulator::<Test>::get();
+		assert!(
+			!acc.keys().any(|(s, _)| *s == EXTERNAL_SOURCE),
+			"no accumulator entries for the removed source may survive"
+		);
+	});
+}
+
+#[test]
+fn remove_external_source_only_touches_the_targeted_source() {
+	new_test_ext().execute_with(|| {
+		const THIRD_SOURCE: Source = *b"third___";
+		const NEIGHBOR_SOURCE: Source = *b"externaL"; // byte-adjacent to EXTERNAL_SOURCE
+
+		let pair_hd = ordered_pair(HDX, DOT);
+		let pair_ha = ordered_pair(HDX, ACA);
+		let pair_da = ordered_pair(DOT, ACA);
+		let pair_auth_only = ordered_pair(4, 5);
+
+		// ─── AMM SOURCE: 2 whitelisted pairs ───
+		assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), SOURCE, (HDX, DOT)));
+		assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), SOURCE, (HDX, ACA)));
+
+		// ─── EXTERNAL_SOURCE: 3 pairs with data + 1 pair auth-only ───
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE,
+			(HDX, DOT),
+			ALICE
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE,
+			(HDX, ACA),
+			ALICE
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE,
+			(DOT, ACA),
+			BOB
+		));
+		// Auth-only — never submitted to; verifies clearing works for pairs without Oracles rows.
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE,
+			(4, 5),
+			ALICE
+		));
+
+		// ─── ANOTHER_SOURCE: 2 pairs overlapping with EXTERNAL_SOURCE pairs ───
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			ANOTHER_SOURCE
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			ANOTHER_SOURCE,
+			(HDX, DOT),
+			BOB
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			ANOTHER_SOURCE,
+			(DOT, ACA),
+			BOB
+		));
+
+		// ─── THIRD_SOURCE: empty (registered but no auths, no data) ───
+		assert_ok!(EmaOracle::register_external_source(RuntimeOrigin::root(), THIRD_SOURCE));
+
+		// ─── NEIGHBOR_SOURCE: byte-adjacent to EXTERNAL_SOURCE, on shared pair ───
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			NEIGHBOR_SOURCE
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			NEIGHBOR_SOURCE,
+			(HDX, DOT),
+			ALICE
+		));
+
+		// ─── Block 3: write across every (source, pair) with data ───
+		System::set_block_number(3);
+
+		// AMM writes (two pairs).
+		assert_ok!(OnActivityHandler::<Test>::on_trade(
+			SOURCE,
+			HDX,
+			DOT,
+			1_000,
+			500,
+			2_000,
+			1_000,
+			Price::new(2_000, 1_000),
+			Some(2_000_u128),
+		));
+		assert_ok!(OnActivityHandler::<Test>::on_trade(
+			SOURCE,
+			HDX,
+			ACA,
+			800,
+			400,
+			2_000,
+			1_000,
+			Price::new(2_000, 1_000),
+			Some(2_000_u128),
+		));
+		// EXTERNAL_SOURCE writes on 3 pairs (auth-only pair deliberately not written).
+		assert_ok!(EmaOracle::set_external_oracle_by_ids(
+			RuntimeOrigin::signed(ALICE),
+			EXTERNAL_SOURCE,
+			HDX,
+			DOT,
+			(3_000, 1_000),
+		));
+		assert_ok!(EmaOracle::set_external_oracle_by_ids(
+			RuntimeOrigin::signed(ALICE),
+			EXTERNAL_SOURCE,
+			HDX,
+			ACA,
+			(3_500, 1_000),
+		));
+		assert_ok!(EmaOracle::set_external_oracle_by_ids(
+			RuntimeOrigin::signed(BOB),
+			EXTERNAL_SOURCE,
+			DOT,
+			ACA,
+			(4_000, 1_000),
+		));
+		// ANOTHER_SOURCE writes on 2 pairs.
+		assert_ok!(EmaOracle::set_external_oracle_by_ids(
+			RuntimeOrigin::signed(BOB),
+			ANOTHER_SOURCE,
+			HDX,
+			DOT,
+			(5_000, 1_000),
+		));
+		assert_ok!(EmaOracle::set_external_oracle_by_ids(
+			RuntimeOrigin::signed(BOB),
+			ANOTHER_SOURCE,
+			DOT,
+			ACA,
+			(5_500, 1_000),
+		));
+		// NEIGHBOR_SOURCE write on shared pair.
+		assert_ok!(EmaOracle::set_external_oracle_by_ids(
+			RuntimeOrigin::signed(ALICE),
+			NEIGHBOR_SOURCE,
+			HDX,
+			DOT,
+			(7_000, 1_000),
+		));
+
+		// Commit to Oracles for every supported period.
+		EmaOracle::on_finalize(3);
+		System::set_block_number(4);
+
+		// Snapshot the per-source row counts so post-removal assertions can compare exactly.
+		let rows = |s: Source| Oracles::<Test>::iter_prefix((s,)).count();
+		let source_rows_pre = rows(SOURCE);
+		let another_rows_pre = rows(ANOTHER_SOURCE);
+		let neighbor_rows_pre = rows(NEIGHBOR_SOURCE);
+		assert!(source_rows_pre >= 2, "AMM: expect ≥2 pairs × N periods rows");
+		assert!(rows(EXTERNAL_SOURCE) >= 3, "EXTERNAL_SOURCE: 3 data pairs");
+		assert!(another_rows_pre >= 2, "ANOTHER_SOURCE: 2 pairs");
+		assert!(neighbor_rows_pre >= 1, "NEIGHBOR_SOURCE: 1 pair");
+
+		// ─── Seed in-flight Accumulator entries across all sources in the new block ───
+		assert_ok!(OnActivityHandler::<Test>::on_trade(
+			SOURCE,
+			HDX,
+			DOT,
+			2_000,
+			1_000,
+			4_000,
+			2_000,
+			Price::new(2_000, 1_000),
+			Some(2_000_u128),
+		));
+		assert_ok!(EmaOracle::set_external_oracle_by_ids(
+			RuntimeOrigin::signed(ALICE),
+			EXTERNAL_SOURCE,
+			HDX,
+			DOT,
+			(9_000, 1_000),
+		));
+		assert_ok!(EmaOracle::set_external_oracle_by_ids(
+			RuntimeOrigin::signed(BOB),
+			EXTERNAL_SOURCE,
+			DOT,
+			ACA,
+			(9_100, 1_000),
+		));
+		assert_ok!(EmaOracle::set_external_oracle_by_ids(
+			RuntimeOrigin::signed(BOB),
+			ANOTHER_SOURCE,
+			HDX,
+			DOT,
+			(11_000, 1_000),
+		));
+		assert_ok!(EmaOracle::set_external_oracle_by_ids(
+			RuntimeOrigin::signed(ALICE),
+			NEIGHBOR_SOURCE,
+			HDX,
+			DOT,
+			(13_000, 1_000),
+		));
+		let acc_before = Accumulator::<Test>::get();
+		assert!(acc_before.contains_key(&(SOURCE, pair_hd)));
+		assert!(acc_before.contains_key(&(EXTERNAL_SOURCE, pair_hd)));
+		assert!(acc_before.contains_key(&(EXTERNAL_SOURCE, pair_da)));
+		assert!(acc_before.contains_key(&(ANOTHER_SOURCE, pair_hd)));
+		assert!(acc_before.contains_key(&(NEIGHBOR_SOURCE, pair_hd)));
+
+		// ─── ACT ───
+		assert_ok!(EmaOracle::remove_external_source(
+			RuntimeOrigin::root(),
+			EXTERNAL_SOURCE
+		));
+
+		// ─── ASSERT: EXTERNAL_SOURCE fully wiped across every pair ───
+		assert!(!ExternalSources::<Test>::contains_key(EXTERNAL_SOURCE));
+		assert_eq!(
+			AuthorizedAccounts::<Test>::iter_prefix((EXTERNAL_SOURCE,)).count(),
+			0,
+			"all 4 authorizations (incl. the data-less (4,5)) must be cleared"
+		);
+		assert_eq!(
+			Oracles::<Test>::iter_prefix((EXTERNAL_SOURCE,)).count(),
+			0,
+			"all 3 data pairs' Oracles rows must be cleared across every period"
+		);
+		let acc_after = Accumulator::<Test>::get();
+		assert!(!acc_after.contains_key(&(EXTERNAL_SOURCE, pair_hd)));
+		assert!(!acc_after.contains_key(&(EXTERNAL_SOURCE, pair_ha)));
+		assert!(!acc_after.contains_key(&(EXTERNAL_SOURCE, pair_da)));
+		assert!(!acc_after.contains_key(&(EXTERNAL_SOURCE, pair_auth_only)));
+
+		// ─── ASSERT: AMM SOURCE untouched (both pairs) ───
+		assert!(WhitelistedAssets::<Test>::get().contains(&(SOURCE, (HDX, DOT))));
+		assert!(WhitelistedAssets::<Test>::get().contains(&(SOURCE, (HDX, ACA))));
+		assert_eq!(rows(SOURCE), source_rows_pre, "AMM Oracles row count must be unchanged");
+		assert!(acc_after.contains_key(&(SOURCE, pair_hd)));
+
+		// ─── ASSERT: ANOTHER_SOURCE untouched (both overlapping pairs) ───
+		assert!(ExternalSources::<Test>::contains_key(ANOTHER_SOURCE));
+		assert!(AuthorizedAccounts::<Test>::contains_key((ANOTHER_SOURCE, pair_hd, BOB)));
+		assert!(AuthorizedAccounts::<Test>::contains_key((ANOTHER_SOURCE, pair_da, BOB)));
+		assert_eq!(
+			rows(ANOTHER_SOURCE),
+			another_rows_pre,
+			"ANOTHER_SOURCE Oracles row count must be unchanged"
+		);
+		assert!(acc_after.contains_key(&(ANOTHER_SOURCE, pair_hd)));
+
+		// ─── ASSERT: NEIGHBOR_SOURCE (byte-adjacent) untouched ───
+		assert!(ExternalSources::<Test>::contains_key(NEIGHBOR_SOURCE));
+		assert!(AuthorizedAccounts::<Test>::contains_key((
+			NEIGHBOR_SOURCE,
+			pair_hd,
+			ALICE
+		)));
+		assert_eq!(
+			rows(NEIGHBOR_SOURCE),
+			neighbor_rows_pre,
+			"byte-adjacent NEIGHBOR_SOURCE must be untouched"
+		);
+		assert!(acc_after.contains_key(&(NEIGHBOR_SOURCE, pair_hd)));
+
+		// ─── ASSERT: THIRD_SOURCE (empty registration) untouched ───
+		assert!(ExternalSources::<Test>::contains_key(THIRD_SOURCE));
 	});
 }
 

@@ -494,7 +494,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Remove an external oracle source and all its per-pair authorizations.
+		/// Remove an external oracle source, its per-pair authorizations, and ALL oracle data it
+		/// ever wrote (both committed `Oracles` rows and any in-flight `Accumulator` entries).
 		///
 		/// Parameters:
 		/// - `origin`: `ExternalOracleOrigin`
@@ -508,6 +509,8 @@ pub mod pallet {
 			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
 			ExternalSources::<T>::remove(source);
 			let _ = AuthorizedAccounts::<T>::clear_prefix((source,), u32::MAX, None);
+			let _ = Oracles::<T>::clear_prefix((source,), u32::MAX, None);
+			Accumulator::<T>::mutate(|acc| acc.retain(|(s, _), _| *s != source));
 			Self::deposit_event(Event::ExternalSourceRemoved { source });
 			Ok(())
 		}
