@@ -214,3 +214,15 @@ where
 		r.unwrap_or(false)
 	}
 }
+
+pub struct DirectReferendumStatus<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: pallet_referenda::Config> GetReferendumState<ReferendumIndex> for DirectReferendumStatus<T> {
+	fn is_referendum_finished(index: ReferendumIndex) -> bool {
+		match pallet_referenda::ReferendumInfoFor::<T>::get(index) {
+			Some(pallet_referenda::ReferendumInfo::Approved(..)) => true,
+			Some(pallet_referenda::ReferendumInfo::Rejected(..)) => true,
+			_ => false, // Ongoing, Cancelled, Killed, TimedOut -> not "finished" from points accumulation pov
+		}
+	}
+}
