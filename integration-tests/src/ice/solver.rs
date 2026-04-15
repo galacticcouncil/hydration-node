@@ -1,4 +1,6 @@
-use crate::polkadot_test_net::{hydradx_run_to_next_block, TestNet, ALICE, BOB, CHARLIE, DAVE, EVE};
+use crate::polkadot_test_net::{
+	go_to_block, hydradx_run_to_next_block, Hydra, TestNet, ALICE, BOB, CHARLIE, DAVE, EVE,
+};
 use amm_simulator::omnipool::Simulator as OmnipoolSimulator;
 use amm_simulator::stableswap::Simulator as StableswapSimulator;
 use amm_simulator::HydrationSimulator;
@@ -5469,4 +5471,160 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 
 			println!("\ncross-aToken trades with matching: OK");
 		});
+}
+
+/// Same setup as DCA's `dca_succeeds_after_extra_gas_increased_due_to_out_of_gas_error`:
+/// deploy a ConditionalGasEater ERC20 contract, add it to the omnipool, then try to
+/// sell it for HDX via an ICE intent instead of DCA.
+///
+/// The DCA test fails with out-of-gas on the first trade attempt. This test checks
+/// whether the same trade via ICE/intent also hits out-of-gas or not.
+#[test]
+fn ice_intent_with_evm_gas_eater_token() {
+	use crate::polkadot_test_net::{hydradx_run_to_block, DAI, HDX, LRNA, UNITS};
+	use frame_system::RawOrigin;
+	use hydradx_runtime::{Balances, EVMAccounts, EmaOracle, MultiTransactionPayment, Tokens, Treasury};
+	use hydradx_traits::evm::InspectEvmAccounts;
+	use primitives::constants::chain::OMNIPOOL_SOURCE;
+	use sp_runtime::FixedU128;
+	use xcm_emulator::TestExt;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// ============================================================
+		// SETUP: same as the DCA out-of-gas test
+		// ============================================================
+		crate::dca::init_omnipool_with_oracle_for_block_10();
+
+		let evm_address = EVMAccounts::evm_address(&Router::router_account());
+		let contract =
+			crate::dca::extra_gas_erc20::deploy_conditional_gas_eater(evm_address, 400_000, crate::erc20::deployer());
+		let erc20 = crate::erc20::bind_erc20(contract);
+		assert_ok!(EmaOracle::add_oracle(
+			RuntimeOrigin::root(),
+			OMNIPOOL_SOURCE,
+			(LRNA, erc20)
+		));
+
+		// Add new erc20 to omnipool
+		let bal = Currencies::free_balance(erc20, &ALICE.into());
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			pallet_omnipool::Pallet::<Runtime>::protocol_account(),
+			erc20,
+			bal / 10,
+		));
+		assert_ok!(pallet_omnipool::Pallet::<Runtime>::add_token(
+			RuntimeOrigin::root(),
+			erc20,
+			FixedU128::from_rational(1, 200),
+			Permill::from_percent(30),
+			ALICE.into(),
+		));
+
+		assert_ok!(MultiTransactionPayment::add_currency(
+			RuntimeOrigin::root(),
+			erc20,
+			FixedU128::from_rational(1, 200)
+		));
+
+		hydradx_run_to_block(11);
+
+		println!("setup complete: erc20 asset id = {}", erc20);
+		println!(
+			"alice erc20 balance: {}",
+			Currencies::free_balance(erc20, &ALICE.into())
+		);
+
+		// ============================================================
+		// INTENT: sell the gas-eater ERC20 for HDX (same trade as DCA)
+		// ============================================================
+		let sell_amount = 200_000 * UNITS;
+		let ts = hydradx_runtime::Timestamp::now();
+		let deadline = Some(ts + 120_000); // 120s deadline
+
+		assert_ok!(hydradx_runtime::Intent::submit_intent(
+			RuntimeOrigin::signed(ALICE.into()),
+			pallet_intent::types::IntentInput {
+				data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+					asset_in: erc20,
+					asset_out: HDX,
+					amount_in: sell_amount,
+					amount_out: UNITS, // 1 HDX minimum (must be >= ED)
+					partial: false,
+				}),
+				deadline,
+				on_resolved: None,
+			}
+		));
+		println!("submitted intent: sell {} erc20 (gas-eater) → HDX", sell_amount);
+
+		let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+		assert_eq!(intents.len(), 1, "Should have 1 intent");
+
+		// ============================================================
+		// RUN SOLVER
+		// ============================================================
+		let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
+		let alice_erc20_before = Currencies::free_balance(erc20, &ALICE.into());
+
+		let call = pallet_ice::Pallet::<Runtime>::run(
+			hydradx_runtime::System::block_number(),
+			|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+		)
+		.expect("Solver must produce a solution for the gas-eater ERC20 token");
+
+		let pallet_ice::Call::submit_solution { solution, .. } = call else {
+			panic!("Expected submit_solution call");
+		};
+
+		assert_eq!(solution.resolved_intents.len(), 1, "Should resolve exactly 1 intent");
+		assert!(solution.score > 0, "Score should be positive");
+
+		let resolved = &solution.resolved_intents[0];
+		let ice_support::IntentData::Swap(ref s) = resolved.data else {
+			panic!("expected Swap");
+		};
+		assert_eq!(s.asset_in, erc20, "asset_in should be the gas-eater ERC20");
+		assert_eq!(s.asset_out, HDX, "asset_out should be HDX");
+		assert_eq!(s.amount_in, sell_amount, "amount_in should match");
+		assert!(s.amount_out >= UNITS, "amount_out should meet minimum (1 HDX)");
+
+		let expected_hdx_out = s.amount_out;
+
+		// ============================================================
+		// EXECUTE
+		// ============================================================
+		hydradx_run_to_block(12);
+
+		assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+			RuntimeOrigin::none(),
+			solution,
+		));
+
+		// Verify intent removed
+		assert!(
+			pallet_intent::Pallet::<Runtime>::get_intent(intents[0].0).is_none(),
+			"Intent should be removed after resolution"
+		);
+
+		// Verify Alice received correct HDX amount (minus fee)
+		let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
+		let hdx_received = alice_hdx_after.saturating_sub(alice_hdx_before);
+		let fee = hydradx_runtime::IceFee::get().mul_floor(expected_hdx_out);
+		let expected_payout = expected_hdx_out.saturating_sub(fee);
+
+		assert_eq!(
+			hdx_received, expected_payout,
+			"Alice should receive amount_out minus fee: expected {}, got {}",
+			expected_payout, hdx_received
+		);
+		assert!(hdx_received > 0, "Alice must receive some HDX");
+
+		println!(
+			"alice: received {} HDX (fee: {} HDX)",
+			hdx_received as f64 / UNITS as f64,
+			fee as f64 / UNITS as f64
+		);
+	});
 }

@@ -43,6 +43,7 @@ use frame_system::pallet_prelude::*;
 use frame_system::Origin;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
+use hydradx_traits::evm::ExtraGasSupport;
 use hydradx_traits::registry::Inspect;
 use ice_support::AssetId;
 use ice_support::Balance;
@@ -68,6 +69,8 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 pub const UNSIGNED_TXS_PRIORITY: u64 = u64::max_value();
+/// Extra gas provided to EVM calls during solution execution.
+const EXTRA_GAS: u64 = 1_000_000;
 const LOG_TARGET: &str = "ice";
 const OCW_LOG_TARGET: &str = "ice::offchain_worker";
 const LOG_PREFIX: &str = "ICE#pallet_ice";
@@ -113,6 +116,9 @@ pub mod pallet {
 
 		/// Origin that can set the protocol fee (e.g. TechnicalCommittee or Root).
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// Extra gas support for EVM token transfers.
+		type ExtraGasSupport: ExtraGasSupport;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -196,6 +202,9 @@ pub mod pallet {
 		})]
 		pub fn submit_solution(origin: OriginFor<T>, solution: Solution) -> DispatchResult {
 			ensure_none(origin)?;
+
+			// Provide extra gas for EVM token transfers that may need it.
+			T::ExtraGasSupport::set_extra_gas(EXTRA_GAS);
 
 			log::debug!(target: LOG_TARGET, "{:?}: submit_solution() [EXECUTION PHASE], solution with {:?} resolved intents, {:?} trades, score: {:?}",
 				LOG_PREFIX, solution.resolved_intents.len(), solution.trades.len(), solution.score);
@@ -302,6 +311,8 @@ pub mod pallet {
 
 			log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), solution execution finished, exec_score: {:?}, score: {:?}", LOG_PREFIX, exec_score, solution.score);
 			ensure!(solution.score == exec_score, Error::<T>::ScoreMismatch);
+
+			T::ExtraGasSupport::clear_extra_gas();
 
 			Self::deposit_event(Event::SolutionExecuted {
 				intents_executed: solution.resolved_intents.len() as u64,

@@ -252,6 +252,16 @@ parameter_types! {
 	pub const IceFee: Permill = Permill::from_percent(0);
 }
 
+pub struct NoOpExtraGas;
+
+impl hydradx_traits::evm::ExtraGasSupport for NoOpExtraGas {
+	fn set_extra_gas(_gas: u64) {}
+	fn clear_extra_gas() {}
+	fn out_of_gas_error() -> sp_runtime::DispatchError {
+		sp_runtime::DispatchError::Other("OutOfGas")
+	}
+}
+
 impl pallet_ice::Config for Test {
 	type Currency = Currencies;
 	type PalletId = IceId;
@@ -259,6 +269,7 @@ impl pallet_ice::Config for Test {
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type RegistryHandler = DummyRegistry;
 	type Simulator = TestSimulatorConfig;
+	type ExtraGasSupport = NoOpExtraGas;
 	type WeightInfo = ();
 }
 
