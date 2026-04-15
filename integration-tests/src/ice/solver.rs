@@ -4753,3 +4753,720 @@ fn solver_v2_partial_loose_limit_full_fill() {
 			println!("submit_solution: OK — loose-limit partial fully resolved and removed");
 		});
 }
+
+/// Single intent: Alice sells HDX for Hydrated Tether (asset 1111, 18 decimals).
+/// Tests that the solver can discover a route and execute a trade for an aToken asset.
+#[test]
+fn solver_v2_single_intent_hdx_to_hydrated_tether() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let hdx = 0u32;
+	let husdt = 1111u32; // Hydrated Tether — 18 decimals
+	let hdx_unit = 1_000_000_000_000u128;
+	let husdt_unit = 1_000_000_000_000_000_000u128; // 10^18
+
+	// Sell 10,000 HDX — modest amount to avoid slippage issues
+	let amount_in = 10_000 * hdx_unit;
+	// Very loose limit: 1 hUSDT (effectively no minimum)
+	let min_amount_out = 1 * husdt_unit;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, amount_in * 10)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(alice.clone()),
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+						asset_in: hdx,
+						asset_out: husdt,
+						amount_in,
+						amount_out: min_amount_out,
+						partial: false,
+					}),
+					deadline,
+					on_resolved: None,
+				}
+			));
+			println!(
+				"alice: submitted {} HDX → hUSDT (asset {})",
+				amount_in / hdx_unit,
+				husdt
+			);
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(intents.len(), 1, "Should have 1 intent");
+			let intent_id = intents[0].0;
+
+			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
+			let alice_husdt_before = Currencies::total_balance(husdt, &alice);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution for HDX → hUSDT");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			assert_eq!(solution.resolved_intents.len(), 1, "Should resolve exactly 1 intent");
+			assert!(solution.score > 0, "Score should be positive");
+
+			let resolved = &solution.resolved_intents[0];
+			let ice_support::IntentData::Swap(ref s) = resolved.data else {
+				panic!("expected Swap");
+			};
+			assert_eq!(s.asset_in, hdx, "asset_in should be HDX");
+			assert_eq!(s.asset_out, husdt, "asset_out should be hUSDT");
+			assert_eq!(s.amount_in, amount_in, "amount_in should match");
+			assert!(s.amount_out >= min_amount_out, "amount_out should meet minimum");
+
+			println!(
+				"resolved: {} HDX → {} hUSDT (rate: {:.6} hUSDT/HDX)",
+				s.amount_in as f64 / hdx_unit as f64,
+				s.amount_out as f64 / husdt_unit as f64,
+				s.amount_out as f64 / s.amount_in as f64
+			);
+
+			// Log the route
+			for (i, t) in solution.trades.iter().enumerate() {
+				println!(
+					"trade[{}]: {} → {}, amount_in={}, amount_out={}, route={:?}",
+					i,
+					t.route.first().map(|r| r.asset_in).unwrap_or(0),
+					t.route.last().map(|r| r.asset_out).unwrap_or(0),
+					t.amount_in,
+					t.amount_out,
+					t.route
+						.iter()
+						.map(|r| format!("{}->{} ({:?})", r.asset_in, r.asset_out, r.pool))
+						.collect::<Vec<_>>()
+				);
+			}
+
+			let expected_out = s.amount_out;
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+			println!("submit_solution: OK");
+
+			// Verify intent removed
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(intent_id).is_none(),
+				"Intent should be removed after resolution"
+			);
+
+			// Verify balances
+			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
+			let alice_husdt_after = Currencies::total_balance(husdt, &alice);
+			let hdx_spent = alice_hdx_before.saturating_sub(alice_hdx_after);
+			let husdt_received = alice_husdt_after.saturating_sub(alice_husdt_before);
+
+			assert_eq!(hdx_spent, amount_in, "HDX spent should match");
+			let fee = hydradx_runtime::IceFee::get().mul_floor(expected_out);
+			assert_eq!(
+				husdt_received,
+				expected_out.saturating_sub(fee),
+				"hUSDT received should equal amount_out minus fee"
+			);
+			println!(
+				"alice: spent {} HDX, received {} hUSDT (fee: {} hUSDT)",
+				hdx_spent as f64 / hdx_unit as f64,
+				husdt_received as f64 / husdt_unit as f64,
+				fee as f64 / husdt_unit as f64
+			);
+		});
+}
+
+/// Four intents, all selling HDX but each buying a different Hydrated aToken.
+///
+/// Alice: HDX → hUSDT (1111)
+/// Bob:   HDX → hUSDC (1112)
+/// Charlie: HDX → hWBTC (1113)
+/// Dave:  HDX → hUSDT_old/hDOT (1110)
+///
+/// Tests that the solver handles multiple aToken destinations in a single batch.
+/// Each intent routes through different pools (Omnipool + Stableswap + Aave).
+#[test]
+fn solver_v2_four_intents_hdx_to_different_atokens() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	let charlie: AccountId = CHARLIE.into();
+	let dave: AccountId = DAVE.into();
+
+	let hdx = 0u32;
+	let hdx_unit = 1_000_000_000_000u128;
+	let atoken_unit = 1_000_000_000_000_000_000u128; // 18 decimals for all aTokens
+
+	// Each user sells 10,000 HDX for a different aToken
+	let amount_in = 10_000 * hdx_unit;
+	// Very loose limit — 1 unit of each aToken
+	let min_out = 1 * atoken_unit;
+
+	struct IntentSetup {
+		who: AccountId,
+		label: &'static str,
+		asset_out: u32,
+		asset_name: &'static str,
+	}
+
+	let setups = [
+		IntentSetup {
+			who: alice.clone(),
+			label: "alice",
+			asset_out: 1111,
+			asset_name: "hUSDT",
+		},
+		IntentSetup {
+			who: bob.clone(),
+			label: "bob",
+			asset_out: 1112,
+			asset_name: "hUSDC",
+		},
+		IntentSetup {
+			who: charlie.clone(),
+			label: "charlie",
+			asset_out: 1113,
+			asset_name: "hWBTC",
+		},
+		IntentSetup {
+			who: dave.clone(),
+			label: "dave",
+			asset_out: 1110,
+			asset_name: "h1110",
+		},
+	];
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, amount_in * 10)
+		.endow_account(bob.clone(), hdx, amount_in * 10)
+		.endow_account(charlie.clone(), hdx, amount_in * 10)
+		.endow_account(dave.clone(), hdx, amount_in * 10)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			// Submit all 4 intents
+			for s in &setups {
+				assert_ok!(hydradx_runtime::Intent::submit_intent(
+					RuntimeOrigin::signed(s.who.clone()),
+					pallet_intent::types::IntentInput {
+						data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+							asset_in: hdx,
+							asset_out: s.asset_out,
+							amount_in,
+							amount_out: min_out,
+							partial: false,
+						}),
+						deadline,
+						on_resolved: None,
+					}
+				));
+				println!(
+					"{}: submitted {} HDX → {} (asset {})",
+					s.label,
+					amount_in / hdx_unit,
+					s.asset_name,
+					s.asset_out
+				);
+			}
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			println!("\ntotal valid intents: {}", intents.len());
+			assert_eq!(intents.len(), 4, "Should have 4 intents");
+
+			// Capture balances before
+			let balances_before: Vec<(AccountId, u32, u128, u128)> = setups
+				.iter()
+				.map(|s| {
+					let hdx_bal = Currencies::total_balance(hdx, &s.who);
+					let out_bal = Currencies::total_balance(s.asset_out, &s.who);
+					(s.who.clone(), s.asset_out, hdx_bal, out_bal)
+				})
+				.collect();
+
+			// Run solver
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			println!(
+				"\nsolution: {} resolved, {} trades, score: {}",
+				solution.resolved_intents.len(),
+				solution.trades.len(),
+				solution.score
+			);
+
+			// Log resolved intents
+			for ri in solution.resolved_intents.iter() {
+				let ice_support::IntentData::Swap(ref s) = ri.data else {
+					continue;
+				};
+				let name = setups
+					.iter()
+					.find(|setup| setup.asset_out == s.asset_out)
+					.map(|setup| setup.asset_name)
+					.unwrap_or("?");
+				println!(
+					"  id={}: {} HDX → {} {} (rate: {:.6})",
+					ri.id,
+					s.amount_in as f64 / hdx_unit as f64,
+					s.amount_out as f64 / atoken_unit as f64,
+					name,
+					s.amount_out as f64 / s.amount_in as f64
+				);
+			}
+
+			// Log trades with routes
+			for (i, t) in solution.trades.iter().enumerate() {
+				println!(
+					"  trade[{}]: amount_in={}, amount_out={}, route={:?}",
+					i,
+					t.amount_in,
+					t.amount_out,
+					t.route
+						.iter()
+						.map(|r| format!("{}->{} ({:?})", r.asset_in, r.asset_out, r.pool))
+						.collect::<Vec<_>>()
+				);
+			}
+
+			// At least some intents should be resolved — some aToken assets might not
+			// have routes on this snapshot
+			assert!(
+				!solution.resolved_intents.is_empty(),
+				"At least one intent should be resolved"
+			);
+			assert!(solution.score > 0, "Score should be positive");
+
+			// Execute solution
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution.clone(),
+			));
+			println!("\nsubmit_solution: OK");
+
+			// Verify balances for each resolved intent
+			let ice_fee = hydradx_runtime::IceFee::get();
+			for ri in solution.resolved_intents.iter() {
+				let ice_support::IntentData::Swap(ref s) = ri.data else {
+					continue;
+				};
+				let setup = setups.iter().find(|setup| setup.asset_out == s.asset_out);
+				let Some(setup) = setup else { continue };
+
+				let (_, _, hdx_before, out_before) = balances_before
+					.iter()
+					.find(|(who, asset, _, _)| who == &setup.who && *asset == s.asset_out)
+					.unwrap();
+
+				let hdx_after = Currencies::total_balance(hdx, &setup.who);
+				let out_after = Currencies::total_balance(s.asset_out, &setup.who);
+
+				let hdx_spent = hdx_before.saturating_sub(hdx_after);
+				let out_received = out_after.saturating_sub(*out_before);
+				let fee = ice_fee.mul_floor(s.amount_out);
+				let expected_payout = s.amount_out.saturating_sub(fee);
+
+				assert_eq!(hdx_spent, s.amount_in, "{}: HDX spent should match fill", setup.label);
+				assert_eq!(
+					out_received, expected_payout,
+					"{}: {} received should match amount_out minus fee",
+					setup.label, setup.asset_name
+				);
+
+				println!(
+					"{}: spent {} HDX, received {} {} (fee: {})",
+					setup.label,
+					hdx_spent as f64 / hdx_unit as f64,
+					out_received as f64 / atoken_unit as f64,
+					setup.asset_name,
+					fee as f64 / atoken_unit as f64
+				);
+			}
+
+			// Resolved intents should be removed from storage
+			for ri in solution.resolved_intents.iter() {
+				assert!(
+					pallet_intent::Pallet::<Runtime>::get_intent(ri.id).is_none(),
+					"Resolved intent {} should be removed from storage",
+					ri.id
+				);
+			}
+		});
+}
+
+/// Cross-aToken trades with direct matching opportunities.
+///
+/// Prep: sell HDX to acquire aTokens for each user (can't mint aTokens directly).
+///   - Alice gets hUSDT (1111) via HDX → 1111
+///   - Bob gets hUSDT (1111) via HDX → 1111  (extra prep so Bob also has 1111)
+///   - Charlie gets hWBTC (1113) via HDX → 1113
+///   - Dave gets h1110 (1110) via HDX → 1110
+///
+/// Then submit cross-aToken intents:
+///   - Alice: sells 1111 (hUSDT) → buys 1110
+///   - Bob:   sells 1111 (hUSDT) → buys 1113 (hWBTC)
+///   - Charlie: sells 1113 (hWBTC) → buys 1111 (hUSDT)
+///   - Dave: sells 1110 → buys 1113 (hWBTC)
+///
+/// Matching opportunities:
+///   - Bob (1111→1113) and Charlie (1113→1111) are opposing — direct match possible
+///   - Alice (1111→1110) and Dave (1110→1113) form a partial chain
+#[test]
+fn solver_v2_cross_atoken_trades_with_matching() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	let charlie: AccountId = CHARLIE.into();
+	let dave: AccountId = DAVE.into();
+
+	let hdx = 0u32;
+	let hdx_unit = 1_000_000_000_000u128;
+	let atoken_unit = 1_000_000_000_000_000_000u128; // 18 decimals
+
+	// Assets
+	let husdt = 1111u32;
+	let husdc = 1112u32;
+	let hwbtc = 1113u32;
+	let h1110 = 1110u32;
+	let _ = husdc; // not used in this test
+
+	// HDX amount for prep trades — enough to get meaningful aToken balances
+	let prep_hdx = 10_000 * hdx_unit;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, prep_hdx * 10)
+		.endow_account(bob.clone(), hdx, prep_hdx * 10)
+		.endow_account(charlie.clone(), hdx, prep_hdx * 10)
+		.endow_account(dave.clone(), hdx, prep_hdx * 10)
+		.execute(|| {
+			enable_slip_fees();
+
+			// ============================================================
+			// PREP: acquire aTokens by selling HDX through the router
+			// ============================================================
+			println!("=== PREP: acquiring aTokens via HDX trades ===\n");
+
+			let prep_trades: Vec<(AccountId, &str, u32, &str)> = vec![
+				(alice.clone(), "alice", husdt, "hUSDT"),
+				(bob.clone(), "bob", husdt, "hUSDT"), // Bob also gets hUSDT
+				(charlie.clone(), "charlie", hwbtc, "hWBTC"),
+				(dave.clone(), "dave", h1110, "h1110"),
+			];
+
+			for (who, label, asset_out, name) in &prep_trades {
+				let route = Router::get_route(hydradx_traits::router::AssetPair::new(hdx, *asset_out));
+				assert!(
+					!route.is_empty(),
+					"No route found for HDX → {} (asset {})",
+					name,
+					asset_out
+				);
+
+				crate::polkadot_test_net::hydradx_run_to_next_block();
+
+				let bal_before = Currencies::free_balance(*asset_out, who);
+				assert_ok!(pallet_route_executor::Pallet::<Runtime>::sell(
+					RuntimeOrigin::signed(who.clone()),
+					hdx,
+					*asset_out,
+					prep_hdx,
+					0, // no min — just acquiring tokens
+					route.clone(),
+				));
+				let bal_after = Currencies::free_balance(*asset_out, who);
+				let received = bal_after.saturating_sub(bal_before);
+				println!(
+					"{}: sold {} HDX → {} {} (route: {} hops)",
+					label,
+					prep_hdx / hdx_unit,
+					received as f64 / atoken_unit as f64,
+					name,
+					route.len()
+				);
+				assert!(received > 0, "{} should have received some {}", label, name);
+			}
+
+			// Log balances after prep
+			println!("\n=== Balances after prep ===");
+			println!(
+				"alice hUSDT: {}",
+				Currencies::free_balance(husdt, &alice) as f64 / atoken_unit as f64
+			);
+			println!(
+				"bob hUSDT: {}",
+				Currencies::free_balance(husdt, &bob) as f64 / atoken_unit as f64
+			);
+			println!(
+				"charlie hWBTC: {}",
+				Currencies::free_balance(hwbtc, &charlie) as f64 / atoken_unit as f64
+			);
+			println!(
+				"dave h1110: {}",
+				Currencies::free_balance(h1110, &dave) as f64 / atoken_unit as f64
+			);
+
+			// ============================================================
+			// INTENTS: cross-aToken trades
+			// ============================================================
+			println!("\n=== Submitting cross-aToken intents ===\n");
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			// Use half of each user's aToken balance as the sell amount
+			let alice_sell = Currencies::free_balance(husdt, &alice) / 2;
+			let bob_sell = Currencies::free_balance(husdt, &bob) / 2;
+			let charlie_sell = Currencies::free_balance(hwbtc, &charlie) / 2;
+			let dave_sell = Currencies::free_balance(h1110, &dave) / 2;
+
+			struct CrossIntent {
+				who: AccountId,
+				label: &'static str,
+				asset_in: u32,
+				asset_in_name: &'static str,
+				asset_out: u32,
+				asset_out_name: &'static str,
+				amount_in: u128,
+			}
+
+			let cross_intents = [
+				CrossIntent {
+					who: alice.clone(),
+					label: "alice",
+					asset_in: husdt,
+					asset_in_name: "hUSDT",
+					asset_out: h1110,
+					asset_out_name: "h1110",
+					amount_in: alice_sell,
+				},
+				CrossIntent {
+					who: bob.clone(),
+					label: "bob",
+					asset_in: husdt,
+					asset_in_name: "hUSDT",
+					asset_out: hwbtc,
+					asset_out_name: "hWBTC",
+					amount_in: bob_sell,
+				},
+				CrossIntent {
+					who: charlie.clone(),
+					label: "charlie",
+					asset_in: hwbtc,
+					asset_in_name: "hWBTC",
+					asset_out: husdt,
+					asset_out_name: "hUSDT",
+					amount_in: charlie_sell,
+				},
+				CrossIntent {
+					who: dave.clone(),
+					label: "dave",
+					asset_in: h1110,
+					asset_in_name: "h1110",
+					asset_out: hwbtc,
+					asset_out_name: "hWBTC",
+					amount_in: dave_sell,
+				},
+			];
+
+			for ci in &cross_intents {
+				// Very loose limit: 1 unit of output token
+				assert_ok!(hydradx_runtime::Intent::submit_intent(
+					RuntimeOrigin::signed(ci.who.clone()),
+					pallet_intent::types::IntentInput {
+						data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+							asset_in: ci.asset_in,
+							asset_out: ci.asset_out,
+							amount_in: ci.amount_in,
+							amount_out: 1 * atoken_unit,
+							partial: false,
+						}),
+						deadline,
+						on_resolved: None,
+					}
+				));
+				println!(
+					"{}: sells {} {} → {} (amount: {})",
+					ci.label,
+					ci.asset_in_name,
+					ci.asset_in,
+					ci.asset_out_name,
+					ci.amount_in as f64 / atoken_unit as f64
+				);
+			}
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			println!("\ntotal valid intents: {}", intents.len());
+			assert_eq!(intents.len(), 4, "Should have 4 intents");
+
+			// Capture output balances before solve (we verify the user received the right amount)
+			let out_bals_before: Vec<(AccountId, u32, u128)> = cross_intents
+				.iter()
+				.map(|ci| {
+					(
+						ci.who.clone(),
+						ci.asset_out,
+						Currencies::free_balance(ci.asset_out, &ci.who),
+					)
+				})
+				.collect();
+
+			// ============================================================
+			// SOLVE
+			// ============================================================
+			println!("\n=== Running solver ===\n");
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			println!(
+				"solution: {} resolved, {} trades, score: {}",
+				solution.resolved_intents.len(),
+				solution.trades.len(),
+				solution.score
+			);
+
+			// Log resolved intents
+			for ri in solution.resolved_intents.iter() {
+				let ice_support::IntentData::Swap(ref s) = ri.data else {
+					continue;
+				};
+				let ci = cross_intents
+					.iter()
+					.find(|ci| ci.asset_in == s.asset_in && ci.asset_out == s.asset_out);
+				let label = ci.map(|c| c.label).unwrap_or("?");
+				println!(
+					"  {} (id={}): {} {} → {} {} (rate: {:.6})",
+					label,
+					ri.id,
+					s.amount_in as f64 / atoken_unit as f64,
+					s.asset_in,
+					s.amount_out as f64 / atoken_unit as f64,
+					s.asset_out,
+					s.amount_out as f64 / s.amount_in as f64
+				);
+			}
+
+			// Log trades
+			for (i, t) in solution.trades.iter().enumerate() {
+				println!(
+					"  trade[{}]: amount_in={}, amount_out={}, route={:?}",
+					i,
+					t.amount_in,
+					t.amount_out,
+					t.route
+						.iter()
+						.map(|r| format!("{}->{} ({:?})", r.asset_in, r.asset_out, r.pool))
+						.collect::<Vec<_>>()
+				);
+			}
+
+			// Check for matching: if Bob(1111→1113) and Charlie(1113→1111) matched,
+			// the number of AMM trades should be fewer than 4
+			if solution.trades.len() < 4 {
+				println!(
+					"\n→ Direct matching detected! {} AMM trades instead of 4",
+					solution.trades.len()
+				);
+			} else {
+				println!("\n→ No direct matching (4 AMM trades)");
+			}
+
+			assert!(
+				solution.resolved_intents.len() == 4,
+				"All 4 intents should be resolved, got {}",
+				solution.resolved_intents.len()
+			);
+			assert!(solution.score > 0, "Score should be positive");
+
+			// ============================================================
+			// EXECUTE
+			// ============================================================
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution.clone(),
+			));
+			println!("\nsubmit_solution: OK");
+
+			// ============================================================
+			// VERIFY
+			// ============================================================
+			let ice_fee = hydradx_runtime::IceFee::get();
+
+			for ri in solution.resolved_intents.iter() {
+				let ice_support::IntentData::Swap(ref s) = ri.data else {
+					continue;
+				};
+
+				// Match resolved intent to our setup by asset_in + asset_out
+				let idx = cross_intents
+					.iter()
+					.position(|ci| ci.asset_in == s.asset_in && ci.asset_out == s.asset_out)
+					.expect("Resolved intent should match a submitted intent");
+				let ci = &cross_intents[idx];
+				let (_, _, out_before) = &out_bals_before[idx];
+
+				let out_after = Currencies::free_balance(s.asset_out, &ci.who);
+				let received = out_after.saturating_sub(*out_before);
+				let fee = ice_fee.mul_floor(s.amount_out);
+				let expected_payout = s.amount_out.saturating_sub(fee);
+
+				assert_eq!(
+					received, expected_payout,
+					"{}: received {} should match amount_out minus fee (expected {})",
+					ci.label, received, expected_payout
+				);
+
+				println!(
+					"{}: received {} {} (fee: {})",
+					ci.label,
+					received as f64 / atoken_unit as f64,
+					ci.asset_out_name,
+					fee as f64 / atoken_unit as f64
+				);
+			}
+
+			// All intents should be removed
+			for ri in solution.resolved_intents.iter() {
+				assert!(
+					pallet_intent::Pallet::<Runtime>::get_intent(ri.id).is_none(),
+					"Intent {} should be removed after resolution",
+					ri.id
+				);
+			}
+
+			println!("\ncross-aToken trades with matching: OK");
+		});
+}
