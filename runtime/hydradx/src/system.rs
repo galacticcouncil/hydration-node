@@ -286,6 +286,18 @@ pub type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
 	UNINCLUDED_SEGMENT_CAPACITY,
 >;
 
+pub struct RelayParentOffset;
+
+impl Get<u32> for RelayParentOffset {
+	fn get() -> u32 {
+		if Parameters::relay_parent_offset_override() {
+			0
+		} else {
+			DEFAULT_RELAY_PARENT_OFFSET
+		}
+	}
+}
+
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type OnSystemEvent = pallet_relaychain_info::OnValidationDataHandler<Runtime>;
