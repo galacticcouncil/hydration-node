@@ -22,8 +22,8 @@ use pallet_transaction_multi_payment::{DepositAll, TransferFees, WeightInfo};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::constants::{
 	chain::{
-		BLOCK_PROCESSING_VELOCITY, CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT, RELAY_CHAIN_SLOT_DURATION_MILLIS,
-		UNINCLUDED_SEGMENT_CAPACITY,
+		BLOCK_PROCESSING_VELOCITY, CORE_ASSET_ID, DEFAULT_RELAY_PARENT_OFFSET, MAXIMUM_BLOCK_WEIGHT,
+		RELAY_CHAIN_SLOT_DURATION_MILLIS, UNINCLUDED_SEGMENT_CAPACITY,
 	},
 	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
 	time::{DAYS, HOURS, SLOT_DURATION},
@@ -311,7 +311,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
 	type ConsensusHook = ConsensusHook;
 	type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
-	type RelayParentOffset = ConstU32<0>;
+	type RelayParentOffset = RelayParentOffset;
 }
 
 parameter_types! {
