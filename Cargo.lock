@@ -6733,6 +6733,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "ice-solver-bench"
+version = "0.1.0"
+dependencies = [
+ "amm-simulator",
+ "criterion",
+ "frame-remote-externalities",
+ "frame-support",
+ "frame-system",
+ "hydradx-runtime",
+ "hydradx-traits",
+ "ice-solver",
+ "ice-support",
+ "log",
+ "pallet-ema-oracle",
+ "pallet-intent",
+ "pallet-omnipool",
+ "primitives",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "tokio",
+]
+
+[[package]]
 name = "ice-support"
 version = "1.0.0"
 dependencies = [
