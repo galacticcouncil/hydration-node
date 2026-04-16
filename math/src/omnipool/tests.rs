@@ -3133,6 +3133,224 @@ fn multi_trade_cross_validation_order_b() {
 	}
 }
 
+// ── Cross-validation: sell/buy LRNA (hub asset) ────────────────────────
+
+#[test]
+fn cross_validate_sell_lrna_for_dot_fresh_block() {
+	// Sell 10K LRNA → DOT, fresh block (no prior delta).
+	// Hub trades have no sell-side slip and no protocol (LRNA) fee — only buy-side slip + asset fee.
+	let asset_out_state = AssetReserveState {
+		reserve: 500_000 * UNIT,
+		hub_reserve: 5_000_000 * UNIT,
+		shares: 500_000 * UNIT,
+		protocol_shares: 0,
+	};
+
+	let slip = HubTradeSlipFees {
+		asset_hub_reserve: 5_000_000 * UNIT,
+		asset_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(100),
+	};
+
+	let r = calculate_sell_hub_state_changes(
+		&asset_out_state,
+		10_000 * UNIT,
+		Permill::from_rational(25u32, 10000u32), // 0.25%
+		Some(&slip),
+	)
+	.unwrap();
+
+	// Python reference values (lrna_mint_pct=0, slip_factor=1.0):
+	let py_tokens_out: u128 = 993_525_896_414_342;
+	let py_slip_buy: u128 = 19_960_079_840_319;
+	let py_asset_fee: u128 = 2_490_039_840_637;
+	let py_d_net: u128 = 9_980_039_920_159_680;
+
+	assert_within_one(*r.asset.delta_reserve, py_tokens_out, "sell_lrna fresh: tokens_out");
+	assert_within_one(r.fee.protocol_fee, py_slip_buy, "sell_lrna fresh: slip_buy");
+	assert_within_one(r.fee.asset_fee, py_asset_fee, "sell_lrna fresh: asset_fee");
+	assert_within_tolerance(
+		*r.asset.delta_hub_reserve,
+		py_d_net + py_slip_buy,
+		2,
+		"sell_lrna fresh: D_gross",
+	);
+}
+
+#[test]
+fn cross_validate_buy_dot_with_lrna_fresh_block() {
+	// Buy 1000 DOT with LRNA, fresh block (no prior delta).
+	let asset_out_state = AssetReserveState {
+		reserve: 500_000 * UNIT,
+		hub_reserve: 5_000_000 * UNIT,
+		shares: 500_000 * UNIT,
+		protocol_shares: 0,
+	};
+
+	let slip = HubTradeSlipFees {
+		asset_hub_reserve: 5_000_000 * UNIT,
+		asset_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(100),
+	};
+
+	let r = calculate_buy_for_hub_asset_state_changes(
+		&asset_out_state,
+		1000 * UNIT,
+		Permill::from_rational(25u32, 10000u32),
+		Some(&slip),
+	)
+	.unwrap();
+
+	// Python reference values:
+	let py_lrna_cost: u128 = 10_065_425_264_217_413;
+	let py_slip_buy: u128 = 20_221_848_848_251;
+	let py_d_net: u128 = 10_045_203_415_369_161;
+	let py_asset_fee: u128 = 2_506_265_664_160;
+
+	let d_net = *r.asset.delta_hub_reserve - r.fee.protocol_fee;
+
+	assert_within_tolerance(
+		*r.asset.delta_hub_reserve,
+		py_lrna_cost,
+		2,
+		"buy_dot_lrna fresh: D_gross (lrna_cost)",
+	);
+	assert_within_one(r.fee.protocol_fee, py_slip_buy, "buy_dot_lrna fresh: slip_buy");
+	assert_within_one(r.fee.asset_fee, py_asset_fee, "buy_dot_lrna fresh: asset_fee");
+	assert_within_tolerance(d_net, py_d_net, 2, "buy_dot_lrna fresh: D_net");
+}
+
+#[test]
+fn cross_validate_sell_lrna_for_dot_with_prior_delta() {
+	// Trade 1: Sell 50K HDX → DOT (builds positive delta on DOT).
+	// Trade 2: Sell 10K LRNA → DOT (hub trade with prior positive delta → higher slip).
+	//
+	// Using Python-computed intermediate DOT state after trade 1.
+	let dot_delta = SignedBalance::Positive(48_992_802_565_656_267);
+
+	let dot_state = AssetReserveState {
+		reserve: 495_160_389_163_715_130,
+		hub_reserve: 5_048_992_802_565_656_267,
+		shares: 500_000 * UNIT,
+		protocol_shares: 0,
+	};
+
+	let slip = HubTradeSlipFees {
+		asset_hub_reserve: 5_000_000 * UNIT, // Q0 at block start
+		asset_delta: dot_delta,
+		max_slip_fee: Permill::from_percent(100),
+	};
+
+	let r = calculate_sell_hub_state_changes(
+		&dot_state,
+		10_000 * UNIT,
+		Permill::from_rational(25u32, 10000u32),
+		Some(&slip),
+	)
+	.unwrap();
+
+	// Python reference values:
+	let py_tokens_out: u128 = 964_963_067_758_208;
+	let py_slip_buy: u128 = 116_609_777_613_714;
+	let py_d_net: u128 = 9_883_390_222_386_285;
+
+	assert_within_one(*r.asset.delta_reserve, py_tokens_out, "sell_lrna delta: tokens_out");
+	assert_within_one(r.fee.protocol_fee, py_slip_buy, "sell_lrna delta: slip_buy");
+	assert_within_tolerance(
+		*r.asset.delta_hub_reserve,
+		py_d_net + py_slip_buy,
+		2,
+		"sell_lrna delta: D_gross",
+	);
+
+	// Slip with prior positive delta should be higher than fresh block
+	let fresh_slip = HubTradeSlipFees {
+		asset_hub_reserve: 5_000_000 * UNIT,
+		asset_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(100),
+	};
+	let r_fresh = calculate_sell_hub_state_changes(
+		&dot_state,
+		10_000 * UNIT,
+		Permill::from_rational(25u32, 10000u32),
+		Some(&fresh_slip),
+	)
+	.unwrap();
+
+	assert!(
+		r.fee.protocol_fee > r_fresh.fee.protocol_fee,
+		"Prior positive delta should increase sell_hub slip: {} > {}",
+		r.fee.protocol_fee,
+		r_fresh.fee.protocol_fee
+	);
+}
+
+#[test]
+fn cross_validate_buy_dot_with_lrna_with_prior_delta() {
+	// Trade 1: Sell 50K HDX → DOT (builds positive delta on DOT).
+	// Trade 2: Buy 1000 DOT with LRNA (hub trade with prior positive delta → higher cost).
+	//
+	// Using Python-computed intermediate DOT state after trade 1.
+	let dot_delta = SignedBalance::Positive(48_992_802_565_656_267);
+
+	let dot_state = AssetReserveState {
+		reserve: 495_160_389_163_715_130,
+		hub_reserve: 5_048_992_802_565_656_267,
+		shares: 500_000 * UNIT,
+		protocol_shares: 0,
+	};
+
+	let slip = HubTradeSlipFees {
+		asset_hub_reserve: 5_000_000 * UNIT,
+		asset_delta: dot_delta,
+		max_slip_fee: Permill::from_percent(100),
+	};
+
+	let r = calculate_buy_for_hub_asset_state_changes(
+		&dot_state,
+		1000 * UNIT,
+		Permill::from_rational(25u32, 10000u32),
+		Some(&slip),
+	)
+	.unwrap();
+
+	// Python reference values:
+	let py_lrna_cost: u128 = 10_364_574_387_995_192;
+	let py_slip_buy: u128 = 121_599_227_545_144;
+	let py_d_net: u128 = 10_242_975_160_450_047;
+
+	let d_net = *r.asset.delta_hub_reserve - r.fee.protocol_fee;
+
+	assert_within_tolerance(
+		*r.asset.delta_hub_reserve,
+		py_lrna_cost,
+		2,
+		"buy_dot_lrna delta: D_gross (lrna_cost)",
+	);
+	assert_within_one(r.fee.protocol_fee, py_slip_buy, "buy_dot_lrna delta: slip_buy");
+	assert_within_tolerance(d_net, py_d_net, 2, "buy_dot_lrna delta: D_net");
+
+	// With prior positive delta, cost should be higher than fresh block
+	let r_fresh = calculate_buy_for_hub_asset_state_changes(
+		&dot_state,
+		1000 * UNIT,
+		Permill::from_rational(25u32, 10000u32),
+		Some(&HubTradeSlipFees {
+			asset_hub_reserve: 5_000_000 * UNIT,
+			asset_delta: SignedBalance::zero(),
+			max_slip_fee: Permill::from_percent(100),
+		}),
+	)
+	.unwrap();
+
+	assert!(
+		*r.asset.delta_hub_reserve > *r_fresh.asset.delta_hub_reserve,
+		"Prior positive delta should increase buy_hub cost: {} > {}",
+		*r.asset.delta_hub_reserve,
+		*r_fresh.asset.delta_hub_reserve
+	);
+}
+
 #[test]
 fn calculate_buy_should_respect_max_slip_fee_cap_on_buy_side() {
 	// large pool: ~0.02% hub flow -> cap does not fire
