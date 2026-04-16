@@ -45,9 +45,7 @@ fn bench_resolvable(c: &mut Criterion) {
 	for n in [10, 50, 100, 200] {
 		let intents = generate_resolvable_intents(n);
 		group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
-			b.iter(|| {
-				ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone())))
-			})
+			b.iter(|| ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone()))))
 		});
 	}
 	group.finish();
@@ -62,9 +60,7 @@ fn bench_unresolvable(c: &mut Criterion) {
 	for n in [10, 50, 100, 500, 1000, 5000] {
 		let intents = generate_unresolvable_intents(n);
 		group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
-			b.iter(|| {
-				ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone())))
-			})
+			b.iter(|| ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone()))))
 		});
 	}
 	group.finish();
@@ -80,9 +76,7 @@ fn bench_mixed(c: &mut Criterion) {
 		let intents = generate_mixed_intents(good, bad);
 		let label = format!("{}good_{}bad", good, bad);
 		group.bench_with_input(BenchmarkId::new("intents", &label), &label, |b, _| {
-			b.iter(|| {
-				ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone())))
-			})
+			b.iter(|| ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone()))))
 		});
 	}
 	group.finish();
@@ -121,9 +115,7 @@ fn bench_partial(c: &mut Criterion) {
 	for n in [1, 2, 5, 10, 20] {
 		let intents = generate_partial_intents(n);
 		group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
-			b.iter(|| {
-				ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone())))
-			})
+			b.iter(|| ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone()))))
 		});
 	}
 	group.finish();
@@ -140,9 +132,7 @@ fn bench_mixed_partial(c: &mut Criterion) {
 		let intents = generate_mixed_partial_intents(np, p);
 		let label = format!("{}np_{}p", np, p);
 		group.bench_with_input(BenchmarkId::new("intents", &label), &label, |b, _| {
-			b.iter(|| {
-				ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone())))
-			})
+			b.iter(|| ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone()))))
 		});
 	}
 	group.finish();

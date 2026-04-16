@@ -9,9 +9,7 @@ pub use pallet_intent::types::Intent as StorageIntent;
 pub type CombinedSimulatorState =
 	<<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State;
 
-pub fn load_snapshot(
-	path: &str,
-) -> frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block> {
+pub fn load_snapshot(path: &str) -> frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block> {
 	tokio::runtime::Builder::new_current_thread()
 		.enable_all()
 		.build()

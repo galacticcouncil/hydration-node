@@ -401,9 +401,12 @@ impl<A: AMMInterface> Solver<A> {
 			}
 
 			if best_fill >= ed {
-				// ED guard on remaining
+				// ED guard: ensure remaining is zero or large enough to trade next round.
+				// Check both input ED and whether remaining can produce output >= ed_out.
 				let remaining_after = pfill.fill_amount.saturating_sub(best_fill);
-				if remaining_after > 0 && remaining_after < ed {
+				let remaining_untradeable =
+					remaining_after > 0 && (remaining_after < ed || apply_rate(remaining_after, min_n, min_d) < ed_out);
+				if remaining_untradeable {
 					// Try filling everything
 					let full = pfill.fill_amount;
 					let trial = IntentFill {
@@ -968,11 +971,25 @@ impl<A: AMMInterface> Solver<A> {
 			}
 		}
 
-		// ED guard: if best fill leaves remaining < ED and > 0, adjust
+		// ED guard: ensure remaining amount is either zero or large enough to be
+		// tradeable in the next round. "Tradeable" means both:
+		//   (a) remaining >= ed (input asset ED) — won't be dust in the user's account
+		//   (b) remaining can produce output >= ed_out — the next fill won't be blocked
+		// If remaining fails either check, try filling everything instead.
 		if let Some((fill, _, ref route)) = best {
 			let remaining_after = max_fill.saturating_sub(fill);
-			if remaining_after > 0 && remaining_after < ed {
-				// Either fill the whole thing or reduce to keep remaining >= ED
+			let remaining_untradeable = if remaining_after == 0 {
+				false
+			} else if remaining_after < ed {
+				true
+			} else {
+				// Check if remaining can produce output above ed_out
+				let remaining_out = apply_rate(remaining_after, min_n, min_d);
+				remaining_out < ed_out
+			};
+
+			if remaining_untradeable {
+				// Try filling everything
 				let fill_all = max_fill;
 				if let Some((_, all_out, _)) =
 					Self::select_best_route(routes.to_vec(), swap.asset_in, swap.asset_out, fill_all, state)
