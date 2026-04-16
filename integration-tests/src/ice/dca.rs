@@ -1,12 +1,12 @@
-use crate::polkadot_test_net::{hydradx_run_to_next_block, TestNet, ALICE, BOB};
+use crate::polkadot_test_net::{hydradx_run_to_next_block, last_hydra_events, TestNet, ALICE, BOB};
 use amm_simulator::HydrationSimulator;
 use frame_support::assert_ok;
 use frame_support::traits::Time;
-use hydradx_runtime::{Currencies, Runtime, RuntimeOrigin};
+use hydradx_runtime::{Currencies, Runtime, RuntimeEvent, RuntimeOrigin};
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
 use ice_solver::v2::Solver as IceSolver;
 use ice_support::Solution;
-use orml_traits::MultiCurrency;
+use orml_traits::{MultiCurrency, MultiReservableCurrency};
 use pallet_omnipool::types::SlipFeeConfig;
 use primitives::constants::time::MILLISECS_PER_BLOCK;
 use primitives::AccountId;
@@ -389,27 +389,740 @@ fn ice_dca_driving() {
 		});
 }
 
-// === Security reproducer: DCA period is NOT enforced at resolve time ===
-//
-// `validate_dca_intent_resolve` (pallets/intent/src/lib.rs:801-809) checks only
-// `amount_in == dca.amount_in` and `amount_out >= dca.amount_out`. It does NOT
-// check `current_block >= dca.last_execution_block + dca.period`.
-//
-// The period is enforced only in `get_valid_intents()` — an OCW-local helper.
-// A block author runs their own OCW. They can skip the helper, read DCA
-// intents directly from storage, transform them into Swap intents via
-// `DcaData::to_swap_data()` (exactly what the helper itself does, minus the
-// filter), hand that to the solver, and submit the resulting Solution via
-// the normal unsigned extrinsic. `validate_resolve` — called from both the
-// pool-entry `validate_unsigned_solution` and the dispatch-time
-// `intent_resolved` — has no period check for DCA, so the solution is
-// accepted and `resolve_dca_intent` drains one `amount_in` from the budget.
-//
-// Repeated across consecutive blocks, this drains the entire budget in
-// `budget / amount_in` blocks instead of `budget / amount_in * period`
-// blocks. Time-averaging and the oracle pre-filter are both bypassed.
-//
-// This reproducer uses only public APIs — no production code changes.
+#[test]
+fn dca_create_schedule_should_work() {
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	let budget = 5 * TRADE_AMOUNT;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), HDX, budget * 10)
+		.execute(|| {
+			let hdx_free_before = Currencies::free_balance(HDX, &alice);
+
+			submit_dca_hdx_bnc(alice.clone(), Some(budget));
+
+			let stored: Vec<_> = pallet_intent::Intents::<Runtime>::iter().collect();
+			assert_eq!(stored.len(), 1);
+			match &stored[0].1.data {
+				ice_support::IntentData::Dca(dca) => {
+					assert_eq!(dca.asset_in, HDX);
+					assert_eq!(dca.asset_out, BNC);
+					assert_eq!(dca.amount_in, TRADE_AMOUNT);
+					assert_eq!(dca.period, PERIOD);
+					assert_eq!(dca.budget, Some(budget));
+					assert_eq!(dca.remaining_budget, budget);
+				}
+				_ => panic!("Expected DCA intent data"),
+			}
+
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 1);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 1);
+			assert_eq!(Currencies::reserved_balance(HDX, &alice), budget);
+			assert_eq!(Currencies::free_balance(HDX, &alice), hdx_free_before - budget);
+
+			let events = last_hydra_events(10);
+			assert!(events.iter().any(|e| matches!(
+				e,
+				RuntimeEvent::Intent(pallet_intent::Event::IntentSubmitted { owner, .. })
+					if owner == &alice
+			)));
+
+			assert_eq!(pallet_intent::Pallet::<Runtime>::get_valid_intents().len(), 0);
+		});
+}
+
+#[test]
+fn dca_rolling_terminates_gracefully_on_funds_exhaustion() {
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	// Rolling DCA reserves 2*amount_in up front and tries to top up by 1*amount_in
+	// after each trade. With 5x initial balance we expect termination within ~5 trades.
+	let alice_initial_hdx = 5 * TRADE_AMOUNT;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), HDX, alice_initial_hdx)
+		.execute(|| {
+			enable_slip_fees();
+			let hdx_free_at_start = Currencies::free_balance(HDX, &alice);
+
+			submit_dca_hdx_bnc(alice.clone(), None);
+			assert_eq!(Currencies::reserved_balance(HDX, &alice), 2 * TRADE_AMOUNT);
+
+			let bnc_before = Currencies::total_balance(BNC, &alice);
+			let mut trades = 0;
+			for _ in 0..20 {
+				advance_and_solve(PERIOD);
+				trades += 1;
+				if pallet_intent::Intents::<Runtime>::iter().count() == 0 {
+					break;
+				}
+			}
+
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0);
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 0);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 0);
+			assert_eq!(Currencies::reserved_balance(HDX, &alice), 0);
+			assert!(trades >= 1);
+			assert!(Currencies::total_balance(BNC, &alice) > bnc_before);
+			assert!(Currencies::free_balance(HDX, &alice) <= hdx_free_at_start);
+		});
+}
+
+#[test]
+fn dca_terminate_freshly_created_returns_reserved_budget() {
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	let budget = 5 * TRADE_AMOUNT;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), HDX, budget * 10)
+		.execute(|| {
+			let hdx_free_before = Currencies::free_balance(HDX, &alice);
+
+			submit_dca_hdx_bnc(alice.clone(), Some(budget));
+			assert_eq!(Currencies::reserved_balance(HDX, &alice), budget);
+			assert_eq!(Currencies::free_balance(HDX, &alice), hdx_free_before - budget);
+
+			let (id, _) = pallet_intent::Intents::<Runtime>::iter().next().unwrap();
+			assert_ok!(hydradx_runtime::Intent::remove_intent(
+				RuntimeOrigin::signed(alice.clone()),
+				id
+			));
+
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0);
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 0);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 0);
+			assert_eq!(Currencies::reserved_balance(HDX, &alice), 0);
+			assert_eq!(Currencies::free_balance(HDX, &alice), hdx_free_before);
+		});
+}
+
+#[test]
+fn dca_multiple_schedules_same_user_complete_independently() {
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	let b1 = TRADE_AMOUNT;
+	let b2 = 2 * TRADE_AMOUNT;
+	let b3 = 3 * TRADE_AMOUNT;
+	let total = b1 + b2 + b3;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), HDX, total * 10)
+		.execute(|| {
+			enable_slip_fees();
+
+			submit_dca_hdx_bnc(alice.clone(), Some(b1));
+			submit_dca_hdx_bnc(alice.clone(), Some(b2));
+			submit_dca_hdx_bnc(alice.clone(), Some(b3));
+
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 3);
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 3);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 3);
+			assert_eq!(Currencies::reserved_balance(HDX, &alice), total);
+
+			let bnc_before = Currencies::total_balance(BNC, &alice);
+
+			let sol1 = advance_and_solve(PERIOD);
+			assert_eq!(sol1.resolved_intents.len(), 3);
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 2);
+			assert_eq!(Currencies::reserved_balance(HDX, &alice), total - 3 * TRADE_AMOUNT);
+			let bnc_after_1 = Currencies::total_balance(BNC, &alice);
+			assert!(bnc_after_1 > bnc_before);
+
+			let sol2 = advance_and_solve(PERIOD);
+			assert_eq!(sol2.resolved_intents.len(), 2);
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1);
+			assert_eq!(Currencies::reserved_balance(HDX, &alice), total - 5 * TRADE_AMOUNT);
+			let bnc_after_2 = Currencies::total_balance(BNC, &alice);
+			assert!(bnc_after_2 > bnc_after_1);
+
+			let sol3 = advance_and_solve(PERIOD);
+			assert_eq!(sol3.resolved_intents.len(), 1);
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0);
+			assert_eq!(Currencies::reserved_balance(HDX, &alice), 0);
+			assert!(Currencies::total_balance(BNC, &alice) > bnc_after_2);
+
+			assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 0);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 0);
+		});
+}
+
+#[test]
+fn dca_emits_trade_executed_and_completed_events() {
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	let budget = 2 * TRADE_AMOUNT;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), HDX, budget * 10)
+		.execute(|| {
+			enable_slip_fees();
+			submit_dca_hdx_bnc(alice.clone(), Some(budget));
+
+			let intent_id = pallet_intent::Intents::<Runtime>::iter()
+				.next()
+				.map(|(id, _)| id)
+				.unwrap();
+
+			advance_and_solve(PERIOD);
+
+			let events1 = last_hydra_events(20);
+			let trade1 = events1.iter().find_map(|e| match e {
+				RuntimeEvent::Intent(pallet_intent::Event::DcaTradeExecuted {
+					id,
+					amount_in,
+					remaining_budget,
+					..
+				}) if *id == intent_id => Some((*amount_in, *remaining_budget)),
+				_ => None,
+			});
+			let (amount_in, remaining_after_1) = trade1.expect("DcaTradeExecuted");
+			assert_eq!(amount_in, TRADE_AMOUNT);
+			assert_eq!(remaining_after_1, TRADE_AMOUNT);
+			assert!(!events1.iter().any(|e| matches!(
+				e,
+				RuntimeEvent::Intent(pallet_intent::Event::DcaCompleted { id }) if *id == intent_id
+			)));
+
+			advance_and_solve(PERIOD);
+
+			let events2 = last_hydra_events(20);
+			assert!(events2.iter().any(|e| matches!(
+				e,
+				RuntimeEvent::Intent(pallet_intent::Event::DcaCompleted { id }) if *id == intent_id
+			)));
+			assert!(!events2.iter().any(|e| matches!(
+				e,
+				RuntimeEvent::Intent(pallet_intent::Event::DcaTradeExecuted { id, .. }) if *id == intent_id
+			)));
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0);
+		});
+}
+
+#[test]
+fn dca_through_stableswap_single_hop() {
+	use amm_simulator::stableswap::Simulator as StableswapSimulator;
+	use hydradx_runtime::{ice_simulator_provider, AssetRegistry, Router};
+	use hydradx_traits::amm::AmmSimulator;
+	use hydradx_traits::router::{AssetPair, RouteProvider};
+	use hydradx_traits::BoundErc20;
+
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		enable_slip_fees();
+
+		// Pick a stableswap pool whose first two assets are non-contract and both routable to HDX.
+		let snapshot = StableswapSimulator::<ice_simulator_provider::Stableswap<Runtime>>::snapshot();
+		let selected = snapshot.pools.iter().find_map(|(_, pool)| {
+			if pool.assets.len() < 2 {
+				return None;
+			}
+			let (a, b) = (pool.assets[0], pool.assets[1]);
+			if AssetRegistry::contract_address(a).is_some() || AssetRegistry::contract_address(b).is_some() {
+				return None;
+			}
+			if Router::get_onchain_route(AssetPair::new(a, HDX)).is_some()
+				&& Router::get_onchain_route(AssetPair::new(b, HDX)).is_some()
+			{
+				Some((a, b, pool.reserves[0].decimals, pool.reserves[1].decimals))
+			} else {
+				None
+			}
+		});
+		let (asset_in, asset_out, decimals_in, decimals_out) = selected.expect("no suitable stableswap pool in snapshot");
+
+		let per_trade_in = 100 * 10u128.pow(decimals_in as u32);
+		let per_trade_out_min = 10u128.pow(decimals_out as u32);
+		let budget = 2 * per_trade_in;
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			alice.clone(),
+			asset_in,
+			(budget * 10) as i128,
+		));
+
+		let in_before = Currencies::total_balance(asset_in, &alice);
+		let out_before = Currencies::total_balance(asset_out, &alice);
+
+		assert_ok!(hydradx_runtime::Intent::submit_intent(
+			RuntimeOrigin::signed(alice.clone()),
+			pallet_intent::types::IntentInput {
+				data: ice_support::IntentDataInput::Dca(ice_support::DcaParams {
+					asset_in,
+					asset_out,
+					amount_in: per_trade_in,
+					amount_out: per_trade_out_min,
+					slippage: DCA_SLIPPAGE,
+					budget: Some(budget),
+					period: PERIOD,
+				}),
+				deadline: None,
+				on_resolved: None,
+			}
+		));
+		assert_eq!(Currencies::reserved_balance(asset_in, &alice), budget);
+
+		advance_and_solve(PERIOD);
+		assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1);
+
+		advance_and_solve(PERIOD);
+		assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0);
+
+		assert!(Currencies::total_balance(asset_in, &alice) < in_before);
+		assert!(Currencies::total_balance(asset_out, &alice) > out_before);
+		assert_eq!(Currencies::reserved_balance(asset_in, &alice), 0);
+	});
+}
+
+#[test]
+fn dca_through_omnipool_and_stableswap_multi_hop() {
+	use amm_simulator::stableswap::Simulator as StableswapSimulator;
+	use hydradx_runtime::{ice_simulator_provider, AssetRegistry, Router};
+	use hydradx_traits::amm::AmmSimulator;
+	use hydradx_traits::router::{AssetPair, RouteProvider};
+	use hydradx_traits::BoundErc20;
+
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		enable_slip_fees();
+
+		// HDX lives in Omnipool, stable leg in Stableswap — any route the solver picks is multi-pool.
+		let snapshot = StableswapSimulator::<ice_simulator_provider::Stableswap<Runtime>>::snapshot();
+		let stable_asset_id = snapshot
+			.pools
+			.iter()
+			.find_map(|(_, pool)| {
+				pool.assets
+					.iter()
+					.find(|&&a| {
+						AssetRegistry::contract_address(a).is_none()
+							&& Router::get_onchain_route(AssetPair::new(HDX, a)).is_some()
+							&& Router::get_onchain_route(AssetPair::new(a, HDX)).is_some()
+					})
+					.copied()
+			})
+			.expect("no stableswap asset with HDX route in snapshot");
+
+		let per_trade_in = TRADE_AMOUNT;
+		let per_trade_out_min = <pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(stable_asset_id)
+			.expect("stable asset has ED");
+		let budget = 2 * per_trade_in;
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			alice.clone(),
+			HDX,
+			(budget * 10) as i128,
+		));
+
+		let hdx_before = Currencies::total_balance(HDX, &alice);
+		let stable_before = Currencies::total_balance(stable_asset_id, &alice);
+
+		assert_ok!(hydradx_runtime::Intent::submit_intent(
+			RuntimeOrigin::signed(alice.clone()),
+			pallet_intent::types::IntentInput {
+				data: ice_support::IntentDataInput::Dca(ice_support::DcaParams {
+					asset_in: HDX,
+					asset_out: stable_asset_id,
+					amount_in: per_trade_in,
+					amount_out: per_trade_out_min,
+					slippage: DCA_SLIPPAGE,
+					budget: Some(budget),
+					period: PERIOD,
+				}),
+				deadline: None,
+				on_resolved: None,
+			}
+		));
+
+		advance_and_solve(PERIOD);
+		assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1);
+		advance_and_solve(PERIOD);
+		assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0);
+
+		assert!(Currencies::total_balance(HDX, &alice) < hdx_before);
+		assert!(Currencies::total_balance(stable_asset_id, &alice) > stable_before);
+		assert_eq!(Currencies::reserved_balance(HDX, &alice), 0);
+	});
+}
+
+#[test]
+fn dca_through_aave_pair() {
+	use amm_simulator::aave::Simulator as AaveSimulator;
+	use hydradx_runtime::ice_simulator_provider;
+	use hydradx_traits::amm::AmmSimulator;
+
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		enable_slip_fees();
+
+		let aave_snapshot = AaveSimulator::<ice_simulator_provider::Aave<Runtime>>::snapshot();
+		let picked = aave_snapshot.pairs.iter().find_map(|(a, b)| {
+			let ed_in = <pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(*a)?;
+			let ed_out = <pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(*b)?;
+			Some((*a, *b, ed_in, ed_out))
+		});
+
+		let Some((asset_in, asset_out, ed_in, ed_out)) = picked else {
+			// Snapshot has no Aave pairs — nothing to exercise, not a failure.
+			return;
+		};
+
+		let per_trade_in = ed_in.saturating_mul(100);
+		let per_trade_out_min = ed_out;
+		let budget = 2 * per_trade_in;
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			alice.clone(),
+			asset_in,
+			(budget * 10) as i128,
+		));
+
+		let in_before = Currencies::total_balance(asset_in, &alice);
+		let out_before = Currencies::total_balance(asset_out, &alice);
+
+		assert_ok!(hydradx_runtime::Intent::submit_intent(
+			RuntimeOrigin::signed(alice.clone()),
+			pallet_intent::types::IntentInput {
+				data: ice_support::IntentDataInput::Dca(ice_support::DcaParams {
+					asset_in,
+					asset_out,
+					amount_in: per_trade_in,
+					amount_out: per_trade_out_min,
+					slippage: DCA_SLIPPAGE,
+					budget: Some(budget),
+					period: PERIOD,
+				}),
+				deadline: None,
+				on_resolved: None,
+			}
+		));
+
+		advance_and_solve(PERIOD);
+		assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1);
+		advance_and_solve(PERIOD);
+		assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0);
+
+		assert!(Currencies::total_balance(asset_in, &alice) < in_before);
+		assert!(Currencies::total_balance(asset_out, &alice) > out_before);
+		assert_eq!(Currencies::reserved_balance(asset_in, &alice), 0);
+	});
+}
+
+#[test]
+fn dca_stays_alive_when_trade_fails_until_lockdown_is_lifted() {
+	use amm_simulator::stableswap::Simulator as StableswapSimulator;
+	use hydradx_runtime::{ice_simulator_provider, AssetRegistry, Router};
+	use hydradx_traits::amm::AmmSimulator;
+	use hydradx_traits::router::{AssetPair, RouteProvider};
+	use hydradx_traits::BoundErc20;
+
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		enable_slip_fees();
+
+		let snapshot = StableswapSimulator::<ice_simulator_provider::Stableswap<Runtime>>::snapshot();
+		let selected = snapshot.pools.iter().find_map(|(pid, pool)| {
+			if pool.assets.is_empty() {
+				return None;
+			}
+			let a = pool.assets[0];
+			if AssetRegistry::contract_address(a).is_some() {
+				return None;
+			}
+			Router::get_onchain_route(AssetPair::new(a, HDX)).map(|_| (*pid, a, pool.reserves[0].decimals))
+		});
+		let (pool_id, stable_asset_1, decimals_a) = selected.expect("no suitable stableswap pool");
+
+		let per_trade_in = 10u128 * 10u128.pow(decimals_a as u32);
+		let budget = 2 * per_trade_in;
+		let ed_pool = <pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(pool_id)
+			.expect("pool_id has ED");
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			alice.clone(),
+			stable_asset_1,
+			(budget * 10) as i128,
+		));
+
+		// Trigger circuit-breaker lockdown on pool_id by pinning and exceeding its deposit limit.
+		crate::deposit_limiter::update_deposit_limit(pool_id, ed_pool).unwrap();
+		assert_ok!(Currencies::deposit(pool_id, &bob, ed_pool * 2));
+
+		assert_ok!(hydradx_runtime::Intent::submit_intent(
+			RuntimeOrigin::signed(alice.clone()),
+			pallet_intent::types::IntentInput {
+				data: ice_support::IntentDataInput::Dca(ice_support::DcaParams {
+					asset_in: stable_asset_1,
+					asset_out: pool_id,
+					amount_in: per_trade_in,
+					amount_out: ed_pool,
+					slippage: DCA_SLIPPAGE,
+					budget: Some(budget),
+					period: PERIOD,
+				}),
+				deadline: None,
+				on_resolved: None,
+			}
+		));
+
+		let (intent_id, snap_before) = pallet_intent::Intents::<Runtime>::iter().next().unwrap();
+		let remaining_before = match &snap_before.data {
+			ice_support::IntentData::Dca(dca) => dca.remaining_budget,
+			_ => panic!("expected Dca intent"),
+		};
+
+		for _ in 0..PERIOD {
+			hydradx_run_to_next_block();
+		}
+
+		// Solver operates off-chain (no circuit breaker there) so it produces a solution;
+		// on-chain dispatch rejects it because of the lockdown. Intent must stay untouched.
+		let call = pallet_ice::Pallet::<Runtime>::run(
+			hydradx_runtime::System::block_number(),
+			|intents, state| Solver::solve(intents, state).ok(),
+		);
+		if let Some(pallet_ice::Call::submit_solution { solution, .. }) = call {
+			hydradx_run_to_next_block();
+			let res = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
+			assert!(res.is_err(), "submit must fail during lockdown; got {:?}", res);
+		}
+
+		let intent_after_failed = pallet_intent::Intents::<Runtime>::get(intent_id).unwrap();
+		match intent_after_failed.data {
+			ice_support::IntentData::Dca(dca) => {
+				assert_eq!(dca.remaining_budget, remaining_before);
+			}
+			_ => panic!("expected Dca intent"),
+		}
+
+		assert_ok!(hydradx_runtime::CircuitBreaker::force_lift_lockdown(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+		));
+		crate::deposit_limiter::update_deposit_limit(pool_id, u128::MAX / 2).unwrap();
+
+		let alice_pool_before = Currencies::total_balance(pool_id, &alice);
+		advance_and_solve(PERIOD);
+
+		assert!(Currencies::total_balance(pool_id, &alice) > alice_pool_before);
+		if let Some(intent_after_success) = pallet_intent::Intents::<Runtime>::get(intent_id) {
+			match intent_after_success.data {
+				ice_support::IntentData::Dca(dca) => {
+					assert!(dca.remaining_budget < remaining_before);
+				}
+				_ => panic!("expected Dca intent"),
+			}
+		}
+	});
+}
+
+#[test]
+fn dca_works_when_free_balance_is_exactly_ed_after_reserve() {
+	use hydradx_runtime::Balances;
+
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	let budget = 2 * TRADE_AMOUNT;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		enable_slip_fees();
+
+		let hdx_ed = <pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(HDX)
+			.expect("HDX has ED");
+
+		// force_set_balance (not endow) because we need the exact value `budget + ED`.
+		assert_ok!(Balances::force_set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			alice.clone(),
+			budget + hdx_ed,
+		));
+		assert_eq!(Currencies::free_balance(HDX, &alice), budget + hdx_ed);
+
+		let bnc_before = Currencies::total_balance(BNC, &alice);
+
+		submit_dca_hdx_bnc(alice.clone(), Some(budget));
+		assert_eq!(Currencies::reserved_balance(HDX, &alice), budget);
+		assert_eq!(Currencies::free_balance(HDX, &alice), hdx_ed);
+
+		advance_and_solve(PERIOD);
+		assert_eq!(Currencies::free_balance(HDX, &alice), hdx_ed);
+		assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1);
+
+		advance_and_solve(PERIOD);
+		assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0);
+		assert_eq!(pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice).count(), 0);
+		assert_eq!(pallet_intent::Pallet::<Runtime>::account_intent_count(&alice), 0);
+		assert_eq!(Currencies::reserved_balance(HDX, &alice), 0);
+		assert_eq!(Currencies::free_balance(HDX, &alice), hdx_ed);
+		assert!(Currencies::total_balance(BNC, &alice) > bnc_before);
+	});
+}
+
+#[test]
+fn dca_retries_every_block_until_success() {
+	use amm_simulator::stableswap::Simulator as StableswapSimulator;
+	use hydradx_runtime::{ice_simulator_provider, AssetRegistry, Router};
+	use hydradx_traits::amm::AmmSimulator;
+	use hydradx_traits::router::{AssetPair, RouteProvider};
+	use hydradx_traits::BoundErc20;
+
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		enable_slip_fees();
+
+		let snapshot = StableswapSimulator::<ice_simulator_provider::Stableswap<Runtime>>::snapshot();
+		let selected = snapshot.pools.iter().find_map(|(pid, pool)| {
+			if pool.assets.is_empty() {
+				return None;
+			}
+			let a = pool.assets[0];
+			if AssetRegistry::contract_address(a).is_some() {
+				return None;
+			}
+			Router::get_onchain_route(AssetPair::new(a, HDX)).map(|_| (*pid, a, pool.reserves[0].decimals))
+		});
+		let (pool_id, stable_asset, decimals) = selected.expect("no suitable stableswap pool");
+
+		let per_trade_in = 10u128 * 10u128.pow(decimals as u32);
+		let budget = 2 * per_trade_in;
+		let ed_pool = <pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(pool_id)
+			.expect("pool_id has ED");
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			alice.clone(),
+			stable_asset,
+			(budget * 10) as i128,
+		));
+
+		crate::deposit_limiter::update_deposit_limit(pool_id, ed_pool).unwrap();
+		assert_ok!(Currencies::deposit(pool_id, &bob, ed_pool * 2));
+
+		assert_ok!(hydradx_runtime::Intent::submit_intent(
+			RuntimeOrigin::signed(alice.clone()),
+			pallet_intent::types::IntentInput {
+				data: ice_support::IntentDataInput::Dca(ice_support::DcaParams {
+					asset_in: stable_asset,
+					asset_out: pool_id,
+					amount_in: per_trade_in,
+					amount_out: ed_pool,
+					slippage: DCA_SLIPPAGE,
+					budget: Some(budget),
+					period: PERIOD,
+				}),
+				deadline: None,
+				on_resolved: None,
+			}
+		));
+
+		let (intent_id, _) = pallet_intent::Intents::<Runtime>::iter().next().unwrap();
+		let leb_after_submit = match pallet_intent::Intents::<Runtime>::get(intent_id).unwrap().data {
+			ice_support::IntentData::Dca(ref dca) => dca.last_execution_block,
+			_ => panic!("expected DCA"),
+		};
+
+		for _ in 0..PERIOD {
+			hydradx_run_to_next_block();
+		}
+
+		let call = pallet_ice::Pallet::<Runtime>::run(
+			hydradx_runtime::System::block_number(),
+			|intents, state| Solver::solve(intents, state).ok(),
+		);
+		if let Some(pallet_ice::Call::submit_solution { solution, .. }) = call {
+			hydradx_run_to_next_block();
+			let res = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
+			assert!(res.is_err());
+		}
+
+		// Failure must not advance last_execution_block or consume budget.
+		let dca_after_fail = match pallet_intent::Intents::<Runtime>::get(intent_id).unwrap().data {
+			ice_support::IntentData::Dca(ref dca) => dca.clone(),
+			_ => panic!("expected DCA"),
+		};
+		assert_eq!(dca_after_fail.last_execution_block, leb_after_submit);
+		assert_eq!(dca_after_fail.remaining_budget, budget);
+
+		// Intent must be eligible on the very next block (not after another full period).
+		hydradx_run_to_next_block();
+		let valid = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+		assert!(valid.iter().any(|(id, _)| *id == intent_id));
+
+		assert_ok!(hydradx_runtime::CircuitBreaker::force_lift_lockdown(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+		));
+		crate::deposit_limiter::update_deposit_limit(pool_id, u128::MAX / 2).unwrap();
+
+		run_solver_and_submit();
+
+		if let Some(intent) = pallet_intent::Intents::<Runtime>::get(intent_id) {
+			match intent.data {
+				ice_support::IntentData::Dca(ref dca) => {
+					assert!(dca.last_execution_block > leb_after_submit);
+					assert_eq!(dca.remaining_budget, budget - per_trade_in);
+				}
+				_ => panic!("expected DCA"),
+			}
+		}
+
+		assert!(Currencies::total_balance(pool_id, &alice) > 0);
+	});
+}
+
+#[test]
+fn dca_residual_budget_returned_without_partial_trade() {
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	// 2.5 × amount_in: after two full trades, 0.5 × amount_in remains and is
+	// returned to free balance (new DCA does not execute a partial last trade).
+	let budget = 2 * TRADE_AMOUNT + TRADE_AMOUNT / 2;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), HDX, budget * 10)
+		.execute(|| {
+			enable_slip_fees();
+
+			let hdx_free_before = Currencies::free_balance(HDX, &alice);
+			let bnc_before = Currencies::total_balance(BNC, &alice);
+
+			submit_dca_hdx_bnc(alice.clone(), Some(budget));
+			assert_eq!(Currencies::reserved_balance(HDX, &alice), budget);
+
+			advance_and_solve(PERIOD);
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1);
+
+			advance_and_solve(PERIOD);
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 0);
+
+			let residual = TRADE_AMOUNT / 2;
+			assert_eq!(Currencies::free_balance(HDX, &alice), hdx_free_before - budget + residual);
+			assert_eq!(Currencies::reserved_balance(HDX, &alice), 0);
+			assert!(Currencies::total_balance(BNC, &alice) > bnc_before);
+		});
+}
+
+// DCA period must be enforced at resolve time, not only in get_valid_intents.
+// Fails today: a crafted intent list that skips the period filter gets its
+// solution accepted via submit_solution. Fix: add period check to
+// validate_dca_intent_resolve in pallets/intent/src/lib.rs.
 #[test]
 fn dca_period_can_be_bypassed_at_resolve_time() {
 	TestNet::reset();
@@ -420,26 +1133,12 @@ fn dca_period_can_be_bypassed_at_resolve_time() {
 		.endow_account(alice.clone(), HDX, budget * 10)
 		.execute(|| {
 			enable_slip_fees();
-
-			// Loose 3% slippage — same as `dca_single_trade_execution`, known
-			// to produce a feasible solver quote on this snapshot.
 			submit_dca_hdx_bnc_with_slippage(alice.clone(), Some(budget), Permill::from_percent(3));
 
-			// Sanity: the honest OCW helper correctly filters the DCA out —
-			// period has not elapsed.
-			assert_eq!(
-				pallet_intent::Pallet::<Runtime>::get_valid_intents().len(),
-				0,
-				"honest OCW correctly filters DCA before period elapses"
-			);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::get_valid_intents().len(), 0);
 
-			// Advance a SINGLE block — nowhere near PERIOD=5.
 			hydradx_run_to_next_block();
-			assert_eq!(
-				pallet_intent::Pallet::<Runtime>::get_valid_intents().len(),
-				0,
-				"still not eligible"
-			);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::get_valid_intents().len(), 0);
 
 			let (intent_id, dca_before) = pallet_intent::Intents::<Runtime>::iter()
 				.next()
@@ -449,11 +1148,9 @@ fn dca_period_can_be_bypassed_at_resolve_time() {
 				})
 				.unwrap();
 
-			// --- bypass: craft an intent list that skips the period filter ---
-			// Read Intents storage directly and apply the SAME `to_swap_data()`
-			// transform the honest helper uses, but without the
-			// `current_block >= last_execution_block + period` gate.
-			let crafted_intents: Vec<ice_support::Intent> = pallet_intent::Intents::<Runtime>::iter()
+			// Simulates a block author bypassing get_valid_intents: transform DCA to
+			// Swap directly and hand it to the solver without the period filter.
+			let crafted: Vec<ice_support::Intent> = pallet_intent::Intents::<Runtime>::iter()
 				.map(|(id, intent)| {
 					let data = match intent.data {
 						ice_support::IntentData::Dca(ref dca) => ice_support::IntentData::Swap(dca.to_swap_data()),
@@ -462,50 +1159,29 @@ fn dca_period_can_be_bypassed_at_resolve_time() {
 					ice_support::Intent { id, data }
 				})
 				.collect();
-			assert_eq!(crafted_intents.len(), 1, "one crafted swap intent from the DCA");
 
 			let state = <<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::initial_state();
+			let solution = Solver::solve(crafted, state).expect("solver fills crafted intent");
 
-			let solution = Solver::solve(crafted_intents, state)
-				.expect("solver produces a fill for the crafted swap intent");
-			assert_eq!(
-				solution.resolved_intents.len(),
-				1,
-				"solver resolved the out-of-period DCA as a plain swap"
-			);
+			let hdx_before = Currencies::total_balance(HDX, &alice);
+			let bnc_before = Currencies::total_balance(BNC, &alice);
 
-			// Submit via the normal unsigned dispatch — same call shape a
-			// malicious collator would emit from their OCW. `ensure_none`
-			// inside the extrinsic matches, and `intent_resolved` →
-			// `validate_resolve` → `validate_dca_intent_resolve` runs with
-			// NO period check.
 			hydradx_run_to_next_block();
-			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
-				RuntimeOrigin::none(),
-				solution,
-			));
+			let result = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
 
-			// --- proof of bypass ---
-			// The intent is still in storage (budget > amount_in), but one
-			// per-trade amount has been drained even though the period never
-			// elapsed. A well-behaved DCA would have consumed zero budget
-			// until block >= submit_block + PERIOD.
-			let intent_after = pallet_intent::Intents::<Runtime>::get(intent_id)
-				.expect("DCA still in storage (one trade consumed, budget > amount_in)");
+			assert!(
+				result.is_err(),
+				"out-of-period trade must be rejected; got {:?}",
+				result
+			);
+			assert_eq!(Currencies::total_balance(HDX, &alice), hdx_before);
+			assert_eq!(Currencies::total_balance(BNC, &alice), bnc_before);
+
+			let intent_after = pallet_intent::Intents::<Runtime>::get(intent_id).unwrap();
 			match intent_after.data {
 				ice_support::IntentData::Dca(dca) => {
-					assert_eq!(
-						dca.remaining_budget,
-						dca_before.remaining_budget - TRADE_AMOUNT,
-						"one per-trade amount drained despite period not elapsed"
-					);
-					assert!(
-						dca.last_execution_block < dca_before.last_execution_block.saturating_add(dca_before.period),
-						"last_execution_block advanced before the period was due — bypass confirmed \
-						 (last_execution_block={}, next_eligible_was={})",
-						dca.last_execution_block,
-						dca_before.last_execution_block.saturating_add(dca_before.period),
-					);
+					assert_eq!(dca.remaining_budget, dca_before.remaining_budget);
+					assert_eq!(dca.last_execution_block, dca_before.last_execution_block);
 				}
 				_ => panic!("expected DCA"),
 			}
