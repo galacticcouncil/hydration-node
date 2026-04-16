@@ -136,9 +136,10 @@ const main = async () => {
     const extSrc = await api.query.emaOracle.externalSources(BIFROST_SOURCE);
     console.log("ExternalSources[bifrosto]:", extSrc.isSome ? "PRESENT" : "MISSING");
 
-    // 2. AuthorizedAccounts[BIFROST_SOURCE][bifrost_sovereign] must exist.
-    const auth = await api.query.emaOracle.authorizedAccounts(BIFROST_SOURCE, BIFROST_SOVEREIGN);
-    console.log(`AuthorizedAccounts[bifrosto][${BIFROST_SOVEREIGN}]:`, auth.isSome ? "PRESENT" : "MISSING");
+    // 2. AuthorizedAccounts[(BIFROST_SOURCE, orderedPair, bifrost_sovereign)] must exist.
+    //    NMap with 3 keys: (Source, (AssetId, AssetId), AccountId).
+    const auth = await api.query.emaOracle.authorizedAccounts(BIFROST_SOURCE, orderedPair, BIFROST_SOVEREIGN);
+    console.log(`AuthorizedAccounts[bifrosto, (${orderedPair.join(',')}), ${BIFROST_SOVEREIGN}]:`, auth.isSome ? "PRESENT" : "MISSING");
 
     // 3. The extrinsic should have pushed an entry into the accumulator, and
     //    `on_finalize` should have flushed it into LastBlock with the current
