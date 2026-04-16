@@ -76,8 +76,7 @@ fn pool_pegs_should_be_cosorted_with_assets() {
 		.execute_with(|| {
 			// Caller intent: asset_10 → (2,1), asset_5 → (1,1), asset_20 → (3,1).
 			// Input order: [10, 5, 20] with pegs [(2,1), (1,1), (3,1)].
-			let unsorted_assets: BoundedVec<AssetId, _> =
-				vec![asset_10, asset_5, asset_20].try_into().unwrap();
+			let unsorted_assets: BoundedVec<AssetId, _> = vec![asset_10, asset_5, asset_20].try_into().unwrap();
 			let unsorted_pegs: BoundedPegSources<AssetId> = BoundedVec::try_from(vec![
 				PegSource::Value((2, 1)),
 				PegSource::Value((1, 1)),
@@ -229,10 +228,21 @@ fn sell_should_use_correct_pegs_when_assets_are_unsorted() {
 			// Unsorted pool: input [10, 5, 20] with pegs [(2,1), (1,1), (3,1)].
 			// Intent: asset_10 → (2,1), asset_5 → (1,1), asset_20 → (3,1).
 			make_peg_pool(pool_id, vec![asset_10, asset_5, asset_20], vec![(2, 1), (1, 1), (3, 1)]);
-			add_liquidity(pool_id, ALICE, vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)]);
+			add_liquidity(
+				pool_id,
+				ALICE,
+				vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)],
+			);
 
 			let bal_before = Tokens::free_balance(asset_5, &BOB);
-			assert_ok!(Stableswap::sell(RuntimeOrigin::signed(BOB), pool_id, asset_10, asset_5, trade, 0));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_10,
+				asset_5,
+				trade,
+				0
+			));
 			let received_unsorted = Tokens::free_balance(asset_5, &BOB) - bal_before;
 
 			// Reference pool: sorted [5, 10, 20] with co-sorted pegs [(1,1), (2,1), (3,1)].
@@ -241,7 +251,11 @@ fn sell_should_use_correct_pegs_when_assets_are_unsorted() {
 				vec![asset_5, asset_10, asset_20],
 				vec![(1, 1), (2, 1), (3, 1)],
 			);
-			add_liquidity(pool_id_ref, ALICE, vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)]);
+			add_liquidity(
+				pool_id_ref,
+				ALICE,
+				vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)],
+			);
 
 			let bal_before2 = Tokens::free_balance(asset_5, &BOB);
 			assert_ok!(Stableswap::sell(
@@ -293,7 +307,11 @@ fn buy_should_use_correct_pegs_when_assets_are_unsorted() {
 		.execute_with(|| {
 			// Unsorted pool: input [10, 5, 20] with pegs [(2,1), (1,1), (3,1)].
 			make_peg_pool(pool_id, vec![asset_10, asset_5, asset_20], vec![(2, 1), (1, 1), (3, 1)]);
-			add_liquidity(pool_id, ALICE, vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)]);
+			add_liquidity(
+				pool_id,
+				ALICE,
+				vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)],
+			);
 
 			let bal_before = Tokens::free_balance(asset_10, &BOB);
 			assert_ok!(Stableswap::buy(
@@ -312,7 +330,11 @@ fn buy_should_use_correct_pegs_when_assets_are_unsorted() {
 				vec![asset_5, asset_10, asset_20],
 				vec![(1, 1), (2, 1), (3, 1)],
 			);
-			add_liquidity(pool_id_ref, ALICE, vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)]);
+			add_liquidity(
+				pool_id_ref,
+				ALICE,
+				vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)],
+			);
 
 			let bal_before2 = Tokens::free_balance(asset_10, &BOB);
 			assert_ok!(Stableswap::buy(
@@ -384,11 +406,10 @@ fn sell_should_use_correct_oracle_pegs_when_assets_are_unsorted() {
 			// Intent: asset_10 → Oracle(2,1), asset_5 → Value(1,1), asset_20 → Oracle(3,1).
 			// Input order: [10, 5, 20].  Bug stores source as-is, so sorted pool
 			// maps: asset_5 → Oracle (wrong), asset_10 → Value (wrong), asset_20 → Oracle (correct by coincidence).
-			let unsorted_assets: BoundedVec<AssetId, _> =
-				vec![asset_10, asset_5, asset_20].try_into().unwrap();
+			let unsorted_assets: BoundedVec<AssetId, _> = vec![asset_10, asset_5, asset_20].try_into().unwrap();
 			let unsorted_pegs: BoundedPegSources<AssetId> = BoundedVec::try_from(vec![
 				PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)), // intended for asset_10
-				PegSource::Value((1, 1)),                                          // intended for asset_5
+				PegSource::Value((1, 1)),                                         // intended for asset_5
 				PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)), // intended for asset_20
 			])
 			.unwrap();
@@ -402,16 +423,26 @@ fn sell_should_use_correct_oracle_pegs_when_assets_are_unsorted() {
 				unsorted_pegs,
 				Perbill::from_percent(100),
 			));
-			add_liquidity(pool_id, ALICE, vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)]);
+			add_liquidity(
+				pool_id,
+				ALICE,
+				vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)],
+			);
 
 			let bal_before = Tokens::free_balance(asset_5, &BOB);
-			assert_ok!(Stableswap::sell(RuntimeOrigin::signed(BOB), pool_id, asset_10, asset_5, trade, 0));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_10,
+				asset_5,
+				trade,
+				0
+			));
 			let received_unsorted = Tokens::free_balance(asset_5, &BOB) - bal_before;
 
 			// ── Reference pool (sorted) ──────────────────────────────────────────
 			// Sorted [5, 10, 20], pegs: [Value(1,1), Oracle(..), Oracle(..)].
-			let sorted_assets: BoundedVec<AssetId, _> =
-				vec![asset_5, asset_10, asset_20].try_into().unwrap();
+			let sorted_assets: BoundedVec<AssetId, _> = vec![asset_5, asset_10, asset_20].try_into().unwrap();
 			let sorted_pegs: BoundedPegSources<AssetId> = BoundedVec::try_from(vec![
 				PegSource::Value((1, 1)),
 				PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)),
@@ -428,7 +459,11 @@ fn sell_should_use_correct_oracle_pegs_when_assets_are_unsorted() {
 				sorted_pegs,
 				Perbill::from_percent(100),
 			));
-			add_liquidity(pool_id_ref, ALICE, vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)]);
+			add_liquidity(
+				pool_id_ref,
+				ALICE,
+				vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)],
+			);
 
 			let bal_before2 = Tokens::free_balance(asset_5, &BOB);
 			assert_ok!(Stableswap::sell(
@@ -551,7 +586,11 @@ fn remove_liquidity_should_use_correct_pegs_when_assets_unsorted() {
 		.execute_with(|| {
 			// Unsorted pool: input [10, 5, 20] with pegs [(2,1), (1,1), (3,1)].
 			make_peg_pool(pool_id, vec![asset_10, asset_5, asset_20], vec![(2, 1), (1, 1), (3, 1)]);
-			add_liquidity(pool_id, ALICE, vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)]);
+			add_liquidity(
+				pool_id,
+				ALICE,
+				vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)],
+			);
 			add_liquidity(pool_id, BOB, vec![(asset_10, add_liq), (asset_5, 0), (asset_20, 0)]);
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
@@ -571,7 +610,11 @@ fn remove_liquidity_should_use_correct_pegs_when_assets_unsorted() {
 				vec![asset_5, asset_10, asset_20],
 				vec![(1, 1), (2, 1), (3, 1)],
 			);
-			add_liquidity(pool_id_ref, ALICE, vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)]);
+			add_liquidity(
+				pool_id_ref,
+				ALICE,
+				vec![(asset_10, liquid), (asset_5, liquid), (asset_20, liquid)],
+			);
 			add_liquidity(pool_id_ref, BOB, vec![(asset_10, add_liq), (asset_5, 0), (asset_20, 0)]);
 
 			let shares2 = Tokens::free_balance(pool_id_ref, &BOB);
@@ -662,9 +705,7 @@ fn pool_pegs_should_be_cosorted_with_five_assets_random_order() {
 		.build()
 		.execute_with(|| {
 			// Input order [5, 1, 9, 3, 7]; pegs paired to this order.
-			let assets: BoundedVec<AssetId, _> = vec![asset_5, asset_1, asset_9, asset_3, asset_7]
-				.try_into()
-				.unwrap();
+			let assets: BoundedVec<AssetId, _> = vec![asset_5, asset_1, asset_9, asset_3, asset_7].try_into().unwrap();
 			let pegs: BoundedPegSources<AssetId> = BoundedVec::try_from(vec![
 				PegSource::Value((5, 1)), // for asset_5
 				PegSource::Value((1, 1)), // for asset_1
@@ -688,10 +729,7 @@ fn pool_pegs_should_be_cosorted_with_five_assets_random_order() {
 			let peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
 
 			// Sorted order: [1, 3, 5, 7, 9].
-			assert_eq!(
-				pool.assets.to_vec(),
-				vec![asset_1, asset_3, asset_5, asset_7, asset_9],
-			);
+			assert_eq!(pool.assets.to_vec(), vec![asset_1, asset_3, asset_5, asset_7, asset_9],);
 
 			// Peg values must match sorted asset order.
 			assert_eq!(
@@ -748,7 +786,7 @@ fn pool_pegs_should_be_cosorted_with_mixed_peg_source_types() {
 			let assets: BoundedVec<AssetId, _> = vec![asset_10, asset_5, asset_20].try_into().unwrap();
 			let pegs: BoundedPegSources<AssetId> = BoundedVec::try_from(vec![
 				PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)), // for asset_10
-				PegSource::Value((1, 1)),                                          // for asset_5
+				PegSource::Value((1, 1)),                                         // for asset_5
 				PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)), // for asset_20
 			])
 			.unwrap();
@@ -835,205 +873,5 @@ fn pool_created_event_should_contain_sorted_assets_and_cosorted_pegs() {
 				peg: Some(expected_peg_info),
 			}
 			.into()]);
-		});
-}
-
-// ── Phase 1: original (pre-fix) tests kept for reference ─────────────────────
-// The tests below are the originally-submitted versions, preserved as-is with
-// their known structural issues noted.  They are superseded by the tests above
-// but kept here so the Phase 1 "red" baseline is explicitly visible.
-
-/// ORIGINAL Task 1.5 — kept for historical reference.
-/// Superseded by update_asset_peg_source_should_target_correct_asset_after_unsorted_creation above.
-#[test]
-fn update_asset_peg_source_should_target_correct_asset_after_unsorted_creation_original() {
-	let pool_id: PoolId = 100;
-	let amp = 1000;
-
-	let asset_10: AssetId = 10;
-	let asset_5: AssetId = 5;
-	let liquid = TVL / 2;
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(ALICE, asset_10, liquid),
-			(ALICE, asset_5, liquid),
-			(ALICE, pool_id, TVL),
-		])
-		.with_registered_asset("asset10".as_bytes().to_vec(), asset_10, 12)
-		.with_registered_asset("asset5".as_bytes().to_vec(), asset_5, 12)
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
-		.build()
-		.execute_with(|| {
-			// Create pool with UNSORTED assets
-			let unsorted_assets: BoundedVec<AssetId, _> = vec![asset_10, asset_5].try_into().unwrap();
-			let unsorted_pegs: BoundedPegSources<AssetId> =
-				BoundedVec::try_from(vec![PegSource::Value((2, 1)), PegSource::Value((1, 1))]).unwrap();
-
-			assert_ok!(Stableswap::create_pool_with_pegs(
-				RuntimeOrigin::root(),
-				pool_id,
-				unsorted_assets,
-				amp,
-				Permill::zero(),
-				unsorted_pegs,
-				Perbill::from_percent(100),
-			));
-
-			assert_ok!(Stableswap::add_assets_liquidity(
-				RuntimeOrigin::signed(ALICE),
-				pool_id,
-				BoundedVec::try_from(vec![
-					AssetAmount::new(asset_10, liquid),
-					AssetAmount::new(asset_5, liquid),
-				])
-				.unwrap(),
-				Balance::zero(),
-			));
-
-			let new_peg = PegSource::Value((5, 1));
-			assert_ok!(Stableswap::update_asset_peg_source(
-				RuntimeOrigin::root(),
-				pool_id,
-				asset_10,
-				new_peg.clone(),
-			));
-
-			let peg_info = PoolPegs::<Test>::get(pool_id).expect("Peg info should exist");
-
-			// asset_10 is at index 1 in sorted [5, 10].
-			// With the fix, peg_info.source[1] == new_peg.
-			assert_eq!(
-				peg_info.source[1], new_peg,
-				"peg source for asset_10 (sorted index 1) must be updated; got {:?}",
-				peg_info.source[1],
-			);
-		});
-}
-
-/// ORIGINAL Task 1.6 — kept for historical reference.
-/// Superseded by remove_liquidity_should_use_correct_pegs_when_assets_unsorted above.
-#[test]
-fn remove_liquidity_should_use_correct_pegs_when_assets_unsorted_original() {
-	let pool_id: PoolId = 100;
-	let pool_id_2: PoolId = 101;
-	let amp = 1000;
-
-	let asset_10: AssetId = 10;
-	let asset_5: AssetId = 5;
-	let liquid = TVL / 2;
-	let add_liq = 10_000 * ONE;
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			// Needs to fund both pools.
-			(ALICE, asset_10, liquid * 2),
-			(ALICE, asset_5, liquid * 2),
-			(ALICE, pool_id, TVL),
-			(ALICE, pool_id_2, TVL),
-			(BOB, asset_10, add_liq * 2),
-		])
-		.with_registered_asset("asset10".as_bytes().to_vec(), asset_10, 12)
-		.with_registered_asset("asset5".as_bytes().to_vec(), asset_5, 12)
-		.with_registered_asset("pool1".as_bytes().to_vec(), pool_id, 12)
-		.with_registered_asset("pool2".as_bytes().to_vec(), pool_id_2, 12)
-		.build()
-		.execute_with(|| {
-			// UNSORTED pool
-			let unsorted_assets: BoundedVec<AssetId, _> = vec![asset_10, asset_5].try_into().unwrap();
-			let unsorted_pegs: BoundedPegSources<AssetId> =
-				BoundedVec::try_from(vec![PegSource::Value((2, 1)), PegSource::Value((1, 1))]).unwrap();
-
-			assert_ok!(Stableswap::create_pool_with_pegs(
-				RuntimeOrigin::root(),
-				pool_id,
-				unsorted_assets,
-				amp,
-				Permill::zero(),
-				unsorted_pegs,
-				Perbill::from_percent(100),
-			));
-
-			// Add initial liquidity
-			assert_ok!(Stableswap::add_assets_liquidity(
-				RuntimeOrigin::signed(ALICE),
-				pool_id,
-				BoundedVec::try_from(vec![
-					AssetAmount::new(asset_10, liquid),
-					AssetAmount::new(asset_5, liquid),
-				])
-				.unwrap(),
-				Balance::zero(),
-			));
-
-			// BOB adds liquidity
-			assert_ok!(Stableswap::add_assets_liquidity(
-				RuntimeOrigin::signed(BOB),
-				pool_id,
-				BoundedVec::try_from(vec![AssetAmount::new(asset_10, add_liq)]).unwrap(),
-				Balance::zero(),
-			));
-
-			let shares = Tokens::free_balance(pool_id, &BOB);
-			let before = Tokens::free_balance(asset_5, &BOB);
-			assert_ok!(Stableswap::remove_liquidity_one_asset(
-				RuntimeOrigin::signed(BOB),
-				pool_id,
-				asset_5,
-				shares / 2,
-				0,
-			));
-			let received_unsorted = Tokens::free_balance(asset_5, &BOB) - before;
-
-			// REFERENCE pool
-			let sorted_assets: BoundedVec<AssetId, _> = vec![asset_5, asset_10].try_into().unwrap();
-			let sorted_pegs: BoundedPegSources<AssetId> =
-				BoundedVec::try_from(vec![PegSource::Value((1, 1)), PegSource::Value((2, 1))]).unwrap();
-
-			assert_ok!(Stableswap::create_pool_with_pegs(
-				RuntimeOrigin::root(),
-				pool_id_2,
-				sorted_assets,
-				amp,
-				Permill::zero(),
-				sorted_pegs,
-				Perbill::from_percent(100),
-			));
-
-			assert_ok!(Stableswap::add_assets_liquidity(
-				RuntimeOrigin::signed(ALICE),
-				pool_id_2,
-				BoundedVec::try_from(vec![
-					AssetAmount::new(asset_10, liquid),
-					AssetAmount::new(asset_5, liquid),
-				])
-				.unwrap(),
-				Balance::zero(),
-			));
-
-			assert_ok!(Stableswap::add_assets_liquidity(
-				RuntimeOrigin::signed(BOB),
-				pool_id_2,
-				BoundedVec::try_from(vec![AssetAmount::new(asset_10, add_liq)]).unwrap(),
-				Balance::zero(),
-			));
-
-			let shares2 = Tokens::free_balance(pool_id_2, &BOB);
-			let before2 = Tokens::free_balance(asset_5, &BOB);
-			assert_ok!(Stableswap::remove_liquidity_one_asset(
-				RuntimeOrigin::signed(BOB),
-				pool_id_2,
-				asset_5,
-				shares2 / 2,
-				0,
-			));
-			let received_sorted = Tokens::free_balance(asset_5, &BOB) - before2;
-
-			assert_eq!(
-				received_unsorted, received_sorted,
-				"Unsorted pool remove_liquidity_one_asset should match sorted pool. \
-                 Got unsorted={}, sorted={}.",
-				received_unsorted, received_sorted
-			);
 		});
 }

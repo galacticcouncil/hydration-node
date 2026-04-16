@@ -1130,20 +1130,41 @@ pub mod pallet {
 
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
-			let initial_pegs = Self::get_target_pegs(&assets, &peg_source)?;
+			ensure!(assets.len() == peg_source.len(), Error::<T>::IncorrectInitialPegs);
+
+			// Co-sort assets and peg_source by asset ID so that peg_source[i] always
+			// corresponds to sorted_assets[i], matching how do_create_pool stores them.
+			let mut pairs: Vec<_> = assets.iter().copied().zip(peg_source.into_iter()).collect();
+			pairs.sort_by_key(|(asset, _)| *asset);
+
+			let sorted_assets: BoundedVec<T::AssetId, ConstU32<MAX_ASSETS_IN_POOL>> = pairs
+				.iter()
+				.map(|(a, _)| *a)
+				.collect::<Vec<_>>()
+				.try_into()
+				.map_err(|_| Error::<T>::MaxAssetsExceeded)?;
+
+			let sorted_peg_source: BoundedPegSources<T::AssetId> = pairs
+				.into_iter()
+				.map(|(_, p)| p)
+				.collect::<Vec<_>>()
+				.try_into()
+				.map_err(|_| Error::<T>::MaxAssetsExceeded)?;
+
+			let initial_pegs = Self::get_target_pegs(&sorted_assets, &sorted_peg_source)?;
 
 			let peg_info = PoolPegInfo {
-				source: peg_source,
+				source: sorted_peg_source,
 				updated_at: T::BlockNumberProvider::current_block_number(),
 				max_peg_update,
 				current: BoundedPegs::truncate_from(initial_pegs.into_iter().map(|(v, _)| v).collect()),
 			};
 
-			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee, Some(&peg_info))?;
+			let pool_id = Self::do_create_pool(share_asset, &sorted_assets, amplification, fee, Some(&peg_info))?;
 
 			Self::deposit_event(Event::PoolCreated {
 				pool_id,
-				assets: assets.to_vec(),
+				assets: sorted_assets.to_vec(),
 				amplification,
 				fee,
 				peg: Some(peg_info),
@@ -2191,6 +2212,10 @@ impl<T: Config> Pallet<T> {
 			pool_assets.len(),
 			peg_sources.len(),
 			"Pool assets and peg sources must have the same length"
+		);
+		debug_assert!(
+			pool_assets.windows(2).all(|w| w[0] <= w[1]),
+			"pool_assets must be sorted ascending"
 		);
 
 		if pool_assets.is_empty() {
