@@ -4,7 +4,6 @@ use crate::types::{Action, Balance, Conviction, ReferendumIndex, Vote};
 use crate::{Config, Error, Pallet};
 use frame_support::defensive;
 use frame_support::dispatch::DispatchResult;
-use frame_support::traits::{PollStatus, Polling};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_conviction_voting::{AccountVote, Status, VotingHooks};
 use sp_core::Get;
@@ -190,28 +189,6 @@ where
 			T::Currency::update_balance(T::NativeAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
 		}
 		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1_000_000_000_000_000u128).unwrap();
-	}
-}
-
-pub struct ReferendumStatus<P, T>(sp_std::marker::PhantomData<(P, T)>);
-
-impl<T, P: Polling<T>> GetReferendumState<ReferendumIndex> for ReferendumStatus<P, T>
-where
-	<P as Polling<T>>::Index: From<ReferendumIndex>,
-{
-	fn is_referendum_finished(_index: ReferendumIndex) -> bool {
-		let r = <P as Polling<T>>::try_access_poll::<bool>(_index.into(), |status| {
-			let r = match status {
-				PollStatus::Completed(_, _) => true,
-				PollStatus::Ongoing(_, _) => false,
-				PollStatus::None => false,
-			};
-			Ok(r)
-		});
-		debug_assert!(r.is_ok(), "Failed to access poll");
-		// If we failed to access poll, we assume that referendum is not finished - this should never be the case
-		// Note: we cant return true, because it would reward points.
-		r.unwrap_or(false)
 	}
 }
 
