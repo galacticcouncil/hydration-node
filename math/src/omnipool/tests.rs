@@ -3134,31 +3134,15 @@ fn multi_trade_cross_validation_order_b() {
 }
 
 #[test]
-fn buy_slip_fee_cap_invariant_holds() {
-	// Scenario: buy 20_000 tokens from a pool of 1_000_000.
-	// The resulting hub flow (~2% of Q0) exceeds the 1% max_slip_fee cap on the buy side.
-	//
-	// When the cap fires, the inversion in `invert_buy_side_slip` must use the
-	// capped formula so that the hub the buyer pays (minus all fees) equals the
-	// hub the pool actually needs to deliver the desired output.
-	//
-	// Invariant: delta_hub_reserve_in − total_protocol_fee == d_net
-	//
-	// where d_net = hub_reserve_out * amount / (reserve_out − amount) + 1
-	// (the hub amount needed to produce `amount` tokens out, before any slip deduction).
-	//
-	// If `invert_buy_side_slip` ignores the cap it returns a d_gross that is too
-	// small; the forward slip then applies the cap and deducts more than expected,
-	// leaving d_net_forward < d_net.  The assertion below will fail.
-
-	// asset_in: large pool so sell-side slip rate (~0.00002%) is well below the 1% cap.
+fn calculate_buy_should_respect_max_slip_fee_cap_on_buy_side() {
+	// large pool: ~0.02% hub flow -> cap does not fire
 	let asset_in_state = AssetReserveState {
 		reserve: 100_000_000 * UNIT,
 		hub_reserve: 100_000_000 * UNIT,
 		shares: 100_000_000 * UNIT,
 		protocol_shares: 0u128,
 	};
-	// asset_out: 1:1 price pool; buy 20_000 out of 1_000_000 → ~2% hub flow → cap fires.
+	// small pool: ~2% hub flow -> cap fires
 	let asset_out_state = AssetReserveState {
 		reserve: 1_000_000 * UNIT,
 		hub_reserve: 1_000_000 * UNIT,
@@ -3197,13 +3181,8 @@ fn buy_slip_fee_cap_invariant_holds() {
 	};
 	let total_protocol_fee = state_changes.fee.protocol_fee;
 
-	// Independently compute d_net: the hub the buy pool must receive to give out `amount`
-	// tokens (with asset_fee = 0 this is exact).
-	let d_net_expected: Balance =
-		(asset_out_state.hub_reserve as u128) * (amount as u128) / ((asset_out_state.reserve - amount) as u128) + 1;
+	let d_net_expected: Balance = asset_out_state.hub_reserve * amount / (asset_out_state.reserve - amount) + 1;
 
-	// The net hub entering the buy pool must equal d_net_expected so that the AMM
-	// formula produces exactly `amount` tokens out.
 	let d_net_actual = delta_hub_reserve_in
 		.checked_sub(total_protocol_fee)
 		.expect("delta_hub_reserve_in must be >= total_protocol_fee");
@@ -3211,35 +3190,21 @@ fn buy_slip_fee_cap_invariant_holds() {
 	assert_eq!(
 		d_net_actual, d_net_expected,
 		"buy-side slip fee cap not applied during inversion: \
-		buyer pays {} hub, fees = {}, net to pool = {} but pool needs {} hub for the trade",
-		delta_hub_reserve_in, total_protocol_fee, d_net_actual, d_net_expected,
+		buyer pays {delta_hub_reserve_in} hub, fees = {total_protocol_fee}, \
+		net to pool = {d_net_actual} but pool needs {d_net_expected} hub for the trade",
 	);
 }
 
 #[test]
-fn sell_slip_fee_cap_invariant_holds() {
-	// Scenario: buy 20_000 tokens from a large buy pool (100_000_000 UNIT each side, price=1).
-	// The sell pool is small (1_000_000 UNIT each side), so the hub leaving it (~2% of Q0)
-	// pushes the sell-side slip rate above the 1% cap.
-	// The buy pool is 100x larger, keeping the buy-side rate at ~0.02% (cap does not fire there).
-	//
-	// Invariant: delta_hub_reserve_in − total_protocol_fee == d_net
-	//
-	// where d_net = hub_reserve_out * amount / (reserve_out − amount) + 1.
-	//
-	// `invert_sell_side_fees` does not apply `max_slip_fee`, so it returns a
-	// delta_hub_reserve_in that satisfies the *uncapped* equation.  The forward
-	// path then applies the cap, deducting more slip than was assumed during
-	// inversion, so d_net_forward < d_net and the assertion fails.
-
-	// asset_in: small sell pool → hub outflow is ~2% of Q0 → sell-side cap fires.
+fn calculate_buy_should_respect_max_slip_fee_cap_on_sell_side() {
+	// small pool: ~2% hub flow → cap fires
 	let asset_in_state = AssetReserveState {
 		reserve: 1_000_000 * UNIT,
 		hub_reserve: 1_000_000 * UNIT,
 		shares: 1_000_000 * UNIT,
 		protocol_shares: 0u128,
 	};
-	// asset_out: large buy pool → hub inflow is ~0.02% of Q0 → buy-side cap does NOT fire.
+	// large pool: ~0.02% hub flow → cap does not fire
 	let asset_out_state = AssetReserveState {
 		reserve: 100_000_000 * UNIT,
 		hub_reserve: 100_000_000 * UNIT,
@@ -3278,12 +3243,8 @@ fn sell_slip_fee_cap_invariant_holds() {
 	};
 	let total_protocol_fee = state_changes.fee.protocol_fee;
 
-	// Independently compute d_net: hub the buy pool must receive to give out `amount` tokens.
-	let d_net_expected: Balance =
-		(asset_out_state.hub_reserve as u128) * (amount as u128) / ((asset_out_state.reserve - amount) as u128) + 1;
+	let d_net_expected: Balance = asset_out_state.hub_reserve * amount / (asset_out_state.reserve - amount) + 1;
 
-	// The net hub entering the buy pool must equal d_net_expected so that the AMM
-	// formula produces exactly `amount` tokens out.
 	let d_net_actual = delta_hub_reserve_in
 		.checked_sub(total_protocol_fee)
 		.expect("delta_hub_reserve_in must be >= total_protocol_fee");
@@ -3291,7 +3252,7 @@ fn sell_slip_fee_cap_invariant_holds() {
 	assert_eq!(
 		d_net_actual, d_net_expected,
 		"sell-side slip fee cap not applied during inversion: \
-		buyer pays {} hub, fees = {}, net to pool = {} but pool needs {} hub for the trade",
-		delta_hub_reserve_in, total_protocol_fee, d_net_actual, d_net_expected,
+		buyer pays {delta_hub_reserve_in} hub, fees = {total_protocol_fee}, \
+		net to pool = {d_net_actual} but pool needs {d_net_expected} hub for the trade",
 	);
 }
