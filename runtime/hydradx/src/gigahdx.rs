@@ -8,7 +8,7 @@ use crate::evm::Erc20Currency;
 use frame_support::{parameter_types, PalletId};
 use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, ERC20};
 use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_liquidation::BorrowingContract;
+use pallet_liquidation::GigaHdxPoolContract;
 use primitives::constants::time::DAYS;
 use sp_runtime::{DispatchError, Permill};
 
@@ -42,13 +42,12 @@ impl hydradx_traits::gigahdx::MoneyMarketOperations<AccountId, AssetId, Balance>
 
 		let asset_evm = HydraErc20Mapping::asset_address(underlying_asset);
 		let who_evm = pallet_evm_accounts::Pallet::<Runtime>::evm_address(who);
-		let pool = BorrowingContract::<Runtime>::get();
+		let pool = GigaHdxPoolContract::<Runtime>::get();
 
-		// Approve the AAVE Pool to transferFrom the user's stHDX.
 		let ctx = CallContext::new_call(asset_evm, who_evm);
 		Erc20Currency::<Runtime>::approve(ctx, pool, amount)?;
 
-		Aave::do_supply_on_behalf_of(who, who, asset_evm, amount)?;
+		Aave::do_supply_on_behalf_of(pool, who, who, asset_evm, amount)?;
 
 		Ok(amount)
 	}
@@ -57,7 +56,9 @@ impl hydradx_traits::gigahdx::MoneyMarketOperations<AccountId, AssetId, Balance>
 		let _ = pallet_evm_accounts::Pallet::<Runtime>::bind_evm_address(RuntimeOrigin::signed(who.clone()));
 
 		let asset_evm = HydraErc20Mapping::asset_address(underlying_asset);
-		Aave::withdraw(RuntimeOrigin::signed(who.clone()), asset_evm, amount)?;
+		let pool = GigaHdxPoolContract::<Runtime>::get();
+
+		Aave::do_withdraw(pool, who, asset_evm, amount)?;
 
 		Ok(amount)
 	}

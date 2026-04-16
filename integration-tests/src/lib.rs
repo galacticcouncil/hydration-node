@@ -25,6 +25,7 @@ mod global_withdraw_limit;
 mod hsm;
 //mod hyperbridge;
 mod gigahdx;
+mod gigahdx_liquidation;
 mod gigahdx_voting;
 mod insufficient_assets_ed;
 mod liquidation;

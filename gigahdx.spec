@@ -520,27 +520,40 @@ GIGAHDX will be configured as isolated collateral in AAVE v3:
 
 ### 11.3 Liquidation
 
-GIGAHDX liquidation uses a **Treasury-only** mechanism. External liquidators are blocked to prevent manipulation attacks (e.g., manipulating HDX price to liquidate stakers and extract HOLLAR).
+GIGAHDX liquidation supports two complementary paths: **external liquidation** for unlocked positions and **treasury liquidation** (via the liquidation pallet) for locked positions. See `specs/05-gigahdx-liquidation.md` for the full detailed specification.
 
-**Why Treasury-only:**
-- External liquidators would need to wait ~222 days to convert liquidated GIGAHDX to HDX
-- Prevents price manipulation attacks targeting GIGAHDX holders
-- Treasury can safely absorb the debt and collateral
+#### External Liquidation (Unlocked GIGAHDX)
+
+Anyone can call the Aave Pool contract's `liquidationCall` directly to liquidate a GIGAHDX-collateralized position, provided:
+
+1. The position is under-collateralized (HF < 1.0)
+2. The GIGAHDX collateral is **NOT locked** for governance voting
+3. The external liquidator has enough HOLLAR to repay the debt portion
+
+If GIGAHDX is locked, the `LockableAToken._transfer()` will revert with `ExceedsFreeBalance`, and the liquidation fails. No pallet changes are needed for this path — it is handled entirely by the existing LockableAToken contract (Spec 04).
+
+#### Treasury Liquidation (Locked GIGAHDX)
+
+When GIGAHDX is locked for governance voting, the treasury liquidation path handles it. This is implemented as a new branch in the existing `liquidate` extrinsic in `pallet-liquidation`, triggered when `collateral_asset == GIGAHDX`.
 
 **On-chain Liquidation Flow:**
-1. Protocol flashmints HOLLAR to repay the user's debt
-2. Calls `prepare_for_liquidation(who)` — force-removes ALL votes from conviction-voting, which clears `GigaHdxVotingLock` naturally through the adapter (see section 9.6)
-3. Liquidates position, receives GIGAHDX (doesn't unwrap)
-4. Received GIGAHDX is transferred to dedicated treasury account
-5. All needed HOLLAR is borrowed from regular treasury account against other collateral
-6. Flashmint is repaid
+1. Calls `prepare_for_liquidation(who)` — force-removes ALL votes from conviction-voting, which clears `GigaHdxVotingLock` naturally through the adapter (see section 9.6)
+2. Treasury borrows HOLLAR against its own Money Market collateral (`Pool.borrow()`)
+3. Treasury calls `Pool.liquidationCall(GIGAHDX, HOLLAR, user, amount, receive_atoken=true)` — receives GIGAHDX as aToken
+4. Seized GIGAHDX is transferred to a derived treasury sub-account (derived from `BorrowingTreasuryAccount`)
+5. External governance action decides what to do with the seized GIGAHDX afterward
 
-**Note:** The simpler approach is to not use the liquidated GIGAHDX as treasury collateral at all — just borrow all HOLLAR against other treasury collateral. This is easier to calculate and execute, though it lowers debt ceiling somewhat.
+**Key design decisions:**
+- **No flash minting:** Treasury borrows HOLLAR directly — simpler than flash mint + repay round-trip
+- **No profit check:** GIGAHDX is not swapped to debt asset; value is in the seized collateral itself
+- **`receive_atoken = true`:** Seized collateral stays as GIGAHDX (not unwrapped to stHDX)
+- **PEPL worker can trigger:** Unsigned transactions, same as other liquidations
+- **Derived sub-account:** Keeps seized GIGAHDX separate from main treasury, trackable by governance
 
-**Debt Ceiling:** Should be set based on what treasury can safely cover in case of liquidations.
+**Debt Ceiling:** Should be set based on what treasury can safely cover in case of liquidations. The treasury accumulates HOLLAR debt that must be managed through governance.
 
 **Locked GIGAHDX:**
-If the GIGAHDX being liquidated has governance voting locks, step 2 force-removes all votes from conviction-voting. This triggers the adapter's lock recalculation, which clears `GigaHdxVotingLock` storage. The EVM precompile sees the lock cleared, and `transferOnLiquidation` succeeds. See section 9.6 for the full resolved design.
+If the GIGAHDX being liquidated has governance voting locks, step 1 force-removes all votes from conviction-voting. This triggers the adapter's lock recalculation, which clears `GigaHdxVotingLock` storage. The EVM precompile sees the lock cleared, and `transferOnLiquidation` succeeds. See section 9.6 for the full resolved design.
 
 ### 11.4 Future Features (Out of Scope for Initial Launch)
 
@@ -573,7 +586,7 @@ The following workstreams can be developed:
 | 2 | `pallet-gigahdx` (core staking) | spec 02 | Yes |
 | 3 | `pallet-gigahdx-voting` (adapter + rewards) | spec 03 | Partially (needs pallet-gigahdx interface) |
 | 4 | `LockableAToken` + LockManager precompile | spec 04 | Yes |
-| 5 | Treasury-only liquidation mechanism | TBD (future) | After 2, 3, 4 are working |
+| 5 | GIGAHDX liquidation (external + treasury) | spec 05 | After 2, 3, 4 are working |
 | 6 | Migration from HDX staking | TBD (future) | After 2 is working |
 
 Workstreams 1, 2, and 4 can be developed fully in parallel. Workstream 3 can be started in parallel but depends on pallet-gigahdx interfaces. Workstreams 5 and 6 are deferred until the foundation is implemented and working.
@@ -588,3 +601,4 @@ Workstreams 1, 2, and 4 can be developed fully in parallel. Workstream 3 can be 
 | 02 | `specs/02-pallet-gigahdx.md` | Core staking: giga_stake, giga_unstake, unlock, exchange rate |
 | 03 | `specs/03-pallet-gigahdx-voting.md` | Voting adapter, VotingHooks, conviction-weighted rewards, liquidation prep |
 | 04 | `specs/04-lockable-atoken.md` | Solidity aToken contract, LockManager precompile |
+| 05 | `specs/05-gigahdx-liquidation.md` | External + treasury liquidation for GIGAHDX collateral |

@@ -46,6 +46,7 @@ use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{
 	evm::{CallContext, InspectEvmAccounts, EVM},
+	gigahdx::PrepareForLiquidation,
 	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -80,6 +81,7 @@ pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = 1_000_000;
 pub enum Function {
 	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",
 	FlashLoan = "flashLoan(address,address,uint256,bytes)",
+	Borrow = "borrow(address,uint256,uint256,uint16,address)",
 }
 
 #[frame_support::pallet]
@@ -137,6 +139,22 @@ pub mod pallet {
 		/// The origin which can update transaction priorities, allowed signers and call addresses
 		/// for the liquidation worker.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		// Support for GIGAHDX liquidations.
+		/// GIGAHDX asset ID. When collateral_asset matches, the treasury liquidation branch is taken.
+		#[pallet::constant]
+		type GigaHdxAssetId: Get<AssetId>;
+
+		/// Treasury account that has MM collateral for borrowing HOLLAR.
+		#[pallet::constant]
+		type TreasuryAccount: Get<Self::AccountId>;
+
+		/// Derived sub-account for holding seized GIGAHDX.
+		#[pallet::constant]
+		type GigaHdxLiquidationAccount: Get<Self::AccountId>;
+
+		/// Access to GigaHdx voting pallet for clearing voting locks before liquidation.
+		type GigaHdxVoting: PrepareForLiquidation<Self::AccountId>;
 	}
 
 	#[pallet::type_value]
@@ -144,10 +162,20 @@ pub mod pallet {
 		EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice())
 	}
 
-	/// Borrowing market contract address
+	/// Borrowing market contract address (main Hydration Market pool)
 	#[pallet::storage]
 	#[pallet::getter(fn borrowing_contract)]
 	pub type BorrowingContract<T: Config> = StorageValue<_, EvmAddress, ValueQuery, DefaultBorrowingContract>;
+
+	#[pallet::type_value]
+	pub fn DefaultGigaHdxPoolContract() -> EvmAddress {
+		EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice())
+	}
+
+	/// GIGAHDX borrowing market contract address (second pool instance for stHDX/HOLLAR)
+	#[pallet::storage]
+	#[pallet::getter(fn gigahdx_pool_contract)]
+	pub type GigaHdxPoolContract<T: Config> = StorageValue<_, EvmAddress, ValueQuery, DefaultGigaHdxPoolContract>;
 
 	#[pallet::validate_unsigned]
 	impl<T: Config> ValidateUnsigned for Pallet<T>
@@ -192,6 +220,12 @@ pub mod pallet {
 			debt_asset: AssetId,
 			profit: Balance,
 		},
+		/// GIGAHDX position has been liquidated by treasury
+		GigaHdxLiquidated {
+			user: EvmAddress,
+			debt_repaid: Balance,
+			gigahdx_seized: Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -208,6 +242,12 @@ pub mod pallet {
 		FlashMinterNotSet,
 		/// Invalid liquidation data provided
 		InvalidLiquidationData,
+		/// Borrow from treasury failed (insufficient collateral or MM error)
+		BorrowFailed,
+		/// Failed to clear voting locks before GIGAHDX liquidation
+		ClearVotingLocksFailed,
+		/// Transfer of seized GIGAHDX to derived treasury account failed
+		TransferToTreasuryFailed,
 	}
 
 	#[pallet::call]
@@ -246,7 +286,9 @@ pub mod pallet {
 		) -> DispatchResult {
 			log::trace!(target: "liquidation","liquidating debt asset: {debt_asset:?} for amount: {debt_to_cover:?}");
 
-			if debt_asset == T::HollarId::get() {
+			if collateral_asset == T::GigaHdxAssetId::get() {
+				Self::liquidate_gigahdx(debt_asset, user, debt_to_cover)?;
+			} else if debt_asset == T::HollarId::get() {
 				let (flash_minter, loan_receiver) = T::FlashMinter::get().ok_or(Error::<T>::FlashMinterNotSet)?;
 				let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 				let context = CallContext::new_call(flash_minter, pallet_address);
@@ -301,6 +343,17 @@ pub mod pallet {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			BorrowingContract::<T>::put(contract);
+
+			Ok(())
+		}
+
+		/// Set the GIGAHDX pool contract address (second pool instance).
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_borrowing_contract())]
+		pub fn set_gigahdx_pool_contract(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			GigaHdxPoolContract::<T>::put(contract);
 
 			Ok(())
 		}
@@ -433,6 +486,92 @@ impl<T: Config> Pallet<T> {
 		}
 
 		data.build()
+	}
+
+	/// Liquidates a GIGAHDX-collateralized position via the treasury.
+	/// Clears voting locks, borrows HOLLAR from treasury, executes liquidationCall,
+	/// and transfers seized GIGAHDX to derived sub-account.
+	fn liquidate_gigahdx(debt_asset: AssetId, user: EvmAddress, debt_to_cover: Balance) -> DispatchResult
+	where
+		T::AccountId: AsRef<[u8; 32]>,
+	{
+		let collateral_asset = T::GigaHdxAssetId::get();
+		let contract = Self::gigahdx_pool_contract();
+
+		// Step 1: Clear voting locks
+		let user_account = T::EvmAccounts::account_id(user);
+		T::GigaHdxVoting::prepare_for_liquidation(&user_account).map_err(|_| Error::<T>::ClearVotingLocksFailed)?;
+
+		// Step 2: Treasury borrows HOLLAR
+		let treasury = T::TreasuryAccount::get();
+		let treasury_evm = T::EvmAccounts::evm_address(&treasury);
+		// The EVM-mapped treasury account — this is where EVM-level balance changes land.
+		let treasury_evm_account = T::EvmAccounts::account_id(treasury_evm);
+		let debt_address = T::Erc20Mapping::asset_address(debt_asset);
+
+		let borrow_data = Self::encode_borrow_call_data(debt_address, debt_to_cover, treasury_evm);
+		let borrow_ctx = CallContext::new_call(contract, treasury_evm);
+		let borrow_result = T::Evm::call(borrow_ctx, borrow_data, U256::zero(), T::GasLimit::get());
+		if borrow_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::info!(target: "liquidation",
+				"Treasury borrow failed. Reason: {:?}", borrow_result.value);
+			return Err(Error::<T>::BorrowFailed.into());
+		}
+
+		// Step 3: Treasury calls liquidationCall with receive_atoken=true
+		let treasury_gigahdx_before = <T as Config>::Currency::balance(collateral_asset, &treasury_evm_account);
+
+		//TODO: if verified, create a pallet constnat for this or user get_underlying asset from AaveTradeExecuto
+		// Aave's liquidationCall expects the underlying asset (stHDX), not the aToken (GIGAHDX).
+		// Aave reserves are keyed by underlying; passing the aToken address reverts.
+		let sthdx_asset_id: AssetId = 670;
+		let liq_data = Self::encode_liquidation_call_data(sthdx_asset_id, debt_asset, user, debt_to_cover, true);
+		let liq_ctx = CallContext::new_call(contract, treasury_evm);
+		let liq_result = T::Evm::call(liq_ctx, liq_data, U256::zero(), T::GasLimit::get());
+		if liq_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::info!(target: "liquidation",
+				"GIGAHDX liquidationCall failed. Reason: {:?}", liq_result.value);
+			return Err(T::EvmErrorDecoder::convert(liq_result));
+		}
+
+		// Step 4: Transfer GIGAHDX from treasury to derived sub-account
+		let treasury_gigahdx_after = <T as Config>::Currency::balance(collateral_asset, &treasury_evm_account);
+		let gigahdx_seized = treasury_gigahdx_after
+			.checked_sub(treasury_gigahdx_before)
+			.ok_or(Error::<T>::LiquidationCallFailed)?;
+
+		let derived_account = T::GigaHdxLiquidationAccount::get();
+		<T as Config>::Currency::transfer(
+			collateral_asset,
+			&treasury_evm_account,
+			&derived_account,
+			gigahdx_seized,
+			Preservation::Expendable,
+		)
+		.map_err(|_| Error::<T>::TransferToTreasuryFailed)?;
+
+		log::trace!(target: "liquidation",
+			"GIGAHDX liquidation complete: user={user:?}, debt_repaid={debt_to_cover}, gigahdx_seized={gigahdx_seized}");
+
+		Self::deposit_event(Event::GigaHdxLiquidated {
+			user,
+			debt_repaid: debt_to_cover,
+			gigahdx_seized,
+		});
+
+		Ok(())
+	}
+
+	/// Encodes a borrow call for the Aave Pool contract.
+	/// borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf)
+	pub fn encode_borrow_call_data(asset_address: EvmAddress, amount: Balance, on_behalf_of: EvmAddress) -> Vec<u8> {
+		let mut data = Into::<u32>::into(Function::Borrow).to_be_bytes().to_vec();
+		data.extend_from_slice(H256::from(asset_address).as_bytes());
+		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
+		data.extend_from_slice(H256::from_uint(&U256::from(2u64)).as_bytes()); // variable rate
+		data.extend_from_slice(H256::from_uint(&U256::from(0u64)).as_bytes()); // referralCode = 0
+		data.extend_from_slice(H256::from(on_behalf_of).as_bytes());
+		data
 	}
 
 	/// Decodes the liquidation data from the EVM call to FlashLoan precompile.

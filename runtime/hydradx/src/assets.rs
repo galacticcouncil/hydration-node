@@ -1750,6 +1750,14 @@ impl pallet_referrals::Config for Runtime {
 parameter_types! {
 	pub const LiquidationGasLimit: u64 = 4_000_000;
 	pub BorrowingTreasuryAccount: AccountId = EVMAccounts::account_id(H160::from(hex!["E52567fF06aCd6CBe7BA94dc777a3126e180B6d9"]));
+	pub const GigaHdxLiquidationAssetId: AssetId = 67;
+	pub GigaHdxLiquidationAccount: AccountId = {
+		let treasury = BorrowingTreasuryAccount::get();
+		let mut data = treasury.encode();
+		data.extend_from_slice(b"ghdx_liq");
+		let hash = sp_io::hashing::blake2_256(&data);
+		AccountId::new(hash)
+	};
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -1798,6 +1806,10 @@ impl pallet_liquidation::Config for Runtime {
 	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
 	type EvmErrorDecoder = EvmErrorDecoder;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type GigaHdxAssetId = GigaHdxLiquidationAssetId;
+	type TreasuryAccount = BorrowingTreasuryAccount;
+	type GigaHdxLiquidationAccount = GigaHdxLiquidationAccount;
+	type GigaHdxVoting = GigaHdxVoting;
 }
 
 impl pallet_broadcast::Config for Runtime {}
