@@ -15,7 +15,7 @@ use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::BoundErc20;
 use ice_solver::v2::Solver as IceSolver;
-use ice_support::Solution;
+use ice_support::{Solution, MAX_NUMBER_OF_RESOLVED_INTENTS};
 use orml_traits::{MultiCurrency, MultiReservableCurrency, NamedMultiReservableCurrency};
 use pallet_omnipool::types::SlipFeeConfig;
 use primitives::AccountId;
@@ -5627,4 +5627,125 @@ fn ice_intent_with_evm_gas_eater_token() {
 			fee as f64 / UNITS as f64
 		);
 	});
+}
+
+/// Verify the solver caps resolved intents at MAX_NUMBER_OF_RESOLVED_INTENTS.
+///
+/// When valid intents exceed the limit, the solver must truncate *before*
+/// computing the score so the submitted solution is consistent. Without the
+/// cap the score would reflect all intents but the BoundedVec would silently
+/// drop the overflow, causing a score/solution mismatch.
+#[test]
+fn solver_caps_at_max_resolved_intents() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	let charlie: AccountId = CHARLIE.into();
+	let dave: AccountId = DAVE.into();
+	let eve: AccountId = EVE.into();
+
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+
+	// We need more intents than the cap. Each account can hold up to 100.
+	// Submit ~25 per account across 5 accounts = 125 total (> 100 cap).
+	let intents_per_account = 25u32;
+	let total_intents = intents_per_account * 5;
+	assert!(
+		total_intents > MAX_NUMBER_OF_RESOLVED_INTENTS,
+		"test must submit more than MAX_NUMBER_OF_RESOLVED_INTENTS intents"
+	);
+
+	let sell_hdx_amount = 500 * hdx_unit;
+	let sell_bnc_amount = 30 * bnc_unit;
+	// Loose limits so all intents are satisfiable
+	let min_bnc = bnc_unit;
+	let min_hdx = hdx_unit;
+
+	let accounts = [alice.clone(), bob.clone(), charlie.clone(), dave.clone(), eve.clone()];
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, sell_hdx_amount * intents_per_account as u128)
+		.endow_account(alice.clone(), bnc, sell_bnc_amount * intents_per_account as u128)
+		.endow_account(bob.clone(), hdx, sell_hdx_amount * intents_per_account as u128)
+		.endow_account(bob.clone(), bnc, sell_bnc_amount * intents_per_account as u128)
+		.endow_account(charlie.clone(), hdx, sell_hdx_amount * intents_per_account as u128)
+		.endow_account(charlie.clone(), bnc, sell_bnc_amount * intents_per_account as u128)
+		.endow_account(dave.clone(), hdx, sell_hdx_amount * intents_per_account as u128)
+		.endow_account(dave.clone(), bnc, sell_bnc_amount * intents_per_account as u128)
+		.endow_account(eve.clone(), hdx, sell_hdx_amount * intents_per_account as u128)
+		.endow_account(eve.clone(), bnc, sell_bnc_amount * intents_per_account as u128)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			// Submit intents: alternate direction per account to create matching flow
+			for (i, acc) in accounts.iter().enumerate() {
+				for j in 0..intents_per_account {
+					// Odd accounts sell BNC→HDX, even sell HDX→BNC; flip on odd j
+					let sell_hdx = (i % 2 == 0) ^ (j % 2 == 1);
+					let (asset_in, asset_out, amount_in, amount_out) = if sell_hdx {
+						(hdx, bnc, sell_hdx_amount, min_bnc)
+					} else {
+						(bnc, hdx, sell_bnc_amount, min_hdx)
+					};
+					assert_ok!(hydradx_runtime::Intent::submit_intent(
+						RuntimeOrigin::signed(acc.clone()),
+						pallet_intent::types::IntentInput {
+							data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+								asset_in,
+								asset_out,
+								amount_in,
+								amount_out,
+								partial: false,
+							}),
+							deadline,
+							on_resolved: None,
+						}
+					));
+				}
+			}
+
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			assert_eq!(
+				intents.len(),
+				total_intents as usize,
+				"Should have submitted {} intents",
+				total_intents
+			);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+			)
+			.expect("Solver should produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			// The solver must cap at MAX_NUMBER_OF_RESOLVED_INTENTS
+			assert_eq!(
+				solution.resolved_intents.len(),
+				MAX_NUMBER_OF_RESOLVED_INTENTS as usize,
+				"Solver should cap resolved intents at MAX_NUMBER_OF_RESOLVED_INTENTS ({}), got {}",
+				MAX_NUMBER_OF_RESOLVED_INTENTS,
+				solution.resolved_intents.len()
+			);
+			assert!(solution.score > 0, "Score should be positive");
+
+			// The solution must be submittable — this proves the score is consistent
+			// with the truncated set (the bug we're guarding against).
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+		});
 }
