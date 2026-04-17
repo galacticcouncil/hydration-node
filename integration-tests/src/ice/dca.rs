@@ -1197,3 +1197,107 @@ fn dca_period_can_be_bypassed_at_resolve_time() {
 			}
 		});
 }
+
+// Dynamic slippage must be enforced at resolve time, not only as a pre-filter
+// in get_valid_intents. Acrafted solution with resolve.amount_out
+// at the hard limit (below the oracle-derived slippage floor) is accepted.
+// Fix: enforce resolve.amount_out >= compute_dca_effective_limit(dca) in
+// validate_dca_intent_resolve.
+#[test]
+fn dca_slippage_not_enforced_at_resolve_time() {
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	let budget = 5 * TRADE_AMOUNT;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), HDX, budget * 10)
+		.execute(|| {
+			enable_slip_fees();
+			// Tight 1% slippage but loose hard limit — the gap S2 exposes.
+			submit_dca_hdx_bnc_with_slippage(alice.clone(), Some(budget), Permill::from_percent(1));
+
+			let (intent_id, _) = pallet_intent::Intents::<Runtime>::iter().next().unwrap();
+			let dca = match pallet_intent::Intents::<Runtime>::get(intent_id).unwrap().data {
+				ice_support::IntentData::Dca(dca) => dca,
+				_ => panic!("expected DCA"),
+			};
+
+			// Oracle floor should be well above the hard limit for HDX→BNC.
+			let effective_limit = pallet_intent::Pallet::<Runtime>::compute_dca_effective_limit(&dca);
+			assert!(
+				effective_limit > dca.amount_out,
+				"test requires oracle floor ({}) above hard limit ({})",
+				effective_limit,
+				dca.amount_out,
+			);
+
+			// Run the honest solver to get a valid solution shape (routes + trades).
+			let honest_solution = advance_and_solve(PERIOD);
+			let honest_out = honest_solution.resolved_intents[0].data.amount_out();
+			assert!(honest_out >= effective_limit);
+
+			// DCA still active after the first honest trade.
+			let dca_after_1 = match pallet_intent::Intents::<Runtime>::get(intent_id).unwrap().data {
+				ice_support::IntentData::Dca(dca) => dca,
+				_ => panic!("expected DCA"),
+			};
+
+			// Advance another period and get a second honest solution for the shape.
+			for _ in 0..PERIOD {
+				hydradx_run_to_next_block();
+			}
+
+			let block = hydradx_runtime::System::block_number();
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				block,
+				|intents, state| Solver::solve(intents, state).ok(),
+			)
+			.expect("solver should produce a solution");
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			// Craft a worse solution: set resolve.amount_out to the hard limit
+			// (below oracle floor). A malicious collator keeps the surplus.
+			let mut crafted = solution;
+			crafted.resolved_intents[0] = ice_support::Intent {
+				id: crafted.resolved_intents[0].id,
+				data: ice_support::IntentData::Swap(ice_support::SwapData {
+					asset_in: HDX,
+					asset_out: BNC,
+					amount_in: TRADE_AMOUNT,
+					amount_out: dca.amount_out, // hard limit, below oracle floor
+					partial: ice_support::Partial::No,
+				}),
+			};
+			// surplus = resolve.amount_out - dca.amount_out = 0
+			crafted.score = 0;
+
+			let hdx_before = Currencies::total_balance(HDX, &alice);
+			let bnc_before = Currencies::total_balance(BNC, &alice);
+
+			hydradx_run_to_next_block();
+			let result = pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				crafted,
+			);
+
+			// Today: accepts (only hard limit is checked).
+			assert!(
+				result.is_err(),
+				"resolve at hard limit ({}) below oracle floor ({}) must be rejected; got {:?}",
+				dca.amount_out,
+				effective_limit,
+				result,
+			);
+			assert_eq!(Currencies::total_balance(HDX, &alice), hdx_before);
+			assert_eq!(Currencies::total_balance(BNC, &alice), bnc_before);
+
+			let dca_after = match pallet_intent::Intents::<Runtime>::get(intent_id).unwrap().data {
+				ice_support::IntentData::Dca(dca) => dca,
+				_ => panic!("expected DCA"),
+			};
+			assert_eq!(dca_after.remaining_budget, dca_after_1.remaining_budget);
+			assert_eq!(dca_after.last_execution_block, dca_after_1.last_execution_block);
+		});
+}
