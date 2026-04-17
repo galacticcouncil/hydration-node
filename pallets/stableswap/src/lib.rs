@@ -1094,15 +1094,17 @@ pub mod pallet {
 		///
 		/// This function allows the creation of a new stable pool with specified assets, amplification, fee, and peg sources. The pool is identified by a share asset.
 		///
-		/// Peg target price is determined by retrieving the target peg from the oracle - it is the price of the asset from the peg sourcedenominated in the other pool assets.
+		/// Peg target price is determined by retrieving the target peg from the oracle - it is the price of the asset from the peg source denominated in the other pool assets.
+		///
+		/// Assets may be provided in any order — each asset is paired with its peg source as a tuple
+		/// and the pairs are co-sorted by asset ID before the pool is created.
 		///
 		/// Parameters:
 		/// - `origin`: Must be `T::AuthorityOrigin`.
 		/// - `share_asset`: Preregistered share asset identifier.
-		/// - `assets`: List of asset IDs to be included in the pool.
+		/// - `assets`: List of `(asset_id, peg_source)` pairs to be included in the pool.
 		/// - `amplification`: Pool amplification parameter.
 		/// - `fee`: Fee to be applied on trade and liquidity operations.
-		/// - `peg_source`: Bounded vector specifying the source of the peg for each asset.
 		/// - `max_peg_update`: Maximum allowed peg update per block.
 		///
 		/// Emits `PoolCreated` event if successful.
@@ -1115,7 +1117,6 @@ pub mod pallet {
 		/// - `ShareAssetInPoolAssets`: If the share asset is among the pool assets.
 		/// - `AssetNotRegistered`: If one or more assets are not registered in the AssetRegistry.
 		/// - `InvalidAmplification`: If the amplification parameter is invalid.
-		/// - `IncorrectInitialPegs`: If the initial pegs are incorrect.
 		/// - `MissingTargetPegOracle`: If the target peg oracle entry is missing.
 		/// - `IncorrectAssetDecimals`: If the assets have different decimals.
 		///
