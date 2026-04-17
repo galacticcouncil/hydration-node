@@ -24,7 +24,7 @@ use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{PoolType, TradeExecution};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
-use pallet_stableswap::types::{BoundedPegSources, PegSource};
+use pallet_stableswap::types::PegSource;
 use pallet_stableswap::{BenchmarkHelper as HSMBenchmarkHelper, MAX_ASSETS_IN_POOL};
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::{FixedU128, Perbill, Permill};
@@ -462,11 +462,12 @@ where
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
 	seed_asset::<T>(pool_id, DECIMALS)?;
-	let mut assets = vec![hollar_id];
+	let mut assets_with_pegs: Vec<(T::AssetId, PegSource<T::AssetId>)> =
+		vec![(hollar_id, PegSource::Value((1, 1)))];
 
 	let mut initial_liquidity = vec![INITIAL_LIQUIDITY * ONE];
 
-	let mut pegs = vec![PegSource::Value((1, 1))];
+	let mut assets = vec![hollar_id];
 	for idx in 0..MAX_ASSETS_IN_POOL - 1 {
 		let asset_id: T::AssetId = (idx + offset).into();
 		seed_asset::<T>(asset_id, DECIMALS)?;
@@ -477,7 +478,7 @@ where
 			*b"bifrosto",
 		)?;
 		let source = PegSource::Oracle((*b"bifrosto", OraclePeriod::LastBlock, hollar_id));
-		pegs.push(source);
+		assets_with_pegs.push((asset_id, source));
 		initial_liquidity.push(INITIAL_LIQUIDITY * ONE - 50 * ONE);
 	}
 
@@ -490,10 +491,9 @@ where
 	pallet_stableswap::Pallet::<T>::create_pool_with_pegs(
 		successful_origin,
 		pool_id,
-		BoundedVec::try_from(assets.clone()).unwrap(),
+		BoundedVec::try_from(assets_with_pegs).unwrap(),
 		amplification,
 		fee,
-		BoundedPegSources::try_from(pegs).unwrap(),
 		Perbill::from_percent(100),
 	)?;
 

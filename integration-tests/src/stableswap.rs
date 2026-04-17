@@ -120,6 +120,142 @@ fn gigadot_pool_should_work() {
 		});
 }
 
+// Regression test: a pool created with assets in reverse order must behave identically
+// to one created in sorted order. Both pools are created in the same test and their sell
+// outputs are compared directly — no shared formula, no approximation tolerance on the
+// equivalence check.
+//
+// Asset IDs: VDOT=2222, ADOT=2223 → sorted order is [VDOT, ADOT].
+// Reversed order: [ADOT, VDOT] — peg sources are supplied in caller order and must be
+// co-sorted so that VDOT always gets the Oracle peg and ADOT always gets Value((1,1)).
+#[test]
+fn gigadot_pool_should_cosort_pegs_when_assets_provided_in_reverse_order() {
+	pub const GIGADOT2: AssetId = 70; // second pool share asset
+
+	let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
+		1,
+		[
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
+		],
+	);
+
+	let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
+		1,
+		[
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(1),
+		],
+	);
+
+	let vdot_boxed = Box::new(vdot_location.clone().into_versioned());
+	let dot_boxed = Box::new(dot_location.clone().into_versioned());
+
+	HydrationTestDriver::default()
+		.register_asset(DOT, b"myDOT", DOT_DECIMALS, Some(dot_location))
+		.register_asset(VDOT, b"myvDOT", VDOT_DECIMALS, Some(vdot_location))
+		.register_asset(ADOT, b"myaDOT", ADOT_DECIMALS, None)
+		.register_asset(GIGADOT, b"myGIGADOT", GIGADOT_DECIMALS, None)
+		.register_asset(GIGADOT2, b"myGIGADOT2", GIGADOT_DECIMALS, None)
+		.update_bifrost_oracle(dot_boxed, vdot_boxed, DOT_VDOT_PRICE)
+		.new_block()
+		.endow_account(ALICE.into(), VDOT, 1_000_000 * 10u128.pow(VDOT_DECIMALS as u32))
+		.endow_account(ALICE.into(), ADOT, 1_000_000 * 10u128.pow(ADOT_DECIMALS as u32))
+		.endow_account(BOB.into(), VDOT, 1_000_000 * 10u128.pow(VDOT_DECIMALS as u32))
+		.endow_account(BOB.into(), ADOT, 1_000_000 * 10u128.pow(ADOT_DECIMALS as u32))
+		.execute(|| {
+			let sell_amount = 10u128.pow(VDOT_DECIMALS as u32);
+			let initial_liquidity = 1_000 * sell_amount;
+
+			// ── Pool A: sorted order [VDOT, ADOT] (reference) ────────────────────────────
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				GIGADOT,
+				BoundedVec::truncate_from(vec![
+					(VDOT, PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT))),
+					(ADOT, PegSource::Value((1, 1))),
+				]),
+				100,
+				Permill::from_percent(0),
+				Perbill::from_percent(100),
+			));
+			assert_ok!(Stableswap::add_assets_liquidity(
+				RuntimeOrigin::signed(ALICE.into()),
+				GIGADOT,
+				BoundedVec::truncate_from(vec![
+					AssetAmount::new(VDOT, initial_liquidity),
+					AssetAmount::new(ADOT, initial_liquidity),
+				]),
+				0,
+			));
+
+			let adot_before_a = Tokens::free_balance(ADOT, &ALICE.into());
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				GIGADOT,
+				VDOT,
+				ADOT,
+				sell_amount,
+				0,
+			));
+			let adot_received_sorted = Tokens::free_balance(ADOT, &ALICE.into()) - adot_before_a;
+
+			// ── Pool B: reversed order [ADOT, VDOT] — pegs must be co-sorted ─────────────
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				GIGADOT2,
+				BoundedVec::truncate_from(vec![
+					(ADOT, PegSource::Value((1, 1))),
+					(VDOT, PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT))),
+				]),
+				100,
+				Permill::from_percent(0),
+				Perbill::from_percent(100),
+			));
+
+			// Verify storage: both pools must have the same sorted assets and co-sorted pegs.
+			let pool_a = pallet_stableswap::Pools::<Runtime>::get(GIGADOT).expect("pool A must exist");
+			let pool_b = pallet_stableswap::Pools::<Runtime>::get(GIGADOT2).expect("pool B must exist");
+			assert_eq!(pool_a.assets, pool_b.assets, "both pools must store assets in the same sorted order");
+
+			let pegs_a = pallet_stableswap::PoolPegs::<Runtime>::get(GIGADOT).expect("pegs A must exist");
+			let pegs_b = pallet_stableswap::PoolPegs::<Runtime>::get(GIGADOT2).expect("pegs B must exist");
+			assert_eq!(
+				pegs_a.source.to_vec(),
+				pegs_b.source.to_vec(),
+				"both pools must store peg sources in the same co-sorted order"
+			);
+
+			assert_ok!(Stableswap::add_assets_liquidity(
+				RuntimeOrigin::signed(BOB.into()),
+				GIGADOT2,
+				BoundedVec::truncate_from(vec![
+					AssetAmount::new(VDOT, initial_liquidity),
+					AssetAmount::new(ADOT, initial_liquidity),
+				]),
+				0,
+			));
+
+			let adot_before_b = Tokens::free_balance(ADOT, &BOB.into());
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				GIGADOT2,
+				VDOT,
+				ADOT,
+				sell_amount,
+				0,
+			));
+			let adot_received_reversed = Tokens::free_balance(ADOT, &BOB.into()) - adot_before_b;
+
+			// Direct comparison: both pools must produce identical trade output.
+			assert_eq!(
+				adot_received_sorted,
+				adot_received_reversed,
+				"reversed-order pool must produce the same sell output as sorted-order pool"
+			);
+		});
+}
+
 #[test]
 fn peg_oracle_adapter_should_work_when_getting_price_from_mm_oracle() {
 	TestNet::reset();

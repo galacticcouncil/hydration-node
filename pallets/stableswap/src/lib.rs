@@ -1135,6 +1135,7 @@ pub mod pallet {
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
 			// Co-sort assets and peg_source by asset ID so that peg_source[i] always
+			// corresponds to sorted_assets[i], matching how do_create_pool stores them.
 			let mut pairs: Vec<(T::AssetId, PegSource<T::AssetId>)> = assets.into_inner();
 			pairs.sort_by_key(|(asset, _)| *asset);
 
