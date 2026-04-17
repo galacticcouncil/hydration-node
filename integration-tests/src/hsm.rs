@@ -22,7 +22,6 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetType;
 use pallet_ema_oracle::BIFROST_SOURCE;
-use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
 use primitives::EvmAddress;
@@ -638,10 +637,12 @@ fn buy_hollar_with_yield_bearing_token_should_work() {
 			let alice_hollar_balance = balance_of(alice_evm_address);
 			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
-			let assets = vec![HOLLAR, COLLATERAL];
-			let pegs = vec![
-				PegSource::Value((1, 1)),                                             // aDOT peg
-				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)), // vDOT peg
+			let assets = vec![
+				(HOLLAR, PegSource::Value((1, 1))),
+				(
+					COLLATERAL,
+					PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)),
+				),
 			];
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
@@ -649,7 +650,6 @@ fn buy_hollar_with_yield_bearing_token_should_work() {
 				BoundedVec::truncate_from(assets),
 				100,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(pegs),
 				Perbill::from_percent(100),
 			));
 
@@ -747,10 +747,12 @@ fn sell_yield_bearing_token_to_get_hollar_should_work() {
 			let alice_hollar_balance = balance_of(alice_evm_address);
 			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
-			let assets = vec![HOLLAR, COLLATERAL];
-			let pegs = vec![
-				PegSource::Value((1, 1)),                                             // aDOT peg
-				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)), // vDOT peg
+			let assets = vec![
+				(HOLLAR, PegSource::Value((1, 1))),
+				(
+					COLLATERAL,
+					PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)),
+				),
 			];
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
@@ -758,7 +760,6 @@ fn sell_yield_bearing_token_to_get_hollar_should_work() {
 				BoundedVec::truncate_from(assets),
 				100,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(pegs),
 				Perbill::from_percent(100),
 			));
 
@@ -871,10 +872,12 @@ fn sell_collateral_to_get_hollar_via_router_should_work() {
 			let alice_hollar_balance = balance_of(alice_evm_address);
 			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
-			let assets = vec![HOLLAR, COLLATERAL];
-			let pegs = vec![
-				PegSource::Value((1, 1)),                                             // aDOT peg
-				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)), // vDOT peg
+			let assets = vec![
+				(HOLLAR, PegSource::Value((1, 1))),
+				(
+					COLLATERAL,
+					PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)),
+				),
 			];
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
@@ -882,7 +885,6 @@ fn sell_collateral_to_get_hollar_via_router_should_work() {
 				BoundedVec::truncate_from(assets),
 				100,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(pegs),
 				Perbill::from_percent(100),
 			));
 
@@ -1003,10 +1005,12 @@ fn sell_collateral_to_get_hollar_via_router_should_work_when_collateral_is_acqui
 			let alice_hollar_balance = balance_of(alice_evm_address);
 			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
-			let assets = vec![HOLLAR, COLLATERAL];
-			let pegs = vec![
-				PegSource::Value((1, 1)),                                             // aDOT peg
-				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)), // vDOT peg
+			let assets = vec![
+				(HOLLAR, PegSource::Value((1, 1))),
+				(
+					COLLATERAL,
+					PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)),
+				),
 			];
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
@@ -1014,7 +1018,6 @@ fn sell_collateral_to_get_hollar_via_router_should_work_when_collateral_is_acqui
 				BoundedVec::truncate_from(assets),
 				100,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(pegs),
 				Perbill::from_percent(100),
 			));
 
@@ -1342,10 +1345,12 @@ fn sell_hollar_to_get_yield_bearing_token_should_work() {
 			let alice_hollar_balance = balance_of(alice_evm_address);
 			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
-			let assets = vec![HOLLAR, COLLATERAL];
-			let pegs = vec![
-				PegSource::Value((1, 1)),                                             // aDOT peg
-				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)), // vDOT peg
+			let assets = vec![
+				(HOLLAR, PegSource::Value((1, 1))),
+				(
+					COLLATERAL,
+					PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)),
+				),
 			];
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
@@ -1353,7 +1358,6 @@ fn sell_hollar_to_get_yield_bearing_token_should_work() {
 				BoundedVec::truncate_from(assets),
 				100,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(pegs),
 				Perbill::from_percent(100),
 			));
 
@@ -1458,10 +1462,12 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 			let alice_hollar_balance = balance_of(alice_evm_address);
 			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
-			let assets = vec![HOLLAR, COLLATERAL];
-			let pegs = vec![
-				PegSource::Value((1, 1)),                                             // aDOT peg
-				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)), // vDOT peg
+			let assets = vec![
+				(HOLLAR, PegSource::Value((1, 1))),
+				(
+					COLLATERAL,
+					PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)),
+				),
 			];
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
@@ -1469,7 +1475,6 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 				BoundedVec::truncate_from(assets),
 				100,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(pegs),
 				Perbill::from_percent(100),
 			));
 
@@ -1574,18 +1579,20 @@ fn buy_collateral_with_hollar_via_router_should_work() {
 			let alice_hollar_balance = balance_of(alice_evm_address);
 			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
-			let assets = vec![HOLLAR, COLLATERAL];
-			let pegs = vec![
-				PegSource::Value((1, 1)),                                             // aDOT peg
-				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)), // vDOT peg
+			let assets = vec![
+				(HOLLAR, PegSource::Value((1, 1))),
+				(
+					COLLATERAL,
+					PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)),
+				),
 			];
+
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				POOL_ID,
 				BoundedVec::truncate_from(assets),
 				100,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(pegs),
 				Perbill::from_percent(100),
 			));
 

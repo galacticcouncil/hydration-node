@@ -2,11 +2,11 @@
 
 use crate::assert_balance;
 use crate::tests::mock::*;
-use crate::types::{BoundedPegSources, PegSource};
+use crate::types::PegSource;
 use frame_support::traits::Hooks;
 use hydradx_traits::stableswap::AssetAmount;
 
-use crate::tests::{get_share_price, spot_price, to_bounded_asset_vec};
+use crate::tests::{get_share_price, spot_price};
 use frame_support::{assert_ok, BoundedVec};
 use hydradx_traits::OraclePeriod;
 use num_traits::One;
@@ -54,14 +54,13 @@ fn sell_with_peg_should_work_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value(peg2)),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Value(peg2),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -132,14 +131,13 @@ fn buy_with_peg_should_work_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value(peg2)),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Value(peg2),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -213,14 +211,13 @@ fn sell_with_peg_with_fee_should_work_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value(peg2)),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				trade_fee,
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Value(peg2),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -292,14 +289,13 @@ fn buy_with_peg_with_fee_should_work_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value(peg2)),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				trade_fee,
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Value(peg2),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -372,14 +368,13 @@ fn sell_with_drifting_peg_should_work() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a))),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -455,14 +450,13 @@ fn sell_with_drifting_peg_should_not_exceed_max_peg_update() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a))),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -540,14 +534,13 @@ fn share_pries_should_be_correct_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a))),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -616,14 +609,13 @@ fn spot_prices_should_be_correct_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a))),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -705,14 +697,13 @@ fn add_liquidity_should_work_correctly_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a))),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -787,14 +778,13 @@ fn add_liquidity_shares_should_work_correctly_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a))),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -870,14 +860,13 @@ fn remove_liquidity_for_one_asset_should_work_correctly_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a))),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -965,14 +954,13 @@ fn remove_liquidity_given_asset_amount_should_work_correctly_with_different_pegs
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a))),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -1063,14 +1051,13 @@ fn remove_liquidity_uniform_should_work_correctly_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a))),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -1168,14 +1155,16 @@ fn asset_oracle_peg_should_work() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::Oracle((*b"testtest", OraclePeriod::Short, oracle_asset))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, oracle_asset)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -1257,14 +1246,16 @@ fn pegs_should_not_change_when_multiple_trades_happen_in_same_block() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::Oracle((*b"testtest", OraclePeriod::Short, oracle_asset))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, oracle_asset)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -1355,14 +1346,16 @@ fn trade_fee_should_not_change_when_multiple_trades_happen_in_same_block() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::Oracle((*b"testtest", OraclePeriod::Short, oracle_asset))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, oracle_asset)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -1454,14 +1447,16 @@ fn trade_fee_should_be_removed_on_finalize() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::Oracle((*b"testtest", OraclePeriod::Short, oracle_asset))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Oracle((*b"testtest", OraclePeriod::Short, oracle_asset)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 

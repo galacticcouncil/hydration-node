@@ -1,7 +1,7 @@
 #![allow(deprecated)]
 
 use crate::tests::mock::*;
-use crate::types::{BoundedPegSources, PegSource, PoolPegInfo};
+use crate::types::{PegSource, PoolPegInfo};
 use crate::{Event, PoolPegs, Pools};
 use frame_support::{assert_ok, BoundedVec};
 use hydradx_traits::stableswap::AssetAmount;
@@ -18,17 +18,20 @@ type PoolId = AssetId;
 /// Create a peg pool with `Value`-typed pegs. `assets` and `pegs` are
 /// positionally paired — any ordering of assets is accepted.
 fn make_peg_pool(pool_id: PoolId, assets: Vec<AssetId>, pegs: Vec<(u128, u128)>) {
-	let assets_bv: BoundedVec<AssetId, _> = assets.try_into().unwrap();
-	let pegs_bv: BoundedPegSources<AssetId> =
-		BoundedVec::try_from(pegs.into_iter().map(PegSource::Value).collect::<Vec<_>>()).unwrap();
+	let assets_with_pegs: BoundedVec<(AssetId, PegSource<AssetId>), _> = BoundedVec::try_from(
+		assets
+			.into_iter()
+			.zip(pegs.into_iter().map(PegSource::Value))
+			.collect::<Vec<_>>(),
+	)
+	.unwrap();
 
 	assert_ok!(Stableswap::create_pool_with_pegs(
 		RuntimeOrigin::root(),
 		pool_id,
-		assets_bv,
+		assets_with_pegs,
 		1000,
 		Permill::zero(),
-		pegs_bv,
 		Perbill::from_percent(100),
 	));
 }
@@ -76,21 +79,17 @@ fn pool_pegs_should_be_cosorted_with_assets() {
 		.execute_with(|| {
 			// Caller intent: asset_10 → (2,1), asset_5 → (1,1), asset_20 → (3,1).
 			// Input order: [10, 5, 20] with pegs [(2,1), (1,1), (3,1)].
-			let unsorted_assets: BoundedVec<AssetId, _> = vec![asset_10, asset_5, asset_20].try_into().unwrap();
-			let unsorted_pegs: BoundedPegSources<AssetId> = BoundedVec::try_from(vec![
-				PegSource::Value((2, 1)),
-				PegSource::Value((1, 1)),
-				PegSource::Value((3, 1)),
-			])
-			.unwrap();
-
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				unsorted_assets,
+				BoundedVec::try_from(vec![
+					(asset_10, PegSource::Value((2, 1))),
+					(asset_5, PegSource::Value((1, 1))),
+					(asset_20, PegSource::Value((3, 1))),
+				])
+				.unwrap(),
 				1000,
 				Permill::zero(),
-				unsorted_pegs,
 				Perbill::from_percent(100),
 			));
 
@@ -149,21 +148,17 @@ fn pool_pegs_should_be_cosorted_with_three_assets_reverse_order() {
 		.build()
 		.execute_with(|| {
 			// Reverse-sorted input.
-			let assets: BoundedVec<AssetId, _> = vec![asset_20, asset_10, asset_5].try_into().unwrap();
-			let pegs: BoundedPegSources<AssetId> = BoundedVec::try_from(vec![
-				PegSource::Value((3, 1)), // for asset_20
-				PegSource::Value((2, 1)), // for asset_10
-				PegSource::Value((1, 1)), // for asset_5
-			])
-			.unwrap();
-
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				assets,
+				BoundedVec::try_from(vec![
+					(asset_20, PegSource::Value((3, 1))), // for asset_20
+					(asset_10, PegSource::Value((2, 1))), // for asset_10
+					(asset_5, PegSource::Value((1, 1))),  // for asset_5
+				])
+				.unwrap(),
 				1000,
 				Permill::zero(),
-				pegs,
 				Perbill::from_percent(100),
 			));
 
@@ -406,21 +401,23 @@ fn sell_should_use_correct_oracle_pegs_when_assets_are_unsorted() {
 			// Intent: asset_10 → Oracle(2,1), asset_5 → Value(1,1), asset_20 → Oracle(3,1).
 			// Input order: [10, 5, 20].  Bug stores source as-is, so sorted pool
 			// maps: asset_5 → Oracle (wrong), asset_10 → Value (wrong), asset_20 → Oracle (correct by coincidence).
-			let unsorted_assets: BoundedVec<AssetId, _> = vec![asset_10, asset_5, asset_20].try_into().unwrap();
-			let unsorted_pegs: BoundedPegSources<AssetId> = BoundedVec::try_from(vec![
-				PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)), // intended for asset_10
-				PegSource::Value((1, 1)),                                         // intended for asset_5
-				PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)), // intended for asset_20
-			])
-			.unwrap();
-
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				unsorted_assets,
+				BoundedVec::try_from(vec![
+					(
+						asset_10,
+						PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5))
+					), // intended for asset_10
+					(asset_5, PegSource::Value((1, 1))), // intended for asset_5
+					(
+						asset_20,
+						PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5))
+					), // intended for asset_20
+				])
+				.unwrap(),
 				1000,
 				Permill::zero(),
-				unsorted_pegs,
 				Perbill::from_percent(100),
 			));
 			add_liquidity(
@@ -442,21 +439,23 @@ fn sell_should_use_correct_oracle_pegs_when_assets_are_unsorted() {
 
 			// ── Reference pool (sorted) ──────────────────────────────────────────
 			// Sorted [5, 10, 20], pegs: [Value(1,1), Oracle(..), Oracle(..)].
-			let sorted_assets: BoundedVec<AssetId, _> = vec![asset_5, asset_10, asset_20].try_into().unwrap();
-			let sorted_pegs: BoundedPegSources<AssetId> = BoundedVec::try_from(vec![
-				PegSource::Value((1, 1)),
-				PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)),
-				PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)),
-			])
-			.unwrap();
-
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id_ref,
-				sorted_assets,
+				BoundedVec::try_from(vec![
+					(asset_5, PegSource::Value((1, 1))),
+					(
+						asset_10,
+						PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5))
+					),
+					(
+						asset_20,
+						PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5))
+					),
+				])
+				.unwrap(),
 				1000,
 				Permill::zero(),
-				sorted_pegs,
 				Perbill::from_percent(100),
 			));
 			add_liquidity(
@@ -655,17 +654,16 @@ fn pool_pegs_are_correct_when_assets_provided_already_sorted() {
 		.build()
 		.execute_with(|| {
 			// Already sorted: [5, 10].
-			let assets: BoundedVec<AssetId, _> = vec![asset_5, asset_10].try_into().unwrap();
-			let pegs: BoundedPegSources<AssetId> =
-				BoundedVec::try_from(vec![PegSource::Value((1, 1)), PegSource::Value((2, 1))]).unwrap();
-
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				assets,
+				BoundedVec::try_from(vec![
+					(asset_5, PegSource::Value((1, 1))),
+					(asset_10, PegSource::Value((2, 1)))
+				])
+				.unwrap(),
 				1000,
 				Permill::zero(),
-				pegs,
 				Perbill::from_percent(100),
 			));
 
@@ -705,23 +703,19 @@ fn pool_pegs_should_be_cosorted_with_five_assets_random_order() {
 		.build()
 		.execute_with(|| {
 			// Input order [5, 1, 9, 3, 7]; pegs paired to this order.
-			let assets: BoundedVec<AssetId, _> = vec![asset_5, asset_1, asset_9, asset_3, asset_7].try_into().unwrap();
-			let pegs: BoundedPegSources<AssetId> = BoundedVec::try_from(vec![
-				PegSource::Value((5, 1)), // for asset_5
-				PegSource::Value((1, 1)), // for asset_1
-				PegSource::Value((9, 1)), // for asset_9
-				PegSource::Value((3, 1)), // for asset_3
-				PegSource::Value((7, 1)), // for asset_7
-			])
-			.unwrap();
-
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				assets,
+				BoundedVec::try_from(vec![
+					(asset_5, PegSource::Value((5, 1))), // for asset_5
+					(asset_1, PegSource::Value((1, 1))), // for asset_1
+					(asset_9, PegSource::Value((9, 1))), // for asset_9
+					(asset_3, PegSource::Value((3, 1))), // for asset_3
+					(asset_7, PegSource::Value((7, 1))), // for asset_7
+				])
+				.unwrap(),
 				1000,
 				Permill::zero(),
-				pegs,
 				Perbill::from_percent(100),
 			));
 
@@ -783,21 +777,23 @@ fn pool_pegs_should_be_cosorted_with_mixed_peg_source_types() {
 			set_peg_oracle_value(asset_5, asset_20, (3, 1), 1);
 
 			// Unsorted input [10, 5, 20]; mixed peg source types.
-			let assets: BoundedVec<AssetId, _> = vec![asset_10, asset_5, asset_20].try_into().unwrap();
-			let pegs: BoundedPegSources<AssetId> = BoundedVec::try_from(vec![
-				PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)), // for asset_10
-				PegSource::Value((1, 1)),                                         // for asset_5
-				PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)), // for asset_20
-			])
-			.unwrap();
-
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				assets,
+				BoundedVec::try_from(vec![
+					(
+						asset_10,
+						PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5))
+					), // for asset_10
+					(asset_5, PegSource::Value((1, 1))), // for asset_5
+					(
+						asset_20,
+						PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5))
+					), // for asset_20
+				])
+				.unwrap(),
 				1000,
 				Permill::zero(),
-				pegs,
 				Perbill::from_percent(100),
 			));
 
@@ -839,17 +835,16 @@ fn pool_created_event_should_contain_sorted_assets_and_cosorted_pegs() {
 		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
 		.build()
 		.execute_with(|| {
-			let unsorted_assets: BoundedVec<AssetId, _> = vec![asset_10, asset_5].try_into().unwrap();
-			let unsorted_pegs: BoundedPegSources<AssetId> =
-				BoundedVec::try_from(vec![PegSource::Value((2, 1)), PegSource::Value((1, 1))]).unwrap();
-
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				unsorted_assets,
+				BoundedVec::try_from(vec![
+					(asset_10, PegSource::Value((2, 1))),
+					(asset_5, PegSource::Value((1, 1))),
+				])
+				.unwrap(),
 				1000,
 				Permill::zero(),
-				unsorted_pegs,
 				Perbill::from_percent(100),
 			));
 

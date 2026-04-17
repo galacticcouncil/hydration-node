@@ -1,8 +1,7 @@
 use crate::tests::mock::*;
-use crate::tests::to_bounded_asset_vec;
 use crate::tests::{get_share_price, spot_price};
+use crate::types::PegSource;
 use crate::types::PoolInfo;
-use crate::types::{BoundedPegSources, PegSource};
 use crate::{assert_balance, to_precision, Error};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 use hex_literal::hex;
@@ -37,14 +36,13 @@ fn creating_pool_should_work_when_all_sources_are_value_type() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value((1, 1))),
+					(asset_c, PegSource::Value((1, 1))),
+				]),
 				2000,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Value((1, 1)),
-					PegSource::Value((1, 1))
-				]),
 				max_peg_update,
 			));
 		});
@@ -74,20 +72,28 @@ fn creating_pool_should_work_when_all_sources_are_mmoracle_type() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(
+						asset_a,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000000").as_slice()
+						))
+					),
+					(
+						asset_b,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000000").as_slice()
+						))
+					),
+					(
+						asset_c,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000000").as_slice()
+						))
+					),
+				]),
 				2000,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000000").as_slice()
-					)),
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000000").as_slice()
-					)),
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000000").as_slice()
-					)),
-				]),
 				max_peg_update,
 			));
 		});
@@ -117,16 +123,18 @@ fn creating_pool_should_work_when_all_sources_are_value_or_mmoracle_type() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(
+						asset_a,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000000").as_slice()
+						))
+					),
+					(asset_b, PegSource::Value((1, 1))),
+					(asset_c, PegSource::Value((1, 1))),
+				]),
 				2000,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000000").as_slice()
-					)),
-					PegSource::Value((1, 1)),
-					PegSource::Value((1, 1)),
-				]),
 				max_peg_update,
 			));
 		});
@@ -158,16 +166,18 @@ fn creating_pool_should_fail_when_all_source_are_not_value_or_mmoracle_type() {
 				Stableswap::create_pool_with_pegs(
 					RuntimeOrigin::root(),
 					pool_id,
-					to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+					BoundedVec::truncate_from(vec![
+						(
+							asset_a,
+							PegSource::MMOracle(EvmAddress::from_slice(
+								hex!("0000000000000000000000000000000000000000").as_slice()
+							))
+						),
+						(asset_b, PegSource::Value((1, 1))),
+						(asset_c, PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a))),
+					]),
 					2000,
 					Permill::from_percent(0),
-					BoundedPegSources::truncate_from(vec![
-						PegSource::MMOracle(EvmAddress::from_slice(
-							hex!("0000000000000000000000000000000000000000").as_slice()
-						)),
-						PegSource::Value((1, 1)),
-						PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
-					]),
 					max_peg_update,
 				),
 				Error::<Test>::IncorrectAssetDecimals
@@ -200,15 +210,17 @@ fn add_initial_liquidity_should_work_when_pegs_are_same_value() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000000").as_slice()
+						))
+					),
+				]),
 				amplification,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000000").as_slice()
-					)),
-				]),
 				max_peg_update,
 			));
 
@@ -552,16 +564,18 @@ fn add_liquidity_should_work_correctly_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000001").as_slice(),
+						))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000001").as_slice(),
-					)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -634,16 +648,18 @@ fn remove_liquidity_for_one_asset_should_work_correctly_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000001").as_slice(),
+						))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000001").as_slice(),
-					)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -719,16 +735,18 @@ fn remove_liquidity_given_asset_amount_should_work_correctly_with_different_pegs
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000001").as_slice(),
+						))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000001").as_slice(),
-					)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -806,16 +824,18 @@ fn remove_liquidity_uniform_should_work_correctly_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000001").as_slice(),
+						))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000001").as_slice(),
-					)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -898,16 +918,18 @@ fn sell_with_different_peg_should_work() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000001").as_slice(),
+						))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000001").as_slice(),
-					)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -970,16 +992,18 @@ fn share_pries_should_be_correct_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000001").as_slice(),
+						))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000001").as_slice(),
-					)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -1037,16 +1061,18 @@ fn spot_prices_should_be_correct_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000001").as_slice(),
+						))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000001").as_slice(),
-					)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -1117,16 +1143,18 @@ fn add_liquidity_shares_should_work_correctly_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000001").as_slice(),
+						))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000001").as_slice(),
-					)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -1190,14 +1218,13 @@ fn sell_with_peg_should_work_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value(peg2)),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Value(peg2),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 
@@ -1258,16 +1285,18 @@ fn buy_with_peg_should_work_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(
+						asset_b,
+						PegSource::MMOracle(EvmAddress::from_slice(
+							hex!("0000000000000000000000000000000000000001").as_slice(),
+						))
+					),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				amp,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::MMOracle(EvmAddress::from_slice(
-						hex!("0000000000000000000000000000000000000001").as_slice(),
-					)),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 

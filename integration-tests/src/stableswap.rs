@@ -10,7 +10,6 @@ use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_stableswap::traits::PegRawOracle;
-use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
 use primitives::{constants::time::SECS_PER_BLOCK, BlockNumber};
@@ -61,10 +60,9 @@ fn gigadot_pool_should_work() {
 		.endow_account(ALICE.into(), VDOT, 1_000_000 * 10u128.pow(VDOT_DECIMALS as u32))
 		.endow_account(ALICE.into(), ADOT, 1_000_000 * 10u128.pow(ADOT_DECIMALS as u32))
 		.execute(|| {
-			let assets = vec![VDOT, ADOT];
-			let pegs = vec![
-				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT)), // vDOT peg
-				PegSource::Value((1, 1)),                                          // aDOT peg
+			let assets = vec![
+				(VDOT, PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT))),
+				(ADOT, PegSource::Value((1, 1))),
 			];
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
@@ -72,7 +70,6 @@ fn gigadot_pool_should_work() {
 				BoundedVec::truncate_from(assets),
 				100,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(pegs),
 				Perbill::from_percent(100),
 			));
 
@@ -217,18 +214,17 @@ mod circuit_breaker {
 			.endow_account(ALICE.into(), VDOT, 1_000_000 * 10u128.pow(VDOT_DECIMALS as u32))
 			.endow_account(ALICE.into(), ADOT, 1_000_000 * 10u128.pow(ADOT_DECIMALS as u32))
 			.execute(|| {
-				let assets = vec![VDOT, ADOT];
-				let pegs = vec![
-					PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT)), // vDOT peg
-					PegSource::Value((1, 1)),                                          // aDOT peg
+				let assets = vec![
+					(VDOT, PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT))),
+					(ADOT, PegSource::Value((1, 1))),
 				];
+
 				assert_ok!(Stableswap::create_pool_with_pegs(
 					RuntimeOrigin::root(),
 					GIGADOT,
 					BoundedVec::truncate_from(assets),
 					100,
 					Permill::from_percent(0),
-					BoundedPegSources::truncate_from(pegs),
 					Perbill::from_percent(100),
 				));
 
@@ -287,18 +283,17 @@ fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 		.endow_account(ALICE.into(), ADOT, 1_000_000 * 10u128.pow(ADOT_DECIMALS as u32))
 		.execute(|| {
 			let precission = FixedU128::from_inner(1_000);
-			let assets = vec![VDOT, ADOT];
-			let pegs = vec![
-				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT)), // vDOT peg
-				PegSource::Value((1, 1)),                                          // aDOT peg
+			let assets = vec![
+				(VDOT, PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT))),
+				(ADOT, PegSource::Value((1, 1))),
 			];
+
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				GIGADOT,
 				BoundedVec::truncate_from(assets),
 				100,
-				Permill::from_parts(600), //0.06%
-				BoundedPegSources::truncate_from(pegs),
+				Permill::from_parts(600),       //0.06%
 				Perbill::from_parts(1_000_000), //0.1%
 			));
 

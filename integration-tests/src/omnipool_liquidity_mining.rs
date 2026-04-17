@@ -35,7 +35,6 @@ use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetType;
 use pallet_ema_oracle::BIFROST_SOURCE;
-use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use pretty_assertions::assert_eq;
@@ -3400,18 +3399,17 @@ fn price_adjustment_adapter_should_use_routed_oracle() {
 			FixedU128::from_rational(103158291366950047, 4566210555614178),
 		)
 		.execute(|| {
-			let assets = vec![VDOT, ADOT];
-			let pegs = vec![
-				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT)), // vDOT peg
-				PegSource::Value((1, 1)),                                          // aDOT peg
+			let assets = vec![
+				(VDOT, PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT))),
+				(ADOT, PegSource::Value((1, 1))),
 			];
+
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				GIGADOT,
 				BoundedVec::truncate_from(assets),
 				100,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(pegs),
 				Perbill::from_percent(100),
 			));
 

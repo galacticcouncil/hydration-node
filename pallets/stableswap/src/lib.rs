@@ -429,6 +429,11 @@ pub mod pallet {
 
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
+			let mut sorted_assets = assets.into_inner();
+			sorted_assets.sort();
+			let assets: BoundedVec<T::AssetId, ConstU32<MAX_ASSETS_IN_POOL>> =
+				sorted_assets.try_into().map_err(|_| Error::<T>::MaxAssetsExceeded)?;
+
 			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee, None)?;
 
 			Self::deposit_event(Event::PoolCreated {
@@ -1120,21 +1125,17 @@ pub mod pallet {
 		pub fn create_pool_with_pegs(
 			origin: OriginFor<T>,
 			share_asset: T::AssetId,
-			assets: BoundedVec<T::AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
+			assets: BoundedVec<(T::AssetId, PegSource<T::AssetId>), ConstU32<MAX_ASSETS_IN_POOL>>,
 			amplification: u16,
 			fee: Permill,
-			peg_source: BoundedPegSources<T::AssetId>,
 			max_peg_update: Perbill,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
-			ensure!(assets.len() == peg_source.len(), Error::<T>::IncorrectInitialPegs);
-
 			// Co-sort assets and peg_source by asset ID so that peg_source[i] always
-			// corresponds to sorted_assets[i], matching how do_create_pool stores them.
-			let mut pairs: Vec<_> = assets.iter().copied().zip(peg_source.into_iter()).collect();
+			let mut pairs: Vec<(T::AssetId, PegSource<T::AssetId>)> = assets.into_inner();
 			pairs.sort_by_key(|(asset, _)| *asset);
 
 			let sorted_assets: BoundedVec<T::AssetId, ConstU32<MAX_ASSETS_IN_POOL>> = pairs
@@ -1449,6 +1450,7 @@ impl<T: Config> Pallet<T> {
 		.ok_or_else(|| ArithmeticError::Overflow.into())
 	}
 
+	/// Assets must be provided in ascending sort order by asset ID.
 	#[require_transactional]
 	fn do_create_pool(
 		share_asset: T::AssetId,
@@ -1467,8 +1469,7 @@ impl<T: Config> Pallet<T> {
 
 		let block_number = T::BlockNumberProvider::current_block_number();
 
-		let mut pool_assets = assets.to_vec();
-		pool_assets.sort();
+		let pool_assets = assets.to_vec();
 
 		let pool = PoolInfo {
 			assets: pool_assets

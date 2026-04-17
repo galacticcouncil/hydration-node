@@ -46,7 +46,7 @@ use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::traits::PegRawOracle;
-use pallet_stableswap::types::{BoundedPegSources, PegSource};
+use pallet_stableswap::types::PegSource;
 use primitives::EvmAddress;
 use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, Convert, IdentityLookup};
@@ -775,13 +775,17 @@ impl ExtBuilder {
 
 			// Set up collaterals
 			for (pool_id, assets, amplification, fee, pegs) in self.pools {
+				let asset_with_pegs = assets
+					.iter()
+					.zip(pegs.iter())
+					.map(|(asset, peg)| (*asset, peg.clone()))
+					.collect::<Vec<_>>();
 				Stableswap::create_pool_with_pegs(
 					RuntimeOrigin::root(),
 					pool_id,
-					BoundedVec::try_from(assets).unwrap(),
+					BoundedVec::try_from(asset_with_pegs).unwrap(),
 					amplification,
 					fee,
-					BoundedPegSources::try_from(pegs).unwrap(),
 					Perbill::from_percent(100),
 				)
 				.unwrap();
