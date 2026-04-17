@@ -462,8 +462,7 @@ where
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
 	seed_asset::<T>(pool_id, DECIMALS)?;
-	let mut assets_with_pegs: Vec<(T::AssetId, PegSource<T::AssetId>)> =
-		vec![(hollar_id, PegSource::Value((1, 1)))];
+	let mut assets_with_pegs: Vec<(T::AssetId, PegSource<T::AssetId>)> = vec![(hollar_id, PegSource::Value((1, 1)))];
 
 	let mut initial_liquidity = vec![INITIAL_LIQUIDITY * ONE];
 

@@ -216,7 +216,10 @@ fn gigadot_pool_should_cosort_pegs_when_assets_provided_in_reverse_order() {
 			// Verify storage: both pools must have the same sorted assets and co-sorted pegs.
 			let pool_a = pallet_stableswap::Pools::<Runtime>::get(GIGADOT).expect("pool A must exist");
 			let pool_b = pallet_stableswap::Pools::<Runtime>::get(GIGADOT2).expect("pool B must exist");
-			assert_eq!(pool_a.assets, pool_b.assets, "both pools must store assets in the same sorted order");
+			assert_eq!(
+				pool_a.assets, pool_b.assets,
+				"both pools must store assets in the same sorted order"
+			);
 
 			let pegs_a = pallet_stableswap::PoolPegs::<Runtime>::get(GIGADOT).expect("pegs A must exist");
 			let pegs_b = pallet_stableswap::PoolPegs::<Runtime>::get(GIGADOT2).expect("pegs B must exist");
@@ -249,8 +252,7 @@ fn gigadot_pool_should_cosort_pegs_when_assets_provided_in_reverse_order() {
 
 			// Direct comparison: both pools must produce identical trade output.
 			assert_eq!(
-				adot_received_sorted,
-				adot_received_reversed,
+				adot_received_sorted, adot_received_reversed,
 				"reversed-order pool must produce the same sell output as sorted-order pool"
 			);
 		});
