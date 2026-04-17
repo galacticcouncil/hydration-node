@@ -10507,7 +10507,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
