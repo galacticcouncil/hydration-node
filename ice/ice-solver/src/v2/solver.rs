@@ -59,6 +59,18 @@ struct IntentFill<'a> {
 	fill_amount: Balance,
 }
 
+/// `(amount_in, amount_out)` accumulated from ring matches for a single intent.
+type RingFill = (Balance, Balance);
+
+/// Per-direction accumulator used to blend ring fills with AMM output when
+/// computing unified rates.
+#[derive(Default)]
+struct DirAccum {
+	total_in: Balance,
+	ring_in: Balance,
+	ring_out: Balance,
+}
+
 fn empty_solution() -> Solution {
 	Solution {
 		resolved_intents: ResolvedIntents::truncate_from(Vec::new()),
@@ -75,8 +87,18 @@ fn unordered_pair(a: AssetId, b: AssetId) -> (AssetId, AssetId) {
 	}
 }
 
-/// Compute amount_out from a clearing rate, ensuring rounding consistency.
+/// Compute `amount_in * n / d` (integer floor), saturating to 0 on overflow or
+/// division by zero. A zero denominator is always a bug — by construction every
+/// clearing rate has a positive denominator — so we log at `warn!` when it
+/// happens to aid diagnosis.
 fn apply_rate(amount_in: Balance, n: U256, d: U256) -> Balance {
+	if d.is_zero() {
+		log::warn!(
+			target: "solver::v2",
+			"apply_rate called with zero denominator (amount_in={amount_in}, n={n}); returning 0",
+		);
+		return 0;
+	}
 	common::mul_div(U256::from(amount_in), n, d)
 		.and_then(|v| v.try_into().ok())
 		.unwrap_or(0)
@@ -97,17 +119,17 @@ fn min_rate(swap: &SwapData) -> (U256, U256) {
 
 impl<A: AMMInterface> Solver<A> {
 	fn select_best_route(
-		routes: Vec<Route<AssetId>>,
+		routes: &[Route<AssetId>],
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_in: Balance,
 		state: &A::State,
 	) -> Option<(Route<AssetId>, Balance, A::State)> {
 		let best = routes
-			.into_iter()
+			.iter()
 			.filter_map(
 				|route| match A::sell(asset_in, asset_out, amount_in, route.clone(), state) {
-					Ok((new_state, exec)) => Some((route, exec.amount_out, new_state)),
+					Ok((new_state, exec)) => Some((route.clone(), exec.amount_out, new_state)),
 					Err(_) => None,
 				},
 			)
@@ -126,132 +148,127 @@ impl<A: AMMInterface> Solver<A> {
 		swap.remaining()
 	}
 
-	pub fn solve(intents: Vec<Intent>, initial_state: A::State) -> Result<Solution, A::Error> {
-		if intents.is_empty() {
-			return Ok(empty_solution());
-		}
-
-		log::debug!(target: "solver::v2", "solve() called with {} intents", intents.len());
-
-		// 1. Filter satisfiable intents
+	/// Pre-compute spot prices for every asset appearing in the intent set,
+	/// denominated in `A::price_denominator()`. Each asset is priced via the
+	/// highest-rate available route to the denominator. Assets without a viable
+	/// route are simply absent from the returned map; callers fall back to
+	/// simulation or conservatively reject such intents.
+	fn collect_spot_prices(intents: &[Intent], state: &A::State) -> BTreeMap<AssetId, Ratio> {
 		let denominator = A::price_denominator();
 		let mut spot_prices: BTreeMap<AssetId, Ratio> = BTreeMap::new();
 		spot_prices.insert(denominator, Ratio::one());
 
-		let satisfiable_intents: Vec<&Intent> = intents
-			.iter()
-			.filter(|intent| {
-				let IntentData::Swap(swap) = &intent.data else {
-					return false;
-				};
-
-				// Collect spot prices lazily
-				for &asset in &[swap.asset_in, swap.asset_out] {
-					let Ok(price_routes) = A::discover_routes(asset, denominator, &initial_state) else {
-						continue;
-					};
-					for route in price_routes {
-						if let Ok(price) = A::get_spot_price(asset, denominator, route, &initial_state) {
-							let better = spot_prices.get(&asset).map_or(true, |existing| {
-								U256::from(price.n) * U256::from(existing.d)
-									> U256::from(existing.n) * U256::from(price.d)
-							});
-							if better {
-								spot_prices.insert(asset, price);
-							}
-						}
-					}
-				}
-
-				let check_amount = Self::effective_amount(swap);
-				if check_amount == 0 {
-					log::debug!(target:"solver::v2","intent {}: fully filled, skipping", intent.id);
-					return false;
-				}
-
-				// Simulation check with effective (remaining) amount
-				if let Ok(routes) = A::discover_routes(swap.asset_in, swap.asset_out, &initial_state) {
-					if let Some((_, amount_out, _)) =
-						Self::select_best_route(routes, swap.asset_in, swap.asset_out, check_amount, &initial_state)
-					{
-						// For partial: pro-rata minimum = check_amount * amount_out / amount_in
-						let pro_rata_min =
-							apply_rate(check_amount, U256::from(swap.amount_out), U256::from(swap.amount_in));
-						if amount_out >= pro_rata_min {
-							return true;
-						}
-						log::debug!(target:"solver::v2","intent {}: route output {} < pro_rata_min {} for {} -> {}",
-							intent.id, amount_out, pro_rata_min, swap.asset_in, swap.asset_out);
-					}
-				}
-
-				// Fallback: spot price check (partial-aware)
-				if swap.partial.is_partial() {
-					// For partial intents, check if remaining amount at spot meets pro-rata min.
-					// Also always allow partial intents through — the binary search in
-					// solve_single_intent_with_fill will find the right fill amount.
-					true
-				} else {
-					let ok = common::is_satisfiable(intent, &spot_prices);
-					if !ok {
-						log::debug!(target:"solver::v2","intent {}: unsatisfiable at spot price", intent.id);
-					}
-					ok
-				}
-			})
-			.collect();
-
-		log::debug!(target: "solver::v2", "satisfiable: {}/{} intents", satisfiable_intents.len(), intents.len());
-
-		if satisfiable_intents.is_empty() {
-			return Ok(empty_solution());
-		}
-
-		if satisfiable_intents.len() == 1 {
-			return Self::solve_single_intent(satisfiable_intents[0], &initial_state);
-		}
-
-		// 2. Build fill plan: for each intent, determine its fill amount.
-		// Non-partial: full amount_in or excluded.
-		// Partial: variable fill up to remaining().
-		let fills: Vec<IntentFill> = satisfiable_intents
-			.iter()
-			.map(|&intent| {
-				let IntentData::Swap(swap) = &intent.data else {
-					return IntentFill { intent, fill_amount: 0 };
-				};
-				IntentFill {
-					intent,
-					fill_amount: Self::effective_amount(swap),
-				}
-			})
-			.filter(|f| f.fill_amount > 0)
-			.collect();
-
-		// 3. Iterative clearing: first stabilize non-partial intents, then add partial fills.
-
-		// Separate partial and non-partial fills
-		let mut partial_fills: Vec<IntentFill> = Vec::new();
-		let mut non_partial_fills: Vec<IntentFill> = Vec::new();
-		for fill in fills {
-			let IntentData::Swap(swap) = &fill.intent.data else {
+		let assets = common::collect_unique_assets(intents);
+		for asset in assets {
+			if asset == denominator {
+				continue;
+			}
+			let Ok(price_routes) = A::discover_routes(asset, denominator, state) else {
 				continue;
 			};
+			for route in price_routes {
+				let Ok(price) = A::get_spot_price(asset, denominator, route, state) else {
+					continue;
+				};
+				let better = spot_prices.get(&asset).is_none_or(|existing| {
+					U256::from(price.n).saturating_mul(U256::from(existing.d))
+						> U256::from(existing.n).saturating_mul(U256::from(price.d))
+				});
+				if better {
+					spot_prices.insert(asset, price);
+				}
+			}
+		}
+		spot_prices
+	}
+
+	/// Decide whether an intent can plausibly be resolved in this round.
+	///
+	/// Preference order:
+	/// 1. Non-swap intents are dropped.
+	/// 2. Intents with zero effective amount (fully filled partials) are dropped.
+	/// 3. If route simulation at the effective amount meets the pro-rata minimum,
+	///    the intent is kept — this is authoritative and avoids relying on spot.
+	/// 4. If simulation fails but the intent is partial, keep it; joint fit will
+	///    find a smaller viable fill.
+	/// 5. Otherwise fall back to spot-price feasibility. An intent with an unknown
+	///    spot price for either leg is rejected conservatively.
+	fn is_satisfiable(intent: &Intent, spot_prices: &BTreeMap<AssetId, Ratio>, state: &A::State) -> bool {
+		let IntentData::Swap(swap) = &intent.data else {
+			return false;
+		};
+		let check_amount = Self::effective_amount(swap);
+		if check_amount == 0 {
+			log::debug!(target: "solver::v2", "intent {}: fully filled, skipping", intent.id);
+			return false;
+		}
+
+		if let Ok(routes) = A::discover_routes(swap.asset_in, swap.asset_out, state) {
+			if let Some((_, amount_out, _)) =
+				Self::select_best_route(&routes, swap.asset_in, swap.asset_out, check_amount, state)
+			{
+				let pro_rata_min = apply_rate(check_amount, U256::from(swap.amount_out), U256::from(swap.amount_in));
+				if amount_out >= pro_rata_min {
+					return true;
+				}
+				log::debug!(target: "solver::v2", "intent {}: route output {} < pro_rata_min {} for {} -> {}",
+					intent.id, amount_out, pro_rata_min, swap.asset_in, swap.asset_out);
+			}
+		}
+
+		if swap.partial.is_partial() {
+			// Partials can fit a smaller fill — joint fit will decide.
+			return true;
+		}
+
+		let ok = common::is_satisfiable(intent, spot_prices);
+		if !ok {
+			log::debug!(target: "solver::v2", "intent {}: unsatisfiable at spot price", intent.id);
+		}
+		ok
+	}
+
+	/// Split satisfiable intents into partial and non-partial `IntentFill`s, each
+	/// seeded with its effective (unfilled) amount. Intents with zero effective
+	/// amount are dropped.
+	fn initial_fill_plan<'a>(satisfiable: &[&'a Intent]) -> (Vec<IntentFill<'a>>, Vec<IntentFill<'a>>) {
+		let mut non_partial_fills: Vec<IntentFill<'a>> = Vec::new();
+		let mut partial_fills: Vec<IntentFill<'a>> = Vec::new();
+		for &intent in satisfiable {
+			let IntentData::Swap(swap) = &intent.data else {
+				continue;
+			};
+			let fill_amount = Self::effective_amount(swap);
+			if fill_amount == 0 {
+				continue;
+			}
+			let fill = IntentFill { intent, fill_amount };
 			if swap.partial.is_partial() {
 				partial_fills.push(fill);
 			} else {
 				non_partial_fills.push(fill);
 			}
 		}
+		(non_partial_fills, partial_fills)
+	}
 
-		// Phase A: stabilize non-partial intents (same as v1)
-		let mut pair_clearings: BTreeMap<AssetPair, PairClearing> = BTreeMap::new();
+	/// Iteratively remove non-partial fills whose per-direction clearing output
+	/// falls below the intent's absolute `amount_out` minimum. Converges quickly
+	/// because each round can only drop intents; the clearing rate then improves
+	/// (less volume through the AMM) for the survivors.
+	fn stabilize_non_partials<'a>(
+		non_partial_fills: &mut Vec<IntentFill<'a>>,
+		spot_prices: &BTreeMap<AssetId, Ratio>,
+		state: &A::State,
+	) {
 		const MAX_ITERATIONS: u32 = 10;
+		let mut pair_clearings: BTreeMap<AssetPair, PairClearing> = BTreeMap::new();
+
 		for _iteration in 0..MAX_ITERATIONS {
 			pair_clearings.clear();
 
-			let mut pair_groups: BTreeMap<AssetPair, DirectionGroups<&IntentFill>> = BTreeMap::new();
-			for fill in &non_partial_fills {
+			let mut pair_groups: BTreeMap<AssetPair, DirectionGroups<&IntentFill<'_>>> = BTreeMap::new();
+			for fill in non_partial_fills.iter() {
 				let IntentData::Swap(swap) = &fill.intent.data else {
 					continue;
 				};
@@ -265,14 +282,9 @@ impl<A: AMMInterface> Solver<A> {
 			}
 
 			for (&(asset_a, asset_b), (forward, backward)) in &pair_groups {
-				if let Some(c) = Self::compute_pair_clearing_with_fills(
-					asset_a,
-					asset_b,
-					forward,
-					backward,
-					&spot_prices,
-					&initial_state,
-				) {
+				if let Some(c) =
+					Self::compute_pair_clearing_with_fills(asset_a, asset_b, forward, backward, spot_prices, state)
+				{
 					pair_clearings.insert((asset_a, asset_b), c);
 				}
 			}
@@ -286,13 +298,11 @@ impl<A: AMMInterface> Solver<A> {
 				let Some(clearing) = pair_clearings.get(&up) else {
 					return true;
 				};
-
 				let (rate_n, rate_d) = if swap.asset_in == up.0 {
 					(clearing.forward_n, clearing.forward_d)
 				} else {
 					(clearing.backward_n, clearing.backward_d)
 				};
-
 				let amount_out = apply_rate(fill.fill_amount, rate_n, rate_d);
 				if amount_out < swap.amount_out {
 					log::debug!(target: "solver::v2", "intent {}: filtered out — clearing output {} < min_out {}",
@@ -306,171 +316,52 @@ impl<A: AMMInterface> Solver<A> {
 				break;
 			}
 		}
+	}
 
-		// Phase B: add partial intents with binary-searched fill amounts.
-		// For each partial intent, find the max fill amount where the clearing rate
-		// (including non-partial volume + this fill) still meets the minimum rate.
-		let mut fills = non_partial_fills;
-
-		for pfill in &partial_fills {
-			let IntentData::Swap(swap) = &pfill.intent.data else {
-				continue;
-			};
-			let up = unordered_pair(swap.asset_in, swap.asset_out);
-			let ed = A::existential_deposit(swap.asset_in);
-			let ed_out = A::existential_deposit(swap.asset_out);
-			let (min_n, min_d) = min_rate(swap);
-
-			// Binary search for max fill where clearing rate meets minimum
-			let mut lo: Balance = ed;
-			let mut hi: Balance = pfill.fill_amount; // remaining()
-			let mut best_fill: Balance = 0;
-
-			const MAX_SEARCH: u32 = 20;
-			for _ in 0..MAX_SEARCH {
-				if lo > hi {
-					break;
-				}
-				let mid = lo.saturating_add(hi) / 2;
-				if mid < ed {
-					break;
-				}
-
-				// Temporarily add this partial fill and compute clearing
-				let trial = IntentFill {
-					intent: pfill.intent,
-					fill_amount: mid,
-				};
-				let trial_ref = &trial;
-
-				// Build pair groups including the trial fill
-				let mut pair_groups: BTreeMap<AssetPair, DirectionGroups<&IntentFill>> = BTreeMap::new();
-				for fill in &fills {
-					let IntentData::Swap(s) = &fill.intent.data else {
-						continue;
-					};
-					let pair = unordered_pair(s.asset_in, s.asset_out);
-					let entry = pair_groups.entry(pair).or_default();
-					if s.asset_in == pair.0 {
-						entry.0.push(fill);
-					} else {
-						entry.1.push(fill);
-					}
-				}
-				// Add trial
-				let pair = unordered_pair(swap.asset_in, swap.asset_out);
-				let entry = pair_groups.entry(pair).or_default();
-				if swap.asset_in == pair.0 {
-					entry.0.push(trial_ref);
-				} else {
-					entry.1.push(trial_ref);
-				}
-
-				let clearing = Self::compute_pair_clearing_with_fills(
-					up.0,
-					up.1,
-					&pair_groups.get(&up).map(|(f, _)| f.as_slice()).unwrap_or(&[]),
-					&pair_groups.get(&up).map(|(_, b)| b.as_slice()).unwrap_or(&[]),
-					&spot_prices,
-					&initial_state,
-				);
-
-				let meets = if let Some(ref c) = clearing {
-					let (rate_n, rate_d) = if swap.asset_in == up.0 {
-						(c.forward_n, c.forward_d)
-					} else {
-						(c.backward_n, c.backward_d)
-					};
-					let amount_out = apply_rate(mid, rate_n, rate_d);
-					let pro_rata_min = apply_rate(mid, min_n, min_d);
-					amount_out >= pro_rata_min && amount_out >= ed_out
-				} else {
-					false
-				};
-
-				if meets {
-					best_fill = mid;
-					lo = mid.saturating_add(1);
-				} else {
-					hi = mid.saturating_sub(1);
-				}
-
-				if hi.saturating_sub(lo) < ed {
-					break;
-				}
-			}
-
-			if best_fill >= ed {
-				// ED guard: ensure remaining is zero or large enough to trade next round.
-				// Check both input ED and whether remaining can produce output >= ed_out.
-				let remaining_after = pfill.fill_amount.saturating_sub(best_fill);
-				let remaining_untradeable =
-					remaining_after > 0 && (remaining_after < ed || apply_rate(remaining_after, min_n, min_d) < ed_out);
-				if remaining_untradeable {
-					// Try filling everything
-					let full = pfill.fill_amount;
-					let trial = IntentFill {
-						intent: pfill.intent,
-						fill_amount: full,
-					};
-					let mut pg: BTreeMap<AssetPair, DirectionGroups<&IntentFill>> = BTreeMap::new();
-					for fill in &fills {
-						let IntentData::Swap(s) = &fill.intent.data else {
-							continue;
-						};
-						let p = unordered_pair(s.asset_in, s.asset_out);
-						let e = pg.entry(p).or_default();
-						if s.asset_in == p.0 {
-							e.0.push(fill);
-						} else {
-							e.1.push(fill);
-						}
-					}
-					let p = unordered_pair(swap.asset_in, swap.asset_out);
-					let e = pg.entry(p).or_default();
-					if swap.asset_in == p.0 {
-						e.0.push(&trial);
-					} else {
-						e.1.push(&trial);
-					}
-					let clearing = Self::compute_pair_clearing_with_fills(
-						up.0,
-						up.1,
-						pg.get(&up).map(|(f, _)| f.as_slice()).unwrap_or(&[]),
-						pg.get(&up).map(|(_, b)| b.as_slice()).unwrap_or(&[]),
-						&spot_prices,
-						&initial_state,
-					);
-					let full_ok = if let Some(ref c) = clearing {
-						let (rn, rd) = if swap.asset_in == up.0 {
-							(c.forward_n, c.forward_d)
-						} else {
-							(c.backward_n, c.backward_d)
-						};
-						apply_rate(full, rn, rd) >= apply_rate(full, min_n, min_d)
-					} else {
-						false
-					};
-					if full_ok {
-						best_fill = full;
-					} else {
-						// Reduce to keep remaining >= ED
-						best_fill = pfill.fill_amount.saturating_sub(ed);
-					}
-				}
-
-				log::debug!(target: "solver::v2", "intent {} (partial): fill {} / {} ({:.1}%)",
-					pfill.intent.id, best_fill, pfill.fill_amount,
-					(best_fill as f64 / pfill.fill_amount as f64) * 100.0);
-
-				fills.push(IntentFill {
-					intent: pfill.intent,
-					fill_amount: best_fill,
-				});
-			} else {
-				log::debug!(target: "solver::v2", "intent {} (partial): no viable fill found", pfill.intent.id);
-			}
+	pub fn solve(intents: Vec<Intent>, initial_state: A::State) -> Result<Solution, A::Error> {
+		if intents.is_empty() {
+			return Ok(empty_solution());
 		}
+
+		log::debug!(target: "solver::v2", "solve() called with {} intents", intents.len());
+
+		// 1. Pre-compute spot prices once for every asset that appears in any intent.
+		let spot_prices = Self::collect_spot_prices(&intents, &initial_state);
+
+		// 2. Filter satisfiable intents. The simulation step is authoritative — if the
+		// AMM can fulfil the (pro-rata) minimum at the intent's effective volume, keep
+		// the intent. Only fall back to the spot-price check when simulation fails.
+		let satisfiable_intents: Vec<&Intent> = intents
+			.iter()
+			.filter(|intent| Self::is_satisfiable(intent, &spot_prices, &initial_state))
+			.collect();
+
+		log::debug!(target: "solver::v2", "satisfiable: {}/{} intents", satisfiable_intents.len(), intents.len());
+
+		if satisfiable_intents.is_empty() {
+			return Ok(empty_solution());
+		}
+
+		if satisfiable_intents.len() == 1 {
+			return Self::solve_single_intent(satisfiable_intents[0], &initial_state);
+		}
+
+		// 3. Build the initial fill plan and split by partial/non-partial.
+		let (mut non_partial_fills, partial_fills) = Self::initial_fill_plan(&satisfiable_intents);
+
+		// Phase A: iteratively drop non-partials that fail at the combined clearing rate.
+		Self::stabilize_non_partials(&mut non_partial_fills, &spot_prices, &initial_state);
+
+		// Phase B: joint per-pair partial-fill clearing. For each unordered pair (A, B),
+		// binary-search a single scale factor `t ∈ [0,1]` applied uniformly to the
+		// partials in both directions. The clearing rate at
+		// (fixed_f + t·V_f_max, fixed_b + t·V_b_max) is monotonic in `t`, so we find the
+		// largest `t` where both directions' clearing rates still satisfy the *tightest*
+		// per-direction pro-rata minimum. Each partial then gets `remaining() · t`, which
+		// restores same-direction-same-fill-fraction and removes the order dependence of
+		// the previous per-partial sequential fit.
+		let mut fills = non_partial_fills;
+		Self::fit_partials_jointly(&mut fills, partial_fills, &spot_prices, &initial_state);
 
 		if fills.is_empty() {
 			log::debug!(target: "solver::v2", "all intents filtered out during iterative clearing");
@@ -479,14 +370,14 @@ impl<A: AMMInterface> Solver<A> {
 
 		log::debug!(target: "solver::v2", "after iterative clearing: {} fills remaining", fills.len());
 
-		// Cap to MAX_NUMBER_OF_RESOLVED_INTENTS to avoid score/solution mismatch
-		// from BoundedVec::truncate_from silently dropping intents after score is computed.
-		// TODO: implement smarter selection (e.g. prioritize by surplus, matchability)
-		// instead of just taking the first N. For now this is fine — reaching 100 intents
-		// in a single solution is rare in practice.
+		// Cap to MAX_NUMBER_OF_RESOLVED_INTENTS. `ResolvedIntents::truncate_from` would
+		// silently drop any overflow after score is computed, so we have to truncate up
+		// front. Sort by estimated surplus descending first so the N best intents — not
+		// just the first N by input order — survive the cap.
 		if fills.len() > MAX_NUMBER_OF_RESOLVED_INTENTS as usize {
-			log::debug!(target: "solver::v2", "capping fills from {} to {}",
+			log::debug!(target: "solver::v2", "capping fills from {} to {} (keeping highest surplus)",
 				fills.len(), MAX_NUMBER_OF_RESOLVED_INTENTS);
+			Self::sort_by_estimated_surplus(&mut fills, &spot_prices, &initial_state);
 			fills.truncate(MAX_NUMBER_OF_RESOLVED_INTENTS as usize);
 		}
 
@@ -502,23 +393,32 @@ impl<A: AMMInterface> Solver<A> {
 			return Self::solve_single_intent_with_fill(intent, fill, &initial_state);
 		}
 
-		// Stabilization loop (same structure as v1)
+		// Stabilization loop: ring detection → AMM trades → unified rates → resolution.
+		// Intents dropped during resolution trigger a retry with the reduced set.
 		const MAX_STABILIZATION_ROUNDS: u32 = 5;
-		type RingFill = (Balance, Balance);
-
-		#[derive(Default)]
-		struct DirAccum {
-			total_in: Balance,
-			ring_in: Balance,
-			ring_out: Balance,
-		}
 
 		for stabilization_round in 0..MAX_STABILIZATION_ROUNDS {
 			log::debug!(target: "solver::v2", "stabilization round {}, {} included intents",
 				stabilization_round, included.len());
 
-			// Ring detection
-			let mut graph = flow_graph::build_flow_graph(&included);
+			// Ring detection — cap each intent's volume at its solver-decided fill_amount
+			// (falling back to `swap.remaining()` for anything that somehow isn't in
+			// fill_amounts). Without this, ring detection could match more volume than
+			// the user has reserved or the solver has allocated.
+			let graph_entries: Vec<(&Intent, Balance)> = included
+				.iter()
+				.map(|intent| {
+					let cap = match &intent.data {
+						IntentData::Swap(swap) => fill_amounts
+							.get(&intent.id)
+							.copied()
+							.unwrap_or_else(|| swap.remaining()),
+						_ => 0,
+					};
+					(*intent, cap)
+				})
+				.collect();
+			let mut graph = flow_graph::build_flow_graph(&graph_entries);
 			let rings = ring_detection::detect_rings(&mut graph, &spot_prices);
 
 			let mut ring_fills: BTreeMap<IntentId, RingFill> = BTreeMap::new();
@@ -586,11 +486,11 @@ impl<A: AMMInterface> Solver<A> {
 				match flow {
 					FlowDirection::SingleForward { amount } => {
 						if amount < A::existential_deposit(asset_a) {
-							log::debug!(target: "solver::v2", "single forward {} -> {}: amount {} below ED", asset_a, asset_b, amount);
+							log::debug!(target: "solver::v2", "single forward {asset_a} -> {asset_b}: amount {amount} below ED");
 						} else if let Some((route, amount_out, new_state)) =
 							A::discover_routes(asset_a, asset_b, &state)
 								.ok()
-								.and_then(|routes| Self::select_best_route(routes, asset_a, asset_b, amount, &state))
+								.and_then(|routes| Self::select_best_route(&routes, asset_a, asset_b, amount, &state))
 						{
 							let adjusted_out = adjust_amm_output(amount_out);
 							directed_rates.insert((asset_a, asset_b), Ratio::new(adjusted_out, amount));
@@ -605,11 +505,11 @@ impl<A: AMMInterface> Solver<A> {
 					}
 					FlowDirection::SingleBackward { amount } => {
 						if amount < A::existential_deposit(asset_b) {
-							log::debug!(target: "solver::v2", "single backward {} -> {}: amount {} below ED", asset_b, asset_a, amount);
+							log::debug!(target: "solver::v2", "single backward {asset_b} -> {asset_a}: amount {amount} below ED");
 						} else if let Some((route, amount_out, new_state)) =
 							A::discover_routes(asset_b, asset_a, &state)
 								.ok()
-								.and_then(|routes| Self::select_best_route(routes, asset_b, asset_a, amount, &state))
+								.and_then(|routes| Self::select_best_route(&routes, asset_b, asset_a, amount, &state))
 						{
 							let adjusted_out = adjust_amm_output(amount_out);
 							directed_rates.insert((asset_b, asset_a), Ratio::new(adjusted_out, amount));
@@ -635,9 +535,9 @@ impl<A: AMMInterface> Solver<A> {
 								directed_rates.insert((asset_a, asset_b), Ratio::new(direct_match, total_a_sold));
 							}
 						} else {
-							let best = A::discover_routes(asset_a, asset_b, &state)
-								.ok()
-								.and_then(|routes| Self::select_best_route(routes, asset_a, asset_b, net_sell, &state));
+							let best = A::discover_routes(asset_a, asset_b, &state).ok().and_then(|routes| {
+								Self::select_best_route(&routes, asset_a, asset_b, net_sell, &state)
+							});
 							match best {
 								Some((route, amount_out, new_state)) => {
 									let adjusted_out = adjust_amm_output(amount_out);
@@ -675,9 +575,9 @@ impl<A: AMMInterface> Solver<A> {
 								directed_rates.insert((asset_b, asset_a), Ratio::new(direct_match, total_b_sold));
 							}
 						} else {
-							let best = A::discover_routes(asset_b, asset_a, &state)
-								.ok()
-								.and_then(|routes| Self::select_best_route(routes, asset_b, asset_a, net_sell, &state));
+							let best = A::discover_routes(asset_b, asset_a, &state).ok().and_then(|routes| {
+								Self::select_best_route(&routes, asset_b, asset_a, net_sell, &state)
+							});
 							match best {
 								Some((route, amount_out, new_state)) => {
 									let adjusted_out = adjust_amm_output(amount_out);
@@ -725,10 +625,10 @@ impl<A: AMMInterface> Solver<A> {
 					let key = (swap.asset_in, swap.asset_out);
 					let entry = accum.entry(key).or_default();
 					let fill = fill_amounts.get(&intent.id).copied().unwrap_or(swap.remaining());
-					entry.total_in += fill;
+					entry.total_in = entry.total_in.saturating_add(fill);
 					let (ri, ro) = ring_fills.get(&intent.id).copied().unwrap_or((0, 0));
-					entry.ring_in += ri;
-					entry.ring_out += ro;
+					entry.ring_in = entry.ring_in.saturating_add(ri);
+					entry.ring_out = entry.ring_out.saturating_add(ro);
 				}
 
 				for (key, dir) in &accum {
@@ -831,7 +731,7 @@ impl<A: AMMInterface> Solver<A> {
 			}
 		}
 
-		log::warn!(target: "solver::v2", "stabilization did not converge after {} rounds", MAX_STABILIZATION_ROUNDS);
+		log::warn!(target: "solver::v2", "stabilization did not converge after {MAX_STABILIZATION_ROUNDS} rounds");
 		Ok(empty_solution())
 	}
 
@@ -870,7 +770,7 @@ impl<A: AMMInterface> Solver<A> {
 		} else {
 			// Non-partial: try full amount or nothing
 			let Some((route, amount_out, _)) =
-				Self::select_best_route(routes, swap.asset_in, swap.asset_out, fill, initial_state)
+				Self::select_best_route(&routes, swap.asset_in, swap.asset_out, fill, initial_state)
 			else {
 				return Ok(empty_solution());
 			};
@@ -929,7 +829,7 @@ impl<A: AMMInterface> Solver<A> {
 
 		// First try the full remaining amount
 		if let Some((route, amount_out, _)) =
-			Self::select_best_route(routes.to_vec(), swap.asset_in, swap.asset_out, max_fill, state)
+			Self::select_best_route(routes, swap.asset_in, swap.asset_out, max_fill, state)
 		{
 			let pro_rata_min = apply_rate(max_fill, min_n, min_d);
 			if amount_out >= pro_rata_min && amount_out >= ed_out {
@@ -953,7 +853,7 @@ impl<A: AMMInterface> Solver<A> {
 			}
 
 			if let Some((route, amount_out, _)) =
-				Self::select_best_route(routes.to_vec(), swap.asset_in, swap.asset_out, mid, state)
+				Self::select_best_route(routes, swap.asset_in, swap.asset_out, mid, state)
 			{
 				let pro_rata_min = apply_rate(mid, min_n, min_d);
 				if amount_out >= pro_rata_min && amount_out >= ed_out {
@@ -992,7 +892,7 @@ impl<A: AMMInterface> Solver<A> {
 				// Try filling everything
 				let fill_all = max_fill;
 				if let Some((_, all_out, _)) =
-					Self::select_best_route(routes.to_vec(), swap.asset_in, swap.asset_out, fill_all, state)
+					Self::select_best_route(routes, swap.asset_in, swap.asset_out, fill_all, state)
 				{
 					let pro_rata_min = apply_rate(fill_all, min_n, min_d);
 					if all_out >= pro_rata_min && all_out >= ed_out {
@@ -1003,7 +903,7 @@ impl<A: AMMInterface> Solver<A> {
 				let reduced = max_fill.saturating_sub(ed);
 				if reduced >= ed {
 					if let Some((route, out, _)) =
-						Self::select_best_route(routes.to_vec(), swap.asset_in, swap.asset_out, reduced, state)
+						Self::select_best_route(routes, swap.asset_in, swap.asset_out, reduced, state)
 					{
 						let pro_rata_min = apply_rate(reduced, min_n, min_d);
 						if out >= pro_rata_min && out >= ed_out {
@@ -1017,21 +917,18 @@ impl<A: AMMInterface> Solver<A> {
 		best
 	}
 
-	/// Compute clearing rates using fill amounts (not raw amount_in).
-	fn compute_pair_clearing_with_fills(
+	/// Compute clearing rates from summed per-direction volumes.
+	fn compute_pair_clearing_from_totals(
 		asset_a: AssetId,
 		asset_b: AssetId,
-		forward: &[&IntentFill],
-		backward: &[&IntentFill],
+		total_a_sold: Balance,
+		total_b_sold: Balance,
 		spot_prices: &BTreeMap<AssetId, Ratio>,
 		state: &A::State,
 	) -> Option<PairClearing> {
-		if forward.is_empty() && backward.is_empty() {
+		if total_a_sold == 0 && total_b_sold == 0 {
 			return None;
 		}
-
-		let total_a_sold: Balance = forward.iter().map(|f| f.fill_amount).sum();
-		let total_b_sold: Balance = backward.iter().map(|f| f.fill_amount).sum();
 
 		let pa = spot_prices.get(&asset_a)?;
 		let pb = spot_prices.get(&asset_b)?;
@@ -1041,7 +938,7 @@ impl<A: AMMInterface> Solver<A> {
 		match flow {
 			FlowDirection::SingleForward { amount } => {
 				let routes = A::discover_routes(asset_a, asset_b, state).ok()?;
-				let (_, amount_out, _) = Self::select_best_route(routes, asset_a, asset_b, amount, state)?;
+				let (_, amount_out, _) = Self::select_best_route(&routes, asset_a, asset_b, amount, state)?;
 				let adjusted_out = adjust_amm_output(amount_out);
 				Some(PairClearing {
 					forward_n: U256::from(adjusted_out),
@@ -1052,7 +949,7 @@ impl<A: AMMInterface> Solver<A> {
 			}
 			FlowDirection::SingleBackward { amount } => {
 				let routes = A::discover_routes(asset_b, asset_a, state).ok()?;
-				let (_, amount_out, _) = Self::select_best_route(routes, asset_b, asset_a, amount, state)?;
+				let (_, amount_out, _) = Self::select_best_route(&routes, asset_b, asset_a, amount, state)?;
 				let adjusted_out = adjust_amm_output(amount_out);
 				Some(PairClearing {
 					forward_n: U256::zero(),
@@ -1067,7 +964,7 @@ impl<A: AMMInterface> Solver<A> {
 				net_sell,
 			} => {
 				let routes = A::discover_routes(asset_a, asset_b, state).ok()?;
-				let (_, amount_out, _) = Self::select_best_route(routes, asset_a, asset_b, net_sell, state)?;
+				let (_, amount_out, _) = Self::select_best_route(&routes, asset_a, asset_b, net_sell, state)?;
 				let adjusted_out = adjust_amm_output(amount_out);
 				Some(PairClearing {
 					forward_n: U256::from(direct_match.saturating_add(adjusted_out)),
@@ -1082,7 +979,7 @@ impl<A: AMMInterface> Solver<A> {
 				net_sell,
 			} => {
 				let routes = A::discover_routes(asset_b, asset_a, state).ok()?;
-				let (_, amount_out, _) = Self::select_best_route(routes, asset_b, asset_a, net_sell, state)?;
+				let (_, amount_out, _) = Self::select_best_route(&routes, asset_b, asset_a, net_sell, state)?;
 				let adjusted_out = adjust_amm_output(amount_out);
 				Some(PairClearing {
 					forward_n: U256::from(scarce_out),
@@ -1097,6 +994,1146 @@ impl<A: AMMInterface> Solver<A> {
 				backward_n: U256::from(b_as_a),
 				backward_d: U256::from(total_b_sold),
 			}),
+		}
+	}
+
+	/// Compute clearing rates using fill amounts (not raw amount_in).
+	fn compute_pair_clearing_with_fills(
+		asset_a: AssetId,
+		asset_b: AssetId,
+		forward: &[&IntentFill],
+		backward: &[&IntentFill],
+		spot_prices: &BTreeMap<AssetId, Ratio>,
+		state: &A::State,
+	) -> Option<PairClearing> {
+		if forward.is_empty() && backward.is_empty() {
+			return None;
+		}
+		let total_a_sold: Balance = forward.iter().map(|f| f.fill_amount).sum();
+		let total_b_sold: Balance = backward.iter().map(|f| f.fill_amount).sum();
+		Self::compute_pair_clearing_from_totals(asset_a, asset_b, total_a_sold, total_b_sold, spot_prices, state)
+	}
+
+	/// Joint per-pair partial-fill fit.
+	///
+	/// For each pair (A,B) with partials in either direction, binary-search the
+	/// largest `t ∈ [0, 1]` (represented as `u64 ∈ [0, GRANULARITY]`) such that
+	/// the clearing rate at `(fixed_f + t·V_f_max, fixed_b + t·V_b_max)` still
+	/// meets the tightest per-direction minimum rate. Then each partial receives
+	/// `remaining() · t`, which preserves same-direction-same-fill-fraction and
+	/// makes the fit independent of input order.
+	fn fit_partials_jointly<'a>(
+		fills: &mut Vec<IntentFill<'a>>,
+		partial_fills: Vec<IntentFill<'a>>,
+		spot_prices: &BTreeMap<AssetId, Ratio>,
+		state: &A::State,
+	) {
+		// Group partials by unordered pair.
+		let mut partials_by_pair: BTreeMap<AssetPair, Vec<IntentFill<'a>>> = BTreeMap::new();
+		for pf in partial_fills {
+			let IntentData::Swap(s) = &pf.intent.data else {
+				continue;
+			};
+			let up = unordered_pair(s.asset_in, s.asset_out);
+			partials_by_pair.entry(up).or_default().push(pf);
+		}
+
+		for (pair, pair_partials) in partials_by_pair {
+			let (asset_a, asset_b) = pair;
+
+			// Split partials by direction.
+			let mut f_partials: Vec<IntentFill<'a>> = Vec::new();
+			let mut b_partials: Vec<IntentFill<'a>> = Vec::new();
+			for pf in pair_partials {
+				let IntentData::Swap(s) = &pf.intent.data else {
+					continue;
+				};
+				if s.asset_in == asset_a {
+					f_partials.push(pf);
+				} else {
+					b_partials.push(pf);
+				}
+			}
+
+			// Fixed (non-partial) volumes in each direction.
+			let fixed_f: Balance = fills
+				.iter()
+				.filter_map(|f| match &f.intent.data {
+					IntentData::Swap(s) if s.asset_in == asset_a && s.asset_out == asset_b => Some(f.fill_amount),
+					_ => None,
+				})
+				.fold(0u128, |acc, v| acc.saturating_add(v));
+			let fixed_b: Balance = fills
+				.iter()
+				.filter_map(|f| match &f.intent.data {
+					IntentData::Swap(s) if s.asset_in == asset_b && s.asset_out == asset_a => Some(f.fill_amount),
+					_ => None,
+				})
+				.fold(0u128, |acc, v| acc.saturating_add(v));
+
+			let v_f_max: Balance = f_partials
+				.iter()
+				.map(|p| p.fill_amount)
+				.fold(0u128, |acc, v| acc.saturating_add(v));
+			let v_b_max: Balance = b_partials
+				.iter()
+				.map(|p| p.fill_amount)
+				.fold(0u128, |acc, v| acc.saturating_add(v));
+
+			if v_f_max == 0 && v_b_max == 0 {
+				continue;
+			}
+
+			// Tightest per-direction minimum rate (n/d) — the highest `amount_out/amount_in`
+			// demanded by any partial in that direction.
+			let tight_f = Self::tightest_rate(&f_partials);
+			let tight_b = Self::tightest_rate(&b_partials);
+
+			// Binary search over `t`.
+			const GRANULARITY: u64 = 1_000_000_000;
+			const MAX_ITER: u32 = 30;
+			let mut lo: u64 = 0;
+			let mut hi: u64 = GRANULARITY;
+			let mut best_t: u64 = 0;
+
+			for _ in 0..MAX_ITER {
+				if lo > hi {
+					break;
+				}
+				let mid = lo.saturating_add(hi) / 2;
+				let v_f = Self::scale_by_t(v_f_max, mid, GRANULARITY);
+				let v_b = Self::scale_by_t(v_b_max, mid, GRANULARITY);
+
+				let total_f = fixed_f.saturating_add(v_f);
+				let total_b = fixed_b.saturating_add(v_b);
+
+				let meets = if total_f == 0 && total_b == 0 {
+					true
+				} else if let Some(c) =
+					Self::compute_pair_clearing_from_totals(asset_a, asset_b, total_f, total_b, spot_prices, state)
+				{
+					let f_ok = match tight_f {
+						Some((tn, td)) => c.forward_n.saturating_mul(td) >= tn.saturating_mul(c.forward_d),
+						None => true,
+					};
+					let b_ok = match tight_b {
+						Some((tn, td)) => c.backward_n.saturating_mul(td) >= tn.saturating_mul(c.backward_d),
+						None => true,
+					};
+					f_ok && b_ok
+				} else {
+					false
+				};
+
+				if meets {
+					best_t = mid;
+					lo = mid.saturating_add(1);
+				} else {
+					hi = mid.saturating_sub(1);
+				}
+			}
+
+			if best_t == 0 {
+				continue;
+			}
+
+			// Pro-rate best_t-scaled volumes to each partial by its remaining().
+			Self::distribute_fills(fills, &f_partials, v_f_max, best_t, GRANULARITY);
+			Self::distribute_fills(fills, &b_partials, v_b_max, best_t, GRANULARITY);
+		}
+	}
+
+	/// Largest `amount_out/amount_in` demanded by any intent in the list.
+	/// Encoded as (n, d) with d ≥ 1.
+	fn tightest_rate<'a>(partials: &[IntentFill<'a>]) -> Option<(U256, U256)> {
+		let mut best: Option<(U256, U256)> = None;
+		for p in partials {
+			let IntentData::Swap(s) = &p.intent.data else {
+				continue;
+			};
+			let n = U256::from(s.amount_out);
+			let d = U256::from(s.amount_in.max(1));
+			best = match best {
+				None => Some((n, d)),
+				Some((cn, cd)) => {
+					// Compare n/d vs cn/cd: n*cd vs cn*d.
+					if n.saturating_mul(cd) > cn.saturating_mul(d) {
+						Some((n, d))
+					} else {
+						Some((cn, cd))
+					}
+				}
+			};
+		}
+		best
+	}
+
+	/// `max_vol * t / granularity`, saturating on overflow.
+	fn scale_by_t(max_vol: Balance, t: u64, granularity: u64) -> Balance {
+		if max_vol == 0 || t == 0 {
+			return 0;
+		}
+		let product = U256::from(max_vol).saturating_mul(U256::from(t));
+		let scaled = product / U256::from(granularity);
+		scaled.try_into().unwrap_or(Balance::MAX)
+	}
+
+	/// Sort `fills` by estimated surplus descending so that a later `truncate`
+	/// keeps the highest-value intents. Surplus is estimated using the clearing
+	/// rate computed from the current `fills` (all intents, both directions).
+	/// Ties break by intent id for determinism.
+	fn sort_by_estimated_surplus<'a>(
+		fills: &mut [IntentFill<'a>],
+		spot_prices: &BTreeMap<AssetId, Ratio>,
+		state: &A::State,
+	) {
+		// Build per-pair clearings from current volumes.
+		let mut pair_totals: BTreeMap<AssetPair, (Balance, Balance)> = BTreeMap::new();
+		for f in fills.iter() {
+			let IntentData::Swap(s) = &f.intent.data else {
+				continue;
+			};
+			let up = unordered_pair(s.asset_in, s.asset_out);
+			let entry = pair_totals.entry(up).or_default();
+			if s.asset_in == up.0 {
+				entry.0 = entry.0.saturating_add(f.fill_amount);
+			} else {
+				entry.1 = entry.1.saturating_add(f.fill_amount);
+			}
+		}
+		let mut clearings: BTreeMap<AssetPair, PairClearing> = BTreeMap::new();
+		for (&(a, b), &(ta, tb)) in &pair_totals {
+			if let Some(c) = Self::compute_pair_clearing_from_totals(a, b, ta, tb, spot_prices, state) {
+				clearings.insert((a, b), c);
+			}
+		}
+
+		// Compute surplus estimate per fill.
+		let surplus_of = |f: &IntentFill<'a>| -> Balance {
+			let IntentData::Swap(s) = &f.intent.data else {
+				return 0;
+			};
+			let up = unordered_pair(s.asset_in, s.asset_out);
+			let Some(c) = clearings.get(&up) else {
+				return 0;
+			};
+			let (rn, rd) = if s.asset_in == up.0 {
+				(c.forward_n, c.forward_d)
+			} else {
+				(c.backward_n, c.backward_d)
+			};
+			let output = apply_rate(f.fill_amount, rn, rd);
+			let pro_rata_min = apply_rate(f.fill_amount, U256::from(s.amount_out), U256::from(s.amount_in));
+			output.saturating_sub(pro_rata_min)
+		};
+
+		fills.sort_by(|a, b| {
+			let sa = surplus_of(a);
+			let sb = surplus_of(b);
+			// Descending by surplus, then by id for determinism on ties.
+			sb.cmp(&sa).then(a.intent.id.cmp(&b.intent.id))
+		});
+	}
+
+	/// Distribute a total fit-volume across a set of partials proportionally to their
+	/// `remaining()` share, applying per-intent ED guards. Each produced `IntentFill` is
+	/// pushed to `fills`.
+	fn distribute_fills<'a>(
+		fills: &mut Vec<IntentFill<'a>>,
+		partials: &[IntentFill<'a>],
+		v_max: Balance,
+		best_t: u64,
+		granularity: u64,
+	) {
+		if v_max == 0 || best_t == 0 || partials.is_empty() {
+			return;
+		}
+
+		for p in partials {
+			let IntentData::Swap(swap) = &p.intent.data else {
+				continue;
+			};
+			let ed = A::existential_deposit(swap.asset_in);
+
+			// share = remaining * best_t / granularity.
+			let raw_share = Self::scale_by_t(p.fill_amount, best_t, granularity).min(p.fill_amount);
+			if raw_share < ed {
+				continue;
+			}
+
+			// ED guard on remaining-after. remaining_after is the unfilled residue of
+			// the intent after this solution applies: swap.remaining() - raw_share.
+			let remaining_after = swap.remaining().saturating_sub(raw_share);
+			let share = if remaining_after > 0 && remaining_after < ed {
+				// Either fill everything (if still feasible) or trim to leave ed behind.
+				// We don't re-check feasibility of the full fill here — `best_t` was fitted
+				// against the tightest rate, and increasing a single partial's share past
+				// its pro-rata can push the clearing below tolerance. Safer to trim.
+				let trimmed = swap.remaining().saturating_sub(ed);
+				if trimmed >= ed {
+					trimmed
+				} else {
+					continue;
+				}
+			} else {
+				raw_share
+			};
+
+			fills.push(IntentFill {
+				intent: p.intent,
+				fill_amount: share,
+			});
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use hydra_dx_math::types::Ratio;
+	use hydradx_traits::amm::{AMMInterface, TradeExecution};
+	use hydradx_traits::router::{PoolEdge, Route, Trade};
+	use ice_support::{IntentId, Partial};
+
+	// ---------- fixtures ----------
+
+	fn make_intent(
+		id: IntentId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_out: Balance,
+	) -> Intent {
+		Intent {
+			id,
+			data: IntentData::Swap(SwapData {
+				asset_in,
+				asset_out,
+				amount_in,
+				amount_out: min_out,
+				partial: Partial::No,
+			}),
+		}
+	}
+
+	fn make_partial(
+		id: IntentId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_out: Balance,
+	) -> Intent {
+		make_partial_filled(id, asset_in, asset_out, amount_in, min_out, 0)
+	}
+
+	fn make_partial_filled(
+		id: IntentId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_out: Balance,
+		already_filled: Balance,
+	) -> Intent {
+		Intent {
+			id,
+			data: IntentData::Swap(SwapData {
+				asset_in,
+				asset_out,
+				amount_in,
+				amount_out: min_out,
+				partial: Partial::Yes(already_filled),
+			}),
+		}
+	}
+
+	fn dummy_route(asset_in: u32, asset_out: u32) -> Route<u32> {
+		Route::try_from(vec![Trade {
+			pool: hydradx_traits::router::PoolType::Omnipool,
+			asset_in,
+			asset_out,
+		}])
+		.unwrap()
+	}
+
+	/// Mirrors the on-chain `validate_price_consistency` predicate:
+	/// two resolved intents in the same direction are rate-compatible iff
+	/// `|a.out * b.in - b.out * a.in| <= max(a.in, b.in)` — conservative bound
+	/// that tolerates 1-sat rounding in either expected-out calculation.
+	fn same_rate_within(a: &ResolvedIntent, b: &ResolvedIntent, tol: u128) -> bool {
+		let a_in = a.data.amount_in();
+		let a_out = a.data.amount_out();
+		let b_in = b.data.amount_in();
+		let b_out = b.data.amount_out();
+		let lhs = U256::from(a_out) * U256::from(b_in);
+		let rhs = U256::from(b_out) * U256::from(a_in);
+		let diff = if lhs >= rhs { lhs - rhs } else { rhs - lhs };
+		// Normalise tolerance against the larger side: 1 sat of rounding on each side
+		// maps to at most max(a.in, b.in) in the cross-product.
+		let tol_scaled = U256::from(a_in.max(b_in)) * U256::from(tol);
+		diff <= tol_scaled
+	}
+
+	/// Sum of `IntentData::surplus` — the formula the pallet uses to recompute score.
+	fn pallet_score(originals: &[Intent], resolved: &[ResolvedIntent]) -> Balance {
+		let mut total: Balance = 0;
+		for r in resolved {
+			let original = originals.iter().find(|i| i.id == r.id).unwrap();
+			let surplus = original.data.surplus(&r.data).expect("surplus should be computable");
+			total = total.saturating_add(surplus);
+		}
+		total
+	}
+
+	// ---------- mocks ----------
+
+	/// 1:1 price, no slippage, zero existential deposit.
+	struct MockAMMOneToOne;
+
+	impl AMMInterface for MockAMMOneToOne {
+		type Error = ();
+		type State = ();
+
+		fn discover_routes(asset_in: u32, asset_out: u32, _s: &Self::State) -> Result<Vec<Route<u32>>, Self::Error> {
+			Ok(vec![dummy_route(asset_in, asset_out)])
+		}
+
+		fn sell(
+			asset_in: u32,
+			asset_out: u32,
+			amount_in: u128,
+			_route: Route<u32>,
+			_state: &Self::State,
+		) -> Result<(Self::State, TradeExecution), Self::Error> {
+			Ok((
+				(),
+				TradeExecution {
+					amount_in,
+					amount_out: amount_in,
+					route: dummy_route(asset_in, asset_out),
+				},
+			))
+		}
+
+		fn buy(
+			asset_in: u32,
+			asset_out: u32,
+			amount_out: u128,
+			_route: Route<u32>,
+			_state: &Self::State,
+		) -> Result<(Self::State, TradeExecution), Self::Error> {
+			Ok((
+				(),
+				TradeExecution {
+					amount_in: amount_out,
+					amount_out,
+					route: dummy_route(asset_in, asset_out),
+				},
+			))
+		}
+
+		fn get_spot_price(_: u32, _: u32, _: Route<u32>, _: &Self::State) -> Result<Ratio, Self::Error> {
+			Ok(Ratio::new(1, 1))
+		}
+		fn price_denominator() -> u32 {
+			0
+		}
+		fn pool_edges(_: &Self::State) -> Vec<PoolEdge<u32>> {
+			Vec::new()
+		}
+	}
+
+	/// Asset 1 is worth 2× asset 2; 1% slippage on every sell.
+	struct MockAMMWithSlippage;
+
+	impl AMMInterface for MockAMMWithSlippage {
+		type Error = ();
+		type State = ();
+
+		fn discover_routes(asset_in: u32, asset_out: u32, _s: &Self::State) -> Result<Vec<Route<u32>>, Self::Error> {
+			Ok(vec![dummy_route(asset_in, asset_out)])
+		}
+
+		fn sell(
+			asset_in: u32,
+			asset_out: u32,
+			amount_in: u128,
+			_route: Route<u32>,
+			_state: &Self::State,
+		) -> Result<(Self::State, TradeExecution), Self::Error> {
+			let base_out = if asset_in == 1 && asset_out == 2 {
+				amount_in * 2
+			} else if asset_in == 2 && asset_out == 1 {
+				amount_in / 2
+			} else {
+				amount_in
+			};
+			let amount_out = base_out * 99 / 100;
+			Ok((
+				(),
+				TradeExecution {
+					amount_in,
+					amount_out,
+					route: dummy_route(asset_in, asset_out),
+				},
+			))
+		}
+
+		fn buy(
+			asset_in: u32,
+			asset_out: u32,
+			amount_out: u128,
+			_route: Route<u32>,
+			_state: &Self::State,
+		) -> Result<(Self::State, TradeExecution), Self::Error> {
+			let amount_in = if asset_in == 1 && asset_out == 2 {
+				amount_out / 2 + 1
+			} else if asset_in == 2 && asset_out == 1 {
+				amount_out * 2 + 1
+			} else {
+				amount_out + 1
+			};
+			Ok((
+				(),
+				TradeExecution {
+					amount_in,
+					amount_out,
+					route: dummy_route(asset_in, asset_out),
+				},
+			))
+		}
+
+		fn get_spot_price(asset_in: u32, _: u32, _: Route<u32>, _: &Self::State) -> Result<Ratio, Self::Error> {
+			match asset_in {
+				1 => Ok(Ratio::new(2, 1)),
+				2 => Ok(Ratio::new(1, 1)),
+				_ => Ok(Ratio::new(1, 1)),
+			}
+		}
+		fn price_denominator() -> u32 {
+			0
+		}
+		fn pool_edges(_: &Self::State) -> Vec<PoolEdge<u32>> {
+			Vec::new()
+		}
+	}
+
+	/// Sell(1→2) fails for amount_in > 50. Other trades behave as 1:1.
+	struct MockAMMPartialFailure;
+
+	impl AMMInterface for MockAMMPartialFailure {
+		type Error = ();
+		type State = ();
+
+		fn discover_routes(asset_in: u32, asset_out: u32, _s: &Self::State) -> Result<Vec<Route<u32>>, Self::Error> {
+			Ok(vec![dummy_route(asset_in, asset_out)])
+		}
+
+		fn sell(
+			asset_in: u32,
+			asset_out: u32,
+			amount_in: u128,
+			_route: Route<u32>,
+			_state: &Self::State,
+		) -> Result<(Self::State, TradeExecution), Self::Error> {
+			if asset_in == 1 && asset_out == 2 && amount_in > 50 {
+				return Err(());
+			}
+			Ok((
+				(),
+				TradeExecution {
+					amount_in,
+					amount_out: amount_in,
+					route: dummy_route(asset_in, asset_out),
+				},
+			))
+		}
+
+		fn buy(
+			asset_in: u32,
+			asset_out: u32,
+			amount_out: u128,
+			_route: Route<u32>,
+			_state: &Self::State,
+		) -> Result<(Self::State, TradeExecution), Self::Error> {
+			Ok((
+				(),
+				TradeExecution {
+					amount_in: amount_out,
+					amount_out,
+					route: dummy_route(asset_in, asset_out),
+				},
+			))
+		}
+
+		fn get_spot_price(_: u32, _: u32, _: Route<u32>, _: &Self::State) -> Result<Ratio, Self::Error> {
+			Ok(Ratio::new(1, 1))
+		}
+		fn price_denominator() -> u32 {
+			0
+		}
+		fn pool_edges(_: &Self::State) -> Vec<PoolEdge<u32>> {
+			Vec::new()
+		}
+	}
+
+	/// 1:1 price, zero slippage, existential deposit of 10 for every asset.
+	struct MockAMMWithED;
+
+	impl AMMInterface for MockAMMWithED {
+		type Error = ();
+		type State = ();
+
+		fn discover_routes(asset_in: u32, asset_out: u32, _s: &Self::State) -> Result<Vec<Route<u32>>, Self::Error> {
+			Ok(vec![dummy_route(asset_in, asset_out)])
+		}
+
+		fn sell(
+			asset_in: u32,
+			asset_out: u32,
+			amount_in: u128,
+			_route: Route<u32>,
+			_state: &Self::State,
+		) -> Result<(Self::State, TradeExecution), Self::Error> {
+			Ok((
+				(),
+				TradeExecution {
+					amount_in,
+					amount_out: amount_in,
+					route: dummy_route(asset_in, asset_out),
+				},
+			))
+		}
+
+		fn buy(
+			asset_in: u32,
+			asset_out: u32,
+			amount_out: u128,
+			_route: Route<u32>,
+			_state: &Self::State,
+		) -> Result<(Self::State, TradeExecution), Self::Error> {
+			Ok((
+				(),
+				TradeExecution {
+					amount_in: amount_out,
+					amount_out,
+					route: dummy_route(asset_in, asset_out),
+				},
+			))
+		}
+
+		fn get_spot_price(_: u32, _: u32, _: Route<u32>, _: &Self::State) -> Result<Ratio, Self::Error> {
+			Ok(Ratio::new(1, 1))
+		}
+		fn price_denominator() -> u32 {
+			0
+		}
+		fn pool_edges(_: &Self::State) -> Vec<PoolEdge<u32>> {
+			Vec::new()
+		}
+		fn existential_deposit(_asset_id: AssetId) -> Balance {
+			10
+		}
+	}
+
+	// ---------- v1 parity tests ----------
+
+	#[test]
+	fn test_solve_empty() {
+		let result = Solver::<MockAMMOneToOne>::solve(vec![], ()).unwrap();
+		assert!(result.resolved_intents.is_empty());
+	}
+
+	#[test]
+	fn test_solve_single_intent() {
+		let intents = vec![make_intent(1, 1, 2, 100, 90)];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 1);
+		assert_eq!(result.trades.len(), 1);
+		assert_eq!(result.resolved_intents[0].data.amount_in(), 100);
+		assert_eq!(result.resolved_intents[0].data.amount_out(), 100);
+		assert_eq!(result.score, 10);
+	}
+
+	#[test]
+	fn test_uniform_price_two_opposing() {
+		let intents = vec![make_intent(1, 1, 2, 100, 90), make_intent(2, 2, 1, 100, 90)];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 2);
+		assert_eq!(result.trades.len(), 0);
+		assert_eq!(result.resolved_intents[0].data.amount_out(), 100);
+		assert_eq!(result.resolved_intents[1].data.amount_out(), 100);
+	}
+
+	#[test]
+	fn test_scarce_side_gets_spot() {
+		let intents = vec![make_intent(1, 1, 2, 100, 180), make_intent(2, 2, 1, 100, 45)];
+		let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 2);
+		let alice = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
+		let bob = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
+		assert_eq!(bob.data.amount_out(), 50, "scarce side should get spot rate");
+		assert!(alice.data.amount_out() < 200);
+		assert!(alice.data.amount_out() >= 195);
+	}
+
+	#[test]
+	fn test_same_direction_uniform_rate() {
+		let intents = vec![
+			make_intent(1, 1, 2, 100, 90),
+			make_intent(2, 1, 2, 200, 180),
+			make_intent(3, 1, 2, 50, 45),
+		];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 3);
+		let rates: Vec<f64> = result
+			.resolved_intents
+			.iter()
+			.map(|r| r.data.amount_out() as f64 / r.data.amount_in() as f64)
+			.collect();
+		for rate in &rates[1..] {
+			let diff = (rate - rates[0]).abs() / rates[0];
+			assert!(diff < 0.001, "Same-direction rates must be uniform, got diff {diff}");
+		}
+	}
+
+	#[test]
+	fn test_iterative_filtering() {
+		let intents = vec![
+			make_intent(1, 1, 2, 100, 95),
+			make_intent(2, 2, 1, 100, 95),
+			make_intent(3, 1, 2, 100, 200),
+		];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 2);
+		let ids: Vec<_> = result.resolved_intents.iter().map(|r| r.id).collect();
+		assert!(ids.contains(&1));
+		assert!(ids.contains(&2));
+		assert!(!ids.contains(&3));
+	}
+
+	#[test]
+	fn test_no_opposing_flow() {
+		let intents = vec![make_intent(1, 1, 2, 100, 90), make_intent(2, 1, 2, 100, 90)];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 2);
+		assert!(!result.trades.is_empty());
+		assert_eq!(result.resolved_intents[0].data.amount_out(), 100);
+		assert_eq!(result.resolved_intents[1].data.amount_out(), 100);
+	}
+
+	#[test]
+	fn test_perfect_match_cancel() {
+		let intents = vec![make_intent(1, 1, 2, 100, 90), make_intent(2, 2, 1, 100, 90)];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 2);
+		assert_eq!(result.trades.len(), 0);
+	}
+
+	#[test]
+	fn test_nonpartial_full_fill() {
+		let intents = vec![make_intent(1, 1, 2, 100, 90), make_intent(2, 2, 1, 100, 90)];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+		for ri in &result.resolved_intents {
+			assert_eq!(ri.data.amount_in(), 100);
+		}
+	}
+
+	#[test]
+	fn test_partial_intent_at_clearing() {
+		let intents = vec![make_partial(1, 1, 2, 200, 180), make_intent(2, 2, 1, 100, 90)];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 2);
+		let r1 = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
+		assert_eq!(r1.data.amount_in(), 200);
+		assert!(r1.data.amount_out() >= 180);
+	}
+
+	#[test]
+	fn test_asymmetric_volumes_with_slippage() {
+		let intents = vec![make_partial(1, 1, 2, 200, 360), make_intent(2, 2, 1, 100, 45)];
+		let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 2);
+		let alice = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
+		let bob = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
+		assert_eq!(bob.data.amount_out(), 50);
+		assert!(alice.data.amount_out() < 400);
+		assert!(alice.data.amount_out() >= 390);
+	}
+
+	#[test]
+	fn test_three_asset_ring() {
+		let intents = vec![
+			make_intent(1, 1, 2, 100, 90),
+			make_intent(2, 2, 3, 100, 90),
+			make_intent(3, 3, 1, 100, 90),
+		];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 3);
+		assert_eq!(result.trades.len(), 0, "Ring trade should avoid AMM entirely");
+		for ri in &result.resolved_intents {
+			assert_eq!(ri.data.amount_in(), 100);
+			assert_eq!(ri.data.amount_out(), 100);
+		}
+		assert_eq!(result.score, 30);
+	}
+
+	#[test]
+	fn test_amm_failure_fallback() {
+		let intents = vec![make_intent(1, 1, 2, 200, 180), make_intent(2, 2, 1, 50, 45)];
+		let result = Solver::<MockAMMPartialFailure>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 2);
+		assert_eq!(result.trades.len(), 0);
+		let r1 = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
+		let r2 = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
+		assert_eq!(r1.data.amount_out(), 200);
+		assert_eq!(r2.data.amount_out(), 50);
+	}
+
+	#[test]
+	fn test_excess_backward_scarce_gets_spot() {
+		let intents = vec![make_intent(1, 2, 1, 100, 45), make_intent(2, 1, 2, 50, 90)];
+		let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 2);
+		let alice = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
+		let bob = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
+		assert_eq!(bob.data.amount_out(), 100, "scarce A→B should get spot rate");
+		assert!(alice.data.amount_out() > 0);
+		assert!(alice.data.amount_out() >= 45);
+	}
+
+	#[test]
+	fn test_large_amounts_overflow_safe() {
+		let unit: Balance = 1_000_000_000_000;
+		let intents = vec![
+			make_intent(1, 1, 2, 1_000_000 * unit, 900_000 * unit),
+			make_intent(2, 2, 1, 1_000_000 * unit, 900_000 * unit),
+		];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+		assert_eq!(result.resolved_intents.len(), 2);
+		assert_eq!(result.trades.len(), 0);
+		for ri in &result.resolved_intents {
+			assert_eq!(ri.data.amount_in(), 1_000_000 * unit);
+			assert_eq!(ri.data.amount_out(), 1_000_000 * unit);
+		}
+	}
+
+	// ---------- new v2-specific correctness tests ----------
+
+	/// Two partials in the same direction must resolve at the same rate within 1 sat
+	/// (the tolerance enforced by the pallet's `validate_price_consistency`).
+	#[test]
+	fn test_two_partials_same_direction_get_same_rate() {
+		let intents = vec![
+			make_partial(1, 1, 2, 100, 80),
+			make_partial(2, 1, 2, 200, 150),
+			make_intent(3, 2, 1, 100, 90),
+		];
+		let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+		let p1 = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
+		let p2 = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
+		assert!(
+			same_rate_within(p1, p2, 1),
+			"partials {} and {} must share rate within 1 sat: p1 {}→{}, p2 {}→{}",
+			p1.id,
+			p2.id,
+			p1.data.amount_in(),
+			p1.data.amount_out(),
+			p2.data.amount_in(),
+			p2.data.amount_out(),
+		);
+	}
+
+	/// The same input in a different order must produce the same fills.
+	/// Parameters are tight on purpose: tolerance 1.95 against 2.0 spot with 1% slippage
+	/// forces the binary search to bite, so order-of-fitting matters.
+	#[test]
+	fn test_partial_fill_order_independence() {
+		let forward = vec![
+			make_partial(1, 1, 2, 100, 195),
+			make_partial(2, 1, 2, 100, 195),
+			make_intent(3, 2, 1, 20, 9),
+		];
+		let reversed = vec![
+			make_intent(3, 2, 1, 20, 9),
+			make_partial(2, 1, 2, 100, 195),
+			make_partial(1, 1, 2, 100, 195),
+		];
+		let r1 = Solver::<MockAMMWithSlippage>::solve(forward, ()).unwrap();
+		let r2 = Solver::<MockAMMWithSlippage>::solve(reversed, ()).unwrap();
+		for id in [1u128, 2, 3] {
+			let a = r1.resolved_intents.iter().find(|r| r.id == id);
+			let b = r2.resolved_intents.iter().find(|r| r.id == id);
+			match (a, b) {
+				(Some(a), Some(b)) => {
+					assert_eq!(a.data.amount_in(), b.data.amount_in(), "intent {id} amount_in differs");
+					assert_eq!(
+						a.data.amount_out(),
+						b.data.amount_out(),
+						"intent {id} amount_out differs"
+					);
+				}
+				(None, None) => {}
+				_ => panic!("intent {id} presence differs between orderings"),
+			}
+		}
+	}
+
+	/// Two identical partials in the same direction must receive identical fills
+	/// (not just identical rates). The Phase B sequential fit can produce
+	/// different fills for otherwise-identical partials when the clearing rate
+	/// degrades as more partials are added.
+	#[test]
+	fn test_identical_partials_get_identical_fills() {
+		// P1 and P2 are identical: 100→195 at 2:1 spot with 1% slippage (~1.98 realised).
+		// The 1.95 limit is above the combined-volume clearing, forcing binary-search to
+		// shrink one (or both) of them. Whichever is fitted second should be treated
+		// the same as the one fitted first.
+		let intents = vec![
+			make_partial(1, 1, 2, 100, 195),
+			make_partial(2, 1, 2, 100, 195),
+			make_intent(3, 2, 1, 20, 9),
+		];
+		let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+		let p1 = result.resolved_intents.iter().find(|r| r.id == 1);
+		let p2 = result.resolved_intents.iter().find(|r| r.id == 2);
+		match (p1, p2) {
+			(Some(a), Some(b)) => {
+				assert_eq!(
+					a.data.amount_in(),
+					b.data.amount_in(),
+					"identical partials got different fills: {} vs {}",
+					a.data.amount_in(),
+					b.data.amount_in(),
+				);
+			}
+			(None, None) => {} // both excluded — still symmetric
+			_ => panic!("identical partials had asymmetric inclusion: p1={p1:?}, p2={p2:?}"),
+		}
+	}
+
+	/// Partial and non-partial in the same direction must share a rate within 1 sat.
+	#[test]
+	fn test_partial_plus_non_partial_same_direction_uniform() {
+		let intents = vec![
+			make_partial(1, 1, 2, 200, 180),
+			make_intent(2, 1, 2, 100, 90),
+			make_intent(3, 2, 1, 100, 90),
+		];
+		let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+		let r1 = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
+		let r2 = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
+		assert!(
+			same_rate_within(r1, r2, 1),
+			"partial {} and non-partial {} must share rate within 1 sat: r1 {}→{}, r2 {}→{}",
+			r1.id,
+			r2.id,
+			r1.data.amount_in(),
+			r1.data.amount_out(),
+			r2.data.amount_in(),
+			r2.data.amount_out(),
+		);
+	}
+
+	/// Ring detection must not over-consume a partial's `remaining()`. With the bug,
+	/// ring treats the partial as having its full `amount_in` available, inflating the
+	/// user's output rate past what the AMM (1:1) can actually deliver. The cleanest
+	/// observable failure: the resolved `amount_out` must be at most `fill * spot_rate`.
+	#[test]
+	fn test_ring_respects_partial_remaining() {
+		// A→B partial: amount_in=100, already filled 60, so remaining=40.
+		// B→C and C→A are full 100 each. Without the fix, ring consumes 100 of A→B.
+		let intents = vec![
+			make_partial_filled(1, 1, 2, 100, 90, 60),
+			make_intent(2, 2, 3, 100, 90),
+			make_intent(3, 3, 1, 100, 90),
+		];
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+
+		let p = result.resolved_intents.iter().find(|r| r.id == 1);
+		if let Some(p) = p {
+			assert!(
+				p.data.amount_in() <= 40,
+				"ring must not fill more than remaining: got amount_in={}, remaining=40",
+				p.data.amount_in(),
+			);
+			// At 1:1 spot, amount_out is capped by amount_in.
+			assert!(
+				p.data.amount_out() <= p.data.amount_in(),
+				"amount_out={} exceeds amount_in={} at 1:1 spot; ring over-consumed",
+				p.data.amount_out(),
+				p.data.amount_in(),
+			);
+		}
+	}
+
+	/// A partial whose `remaining()` is below the asset's ED must be filtered before Phase B.
+	#[test]
+	fn test_partial_below_ed_rejected() {
+		// ED = 10 (MockAMMWithED). remaining = amount_in - already_filled = 100 - 95 = 5 < 10.
+		let intents = vec![make_partial_filled(1, 1, 2, 100, 90, 95), make_intent(2, 2, 1, 100, 90)];
+		let result = Solver::<MockAMMWithED>::solve(intents, ()).unwrap();
+		assert!(
+			result.resolved_intents.iter().all(|r| r.id != 1),
+			"partial below ED must be filtered; got {:?}",
+			result.resolved_intents.iter().map(|r| r.id).collect::<Vec<_>>(),
+		);
+	}
+
+	/// A partial must never be filled in a way that leaves 0 < remaining < ed.
+	#[test]
+	fn test_partial_leaves_no_untradeable_dust() {
+		let intents = vec![
+			// original amount 100, ED 10: a fill of 95 would leave remaining=5 which < ED.
+			// Solver must either fill all 100 or cap at ≤90.
+			make_partial(1, 1, 2, 100, 90),
+		];
+		let result = Solver::<MockAMMWithED>::solve(intents, ()).unwrap();
+		if let Some(r) = result.resolved_intents.iter().find(|r| r.id == 1) {
+			let original = 100u128;
+			let filled = r.data.amount_in();
+			let remaining_after = original - filled;
+			let ed = 10u128;
+			assert!(
+				remaining_after == 0 || remaining_after >= ed,
+				"partial fill left untradeable dust: fill={filled}, remaining_after={remaining_after}, ed={ed}",
+			);
+		}
+	}
+
+	/// After the `remaining_untradeable` retry, the chosen fill must still satisfy ed_out.
+	#[test]
+	fn test_partial_retry_honors_ed_out() {
+		// All resolved outputs must be ≥ ed_out = 10.
+		let intents = vec![
+			make_partial(1, 1, 2, 100, 90),
+			make_partial(2, 1, 2, 50, 45),
+			make_intent(3, 2, 1, 100, 90),
+		];
+		let result = Solver::<MockAMMWithED>::solve(intents, ()).unwrap();
+		for r in &result.resolved_intents {
+			assert!(
+				r.data.amount_out() >= 10,
+				"resolved intent {} has amount_out={} below ed_out=10",
+				r.id,
+				r.data.amount_out(),
+			);
+		}
+	}
+
+	/// When more than MAX_NUMBER_OF_RESOLVED_INTENTS fills are viable, the cap should
+	/// keep the highest-surplus intents, not the first N by input order.
+	#[test]
+	fn test_cap_by_surplus_not_input_order() {
+		let mut intents: Vec<Intent> = (0..MAX_NUMBER_OF_RESOLVED_INTENTS as u128)
+			.map(|id| make_intent(id + 1, 1, 2, 100, 99))
+			.collect();
+		// A high-surplus opposite-direction intent at the end — should survive any cap.
+		intents.push(make_intent(u128::MAX, 2, 1, 100, 10));
+		let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+		assert!(
+			result.resolved_intents.iter().any(|r| r.id == u128::MAX),
+			"high-surplus intent was dropped by first-N cap",
+		);
+	}
+
+	/// The solver's `solution.score` must equal the pallet's recompute over all
+	/// resolved intents, exactly.
+	#[test]
+	fn test_score_matches_pallet_recompute() {
+		let intents = vec![
+			make_intent(1, 1, 2, 100, 90),
+			make_intent(2, 2, 1, 100, 90),
+			make_partial(3, 1, 2, 200, 180),
+			make_intent(4, 1, 2, 50, 40),
+		];
+		let result = Solver::<MockAMMOneToOne>::solve(intents.clone(), ()).unwrap();
+		let pallet_recomputed = pallet_score(&intents, result.resolved_intents.as_slice());
+		assert_eq!(
+			result.score, pallet_recomputed,
+			"solver score {} diverges from pallet recompute {}",
+			result.score, pallet_recomputed,
+		);
+	}
+
+	/// Every resolved intent's amount_in and amount_out must be ≥ ED for their assets.
+	#[test]
+	fn test_all_resolved_amounts_above_ed() {
+		let intents = vec![
+			make_intent(1, 1, 2, 100, 90),
+			make_intent(2, 2, 1, 100, 90),
+			make_partial(3, 1, 2, 200, 180),
+		];
+		let result = Solver::<MockAMMWithED>::solve(intents, ()).unwrap();
+		for r in &result.resolved_intents {
+			assert!(
+				r.data.amount_in() >= 10,
+				"intent {} amount_in {} < ed",
+				r.id,
+				r.data.amount_in()
+			);
+			assert!(
+				r.data.amount_out() >= 10,
+				"intent {} amount_out {} < ed",
+				r.id,
+				r.data.amount_out()
+			);
+		}
+	}
+
+	/// Accumulating many large intents must not panic from unchecked overflow.
+	/// Individual intents are below `u128::MAX / 100` so the pair-per-direction
+	/// totals can't exceed u128, but summing across many directions in the same
+	/// call touches the DirAccum path.
+	#[test]
+	fn test_saturating_accumulation() {
+		let per_intent: Balance = u128::MAX / 1_000; // safely representable per-intent
+		let mut intents = Vec::new();
+		for i in 0..50u128 {
+			intents.push(make_intent(i * 2 + 1, 1, 2, per_intent, per_intent / 2));
+			intents.push(make_intent(i * 2 + 2, 2, 1, per_intent, per_intent / 2));
+		}
+		// Must not panic.
+		let _ = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	}
+
+	/// Simulate two solver calls on the same partial intent, emulating two
+	/// on-chain rounds. The second call's resolved amount_in must not exceed
+	/// the remaining after the first fill.
+	#[test]
+	fn test_cumulative_partial_fill_across_calls() {
+		let original_amount_in: Balance = 200;
+		let intent1 = make_partial(1, 1, 2, original_amount_in, 150);
+		let opposite = make_intent(2, 2, 1, 100, 90);
+
+		let r1 = Solver::<MockAMMWithSlippage>::solve(vec![intent1, opposite.clone()], ()).unwrap();
+		let first_fill = r1
+			.resolved_intents
+			.iter()
+			.find(|r| r.id == 1)
+			.map(|r| r.data.amount_in())
+			.unwrap_or(0);
+		assert!(first_fill > 0, "first call should resolve at least some of the partial");
+		assert!(first_fill <= original_amount_in);
+
+		// Pallet would advance `filled` by first_fill. Second call sees remaining = original - first_fill.
+		if first_fill < original_amount_in {
+			let intent2 = make_partial_filled(1, 1, 2, original_amount_in, 150, first_fill);
+			let r2 = Solver::<MockAMMWithSlippage>::solve(vec![intent2, opposite], ()).unwrap();
+			let second_fill = r2
+				.resolved_intents
+				.iter()
+				.find(|r| r.id == 1)
+				.map(|r| r.data.amount_in())
+				.unwrap_or(0);
+			let remaining_after_first = original_amount_in - first_fill;
+			assert!(
+				second_fill <= remaining_after_first,
+				"second-call fill {second_fill} exceeds remaining {remaining_after_first}",
+			);
+			assert!(
+				first_fill + second_fill <= original_amount_in,
+				"cumulative fill {first_fill} + {second_fill} > original {original_amount_in}",
+			);
 		}
 	}
 }
