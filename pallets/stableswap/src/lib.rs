@@ -429,6 +429,11 @@ pub mod pallet {
 
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
+			let mut sorted_assets = assets.into_inner();
+			sorted_assets.sort();
+			let assets: BoundedVec<T::AssetId, ConstU32<MAX_ASSETS_IN_POOL>> =
+				sorted_assets.try_into().map_err(|_| Error::<T>::MaxAssetsExceeded)?;
+
 			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee, None)?;
 
 			Self::deposit_event(Event::PoolCreated {
@@ -1089,15 +1094,17 @@ pub mod pallet {
 		///
 		/// This function allows the creation of a new stable pool with specified assets, amplification, fee, and peg sources. The pool is identified by a share asset.
 		///
-		/// Peg target price is determined by retrieving the target peg from the oracle - it is the price of the asset from the peg sourcedenominated in the other pool assets.
+		/// Peg target price is determined by retrieving the target peg from the oracle - it is the price of the asset from the peg source denominated in the other pool assets.
+		///
+		/// Assets may be provided in any order — each asset is paired with its peg source as a tuple
+		/// and the pairs are co-sorted by asset ID before the pool is created.
 		///
 		/// Parameters:
 		/// - `origin`: Must be `T::AuthorityOrigin`.
 		/// - `share_asset`: Preregistered share asset identifier.
-		/// - `assets`: List of asset IDs to be included in the pool.
+		/// - `assets`: List of `(asset_id, peg_source)` pairs to be included in the pool.
 		/// - `amplification`: Pool amplification parameter.
 		/// - `fee`: Fee to be applied on trade and liquidity operations.
-		/// - `peg_source`: Bounded vector specifying the source of the peg for each asset.
 		/// - `max_peg_update`: Maximum allowed peg update per block.
 		///
 		/// Emits `PoolCreated` event if successful.
@@ -1110,7 +1117,6 @@ pub mod pallet {
 		/// - `ShareAssetInPoolAssets`: If the share asset is among the pool assets.
 		/// - `AssetNotRegistered`: If one or more assets are not registered in the AssetRegistry.
 		/// - `InvalidAmplification`: If the amplification parameter is invalid.
-		/// - `IncorrectInitialPegs`: If the initial pegs are incorrect.
 		/// - `MissingTargetPegOracle`: If the target peg oracle entry is missing.
 		/// - `IncorrectAssetDecimals`: If the assets have different decimals.
 		///
@@ -1120,30 +1126,48 @@ pub mod pallet {
 		pub fn create_pool_with_pegs(
 			origin: OriginFor<T>,
 			share_asset: T::AssetId,
-			assets: BoundedVec<T::AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
+			assets: BoundedVec<(T::AssetId, PegSource<T::AssetId>), ConstU32<MAX_ASSETS_IN_POOL>>,
 			amplification: u16,
 			fee: Permill,
-			peg_source: BoundedPegSources<T::AssetId>,
 			max_peg_update: Perbill,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
-			let initial_pegs = Self::get_target_pegs(&assets, &peg_source)?;
+			// Co-sort assets and peg_source by asset ID so that peg_source[i] always
+			// corresponds to sorted_assets[i], matching how do_create_pool stores them.
+			let mut pairs: Vec<(T::AssetId, PegSource<T::AssetId>)> = assets.into_inner();
+			pairs.sort_by_key(|(asset, _)| *asset);
+
+			let sorted_assets: BoundedVec<T::AssetId, ConstU32<MAX_ASSETS_IN_POOL>> = pairs
+				.iter()
+				.map(|(a, _)| *a)
+				.collect::<Vec<_>>()
+				.try_into()
+				.map_err(|_| Error::<T>::MaxAssetsExceeded)?;
+
+			let sorted_peg_source: BoundedPegSources<T::AssetId> = pairs
+				.into_iter()
+				.map(|(_, p)| p)
+				.collect::<Vec<_>>()
+				.try_into()
+				.map_err(|_| Error::<T>::MaxAssetsExceeded)?;
+
+			let initial_pegs = Self::get_target_pegs(&sorted_assets, &sorted_peg_source)?;
 
 			let peg_info = PoolPegInfo {
-				source: peg_source,
+				source: sorted_peg_source,
 				updated_at: T::BlockNumberProvider::current_block_number(),
 				max_peg_update,
 				current: BoundedPegs::truncate_from(initial_pegs.into_iter().map(|(v, _)| v).collect()),
 			};
 
-			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee, Some(&peg_info))?;
+			let pool_id = Self::do_create_pool(share_asset, &sorted_assets, amplification, fee, Some(&peg_info))?;
 
 			Self::deposit_event(Event::PoolCreated {
 				pool_id,
-				assets: assets.to_vec(),
+				assets: sorted_assets.to_vec(),
 				amplification,
 				fee,
 				peg: Some(peg_info),
@@ -1428,6 +1452,7 @@ impl<T: Config> Pallet<T> {
 		.ok_or_else(|| ArithmeticError::Overflow.into())
 	}
 
+	/// Assets must be provided in ascending sort order by asset ID.
 	#[require_transactional]
 	fn do_create_pool(
 		share_asset: T::AssetId,
@@ -1446,8 +1471,7 @@ impl<T: Config> Pallet<T> {
 
 		let block_number = T::BlockNumberProvider::current_block_number();
 
-		let mut pool_assets = assets.to_vec();
-		pool_assets.sort();
+		let pool_assets = assets.to_vec();
 
 		let pool = PoolInfo {
 			assets: pool_assets
@@ -2191,6 +2215,10 @@ impl<T: Config> Pallet<T> {
 			pool_assets.len(),
 			peg_sources.len(),
 			"Pool assets and peg sources must have the same length"
+		);
+		debug_assert!(
+			pool_assets.windows(2).all(|w| w[0] <= w[1]),
+			"pool_assets must be sorted ascending"
 		);
 
 		if pool_assets.is_empty() {

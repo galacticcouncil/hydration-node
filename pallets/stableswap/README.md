@@ -8,8 +8,9 @@ Curve style AMM at is designed to provide highly efficient and low-slippage trad
 
 ### Drifting peg
 It is possible to create a pool with so called drifting peg.
-Source of target peg for each asset must be provided. Either constant value or external oracle.
-First asset in the pool is considered as a base asset and all other assets are pegged to it. Therefore peg of the first asset must be 1.
+Each asset must be paired with its peg source as an `(asset_id, peg_source)` tuple. The peg source is either a constant value or an external oracle.
+Assets may be supplied in any order — pairs are co-sorted by asset ID internally before the pool is stored.
+First asset in the pool (after sorting) is considered as a base asset and all other assets are pegged to it. Therefore peg of the first asset must be 1.
 
 ### Stableswap Hooks
 

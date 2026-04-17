@@ -1,8 +1,7 @@
 #![allow(deprecated)]
 
 use crate::tests::mock::*;
-use crate::tests::to_bounded_asset_vec;
-use crate::types::{BoundedPegSources, PegSource, PoolInfo};
+use crate::types::{PegSource, PoolInfo};
 use crate::{assert_balance, Error, Event, PoolPegs, Pools};
 use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, BoundedVec};
@@ -1618,14 +1617,13 @@ fn remove_all_liquidity_should_correctly_destroy_pool_when_pool_has_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				BoundedVec::truncate_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value(peg2)),
+					(asset_c, PegSource::Value(peg3)),
+				]),
 				100,
 				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Value(peg2),
-					PegSource::Value(peg3)
-				]),
 				max_peg_update,
 			));
 

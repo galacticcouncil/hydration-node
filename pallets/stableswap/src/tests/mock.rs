@@ -30,7 +30,6 @@ use crate as pallet_stableswap;
 
 use crate::Config;
 
-use crate::types::BoundedPegSources;
 use crate::{PegRawOracle, PegSource, PegType};
 use frame_support::__private::Get;
 use frame_support::traits::{Contains, Everything};
@@ -350,10 +349,11 @@ impl ExtBuilder {
 					assert_ok!(Stableswap::create_pool_with_pegs(
 						RuntimeOrigin::root(),
 						pool_id,
-						pool.assets.clone(),
+						BoundedVec::truncate_from(
+							pool.assets.iter().copied().zip(pegs.into_iter()).collect::<Vec<_>>(),
+						),
 						pool.initial_amplification.get(),
 						pool.fee,
-						BoundedPegSources::truncate_from(pegs),
 						Perbill::from_percent(100),
 					));
 				} else {
