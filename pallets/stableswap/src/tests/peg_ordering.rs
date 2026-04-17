@@ -108,23 +108,23 @@ fn pool_pegs_should_be_cosorted_with_assets() {
 			//   asset_5 → (1,1), asset_10 → (2,1), asset_20 → (3,1).
 			// Previously, peg sources were stored in input order [(2,1), (1,1), (3,1)].
 			assert_eq!(
-				peg_info.source.to_vec(),
-				vec![
+				peg_info.source.as_slice(),
+				[
 					PegSource::Value((1, 1)),
 					PegSource::Value((2, 1)),
 					PegSource::Value((3, 1)),
 				],
 				"peg sources must be co-sorted with pool assets; got {:?}",
-				peg_info.source.to_vec(),
+				peg_info.source,
 			);
 
 			// PoolPegs.current holds resolved peg values; must also be co-sorted.
 			// PegSource::Value is resolved verbatim, so current[i] == source[i] value.
 			assert_eq!(
-				peg_info.current.to_vec(),
-				vec![(1u128, 1u128), (2u128, 1u128), (3u128, 1u128)],
+				peg_info.current.as_slice(),
+				[(1u128, 1u128), (2u128, 1u128), (3u128, 1u128)],
 				"current pegs must be co-sorted with pool assets; got {:?}",
-				peg_info.current.to_vec(),
+				peg_info.current,
 			);
 		});
 }
@@ -168,21 +168,21 @@ fn pool_pegs_should_be_cosorted_with_three_assets_reverse_order() {
 			assert_eq!(pool.assets.to_vec(), vec![asset_5, asset_10, asset_20]);
 
 			assert_eq!(
-				peg_info.source.to_vec(),
-				vec![
+				peg_info.source.as_slice(),
+				[
 					PegSource::Value((1, 1)), // asset_5
 					PegSource::Value((2, 1)), // asset_10
 					PegSource::Value((3, 1)), // asset_20
 				],
 				"sources must be co-sorted; got {:?}",
-				peg_info.source.to_vec(),
+				peg_info.source,
 			);
 
 			assert_eq!(
-				peg_info.current.to_vec(),
-				vec![(1u128, 1u128), (2u128, 1u128), (3u128, 1u128)],
+				peg_info.current.as_slice(),
+				[(1u128, 1u128), (2u128, 1u128), (3u128, 1u128)],
 				"current pegs must be co-sorted; got {:?}",
-				peg_info.current.to_vec(),
+				peg_info.current,
 			);
 		});
 }
@@ -265,8 +265,7 @@ fn sell_should_use_correct_pegs_when_assets_are_unsorted() {
 
 			assert_eq!(
 				received_unsorted, received_sorted,
-				"unsorted pool sell output ({}) must equal sorted pool output ({})",
-				received_unsorted, received_sorted,
+				"unsorted pool sell output ({received_unsorted}) must equal sorted pool output ({received_sorted})",
 			);
 		});
 }
@@ -344,8 +343,7 @@ fn buy_should_use_correct_pegs_when_assets_are_unsorted() {
 
 			assert_eq!(
 				spent_unsorted, spent_sorted,
-				"unsorted pool buy cost ({}) must equal sorted pool buy cost ({})",
-				spent_unsorted, spent_sorted,
+				"unsorted pool buy cost ({spent_unsorted}) must equal sorted pool buy cost ({spent_sorted})",
 			);
 		});
 }
@@ -477,8 +475,7 @@ fn sell_should_use_correct_oracle_pegs_when_assets_are_unsorted() {
 
 			assert_eq!(
 				received_unsorted, received_sorted,
-				"unsorted oracle-peg pool sell output ({}) must equal sorted pool output ({})",
-				received_unsorted, received_sorted,
+				"unsorted oracle-peg pool sell output ({received_unsorted}) must equal sorted pool output ({received_sorted})",
 			);
 		});
 }
@@ -629,8 +626,7 @@ fn remove_liquidity_should_use_correct_pegs_when_assets_unsorted() {
 
 			assert_eq!(
 				received_unsorted, received_sorted,
-				"unsorted pool remove_liquidity_one_asset ({}) must equal sorted pool ({})",
-				received_unsorted, received_sorted,
+				"unsorted pool remove_liquidity_one_asset ({received_unsorted}) must equal sorted pool ({received_sorted})",
 			);
 		});
 }
@@ -727,8 +723,8 @@ fn pool_pegs_should_be_cosorted_with_five_assets_random_order() {
 
 			// Peg values must match sorted asset order.
 			assert_eq!(
-				peg_info.source.to_vec(),
-				vec![
+				peg_info.source.as_slice(),
+				[
 					PegSource::Value((1, 1)), // asset_1
 					PegSource::Value((3, 1)), // asset_3
 					PegSource::Value((5, 1)), // asset_5
@@ -736,7 +732,7 @@ fn pool_pegs_should_be_cosorted_with_five_assets_random_order() {
 					PegSource::Value((9, 1)), // asset_9
 				],
 				"sources must be co-sorted; got {:?}",
-				peg_info.source.to_vec(),
+				peg_info.source,
 			);
 
 			assert_eq!(
@@ -805,14 +801,14 @@ fn pool_pegs_should_be_cosorted_with_mixed_peg_source_types() {
 
 			// Sources co-sorted: Value for asset_5, Oracle for asset_10, Oracle for asset_20.
 			assert_eq!(
-				peg_info.source.to_vec(),
-				vec![
+				peg_info.source.as_slice(),
+				[
 					PegSource::Value((1, 1)),
 					PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)),
 					PegSource::Oracle((oracle_source, OraclePeriod::Short, asset_5)),
 				],
 				"sources must be co-sorted; got {:?}",
-				peg_info.source.to_vec(),
+				peg_info.source,
 			);
 		});
 }

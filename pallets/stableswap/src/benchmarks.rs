@@ -91,7 +91,7 @@ where
 	crate::Pallet::<T>::create_pool_with_pegs(
 		successful_origin,
 		pool_id,
-		BoundedVec::truncate_from(asset_ids.into_iter().zip(peg_source.into_iter()).collect::<Vec<_>>()),
+		BoundedVec::truncate_from(asset_ids.into_iter().zip(peg_source).collect::<Vec<_>>()),
 		amplification,
 		trade_fee,
 		Perbill::from_percent(100),
