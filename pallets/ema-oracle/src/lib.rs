@@ -143,11 +143,9 @@ pub mod pallet {
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
 
-		/// Origin that can enable oracle for assets that would be rejected by `OracleWhitelist` otherwise.
+		/// Origin that can enable oracle for assets that would be rejected by `OracleWhitelist` otherwise
+		/// and manage external oracle sources and authorized accounts.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
-		/// Origin that can manage external oracle sources and authorized accounts.
-		type ExternalOracleOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Provider for the current block number.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
@@ -477,14 +475,14 @@ pub mod pallet {
 		/// Register a new external oracle source.
 		///
 		/// Parameters:
-		/// - `origin`: `ExternalOracleOrigin`
+		/// - `origin`: `AuthorityOrigin`
 		/// - `source`: 8-byte source identifier to register
 		///
 		/// Emits `ExternalSourceRegistered` event when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_external_source())]
 		pub fn register_external_source(origin: OriginFor<T>, source: Source) -> DispatchResult {
-			T::ExternalOracleOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 			ensure!(
 				!ExternalSources::<T>::contains_key(source),
 				Error::<T>::SourceAlreadyRegistered
@@ -498,14 +496,14 @@ pub mod pallet {
 		/// ever wrote (both committed `Oracles` rows and any in-flight `Accumulator` entries).
 		///
 		/// Parameters:
-		/// - `origin`: `ExternalOracleOrigin`
+		/// - `origin`: `AuthorityOrigin`
 		/// - `source`: source identifier to remove
 		///
 		/// Emits `ExternalSourceRemoved` event when successful.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_external_source(MAX_AUTHORIZED_ENTRIES_PER_SOURCE))]
 		pub fn remove_external_source(origin: OriginFor<T>, source: Source) -> DispatchResult {
-			T::ExternalOracleOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
 			ExternalSources::<T>::remove(source);
 			let _ = AuthorizedAccounts::<T>::clear_prefix((source,), u32::MAX, None);
@@ -521,7 +519,7 @@ pub mod pallet {
 		/// pairs it was explicitly granted, limiting DDoS blast radius.
 		///
 		/// Parameters:
-		/// - `origin`: `ExternalOracleOrigin`
+		/// - `origin`: `AuthorityOrigin`
 		/// - `source`: external source identifier (must already be registered)
 		/// - `assets`: the asset pair to authorize — stored in ordered form
 		/// - `account`: the account to authorize
@@ -535,7 +533,7 @@ pub mod pallet {
 			assets: (AssetId, AssetId),
 			account: T::AccountId,
 		) -> DispatchResult {
-			T::ExternalOracleOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
 			let pair = ordered_pair(assets.0, assets.1);
 			AuthorizedAccounts::<T>::insert((source, pair, &account), ());
@@ -546,7 +544,7 @@ pub mod pallet {
 		/// Revoke oracle-update authorization for `account` on a specific `(source, pair)`.
 		///
 		/// Parameters:
-		/// - `origin`: `ExternalOracleOrigin`
+		/// - `origin`: `AuthorityOrigin`
 		/// - `source`: external source identifier (must already be registered)
 		/// - `assets`: the asset pair to revoke — matched in ordered form
 		/// - `account`: the account to revoke
@@ -560,7 +558,7 @@ pub mod pallet {
 			assets: (AssetId, AssetId),
 			account: T::AccountId,
 		) -> DispatchResult {
-			T::ExternalOracleOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
 			let pair = ordered_pair(assets.0, assets.1);
 			AuthorizedAccounts::<T>::remove((source, pair, &account));
