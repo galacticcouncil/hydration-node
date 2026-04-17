@@ -250,7 +250,7 @@ proptest! {
 		smoothing in fraction_above_zero_and_less_or_equal_one(),
 		iterations in any::<u32>(),
 		(prev_balance, incoming_balance) in
-			(0..(Balance::MAX - 1)).prop_perturb(|n, mut rng| (n, rng.random_range(n..Balance::MAX)))
+			(0..(Balance::MAX - 1)).prop_perturb(|n, mut rng| (n, rng.gen_range(n..Balance::MAX)))
 	) {
 		let balance = iterated_balance_ema(iterations, prev_balance, incoming_balance, smoothing);
 		prop_assert!(balance <= incoming_balance, "{balance} not <= {incoming_balance}");
@@ -298,7 +298,7 @@ proptest! {
 		period in typical_period(),
 		(start_balance, incoming_balance) in
 				(1e6 as Balance..(1e26 as Balance))
-					.prop_perturb(|n, mut rng| (n, rng.random_range(n..(1e26 as Balance))))
+					.prop_perturb(|n, mut rng| (n, rng.gen_range(n..(1e26 as Balance))))
 	) {
 		let smoothing = smoothing_from_period(period);
 		let next_balance = balance_weighted_average(start_balance, incoming_balance, smoothing);
@@ -421,7 +421,7 @@ proptest! {
 		iterations in 1_u32..MAX_ITERATIONS,
 		(start_balance, incoming_balance) in
 				(1e6 as Balance..(1e26 as Balance))
-					.prop_perturb(|n, mut rng| (n, rng.random_range(n..(1e26 as Balance))))
+					.prop_perturb(|n, mut rng| (n, rng.gen_range(n..(1e26 as Balance))))
 	) {
 		let smoothing = smoothing_from_period(period);
 

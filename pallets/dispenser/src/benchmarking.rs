@@ -151,7 +151,8 @@ mod benches {
 			b"ecdsa",
 			b"ethereum",
 			b"",
-		)?;
+		)
+		.expect("generate_request_id ok in benchmark");
 
 		#[extrinsic_call]
 		request_fund(RawOrigin::Signed(caller), to, amount, req_id, tx);
