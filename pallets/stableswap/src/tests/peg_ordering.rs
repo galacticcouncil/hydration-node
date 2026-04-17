@@ -106,7 +106,7 @@ fn pool_pegs_should_be_cosorted_with_assets() {
 
 			// Peg sources must be co-sorted to match sorted assets [5, 10, 20]:
 			//   asset_5 → (1,1), asset_10 → (2,1), asset_20 → (3,1).
-			// BUG: currently stored as input order [(2,1), (1,1), (3,1)].
+			// Previously, peg sources were stored in input order [(2,1), (1,1), (3,1)].
 			assert_eq!(
 				peg_info.source.to_vec(),
 				vec![
