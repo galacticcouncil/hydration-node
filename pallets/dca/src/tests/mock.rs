@@ -143,7 +143,6 @@ parameter_types! {
 
 impl pallet_ema_oracle::Config for Test {
 	type AuthorityOrigin = EnsureRoot<AccountId>;
-	type ExternalOracleOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = Everything;
