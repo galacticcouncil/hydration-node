@@ -1,21 +1,31 @@
 mod example;
 
 use crate::polkadot_test_net::*;
+use amm_simulator::HydrationSimulator;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
+use frame_support::traits::Time;
 use frame_support::BoundedVec;
 use hydradx_runtime::bifrost_account;
 use hydradx_runtime::AssetLocation;
 use hydradx_runtime::*;
+use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AggregatedPriceOracle;
+use ice_support::{DcaParams, IntentDataInput, SwapParams};
 use pallet_asset_registry::AssetType;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
+use primitives::constants::time::MILLISECS_PER_BLOCK;
 use primitives::{AccountId, AssetId};
 use sp_runtime::{FixedU128, Permill};
 use sp_std::cell::RefCell;
 use xcm_emulator::TestExt;
+
+use ice_solver::v2::Solver as IceSolver;
+use pallet_omnipool::types::SlipFeeConfig;
+
+type Solver = IceSolver<HydrationSimulator<hydradx_runtime::HydrationSimulatorConfig>>;
 
 type BoundedName = BoundedVec<u8, <hydradx_runtime::Runtime as pallet_asset_registry::Config>::StringLimit>;
 pub(crate) struct HydrationTestDriver {
@@ -383,6 +393,116 @@ impl HydrationTestDriver {
 			hydradx_run_to_next_block();
 		});
 		self
+	}
+
+	pub fn advance(&self, blocks: u32) -> &Self {
+		self.execute(|| {
+			for _ in 0..blocks {
+				hydradx_run_to_next_block();
+			}
+		});
+		self
+	}
+
+	pub fn submit_swap_intent(
+		&self,
+		who: AccountId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		amount_out: Balance,
+		deadline_in_blocks: Option<u32>,
+	) -> &Self {
+		self.execute(|| {
+			let ts = Timestamp::now();
+			let deadline = deadline_in_blocks.map(|d| MILLISECS_PER_BLOCK * d as u64 + ts);
+			assert_ok!(Intent::submit_intent(
+				RuntimeOrigin::signed(who),
+				pallet_intent::types::IntentInput {
+					data: IntentDataInput::Swap(SwapParams {
+						asset_in,
+						asset_out,
+						amount_in,
+						amount_out,
+						partial: false,
+					}),
+					deadline,
+					on_resolved: None,
+				}
+			));
+		});
+		self
+	}
+
+	#[expect(dead_code, reason = "will be used once DCA integration tests call this helper")]
+	pub fn submit_dca_intent(
+		&self,
+		who: AccountId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		amount_out: Balance,
+		slippage: Permill,
+		budget: Option<Balance>,
+		period: u32,
+	) -> &Self {
+		self.execute(|| {
+			assert_ok!(Intent::submit_intent(
+				RuntimeOrigin::signed(who),
+				pallet_intent::types::IntentInput {
+					data: IntentDataInput::Dca(DcaParams {
+						asset_in,
+						asset_out,
+						amount_in,
+						amount_out,
+						slippage,
+						budget,
+						period,
+					}),
+					deadline: None,
+					on_resolved: None,
+				}
+			));
+		});
+		self
+	}
+
+	pub fn run_solver(&self) -> &Self {
+		self.execute(||{
+			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
+			println!("snapshot has {} valid intents", intents.len());
+			assert!(!intents.is_empty(), "Snapshot should contain intents");
+
+			for (id, intent) in &intents {
+				println!("intent {}: {:?}", id, intent.data);
+			}
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>, state: <<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State|
+					Solver::solve(intents, state).ok()
+			)
+				.expect("Solver must produce a solution");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+		});
+		self
+	}
+
+	pub fn enable_slip_fees(&self, max_slip_fee: Permill) -> &Self {
+		self.execute(|| {
+			assert_ok!(hydradx_runtime::Omnipool::set_slip_fee(
+				RuntimeOrigin::root(),
+				Some(SlipFeeConfig { max_slip_fee })
+			));
+		})
 	}
 }
 

@@ -31,8 +31,8 @@ use frame_support::{
 	},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, ExistenceRequirement,
-		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
+		AsEnsureOriginWithArg, ConstU32, ConstU64, Contains, Currency, Defensive, EitherOf, EnsureOrigin,
+		ExistenceRequirement, Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
 	},
 	BoundedVec, PalletId,
 };
@@ -45,7 +45,7 @@ use hydradx_adapters::{
 };
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::evm::CallContext;
-use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
+use hydradx_traits::router::{Route, MAX_NUMBER_OF_TRADES};
 pub use hydradx_traits::{
 	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
 	registry::Inspect,
@@ -53,6 +53,10 @@ pub use hydradx_traits::{
 	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
 	AMM,
 };
+
+use amm_simulator::aave::Simulator as AaveSimulator;
+use amm_simulator::omnipool::Simulator as OmnipoolSimulator;
+use amm_simulator::stableswap::Simulator as StableSwapSimulator;
 
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
@@ -692,6 +696,7 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			BondsPalletId::get().into_account_truncating(),
 			pallet_route_executor::Pallet::<Runtime>::router_account(),
 			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS),
+			IcePalletId::get().into_account_truncating(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
@@ -1413,6 +1418,7 @@ use crate::evm::evm_error_decoder::EvmErrorDecoder;
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
 use frame_support::traits::IsSubType;
+use hydradx_traits::amm::{SimulatorError, SimulatorSet};
 use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
@@ -1833,6 +1839,91 @@ impl pallet_hsm::Config for Runtime {
 	type WeightInfo = weights::pallet_hsm::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
+}
+
+impl pallet_lazy_executor::Config for Runtime {
+	type RuntimeCall = RuntimeCall;
+	type UnsignedLongevity = ConstU64<2>;
+	type UnsignedPriority = ConstU64<100>;
+	type WeightInfo = weights::pallet_lazy_executor::HydraWeight<Runtime>;
+}
+
+parameter_types! {
+	//24 hours
+	pub const MaxIntentDuration: u64  = 24 * 3_600 * 1_000;
+}
+
+impl pallet_intent::Config for Runtime {
+	type LazyExecutorHandler = LazyExecutor;
+	type RegistryHandler = AssetRegistry;
+	type Currency = Currencies;
+	type MaxAllowedIntentDuration = MaxIntentDuration;
+	type TimestampProvider = Timestamp;
+	type HubAssetId = LRNA;
+	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
+	type BlockNumberProvider = System;
+	type MinDcaPeriod = MinimalPeriod;
+	type MaxIntentsPerAccount = sp_core::ConstU32<100>;
+	type WeightInfo = weights::pallet_intent::HydraWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const IcePalletId: PalletId = PalletId(*b"ice_ice#");
+	pub const IceFee: Permill = Permill::from_parts(200); // 0.02%
+	pub const SimulatorPriceDenom: AssetId = CORE_ASSET_ID;
+}
+
+/// Simulator configuration for the ICE pallet
+/// Bundles simulators and route discovery strategy for the solver
+pub struct HydrationSimulatorConfig;
+
+type HydrationSimulators = (
+	OmnipoolSimulator<ice_simulator_provider::Omnipool<Runtime>>,
+	StableSwapSimulator<ice_simulator_provider::Stableswap<Runtime>>,
+	AaveSimulator<ice_simulator_provider::Aave<Runtime>>,
+);
+
+pub struct SmartRouteFinder<S: SimulatorSet>(sp_std::marker::PhantomData<S>);
+
+impl<S: SimulatorSet> hydradx_traits::amm::RouteDiscovery<S::State> for SmartRouteFinder<S> {
+	fn discover_routes(
+		asset_in: AssetId,
+		asset_out: AssetId,
+		state: &S::State,
+	) -> Result<Vec<Route<AssetId>>, SimulatorError> {
+		let pool_edges = S::pool_edges(state);
+		let routes = route_findr::get_routes(asset_in, asset_out, pool_edges);
+
+		if routes.is_empty() {
+			log::debug!(target: "solver", "no routes found for {} -> {}", asset_in, asset_out);
+			return Err(SimulatorError::NotSupported);
+		}
+
+		log::debug!(target: "solver", "found {} route(s) for {} -> {}", routes.len(), asset_in, asset_out);
+		Ok(routes)
+	}
+}
+
+impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
+	type Simulators = HydrationSimulators;
+	//type RouteDiscovery = amm_simulator::OnChainRouteDiscovery<Router, HydrationSimulators>;
+	type RouteDiscovery = SmartRouteFinder<HydrationSimulators>;
+	type PriceDenominator = SimulatorPriceDenom;
+
+	fn existential_deposit(asset_id: AssetId) -> Balance {
+		<AssetRegistry as hydradx_traits::registry::Inspect>::existential_deposit(asset_id).unwrap_or(0)
+	}
+}
+
+impl pallet_ice::Config for Runtime {
+	type Currency = Currencies;
+	type PalletId = IcePalletId;
+	type Fee = IceFee;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
+	type RegistryHandler = AssetRegistry;
+	type Simulator = HydrationSimulatorConfig;
+	type ExtraGasSupport = Dispatcher;
+	type WeightInfo = weights::pallet_ice::HydraWeight<Runtime>;
 }
 
 parameter_types! {

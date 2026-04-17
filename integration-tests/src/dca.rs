@@ -5342,7 +5342,7 @@ fn add_dot_as_payment_currency_with_details(amount: Balance, price: FixedU128) {
 	//crate::dca::do_trade_to_populate_oracle(DOT, HDX, UNITS);
 }
 
-mod extra_gas_erc20 {
+pub(crate) mod extra_gas_erc20 {
 	use super::*;
 
 	use hydradx_runtime::{FixedU128, MultiTransactionPayment, Router};
@@ -5917,7 +5917,11 @@ mod extra_gas_erc20 {
 	///
 	/// # Returns
 	/// The deployed contract's EVM address
-	fn deploy_conditional_gas_eater(router_address: EvmAddress, gas_to_waste: u64, deployer: EvmAddress) -> EvmAddress {
+	pub(crate) fn deploy_conditional_gas_eater(
+		router_address: EvmAddress,
+		gas_to_waste: u64,
+		deployer: EvmAddress,
+	) -> EvmAddress {
 		use ethabi::{encode, Token};
 
 		// Get base bytecode from compiled artifact
