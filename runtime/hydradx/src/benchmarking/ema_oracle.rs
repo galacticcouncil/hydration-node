@@ -585,7 +585,7 @@ runtime_benchmarks! {
 			Volume::default(),
 			Liquidity::default(),
 			None,
-			0u32.into(),
+			0u32,
 		);
 		for i in 0..n {
 			let account: AccountId = frame_benchmarking::account("authorized", i, 0);
