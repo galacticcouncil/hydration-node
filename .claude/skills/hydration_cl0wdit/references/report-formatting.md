@@ -55,7 +55,20 @@ When `--file-output` is set, resolve the git repository root via `git rev-parse 
 
 ---
 
-< ... remaining findings ... >
+< ... all above-threshold findings ... >
+
+---
+
+[75] **3. <Title>**
+
+`pallet_name::function_name` · Confidence: 75
+
+**Description**
+<The vulnerable code pattern and why it is exploitable, in 1 short sentence>
+
+---
+
+< ... all below-threshold findings (description only, no Fix block) ... >
 
 ---
 
@@ -65,9 +78,16 @@ When `--file-output` is set, resolve the git repository root via `git rev-parse 
 |---|---|---|
 | 1 | [95] | <title> |
 | 2 | [82] | <title> |
-| | | **— Below Confidence Threshold —** |
-| 3 | [72] | <title> |
-| 4 | [55] | <title> |
+| 3 | [75] | <title> |
+
+---
+
+## Leads
+
+_Vulnerability trails with concrete code smells where the full exploit path could not be completed in one analysis pass. These are not false positives — they are high-signal leads for manual review. Not scored._
+
+- **<Title>** — `pallet_name::function_name` — Code smells: <missing guard, unsafe arithmetic, etc.> — <1-2 sentence description of the trail and what remains unverified>
+- **<Title>** — `pallet_name::function_name` — Code smells: <...> — <1-2 sentence description>
 
 ---
 
