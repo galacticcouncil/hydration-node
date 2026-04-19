@@ -15,6 +15,7 @@ When `--file-output` is set, resolve the git repository root via `git rev-parse 
 
 | Field | Value |
 |---|---|
+| **Skill version** | hydration_cl0wdit vX.Y.Z |
 | **Mode** | ALL / default / filename |
 | **In-scope files** | `pallet_foo/src/lib.rs` · `pallet_bar/src/lib.rs`<br>`runtime/src/lib.rs` | <!-- list every file, 2-3 per line -->
 | **Confidence threshold (1–100)** | N |
