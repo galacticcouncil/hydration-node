@@ -21,6 +21,8 @@ Admin/governance/sudo functions doing admin things. Standard DeFi tradeoffs (MEV
 
 ## Output
 
+**Do NOT write any files.** No report files, no output files. Return findings as text in your final response only. The orchestrator handles all file output.
+
 Return structured blocks only — no preamble, no narration. Exception: vector scan agent outputs its classification block first.
 
 FINDINGs have concrete, unguarded, exploitable attack paths. LEADs have real code smells with partial paths — default to LEAD over dropping.
