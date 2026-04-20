@@ -15,6 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(deprecated)]
+
 use super::*;
 pub use mock::{EmaOracle, RuntimeOrigin, Test};
 
@@ -29,12 +31,28 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 use crate::tests::mock::ALICE;
 use polkadot_xcm::v5::prelude::*;
-use sp_runtime::DispatchError::BadOrigin;
+
+const BIFROST_HDX_DOT_PAIR: (crate::AssetId, crate::AssetId) = (0, 5);
+
+fn setup_bifrost_auth() {
+	assert_ok!(EmaOracle::register_external_source(
+		RuntimeOrigin::root(),
+		BIFROST_SOURCE
+	));
+	assert_ok!(EmaOracle::add_authorized_account(
+		RuntimeOrigin::root(),
+		BIFROST_SOURCE,
+		BIFROST_HDX_DOT_PAIR,
+		ALICE
+	));
+}
 
 #[test]
 fn add_oracle_should_add_entry_to_storage() {
 	new_test_ext().execute_with(|| {
 		//Arrange
+		setup_bifrost_auth();
+
 		let hdx = polkadot_xcm::v5::Location::new(0, polkadot_xcm::v5::Junctions::X1([GeneralIndex(0)].into()))
 			.into_versioned();
 
@@ -70,6 +88,8 @@ fn add_oracle_should_add_entry_to_storage() {
 fn successful_oracle_update_shouldnt_pay_fee() {
 	new_test_ext().execute_with(|| {
 		//Arrange
+		setup_bifrost_auth();
+
 		let hdx = polkadot_xcm::v5::Location::new(0, polkadot_xcm::v5::Junctions::X1([GeneralIndex(0)].into()))
 			.into_versioned();
 		let dot = polkadot_xcm::v5::Location::parent().into_versioned();
@@ -78,7 +98,7 @@ fn successful_oracle_update_shouldnt_pay_fee() {
 		let res =
 			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE), Box::new(hdx), Box::new(dot), (100, 99));
 
-		// Assert
+		//Assert
 		assert_eq!(res, Ok(Pays::No.into()));
 	});
 }
@@ -87,6 +107,8 @@ fn successful_oracle_update_shouldnt_pay_fee() {
 fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
 	new_test_ext().execute_with(|| {
 		//Arrange
+		setup_bifrost_auth();
+
 		let hdx = polkadot_xcm::v5::Location::new(0, [polkadot_xcm::v5::Junction::GeneralIndex(0)]).into_versioned();
 
 		let dot = polkadot_xcm::v5::Location::parent().into_versioned();
@@ -118,9 +140,11 @@ fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
 }
 
 #[test]
-fn bitfrost_oracle_should_not_be_updated_by_nonpriviliged_account() {
+fn bifrost_oracle_should_not_be_updated_by_nonprivileged_account() {
 	new_test_ext().execute_with(|| {
 		//Arrange
+		setup_bifrost_auth();
+
 		let hdx = polkadot_xcm::v5::Location::new(0, [polkadot_xcm::v5::Junction::GeneralIndex(0)]).into_versioned();
 
 		let dot = polkadot_xcm::v5::Location::parent().into_versioned();
@@ -128,92 +152,69 @@ fn bitfrost_oracle_should_not_be_updated_by_nonpriviliged_account() {
 		let asset_a = Box::new(hdx);
 		let asset_b = Box::new(dot);
 
-		//Act
 		System::set_block_number(3);
 
+		//Act & Assert
 		assert_noop!(
 			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(BOB), asset_a, asset_b, (100, 99)),
-			BadOrigin
+			Error::<Test>::NotAuthorized
 		);
 	});
 }
 
 #[test]
-fn should_fail_when_new_price_is_bigger_than_allowed() {
+fn should_fail_when_price_is_zero() {
 	new_test_ext().execute_with(|| {
 		//Arrange
+		setup_bifrost_auth();
+
 		let hdx = polkadot_xcm::v5::Location::new(0, [polkadot_xcm::v5::Junction::GeneralIndex(0)]).into_versioned();
-
 		let dot = polkadot_xcm::v5::Location::parent().into_versioned();
-
-		let asset_a = Box::new(hdx);
-		let asset_b = Box::new(dot);
 
 		System::set_block_number(3);
 
-		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(ALICE),
-			asset_a.clone(),
-			asset_b.clone(),
-			(100, 100)
-		));
-
-		update_aggregated_oracles();
-
-		//Act
+		//Act & Assert
 		assert_noop!(
 			EmaOracle::update_bifrost_oracle(
 				RuntimeOrigin::signed(ALICE),
-				asset_a.clone(),
-				asset_b.clone(),
-				(111, 100)
+				Box::new(hdx.clone()),
+				Box::new(dot.clone()),
+				(0, 100)
 			),
-			Error::<Test>::PriceOutsideAllowedRange
+			Error::<Test>::PriceIsZero
 		);
 
 		assert_noop!(
-			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE), asset_a, asset_b, (89, 100)),
-			Error::<Test>::PriceOutsideAllowedRange
+			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE), Box::new(hdx), Box::new(dot), (100, 0)),
+			Error::<Test>::PriceIsZero
 		);
 	});
 }
 
 #[test]
-fn should_pass_when_new_price_is_still_within_range() {
+fn bifrost_oracle_rejects_unauthorized_pair() {
 	new_test_ext().execute_with(|| {
-		//Arrange
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE
+		));
+		// Alice is authorized only for (0, 1), not for (0, 5).
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+			(0, 1),
+			ALICE
+		));
+
 		let hdx = polkadot_xcm::v5::Location::new(0, [polkadot_xcm::v5::Junction::GeneralIndex(0)]).into_versioned();
-
 		let dot = polkadot_xcm::v5::Location::parent().into_versioned();
-
-		let asset_a = Box::new(hdx);
-		let asset_b = Box::new(dot);
 
 		System::set_block_number(3);
 
-		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(ALICE),
-			asset_a.clone(),
-			asset_b.clone(),
-			(100, 100)
-		));
-
-		update_aggregated_oracles();
-
-		//Act
-		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(ALICE),
-			asset_a.clone(),
-			asset_b.clone(),
-			(110, 100)
-		),);
-
-		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(ALICE),
-			asset_a,
-			asset_b,
-			(90, 100)
-		),);
+		assert_noop!(
+			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE), Box::new(hdx), Box::new(dot), (100, 99)),
+			Error::<Test>::NotAuthorized
+		);
 	});
 }
 
@@ -222,5 +223,3 @@ pub fn update_aggregated_oracles() {
 	System::set_block_number(7);
 	EmaOracle::on_initialize(7);
 }
-
-//TODO: add negative test when it is not called by bitfrost origni

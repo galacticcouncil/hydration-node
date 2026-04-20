@@ -1,6 +1,10 @@
 [package]
 name = "hydradx-runtime"
-version = "412.0.0"
+<<<<<<<<< Temporary merge branch 1
+version = "410.0.0"
+=========
+version = "411.0.0"
+>>>>>>>>> Temporary merge branch 2
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
