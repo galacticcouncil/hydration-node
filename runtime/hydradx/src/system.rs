@@ -587,6 +587,15 @@ impl pallet_proxy::Config for Runtime {
 	type BlockNumberProvider = System;
 }
 
+sp_api::decl_runtime_apis! {
+	/// Runtime API for reverse proxy lookups.
+	pub trait ProxyApi {
+		/// Given a delegate account, return every delegator that has granted
+		/// proxy permissions to it, along with the proxy type and delay.
+		fn proxies_for_delegate(delegate: AccountId) -> sp_std::vec::Vec<(AccountId, ProxyType, BlockNumber)>;
+	}
+}
+
 parameter_types! {
 	pub DepositBase: Balance = deposit(1, 88);
 	pub DepositFactor: Balance = deposit(0, 32);

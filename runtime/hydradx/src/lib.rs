@@ -1037,6 +1037,20 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl system::ProxyApi<Block> for Runtime {
+		fn proxies_for_delegate(delegate: AccountId) -> Vec<(AccountId, ProxyType, BlockNumber)> {
+			let mut result = Vec::new();
+			for (delegator, (proxies, _deposit)) in pallet_proxy::Proxies::<Runtime>::iter() {
+				for proxy_def in proxies.iter() {
+					if proxy_def.delegate == delegate {
+						result.push((delegator.clone(), proxy_def.proxy_type, proxy_def.delay));
+					}
+				}
+			}
+			result
+		}
+	}
+
 	impl evm::precompiles::erc20_mapping::Erc20MappingApi<Block> for Runtime {
 		fn asset_address(asset_id: AssetId) -> EvmAddress {
 			HydraErc20Mapping::asset_address(asset_id)
