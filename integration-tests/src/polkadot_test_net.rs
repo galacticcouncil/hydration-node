@@ -121,6 +121,10 @@ pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000_000_000 * UNITS;
 pub const CHARLIE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 
+pub fn bifrost_account() -> AccountId {
+	hydradx_runtime::BifrostAccount::get()
+}
+
 pub fn parachain_reserve_account() -> AccountId {
 	polkadot_parachain::primitives::Sibling::from(ACALA_PARA_ID).into_account_truncating()
 }

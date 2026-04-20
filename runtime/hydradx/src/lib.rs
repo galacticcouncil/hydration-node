@@ -70,7 +70,7 @@ pub use sp_runtime::{
 		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
-	transaction_validity::{TransactionValidity, TransactionValidityError},
+	transaction_validity::{InvalidTransaction, TransactionValidity, TransactionValidityError},
 	DispatchError, Permill, TransactionOutcome,
 };
 
@@ -129,7 +129,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 410,
+	spec_version: 411,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -457,7 +457,13 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		len: usize,
 	) -> Option<Result<(), TransactionValidityError>> {
 		match self {
-			RuntimeCall::Ethereum(call) => call.pre_dispatch_self_contained(info, dispatch_info, len),
+			RuntimeCall::Ethereum(call) => {
+				// don't allow on-chain EVM transactions from a bound address
+				if EVMAccounts::bound_account_id(*info).is_some() {
+					return Some(Err(TransactionValidityError::Invalid(InvalidTransaction::BadSigner)));
+				}
+				call.pre_dispatch_self_contained(info, dispatch_info, len)
+			}
 			_ => None,
 		}
 	}
@@ -839,10 +845,6 @@ impl_runtime_apis! {
 							_ => (None, None),
 						};
 
-			// don't allow calling EVM RPC or Runtime API from a bound address
-			if !estimate && EVMAccounts::bound_account_id(from).is_some() {
-				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
-			};
 
 			<Runtime as pallet_evm::Config>::Runner::call(
 				from,
@@ -922,10 +924,6 @@ impl_runtime_apis! {
 					_ => (None, None),
 				};
 
-			// don't allow calling EVM RPC or Runtime API from a bound address
-			if !estimate && EVMAccounts::bound_account_id(from).is_some() {
-				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
-			};
 
 			// the address needs to have a permission to deploy smart contract
 			if !EVMAccounts::can_deploy_contracts(from) {
