@@ -299,10 +299,11 @@ where
 	fn supply(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
 		let who = ensure_signed(origin.clone())?;
 
-		Self::do_supply_on_behalf_of(&who, &who, asset, amount)
+		Self::do_supply_on_behalf_of(<BorrowingContract<T>>::get(), &who, &who, asset, amount)
 	}
 
 	pub(crate) fn do_supply_on_behalf_of(
+		pool: EvmAddress,
 		who: &T::AccountId,
 		on_behalf_of: &T::AccountId,
 		asset: EvmAddress,
@@ -312,7 +313,7 @@ where
 		let on_behalf_of = <T as pallet_liquidation::Config>::EvmAccounts::evm_address(&on_behalf_of);
 		let referer_code = 0_u16;
 
-		let context = CallContext::new_call(<BorrowingContract<T>>::get(), who);
+		let context = CallContext::new_call(pool, who);
 		let data = EvmDataWriter::new_with_selector(Function::Supply)
 			.write(asset)
 			.write(amount)
@@ -322,11 +323,15 @@ where
 
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
 	}
-	pub(crate) fn withdraw(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
-		let who = ensure_signed(origin)?;
+	pub(crate) fn do_withdraw(
+		pool: EvmAddress,
+		who: &T::AccountId,
+		asset: EvmAddress,
+		amount: Balance,
+	) -> Result<(), DispatchError> {
 		let to = <T as pallet_liquidation::Config>::EvmAccounts::evm_address(&who);
 
-		let context = CallContext::new_call(<BorrowingContract<T>>::get(), to);
+		let context = CallContext::new_call(pool, to);
 		let data = EvmDataWriter::new_with_selector(Function::Withdraw)
 			.write(asset)
 			.write(amount)
@@ -334,6 +339,12 @@ where
 			.build();
 
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
+	}
+
+	pub(crate) fn withdraw(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
+		let who = ensure_signed(origin)?;
+
+		Self::do_withdraw(<BorrowingContract<T>>::get(), &who, asset, amount)
 	}
 
 	fn do_withdraw_all_to(from: &T::AccountId, to: &T::AccountId, asset: EvmAddress) -> Result<(), DispatchError> {

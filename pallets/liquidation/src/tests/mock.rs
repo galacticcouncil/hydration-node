@@ -38,6 +38,8 @@ pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 3;
+pub const GIGAHDX: AssetId = 67;
+pub const HOLLAR: AssetId = 222;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const ALICE_HDX_INITIAL_BALANCE: Balance = 1_000_000_000_000 * ONE;
@@ -46,6 +48,8 @@ pub const ALICE_DOT_INITIAL_BALANCE: Balance = 1_000_000_000_000 * ONE;
 pub const ALICE: AccountId = AccountId::new([1; 32]);
 pub const BOB: AccountId = AccountId::new([2; 32]);
 pub const MONEY_MARKET: AccountId = AccountId::new([9; 32]);
+pub const TREASURY: AccountId = AccountId::new([10; 32]);
+pub const GIGAHDX_LIQ_ACCOUNT: AccountId = AccountId::new([11; 32]);
 
 frame_support::construct_runtime!(
 	pub enum Test
@@ -66,6 +70,36 @@ frame_support::construct_runtime!(
 parameter_types! {
 	pub const LiquidationGasLimit: u64 = 1_000_000;
 	pub const HollarId: u32 = 222;
+	pub const GigaHdxAssetId: u32 = 67;
+	pub GigaHdxTreasuryAccount: AccountId = TREASURY;
+	pub GigaHdxLiquidationAccount: AccountId = GIGAHDX_LIQ_ACCOUNT;
+}
+
+use std::cell::RefCell;
+
+thread_local! {
+	static PREPARE_FOR_LIQUIDATION_CALLED: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
+	static PREPARE_FOR_LIQUIDATION_SHOULD_FAIL: RefCell<bool> = RefCell::new(false);
+}
+
+pub struct MockPrepareForLiquidation;
+
+impl PrepareForLiquidation<AccountId> for MockPrepareForLiquidation {
+	fn prepare_for_liquidation(who: &AccountId) -> frame_support::dispatch::DispatchResult {
+		if PREPARE_FOR_LIQUIDATION_SHOULD_FAIL.with(|v| *v.borrow()) {
+			return Err(sp_runtime::DispatchError::Other("prepare_for_liquidation failed"));
+		}
+		PREPARE_FOR_LIQUIDATION_CALLED.with(|v| v.borrow_mut().push(who.clone()));
+		Ok(())
+	}
+}
+
+pub fn prepare_for_liquidation_was_called_with() -> Vec<AccountId> {
+	PREPARE_FOR_LIQUIDATION_CALLED.with(|v| v.borrow().clone())
+}
+
+pub fn set_prepare_for_liquidation_should_fail(fail: bool) {
+	PREPARE_FOR_LIQUIDATION_SHOULD_FAIL.with(|v| *v.borrow_mut() = fail);
 }
 
 parameter_type_with_key! {
@@ -95,23 +129,74 @@ fn decode_liquidation_call_data(data: Vec<u8>) -> Option<(EvmAddress, EvmAddress
 	}
 }
 
+fn decode_borrow_call_data(data: &[u8]) -> Option<(EvmAddress, crate::Balance, EvmAddress)> {
+	// borrow(address,uint256,uint256,uint16,address) = 4 + 5*32 = 164 bytes
+	if data.len() != 164 {
+		return None;
+	}
+	let function_u32 = u32::from_be_bytes(data[0..4].try_into().ok()?);
+	let function = Function::try_from(function_u32).ok()?;
+	if function != Function::Borrow {
+		return None;
+	}
+	let asset = EvmAddress::from(H256::from_slice(&data[4..36]));
+	let amount = Balance::try_from(U256::from_big_endian(&data[36..68])).ok()?;
+	let on_behalf_of = EvmAddress::from(H256::from_slice(&data[132..164]));
+	Some((asset, amount, on_behalf_of))
+}
+
+thread_local! {
+	static EVM_BORROW_SHOULD_FAIL: RefCell<bool> = RefCell::new(false);
+}
+
+pub fn set_evm_borrow_should_fail(fail: bool) {
+	EVM_BORROW_SHOULD_FAIL.with(|v| *v.borrow_mut() = fail);
+}
+
 pub struct EvmMock;
 impl EVM<CallResult> for EvmMock {
 	fn call(context: CallContext, data: Vec<u8>, _value: U256, _gas: u64) -> CallResult {
+		let fail_result = || CallResult {
+			exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+			value: vec![],
+			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
+		};
+
+		let ok_result = || CallResult {
+			exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+			value: vec![],
+			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
+		};
+
+		// Try borrow call first
+		if let Some((asset_addr, amount, on_behalf_of)) = decode_borrow_call_data(&data) {
+			if EVM_BORROW_SHOULD_FAIL.with(|v| *v.borrow()) {
+				return fail_result();
+			}
+			// Mock borrow: mint the debt asset to the borrower
+			let asset_id = HydraErc20Mapping::decode_evm_address(asset_addr);
+			let borrower = EvmAccounts::account_id(on_behalf_of);
+			if let Some(asset_id) = asset_id {
+				use frame_support::traits::fungibles::Mutate as FMutate;
+				let _ = <FungibleCurrencies<Test> as FMutate<AccountId>>::mint_into(asset_id, &borrower, amount);
+			}
+			return ok_result();
+		}
+
+		// Try liquidation call
 		let maybe_data = decode_liquidation_call_data(data);
 		match maybe_data {
 			Some(data) => {
 				let collateral_asset = HydraErc20Mapping::decode_evm_address(data.0);
 				let debt_asset = HydraErc20Mapping::decode_evm_address(data.1);
+				let receive_atoken = data.4;
 
 				if collateral_asset.is_none() || debt_asset.is_none() {
-					return CallResult {
-						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
-						value: vec![],
-						contract: context.contract,
-						gas_used: U256::zero(),
-						gas_limit: U256::zero(),
-					};
+					return fail_result();
 				};
 
 				let collateral_asset = collateral_asset.unwrap();
@@ -121,47 +206,41 @@ impl EVM<CallResult> for EvmMock {
 				let contract_addr = EvmAccounts::account_id(context.contract);
 				let amount = data.3;
 
+				// Transfer debt from caller to contract (repay)
 				let first_transfer_result = Currencies::transfer(
 					RuntimeOrigin::signed(caller.clone()),
 					contract_addr.clone(),
 					debt_asset,
 					amount,
 				);
+
+				// Transfer collateral from contract to caller (seize)
+				// For receive_atoken=true, seize the aToken (GIGAHDX) not the underlying (stHDX).
+				let seized_asset = if receive_atoken && collateral_asset == 670 {
+					GigaHdxAssetId::get()
+				} else {
+					collateral_asset
+				};
+				let collateral_amount = if receive_atoken {
+					amount + amount / 10
+				} else {
+					2 * amount
+				};
 				let second_transfer_result = Currencies::transfer(
 					RuntimeOrigin::signed(contract_addr),
 					caller,
-					collateral_asset,
-					2 * amount,
+					seized_asset,
+					collateral_amount,
 				);
 
 				if first_transfer_result.is_err() || second_transfer_result.is_err() {
-					return CallResult {
-						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
-						value: vec![],
-						contract: context.contract,
-						gas_used: U256::zero(),
-						gas_limit: U256::zero(),
-					};
+					return fail_result();
 				}
 			}
-			None => {
-				return CallResult {
-					exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
-					value: vec![],
-					contract: context.contract,
-					gas_used: U256::zero(),
-					gas_limit: U256::zero(),
-				}
-			}
+			None => return fail_result(),
 		}
 
-		CallResult {
-			exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
-			value: vec![],
-			contract: context.contract,
-			gas_used: U256::zero(),
-			gas_limit: U256::zero(),
-		}
+		ok_result()
 	}
 
 	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {
@@ -237,6 +316,10 @@ impl Config for Test {
 	type FlashMinter = ();
 	type EvmErrorDecoder = EvmErrorDecodeMock;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type GigaHdxAssetId = GigaHdxAssetId;
+	type TreasuryAccount = GigaHdxTreasuryAccount;
+	type GigaHdxLiquidationAccount = GigaHdxLiquidationAccount;
+	type GigaHdxVoting = MockPrepareForLiquidation;
 }
 
 pub struct EvmErrorDecodeMock;
@@ -536,6 +619,7 @@ impl Default for ExtBuilder {
 				(ALICE, HDX, ALICE_HDX_INITIAL_BALANCE),
 				(MONEY_MARKET, HDX, 1_000_000_000_000 * ONE),
 				(MONEY_MARKET, DOT, 1_000_000_000_000 * ONE),
+				(MONEY_MARKET, GIGAHDX, 1_000_000_000_000 * ONE),
 				(ALICE, DAI, 1_000_000_000_000_000_000 * ONE),
 				(ALICE, DOT, ALICE_DOT_INITIAL_BALANCE),
 				(BOB, HDX, 1_000_000_000 * ONE),
@@ -579,6 +663,24 @@ impl ExtBuilder {
 				10_000,
 				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
 				Some(12),
+				None::<Balance>,
+				true,
+			),
+			(
+				Some(GIGAHDX),
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"GIGAHDX".to_vec().try_into().unwrap()),
+				10_000,
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"GIGAHDX".to_vec().try_into().unwrap()),
+				Some(12),
+				None::<Balance>,
+				true,
+			),
+			(
+				Some(HOLLAR),
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"HOLLAR".to_vec().try_into().unwrap()),
+				10_000,
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"HOLLAR".to_vec().try_into().unwrap()),
+				Some(18),
 				None::<Balance>,
 				true,
 			),
