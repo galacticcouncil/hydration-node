@@ -7,8 +7,9 @@ use pallet_asset_registry::AssetType;
 use pallet_circuit_breaker::types::EgressOperationKind;
 use pallet_circuit_breaker::GlobalAssetCategory;
 use primitives::Balance;
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::Convert;
-use sp_runtime::DispatchResult;
+use sp_runtime::{DispatchResult, FixedPointNumber, FixedU128, Rounding};
 use sp_std::marker::PhantomData;
 
 pub struct WithdrawLimitHandler<RC>(PhantomData<RC>);
@@ -26,14 +27,17 @@ impl<ReferenceCurrencyId: Get<AssetId>> WithdrawCircuitBreaker<ReferenceCurrency
 			return Ok(amount);
 		}
 
-		let (converted, _) = ConvertBalance::<TenMinutesOraclePrice, XykPaymentAssetSupport, DotAssetId>::convert((
+		ConvertBalance::<TenMinutesOraclePrice, XykPaymentAssetSupport, DotAssetId>::convert((
 			asset_id,
 			ref_currency,
 			amount,
 		))
-		.ok_or(pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset)?;
-
-		Ok(converted)
+		.map(|(converted, _)| converted)
+		.or_else(|| {
+			let price = MultiTransactionPayment::currency_price(asset_id)?;
+			multiply_by_rational_with_rounding(amount, FixedU128::DIV, price.into_inner(), Rounding::Up)
+		})
+		.ok_or_else(|| pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset.into())
 	}
 
 	pub fn global_asset_category(asset_id: AssetId) -> Option<GlobalAssetCategory> {

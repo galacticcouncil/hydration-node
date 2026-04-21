@@ -1528,3 +1528,49 @@ fn inbound_xcm_incomplete_message_still_accounts_egress() {
 		);
 	});
 }
+
+#[test]
+fn polkadot_xcm_execute_withdraw_external_asset_succeeds_when_oracle_cannot_price_route() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		init_global_withdraw_limit_params();
+
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DOT,
+			Some(GlobalAssetCategory::External)
+		));
+		// XCM asset transactor needs a location -> asset id mapping for DOT.
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DOT,
+			FixedU128::from_rational(50, 100),
+		));
+		pallet_transaction_multi_payment::AcceptedCurrencyPrice::<hydradx_runtime::Runtime>::insert(
+			DOT,
+			FixedU128::from_rational(50, 100),
+		);
+
+		let alice: AccountId = ALICE.into();
+		let amount = 10 * UNITS;
+		let alice_dot_before = Currencies::free_balance(DOT, &alice);
+		assert!(alice_dot_before >= amount);
+
+		//Act
+		let message = xcm_message_withdraw_deposit(Location::parent(), amount);
+		let call = RuntimeCall::PolkadotXcm(pallet_xcm::Call::execute {
+			message: Box::new(VersionedXcm::from(message)),
+			max_weight: Weight::from_parts(1_000_000_000_000, 0),
+		});
+
+		assert_ok!(call.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())));
+
+		//Assert
+		assert!(
+			Currencies::free_balance(DOT, &alice) <= alice_dot_before - amount,
+			"DOT must have been withdrawn from Alice for the outbound XCM; before={alice_dot_before}, after={}",
+			Currencies::free_balance(DOT, &alice)
+		);
+	});
+}
