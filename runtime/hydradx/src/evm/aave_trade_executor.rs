@@ -52,6 +52,7 @@ pub enum Function {
 	// Pool
 	Supply = "supply(address,uint256,address,uint16)",
 	Withdraw = "withdraw(address,uint256,address)",
+	SetUserUseReserveAsCollateral = "setUserUseReserveAsCollateral(address,bool)",
 	GetReserveData = "getReserveData(address)",
 	GetConfiguration = "getConfiguration(address)",
 	GetReservesList = "getReservesList()",
@@ -323,6 +324,25 @@ where
 
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
 	}
+	/// Enable (or disable) `asset` as collateral for `who` on `pool`.
+	/// Required in isolation mode: AAVE leaves the flag off by default after
+	/// the initial supply, so users have zero borrow power until it's flipped.
+	pub(crate) fn do_set_use_reserve_as_collateral(
+		pool: EvmAddress,
+		who: &T::AccountId,
+		asset: EvmAddress,
+		enabled: bool,
+	) -> Result<(), DispatchError> {
+		let who_evm = T::EvmAccounts::evm_address(who);
+		let context = CallContext::new_call(pool, who_evm);
+		let data = EvmDataWriter::new_with_selector(Function::SetUserUseReserveAsCollateral)
+			.write(asset)
+			.write(enabled)
+			.build();
+
+		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
+	}
+
 	pub(crate) fn do_withdraw(
 		pool: EvmAddress,
 		who: &T::AccountId,

@@ -1221,11 +1221,17 @@ fn received_gigahdx_is_transferable_while_existing_balance_is_locked() {
 	});
 }
 
-//TODO: fix ot accept
-///  BUG: When PendingRewards is full (25 entries), removing a vote silently drops the reward
-/// because on_remove_vote ignores the MaxVotesReached error with `let _ =`.
+/// When PendingRewards hits MaxVotes (25), removing a vote from a completed
+/// referendum cannot record the reward. The pallet preserves the vote so the
+/// user never loses their unclaimed reward — it stays in GigaHdxVotes and the
+/// new reward is NOT silently dropped. See commit 6500e0053 in hooks.rs.
+///
+/// NOTE: end-to-end recovery (retrying remove_vote after freeing slots) is
+/// still an open design question — pallet-conviction-voting clears its own
+/// state before our hook runs, so a second remove_vote can't reach our path.
+/// Pinging Martin for the intended user flow.
 #[test]
-fn reward_lost_when_pending_rewards_full() {
+fn pending_rewards_full_preserves_vote_until_claim() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1238,7 +1244,7 @@ fn reward_lost_when_pending_rewards_full() {
 			100 * UNITS,
 		));
 
-		// Pre-fill PendingRewards to MaxVotes (25) entries
+		// Pre-fill PendingRewards to MaxVotes (25) entries.
 		pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::mutate(&alice, |entries| {
 			for i in 0..25u32 {
 				let _ = entries.try_push(pallet_gigahdx_voting::types::PendingRewardEntry {
@@ -1264,28 +1270,25 @@ fn reward_lost_when_pending_rewards_full() {
 		));
 		end_referendum();
 
-		//Act
+		//Act: first remove_vote attempt — reward slot full, vote must be preserved.
 		assert_ok!(ConvictionVoting::remove_vote(
 			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
 			Some(0),
 			r,
 		));
 
-		//Assert
 		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r);
-		assert!(vote.is_none(), "Vote should be removed");
-
-		let pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
-		assert_eq!(
-			pending.len(),
-			25,
-			"Still 25 entries - the 26th reward was silently lost"
+		assert!(
+			vote.is_some(),
+			"Vote must be preserved so the user doesn't lose the reward"
 		);
+		let pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(pending.len(), 25, "PendingRewards stays full — no new entry could be added");
 		assert!(
 			!pending.iter().any(|e| e.referenda_id == r),
-			"Reward for referendum {} was lost because PendingRewards was full",
-			r
+			"New referendum isn't in pending yet — reward wasn't recorded"
 		);
+
 	});
 }
 

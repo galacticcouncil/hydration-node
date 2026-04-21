@@ -49,6 +49,11 @@ impl hydradx_traits::gigahdx::MoneyMarketOperations<AccountId, AssetId, Balance>
 
 		Aave::do_supply_on_behalf_of(pool, who, who, asset_evm, amount)?;
 
+		// In isolation mode AAVE does NOT auto-enable supplied reserves as collateral.
+		// Without this call the user holds GIGAHDX but has zero borrow power.
+		// Idempotent — safe to invoke on every gigastake.
+		Aave::do_set_use_reserve_as_collateral(pool, who, asset_evm, true)?;
+
 		Ok(amount)
 	}
 

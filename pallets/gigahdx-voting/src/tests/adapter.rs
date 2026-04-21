@@ -121,6 +121,49 @@ fn extend_lock_does_not_decrease() {
 }
 
 #[test]
+fn extend_lock_same_amount_recomputes_split_after_gigahdx_balance_grows() {
+	// Reproduces Bug #2: after voting, if the user's GIGAHDX balance grows
+	// (e.g., by staking more) and a subsequent vote triggers extend_lock
+	// with the same total lock amount, the split must re-derive from the
+	// new GIGAHDX balance — not stay stale at the old split.
+	ExtBuilder::default().build().execute_with(|| {
+		// ALICE starts with 500 GIGAHDX + 1000 HDX.
+		<GigaHdxVotingCurrency<Test> as LockableCurrency<AccountId>>::set_lock(
+			VOTING_LOCK,
+			&ALICE,
+			800 * ONE,
+			WithdrawReasons::all(),
+		);
+
+		let split = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split.gigahdx_amount, 500 * ONE);
+		assert_eq!(split.hdx_amount, 300 * ONE);
+
+		// Simulate giga_stake that grows GIGAHDX by 200 (no adapter call happens
+		// on stake — the pallet doesn't know the voting lock needs an update).
+		use frame_support::traits::fungibles::Mutate as FungiblesMutate;
+		<<Test as pallet_gigahdx::Config>::Currency>::mint_into(GIGAHDX, &ALICE, 200 * ONE).unwrap();
+
+		// Next vote → conviction-voting calls extend_lock with the max active vote
+		// across classes. In this scenario that value is unchanged (still 800).
+		<GigaHdxVotingCurrency<Test> as LockableCurrency<AccountId>>::extend_lock(
+			VOTING_LOCK,
+			&ALICE,
+			800 * ONE,
+			WithdrawReasons::all(),
+		);
+
+		// Split MUST reflect current GIGAHDX balance.
+		let split = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split.gigahdx_amount, 700 * ONE, "prefer locking GIGAHDX over HDX");
+		assert_eq!(split.hdx_amount, 100 * ONE, "leftover on HDX side");
+
+		let evm_lock = crate::GigaHdxVotingLock::<Test>::get(&ALICE);
+		assert_eq!(evm_lock, 700 * ONE, "precompile sees correct GIGAHDX lock");
+	});
+}
+
+#[test]
 fn hdx_only_voter_no_gigahdx_lock() {
 	ExtBuilder::default()
 		.with_endowed(vec![

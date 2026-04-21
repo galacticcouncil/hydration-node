@@ -74,8 +74,8 @@ fn on_before_vote_split_uses_none_conviction() {
 		assert_eq!(recorded.conviction, Conviction::None);
 		// Balance is 200 + 100 = 300, capped at GIGAHDX balance 500 → 300.
 		assert_eq!(recorded.amount, 300 * ONE);
-		// Weighted: 300 * 1 (None multiplier) = 300.
-		assert_eq!(crate::ReferendaTotalWeightedVotes::<Test>::get(0), 300 * ONE);
+		// Weighted: 300 * 1 / REWARD_MULTIPLIER_SCALE(10) = 30. None conviction has a 0.1x reward weight.
+		assert_eq!(crate::ReferendaTotalWeightedVotes::<Test>::get(0), 30 * ONE);
 	});
 }
 

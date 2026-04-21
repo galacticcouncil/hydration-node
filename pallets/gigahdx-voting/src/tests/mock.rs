@@ -110,7 +110,6 @@ impl pallet_balances::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -130,7 +129,6 @@ parameter_types! {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
@@ -138,6 +136,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 
@@ -154,7 +153,6 @@ parameter_types! {
 }
 
 impl pallet_gigahdx::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Test>;
 	type LockableCurrency = Currencies;
 	type MoneyMarket = ();
@@ -242,7 +240,6 @@ parameter_types! {
 }
 
 impl pallet_gigahdx_voting::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type NativeCurrency = Balances;
 	type Referenda = MockReferenda;
 	type TrackRewards = MockTrackRewards;

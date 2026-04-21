@@ -45,13 +45,22 @@ mod tests;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-use frame_support::{pallet_prelude::*, traits::tokens::Preservation, PalletId};
+use frame_support::{
+	pallet_prelude::*,
+	traits::{tokens::Preservation, LockIdentifier, LockableCurrency},
+	PalletId,
+};
 use frame_system::pallet_prelude::*;
 use hydradx_traits::gigahdx::{ForceRemoveVote, GetReferendumOutcome, GetTrackId, TrackRewardConfig};
 use primitives::Balance;
 use sp_runtime::traits::{AccountIdConversion, Zero};
 
 use types::*;
+
+/// pallet-conviction-voting's lock identifier. It's declared there as a private
+/// constant so we redeclare it here to force-clear pallet-balances HDX locks
+/// during liquidation.
+const CONVICTION_VOTING_ID: LockIdentifier = *b"pyconvot";
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -310,6 +319,15 @@ impl<T: Config> Pallet<T> {
 				GigaHdxVotes::<T>::remove(who, ref_index);
 			}
 		}
+
+		// Force-clear the voting lock storage regardless of conviction-period
+		// expiry. The EVM precompile at 0x0806 reads GigaHdxVotingLock and the
+		// LockableAToken blocks any transfer while it's non-zero — including
+		// the liquidation seize. The HDX-side pallet-balances lock is removed
+		// too because liquidation cancels the user's governance commitment.
+		GigaHdxVotingLock::<T>::remove(who);
+		LockSplit::<T>::remove(who);
+		<T::NativeCurrency as LockableCurrency<T::AccountId>>::remove_lock(CONVICTION_VOTING_ID, who);
 
 		if count > 0 {
 			Self::deposit_event(Event::VotesForceRemoved {

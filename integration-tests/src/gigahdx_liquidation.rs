@@ -498,13 +498,12 @@ fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
 	});
 }
 
-//TODO: BUG: verify and fix
-/// After giga_stake, stHDX is not auto-enabled as collateral because it's an isolated asset
-/// (debtCeiling != 0). This means the user has GIGAHDX but zero borrowing power.
-/// The UI handles this for PRIME by bundling a setUserUseReserveAsCollateral tx,
-/// but giga_stake bypasses the UI — so the pallet needs to handle it.
+/// After giga_stake, stHDX must be auto-enabled as collateral — it's isolated
+/// (debtCeiling != 0), so AAVE leaves usageAsCollateralEnabled=false by default.
+/// `AaveMoneyMarket::supply` now calls `Pool.setUserUseReserveAsCollateral(stHDX, true)`
+/// after supply so borrow power is live immediately.
 #[test]
-fn giga_stake_does_not_enable_collateral_for_isolated_sthdx() {
+fn giga_stake_auto_enables_collateral_for_isolated_sthdx() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -535,38 +534,19 @@ fn giga_stake_does_not_enable_collateral_for_isolated_sthdx() {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), stake_amount);
 
-		// Alice has GIGAHDX but Aave shows zero collateral — stHDX is isolated and not auto-enabled
+		// Collateral should already be enabled — no manual setUseAsCollateral needed.
 		let user_data = get_user_account_data(pool_contract, alice_evm).unwrap();
-		assert_eq!(
-			user_data.total_collateral_base,
-			U256::zero(),
-			"Collateral should be 0 — stHDX is isolated and not auto-enabled"
+		assert!(
+			user_data.total_collateral_base > U256::zero(),
+			"Collateral must be non-zero — giga_stake should auto-enable stHDX"
 		);
-		assert_eq!(
-			user_data.available_borrows_base,
-			U256::zero(),
-			"Borrowing power should be 0 without collateral enabled"
+		assert!(
+			user_data.available_borrows_base > U256::zero(),
+			"Borrow power must be non-zero after giga_stake"
 		);
 
-		// Trying to borrow HOLLAR fails — no collateral enabled
+		// Borrow HOLLAR works immediately.
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
-		borrow_should_fail(pool_contract, alice_evm, hollar_addr, 1 * HOLLAR_UNITS);
-
-		// After manually enabling stHDX as collateral, borrowing works
-		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
-		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
-
-		let user_data_after = get_user_account_data(pool_contract, alice_evm).unwrap();
-		assert!(
-			user_data_after.total_collateral_base > U256::zero(),
-			"Collateral should be non-zero after enabling"
-		);
-		assert!(
-			user_data_after.available_borrows_base > U256::zero(),
-			"Borrowing power should be non-zero after enabling"
-		);
-
-		// Now borrow succeeds
 		borrow(pool_contract, alice_evm, hollar_addr, 1 * HOLLAR_UNITS);
 	});
 }

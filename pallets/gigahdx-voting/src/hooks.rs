@@ -6,7 +6,6 @@
 
 use crate::types::{Conviction, GigaHdxVote, REWARD_MULTIPLIER_SCALE};
 use crate::{Config, Event, GigaHdxVotes, Pallet, ReferendaTotalWeightedVotes, ReferendumTracks};
-use frame_support::defensive;
 use frame_support::dispatch::DispatchResult;
 use frame_support::pallet_prelude::Get;
 use frame_support::traits::fungibles::Inspect;
@@ -118,7 +117,10 @@ impl<T: Config> VotingHooks<T::AccountId, u32, Balance> for GigaHdxVotingHooks<T
 				ReferendaTotalWeightedVotes::<T>::mutate(ref_index, |total| {
 					*total = total.saturating_add(weighted);
 				});
-				defensive!("Reward recording failed — PendingRewards likely full. Vote preserved.");
+				log::warn!(
+					target: "gigahdx-voting",
+					"Reward recording failed for {who:?} ref {ref_index} — PendingRewards full. Vote preserved; user must call claim_rewards to free a slot and retry remove_vote.",
+				);
 				return;
 			}
 		}

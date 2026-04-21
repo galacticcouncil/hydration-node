@@ -111,3 +111,50 @@ fn additional_unstake_lock_zero_no_votes() {
 		assert_eq!(lock, 0);
 	});
 }
+
+/// Reproduces Bug #5: liquidation must clear GigaHdxVotingLock + LockSplit so that
+/// the EVM precompile at 0x0806 reports zero locked GIGAHDX. Without this, AAVE's
+/// LockableAToken._transfer reverts during liquidationCall because the stale lock
+/// amount exceeds the free balance.
+#[test]
+fn prepare_for_liquidation_clears_voting_lock_storage() {
+	use crate::adapter::GigaHdxVotingCurrency;
+	use frame_support::traits::{LockIdentifier, LockableCurrency, WithdrawReasons};
+
+	const VOTING_LOCK: LockIdentifier = *b"pyconvot";
+
+	ExtBuilder::default().build().execute_with(|| {
+		set_referendum_outcome(0, ReferendumOutcome::Approved);
+		set_track_id(0, 0);
+
+		// Vote to populate GigaHdxVotes + ReferendaTotalWeightedVotes storage.
+		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 300 * ONE);
+		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
+
+		// Simulate conviction-voting's set_lock(300) on our adapter. ALICE has
+		// 500 GIGAHDX + 1000 HDX → entire 300 locked in GIGAHDX.
+		<GigaHdxVotingCurrency<Test> as LockableCurrency<AccountId>>::set_lock(
+			VOTING_LOCK,
+			&ALICE,
+			300 * ONE,
+			WithdrawReasons::all(),
+		);
+
+		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 300 * ONE);
+		let split = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split.gigahdx_amount, 300 * ONE);
+
+		// Liquidation entry point.
+		assert_ok!(crate::Pallet::<Test>::prepare_for_liquidation(&ALICE));
+
+		// Everything the EVM precompile or native-currency layer can see must be zero.
+		assert_eq!(
+			crate::GigaHdxVotingLock::<Test>::get(&ALICE),
+			0,
+			"precompile would still report locked GIGAHDX → AAVE transfer reverts"
+		);
+		let split_after = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split_after.gigahdx_amount, 0);
+		assert_eq!(split_after.hdx_amount, 0);
+	});
+}
