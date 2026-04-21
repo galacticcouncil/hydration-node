@@ -1923,11 +1923,8 @@ fn dca_slippage_not_enforced_at_resolve_time() {
 			}
 
 			let block = hydradx_runtime::System::block_number();
-			let call = pallet_ice::Pallet::<Runtime>::run(
-				block,
-				|intents, state| Solver::solve(intents, state).ok(),
-			)
-			.expect("solver should produce a solution");
+			let call = pallet_ice::Pallet::<Runtime>::run(block, |intents, state| Solver::solve(intents, state).ok())
+				.expect("solver should produce a solution");
 			let pallet_ice::Call::submit_solution { solution, .. } = call else {
 				panic!("Expected submit_solution call");
 			};
@@ -1952,10 +1949,7 @@ fn dca_slippage_not_enforced_at_resolve_time() {
 			let bnc_before = Currencies::total_balance(BNC, &alice);
 
 			hydradx_run_to_next_block();
-			let result = pallet_ice::Pallet::<Runtime>::submit_solution(
-				RuntimeOrigin::none(),
-				crafted,
-			);
+			let result = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), crafted);
 
 			// Today: accepts (only hard limit is checked).
 			assert!(
