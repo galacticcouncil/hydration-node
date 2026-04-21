@@ -52,10 +52,15 @@ use primitives::Balance;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::{
 	traits::{AccountIdConversion, CheckedAdd, Zero},
-	FixedPointNumber, FixedU128, Rounding, SaturatedConversion,
+	FixedPointNumber, FixedU128, Rounding,
 };
 
 use types::UnstakePosition;
+
+/// Single aggregate lock identifier shared by all unstake positions of an account.
+/// The amount stored against this lock equals the sum of every active position's
+/// `amount` for the account — recomputed on every stake/unlock.
+const UNSTAKE_LOCK_ID: LockIdentifier = *b"gigaulok";
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -127,11 +132,6 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
-	/// Monotonic counter for generating unique lock IDs.
-	/// Combined with block number to produce collision-free identifiers.
-	#[pallet::storage]
-	pub type NextLockIndex<T: Config> = StorageValue<_, u32, ValueQuery>;
-
 	// -----------------------------------------------------------------------
 	// Events
 	// -----------------------------------------------------------------------
@@ -160,7 +160,6 @@ pub mod pallet {
 		/// HDX unlocked after cooldown expired.
 		Unlocked {
 			who: T::AccountId,
-			lock_id: LockIdentifier,
 			hdx_amount: Balance,
 		},
 
@@ -305,22 +304,18 @@ pub mod pallet {
 				.ok_or(Error::<T>::Arithmetic)?;
 
 			UnstakePositions::<T>::try_mutate(&who, |positions| -> DispatchResult {
-				let idx = NextLockIndex::<T>::get();
-				NextLockIndex::<T>::put(idx.wrapping_add(1));
-				let lock_id = Self::generate_lock_id(current_block, idx);
-
-				// Lock HDX in user's account.
-				T::LockableCurrency::set_lock(lock_id, T::HdxAssetId::get(), &who, hdx_amount)?;
-
 				let position = UnstakePosition {
-					lock_id,
 					amount: hdx_amount,
 					unlock_at,
 				};
-
 				positions
 					.try_push(position)
 					.map_err(|_| Error::<T>::TooManyUnstakePositions)?;
+
+				// Aggregate lock: re-set the single lock with the new total so
+				// pallet-balances sees sum(positions), not max(positions).
+				let total_locked = Self::total_locked(positions)?;
+				T::LockableCurrency::set_lock(UNSTAKE_LOCK_ID, T::HdxAssetId::get(), &who, total_locked)?;
 				Ok(())
 			})?;
 
@@ -351,20 +346,24 @@ pub mod pallet {
 				for i in (0..positions.len()).rev() {
 					if current_block >= positions[i].unlock_at {
 						let position = positions.remove(i);
-
-						T::LockableCurrency::remove_lock(position.lock_id, T::HdxAssetId::get(), &target)?;
-
 						Self::deposit_event(Event::Unlocked {
 							who: target.clone(),
-							lock_id: position.lock_id,
 							hdx_amount: position.amount,
 						});
-
 						unlocked_any = true;
 					}
 				}
 
 				ensure!(unlocked_any, Error::<T>::NothingToUnlock);
+
+				// Re-sync the aggregate lock with the remaining positions. If
+				// nothing is left, drop the lock entirely.
+				let total_locked = Self::total_locked(positions)?;
+				if total_locked.is_zero() {
+					T::LockableCurrency::remove_lock(UNSTAKE_LOCK_ID, T::HdxAssetId::get(), &target)?;
+				} else {
+					T::LockableCurrency::set_lock(UNSTAKE_LOCK_ID, T::HdxAssetId::get(), &target, total_locked)?;
+				}
 				Ok(())
 			})
 		}
@@ -468,14 +467,14 @@ impl<T: Config> Pallet<T> {
 		multiply_by_rational_with_rounding(st_hdx_amount, Self::total_hdx(), total_st_hdx, Rounding::Down)
 	}
 
-	/// Generate lock identifier for an unstake position.
-	/// Combines block number (4 bytes) with counter index (4 bytes) for collision-free IDs.
-	/// Even if the counter wraps after ~4.3B unstakes, the block number will differ.
-	fn generate_lock_id(block_number: BlockNumberFor<T>, index: u32) -> LockIdentifier {
-		let mut id = [0u8; 8];
-		let block_bytes = block_number.saturated_into::<u32>().to_le_bytes();
-		id[..4].copy_from_slice(&block_bytes);
-		id[4..].copy_from_slice(&index.to_le_bytes());
-		id
+	/// Sum of every active position's `amount` for an account.
+	/// Bounded by `MaxUnstakePositions` (currently 10), so the cost is constant.
+	fn total_locked(
+		positions: &BoundedVec<UnstakePosition<BlockNumberFor<T>>, T::MaxUnstakePositions>,
+	) -> Result<Balance, Error<T>> {
+		positions
+			.iter()
+			.try_fold(Balance::zero(), |acc, p| acc.checked_add(p.amount))
+			.ok_or(Error::<T>::Arithmetic)
 	}
 }
