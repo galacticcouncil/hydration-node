@@ -96,7 +96,7 @@ Before reporting a finding, check it against this list. If a finding matches a p
 
 **Pattern:** Flagging stale oracle state after asset removal and re-addition.
 
-**Why it's wrong (when fixed):** If the runtime has been updated to clear oracle entries on `remove_token()` or reinitialize oracle state on `add_token()`, this is a known-fixed issue. Check for `OracleAccumulatorEntries::remove()` or equivalent cleanup in the remove/add flow before reporting.
+**Why it's wrong (when fixed):** If the runtime has been updated to clear oracle entries on `remove_token()` or reinitialize oracle state on `add_token()`, this is a known-fixed issue. Check for oracle accumulator cleanup or equivalent in the remove/add flow before reporting.
 
 ---
 
