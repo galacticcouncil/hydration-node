@@ -6236,7 +6236,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "13.2.0"
+version = "13.2.1"
 dependencies = [
  "approx",
  "criterion",
@@ -10184,7 +10184,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.18.0"
+version = "1.18.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -11450,7 +11450,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "7.3.0"
+version = "7.3.1"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -11479,7 +11479,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "3.3.1"
+version = "3.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
