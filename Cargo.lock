@@ -17585,6 +17585,7 @@ dependencies = [
  "frame-system",
  "futures",
  "hex",
+ "hex-literal",
  "hydradx",
  "hydradx-runtime",
  "indicatif",
