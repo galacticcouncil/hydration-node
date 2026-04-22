@@ -1071,66 +1071,148 @@ impl<A: AMMInterface> Solver<A> {
 				})
 				.fold(0u128, |acc, v| acc.saturating_add(v));
 
-			let v_f_max: Balance = f_partials
-				.iter()
-				.map(|p| p.fill_amount)
-				.fold(0u128, |acc, v| acc.saturating_add(v));
-			let v_b_max: Balance = b_partials
-				.iter()
-				.map(|p| p.fill_amount)
-				.fold(0u128, |acc, v| acc.saturating_add(v));
-
-			if v_f_max == 0 && v_b_max == 0 {
-				continue;
-			}
-
-			// Tightest per-direction minimum rate (n/d) — the highest `amount_out/amount_in`
-			// demanded by any partial in that direction.
-			let tight_f = Self::tightest_rate(&f_partials);
-			let tight_b = Self::tightest_rate(&b_partials);
-
-			// Binary search over `t`.
 			const GRANULARITY: u64 = 1_000_000_000;
-			const MAX_ITER: u32 = 30;
-			let mut lo: u64 = 0;
-			let mut hi: u64 = GRANULARITY;
-			let mut best_t: u64 = 0;
+			const MAX_BINARY_SEARCH_ITER: u32 = 30;
 
-			for _ in 0..MAX_ITER {
-				if lo > hi {
+			// Iterative drop loop: when the joint fit would set best_t=0, the
+			// partial with the highest demanded rate in the blocking direction
+			// is the cause. Drop it and retry; otherwise a single unreachable
+			// intent poisons every other partial on the pair.
+			let max_drop_rounds = f_partials.len() + b_partials.len() + 1;
+			let mut best_t: u64 = 0;
+			let mut v_f_max: Balance = 0;
+			let mut v_b_max: Balance = 0;
+
+			for _round in 0..max_drop_rounds {
+				v_f_max = f_partials
+					.iter()
+					.map(|p| p.fill_amount)
+					.fold(0u128, |acc, v| acc.saturating_add(v));
+				v_b_max = b_partials
+					.iter()
+					.map(|p| p.fill_amount)
+					.fold(0u128, |acc, v| acc.saturating_add(v));
+
+				if v_f_max == 0 && v_b_max == 0 {
 					break;
 				}
-				let mid = lo.saturating_add(hi) / 2;
-				let v_f = Self::scale_by_t(v_f_max, mid, GRANULARITY);
-				let v_b = Self::scale_by_t(v_b_max, mid, GRANULARITY);
 
-				let total_f = fixed_f.saturating_add(v_f);
-				let total_b = fixed_b.saturating_add(v_b);
+				// Tightest per-direction minimum rate (n/d) — the highest
+				// `amount_out/amount_in` demanded by any partial in that
+				// direction. A single unreachable rate forces best_t = 0 below.
+				let tight_f = Self::tightest_rate(&f_partials);
+				let tight_b = Self::tightest_rate(&b_partials);
 
-				let meets = if total_f == 0 && total_b == 0 {
-					true
-				} else if let Some(c) =
-					Self::compute_pair_clearing_from_totals(asset_a, asset_b, total_f, total_b, spot_prices, state)
-				{
-					let f_ok = match tight_f {
-						Some((tn, td)) => c.forward_n.saturating_mul(td) >= tn.saturating_mul(c.forward_d),
-						None => true,
+				// Binary search over `t`.
+				let mut lo: u64 = 0;
+				let mut hi: u64 = GRANULARITY;
+				best_t = 0;
+
+				for _ in 0..MAX_BINARY_SEARCH_ITER {
+					if lo > hi {
+						break;
+					}
+					let mid = lo.saturating_add(hi) / 2;
+					let v_f = Self::scale_by_t(v_f_max, mid, GRANULARITY);
+					let v_b = Self::scale_by_t(v_b_max, mid, GRANULARITY);
+
+					let total_f = fixed_f.saturating_add(v_f);
+					let total_b = fixed_b.saturating_add(v_b);
+
+					let meets = if total_f == 0 && total_b == 0 {
+						true
+					} else if let Some(c) = Self::compute_pair_clearing_from_totals(
+						asset_a, asset_b, total_f, total_b, spot_prices, state,
+					) {
+						let f_ok = match tight_f {
+							Some((tn, td)) => c.forward_n.saturating_mul(td) >= tn.saturating_mul(c.forward_d),
+							None => true,
+						};
+						let b_ok = match tight_b {
+							Some((tn, td)) => c.backward_n.saturating_mul(td) >= tn.saturating_mul(c.backward_d),
+							None => true,
+						};
+						f_ok && b_ok
+					} else {
+						false
 					};
-					let b_ok = match tight_b {
-						Some((tn, td)) => c.backward_n.saturating_mul(td) >= tn.saturating_mul(c.backward_d),
-						None => true,
-					};
-					f_ok && b_ok
-				} else {
-					false
+
+					if meets {
+						best_t = mid;
+						lo = mid.saturating_add(1);
+					} else {
+						hi = mid.saturating_sub(1);
+					}
+				}
+
+				if best_t > 0 {
+					break;
+				}
+
+				// best_t == 0: identify which direction is blocking at minimum
+				// volume (t=1 granularity unit) and drop that direction's
+				// tightest-rate partial. Falling back to t=1 keeps the check
+				// stable — at t=0 both directions look fine (no volume).
+				let probe_v_f = Self::scale_by_t(v_f_max, 1, GRANULARITY).max(if v_f_max > 0 { 1 } else { 0 });
+				let probe_v_b = Self::scale_by_t(v_b_max, 1, GRANULARITY).max(if v_b_max > 0 { 1 } else { 0 });
+				let probe_total_f = fixed_f.saturating_add(probe_v_f);
+				let probe_total_b = fixed_b.saturating_add(probe_v_b);
+
+				let blocking: Option<bool> = match Self::compute_pair_clearing_from_totals(
+					asset_a,
+					asset_b,
+					probe_total_f,
+					probe_total_b,
+					spot_prices,
+					state,
+				) {
+					Some(c) => {
+						let f_blocked = match tight_f {
+							Some((tn, td)) => c.forward_n.saturating_mul(td) < tn.saturating_mul(c.forward_d),
+							None => false,
+						};
+						let b_blocked = match tight_b {
+							Some((tn, td)) => c.backward_n.saturating_mul(td) < tn.saturating_mul(c.backward_d),
+							None => false,
+						};
+						// Prefer dropping from whichever direction is blocked.
+						// If both blocked, drop forward first, then backward
+						// on the next iteration.
+						if f_blocked {
+							Some(true)
+						} else if b_blocked {
+							Some(false)
+						} else {
+							None
+						}
+					}
+					None => {
+						// Clearing failed entirely — drop from whichever
+						// direction still has partials.
+						if !f_partials.is_empty() {
+							Some(true)
+						} else if !b_partials.is_empty() {
+							Some(false)
+						} else {
+							None
+						}
+					}
 				};
 
-				if meets {
-					best_t = mid;
-					lo = mid.saturating_add(1);
-				} else {
-					hi = mid.saturating_sub(1);
-				}
+				let dropped = match blocking {
+					Some(true) => Self::drop_tightest(&mut f_partials),
+					Some(false) => Self::drop_tightest(&mut b_partials),
+					None => None,
+				};
+
+				let Some(dropped_id) = dropped else {
+					// No progress possible — bail.
+					break;
+				};
+				log::debug!(
+					target: "solver::v2",
+					"fit_partials_jointly: pair ({asset_a}, {asset_b}) best_t=0; dropped tightest partial {dropped_id}, retrying",
+				);
 			}
 
 			if best_t == 0 {
@@ -1141,6 +1223,28 @@ impl<A: AMMInterface> Solver<A> {
 			Self::distribute_fills(fills, &f_partials, v_f_max, best_t, GRANULARITY);
 			Self::distribute_fills(fills, &b_partials, v_b_max, best_t, GRANULARITY);
 		}
+	}
+
+	/// Remove and return the id of the partial with the highest
+	/// `amount_out/amount_in` rate. Returns `None` if the slice is empty.
+	fn drop_tightest<'a>(partials: &mut Vec<IntentFill<'a>>) -> Option<IntentId> {
+		let mut best_idx: Option<usize> = None;
+		let mut best_n: U256 = U256::zero();
+		let mut best_d: U256 = U256::one();
+		for (i, p) in partials.iter().enumerate() {
+			let IntentData::Swap(s) = &p.intent.data else {
+				continue;
+			};
+			let n = U256::from(s.amount_out);
+			let d = U256::from(s.amount_in.max(1));
+			// n/d > best_n/best_d  <=>  n*best_d > best_n*d
+			if best_idx.is_none() || n.saturating_mul(best_d) > best_n.saturating_mul(d) {
+				best_idx = Some(i);
+				best_n = n;
+				best_d = d;
+			}
+		}
+		best_idx.map(|i| partials.remove(i).intent.id)
 	}
 
 	/// Largest `amount_out/amount_in` demanded by any intent in the list.
