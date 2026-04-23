@@ -109,17 +109,13 @@ impl<T: Config> VotingHooks<T::AccountId, u32, Balance> for GigaHdxVotingHooks<T
 		});
 
 		// If referendum completed, allocate rewards and record user's share.
-		// VotingHooks trait is infallible (returns ()), so if recording fails
-		// (e.g. PendingRewards full), restore the vote to preserve reward data.
-		// User must claim_rewards to make room, then remove the vote again.
 		if status == Status::Completed {
-			if crate::rewards::maybe_allocate_and_record::<T>(who, ref_index, &vote).is_err() {
-				GigaHdxVotes::<T>::insert(who, ref_index, &vote);
-				ReferendaTotalWeightedVotes::<T>::mutate(ref_index, |total| {
-					*total = total.saturating_add(weighted);
-				});
-				defensive!("Reward recording failed — PendingRewards likely full. Vote preserved.");
-				return;
+			if let Err(e) = crate::rewards::maybe_allocate_and_record::<T>(who, ref_index, &vote) {
+				// With StuckRewards dead-letter queue in place, capacity errors cannot
+				// reach here — any failure now is an unexpected dispatch error. Do NOT
+				// re-insert the vote: pallet-conviction-voting has already cleared it
+				// and re-inserting would desync storage.
+				defensive!("maybe_allocate_and_record unexpected error: {:?}", e);
 			}
 		}
 

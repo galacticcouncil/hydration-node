@@ -1221,11 +1221,10 @@ fn received_gigahdx_is_transferable_while_existing_balance_is_locked() {
 	});
 }
 
-//TODO: fix ot accept
-///  BUG: When PendingRewards is full (25 entries), removing a vote silently drops the reward
-/// because on_remove_vote ignores the MaxVotesReached error with `let _ =`.
+//  When PendingRewards is full, removing a vote routes the reward to StuckRewards
+/// (dead-letter queue) instead of silently dropping it.
 #[test]
-fn reward_lost_when_pending_rewards_full() {
+fn reward_routed_to_stuck_when_pending_rewards_full() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1271,21 +1270,79 @@ fn reward_lost_when_pending_rewards_full() {
 			r,
 		));
 
-		//Assert
+		//Assert — vote cleared, reward routed to StuckRewards (not lost).
 		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r);
 		assert!(vote.is_none(), "Vote should be removed");
 
 		let pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
-		assert_eq!(
-			pending.len(),
-			25,
-			"Still 25 entries - the 26th reward was silently lost"
-		);
+		assert_eq!(pending.len(), 25, "PendingRewards still full");
 		assert!(
 			!pending.iter().any(|e| e.referenda_id == r),
-			"Reward for referendum {} was lost because PendingRewards was full",
-			r
+			"Overflow reward should not be in PendingRewards"
 		);
+
+		let stuck = pallet_gigahdx_voting::StuckRewards::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(stuck.len(), 1, "Overflow reward should be in StuckRewards");
+		assert_eq!(stuck[0].referenda_id, r, "StuckRewards entry matches the referendum");
+	});
+}
+
+#[test]
+fn pending_rewards_full_during_unstake_does_not_desync() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		// Fill PendingRewards near cap (25 entries).
+		pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::mutate(&alice, |entries| {
+			for i in 0..25u32 {
+				let _ = entries.try_push(pallet_gigahdx_voting::types::PendingRewardEntry {
+					referenda_id: 9000 + i,
+					reward_amount: 1 * UNITS,
+				});
+			}
+		});
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+		end_referendum();
+
+		// Unstake — on_unstake force-removes the finished vote. PendingRewards is full,
+		// so the reward goes to StuckRewards. Storage must not desync.
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		// Invariant: GigaHdxVotes entry is gone (mirrors conviction-voting state).
+		assert!(
+			pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).is_none(),
+			"GigaHdxVotes must be cleared unconditionally"
+		);
+
+		// Any stranded rewards are recoverable via drain.
+		let stuck = pallet_gigahdx_voting::StuckRewards::<hydradx_runtime::Runtime>::get(&alice);
+		if !stuck.is_empty() {
+			assert_ok!(GigaHdxVoting::claim_rewards(hydradx_runtime::RuntimeOrigin::signed(alice.clone())));
+			assert_ok!(GigaHdxVoting::drain_stuck_rewards(
+				hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+				alice.clone(),
+			));
+			assert!(
+				pallet_gigahdx_voting::StuckRewards::<hydradx_runtime::Runtime>::get(&alice).is_empty(),
+				"StuckRewards drained"
+			);
+		}
 	});
 }
 
