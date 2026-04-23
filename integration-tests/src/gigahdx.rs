@@ -16,6 +16,7 @@ use sp_runtime::{DispatchError, TokenError};
 use xcm_emulator::Network;
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx";
+pub const PATH_TO_SNAPSHOT_V2: &str = "snapshots/gigahdx/gigahdx2";
 
 const UNITS: Balance = 1_000_000_000_000;
 const STHDX: u32 = 670;
@@ -539,5 +540,97 @@ fn gigahdx_transfer_fails_when_locked_by_conviction_vote() {
 
 		// Transferring any GIGAHDX should fail — entire balance is locked.
 		assert!(Currencies::transfer(RuntimeOrigin::signed(alice.clone()), bob.clone(), GIGAHDX, 1 * UNITS,).is_err());
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Unstake minimum-remaining tests — require gigahdx2 snapshot
+// ---------------------------------------------------------------------------
+
+/// Unstaking that would leave a non-zero but sub-MinStake GIGAHDX position is rejected.
+#[test]
+fn giga_unstake_fails_when_remaining_below_min_stake() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_V2).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			1_000_000 * UNITS
+		));
+		// Stake 100 UNITS → receive ~100 UNITS GIGAHDX at current rate.
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		let gigahdx_balance = Currencies::free_balance(GIGAHDX, &alice);
+		assert!(gigahdx_balance > 0);
+
+		// Unstake all but 1 UNIT of GIGAHDX. The remaining 1 UNIT is worth < MinStake (10 UNITS).
+		assert_noop!(
+			GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), gigahdx_balance - UNITS),
+			pallet_gigahdx::Error::<hydradx_runtime::Runtime>::RemainingBelowMinStake
+		);
+
+		// Balances unchanged after failed call.
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), gigahdx_balance);
+	});
+}
+
+/// Unstaking that leaves a GIGAHDX position worth >= MinStake in HDX succeeds.
+#[test]
+fn giga_unstake_partial_succeeds_when_remaining_meets_min_stake() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_V2).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			1_000_000 * UNITS
+		));
+		// Stake 100 UNITS → receive ~100 UNITS GIGAHDX.
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		let gigahdx_balance = Currencies::free_balance(GIGAHDX, &alice);
+
+		// Unstake half — remaining ~50 UNITS GIGAHDX is worth >= MinStake (10 UNITS).
+		let unstake_amount = gigahdx_balance / 2;
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			unstake_amount
+		));
+
+		assert_eq!(
+			Currencies::free_balance(GIGAHDX, &alice),
+			gigahdx_balance - unstake_amount
+		);
+	});
+}
+
+/// Full exit (unstaking entire GIGAHDX balance) is always permitted regardless of MinStake.
+#[test]
+fn giga_unstake_full_exit_always_succeeds() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_V2).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			1_000_000 * UNITS
+		));
+		// Stake exactly MinStake to get the smallest valid GIGAHDX position.
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 10 * UNITS));
+
+		let gigahdx_balance = Currencies::free_balance(GIGAHDX, &alice);
+		assert!(gigahdx_balance > 0);
+
+		// Unstaking everything (remaining == 0) must always succeed.
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			gigahdx_balance
+		));
+
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 0);
 	});
 }
