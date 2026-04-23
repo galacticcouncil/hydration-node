@@ -142,6 +142,7 @@ parameter_types! {
 	pub const GigaHdxAssetId: AssetId = GIGAHDX;
 	pub const CooldownPeriod: u64 = 100; // 100 blocks for tests
 	pub const MinStake: Balance = ONE;
+	pub const MinUnstake: Balance = ONE;
 	pub const MaxUnstakePositions: u32 = 10;
 }
 
@@ -156,6 +157,7 @@ impl pallet_gigahdx::Config for Test {
 	type GigaHdxAssetId = GigaHdxAssetId;
 	type CooldownPeriod = CooldownPeriod;
 	type MinStake = MinStake;
+	type MinUnstake = MinUnstake;
 	type MaxUnstakePositions = MaxUnstakePositions;
 	type WeightInfo = ();
 }

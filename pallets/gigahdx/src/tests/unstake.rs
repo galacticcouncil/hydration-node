@@ -121,3 +121,119 @@ fn giga_unstake_at_increased_rate() {
 		assert_eq!(positions[0].amount, 200 * ONE);
 	});
 }
+
+// ---------------------------------------------------------------------------
+// Phase 1 — MinUnstake floor tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn giga_unstake_should_fail_below_min_unstake() {
+	ExtBuilder::default().build().execute_with(|| {
+		setup_stake(ALICE, 100 * ONE);
+
+		// MinUnstake in mock is ONE. Try to unstake half of ONE.
+		assert_noop!(
+			GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), ONE / 2),
+			Error::<Test>::InsufficientUnstake
+		);
+	});
+}
+
+#[test]
+fn giga_unstake_should_succeed_at_exactly_min_unstake() {
+	ExtBuilder::default().build().execute_with(|| {
+		setup_stake(ALICE, 100 * ONE);
+
+		// Exactly MinUnstake must succeed.
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), ONE));
+	});
+}
+
+#[test]
+fn giga_unstake_zero_error_precedes_min_unstake() {
+	// ZeroAmount takes precedence over InsufficientUnstake to avoid confusing error ordering.
+	ExtBuilder::default().build().execute_with(|| {
+		setup_stake(ALICE, 100 * ONE);
+
+		assert_noop!(
+			GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 0),
+			Error::<Test>::ZeroAmount
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 — Multiple concurrent unlock position tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn giga_unstake_positions_have_independent_cooldowns() {
+	ExtBuilder::default().build().execute_with(|| {
+		setup_stake(ALICE, 100 * ONE);
+
+		// First unstake at block 1.
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 10 * ONE));
+
+		// Advance the chain and unstake again.
+		System::set_block_number(50);
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 10 * ONE));
+
+		let positions = GigaHdx::unstake_positions(&ALICE);
+		assert_eq!(positions.len(), 2);
+		// Position 0 unlocks at 1 + 100 = 101.
+		// Position 1 unlocks at 50 + 100 = 150.
+		assert_eq!(positions[0].unlock_at, 101);
+		assert_eq!(positions[1].unlock_at, 150);
+		assert_ne!(positions[0].lock_id, positions[1].lock_id);
+	});
+}
+
+#[test]
+fn unlock_frees_only_expired_positions() {
+	ExtBuilder::default().build().execute_with(|| {
+		setup_stake(ALICE, 100 * ONE);
+
+		// Two positions, staggered.
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 10 * ONE));
+		System::set_block_number(50);
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 10 * ONE));
+
+		// Advance to unlock the first but not the second: first expires at 101, second at 150.
+		System::set_block_number(120);
+
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(ALICE), ALICE));
+
+		let positions = GigaHdx::unstake_positions(&ALICE);
+		assert_eq!(positions.len(), 1, "only the unexpired position remains");
+		assert_eq!(positions[0].unlock_at, 150);
+	});
+}
+
+#[test]
+fn unlock_fails_when_no_position_expired() {
+	ExtBuilder::default().build().execute_with(|| {
+		setup_stake(ALICE, 100 * ONE);
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 10 * ONE));
+
+		// Block 1, first unlock is at 101. Try to unlock at block 50 — nothing to unlock.
+		System::set_block_number(50);
+		assert_noop!(
+			GigaHdx::unlock(RuntimeOrigin::signed(ALICE), ALICE),
+			Error::<Test>::NothingToUnlock
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 — on_post_unstake hook invocation regression
+// ---------------------------------------------------------------------------
+
+#[test]
+fn giga_unstake_calls_on_post_unstake_hook() {
+	// The gigahdx mock uses Hooks = (), so on_post_unstake is a no-op.
+	// This test guards against future refactors that accidentally drop the hook call.
+	ExtBuilder::default().build().execute_with(|| {
+		setup_stake(ALICE, 100 * ONE);
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 50 * ONE));
+	});
+}

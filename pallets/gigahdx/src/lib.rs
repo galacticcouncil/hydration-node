@@ -104,6 +104,12 @@ pub mod pallet {
 		#[pallet::constant]
 		type MinStake: Get<Balance>;
 
+		/// Minimum GIGAHDX amount per giga-unstake.
+		/// Denominated in GIGAHDX units (same denomination as the extrinsic input).
+		/// Prevents dust positions and rounding-to-zero HDX payouts.
+		#[pallet::constant]
+		type MinUnstake: Get<Balance>;
+
 		/// Maximum unstake positions per account.
 		#[pallet::constant]
 		type MaxUnstakePositions: Get<u32>;
@@ -188,6 +194,8 @@ pub mod pallet {
 		ZeroAmount,
 		/// Stake amount below minimum.
 		InsufficientStake,
+		/// Unstake amount below minimum.
+		InsufficientUnstake,
 		/// Arithmetic overflow/underflow.
 		Arithmetic,
 		/// No unlockable positions (none exist or all still in cooldown).
@@ -196,6 +204,8 @@ pub mod pallet {
 		TooManyUnstakePositions,
 		/// Cannot unstake while votes exist in ongoing referenda.
 		ActiveVotesInOngoingReferenda,
+		/// Insufficient Balance to unstake
+		InsufficientBalance,
 	}
 
 	// -----------------------------------------------------------------------
@@ -260,6 +270,10 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			ensure!(!gigahdx_amount.is_zero(), Error::<T>::ZeroAmount);
+			ensure!(
+				gigahdx_amount >= T::MinUnstake::get(),
+				Error::<T>::InsufficientUnstake
+			);
 
 			// Block if user has votes in ongoing referenda.
 			ensure!(T::Hooks::can_unstake(&who), Error::<T>::ActiveVotesInOngoingReferenda);
@@ -272,6 +286,10 @@ pub mod pallet {
 
 			// Withdraw GIGAHDX from Money Market → receive stHDX.
 			let st_hdx_withdrawn = T::MoneyMarket::withdraw(&who, T::StHdxAssetId::get(), gigahdx_amount)?;
+
+			// Re-apply voting-lock split against the user's new (reduced) GIGAHDX balance.
+			// Caps the tracker and spills uncovered commitment to a hard HDX lock.
+			T::Hooks::on_post_unstake(&who)?;
 
 			// Calculate HDX amount based on current exchange rate.
 			let hdx_amount = Self::calculate_hdx_for_st_hdx(st_hdx_withdrawn).ok_or(Error::<T>::Arithmetic)?;

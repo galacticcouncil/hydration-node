@@ -364,7 +364,7 @@ impl<T: Config> LockableCurrency<T::AccountId> for GigaHdxVotingCurrency<T> {
 }
 
 impl<T: Config> GigaHdxVotingCurrency<T> {
-	fn apply_lock_split(id: LockIdentifier, who: &T::AccountId, amount: Balance) {
+	pub(crate) fn apply_lock_split(id: LockIdentifier, who: &T::AccountId, amount: Balance) {
 		let gigahdx_bal = gigahdx_balance::<T>(who);
 
 		let gigahdx_lock = amount.min(gigahdx_bal);

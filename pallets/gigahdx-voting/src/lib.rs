@@ -389,4 +389,21 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 			.max()
 			.unwrap_or_else(Zero::zero)
 	}
+
+	fn on_post_unstake(who: &T::AccountId) -> DispatchResult {
+		let split = LockSplit::<T>::get(who);
+		let total = split.gigahdx_amount.saturating_add(split.hdx_amount);
+		if total.is_zero() {
+			// No voting lock in place — nothing to recompute.
+			return Ok(());
+		}
+
+		// Re-run the split with the user's (now-reduced) GIGAHDX balance.
+		// apply_lock_split caps the tracker at the new balance and spills
+		// uncovered commitment onto a hard HDX lock.
+		const CONVICTION_VOTING_LOCK_ID: frame_support::traits::LockIdentifier = *b"pyconvot";
+		crate::adapter::GigaHdxVotingCurrency::<T>::apply_lock_split(CONVICTION_VOTING_LOCK_ID, who, total);
+
+		Ok(())
+	}
 }
