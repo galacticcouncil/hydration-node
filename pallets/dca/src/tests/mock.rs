@@ -18,7 +18,7 @@
 use crate as dca;
 use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
-use frame_support::traits::{Everything, Nothing, SortedMembers};
+use frame_support::traits::{Everything, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
@@ -139,26 +139,18 @@ parameter_types! {
 	pub static MockBlockNumberProvider: u64 = 0;
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
 	OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
-	pub PriceDifference: Permill = Permill::from_percent(10);
 }
 
-pub struct BifrostAcc;
-impl SortedMembers<AccountId> for BifrostAcc {
-	fn sorted_members() -> Vec<AccountId> {
-		vec![ALICE]
-	}
-}
 impl pallet_ema_oracle::Config for Test {
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = Everything;
+	type InternalSources = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
 	type LocationToAssetIdConversion = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
-	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
-	type MaxAllowedPriceDifference = PriceDifference;
 	type WeightInfo = ();
 }
 
