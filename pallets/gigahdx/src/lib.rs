@@ -291,10 +291,6 @@ pub mod pallet {
 			// Withdraw GIGAHDX from Money Market → receive stHDX.
 			let st_hdx_withdrawn = T::MoneyMarket::withdraw(&who, T::StHdxAssetId::get(), gigahdx_amount)?;
 
-			// Re-apply voting-lock split against the user's new (reduced) GIGAHDX balance.
-			// Caps the tracker and spills uncovered commitment to a hard HDX lock.
-			T::Hooks::on_post_unstake(&who)?;
-
 			// Calculate HDX amount based on current exchange rate.
 			let hdx_amount = Self::calculate_hdx_for_st_hdx(st_hdx_withdrawn).ok_or(Error::<T>::Arithmetic)?;
 			ensure!(!hdx_amount.is_zero(), Error::<T>::ZeroAmount);
@@ -345,6 +341,11 @@ pub mod pallet {
 					.map_err(|_| Error::<T>::TooManyUnstakePositions)?;
 				Ok(())
 			})?;
+
+			// Re-apply voting-lock split against the user's new (reduced) GIGAHDX balance.
+			// Caps the tracker and spills uncovered commitment to a hard HDX lock.
+			// Runs after the HDX transfer so apply_lock_split observes the final balance.
+			T::Hooks::on_post_unstake(&who)?;
 
 			Self::deposit_event(Event::Unstaked {
 				who,

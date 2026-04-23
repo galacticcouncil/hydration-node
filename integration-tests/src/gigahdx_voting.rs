@@ -1874,3 +1874,37 @@ fn unstake_with_voting_lock_creates_one_position_with_max_cooldown() {
 		assert_eq!(positions[0].unlock_at, before_block + expected_cooldown);
 	});
 }
+
+#[test]
+fn on_post_unstake_sees_final_hdx_balance() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			200 * UNITS,
+		));
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(150 * UNITS, Conviction::Locked6x),
+		));
+		end_referendum();
+
+		// Partial unstake — after this, remaining GIGAHDX = 50, voting commitment = 150,
+		// so the spillover to HDX must be 100.
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			150 * UNITS,
+		));
+
+		let split = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(split.gigahdx_amount, 50 * UNITS, "tracker capped at remaining GIGAHDX");
+		assert_eq!(split.hdx_amount, 100 * UNITS, "spillover = commitment - remaining");
+	});
+}
