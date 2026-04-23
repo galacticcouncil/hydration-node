@@ -967,3 +967,203 @@ fn other_users_can_stake_and_unstake_after_liquidation() {
 		));
 	});
 }
+
+/// End-to-end: liquidation must steamroll the user's voting state while preserving
+/// rewards already earned from finished referenda. Per spec §9.6, a liquidated user
+/// forfeits every in-flight vote and lock, even on ongoing referenda.
+///
+/// Scenario:
+/// 1. Alice stakes, earns a reward on a finished ref, keeps it pending.
+/// 2. Alice votes again (Locked6x) with ALL her GIGAHDX on an ongoing ref.
+///    This fully locks the aToken — any transfer reverts unless cleared.
+/// 3. Alice borrows HOLLAR, price crashes, treasury liquidates her.
+///
+/// Post-conditions the test asserts:
+/// - Full liquidation extrinsic succeeds (aToken transfer no longer blocked).
+/// - Ongoing-ref vote record gone.
+/// - GigaHdxVotingLock (read by 0x0806 precompile) is zero.
+/// - LockSplit cleared on both sides.
+/// - Reward from the earlier finished ref survives.
+/// - No reward recorded for the force-removed ongoing vote.
+/// - GigaHdxLiquidated event emitted exactly once.
+#[test]
+fn liquidation_fully_steamrolls_user_voting_state() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+		let treasury = BorrowingTreasuryAccount::get();
+		let reward_pot = pallet_gigahdx_voting::Pallet::<Runtime>::giga_reward_pot_account();
+
+		// ---- Setup ----
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			GigaHdx::gigapot_account_id(),
+			UNITS,
+		));
+		// Seed the reward pot so the finished-referendum reward is non-zero.
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			reward_pot,
+			100_000 * UNITS,
+		));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(BOB))));
+
+		let alice_evm = EVMAccounts::evm_address(&alice);
+		let pool_contract = fetch_pool_contract(alice_evm);
+		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
+		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
+
+		assert_ok!(Liquidation::set_borrowing_contract(RuntimeOrigin::root(), pool_contract));
+		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+		// ---- Alice stakes. Bug #6 fix auto-enables stHDX as collateral. ----
+		let stake_amount = 10_000 * UNITS;
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			100_000 * UNITS
+		));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
+
+		// ---- ref_a: vote, let it finish, remove_vote → reward recorded ----
+		let ref_a = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			ref_a,
+			AccountVote::Standard {
+				vote: Vote {
+					aye: true,
+					conviction: Conviction::Locked1x,
+				},
+				balance: 100 * UNITS,
+			},
+		));
+		// Move past the decision + confirm period so the referendum settles.
+		fast_forward_to(System::block_number() + 12 * DAYS);
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(alice.clone()),
+			Some(0), // Root track
+			ref_a,
+		));
+
+		let pending_after_ref_a = pallet_gigahdx_voting::PendingRewards::<Runtime>::get(&alice);
+		let ref_a_reward = pending_after_ref_a
+			.iter()
+			.find(|e| e.referenda_id == ref_a)
+			.map(|e| e.reward_amount)
+			.unwrap_or(0);
+		assert!(
+			ref_a_reward > 0,
+			"Reward for finished ref_a must be recorded before liquidation"
+		);
+
+		// ---- ref_b: vote ALL GIGAHDX at Locked6x → aToken fully locked ----
+		let ref_b = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			ref_b,
+			AccountVote::Standard {
+				vote: Vote {
+					aye: true,
+					conviction: Conviction::Locked6x,
+				},
+				balance: stake_amount,
+			},
+		));
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&alice),
+			stake_amount,
+			"Whole GIGAHDX balance should be locked by the Locked6x vote"
+		);
+
+		// ---- Alice borrows HOLLAR. Locked aToken doesn't block borrowing. ----
+		let borrow_amount: Balance = 5 * HOLLAR_UNITS;
+		borrow(pool_contract, alice_evm, hollar_addr, borrow_amount);
+
+		// ---- Fund treasury collateral so it can flash-borrow HOLLAR. ----
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			treasury.clone(),
+			2_000_000 * UNITS
+		));
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(treasury.clone()),
+			1_000_000 * UNITS
+		));
+
+		// ---- Crash price → Alice's HF < 1 ----
+		let original_price = get_aave_asset_price(sthdx_evm);
+		let mock_oracle = deploy_fixed_price_oracle(original_price * 30 / 100);
+		set_aave_price_source(sthdx_evm, mock_oracle);
+
+		// ---- The full end-to-end liquidation extrinsic ----
+		assert_ok!(Liquidation::liquidate(
+			RuntimeOrigin::signed(AccountId::from(BOB)),
+			GIGAHDX,
+			HOLLAR,
+			alice_evm,
+			borrow_amount / 2,
+			BoundedVec::new(),
+		));
+
+		// ---- Post-liquidation invariants ----
+
+		// 1. Ongoing vote entry force-removed from our storage.
+		assert!(
+			pallet_gigahdx_voting::GigaHdxVotes::<Runtime>::get(&alice, ref_b).is_none(),
+			"ref_b (ongoing) vote must be cleared after liquidation"
+		);
+
+		// 2. EVM precompile view (GigaHdxVotingLock) is zero so aToken transfers pass.
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&alice),
+			0,
+			"GigaHdxVotingLock must be zero after liquidation (precompile reads this)"
+		);
+
+		// 3. LockSplit cleared on both sides.
+		let split_after = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&alice);
+		assert_eq!(
+			split_after.gigahdx_amount, 0,
+			"LockSplit.gigahdx_amount must be cleared"
+		);
+		assert_eq!(
+			split_after.hdx_amount, 0,
+			"LockSplit.hdx_amount must be cleared"
+		);
+
+		// 4. Previously earned reward from ref_a must survive.
+		let pending_final = pallet_gigahdx_voting::PendingRewards::<Runtime>::get(&alice);
+		let ref_a_reward_final = pending_final
+			.iter()
+			.find(|e| e.referenda_id == ref_a)
+			.map(|e| e.reward_amount);
+		assert_eq!(
+			ref_a_reward_final,
+			Some(ref_a_reward),
+			"Reward from finished ref_a must persist across liquidation"
+		);
+
+		// 5. No reward for the force-removed ongoing vote. prepare_for_liquidation
+		//    intentionally does not invoke maybe_allocate_and_record for ongoing
+		//    referenda — the user forfeits governance rewards on in-flight votes.
+		assert!(
+			pending_final.iter().all(|e| e.referenda_id != ref_b),
+			"No reward should be recorded for force-removed ongoing ref_b"
+		);
+
+		// 6. Liquidation event emitted once.
+		let events = System::events();
+		let liq_count = events
+			.iter()
+			.filter(|r| {
+				matches!(
+					r.event,
+					RuntimeEvent::Liquidation(pallet_liquidation::Event::GigaHdxLiquidated { .. })
+				)
+			})
+			.count();
+		assert_eq!(liq_count, 1, "Exactly one GigaHdxLiquidated event expected");
+	});
+}
