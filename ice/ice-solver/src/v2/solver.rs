@@ -679,6 +679,22 @@ impl<A: AMMInterface> Solver<A> {
 					continue;
 				}
 
+				// Existential-deposit guard. A resolved intent whose `amount_in`
+				// or `amount_out` is below its asset's ED is rejected on-chain
+				// with `InvalidAmount` — so the solver must drop it here. The
+				// stabilization loop will retry without this intent and the
+				// clearing rate on this pair will improve for the survivors.
+				let ed_in = A::existential_deposit(swap.asset_in);
+				let ed_out = A::existential_deposit(swap.asset_out);
+				if fill < ed_in || total_out < ed_out {
+					log::debug!(
+						target: "solver::v2",
+						"intent {}: dropped — fill={} (ed_in={}) or total_out={} (ed_out={}) below ED",
+						intent.id, fill, ed_in, total_out, ed_out,
+					);
+					continue;
+				}
+
 				// Pro-rata minimum for this fill amount
 				let min_required = apply_rate(fill, U256::from(swap.amount_out), U256::from(swap.amount_in));
 
@@ -1121,9 +1137,9 @@ impl<A: AMMInterface> Solver<A> {
 
 					let meets = if total_f == 0 && total_b == 0 {
 						true
-					} else if let Some(c) = Self::compute_pair_clearing_from_totals(
-						asset_a, asset_b, total_f, total_b, spot_prices, state,
-					) {
+					} else if let Some(c) =
+						Self::compute_pair_clearing_from_totals(asset_a, asset_b, total_f, total_b, spot_prices, state)
+					{
 						let f_ok = match tight_f {
 							Some((tn, td)) => c.forward_n.saturating_mul(td) >= tn.saturating_mul(c.forward_d),
 							None => true,
