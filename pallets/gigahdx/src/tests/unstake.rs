@@ -123,35 +123,44 @@ fn giga_unstake_at_increased_rate() {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 1 — MinUnstake floor tests
+// Phase 1 — Remaining-balance minimum tests
 // ---------------------------------------------------------------------------
 
 #[test]
-fn giga_unstake_should_fail_below_min_unstake() {
+fn giga_unstake_should_fail_when_remaining_below_min_stake() {
 	ExtBuilder::default().build().execute_with(|| {
-		setup_stake(ALICE, 100 * ONE);
+		// Stake 2*ONE. Unstaking ONE+1 leaves ONE-1 remaining, below MinStake=ONE.
+		setup_stake(ALICE, 2 * ONE);
 
-		// MinUnstake in mock is ONE. Try to unstake half of ONE.
 		assert_noop!(
-			GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), ONE / 2),
-			Error::<Test>::InsufficientUnstake
+			GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), ONE + 1),
+			Error::<Test>::RemainingBelowMinStake
 		);
 	});
 }
 
 #[test]
-fn giga_unstake_should_succeed_at_exactly_min_unstake() {
+fn giga_unstake_partial_should_succeed_when_remaining_meets_min_stake() {
 	ExtBuilder::default().build().execute_with(|| {
-		setup_stake(ALICE, 100 * ONE);
+		// Stake 2*ONE. Unstaking ONE leaves exactly ONE remaining == MinStake.
+		setup_stake(ALICE, 2 * ONE);
 
-		// Exactly MinUnstake must succeed.
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), ONE));
 	});
 }
 
 #[test]
-fn giga_unstake_zero_error_precedes_min_unstake() {
-	// ZeroAmount takes precedence over InsufficientUnstake to avoid confusing error ordering.
+fn giga_unstake_full_should_always_succeed() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Full unstake (remaining == 0) is always valid — no minimum enforced on the last exit.
+		setup_stake(ALICE, ONE);
+
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), ONE));
+	});
+}
+
+#[test]
+fn giga_unstake_zero_amount_fails() {
 	ExtBuilder::default().build().execute_with(|| {
 		setup_stake(ALICE, 100 * ONE);
 

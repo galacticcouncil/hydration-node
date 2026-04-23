@@ -71,15 +71,21 @@ pub trait MoneyMarketOperations<AccountId, AssetId, Balance> {
 	/// Withdraw from Money Market, burn aToken, receive underlying.
 	/// Returns the amount of underlying received.
 	fn withdraw(who: &AccountId, underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError>;
+
+	/// Return the user's current aToken (GIGAHDX) balance in the Money Market.
+	fn balance_of(who: &AccountId) -> Balance;
 }
 
 /// No-op implementation — supply/withdraw are identity (amount in == amount out).
-impl<AccountId, AssetId, Balance> MoneyMarketOperations<AccountId, AssetId, Balance> for () {
+impl<AccountId, AssetId, Balance: Zero> MoneyMarketOperations<AccountId, AssetId, Balance> for () {
 	fn supply(_who: &AccountId, _underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
 		Ok(amount)
 	}
 	fn withdraw(_who: &AccountId, _underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
 		Ok(amount)
+	}
+	fn balance_of(_who: &AccountId) -> Balance {
+		Zero::zero()
 	}
 }
 

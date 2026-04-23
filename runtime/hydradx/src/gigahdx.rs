@@ -63,6 +63,13 @@ impl hydradx_traits::gigahdx::MoneyMarketOperations<AccountId, AssetId, Balance>
 
 		Ok(amount)
 	}
+
+	fn balance_of(who: &AccountId) -> Balance {
+		// Query the GIGAHDX aToken balance via its ERC20 contract address.
+		// GigaHdxAssetIdConst (67) is registered in the asset registry with the aToken contract address.
+		let gigahdx_contract = HydraErc20Mapping::asset_address(GigaHdxAssetIdConst::get());
+		Erc20Currency::<Runtime>::free_balance(gigahdx_contract, who)
+	}
 }
 
 // ---------------------------------------------------------------------------

@@ -194,8 +194,9 @@ pub mod pallet {
 		ZeroAmount,
 		/// Stake amount below minimum.
 		InsufficientStake,
-		/// Unstake amount below minimum.
-		InsufficientUnstake,
+		/// Remaining GIGAHDX balance after unstake would be below minimum stake (in HDX value).
+		/// Either unstake everything or leave at least MinStake-equivalent behind.
+		RemainingBelowMinStake,
 		/// Arithmetic overflow/underflow.
 		Arithmetic,
 		/// No unlockable positions (none exist or all still in cooldown).
@@ -270,10 +271,13 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			ensure!(!gigahdx_amount.is_zero(), Error::<T>::ZeroAmount);
-			ensure!(
-				gigahdx_amount >= T::MinUnstake::get(),
-				Error::<T>::InsufficientUnstake
-			);
+
+			let current_gigahdx = T::MoneyMarket::balance_of(&who);
+			let remaining = current_gigahdx.saturating_sub(gigahdx_amount);
+			if !remaining.is_zero() {
+				let remaining_hdx = Self::calculate_hdx_for_st_hdx(remaining).ok_or(Error::<T>::Arithmetic)?;
+				ensure!(remaining_hdx >= T::MinStake::get(), Error::<T>::RemainingBelowMinStake);
+			}
 
 			// Block if user has votes in ongoing referenda.
 			ensure!(T::Hooks::can_unstake(&who), Error::<T>::ActiveVotesInOngoingReferenda);
