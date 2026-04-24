@@ -74,9 +74,6 @@ fn giga_unstake_multiple_positions() {
 		assert_eq!(positions.len(), 2);
 		assert_eq!(positions[0].amount, 30 * ONE);
 		assert_eq!(positions[1].amount, 30 * ONE);
-
-		// Each position has a unique lock_id
-		assert_ne!(positions[0].lock_id, positions[1].lock_id);
 	});
 }
 
@@ -97,6 +94,33 @@ fn giga_unstake_too_many_positions_should_fail() {
 			assert_noop!(
 				GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), ONE),
 				Error::<Test>::TooManyUnstakePositions
+			);
+		});
+}
+
+#[test]
+fn two_unstakes_stack_lock() {
+	// Alice starts with 100 HDX, stakes all of it, then unstakes twice.
+	// After two 30-HDX unstakes, she has 60 HDX back in her account.
+	// All 60 should be locked (cooldown hasn't expired). With the max-not-sum
+	// bug, only 30 is effectively frozen — Alice can spend 30 HDX she shouldn't.
+	ExtBuilder::default()
+		.with_endowed(vec![(ALICE, HDX, 100 * ONE)])
+		.build()
+		.execute_with(|| {
+			setup_stake(ALICE, 100 * ONE);
+			assert_eq!(Balances::free_balance(ALICE), 0, "staking drains HDX");
+
+			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 30 * ONE));
+			assert_eq!(Balances::free_balance(ALICE), 30 * ONE);
+			assert_eq!(Balances::usable_balance(ALICE), 0, "1st unstake: all 30 should be locked");
+
+			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 30 * ONE));
+			assert_eq!(Balances::free_balance(ALICE), 60 * ONE);
+			assert_eq!(
+				Balances::usable_balance(ALICE),
+				0,
+				"2nd unstake: both positions must stack — prior bug froze max(30,30)=30 instead of 60"
 			);
 		});
 }

@@ -396,7 +396,6 @@ fn lock_id_collides_after_partial_unlock() {
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 
 		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
-		let lock_id_2 = positions[2].lock_id;
 
 		System::set_block_number(positions[0].unlock_at);
 		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), alice.clone()));
@@ -419,14 +418,12 @@ fn lock_id_collides_after_partial_unlock() {
 		let usable_after = Balances::usable_balance(&alice);
 		assert_eq!(usable_after, 0);
 
+		// With the single-aggregate-lock fix the balance exists but is fully
+		// frozen — the runtime reports Frozen, not FundsUnavailable.
 		assert_noop!(
 			Balances::transfer_allow_death(RuntimeOrigin::signed(alice.clone()), bob.clone(), 10 * UNITS),
-			TokenError::FundsUnavailable
+			TokenError::Frozen
 		);
-
-		let final_positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
-		let new_lock_id = final_positions[2].lock_id;
-		assert_ne!(new_lock_id, lock_id_2);
 	});
 }
 
