@@ -1,4 +1,4 @@
 mod flow_graph;
+mod regressions;
 mod ring_detection;
-mod snapshot_regressions;
 mod v2_solver;
