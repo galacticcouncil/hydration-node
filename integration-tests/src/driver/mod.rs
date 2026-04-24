@@ -4,7 +4,6 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
 use frame_support::BoundedVec;
-use hydradx_runtime::bifrost_account;
 use hydradx_runtime::AssetLocation;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
@@ -13,6 +12,7 @@ use pallet_asset_registry::AssetType;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
 use primitives::{AccountId, AssetId};
+use sp_runtime::traits::Convert;
 use sp_runtime::{FixedU128, Permill};
 use sp_std::cell::RefCell;
 use xcm_emulator::TestExt;
@@ -125,6 +125,7 @@ impl HydrationTestDriver {
 		self
 	}
 
+	#[allow(deprecated)]
 	pub fn update_bifrost_oracle(
 		&self,
 		asset_a: Box<polkadot_xcm::VersionedLocation>,
@@ -132,6 +133,24 @@ impl HydrationTestDriver {
 		price: (Balance, Balance),
 	) -> &Self {
 		self.execute(|| {
+			let asset_a_id =
+				<hydradx_runtime::Runtime as pallet_ema_oracle::Config>::LocationToAssetIdConversion::convert(
+					(*asset_a).clone(),
+				)
+				.expect("driver: could not resolve asset_a location to asset id");
+			let asset_b_id =
+				<hydradx_runtime::Runtime as pallet_ema_oracle::Config>::LocationToAssetIdConversion::convert(
+					(*asset_b).clone(),
+				)
+				.expect("driver: could not resolve asset_b location to asset id");
+
+			let _ = EmaOracle::register_external_source(RuntimeOrigin::root(), pallet_ema_oracle::BIFROST_SOURCE);
+			let _ = EmaOracle::add_authorized_account(
+				RuntimeOrigin::root(),
+				pallet_ema_oracle::BIFROST_SOURCE,
+				(asset_a_id, asset_b_id),
+				bifrost_account(),
+			);
 			assert_ok!(EmaOracle::update_bifrost_oracle(
 				RuntimeOrigin::signed(bifrost_account()),
 				asset_a,

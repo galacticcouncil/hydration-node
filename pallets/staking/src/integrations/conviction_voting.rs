@@ -4,7 +4,6 @@ use crate::types::{Action, Balance, Conviction, ReferendumIndex, Vote};
 use crate::{Config, Error, Pallet};
 use frame_support::defensive;
 use frame_support::dispatch::DispatchResult;
-use frame_support::traits::{PollStatus, Polling};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_conviction_voting::{AccountVote, Status, VotingHooks};
 use sp_core::Get;
@@ -193,24 +192,14 @@ where
 	}
 }
 
-pub struct ReferendumStatus<P, T>(sp_std::marker::PhantomData<(P, T)>);
+pub struct DirectReferendumStatus<T>(sp_std::marker::PhantomData<T>);
 
-impl<T, P: Polling<T>> GetReferendumState<ReferendumIndex> for ReferendumStatus<P, T>
-where
-	<P as Polling<T>>::Index: From<ReferendumIndex>,
-{
-	fn is_referendum_finished(_index: ReferendumIndex) -> bool {
-		let r = <P as Polling<T>>::try_access_poll::<bool>(_index.into(), |status| {
-			let r = match status {
-				PollStatus::Completed(_, _) => true,
-				PollStatus::Ongoing(_, _) => false,
-				PollStatus::None => false,
-			};
-			Ok(r)
-		});
-		debug_assert!(r.is_ok(), "Failed to access poll");
-		// If we failed to access poll, we assume that referendum is not finished - this should never be the case
-		// Note: we cant return true, because it would reward points.
-		r.unwrap_or(false)
+impl<T: pallet_referenda::Config> GetReferendumState<ReferendumIndex> for DirectReferendumStatus<T> {
+	fn is_referendum_finished(index: ReferendumIndex) -> bool {
+		match pallet_referenda::ReferendumInfoFor::<T>::get(index) {
+			Some(pallet_referenda::ReferendumInfo::Approved(..)) => true,
+			Some(pallet_referenda::ReferendumInfo::Rejected(..)) => true,
+			_ => false, // Ongoing, Cancelled, Killed, TimedOut -> not "finished" from points accumulation pov
+		}
 	}
 }

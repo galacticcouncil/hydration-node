@@ -32,7 +32,7 @@ use frame_support::{
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, ExistenceRequirement,
-		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
+		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced,
 	},
 	BoundedVec, PalletId,
 };
@@ -77,7 +77,7 @@ use pallet_staking::{
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, AssetIdOf, RemoveTxAssetOnKilled};
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use primitives::constants::{
-	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, XYK_SOURCE},
+	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, STABLESWAP_SOURCE, XYK_SOURCE},
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::DAYS,
 };
@@ -634,8 +634,16 @@ impl pallet_circuit_breaker::Config for Runtime {
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<{ pallet_ema_oracle::MAX_PERIODS }>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+	// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
+	pub BifrostAccount: AccountId = hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into();
+}
 
-	pub MaxAllowedPriceDifferenceForBifrostOracleUpdate: Permill = Permill::from_percent(10);
+/// Identifies internal (AMM) oracle sources via hardcoded constants. Zero storage reads.
+pub struct InternalOracleSources;
+impl Contains<Source> for InternalOracleSources {
+	fn contains(s: &Source) -> bool {
+		matches!(s, &OMNIPOOL_SOURCE | &STABLESWAP_SOURCE | &XYK_SOURCE)
+	}
 }
 
 pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);
@@ -650,26 +658,15 @@ where
 	}
 }
 
-// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
-pub fn bifrost_account() -> AccountId {
-	hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into()
-}
-pub struct BifrostAcc;
-impl SortedMembers<AccountId> for BifrostAcc {
-	fn sorted_members() -> Vec<AccountId> {
-		vec![bifrost_account()]
-	}
-}
-
 impl pallet_ema_oracle::Config for Runtime {
-	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
-	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EconomicParameters>;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = OracleWhitelist<Runtime>;
+	type InternalSources = InternalOracleSources;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
 	/// 40 seems a decent upper bound for the foreseeable future.
 	type MaxUniqueEntries = ConstU32<40>;
@@ -678,7 +675,6 @@ impl pallet_ema_oracle::Config for Runtime {
 	/// Should take care of the overhead introduced by `OracleWhitelist`.
 	type BenchmarkHelper = RegisterAsset<Runtime>;
 	type LocationToAssetIdConversion = CurrencyIdConvert;
-	type MaxAllowedPriceDifference = MaxAllowedPriceDifferenceForBifrostOracleUpdate;
 }
 
 pub struct ExtendedDustRemovalWhitelist;
@@ -1651,10 +1647,7 @@ impl pallet_staking::Config for Runtime {
 	type Collections = FreezableNFT<Runtime, Self::RuntimeOrigin>;
 	type NFTHandler = Uniques;
 	type MaxVotes = MaxVotes;
-	type ReferendumInfo = pallet_staking::integrations::conviction_voting::ReferendumStatus<
-		Referenda,
-		pallet_conviction_voting::TallyOf<Runtime>,
-	>;
+	type ReferendumInfo = pallet_staking::integrations::conviction_voting::DirectReferendumStatus<Runtime>;
 	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
 	type WeightInfo = weights::pallet_staking::HydraWeight<Runtime>;
