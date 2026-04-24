@@ -117,3 +117,199 @@ fn giga_stake_multiple_users() {
 		assert_eq!(GigaHdx::exchange_rate(), FixedU128::one());
 	});
 }
+
+// direct HDX donation to the gigapot is treated as a fee accrual:
+// exchange rate goes up, no panic, no integer wrap, existing stakers benefit.
+#[test]
+fn direct_hdx_donation_to_gigapot_inflates_exchange_rate_safely() {
+	ExtBuilder::default()
+		.with_endowed(vec![
+			(ALICE, HDX, 1_000 * ONE),
+			(BOB, HDX, 1_000_000 * ONE), // wealthy attacker
+		])
+		.build()
+		.execute_with(|| {
+			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
+			assert_eq!(GigaHdx::exchange_rate(), FixedU128::one());
+
+			// Attacker BOB sends HDX directly to gigapot via the standard
+			// `Currency::transfer` — no special privilege needed.
+			let gigapot = GigaHdx::gigapot_account_id();
+			assert_ok!(<Test as crate::Config>::Currency::transfer(
+				HDX,
+				&BOB,
+				&gigapot,
+				900 * ONE,
+				frame_support::traits::tokens::Preservation::Expendable,
+			));
+
+			// Rate should now reflect 1000 HDX / 100 stHDX = 10x.
+			assert_eq!(GigaHdx::exchange_rate(), FixedU128::from(10));
+
+			// Existing staker can still unstake and gets the inflated payout.
+			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 100 * ONE));
+			let positions = GigaHdx::unstake_positions(&ALICE);
+			assert_eq!(positions.len(), 1);
+			assert_eq!(
+				positions[0].amount,
+				1_000 * ONE,
+				"unstaker receives all donated HDX"
+			);
+		});
+}
+
+// donation BEFORE first stake: exchange_rate falls back to 1.0 because
+// total_st_hdx is zero. The donor can never recover their HDX (it's a true
+// burn into the treasury) and the first staker gets the donation as a bonus.
+#[test]
+fn direct_hdx_donation_before_first_stake_is_irrecoverable() {
+	ExtBuilder::default()
+		.with_endowed(vec![
+			(ALICE, HDX, 1_000 * ONE),
+			(BOB, HDX, 1_000 * ONE),
+		])
+		.build()
+		.execute_with(|| {
+			let gigapot = GigaHdx::gigapot_account_id();
+			assert_ok!(<Test as crate::Config>::Currency::transfer(
+				HDX,
+				&BOB,
+				&gigapot,
+				500 * ONE,
+				frame_support::traits::tokens::Preservation::Expendable,
+			));
+
+			// No stakers yet → rate is the safe fallback 1.0.
+			assert_eq!(GigaHdx::exchange_rate(), FixedU128::one());
+
+			// First staker is treated at the bootstrap branch (rate ignored when
+			// total_st_hdx is zero). They get 1:1 stHDX for their HDX, donation
+			// stays in the gigapot.
+			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
+			assert_eq!(<Test as crate::Config>::Currency::balance(ST_HDX, &ALICE), 100 * ONE);
+
+			// Now exchange rate jumps because gigapot has the donation + stake
+			// (600 HDX) but only 100 stHDX exists.
+			assert_eq!(GigaHdx::exchange_rate(), FixedU128::from(6));
+		});
+}
+
+// vault inflation attack: attacker stakes the minimum, then donates to
+// inflate the rate so a victim's stake rounds down. We verify two halves of
+// the bound:
+//   (a) For the attack to silently zero out a victim's mint, the donation
+//       must satisfy: victim_stake * total_st_hdx < total_hdx, i.e. the
+//       attacker needs roughly `victim_stake * MinStake` base units of HDX to
+//       grief a victim of size `victim_stake`. With MinStake = ONE = 10^12,
+//       griefing a victim staking ONE requires donating > ONE * ONE = 10^24
+//       base units, i.e. 10^12 ONE. Attacker simply cannot afford this within
+//       any realistic balance, so the attack is economically infeasible.
+//   (b) Even if the attacker could afford it, the pallet's
+//       `ensure!(!st_hdx_amount.is_zero())` returns `ZeroAmount` and the
+//       victim's HDX is never silently transferred away.
+#[test]
+fn vault_inflation_donation_cannot_silently_steal_victim_funds() {
+	// Half (a): realistic attacker cannot afford the donation.
+	ExtBuilder::default()
+		.with_endowed(vec![
+			(ALICE, HDX, 1_000_000 * ONE), // wealthy attacker (1 million HDX)
+			(BOB, HDX, 1_000 * ONE),       // victim
+		])
+		.build()
+		.execute_with(|| {
+			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), ONE));
+
+			let gigapot = GigaHdx::gigapot_account_id();
+			// Attacker donates the entire wallet. Even with 10^6 ONE = 10^18 base
+			// units in the gigapot, victim staking ONE gets:
+			//   ONE * ONE / 10^18 = 10^6 base units = nonzero.
+			assert_ok!(<Test as crate::Config>::Currency::transfer(
+				HDX,
+				&ALICE,
+				&gigapot,
+				1_000_000 * ONE - ONE,
+				frame_support::traits::tokens::Preservation::Expendable,
+			));
+
+			// Victim CAN still stake — they get a tiny but nonzero amount of stHDX.
+			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(BOB), ONE));
+			let bob_st = <Test as crate::Config>::Currency::balance(ST_HDX, &BOB);
+			assert!(bob_st > 0, "victim mint must be nonzero — donation too small to round to 0");
+			// Concretely: ONE * ONE / (~10^6 ONE) ≈ 10^6 base units (exact value
+			// depends on rounding direction; we only care that it's nonzero and
+			// well under MinStake).
+			assert!(bob_st < ONE, "rate is heavily inflated, victim mint must be tiny");
+		});
+
+	// Half (b): synthesize the silent-mint scenario by directly minting the
+	// attacker's hypothetical donation, and verify the pallet still refuses
+	// to mint zero stHDX rather than swallowing the victim's HDX.
+	ExtBuilder::default()
+		.with_endowed(vec![(ALICE, HDX, 1_000 * ONE), (BOB, HDX, 1_000 * ONE)])
+		.build()
+		.execute_with(|| {
+			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), ONE));
+
+			// Synthesize the worst-case donation by minting raw HDX into the
+			// gigapot — this stands in for "attacker has unbounded budget".
+			let gigapot = GigaHdx::gigapot_account_id();
+			assert_ok!(<Test as crate::Config>::Currency::mint_into(
+				HDX,
+				&gigapot,
+				ONE * ONE, // 10^24 base units — the bound.
+			));
+
+			// Victim staking ONE: ONE * ONE / (ONE*ONE + ONE) rounds DOWN to zero.
+			let bob_hdx_before = <Test as crate::Config>::Currency::balance(HDX, &BOB);
+			assert_noop!(
+				GigaHdx::giga_stake(RuntimeOrigin::signed(BOB), ONE),
+				Error::<Test>::ZeroAmount
+			);
+			assert_eq!(
+				<Test as crate::Config>::Currency::balance(HDX, &BOB),
+				bob_hdx_before,
+				"victim's HDX must be untouched on a refused mint"
+			);
+
+			// Victim CAN still stake successfully if they scale up past the
+			// rounding threshold — the protocol degrades to "expensive to enter",
+			// not "broken".
+			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(BOB), 1_000 * ONE));
+			assert!(<Test as crate::Config>::Currency::balance(ST_HDX, &BOB) > 0);
+		});
+}
+
+// donation does not break `stake_rewards`: the per-claim `pre_reward_hdx`
+// accounts for the donation correctly, claimers just get fewer stHDX per HDX
+// (which is the documented design).
+#[test]
+fn direct_donation_does_not_break_stake_rewards() {
+	ExtBuilder::default()
+		.with_endowed(vec![(ALICE, HDX, 10_000 * ONE), (BOB, HDX, 10_000 * ONE)])
+		.build()
+		.execute_with(|| {
+			// Bootstrap with a stake.
+			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
+
+			// Attacker donates to inflate the rate.
+			let gigapot = GigaHdx::gigapot_account_id();
+			assert_ok!(<Test as crate::Config>::Currency::transfer(
+				HDX,
+				&BOB,
+				&gigapot,
+				200 * ONE,
+				frame_support::traits::tokens::Preservation::Expendable,
+			));
+
+			// Simulate the voting-pallet flow: 30 HDX of reward arrives in the gigapot.
+			assert_ok!(<Test as crate::Config>::Currency::mint_into(HDX, &gigapot, 30 * ONE));
+
+			// Claim should succeed and produce a non-zero stHDX share even though
+			// the donation diluted the per-HDX value.
+			let received = crate::Pallet::<Test>::stake_rewards(&BOB, 30 * ONE).unwrap();
+			assert!(received > 0, "claim must produce non-zero stHDX even after donation");
+
+			// And the math has not blown up: BOB's stHDX equals what was returned.
+			assert_eq!(<Test as crate::Config>::Currency::balance(ST_HDX, &BOB), received);
+		});
+}

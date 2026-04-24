@@ -100,3 +100,29 @@ fn stake_rewards_at_current_rate() {
 		assert_eq!(<Test as crate::Config>::Currency::balance(ST_HDX, &BOB), 25 * ONE);
 	});
 }
+
+// `stake_rewards` divides by `pre_reward_hdx = total_hdx - hdx_amount`.
+// When stHDX is outstanding but the pre-reward gigapot is empty,
+// `pre_reward_hdx == 0` and the divisor would be zero. The fix routes that
+// case through a 1:1 bootstrap mint instead of erroring with `Arithmetic`.
+#[test]
+fn stake_rewards_handles_pre_reward_hdx_zero() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Drain Alice so we can build the degenerate state precisely.
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 100 * ONE));
+
+		let gigapot = GigaHdx::gigapot_account_id();
+
+		// stHDX outstanding (CHARLIE) with empty backing, then a reward equal
+		// to whatever the gigapot now holds — i.e. pre_reward_hdx will be 0.
+		assert_ok!(<Test as crate::Config>::Currency::mint_into(ST_HDX, &CHARLIE, 50 * ONE));
+		assert_ok!(<Test as crate::Config>::Currency::mint_into(HDX, &gigapot, 10 * ONE));
+
+		// total_st_hdx == 50 * ONE, total_hdx == 10 * ONE.
+		// pre_reward_hdx = 10 - 10 = 0 → bootstrap branch → mint 1:1.
+		let received = crate::Pallet::<Test>::stake_rewards(&BOB, 10 * ONE).unwrap();
+		assert_eq!(received, 10 * ONE);
+		assert_eq!(<Test as crate::Config>::Currency::balance(ST_HDX, &BOB), 10 * ONE);
+	});
+}

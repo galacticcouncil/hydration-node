@@ -234,7 +234,7 @@ fn unlock_fails_when_no_position_expired() {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 3 — on_post_unstake hook invocation regression
+// on_post_unstake hook invocation regression
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -245,4 +245,74 @@ fn giga_unstake_calls_on_post_unstake_hook() {
 		setup_stake(ALICE, 100 * ONE);
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 50 * ONE));
 	});
+}
+
+
+// The `remaining_hdx >= MinStake` guard already covers the "no dust positions" property,
+// and the MoneyMarket layer rejects over-amount withdraws on its own. The previously
+// considered `MinUnstake` constant and `InsufficientBalance` error variant
+// were removed as redundant. This regression test pins that an over-balance
+// unstake still fails (somehow) and leaves no observable state behind.
+#[test]
+fn giga_unstake_over_amount_fails_without_state_change() {
+	ExtBuilder::default().build().execute_with(|| {
+		setup_stake(ALICE, 100 * ONE);
+
+		let result = GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 200 * ONE);
+		assert!(result.is_err(), "over-amount unstake must fail");
+
+		// No unstake position was created.
+		assert!(GigaHdx::unstake_positions(&ALICE).is_empty());
+
+		// User's HDX balance is unchanged (still original 1_000 ONE - 100 ONE staked).
+		assert_eq!(
+			<Test as crate::Config>::Currency::balance(HDX, &ALICE),
+			1_000 * ONE - 100 * ONE
+		);
+	});
+}
+
+// `TooManyUnstakePositions` is now checked early, before any state
+// change. This test verifies that the precheck fires AND that no token
+// state moved (no MM withdraw, no burn, no transfer, no lock).
+#[test]
+fn giga_unstake_too_many_positions_rolls_back_state_changes() {
+	ExtBuilder::default()
+		.with_endowed(vec![(ALICE, HDX, 100_000 * ONE)])
+		.build()
+		.execute_with(|| {
+			setup_stake(ALICE, 11_000 * ONE);
+
+			// Fill the position cap.
+			for _ in 0..10 {
+				assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), ONE));
+			}
+
+			let st_hdx_before = <Test as crate::Config>::Currency::balance(ST_HDX, &ALICE);
+			let hdx_before = <Test as crate::Config>::Currency::balance(HDX, &ALICE);
+			let positions_before = GigaHdx::unstake_positions(&ALICE).len();
+
+			assert_noop!(
+				GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), ONE),
+				Error::<Test>::TooManyUnstakePositions
+			);
+
+			// Nothing must have changed — `assert_noop!` already enforces this at
+			// the storage-root level, but we double-check observable balances.
+			assert_eq!(
+				<Test as crate::Config>::Currency::balance(ST_HDX, &ALICE),
+				st_hdx_before,
+				"stHDX must not be burned on a failed unstake"
+			);
+			assert_eq!(
+				<Test as crate::Config>::Currency::balance(HDX, &ALICE),
+				hdx_before,
+				"HDX must not be transferred on a failed unstake"
+			);
+			assert_eq!(
+				GigaHdx::unstake_positions(&ALICE).len(),
+				positions_before,
+				"position list must not grow on a failed unstake"
+			);
+		});
 }

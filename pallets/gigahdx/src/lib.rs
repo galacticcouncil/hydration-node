@@ -104,12 +104,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type MinStake: Get<Balance>;
 
-		/// Minimum GIGAHDX amount per giga-unstake.
-		/// Denominated in GIGAHDX units (same denomination as the extrinsic input).
-		/// Prevents dust positions and rounding-to-zero HDX payouts.
-		#[pallet::constant]
-		type MinUnstake: Get<Balance>;
-
 		/// Maximum unstake positions per account.
 		#[pallet::constant]
 		type MaxUnstakePositions: Get<u32>;
@@ -205,8 +199,6 @@ pub mod pallet {
 		TooManyUnstakePositions,
 		/// Cannot unstake while votes exist in ongoing referenda.
 		ActiveVotesInOngoingReferenda,
-		/// Insufficient Balance to unstake
-		InsufficientBalance,
 	}
 
 	// -----------------------------------------------------------------------
@@ -281,6 +273,14 @@ pub mod pallet {
 
 			// Block if user has votes in ongoing referenda.
 			ensure!(T::Hooks::can_unstake(&who), Error::<T>::ActiveVotesInOngoingReferenda);
+
+			// Reject early if the position cap is full — saves the cost of
+			// running on_unstake / MM withdraw / burn / transfer just to roll
+			// it all back when try_push fails below.
+			ensure!(
+				(UnstakePositions::<T>::decode_len(&who).unwrap_or(0) as u32) < T::MaxUnstakePositions::get(),
+				Error::<T>::TooManyUnstakePositions,
+			);
 
 			// Capture additional lock period BEFORE on_unstake clears votes.
 			let voting_lock = T::Hooks::additional_unstake_lock(&who);
@@ -440,8 +440,15 @@ impl<T: Config> Pallet<T> {
 			hdx_amount
 		} else {
 			let pre_reward_hdx = total_hdx.checked_sub(hdx_amount).ok_or(Error::<T>::Arithmetic)?;
-			multiply_by_rational_with_rounding(hdx_amount, total_st_hdx, pre_reward_hdx, Rounding::Down)
-				.ok_or(Error::<T>::Arithmetic)?
+			if pre_reward_hdx.is_zero() {
+				// Degenerate state: stHDX exists but no pre-reward backing.
+				// Avoid divide-by-zero — bootstrap-mint 1:1 so the reward is at
+				// least claimable. Future deposits restore a sane rate.
+				hdx_amount
+			} else {
+				multiply_by_rational_with_rounding(hdx_amount, total_st_hdx, pre_reward_hdx, Rounding::Down)
+					.ok_or(Error::<T>::Arithmetic)?
+			}
 		};
 
 		// Mint stHDX to user.

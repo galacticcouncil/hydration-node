@@ -26,7 +26,6 @@ parameter_types! {
 	pub const GigaRewardPotId: PalletId = PalletId(*b"gigarwd!");
 	pub const GigaHdxCooldownPeriod: BlockNumber = 222 * DAYS;
 	pub const GigaHdxMinStake: Balance = 10 * primitives::constants::currency::UNITS;
-	pub const GigaHdxMinUnstake: Balance = 1 * primitives::constants::currency::UNITS;
 	pub const GigaHdxMaxUnstakePositions: u32 = 10;
 	pub const GigaHdxMaxVotes: u32 = 25;
 }
@@ -175,7 +174,6 @@ impl pallet_gigahdx::Config for Runtime {
 	type GigaHdxAssetId = GigaHdxAssetIdConst;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
 	type MinStake = GigaHdxMinStake;
-	type MinUnstake = GigaHdxMinUnstake;
 	type MaxUnstakePositions = GigaHdxMaxUnstakePositions;
 	type WeightInfo = ();
 }
