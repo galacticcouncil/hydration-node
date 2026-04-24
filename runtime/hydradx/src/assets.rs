@@ -32,7 +32,7 @@ use frame_support::{
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, ConstU64, Contains, Currency, Defensive, EitherOf, EnsureOrigin,
-		ExistenceRequirement, Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
+		ExistenceRequirement, Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced,
 	},
 	BoundedVec, PalletId,
 };
