@@ -172,6 +172,7 @@ libsecp256k1 = { workspace = true }
 
 [features]
 default = ["std"]
+ice-record = []
 std = [
     "codec/std",
     "frame-executive/std",

@@ -9,52 +9,15 @@
 //! Each `*.hex` fixture has three lines: SCALE-encoded `Vec<Intent>`,
 //! `Solution`, and `Trace { price_denominator, responses }`.
 
+use crate::replay_format::{Response, Trace};
 use crate::v2::Solver;
-use codec::{Decode, Encode};
+use codec::Decode;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{AMMInterface, TradeExecution};
 use hydradx_traits::router::{PoolEdge, Route};
 use ice_support::{AssetId, Balance, Intent, Solution};
 use std::cell::RefCell;
 use std::collections::VecDeque;
-
-// ---------- replay trace format ----------
-
-#[derive(Debug, Clone, Encode, Decode)]
-enum Response {
-	DiscoverRoutes {
-		asset_in: AssetId,
-		asset_out: AssetId,
-		result: Result<Vec<Route<AssetId>>, ()>,
-	},
-	Sell {
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		result: Result<(Balance, Route<AssetId>), ()>,
-	},
-	Buy {
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_out: Balance,
-		result: Result<(Balance, Route<AssetId>), ()>,
-	},
-	SpotPrice {
-		asset_in: AssetId,
-		asset_out: AssetId,
-		result: Result<Ratio, ()>,
-	},
-	ExistentialDeposit {
-		asset_id: AssetId,
-		ed: Balance,
-	},
-}
-
-#[derive(Debug, Clone, Encode, Decode)]
-struct Trace {
-	price_denominator: AssetId,
-	responses: Vec<Response>,
-}
 
 // ---------- replay AMM ----------
 
@@ -187,27 +150,10 @@ impl AMMInterface for ReplayAMM {
 
 // ---------- fixtures ----------
 
-fn decode_hex(s: &str) -> Vec<u8> {
-	assert!(s.len() % 2 == 0, "hex length must be even");
-	(0..s.len())
-		.step_by(2)
-		.map(|i| u8::from_str_radix(&s[i..i + 2], 16).expect("valid hex"))
-		.collect()
-}
-
-fn load_fixture(raw: &str) -> (Vec<Intent>, Solution, Trace) {
-	let mut lines = raw.lines().filter(|l| !l.is_empty());
-	let intents_hex = lines.next().expect("intents line");
-	let solution_hex = lines.next().expect("solution line");
-	let trace_hex = lines.next().expect("trace line");
-	let intents = Vec::<Intent>::decode(&mut &decode_hex(intents_hex)[..]).expect("decode intents");
-	let solution = Solution::decode(&mut &decode_hex(solution_hex)[..]).expect("decode solution");
-	let trace = Trace::decode(&mut &decode_hex(trace_hex)[..]).expect("decode trace");
-	(intents, solution, trace)
-}
-
 fn run_fixture(raw: &str) -> (Solution, Solution) {
-	let (intents, expected, trace) = load_fixture(raw);
+	let (intents_bytes, solution_bytes, trace) = Trace::decode_fixture(raw);
+	let intents = Vec::<Intent>::decode(&mut &intents_bytes[..]).expect("decode intents");
+	let expected = Solution::decode(&mut &solution_bytes[..]).expect("decode solution");
 	ReplayAMM::install(trace);
 	let actual = Solver::<ReplayAMM>::solve(intents, ()).expect("solver should succeed");
 	// trace should be fully consumed
@@ -245,6 +191,42 @@ fn unreachable_rate_poisons_pair() {
 #[test]
 fn resolved_respects_existential_deposit() {
 	let raw = include_str!("fixtures/existential_deposit.hex");
+	let (actual, expected) = run_fixture(raw);
+	assert_eq!(actual, expected, "solver produced different solution than expected");
+}
+
+/// Regression: snapshot where owners of multiple same-direction intents had
+/// their sell-asset balance locked in named reserves from prior rounds, so the
+/// pallet's `submit_solution` later failed with `FundsUnavailable`. Pins the
+/// solver's selected intents + trade plan for the scenario.
+///
+/// Snapshot: `SNAPSHOT_funds`.
+#[test]
+fn funds_unavailable() {
+	let raw = include_str!("fixtures/funds_unavailable.hex");
+	let (actual, expected) = run_fixture(raw);
+	assert_eq!(actual, expected, "solver produced different solution than expected");
+}
+
+/// Regression: snapshot where a single large partial intent hit the pool's
+/// per-block trading limit and the solver had to cap fills accordingly.
+///
+/// Snapshot: `SNAPSHOT_tradinglimit`.
+#[test]
+fn trading_limit() {
+	let raw = include_str!("fixtures/trading_limit.hex");
+	let (actual, expected) = run_fixture(raw);
+	assert_eq!(actual, expected, "solver produced different solution than expected");
+}
+
+/// Regression: snapshot where the intent with id ending `6127` was being
+/// excluded from the solution. Pins the solver's inclusion/exclusion choices
+/// across the whole intent set at that state.
+///
+/// Snapshot: `SNAPSHOT_6127`.
+#[test]
+fn intent_6127() {
+	let raw = include_str!("fixtures/intent_6127.hex");
 	let (actual, expected) = run_fixture(raw);
 	assert_eq!(actual, expected, "solver produced different solution than expected");
 }
