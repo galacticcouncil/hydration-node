@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "411.0.0"
+version = "412.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -23,6 +23,8 @@ num_enum = { workspace = true, default-features = false }
 evm = { workspace = true, features = ["with-codec"] }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
+
+route-findr = {workspace = true}
 
 # local dependencies
 primitives = { workspace = true }
@@ -64,6 +66,11 @@ pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-hsm = { workspace = true }
 pallet-parameters = { workspace = true }
+pallet-intent = { workspace = true }
+pallet-ice = { workspace = true }
+pallet-lazy-executor = { workspace = true }
+amm-simulator = { workspace = true }
+ice-support = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -396,6 +403,11 @@ std = [
     "pallet-dispatcher/std",
     "pallet-signet/std",
     "pallet-dispenser/std",
+    "pallet-intent/std",
+    "pallet-ice/std",
+    "pallet-lazy-executor/std",
+    "amm-simulator/std",
+    "ice-support/std",
     # Hyperbridge
     "anyhow/std",
     "pallet-hyperbridge/std",
@@ -405,6 +417,7 @@ std = [
     "ismp/std",
     "ismp-parachain/std",
     "ismp-parachain-runtime-api/std",
+    "route-findr/std",
 ]
 try-runtime = [
     "frame-try-runtime",
