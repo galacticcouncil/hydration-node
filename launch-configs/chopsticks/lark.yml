@@ -1,0 +1,14 @@
+endpoint: wss://0.lark.hydration.cloud
+mock-signature-host: true
+db: ./lark-db.sqlite
+wasm-override: target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm
+
+import-storage:
+  System:
+    Account:
+      - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+        - providers: 1
+          data:
+            free: '90000000000000000000000000'
+  TechnicalCommittee:
+    Members: [5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY]

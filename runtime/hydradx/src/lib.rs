@@ -510,7 +510,6 @@ use frame_support::{
 	weights::WeightToFee as _,
 };
 use hydradx_traits::evm::Erc20Mapping;
-use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
 pub use polkadot_xcm::latest::Junction;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
@@ -1165,19 +1164,16 @@ impl_runtime_apis! {
 
 	impl evm::aave_trade_executor::runtime_api::AaveTradeExecutor<Block, Balance> for Runtime {
 		fn pairs() -> Vec<(AssetId, AssetId)> {
-			let pool = <BorrowingContract<Runtime>>::get();
-			let reserves = match AaveTradeExecutor::<Runtime>::get_reserves_list(pool) {
-				Ok(reserves) => reserves,
-				Err(_) => return vec![]
-			};
-			reserves.into_iter()
-				.filter_map(|reserve| {
+			AaveTradeExecutor::<Runtime>::aave_pool_contracts().into_iter().flat_map(|pool| {
+				let reserves = AaveTradeExecutor::<Runtime>::get_reserves_list(pool).unwrap_or_default();
+				reserves.into_iter().filter_map(move |reserve| {
 					let data = AaveTradeExecutor::<Runtime>::get_reserve_data(pool, reserve).ok()?;
 					let reserve_asset = HydraErc20Mapping::address_to_asset(reserve)?;
 					let atoken_asset = HydraErc20Mapping::address_to_asset(data.atoken_address)?;
 					Some((reserve_asset, atoken_asset))
 				})
-				.collect()
+			})
+			.collect()
 		}
 
 		fn liquidity_depth(asset_in: AssetId, asset_out: AssetId) -> Option<Balance> {
@@ -1188,8 +1184,8 @@ impl_runtime_apis! {
 			PoolData {
 				reserve,
 				atoken,
-				liqudity_in: Self::liquidity_depth(reserve, atoken).unwrap(),
-				liqudity_out: Self::liquidity_depth(atoken, reserve).unwrap(),
+				liqudity_in: Self::liquidity_depth(reserve, atoken).unwrap_or_default(),
+				liqudity_out: Self::liquidity_depth(atoken, reserve).unwrap_or_default(),
 			}
 		}
 
