@@ -1,5 +1,4 @@
 use crate as pallet_fee_processor;
-use crate::*;
 use frame_support::{
 	parameter_types,
 	sp_runtime::{
@@ -42,9 +41,10 @@ pub const FEE_SOURCE: AccountId = 100;
 pub const STAKING_POT: AccountId = 200;
 pub const REFERRALS_POT: AccountId = 201;
 
-// HDX path uses same destination accounts but different percentages
+// HDX path pots
 pub const HDX_STAKING_POT: AccountId = 200;
-pub const HDX_REFERRALS_POT: AccountId = 201;
+pub const HDX_GIGAPOT: AccountId = 202;
+pub const HDX_REWARD_POT: AccountId = 203;
 
 frame_support::construct_runtime!(
 	pub enum Test {
@@ -124,7 +124,6 @@ impl pallet_balances::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -138,7 +137,6 @@ impl orml_tokens::Config for Test {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
@@ -146,6 +144,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = NativeAssetId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 
@@ -157,6 +156,11 @@ thread_local! {
 	static DEPOSIT_CALLS: RefCell<Vec<Balance>> = RefCell::new(Vec::new());
 	static HDX_PRE_DEPOSIT_CALLS: RefCell<Vec<(AccountId, Balance)>> = RefCell::new(Vec::new());
 	static HDX_DEPOSIT_CALLS: RefCell<Vec<Balance>> = RefCell::new(Vec::new());
+	static HDX_GIGAPOT_PRE_DEPOSIT_CALLS: RefCell<Vec<(AccountId, Balance)>> = RefCell::new(Vec::new());
+	static HDX_GIGAPOT_DEPOSIT_CALLS: RefCell<Vec<Balance>> = RefCell::new(Vec::new());
+	static HDX_REWARD_POT_PRE_DEPOSIT_CALLS: RefCell<Vec<(AccountId, Balance)>> = RefCell::new(Vec::new());
+	static HDX_REWARD_POT_DEPOSIT_CALLS: RefCell<Vec<Balance>> = RefCell::new(Vec::new());
+	static PRE_DEPOSIT_FAIL: RefCell<bool> = RefCell::new(false);
 }
 
 pub struct MockConvert;
@@ -199,6 +203,26 @@ pub fn hdx_deposit_calls() -> Vec<Balance> {
 	HDX_DEPOSIT_CALLS.with(|c| c.borrow().clone())
 }
 
+pub fn hdx_gigapot_pre_deposit_calls() -> Vec<(AccountId, Balance)> {
+	HDX_GIGAPOT_PRE_DEPOSIT_CALLS.with(|c| c.borrow().clone())
+}
+
+pub fn hdx_gigapot_deposit_calls() -> Vec<Balance> {
+	HDX_GIGAPOT_DEPOSIT_CALLS.with(|c| c.borrow().clone())
+}
+
+pub fn hdx_reward_pot_pre_deposit_calls() -> Vec<(AccountId, Balance)> {
+	HDX_REWARD_POT_PRE_DEPOSIT_CALLS.with(|c| c.borrow().clone())
+}
+
+pub fn hdx_reward_pot_deposit_calls() -> Vec<Balance> {
+	HDX_REWARD_POT_DEPOSIT_CALLS.with(|c| c.borrow().clone())
+}
+
+pub fn set_pre_deposit_fail(fail: bool) {
+	PRE_DEPOSIT_FAIL.with(|f| *f.borrow_mut() = fail);
+}
+
 // --- Mock PriceProvider ---
 thread_local! {
 	static MOCK_PRICE: RefCell<Option<EmaPrice>> = RefCell::new(Some(EmaPrice::new(2, 1)));
@@ -235,6 +259,9 @@ impl FeeReceiver<AccountId, Balance> for StakingFeeReceiver {
 
 	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
 		PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().push((trader, amount)));
+		if PRE_DEPOSIT_FAIL.with(|f| *f.borrow()) {
+			return Err(DispatchError::Other("pre_deposit_failed"));
+		}
 		Ok(())
 	}
 
@@ -268,7 +295,55 @@ impl FeeReceiver<AccountId, Balance> for ReferralsFeeReceiver {
 	}
 }
 
-// --- HDX-specific FeeReceivers (50/50 split) ---
+// --- HDX-specific FeeReceivers (70/20/10 split, no referrals) ---
+
+pub struct HdxGigaHdxFeeReceiver;
+
+impl FeeReceiver<AccountId, Balance> for HdxGigaHdxFeeReceiver {
+	type Error = DispatchError;
+
+	fn destination() -> AccountId {
+		HDX_GIGAPOT
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(70)
+	}
+
+	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
+		HDX_GIGAPOT_PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().push((trader, amount)));
+		Ok(())
+	}
+
+	fn on_fee_received(amount: Balance) -> Result<(), Self::Error> {
+		HDX_GIGAPOT_DEPOSIT_CALLS.with(|c| c.borrow_mut().push(amount));
+		Ok(())
+	}
+}
+
+pub struct HdxGigaRewardFeeReceiver;
+
+impl FeeReceiver<AccountId, Balance> for HdxGigaRewardFeeReceiver {
+	type Error = DispatchError;
+
+	fn destination() -> AccountId {
+		HDX_REWARD_POT
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(20)
+	}
+
+	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
+		HDX_REWARD_POT_PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().push((trader, amount)));
+		Ok(())
+	}
+
+	fn on_fee_received(amount: Balance) -> Result<(), Self::Error> {
+		HDX_REWARD_POT_DEPOSIT_CALLS.with(|c| c.borrow_mut().push(amount));
+		Ok(())
+	}
+}
 
 pub struct HdxStakingFeeReceiver;
 
@@ -280,31 +355,7 @@ impl FeeReceiver<AccountId, Balance> for HdxStakingFeeReceiver {
 	}
 
 	fn percentage() -> Permill {
-		Permill::from_percent(50)
-	}
-
-	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
-		HDX_PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().push((trader, amount)));
-		Ok(())
-	}
-
-	fn on_fee_received(amount: Balance) -> Result<(), Self::Error> {
-		HDX_DEPOSIT_CALLS.with(|c| c.borrow_mut().push(amount));
-		Ok(())
-	}
-}
-
-pub struct HdxReferralsFeeReceiver;
-
-impl FeeReceiver<AccountId, Balance> for HdxReferralsFeeReceiver {
-	type Error = DispatchError;
-
-	fn destination() -> AccountId {
-		HDX_REFERRALS_POT
-	}
-
-	fn percentage() -> Permill {
-		Permill::from_percent(50)
+		Permill::from_percent(10)
 	}
 
 	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
@@ -319,7 +370,6 @@ impl FeeReceiver<AccountId, Balance> for HdxReferralsFeeReceiver {
 }
 
 impl pallet_fee_processor::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Test>;
 	type Convert = MockConvert;
@@ -329,7 +379,7 @@ impl pallet_fee_processor::Config for Test {
 	type LrnaAssetId = LrnaAssetId;
 	type MaxConversionsPerBlock = MaxConversionsPerBlock;
 	type FeeReceivers = (StakingFeeReceiver, ReferralsFeeReceiver);
-	type HdxFeeReceivers = (HdxStakingFeeReceiver, HdxReferralsFeeReceiver);
+	type HdxFeeReceivers = (HdxGigaHdxFeeReceiver, HdxGigaRewardFeeReceiver, HdxStakingFeeReceiver);
 	type WeightInfo = ();
 }
 
@@ -349,6 +399,8 @@ impl Default for ExtBuilder {
 				// ED for pots
 				(STAKING_POT, HDX, ONE),
 				(REFERRALS_POT, HDX, ONE),
+				(HDX_GIGAPOT, HDX, ONE),
+				(HDX_REWARD_POT, HDX, ONE),
 				// ED for fee processor pot
 				(FeeProcessor::pot_account_id(), HDX, ONE),
 			],
@@ -395,6 +447,11 @@ impl ExtBuilder {
 			DEPOSIT_CALLS.with(|c| c.borrow_mut().clear());
 			HDX_PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().clear());
 			HDX_DEPOSIT_CALLS.with(|c| c.borrow_mut().clear());
+			HDX_GIGAPOT_PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().clear());
+			HDX_GIGAPOT_DEPOSIT_CALLS.with(|c| c.borrow_mut().clear());
+			HDX_REWARD_POT_PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().clear());
+			HDX_REWARD_POT_DEPOSIT_CALLS.with(|c| c.borrow_mut().clear());
+			PRE_DEPOSIT_FAIL.with(|f| *f.borrow_mut() = false);
 			MOCK_PRICE.with(|p| *p.borrow_mut() = Some(EmaPrice::new(2, 1)));
 		});
 		ext
