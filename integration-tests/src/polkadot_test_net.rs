@@ -657,6 +657,10 @@ pub mod hydra {
 				safe_xcm_version: Some(5),
 				..Default::default()
 			},
+			parameters: hydradx_runtime::ParametersConfig {
+				relay_parent_offset_override: true,
+				..Default::default()
+			},
 			multi_transaction_payment: hydradx_runtime::MultiTransactionPaymentConfig {
 				currencies: vec![
 					(LRNA, Price::from(1)),
@@ -709,6 +713,10 @@ pub mod para {
 			},
 			polkadot_xcm: hydradx_runtime::PolkadotXcmConfig {
 				safe_xcm_version: Some(5),
+				..Default::default()
+			},
+			parameters: hydradx_runtime::ParametersConfig {
+				relay_parent_offset_override: true,
 				..Default::default()
 			},
 			duster: hydradx_runtime::DusterConfig {
