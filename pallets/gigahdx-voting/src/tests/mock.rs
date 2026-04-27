@@ -164,7 +164,6 @@ impl pallet_gigahdx::Config for Test {
 	type GigaHdxAssetId = GigaHdxAssetId;
 	type CooldownPeriod = CooldownPeriod;
 	type MinStake = MinStake;
-	type MinUnstake = MinUnstake;
 	type MaxUnstakePositions = MaxUnstakePositions;
 	type WeightInfo = ();
 }
