@@ -359,7 +359,10 @@ const VOTING_LOCK_ID: frame_support::traits::LockIdentifier = *b"pyconvot";
 pub fn give_gigahdx(who: &AccountId, amount: Balance) {
 	use frame_support::traits::fungibles::Mutate as FungiblesMutate;
 	// Burn existing GIGAHDX balance.
-	let current = <pallet_currencies::fungibles::FungibleCurrencies<Test> as frame_support::traits::fungibles::Inspect<AccountId>>::balance(GIGAHDX, who);
+	let current =
+		<pallet_currencies::fungibles::FungibleCurrencies<Test> as frame_support::traits::fungibles::Inspect<
+			AccountId,
+		>>::balance(GIGAHDX, who);
 	if current > 0 {
 		<pallet_currencies::fungibles::FungibleCurrencies<Test> as FungiblesMutate<AccountId>>::burn_from(
 			GIGAHDX,
@@ -373,9 +376,7 @@ pub fn give_gigahdx(who: &AccountId, amount: Balance) {
 	}
 	if amount > 0 {
 		<pallet_currencies::fungibles::FungibleCurrencies<Test> as FungiblesMutate<AccountId>>::mint_into(
-			GIGAHDX,
-			who,
-			amount,
+			GIGAHDX, who, amount,
 		)
 		.expect("mint GIGAHDX");
 	}

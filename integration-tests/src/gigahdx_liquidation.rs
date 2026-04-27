@@ -1007,14 +1007,19 @@ fn liquidation_fully_steamrolls_user_voting_state() {
 			100_000 * UNITS,
 		));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(BOB))));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(
+			BOB
+		))));
 
 		let alice_evm = EVMAccounts::evm_address(&alice);
 		let pool_contract = fetch_pool_contract(alice_evm);
 		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
 
-		assert_ok!(Liquidation::set_borrowing_contract(RuntimeOrigin::root(), pool_contract));
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			pool_contract
+		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
 
 		// ---- Alice stakes. Bug #6 fix auto-enables stHDX as collateral. ----
@@ -1128,10 +1133,7 @@ fn liquidation_fully_steamrolls_user_voting_state() {
 			split_after.gigahdx_amount, 0,
 			"LockSplit.gigahdx_amount must be cleared"
 		);
-		assert_eq!(
-			split_after.hdx_amount, 0,
-			"LockSplit.hdx_amount must be cleared"
-		);
+		assert_eq!(split_after.hdx_amount, 0, "LockSplit.hdx_amount must be cleared");
 
 		// 4. Previously earned reward from ref_a must survive.
 		let pending_final = pallet_gigahdx_voting::PendingRewards::<Runtime>::get(&alice);

@@ -113,7 +113,11 @@ fn two_unstakes_stack_lock() {
 
 			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 30 * ONE));
 			assert_eq!(Balances::free_balance(ALICE), 30 * ONE);
-			assert_eq!(Balances::usable_balance(ALICE), 0, "1st unstake: all 30 should be locked");
+			assert_eq!(
+				Balances::usable_balance(ALICE),
+				0,
+				"1st unstake: all 30 should be locked"
+			);
 
 			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 30 * ONE));
 			assert_eq!(Balances::free_balance(ALICE), 60 * ONE);
@@ -269,7 +273,6 @@ fn giga_unstake_calls_on_post_unstake_hook() {
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 50 * ONE));
 	});
 }
-
 
 // The `remaining_hdx >= MinStake` guard already covers the "no dust positions" property,
 // and the MoneyMarket layer rejects over-amount withdraws on its own. The previously

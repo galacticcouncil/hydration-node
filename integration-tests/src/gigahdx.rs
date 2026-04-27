@@ -341,22 +341,48 @@ fn second_unstake_makes_first_unstake_amount_usable() {
 
 		// Stake 400 HDX -> 0 HDX, 400 GIGAHDX
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 400 * UNITS));
-		assert_eq!(Balances::free_balance(&alice), 0, "After staking, alice should have 0 HDX");
-		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 400 * UNITS, "After staking, alice should have 400 GIGAHDX");
+		assert_eq!(
+			Balances::free_balance(&alice),
+			0,
+			"After staking, alice should have 0 HDX"
+		);
+		assert_eq!(
+			Currencies::free_balance(GIGAHDX, &alice),
+			400 * UNITS,
+			"After staking, alice should have 400 GIGAHDX"
+		);
 
 		// First unstake 100 GIGAHDX -> 300 GIGAHDX, ~100 locked HDX, 0 usable HDX
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
-		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 300 * UNITS, "After first unstake, alice should have 300 GIGAHDX");
+		assert_eq!(
+			Currencies::free_balance(GIGAHDX, &alice),
+			300 * UNITS,
+			"After first unstake, alice should have 300 GIGAHDX"
+		);
 		let hdx_after_first = Balances::free_balance(&alice);
-		assert!(hdx_after_first > 0, "After first unstake, alice should have received HDX");
-		assert_eq!(Balances::usable_balance(&alice), 0, "After first unstake, all HDX should be locked");
+		assert!(
+			hdx_after_first > 0,
+			"After first unstake, alice should have received HDX"
+		);
+		assert_eq!(
+			Balances::usable_balance(&alice),
+			0,
+			"After first unstake, all HDX should be locked"
+		);
 
 		// Second unstake 100 GIGAHDX -> 200 GIGAHDX, ~200 locked HDX, 0 usable HDX
 		System::set_block_number(System::block_number() + 1);
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
-		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 200 * UNITS, "After second unstake, alice should have 200 GIGAHDX");
+		assert_eq!(
+			Currencies::free_balance(GIGAHDX, &alice),
+			200 * UNITS,
+			"After second unstake, alice should have 200 GIGAHDX"
+		);
 		let hdx_after_second = Balances::free_balance(&alice);
-		assert!(hdx_after_second > hdx_after_first, "After second unstake, alice should have more HDX");
+		assert!(
+			hdx_after_second > hdx_after_first,
+			"After second unstake, alice should have more HDX"
+		);
 
 		// BUG: alice should NOT be able to transfer 100 HDX, but she can because only ~100 is effectively locked
 		assert_noop!(
@@ -634,7 +660,6 @@ fn giga_unstake_full_exit_always_succeeds() {
 	});
 }
 
-
 /// direct HDX donation to gigapot does not break unstake or rate math
 /// against the real AAVE money market. Existing coverage:
 /// `direct_hdx_transfer_to_gigapot_inflates_exchange_rate` proves the rate
@@ -794,12 +819,7 @@ fn aave_withdraw_outside_giga_unstake_respects_voting_lock() {
 		// Attempt the withdraw directly via EVM — bypasses `giga_unstake`
 		// entirely.
 		let data = build_aave_withdraw_calldata(sthdx_evm, gigahdx_balance, alice_evm);
-		let result = Executor::<Runtime>::call(
-			CallContext::new_call(pool, alice_evm),
-			data,
-			U256::zero(),
-			500_000,
-		);
+		let result = Executor::<Runtime>::call(CallContext::new_call(pool, alice_evm), data, U256::zero(), 500_000);
 
 		assert!(
 			matches!(result.exit_reason, fp_evm::ExitReason::Revert(_)),
@@ -841,11 +861,7 @@ fn vote_then_transfer_atoken_via_evm_blocked_when_locked() {
 		let (alice, alice_evm, gigahdx_balance) = setup_alice_with_locked_gigahdx(stake_amount);
 
 		let bob = sp_runtime::AccountId32::from(BOB);
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			bob.clone(),
-			UNITS,
-		));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), UNITS,));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(bob.clone())));
 		let bob_evm = EVMAccounts::evm_address(&bob);
 		let bob_gigahdx_before = Currencies::free_balance(GIGAHDX, &bob);

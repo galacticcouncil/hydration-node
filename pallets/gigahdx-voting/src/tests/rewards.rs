@@ -235,11 +235,9 @@ fn drain_stuck_rewards_migrates_after_claim() {
 			ALICE,
 		));
 		assert_eq!(crate::StuckRewards::<Test>::get(&ALICE).len(), 0);
-		assert!(
-			crate::PendingRewards::<Test>::get(&ALICE)
-				.iter()
-				.any(|e| e.referenda_id == REF_NEW)
-		);
+		assert!(crate::PendingRewards::<Test>::get(&ALICE)
+			.iter()
+			.any(|e| e.referenda_id == REF_NEW));
 	});
 }
 

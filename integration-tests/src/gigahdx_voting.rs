@@ -1333,7 +1333,9 @@ fn pending_rewards_full_during_unstake_does_not_desync() {
 		// Any stranded rewards are recoverable via drain.
 		let stuck = pallet_gigahdx_voting::StuckRewards::<hydradx_runtime::Runtime>::get(&alice);
 		if !stuck.is_empty() {
-			assert_ok!(GigaHdxVoting::claim_rewards(hydradx_runtime::RuntimeOrigin::signed(alice.clone())));
+			assert_ok!(GigaHdxVoting::claim_rewards(hydradx_runtime::RuntimeOrigin::signed(
+				alice.clone()
+			)));
 			assert_ok!(GigaHdxVoting::drain_stuck_rewards(
 				hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
 				alice.clone(),
@@ -1917,8 +1919,7 @@ fn unstake_with_voting_lock_creates_one_position_with_max_cooldown() {
 		let before_block = System::block_number();
 		let base_cooldown = 222 * DAYS;
 		let locked6x_period =
-			<hydradx_runtime::Runtime as pallet_conviction_voting::Config>::VoteLockingPeriod::get()
-				.saturating_mul(6);
+			<hydradx_runtime::Runtime as pallet_conviction_voting::Config>::VoteLockingPeriod::get().saturating_mul(6);
 		let expected_cooldown = base_cooldown.max(locked6x_period);
 
 		assert_ok!(GigaHdx::giga_unstake(

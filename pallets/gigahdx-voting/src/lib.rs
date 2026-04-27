@@ -149,13 +149,8 @@ pub mod pallet {
 	/// Dead-letter queue for rewards that could not be inserted into PendingRewards
 	/// because it was at capacity. Promote via `drain_stuck_rewards` or on_idle.
 	#[pallet::storage]
-	pub type StuckRewards<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		BoundedVec<PendingRewardEntry, ConstU32<1024>>,
-		ValueQuery,
-	>;
+	pub type StuckRewards<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, BoundedVec<PendingRewardEntry, ConstU32<1024>>, ValueQuery>;
 
 	/// Whether reward pool has been allocated for a referendum.
 	#[pallet::storage]
@@ -363,10 +358,7 @@ pub mod pallet {
 				if remaining.any_lt(PER_ACCOUNT_WEIGHT) || touched >= MAX_ACCOUNTS_PER_BLOCK {
 					break;
 				}
-				let _ = Self::drain_stuck_rewards(
-					frame_system::RawOrigin::Signed(who.clone()).into(),
-					who,
-				);
+				let _ = Self::drain_stuck_rewards(frame_system::RawOrigin::Signed(who.clone()).into(), who);
 				remaining = remaining.saturating_sub(PER_ACCOUNT_WEIGHT);
 				touched = touched.saturating_add(1);
 			}

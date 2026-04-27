@@ -150,11 +150,7 @@ fn direct_hdx_donation_to_gigapot_inflates_exchange_rate_safely() {
 			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 100 * ONE));
 			let positions = GigaHdx::unstake_positions(&ALICE);
 			assert_eq!(positions.len(), 1);
-			assert_eq!(
-				positions[0].amount,
-				1_000 * ONE,
-				"unstaker receives all donated HDX"
-			);
+			assert_eq!(positions[0].amount, 1_000 * ONE, "unstaker receives all donated HDX");
 		});
 }
 
@@ -164,10 +160,7 @@ fn direct_hdx_donation_to_gigapot_inflates_exchange_rate_safely() {
 #[test]
 fn direct_hdx_donation_before_first_stake_is_irrecoverable() {
 	ExtBuilder::default()
-		.with_endowed(vec![
-			(ALICE, HDX, 1_000 * ONE),
-			(BOB, HDX, 1_000 * ONE),
-		])
+		.with_endowed(vec![(ALICE, HDX, 1_000 * ONE), (BOB, HDX, 1_000 * ONE)])
 		.build()
 		.execute_with(|| {
 			let gigapot = GigaHdx::gigapot_account_id();
@@ -234,7 +227,10 @@ fn vault_inflation_donation_cannot_silently_steal_victim_funds() {
 			// Victim CAN still stake — they get a tiny but nonzero amount of stHDX.
 			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(BOB), ONE));
 			let bob_st = <Test as crate::Config>::Currency::balance(ST_HDX, &BOB);
-			assert!(bob_st > 0, "victim mint must be nonzero — donation too small to round to 0");
+			assert!(
+				bob_st > 0,
+				"victim mint must be nonzero — donation too small to round to 0"
+			);
 			// Concretely: ONE * ONE / (~10^6 ONE) ≈ 10^6 base units (exact value
 			// depends on rounding direction; we only care that it's nonzero and
 			// well under MinStake).

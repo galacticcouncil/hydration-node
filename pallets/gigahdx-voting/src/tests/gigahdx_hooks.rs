@@ -190,7 +190,11 @@ fn on_post_unstake_unstake_below_free_keeps_tracker() {
 		assert_ok!(crate::Pallet::<Test>::on_post_unstake(&ALICE));
 
 		let split = crate::LockSplit::<Test>::get(&ALICE);
-		assert_eq!(split.gigahdx_amount, 500 * ONE, "tracker unchanged — free portion absorbed the unstake");
+		assert_eq!(
+			split.gigahdx_amount,
+			500 * ONE,
+			"tracker unchanged — free portion absorbed the unstake"
+		);
 		assert_eq!(split.hdx_amount, 0, "no spillover needed");
 		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 500 * ONE);
 	});
@@ -295,7 +299,11 @@ fn on_post_unstake_sequential_partial_unstakes() {
 		assert_ok!(crate::Pallet::<Test>::on_post_unstake(&ALICE));
 		let split = crate::LockSplit::<Test>::get(&ALICE);
 		assert_eq!(split.gigahdx_amount, 300 * ONE);
-		assert_eq!(split.hdx_amount, 200 * ONE, "spillover = old_total(500) - new_tracker(300)");
+		assert_eq!(
+			split.hdx_amount,
+			200 * ONE,
+			"spillover = old_total(500) - new_tracker(300)"
+		);
 		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 300 * ONE);
 	});
 }

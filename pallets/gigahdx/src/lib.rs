@@ -158,10 +158,7 @@ pub mod pallet {
 		},
 
 		/// HDX unlocked after cooldown expired.
-		Unlocked {
-			who: T::AccountId,
-			hdx_amount: Balance,
-		},
+		Unlocked { who: T::AccountId, hdx_amount: Balance },
 
 		/// Fees received, exchange rate increased.
 		FeesReceived {

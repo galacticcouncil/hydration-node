@@ -167,12 +167,20 @@ impl TestMoneyMarket {
 }
 
 impl hydradx_traits::gigahdx::MoneyMarketOperations<AccountId, AssetId, Balance> for TestMoneyMarket {
-	fn supply(who: &AccountId, _underlying_asset: AssetId, amount: Balance) -> Result<Balance, sp_runtime::DispatchError> {
+	fn supply(
+		who: &AccountId,
+		_underlying_asset: AssetId,
+		amount: Balance,
+	) -> Result<Balance, sp_runtime::DispatchError> {
 		MM_BALANCES.with(|m| *m.borrow_mut().entry(*who).or_default() += amount);
 		Ok(amount)
 	}
 
-	fn withdraw(who: &AccountId, _underlying_asset: AssetId, amount: Balance) -> Result<Balance, sp_runtime::DispatchError> {
+	fn withdraw(
+		who: &AccountId,
+		_underlying_asset: AssetId,
+		amount: Balance,
+	) -> Result<Balance, sp_runtime::DispatchError> {
 		MM_BALANCES.with(|m| {
 			let mut map = m.borrow_mut();
 			let bal = map.entry(*who).or_default();
