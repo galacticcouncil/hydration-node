@@ -22,9 +22,8 @@ use frame_support::storage::with_transaction;
 use frame_support::traits::Everything;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::lazy_executor::Source;
+use hydradx_traits::price::PriceProvider;
 use hydradx_traits::registry::Inspect;
-use hydradx_traits::router::Trade as OracleTrade;
-use hydradx_traits::{OraclePeriod, PriceOracle};
 use ice_support::AssetId;
 use ice_support::Balance;
 use orml_traits::parameter_type_with_key;
@@ -171,10 +170,10 @@ pub fn set_block_number(n: u64) {
 }
 
 pub struct MockOracleProvider;
-impl PriceOracle<AssetId> for MockOracleProvider {
+impl PriceProvider<AssetId> for MockOracleProvider {
 	type Price = EmaPrice;
 
-	fn price(_route: &[OracleTrade<AssetId>], _period: OraclePeriod) -> Option<Self::Price> {
+	fn get_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
 		ORACLE_PRICE.with(|v| *v.borrow())
 	}
 }

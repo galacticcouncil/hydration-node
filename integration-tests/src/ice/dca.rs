@@ -1838,7 +1838,13 @@ fn dca_period_can_be_bypassed_at_resolve_time() {
 			let crafted: Vec<ice_support::Intent> = pallet_intent::Intents::<Runtime>::iter()
 				.map(|(id, intent)| {
 					let data = match intent.data {
-						ice_support::IntentData::Dca(ref dca) => ice_support::IntentData::Swap(dca.to_swap_data()),
+						ice_support::IntentData::Dca(ref dca) => {
+						// Attack simulation: pass the hard limit (not the effective
+						// limit) to reproduce a malicious collator skipping the
+						// get_valid_intents pre-filter and submitting at the user's
+						// absolute floor.
+						ice_support::IntentData::Swap(dca.to_swap_data(dca.amount_out))
+					}
 						other => other,
 					};
 					ice_support::Intent { id, data }

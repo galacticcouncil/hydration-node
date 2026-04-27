@@ -20,6 +20,7 @@ use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
+use crate::types::ShortOraclePrice;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -1856,7 +1857,7 @@ impl pallet_intent::Config for Runtime {
 	type MaxAllowedIntentDuration = MaxIntentDuration;
 	type TimestampProvider = Timestamp;
 	type HubAssetId = LRNA;
-	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
+	type OraclePriceProvider = ShortOraclePrice;
 	type BlockNumberProvider = System;
 	type MinDcaPeriod = MinimalPeriod;
 	type MaxIntentsPerAccount = sp_core::ConstU32<100>;

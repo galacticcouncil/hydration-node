@@ -49,10 +49,9 @@ use frame_system::pallet_prelude::*;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::lazy_executor::Mutate;
 use hydradx_traits::lazy_executor::Source;
+use hydradx_traits::price::PriceProvider;
 use hydradx_traits::registry::Inspect;
-use hydradx_traits::router::{PoolType, Trade as OracleTrade};
 use hydradx_traits::CreateBare;
-use hydradx_traits::{OraclePeriod, PriceOracle};
 use ice_support::AssetId;
 use ice_support::Balance;
 use ice_support::DcaData;
@@ -116,7 +115,12 @@ pub mod pallet {
 		type MaxAllowedIntentDuration: Get<Moment>;
 
 		/// Oracle price provider for DCA dynamic slippage.
-		type OraclePriceProvider: PriceOracle<AssetId, Price = EmaPrice>;
+		///
+		/// Pair-based provider: internally consults the on-chain route
+		/// (e.g. `OraclePriceProviderUsingRoute<Router, …>`), so the
+		/// composed oracle price reflects the path the trade actually
+		/// executes through.
+		type OraclePriceProvider: PriceProvider<AssetId, Price = EmaPrice>;
 
 		/// Provider for the current block number (used for DCA scheduling).
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
@@ -558,7 +562,7 @@ impl<T: Config> Pallet<T> {
 							}
 						}
 						// Transform to Swap with hard limit for solver
-						let swap = dca.to_swap_data();
+						let swap = dca.to_swap_data(dca.amount_out);
 						let transformed = Intent {
 							data: IntentData::Swap(swap),
 							deadline: intent.deadline,
@@ -798,13 +802,25 @@ impl<T: Config> Pallet<T> {
 		Ok(dca.remaining_budget < dca.amount_in)
 	}
 
-	/// Validates a DCA intent's resolution against hard limits.
-	/// Dynamic slippage is enforced in `get_valid_intents()` as a pre-filter, not here.
+	/// Validates a DCA intent's resolution.
+	///
+	/// Enforces two floors on `resolve.amount_out`:
+	/// 1. the user's hard limit (`dca.amount_out`)
+	/// 2. the oracle-derived effective limit (`compute_dca_effective_limit`)
+	///
+	/// Enforcing the effective limit here — not only in the
+	/// `get_valid_intents` pre-filter — prevents a malicious collator from
+	/// bypassing the filter via a hand-crafted `submit_solution` (the call
+	/// accepts `None` origin) and paying the user only the hard limit while
+	/// the AMM yields closer to the oracle-derived price.
 	fn validate_dca_intent_resolve(dca: &DcaData, resolve: &IntentData) -> Result<(), DispatchError> {
 		// Resolve must spend exactly per-trade amount
 		ensure!(resolve.amount_in() == dca.amount_in, Error::<T>::LimitViolation);
 		// Hard limit check (always enforced regardless of oracle)
 		ensure!(resolve.amount_out() >= dca.amount_out, Error::<T>::LimitViolation);
+		// Oracle-derived slippage floor (defence against pre-filter bypass)
+		let effective_limit = Self::compute_dca_effective_limit(dca);
+		ensure!(resolve.amount_out() >= effective_limit, Error::<T>::LimitViolation);
 		Ok(())
 	}
 
@@ -828,12 +844,7 @@ impl<T: Config> Pallet<T> {
 	/// Computes the oracle-based minimum output for a DCA trade.
 	/// Returns None if oracle data is unavailable.
 	fn compute_dca_oracle_limit(dca: &DcaData) -> Option<Balance> {
-		let route = sp_std::vec![OracleTrade {
-			pool: PoolType::Omnipool,
-			asset_in: dca.asset_in,
-			asset_out: dca.asset_out,
-		}];
-		let oracle_price = T::OraclePriceProvider::price(&route, OraclePeriod::Short)?;
+		let oracle_price = T::OraclePriceProvider::get_price(dca.asset_in, dca.asset_out)?;
 		// Oracle price for route A→B returns n/d representing asset_in per asset_out
 		// (i.e., how much A costs per unit of B).
 		// For sell: estimated_out = amount_in / price = amount_in * d / n

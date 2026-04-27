@@ -264,12 +264,18 @@ pub struct DcaData {
 
 impl DcaData {
 	/// Convert DCA per-trade parameters to a SwapData for solver presentation.
-	pub fn to_swap_data(&self) -> SwapData {
+	///
+	/// The caller supplies `amount_out` — typically the oracle-derived
+	/// effective limit (dynamic slippage floor), not the user's hard limit.
+	/// Using the effective limit keeps the solver's view of the intent in
+	/// sync with the pallet's resolve-time check in
+	/// `validate_dca_intent_resolve`.
+	pub fn to_swap_data(&self, amount_out: Balance) -> SwapData {
 		SwapData {
 			asset_in: self.asset_in,
 			asset_out: self.asset_out,
 			amount_in: self.amount_in,
-			amount_out: self.amount_out,
+			amount_out,
 			partial: Partial::No,
 		}
 	}

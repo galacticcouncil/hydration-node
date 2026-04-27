@@ -238,11 +238,23 @@ impl pallet_intent::Config for Test {
 	type TimestampProvider = Timestamp;
 	type HubAssetId = ConstU32<HUB_ASSET_ID>;
 	type MaxAllowedIntentDuration = ConstU64<MAX_INTENT_DEADLINE>;
-	type OraclePriceProvider = PriceProviderMock;
+	type OraclePriceProvider = PairPriceProviderMock;
 	type BlockNumberProvider = System;
 	type MinDcaPeriod = ConstU32<5>;
 	type MaxIntentsPerAccount = ConstU32<100>;
 	type WeightInfo = ();
+}
+
+pub struct PairPriceProviderMock;
+impl hydradx_traits::price::PriceProvider<AssetId> for PairPriceProviderMock {
+	type Price = hydra_dx_math::ema::EmaPrice;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
+		if asset_a > 2000 || asset_b > 2000 {
+			return None;
+		}
+		Some(hydra_dx_math::ema::EmaPrice::new(88, 100))
+	}
 }
 
 impl pallet_broadcast::Config for Test {}
