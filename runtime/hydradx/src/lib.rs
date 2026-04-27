@@ -42,6 +42,9 @@ mod system;
 pub mod types;
 pub mod xcm;
 
+// tmp. implemenation of ice simualtors' data providers
+pub mod ice_simulator_provider;
+
 extern crate alloc;
 use alloc::borrow::Cow;
 
@@ -129,7 +132,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 411,
+	spec_version: 414,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -201,6 +204,11 @@ construct_runtime!(
 		Parameters: pallet_parameters = 83,
 		Signet: pallet_signet = 84,
 		EthDispenser: pallet_dispenser = 85,
+
+		//ICE
+		LazyExecutor: pallet_lazy_executor = 86,
+		Intent: pallet_intent = 87,
+		ICE: pallet_ice = 88,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -387,6 +395,9 @@ mod benches {
 		//[pallet_token_gateway_ismp, benchmarking::token_gateway_ismp::Benchmark]
 		[pallet_evm_accounts, benchmarking::evm_accounts::Benchmark]
 		[pallet_migrations, MultiBlockMigrations]
+		[pallet_intent, benchmarking::intent::Benchmark]
+		[pallet_lazy_executor, benchmarking::lazy_executor::Benchmark]
+		[pallet_ice, benchmarking::ice::Benchmark]
 	);
 }
 
