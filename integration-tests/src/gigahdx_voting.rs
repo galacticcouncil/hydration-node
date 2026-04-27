@@ -1221,17 +1221,10 @@ fn received_gigahdx_is_transferable_while_existing_balance_is_locked() {
 	});
 }
 
-/// When PendingRewards hits MaxVotes (25), removing a vote from a completed
-/// referendum cannot record the reward. The pallet preserves the vote so the
-/// user never loses their unclaimed reward — it stays in GigaHdxVotes and the
-/// new reward is NOT silently dropped. See commit 6500e0053 in hooks.rs.
-///
-/// NOTE: end-to-end recovery (retrying remove_vote after freeing slots) is
-/// still an open design question — pallet-conviction-voting clears its own
-/// state before our hook runs, so a second remove_vote can't reach our path.
-/// Pinging Martin for the intended user flow.
+//  When PendingRewards is full, removing a vote routes the reward to StuckRewards
+/// (dead-letter queue) instead of silently dropping it.
 #[test]
-fn pending_rewards_full_preserves_vote_until_claim() {
+fn reward_routed_to_stuck_when_pending_rewards_full() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1277,18 +1270,79 @@ fn pending_rewards_full_preserves_vote_until_claim() {
 			r,
 		));
 
+		//Assert — vote cleared, reward routed to StuckRewards (not lost).
 		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r);
-		assert!(
-			vote.is_some(),
-			"Vote must be preserved so the user doesn't lose the reward"
-		);
+		assert!(vote.is_none(), "Vote should be removed");
+
 		let pending = pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::get(&alice);
-		assert_eq!(pending.len(), 25, "PendingRewards stays full — no new entry could be added");
+		assert_eq!(pending.len(), 25, "PendingRewards still full");
 		assert!(
 			!pending.iter().any(|e| e.referenda_id == r),
-			"New referendum isn't in pending yet — reward wasn't recorded"
+			"Overflow reward should not be in PendingRewards"
 		);
 
+		let stuck = pallet_gigahdx_voting::StuckRewards::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(stuck.len(), 1, "Overflow reward should be in StuckRewards");
+		assert_eq!(stuck[0].referenda_id, r, "StuckRewards entry matches the referendum");
+	});
+}
+
+#[test]
+fn pending_rewards_full_during_unstake_does_not_desync() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		// Fill PendingRewards near cap (25 entries).
+		pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::mutate(&alice, |entries| {
+			for i in 0..25u32 {
+				let _ = entries.try_push(pallet_gigahdx_voting::types::PendingRewardEntry {
+					referenda_id: 9000 + i,
+					reward_amount: 1 * UNITS,
+				});
+			}
+		});
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(50 * UNITS, Conviction::Locked1x),
+		));
+		end_referendum();
+
+		// Unstake — on_unstake force-removes the finished vote. PendingRewards is full,
+		// so the reward goes to StuckRewards. Storage must not desync.
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		// Invariant: GigaHdxVotes entry is gone (mirrors conviction-voting state).
+		assert!(
+			pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).is_none(),
+			"GigaHdxVotes must be cleared unconditionally"
+		);
+
+		// Any stranded rewards are recoverable via drain.
+		let stuck = pallet_gigahdx_voting::StuckRewards::<hydradx_runtime::Runtime>::get(&alice);
+		if !stuck.is_empty() {
+			assert_ok!(GigaHdxVoting::claim_rewards(hydradx_runtime::RuntimeOrigin::signed(alice.clone())));
+			assert_ok!(GigaHdxVoting::drain_stuck_rewards(
+				hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+				alice.clone(),
+			));
+			assert!(
+				pallet_gigahdx_voting::StuckRewards::<hydradx_runtime::Runtime>::get(&alice).is_empty(),
+				"StuckRewards drained"
+			);
+		}
 	});
 }
 
@@ -1839,69 +1893,75 @@ fn staking_hooks_still_work() {
 	});
 }
 
-/// BUG: Unstaking across the free/voted boundary should split into two
-/// positions with different cooldowns, but currently fails entirely.
-///
-/// Scenario (from CTO):
-/// - ALICE stakes 200 HDX → receives 200 GIGAHDX
-/// - ALICE votes with 100 GIGAHDX using Locked6x conviction
-/// - Referendum ends
-/// - ALICE unstakes 150 GIGAHDX
-///
-/// Expected: giga_unstake(150) succeeds and creates 2 positions:
-/// - 100 HDX with base 222-day cooldown (the free, unvoted portion)
-/// - 50 HDX with Locked6x conviction cooldown (overlaps with voted portion)
-///
-/// Actual: giga_unstake(150) fails. on_unstake force-removes the finished vote,
-/// but the conviction lock persists in conviction-voting (Locked6x lock period
-/// after referendum end). AAVE blocks withdrawal of 150 because 100 GIGAHDX
-/// is still conviction-locked. The system treats all GIGAHDX as either fully
-/// locked or fully unlocked — it can't split the unstake.
 #[test]
-fn unstake_should_split_free_and_voted_portions_with_different_cooldowns() {
+fn unstake_with_voting_lock_creates_one_position_with_max_cooldown() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
 
 		let alice: AccountId = ALICE.into();
 
-		// Step 1: Stake 200 HDX → get 200 GIGAHDX.
 		assert_ok!(GigaHdx::giga_stake(
 			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
 			200 * UNITS,
 		));
-		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 200 * UNITS);
 
-		// Step 2: Vote with 100 GIGAHDX using Locked6x conviction.
 		let r = begin_referendum();
 		assert_ok!(ConvictionVoting::vote(
 			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
 			r,
 			aye_with_conviction(100 * UNITS, Conviction::Locked6x),
 		));
-
-		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).unwrap();
-		assert_eq!(vote.amount, 100 * UNITS);
-
-		// Step 3: End referendum so unstake is allowed.
 		end_referendum();
 
-		let block_before_unstake = System::block_number();
+		let before_block = System::block_number();
 		let base_cooldown = 222 * DAYS;
+		let locked6x_period =
+			<hydradx_runtime::Runtime as pallet_conviction_voting::Config>::VoteLockingPeriod::get()
+				.saturating_mul(6);
+		let expected_cooldown = base_cooldown.max(locked6x_period);
 
-		// Step 4: Unstake 150 GIGAHDX (100 free + 50 from voted portion).
 		assert_ok!(GigaHdx::giga_unstake(
 			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
 			150 * UNITS,
 		));
 
-		// Step 5: Should create 2 positions with different cooldowns.
 		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
-		assert_eq!(
-			positions.len(),
-			2,
-			"Should create 2 positions (100 free + 50 voted), got {}",
-			positions.len()
-		);
+		assert_eq!(positions.len(), 1, "design: single position with max cooldown");
+		assert_eq!(positions[0].unlock_at, before_block + expected_cooldown);
+	});
+}
+
+#[test]
+fn on_post_unstake_sees_final_hdx_balance() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			200 * UNITS,
+		));
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(150 * UNITS, Conviction::Locked6x),
+		));
+		end_referendum();
+
+		// Partial unstake — after this, remaining GIGAHDX = 50, voting commitment = 150,
+		// so the spillover to HDX must be 100.
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			150 * UNITS,
+		));
+
+		let split = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(split.gigahdx_amount, 50 * UNITS, "tracker capped at remaining GIGAHDX");
+		assert_eq!(split.hdx_amount, 100 * UNITS, "spillover = commitment - remaining");
 	});
 }

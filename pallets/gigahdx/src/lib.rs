@@ -187,6 +187,9 @@ pub mod pallet {
 		ZeroAmount,
 		/// Stake amount below minimum.
 		InsufficientStake,
+		/// Remaining GIGAHDX balance after unstake would be below minimum stake (in HDX value).
+		/// Either unstake everything or leave at least MinStake-equivalent behind.
+		RemainingBelowMinStake,
 		/// Arithmetic overflow/underflow.
 		Arithmetic,
 		/// No unlockable positions (none exist or all still in cooldown).
@@ -260,8 +263,23 @@ pub mod pallet {
 
 			ensure!(!gigahdx_amount.is_zero(), Error::<T>::ZeroAmount);
 
+			let current_gigahdx = T::MoneyMarket::balance_of(&who);
+			let remaining = current_gigahdx.saturating_sub(gigahdx_amount);
+			if !remaining.is_zero() {
+				let remaining_hdx = Self::calculate_hdx_for_st_hdx(remaining).ok_or(Error::<T>::Arithmetic)?;
+				ensure!(remaining_hdx >= T::MinStake::get(), Error::<T>::RemainingBelowMinStake);
+			}
+
 			// Block if user has votes in ongoing referenda.
 			ensure!(T::Hooks::can_unstake(&who), Error::<T>::ActiveVotesInOngoingReferenda);
+
+			// Reject early if the position cap is full — saves the cost of
+			// running on_unstake / MM withdraw / burn / transfer just to roll
+			// it all back when try_push fails below.
+			ensure!(
+				(UnstakePositions::<T>::decode_len(&who).unwrap_or(0) as u32) < T::MaxUnstakePositions::get(),
+				Error::<T>::TooManyUnstakePositions,
+			);
 
 			// Capture additional lock period BEFORE on_unstake clears votes.
 			let voting_lock = T::Hooks::additional_unstake_lock(&who);
@@ -318,6 +336,11 @@ pub mod pallet {
 				T::LockableCurrency::set_lock(UNSTAKE_LOCK_ID, T::HdxAssetId::get(), &who, total_locked)?;
 				Ok(())
 			})?;
+
+			// Re-apply voting-lock split against the user's new (reduced) GIGAHDX balance.
+			// Caps the tracker and spills uncovered commitment to a hard HDX lock.
+			// Runs after the HDX transfer so apply_lock_split observes the final balance.
+			T::Hooks::on_post_unstake(&who)?;
 
 			Self::deposit_event(Event::Unstaked {
 				who,
@@ -416,8 +439,15 @@ impl<T: Config> Pallet<T> {
 			hdx_amount
 		} else {
 			let pre_reward_hdx = total_hdx.checked_sub(hdx_amount).ok_or(Error::<T>::Arithmetic)?;
-			multiply_by_rational_with_rounding(hdx_amount, total_st_hdx, pre_reward_hdx, Rounding::Down)
-				.ok_or(Error::<T>::Arithmetic)?
+			if pre_reward_hdx.is_zero() {
+				// Degenerate state: stHDX exists but no pre-reward backing.
+				// Avoid divide-by-zero — bootstrap-mint 1:1 so the reward is at
+				// least claimable. Future deposits restore a sane rate.
+				hdx_amount
+			} else {
+				multiply_by_rational_with_rounding(hdx_amount, total_st_hdx, pre_reward_hdx, Rounding::Down)
+					.ok_or(Error::<T>::Arithmetic)?
+			}
 		};
 
 		// Mint stHDX to user.
