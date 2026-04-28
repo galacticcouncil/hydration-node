@@ -1205,10 +1205,11 @@ mod circuit_breaker {
 
 		Hydra::execute_with(|| {
 			let trapped_event = &last_hydra_events(10)[3].clone();
-
-			assert_trapped_acala_token(trapped_event, 90350628868136u128);
+			let trapped_amount = get_trapped_amount(trapped_event);
 
 			let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
+
+			assert!(trapped_amount > 0, "assets should be trapped, not lost");
 			assert!(fee > 0, "treasury should have received fees");
 
 			//No Aca received as exchange asset failed

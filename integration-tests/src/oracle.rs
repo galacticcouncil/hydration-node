@@ -192,6 +192,19 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 			331509049407129600017073813722130790u128,
 		);
 
+		let hdx_lrna_hour = Price::new(
+			275912660163379822209935350654832270154u128,
+			331509049407129600017073813722130790u128,
+		);
+		let hdx_lrna_day = Price::new(
+			275912650768799219879113001497259577106u128,
+			331509049407129600017073813722130790u128,
+		);
+		let hdx_lrna_week = Price::new(
+			275912650418110590734164607961872388855u128,
+			331509049407129600017073813722130790u128,
+		);
+
 		let hdx_lrna_last_block = Price::new(936334588000000000u128, 1124993995517813u128);
 
 		let lrna_dot_short = Price::new(
@@ -201,6 +214,19 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 
 		let lrna_dot_ten_minutes = Price::new(
 			264175035630151730654534455921460486402u128,
+			10299220574157342235602475141589164734u128,
+		);
+
+		let lrna_dot_hour = Price::new(
+			264175012416328184638452119365970959798u128,
+			10299220574157342235602475141589164734u128,
+		);
+		let lrna_dot_day = Price::new(
+			264175007922830891611965686383394568966u128,
+			10299220574157342235602475141589164734u128,
+		);
+		let lrna_dot_week = Price::new(
+			264175007755093930010185406487946632516u128,
 			10299220574157342235602475141589164734u128,
 		);
 
@@ -215,6 +241,9 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 					updates: BTreeMap::from([
 						(Short, hdx_lrna_short),
 						(TenMinutes, hdx_lrna_ten_minutes),
+						(Hour, hdx_lrna_hour),
+						(Day, hdx_lrna_day),
+						(Week, hdx_lrna_week),
 						(LastBlock, hdx_lrna_last_block),
 					]),
 				}),
@@ -224,6 +253,9 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 					updates: BTreeMap::from([
 						(Short, lrna_dot_short),
 						(TenMinutes, lrna_dot_ten_minutes),
+						(Hour, lrna_dot_hour),
+						(Day, lrna_dot_day),
+						(Week, lrna_dot_week),
 						(LastBlock, lrna_dot_last_block),
 					]),
 				}),
