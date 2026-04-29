@@ -691,8 +691,7 @@ impl TransactAsset for LocalAssetTransactor {
 				IsNativeConcrete::<AssetId, CurrencyIdConvert>::matches_fungible(what),
 			) {
 				crate::circuit_breaker::WithdrawCircuitBreaker::ensure_inbound_xcm_withdraw_can_proceed(
-					asset_id,
-					amount,
+					asset_id, amount,
 				)
 				.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
 			}
