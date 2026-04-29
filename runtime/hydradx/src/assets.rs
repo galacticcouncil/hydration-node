@@ -429,7 +429,7 @@ impl pallet_currencies::Config for Runtime {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeAssetId;
 	type RegistryInspect = AssetRegistry;
-	type EgressHandler = circuit_breaker::WithdrawLimitHandler<NativeAssetId>;
+	type EgressHandler = circuit_breaker::WithdrawLimitHandler;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
 

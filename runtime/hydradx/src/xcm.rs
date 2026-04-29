@@ -690,7 +690,7 @@ impl TransactAsset for LocalAssetTransactor {
 				CurrencyIdConvert::convert(what.clone()),
 				IsNativeConcrete::<AssetId, CurrencyIdConvert>::matches_fungible(what),
 			) {
-				crate::circuit_breaker::WithdrawCircuitBreaker::<NativeAssetId>::ensure_inbound_xcm_withdraw_can_proceed(
+				crate::circuit_breaker::WithdrawCircuitBreaker::ensure_inbound_xcm_withdraw_can_proceed(
 					asset_id,
 					amount,
 				)
