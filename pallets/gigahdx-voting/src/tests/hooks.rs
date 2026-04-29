@@ -32,32 +32,41 @@ fn on_before_vote_records_gigahdx_vote() {
 }
 
 #[test]
-fn on_before_vote_caps_at_gigahdx_balance() {
+fn on_before_vote_records_per_side_split() {
 	ExtBuilder::default().build().execute_with(|| {
-		// ALICE has 500 GIGAHDX but votes with 800 total.
+		// ALICE has 500 GIGAHDX + 1000 HDX. Voting 800 total → 500 G-side, 300 H-side.
 		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 800 * ONE);
 
 		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
 
 		let recorded = crate::GigaHdxVotes::<Test>::get(&ALICE, 0).expect("vote should exist");
-		assert_eq!(recorded.amount, 500 * ONE); // Capped at GIGAHDX balance.
+		assert_eq!(recorded.amount, 800 * ONE, "combined commitment");
+		assert_eq!(recorded.gigahdx_lock, 500 * ONE, "G-side capped at GIGAHDX balance");
+		assert_eq!(recorded.hdx_lock, 300 * ONE, "H-side absorbs the remainder");
 	});
 }
 
 #[test]
-fn on_before_vote_hdx_only_voter_noop() {
+fn on_before_vote_hdx_only_voter_records_entry_with_hdx_split() {
+	// Under the new design, every vote (including HDX-only) gets a `GigaHdxVotes`
+	// entry so the adapter's per-side max-aggregate has all the data it needs.
+	// Reward weighting uses `gigahdx_lock` only — HDX-only voters earn no GIGAHDX
+	// referenda rewards.
 	ExtBuilder::default()
-		.with_endowed(vec![
-			(CHARLIE, HDX, 1_000 * ONE),
-			// No GIGAHDX
-		])
+		.with_endowed(vec![(CHARLIE, HDX, 1_000 * ONE)])
 		.build()
 		.execute_with(|| {
 			let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 500 * ONE);
 			assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&CHARLIE, 0, vote));
 
-			assert!(crate::GigaHdxVotes::<Test>::get(&CHARLIE, 0).is_none());
-			assert_eq!(crate::ReferendaTotalWeightedVotes::<Test>::get(0), 0);
+			let recorded = crate::GigaHdxVotes::<Test>::get(&CHARLIE, 0).expect("vote should exist");
+			assert_eq!(recorded.gigahdx_lock, 0);
+			assert_eq!(recorded.hdx_lock, 500 * ONE);
+			assert_eq!(
+				crate::ReferendaTotalWeightedVotes::<Test>::get(0),
+				0,
+				"HDX-only voter contributes 0 to weighted total"
+			);
 		});
 }
 
@@ -121,8 +130,9 @@ fn on_remove_vote_nonexistent_noop() {
 }
 
 #[test]
-fn lock_balance_on_unsuccessful_vote_returns_amount() {
+fn lock_balance_on_unsuccessful_vote_returns_combined_amount() {
 	ExtBuilder::default().build().execute_with(|| {
+		// 400 ≤ 500 GIGAHDX → combined commitment is 400.
 		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 400 * ONE);
 		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
 

@@ -5,7 +5,7 @@
 //! Transfer, withdraw, deposit, reserve, slash are never called.
 
 use crate::types::VotingLockSplit;
-use crate::{Config, GigaHdxVotingLock, LockSplit};
+use crate::{Config, DelegationLockSplit, GigaHdxVotes, GigaHdxVotingLock, PriorLockSplit, UnstakeSpillover};
 use frame_support::{
 	defensive,
 	pallet_prelude::Get,
@@ -344,47 +344,182 @@ impl<T: Config> LockableCurrency<T::AccountId> for GigaHdxVotingCurrency<T> {
 	type Moment = BlockNumberFor<T>;
 	type MaxLocks = ();
 
-	fn set_lock(id: LockIdentifier, who: &T::AccountId, amount: Balance, _reasons: WithdrawReasons) {
-		Self::apply_lock_split(id, who, amount);
+	fn set_lock(_id: LockIdentifier, who: &T::AccountId, amount: Balance, _reasons: WithdrawReasons) {
+		// Used by `update_lock` after `unlock`. If `amount` exceeds what active
+		// votes + priors can explain, the difference is from a delegation prior
+		// upstream is keeping alive — snapshot it. If `amount == 0`, drop the
+		// delegation snapshot entirely.
+		if amount.is_zero() {
+			DelegationLockSplit::<T>::remove(who);
+		} else {
+			Self::ensure_delegation_snapshot_covers(who, amount);
+		}
+		Self::recompute_lock_split(who);
 	}
 
-	fn extend_lock(id: LockIdentifier, who: &T::AccountId, amount: Balance, _reasons: WithdrawReasons) {
-		let current = LockSplit::<T>::get(who);
-		let current_total = current.gigahdx_amount.saturating_add(current.hdx_amount);
-		if amount >= current_total {
-			Self::apply_lock_split(id, who, amount);
-		}
+	fn extend_lock(_id: LockIdentifier, who: &T::AccountId, amount: Balance, _reasons: WithdrawReasons) {
+		// For votes: `on_before_vote` has already populated `GigaHdxVotes` so
+		// the recompute picks up the new contribution.
+		// For delegations: there's no hook, so conviction-voting calls us
+		// directly with the delegated balance — snapshot a per-side split if
+		// the active votes + priors don't already cover this amount.
+		Self::ensure_delegation_snapshot_covers(who, amount);
+		Self::recompute_lock_split(who);
 	}
 
 	fn remove_lock(id: LockIdentifier, who: &T::AccountId) {
 		GigaHdxVotingLock::<T>::remove(who);
+		let _ = PriorLockSplit::<T>::clear_prefix(who, u32::MAX, None);
+		DelegationLockSplit::<T>::remove(who);
+		UnstakeSpillover::<T>::remove(who);
 		T::NativeCurrency::remove_lock(id, who);
-		LockSplit::<T>::remove(who);
 	}
 }
 
 impl<T: Config> GigaHdxVotingCurrency<T> {
-	pub(crate) fn apply_lock_split(id: LockIdentifier, who: &T::AccountId, amount: Balance) {
-		let gigahdx_bal = gigahdx_balance::<T>(who);
+	/// Per-side max-aggregate over (a) every active `GigaHdxVotes` entry's stored
+	/// per-vote split, and (b) every still-running `PriorLockSplit` prior — same
+	/// shape as upstream's `voting.locked_balance() = max(votes, prior)`.
+	///
+	/// Writes the resulting GIGAHDX-side cap into `GigaHdxVotingLock` (read by the
+	/// 0x0806 EVM lock-manager precompile) and the HDX-side cap into the standard
+	/// `pallet_balances::Locks` entry under id `pyconvot`.
+	pub fn recompute_lock_split(who: &T::AccountId) {
+		const CONVICTION_VOTING_LOCK_ID: LockIdentifier = *b"pyconvot";
+		let now = frame_system::Pallet::<T>::block_number();
+		let mut g_max: Balance = 0;
+		let mut h_max: Balance = 0;
 
-		let gigahdx_lock = amount.min(gigahdx_bal);
-		let hdx_lock = amount.saturating_sub(gigahdx_lock);
-
-		GigaHdxVotingLock::<T>::insert(who, gigahdx_lock);
-
-		LockSplit::<T>::insert(
-			who,
-			VotingLockSplit {
-				gigahdx_amount: gigahdx_lock,
-				hdx_amount: hdx_lock,
-			},
-		);
-
-		if hdx_lock > Zero::zero() {
-			T::NativeCurrency::set_lock(id, who, hdx_lock, WithdrawReasons::all());
-		} else {
-			T::NativeCurrency::remove_lock(id, who);
+		// Active votes — every vote's stored (gigahdx_lock, hdx_lock) snapshot.
+		for (_ref, v) in GigaHdxVotes::<T>::iter_prefix(who) {
+			if v.gigahdx_lock > g_max {
+				g_max = v.gigahdx_lock;
+			}
+			if v.hdx_lock > h_max {
+				h_max = v.hdx_lock;
+			}
 		}
+
+		// Delegation snapshot (if any) — fallback for conviction-voting paths
+		// (delegate / undelegate prior) that don't go through our vote hooks.
+		let delegation = DelegationLockSplit::<T>::get(who);
+		if delegation.gigahdx_amount > g_max {
+			g_max = delegation.gigahdx_amount;
+		}
+		if delegation.hdx_amount > h_max {
+			h_max = delegation.hdx_amount;
+		}
+
+		// Priors — rejig expired ones, accumulate live ones into per-side max.
+		let mut expired: sp_std::vec::Vec<u16> = sp_std::vec::Vec::new();
+		for (class, mut p) in PriorLockSplit::<T>::iter_prefix(who) {
+			p.rejig(now);
+			if !p.is_active() {
+				expired.push(class);
+			} else {
+				if p.gigahdx > g_max {
+					g_max = p.gigahdx;
+				}
+				if p.hdx > h_max {
+					h_max = p.hdx;
+				}
+			}
+		}
+		for class in expired {
+			PriorLockSplit::<T>::remove(who, class);
+		}
+
+		// Unstake spillover — H-side residue from `giga_unstake` (commitment
+		// that no longer fits the user's GIGAHDX balance).
+		let spillover = UnstakeSpillover::<T>::get(who);
+		if spillover > h_max {
+			h_max = spillover;
+		}
+
+		// If there's nothing else holding the prior alive, the spillover should
+		// expire too. Use upstream's `pyconvot` lock as the canonical "any
+		// commitment still alive" signal: when both votes and priors clear, the
+		// spillover has no commitment left to back. We approximate this by
+		// dropping spillover whenever the per-side max from votes+priors is 0.
+		// (Active votes/priors keep the spillover alive via their own H-side
+		// contributions; the spillover only matters when those have aged out.)
+		if g_max == 0
+			&& GigaHdxVotes::<T>::iter_prefix(who).next().is_none()
+			&& PriorLockSplit::<T>::iter_prefix(who).next().is_none()
+			&& DelegationLockSplit::<T>::get(who) == VotingLockSplit::default()
+		{
+			UnstakeSpillover::<T>::remove(who);
+			h_max = 0;
+		}
+
+		// GIGAHDX side — write the cap consumed by the EVM lock-manager precompile.
+		if g_max > Zero::zero() {
+			GigaHdxVotingLock::<T>::insert(who, g_max);
+		} else {
+			GigaHdxVotingLock::<T>::remove(who);
+		}
+
+		// HDX side — standard balances lock.
+		if h_max > Zero::zero() {
+			T::NativeCurrency::set_lock(CONVICTION_VOTING_LOCK_ID, who, h_max, WithdrawReasons::all());
+		} else {
+			T::NativeCurrency::remove_lock(CONVICTION_VOTING_LOCK_ID, who);
+		}
+	}
+
+	/// If `amount` exceeds what active `GigaHdxVotes` entries + `PriorLockSplit`
+	/// already account for, the extra commitment must be from a path that
+	/// bypasses our vote hooks (delegate / delegation prior). Snapshot a
+	/// GIGAHDX-first split for it and max-aggregate into `DelegationLockSplit`.
+	fn ensure_delegation_snapshot_covers(who: &T::AccountId, amount: Balance) {
+		if amount.is_zero() {
+			return;
+		}
+		let mut g_votes_max: Balance = 0;
+		let mut h_votes_max: Balance = 0;
+		for (_ref, v) in GigaHdxVotes::<T>::iter_prefix(who) {
+			if v.gigahdx_lock > g_votes_max {
+				g_votes_max = v.gigahdx_lock;
+			}
+			if v.hdx_lock > h_votes_max {
+				h_votes_max = v.hdx_lock;
+			}
+		}
+		let now = frame_system::Pallet::<T>::block_number();
+		for (_class, mut p) in PriorLockSplit::<T>::iter_prefix(who) {
+			p.rejig(now);
+			if p.is_active() {
+				if p.gigahdx > g_votes_max {
+					g_votes_max = p.gigahdx;
+				}
+				if p.hdx > h_votes_max {
+					h_votes_max = p.hdx;
+				}
+			}
+		}
+
+		let votes_total = g_votes_max.saturating_add(h_votes_max);
+		if amount <= votes_total {
+			// votes + priors already cover the amount; no delegation snapshot needed
+			// beyond what's already there.
+			return;
+		}
+
+		// Snapshot the delegated commitment GIGAHDX-first against current
+		// balance. Uses current GIGAHDX balance — same trade-off upstream's
+		// `prior` makes (it captures balance at delegation time).
+		let gigahdx_bal = gigahdx_balance::<T>(who);
+		let g_snap = amount.min(gigahdx_bal);
+		let h_snap = amount.saturating_sub(g_snap);
+
+		DelegationLockSplit::<T>::mutate(who, |existing| {
+			if g_snap > existing.gigahdx_amount {
+				existing.gigahdx_amount = g_snap;
+			}
+			if h_snap > existing.hdx_amount {
+				existing.hdx_amount = h_snap;
+			}
+		});
 	}
 }
 

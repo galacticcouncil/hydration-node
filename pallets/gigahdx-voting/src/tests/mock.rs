@@ -176,6 +176,8 @@ thread_local! {
 		sp_std::cell::RefCell::new(sp_std::collections::btree_map::BTreeMap::new());
 	static TRACK_IDS: sp_std::cell::RefCell<sp_std::collections::btree_map::BTreeMap<u32, u16>> =
 		sp_std::cell::RefCell::new(sp_std::collections::btree_map::BTreeMap::new());
+	static REFERENDUM_END_BLOCKS: sp_std::cell::RefCell<sp_std::collections::btree_map::BTreeMap<u32, u64>> =
+		sp_std::cell::RefCell::new(sp_std::collections::btree_map::BTreeMap::new());
 	static FORCE_REMOVE_VOTE_CALLS: sp_std::cell::RefCell<sp_std::vec::Vec<(AccountId, Option<u16>, u32)>> =
 		sp_std::cell::RefCell::new(sp_std::vec::Vec::new());
 }
@@ -183,6 +185,8 @@ thread_local! {
 pub struct MockReferenda;
 
 impl GetReferendumOutcome<u32> for MockReferenda {
+	type BlockNumber = u64;
+
 	fn is_referendum_finished(index: u32) -> bool {
 		REFERENDUM_OUTCOMES.with(|outcomes| {
 			outcomes
@@ -200,6 +204,10 @@ impl GetReferendumOutcome<u32> for MockReferenda {
 				.copied()
 				.unwrap_or(ReferendumOutcome::Ongoing)
 		})
+	}
+
+	fn end_block(index: u32) -> Option<u64> {
+		REFERENDUM_END_BLOCKS.with(|ends| ends.borrow().get(&index).copied())
 	}
 }
 
@@ -262,6 +270,12 @@ pub fn set_referendum_outcome(ref_index: u32, outcome: ReferendumOutcome) {
 pub fn set_track_id(ref_index: u32, track_id: u16) {
 	TRACK_IDS.with(|tracks| {
 		tracks.borrow_mut().insert(ref_index, track_id);
+	});
+}
+
+pub fn set_referendum_end_block(ref_index: u32, end: u64) {
+	REFERENDUM_END_BLOCKS.with(|ends| {
+		ends.borrow_mut().insert(ref_index, end);
 	});
 }
 
@@ -335,6 +349,7 @@ impl ExtBuilder {
 			// Clear thread-local state.
 			REFERENDUM_OUTCOMES.with(|o| o.borrow_mut().clear());
 			TRACK_IDS.with(|t| t.borrow_mut().clear());
+			REFERENDUM_END_BLOCKS.with(|e| e.borrow_mut().clear());
 			FORCE_REMOVE_VOTE_CALLS.with(|c| c.borrow_mut().clear());
 		});
 

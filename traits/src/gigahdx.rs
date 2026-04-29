@@ -109,11 +109,16 @@ pub enum ReferendumOutcome {
 /// Query referendum state / outcome.
 /// Extends the simpler `GetReferendumState` from pallet-staking with full outcome info.
 pub trait GetReferendumOutcome<Index> {
+	type BlockNumber;
+
 	/// Check if referendum is finished (not ongoing).
 	fn is_referendum_finished(index: Index) -> bool;
 
 	/// Get the full referendum outcome.
 	fn referendum_outcome(index: Index) -> ReferendumOutcome;
+
+	/// Completion block for finished referenda; `None` if ongoing or unknown.
+	fn end_block(index: Index) -> Option<Self::BlockNumber>;
 }
 
 /// Query track ID for a given referendum index.

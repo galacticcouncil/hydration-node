@@ -80,7 +80,8 @@ pub mod pallet {
 			+ frame_support::traits::fungible::Inspect<Self::AccountId, Balance = Balance>;
 
 		/// Referenda state queries.
-		type Referenda: GetReferendumOutcome<u32> + GetTrackId<u32, TrackId = u16>;
+		type Referenda: GetReferendumOutcome<u32, BlockNumber = BlockNumberFor<Self>>
+			+ GetTrackId<u32, TrackId = u16>;
 
 		/// Per-track reward percentage configuration.
 		type TrackRewards: TrackRewardConfig;
@@ -130,10 +131,44 @@ pub mod pallet {
 	#[pallet::getter(fn gigahdx_voting_lock)]
 	pub type GigaHdxVotingLock<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
 
-	/// Lock split per account: how much of the total lock is in GIGAHDX vs HDX.
+	/// Per-class prior lock split — mirrors pallet-conviction-voting's `prior` field
+	/// (one max-aggregate per (account, class)), but two-sided (GIGAHDX + HDX).
+	///
+	/// Accumulated when a vote on a winning side is removed during the conviction
+	/// lock period. Cleared by `rejig` once the prior expires.
 	#[pallet::storage]
-	#[pallet::getter(fn lock_split)]
-	pub type LockSplit<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, VotingLockSplit, ValueQuery>;
+	#[pallet::getter(fn prior_lock_split)]
+	pub type PriorLockSplit<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		u16, // governance class / track id
+		PriorSplit<BlockNumberFor<T>>,
+		ValueQuery,
+	>;
+
+	/// Fallback split snapshot covering paths that don't go through our vote
+	/// hooks — primarily `delegate` (and the `undelegate` prior). Conviction-voting
+	/// calls `LockableCurrency::extend_lock(amount)` directly for delegation
+	/// without firing `on_before_vote`, so we have no per-vote breakdown for the
+	/// delegated balance. We snapshot it here at the moment `extend_lock` is
+	/// called with an amount that exceeds what active votes + priors already
+	/// account for. Single max-aggregate per account, cleared by `remove_lock`.
+	#[pallet::storage]
+	#[pallet::getter(fn delegation_lock_split)]
+	pub type DelegationLockSplit<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, VotingLockSplit, ValueQuery>;
+
+	/// HDX-side spillover from `giga_unstake`. When a user unstakes GIGAHDX
+	/// while a prior (or other commitment) still holds G-side locked, the
+	/// G-side cap is reduced to fit the post-unstake aToken balance and the
+	/// freed commitment moves to the HDX-side native lock. This counter
+	/// preserves the total-commitment invariant without mutating per-vote
+	/// splits. Cleared by `remove_lock` and `prepare_for_liquidation`.
+	#[pallet::storage]
+	#[pallet::getter(fn unstake_spillover)]
+	pub type UnstakeSpillover<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
 
 	/// Reward pool snapshot per completed referendum.
 	#[pallet::storage]
@@ -368,10 +403,70 @@ pub mod pallet {
 }
 
 // ---------------------------------------------------------------------------
+// View-only `LockSplit::<T>::get(who)` shim. Backed by per-vote splits in
+// `GigaHdxVotes` + `PriorLockSplit`, NOT a real storage map. Returned values
+// match the effective lock state the user actually faces.
+// ---------------------------------------------------------------------------
+
+pub struct LockSplit<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: Config> LockSplit<T> {
+	/// Effective per-side lock state — what the user actually faces.
+	///
+	/// Reads the canonical caps directly:
+	/// - `gigahdx_amount`: `GigaHdxVotingLock` (consumed by the 0x0806 EVM lock-manager precompile).
+	/// - `hdx_amount`: the user's `pyconvot` entry on `pallet_balances::Locks`.
+	pub fn get(who: &T::AccountId) -> VotingLockSplit {
+		let gigahdx_amount = GigaHdxVotingLock::<T>::get(who);
+		let hdx_amount = Self::pyconvot_native_lock(who);
+		VotingLockSplit {
+			gigahdx_amount,
+			hdx_amount,
+		}
+	}
+
+	/// H-side max-aggregate over the data sources the adapter wrote into the
+	/// `pyconvot` native lock. We can't directly query the lock without
+	/// requiring the concrete `pallet_balances` type, so we recompute the same
+	/// max-aggregate the adapter does — including UnstakeSpillover.
+	fn pyconvot_native_lock(who: &T::AccountId) -> Balance {
+		Pallet::<T>::compute_hdx_lock_with_spillover(who)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Public functions
 // ---------------------------------------------------------------------------
 
 impl<T: Config> Pallet<T> {
+	/// HDX-side max-aggregate over active votes + priors + delegation snapshot
+	/// + unstake spillover. Used by `on_unstake` to apply the H-side native
+	/// lock immediately after spilling commitment off the G-side.
+	pub fn compute_hdx_lock_with_spillover(who: &T::AccountId) -> Balance {
+		let now = frame_system::Pallet::<T>::block_number();
+		let mut h_max: Balance = 0;
+		for (_ref, v) in GigaHdxVotes::<T>::iter_prefix(who) {
+			if v.hdx_lock > h_max {
+				h_max = v.hdx_lock;
+			}
+		}
+		for (_class, mut p) in PriorLockSplit::<T>::iter_prefix(who) {
+			p.rejig(now);
+			if p.is_active() && p.hdx > h_max {
+				h_max = p.hdx;
+			}
+		}
+		let delegation = DelegationLockSplit::<T>::get(who);
+		if delegation.hdx_amount > h_max {
+			h_max = delegation.hdx_amount;
+		}
+		let spillover = UnstakeSpillover::<T>::get(who);
+		if spillover > h_max {
+			h_max = spillover;
+		}
+		h_max
+	}
+
 	/// GigaReward pot account (main reward pool).
 	pub fn giga_reward_pot_account() -> T::AccountId {
 		T::GigaRewardPotId::get().into_account_truncating()
@@ -398,7 +493,7 @@ impl<T: Config> Pallet<T> {
 			// (e.g., if ForceRemoveVote doesn't trigger VotingHooks).
 			if GigaHdxVotes::<T>::contains_key(who, ref_index) {
 				let weighted =
-					vote.amount.saturating_mul(vote.conviction.reward_multiplier() as u128) / REWARD_MULTIPLIER_SCALE;
+					vote.gigahdx_lock.saturating_mul(vote.conviction.reward_multiplier() as u128) / REWARD_MULTIPLIER_SCALE;
 				ReferendaTotalWeightedVotes::<T>::mutate(ref_index, |total| {
 					*total = total.saturating_sub(weighted);
 				});
@@ -412,7 +507,9 @@ impl<T: Config> Pallet<T> {
 		// the liquidation seize. The HDX-side pallet-balances lock is removed
 		// too because liquidation cancels the user's governance commitment.
 		GigaHdxVotingLock::<T>::remove(who);
-		LockSplit::<T>::remove(who);
+		let _ = PriorLockSplit::<T>::clear_prefix(who, u32::MAX, None);
+		DelegationLockSplit::<T>::remove(who);
+		UnstakeSpillover::<T>::remove(who);
 		<T::NativeCurrency as LockableCurrency<T::AccountId>>::remove_lock(CONVICTION_VOTING_ID, who);
 
 		if count > 0 {
@@ -456,7 +553,7 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 		true
 	}
 
-	fn on_unstake(who: &T::AccountId, _gigahdx_amount: Balance) -> DispatchResult {
+	fn on_unstake(who: &T::AccountId, gigahdx_amount: Balance) -> DispatchResult {
 		let finished_votes: sp_std::vec::Vec<u32> = GigaHdxVotes::<T>::iter_prefix(who)
 			.filter(|(ref_index, _)| <T::Referenda as GetReferendumOutcome<u32>>::is_referendum_finished(*ref_index))
 			.map(|(ref_index, _)| ref_index)
@@ -474,6 +571,70 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 				who: who.clone(),
 				count,
 			});
+		}
+
+		// Cap GigaHdxVotingLock at the post-unstake aToken balance and spill the
+		// remainder to the HDX-side native lock. The 0x0806 LockManager precompile
+		// reads GigaHdxVotingLock and would otherwise block AAVE.withdraw later
+		// in giga_unstake.
+		//
+		// This preserves the total-commitment invariant: any G-side cap that no
+		// longer fits the user's post-unstake balance moves into UnstakeSpillover,
+		// which the adapter folds into the H-side max-aggregate. Per-vote splits
+		// stored in GigaHdxVotes / PriorLockSplit are NOT mutated (snapshots
+		// remain immutable); the spillover is a separate per-account aggregate.
+		use frame_support::traits::fungibles::Inspect as _;
+		let current_g_balance =
+			<T::Currency as frame_support::traits::fungibles::Inspect<T::AccountId>>::balance(
+				<T as pallet_gigahdx::Config>::GigaHdxAssetId::get(),
+				who,
+			);
+		let post_unstake_balance = current_g_balance.saturating_sub(gigahdx_amount);
+
+		// Compute the current G-side max from active votes + priors + delegation snapshot.
+		let now = frame_system::Pallet::<T>::block_number();
+		let mut g_max: Balance = 0;
+		for (_ref, v) in GigaHdxVotes::<T>::iter_prefix(who) {
+			if v.gigahdx_lock > g_max {
+				g_max = v.gigahdx_lock;
+			}
+		}
+		for (_class, mut p) in PriorLockSplit::<T>::iter_prefix(who) {
+			p.rejig(now);
+			if p.is_active() && p.gigahdx > g_max {
+				g_max = p.gigahdx;
+			}
+		}
+		let delegation = DelegationLockSplit::<T>::get(who);
+		if delegation.gigahdx_amount > g_max {
+			g_max = delegation.gigahdx_amount;
+		}
+
+		if g_max > post_unstake_balance {
+			let spill = g_max.saturating_sub(post_unstake_balance);
+			UnstakeSpillover::<T>::mutate(who, |s| {
+				if spill > *s {
+					*s = spill;
+				}
+			});
+			// Pre-shrink the G-side cap so the AAVE precompile permits the burn.
+			// The recompute that follows the next vote-adapter call will pick up
+			// UnstakeSpillover via the H-side max-aggregate.
+			if post_unstake_balance > Zero::zero() {
+				GigaHdxVotingLock::<T>::insert(who, post_unstake_balance);
+			} else {
+				GigaHdxVotingLock::<T>::remove(who);
+			}
+			// Apply the spillover to the H-side native lock immediately.
+			let h_total = Self::compute_hdx_lock_with_spillover(who);
+			if h_total > Zero::zero() {
+				<T::NativeCurrency as LockableCurrency<T::AccountId>>::set_lock(
+					CONVICTION_VOTING_ID,
+					who,
+					h_total,
+					frame_support::traits::WithdrawReasons::all(),
+				);
+			}
 		}
 
 		Ok(())
@@ -494,20 +655,10 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 			.unwrap_or_else(Zero::zero)
 	}
 
-	fn on_post_unstake(who: &T::AccountId) -> DispatchResult {
-		let split = LockSplit::<T>::get(who);
-		let total = split.gigahdx_amount.saturating_add(split.hdx_amount);
-		if total.is_zero() {
-			// No voting lock in place — nothing to recompute.
-			return Ok(());
-		}
-
-		// Re-run the split with the user's (now-reduced) GIGAHDX balance.
-		// apply_lock_split caps the tracker at the new balance and spills
-		// uncovered commitment onto a hard HDX lock.
-		const CONVICTION_VOTING_LOCK_ID: frame_support::traits::LockIdentifier = *b"pyconvot";
-		crate::adapter::GigaHdxVotingCurrency::<T>::apply_lock_split(CONVICTION_VOTING_LOCK_ID, who, total);
-
+	fn on_post_unstake(_who: &T::AccountId) -> DispatchResult {
+		// Lock state changes only on vote-related events (vote/remove_vote/unlock),
+		// never on plain balance changes. Stake/unstake leave the lock untouched —
+		// the per-vote split snapshot stored on `GigaHdxVotes` continues to apply.
 		Ok(())
 	}
 }

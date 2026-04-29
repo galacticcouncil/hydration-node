@@ -90,7 +90,7 @@ impl From<pallet_conviction_voting::Conviction> for Conviction {
 /// A tracked GIGAHDX vote for a specific referendum.
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct GigaHdxVote<BlockNumber> {
-	/// GIGAHDX amount used in this vote.
+	/// Combined committed amount (GIGAHDX + HDX side).
 	pub amount: Balance,
 	/// Conviction level chosen by the voter.
 	pub conviction: Conviction,
@@ -98,17 +98,67 @@ pub struct GigaHdxVote<BlockNumber> {
 	pub voted_at: BlockNumber,
 	/// Block number when the conviction lock expires (0 for Conviction::None).
 	pub lock_expires_at: BlockNumber,
+	/// GIGAHDX-side contribution as decided at vote-cast time.
+	pub gigahdx_lock: Balance,
+	/// HDX-side contribution as decided at vote-cast time.
+	pub hdx_lock: Balance,
 }
 
-/// How a voting lock is split between GIGAHDX and HDX.
+/// View-only per-side split snapshot. Computed by `Pallet::lock_split_view`
+/// from active `GigaHdxVotes` + `PriorLockSplit` (no separate storage). Useful
+/// for inspecting effective lock state in tests and off-chain queries.
 #[derive(
 	Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Default,
 )]
 pub struct VotingLockSplit {
-	/// Amount locked in GIGAHDX (EVM-side enforcement).
+	/// Effective GIGAHDX-side cap (mirrors `GigaHdxVotingLock`).
 	pub gigahdx_amount: Balance,
-	/// Amount locked in HDX (native pallet-balances lock).
+	/// Effective HDX-side cap (mirrors the `pyconvot` entry on pallet-balances).
 	pub hdx_amount: Balance,
+}
+
+/// Per-class prior split — mirrors pallet-conviction-voting's `PriorLock`,
+/// but two-sided (GIGAHDX + HDX) and stored per `(account, class)`.
+///
+/// Single max-aggregate covering finished-and-still-locked votes for that
+/// class. Lossy by design (same "overlocking" trade-off upstream makes).
+#[derive(
+	Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Default,
+)]
+pub struct PriorSplit<BlockNumber: Default> {
+	/// GIGAHDX-side max across accumulated finished-conviction priors.
+	pub gigahdx: Balance,
+	/// HDX-side max across accumulated finished-conviction priors.
+	pub hdx: Balance,
+	/// Block number at which this prior expires.
+	pub until: BlockNumber,
+}
+
+impl<BlockNumber: Ord + Copy + Default> PriorSplit<BlockNumber> {
+	/// Per-field max-aggregate, mirroring `PriorLock::accumulate`.
+	pub fn accumulate(&mut self, until: BlockNumber, gigahdx: Balance, hdx: Balance) {
+		if until > self.until {
+			self.until = until;
+		}
+		if gigahdx > self.gigahdx {
+			self.gigahdx = gigahdx;
+		}
+		if hdx > self.hdx {
+			self.hdx = hdx;
+		}
+	}
+
+	/// Zeros the prior once `now >= until`. Mirrors `PriorLock::rejig`.
+	pub fn rejig(&mut self, now: BlockNumber) {
+		if now >= self.until {
+			*self = Self::default();
+		}
+	}
+
+	/// True iff this prior is still active (until > 0).
+	pub fn is_active(&self) -> bool {
+		self.until != BlockNumber::default()
+	}
 }
 
 /// Reward pool snapshot for a completed referendum.

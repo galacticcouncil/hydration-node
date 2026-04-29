@@ -26,6 +26,8 @@ mod hsm;
 //mod hyperbridge;
 mod gigahdx;
 mod gigahdx_liquidation;
+mod gigahdx_vote_scenarios;
+mod gigahdx_vote_scenarios_extra;
 mod gigahdx_voting;
 mod insufficient_assets_ed;
 mod liquidation;

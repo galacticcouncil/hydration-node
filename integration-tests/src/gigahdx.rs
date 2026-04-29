@@ -22,7 +22,7 @@ use sp_core::U256;
 use sp_runtime::{DispatchError, TokenError};
 use xcm_emulator::Network;
 
-pub const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx2";
+pub const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx4";
 
 const UNITS: Balance = 1_000_000_000_000;
 const STHDX: u32 = 670;
@@ -548,27 +548,38 @@ fn gigahdx_transfer_succeeds_when_unlocked() {
 fn gigahdx_transfer_fails_when_locked_by_conviction_vote() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		let alice = sp_runtime::AccountId32::from(ALICE);
+		// Use a fresh account that has no prior state on the testnet snapshot.
+		const EVE: [u8; 32] = [99u8; 32];
+		let eve = sp_runtime::AccountId32::from(EVE);
 		let bob = sp_runtime::AccountId32::from(BOB);
 		let stake_amount = 1_000 * UNITS;
 
-		setup_alice_with_only_gigahdx(stake_amount);
+		// Sanity: EVE must be empty on the snapshot.
+		assert_eq!(Currencies::free_balance(GIGAHDX, &eve), 0);
+		assert_eq!(Currencies::free_balance(HDX, &eve), 0);
+
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			eve.clone(),
+			stake_amount,
+		));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(eve.clone()), stake_amount));
 
 		let referendum_index = begin_referendum_by_bob();
 
-		// ALICE votes with Locked1x conviction — locks all her GIGAHDX.
+		// EVE votes with Locked1x conviction — locks all her GIGAHDX.
 		assert_ok!(ConvictionVoting::vote(
-			RuntimeOrigin::signed(alice.clone()),
+			RuntimeOrigin::signed(eve.clone()),
 			referendum_index,
 			aye_with_conviction(stake_amount, Conviction::Locked1x),
 		));
 
 		// Verify the lock is set.
-		let lock = pallet_gigahdx_voting::GigaHdxVotingLock::<hydradx_runtime::Runtime>::get(&alice);
+		let lock = pallet_gigahdx_voting::GigaHdxVotingLock::<hydradx_runtime::Runtime>::get(&eve);
 		assert_eq!(lock, stake_amount);
 
 		// Transferring any GIGAHDX should fail — entire balance is locked.
-		assert!(Currencies::transfer(RuntimeOrigin::signed(alice.clone()), bob.clone(), GIGAHDX, 1 * UNITS,).is_err());
+		assert!(Currencies::transfer(RuntimeOrigin::signed(eve.clone()), bob.clone(), GIGAHDX, 1 * UNITS,).is_err());
 	});
 }
 
@@ -895,6 +906,254 @@ fn vote_then_transfer_atoken_via_evm_blocked_when_locked() {
 			Currencies::free_balance(GIGAHDX, &bob),
 			bob_gigahdx_before,
 			"recipient's GIGAHDX must be unchanged",
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// LockSplit-stale repro
+//
+// Reproduces the testnet observation that a user who voted with HDX before
+// holding any GIGAHDX, then later staked HDX → GIGAHDX and voted again, can
+// transfer their GIGAHDX even though it should be lock-bound by the second
+// vote.
+//
+// Exact testnet sequence as observed against Lark2 (account 5CSXEX...BCH7):
+//   1. fund account with 20 M HDX
+//   2. vote 10 M aye-None on a referendum  (no GIGAHDX yet)
+//   3. remove that vote
+//   4. giga_stake 5 M HDX → 5 M GIGAHDX
+//   5. vote 5 M aye-None on a referendum  (now holding only GIGAHDX)
+//   6. transfer 5 M GIGAHDX out — succeeds despite step-5 vote (BUG)
+//
+// Expected post-condition (correct behaviour) would be a transfer revert with
+// the precompile reporting locked balance == 5 M. Current behaviour leaves the
+// LockSplit at { gigahdx: 0, hdx: 10 M } from step 2 because the lock-split
+// allocator is never re-run with the post-stake GIGAHDX balance.
+// ---------------------------------------------------------------------------
+#[test]
+fn lock_split_stale_after_stake_allows_transfer_of_locked_gigahdx() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let charlie = sp_runtime::AccountId32::from(CHARLIE);
+		let bob = sp_runtime::AccountId32::from(BOB);
+
+		// Sanity: charlie has no relevant state in this snapshot.
+		assert_eq!(Currencies::free_balance(HDX, &charlie), 0);
+		assert_eq!(Currencies::free_balance(GIGAHDX, &charlie), 0);
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&charlie),
+			0
+		);
+		let split_pre = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&charlie);
+		assert_eq!(split_pre.gigahdx_amount, 0);
+		assert_eq!(split_pre.hdx_amount, 0);
+
+		// Step 1: fund Charlie with 20 M HDX.
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			charlie.clone(),
+			20_000_000 * UNITS,
+		));
+		assert_eq!(Currencies::free_balance(HDX, &charlie), 20_000_000 * UNITS);
+
+		// Step 2: Charlie votes 10 M aye-None before staking any GIGAHDX.
+		let ref_index_1 = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(charlie.clone()),
+			ref_index_1,
+			aye(10_000_000 * UNITS),
+		));
+
+		// Pre-stake invariant: split is HDX-only because GIGAHDX balance is 0.
+		let split_after_step2 = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&charlie);
+		assert_eq!(split_after_step2.gigahdx_amount, 0);
+		assert_eq!(split_after_step2.hdx_amount, 10_000_000 * UNITS);
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&charlie),
+			0
+		);
+
+		// Step 3: Charlie removes that vote.
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(charlie.clone()),
+			None,
+			ref_index_1,
+		));
+
+		// Step 4: Charlie stakes 5 M HDX → ~5 M GIGAHDX via the real money market.
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(charlie.clone()),
+			5_000_000 * UNITS,
+		));
+		let charlie_gigahdx = Currencies::free_balance(GIGAHDX, &charlie);
+		assert!(
+			charlie_gigahdx > 0,
+			"giga_stake must mint GIGAHDX (got {})",
+			charlie_gigahdx
+		);
+
+		// Step 5: Charlie votes 5 M aye-None on a fresh referendum, now that he
+		// holds GIGAHDX.
+		let ref_index_2 = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(charlie.clone()),
+			ref_index_2,
+			aye(5_000_000 * UNITS),
+		));
+
+		// Diagnostic snapshot of the lock state right after step 5.
+		let split_after_step5 = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&charlie);
+		let lock_after_step5 = pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&charlie);
+		println!(
+			"[diag] after step 5: LockSplit {{ gigahdx: {}, hdx: {} }}, GigaHdxVotingLock = {}",
+			split_after_step5.gigahdx_amount, split_after_step5.hdx_amount, lock_after_step5,
+		);
+
+		// Step 6: try to transfer the entire 5 M GIGAHDX out.
+		let bob_gigahdx_before = Currencies::free_balance(GIGAHDX, &bob);
+		let transfer_result = Currencies::transfer(
+			RuntimeOrigin::signed(charlie.clone()),
+			bob.clone(),
+			GIGAHDX,
+			charlie_gigahdx,
+		);
+		println!("[diag] step 6 transfer result = {:?}", transfer_result);
+		println!(
+			"[diag] charlie GIGAHDX after = {}",
+			Currencies::free_balance(GIGAHDX, &charlie),
+		);
+		println!(
+			"[diag] bob GIGAHDX after = {} (before {})",
+			Currencies::free_balance(GIGAHDX, &bob),
+			bob_gigahdx_before,
+		);
+
+		// Correct behaviour: a 5 M GIGAHDX-side voting lock should be in
+		// effect after step 5, so this transfer must revert. Today this
+		// assertion FAILS because LockSplit is never refreshed after the
+		// stake (carry-over from the pre-stake 10 M HDX vote leaves
+		// `LockSplit { gigahdx: 0, hdx: 10 M }` and the precompile reports
+		// 0 locked GIGAHDX). The test will pass once the lock-split is
+		// recomputed on stake / on every vote.
+		assert!(
+			transfer_result.is_err(),
+			"locked GIGAHDX must not be transferable; got Ok",
+		);
+		assert_eq!(
+			Currencies::free_balance(GIGAHDX, &charlie),
+			charlie_gigahdx,
+			"GIGAHDX balance must be unchanged after rejected transfer",
+		);
+		assert_eq!(
+			Currencies::free_balance(GIGAHDX, &bob),
+			bob_gigahdx_before,
+			"bob must not have received any GIGAHDX",
+		);
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&charlie),
+			charlie_gigahdx,
+			"GIGAHDX-side voting lock must reflect the active 5 M vote",
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Control case for the LockSplit-stale repro above.
+//
+// Same actor (Charlie) and same end-state target (5 M GIGAHDX, vote 5 M aye-
+// None), but **no pre-stake HDX vote**. Sequence:
+//   1. fund Charlie with 20 M HDX
+//   2. giga_stake 5 M HDX → 5 M GIGAHDX
+//   3. vote 5 M aye-None
+//   4. transfer 5 M GIGAHDX out — must FAIL because the GIGAHDX-side lock is
+//      computed correctly when no stale LockSplit existed beforehand.
+//
+// Together with `lock_split_stale_after_stake_allows_transfer_of_locked_gigahdx`
+// this proves the issue is the carry-over from a pre-stake HDX vote, not the
+// per-vote enforcement itself.
+// ---------------------------------------------------------------------------
+#[test]
+fn vote_after_stake_blocks_gigahdx_transfer() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let charlie = sp_runtime::AccountId32::from(CHARLIE);
+		let bob = sp_runtime::AccountId32::from(BOB);
+
+		// Sanity: Charlie has no relevant state in this snapshot.
+		assert_eq!(Currencies::free_balance(HDX, &charlie), 0);
+		assert_eq!(Currencies::free_balance(GIGAHDX, &charlie), 0);
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&charlie),
+			0
+		);
+		let split_pre = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&charlie);
+		assert_eq!(split_pre.gigahdx_amount, 0);
+		assert_eq!(split_pre.hdx_amount, 0);
+
+		// Step 1: fund Charlie with 20 M HDX.
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			charlie.clone(),
+			20_000_000 * UNITS,
+		));
+
+		// Step 2: stake 5 M HDX → 5 M GIGAHDX (no prior HDX vote).
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(charlie.clone()),
+			5_000_000 * UNITS,
+		));
+		let charlie_gigahdx = Currencies::free_balance(GIGAHDX, &charlie);
+		assert!(
+			charlie_gigahdx > 0,
+			"giga_stake must mint GIGAHDX (got {})",
+			charlie_gigahdx
+		);
+
+		// Step 3: vote 5 M aye-None.
+		let ref_index = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(charlie.clone()),
+			ref_index,
+			aye(5_000_000 * UNITS),
+		));
+
+		// Diagnostic: the GIGAHDX-side lock should be 5 M, the HDX side 0.
+		let split = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&charlie);
+		let lock = pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&charlie);
+		println!(
+			"[diag] after vote: LockSplit {{ gigahdx: {}, hdx: {} }}, GigaHdxVotingLock = {}",
+			split.gigahdx_amount, split.hdx_amount, lock,
+		);
+		assert_eq!(split.gigahdx_amount, 5_000_000 * UNITS);
+		assert_eq!(split.hdx_amount, 0);
+		assert_eq!(lock, 5_000_000 * UNITS);
+
+		// Step 4: try to transfer the entire 5 M GIGAHDX. This MUST be rejected
+		// — the aToken contract reads `getLockedBalance = 5 M` from the
+		// precompile and reverts.
+		let bob_gigahdx_before = Currencies::free_balance(GIGAHDX, &bob);
+		let transfer_result = Currencies::transfer(
+			RuntimeOrigin::signed(charlie.clone()),
+			bob.clone(),
+			GIGAHDX,
+			charlie_gigahdx,
+		);
+		println!("[diag] transfer result = {:?}", transfer_result);
+
+		assert!(
+			transfer_result.is_err(),
+			"locked GIGAHDX transfer must fail; got Ok",
+		);
+		assert_eq!(
+			Currencies::free_balance(GIGAHDX, &charlie),
+			charlie_gigahdx,
+			"GIGAHDX balance must be unchanged after rejected transfer",
+		);
+		assert_eq!(
+			Currencies::free_balance(GIGAHDX, &bob),
+			bob_gigahdx_before,
+			"bob must not have received any GIGAHDX",
 		);
 	});
 }

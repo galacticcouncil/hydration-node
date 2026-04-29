@@ -83,6 +83,8 @@ impl hydradx_traits::gigahdx::MoneyMarketOperations<AccountId, AssetId, Balance>
 pub struct RuntimeReferendumInfo;
 
 impl hydradx_traits::gigahdx::GetReferendumOutcome<u32> for RuntimeReferendumInfo {
+	type BlockNumber = BlockNumber;
+
 	fn is_referendum_finished(index: u32) -> bool {
 		use frame_support::traits::{PollStatus, Polling};
 
@@ -115,6 +117,21 @@ impl hydradx_traits::gigahdx::GetReferendumOutcome<u32> for RuntimeReferendumInf
 			ReferendumInfo::Cancelled(..) | ReferendumInfo::TimedOut(..) | ReferendumInfo::Killed(..) => {
 				ReferendumOutcome::Cancelled
 			}
+		}
+	}
+
+	fn end_block(index: u32) -> Option<BlockNumber> {
+		use pallet_referenda::ReferendumInfo;
+
+		let info = pallet_referenda::ReferendumInfoFor::<Runtime>::get(index)?;
+
+		match info {
+			ReferendumInfo::Ongoing(_) => None,
+			ReferendumInfo::Approved(end, _, _) => Some(end),
+			ReferendumInfo::Rejected(end, _, _) => Some(end),
+			ReferendumInfo::Cancelled(end, _, _) => Some(end),
+			ReferendumInfo::TimedOut(end, _, _) => Some(end),
+			ReferendumInfo::Killed(end) => Some(end),
 		}
 	}
 }
