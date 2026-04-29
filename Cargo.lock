@@ -6230,7 +6230,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.10.2"
+version = "15.0.0"
 dependencies = [
  "async-trait",
  "clap",
@@ -6482,7 +6482,7 @@ dependencies = [
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
  "pallet-otc-settlements",
- "pallet-parameters 1.1.0",
+ "pallet-parameters 1.2.0",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-referenda",
@@ -10341,7 +10341,7 @@ dependencies = [
  "pallet-balances",
  "pallet-currencies",
  "pallet-evm",
- "pallet-parameters 1.1.0",
+ "pallet-parameters 1.2.0",
  "pallet-transaction-payment",
  "parity-scale-codec",
  "primitives",
@@ -11462,7 +11462,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-parameters"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -14700,7 +14700,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "6.2.0"
+version = "6.3.0"
 dependencies = [
  "frame-support",
  "hex-literal",
@@ -15664,7 +15664,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.79.0"
+version = "1.80.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -15800,7 +15800,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-mock"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "frame-remote-externalities",
  "frame-support",
