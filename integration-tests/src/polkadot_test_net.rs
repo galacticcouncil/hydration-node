@@ -955,6 +955,7 @@ pub fn hydra_live_ext(
 
 			let mut p = builder.build().await.unwrap();
 			p.execute_with(|| {
+				hydradx_runtime::Parameters::set_relay_parent_offset_override(true);
 				pallet_ema_oracle::migrations::v1::MigrateV0ToV1::<hydradx_runtime::Runtime>::on_runtime_upgrade();
 			});
 			p
