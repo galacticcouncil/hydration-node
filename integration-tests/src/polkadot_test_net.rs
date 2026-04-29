@@ -490,6 +490,38 @@ pub mod collators {
 				get_account_id_from_seed::<sr25519::Public>("Bob"),
 				get_from_seed::<AuraId>("Bob"),
 			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+				get_from_seed::<AuraId>("Charlie"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator4"),
+				get_from_seed::<AuraId>("Collator4"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator5"),
+				get_from_seed::<AuraId>("Collator5"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator6"),
+				get_from_seed::<AuraId>("Collator6"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator7"),
+				get_from_seed::<AuraId>("Collator7"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator8"),
+				get_from_seed::<AuraId>("Collator8"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator9"),
+				get_from_seed::<AuraId>("Collator9"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator10"),
+				get_from_seed::<AuraId>("Collator10"),
+			),
 		]
 	}
 }
