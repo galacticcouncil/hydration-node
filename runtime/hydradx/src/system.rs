@@ -725,10 +725,14 @@ impl pallet_collator_rewards::Config for Runtime {
 	type RewardCurrencyId = NativeAssetId;
 	type RewardsBag = TreasuryAccount;
 	type ExcludedCollators = ExcludedCollators;
-	// We wrap the ` SessionManager` implementation of `CollatorSelection` to get the collators that
+	// We wrap the `SessionManager` implementation of `CollatorRotation` to get the collators that
 	// we hand out rewards to.
-	type SessionManager = CollatorSelection;
+	type SessionManager = CollatorRotation;
 	type MaxCandidates = MaxInvulnerables;
+}
+
+impl pallet_collator_rotation::Config for Runtime {
+	type Inner = CollatorSelection;
 }
 
 impl pallet_transaction_pause::Config for Runtime {
