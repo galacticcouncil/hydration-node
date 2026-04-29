@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.75.1"
+version = "1.79.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -60,6 +60,7 @@ pallet-scheduler = { workspace = true }
 pallet-referenda = { workspace = true }
 pallet-conviction-voting = { workspace = true }
 pallet-dispatcher = { workspace = true }
+pallet-proxy = { workspace = true }
 pallet-hsm = { workspace = true }
 
 # collator support

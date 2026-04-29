@@ -74,7 +74,9 @@ pub use pallet::*;
 
 pub type Balance = u128;
 pub type AssetId = u32;
-pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = 1_000_000;
+//NOTE: `u64::max -1` is set in /node/src/tx_priority.json oracles' updates.
+//We don't want to frontrun oracle updates so these should be keept in sync.
+pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = u64::MAX - 2;
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]

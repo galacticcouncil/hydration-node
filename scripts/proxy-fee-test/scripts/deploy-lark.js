@@ -45,12 +45,8 @@ function sleep(ms) {
 }
 
 async function main() {
-  const larkLabel = (() => {
-    const m = WS_URL.match(/(?:wss?:\/\/)?(\d+)\.lark\./i);
-    return m ? `Lark ${m[1]}` : WS_URL;
-  })();
   console.log("=".repeat(60));
-  console.log(`  Deploy Runtime to ${larkLabel}`);
+  console.log("  Deploy Runtime to Lark 2");
   console.log("=".repeat(60));
   console.log(`\n  RPC:  ${WS_URL}`);
   console.log(`  WASM: ${WASM_PATH}\n`);

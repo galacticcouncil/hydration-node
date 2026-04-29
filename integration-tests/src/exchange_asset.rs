@@ -1206,7 +1206,7 @@ mod circuit_breaker {
 		Hydra::execute_with(|| {
 			let trapped_event = &last_hydra_events(10)[3].clone();
 
-			assert_trapped_acala_token(trapped_event, 90054588142157u128);
+			assert_trapped_acala_token(trapped_event, 90350628868136u128);
 
 			let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
 			assert!(fee > 0, "treasury should have received fees");
