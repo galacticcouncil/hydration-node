@@ -456,7 +456,7 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 		true
 	}
 
-	fn on_unstake(who: &T::AccountId, _gigahdx_amount: Balance) -> DispatchResult {
+	fn on_unstake(who: &T::AccountId, gigahdx_amount: Balance) -> DispatchResult {
 		let finished_votes: sp_std::vec::Vec<u32> = GigaHdxVotes::<T>::iter_prefix(who)
 			.filter(|(ref_index, _)| <T::Referenda as GetReferendumOutcome<u32>>::is_referendum_finished(*ref_index))
 			.map(|(ref_index, _)| ref_index)
@@ -467,6 +467,32 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 		for ref_index in finished_votes {
 			let track_id = <T::Referenda as GetTrackId<u32>>::track_id(ref_index);
 			T::ForceRemoveVote::remove_vote(who, track_id, ref_index)?;
+		}
+
+		// Cap GigaHdxVotingLock at the post-unstake aToken balance and spill
+		// the remainder to HDX-side, otherwise the LockManager precompile
+		// (0x0806) blocks AAVE.withdraw later in `giga_unstake`.
+		let current_split = LockSplit::<T>::get(who);
+		let total_commitment = current_split
+			.gigahdx_amount
+			.saturating_add(current_split.hdx_amount);
+		if !total_commitment.is_zero() {
+			use frame_support::traits::fungibles::Inspect;
+			let current_balance = <T::Currency as Inspect<T::AccountId>>::balance(
+				<T as pallet_gigahdx::Config>::GigaHdxAssetId::get(),
+				who,
+			);
+			let post_unstake_balance = current_balance.saturating_sub(gigahdx_amount);
+			let new_gigahdx_lock = total_commitment.min(post_unstake_balance);
+			let new_hdx_lock = total_commitment.saturating_sub(new_gigahdx_lock);
+			GigaHdxVotingLock::<T>::insert(who, new_gigahdx_lock);
+			LockSplit::<T>::insert(
+				who,
+				crate::types::VotingLockSplit {
+					gigahdx_amount: new_gigahdx_lock,
+					hdx_amount: new_hdx_lock,
+				},
+			);
 		}
 
 		if count > 0 {

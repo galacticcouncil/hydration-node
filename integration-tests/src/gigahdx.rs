@@ -764,6 +764,75 @@ fn build_erc20_transfer_calldata(to: sp_core::H160, amount: Balance) -> Vec<u8> 
 	data
 }
 
+/// Decodes `Error(string)` and the `NotEnoughAvailableUserBalance(uint256,uint256)`
+/// custom error emitted by the LockableAToken hook. Used to ensure an asserted
+/// revert came from the lock-rejection path, not an incidental gas-out.
+fn decode_evm_revert(value: &[u8]) -> Result<String, String> {
+	if value.is_empty() {
+		return Err("revert with no data (gas-out, no contract code, or revert() with no reason)".into());
+	}
+	if value.len() < 4 {
+		return Err(format!("revert payload too short: 0x{}", hex::encode(value)));
+	}
+	let selector = &value[..4];
+
+	if selector == [0x08, 0xc3, 0x79, 0xa0] {
+		if value.len() < 4 + 64 {
+			return Err(format!("Error(string) header truncated: 0x{}", hex::encode(value)));
+		}
+		let len = U256::from_big_endian(&value[36..68]).low_u64() as usize;
+		if value.len() < 68 + len {
+			return Err(format!("Error(string) body truncated: 0x{}", hex::encode(value)));
+		}
+		let msg = core::str::from_utf8(&value[68..68 + len])
+			.map_err(|e| format!("Error(string) body not utf-8: {e:?}"))?;
+		return Ok(format!("Error(string): {msg:?}"));
+	}
+
+	if selector == [0x9e, 0x17, 0x6a, 0xc9] {
+		if value.len() < 4 + 64 {
+			return Err(format!(
+				"NotEnoughAvailableUserBalance args truncated: 0x{}",
+				hex::encode(value)
+			));
+		}
+		let amount = U256::from_big_endian(&value[4..36]);
+		let user_balance = U256::from_big_endian(&value[36..68]);
+		return Ok(format!(
+			"NotEnoughAvailableUserBalance(amount={amount}, userBalance={user_balance})"
+		));
+	}
+
+	Err(format!(
+		"unrecognised custom-error selector 0x{}; raw=0x{}",
+		hex::encode(selector),
+		hex::encode(value),
+	))
+}
+
+/// Rejects empty reverts that would otherwise pattern-match `Revert(_)`
+/// and mask a regression on a non-lock path.
+#[track_caller]
+fn assert_evm_reverted_with_reason(result: &hydradx_traits::evm::CallResult, context: &str) -> String {
+	assert!(
+		matches!(result.exit_reason, fp_evm::ExitReason::Revert(_)),
+		"{context}: expected Revert, got exit_reason={:?}, data=0x{}",
+		result.exit_reason,
+		hex::encode(&result.value),
+	);
+	match decode_evm_revert(&result.value) {
+		Ok(reason) => {
+			println!("[{context}] revert reason: {reason:?}");
+			reason
+		}
+		Err(detail) => panic!(
+			"{context}: revert had no usable reason — {detail}. \
+			 An empty/unknown revert payload usually means gas exhaustion or a missing \
+			 contract, not the lock-rejection path the test is asserting.",
+		),
+	}
+}
+
 /// Stake `stake_amount` HDX for ALICE and lock it all under a Locked6x vote.
 /// Reuses the proven `setup_alice_with_only_gigahdx` flow used by other
 /// snapshot-based tests in this file.
@@ -821,13 +890,8 @@ fn aave_withdraw_outside_giga_unstake_respects_voting_lock() {
 		let data = build_aave_withdraw_calldata(sthdx_evm, gigahdx_balance, alice_evm);
 		let result = Executor::<Runtime>::call(CallContext::new_call(pool, alice_evm), data, U256::zero(), 500_000);
 
-		assert!(
-			matches!(result.exit_reason, fp_evm::ExitReason::Revert(_)),
-			"AAVE withdraw on locked GIGAHDX must revert (lock-manager not honored?). \
-			 exit_reason={:?}, data={}",
-			result.exit_reason,
-			hex::encode(&result.value),
-		);
+		let _reason =
+			assert_evm_reverted_with_reason(&result, "AAVE withdraw on locked GIGAHDX (lock-manager not honored?)");
 
 		// State invariants — nothing moved.
 		assert_eq!(
@@ -877,13 +941,7 @@ fn vote_then_transfer_atoken_via_evm_blocked_when_locked() {
 			500_000,
 		);
 
-		assert!(
-			matches!(result.exit_reason, fp_evm::ExitReason::Revert(_)),
-			"GIGAHDX aToken transfer of locked balance must revert. \
-			 exit_reason={:?}, data={}",
-			result.exit_reason,
-			hex::encode(&result.value),
-		);
+		let _reason = assert_evm_reverted_with_reason(&result, "GIGAHDX aToken transfer of locked balance");
 
 		// State invariants — nothing moved.
 		assert_eq!(
@@ -896,5 +954,50 @@ fn vote_then_transfer_atoken_via_evm_blocked_when_locked() {
 			bob_gigahdx_before,
 			"recipient's GIGAHDX must be unchanged",
 		);
+	});
+}
+
+/// Control for `vote_then_transfer_atoken_via_evm_blocked_when_locked` —
+/// proves the same EVM transfer succeeds when there is no conviction lock,
+/// so the locked variant is reverting because of the lock and not for
+/// some unrelated reason.
+#[test]
+fn transfer_atoken_via_evm_succeeds_when_not_locked() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice = sp_runtime::AccountId32::from(ALICE);
+		let bob = sp_runtime::AccountId32::from(BOB);
+		let stake_amount = 1_000 * UNITS;
+		let transfer_amount = 400 * UNITS;
+
+		setup_alice_with_only_gigahdx(stake_amount);
+		let gigahdx_balance = Currencies::free_balance(GIGAHDX, &alice);
+		assert_eq!(gigahdx_balance, stake_amount);
+		assert_eq!(pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&alice), 0);
+
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), UNITS,));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(bob.clone())));
+		let bob_evm = EVMAccounts::evm_address(&bob);
+		let bob_gigahdx_before = Currencies::free_balance(GIGAHDX, &bob);
+
+		let alice_evm = EVMAccounts::evm_address(&alice);
+		let gigahdx_token = HydraErc20Mapping::asset_address(GIGAHDX);
+
+		let data = build_erc20_transfer_calldata(bob_evm, transfer_amount);
+		let result = Executor::<Runtime>::call(
+			CallContext::new_call(gigahdx_token, alice_evm),
+			data,
+			U256::zero(),
+			500_000,
+		);
+
+		assert!(
+			matches!(result.exit_reason, fp_evm::ExitReason::Succeed(_)),
+			"unlocked GIGAHDX aToken transfer must succeed. exit_reason={:?}, data=0x{}",
+			result.exit_reason,
+			hex::encode(&result.value),
+		);
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), gigahdx_balance - transfer_amount);
+		assert_eq!(Currencies::free_balance(GIGAHDX, &bob), bob_gigahdx_before + transfer_amount);
 	});
 }

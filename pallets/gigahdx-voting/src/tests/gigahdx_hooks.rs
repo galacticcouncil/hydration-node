@@ -68,6 +68,82 @@ fn on_unstake_force_removes_finished_votes() {
 	});
 }
 
+const VOTING_LOCK_ID: frame_support::traits::LockIdentifier = *b"pyconvot";
+
+#[test]
+fn on_unstake_shifts_lock_to_hdx_when_balance_drops_below_commitment() {
+	ExtBuilder::default()
+		.with_endowed(vec![(ALICE, HDX, 1_000 * ONE), (ALICE, GIGAHDX, 200 * ONE)])
+		.build()
+		.execute_with(|| {
+			set_referendum_outcome(0, ReferendumOutcome::Approved);
+			set_track_id(0, 0);
+
+			let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked6x, 150 * ONE);
+			assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
+			crate::adapter::GigaHdxVotingCurrency::<Test>::apply_lock_split(VOTING_LOCK_ID, &ALICE, 150 * ONE);
+			assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 150 * ONE);
+
+			assert_ok!(crate::Pallet::<Test>::on_unstake(&ALICE, 150 * ONE));
+
+			assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 50 * ONE);
+			let split = crate::LockSplit::<Test>::get(&ALICE);
+			assert_eq!(split.gigahdx_amount, 50 * ONE);
+			assert_eq!(split.hdx_amount, 100 * ONE);
+		});
+}
+
+#[test]
+fn on_unstake_keeps_lock_unchanged_when_remaining_balance_suffices() {
+	ExtBuilder::default().build().execute_with(|| {
+		set_referendum_outcome(0, ReferendumOutcome::Approved);
+		set_track_id(0, 0);
+
+		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked6x, 100 * ONE);
+		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
+		crate::adapter::GigaHdxVotingCurrency::<Test>::apply_lock_split(VOTING_LOCK_ID, &ALICE, 100 * ONE);
+
+		assert_ok!(crate::Pallet::<Test>::on_unstake(&ALICE, 200 * ONE));
+
+		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 100 * ONE);
+		let split = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split.gigahdx_amount, 100 * ONE);
+		assert_eq!(split.hdx_amount, 0);
+	});
+}
+
+#[test]
+fn on_unstake_drops_entire_gigahdx_lock_when_balance_goes_to_zero() {
+	ExtBuilder::default()
+		.with_endowed(vec![(ALICE, HDX, 1_000 * ONE), (ALICE, GIGAHDX, 100 * ONE)])
+		.build()
+		.execute_with(|| {
+			set_referendum_outcome(0, ReferendumOutcome::Approved);
+			set_track_id(0, 0);
+
+			let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 50 * ONE);
+			assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
+			crate::adapter::GigaHdxVotingCurrency::<Test>::apply_lock_split(VOTING_LOCK_ID, &ALICE, 50 * ONE);
+
+			assert_ok!(crate::Pallet::<Test>::on_unstake(&ALICE, 100 * ONE));
+
+			assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 0);
+			let split = crate::LockSplit::<Test>::get(&ALICE);
+			assert_eq!(split.gigahdx_amount, 0);
+			assert_eq!(split.hdx_amount, 50 * ONE);
+		});
+}
+
+#[test]
+fn on_unstake_no_op_when_user_has_no_voting_commitment() {
+	ExtBuilder::default().build().execute_with(|| {
+		set_referendum_outcome(0, ReferendumOutcome::Approved);
+		set_track_id(0, 0);
+		assert_ok!(crate::Pallet::<Test>::on_unstake(&ALICE, 100 * ONE));
+		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 0);
+	});
+}
+
 #[test]
 fn additional_unstake_lock_returns_max_remaining() {
 	ExtBuilder::default().build().execute_with(|| {

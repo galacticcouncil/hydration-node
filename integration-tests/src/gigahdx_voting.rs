@@ -1299,7 +1299,8 @@ fn pending_rewards_full_during_unstake_does_not_desync() {
 			100 * UNITS,
 		));
 
-		// Fill PendingRewards near cap (25 entries).
+		// Fill PendingRewards near cap and fund each per-referendum pot so the
+		// final `claim_rewards` cleanup step has HDX to transfer.
 		pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::mutate(&alice, |entries| {
 			for i in 0..25u32 {
 				let _ = entries.try_push(pallet_gigahdx_voting::types::PendingRewardEntry {
@@ -1308,6 +1309,12 @@ fn pending_rewards_full_during_unstake_does_not_desync() {
 				});
 			}
 		});
+		for i in 0..25u32 {
+			let pot = pallet_gigahdx_voting::Pallet::<hydradx_runtime::Runtime>::referenda_pot_account(9000 + i);
+			assert_ok!(<hydradx_runtime::Currencies as MultiCurrency<_>>::deposit(
+				HDX, &pot, 1 * UNITS,
+			));
+		}
 
 		let r = begin_referendum();
 		assert_ok!(ConvictionVoting::vote(
