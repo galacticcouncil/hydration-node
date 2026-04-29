@@ -1212,6 +1212,12 @@ mod circuit_breaker {
 			assert!(trapped_amount > 0, "assets should be trapped, not lost");
 			assert!(fee > 0, "treasury should have received fees");
 
+			pretty_assertions::assert_eq!(
+				trapped_amount + fee,
+				100 * UNITS,
+				"trapped + fee must equal total arrived"
+			);
+
 			//No Aca received as exchange asset failed
 			pretty_assertions::assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
 			pretty_assertions::assert_eq!(
