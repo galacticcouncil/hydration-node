@@ -512,12 +512,14 @@ fn combined_voting_power() {
 			aye(200 * UNITS),
 		));
 
-		// GigaHdxVotes should record only the GIGAHDX portion (50).
-		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r);
-		assert!(vote.is_some());
-		assert_eq!(vote.unwrap().amount, 50 * UNITS);
+		// GigaHdxVotes records the combined amount (200) and per-side snapshot
+		// (gigahdx_lock=50, hdx_lock=150).
+		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).unwrap();
+		assert_eq!(vote.amount, 200 * UNITS, "combined committed amount");
+		assert_eq!(vote.gigahdx_lock, 50 * UNITS);
+		assert_eq!(vote.hdx_lock, 150 * UNITS);
 
-		// Lock split should reflect the split.
+		// Effective lock split mirrors the per-vote snapshot.
 		let split = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
 		assert_eq!(split.gigahdx_amount, 50 * UNITS);
 		assert_eq!(split.hdx_amount, 150 * UNITS);
@@ -617,11 +619,13 @@ fn rewards_only_for_gigahdx_portion_when_voting_with_combined_balance() {
 
 		//Assert
 		let alice_vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).unwrap();
+		assert_eq!(alice_vote.amount, 500 * UNITS, "Vote records combined balance (500)");
 		assert_eq!(
-			alice_vote.amount,
+			alice_vote.gigahdx_lock,
 			100 * UNITS,
-			"Vote should record only GIGAHDX portion (100), not total vote (500)"
+			"Only the GIGAHDX portion (100) is the reward-bearing side"
 		);
+		assert_eq!(alice_vote.hdx_lock, 400 * UNITS, "Remainder (400) goes to the HDX side");
 
 		let split = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
 		assert_eq!(split.gigahdx_amount, 100 * UNITS);
@@ -1007,12 +1011,16 @@ fn vote_with_more_than_balance_is_capped_at_gigahdx_balance() {
 	});
 }
 
-/// 1. ALICE stakes 500 HDX -> gets 500 GIGAHDX
-/// 2. Votes 800 on referendum A -> split: 500 GIGAHDX + 300 HDX
-/// 3. Stakes 200 more HDX -> now has ~700 GIGAHDX
-/// 4. Votes 800 on referendum B -> split should recalculate: ~700 GIGAHDX + ~100 HDX
+/// Per-vote splits are immutable snapshots. A balance increase between votes does
+/// NOT reshape an earlier vote's split — the effective lock is the per-side
+/// max-aggregate across all active votes.
+///
+/// 1. ALICE stakes 500 HDX -> 500 GIGAHDX. Votes 800 on r_a -> snapshot (500 G, 300 H).
+/// 2. ALICE stakes 200 more -> 700 GIGAHDX. Vote A's snapshot is unchanged.
+/// 3. Votes 800 on r_b -> snapshot (700 G, 100 H) using the new balance.
+/// 4. Effective LockSplit = max-per-side across both votes = (700 G, 300 H).
 #[test]
-fn lock_split_recalculates_when_gigahdx_balance_increases() {
+fn per_vote_splits_are_immutable_snapshots_across_balance_changes() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1033,16 +1041,26 @@ fn lock_split_recalculates_when_gigahdx_balance_increases() {
 			aye_with_conviction(800 * UNITS, Conviction::Locked1x),
 		));
 
+		// Vote A snapshot at cast time: g=500, h=300.
+		let vote_a = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_a).unwrap();
+		assert_eq!(vote_a.gigahdx_lock, 500 * UNITS);
+		assert_eq!(vote_a.hdx_lock, 300 * UNITS);
+
 		let split_a = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
 		assert_eq!(split_a.gigahdx_amount, 500 * UNITS);
 		assert_eq!(split_a.hdx_amount, 300 * UNITS);
 
-		//Act
+		//Act — stake more GIGAHDX. Vote A's snapshot must be unchanged.
 		assert_ok!(GigaHdx::giga_stake(
 			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
 			200 * UNITS,
 		));
 
+		let vote_a_after = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_a).unwrap();
+		assert_eq!(vote_a_after.gigahdx_lock, 500 * UNITS, "vote A snapshot is immutable");
+		assert_eq!(vote_a_after.hdx_lock, 300 * UNITS, "vote A snapshot is immutable");
+
+		// Vote B uses the new balance for its own snapshot.
 		let r_b = begin_referendum();
 		assert_ok!(ConvictionVoting::vote(
 			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
@@ -1050,11 +1068,23 @@ fn lock_split_recalculates_when_gigahdx_balance_increases() {
 			aye_with_conviction(800 * UNITS, Conviction::Locked1x),
 		));
 
-		//Assert
 		let alice_gigahdx = Currencies::free_balance(GIGAHDX, &alice);
-		let split_b = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
-		assert_eq!(split_b.gigahdx_amount, alice_gigahdx);
-		assert_eq!(split_b.hdx_amount, 800 * UNITS - alice_gigahdx);
+		let vote_b = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_b).unwrap();
+		assert_eq!(vote_b.gigahdx_lock, alice_gigahdx, "vote B snapshot uses balance at its cast time");
+		assert_eq!(vote_b.hdx_lock, 800 * UNITS - alice_gigahdx);
+
+		//Assert — effective LockSplit is the per-side max across both vote snapshots.
+		let split = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(
+			split.gigahdx_amount,
+			vote_b.gigahdx_lock,
+			"G-side cap = max(vote A=500, vote B=alice_gigahdx) = vote B"
+		);
+		assert_eq!(
+			split.hdx_amount,
+			vote_a.hdx_lock,
+			"H-side cap = max(vote A=300, vote B=800-alice_gigahdx) = vote A"
+		);
 	});
 }
 
@@ -1330,12 +1360,12 @@ fn pending_rewards_full_during_unstake_does_not_desync() {
 			"GigaHdxVotes must be cleared unconditionally"
 		);
 
-		// Any stranded rewards are recoverable via drain.
+		// Any stranded rewards are recoverable via drain. The 25 pre-seeded entries
+		// are fake (no backing pots), so we can't use `claim_rewards` here — clear
+		// `PendingRewards` directly to make room, then verify drain promotes stuck.
 		let stuck = pallet_gigahdx_voting::StuckRewards::<hydradx_runtime::Runtime>::get(&alice);
 		if !stuck.is_empty() {
-			assert_ok!(GigaHdxVoting::claim_rewards(hydradx_runtime::RuntimeOrigin::signed(
-				alice.clone()
-			)));
+			pallet_gigahdx_voting::PendingRewards::<hydradx_runtime::Runtime>::remove(&alice);
 			assert_ok!(GigaHdxVoting::drain_stuck_rewards(
 				hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
 				alice.clone(),

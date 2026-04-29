@@ -32,7 +32,7 @@ use sp_core::U256;
 use sp_runtime::AccountId32;
 use xcm_emulator::Network;
 
-const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx4";
+const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx5_slim";
 
 const UNITS: Balance = 1_000_000_000_000;
 const STHDX: u32 = 670;

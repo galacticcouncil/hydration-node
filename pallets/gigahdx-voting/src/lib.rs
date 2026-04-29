@@ -583,7 +583,6 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 		// which the adapter folds into the H-side max-aggregate. Per-vote splits
 		// stored in GigaHdxVotes / PriorLockSplit are NOT mutated (snapshots
 		// remain immutable); the spillover is a separate per-account aggregate.
-		use frame_support::traits::fungibles::Inspect as _;
 		let current_g_balance =
 			<T::Currency as frame_support::traits::fungibles::Inspect<T::AccountId>>::balance(
 				<T as pallet_gigahdx::Config>::GigaHdxAssetId::get(),
@@ -610,31 +609,38 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 			g_max = delegation.gigahdx_amount;
 		}
 
-		if g_max > post_unstake_balance {
-			let spill = g_max.saturating_sub(post_unstake_balance);
+		// Realign the G-side cap with the now-recomputed `g_max`, clamped at the
+		// user's post-unstake aToken balance. Anything above that balance becomes
+		// `UnstakeSpillover` so the H-side native lock keeps the commitment alive.
+		//
+		// Always run — not gated on `g_max > post_unstake_balance` — because force-
+		// removing a vote leaves a stale `GigaHdxVotingLock` behind whenever the
+		// referendum outcome doesn't keep a prior alive (TimedOut / Cancelled /
+		// Killed), and the stale cap would otherwise block AAVE.withdraw.
+		let g_target = g_max.min(post_unstake_balance);
+		let spill = g_max.saturating_sub(post_unstake_balance);
+		if spill > Zero::zero() {
 			UnstakeSpillover::<T>::mutate(who, |s| {
 				if spill > *s {
 					*s = spill;
 				}
 			});
-			// Pre-shrink the G-side cap so the AAVE precompile permits the burn.
-			// The recompute that follows the next vote-adapter call will pick up
-			// UnstakeSpillover via the H-side max-aggregate.
-			if post_unstake_balance > Zero::zero() {
-				GigaHdxVotingLock::<T>::insert(who, post_unstake_balance);
-			} else {
-				GigaHdxVotingLock::<T>::remove(who);
-			}
-			// Apply the spillover to the H-side native lock immediately.
-			let h_total = Self::compute_hdx_lock_with_spillover(who);
-			if h_total > Zero::zero() {
-				<T::NativeCurrency as LockableCurrency<T::AccountId>>::set_lock(
-					CONVICTION_VOTING_ID,
-					who,
-					h_total,
-					frame_support::traits::WithdrawReasons::all(),
-				);
-			}
+		}
+		if g_target > Zero::zero() {
+			GigaHdxVotingLock::<T>::insert(who, g_target);
+		} else {
+			GigaHdxVotingLock::<T>::remove(who);
+		}
+		let h_total = Self::compute_hdx_lock_with_spillover(who);
+		if h_total > Zero::zero() {
+			<T::NativeCurrency as LockableCurrency<T::AccountId>>::set_lock(
+				CONVICTION_VOTING_ID,
+				who,
+				h_total,
+				frame_support::traits::WithdrawReasons::all(),
+			);
+		} else {
+			<T::NativeCurrency as LockableCurrency<T::AccountId>>::remove_lock(CONVICTION_VOTING_ID, who);
 		}
 
 		Ok(())

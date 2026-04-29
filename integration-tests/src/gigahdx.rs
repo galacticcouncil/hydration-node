@@ -22,7 +22,7 @@ use sp_core::U256;
 use sp_runtime::{DispatchError, TokenError};
 use xcm_emulator::Network;
 
-pub const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx4";
+pub const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx5_slim";
 
 const UNITS: Balance = 1_000_000_000_000;
 const STHDX: u32 = 670;
@@ -241,13 +241,16 @@ fn direct_hdx_transfer_to_gigapot_inflates_exchange_rate() {
 			bob_gigahdx
 		);
 
+		// A new staker can still participate after the rate inflation. Stake size
+		// must produce above-ED stHDX given the inflated rate (~11x), so 10 UNITS
+		// would mint sub-ED stHDX and fail.
 		let charlie = sp_runtime::AccountId32::from(CHARLIE);
 		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			charlie.clone(),
 			1_000 * UNITS
 		));
-		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(charlie), 10 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(charlie), 100 * UNITS));
 	});
 }
 

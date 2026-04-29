@@ -90,14 +90,6 @@ fn evm_call(target: EvmAddress, caller: EvmAddress, data: Vec<u8>, gas: u64, lab
 	);
 }
 
-fn set_use_as_collateral(pool: EvmAddress, user: EvmAddress, asset: EvmAddress) {
-	let mut data = selector("setUserUseReserveAsCollateral(address,bool)");
-	data.extend_from_slice(H256::from(asset).as_bytes());
-	data.extend_from_slice(&[0u8; 31]);
-	data.push(1u8);
-	evm_call(pool, user, data, 500_000, "setUserUseReserveAsCollateral");
-}
-
 /// Deploy a minimal EVM contract that returns a fixed uint256 from any call.
 fn deploy_fixed_price_oracle(price: U256) -> EvmAddress {
 	let acl_admin = EvmAddress::from_slice(&hex!("aa7e0000000000000000000000000000000aa7e0"));
@@ -272,7 +264,6 @@ fn gigahdx_liquidation_should_work() {
 		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), stake_amount);
-		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
 
 		let borrow_amount: Balance = 5 * HOLLAR_UNITS;
 		borrow(pool_contract, alice_evm, hollar_addr, borrow_amount);
@@ -287,7 +278,6 @@ fn gigahdx_liquidation_should_work() {
 			RuntimeOrigin::signed(treasury.clone()),
 			1_000_000 * UNITS
 		));
-		set_use_as_collateral(pool_contract, treasury_evm, sthdx_evm);
 
 		// ---- Drop stHDX price → ALICE's health factor drops below 1 ----
 		// Use a moderate drop so HF goes below 1 but liquidation still improves it.
@@ -446,7 +436,6 @@ fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
 			100_000 * UNITS
 		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
-		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
 
 		// ALICE votes on a referendum → locks ALL her GIGAHDX
 		let referendum_index = begin_referendum();
@@ -480,7 +469,6 @@ fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
 			RuntimeOrigin::signed(treasury.clone()),
 			1_000_000 * UNITS
 		));
-		set_use_as_collateral(pool_contract, treasury_evm, sthdx_evm);
 
 		// Crash price → HF < 1
 		let original_price = get_aave_asset_price(sthdx_evm);
@@ -584,7 +572,6 @@ fn isolated_sthdx_only_allows_borrowing_hollar() {
 			100_000 * UNITS
 		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
-		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
 
 		// Borrowable in isolation: HOLLAR, USDC, USDT
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
@@ -675,7 +662,6 @@ fn gigahdx_liquidation_fails_when_position_is_healthy() {
 			100_000 * UNITS
 		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
-		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
 		borrow(pool_contract, alice_evm, hollar_addr, 1 * HOLLAR_UNITS);
 
 		// Fund treasury
@@ -688,7 +674,6 @@ fn gigahdx_liquidation_fails_when_position_is_healthy() {
 			RuntimeOrigin::signed(treasury.clone()),
 			1_000_000 * UNITS
 		));
-		set_use_as_collateral(pool_contract, treasury_evm, sthdx_evm);
 
 		// Verify HF > 1
 		let user_data = get_user_account_data(pool_contract, alice_evm).unwrap();
@@ -746,7 +731,6 @@ fn gigahdx_liquidation_fails_when_treasury_has_no_collateral() {
 			100_000 * UNITS
 		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
-		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
 		borrow(pool_contract, alice_evm, hollar_addr, 5 * HOLLAR_UNITS);
 
 		// Crash price → HF < 1
@@ -815,7 +799,6 @@ fn exchange_rate_unchanged_after_liquidation() {
 			100_000 * UNITS
 		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
-		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
 		borrow(pool_contract, alice_evm, hollar_addr, 5 * HOLLAR_UNITS);
 
 		// Fund treasury
@@ -828,7 +811,6 @@ fn exchange_rate_unchanged_after_liquidation() {
 			RuntimeOrigin::signed(treasury.clone()),
 			1_000_000 * UNITS
 		));
-		set_use_as_collateral(pool_contract, treasury_evm, sthdx_evm);
 
 		// Record exchange rate before liquidation
 		let rate_before = GigaHdx::exchange_rate();
@@ -909,7 +891,6 @@ fn other_users_can_stake_and_unstake_after_liquidation() {
 			100_000 * UNITS
 		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
-		set_use_as_collateral(pool_contract, alice_evm, sthdx_evm);
 		borrow(pool_contract, alice_evm, hollar_addr, 5 * HOLLAR_UNITS);
 
 		// Fund treasury
@@ -922,7 +903,6 @@ fn other_users_can_stake_and_unstake_after_liquidation() {
 			RuntimeOrigin::signed(treasury.clone()),
 			1_000_000 * UNITS
 		));
-		set_use_as_collateral(pool_contract, treasury_evm, sthdx_evm);
 
 		// Crash price and liquidate Alice
 		let original_price = get_aave_asset_price(sthdx_evm);
