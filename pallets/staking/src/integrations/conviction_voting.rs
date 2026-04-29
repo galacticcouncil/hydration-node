@@ -35,8 +35,6 @@ where
 				}
 			};
 
-			Pallet::<T>::process_votes(who, position_id, position)?;
-
 			let amount = vote.balance();
 			let conviction = if let AccountVote::Standard { vote, .. } = vote {
 				match vote.conviction {
