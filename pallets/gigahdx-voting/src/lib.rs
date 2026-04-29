@@ -45,7 +45,11 @@ mod tests;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-use frame_support::{pallet_prelude::*, traits::tokens::Preservation, PalletId};
+use frame_support::{
+	pallet_prelude::*,
+	traits::{tokens::Preservation, LockIdentifier, LockableCurrency},
+	PalletId,
+};
 use frame_system::pallet_prelude::*;
 use hydradx_traits::gigahdx::{ForceRemoveVote, GetReferendumOutcome, GetTrackId, TrackRewardConfig};
 use primitives::Balance;
@@ -53,9 +57,17 @@ use sp_runtime::traits::{AccountIdConversion, Zero};
 
 use types::*;
 
+/// pallet-conviction-voting's lock identifier. It's declared there as a private
+/// constant so we redeclare it here to force-clear pallet-balances HDX locks
+/// during liquidation.
+const CONVICTION_VOTING_ID: LockIdentifier = *b"pyconvot";
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+
+	/// Maximum number of stuck rewards promoted into `PendingRewards` per `drain_stuck_rewards` call.
+	pub(crate) const MAX_DRAIN_PER_CALL: u32 = 16;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -134,6 +146,12 @@ pub mod pallet {
 	pub type PendingRewards<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, BoundedVec<PendingRewardEntry, T::MaxVotes>, ValueQuery>;
 
+	/// Dead-letter queue for rewards that could not be inserted into PendingRewards
+	/// because it was at capacity. Promote via `drain_stuck_rewards` or on_idle.
+	#[pallet::storage]
+	pub type StuckRewards<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, BoundedVec<PendingRewardEntry, ConstU32<1024>>, ValueQuery>;
+
 	/// Whether reward pool has been allocated for a referendum.
 	#[pallet::storage]
 	#[pallet::getter(fn reward_allocated)]
@@ -192,6 +210,18 @@ pub mod pallet {
 
 		/// Votes force-removed during unstake or liquidation.
 		VotesForceRemoved { who: T::AccountId, count: u32 },
+
+		/// A reward could not be recorded in `PendingRewards` (at capacity) and was
+		/// routed to `StuckRewards`. Promote via `drain_stuck_rewards` or wait for
+		/// `on_idle` to do it opportunistically.
+		RewardDeferred {
+			who: T::AccountId,
+			ref_index: u32,
+			reward_amount: Balance,
+		},
+
+		/// Stuck rewards were promoted into the main queue.
+		StuckRewardsDrained { who: T::AccountId, count: u32 },
 	}
 
 	// -----------------------------------------------------------------------
@@ -212,6 +242,10 @@ pub mod pallet {
 		MaxVotesReached,
 		/// Active votes in ongoing referenda prevent unstaking.
 		ActiveVotesPreventUnstake,
+		/// Dead-letter queue full (practically unreachable at cap 1024).
+		StuckRewardsFull,
+		/// No stuck rewards to drain for the target account.
+		NoStuckRewards,
 	}
 
 	// -----------------------------------------------------------------------
@@ -269,6 +303,67 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Promote stuck rewards from the dead-letter queue into `PendingRewards`.
+		///
+		/// Permissionless — anyone can call for any target account. Useful after
+		/// the account has claimed rewards and made room in `PendingRewards`.
+		#[pallet::call_index(1)]
+		#[pallet::weight(T::VotingWeightInfo::drain_stuck_rewards())]
+		pub fn drain_stuck_rewards(origin: OriginFor<T>, target: T::AccountId) -> DispatchResult {
+			ensure_signed(origin)?;
+
+			let mut stuck = StuckRewards::<T>::take(&target);
+			ensure!(!stuck.is_empty(), Error::<T>::NoStuckRewards);
+
+			let mut drained: u32 = 0;
+			PendingRewards::<T>::try_mutate(&target, |pending| -> DispatchResult {
+				while let Some(entry) = stuck.first().cloned() {
+					if pending.try_push(entry).is_err() {
+						break;
+					}
+					stuck.remove(0);
+					drained = drained.saturating_add(1);
+					if drained >= MAX_DRAIN_PER_CALL {
+						break;
+					}
+				}
+				Ok(())
+			})?;
+
+			if !stuck.is_empty() {
+				StuckRewards::<T>::insert(&target, stuck);
+			}
+
+			Self::deposit_event(Event::StuckRewardsDrained {
+				who: target,
+				count: drained,
+			});
+			Ok(())
+		}
+	}
+
+	// -----------------------------------------------------------------------
+	// Hooks
+	// -----------------------------------------------------------------------
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_idle(_n: BlockNumberFor<T>, mut remaining: Weight) -> Weight {
+			const PER_ACCOUNT_WEIGHT: Weight = Weight::from_parts(25_000_000, 10_000);
+			const MAX_ACCOUNTS_PER_BLOCK: u32 = 5;
+
+			let mut touched: u32 = 0;
+			for (who, _) in StuckRewards::<T>::iter() {
+				if remaining.any_lt(PER_ACCOUNT_WEIGHT) || touched >= MAX_ACCOUNTS_PER_BLOCK {
+					break;
+				}
+				let _ = Self::drain_stuck_rewards(frame_system::RawOrigin::Signed(who.clone()).into(), who);
+				remaining = remaining.saturating_sub(PER_ACCOUNT_WEIGHT);
+				touched = touched.saturating_add(1);
+			}
+			remaining
+		}
 	}
 }
 
@@ -311,6 +406,15 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
+		// Force-clear the voting lock storage regardless of conviction-period
+		// expiry. The EVM precompile at 0x0806 reads GigaHdxVotingLock and the
+		// LockableAToken blocks any transfer while it's non-zero — including
+		// the liquidation seize. The HDX-side pallet-balances lock is removed
+		// too because liquidation cancels the user's governance commitment.
+		GigaHdxVotingLock::<T>::remove(who);
+		LockSplit::<T>::remove(who);
+		<T::NativeCurrency as LockableCurrency<T::AccountId>>::remove_lock(CONVICTION_VOTING_ID, who);
+
 		if count > 0 {
 			Self::deposit_event(Event::VotesForceRemoved {
 				who: who.clone(),
@@ -352,7 +456,7 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 		true
 	}
 
-	fn on_unstake(who: &T::AccountId, _gigahdx_amount: Balance) -> DispatchResult {
+	fn on_unstake(who: &T::AccountId, gigahdx_amount: Balance) -> DispatchResult {
 		let finished_votes: sp_std::vec::Vec<u32> = GigaHdxVotes::<T>::iter_prefix(who)
 			.filter(|(ref_index, _)| <T::Referenda as GetReferendumOutcome<u32>>::is_referendum_finished(*ref_index))
 			.map(|(ref_index, _)| ref_index)
@@ -363,6 +467,32 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 		for ref_index in finished_votes {
 			let track_id = <T::Referenda as GetTrackId<u32>>::track_id(ref_index);
 			T::ForceRemoveVote::remove_vote(who, track_id, ref_index)?;
+		}
+
+		// Cap GigaHdxVotingLock at the post-unstake aToken balance and spill
+		// the remainder to HDX-side, otherwise the LockManager precompile
+		// (0x0806) blocks AAVE.withdraw later in `giga_unstake`.
+		let current_split = LockSplit::<T>::get(who);
+		let total_commitment = current_split
+			.gigahdx_amount
+			.saturating_add(current_split.hdx_amount);
+		if !total_commitment.is_zero() {
+			use frame_support::traits::fungibles::Inspect;
+			let current_balance = <T::Currency as Inspect<T::AccountId>>::balance(
+				<T as pallet_gigahdx::Config>::GigaHdxAssetId::get(),
+				who,
+			);
+			let post_unstake_balance = current_balance.saturating_sub(gigahdx_amount);
+			let new_gigahdx_lock = total_commitment.min(post_unstake_balance);
+			let new_hdx_lock = total_commitment.saturating_sub(new_gigahdx_lock);
+			GigaHdxVotingLock::<T>::insert(who, new_gigahdx_lock);
+			LockSplit::<T>::insert(
+				who,
+				crate::types::VotingLockSplit {
+					gigahdx_amount: new_gigahdx_lock,
+					hdx_amount: new_hdx_lock,
+				},
+			);
 		}
 
 		if count > 0 {
@@ -388,5 +518,22 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 			})
 			.max()
 			.unwrap_or_else(Zero::zero)
+	}
+
+	fn on_post_unstake(who: &T::AccountId) -> DispatchResult {
+		let split = LockSplit::<T>::get(who);
+		let total = split.gigahdx_amount.saturating_add(split.hdx_amount);
+		if total.is_zero() {
+			// No voting lock in place — nothing to recompute.
+			return Ok(());
+		}
+
+		// Re-run the split with the user's (now-reduced) GIGAHDX balance.
+		// apply_lock_split caps the tracker at the new balance and spills
+		// uncovered commitment onto a hard HDX lock.
+		const CONVICTION_VOTING_LOCK_ID: frame_support::traits::LockIdentifier = *b"pyconvot";
+		crate::adapter::GigaHdxVotingCurrency::<T>::apply_lock_split(CONVICTION_VOTING_LOCK_ID, who, total);
+
+		Ok(())
 	}
 }

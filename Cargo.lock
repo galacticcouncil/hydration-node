@@ -6378,7 +6378,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "405.0.0"
+version = "406.0.1"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -6551,7 +6551,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.7.0"
+version = "4.7.1"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10734,7 +10734,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-gigahdx"
-version = "0.1.0"
+version = "0.1.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10757,7 +10757,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-gigahdx-voting"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

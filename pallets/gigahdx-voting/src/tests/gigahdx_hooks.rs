@@ -68,6 +68,82 @@ fn on_unstake_force_removes_finished_votes() {
 	});
 }
 
+const VOTING_LOCK_ID: frame_support::traits::LockIdentifier = *b"pyconvot";
+
+#[test]
+fn on_unstake_shifts_lock_to_hdx_when_balance_drops_below_commitment() {
+	ExtBuilder::default()
+		.with_endowed(vec![(ALICE, HDX, 1_000 * ONE), (ALICE, GIGAHDX, 200 * ONE)])
+		.build()
+		.execute_with(|| {
+			set_referendum_outcome(0, ReferendumOutcome::Approved);
+			set_track_id(0, 0);
+
+			let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked6x, 150 * ONE);
+			assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
+			crate::adapter::GigaHdxVotingCurrency::<Test>::apply_lock_split(VOTING_LOCK_ID, &ALICE, 150 * ONE);
+			assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 150 * ONE);
+
+			assert_ok!(crate::Pallet::<Test>::on_unstake(&ALICE, 150 * ONE));
+
+			assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 50 * ONE);
+			let split = crate::LockSplit::<Test>::get(&ALICE);
+			assert_eq!(split.gigahdx_amount, 50 * ONE);
+			assert_eq!(split.hdx_amount, 100 * ONE);
+		});
+}
+
+#[test]
+fn on_unstake_keeps_lock_unchanged_when_remaining_balance_suffices() {
+	ExtBuilder::default().build().execute_with(|| {
+		set_referendum_outcome(0, ReferendumOutcome::Approved);
+		set_track_id(0, 0);
+
+		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked6x, 100 * ONE);
+		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
+		crate::adapter::GigaHdxVotingCurrency::<Test>::apply_lock_split(VOTING_LOCK_ID, &ALICE, 100 * ONE);
+
+		assert_ok!(crate::Pallet::<Test>::on_unstake(&ALICE, 200 * ONE));
+
+		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 100 * ONE);
+		let split = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split.gigahdx_amount, 100 * ONE);
+		assert_eq!(split.hdx_amount, 0);
+	});
+}
+
+#[test]
+fn on_unstake_drops_entire_gigahdx_lock_when_balance_goes_to_zero() {
+	ExtBuilder::default()
+		.with_endowed(vec![(ALICE, HDX, 1_000 * ONE), (ALICE, GIGAHDX, 100 * ONE)])
+		.build()
+		.execute_with(|| {
+			set_referendum_outcome(0, ReferendumOutcome::Approved);
+			set_track_id(0, 0);
+
+			let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 50 * ONE);
+			assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
+			crate::adapter::GigaHdxVotingCurrency::<Test>::apply_lock_split(VOTING_LOCK_ID, &ALICE, 50 * ONE);
+
+			assert_ok!(crate::Pallet::<Test>::on_unstake(&ALICE, 100 * ONE));
+
+			assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 0);
+			let split = crate::LockSplit::<Test>::get(&ALICE);
+			assert_eq!(split.gigahdx_amount, 0);
+			assert_eq!(split.hdx_amount, 50 * ONE);
+		});
+}
+
+#[test]
+fn on_unstake_no_op_when_user_has_no_voting_commitment() {
+	ExtBuilder::default().build().execute_with(|| {
+		set_referendum_outcome(0, ReferendumOutcome::Approved);
+		set_track_id(0, 0);
+		assert_ok!(crate::Pallet::<Test>::on_unstake(&ALICE, 100 * ONE));
+		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 0);
+	});
+}
+
 #[test]
 fn additional_unstake_lock_returns_max_remaining() {
 	ExtBuilder::default().build().execute_with(|| {
@@ -109,5 +185,201 @@ fn additional_unstake_lock_zero_no_votes() {
 	ExtBuilder::default().build().execute_with(|| {
 		let lock = crate::Pallet::<Test>::additional_unstake_lock(&ALICE);
 		assert_eq!(lock, 0);
+	});
+}
+
+/// Reproduces Bug #5: liquidation must clear GigaHdxVotingLock + LockSplit so that
+/// the EVM precompile at 0x0806 reports zero locked GIGAHDX. Without this, AAVE's
+/// LockableAToken._transfer reverts during liquidationCall because the stale lock
+/// amount exceeds the free balance.
+#[test]
+fn prepare_for_liquidation_clears_voting_lock_storage() {
+	use crate::adapter::GigaHdxVotingCurrency;
+	use frame_support::traits::{LockIdentifier, LockableCurrency, WithdrawReasons};
+
+	const VOTING_LOCK: LockIdentifier = *b"pyconvot";
+
+	ExtBuilder::default().build().execute_with(|| {
+		set_referendum_outcome(0, ReferendumOutcome::Approved);
+		set_track_id(0, 0);
+
+		// Vote to populate GigaHdxVotes + ReferendaTotalWeightedVotes storage.
+		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 300 * ONE);
+		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
+
+		// Simulate conviction-voting's set_lock(300) on our adapter. ALICE has
+		// 500 GIGAHDX + 1000 HDX → entire 300 locked in GIGAHDX.
+		<GigaHdxVotingCurrency<Test> as LockableCurrency<AccountId>>::set_lock(
+			VOTING_LOCK,
+			&ALICE,
+			300 * ONE,
+			WithdrawReasons::all(),
+		);
+
+		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 300 * ONE);
+		let split = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split.gigahdx_amount, 300 * ONE);
+
+		// Liquidation entry point.
+		assert_ok!(crate::Pallet::<Test>::prepare_for_liquidation(&ALICE));
+
+		// Everything the EVM precompile or native-currency layer can see must be zero.
+		assert_eq!(
+			crate::GigaHdxVotingLock::<Test>::get(&ALICE),
+			0,
+			"precompile would still report locked GIGAHDX → AAVE transfer reverts"
+		);
+		let split_after = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split_after.gigahdx_amount, 0);
+		assert_eq!(split_after.hdx_amount, 0);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// on_post_unstake tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn on_post_unstake_no_voting_lock_is_noop() {
+	ExtBuilder::default().build().execute_with(|| {
+		// No lock set. Hook must succeed and leave storage at defaults.
+		assert_ok!(crate::Pallet::<Test>::on_post_unstake(&ALICE));
+		assert_eq!(crate::LockSplit::<Test>::get(&ALICE), Default::default());
+		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 0);
+	});
+}
+
+#[test]
+fn on_post_unstake_unstake_below_free_keeps_tracker() {
+	// balance=700 (1000-300 unstaked), tracker=500 (all GIGAHDX). Free portion absorbed unstake.
+	ExtBuilder::default().build().execute_with(|| {
+		give_gigahdx(&ALICE, 700 * ONE);
+		crate::LockSplit::<Test>::insert(
+			&ALICE,
+			crate::types::VotingLockSplit {
+				gigahdx_amount: 500 * ONE,
+				hdx_amount: 0,
+			},
+		);
+		crate::GigaHdxVotingLock::<Test>::insert(&ALICE, 500 * ONE);
+
+		assert_ok!(crate::Pallet::<Test>::on_post_unstake(&ALICE));
+
+		let split = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(
+			split.gigahdx_amount,
+			500 * ONE,
+			"tracker unchanged — free portion absorbed the unstake"
+		);
+		assert_eq!(split.hdx_amount, 0, "no spillover needed");
+		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 500 * ONE);
+	});
+}
+
+#[test]
+fn on_post_unstake_unstake_into_locked_spills_to_hdx() {
+	// balance=400 (1000-600 unstaked), tracker was 500. New tracker=400, spillover=100.
+	ExtBuilder::default().build().execute_with(|| {
+		give_gigahdx(&ALICE, 400 * ONE);
+		crate::LockSplit::<Test>::insert(
+			&ALICE,
+			crate::types::VotingLockSplit {
+				gigahdx_amount: 500 * ONE,
+				hdx_amount: 0,
+			},
+		);
+		crate::GigaHdxVotingLock::<Test>::insert(&ALICE, 500 * ONE);
+
+		assert_ok!(crate::Pallet::<Test>::on_post_unstake(&ALICE));
+
+		let split = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split.gigahdx_amount, 400 * ONE, "tracker capped at new balance");
+		assert_eq!(split.hdx_amount, 100 * ONE, "spillover = old_total - new_tracker");
+		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 400 * ONE);
+	});
+}
+
+#[test]
+fn on_post_unstake_full_unstake_spills_entire_commitment_to_hdx() {
+	// balance=0 (fully unstaked), tracker was 500. New tracker=0, spillover=500.
+	ExtBuilder::default().build().execute_with(|| {
+		give_gigahdx(&ALICE, 0);
+		crate::LockSplit::<Test>::insert(
+			&ALICE,
+			crate::types::VotingLockSplit {
+				gigahdx_amount: 500 * ONE,
+				hdx_amount: 0,
+			},
+		);
+		crate::GigaHdxVotingLock::<Test>::insert(&ALICE, 500 * ONE);
+
+		assert_ok!(crate::Pallet::<Test>::on_post_unstake(&ALICE));
+
+		let split = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split.gigahdx_amount, 0);
+		assert_eq!(split.hdx_amount, 500 * ONE, "full commitment spills to HDX");
+		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 0);
+	});
+}
+
+#[test]
+fn on_post_unstake_with_existing_hdx_spillover_grows_spillover() {
+	// Prior split: (500, 200), total=700. balance=400 after unstake 600.
+	// Expected new split: gigahdx=400, hdx=300.
+	ExtBuilder::default().build().execute_with(|| {
+		give_gigahdx(&ALICE, 400 * ONE);
+		crate::LockSplit::<Test>::insert(
+			&ALICE,
+			crate::types::VotingLockSplit {
+				gigahdx_amount: 500 * ONE,
+				hdx_amount: 200 * ONE,
+			},
+		);
+		crate::GigaHdxVotingLock::<Test>::insert(&ALICE, 500 * ONE);
+		// Set the prior HDX-side lock so apply_lock_split replaces rather than stacks it.
+		set_hdx_voting_lock(&ALICE, 200 * ONE);
+
+		assert_ok!(crate::Pallet::<Test>::on_post_unstake(&ALICE));
+
+		let split = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split.gigahdx_amount, 400 * ONE);
+		assert_eq!(split.hdx_amount, 300 * ONE, "spillover grows from 200 to 300");
+		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 400 * ONE);
+	});
+}
+
+#[test]
+fn on_post_unstake_sequential_partial_unstakes() {
+	// Two partial unstakes in sequence.
+	ExtBuilder::default().build().execute_with(|| {
+		// Start: balance 1000, commitment 500 (all GIGAHDX).
+		give_gigahdx(&ALICE, 1_000 * ONE);
+		crate::LockSplit::<Test>::insert(
+			&ALICE,
+			crate::types::VotingLockSplit {
+				gigahdx_amount: 500 * ONE,
+				hdx_amount: 0,
+			},
+		);
+		crate::GigaHdxVotingLock::<Test>::insert(&ALICE, 500 * ONE);
+
+		// First unstake 200 → balance 800, tracker still 500 (free portion absorbed it).
+		give_gigahdx(&ALICE, 800 * ONE);
+		assert_ok!(crate::Pallet::<Test>::on_post_unstake(&ALICE));
+		let split = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split.gigahdx_amount, 500 * ONE);
+		assert_eq!(split.hdx_amount, 0);
+
+		// Second unstake 500 → balance 300, tracker caps at 300, spillover 200.
+		give_gigahdx(&ALICE, 300 * ONE);
+		assert_ok!(crate::Pallet::<Test>::on_post_unstake(&ALICE));
+		let split = crate::LockSplit::<Test>::get(&ALICE);
+		assert_eq!(split.gigahdx_amount, 300 * ONE);
+		assert_eq!(
+			split.hdx_amount,
+			200 * ONE,
+			"spillover = old_total(500) - new_tracker(300)"
+		);
+		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 300 * ONE);
 	});
 }

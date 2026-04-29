@@ -11,6 +11,7 @@
 use crate::types::{GigaHdxVote, PendingRewardEntry, ReferendaReward, REWARD_MULTIPLIER_SCALE};
 use crate::{
 	Config, Error, Event, Pallet, PendingRewards, ReferendaRewardPool, ReferendaTotalWeightedVotes, RewardAllocated,
+	StuckRewards,
 };
 use frame_support::pallet_prelude::Get;
 use frame_support::traits::{fungibles::Mutate, tokens::Preservation};
@@ -151,16 +152,25 @@ fn record_user_reward<T: Config>(
 	pool.remaining_reward = pool.remaining_reward.saturating_sub(user_reward);
 	ReferendaRewardPool::<T>::insert(ref_index, pool);
 
-	// Push pending reward entry.
-	PendingRewards::<T>::try_mutate(who, |entries| -> Result<(), sp_runtime::DispatchError> {
-		entries
-			.try_push(PendingRewardEntry {
-				referenda_id: ref_index,
-				reward_amount: user_reward,
-			})
-			.map_err(|_| Error::<T>::MaxVotesReached)?;
-		Ok(())
-	})?;
+	// Push pending reward entry, routing to dead-letter queue on overflow.
+	let entry = PendingRewardEntry {
+		referenda_id: ref_index,
+		reward_amount: user_reward,
+	};
+
+	let push_result = PendingRewards::<T>::try_mutate(who, |entries| entries.try_push(entry.clone()));
+
+	if push_result.is_err() {
+		// PendingRewards full — route to dead-letter queue.
+		StuckRewards::<T>::try_mutate(who, |entries| entries.try_push(entry.clone()))
+			.map_err(|_| Error::<T>::StuckRewardsFull)?;
+		Pallet::<T>::deposit_event(Event::RewardDeferred {
+			who: who.clone(),
+			ref_index,
+			reward_amount: user_reward,
+		});
+		return Ok(());
+	}
 
 	Pallet::<T>::deposit_event(Event::RewardRecorded {
 		who: who.clone(),

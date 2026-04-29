@@ -1,5 +1,6 @@
 use crate as pallet_gigahdx;
 use crate::*;
+use frame_support::traits::fungibles::Mutate as FungiblesMutate;
 use frame_support::{
 	parameter_types,
 	sp_runtime::{
@@ -105,7 +106,6 @@ impl pallet_balances::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -125,7 +125,6 @@ parameter_types! {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
@@ -133,6 +132,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 
@@ -146,11 +146,58 @@ parameter_types! {
 	pub const MaxUnstakePositions: u32 = 10;
 }
 
+// ---------------------------------------------------------------------------
+// TestMoneyMarket — tracks GIGAHDX positions via thread_local so unit tests
+// can verify the remaining-balance condition without needing the EVM layer.
+// ---------------------------------------------------------------------------
+
+use std::cell::RefCell;
+use std::collections::HashMap;
+
+thread_local! {
+	static MM_BALANCES: RefCell<HashMap<AccountId, Balance>> = RefCell::new(HashMap::new());
+}
+
+pub struct TestMoneyMarket;
+
+impl TestMoneyMarket {
+	pub fn reset() {
+		MM_BALANCES.with(|m| m.borrow_mut().clear());
+	}
+}
+
+impl hydradx_traits::gigahdx::MoneyMarketOperations<AccountId, AssetId, Balance> for TestMoneyMarket {
+	fn supply(
+		who: &AccountId,
+		_underlying_asset: AssetId,
+		amount: Balance,
+	) -> Result<Balance, sp_runtime::DispatchError> {
+		MM_BALANCES.with(|m| *m.borrow_mut().entry(*who).or_default() += amount);
+		Ok(amount)
+	}
+
+	fn withdraw(
+		who: &AccountId,
+		_underlying_asset: AssetId,
+		amount: Balance,
+	) -> Result<Balance, sp_runtime::DispatchError> {
+		MM_BALANCES.with(|m| {
+			let mut map = m.borrow_mut();
+			let bal = map.entry(*who).or_default();
+			*bal = bal.saturating_sub(amount);
+		});
+		Ok(amount)
+	}
+
+	fn balance_of(who: &AccountId) -> Balance {
+		MM_BALANCES.with(|m| *m.borrow().get(who).unwrap_or(&0))
+	}
+}
+
 impl pallet_gigahdx::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Test>;
 	type LockableCurrency = Currencies;
-	type MoneyMarket = (); // No-op: supply/withdraw are identity
+	type MoneyMarket = TestMoneyMarket;
 	type Hooks = (); // No-op: all hooks pass
 	type PalletId = GigaHdxPalletId;
 	type HdxAssetId = HdxAssetId;
@@ -219,6 +266,7 @@ impl ExtBuilder {
 		let mut ext: sp_io::TestExternalities = t.into();
 		ext.execute_with(|| {
 			System::set_block_number(1);
+			TestMoneyMarket::reset();
 		});
 
 		ext

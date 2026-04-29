@@ -110,7 +110,6 @@ impl pallet_balances::Config for Test {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -130,7 +129,6 @@ parameter_types! {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
@@ -138,6 +136,7 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
 	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 
@@ -150,11 +149,11 @@ parameter_types! {
 	pub const GigaHdxAssetId: AssetId = GIGAHDX;
 	pub const CooldownPeriod: u64 = 100;
 	pub const MinStake: Balance = ONE;
+	pub const MinUnstake: Balance = ONE;
 	pub const MaxUnstakePositions: u32 = 10;
 }
 
 impl pallet_gigahdx::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Test>;
 	type LockableCurrency = Currencies;
 	type MoneyMarket = ();
@@ -242,7 +241,6 @@ parameter_types! {
 }
 
 impl pallet_gigahdx_voting::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type NativeCurrency = Balances;
 	type Referenda = MockReferenda;
 	type TrackRewards = MockTrackRewards;
@@ -348,4 +346,44 @@ pub fn run_to_block(n: u64) {
 	while System::block_number() < n {
 		System::set_block_number(System::block_number() + 1);
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Test helpers for on_post_unstake tests
+// ---------------------------------------------------------------------------
+
+const VOTING_LOCK_ID: frame_support::traits::LockIdentifier = *b"pyconvot";
+
+/// Set Alice's GIGAHDX balance to `amount`, replacing the existing balance.
+/// Uses orml_tokens deposit/withdrawal to reach the desired amount.
+pub fn give_gigahdx(who: &AccountId, amount: Balance) {
+	use frame_support::traits::fungibles::Mutate as FungiblesMutate;
+	// Burn existing GIGAHDX balance.
+	let current =
+		<pallet_currencies::fungibles::FungibleCurrencies<Test> as frame_support::traits::fungibles::Inspect<
+			AccountId,
+		>>::balance(GIGAHDX, who);
+	if current > 0 {
+		<pallet_currencies::fungibles::FungibleCurrencies<Test> as FungiblesMutate<AccountId>>::burn_from(
+			GIGAHDX,
+			who,
+			current,
+			frame_support::traits::tokens::Preservation::Expendable,
+			frame_support::traits::tokens::Precision::BestEffort,
+			frame_support::traits::tokens::Fortitude::Force,
+		)
+		.expect("burn existing GIGAHDX");
+	}
+	if amount > 0 {
+		<pallet_currencies::fungibles::FungibleCurrencies<Test> as FungiblesMutate<AccountId>>::mint_into(
+			GIGAHDX, who, amount,
+		)
+		.expect("mint GIGAHDX");
+	}
+}
+
+/// Set a hard HDX lock for `who` via pallet_balances, simulating a prior HDX spillover lock.
+pub fn set_hdx_voting_lock(who: &AccountId, amount: Balance) {
+	use frame_support::traits::{LockableCurrency, WithdrawReasons};
+	Balances::set_lock(VOTING_LOCK_ID, who, amount, WithdrawReasons::all());
 }

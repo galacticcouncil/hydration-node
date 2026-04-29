@@ -26,7 +26,7 @@ use pallet_broadcast::types::Asset;
 use pallet_evm::GasWeightMapping;
 use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
-use pallet_liquidation::BorrowingContract;
+use pallet_liquidation::{BorrowingContract, GigaHdxPoolContract};
 use polkadot_xcm::v5::Location;
 use primitive_types::{H160, U256};
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
@@ -52,6 +52,7 @@ pub enum Function {
 	// Pool
 	Supply = "supply(address,uint256,address,uint16)",
 	Withdraw = "withdraw(address,uint256,address)",
+	SetUserUseReserveAsCollateral = "setUserUseReserveAsCollateral(address,bool)",
 	GetReserveData = "getReserveData(address)",
 	GetConfiguration = "getConfiguration(address)",
 	GetReservesList = "getReservesList()",
@@ -151,6 +152,31 @@ where
 		};
 
 		AaveTradeExecutor::<T>::do_withdraw_all_to(from, to, underlying_asset)
+	}
+
+	/// Returns the set of known Aave pool contracts (main + GIGAHDX), deduplicated.
+	/// Both storage values share the same default address on a fresh chain, so dedupe is required.
+	pub fn aave_pool_contracts() -> Vec<EvmAddress> {
+		let main = <BorrowingContract<T>>::get();
+		let giga = <GigaHdxPoolContract<T>>::get();
+		if giga == main || giga == EvmAddress::zero() {
+			vec![main]
+		} else {
+			vec![main, giga]
+		}
+	}
+
+	/// Find the Aave pool contract that hosts `asset` as a reserve.
+	/// Per product invariant each reserve lives in exactly one instance; the first match wins.
+	pub fn find_pool_for_reserve(asset: EvmAddress) -> Option<EvmAddress> {
+		for pool in Self::aave_pool_contracts() {
+			if let Ok(reserves) = Self::get_reserves_list(pool) {
+				if reserves.contains(&asset) {
+					return Some(pool);
+				}
+			}
+		}
+		None
 	}
 
 	pub fn get_reserves_list(pool: EvmAddress) -> Result<Vec<EvmAddress>, ExecutorError<DispatchError>> {
@@ -323,6 +349,25 @@ where
 
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
 	}
+	/// Enable (or disable) `asset` as collateral for `who` on `pool`.
+	/// Required in isolation mode: AAVE leaves the flag off by default after
+	/// the initial supply, so users have zero borrow power until it's flipped.
+	pub(crate) fn do_set_use_reserve_as_collateral(
+		pool: EvmAddress,
+		who: &T::AccountId,
+		asset: EvmAddress,
+		enabled: bool,
+	) -> Result<(), DispatchError> {
+		let who_evm = T::EvmAccounts::evm_address(who);
+		let context = CallContext::new_call(pool, who_evm);
+		let data = EvmDataWriter::new_with_selector(Function::SetUserUseReserveAsCollateral)
+			.write(asset)
+			.write(enabled)
+			.build();
+
+		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
+	}
+
 	pub(crate) fn do_withdraw(
 		pool: EvmAddress,
 		who: &T::AccountId,
@@ -543,8 +588,6 @@ where
 			return Err(ExecutorError::NotSupported);
 		}
 
-		let pool = <BorrowingContract<T>>::get();
-
 		if let Some(underlying) = AaveTradeExecutor::<T>::get_underlying_asset(asset_out) {
 			let asset_address = pallet_asset_registry::Pallet::<T>::contract_address(asset_out).unwrap_or_default();
 			Ok(AaveTradeExecutor::<T>::get_available_liquidity(
@@ -554,6 +597,8 @@ where
 		} else {
 			let asset_address = HydraErc20Mapping::asset_address(asset_out);
 			let atoken_address = pallet_asset_registry::Pallet::<T>::contract_address(asset_in);
+			let pool = AaveTradeExecutor::<T>::find_pool_for_reserve(asset_address)
+				.ok_or(ExecutorError::Error("No Aave pool hosts this reserve".into()))?;
 			let reserve_data = AaveTradeExecutor::<T>::get_reserve_data(pool, asset_address)?;
 			ensure!(
 				atoken_address == Some(reserve_data.atoken_address),
