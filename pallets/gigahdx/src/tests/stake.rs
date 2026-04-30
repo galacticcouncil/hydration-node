@@ -7,7 +7,7 @@ use frame_support::{
 use sp_runtime::{traits::One, FixedU128};
 
 #[test]
-fn giga_stake_should_work() {
+fn giga_stake_should_mint_gigahdx_when_amount_is_valid() {
 	ExtBuilder::default().build().execute_with(|| {
 		let amount = 100 * ONE;
 
@@ -40,7 +40,7 @@ fn giga_stake_should_work() {
 }
 
 #[test]
-fn giga_stake_should_fail_below_min_stake() {
+fn giga_stake_should_fail_when_amount_below_min_stake() {
 	ExtBuilder::default().build().execute_with(|| {
 		let amount = ONE / 2; // Below MinStake of 1 ONE
 
@@ -52,7 +52,7 @@ fn giga_stake_should_fail_below_min_stake() {
 }
 
 #[test]
-fn giga_stake_should_fail_with_zero_amount() {
+fn giga_stake_should_fail_when_amount_is_zero() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
 			GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 0),
@@ -62,7 +62,7 @@ fn giga_stake_should_fail_with_zero_amount() {
 }
 
 #[test]
-fn giga_stake_should_fail_with_insufficient_balance() {
+fn giga_stake_should_fail_when_balance_is_insufficient() {
 	ExtBuilder::default().build().execute_with(|| {
 		// ALICE has 1000 ONE, try to stake 2000 ONE
 		assert!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 2_000 * ONE).is_err());
@@ -70,7 +70,7 @@ fn giga_stake_should_fail_with_insufficient_balance() {
 }
 
 #[test]
-fn giga_stake_proportional_at_increased_rate() {
+fn giga_stake_should_mint_proportional_gigahdx_when_rate_increased() {
 	ExtBuilder::default().build().execute_with(|| {
 		// First stake: 100 HDX at 1:1
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
@@ -100,7 +100,7 @@ fn giga_stake_proportional_at_increased_rate() {
 }
 
 #[test]
-fn giga_stake_multiple_users() {
+fn giga_stake_should_track_balances_independently_when_multiple_users_stake() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(BOB), 200 * ONE));
@@ -121,7 +121,7 @@ fn giga_stake_multiple_users() {
 // direct HDX donation to the gigapot is treated as a fee accrual:
 // exchange rate goes up, no panic, no integer wrap, existing stakers benefit.
 #[test]
-fn direct_hdx_donation_to_gigapot_inflates_exchange_rate_safely() {
+fn exchange_rate_should_inflate_safely_when_hdx_donated_to_gigapot() {
 	ExtBuilder::default()
 		.with_endowed(vec![
 			(ALICE, HDX, 1_000 * ONE),
@@ -158,7 +158,7 @@ fn direct_hdx_donation_to_gigapot_inflates_exchange_rate_safely() {
 // total_st_hdx is zero. The donor can never recover their HDX (it's a true
 // burn into the treasury) and the first staker gets the donation as a bonus.
 #[test]
-fn direct_hdx_donation_before_first_stake_is_irrecoverable() {
+fn donated_hdx_should_be_irrecoverable_when_donated_before_first_stake() {
 	ExtBuilder::default()
 		.with_endowed(vec![(ALICE, HDX, 1_000 * ONE), (BOB, HDX, 1_000 * ONE)])
 		.build()
@@ -201,7 +201,7 @@ fn direct_hdx_donation_before_first_stake_is_irrecoverable() {
 //       `ensure!(!st_hdx_amount.is_zero())` returns `ZeroAmount` and the
 //       victim's HDX is never silently transferred away.
 #[test]
-fn vault_inflation_donation_cannot_silently_steal_victim_funds() {
+fn donation_should_not_steal_victim_funds_when_vault_inflated() {
 	// Half (a): realistic attacker cannot afford the donation.
 	ExtBuilder::default()
 		.with_endowed(vec![
@@ -279,7 +279,7 @@ fn vault_inflation_donation_cannot_silently_steal_victim_funds() {
 // accounts for the donation correctly, claimers just get fewer stHDX per HDX
 // (which is the documented design).
 #[test]
-fn direct_donation_does_not_break_stake_rewards() {
+fn stake_rewards_should_succeed_when_direct_donation_inflated_rate() {
 	ExtBuilder::default()
 		.with_endowed(vec![(ALICE, HDX, 10_000 * ONE), (BOB, HDX, 10_000 * ONE)])
 		.build()

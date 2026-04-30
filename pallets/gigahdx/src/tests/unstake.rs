@@ -11,7 +11,7 @@ fn setup_stake(who: AccountId, amount: Balance) {
 }
 
 #[test]
-fn giga_unstake_should_work() {
+fn giga_unstake_should_burn_gigahdx_and_lock_hdx_when_amount_is_valid() {
 	ExtBuilder::default().build().execute_with(|| {
 		setup_stake(ALICE, 100 * ONE);
 
@@ -51,7 +51,7 @@ fn giga_unstake_should_work() {
 }
 
 #[test]
-fn giga_unstake_should_fail_with_zero_amount() {
+fn giga_unstake_should_fail_when_amount_is_zero() {
 	ExtBuilder::default().build().execute_with(|| {
 		setup_stake(ALICE, 100 * ONE);
 
@@ -63,7 +63,7 @@ fn giga_unstake_should_fail_with_zero_amount() {
 }
 
 #[test]
-fn giga_unstake_multiple_positions() {
+fn giga_unstake_should_create_separate_position_per_call() {
 	ExtBuilder::default().build().execute_with(|| {
 		setup_stake(ALICE, 100 * ONE);
 
@@ -78,7 +78,7 @@ fn giga_unstake_multiple_positions() {
 }
 
 #[test]
-fn giga_unstake_too_many_positions_should_fail() {
+fn giga_unstake_should_fail_when_position_cap_reached() {
 	ExtBuilder::default()
 		.with_endowed(vec![(ALICE, HDX, 100_000 * ONE)])
 		.build()
@@ -99,7 +99,7 @@ fn giga_unstake_too_many_positions_should_fail() {
 }
 
 #[test]
-fn two_unstakes_stack_lock() {
+fn lock_should_aggregate_when_two_unstakes_back_to_back() {
 	// Alice starts with 100 HDX, stakes all of it, then unstakes twice.
 	// After two 30-HDX unstakes, she has 60 HDX back in her account.
 	// All 60 should be locked (cooldown hasn't expired). With the max-not-sum
@@ -130,7 +130,7 @@ fn two_unstakes_stack_lock() {
 }
 
 #[test]
-fn giga_unstake_at_increased_rate() {
+fn giga_unstake_should_return_proportional_hdx_when_rate_increased() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Stake 100 HDX at 1:1
 		setup_stake(ALICE, 100 * ONE);
@@ -168,7 +168,7 @@ fn giga_unstake_should_fail_when_remaining_below_min_stake() {
 }
 
 #[test]
-fn giga_unstake_partial_should_succeed_when_remaining_meets_min_stake() {
+fn giga_unstake_should_succeed_when_partial_and_remaining_meets_min_stake() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Stake 2*ONE. Unstaking ONE leaves exactly ONE remaining == MinStake.
 		setup_stake(ALICE, 2 * ONE);
@@ -178,7 +178,7 @@ fn giga_unstake_partial_should_succeed_when_remaining_meets_min_stake() {
 }
 
 #[test]
-fn giga_unstake_full_should_always_succeed() {
+fn giga_unstake_should_succeed_when_unstaking_full_balance() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Full unstake (remaining == 0) is always valid — no minimum enforced on the last exit.
 		setup_stake(ALICE, ONE);
@@ -188,7 +188,7 @@ fn giga_unstake_full_should_always_succeed() {
 }
 
 #[test]
-fn giga_unstake_zero_amount_fails() {
+fn giga_unstake_should_fail_when_zero_amount() {
 	ExtBuilder::default().build().execute_with(|| {
 		setup_stake(ALICE, 100 * ONE);
 
@@ -204,7 +204,7 @@ fn giga_unstake_zero_amount_fails() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn giga_unstake_positions_have_independent_cooldowns() {
+fn unstake_positions_should_have_independent_cooldowns() {
 	ExtBuilder::default().build().execute_with(|| {
 		setup_stake(ALICE, 100 * ONE);
 
@@ -225,7 +225,7 @@ fn giga_unstake_positions_have_independent_cooldowns() {
 }
 
 #[test]
-fn unlock_frees_only_expired_positions() {
+fn unlock_should_release_only_expired_positions() {
 	ExtBuilder::default().build().execute_with(|| {
 		setup_stake(ALICE, 100 * ONE);
 
@@ -246,7 +246,7 @@ fn unlock_frees_only_expired_positions() {
 }
 
 #[test]
-fn unlock_fails_when_no_position_expired() {
+fn unlock_should_fail_when_no_position_expired() {
 	ExtBuilder::default().build().execute_with(|| {
 		setup_stake(ALICE, 100 * ONE);
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 10 * ONE));
@@ -265,7 +265,7 @@ fn unlock_fails_when_no_position_expired() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn giga_unstake_calls_on_post_unstake_hook() {
+fn giga_unstake_should_call_on_post_unstake_hook() {
 	// The gigahdx mock uses Hooks = (), so on_post_unstake is a no-op.
 	// This test guards against future refactors that accidentally drop the hook call.
 	ExtBuilder::default().build().execute_with(|| {
@@ -280,7 +280,7 @@ fn giga_unstake_calls_on_post_unstake_hook() {
 // were removed as redundant. This regression test pins that an over-balance
 // unstake still fails (somehow) and leaves no observable state behind.
 #[test]
-fn giga_unstake_over_amount_fails_without_state_change() {
+fn giga_unstake_should_leave_state_unchanged_when_overstake_fails() {
 	ExtBuilder::default().build().execute_with(|| {
 		setup_stake(ALICE, 100 * ONE);
 
@@ -302,7 +302,7 @@ fn giga_unstake_over_amount_fails_without_state_change() {
 // change. This test verifies that the precheck fires AND that no token
 // state moved (no MM withdraw, no burn, no transfer, no lock).
 #[test]
-fn giga_unstake_too_many_positions_rolls_back_state_changes() {
+fn giga_unstake_should_roll_back_state_when_position_cap_reached() {
 	ExtBuilder::default()
 		.with_endowed(vec![(ALICE, HDX, 100_000 * ONE)])
 		.build()

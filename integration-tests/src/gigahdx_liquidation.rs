@@ -225,7 +225,7 @@ fn begin_referendum() -> u32 {
 
 /// Happy-path: user stakes HDX → gets GIGAHDX → borrows HOLLAR → price drops → treasury liquidates.
 #[test]
-fn gigahdx_liquidation_should_work() {
+fn gigahdx_liquidation_should_seize_collateral_and_repay_debt() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// ---- Setup ----
@@ -400,7 +400,7 @@ fn gigahdx_liquidation_should_work() {
 /// so the LockableAToken still blocks the transfer.
 /// Fix: add GigaHdxVotingLock::remove(who) and LockSplit::remove(who) to prepare_for_liquidation.
 #[test]
-fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
+fn gigahdx_liquidation_should_clear_voting_locks() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -491,7 +491,7 @@ fn gigahdx_liquidation_with_voting_locks_should_clear_locks() {
 /// `AaveMoneyMarket::supply` now calls `Pool.setUserUseReserveAsCollateral(stHDX, true)`
 /// after supply so borrow power is live immediately.
 #[test]
-fn giga_stake_auto_enables_collateral_for_isolated_sthdx() {
+fn giga_stake_should_auto_enable_collateral_for_isolated_sthdx() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -542,7 +542,7 @@ fn giga_stake_auto_enables_collateral_for_isolated_sthdx() {
 /// stHDX is an isolated asset. HOLLAR, USDC, and USDT are borrowable in isolation
 /// (configured via setBorrowableInIsolation on prod). All other assets are rejected.
 #[test]
-fn isolated_sthdx_only_allows_borrowing_hollar() {
+fn borrow_should_succeed_only_for_hollar_when_collateral_is_isolated_sthdx() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -626,7 +626,7 @@ fn isolated_sthdx_only_allows_borrowing_hollar() {
 
 /// Liquidation should fail when the user's health factor is above 1 (position is healthy).
 #[test]
-fn gigahdx_liquidation_fails_when_position_is_healthy() {
+fn gigahdx_liquidation_should_fail_when_position_is_healthy() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -697,7 +697,7 @@ fn gigahdx_liquidation_fails_when_position_is_healthy() {
 
 /// Treasury borrow fails when treasury has no collateral in the money market.
 #[test]
-fn gigahdx_liquidation_fails_when_treasury_has_no_collateral() {
+fn gigahdx_liquidation_should_fail_when_treasury_has_no_collateral() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -754,7 +754,7 @@ fn gigahdx_liquidation_fails_when_treasury_has_no_collateral() {
 }
 
 #[test]
-fn exchange_rate_unchanged_after_liquidation() {
+fn exchange_rate_should_remain_constant_after_liquidation() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -852,7 +852,7 @@ fn exchange_rate_unchanged_after_liquidation() {
 }
 
 #[test]
-fn other_users_can_stake_and_unstake_after_liquidation() {
+fn other_users_should_be_able_to_stake_and_unstake_after_liquidation() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -967,7 +967,7 @@ fn other_users_can_stake_and_unstake_after_liquidation() {
 /// - No reward recorded for the force-removed ongoing vote.
 /// - GigaHdxLiquidated event emitted exactly once.
 #[test]
-fn liquidation_fully_steamrolls_user_voting_state() {
+fn liquidation_should_clear_all_user_voting_state() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);

@@ -6,14 +6,14 @@ use frame_support::{
 use sp_runtime::{traits::One, FixedPointNumber, FixedU128};
 
 #[test]
-fn initial_exchange_rate_is_one() {
+fn exchange_rate_should_be_one_when_pool_empty() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_eq!(GigaHdx::exchange_rate(), FixedU128::one());
 	});
 }
 
 #[test]
-fn exchange_rate_unchanged_after_stake() {
+fn exchange_rate_should_remain_constant_when_user_stakes() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
 
@@ -26,7 +26,7 @@ fn exchange_rate_unchanged_after_stake() {
 }
 
 #[test]
-fn exchange_rate_unchanged_after_unstake() {
+fn exchange_rate_should_remain_constant_when_user_unstakes() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(BOB), 100 * ONE));
@@ -39,7 +39,7 @@ fn exchange_rate_unchanged_after_unstake() {
 }
 
 #[test]
-fn exchange_rate_increases_with_fee_accrual() {
+fn exchange_rate_should_increase_when_fees_accrue() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
 
@@ -56,7 +56,7 @@ fn exchange_rate_increases_with_fee_accrual() {
 }
 
 #[test]
-fn new_staker_gets_fewer_st_hdx_after_rate_increase() {
+fn staker_should_receive_fewer_st_hdx_when_rate_increased() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Alice stakes 100 HDX at 1:1 → gets 100 stHDX
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
@@ -80,7 +80,7 @@ fn new_staker_gets_fewer_st_hdx_after_rate_increase() {
 }
 
 #[test]
-fn stake_rewards_at_current_rate() {
+fn stake_rewards_should_use_current_exchange_rate() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Alice stakes 100 HDX
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
@@ -106,7 +106,7 @@ fn stake_rewards_at_current_rate() {
 // `pre_reward_hdx == 0` and the divisor would be zero. The fix routes that
 // case through a 1:1 bootstrap mint instead of erroring with `Arithmetic`.
 #[test]
-fn stake_rewards_handles_pre_reward_hdx_zero() {
+fn stake_rewards_should_succeed_when_pre_reward_hdx_is_zero() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Drain Alice so we can build the degenerate state precisely.
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));

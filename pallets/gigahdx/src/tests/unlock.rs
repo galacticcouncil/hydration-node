@@ -8,7 +8,7 @@ fn setup_unstake(who: AccountId, stake_amount: Balance, unstake_amount: Balance)
 }
 
 #[test]
-fn unlock_after_cooldown_should_work() {
+fn unlock_should_release_hdx_when_cooldown_elapsed() {
 	ExtBuilder::default().build().execute_with(|| {
 		setup_unstake(ALICE, 100 * ONE, 100 * ONE);
 
@@ -27,7 +27,7 @@ fn unlock_after_cooldown_should_work() {
 }
 
 #[test]
-fn unlock_before_cooldown_should_fail() {
+fn unlock_should_fail_when_cooldown_not_elapsed() {
 	ExtBuilder::default().build().execute_with(|| {
 		setup_unstake(ALICE, 100 * ONE, 100 * ONE);
 
@@ -40,7 +40,7 @@ fn unlock_before_cooldown_should_fail() {
 }
 
 #[test]
-fn unlock_permissionless() {
+fn unlock_should_succeed_when_called_by_third_party() {
 	ExtBuilder::default().build().execute_with(|| {
 		setup_unstake(ALICE, 100 * ONE, 100 * ONE);
 
@@ -54,7 +54,7 @@ fn unlock_permissionless() {
 }
 
 #[test]
-fn unlock_no_positions_should_fail() {
+fn unlock_should_fail_when_no_positions() {
 	ExtBuilder::default().build().execute_with(|| {
 		// ALICE has no unstake positions at all
 		assert_noop!(
@@ -65,7 +65,7 @@ fn unlock_no_positions_should_fail() {
 }
 
 #[test]
-fn unlock_only_expired_positions() {
+fn unlock_should_release_only_expired_positions_when_some_pending() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
 
@@ -101,7 +101,7 @@ fn unlock_only_expired_positions() {
 }
 
 #[test]
-fn unlock_all_expired_at_once() {
+fn unlock_should_release_all_when_all_expired() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(ALICE), 100 * ONE));
 

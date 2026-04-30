@@ -31,7 +31,7 @@ const GIGAHDX: u32 = 67;
 /// Requires snapshot with stHDX registered as an AAVE reserve and
 /// GIGAHDX configured as the corresponding aToken.
 #[test]
-fn giga_stake_should_work_on_mainnet_snapshot() {
+fn giga_stake_should_mint_gigahdx_on_mainnet_snapshot() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -161,7 +161,7 @@ fn begin_referendum_by_bob() -> u32 {
 
 /// User with zero HDX can vote using only GIGAHDX received from giga_stake.
 #[test]
-fn vote_with_only_gigahdx_on_mainnet_snapshot() {
+fn vote_should_succeed_with_only_gigahdx_balance_on_mainnet_snapshot() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -194,7 +194,7 @@ fn vote_with_only_gigahdx_on_mainnet_snapshot() {
 }
 
 #[test]
-fn direct_hdx_transfer_to_gigapot_inflates_exchange_rate() {
+fn exchange_rate_should_inflate_when_hdx_transferred_directly_to_gigapot() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -255,7 +255,7 @@ fn direct_hdx_transfer_to_gigapot_inflates_exchange_rate() {
 }
 
 #[test]
-fn giga_unstake_works_at_extreme_exchange_rate() {
+fn giga_unstake_should_succeed_at_extreme_exchange_rate() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -287,7 +287,7 @@ fn giga_unstake_works_at_extreme_exchange_rate() {
 }
 
 #[test]
-fn restake_works_after_full_exit() {
+fn restake_should_succeed_after_full_exit() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -328,7 +328,7 @@ fn restake_works_after_full_exit() {
 /// set_lock uses max(locks) not sum(locks), so after two unstakes of 100 HDX each,
 /// only 100 is locked instead of 200 — the other 100 is freely spendable.
 #[test]
-fn second_unstake_makes_first_unstake_amount_usable() {
+fn first_unstake_amount_should_become_usable_when_second_unstake_executed() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -408,7 +408,7 @@ fn second_unstake_makes_first_unstake_amount_usable() {
 /// After partial unlock removes an earlier position, the next unstake could generate
 /// a lock_id that collides with an existing position's lock_id, freeing HDX early.
 #[test]
-fn lock_id_collides_after_partial_unlock() {
+fn lock_id_should_collide_after_partial_unlock() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -464,7 +464,7 @@ fn lock_id_collides_after_partial_unlock() {
 }
 
 #[test]
-fn unstake_more_than_balance_fails() {
+fn giga_unstake_should_fail_when_amount_exceeds_balance() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -492,7 +492,7 @@ fn unstake_more_than_balance_fails() {
 }
 
 #[test]
-fn giga_stake_at_min_amount_succeeds_and_below_min_fails() {
+fn giga_stake_should_succeed_at_min_amount_and_fail_below() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -514,7 +514,7 @@ fn giga_stake_at_min_amount_succeeds_and_below_min_fails() {
 
 /// GIGAHDX can be transferred when not locked by voting.
 #[test]
-fn gigahdx_transfer_succeeds_when_unlocked() {
+fn gigahdx_transfer_should_succeed_when_unlocked() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -548,7 +548,7 @@ fn gigahdx_transfer_succeeds_when_unlocked() {
 
 /// GIGAHDX transfer fails when the balance is locked by a conviction vote.
 #[test]
-fn gigahdx_transfer_fails_when_locked_by_conviction_vote() {
+fn gigahdx_transfer_should_fail_when_locked_by_conviction_vote() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		// Use a fresh account that has no prior state on the testnet snapshot.
@@ -588,7 +588,7 @@ fn gigahdx_transfer_fails_when_locked_by_conviction_vote() {
 
 /// Unstaking that would leave a non-zero but sub-MinStake GIGAHDX position is rejected.
 #[test]
-fn giga_unstake_fails_when_remaining_below_min_stake() {
+fn giga_unstake_should_fail_when_remaining_below_min_stake_on_real_aave() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -617,7 +617,7 @@ fn giga_unstake_fails_when_remaining_below_min_stake() {
 
 /// Unstaking that leaves a GIGAHDX position worth >= MinStake in HDX succeeds.
 #[test]
-fn giga_unstake_partial_succeeds_when_remaining_meets_min_stake() {
+fn giga_unstake_partial_should_succeed_when_remaining_meets_min_stake() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -648,7 +648,7 @@ fn giga_unstake_partial_succeeds_when_remaining_meets_min_stake() {
 
 /// Full exit (unstaking entire GIGAHDX balance) is always permitted regardless of MinStake.
 #[test]
-fn giga_unstake_full_exit_always_succeeds() {
+fn giga_unstake_should_succeed_when_full_exit() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -676,12 +676,12 @@ fn giga_unstake_full_exit_always_succeeds() {
 
 /// direct HDX donation to gigapot does not break unstake or rate math
 /// against the real AAVE money market. Existing coverage:
-/// `direct_hdx_transfer_to_gigapot_inflates_exchange_rate` proves the rate
+/// `exchange_rate_should_inflate_when_hdx_transferred_directly_to_gigapot` proves the rate
 /// updates; this test extends coverage by verifying that an existing staker
 /// can still complete a full unstake AFTER the donation, with the inflated
 /// payout, and that running into the cooldown lock works as expected.
 #[test]
-fn donation_does_not_break_unstake_payout_on_real_aave() {
+fn unstake_payout_should_succeed_after_donation_on_real_aave() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
@@ -744,7 +744,7 @@ fn donation_does_not_break_unstake_payout_on_real_aave() {
 // Voting-lock enforcement on EVM-level paths that bypass the pallet.
 //
 // The Substrate `Currencies::transfer` path is already covered by
-// `gigahdx_transfer_fails_when_locked_by_conviction_vote`. The two tests
+// `gigahdx_transfer_should_fail_when_locked_by_conviction_vote`. The two tests
 // below exercise the corresponding EVM paths:
 //   1. AAVE `Pool.withdraw(stHDX, amount, to)` — burns aTokens for underlying.
 //   2. aToken (GIGAHDX) `transfer(to, amount)` — direct ERC20 transfer.
@@ -820,7 +820,7 @@ fn setup_alice_with_locked_gigahdx(stake_amount: Balance) -> (sp_runtime::Accoun
 /// the user can drain aTokens for underlying stHDX without going through
 /// `giga_unstake`, sidestepping cooldowns and rewards bookkeeping.
 #[test]
-fn aave_withdraw_outside_giga_unstake_respects_voting_lock() {
+fn aave_withdraw_should_respect_voting_lock_when_called_outside_giga_unstake() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let stake_amount = 1_000 * UNITS;
@@ -865,10 +865,10 @@ fn aave_withdraw_outside_giga_unstake_respects_voting_lock() {
 /// aToken (GIGAHDX) `transfer` via the ERC20 EVM interface must revert when
 /// the source's balance is locked by a conviction vote. The Substrate
 /// `Currencies::transfer` path is already enforced by
-/// `gigahdx_transfer_fails_when_locked_by_conviction_vote`; this proves the
+/// `gigahdx_transfer_should_fail_when_locked_by_conviction_vote`; this proves the
 /// EVM path has equivalent enforcement.
 #[test]
-fn vote_then_transfer_atoken_via_evm_blocked_when_locked() {
+fn atoken_evm_transfer_should_fail_when_locked_by_vote() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let stake_amount = 1_000 * UNITS;
@@ -935,7 +935,7 @@ fn vote_then_transfer_atoken_via_evm_blocked_when_locked() {
 // allocator is never re-run with the post-stake GIGAHDX balance.
 // ---------------------------------------------------------------------------
 #[test]
-fn lock_split_stale_after_stake_allows_transfer_of_locked_gigahdx() {
+fn lock_split_should_remain_at_snapshot_when_stake_increases_balance() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let charlie = sp_runtime::AccountId32::from(CHARLIE);
@@ -1066,12 +1066,12 @@ fn lock_split_stale_after_stake_allows_transfer_of_locked_gigahdx() {
 //   4. transfer 5 M GIGAHDX out — must FAIL because the GIGAHDX-side lock is
 //      computed correctly when no stale LockSplit existed beforehand.
 //
-// Together with `lock_split_stale_after_stake_allows_transfer_of_locked_gigahdx`
+// Together with `lock_split_should_remain_at_snapshot_when_stake_increases_balance`
 // this proves the issue is the carry-over from a pre-stake HDX vote, not the
 // per-vote enforcement itself.
 // ---------------------------------------------------------------------------
 #[test]
-fn vote_after_stake_blocks_gigahdx_transfer() {
+fn gigahdx_transfer_should_fail_when_voted_after_stake() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let charlie = sp_runtime::AccountId32::from(CHARLIE);

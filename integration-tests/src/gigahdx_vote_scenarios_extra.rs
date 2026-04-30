@@ -213,7 +213,7 @@ fn end_referendum() {
 
 /// T1: Eve stakes 5 M → delegates 5 M to Bob (track 0). Lock expected.
 #[test]
-fn t1_delegate_creates_lock() {
+fn delegate_should_create_voting_lock() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -243,7 +243,7 @@ fn t1_delegate_creates_lock() {
 
 /// T2: HDX-only delegate → stake → delegate's lock-split must refresh.
 #[test]
-fn t2_hdx_only_delegate_then_stake_must_refresh_lock_split() {
+fn lock_split_should_remain_at_snapshot_when_stake_follows_hdx_only_delegate() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -284,7 +284,7 @@ fn t2_hdx_only_delegate_then_stake_must_refresh_lock_split() {
 
 /// T3: delegate → undelegate → unlock → locks cleared.
 #[test]
-fn t3_undelegate_then_unlock_clears_lock() {
+fn lock_should_clear_when_undelegate_followed_by_unlock() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -318,7 +318,7 @@ fn t3_undelegate_then_unlock_clears_lock() {
 
 /// T6: delegated GIGAHDX cannot be transferred.
 #[test]
-fn t6_delegated_gigahdx_transfer_blocked() {
+fn gigahdx_transfer_should_fail_when_delegated() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -345,7 +345,7 @@ fn t6_delegated_gigahdx_transfer_blocked() {
 /// T4: delegate with Locked1x → undelegate → lock kept alive by delegation
 /// prior for the lock period → past the period, `unlock` clears it.
 #[test]
-fn t4_undelegate_with_conviction_keeps_period_lock() {
+fn lock_should_remain_for_period_when_undelegate_with_conviction() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -397,7 +397,7 @@ fn t4_undelegate_with_conviction_keeps_period_lock() {
 
 /// U1: vote → remove_vote → unlock ⇒ everything cleared.
 #[test]
-fn u1_vote_remove_unlock_clears_all_locks() {
+fn unlock_should_clear_all_locks_after_vote_remove() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -433,7 +433,7 @@ fn u1_vote_remove_unlock_clears_all_locks() {
 
 /// U3: vote → remove_vote → unlock → transfer GIGAHDX accepted.
 #[test]
-fn u3_unlock_then_transfer_succeeds() {
+fn transfer_should_succeed_after_unlock() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -472,7 +472,7 @@ fn u3_unlock_then_transfer_succeeds() {
 
 /// U4: vote 10 M HDX-only → remove → unlock → LockSplit fully zeroed.
 #[test]
-fn u4_hdx_only_vote_remove_unlock_zeroes_split() {
+fn lock_split_should_zero_when_hdx_only_vote_removed_and_unlocked() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -503,7 +503,7 @@ fn u4_hdx_only_vote_remove_unlock_zeroes_split() {
 
 /// U5: vote on two polls (same class), remove one, unlock — lock = remaining poll's amount.
 #[test]
-fn u5_partial_remove_unlock_keeps_max_remaining() {
+fn lock_should_keep_max_remaining_when_partial_remove_unlock() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -560,7 +560,7 @@ fn u5_partial_remove_unlock_keeps_max_remaining() {
 /// Locked3x = 4 periods × 7 days = 28 days lock; after the 12-day end_referendum
 /// fast-forward there's plenty of prior left.
 #[test]
-fn u2_remove_during_lock_period_unlock_retains_lock() {
+fn unlock_should_retain_lock_when_called_within_conviction_period() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -617,7 +617,7 @@ fn u2_remove_during_lock_period_unlock_retains_lock() {
 
 /// U6: same as U2 but with Locked6x — heavier conviction, longer prior.
 #[test]
-fn u6_locked6x_unlock_within_period_retains_lock() {
+fn unlock_should_retain_lock_when_locked6x_within_period() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -655,7 +655,7 @@ fn u6_locked6x_unlock_within_period_retains_lock() {
 /// the conviction lock period → unlock → GIGAHDX lock must clear.
 /// VoteLockingPeriod = 7 days; Locked1x = 1 period = 7 days. Add buffer.
 #[test]
-fn u7_locked1x_unlock_after_period_clears_lock() {
+fn unlock_should_clear_lock_when_locked1x_period_elapsed() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -718,7 +718,7 @@ fn u7_locked1x_unlock_after_period_clears_lock() {
 /// Expected (correct) behaviour: unstake succeeds, the user's HDX comes back
 /// locked on the native side until the conviction prior expires.
 #[test]
-fn u8_unstake_with_active_prior_must_succeed_and_spill_to_hdx() {
+fn giga_unstake_should_succeed_and_spill_to_hdx_when_active_prior() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -795,7 +795,7 @@ fn u8_unstake_with_active_prior_must_succeed_and_spill_to_hdx() {
 
 /// V2: stale LockSplit + direct EVM `Pool.withdraw` — must revert (defense in depth).
 #[test]
-fn v2_aave_withdraw_blocked_when_locked() {
+fn aave_withdraw_should_fail_when_locked() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		use hydradx_runtime::evm::aave_trade_executor::Function as AaveFunction;
@@ -834,7 +834,7 @@ fn v2_aave_withdraw_blocked_when_locked() {
 
 /// X1: vote 3 M same poll then re-vote 8 M ⇒ lock raised to 8 M.
 #[test]
-fn x1_same_poll_increase_raises_lock() {
+fn lock_should_increase_when_revote_amount_increases_on_same_poll() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -876,7 +876,7 @@ fn x1_same_poll_increase_raises_lock() {
 /// today guards-out (3 < 8 current_total). After the planned fix the lock
 /// should refresh to 3 M.
 #[test]
-fn x2_same_poll_decrease_reduces_lock() {
+fn lock_should_decrease_when_revote_amount_decreases_on_same_poll() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -904,7 +904,7 @@ fn x2_same_poll_decrease_reduces_lock() {
 
 /// X4: vote aye 5 M → re-vote nay 5 M same poll ⇒ lock unchanged.
 #[test]
-fn x4_aye_to_nay_keeps_lock() {
+fn lock_should_remain_when_aye_switched_to_nay_on_same_poll() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -939,7 +939,7 @@ fn x4_aye_to_nay_keeps_lock() {
 /// We unstake a small amount that leaves enough to cover the vote, then check that
 /// both lock-ids show on the account and the usable HDX is `total − max(both locks)`.
 #[test]
-fn y1_vote_lock_and_unstake_cooldown_max_aggregate() {
+fn native_locks_should_max_aggregate_when_vote_lock_and_unstake_cooldown_present() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -977,7 +977,7 @@ fn y1_vote_lock_and_unstake_cooldown_max_aggregate() {
 
 /// Z1: vote with balance == total holdings exactly.
 #[test]
-fn z1_vote_at_exact_total_accepted() {
+fn vote_should_succeed_when_amount_equals_total_holdings() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -998,7 +998,7 @@ fn z1_vote_at_exact_total_accepted() {
 
 /// Z5: self-transfer GIGAHDX while locked.
 #[test]
-fn z5_self_transfer_while_locked_blocked() {
+fn self_transfer_should_fail_when_locked() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -1028,7 +1028,7 @@ fn z5_self_transfer_while_locked_blocked() {
 
 /// AA1: utility.batch([stake, vote]) — end-state lock split correct.
 #[test]
-fn aa1_batch_stake_then_vote_lock_split_correct() {
+fn lock_split_should_be_correct_when_stake_then_vote_in_batch() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -1064,7 +1064,7 @@ fn aa1_batch_stake_then_vote_lock_split_correct() {
 
 /// AA2: utility.batch([vote 5 M, stake 5 M]) — A2 inside one block. Lock must end up GIGAHDX-side.
 #[test]
-fn aa2_batch_vote_then_stake_refreshes_split() {
+fn lock_split_should_remain_at_snapshot_when_vote_then_stake_in_batch() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -1102,7 +1102,7 @@ fn aa2_batch_vote_then_stake_refreshes_split() {
 
 /// AA3: batch [vote, giga_unstake] — must reject (can_unstake fails mid-batch).
 #[test]
-fn aa3_batch_vote_then_unstake_reverts() {
+fn batch_should_revert_when_vote_then_unstake_violates_lock() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -1138,7 +1138,7 @@ fn aa3_batch_vote_then_unstake_reverts() {
 
 /// AA4: batch [stake, vote, remove_vote, unlock] — clean end state.
 #[test]
-fn aa4_batch_stake_vote_remove_unlock_clean_state() {
+fn state_should_be_clean_after_stake_vote_remove_unlock_batch() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -1177,7 +1177,7 @@ fn aa4_batch_stake_vote_remove_unlock_clean_state() {
 
 /// BB1: mid-flight allowance change while voting active.
 #[test]
-fn bb1_allowance_change_then_vote_then_transfer_from_blocked() {
+fn transfer_from_should_fail_when_allowance_set_and_vote_locks_balance() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -1244,7 +1244,7 @@ fn bb1_allowance_change_then_vote_then_transfer_from_blocked() {
 
 /// BB4: approve while locked is allowed (allowance is permissive); the transfer must still revert.
 #[test]
-fn bb4_approve_while_locked_allowed_transfer_blocked() {
+fn transfer_from_should_fail_when_approved_while_locked() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -1298,7 +1298,7 @@ fn bb4_approve_while_locked_allowed_transfer_blocked() {
 
 /// BB7: zero-amount aToken transfer while locked — accepted.
 #[test]
-fn bb7_zero_amount_atoken_transfer_accepted_while_locked() {
+fn atoken_zero_amount_transfer_should_succeed_when_locked() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();
@@ -1348,7 +1348,7 @@ fn bb7_zero_amount_atoken_transfer_accepted_while_locked() {
 /// `total_balance(who) = gigahdx + hdx` reads the raw GIGAHDX share count, not
 /// the inflated underlying value, so the vote ceiling tracks shares.
 #[test]
-fn cc1_inflated_rate_does_not_inflate_vote_ceiling() {
+fn vote_ceiling_should_not_inflate_when_exchange_rate_inflated() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let eve = setup_fresh_eve();

@@ -164,7 +164,7 @@ fn init_gigahdx() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn giga_stake_produces_gigahdx() {
+fn giga_stake_should_mint_gigahdx() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -194,7 +194,7 @@ fn giga_stake_produces_gigahdx() {
 }
 
 #[test]
-fn vote_with_gigahdx_records_vote() {
+fn vote_should_record_gigahdx_vote_when_voter_holds_gigahdx() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -230,7 +230,7 @@ fn vote_with_gigahdx_records_vote() {
 }
 
 #[test]
-fn end_referendum_remove_vote_records_reward() {
+fn remove_vote_should_record_reward_when_referendum_ended() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -269,7 +269,7 @@ fn end_referendum_remove_vote_records_reward() {
 }
 
 #[test]
-fn claim_rewards_converts_to_gigahdx() {
+fn claim_rewards_should_convert_pending_hdx_to_gigahdx() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -314,7 +314,7 @@ fn claim_rewards_converts_to_gigahdx() {
 }
 
 #[test]
-fn giga_unstake_blocked_during_ongoing_when_would_breach_lock() {
+fn giga_unstake_should_fail_when_amount_would_breach_ongoing_vote_lock() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -351,7 +351,7 @@ fn giga_unstake_blocked_during_ongoing_when_would_breach_lock() {
 }
 
 #[test]
-fn giga_unstake_force_removes_finished_votes_and_records_rewards() {
+fn giga_unstake_should_force_remove_finished_votes_and_record_rewards() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -401,7 +401,7 @@ fn giga_unstake_force_removes_finished_votes_and_records_rewards() {
 }
 
 #[test]
-fn giga_unstake_applies_dynamic_cooldown_from_conviction_lock() {
+fn giga_unstake_should_apply_dynamic_cooldown_from_conviction_lock() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -438,7 +438,7 @@ fn giga_unstake_applies_dynamic_cooldown_from_conviction_lock() {
 }
 
 #[test]
-fn interleaved_stake_unstake_vote_operations() {
+fn stake_unstake_vote_should_compose_correctly_when_interleaved() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -498,7 +498,7 @@ fn interleaved_stake_unstake_vote_operations() {
 }
 
 #[test]
-fn combined_voting_power() {
+fn vote_should_use_combined_balance_when_voter_holds_both_gigahdx_and_hdx() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -535,7 +535,7 @@ fn combined_voting_power() {
 }
 
 #[test]
-fn conviction_weighted_rewards() {
+fn reward_should_be_weighted_by_conviction_across_voters() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -601,7 +601,7 @@ fn conviction_weighted_rewards() {
 }
 
 #[test]
-fn rewards_only_for_gigahdx_portion_when_voting_with_combined_balance() {
+fn reward_should_count_only_gigahdx_portion_when_voting_with_combined_balance() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -678,7 +678,7 @@ fn rewards_only_for_gigahdx_portion_when_voting_with_combined_balance() {
 }
 
 #[test]
-fn multiple_referenda_rewards_claimed_at_once() {
+fn claim_rewards_should_aggregate_across_multiple_referenda() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -772,7 +772,7 @@ fn multiple_referenda_rewards_claimed_at_once() {
 }
 
 #[test]
-fn reward_pot_depletes_across_sequential_referenda() {
+fn reward_pot_should_deplete_across_sequential_referenda() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -837,7 +837,7 @@ fn reward_pot_depletes_across_sequential_referenda() {
 }
 
 #[test]
-fn sequential_reward_claims_give_equal_gigahdx() {
+fn sequential_reward_claims_should_yield_equal_gigahdx() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -912,7 +912,7 @@ fn sequential_reward_claims_give_equal_gigahdx() {
 }
 
 #[test]
-fn vote_after_transferring_free_gigahdx_uses_correct_balance() {
+fn vote_should_use_remaining_balance_when_free_gigahdx_transferred_first() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -966,7 +966,7 @@ fn vote_after_transferring_free_gigahdx_uses_correct_balance() {
 }
 
 #[test]
-fn vote_with_more_than_balance_is_capped_at_gigahdx_balance() {
+fn vote_should_cap_gigahdx_portion_at_balance_when_amount_exceeds_holdings() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1028,7 +1028,7 @@ fn vote_with_more_than_balance_is_capped_at_gigahdx_balance() {
 /// 3. Votes 800 on r_b -> snapshot (700 G, 100 H) using the new balance.
 /// 4. Effective LockSplit = max-per-side across both votes = (700 G, 300 H).
 #[test]
-fn per_vote_splits_are_immutable_snapshots_across_balance_changes() {
+fn per_vote_splits_should_remain_immutable_across_balance_changes() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1098,7 +1098,7 @@ fn per_vote_splits_are_immutable_snapshots_across_balance_changes() {
 }
 
 #[test]
-fn liquidation_clears_all_votes_and_records_rewards_only_for_finished() {
+fn liquidation_should_clear_all_votes_and_record_rewards_only_for_finished() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1149,7 +1149,7 @@ fn liquidation_clears_all_votes_and_records_rewards_only_for_finished() {
 }
 
 #[test]
-fn restake_and_revote_works_after_liquidation() {
+fn restake_and_revote_should_succeed_after_liquidation() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1197,7 +1197,7 @@ fn restake_and_revote_works_after_liquidation() {
 }
 
 #[test]
-fn received_gigahdx_is_transferable_while_existing_balance_is_locked() {
+fn received_gigahdx_should_be_transferable_when_existing_balance_locked() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1263,7 +1263,7 @@ fn received_gigahdx_is_transferable_while_existing_balance_is_locked() {
 //  When PendingRewards is full, removing a vote routes the reward to StuckRewards
 /// (dead-letter queue) instead of silently dropping it.
 #[test]
-fn reward_routed_to_stuck_when_pending_rewards_full() {
+fn reward_should_route_to_stuck_when_pending_rewards_full() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1327,7 +1327,7 @@ fn reward_routed_to_stuck_when_pending_rewards_full() {
 }
 
 #[test]
-fn pending_rewards_full_during_unstake_does_not_desync() {
+fn storage_should_not_desync_when_pending_rewards_full_during_unstake() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -1388,7 +1388,7 @@ fn pending_rewards_full_during_unstake_does_not_desync() {
 }
 
 #[test]
-fn last_voter_reward_is_fair_despite_rounding() {
+fn last_voter_reward_should_be_fair_despite_rounding() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1478,7 +1478,7 @@ fn last_voter_reward_is_fair_despite_rounding() {
 }
 
 #[test]
-fn remove_vote_should_fail_for_referendum_user_never_voted_on() {
+fn remove_vote_should_fail_when_user_never_voted_on_referendum() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1502,7 +1502,7 @@ fn remove_vote_should_fail_for_referendum_user_never_voted_on() {
 }
 
 #[test]
-fn vote_update_on_same_referendum_replaces_conviction_without_double_counting() {
+fn vote_update_should_replace_conviction_without_double_counting() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1545,7 +1545,7 @@ fn vote_update_on_same_referendum_replaces_conviction_without_double_counting() 
 }
 
 #[test]
-fn vote_on_nonexistent_referendum_fails() {
+fn vote_should_fail_when_referendum_does_not_exist() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1569,7 +1569,7 @@ fn vote_on_nonexistent_referendum_fails() {
 }
 
 #[test]
-fn double_claim_rewards_fails() {
+fn claim_rewards_should_fail_when_called_twice() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1608,7 +1608,7 @@ fn double_claim_rewards_fails() {
 }
 
 #[test]
-fn split_abstain_vote_uses_none_conviction() {
+fn split_abstain_vote_should_use_none_conviction() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1648,7 +1648,7 @@ fn split_abstain_vote_uses_none_conviction() {
 /// BOB votes Locked1x. After referendum ends, rewards should reflect
 /// ALICE's final conviction (6x), not her original (1x).
 #[test]
-fn reward_reflects_updated_conviction_not_original() {
+fn reward_should_reflect_updated_conviction_not_original() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1720,7 +1720,7 @@ fn reward_reflects_updated_conviction_not_original() {
 }
 
 #[test]
-fn no_reward_for_cancelled_referendum() {
+fn reward_should_not_be_recorded_when_referendum_cancelled() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1758,7 +1758,7 @@ fn no_reward_for_cancelled_referendum() {
 /// BUG: Spec says Conviction::None should have 0.1x reward multiplier,
 /// but code uses 1x (same as Locked1x). This test documents the discrepancy.
 #[test]
-fn none_conviction_gets_same_reward_as_locked1x() {
+fn none_conviction_should_get_same_reward_as_locked1x() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1823,7 +1823,7 @@ fn none_conviction_gets_same_reward_as_locked1x() {
 /// User stakes more GIGAHDX AFTER voting but BEFORE removing vote.
 /// The reward should be based on the vote amount at time of voting, not current balance.
 #[test]
-fn reward_based_on_vote_amount_not_current_balance() {
+fn reward_should_be_based_on_vote_amount_not_current_balance() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//Arrange
@@ -1891,7 +1891,7 @@ fn reward_based_on_vote_amount_not_current_balance() {
 }
 
 #[test]
-fn staking_hooks_still_work() {
+fn staking_hooks_should_fire_after_voting_changes() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -1935,7 +1935,7 @@ fn staking_hooks_still_work() {
 }
 
 #[test]
-fn unstake_with_voting_lock_creates_one_position_with_max_cooldown() {
+fn giga_unstake_should_create_single_position_with_max_cooldown_when_voting_locked() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -1973,7 +1973,7 @@ fn unstake_with_voting_lock_creates_one_position_with_max_cooldown() {
 }
 
 #[test]
-fn on_post_unstake_sees_final_hdx_balance() {
+fn on_post_unstake_should_observe_final_hdx_balance() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();

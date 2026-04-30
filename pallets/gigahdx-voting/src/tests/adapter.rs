@@ -19,7 +19,7 @@ fn standard_vote(
 }
 
 #[test]
-fn combined_balance_includes_gigahdx_and_hdx() {
+fn total_balance_should_sum_gigahdx_and_hdx_balances() {
 	ExtBuilder::default().build().execute_with(|| {
 		let balance = <GigaHdxVotingCurrency<Test> as Inspect<AccountId>>::total_balance(&ALICE);
 		// ALICE has 1_000 HDX + 500 GIGAHDX
@@ -30,7 +30,7 @@ fn combined_balance_includes_gigahdx_and_hdx() {
 /// Adapter recomputes per-side max from `GigaHdxVotes`. With one active vote
 /// of (300, 0), the GIGAHDX-side cap is 300 and the HDX-side cap is 0.
 #[test]
-fn set_lock_picks_up_gigahdx_split_from_votes() {
+fn set_lock_should_take_gigahdx_split_from_active_votes() {
 	ExtBuilder::default().build().execute_with(|| {
 		// ALICE has 500 GIGAHDX → 300 fits entirely on the G-side.
 		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 300 * ONE);
@@ -49,7 +49,7 @@ fn set_lock_picks_up_gigahdx_split_from_votes() {
 
 /// 700 against (500 G, 1000 H): 500 spills onto G-side, 200 onto H-side.
 #[test]
-fn set_lock_overflow_splits_to_hdx_side() {
+fn set_lock_should_spill_to_hdx_when_amount_exceeds_gigahdx_balance() {
 	ExtBuilder::default().build().execute_with(|| {
 		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 700 * ONE);
 		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
@@ -67,7 +67,7 @@ fn set_lock_overflow_splits_to_hdx_side() {
 
 /// remove_lock wipes both sides + clears any prior split.
 #[test]
-fn remove_lock_clears_storage() {
+fn remove_lock_should_clear_voting_lock_storage() {
 	ExtBuilder::default().build().execute_with(|| {
 		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 700 * ONE);
 		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
@@ -88,7 +88,7 @@ fn remove_lock_clears_storage() {
 
 /// Two votes of different sizes: per-side max is the larger vote's split.
 #[test]
-fn extend_lock_per_side_max_across_votes() {
+fn extend_lock_should_max_aggregate_per_side_across_votes() {
 	ExtBuilder::default().build().execute_with(|| {
 		let vote_a = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 300 * ONE);
 		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote_a));
@@ -120,7 +120,7 @@ fn extend_lock_per_side_max_across_votes() {
 /// per-side max-aggregate. The previous `extend_lock` `amount >= current_total`
 /// guard is gone.
 #[test]
-fn smaller_vote_after_stake_picks_up_gigahdx_side() {
+fn lock_split_should_use_per_vote_snapshot_when_smaller_vote_follows_stake() {
 	use frame_support::traits::fungibles::Mutate as FungiblesMutate;
 
 	ExtBuilder::default()
@@ -169,7 +169,7 @@ fn smaller_vote_after_stake_picks_up_gigahdx_side() {
 /// Per-vote subtraction: removing the larger vote releases its specific
 /// contribution. Per-side max collapses to the smaller vote's split.
 #[test]
-fn remove_larger_vote_collapses_to_smaller_split() {
+fn lock_split_should_collapse_to_smaller_when_larger_vote_removed() {
 	ExtBuilder::default().build().execute_with(|| {
 		set_referendum_outcome(0, ReferendumOutcome::Ongoing);
 		set_referendum_outcome(1, ReferendumOutcome::Ongoing);
@@ -213,7 +213,7 @@ fn remove_larger_vote_collapses_to_smaller_split() {
 /// HDX-only voter (no GIGAHDX): G-side stays 0 even when conviction-voting
 /// asks for a lock. Voting is fully covered by the HDX-side native lock.
 #[test]
-fn hdx_only_voter_no_gigahdx_lock() {
+fn gigahdx_lock_should_be_zero_when_voter_holds_no_gigahdx() {
 	ExtBuilder::default()
 		.with_endowed(vec![(CHARLIE, HDX, 1_000 * ONE)])
 		.build()

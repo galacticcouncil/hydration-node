@@ -18,7 +18,7 @@ fn standard_vote(
 }
 
 #[test]
-fn reward_pool_allocated_on_first_remove() {
+fn reward_pool_should_be_allocated_on_first_remove_vote() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Fund the GigaReward pot.
 		let pot = crate::Pallet::<Test>::giga_reward_pot_account();
@@ -44,7 +44,7 @@ fn reward_pool_allocated_on_first_remove() {
 }
 
 #[test]
-fn reward_not_allocated_for_non_completed() {
+fn reward_pool_should_not_be_allocated_when_referendum_not_completed() {
 	ExtBuilder::default().build().execute_with(|| {
 		let pot = crate::Pallet::<Test>::giga_reward_pot_account();
 		<FungibleCurrencies<Test> as Mutate<AccountId>>::mint_into(HDX, &pot, 10_000 * ONE).unwrap();
@@ -65,7 +65,7 @@ fn reward_not_allocated_for_non_completed() {
 }
 
 #[test]
-fn conviction_weighted_reward_distribution() {
+fn reward_distribution_should_be_weighted_by_conviction() {
 	ExtBuilder::default().build().execute_with(|| {
 		let pot = crate::Pallet::<Test>::giga_reward_pot_account();
 		<FungibleCurrencies<Test> as Mutate<AccountId>>::mint_into(HDX, &pot, 10_000 * ONE).unwrap();
@@ -103,7 +103,7 @@ fn conviction_weighted_reward_distribution() {
 }
 
 #[test]
-fn remaining_reward_tracks_correctly() {
+fn remaining_reward_should_decrement_after_each_recording() {
 	ExtBuilder::default().build().execute_with(|| {
 		let pot = crate::Pallet::<Test>::giga_reward_pot_account();
 		<FungibleCurrencies<Test> as Mutate<AccountId>>::mint_into(HDX, &pot, 10_000 * ONE).unwrap();
@@ -123,7 +123,7 @@ fn remaining_reward_tracks_correctly() {
 }
 
 #[test]
-fn empty_reward_pot_allocates_zero() {
+fn reward_pool_should_allocate_zero_when_pot_empty() {
 	ExtBuilder::default().build().execute_with(|| {
 		// No funds in reward pot.
 		set_track_id(0, 0);
@@ -173,7 +173,7 @@ fn setup_completed_vote(who: &AccountId, ref_index: u32, amount: Balance) {
 }
 
 #[test]
-fn on_remove_vote_routes_overflow_to_stuck_rewards() {
+fn on_remove_vote_should_route_overflow_to_stuck_rewards_when_pending_full() {
 	ExtBuilder::default().build().execute_with(|| {
 		const MAX: u32 = 20; // matches MaxVotes in mock
 		const REF_NEW: u32 = 999;
@@ -211,7 +211,7 @@ fn on_remove_vote_routes_overflow_to_stuck_rewards() {
 }
 
 #[test]
-fn drain_stuck_rewards_migrates_after_claim() {
+fn drain_stuck_rewards_should_migrate_to_pending_after_claim() {
 	ExtBuilder::default().build().execute_with(|| {
 		const MAX: u32 = 20;
 		const REF_NEW: u32 = 999;
@@ -242,7 +242,7 @@ fn drain_stuck_rewards_migrates_after_claim() {
 }
 
 #[test]
-fn drain_stuck_rewards_fails_when_empty() {
+fn drain_stuck_rewards_should_fail_when_no_stuck_rewards() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
 			crate::Pallet::<Test>::drain_stuck_rewards(RuntimeOrigin::signed(ALICE), ALICE),
@@ -252,7 +252,7 @@ fn drain_stuck_rewards_fails_when_empty() {
 }
 
 #[test]
-fn on_idle_promotes_stuck_rewards() {
+fn on_idle_should_promote_stuck_rewards_to_pending() {
 	ExtBuilder::default().build().execute_with(|| {
 		const MAX: u32 = 20;
 		const REF_NEW: u32 = 999;

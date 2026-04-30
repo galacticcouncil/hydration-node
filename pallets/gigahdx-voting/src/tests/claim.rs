@@ -17,7 +17,7 @@ fn standard_vote(
 }
 
 #[test]
-fn claim_rewards_transfers_hdx_and_mints_gigahdx() {
+fn claim_rewards_should_transfer_hdx_and_mint_gigahdx() {
 	ExtBuilder::default()
 		.with_endowed(vec![
 			(ALICE, HDX, 1_000 * ONE),
@@ -85,7 +85,7 @@ fn claim_rewards_transfers_hdx_and_mints_gigahdx() {
 }
 
 #[test]
-fn claim_rewards_fails_with_no_pending() {
+fn claim_rewards_should_fail_when_no_pending_rewards() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
 			crate::Pallet::<Test>::claim_rewards(RuntimeOrigin::signed(ALICE)),

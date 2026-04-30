@@ -15,7 +15,7 @@ fn standard_vote(
 }
 
 #[test]
-fn on_before_vote_records_gigahdx_vote() {
+fn on_before_vote_should_record_gigahdx_vote() {
 	ExtBuilder::default().build().execute_with(|| {
 		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked3x, 400 * ONE);
 
@@ -32,7 +32,7 @@ fn on_before_vote_records_gigahdx_vote() {
 }
 
 #[test]
-fn on_before_vote_records_per_side_split() {
+fn on_before_vote_should_record_per_side_split() {
 	ExtBuilder::default().build().execute_with(|| {
 		// ALICE has 500 GIGAHDX + 1000 HDX. Voting 800 total → 500 G-side, 300 H-side.
 		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 800 * ONE);
@@ -47,7 +47,7 @@ fn on_before_vote_records_per_side_split() {
 }
 
 #[test]
-fn on_before_vote_hdx_only_voter_records_entry_with_hdx_split() {
+fn on_before_vote_should_record_entry_with_hdx_split_when_voter_has_no_gigahdx() {
 	// Under the new design, every vote (including HDX-only) gets a `GigaHdxVotes`
 	// entry so the adapter's per-side max-aggregate has all the data it needs.
 	// Reward weighting uses `gigahdx_lock` only — HDX-only voters earn no GIGAHDX
@@ -71,7 +71,7 @@ fn on_before_vote_hdx_only_voter_records_entry_with_hdx_split() {
 }
 
 #[test]
-fn on_before_vote_split_uses_none_conviction() {
+fn on_before_vote_should_use_none_conviction_for_split_votes() {
 	ExtBuilder::default().build().execute_with(|| {
 		let vote = AccountVote::Split {
 			aye: 200 * ONE,
@@ -89,7 +89,7 @@ fn on_before_vote_split_uses_none_conviction() {
 }
 
 #[test]
-fn on_before_vote_update_replaces_old() {
+fn on_before_vote_should_replace_old_entry_when_updating_vote() {
 	ExtBuilder::default().build().execute_with(|| {
 		let vote1 = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 200 * ONE);
 		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote1));
@@ -107,7 +107,7 @@ fn on_before_vote_update_replaces_old() {
 }
 
 #[test]
-fn on_remove_vote_clears_storage() {
+fn on_remove_vote_should_clear_vote_storage() {
 	ExtBuilder::default().build().execute_with(|| {
 		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked2x, 300 * ONE);
 		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
@@ -122,7 +122,7 @@ fn on_remove_vote_clears_storage() {
 }
 
 #[test]
-fn on_remove_vote_nonexistent_noop() {
+fn on_remove_vote_should_be_noop_when_no_stored_vote() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Should not panic.
 		GigaHdxVotingHooks::<Test>::on_remove_vote(&ALICE, 99, Status::Completed);
@@ -130,7 +130,7 @@ fn on_remove_vote_nonexistent_noop() {
 }
 
 #[test]
-fn lock_balance_on_unsuccessful_vote_returns_combined_amount() {
+fn lock_balance_on_unsuccessful_vote_should_return_combined_amount() {
 	ExtBuilder::default().build().execute_with(|| {
 		// 400 ≤ 500 GIGAHDX → combined commitment is 400.
 		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 400 * ONE);
@@ -142,7 +142,7 @@ fn lock_balance_on_unsuccessful_vote_returns_combined_amount() {
 }
 
 #[test]
-fn lock_balance_on_unsuccessful_vote_none_if_no_vote() {
+fn lock_balance_on_unsuccessful_vote_should_return_none_when_no_vote() {
 	ExtBuilder::default().build().execute_with(|| {
 		let locked = GigaHdxVotingHooks::<Test>::lock_balance_on_unsuccessful_vote(&ALICE, 0);
 		assert_eq!(locked, None);
@@ -150,7 +150,7 @@ fn lock_balance_on_unsuccessful_vote_none_if_no_vote() {
 }
 
 #[test]
-fn lock_expires_at_calculated_correctly() {
+fn lock_expires_at_should_match_block_plus_lock_period() {
 	ExtBuilder::default().build().execute_with(|| {
 		System::set_block_number(10);
 
@@ -165,7 +165,7 @@ fn lock_expires_at_calculated_correctly() {
 }
 
 #[test]
-fn conviction_none_lock_expires_immediately() {
+fn lock_should_expire_immediately_when_conviction_is_none() {
 	ExtBuilder::default().build().execute_with(|| {
 		System::set_block_number(5);
 

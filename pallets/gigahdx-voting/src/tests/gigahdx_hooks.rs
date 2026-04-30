@@ -15,14 +15,14 @@ fn standard_vote(
 }
 
 #[test]
-fn can_unstake_true_when_no_votes() {
+fn can_unstake_should_return_true_when_no_votes() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert!(crate::Pallet::<Test>::can_unstake(&ALICE, 100 * ONE));
 	});
 }
 
 #[test]
-fn can_unstake_false_when_ongoing_vote_does_not_cover_amount() {
+fn can_unstake_should_return_false_when_amount_breaches_ongoing_vote_lock() {
 	// ALICE: 500 GIGAHDX, vote 200 Locked1x on ongoing ref → free portion = 300.
 	// Unstake 500 (full) would dip below the 200 ongoing lock → reject.
 	ExtBuilder::default().build().execute_with(|| {
@@ -36,7 +36,7 @@ fn can_unstake_false_when_ongoing_vote_does_not_cover_amount() {
 }
 
 #[test]
-fn can_unstake_true_when_partial_within_free_portion_with_ongoing_vote() {
+fn can_unstake_should_return_true_when_partial_within_free_portion_with_ongoing_vote() {
 	// ALICE: 500 GIGAHDX, vote 200 Locked1x ongoing → free portion = 300.
 	// Unstake 200 leaves 300 ≥ 200 → permitted.
 	ExtBuilder::default().build().execute_with(|| {
@@ -50,7 +50,7 @@ fn can_unstake_true_when_partial_within_free_portion_with_ongoing_vote() {
 }
 
 #[test]
-fn can_unstake_true_when_all_finished() {
+fn can_unstake_should_return_true_when_all_votes_finished() {
 	ExtBuilder::default().build().execute_with(|| {
 		set_referendum_outcome(0, ReferendumOutcome::Approved);
 		set_referendum_outcome(1, ReferendumOutcome::Rejected);
@@ -67,7 +67,7 @@ fn can_unstake_true_when_all_finished() {
 }
 
 #[test]
-fn on_unstake_force_removes_finished_votes() {
+fn on_unstake_should_force_remove_finished_votes() {
 	ExtBuilder::default().build().execute_with(|| {
 		set_referendum_outcome(0, ReferendumOutcome::Approved);
 		set_track_id(0, 0);
@@ -86,7 +86,7 @@ fn on_unstake_force_removes_finished_votes() {
 }
 
 #[test]
-fn additional_unstake_lock_returns_max_remaining() {
+fn additional_unstake_lock_should_return_max_remaining_lock() {
 	ExtBuilder::default().build().execute_with(|| {
 		System::set_block_number(10);
 
@@ -106,7 +106,7 @@ fn additional_unstake_lock_returns_max_remaining() {
 }
 
 #[test]
-fn additional_unstake_lock_zero_when_expired() {
+fn additional_unstake_lock_should_return_zero_when_all_votes_expired() {
 	ExtBuilder::default().build().execute_with(|| {
 		System::set_block_number(5);
 
@@ -122,7 +122,7 @@ fn additional_unstake_lock_zero_when_expired() {
 }
 
 #[test]
-fn additional_unstake_lock_zero_no_votes() {
+fn additional_unstake_lock_should_return_zero_when_no_votes() {
 	ExtBuilder::default().build().execute_with(|| {
 		let lock = crate::Pallet::<Test>::additional_unstake_lock(&ALICE);
 		assert_eq!(lock, 0);
@@ -133,7 +133,7 @@ fn additional_unstake_lock_zero_no_votes() {
 /// pyconvot lock so the EVM precompile at 0x0806 reports zero locked GIGAHDX.
 /// Without this, AAVE's LockableAToken._transfer reverts during liquidationCall.
 #[test]
-fn prepare_for_liquidation_clears_voting_lock_storage() {
+fn prepare_for_liquidation_should_clear_voting_lock_storage() {
 	use crate::adapter::GigaHdxVotingCurrency;
 	use frame_support::traits::{LockIdentifier, LockableCurrency, WithdrawReasons};
 
@@ -180,7 +180,7 @@ fn prepare_for_liquidation_clears_voting_lock_storage() {
 // snapshot stored in `GigaHdxVotes` continues to apply across balance changes.
 
 #[test]
-fn on_post_unstake_no_voting_lock_is_noop() {
+fn on_post_unstake_should_be_noop_when_no_voting_lock() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(crate::Pallet::<Test>::on_post_unstake(&ALICE));
 		assert_eq!(crate::GigaHdxVotingLock::<Test>::get(&ALICE), 0);
@@ -188,7 +188,7 @@ fn on_post_unstake_no_voting_lock_is_noop() {
 }
 
 #[test]
-fn on_post_unstake_does_not_touch_existing_lock() {
+fn on_post_unstake_should_not_modify_existing_lock() {
 	// After a vote, on_post_unstake must leave GigaHdxVotingLock + the HDX-side
 	// pyconvot lock unchanged. The adapter's recompute is driven by votes, not balance.
 	use crate::adapter::GigaHdxVotingCurrency;
