@@ -94,6 +94,26 @@ fn fast_forward_to(n: u32) {
 	}
 }
 
+/// Fast-forward past the conviction lock period for a vote whose referendum
+/// ended (or whose delegation prior was accumulated) at `end_block`.
+#[allow(dead_code)]
+fn advance_to_conviction_unlock(end_block: u32, conviction: Conviction) {
+	let lock_periods: u32 = match conviction {
+		Conviction::None => 0,
+		Conviction::Locked1x => 1,
+		Conviction::Locked2x => 2,
+		Conviction::Locked3x => 4,
+		Conviction::Locked4x => 8,
+		Conviction::Locked5x => 16,
+		Conviction::Locked6x => 32,
+	};
+	let vote_locking_period: u32 = 7 * DAYS;
+	let target = end_block.saturating_add(lock_periods.saturating_mul(vote_locking_period));
+	if System::block_number() < target {
+		fast_forward_to(target.saturating_add(1));
+	}
+}
+
 fn aye(amount: u128) -> AccountVote<u128> {
 	AccountVote::Standard {
 		vote: Vote {
@@ -322,13 +342,54 @@ fn t6_delegated_gigahdx_transfer_blocked() {
 	});
 }
 
+/// T4: delegate with Locked1x → undelegate → lock kept alive by delegation
+/// prior for the lock period → past the period, `unlock` clears it.
 #[test]
-#[ignore = "requires conviction lock-period traversal"]
-fn t4_undelegate_with_conviction_keeps_period_lock() {}
+fn t4_undelegate_with_conviction_keeps_period_lock() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		let bob = bob();
 
-#[test]
-#[ignore = "delegation chains: requires nested delegate target also delegating"]
-fn t5_chained_delegation_lock_independence() {}
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let gigahdx_bal = Currencies::free_balance(GIGAHDX, &eve);
+		assert_ok!(ConvictionVoting::delegate(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			bob.clone().into(),
+			Conviction::Locked1x,
+			gigahdx_bal,
+		));
+
+		let undelegate_block = System::block_number();
+		assert_ok!(ConvictionVoting::undelegate(RuntimeOrigin::signed(eve.clone()), 0));
+
+		// Within the conviction period — `unlock` does not clear the lock; the
+		// delegation prior keeps it alive.
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve),
+			gigahdx_bal,
+			"undelegate prior keeps the G-side lock alive within the conviction period"
+		);
+
+		// Past the period — unlock clears it.
+		advance_to_conviction_unlock(undelegate_block, Conviction::Locked1x);
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+		assert_eq!(pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve), 0);
+	});
+}
 
 // ===========================================================================
 // U. `unlock` extrinsic — the missing reconciliation step
@@ -768,14 +829,6 @@ fn v2_aave_withdraw_blocked_when_locked() {
 	});
 }
 
-#[test]
-#[ignore = "requires obtaining stHDX outside giga_stake (mint/transfer path) and direct Pool.supply EVM call setup"]
-fn v1_direct_aave_supply_must_refresh_lock() {}
-
-#[test]
-#[ignore = "requires third-party direct supply on_behalf_of"]
-fn v3_third_party_supply_on_behalf_must_refresh_lock() {}
-
 // ===========================================================================
 // X. Same-poll re-vote
 // ===========================================================================
@@ -879,10 +932,6 @@ fn x4_aye_to_nay_keeps_lock() {
 	});
 }
 
-#[test]
-#[ignore = "Locked6x→Locked1x conviction-period semantics — pin down what the runtime should do"]
-fn x3_same_poll_decrease_conviction_semantics() {}
-
 // ===========================================================================
 // Y. Other lock-id holders interactions
 // ===========================================================================
@@ -923,14 +972,6 @@ fn y1_vote_lock_and_unstake_cooldown_max_aggregate() {
 	});
 }
 
-#[test]
-#[ignore = "needs pallet-staking integration"]
-fn y3_pallet_staking_lock_coexists_with_voting_lock() {}
-
-#[test]
-#[ignore = "needs pallet-vesting fixture"]
-fn y4_vesting_lock_coexists_with_voting_lock() {}
-
 // ===========================================================================
 // Z. Edge / boundary
 // ===========================================================================
@@ -957,16 +998,6 @@ fn z1_vote_at_exact_total_accepted() {
 	});
 }
 
-/// Z3: hit MaxVotes (25) — the 26th vote on a fresh poll must be rejected.
-#[test]
-#[ignore = "creating 26 referenda blows past the harness's referendum lifecycle"]
-fn z3_max_votes_exceeded_rejected() {}
-
-/// Z4: vote on a referendum that's already approved/cancelled — rejected.
-#[test]
-#[ignore = "requires referendum already finished"]
-fn z4_vote_on_finished_referendum_rejected() {}
-
 /// Z5: self-transfer GIGAHDX while locked.
 #[test]
 fn z5_self_transfer_while_locked_blocked() {
@@ -992,11 +1023,6 @@ fn z5_self_transfer_while_locked_blocked() {
 		assert_eq!(Currencies::free_balance(GIGAHDX, &eve), gigahdx_bal);
 	});
 }
-
-/// Z6: vote with GIGAHDX that was forced into a pallet-account ID (sanity: no lock can apply).
-#[test]
-#[ignore = "constructing pallet-account holdings is heavy-weight; sketch only"]
-fn z6_pallet_account_no_lock_applies() {}
 
 // ===========================================================================
 // AA. Atomicity (single-block multi-op)
@@ -1339,18 +1365,6 @@ fn bb7_zero_amount_atoken_transfer_accepted_while_locked() {
 	});
 }
 
-#[test]
-#[ignore = "EIP-2612 permit support depends on aToken implementation specifics"]
-fn bb2_permit_signed_transfer_blocked_when_locked() {}
-
-#[test]
-#[ignore = "smart-contract caller setup needs deploy/test contract"]
-fn bb3_smart_contract_caller_lock_honored() {}
-
-#[test]
-#[ignore = "AAVE Pool.borrow flow needs collateral / debt setup beyond scenario scope"]
-fn bb5_borrow_with_locked_collateral_capacity_unaffected() {}
-
 // ===========================================================================
 // CC. Total-balance, total-issuance and rate interactions
 // ===========================================================================
@@ -1401,10 +1415,3 @@ fn cc1_inflated_rate_does_not_inflate_vote_ceiling() {
 	});
 }
 
-#[test]
-#[ignore = "type-plumbing for the voting-currency adapter total_issuance is awkward to reach from integration tests"]
-fn cc2_total_issuance_consistency() {}
-
-#[test]
-#[ignore = "needs simulated EVM read failure on the GIGAHDX contract"]
-fn cc3_evm_read_failure_does_not_corrupt_lock_split() {}

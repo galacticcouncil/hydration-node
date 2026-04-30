@@ -128,6 +128,14 @@ fn aye_with_conviction(amount: u128, conviction: Conviction) -> AccountVote<u128
 	}
 }
 
+#[allow(dead_code)]
+fn nay_with_conviction(amount: u128, conviction: Conviction) -> AccountVote<u128> {
+	AccountVote::Standard {
+		vote: Vote { aye: false, conviction },
+		balance: amount,
+	}
+}
+
 /// Submit a fresh referendum on track 0 (Root) and place the decision deposit.
 /// Returns the referendum index. Fast-forwards 5 days into the decision period.
 fn begin_referendum_by_bob() -> u32 {
@@ -189,6 +197,89 @@ fn begin_n_referenda_by_bob(n: u32) -> sp_std::vec::Vec<u32> {
 	}
 	fast_forward_to(now + 5 * DAYS);
 	indices
+}
+
+// ---------------------------------------------------------------------------
+// Force a referendum to a specific terminal outcome by direct storage mutation.
+// pallet-referenda's tally machinery is fiddly to drive deterministically from
+// outside (decision deposits, support/approval thresholds, decision/confirm
+// periods); for tests that exercise *post-outcome* code paths we just rewrite
+// `ReferendumInfoFor` and let downstream readers (conviction-voting's
+// `try_access_poll`, our `RuntimeReferendumInfo` adapter) see the result.
+// ---------------------------------------------------------------------------
+
+#[allow(dead_code)]
+fn force_approve_referendum(index: u32) {
+	use pallet_referenda::ReferendumInfo;
+	let now = System::block_number();
+	pallet_referenda::ReferendumInfoFor::<Runtime>::mutate(index, |info| {
+		if let Some(ReferendumInfo::Ongoing(status)) = info.take() {
+			*info = Some(ReferendumInfo::Approved(
+				now,
+				Some(status.submission_deposit), status.decision_deposit,
+			));
+		}
+	});
+}
+
+#[allow(dead_code)]
+fn force_reject_referendum(index: u32) {
+	use pallet_referenda::ReferendumInfo;
+	let now = System::block_number();
+	pallet_referenda::ReferendumInfoFor::<Runtime>::mutate(index, |info| {
+		if let Some(ReferendumInfo::Ongoing(status)) = info.take() {
+			*info = Some(ReferendumInfo::Rejected(
+				now,
+				Some(status.submission_deposit), status.decision_deposit,
+			));
+		}
+	});
+}
+
+#[allow(dead_code)]
+fn force_cancel_referendum(index: u32) {
+	use pallet_referenda::ReferendumInfo;
+	let now = System::block_number();
+	pallet_referenda::ReferendumInfoFor::<Runtime>::mutate(index, |info| {
+		if let Some(ReferendumInfo::Ongoing(status)) = info.take() {
+			*info = Some(ReferendumInfo::Cancelled(
+				now,
+				Some(status.submission_deposit), status.decision_deposit,
+			));
+		}
+	});
+}
+
+#[allow(dead_code)]
+fn force_kill_referendum(index: u32) {
+	use pallet_referenda::ReferendumInfo;
+	let now = System::block_number();
+	pallet_referenda::ReferendumInfoFor::<Runtime>::mutate(index, |info| {
+		if matches!(info, Some(ReferendumInfo::Ongoing(_))) {
+			*info = Some(ReferendumInfo::Killed(now));
+		}
+	});
+}
+
+/// Fast-forward past the conviction lock period for a vote cast at the current
+/// block on a referendum that ended at `end_block`. Locked1x = 1 lock period,
+/// Locked2x = 2, ..., Locked6x = 32. Period length = `VoteLockingPeriod`.
+#[allow(dead_code)]
+fn advance_to_conviction_unlock(end_block: u32, conviction: Conviction) {
+	let lock_periods: u32 = match conviction {
+		Conviction::None => 0,
+		Conviction::Locked1x => 1,
+		Conviction::Locked2x => 2,
+		Conviction::Locked3x => 4,
+		Conviction::Locked4x => 8,
+		Conviction::Locked5x => 16,
+		Conviction::Locked6x => 32,
+	};
+	let vote_locking_period: u32 = 7 * DAYS;
+	let target = end_block.saturating_add(lock_periods.saturating_mul(vote_locking_period));
+	if System::block_number() < target {
+		fast_forward_to(target.saturating_add(1));
+	}
 }
 
 // ===========================================================================
@@ -943,20 +1034,6 @@ fn e5_full_unstake_while_voting_rejected() {
 // as ignored tests so the scenario is tracked.
 // ---------------------------------------------------------------------------
 
-/// E2: stake → vote → finish referendum → unstake succeeds; votes auto-removed.
-#[test]
-#[ignore = "requires approving/finishing the referendum within the test"]
-fn e2_unstake_after_referendum_finishes() {
-	// scenario sketch — not yet implemented
-}
-
-/// E6: stake 5 M → vote 5 M → ref finishes → unstake → LockSplit & GigaHdxVotingLock cleared.
-#[test]
-#[ignore = "requires approving/finishing the referendum within the test"]
-fn e6_unstake_after_finish_clears_lock_state() {
-	// scenario sketch — not yet implemented
-}
-
 // ===========================================================================
 // F. Receiving GIGAHDX from outside while voting active
 // ===========================================================================
@@ -1124,32 +1201,165 @@ fn g1_aye_none_blocks_transfer() {
 	});
 }
 
-// ---------------------------------------------------------------------------
-// G2-G5 require the referendum to actually finish; left as ignored sketches.
-// ---------------------------------------------------------------------------
-
+/// G2: vote with Locked1x → approved → remove_vote within lock period →
+/// transfer rejected (prior is alive).
 #[test]
-#[ignore = "requires referendum approval and conviction lock-period traversal"]
 fn g2_locked1x_blocks_transfer_after_finish_until_lock_period() {
-	// scenario sketch — not yet implemented
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let gigahdx_bal = Currencies::free_balance(GIGAHDX, &eve);
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(gigahdx_bal, Conviction::Locked1x),
+		));
+
+		force_approve_referendum(r);
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+
+		let result = Currencies::transfer(RuntimeOrigin::signed(eve.clone()), bob(), GIGAHDX, gigahdx_bal);
+		assert!(result.is_err(), "prior keeps GIGAHDX locked within Locked1x period");
+	});
 }
 
+/// G3: vote with Locked6x → approved → transfer rejected even days later
+/// (Locked6x = 32 lock periods × 7 days = 224 days; well past 50-day mark).
 #[test]
-#[ignore = "requires referendum approval and conviction lock-period traversal"]
 fn g3_locked6x_blocks_transfer_within_lock_period() {
-	// scenario sketch — not yet implemented
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let gigahdx_bal = Currencies::free_balance(GIGAHDX, &eve);
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(gigahdx_bal, Conviction::Locked6x),
+		));
+
+		force_approve_referendum(r);
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		// Advance well into — but not past — the Locked6x period.
+		fast_forward_to(System::block_number() + 50 * DAYS);
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+
+		let result = Currencies::transfer(RuntimeOrigin::signed(eve.clone()), bob(), GIGAHDX, gigahdx_bal);
+		assert!(result.is_err(), "Locked6x prior still alive 50 days post-approval");
+	});
 }
 
+/// G4: vote with Locked6x → approved → past the full 32-period lock window
+/// → unlock clears the lock and transfer succeeds.
 #[test]
-#[ignore = "requires referendum approval and conviction lock-period traversal"]
 fn g4_locked6x_unlocks_after_full_lock_period() {
-	// scenario sketch — not yet implemented
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let gigahdx_bal = Currencies::free_balance(GIGAHDX, &eve);
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(gigahdx_bal, Conviction::Locked6x),
+		));
+
+		force_approve_referendum(r);
+		let end_block = System::block_number();
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+
+		advance_to_conviction_unlock(end_block, Conviction::Locked6x);
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(eve.clone()),
+			bob(),
+			GIGAHDX,
+			gigahdx_bal,
+		));
+	});
 }
 
+/// G5: vote with Conviction::None → approved → no prior accumulated → lock
+/// clears immediately after remove_vote+unlock; transfer succeeds.
 #[test]
-#[ignore = "requires referendum approval"]
 fn g5_aye_none_unlocks_after_finish() {
-	// scenario sketch — not yet implemented
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let gigahdx_bal = Currencies::free_balance(GIGAHDX, &eve);
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye(gigahdx_bal),
+		));
+
+		force_approve_referendum(r);
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(eve.clone()),
+			bob(),
+			GIGAHDX,
+			gigahdx_bal,
+		));
+	});
 }
 
 // ===========================================================================
@@ -1384,11 +1594,6 @@ fn h4_atoken_transfer_via_evm_with_stale_lock_split_must_revert() {
 // substrate-level check is implicit (the lock is enforced by the aToken).
 // I1/I2 are covered by H3 effectively, and additionally the Substrate path:
 
-/// I1: vote 5 M → approve Bob via Substrate (n/a, no extrinsic) → covered by H3.
-#[test]
-#[ignore = "covered by H3 (approve/transferFrom is EVM-only)"]
-fn i1_substrate_approve_then_transfer_from_blocked_when_locked() {}
-
 /// I2: approve → vote → transferFrom — covered by H3 with reversed setup order.
 #[test]
 fn i2_approve_then_vote_transfer_from_blocked() {
@@ -1533,10 +1738,57 @@ fn j3_transfer_just_under_unlocked_succeeds() {
 	});
 }
 
+/// J4: vote with Locked6x → approved → transfer blocked during lock period
+/// → past the period → unlock → transfer succeeds.
 #[test]
-#[ignore = "requires conviction lock-period traversal"]
 fn j4_locked6x_blocks_during_lock_period_then_unlocks() {
-	// scenario sketch — not yet implemented
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let gigahdx_bal = Currencies::free_balance(GIGAHDX, &eve);
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(gigahdx_bal, Conviction::Locked6x),
+		));
+
+		force_approve_referendum(r);
+		let end_block = System::block_number();
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+
+		// Within the period: blocked.
+		let blocked = Currencies::transfer(RuntimeOrigin::signed(eve.clone()), bob(), GIGAHDX, gigahdx_bal);
+		assert!(blocked.is_err(), "Locked6x prior blocks transfer mid-period");
+
+		// Past the period: unblocked.
+		advance_to_conviction_unlock(end_block, Conviction::Locked6x);
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(eve.clone()),
+			bob(),
+			GIGAHDX,
+			gigahdx_bal,
+		));
+	});
 }
 
 // ===========================================================================
@@ -1627,28 +1879,229 @@ fn k2_independent_locks_per_account() {
 }
 
 // ===========================================================================
-// L. Referendum lifecycle effects (sketched — full lifecycle not implemented)
+// L. Referendum lifecycle effects
 // ===========================================================================
 
+/// L1: vote with Locked1x → referendum cancelled → remove_vote+unlock clears
+/// the lock. Cancelled outcomes do NOT keep a prior alive (per
+/// `on_remove_vote`'s `lock_after_completion` gate at hooks.rs:127-131).
 #[test]
-#[ignore = "requires referendum cancellation"]
-fn l1_cancelled_referendum_clears_lock() {}
+fn l1_cancelled_referendum_clears_lock() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(5_000_000 * UNITS, Conviction::Locked1x),
+		));
 
-#[test]
-#[ignore = "requires referendum approval and conviction lock-period traversal"]
-fn l2_approved_with_conviction_keeps_lock_period() {}
+		force_cancel_referendum(r);
 
-#[test]
-#[ignore = "requires referendum rejection"]
-fn l3_nay_won_keeps_lock_period() {}
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
 
-#[test]
-#[ignore = "requires referendum rejection"]
-fn l4_aye_lost_clears_lock_quickly() {}
+		assert_eq!(pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve), 0);
+		let split = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
+		assert_eq!(split.gigahdx_amount, 0);
+		assert_eq!(split.hdx_amount, 0);
+	});
+}
 
+/// L2: vote with Locked1x → referendum approved → remove_vote within lock
+/// period keeps lock alive via prior. Lock clears once the period elapses.
 #[test]
-#[ignore = "requires governance-killed referendum"]
-fn l5_killed_referendum_clears_lock() {}
+fn l2_approved_with_conviction_keeps_lock_period() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(5_000_000 * UNITS, Conviction::Locked1x),
+		));
+
+		force_approve_referendum(r);
+		let end_block = System::block_number();
+
+		// remove_vote inside the lock period — prior keeps the lock alive.
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve),
+			5_000_000 * UNITS,
+			"prior keeps the G-side lock alive within the conviction period"
+		);
+
+		// Past the conviction lock period — unlock clears the prior.
+		advance_to_conviction_unlock(end_block, Conviction::Locked1x);
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+		assert_eq!(pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve), 0);
+	});
+}
+
+/// L3: nay-with-conviction on a referendum that ends Rejected (winning side)
+/// keeps a prior alive for the conviction lock period.
+#[test]
+fn l3_nay_won_keeps_lock_period() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			nay_with_conviction(5_000_000 * UNITS, Conviction::Locked1x),
+		));
+
+		force_reject_referendum(r);
+		let end_block = System::block_number();
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve),
+			5_000_000 * UNITS,
+			"nay-won prior keeps the G-side lock alive within the conviction period"
+		);
+
+		advance_to_conviction_unlock(end_block, Conviction::Locked1x);
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+		assert_eq!(pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve), 0);
+	});
+}
+
+/// L4: aye-with-conviction on a referendum that ends Rejected (losing side)
+/// — `lock_balance_on_unsuccessful_vote` returns Some, so a prior IS kept
+/// alive. Lock clears only once the conviction period elapses.
+#[test]
+fn l4_aye_lost_clears_lock_quickly() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(5_000_000 * UNITS, Conviction::Locked1x),
+		));
+
+		force_reject_referendum(r);
+		let end_block = System::block_number();
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve),
+			5_000_000 * UNITS,
+			"losing-side prior is kept alive by lock_balance_on_unsuccessful_vote"
+		);
+
+		advance_to_conviction_unlock(end_block, Conviction::Locked1x);
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+		assert_eq!(pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve), 0);
+	});
+}
+
+/// L5: vote with Locked1x → referendum killed → no prior accumulated
+/// (Killed maps to ReferendumOutcome::Cancelled in our adapter).
+#[test]
+fn l5_killed_referendum_clears_lock() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(5_000_000 * UNITS, Conviction::Locked1x),
+		));
+
+		force_kill_referendum(r);
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+
+		assert_eq!(pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve), 0);
+		let split = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
+		assert_eq!(split.gigahdx_amount, 0);
+		assert_eq!(split.hdx_amount, 0);
+	});
+}
 
 // ===========================================================================
 // M. AAVE-side oddities
@@ -1692,14 +2145,6 @@ fn m2_donation_inflated_rate_then_vote_blocks_transfer() {
 		assert!(result.is_err(), "lock applies to GIGAHDX share count, not HDX value");
 	});
 }
-
-#[test]
-#[ignore = "requires liquidation pre-conditions"]
-fn m1_liquidation_clears_lock() {}
-
-#[test]
-#[ignore = "requires user-direct AAVE supply"]
-fn m3_external_aave_supply_refreshes_lock() {}
 
 // ===========================================================================
 // N. Edge boundaries
@@ -1807,9 +2252,44 @@ fn n5_convert_all_hdx_to_gigahdx_after_vote_must_refresh() {
 	});
 }
 
+/// N1: HDX-only vote with Conviction::None → referendum cancelled →
+/// remove_vote+unlock clears the H-side lock (no conviction → no prior).
 #[test]
-#[ignore = "requires referendum cancellation"]
-fn n1_vote_none_on_cancelled_track_clears_lock() {}
+fn n1_vote_none_on_cancelled_track_clears_lock() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			eve.clone(),
+			10_000_000 * UNITS,
+		));
+
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye(5_000_000 * UNITS),
+		));
+
+		force_cancel_referendum(r);
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+
+		let split = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
+		assert_eq!(split.gigahdx_amount, 0);
+		assert_eq!(split.hdx_amount, 0, "H-side cleared after cancelled None-conviction vote");
+	});
+}
 
 // ===========================================================================
 // O. Voting spanning both HDX and GIGAHDX (combined locks)
@@ -2140,14 +2620,6 @@ fn p2_combined_vote_stake_more_unlocks_hdx() {
 	});
 }
 
-#[test]
-#[ignore = "requires unstake while vote active (E1) but with HDX-side check"]
-fn p3_combined_vote_unstake_some_refreshes_split() {}
-
-#[test]
-#[ignore = "requires unstake while vote active"]
-fn p4_combined_vote_unstake_keeps_lock() {}
-
 /// P5: 10M HDX + 0 GIGAHDX → vote 8M → stake 5M. Design constraint: split is
 /// fixed at vote time as (0, 8M) and stays that way; staking does not move it.
 #[test]
@@ -2289,9 +2761,49 @@ fn q2_vote_exceeding_holdings_rejected() {
 	});
 }
 
+/// Q3: vote with Locked1x → approved → remove_vote (prior accumulated) →
+/// revote on a NEW referendum with Conviction::None → the PriorLockSplit from
+/// the first vote keeps the lock alive at its original size despite the new
+/// no-conviction vote being smaller / having no period of its own.
 #[test]
-#[ignore = "requires conviction lock-period traversal across a remove_vote"]
-fn q3_remove_vote_with_conviction_then_revote_keeps_period() {}
+fn q3_remove_vote_with_conviction_then_revote_keeps_period() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let r1 = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r1,
+			aye_with_conviction(5_000_000 * UNITS, Conviction::Locked1x),
+		));
+
+		force_approve_referendum(r1);
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r1,
+		));
+
+		// Revote on a new referendum with smaller None-conviction.
+		let r2 = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r2,
+			aye(1_000_000 * UNITS),
+		));
+
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve),
+			5_000_000 * UNITS,
+			"prior from r1 still keeps the original lock size — max-aggregate over (r2 vote, r1 prior)"
+		);
+	});
+}
 
 /// Q4 (BUG, observed live): 10 M HDX + 5 M GIGAHDX → vote 12 M → vote 6 M smaller poll ⇒
 /// LockSplit must refresh; today it doesn't.
@@ -2344,24 +2856,167 @@ fn q4_smaller_followup_vote_must_refresh_lock_split() {
 }
 
 // ===========================================================================
-// R. Combined-vote with referendum lifecycle (sketches)
+// R. Combined-vote (HDX + GIGAHDX) with referendum lifecycle
 // ===========================================================================
 
+/// R1: 5 M GIGAHDX + 5 M HDX → vote 10 M with Conviction::None → approved
+/// → remove_vote+unlock clears both sides (no conviction → no prior).
 #[test]
-#[ignore = "requires referendum approval"]
-fn r1_combined_approved_clears_lock() {}
+fn r1_combined_approved_clears_lock() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye(10_000_000 * UNITS),
+		));
 
-#[test]
-#[ignore = "requires referendum approval and conviction lock-period traversal"]
-fn r2_combined_locked1x_blocks_during_period() {}
+		force_approve_referendum(r);
 
-#[test]
-#[ignore = "requires referendum approval and unlock"]
-fn r3_combined_locked1x_unlocks_after_period() {}
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
 
+		let split = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
+		assert_eq!(split.gigahdx_amount, 0, "G-side cleared (None conviction)");
+		assert_eq!(split.hdx_amount, 0, "H-side cleared (None conviction)");
+	});
+}
+
+/// R2: combined vote with Locked1x → approved → remove_vote within lock period
+/// → both sides remain locked via PriorLockSplit (G + H).
 #[test]
-#[ignore = "requires referendum cancellation"]
-fn r4_combined_cancelled_clears_lock() {}
+fn r2_combined_locked1x_blocks_during_period() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(10_000_000 * UNITS, Conviction::Locked1x),
+		));
+
+		force_approve_referendum(r);
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+
+		let split = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
+		assert_eq!(
+			split.gigahdx_amount,
+			5_000_000 * UNITS,
+			"G-side prior keeps the GIGAHDX portion locked"
+		);
+		assert_eq!(
+			split.hdx_amount,
+			5_000_000 * UNITS,
+			"H-side prior keeps the HDX portion locked"
+		);
+	});
+}
+
+/// R3: continuation of R2 — fast-forward past the conviction lock period and
+/// `unlock` clears both sides.
+#[test]
+fn r3_combined_locked1x_unlocks_after_period() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(10_000_000 * UNITS, Conviction::Locked1x),
+		));
+
+		force_approve_referendum(r);
+		let end_block = System::block_number();
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+
+		advance_to_conviction_unlock(end_block, Conviction::Locked1x);
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+
+		let split = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
+		assert_eq!(split.gigahdx_amount, 0);
+		assert_eq!(split.hdx_amount, 0);
+	});
+}
+
+/// R4: combined vote with Locked1x → cancelled → both sides clear (Cancelled
+/// outcomes don't keep a prior alive).
+#[test]
+fn r4_combined_cancelled_clears_lock() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(10_000_000 * UNITS, Conviction::Locked1x),
+		));
+
+		force_cancel_referendum(r);
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+
+		let split = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
+		assert_eq!(split.gigahdx_amount, 0, "Cancelled outcome → no prior, G-side clears");
+		assert_eq!(split.hdx_amount, 0, "Cancelled outcome → no prior, H-side clears");
+	});
+}
 
 // ===========================================================================
 // S. Combined-vote with EVM/AAVE bypass paths
@@ -2453,6 +3108,3 @@ fn s2_combined_evm_aave_withdraw_blocked() {
 	});
 }
 
-#[test]
-#[ignore = "requires liquidation pre-conditions"]
-fn s3_combined_liquidation_clears_lock() {}
