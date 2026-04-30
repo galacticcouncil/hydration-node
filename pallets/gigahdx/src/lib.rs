@@ -268,7 +268,10 @@ pub mod pallet {
 			}
 
 			// Block if user has votes in ongoing referenda.
-			ensure!(T::Hooks::can_unstake(&who), Error::<T>::ActiveVotesInOngoingReferenda);
+			ensure!(
+				T::Hooks::can_unstake(&who, gigahdx_amount),
+				Error::<T>::ActiveVotesInOngoingReferenda
+			);
 
 			// Reject early if the position cap is full — saves the cost of
 			// running on_unstake / MM withdraw / burn / transfer just to roll

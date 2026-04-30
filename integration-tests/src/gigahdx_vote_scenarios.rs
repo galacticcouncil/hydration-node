@@ -208,45 +208,47 @@ fn begin_n_referenda_by_bob(n: u32) -> sp_std::vec::Vec<u32> {
 // `try_access_poll`, our `RuntimeReferendumInfo` adapter) see the result.
 // ---------------------------------------------------------------------------
 
-#[allow(dead_code)]
-fn force_approve_referendum(index: u32) {
+/// Idempotent forced-outcome helper. If the referendum is still Ongoing it's
+/// transitioned to the requested terminal state; if it's already finished
+/// (e.g. the Scheduler auto-approved it during a fast-forward), it's left
+/// alone. Crucially, never use destructive `info.take()` — that would delete
+/// an already-finished entry on a no-match.
+fn finalize_with<F>(index: u32, build: F)
+where
+	F: FnOnce(
+		u32,
+		Option<pallet_referenda::Deposit<sp_runtime::AccountId32, primitives::Balance>>,
+		Option<pallet_referenda::Deposit<sp_runtime::AccountId32, primitives::Balance>>,
+	) -> pallet_referenda::ReferendumInfoOf<Runtime, ()>,
+{
 	use pallet_referenda::ReferendumInfo;
 	let now = System::block_number();
-	pallet_referenda::ReferendumInfoFor::<Runtime>::mutate(index, |info| {
-		if let Some(ReferendumInfo::Ongoing(status)) = info.take() {
-			*info = Some(ReferendumInfo::Approved(
-				now,
-				Some(status.submission_deposit), status.decision_deposit,
-			));
-		}
+	if let Some(ReferendumInfo::Ongoing(status)) = pallet_referenda::ReferendumInfoFor::<Runtime>::get(index) {
+		pallet_referenda::ReferendumInfoFor::<Runtime>::insert(
+			index,
+			build(now, Some(status.submission_deposit), status.decision_deposit),
+		);
+	}
+}
+
+#[allow(dead_code)]
+fn force_approve_referendum(index: u32) {
+	finalize_with(index, |end, sub, dec| {
+		pallet_referenda::ReferendumInfo::Approved(end, sub, dec)
 	});
 }
 
 #[allow(dead_code)]
 fn force_reject_referendum(index: u32) {
-	use pallet_referenda::ReferendumInfo;
-	let now = System::block_number();
-	pallet_referenda::ReferendumInfoFor::<Runtime>::mutate(index, |info| {
-		if let Some(ReferendumInfo::Ongoing(status)) = info.take() {
-			*info = Some(ReferendumInfo::Rejected(
-				now,
-				Some(status.submission_deposit), status.decision_deposit,
-			));
-		}
+	finalize_with(index, |end, sub, dec| {
+		pallet_referenda::ReferendumInfo::Rejected(end, sub, dec)
 	});
 }
 
 #[allow(dead_code)]
 fn force_cancel_referendum(index: u32) {
-	use pallet_referenda::ReferendumInfo;
-	let now = System::block_number();
-	pallet_referenda::ReferendumInfoFor::<Runtime>::mutate(index, |info| {
-		if let Some(ReferendumInfo::Ongoing(status)) = info.take() {
-			*info = Some(ReferendumInfo::Cancelled(
-				now,
-				Some(status.submission_deposit), status.decision_deposit,
-			));
-		}
+	finalize_with(index, |end, sub, dec| {
+		pallet_referenda::ReferendumInfo::Cancelled(end, sub, dec)
 	});
 }
 
@@ -254,11 +256,12 @@ fn force_cancel_referendum(index: u32) {
 fn force_kill_referendum(index: u32) {
 	use pallet_referenda::ReferendumInfo;
 	let now = System::block_number();
-	pallet_referenda::ReferendumInfoFor::<Runtime>::mutate(index, |info| {
-		if matches!(info, Some(ReferendumInfo::Ongoing(_))) {
-			*info = Some(ReferendumInfo::Killed(now));
-		}
-	});
+	if matches!(
+		pallet_referenda::ReferendumInfoFor::<Runtime>::get(index),
+		Some(ReferendumInfo::Ongoing(_))
+	) {
+		pallet_referenda::ReferendumInfoFor::<Runtime>::insert(index, ReferendumInfo::Killed(now));
+	}
 }
 
 /// Fast-forward past the conviction lock period for a vote cast at the current
@@ -1028,6 +1031,107 @@ fn e5_full_unstake_while_voting_rejected() {
 	});
 }
 
+/// E7: stake 10M → vote 5M with Locked1x → end ref + remove_vote (prior keeps
+/// 5M alive on G-side) → partial unstake 3M succeeds. Post-unstake the user
+/// has 7M GIGAHDX, which still covers the 5M prior, so AAVE.burn(3M) is
+/// permitted by the LockManager precompile.
+#[test]
+fn e7_partial_unstake_after_remove_vote_with_prior_succeeds() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			10_000_000 * UNITS,
+		));
+		assert_eq!(Currencies::free_balance(GIGAHDX, &eve), 10_000_000 * UNITS);
+
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(5_000_000 * UNITS, Conviction::Locked1x),
+		));
+
+		// Approve and remove the vote — prior accumulates with 5M G-side.
+		force_approve_referendum(r);
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve),
+			5_000_000 * UNITS,
+			"prior keeps 5M G-side locked after remove_vote"
+		);
+
+		// Partial unstake 3M — leaves 7M GIGAHDX, still ≥ 5M prior. Should succeed.
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(eve.clone()),
+			3_000_000 * UNITS,
+		));
+
+		// Post-unstake invariants: 7M GIGAHDX remaining, 5M prior still alive.
+		assert_eq!(Currencies::free_balance(GIGAHDX, &eve), 7_000_000 * UNITS);
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve),
+			5_000_000 * UNITS,
+			"prior still alive — G-side cap stays at 5M (no spillover needed)"
+		);
+	});
+}
+
+/// E8: same as E7 but the user does NOT call `remove_vote` first. Once the
+/// referendum is finished, `can_unstake` returns true (votes-on-ongoing-only
+/// check) and `on_unstake` force-removes finished votes itself. Partial
+/// unstake of the free portion succeeds.
+#[test]
+fn e8_partial_unstake_after_referendum_finishes_without_explicit_remove_vote() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			10_000_000 * UNITS,
+		));
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(5_000_000 * UNITS, Conviction::Locked1x),
+		));
+
+		// Approve referendum but DO NOT call remove_vote — vote stays in
+		// GigaHdxVotes until on_unstake force-removes it.
+		force_approve_referendum(r);
+		assert!(
+			pallet_gigahdx_voting::GigaHdxVotes::<Runtime>::get(&eve, r).is_some(),
+			"vote still in storage before unstake"
+		);
+
+		// Partial unstake — on_unstake force-removes the finished vote and the
+		// prior accumulates. Post-unstake balance (7M) ≥ prior (5M).
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(eve.clone()),
+			3_000_000 * UNITS,
+		));
+
+		assert!(
+			pallet_gigahdx_voting::GigaHdxVotes::<Runtime>::get(&eve, r).is_none(),
+			"on_unstake force-removed the finished vote"
+		);
+		assert_eq!(Currencies::free_balance(GIGAHDX, &eve), 7_000_000 * UNITS);
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve),
+			5_000_000 * UNITS,
+			"prior accumulated by force-remove keeps 5M locked"
+		);
+	});
+}
+
 // ---------------------------------------------------------------------------
 // E2 / E6 require referendum lifecycle (approve/reject) which the test
 // harness does not currently fast-forward through cleanly. They are sketched
@@ -1083,12 +1187,7 @@ fn f1_receive_gigahdx_unlocked_portion_transferable() {
 		// Eve now holds bob_gigahdx + 5 M, but only 5 M is locked.
 		// She should be able to transfer the newly received bob_gigahdx out.
 		let charlie = AccountId32::from(CHARLIE);
-		let result = Currencies::transfer(
-			RuntimeOrigin::signed(eve.clone()),
-			charlie,
-			GIGAHDX,
-			bob_gigahdx,
-		);
+		let result = Currencies::transfer(RuntimeOrigin::signed(eve.clone()), charlie, GIGAHDX, bob_gigahdx);
 		assert_ok!(result);
 	});
 }
@@ -1133,7 +1232,10 @@ fn f2_receive_gigahdx_after_hdx_only_vote_must_refresh_lock() {
 		// on vote-related events. Receiving GIGAHDX is a balance change → split
 		// stays at (0, 10M). The newly-received GIGAHDX is unlocked.
 		let split = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
-		assert_eq!(split.gigahdx_amount, 0, "balance receipt must not move lock onto G-side");
+		assert_eq!(
+			split.gigahdx_amount, 0,
+			"balance receipt must not move lock onto G-side"
+		);
 		assert_eq!(split.hdx_amount, 10_000_000 * UNITS, "H-side lock unchanged");
 	});
 }
@@ -1388,11 +1490,7 @@ fn h1_atoken_transfer_via_evm_blocked_when_locked() {
 		// Bind EVM addresses for both sides.
 		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(eve.clone()));
 		let bob = bob();
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			bob.clone(),
-			UNITS,
-		));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), UNITS,));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(bob.clone())));
 
 		let eve_evm = EVMAccounts::evm_address(&eve);
@@ -1479,11 +1577,7 @@ fn h3_atoken_transfer_from_via_evm_blocked_when_locked() {
 
 		// Approve Bob (spender) to spend Eve's GIGAHDX.
 		let bob = bob();
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			bob.clone(),
-			UNITS,
-		));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), UNITS,));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(bob.clone())));
 		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(eve.clone()));
 		let eve_evm = EVMAccounts::evm_address(&eve);
@@ -1510,12 +1604,8 @@ fn h3_atoken_transfer_from_via_evm_blocked_when_locked() {
 		tf.extend_from_slice(bob_evm.as_bytes());
 		tf.extend_from_slice(&U256::from(gigahdx_bal).to_big_endian());
 
-		let result = Executor::<Runtime>::call(
-			CallContext::new_call(gigahdx_token, bob_evm),
-			tf,
-			U256::zero(),
-			500_000,
-		);
+		let result =
+			Executor::<Runtime>::call(CallContext::new_call(gigahdx_token, bob_evm), tf, U256::zero(), 500_000);
 
 		assert!(
 			matches!(result.exit_reason, fp_evm::ExitReason::Revert(_)),
@@ -1556,11 +1646,7 @@ fn h4_atoken_transfer_via_evm_with_stale_lock_split_must_revert() {
 		));
 
 		let bob = bob();
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			bob.clone(),
-			UNITS,
-		));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), UNITS,));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(bob.clone())));
 		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(eve.clone()));
 		let eve_evm = EVMAccounts::evm_address(&eve);
@@ -1608,11 +1694,7 @@ fn i2_approve_then_vote_transfer_from_blocked() {
 		let gigahdx_bal = Currencies::free_balance(GIGAHDX, &eve);
 
 		let bob = bob();
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			bob.clone(),
-			UNITS,
-		));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), UNITS,));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(bob.clone())));
 		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(eve.clone()));
 		let eve_evm = EVMAccounts::evm_address(&eve);
@@ -1647,12 +1729,8 @@ fn i2_approve_then_vote_transfer_from_blocked() {
 		tf.extend_from_slice(bob_evm.as_bytes());
 		tf.extend_from_slice(&U256::from(gigahdx_bal).to_big_endian());
 
-		let result = Executor::<Runtime>::call(
-			CallContext::new_call(gigahdx_token, bob_evm),
-			tf,
-			U256::zero(),
-			500_000,
-		);
+		let result =
+			Executor::<Runtime>::call(CallContext::new_call(gigahdx_token, bob_evm), tf, U256::zero(), 500_000);
 		assert!(matches!(result.exit_reason, fp_evm::ExitReason::Revert(_)));
 	});
 }
@@ -2136,12 +2214,7 @@ fn m2_donation_inflated_rate_then_vote_blocks_transfer() {
 			aye(gigahdx_bal_before),
 		));
 
-		let result = Currencies::transfer(
-			RuntimeOrigin::signed(eve.clone()),
-			bob(),
-			GIGAHDX,
-			gigahdx_bal_before,
-		);
+		let result = Currencies::transfer(RuntimeOrigin::signed(eve.clone()), bob(), GIGAHDX, gigahdx_bal_before);
 		assert!(result.is_err(), "lock applies to GIGAHDX share count, not HDX value");
 	});
 }
@@ -2179,14 +2252,9 @@ fn n3_vote_balance_above_holdings_rejected() {
 			5_000_000 * UNITS,
 		));
 		let r = begin_referendum_by_bob();
-		let total = Currencies::free_balance(HDX, &eve)
-			.saturating_add(Currencies::free_balance(GIGAHDX, &eve));
+		let total = Currencies::free_balance(HDX, &eve).saturating_add(Currencies::free_balance(GIGAHDX, &eve));
 
-		let result = ConvictionVoting::vote(
-			RuntimeOrigin::signed(eve.clone()),
-			r,
-			aye(total + UNITS),
-		);
+		let result = ConvictionVoting::vote(RuntimeOrigin::signed(eve.clone()), r, aye(total + UNITS));
 		assert!(result.is_err(), "vote balance > holdings must be rejected");
 	});
 }
@@ -2238,10 +2306,7 @@ fn n5_convert_all_hdx_to_gigahdx_after_vote_must_refresh() {
 		// Stake the free HDX into GIGAHDX (modulo a buffer).
 		let free = Currencies::free_balance(HDX, &eve);
 		let stake = free.saturating_sub(15_000_000 * UNITS); // leave room for the H-side lock
-		assert_ok!(GigaHdx::giga_stake(
-			RuntimeOrigin::signed(eve.clone()),
-			stake,
-		));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(eve.clone()), stake,));
 
 		// Design constraint: balance changes do NOT move the split.
 		let split_after = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
@@ -2287,7 +2352,10 @@ fn n1_vote_none_on_cancelled_track_clears_lock() {
 
 		let split = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
 		assert_eq!(split.gigahdx_amount, 0);
-		assert_eq!(split.hdx_amount, 0, "H-side cleared after cancelled None-conviction vote");
+		assert_eq!(
+			split.hdx_amount, 0,
+			"H-side cleared after cancelled None-conviction vote"
+		);
 	});
 }
 
@@ -2382,11 +2450,7 @@ fn o3_combined_vote_blocks_hdx_above_unlocked() {
 		));
 
 		assert_noop!(
-			Balances::transfer_allow_death(
-				RuntimeOrigin::signed(eve.clone()),
-				bob(),
-				4_000_000 * UNITS,
-			),
+			Balances::transfer_allow_death(RuntimeOrigin::signed(eve.clone()), bob(), 4_000_000 * UNITS,),
 			sp_runtime::TokenError::Frozen,
 		);
 	});
@@ -2503,11 +2567,7 @@ fn o7_combined_vote_blocks_4m_hdx_transfer() {
 		));
 
 		assert_noop!(
-			Balances::transfer_allow_death(
-				RuntimeOrigin::signed(eve.clone()),
-				bob(),
-				4_000_000 * UNITS,
-			),
+			Balances::transfer_allow_death(RuntimeOrigin::signed(eve.clone()), bob(), 4_000_000 * UNITS,),
 			sp_runtime::TokenError::Frozen,
 		);
 	});
@@ -2611,11 +2671,7 @@ fn p2_combined_vote_stake_more_unlocks_hdx() {
 		));
 
 		// H-side lock unchanged at 3M; 5M HDX - 1M staked - 3M lock = 1M free.
-		let result = Balances::transfer_allow_death(
-			RuntimeOrigin::signed(eve.clone()),
-			bob(),
-			3_000_000 * UNITS,
-		);
+		let result = Balances::transfer_allow_death(RuntimeOrigin::signed(eve.clone()), bob(), 3_000_000 * UNITS);
 		assert!(result.is_err(), "H-side lock unchanged at 3M");
 	});
 }
@@ -2680,12 +2736,117 @@ fn p6_hdx_only_vote_then_stake_blocks_overhdx() {
 
 		// Eve now has ~0 free HDX (the 2M went into the AAVE pool). 8M HDX is
 		// locked by the vote → any HDX transfer fails.
-		let result = Balances::transfer_allow_death(
-			RuntimeOrigin::signed(eve.clone()),
-			bob(),
-			4_000_000 * UNITS,
+		let result = Balances::transfer_allow_death(RuntimeOrigin::signed(eve.clone()), bob(), 4_000_000 * UNITS);
+		assert!(
+			result.is_err(),
+			"H-side lock unchanged at 8M ⇒ 4M HDX transfer must fail"
 		);
-		assert!(result.is_err(), "H-side lock unchanged at 8M ⇒ 4M HDX transfer must fail");
+	});
+}
+
+/// P7 (regression): two-vote interleaved scenario that historically broke locks.
+///
+/// 1. Eve has only HDX (no GIGAHDX).
+/// 2. Vote on r1 with HDX (Locked1x) — vote A snapshot (g=0, h=8M).
+/// 3. Stake 5M HDX → 5M GIGAHDX.
+/// 4. Vote on r2 with all GIGAHDX (Locked6x) — vote B snapshot (g=5M, h=0).
+/// 5. Mid-flow GIGAHDX transfer must fail (active vote on r2).
+/// 6. Approve both, remove both votes — priors accumulate per side
+///    (G-side from vote B, H-side from vote A).
+/// 7. Post-removal GIGAHDX transfer must STILL fail — the Locked6x prior
+///    keeps the 5M GIGAHDX locked.
+#[test]
+fn p7_hdx_then_gigahdx_votes_priors_keep_locks_alive() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+
+		// 1. Eve gets HDX only.
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			eve.clone(),
+			20_000_000 * UNITS,
+		));
+		assert_eq!(Currencies::free_balance(GIGAHDX, &eve), 0);
+
+		// 2. Vote 8M HDX (Locked1x) on r1.
+		let r1 = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r1,
+			aye_with_conviction(8_000_000 * UNITS, Conviction::Locked1x),
+		));
+		let split_after_r1 = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
+		assert_eq!(split_after_r1.gigahdx_amount, 0);
+		assert_eq!(split_after_r1.hdx_amount, 8_000_000 * UNITS);
+
+		// 3. Stake 5M HDX → 5M GIGAHDX. Free HDX = 20 - 8 = 12 (only 7 left after stake).
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			5_000_000 * UNITS,
+		));
+		let gigahdx_bal = Currencies::free_balance(GIGAHDX, &eve);
+		assert!(gigahdx_bal > 0);
+
+		// 4. Vote ALL the GIGAHDX (Locked6x) on r2.
+		let r2 = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r2,
+			aye_with_conviction(gigahdx_bal, Conviction::Locked6x),
+		));
+
+		// Vote B snapshot: g=gigahdx_bal, h=0. Adapter recompute aggregates with
+		// vote A: g_max=gigahdx_bal, h_max=8M.
+		let split_after_r2 = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
+		assert_eq!(split_after_r2.gigahdx_amount, gigahdx_bal);
+		assert_eq!(split_after_r2.hdx_amount, 8_000_000 * UNITS);
+
+		// 5. GIGAHDX transfer must fail — entire balance locked by vote B.
+		let mid_flow_transfer = Currencies::transfer(RuntimeOrigin::signed(eve.clone()), bob(), GIGAHDX, gigahdx_bal);
+		assert!(mid_flow_transfer.is_err(), "GIGAHDX locked by active vote on r2");
+
+		// 6. Approve both referenda; remove both votes — priors accumulate on
+		// class 0, max-aggregated per side: g=5M (from r2), h=8M (from r1),
+		// until = max(r1_unlock, r2_unlock) = r2_unlock (Locked6x dominates).
+		force_approve_referendum(r1);
+		force_approve_referendum(r2);
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r1,
+		));
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r2,
+		));
+		// Trigger an `unlock` so conviction-voting writes through the new prior.
+		assert_ok!(ConvictionVoting::unlock(
+			RuntimeOrigin::signed(eve.clone()),
+			0,
+			eve.clone().into(),
+		));
+
+		// 7. Both sides still locked by the merged prior.
+		let split_post_remove = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
+		assert_eq!(
+			split_post_remove.gigahdx_amount, gigahdx_bal,
+			"G-side prior from r2 (Locked6x) keeps GIGAHDX locked"
+		);
+		assert_eq!(
+			split_post_remove.hdx_amount,
+			8_000_000 * UNITS,
+			"H-side prior from r1 (Locked1x) keeps HDX locked"
+		);
+
+		// 8. Post-removal GIGAHDX transfer must still fail — prior outlives the vote.
+		let post_remove_transfer =
+			Currencies::transfer(RuntimeOrigin::signed(eve.clone()), bob(), GIGAHDX, gigahdx_bal);
+		assert!(
+			post_remove_transfer.is_err(),
+			"GIGAHDX still locked by Locked6x prior after vote removed"
+		);
 	});
 }
 
@@ -2749,11 +2910,7 @@ fn q2_vote_exceeding_holdings_rejected() {
 			aye(8_000_000 * UNITS),
 		));
 		let r2 = begin_referendum_by_bob();
-		let result = ConvictionVoting::vote(
-			RuntimeOrigin::signed(eve.clone()),
-			r2,
-			aye(12_000_000 * UNITS),
-		);
+		let result = ConvictionVoting::vote(RuntimeOrigin::signed(eve.clone()), r2, aye(12_000_000 * UNITS));
 		assert!(
 			result.is_err(),
 			"vote balance must not exceed holdings (5 M HDX + 5 M GIGAHDX = 10 M)"
@@ -3045,11 +3202,7 @@ fn s1_combined_evm_atoken_transfer_blocked() {
 		));
 
 		let bob = bob();
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			bob.clone(),
-			UNITS,
-		));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), UNITS,));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(bob.clone())));
 		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(eve.clone()));
 		let eve_evm = EVMAccounts::evm_address(&eve);
@@ -3107,4 +3260,3 @@ fn s2_combined_evm_aave_withdraw_blocked() {
 		assert!(matches!(result.exit_reason, fp_evm::ExitReason::Revert(_)));
 	});
 }
-

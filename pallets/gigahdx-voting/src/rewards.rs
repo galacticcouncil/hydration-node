@@ -33,8 +33,10 @@ pub fn maybe_allocate_and_record<T: Config>(
 ) -> Result<(), sp_runtime::DispatchError> {
 	// Reward weight uses the GIGAHDX-side portion only — HDX-only vote balance does not
 	// contribute to GIGAHDX referenda rewards.
-	let weighted_vote =
-		vote.gigahdx_lock.saturating_mul(vote.conviction.reward_multiplier() as u128) / REWARD_MULTIPLIER_SCALE;
+	let weighted_vote = vote
+		.gigahdx_lock
+		.saturating_mul(vote.conviction.reward_multiplier() as u128)
+		/ REWARD_MULTIPLIER_SCALE;
 
 	maybe_allocate_reward_pool::<T>(ref_index, weighted_vote)?;
 	record_user_reward::<T>(who, ref_index, weighted_vote)?;

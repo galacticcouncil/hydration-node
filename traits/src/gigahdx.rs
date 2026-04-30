@@ -19,9 +19,14 @@ pub trait GigaHdxHooks<AccountId, Balance, BlockNumber> {
 	/// Handles force removal of votes from finished referenda and records rewards.
 	fn on_unstake(who: &AccountId, gigahdx_amount: Balance) -> DispatchResult;
 
-	/// Check if the user can unstake.
-	/// Returns `false` if user has votes in any ongoing (not finished) referenda.
-	fn can_unstake(who: &AccountId) -> bool;
+	/// Check if the user can unstake `amount` of GIGAHDX.
+	///
+	/// Returns `false` only if `amount` would dip the user's GIGAHDX balance
+	/// below the lock committed by votes on **ongoing** referenda. Votes on
+	/// finished referenda are force-removable by `on_unstake` and don't gate
+	/// here. If the user has no ongoing votes, any `amount` ≤ balance is
+	/// permitted (downstream AAVE.withdraw enforces the balance check).
+	fn can_unstake(who: &AccountId, amount: Balance) -> bool;
 
 	/// Get the additional lock period required due to voting locks.
 	/// Returns the maximum remaining lock duration across all votes.
@@ -46,7 +51,7 @@ impl<AccountId, Balance, BlockNumber: frame_support::sp_runtime::traits::Zero>
 	fn on_unstake(_who: &AccountId, _gigahdx_amount: Balance) -> DispatchResult {
 		Ok(())
 	}
-	fn can_unstake(_who: &AccountId) -> bool {
+	fn can_unstake(_who: &AccountId, _amount: Balance) -> bool {
 		true
 	}
 	fn additional_unstake_lock(_who: &AccountId) -> BlockNumber {

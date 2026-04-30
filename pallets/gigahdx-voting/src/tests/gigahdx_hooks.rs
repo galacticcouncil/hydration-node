@@ -17,19 +17,35 @@ fn standard_vote(
 #[test]
 fn can_unstake_true_when_no_votes() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert!(crate::Pallet::<Test>::can_unstake(&ALICE));
+		assert!(crate::Pallet::<Test>::can_unstake(&ALICE, 100 * ONE));
 	});
 }
 
 #[test]
-fn can_unstake_false_with_ongoing_referendum() {
+fn can_unstake_false_when_ongoing_vote_does_not_cover_amount() {
+	// ALICE: 500 GIGAHDX, vote 200 Locked1x on ongoing ref → free portion = 300.
+	// Unstake 500 (full) would dip below the 200 ongoing lock → reject.
 	ExtBuilder::default().build().execute_with(|| {
 		set_referendum_outcome(0, ReferendumOutcome::Ongoing);
 
 		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 200 * ONE);
 		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
 
-		assert!(!crate::Pallet::<Test>::can_unstake(&ALICE));
+		assert!(!crate::Pallet::<Test>::can_unstake(&ALICE, 500 * ONE));
+	});
+}
+
+#[test]
+fn can_unstake_true_when_partial_within_free_portion_with_ongoing_vote() {
+	// ALICE: 500 GIGAHDX, vote 200 Locked1x ongoing → free portion = 300.
+	// Unstake 200 leaves 300 ≥ 200 → permitted.
+	ExtBuilder::default().build().execute_with(|| {
+		set_referendum_outcome(0, ReferendumOutcome::Ongoing);
+
+		let vote = standard_vote(true, pallet_conviction_voting::Conviction::Locked1x, 200 * ONE);
+		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 0, vote));
+
+		assert!(crate::Pallet::<Test>::can_unstake(&ALICE, 200 * ONE));
 	});
 }
 
@@ -45,7 +61,8 @@ fn can_unstake_true_when_all_finished() {
 		let vote1 = standard_vote(false, pallet_conviction_voting::Conviction::Locked2x, 100 * ONE);
 		assert_ok!(GigaHdxVotingHooks::<Test>::on_before_vote(&ALICE, 1, vote1));
 
-		assert!(crate::Pallet::<Test>::can_unstake(&ALICE));
+		// Finished votes don't gate — full unstake permitted (force-removed in on_unstake).
+		assert!(crate::Pallet::<Test>::can_unstake(&ALICE, 500 * ONE));
 	});
 }
 

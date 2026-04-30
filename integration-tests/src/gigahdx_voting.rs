@@ -314,7 +314,7 @@ fn claim_rewards_converts_to_gigahdx() {
 }
 
 #[test]
-fn giga_unstake_blocked_during_ongoing() {
+fn giga_unstake_blocked_during_ongoing_when_would_breach_lock() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -334,11 +334,19 @@ fn giga_unstake_blocked_during_ongoing() {
 			aye(50 * UNITS),
 		));
 
-		// Unstake should be blocked while referendum is ongoing.
+		// Full unstake (100) would dip the balance below the 50-UNITS ongoing
+		// vote lock — must be rejected.
 		assert_noop!(
-			GigaHdx::giga_unstake(hydradx_runtime::RuntimeOrigin::signed(alice.clone()), 50 * UNITS,),
+			GigaHdx::giga_unstake(hydradx_runtime::RuntimeOrigin::signed(alice.clone()), 100 * UNITS,),
 			pallet_gigahdx::Error::<hydradx_runtime::Runtime>::ActiveVotesInOngoingReferenda,
 		);
+
+		// Partial unstake within the free portion (50 free, 50 locked) succeeds
+		// even with the ongoing vote — only the over-the-lock portion is gated.
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			50 * UNITS,
+		));
 	});
 }
 
@@ -1070,19 +1078,20 @@ fn per_vote_splits_are_immutable_snapshots_across_balance_changes() {
 
 		let alice_gigahdx = Currencies::free_balance(GIGAHDX, &alice);
 		let vote_b = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_b).unwrap();
-		assert_eq!(vote_b.gigahdx_lock, alice_gigahdx, "vote B snapshot uses balance at its cast time");
+		assert_eq!(
+			vote_b.gigahdx_lock, alice_gigahdx,
+			"vote B snapshot uses balance at its cast time"
+		);
 		assert_eq!(vote_b.hdx_lock, 800 * UNITS - alice_gigahdx);
 
 		//Assert — effective LockSplit is the per-side max across both vote snapshots.
 		let split = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
 		assert_eq!(
-			split.gigahdx_amount,
-			vote_b.gigahdx_lock,
+			split.gigahdx_amount, vote_b.gigahdx_lock,
 			"G-side cap = max(vote A=500, vote B=alice_gigahdx) = vote B"
 		);
 		assert_eq!(
-			split.hdx_amount,
-			vote_a.hdx_lock,
+			split.hdx_amount, vote_a.hdx_lock,
 			"H-side cap = max(vote A=300, vote B=800-alice_gigahdx) = vote A"
 		);
 	});

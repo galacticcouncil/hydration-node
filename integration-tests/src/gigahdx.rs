@@ -944,10 +944,7 @@ fn lock_split_stale_after_stake_allows_transfer_of_locked_gigahdx() {
 		// Sanity: charlie has no relevant state in this snapshot.
 		assert_eq!(Currencies::free_balance(HDX, &charlie), 0);
 		assert_eq!(Currencies::free_balance(GIGAHDX, &charlie), 0);
-		assert_eq!(
-			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&charlie),
-			0
-		);
+		assert_eq!(pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&charlie), 0);
 		let split_pre = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&charlie);
 		assert_eq!(split_pre.gigahdx_amount, 0);
 		assert_eq!(split_pre.hdx_amount, 0);
@@ -972,10 +969,7 @@ fn lock_split_stale_after_stake_allows_transfer_of_locked_gigahdx() {
 		let split_after_step2 = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&charlie);
 		assert_eq!(split_after_step2.gigahdx_amount, 0);
 		assert_eq!(split_after_step2.hdx_amount, 10_000_000 * UNITS);
-		assert_eq!(
-			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&charlie),
-			0
-		);
+		assert_eq!(pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&charlie), 0);
 
 		// Step 3: Charlie removes that vote.
 		assert_ok!(ConvictionVoting::remove_vote(
@@ -1086,10 +1080,7 @@ fn vote_after_stake_blocks_gigahdx_transfer() {
 		// Sanity: Charlie has no relevant state in this snapshot.
 		assert_eq!(Currencies::free_balance(HDX, &charlie), 0);
 		assert_eq!(Currencies::free_balance(GIGAHDX, &charlie), 0);
-		assert_eq!(
-			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&charlie),
-			0
-		);
+		assert_eq!(pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&charlie), 0);
 		let split_pre = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&charlie);
 		assert_eq!(split_pre.gigahdx_amount, 0);
 		assert_eq!(split_pre.hdx_amount, 0);
@@ -1144,10 +1135,7 @@ fn vote_after_stake_blocks_gigahdx_transfer() {
 		);
 		println!("[diag] transfer result = {:?}", transfer_result);
 
-		assert!(
-			transfer_result.is_err(),
-			"locked GIGAHDX transfer must fail; got Ok",
-		);
+		assert!(transfer_result.is_err(), "locked GIGAHDX transfer must fail; got Ok",);
 		assert_eq!(
 			Currencies::free_balance(GIGAHDX, &charlie),
 			charlie_gigahdx,

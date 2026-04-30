@@ -105,8 +105,10 @@ impl<T: Config> VotingHooks<T::AccountId, u32, Balance> for GigaHdxVotingHooks<T
 		};
 
 		// Subtract from total weighted votes (weight is GIGAHDX-portion only).
-		let weighted =
-			vote.gigahdx_lock.saturating_mul(vote.conviction.reward_multiplier() as u128) / REWARD_MULTIPLIER_SCALE;
+		let weighted = vote
+			.gigahdx_lock
+			.saturating_mul(vote.conviction.reward_multiplier() as u128)
+			/ REWARD_MULTIPLIER_SCALE;
 		ReferendaTotalWeightedVotes::<T>::mutate(ref_index, |total| {
 			*total = total.saturating_sub(weighted);
 		});

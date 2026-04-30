@@ -771,8 +771,7 @@ fn u8_unstake_with_active_prior_must_succeed_and_spill_to_hdx() {
 		let split = pallet_gigahdx_voting::LockSplit::<Runtime>::get(&eve);
 		assert_eq!(split.gigahdx_amount, 0);
 		assert_eq!(
-			split.hdx_amount,
-			gigahdx_bal,
+			split.hdx_amount, gigahdx_bal,
 			"committed amount spilled to HDX side, locked there until prior expires"
 		);
 
@@ -987,8 +986,7 @@ fn z1_vote_at_exact_total_accepted() {
 			RuntimeOrigin::signed(eve.clone()),
 			5_000_000 * UNITS,
 		));
-		let total = Currencies::free_balance(HDX, &eve)
-			.saturating_add(Currencies::free_balance(GIGAHDX, &eve));
+		let total = Currencies::free_balance(HDX, &eve).saturating_add(Currencies::free_balance(GIGAHDX, &eve));
 		let r = begin_referendum_by_bob();
 		assert_ok!(ConvictionVoting::vote(
 			RuntimeOrigin::signed(eve.clone()),
@@ -1126,10 +1124,7 @@ fn aa3_batch_vote_then_unstake_reverts() {
 		// `Utility::batch` runs each call and reports failure via event; the outer
 		// extrinsic itself returns Ok. We therefore inspect the outcome via the
 		// state, not the dispatch result.
-		let _ = Utility::batch(
-			RuntimeOrigin::signed(eve.clone()),
-			vec![vote_call, unstake_call],
-		);
+		let _ = Utility::batch(RuntimeOrigin::signed(eve.clone()), vec![vote_call, unstake_call]);
 
 		// Vote should have been recorded (ran first); unstake should NOT have moved
 		// any GIGAHDX out — the user still holds the staked amount.
@@ -1194,11 +1189,7 @@ fn bb1_allowance_change_then_vote_then_transfer_from_blocked() {
 		let gigahdx_bal = Currencies::free_balance(GIGAHDX, &eve);
 
 		let bob = bob();
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			bob.clone(),
-			UNITS,
-		));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), UNITS,));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(bob.clone())));
 		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(eve.clone()));
 		let eve_evm = EVMAccounts::evm_address(&eve);
@@ -1245,12 +1236,8 @@ fn bb1_allowance_change_then_vote_then_transfer_from_blocked() {
 		tf.extend_from_slice(bob_evm.as_bytes());
 		tf.extend_from_slice(&U256::from(gigahdx_bal).to_big_endian());
 
-		let result = Executor::<Runtime>::call(
-			CallContext::new_call(gigahdx_token, bob_evm),
-			tf,
-			U256::zero(),
-			500_000,
-		);
+		let result =
+			Executor::<Runtime>::call(CallContext::new_call(gigahdx_token, bob_evm), tf, U256::zero(), 500_000);
 		assert!(matches!(result.exit_reason, fp_evm::ExitReason::Revert(_)));
 	});
 }
@@ -1275,11 +1262,7 @@ fn bb4_approve_while_locked_allowed_transfer_blocked() {
 		));
 
 		let bob = bob();
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			bob.clone(),
-			UNITS,
-		));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), UNITS,));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(bob.clone())));
 		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(eve.clone()));
 		let eve_evm = EVMAccounts::evm_address(&eve);
@@ -1307,12 +1290,8 @@ fn bb4_approve_while_locked_allowed_transfer_blocked() {
 		tf.extend_from_slice(&[0u8; 12]);
 		tf.extend_from_slice(bob_evm.as_bytes());
 		tf.extend_from_slice(&U256::from(gigahdx_bal).to_big_endian());
-		let result = Executor::<Runtime>::call(
-			CallContext::new_call(gigahdx_token, bob_evm),
-			tf,
-			U256::zero(),
-			500_000,
-		);
+		let result =
+			Executor::<Runtime>::call(CallContext::new_call(gigahdx_token, bob_evm), tf, U256::zero(), 500_000);
 		assert!(matches!(result.exit_reason, fp_evm::ExitReason::Revert(_)));
 	});
 }
@@ -1337,11 +1316,7 @@ fn bb7_zero_amount_atoken_transfer_accepted_while_locked() {
 		));
 
 		let bob = bob();
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			bob.clone(),
-			UNITS,
-		));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), UNITS,));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(bob.clone())));
 		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(eve.clone()));
 		let eve_evm = EVMAccounts::evm_address(&eve);
@@ -1406,12 +1381,7 @@ fn cc1_inflated_rate_does_not_inflate_vote_ceiling() {
 		));
 		// One wei more should be rejected.
 		let r2 = begin_referendum_by_bob();
-		let result = ConvictionVoting::vote(
-			RuntimeOrigin::signed(eve.clone()),
-			r2,
-			aye(total + UNITS),
-		);
+		let result = ConvictionVoting::vote(RuntimeOrigin::signed(eve.clone()), r2, aye(total + UNITS));
 		assert!(result.is_err());
 	});
 }
-

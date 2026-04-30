@@ -80,8 +80,7 @@ pub mod pallet {
 			+ frame_support::traits::fungible::Inspect<Self::AccountId, Balance = Balance>;
 
 		/// Referenda state queries.
-		type Referenda: GetReferendumOutcome<u32, BlockNumber = BlockNumberFor<Self>>
-			+ GetTrackId<u32, TrackId = u16>;
+		type Referenda: GetReferendumOutcome<u32, BlockNumber = BlockNumberFor<Self>> + GetTrackId<u32, TrackId = u16>;
 
 		/// Per-track reward percentage configuration.
 		type TrackRewards: TrackRewardConfig;
@@ -492,8 +491,10 @@ impl<T: Config> Pallet<T> {
 			// Clean up our storage in case on_remove_vote didn't clear it
 			// (e.g., if ForceRemoveVote doesn't trigger VotingHooks).
 			if GigaHdxVotes::<T>::contains_key(who, ref_index) {
-				let weighted =
-					vote.gigahdx_lock.saturating_mul(vote.conviction.reward_multiplier() as u128) / REWARD_MULTIPLIER_SCALE;
+				let weighted = vote
+					.gigahdx_lock
+					.saturating_mul(vote.conviction.reward_multiplier() as u128)
+					/ REWARD_MULTIPLIER_SCALE;
 				ReferendaTotalWeightedVotes::<T>::mutate(ref_index, |total| {
 					*total = total.saturating_sub(weighted);
 				});
@@ -544,13 +545,27 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 		Ok(())
 	}
 
-	fn can_unstake(who: &T::AccountId) -> bool {
-		for (ref_index, _vote) in GigaHdxVotes::<T>::iter_prefix(who) {
-			if !<T::Referenda as GetReferendumOutcome<u32>>::is_referendum_finished(ref_index) {
-				return false;
+	fn can_unstake(who: &T::AccountId, amount: Balance) -> bool {
+		// Sum (max-aggregate) the G-side commitment of votes still on **ongoing**
+		// referenda. Finished votes are force-removed by on_unstake and don't gate.
+		// Allow the unstake iff post-unstake balance still covers the ongoing-vote
+		// commitment. Downstream AAVE.withdraw is the authoritative balance check.
+		let mut ongoing_g_lock: Balance = 0;
+		for (ref_index, vote) in GigaHdxVotes::<T>::iter_prefix(who) {
+			if !<T::Referenda as GetReferendumOutcome<u32>>::is_referendum_finished(ref_index)
+				&& vote.gigahdx_lock > ongoing_g_lock
+			{
+				ongoing_g_lock = vote.gigahdx_lock;
 			}
 		}
-		true
+		if ongoing_g_lock == 0 {
+			return true;
+		}
+		let current_g_balance = <T::Currency as frame_support::traits::fungibles::Inspect<T::AccountId>>::balance(
+			<T as pallet_gigahdx::Config>::GigaHdxAssetId::get(),
+			who,
+		);
+		current_g_balance.saturating_sub(amount) >= ongoing_g_lock
 	}
 
 	fn on_unstake(who: &T::AccountId, gigahdx_amount: Balance) -> DispatchResult {
@@ -583,11 +598,10 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 		// which the adapter folds into the H-side max-aggregate. Per-vote splits
 		// stored in GigaHdxVotes / PriorLockSplit are NOT mutated (snapshots
 		// remain immutable); the spillover is a separate per-account aggregate.
-		let current_g_balance =
-			<T::Currency as frame_support::traits::fungibles::Inspect<T::AccountId>>::balance(
-				<T as pallet_gigahdx::Config>::GigaHdxAssetId::get(),
-				who,
-			);
+		let current_g_balance = <T::Currency as frame_support::traits::fungibles::Inspect<T::AccountId>>::balance(
+			<T as pallet_gigahdx::Config>::GigaHdxAssetId::get(),
+			who,
+		);
 		let post_unstake_balance = current_g_balance.saturating_sub(gigahdx_amount);
 
 		// Compute the current G-side max from active votes + priors + delegation snapshot.
