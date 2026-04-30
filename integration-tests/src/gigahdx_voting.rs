@@ -1941,7 +1941,7 @@ fn staking_hooks_should_fire_after_voting_changes() {
 }
 
 #[test]
-fn giga_unstake_should_create_single_position_with_max_cooldown_when_voting_locked() {
+fn giga_unstake_should_split_into_two_positions_when_active_vote_lock_exceeds_free() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -1961,26 +1961,40 @@ fn giga_unstake_should_create_single_position_with_max_cooldown_when_voting_lock
 		));
 		end_referendum();
 
-		// Read the actual remaining conviction lock from the stored vote.
 		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).unwrap();
 		let before_block = System::block_number();
 		let voting_lock_remaining = vote.lock_expires_at.saturating_sub(before_block);
 		let base_cooldown = <hydradx_runtime::Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
-		let expected_cooldown = base_cooldown.max(voting_lock_remaining);
 
+		// Unstake 150 of 200 — free pool = 200-100 = 100, free_unstake = min(150, 100) = 100,
+		// voted_unstake = 50.
 		assert_ok!(GigaHdx::giga_unstake(
 			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
 			150 * UNITS,
 		));
 
 		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
-		assert_eq!(positions.len(), 1, "design: single position with max cooldown");
-		assert_eq!(positions[0].unlock_at, before_block + expected_cooldown);
+		assert_eq!(positions.len(), 2, "split unstake produces free + voted positions");
+
+		let mut sorted = positions.to_vec();
+		sorted.sort_by_key(|p| p.amount);
+
+		// Computed against realised total to stay correct under exchange-rate inflation.
+		let total_hdx = sorted[0].amount.saturating_add(sorted[1].amount);
+		let expected_voted = total_hdx.saturating_mul(50) / 150;
+		let expected_free = total_hdx.saturating_sub(expected_voted);
+
+		let voted_cooldown = base_cooldown.max(voting_lock_remaining);
+		assert_eq!(sorted[0].amount, expected_voted, "voted portion = floor(total * 50/150)");
+		assert_eq!(sorted[0].unlock_at, before_block + voted_cooldown, "voted uses max(base, conviction)");
+
+		assert_eq!(sorted[1].amount, expected_free, "free portion = floor(total * 100/150)");
+		assert_eq!(sorted[1].unlock_at, before_block + base_cooldown);
 	});
 }
 
 #[test]
-fn on_post_unstake_should_observe_final_hdx_balance() {
+fn on_unstake_should_spill_uncovered_commitment_to_hdx_side() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();

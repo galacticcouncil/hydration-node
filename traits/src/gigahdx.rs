@@ -29,21 +29,24 @@ pub trait GigaHdxHooks<AccountId, Balance, BlockNumber> {
 	fn can_unstake(who: &AccountId, amount: Balance) -> bool;
 
 	/// Get the additional lock period required due to voting locks.
-	/// Returns the maximum remaining lock duration across all votes.
-	/// Called BEFORE on_unstake to capture lock periods before votes are removed.
+	/// Returns the maximum remaining lock duration across all votes and
+	/// finished-and-still-locked priors. Called BEFORE on_unstake to capture
+	/// lock periods before votes are removed.
 	fn additional_unstake_lock(who: &AccountId) -> BlockNumber;
 
-	/// Called AFTER `giga_unstake` has reduced the user's GIGAHDX balance via MM withdraw.
-	///
-	/// Re-applies any existing voting-lock split against the user's new balance,
-	/// capping the GIGAHDX-side tracker and spilling uncovered commitment onto
-	/// a hard HDX lock. No-op when the user has no voting lock.
-	fn on_post_unstake(who: &AccountId) -> DispatchResult;
+	/// Currently conviction-locked GIGAHDX amount for `who`. Used by
+	/// `giga_unstake` to split the unstake into voted (conviction cooldown)
+	/// and free (base cooldown) portions.
+	fn current_voting_lock(who: &AccountId) -> Balance;
+
 }
 
 /// No-op implementation — used when no voting pallet is wired (e.g. tests).
-impl<AccountId, Balance, BlockNumber: frame_support::sp_runtime::traits::Zero>
-	GigaHdxHooks<AccountId, Balance, BlockNumber> for ()
+impl<
+		AccountId,
+		Balance: frame_support::sp_runtime::traits::Zero,
+		BlockNumber: frame_support::sp_runtime::traits::Zero,
+	> GigaHdxHooks<AccountId, Balance, BlockNumber> for ()
 {
 	fn on_stake(_who: &AccountId, _hdx_amount: Balance, _gigahdx_received: Balance) -> DispatchResult {
 		Ok(())
@@ -57,8 +60,8 @@ impl<AccountId, Balance, BlockNumber: frame_support::sp_runtime::traits::Zero>
 	fn additional_unstake_lock(_who: &AccountId) -> BlockNumber {
 		frame_support::sp_runtime::traits::Zero::zero()
 	}
-	fn on_post_unstake(_who: &AccountId) -> DispatchResult {
-		Ok(())
+	fn current_voting_lock(_who: &AccountId) -> Balance {
+		frame_support::sp_runtime::traits::Zero::zero()
 	}
 }
 

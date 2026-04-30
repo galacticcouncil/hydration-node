@@ -260,20 +260,6 @@ fn unlock_should_fail_when_no_position_expired() {
 	});
 }
 
-// ---------------------------------------------------------------------------
-// on_post_unstake hook invocation regression
-// ---------------------------------------------------------------------------
-
-#[test]
-fn giga_unstake_should_call_on_post_unstake_hook() {
-	// The gigahdx mock uses Hooks = (), so on_post_unstake is a no-op.
-	// This test guards against future refactors that accidentally drop the hook call.
-	ExtBuilder::default().build().execute_with(|| {
-		setup_stake(ALICE, 100 * ONE);
-		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(ALICE), 50 * ONE));
-	});
-}
-
 // The `remaining_hdx >= MinStake` guard already covers the "no dust positions" property,
 // and the MoneyMarket layer rejects over-amount withdraws on its own. The previously
 // considered `MinUnstake` constant and `InsufficientBalance` error variant

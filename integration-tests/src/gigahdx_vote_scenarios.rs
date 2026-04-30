@@ -1133,19 +1133,20 @@ fn giga_unstake_partial_should_succeed_when_referendum_finished_without_explicit
 }
 
 /// E9 (Bug 5 marker): partial unstake that crosses the conviction-lock
-/// boundary should produce **two** unstake positions:
-///   • the FREE portion → base cooldown (222 days),
-///   • the VOTED portion → conviction-period remaining (Locked6x = 224 days,
-///     minus what's already elapsed since the referendum ended).
+/// boundary should produce **two** unstake positions, with the free pool
+/// consumed first:
+///   • the FREE portion → base cooldown,
+///   • the VOTED portion (the part that breaches the lock floor) →
+///     conviction-period remaining.
 ///
-/// Scenario:
+/// Scenario (10M total, 5M prior-locked, free = 5M):
 ///   1. Stake 10M HDX → 10M GIGAHDX.
 ///   2. Vote 5M with Locked6x.
 ///   3. Approve referendum + remove_vote → PriorLockSplit (g=5M, until=end+224d).
-///   4. Unstake 6M (= 1M free + 5M from voted prior).
+///   4. Unstake 6M = 5M from free + 1M crossing into voted prior.
 ///   5. Expect 2 positions:
-///      • 1M HDX, base cooldown.
-///      • 5M HDX, conviction cooldown (~224d remaining).
+///      • 5M HDX, base cooldown.
+///      • 1M HDX, conviction cooldown (~224d remaining).
 #[test]
 fn giga_unstake_partial_should_create_two_positions_when_amount_crosses_conviction_lock_boundary() {
 	use primitives::constants::time::DAYS;
@@ -1202,24 +1203,24 @@ fn giga_unstake_partial_should_create_two_positions_when_amount_crosses_convicti
 		let mut sorted = positions.to_vec();
 		sorted.sort_by_key(|p| p.amount);
 
-		// 1M HDX — base cooldown (222 days).
-		let base_cooldown = 222u32 * DAYS;
-		assert_eq!(sorted[0].amount, 1_000_000 * UNITS, "free portion = 1M");
+		// 1M HDX — voted portion (breached the lock floor by 1M).
+		// Locked6x conviction = 224 days; force_approve + remove_vote happen at
+		// the same block as block_before_unstake, so the full window remains.
+		let conviction_cooldown = 224u32 * DAYS;
+		assert_eq!(sorted[0].amount, 1_000_000 * UNITS, "voted portion = 1M");
 		assert_eq!(
 			sorted[0].unlock_at,
-			block_before_unstake + base_cooldown,
-			"free portion uses base cooldown",
-		);
-
-		// 5M HDX — conviction-period remaining (Locked6x = 224 days minus
-		// blocks elapsed since end_block; since force_approve and remove_vote
-		// happen at the same block, this is the full 224 days).
-		let conviction_cooldown = 224u32 * DAYS;
-		assert_eq!(sorted[1].amount, 5_000_000 * UNITS, "voted portion = 5M");
-		assert_eq!(
-			sorted[1].unlock_at,
 			block_before_unstake + conviction_cooldown,
 			"voted portion uses conviction-period cooldown",
+		);
+
+		// 5M HDX — free portion (drawn from the 5M unlocked pool first).
+		let base_cooldown = 100u32 * DAYS;
+		assert_eq!(sorted[1].amount, 5_000_000 * UNITS, "free portion = 5M");
+		assert_eq!(
+			sorted[1].unlock_at,
+			block_before_unstake + base_cooldown,
+			"free portion uses base cooldown",
 		);
 	});
 }

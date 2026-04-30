@@ -273,16 +273,31 @@ pub mod pallet {
 				Error::<T>::ActiveVotesInOngoingReferenda
 			);
 
-			// Reject early if the position cap is full — saves the cost of
-			// running on_unstake / MM withdraw / burn / transfer just to roll
-			// it all back when try_push fails below.
+			// Capture before on_unstake mutates state.
+			let g_lock_before = T::Hooks::current_voting_lock(&who);
+			let voting_lock = T::Hooks::additional_unstake_lock(&who);
+
+			// Free pool is consumed first; only the portion that would breach
+			// the lock floor (`unstake > free_balance`) inherits the conviction
+			// cooldown. Preserves the original commitment exactly.
+			let base_cooldown = T::CooldownPeriod::get();
+			let current_balance =
+				<T::Currency as Inspect<T::AccountId>>::balance(T::GigaHdxAssetId::get(), &who);
+			let free_balance = current_balance.saturating_sub(g_lock_before);
+			let free_gigahdx = gigahdx_amount.min(free_balance);
+			let voted_gigahdx = gigahdx_amount.saturating_sub(free_gigahdx);
+			let needs_split =
+				!voted_gigahdx.is_zero() && !free_gigahdx.is_zero() && voting_lock > base_cooldown;
+			let projected_new_positions: u32 = if needs_split { 2 } else { 1 };
+
+			// Reject early if the position cap can't fit — saves rolling back
+			// on_unstake / MM withdraw / burn / transfer.
 			ensure!(
-				(UnstakePositions::<T>::decode_len(&who).unwrap_or(0) as u32) < T::MaxUnstakePositions::get(),
+				(UnstakePositions::<T>::decode_len(&who).unwrap_or(0) as u32)
+					.saturating_add(projected_new_positions)
+					<= T::MaxUnstakePositions::get(),
 				Error::<T>::TooManyUnstakePositions,
 			);
-
-			// Capture additional lock period BEFORE on_unstake clears votes.
-			let voting_lock = T::Hooks::additional_unstake_lock(&who);
 
 			// Notify hooks — force-removes finished votes, records rewards.
 			T::Hooks::on_unstake(&who, gigahdx_amount)?;
@@ -314,21 +329,47 @@ pub mod pallet {
 				Preservation::Expendable,
 			)?;
 
-			// Dynamic cooldown: max(base_cooldown, voting_lock).
+			let voted_hdx = if voted_gigahdx.is_zero() {
+				0u128
+			} else if free_gigahdx.is_zero() {
+				hdx_amount
+			} else {
+				multiply_by_rational_with_rounding(hdx_amount, voted_gigahdx, gigahdx_amount, Rounding::Down)
+					.ok_or(Error::<T>::Arithmetic)?
+			};
+			let free_hdx = hdx_amount.saturating_sub(voted_hdx);
+
 			let current_block = frame_system::Pallet::<T>::block_number();
-			let actual_cooldown = T::CooldownPeriod::get().max(voting_lock);
-			let unlock_at = current_block
-				.checked_add(&actual_cooldown)
+			let conviction_cooldown = base_cooldown.max(voting_lock);
+			let unlock_at_free = current_block
+				.checked_add(&base_cooldown)
+				.ok_or(Error::<T>::Arithmetic)?;
+			let unlock_at_voted = current_block
+				.checked_add(&conviction_cooldown)
 				.ok_or(Error::<T>::Arithmetic)?;
 
 			UnstakePositions::<T>::try_mutate(&who, |positions| -> DispatchResult {
-				let position = UnstakePosition {
-					amount: hdx_amount,
-					unlock_at,
-				};
-				positions
-					.try_push(position)
-					.map_err(|_| Error::<T>::TooManyUnstakePositions)?;
+				if needs_split {
+					positions
+						.try_push(UnstakePosition {
+							amount: free_hdx,
+							unlock_at: unlock_at_free,
+						})
+						.map_err(|_| Error::<T>::TooManyUnstakePositions)?;
+					positions
+						.try_push(UnstakePosition {
+							amount: voted_hdx,
+							unlock_at: unlock_at_voted,
+						})
+						.map_err(|_| Error::<T>::TooManyUnstakePositions)?;
+				} else {
+					positions
+						.try_push(UnstakePosition {
+							amount: hdx_amount,
+							unlock_at: unlock_at_voted,
+						})
+						.map_err(|_| Error::<T>::TooManyUnstakePositions)?;
+				}
 
 				// Aggregate lock: re-set the single lock with the new total so
 				// pallet-balances sees sum(positions), not max(positions).
@@ -337,17 +378,12 @@ pub mod pallet {
 				Ok(())
 			})?;
 
-			// Re-apply voting-lock split against the user's new (reduced) GIGAHDX balance.
-			// Caps the tracker and spills uncovered commitment to a hard HDX lock.
-			// Runs after the HDX transfer so apply_lock_split observes the final balance.
-			T::Hooks::on_post_unstake(&who)?;
-
 			Self::deposit_event(Event::Unstaked {
 				who,
 				gigahdx_withdrawn: gigahdx_amount,
 				st_hdx_burned: st_hdx_withdrawn,
 				hdx_amount,
-				unlock_at,
+				unlock_at: unlock_at_voted,
 			});
 
 			Ok(())

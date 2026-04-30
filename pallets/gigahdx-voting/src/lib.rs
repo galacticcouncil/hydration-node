@@ -662,23 +662,33 @@ impl<T: Config> GigaHdxHooks<T::AccountId, Balance, BlockNumberFor<T>> for Palle
 
 	fn additional_unstake_lock(who: &T::AccountId) -> BlockNumberFor<T> {
 		let current_block = frame_system::Pallet::<T>::block_number();
+		let mut max_remaining: BlockNumberFor<T> = Zero::zero();
 
-		GigaHdxVotes::<T>::iter_prefix(who)
-			.map(|(_, vote)| {
-				if vote.lock_expires_at > current_block {
-					vote.lock_expires_at - current_block
-				} else {
-					Zero::zero()
+		for (_, vote) in GigaHdxVotes::<T>::iter_prefix(who) {
+			if vote.lock_expires_at > current_block {
+				let remaining = vote.lock_expires_at - current_block;
+				if remaining > max_remaining {
+					max_remaining = remaining;
 				}
-			})
-			.max()
-			.unwrap_or_else(Zero::zero)
+			}
+		}
+
+		// Priors carry the conviction window after `remove_vote`, so they
+		// must contribute to the unstake cooldown the same way active votes do.
+		for (_class, mut prior) in PriorLockSplit::<T>::iter_prefix(who) {
+			prior.rejig(current_block);
+			if prior.is_active() && prior.until > current_block {
+				let remaining = prior.until - current_block;
+				if remaining > max_remaining {
+					max_remaining = remaining;
+				}
+			}
+		}
+
+		max_remaining
 	}
 
-	fn on_post_unstake(_who: &T::AccountId) -> DispatchResult {
-		// Lock state changes only on vote-related events (vote/remove_vote/unlock),
-		// never on plain balance changes. Stake/unstake leave the lock untouched —
-		// the per-vote split snapshot stored on `GigaHdxVotes` continues to apply.
-		Ok(())
+	fn current_voting_lock(who: &T::AccountId) -> Balance {
+		GigaHdxVotingLock::<T>::get(who)
 	}
 }
