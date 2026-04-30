@@ -1132,6 +1132,98 @@ fn giga_unstake_partial_should_succeed_when_referendum_finished_without_explicit
 	});
 }
 
+/// E9 (Bug 5 marker): partial unstake that crosses the conviction-lock
+/// boundary should produce **two** unstake positions:
+///   • the FREE portion → base cooldown (222 days),
+///   • the VOTED portion → conviction-period remaining (Locked6x = 224 days,
+///     minus what's already elapsed since the referendum ended).
+///
+/// Scenario:
+///   1. Stake 10M HDX → 10M GIGAHDX.
+///   2. Vote 5M with Locked6x.
+///   3. Approve referendum + remove_vote → PriorLockSplit (g=5M, until=end+224d).
+///   4. Unstake 6M (= 1M free + 5M from voted prior).
+///   5. Expect 2 positions:
+///      • 1M HDX, base cooldown.
+///      • 5M HDX, conviction cooldown (~224d remaining).
+#[test]
+fn giga_unstake_partial_should_create_two_positions_when_amount_crosses_conviction_lock_boundary() {
+	use primitives::constants::time::DAYS;
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let eve = setup_fresh_eve();
+
+		// 1. Stake 10M HDX → 10M GIGAHDX.
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(eve.clone()),
+			10_000_000 * UNITS,
+		));
+		assert_eq!(Currencies::free_balance(GIGAHDX, &eve), 10_000_000 * UNITS);
+
+		// 2 + 3. Vote 5M with Locked6x.
+		let r = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(eve.clone()),
+			r,
+			aye_with_conviction(5_000_000 * UNITS, Conviction::Locked6x),
+		));
+
+		// 4 + 5. End referendum (Approved) and remove vote — prior accumulates 5M.
+		force_approve_referendum(r);
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(eve.clone()),
+			Some(0),
+			r,
+		));
+		assert_eq!(
+			pallet_gigahdx_voting::GigaHdxVotingLock::<Runtime>::get(&eve),
+			5_000_000 * UNITS,
+			"prior keeps 5M G-side locked after remove_vote",
+		);
+
+		let block_before_unstake = System::block_number();
+
+		// 7. Unstake 6M — crosses the 5M conviction boundary by 1M.
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(eve.clone()),
+			6_000_000 * UNITS,
+		));
+
+		// 8. Expected: 2 positions (free portion + voted portion).
+		let positions = pallet_gigahdx::UnstakePositions::<Runtime>::get(&eve);
+		assert_eq!(
+			positions.len(),
+			2,
+			"partial unstake across the lock boundary must produce 2 positions, got {:?}",
+			positions,
+		);
+
+		// Sort by amount so the assertion order is stable.
+		let mut sorted = positions.to_vec();
+		sorted.sort_by_key(|p| p.amount);
+
+		// 1M HDX — base cooldown (222 days).
+		let base_cooldown = 222u32 * DAYS;
+		assert_eq!(sorted[0].amount, 1_000_000 * UNITS, "free portion = 1M");
+		assert_eq!(
+			sorted[0].unlock_at,
+			block_before_unstake + base_cooldown,
+			"free portion uses base cooldown",
+		);
+
+		// 5M HDX — conviction-period remaining (Locked6x = 224 days minus
+		// blocks elapsed since end_block; since force_approve and remove_vote
+		// happen at the same block, this is the full 224 days).
+		let conviction_cooldown = 224u32 * DAYS;
+		assert_eq!(sorted[1].amount, 5_000_000 * UNITS, "voted portion = 5M");
+		assert_eq!(
+			sorted[1].unlock_at,
+			block_before_unstake + conviction_cooldown,
+			"voted portion uses conviction-period cooldown",
+		);
+	});
+}
+
 // ---------------------------------------------------------------------------
 // E2 / E6 require referendum lifecycle (approve/reject) which the test
 // harness does not currently fast-forward through cleanly. They are sketched

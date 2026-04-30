@@ -24,7 +24,7 @@ parameter_types! {
 	pub const GigaHdxAssetIdConst: AssetId = 67;
 	pub const GigaHdxPalletId: PalletId = PalletId(*b"gigahdx!");
 	pub const GigaRewardPotId: PalletId = PalletId(*b"gigarwd!");
-	pub const GigaHdxCooldownPeriod: BlockNumber = 222 * DAYS;
+	pub const GigaHdxCooldownPeriod: BlockNumber = 100 * DAYS;
 	pub const GigaHdxMinStake: Balance = 10 * primitives::constants::currency::UNITS;
 	pub const GigaHdxMaxUnstakePositions: u32 = 10;
 	pub const GigaHdxMaxVotes: u32 = 25;

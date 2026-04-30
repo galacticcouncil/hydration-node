@@ -422,7 +422,13 @@ fn giga_unstake_should_apply_dynamic_cooldown_from_conviction_lock() {
 		));
 		end_referendum();
 
+		// Snapshot the vote's remaining lock period BEFORE unstake — on_unstake
+		// will force-remove the vote, so we have to capture this beforehand.
+		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).unwrap();
 		let block_before_unstake = System::block_number();
+		let voting_lock_remaining = vote.lock_expires_at.saturating_sub(block_before_unstake);
+		let base_cooldown = <hydradx_runtime::Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		let expected_cooldown = base_cooldown.max(voting_lock_remaining);
 
 		//Act
 		assert_ok!(GigaHdx::giga_unstake(
@@ -433,7 +439,7 @@ fn giga_unstake_should_apply_dynamic_cooldown_from_conviction_lock() {
 		//Assert
 		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
 		assert_eq!(positions.len(), 1);
-		assert_eq!(positions[0].unlock_at, block_before_unstake + 222 * DAYS);
+		assert_eq!(positions[0].unlock_at, block_before_unstake + expected_cooldown);
 	});
 }
 
@@ -1955,11 +1961,12 @@ fn giga_unstake_should_create_single_position_with_max_cooldown_when_voting_lock
 		));
 		end_referendum();
 
+		// Read the actual remaining conviction lock from the stored vote.
+		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).unwrap();
 		let before_block = System::block_number();
-		let base_cooldown = 222 * DAYS;
-		let locked6x_period =
-			<hydradx_runtime::Runtime as pallet_conviction_voting::Config>::VoteLockingPeriod::get().saturating_mul(6);
-		let expected_cooldown = base_cooldown.max(locked6x_period);
+		let voting_lock_remaining = vote.lock_expires_at.saturating_sub(before_block);
+		let base_cooldown = <hydradx_runtime::Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		let expected_cooldown = base_cooldown.max(voting_lock_remaining);
 
 		assert_ok!(GigaHdx::giga_unstake(
 			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
