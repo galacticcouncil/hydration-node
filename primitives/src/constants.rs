@@ -44,8 +44,12 @@ pub mod time {
 	/// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
 	/// up by `pallet_aura` to implement `fn slot_duration()`.
 	/// Change this to adjust the block time.
-	pub const MILLISECS_PER_BLOCK: u64 = 6_000;
-	pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
+	pub const MILLISECS_PER_BLOCK: u64 = 2_000;
+
+	// The slot duration determines the length of each author's turn and is decoupled from the block
+	// production interval. During their slot, authors are allowed to produce multiple blocks. The slot
+	// duration is required to be at least 6s, the same as on the relay chain.
+	pub const SLOT_DURATION: u64 = 6_000;
 
 	// Time is measured by number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
@@ -73,9 +77,9 @@ pub mod chain {
 	pub const CORE_ASSET_ID: AssetId = 0;
 	pub const HOLLAR_ASSET_ID: AssetId = 222;
 
-	/// We allow for 2 seconds of compute with a 6 seconds average block.
+	/// We allow for 1.5 seconds of compute with a 2 seconds average block.
 	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
-		WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2),
+		WEIGHT_REF_TIME_PER_SECOND.saturating_mul(3).saturating_div(2),
 		polkadot_primitives::v8::MAX_POV_SIZE as u64,
 	);
 
@@ -90,7 +94,7 @@ pub mod chain {
 	pub const UNINCLUDED_SEGMENT_CAPACITY: u32 = (3 + DEFAULT_RELAY_PARENT_OFFSET) * BLOCK_PROCESSING_VELOCITY;
 	/// How many parachain blocks are processed by the relay chain per parent. Limits the number of
 	/// blocks authored per slot.
-	pub const BLOCK_PROCESSING_VELOCITY: u32 = 1;
+	pub const BLOCK_PROCESSING_VELOCITY: u32 = 3;
 	/// Relay chain slot duration, in milliseconds.
 	pub const RELAY_CHAIN_SLOT_DURATION_MILLIS: u32 = 6000;
 }
@@ -106,10 +110,10 @@ mod tests {
 		assert_eq!(DAYS / 24, HOURS);
 		// 60 minuts in an hour
 		assert_eq!(HOURS / 60, MINUTES);
-		// 1 minute = 60s = 10 blocks 6s each
-		assert_eq!(MINUTES, 10);
-		// 6s per block
-		assert_eq!(SECS_PER_BLOCK, 6);
+		// 1 minute = 60s = 30 blocks 2s each
+		assert_eq!(MINUTES, 30);
+		// 2s per block
+		assert_eq!(SECS_PER_BLOCK, 2);
 		// 1s = 1000ms
 		assert_eq!(MILLISECS_PER_BLOCK / 1000, SECS_PER_BLOCK);
 		// Extra check for epoch time because changing it bricks the block production and requires regenesis
