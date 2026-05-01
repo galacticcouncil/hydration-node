@@ -3350,3 +3350,127 @@ fn cross_validate_buy_dot_with_lrna_with_prior_delta() {
 		*r_fresh.asset.delta_hub_reserve
 	);
 }
+
+#[test]
+fn calculate_buy_should_respect_max_slip_fee_cap_on_buy_side() {
+	// large pool: ~0.02% hub flow -> cap does not fire
+	let asset_in_state = AssetReserveState {
+		reserve: 100_000_000 * UNIT,
+		hub_reserve: 100_000_000 * UNIT,
+		shares: 100_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	// small pool: ~2% hub flow -> cap fires
+	let asset_out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+
+	let amount = 20_000 * UNIT;
+	let asset_fee = Permill::zero();
+	let protocol_fee = Permill::zero();
+	let burn_fee = Permill::zero();
+	let max_slip_fee = Permill::from_percent(1);
+
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee,
+	};
+
+	let state_changes = calculate_buy_state_changes(
+		&asset_in_state,
+		&asset_out_state,
+		amount,
+		asset_fee,
+		protocol_fee,
+		burn_fee,
+		Some(&slip),
+	)
+	.expect("calculate_buy_state_changes should succeed");
+
+	let delta_hub_reserve_in = match state_changes.asset_in.delta_hub_reserve {
+		BalanceUpdate::Decrease(v) => v,
+		_ => panic!("expected Decrease for asset_in hub reserve"),
+	};
+	let total_protocol_fee = state_changes.fee.protocol_fee;
+
+	let d_net_expected: Balance = asset_out_state.hub_reserve * amount / (asset_out_state.reserve - amount) + 1;
+
+	let d_net_actual = delta_hub_reserve_in
+		.checked_sub(total_protocol_fee)
+		.expect("delta_hub_reserve_in must be >= total_protocol_fee");
+
+	assert_eq!(
+		d_net_actual, d_net_expected,
+		"buy-side slip fee cap not applied during inversion: \
+		buyer pays {delta_hub_reserve_in} hub, fees = {total_protocol_fee}, \
+		net to pool = {d_net_actual} but pool needs {d_net_expected} hub for the trade",
+	);
+}
+
+#[test]
+fn calculate_buy_should_respect_max_slip_fee_cap_on_sell_side() {
+	// small pool: ~2% hub flow → cap fires
+	let asset_in_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	// large pool: ~0.02% hub flow → cap does not fire
+	let asset_out_state = AssetReserveState {
+		reserve: 100_000_000 * UNIT,
+		hub_reserve: 100_000_000 * UNIT,
+		shares: 100_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+
+	let amount = 20_000 * UNIT;
+	let asset_fee = Permill::zero();
+	let protocol_fee = Permill::zero();
+	let burn_fee = Permill::zero();
+	let max_slip_fee = Permill::from_percent(1);
+
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee,
+	};
+
+	let state_changes = calculate_buy_state_changes(
+		&asset_in_state,
+		&asset_out_state,
+		amount,
+		asset_fee,
+		protocol_fee,
+		burn_fee,
+		Some(&slip),
+	)
+	.expect("calculate_buy_state_changes should succeed");
+
+	let delta_hub_reserve_in = match state_changes.asset_in.delta_hub_reserve {
+		BalanceUpdate::Decrease(v) => v,
+		_ => panic!("expected Decrease for asset_in hub reserve"),
+	};
+	let total_protocol_fee = state_changes.fee.protocol_fee;
+
+	let d_net_expected: Balance = asset_out_state.hub_reserve * amount / (asset_out_state.reserve - amount) + 1;
+
+	let d_net_actual = delta_hub_reserve_in
+		.checked_sub(total_protocol_fee)
+		.expect("delta_hub_reserve_in must be >= total_protocol_fee");
+
+	assert_eq!(
+		d_net_actual, d_net_expected,
+		"sell-side slip fee cap not applied during inversion: \
+		buyer pays {delta_hub_reserve_in} hub, fees = {total_protocol_fee}, \
+		net to pool = {d_net_actual} but pool needs {d_net_expected} hub for the trade",
+	);
+}

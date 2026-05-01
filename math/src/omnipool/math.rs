@@ -277,14 +277,58 @@ pub fn calculate_buy_state_changes(
 
 	// Step 2: Invert buy-side slip to find D_gross from D_net
 	let d_gross = if let Some(slip) = slip {
-		invert_buy_side_slip(d_net, slip.asset_out_hub_reserve, slip.asset_out_delta)?
+		let d_gross_uncapped = invert_buy_side_slip(d_net, slip.asset_out_hub_reserve, slip.asset_out_delta)?;
+		let max_parts = slip.max_slip_fee.deconstruct() as u128;
+		let one_minus_max = 1_000_000u128.checked_sub(max_parts)?;
+		let (d_net_hp, d_gross_uncapped_hp) = to_u256!(d_net, d_gross_uncapped);
+		let rate_hp = d_net_hp
+			.checked_mul(U256::from(1_000_000u128))?
+			.checked_div(d_gross_uncapped_hp)?;
+		if rate_hp < U256::from(one_minus_max) {
+			// Cap fired: d_gross = floor(D_net * 1_000_000 / (1_000_000 - max_parts))
+			// -1 compensates for the +1 ceiling added by invert_sell_side_fees
+			let d_gross_capped_hp = d_net_hp
+				.checked_mul(U256::from(1_000_000u128))?
+				.checked_div(U256::from(one_minus_max))?;
+			let d_gross_capped = to_balance!(d_gross_capped_hp).ok()?;
+			d_gross_capped.checked_sub(Balance::one())?
+		} else {
+			d_gross_uncapped
+		}
 	} else {
 		d_net
 	};
 
 	// Step 3: Invert sell-side fees (protocol_fee + sell slip) to find delta_hub_reserve_in
 	let delta_hub_reserve_in = if let Some(slip) = slip {
-		invert_sell_side_fees(d_gross, protocol_fee, slip.asset_in_hub_reserve, slip.asset_in_delta)?
+		let u_raw = invert_sell_side_fees(d_gross, protocol_fee, slip.asset_in_hub_reserve, slip.asset_in_delta)?;
+		let max_parts = slip.max_slip_fee.deconstruct() as u128;
+		let cumulative_sell = slip.asset_in_delta.checked_add(SignedBalance::Negative(u_raw))?;
+		let denom_sell = cumulative_sell.add_to_unsigned(slip.asset_in_hub_reserve)?;
+		if denom_sell > 0 && !cumulative_sell.is_zero() {
+			let abs_cum = cumulative_sell.abs();
+			let (abs_cum_hp, denom_hp) = to_u256!(abs_cum, denom_sell);
+			let rate_hp = abs_cum_hp
+				.checked_mul(U256::from(1_000_000u128))?
+				.checked_div(denom_hp)?;
+			if rate_hp > U256::from(max_parts) {
+				// Cap fired: delta_hub_reserve_in = floor((d_gross - 1) * 1_000_000 / (k_parts - max_parts))
+				// -1 compensates for the +1 ceiling added by invert_buy_side_slip
+				let d_gross_adj = d_gross.checked_sub(Balance::one())?;
+				let pf_parts = protocol_fee.deconstruct() as u128;
+				let k_parts = 1_000_000u128.checked_sub(pf_parts)?;
+				let den_parts = k_parts.checked_sub(max_parts)?;
+				let (d_gross_adj_hp, den_parts_hp) = to_u256!(d_gross_adj, den_parts);
+				let u_cap_hp = d_gross_adj_hp
+					.checked_mul(U256::from(1_000_000u128))?
+					.checked_div(den_parts_hp)?;
+				to_balance!(u_cap_hp).ok()?
+			} else {
+				u_raw
+			}
+		} else {
+			u_raw
+		}
 	} else {
 		// No slip — original inversion
 		FixedU128::from_inner(d_net)
