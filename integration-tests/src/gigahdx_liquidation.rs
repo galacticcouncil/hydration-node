@@ -72,17 +72,6 @@ fn evm_call(target: EvmAddress, caller: EvmAddress, data: Vec<u8>, gas: u64, lab
 fn deploy_fixed_price_oracle(price: U256) -> EvmAddress {
 	let acl_admin = EvmAddress::from_slice(&hex!("aa7e0000000000000000000000000000000aa7e0"));
 
-	// The slim snapshot allow-list strips this address' substrate-side balance, so the EVM
-	// runner can't pay for the deploy. EVM gas is paid in WETH (not HDX), so deposit WETH
-	// for the substrate account that the EVM runner maps acl_admin's H160 to.
-	let acl_admin_account = EVMAccounts::account_id(acl_admin);
-	let weth = <<Runtime as pallet_dynamic_evm_fee::Config>::WethAssetId as frame_support::traits::Get<_>>::get();
-	let _ = <hydradx_runtime::Currencies as MultiCurrency<_>>::deposit(
-		weth,
-		&acl_admin_account,
-		1_000_000_000_000_000_000_000u128, // 1000 WETH (18 decimals)
-	);
-
 	// Runtime bytecode: PUSH32 <price> | PUSH1 0 | MSTORE | PUSH1 32 | PUSH1 0 | RETURN
 	let mut runtime = vec![0x7f]; // PUSH32
 	runtime.extend_from_slice(&price.to_big_endian());
