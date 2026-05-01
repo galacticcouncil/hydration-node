@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "408.0.0"
+version = "412.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -50,6 +50,7 @@ pallet-relaychain-info = { workspace = true }
 pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-asset-registry = { workspace = true }
 pallet-collator-rewards = { workspace = true }
+pallet-collator-rotation = { workspace = true }
 pallet-currencies = { workspace = true }
 pallet-currencies-rpc-runtime-api = { workspace = true }
 pallet-ema-oracle = { workspace = true }
@@ -321,6 +322,7 @@ std = [
     "pallet-claims/std",
     "pallet-treasury/std",
     "pallet-collator-selection/std",
+    "pallet-collator-rotation/std",
     "pallet-authorship/std",
     "pallet-utility/std",
     "pallet-uniques/std",
@@ -451,6 +453,7 @@ try-runtime = [
     "pallet-omnipool/try-runtime",
     "pallet-dca/try-runtime",
     "pallet-collator-rewards/try-runtime",
+    "pallet-collator-rotation/try-runtime",
     "pallet-genesis-history/try-runtime",
     "pallet-claims/try-runtime",
     "pallet-duster/try-runtime",
