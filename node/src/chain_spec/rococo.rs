@@ -78,6 +78,8 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 		Default::default(),
 		// parachain ID
 		PARA_ID.into(),
+		// is_testnet
+		false,
 		// duster
 		DusterConfig {
 			// treasury
