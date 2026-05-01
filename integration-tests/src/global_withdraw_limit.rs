@@ -1574,3 +1574,54 @@ fn polkadot_xcm_execute_withdraw_external_asset_succeeds_when_oracle_cannot_pric
 		);
 	});
 }
+
+
+#[test]
+fn withdraw_succeeds_for_asset_in_overrides_but_not_in_accepted_currencies() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		init_global_withdraw_limit_params();
+		init_omnipool_with_oracle_for_block_10();
+
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DOT,
+			Some(GlobalAssetCategory::External),
+		));
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
+
+		assert!(
+			!pallet_transaction_multi_payment::AcceptedCurrencies::<hydradx_runtime::Runtime>::contains_key(DOT),
+			"precondition: DOT must not be an accepted fee currency",
+		);
+		assert!(
+			pallet_transaction_multi_payment::AcceptedCurrencyPrice::<hydradx_runtime::Runtime>::get(DOT).is_none(),
+			"precondition: DOT must not be in the multi-payment price cache",
+		);
+
+		let alice: AccountId = ALICE.into();
+		let amount = 10 * UNITS;
+		let alice_dot_before = Currencies::free_balance(DOT, &alice);
+		assert!(alice_dot_before >= amount);
+		let acc_before = CircuitBreaker::withdraw_limit_accumulator().0;
+
+		// Act
+		assert_ok!(Currencies::withdraw(
+			DOT,
+			&alice,
+			amount,
+			frame_support::traits::ExistenceRequirement::AllowDeath,
+		));
+
+		// Assert
+		assert_eq!(
+			Currencies::free_balance(DOT, &alice),
+			alice_dot_before - amount,
+			"DOT balance must reflect the withdraw",
+		);
+		assert!(
+			CircuitBreaker::withdraw_limit_accumulator().0 > acc_before,
+			"Global accumulator must increase — only the ConvertBalance fallback could have priced this withdraw",
+		);
+	});
+}

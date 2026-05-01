@@ -27,17 +27,19 @@ impl WithdrawCircuitBreaker {
 			return Ok(amount);
 		}
 
-		ConvertBalance::<TenMinutesOraclePrice, XykPaymentAssetSupport, DotAssetId>::convert((
-			asset_id,
-			ref_currency,
-			amount,
-		))
-		.map(|(converted, _)| converted)
-		.or_else(|| {
-			let price = MultiTransactionPayment::currency_price(asset_id)?;
-			multiply_by_rational_with_rounding(amount, FixedU128::DIV, price.into_inner(), Rounding::Up)
-		})
-		.ok_or_else(|| pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset.into())
+		MultiTransactionPayment::currency_price(asset_id)
+			.and_then(|price| {
+				multiply_by_rational_with_rounding(amount, FixedU128::DIV, price.into_inner(), Rounding::Up)
+			})
+			.or_else(|| {
+				ConvertBalance::<TenMinutesOraclePrice, XykPaymentAssetSupport, DotAssetId>::convert((
+					asset_id,
+					ref_currency,
+					amount,
+				))
+				.map(|(converted, _)| converted)
+			})
+			.ok_or_else(|| pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset.into())
 	}
 
 	pub fn global_asset_category(asset_id: AssetId) -> Option<GlobalAssetCategory> {
