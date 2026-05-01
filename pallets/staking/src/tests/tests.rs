@@ -269,7 +269,7 @@ fn process_votes_should_do_nothing_when_referendum_doesnt_exists() {
 }
 
 #[test]
-fn process_votes_should_work_when_on_vote_is_called() {
+fn on_before_vote_should_not_process_finished_votes() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, HDX, 150_000 * ONE),
@@ -351,14 +351,9 @@ fn process_votes_should_work_when_on_vote_is_called() {
 			));
 
 			//Assert
-			assert_eq!(
-				Position {
-					action_points: 64_u128,
-					..position_before
-				},
-				Staking::positions(position_id).unwrap()
-			);
-			assert_eq!(Votes::<Test>::get(position_id).votes.len(), 3);
+			// on_before_vote no longer processes finished votes - settlement happens at remove_vote time.
+			assert_eq!(position_before, Staking::positions(position_id).unwrap());
+			assert_eq!(Votes::<Test>::get(position_id).votes.len(), 7);
 		});
 }
 
