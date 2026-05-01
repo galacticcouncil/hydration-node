@@ -522,8 +522,6 @@ mod slim {
 			hex_literal::hex!("306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20"),
 			hex_literal::hex!("e659a7a1628cdd93febc04a4e0646ea20e9f5f0ce097d9a05290d4a9e054df4e"),
 			hex_literal::hex!("1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c"),
-			hex_literal::hex!("aa7e0000000000000000000000000000000aa7e0000000000000000000000000"),
-			hex_literal::hex!("aa7e0000000000000000000000000000000aa7e1000000000000000000000000"),
 		] {
 			accounts.insert(a);
 		}
@@ -537,6 +535,20 @@ mod slim {
 			hex_literal::hex!("E52567fF06aCd6CBe7BA94dc777a3126e180B6d9"),
 		] {
 			accounts.insert(evm_truncated_account(&h160));
+		}
+
+		// EVM-only addresses that may not be bound in EVMAccounts::AccountExtension.
+		// Insert both the truncated form (used by ExtendedAddressMapping when unbound,
+		// which is what the EVM runner reads for gas balance) and the zero-padded form,
+		// in case some snapshot historically bound the H160 to its zero-padded AccountId.
+		for h160 in [
+			hex_literal::hex!("aa7e0000000000000000000000000000000aa7e0"),
+			hex_literal::hex!("aa7e0000000000000000000000000000000aa7e1"),
+		] {
+			accounts.insert(evm_truncated_account(&h160));
+			let mut padded = [0u8; 32];
+			padded[..20].copy_from_slice(&h160);
+			accounts.insert(padded);
 		}
 
 		// PalletId accounts
