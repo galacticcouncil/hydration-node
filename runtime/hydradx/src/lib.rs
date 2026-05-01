@@ -179,6 +179,7 @@ construct_runtime!(
 		Claims: pallet_claims = 53,
 		GenesisHistory: pallet_genesis_history = 55,
 		CollatorRewards: pallet_collator_rewards = 57,
+		CollatorRotation: pallet_collator_rotation = 58,
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
 		Duster: pallet_duster = 61,
@@ -613,6 +614,15 @@ impl_runtime_apis! {
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
 		fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
 			ParachainSystem::collect_collation_info(header)
+		}
+	}
+
+	impl cumulus_primitives_core::GetCoreSelectorApi<Block> for Runtime {
+		fn core_selector() -> (
+			cumulus_primitives_core::CoreSelector,
+			cumulus_primitives_core::ClaimQueueOffset,
+		) {
+			ParachainSystem::core_selector()
 		}
 	}
 
@@ -1109,6 +1119,12 @@ impl_runtime_apis! {
 				slot: cumulus_primitives_aura::Slot,
 		) -> bool {
 				ConsensusHook::can_build_upon(included_hash, slot)
+		}
+	}
+
+	impl cumulus_primitives_core::RelayParentOffsetApi<Block> for Runtime {
+		fn relay_parent_offset() -> u32 {
+			RelayParentOffset::get()
 		}
 	}
 
