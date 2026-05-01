@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "412.0.0"
+version = "413.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -21,6 +21,7 @@ smallvec = { workspace = true }
 log = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 evm = { workspace = true, features = ["with-codec"] }
+environmental = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 
@@ -43,6 +44,7 @@ pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
 pallet-broadcast = { workspace = true }
+pallet-synthetic-logs = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
@@ -274,6 +276,7 @@ std = [
     "codec/std",
     "serde",
     "scale-info/std",
+    "environmental/std",
     "frame-executive/std",
     "frame-support/std",
     "frame-system/std",
@@ -395,6 +398,7 @@ std = [
     "pallet-referenda/std",
     "pallet-whitelist/std",
     "pallet-broadcast/std",
+    "pallet-synthetic-logs/std",
     "pallet-dispatcher/std",
     "pallet-signet/std",
     "pallet-dispenser/std",

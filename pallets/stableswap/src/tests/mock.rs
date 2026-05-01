@@ -197,7 +197,9 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	}
 }
 
-impl pallet_broadcast::Config for Test {}
+impl pallet_broadcast::Config for Test {
+	type OnTrade = ();
+}
 
 impl Config for Test {
 	type AssetId = AssetId;

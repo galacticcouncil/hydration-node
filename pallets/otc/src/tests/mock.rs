@@ -144,7 +144,9 @@ impl orml_tokens::Config for Test {
 	type CurrencyHooks = ();
 }
 
-impl pallet_broadcast::Config for Test {}
+impl pallet_broadcast::Config for Test {
+	type OnTrade = ();
+}
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
