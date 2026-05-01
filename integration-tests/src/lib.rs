@@ -41,7 +41,6 @@ mod polkadot_test_net;
 mod referrals;
 mod router;
 mod sessions;
-mod slim_snapshot;
 mod stableswap;
 mod stableswap_curve_comparison;
 mod staking;
