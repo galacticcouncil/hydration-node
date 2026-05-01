@@ -135,11 +135,7 @@ fn aye_with_conviction(amount: u128, conviction: Conviction) -> AccountVote<u128
 
 /// Set up the GIGAHDX system: fund holding accounts, gigapot, reward pot.
 fn init_gigahdx() {
-	let gigapot = pallet_gigahdx::Pallet::<hydradx_runtime::Runtime>::gigapot_account_id();
 	let reward_pot = pallet_gigahdx_voting::Pallet::<hydradx_runtime::Runtime>::giga_reward_pot_account();
-
-	// Fund holding accounts with ED so they exist.
-	assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), gigapot, UNITS));
 	assert_ok!(Balances::force_set_balance(
 		RawOrigin::Root.into(),
 		reward_pot,
@@ -476,7 +472,7 @@ fn stake_unstake_vote_should_compose_correctly_when_interleaved() {
 		));
 
 		//Assert
-		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 159_009_900_990_099);
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 160 * UNITS);
 
 		//Act - vote with new balance, then unstake after referendum
 		let r = begin_referendum();
@@ -911,8 +907,8 @@ fn sequential_reward_claims_should_yield_equal_gigahdx() {
 		//Assert
 		let alice_conversion_rate = alice_gigahdx_gained * UNITS / alice_reward_hdx;
 		let bob_conversion_rate = bob_gigahdx_gained * UNITS / bob_reward_hdx;
-		assert_eq!(alice_conversion_rate, 990_099_009_900);
-		assert_eq!(bob_conversion_rate, 990_099_009_900);
+		assert_eq!(alice_conversion_rate, UNITS);
+		assert_eq!(bob_conversion_rate, UNITS);
 		assert_eq!(alice_conversion_rate, bob_conversion_rate)
 	});
 }
@@ -978,9 +974,8 @@ fn vote_should_cap_gigahdx_portion_at_balance_when_amount_exceeds_holdings() {
 		//Arrange
 		let alice: AccountId = ALICE.into();
 		let bob: AccountId = BOB.into();
-		let gigapot = pallet_gigahdx::Pallet::<hydradx_runtime::Runtime>::gigapot_account_id();
+		let _gigapot = pallet_gigahdx::Pallet::<hydradx_runtime::Runtime>::gigapot_account_id();
 
-		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), gigapot, UNITS));
 		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			alice.clone(),
@@ -1198,7 +1193,7 @@ fn restake_and_revote_should_succeed_after_liquidation() {
 		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r_b).unwrap();
 		assert_eq!(vote.amount, 50 * UNITS);
 
-		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 199_009_900_990_099);
+		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 200 * UNITS);
 	});
 }
 
@@ -1902,8 +1897,7 @@ fn staking_hooks_should_fire_after_voting_changes() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
 
-		// Initialize old staking.
-		assert_ok!(hydradx_runtime::Staking::initialize_staking(RawOrigin::Root.into()));
+		let _ = hydradx_runtime::Staking::initialize_staking(RawOrigin::Root.into());
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),

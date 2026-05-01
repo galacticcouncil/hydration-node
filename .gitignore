@@ -50,6 +50,11 @@ fork-testing/local-raw.json
 .env
 
 SNAPSHOT*
+# `core.ignorecase=true` on macOS APFS makes the rule above also match the
+# `snapshots/` directory itself, swallowing the test fixtures under it.
+# Re-include the dir explicitly.
+!/integration-tests/snapshots/
+!/integration-tests/snapshots/**
 
 db.sqlite*
 zombienet

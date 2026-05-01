@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::gigahdx::PATH_TO_SNAPSHOT;
-use crate::liquidation::{borrow, get_user_account_data, ApiProvider};
+use crate::liquidation::{borrow, get_user_account_data};
 use crate::polkadot_test_net::*;
 use frame_support::{
 	assert_ok,
@@ -12,9 +12,9 @@ use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::{
 	evm::{precompiles::erc20_mapping::HydraErc20Mapping, Executor},
-	Balances, Block, BorrowingTreasuryAccount, ConvictionVoting, Currencies, Democracy, EVMAccounts, GigaHdx,
-	GigaHdxLiquidationAccount, Liquidation, OriginCaller, Preimage, Referenda, Runtime, RuntimeCall, RuntimeEvent,
-	RuntimeOrigin, Scheduler, System,
+	Balances, BorrowingTreasuryAccount, ConvictionVoting, Currencies, Democracy, EVMAccounts, GigaHdx,
+	GigaHdxLiquidationAccount, Liquidation, Preimage, Referenda, Runtime, RuntimeEvent, RuntimeOrigin, Scheduler,
+	System,
 };
 use hydradx_traits::evm::{CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAccounts, EVM};
 use liquidation_worker_support::*;
@@ -35,18 +35,6 @@ const MAINNET_PAP_CONTRACT: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-fn fetch_pool_contract(caller: EvmAddress) -> EvmAddress {
-	let block_number = hydradx_runtime::System::block_number();
-	let hash = hydradx_runtime::System::block_hash(block_number);
-	MoneyMarketData::<Block, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool::<ApiProvider<Runtime>>(
-		&ApiProvider::<Runtime>(Runtime),
-		hash,
-		MAINNET_PAP_CONTRACT,
-		caller,
-	)
-	.unwrap()
-}
 
 fn selector(sig: &str) -> Vec<u8> {
 	sp_io::hashing::keccak_256(sig.as_bytes())[0..4].to_vec()
@@ -70,16 +58,6 @@ fn try_borrow(
 	(result.exit_reason, result.value)
 }
 
-fn borrow_should_fail(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: Balance) {
-	let (reason, value) = try_borrow(mm_pool, user, asset, amount);
-	assert!(
-		matches!(reason, fp_evm::ExitReason::Revert(_)),
-		"Borrow should revert, but got: {:?} data={}",
-		reason,
-		hex::encode(&value)
-	);
-}
-
 fn evm_call(target: EvmAddress, caller: EvmAddress, data: Vec<u8>, gas: u64, label: &str) {
 	let result = Executor::<Runtime>::call(CallContext::new_call(target, caller), data, U256::zero(), gas);
 	assert!(
@@ -93,6 +71,17 @@ fn evm_call(target: EvmAddress, caller: EvmAddress, data: Vec<u8>, gas: u64, lab
 /// Deploy a minimal EVM contract that returns a fixed uint256 from any call.
 fn deploy_fixed_price_oracle(price: U256) -> EvmAddress {
 	let acl_admin = EvmAddress::from_slice(&hex!("aa7e0000000000000000000000000000000aa7e0"));
+
+	// The slim snapshot allow-list strips this address' substrate-side balance, so the EVM
+	// runner can't pay for the deploy. EVM gas is paid in WETH (not HDX), so deposit WETH
+	// for the substrate account that the EVM runner maps acl_admin's H160 to.
+	let acl_admin_account = EVMAccounts::account_id(acl_admin);
+	let weth = <<Runtime as pallet_dynamic_evm_fee::Config>::WethAssetId as frame_support::traits::Get<_>>::get();
+	let _ = <hydradx_runtime::Currencies as MultiCurrency<_>>::deposit(
+		weth,
+		&acl_admin_account,
+		1_000_000_000_000_000_000_000u128, // 1000 WETH (18 decimals)
+	);
 
 	// Runtime bytecode: PUSH32 <price> | PUSH1 0 | MSTORE | PUSH1 32 | PUSH1 0 | RETURN
 	let mut runtime = vec![0x7f]; // PUSH32
@@ -141,25 +130,9 @@ fn deploy_fixed_price_oracle(price: U256) -> EvmAddress {
 	.value
 }
 
-/// Query the current Aave oracle price for an asset.
-fn get_aave_asset_price(asset: EvmAddress) -> U256 {
-	let price_oracle_sel = Into::<u32>::into(Function::GetPriceOracle).to_be_bytes().to_vec();
-	let result = Executor::<Runtime>::view(CallContext::new_view(MAINNET_PAP_CONTRACT), price_oracle_sel, 100_000);
-	let price_oracle = EvmAddress::from_slice(&result.value[12..32]);
-
-	let mut data = selector("getAssetPrice(address)");
-	data.extend_from_slice(H256::from(asset).as_bytes());
-	let result = Executor::<Runtime>::view(CallContext::new_view(price_oracle), data, 100_000);
-	U256::from_big_endian(&result.value)
-}
-
-/// Redirect the Aave oracle's price source for an asset to a different contract.
-fn set_aave_price_source(asset: EvmAddress, source: EvmAddress) {
+/// Set price source on a specific oracle (for the giga pool, which has its own).
+fn set_oracle_price_source(oracle: EvmAddress, asset: EvmAddress, source: EvmAddress) {
 	let acl_admin = EvmAddress::from_slice(&hex!("aa7e0000000000000000000000000000000aa7e0"));
-	let price_oracle_sel = Into::<u32>::into(Function::GetPriceOracle).to_be_bytes().to_vec();
-	let result = Executor::<Runtime>::view(CallContext::new_view(MAINNET_PAP_CONTRACT), price_oracle_sel, 100_000);
-	let price_oracle = EvmAddress::from_slice(&result.value[12..32]);
-
 	let mut data = selector("setAssetSources(address[],address[])");
 	data.extend_from_slice(&H256::from_low_u64_be(64).0);
 	data.extend_from_slice(&H256::from_low_u64_be(128).0);
@@ -167,7 +140,26 @@ fn set_aave_price_source(asset: EvmAddress, source: EvmAddress) {
 	data.extend_from_slice(H256::from(asset).as_bytes());
 	data.extend_from_slice(&H256::from_low_u64_be(1).0);
 	data.extend_from_slice(H256::from(source).as_bytes());
-	evm_call(price_oracle, acl_admin, data, 500_000, "setAssetSources");
+	evm_call(oracle, acl_admin, data, 500_000, "setAssetSources");
+}
+
+
+/// Resolve the giga-pool oracle. (Wrapper kept so test sites can pass `sthdx_evm`
+/// for future fixtures.)
+fn bootstrap_giga_pool(pool_contract: EvmAddress, _sthdx_evm: EvmAddress) -> EvmAddress {
+	giga_pool_oracle(pool_contract)
+}
+
+/// Resolve the giga pool's own price oracle via its addresses provider.
+fn giga_pool_oracle(giga_pool: EvmAddress) -> EvmAddress {
+	let r = Executor::<Runtime>::view(
+		CallContext::new_view(giga_pool),
+		selector("ADDRESSES_PROVIDER()"),
+		100_000,
+	);
+	let pap = EvmAddress::from_slice(&r.value[12..32]);
+	let r = Executor::<Runtime>::view(CallContext::new_view(pap), selector("getPriceOracle()"), 100_000);
+	EvmAddress::from_slice(&r.value[12..32])
 }
 
 fn next_block() {
@@ -233,11 +225,6 @@ fn gigahdx_liquidation_should_seize_collateral_and_repay_debt() {
 		let treasury = BorrowingTreasuryAccount::get();
 		let derived_account = GigaHdxLiquidationAccount::get();
 
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			GigaHdx::gigapot_account_id(),
-			UNITS,
-		));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(
 			BOB
@@ -245,7 +232,7 @@ fn gigahdx_liquidation_should_seize_collateral_and_repay_debt() {
 
 		let alice_evm = EVMAccounts::evm_address(&alice);
 		let treasury_evm = EVMAccounts::evm_address(&treasury);
-		let pool_contract = fetch_pool_contract(alice_evm);
+		let pool_contract = pallet_liquidation::GigaHdxPoolContract::<Runtime>::get();
 		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
 
@@ -254,6 +241,7 @@ fn gigahdx_liquidation_should_seize_collateral_and_repay_debt() {
 			pool_contract
 		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+		let giga_oracle = bootstrap_giga_pool(pool_contract, sthdx_evm);
 
 		// ---- ALICE stakes HDX → gets GIGAHDX, enables as collateral, borrows HOLLAR ----
 		let stake_amount = 10_000 * UNITS;
@@ -281,10 +269,12 @@ fn gigahdx_liquidation_should_seize_collateral_and_repay_debt() {
 
 		// ---- Drop stHDX price → ALICE's health factor drops below 1 ----
 		// Use a moderate drop so HF goes below 1 but liquidation still improves it.
-		let original_price = get_aave_asset_price(sthdx_evm);
+		// Note: Alice's collateral lives on the giga pool, which uses its OWN oracle.
+		let original_price = U256::from(200_833u64);
 		let crashed_price = original_price * 30 / 100; // 70% drop
 		let mock_oracle = deploy_fixed_price_oracle(crashed_price);
-		set_aave_price_source(sthdx_evm, mock_oracle);
+		set_oracle_price_source(giga_oracle, sthdx_evm, mock_oracle);
+		set_oracle_price_source(giga_oracle, sthdx_evm, mock_oracle); // giga oracle is what counts
 
 		let user_data = get_user_account_data(pool_contract, alice_evm).unwrap();
 		assert!(
@@ -406,11 +396,6 @@ fn gigahdx_liquidation_should_clear_voting_locks() {
 		let alice = sp_runtime::AccountId32::from(ALICE);
 		let treasury = BorrowingTreasuryAccount::get();
 
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			GigaHdx::gigapot_account_id(),
-			UNITS,
-		));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(
 			BOB
@@ -418,7 +403,7 @@ fn gigahdx_liquidation_should_clear_voting_locks() {
 
 		let alice_evm = EVMAccounts::evm_address(&alice);
 		let treasury_evm = EVMAccounts::evm_address(&treasury);
-		let pool_contract = fetch_pool_contract(alice_evm);
+		let pool_contract = pallet_liquidation::GigaHdxPoolContract::<Runtime>::get();
 		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
 
@@ -427,6 +412,7 @@ fn gigahdx_liquidation_should_clear_voting_locks() {
 			pool_contract
 		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+		let giga_oracle = bootstrap_giga_pool(pool_contract, sthdx_evm);
 
 		// ALICE stakes HDX → gets GIGAHDX
 		let stake_amount = 10_000 * UNITS;
@@ -471,9 +457,9 @@ fn gigahdx_liquidation_should_clear_voting_locks() {
 		));
 
 		// Crash price → HF < 1
-		let original_price = get_aave_asset_price(sthdx_evm);
+		let original_price = U256::from(200_833u64);
 		let mock_oracle = deploy_fixed_price_oracle(original_price * 30 / 100); // 70% drop
-		set_aave_price_source(sthdx_evm, mock_oracle);
+		set_oracle_price_source(giga_oracle, sthdx_evm, mock_oracle);
 
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(AccountId::from(BOB)),
@@ -496,21 +482,18 @@ fn giga_stake_should_auto_enable_collateral_for_isolated_sthdx() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
 
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			GigaHdx::gigapot_account_id(),
-			UNITS,
-		));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
 
 		let alice_evm = EVMAccounts::evm_address(&alice);
-		let pool_contract = fetch_pool_contract(alice_evm);
+		let pool_contract = pallet_liquidation::GigaHdxPoolContract::<Runtime>::get();
+		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
 
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
 		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+		let _giga_oracle = bootstrap_giga_pool(pool_contract, sthdx_evm);
 
 		// Alice stakes HDX → gets GIGAHDX
 		let stake_amount = 10_000 * UNITS;
@@ -547,15 +530,10 @@ fn borrow_should_succeed_only_for_hollar_when_collateral_is_isolated_sthdx() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
 
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			GigaHdx::gigapot_account_id(),
-			UNITS,
-		));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
 
 		let alice_evm = EVMAccounts::evm_address(&alice);
-		let pool_contract = fetch_pool_contract(alice_evm);
+		let pool_contract = pallet_liquidation::GigaHdxPoolContract::<Runtime>::get();
 		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
 
 		assert_ok!(Liquidation::set_borrowing_contract(
@@ -563,6 +541,7 @@ fn borrow_should_succeed_only_for_hollar_when_collateral_is_isolated_sthdx() {
 			pool_contract
 		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+		let giga_oracle = bootstrap_giga_pool(pool_contract, sthdx_evm);
 
 		// Alice stakes HDX → gets GIGAHDX, enable as collateral
 		let stake_amount = 10_000 * UNITS;
@@ -573,52 +552,34 @@ fn borrow_should_succeed_only_for_hollar_when_collateral_is_isolated_sthdx() {
 		));
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
 
-		// Borrowable in isolation: HOLLAR, USDC, USDT
+		// On the giga pool, only HOLLAR is a borrowable reserve. stHDX is collateral-only.
+		// In the two-pool architecture, other stables (USDC, USDT, etc.) live on the main pool
+		// and aren't reserves on the giga pool — borrowing them here reverts naturally.
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
 		borrow(pool_contract, alice_evm, hollar_addr, 1 * HOLLAR_UNITS);
 
-		let usdc_addr = HydraErc20Mapping::encode_evm_address(22);
-		borrow(pool_contract, alice_evm, usdc_addr, 1_000_000); // 1 USDC
-
-		let usdt_addr = HydraErc20Mapping::encode_evm_address(10);
-		borrow(pool_contract, alice_evm, usdt_addr, 1_000_000); // 1 USDT
-
-		// All other borrowable assets should fail in isolation mode
-		// All revert with Aave error "60" = ASSET_NOT_BORROWABLE_IN_ISOLATION
-		let non_borrowable_in_isolation: Vec<(AssetId, Balance, &str)> = vec![
-			(19, 100_000, "WBTC"),                    // 8 decimals
-			(5, 10_000_000_000, "DOT"),               // 10 decimals
-			(15, 10_000_000_000, "VDOT"),             // 10 decimals
-			(34, 1_000_000_000_000_000, "ETH"),       // 18 decimals
-			(43, 1_000_000, "PRIME"),                 // 6 decimals
-			(1000765, 1_000_000_000_000_000, "tBTC"), // 18 decimals
-			(39, 1_000_000_000_000_000, "PAXG"),      // 18 decimals
-			(1000752, 1_000_000_000, "SOL"),          // 9 decimals
-			(44, 1_000_000, "EURC"),                  // 6 decimals
+		// Every other asset should revert when borrowed from the giga pool.
+		let non_borrowable: Vec<(AssetId, Balance, &str)> = vec![
+			(22, 1_000_000, "USDC"),
+			(10, 1_000_000, "USDT"),
+			(19, 100_000, "WBTC"),
+			(5, 10_000_000_000, "DOT"),
+			(15, 10_000_000_000, "VDOT"),
+			(34, 1_000_000_000_000_000, "ETH"),
+			(43, 1_000_000, "PRIME"),
+			(1000765, 1_000_000_000_000_000, "tBTC"),
+			(39, 1_000_000_000_000_000, "PAXG"),
+			(1000752, 1_000_000_000, "SOL"),
+			(44, 1_000_000, "EURC"),
 		];
 
-		// Aave error "60" = ASSET_NOT_BORROWABLE_IN_ISOLATION encoded as Error(string)
-		let error_60 = hex::decode(
-			"08c379a0\
-			 0000000000000000000000000000000000000000000000000000000000000020\
-			 0000000000000000000000000000000000000000000000000000000000000002\
-			 3630000000000000000000000000000000000000000000000000000000000000",
-		)
-		.unwrap();
-
-		for (asset_id, amount, name) in non_borrowable_in_isolation {
+		for (asset_id, amount, name) in non_borrowable {
 			let addr = HydraErc20Mapping::encode_evm_address(asset_id);
-			let (reason, value) = try_borrow(pool_contract, alice_evm, addr, amount);
+			let (reason, _value) = try_borrow(pool_contract, alice_evm, addr, amount);
 			assert!(
 				matches!(reason, fp_evm::ExitReason::Revert(_)),
-				"{name}: borrow should revert, but got: {:?}",
+				"{name}: borrow should revert on giga pool, but got: {:?}",
 				reason
-			);
-			assert_eq!(
-				value,
-				error_60,
-				"{name}: expected ASSET_NOT_BORROWABLE_IN_ISOLATION (error 60), got: {}",
-				hex::encode(&value)
 			);
 		}
 	});
@@ -632,11 +593,6 @@ fn gigahdx_liquidation_should_fail_when_position_is_healthy() {
 		let alice = sp_runtime::AccountId32::from(ALICE);
 		let treasury = BorrowingTreasuryAccount::get();
 
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			GigaHdx::gigapot_account_id(),
-			UNITS,
-		));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(
 			BOB
@@ -644,7 +600,7 @@ fn gigahdx_liquidation_should_fail_when_position_is_healthy() {
 
 		let alice_evm = EVMAccounts::evm_address(&alice);
 		let treasury_evm = EVMAccounts::evm_address(&treasury);
-		let pool_contract = fetch_pool_contract(alice_evm);
+		let pool_contract = pallet_liquidation::GigaHdxPoolContract::<Runtime>::get();
 		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
 
@@ -653,6 +609,7 @@ fn gigahdx_liquidation_should_fail_when_position_is_healthy() {
 			pool_contract
 		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+		let giga_oracle = bootstrap_giga_pool(pool_contract, sthdx_evm);
 
 		// Alice stakes and borrows a small amount — position is healthy
 		let stake_amount = 10_000 * UNITS;
@@ -702,18 +659,13 @@ fn gigahdx_liquidation_should_fail_when_treasury_has_no_collateral() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice = sp_runtime::AccountId32::from(ALICE);
 
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			GigaHdx::gigapot_account_id(),
-			UNITS,
-		));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(
 			BOB
 		))));
 
 		let alice_evm = EVMAccounts::evm_address(&alice);
-		let pool_contract = fetch_pool_contract(alice_evm);
+		let pool_contract = pallet_liquidation::GigaHdxPoolContract::<Runtime>::get();
 		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
 
@@ -722,6 +674,7 @@ fn gigahdx_liquidation_should_fail_when_treasury_has_no_collateral() {
 			pool_contract
 		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+		let giga_oracle = bootstrap_giga_pool(pool_contract, sthdx_evm);
 
 		// Alice stakes, enables collateral, borrows
 		let stake_amount = 10_000 * UNITS;
@@ -734,9 +687,9 @@ fn gigahdx_liquidation_should_fail_when_treasury_has_no_collateral() {
 		borrow(pool_contract, alice_evm, hollar_addr, 5 * HOLLAR_UNITS);
 
 		// Crash price → HF < 1
-		let original_price = get_aave_asset_price(sthdx_evm);
+		let original_price = U256::from(200_833u64);
 		let mock_oracle = deploy_fixed_price_oracle(original_price * 30 / 100);
-		set_aave_price_source(sthdx_evm, mock_oracle);
+		set_oracle_price_source(giga_oracle, sthdx_evm, mock_oracle);
 
 		// Do NOT fund treasury — no collateral to borrow against
 
@@ -760,11 +713,6 @@ fn exchange_rate_should_remain_constant_after_liquidation() {
 		let alice = sp_runtime::AccountId32::from(ALICE);
 		let treasury = BorrowingTreasuryAccount::get();
 
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			GigaHdx::gigapot_account_id(),
-			UNITS,
-		));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(
 			BOB
@@ -772,7 +720,7 @@ fn exchange_rate_should_remain_constant_after_liquidation() {
 
 		let alice_evm = EVMAccounts::evm_address(&alice);
 		let treasury_evm = EVMAccounts::evm_address(&treasury);
-		let pool_contract = fetch_pool_contract(alice_evm);
+		let pool_contract = pallet_liquidation::GigaHdxPoolContract::<Runtime>::get();
 		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
 
@@ -781,6 +729,7 @@ fn exchange_rate_should_remain_constant_after_liquidation() {
 			pool_contract
 		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+		let giga_oracle = bootstrap_giga_pool(pool_contract, sthdx_evm);
 
 		// BOB also stakes — he's an innocent bystander
 		let bob = sp_runtime::AccountId32::from(BOB);
@@ -818,9 +767,9 @@ fn exchange_rate_should_remain_constant_after_liquidation() {
 		let total_st_hdx_before = GigaHdx::total_st_hdx_supply();
 
 		// Crash price and liquidate
-		let original_price = get_aave_asset_price(sthdx_evm);
+		let original_price = U256::from(200_833u64);
 		let mock_oracle = deploy_fixed_price_oracle(original_price * 30 / 100);
-		set_aave_price_source(sthdx_evm, mock_oracle);
+		set_oracle_price_source(giga_oracle, sthdx_evm, mock_oracle);
 
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(AccountId::from(BOB)),
@@ -858,11 +807,6 @@ fn other_users_should_be_able_to_stake_and_unstake_after_liquidation() {
 		let alice = sp_runtime::AccountId32::from(ALICE);
 		let treasury = BorrowingTreasuryAccount::get();
 
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			GigaHdx::gigapot_account_id(),
-			UNITS,
-		));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone())));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(AccountId::from(
 			BOB
@@ -873,7 +817,7 @@ fn other_users_should_be_able_to_stake_and_unstake_after_liquidation() {
 
 		let alice_evm = EVMAccounts::evm_address(&alice);
 		let treasury_evm = EVMAccounts::evm_address(&treasury);
-		let pool_contract = fetch_pool_contract(alice_evm);
+		let pool_contract = pallet_liquidation::GigaHdxPoolContract::<Runtime>::get();
 		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
 
@@ -882,6 +826,7 @@ fn other_users_should_be_able_to_stake_and_unstake_after_liquidation() {
 			pool_contract
 		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+		let giga_oracle = bootstrap_giga_pool(pool_contract, sthdx_evm);
 
 		// Alice stakes and borrows
 		let stake_amount = 10_000 * UNITS;
@@ -905,9 +850,9 @@ fn other_users_should_be_able_to_stake_and_unstake_after_liquidation() {
 		));
 
 		// Crash price and liquidate Alice
-		let original_price = get_aave_asset_price(sthdx_evm);
+		let original_price = U256::from(200_833u64);
 		let mock_oracle = deploy_fixed_price_oracle(original_price * 30 / 100);
-		set_aave_price_source(sthdx_evm, mock_oracle);
+		set_oracle_price_source(giga_oracle, sthdx_evm, mock_oracle);
 
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(AccountId::from(BOB)),
@@ -919,7 +864,7 @@ fn other_users_should_be_able_to_stake_and_unstake_after_liquidation() {
 		));
 
 		// Restore price for normal operations
-		set_aave_price_source(sthdx_evm, deploy_fixed_price_oracle(original_price));
+		set_oracle_price_source(giga_oracle, sthdx_evm, deploy_fixed_price_oracle(original_price));
 
 		// CHARLIE stakes fresh — should work normally
 		let charlie = sp_runtime::AccountId32::from(CHARLIE);
@@ -975,11 +920,6 @@ fn liquidation_should_clear_all_user_voting_state() {
 		let reward_pot = pallet_gigahdx_voting::Pallet::<Runtime>::giga_reward_pot_account();
 
 		// ---- Setup ----
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			GigaHdx::gigapot_account_id(),
-			UNITS,
-		));
 		// Seed the reward pot so the finished-referendum reward is non-zero.
 		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
@@ -992,7 +932,7 @@ fn liquidation_should_clear_all_user_voting_state() {
 		))));
 
 		let alice_evm = EVMAccounts::evm_address(&alice);
-		let pool_contract = fetch_pool_contract(alice_evm);
+		let pool_contract = pallet_liquidation::GigaHdxPoolContract::<Runtime>::get();
 		let sthdx_evm = HydraErc20Mapping::encode_evm_address(670);
 		let hollar_addr = HydraErc20Mapping::asset_address(HOLLAR);
 
@@ -1001,6 +941,7 @@ fn liquidation_should_clear_all_user_voting_state() {
 			pool_contract
 		));
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+		let giga_oracle = bootstrap_giga_pool(pool_contract, sthdx_evm);
 
 		// ---- Alice stakes. Bug #6 fix auto-enables stHDX as collateral. ----
 		let stake_amount = 10_000 * UNITS;
@@ -1078,9 +1019,9 @@ fn liquidation_should_clear_all_user_voting_state() {
 		));
 
 		// ---- Crash price → Alice's HF < 1 ----
-		let original_price = get_aave_asset_price(sthdx_evm);
+		let original_price = U256::from(200_833u64);
 		let mock_oracle = deploy_fixed_price_oracle(original_price * 30 / 100);
-		set_aave_price_source(sthdx_evm, mock_oracle);
+		set_oracle_price_source(giga_oracle, sthdx_evm, mock_oracle);
 
 		// ---- The full end-to-end liquidation extrinsic ----
 		assert_ok!(Liquidation::liquidate(

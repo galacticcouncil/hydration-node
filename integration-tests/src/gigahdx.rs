@@ -19,14 +19,23 @@ use pallet_conviction_voting::{AccountVote, Conviction, Vote};
 use primitives::constants::time::DAYS;
 use primitives::Balance;
 use sp_core::U256;
-use sp_runtime::{DispatchError, TokenError};
+use sp_runtime::TokenError;
 use xcm_emulator::Network;
 
-pub const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx5_slim";
+pub const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx_slim_2lark";
 
 const UNITS: Balance = 1_000_000_000_000;
 const STHDX: u32 = 670;
 const GIGAHDX: u32 = 67;
+
+pub fn reset_giga_state_for_fixture() {
+	orml_tokens::TotalIssuance::<Runtime>::set(670, 0);
+	assert_ok!(Balances::force_set_balance(
+		RawOrigin::Root.into(),
+		GigaHdx::gigapot_account_id(),
+		0,
+	));
+}
 
 /// Requires snapshot with stHDX registered as an AAVE reserve and
 /// GIGAHDX configured as the corresponding aToken.
@@ -48,6 +57,8 @@ fn giga_stake_should_mint_gigahdx_on_mainnet_snapshot() {
 
 		let hdx_before = Currencies::free_balance(HDX, &alice);
 		let gigapot_hdx_before = Currencies::free_balance(HDX, &gigapot);
+		let total_hdx_before = GigaHdx::total_hdx();
+		let total_st_hdx_before = GigaHdx::total_st_hdx_supply();
 
 		// Stake 1000 HDX
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
@@ -65,9 +76,9 @@ fn giga_stake_should_mint_gigahdx_on_mainnet_snapshot() {
 		// GIGAHDX (aToken) received by alice via real AAVE supply
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), stake_amount);
 
-		// Exchange rate and totals updated correctly
-		assert_eq!(GigaHdx::total_hdx(), stake_amount);
-		assert_eq!(GigaHdx::total_st_hdx_supply(), stake_amount);
+		// Totals incremented by the staked amount (clean 1:1 rate after bootstrap).
+		assert_eq!(GigaHdx::total_hdx(), total_hdx_before + stake_amount);
+		assert_eq!(GigaHdx::total_st_hdx_supply(), total_st_hdx_before + stake_amount);
 		assert_eq!(GigaHdx::exchange_rate(), sp_runtime::FixedU128::from_u32(1));
 	});
 }
@@ -197,6 +208,7 @@ fn vote_should_succeed_with_only_gigahdx_balance_on_mainnet_snapshot() {
 fn exchange_rate_should_inflate_when_hdx_transferred_directly_to_gigapot() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
 		//Arrange
 		let alice = sp_runtime::AccountId32::from(ALICE);
 		let bob = sp_runtime::AccountId32::from(BOB);
@@ -258,6 +270,7 @@ fn exchange_rate_should_inflate_when_hdx_transferred_directly_to_gigapot() {
 fn giga_unstake_should_succeed_at_extreme_exchange_rate() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
 		//Arrange
 		let alice = sp_runtime::AccountId32::from(ALICE);
 		let gigapot = GigaHdx::gigapot_account_id();
@@ -290,6 +303,7 @@ fn giga_unstake_should_succeed_at_extreme_exchange_rate() {
 fn restake_should_succeed_after_full_exit() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
 		//Arrange
 		let alice = sp_runtime::AccountId32::from(ALICE);
 		let bob = sp_runtime::AccountId32::from(BOB);
@@ -331,6 +345,7 @@ fn restake_should_succeed_after_full_exit() {
 fn first_unstake_amount_should_become_usable_when_second_unstake_executed() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
 		let alice = sp_runtime::AccountId32::from(ALICE);
 		let bob = sp_runtime::AccountId32::from(BOB);
 		let gigapot = GigaHdx::gigapot_account_id();
@@ -411,6 +426,7 @@ fn first_unstake_amount_should_become_usable_when_second_unstake_executed() {
 fn lock_id_should_collide_after_partial_unlock() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
 		//Arrange
 		let alice = sp_runtime::AccountId32::from(ALICE);
 		let bob = sp_runtime::AccountId32::from(BOB);
@@ -684,6 +700,7 @@ fn giga_unstake_should_succeed_when_full_exit() {
 fn unstake_payout_should_succeed_after_donation_on_real_aave() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
 		let alice = sp_runtime::AccountId32::from(ALICE);
 		let bob = sp_runtime::AccountId32::from(BOB);
 		let gigapot = GigaHdx::gigapot_account_id();
