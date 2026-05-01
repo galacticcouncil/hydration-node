@@ -1575,7 +1575,6 @@ fn polkadot_xcm_execute_withdraw_external_asset_succeeds_when_oracle_cannot_pric
 	});
 }
 
-
 #[test]
 fn withdraw_succeeds_for_asset_in_overrides_but_not_in_accepted_currencies() {
 	TestNet::reset();
