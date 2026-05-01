@@ -1985,8 +1985,15 @@ fn giga_unstake_should_split_into_two_positions_when_active_vote_lock_exceeds_fr
 		let expected_free = total_hdx.saturating_sub(expected_voted);
 
 		let voted_cooldown = base_cooldown.max(voting_lock_remaining);
-		assert_eq!(sorted[0].amount, expected_voted, "voted portion = floor(total * 50/150)");
-		assert_eq!(sorted[0].unlock_at, before_block + voted_cooldown, "voted uses max(base, conviction)");
+		assert_eq!(
+			sorted[0].amount, expected_voted,
+			"voted portion = floor(total * 50/150)"
+		);
+		assert_eq!(
+			sorted[0].unlock_at,
+			before_block + voted_cooldown,
+			"voted uses max(base, conviction)"
+		);
 
 		assert_eq!(sorted[1].amount, expected_free, "free portion = floor(total * 100/150)");
 		assert_eq!(sorted[1].unlock_at, before_block + base_cooldown);
@@ -2024,5 +2031,505 @@ fn on_unstake_should_spill_uncovered_commitment_to_hdx_side() {
 		let split = pallet_gigahdx_voting::LockSplit::<hydradx_runtime::Runtime>::get(&alice);
 		assert_eq!(split.gigahdx_amount, 50 * UNITS, "tracker capped at remaining GIGAHDX");
 		assert_eq!(split.hdx_amount, 100 * UNITS, "spillover = commitment - remaining");
+	});
+}
+
+// ===========================================================================
+// Split-unstake property/edge tests
+// ===========================================================================
+
+/// Idempotent helper — flips an Ongoing referendum to Approved without using
+/// the destructive `info.take()` path (already-finished referenda are left
+/// alone).
+#[allow(dead_code)]
+fn force_approve_referendum_v(index: u32) {
+	use pallet_referenda::ReferendumInfo;
+	let now = System::block_number();
+	if let Some(ReferendumInfo::Ongoing(status)) =
+		pallet_referenda::ReferendumInfoFor::<hydradx_runtime::Runtime>::get(index)
+	{
+		pallet_referenda::ReferendumInfoFor::<hydradx_runtime::Runtime>::insert(
+			index,
+			ReferendumInfo::Approved(now, Some(status.submission_deposit), status.decision_deposit),
+		);
+	}
+}
+
+/// #1 HDX-conservation: free_hdx + voted_hdx == hdx_amount exactly.
+#[test]
+fn giga_unstake_split_should_conserve_total_hdx() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			200 * UNITS,
+		));
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(100 * UNITS, Conviction::Locked6x),
+		));
+		end_referendum();
+
+		// Capture the HDX value of the unstake before it happens.
+		let alice_hdx_before = Currencies::free_balance(0, &alice);
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			150 * UNITS,
+		));
+		let alice_hdx_after = Currencies::free_balance(0, &alice);
+		let total_hdx_received = alice_hdx_after.saturating_sub(alice_hdx_before);
+
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		let positions_sum: Balance = positions.iter().map(|p| p.amount).sum();
+		assert_eq!(
+			positions_sum, total_hdx_received,
+			"sum of position amounts must equal HDX delivered to user (no HDX gained or lost)",
+		);
+	});
+}
+
+/// #2 Full-balance-locked: when the user's entire balance is vote-locked,
+/// unstake hits only the locked portion → single voted-cooldown position.
+#[test]
+fn giga_unstake_should_create_single_voted_position_when_full_balance_locked() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+		// Vote with the FULL balance — leaves zero free GIGAHDX.
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(100 * UNITS, Conviction::Locked6x),
+		));
+		end_referendum();
+
+		let vote = pallet_gigahdx_voting::GigaHdxVotes::<hydradx_runtime::Runtime>::get(&alice, r).unwrap();
+		let before = System::block_number();
+		let voting_lock_remaining = vote.lock_expires_at.saturating_sub(before);
+		let base_cooldown = <hydradx_runtime::Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+
+		// Unstake half — the entire 50 must be the voted portion (no free room).
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			50 * UNITS,
+		));
+
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(positions.len(), 1, "free=0 → no split");
+		// Position amount is approximately the unstaked underlying — aToken
+		// interest accrual makes it slightly larger than the GIGAHDX input.
+		assert!(
+			positions[0].amount >= 50 * UNITS && positions[0].amount < 51 * UNITS,
+			"position ≈ 50 stHDX, got {}",
+			positions[0].amount,
+		);
+		assert_eq!(
+			positions[0].unlock_at,
+			before + base_cooldown.max(voting_lock_remaining),
+			"single position carries the conviction-derived cooldown",
+		);
+	});
+}
+
+/// #3 Boundary: Locked4x (28 days < 100 base) doesn't split, Locked6x
+/// (112 days > 100 base) does. Documents the strict `>` in `needs_split`.
+#[test]
+fn giga_unstake_split_should_obey_voting_lock_above_base_cooldown_boundary() {
+	let base_cooldown = <hydradx_runtime::Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+	let vote_locking_period = <hydradx_runtime::Runtime as pallet_conviction_voting::Config>::VoteLockingPeriod::get();
+	// Sanity-check the assumed parameters so this test breaks loudly if
+	// CooldownPeriod or VoteLockingPeriod are retuned.
+	assert_eq!(base_cooldown, 100 * DAYS);
+	assert_eq!(vote_locking_period, 7 * DAYS);
+
+	// Helper: stake 200, vote 100 with `c`, end_referendum, unstake 150,
+	// and return the number of unstake positions.
+	let scenario = |c: Conviction| {
+		let mut positions_len = 0usize;
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			init_gigahdx();
+			let alice: AccountId = ALICE.into();
+			assert_ok!(GigaHdx::giga_stake(
+				hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+				200 * UNITS,
+			));
+			let r = begin_referendum();
+			assert_ok!(ConvictionVoting::vote(
+				hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+				r,
+				aye_with_conviction(100 * UNITS, c),
+			));
+			end_referendum();
+			assert_ok!(GigaHdx::giga_unstake(
+				hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+				150 * UNITS,
+			));
+			positions_len = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice).len();
+		});
+		positions_len
+	};
+
+	// Locked4x = 8 × 7 d = 56 days; after end_referendum's 12-day advance the
+	// remaining lock is 44 days < 100 base → no split.
+	TestNet::reset();
+	assert_eq!(
+		scenario(Conviction::Locked4x),
+		1,
+		"Locked4x remaining < base → no split"
+	);
+	// Locked6x = 32 × 7 d = 224 days; after end_referendum's 12-day advance
+	// the remaining lock is 212 days > 100 base → split.
+	// (Locked5x = 112 d − 12 d = 100 d sits exactly on the boundary, so it
+	// also doesn't split — `needs_split` uses strict `>`.)
+	TestNet::reset();
+	assert_eq!(scenario(Conviction::Locked6x), 2, "Locked6x remaining > base → split");
+}
+
+/// #4 Lifecycle: after a split-unstake, `unlock` releases the free position
+/// after `base_cooldown`, and the voted position only after `conviction_cooldown`.
+#[test]
+fn unlock_should_release_free_position_before_voted_after_split_unstake() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+		let alice: AccountId = ALICE.into();
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			200 * UNITS,
+		));
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(100 * UNITS, Conviction::Locked6x),
+		));
+		end_referendum();
+
+		let before = System::block_number();
+		let base_cooldown = <hydradx_runtime::Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			150 * UNITS,
+		));
+		assert_eq!(
+			pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice).len(),
+			2,
+			"split produced 2 positions",
+		);
+
+		// At block before+base_cooldown+1 the free position should release;
+		// the voted position (Locked6x cooldown ≫ base) must still be pending.
+		fast_forward_to(before + base_cooldown + 1);
+		assert_ok!(GigaHdx::unlock(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			alice.clone(),
+		));
+		let positions_mid = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(positions_mid.len(), 1, "free position released, voted still pending");
+		assert!(
+			positions_mid[0].unlock_at > before + base_cooldown,
+			"remaining position is the voted one with longer cooldown",
+		);
+
+		// Fast-forward past the voted unlock too — now everything releases.
+		fast_forward_to(positions_mid[0].unlock_at + 1);
+		assert_ok!(GigaHdx::unlock(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			alice.clone(),
+		));
+		assert_eq!(
+			pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice).len(),
+			0,
+			"voted position released after conviction cooldown",
+		);
+	});
+}
+
+/// #5 Per-position `unlock_at` is anchored at the block the position was
+/// created. Two no-vote unstakes at different blocks produce two free
+/// positions whose `unlock_at` differ by exactly the elapsed blocks.
+///
+/// (Note: we deliberately don't use voted positions for this test — when the
+/// voted cooldown derives from a `PriorLockSplit` entry, all voted positions
+/// converge to `prior.until` regardless of unstake block, which is correct
+/// but defeats the "anchored at creation block" check.)
+#[test]
+fn giga_unstake_unlock_at_should_use_per_position_creation_block() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+		let alice: AccountId = ALICE.into();
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			200 * UNITS,
+		));
+		let base_cooldown = <hydradx_runtime::Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+
+		let block_t1 = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			50 * UNITS,
+		));
+		let p1 = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(p1.len(), 1);
+		assert_eq!(p1[0].unlock_at, block_t1 + base_cooldown);
+
+		fast_forward_to(block_t1 + 50);
+		let block_t2 = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			50 * UNITS,
+		));
+		let p2 = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(p2.len(), 2);
+		// The two positions' unlock_at differ by exactly the elapsed blocks.
+		let mut sorted = p2.to_vec();
+		sorted.sort_by_key(|p| p.unlock_at);
+		assert_eq!(sorted[0].unlock_at, block_t1 + base_cooldown);
+		assert_eq!(sorted[1].unlock_at, block_t2 + base_cooldown);
+		assert_eq!(sorted[1].unlock_at - sorted[0].unlock_at, 50);
+	});
+}
+
+/// #6 Position-cap edge: existing == cap−1 + 1 (no-split) just fits.
+#[test]
+fn giga_unstake_should_succeed_when_existing_positions_plus_one_just_fits_cap() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+		let alice: AccountId = ALICE.into();
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			500 * UNITS,
+		));
+		// Pre-fill 9 positions directly (no votes → next unstake is a single
+		// position). Total cap = 10.
+		pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::mutate(&alice, |positions| {
+			for i in 0..9u32 {
+				positions
+					.try_push(pallet_gigahdx::types::UnstakePosition {
+						amount: UNITS,
+						unlock_at: 10_000 + i,
+					})
+					.expect("pre-fill 9");
+			}
+		});
+
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			50 * UNITS,
+		));
+		assert_eq!(
+			pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice).len(),
+			10,
+			"9 existing + 1 new = exactly the cap",
+		);
+	});
+}
+
+/// #7 Prorate rounding: when `gigahdx_amount` doesn't divide evenly, voted_hdx
+/// is rounded down (current behavior) — verify the exact split for a small
+/// non-trivial case.
+#[test]
+fn giga_unstake_split_should_round_voted_hdx_down() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+		let alice: AccountId = ALICE.into();
+		// Choose amounts so the voted/free ratio doesn't divide evenly.
+		// Stake 21, vote 14 → free = 7. Unstake 17 → free=7, voted=10.
+		// Then voted_hdx = floor(hdx_amount * 10 / 17). For fresh-state 1:1
+		// rate, hdx_amount = 17 * UNITS so voted_hdx = floor(17e12 * 10/17) = 10e12.
+		// Use larger amounts to avoid hitting MinStake/exchange-rate edge cases.
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			2_100 * UNITS,
+		));
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(1_400 * UNITS, Conviction::Locked6x),
+		));
+		end_referendum();
+
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			1_700 * UNITS, // free=700 (within 700 free), voted=1000
+		));
+
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(positions.len(), 2);
+
+		// Sum invariant first.
+		let total: Balance = positions.iter().map(|p| p.amount).sum();
+		// Match the runtime's prorate exactly: voted = floor(total * 1000 / 1700).
+		let voted_expected = total.saturating_mul(1000) / 1700;
+		let free_expected = total - voted_expected;
+		let voted = positions.iter().min_by_key(|p| p.unlock_at).is_some(); // sanity
+		assert!(voted, "two positions present");
+
+		// Free is the position with smaller unlock_at (base cooldown < conviction).
+		let mut sorted = positions.to_vec();
+		sorted.sort_by_key(|p| p.unlock_at);
+		assert_eq!(sorted[0].amount, free_expected, "free portion matches floor split");
+		assert_eq!(sorted[1].amount, voted_expected, "voted portion matches floor split");
+	});
+}
+
+/// #8 No-vote sanity: pure free unstake produces a single base-cooldown position.
+#[test]
+fn giga_unstake_should_create_single_position_when_no_votes_active() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+		let alice: AccountId = ALICE.into();
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			100 * UNITS,
+		));
+
+		let before = System::block_number();
+		let base_cooldown = <hydradx_runtime::Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			50 * UNITS,
+		));
+
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(positions.len(), 1, "no votes → no split");
+		assert_eq!(positions[0].unlock_at, before + base_cooldown);
+	});
+}
+
+/// #9 Stale prior: Locked1x vote → end_referendum + advance past lock window
+/// → prior is `is_active() = false` after rejig → voting_lock = 0 → no split.
+#[test]
+fn giga_unstake_should_not_split_when_only_expired_priors_remain() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+		let alice: AccountId = ALICE.into();
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			200 * UNITS,
+		));
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(100 * UNITS, Conviction::Locked1x),
+		));
+		// Approve so a prior actually accumulates on remove_vote.
+		force_approve_referendum_v(r);
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			Some(0),
+			r,
+		));
+
+		// Fast-forward past the Locked1x window (1 × VoteLockingPeriod = 7 days)
+		// + a margin so the prior rejigs to inactive.
+		let now = System::block_number();
+		fast_forward_to(now + 8 * DAYS);
+
+		// Trigger an `unlock` first to clear the conviction-voting prior so the
+		// adapter's recompute drops GigaHdxVotingLock to 0.
+		assert_ok!(ConvictionVoting::unlock(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			0,
+			alice.clone().into(),
+		));
+
+		let before = System::block_number();
+		let base_cooldown = <hydradx_runtime::Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			150 * UNITS,
+		));
+
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(positions.len(), 1, "expired prior → no split");
+		assert_eq!(positions[0].unlock_at, before + base_cooldown);
+	});
+}
+
+/// #10 Multi-prior: two priors with different remaining windows — the larger
+/// drives the cooldown via `additional_unstake_lock`'s max-aggregate.
+#[test]
+fn additional_unstake_lock_should_max_aggregate_across_multiple_priors() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+		let alice: AccountId = ALICE.into();
+		assert_ok!(GigaHdx::giga_stake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			300 * UNITS,
+		));
+
+		// Vote on r1 with Locked1x, approve, remove → prior #1 (short).
+		let r1 = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r1,
+			aye_with_conviction(100 * UNITS, Conviction::Locked1x),
+		));
+		force_approve_referendum_v(r1);
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			Some(0),
+			r1,
+		));
+
+		// Vote on r2 with Locked6x, approve, remove → prior #2 (long).
+		let r2 = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			r2,
+			aye_with_conviction(150 * UNITS, Conviction::Locked6x),
+		));
+		force_approve_referendum_v(r2);
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			Some(0),
+			r2,
+		));
+
+		// Both priors are alive; the longer one (Locked6x) should drive the
+		// unstake's voted-portion cooldown.
+		let before = System::block_number();
+		let base_cooldown = <hydradx_runtime::Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		// 300 GIGAHDX, max prior g_lock = 150 → free pool = 150. Unstake 200
+		// crosses into the locked portion.
+		assert_ok!(GigaHdx::giga_unstake(
+			hydradx_runtime::RuntimeOrigin::signed(alice.clone()),
+			200 * UNITS,
+		));
+		let positions = pallet_gigahdx::UnstakePositions::<hydradx_runtime::Runtime>::get(&alice);
+		assert_eq!(positions.len(), 2, "split produced 2 positions");
+		let voted = positions.iter().max_by_key(|p| p.unlock_at).unwrap();
+		// The voted-position cooldown must reflect the LONGER (Locked6x) prior,
+		// not the Locked1x one. Locked6x = 32 × VoteLockingPeriod.
+		let voting_lock_period =
+			<hydradx_runtime::Runtime as pallet_conviction_voting::Config>::VoteLockingPeriod::get();
+		let locked6x_window = voting_lock_period.saturating_mul(32);
+		assert!(
+			voted.unlock_at >= before + base_cooldown.max(locked6x_window).saturating_sub(50),
+			"voted cooldown derived from the larger (Locked6x) prior, got {} expected ≥ {}",
+			voted.unlock_at,
+			before + base_cooldown.max(locked6x_window).saturating_sub(50),
+		);
 	});
 }

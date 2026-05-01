@@ -170,4 +170,3 @@ fn prepare_for_liquidation_should_clear_voting_lock_storage() {
 		);
 	});
 }
-

@@ -281,20 +281,17 @@ pub mod pallet {
 			// the lock floor (`unstake > free_balance`) inherits the conviction
 			// cooldown. Preserves the original commitment exactly.
 			let base_cooldown = T::CooldownPeriod::get();
-			let current_balance =
-				<T::Currency as Inspect<T::AccountId>>::balance(T::GigaHdxAssetId::get(), &who);
+			let current_balance = <T::Currency as Inspect<T::AccountId>>::balance(T::GigaHdxAssetId::get(), &who);
 			let free_balance = current_balance.saturating_sub(g_lock_before);
 			let free_gigahdx = gigahdx_amount.min(free_balance);
 			let voted_gigahdx = gigahdx_amount.saturating_sub(free_gigahdx);
-			let needs_split =
-				!voted_gigahdx.is_zero() && !free_gigahdx.is_zero() && voting_lock > base_cooldown;
+			let needs_split = !voted_gigahdx.is_zero() && !free_gigahdx.is_zero() && voting_lock > base_cooldown;
 			let projected_new_positions: u32 = if needs_split { 2 } else { 1 };
 
 			// Reject early if the position cap can't fit — saves rolling back
 			// on_unstake / MM withdraw / burn / transfer.
 			ensure!(
-				(UnstakePositions::<T>::decode_len(&who).unwrap_or(0) as u32)
-					.saturating_add(projected_new_positions)
+				(UnstakePositions::<T>::decode_len(&who).unwrap_or(0) as u32).saturating_add(projected_new_positions)
 					<= T::MaxUnstakePositions::get(),
 				Error::<T>::TooManyUnstakePositions,
 			);

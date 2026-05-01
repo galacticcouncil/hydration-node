@@ -38,7 +38,6 @@ pub trait GigaHdxHooks<AccountId, Balance, BlockNumber> {
 	/// `giga_unstake` to split the unstake into voted (conviction cooldown)
 	/// and free (base cooldown) portions.
 	fn current_voting_lock(who: &AccountId) -> Balance;
-
 }
 
 /// No-op implementation — used when no voting pallet is wired (e.g. tests).
