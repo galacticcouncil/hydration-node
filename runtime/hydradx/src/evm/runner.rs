@@ -37,6 +37,18 @@ use primitives::{AccountId, AssetId, Balance};
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
 
+// Process-local flag set while an EVM execution frame is on the stack. Read by
+// substrate-side hooks (e.g. orml-tokens PostTransfer, pallet_broadcast OnTrade)
+// to decide whether to buffer a synthetic log or skip — when in-evm, the log is
+// expected to be emitted inline by the originating precompile so it lands in the
+// real eth tx's logs. Nested frames inherit naturally via `using_once` semantics.
+environmental::environmental!(EVM_CONTEXT: bool);
+
+/// Returns true if any EVM execution frame is currently on the call stack.
+pub fn is_in_evm() -> bool {
+	EVM_CONTEXT::with(|in_evm| *in_evm).unwrap_or(false)
+}
+
 pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);
 
 impl<T, R, B> Runner<T> for WrapRunner<T, R, B>
@@ -156,23 +168,25 @@ where
 		let original_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
 
 		// Validated, flag set to false
-		let result = R::call(
-			source,
-			target,
-			input,
-			value,
-			gas_limit,
-			max_fee_per_gas,
-			max_priority_fee_per_gas,
-			nonce,
-			access_list,
-			authorization_list,
-			is_transactional,
-			false,
-			weight_limit,
-			proof_size_base_cost,
-			config,
-		)?;
+		let result = EVM_CONTEXT::using_once(&mut true, || {
+			R::call(
+				source,
+				target,
+				input,
+				value,
+				gas_limit,
+				max_fee_per_gas,
+				max_priority_fee_per_gas,
+				nonce,
+				access_list,
+				authorization_list,
+				is_transactional,
+				false,
+				weight_limit,
+				proof_size_base_cost,
+				config,
+			)
+		})?;
 
 		if validate && is_transactional && nonce.is_none() && max_priority_fee_per_gas.is_none() {
 			let current_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
@@ -221,22 +235,24 @@ where
 			)?;
 		}
 		// Validated, flag set to false
-		R::create(
-			source,
-			init,
-			value,
-			gas_limit,
-			max_fee_per_gas,
-			max_priority_fee_per_gas,
-			nonce,
-			access_list,
-			authorization_list,
-			is_transactional,
-			false,
-			weight_limit,
-			proof_size_base_cost,
-			config,
-		)
+		EVM_CONTEXT::using_once(&mut true, || {
+			R::create(
+				source,
+				init,
+				value,
+				gas_limit,
+				max_fee_per_gas,
+				max_priority_fee_per_gas,
+				nonce,
+				access_list,
+				authorization_list,
+				is_transactional,
+				false,
+				weight_limit,
+				proof_size_base_cost,
+				config,
+			)
+		})
 	}
 
 	fn create2(
@@ -275,23 +291,25 @@ where
 			)?;
 		}
 		//Validated, flag set to false
-		R::create2(
-			source,
-			init,
-			salt,
-			value,
-			gas_limit,
-			max_fee_per_gas,
-			max_priority_fee_per_gas,
-			nonce,
-			access_list,
-			authorization_list,
-			is_transactional,
-			false,
-			weight_limit,
-			proof_size_base_cost,
-			config,
-		)
+		EVM_CONTEXT::using_once(&mut true, || {
+			R::create2(
+				source,
+				init,
+				salt,
+				value,
+				gas_limit,
+				max_fee_per_gas,
+				max_priority_fee_per_gas,
+				nonce,
+				access_list,
+				authorization_list,
+				is_transactional,
+				false,
+				weight_limit,
+				proof_size_base_cost,
+				config,
+			)
+		})
 	}
 
 	fn create_force_address(
@@ -330,23 +348,25 @@ where
 			)?;
 		}
 		//Validated, flag set to false
-		R::create_force_address(
-			source,
-			init,
-			value,
-			gas_limit,
-			max_fee_per_gas,
-			max_priority_fee_per_gas,
-			nonce,
-			access_list,
-			authorization_list,
-			is_transactional,
-			false,
-			weight_limit,
-			proof_size_base_cost,
-			config,
-			contract_address,
-		)
+		EVM_CONTEXT::using_once(&mut true, || {
+			R::create_force_address(
+				source,
+				init,
+				value,
+				gas_limit,
+				max_fee_per_gas,
+				max_priority_fee_per_gas,
+				nonce,
+				access_list,
+				authorization_list,
+				is_transactional,
+				false,
+				weight_limit,
+				proof_size_base_cost,
+				config,
+				contract_address,
+			)
+		})
 	}
 }
 

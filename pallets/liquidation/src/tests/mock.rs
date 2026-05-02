@@ -279,7 +279,9 @@ impl pallet_route_executor::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_broadcast::Config for Test {}
+impl pallet_broadcast::Config for Test {
+	type OnTrade = ();
+}
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;

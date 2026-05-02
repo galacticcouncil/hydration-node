@@ -38,11 +38,12 @@ use frame_support::traits::{ExistenceRequirement, IsType, OriginTrait};
 use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
-use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
-use primitive_types::H160;
+use pallet_evm::{AddressMapping, ExitRevert, Log, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
+use pallet_synthetic_logs::{encode_u256_be, h160_to_h256, TRANSFER_TOPIC};
+use primitive_types::{H160, U256};
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::Dispatchable;
-use sp_std::marker::PhantomData;
+use sp_std::{marker::PhantomData, vec};
 
 pub struct MultiCurrencyPrecompile<Runtime>(PhantomData<Runtime>);
 
@@ -214,11 +215,12 @@ where
 		let mut input = handle.read_input()?;
 		input.expect_arguments(2)?;
 
-		let to: H160 = input.read::<Address>()?.into();
+		let to_h160: H160 = input.read::<Address>()?.into();
+		let from_h160: H160 = handle.context().caller;
 		let amount = input.read::<Balance>()?;
 
-		let origin = ExtendedAddressMapping::into_account_id(handle.context().caller);
-		let to = ExtendedAddressMapping::into_account_id(to);
+		let origin = ExtendedAddressMapping::into_account_id(from_h160);
+		let to = ExtendedAddressMapping::into_account_id(to_h160);
 
 		log::debug!(target: "evm", "multicurrency: transfer from: {origin:?}, to: {to:?}, amount: {amount:?}");
 
@@ -233,6 +235,11 @@ where
 			exit_status: ExitRevert::Reverted,
 			output: e.encode(),
 		})?;
+
+		// Emit ERC-20 Transfer log inline so eth tooling sees the event in the
+		// real eth tx's logs. The substrate-side orml hooks are suppressed for
+		// in-evm context (`is_in_evm()` returns true) so we don't double-emit.
+		emit_erc20_transfer_log(handle, asset_id, from_h160, to_h160, amount)?;
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
@@ -313,15 +320,15 @@ where
 			}
 		}
 
-		let from = ExtendedAddressMapping::into_account_id(from);
-		let to = ExtendedAddressMapping::into_account_id(to);
+		let from_acc = ExtendedAddressMapping::into_account_id(from);
+		let to_acc = ExtendedAddressMapping::into_account_id(to);
 
-		log::debug!(target: "evm", "multicurrency: transferFrom from: {from:?}, to: {to:?}, amount: {amount:?}");
+		log::debug!(target: "evm", "multicurrency: transferFrom from: {from_acc:?}, to: {to_acc:?}, amount: {amount:?}");
 
 		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
 			asset_id,
-			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from)),
-			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from_acc)),
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to_acc)),
 			amount,
 			ExistenceRequirement::AllowDeath,
 		)
@@ -330,6 +337,35 @@ where
 			output: e.encode(),
 		})?;
 
+		emit_erc20_transfer_log(handle, asset_id, from, to, amount)?;
+
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
+}
+
+/// Emit an ERC-20 `Transfer(from, to, amount)` log inline on the precompile
+/// handle so it lands in the calling eth transaction's logs. Address used is
+/// the precompile's `code_address` (the asset's erc20 contract address).
+fn emit_erc20_transfer_log(
+	handle: &mut impl PrecompileHandle,
+	asset_id: AssetId,
+	from: H160,
+	to: H160,
+	amount: Balance,
+) -> Result<(), PrecompileFailure> {
+	let _ = asset_id; // contract address is `handle.code_address()`; asset_id reserved for future use
+	let topics = vec![TRANSFER_TOPIC, h160_to_h256(from), h160_to_h256(to)];
+	let data = encode_u256_be(U256::from(amount)).to_vec();
+
+	// Charge the standard EVM log gas (3 topics, 32 bytes data).
+	let log_cost =
+		crate::evm::precompiles::costs::log_costs(topics.len(), data.len()).map_err(|_| PrecompileFailure::Error {
+			exit_status: pallet_evm::ExitError::OutOfGas,
+		})?;
+	handle.record_cost(log_cost)?;
+
+	let address = handle.code_address();
+	let log = Log { address, topics, data };
+	handle.log(log.address, log.topics, log.data)?;
+	Ok(())
 }

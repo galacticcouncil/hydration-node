@@ -318,7 +318,9 @@ impl pallet_omnipool::Config for Test {
 	type BurnProtocolFee = BurnFee;
 }
 
-impl pallet_broadcast::Config for Test {}
+impl pallet_broadcast::Config for Test {
+	type OnTrade = ();
+}
 
 pub struct CircuitBreakerHooks<T>(PhantomData<T>);
 

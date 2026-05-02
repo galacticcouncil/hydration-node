@@ -1,0 +1,63 @@
+[package]
+name = "pallet-synthetic-logs"
+version = "0.1.0"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+homepage = 'https://github.com/galacticcouncil/hydration-node'
+repository = 'https://github.com/galacticcouncil/hydration-node'
+description = "Buffer of synthetic ethereum logs from substrate-side events; flushes them as synthetic pallet_ethereum transactions on on_finalize so eth-rpc surfaces them."
+readme = "README.md"
+
+[dependencies]
+codec = { workspace = true }
+scale-info = { workspace = true }
+serde = { workspace = true, optional = true }
+log = { workspace = true }
+
+# Substrate
+sp-std = { workspace = true }
+sp-io = { workspace = true }
+sp-core = { workspace = true }
+sp-runtime = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+# Ethereum / Frontier
+ethereum = { workspace = true }
+ethereum-types = { workspace = true }
+pallet-ethereum = { workspace = true }
+fp-rpc = { workspace = true }
+fp-evm = { workspace = true }
+pallet-evm = { workspace = true }
+
+# HydraDX
+pallet-broadcast = { workspace = true }
+primitives = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "serde",
+    "log/std",
+    "sp-std/std",
+    "sp-io/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "frame-support/std",
+    "frame-system/std",
+    "ethereum/std",
+    "ethereum-types/std",
+    "pallet-ethereum/std",
+    "pallet-evm/std",
+    "fp-rpc/std",
+    "fp-evm/std",
+    "pallet-broadcast/std",
+    "primitives/std",
+]
+try-runtime = [
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+]

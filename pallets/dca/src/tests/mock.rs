@@ -363,7 +363,9 @@ parameter_types! {
 
 }
 
-impl pallet_broadcast::Config for Test {}
+impl pallet_broadcast::Config for Test {
+	type OnTrade = ();
+}
 
 type Pools = (OmniPool, Xyk);
 

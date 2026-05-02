@@ -248,7 +248,9 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_broadcast::Config for Test {}
+impl pallet_broadcast::Config for Test {
+	type OnTrade = ();
+}
 
 parameter_types! {
 	pub const MinTradingLimit: Balance = 1_000;

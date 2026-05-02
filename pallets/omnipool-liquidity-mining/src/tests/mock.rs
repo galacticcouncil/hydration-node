@@ -350,7 +350,9 @@ impl pallet_omnipool::Config for Test {
 	type BurnProtocolFee = BurnFee;
 }
 
-impl pallet_broadcast::Config for Test {}
+impl pallet_broadcast::Config for Test {
+	type OnTrade = ();
+}
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,

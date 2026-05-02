@@ -125,11 +125,14 @@ impl pallet_balances::Config for Runtime {
 pub struct CurrencyHooks;
 impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnDust = Duster;
-	type OnSlash = ();
+	type OnSlash = crate::evm::erc20_logs::EmitErc20TransferLog;
 	type PreDeposit = SufficiencyCheck;
-	type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>;
+	type PostDeposit = crate::evm::erc20_logs::OnDepositTuple<
+		pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>,
+		crate::evm::erc20_logs::EmitErc20TransferLog,
+	>;
 	type PreTransfer = SufficiencyCheck;
-	type PostTransfer = ();
+	type PostTransfer = crate::evm::erc20_logs::EmitErc20TransferLog;
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
 }
@@ -1799,7 +1802,9 @@ impl pallet_liquidation::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 }
 
-impl pallet_broadcast::Config for Runtime {}
+impl pallet_broadcast::Config for Runtime {
+	type OnTrade = crate::evm::swap_logs::EmitUniswapV2SwapLog;
+}
 
 parameter_types! {
 	pub const HsmGasLimit: u64 = 400_000;

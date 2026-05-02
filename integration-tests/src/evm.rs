@@ -4738,7 +4738,10 @@ impl PrecompileHandle for MockHandle {
 	}
 
 	fn log(&mut self, _: H160, _: Vec<H256>, _: Vec<u8>) -> Result<(), ExitError> {
-		unimplemented!()
+		// no-op: tests using this mock handle don't inspect emitted logs;
+		// the precompile (e.g. multicurrency) calls `handle.log(...)` to emit
+		// the ERC-20 Transfer event inline, which we accept silently here.
+		Ok(())
 	}
 
 	fn code_address(&self) -> H160 {

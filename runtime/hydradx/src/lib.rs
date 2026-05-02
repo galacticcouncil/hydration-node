@@ -129,7 +129,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 412,
+	spec_version: 413,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -211,6 +211,10 @@ construct_runtime!(
 		// Frontier and EVM pallets
 		EVM: pallet_evm = 90,
 		EVMChainId: pallet_evm_chain_id = 91,
+		// SyntheticLogs MUST come before Ethereum so its on_finalize runs first
+		// and writes synthetic txs into pallet_ethereum::Pending before the
+		// ethereum pallet rolls Pending into the canonical block.
+		SyntheticLogs: pallet_synthetic_logs = 86,
 		Ethereum: pallet_ethereum = 92,
 		EVMAccounts: pallet_evm_accounts = 93,
 		DynamicEvmFee: pallet_dynamic_evm_fee = 94,
