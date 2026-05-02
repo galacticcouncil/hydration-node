@@ -85,9 +85,10 @@ pub mod chain {
 	pub const XYK_SOURCE: [u8; 8] = *b"hydraxyk";
 	pub const GIGAHDX_SOURCE: [u8; 8] = *b"gigahdxs";
 
+	pub const DEFAULT_RELAY_PARENT_OFFSET: u32 = 1;
 	/// Maximum number of blocks simultaneously accepted by the Runtime, not yet included into the
 	/// relay chain.
-	pub const UNINCLUDED_SEGMENT_CAPACITY: u32 = 3;
+	pub const UNINCLUDED_SEGMENT_CAPACITY: u32 = (3 + DEFAULT_RELAY_PARENT_OFFSET) * BLOCK_PROCESSING_VELOCITY;
 	/// How many parachain blocks are processed by the relay chain per parent. Limits the number of
 	/// blocks authored per slot.
 	pub const BLOCK_PROCESSING_VELOCITY: u32 = 1;

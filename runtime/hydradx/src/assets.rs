@@ -1839,30 +1839,19 @@ impl pallet_hsm::Config for Runtime {
 
 parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
-	pub const MaxChainIdLength: u32 = 128;
-
-	pub const MaxEvmDataLength: u32 = 100_000;
-	pub const MaxSignatureDeposit: Balance = 200_000_000_000_000;
 }
 
 impl pallet_signet::Config for Runtime {
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
-	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
-	type MaxDataLength = MaxEvmDataLength;
-	type UpdateOrigin = EnsureRoot<AccountId>;
-	type MaxSignatureDeposit = MaxSignatureDeposit;
+	type UpdateOrigin = EitherOf<EnsureRoot<AccountId>, TechCommitteeMajority>;
 }
 
 parameter_types! {
 	pub const SigEthPalletId: PalletId = PalletId(*b"py/fucet");
-	pub const SigEthFaucetDispenserFee: u128 = 5_000;
-	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000_000_000_000;
-	pub const SigEthFaucetMinRequest: u64 = 0;
 	pub const SigEthFaucetFeeAssetId: AssetId = 0;
 	pub const SigEthFaucetFaucetAssetId: AssetId = 20;
-	pub const SigEthMinFaucetThreshold: u128 = 50_000_000_000_000_000u128;
 }
 
 // Treasury as the fee receiver (reuses the Treasury pallet account)
@@ -1873,26 +1862,52 @@ impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
 	}
 }
 
-pub struct SigEthFaucetContractAddr;
-impl frame_support::traits::Get<EvmAddress> for SigEthFaucetContractAddr {
-	fn get() -> EvmAddress {
-		// 0x189d33ea9A9701fdb67C21df7420868193dcf578
-		EvmAddress::from(hex_literal::hex!("189d33ea9A9701fdb67C21df7420868193dcf578"))
-	}
-}
-
 impl pallet_dispenser::Config for Runtime {
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type Currency = FungibleCurrencies<Runtime>;
-	type MinimumRequestAmount = SigEthFaucetMinRequest;
-	type MaxDispenseAmount = SigEthFaucetMaxDispense;
-	type DispenserFee = SigEthFaucetDispenserFee;
 	type FeeAsset = SigEthFaucetFeeAssetId;
 	type FaucetAsset = SigEthFaucetFaucetAssetId;
 	type FeeDestination = SigEthFaucetTreasuryAccount;
-	type FaucetAddress = SigEthFaucetContractAddr;
 	type PalletId = SigEthPalletId;
-	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = DispenserBenchmarkHelper;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct DispenserBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_dispenser::BenchmarkHelper<AccountId> for DispenserBenchmarkHelper {
+	fn register_asset(asset_id: AssetId, min_balance: Balance) -> DispatchResult {
+		if <AssetRegistry as hydradx_traits::registry::Inspect>::exists(asset_id) {
+			return Ok(());
+		}
+		let name: BoundedVec<u8, RegistryStrLimit> = asset_id
+			.to_le_bytes()
+			.to_vec()
+			.try_into()
+			.map_err(|_| DispatchError::Other("BoundedConversionFailed"))?;
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				Some(asset_id),
+				Some(name),
+				AssetKind::Token,
+				min_balance,
+				None,
+				None,
+				None,
+				None,
+			))
+		})?;
+		Ok(())
+	}
+
+	fn mint(asset_id: AssetId, who: &AccountId, amount: Balance) -> DispatchResult {
+		use frame_support::traits::fungibles::Mutate;
+		<FungibleCurrencies<Runtime> as Mutate<AccountId>>::mint_into(asset_id, who, amount)?;
+		Ok(())
+	}
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);

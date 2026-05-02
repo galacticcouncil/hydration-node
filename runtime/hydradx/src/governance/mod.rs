@@ -219,7 +219,7 @@ impl pallet_whitelist::Config for Runtime {
 parameter_types! {
 	pub const AlarmInterval: BlockNumber = 1;
 	pub const SubmissionDeposit: Balance = DOLLARS;
-	pub const UndecidingTimeout: BlockNumber = 14 * DAYS;
+	pub const UndecidingTimeout: BlockNumber = 2 * DAYS;
 }
 
 impl pallet_referenda::Config for Runtime {
