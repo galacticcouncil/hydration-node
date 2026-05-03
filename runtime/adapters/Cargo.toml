@@ -30,6 +30,7 @@ pallet-route-executor = { workspace = true }
 pallet-currencies = { workspace = true }
 pallet-stableswap = { workspace = true }
 pallet-referrals = { workspace = true }
+pallet-fee-processor = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-asset-registry = { workspace = true }
 pallet-bonds = { workspace = true }
@@ -123,4 +124,5 @@ std = [
     "pallet-omnipool-liquidity-mining/std",
     "pallet-bonds/std",
     "pallet-timestamp/std",
+    "pallet-fee-processor/std",
 ]

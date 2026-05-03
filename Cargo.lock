@@ -6350,6 +6350,7 @@ dependencies = [
  "pallet-dispatcher",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",
+ "pallet-fee-processor",
  "pallet-lbp",
  "pallet-liquidity-mining",
  "pallet-omnipool",
@@ -6466,6 +6467,7 @@ dependencies = [
  "pallet-evm-precompile-flash-loan",
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
+ "pallet-fee-processor",
  "pallet-genesis-history",
  "pallet-hsm",
  "pallet-hyperbridge",
@@ -10685,6 +10687,28 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
+]
+
+[[package]]
+name = "pallet-fee-processor"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -15729,6 +15753,7 @@ dependencies = [
  "pallet-evm",
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
+ "pallet-fee-processor",
  "pallet-hsm",
  "pallet-im-online",
  "pallet-ismp",

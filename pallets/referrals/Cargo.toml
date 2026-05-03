@@ -54,7 +54,9 @@ std = [
     "sp-core/std",
     "sp-io/std",
     "orml-tokens/std",
-    "frame-benchmarking/std"
+    "frame-benchmarking/std",
+    "hydradx-traits/std",
+    "hydra-dx-math/std",
 ]
 
 runtime-benchmarks = [

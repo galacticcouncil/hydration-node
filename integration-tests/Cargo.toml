@@ -26,6 +26,7 @@ pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-stableswap = { workspace = true }
 pallet-referrals = { workspace = true }
+pallet-fee-processor = { workspace = true }
 pallet-asset-registry = { workspace = true }
 hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }

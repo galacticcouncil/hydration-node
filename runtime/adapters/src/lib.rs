@@ -341,10 +341,12 @@ where
 		+ frame_system::Config<RuntimeOrigin = Origin, AccountId = sp_runtime::AccountId32>
 		+ pallet_staking::Config
 		+ pallet_referrals::Config
+		+ pallet_fee_processor::Config
 		+ pallet_broadcast::Config,
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
 	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
 	<Runtime as pallet_referrals::Config>::AssetId: From<AssetId>,
+	<Runtime as pallet_fee_processor::Config>::AssetId: From<AssetId>,
 	MC: MultiCurrency<AccountId, CurrencyId = AssetId, Balance = Balance>,
 {
 	type Error = DispatchError;
@@ -488,19 +490,26 @@ where
 		if asset == Lrna::get() {
 			return Ok(vec![]);
 		}
-		let referrals_used = if asset == NativeAsset::get() {
-			None
-		} else {
-			pallet_referrals::Pallet::<Runtime>::process_trade_fee(fee_account.clone(), trader, asset.into(), amount)?
-		};
 
-		let referral_amount = referrals_used.clone().map(|(balance, _)| balance).unwrap_or_default();
-		let staking_used = pallet_staking::Pallet::<Runtime>::process_trade_fee(
-			fee_account,
-			asset.into(),
-			amount.saturating_sub(referral_amount),
-		)?;
-		Ok(vec![staking_used, referrals_used])
+		let result =
+			pallet_fee_processor::Pallet::<Runtime>::process_trade_fee(fee_account, trader, asset.into(), amount)?;
+		Ok(vec![result])
+
+		/*
+			let referrals_used = if asset == NativeAsset::get() {
+				None
+			} else {
+				pallet_referrals::Pallet::<Runtime>::process_trade_fee(fee_account.clone(), trader, asset.into(), amount)?
+			};
+
+			let referral_amount = referrals_used.clone().map(|(balance, _)| balance).unwrap_or_default();
+			let staking_used = pallet_staking::Pallet::<Runtime>::process_trade_fee(
+				fee_account,
+				asset.into(),
+				amount.saturating_sub(referral_amount),
+			)?;
+			Ok(vec![staking_used, referrals_used])
+		*/
 	}
 
 	fn consume_protocol_fee(

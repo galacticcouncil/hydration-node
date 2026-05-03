@@ -42,6 +42,7 @@ pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
+pallet-fee-processor= { workspace = true }
 pallet-broadcast = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
@@ -252,6 +253,7 @@ runtime-benchmarks = [
     "pallet-hsm/runtime-benchmarks",
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
+    "pallet-fee-processor/runtime-benchmarks",
     "pallet-transaction-multi-payment/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
     "pallet-message-queue/runtime-benchmarks",
@@ -384,6 +386,7 @@ std = [
     "pallet-evm-precompile-flash-loan/std",
     "pallet-xyk/std",
     "pallet-referrals/std",
+    "pallet-fee-processor/std",
     "pallet-evm-accounts/std",
     "pallet-evm-accounts-rpc-runtime-api/std",
     "pallet-xyk-liquidity-mining/std",
@@ -477,6 +480,7 @@ try-runtime = [
     "pallet-xyk/try-runtime",
     "pallet-hsm/try-runtime",
     "pallet-referrals/try-runtime",
+    "pallet-fee-processor/try-runtime",
     "pallet-evm-accounts/try-runtime",
     "pallet-xyk-liquidity-mining/try-runtime",
     "pallet-message-queue/try-runtime",

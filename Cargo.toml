@@ -51,7 +51,8 @@ members = [
     'liquidation-worker-support',
     'pallets/hsm',
     "pallets/signet",
-    "pallets/dispenser"
+    "pallets/dispenser",
+    "pallets/fee-processor"
 ]
 
 resolver = "2"
@@ -156,6 +157,7 @@ pallet-lbp = { path = "pallets/lbp", default-features = false }
 pallet-xyk = { path = "pallets/xyk", default-features = false }
 pallet-xyk-liquidity-mining = { path = "pallets/xyk-liquidity-mining", default-features = false }
 pallet-referrals = { path = "pallets/referrals", default-features = false }
+pallet-fee-processor= { path = "pallets/fee-processor", default-features = false }
 pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false }
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
 pallet-liquidation = { path = "pallets/liquidation", default-features = false }

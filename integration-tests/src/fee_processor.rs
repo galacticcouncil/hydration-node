@@ -1,0 +1,1325 @@
+#![cfg(test)]
+
+use crate::polkadot_test_net::*;
+use frame_support::{assert_ok, traits::Hooks};
+use frame_system::RawOrigin;
+use hydradx_runtime::{
+	Currencies, FeeProcessor, Omnipool, Referrals, Router, Runtime, RuntimeOrigin, Staking, System, Tokens,
+};
+use orml_traits::MultiCurrency;
+use pallet_fee_processor::WeightInfo;
+use pallet_referrals::ReferralCode;
+use primitives::AccountId;
+use sp_runtime::{FixedU128, Permill};
+use std::vec;
+use xcm_emulator::TestExt;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+fn init_omnipool_with_oracle_for_block_24() {
+	init_omnipool();
+	seed_pot_accounts();
+	do_trade_to_populate_oracle(DAI, HDX, UNITS);
+	go_to_block(24);
+	do_trade_to_populate_oracle(DAI, HDX, UNITS);
+}
+
+fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balance) {
+	assert_ok!(Tokens::set_balance(
+		RawOrigin::Root.into(),
+		CHARLIE.into(),
+		LRNA,
+		1_000_000_000_000 * UNITS,
+		0,
+	));
+
+	assert_ok!(Omnipool::sell(
+		RuntimeOrigin::signed(CHARLIE.into()),
+		LRNA,
+		asset_1,
+		amount,
+		Balance::MIN
+	));
+
+	assert_ok!(Omnipool::sell(
+		RuntimeOrigin::signed(CHARLIE.into()),
+		LRNA,
+		asset_2,
+		amount,
+		Balance::MIN
+	));
+}
+
+fn seed_pot_accounts() {
+	// Ensure all pot accounts have at least ED so small fee transfers don't fail
+	for pot in [FeeProcessor::pot_account_id(), staking_pot(), referrals_pot()] {
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			pot,
+			HDX,
+			UNITS as i128,
+		));
+	}
+}
+
+fn staking_pot() -> AccountId {
+	Staking::pot_account_id()
+}
+
+fn referrals_pot() -> AccountId {
+	Referrals::pot_account_id()
+}
+
+fn fee_processor_pot() -> AccountId {
+	FeeProcessor::pot_account_id()
+}
+
+// ---------------------------------------------------------------------------
+// Tests: HDX fee distribution (HdxFeeReceivers: HdxStakingFeeReceiver 10%)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn hdx_fee_distributes_to_hdx_receivers() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
+
+		// Sell DAI for HDX — the trade fee on the HDX side will be in HDX
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			DAI,
+			HDX,
+			10 * UNITS,
+			0,
+		));
+
+		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_before);
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_before);
+
+		assert!(staking_increase > 0, "Staking pot should receive HDX fees");
+		assert_eq!(referrals_increase, 0, "Referrals pot should NOT receive any HDX fees");
+	});
+}
+
+#[test]
+fn hdx_fee_does_not_generate_referral_shares() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		// Set up referral code
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"FEETEST".to_vec());
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE.into()),
+			code.clone()
+		));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
+
+		let referrer_shares_before = Referrals::referrer_shares(AccountId::from(ALICE));
+		let trader_shares_before = Referrals::trader_shares(AccountId::from(BOB));
+
+		// DAI->HDX trade generates HDX fees — should NOT trigger referrals callbacks
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			DAI,
+			HDX,
+			10 * UNITS,
+			0,
+		));
+
+		let referrer_shares_after = Referrals::referrer_shares(AccountId::from(ALICE));
+		let trader_shares_after = Referrals::trader_shares(AccountId::from(BOB));
+
+		assert_eq!(
+			referrer_shares_before, referrer_shares_after,
+			"Referrer shares should NOT increase from HDX fee trade"
+		);
+		assert_eq!(
+			trader_shares_before, trader_shares_after,
+			"Trader shares should NOT increase from HDX fee trade"
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Tests: Non-HDX fee (FeeReceivers: StakingFeeReceiver 10%, ReferralsFeeReceiver 10%)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn non_hdx_fee_from_omnipool_trade_is_accumulated_in_fee_processor_pot() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		let pot_dai_before = Currencies::free_balance(DAI, &fee_processor_pot());
+
+		// Sell HDX for DAI — the trade fee on the DAI side will be in DAI (non-HDX)
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			10 * UNITS,
+			0,
+		));
+
+		let pot_dai_after = Currencies::free_balance(DAI, &fee_processor_pot());
+
+		assert!(
+			pot_dai_after > pot_dai_before,
+			"Fee processor pot should accumulate DAI fees. Before: {}, After: {}",
+			pot_dai_before,
+			pot_dai_after
+		);
+
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be marked pending for conversion"
+		);
+	});
+}
+
+#[test]
+fn non_hdx_fee_conversion_distributes_to_all_receivers() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		// Execute a trade that generates DAI fees
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+
+		let pot_dai = Currencies::free_balance(DAI, &fee_processor_pot());
+		assert!(pot_dai > 0, "Fee processor pot should have DAI");
+
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
+
+		// Manually trigger conversion
+		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
+
+		// DAI should be gone from pot (swapped to HDX)
+		let pot_dai_after = Currencies::free_balance(DAI, &fee_processor_pot());
+		assert!(
+			pot_dai_after < pot_dai,
+			"DAI should be consumed from pot after conversion"
+		);
+
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should no longer be pending"
+		);
+
+		// HDX should be distributed to all configured receiver pots
+		// FeeReceivers: StakingFeeReceiver 10%, ReferralsFeeReceiver 10%
+		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_before);
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_before);
+
+		assert!(staking_increase > 0, "Staking pot should receive HDX from conversion");
+		assert!(
+			referrals_increase > 0,
+			"Referrals pot should receive HDX from conversion"
+		);
+
+		// Staking and referrals both get 10%, but referrals on_fee_received callback
+		// redistributes some HDX to referrers, so the pot balance may be slightly less.
+		let diff = staking_increase.abs_diff(referrals_increase);
+		let tolerance = staking_increase / 10; // 10% tolerance
+		assert!(
+			diff <= tolerance,
+			"Staking (10%) and referrals (10%) should receive roughly equal amounts: {} vs {} (diff: {})",
+			staking_increase,
+			referrals_increase,
+			diff
+		);
+	});
+}
+
+#[test]
+fn non_hdx_conversion_distributes_exact_proportional_amounts_to_each_receiver() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
+		use sp_runtime::Rounding;
+
+		init_omnipool_with_oracle_for_block_24();
+
+		// Generate DAI fees via a trade
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be pending"
+		);
+
+		let pot_hdx_before = Currencies::free_balance(HDX, &fee_processor_pot());
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
+
+		// Trigger conversion
+		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
+
+		// Pull hdx_out from the Converted event — this is the actual swap output the
+		// non-HDX distribution math operates on.
+		let events = last_hydra_events(200);
+		let hdx_out = events
+			.iter()
+			.find_map(|e| match e {
+				hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::Converted {
+					asset_id,
+					hdx_out,
+					..
+				}) if *asset_id == DAI => Some(*hdx_out),
+				_ => None,
+			})
+			.expect("Converted event must be emitted");
+		assert!(hdx_out > 0, "Swap should produce non-zero HDX");
+
+		// Runtime non-HDX config: StakingFeeReceiver 10% + ReferralsFeeReceiver 10%
+		// → total_pct = 20%. Each receiver's exact share of the converted hdx_out is
+		//   floor(hdx_out * pct / total_pct) = floor(hdx_out * 10 / 20).
+		let total_pct = Permill::from_percent(20).deconstruct() as u128;
+		let receiver_pct = Permill::from_percent(10).deconstruct() as u128;
+		let expected_share =
+			multiply_by_rational_with_rounding(hdx_out, receiver_pct, total_pct, Rounding::Down).unwrap();
+
+		let staking_increase = Currencies::free_balance(HDX, &staking_pot()) - staking_before;
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()) - referrals_before;
+
+		// Referrals only receives via the non-HDX path. `on_hdx_deposited` is pure
+		// accounting (no transfer out), so the realized inflow equals the expected
+		// share *exactly* — this is the strict check that locks in the
+		//   actual_transferred == amount_passed_to_callback
+		// invariant from the tuple-based FeeReceiver design.
+		assert_eq!(
+			referrals_increase, expected_share,
+			"Referrals pot must receive exactly floor(hdx_out * pct / total_pct)"
+		);
+
+		// Staking receives the same non-HDX share AND, in addition, a secondary
+		// HDX-side trade fee from the conversion swap itself (10% via
+		// HdxStakingFeeReceiver). We can't assert the secondary amount exactly here
+		// without reaching into omnipool fee internals, but we can pin down the
+		// non-HDX contribution as a lower bound — i.e. staking received at least
+		// its share of hdx_out plus a strictly positive secondary fee.
+		assert!(
+			staking_increase > expected_share,
+			"Staking should receive its non-HDX share ({}) plus a positive secondary HDX fee, got {}",
+			expected_share,
+			staking_increase
+		);
+		let secondary_to_staking = staking_increase - expected_share;
+		assert!(secondary_to_staking > 0, "Secondary HDX-path fee should be > 0");
+
+		// Conservation on the non-HDX path: 2 × expected_share + dust == hdx_out.
+		// Pot HDX delta is the residual: the secondary fee transits the pot
+		// (transfer in then immediate transfer out to staking) and nets to zero,
+		// so any HDX left in the pot is purely the non-HDX rounding dust.
+		let pot_hdx_after = Currencies::free_balance(HDX, &fee_processor_pot());
+		let pot_residual = pot_hdx_after - pot_hdx_before;
+		assert_eq!(
+			expected_share + expected_share + pot_residual,
+			hdx_out,
+			"Non-HDX path conservation: 2 × expected_share + pot_residual == hdx_out"
+		);
+		assert!(
+			pot_residual <= 1,
+			"At most 1 wei rounding dust should remain in the pot, got {}",
+			pot_residual
+		);
+
+		// PendingConversions cleared, DAI fully drained.
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should no longer be pending"
+		);
+		assert_eq!(
+			Currencies::free_balance(DAI, &fee_processor_pot()),
+			0,
+			"DAI pot should be fully drained — do_convert uses the entire pot balance"
+		);
+	});
+}
+
+#[test]
+fn non_hdx_fee_is_converted_on_idle() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		// Execute a trade that generates DAI fees
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be pending"
+		);
+
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+
+		// Trigger on_idle with generous weight
+		let weight = frame_support::weights::Weight::from_parts(1_000_000_000_000, u64::MAX);
+		pallet_fee_processor::Pallet::<Runtime>::on_idle(hydradx_runtime::System::block_number(), weight);
+
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be converted and no longer pending"
+		);
+
+		let staking_after = Currencies::free_balance(HDX, &staking_pot());
+		assert!(
+			staking_after > staking_before,
+			"Staking pot should receive converted HDX via on_idle"
+		);
+	});
+}
+
+#[test]
+fn non_hdx_fee_generates_referral_shares_for_linked_trader() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		// Set up referral code for ALICE and link BOB
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"FEETEST".to_vec());
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE.into()),
+			code.clone()
+		));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
+
+		let referrer_shares_before = Referrals::referrer_shares(AccountId::from(ALICE));
+
+		// HDX->DAI trade generates DAI fees — non-HDX path triggers referrals callbacks
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			10 * UNITS,
+			0,
+		));
+
+		let referrer_shares_after = Referrals::referrer_shares(AccountId::from(ALICE));
+
+		assert!(
+			referrer_shares_after > referrer_shares_before,
+			"Referrer shares should increase from non-HDX fee trade. Before: {}, After: {}",
+			referrer_shares_before,
+			referrer_shares_after
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Tests: LRNA fees
+// ---------------------------------------------------------------------------
+
+#[test]
+fn lrna_fees_are_not_processed_by_fee_processor() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		let pot_lrna_before = Currencies::free_balance(LRNA, &fee_processor_pot());
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			BOB.into(),
+			LRNA,
+			100 * UNITS,
+			0,
+		));
+
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			LRNA,
+			DAI,
+			10 * UNITS,
+			0,
+		));
+
+		let pot_lrna_after = Currencies::free_balance(LRNA, &fee_processor_pot());
+		assert_eq!(
+			pot_lrna_before, pot_lrna_after,
+			"Fee processor pot should not accumulate LRNA"
+		);
+
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(LRNA),
+			"LRNA should never be pending for conversion"
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Tests: Multiple trades
+// ---------------------------------------------------------------------------
+
+#[test]
+fn multiple_hdx_trades_accumulate_in_all_hdx_receivers() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		let staking_initial = Currencies::free_balance(HDX, &staking_pot());
+		let referrals_initial = Currencies::free_balance(HDX, &referrals_pot());
+
+		// Multiple HDX-generating trades
+		for _ in 0..3 {
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				DAI,
+				HDX,
+				10 * UNITS,
+				0,
+			));
+		}
+
+		let staking_total = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_initial);
+		let referrals_total = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_initial);
+
+		assert!(
+			staking_total > 0,
+			"Staking pot should accumulate from multiple HDX trades"
+		);
+		assert_eq!(
+			referrals_total, 0,
+			"Referrals pot should NOT receive anything from HDX trades"
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Tests: Event emission
+// ---------------------------------------------------------------------------
+
+#[test]
+fn fee_received_event_is_emitted_for_hdx_fee() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			DAI,
+			HDX,
+			10 * UNITS,
+			0,
+		));
+
+		let events = last_hydra_events(100);
+		let fee_received = events.iter().any(|e| {
+			matches!(
+				e,
+				hydradx_runtime::RuntimeEvent::FeeProcessor(
+					pallet_fee_processor::Event::FeeReceived { asset, .. }
+				) if *asset == HDX
+			)
+		});
+
+		assert!(fee_received, "FeeReceived event should be emitted for HDX fee");
+	});
+}
+
+#[test]
+fn fee_received_event_is_emitted_for_non_hdx_fee() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			10 * UNITS,
+			0,
+		));
+
+		let events = last_hydra_events(100);
+		let fee_received = events.iter().any(|e| {
+			matches!(
+				e,
+				hydradx_runtime::RuntimeEvent::FeeProcessor(
+					pallet_fee_processor::Event::FeeReceived { asset, .. }
+				) if *asset == DAI
+			)
+		});
+
+		assert!(fee_received, "FeeReceived event should be emitted for DAI fee");
+	});
+}
+
+#[test]
+fn converted_event_is_emitted_after_manual_conversion() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+
+		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
+
+		let events = last_hydra_events(100);
+		let converted = events.iter().any(|e| {
+			matches!(
+				e,
+				hydradx_runtime::RuntimeEvent::FeeProcessor(
+					pallet_fee_processor::Event::Converted { asset_id, .. }
+				) if *asset_id == DAI
+			)
+		});
+
+		assert!(converted, "Converted event should be emitted after conversion");
+	});
+}
+
+#[test]
+fn tiny_hdx_fee_distributes_to_configured_receivers() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		//Arrange
+		let source: AccountId = BOB.into();
+		let trader: AccountId = BOB.into();
+
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+
+		//Act: HdxFeeReceivers = (HdxStakingFeeReceiver 10%); fee = 10 → take = 1, all to staking.
+		assert_ok!(FeeProcessor::process_trade_fee(source, trader, HDX, 10));
+
+		//Assert
+		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_before);
+		assert_eq!(staking_increase, 1);
+	});
+}
+
+/// BUG: Failed on_idle conversion removes PendingConversions but leaves
+/// funds in the pot. The fees are permanently orphaned.
+///
+/// Scenario: DAI fees accumulate from trades, then governance disables
+/// DAI trading in the Omnipool. on_idle tries to convert, the Omnipool
+/// swap fails, PendingConversions is removed, but DAI stays in the pot.
+/// No future retry will happen. Funds are stuck forever.
+#[test]
+fn failed_on_idle_conversion_drops_pending_and_keeps_funds_in_pot() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		use pallet_omnipool::types::Tradability;
+
+		init_omnipool_with_oracle_for_block_24();
+
+		// Step 1: Generate DAI fees via a normal trade
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be pending for conversion"
+		);
+
+		let pot_dai = Currencies::free_balance(DAI, &fee_processor_pot());
+		assert!(pot_dai > 0, "Pot should have DAI fees");
+
+		// Step 2: Governance disables DAI trading in the Omnipool
+		assert_ok!(Omnipool::set_asset_tradable_state(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DAI,
+			Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY, // no SELL/BUY
+		));
+
+		// Step 3: on_idle tries to convert DAI → HDX, but the swap fails
+		let weight = frame_support::weights::Weight::from_parts(1_000_000_000_000, u64::MAX);
+		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
+
+		// Pending entry is dropped on failure — funds wait in the pot until a new
+		// fee for the same asset re-marks it pending.
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"PendingConversions should be removed on failure to avoid retry churn"
+		);
+		let pot_dai_after = Currencies::free_balance(DAI, &fee_processor_pot());
+		assert_eq!(pot_dai, pot_dai_after, "DAI fees should remain in pot");
+	});
+}
+
+/// Low-decimal assets (e.g. 6 decimals like USDC) used to fail conversion
+/// because of a hard `MinimumTradingLimit` denominated in HDX-decimals (12).
+/// That gate is gone — we always attempt a swap and rely on the on_idle
+/// drop-on-failure semantics if anything goes wrong.
+#[test]
+fn low_decimal_asset_converts_without_min_amount_gate() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		use frame_support::storage::with_transaction;
+		use hydradx_traits::registry::{AssetKind, Create};
+		use sp_runtime::TransactionOutcome;
+
+		init_omnipool_with_oracle_for_block_24();
+
+		// Register a new asset with 6 decimals (like USDC)
+		let low_dec_asset = with_transaction(|| {
+			TransactionOutcome::Commit(hydradx_runtime::AssetRegistry::register_sufficient_asset(
+				None,
+				Some(b"USDC6".to_vec().try_into().unwrap()),
+				AssetKind::Token,
+				1_000, // ED
+				None,
+				Some(6), // 6 decimals
+				None,
+				None,
+			))
+		})
+		.unwrap();
+
+		let one_usdc: Balance = 1_000_000; // 1 token with 6 decimals
+
+		// Fund omnipool and BOB with the low-decimal asset.
+		// Hub-reserve must be large enough that selling `UNITS` of LRNA into the
+		// pool stays under MaxInRatio (≈1/3); with a 1:1 price + 6-decimal asset
+		// vs 12-decimal LRNA we need ~1e13 raw asset units to comfortably absorb
+		// a 1 LRNA inflow.
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			Omnipool::protocol_account(),
+			low_dec_asset,
+			(10_000_000_000 * one_usdc) as i128,
+		));
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			BOB.into(),
+			low_dec_asset,
+			(10_000_000_000 * one_usdc) as i128,
+		));
+
+		// Add to omnipool
+		assert_ok!(Omnipool::add_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			low_dec_asset,
+			FixedU128::from_rational(1, 1), // 1:1 price
+			Permill::from_percent(100),
+			AccountId::from(ALICE),
+		));
+		set_zero_reward_for_referrals(low_dec_asset);
+
+		// Populate oracle for the new asset — `do_trade_to_populate_oracle` uses
+		// `amount` as the LRNA-leg sell amount, which is denominated in LRNA
+		// decimals (12), independent of the target asset's decimals.
+		do_trade_to_populate_oracle(low_dec_asset, HDX, UNITS);
+		go_to_block(48);
+		do_trade_to_populate_oracle(low_dec_asset, HDX, UNITS);
+
+		// Trade HDX → low_dec_asset: generates a fee in the 6-decimal asset
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			low_dec_asset,
+			UNITS / 10, // small trade to stay within pool limits
+			0,
+		));
+
+		let pot_balance = Currencies::free_balance(low_dec_asset, &fee_processor_pot());
+		assert!(
+			pot_balance > 0,
+			"Fee pot should have low-decimal asset fees: {}",
+			pot_balance
+		);
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(low_dec_asset),
+			"Low-decimal asset should be marked pending"
+		);
+
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+
+		let weight = frame_support::weights::Weight::from_parts(1_000_000_000_000, u64::MAX);
+		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
+
+		// No ConversionFailed event — there's no min-amount gate any more.
+		let events = last_hydra_events(500);
+		let conversion_failed = events.iter().any(|e| {
+			matches!(
+				e,
+				hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::ConversionFailed { .. })
+			)
+		});
+		assert!(
+			!conversion_failed,
+			"ConversionFailed should not fire for low-decimal asset"
+		);
+
+		// Pot drained, pending entry cleared, HDX delivered.
+		assert_eq!(
+			Currencies::free_balance(low_dec_asset, &fee_processor_pot()),
+			0,
+			"Pot should be drained"
+		);
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(low_dec_asset),
+			"Pending entry cleared after successful conversion"
+		);
+		assert!(
+			Currencies::free_balance(HDX, &staking_pot()) > staking_before,
+			"Staking pot should receive HDX"
+		);
+	});
+}
+
+#[test]
+fn zero_amount_fee_is_noop() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		//Arrange
+		let source: AccountId = BOB.into();
+		let trader: AccountId = BOB.into();
+
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
+
+		//Act
+		assert_ok!(FeeProcessor::process_trade_fee(source, trader, HDX, 0));
+
+		//Assert
+		assert_eq!(Currencies::free_balance(HDX, &staking_pot()), staking_before);
+		assert_eq!(Currencies::free_balance(HDX, &referrals_pot()), referrals_before);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Tests: Buy trades and mixed fee paths (A5-A6)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn buy_trade_distributes_fees_same_as_sell() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		let pot_dai_before = Currencies::free_balance(DAI, &fee_processor_pot());
+
+		// Buy DAI using HDX — generates DAI fee (non-HDX path)
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(BOB.into()),
+			DAI,
+			HDX,
+			UNITS,
+			u128::MAX,
+		));
+
+		let pot_dai_after = Currencies::free_balance(DAI, &fee_processor_pot());
+		assert!(
+			pot_dai_after > pot_dai_before,
+			"Fee processor pot should accumulate DAI fees from buy trade"
+		);
+
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be marked pending for conversion from buy trade"
+		);
+
+		// Convert and verify configured receiver pots get HDX
+		let staking_pre = Currencies::free_balance(HDX, &staking_pot());
+		let referrals_pre = Currencies::free_balance(HDX, &referrals_pot());
+
+		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
+
+		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_pre);
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_pre);
+
+		assert!(
+			staking_increase > 0,
+			"Staking should receive HDX from buy trade conversion"
+		);
+		assert!(
+			referrals_increase > 0,
+			"Referrals should receive HDX from buy trade conversion"
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Tests: on_idle conversion (B1-B4)
+// ---------------------------------------------------------------------------
+
+fn init_omnipool_with_eth_and_oracle() {
+	init_omnipool();
+	let stable_price = FixedU128::from_inner(45_000_000_000);
+	assert_ok!(Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		ETH,
+		stable_price,
+		Permill::from_percent(100),
+		AccountId::from(ALICE),
+	));
+	set_zero_reward_for_referrals(ETH);
+	seed_pot_accounts();
+	// Use smaller oracle trades for ETH to avoid MaxInRatioExceeded
+	let eth_oracle_amount = UNITS / 100;
+	do_trade_to_populate_oracle(DAI, HDX, UNITS);
+	do_trade_to_populate_oracle(ETH, HDX, eth_oracle_amount);
+	go_to_block(24);
+	do_trade_to_populate_oracle(DAI, HDX, UNITS);
+	do_trade_to_populate_oracle(ETH, HDX, eth_oracle_amount);
+}
+
+#[test]
+fn on_idle_converts_multiple_pending_assets() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_eth_and_oracle();
+
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			ETH,
+			100 * UNITS,
+			0,
+		));
+
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be pending"
+		);
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(ETH),
+			"ETH should be pending"
+		);
+
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+
+		// Trigger on_idle with enough weight for multiple conversions
+		let weight = frame_support::weights::Weight::from_parts(1_000_000_000_000, u64::MAX);
+		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
+
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be converted"
+		);
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(ETH),
+			"ETH should be converted"
+		);
+
+		let staking_after = Currencies::free_balance(HDX, &staking_pot());
+		assert!(
+			staking_after > staking_before,
+			"Staking pot should receive HDX from both conversions"
+		);
+	});
+}
+
+#[test]
+fn on_idle_weight_exhaustion_converts_partial() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_eth_and_oracle();
+
+		// Generate large fees for both assets
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			ETH,
+			100 * UNITS,
+			0,
+		));
+
+		assert_eq!(
+			pallet_fee_processor::PendingConversions::<Runtime>::count(),
+			2,
+			"Exactly 2 assets should be pending"
+		);
+
+		// Give weight for only 1 conversion (1.5x convert weight — enough for 1, not 2)
+		let convert_weight = <Runtime as pallet_fee_processor::Config>::WeightInfo::convert();
+		let ref_time = convert_weight.ref_time() + convert_weight.ref_time() / 2;
+		let weight = frame_support::weights::Weight::from_parts(ref_time, u64::MAX);
+		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
+
+		assert_eq!(
+			pallet_fee_processor::PendingConversions::<Runtime>::count(),
+			1,
+			"Only 1 asset should be processed with limited weight, leaving 1 still pending"
+		);
+	});
+}
+
+#[test]
+fn conversion_swap_generates_hdx_fee_distributed_to_hdx_receivers() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		// Generate DAI fees
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+
+		// Convert: the DAI→HDX swap itself generates an HDX fee
+		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
+
+		// Verify that the conversion generated a nested HDX FeeReceived event
+		let events = last_hydra_events(500);
+
+		let hdx_fee_during_conversion = events.iter().any(|e| {
+			matches!(
+				e,
+				hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::FeeReceived {
+					asset,
+					..
+				}) if *asset == HDX
+			)
+		});
+
+		assert!(
+			hdx_fee_during_conversion,
+			"Conversion swap should generate a nested HDX fee (re-entrant process_trade_fee)"
+		);
+
+		// Both a Converted event and HDX FeeReceived event should exist
+		let converted = events.iter().any(|e| {
+			matches!(
+				e,
+				hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::Converted { .. })
+			)
+		});
+		assert!(converted, "Converted event should be emitted");
+	});
+}
+
+#[test]
+fn double_convert_same_asset_second_fails() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		// Generate DAI fees
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+
+		// First convert succeeds
+		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
+
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should no longer be pending after conversion"
+		);
+
+		// Second convert fails — no balance left in pot (or below MinConversionAmount)
+		assert!(
+			FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI).is_err(),
+			"Second convert should fail — no DAI fees remain"
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Tests: Attack vectors / edge cases (D1-D3)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn anyone_can_call_convert() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		// Generate DAI fees
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be pending"
+		);
+
+		// DAVE — unrelated, non-privileged account — can trigger conversion
+		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(DAVE.into()), DAI));
+
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"Conversion should succeed when called by any signed account"
+		);
+	});
+}
+
+#[test]
+fn manual_convert_recovers_after_asset_unfrozen() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		use pallet_omnipool::types::Tradability;
+
+		init_omnipool_with_oracle_for_block_24();
+
+		// Generate DAI fees
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+
+		let pot_dai = Currencies::free_balance(DAI, &fee_processor_pot());
+		assert!(pot_dai > 0, "Pot should have DAI fees");
+
+		// Freeze DAI trading — no conversion route
+		assert_ok!(Omnipool::set_asset_tradable_state(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DAI,
+			Tradability::FROZEN,
+		));
+
+		// Manual convert fails while frozen
+		assert!(
+			FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI).is_err(),
+			"Convert should fail when asset trading is frozen"
+		);
+
+		// Pending entry still exists — manual convert doesn't remove it on failure
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"PendingConversions entry should survive manual convert failure"
+		);
+
+		// Unfreeze DAI
+		assert_ok!(Omnipool::set_asset_tradable_state(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DAI,
+			Tradability::SELL | Tradability::BUY | Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY,
+		));
+
+		// Manual convert now succeeds — funds recovered
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
+
+		let staking_after = Currencies::free_balance(HDX, &staking_pot());
+		assert!(
+			staking_after > staking_before,
+			"Staking pot should receive HDX after unfreezing and converting"
+		);
+
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should no longer be pending after successful conversion"
+		);
+	});
+}
+
+#[test]
+fn new_fee_re_marks_pending_after_failure_and_converts_full_pot_balance() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		use pallet_omnipool::types::Tradability;
+
+		init_omnipool_with_oracle_for_block_24();
+
+		// Generate DAI fees
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+
+		let pot_dai_first = Currencies::free_balance(DAI, &fee_processor_pot());
+		assert!(pot_dai_first > 0, "Pot should have DAI fees");
+
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be pending"
+		);
+
+		// Freeze DAI trading so the next on_idle conversion fails.
+		assert_ok!(Omnipool::set_asset_tradable_state(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DAI,
+			Tradability::FROZEN,
+		));
+
+		let weight = frame_support::weights::Weight::from_parts(1_000_000_000_000, u64::MAX);
+		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
+
+		// Pending entry dropped, funds remain in the pot.
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"Pending entry should be dropped after failure"
+		);
+		assert_eq!(
+			Currencies::free_balance(DAI, &fee_processor_pot()),
+			pot_dai_first,
+			"DAI fees should remain in pot"
+		);
+
+		// Unfreeze DAI and produce a new trade — this re-inserts DAI into PendingConversions.
+		assert_ok!(Omnipool::set_asset_tradable_state(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DAI,
+			Tradability::SELL | Tradability::BUY | Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY,
+		));
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"New trade should re-mark DAI pending"
+		);
+		let pot_dai_second = Currencies::free_balance(DAI, &fee_processor_pot());
+		assert!(
+			pot_dai_second > pot_dai_first,
+			"Second trade should have added more DAI to the pot"
+		);
+
+		// on_idle now converts the FULL pot balance (both batches) to HDX.
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
+
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be converted"
+		);
+		assert_eq!(
+			Currencies::free_balance(DAI, &fee_processor_pot()),
+			0,
+			"Pot should be fully drained — do_convert uses the full pot balance"
+		);
+		assert!(
+			Currencies::free_balance(HDX, &staking_pot()) > staking_before,
+			"Staking pot should receive HDX"
+		);
+	});
+}
+
+#[test]
+fn router_trade_fee_distribution_matches_direct_trade() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		let pot_dai_before = Currencies::free_balance(DAI, &fee_processor_pot());
+
+		// Trade via router: HDX→DAI (non-HDX fee path)
+		assert_ok!(Router::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+			vec![].try_into().unwrap()
+		));
+
+		let pot_dai_after = Currencies::free_balance(DAI, &fee_processor_pot());
+		assert!(
+			pot_dai_after > pot_dai_before,
+			"Fee processor pot should accumulate DAI fees from router trade"
+		);
+
+		// Convert and verify configured receiver pots get HDX
+		let staking_pre = Currencies::free_balance(HDX, &staking_pot());
+		let referrals_pre = Currencies::free_balance(HDX, &referrals_pot());
+
+		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
+
+		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_pre);
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_pre);
+
+		assert!(
+			staking_increase > 0,
+			"Staking should receive HDX from router trade conversion"
+		);
+		assert!(
+			referrals_increase > 0,
+			"Referrals should receive HDX from router trade conversion"
+		);
+	});
+}

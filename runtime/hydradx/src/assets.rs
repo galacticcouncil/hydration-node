@@ -1422,7 +1422,6 @@ use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;
 use pallet_hsm::WeightInfo;
-use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::types::PegType;
@@ -1727,12 +1726,6 @@ impl pallet_referrals::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
-	type Convert = ConvertViaOmnipool<Omnipool>;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type PriceProvider =
-		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type PriceProvider = ReferralsDummyPriceProvider;
 	type RewardAsset = NativeAssetId;
 	type PalletId = ReferralsPalletId;
 	type RegistrationFee = RegistrationFee;
@@ -1742,8 +1735,6 @@ impl pallet_referrals::Config for Runtime {
 	type ExternalAccount = ReferralsExternalRewardAccount;
 	type SeedNativeAmount = ReferralsSeedAmount;
 	type WeightInfo = weights::pallet_referrals::HydraWeight<Runtime>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ReferralsBenchmarkHelper;
 }
 
 parameter_types! {
@@ -1905,7 +1896,7 @@ impl pallet_dispenser::BenchmarkHelper<AccountId> for DispenserBenchmarkHelper {
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
-impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
+impl<SP> hydradx_traits::fee_processor::Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where
 	SP: SpotPriceProvider<AssetId, Price = FixedU128>,
 {
@@ -1917,10 +1908,8 @@ where
 		asset_to: AssetId,
 		amount: Balance,
 	) -> Result<Balance, Self::Error> {
-		if amount < <Runtime as pallet_omnipool::Config>::MinimumTradingLimit::get() {
-			return Err(pallet_referrals::Error::<Runtime>::ConversionMinTradingAmountNotReached.into());
-		}
-		let price = SP::spot_price(asset_to, asset_from).ok_or(pallet_referrals::Error::<Runtime>::PriceNotFound)?;
+		let price =
+			SP::spot_price(asset_to, asset_from).ok_or(pallet_fee_processor::Error::<Runtime>::PriceNotAvailable)?;
 		let amount_to_receive = price.saturating_mul_int(amount);
 		let min_expected = amount_to_receive
 			.saturating_sub(Permill::from_percent(5).mul_floor(amount_to_receive))
@@ -1935,7 +1924,7 @@ where
 		);
 		if let Err(error) = r {
 			if error == pallet_omnipool::Error::<Runtime>::ZeroAmountOut.into() {
-				return Err(pallet_referrals::Error::<Runtime>::ConversionZeroAmountReceived.into());
+				return Err(pallet_fee_processor::Error::<Runtime>::ConversionFailed.into());
 			}
 			return Err(error);
 		}
@@ -2208,4 +2197,99 @@ impl TryConvert<&<Runtime as frame_system::Config>::RuntimeCall, AssetIdOf<Runti
 			Err(call)
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// pallet-fee-processor — FeeReceiver impls and Config
+// ---------------------------------------------------------------------------
+
+parameter_types! {
+	pub const FeeProcessorPalletId: PalletId = PalletId(*b"feeproc/");
+	pub const MaxFeeConversionsPerBlock: u32 = 5;
+}
+
+/// Staking fee receiver for non-HDX path — 10% of converted HDX.
+pub struct StakingFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for StakingFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_staking::Pallet::<Runtime>::pot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(10)
+	}
+
+	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+
+	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+}
+/// Staking fee receiver for HDX path — 10% of HDX trade fees.
+pub struct HdxStakingFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for HdxStakingFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_staking::Pallet::<Runtime>::pot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(10)
+	}
+
+	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+
+	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+}
+
+/// Referrals fee receiver — needs trader context for share calculation.
+pub struct ReferralsFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for ReferralsFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_referrals::Pallet::<Runtime>::pot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(10)
+	}
+
+	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
+		pallet_referrals::Pallet::<Runtime>::on_fee_received(trader, amount)
+	}
+
+	fn on_fee_received(amount: Balance) -> Result<(), Self::Error> {
+		pallet_referrals::Pallet::<Runtime>::on_hdx_deposited(amount)
+	}
+}
+
+impl pallet_fee_processor::Config for Runtime {
+	type AssetId = AssetId;
+	type Currency = FungibleCurrencies<Runtime>;
+	type Convert = ConvertViaOmnipool<Omnipool>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type PriceProvider =
+		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type PriceProvider = ReferralsDummyPriceProvider;
+	type PalletId = FeeProcessorPalletId;
+	type HdxAssetId = NativeAssetId;
+	type LrnaAssetId = LRNA;
+	type MaxConversionsPerBlock = MaxFeeConversionsPerBlock;
+	type FeeReceivers = (StakingFeeReceiver, ReferralsFeeReceiver);
+	type HdxFeeReceivers = (HdxStakingFeeReceiver,);
+	type WeightInfo = ();
 }
