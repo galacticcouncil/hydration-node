@@ -7,7 +7,7 @@ use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hydradx_runtime::{Balances, Currencies, Runtime, RuntimeOrigin, Tokens};
 use hydradx_traits::evm::Erc20Mapping;
 use orml_traits::MultiCurrency;
-use pallet_synthetic_logs::{h160_to_h256, Pending as SyntheticLogsPending, TRANSFER_TOPIC};
+use pallet_synthetic_logs::{h160_to_h256, reserved_address_of, Pending as SyntheticLogsPending, TRANSFER_TOPIC};
 use xcm_emulator::TestExt;
 
 fn buffered_logs() -> Vec<(pallet_synthetic_logs::Bucket, H160, ethereum::Log)> {
@@ -281,6 +281,483 @@ fn currencies_withdraw_orml_buffers_burn_log() {
 		assert!(
 			burn.is_some(),
 			"Currencies::withdraw must buffer Transfer(from, 0x0, amount)"
+		);
+	});
+}
+
+// ----------------------------------------------------------------------
+// Blindspot tests: substrate transfers/swaps triggered through the dispatcher
+// precompile from inside an EVM frame. Today the substrate hooks skip on
+// `is_in_evm()` and the dispatcher does not inline-emit, so these transfers
+// and swaps are silent to `eth_getLogs`. These tests assert the desired
+// post-fix behavior — they will fail until the silent-path is closed.
+// ----------------------------------------------------------------------
+
+#[test]
+fn dispatcher_precompile_currencies_transfer_token_emits_transfer_log() {
+	use codec::Encode;
+	use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
+	use hydradx_runtime::evm::Executor;
+	use hydradx_runtime::RuntimeCall;
+	use hydradx_traits::evm::{CallContext, EVM as EVMTrait};
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+		let alice_evm = hydradx_runtime::EVMAccounts::evm_address(&AccountId::from(ALICE));
+
+		let bob_acc: AccountId = BOB.into();
+		let bob_dai_before = <Tokens as MultiCurrency<AccountId>>::free_balance(DAI, &bob_acc);
+
+		let amount: u128 = UNITS;
+		let inner = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+			dest: BOB.into(),
+			currency_id: DAI,
+			amount,
+		});
+
+		SyntheticLogsPending::<Runtime>::kill();
+		frame_system::Pallet::<Runtime>::reset_events();
+
+		let context = CallContext {
+			contract: DISPATCH_ADDR,
+			sender: alice_evm,
+			origin: alice_evm,
+		};
+		let result = Executor::<Runtime>::call(context, inner.encode(), U256::zero(), 1_000_000);
+		assert!(
+			matches!(result.exit_reason, fp_evm::ExitReason::Succeed(_)),
+			"dispatcher precompile call must succeed, got {:?}",
+			result.exit_reason
+		);
+
+		let bob_dai_after = <Tokens as MultiCurrency<AccountId>>::free_balance(DAI, &bob_acc);
+		assert_eq!(
+			bob_dai_after,
+			bob_dai_before + amount,
+			"the substrate Currencies::transfer must have happened"
+		);
+
+		let dai_addr = HydraErc20Mapping::asset_address(DAI);
+		let from_h256 = h160_to_h256(alice_h160());
+		let to_h256 = h160_to_h256(bob_h160());
+
+		let found = buffered_logs().into_iter().any(|(_, emitter, log)| {
+			emitter == dai_addr
+				&& log.address == dai_addr
+				&& log.topics.first() == Some(&TRANSFER_TOPIC)
+				&& log.topics.get(1) == Some(&from_h256)
+				&& log.topics.get(2) == Some(&to_h256)
+		});
+
+		assert!(
+			found,
+			"BLINDSPOT: dispatcher precompile dispatched Currencies::transfer(DAI) inside an \
+			 EVM frame; the substrate transfer happened, but no Transfer log made it into \
+			 pallet_synthetic_logs::Pending (and would be invisible to eth_getLogs). The \
+			 substrate hooks skip on is_in_evm(); we need them to either push to the current \
+			 EVM frame's logs (so they end up in info.logs / capture_logs) or to synthetic-logs."
+		);
+	});
+}
+
+#[test]
+fn dispatcher_precompile_omnipool_sell_emits_swap_log() {
+	use codec::Encode;
+	use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
+	use hydradx_runtime::evm::Executor;
+	use hydradx_runtime::RuntimeCall;
+	use hydradx_traits::evm::{CallContext, EVM as EVMTrait};
+	use pallet_synthetic_logs::SWAP_TOPIC;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		crate::evm::init_omnipool_with_oracle_for_block_10();
+
+		assert_ok!(hydradx_runtime::EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+		let alice_evm = hydradx_runtime::EVMAccounts::evm_address(&AccountId::from(ALICE));
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			DOT,
+			(10u128.pow(10) * 100) as i128,
+		));
+
+		let amount: u128 = 10_000_000_000;
+		let inner = RuntimeCall::Omnipool(pallet_omnipool::Call::sell {
+			asset_in: DOT,
+			asset_out: HDX,
+			amount,
+			min_buy_amount: 0,
+		});
+
+		SyntheticLogsPending::<Runtime>::kill();
+		frame_system::Pallet::<Runtime>::reset_events();
+
+		let context = CallContext {
+			contract: DISPATCH_ADDR,
+			sender: alice_evm,
+			origin: alice_evm,
+		};
+		let result = Executor::<Runtime>::call(context, inner.encode(), U256::zero(), 2_000_000);
+		assert!(
+			matches!(result.exit_reason, fp_evm::ExitReason::Succeed(_)),
+			"dispatcher precompile call must succeed, got {:?}",
+			result.exit_reason
+		);
+
+		let saw_swapped3 = frame_system::Pallet::<Runtime>::events().into_iter().any(|r| {
+			matches!(
+				&r.event,
+				hydradx_runtime::RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 { .. })
+			)
+		});
+		assert!(saw_swapped3, "Omnipool::sell via dispatcher must produce a Swapped3 substrate event");
+
+		let found = buffered_logs()
+			.into_iter()
+			.any(|(_, _, log)| log.topics.first() == Some(&SWAP_TOPIC));
+
+		assert!(
+			found,
+			"BLINDSPOT: dispatcher precompile dispatched Omnipool::sell inside an EVM frame; \
+			 Swapped3 fired on the substrate side but OnTrade::on_trade silently skips on \
+			 is_in_evm() and the dispatcher does not inline-emit. No uniswap-v2 Swap log is \
+			 visible to eth_getLogs. OnTrade should either push into the current EVM frame's \
+			 logs or to synthetic-logs when triggered from inside an EVM frame."
+		);
+	});
+}
+
+/// Order test (intra-batch). The dispatcher precompile drains the buffered
+/// frame logs and emits them via `handle.log()` *at its own call site*, so
+/// when a single dispatch contains a batch of N substrate transfers, the
+/// resulting Transfer logs in `info.logs` (and thus in the captured synth tx
+/// / real eth tx receipt) appear in the same order as the dispatched calls
+/// — not bunched at the end of the receipt.
+///
+/// Limitation: this only tests order *within* a single precompile drain. To
+/// prove order *between* substrate-hook logs and inline-emitted contract
+/// logs in the same EVM frame would require a Solidity contract that emits
+/// markers around a precompile call; not added in v1.
+#[test]
+fn dispatcher_precompile_batch_preserves_substrate_transfer_order() {
+	use codec::Encode;
+	use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
+	use hydradx_runtime::evm::Executor;
+	use hydradx_runtime::RuntimeCall;
+	use hydradx_traits::evm::{CallContext, EVM as EVMTrait};
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+		let alice_evm = hydradx_runtime::EVMAccounts::evm_address(&AccountId::from(ALICE));
+
+		// dispatch a batch of three transfers in a deterministic asset order
+		// covers both hook paths: HDX = pallet-balances RuntimeHooks; DAI/DOT = orml-tokens MutationHooks.
+		let leg_assets: [AssetId; 3] = [HDX, DAI, DOT];
+		let amount: u128 = UNITS;
+		let calls: Vec<RuntimeCall> = leg_assets
+			.iter()
+			.map(|asset| {
+				RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+					dest: BOB.into(),
+					currency_id: *asset,
+					amount,
+				})
+			})
+			.collect();
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all { calls });
+
+		SyntheticLogsPending::<Runtime>::kill();
+		frame_system::Pallet::<Runtime>::reset_events();
+
+		let context = CallContext {
+			contract: DISPATCH_ADDR,
+			sender: alice_evm,
+			origin: alice_evm,
+		};
+		let result = Executor::<Runtime>::call(context, batch.encode(), U256::zero(), 5_000_000);
+		assert!(
+			matches!(result.exit_reason, fp_evm::ExitReason::Succeed(_)),
+			"dispatcher batch must succeed, got {:?}",
+			result.exit_reason
+		);
+
+		let alice_h = alice_h160();
+		let bob_h = bob_h160();
+
+		// extract just the Transfer logs that came from one of our three asset addresses,
+		// in buffer (== insertion / dispatch) order
+		let observed: Vec<AssetId> = buffered_logs()
+			.into_iter()
+			.filter_map(|(_, _, log)| {
+				if log.topics.first() != Some(&TRANSFER_TOPIC) {
+					return None;
+				}
+				if log.topics.get(1) != Some(&h160_to_h256(alice_h)) {
+					return None;
+				}
+				if log.topics.get(2) != Some(&h160_to_h256(bob_h)) {
+					return None;
+				}
+				leg_assets.iter().copied().find(|a| HydraErc20Mapping::asset_address(*a) == log.address)
+			})
+			.collect();
+
+		assert_eq!(
+			observed,
+			leg_assets.to_vec(),
+			"Transfer logs from a batched dispatcher call must appear in dispatch order, \
+			 not bunched at the end. Expected {:?}, got {:?}",
+			leg_assets,
+			observed,
+		);
+	});
+}
+
+/// End-to-end ordering test using a custom Solidity probe contract.
+///
+/// `LogOrderProbe.exercise(token, to, amount)` does:
+///   1. emit Marker(0)
+///   2. token.transfer(to, amount)   // multicurrency precompile call
+///   3. emit Marker(1)
+///
+/// We invoke `exercise` via Executor::call. The captured logs (in synth tx
+/// order = info.logs order = log_index order) must be:
+///   [Marker(0), Transfer, Marker(1)]
+///
+/// If the precompile-level drain weren't there and we relied only on the
+/// WrapRunner-end drain, the resulting order would be:
+///   [Marker(0), Marker(1), Transfer]
+/// — substrate-hook log bunched at the end. This test guards against that
+/// regression and proves log_index ordering matches execution order across
+/// the precompile→substrate→hook→drain path.
+#[test]
+fn evm_inline_logs_around_precompile_call_preserve_log_index_order() {
+	use ethereum_types::H256;
+	use hex_literal::hex;
+	use hydradx_runtime::evm::Executor;
+	use hydradx_traits::evm::{CallContext, EVM as EVMTrait};
+
+	// keccak256("Marker(uint256)") — see node_modules ethers computation.
+	const MARKER_TOPIC: H256 = H256(hex!(
+		"83264c98256454386201e4c55918ea57058c5c0052e60bd0b0f9a8fd2f3c1b24"
+	));
+	// first 4 bytes of keccak256("exercise(address,address,uint256)")
+	const EXERCISE_SELECTOR: [u8; 4] = hex!("430c9304");
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// deploy the probe contract using ALICE as deployer
+		let alice_evm = hydradx_runtime::EVMAccounts::evm_address(&AccountId::from(ALICE));
+		let probe = crate::utils::contracts::deploy_contract("LogOrderProbe", alice_evm);
+
+		// fund the probe with DAI so it can transfer to BOB
+		let probe_acc = hydradx_runtime::EVMAccounts::truncated_account_id(probe);
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			probe_acc,
+			DAI,
+			(UNITS * 10) as i128,
+		));
+
+		// build calldata: exercise(token=DAI_addr, to=BOB_evm, amount=UNITS)
+		let dai_addr = HydraErc20Mapping::asset_address(DAI);
+		let bob_evm = bob_h160();
+		let amount = UNITS;
+		let mut calldata = EXERCISE_SELECTOR.to_vec();
+		calldata.extend_from_slice(&[0u8; 12]);
+		calldata.extend_from_slice(dai_addr.as_bytes());
+		calldata.extend_from_slice(&[0u8; 12]);
+		calldata.extend_from_slice(bob_evm.as_bytes());
+		calldata.extend_from_slice(&U256::from(amount).to_big_endian());
+
+		SyntheticLogsPending::<Runtime>::kill();
+		frame_system::Pallet::<Runtime>::reset_events();
+
+		let context = CallContext {
+			contract: probe,
+			sender: alice_evm,
+			origin: alice_evm,
+		};
+		let result = Executor::<Runtime>::call(context, calldata, U256::zero(), 5_000_000);
+		assert!(
+			matches!(result.exit_reason, fp_evm::ExitReason::Succeed(_)),
+			"probe.exercise must succeed, got {:?}",
+			result.exit_reason
+		);
+
+		// extract the 3 relevant logs in buffered order (= info.logs order = log_index order)
+		// classify each: 0=Marker(0), 1=Transfer, 2=Marker(1)
+		let from_h256 = h160_to_h256(probe);
+		let to_h256 = h160_to_h256(bob_evm);
+
+		let kinds: Vec<&'static str> = buffered_logs()
+			.into_iter()
+			.filter_map(|(_, _, log)| {
+				if log.topics.first() == Some(&MARKER_TOPIC) && log.address == probe {
+					// extract the uint256 idx from data
+					let idx = U256::from_big_endian(&log.data);
+					if idx == U256::zero() {
+						Some("Marker0")
+					} else if idx == U256::one() {
+						Some("Marker1")
+					} else {
+						None
+					}
+				} else if log.topics.first() == Some(&TRANSFER_TOPIC)
+					&& log.address == dai_addr
+					&& log.topics.get(1) == Some(&from_h256)
+					&& log.topics.get(2) == Some(&to_h256)
+				{
+					Some("Transfer")
+				} else {
+					None
+				}
+			})
+			.collect();
+
+		assert_eq!(
+			kinds,
+			vec!["Marker0", "Transfer", "Marker1"],
+			"log_index ordering must match EVM execution order: \
+			 inline Marker(0), then precompile-emitted Transfer (drained at multicurrency precompile call site), \
+			 then inline Marker(1). Got: {:?}",
+			kinds,
+		);
+	});
+}
+
+// ----------------------------------------------------------------------
+// Reserve / unreserve — substrate-side encumbrance moves that change the
+// erc20-visible `balanceOf` (which returns free balance only). To keep
+// erc20 indexers reconstructing balances from Transfer events consistent
+// with balanceOf, we mirror reserves as Transfer events to a per-owner
+// sentinel: `reserved_address_of(owner) = owner with first byte XOR 0xEE`.
+// ----------------------------------------------------------------------
+
+#[test]
+fn orml_tokens_reserve_buffers_transfer_log_to_reserved_sentinel() {
+	use orml_traits::MultiReservableCurrency;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		SyntheticLogsPending::<Runtime>::kill();
+		let amount = UNITS;
+		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(DAI, &ALICE.into(), amount));
+
+		let asset_addr = HydraErc20Mapping::asset_address(DAI);
+		let alice_h = alice_h160();
+		let reserved = reserved_address_of(alice_h);
+
+		let entry = buffered_logs()
+			.into_iter()
+			.find(|(_, emitter, log)| {
+				*emitter == asset_addr
+					&& log.topics.first() == Some(&TRANSFER_TOPIC)
+					&& log.topics.get(1) == Some(&h160_to_h256(alice_h))
+					&& log.topics.get(2) == Some(&h160_to_h256(reserved))
+			});
+		assert!(
+			entry.is_some(),
+			"orml_tokens::reserve must buffer Transfer(owner, reserved_sentinel, amount); \
+			 reserved_sentinel = {:?} for alice = {:?}",
+			reserved,
+			alice_h,
+		);
+	});
+}
+
+#[test]
+fn orml_tokens_unreserve_buffers_transfer_log_from_reserved_sentinel() {
+	use orml_traits::MultiReservableCurrency;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let amount = UNITS;
+		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(DAI, &ALICE.into(), amount));
+		SyntheticLogsPending::<Runtime>::kill();
+
+		let unreserved = <Tokens as MultiReservableCurrency<AccountId>>::unreserve(DAI, &ALICE.into(), amount);
+		assert_eq!(unreserved, 0, "all of `amount` must be unreserved");
+
+		let asset_addr = HydraErc20Mapping::asset_address(DAI);
+		let alice_h = alice_h160();
+		let reserved = reserved_address_of(alice_h);
+
+		let entry = buffered_logs()
+			.into_iter()
+			.find(|(_, emitter, log)| {
+				*emitter == asset_addr
+					&& log.topics.first() == Some(&TRANSFER_TOPIC)
+					&& log.topics.get(1) == Some(&h160_to_h256(reserved))
+					&& log.topics.get(2) == Some(&h160_to_h256(alice_h))
+			});
+		assert!(
+			entry.is_some(),
+			"orml_tokens::unreserve must buffer Transfer(reserved_sentinel, owner, amount)",
+		);
+	});
+}
+
+#[test]
+fn balances_reserve_buffers_transfer_log_to_reserved_sentinel() {
+	use frame_support::traits::ReservableCurrency;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		SyntheticLogsPending::<Runtime>::kill();
+		let amount = UNITS;
+		assert_ok!(<Balances as ReservableCurrency<AccountId>>::reserve(&ALICE.into(), amount));
+
+		let hdx_addr = HydraErc20Mapping::asset_address(HDX);
+		let alice_h = alice_h160();
+		let reserved = reserved_address_of(alice_h);
+
+		let entry = buffered_logs()
+			.into_iter()
+			.find(|(_, emitter, log)| {
+				*emitter == hdx_addr
+					&& log.topics.first() == Some(&TRANSFER_TOPIC)
+					&& log.topics.get(1) == Some(&h160_to_h256(alice_h))
+					&& log.topics.get(2) == Some(&h160_to_h256(reserved))
+			});
+		assert!(
+			entry.is_some(),
+			"pallet_balances::reserve must buffer Transfer(owner, reserved_sentinel, amount) for HDX",
+		);
+	});
+}
+
+#[test]
+fn balances_unreserve_buffers_transfer_log_from_reserved_sentinel() {
+	use frame_support::traits::ReservableCurrency;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let amount = UNITS;
+		assert_ok!(<Balances as ReservableCurrency<AccountId>>::reserve(&ALICE.into(), amount));
+		SyntheticLogsPending::<Runtime>::kill();
+
+		let unreserved = <Balances as ReservableCurrency<AccountId>>::unreserve(&ALICE.into(), amount);
+		assert_eq!(unreserved, 0, "all of `amount` must be unreserved");
+
+		let hdx_addr = HydraErc20Mapping::asset_address(HDX);
+		let alice_h = alice_h160();
+		let reserved = reserved_address_of(alice_h);
+
+		let entry = buffered_logs()
+			.into_iter()
+			.find(|(_, emitter, log)| {
+				*emitter == hdx_addr
+					&& log.topics.first() == Some(&TRANSFER_TOPIC)
+					&& log.topics.get(1) == Some(&h160_to_h256(reserved))
+					&& log.topics.get(2) == Some(&h160_to_h256(alice_h))
+			});
+		assert!(
+			entry.is_some(),
+			"pallet_balances::unreserve must buffer Transfer(reserved_sentinel, owner, amount) for HDX",
 		);
 	});
 }

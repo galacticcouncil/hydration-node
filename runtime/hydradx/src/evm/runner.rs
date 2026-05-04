@@ -37,16 +37,58 @@ use primitives::{AccountId, AssetId, Balance};
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
 
-// Process-local flag set while an EVM execution frame is on the stack. Read by
-// substrate-side hooks (e.g. orml-tokens PostTransfer, pallet_broadcast OnTrade)
-// to decide whether to buffer a synthetic log or skip — when in-evm, the log is
-// expected to be emitted inline by the originating precompile so it lands in the
-// real eth tx's logs. Nested frames inherit naturally via `using_once` semantics.
-environmental::environmental!(EVM_CONTEXT: bool);
+// Per-EVM-frame buffer of substrate-hook-emitted logs. Filled by hooks via
+// `append_to_current_evm_frame`; drained by precompiles that trigger
+// substrate dispatches (multicurrency, dispatcher) to emit inline at the
+// precompile's call site, or — as a safety net — drained by `WrapRunner`
+// after `R::call`/`R::create*` returns and appended to `info.logs`. Effect:
+//   - pallet_ethereum::transact → frontier copies info.logs into the real eth tx
+//     receipt, so substrate-origin transfers triggered from inside the frame
+//     surface in the eth tx's receipt.
+//   - Executor::call → capture_logs surfaces the same logs to pallet_synthetic_logs.
+// Active scope also serves as the "in-evm-frame" sentinel: hooks check the
+// return value of `append_to_current_evm_frame` to decide whether to fall
+// back to pallet_synthetic_logs.
+mod evm_frame_logs {
+	use sp_std::vec::Vec;
+	environmental::environmental!(EVM_FRAME_LOGS: Vec<ethereum::Log>);
 
-/// Returns true if any EVM execution frame is currently on the call stack.
-pub fn is_in_evm() -> bool {
-	EVM_CONTEXT::with(|in_evm| *in_evm).unwrap_or(false)
+	pub fn append(log: ethereum::Log) -> bool {
+		EVM_FRAME_LOGS::with(|buf| buf.push(log)).is_some()
+	}
+
+	pub fn using<R, F: FnOnce() -> R>(buf: &mut Vec<ethereum::Log>, f: F) -> R {
+		EVM_FRAME_LOGS::using_once(buf, f)
+	}
+
+	/// Drain all buffered logs from the current EVM frame and return them.
+	pub fn drain() -> Vec<ethereum::Log> {
+		EVM_FRAME_LOGS::with(|buf| sp_std::mem::take(buf)).unwrap_or_default()
+	}
+}
+
+/// Push a substrate-emitted log into the current EVM frame's log buffer.
+/// Returns `true` if a frame was active and the log was buffered, `false`
+/// otherwise (caller should then fall back to pallet_synthetic_logs).
+pub fn append_to_current_evm_frame(log: ethereum::Log) -> bool {
+	evm_frame_logs::append(log)
+}
+
+/// Drain all logs buffered in the current EVM frame. Precompiles that
+/// trigger substrate dispatches (and thus may have caused hooks to push)
+/// call this immediately before returning, then re-emit via `handle.log()`
+/// so the logs land at their natural position in the EVM execution's log
+/// list (preserving log_index order in the eventual eth tx receipt).
+pub fn drain_current_evm_frame_logs() -> Vec<ethereum::Log> {
+	evm_frame_logs::drain()
+}
+
+fn evm_log_to_fp(log: ethereum::Log) -> pallet_evm::Log {
+	pallet_evm::Log {
+		address: log.address,
+		topics: log.topics,
+		data: log.data,
+	}
 }
 
 pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);
@@ -168,7 +210,8 @@ where
 		let original_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
 
 		// Validated, flag set to false
-		let result = EVM_CONTEXT::using_once(&mut true, || {
+		let mut frame_logs: Vec<ethereum::Log> = Vec::new();
+		let mut result = evm_frame_logs::using(&mut frame_logs, || {
 			R::call(
 				source,
 				target,
@@ -187,6 +230,7 @@ where
 				config,
 			)
 		})?;
+		result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
 
 		if validate && is_transactional && nonce.is_none() && max_priority_fee_per_gas.is_none() {
 			let current_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
@@ -235,7 +279,8 @@ where
 			)?;
 		}
 		// Validated, flag set to false
-		EVM_CONTEXT::using_once(&mut true, || {
+		let mut frame_logs: Vec<ethereum::Log> = Vec::new();
+		let mut result = evm_frame_logs::using(&mut frame_logs, || {
 			R::create(
 				source,
 				init,
@@ -252,7 +297,9 @@ where
 				proof_size_base_cost,
 				config,
 			)
-		})
+		})?;
+		result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		Ok(result)
 	}
 
 	fn create2(
@@ -291,7 +338,8 @@ where
 			)?;
 		}
 		//Validated, flag set to false
-		EVM_CONTEXT::using_once(&mut true, || {
+		let mut frame_logs: Vec<ethereum::Log> = Vec::new();
+		let mut result = evm_frame_logs::using(&mut frame_logs, || {
 			R::create2(
 				source,
 				init,
@@ -309,7 +357,9 @@ where
 				proof_size_base_cost,
 				config,
 			)
-		})
+		})?;
+		result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		Ok(result)
 	}
 
 	fn create_force_address(
@@ -348,7 +398,8 @@ where
 			)?;
 		}
 		//Validated, flag set to false
-		EVM_CONTEXT::using_once(&mut true, || {
+		let mut frame_logs: Vec<ethereum::Log> = Vec::new();
+		let mut result = evm_frame_logs::using(&mut frame_logs, || {
 			R::create_force_address(
 				source,
 				init,
@@ -366,7 +417,9 @@ where
 				config,
 				contract_address,
 			)
-		})
+		})?;
+		result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		Ok(result)
 	}
 }
 

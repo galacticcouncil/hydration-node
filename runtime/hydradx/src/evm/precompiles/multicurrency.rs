@@ -38,12 +38,11 @@ use frame_support::traits::{ExistenceRequirement, IsType, OriginTrait};
 use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
-use pallet_evm::{AddressMapping, ExitRevert, Log, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
-use pallet_synthetic_logs::{encode_u256_be, h160_to_h256, TRANSFER_TOPIC};
-use primitive_types::{H160, U256};
+use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
+use primitive_types::H160;
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::Dispatchable;
-use sp_std::{marker::PhantomData, vec};
+use sp_std::marker::PhantomData;
 
 pub struct MultiCurrencyPrecompile<Runtime>(PhantomData<Runtime>);
 
@@ -236,10 +235,7 @@ where
 			output: e.encode(),
 		})?;
 
-		// Emit ERC-20 Transfer log inline so eth tooling sees the event in the
-		// real eth tx's logs. The substrate-side orml hooks are suppressed for
-		// in-evm context (`is_in_evm()` returns true) so we don't double-emit.
-		emit_erc20_transfer_log(handle, asset_id, from_h160, to_h160, amount)?;
+		crate::evm::precompiles::emit_buffered_evm_frame_logs(handle)?;
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
@@ -337,35 +333,8 @@ where
 			output: e.encode(),
 		})?;
 
-		emit_erc20_transfer_log(handle, asset_id, from, to, amount)?;
+		crate::evm::precompiles::emit_buffered_evm_frame_logs(handle)?;
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
-}
-
-/// Emit an ERC-20 `Transfer(from, to, amount)` log inline on the precompile
-/// handle so it lands in the calling eth transaction's logs. Address used is
-/// the precompile's `code_address` (the asset's erc20 contract address).
-fn emit_erc20_transfer_log(
-	handle: &mut impl PrecompileHandle,
-	asset_id: AssetId,
-	from: H160,
-	to: H160,
-	amount: Balance,
-) -> Result<(), PrecompileFailure> {
-	let _ = asset_id; // contract address is `handle.code_address()`; asset_id reserved for future use
-	let topics = vec![TRANSFER_TOPIC, h160_to_h256(from), h160_to_h256(to)];
-	let data = encode_u256_be(U256::from(amount)).to_vec();
-
-	// Charge the standard EVM log gas (3 topics, 32 bytes data).
-	let log_cost =
-		crate::evm::precompiles::costs::log_costs(topics.len(), data.len()).map_err(|_| PrecompileFailure::Error {
-			exit_status: pallet_evm::ExitError::OutOfGas,
-		})?;
-	handle.record_cost(log_cost)?;
-
-	let address = handle.code_address();
-	let log = Log { address, topics, data };
-	handle.log(log.address, log.topics, log.data)?;
-	Ok(())
 }

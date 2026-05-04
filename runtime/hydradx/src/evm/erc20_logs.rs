@@ -29,16 +29,14 @@ fn push_transfer_log(asset: AssetId, from: H160, to: H160, amount: Balance) {
 		topics: sp_std::vec![TRANSFER_TOPIC, h160_to_h256(from), h160_to_h256(to)],
 		data,
 	};
-	SyntheticLogs::<Runtime>::push(address, log);
-}
-
-fn skip() -> bool {
-	crate::evm::runner::is_in_evm()
+	if !crate::evm::runner::append_to_current_evm_frame(log.clone()) {
+		SyntheticLogs::<Runtime>::push(address, log);
+	}
 }
 
 impl OnTransfer<AccountId, AssetId, Balance> for EmitErc20TransferLog {
 	fn on_transfer(asset: AssetId, from: &AccountId, to: &AccountId, amount: Balance) -> DispatchResult {
-		if amount == 0 || skip() {
+		if amount == 0 {
 			return Ok(());
 		}
 		push_transfer_log(asset, evm_address_of(from), evm_address_of(to), amount);
@@ -48,7 +46,7 @@ impl OnTransfer<AccountId, AssetId, Balance> for EmitErc20TransferLog {
 
 impl OnDeposit<AccountId, AssetId, Balance> for EmitErc20TransferLog {
 	fn on_deposit(asset: AssetId, who: &AccountId, amount: Balance) -> DispatchResult {
-		if amount == 0 || skip() {
+		if amount == 0 {
 			return Ok(());
 		}
 		push_transfer_log(asset, H160::zero(), evm_address_of(who), amount);
@@ -58,7 +56,7 @@ impl OnDeposit<AccountId, AssetId, Balance> for EmitErc20TransferLog {
 
 impl OnSlash<AccountId, AssetId, Balance> for EmitErc20TransferLog {
 	fn on_slash(asset: AssetId, who: &AccountId, amount: Balance) {
-		if amount == 0 || skip() {
+		if amount == 0 {
 			return;
 		}
 		push_transfer_log(asset, evm_address_of(who), H160::zero(), amount);
@@ -67,7 +65,7 @@ impl OnSlash<AccountId, AssetId, Balance> for EmitErc20TransferLog {
 
 impl OnWithdraw<AccountId, AssetId, Balance> for EmitErc20TransferLog {
 	fn on_withdraw(asset: AssetId, who: &AccountId, amount: Balance) -> DispatchResult {
-		if amount == 0 || skip() {
+		if amount == 0 {
 			return Ok(());
 		}
 		push_transfer_log(asset, evm_address_of(who), H160::zero(), amount);
@@ -77,28 +75,28 @@ impl OnWithdraw<AccountId, AssetId, Balance> for EmitErc20TransferLog {
 
 impl pallet_balances::BalancesHooks<AccountId, Balance> for EmitErc20TransferLog {
 	fn on_transfer(from: &AccountId, to: &AccountId, amount: Balance) {
-		if amount == 0 || skip() {
+		if amount == 0 {
 			return;
 		}
 		push_transfer_log(CORE_ASSET_ID, evm_address_of(from), evm_address_of(to), amount);
 	}
 
 	fn on_mint(who: &AccountId, amount: Balance) {
-		if amount == 0 || skip() {
+		if amount == 0 {
 			return;
 		}
 		push_transfer_log(CORE_ASSET_ID, H160::zero(), evm_address_of(who), amount);
 	}
 
 	fn on_burn(who: &AccountId, amount: Balance) {
-		if amount == 0 || skip() {
+		if amount == 0 {
 			return;
 		}
 		push_transfer_log(CORE_ASSET_ID, evm_address_of(who), H160::zero(), amount);
 	}
 
 	fn on_dust_lost(who: &AccountId, amount: Balance) {
-		if amount == 0 || skip() {
+		if amount == 0 {
 			return;
 		}
 		push_transfer_log(CORE_ASSET_ID, evm_address_of(who), H160::zero(), amount);

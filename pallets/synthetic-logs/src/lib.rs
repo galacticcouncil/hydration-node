@@ -144,8 +144,6 @@ impl<T: Config> Pallet<T> {
 	/// Drain buffer, group by bucket, and write one synthetic tx per bucket
 	/// into `pallet_ethereum::Pending`. Must run before `pallet_ethereum::on_finalize`.
 	fn flush(entries: Vec<(Bucket, H160, ethereum::Log)>) {
-		// sort entries by bucket while preserving in-bucket order
-		// (insertion order is preserved within each bucket because we iterate stably)
 		let mut groups: Vec<(Bucket, Vec<ethereum::Log>)> = Vec::new();
 		for (bucket, _emitter, log) in entries {
 			match groups.iter_mut().find(|(b, _)| *b == bucket) {
@@ -153,7 +151,6 @@ impl<T: Config> Pallet<T> {
 				None => groups.push((bucket, vec![log])),
 			}
 		}
-		// stable bucket sort: Hook(Init,*) < Extrinsic(i) < Hook(Final,*)
 		groups.sort_by(|a, b| Self::bucket_sort_key(&a.0).cmp(&Self::bucket_sort_key(&b.0)));
 
 		let block_number = frame_system::Pallet::<T>::block_number();
@@ -287,6 +284,25 @@ pub fn h160_to_h256(addr: H160) -> H256 {
 	let mut bytes = [0u8; 32];
 	bytes[12..].copy_from_slice(&addr.0);
 	H256(bytes)
+}
+
+/// Per-owner sentinel address representing the owner's reserved balance
+/// bucket. Used as the `to` topic on `reserve` and the `from` topic on
+/// `unreserve` so erc20 indexers reconstructing balances from `Transfer`
+/// events stay consistent with `balanceOf` (which returns free balance only).
+///
+/// Derivation: XOR the first byte of `owner` with `0xEE`. The mapping is
+/// trivially reversible (XOR again) so a bookkeeping consumer that wants
+/// owner attribution from a sentinel can recover it; reversibility is
+/// optional for forward-only indexers (which compute the sentinel from a
+/// known owner). Collision with the asset-prefix range
+/// (`0x000…01<asset_id>`) requires the owner to start with `0xEE` followed
+/// by 11 zero bytes, then `0x01`, then 3 zero bytes — pre-image probability
+/// `2^-128` for uniformly distributed addresses.
+pub fn reserved_address_of(owner: H160) -> H160 {
+	let mut bytes = owner.0;
+	bytes[0] ^= 0xEE;
+	H160(bytes)
 }
 
 /// Encode a single u256 as a 32-byte big-endian word for log `data`.

@@ -24,9 +24,28 @@ pub type NonceIdOf<T> = <<T as Config>::AccountProvider as AccountProvider>::Non
 
 pub struct Executor<R>(sp_std::marker::PhantomData<R>);
 
+/// Buffer EVM-frame logs from a `Runner::call` invocation into
+/// `pallet_synthetic_logs`. Used by `Executor::call` (the wrapper hydration
+/// modules use for direct Runner::call) to surface logs to `eth_getLogs` on
+/// paths that bypass `pallet_ethereum::transact` (e.g. HSM arbitrage,
+/// dispatcher-driven evm calls). pallet_ethereum::transact does not go
+/// through Executor::call, so there is no overlap and no dedup is needed.
+fn capture_logs<T: pallet_synthetic_logs::Config>(logs: &[pallet_evm::Log]) {
+	for log in logs {
+		pallet_synthetic_logs::Pallet::<T>::push(
+			log.address,
+			ethereum::Log {
+				address: log.address,
+				topics: log.topics.clone(),
+				data: log.data.clone(),
+			},
+		);
+	}
+}
+
 impl<T> Executor<T>
 where
-	T: Config + frame_system::Config,
+	T: Config + frame_system::Config + pallet_synthetic_logs::Config,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: AddressMapping<T::AccountId>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
@@ -56,7 +75,7 @@ where
 
 impl<T> EVM<CallResult> for Executor<T>
 where
-	T: frame_system::Config + pallet_evm::Config + pallet_dispatcher::Config,
+	T: frame_system::Config + pallet_evm::Config + pallet_dispatcher::Config + pallet_synthetic_logs::Config,
 	BalanceOf<T>: TryFrom<U256> + Into<U256> + Default,
 	NonceIdOf<T>: Into<T::Nonce>,
 	T::AddressMapping: AddressMapping<T::AccountId>,
@@ -96,6 +115,9 @@ where
 		match call_info_result {
 			Ok(info) => {
 				log::trace!(target: "evm::executor", "Call executed - used gas {:?}", info.used_gas);
+				if matches!(info.exit_reason, ExitReason::Succeed(_)) {
+					capture_logs::<T>(&info.logs);
+				}
 				if extra_gas > 0 {
 					match u64::try_from(info.used_gas.effective) {
 						Ok(standard_gas_u64) => {

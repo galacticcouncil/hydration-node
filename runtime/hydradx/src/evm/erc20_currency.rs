@@ -44,7 +44,7 @@ pub const HOLDING_ADDRESS: EvmAddress = EvmAddress::repeat_byte(0xFF);
 
 impl<T> ERC20 for Erc20Currency<T>
 where
-	T: pallet_evm::Config + pallet_dispatcher::Config + frame_system::Config,
+	T: pallet_evm::Config + pallet_dispatcher::Config + frame_system::Config + pallet_synthetic_logs::Config,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8]>,
@@ -222,6 +222,7 @@ where
 		+ pallet_liquidation::Config
 		+ pallet_evm_accounts::Config
 		+ pallet_broadcast::Config
+		+ pallet_synthetic_logs::Config
 		+ frame_system::Config<AccountId = sp_runtime::AccountId32>,
 	pallet_evm_accounts::Pallet<T>: InspectEvmAccounts<AccountId>,
 	AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,

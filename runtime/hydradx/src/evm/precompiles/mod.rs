@@ -191,6 +191,23 @@ where
 				}
 			}
 
+			// Drain logs that substrate hooks pushed during the dispatch
+			// (e.g. orml-tokens PostTransfer, pallet_balances RuntimeHooks,
+			// pallet_broadcast OnTrade) and emit them inline at the dispatcher
+			// precompile's call site so log_index ordering matches execution
+			// order in the resulting eth tx receipt / info.logs.
+			if matches!(
+				&dispatch_precompile_result,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Stopped | ExitSucceed::Returned | ExitSucceed::Suicided,
+					..
+				})
+			) {
+				if let Err(e) = emit_buffered_evm_frame_logs(handle) {
+					return Some(Err(e));
+				}
+			}
+
 			Some(dispatch_precompile_result)
 		} else if is_asset_address(address) {
 			Some(MultiCurrencyPrecompile::<R>::execute(handle))
@@ -211,6 +228,22 @@ where
 
 pub fn is_precompile(address: H160) -> bool {
 	address == DISPATCH_ADDR || is_asset_address(address) || is_standard_precompile(address)
+}
+
+/// Drain logs that substrate hooks buffered into the current EVM frame
+/// (via `evm::runner::append_to_current_evm_frame`) and emit each through
+/// the precompile handle so they land at the precompile's call site in
+/// execution order — preserving `log_index` semantics in the final receipt.
+/// Charges standard EVM log gas (8 + 375*topics + 8*data_bytes) per entry.
+pub fn emit_buffered_evm_frame_logs(handle: &mut impl PrecompileHandle) -> EvmResult<()> {
+	for log in crate::evm::runner::drain_current_evm_frame_logs() {
+		let cost = costs::log_costs(log.topics.len(), log.data.len()).map_err(|_| PrecompileFailure::Error {
+			exit_status: ExitError::OutOfGas,
+		})?;
+		handle.record_cost(cost)?;
+		handle.log(log.address, log.topics, log.data)?;
+	}
+	Ok(())
 }
 
 // This is a reimplementation of the upstream u64->H160 conversion

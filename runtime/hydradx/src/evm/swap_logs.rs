@@ -61,14 +61,6 @@ impl OnTrade<AccountId> for EmitUniswapV2SwapLog {
 			return;
 		}
 
-		// Today no swap precompile exists, so substrate-side trades never fire
-		// while inside an evm execution frame. Defensive guard: if a future
-		// swap precompile is added, it must emit the log inline itself; we
-		// skip here to avoid double-emission.
-		if crate::evm::runner::is_in_evm() {
-			return;
-		}
-
 		let in_asset = inputs[0].asset;
 		let in_amount = inputs[0].amount;
 		let out_asset = outputs[0].asset;
@@ -123,6 +115,8 @@ impl OnTrade<AccountId> for EmitUniswapV2SwapLog {
 			data: encode_uint256_quad(a0_in, a1_in, a0_out, a1_out),
 		};
 
-		SyntheticLogs::<Runtime>::push(pool_address, log);
+		if !crate::evm::runner::append_to_current_evm_frame(log.clone()) {
+			SyntheticLogs::<Runtime>::push(pool_address, log);
+		}
 	}
 }

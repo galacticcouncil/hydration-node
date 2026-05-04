@@ -114,6 +114,119 @@ fn executor_call_wont_bump_nonce() {
 }
 
 #[test]
+fn executor_call_captures_evm_log_to_synthetic_logs() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let token = deploy_token_contract();
+
+		pallet_synthetic_logs::Pending::<Runtime>::kill();
+		frame_system::Pallet::<Runtime>::reset_events();
+
+		let mut data = Into::<u32>::into(Function::Transfer).to_be_bytes().to_vec();
+		data.extend_from_slice(H256::from(evm_address()).as_bytes());
+		data.extend_from_slice(H256::from_uint(&U256::from(100)).as_bytes());
+		let context = CallContext {
+			contract: token,
+			sender: deployer(),
+			origin: deployer(),
+		};
+
+		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 100_000);
+		assert_eq!(call_result.exit_reason, Succeed(Returned));
+
+		let synth_log = pallet_synthetic_logs::Pending::<Runtime>::get()
+			.into_iter()
+			.find(|(_, _, log)| {
+				log.address == token
+					&& log.topics.first() == Some(&pallet_synthetic_logs::TRANSFER_TOPIC)
+					&& log.topics.get(1) == Some(&pallet_synthetic_logs::h160_to_h256(deployer()))
+					&& log.topics.get(2) == Some(&pallet_synthetic_logs::h160_to_h256(evm_address()))
+			})
+			.expect("Executor::call must capture the EVM Transfer log into the synthetic-logs buffer");
+
+		let (_, emitter, _) = &synth_log;
+		assert_eq!(*emitter, token, "synth-log emitter must be the token contract");
+
+		let evm_log_event = frame_system::Pallet::<Runtime>::events()
+			.into_iter()
+			.find(|r| {
+				matches!(
+					&r.event,
+					hydradx_runtime::RuntimeEvent::EVM(pallet_evm::Event::Log { log })
+						if log.address == token
+							&& log.topics.first() == Some(&pallet_synthetic_logs::TRANSFER_TOPIC)
+				)
+			})
+			.expect("pallet_evm::Event::Log must be emitted as a substrate event for the same log");
+		let _ = evm_log_event;
+	});
+}
+
+#[test]
+fn runner_call_direct_does_not_buffer_synthetic_log() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let token = deploy_token_contract();
+
+		pallet_synthetic_logs::Pending::<Runtime>::kill();
+		frame_system::Pallet::<Runtime>::reset_events();
+
+		let mut data = Into::<u32>::into(Function::Transfer).to_be_bytes().to_vec();
+		data.extend_from_slice(H256::from(evm_address()).as_bytes());
+		data.extend_from_slice(H256::from_uint(&U256::from(100)).as_bytes());
+
+		let evm_config = <Runtime as pallet_evm::Config>::config();
+		let info = <<Runtime as pallet_evm::Config>::Runner as pallet_evm::Runner<Runtime>>::call(
+			deployer(),
+			token,
+			data,
+			U256::zero(),
+			500_000,
+			Some(U256::zero()),
+			None,
+			None,
+			vec![],
+			vec![],
+			false,
+			false,
+			None,
+			None,
+			evm_config,
+		)
+		.expect("runner call must succeed");
+		assert!(matches!(info.exit_reason, fp_evm::ExitReason::Succeed(_)));
+		assert!(
+			info.logs
+				.iter()
+				.any(|l| l.address == token && l.topics.first() == Some(&pallet_synthetic_logs::TRANSFER_TOPIC)),
+			"the EVM frame must produce the Transfer log",
+		);
+
+		let buffered = pallet_synthetic_logs::Pending::<Runtime>::get();
+		assert!(
+			buffered.is_empty(),
+			"a direct T::Runner::call (the path pallet_ethereum::transact uses internally) bypasses \
+			 Executor::call, so the EVM-frame Transfer log must NOT be duplicated into the \
+			 synthetic-logs buffer; found {} entries",
+			buffered.len()
+		);
+
+		let evm_log_event = frame_system::Pallet::<Runtime>::events().into_iter().find(|r| {
+			matches!(
+				&r.event,
+				hydradx_runtime::RuntimeEvent::EVM(pallet_evm::Event::Log { log })
+					if log.address == token
+						&& log.topics.first() == Some(&pallet_synthetic_logs::TRANSFER_TOPIC)
+			)
+		});
+		assert!(
+			evm_log_event.is_some(),
+			"pallet_evm::Event::Log substrate event must be deposited on the direct-runner path so substrate observers see the log"
+		);
+	});
+}
+
+#[test]
 fn name_should_decode_correctly() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
