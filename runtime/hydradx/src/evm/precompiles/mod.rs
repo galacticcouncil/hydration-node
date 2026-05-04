@@ -246,6 +246,29 @@ pub fn emit_buffered_evm_frame_logs(handle: &mut impl PrecompileHandle) -> EvmRe
 	Ok(())
 }
 
+/// Emit a standard ERC-20 `Approval(owner, spender, value)` log inline at
+/// the calling precompile's address. Used by the multicurrency precompile's
+/// `approve` and (on allowance-decrement) `transfer_from` paths so erc20
+/// indexers tracking allowance changes can observe substrate-side
+/// `pallet_evm_accounts::set_allowance` calls.
+pub fn emit_approval_log(
+	handle: &mut impl PrecompileHandle,
+	owner: H160,
+	spender: H160,
+	amount: U256,
+) -> EvmResult<()> {
+	use pallet_synthetic_logs::{encode_u256_be, h160_to_h256, APPROVAL_TOPIC};
+	let topics = sp_std::vec![APPROVAL_TOPIC, h160_to_h256(owner), h160_to_h256(spender)];
+	let data = encode_u256_be(amount).to_vec();
+	let cost = costs::log_costs(topics.len(), data.len()).map_err(|_| PrecompileFailure::Error {
+		exit_status: ExitError::OutOfGas,
+	})?;
+	handle.record_cost(cost)?;
+	let address = handle.code_address();
+	handle.log(address, topics, data)?;
+	Ok(())
+}
+
 // This is a reimplementation of the upstream u64->H160 conversion
 // function, made `const` to make our precompile address `const`s a
 // bit cleaner. It can be removed when upstream has a const conversion

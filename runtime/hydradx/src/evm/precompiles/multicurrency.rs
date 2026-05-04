@@ -39,7 +39,7 @@ use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
 use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
-use primitive_types::H160;
+use primitive_types::{H160, U256};
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::Dispatchable;
 use sp_std::marker::PhantomData;
@@ -275,6 +275,8 @@ where
 		let owner: H160 = handle.context().caller;
 
 		pallet_evm_accounts::Pallet::<Runtime>::set_allowance(asset_id.into(), owner, spender, amount);
+
+		crate::evm::precompiles::emit_approval_log(handle, owner, spender, U256::from(amount))?;
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
