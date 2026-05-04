@@ -979,6 +979,100 @@ fn balances_currency_deposit_creating_buffers_mint_log() {
 	});
 }
 
+/// Revert safety. When an EVM frame reverts, frontier drops `info.logs`
+/// (the substate's logs). Substrate hooks that fired during the frame may
+/// have pushed entries into the `EVM_FRAME_LOGS` buffer; the WrapRunner's
+/// end-drain must NOT append those buffered entries onto a reverted-frame
+/// `info.logs`, or we get ghost logs for transfers whose substrate state
+/// was rolled back by `pallet_evm`'s `with_storage_layer` wrapping.
+///
+/// The probe contract calls dispatcher precompile (a substrate
+/// Currencies::transfer), then reverts. We assert:
+/// 1. Bob's DAI balance is unchanged (substrate state rolled back).
+/// 2. No DAI Transfer log lands in the synth tx for this block.
+#[test]
+fn evm_frame_revert_drops_buffered_substrate_hook_logs() {
+	use codec::Encode;
+	use hex_literal::hex;
+	use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
+	use hydradx_runtime::evm::Executor;
+	use hydradx_runtime::RuntimeCall;
+	use hydradx_traits::evm::{CallContext, EVM as EVMTrait};
+
+	// keccak256("try_dispatch_then_revert(address,bytes)")[..4]
+	const PROBE_SELECTOR: [u8; 4] = hex!("4351d800");
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let alice_evm = hydradx_runtime::EVMAccounts::evm_address(&AccountId::from(ALICE));
+		let probe = crate::utils::contracts::deploy_contract("RevertingDispatcher", alice_evm);
+
+		// Fund probe with DAI so the inner dispatch would succeed if not reverted.
+		let probe_acc = hydradx_runtime::EVMAccounts::truncated_account_id(probe);
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			probe_acc,
+			DAI,
+			(UNITS * 10) as i128,
+		));
+
+		let bob_acc: AccountId = BOB.into();
+		let bob_dai_before = <Tokens as MultiCurrency<AccountId>>::free_balance(DAI, &bob_acc);
+
+		let amount: u128 = UNITS;
+		let inner = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+			dest: BOB.into(),
+			currency_id: DAI,
+			amount,
+		});
+		let inner_encoded = inner.encode();
+
+		// abi-encode try_dispatch_then_revert(address dispatcher, bytes sub_call_data):
+		// selector || dispatcher (32 bytes) || offset_to_bytes (=0x40, 32 bytes)
+		// || bytes_len (32) || bytes_payload (padded)
+		let mut calldata = PROBE_SELECTOR.to_vec();
+		calldata.extend_from_slice(&[0u8; 12]);
+		calldata.extend_from_slice(DISPATCH_ADDR.as_bytes());
+		calldata.extend_from_slice(&U256::from(0x40u64).to_big_endian());
+		calldata.extend_from_slice(&U256::from(inner_encoded.len() as u64).to_big_endian());
+		calldata.extend_from_slice(&inner_encoded);
+		// pad to 32-byte boundary
+		let pad = (32 - inner_encoded.len() % 32) % 32;
+		calldata.extend(sp_std::iter::repeat(0u8).take(pad));
+
+		SyntheticLogsPending::<Runtime>::kill();
+
+		let context = CallContext {
+			contract: probe,
+			sender: alice_evm,
+			origin: alice_evm,
+		};
+		let result = Executor::<Runtime>::call(context, calldata, U256::zero(), 5_000_000);
+		// The contract reverts intentionally — the outer call result is Revert.
+		assert!(
+			matches!(result.exit_reason, fp_evm::ExitReason::Revert(_)),
+			"probe must revert, got {:?}",
+			result.exit_reason
+		);
+
+		let bob_dai_after = <Tokens as MultiCurrency<AccountId>>::free_balance(DAI, &bob_acc);
+		assert_eq!(
+			bob_dai_after, bob_dai_before,
+			"substrate state must be rolled back: bob's DAI balance must NOT change",
+		);
+
+		let dai_addr = HydraErc20Mapping::asset_address(DAI);
+		let leaked = buffered_logs()
+			.into_iter()
+			.any(|(_, _, log)| log.address == dai_addr && log.topics.first() == Some(&TRANSFER_TOPIC));
+		assert!(
+			!leaked,
+			"BLINDSPOT: a DAI Transfer log leaked into the synth tx even though the outer EVM frame reverted; \
+			 the WrapRunner end-drain is appending buffered hook logs unconditionally — must gate on Succeed.",
+		);
+	});
+}
+
 #[test]
 fn balances_repatriate_to_free_buffers_transfer_log_to_beneficiary() {
 	use frame_support::traits::{tokens::BalanceStatus, ReservableCurrency};

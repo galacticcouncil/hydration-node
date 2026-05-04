@@ -26,7 +26,7 @@
 use crate::evm::evm_fee::evm_fee_payer;
 use crate::evm::WethAssetId;
 use ethereum::AuthorizationList;
-use fp_evm::{Account, TransactionValidationError};
+use fp_evm::{Account, ExitReason, TransactionValidationError};
 use frame_support::traits::Get;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
@@ -230,7 +230,9 @@ where
 				config,
 			)
 		})?;
-		result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		if matches!(result.exit_reason, ExitReason::Succeed(_)) {
+			result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		}
 
 		if validate && is_transactional && nonce.is_none() && max_priority_fee_per_gas.is_none() {
 			let current_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
@@ -298,7 +300,9 @@ where
 				config,
 			)
 		})?;
-		result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		if matches!(result.exit_reason, ExitReason::Succeed(_)) {
+			result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		}
 		Ok(result)
 	}
 
@@ -358,7 +362,9 @@ where
 				config,
 			)
 		})?;
-		result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		if matches!(result.exit_reason, ExitReason::Succeed(_)) {
+			result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		}
 		Ok(result)
 	}
 
@@ -418,7 +424,9 @@ where
 				contract_address,
 			)
 		})?;
-		result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		if matches!(result.exit_reason, ExitReason::Succeed(_)) {
+			result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		}
 		Ok(result)
 	}
 }
