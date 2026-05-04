@@ -4,7 +4,7 @@ use crate::polkadot_test_net::*;
 use ethereum_types::{H160, U256};
 use frame_support::assert_ok;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use hydradx_runtime::{Balances, Currencies, Runtime, RuntimeOrigin, Tokens};
+use hydradx_runtime::{Balances, Currencies, Ethereum, Runtime, RuntimeOrigin, SyntheticLogs, Tokens};
 use hydradx_traits::evm::Erc20Mapping;
 use orml_traits::MultiCurrency;
 use pallet_synthetic_logs::{h160_to_h256, reserved_address_of, Pending as SyntheticLogsPending, TRANSFER_TOPIC};
@@ -975,6 +975,101 @@ fn balances_currency_deposit_creating_buffers_mint_log() {
 		assert!(
 			entry.is_some(),
 			"pallet_balances::Currency::deposit_creating must buffer Transfer(0x0, recipient, amount)",
+		);
+	});
+}
+
+/// End-to-end synth-tx flush: pushing a hook log into the buffer, then
+/// running every pallet's `on_finalize` in `construct_runtime!` order, must
+/// land a synthetic `pallet_ethereum::Transaction` in `pallet_ethereum::Pending`
+/// with the expected log, status, receipt — i.e. the synthetic-logs pallet
+/// runs BEFORE `pallet_ethereum::on_finalize` (which would otherwise have
+/// already rolled `Pending` into the canonical block).
+#[test]
+fn on_finalize_drains_buffer_into_pallet_ethereum_pending_before_ethereum_seal() {
+	use frame_support::traits::OnFinalize;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let n = frame_system::Pallet::<Runtime>::block_number();
+		SyntheticLogsPending::<Runtime>::kill();
+
+		// Push a Transfer log directly into the buffer (skip the extrinsic to
+		// avoid xcm-emulator's auto-finalize coupling).
+		let dai_addr = HydraErc20Mapping::asset_address(DAI);
+		let mut data = Vec::with_capacity(32);
+		data.extend_from_slice(&U256::from(UNITS).to_big_endian());
+		let log = ethereum::Log {
+			address: dai_addr,
+			topics: vec![TRANSFER_TOPIC, h160_to_h256(alice_h160()), h160_to_h256(bob_h160())],
+			data,
+		};
+		pallet_synthetic_logs::Pallet::<Runtime>::push(dai_addr, log);
+		assert!(!SyntheticLogsPending::<Runtime>::get().is_empty());
+
+		// Verify the runtime ordering directly: SyntheticLogs::on_finalize must
+		// drain the buffer into pallet_ethereum::Pending BEFORE
+		// Ethereum::on_finalize rolls Pending into CurrentBlock + statuses.
+		// (construct_runtime! order: SyntheticLogs=86 runs before Ethereum=92.)
+		SyntheticLogs::on_finalize(n);
+
+		// After SyntheticLogs's flush but BEFORE Ethereum::on_finalize, the
+		// synth tx must already be in pallet_ethereum::Pending.
+		let pending: Vec<_> = pallet_ethereum::Pending::<Runtime>::iter().collect();
+		assert!(
+			!pending.is_empty(),
+			"flush must write into pallet_ethereum::Pending",
+		);
+
+		// Now seal the ethereum block.
+		Ethereum::on_finalize(n);
+
+		// Buffer drained.
+		assert!(
+			SyntheticLogsPending::<Runtime>::get().is_empty(),
+			"buffer must be empty after on_finalize flush",
+		);
+
+		// pallet_ethereum::on_finalize moves Pending → CurrentBlock + per-tx
+		// CurrentTransactionStatuses + CurrentReceipts. After the seal, the
+		// synth tx should appear in the block's tx list, statuses, and receipts.
+		let block = pallet_ethereum::CurrentBlock::<Runtime>::get().expect("ethereum block sealed");
+		let statuses = pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get()
+			.expect("statuses stored after seal");
+		let receipts = pallet_ethereum::CurrentReceipts::<Runtime>::get().expect("receipts stored after seal");
+
+		assert_eq!(block.transactions.len(), statuses.len(), "tx count == status count");
+		assert_eq!(block.transactions.len(), receipts.len(), "tx count == receipt count");
+
+		let dai_addr = HydraErc20Mapping::asset_address(DAI);
+		let synth_status = statuses.iter().find(|s| {
+			s.from == pallet_synthetic_logs::SENTINEL_ADDRESS
+				&& s.logs.iter().any(|log| {
+					log.address == dai_addr
+						&& log.topics.first() == Some(&TRANSFER_TOPIC)
+						&& log.topics.get(1) == Some(&h160_to_h256(alice_h160()))
+						&& log.topics.get(2) == Some(&h160_to_h256(bob_h160()))
+				})
+		});
+		assert!(
+			synth_status.is_some(),
+			"synthetic tx with the DAI Transfer log must be in CurrentTransactionStatuses after seal; \
+			 got {} statuses",
+			statuses.len(),
+		);
+		let synth_status = synth_status.unwrap();
+
+		// Receipt at the same index must have matching logs (logs_bloom too).
+		let receipt_logs = match &receipts[synth_status.transaction_index as usize] {
+			pallet_ethereum::Receipt::EIP1559(d)
+			| pallet_ethereum::Receipt::EIP2930(d)
+			| pallet_ethereum::Receipt::Legacy(d) => &d.logs,
+			_ => panic!("unexpected receipt variant"),
+		};
+		assert_eq!(
+			receipt_logs.len(),
+			synth_status.logs.len(),
+			"receipt logs match status logs",
 		);
 	});
 }

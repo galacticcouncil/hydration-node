@@ -75,11 +75,20 @@ pub const MAX_PENDING_LOGS: u32 = 4096;
 /// at hook-fire time, so we collapse them and rely on the broadcast
 /// `ExecutionContext` for finer attribution (e.g. DCA schedule_id, xcm origin).
 #[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug, PartialEq, Eq)]
+pub enum HookPhase {
+	Initialization,
+	Finalization,
+}
+
+#[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug, PartialEq, Eq)]
 pub enum Bucket {
 	/// One synth tx per substrate extrinsic.
 	Extrinsic(u32),
 	/// One synth tx per (hook-phase + originating broadcast context).
-	Hook { origin: Option<ExecutionType> },
+	/// `phase` distinguishes init-time work (runs before extrinsics) from
+	/// finalize-time work (runs after) so transaction_index ordering of the
+	/// resulting synth tx matches the wall-clock order of substrate execution.
+	Hook { phase: HookPhase, origin: Option<ExecutionType> },
 }
 
 #[frame_support::pallet]
@@ -132,10 +141,26 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Determine the bucket for the currently-executing substrate phase.
+	/// Reads `frame_system::ExecutionPhase` directly via its storage key so we
+	/// distinguish init/finalize/idle correctly:
+	///   * Initialization  → `HookPhase::Initialization`
+	///   * Finalization    → `HookPhase::Finalization` (covers on_idle too,
+	///                        since substrate sets Phase=Finalization before
+	///                        on_idle runs)
+	///   * ApplyExtrinsic  → `Bucket::Extrinsic(i)`
 	fn current_bucket() -> Bucket {
-		match frame_system::Pallet::<T>::extrinsic_index() {
-			Some(i) => Bucket::Extrinsic(i),
-			None => Bucket::Hook {
+		use frame_system::Phase;
+		let phase_key =
+			frame_support::storage::storage_prefix(b"System", b"ExecutionPhase");
+		let phase: Phase = frame_support::storage::unhashed::get::<Phase>(&phase_key).unwrap_or_default();
+		match phase {
+			Phase::ApplyExtrinsic(i) => Bucket::Extrinsic(i),
+			Phase::Finalization => Bucket::Hook {
+				phase: HookPhase::Finalization,
+				origin: pallet_broadcast::Pallet::<T>::get_context().first().copied(),
+			},
+			Phase::Initialization => Bucket::Hook {
+				phase: HookPhase::Initialization,
 				origin: pallet_broadcast::Pallet::<T>::get_context().first().copied(),
 			},
 		}
@@ -162,20 +187,58 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn bucket_sort_key(bucket: &Bucket) -> (u8, u64) {
+		// Init-phase hooks: 0 (before extrinsics)
+		// Extrinsic dispatch: 1 (sub-sorted by extrinsic_index)
+		// Finalize-phase hooks: 2 (after extrinsics)
 		match bucket {
-			Bucket::Hook { origin: None } => (0, 0),
-			Bucket::Hook { origin: Some(_) } => (0, Self::bucket_nonce(*bucket)),
+			Bucket::Hook {
+				phase: HookPhase::Initialization,
+				origin: None,
+			} => (0, 0),
+			Bucket::Hook {
+				phase: HookPhase::Initialization,
+				origin: Some(_),
+			} => (0, Self::bucket_nonce(*bucket)),
 			Bucket::Extrinsic(i) => (1, *i as u64),
+			Bucket::Hook {
+				phase: HookPhase::Finalization,
+				origin: None,
+			} => (2, 0),
+			Bucket::Hook {
+				phase: HookPhase::Finalization,
+				origin: Some(_),
+			} => (2, Self::bucket_nonce(*bucket)),
 		}
 	}
 
 	/// Encodes the bucket as the synthetic tx's `nonce`, so indexers can
 	/// reverse the synth tx back to its substrate origin.
+	///
+	/// Layout:
+	///   Extrinsic(i)                                        → i           (low)
+	///   Hook { phase: Init,     origin: None }              → MAX - 3
+	///   Hook { phase: Init,     origin: Some(t) }           → 0xDCA0…   | tag(t)
+	///   Hook { phase: Final,    origin: None }              → MAX - 2
+	///   Hook { phase: Final,    origin: Some(t) }           → 0xF1A1…   | tag(t)
 	pub fn bucket_nonce(bucket: Bucket) -> u64 {
 		match bucket {
 			Bucket::Extrinsic(i) => i as u64,
-			Bucket::Hook { origin: None } => u64::MAX - 1,
-			Bucket::Hook { origin: Some(o) } => 0xDCA0_0000_0000_0000u64 | Self::origin_tag(&o),
+			Bucket::Hook {
+				phase: HookPhase::Initialization,
+				origin: None,
+			} => u64::MAX - 3,
+			Bucket::Hook {
+				phase: HookPhase::Initialization,
+				origin: Some(o),
+			} => 0xDCA0_0000_0000_0000u64 | Self::origin_tag(&o),
+			Bucket::Hook {
+				phase: HookPhase::Finalization,
+				origin: None,
+			} => u64::MAX - 2,
+			Bucket::Hook {
+				phase: HookPhase::Finalization,
+				origin: Some(o),
+			} => 0xF1A1_0000_0000_0000u64 | Self::origin_tag(&o),
 		}
 	}
 

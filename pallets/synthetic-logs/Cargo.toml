@@ -27,9 +27,6 @@ frame-system = { workspace = true }
 ethereum = { workspace = true }
 ethereum-types = { workspace = true }
 pallet-ethereum = { workspace = true }
-fp-rpc = { workspace = true }
-fp-evm = { workspace = true }
-pallet-evm = { workspace = true }
 
 # HydraDX
 pallet-broadcast = { workspace = true }
@@ -51,9 +48,6 @@ std = [
     "ethereum/std",
     "ethereum-types/std",
     "pallet-ethereum/std",
-    "pallet-evm/std",
-    "fp-rpc/std",
-    "fp-evm/std",
     "pallet-broadcast/std",
     "primitives/std",
 ]
