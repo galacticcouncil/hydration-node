@@ -173,9 +173,7 @@ impl pallet_balances::BalancesHooks<AccountId, Balance> for EmitErc20TransferLog
 		let from = reserved_address_of(evm_address_of(slashed));
 		let to = match status {
 			frame_support::traits::tokens::BalanceStatus::Free => evm_address_of(beneficiary),
-			frame_support::traits::tokens::BalanceStatus::Reserved => {
-				reserved_address_of(evm_address_of(beneficiary))
-			}
+			frame_support::traits::tokens::BalanceStatus::Reserved => reserved_address_of(evm_address_of(beneficiary)),
 		};
 		push_transfer_log(CORE_ASSET_ID, from, to, amount);
 	}

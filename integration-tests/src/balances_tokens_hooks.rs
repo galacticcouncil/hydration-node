@@ -303,7 +303,9 @@ fn dispatcher_precompile_currencies_transfer_token_emits_transfer_log() {
 
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+		assert_ok!(hydradx_runtime::EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
+			ALICE.into()
+		)));
 		let alice_evm = hydradx_runtime::EVMAccounts::evm_address(&AccountId::from(ALICE));
 
 		let bob_acc: AccountId = BOB.into();
@@ -374,7 +376,9 @@ fn dispatcher_precompile_omnipool_sell_emits_swap_log() {
 	Hydra::execute_with(|| {
 		crate::evm::init_omnipool_with_oracle_for_block_10();
 
-		assert_ok!(hydradx_runtime::EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+		assert_ok!(hydradx_runtime::EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
+			ALICE.into()
+		)));
 		let alice_evm = hydradx_runtime::EVMAccounts::evm_address(&AccountId::from(ALICE));
 		assert_ok!(Currencies::update_balance(
 			RuntimeOrigin::root(),
@@ -412,7 +416,10 @@ fn dispatcher_precompile_omnipool_sell_emits_swap_log() {
 				hydradx_runtime::RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 { .. })
 			)
 		});
-		assert!(saw_swapped3, "Omnipool::sell via dispatcher must produce a Swapped3 substrate event");
+		assert!(
+			saw_swapped3,
+			"Omnipool::sell via dispatcher must produce a Swapped3 substrate event"
+		);
 
 		let found = buffered_logs()
 			.into_iter()
@@ -450,7 +457,9 @@ fn dispatcher_precompile_batch_preserves_substrate_transfer_order() {
 
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+		assert_ok!(hydradx_runtime::EVMAccounts::bind_evm_address(RuntimeOrigin::signed(
+			ALICE.into()
+		)));
 		let alice_evm = hydradx_runtime::EVMAccounts::evm_address(&AccountId::from(ALICE));
 
 		// dispatch a batch of three transfers in a deterministic asset order
@@ -501,7 +510,10 @@ fn dispatcher_precompile_batch_preserves_substrate_transfer_order() {
 				if log.topics.get(2) != Some(&h160_to_h256(bob_h)) {
 					return None;
 				}
-				leg_assets.iter().copied().find(|a| HydraErc20Mapping::asset_address(*a) == log.address)
+				leg_assets
+					.iter()
+					.copied()
+					.find(|a| HydraErc20Mapping::asset_address(*a) == log.address)
 			})
 			.collect();
 
@@ -541,9 +553,7 @@ fn evm_inline_logs_around_precompile_call_preserve_log_index_order() {
 	use hydradx_traits::evm::{CallContext, EVM as EVMTrait};
 
 	// keccak256("Marker(uint256)") — see node_modules ethers computation.
-	const MARKER_TOPIC: H256 = H256(hex!(
-		"83264c98256454386201e4c55918ea57058c5c0052e60bd0b0f9a8fd2f3c1b24"
-	));
+	const MARKER_TOPIC: H256 = H256(hex!("83264c98256454386201e4c55918ea57058c5c0052e60bd0b0f9a8fd2f3c1b24"));
 	// first 4 bytes of keccak256("exercise(address,address,uint256)")
 	const EXERCISE_SELECTOR: [u8; 4] = hex!("430c9304");
 
@@ -645,20 +655,22 @@ fn orml_tokens_reserve_buffers_transfer_log_to_reserved_sentinel() {
 	Hydra::execute_with(|| {
 		SyntheticLogsPending::<Runtime>::kill();
 		let amount = UNITS;
-		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(DAI, &ALICE.into(), amount));
+		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(
+			DAI,
+			&ALICE.into(),
+			amount
+		));
 
 		let asset_addr = HydraErc20Mapping::asset_address(DAI);
 		let alice_h = alice_h160();
 		let reserved = reserved_address_of(alice_h);
 
-		let entry = buffered_logs()
-			.into_iter()
-			.find(|(_, emitter, log)| {
-				*emitter == asset_addr
-					&& log.topics.first() == Some(&TRANSFER_TOPIC)
-					&& log.topics.get(1) == Some(&h160_to_h256(alice_h))
-					&& log.topics.get(2) == Some(&h160_to_h256(reserved))
-			});
+		let entry = buffered_logs().into_iter().find(|(_, emitter, log)| {
+			*emitter == asset_addr
+				&& log.topics.first() == Some(&TRANSFER_TOPIC)
+				&& log.topics.get(1) == Some(&h160_to_h256(alice_h))
+				&& log.topics.get(2) == Some(&h160_to_h256(reserved))
+		});
 		assert!(
 			entry.is_some(),
 			"orml_tokens::reserve must buffer Transfer(owner, reserved_sentinel, amount); \
@@ -676,7 +688,11 @@ fn orml_tokens_unreserve_buffers_transfer_log_from_reserved_sentinel() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let amount = UNITS;
-		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(DAI, &ALICE.into(), amount));
+		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(
+			DAI,
+			&ALICE.into(),
+			amount
+		));
 		SyntheticLogsPending::<Runtime>::kill();
 
 		let unreserved = <Tokens as MultiReservableCurrency<AccountId>>::unreserve(DAI, &ALICE.into(), amount);
@@ -686,14 +702,12 @@ fn orml_tokens_unreserve_buffers_transfer_log_from_reserved_sentinel() {
 		let alice_h = alice_h160();
 		let reserved = reserved_address_of(alice_h);
 
-		let entry = buffered_logs()
-			.into_iter()
-			.find(|(_, emitter, log)| {
-				*emitter == asset_addr
-					&& log.topics.first() == Some(&TRANSFER_TOPIC)
-					&& log.topics.get(1) == Some(&h160_to_h256(reserved))
-					&& log.topics.get(2) == Some(&h160_to_h256(alice_h))
-			});
+		let entry = buffered_logs().into_iter().find(|(_, emitter, log)| {
+			*emitter == asset_addr
+				&& log.topics.first() == Some(&TRANSFER_TOPIC)
+				&& log.topics.get(1) == Some(&h160_to_h256(reserved))
+				&& log.topics.get(2) == Some(&h160_to_h256(alice_h))
+		});
 		assert!(
 			entry.is_some(),
 			"orml_tokens::unreserve must buffer Transfer(reserved_sentinel, owner, amount)",
@@ -709,20 +723,21 @@ fn balances_reserve_buffers_transfer_log_to_reserved_sentinel() {
 	Hydra::execute_with(|| {
 		SyntheticLogsPending::<Runtime>::kill();
 		let amount = UNITS;
-		assert_ok!(<Balances as ReservableCurrency<AccountId>>::reserve(&ALICE.into(), amount));
+		assert_ok!(<Balances as ReservableCurrency<AccountId>>::reserve(
+			&ALICE.into(),
+			amount
+		));
 
 		let hdx_addr = HydraErc20Mapping::asset_address(HDX);
 		let alice_h = alice_h160();
 		let reserved = reserved_address_of(alice_h);
 
-		let entry = buffered_logs()
-			.into_iter()
-			.find(|(_, emitter, log)| {
-				*emitter == hdx_addr
-					&& log.topics.first() == Some(&TRANSFER_TOPIC)
-					&& log.topics.get(1) == Some(&h160_to_h256(alice_h))
-					&& log.topics.get(2) == Some(&h160_to_h256(reserved))
-			});
+		let entry = buffered_logs().into_iter().find(|(_, emitter, log)| {
+			*emitter == hdx_addr
+				&& log.topics.first() == Some(&TRANSFER_TOPIC)
+				&& log.topics.get(1) == Some(&h160_to_h256(alice_h))
+				&& log.topics.get(2) == Some(&h160_to_h256(reserved))
+		});
 		assert!(
 			entry.is_some(),
 			"pallet_balances::reserve must buffer Transfer(owner, reserved_sentinel, amount) for HDX",
@@ -737,7 +752,10 @@ fn balances_unreserve_buffers_transfer_log_from_reserved_sentinel() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let amount = UNITS;
-		assert_ok!(<Balances as ReservableCurrency<AccountId>>::reserve(&ALICE.into(), amount));
+		assert_ok!(<Balances as ReservableCurrency<AccountId>>::reserve(
+			&ALICE.into(),
+			amount
+		));
 		SyntheticLogsPending::<Runtime>::kill();
 
 		let unreserved = <Balances as ReservableCurrency<AccountId>>::unreserve(&ALICE.into(), amount);
@@ -747,14 +765,12 @@ fn balances_unreserve_buffers_transfer_log_from_reserved_sentinel() {
 		let alice_h = alice_h160();
 		let reserved = reserved_address_of(alice_h);
 
-		let entry = buffered_logs()
-			.into_iter()
-			.find(|(_, emitter, log)| {
-				*emitter == hdx_addr
-					&& log.topics.first() == Some(&TRANSFER_TOPIC)
-					&& log.topics.get(1) == Some(&h160_to_h256(reserved))
-					&& log.topics.get(2) == Some(&h160_to_h256(alice_h))
-			});
+		let entry = buffered_logs().into_iter().find(|(_, emitter, log)| {
+			*emitter == hdx_addr
+				&& log.topics.first() == Some(&TRANSFER_TOPIC)
+				&& log.topics.get(1) == Some(&h160_to_h256(reserved))
+				&& log.topics.get(2) == Some(&h160_to_h256(alice_h))
+		});
 		assert!(
 			entry.is_some(),
 			"pallet_balances::unreserve must buffer Transfer(reserved_sentinel, owner, amount) for HDX",
@@ -777,7 +793,11 @@ fn orml_tokens_repatriate_to_free_buffers_transfer_log_to_beneficiary() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let amount = UNITS;
-		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(DAI, &ALICE.into(), amount));
+		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(
+			DAI,
+			&ALICE.into(),
+			amount
+		));
 		SyntheticLogsPending::<Runtime>::kill();
 
 		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::repatriate_reserved(
@@ -813,7 +833,11 @@ fn orml_tokens_repatriate_to_reserved_buffers_transfer_log_between_reserved_buck
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let amount = UNITS;
-		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(DAI, &ALICE.into(), amount));
+		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(
+			DAI,
+			&ALICE.into(),
+			amount
+		));
 		SyntheticLogsPending::<Runtime>::kill();
 
 		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::repatriate_reserved(
@@ -849,7 +873,10 @@ fn balances_repatriate_to_free_buffers_transfer_log_to_beneficiary() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let amount = UNITS;
-		assert_ok!(<Balances as ReservableCurrency<AccountId>>::reserve(&ALICE.into(), amount));
+		assert_ok!(<Balances as ReservableCurrency<AccountId>>::reserve(
+			&ALICE.into(),
+			amount
+		));
 		SyntheticLogsPending::<Runtime>::kill();
 
 		assert_ok!(<Balances as ReservableCurrency<AccountId>>::repatriate_reserved(

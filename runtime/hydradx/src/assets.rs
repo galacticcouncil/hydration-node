@@ -120,25 +120,23 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = MaxFreezes;
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
-	type RuntimeHooks = crate::evm::erc20_logs::EmitErc20TransferLog;
+	type RuntimeHooks = EmitErc20TransferLog;
 }
 
 pub struct CurrencyHooks;
 impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnDust = Duster;
-	type OnSlash = crate::evm::erc20_logs::EmitErc20TransferLog;
+	type OnSlash = EmitErc20TransferLog;
 	type PreDeposit = SufficiencyCheck;
-	type PostDeposit = crate::evm::erc20_logs::OnDepositTuple<
-		pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>,
-		crate::evm::erc20_logs::EmitErc20TransferLog,
-	>;
+	type PostDeposit =
+		OnDepositTuple<pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>, EmitErc20TransferLog>;
 	type PreTransfer = SufficiencyCheck;
-	type PostTransfer = crate::evm::erc20_logs::EmitErc20TransferLog;
+	type PostTransfer = EmitErc20TransferLog;
 	type PreWithdraw = ();
-	type PostWithdraw = crate::evm::erc20_logs::EmitErc20TransferLog;
-	type PostReserve = crate::evm::erc20_logs::EmitErc20TransferLog;
-	type PostUnreserve = crate::evm::erc20_logs::EmitErc20TransferLog;
-	type PostRepatriate = crate::evm::erc20_logs::EmitErc20TransferLog;
+	type PostWithdraw = EmitErc20TransferLog;
+	type PostReserve = EmitErc20TransferLog;
+	type PostUnreserve = EmitErc20TransferLog;
+	type PostRepatriate = EmitErc20TransferLog;
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
 }
@@ -2004,6 +2002,7 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 }
 
 use crate::evm::aave_trade_executor::Aave;
+use crate::evm::erc20_logs::{EmitErc20TransferLog, OnDepositTuple};
 #[cfg(feature = "runtime-benchmarks")]
 use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
