@@ -34,12 +34,7 @@ fn encode_u256_be_round_trip() {
 
 #[test]
 fn encode_uint256_quad_is_128_bytes() {
-	let data = encode_uint256_quad(
-		U256::from(1u64),
-		U256::from(2u64),
-		U256::from(3u64),
-		U256::from(4u64),
-	);
+	let data = encode_uint256_quad(U256::from(1u64), U256::from(2u64), U256::from(3u64), U256::from(4u64));
 	assert_eq!(data.len(), 128);
 	assert_eq!(U256::from_big_endian(&data[0..32]), U256::from(1u64));
 	assert_eq!(U256::from_big_endian(&data[32..64]), U256::from(2u64));

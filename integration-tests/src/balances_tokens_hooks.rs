@@ -1,13 +1,13 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
+use ethereum_types::{H160, U256};
 use frame_support::assert_ok;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hydradx_runtime::{Balances, Currencies, Runtime, RuntimeOrigin, Tokens};
 use hydradx_traits::evm::Erc20Mapping;
 use orml_traits::MultiCurrency;
 use pallet_synthetic_logs::{h160_to_h256, Pending as SyntheticLogsPending, TRANSFER_TOPIC};
-use ethereum_types::{H160, U256};
 use xcm_emulator::TestExt;
 
 fn buffered_logs() -> Vec<(pallet_synthetic_logs::Bucket, H160, ethereum::Log)> {
@@ -108,7 +108,9 @@ fn orml_tokens_post_deposit_buffers_mint_log() {
 		let entry = logs
 			.iter()
 			.find(|(_, emitter, log)| {
-				*emitter == asset_addr && log.topics.first() == Some(&TRANSFER_TOPIC) && log.topics[1] == h160_to_h256(H160::zero())
+				*emitter == asset_addr
+					&& log.topics.first() == Some(&TRANSFER_TOPIC)
+					&& log.topics[1] == h160_to_h256(H160::zero())
 			})
 			.expect("synth log for DAI mint");
 
@@ -164,7 +166,6 @@ fn orml_tokens_zero_amount_transfer_does_not_buffer() {
 }
 
 #[test]
-#[ignore]
 fn balances_transfer_buffers_synth_log() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
@@ -190,7 +191,6 @@ fn balances_transfer_buffers_synth_log() {
 }
 
 #[test]
-#[ignore]
 fn balances_force_transfer_buffers_synth_log() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
@@ -215,7 +215,6 @@ fn balances_force_transfer_buffers_synth_log() {
 }
 
 #[test]
-#[ignore]
 fn currencies_transfer_native_buffers_synth_log() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
@@ -236,18 +235,13 @@ fn currencies_transfer_native_buffers_synth_log() {
 }
 
 #[test]
-#[ignore]
 fn balances_dust_loss_buffers_burn_log() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let hdx_ed = <Runtime as pallet_balances::Config>::ExistentialDeposit::get();
 		assert!(hdx_ed > 0);
 
-		assert_ok!(Balances::force_set_balance(
-			RuntimeOrigin::root(),
-			ALICE.into(),
-			hdx_ed,
-		));
+		assert_ok!(Balances::force_set_balance(RuntimeOrigin::root(), ALICE.into(), hdx_ed,));
 		SyntheticLogsPending::<Runtime>::kill();
 		assert_ok!(Balances::transfer_allow_death(
 			RuntimeOrigin::signed(ALICE.into()),
@@ -259,12 +253,14 @@ fn balances_dust_loss_buffers_burn_log() {
 		let burn_to_zero = buffered_logs()
 			.into_iter()
 			.find(|(_, emitter, log)| *emitter == asset_addr && log.topics[2] == h160_to_h256(H160::zero()));
-		assert!(burn_to_zero.is_some(), "dust loss must buffer Transfer(from, 0x0, amount)");
+		assert!(
+			burn_to_zero.is_some(),
+			"dust loss must buffer Transfer(from, 0x0, amount)"
+		);
 	});
 }
 
 #[test]
-#[ignore]
 fn currencies_withdraw_orml_buffers_burn_log() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
@@ -282,6 +278,9 @@ fn currencies_withdraw_orml_buffers_burn_log() {
 		let burn = buffered_logs()
 			.into_iter()
 			.find(|(_, emitter, log)| *emitter == asset_addr && log.topics[2] == h160_to_h256(H160::zero()));
-		assert!(burn.is_some(), "Currencies::withdraw must buffer Transfer(from, 0x0, amount)");
+		assert!(
+			burn.is_some(),
+			"Currencies::withdraw must buffer Transfer(from, 0x0, amount)"
+		);
 	});
 }

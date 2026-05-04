@@ -120,6 +120,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = MaxFreezes;
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
+	type RuntimeHooks = crate::evm::erc20_logs::EmitErc20TransferLog;
 }
 
 pub struct CurrencyHooks;
@@ -133,6 +134,8 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	>;
 	type PreTransfer = SufficiencyCheck;
 	type PostTransfer = crate::evm::erc20_logs::EmitErc20TransferLog;
+	type PreWithdraw = ();
+	type PostWithdraw = crate::evm::erc20_logs::EmitErc20TransferLog;
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
 }

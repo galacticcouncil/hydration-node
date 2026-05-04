@@ -708,6 +708,8 @@ impl MutationHooks<AccountId, AssetId, Balance> for Hooks {
 	type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Test>;
 	type PreTransfer = ();
 	type PostTransfer = ();
+	type PreWithdraw = ();
+	type PostWithdraw = ();
 	type OnNewTokenAccount = ();
 	type OnKilledTokenAccount = ();
 }
