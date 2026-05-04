@@ -9162,17 +9162,21 @@ dependencies = [
 [[package]]
 name = "orml-tokens"
 version = "1.4.0"
-source = "git+https://github.com/galacticcouncil/open-runtime-module-library?branch=polkadot-stable2506#d20eee81b61c385918869e1633b91cfed49ed60b"
 dependencies = [
  "frame-support",
  "frame-system",
  "log",
  "orml-traits",
+ "pallet-elections-phragmen",
+ "pallet-treasury",
  "parity-scale-codec",
  "scale-info",
  "serde",
  "sp-arithmetic",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
+ "sp-staking",
  "sp-std",
 ]
 
@@ -9590,16 +9594,18 @@ dependencies = [
 [[package]]
 name = "pallet-balances"
 version = "42.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
 dependencies = [
  "docify",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
+ "pallet-transaction-payment",
  "parity-scale-codec",
+ "paste",
  "scale-info",
  "sp-core",
+ "sp-io",
  "sp-runtime",
 ]
 
