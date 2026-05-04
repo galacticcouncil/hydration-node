@@ -161,7 +161,7 @@ pub fn spawn_frontier_tasks(
 		None,
 		MappingSyncWorker::new(
 			client.import_notification_stream(),
-			Duration::new(6, 0),
+			Duration::new(2, 0),
 			client.clone(),
 			backend,
 			overrides.clone(),
@@ -177,6 +177,7 @@ pub fn spawn_frontier_tasks(
 
 	// Spawn Frontier EthFilterApi maintenance task.
 	// Each filter is allowed to stay in the pool for 100 blocks.
+	// TODO: 2s increase?
 	const FILTER_RETAIN_THRESHOLD: u64 = 100;
 	task_manager.spawn_essential_handle().spawn(
 		"frontier-filter-pool",
@@ -185,6 +186,7 @@ pub fn spawn_frontier_tasks(
 	);
 
 	// Spawn Frontier FeeHistory cache maintenance task.
+	// TODO: 2s increase default from 2048?
 	task_manager.spawn_essential_handle().spawn(
 		"frontier-fee-history",
 		None,
