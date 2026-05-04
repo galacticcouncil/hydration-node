@@ -36,13 +36,9 @@ pub mod pallet_mock_caller {
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::from_parts(10_000, 0))]
 		pub fn call_signet(origin: OriginFor<T>) -> DispatchResult {
-			// This pallet will call signet with ITS OWN account as the sender
 			let _who = ensure_signed(origin)?;
-
-			// Get this pallet's derived account (use fully-qualified syntax)
 			let pallet_account: T::AccountId = <T as Config>::PalletId::get().into_account_truncating();
 
-			// Call signet from this pallet's account
 			pallet_signet::Pallet::<T>::sign(
 				frame_system::RawOrigin::Signed(pallet_account).into(),
 				[99u8; 32],
@@ -73,7 +69,6 @@ frame_support::construct_runtime!(
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 42;
-	pub const MaxDataLength: u32 = 100_000;
 }
 
 impl system::Config for Test {
@@ -133,18 +128,13 @@ impl pallet_balances::Config for Test {
 
 parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
-	pub const MaxChainIdLength: u32 = 128;
-	pub const MaxSignatureDeposit: u32 = 10000000;
 }
 
 impl pallet_signet::Config for Test {
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
-	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = WeightInfo<Test>;
-	type MaxDataLength = MaxDataLength;
 	type UpdateOrigin = frame_system::EnsureRoot<u64>;
-	type MaxSignatureDeposit = MaxSignatureDeposit;
 }
 
 parameter_types! {
