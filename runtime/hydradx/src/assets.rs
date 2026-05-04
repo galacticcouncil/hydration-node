@@ -136,6 +136,9 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type PostTransfer = crate::evm::erc20_logs::EmitErc20TransferLog;
 	type PreWithdraw = ();
 	type PostWithdraw = crate::evm::erc20_logs::EmitErc20TransferLog;
+	type PostReserve = crate::evm::erc20_logs::EmitErc20TransferLog;
+	type PostUnreserve = crate::evm::erc20_logs::EmitErc20TransferLog;
+	type PostRepatriate = crate::evm::erc20_logs::EmitErc20TransferLog;
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
 }

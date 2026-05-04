@@ -336,6 +336,9 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type PostTransfer = ();
 	type PreWithdraw = ();
 	type PostWithdraw = ();
+	type PostReserve = ();
+	type PostUnreserve = ();
+	type PostRepatriate = ();
 	type OnNewTokenAccount = AddTxAssetOnAccount<Test>;
 	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Test>;
 }

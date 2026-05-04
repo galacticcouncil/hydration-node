@@ -761,3 +761,118 @@ fn balances_unreserve_buffers_transfer_log_from_reserved_sentinel() {
 		);
 	});
 }
+
+// ----------------------------------------------------------------------
+// Repatriate — moves reserved balance from one account to another. We need
+// the eth-rpc Transfer-event accounting to stay consistent: amount leaves
+// the slashed account's reserved bucket and lands either in beneficiary's
+// free balance (status=Free) or in beneficiary's reserved bucket
+// (status=Reserved).
+// ----------------------------------------------------------------------
+
+#[test]
+fn orml_tokens_repatriate_to_free_buffers_transfer_log_to_beneficiary() {
+	use orml_traits::{BalanceStatus, MultiReservableCurrency};
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let amount = UNITS;
+		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(DAI, &ALICE.into(), amount));
+		SyntheticLogsPending::<Runtime>::kill();
+
+		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::repatriate_reserved(
+			DAI,
+			&ALICE.into(),
+			&BOB.into(),
+			amount,
+			BalanceStatus::Free,
+		));
+
+		let dai_addr = HydraErc20Mapping::asset_address(DAI);
+		let alice_reserved = reserved_address_of(alice_h160());
+		let bob_h = bob_h160();
+
+		let entry = buffered_logs().into_iter().find(|(_, emitter, log)| {
+			*emitter == dai_addr
+				&& log.topics.first() == Some(&TRANSFER_TOPIC)
+				&& log.topics.get(1) == Some(&h160_to_h256(alice_reserved))
+				&& log.topics.get(2) == Some(&h160_to_h256(bob_h))
+		});
+		assert!(
+			entry.is_some(),
+			"orml_tokens::repatriate_reserved (status=Free) must buffer \
+			 Transfer(reserved_address_of(slashed), beneficiary, amount)",
+		);
+	});
+}
+
+#[test]
+fn orml_tokens_repatriate_to_reserved_buffers_transfer_log_between_reserved_buckets() {
+	use orml_traits::{BalanceStatus, MultiReservableCurrency};
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let amount = UNITS;
+		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(DAI, &ALICE.into(), amount));
+		SyntheticLogsPending::<Runtime>::kill();
+
+		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::repatriate_reserved(
+			DAI,
+			&ALICE.into(),
+			&BOB.into(),
+			amount,
+			BalanceStatus::Reserved,
+		));
+
+		let dai_addr = HydraErc20Mapping::asset_address(DAI);
+		let alice_reserved = reserved_address_of(alice_h160());
+		let bob_reserved = reserved_address_of(bob_h160());
+
+		let entry = buffered_logs().into_iter().find(|(_, emitter, log)| {
+			*emitter == dai_addr
+				&& log.topics.first() == Some(&TRANSFER_TOPIC)
+				&& log.topics.get(1) == Some(&h160_to_h256(alice_reserved))
+				&& log.topics.get(2) == Some(&h160_to_h256(bob_reserved))
+		});
+		assert!(
+			entry.is_some(),
+			"orml_tokens::repatriate_reserved (status=Reserved) must buffer \
+			 Transfer(reserved_address_of(slashed), reserved_address_of(beneficiary), amount)",
+		);
+	});
+}
+
+#[test]
+fn balances_repatriate_to_free_buffers_transfer_log_to_beneficiary() {
+	use frame_support::traits::{tokens::BalanceStatus, ReservableCurrency};
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let amount = UNITS;
+		assert_ok!(<Balances as ReservableCurrency<AccountId>>::reserve(&ALICE.into(), amount));
+		SyntheticLogsPending::<Runtime>::kill();
+
+		assert_ok!(<Balances as ReservableCurrency<AccountId>>::repatriate_reserved(
+			&ALICE.into(),
+			&BOB.into(),
+			amount,
+			BalanceStatus::Free,
+		));
+
+		let hdx_addr = HydraErc20Mapping::asset_address(HDX);
+		let alice_reserved = reserved_address_of(alice_h160());
+		let bob_h = bob_h160();
+
+		let entry = buffered_logs().into_iter().find(|(_, emitter, log)| {
+			*emitter == hdx_addr
+				&& log.topics.first() == Some(&TRANSFER_TOPIC)
+				&& log.topics.get(1) == Some(&h160_to_h256(alice_reserved))
+				&& log.topics.get(2) == Some(&h160_to_h256(bob_h))
+		});
+		assert!(
+			entry.is_some(),
+			"pallet_balances::repatriate_reserved (status=Free) must buffer \
+			 Transfer(reserved_address_of(slashed), beneficiary, amount) for HDX",
+		);
+	});
+}
