@@ -52,10 +52,6 @@ pub const SENTINEL_ADDRESS: H160 = H160([
 	0xef,
 ]);
 
-/// Domain separator mixed into synthetic tx hashes so they can never collide
-/// with real ethereum tx hashes computed from real signatures.
-pub const SYNTH_DOMAIN: &[u8] = b"hydration-synth-v1";
-
 /// Constant `r`/`s` value for synthetic signatures. Inside the valid ECDSA
 /// range required by the ethereum crate, but clearly not a real signature.
 pub const SYNTH_SIG_RS: H256 = H256([
@@ -178,11 +174,8 @@ impl<T: Config> Pallet<T> {
 		}
 		groups.sort_by(|a, b| Self::bucket_sort_key(&a.0).cmp(&Self::bucket_sort_key(&b.0)));
 
-		let block_number = frame_system::Pallet::<T>::block_number();
-		let parent_hash = frame_system::Pallet::<T>::parent_hash();
-
 		for (idx, (bucket, logs)) in groups.into_iter().enumerate() {
-			Self::insert_synth_tx(bucket, logs, idx as u32, &parent_hash, block_number);
+			Self::insert_synth_tx(bucket, logs, idx as u32);
 		}
 	}
 
@@ -253,35 +246,21 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn insert_synth_tx(
-		bucket: Bucket,
-		logs: Vec<ethereum::Log>,
-		group_index: u32,
-		parent_hash: &T::Hash,
-		block_number: BlockNumberFor<T>,
-	) {
+	fn insert_synth_tx(bucket: Bucket, logs: Vec<ethereum::Log>, group_index: u32) {
 		let chain_id = <T as Config>::ChainId::get();
 		let nonce = Self::bucket_nonce(bucket);
 
-		// Build a deterministic synthetic tx hash:
-		//   keccak256(SYNTH_DOMAIN || parent_hash || block_number || nonce || group_index)
-		// `parent_hash` makes hashes unique across forks; nonce + group_index make them
-		// unique within a block.
-		let mut preimage: Vec<u8> = Vec::with_capacity(64);
-		preimage.extend_from_slice(SYNTH_DOMAIN);
-		preimage.extend_from_slice(parent_hash.as_ref());
-		preimage.extend_from_slice(&block_number.encode());
-		preimage.extend_from_slice(&nonce.to_be_bytes());
-		preimage.extend_from_slice(&group_index.to_be_bytes());
-		let transaction_hash = H256::from(sp_io::hashing::keccak_256(&preimage));
-
-		// Synthetic transaction. EIP-1559 envelope; fees and gas are zero. The
-		// signature is a constant fake (r=s=0x01..01) that satisfies the ECDSA
-		// range check imposed by the ethereum crate but obviously corresponds
-		// to no real signer. Synthetic txs are never recovered — `from` is
-		// sourced from `TransactionStatus.from`.
+		// EIP-1559 envelope. Fee fields zero; constant fake signature
+		// (r=s=0x01..01) inside the ECDSA range but obviously not a real
+		// signature — `from` is read from `TransactionStatus.from`, never
+		// ecrecovered. The `nonce` encodes the bucket so indexers can reverse
+		// the synth tx back to its substrate origin (see `bucket_nonce`).
 		let signature = ethereum::eip2930::TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS)
 			.expect("synthetic signature constants are within valid ECDSA range; qed");
+		// Encode `group_index` into `value` so two synth txs in the same block
+		// (same bucket-nonce class) hash differently — without it, two
+		// `Hook { Init, None }` synth txs in one block would share the
+		// canonical envelope hash and collide in frontier's tx-hash index.
 		let transaction = Transaction::EIP1559(EIP1559Transaction {
 			chain_id,
 			nonce: U256::from(nonce),
@@ -289,11 +268,17 @@ impl<T: Config> Pallet<T> {
 			max_fee_per_gas: U256::zero(),
 			gas_limit: U256::zero(),
 			action: TransactionAction::Call(SENTINEL_ADDRESS),
-			value: U256::zero(),
+			value: U256::from(group_index),
 			input: Vec::new(),
 			access_list: Vec::new(),
 			signature,
 		});
+
+		// Use the canonical envelope hash so frontier's tx-index lookups
+		// (eth_getTransactionByHash, eth_getTransactionReceipt) resolve, and
+		// so the `transactionHash` field on each emitted log matches what
+		// indexers see when they query the receipt.
+		let transaction_hash = transaction.hash();
 
 		let mut bloom: Bloom = Bloom::default();
 		Self::compute_logs_bloom(&logs, &mut bloom);
