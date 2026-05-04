@@ -7,7 +7,9 @@ use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::Runtime;
 use frame_support::sp_runtime::DispatchResult;
 use hydradx_traits::evm::{Erc20Mapping, InspectEvmAccounts};
-use orml_traits::currency::{OnDeposit, OnRepatriate, OnReserve, OnSlash, OnTransfer, OnUnreserve, OnWithdraw};
+use orml_traits::currency::{
+	OnDeposit, OnRepatriate, OnReserve, OnSlash, OnSlashReserved, OnTransfer, OnUnreserve, OnWithdraw,
+};
 use orml_traits::BalanceStatus;
 use pallet_synthetic_logs::{
 	encode_u256_be, h160_to_h256, reserved_address_of, Pallet as SyntheticLogs, TRANSFER_TOPIC,
@@ -96,6 +98,16 @@ impl OnUnreserve<AccountId, AssetId, Balance> for EmitErc20TransferLog {
 	}
 }
 
+impl OnSlashReserved<AccountId, AssetId, Balance> for EmitErc20TransferLog {
+	fn on_slash_reserved(asset: AssetId, who: &AccountId, amount: Balance) {
+		if amount == 0 {
+			return;
+		}
+		let owner = evm_address_of(who);
+		push_transfer_log(asset, reserved_address_of(owner), H160::zero(), amount);
+	}
+}
+
 impl OnRepatriate<AccountId, AssetId, Balance> for EmitErc20TransferLog {
 	fn on_repatriate(
 		asset: AssetId,
@@ -159,6 +171,14 @@ impl pallet_balances::BalancesHooks<AccountId, Balance> for EmitErc20TransferLog
 		}
 		let owner = evm_address_of(who);
 		push_transfer_log(CORE_ASSET_ID, reserved_address_of(owner), owner, amount);
+	}
+
+	fn on_slash_reserved(who: &AccountId, amount: Balance) {
+		if amount == 0 {
+			return;
+		}
+		let owner = evm_address_of(who);
+		push_transfer_log(CORE_ASSET_ID, reserved_address_of(owner), H160::zero(), amount);
 	}
 
 	fn on_repatriate(

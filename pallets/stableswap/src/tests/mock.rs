@@ -712,6 +712,7 @@ impl MutationHooks<AccountId, AssetId, Balance> for Hooks {
 	type PostWithdraw = ();
 	type PostReserve = ();
 	type PostUnreserve = ();
+	type PostSlashReserved = ();
 	type PostRepatriate = ();
 	type OnNewTokenAccount = ();
 	type OnKilledTokenAccount = ();

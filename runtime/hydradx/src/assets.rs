@@ -136,6 +136,7 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type PostWithdraw = EmitErc20TransferLog;
 	type PostReserve = EmitErc20TransferLog;
 	type PostUnreserve = EmitErc20TransferLog;
+	type PostSlashReserved = EmitErc20TransferLog;
 	type PostRepatriate = EmitErc20TransferLog;
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);

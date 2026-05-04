@@ -867,6 +867,119 @@ fn orml_tokens_repatriate_to_reserved_buffers_transfer_log_between_reserved_buck
 }
 
 #[test]
+fn orml_tokens_slash_reserved_buffers_burn_log_from_reserved_sentinel() {
+	use orml_traits::MultiReservableCurrency;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let amount = UNITS;
+		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(DAI, &ALICE.into(), amount));
+		SyntheticLogsPending::<Runtime>::kill();
+
+		let remaining = <Tokens as MultiReservableCurrency<AccountId>>::slash_reserved(DAI, &ALICE.into(), amount);
+		assert_eq!(remaining, 0);
+
+		let dai_addr = HydraErc20Mapping::asset_address(DAI);
+		let reserved = reserved_address_of(alice_h160());
+		let entry = buffered_logs().into_iter().find(|(_, emitter, log)| {
+			*emitter == dai_addr
+				&& log.topics.first() == Some(&TRANSFER_TOPIC)
+				&& log.topics.get(1) == Some(&h160_to_h256(reserved))
+				&& log.topics.get(2) == Some(&h160_to_h256(H160::zero()))
+		});
+		assert!(
+			entry.is_some(),
+			"orml_tokens::slash_reserved must buffer Transfer(reserved_sentinel, 0x0, amount)",
+		);
+	});
+}
+
+#[test]
+fn balances_slash_reserved_buffers_burn_log_from_reserved_sentinel() {
+	use frame_support::traits::ReservableCurrency;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let amount = UNITS;
+		assert_ok!(<Balances as ReservableCurrency<AccountId>>::reserve(&ALICE.into(), amount));
+		SyntheticLogsPending::<Runtime>::kill();
+
+		let (_imbalance, remaining) = <Balances as ReservableCurrency<AccountId>>::slash_reserved(&ALICE.into(), amount);
+		assert_eq!(remaining, 0);
+
+		let hdx_addr = HydraErc20Mapping::asset_address(HDX);
+		let reserved = reserved_address_of(alice_h160());
+		let entry = buffered_logs().into_iter().find(|(_, emitter, log)| {
+			*emitter == hdx_addr
+				&& log.topics.first() == Some(&TRANSFER_TOPIC)
+				&& log.topics.get(1) == Some(&h160_to_h256(reserved))
+				&& log.topics.get(2) == Some(&h160_to_h256(H160::zero()))
+		});
+		assert!(
+			entry.is_some(),
+			"pallet_balances::slash_reserved must buffer Transfer(reserved_sentinel, 0x0, amount) for HDX",
+		);
+	});
+}
+
+#[test]
+fn balances_currency_withdraw_buffers_burn_log() {
+	// covers the native HDX fee path which routes through
+	// `BasicCurrencyAdapter::withdraw` → `pallet_balances::Currency::withdraw`
+	use frame_support::traits::{Currency, ExistenceRequirement, WithdrawReasons};
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		SyntheticLogsPending::<Runtime>::kill();
+		let _imbalance = <Balances as Currency<AccountId>>::withdraw(
+			&ALICE.into(),
+			UNITS,
+			WithdrawReasons::TRANSACTION_PAYMENT,
+			ExistenceRequirement::AllowDeath,
+		)
+		.expect("alice has enough HDX");
+
+		let hdx_addr = HydraErc20Mapping::asset_address(HDX);
+		let entry = buffered_logs().into_iter().find(|(_, emitter, log)| {
+			*emitter == hdx_addr
+				&& log.topics.first() == Some(&TRANSFER_TOPIC)
+				&& log.topics.get(1) == Some(&h160_to_h256(alice_h160()))
+				&& log.topics.get(2) == Some(&h160_to_h256(H160::zero()))
+		});
+		assert!(
+			entry.is_some(),
+			"pallet_balances::Currency::withdraw must buffer Transfer(payer, 0x0, amount); \
+			 this is the native HDX fee burn path",
+		);
+	});
+}
+
+#[test]
+fn balances_currency_deposit_creating_buffers_mint_log() {
+	// covers the deposit half of the fee path
+	// (treasury credit, etc.): `Currency::deposit_creating` was silent before.
+	use frame_support::traits::Currency;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		SyntheticLogsPending::<Runtime>::kill();
+		let _imbalance = <Balances as Currency<AccountId>>::deposit_creating(&BOB.into(), UNITS);
+
+		let hdx_addr = HydraErc20Mapping::asset_address(HDX);
+		let entry = buffered_logs().into_iter().find(|(_, emitter, log)| {
+			*emitter == hdx_addr
+				&& log.topics.first() == Some(&TRANSFER_TOPIC)
+				&& log.topics.get(1) == Some(&h160_to_h256(H160::zero()))
+				&& log.topics.get(2) == Some(&h160_to_h256(bob_h160()))
+		});
+		assert!(
+			entry.is_some(),
+			"pallet_balances::Currency::deposit_creating must buffer Transfer(0x0, recipient, amount)",
+		);
+	});
+}
+
+#[test]
 fn balances_repatriate_to_free_buffers_transfer_log_to_beneficiary() {
 	use frame_support::traits::{tokens::BalanceStatus, ReservableCurrency};
 
