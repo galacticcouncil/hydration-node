@@ -86,7 +86,7 @@ pub enum WeightCurveType {
 /// Max weight corresponds to 100%
 pub const MAX_WEIGHT: LBPWeight = 100_000_000;
 
-/// Max sale duration is 14 days, assuming 6 sec blocks
+/// Max sale duration is 14 days, assuming 6 sec blocks (relay chain)
 pub const MAX_SALE_DURATION: u32 = (60 * 60 * 24 / 6) * 14;
 
 /// Lock Identifier for the collected fees
