@@ -1868,6 +1868,28 @@ impl pallet_dispenser::Config for Runtime {
 	type BenchmarkHelper = DispenserBenchmarkHelper;
 }
 
+parameter_types! {
+	pub const GigaHdxLockId: frame_support::traits::LockIdentifier = *b"ghdxlock";
+	pub const GigaHdxPalletId: frame_support::PalletId = frame_support::PalletId(*b"gigahdx!");
+	pub const StHdxAssetId: AssetId = 670;
+	pub const GigaHdxAssetIdConst: AssetId = 67;
+	pub const GigaHdxMinStake: Balance = UNITS; // 1 HDX
+	pub const GigaHdxCooldownPeriod: BlockNumber = 30 * DAYS;
+}
+
+impl pallet_gigahdx::Config for Runtime {
+	type Currency = Balances;
+	type StHdx = FungibleCurrencies<Runtime>;
+	type StHdxAssetId = StHdxAssetId;
+	type MoneyMarket = crate::gigahdx::AaveMoneyMarket;
+	type GovernanceOrigin = EnsureRoot<AccountId>;
+	type PalletId = GigaHdxPalletId;
+	type LockId = GigaHdxLockId;
+	type MinStake = GigaHdxMinStake;
+	type CooldownPeriod = GigaHdxCooldownPeriod;
+	type WeightInfo = ();
+}
+
 #[cfg(feature = "runtime-benchmarks")]
 pub struct DispenserBenchmarkHelper;
 

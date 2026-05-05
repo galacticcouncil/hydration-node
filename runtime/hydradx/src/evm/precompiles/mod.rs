@@ -101,6 +101,8 @@ pub const BN_PAIRING: H160 = H160(hex!("0000000000000000000000000000000000000008
 pub const BLAKE2F: H160 = H160(hex!("0000000000000000000000000000000000000009"));
 pub const CALLPERMIT: H160 = H160(hex!("000000000000000000000000000000000000080a"));
 pub const FLASH_LOAN_RECEIVER: H160 = H160(hex!("000000000000000000000000000000000000090a"));
+/// Lock-manager precompile address consumed by `LockableAToken.sol`.
+pub const LOCK_MANAGER: H160 = H160(hex!("0000000000000000000000000000000000000806"));
 
 pub const ETH_PRECOMPILE_END: H160 = BLAKE2F;
 
@@ -127,7 +129,8 @@ where
 		+ pallet_evm_accounts::Config
 		+ pallet_stableswap::Config
 		+ pallet_liquidation::Config
-		+ pallet_hsm::Config,
+		+ pallet_hsm::Config
+		+ pallet_gigahdx::Config,
 	<R as frame_system::Config>::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
 	<<R as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<pallet_evm::AccountIdOf<R>>>,
 	MultiCurrencyPrecompile<R>: Precompile,
@@ -176,6 +179,10 @@ where
 				R,
 				AllowedFlashLoanCallers,
 			>::execute(handle))
+		} else if address == LOCK_MANAGER {
+			Some(pallet_evm_precompile_lock_manager::LockManagerPrecompile::<R>::execute(
+				handle,
+			))
 		} else if address == DISPATCH_ADDR {
 			let caller_account = R::AddressMapping::into_account_id(handle.context().caller);
 			let original_nonce = frame_system::Pallet::<R>::account_nonce(caller_account.clone());
@@ -210,7 +217,7 @@ where
 }
 
 pub fn is_precompile(address: H160) -> bool {
-	address == DISPATCH_ADDR || is_asset_address(address) || is_standard_precompile(address)
+	address == DISPATCH_ADDR || address == LOCK_MANAGER || is_asset_address(address) || is_standard_precompile(address)
 }
 
 // This is a reimplementation of the upstream u64->H160 conversion

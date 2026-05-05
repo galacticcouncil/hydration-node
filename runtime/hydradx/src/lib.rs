@@ -35,6 +35,7 @@ pub mod weights;
 mod assets;
 pub mod circuit_breaker;
 pub mod evm;
+pub mod gigahdx;
 pub mod governance;
 mod helpers;
 // mod hyperbridge;
@@ -202,6 +203,7 @@ construct_runtime!(
 		Parameters: pallet_parameters = 83,
 		Signet: pallet_signet = 84,
 		EthDispenser: pallet_dispenser = 85,
+		GigaHdx: pallet_gigahdx = 86,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

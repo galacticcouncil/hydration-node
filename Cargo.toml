@@ -46,12 +46,14 @@ members = [
     'pallets/liquidation',
     'precompiles/call-permit',
     'precompiles/flash-loan',
+    'precompiles/lock-manager',
     'runtime-mock',
     'pallets/broadcast',
     'liquidation-worker-support',
     'pallets/hsm',
     "pallets/signet",
-    "pallets/dispenser"
+    "pallets/dispenser",
+    "pallets/gigahdx",
 ]
 
 resolver = "2"
@@ -165,6 +167,7 @@ pallet-hsm = { path = "pallets/hsm", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
 pallet-signet = { path = "pallets/signet", default-features = false }
 pallet-dispenser = { path = "pallets/dispenser", default-features = false }
+pallet-gigahdx = { path = "pallets/gigahdx", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
@@ -174,6 +177,7 @@ integration-tests = { path = "integration-tests", default-features = false }
 
 pallet-evm-precompile-call-permit = { path = "precompiles/call-permit", default-features = false }
 pallet-evm-precompile-flash-loan = { path = "precompiles/flash-loan", default-features = false }
+pallet-evm-precompile-lock-manager = { path = "precompiles/lock-manager", default-features = false }
 precompile-utils = { path = "precompiles/utils", default-features = false }
 
 # Frame
