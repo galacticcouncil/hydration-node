@@ -53,7 +53,7 @@ mod evm_frame_logs {
 	}
 
 	pub fn drain() -> Vec<ethereum::Log> {
-		EVM_FRAME_LOGS::with(|buf| sp_std::mem::take(buf)).unwrap_or_default()
+		EVM_FRAME_LOGS::with(sp_std::mem::take).unwrap_or_default()
 	}
 }
 

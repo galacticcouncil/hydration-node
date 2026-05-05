@@ -77,8 +77,7 @@ impl OnTrade<AccountId> for EmitUniswapV2SwapLog {
 		if is_asset_address(pool_address) {
 			log::warn!(
 				target: "runtime::synthetic-logs",
-				"pool address collides with erc20 prefix; skipping swap log for filler {:?}",
-				filler,
+				"pool address collides with erc20 prefix; skipping swap log for filler {filler:?}",
 			);
 			return;
 		}

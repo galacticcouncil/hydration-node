@@ -87,10 +87,10 @@ impl<T: Config> Pallet<T> {
 		let bucket = Self::current_bucket();
 		Pending::<T>::mutate(|v| {
 			if v.len() as u32 >= MAX_PENDING_LOGS {
+				let n = v.len();
 				log::warn!(
 					target: "runtime::synthetic-logs",
-					"pending buffer full ({} entries); dropping log for {:?}",
-					v.len(), emitter,
+					"pending buffer full ({n} entries); dropping log for {emitter:?}",
 				);
 				return;
 			}
@@ -126,81 +126,17 @@ impl<T: Config> Pallet<T> {
 				None => groups.push((bucket, vec![log])),
 			}
 		}
-		groups.sort_by(|a, b| Self::bucket_sort_key(&a.0).cmp(&Self::bucket_sort_key(&b.0)));
+
+		groups.sort_by(|a, b| bucket_sort_key(&a.0).cmp(&bucket_sort_key(&b.0)));
 
 		for (idx, (bucket, logs)) in groups.into_iter().enumerate() {
 			Self::insert_synth_tx(bucket, logs, idx as u32);
 		}
 	}
 
-	// 0=init hooks, 1=extrinsics (by index), 2=finalize hooks — preserves wall-clock order.
-	fn bucket_sort_key(bucket: &Bucket) -> (u8, u64) {
-		match bucket {
-			Bucket::Hook {
-				phase: HookPhase::Initialization,
-				origin: None,
-			} => (0, 0),
-			Bucket::Hook {
-				phase: HookPhase::Initialization,
-				origin: Some(_),
-			} => (0, Self::bucket_nonce(*bucket)),
-			Bucket::Extrinsic(i) => (1, *i as u64),
-			Bucket::Hook {
-				phase: HookPhase::Finalization,
-				origin: None,
-			} => (2, 0),
-			Bucket::Hook {
-				phase: HookPhase::Finalization,
-				origin: Some(_),
-			} => (2, Self::bucket_nonce(*bucket)),
-		}
-	}
-
-	/// Encodes the bucket as the synthetic tx's `nonce`, so indexers can
-	/// reverse the synth tx back to its substrate origin.
-	///
-	/// Layout:
-	///   Extrinsic(i)                                        → i           (low)
-	///   Hook { phase: Init,     origin: None }              → MAX - 3
-	///   Hook { phase: Init,     origin: Some(t) }           → 0xDCA0…   | tag(t)
-	///   Hook { phase: Final,    origin: None }              → MAX - 2
-	///   Hook { phase: Final,    origin: Some(t) }           → 0xF1A1…   | tag(t)
-	pub fn bucket_nonce(bucket: Bucket) -> u64 {
-		match bucket {
-			Bucket::Extrinsic(i) => i as u64,
-			Bucket::Hook {
-				phase: HookPhase::Initialization,
-				origin: None,
-			} => u64::MAX - 3,
-			Bucket::Hook {
-				phase: HookPhase::Initialization,
-				origin: Some(o),
-			} => 0xDCA0_0000_0000_0000u64 | Self::origin_tag(&o),
-			Bucket::Hook {
-				phase: HookPhase::Finalization,
-				origin: None,
-			} => u64::MAX - 2,
-			Bucket::Hook {
-				phase: HookPhase::Finalization,
-				origin: Some(o),
-			} => 0xF1A1_0000_0000_0000u64 | Self::origin_tag(&o),
-		}
-	}
-
-	fn origin_tag(origin: &ExecutionType) -> u64 {
-		match origin {
-			ExecutionType::Router(id) => 0x01_00_0000_0000 | (*id as u64),
-			ExecutionType::DCA(schedule_id, _) => 0x02_00_0000_0000 | (*schedule_id as u64),
-			ExecutionType::Batch(id) => 0x03_00_0000_0000 | (*id as u64),
-			ExecutionType::Omnipool(id) => 0x04_00_0000_0000 | (*id as u64),
-			ExecutionType::XcmExchange(id) => 0x05_00_0000_0000 | (*id as u64),
-			ExecutionType::Xcm(_, id) => 0x06_00_0000_0000 | (*id as u64),
-		}
-	}
-
 	fn insert_synth_tx(bucket: Bucket, logs: Vec<ethereum::Log>, group_index: u32) {
 		let chain_id = <T as Config>::ChainId::get();
-		let nonce = Self::bucket_nonce(bucket);
+		let nonce = bucket_nonce(bucket);
 
 		let signature = ethereum::eip2930::TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS)
 			.expect("synthetic signature constants are within valid ECDSA range; qed");
@@ -302,4 +238,68 @@ pub fn encode_uint256_quad(a: U256, b: U256, c: U256, d: U256) -> Vec<u8> {
 	data.extend_from_slice(&encode_u256_be(c));
 	data.extend_from_slice(&encode_u256_be(d));
 	data
+}
+
+// 0=init hooks, 1=extrinsics (by index), 2=finalize hooks — preserves wall-clock order.
+fn bucket_sort_key(bucket: &Bucket) -> (u8, u64) {
+	match bucket {
+		Bucket::Hook {
+			phase: HookPhase::Initialization,
+			origin: None,
+		} => (0, 0),
+		Bucket::Hook {
+			phase: HookPhase::Initialization,
+			origin: Some(_),
+		} => (0, bucket_nonce(*bucket)),
+		Bucket::Extrinsic(i) => (1, *i as u64),
+		Bucket::Hook {
+			phase: HookPhase::Finalization,
+			origin: None,
+		} => (2, 0),
+		Bucket::Hook {
+			phase: HookPhase::Finalization,
+			origin: Some(_),
+		} => (2, bucket_nonce(*bucket)),
+	}
+}
+
+/// `nonce` field on the synth tx. lets indexers reverse a synth tx to its origin.
+///
+/// layout:
+///   Extrinsic(i)                              → i           (low)
+///   Hook { Init,     None }                   → MAX - 3
+///   Hook { Init,     Some(t) }                → 0xDCA0…   | tag(t)
+///   Hook { Final,    None }                   → MAX - 2
+///   Hook { Final,    Some(t) }                → 0xF1A1…   | tag(t)
+pub fn bucket_nonce(bucket: Bucket) -> u64 {
+	match bucket {
+		Bucket::Extrinsic(i) => i as u64,
+		Bucket::Hook {
+			phase: HookPhase::Initialization,
+			origin: None,
+		} => u64::MAX - 3,
+		Bucket::Hook {
+			phase: HookPhase::Initialization,
+			origin: Some(o),
+		} => 0xDCA0_0000_0000_0000u64 | origin_tag(&o),
+		Bucket::Hook {
+			phase: HookPhase::Finalization,
+			origin: None,
+		} => u64::MAX - 2,
+		Bucket::Hook {
+			phase: HookPhase::Finalization,
+			origin: Some(o),
+		} => 0xF1A1_0000_0000_0000u64 | origin_tag(&o),
+	}
+}
+
+fn origin_tag(origin: &ExecutionType) -> u64 {
+	match origin {
+		ExecutionType::Router(id) => 0x0100_0000_0000 | (*id as u64),
+		ExecutionType::DCA(schedule_id, _) => 0x0200_0000_0000 | (*schedule_id as u64),
+		ExecutionType::Batch(id) => 0x0300_0000_0000 | (*id as u64),
+		ExecutionType::Omnipool(id) => 0x0400_0000_0000 | (*id as u64),
+		ExecutionType::XcmExchange(id) => 0x0500_0000_0000 | (*id as u64),
+		ExecutionType::Xcm(_, id) => 0x0600_0000_0000 | (*id as u64),
+	}
 }

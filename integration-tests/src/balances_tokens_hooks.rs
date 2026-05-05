@@ -506,9 +506,7 @@ fn dispatcher_precompile_batch_preserves_substrate_transfer_order() {
 			observed,
 			leg_assets.to_vec(),
 			"Transfer logs from a batched dispatcher call must appear in dispatch order, \
-			 not bunched at the end. Expected {:?}, got {:?}",
-			leg_assets,
-			observed,
+			 not bunched at the end. Expected {leg_assets:?}, got {observed:?}",
 		);
 	});
 }
@@ -603,8 +601,7 @@ fn evm_inline_logs_around_precompile_call_preserve_log_index_order() {
 			vec!["Marker0", "Transfer", "Marker1"],
 			"log_index ordering must match EVM execution order: \
 			 inline Marker(0), then precompile-emitted Transfer (drained at multicurrency precompile call site), \
-			 then inline Marker(1). Got: {:?}",
-			kinds,
+			 then inline Marker(1). Got: {kinds:?}",
 		);
 	});
 }
@@ -638,9 +635,7 @@ fn orml_tokens_reserve_buffers_transfer_log_to_reserved_sentinel() {
 		assert!(
 			entry.is_some(),
 			"orml_tokens::reserve must buffer Transfer(owner, reserved_sentinel, amount); \
-			 reserved_sentinel = {:?} for alice = {:?}",
-			reserved,
-			alice_h,
+			 reserved_sentinel = {reserved:?} for alice = {alice_h:?}",
 		);
 	});
 }
@@ -1078,7 +1073,7 @@ fn evm_frame_revert_drops_buffered_substrate_hook_logs() {
 		calldata.extend_from_slice(&inner_encoded);
 		// pad to 32-byte boundary
 		let pad = (32 - inner_encoded.len() % 32) % 32;
-		calldata.extend(sp_std::iter::repeat(0u8).take(pad));
+		calldata.extend(std::iter::repeat_n(0u8, pad));
 
 		SyntheticLogsPending::<Runtime>::kill();
 

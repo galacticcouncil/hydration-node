@@ -72,9 +72,7 @@ fn sell_with_slip_fees_gives_less_output_than_without() {
 
 	assert!(
 		output_with_slip < output_no_slip,
-		"Slip fee should reduce sell output: no_slip={} with_slip={}",
-		output_no_slip,
-		output_with_slip
+		"Slip fee should reduce sell output: no_slip={output_no_slip} with_slip={output_with_slip}"
 	);
 }
 
@@ -147,9 +145,7 @@ fn buy_with_slip_fees_costs_more_than_without() {
 
 	assert!(
 		cost_with_slip > cost_no_slip,
-		"Slip fee should increase buy cost: no_slip={} with_slip={}",
-		cost_no_slip,
-		cost_with_slip
+		"Slip fee should increase buy cost: no_slip={cost_no_slip} with_slip={cost_with_slip}"
 	);
 }
 
@@ -206,9 +202,7 @@ fn sell_lrna_with_slip_fees_gives_less_output_than_without() {
 
 	assert!(
 		output_with_slip < output_no_slip,
-		"Slip fee should reduce LRNA sell output: no_slip={} with_slip={}",
-		output_no_slip,
-		output_with_slip
+		"Slip fee should reduce LRNA sell output: no_slip={output_no_slip} with_slip={output_with_slip}"
 	);
 }
 
@@ -265,9 +259,7 @@ fn buy_with_lrna_with_slip_fees_costs_more_than_without() {
 
 	assert!(
 		cost_with_slip > cost_no_slip,
-		"Slip fee should increase LRNA buy cost: no_slip={} with_slip={}",
-		cost_no_slip,
-		cost_with_slip
+		"Slip fee should increase LRNA buy cost: no_slip={cost_no_slip} with_slip={cost_with_slip}"
 	);
 }
 
@@ -340,18 +332,14 @@ fn slip_fee_deltas_are_cleared_across_blocks() {
 	// Slip fees are active: first trade gives less than no-slip baseline
 	assert!(
 		first_output < output_no_slip,
-		"Slip fee should reduce output: no_slip={} with_slip={}",
-		output_no_slip,
-		first_output
+		"Slip fee should reduce output: no_slip={output_no_slip} with_slip={first_output}"
 	);
 
 	// After delta clearing, output should be close to first trade (no accumulated penalty).
 	// Pool state changed slightly from the first trade, but the slip fee restarts from zero.
 	assert!(
 		cleared_output >= first_output * 99 / 100,
-		"Cleared trade should not suffer accumulated slip penalty: first={} cleared={}",
-		first_output,
-		cleared_output
+		"Cleared trade should not suffer accumulated slip penalty: first={first_output} cleared={cleared_output}"
 	);
 }
 
@@ -432,9 +420,7 @@ fn sequential_trades_accumulate_slip_within_block() {
 	// Basic: second trade gets less output in both cases
 	assert!(
 		slip_second < slip_first,
-		"Second trade should get less output due to accumulated slip: first={} second={}",
-		slip_first,
-		slip_second
+		"Second trade should get less output due to accumulated slip: first={slip_first} second={slip_second}"
 	);
 
 	// The drop between first and second trade should be LARGER with slip fees than without.
@@ -444,8 +430,6 @@ fn sequential_trades_accumulate_slip_within_block() {
 	let slip_drop = slip_first - slip_second;
 	assert!(
 		slip_drop > no_slip_drop,
-		"Slip fees should cause a larger drop between sequential trades: slip_drop={} no_slip_drop={}",
-		slip_drop,
-		no_slip_drop
+		"Slip fees should cause a larger drop between sequential trades: slip_drop={slip_drop} no_slip_drop={no_slip_drop}"
 	);
 }

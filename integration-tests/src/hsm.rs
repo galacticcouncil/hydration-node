@@ -2768,7 +2768,7 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool() {
 				Some(state.fee),
 				&state.pegs,
 			);
-			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
+			println!("Block: {block_idx:?}: spot: {spot_price:?}");
 			assert!(spot_price < last_spot_price);
 			last_spot_price = spot_price;
 			hydradx_run_to_next_block();
@@ -2955,7 +2955,7 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 				Some(state.fee),
 				&state.pegs,
 			);
-			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
+			println!("Block: {block_idx:?}: spot: {spot_price:?}");
 			assert!(spot_price < last_spot_price);
 			last_spot_price = spot_price;
 			hydradx_run_to_next_block();

@@ -32,7 +32,7 @@ fn xcm_message_withdraw_deposit(token_location: Location, amount: Balance) -> Xc
 	Xcm(vec![
 		WithdrawAsset(asset.clone().into()),
 		BuyExecution {
-			fees: asset.into(),
+			fees: asset,
 			weight_limit: Unlimited,
 		},
 		DepositReserveAsset {
@@ -54,7 +54,7 @@ fn set_dot_external_and_get_transfer_call() -> hydradx_runtime::RuntimeCall {
 
 	let dot: Asset = Asset {
 		id: cumulus_primitives_core::AssetId(DOT_ASSET_LOCATION.into()),
-		fun: Fungible(1 * UNITS),
+		fun: Fungible(UNITS),
 	};
 
 	let bob_beneficiary = Location::new(
@@ -195,7 +195,7 @@ fn xtokens_transfer_should_fail_when_lockdown_active_and_asset_is_egress() {
 
 		let call = RuntimeCall::XTokens(orml_xtokens::Call::transfer {
 			currency_id: HDX,
-			amount: 1 * UNITS,
+			amount: UNITS,
 			dest: Box::new(bob_location.into_versioned()),
 			dest_weight_limit: WeightLimit::Unlimited,
 		});
@@ -238,7 +238,7 @@ fn on_charge_transaction_skips_global_withdraw_accounting_for_native_asset() {
 		let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![1, 2, 3] });
 
 		// Act
-		let fee_amount = 1 * UNITS;
+		let fee_amount = UNITS;
 		let _ = <hydradx_runtime::Runtime as pallet_transaction_payment::Config>::OnChargeTransaction::withdraw_fee(
 			&alice,
 			&call,
@@ -264,7 +264,7 @@ fn on_charge_transaction_skips_global_withdraw_accounting_for_native_asset() {
 			Currencies::withdraw(
 				HDX,
 				&BOB.into(),
-				1 * UNITS,
+				UNITS,
 				frame_support::traits::ExistenceRequirement::AllowDeath
 			),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::WithdrawLockdownActive
@@ -311,7 +311,7 @@ fn on_charge_transaction_skips_global_withdraw_accounting_for_external_asset() {
 		let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![1, 2, 3] });
 
 		// Act
-		let fee_amount = 1 * UNITS;
+		let fee_amount = UNITS;
 		let _ = <hydradx_runtime::Runtime as pallet_transaction_payment::Config>::OnChargeTransaction::withdraw_fee(
 			&alice,
 			&call,
@@ -337,7 +337,7 @@ fn on_charge_transaction_skips_global_withdraw_accounting_for_external_asset() {
 			Currencies::withdraw(
 				DOT,
 				&ALICE.into(),
-				1 * UNITS,
+				UNITS,
 				frame_support::traits::ExistenceRequirement::AllowDeath
 			),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::WithdrawLockdownActive
@@ -407,7 +407,7 @@ fn evm_on_charge_transaction_skips_global_withdraw_accounting() {
 			Currencies::withdraw(
 				WETH,
 				&evm_account,
-				1 * UNITS,
+				UNITS,
 				frame_support::traits::ExistenceRequirement::AllowDeath
 			),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::WithdrawLockdownActive
@@ -804,7 +804,7 @@ fn dot_external_limit_trigger_fails_then_decays_to_zero() {
 		assert_ok!(AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
 
 		let alice: AccountId = ALICE.into();
-		let amount = 1 * UNITS;
+		let amount = UNITS;
 		assert!(
 			Currencies::free_balance(DOT, &alice) >= amount * 3,
 			"Test requires Alice to have enough DOT"
@@ -877,7 +877,7 @@ fn dot_external_lockdown_blocks_withdraw_but_regular_dot_transfer_still_works() 
 
 		let alice: AccountId = ALICE.into();
 		let bob: AccountId = BOB.into();
-		let amount = 1 * UNITS;
+		let amount = UNITS;
 		assert!(Currencies::free_balance(DOT, &alice) >= amount * 2);
 		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, 0);
 
