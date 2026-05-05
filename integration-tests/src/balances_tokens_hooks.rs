@@ -826,7 +826,11 @@ fn orml_tokens_slash_reserved_buffers_burn_log_from_reserved_sentinel() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let amount = UNITS;
-		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(DAI, &ALICE.into(), amount));
+		assert_ok!(<Tokens as MultiReservableCurrency<AccountId>>::reserve(
+			DAI,
+			&ALICE.into(),
+			amount
+		));
 		SyntheticLogsPending::<Runtime>::kill();
 
 		let remaining = <Tokens as MultiReservableCurrency<AccountId>>::slash_reserved(DAI, &ALICE.into(), amount);
@@ -854,10 +858,14 @@ fn balances_slash_reserved_buffers_burn_log_from_reserved_sentinel() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let amount = UNITS;
-		assert_ok!(<Balances as ReservableCurrency<AccountId>>::reserve(&ALICE.into(), amount));
+		assert_ok!(<Balances as ReservableCurrency<AccountId>>::reserve(
+			&ALICE.into(),
+			amount
+		));
 		SyntheticLogsPending::<Runtime>::kill();
 
-		let (_imbalance, remaining) = <Balances as ReservableCurrency<AccountId>>::slash_reserved(&ALICE.into(), amount);
+		let (_imbalance, remaining) =
+			<Balances as ReservableCurrency<AccountId>>::slash_reserved(&ALICE.into(), amount);
 		assert_eq!(remaining, 0);
 
 		let hdx_addr = HydraErc20Mapping::asset_address(HDX);
@@ -965,10 +973,7 @@ fn on_finalize_drains_buffer_into_pallet_ethereum_pending_before_ethereum_seal()
 		// After SyntheticLogs's flush but BEFORE Ethereum::on_finalize, the
 		// synth tx must already be in pallet_ethereum::Pending.
 		let pending: Vec<_> = pallet_ethereum::Pending::<Runtime>::iter().collect();
-		assert!(
-			!pending.is_empty(),
-			"flush must write into pallet_ethereum::Pending",
-		);
+		assert!(!pending.is_empty(), "flush must write into pallet_ethereum::Pending",);
 
 		// Now seal the ethereum block.
 		Ethereum::on_finalize(n);
@@ -983,8 +988,8 @@ fn on_finalize_drains_buffer_into_pallet_ethereum_pending_before_ethereum_seal()
 		// CurrentTransactionStatuses + CurrentReceipts. After the seal, the
 		// synth tx should appear in the block's tx list, statuses, and receipts.
 		let block = pallet_ethereum::CurrentBlock::<Runtime>::get().expect("ethereum block sealed");
-		let statuses = pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get()
-			.expect("statuses stored after seal");
+		let statuses =
+			pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get().expect("statuses stored after seal");
 		let receipts = pallet_ethereum::CurrentReceipts::<Runtime>::get().expect("receipts stored after seal");
 
 		assert_eq!(block.transactions.len(), statuses.len(), "tx count == status count");

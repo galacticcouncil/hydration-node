@@ -323,10 +323,7 @@ fn assert_parity(label: &str, hydra: u128, curve: u128, max_tolerance: u128, exp
 		"{label}: diff {diff} exceeds tolerance {max_tolerance} (hydra={hydra}, curve={curve})"
 	);
 	if expect_hydra_gte {
-		assert!(
-			hydra >= curve,
-			"{label}: expected hydra ({hydra}) >= curve ({curve})"
-		);
+		assert!(hydra >= curve, "{label}: expected hydra ({hydra}) >= curve ({curve})");
 	}
 }
 

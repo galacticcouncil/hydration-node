@@ -50,7 +50,10 @@ pub enum HookPhase {
 #[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug, PartialEq, Eq)]
 pub enum Bucket {
 	Extrinsic(u32),
-	Hook { phase: HookPhase, origin: Option<ExecutionType> },
+	Hook {
+		phase: HookPhase,
+		origin: Option<ExecutionType>,
+	},
 }
 
 #[frame_support::pallet]
@@ -102,8 +105,7 @@ impl<T: Config> Pallet<T> {
 	// has already set Phase=Finalization) buckets as Finalization too.
 	fn current_bucket() -> Bucket {
 		use frame_system::Phase;
-		let phase_key =
-			frame_support::storage::storage_prefix(b"System", b"ExecutionPhase");
+		let phase_key = frame_support::storage::storage_prefix(b"System", b"ExecutionPhase");
 		let phase: Phase = frame_support::storage::unhashed::get::<Phase>(&phase_key).unwrap_or_default();
 		match phase {
 			Phase::ApplyExtrinsic(i) => Bucket::Extrinsic(i),

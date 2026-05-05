@@ -7,9 +7,7 @@ use sp_core::U256;
 use std::fs;
 
 pub fn get_contract_bytecode(name: &str) -> Vec<u8> {
-	let path = format!(
-		"../scripts/test-contracts/artifacts/contracts/{name}.sol/{name}.json"
-	);
+	let path = format!("../scripts/test-contracts/artifacts/contracts/{name}.sol/{name}.json");
 	let str = fs::read_to_string(path).unwrap();
 	let json: serde_json::Value = serde_json::from_str(&str).unwrap();
 	let code = json.get("bytecode").unwrap().as_str().unwrap();

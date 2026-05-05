@@ -167,7 +167,13 @@ fn flush_bucket_grouping_and_sort_order() {
 
 	// 5 distinct buckets, in order: Init/None < Init/DCA < Extrinsic(0) < Extrinsic(2) < Final/None
 	let order: Vec<Bucket> = groups.iter().map(|(b, _)| *b).collect();
-	assert!(matches!(order[0], Bucket::Hook { phase: HookPhase::Initialization, origin: None }));
+	assert!(matches!(
+		order[0],
+		Bucket::Hook {
+			phase: HookPhase::Initialization,
+			origin: None
+		}
+	));
 	assert!(matches!(
 		order[1],
 		Bucket::Hook {
@@ -177,7 +183,13 @@ fn flush_bucket_grouping_and_sort_order() {
 	));
 	assert!(matches!(order[2], Bucket::Extrinsic(0)));
 	assert!(matches!(order[3], Bucket::Extrinsic(2)));
-	assert!(matches!(order[4], Bucket::Hook { phase: HookPhase::Finalization, origin: None }));
+	assert!(matches!(
+		order[4],
+		Bucket::Hook {
+			phase: HookPhase::Finalization,
+			origin: None
+		}
+	));
 
 	// Extrinsic(2) holds both its logs in insertion order.
 	let ext2_logs = &groups
@@ -215,7 +227,11 @@ fn bucket_nonce_layout_is_distinct_per_class() {
 	];
 	let nonces: Vec<u64> = cases.iter().map(|b| bucket_nonce(*b)).collect();
 	let unique: std::collections::BTreeSet<_> = nonces.iter().collect();
-	assert_eq!(unique.len(), cases.len(), "every bucket class must produce a distinct nonce");
+	assert_eq!(
+		unique.len(),
+		cases.len(),
+		"every bucket class must produce a distinct nonce"
+	);
 }
 
 fn log(tag: u8) -> ethereum::Log {
@@ -227,4 +243,3 @@ fn log(tag: u8) -> ethereum::Log {
 		data: Vec::new(),
 	}
 }
-
