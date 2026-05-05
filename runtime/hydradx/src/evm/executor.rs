@@ -24,12 +24,8 @@ pub type NonceIdOf<T> = <<T as Config>::AccountProvider as AccountProvider>::Non
 
 pub struct Executor<R>(sp_std::marker::PhantomData<R>);
 
-/// Buffer EVM-frame logs from a `Runner::call` invocation into
-/// `pallet_synthetic_logs`. Used by `Executor::call` (the wrapper hydration
-/// modules use for direct Runner::call) to surface logs to `eth_getLogs` on
-/// paths that bypass `pallet_ethereum::transact` (e.g. HSM arbitrage,
-/// dispatcher-driven evm calls). pallet_ethereum::transact does not go
-/// through Executor::call, so there is no overlap and no dedup is needed.
+// surfaces evm-frame logs from non-transact paths (hsm, dispatcher-driven
+// evm calls) into pallet_synthetic_logs. transact bypasses Executor::call.
 fn capture_logs<T: pallet_synthetic_logs::Config>(logs: &[pallet_evm::Log]) {
 	for log in logs {
 		pallet_synthetic_logs::Pallet::<T>::push(

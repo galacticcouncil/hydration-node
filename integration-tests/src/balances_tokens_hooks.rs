@@ -285,13 +285,7 @@ fn currencies_withdraw_orml_buffers_burn_log() {
 	});
 }
 
-// ----------------------------------------------------------------------
-// Blindspot tests: substrate transfers/swaps triggered through the dispatcher
-// precompile from inside an EVM frame. Today the substrate hooks skip on
-// `is_in_evm()` and the dispatcher does not inline-emit, so these transfers
-// and swaps are silent to `eth_getLogs`. These tests assert the desired
-// post-fix behavior — they will fail until the silent-path is closed.
-// ----------------------------------------------------------------------
+// dispatcher precompile → substrate transfer/swap → must surface via eth_getLogs.
 
 #[test]
 fn dispatcher_precompile_currencies_transfer_token_emits_transfer_log() {
@@ -436,17 +430,8 @@ fn dispatcher_precompile_omnipool_sell_emits_swap_log() {
 	});
 }
 
-/// Order test (intra-batch). The dispatcher precompile drains the buffered
-/// frame logs and emits them via `handle.log()` *at its own call site*, so
-/// when a single dispatch contains a batch of N substrate transfers, the
-/// resulting Transfer logs in `info.logs` (and thus in the captured synth tx
-/// / real eth tx receipt) appear in the same order as the dispatched calls
-/// — not bunched at the end of the receipt.
-///
-/// Limitation: this only tests order *within* a single precompile drain. To
-/// prove order *between* substrate-hook logs and inline-emitted contract
-/// logs in the same EVM frame would require a Solidity contract that emits
-/// markers around a precompile call; not added in v1.
+/// intra-batch order: a dispatcher batch of N transfers produces logs in
+/// dispatch order (drained inline at the precompile's call site).
 #[test]
 fn dispatcher_precompile_batch_preserves_substrate_transfer_order() {
 	use codec::Encode;
@@ -528,23 +513,8 @@ fn dispatcher_precompile_batch_preserves_substrate_transfer_order() {
 	});
 }
 
-/// End-to-end ordering test using a custom Solidity probe contract.
-///
-/// `LogOrderProbe.exercise(token, to, amount)` does:
-///   1. emit Marker(0)
-///   2. token.transfer(to, amount)   // multicurrency precompile call
-///   3. emit Marker(1)
-///
-/// We invoke `exercise` via Executor::call. The captured logs (in synth tx
-/// order = info.logs order = log_index order) must be:
-///   [Marker(0), Transfer, Marker(1)]
-///
-/// If the precompile-level drain weren't there and we relied only on the
-/// WrapRunner-end drain, the resulting order would be:
-///   [Marker(0), Marker(1), Transfer]
-/// — substrate-hook log bunched at the end. This test guards against that
-/// regression and proves log_index ordering matches execution order across
-/// the precompile→substrate→hook→drain path.
+/// inline contract logs interleaved with a precompile-triggered substrate transfer
+/// must produce `[Marker(0), Transfer, Marker(1)]` in log_index order.
 #[test]
 fn evm_inline_logs_around_precompile_call_preserve_log_index_order() {
 	use ethereum_types::H256;
@@ -639,13 +609,7 @@ fn evm_inline_logs_around_precompile_call_preserve_log_index_order() {
 	});
 }
 
-// ----------------------------------------------------------------------
-// Reserve / unreserve — substrate-side encumbrance moves that change the
-// erc20-visible `balanceOf` (which returns free balance only). To keep
-// erc20 indexers reconstructing balances from Transfer events consistent
-// with balanceOf, we mirror reserves as Transfer events to a per-owner
-// sentinel: `reserved_address_of(owner) = owner with first byte XOR 0xEE`.
-// ----------------------------------------------------------------------
+// reserve/unreserve mirror as `Transfer(owner, reserved_address_of(owner))`.
 
 #[test]
 fn orml_tokens_reserve_buffers_transfer_log_to_reserved_sentinel() {
@@ -778,13 +742,7 @@ fn balances_unreserve_buffers_transfer_log_from_reserved_sentinel() {
 	});
 }
 
-// ----------------------------------------------------------------------
-// Repatriate — moves reserved balance from one account to another. We need
-// the eth-rpc Transfer-event accounting to stay consistent: amount leaves
-// the slashed account's reserved bucket and lands either in beneficiary's
-// free balance (status=Free) or in beneficiary's reserved bucket
-// (status=Reserved).
-// ----------------------------------------------------------------------
+// repatriate_reserved: A.reserved → B.free or B.reserved.
 
 #[test]
 fn orml_tokens_repatriate_to_free_buffers_transfer_log_to_beneficiary() {
@@ -979,12 +937,8 @@ fn balances_currency_deposit_creating_buffers_mint_log() {
 	});
 }
 
-/// End-to-end synth-tx flush: pushing a hook log into the buffer, then
-/// running every pallet's `on_finalize` in `construct_runtime!` order, must
-/// land a synthetic `pallet_ethereum::Transaction` in `pallet_ethereum::Pending`
-/// with the expected log, status, receipt — i.e. the synthetic-logs pallet
-/// runs BEFORE `pallet_ethereum::on_finalize` (which would otherwise have
-/// already rolled `Pending` into the canonical block).
+/// SyntheticLogs::on_finalize must run before Ethereum::on_finalize so the
+/// synth tx lands in pallet_ethereum::Pending → CurrentBlock/Statuses/Receipts.
 #[test]
 fn on_finalize_drains_buffer_into_pallet_ethereum_pending_before_ethereum_seal() {
 	use frame_support::traits::OnFinalize;
@@ -1074,17 +1028,8 @@ fn on_finalize_drains_buffer_into_pallet_ethereum_pending_before_ethereum_seal()
 	});
 }
 
-/// Revert safety. When an EVM frame reverts, frontier drops `info.logs`
-/// (the substate's logs). Substrate hooks that fired during the frame may
-/// have pushed entries into the `EVM_FRAME_LOGS` buffer; the WrapRunner's
-/// end-drain must NOT append those buffered entries onto a reverted-frame
-/// `info.logs`, or we get ghost logs for transfers whose substrate state
-/// was rolled back by `pallet_evm`'s `with_storage_layer` wrapping.
-///
-/// The probe contract calls dispatcher precompile (a substrate
-/// Currencies::transfer), then reverts. We assert:
-/// 1. Bob's DAI balance is unchanged (substrate state rolled back).
-/// 2. No DAI Transfer log lands in the synth tx for this block.
+/// outer EVM frame reverts → substrate state rolls back; runner end-drain
+/// must NOT append buffered hook logs (would be ghost logs for non-events).
 #[test]
 fn evm_frame_revert_drops_buffered_substrate_hook_logs() {
 	use codec::Encode;

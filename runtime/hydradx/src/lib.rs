@@ -211,15 +211,10 @@ construct_runtime!(
 		// Frontier and EVM pallets
 		EVM: pallet_evm = 90,
 		EVMChainId: pallet_evm_chain_id = 91,
-		// SyntheticLogs is declared IMMEDIATELY before Ethereum so its on_finalize
-		// drains the buffer into pallet_ethereum::Pending right before Ethereum's
-		// on_finalize seals the block. Covers all on_initialize, on_idle, and
-		// on_finalize work of pallets declared before this line. Limitation:
-		// hooks fired during on_finalize of pallets declared AFTER Ethereum
-		// (EVMAccounts, DynamicEvmFee, XYK, MessageQueue, etc.) are not flushed
-		// in the same block — none of them currently fire token-balance hooks
-		// in their on_finalize, and MessageQueue's on_idle XCM processing is
-		// disabled on this runtime (`IdleMaxServiceWeight = ()`).
+		// must be declared before Ethereum so on_finalize flushes into
+		// pallet_ethereum::Pending before the block is sealed. hooks fired
+		// during on_finalize of pallets declared AFTER Ethereum are not
+		// captured (none currently emit token-balance hooks there).
 		SyntheticLogs: pallet_synthetic_logs = 86,
 		Ethereum: pallet_ethereum = 92,
 		EVMAccounts: pallet_evm_accounts = 93,

@@ -3,29 +3,12 @@
 // Copyright (C) 2020-2026  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
-//! # Synthetic Logs Pallet
+//! buffers ethereum-shaped logs from substrate hooks; on_finalize flushes them
+//! as synthetic `pallet_ethereum::Transaction` records so eth json-rpc surfaces
+//! them. one synth tx per bucket: per-extrinsic, or per hook-phase + broadcast
+//! origin (so each dca schedule etc. gets its own tx).
 //!
-//! Buffers ethereum-shaped logs that originate from substrate-side hooks
-//! (orml-tokens transfers, pallet-broadcast trades, etc.) and flushes them on
-//! `on_finalize` as synthetic `pallet_ethereum::Transaction` records. This
-//! makes substrate-origin events visible to eth json-rpc (`eth_getLogs`,
-//! `eth_getTransactionReceipt`) and to standard EVM tooling — ethers.js,
-//! etherscan-style explorers, the graph, dex aggregators.
-//!
-//! ## Bucket model
-//!
-//! Each pushed log is tagged with a `Bucket` derived from the current
-//! `frame_system::Phase` plus `pallet_broadcast::ExecutionContext` (when in
-//! a hook phase). One synthetic transaction is built per bucket, so:
-//! - one synth tx per substrate extrinsic (containing all logs from that extrinsic)
-//! - one synth tx per `(on_initialize/on_finalize, originating broadcast context)`
-//!   — e.g. each scheduled DCA execution gets its own tx attributed by `schedule_id`
-//!
-//! ## Pallet ordering
-//!
-//! Must be declared **before** `pallet_ethereum` in `construct_runtime!` so this
-//! pallet's `on_finalize` runs first and writes into `pallet_ethereum::Pending`
-//! before the ethereum pallet rolls Pending into the canonical block.
+//! must be declared before `pallet_ethereum` in `construct_runtime!`.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -44,32 +27,20 @@ use sp_std::prelude::*;
 
 pub use pallet::*;
 
-/// Sentinel address used as both `from` and (default) `to` for synthetic txs.
-/// Indicates "non-real-tx origin"; logs inside still carry their own emitter
-/// address (asset's erc20 contract for transfers, pool address for swaps).
+/// `from`/`to` for synthetic txs. logs inside carry their own emitter address.
 pub const SENTINEL_ADDRESS: H160 = H160([
 	0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe,
 	0xef,
 ]);
 
-/// Constant `r`/`s` value for synthetic signatures. Inside the valid ECDSA
-/// range required by the ethereum crate, but clearly not a real signature.
+/// Constant fake `r`/`s`. Inside ECDSA range so the envelope decodes; never recovered.
 pub const SYNTH_SIG_RS: H256 = H256([
 	0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
 	0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
 ]);
 
-/// Hard cap on number of buffered logs per block. On overflow we drop the
-/// newest pushes and emit a `log::warn!` so operators notice.
 pub const MAX_PENDING_LOGS: u32 = 4096;
 
-/// One synthetic-tx attribution bucket. All logs sharing a bucket end up in
-/// the same synthetic transaction.
-///
-/// `Hook` covers `on_initialize` / `on_idle` / `on_finalize` work — substrate
-/// doesn't expose a stable public api to distinguish initialize from finalize
-/// at hook-fire time, so we collapse them and rely on the broadcast
-/// `ExecutionContext` for finer attribution (e.g. DCA schedule_id, xcm origin).
 #[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug, PartialEq, Eq)]
 pub enum HookPhase {
 	Initialization,
@@ -78,12 +49,7 @@ pub enum HookPhase {
 
 #[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug, PartialEq, Eq)]
 pub enum Bucket {
-	/// One synth tx per substrate extrinsic.
 	Extrinsic(u32),
-	/// One synth tx per (hook-phase + originating broadcast context).
-	/// `phase` distinguishes init-time work (runs before extrinsics) from
-	/// finalize-time work (runs after) so transaction_index ordering of the
-	/// resulting synth tx matches the wall-clock order of substrate execution.
 	Hook { phase: HookPhase, origin: Option<ExecutionType> },
 }
 
@@ -96,11 +62,9 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_ethereum::Config + pallet_broadcast::Config {
-		/// EVM chain id, mirrored from `pallet_evm::Config::ChainId`.
 		type ChainId: Get<u64>;
 	}
 
-	/// Buffered `(bucket, emitter, log)` entries, drained on every `on_finalize`.
 	#[pallet::storage]
 	#[pallet::whitelist_storage]
 	#[pallet::unbounded]
@@ -119,8 +83,6 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// Buffer a log to be emitted as part of a synthetic tx at end of block.
-	/// Bucket is derived from current substrate phase and broadcast context.
 	pub fn push(emitter: H160, log: ethereum::Log) {
 		let bucket = Self::current_bucket();
 		Pending::<T>::mutate(|v| {
@@ -136,14 +98,8 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	/// Determine the bucket for the currently-executing substrate phase.
-	/// Reads `frame_system::ExecutionPhase` directly via its storage key so we
-	/// distinguish init/finalize/idle correctly:
-	///   * Initialization  → `HookPhase::Initialization`
-	///   * Finalization    → `HookPhase::Finalization` (covers on_idle too,
-	///                        since substrate sets Phase=Finalization before
-	///                        on_idle runs)
-	///   * ApplyExtrinsic  → `Bucket::Extrinsic(i)`
+	// reads `frame_system::ExecutionPhase` directly so on_idle (where substrate
+	// has already set Phase=Finalization) buckets as Finalization too.
 	fn current_bucket() -> Bucket {
 		use frame_system::Phase;
 		let phase_key =
@@ -162,8 +118,6 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// Drain buffer, group by bucket, and write one synthetic tx per bucket
-	/// into `pallet_ethereum::Pending`. Must run before `pallet_ethereum::on_finalize`.
 	fn flush(entries: Vec<(Bucket, H160, ethereum::Log)>) {
 		let mut groups: Vec<(Bucket, Vec<ethereum::Log>)> = Vec::new();
 		for (bucket, _emitter, log) in entries {
@@ -179,10 +133,8 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	// 0=init hooks, 1=extrinsics (by index), 2=finalize hooks — preserves wall-clock order.
 	fn bucket_sort_key(bucket: &Bucket) -> (u8, u64) {
-		// Init-phase hooks: 0 (before extrinsics)
-		// Extrinsic dispatch: 1 (sub-sorted by extrinsic_index)
-		// Finalize-phase hooks: 2 (after extrinsics)
 		match bucket {
 			Bucket::Hook {
 				phase: HookPhase::Initialization,
@@ -250,17 +202,10 @@ impl<T: Config> Pallet<T> {
 		let chain_id = <T as Config>::ChainId::get();
 		let nonce = Self::bucket_nonce(bucket);
 
-		// EIP-1559 envelope. Fee fields zero; constant fake signature
-		// (r=s=0x01..01) inside the ECDSA range but obviously not a real
-		// signature — `from` is read from `TransactionStatus.from`, never
-		// ecrecovered. The `nonce` encodes the bucket so indexers can reverse
-		// the synth tx back to its substrate origin (see `bucket_nonce`).
 		let signature = ethereum::eip2930::TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS)
 			.expect("synthetic signature constants are within valid ECDSA range; qed");
-		// Encode `group_index` into `value` so two synth txs in the same block
-		// (same bucket-nonce class) hash differently — without it, two
-		// `Hook { Init, None }` synth txs in one block would share the
-		// canonical envelope hash and collide in frontier's tx-hash index.
+		// `value = group_index` so two synth txs sharing the same bucket-nonce in
+		// one block produce distinct envelope hashes (frontier indexes by hash).
 		let transaction = Transaction::EIP1559(EIP1559Transaction {
 			chain_id,
 			nonce: U256::from(nonce),
@@ -274,10 +219,7 @@ impl<T: Config> Pallet<T> {
 			signature,
 		});
 
-		// Use the canonical envelope hash so frontier's tx-index lookups
-		// (eth_getTransactionByHash, eth_getTransactionReceipt) resolve, and
-		// so the `transactionHash` field on each emitted log matches what
-		// indexers see when they query the receipt.
+		// canonical envelope hash so frontier's tx-index resolves it.
 		let transaction_hash = transaction.hash();
 
 		let mut bloom: Bloom = Bloom::default();
@@ -315,57 +257,44 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-/// Helper: standard ERC-20 `Transfer(address,address,uint256)` topic0.
+/// keccak256("Transfer(address,address,uint256)")
 pub const TRANSFER_TOPIC: H256 = H256([
 	0xdd, 0xf2, 0x52, 0xad, 0x1b, 0xe2, 0xc8, 0x9b, 0x69, 0xc2, 0xb0, 0x68, 0xfc, 0x37, 0x8d, 0xaa, 0x95, 0x2b, 0xa7,
 	0xf1, 0x63, 0xc4, 0xa1, 0x16, 0x28, 0xf5, 0x5a, 0x4d, 0xf5, 0x23, 0xb3, 0xef,
 ]);
 
-/// Helper: Uniswap V2 `Swap(address,uint256,uint256,uint256,uint256,address)` topic0.
+/// keccak256("Swap(address,uint256,uint256,uint256,uint256,address)") (uniswap v2)
 pub const SWAP_TOPIC: H256 = H256([
 	0xd7, 0x8a, 0xd9, 0x5f, 0xa4, 0x6c, 0x99, 0x4b, 0x65, 0x51, 0xd0, 0xda, 0x85, 0xfc, 0x27, 0x5f, 0xe6, 0x13, 0xce,
 	0x37, 0x65, 0x7f, 0xb8, 0xd5, 0xe3, 0xd1, 0x30, 0x84, 0x01, 0x59, 0xd8, 0x22,
 ]);
 
-/// Helper: standard ERC-20 `Approval(address,address,uint256)` topic0.
+/// keccak256("Approval(address,address,uint256)")
 pub const APPROVAL_TOPIC: H256 = H256([
 	0x8c, 0x5b, 0xe1, 0xe5, 0xeb, 0xec, 0x7d, 0x5b, 0xd1, 0x4f, 0x71, 0x42, 0x7d, 0x1e, 0x84, 0xf3, 0xdd, 0x03, 0x14,
 	0xc0, 0xf7, 0xb2, 0x29, 0x1e, 0x5b, 0x20, 0x0a, 0xc8, 0xc7, 0xc3, 0xb9, 0x25,
 ]);
 
-/// Pad an `H160` to a 32-byte topic word (left-pad with 12 zero bytes).
 pub fn h160_to_h256(addr: H160) -> H256 {
 	let mut bytes = [0u8; 32];
 	bytes[12..].copy_from_slice(&addr.0);
 	H256(bytes)
 }
 
-/// Per-owner sentinel address representing the owner's reserved balance
-/// bucket. Used as the `to` topic on `reserve` and the `from` topic on
-/// `unreserve` so erc20 indexers reconstructing balances from `Transfer`
-/// events stay consistent with `balanceOf` (which returns free balance only).
-///
-/// Derivation: XOR the first byte of `owner` with `0xEE`. The mapping is
-/// trivially reversible (XOR again) so a bookkeeping consumer that wants
-/// owner attribution from a sentinel can recover it; reversibility is
-/// optional for forward-only indexers (which compute the sentinel from a
-/// known owner). Collision with the asset-prefix range
-/// (`0x000…01<asset_id>`) requires the owner to start with `0xEE` followed
-/// by 11 zero bytes, then `0x01`, then 3 zero bytes — pre-image probability
-/// `2^-128` for uniformly distributed addresses.
+/// per-owner sentinel for reserved balance: `Transfer(owner, reserved_address_of(owner))`
+/// on reserve, inverse on unreserve. derivation: xor first byte with `0xEE`
+/// (reversible). collision with asset-prefix range `0x000…01<asset_id>` is `2^-128`.
 pub fn reserved_address_of(owner: H160) -> H160 {
 	let mut bytes = owner.0;
 	bytes[0] ^= 0xEE;
 	H160(bytes)
 }
 
-/// Encode a single u256 as a 32-byte big-endian word for log `data`.
 pub fn encode_u256_be(value: U256) -> [u8; 32] {
 	value.to_big_endian()
 }
 
-/// Encode four u256 values as 128 bytes (the ABI shape of the
-/// uniswap v2 Swap event's non-indexed fields).
+/// 4 × u256 = 128 bytes — abi shape of uniswap v2 `Swap` non-indexed fields.
 pub fn encode_uint256_quad(a: U256, b: U256, c: U256, d: U256) -> Vec<u8> {
 	let mut data = Vec::with_capacity(128);
 	data.extend_from_slice(&encode_u256_be(a));

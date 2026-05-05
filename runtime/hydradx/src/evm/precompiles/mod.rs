@@ -230,11 +230,8 @@ pub fn is_precompile(address: H160) -> bool {
 	address == DISPATCH_ADDR || is_asset_address(address) || is_standard_precompile(address)
 }
 
-/// Drain logs that substrate hooks buffered into the current EVM frame
-/// (via `evm::runner::append_to_current_evm_frame`) and emit each through
-/// the precompile handle so they land at the precompile's call site in
-/// execution order — preserving `log_index` semantics in the final receipt.
-/// Charges standard EVM log gas (8 + 375*topics + 8*data_bytes) per entry.
+/// drains hook logs buffered during the current frame and emits each via
+/// `handle.log()` so they land at the precompile's call site (preserves log_index).
 pub fn emit_buffered_evm_frame_logs(handle: &mut impl PrecompileHandle) -> EvmResult<()> {
 	for log in crate::evm::runner::drain_current_evm_frame_logs() {
 		let cost = costs::log_costs(log.topics.len(), log.data.len()).map_err(|_| PrecompileFailure::Error {
@@ -246,11 +243,7 @@ pub fn emit_buffered_evm_frame_logs(handle: &mut impl PrecompileHandle) -> EvmRe
 	Ok(())
 }
 
-/// Emit a standard ERC-20 `Approval(owner, spender, value)` log inline at
-/// the calling precompile's address. Used by the multicurrency precompile's
-/// `approve` and (on allowance-decrement) `transfer_from` paths so erc20
-/// indexers tracking allowance changes can observe substrate-side
-/// `pallet_evm_accounts::set_allowance` calls.
+/// emits ERC-20 `Approval(owner, spender, value)` inline at the precompile's address.
 pub fn emit_approval_log(
 	handle: &mut impl PrecompileHandle,
 	owner: H160,
