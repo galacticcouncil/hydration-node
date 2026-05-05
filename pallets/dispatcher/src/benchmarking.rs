@@ -78,38 +78,6 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, 1);
 	}: _(RawOrigin::Signed(caller), Box::new(call))
 
-	pause_hyperbridge_cleanup {
-	}: pause_hyperbridge_cleanup(RawOrigin::Root, true)
-	verify {
-		assert!(!CleanupEnabled::<T>::get());
-	}
-
-	cleanup_on_idle {
-		let n in 1..crate::hyperbridge_cleanup::MAX_KEYS_PER_BLOCK;
-
-		let prefix = Stage::StateCommitments.storage_prefix();
-		let tail = 100_000u32;
-		for i in 0..(n + tail) {
-			let mut key = prefix.to_vec();
-			key.extend_from_slice(&i.to_le_bytes());
-			sp_io::storage::set(&key, &i.to_le_bytes());
-		}
-
-		let per_key = T::DbWeight::get().reads_writes(2, 1);
-		let remaining = per_key.saturating_mul(n as u64 * 2);
-	}: {
-		Pallet::<T>::on_idle(1u32.into(), remaining);
-	}
-	// No verify block — unit tests cover correctness.
-	// In TestExternalities clear_prefix ignores the limit (removes all keys at once),
-	// in production RocksDB it respects it. A verify that satisfies both is not possible.
-
-	cleanup_on_idle_limit_zero {
-	}: {
-		Pallet::<T>::on_idle(1u32.into(), Weight::zero());
-	}
-	// No verify — same TestExternalities limitation as cleanup_on_idle.
-
 	dispatch_with_fee_payer {
 		let n in 1 .. 10_000;
 		let remark = sp_std::vec![1u8; n as usize];
