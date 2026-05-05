@@ -111,11 +111,6 @@ fp-evm = { workspace = true }
 pallet-ethereum = { workspace = true }
 pallet-evm = { workspace = true }
 
-# Hyperbridge
-pallet-ismp-runtime-api = { workspace = true }
-pallet-ismp-rpc = { workspace = true }
-ismp-parachain-inherent = { workspace = true }
-
 [features]
 runtime-benchmarks = [
     "hydradx-runtime/runtime-benchmarks",
