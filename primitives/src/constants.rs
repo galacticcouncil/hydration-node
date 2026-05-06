@@ -83,7 +83,6 @@ pub mod chain {
 	pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 	pub const STABLESWAP_SOURCE: [u8; 8] = *b"stablesw";
 	pub const XYK_SOURCE: [u8; 8] = *b"hydraxyk";
-	/// Trailing 's' is load-bearing — `Source` is exactly 8 bytes and `gigahdx` is only 7.
 	pub const GIGAHDX_SOURCE: [u8; 8] = *b"gigahdxs";
 
 	pub const DEFAULT_RELAY_PARENT_OFFSET: u32 = 1;

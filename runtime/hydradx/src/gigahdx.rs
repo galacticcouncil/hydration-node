@@ -13,7 +13,6 @@ use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::Erc20Currency;
 use crate::evm::Executor;
 use crate::Runtime;
-use crate::RuntimeOrigin;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason::Succeed;
 use frame_support::sp_runtime::traits::Convert;
@@ -45,19 +44,13 @@ pub struct AaveMoneyMarket;
 
 impl AaveMoneyMarket {
 	fn pool() -> Result<EvmAddress, DispatchError> {
-		let pool = pallet_gigahdx::GigaHdxPoolContract::<Runtime>::get();
-		if pool == EvmAddress::zero() {
-			return Err(DispatchError::Other("gigahdx: pool contract not set"));
-		}
-		Ok(pool)
+		pallet_gigahdx::GigaHdxPoolContract::<Runtime>::get()
+			.ok_or(DispatchError::Other("gigahdx: pool contract not set"))
 	}
 }
 
 impl MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
 	fn supply(who: &AccountId, underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
-		// Idempotent — binds an EVM address for `who` if not already bound.
-		let _ = pallet_evm_accounts::Pallet::<Runtime>::bind_evm_address(RuntimeOrigin::signed(who.clone()));
-
 		let asset_evm = HydraErc20Mapping::asset_address(underlying_asset);
 		let who_evm = pallet_evm_accounts::Pallet::<Runtime>::evm_address(who);
 		let pool = Self::pool()?;
@@ -79,8 +72,6 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
 	}
 
 	fn withdraw(who: &AccountId, underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
-		let _ = pallet_evm_accounts::Pallet::<Runtime>::bind_evm_address(RuntimeOrigin::signed(who.clone()));
-
 		let asset_evm = HydraErc20Mapping::asset_address(underlying_asset);
 		let who_evm = pallet_evm_accounts::Pallet::<Runtime>::evm_address(who);
 		let pool = Self::pool()?;

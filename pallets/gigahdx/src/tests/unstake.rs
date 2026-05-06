@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::mock::*;
-use crate::{Error, PendingUnstakes, Stakes, TotalLocked, TotalStHdx};
+use crate::{Error, PendingUnstakes, Stakes, TotalLocked};
 use frame_support::sp_runtime::traits::AccountIdConversion;
 use frame_support::traits::fungibles::Inspect as FungiblesInspect;
 use frame_support::{assert_noop, assert_ok};
@@ -22,7 +22,7 @@ fn stake_alice_100() {
 }
 
 #[test]
-fn unstake_full_no_pot_consumes_active_into_position() {
+fn giga_unstake_should_move_active_to_position_when_pot_empty() {
 	// Empty pot, stake 100, unstake 100. payout = 100, case 1 (= active).
 	// Active drops to 0; position = 100; combined lock = 100; no yield.
 	ExtBuilder::default().build().execute_with(|| {
@@ -34,9 +34,9 @@ fn unstake_full_no_pot_consumes_active_into_position() {
 
 		let s = Stakes::<Test>::get(ALICE).unwrap();
 		assert_eq!(s.hdx_locked, 0);
-		assert_eq!(s.st_minted, 0);
+		assert_eq!(s.gigahdx, 0);
 		assert_eq!(TotalLocked::<Test>::get(), 0);
-		assert_eq!(TotalStHdx::<Test>::get(), 0);
+		assert_eq!(GigaHdx::total_st_hdx_supply(), 0);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), 0);
 
 		// Position holds 100; lock covers it; no yield to free_balance.
@@ -47,7 +47,7 @@ fn unstake_full_no_pot_consumes_active_into_position() {
 }
 
 #[test]
-fn unstake_full_with_pot_drains_active_and_pulls_yield_from_pot() {
+fn giga_unstake_should_pull_yield_from_pot_when_payout_exceeds_active() {
 	// Pot 30, stake 100. Unstake 100 stHDX → payout 130 (case 2).
 	// active 100 → 0, yield 30 transferred from pot, position = 130.
 	ExtBuilder::default()
@@ -67,7 +67,7 @@ fn unstake_full_with_pot_drains_active_and_pulls_yield_from_pot() {
 			// Stakes record still present (zeroed) until `unlock` cleans it up.
 			let s = Stakes::<Test>::get(ALICE).unwrap();
 			assert_eq!(s.hdx_locked, 0);
-			assert_eq!(s.st_minted, 0);
+			assert_eq!(s.gigahdx, 0);
 
 			// Position = full payout; lock covers everything.
 			assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 130 * ONE);
@@ -76,25 +76,25 @@ fn unstake_full_with_pot_drains_active_and_pulls_yield_from_pot() {
 }
 
 #[test]
-fn unstake_partial() {
+fn giga_unstake_should_split_state_when_partial() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 40 * ONE));
 
 		let s = Stakes::<Test>::get(ALICE).unwrap();
 		assert_eq!(s.hdx_locked, 60 * ONE);
-		assert_eq!(s.st_minted, 60 * ONE);
+		assert_eq!(s.gigahdx, 60 * ONE);
 		// Combined lock = active(60) + position(40) = 100.
 		assert_eq!(locked_under_ghdx(ALICE), 100 * ONE);
 		assert_eq!(TotalLocked::<Test>::get(), 60 * ONE);
-		assert_eq!(TotalStHdx::<Test>::get(), 60 * ONE);
+		assert_eq!(GigaHdx::total_st_hdx_supply(), 60 * ONE);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), 60 * ONE);
 		assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 40 * ONE);
 	});
 }
 
 #[test]
-fn unstake_zero_fails() {
+fn giga_unstake_should_fail_when_amount_zero() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
 		assert_noop!(
@@ -105,7 +105,7 @@ fn unstake_zero_fails() {
 }
 
 #[test]
-fn unstake_above_stake_fails() {
+fn giga_unstake_should_fail_when_amount_exceeds_stake() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
 		assert_noop!(
@@ -116,7 +116,7 @@ fn unstake_above_stake_fails() {
 }
 
 #[test]
-fn unstake_no_stake_fails() {
+fn giga_unstake_should_fail_when_no_stake_exists() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
 			GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE),
@@ -126,12 +126,12 @@ fn unstake_no_stake_fails() {
 }
 
 #[test]
-fn unstake_mm_failure_reverts_no_storage_mutation() {
+fn giga_unstake_should_revert_storage_when_mm_withdraw_fails() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
 		let pre_stake = Stakes::<Test>::get(ALICE).unwrap();
 		let pre_total_locked = TotalLocked::<Test>::get();
-		let pre_total_sthdx = TotalStHdx::<Test>::get();
+		let pre_total_sthdx = GigaHdx::total_st_hdx_supply();
 		let pre_lock = locked_under_ghdx(ALICE);
 		let pre_mm_balance = TestMoneyMarket::balance_of(&ALICE);
 		let pre_sthdx_balance = Tokens::balance(ST_HDX, &ALICE);
@@ -142,12 +142,12 @@ fn unstake_mm_failure_reverts_no_storage_mutation() {
 			Error::<Test>::MoneyMarketWithdrawFailed
 		);
 
-		// Pre-decrement of `st_minted` was rolled back by `with_transaction`.
+		// Pre-decrement of `gigahdx` was rolled back by `with_transaction`.
 		let post_stake = Stakes::<Test>::get(ALICE).unwrap();
-		assert_eq!(post_stake.st_minted, pre_stake.st_minted, "st_minted must be restored");
+		assert_eq!(post_stake.gigahdx, pre_stake.gigahdx, "gigahdx must be restored");
 		assert_eq!(post_stake.hdx_locked, pre_stake.hdx_locked);
 		assert_eq!(TotalLocked::<Test>::get(), pre_total_locked);
-		assert_eq!(TotalStHdx::<Test>::get(), pre_total_sthdx);
+		assert_eq!(GigaHdx::total_st_hdx_supply(), pre_total_sthdx);
 		assert_eq!(locked_under_ghdx(ALICE), pre_lock);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), pre_mm_balance);
 		assert_eq!(Tokens::balance(ST_HDX, &ALICE), pre_sthdx_balance);
@@ -159,14 +159,14 @@ fn unstake_mm_failure_reverts_no_storage_mutation() {
 }
 
 #[test]
-fn unstake_pre_decrements_st_minted_before_mm_withdraw() {
+fn giga_unstake_should_pre_decrement_gigahdx_before_mm_withdraw() {
 	// LockableAToken.burn relies on the lock-manager precompile reading the
-	// already-decremented `Stakes[who].st_minted`. We can't observe that
+	// already-decremented `Stakes[who].gigahdx`. We can't observe that
 	// mid-call here, but the post-state proves the pre-decrement happened
 	// before MM.withdraw (otherwise the burn would have failed in production).
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 30 * ONE));
-		assert_eq!(Stakes::<Test>::get(ALICE).unwrap().st_minted, 70 * ONE);
+		assert_eq!(Stakes::<Test>::get(ALICE).unwrap().gigahdx, 70 * ONE);
 	});
 }

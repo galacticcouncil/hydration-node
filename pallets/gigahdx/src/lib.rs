@@ -72,7 +72,7 @@ pub mod pallet {
 		/// Stored as the value returned by [`MoneyMarketOperations::supply`],
 		/// not the input — the MM may round at supply time and the stored
 		/// value MUST match the account's GIGAHDX balance.
-		pub st_minted: Balance,
+		pub gigahdx: Balance,
 	}
 
 	/// Pending-unstake record. At most one per account at a time.
@@ -142,13 +142,11 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type TotalLocked<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
-	/// Total stHDX issued.
+	/// Aave V3 Pool contract address. Must be set explicitly by
+	/// `GovernanceOrigin` before any stake/unstake — the pallet refuses to
+	/// silently default to the zero address.
 	#[pallet::storage]
-	pub type TotalStHdx<T: Config> = StorageValue<_, Balance, ValueQuery>;
-
-	/// Aave V3 Pool contract address. Settable by `GovernanceOrigin`.
-	#[pallet::storage]
-	pub type GigaHdxPoolContract<T: Config> = StorageValue<_, EvmAddress, ValueQuery>;
+	pub type GigaHdxPoolContract<T: Config> = StorageValue<_, EvmAddress, OptionQuery>;
 
 	/// At most one pending unstake per account. A second `giga_unstake`
 	/// while this slot is full is rejected — caller must wait for the
@@ -163,7 +161,7 @@ pub mod pallet {
 		Staked {
 			who: T::AccountId,
 			amount: Balance,
-			st_minted: Balance,
+			gigahdx: Balance,
 		},
 		Unstaked {
 			who: T::AccountId,
@@ -205,7 +203,7 @@ pub mod pallet {
 		/// and supply it to the money market. The MM mints GIGAHDX (aToken)
 		/// to the caller's EVM-mapped address.
 		///
-		/// `Stakes[caller].st_minted` records the **actual** aToken amount
+		/// `Stakes[caller].gigahdx` records the **actual** aToken amount
 		/// returned by the MM (may differ from input by rounding).
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::giga_stake())]
@@ -224,7 +222,7 @@ pub mod pallet {
 			ensure!(usable >= amount, Error::<T>::InsufficientFreeBalance);
 
 			// Compute stHDX to mint based on current rate.
-			let s = TotalStHdx::<T>::get();
+			let s = Self::total_st_hdx_supply();
 			let t = Self::total_hdx();
 			let st_input = crate::math::st_input_for_stake(amount, s, t).map_err(|_| Error::<T>::Overflow)?;
 
@@ -244,22 +242,21 @@ pub mod pallet {
 
 			let prev = Stakes::<T>::get(&who).unwrap_or_default();
 			let new_locked = prev.hdx_locked.checked_add(amount).ok_or(Error::<T>::Overflow)?;
-			let new_minted = prev.st_minted.checked_add(actual_minted).ok_or(Error::<T>::Overflow)?;
+			let new_minted = prev.gigahdx.checked_add(actual_minted).ok_or(Error::<T>::Overflow)?;
 			Stakes::<T>::insert(
 				&who,
 				StakeRecord {
 					hdx_locked: new_locked,
-					st_minted: new_minted,
+					gigahdx: new_minted,
 				},
 			);
 			TotalLocked::<T>::mutate(|x| *x = x.saturating_add(amount));
-			TotalStHdx::<T>::mutate(|x| *x = x.saturating_add(actual_minted));
 			Self::refresh_lock(&who);
 
 			Self::deposit_event(Event::Staked {
 				who,
 				amount,
-				st_minted: actual_minted,
+				gigahdx: actual_minted,
 			});
 			Ok(())
 		}
@@ -285,10 +282,10 @@ pub mod pallet {
 		/// existing position before calling again.
 		///
 		/// Implementation detail (must match `LockableAToken.sol`):
-		/// the lock-manager precompile (`0x0806`) reads `Stakes[who].st_minted`
+		/// the lock-manager precompile (`0x0806`) reads `Stakes[who].gigahdx`
 		/// and treats it as the user's locked GIGAHDX. The aToken contract
 		/// rejects burns where `amount > balance - locked`, so we
-		/// **pre-decrement `st_minted` by `st_amount` before the MM call**.
+		/// **pre-decrement `gigahdx` by `st_amount` before the MM call**.
 		/// The whole body is wrapped in `with_transaction` for atomic rollback.
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::giga_unstake())]
@@ -321,7 +318,7 @@ pub mod pallet {
 			// `Stakes` may have been emptied by the unstake that opened this
 			// position; once the position closes, drop the empty record too.
 			if let Some(s) = Stakes::<T>::get(&who) {
-				if s.hdx_locked == 0 && s.st_minted == 0 {
+				if s.hdx_locked == 0 && s.gigahdx == 0 {
 					Stakes::<T>::remove(&who);
 				}
 			}
@@ -345,21 +342,21 @@ pub mod pallet {
 
 			let stake = Stakes::<T>::get(who).ok_or(Error::<T>::NoStake)?;
 			ensure!(st_amount > 0, Error::<T>::ZeroAmount);
-			ensure!(st_amount <= stake.st_minted, Error::<T>::InsufficientStake);
+			ensure!(st_amount <= stake.gigahdx, Error::<T>::InsufficientStake);
 
 			// Compute payout from PRE-unstake totals.
-			let s_pre = TotalStHdx::<T>::get();
+			let s_pre = Self::total_st_hdx_supply();
 			let t_pre = Self::total_hdx();
 			let payout = crate::math::total_payout(st_amount, t_pre, s_pre).map_err(|_| Error::<T>::Overflow)?;
 
-			// Pre-decrement `st_minted` so `LockableAToken.burn`'s `freeBalance`
+			// Pre-decrement `gigahdx` so `LockableAToken.burn`'s `freeBalance`
 			// check (via the lock-manager precompile) lets the burn through.
-			let new_st_minted = stake.st_minted.checked_sub(st_amount).ok_or(Error::<T>::Overflow)?;
+			let new_gigahdx = stake.gigahdx.checked_sub(st_amount).ok_or(Error::<T>::Overflow)?;
 			Stakes::<T>::insert(
 				who,
 				StakeRecord {
 					hdx_locked: stake.hdx_locked,
-					st_minted: new_st_minted,
+					gigahdx: new_gigahdx,
 				},
 			);
 
@@ -398,11 +395,10 @@ pub mod pallet {
 				who,
 				StakeRecord {
 					hdx_locked: new_hdx_locked,
-					st_minted: new_st_minted,
+					gigahdx: new_gigahdx,
 				},
 			);
 			TotalLocked::<T>::mutate(|x| *x = x.saturating_sub(principal_consumed));
-			TotalStHdx::<T>::mutate(|x| *x = x.saturating_sub(st_amount));
 
 			let expires_at = frame_system::Pallet::<T>::block_number()
 				.checked_add(&T::CooldownPeriod::get())
@@ -449,15 +445,27 @@ pub mod pallet {
 			T::PalletId::get().into_account_truncating()
 		}
 
+		/// GIGAHDX (aToken) units backed by an active stake for `who`. Read by
+		/// the lock-manager precompile to enforce `LockableAToken`'s
+		/// `freeBalance = balance - locked` invariant on the EVM side.
+		///
+		/// Returns 0 when the account has no record. Equals the user's atoken
+		/// balance while staked; pre-decremented by `giga_unstake` before the
+		/// MM withdraw call so the burn passes that invariant.
+		pub fn locked_gigahdx(who: &T::AccountId) -> Balance {
+			Stakes::<T>::get(who).map(|s| s.gigahdx).unwrap_or(0)
+		}
+
 		/// Total HDX backing all stHDX:
 		/// `TotalLocked + free_balance(gigapot_account_id)`.
 		pub fn total_hdx() -> Balance {
 			TotalLocked::<T>::get().saturating_add(T::Currency::free_balance(&Self::gigapot_account_id()))
 		}
 
-		/// Total stHDX issued.
+		/// Total stHDX issued, read live from the asset registry — no pallet-side
+		/// counter to keep in sync.
 		pub fn total_st_hdx_supply() -> Balance {
-			TotalStHdx::<T>::get()
+			<T::StHdx as fungibles::Inspect<T::AccountId>>::total_issuance(T::StHdxAssetId::get())
 		}
 
 		/// stHDX → HDX exchange rate as `FixedU128 = total_hdx / total_st_hdx_supply`.

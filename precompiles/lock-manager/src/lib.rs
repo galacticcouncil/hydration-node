@@ -28,14 +28,14 @@ use sp_core::U256;
 /// Precompile at address 0x0806.
 ///
 /// Reports a per-account "locked GIGAHDX" amount derived from
-/// `pallet_gigahdx::Stakes[who].st_minted`. This is consumed by the
+/// `pallet_gigahdx::Stakes[who].gigahdx`. This is consumed by the
 /// `LockableAToken.sol` contract's `freeBalance` check
 /// (`free = balanceOf - locked`) to:
 ///
-/// 1. Block user-initiated transfers of GIGAHDX (since `st_minted` equals
+/// 1. Block user-initiated transfers of GIGAHDX (since `gigahdx` equals
 ///    the user's aToken balance, `free = 0`).
 /// 2. Allow legitimate `Pool.withdraw → aToken.burn` paths during
-///    `pallet-gigahdx::giga_unstake`, which pre-decrements `st_minted` by
+///    `pallet-gigahdx::giga_unstake`, which pre-decrements `gigahdx` by
 ///    the amount being unstaked before invoking the MM.
 pub struct LockManagerPrecompile<Runtime>(PhantomData<Runtime>);
 
@@ -56,9 +56,7 @@ where
 		let account_id = <Runtime::AddressMapping as pallet_evm::AddressMapping<
 			<Runtime as frame_system::Config>::AccountId,
 		>>::into_account_id(account.into());
-		let locked = pallet_gigahdx::Stakes::<Runtime>::get(&account_id)
-			.map(|s| s.st_minted)
-			.unwrap_or(0);
+		let locked = pallet_gigahdx::Pallet::<Runtime>::locked_gigahdx(&account_id);
 
 		Ok(U256::from(locked))
 	}

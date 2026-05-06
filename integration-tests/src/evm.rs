@@ -2715,7 +2715,9 @@ mod chainlink_precompile {
 	}
 
 	fn seed_gigapot_and_supply(gigapot_hdx: Balance, st_hdx_supply: Balance) {
-		pallet_gigahdx::TotalStHdx::<Runtime>::put(st_hdx_supply);
+		// `total_st_hdx_supply` reads orml-tokens issuance directly, so seed
+		// the stHDX issuance there rather than via a pallet-side counter.
+		orml_tokens::TotalIssuance::<Runtime>::set(STHDX, st_hdx_supply);
 		let gigapot = pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id();
 		assert_ok!(Balances::force_set_balance(RuntimeOrigin::root(), gigapot, gigapot_hdx,));
 	}

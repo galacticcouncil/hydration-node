@@ -30,7 +30,7 @@ fn stake_alice_100() {
 }
 
 #[test]
-fn unstake_creates_single_pending_position_and_combined_lock() {
+fn giga_unstake_should_create_pending_position_when_called() {
 	// Empty pot, stake 100, partial unstake 40.
 	// payout = 40, active drops 100→60, position = 40, combined lock = 60+40 = 100.
 	ExtBuilder::default().build().execute_with(|| {
@@ -43,7 +43,7 @@ fn unstake_creates_single_pending_position_and_combined_lock() {
 
 		let s = Stakes::<Test>::get(ALICE).unwrap();
 		assert_eq!(s.hdx_locked, 60 * ONE);
-		assert_eq!(s.st_minted, 60 * ONE);
+		assert_eq!(s.gigahdx, 60 * ONE);
 
 		// Single combined lock under GIGAHDX_LOCK_ID covers active + pending.
 		assert_eq!(lock_amount(ALICE, GIGAHDX_LOCK_ID), 100 * ONE);
@@ -53,7 +53,7 @@ fn unstake_creates_single_pending_position_and_combined_lock() {
 }
 
 #[test]
-fn unstake_full_drains_active_only_when_pot_empty() {
+fn giga_unstake_should_drain_active_only_when_pot_empty() {
 	// Empty pot, stake 100, unstake 100. payout = 100. active drops to 0,
 	// no yield transferred. Position = 100.
 	ExtBuilder::default().build().execute_with(|| {
@@ -62,14 +62,14 @@ fn unstake_full_drains_active_only_when_pot_empty() {
 
 		let s = Stakes::<Test>::get(ALICE).unwrap();
 		assert_eq!(s.hdx_locked, 0);
-		assert_eq!(s.st_minted, 0);
+		assert_eq!(s.gigahdx, 0);
 		assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 100 * ONE);
 		assert_eq!(lock_amount(ALICE, GIGAHDX_LOCK_ID), 100 * ONE);
 	});
 }
 
 #[test]
-fn unstake_with_pot_partial_payout_le_active_no_yield_transfer() {
+fn giga_unstake_should_skip_yield_transfer_when_payout_le_active() {
 	// Pot 200 → rate 3.0. Stake 100, unstake 10 stHDX → payout 30 ≤ active 100.
 	// Active drops 100→70, no pot transfer. Position = 30.
 	ExtBuilder::default()
@@ -94,7 +94,7 @@ fn unstake_with_pot_partial_payout_le_active_no_yield_transfer() {
 }
 
 #[test]
-fn unstake_with_pot_payout_gt_active_transfers_yield_and_extends_lock() {
+fn giga_unstake_should_extend_lock_when_payout_exceeds_active() {
 	// Pot 200 → rate 3.0. Stake 100, unstake 90 stHDX → payout 270 > active 100.
 	// Active drops to 0, yield = 170 transferred from pot, lock extends to 270.
 	ExtBuilder::default()
@@ -108,7 +108,7 @@ fn unstake_with_pot_payout_gt_active_transfers_yield_and_extends_lock() {
 
 			let s = Stakes::<Test>::get(ALICE).unwrap();
 			assert_eq!(s.hdx_locked, 0);
-			assert_eq!(s.st_minted, 10 * ONE);
+			assert_eq!(s.gigahdx, 10 * ONE);
 			assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 270 * ONE);
 
 			// Alice received 170 HDX yield directly into her balance.
@@ -123,7 +123,7 @@ fn unstake_with_pot_payout_gt_active_transfers_yield_and_extends_lock() {
 }
 
 #[test]
-fn unstake_with_existing_pending_position_fails() {
+fn giga_unstake_should_fail_when_pending_position_exists() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 30 * ONE));
@@ -135,7 +135,7 @@ fn unstake_with_existing_pending_position_fails() {
 }
 
 #[test]
-fn unlock_before_cooldown_fails() {
+fn unlock_should_fail_when_cooldown_not_elapsed() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
@@ -149,7 +149,7 @@ fn unlock_before_cooldown_fails() {
 }
 
 #[test]
-fn unlock_after_cooldown_releases_lock_and_clears_position() {
+fn unlock_should_release_lock_when_cooldown_elapsed() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
@@ -166,7 +166,7 @@ fn unlock_after_cooldown_releases_lock_and_clears_position() {
 }
 
 #[test]
-fn unlock_partial_unstake_keeps_active_lock() {
+fn unlock_should_keep_active_lock_when_partial_unstake() {
 	// Stake 100, unstake 40, unlock. Active stake (60) keeps its lock.
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
@@ -177,14 +177,14 @@ fn unlock_partial_unstake_keeps_active_lock() {
 		assert!(PendingUnstakes::<Test>::get(ALICE).is_none());
 		let s = Stakes::<Test>::get(ALICE).unwrap();
 		assert_eq!(s.hdx_locked, 60 * ONE);
-		assert_eq!(s.st_minted, 60 * ONE);
+		assert_eq!(s.gigahdx, 60 * ONE);
 		// Lock is now just the active stake (40 HDX freed).
 		assert_eq!(lock_amount(ALICE, GIGAHDX_LOCK_ID), 60 * ONE);
 	});
 }
 
 #[test]
-fn unlock_with_no_position_fails() {
+fn unlock_should_fail_when_no_pending_position() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
 		assert_noop!(
@@ -195,7 +195,7 @@ fn unlock_with_no_position_fails() {
 }
 
 #[test]
-fn unstake_after_unlock_succeeds() {
+fn giga_unstake_should_succeed_when_called_after_unlock() {
 	// Slot frees up after unlock — caller can unstake again.
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
@@ -209,8 +209,8 @@ fn unstake_after_unlock_succeeds() {
 }
 
 #[test]
-fn full_unstake_with_yield_leaves_zero_active_with_st_minted_and_resolves_correctly() {
-	// Pot 200 → rate 3.0. Stake 100. Unstake 90 → active = 0, st_minted = 10.
+fn giga_unstake_should_handle_remaining_atokens_when_active_drained_by_yield() {
+	// Pot 200 → rate 3.0. Stake 100. Unstake 90 → active = 0, gigahdx = 10.
 	// Then unstake remaining 10 — case 2 again (active = 0), full payout 30 from pot.
 	ExtBuilder::default()
 		.with_pot_balance(200 * ONE)
@@ -224,7 +224,7 @@ fn full_unstake_with_yield_leaves_zero_active_with_st_minted_and_resolves_correc
 			// Active stake is gone, but Alice still owns 10 stHDX with zero cost basis.
 			let s = Stakes::<Test>::get(ALICE).unwrap();
 			assert_eq!(s.hdx_locked, 0);
-			assert_eq!(s.st_minted, 10 * ONE);
+			assert_eq!(s.gigahdx, 10 * ONE);
 
 			// Unstake the remainder.
 			assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 10 * ONE));
