@@ -37,7 +37,6 @@ pub use pallet::*;
 #[cfg(test)]
 mod tests;
 
-pub mod math;
 pub mod weights;
 
 #[frame_support::pallet]
@@ -45,16 +44,17 @@ pub mod pallet {
 	pub use crate::weights::WeightInfo;
 	use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 	use frame_support::pallet_prelude::*;
+	use frame_support::sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 	use frame_support::sp_runtime::traits::{AccountIdConversion, CheckedAdd};
-	use frame_support::sp_runtime::{FixedPointNumber, FixedU128};
-	use frame_support::storage::{with_transaction, TransactionOutcome};
+	use frame_support::sp_runtime::{ArithmeticError, Rounding};
 	use frame_support::traits::fungibles::Mutate as FungiblesMutate;
 	use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 	use frame_support::traits::{
 		fungible, fungibles, Currency, ExistenceRequirement, LockIdentifier, LockableCurrency, WithdrawReasons,
 	};
-	use frame_support::PalletId;
+	use frame_support::{transactional, PalletId};
 	use frame_system::pallet_prelude::*;
+	use hydra_dx_math::ratio::Ratio;
 	pub use hydradx_traits::gigahdx::MoneyMarketOperations;
 	use primitives::{AssetId, Balance, EvmAddress};
 	use scale_info::TypeInfo;
@@ -66,7 +66,7 @@ pub mod pallet {
 		/// active stake principal. On unstake this is reduced by the **payout**
 		/// (current HDX value of unstaked stHDX) up to its current value;
 		/// any excess comes from the gigapot as yield.
-		pub hdx_locked: Balance,
+		pub hdx: Balance,
 		/// aToken (GIGAHDX) units this account's stake backs.
 		///
 		/// Stored as the value returned by [`MoneyMarketOperations::supply`],
@@ -90,15 +90,15 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> {
-		/// HDX lockable currency. The `fungible::Inspect` bound is required so
-		/// `giga_stake` can use `reducible_balance` (free balance minus
-		/// transfer-blocking locks) instead of raw `free_balance`.
-		type Currency: LockableCurrency<Self::AccountId, Balance = Balance, Moment = BlockNumberFor<Self>>
+		/// Native (HDX) lockable currency. The `fungible::Inspect` bound is
+		/// required so `giga_stake` can use `reducible_balance` (free balance
+		/// minus transfer-blocking locks) instead of raw `free_balance`.
+		type NativeCurrency: LockableCurrency<Self::AccountId, Balance = Balance, Moment = BlockNumberFor<Self>>
 			+ fungible::Inspect<Self::AccountId, Balance = Balance>;
 
-		/// stHDX is a multi-asset-registry fungible token. Only this pallet
-		/// mints / burns it.
-		type StHdx: fungibles::Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>
+		/// Multi-asset register that holds stHDX (and any other registered
+		/// fungible). Only this pallet mints / burns stHDX through it.
+		type MultiCurrency: fungibles::Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>
 			+ fungibles::Inspect<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 
 		/// stHDX asset id.
@@ -109,7 +109,7 @@ pub mod pallet {
 		type MoneyMarket: MoneyMarketOperations<Self::AccountId, AssetId, Balance>;
 
 		/// Origin allowed to set the pool contract address.
-		type GovernanceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Pallet account id used as the gigapot (yield) account. Derived
 		/// via `PalletId::into_account_truncating`.
@@ -138,12 +138,12 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type Stakes<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, StakeRecord, OptionQuery>;
 
-	/// Sum of all `Stakes[a].hdx_locked`.
+	/// Sum of all `Stakes[a].hdx`.
 	#[pallet::storage]
 	pub type TotalLocked<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	/// Aave V3 Pool contract address. Must be set explicitly by
-	/// `GovernanceOrigin` before any stake/unstake — the pallet refuses to
+	/// `AuthorityOrigin` before any stake/unstake — the pallet refuses to
 	/// silently default to the zero address.
 	#[pallet::storage]
 	pub type GigaHdxPoolContract<T: Config> = StorageValue<_, EvmAddress, OptionQuery>;
@@ -165,7 +165,7 @@ pub mod pallet {
 		},
 		Unstaked {
 			who: T::AccountId,
-			st_amount: Balance,
+			gigahdx_amount: Balance,
 			payout: Balance,
 			yield_share: Balance,
 			expires_at: BlockNumberFor<T>,
@@ -181,13 +181,25 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		/// Stake amount is below `Config::MinStake`.
 		BelowMinStake,
+		/// Caller does not have enough unlocked HDX to back this stake (the
+		/// admission check uses `reducible_balance`, which subtracts every
+		/// transfer-blocking lock — including this pallet's own lock).
 		InsufficientFreeBalance,
+		/// Unstake amount exceeds the caller's `Stakes.gigahdx`.
 		InsufficientStake,
+		/// Caller has no active stake record.
 		NoStake,
+		/// Amount must be strictly greater than zero.
 		ZeroAmount,
+		/// AAVE `Pool.supply` reverted — typical causes: caller's EVM address
+		/// is not bound, the asset reserve is misconfigured, or `Pool` is
+		/// paused.
 		MoneyMarketSupplyFailed,
+		/// AAVE `Pool.withdraw` reverted.
 		MoneyMarketWithdrawFailed,
+		/// Arithmetic overflow during rate, lock, or storage update math.
 		Overflow,
 		/// The cooldown period has not yet elapsed for the pending unstake.
 		CooldownNotElapsed,
@@ -214,44 +226,31 @@ pub mod pallet {
 			// Use `reducible_balance` so the check respects every transfer-blocking
 			// lock — including this pallet's own combined `LockId` lock (active
 			// stake + pending unstake) and any unrelated conviction/vesting locks.
-			let usable = <T::Currency as fungible::Inspect<T::AccountId>>::reducible_balance(
+			let usable = <T::NativeCurrency as fungible::Inspect<T::AccountId>>::reducible_balance(
 				&who,
 				Preservation::Expendable,
 				Fortitude::Polite,
 			);
 			ensure!(usable >= amount, Error::<T>::InsufficientFreeBalance);
 
-			// Compute stHDX to mint based on current rate.
-			let s = Self::total_st_hdx_supply();
-			let t = Self::total_hdx();
-			let st_input = crate::math::st_input_for_stake(amount, s, t).map_err(|_| Error::<T>::Overflow)?;
+			// Compute GIGAHDX to mint at the current rate.
+			let gigahdx_to_mint = Self::calculate_gigahdx_given_hdx_amount(amount).map_err(|_| Error::<T>::Overflow)?;
 
-			// Mint stHDX to caller, then supply to MM. Wrapped in `with_transaction`
-			// so that if MM supply fails, the freshly-minted stHDX rolls back —
-			// no orphaned stHDX on the user.
-			let actual_minted = with_transaction(|| -> TransactionOutcome<Result<Balance, DispatchError>> {
-				if let Err(e) = T::StHdx::mint_into(T::StHdxAssetId::get(), &who, st_input) {
-					return TransactionOutcome::Rollback(Err(e));
-				}
-				match T::MoneyMarket::supply(&who, T::StHdxAssetId::get(), st_input) {
-					Ok(actual) => TransactionOutcome::Commit(Ok(actual)),
-					Err(e) => TransactionOutcome::Rollback(Err(e)),
-				}
-			})
-			.map_err(|_| Error::<T>::MoneyMarketSupplyFailed)?;
+			// Mint stHDX to caller, then supply to MM. The dispatchable runs in
+			// a storage layer so any Err here rolls back the mint atomically.
+			T::MultiCurrency::mint_into(T::StHdxAssetId::get(), &who, gigahdx_to_mint)
+				.map_err(|_| Error::<T>::MoneyMarketSupplyFailed)?;
+			let actual_minted = T::MoneyMarket::supply(&who, T::StHdxAssetId::get(), gigahdx_to_mint)
+				.map_err(|_| Error::<T>::MoneyMarketSupplyFailed)?;
 
-			let prev = Stakes::<T>::get(&who).unwrap_or_default();
-			let new_locked = prev.hdx_locked.checked_add(amount).ok_or(Error::<T>::Overflow)?;
-			let new_minted = prev.gigahdx.checked_add(actual_minted).ok_or(Error::<T>::Overflow)?;
-			Stakes::<T>::insert(
-				&who,
-				StakeRecord {
-					hdx_locked: new_locked,
-					gigahdx: new_minted,
-				},
-			);
+			Stakes::<T>::try_mutate(&who, |maybe_stake| -> Result<(), Error<T>> {
+				let stake = maybe_stake.get_or_insert_with(StakeRecord::default);
+				stake.hdx = stake.hdx.checked_add(amount).ok_or(Error::<T>::Overflow)?;
+				stake.gigahdx = stake.gigahdx.checked_add(actual_minted).ok_or(Error::<T>::Overflow)?;
+				Ok(())
+			})?;
 			TotalLocked::<T>::mutate(|x| *x = x.saturating_add(amount));
-			Self::refresh_lock(&who);
+			Self::refresh_lock(&who)?;
 
 			Self::deposit_event(Event::Staked {
 				who,
@@ -262,19 +261,19 @@ pub mod pallet {
 		}
 
 		/// Set the AAVE V3 Pool contract H160 used by the money-market adapter.
-		/// Gated by `GovernanceOrigin`.
+		/// Gated by `AuthorityOrigin`.
 		#[pallet::call_index(2)]
-		#[pallet::weight(Weight::from_parts(10_000, 0))]
+		#[pallet::weight(T::WeightInfo::set_pool_contract())]
 		pub fn set_pool_contract(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 			GigaHdxPoolContract::<T>::put(contract);
 			Self::deposit_event(Event::PoolContractUpdated { contract });
 			Ok(())
 		}
 
-		/// Unstake `st_amount` of the caller's GIGAHDX. The MM burns the
+		/// Unstake `gigahdx_amount` of the caller's GIGAHDX. The MM burns the
 		/// aToken and returns stHDX to the caller, which the pallet then burns.
-		/// The HDX value (current rate × st_amount) is moved into a single
+		/// The HDX value (current rate × gigahdx_amount) is moved into a single
 		/// pending-unstake position; any portion that exceeds the user's
 		/// active stake is paid as yield from the gigapot.
 		///
@@ -285,19 +284,14 @@ pub mod pallet {
 		/// the lock-manager precompile (`0x0806`) reads `Stakes[who].gigahdx`
 		/// and treats it as the user's locked GIGAHDX. The aToken contract
 		/// rejects burns where `amount > balance - locked`, so we
-		/// **pre-decrement `gigahdx` by `st_amount` before the MM call**.
-		/// The whole body is wrapped in `with_transaction` for atomic rollback.
+		/// **pre-decrement `gigahdx` by `gigahdx_amount` before the MM call**.
+		/// The dispatchable runs in a storage layer so any `?` failure
+		/// rolls back the pre-decrement atomically.
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::giga_unstake())]
-		pub fn giga_unstake(origin: OriginFor<T>, st_amount: Balance) -> DispatchResult {
+		pub fn giga_unstake(origin: OriginFor<T>, gigahdx_amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			with_transaction::<(), DispatchError, _>(|| {
-				let outcome = Self::do_giga_unstake(&who, st_amount);
-				match outcome {
-					Ok(()) => TransactionOutcome::Commit(Ok(())),
-					Err(e) => TransactionOutcome::Rollback(Err(e)),
-				}
-			})
+			Self::do_giga_unstake(&who, gigahdx_amount)
 		}
 
 		/// Release the pending-unstake position once
@@ -314,11 +308,11 @@ pub mod pallet {
 			);
 
 			PendingUnstakes::<T>::remove(&who);
-			Self::refresh_lock(&who);
+			Self::refresh_lock(&who)?;
 			// `Stakes` may have been emptied by the unstake that opened this
 			// position; once the position closes, drop the empty record too.
 			if let Some(s) = Stakes::<T>::get(&who) {
-				if s.hdx_locked == 0 && s.gigahdx == 0 {
+				if s.hdx == 0 && s.gigahdx == 0 {
 					Stakes::<T>::remove(&who);
 				}
 			}
@@ -332,43 +326,44 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// Internal helper for `giga_unstake`. Uses `?` freely; the caller
-		/// wraps it in `with_transaction` for atomic rollback.
-		fn do_giga_unstake(who: &T::AccountId, st_amount: Balance) -> DispatchResult {
+		/// Internal helper for `giga_unstake`. Uses `?` freely; the
+		/// `#[transactional]` attribute wraps the body in its own storage
+		/// layer so any Err here rolls back partial mutations.
+		#[transactional]
+		fn do_giga_unstake(who: &T::AccountId, gigahdx_amount: Balance) -> DispatchResult {
 			ensure!(
 				PendingUnstakes::<T>::get(who).is_none(),
 				Error::<T>::PendingUnstakeAlreadyExists
 			);
 
 			let stake = Stakes::<T>::get(who).ok_or(Error::<T>::NoStake)?;
-			ensure!(st_amount > 0, Error::<T>::ZeroAmount);
-			ensure!(st_amount <= stake.gigahdx, Error::<T>::InsufficientStake);
+			ensure!(gigahdx_amount > 0, Error::<T>::ZeroAmount);
+			ensure!(gigahdx_amount <= stake.gigahdx, Error::<T>::InsufficientStake);
 
-			// Compute payout from PRE-unstake totals.
-			let s_pre = Self::total_st_hdx_supply();
-			let t_pre = Self::total_hdx();
-			let payout = crate::math::total_payout(st_amount, t_pre, s_pre).map_err(|_| Error::<T>::Overflow)?;
+			// Compute payout from PRE-unstake totals (helper reads live state, so
+			// it must run BEFORE any mint/burn/transfer below).
+			let payout = Self::calculate_hdx_amount_given_gigahdx(gigahdx_amount).map_err(|_| Error::<T>::Overflow)?;
 
 			// Pre-decrement `gigahdx` so `LockableAToken.burn`'s `freeBalance`
 			// check (via the lock-manager precompile) lets the burn through.
-			let new_gigahdx = stake.gigahdx.checked_sub(st_amount).ok_or(Error::<T>::Overflow)?;
+			let new_gigahdx = stake.gigahdx.checked_sub(gigahdx_amount).ok_or(Error::<T>::Overflow)?;
 			Stakes::<T>::insert(
 				who,
 				StakeRecord {
-					hdx_locked: stake.hdx_locked,
+					hdx: stake.hdx,
 					gigahdx: new_gigahdx,
 				},
 			);
 
 			// MM withdraw: returns stHDX to `who`, burns aToken from `who`.
-			T::MoneyMarket::withdraw(who, T::StHdxAssetId::get(), st_amount)
+			T::MoneyMarket::withdraw(who, T::StHdxAssetId::get(), gigahdx_amount)
 				.map_err(|_| Error::<T>::MoneyMarketWithdrawFailed)?;
 
 			// Burn the returned stHDX from the user.
-			T::StHdx::burn_from(
+			T::MultiCurrency::burn_from(
 				T::StHdxAssetId::get(),
 				who,
-				st_amount,
+				gigahdx_amount,
 				Preservation::Expendable,
 				Precision::Exact,
 				Fortitude::Force,
@@ -377,11 +372,11 @@ pub mod pallet {
 			// Split `payout` between the user's active stake and the gigapot.
 			//   • payout ≤ active stake → consume from active only
 			//   • payout > active stake → drain active, pull remainder from pot
-			let (new_hdx_locked, yield_share) = if payout <= stake.hdx_locked {
-				(stake.hdx_locked - payout, 0)
+			let (new_hdx, yield_share) = if payout <= stake.hdx {
+				(stake.hdx - payout, 0)
 			} else {
-				let yield_amount = payout - stake.hdx_locked;
-				T::Currency::transfer(
+				let yield_amount = payout - stake.hdx;
+				T::NativeCurrency::transfer(
 					&Self::gigapot_account_id(),
 					who,
 					yield_amount,
@@ -389,12 +384,12 @@ pub mod pallet {
 				)?;
 				(0, yield_amount)
 			};
-			let principal_consumed = stake.hdx_locked.saturating_sub(new_hdx_locked);
+			let principal_consumed = stake.hdx.saturating_sub(new_hdx);
 
 			Stakes::<T>::insert(
 				who,
 				StakeRecord {
-					hdx_locked: new_hdx_locked,
+					hdx: new_hdx,
 					gigahdx: new_gigahdx,
 				},
 			);
@@ -410,11 +405,11 @@ pub mod pallet {
 					expires_at,
 				},
 			);
-			Self::refresh_lock(who);
+			Self::refresh_lock(who)?;
 
 			Self::deposit_event(Event::Unstaked {
 				who: who.clone(),
-				st_amount,
+				gigahdx_amount,
 				payout,
 				yield_share,
 				expires_at,
@@ -425,18 +420,20 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		/// Recompute the single combined balance lock for `who`:
-		/// `lock_amount = Stakes[who].hdx_locked + PendingUnstakes[who].amount`.
+		/// `lock_amount = Stakes[who].hdx + PendingUnstakes[who].amount`.
 		/// Uses `set_lock` (not `extend_lock`) so the lock can shrink on unstake
 		/// or unlock. Removes the lock entirely when both components are zero.
-		fn refresh_lock(who: &T::AccountId) {
-			let stake_amount = Stakes::<T>::get(who).map(|s| s.hdx_locked).unwrap_or(0);
+		#[transactional]
+		fn refresh_lock(who: &T::AccountId) -> DispatchResult {
+			let stake_amount = Stakes::<T>::get(who).map(|s| s.hdx).unwrap_or(0);
 			let pending = PendingUnstakes::<T>::get(who).map(|p| p.amount).unwrap_or(0);
 			let total = stake_amount.saturating_add(pending);
 			if total == 0 {
-				T::Currency::remove_lock(T::LockId::get(), who);
+				T::NativeCurrency::remove_lock(T::LockId::get(), who);
 			} else {
-				T::Currency::set_lock(T::LockId::get(), who, total, WithdrawReasons::all());
+				T::NativeCurrency::set_lock(T::LockId::get(), who, total, WithdrawReasons::all());
 			}
+			Ok(())
 		}
 
 		/// Account id of the gigapot (yield holder), derived from
@@ -458,26 +455,51 @@ pub mod pallet {
 
 		/// Total HDX backing all stHDX:
 		/// `TotalLocked + free_balance(gigapot_account_id)`.
-		pub fn total_hdx() -> Balance {
-			TotalLocked::<T>::get().saturating_add(T::Currency::free_balance(&Self::gigapot_account_id()))
+		pub fn total_staked_hdx() -> Balance {
+			TotalLocked::<T>::get().saturating_add(T::NativeCurrency::free_balance(&Self::gigapot_account_id()))
 		}
 
 		/// Total stHDX issued, read live from the asset registry — no pallet-side
 		/// counter to keep in sync.
-		pub fn total_st_hdx_supply() -> Balance {
-			<T::StHdx as fungibles::Inspect<T::AccountId>>::total_issuance(T::StHdxAssetId::get())
+		pub fn total_gigahdx_supply() -> Balance {
+			<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::total_issuance(T::StHdxAssetId::get())
 		}
 
-		/// stHDX → HDX exchange rate as `FixedU128 = total_hdx / total_st_hdx_supply`.
+		/// HDX/GIGAHDX exchange rate as `Ratio { n: total_staked_hdx, d: total_gigahdx_supply }`,
+		/// floored at 1.0.
 		///
-		/// Returns `1.0` when no stHDX has been issued yet (bootstrap).
-		pub fn exchange_rate() -> FixedU128 {
-			let s = Self::total_st_hdx_supply();
-			if s == 0 {
-				FixedU128::from(1)
-			} else {
-				FixedU128::checked_from_rational(Self::total_hdx(), s).unwrap_or(FixedU128::from(1))
+		/// stHDX accrues HDX value monotonically under user flows, so a sub-1
+		/// rate is only reachable via privileged operations (root drain from
+		/// the gigapot) or migration bugs. The floor protects users and
+		/// downstream consumers (e.g. AAVE oracle reads) from a transient
+		/// sub-1 reading without leaking the artefact across pricing math.
+		///
+		/// Compare ratios with `cmp` / `partial_cmp` — those do proper
+		/// cross-multiplication. Direct field-wise `==` only works when `n`
+		/// and `d` happen to match exactly.
+		pub fn exchange_rate() -> Ratio {
+			let gigahdx_supply = Self::total_gigahdx_supply();
+			if gigahdx_supply == 0 {
+				return Ratio::one();
 			}
+			let raw = Ratio::new(Self::total_staked_hdx(), gigahdx_supply);
+			core::cmp::max(raw, Ratio::one())
+		}
+
+		/// GIGAHDX (= stHDX) to mint for a given HDX `amount` at the current rate.
+		///
+		/// Bootstrap (no GIGAHDX in circulation) returns `amount` 1:1.
+		pub fn calculate_gigahdx_given_hdx_amount(amount: Balance) -> Result<Balance, ArithmeticError> {
+			let rate = Self::exchange_rate();
+			multiply_by_rational_with_rounding(amount, rate.d, rate.n, Rounding::Down).ok_or(ArithmeticError::Overflow)
+		}
+
+		/// HDX paid out for unstaking `gigahdx_amount` of GIGAHDX/stHDX at the
+		/// current rate.
+		pub fn calculate_hdx_amount_given_gigahdx(gigahdx_amount: Balance) -> Result<Balance, ArithmeticError> {
+			let rate = Self::exchange_rate();
+			multiply_by_rational_with_rounding(gigahdx_amount, rate.n, rate.d, Rounding::Down)
+				.ok_or(ArithmeticError::Overflow)
 		}
 	}
 }

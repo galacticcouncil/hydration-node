@@ -1878,11 +1878,11 @@ parameter_types! {
 }
 
 impl pallet_gigahdx::Config for Runtime {
-	type Currency = Balances;
-	type StHdx = FungibleCurrencies<Runtime>;
+	type NativeCurrency = Balances;
+	type MultiCurrency = FungibleCurrencies<Runtime>;
 	type StHdxAssetId = StHdxAssetId;
 	type MoneyMarket = crate::gigahdx::AaveMoneyMarket;
-	type GovernanceOrigin = EnsureRoot<AccountId>;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type PalletId = GigaHdxPalletId;
 	type LockId = GigaHdxLockId;
 	type MinStake = GigaHdxMinStake;

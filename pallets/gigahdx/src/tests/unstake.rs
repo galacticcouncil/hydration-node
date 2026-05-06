@@ -33,10 +33,10 @@ fn giga_unstake_should_move_active_to_position_when_pot_empty() {
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
 
 		let s = Stakes::<Test>::get(ALICE).unwrap();
-		assert_eq!(s.hdx_locked, 0);
+		assert_eq!(s.hdx, 0);
 		assert_eq!(s.gigahdx, 0);
 		assert_eq!(TotalLocked::<Test>::get(), 0);
-		assert_eq!(GigaHdx::total_st_hdx_supply(), 0);
+		assert_eq!(GigaHdx::total_gigahdx_supply(), 0);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), 0);
 
 		// Position holds 100; lock covers it; no yield to free_balance.
@@ -66,7 +66,7 @@ fn giga_unstake_should_pull_yield_from_pot_when_payout_exceeds_active() {
 
 			// Stakes record still present (zeroed) until `unlock` cleans it up.
 			let s = Stakes::<Test>::get(ALICE).unwrap();
-			assert_eq!(s.hdx_locked, 0);
+			assert_eq!(s.hdx, 0);
 			assert_eq!(s.gigahdx, 0);
 
 			// Position = full payout; lock covers everything.
@@ -82,12 +82,12 @@ fn giga_unstake_should_split_state_when_partial() {
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 40 * ONE));
 
 		let s = Stakes::<Test>::get(ALICE).unwrap();
-		assert_eq!(s.hdx_locked, 60 * ONE);
+		assert_eq!(s.hdx, 60 * ONE);
 		assert_eq!(s.gigahdx, 60 * ONE);
 		// Combined lock = active(60) + position(40) = 100.
 		assert_eq!(locked_under_ghdx(ALICE), 100 * ONE);
 		assert_eq!(TotalLocked::<Test>::get(), 60 * ONE);
-		assert_eq!(GigaHdx::total_st_hdx_supply(), 60 * ONE);
+		assert_eq!(GigaHdx::total_gigahdx_supply(), 60 * ONE);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), 60 * ONE);
 		assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 40 * ONE);
 	});
@@ -131,7 +131,7 @@ fn giga_unstake_should_revert_storage_when_mm_withdraw_fails() {
 		stake_alice_100();
 		let pre_stake = Stakes::<Test>::get(ALICE).unwrap();
 		let pre_total_locked = TotalLocked::<Test>::get();
-		let pre_total_sthdx = GigaHdx::total_st_hdx_supply();
+		let pre_total_sthdx = GigaHdx::total_gigahdx_supply();
 		let pre_lock = locked_under_ghdx(ALICE);
 		let pre_mm_balance = TestMoneyMarket::balance_of(&ALICE);
 		let pre_sthdx_balance = Tokens::balance(ST_HDX, &ALICE);
@@ -145,9 +145,9 @@ fn giga_unstake_should_revert_storage_when_mm_withdraw_fails() {
 		// Pre-decrement of `gigahdx` was rolled back by `with_transaction`.
 		let post_stake = Stakes::<Test>::get(ALICE).unwrap();
 		assert_eq!(post_stake.gigahdx, pre_stake.gigahdx, "gigahdx must be restored");
-		assert_eq!(post_stake.hdx_locked, pre_stake.hdx_locked);
+		assert_eq!(post_stake.hdx, pre_stake.hdx);
 		assert_eq!(TotalLocked::<Test>::get(), pre_total_locked);
-		assert_eq!(GigaHdx::total_st_hdx_supply(), pre_total_sthdx);
+		assert_eq!(GigaHdx::total_gigahdx_supply(), pre_total_sthdx);
 		assert_eq!(locked_under_ghdx(ALICE), pre_lock);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), pre_mm_balance);
 		assert_eq!(Tokens::balance(ST_HDX, &ALICE), pre_sthdx_balance);

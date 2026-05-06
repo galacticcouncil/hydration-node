@@ -2715,7 +2715,7 @@ mod chainlink_precompile {
 	}
 
 	fn seed_gigapot_and_supply(gigapot_hdx: Balance, st_hdx_supply: Balance) {
-		// `total_st_hdx_supply` reads orml-tokens issuance directly, so seed
+		// `total_gigahdx_supply` reads orml-tokens issuance directly, so seed
 		// the stHDX issuance there rather than via a pallet-side counter.
 		orml_tokens::TotalIssuance::<Runtime>::set(STHDX, st_hdx_supply);
 		let gigapot = pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id();
@@ -2750,8 +2750,8 @@ mod chainlink_precompile {
 			seed_gigapot_and_supply(110 * UNITS, 100 * UNITS);
 
 			pretty_assertions::assert_eq!(
-				pallet_gigahdx::Pallet::<Runtime>::exchange_rate(),
-				FixedU128::from_rational(11, 10)
+				pallet_gigahdx::Pallet::<Runtime>::exchange_rate().cmp(&hydra_dx_math::ratio::Ratio::new(11, 10)),
+				std::cmp::Ordering::Equal
 			);
 
 			let address = encode_oracle_address(STHDX, HDX_ID, OraclePeriod::TenMinutes, GIGAHDX_SOURCE);
@@ -2775,9 +2775,10 @@ mod chainlink_precompile {
 			// Full drain: native rate = 0; precompile must clamp to 1.0.
 			seed_gigapot_and_supply(0, 100 * UNITS);
 
+			// pallet floors the rate at 1.0; the raw value (0) never escapes.
 			pretty_assertions::assert_eq!(
-				pallet_gigahdx::Pallet::<Runtime>::exchange_rate(),
-				FixedU128::from(0u128)
+				pallet_gigahdx::Pallet::<Runtime>::exchange_rate().cmp(&hydra_dx_math::ratio::Ratio::one()),
+				std::cmp::Ordering::Equal
 			);
 
 			let address = encode_oracle_address(STHDX, HDX_ID, OraclePeriod::TenMinutes, GIGAHDX_SOURCE);
@@ -2795,9 +2796,10 @@ mod chainlink_precompile {
 			// Partial drain: native rate = 0.5; precompile must clamp to 1.0 (not 50_000_000).
 			seed_gigapot_and_supply(50 * UNITS, 100 * UNITS);
 
+			// pallet floors the rate at 1.0; the raw value (0.5) never escapes.
 			pretty_assertions::assert_eq!(
-				pallet_gigahdx::Pallet::<Runtime>::exchange_rate(),
-				FixedU128::from_rational(1, 2)
+				pallet_gigahdx::Pallet::<Runtime>::exchange_rate().cmp(&hydra_dx_math::ratio::Ratio::one()),
+				std::cmp::Ordering::Equal
 			);
 
 			let address = encode_oracle_address(STHDX, HDX_ID, OraclePeriod::TenMinutes, GIGAHDX_SOURCE);

@@ -22,10 +22,10 @@ fn giga_stake_should_record_correct_state_when_called() {
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
 
 		let s = Stakes::<Test>::get(ALICE).unwrap();
-		assert_eq!(s.hdx_locked, 100 * ONE);
+		assert_eq!(s.hdx, 100 * ONE);
 		assert_eq!(s.gigahdx, 100 * ONE); // bootstrap 1:1, no rounding
 		assert_eq!(TotalLocked::<Test>::get(), 100 * ONE);
-		assert_eq!(GigaHdx::total_st_hdx_supply(), 100 * ONE);
+		assert_eq!(GigaHdx::total_gigahdx_supply(), 100 * ONE);
 
 		assert_eq!(locked_under_ghdx(ALICE), 100 * ONE);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), 100 * ONE);
@@ -60,11 +60,11 @@ fn giga_stake_should_increase_lock_when_already_staked() {
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 50 * ONE));
 
 		let s = Stakes::<Test>::get(ALICE).unwrap();
-		assert_eq!(s.hdx_locked, 150 * ONE);
+		assert_eq!(s.hdx, 150 * ONE);
 		assert_eq!(s.gigahdx, 150 * ONE);
 		assert_eq!(locked_under_ghdx(ALICE), 150 * ONE);
 		assert_eq!(TotalLocked::<Test>::get(), 150 * ONE);
-		assert_eq!(GigaHdx::total_st_hdx_supply(), 150 * ONE);
+		assert_eq!(GigaHdx::total_gigahdx_supply(), 150 * ONE);
 	});
 }
 
@@ -104,11 +104,11 @@ fn giga_stake_should_store_returned_atoken_when_mm_rounds() {
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
 
 		let s = Stakes::<Test>::get(ALICE).unwrap();
-		assert_eq!(s.hdx_locked, 100 * ONE); // input
+		assert_eq!(s.hdx, 100 * ONE); // input
 		assert_eq!(s.gigahdx, 90 * ONE); // returned by MM, not input
 								   // stHDX issuance reflects what was minted into the user (input);
 								   // MM rounding only affects the aToken count stored in `Stakes.gigahdx`.
-		assert_eq!(GigaHdx::total_st_hdx_supply(), 100 * ONE);
+		assert_eq!(GigaHdx::total_gigahdx_supply(), 100 * ONE);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), 90 * ONE);
 	});
 }
@@ -191,7 +191,7 @@ fn giga_stake_should_revert_storage_when_mm_supply_fails() {
 		// No pallet-gigahdx state mutation.
 		assert!(Stakes::<Test>::get(ALICE).is_none());
 		assert_eq!(TotalLocked::<Test>::get(), 0);
-		assert_eq!(GigaHdx::total_st_hdx_supply(), 0);
+		assert_eq!(GigaHdx::total_gigahdx_supply(), 0);
 		assert_eq!(locked_under_ghdx(ALICE), 0);
 		// stHDX rolled back by with_transaction.
 		assert_eq!(Tokens::balance(ST_HDX, &ALICE), pre_sthdx);

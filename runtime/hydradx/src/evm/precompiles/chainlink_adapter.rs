@@ -27,7 +27,7 @@ use primitives::{
 	constants::chain::{GIGAHDX_SOURCE, OMNIPOOL_SOURCE},
 	AssetId,
 };
-use sp_runtime::{traits::Dispatchable, FixedU128, RuntimeDebug};
+use sp_runtime::{traits::Dispatchable, RuntimeDebug};
 use sp_std::{cmp::Ordering, marker::PhantomData};
 
 const EMPTY_SOURCE: Source = [0u8; 8];
@@ -159,16 +159,12 @@ where
 
 			Price::from(rat_as_u128)
 		}
-		// stHDX/HDX exchange rate from pallet-gigahdx (spot value, period is ignored).
-		// Floor at 1.0: stHDX accrues HDX value monotonically under user flows; a sub-1
-		// reading is only reachable via privileged ops or migration bugs and would
-		// spuriously liquidate stHDX collateral on AAVE.
+		// stHDX/HDX exchange rate from pallet-gigahdx (spot value, period is
+		// ignored). The pallet itself floors the rate at 1.0 so AAVE never
+		// sees a sub-1 reading.
 		else if source == GIGAHDX_SOURCE {
-			let rate = pallet_gigahdx::Pallet::<Runtime>::exchange_rate().max(FixedU128::from(1u128));
-			Price {
-				n: rate.into_inner(),
-				d: 1_000_000_000_000_000_000u128,
-			}
+			let rate = pallet_gigahdx::Pallet::<Runtime>::exchange_rate();
+			Price { n: rate.n, d: rate.d }
 		} else {
 			let (price, _block_number) = <pallet_ema_oracle::Pallet<Runtime>>::get_price(
 				asset_id_a, asset_id_b, period, source,

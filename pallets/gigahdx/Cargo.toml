@@ -24,6 +24,7 @@ sp-core = { workspace = true }
 sp-io = { workspace = true }
 
 # Local
+hydra-dx-math = { workspace = true }
 hydradx-traits = { workspace = true }
 primitives = { workspace = true }
 
@@ -49,6 +50,7 @@ std = [
     "sp-core/std",
     "sp-io/std",
     "frame-benchmarking?/std",
+    "hydra-dx-math/std",
     "hydradx-traits/std",
     "primitives/std",
 ]

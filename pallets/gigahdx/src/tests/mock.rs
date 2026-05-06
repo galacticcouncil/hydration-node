@@ -192,11 +192,11 @@ parameter_types! {
 }
 
 impl pallet_gigahdx::Config for Test {
-	type Currency = Balances;
-	type StHdx = Tokens;
+	type NativeCurrency = Balances;
+	type MultiCurrency = Tokens;
 	type StHdxAssetId = StHdxAssetIdConst;
 	type MoneyMarket = TestMoneyMarket;
-	type GovernanceOrigin = EnsureRoot<AccountId>;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type PalletId = GigaHdxPalletId;
 	type LockId = GigaHdxLockId;
 	type MinStake = GigaHdxMinStake;

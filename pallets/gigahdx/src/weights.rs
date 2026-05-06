@@ -6,6 +6,7 @@ pub trait WeightInfo {
 	fn giga_stake() -> Weight;
 	fn giga_unstake() -> Weight;
 	fn unlock() -> Weight;
+	fn set_pool_contract() -> Weight;
 }
 
 impl WeightInfo for () {
@@ -16,6 +17,9 @@ impl WeightInfo for () {
 		Weight::zero()
 	}
 	fn unlock() -> Weight {
+		Weight::zero()
+	}
+	fn set_pool_contract() -> Weight {
 		Weight::zero()
 	}
 }

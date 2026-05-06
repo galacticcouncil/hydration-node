@@ -11,6 +11,7 @@ use frame_support::traits::StorePreimage;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use hex_literal::hex;
+use hydra_dx_math::ratio::Ratio;
 use hydradx_runtime::evm::{
 	aave_trade_executor::Function as AaveFunction, precompiles::erc20_mapping::HydraErc20Mapping,
 	precompiles::handle::EvmDataWriter, Executor,
@@ -32,6 +33,19 @@ pub const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx";
 #[allow(dead_code)]
 pub const ST_HDX: AssetId = 670;
 pub const GIGAHDX: AssetId = 67;
+
+/// Asserts that the actual `Ratio` equals `expected_n / expected_d` via
+/// cross-multiplication (Ratio's `PartialEq` is field-wise, so direct
+/// `==` only matches when n and d are pointwise equal).
+fn assert_rate_eq(actual: Ratio, expected_n: u128, expected_d: u128) {
+	let expected = Ratio::new(expected_n, expected_d);
+	assert_eq!(
+		actual.cmp(&expected),
+		std::cmp::Ordering::Equal,
+		"rate mismatch: got {:?}, expected {expected_n}/{expected_d}",
+		actual,
+	);
+}
 
 /// Reads the AAVE pool contract address from the gigahdx pallet storage.
 /// **Tests must not set this themselves** — the snapshot is expected to
@@ -109,7 +123,7 @@ fn giga_stake_should_lock_hdx_in_user_account_when_called() {
 
 		// `Stakes[Alice]` populated.
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake should exist");
-		assert_eq!(stake.hdx_locked, 100 * UNITS);
+		assert_eq!(stake.hdx, 100 * UNITS);
 		assert_eq!(stake.gigahdx, 100 * UNITS); // bootstrap 1:1
 
 		// Alice received GIGAHDX (aToken) on the EVM side.
@@ -136,7 +150,7 @@ fn giga_unstake_should_burn_atoken_when_full_exit() {
 
 		// `Stakes[Alice]` is now zero-active (cleaned up only by `unlock`).
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake remains until unlock");
-		assert_eq!(stake.hdx_locked, 0);
+		assert_eq!(stake.hdx, 0);
 		assert_eq!(stake.gigahdx, 0);
 
 		// Combined lock now equals the position amount.
@@ -171,7 +185,7 @@ fn giga_unstake_should_keep_proportional_state_when_partial() {
 		// (case 2). With a near-bootstrap rate the active stake just shrinks
 		// (case 1). Either way the combined lock equals active + position.
 		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("position created");
-		assert_eq!(locked_under_ghdx(&alice), stake.hdx_locked + entry.amount);
+		assert_eq!(locked_under_ghdx(&alice), stake.hdx + entry.amount);
 		assert!(entry.amount >= 40 * UNITS, "payout covers at least the principal share");
 	});
 }
@@ -225,9 +239,9 @@ fn giga_unstake_should_create_pending_position_when_called() {
 		// Mainnet snapshot's gigapot may already hold yield → payout ≥ principal.
 		assert!(entry.amount >= 40 * UNITS, "position covers at least principal");
 
-		// Single combined lock: active stake (Stakes.hdx_locked) + position.amount.
+		// Single combined lock: active stake (Stakes.hdx) + position.amount.
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake remains");
-		assert_eq!(lock_amount(&alice, GIGAHDX_LOCK_ID), stake.hdx_locked + entry.amount);
+		assert_eq!(lock_amount(&alice, GIGAHDX_LOCK_ID), stake.hdx + entry.amount);
 	});
 }
 
@@ -449,8 +463,8 @@ fn giga_stake_should_mint_gigahdx_when_called_on_mainnet_snapshot() {
 		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
 
 		let hdx_before = Currencies::free_balance(HDX, &alice);
-		let total_hdx_before = GigaHdx::total_hdx();
-		let total_st_hdx_before = GigaHdx::total_st_hdx_supply();
+		let total_staked_hdx_before = GigaHdx::total_staked_hdx();
+		let total_st_hdx_before = GigaHdx::total_gigahdx_supply();
 
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
 
@@ -465,9 +479,9 @@ fn giga_stake_should_mint_gigahdx_when_called_on_mainnet_snapshot() {
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), stake_amount);
 
 		// Totals incremented; bootstrap rate = 1.
-		assert_eq!(GigaHdx::total_hdx(), total_hdx_before + stake_amount);
-		assert_eq!(GigaHdx::total_st_hdx_supply(), total_st_hdx_before + stake_amount);
-		assert_eq!(GigaHdx::exchange_rate(), sp_runtime::FixedU128::from_u32(1));
+		assert_eq!(GigaHdx::total_staked_hdx(), total_staked_hdx_before + stake_amount);
+		assert_eq!(GigaHdx::total_gigahdx_supply(), total_st_hdx_before + stake_amount);
+		assert_rate_eq(GigaHdx::exchange_rate(), 1, 1);
 	});
 }
 
@@ -546,18 +560,18 @@ fn giga_stake_should_succeed_when_supply_zeroed_after_full_exit() {
 		fund(&bob, 1_000_000 * UNITS);
 
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
-		assert_eq!(GigaHdx::total_st_hdx_supply(), 100 * UNITS);
+		assert_eq!(GigaHdx::total_gigahdx_supply(), 100 * UNITS);
 
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS,));
 
 		// Supply zeroed; rate falls back to bootstrap 1.0.
-		assert_eq!(GigaHdx::total_st_hdx_supply(), 0);
-		assert_eq!(GigaHdx::exchange_rate(), sp_runtime::FixedU128::from_u32(1));
+		assert_eq!(GigaHdx::total_gigahdx_supply(), 0);
+		assert_rate_eq(GigaHdx::exchange_rate(), 1, 1);
 
 		// Bob can stake fresh — Alice's cooldown is hers, Bob is unaffected.
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 100 * UNITS));
 		assert_eq!(Currencies::free_balance(GIGAHDX, &bob), 100 * UNITS);
-		assert_eq!(GigaHdx::total_st_hdx_supply(), 100 * UNITS);
+		assert_eq!(GigaHdx::total_gigahdx_supply(), 100 * UNITS);
 	});
 }
 
@@ -579,7 +593,7 @@ fn exchange_rate_should_inflate_when_hdx_transferred_directly_to_gigapot() {
 
 		// Alice stakes 100 → rate becomes (100 + 1) / 100 = 1.01.
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice), 100 * UNITS));
-		assert_eq!(GigaHdx::exchange_rate(), sp_runtime::FixedU128::from_rational(101, 100));
+		assert_rate_eq(GigaHdx::exchange_rate(), 101, 100);
 
 		// Bob donates 1000 HDX directly to the gigapot → rate inflates.
 		assert_ok!(Currencies::transfer(
@@ -588,10 +602,7 @@ fn exchange_rate_should_inflate_when_hdx_transferred_directly_to_gigapot() {
 			HDX,
 			1_000 * UNITS,
 		));
-		assert_eq!(
-			GigaHdx::exchange_rate(),
-			sp_runtime::FixedU128::from_rational(1101, 100)
-		);
+		assert_rate_eq(GigaHdx::exchange_rate(), 1101, 100);
 
 		// New stake at the inflated rate gets fewer GIGAHDX.
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 100 * UNITS));
@@ -630,7 +641,7 @@ fn giga_unstake_should_succeed_with_inflated_payout_when_pot_donated() {
 			HDX,
 			500 * UNITS,
 		));
-		assert!(GigaHdx::exchange_rate() > sp_runtime::FixedU128::from(1));
+		assert!(GigaHdx::exchange_rate() > Ratio::one());
 
 		// Alice fully unstakes — the donation is a bonus to her, not a DoS.
 		assert_ok!(GigaHdx::giga_unstake(
@@ -773,7 +784,7 @@ fn partial_unstake_should_not_leak_when_locks_aggregated_via_max() {
 
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
 		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).unwrap();
-		assert_eq!(stake.hdx_locked, 500 * UNITS);
+		assert_eq!(stake.hdx, 500 * UNITS);
 		assert_eq!(entry.amount, 500 * UNITS);
 
 		// Combined lock = active(500) + position(500) = 1000. Old buggy
@@ -844,7 +855,7 @@ fn partial_unstake_should_drain_active_when_payout_exceeds_active() {
 	// Case 2 with PARTIAL unstake: rate is high enough that the payout for a
 	// fraction of the atokens already exceeds the user's active stake. Active
 	// drops to zero, the rest of the payout comes from the gigapot, and the
-	// user is left with `Stakes = { hdx_locked: 0, gigahdx > 0 }` —
+	// user is left with `Stakes = { hdx: 0, gigahdx > 0 }` —
 	// remaining atokens with zero cost basis. They can be unstaked later
 	// (each subsequent unstake hits case 2 against an empty active stake).
 	TestNet::reset();
@@ -859,7 +870,7 @@ fn partial_unstake_should_drain_active_when_payout_exceeds_active() {
 		// Resulting rate = (100 + 200) / 100 = 3.0.
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS,));
 		fund(&gigapot, 200 * UNITS);
-		assert_eq!(GigaHdx::exchange_rate(), sp_runtime::FixedU128::from_u32(3));
+		assert_rate_eq(GigaHdx::exchange_rate(), 3, 1);
 
 		let alice_balance_before = Balances::free_balance(&alice);
 
@@ -869,7 +880,7 @@ fn partial_unstake_should_drain_active_when_payout_exceeds_active() {
 
 		// Active stake fully consumed; atokens still partially held.
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("record persists");
-		assert_eq!(stake.hdx_locked, 0, "active stake drained by case-2 payout");
+		assert_eq!(stake.hdx, 0, "active stake drained by case-2 payout");
 		assert_eq!(stake.gigahdx, 50 * UNITS, "remaining atokens have zero cost basis now");
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 50 * UNITS);
 
@@ -887,7 +898,7 @@ fn partial_unstake_should_drain_active_when_payout_exceeds_active() {
 		assert_eq!(locked_under_ghdx(&alice), 150 * UNITS);
 
 		// Sanity: rate stays at 3.0 (TotalLocked=0, pot=150, supply=50).
-		assert_eq!(GigaHdx::exchange_rate(), sp_runtime::FixedU128::from_u32(3));
+		assert_rate_eq(GigaHdx::exchange_rate(), 3, 1);
 	});
 }
 
@@ -909,7 +920,7 @@ fn full_lifecycle_should_conserve_value_when_rate_inflated() {
 		// 1. Stake 100 at bootstrap rate. Then inflate pot → rate 3.0.
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS,));
 		fund(&gigapot, 200 * UNITS);
-		assert_eq!(GigaHdx::exchange_rate(), sp_runtime::FixedU128::from_u32(3));
+		assert_rate_eq(GigaHdx::exchange_rate(), 3, 1);
 
 		// 2. First unstake: 50 stHDX → payout 150, active drained to 0.
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS,));
@@ -923,14 +934,14 @@ fn full_lifecycle_should_conserve_value_when_rate_inflated() {
 
 		// Stakes record persists (gigahdx still 50 with zero cost basis).
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("atokens remain");
-		assert_eq!(stake.hdx_locked, 0);
+		assert_eq!(stake.hdx, 0);
 		assert_eq!(stake.gigahdx, 50 * UNITS);
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 50 * UNITS);
 
 		// 4. Second unstake: remaining 50 stHDX. Active still 0 → full payout
 		//    from pot. Pot was 200 - 50 = 150, supply 50, rate stays 3.0,
 		//    payout = 50 × 3 = 150.
-		assert_eq!(GigaHdx::exchange_rate(), sp_runtime::FixedU128::from_u32(3));
+		assert_rate_eq(GigaHdx::exchange_rate(), 3, 1);
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS,));
 		let entry2 = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).unwrap();
 		assert_eq!(entry2.amount, 150 * UNITS);
@@ -952,7 +963,7 @@ fn full_lifecycle_should_conserve_value_when_rate_inflated() {
 		assert_eq!(locked_under_ghdx(&alice), 0);
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 0);
 		assert_eq!(pallet_gigahdx::TotalLocked::<Runtime>::get(), 0);
-		assert_eq!(GigaHdx::total_st_hdx_supply(), 0);
+		assert_eq!(GigaHdx::total_gigahdx_supply(), 0);
 
 		// Pot fully drained (200 yield → 0).
 		assert_eq!(Balances::free_balance(&gigapot), 0);
