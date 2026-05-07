@@ -5,8 +5,6 @@
 // measurements capture only the substrate-side bookkeeping cost, not the
 // EVM round-trip into AAVE.
 
-#![cfg(feature = "runtime-benchmarks")]
-
 use super::*;
 use frame_benchmarking::v2::*;
 use frame_support::assert_ok;

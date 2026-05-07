@@ -202,6 +202,8 @@ impl pallet_gigahdx::Config for Test {
 	type MinStake = GigaHdxMinStake;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
 	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 // ---------- Test ext builder ----------
