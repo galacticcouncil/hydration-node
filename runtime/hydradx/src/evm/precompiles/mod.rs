@@ -122,6 +122,19 @@ impl Get<sp_std::vec::Vec<H160>> for AllowedFlashLoanCallers {
 	}
 }
 
+/// EVM address of the GIGAHDX aToken contract — the only token allowed to
+/// query the lock-manager precompile. Resolved through the asset registry
+/// at call time so it tracks any asset-id remapping.
+pub struct GigaHdxATokenAddress;
+
+impl Get<H160> for GigaHdxATokenAddress {
+	fn get() -> H160 {
+		<crate::evm::precompiles::erc20_mapping::HydraErc20Mapping as hydradx_traits::evm::Erc20Mapping<
+			primitives::AssetId,
+		>>::asset_address(crate::assets::GigaHdxAssetIdConst::get())
+	}
+}
+
 impl<R> PrecompileSet for HydraDXPrecompiles<R>
 where
 	R: pallet_evm::Config
@@ -180,9 +193,10 @@ where
 				AllowedFlashLoanCallers,
 			>::execute(handle))
 		} else if address == LOCK_MANAGER {
-			Some(pallet_evm_precompile_lock_manager::LockManagerPrecompile::<R>::execute(
-				handle,
-			))
+			Some(pallet_evm_precompile_lock_manager::LockManagerPrecompile::<
+				R,
+				crate::evm::precompiles::GigaHdxATokenAddress,
+			>::execute(handle))
 		} else if address == DISPATCH_ADDR {
 			let caller_account = R::AddressMapping::into_account_id(handle.context().caller);
 			let original_nonce = frame_system::Pallet::<R>::account_nonce(caller_account.clone());

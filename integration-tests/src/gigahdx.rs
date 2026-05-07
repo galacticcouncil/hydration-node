@@ -203,17 +203,18 @@ fn lock_manager_precompile_should_report_gigahdx_when_account_has_stake() {
 
 		// Call lock-manager precompile at 0x0806. ABI:
 		//   getLockedBalance(address token, address account) returns (uint256)
-		// The `token` arg is unused; we pass any address.
+		// `token` MUST be the GIGAHDX aToken address — the precompile now
+		// returns 0 for any other caller as a defense against unrelated
+		// aTokens accidentally consuming gigahdx-stake state.
 		let lock_manager: EvmAddress = H160(hex!("0000000000000000000000000000000000000806"));
+		let gigahdx_token = HydraErc20Mapping::asset_address(GIGAHDX);
 		let selector: [u8; 4] = sp_io::hashing::keccak_256(b"getLockedBalance(address,address)")[0..4]
 			.try_into()
 			.unwrap();
 		let mut data = selector.to_vec();
-		data.extend_from_slice(H256::from(EvmAddress::zero()).as_bytes()); // token (unused)
-		data.extend_from_slice(H256::from(alice_evm).as_bytes()); // account
+		data.extend_from_slice(H256::from(gigahdx_token).as_bytes());
+		data.extend_from_slice(H256::from(alice_evm).as_bytes());
 
-		use hydradx_runtime::evm::Executor;
-		use hydradx_traits::evm::{CallContext, EVM};
 		let result = Executor::<Runtime>::view(CallContext::new_view(lock_manager), data, 100_000);
 		assert!(
 			matches!(result.exit_reason, fp_evm::ExitReason::Succeed(_)),
@@ -222,6 +223,15 @@ fn lock_manager_precompile_should_report_gigahdx_when_account_has_stake() {
 		);
 		let reported = U256::from_big_endian(&result.value);
 		assert_eq!(reported, U256::from(100 * UNITS), "lock-manager must report gigahdx");
+
+		// Wrong token returns zero — no leak of gigahdx-stake state to
+		// unrelated aTokens.
+		let mut wrong = selector.to_vec();
+		wrong.extend_from_slice(H256::from(EvmAddress::zero()).as_bytes());
+		wrong.extend_from_slice(H256::from(alice_evm).as_bytes());
+		let wrong_result = Executor::<Runtime>::view(CallContext::new_view(lock_manager), wrong, 100_000);
+		assert!(matches!(wrong_result.exit_reason, fp_evm::ExitReason::Succeed(_)));
+		assert_eq!(U256::from_big_endian(&wrong_result.value), U256::zero());
 	});
 }
 
@@ -1017,6 +1027,99 @@ fn giga_stake_should_fail_when_evm_address_unbound() {
 		assert_eq!(<Currencies as MultiCurrency<_>>::total_issuance(ST_HDX), sthdx_before);
 		// No pallet-side state mutation.
 		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).is_none());
+	});
+}
+
+#[test]
+fn first_staker_inflation_grief_should_be_self_defeating_against_real_aave() {
+	// Characterizes the first-staker inflation-grief lead from the audit.
+	// Attacker leaves a 1-wei stHDX residual, donates HDX to inflate the
+	// rate, expects new stakers to mint round-to-zero atokens.
+	//
+	// Outcome against the real AAVE V3 deployment:
+	//   - Step 1–3 (attack setup) succeeds: 1-wei residual is achievable
+	//     via `Pool.withdraw(99·UNITS, leaving 1 wei)`.
+	//   - Step 4 (donation inflates rate) succeeds.
+	//   - Step 5 (new staker reverts) succeeds: `gigahdx_to_mint` floors to 0
+	//     and AAVE rejects `Pool.supply(0)` with `MoneyMarketSupplyFailed`.
+	//   - Step 6 (attacker recovers donation) **fails**: AAVE has its own
+	//     min-amount check on `Pool.withdraw`, so withdrawing 1 wei reverts
+	//     with `MoneyMarketWithdrawFailed`. The attacker cannot exit.
+	//
+	// Net: the attack is **self-defeating** — to deny new stakers the
+	// attacker must burn their entire donation into the gigapot with no
+	// recovery path. AAVE's wei-precision floor acts as a defense in depth
+	// against the inflation pattern. We pin this so that any future change
+	// to the AAVE config (lower min-amount, scaled-balance changes) that
+	// makes the attack profitable will trip this test.
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+
+		// 1. Alice stakes 100 UNITS at bootstrap rate.
+		fund(&alice, 1_000_000 * UNITS);
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		let alice_gigahdx = Currencies::free_balance(GIGAHDX, &alice);
+		assert_eq!(alice_gigahdx, 100 * UNITS);
+
+		// 2. Partial-unstake leaving 1 wei. The first withdraw burns the bulk
+		//    (>= AAVE's min-amount), so this step succeeds.
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			alice_gigahdx - 1,
+		));
+		let position1 = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).unwrap();
+		System::set_block_number(position1.expires_at);
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone())));
+		assert_eq!(GigaHdx::total_gigahdx_supply(), 1);
+
+		// 3. Donate HDX directly to the gigapot — no permission check.
+		let gigapot = GigaHdx::gigapot_account_id();
+		let donation = 500_000 * UNITS;
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(alice.clone()),
+			gigapot.clone(),
+			HDX,
+			donation,
+		));
+		// Rate spike: ~donation × 10^12 over 1 wei.
+		assert!(
+			GigaHdx::exchange_rate() > Ratio::new(donation, 1),
+			"rate should be heavily inflated after donation",
+		);
+
+		// 4. New staker fails: `gigahdx_to_mint` floors to 0, the pallet's
+		//    `ZeroAmount` guard rejects before the AAVE call (same outcome
+		//    even on AAVE forks that would accept `Pool.supply(0)`).
+		fund(&bob, 100 * UNITS);
+		let bob_hdx_before = Balances::free_balance(&bob);
+		assert_noop!(
+			GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 100 * UNITS),
+			pallet_gigahdx::Error::<Runtime>::ZeroAmount,
+		);
+		assert_eq!(Balances::free_balance(&bob), bob_hdx_before);
+		assert_eq!(Currencies::free_balance(GIGAHDX, &bob), 0);
+		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&bob).is_none());
+
+		// 5. THE SELF-DEFEAT: the attacker cannot exit her 1-wei residual.
+		//    `Pool.withdraw(1)` reverts on AAVE's min-amount check, so the
+		//    pallet surfaces `MoneyMarketWithdrawFailed`. The donation is
+		//    permanently locked in the gigapot from the attacker's perspective.
+		assert_noop!(
+			GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 1),
+			pallet_gigahdx::Error::<Runtime>::MoneyMarketWithdrawFailed,
+		);
+
+		// 6. State invariants: pot still holds the donation, supply = 1 wei,
+		//    rate stays inflated. New stakes remain blocked. The attacker
+		//    paid the full donation cost for a temporary denial-of-service —
+		//    not a viable attack.
+		assert_eq!(Balances::free_balance(&gigapot), donation);
+		assert_eq!(GigaHdx::total_gigahdx_supply(), 1);
+		assert!(GigaHdx::exchange_rate() > Ratio::new(donation, 1));
 	});
 }
 

@@ -59,7 +59,14 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
 		let approve_ctx = CallContext::new_call(asset_evm, who_evm);
 		<Erc20Currency<Runtime> as ERC20>::approve(approve_ctx, pool, amount)?;
 
-		// Pool.supply(asset, amount, onBehalfOf=user, referralCode=0)
+		// Pool.supply rounds the scaled balance down, so the actual aToken
+		// minted may be 1+ wei less than `amount`. Read the user's aToken
+		// balance before/after and return the delta — the pallet records that
+		// as `Stakes.gigahdx`, preserving the invariant
+		// `Stakes.gigahdx == aToken.balanceOf` that `LockableAToken.burn`'s
+		// `freeBalance = balanceOf - locked` check relies on.
+		let balance_before = Self::balance_of(who);
+
 		let supply_ctx = CallContext::new_call(pool, who_evm);
 		let mut data = Into::<u32>::into(AaveFunction::Supply).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(asset_evm).as_bytes());
@@ -68,7 +75,8 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
 		data.extend_from_slice(H256::from_uint(&U256::zero()).as_bytes()); // referralCode = 0
 		handle(Executor::<Runtime>::call(supply_ctx, data, U256::zero(), GAS_LIMIT))?;
 
-		Ok(amount)
+		let balance_after = Self::balance_of(who);
+		Ok(balance_after.saturating_sub(balance_before))
 	}
 
 	fn withdraw(who: &AccountId, underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
@@ -76,7 +84,12 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
 		let who_evm = pallet_evm_accounts::Pallet::<Runtime>::evm_address(who);
 		let pool = Self::pool()?;
 
-		// Pool.withdraw(asset, amount, to=user)
+		// Mirror the supply path — return the actual underlying received,
+		// not the requested amount, so callers can reconcile against AAVE's
+		// scaledBalance rounding. Symmetry with `supply` keeps round-trip
+		// accounting consistent across rate drift.
+		let balance_before = Self::balance_of(who);
+
 		let withdraw_ctx = CallContext::new_call(pool, who_evm);
 		let mut data = Into::<u32>::into(AaveFunction::Withdraw).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(asset_evm).as_bytes());
@@ -84,7 +97,8 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
 		data.extend_from_slice(H256::from(who_evm).as_bytes());
 		handle(Executor::<Runtime>::call(withdraw_ctx, data, U256::zero(), GAS_LIMIT))?;
 
-		Ok(amount)
+		let balance_after = Self::balance_of(who);
+		Ok(balance_before.saturating_sub(balance_after))
 	}
 
 	fn balance_of(who: &AccountId) -> Balance {

@@ -688,6 +688,10 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			BondsPalletId::get().into_account_truncating(),
 			pallet_route_executor::Pallet::<Runtime>::router_account(),
 			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS),
+			// gigapot must not be dust-reaped — its HDX balance is the rate
+			// denominator (`total_staked_hdx = TotalLocked + free_balance(gigapot)`)
+			// and the source of yield payouts during `do_giga_unstake`.
+			GigaHdxPalletId::get().into_account_truncating(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
@@ -1871,6 +1875,13 @@ impl pallet_dispenser::Config for Runtime {
 parameter_types! {
 	pub const GigaHdxLockId: frame_support::traits::LockIdentifier = *b"ghdxlock";
 	pub const GigaHdxPalletId: frame_support::PalletId = frame_support::PalletId(*b"gigahdx!");
+	// stHDX (id 670) MUST only be mintable / burnable by `pallet-gigahdx`.
+	// `total_gigahdx_supply()` reads global `total_issuance(StHdxAssetId)`
+	// directly — any external mint/burn shifts the rate denominator and
+	// silently dilutes existing stakers (or, with the rate floor, locks
+	// residual `Stakes.hdx` with no exit). Asset 670 should therefore have
+	// no other minter wired in the runtime; verify this invariant whenever
+	// asset-registry permissions or new bridges are added.
 	pub const StHdxAssetId: AssetId = 670;
 	pub const GigaHdxAssetIdConst: AssetId = 67;
 	pub const GigaHdxMinStake: Balance = UNITS; // 1 HDX

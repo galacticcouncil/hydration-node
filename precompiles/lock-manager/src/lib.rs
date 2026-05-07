@@ -22,8 +22,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use core::marker::PhantomData;
+use frame_support::traits::Get;
 use precompile_utils::prelude::*;
-use sp_core::U256;
+use sp_core::{H160, U256};
 
 /// Precompile at address 0x0806.
 ///
@@ -37,21 +38,32 @@ use sp_core::U256;
 /// 2. Allow legitimate `Pool.withdraw → aToken.burn` paths during
 ///    `pallet-gigahdx::giga_unstake`, which pre-decrements `gigahdx` by
 ///    the amount being unstaked before invoking the MM.
-pub struct LockManagerPrecompile<Runtime>(PhantomData<Runtime>);
+///
+/// `ExpectedToken` pins the EVM address of the GIGAHDX aToken contract
+/// the precompile is willing to answer for. Calls from any other token
+/// address return zero — defense against an unrelated aToken pointing
+/// its `freeBalance` check at `0x0806` and accidentally over-locking
+/// holders based on their gigahdx-stake state.
+pub struct LockManagerPrecompile<Runtime, ExpectedToken>(PhantomData<(Runtime, ExpectedToken)>);
 
 #[precompile_utils::precompile]
-impl<Runtime> LockManagerPrecompile<Runtime>
+impl<Runtime, ExpectedToken> LockManagerPrecompile<Runtime, ExpectedToken>
 where
 	Runtime: pallet_gigahdx::Config + pallet_evm::Config,
 	Runtime::AddressMapping: pallet_evm::AddressMapping<<Runtime as frame_system::Config>::AccountId>,
+	ExpectedToken: Get<H160>,
 {
-	/// Returns the locked GIGAHDX balance for a given account.
-	/// The `token` parameter is accepted for forward-compatibility but currently unused.
+	/// Returns the locked GIGAHDX balance for `account`. Returns zero when
+	/// `token` is not the configured GIGAHDX aToken address.
 	#[precompile::public("getLockedBalance(address,address)")]
 	#[precompile::view]
-	fn get_locked_balance(handle: &mut impl PrecompileHandle, _token: Address, account: Address) -> EvmResult<U256> {
+	fn get_locked_balance(handle: &mut impl PrecompileHandle, token: Address, account: Address) -> EvmResult<U256> {
 		// Blake2_128Concat key prefix (16) + AccountId (32) + StakeRecord (2 × u128 = 32) = 80 bytes
 		handle.record_db_read::<Runtime>(80)?;
+
+		if H160::from(token) != ExpectedToken::get() {
+			return Ok(U256::zero());
+		}
 
 		let account_id = <Runtime::AddressMapping as pallet_evm::AddressMapping<
 			<Runtime as frame_system::Config>::AccountId,
