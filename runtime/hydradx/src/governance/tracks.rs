@@ -197,7 +197,9 @@ const TESTNET_TRACKS_DATA: [Track<u16, Balance, BlockNumber>; 10] = [
 			name: s("root"),
 			max_deciding: 3,
 			decision_deposit: 1_000_000 * UNITS,
-			prepare_period: 1,
+			// Must be > 1 so that `pallet_referenda::nudge_referendum_preparing` benchmark stays
+			// in the prepare phase across the framework's block 0 -> 1 advance.
+			prepare_period: 2,
 			decision_period: 7 * DAYS,
 			confirm_period: 1,
 			min_enactment_period: 1,
