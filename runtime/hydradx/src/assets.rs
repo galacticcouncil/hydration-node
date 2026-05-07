@@ -1892,13 +1892,48 @@ impl pallet_gigahdx::Config for Runtime {
 	type NativeCurrency = Balances;
 	type MultiCurrency = FungibleCurrencies<Runtime>;
 	type StHdxAssetId = StHdxAssetId;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MoneyMarket = crate::gigahdx::AaveMoneyMarket;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MoneyMarket = crate::gigahdx::BenchmarkMoneyMarket;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type PalletId = GigaHdxPalletId;
 	type LockId = GigaHdxLockId;
 	type MinStake = GigaHdxMinStake;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
 	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = GigaHdxBenchmarkHelper;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct GigaHdxBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_gigahdx::BenchmarkHelper<AccountId> for GigaHdxBenchmarkHelper {
+	fn register_assets() -> DispatchResult {
+		// Idempotent — benchmarks invoke this multiple times across runs.
+		if <AssetRegistry as hydradx_traits::registry::Inspect>::exists(StHdxAssetId::get()) {
+			return Ok(());
+		}
+		let name: BoundedVec<u8, RegistryStrLimit> = b"stHDX"
+			.to_vec()
+			.try_into()
+			.map_err(|_| DispatchError::Other("BoundedConversionFailed"))?;
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				Some(StHdxAssetId::get()),
+				Some(name),
+				AssetKind::Token,
+				1u128,
+				None,
+				None,
+				None,
+				None,
+			))
+		})?;
+		Ok(())
+	}
 }
 
 #[cfg(feature = "runtime-benchmarks")]

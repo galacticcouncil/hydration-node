@@ -17,6 +17,7 @@
 
 use frame_support::sp_runtime::traits::Zero;
 use frame_support::sp_runtime::DispatchError;
+use frame_support::weights::Weight;
 
 /// Bridges `pallet-gigahdx` to a money market (e.g. an Aave V3 fork on EVM).
 ///
@@ -42,6 +43,19 @@ pub trait MoneyMarketOperations<AccountId, AssetId, Balance> {
 
 	/// User's current aToken (GIGAHDX) balance in the money market.
 	fn balance_of(who: &AccountId) -> Balance;
+
+	/// Weight overhead this implementation contributes on top of the
+	/// pallet's substrate-side `giga_stake` weight. EVM-backed impls should
+	/// return the gas-equivalent weight of the underlying call so block
+	/// weight tracks the real cost. Defaults to zero for tests / no-op impls.
+	fn supply_weight() -> Weight {
+		Weight::zero()
+	}
+
+	/// Symmetric for `withdraw`.
+	fn withdraw_weight() -> Weight {
+		Weight::zero()
+	}
 }
 
 /// No-op implementation. Useful in tests and on chains that have not yet

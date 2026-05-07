@@ -17,8 +17,10 @@ use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason::Succeed;
 use frame_support::sp_runtime::traits::Convert;
 use frame_support::sp_runtime::DispatchError;
+use frame_support::weights::Weight;
 use hydradx_traits::evm::{CallContext, CallResult, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::gigahdx::MoneyMarketOperations;
+use pallet_evm::GasWeightMapping;
 use primitive_types::U256;
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
 use sp_core::H256;
@@ -106,5 +108,35 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
 		let atoken_addr = HydraErc20Mapping::asset_address(crate::assets::GigaHdxAssetIdConst::get());
 		let who_evm = pallet_evm_accounts::Pallet::<Runtime>::evm_address(who);
 		<Erc20Currency<Runtime> as ERC20>::balance_of(CallContext::new_view(atoken_addr), who_evm)
+	}
+
+	fn supply_weight() -> Weight {
+		<Runtime as pallet_evm::Config>::GasWeightMapping::gas_to_weight(GAS_LIMIT, true)
+	}
+
+	fn withdraw_weight() -> Weight {
+		<Runtime as pallet_evm::Config>::GasWeightMapping::gas_to_weight(GAS_LIMIT, true)
+	}
+}
+
+/// No-op `MoneyMarketOperations` used during benchmarks. Returns 1:1 for
+/// `supply` / `withdraw` so the pallet's `actual_minted` accounting stays
+/// well-defined without invoking the EVM. The runtime swaps this in for
+/// `AaveMoneyMarket` under `runtime-benchmarks` (see `assets.rs`).
+#[cfg(feature = "runtime-benchmarks")]
+pub struct BenchmarkMoneyMarket;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl MoneyMarketOperations<AccountId, AssetId, Balance> for BenchmarkMoneyMarket {
+	fn supply(_who: &AccountId, _underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
+		Ok(amount)
+	}
+
+	fn withdraw(_who: &AccountId, _underlying_asset: AssetId, amount: Balance) -> Result<Balance, DispatchError> {
+		Ok(amount)
+	}
+
+	fn balance_of(_who: &AccountId) -> Balance {
+		0
 	}
 }

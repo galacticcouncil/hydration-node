@@ -37,7 +37,27 @@ pub use pallet::*;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarking;
+
 pub mod weights;
+
+/// Hook for benchmark setup — wires runtime-side helpers (asset registry
+/// registration, etc.) that the pallet itself can't perform via its
+/// extrinsics. Mirror of `pallet_dispenser::BenchmarkHelper`.
+#[cfg(feature = "runtime-benchmarks")]
+pub trait BenchmarkHelper<AccountId> {
+	/// Register the stHDX asset so subsequent `mint_into` calls succeed.
+	/// Must be idempotent — benchmarks may invoke this multiple times.
+	fn register_assets() -> sp_runtime::DispatchResult;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<AccountId> BenchmarkHelper<AccountId> for () {
+	fn register_assets() -> sp_runtime::DispatchResult {
+		Ok(())
+	}
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -131,6 +151,12 @@ pub mod pallet {
 		type CooldownPeriod: Get<BlockNumberFor<Self>>;
 
 		type WeightInfo: WeightInfo;
+
+		/// Benchmark helper for setting up state that can't be created from
+		/// the pallet's public API alone — primarily registering the stHDX
+		/// asset in the asset registry so `MultiCurrency::mint_into` succeeds.
+		#[cfg(feature = "runtime-benchmarks")]
+		type BenchmarkHelper: crate::BenchmarkHelper<Self::AccountId>;
 	}
 
 	/// Per-account stake record. Absent if the account has never staked or
@@ -221,7 +247,7 @@ pub mod pallet {
 		/// `Stakes[caller].gigahdx` records the **actual** aToken amount
 		/// returned by the MM (may differ from input by rounding).
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::giga_stake())]
+		#[pallet::weight(T::WeightInfo::giga_stake().saturating_add(T::MoneyMarket::supply_weight()))]
 		pub fn giga_stake(origin: OriginFor<T>, amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(amount >= T::MinStake::get(), Error::<T>::BelowMinStake);
@@ -301,7 +327,7 @@ pub mod pallet {
 		/// The dispatchable runs in a storage layer so any `?` failure
 		/// rolls back the pre-decrement atomically.
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::giga_unstake())]
+		#[pallet::weight(T::WeightInfo::giga_unstake().saturating_add(T::MoneyMarket::withdraw_weight()))]
 		pub fn giga_unstake(origin: OriginFor<T>, gigahdx_amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::do_giga_unstake(&who, gigahdx_amount)

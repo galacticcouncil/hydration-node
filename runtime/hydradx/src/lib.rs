@@ -369,6 +369,7 @@ mod benches {
 		[pallet_dynamic_fees, DynamicFees]
 		[pallet_signet, Signet]
 		[pallet_dispenser, EthDispenser]
+		[pallet_gigahdx, GigaHdx]
 		//[ismp_parachain, IsmpParachain]
 		//[pallet_token_gateway, TokenGateway]
 		[frame_system_extensions, frame_system_benchmarking::extensions::Pallet::<Runtime>]
