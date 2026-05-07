@@ -3723,14 +3723,12 @@ mod stableswap {
 
 				assert_eq!(
 					alice_stable_shares_after, 0,
-					"User should have 0 pool shares since DCA execution failed. Got {}",
-					alice_stable_shares_after
+					"User should have 0 pool shares since DCA execution failed. Got {alice_stable_shares_after}"
 				);
 
 				assert_eq!(
 					router_reserved_shares, 0,
-					"Router should have 0 reserved shares. Got {}",
-					router_reserved_shares
+					"Router should have 0 reserved shares. Got {router_reserved_shares}"
 				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -5491,9 +5489,7 @@ mod extra_gas_erc20 {
 
 			assert!(
 				fee_with_extra > base_fee,
-				"Fee with extra gas ({}) should be > base fee ({})",
-				fee_with_extra,
-				base_fee
+				"Fee with extra gas ({fee_with_extra}) should be > base fee ({base_fee})"
 			);
 
 			// The first attempt charged base fee (before extra gas was added)

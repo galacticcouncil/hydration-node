@@ -175,6 +175,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
+	type RuntimeHooks = ();
 }
 
 pub const ALICE: AccountId = AccountId::new([1u8; 32]);

@@ -173,6 +173,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
+	type RuntimeHooks = ();
 }
 
 parameter_type_with_key! {
@@ -292,7 +293,9 @@ impl pallet_xyk::Config for Test {
 	type NonDustableWhitelistHandler = DummyDuster;
 }
 
-impl pallet_broadcast::Config for Test {}
+impl pallet_broadcast::Config for Test {
+	type OnTrade = ();
+}
 
 pub struct CircuitBreakerWhitelist;
 

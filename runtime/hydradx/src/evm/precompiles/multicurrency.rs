@@ -39,7 +39,7 @@ use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
 use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
-use primitive_types::H160;
+use primitive_types::{H160, U256};
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::Dispatchable;
 use sp_std::marker::PhantomData;
@@ -214,11 +214,12 @@ where
 		let mut input = handle.read_input()?;
 		input.expect_arguments(2)?;
 
-		let to: H160 = input.read::<Address>()?.into();
+		let to_h160: H160 = input.read::<Address>()?.into();
+		let from_h160: H160 = handle.context().caller;
 		let amount = input.read::<Balance>()?;
 
-		let origin = ExtendedAddressMapping::into_account_id(handle.context().caller);
-		let to = ExtendedAddressMapping::into_account_id(to);
+		let origin = ExtendedAddressMapping::into_account_id(from_h160);
+		let to = ExtendedAddressMapping::into_account_id(to_h160);
 
 		log::debug!(target: "evm", "multicurrency: transfer from: {origin:?}, to: {to:?}, amount: {amount:?}");
 
@@ -233,6 +234,8 @@ where
 			exit_status: ExitRevert::Reverted,
 			output: e.encode(),
 		})?;
+
+		crate::evm::precompiles::emit_buffered_evm_frame_logs(handle)?;
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
@@ -272,6 +275,8 @@ where
 		let owner: H160 = handle.context().caller;
 
 		pallet_evm_accounts::Pallet::<Runtime>::set_allowance(asset_id.into(), owner, spender, amount);
+
+		crate::evm::precompiles::emit_approval_log(handle, owner, spender, U256::from(amount))?;
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
@@ -313,15 +318,15 @@ where
 			}
 		}
 
-		let from = ExtendedAddressMapping::into_account_id(from);
-		let to = ExtendedAddressMapping::into_account_id(to);
+		let from_acc = ExtendedAddressMapping::into_account_id(from);
+		let to_acc = ExtendedAddressMapping::into_account_id(to);
 
-		log::debug!(target: "evm", "multicurrency: transferFrom from: {from:?}, to: {to:?}, amount: {amount:?}");
+		log::debug!(target: "evm", "multicurrency: transferFrom from: {from_acc:?}, to: {to_acc:?}, amount: {amount:?}");
 
 		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
 			asset_id,
-			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from)),
-			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from_acc)),
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to_acc)),
 			amount,
 			ExistenceRequirement::AllowDeath,
 		)
@@ -329,6 +334,8 @@ where
 			exit_status: ExitRevert::Reverted,
 			output: e.encode(),
 		})?;
+
+		crate::evm::precompiles::emit_buffered_evm_frame_logs(handle)?;
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}

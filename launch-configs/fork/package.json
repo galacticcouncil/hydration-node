@@ -28,7 +28,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@polkadot/api": "^16.5.6",
     "@polkadot/types": "^15.0.2",
+    "@polkadot/util-crypto": "^14.0.3",
+    "ethers": "^6.16.0",
     "npm-run-all": "^4.1.5"
   }
 }

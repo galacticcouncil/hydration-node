@@ -320,21 +320,10 @@ fn assert_parity(label: &str, hydra: u128, curve: u128, max_tolerance: u128, exp
 	let diff = hydra.abs_diff(curve);
 	assert!(
 		diff <= max_tolerance,
-		"{}: diff {} exceeds tolerance {} (hydra={}, curve={})",
-		label,
-		diff,
-		max_tolerance,
-		hydra,
-		curve
+		"{label}: diff {diff} exceeds tolerance {max_tolerance} (hydra={hydra}, curve={curve})"
 	);
 	if expect_hydra_gte {
-		assert!(
-			hydra >= curve,
-			"{}: expected hydra ({}) >= curve ({})",
-			label,
-			hydra,
-			curve
-		);
+		assert!(hydra >= curve, "{label}: expected hydra ({hydra}) >= curve ({curve})");
 	}
 }
 
@@ -345,14 +334,7 @@ fn assert_parity_with_fee(label: &str, hydra: u128, curve: u128, max_abs_toleran
 	let tolerance = max_abs_tolerance.max(relative_tolerance);
 	assert!(
 		diff <= tolerance,
-		"{}: diff {} exceeds tolerance {} (abs={}, rel={}) (hydra={}, curve={})",
-		label,
-		diff,
-		tolerance,
-		max_abs_tolerance,
-		relative_tolerance,
-		hydra,
-		curve
+		"{label}: diff {diff} exceeds tolerance {tolerance} (abs={max_abs_tolerance}, rel={relative_tolerance}) (hydra={hydra}, curve={curve})"
 	);
 }
 
@@ -763,7 +745,7 @@ fn run_shares_with_fee_comparison(
 	let hydra_shares = hydra_calc_shares(old, new, amp, supply, fee);
 
 	assert_parity_with_fee(
-		&format!("{} fee={:?}", label, fee),
+		&format!("{label} fee={fee:?}"),
 		hydra_shares,
 		curve_shares,
 		MAX_SHARE_TOLERANCE,
@@ -960,13 +942,13 @@ fn run_withdraw_with_fee_comparison(
 		hydra_calc_withdraw_one_asset(balances, withdraw_shares, i, total_supply, amp, fee);
 
 	assert_parity_with_fee(
-		&format!("{} withdraw amount", label),
+		&format!("{label} withdraw amount"),
 		hydra_dy,
 		curve_dy,
 		MAX_SWAP_TOLERANCE,
 	);
 	assert_parity_with_fee(
-		&format!("{} withdraw fee", label),
+		&format!("{label} withdraw fee"),
 		hydra_fee_amount,
 		curve_fee_amount,
 		MAX_SWAP_TOLERANCE,

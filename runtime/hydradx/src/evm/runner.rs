@@ -26,7 +26,7 @@
 use crate::evm::evm_fee::evm_fee_payer;
 use crate::evm::WethAssetId;
 use ethereum::AuthorizationList;
-use fp_evm::{Account, TransactionValidationError};
+use fp_evm::{Account, ExitReason, TransactionValidationError};
 use frame_support::traits::Get;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
@@ -36,6 +36,43 @@ use primitive_types::{H160, H256, U256};
 use primitives::{AccountId, AssetId, Balance};
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
+
+// per-evm-frame buffer of substrate-hook logs. precompiles that trigger
+// substrate dispatches drain it inline (preserves log_index order); the
+// runner's end-drain is a safety net.
+mod evm_frame_logs {
+	use sp_std::vec::Vec;
+	environmental::environmental!(EVM_FRAME_LOGS: Vec<ethereum::Log>);
+
+	pub fn append(log: ethereum::Log) -> bool {
+		EVM_FRAME_LOGS::with(|buf| buf.push(log)).is_some()
+	}
+
+	pub fn using<R, F: FnOnce() -> R>(buf: &mut Vec<ethereum::Log>, f: F) -> R {
+		EVM_FRAME_LOGS::using_once(buf, f)
+	}
+
+	pub fn drain() -> Vec<ethereum::Log> {
+		EVM_FRAME_LOGS::with(sp_std::mem::take).unwrap_or_default()
+	}
+}
+
+/// returns true if a frame is active; false → caller should fall back to synthetic-logs.
+pub fn append_to_current_evm_frame(log: ethereum::Log) -> bool {
+	evm_frame_logs::append(log)
+}
+
+pub fn drain_current_evm_frame_logs() -> Vec<ethereum::Log> {
+	evm_frame_logs::drain()
+}
+
+fn evm_log_to_fp(log: ethereum::Log) -> pallet_evm::Log {
+	pallet_evm::Log {
+		address: log.address,
+		topics: log.topics,
+		data: log.data,
+	}
+}
 
 pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);
 
@@ -155,24 +192,29 @@ where
 		let source_account_id = T::AddressMapping::into_account_id(source);
 		let original_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
 
-		// Validated, flag set to false
-		let result = R::call(
-			source,
-			target,
-			input,
-			value,
-			gas_limit,
-			max_fee_per_gas,
-			max_priority_fee_per_gas,
-			nonce,
-			access_list,
-			authorization_list,
-			is_transactional,
-			false,
-			weight_limit,
-			proof_size_base_cost,
-			config,
-		)?;
+		let mut frame_logs: Vec<ethereum::Log> = Vec::new();
+		let mut result = evm_frame_logs::using(&mut frame_logs, || {
+			R::call(
+				source,
+				target,
+				input,
+				value,
+				gas_limit,
+				max_fee_per_gas,
+				max_priority_fee_per_gas,
+				nonce,
+				access_list,
+				authorization_list,
+				is_transactional,
+				false,
+				weight_limit,
+				proof_size_base_cost,
+				config,
+			)
+		})?;
+		if matches!(result.exit_reason, ExitReason::Succeed(_)) {
+			result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		}
 
 		if validate && is_transactional && nonce.is_none() && max_priority_fee_per_gas.is_none() {
 			let current_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
@@ -220,23 +262,29 @@ where
 				config,
 			)?;
 		}
-		// Validated, flag set to false
-		R::create(
-			source,
-			init,
-			value,
-			gas_limit,
-			max_fee_per_gas,
-			max_priority_fee_per_gas,
-			nonce,
-			access_list,
-			authorization_list,
-			is_transactional,
-			false,
-			weight_limit,
-			proof_size_base_cost,
-			config,
-		)
+		let mut frame_logs: Vec<ethereum::Log> = Vec::new();
+		let mut result = evm_frame_logs::using(&mut frame_logs, || {
+			R::create(
+				source,
+				init,
+				value,
+				gas_limit,
+				max_fee_per_gas,
+				max_priority_fee_per_gas,
+				nonce,
+				access_list,
+				authorization_list,
+				is_transactional,
+				false,
+				weight_limit,
+				proof_size_base_cost,
+				config,
+			)
+		})?;
+		if matches!(result.exit_reason, ExitReason::Succeed(_)) {
+			result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		}
+		Ok(result)
 	}
 
 	fn create2(
@@ -274,24 +322,30 @@ where
 				config,
 			)?;
 		}
-		//Validated, flag set to false
-		R::create2(
-			source,
-			init,
-			salt,
-			value,
-			gas_limit,
-			max_fee_per_gas,
-			max_priority_fee_per_gas,
-			nonce,
-			access_list,
-			authorization_list,
-			is_transactional,
-			false,
-			weight_limit,
-			proof_size_base_cost,
-			config,
-		)
+		let mut frame_logs: Vec<ethereum::Log> = Vec::new();
+		let mut result = evm_frame_logs::using(&mut frame_logs, || {
+			R::create2(
+				source,
+				init,
+				salt,
+				value,
+				gas_limit,
+				max_fee_per_gas,
+				max_priority_fee_per_gas,
+				nonce,
+				access_list,
+				authorization_list,
+				is_transactional,
+				false,
+				weight_limit,
+				proof_size_base_cost,
+				config,
+			)
+		})?;
+		if matches!(result.exit_reason, ExitReason::Succeed(_)) {
+			result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		}
+		Ok(result)
 	}
 
 	fn create_force_address(
@@ -329,24 +383,30 @@ where
 				config,
 			)?;
 		}
-		//Validated, flag set to false
-		R::create_force_address(
-			source,
-			init,
-			value,
-			gas_limit,
-			max_fee_per_gas,
-			max_priority_fee_per_gas,
-			nonce,
-			access_list,
-			authorization_list,
-			is_transactional,
-			false,
-			weight_limit,
-			proof_size_base_cost,
-			config,
-			contract_address,
-		)
+		let mut frame_logs: Vec<ethereum::Log> = Vec::new();
+		let mut result = evm_frame_logs::using(&mut frame_logs, || {
+			R::create_force_address(
+				source,
+				init,
+				value,
+				gas_limit,
+				max_fee_per_gas,
+				max_priority_fee_per_gas,
+				nonce,
+				access_list,
+				authorization_list,
+				is_transactional,
+				false,
+				weight_limit,
+				proof_size_base_cost,
+				config,
+				contract_address,
+			)
+		})?;
+		if matches!(result.exit_reason, ExitReason::Succeed(_)) {
+			result.logs.extend(frame_logs.into_iter().map(evm_log_to_fp));
+		}
+		Ok(result)
 	}
 }
 

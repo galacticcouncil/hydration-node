@@ -47,7 +47,9 @@ construct_runtime!(
 	}
 );
 
-impl crate::Config for Test {}
+impl crate::Config for Test {
+	type OnTrade = ();
+}
 
 impl frame_system::Config for Test {
 	type BaseCallFilter = Everything;

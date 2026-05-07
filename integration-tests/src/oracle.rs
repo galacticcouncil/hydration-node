@@ -65,8 +65,7 @@ fn oracle_smoothing_period_matches_configuration() {
 		let smoothing_from_period = smoothing_from_period(configured_length);
 		assert_eq!(
 			configured_smoothing, smoothing_from_period,
-			"Smoothing period for {:?} does not match configured length of {:?}",
-			supported_period, configured_length,
+			"Smoothing period for {supported_period:?} does not match configured length of {configured_length:?}",
 		);
 	}
 }

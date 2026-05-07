@@ -298,6 +298,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
+	type RuntimeHooks = ();
 }
 
 impl pallet_transaction_payment::Config for Test {
@@ -333,6 +334,12 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type PostDeposit = ();
 	type PreTransfer = ();
 	type PostTransfer = ();
+	type PreWithdraw = ();
+	type PostWithdraw = ();
+	type PostReserve = ();
+	type PostUnreserve = ();
+	type PostSlashReserved = ();
+	type PostRepatriate = ();
 	type OnNewTokenAccount = AddTxAssetOnAccount<Test>;
 	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Test>;
 }

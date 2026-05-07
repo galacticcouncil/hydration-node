@@ -141,6 +141,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
+	type RuntimeHooks = ();
 }
 
 parameter_type_with_key! {
@@ -186,7 +187,9 @@ parameter_types! {
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
 }
 
-impl pallet_broadcast::Config for Test {}
+impl pallet_broadcast::Config for Test {
+	type OnTrade = ();
+}
 
 impl Config for Test {
 	type AssetId = AssetId;

@@ -211,6 +211,11 @@ construct_runtime!(
 		// Frontier and EVM pallets
 		EVM: pallet_evm = 90,
 		EVMChainId: pallet_evm_chain_id = 91,
+		// must be declared before Ethereum so on_finalize flushes into
+		// pallet_ethereum::Pending before the block is sealed. hooks fired
+		// during on_finalize of pallets declared AFTER Ethereum are not
+		// captured (none currently emit token-balance hooks there).
+		SyntheticLogs: pallet_synthetic_logs = 86,
 		Ethereum: pallet_ethereum = 92,
 		EVMAccounts: pallet_evm_accounts = 93,
 		DynamicEvmFee: pallet_dynamic_evm_fee = 94,

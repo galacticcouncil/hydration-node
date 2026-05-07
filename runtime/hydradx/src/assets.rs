@@ -120,16 +120,24 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = MaxFreezes;
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
+	type RuntimeHooks = EmitErc20TransferLog;
 }
 
 pub struct CurrencyHooks;
 impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnDust = Duster;
-	type OnSlash = ();
+	type OnSlash = EmitErc20TransferLog;
 	type PreDeposit = SufficiencyCheck;
-	type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>;
+	type PostDeposit =
+		OnDepositTuple<pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>, EmitErc20TransferLog>;
 	type PreTransfer = SufficiencyCheck;
-	type PostTransfer = ();
+	type PostTransfer = EmitErc20TransferLog;
+	type PreWithdraw = ();
+	type PostWithdraw = EmitErc20TransferLog;
+	type PostReserve = EmitErc20TransferLog;
+	type PostUnreserve = EmitErc20TransferLog;
+	type PostSlashReserved = EmitErc20TransferLog;
+	type PostRepatriate = EmitErc20TransferLog;
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
 }
@@ -1799,7 +1807,9 @@ impl pallet_liquidation::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 }
 
-impl pallet_broadcast::Config for Runtime {}
+impl pallet_broadcast::Config for Runtime {
+	type OnTrade = crate::evm::swap_logs::EmitUniswapV2SwapLog;
+}
 
 parameter_types! {
 	pub const HsmGasLimit: u64 = 400_000;
@@ -1993,6 +2003,7 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 }
 
 use crate::evm::aave_trade_executor::Aave;
+use crate::evm::erc20_logs::{EmitErc20TransferLog, OnDepositTuple};
 #[cfg(feature = "runtime-benchmarks")]
 use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]

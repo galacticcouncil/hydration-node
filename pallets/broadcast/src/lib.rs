@@ -40,6 +40,36 @@ const LOG_TARGET: &str = "runtime::broadcast";
 
 type ExecutionIdStack = BoundedVec<ExecutionType, ConstU32<MAX_STACK_SIZE>>;
 
+/// Hook fired after every `Swapped3` event is emitted from
+/// [`Pallet::deposit_trade_event`]. Implementors translate the trade into
+/// EVM-shaped logs (e.g. uniswap v2 `Swap`). Default is `()` — no-op.
+pub trait OnTrade<AccountId> {
+	fn on_trade(
+		swapper: &AccountId,
+		filler: &AccountId,
+		filler_type: &types::Filler,
+		operation: &types::TradeOperation,
+		inputs: &[types::Asset],
+		outputs: &[types::Asset],
+		fees: &[types::Fee<AccountId>],
+		operation_stack: &[types::ExecutionType],
+	);
+}
+
+impl<AccountId> OnTrade<AccountId> for () {
+	fn on_trade(
+		_: &AccountId,
+		_: &AccountId,
+		_: &types::Filler,
+		_: &types::TradeOperation,
+		_: &[types::Asset],
+		_: &[types::Asset],
+		_: &[types::Fee<AccountId>],
+		_: &[types::ExecutionType],
+	) {
+	}
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -53,7 +83,10 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {}
+	pub trait Config: frame_system::Config {
+		/// Hook called after every `Swapped3` emission. Default `()`.
+		type OnTrade: OnTrade<Self::AccountId>;
+	}
 
 	#[pallet::storage]
 	/// Next available incremental ID
@@ -126,6 +159,19 @@ impl<T: Config> Pallet<T> {
 	) {
 		let trade_swapper = Swapper::<T>::get().unwrap_or(swapper);
 		let operation_stack = Self::get_context();
+		// Fire the OnTrade hook before depositing the substrate event so
+		// downstream consumers (e.g. evm log translator) can read the same
+		// data the event carries.
+		T::OnTrade::on_trade(
+			&trade_swapper,
+			&filler,
+			&filler_type,
+			&operation,
+			&inputs,
+			&outputs,
+			&fees,
+			&operation_stack,
+		);
 		Self::deposit_event(Event::<T>::Swapped3 {
 			swapper: trade_swapper,
 			filler,

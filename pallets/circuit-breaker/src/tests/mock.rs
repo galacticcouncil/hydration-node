@@ -255,6 +255,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
+	type RuntimeHooks = ();
 }
 
 parameter_type_with_key! {
@@ -318,7 +319,9 @@ impl pallet_omnipool::Config for Test {
 	type BurnProtocolFee = BurnFee;
 }
 
-impl pallet_broadcast::Config for Test {}
+impl pallet_broadcast::Config for Test {
+	type OnTrade = ();
+}
 
 pub struct CircuitBreakerHooks<T>(PhantomData<T>);
 
@@ -862,6 +865,12 @@ impl MutationHooks<AccountId, AssetId, Balance> for Hooks {
 	type PostDeposit = crate::fuses::issuance::IssuanceIncreaseFuse<Test>;
 	type PreTransfer = ();
 	type PostTransfer = ();
+	type PreWithdraw = ();
+	type PostWithdraw = ();
+	type PostReserve = ();
+	type PostUnreserve = ();
+	type PostSlashReserved = ();
+	type PostRepatriate = ();
 	type OnNewTokenAccount = ();
 	type OnKilledTokenAccount = ();
 }

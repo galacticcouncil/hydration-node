@@ -191,6 +191,23 @@ where
 				}
 			}
 
+			// Drain logs that substrate hooks pushed during the dispatch
+			// (e.g. orml-tokens PostTransfer, pallet_balances RuntimeHooks,
+			// pallet_broadcast OnTrade) and emit them inline at the dispatcher
+			// precompile's call site so log_index ordering matches execution
+			// order in the resulting eth tx receipt / info.logs.
+			if matches!(
+				&dispatch_precompile_result,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Stopped | ExitSucceed::Returned | ExitSucceed::Suicided,
+					..
+				})
+			) {
+				if let Err(e) = emit_buffered_evm_frame_logs(handle) {
+					return Some(Err(e));
+				}
+			}
+
 			Some(dispatch_precompile_result)
 		} else if is_asset_address(address) {
 			Some(MultiCurrencyPrecompile::<R>::execute(handle))
@@ -211,6 +228,38 @@ where
 
 pub fn is_precompile(address: H160) -> bool {
 	address == DISPATCH_ADDR || is_asset_address(address) || is_standard_precompile(address)
+}
+
+/// drains hook logs buffered during the current frame and emits each via
+/// `handle.log()` so they land at the precompile's call site (preserves log_index).
+pub fn emit_buffered_evm_frame_logs(handle: &mut impl PrecompileHandle) -> EvmResult<()> {
+	for log in crate::evm::runner::drain_current_evm_frame_logs() {
+		let cost = costs::log_costs(log.topics.len(), log.data.len()).map_err(|_| PrecompileFailure::Error {
+			exit_status: ExitError::OutOfGas,
+		})?;
+		handle.record_cost(cost)?;
+		handle.log(log.address, log.topics, log.data)?;
+	}
+	Ok(())
+}
+
+/// emits ERC-20 `Approval(owner, spender, value)` inline at the precompile's address.
+pub fn emit_approval_log(
+	handle: &mut impl PrecompileHandle,
+	owner: H160,
+	spender: H160,
+	amount: U256,
+) -> EvmResult<()> {
+	use pallet_synthetic_logs::{encode_u256_be, h160_to_h256, APPROVAL_TOPIC};
+	let topics = sp_std::vec![APPROVAL_TOPIC, h160_to_h256(owner), h160_to_h256(spender)];
+	let data = encode_u256_be(amount).to_vec();
+	let cost = costs::log_costs(topics.len(), data.len()).map_err(|_| PrecompileFailure::Error {
+		exit_status: ExitError::OutOfGas,
+	})?;
+	handle.record_cost(cost)?;
+	let address = handle.code_address();
+	handle.log(address, topics, data)?;
+	Ok(())
 }
 
 // This is a reimplementation of the upstream u64->H160 conversion
