@@ -28,7 +28,6 @@
 use super::*;
 
 use frame_benchmarking::{account, benchmarks};
-use frame_support::traits::OnIdle;
 use frame_system::RawOrigin;
 use sp_std::boxed::Box;
 
