@@ -236,6 +236,62 @@ fn lock_manager_precompile_should_report_gigahdx_when_account_has_stake() {
 }
 
 #[test]
+fn lock_manager_precompile_should_resolve_bound_evm_address_to_substrate_stake() {
+	// Round-trip with an EVM-bound user (the realistic shape: a MetaMask
+	// user calls `bind_evm_address` so their AAVE-side activity maps back to
+	// a stable substrate AccountId). The precompile receives the **bound**
+	// EVM address as `account` and must resolve it to the same substrate
+	// AccountId that `pallet-gigahdx::Stakes` is keyed by — otherwise
+	// `LockableAToken.freeBalance` would read zero for the very users who
+	// participated through the EVM front door, defeating the lock.
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+
+		let alice: AccountId = ALICE.into();
+
+		// Alice has bound her EVM address via `init_gigahdx()`. Her
+		// `evm_address` is the truncated H160 (default mapping); after
+		// binding, that H160 → AccountId mapping is also reversible via
+		// the `EVMAccounts::bound_account_id` lookup.
+		let alice_evm = EVMAccounts::evm_address(&alice);
+		assert_eq!(
+			EVMAccounts::bound_account_id(alice_evm),
+			Some(alice.clone()),
+			"precondition: Alice's EVM address must be bound before staking"
+		);
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		// `Stakes` is keyed by Alice's substrate AccountId. The precompile
+		// hands `Runtime::AddressMapping::into_account_id(alice_evm)` to
+		// the pallet — that lookup must yield the same AccountId for the
+		// bound case, so `locked_gigahdx` resolves to a non-zero value.
+		let lock_manager: EvmAddress = H160(hex!("0000000000000000000000000000000000000806"));
+		let gigahdx_token = HydraErc20Mapping::asset_address(GIGAHDX);
+		let selector: [u8; 4] = sp_io::hashing::keccak_256(b"getLockedBalance(address,address)")[0..4]
+			.try_into()
+			.unwrap();
+		let mut data = selector.to_vec();
+		data.extend_from_slice(H256::from(gigahdx_token).as_bytes());
+		data.extend_from_slice(H256::from(alice_evm).as_bytes());
+
+		let result = Executor::<Runtime>::view(CallContext::new_view(lock_manager), data, 100_000);
+		assert!(
+			matches!(result.exit_reason, fp_evm::ExitReason::Succeed(_)),
+			"precompile call must succeed, got {:?}",
+			result.exit_reason
+		);
+		let reported = U256::from_big_endian(&result.value);
+		assert_eq!(
+			reported,
+			U256::from(100 * UNITS),
+			"bound EVM caller must resolve to Alice's substrate stake"
+		);
+	});
+}
+
+#[test]
 fn giga_unstake_should_create_pending_position_when_called() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {

@@ -23,6 +23,7 @@
 
 use core::marker::PhantomData;
 use frame_support::traits::Get;
+use pallet_evm::GasWeightMapping;
 use precompile_utils::prelude::*;
 use sp_core::{H160, U256};
 
@@ -58,8 +59,13 @@ where
 	#[precompile::public("getLockedBalance(address,address)")]
 	#[precompile::view]
 	fn get_locked_balance(handle: &mut impl PrecompileHandle, token: Address, account: Address) -> EvmResult<U256> {
-		// Blake2_128Concat key prefix (16) + AccountId (32) + StakeRecord (2 × u128 = 32) = 80 bytes
-		handle.record_db_read::<Runtime>(80)?;
+		// Charge for one StorageMap read on `pallet_gigahdx::Stakes` via the
+		// runtime's `DbWeight` (already proof-size aware) converted to gas.
+		// This is more accurate than the byte-count heuristic of
+		// `record_db_read` once the merkle proof for the read is included.
+		let read_weight = <Runtime as frame_system::Config>::DbWeight::get().reads(1);
+		let read_gas = <Runtime as pallet_evm::Config>::GasWeightMapping::weight_to_gas(read_weight);
+		handle.record_cost(read_gas)?;
 
 		if H160::from(token) != ExpectedToken::get() {
 			return Ok(U256::zero());

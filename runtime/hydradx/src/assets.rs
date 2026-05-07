@@ -1875,13 +1875,23 @@ impl pallet_dispenser::Config for Runtime {
 parameter_types! {
 	pub const GigaHdxLockId: frame_support::traits::LockIdentifier = *b"ghdxlock";
 	pub const GigaHdxPalletId: frame_support::PalletId = frame_support::PalletId(*b"gigahdx!");
-	// stHDX (id 670) MUST only be mintable / burnable by `pallet-gigahdx`.
-	// `total_gigahdx_supply()` reads global `total_issuance(StHdxAssetId)`
-	// directly — any external mint/burn shifts the rate denominator and
-	// silently dilutes existing stakers (or, with the rate floor, locks
-	// residual `Stakes.hdx` with no exit). Asset 670 should therefore have
-	// no other minter wired in the runtime; verify this invariant whenever
-	// asset-registry permissions or new bridges are added.
+	// stHDX (id 670) invariants — verify on any future runtime / AAVE
+	// configuration change:
+	//
+	// (1) MINT/BURN-EXCLUSIVE: only `pallet-gigahdx` mints / burns stHDX.
+	//     `total_gigahdx_supply()` reads global `total_issuance(StHdxAssetId)`
+	//     directly — any external mint/burn shifts the rate denominator and
+	//     silently dilutes existing stakers (or, with the rate floor, locks
+	//     residual `Stakes.hdx` with no exit).
+	//
+	// (2) NON-BORROWABLE on AAVE: the stHDX reserve must be configured with
+	//     borrow disabled (zero borrow cap / interest-rate strategy returning
+	//     0). If borrowing accrues, AAVE's `liquidityIndex` drifts above
+	//     1 RAY and `Pool.withdraw(stHDX, N, to)` would burn `N/index < N`
+	//     aTokens while the pallet pre-decrements `Stakes.gigahdx` by `N` —
+	//     leaving `balanceOf − Stakes.gigahdx > 0` aTokens that the
+	//     lock-manager precompile reports as unlocked. The pallet's correct
+	//     accounting depends on `aToken : stHDX = 1 : 1`.
 	pub const StHdxAssetId: AssetId = 670;
 	pub const GigaHdxAssetIdConst: AssetId = 67;
 	pub const GigaHdxMinStake: Balance = UNITS; // 1 HDX

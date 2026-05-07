@@ -105,7 +105,10 @@ pub mod pallet {
 		pub expires_at: BlockNumber,
 	}
 
+	pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+
 	#[pallet::pallet]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -219,6 +222,11 @@ pub mod pallet {
 		NoStake,
 		/// Amount must be strictly greater than zero.
 		ZeroAmount,
+		/// stHDX mint failed (asset not registered, max issuance hit, or
+		/// other `fungibles::Mutate::mint_into` precondition violated).
+		/// Distinct from `MoneyMarketSupplyFailed` — this is a substrate-side
+		/// asset-registry error, not an AAVE-side revert.
+		StHdxMintFailed,
 		/// AAVE `Pool.supply` reverted — typical causes: caller's EVM address
 		/// is not bound, the asset reserve is misconfigured, or `Pool` is
 		/// paused.
@@ -274,7 +282,7 @@ pub mod pallet {
 			// Mint stHDX to caller, then supply to MM. The dispatchable runs in
 			// a storage layer so any Err here rolls back the mint atomically.
 			T::MultiCurrency::mint_into(T::StHdxAssetId::get(), &who, gigahdx_to_mint)
-				.map_err(|_| Error::<T>::MoneyMarketSupplyFailed)?;
+				.map_err(|_| Error::<T>::StHdxMintFailed)?;
 			let actual_minted = T::MoneyMarket::supply(&who, T::StHdxAssetId::get(), gigahdx_to_mint)
 				.map_err(|_| Error::<T>::MoneyMarketSupplyFailed)?;
 
@@ -292,21 +300,6 @@ pub mod pallet {
 				amount,
 				gigahdx: actual_minted,
 			});
-			Ok(())
-		}
-
-		/// Set the AAVE V3 Pool contract H160 used by the money-market adapter.
-		/// Gated by `AuthorityOrigin`. Refuses to swap the pool while users
-		/// hold outstanding stake — a swap mid-flight would route subsequent
-		/// `giga_unstake` calls to a pool that doesn't hold their atokens,
-		/// reverting the burn and leaving HDX permanently locked.
-		#[pallet::call_index(2)]
-		#[pallet::weight(T::WeightInfo::set_pool_contract())]
-		pub fn set_pool_contract(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
-			ensure!(TotalLocked::<T>::get() == 0, Error::<T>::OutstandingStake);
-			GigaHdxPoolContract::<T>::put(contract);
-			Self::deposit_event(Event::PoolContractUpdated { contract });
 			Ok(())
 		}
 
@@ -331,6 +324,28 @@ pub mod pallet {
 		pub fn giga_unstake(origin: OriginFor<T>, gigahdx_amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::do_giga_unstake(&who, gigahdx_amount)
+		}
+
+		/// Set the AAVE V3 Pool contract H160 used by the money-market adapter.
+		/// Gated by `AuthorityOrigin`. Refuses to swap the pool while any user
+		/// has active stake — a swap mid-flight would route subsequent
+		/// `giga_unstake` calls to a pool that doesn't hold their atokens,
+		/// reverting the burn and leaving HDX permanently locked.
+		///
+		/// Note: `TotalLocked == 0` is sufficient. Pending unstakes (active
+		/// `PendingUnstakes` rows) don't touch the pool — `unlock` only
+		/// shrinks the on-chain `LockId`. Any drift between `Stakes` and the
+		/// pool has already been cleared by the unstakes that opened those
+		/// positions, so the new pool can be safely adopted while cooldowns
+		/// run out.
+		#[pallet::call_index(2)]
+		#[pallet::weight(T::WeightInfo::set_pool_contract())]
+		pub fn set_pool_contract(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			ensure!(TotalLocked::<T>::get() == 0, Error::<T>::OutstandingStake);
+			GigaHdxPoolContract::<T>::put(contract);
+			Self::deposit_event(Event::PoolContractUpdated { contract });
+			Ok(())
 		}
 
 		/// Release the pending-unstake position once
