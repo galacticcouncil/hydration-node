@@ -15631,7 +15631,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scraper"
-version = "1.5.1"
+version = "1.6.0"
 dependencies = [
  "clap",
  "fp-rpc",
@@ -15640,6 +15640,7 @@ dependencies = [
  "frame-system",
  "futures",
  "hex",
+ "hex-literal",
  "hydradx",
  "hydradx-runtime",
  "indicatif",
