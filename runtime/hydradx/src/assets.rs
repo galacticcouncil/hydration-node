@@ -1896,12 +1896,12 @@ impl pallet_gigahdx::Config for Runtime {
 	type MoneyMarket = crate::gigahdx::AaveMoneyMarket;
 	#[cfg(feature = "runtime-benchmarks")]
 	type MoneyMarket = crate::gigahdx::BenchmarkMoneyMarket;
-	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<AccountId>, TechCommitteeMajority>;
 	type PalletId = GigaHdxPalletId;
 	type LockId = GigaHdxLockId;
 	type MinStake = GigaHdxMinStake;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_gigahdx::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = GigaHdxBenchmarkHelper;
 }
