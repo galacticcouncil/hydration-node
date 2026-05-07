@@ -6357,7 +6357,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 4.3.1",
+ "pallet-staking 4.4.0",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
@@ -6493,7 +6493,7 @@ dependencies = [
  "pallet-session",
  "pallet-signet",
  "pallet-stableswap",
- "pallet-staking 4.3.1",
+ "pallet-staking 4.4.0",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -11929,7 +11929,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "4.3.1"
+version = "4.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -15746,7 +15746,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.3.1",
+ "pallet-staking 4.4.0",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
@@ -15812,7 +15812,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 4.3.1",
+ "pallet-staking 4.4.0",
  "primitives",
  "scraper",
  "serde",
