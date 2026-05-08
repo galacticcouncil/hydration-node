@@ -23,8 +23,7 @@ fn stake_alice_100() {
 
 #[test]
 fn giga_unstake_should_move_active_to_position_when_pot_empty() {
-	// Empty pot, stake 100, unstake 100. payout = 100, case 1 (= active).
-	// Active drops to 0; position = 100; combined lock = 100; no yield.
+	// case 1: payout ≤ active → active drained, position = payout, no yield.
 	ExtBuilder::default().build().execute_with(|| {
 		let pre_free = Balances::free_balance(ALICE);
 		stake_alice_100();
@@ -39,7 +38,6 @@ fn giga_unstake_should_move_active_to_position_when_pot_empty() {
 		assert_eq!(GigaHdx::total_gigahdx_supply(), 0);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), 0);
 
-		// Position holds 100; lock covers it; no yield to free_balance.
 		assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 100 * ONE);
 		assert_eq!(locked_under_ghdx(ALICE), 100 * ONE);
 		assert_eq!(Balances::free_balance(ALICE), pre_free);
@@ -48,8 +46,7 @@ fn giga_unstake_should_move_active_to_position_when_pot_empty() {
 
 #[test]
 fn giga_unstake_should_pull_yield_from_pot_when_payout_exceeds_active() {
-	// Pot 30, stake 100. Unstake 100 stHDX → payout 130 (case 2).
-	// active 100 → 0, yield 30 transferred from pot, position = 130.
+	// case 2: payout 130 > active 100 → active drained, yield 30 from pot.
 	ExtBuilder::default()
 		.with_pot_balance(30 * ONE)
 		.build()
@@ -58,18 +55,15 @@ fn giga_unstake_should_pull_yield_from_pot_when_payout_exceeds_active() {
 			stake_alice_100();
 			assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
 
-			// Yield 30 received into Alice's free balance.
 			assert_eq!(Balances::free_balance(ALICE), pre_free + 30 * ONE);
-			// Pot drained.
 			let pot: AccountId = GigaHdxPalletId::get().into_account_truncating();
 			assert_eq!(Balances::free_balance(pot), 0);
 
-			// Stakes record still present (zeroed) until `unlock` cleans it up.
+			// Stakes record persists (zeroed) until `unlock` cleans it up.
 			let s = Stakes::<Test>::get(ALICE).unwrap();
 			assert_eq!(s.hdx, 0);
 			assert_eq!(s.gigahdx, 0);
 
-			// Position = full payout; lock covers everything.
 			assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 130 * ONE);
 			assert_eq!(locked_under_ghdx(ALICE), 130 * ONE);
 		});
@@ -84,7 +78,7 @@ fn giga_unstake_should_split_state_when_partial() {
 		let s = Stakes::<Test>::get(ALICE).unwrap();
 		assert_eq!(s.hdx, 60 * ONE);
 		assert_eq!(s.gigahdx, 60 * ONE);
-		// Combined lock = active(60) + position(40) = 100.
+		// Combined lock = active(60) + position(40).
 		assert_eq!(locked_under_ghdx(ALICE), 100 * ONE);
 		assert_eq!(TotalLocked::<Test>::get(), 60 * ONE);
 		assert_eq!(GigaHdx::total_gigahdx_supply(), 60 * ONE);
@@ -142,7 +136,7 @@ fn giga_unstake_should_revert_storage_when_mm_withdraw_fails() {
 			Error::<Test>::MoneyMarketWithdrawFailed
 		);
 
-		// Pre-decrement of `gigahdx` was rolled back by `with_transaction`.
+		// Pre-decrement of `gigahdx` rolled back by `with_transaction`.
 		let post_stake = Stakes::<Test>::get(ALICE).unwrap();
 		assert_eq!(post_stake.gigahdx, pre_stake.gigahdx, "gigahdx must be restored");
 		assert_eq!(post_stake.hdx, pre_stake.hdx);
@@ -151,19 +145,16 @@ fn giga_unstake_should_revert_storage_when_mm_withdraw_fails() {
 		assert_eq!(locked_under_ghdx(ALICE), pre_lock);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), pre_mm_balance);
 		assert_eq!(Tokens::balance(ST_HDX, &ALICE), pre_sthdx_balance);
-		assert!(
-			PendingUnstakes::<Test>::get(ALICE).is_none(),
-			"no position created on failure"
-		);
+		assert!(PendingUnstakes::<Test>::get(ALICE).is_none());
 	});
 }
 
 #[test]
 fn giga_unstake_should_pre_decrement_gigahdx_before_mm_withdraw() {
-	// LockableAToken.burn relies on the lock-manager precompile reading the
-	// already-decremented `Stakes[who].gigahdx`. We can't observe that
-	// mid-call here, but the post-state proves the pre-decrement happened
-	// before MM.withdraw (otherwise the burn would have failed in production).
+	// `LockableAToken.burn` relies on lock-manager reading the
+	// already-decremented `Stakes[who].gigahdx`. We can't observe mid-call
+	// state, but the post-state proves the pre-decrement happened before
+	// MM.withdraw — otherwise the burn would have reverted in production.
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 30 * ONE));

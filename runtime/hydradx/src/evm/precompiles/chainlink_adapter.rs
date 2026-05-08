@@ -159,9 +159,7 @@ where
 
 			Price::from(rat_as_u128)
 		}
-		// stHDX/HDX exchange rate from pallet-gigahdx (spot value, period is
-		// ignored). The pallet itself floors the rate at 1.0 so AAVE never
-		// sees a sub-1 reading.
+		// pallet-gigahdx floors the rate at 1.0 so AAVE never sees a sub-1 reading.
 		else if source == GIGAHDX_SOURCE {
 			let rate = pallet_gigahdx::Pallet::<Runtime>::exchange_rate();
 			Price { n: rate.n, d: rate.d }

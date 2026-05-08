@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Integration tests for `pallet-gigahdx` against a snapshot of mainnet
-// state with the AAVE V3 fork already deployed (GIGAHDX listed as a
-// reserve, `LockableAToken` consuming the lock-manager precompile at
-// 0x0806).
+// Integration tests for `pallet-gigahdx` against a mainnet-state snapshot
+// with the AAVE V3 fork deployed (GIGAHDX listed as a reserve,
+// `LockableAToken` consuming the lock-manager precompile at 0x0806).
 
 use crate::polkadot_test_net::{hydra_live_ext, TestNet, ALICE, BOB, CHARLIE, DAVE, HDX, UNITS};
 use frame_support::traits::OnInitialize;
@@ -47,11 +46,8 @@ fn assert_rate_eq(actual: Ratio, expected_n: u128, expected_d: u128) {
 	);
 }
 
-/// Reads the AAVE pool contract address from the gigahdx pallet storage.
-/// **Tests must not set this themselves** — the snapshot is expected to
-/// carry the correct address; failing to do so means the snapshot is
-/// misconfigured and the tests should fail loud rather than silently
-/// patching it with a hardcoded fallback.
+/// AAVE pool address from the snapshot. Tests must not set it themselves —
+/// a missing entry indicates a misconfigured snapshot and should fail loud.
 fn pool_contract() -> EvmAddress {
 	pallet_gigahdx::GigaHdxPoolContract::<Runtime>::get().expect("snapshot must have GigaHdxPoolContract pre-populated")
 }
@@ -66,17 +62,15 @@ fn lock_amount(account: &AccountId, id: frame_support::traits::LockIdentifier) -
 		.unwrap_or(0)
 }
 
-/// Fund Alice with HDX. Snapshot already configures the AAVE pool contract.
+/// Fund Alice with HDX and bind her EVM address. Snapshot already
+/// configures the AAVE pool contract.
 fn init_gigahdx() {
-	// Give Alice plenty of HDX.
 	let alice: AccountId = ALICE.into();
 	assert_ok!(Balances::force_set_balance(
 		RawOrigin::Root.into(),
 		alice.clone(),
 		1_000 * UNITS,
 	));
-
-	// Bind Alice's EVM address (idempotent — adapter does this too).
 	let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice));
 }
 
@@ -110,23 +104,18 @@ fn giga_stake_should_lock_hdx_in_user_account_when_called() {
 
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 
-		// HDX stays in Alice's account (lock model — not pool model).
-		// `free_balance` reports total free; locks don't subtract from it.
+		// Lock model: HDX stays in Alice's account; `free_balance` doesn't subtract locks.
 		assert_eq!(
 			Balances::free_balance(&alice),
 			alice_hdx_before,
 			"HDX must remain in Alice's account (lock model)"
 		);
-
-		// A `ghdxlock` lock of 100 HDX exists on Alice.
 		assert_eq!(locked_under_ghdx(&alice), 100 * UNITS);
 
-		// `Stakes[Alice]` populated.
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake should exist");
 		assert_eq!(stake.hdx, 100 * UNITS);
-		assert_eq!(stake.gigahdx, 100 * UNITS); // bootstrap 1:1
+		assert_eq!(stake.gigahdx, 100 * UNITS);
 
-		// Alice received GIGAHDX (aToken) on the EVM side.
 		let alice_atoken_after = Currencies::free_balance(GIGAHDX, &alice);
 		assert!(
 			alice_atoken_after > alice_atoken_before,
@@ -145,19 +134,16 @@ fn giga_unstake_should_burn_atoken_when_full_exit() {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 		let atoken_after_stake = Currencies::free_balance(GIGAHDX, &alice);
 
-		// Full unstake — active stake drops to zero, position holds the payout.
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 
-		// `Stakes[Alice]` is now zero-active (cleaned up only by `unlock`).
+		// Stakes record persists (zero-active) until `unlock` cleans it up.
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake remains until unlock");
 		assert_eq!(stake.hdx, 0);
 		assert_eq!(stake.gigahdx, 0);
 
-		// Combined lock now equals the position amount.
 		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("position created");
 		assert_eq!(locked_under_ghdx(&alice), entry.amount);
 
-		// Alice's GIGAHDX balance dropped (aToken burned).
 		let atoken_after_unstake = Currencies::free_balance(GIGAHDX, &alice);
 		assert!(
 			atoken_after_unstake < atoken_after_stake,
@@ -201,11 +187,9 @@ fn lock_manager_precompile_should_report_gigahdx_when_account_has_stake() {
 
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 
-		// Call lock-manager precompile at 0x0806. ABI:
-		//   getLockedBalance(address token, address account) returns (uint256)
-		// `token` MUST be the GIGAHDX aToken address — the precompile now
-		// returns 0 for any other caller as a defense against unrelated
-		// aTokens accidentally consuming gigahdx-stake state.
+		// `getLockedBalance(token, account)` — `token` must be the GIGAHDX
+		// aToken; the precompile returns 0 otherwise so unrelated aTokens
+		// can't accidentally consume gigahdx-stake state.
 		let lock_manager: EvmAddress = H160(hex!("0000000000000000000000000000000000000806"));
 		let gigahdx_token = HydraErc20Mapping::asset_address(GIGAHDX);
 		let selector: [u8; 4] = sp_io::hashing::keccak_256(b"getLockedBalance(address,address)")[0..4]
@@ -224,8 +208,7 @@ fn lock_manager_precompile_should_report_gigahdx_when_account_has_stake() {
 		let reported = U256::from_big_endian(&result.value);
 		assert_eq!(reported, U256::from(100 * UNITS), "lock-manager must report gigahdx");
 
-		// Wrong token returns zero — no leak of gigahdx-stake state to
-		// unrelated aTokens.
+		// Wrong token must return zero (no state leak to unrelated aTokens).
 		let mut wrong = selector.to_vec();
 		wrong.extend_from_slice(H256::from(EvmAddress::zero()).as_bytes());
 		wrong.extend_from_slice(H256::from(alice_evm).as_bytes());
@@ -250,10 +233,6 @@ fn lock_manager_precompile_should_resolve_bound_evm_address_to_substrate_stake()
 
 		let alice: AccountId = ALICE.into();
 
-		// Alice has bound her EVM address via `init_gigahdx()`. Her
-		// `evm_address` is the truncated H160 (default mapping); after
-		// binding, that H160 → AccountId mapping is also reversible via
-		// the `EVMAccounts::bound_account_id` lookup.
 		let alice_evm = EVMAccounts::evm_address(&alice);
 		assert_eq!(
 			EVMAccounts::bound_account_id(alice_evm),
@@ -263,10 +242,9 @@ fn lock_manager_precompile_should_resolve_bound_evm_address_to_substrate_stake()
 
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 
-		// `Stakes` is keyed by Alice's substrate AccountId. The precompile
-		// hands `Runtime::AddressMapping::into_account_id(alice_evm)` to
-		// the pallet — that lookup must yield the same AccountId for the
-		// bound case, so `locked_gigahdx` resolves to a non-zero value.
+		// `Stakes` is keyed by substrate AccountId; the precompile resolves
+		// the bound H160 via `AddressMapping::into_account_id`, which must
+		// yield Alice's AccountId so `locked_gigahdx` is non-zero.
 		let lock_manager: EvmAddress = H160(hex!("0000000000000000000000000000000000000806"));
 		let gigahdx_token = HydraErc20Mapping::asset_address(GIGAHDX);
 		let selector: [u8; 4] = sp_io::hashing::keccak_256(b"getLockedBalance(address,address)")[0..4]
@@ -302,10 +280,9 @@ fn giga_unstake_should_create_pending_position_when_called() {
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 40 * UNITS));
 
 		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("entry exists");
-		// Mainnet snapshot's gigapot may already hold yield → payout ≥ principal.
+		// Snapshot's gigapot may already hold yield → payout ≥ principal.
 		assert!(entry.amount >= 40 * UNITS, "position covers at least principal");
 
-		// Single combined lock: active stake (Stakes.hdx) + position.amount.
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake remains");
 		assert_eq!(lock_amount(&alice, GIGAHDX_LOCK_ID), stake.hdx + entry.amount);
 	});
@@ -335,10 +312,8 @@ fn unlock_should_release_lock_when_cooldown_elapsed() {
 
 #[test]
 fn vote_should_succeed_with_locked_hdx_when_max_lock_semantics() {
-	// Proves the lock model: HDX locked under `ghdxlock` is ALSO usable
-	// for conviction voting via `LockableCurrency::max` semantics. We
-	// submit a referendum, place its decision deposit, fast-forward into
-	// the deciding period, and vote with the staked HDX.
+	// HDX locked under `ghdxlock` must remain usable for conviction voting
+	// via `LockableCurrency::max` semantics.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		init_gigahdx();
@@ -348,7 +323,6 @@ fn vote_should_succeed_with_locked_hdx_when_max_lock_semantics() {
 		let bob: AccountId = BOB.into();
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 
-		// Submit a trivial Root-track referendum (Alice pays the small submission deposit).
 		use frame_support::traits::Bounded;
 		use frame_support::traits::StorePreimage;
 		use hydradx_runtime::Preimage;
@@ -364,13 +338,10 @@ fn vote_should_succeed_with_locked_hdx_when_max_lock_semantics() {
 			frame_support::traits::schedule::DispatchTime::At(now + 100),
 		));
 
-		// Bob covers the (large) decision deposit.
 		assert_ok!(Referenda::place_decision_deposit(RuntimeOrigin::signed(bob), ref_index,));
 
-		// Vote with 50 HDX of conviction-locked balance — strictly less than
-		// the gigaHDX-locked 100, so we're voting "into" the locked HDX.
-		// `LockableCurrency::max` semantics allow conviction-voting to layer
-		// its own lock on the same balance.
+		// Vote with 50 HDX — strictly less than the gigaHDX-locked 100 — so
+		// the conviction-vote lock layers onto the already-locked balance.
 		assert_ok!(ConvictionVoting::vote(
 			RuntimeOrigin::signed(alice.clone()),
 			ref_index,
@@ -383,7 +354,7 @@ fn vote_should_succeed_with_locked_hdx_when_max_lock_semantics() {
 			},
 		));
 
-		// Both locks coexist: `ghdxlock` (100) and conviction-voting's lock (50).
+		// Both locks coexist: `ghdxlock` and conviction-voting's lock.
 		assert_eq!(locked_under_ghdx(&alice), 100 * UNITS);
 		let conviction_lock = pallet_balances::Locks::<Runtime>::get(&alice)
 			.iter()
@@ -398,16 +369,8 @@ fn vote_should_succeed_with_locked_hdx_when_max_lock_semantics() {
 	});
 }
 
-// ---------------------------------------------------------------------------
-// Snapshot-based scenario tests (ported from old gigahdx test suite).
-//
-// These run against the gigahdx snapshot with the AAVE fork live, exercising
-// the lock-cooldown design end-to-end against the real money market.
-// ---------------------------------------------------------------------------
-
-/// Reset the gigapot balance and stHDX issuance so test math runs from a
-/// clean baseline. The snapshot may carry pre-existing yield in the gigapot;
-/// rate-sensitive scenarios need a known starting state.
+/// Reset gigapot balance and stHDX issuance so rate-sensitive scenarios run
+/// from a clean baseline. The snapshot may carry pre-existing yield.
 fn reset_giga_state_for_fixture() {
 	orml_tokens::TotalIssuance::<Runtime>::set(ST_HDX, 0);
 	assert_ok!(Balances::force_set_balance(
@@ -423,9 +386,7 @@ fn fund(account: &AccountId, amount: Balance) {
 		account.clone(),
 		amount,
 	));
-	// Idempotent: binds the EVM address for `account` if not already bound.
-	// Production users are expected to be bound before calling stake/unstake;
-	// this mirrors that pre-condition for snapshot integration tests.
+	// Mirrors the production pre-condition: stake/unstake callers are bound.
 	let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(account.clone()));
 }
 
@@ -513,8 +474,6 @@ fn build_erc20_transfer_calldata(to: H160, amount: Balance) -> Vec<u8> {
 	data
 }
 
-// ---------- Wave 1: snapshot integration tests ----------
-
 #[test]
 fn giga_stake_should_mint_gigahdx_when_called_on_mainnet_snapshot() {
 	TestNet::reset();
@@ -524,8 +483,6 @@ fn giga_stake_should_mint_gigahdx_when_called_on_mainnet_snapshot() {
 		let alice: AccountId = ALICE.into();
 		let stake_amount = 1_000 * UNITS;
 		assert_ok!(<Currencies as MultiCurrency<_>>::deposit(HDX, &alice, 10_000 * UNITS));
-		// Mirror production pre-condition: user has bound their EVM address
-		// before any AAVE-touching extrinsic.
 		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
 
 		let hdx_before = Currencies::free_balance(HDX, &alice);
@@ -540,11 +497,8 @@ fn giga_stake_should_mint_gigahdx_when_called_on_mainnet_snapshot() {
 
 		// stHDX is held by AAVE (the user never touches it directly).
 		assert_eq!(Currencies::free_balance(ST_HDX, &alice), 0);
-
-		// GIGAHDX (aToken) minted to Alice via the real AAVE supply.
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), stake_amount);
 
-		// Totals incremented; bootstrap rate = 1.
 		assert_eq!(GigaHdx::total_staked_hdx(), total_staked_hdx_before + stake_amount);
 		assert_eq!(GigaHdx::total_gigahdx_supply(), total_st_hdx_before + stake_amount);
 		assert_rate_eq(GigaHdx::exchange_rate(), 1, 1);
@@ -568,7 +522,6 @@ fn giga_unstake_should_succeed_when_full_exit() {
 		));
 
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 0);
-		// Position created, gigahdx zeroed, lock now equals position amount.
 		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("position exists");
 		assert!(entry.amount > 0);
 	});
@@ -595,9 +548,7 @@ fn giga_unstake_should_fail_when_amount_exceeds_balance() {
 
 #[test]
 fn giga_stake_should_fail_when_amount_below_min_on_snapshot() {
-	// Pallet gate: amounts strictly below MinStake are rejected by the pallet
-	// regardless of AAVE state. The "succeeds above min" half uses 10 UNITS,
-	// safely clear of any AAVE-internal minimum supply rounding.
+	// 10 UNITS is safely above any AAVE-internal min-supply rounding.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice: AccountId = ALICE.into();
@@ -630,11 +581,11 @@ fn giga_stake_should_succeed_when_supply_zeroed_after_full_exit() {
 
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS,));
 
-		// Supply zeroed; rate falls back to bootstrap 1.0.
+		// Supply zeroed → rate falls back to bootstrap 1.0.
 		assert_eq!(GigaHdx::total_gigahdx_supply(), 0);
 		assert_rate_eq(GigaHdx::exchange_rate(), 1, 1);
 
-		// Bob can stake fresh — Alice's cooldown is hers, Bob is unaffected.
+		// Bob's stake is independent of Alice's cooldown.
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 100 * UNITS));
 		assert_eq!(Currencies::free_balance(GIGAHDX, &bob), 100 * UNITS);
 		assert_eq!(GigaHdx::total_gigahdx_supply(), 100 * UNITS);
@@ -652,16 +603,14 @@ fn exchange_rate_should_inflate_when_hdx_transferred_directly_to_gigapot() {
 		let charlie: AccountId = CHARLIE.into();
 		let gigapot = GigaHdx::gigapot_account_id();
 
-		// Pot starts with 1 UNIT yield.
 		fund(&gigapot, UNITS);
 		fund(&alice, 1_000_000 * UNITS);
 		fund(&bob, 1_000_000 * UNITS);
 
-		// Alice stakes 100 → rate becomes (100 + 1) / 100 = 1.01.
+		// rate becomes (100 + 1) / 100 = 1.01
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice), 100 * UNITS));
 		assert_rate_eq(GigaHdx::exchange_rate(), 101, 100);
 
-		// Bob donates 1000 HDX directly to the gigapot → rate inflates.
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(bob.clone()),
 			gigapot,
@@ -670,14 +619,12 @@ fn exchange_rate_should_inflate_when_hdx_transferred_directly_to_gigapot() {
 		));
 		assert_rate_eq(GigaHdx::exchange_rate(), 1101, 100);
 
-		// New stake at the inflated rate gets fewer GIGAHDX.
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 100 * UNITS));
 		assert!(
 			Currencies::free_balance(GIGAHDX, &bob) < 10 * UNITS,
 			"inflated rate should mint far fewer atokens"
 		);
 
-		// A fresh staker can still participate.
 		fund(&charlie, 1_000 * UNITS);
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(charlie), 100 * UNITS));
 	});
@@ -700,7 +647,6 @@ fn giga_unstake_should_succeed_with_inflated_payout_when_pot_donated() {
 		let gigahdx_minted = Currencies::free_balance(GIGAHDX, &alice);
 		assert!(gigahdx_minted > 0);
 
-		// Bob grief-donates HDX to inflate the rate.
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(bob),
 			gigapot,
@@ -709,7 +655,7 @@ fn giga_unstake_should_succeed_with_inflated_payout_when_pot_donated() {
 		));
 		assert!(GigaHdx::exchange_rate() > Ratio::one());
 
-		// Alice fully unstakes — the donation is a bonus to her, not a DoS.
+		// A grief donation is a bonus to Alice on exit, not a DoS.
 		assert_ok!(GigaHdx::giga_unstake(
 			RuntimeOrigin::signed(alice.clone()),
 			gigahdx_minted,
@@ -737,26 +683,21 @@ fn giga_unstake_should_succeed_when_exchange_rate_extreme() {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 100 * UNITS);
 
-		// Inflate the gigapot to an extreme value.
 		fund(&gigapot, 1_000_000_000_000_000 * UNITS);
 
-		// Full unstake at extreme rate: case 2 — active drained, all yield from pot.
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS,));
 
 		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("position created");
-		// payout = 100 * UNITS * (10^15 * UNITS + 100 * UNITS) / (100 * UNITS)
-		//        = 10^15 * UNITS + 100 * UNITS  (≈ 10^15 UNITS)
+		// payout = 100 * (10^15 + 100) / 100 = 10^15 + 100
 		assert_eq!(entry.amount, 1_000_000_000_000_000 * UNITS + 100 * UNITS);
 	});
 }
 
 #[test]
 fn aave_withdraw_should_revert_when_atokens_are_locked_by_active_stake() {
-	// Direct EVM-level Pool.withdraw must be rejected by the lock-manager
-	// precompile while the user still has an active stake — `gigahdx`
-	// equals atoken balance, so `LockableAToken.burn`'s freeBalance check
-	// gives 0 and the burn reverts. This protects the cooldown semantics:
-	// without it, users could bypass `giga_unstake` entirely.
+	// Direct EVM Pool.withdraw must be rejected while the user has an active
+	// stake — `LockableAToken.burn`'s freeBalance check sees `0` because
+	// `gigahdx` equals atoken balance. Without this the cooldown can be bypassed.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice: AccountId = ALICE.into();
@@ -781,10 +722,8 @@ fn aave_withdraw_should_revert_when_atokens_are_locked_by_active_stake() {
 			result.exit_reason,
 		);
 
-		// Nothing moved.
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), gigahdx_balance);
 		assert_eq!(Currencies::free_balance(ST_HDX, &alice), sthdx_before);
-		// gigahdx unchanged.
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake remains");
 		assert_eq!(stake.gigahdx, stake_amount);
 	});
@@ -792,8 +731,8 @@ fn aave_withdraw_should_revert_when_atokens_are_locked_by_active_stake() {
 
 #[test]
 fn atoken_evm_transfer_should_fail_when_staked() {
-	// ERC20 `transfer` of GIGAHDX must revert while the user has an active
-	// stake — atokens are 100% locked-balance per the lock-manager precompile.
+	// While staked, atokens are 100% locked per the lock-manager precompile,
+	// so any ERC20 transfer of GIGAHDX must revert.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice: AccountId = ALICE.into();
@@ -802,7 +741,7 @@ fn atoken_evm_transfer_should_fail_when_staked() {
 		fund(&alice, stake_amount);
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount,));
 
-		fund(&bob, UNITS); // also binds Bob's EVM address
+		fund(&bob, UNITS);
 		let bob_evm = EVMAccounts::evm_address(&bob);
 		let bob_gigahdx_before = Currencies::free_balance(GIGAHDX, &bob);
 
@@ -828,14 +767,12 @@ fn atoken_evm_transfer_should_fail_when_staked() {
 	});
 }
 
-// ---------- Wave 2: cooldown × voting-lock co-existence ----------
-
 #[test]
 fn partial_unstake_should_not_leak_when_locks_aggregated_via_max() {
-	// Regression test for the per-unstake-lock-id design where pallet-balances'
-	// max-of-locks semantics let `min(active_stake, cooldown)` HDX leak out
-	// during cooldown. Under the new single-combined-lock model the lock
-	// equals `active + position`, so partial unstake never frees any HDX.
+	// Regression: an earlier per-unstake-lock-id design let
+	// `min(active_stake, cooldown)` HDX leak out during cooldown via
+	// pallet-balances' max-of-locks semantics. The single combined lock
+	// (`active + position`) closes the leak.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		reset_giga_state_for_fixture();
@@ -845,7 +782,7 @@ fn partial_unstake_should_not_leak_when_locks_aggregated_via_max() {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 1_000 * UNITS,));
 		assert_eq!(locked_under_ghdx(&alice), 1_000 * UNITS);
 
-		// Partial unstake — half. With pot empty, payout = principal (case 1).
+		// pot empty → payout = principal (case 1).
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 500 * UNITS,));
 
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
@@ -853,9 +790,7 @@ fn partial_unstake_should_not_leak_when_locks_aggregated_via_max() {
 		assert_eq!(stake.hdx, 500 * UNITS);
 		assert_eq!(entry.amount, 500 * UNITS);
 
-		// Combined lock = active(500) + position(500) = 1000. Old buggy
-		// design produced max(500, 500) = 500, leaking 500 HDX out of
-		// cooldown immediately after partial unstake.
+		// Combined lock = 1000; the old buggy max(500, 500) = 500 leaked 500 HDX.
 		assert_eq!(
 			locked_under_ghdx(&alice),
 			1_000 * UNITS,
@@ -872,9 +807,8 @@ fn partial_unstake_should_not_leak_when_locks_aggregated_via_max() {
 
 #[test]
 fn giga_unstake_should_keep_lock_layers_consistent_when_vote_active() {
-	// Stake → vote with conviction on a balance larger than the stake → partial
-	// unstake. The gigahdx lock (active + position) and the conviction lock
-	// must coexist; spendable balance is `balance − max(both)`.
+	// gigahdx lock (active + position) and conviction lock must coexist;
+	// spendable = balance − max(both).
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		reset_giga_state_for_fixture();
@@ -885,8 +819,7 @@ fn giga_unstake_should_keep_lock_layers_consistent_when_vote_active() {
 
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 500 * UNITS,));
 
-		// Vote with 800 HDX conviction — exceeds the stake amount, layers
-		// over both staked and free HDX.
+		// Conviction balance 800 > stake 500, so it layers over staked + free HDX.
 		let ref_index = begin_referendum_by_bob();
 		assert_ok!(ConvictionVoting::vote(
 			RuntimeOrigin::signed(alice.clone()),
@@ -894,12 +827,9 @@ fn giga_unstake_should_keep_lock_layers_consistent_when_vote_active() {
 			aye_with_conviction(800 * UNITS, Conviction::Locked1x),
 		));
 
-		// Partial unstake — 100 stHDX. Pot empty → payout = principal = 100.
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS,));
 
-		// Combined gigahdx lock = active(400) + position(100) = 500.
 		assert_eq!(locked_under_ghdx(&alice), 500 * UNITS);
-		// Conviction lock unchanged at 800.
 		let conviction_lock = pallet_balances::Locks::<Runtime>::get(&alice)
 			.iter()
 			.find(|l| l.id == *b"pyconvot")
@@ -907,7 +837,7 @@ fn giga_unstake_should_keep_lock_layers_consistent_when_vote_active() {
 			.unwrap_or(0);
 		assert_eq!(conviction_lock, 800 * UNITS);
 
-		// Spendable = balance(1000) − max(ghdx=500, vote=800) = 200.
+		// spendable = 1000 − max(ghdx=500, vote=800) = 200
 		use frame_support::traits::fungible::Inspect;
 		use frame_support::traits::tokens::{Fortitude, Preservation};
 		let spendable =
@@ -918,12 +848,9 @@ fn giga_unstake_should_keep_lock_layers_consistent_when_vote_active() {
 
 #[test]
 fn partial_unstake_should_drain_active_when_payout_exceeds_active() {
-	// Case 2 with PARTIAL unstake: rate is high enough that the payout for a
-	// fraction of the atokens already exceeds the user's active stake. Active
-	// drops to zero, the rest of the payout comes from the gigapot, and the
-	// user is left with `Stakes = { hdx: 0, gigahdx > 0 }` —
-	// remaining atokens with zero cost basis. They can be unstaked later
-	// (each subsequent unstake hits case 2 against an empty active stake).
+	// Case 2 with partial unstake: payout for a fraction of atokens exceeds
+	// active stake; active → 0, remainder from gigapot, leaving
+	// `Stakes = { hdx: 0, gigahdx > 0 }` — atokens with zero cost basis.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		reset_giga_state_for_fixture();
@@ -932,48 +859,39 @@ fn partial_unstake_should_drain_active_when_payout_exceeds_active() {
 		let gigapot = GigaHdx::gigapot_account_id();
 		fund(&alice, 1_000_000 * UNITS);
 
-		// Stake 100 first (bootstrap rate 1.0), THEN inflate the pot to 200.
-		// Resulting rate = (100 + 200) / 100 = 3.0.
+		// Stake at bootstrap 1.0, then inflate pot → rate = (100 + 200) / 100 = 3.0.
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS,));
 		fund(&gigapot, 200 * UNITS);
 		assert_rate_eq(GigaHdx::exchange_rate(), 3, 1);
 
 		let alice_balance_before = Balances::free_balance(&alice);
 
-		// Unstake HALF the atokens. payout = 50 × 3 = 150 > active 100.
-		// → drain active to 0, transfer 50 yield from pot, position = 150.
+		// Unstake half: payout = 50 × 3 = 150 > active 100 → active drained,
+		// 50 yield from pot, position = 150.
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS,));
 
-		// Active stake fully consumed; atokens still partially held.
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("record persists");
 		assert_eq!(stake.hdx, 0, "active stake drained by case-2 payout");
 		assert_eq!(stake.gigahdx, 50 * UNITS, "remaining atokens have zero cost basis now");
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 50 * UNITS);
 
-		// Position covers the full payout (principal share consumed + yield share).
 		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("position created");
 		assert_eq!(entry.amount, 150 * UNITS);
 
-		// Yield (50) was transferred from gigapot to Alice.
 		assert_eq!(Balances::free_balance(&alice), alice_balance_before + 50 * UNITS,);
 		assert_eq!(Balances::free_balance(&gigapot), 150 * UNITS);
 
-		// Combined lock = active(0) + position(150) = 150 — only the cooldown
-		// portion is locked; Alice's pre-stake balance (the part outside any
-		// gigahdx commitment) is fully spendable.
 		assert_eq!(locked_under_ghdx(&alice), 150 * UNITS);
 
-		// Sanity: rate stays at 3.0 (TotalLocked=0, pot=150, supply=50).
 		assert_rate_eq(GigaHdx::exchange_rate(), 3, 1);
 	});
 }
 
 #[test]
 fn full_lifecycle_should_conserve_value_when_rate_inflated() {
-	// End-to-end conservation against the real AAVE snapshot:
-	// stake 100 @ rate 1.0 → pot inflates rate to 3.0 → drain across two
-	// case-2 unstakes (split by the cooldown) → assert total receipts
-	// equal original_stake × rate, gigapot fully drained, every ledger zeroed.
+	// End-to-end value conservation: stake 100 @ rate 1.0 → pot inflates to
+	// rate 3.0 → drain across two case-2 unstakes split by the cooldown.
+	// Total receipts must equal original_stake × rate, gigapot drained.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		reset_giga_state_for_fixture();
@@ -983,86 +901,63 @@ fn full_lifecycle_should_conserve_value_when_rate_inflated() {
 		let starting_balance = 1_000_000 * UNITS;
 		fund(&alice, starting_balance);
 
-		// 1. Stake 100 at bootstrap rate. Then inflate pot → rate 3.0.
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS,));
 		fund(&gigapot, 200 * UNITS);
 		assert_rate_eq(GigaHdx::exchange_rate(), 3, 1);
 
-		// 2. First unstake: 50 stHDX → payout 150, active drained to 0.
+		// First unstake: 50 stHDX → payout 150, active drained.
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS,));
 		let entry1 = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).unwrap();
 		assert_eq!(entry1.amount, 150 * UNITS);
 
-		// 3. Wait out cooldown #1, unlock.
 		System::set_block_number(entry1.expires_at);
 		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone())));
 		assert!(pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).is_none());
 
-		// Stakes record persists (gigahdx still 50 with zero cost basis).
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("atokens remain");
 		assert_eq!(stake.hdx, 0);
 		assert_eq!(stake.gigahdx, 50 * UNITS);
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 50 * UNITS);
 
-		// 4. Second unstake: remaining 50 stHDX. Active still 0 → full payout
-		//    from pot. Pot was 200 - 50 = 150, supply 50, rate stays 3.0,
-		//    payout = 50 × 3 = 150.
+		// Second unstake: pot 150, supply 50 → rate stays 3.0, payout = 150.
 		assert_rate_eq(GigaHdx::exchange_rate(), 3, 1);
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS,));
 		let entry2 = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).unwrap();
 		assert_eq!(entry2.amount, 150 * UNITS);
 
-		// 5. Wait + unlock #2.
 		System::set_block_number(entry2.expires_at);
 		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone())));
 
-		// 6. Conservation checks.
-		// Alice's net receipt = (yield transfers from pot) — her HDX never left her account.
-		// Original deposit 100 was always in her account (locked, then unlocked).
-		// Yield transferred = 50 (first unstake) + 150 (second unstake) = 200.
-		// Final balance = starting(1_000_000) + yield(200) = 1_000_200.
+		// Conservation: principal stayed in Alice's account (locked then unlocked);
+		// yield transferred = 50 + 150 = 200 = original_stake × (rate − 1).
 		assert_eq!(Balances::free_balance(&alice), starting_balance + 200 * UNITS);
 
-		// All gigahdx state cleared.
 		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).is_none());
 		assert!(pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).is_none());
 		assert_eq!(locked_under_ghdx(&alice), 0);
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 0);
 		assert_eq!(pallet_gigahdx::TotalLocked::<Runtime>::get(), 0);
 		assert_eq!(GigaHdx::total_gigahdx_supply(), 0);
-
-		// Pot fully drained (200 yield → 0).
 		assert_eq!(Balances::free_balance(&gigapot), 0);
-
-		// Total HDX received from gigahdx system = 100 (original stake, never moved)
-		// + 200 (full pot yield) = 300 = 100 × rate(3.0). Conservation holds.
-		let alice_total = Balances::free_balance(&alice);
-		assert_eq!(alice_total, starting_balance + 200 * UNITS);
-		// Equivalently: net gain = original_stake × (rate − 1) = 100 × 2 = 200.
 	});
 }
 
 #[test]
 fn giga_stake_should_fail_when_evm_address_unbound() {
-	// Production users are expected to bind their EVM address before
-	// staking. If they don't, AAVE rejects the `Pool.supply` call (the
-	// truncated `onBehalfOf` doesn't satisfy AAVE's preconditions), the
-	// adapter surfaces `MoneyMarketSupplyFailed`, and `with_transaction`
-	// rolls the stHDX mint back. This test pins that loud-failure
-	// behaviour — without it, atokens could silently land on a phantom
-	// account derived from the truncated EVM address.
+	// Without a bound EVM address, AAVE rejects `Pool.supply` (truncated
+	// `onBehalfOf` fails preconditions), the adapter surfaces
+	// `MoneyMarketSupplyFailed`, and `with_transaction` rolls back the stHDX
+	// mint. Pins this so atokens can't silently land on a phantom account.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice: AccountId = ALICE.into();
-		// Raw force_set_balance — deliberately bypasses `fund()` which
-		// would bind Alice's EVM address.
+		// Bypass `fund()` to leave Alice unbound.
 		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			alice.clone(),
 			1_000 * UNITS,
 		));
 
-		// Precondition: Alice is unbound.
 		let alice_evm = EVMAccounts::evm_address(&alice);
 		assert!(
 			EVMAccounts::bound_account_id(alice_evm).is_none(),
@@ -1077,37 +972,19 @@ fn giga_stake_should_fail_when_evm_address_unbound() {
 			pallet_gigahdx::Error::<Runtime>::MoneyMarketSupplyFailed,
 		);
 
-		// No atokens credited.
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), atoken_before);
-		// stHDX mint rolled back by `with_transaction`.
 		assert_eq!(<Currencies as MultiCurrency<_>>::total_issuance(ST_HDX), sthdx_before);
-		// No pallet-side state mutation.
 		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).is_none());
 	});
 }
 
 #[test]
 fn first_staker_inflation_grief_should_be_self_defeating_against_real_aave() {
-	// Characterizes the first-staker inflation-grief lead from the audit.
-	// Attacker leaves a 1-wei stHDX residual, donates HDX to inflate the
-	// rate, expects new stakers to mint round-to-zero atokens.
-	//
-	// Outcome against the real AAVE V3 deployment:
-	//   - Step 1–3 (attack setup) succeeds: 1-wei residual is achievable
-	//     via `Pool.withdraw(99·UNITS, leaving 1 wei)`.
-	//   - Step 4 (donation inflates rate) succeeds.
-	//   - Step 5 (new staker reverts) succeeds: `gigahdx_to_mint` floors to 0
-	//     and AAVE rejects `Pool.supply(0)` with `MoneyMarketSupplyFailed`.
-	//   - Step 6 (attacker recovers donation) **fails**: AAVE has its own
-	//     min-amount check on `Pool.withdraw`, so withdrawing 1 wei reverts
-	//     with `MoneyMarketWithdrawFailed`. The attacker cannot exit.
-	//
-	// Net: the attack is **self-defeating** — to deny new stakers the
-	// attacker must burn their entire donation into the gigapot with no
-	// recovery path. AAVE's wei-precision floor acts as a defense in depth
-	// against the inflation pattern. We pin this so that any future change
-	// to the AAVE config (lower min-amount, scaled-balance changes) that
-	// makes the attack profitable will trip this test.
+	// Audit lead: attacker leaves a 1-wei stHDX residual, donates HDX to
+	// inflate the rate, then expects new stakers to round-to-zero atokens.
+	// Self-defeating against real AAVE V3: `Pool.withdraw(1)` reverts on
+	// AAVE's min-amount check, so the attacker can never reclaim the donation.
+	// Pinned so any change to AAVE config that makes this profitable trips here.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		reset_giga_state_for_fixture();
@@ -1115,14 +992,12 @@ fn first_staker_inflation_grief_should_be_self_defeating_against_real_aave() {
 		let alice: AccountId = ALICE.into();
 		let bob: AccountId = BOB.into();
 
-		// 1. Alice stakes 100 UNITS at bootstrap rate.
 		fund(&alice, 1_000_000 * UNITS);
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 		let alice_gigahdx = Currencies::free_balance(GIGAHDX, &alice);
 		assert_eq!(alice_gigahdx, 100 * UNITS);
 
-		// 2. Partial-unstake leaving 1 wei. The first withdraw burns the bulk
-		//    (>= AAVE's min-amount), so this step succeeds.
+		// Partial-unstake leaving 1 wei (bulk burn passes AAVE's min-amount).
 		assert_ok!(GigaHdx::giga_unstake(
 			RuntimeOrigin::signed(alice.clone()),
 			alice_gigahdx - 1,
@@ -1132,7 +1007,6 @@ fn first_staker_inflation_grief_should_be_self_defeating_against_real_aave() {
 		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone())));
 		assert_eq!(GigaHdx::total_gigahdx_supply(), 1);
 
-		// 3. Donate HDX directly to the gigapot — no permission check.
 		let gigapot = GigaHdx::gigapot_account_id();
 		let donation = 500_000 * UNITS;
 		assert_ok!(Currencies::transfer(
@@ -1141,15 +1015,13 @@ fn first_staker_inflation_grief_should_be_self_defeating_against_real_aave() {
 			HDX,
 			donation,
 		));
-		// Rate spike: ~donation × 10^12 over 1 wei.
 		assert!(
 			GigaHdx::exchange_rate() > Ratio::new(donation, 1),
 			"rate should be heavily inflated after donation",
 		);
 
-		// 4. New staker fails: `gigahdx_to_mint` floors to 0, the pallet's
-		//    `ZeroAmount` guard rejects before the AAVE call (same outcome
-		//    even on AAVE forks that would accept `Pool.supply(0)`).
+		// `gigahdx_to_mint` floors to 0 → pallet's `ZeroAmount` guard fires
+		// before AAVE (so this holds even on forks that accept `Pool.supply(0)`).
 		fund(&bob, 100 * UNITS);
 		let bob_hdx_before = Balances::free_balance(&bob);
 		assert_noop!(
@@ -1160,19 +1032,12 @@ fn first_staker_inflation_grief_should_be_self_defeating_against_real_aave() {
 		assert_eq!(Currencies::free_balance(GIGAHDX, &bob), 0);
 		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&bob).is_none());
 
-		// 5. THE SELF-DEFEAT: the attacker cannot exit her 1-wei residual.
-		//    `Pool.withdraw(1)` reverts on AAVE's min-amount check, so the
-		//    pallet surfaces `MoneyMarketWithdrawFailed`. The donation is
-		//    permanently locked in the gigapot from the attacker's perspective.
+		// Self-defeat: attacker cannot exit the 1-wei residual.
 		assert_noop!(
 			GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 1),
 			pallet_gigahdx::Error::<Runtime>::MoneyMarketWithdrawFailed,
 		);
 
-		// 6. State invariants: pot still holds the donation, supply = 1 wei,
-		//    rate stays inflated. New stakes remain blocked. The attacker
-		//    paid the full donation cost for a temporary denial-of-service —
-		//    not a viable attack.
 		assert_eq!(Balances::free_balance(&gigapot), donation);
 		assert_eq!(GigaHdx::total_gigahdx_supply(), 1);
 		assert!(GigaHdx::exchange_rate() > Ratio::new(donation, 1));
@@ -1181,7 +1046,6 @@ fn first_staker_inflation_grief_should_be_self_defeating_against_real_aave() {
 
 #[test]
 fn giga_unstake_should_fail_when_position_pending() {
-	// One pending position per account — no concurrent unstakes.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice: AccountId = ALICE.into();

@@ -57,16 +57,13 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
 		let who_evm = pallet_evm_accounts::Pallet::<Runtime>::evm_address(who);
 		let pool = Self::pool()?;
 
-		// Approve the pool to pull `amount` of underlying.
 		let approve_ctx = CallContext::new_call(asset_evm, who_evm);
 		<Erc20Currency<Runtime> as ERC20>::approve(approve_ctx, pool, amount)?;
 
-		// Pool.supply rounds the scaled balance down, so the actual aToken
-		// minted may be 1+ wei less than `amount`. Read the user's aToken
-		// balance before/after and return the delta — the pallet records that
-		// as `Stakes.gigahdx`, preserving the invariant
-		// `Stakes.gigahdx == aToken.balanceOf` that `LockableAToken.burn`'s
-		// `freeBalance = balanceOf - locked` check relies on.
+		// `Pool.supply` rounds scaled balance down, so the actual aToken
+		// minted may be < `amount`. We return the balance delta so the pallet
+		// preserves `Stakes.gigahdx == aToken.balanceOf`, which
+		// `LockableAToken.burn`'s `freeBalance` check relies on.
 		let balance_before = Self::balance_of(who);
 
 		let supply_ctx = CallContext::new_call(pool, who_evm);
@@ -86,10 +83,8 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
 		let who_evm = pallet_evm_accounts::Pallet::<Runtime>::evm_address(who);
 		let pool = Self::pool()?;
 
-		// Mirror the supply path — return the actual underlying received,
-		// not the requested amount, so callers can reconcile against AAVE's
-		// scaledBalance rounding. Symmetry with `supply` keeps round-trip
-		// accounting consistent across rate drift.
+		// Symmetric with `supply`: return actual underlying delta so callers
+		// reconcile against AAVE's scaledBalance rounding.
 		let balance_before = Self::balance_of(who);
 
 		let withdraw_ctx = CallContext::new_call(pool, who_evm);
@@ -104,7 +99,6 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
 	}
 
 	fn balance_of(who: &AccountId) -> Balance {
-		// Read aToken (GIGAHDX) balance via ERC20.balanceOf.
 		let atoken_addr = HydraErc20Mapping::asset_address(crate::assets::GigaHdxAssetIdConst::get());
 		let who_evm = pallet_evm_accounts::Pallet::<Runtime>::evm_address(who);
 		<Erc20Currency<Runtime> as ERC20>::balance_of(CallContext::new_view(atoken_addr), who_evm)

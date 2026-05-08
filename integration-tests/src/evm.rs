@@ -2715,8 +2715,7 @@ mod chainlink_precompile {
 	}
 
 	fn seed_gigapot_and_supply(gigapot_hdx: Balance, st_hdx_supply: Balance) {
-		// `total_gigahdx_supply` reads orml-tokens issuance directly, so seed
-		// the stHDX issuance there rather than via a pallet-side counter.
+		// `total_gigahdx_supply` reads orml-tokens issuance directly.
 		orml_tokens::TotalIssuance::<Runtime>::set(STHDX, st_hdx_supply);
 		let gigapot = pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id();
 		assert_ok!(Balances::force_set_balance(RuntimeOrigin::root(), gigapot, gigapot_hdx,));
@@ -2772,10 +2771,9 @@ mod chainlink_precompile {
 
 		Hydra::execute_with(|| {
 			register_st_hdx();
-			// Full drain: native rate = 0; precompile must clamp to 1.0.
+			// Full drain: native rate would be 0 — pallet floor must clamp to 1.0.
 			seed_gigapot_and_supply(0, 100 * UNITS);
 
-			// pallet floors the rate at 1.0; the raw value (0) never escapes.
 			pretty_assertions::assert_eq!(
 				pallet_gigahdx::Pallet::<Runtime>::exchange_rate().cmp(&hydra_dx_math::ratio::Ratio::one()),
 				std::cmp::Ordering::Equal
@@ -2793,10 +2791,9 @@ mod chainlink_precompile {
 
 		Hydra::execute_with(|| {
 			register_st_hdx();
-			// Partial drain: native rate = 0.5; precompile must clamp to 1.0 (not 50_000_000).
+			// Partial drain: native rate would be 0.5 — clamp must hit 1.0, not 50_000_000.
 			seed_gigapot_and_supply(50 * UNITS, 100 * UNITS);
 
-			// pallet floors the rate at 1.0; the raw value (0.5) never escapes.
 			pretty_assertions::assert_eq!(
 				pallet_gigahdx::Pallet::<Runtime>::exchange_rate().cmp(&hydra_dx_math::ratio::Ratio::one()),
 				std::cmp::Ordering::Equal

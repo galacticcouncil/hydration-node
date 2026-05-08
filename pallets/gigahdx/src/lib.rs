@@ -285,17 +285,12 @@ pub mod pallet {
 			);
 			ensure!(usable >= amount, Error::<T>::InsufficientFreeBalance);
 
-			// Compute GIGAHDX to mint at the current rate.
 			let gigahdx_to_mint = Self::calculate_gigahdx_given_hdx_amount(amount).map_err(|_| Error::<T>::Overflow)?;
 			// Defense in depth: real AAVE V3 reverts on `Pool.supply(0)`, but a
-			// fork or test mock that accepted it would leave the user with HDX
-			// locked under `LockId` and `Stakes.gigahdx == 0` — and `giga_unstake`
-			// requires `gigahdx_amount > 0`, so they could never exit. Reject
-			// at the pallet level instead.
+			// fork that accepted it would leave the user with HDX locked and
+			// `Stakes.gigahdx == 0`, with no exit path via `giga_unstake`.
 			ensure!(gigahdx_to_mint > 0, Error::<T>::ZeroAmount);
 
-			// Mint stHDX to caller, then supply to MM. The dispatchable runs in
-			// a storage layer so any Err here rolls back the mint atomically.
 			T::MultiCurrency::mint_into(T::StHdxAssetId::get(), &who, gigahdx_to_mint)
 				.map_err(|_| Error::<T>::StHdxMintFailed)?;
 			let actual_minted = T::MoneyMarket::supply(&who, T::StHdxAssetId::get(), gigahdx_to_mint)
@@ -410,8 +405,6 @@ pub mod pallet {
 
 			PendingUnstakes::<T>::remove(&who);
 			Self::refresh_lock(&who)?;
-			// `Stakes` may have been emptied by the unstake that opened this
-			// position; once the position closes, drop the empty record too.
 			if let Some(s) = Stakes::<T>::get(&who) {
 				if s.hdx == 0 && s.gigahdx == 0 {
 					Stakes::<T>::remove(&who);
@@ -441,8 +434,7 @@ pub mod pallet {
 			ensure!(gigahdx_amount > 0, Error::<T>::ZeroAmount);
 			ensure!(gigahdx_amount <= stake.gigahdx, Error::<T>::InsufficientStake);
 
-			// Compute payout from PRE-unstake totals (helper reads live state, so
-			// it must run BEFORE any mint/burn/transfer below).
+			// Payout reads live rate state — must run before any mint/burn below.
 			let payout = Self::calculate_hdx_amount_given_gigahdx(gigahdx_amount).map_err(|_| Error::<T>::Overflow)?;
 
 			// Pre-decrement `gigahdx` so `LockableAToken.burn`'s `freeBalance`
@@ -456,11 +448,9 @@ pub mod pallet {
 				},
 			);
 
-			// MM withdraw: returns stHDX to `who`, burns aToken from `who`.
 			T::MoneyMarket::withdraw(who, T::StHdxAssetId::get(), gigahdx_amount)
 				.map_err(|_| Error::<T>::MoneyMarketWithdrawFailed)?;
 
-			// Burn the returned stHDX from the user.
 			T::MultiCurrency::burn_from(
 				T::StHdxAssetId::get(),
 				who,
@@ -470,9 +460,8 @@ pub mod pallet {
 				Fortitude::Force,
 			)?;
 
-			// Split `payout` between the user's active stake and the gigapot.
-			//   • payout ≤ active stake → consume from active only
-			//   • payout > active stake → drain active, pull remainder from pot
+			// payout ≤ active → consume from active only;
+			// payout > active → drain active, pull remainder from gigapot as yield.
 			let (new_hdx, yield_share) = if payout <= stake.hdx {
 				(stake.hdx - payout, 0)
 			} else {

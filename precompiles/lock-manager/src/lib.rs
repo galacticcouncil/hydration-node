@@ -59,10 +59,8 @@ where
 	#[precompile::public("getLockedBalance(address,address)")]
 	#[precompile::view]
 	fn get_locked_balance(handle: &mut impl PrecompileHandle, token: Address, account: Address) -> EvmResult<U256> {
-		// Charge for one StorageMap read on `pallet_gigahdx::Stakes` via the
-		// runtime's `DbWeight` (already proof-size aware) converted to gas.
-		// This is more accurate than the byte-count heuristic of
-		// `record_db_read` once the merkle proof for the read is included.
+		// Charge for the `Stakes` StorageMap read via DbWeight (proof-size
+		// aware) — more accurate than `record_db_read`'s byte heuristic.
 		let read_weight = <Runtime as frame_system::Config>::DbWeight::get().reads(1);
 		let read_gas = <Runtime as pallet_evm::Config>::GasWeightMapping::weight_to_gas(read_weight);
 		handle.record_cost(read_gas)?;

@@ -1875,26 +1875,15 @@ impl pallet_dispenser::Config for Runtime {
 parameter_types! {
 	pub const GigaHdxLockId: frame_support::traits::LockIdentifier = *b"ghdxlock";
 	pub const GigaHdxPalletId: frame_support::PalletId = frame_support::PalletId(*b"gigahdx!");
-	// stHDX (id 670) invariants — verify on any future runtime / AAVE
-	// configuration change:
-	//
-	// (1) MINT/BURN-EXCLUSIVE: only `pallet-gigahdx` mints / burns stHDX.
-	//     `total_gigahdx_supply()` reads global `total_issuance(StHdxAssetId)`
-	//     directly — any external mint/burn shifts the rate denominator and
-	//     silently dilutes existing stakers (or, with the rate floor, locks
-	//     residual `Stakes.hdx` with no exit).
-	//
-	// (2) NON-BORROWABLE on AAVE: the stHDX reserve must be configured with
-	//     borrow disabled (zero borrow cap / interest-rate strategy returning
-	//     0). If borrowing accrues, AAVE's `liquidityIndex` drifts above
-	//     1 RAY and `Pool.withdraw(stHDX, N, to)` would burn `N/index < N`
-	//     aTokens while the pallet pre-decrements `Stakes.gigahdx` by `N` —
-	//     leaving `balanceOf − Stakes.gigahdx > 0` aTokens that the
-	//     lock-manager precompile reports as unlocked. The pallet's correct
-	//     accounting depends on `aToken : stHDX = 1 : 1`.
+	// stHDX invariants — verify on any runtime / AAVE configuration change:
+	//   (1) Mint/burn exclusive to `pallet-gigahdx` — rate denominator reads
+	//       global `total_issuance` directly; any external mint/burn dilutes stakers.
+	//   (2) Non-borrowable on AAVE (zero borrow cap / IRM returning 0). If
+	//       `liquidityIndex` drifts above 1 RAY the `aToken : stHDX = 1 : 1`
+	//       invariant breaks, leaking unlocked aTokens past the lock-manager.
 	pub const StHdxAssetId: AssetId = 670;
 	pub const GigaHdxAssetIdConst: AssetId = 67;
-	pub const GigaHdxMinStake: Balance = UNITS; // 1 HDX
+	pub const GigaHdxMinStake: Balance = UNITS;
 	pub const GigaHdxCooldownPeriod: BlockNumber = 30 * DAYS;
 }
 
@@ -1922,7 +1911,6 @@ pub struct GigaHdxBenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 impl pallet_gigahdx::BenchmarkHelper<AccountId> for GigaHdxBenchmarkHelper {
 	fn register_assets() -> DispatchResult {
-		// Idempotent — benchmarks invoke this multiple times across runs.
 		if <AssetRegistry as hydradx_traits::registry::Inspect>::exists(StHdxAssetId::get()) {
 			return Ok(());
 		}
