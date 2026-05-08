@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.81.0"
+version = "1.80.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -82,11 +82,6 @@ pallet-evm-precompile-call-permit = { workspace = true }
 pallet-evm = { workspace = true }
 fp-evm = { workspace = true }
 fp-rpc = { workspace = true }
-
-# Hyperbridge
-ismp = { workspace = true }
-pallet-ismp = { workspace = true }
-ismp-parachain = { workspace = true }
 
 # Cumulus dependencies
 cumulus-pallet-aura-ext = { workspace = true }
