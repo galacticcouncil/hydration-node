@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "412.0.0"
+version = "413.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -21,8 +21,6 @@ smallvec = { workspace = true }
 log = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 evm = { workspace = true, features = ["with-codec"] }
-alloy-primitives = { workspace = true }
-alloy-sol-types = { workspace = true }
 
 # local dependencies
 primitives = { workspace = true }
@@ -188,16 +186,6 @@ serde_json = { workspace = true, default-features = false, features = [
 ] }
 ethereum = { workspace = true }
 
-# Hyperbridge
-pallet-ismp = { workspace = true, features = ["unsigned"] }
-pallet-ismp-runtime-api = { workspace = true }
-ismp-parachain-runtime-api = { workspace = true }
-pallet-hyperbridge = { workspace = true }
-pallet-token-gateway = { workspace = true }
-ismp-parachain = { workspace = true }
-ismp = { workspace = true }
-anyhow = { workspace = true }
-
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 
@@ -266,8 +254,6 @@ runtime-benchmarks = [
     "pallet-xcm-benchmarks/runtime-benchmarks",
     "pallet-signet/runtime-benchmarks",
     "pallet-dispenser/runtime-benchmarks",
-    "ismp-parachain/runtime-benchmarks",
-    "pallet-token-gateway/runtime-benchmarks",
     "cumulus-pallet-weight-reclaim/runtime-benchmarks",
 ]
 std = [
@@ -398,15 +384,6 @@ std = [
     "pallet-dispatcher/std",
     "pallet-signet/std",
     "pallet-dispenser/std",
-    # Hyperbridge
-    "anyhow/std",
-    "pallet-hyperbridge/std",
-    "pallet-token-gateway/std",
-    "pallet-ismp/std",
-    "pallet-ismp-runtime-api/std",
-    "ismp/std",
-    "ismp-parachain/std",
-    "ismp-parachain-runtime-api/std",
 ]
 try-runtime = [
     "frame-try-runtime",
