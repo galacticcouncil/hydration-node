@@ -248,12 +248,27 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Lock `amount` HDX in the caller's account, mint stHDX to the caller,
-		/// and supply it to the money market. The MM mints GIGAHDX (aToken)
-		/// to the caller's EVM-mapped address.
+		/// Lock HDX in the caller's account, mint stHDX, and supply it to the money market.
 		///
-		/// `Stakes[caller].gigahdx` records the **actual** aToken amount
-		/// returned by the MM (may differ from input by rounding).
+		/// The pallet locks `amount` HDX in the caller's account under `Config::LockId`
+		/// (so it remains voteable via `LockableCurrency` semantics), mints stHDX at the
+		/// current exchange rate, and supplies the stHDX to the money market. The money
+		/// market mints GIGAHDX (aToken) to the caller's EVM-mapped address.
+		///
+		/// `Stakes[caller].gigahdx` records the **actual** aToken amount returned by the
+		/// money market (may differ from the requested mint amount by rounding).
+		///
+		/// Fails with `BelowMinStake` if `amount < Config::MinStake`, with
+		/// `InsufficientFreeBalance` if the caller's `reducible_balance` does not cover
+		/// `amount`, with `StHdxMintFailed` if stHDX minting fails (asset not registered,
+		/// max issuance hit), or with `MoneyMarketSupplyFailed` if the AAVE `Pool.supply`
+		/// call reverts.
+		///
+		/// Parameters:
+		/// - `amount`: HDX amount to stake. Must be at least `Config::MinStake`.
+		///
+		/// Emits `Staked` event when successful.
+		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::giga_stake().saturating_add(T::MoneyMarket::supply_weight()))]
 		pub fn giga_stake(origin: OriginFor<T>, amount: Balance) -> DispatchResult {
@@ -303,22 +318,37 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Unstake `gigahdx_amount` of the caller's GIGAHDX. The MM burns the
-		/// aToken and returns stHDX to the caller, which the pallet then burns.
-		/// The HDX value (current rate × gigahdx_amount) is moved into a single
-		/// pending-unstake position; any portion that exceeds the user's
-		/// active stake is paid as yield from the gigapot.
+		/// Unstake the caller's GIGAHDX and open a pending-unstake position.
 		///
-		/// At most one pending position per account — caller must `unlock` an
-		/// existing position before calling again.
+		/// Burns `gigahdx_amount` of the caller's GIGAHDX through the money market, which
+		/// returns stHDX to the caller; the pallet then burns that stHDX. The HDX value
+		/// (current rate × `gigahdx_amount`) is moved into a single pending-unstake
+		/// position with a cooldown of `Config::CooldownPeriod`. Any portion of the payout
+		/// that exceeds the user's active stake principal is paid as yield from the
+		/// gigapot account.
 		///
-		/// Implementation detail (must match `LockableAToken.sol`):
-		/// the lock-manager precompile (`0x0806`) reads `Stakes[who].gigahdx`
-		/// and treats it as the user's locked GIGAHDX. The aToken contract
-		/// rejects burns where `amount > balance - locked`, so we
-		/// **pre-decrement `gigahdx` by `gigahdx_amount` before the MM call**.
-		/// The dispatchable runs in a storage layer so any `?` failure
-		/// rolls back the pre-decrement atomically.
+		/// At most one pending position per account — the caller must `unlock` an existing
+		/// position before calling again, otherwise `PendingUnstakeAlreadyExists` is
+		/// returned.
+		///
+		/// Implementation detail (must match `LockableAToken.sol`): the lock-manager
+		/// precompile (`0x0806`) reads `Stakes[who].gigahdx` and treats it as the user's
+		/// locked GIGAHDX. The aToken contract rejects burns where
+		/// `amount > balance - locked`, so the pallet **pre-decrements `gigahdx` by
+		/// `gigahdx_amount` before the money-market call**. The dispatchable runs in a
+		/// storage layer so any failure rolls back the pre-decrement atomically.
+		///
+		/// Fails with `NoStake` if the caller has no active stake, `ZeroAmount` if
+		/// `gigahdx_amount == 0`, `InsufficientStake` if `gigahdx_amount` exceeds the
+		/// caller's `Stakes.gigahdx`, or `MoneyMarketWithdrawFailed` if the AAVE
+		/// `Pool.withdraw` call reverts.
+		///
+		/// Parameters:
+		/// - `gigahdx_amount`: GIGAHDX (aToken) amount to unstake. Must be greater than
+		///   zero and not exceed the caller's `Stakes.gigahdx`.
+		///
+		/// Emits `Unstaked` event when successful.
+		///
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::giga_unstake().saturating_add(T::MoneyMarket::withdraw_weight()))]
 		pub fn giga_unstake(origin: OriginFor<T>, gigahdx_amount: Balance) -> DispatchResult {
@@ -326,18 +356,25 @@ pub mod pallet {
 			Self::do_giga_unstake(&who, gigahdx_amount)
 		}
 
-		/// Set the AAVE V3 Pool contract H160 used by the money-market adapter.
-		/// Gated by `AuthorityOrigin`. Refuses to swap the pool while any user
-		/// has active stake — a swap mid-flight would route subsequent
-		/// `giga_unstake` calls to a pool that doesn't hold their atokens,
-		/// reverting the burn and leaving HDX permanently locked.
+		/// Set the AAVE V3 Pool contract address used by the money-market adapter.
+		///
+		/// Refuses to swap the pool while any user has active stake — a swap mid-flight
+		/// would route subsequent `giga_unstake` calls to a pool that doesn't hold their
+		/// atokens, reverting the burn and leaving HDX permanently locked. Returns
+		/// `OutstandingStake` when called with `TotalLocked != 0`.
 		///
 		/// Note: `TotalLocked == 0` is sufficient. Pending unstakes (active
-		/// `PendingUnstakes` rows) don't touch the pool — `unlock` only
-		/// shrinks the on-chain `LockId`. Any drift between `Stakes` and the
-		/// pool has already been cleared by the unstakes that opened those
-		/// positions, so the new pool can be safely adopted while cooldowns
-		/// run out.
+		/// `PendingUnstakes` rows) don't touch the pool — `unlock` only shrinks the
+		/// on-chain `LockId`. Any drift between `Stakes` and the pool has already been
+		/// cleared by the unstakes that opened those positions, so the new pool can be
+		/// safely adopted while cooldowns run out.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`.
+		/// - `contract`: H160 address of the new AAVE V3 Pool contract.
+		///
+		/// Emits `PoolContractUpdated` event when successful.
+		///
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::set_pool_contract())]
 		pub fn set_pool_contract(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResult {
@@ -348,9 +385,19 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Release the pending-unstake position once
-		/// [`Config::CooldownPeriod`] has elapsed. Reduces `LockId` by the
-		/// stored amount; the caller's HDX becomes spendable.
+		/// Release the caller's pending-unstake position after the cooldown elapses.
+		///
+		/// Removes the `PendingUnstakes` entry for the caller and refreshes the combined
+		/// `Config::LockId` lock so the unstaked HDX becomes spendable. If the matching
+		/// `Stakes` record has been fully drained (both `hdx` and `gigahdx` are zero), it
+		/// is also removed.
+		///
+		/// Fails with `NoPendingUnstake` if the caller has no pending position, or with
+		/// `CooldownNotElapsed` if `Config::CooldownPeriod` has not yet passed since the
+		/// position was opened.
+		///
+		/// Emits `Unlocked` event when successful.
+		///
 		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::unlock())]
 		pub fn unlock(origin: OriginFor<T>) -> DispatchResult {
