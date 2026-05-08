@@ -218,7 +218,24 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 
 	// Invert buy-side slip to find how much hub asset the user must provide
 	let slip_buy_amount = if let Some(slip) = slip {
-		let d_gross = invert_buy_side_slip(d_net, slip.asset_hub_reserve, slip.asset_delta)?;
+		let d_gross_uncapped = invert_buy_side_slip(d_net, slip.asset_hub_reserve, slip.asset_delta)?;
+		let max_parts = slip.max_slip_fee.deconstruct() as u128;
+		let one_minus_max = 1_000_000u128.checked_sub(max_parts)?;
+		let (d_net_hp, d_gross_uncapped_hp) = to_u256!(d_net, d_gross_uncapped);
+		let rate_hp = d_net_hp
+			.checked_mul(U256::from(1_000_000u128))?
+			.checked_div(d_gross_uncapped_hp)?;
+		let d_gross = if rate_hp < U256::from(one_minus_max) {
+			// Cap fired: d_gross = floor(D_net * 1_000_000 / (1_000_000 - max_parts))
+			// -1 compensates for the +1 ceiling added by invert_buy_side_slip
+			let d_gross_capped_hp = d_net_hp
+				.checked_mul(U256::from(1_000_000u128))?
+				.checked_div(U256::from(one_minus_max))?;
+			let d_gross_capped = to_balance!(d_gross_capped_hp).ok()?;
+			d_gross_capped.checked_sub(Balance::one())?
+		} else {
+			d_gross_uncapped
+		};
 		d_gross.checked_sub(d_net)?
 	} else {
 		0
@@ -276,7 +293,7 @@ pub fn calculate_buy_state_changes(
 	let d_net = d_net.checked_add(Balance::one())?;
 
 	// Step 2: Invert buy-side slip to find D_gross from D_net
-	let d_gross = if let Some(slip) = slip {
+	let (d_gross, buy_cap_fired) = if let Some(slip) = slip {
 		let d_gross_uncapped = invert_buy_side_slip(d_net, slip.asset_out_hub_reserve, slip.asset_out_delta)?;
 		let max_parts = slip.max_slip_fee.deconstruct() as u128;
 		let one_minus_max = 1_000_000u128.checked_sub(max_parts)?;
@@ -291,12 +308,12 @@ pub fn calculate_buy_state_changes(
 				.checked_mul(U256::from(1_000_000u128))?
 				.checked_div(U256::from(one_minus_max))?;
 			let d_gross_capped = to_balance!(d_gross_capped_hp).ok()?;
-			d_gross_capped.checked_sub(Balance::one())?
+			(d_gross_capped.checked_sub(Balance::one())?, true)
 		} else {
-			d_gross_uncapped
+			(d_gross_uncapped, false)
 		}
 	} else {
-		d_net
+		(d_net, false)
 	};
 
 	// Step 3: Invert sell-side fees (protocol_fee + sell slip) to find delta_hub_reserve_in
@@ -312,9 +329,14 @@ pub fn calculate_buy_state_changes(
 				.checked_mul(U256::from(1_000_000u128))?
 				.checked_div(denom_hp)?;
 			if rate_hp > U256::from(max_parts) {
-				// Cap fired: delta_hub_reserve_in = floor((d_gross - 1) * 1_000_000 / (k_parts - max_parts))
-				// -1 compensates for the +1 ceiling added by invert_buy_side_slip
-				let d_gross_adj = d_gross.checked_sub(Balance::one())?;
+				// Cap fired: delta_hub_reserve_in = floor(d_gross_adj * 1_000_000 / (k_parts - max_parts))
+				// d_gross_adj removes ceiling artifacts: invert_buy_side_slip adds +1, but when
+				// buy-side cap fired d_gross was already pre-decremented for invert_sell_side_fees.
+				let d_gross_adj = if buy_cap_fired {
+					d_gross.checked_add(Balance::one())?
+				} else {
+					d_gross.checked_sub(Balance::one())?
+				};
 				let pf_parts = protocol_fee.deconstruct() as u128;
 				let k_parts = 1_000_000u128.checked_sub(pf_parts)?;
 				let den_parts = k_parts.checked_sub(max_parts)?;
