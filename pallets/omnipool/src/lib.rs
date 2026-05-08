@@ -456,6 +456,9 @@ pub mod pallet {
 		MaxSlipFeeTooHigh,
 		/// Invariant check failed inside a trade or liquidity operation.
 		InvariantError,
+		/// Hub asset free balance in the protocol account is less than the sum of recorded
+		/// asset hub reserves. Indicates corrupted hub-asset accounting; should never happen.
+		InvalidOmnipoolHubReserve,
 	}
 
 	#[pallet::call]
@@ -2663,19 +2666,30 @@ impl<T: Config> Pallet<T> {
 		asset_out_state: &AssetReserveState<Balance>,
 	) -> Result<Balance, DispatchError> {
 		let hub_supply = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-		let mut balance = hub_supply
-			.checked_sub(asset_in_state.hub_reserve)
-			.ok_or(Error::<T>::InvariantError)?
-			.checked_sub(asset_out_state.hub_reserve)
+
+		let mut sum_asset_hub_reserves = asset_in_state
+			.hub_reserve
+			.checked_add(asset_out_state.hub_reserve)
 			.ok_or(Error::<T>::InvariantError)?;
+
 		let hdx_id = T::HdxAssetId::get();
 		if hdx_id != asset_in && hdx_id != asset_out {
 			let hdx_state = Self::load_asset_state(hdx_id)?;
-			balance = balance
-				.checked_sub(hdx_state.hub_reserve)
+			sum_asset_hub_reserves = sum_asset_hub_reserves
+				.checked_add(hdx_state.hub_reserve)
 				.ok_or(Error::<T>::InvariantError)?;
 		}
-		Ok(balance)
+
+		debug_assert!(
+			hub_supply >= sum_asset_hub_reserves,
+			"Omnipool hub supply less than sum of asset hub reserves"
+		);
+		ensure!(
+			hub_supply >= sum_asset_hub_reserves,
+			Error::<T>::InvalidOmnipoolHubReserve
+		);
+
+		Ok(hub_supply.saturating_sub(sum_asset_hub_reserves))
 	}
 
 	fn ensure_trade_invariant(
