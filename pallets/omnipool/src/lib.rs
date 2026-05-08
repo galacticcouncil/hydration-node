@@ -880,7 +880,7 @@ pub mod pallet {
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
 
-			let balance_one =
+			let hub_balance_excluding_swap_assets =
 				Self::hub_balance_excluding_swap_assets(asset_in, &asset_in_state, asset_out, &asset_out_state)?;
 
 			ensure!(
@@ -1069,7 +1069,7 @@ pub mod pallet {
 			Self::ensure_trade_invariant(
 				(asset_in, asset_in_state, new_asset_in_state),
 				(asset_out, asset_out_state, new_asset_out_state),
-				balance_one,
+				hub_balance_excluding_swap_assets,
 			)?;
 
 			Ok(())
@@ -1126,7 +1126,7 @@ pub mod pallet {
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
 
-			let balance_one =
+			let hub_balance_excluding_swap_assets =
 				Self::hub_balance_excluding_swap_assets(asset_in, &asset_in_state, asset_out, &asset_out_state)?;
 
 			ensure!(
@@ -1319,7 +1319,7 @@ pub mod pallet {
 			Self::ensure_trade_invariant(
 				(asset_in, asset_in_state, new_asset_in_state),
 				(asset_out, asset_out_state, new_asset_out_state),
-				balance_one,
+				hub_balance_excluding_swap_assets,
 			)?;
 
 			Ok(())
@@ -2681,7 +2681,7 @@ impl<T: Config> Pallet<T> {
 	fn ensure_trade_invariant(
 		asset_in: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>),
 		asset_out: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>),
-		balance_one: Balance,
+		hub_balance_excluding_swap_assets: Balance,
 	) -> DispatchResult {
 		let r: DispatchResult = (|| {
 			let asset_in_id = asset_in.0;
@@ -2707,7 +2707,7 @@ impl<T: Config> Pallet<T> {
 			let in_store = <Assets<T>>::get(asset_in_id).ok_or(Error::<T>::InvariantError)?;
 			let out_store = <Assets<T>>::get(asset_out_id).ok_or(Error::<T>::InvariantError)?;
 
-			let mut balance_two = balance_one
+			let mut expected_hub_supply = hub_balance_excluding_swap_assets
 				.checked_add(in_store.hub_reserve)
 				.ok_or(Error::<T>::InvariantError)?
 				.checked_add(out_store.hub_reserve)
@@ -2716,13 +2716,13 @@ impl<T: Config> Pallet<T> {
 			let hdx_id = T::HdxAssetId::get();
 			if hdx_id != asset_in_id && hdx_id != asset_out_id {
 				let hdx_store = <Assets<T>>::get(hdx_id).ok_or(Error::<T>::InvariantError)?;
-				balance_two = balance_two
+				expected_hub_supply = expected_hub_supply
 					.checked_add(hdx_store.hub_reserve)
 					.ok_or(Error::<T>::InvariantError)?;
 			}
 
-			let p_after = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-			ensure!(balance_two == p_after, Error::<T>::InvariantError);
+			let actual_hub_supply = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+			ensure!(expected_hub_supply == actual_hub_supply, Error::<T>::InvariantError);
 
 			Ok(())
 		})();
