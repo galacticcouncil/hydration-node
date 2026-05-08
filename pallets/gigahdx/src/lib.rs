@@ -241,8 +241,9 @@ pub mod pallet {
 		NoPendingUnstake,
 		/// Caller already has a pending unstake; must `unlock` it first.
 		PendingUnstakeAlreadyExists,
-		/// `set_pool_contract` was called while users still hold outstanding
-		/// stake. The pool is settable only when `TotalLocked == 0`.
+		/// `set_pool_contract` was called while gigahdx (aToken / stHDX) is
+		/// still in circulation. The pool is settable only when total stHDX
+		/// supply is zero.
 		OutstandingStake,
 	}
 
@@ -353,16 +354,17 @@ pub mod pallet {
 
 		/// Set the AAVE V3 Pool contract address used by the money-market adapter.
 		///
-		/// Refuses to swap the pool while any user has active stake — a swap mid-flight
-		/// would route subsequent `giga_unstake` calls to a pool that doesn't hold their
-		/// atokens, reverting the burn and leaving HDX permanently locked. Returns
-		/// `OutstandingStake` when called with `TotalLocked != 0`.
+		/// Refuses to swap the pool while gigahdx (aToken / stHDX) is still in
+		/// circulation — a swap mid-flight would route subsequent `giga_unstake`
+		/// calls to a pool that doesn't hold the user's atokens, reverting the
+		/// burn and leaving HDX permanently locked. Returns `OutstandingStake`
+		/// when total stHDX supply is non-zero.
 		///
-		/// Note: `TotalLocked == 0` is sufficient. Pending unstakes (active
-		/// `PendingUnstakes` rows) don't touch the pool — `unlock` only shrinks the
-		/// on-chain `LockId`. Any drift between `Stakes` and the pool has already been
-		/// cleared by the unstakes that opened those positions, so the new pool can be
-		/// safely adopted while cooldowns run out.
+		/// Note: it is not enough to check `TotalLocked == 0` (the sum of
+		/// `Stakes.hdx`). After a case-2 partial unstake the user's active
+		/// stake can be drained while their `Stakes.gigahdx` (and the
+		/// corresponding aToken balance) is still non-zero — those tokens
+		/// remain bound to the current pool.
 		///
 		/// Parameters:
 		/// - `origin`: Must be `T::AuthorityOrigin`.
@@ -374,7 +376,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::set_pool_contract())]
 		pub fn set_pool_contract(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
-			ensure!(TotalLocked::<T>::get() == 0, Error::<T>::OutstandingStake);
+			ensure!(Self::total_gigahdx_supply() == 0, Error::<T>::OutstandingStake);
 			GigaHdxPoolContract::<T>::put(contract);
 			Self::deposit_event(Event::PoolContractUpdated { contract });
 			Ok(())
@@ -476,13 +478,13 @@ pub mod pallet {
 			};
 			let principal_consumed = stake.hdx.saturating_sub(new_hdx);
 
-			Stakes::<T>::insert(
-				who,
-				StakeRecord {
-					hdx: new_hdx,
-					gigahdx: new_gigahdx,
-				},
-			);
+			// Only `hdx` changes here; `gigahdx` was already pre-decremented
+			// before the MM call and must stay at that value.
+			Stakes::<T>::mutate(who, |maybe| {
+				if let Some(s) = maybe {
+					s.hdx = new_hdx;
+				}
+			});
 			TotalLocked::<T>::mutate(|x| *x = x.saturating_sub(principal_consumed));
 
 			let expires_at = frame_system::Pallet::<T>::block_number()

@@ -10,10 +10,10 @@
 use crate::evm::aave_trade_executor::Function as AaveFunction;
 use crate::evm::evm_error_decoder::EvmErrorDecoder;
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+use crate::evm::precompiles::handle::EvmDataWriter;
 use crate::evm::Erc20Currency;
 use crate::evm::Executor;
 use crate::Runtime;
-use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason::Succeed;
 use frame_support::sp_runtime::traits::Convert;
 use frame_support::sp_runtime::DispatchError;
@@ -23,7 +23,6 @@ use hydradx_traits::gigahdx::MoneyMarketOperations;
 use pallet_evm::GasWeightMapping;
 use primitive_types::U256;
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
-use sp_core::H256;
 
 const GAS_LIMIT: u64 = 500_000;
 
@@ -67,11 +66,13 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
 		let balance_before = Self::balance_of(who);
 
 		let supply_ctx = CallContext::new_call(pool, who_evm);
-		let mut data = Into::<u32>::into(AaveFunction::Supply).to_be_bytes().to_vec();
-		data.extend_from_slice(H256::from(asset_evm).as_bytes());
-		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
-		data.extend_from_slice(H256::from(who_evm).as_bytes());
-		data.extend_from_slice(H256::from_uint(&U256::zero()).as_bytes()); // referralCode = 0
+		let referral_code = 0_u16;
+		let data = EvmDataWriter::new_with_selector(AaveFunction::Supply)
+			.write(asset_evm)
+			.write(amount)
+			.write(who_evm)
+			.write(referral_code)
+			.build();
 		handle(Executor::<Runtime>::call(supply_ctx, data, U256::zero(), GAS_LIMIT))?;
 
 		let balance_after = Self::balance_of(who);
@@ -88,10 +89,11 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for AaveMoneyMarket {
 		let balance_before = Self::balance_of(who);
 
 		let withdraw_ctx = CallContext::new_call(pool, who_evm);
-		let mut data = Into::<u32>::into(AaveFunction::Withdraw).to_be_bytes().to_vec();
-		data.extend_from_slice(H256::from(asset_evm).as_bytes());
-		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
-		data.extend_from_slice(H256::from(who_evm).as_bytes());
+		let data = EvmDataWriter::new_with_selector(AaveFunction::Withdraw)
+			.write(asset_evm)
+			.write(amount)
+			.write(who_evm)
+			.build();
 		handle(Executor::<Runtime>::call(withdraw_ctx, data, U256::zero(), GAS_LIMIT))?;
 
 		let balance_after = Self::balance_of(who);

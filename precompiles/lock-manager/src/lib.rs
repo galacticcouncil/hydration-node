@@ -59,15 +59,15 @@ where
 	#[precompile::public("getLockedBalance(address,address)")]
 	#[precompile::view]
 	fn get_locked_balance(handle: &mut impl PrecompileHandle, token: Address, account: Address) -> EvmResult<U256> {
+		if H160::from(token) != ExpectedToken::get() {
+			return Ok(U256::zero());
+		}
+
 		// Charge for the `Stakes` StorageMap read via DbWeight (proof-size
 		// aware) — more accurate than `record_db_read`'s byte heuristic.
 		let read_weight = <Runtime as frame_system::Config>::DbWeight::get().reads(1);
 		let read_gas = <Runtime as pallet_evm::Config>::GasWeightMapping::weight_to_gas(read_weight);
 		handle.record_cost(read_gas)?;
-
-		if H160::from(token) != ExpectedToken::get() {
-			return Ok(U256::zero());
-		}
 
 		let account_id = <Runtime::AddressMapping as pallet_evm::AddressMapping<
 			<Runtime as frame_system::Config>::AccountId,
