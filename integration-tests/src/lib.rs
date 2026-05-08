@@ -23,7 +23,6 @@ mod fee_calculation;
 mod gigahdx;
 mod global_withdraw_limit;
 mod hsm;
-//mod hyperbridge;
 mod insufficient_assets_ed;
 mod liquidation;
 mod multi_payment;
