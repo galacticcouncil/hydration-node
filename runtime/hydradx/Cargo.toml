@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "412.0.0"
+version = "414.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -21,8 +21,6 @@ smallvec = { workspace = true }
 log = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 evm = { workspace = true, features = ["with-codec"] }
-alloy-primitives = { workspace = true }
-alloy-sol-types = { workspace = true }
 
 # local dependencies
 primitives = { workspace = true }
@@ -50,6 +48,7 @@ pallet-relaychain-info = { workspace = true }
 pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-asset-registry = { workspace = true }
 pallet-collator-rewards = { workspace = true }
+pallet-collator-rotation = { workspace = true }
 pallet-currencies = { workspace = true }
 pallet-currencies-rpc-runtime-api = { workspace = true }
 pallet-ema-oracle = { workspace = true }
@@ -187,16 +186,6 @@ serde_json = { workspace = true, default-features = false, features = [
 ] }
 ethereum = { workspace = true }
 
-# Hyperbridge
-pallet-ismp = { workspace = true, features = ["unsigned"] }
-pallet-ismp-runtime-api = { workspace = true }
-ismp-parachain-runtime-api = { workspace = true }
-pallet-hyperbridge = { workspace = true }
-pallet-token-gateway = { workspace = true }
-ismp-parachain = { workspace = true }
-ismp = { workspace = true }
-anyhow = { workspace = true }
-
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 
@@ -265,8 +254,6 @@ runtime-benchmarks = [
     "pallet-xcm-benchmarks/runtime-benchmarks",
     "pallet-signet/runtime-benchmarks",
     "pallet-dispenser/runtime-benchmarks",
-    "ismp-parachain/runtime-benchmarks",
-    "pallet-token-gateway/runtime-benchmarks",
     "cumulus-pallet-weight-reclaim/runtime-benchmarks",
 ]
 std = [
@@ -321,6 +308,7 @@ std = [
     "pallet-claims/std",
     "pallet-treasury/std",
     "pallet-collator-selection/std",
+    "pallet-collator-rotation/std",
     "pallet-authorship/std",
     "pallet-utility/std",
     "pallet-uniques/std",
@@ -396,15 +384,6 @@ std = [
     "pallet-dispatcher/std",
     "pallet-signet/std",
     "pallet-dispenser/std",
-    # Hyperbridge
-    "anyhow/std",
-    "pallet-hyperbridge/std",
-    "pallet-token-gateway/std",
-    "pallet-ismp/std",
-    "pallet-ismp-runtime-api/std",
-    "ismp/std",
-    "ismp-parachain/std",
-    "ismp-parachain-runtime-api/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -451,6 +430,7 @@ try-runtime = [
     "pallet-omnipool/try-runtime",
     "pallet-dca/try-runtime",
     "pallet-collator-rewards/try-runtime",
+    "pallet-collator-rotation/try-runtime",
     "pallet-genesis-history/try-runtime",
     "pallet-claims/try-runtime",
     "pallet-duster/try-runtime",

@@ -24,27 +24,6 @@
 //! HOSTNAME: `bench-bot`, CPU: `Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz`
 //! WASM-EXECUTION: `Compiled`, CHAIN: `None`, DB CACHE: `1024`
 
-// Executed Command:
-// ./bin/hydradx
-// benchmark
-// pallet
-// --wasm-execution=compiled
-// --pallet
-// pallet_signet
-// --extrinsic
-// *
-// --heap-pages
-// 4096
-// --steps
-// 50
-// --repeat
-// 20
-// --template
-// scripts/pallet-weight-template.hbs
-// --output
-// runtime/hydradx/src/weights/pallet_signet.rs
-// --quiet
-
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]
@@ -60,76 +39,39 @@ pub struct WeightInfo<T>(PhantomData<T>);
 /// Weights for `pallet_signet` using the HydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_signet::WeightInfo for HydraWeight<T> {
-	/// Storage: `Signet::Admin` (r:1 w:1)
-	/// Proof: `Signet::Admin` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-	/// Storage: `Signet::SignatureDeposit` (r:0 w:1)
-	/// Proof: `Signet::SignatureDeposit` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	/// Storage: `Signet::ChainId` (r:0 w:1)
-	/// Proof: `Signet::ChainId` (`max_values`: Some(1), `max_size`: Some(130), added: 625, mode: `MaxEncodedLen`)
-	fn initialize() -> Weight {
+	fn set_config() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `4`
 		//  Estimated: `1517`
-		// Minimum execution time: 13_225_000 picoseconds.
-		Weight::from_parts(13_569_000, 1517)
+		// Minimum execution time: 12_621_000 picoseconds.
+		Weight::from_parts(13_044_000, 1517)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
-			.saturating_add(T::DbWeight::get().writes(3_u64))
-	}
-	/// Storage: `Signet::Admin` (r:1 w:0)
-	/// Proof: `Signet::Admin` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-	/// Storage: `Signet::SignatureDeposit` (r:1 w:1)
-	/// Proof: `Signet::SignatureDeposit` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	fn update_deposit() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `128`
-		//  Estimated: `1517`
-		// Minimum execution time: 15_218_000 picoseconds.
-		Weight::from_parts(15_577_000, 1517)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	/// Storage: `Signet::Admin` (r:1 w:0)
-	/// Proof: `Signet::Admin` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	fn withdraw_funds() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `299`
 		//  Estimated: `3593`
-		// Minimum execution time: 65_225_000 picoseconds.
-		Weight::from_parts(65_776_000, 3593)
+		// Minimum execution time: 62_011_000 picoseconds.
+		Weight::from_parts(62_534_000, 3593)
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	/// Storage: `Signet::Admin` (r:1 w:0)
-	/// Proof: `Signet::Admin` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-	/// Storage: `Signet::SignatureDeposit` (r:1 w:0)
-	/// Proof: `Signet::SignatureDeposit` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `Signet::ChainId` (r:1 w:0)
-	/// Proof: `Signet::ChainId` (`max_values`: Some(1), `max_size`: Some(130), added: 625, mode: `MaxEncodedLen`)
 	fn sign() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `167`
 		//  Estimated: `3593`
-		// Minimum execution time: 69_289_000 picoseconds.
-		Weight::from_parts(70_025_000, 3593)
+		// Minimum execution time: 65_063_000 picoseconds.
+		Weight::from_parts(65_820_000, 3593)
 			.saturating_add(T::DbWeight::get().reads(4_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	/// Storage: `Signet::Admin` (r:1 w:0)
-	/// Proof: `Signet::Admin` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-	/// Storage: `Signet::SignatureDeposit` (r:1 w:0)
-	/// Proof: `Signet::SignatureDeposit` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	fn sign_bidirectional() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `167`
 		//  Estimated: `3593`
-		// Minimum execution time: 173_881_000 picoseconds.
-		Weight::from_parts(175_101_000, 3593)
+		// Minimum execution time: 162_949_000 picoseconds.
+		Weight::from_parts(164_844_000, 3593)
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -137,21 +79,31 @@ impl<T: frame_system::Config> pallet_signet::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 225_686_000 picoseconds.
-		Weight::from_parts(229_243_000, 0)
+		// Minimum execution time: 215_458_000 picoseconds.
+		Weight::from_parts(216_808_000, 0)
 	}
 	fn respond_error() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 337_374_000 picoseconds.
-		Weight::from_parts(340_383_000, 0)
+		// Minimum execution time: 321_457_000 picoseconds.
+		Weight::from_parts(323_288_000, 0)
 	}
 	fn respond_bidirectional() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 102_088_000 picoseconds.
-		Weight::from_parts(102_520_000, 0)
+		// Minimum execution time: 95_250_000 picoseconds.
+		Weight::from_parts(95_830_000, 0)
+	}
+	fn pause() -> Weight {
+		Weight::from_parts(13_044_000, 1517)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	fn unpause() -> Weight {
+		Weight::from_parts(13_044_000, 1517)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 }

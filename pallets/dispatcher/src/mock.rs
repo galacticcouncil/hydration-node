@@ -144,7 +144,6 @@ impl dispatcher::Config for Test {
 	type EmergencyAdminAccount = EmergencyAdminAccount;
 	type WeightInfo = ();
 	type EvmCallIdentifier = EvmCallIdentifier;
-	type MigrationOperatorOrigin = EnsureRoot<AccountId>;
 	type GasWeightMapping = MockGasWeightMapping;
 	type EvmFeePayer = MockEvmFeePayer;
 }
