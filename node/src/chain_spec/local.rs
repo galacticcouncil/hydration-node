@@ -107,6 +107,8 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 		create_testnet_claims(),
 		// parachain ID
 		PARA_ID.into(),
+		// is_testnet
+		true,
 		DusterConfig {
 			account_whitelist: vec![get_account_id_from_seed::<sr25519::Public>("Duster")],
 		},

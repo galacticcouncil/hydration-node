@@ -132,11 +132,6 @@ if [[ "${ALL}" -eq 1 ]]; then
 
     bench_xcm "${CHECK}"
 
-#    ISMP_ADD=("pallet_token_gateway_ismp")
-#    for ismp_entry in "${ISMP_ADD[@]}"; do
-#      bench "$ismp_entry" "*" "$CHECK" "" "scripts/ismp-module-weight-template.hbs"
-#    done
-
     # Then process regular pallets (excluding `BENCH_EXCLUDE` ones)
     options=()
     while read benchmark; do

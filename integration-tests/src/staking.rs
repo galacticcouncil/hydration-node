@@ -490,7 +490,7 @@ fn increase_should_slash_min_amount_when_increase_is_low() {
 
 		assert_ok!(propose_set_balance(ALICE.into(), CHARLIE.into(), 2, 22 * DAYS));
 
-		fast_forward_to(20 * DAYS);
+		fast_forward_to(18 * DAYS);
 
 		assert_ok!(ConvictionVoting::vote(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),

@@ -2,12 +2,21 @@ use super::*;
 use frame_benchmarking::v2::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use sp_runtime::traits::{One, Saturating};
+use sp_runtime::traits::Saturating;
 use sp_std::vec;
 
-fn bench_chain_id<T: Config>() -> BoundedVec<u8, <T as Config>::MaxChainIdLength> {
-	let v: Vec<u8> = b"bench-chain".to_vec();
-	BoundedVec::try_from(v).expect("bench-chain fits MaxChainIdLength")
+fn setup_config<T: Config>() {
+	let deposit: BalanceOf<T> = T::Currency::minimum_balance().saturating_mul(10u32.into());
+	let chain_id: BoundedVec<u8, ConstU32<MAX_CHAIN_ID_LENGTH>> =
+		BoundedVec::try_from(b"bench-chain".to_vec()).expect("bench-chain fits");
+
+	assert_ok!(Pallet::<T>::set_config(
+		RawOrigin::Root.into(),
+		deposit,
+		128u32,
+		100_000u32,
+		chain_id,
+	));
 }
 
 #[benchmarks(where T: Config)]
@@ -15,54 +24,20 @@ mod benches {
 	use super::*;
 
 	#[benchmark]
-	fn initialize() {
-		let admin: T::AccountId = whitelisted_caller();
-		let max_dep: BalanceOf<T> = T::MaxSignatureDeposit::get();
-		let deposit: BalanceOf<T> = max_dep.saturating_sub(One::one());
-		let chain_id = super::bench_chain_id::<T>();
+	fn set_config() {
+		let deposit: BalanceOf<T> = T::Currency::minimum_balance().saturating_mul(10u32.into());
+		let chain_id: BoundedVec<u8, ConstU32<MAX_CHAIN_ID_LENGTH>> =
+			BoundedVec::try_from(b"bench-chain".to_vec()).expect("bench-chain fits");
 
 		#[extrinsic_call]
-		initialize(RawOrigin::Root, admin.clone(), deposit, chain_id);
+		set_config(RawOrigin::Root, deposit, 128u32, 100_000u32, chain_id);
 
-		assert_eq!(Admin::<T>::get(), Some(admin));
-		assert_eq!(SignatureDeposit::<T>::get(), deposit);
-	}
-
-	#[benchmark]
-	fn update_deposit() {
-		let admin: T::AccountId = whitelisted_caller();
-		let max_dep: BalanceOf<T> = T::MaxSignatureDeposit::get();
-		let initial_deposit: BalanceOf<T> = max_dep.saturating_sub(One::one());
-		let chain_id = super::bench_chain_id::<T>();
-
-		assert_ok!(Pallet::<T>::initialize(
-			RawOrigin::Root.into(),
-			admin.clone(),
-			initial_deposit,
-			chain_id,
-		));
-
-		let new_deposit: BalanceOf<T> = initial_deposit;
-
-		#[extrinsic_call]
-		update_deposit(RawOrigin::Signed(admin.clone()), new_deposit);
-
-		assert_eq!(SignatureDeposit::<T>::get(), new_deposit);
+		assert!(SignetConfig::<T>::get().is_some());
 	}
 
 	#[benchmark]
 	fn withdraw_funds() {
-		let admin: T::AccountId = whitelisted_caller();
-		let chain_id = super::bench_chain_id::<T>();
-		let max_dep: BalanceOf<T> = T::MaxSignatureDeposit::get();
-		let deposit: BalanceOf<T> = max_dep.saturating_sub(One::one());
-
-		assert_ok!(Pallet::<T>::initialize(
-			RawOrigin::Root.into(),
-			admin.clone(),
-			deposit,
-			chain_id,
-		));
+		setup_config::<T>();
 
 		let pallet_account = Pallet::<T>::account_id();
 		let amount: BalanceOf<T> = T::Currency::minimum_balance().saturating_mul(100u32.into());
@@ -72,27 +47,18 @@ mod benches {
 		let withdraw_amount: BalanceOf<T> = T::Currency::minimum_balance().saturating_mul(50u32.into());
 
 		#[extrinsic_call]
-		withdraw_funds(RawOrigin::Signed(admin.clone()), recipient.clone(), withdraw_amount);
+		withdraw_funds(RawOrigin::Root, recipient.clone(), withdraw_amount);
 
 		assert!(T::Currency::free_balance(&recipient) >= withdraw_amount);
 	}
 
 	#[benchmark]
 	fn sign() {
-		let admin: T::AccountId = whitelisted_caller();
-		let max_dep: BalanceOf<T> = T::MaxSignatureDeposit::get();
-		let deposit: BalanceOf<T> = max_dep.saturating_sub(One::one());
-		let chain_id = super::bench_chain_id::<T>();
-
-		assert_ok!(Pallet::<T>::initialize(
-			RawOrigin::Root.into(),
-			admin,
-			deposit,
-			chain_id,
-		));
+		setup_config::<T>();
 
 		let requester: T::AccountId = whitelisted_caller();
-		let fund: BalanceOf<T> = deposit.saturating_mul(10u32.into());
+		let config = SignetConfig::<T>::get().unwrap();
+		let fund: BalanceOf<T> = config.signature_deposit.saturating_mul(10u32.into());
 		let _ = T::Currency::deposit_creating(&requester, fund);
 
 		let payload: [u8; 32] = [1u8; 32];
@@ -123,20 +89,11 @@ mod benches {
 
 	#[benchmark]
 	fn sign_bidirectional() {
-		let admin: T::AccountId = whitelisted_caller();
-		let max_dep: BalanceOf<T> = T::MaxSignatureDeposit::get();
-		let deposit: BalanceOf<T> = max_dep.saturating_sub(One::one());
-		let chain_id = super::bench_chain_id::<T>();
-
-		assert_ok!(Pallet::<T>::initialize(
-			RawOrigin::Root.into(),
-			admin,
-			deposit,
-			chain_id,
-		));
+		setup_config::<T>();
 
 		let requester: T::AccountId = whitelisted_caller();
-		let fund: BalanceOf<T> = deposit.saturating_mul(10u32.into());
+		let config = SignetConfig::<T>::get().unwrap();
+		let fund: BalanceOf<T> = config.signature_deposit.saturating_mul(10u32.into());
 		let _ = T::Currency::deposit_creating(&requester, fund);
 
 		let tx_bytes = vec![5u8; MAX_TRANSACTION_LENGTH as usize];
@@ -263,6 +220,27 @@ mod benches {
 			serialized_output,
 			signature,
 		);
+	}
+
+	#[benchmark]
+	fn pause() {
+		setup_config::<T>();
+
+		#[extrinsic_call]
+		pause(RawOrigin::Root);
+
+		assert!(SignetConfig::<T>::get().unwrap().paused);
+	}
+
+	#[benchmark]
+	fn unpause() {
+		setup_config::<T>();
+		SignetConfig::<T>::mutate(|c| c.as_mut().unwrap().paused = true);
+
+		#[extrinsic_call]
+		unpause(RawOrigin::Root);
+
+		assert!(!SignetConfig::<T>::get().unwrap().paused);
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Test);
