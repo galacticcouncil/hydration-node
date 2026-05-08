@@ -2033,7 +2033,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(final_r >= initial_r, Error::<T>::InvariantError);
 			Ok(())
 		})();
-		debug_assert!(r.is_ok(), "Stableswap add_liquidity invariant: {:?}", r);
+		debug_assert!(r.is_ok(), "Stableswap add_liquidity invariant: {r:?}");
 		r
 	}
 
@@ -2073,7 +2073,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(final_r >= initial_r, Error::<T>::InvariantError);
 			Ok(())
 		})();
-		debug_assert!(r.is_ok(), "Stableswap remove_liquidity invariant: {:?}", r);
+		debug_assert!(r.is_ok(), "Stableswap remove_liquidity invariant: {r:?}");
 		r
 	}
 
@@ -2099,7 +2099,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(final_d >= initial_d, Error::<T>::InvariantError);
 			Ok(())
 		})();
-		debug_assert!(r.is_ok(), "Stableswap trade invariant: {:?}", r);
+		debug_assert!(r.is_ok(), "Stableswap trade invariant: {r:?}");
 		r
 	}
 }

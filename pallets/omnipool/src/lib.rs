@@ -2740,7 +2740,7 @@ impl<T: Config> Pallet<T> {
 
 			Ok(())
 		})();
-		debug_assert!(r.is_ok(), "Omnipool trade invariant: {:?}", r);
+		debug_assert!(r.is_ok(), "Omnipool trade invariant: {r:?}");
 		r
 	}
 
@@ -2776,7 +2776,7 @@ impl<T: Config> Pallet<T> {
 
 			Ok(())
 		})();
-		debug_assert!(r.is_ok(), "Omnipool liquidity invariant: {:?}", r);
+		debug_assert!(r.is_ok(), "Omnipool liquidity invariant: {r:?}");
 		r
 	}
 }
