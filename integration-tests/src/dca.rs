@@ -4885,6 +4885,62 @@ mod aave_atoken {
 			assert!(schedule.is_some());
 		});
 	}
+
+	use frame_support::traits::OnInitialize;
+
+	#[test]
+	fn dca_should_succeed_after_retry_when_insufficient_balance_error_due_to_off_by_one_error() {
+		TestNet::reset();
+
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			//Arrange
+			assert_eq!(hydradx_runtime::System::block_number(), 12309734);
+			let schedule_id = 30972;
+			assert!(DCA::schedules(schedule_id).is_some());
+
+			//Act 1: first attempt fails with InsufficientBalance and is retried
+			DCA::on_initialize(12309735);
+			assert_trade_failed_with_omnipool_insufficient_balance(schedule_id);
+			assert_eq!(
+				DCA::retries_on_error(schedule_id),
+				1,
+				"first attempt should have been retried"
+			);
+			let retry_block =
+				DCA::schedule_execution_block(schedule_id).expect("schedule should be replanned to a retry block");
+
+			//Act 2: simulate elapsed time so aave liquidity index drifts (rounding boundary moves)
+			let now = hydradx_runtime::Timestamp::get();
+			hydradx_runtime::Timestamp::set_timestamp(now + 240_000);
+
+			//Act 3: run DCA at the retry block
+			DCA::on_initialize(retry_block);
+
+			//Assert: schedule still alive and retry counter reset (= the trade succeeded)
+			assert!(DCA::schedules(schedule_id).is_some(), "schedule must survive retry");
+			assert_eq!(
+				DCA::retries_on_error(schedule_id),
+				0,
+				"retry should have succeeded and reset the counter"
+			);
+		});
+	}
+
+	fn assert_trade_failed_with_omnipool_insufficient_balance(schedule_id: u32) {
+		let expected: sp_runtime::DispatchError = pallet_omnipool::Error::<Runtime>::InsufficientBalance.into();
+		let events = last_hydra_events(20);
+		let found = events.iter().any(|e| {
+			matches!(
+				e,
+				RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { id, error, .. })
+				if *id == schedule_id && *error == expected
+			)
+		});
+		assert!(
+			found,
+			"expected TradeFailed event with omnipool::InsufficientBalance for schedule {schedule_id}"
+		);
+	}
 }
 
 fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
