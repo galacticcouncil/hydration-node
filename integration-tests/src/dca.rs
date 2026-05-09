@@ -4860,7 +4860,16 @@ mod aave_atoken {
 	use super::*;
 	use hydradx_runtime::DCA;
 
-	const PATH_TO_SNAPSHOT: &str = "dca-snapshot/SNAPSHOT";
+	// Snapshot at block 12309734, produced with:
+	//
+	//   ./target/release/scraper save-storage --slim \
+	//       --uri wss://hydration.dotters.network \
+	//       --at 0x5bfd245dd5612800f2291cef550a5e3f76b569e6de4d52d1c6cb122e674d838e \
+	//       --pallet Omnipool Stableswap AssetRegistry EVM DynamicFees EmaOracle \
+	//                MultiTransactionPayment Tokens Balances EVMAccounts Ethereum \
+	//                EVMChainId HSM Router System Aura Timestamp DCA \
+	//       --path integration-tests/dca-snapshot
+	const PATH_TO_SNAPSHOT: &str = "dca-snapshot/SNAPSHOT_12309734";
 
 	//Ignored as snapshot too big
 	//To verify locally, download snapshot with command `./target/release/scraper save-storage --uri wss://paseo-rpc.play.hydration.cloud --at 0x3db005212a4ae320a2808c6813880b583dacbf7df60b0314420e88f4f2dfe989`
