@@ -25,7 +25,7 @@ use frame_support::sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
-use frame_support::traits::{Contains, Everything, SortedMembers};
+use frame_support::traits::{Contains, Everything};
 use frame_support::BoundedVec;
 use frame_system::EnsureRoot;
 use hydradx_traits::OraclePeriod::{self, *};
@@ -33,7 +33,6 @@ use hydradx_traits::Source;
 use hydradx_traits::{Liquidity, Volume};
 use polkadot_xcm::latest::{Junctions, Location};
 use polkadot_xcm::prelude::GeneralIndex;
-use sp_arithmetic::Permill;
 use sp_core::H256;
 use sp_runtime::traits::Convert;
 
@@ -127,7 +126,6 @@ impl frame_system::Config for Test {
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = bounded_vec![LastBlock, TenMinutes, Day, Week];
-	pub PriceDifference: Permill = Permill::from_percent(10);
 }
 
 pub struct OracleWhitelist;
@@ -137,10 +135,11 @@ impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist {
 	}
 }
 
-pub struct BifrostAcc;
-impl SortedMembers<AccountId> for BifrostAcc {
-	fn sorted_members() -> Vec<AccountId> {
-		vec![ALICE]
+/// Identifies internal (AMM) sources by checking they are not registered as external.
+pub struct InternalSources;
+impl Contains<Source> for InternalSources {
+	fn contains(s: &Source) -> bool {
+		!ema_oracle::pallet::ExternalSources::<Test>::contains_key(s)
 	}
 }
 
@@ -149,13 +148,12 @@ impl Config for Test {
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = OracleWhitelist;
+	type InternalSources = InternalSources;
 	type MaxUniqueEntries = ConstU32<45>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
-	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	type WeightInfo = ();
 	type LocationToAssetIdConversion = CurrencyIdConvertMock;
-	type MaxAllowedPriceDifference = PriceDifference;
 }
 
 pub struct CurrencyIdConvertMock;

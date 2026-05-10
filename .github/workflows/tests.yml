@@ -263,6 +263,6 @@ jobs:
 
           # Run specific tests doing XCM between hydradx and other parachains
           yarn install
-          yarn test xcm.test.ts dca.test.ts
+          yarn test packages/hydration/tests/xcm.test.ts packages/hydration/tests/dca.test.ts
         env:
           HYDRADX_RUNTIME_WASM_PATH: ${{ env.HYDRADX_RUNTIME_WASM_PATH }}

@@ -191,8 +191,11 @@ pub struct RestrictedAssetHubAliases;
 impl Contains<Location> for RestrictedAssetHubAliases {
 	fn contains(target: &Location) -> bool {
 		match target.unpack() {
-			// Allow system parachains under the Polkadot relay
+			// Allow system parachains under the Polkadot relay...
 			(1, [Parachain(id)]) if id < &2000 => true,
+
+			// ...and all of their descendants
+			(1, [Parachain(id), ..]) if id < &2000 => true,
 
 			// Allow Kusama relay itself
 			(2, [GlobalConsensus(Kusama)]) => true,
@@ -687,9 +690,8 @@ impl TransactAsset for LocalAssetTransactor {
 				CurrencyIdConvert::convert(what.clone()),
 				IsNativeConcrete::<AssetId, CurrencyIdConvert>::matches_fungible(what),
 			) {
-				crate::circuit_breaker::WithdrawCircuitBreaker::<NativeAssetId>::ensure_inbound_xcm_withdraw_can_proceed(
-					asset_id,
-					amount,
+				crate::circuit_breaker::WithdrawCircuitBreaker::ensure_inbound_xcm_withdraw_can_proceed(
+					asset_id, amount,
 				)
 				.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
 			}

@@ -32,6 +32,83 @@ Single pallet test: `cargo test -p pallet-omnipool --locked`
 
 All cargo commands use `--config net.git-fetch-with-cli=true` (see Makefile).
 
+## Test Naming Convention
+
+Use BDD-style "should-when" naming for all tests. The test name should read as a specification of behavior.
+
+**Format:** `<subject>_should_<expected_outcome>_when_<condition>`
+
+**Examples:**
+- `transfer_should_fail_when_balance_is_insufficient`
+- `route_suggester_should_return_shortest_path_when_multiple_routes_exist`
+- `sell_should_succeed_when_slippage_within_limit`
+- `add_liquidity_should_fail_when_pool_is_frozen`
+
+**Rules:**
+- Use `snake_case` (Rust convention).
+- For success cases, use `should_<outcome>_when_<condition>` (omit "succeed" if the outcome is descriptive enough).
+- For failure cases, prefer `should_fail_when_<condition>` and assert on the specific error.
+- The `<subject>` is typically the function/extrinsic under test.
+- Avoid generic names like `test_1`, `it_works`, or `basic_test`.
+- One behavior per test — if you need "and" in the name, split it into two tests.
+
+## Extrinsic documentation
+
+Every public extrinsic in `#[pallet::call]` blocks must have a rustdoc comment that follows
+this standard structure. See `pallets/omnipool/src/lib.rs` and `pallets/stableswap/src/lib.rs`
+for canonical examples.
+
+**Required sections (in order):**
+
+1. **Description** — one-line summary, then any longer explanation as additional paragraphs.
+   Cover what the extrinsic does, important preconditions, and notable side effects (NFT
+   minting, hooks, tradability flags, error conditions worth highlighting).
+2. **Parameters** — a `Parameters:` block listing every argument as `` - `name`: description ``.
+   Include `origin` when its required type is non-trivial (e.g. `T::AuthorityOrigin`).
+3. **Emitted events** — a final line of the form `` Emits `EventName` event when successful. ``
+   If multiple events are emitted, list each on its own line.
+
+**Format:**
+
+```rust
+/// <One-line summary of what the extrinsic does.>
+///
+/// <Optional longer explanation: preconditions, side effects, error conditions,
+/// hook invocations, tradability flags, etc. Use multiple paragraphs as needed.>
+///
+/// Parameters:
+/// - `origin`: <only if origin type is non-trivial, e.g. Must be T::AuthorityOrigin>
+/// - `param_a`: <what it represents and any constraints>
+/// - `param_b`: <what it represents and any constraints>
+///
+/// Emits `SomethingHappened` event when successful.
+///
+#[pallet::call_index(N)]
+#[pallet::weight(...)]
+#[transactional]
+pub fn my_extrinsic(...) -> DispatchResult { ... }
+```
+
+**Rules:**
+- Use `///` doc comments (rustdoc), not `//` line comments.
+- Blank `///` lines separate paragraphs and the three sections.
+- Wrap identifiers, types, and values in backticks (e.g. `` `asset_id` ``, `` `T::AuthorityOrigin` ``).
+- Phrase the emitted-events line consistently: `` Emits `X` event when successful. ``
+- If the extrinsic delegates to another (e.g. `add_liquidity` → `add_liquidity_with_limit`),
+  still document it in full — do not rely on the reader following the delegation.
+- Keep parameter names in the doc identical to the function signature.
+
+## Running tests
+
+Dont't run tests with --release flag!
+
+Do NOT prefix `cargo` commands with inline environment variables like 
+`RUST_LOG=... cargo test`. Instead, export them first:
+
+    export RUST_LOG=evm=error
+    cargo test --locked -p runtime-integration-tests ...
+
+
 ## Code style
 
 - **Tabs for indentation** (hard_tabs = true), max line width 120

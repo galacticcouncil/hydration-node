@@ -213,7 +213,7 @@ impl pallet_whitelist::Config for Runtime {
 parameter_types! {
 	pub const AlarmInterval: BlockNumber = 1;
 	pub const SubmissionDeposit: Balance = DOLLARS;
-	pub const UndecidingTimeout: BlockNumber = 14 * DAYS;
+	pub const UndecidingTimeout: BlockNumber = 2 * DAYS;
 }
 
 impl pallet_referenda::Config for Runtime {
@@ -267,7 +267,6 @@ impl pallet_dispatcher::Config for Runtime {
 	type DefaultAaveManagerAccount = AaveManagerAccount;
 	type EmergencyAdminAccount = EmergencyAdminAccount;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
-	type MigrationOperatorOrigin = EitherOf<EnsureRoot<AccountId>, TechCommitteeMajority>;
 	type EvmFeePayer = evm::EvmFeePayerImpl;
 	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
 }

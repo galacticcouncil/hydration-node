@@ -121,6 +121,10 @@ pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000_000_000 * UNITS;
 pub const CHARLIE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 
+pub fn bifrost_account() -> AccountId {
+	hydradx_runtime::BifrostAccount::get()
+}
+
 pub fn parachain_reserve_account() -> AccountId {
 	polkadot_parachain::primitives::Sibling::from(ACALA_PARA_ID).into_account_truncating()
 }
@@ -486,6 +490,38 @@ pub mod collators {
 				get_account_id_from_seed::<sr25519::Public>("Bob"),
 				get_from_seed::<AuraId>("Bob"),
 			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+				get_from_seed::<AuraId>("Charlie"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator4"),
+				get_from_seed::<AuraId>("Collator4"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator5"),
+				get_from_seed::<AuraId>("Collator5"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator6"),
+				get_from_seed::<AuraId>("Collator6"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator7"),
+				get_from_seed::<AuraId>("Collator7"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator8"),
+				get_from_seed::<AuraId>("Collator8"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator9"),
+				get_from_seed::<AuraId>("Collator9"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator10"),
+				get_from_seed::<AuraId>("Collator10"),
+			),
 		]
 	}
 }
@@ -653,6 +689,10 @@ pub mod hydra {
 				safe_xcm_version: Some(5),
 				..Default::default()
 			},
+			parameters: hydradx_runtime::ParametersConfig {
+				relay_parent_offset_override: true,
+				..Default::default()
+			},
 			multi_transaction_payment: hydradx_runtime::MultiTransactionPaymentConfig {
 				currencies: vec![
 					(LRNA, Price::from(1)),
@@ -705,6 +745,10 @@ pub mod para {
 			},
 			polkadot_xcm: hydradx_runtime::PolkadotXcmConfig {
 				safe_xcm_version: Some(5),
+				..Default::default()
+			},
+			parameters: hydradx_runtime::ParametersConfig {
+				relay_parent_offset_override: true,
 				..Default::default()
 			},
 			duster: hydradx_runtime::DusterConfig {
@@ -911,6 +955,7 @@ pub fn hydra_live_ext(
 
 			let mut p = builder.build().await.unwrap();
 			p.execute_with(|| {
+				hydradx_runtime::Parameters::set_relay_parent_offset_override(true);
 				pallet_ema_oracle::migrations::v1::MigrateV0ToV1::<hydradx_runtime::Runtime>::on_runtime_upgrade();
 			});
 			p
