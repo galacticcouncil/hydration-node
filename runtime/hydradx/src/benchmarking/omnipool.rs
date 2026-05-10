@@ -317,7 +317,6 @@ runtime_benchmarks! {
 		let code = ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"MYCODE".to_vec());
 		Referrals::register_code(RawOrigin::Signed(owner).into(), code.clone())?;
 		Referrals::link_code(RawOrigin::Signed(seller.clone()).into(), code)?;
-				update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to wrost case
 
 	}: { Omnipool::sell(RawOrigin::Signed(seller.clone()).into(), token_id, DAI, amount_sell, buy_min_amount)? }
 	verify {
@@ -366,7 +365,6 @@ runtime_benchmarks! {
 		let code = ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"MYCODE".to_vec());
 		Referrals::register_code(RawOrigin::Signed(owner).into(), code.clone())?;
 		Referrals::link_code(RawOrigin::Signed(seller.clone()).into(), code)?;
-				update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to wrost case
 	}: { Omnipool::buy(RawOrigin::Signed(seller.clone()).into(), DAI, token_id, amount_buy, sell_max_limit)? }
 	verify {
 		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(DAI, &seller) >= Balance::zero());

@@ -1207,6 +1207,8 @@ mod circuit_breaker {
 			let trapped_event = &last_hydra_events(10)[3].clone();
 			let trapped_amount = get_trapped_amount(trapped_event);
 
+			assert_trapped_acala_token(trapped_event, 89893499361959u128);
+
 			let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
 
 			assert!(trapped_amount > 0, "assets should be trapped, not lost");
