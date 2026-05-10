@@ -945,9 +945,12 @@ pub mod pallet {
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let _ = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
 
-			AssetTradability::<T>::mutate(pool_id, asset_id, |current_state| {
-				*current_state = state;
-			});
+			// If the state is the default, we remove the entry to save storage.
+			if state == Tradability::default() {
+				AssetTradability::<T>::remove(pool_id, asset_id);
+			} else {
+				AssetTradability::<T>::insert(pool_id, asset_id, state);
+			}
 
 			Self::deposit_event(Event::TradableStateUpdated {
 				pool_id,
