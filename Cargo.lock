@@ -13871,6 +13871,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
+ "pallet-proxy",
  "pallet-referenda",
  "pallet-referrals",
  "pallet-relaychain-info",
