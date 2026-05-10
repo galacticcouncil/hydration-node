@@ -478,18 +478,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ark-bls12-377-ext"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20c7021f180a0cbea0380eba97c2af3c57074cdaffe0eef7e840e1c9f2841e55"
-dependencies = [
- "ark-bls12-377",
- "ark-ec 0.4.2",
- "ark-models-ext",
- "ark-std 0.4.0",
-]
-
-[[package]]
 name = "ark-bls12-381"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -514,45 +502,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ark-bls12-381-ext"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1dc4b3d08f19e8ec06e949712f95b8361e43f1391d94f65e4234df03480631c"
-dependencies = [
- "ark-bls12-381 0.4.0",
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-models-ext",
- "ark-serialize 0.4.2",
- "ark-std 0.4.0",
-]
-
-[[package]]
-name = "ark-bw6-761"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e0605daf0cc5aa2034b78d008aaf159f56901d92a52ee4f6ecdfdac4f426700"
-dependencies = [
- "ark-bls12-377",
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-std 0.4.0",
-]
-
-[[package]]
-name = "ark-bw6-761-ext"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccee5fba47266f460067588ee1bf070a9c760bf2050c1c509982c5719aadb4f2"
-dependencies = [
- "ark-bw6-761",
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-models-ext",
- "ark-std 0.4.0",
-]
-
-[[package]]
 name = "ark-ec"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -566,7 +515,6 @@ dependencies = [
  "hashbrown 0.13.2",
  "itertools 0.10.5",
  "num-traits",
- "rayon",
  "zeroize",
 ]
 
@@ -588,45 +536,7 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
- "rayon",
  "zeroize",
-]
-
-[[package]]
-name = "ark-ed-on-bls12-377"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b10d901b9ac4b38f9c32beacedfadcdd64e46f8d7f8e88c1ae1060022cf6f6c6"
-dependencies = [
- "ark-bls12-377",
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-std 0.4.0",
-]
-
-[[package]]
-name = "ark-ed-on-bls12-377-ext"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "524a4fb7540df2e1a8c2e67a83ba1d1e6c3947f4f9342cc2359fc2e789ad731d"
-dependencies = [
- "ark-ec 0.4.2",
- "ark-ed-on-bls12-377",
- "ark-ff 0.4.2",
- "ark-models-ext",
- "ark-std 0.4.0",
-]
-
-[[package]]
-name = "ark-ed-on-bls12-381-bandersnatch"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9cde0f2aa063a2a5c28d39b47761aa102bda7c13c84fc118a61b87c7b2f785c"
-dependencies = [
- "ark-bls12-381 0.4.0",
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-std 0.4.0",
 ]
 
 [[package]]
@@ -639,19 +549,6 @@ dependencies = [
  "ark-ec 0.5.0",
  "ark-ff 0.5.0",
  "ark-std 0.5.0",
-]
-
-[[package]]
-name = "ark-ed-on-bls12-381-bandersnatch-ext"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d15185f1acb49a07ff8cbe5f11a1adc5a93b19e211e325d826ae98e98e124346"
-dependencies = [
- "ark-ec 0.4.2",
- "ark-ed-on-bls12-381-bandersnatch 0.4.0",
- "ark-ff 0.4.2",
- "ark-models-ext",
- "ark-std 0.4.0",
 ]
 
 [[package]]
@@ -709,7 +606,6 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "paste",
- "rayon",
  "zeroize",
 ]
 
@@ -782,19 +678,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ark-models-ext"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e9eab5d4b5ff2f228b763d38442adc9b084b0a465409b059fac5c2308835ec2"
-dependencies = [
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-serialize 0.4.2",
- "ark-std 0.4.0",
- "derivative",
-]
-
-[[package]]
 name = "ark-poly"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -820,33 +703,6 @@ dependencies = [
  "educe",
  "fnv",
  "hashbrown 0.15.5",
- "rayon",
-]
-
-[[package]]
-name = "ark-scale"
-version = "0.0.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f69c00b3b529be29528a6f2fd5fa7b1790f8bed81b9cdca17e326538545a179"
-dependencies = [
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-serialize 0.4.2",
- "ark-std 0.4.0",
- "parity-scale-codec",
- "scale-info",
-]
-
-[[package]]
-name = "ark-scale"
-version = "0.0.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "985c81a9c7b23a72f62b7b20686d5326d2a9956806f37de9ee35cb1238faf0c0"
-dependencies = [
- "ark-serialize 0.5.0",
- "ark-std 0.5.0",
- "parity-scale-codec",
- "scale-info",
 ]
 
 [[package]]
@@ -882,7 +738,6 @@ dependencies = [
  "arrayvec 0.7.4",
  "digest 0.10.7",
  "num-bigint",
- "rayon",
 ]
 
 [[package]]
@@ -925,7 +780,6 @@ checksum = "94893f1e0c6eeab764ade8dc4c0db24caf4fe7cbbaafc0eba0a9030f447b5185"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
- "rayon",
 ]
 
 [[package]]
@@ -936,7 +790,6 @@ checksum = "246a225cc6131e9ee4f24619af0f19d67761fff15d7ccc22e42b80846e69449a"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
- "rayon",
 ]
 
 [[package]]
@@ -961,13 +814,12 @@ checksum = "9501da18569b2afe0eb934fb7afd5a247d238b94116155af4dd068f319adfe6d"
 dependencies = [
  "ark-bls12-381 0.5.0",
  "ark-ec 0.5.0",
- "ark-ed-on-bls12-381-bandersnatch 0.5.0",
+ "ark-ed-on-bls12-381-bandersnatch",
  "ark-ff 0.5.0",
  "ark-serialize 0.5.0",
  "ark-std 0.5.0",
  "digest 0.10.7",
  "rand_chacha 0.3.1",
- "rayon",
  "sha2 0.10.8",
  "w3f-ring-proof",
  "zeroize",
@@ -1082,63 +934,6 @@ name = "assert_matches"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
-
-[[package]]
-name = "asset-test-utils"
-version = "24.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "cumulus-pallet-parachain-system",
- "cumulus-pallet-xcmp-queue",
- "cumulus-primitives-core",
- "frame-support",
- "frame-system",
- "pallet-asset-conversion",
- "pallet-assets",
- "pallet-balances",
- "pallet-collator-selection",
- "pallet-session",
- "pallet-timestamp",
- "pallet-xcm",
- "pallet-xcm-bridge-hub-router",
- "parachains-common",
- "parachains-runtimes-test-utils",
- "parity-scale-codec",
- "sp-io",
- "sp-runtime",
- "staging-parachain-info",
- "staging-xcm",
- "staging-xcm-builder",
- "staging-xcm-executor",
- "xcm-runtime-apis",
-]
-
-[[package]]
-name = "assets-common"
-version = "0.22.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "cumulus-primitives-core",
- "ethereum-standards",
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "pallet-asset-conversion",
- "pallet-assets",
- "pallet-revive",
- "pallet-revive-uapi",
- "pallet-xcm",
- "parachains-common",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
- "sp-core",
- "sp-runtime",
- "staging-xcm",
- "staging-xcm-builder",
- "staging-xcm-executor",
- "tracing",
-]
 
 [[package]]
 name = "async-channel"
@@ -1482,7 +1277,7 @@ checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 [[package]]
 name = "binary-merkle-tree"
 version = "16.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "hash-db",
  "log",
@@ -1745,18 +1540,6 @@ dependencies = [
 
 [[package]]
 name = "bounded-collections"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca548b6163b872067dc5eb82fd130c56881435e30367d2073594a3d9744120dd"
-dependencies = [
- "log",
- "parity-scale-codec",
- "scale-info",
- "serde",
-]
-
-[[package]]
-name = "bounded-collections"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64ad8a0bed7827f0b07a5d23cec2e58cc02038a99e4ca81616cb2bb2025f804d"
@@ -1777,252 +1560,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "bp-header-chain"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-runtime",
- "finality-grandpa",
- "frame-support",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-consensus-grandpa",
- "sp-core",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "bp-messages"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-header-chain",
- "bp-runtime",
- "frame-support",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-std",
-]
-
-[[package]]
-name = "bp-parachains"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-header-chain",
- "bp-polkadot-core",
- "bp-runtime",
- "frame-support",
- "impl-trait-for-tuples",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "bp-polkadot-core"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-messages",
- "bp-runtime",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "bp-relayers"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-header-chain",
- "bp-messages",
- "bp-parachains",
- "bp-runtime",
- "frame-support",
- "frame-system",
- "pallet-utility",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "bp-runtime"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-support",
- "frame-system",
- "hash-db",
- "impl-trait-for-tuples",
- "log",
- "num-traits",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-state-machine",
- "sp-std",
- "sp-trie",
- "trie-db",
-]
-
-[[package]]
-name = "bp-test-utils"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-header-chain",
- "bp-parachains",
- "bp-polkadot-core",
- "bp-runtime",
- "ed25519-dalek",
- "finality-grandpa",
- "parity-scale-codec",
- "sp-application-crypto",
- "sp-consensus-grandpa",
- "sp-core",
- "sp-runtime",
- "sp-std",
- "sp-trie",
-]
-
-[[package]]
-name = "bp-xcm-bridge-hub"
-version = "0.7.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-messages",
- "bp-runtime",
- "frame-support",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-std",
- "staging-xcm",
-]
-
-[[package]]
 name = "bp-xcm-bridge-hub-router"
 version = "0.18.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-core",
  "sp-runtime",
  "staging-xcm",
-]
-
-[[package]]
-name = "bridge-hub-common"
-version = "0.14.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "cumulus-primitives-core",
- "frame-support",
- "pallet-message-queue",
- "parity-scale-codec",
- "scale-info",
- "snowbridge-core",
- "sp-core",
- "sp-runtime",
- "sp-std",
- "staging-xcm",
- "staging-xcm-builder",
- "staging-xcm-executor",
-]
-
-[[package]]
-name = "bridge-hub-test-utils"
-version = "0.23.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "asset-test-utils",
- "bp-header-chain",
- "bp-messages",
- "bp-parachains",
- "bp-polkadot-core",
- "bp-relayers",
- "bp-runtime",
- "bp-test-utils",
- "cumulus-pallet-parachain-system",
- "cumulus-pallet-xcmp-queue",
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "log",
- "pallet-balances",
- "pallet-bridge-grandpa",
- "pallet-bridge-messages",
- "pallet-bridge-parachains",
- "pallet-bridge-relayers",
- "pallet-timestamp",
- "pallet-utility",
- "pallet-xcm",
- "pallet-xcm-bridge-hub",
- "parachains-common",
- "parachains-runtimes-test-utils",
- "parity-scale-codec",
- "sp-core",
- "sp-io",
- "sp-keyring",
- "sp-runtime",
- "sp-std",
- "sp-tracing",
- "staging-xcm",
- "staging-xcm-builder",
- "staging-xcm-executor",
-]
-
-[[package]]
-name = "bridge-runtime-common"
-version = "0.22.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-header-chain",
- "bp-messages",
- "bp-parachains",
- "bp-polkadot-core",
- "bp-relayers",
- "bp-runtime",
- "frame-support",
- "frame-system",
- "log",
- "pallet-bridge-grandpa",
- "pallet-bridge-messages",
- "pallet-bridge-parachains",
- "pallet-bridge-relayers",
- "pallet-transaction-payment",
- "pallet-utility",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "sp-trie",
- "sp-weights",
- "staging-xcm",
- "tuplex",
 ]
 
 [[package]]
@@ -2416,27 +1962,6 @@ checksum = "3538270d33cc669650c4b093848450d380def10c331d38c768e34cac80576e6e"
 dependencies = [
  "termcolor",
  "unicode-width 0.1.11",
-]
-
-[[package]]
-name = "color-print"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3aa954171903797d5623e047d9ab69d91b493657917bdfb8c2c80ecaf9cdb6f4"
-dependencies = [
- "color-print-proc-macro",
-]
-
-[[package]]
-name = "color-print-proc-macro"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "692186b5ebe54007e45a59aea47ece9eb4108e141326c304cdc91699a7118a22"
-dependencies = [
- "nom",
- "proc-macro2",
- "quote",
- "syn 2.0.112",
 ]
 
 [[package]]
@@ -2889,19 +2414,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crypto-utils"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "514fc341c51e110011423c9513dd1a37a12575cf134855d7ad66a8f2fb5b7ab7"
-dependencies = [
- "anyhow",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
-]
-
-[[package]]
 name = "crypto_secretbox"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2928,7 +2440,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-bootnodes"
 version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -2954,7 +2466,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-cli"
 version = "0.24.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "clap",
  "parity-scale-codec",
@@ -2971,7 +2483,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-collator"
 version = "0.24.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cumulus-client-consensus-common",
  "cumulus-client-network",
@@ -2994,7 +2506,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-aura"
 version = "0.24.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "cumulus-client-collator",
@@ -3041,7 +2553,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-common"
 version = "0.24.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "cumulus-client-pov-recovery",
@@ -3073,7 +2585,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-proposer"
 version = "0.20.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3086,32 +2598,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "cumulus-client-consensus-relay-chain"
-version = "0.24.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "async-trait",
- "cumulus-client-consensus-common",
- "cumulus-primitives-core",
- "cumulus-relay-chain-interface",
- "futures",
- "parking_lot 0.12.3",
- "sc-consensus",
- "sp-api",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-inherents",
- "sp-runtime",
- "substrate-prometheus-endpoint",
- "tracing",
-]
-
-[[package]]
 name = "cumulus-client-network"
 version = "0.24.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "cumulus-relay-chain-interface",
@@ -3138,7 +2627,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-parachain-inherent"
 version = "0.18.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -3159,7 +2648,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-pov-recovery"
 version = "0.24.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -3187,7 +2676,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-service"
 version = "0.25.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-channel 1.9.0",
  "cumulus-client-cli",
@@ -3228,7 +2717,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-aura-ext"
 version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "frame-support",
@@ -3243,26 +2732,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "cumulus-pallet-dmp-queue"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "cumulus-primitives-core",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
- "staging-xcm",
-]
-
-[[package]]
 name = "cumulus-pallet-parachain-system"
 version = "0.21.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "bytes",
@@ -3300,7 +2772,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-parachain-system-proc-macro"
 version = "0.6.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
@@ -3309,37 +2781,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "cumulus-pallet-session-benchmarking"
-version = "22.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-session",
- "parity-scale-codec",
- "sp-runtime",
-]
-
-[[package]]
-name = "cumulus-pallet-solo-to-para"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "cumulus-pallet-parachain-system",
- "frame-support",
- "frame-system",
- "pallet-sudo",
- "parity-scale-codec",
- "polkadot-primitives",
- "scale-info",
- "sp-runtime",
-]
-
-[[package]]
 name = "cumulus-pallet-weight-reclaim"
 version = "0.3.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cumulus-primitives-storage-weight-reclaim",
  "derive-where",
@@ -3358,7 +2802,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-xcm"
 version = "0.20.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -3373,10 +2817,10 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-xcmp-queue"
 version = "0.21.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "approx",
- "bounded-collections 0.2.4",
+ "bounded-collections",
  "bp-xcm-bridge-hub-router",
  "cumulus-primitives-core",
  "frame-benchmarking",
@@ -3397,24 +2841,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "cumulus-ping"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "cumulus-pallet-xcm",
- "cumulus-primitives-core",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "staging-xcm",
-]
-
-[[package]]
 name = "cumulus-primitives-aura"
 version = "0.18.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "sp-api",
  "sp-consensus-aura",
@@ -3423,7 +2852,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-core"
 version = "0.19.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "polkadot-core-primitives",
@@ -3440,7 +2869,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-parachain-inherent"
 version = "0.19.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -3454,7 +2883,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-proof-size-hostfunction"
 version = "0.13.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "sp-externalities",
  "sp-runtime-interface",
@@ -3464,7 +2893,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-storage-weight-reclaim"
 version = "12.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cumulus-primitives-core",
  "cumulus-primitives-proof-size-hostfunction",
@@ -3481,7 +2910,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-timestamp"
 version = "0.20.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cumulus-primitives-core",
  "sp-inherents",
@@ -3491,7 +2920,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-utility"
 version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -3508,7 +2937,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-inprocess-interface"
 version = "0.25.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-channel 1.9.0",
  "async-trait",
@@ -3536,7 +2965,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-interface"
 version = "0.24.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -3556,7 +2985,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-minimal-node"
 version = "0.25.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -3592,7 +3021,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-rpc-interface"
 version = "0.24.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -3633,7 +3062,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-streams"
 version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cumulus-relay-chain-interface",
  "futures",
@@ -3647,7 +3076,7 @@ dependencies = [
 [[package]]
 name = "cumulus-test-relay-sproof-builder"
 version = "0.20.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cumulus-primitives-core",
  "parity-scale-codec",
@@ -3970,7 +3399,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.112",
- "unicode-xid",
 ]
 
 [[package]]
@@ -4417,7 +3845,7 @@ dependencies = [
 [[package]]
 name = "ethereum-standards"
 version = "0.1.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "alloy-core",
 ]
@@ -4922,7 +4350,7 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 [[package]]
 name = "fork-tree"
 version = "13.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
 ]
@@ -4934,17 +4362,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
-]
-
-[[package]]
-name = "fortuples"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87630a8087e9cac4b7edfb6ee5e250ddca9112b57b6b17d8f5107375a3a8eace"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -5060,7 +4477,7 @@ checksum = "6c2141d6d6c8512188a7891b4b01590a45f6dac67afb4f255c4124dbb86d4eaa"
 [[package]]
 name = "frame-benchmarking"
 version = "41.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-support-procedural",
@@ -5084,7 +4501,7 @@ dependencies = [
 [[package]]
 name = "frame-benchmarking-cli"
 version = "49.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "Inflector",
  "array-bytes 6.2.2",
@@ -5147,20 +4564,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "frame-benchmarking-pallet-pov"
-version = "31.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "frame-decode"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5177,7 +4580,7 @@ dependencies = [
 [[package]]
 name = "frame-election-provider-solution-type"
 version = "16.1.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
@@ -5188,7 +4591,7 @@ dependencies = [
 [[package]]
 name = "frame-election-provider-support"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-election-provider-solution-type",
  "frame-support",
@@ -5205,7 +4608,7 @@ dependencies = [
 [[package]]
 name = "frame-executive"
 version = "41.0.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "aquamarine",
  "frame-support",
@@ -5247,7 +4650,7 @@ dependencies = [
 [[package]]
 name = "frame-metadata-hash-extension"
 version = "0.9.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "const-hex",
@@ -5263,7 +4666,7 @@ dependencies = [
 [[package]]
 name = "frame-remote-externalities"
 version = "0.52.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "indicatif",
@@ -5285,7 +4688,7 @@ dependencies = [
 [[package]]
 name = "frame-storage-access-test-runtime"
 version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "parity-scale-codec",
@@ -5299,7 +4702,7 @@ dependencies = [
 [[package]]
 name = "frame-support"
 version = "41.0.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "aquamarine",
  "array-bytes 6.2.2",
@@ -5340,7 +4743,7 @@ dependencies = [
 [[package]]
 name = "frame-support-procedural"
 version = "34.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "Inflector",
  "cfg-expr",
@@ -5360,7 +4763,7 @@ dependencies = [
 [[package]]
 name = "frame-support-procedural-tools"
 version = "13.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support-procedural-tools-derive",
  "proc-macro-crate 3.1.0",
@@ -5372,7 +4775,7 @@ dependencies = [
 [[package]]
 name = "frame-support-procedural-tools-derive"
 version = "12.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5382,7 +4785,7 @@ dependencies = [
 [[package]]
 name = "frame-system"
 version = "41.0.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cfg-if",
  "docify",
@@ -5401,7 +4804,7 @@ dependencies = [
 [[package]]
 name = "frame-system-benchmarking"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5415,7 +4818,7 @@ dependencies = [
 [[package]]
 name = "frame-system-rpc-runtime-api"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "parity-scale-codec",
@@ -5425,7 +4828,7 @@ dependencies = [
 [[package]]
 name = "frame-try-runtime"
 version = "0.47.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -6230,7 +5633,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.0.1"
+version = "15.0.2"
 dependencies = [
  "async-trait",
  "clap",
@@ -6265,7 +5668,6 @@ dependencies = [
  "hydradx-runtime",
  "hyper 0.14.31",
  "hyper-rustls 0.24.2",
- "ismp-parachain-inherent",
  "jsonrpsee",
  "kvdb-rocksdb",
  "liquidation-worker-support",
@@ -6275,8 +5677,6 @@ dependencies = [
  "pallet-currencies-rpc-runtime-api",
  "pallet-ethereum",
  "pallet-evm",
- "pallet-ismp-rpc",
- "pallet-ismp-runtime-api",
  "pallet-liquidation",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
@@ -6379,11 +5779,8 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "412.0.0"
+version = "416.0.0"
 dependencies = [
- "alloy-primitives 0.7.7",
- "alloy-sol-types 0.7.7",
- "anyhow",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-weight-reclaim",
@@ -6414,9 +5811,6 @@ dependencies = [
  "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
- "ismp",
- "ismp-parachain",
- "ismp-parachain-runtime-api",
  "log",
  "module-evm-utility-macro",
  "num_enum",
@@ -6468,10 +5862,7 @@ dependencies = [
  "pallet-evm-precompile-simple",
  "pallet-genesis-history",
  "pallet-hsm",
- "pallet-hyperbridge",
  "pallet-identity",
- "pallet-ismp",
- "pallet-ismp-runtime-api",
  "pallet-lbp",
  "pallet-liquidation",
  "pallet-liquidity-mining",
@@ -6497,7 +5888,6 @@ dependencies = [
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
- "pallet-token-gateway",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
  "pallet-transaction-payment",
@@ -7039,70 +6429,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa9acdc6d67b75e626ad644734e8bc6df893d9cd2a834129065d3dd6158ea9c8"
 dependencies = [
  "winapi",
-]
-
-[[package]]
-name = "ismp"
-version = "2506.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8f1cd20eebb8fb65488b11ad07a5c8df192a08ff9240227fa0bf75f3ca42de6"
-dependencies = [
- "anyhow",
- "derive_more 1.0.0",
- "displaydoc",
- "hex",
- "parity-scale-codec",
- "primitive-types 0.13.1",
- "scale-info",
- "serde",
- "serde-hex-utils",
- "sp-weights",
- "thiserror 2.0.17",
-]
-
-[[package]]
-name = "ismp-parachain"
-version = "2506.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fdd4547cceef3de1bed01667fab778c79cc3f0f043c8e7212e757112c564260"
-dependencies = [
- "hex",
- "hex-literal",
- "ismp",
- "log",
- "pallet-ismp",
- "parity-scale-codec",
- "polkadot-sdk",
- "primitive-types 0.13.1",
- "scale-info",
- "serde",
- "substrate-state-machine",
-]
-
-[[package]]
-name = "ismp-parachain-inherent"
-version = "2506.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c4f02c3dbcd9be1c0cbabe6499c0758b2c784a2e374b6a8954a12ad2f67308b"
-dependencies = [
- "anyhow",
- "async-trait",
- "ismp",
- "ismp-parachain",
- "ismp-parachain-runtime-api",
- "log",
- "pallet-ismp-runtime-api",
- "parity-scale-codec",
- "polkadot-sdk",
-]
-
-[[package]]
-name = "ismp-parachain-runtime-api"
-version = "2506.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af29d238eee628863bf181cb568ecb5a94b37e836081679de406e0734deefd85"
-dependencies = [
- "polkadot-sdk",
 ]
 
 [[package]]
@@ -8454,7 +7780,7 @@ dependencies = [
 [[package]]
 name = "mmr-gadget"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "log",
@@ -8473,7 +7799,7 @@ dependencies = [
 [[package]]
 name = "mmr-rpc"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "jsonrpsee",
  "parity-scale-codec",
@@ -9295,29 +8621,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
-name = "pallet-alliance"
-version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "array-bytes 6.2.2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-collective",
- "pallet-identity",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-crypto-hashing",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-asset-conversion"
 version = "23.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9333,42 +8639,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-asset-conversion-ops"
-version = "0.9.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-asset-conversion",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-asset-conversion-tx-payment"
-version = "23.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-asset-conversion",
- "pallet-transaction-payment",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-asset-rate"
 version = "20.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9409,27 +8682,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-asset-rewards"
-version = "0.3.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-asset-tx-payment"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9445,7 +8700,7 @@ dependencies = [
 [[package]]
 name = "pallet-assets"
 version = "43.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "ethereum-standards",
  "frame-benchmarking",
@@ -9461,46 +8716,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-assets-freezer"
-version = "0.8.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "log",
- "pallet-assets",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
-]
-
-[[package]]
-name = "pallet-assets-holder"
-version = "0.3.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-assets",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-atomic-swap"
-version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
-]
-
-[[package]]
 name = "pallet-aura"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9516,7 +8734,7 @@ dependencies = [
 [[package]]
 name = "pallet-authority-discovery"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9531,7 +8749,7 @@ dependencies = [
 [[package]]
 name = "pallet-authorship"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9544,7 +8762,7 @@ dependencies = [
 [[package]]
 name = "pallet-babe"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9567,7 +8785,7 @@ dependencies = [
 [[package]]
 name = "pallet-bags-list"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "aquamarine",
  "docify",
@@ -9588,7 +8806,7 @@ dependencies = [
 [[package]]
 name = "pallet-balances"
 version = "42.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -9604,7 +8822,7 @@ dependencies = [
 [[package]]
 name = "pallet-beefy"
 version = "42.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9623,7 +8841,7 @@ dependencies = [
 [[package]]
 name = "pallet-beefy-mmr"
 version = "42.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "binary-merkle-tree",
@@ -9672,7 +8890,7 @@ dependencies = [
 [[package]]
 name = "pallet-bounties"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9683,87 +8901,6 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-bridge-grandpa"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-header-chain",
- "bp-runtime",
- "bp-test-utils",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-consensus-grandpa",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-bridge-messages"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-header-chain",
- "bp-messages",
- "bp-runtime",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std",
- "sp-trie",
-]
-
-[[package]]
-name = "pallet-bridge-parachains"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-header-chain",
- "bp-parachains",
- "bp-polkadot-core",
- "bp-runtime",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-bridge-grandpa",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-bridge-relayers"
-version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-header-chain",
- "bp-messages",
- "bp-relayers",
- "bp-runtime",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-bridge-grandpa",
- "pallet-bridge-messages",
- "pallet-bridge-parachains",
- "pallet-transaction-payment",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
  "sp-runtime",
 ]
 
@@ -9790,7 +8927,7 @@ dependencies = [
 [[package]]
 name = "pallet-broker"
 version = "0.20.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bitvec",
  "frame-benchmarking",
@@ -9808,7 +8945,7 @@ dependencies = [
 [[package]]
 name = "pallet-child-bounties"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9917,7 +9054,7 @@ dependencies = [
 [[package]]
 name = "pallet-collator-selection"
 version = "22.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9936,7 +9073,7 @@ dependencies = [
 [[package]]
 name = "pallet-collective"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -9951,106 +9088,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-collective-content"
-version = "0.19.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-contracts"
-version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "environmental",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "log",
- "pallet-balances",
- "pallet-contracts-proc-macro",
- "pallet-contracts-uapi",
- "parity-scale-codec",
- "paste",
- "rand 0.8.5",
- "rand_pcg",
- "scale-info",
- "serde",
- "smallvec",
- "sp-api",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "staging-xcm",
- "staging-xcm-builder",
- "wasm-instrument",
- "wasmi 0.32.3",
-]
-
-[[package]]
-name = "pallet-contracts-mock-network"
-version = "18.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-assets",
- "pallet-balances",
- "pallet-contracts",
- "pallet-contracts-uapi",
- "pallet-message-queue",
- "pallet-timestamp",
- "pallet-xcm",
- "parity-scale-codec",
- "polkadot-parachain-primitives",
- "polkadot-primitives",
- "polkadot-runtime-parachains",
- "scale-info",
- "sp-api",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-tracing",
- "staging-xcm",
- "staging-xcm-builder",
- "staging-xcm-executor",
- "xcm-simulator",
-]
-
-[[package]]
-name = "pallet-contracts-proc-macro"
-version = "23.0.3"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.112",
-]
-
-[[package]]
-name = "pallet-contracts-uapi"
-version = "14.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bitflags 1.3.2",
- "parity-scale-codec",
- "paste",
- "scale-info",
-]
-
-[[package]]
 name = "pallet-conviction-voting"
 version = "41.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "assert_matches",
  "frame-benchmarking",
@@ -10059,24 +9099,6 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-core-fellowship"
-version = "25.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-ranked-collective",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
  "sp-io",
  "sp-runtime",
 ]
@@ -10158,7 +9180,7 @@ dependencies = [
 [[package]]
 name = "pallet-delegated-staking"
 version = "8.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10193,7 +9215,7 @@ dependencies = [
 [[package]]
 name = "pallet-democracy"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10208,23 +9230,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-dev-mode"
-version = "23.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-dispatcher"
-version = "1.7.2"
+version = "1.7.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10273,24 +9280,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-dummy-dim"
-version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
 ]
 
 [[package]]
@@ -10375,30 +9364,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-election-provider-multi-block"
-version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-election-provider-support",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "rand 0.8.5",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-npos-elections",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-election-provider-multi-phase"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -10419,7 +9387,7 @@ dependencies = [
 [[package]]
 name = "pallet-election-provider-support-benchmarking"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -10432,7 +9400,7 @@ dependencies = [
 [[package]]
 name = "pallet-elections-phragmen"
 version = "42.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10672,7 +9640,7 @@ dependencies = [
 [[package]]
 name = "pallet-fast-unstake"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -10706,27 +9674,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-glutton"
-version = "27.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "blake2 0.10.6",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-inherents",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-grandpa"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10782,24 +9732,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-hyperbridge"
-version = "2506.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0440d94f915fb973720c1396c03fd47fa692b4e1595572f6e7f15691863f2b68"
-dependencies = [
- "anyhow",
- "ismp",
- "pallet-ismp",
- "parity-scale-codec",
- "polkadot-sdk",
- "primitive-types 0.13.1",
- "scale-info",
-]
-
-[[package]]
 name = "pallet-identity"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "enumflags2",
  "frame-benchmarking",
@@ -10815,7 +9750,7 @@ dependencies = [
 [[package]]
 name = "pallet-im-online"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10834,7 +9769,7 @@ dependencies = [
 [[package]]
 name = "pallet-indices"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10844,72 +9779,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
-]
-
-[[package]]
-name = "pallet-insecure-randomness-collective-flip"
-version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "safe-mix",
- "scale-info",
-]
-
-[[package]]
-name = "pallet-ismp"
-version = "2506.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e349558d26b93aa09c8155419a4751ac23a97d62ca194c46531b68ee7466033"
-dependencies = [
- "anyhow",
- "crypto-utils",
- "fortuples",
- "impl-trait-for-tuples",
- "ismp",
- "log",
- "parity-scale-codec",
- "polkadot-sdk",
- "scale-info",
- "serde",
- "sp-io",
-]
-
-[[package]]
-name = "pallet-ismp-rpc"
-version = "2506.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f554fd8c35b0dfc503c89c899cbc7b766ba48b6c12ba0441923aec21909f72f"
-dependencies = [
- "anyhow",
- "hash-db",
- "hex",
- "hex-literal",
- "ismp",
- "jsonrpsee",
- "pallet-ismp",
- "pallet-ismp-runtime-api",
- "parity-scale-codec",
- "polkadot-sdk",
- "serde",
- "serde_json",
- "tower",
- "trie-db",
-]
-
-[[package]]
-name = "pallet-ismp-runtime-api"
-version = "2506.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f86e41f489298d973c93efae8bc85c10b7fad9a114df8674c626418d8b5b092d"
-dependencies = [
- "ismp",
- "pallet-ismp",
- "parity-scale-codec",
- "polkadot-sdk",
- "primitive-types 0.13.1",
- "serde",
 ]
 
 [[package]]
@@ -11012,38 +9881,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-lottery"
-version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-membership"
-version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-message-queue"
 version = "44.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "environmental",
  "frame-benchmarking",
@@ -11062,7 +9902,7 @@ dependencies = [
 [[package]]
 name = "pallet-meta-tx"
 version = "0.3.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -11080,7 +9920,7 @@ dependencies = [
 [[package]]
 name = "pallet-migrations"
 version = "11.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -11097,23 +9937,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-mixnet"
-version = "0.17.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "log",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
- "serde",
- "sp-application-crypto",
- "sp-mixnet",
-]
-
-[[package]]
 name = "pallet-mmr"
-version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+version = "41.0.1"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "log",
  "parity-scale-codec",
@@ -11125,7 +9951,7 @@ dependencies = [
 [[package]]
 name = "pallet-multisig"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "log",
  "parity-scale-codec",
@@ -11154,60 +9980,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-nft-fractionalization"
-version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "log",
- "pallet-assets",
- "pallet-nfts",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
-]
-
-[[package]]
-name = "pallet-nfts"
-version = "35.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "enumflags2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-nfts-runtime-api"
-version = "27.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "parity-scale-codec",
- "sp-api",
-]
-
-[[package]]
 name = "pallet-nis"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
-]
-
-[[package]]
-name = "pallet-node-authorization"
-version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "log",
  "parity-scale-codec",
  "polkadot-sdk-frame",
  "scale-info",
@@ -11216,7 +9992,7 @@ dependencies = [
 [[package]]
 name = "pallet-nomination-pools"
 version = "39.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -11234,7 +10010,7 @@ dependencies = [
 [[package]]
 name = "pallet-nomination-pools-benchmarking"
 version = "39.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -11254,7 +10030,7 @@ dependencies = [
 [[package]]
 name = "pallet-nomination-pools-runtime-api"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "pallet-nomination-pools",
  "parity-scale-codec",
@@ -11264,7 +10040,7 @@ dependencies = [
 [[package]]
 name = "pallet-offences"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -11279,7 +10055,7 @@ dependencies = [
 [[package]]
 name = "pallet-offences-benchmarking"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -11301,7 +10077,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "7.3.1"
+version = "7.4.0"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -11360,24 +10136,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-origin-restriction"
-version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-transaction-payment",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-otc"
 version = "2.4.0"
 dependencies = [
@@ -11432,21 +10190,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-paged-list"
-version = "0.19.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "docify",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
- "sp-metadata-ir",
-]
-
-[[package]]
 name = "pallet-parameters"
 version = "0.12.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -11475,27 +10221,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-people"
-version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "verifiable",
-]
-
-[[package]]
 name = "pallet-preimage"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11511,7 +10239,7 @@ dependencies = [
 [[package]]
 name = "pallet-proxy"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
@@ -11521,7 +10249,7 @@ dependencies = [
 [[package]]
 name = "pallet-ranked-collective"
 version = "41.0.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11539,7 +10267,7 @@ dependencies = [
 [[package]]
 name = "pallet-recovery"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
@@ -11549,7 +10277,7 @@ dependencies = [
 [[package]]
 name = "pallet-referenda"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "assert_matches",
  "frame-benchmarking",
@@ -11601,25 +10329,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-remark"
-version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-revive"
 version = "0.7.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "alloy-core",
  "derive_more 0.99.20",
@@ -11665,7 +10377,7 @@ dependencies = [
 [[package]]
 name = "pallet-revive-fixtures"
 version = "0.4.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -11679,7 +10391,7 @@ dependencies = [
 [[package]]
 name = "pallet-revive-proc-macro"
 version = "0.3.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -11689,7 +10401,7 @@ dependencies = [
 [[package]]
 name = "pallet-revive-uapi"
 version = "0.5.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bitflags 1.3.2",
  "pallet-revive-proc-macro",
@@ -11699,25 +10411,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-root-offences"
-version = "38.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-session",
- "pallet-staking 41.0.0",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-runtime",
- "sp-staking",
-]
-
-[[package]]
 name = "pallet-root-testing"
 version = "17.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -11755,35 +10451,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-safe-mode"
-version = "22.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "docify",
- "pallet-balances",
- "pallet-proxy",
- "pallet-utility",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
-]
-
-[[package]]
-name = "pallet-salary"
-version = "26.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "log",
- "pallet-ranked-collective",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
-]
-
-[[package]]
 name = "pallet-scheduler"
 version = "42.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -11798,22 +10468,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-scored-pool"
-version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-session"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -11834,7 +10491,7 @@ dependencies = [
 [[package]]
 name = "pallet-session-benchmarking"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11866,21 +10523,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-skip-feeless-payment"
-version = "16.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-society"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11896,7 +10541,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "7.3.1"
+version = "7.4.1"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -11956,7 +10601,7 @@ dependencies = [
 [[package]]
 name = "pallet-staking"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -11976,32 +10621,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-staking-async"
-version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-benchmarking",
- "frame-election-provider-support",
- "frame-support",
- "frame-system",
- "log",
- "pallet-staking-async-rc-client",
- "parity-scale-codec",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "scale-info",
- "serde",
- "sp-application-crypto",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-staking",
-]
-
-[[package]]
 name = "pallet-staking-async-ah-client"
 version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -12020,7 +10642,7 @@ dependencies = [
 [[package]]
 name = "pallet-staking-async-rc-client"
 version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -12035,28 +10657,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-staking-async-reward-fn"
-version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "log",
- "sp-arithmetic",
-]
-
-[[package]]
-name = "pallet-staking-async-runtime-api"
-version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "parity-scale-codec",
- "sp-api",
- "sp-staking",
-]
-
-[[package]]
 name = "pallet-staking-reward-fn"
 version = "23.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "log",
  "sp-arithmetic",
@@ -12065,7 +10668,7 @@ dependencies = [
 [[package]]
 name = "pallet-staking-runtime-api"
 version = "27.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "sp-api",
@@ -12075,7 +10678,7 @@ dependencies = [
 [[package]]
 name = "pallet-state-trie-migration"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12089,26 +10692,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-statement"
-version = "23.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-statement-store",
-]
-
-[[package]]
 name = "pallet-sudo"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -12123,7 +10709,7 @@ dependencies = [
 [[package]]
 name = "pallet-timestamp"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -12141,7 +10727,7 @@ dependencies = [
 [[package]]
 name = "pallet-tips"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12154,27 +10740,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
-]
-
-[[package]]
-name = "pallet-token-gateway"
-version = "2506.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dbd41aebeb53387e8deb8ee1f42fc6778221c44666996baa18a4674159747c2"
-dependencies = [
- "alloy-primitives 0.7.7",
- "alloy-sol-macro 0.7.7",
- "alloy-sol-types 0.7.7",
- "anyhow",
- "ismp",
- "log",
- "pallet-hyperbridge",
- "pallet-ismp",
- "parity-scale-codec",
- "polkadot-sdk",
- "primitive-types 0.13.1",
- "scale-info",
- "token-gateway-primitives",
 ]
 
 [[package]]
@@ -12229,7 +10794,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12244,7 +10809,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment-rpc"
 version = "44.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "jsonrpsee",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -12260,7 +10825,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment-rpc-runtime-api"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "pallet-transaction-payment",
  "parity-scale-codec",
@@ -12270,29 +10835,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-transaction-storage"
-version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "array-bytes 6.2.2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-inherents",
- "sp-io",
- "sp-runtime",
- "sp-transaction-storage-proof",
-]
-
-[[package]]
 name = "pallet-treasury"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -12309,20 +10854,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-tx-pause"
-version = "22.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "docify",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
-]
-
-[[package]]
 name = "pallet-uniques"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12336,7 +10870,7 @@ dependencies = [
 [[package]]
 name = "pallet-utility"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12352,7 +10886,7 @@ dependencies = [
 [[package]]
 name = "pallet-verify-signature"
 version = "0.4.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12367,7 +10901,7 @@ dependencies = [
 [[package]]
 name = "pallet-vesting"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12381,7 +10915,7 @@ dependencies = [
 [[package]]
 name = "pallet-whitelist"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
@@ -12391,9 +10925,9 @@ dependencies = [
 [[package]]
 name = "pallet-xcm"
 version = "20.1.3"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
- "bounded-collections 0.2.4",
+ "bounded-collections",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -12417,7 +10951,7 @@ dependencies = [
 [[package]]
 name = "pallet-xcm-benchmarks"
 version = "21.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12429,48 +10963,6 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
-]
-
-[[package]]
-name = "pallet-xcm-bridge-hub"
-version = "0.17.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-messages",
- "bp-runtime",
- "bp-xcm-bridge-hub",
- "frame-support",
- "frame-system",
- "log",
- "pallet-bridge-messages",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-runtime",
- "sp-std",
- "staging-xcm",
- "staging-xcm-builder",
- "staging-xcm-executor",
-]
-
-[[package]]
-name = "pallet-xcm-bridge-hub-router"
-version = "0.19.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-xcm-bridge-hub-router",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "polkadot-runtime-parachains",
- "scale-info",
- "sp-core",
- "sp-runtime",
- "sp-std",
- "staging-xcm",
- "staging-xcm-builder",
 ]
 
 [[package]]
@@ -12529,7 +11021,7 @@ dependencies = [
 [[package]]
 name = "parachains-common"
 version = "22.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cumulus-primitives-core",
  "cumulus-primitives-utility",
@@ -12553,37 +11045,6 @@ dependencies = [
  "staging-parachain-info",
  "staging-xcm",
  "staging-xcm-executor",
-]
-
-[[package]]
-name = "parachains-runtimes-test-utils"
-version = "23.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "cumulus-pallet-parachain-system",
- "cumulus-pallet-xcmp-queue",
- "cumulus-primitives-core",
- "cumulus-primitives-parachain-inherent",
- "cumulus-test-relay-sproof-builder",
- "frame-support",
- "frame-system",
- "pallet-balances",
- "pallet-collator-selection",
- "pallet-session",
- "pallet-timestamp",
- "pallet-xcm",
- "parachains-common",
- "parity-scale-codec",
- "polkadot-parachain-primitives",
- "sp-consensus-aura",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-tracing",
- "staging-parachain-info",
- "staging-xcm",
- "staging-xcm-executor",
- "xcm-runtime-apis",
 ]
 
 [[package]]
@@ -12916,7 +11377,7 @@ dependencies = [
 [[package]]
 name = "polkadot-approval-distribution"
 version = "24.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "futures-timer",
@@ -12934,7 +11395,7 @@ dependencies = [
 [[package]]
 name = "polkadot-availability-bitfield-distribution"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "futures-timer",
@@ -12949,7 +11410,7 @@ dependencies = [
 [[package]]
 name = "polkadot-availability-distribution"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "fatality",
  "futures",
@@ -12972,7 +11433,7 @@ dependencies = [
 [[package]]
 name = "polkadot-availability-recovery"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "fatality",
@@ -13005,7 +11466,7 @@ dependencies = [
 [[package]]
 name = "polkadot-cli"
 version = "25.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "clap",
  "frame-benchmarking-cli",
@@ -13028,8 +11489,8 @@ dependencies = [
 
 [[package]]
 name = "polkadot-collator-protocol"
-version = "24.0.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+version = "24.0.3"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bitvec",
  "fatality",
@@ -13052,7 +11513,7 @@ dependencies = [
 [[package]]
 name = "polkadot-core-primitives"
 version = "18.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -13063,7 +11524,7 @@ dependencies = [
 [[package]]
 name = "polkadot-dispute-distribution"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "fatality",
  "futures",
@@ -13085,7 +11546,7 @@ dependencies = [
 [[package]]
 name = "polkadot-erasure-coding"
 version = "20.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "polkadot-node-primitives",
@@ -13099,7 +11560,7 @@ dependencies = [
 [[package]]
 name = "polkadot-gossip-support"
 version = "24.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "futures-timer",
@@ -13120,7 +11581,7 @@ dependencies = [
 [[package]]
 name = "polkadot-network-bridge"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "always-assert",
  "async-trait",
@@ -13143,7 +11604,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-collation-generation"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "parity-scale-codec",
@@ -13161,7 +11622,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-approval-voting"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "bitvec",
@@ -13193,7 +11654,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-approval-voting-parallel"
 version = "0.7.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "futures",
@@ -13217,7 +11678,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-av-store"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bitvec",
  "futures",
@@ -13236,7 +11697,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-backing"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bitvec",
  "fatality",
@@ -13257,7 +11718,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-bitfield-signing"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "polkadot-node-subsystem",
@@ -13272,7 +11733,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-candidate-validation"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "futures",
@@ -13294,7 +11755,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-chain-api"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "polkadot-node-metrics",
@@ -13308,7 +11769,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-chain-selection"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "futures-timer",
@@ -13324,7 +11785,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-dispute-coordinator"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "fatality",
  "futures",
@@ -13342,7 +11803,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-parachains-inherent"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "futures",
@@ -13359,7 +11820,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-prospective-parachains"
 version = "23.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "fatality",
  "futures",
@@ -13373,7 +11834,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-provisioner"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bitvec",
  "fatality",
@@ -13390,7 +11851,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-pvf"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "always-assert",
  "array-bytes 6.2.2",
@@ -13418,7 +11879,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-pvf-checker"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "polkadot-node-subsystem",
@@ -13431,7 +11892,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-pvf-common"
 version = "20.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cpu-time",
  "futures",
@@ -13457,7 +11918,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-runtime-api"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "polkadot-node-metrics",
@@ -13472,7 +11933,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-metrics"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bs58",
  "futures",
@@ -13489,7 +11950,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-network-protocol"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-channel 1.9.0",
  "async-trait",
@@ -13514,7 +11975,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-primitives"
 version = "20.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bitvec",
  "bounded-vec",
@@ -13538,7 +11999,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-subsystem"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "polkadot-node-subsystem-types",
  "polkadot-overseer",
@@ -13547,7 +12008,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-subsystem-types"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "derive_more 0.99.20",
@@ -13575,7 +12036,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-subsystem-util"
 version = "24.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "fatality",
  "futures",
@@ -13604,95 +12065,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "polkadot-omni-node-lib"
-version = "0.7.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "async-trait",
- "clap",
- "color-print",
- "cumulus-client-bootnodes",
- "cumulus-client-cli",
- "cumulus-client-collator",
- "cumulus-client-consensus-aura",
- "cumulus-client-consensus-common",
- "cumulus-client-consensus-proposer",
- "cumulus-client-consensus-relay-chain",
- "cumulus-client-parachain-inherent",
- "cumulus-client-service",
- "cumulus-primitives-aura",
- "cumulus-primitives-core",
- "cumulus-relay-chain-interface",
- "docify",
- "frame-benchmarking",
- "frame-benchmarking-cli",
- "frame-support",
- "frame-system-rpc-runtime-api",
- "futures",
- "futures-timer",
- "jsonrpsee",
- "log",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc",
- "pallet-transaction-payment-rpc-runtime-api",
- "parachains-common",
- "parity-scale-codec",
- "polkadot-cli",
- "polkadot-primitives",
- "sc-basic-authorship",
- "sc-chain-spec",
- "sc-cli",
- "sc-client-api",
- "sc-client-db",
- "sc-consensus",
- "sc-consensus-manual-seal",
- "sc-executor",
- "sc-keystore",
- "sc-network",
- "sc-network-statement",
- "sc-network-sync",
- "sc-offchain",
- "sc-rpc",
- "sc-runtime-utilities",
- "sc-service",
- "sc-statement-store",
- "sc-sysinfo",
- "sc-telemetry",
- "sc-tracing",
- "sc-transaction-pool",
- "sc-transaction-pool-api",
- "scale-info",
- "serde",
- "serde_json",
- "sp-api",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus",
- "sp-consensus-aura",
- "sp-core",
- "sp-genesis-builder",
- "sp-inherents",
- "sp-keystore",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-statement-store",
- "sp-storage",
- "sp-timestamp",
- "sp-transaction-pool",
- "sp-version",
- "sp-weights",
- "staging-chain-spec-builder",
- "substrate-frame-rpc-system",
- "substrate-prometheus-endpoint",
- "substrate-state-trie-migration-rpc",
- "subxt-metadata",
-]
-
-[[package]]
 name = "polkadot-overseer"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "futures",
@@ -13712,9 +12087,9 @@ dependencies = [
 [[package]]
 name = "polkadot-parachain-primitives"
 version = "17.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
- "bounded-collections 0.2.4",
+ "bounded-collections",
  "derive_more 0.99.20",
  "parity-scale-codec",
  "polkadot-core-primitives",
@@ -13728,10 +12103,10 @@ dependencies = [
 [[package]]
 name = "polkadot-primitives"
 version = "19.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bitvec",
- "bounded-collections 0.2.4",
+ "bounded-collections",
  "hex-literal",
  "log",
  "parity-scale-codec",
@@ -13757,7 +12132,7 @@ dependencies = [
 [[package]]
 name = "polkadot-rpc"
 version = "25.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "jsonrpsee",
  "mmr-rpc",
@@ -13790,7 +12165,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime-common"
 version = "20.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bitvec",
  "frame-benchmarking",
@@ -13840,7 +12215,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime-metrics"
 version = "21.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bs58",
  "frame-benchmarking",
@@ -13852,7 +12227,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime-parachains"
 version = "20.0.3"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bitflags 1.3.2",
  "bitvec",
@@ -13898,248 +12273,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "polkadot-sdk"
-version = "2506.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "asset-test-utils",
- "assets-common",
- "binary-merkle-tree",
- "bp-header-chain",
- "bp-messages",
- "bp-parachains",
- "bp-polkadot-core",
- "bp-relayers",
- "bp-runtime",
- "bp-test-utils",
- "bp-xcm-bridge-hub",
- "bp-xcm-bridge-hub-router",
- "bridge-hub-common",
- "bridge-hub-test-utils",
- "bridge-runtime-common",
- "cumulus-pallet-aura-ext",
- "cumulus-pallet-dmp-queue",
- "cumulus-pallet-parachain-system",
- "cumulus-pallet-parachain-system-proc-macro",
- "cumulus-pallet-session-benchmarking",
- "cumulus-pallet-solo-to-para",
- "cumulus-pallet-weight-reclaim",
- "cumulus-pallet-xcm",
- "cumulus-pallet-xcmp-queue",
- "cumulus-ping",
- "cumulus-primitives-aura",
- "cumulus-primitives-core",
- "cumulus-primitives-parachain-inherent",
- "cumulus-primitives-proof-size-hostfunction",
- "cumulus-primitives-storage-weight-reclaim",
- "cumulus-primitives-timestamp",
- "cumulus-primitives-utility",
- "cumulus-relay-chain-interface",
- "cumulus-test-relay-sproof-builder",
- "frame-benchmarking",
- "frame-benchmarking-cli",
- "frame-benchmarking-pallet-pov",
- "frame-election-provider-support",
- "frame-executive",
- "frame-metadata-hash-extension",
- "frame-support",
- "frame-support-procedural",
- "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "frame-try-runtime",
- "pallet-alliance",
- "pallet-asset-conversion",
- "pallet-asset-conversion-ops",
- "pallet-asset-conversion-tx-payment",
- "pallet-asset-rate",
- "pallet-asset-rewards",
- "pallet-asset-tx-payment",
- "pallet-assets",
- "pallet-assets-freezer",
- "pallet-assets-holder",
- "pallet-atomic-swap",
- "pallet-aura",
- "pallet-authority-discovery",
- "pallet-authorship",
- "pallet-babe",
- "pallet-bags-list",
- "pallet-balances",
- "pallet-beefy",
- "pallet-beefy-mmr",
- "pallet-bounties",
- "pallet-bridge-grandpa",
- "pallet-bridge-messages",
- "pallet-bridge-parachains",
- "pallet-bridge-relayers",
- "pallet-broker",
- "pallet-child-bounties",
- "pallet-collator-selection",
- "pallet-collective",
- "pallet-collective-content",
- "pallet-contracts",
- "pallet-contracts-mock-network",
- "pallet-conviction-voting",
- "pallet-core-fellowship",
- "pallet-delegated-staking",
- "pallet-democracy 41.0.0",
- "pallet-dev-mode",
- "pallet-dummy-dim",
- "pallet-election-provider-multi-block",
- "pallet-election-provider-multi-phase",
- "pallet-election-provider-support-benchmarking",
- "pallet-elections-phragmen",
- "pallet-fast-unstake",
- "pallet-glutton",
- "pallet-grandpa",
- "pallet-identity",
- "pallet-im-online",
- "pallet-indices",
- "pallet-insecure-randomness-collective-flip",
- "pallet-lottery",
- "pallet-membership",
- "pallet-message-queue",
- "pallet-meta-tx",
- "pallet-migrations",
- "pallet-mixnet",
- "pallet-mmr",
- "pallet-multisig",
- "pallet-nft-fractionalization",
- "pallet-nfts",
- "pallet-nfts-runtime-api",
- "pallet-nis",
- "pallet-node-authorization",
- "pallet-nomination-pools",
- "pallet-nomination-pools-benchmarking",
- "pallet-nomination-pools-runtime-api",
- "pallet-offences",
- "pallet-offences-benchmarking",
- "pallet-origin-restriction",
- "pallet-paged-list",
- "pallet-parameters 0.12.0",
- "pallet-people",
- "pallet-preimage",
- "pallet-proxy",
- "pallet-ranked-collective",
- "pallet-recovery",
- "pallet-referenda",
- "pallet-remark",
- "pallet-revive",
- "pallet-root-offences",
- "pallet-root-testing",
- "pallet-safe-mode",
- "pallet-salary",
- "pallet-scheduler",
- "pallet-scored-pool",
- "pallet-session",
- "pallet-session-benchmarking",
- "pallet-skip-feeless-payment",
- "pallet-society",
- "pallet-staking 41.0.0",
- "pallet-staking-async",
- "pallet-staking-async-ah-client",
- "pallet-staking-async-rc-client",
- "pallet-staking-async-reward-fn",
- "pallet-staking-async-runtime-api",
- "pallet-staking-reward-fn",
- "pallet-staking-runtime-api",
- "pallet-state-trie-migration",
- "pallet-statement",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-tips",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-transaction-storage",
- "pallet-treasury",
- "pallet-tx-pause",
- "pallet-uniques",
- "pallet-utility",
- "pallet-verify-signature",
- "pallet-vesting",
- "pallet-whitelist",
- "pallet-xcm",
- "pallet-xcm-benchmarks",
- "pallet-xcm-bridge-hub",
- "pallet-xcm-bridge-hub-router",
- "parachains-common",
- "parachains-runtimes-test-utils",
- "polkadot-cli",
- "polkadot-core-primitives",
- "polkadot-node-metrics",
- "polkadot-omni-node-lib",
- "polkadot-parachain-primitives",
- "polkadot-primitives",
- "polkadot-runtime-common",
- "polkadot-runtime-metrics",
- "polkadot-runtime-parachains",
- "polkadot-sdk-frame",
- "polkadot-service",
- "sc-client-api",
- "sc-client-db",
- "sc-executor",
- "sc-rpc",
- "sc-service",
- "slot-range-helper",
- "sp-api",
- "sp-api-proc-macro",
- "sp-application-crypto",
- "sp-arithmetic",
- "sp-authority-discovery",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus-aura",
- "sp-consensus-babe",
- "sp-consensus-beefy",
- "sp-consensus-grandpa",
- "sp-consensus-pow",
- "sp-consensus-slots",
- "sp-core",
- "sp-core-hashing",
- "sp-crypto-ec-utils",
- "sp-crypto-hashing",
- "sp-debug-derive",
- "sp-externalities",
- "sp-genesis-builder",
- "sp-inherents",
- "sp-io",
- "sp-keyring",
- "sp-keystore",
- "sp-metadata-ir",
- "sp-mixnet",
- "sp-mmr-primitives",
- "sp-npos-elections",
- "sp-offchain",
- "sp-runtime",
- "sp-runtime-interface",
- "sp-session",
- "sp-staking",
- "sp-state-machine",
- "sp-statement-store",
- "sp-std",
- "sp-storage",
- "sp-timestamp",
- "sp-tracing",
- "sp-transaction-pool",
- "sp-transaction-storage-proof",
- "sp-trie",
- "sp-version",
- "sp-wasm-interface",
- "sp-weights",
- "staging-node-inspect",
- "staging-parachain-info",
- "staging-xcm",
- "staging-xcm-builder",
- "staging-xcm-executor",
- "substrate-bip39",
- "testnet-parachains-constants",
- "xcm-runtime-apis",
-]
-
-[[package]]
 name = "polkadot-sdk-frame"
 version = "0.10.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -14174,7 +12310,7 @@ dependencies = [
 [[package]]
 name = "polkadot-service"
 version = "25.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "frame-benchmarking",
@@ -14282,7 +12418,7 @@ dependencies = [
 [[package]]
 name = "polkadot-statement-distribution"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bitvec",
  "fatality",
@@ -14302,7 +12438,7 @@ dependencies = [
 [[package]]
 name = "polkadot-statement-table"
 version = "20.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "polkadot-primitives",
@@ -15463,7 +13599,7 @@ dependencies = [
 [[package]]
 name = "rococo-runtime"
 version = "24.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "binary-merkle-tree",
  "bitvec",
@@ -15561,7 +13697,7 @@ dependencies = [
 [[package]]
 name = "rococo-runtime-constants"
 version = "21.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "polkadot-primitives",
@@ -15664,7 +13800,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.80.0"
+version = "1.82.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -15691,8 +13827,6 @@ dependencies = [
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
- "ismp",
- "ismp-parachain",
  "libsecp256k1",
  "liquidation-worker-support",
  "module-evm-utility-macro",
@@ -15731,7 +13865,6 @@ dependencies = [
  "pallet-evm-precompile-call-permit",
  "pallet-hsm",
  "pallet-im-online",
- "pallet-ismp",
  "pallet-lbp",
  "pallet-liquidation",
  "pallet-liquidity-mining",
@@ -15846,15 +13979,6 @@ name = "rustc-hex"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e75f6a532d0fd9f7f13144f392b6ad56a32696bfcd9c78f797f16bbb6f072d6"
-
-[[package]]
-name = "rustc_version"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
-dependencies = [
- "semver 0.9.0",
-]
 
 [[package]]
 name = "rustc_version"
@@ -16090,15 +14214,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e86697c916019a8588c99b5fac3cead74ec0b4b819707a682fd4d23fa0ce1ba1"
 
 [[package]]
-name = "safe-mix"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d3d055a2582e6b00ed7a31c1524040aa391092bf636328350813f3a0605215c"
-dependencies = [
- "rustc_version 0.2.3",
-]
-
-[[package]]
 name = "safe_arch"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -16128,7 +14243,7 @@ dependencies = [
 [[package]]
 name = "sc-allocator"
 version = "32.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "log",
  "sp-core",
@@ -16139,7 +14254,7 @@ dependencies = [
 [[package]]
 name = "sc-authority-discovery"
 version = "0.51.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "futures",
@@ -16170,7 +14285,7 @@ dependencies = [
 [[package]]
 name = "sc-basic-authorship"
 version = "0.50.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "log",
@@ -16191,7 +14306,7 @@ dependencies = [
 [[package]]
 name = "sc-block-builder"
 version = "0.45.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "sp-api",
@@ -16206,10 +14321,9 @@ dependencies = [
 [[package]]
 name = "sc-chain-spec"
 version = "44.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
- "clap",
  "docify",
  "memmap2 0.9.4",
  "parity-scale-codec",
@@ -16233,7 +14347,7 @@ dependencies = [
 [[package]]
 name = "sc-chain-spec-derive"
 version = "12.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
@@ -16244,7 +14358,7 @@ dependencies = [
 [[package]]
 name = "sc-cli"
 version = "0.53.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "chrono",
@@ -16286,7 +14400,7 @@ dependencies = [
 [[package]]
 name = "sc-client-api"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "fnv",
  "futures",
@@ -16312,7 +14426,7 @@ dependencies = [
 [[package]]
 name = "sc-client-db"
 version = "0.47.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "hash-db",
  "kvdb",
@@ -16340,7 +14454,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus"
 version = "0.50.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "futures",
@@ -16363,7 +14477,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-aura"
 version = "0.51.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "futures",
@@ -16392,7 +14506,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-babe"
 version = "0.51.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "fork-tree",
@@ -16428,7 +14542,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-babe-rpc"
 version = "0.51.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "jsonrpsee",
@@ -16450,7 +14564,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-beefy"
 version = "30.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -16484,7 +14598,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-beefy-rpc"
 version = "30.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "jsonrpsee",
@@ -16504,7 +14618,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-epochs"
 version = "0.50.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "fork-tree",
  "parity-scale-codec",
@@ -16517,7 +14631,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-grandpa"
 version = "0.36.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "ahash",
  "array-bytes 6.2.2",
@@ -16561,7 +14675,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-grandpa-rpc"
 version = "0.36.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "finality-grandpa",
  "futures",
@@ -16579,44 +14693,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "sc-consensus-manual-seal"
-version = "0.52.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "assert_matches",
- "async-trait",
- "futures",
- "futures-timer",
- "jsonrpsee",
- "log",
- "parity-scale-codec",
- "sc-client-api",
- "sc-consensus",
- "sc-consensus-aura",
- "sc-consensus-babe",
- "sc-consensus-epochs",
- "sc-transaction-pool",
- "sc-transaction-pool-api",
- "serde",
- "sp-api",
- "sp-blockchain",
- "sp-consensus",
- "sp-consensus-aura",
- "sp-consensus-babe",
- "sp-consensus-slots",
- "sp-core",
- "sp-inherents",
- "sp-keystore",
- "sp-runtime",
- "sp-timestamp",
- "substrate-prometheus-endpoint",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "sc-consensus-slots"
 version = "0.50.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "futures",
@@ -16639,7 +14718,7 @@ dependencies = [
 [[package]]
 name = "sc-executor"
 version = "0.43.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.3",
@@ -16662,7 +14741,7 @@ dependencies = [
 [[package]]
 name = "sc-executor-common"
 version = "0.39.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "polkavm 0.24.0",
  "sc-allocator",
@@ -16675,7 +14754,7 @@ dependencies = [
 [[package]]
 name = "sc-executor-polkavm"
 version = "0.36.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "log",
  "polkavm 0.24.0",
@@ -16686,7 +14765,7 @@ dependencies = [
 [[package]]
 name = "sc-executor-wasmtime"
 version = "0.39.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "anyhow",
  "log",
@@ -16702,7 +14781,7 @@ dependencies = [
 [[package]]
 name = "sc-informant"
 version = "0.50.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "console",
  "futures",
@@ -16718,7 +14797,7 @@ dependencies = [
 [[package]]
 name = "sc-keystore"
 version = "36.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "parking_lot 0.12.3",
@@ -16732,7 +14811,7 @@ dependencies = [
 [[package]]
 name = "sc-mixnet"
 version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "arrayvec 0.7.4",
@@ -16760,7 +14839,7 @@ dependencies = [
 [[package]]
 name = "sc-network"
 version = "0.51.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -16810,7 +14889,7 @@ dependencies = [
 [[package]]
 name = "sc-network-common"
 version = "0.49.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bitflags 1.3.2",
  "parity-scale-codec",
@@ -16820,7 +14899,7 @@ dependencies = [
 [[package]]
 name = "sc-network-gossip"
 version = "0.51.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "ahash",
  "futures",
@@ -16839,7 +14918,7 @@ dependencies = [
 [[package]]
 name = "sc-network-light"
 version = "0.50.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -16858,30 +14937,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "sc-network-statement"
-version = "0.33.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "array-bytes 6.2.2",
- "async-channel 1.9.0",
- "futures",
- "log",
- "parity-scale-codec",
- "sc-network",
- "sc-network-common",
- "sc-network-sync",
- "sc-network-types",
- "sp-consensus",
- "sp-runtime",
- "sp-statement-store",
- "substrate-prometheus-endpoint",
- "tokio",
-]
-
-[[package]]
 name = "sc-network-sync"
 version = "0.50.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -16916,7 +14974,7 @@ dependencies = [
 [[package]]
 name = "sc-network-transactions"
 version = "0.50.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "futures",
@@ -16935,7 +14993,7 @@ dependencies = [
 [[package]]
 name = "sc-network-types"
 version = "0.17.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bs58",
  "bytes",
@@ -16956,7 +15014,7 @@ dependencies = [
 [[package]]
 name = "sc-offchain"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bytes",
  "fnv",
@@ -16990,7 +15048,7 @@ dependencies = [
 [[package]]
 name = "sc-proposer-metrics"
 version = "0.20.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "log",
  "substrate-prometheus-endpoint",
@@ -16999,7 +15057,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "jsonrpsee",
@@ -17031,7 +15089,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc-api"
 version = "0.50.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "jsonrpsee",
  "parity-scale-codec",
@@ -17051,7 +15109,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc-server"
 version = "23.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "dyn-clone",
  "forwarded-header-value",
@@ -17075,7 +15133,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc-spec-v2"
 version = "0.51.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "futures",
@@ -17108,7 +15166,7 @@ dependencies = [
 [[package]]
 name = "sc-runtime-utilities"
 version = "0.3.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "sc-executor",
@@ -17123,7 +15181,7 @@ dependencies = [
 [[package]]
 name = "sc-service"
 version = "0.52.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "directories",
@@ -17187,7 +15245,7 @@ dependencies = [
 [[package]]
 name = "sc-state-db"
 version = "0.39.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "log",
  "parity-scale-codec",
@@ -17196,29 +15254,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "sc-statement-store"
-version = "22.3.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "log",
- "parity-db",
- "parking_lot 0.12.3",
- "sc-client-api",
- "sc-keystore",
- "sc-network-statement",
- "sp-api",
- "sp-blockchain",
- "sp-core",
- "sp-runtime",
- "sp-statement-store",
- "substrate-prometheus-endpoint",
- "tokio",
-]
-
-[[package]]
 name = "sc-storage-monitor"
 version = "0.25.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "clap",
  "fs4",
@@ -17231,7 +15269,7 @@ dependencies = [
 [[package]]
 name = "sc-sync-state-rpc"
 version = "0.51.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "jsonrpsee",
  "parity-scale-codec",
@@ -17250,7 +15288,7 @@ dependencies = [
 [[package]]
 name = "sc-sysinfo"
 version = "43.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "derive_more 0.99.20",
  "futures",
@@ -17270,7 +15308,7 @@ dependencies = [
 [[package]]
 name = "sc-telemetry"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "chrono",
  "futures",
@@ -17289,7 +15327,7 @@ dependencies = [
 [[package]]
 name = "sc-tracing"
 version = "40.0.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "chrono",
  "console",
@@ -17319,7 +15357,7 @@ dependencies = [
 [[package]]
 name = "sc-tracing-proc-macro"
 version = "11.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
@@ -17330,7 +15368,7 @@ dependencies = [
 [[package]]
 name = "sc-transaction-pool"
 version = "40.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "futures",
@@ -17361,7 +15399,7 @@ dependencies = [
 [[package]]
 name = "sc-transaction-pool-api"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "futures",
@@ -17378,7 +15416,7 @@ dependencies = [
 [[package]]
 name = "sc-utils"
 version = "19.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-channel 1.9.0",
  "futures",
@@ -17555,7 +15593,6 @@ dependencies = [
  "curve25519-dalek-ng",
  "merlin",
  "rand_core 0.6.4",
- "serde_bytes",
  "sha2 0.9.9",
  "subtle-ng",
  "zeroize",
@@ -17594,7 +15631,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scraper"
-version = "1.5.1"
+version = "1.6.0"
 dependencies = [
  "clap",
  "fp-rpc",
@@ -17603,6 +15640,7 @@ dependencies = [
  "frame-system",
  "futures",
  "hex",
+ "hex-literal",
  "hydradx",
  "hydradx-runtime",
  "indicatif",
@@ -17782,15 +15820,6 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
-dependencies = [
- "semver-parser 0.7.0",
-]
-
-[[package]]
-name = "semver"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f301af10236f6df4160f7c3f04eec6dbc70ace82d23326abad5edee88801c6b6"
@@ -17830,17 +15859,6 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
-]
-
-[[package]]
-name = "serde-hex-utils"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e3d83ec090e617054c5425d2eddd4358a251104c9fba51d71bd997d05cf4915"
-dependencies = [
- "anyhow",
- "hex",
- "serde",
 ]
 
 [[package]]
@@ -18133,7 +16151,7 @@ dependencies = [
 [[package]]
 name = "slot-range-helper"
 version = "18.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "enumn",
  "parity-scale-codec",
@@ -18394,30 +16412,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "snowbridge-core"
-version = "0.14.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "bp-relayers",
- "frame-support",
- "frame-system",
- "hex-literal",
- "log",
- "parity-scale-codec",
- "polkadot-parachain-primitives",
- "scale-info",
- "serde",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "staging-xcm",
- "staging-xcm-builder",
- "staging-xcm-executor",
-]
-
-[[package]]
 name = "socket2"
 version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -18481,7 +16475,7 @@ dependencies = [
 [[package]]
 name = "sp-api"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "hash-db",
@@ -18503,7 +16497,7 @@ dependencies = [
 [[package]]
 name = "sp-api-proc-macro"
 version = "23.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "Inflector",
  "blake2 0.10.6",
@@ -18517,7 +16511,7 @@ dependencies = [
 [[package]]
 name = "sp-application-crypto"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -18529,7 +16523,7 @@ dependencies = [
 [[package]]
 name = "sp-arithmetic"
 version = "27.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "integer-sqrt",
@@ -18543,7 +16537,7 @@ dependencies = [
 [[package]]
 name = "sp-authority-discovery"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -18555,7 +16549,7 @@ dependencies = [
 [[package]]
 name = "sp-block-builder"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "sp-api",
  "sp-inherents",
@@ -18565,7 +16559,7 @@ dependencies = [
 [[package]]
 name = "sp-blockchain"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "futures",
  "parity-scale-codec",
@@ -18586,7 +16580,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus"
 version = "0.43.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "futures",
@@ -18600,7 +16594,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-aura"
 version = "0.43.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
@@ -18616,7 +16610,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-babe"
 version = "0.43.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
@@ -18634,7 +16628,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-beefy"
 version = "25.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -18654,7 +16648,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-grandpa"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "finality-grandpa",
  "log",
@@ -18669,20 +16663,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-consensus-pow"
-version = "0.43.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "parity-scale-codec",
- "sp-api",
- "sp-core",
- "sp-runtime",
-]
-
-[[package]]
 name = "sp-consensus-slots"
 version = "0.43.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -18693,13 +16676,13 @@ dependencies = [
 [[package]]
 name = "sp-core"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "ark-vrf",
  "array-bytes 6.2.2",
  "bitflags 1.3.2",
  "blake2 0.10.6",
- "bounded-collections 0.2.4",
+ "bounded-collections",
  "bs58",
  "dyn-clone",
  "ed25519-zebra",
@@ -18739,37 +16722,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-core-hashing"
-version = "16.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "sp-crypto-hashing",
-]
-
-[[package]]
-name = "sp-crypto-ec-utils"
-version = "0.16.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "ark-bls12-377",
- "ark-bls12-377-ext",
- "ark-bls12-381 0.4.0",
- "ark-bls12-381-ext",
- "ark-bw6-761",
- "ark-bw6-761-ext",
- "ark-ec 0.4.2",
- "ark-ed-on-bls12-377",
- "ark-ed-on-bls12-377-ext",
- "ark-ed-on-bls12-381-bandersnatch 0.4.0",
- "ark-ed-on-bls12-381-bandersnatch-ext",
- "ark-scale 0.0.12",
- "sp-runtime-interface",
-]
-
-[[package]]
 name = "sp-crypto-hashing"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "blake2b_simd",
  "byteorder",
@@ -18782,7 +16737,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-hashing-proc-macro"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "quote",
  "sp-crypto-hashing",
@@ -18792,7 +16747,7 @@ dependencies = [
 [[package]]
 name = "sp-database"
 version = "10.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "kvdb",
  "parking_lot 0.12.3",
@@ -18801,7 +16756,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -18811,7 +16766,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.30.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "environmental",
  "parity-scale-codec",
@@ -18821,7 +16776,7 @@ dependencies = [
 [[package]]
 name = "sp-genesis-builder"
 version = "0.18.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -18833,7 +16788,7 @@ dependencies = [
 [[package]]
 name = "sp-inherents"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "impl-trait-for-tuples",
@@ -18846,7 +16801,7 @@ dependencies = [
 [[package]]
 name = "sp-io"
 version = "41.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bytes",
  "docify",
@@ -18872,7 +16827,7 @@ dependencies = [
 [[package]]
 name = "sp-keyring"
 version = "42.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "sp-core",
  "sp-runtime",
@@ -18882,7 +16837,7 @@ dependencies = [
 [[package]]
 name = "sp-keystore"
 version = "0.43.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.3",
@@ -18893,7 +16848,7 @@ dependencies = [
 [[package]]
 name = "sp-maybe-compressed-blob"
 version = "11.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "thiserror 1.0.69",
  "zstd 0.12.4",
@@ -18902,7 +16857,7 @@ dependencies = [
 [[package]]
 name = "sp-metadata-ir"
 version = "0.11.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-metadata 23.0.1",
  "parity-scale-codec",
@@ -18912,7 +16867,7 @@ dependencies = [
 [[package]]
 name = "sp-mixnet"
 version = "0.15.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -18923,7 +16878,7 @@ dependencies = [
 [[package]]
 name = "sp-mmr-primitives"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "log",
  "parity-scale-codec",
@@ -18940,7 +16895,7 @@ dependencies = [
 [[package]]
 name = "sp-npos-elections"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -18953,7 +16908,7 @@ dependencies = [
 [[package]]
 name = "sp-offchain"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "sp-api",
  "sp-core",
@@ -18963,7 +16918,7 @@ dependencies = [
 [[package]]
 name = "sp-panic-handler"
 version = "13.0.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "backtrace",
  "regex",
@@ -18972,7 +16927,7 @@ dependencies = [
 [[package]]
 name = "sp-rpc"
 version = "35.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "rustc-hash 1.1.0",
  "serde",
@@ -18982,7 +16937,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime"
 version = "42.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "binary-merkle-tree",
  "docify",
@@ -19011,7 +16966,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "30.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -19030,7 +16985,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "19.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "Inflector",
  "expander",
@@ -19043,7 +16998,7 @@ dependencies = [
 [[package]]
 name = "sp-session"
 version = "39.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -19057,7 +17012,7 @@ dependencies = [
 [[package]]
 name = "sp-staking"
 version = "39.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "impl-trait-for-tuples",
  "parity-scale-codec",
@@ -19070,7 +17025,7 @@ dependencies = [
 [[package]]
 name = "sp-state-machine"
 version = "0.46.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "hash-db",
  "log",
@@ -19090,7 +17045,7 @@ dependencies = [
 [[package]]
 name = "sp-statement-store"
 version = "21.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "aes-gcm",
  "curve25519-dalek",
@@ -19114,12 +17069,12 @@ dependencies = [
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 
 [[package]]
 name = "sp-storage"
 version = "22.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -19131,7 +17086,7 @@ dependencies = [
 [[package]]
 name = "sp-timestamp"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
@@ -19143,7 +17098,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "17.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "tracing",
@@ -19154,7 +17109,7 @@ dependencies = [
 [[package]]
 name = "sp-transaction-pool"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "sp-api",
  "sp-runtime",
@@ -19163,7 +17118,7 @@ dependencies = [
 [[package]]
 name = "sp-transaction-storage-proof"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
@@ -19177,7 +17132,7 @@ dependencies = [
 [[package]]
 name = "sp-trie"
 version = "40.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "ahash",
  "foldhash 0.1.5",
@@ -19202,7 +17157,7 @@ dependencies = [
 [[package]]
 name = "sp-version"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -19219,7 +17174,7 @@ dependencies = [
 [[package]]
 name = "sp-version-proc-macro"
 version = "15.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "parity-scale-codec",
  "proc-macro-warning",
@@ -19231,7 +17186,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "22.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "anyhow",
  "impl-trait-for-tuples",
@@ -19243,9 +17198,9 @@ dependencies = [
 [[package]]
 name = "sp-weights"
 version = "32.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
- "bounded-collections 0.2.4",
+ "bounded-collections",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -19318,40 +17273,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
-name = "staging-chain-spec-builder"
-version = "12.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "clap",
- "docify",
- "sc-chain-spec",
- "serde",
- "serde_json",
- "sp-tracing",
-]
-
-[[package]]
-name = "staging-node-inspect"
-version = "0.29.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "clap",
- "parity-scale-codec",
- "sc-cli",
- "sc-client-api",
- "sc-service",
- "sp-blockchain",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-statement-store",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "staging-parachain-info"
 version = "0.21.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -19363,11 +17287,11 @@ dependencies = [
 
 [[package]]
 name = "staging-xcm"
-version = "17.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+version = "17.0.1"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
- "bounded-collections 0.2.4",
+ "bounded-collections",
  "derive-where",
  "environmental",
  "frame-support",
@@ -19385,7 +17309,7 @@ dependencies = [
 [[package]]
 name = "staging-xcm-builder"
 version = "21.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "environmental",
  "frame-support",
@@ -19409,7 +17333,7 @@ dependencies = [
 [[package]]
 name = "staging-xcm-executor"
 version = "20.0.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "environmental",
  "frame-benchmarking",
@@ -19434,24 +17358,24 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "static_init"
-version = "1.0.3"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a2a1c578e98c1c16fc3b8ec1328f7659a500737d7a0c6d625e73e830ff9c1f6"
+checksum = "8bae1df58c5fea7502e8e352ec26b5579f6178e1fdb311e088580c980dee25ed"
 dependencies = [
  "bitflags 1.3.2",
- "cfg_aliases 0.1.1",
+ "cfg_aliases 0.2.1",
  "libc",
- "parking_lot 0.11.2",
- "parking_lot_core 0.8.6",
+ "parking_lot 0.12.3",
+ "parking_lot_core 0.9.9",
  "static_init_macro",
  "winapi",
 ]
 
 [[package]]
 name = "static_init_macro"
-version = "1.0.2"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70a2595fc3aa78f2d0e45dd425b22282dd863273761cc77780914b2cf3003acf"
+checksum = "1389c88ddd739ec6d3f8f83343764a0e944cd23cfbf126a9796a714b0b6edd6f"
 dependencies = [
  "cfg_aliases 0.1.1",
  "memchr",
@@ -19468,7 +17392,6 @@ checksum = "1c6a0d765f5807e98a091107bae0a56ea3799f66a5de47b2c84c94a39c09974e"
 dependencies = [
  "cfg-if",
  "hashbrown 0.14.5",
- "serde",
 ]
 
 [[package]]
@@ -19524,7 +17447,7 @@ dependencies = [
 [[package]]
 name = "substrate-bip39"
 version = "0.6.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "hmac 0.12.1",
  "pbkdf2",
@@ -19549,12 +17472,12 @@ dependencies = [
 [[package]]
 name = "substrate-build-script-utils"
 version = "11.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 
 [[package]]
 name = "substrate-frame-rpc-system"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "docify",
  "frame-system-rpc-runtime-api",
@@ -19574,7 +17497,7 @@ dependencies = [
 [[package]]
 name = "substrate-prometheus-endpoint"
 version = "0.17.6"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "http-body-util",
  "hyper 1.5.1",
@@ -19588,7 +17511,7 @@ dependencies = [
 [[package]]
 name = "substrate-rpc-client"
 version = "0.50.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "async-trait",
  "jsonrpsee",
@@ -19599,26 +17522,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "substrate-state-machine"
-version = "2506.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8907449b7f7a5e01ff089d81979a4ff979a8882952e749a36d6cc3ed6f207438"
-dependencies = [
- "hash-db",
- "ismp",
- "pallet-ismp",
- "parity-scale-codec",
- "polkadot-sdk",
- "primitive-types 0.13.1",
- "scale-info",
- "serde",
- "trie-db",
-]
-
-[[package]]
 name = "substrate-state-trie-migration-rpc"
 version = "44.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "jsonrpsee",
  "parity-scale-codec",
@@ -19635,7 +17541,7 @@ dependencies = [
 [[package]]
 name = "substrate-wasm-builder"
 version = "27.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "build-helper",
@@ -20071,21 +17977,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "testnet-parachains-constants"
-version = "14.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
-dependencies = [
- "cumulus-primitives-core",
- "frame-support",
- "polkadot-core-primitives",
- "rococo-runtime-constants",
- "smallvec",
- "sp-runtime",
- "staging-xcm",
- "westend-runtime-constants",
-]
-
-[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -20265,25 +18156,6 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
-
-[[package]]
-name = "token-gateway-primitives"
-version = "2506.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f08e9f5798dc9b2d051ebd70ccc80f3f6c852966650e3383a5e597900984af44"
-dependencies = [
- "alloy-primitives 0.7.7",
- "alloy-sol-macro 0.7.7",
- "alloy-sol-types 0.7.7",
- "anyhow",
- "ismp",
- "log",
- "pallet-ismp",
- "parity-scale-codec",
- "polkadot-sdk",
- "primitive-types 0.13.1",
- "scale-info",
-]
 
 [[package]]
 name = "tokio"
@@ -20586,7 +18458,7 @@ dependencies = [
 [[package]]
 name = "tracing-gum"
 version = "20.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "coarsetime",
  "polkadot-primitives",
@@ -20597,7 +18469,7 @@ dependencies = [
 [[package]]
 name = "tracing-gum-proc-macro"
 version = "5.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "expander",
  "proc-macro-crate 3.1.0",
@@ -20901,23 +18773,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
-name = "verifiable"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "225eaa083192400abfe78838e3089c539a361e0dd9b6884f61b5c6237676ec01"
-dependencies = [
- "ark-scale 0.0.13",
- "ark-serialize 0.5.0",
- "ark-vrf",
- "bounded-collections 0.1.9",
- "derive-where",
- "parity-scale-codec",
- "scale-info",
- "schnorrkel 0.10.2",
- "spin 0.9.8",
-]
-
-[[package]]
 name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -20963,7 +18818,6 @@ dependencies = [
  "ark-serialize 0.5.0",
  "ark-std 0.5.0",
  "merlin",
- "rayon",
 ]
 
 [[package]]
@@ -20979,7 +18833,6 @@ dependencies = [
  "ark-std 0.5.0",
  "getrandom_or_panic",
  "rand_core 0.6.4",
- "rayon",
  "w3f-pcs",
 ]
 
@@ -20995,7 +18848,6 @@ dependencies = [
  "ark-serialize 0.5.0",
  "ark-std 0.5.0",
  "ark-transcript",
- "rayon",
  "w3f-pcs",
  "w3f-plonk-common",
 ]
@@ -21511,7 +19363,7 @@ checksum = "5f20c57d8d7db6d3b86154206ae5d8fba62dd39573114de97c2cb0578251f8e1"
 [[package]]
 name = "westend-runtime"
 version = "24.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "binary-merkle-tree",
  "bitvec",
@@ -21618,7 +19470,7 @@ dependencies = [
 [[package]]
 name = "westend-runtime-constants"
 version = "21.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "polkadot-primitives",
@@ -22225,7 +20077,7 @@ dependencies = [
 [[package]]
 name = "xcm-emulator"
 version = "0.20.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "array-bytes 6.2.2",
  "cumulus-pallet-parachain-system",
@@ -22259,7 +20111,7 @@ dependencies = [
 [[package]]
 name = "xcm-procedural"
 version = "11.0.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -22270,7 +20122,7 @@ dependencies = [
 [[package]]
 name = "xcm-runtime-apis"
 version = "0.8.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -22284,7 +20136,7 @@ dependencies = [
 [[package]]
 name = "xcm-simulator"
 version = "21.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-10-patch#478f0c6d701cd4371203f357a8144136b763b6b9"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
 dependencies = [
  "frame-support",
  "frame-system",
