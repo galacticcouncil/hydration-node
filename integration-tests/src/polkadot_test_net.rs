@@ -491,6 +491,38 @@ pub mod collators {
 				get_account_id_from_seed::<sr25519::Public>("Bob"),
 				get_from_seed::<AuraId>("Bob"),
 			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+				get_from_seed::<AuraId>("Charlie"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator4"),
+				get_from_seed::<AuraId>("Collator4"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator5"),
+				get_from_seed::<AuraId>("Collator5"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator6"),
+				get_from_seed::<AuraId>("Collator6"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator7"),
+				get_from_seed::<AuraId>("Collator7"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator8"),
+				get_from_seed::<AuraId>("Collator8"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator9"),
+				get_from_seed::<AuraId>("Collator9"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Collator10"),
+				get_from_seed::<AuraId>("Collator10"),
+			),
 		]
 	}
 }
@@ -658,6 +690,10 @@ pub mod hydra {
 				safe_xcm_version: Some(5),
 				..Default::default()
 			},
+			parameters: hydradx_runtime::ParametersConfig {
+				relay_parent_offset_override: true,
+				..Default::default()
+			},
 			multi_transaction_payment: hydradx_runtime::MultiTransactionPaymentConfig {
 				currencies: vec![
 					(LRNA, Price::from(1)),
@@ -712,6 +748,10 @@ pub mod para {
 				safe_xcm_version: Some(5),
 				..Default::default()
 			},
+			parameters: hydradx_runtime::ParametersConfig {
+				relay_parent_offset_override: true,
+				..Default::default()
+			},
 			duster: hydradx_runtime::DusterConfig {
 				account_whitelist: vec![Treasury::account_id()],
 			},
@@ -744,6 +784,27 @@ pub fn expect_hydra_events(event: Vec<hydradx_runtime::RuntimeEvent>) {
 	for e in event.iter() {
 		frame_system::Pallet::<hydradx_runtime::Runtime>::assert_has_event(e.clone());
 	}
+}
+
+pub fn get_trapped_amount(trapped_event: &hydradx_runtime::RuntimeEvent) -> u128 {
+	use polkadot_xcm::v5::{Assets as MultiAssets, Fungibility};
+
+	if let hydradx_runtime::RuntimeEvent::PolkadotXcm(pallet_xcm::Event::AssetsTrapped { assets, .. }) = trapped_event {
+		let v5_assets: MultiAssets = assets
+			.clone()
+			.try_into()
+			.expect("trapped assets should be convertible to v5 MultiAssets; qed");
+		let asset = v5_assets
+			.into_inner()
+			.into_iter()
+			.next()
+			.expect("at least one trapped asset; qed");
+		if let Fungibility::Fungible(amount) = asset.fun {
+			return amount;
+		}
+		panic!("Trapped asset is not fungible");
+	}
+	panic!("No trapped asset");
 }
 
 use frame_support::traits::OnFinalize;
@@ -919,6 +980,7 @@ pub fn hydra_live_ext(
 
 			let mut p = builder.build().await.unwrap();
 			p.execute_with(|| {
+				hydradx_runtime::Parameters::set_relay_parent_offset_override(true);
 				pallet_ema_oracle::migrations::v1::MigrateV0ToV1::<hydradx_runtime::Runtime>::on_runtime_upgrade();
 			});
 			p

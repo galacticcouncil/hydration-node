@@ -28,6 +28,7 @@ use std::{sync::Arc, time::Duration};
 
 use cumulus_client_cli::CollatorOptions;
 use cumulus_client_collator::service::CollatorService;
+use cumulus_client_consensus_aura::collators::slot_based::{SlotBasedBlockImport, SlotBasedBlockImportHandle};
 use cumulus_client_consensus_common::ParachainBlockImport as TParachainBlockImport;
 use cumulus_client_consensus_proposer::Proposer;
 use cumulus_client_service::{
@@ -38,7 +39,7 @@ use cumulus_primitives_core::{
 	relay_chain::{CollatorPair, ValidationCode},
 	ParaId,
 };
-use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
+use cumulus_relay_chain_interface::RelayChainInterface;
 
 use fc_db::kv::Backend as FrontierBackend;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
@@ -74,7 +75,8 @@ type ParachainClient = TFullClient<
 
 type ParachainBackend = TFullBackend<Block>;
 
-type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, ParachainBackend>;
+type ParachainBlockImport =
+	TParachainBlockImport<Block, SlotBasedBlockImport<Block, Arc<ParachainClient>, ParachainClient>, ParachainBackend>;
 
 pub struct TxDetailProvider;
 impl TransactionDetailProvider for TxDetailProvider {
@@ -136,6 +138,7 @@ pub fn new_partial(
 		sc_transaction_pool::TransactionPoolHandle<Block, ParachainClient>,
 		(
 			evm::BlockImport<Block, ParachainBlockImport, ParachainClient>,
+			SlotBasedBlockImportHandle<Block>,
 			Option<Telemetry>,
 			Option<TelemetryWorkerHandle>,
 			Arc<FrontierBackend<Block, ParachainClient>>,
@@ -237,8 +240,9 @@ pub fn new_partial(
 	let evm_since = chain_spec::Extensions::try_get(&config.chain_spec)
 		.map(|e| e.evm_since)
 		.unwrap_or(1);
+	let (slot_based_block_import, block_import_handle) = SlotBasedBlockImport::new(client.clone(), client.clone());
 	let block_import = evm::BlockImport::new(
-		ParachainBlockImport::new(client.clone(), backend.clone()),
+		ParachainBlockImport::new(slot_based_block_import, backend.clone()),
 		client.clone(),
 		frontier_backend.clone(),
 		evm_since,
@@ -265,6 +269,7 @@ pub fn new_partial(
 		select_chain: (),
 		other: (
 			block_import,
+			block_import_handle,
 			telemetry,
 			telemetry_worker_handle,
 			frontier_backend,
@@ -290,8 +295,15 @@ async fn start_node_impl(
 	let parachain_config = prepare_node_config(parachain_config);
 
 	let params = new_partial(&parachain_config, no_tx_priority_override)?;
-	let (block_import, mut telemetry, telemetry_worker_handle, frontier_backend, filter_pool, fee_history_cache) =
-		params.other;
+	let (
+		block_import,
+		block_import_handle,
+		mut telemetry,
+		telemetry_worker_handle,
+		frontier_backend,
+		filter_pool,
+		fee_history_cache,
+	) = params.other;
 
 	let prometheus_registry = parachain_config.prometheus_registry().cloned();
 	let net_config = sc_network::config::FullNetworkConfiguration::<_, _, sc_network::NetworkWorker<Block, Hash>>::new(
@@ -507,6 +519,7 @@ async fn start_node_impl(
 			client.clone(),
 			backend,
 			block_import,
+			block_import_handle,
 			prometheus_registry.as_ref(),
 			telemetry.as_ref().map(|t| t.handle()),
 			&task_manager,
@@ -516,7 +529,6 @@ async fn start_node_impl(
 			relay_chain_slot_duration,
 			para_id,
 			collator_key.expect("Command line arguments do not allow this. qed"),
-			overseer_handle,
 			announce_block,
 		)?;
 	}
@@ -557,6 +569,7 @@ fn start_consensus(
 	client: Arc<ParachainClient>,
 	backend: Arc<ParachainBackend>,
 	block_import: evm::BlockImport<Block, ParachainBlockImport, ParachainClient>,
+	block_import_handle: SlotBasedBlockImportHandle<Block>,
 	prometheus_registry: Option<&Registry>,
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
@@ -566,13 +579,9 @@ fn start_consensus(
 	relay_chain_slot_duration: Duration,
 	para_id: ParaId,
 	collator_key: CollatorPair,
-	overseer_handle: OverseerHandle,
 	announce_block: Arc<dyn Fn(Hash, Option<Vec<u8>>) + Send + Sync>,
 ) -> Result<(), sc_service::Error> {
-	use cumulus_client_consensus_aura::collators::lookahead::{self as aura, Params as AuraParams};
-
-	// NOTE: because we use Aura here explicitly, we can use `CollatorSybilResistance::Resistant`
-	// when starting the network.
+	use cumulus_client_consensus_aura::collators::slot_based::{self as slot_based, Params as SlotBasedParams};
 
 	let proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
 		task_manager.spawn_handle(),
@@ -591,40 +600,35 @@ fn start_consensus(
 		client.clone(),
 	);
 
-	// let (client_clone, relay_chain_interface_clone) = (client.clone(), relay_chain_interface.clone());
-	let params = AuraParams {
+	let client_for_aura = client.clone();
+	let params = SlotBasedParams {
 		create_inherent_data_providers: move |_, ()| async move { Ok(()) },
-		// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
-		// create_inherent_data_providers: move |parent, ()| {
-		// 	let client = client_clone.clone();
-		// 	let relay_chain_interface = relay_chain_interface_clone.clone();
-		// 	async move {
-		// 		let inherent =
-		// 			ismp_parachain_inherent::ConsensusInherentProvider::create(parent, client, relay_chain_interface)
-		// 				.await?;
-		//
-		// 		Ok(inherent)
-		// 	}
-		// },
 		block_import,
 		para_client: client.clone(),
 		para_backend: backend.clone(),
 		relay_client: relay_chain_interface,
-		code_hash_provider: move |block_hash| client.code_at(block_hash).ok().map(|c| ValidationCode::from(c).hash()),
+		code_hash_provider: move |block_hash| {
+			client_for_aura
+				.code_at(block_hash)
+				.ok()
+				.map(|c| ValidationCode::from(c).hash())
+		},
 		keystore,
 		collator_key,
 		para_id,
-		overseer_handle,
-		relay_chain_slot_duration,
 		proposer,
 		collator_service,
 		authoring_duration: Duration::from_millis(1500),
 		reinitialize: false,
-		max_pov_percentage: None, // Defaults to 85% of max PoV size (safe default)
+		slot_offset: Duration::from_secs(1),
+		block_import_handle,
+		spawner: task_manager.spawn_handle(),
+		relay_chain_slot_duration,
+		export_pov: None,
+		max_pov_percentage: None,
 	};
 
-	let fut = aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _>(params);
-	task_manager.spawn_essential_handle().spawn("aura", None, fut);
+	slot_based::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _, _>(params);
 
 	Ok(())
 }

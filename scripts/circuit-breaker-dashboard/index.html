@@ -107,17 +107,17 @@
   </div>
 
   <div class="panel">
-    <h2>Per-Asset Deposit Lockdown</h2>
+    <h2>Per-Asset Deposit Lockdown <span style="color:var(--muted); text-transform:none; font-size:12px; letter-spacing:0; font-weight:normal;">· fixed 24h window (14400 blocks), resets on next mint after expiry</span></h2>
     <table id="assets">
       <thead>
         <tr>
           <th>Asset</th>
           <th>Status</th>
           <th>Class.</th>
-          <th class="num">Increase</th>
+          <th class="num">Net change</th>
           <th class="num">Limit</th>
           <th style="min-width:180px">Usage</th>
-          <th>Since</th>
+          <th style="min-width:170px">Window</th>
         </tr>
       </thead>
       <tbody><tr><td colspan="7" class="loading">Loading…</td></tr></tbody>
@@ -137,20 +137,16 @@
   let assetMeta = new Map();
   let intervalId = null;
 
+  const BLOCK_TIME_S = 6;
+  // Per-asset deposit limit window: 1 day. A baseline older than this is effectively
+  // stale on-chain — the next mint will reset the window, so we display it as 0%.
+  const PERIOD_BLOCKS = 86400 / BLOCK_TIME_S; // 14400
+
   function fmtBalance(raw, decimals = 12, unit = '') {
     if (raw === null || raw === undefined) return '-';
     const bn = new BN(raw.toString());
     if (bn.isZero()) return '0' + (unit ? ` ${unit}` : '');
     return formatBalance(bn, { decimals, withUnit: unit || false, forceUnit: '-', withSi: true });
-  }
-
-  function fmtPct(n, d) {
-    if (!d || d === 0n || d === '0') return '0%';
-    const num = BigInt(n.toString());
-    const den = BigInt(d.toString());
-    if (den === 0n) return '0%';
-    const pct = Number((num * 10000n) / den) / 100;
-    return pct.toFixed(pct < 1 ? 4 : 2) + '%';
   }
 
   function pctBar(n, d) {
@@ -161,12 +157,20 @@
     return Math.min(100, Number((num * 10000n) / den) / 100);
   }
 
+  function secondsToHuman(s) {
+    s = Math.max(0, Math.round(s));
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.round(s / 60)}m`;
+    if (s < 86400) return `${(s / 3600).toFixed(1)}h`;
+    return `${(s / 86400).toFixed(1)}d`;
+  }
+
+  function blocksToHuman(blocks) {
+    return secondsToHuman(blocks * BLOCK_TIME_S);
+  }
+
   function msToHuman(ms) {
-    const s = Number(ms) / 1000;
-    if (s < 60) return `${s.toFixed(0)}s`;
-    if (s < 3600) return `${(s/60).toFixed(1)}min`;
-    if (s < 86400) return `${(s/3600).toFixed(1)}h`;
-    return `${(s/86400).toFixed(1)}d`;
+    return secondsToHuman(Number(ms) / 1000);
   }
 
   function showError(msg) {
@@ -239,19 +243,14 @@
       </div>
       <div class="stat">
         <div class="stat-label">Used / Limit</div>
-        <div class="stat-value">${fmtBalance(effectiveCurrent.toString())} / ${fmtBalance(limit)}</div>
+        <div class="stat-value">${fmtBalance(effectiveCurrent.toString(), 12, 'HDX')} / ${fmtBalance(limit, 12, 'HDX')}</div>
         <div class="bar"><div class="bar-fill ${barClass}" style="width:${pct}%"></div></div>
-        <div class="stat-sub">${pct.toFixed(4)}% utilised</div>
+        <div class="stat-sub">${pct.toFixed(2)}% utilised</div>
       </div>
       <div class="stat">
         <div class="stat-label">Window</div>
         <div class="stat-value">${msToHuman(window)}</div>
         <div class="stat-sub">decays linearly</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Raw Accumulator</div>
-        <div class="stat-value">${fmtBalance(current.toString())}</div>
-        <div class="stat-sub">at ${new Date(Number(lastMs)).toISOString().replace('T',' ').substring(0,19)}</div>
       </div>
     `;
   }
@@ -295,22 +294,32 @@
       const classification = overrideMap.get(id) || '-';
       const issuance = issuanceMap.get(id) || '0';
 
-      let status, since, increase, diffBn = null;
+      let status, windowCell, increase, diffBn = null;
       if (state.Locked !== undefined) {
         const unlockBlock = parseInt(state.Locked.replace(/,/g, ''));
         const blocksLeft = Math.max(0, unlockBlock - currentBlock);
+        const lockPct = Math.min(100, Math.round((1 - blocksLeft / PERIOD_BLOCKS) * 100));
         status = `<span class="badge err">LOCKED</span>`;
-        since = `unlocks in ${blocksLeft} blocks (#${unlockBlock})`;
+        windowCell = `<div class="bar"><div class="bar-fill err" style="width:${lockPct}%"></div></div><div class="stat-sub">unlocks in ~${blocksToHuman(blocksLeft)}</div>`;
         increase = '-';
       } else if (state.Unlocked !== undefined) {
         const [blockStr, balanceStr] = state.Unlocked;
         const block = parseInt(blockStr.replace(/,/g, ''));
         const baselineBalance = BigInt(balanceStr.replace(/,/g, ''));
         const current = BigInt(issuance);
-        // Signed difference: positive = net deposit, negative = net withdrawal since baseline
-        diffBn = current - baselineBalance;
+        const blocksInWindow = currentBlock - block;
+        const blocksLeft = Math.max(0, PERIOD_BLOCKS - blocksInWindow);
+        const expired = blocksLeft === 0;
+        // Signed diff vs baseline. If the baseline is older than the period, the
+        // window is effectively reset — treat diff as 0 for display purposes.
+        diffBn = expired ? 0n : current - baselineBalance;
         status = `<span class="badge ok">Unlocked</span>`;
-        since = `block #${block} (${currentBlock - block} blocks ago)`;
+        if (expired) {
+          windowCell = `<div class="bar"><div class="bar-fill" style="width:100%; background: var(--muted)"></div></div><div class="stat-sub" style="color:var(--muted)">expired — next mint resets</div>`;
+        } else {
+          const windowPct = Math.min(100, Math.round((blocksInWindow / PERIOD_BLOCKS) * 100));
+          windowCell = `<div class="bar"><div class="bar-fill" style="width:${windowPct}%; background: var(--accent)"></div></div><div class="stat-sub">resets in ~${blocksToHuman(blocksLeft)}</div>`;
+        }
         if (diffBn > 0n) {
           increase = `<span style="color:var(--warn)">+${fmtBalance(diffBn.toString(), meta.decimals)}</span>`;
         } else if (diffBn < 0n) {
@@ -322,15 +331,19 @@
       }
 
       let limitDisplay, usageBar, pct = 0;
+      const expired = state.Unlocked !== undefined
+        && (currentBlock - parseInt(state.Unlocked[0].replace(/,/g, ''))) >= PERIOD_BLOCKS;
       if (meta.depositLimit) {
         limitDisplay = fmtBalance(meta.depositLimit.toString(), meta.decimals);
         if (diffBn !== null) {
-          if (diffBn > 0n) {
+          if (expired) {
+            usageBar = `<div class="bar"><div class="bar-fill" style="width:0%"></div></div><div class="stat-sub">0.00%</div>`;
+          } else if (diffBn > 0n) {
             pct = pctBar(diffBn.toString(), meta.depositLimit.toString());
             const barClass = pct > 75 ? 'err' : pct > 50 ? 'warn' : '';
-            usageBar = `<div class="bar"><div class="bar-fill ${barClass}" style="width:${pct}%"></div></div><div class="stat-sub">${pct.toFixed(pct < 1 ? 4 : 2)}%</div>`;
+            usageBar = `<div class="bar"><div class="bar-fill ${barClass}" style="width:${pct}%"></div></div><div class="stat-sub">${pct.toFixed(2)}%</div>`;
           } else {
-            // Negative or zero — headroom is wider than nominal limit
+            // Net outflow — headroom is wider than nominal limit
             const headroom = meta.depositLimit - diffBn; // diffBn is <= 0, so this adds |diffBn|
             usageBar = `<div class="bar"><div class="bar-fill" style="width:0%"></div></div><div class="stat-sub" style="color:var(--ok)">0% (headroom ${fmtBalance(headroom.toString(), meta.decimals)})</div>`;
           }
@@ -350,7 +363,7 @@
         increase,
         limitDisplay,
         usageBar,
-        since,
+        windowCell,
         locked: state.Locked !== undefined,
         pct,
         hasLimit: !!meta.depositLimit,
@@ -376,7 +389,7 @@
         <td class="num">${r.increase}</td>
         <td class="num">${r.limitDisplay}</td>
         <td>${r.usageBar}</td>
-        <td>${r.since}</td>
+        <td>${r.windowCell}</td>
       </tr>
     `).join('');
   }

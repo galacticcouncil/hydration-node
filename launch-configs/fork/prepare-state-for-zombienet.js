@@ -222,6 +222,22 @@ async function updateChainSpec(inputFile, outputFile) {
         chainSpec.genesis.raw.top[key] = value;
     }
 
+    // Optional: preauthorize a runtime upgrade so the fork comes up with
+    // System.AuthorizedUpgrade populated. A single system.applyAuthorizedUpgrade(code)
+    // call is then enough to enact the new wasm — no governance step required.
+    if (process.env.AUTHORIZE_UPGRADE_CODE_HASH) {
+        const raw = process.env.AUTHORIZE_UPGRADE_CODE_HASH.toLowerCase().replace(/^0x/, '');
+        if (!/^[0-9a-f]{64}$/.test(raw)) {
+            throw new Error(`AUTHORIZE_UPGRADE_CODE_HASH must be a 0x-prefixed 32-byte hex string, got: ${process.env.AUTHORIZE_UPGRADE_CODE_HASH}`);
+        }
+        const checkVersion = process.env.AUTHORIZE_UPGRADE_CHECK_VERSION === 'false' ? '00' : '01';
+        const key = '0x' +
+            xxhashAsHex('System', 128).replace('0x', '') +
+            xxhashAsHex('AuthorizedUpgrade', 128).replace('0x', '');
+        chainSpec.genesis.raw.top[key] = '0x' + raw + checkVersion;
+        console.log(`✅ Preauthorized runtime upgrade: code_hash=0x${raw} check_version=${checkVersion === '01'}`);
+    }
+
     // Update metadata fields
     chainSpec.name = NEW_NAME;
     chainSpec.id = NEW_ID;
