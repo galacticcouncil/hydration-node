@@ -74,7 +74,6 @@ use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 use sp_std::vec;
 
-#[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::FixedU128;
 
 mod trade_execution;
@@ -397,6 +396,9 @@ pub mod pallet {
 
 		/// Trade would result in zero amount in.
 		ZeroAmountIn,
+
+		/// Invariant check failed inside a trade or liquidity operation.
+		InvariantError,
 	}
 
 	#[pallet::call]
@@ -699,8 +701,7 @@ pub mod pallet {
 				fees,
 			);
 
-			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;
 
 			Ok(())
 		}
@@ -803,8 +804,7 @@ pub mod pallet {
 				}],
 			);
 
-			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
+			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee)?;
 
 			Ok(())
 		}
@@ -910,8 +910,7 @@ pub mod pallet {
 				}],
 			);
 
-			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
+			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee)?;
 
 			Ok(())
 		}
@@ -946,9 +945,12 @@ pub mod pallet {
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let _ = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
 
-			AssetTradability::<T>::mutate(pool_id, asset_id, |current_state| {
-				*current_state = state;
-			});
+			// If the state is the default, we remove the entry to save storage.
+			if state == Tradability::default() {
+				AssetTradability::<T>::remove(pool_id, asset_id);
+			} else {
+				AssetTradability::<T>::insert(pool_id, asset_id, state);
+			}
 
 			Self::deposit_event(Event::TradableStateUpdated {
 				pool_id,
@@ -1079,8 +1081,7 @@ pub mod pallet {
 				fee: Balance::zero(),
 			});
 
-			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;
 
 			Ok(())
 		}
@@ -1615,8 +1616,7 @@ impl<T: Config> Pallet<T> {
 		// All done and updated. let's call the on_liquidity_changed hook.
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
-		#[cfg(any(feature = "try-runtime", test))]
-		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
+		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;
 
 		Self::deposit_event(Event::LiquidityAdded {
 			pool_id,
@@ -1713,8 +1713,7 @@ impl<T: Config> Pallet<T> {
 		//All done and update. let's call the on_liquidity_changed hook.
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
-		#[cfg(any(feature = "try-runtime", test))]
-		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
+		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;
 
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
@@ -1813,8 +1812,7 @@ impl<T: Config> Pallet<T> {
 			}],
 		);
 
-		#[cfg(any(feature = "try-runtime", test))]
-		Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
+		Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;
 
 		Ok(amount)
 	}
@@ -1909,8 +1907,7 @@ impl<T: Config> Pallet<T> {
 			fee: Balance::zero(),
 		});
 
-		#[cfg(any(feature = "try-runtime", test))]
-		Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
+		Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;
 
 		Ok(())
 	}
@@ -2005,102 +2002,108 @@ impl<T: Config> Pallet<T> {
 		Ok(state)
 	}
 
-	#[cfg(any(feature = "try-runtime", test))]
 	fn ensure_add_liquidity_invariant(
 		pool_id: T::AssetId,
 		initial_reserves: &[AssetReserve],
 		initial_issuance: Balance,
-	) {
-		let pool = Pools::<T>::get(pool_id).unwrap();
-		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).unwrap();
-		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
-		debug_assert_ne!(
-			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			"Reserves have not changed"
-		);
-		let amplification = Self::get_amplification(&pool);
-		let initial_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, &asset_pegs)
-				.unwrap();
-		let final_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
-				.unwrap();
-		assert!(
-			final_d >= initial_d,
-			"Add liquidity Invariant broken: D+ is less than initial D; {initial_d:?} <= {final_d:?}",
-		);
-		if initial_issuance.is_zero() {
-			return;
-		}
-		let current_share_issuance = T::Currency::total_issuance(pool_id);
-		let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
-		let final_r = FixedU128::from_rational(final_d, current_share_issuance);
-		assert!(
-			final_r >= initial_r,
-			"Add liquidity Invariant broken: R+ is less than initial R; {initial_r:?} <= {final_r:?}",
-		);
+	) -> DispatchResult {
+		let r: DispatchResult = (|| {
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::InvariantError)?;
+			let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).map_err(|_| Error::<T>::InvariantError)?;
+			let final_reserves = pool
+				.reserves_with_decimals::<T>(&Self::pool_account(pool_id))
+				.ok_or(Error::<T>::InvariantError)?;
+			debug_assert_ne!(
+				initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+				final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+				"Reserves have not changed"
+			);
+			let amplification = Self::get_amplification(&pool);
+			let initial_d =
+				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, &asset_pegs)
+					.ok_or(Error::<T>::InvariantError)?;
+			let final_d =
+				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
+					.ok_or(Error::<T>::InvariantError)?;
+			ensure!(final_d >= initial_d, Error::<T>::InvariantError);
+			if initial_issuance.is_zero() {
+				return Ok(());
+			}
+			let current_share_issuance = T::Currency::total_issuance(pool_id);
+			ensure!(!current_share_issuance.is_zero(), Error::<T>::InvariantError);
+			let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
+			let final_r = FixedU128::from_rational(final_d, current_share_issuance);
+			ensure!(final_r >= initial_r, Error::<T>::InvariantError);
+			Ok(())
+		})();
+		debug_assert!(r.is_ok(), "Stableswap add_liquidity invariant: {r:?}");
+		r
 	}
 
-	#[cfg(any(feature = "try-runtime", test))]
 	fn ensure_remove_liquidity_invariant(
 		pool_id: T::AssetId,
 		initial_reserves: &[AssetReserve],
 		initial_issuance: Balance,
-	) {
-		let Some(pool) = Pools::<T>::get(pool_id) else {
-			return;
-		};
-		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).unwrap();
-		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
-		debug_assert_ne!(
-			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			"Reserves have not changed"
-		);
-		let amplification = Self::get_amplification(&pool);
-		let initial_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, &asset_pegs)
-				.unwrap();
-		let final_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
-				.unwrap();
-		assert!(
-			final_d <= initial_d,
-			"Remove liquidity Invariant broken: D+ is more than initial D; {initial_d:?} >= {final_d:?}",
-		);
-		let current_share_issuance = T::Currency::total_issuance(pool_id);
-		if current_share_issuance.is_zero() {
-			return;
-		}
-		let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
-		let final_r = FixedU128::from_rational(final_d, current_share_issuance);
-		assert!(
-			final_r >= initial_r,
-			"Remove liquidity Invariant broken: R+ is less than initial R; {initial_r:?} <= {final_r:?}",
-		);
+	) -> DispatchResult {
+		let r: DispatchResult = (|| {
+			let Some(pool) = Pools::<T>::get(pool_id) else {
+				return Ok(());
+			};
+			let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).map_err(|_| Error::<T>::InvariantError)?;
+			let final_reserves = pool
+				.reserves_with_decimals::<T>(&Self::pool_account(pool_id))
+				.ok_or(Error::<T>::InvariantError)?;
+			debug_assert_ne!(
+				initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+				final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+				"Reserves have not changed"
+			);
+			let amplification = Self::get_amplification(&pool);
+			let initial_d =
+				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, &asset_pegs)
+					.ok_or(Error::<T>::InvariantError)?;
+			let final_d =
+				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
+					.ok_or(Error::<T>::InvariantError)?;
+			ensure!(final_d <= initial_d, Error::<T>::InvariantError);
+			let current_share_issuance = T::Currency::total_issuance(pool_id);
+			if current_share_issuance.is_zero() {
+				return Ok(());
+			}
+			ensure!(!initial_issuance.is_zero(), Error::<T>::InvariantError);
+			let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
+			let final_r = FixedU128::from_rational(final_d, current_share_issuance);
+			ensure!(final_r >= initial_r, Error::<T>::InvariantError);
+			Ok(())
+		})();
+		debug_assert!(r.is_ok(), "Stableswap remove_liquidity invariant: {r:?}");
+		r
 	}
-	#[cfg(any(feature = "try-runtime", test))]
-	fn ensure_trade_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve], _fee: Permill) {
-		let pool = Pools::<T>::get(pool_id).unwrap();
-		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).unwrap();
-		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
-		debug_assert_ne!(
-			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			"Reserves are not changed"
-		);
-		let amplification = Self::get_amplification(&pool);
-		let initial_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, &asset_pegs)
-				.unwrap();
-		let final_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
-				.unwrap();
-		assert!(
-			final_d >= initial_d,
-			"Trade Invariant broken: D+ is less than initial D; {initial_d:?} <= {final_d:?}",
-		);
+
+	fn ensure_trade_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve], _fee: Permill) -> DispatchResult {
+		let r: DispatchResult = (|| {
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::InvariantError)?;
+			let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).map_err(|_| Error::<T>::InvariantError)?;
+			let final_reserves = pool
+				.reserves_with_decimals::<T>(&Self::pool_account(pool_id))
+				.ok_or(Error::<T>::InvariantError)?;
+			debug_assert_ne!(
+				initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+				final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+				"Reserves are not changed"
+			);
+			let amplification = Self::get_amplification(&pool);
+			let initial_d =
+				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, &asset_pegs)
+					.ok_or(Error::<T>::InvariantError)?;
+			let final_d =
+				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
+					.ok_or(Error::<T>::InvariantError)?;
+			ensure!(final_d >= initial_d, Error::<T>::InvariantError);
+			Ok(())
+		})();
+		debug_assert!(r.is_ok(), "Stableswap trade invariant: {r:?}");
+		r
 	}
 }
 
