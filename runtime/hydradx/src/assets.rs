@@ -633,7 +633,8 @@ impl pallet_circuit_breaker::Config for Runtime {
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<{ pallet_ema_oracle::MAX_PERIODS }>> = BoundedVec::truncate_from(vec![
-		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes, OraclePeriod::Day,
+	]);
 	// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
 	pub BifrostAccount: AccountId = hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into();
 }
@@ -933,6 +934,11 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 		let errors: Vec<DispatchError> = vec![
 			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
 			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
+			// Off-by-one rounding on aToken balanceOf can trip the omnipool's
+			// pre-trade ensure_can_withdraw. Retry on a later block — the aave
+			// liquidity index is timestamp-dependent, so the rounding boundary
+			// shifts and a later attempt may pass.
+			pallet_omnipool::Error::<Runtime>::InsufficientBalance.into(),
 			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
 			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];

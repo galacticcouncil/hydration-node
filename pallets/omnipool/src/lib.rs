@@ -95,7 +95,6 @@ use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::{Asset, Destination, ExecutionType, Fee};
-#[cfg(any(feature = "try-runtime", test))]
 use primitive_types::U256;
 use scale_info::TypeInfo;
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
@@ -455,6 +454,11 @@ pub mod pallet {
 		ProtocolFeeNotConsumed,
 		/// Slip fee configuration exceeds the allowed maximum (50%).
 		MaxSlipFeeTooHigh,
+		/// Invariant check failed inside a trade or liquidity operation.
+		InvariantError,
+		/// Hub asset free balance in the protocol account is less than the sum of recorded
+		/// asset hub reserves. Indicates corrupted hub-asset accounting; should never happen.
+		InvalidOmnipoolHubReserve,
 	}
 
 	#[pallet::call]
@@ -879,6 +883,9 @@ pub mod pallet {
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
 
+			let hub_balance_excluding_swap_assets =
+				Self::hub_balance_excluding_swap_assets(asset_in, &asset_in_state, asset_out, &asset_out_state)?;
+
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
 				Error::<T>::NotAllowed
@@ -1062,11 +1069,11 @@ pub mod pallet {
 
 			pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
-			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_trade_invariant(
 				(asset_in, asset_in_state, new_asset_in_state),
 				(asset_out, asset_out_state, new_asset_out_state),
-			);
+				hub_balance_excluding_swap_assets,
+			)?;
 
 			Ok(())
 		}
@@ -1121,6 +1128,9 @@ pub mod pallet {
 
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
+
+			let hub_balance_excluding_swap_assets =
+				Self::hub_balance_excluding_swap_assets(asset_in, &asset_in_state, asset_out, &asset_out_state)?;
 
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
@@ -1309,11 +1319,11 @@ pub mod pallet {
 
 			pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
-			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_trade_invariant(
 				(asset_in, asset_in_state, new_asset_in_state),
 				(asset_out, asset_out_state, new_asset_out_state),
-			);
+				hub_balance_excluding_swap_assets,
+			)?;
 
 			Ok(())
 		}
@@ -2483,8 +2493,7 @@ impl<T: Config> Pallet<T> {
 
 		T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 
-		#[cfg(any(feature = "try-runtime", test))]
-		Self::ensure_liquidity_invariant((asset, asset_state, new_asset_state));
+		Self::ensure_liquidity_invariant((asset, asset_state, new_asset_state))?;
 
 		Ok(instance_id)
 	}
@@ -2645,86 +2654,129 @@ impl<T: Config> Pallet<T> {
 
 		T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 
-		#[cfg(any(feature = "try-runtime", test))]
-		Self::ensure_liquidity_invariant((asset_id, asset_state, new_asset_state));
+		Self::ensure_liquidity_invariant((asset_id, asset_state, new_asset_state))?;
 
 		Ok(*state_changes.asset.delta_reserve)
 	}
 
-	#[cfg(any(feature = "try-runtime", test))]
+	fn hub_balance_excluding_swap_assets(
+		asset_in: T::AssetId,
+		asset_in_state: &AssetReserveState<Balance>,
+		asset_out: T::AssetId,
+		asset_out_state: &AssetReserveState<Balance>,
+	) -> Result<Balance, DispatchError> {
+		let hub_supply = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
+		let mut sum_asset_hub_reserves = asset_in_state
+			.hub_reserve
+			.checked_add(asset_out_state.hub_reserve)
+			.ok_or(Error::<T>::InvariantError)?;
+
+		let hdx_id = T::HdxAssetId::get();
+		if hdx_id != asset_in && hdx_id != asset_out {
+			let hdx_state = Self::load_asset_state(hdx_id)?;
+			sum_asset_hub_reserves = sum_asset_hub_reserves
+				.checked_add(hdx_state.hub_reserve)
+				.ok_or(Error::<T>::InvariantError)?;
+		}
+
+		debug_assert!(
+			hub_supply >= sum_asset_hub_reserves,
+			"Omnipool hub supply less than sum of asset hub reserves"
+		);
+		ensure!(
+			hub_supply >= sum_asset_hub_reserves,
+			Error::<T>::InvalidOmnipoolHubReserve
+		);
+
+		Ok(hub_supply.saturating_sub(sum_asset_hub_reserves))
+	}
+
 	fn ensure_trade_invariant(
 		asset_in: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>),
 		asset_out: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>),
-	) {
-		let new_in_state = asset_in.2;
-		let new_out_state = asset_out.2;
+		hub_balance_excluding_swap_assets: Balance,
+	) -> DispatchResult {
+		let r: DispatchResult = (|| {
+			let asset_in_id = asset_in.0;
+			let asset_out_id = asset_out.0;
+			let old_in_state = &asset_in.1;
+			let new_in_state = &asset_in.2;
 
-		let old_in_state = asset_in.1;
-		let old_out_state = asset_out.1;
-		debug_assert!(new_in_state.reserve > old_in_state.reserve);
-		debug_assert!(new_out_state.reserve < old_out_state.reserve);
+			// Per-asset R·Q monotone on the input side. Uses in-memory values
+			// (trade-math result) — this is the curve-shape check.
+			let in_new_reserve = U256::from(new_in_state.reserve);
+			let in_new_hub_reserve = U256::from(new_in_state.hub_reserve);
+			let in_old_reserve = U256::from(old_in_state.reserve);
+			let in_old_hub_reserve = U256::from(old_in_state.hub_reserve);
 
-		let in_new_reserve = U256::from(new_in_state.reserve);
-		let in_new_hub_reserve = U256::from(new_in_state.hub_reserve);
-		let in_old_reserve = U256::from(old_in_state.reserve);
-		let in_old_hub_reserve = U256::from(old_in_state.hub_reserve);
+			let rq_before = in_old_reserve
+				.checked_mul(in_old_hub_reserve)
+				.ok_or(Error::<T>::InvariantError)?;
+			let rq_after = in_new_reserve
+				.checked_mul(in_new_hub_reserve)
+				.ok_or(Error::<T>::InvariantError)?;
+			ensure!(rq_after >= rq_before, Error::<T>::InvariantError);
 
-		let rq = in_old_reserve.checked_mul(in_old_hub_reserve).unwrap();
-		let rq_plus = in_new_reserve.checked_mul(in_new_hub_reserve).unwrap();
-		debug_assert!(
-			rq_plus >= rq,
-			"Asset IN trade invariant, {new_in_state:?}, {old_in_state:?}",
-		);
+			let in_store = <Assets<T>>::get(asset_in_id).ok_or(Error::<T>::InvariantError)?;
+			let out_store = <Assets<T>>::get(asset_out_id).ok_or(Error::<T>::InvariantError)?;
 
-		//Ensure Hub reserve in protocol account is equal to sum of all subpool reserves
-		let hub_reserve = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-		let subpool_hub_reserve: Balance = <Assets<T>>::iter().fold(0, |acc, v| acc + v.1.hub_reserve);
-		debug_assert_eq!(hub_reserve, subpool_hub_reserve, "Total Hub reserve invariant");
+			let mut expected_hub_supply = hub_balance_excluding_swap_assets
+				.checked_add(in_store.hub_reserve)
+				.ok_or(Error::<T>::InvariantError)?
+				.checked_add(out_store.hub_reserve)
+				.ok_or(Error::<T>::InvariantError)?;
 
-		/*
-		   let out_new_reserve = U256::from(new_out_state.reserve);
-		   let out_new_hub_reserve = U256::from(new_out_state.hub_reserve);
-		   let out_old_reserve = U256::from(old_out_state.reserve);
-		   let out_old_hub_reserve = U256::from(old_out_state.hub_reserve);
+			let hdx_id = T::HdxAssetId::get();
+			if hdx_id != asset_in_id && hdx_id != asset_out_id {
+				let hdx_store = <Assets<T>>::get(hdx_id).ok_or(Error::<T>::InvariantError)?;
+				expected_hub_supply = expected_hub_supply
+					.checked_add(hdx_store.hub_reserve)
+					.ok_or(Error::<T>::InvariantError)?;
+			}
 
-		   let left = rq + sp_std::cmp::max(in_new_reserve, in_new_hub_reserve);
-		   let right = rq_plus;
-		   assert!(left >= right, "Asset IN margin {:?} >= {:?}", left,right);
+			let actual_hub_supply = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+			ensure!(expected_hub_supply == actual_hub_supply, Error::<T>::InvariantError);
 
-		   let rq = out_old_reserve.checked_mul(out_old_hub_reserve).unwrap();
-		   let rq_plus = out_new_reserve.checked_mul(out_new_hub_reserve).unwrap();
-		   assert!(rq_plus >= rq, "Asset OUT trade invariant, {:?}, {:?}", new_out_state, old_out_state);
-		   let left = rq + sp_std::cmp::max(out_new_reserve, out_new_hub_reserve);
-		   let right = rq_plus;
-		   assert!(left >= right, "Asset OUT margin {:?} >= {:?}", left,right);
-
-		*/
+			Ok(())
+		})();
+		debug_assert!(r.is_ok(), "Omnipool trade invariant: {r:?}");
+		r
 	}
 
-	#[cfg(any(feature = "try-runtime", test))]
-	fn ensure_liquidity_invariant(asset: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>)) {
-		let old_state = asset.1;
-		let new_state = asset.2;
+	fn ensure_liquidity_invariant(
+		asset: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>),
+	) -> DispatchResult {
+		let r: DispatchResult = (|| {
+			let old_state = &asset.1;
+			let new_state = &asset.2;
 
-		let new_reserve = U256::from(new_state.reserve);
-		let new_hub_reserve = U256::from(new_state.hub_reserve);
-		let old_reserve = U256::from(old_state.reserve);
-		let old_hub_reserve = U256::from(old_state.hub_reserve);
+			let new_reserve = U256::from(new_state.reserve);
+			let new_hub_reserve = U256::from(new_state.hub_reserve);
+			let old_reserve = U256::from(old_state.reserve);
+			let old_hub_reserve = U256::from(old_state.hub_reserve);
 
-		let one = U256::from(1_000_000_000_000u128);
+			let one = U256::from(1_000_000_000_000u128);
 
-		let left = new_hub_reserve.saturating_sub(one).checked_mul(old_reserve).unwrap();
-		let middle = old_hub_reserve.checked_mul(new_reserve).unwrap();
-		let right = new_hub_reserve
-			.checked_add(one)
-			.unwrap()
-			.checked_mul(old_reserve)
-			.unwrap();
+			let left = new_hub_reserve
+				.saturating_sub(one)
+				.checked_mul(old_reserve)
+				.ok_or(Error::<T>::InvariantError)?;
+			let middle = old_hub_reserve
+				.checked_mul(new_reserve)
+				.ok_or(Error::<T>::InvariantError)?;
+			let right = new_hub_reserve
+				.checked_add(one)
+				.ok_or(Error::<T>::InvariantError)?
+				.checked_mul(old_reserve)
+				.ok_or(Error::<T>::InvariantError)?;
 
-		debug_assert!(left <= middle, "Add liquidity first part");
-		debug_assert!(
-			middle <= right,
-			"Add liquidity second part - {left:?} <= {middle:?} <= {right:?}",
-		);
+			ensure!(left <= middle, Error::<T>::InvariantError);
+			ensure!(middle <= right, Error::<T>::InvariantError);
+
+			Ok(())
+		})();
+		debug_assert!(r.is_ok(), "Omnipool liquidity invariant: {r:?}");
+		r
 	}
 }
