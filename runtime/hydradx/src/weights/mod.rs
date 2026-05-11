@@ -46,7 +46,6 @@ pub mod pallet_stableswap;
 pub mod pallet_staking;
 pub mod pallet_state_trie_migration;
 pub mod pallet_timestamp;
-pub mod pallet_token_gateway;
 pub mod pallet_ice;
 pub mod pallet_intent;
 pub mod pallet_lazy_executor;
