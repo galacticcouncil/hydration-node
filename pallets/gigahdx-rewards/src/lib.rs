@@ -200,10 +200,7 @@ pub mod pallet {
 			)
 			.map_err(|_| Error::<T>::PotInsufficient)?;
 
-			let stake_before = pallet_gigahdx::Stakes::<T>::get(&who).map(|s| s.gigahdx).unwrap_or(0);
-			pallet_gigahdx::Pallet::<T>::do_stake(&who, total)?;
-			let stake_after = pallet_gigahdx::Stakes::<T>::get(&who).map(|s| s.gigahdx).unwrap_or(0);
-			let gigahdx_received = stake_after.saturating_sub(stake_before);
+			let gigahdx_received = pallet_gigahdx::Pallet::<T>::do_stake(&who, total)?;
 
 			Self::deposit_event(Event::RewardsClaimed {
 				who,

@@ -295,7 +295,8 @@ pub mod pallet {
 			);
 			ensure!(usable >= amount, Error::<T>::InsufficientFreeBalance);
 
-			Self::do_stake(&who, amount)
+			Self::do_stake(&who, amount)?;
+			Ok(())
 		}
 
 		/// Unstake the caller's GIGAHDX and open a pending-unstake position.
@@ -547,7 +548,7 @@ pub mod pallet {
 		/// requiring that check (e.g. the `giga_stake` extrinsic) must perform
 		/// it before invoking `do_stake`.
 		#[transactional]
-		pub fn do_stake(who: &T::AccountId, amount: Balance) -> DispatchResult {
+		pub fn do_stake(who: &T::AccountId, amount: Balance) -> Result<Balance, DispatchError> {
 			ensure!(amount > 0, Error::<T>::ZeroAmount);
 			let gigahdx_to_mint = Self::calculate_gigahdx_given_hdx_amount(amount).map_err(|_| Error::<T>::Overflow)?;
 			ensure!(gigahdx_to_mint > 0, Error::<T>::ZeroAmount);
@@ -571,7 +572,7 @@ pub mod pallet {
 				amount,
 				gigahdx: actual_minted,
 			});
-			Ok(())
+			Ok(actual_minted)
 		}
 
 		/// Recompute the single combined balance lock for `who`:
