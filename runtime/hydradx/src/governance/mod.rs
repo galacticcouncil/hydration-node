@@ -180,6 +180,7 @@ impl pallet_treasury::Config for Runtime {
 
 parameter_types! {
 	pub const VoteLockingPeriod: BlockNumber = 7 * DAYS;
+	#[derive(Debug)]
 	pub const MaxVotes: u32 = 25;
 }
 
