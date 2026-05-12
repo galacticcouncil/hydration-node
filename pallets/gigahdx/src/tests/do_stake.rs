@@ -2,7 +2,6 @@
 
 use super::mock::*;
 use crate::{Error, Stakes, TotalLocked};
-use frame_support::sp_runtime::traits::AccountIdConversion;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use hydradx_traits::gigahdx::MoneyMarketOperations;
