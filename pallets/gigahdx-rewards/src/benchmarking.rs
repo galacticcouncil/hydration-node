@@ -9,8 +9,6 @@
 //! (mint stHDX, money-market supply, mutate `Stakes`, bump `TotalLocked`,
 //! refresh the balance lock).
 
-#![cfg(feature = "runtime-benchmarks")]
-
 use super::*;
 use crate::pallet::PendingRewards;
 use frame_benchmarking::v2::*;
@@ -22,15 +20,15 @@ use primitives::{Balance, EvmAddress};
 
 const ONE: Balance = 1_000_000_000_000;
 
-#[benchmarks(where T: Config, <T as Config>::NativeCurrency: Currency<T::AccountId, Balance = Balance>)]
+#[benchmarks(where T: Config, <T as pallet_gigahdx::Config>::NativeCurrency: Currency<T::AccountId, Balance = Balance>)]
 mod benches {
 	use super::*;
 
 	fn fund<T: Config>(who: &T::AccountId, amount: Balance)
 	where
-		<T as Config>::NativeCurrency: Currency<T::AccountId, Balance = Balance>,
+		<T as pallet_gigahdx::Config>::NativeCurrency: Currency<T::AccountId, Balance = Balance>,
 	{
-		let _ = <T as Config>::NativeCurrency::deposit_creating(who, amount);
+		let _ = <T as pallet_gigahdx::Config>::NativeCurrency::deposit_creating(who, amount);
 	}
 
 	/// Set a dummy AAVE pool address so `pallet-gigahdx`'s `pool not set`

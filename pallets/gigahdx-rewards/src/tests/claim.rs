@@ -103,6 +103,6 @@ fn claim_rewards_should_emit_event_with_gigahdx_received() {
 					if *who == ALICE && *total_hdx == 10 * ONE && *gigahdx_received > 0
 			)
 		});
-		assert!(found, "expected RewardsClaimed event; got {:?}", recent);
+		assert!(found, "expected RewardsClaimed event; got {recent:?}");
 	});
 }

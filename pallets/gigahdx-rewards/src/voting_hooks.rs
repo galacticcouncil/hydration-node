@@ -172,7 +172,7 @@ fn maybe_allocate_and_record<T: Config>(
 		ReferendaRewardPool::<T>::insert(
 			ref_index,
 			ReferendaReward {
-				track_id: track_id.clone(),
+				track_id,
 				total_reward: allocation,
 				total_weighted_votes: total_weighted,
 				voters_remaining,
