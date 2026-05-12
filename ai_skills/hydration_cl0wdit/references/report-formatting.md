@@ -2,7 +2,7 @@
 
 ## Report Path
 
-When `--file-output` is set, resolve the git repository root via `git rev-parse --show-toplevel` and save the report to `{repo_root}/findings/{timestamp}-hydration-{feature-name}-cl0wdit.md`, where `{feature-name}` is the name of the feature or pallet and `{timestamp}` is `YYYYMMDD-HHMMSS` at scan time. Create the `findings/` directory if it doesn't exist.
+When `--file-output` is set, resolve the git repository root via `git rev-parse --show-toplevel` and save the report to `{repo_root}/findings/{timestamp}-hydration-{feature-name}-{model-name}-cl0wdit.md`, where `{feature-name}` is the name of the feature or pallet, `{model-name}` is a filesystem-safe lowercase model slug such as `gpt-5`, `claude-opus-4-5`, or `o3`, and `{timestamp}` is `YYYYMMDD-HHMMSS` at scan time. Create the `findings/` directory if it doesn't exist.
 
 ## Output Format
 
