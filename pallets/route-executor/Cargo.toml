@@ -57,6 +57,7 @@ std = [
   "hydradx-adapters/std",
   "pallet-balances/std",
   "pallet-broadcast/std",
+  "pallet-currencies/std",
   "hydradx-traits/std",
   "hydra-dx-math/std",
   "frame-benchmarking/std",

@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-adapters"
-version = "1.13.1"
+version = "1.13.2"
 description = "Structs and other generic types for building runtimes."
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -106,7 +106,9 @@ runtime-benchmarks = [
 std = [
     "codec/std",
     "orml-tokens/std",
+    "orml-vesting/std",
     "pallet-balances/std",
+    "pallet-staking/std",
     "frame-support/std",
     "frame-system/std",
     "hydradx-traits/std",
