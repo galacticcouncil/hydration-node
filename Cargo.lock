@@ -5779,7 +5779,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "416.0.0"
+version = "417.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5863,6 +5863,7 @@ dependencies = [
  "pallet-evm-precompile-simple",
  "pallet-genesis-history",
  "pallet-gigahdx",
+ "pallet-gigahdx-rewards",
  "pallet-hsm",
  "pallet-identity",
  "pallet-lbp",
@@ -9707,6 +9708,30 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-gigahdx-rewards"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-conviction-voting",
+ "pallet-gigahdx",
  "parity-scale-codec",
  "primitives",
  "scale-info",
@@ -13907,6 +13932,7 @@ dependencies = [
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
  "pallet-gigahdx",
+ "pallet-gigahdx-rewards",
  "pallet-hsm",
  "pallet-im-online",
  "pallet-lbp",

@@ -2,11 +2,13 @@
 
 #![cfg(test)]
 
-use crate as pallet_gigahdx;
+use crate as pallet_gigahdx_rewards;
+use crate::traits::{ReferendaTrackInspect, TrackRewardTable};
+use crate::types::ReferendumIndex;
 
 use frame_support::sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage, DispatchError,
+	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
+	BuildStorage, DispatchError, Permill,
 };
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -21,7 +23,9 @@ use sp_core::H256;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-pub type AccountId = u64;
+// 16-byte AccountId so `PalletId::into_sub_account_truncating` produces a
+// pot distinct from the parent (the first 8 bytes would otherwise collide).
+pub type AccountId = u128;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 #[allow(dead_code)]
@@ -31,6 +35,8 @@ pub const ONE: Balance = 1_000_000_000_000;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
+pub const CHARLIE: AccountId = 3;
+#[allow(dead_code)]
 pub const TREASURY: AccountId = 99;
 
 pub const GIGAHDX_LOCK_ID: LockIdentifier = *b"ghdxlock";
@@ -41,6 +47,7 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Tokens: orml_tokens,
 		GigaHdx: pallet_gigahdx,
+		GigaHdxRewards: pallet_gigahdx_rewards,
 	}
 );
 
@@ -122,10 +129,8 @@ impl orml_tokens::Config for Test {
 
 thread_local! {
 	pub static MM_BALANCES: RefCell<HashMap<AccountId, Balance>> = RefCell::new(HashMap::new());
-	/// When set, `supply` returns `input * num / den` (rounding test). 1/1 = identity.
 	pub static MM_SUPPLY_ROUND_NUM: RefCell<u128> = const { RefCell::new(1) };
 	pub static MM_SUPPLY_ROUND_DEN: RefCell<u128> = const { RefCell::new(1) };
-	/// When true, `supply` errors.
 	pub static MM_SUPPLY_FAILS: RefCell<bool> = const { RefCell::new(false) };
 	pub static MM_WITHDRAW_FAILS: RefCell<bool> = const { RefCell::new(false) };
 }
@@ -140,6 +145,7 @@ impl TestMoneyMarket {
 		MM_SUPPLY_FAILS.with(|v| *v.borrow_mut() = false);
 		MM_WITHDRAW_FAILS.with(|v| *v.borrow_mut() = false);
 	}
+	#[allow(dead_code)]
 	pub fn set_supply_rounding(num: u128, den: u128) {
 		MM_SUPPLY_ROUND_NUM.with(|v| *v.borrow_mut() = num);
 		MM_SUPPLY_ROUND_DEN.with(|v| *v.borrow_mut() = den);
@@ -147,8 +153,13 @@ impl TestMoneyMarket {
 	pub fn fail_supply() {
 		MM_SUPPLY_FAILS.with(|v| *v.borrow_mut() = true);
 	}
+	#[allow(dead_code)]
 	pub fn fail_withdraw() {
 		MM_WITHDRAW_FAILS.with(|v| *v.borrow_mut() = true);
+	}
+	#[allow(dead_code)]
+	pub fn balance_of(who: &AccountId) -> Balance {
+		MM_BALANCES.with(|m| *m.borrow().get(who).unwrap_or(&0))
 	}
 }
 
@@ -188,7 +199,7 @@ parameter_types! {
 	pub const GigaHdxPalletId: PalletId = PalletId(*b"gigahdx!");
 	pub const GigaHdxLockId: LockIdentifier = GIGAHDX_LOCK_ID;
 	pub const GigaHdxMinStake: Balance = ONE; // 1 HDX
-	pub const GigaHdxCooldownPeriod: u64 = 100; // 100 blocks
+	pub const GigaHdxCooldownPeriod: u64 = 100;
 }
 
 impl pallet_gigahdx::Config for Test {
@@ -206,25 +217,111 @@ impl pallet_gigahdx::Config for Test {
 	type BenchmarkHelper = ();
 }
 
+// ---------- pallet-gigahdx-rewards config ----------
+
+parameter_types! {
+	// AccountId in this mock is u128 (16 bytes) so sub-account derivation
+	// produces a pot distinct from the accumulator. Use a prefix that does
+	// not collide with gigahdx (`b"giga..."`).
+	pub const RewardPotPalletId: PalletId = PalletId(*b"rwd!ghdx");
+}
+
+pub struct TestReferendaTrackInspect;
+impl ReferendaTrackInspect<ReferendumIndex, u16> for TestReferendaTrackInspect {
+	fn track_of(_ref_index: ReferendumIndex) -> Option<u16> {
+		Some(0u16)
+	}
+}
+
+pub struct TestTrackRewardConfig;
+impl TrackRewardTable<u16> for TestTrackRewardConfig {
+	fn reward_percentage(_track_id: u16) -> Permill {
+		Permill::from_percent(10)
+	}
+}
+
+impl pallet_gigahdx_rewards::Config for Test {
+	type TrackId = u16;
+	type Referenda = TestReferendaTrackInspect;
+	type TrackRewardConfig = TestTrackRewardConfig;
+	type RewardPotPalletId = RewardPotPalletId;
+	type WeightInfo = ();
+}
+
+// ---------- helpers ----------
+
+pub fn accumulator_pot() -> AccountId {
+	pallet_gigahdx_rewards::Pallet::<Test>::reward_accumulator_pot()
+}
+
+pub fn allocated_pot() -> AccountId {
+	pallet_gigahdx_rewards::Pallet::<Test>::allocated_rewards_pot()
+}
+
+#[allow(dead_code)]
+pub fn gigapot() -> AccountId {
+	GigaHdxPalletId::get().into_account_truncating()
+}
+
+/// Mint HDX into the accumulator pot at runtime.
+#[allow(dead_code)]
+pub fn fund_accumulator(amount: Balance) {
+	use frame_support::traits::Currency;
+	let _ = <Balances as Currency<AccountId>>::deposit_creating(&accumulator_pot(), amount);
+}
+
+pub fn account_balance(who: &AccountId) -> Balance {
+	use frame_support::traits::Currency;
+	<Balances as Currency<AccountId>>::free_balance(who)
+}
+
+/// Convenience getter for a Stake record; returns a default record if absent.
+pub fn stake_record(who: &AccountId) -> pallet_gigahdx::pallet::StakeRecord {
+	pallet_gigahdx::Stakes::<Test>::get(who).unwrap_or_default()
+}
+
+/// Drain all `frame_system::events()` and return them.
+pub fn last_events(n: usize) -> Vec<RuntimeEvent> {
+	let evs: Vec<RuntimeEvent> = frame_system::Pallet::<Test>::events()
+		.into_iter()
+		.map(|e| e.event)
+		.collect();
+	let len = evs.len();
+	evs.into_iter().skip(len.saturating_sub(n)).collect()
+}
+
 // ---------- Test ext builder ----------
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	pot_balance: Balance,
+	pre_fund_accumulator: Option<Balance>,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
-			endowed_accounts: vec![(ALICE, 1_000 * ONE), (BOB, 1_000 * ONE), (TREASURY, 1_000 * ONE)],
+			endowed_accounts: vec![
+				(ALICE, 1_000 * ONE),
+				(BOB, 1_000 * ONE),
+				(CHARLIE, 1_000 * ONE),
+				(TREASURY, 1_000 * ONE),
+			],
 			pot_balance: 0,
+			pre_fund_accumulator: None,
 		}
 	}
 }
 
 impl ExtBuilder {
+	#[allow(dead_code)]
 	pub fn with_pot_balance(mut self, balance: Balance) -> Self {
 		self.pot_balance = balance;
+		self
+	}
+
+	pub fn with_accumulator(mut self, balance: Balance) -> Self {
+		self.pre_fund_accumulator = Some(balance);
 		self
 	}
 
@@ -233,9 +330,12 @@ impl ExtBuilder {
 
 		let mut balances = self.endowed_accounts.clone();
 		if self.pot_balance > 0 {
-			use frame_support::sp_runtime::traits::AccountIdConversion;
-			let pot: AccountId = GigaHdxPalletId::get().into_account_truncating();
-			balances.push((pot, self.pot_balance));
+			balances.push((gigapot(), self.pot_balance));
+		}
+		if let Some(amt) = self.pre_fund_accumulator {
+			if amt > 0 {
+				balances.push((accumulator_pot(), amt));
+			}
 		}
 		pallet_balances::GenesisConfig::<Test> {
 			balances,

@@ -167,9 +167,9 @@ fn giga_unstake_should_keep_proportional_state_when_partial() {
 		assert_eq!(stake.gigahdx, 60 * UNITS);
 
 		// Position payout depends on snapshot rate. With a richly-funded gigapot
-		// it can exceed Alice's active 100, draining her active stake to zero
-		// (case 2). With a near-bootstrap rate the active stake just shrinks
-		// (case 1). Either way the combined lock equals active + position.
+		// it can exceed Alice's active 100, draining her active stake to zero;
+		// with a near-bootstrap rate the active stake just shrinks. Either way
+		// the combined lock equals active + position.
 		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("position created");
 		assert_eq!(locked_under_ghdx(&alice), stake.hdx + entry.amount);
 		assert!(entry.amount >= 40 * UNITS, "payout covers at least the principal share");
@@ -782,7 +782,7 @@ fn partial_unstake_should_not_leak_when_locks_aggregated_via_max() {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 1_000 * UNITS,));
 		assert_eq!(locked_under_ghdx(&alice), 1_000 * UNITS);
 
-		// pot empty → payout = principal (case 1).
+		// pot empty → payout equals principal, no yield is paid out.
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 500 * UNITS,));
 
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
@@ -809,17 +809,23 @@ fn partial_unstake_should_not_leak_when_locks_aggregated_via_max() {
 fn giga_unstake_should_keep_lock_layers_consistent_when_vote_active() {
 	// gigahdx lock (active + position) and conviction lock must coexist;
 	// spendable = balance − max(both).
+	//
+	// Stake must exceed the conviction-vote balance so that `pallet-gigahdx-rewards`'
+	// freeze guard (frozen = min(vote_balance, stake.hdx)) doesn't block the
+	// partial unstake. With stake=1000 and vote=800, frozen=800 and the
+	// projected post-unstake hdx (=900) stays above frozen.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		reset_giga_state_for_fixture();
 		fund_bob_for_decision_deposit();
 
 		let alice: AccountId = ALICE.into();
-		fund(&alice, 1_000 * UNITS);
+		fund(&alice, 1_200 * UNITS);
 
-		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 500 * UNITS,));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 1_000 * UNITS,));
 
-		// Conviction balance 800 > stake 500, so it layers over staked + free HDX.
+		// Conviction balance 800 < stake 1000; freeze = 800, partial unstake of
+		// 100 leaves hdx = 900 ≥ frozen, so the guard passes.
 		let ref_index = begin_referendum_by_bob();
 		assert_ok!(ConvictionVoting::vote(
 			RuntimeOrigin::signed(alice.clone()),
@@ -829,7 +835,8 @@ fn giga_unstake_should_keep_lock_layers_consistent_when_vote_active() {
 
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS,));
 
-		assert_eq!(locked_under_ghdx(&alice), 500 * UNITS);
+		// ghdx lock = active (900) + pending position (100) = 1000.
+		assert_eq!(locked_under_ghdx(&alice), 1_000 * UNITS);
 		let conviction_lock = pallet_balances::Locks::<Runtime>::get(&alice)
 			.iter()
 			.find(|l| l.id == *b"pyconvot")
@@ -837,7 +844,7 @@ fn giga_unstake_should_keep_lock_layers_consistent_when_vote_active() {
 			.unwrap_or(0);
 		assert_eq!(conviction_lock, 800 * UNITS);
 
-		// spendable = 1000 − max(ghdx=500, vote=800) = 200
+		// spendable = 1200 − max(ghdx=1000, vote=800) = 200
 		use frame_support::traits::fungible::Inspect;
 		use frame_support::traits::tokens::{Fortitude, Preservation};
 		let spendable =
@@ -871,7 +878,7 @@ fn partial_unstake_should_drain_active_when_payout_exceeds_active() {
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS,));
 
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("record persists");
-		assert_eq!(stake.hdx, 0, "active stake drained by case-2 payout");
+		assert_eq!(stake.hdx, 0, "active stake drained because payout exceeded principal");
 		assert_eq!(stake.gigahdx, 50 * UNITS, "remaining atokens have zero cost basis now");
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 50 * UNITS);
 
@@ -890,8 +897,9 @@ fn partial_unstake_should_drain_active_when_payout_exceeds_active() {
 #[test]
 fn full_lifecycle_should_conserve_value_when_rate_inflated() {
 	// End-to-end value conservation: stake 100 @ rate 1.0 → pot inflates to
-	// rate 3.0 → drain across two case-2 unstakes split by the cooldown.
-	// Total receipts must equal original_stake × rate, gigapot drained.
+	// rate 3.0 → drain across two payout-exceeds-active unstakes split by
+	// the cooldown. Total receipts must equal original_stake × rate, gigapot
+	// drained.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		reset_giga_state_for_fixture();

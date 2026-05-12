@@ -28,9 +28,10 @@ fn set_pool_contract_should_fail_when_active_stake_exists() {
 
 #[test]
 fn set_pool_contract_should_fail_when_only_residual_gigahdx_exists() {
-	// Regression: a case-2 partial unstake can leave `Stakes.hdx == 0` (so
-	// `TotalLocked == 0`) while `Stakes.gigahdx > 0` — those atokens are
-	// still bound to the current pool. Switching pools then would orphan them.
+	// Regression: when an unstake payout exceeds active stake, `Stakes.hdx`
+	// can land at 0 (so `TotalLocked == 0`) while `Stakes.gigahdx > 0` —
+	// those atokens are still bound to the current pool. Switching pools
+	// then would orphan them.
 	ExtBuilder::default()
 		.with_pot_balance(200 * ONE)
 		.build()

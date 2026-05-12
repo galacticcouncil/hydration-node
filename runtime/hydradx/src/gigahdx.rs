@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// `MoneyMarketOperations` adapter that bridges `pallet-gigahdx` to the
-// EVM-side AAVE V3 fork. See `specs/09-gigahdx-money-market-adapter.md`.
-//
-// `supply` mints aToken (GIGAHDX) on behalf of the user from their stHDX;
-// `withdraw` burns aToken and returns stHDX. The pool address is read from
-// `pallet_gigahdx::GigaHdxPoolContract` (settable via `set_pool_contract`).
+// Runtime wiring for the gigahdx stack:
+// - `AaveMoneyMarket` — `MoneyMarketOperations` adapter that bridges
+//   `pallet-gigahdx` to the EVM-side AAVE V3 fork. `supply` mints aToken
+//   (GIGAHDX) on behalf of the user from their stHDX; `withdraw` burns
+//   aToken and returns stHDX. The pool address is read from
+//   `pallet_gigahdx::GigaHdxPoolContract` (settable via `set_pool_contract`).
+// - `TrackRewardConfig` / `RuntimeReferenda` — the two adapters that wire
+//   `pallet-gigahdx-rewards` into the runtime (per-track reward table
+//   and a `ReferendumInfoFor`-backed track lookup).
 
 use crate::evm::aave_trade_executor::Function as AaveFunction;
 use crate::evm::evm_error_decoder::EvmErrorDecoder;
@@ -21,8 +24,12 @@ use frame_support::weights::Weight;
 use hydradx_traits::evm::{CallContext, CallResult, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::gigahdx::MoneyMarketOperations;
 use pallet_evm::GasWeightMapping;
+use pallet_gigahdx_rewards::traits::{ReferendaTrackInspect, TrackRewardTable};
+use pallet_gigahdx_rewards::types::ReferendumIndex;
+use pallet_referenda::ReferendumInfo;
 use primitive_types::U256;
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
+use sp_runtime::Permill;
 
 const GAS_LIMIT: u64 = 500_000;
 
@@ -134,5 +141,51 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for BenchmarkMoneyMarket
 
 	fn balance_of(_who: &AccountId) -> Balance {
 		0
+	}
+}
+
+// ---------------------------------------------------------------------------
+// pallet-gigahdx-rewards wiring
+// ---------------------------------------------------------------------------
+
+/// Per-track reward percentage table. Tracks are defined in
+/// `governance/tracks.rs`:
+/// - `0` (root) → 10%
+/// - `1` (whitelisted_caller) → 8%
+/// - `5` (treasurer) → 5%
+/// - any other track → 3% (default)
+pub struct TrackRewardConfig;
+
+impl TrackRewardTable<u16> for TrackRewardConfig {
+	fn reward_percentage(track_id: u16) -> Permill {
+		match track_id {
+			0 => Permill::from_percent(10),
+			1 => Permill::from_percent(8),
+			5 => Permill::from_percent(5),
+			_ => Permill::from_percent(3),
+		}
+	}
+}
+
+/// Track-id inspector backed by `pallet_referenda::ReferendumInfoFor`.
+///
+/// Only `ReferendumInfo::Ongoing(status)` exposes the track id directly on
+/// this `polkadot-sdk` version. For all completed variants the track is not
+/// preserved on the info entry; the rewards pallet keeps its own
+/// `ReferendumTracks` cache populated during `on_before_vote` and falls back
+/// to that when `track_of` returns `None`.
+pub struct RuntimeReferenda;
+
+impl ReferendaTrackInspect<ReferendumIndex, u16> for RuntimeReferenda {
+	fn track_of(ref_index: ReferendumIndex) -> Option<u16> {
+		match pallet_referenda::ReferendumInfoFor::<Runtime>::get(ref_index)? {
+			ReferendumInfo::Ongoing(status) => Some(status.track),
+			// Completed variants do not carry the track id on this SDK version.
+			ReferendumInfo::Approved(..)
+			| ReferendumInfo::Rejected(..)
+			| ReferendumInfo::Cancelled(..)
+			| ReferendumInfo::TimedOut(..)
+			| ReferendumInfo::Killed(_) => None,
+		}
 	}
 }

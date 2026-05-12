@@ -27,8 +27,7 @@
 //!  3. Calls [`MoneyMarketOperations::supply`] which deposits the stHDX
 //!     into the money market and mints GIGAHDX (aToken) to the user.
 //!
-//! `giga_unstake` is the reverse path; see `specs/07-gigahdx-implementation-spec.md`
-//! and `specs/09-gigahdx-money-market-adapter.md`.
+//! `giga_unstake` is the reverse path.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -93,6 +92,14 @@ pub mod pallet {
 		/// not the input — the MM may round at supply time and the stored
 		/// value MUST match the account's GIGAHDX balance.
 		pub gigahdx: Balance,
+		/// HDX amount that is frozen and cannot be unstaked until something
+		/// unfreezes it. The pallet is agnostic to the reason — any dependent
+		/// pallet (e.g. `pallet-gigahdx-rewards`) can call `freeze`/`unfreeze`
+		/// to pin part of the user's staked HDX. Enforced in `do_unstake`:
+		/// the post-unstake `hdx` must be `>= frozen`.
+		///
+		/// Invariant: `frozen <= hdx` at all times.
+		pub frozen: Balance,
 	}
 
 	/// Pending-unstake record. At most one per account at a time.
@@ -124,11 +131,9 @@ pub mod pallet {
 		type MultiCurrency: fungibles::Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>
 			+ fungibles::Inspect<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 
-		/// stHDX asset id.
 		#[pallet::constant]
 		type StHdxAssetId: Get<AssetId>;
 
-		/// Money-market adapter.
 		type MoneyMarket: MoneyMarketOperations<Self::AccountId, AssetId, Balance>;
 
 		/// Origin allowed to set the pool contract address.
@@ -245,6 +250,10 @@ pub mod pallet {
 		/// still in circulation. The pool is settable only when total stHDX
 		/// supply is zero.
 		OutstandingStake,
+		/// Unstake would reduce `Stakes[who].hdx` below `Stakes[who].frozen`.
+		/// Some HDX is currently frozen (e.g. backing an active reward-eligible
+		/// vote in `pallet-gigahdx-rewards`); release the freeze first.
+		StakeFrozen,
 	}
 
 	#[pallet::call]
@@ -286,32 +295,7 @@ pub mod pallet {
 			);
 			ensure!(usable >= amount, Error::<T>::InsufficientFreeBalance);
 
-			let gigahdx_to_mint = Self::calculate_gigahdx_given_hdx_amount(amount).map_err(|_| Error::<T>::Overflow)?;
-			// Defense in depth: real AAVE V3 reverts on `Pool.supply(0)`, but a
-			// fork that accepted it would leave the user with HDX locked and
-			// `Stakes.gigahdx == 0`, with no exit path via `giga_unstake`.
-			ensure!(gigahdx_to_mint > 0, Error::<T>::ZeroAmount);
-
-			T::MultiCurrency::mint_into(T::StHdxAssetId::get(), &who, gigahdx_to_mint)
-				.map_err(|_| Error::<T>::StHdxMintFailed)?;
-			let actual_minted = T::MoneyMarket::supply(&who, T::StHdxAssetId::get(), gigahdx_to_mint)
-				.map_err(|_| Error::<T>::MoneyMarketSupplyFailed)?;
-
-			Stakes::<T>::try_mutate(&who, |maybe_stake| -> Result<(), Error<T>> {
-				let stake = maybe_stake.get_or_insert_with(StakeRecord::default);
-				stake.hdx = stake.hdx.checked_add(amount).ok_or(Error::<T>::Overflow)?;
-				stake.gigahdx = stake.gigahdx.checked_add(actual_minted).ok_or(Error::<T>::Overflow)?;
-				Ok(())
-			})?;
-			TotalLocked::<T>::mutate(|x| *x = x.saturating_add(amount));
-			Self::refresh_lock(&who)?;
-
-			Self::deposit_event(Event::Staked {
-				who,
-				amount,
-				gigahdx: actual_minted,
-			});
-			Ok(())
+			Self::do_stake(&who, amount)
 		}
 
 		/// Unstake the caller's GIGAHDX and open a pending-unstake position.
@@ -349,7 +333,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::giga_unstake().saturating_add(T::MoneyMarket::withdraw_weight()))]
 		pub fn giga_unstake(origin: OriginFor<T>, gigahdx_amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::do_giga_unstake(&who, gigahdx_amount)
+			Self::do_unstake(&who, gigahdx_amount)
 		}
 
 		/// Set the AAVE V3 Pool contract address used by the money-market adapter.
@@ -361,9 +345,9 @@ pub mod pallet {
 		/// when total stHDX supply is non-zero.
 		///
 		/// Note: it is not enough to check `TotalLocked == 0` (the sum of
-		/// `Stakes.hdx`). After a case-2 partial unstake the user's active
-		/// stake can be drained while their `Stakes.gigahdx` (and the
-		/// corresponding aToken balance) is still non-zero — those tokens
+		/// `Stakes.hdx`). When an unstake payout exceeds the user's active
+		/// stake, the active stake is drained but `Stakes.gigahdx` (and the
+		/// corresponding aToken balance) can stay non-zero — those tokens
 		/// remain bound to the current pool.
 		///
 		/// Parameters:
@@ -408,7 +392,7 @@ pub mod pallet {
 			PendingUnstakes::<T>::remove(&who);
 			Self::refresh_lock(&who)?;
 			if let Some(s) = Stakes::<T>::get(&who) {
-				if s.hdx == 0 && s.gigahdx == 0 {
+				if s.hdx == 0 && s.gigahdx == 0 && s.frozen == 0 {
 					Stakes::<T>::remove(&who);
 				}
 			}
@@ -426,7 +410,7 @@ pub mod pallet {
 		/// `#[transactional]` attribute wraps the body in its own storage
 		/// layer so any Err here rolls back partial mutations.
 		#[transactional]
-		fn do_giga_unstake(who: &T::AccountId, gigahdx_amount: Balance) -> DispatchResult {
+		fn do_unstake(who: &T::AccountId, gigahdx_amount: Balance) -> DispatchResult {
 			ensure!(
 				PendingUnstakes::<T>::get(who).is_none(),
 				Error::<T>::PendingUnstakeAlreadyExists
@@ -439,6 +423,12 @@ pub mod pallet {
 			// Payout reads live rate state — must run before any mint/burn below.
 			let payout = Self::calculate_hdx_amount_given_gigahdx(gigahdx_amount).map_err(|_| Error::<T>::Overflow)?;
 
+			// Reject the unstake up-front if it would breach the frozen guard.
+			// `new_hdx = stake.hdx.saturating_sub(payout)` (any excess comes from
+			// the gigapot as yield, not from `hdx`); we need `new_hdx >= frozen`.
+			let projected_hdx = stake.hdx.saturating_sub(payout);
+			ensure!(projected_hdx >= stake.frozen, Error::<T>::StakeFrozen);
+
 			// Pre-decrement `gigahdx` so `LockableAToken.burn`'s `freeBalance`
 			// check (via the lock-manager precompile) lets the burn through.
 			let new_gigahdx = stake.gigahdx.checked_sub(gigahdx_amount).ok_or(Error::<T>::Overflow)?;
@@ -447,6 +437,7 @@ pub mod pallet {
 				StakeRecord {
 					hdx: stake.hdx,
 					gigahdx: new_gigahdx,
+					frozen: stake.frozen,
 				},
 			);
 
@@ -511,6 +502,78 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		/// Add `delta` to `Stakes[who].frozen`, pinning that amount of the
+		/// user's staked HDX so it cannot be unstaked. Saturating; infallible.
+		///
+		/// The pallet is agnostic to the reason for the freeze. Callers must
+		/// cap `delta` such that the resulting `frozen` does not exceed the
+		/// user's current `Stakes[who].hdx` (the pallet does not validate this
+		/// — `do_unstake` enforces `frozen <= hdx` defensively, but a
+		/// caller that over-freezes can render the stake permanently locked).
+		pub fn freeze(who: &T::AccountId, delta: Balance) {
+			if delta == 0 {
+				return;
+			}
+			Stakes::<T>::mutate(who, |maybe| {
+				let stake = maybe.get_or_insert_with(StakeRecord::default);
+				stake.frozen = stake.frozen.saturating_add(delta);
+			});
+		}
+
+		/// Subtract `delta` from `Stakes[who].frozen`, releasing previously
+		/// frozen stake. Saturating; infallible. Removes the stake record if
+		/// all three fields (`hdx`, `gigahdx`, `frozen`) become zero.
+		pub fn unfreeze(who: &T::AccountId, delta: Balance) {
+			if delta == 0 {
+				return;
+			}
+			Stakes::<T>::mutate_exists(who, |maybe| {
+				if let Some(stake) = maybe.as_mut() {
+					stake.frozen = stake.frozen.saturating_sub(delta);
+					if stake.hdx == 0 && stake.gigahdx == 0 && stake.frozen == 0 {
+						*maybe = None;
+					}
+				}
+			});
+		}
+
+		/// Computes the stHDX amount at the current rate, mints it into `who`,
+		/// supplies it to the money market, credits the resulting aToken amount
+		/// to `Stakes[who]`, locks `amount` HDX under `Config::LockId`, and emits
+		/// `Staked`.
+		///
+		/// Caller invariant: `amount` HDX must already be in `who`'s free
+		/// balance. This helper does not enforce the `MinStake` floor — callers
+		/// requiring that check (e.g. the `giga_stake` extrinsic) must perform
+		/// it before invoking `do_stake`.
+		#[transactional]
+		pub fn do_stake(who: &T::AccountId, amount: Balance) -> DispatchResult {
+			ensure!(amount > 0, Error::<T>::ZeroAmount);
+			let gigahdx_to_mint = Self::calculate_gigahdx_given_hdx_amount(amount).map_err(|_| Error::<T>::Overflow)?;
+			ensure!(gigahdx_to_mint > 0, Error::<T>::ZeroAmount);
+
+			T::MultiCurrency::mint_into(T::StHdxAssetId::get(), who, gigahdx_to_mint)
+				.map_err(|_| Error::<T>::StHdxMintFailed)?;
+			let actual_minted = T::MoneyMarket::supply(who, T::StHdxAssetId::get(), gigahdx_to_mint)
+				.map_err(|_| Error::<T>::MoneyMarketSupplyFailed)?;
+
+			Stakes::<T>::try_mutate(who, |maybe_stake| -> Result<(), Error<T>> {
+				let stake = maybe_stake.get_or_insert_with(StakeRecord::default);
+				stake.hdx = stake.hdx.checked_add(amount).ok_or(Error::<T>::Overflow)?;
+				stake.gigahdx = stake.gigahdx.checked_add(actual_minted).ok_or(Error::<T>::Overflow)?;
+				Ok(())
+			})?;
+			TotalLocked::<T>::mutate(|x| *x = x.saturating_add(amount));
+			Self::refresh_lock(who)?;
+
+			Self::deposit_event(Event::Staked {
+				who: who.clone(),
+				amount,
+				gigahdx: actual_minted,
+			});
+			Ok(())
+		}
+
 		/// Recompute the single combined balance lock for `who`:
 		/// `lock_amount = Stakes[who].hdx + PendingUnstakes[who].amount`.
 		/// Uses `set_lock` (not `extend_lock`) so the lock can shrink on unstake

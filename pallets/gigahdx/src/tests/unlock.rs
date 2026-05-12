@@ -65,7 +65,7 @@ fn giga_unstake_should_drain_active_only_when_pot_empty() {
 
 #[test]
 fn giga_unstake_should_skip_yield_transfer_when_payout_le_active() {
-	// pot 200 → rate 3.0; unstake 10 → payout 30 ≤ active 100 (case 1).
+	// pot 200 → rate 3.0; unstake 10 → payout 30 ≤ active 100, no yield needed.
 	ExtBuilder::default()
 		.with_pot_balance(200 * ONE)
 		.build()
@@ -86,7 +86,7 @@ fn giga_unstake_should_skip_yield_transfer_when_payout_le_active() {
 
 #[test]
 fn giga_unstake_should_extend_lock_when_payout_exceeds_active() {
-	// pot 200 → rate 3.0; unstake 90 → payout 270 > active 100 (case 2):
+	// pot 200 → rate 3.0; unstake 90 → payout 270 > active 100:
 	// active drained, yield 170 from pot, lock extends to 270.
 	ExtBuilder::default()
 		.with_pot_balance(200 * ONE)
@@ -196,8 +196,8 @@ fn giga_unstake_should_succeed_when_called_after_unlock() {
 #[test]
 fn giga_unstake_should_handle_remaining_atokens_when_active_drained_by_yield() {
 	// pot 200 → rate 3.0. First unstake 90 zeroes active and leaves 10 stHDX
-	// with zero cost basis; the remaining 10 can be unstaked through case 2
-	// against an empty active stake.
+	// with zero cost basis; the remaining 10 still unstakes — payout comes
+	// entirely from the pot as yield against an empty active stake.
 	ExtBuilder::default()
 		.with_pot_balance(200 * ONE)
 		.build()

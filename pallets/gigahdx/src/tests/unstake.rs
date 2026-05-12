@@ -23,7 +23,7 @@ fn stake_alice_100() {
 
 #[test]
 fn giga_unstake_should_move_active_to_position_when_pot_empty() {
-	// case 1: payout ≤ active → active drained, position = payout, no yield.
+	// payout ≤ active → active drained, position = payout, no yield.
 	ExtBuilder::default().build().execute_with(|| {
 		let pre_free = Balances::free_balance(ALICE);
 		stake_alice_100();
@@ -46,7 +46,7 @@ fn giga_unstake_should_move_active_to_position_when_pot_empty() {
 
 #[test]
 fn giga_unstake_should_pull_yield_from_pot_when_payout_exceeds_active() {
-	// case 2: payout 130 > active 100 → active drained, yield 30 from pot.
+	// payout 130 > active 100 → active drained, yield 30 from pot.
 	ExtBuilder::default()
 		.with_pot_balance(30 * ONE)
 		.build()

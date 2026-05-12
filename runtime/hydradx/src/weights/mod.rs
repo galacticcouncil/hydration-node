@@ -25,6 +25,7 @@ pub mod pallet_dynamic_fees;
 pub mod pallet_ema_oracle;
 pub mod pallet_evm_accounts;
 pub mod pallet_gigahdx;
+pub mod pallet_gigahdx_rewards;
 pub mod pallet_hsm;
 pub mod pallet_identity;
 pub mod pallet_lbp;

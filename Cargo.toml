@@ -54,6 +54,7 @@ members = [
     "pallets/signet",
     "pallets/dispenser",
     "pallets/gigahdx",
+    "pallets/gigahdx-rewards",
 ]
 
 resolver = "2"
@@ -167,6 +168,7 @@ pallet-parameters = { path = "pallets/parameters", default-features = false }
 pallet-signet = { path = "pallets/signet", default-features = false }
 pallet-dispenser = { path = "pallets/dispenser", default-features = false }
 pallet-gigahdx = { path = "pallets/gigahdx", default-features = false }
+pallet-gigahdx-rewards = { path = "pallets/gigahdx-rewards", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

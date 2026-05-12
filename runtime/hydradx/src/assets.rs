@@ -689,10 +689,9 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			BondsPalletId::get().into_account_truncating(),
 			pallet_route_executor::Pallet::<Runtime>::router_account(),
 			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS),
-			// gigapot must not be dust-reaped — its HDX balance is the rate
-			// denominator (`total_staked_hdx = TotalLocked + free_balance(gigapot)`)
-			// and the source of yield payouts during `do_giga_unstake`.
 			GigaHdxPalletId::get().into_account_truncating(),
+			pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot(),
+			pallet_gigahdx_rewards::Pallet::<Runtime>::allocated_rewards_pot(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
@@ -1938,6 +1937,18 @@ impl pallet_gigahdx::BenchmarkHelper<AccountId> for GigaHdxBenchmarkHelper {
 		})?;
 		Ok(())
 	}
+}
+
+parameter_types! {
+	pub const GigaRewardPotPalletId: frame_support::PalletId = frame_support::PalletId(*b"gigarwd!");
+}
+
+impl pallet_gigahdx_rewards::Config for Runtime {
+	type TrackId = u16;
+	type Referenda = crate::gigahdx::RuntimeReferenda;
+	type TrackRewardConfig = crate::gigahdx::TrackRewardConfig;
+	type RewardPotPalletId = GigaRewardPotPalletId;
+	type WeightInfo = weights::pallet_gigahdx_rewards::HydraWeight<Runtime>;
 }
 
 #[cfg(feature = "runtime-benchmarks")]
