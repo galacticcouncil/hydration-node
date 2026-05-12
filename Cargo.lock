@@ -5933,6 +5933,7 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
+ "static_assertions",
  "substrate-wasm-builder",
  "xcm-runtime-apis",
 ]
