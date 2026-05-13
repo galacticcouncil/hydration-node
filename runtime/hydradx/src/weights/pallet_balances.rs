@@ -67,8 +67,8 @@ impl<T: frame_system::Config> pallet_balances::WeightInfo for HydraWeight<T> {
 		//  Measured:  `103`
 		//  Estimated: `6196`
 		// Minimum execution time: 78_429_000 picoseconds.
-		Weight::from_parts(79_142_000, 7745)
-			.saturating_add(T::DbWeight::get().reads(3_u64))
+		Weight::from_parts(79_142_000, 6196)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
 	/// Storage: `System::Account` (r:1 w:1)
@@ -79,7 +79,7 @@ impl<T: frame_system::Config> pallet_balances::WeightInfo for HydraWeight<T> {
 		//  Estimated: `3593`
 		// Minimum execution time: 49_949_000 picoseconds.
 		Weight::from_parts(50_530_000, 3593)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	/// Storage: `System::Account` (r:1 w:1)
