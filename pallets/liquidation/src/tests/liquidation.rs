@@ -273,3 +273,25 @@ fn set_borrowing_contract_should_work() {
 		assert_eq!(Liquidation::borrowing_contract(), EvmAddress::from_slice(&[1; 20]));
 	});
 }
+
+#[test]
+fn liquidate_with_gigahdx_collateral_should_refuse_when_debt_is_not_hollar() {
+	ExtBuilder::default().build().execute_with(|| {
+		let bob_evm_address = EvmAccounts::evm_address(&BOB);
+		let route = Router::get_route(AssetPair {
+			asset_in: HDX,
+			asset_out: DOT,
+		});
+		assert_noop!(
+			Liquidation::liquidate(
+				RuntimeOrigin::signed(ALICE),
+				67,  // GIGAHDX
+				DOT, // not HOLLAR
+				bob_evm_address,
+				1_000 * ONE,
+				route,
+			),
+			Error::<Test>::UnsupportedDebtAsset
+		);
+	});
+}

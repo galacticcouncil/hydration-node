@@ -6,6 +6,7 @@ mod freeze;
 mod migrate;
 mod mock;
 mod multi_positions;
+mod seize;
 mod set_pool_contract;
 mod stake;
 mod unlock;

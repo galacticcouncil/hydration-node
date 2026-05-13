@@ -80,6 +80,7 @@ pub mod pallet {
 	use frame_support::sp_runtime::traits::{AccountIdConversion, CheckedAdd};
 	use frame_support::sp_runtime::{ArithmeticError, Rounding};
 	use frame_support::traits::fungibles::Mutate as FungiblesMutate;
+	use frame_support::traits::tokens::imbalance::Imbalance;
 	use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 	use frame_support::traits::{
 		fungibles, Currency, ExistenceRequirement, LockIdentifier, LockableCurrency, WithdrawReasons,
@@ -308,6 +309,9 @@ pub mod pallet {
 		/// Some HDX is currently frozen (e.g. backing an active reward-eligible
 		/// vote in `pallet-gigahdx-rewards`); release the freeze first.
 		StakeFrozen,
+		/// `slash` fallback could not extract the full `seize_hdx` from the
+		/// borrower's account (e.g. existential-deposit constraint).
+		SeizeFailed,
 	}
 
 	#[pallet::call]
@@ -775,6 +779,91 @@ pub mod pallet {
 			Stakes::<T>::get(who).map(|s| s.gigahdx).unwrap_or(0)
 		}
 
+		/// `Seize::snapshot_stake` impl.
+		pub fn seize_snapshot(borrower: &T::AccountId) -> Result<(Balance, Balance), DispatchError> {
+			let s = Stakes::<T>::get(borrower).ok_or(Error::<T>::NoStake)?;
+			Ok((s.hdx, s.gigahdx))
+		}
+
+		/// `Seize::pre_seize` impl. Zeroes `Stakes[borrower].gigahdx` so the
+		/// lock-manager precompile reports `locked = 0` and `LockableAToken`
+		/// accepts Aave's internal aToken transfer. Returns the prior value
+		/// for the caller to use when computing the actually-seized amount.
+		pub fn seize_unlock_atoken(borrower: &T::AccountId) -> Result<Balance, DispatchError> {
+			let orig = Stakes::<T>::try_mutate(borrower, |maybe| -> Result<Balance, DispatchError> {
+				let s = maybe.as_mut().ok_or(Error::<T>::NoStake)?;
+				let prev = s.gigahdx;
+				s.gigahdx = 0;
+				Ok(prev)
+			})?;
+			Ok(orig)
+		}
+
+		/// `Seize::finalise_seize` impl. After Aave has moved aToken to the
+		/// liquidator's EVM account, move the matching HDX from borrower to
+		/// `recipient`, restore the borrower's `gigahdx` to the residual
+		/// (`orig - actually_seized`), credit the recipient's stake, refresh
+		/// both ghdxlocks. `TotalLocked` is unchanged — same HDX moved
+		/// between two gigahdx-stakers.
+		#[transactional]
+		pub fn seize_finalise(
+			borrower: &T::AccountId,
+			recipient: &T::AccountId,
+			seize_hdx: Balance,
+			seize_gigahdx: Balance,
+			residual_borrower_gigahdx: Balance,
+		) -> DispatchResult {
+			Stakes::<T>::try_mutate(borrower, |maybe| -> DispatchResult {
+				let s = maybe.as_mut().ok_or(Error::<T>::NoStake)?;
+				s.hdx = s.hdx.checked_sub(seize_hdx).ok_or(Error::<T>::Overflow)?;
+				// Votes stay intact across a seize; clamp `frozen` so the
+				// `hdx >= frozen` invariant still holds on the residual stake.
+				s.frozen = s.frozen.min(s.hdx);
+				s.gigahdx = residual_borrower_gigahdx;
+				Ok(())
+			})?;
+			// Shrink the borrower's lock *before* withdrawing. The stale
+			// pre-seize ghdxlock (sized to `hdx + unstaking`) would otherwise
+			// block the transfer with `LiquidityRestrictions` for any
+			// borrower whose free balance equals their staked amount.
+			Self::refresh_lock(borrower)?;
+
+			if !seize_hdx.is_zero() {
+				// Prefer a clean transfer. If the borrower's remaining locks
+				// (e.g. uncleared `pyconvot`, vesting, or any unmanaged lock)
+				// still block the move, fall back to `slash` + `resolve_creating`
+				// — liquidation is top priority and must always land.
+				let new_balance = T::NativeCurrency::free_balance(borrower).saturating_sub(seize_hdx);
+				let can_transfer =
+					T::NativeCurrency::ensure_can_withdraw(borrower, seize_hdx, WithdrawReasons::TRANSFER, new_balance)
+						.is_ok();
+				if can_transfer {
+					T::NativeCurrency::transfer(borrower, recipient, seize_hdx, ExistenceRequirement::AllowDeath)?;
+				} else {
+					let (imbalance, remaining) = T::NativeCurrency::slash(borrower, seize_hdx);
+					let slashed = imbalance.peek();
+					T::NativeCurrency::resolve_creating(recipient, imbalance);
+					// Liquidation must move EXACTLY `seize_hdx`. `slash` is
+					// bounded above by request (it never takes more than asked)
+					// but can take less when ED leaves an unslashable remainder;
+					// both `remaining == 0` and `slashed == seize_hdx` are
+					// equivalent expressions of "took exactly what we asked".
+					ensure!(remaining.is_zero(), Error::<T>::SeizeFailed);
+					ensure!(slashed == seize_hdx, Error::<T>::SeizeFailed);
+				}
+			}
+
+			Stakes::<T>::try_mutate(recipient, |maybe| -> DispatchResult {
+				let s = maybe.get_or_insert_with(StakeRecord::default);
+				s.hdx = s.hdx.checked_add(seize_hdx).ok_or(Error::<T>::Overflow)?;
+				s.gigahdx = s.gigahdx.checked_add(seize_gigahdx).ok_or(Error::<T>::Overflow)?;
+				Ok(())
+			})?;
+
+			Self::refresh_lock(recipient)?;
+			Ok(())
+		}
+
 		/// Total HDX backing all stHDX:
 		/// `TotalLocked + free_balance(gigapot_account_id)`.
 		pub fn total_staked_hdx() -> Balance {
@@ -822,6 +911,24 @@ pub mod pallet {
 			let rate = Self::exchange_rate();
 			multiply_by_rational_with_rounding(gigahdx_amount, rate.n, rate.d, Rounding::Down)
 				.ok_or(ArithmeticError::Overflow)
+		}
+	}
+
+	impl<T: Config> crate::traits::Seize<T::AccountId> for Pallet<T> {
+		fn snapshot_stake(borrower: &T::AccountId) -> Result<(Balance, Balance), DispatchError> {
+			Self::seize_snapshot(borrower)
+		}
+		fn pre_seize(borrower: &T::AccountId) -> Result<Balance, DispatchError> {
+			Self::seize_unlock_atoken(borrower)
+		}
+		fn finalise_seize(
+			borrower: &T::AccountId,
+			recipient: &T::AccountId,
+			seize_hdx: Balance,
+			seize_gigahdx: Balance,
+			residual_borrower_gigahdx: Balance,
+		) -> DispatchResult {
+			Self::seize_finalise(borrower, recipient, seize_hdx, seize_gigahdx, residual_borrower_gigahdx)
 		}
 	}
 }

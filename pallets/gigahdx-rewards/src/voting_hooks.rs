@@ -15,7 +15,7 @@ use crate::traits::{ReferendaTrackInspect, TrackRewardTable};
 use crate::types::{ReferendaReward, ReferendumIndex, ReferendumLiveTally, UserVoteRecord};
 use frame_support::dispatch::DispatchResult;
 use frame_support::traits::{Currency, ExistenceRequirement};
-use pallet_conviction_voting::{AccountVote, Status, VotingHooks};
+use pallet_conviction_voting::{AccountVote, Conviction, Status, VotingHooks};
 use primitives::Balance;
 use sp_std::marker::PhantomData;
 
@@ -32,31 +32,21 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 			return Ok(());
 		}
 
-		// Standard votes only; Split / SplitAbstain have multiple sub-balances
-		// without a single principled answer for the eligible amount.
-		// Downgrade from a tracked Standard vote: drop the prior record so
-		// the user's freeze and weighted share don't outlive the vote.
+		// Every vote variant places a `pyconvot` lock on the user's HDX, so
+		// we record every variant — even Split / SplitAbstain which earn no
+		// rewards — so liquidation's `clear_conflicting_votes` can find and
+		// remove them. Non-Standard variants are recorded with
+		// `Conviction::None` which yields `weighted = 0`, so they take a
+		// slot in `voters_remaining` but distort no reward distribution
+		// (`record_user_reward` short-circuits to zero on `weighted == 0`).
 		let (vote_balance, conviction) = match vote {
 			AccountVote::Standard {
 				vote: std_vote,
 				balance,
 			} => (balance, std_vote.conviction),
-			_ => {
-				if let Some(prev) = UserVoteRecords::<T>::take(who, ref_index) {
-					pallet_gigahdx::Pallet::<T>::unfreeze(who, prev.staked_vote_amount);
-					if !ReferendaRewardPool::<T>::contains_key(ref_index) {
-						ReferendaTotalWeightedVotes::<T>::mutate_exists(ref_index, |maybe| {
-							if let Some(tally) = maybe.as_mut() {
-								tally.total_weighted = tally.total_weighted.saturating_sub(prev.weighted);
-								tally.voters_count = tally.voters_count.saturating_sub(1);
-								if tally.voters_count == 0 {
-									*maybe = None;
-								}
-							}
-						});
-					}
-				}
-				return Ok(());
+			AccountVote::Split { aye, nay } => (aye.saturating_add(nay), Conviction::None),
+			AccountVote::SplitAbstain { aye, nay, abstain } => {
+				(aye.saturating_add(nay).saturating_add(abstain), Conviction::None)
 			}
 		};
 

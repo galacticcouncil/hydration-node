@@ -1757,7 +1757,11 @@ impl pallet_referrals::Config for Runtime {
 }
 
 parameter_types! {
-	pub const LiquidationGasLimit: u64 = 4_000_000;
+	/// Gas budget for each EVM call dispatched from `pallet-liquidation`.
+	/// AAVE's `Pool.borrow` + `Pool.liquidationCall` on first-touch storage
+	/// slots can each use 20M+; sized for headroom across both legacy flash-
+	/// loan and gigahdx-collateral paths.
+	pub const LiquidationGasLimit: u64 = 50_000_000;
 	pub BorrowingTreasuryAccount: AccountId = EVMAccounts::account_id(H160::from(hex!["E52567fF06aCd6CBe7BA94dc777a3126e180B6d9"]));
 }
 
@@ -1807,6 +1811,13 @@ impl pallet_liquidation::Config for Runtime {
 	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
 	type EvmErrorDecoder = EvmErrorDecoder;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type GigaHdxAssetId = GigaHdxAssetIdConst; // 67 — GIGAHDX (aToken)
+	type StHdxAssetId = StHdxAssetId; // 670 — stHDX underlying
+	type GigaHdxLiquidationAccount = crate::gigahdx::GigaHdxLiquidationAccount;
+	type TreasuryAccount = crate::governance::TreasuryAccount;
+	type GigaHdxPool = crate::gigahdx::ReadGigaHdxPoolContract;
+	type GigaHdxSeize = pallet_gigahdx::Pallet<Runtime>;
+	type VoteClearance = crate::gigahdx::GigaHdxVoteClearance;
 }
 
 impl pallet_broadcast::Config for Runtime {}

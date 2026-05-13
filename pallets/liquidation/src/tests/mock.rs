@@ -222,6 +222,12 @@ impl pallet_evm::GasWeightMapping for DummyGasWeightMapping {
 		0
 	}
 }
+parameter_types! {
+	pub const TestGigaHdxAssetId: AssetId = 67;
+	pub const TestStHdxAssetId: AssetId = 670;
+	pub const TestLiqAccount: AccountId = AccountId::new([7u8; 32]);
+}
+
 impl Config for Test {
 	type Currency = FungibleCurrencies<Test>;
 	type Evm = EvmMock;
@@ -237,6 +243,13 @@ impl Config for Test {
 	type FlashMinter = ();
 	type EvmErrorDecoder = EvmErrorDecodeMock;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type GigaHdxAssetId = TestGigaHdxAssetId;
+	type StHdxAssetId = TestStHdxAssetId;
+	type GigaHdxLiquidationAccount = TestLiqAccount;
+	type TreasuryAccount = TreasuryAccount;
+	type GigaHdxPool = ();
+	type GigaHdxSeize = ();
+	type VoteClearance = ();
 }
 
 pub struct EvmErrorDecodeMock;

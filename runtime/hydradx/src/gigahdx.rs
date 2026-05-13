@@ -209,6 +209,92 @@ impl pallet_gigahdx::traits::ExternalClaims<AccountId> for HdxExternalClaims {
 	}
 }
 
+/// Derived sub-account that holds seized GIGAHDX (aToken) + the matching
+/// HDX after a gigahdx-collateral liquidation. Governance disposes later.
+pub struct GigaHdxLiquidationAccount;
+
+impl sp_core::Get<AccountId> for GigaHdxLiquidationAccount {
+	fn get() -> AccountId {
+		use frame_support::sp_runtime::traits::AccountIdConversion;
+		frame_support::PalletId(*b"gigaliq!").into_account_truncating()
+	}
+}
+
+/// Reads the current GIGAHDX AAVE pool address from `pallet_gigahdx`.
+pub struct ReadGigaHdxPoolContract;
+
+impl sp_core::Get<Option<EvmAddress>> for ReadGigaHdxPoolContract {
+	fn get() -> Option<EvmAddress> {
+		pallet_gigahdx::GigaHdxPoolContract::<Runtime>::get()
+	}
+}
+
+/// Adapter for `pallet_liquidation::Config::VoteClearance`.
+///
+/// Walks `pallet_gigahdx_rewards::UserVoteRecords[who]`, finds every vote
+/// whose `staked_vote_amount` exceeds the post-seize `max_remaining_hdx`,
+/// and dispatches `pallet_conviction_voting::remove_vote` as the borrower's
+/// signed origin (`UnvoteScope::Any` — works on ongoing and completed
+/// referenda alike, no SDK patch needed). The existing `VotingHooks` chain
+/// then unfreezes `Stakes.frozen` and drops `UserVoteRecord`.
+pub struct GigaHdxVoteClearance;
+
+impl pallet_gigahdx_rewards::traits::ClearConflictingVotes<AccountId> for GigaHdxVoteClearance {
+	fn clear_conflicting_votes(who: &AccountId, max_hdx: Balance) -> Result<u32, sp_runtime::DispatchError> {
+		let to_remove: sp_std::vec::Vec<pallet_gigahdx_rewards::types::ReferendumIndex> =
+			pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::iter_prefix(who)
+				.filter_map(|(ref_index, rec)| (rec.staked_vote_amount > max_hdx).then_some(ref_index))
+				.collect();
+		let mut count = 0u32;
+		for ref_index in to_remove {
+			let class = pallet_gigahdx_rewards::ReferendumTracks::<Runtime>::get(ref_index)
+				.or_else(|| {
+					use pallet_referenda::ReferendumInfo;
+					match pallet_referenda::ReferendumInfoFor::<Runtime>::get(ref_index)? {
+						ReferendumInfo::Ongoing(status) => Some(status.track),
+						_ => None,
+					}
+				})
+				.ok_or(sp_runtime::DispatchError::Other(
+					"gigahdx: cannot resolve class for vote",
+				))?;
+			let origin: crate::RuntimeOrigin = frame_system::RawOrigin::Signed(who.clone()).into();
+			pallet_conviction_voting::Pallet::<Runtime>::remove_vote(origin, Some(class), ref_index)?;
+			count = count.saturating_add(1);
+		}
+		Ok(count)
+	}
+
+	/// Goes through `LockableCurrency::{set_lock,remove_lock}` so
+	/// `Account.frozen` gets recomputed; raw `Locks` mutation would leave
+	/// it stale and the transfer-time freeze check would miss the change.
+	fn force_release_vote_lock(who: &AccountId, amount: Balance) -> Result<(), sp_runtime::DispatchError> {
+		use frame_support::traits::{LockableCurrency, WithdrawReasons};
+		const PYCONVOT: LockIdentifier = *b"pyconvot";
+
+		let current = pallet_balances::Locks::<Runtime>::get(who)
+			.iter()
+			.find(|l| l.id == PYCONVOT)
+			.map(|l| l.amount)
+			.unwrap_or(0);
+		if current == 0 {
+			return Ok(());
+		}
+		let new_amount = current.saturating_sub(amount);
+		if new_amount == 0 {
+			<pallet_balances::Pallet<Runtime> as LockableCurrency<AccountId>>::remove_lock(PYCONVOT, who);
+		} else {
+			<pallet_balances::Pallet<Runtime> as LockableCurrency<AccountId>>::set_lock(
+				PYCONVOT,
+				who,
+				new_amount,
+				WithdrawReasons::except(WithdrawReasons::RESERVE),
+			);
+		}
+		Ok(())
+	}
+}
+
 /// Adapter wiring `pallet_gigahdx::migrate` to the legacy NFT staking pallet.
 pub struct LegacyStakingMigrator;
 
