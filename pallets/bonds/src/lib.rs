@@ -28,10 +28,10 @@
 //! * It's possible to create multiple bonds for the same underlying asset.
 //! * Bonds can be issued for all available asset types permitted by `AssetTypeWhitelist`.
 //! * The existential deposit of the bonds is the same as of the underlying asset.
-//! * A user receives the same amount of bonds as the amount of the underlying asset he provided, minus the protocol fee.
+//! * The amount of bonds issued is 1:1 to the amount of the underlying asset provided.
+//! * The underlying asset is debited from `T::IssuerAccount`, and the bonds are credited to the same account.
 //! * Maturity of bonds is represented using the Unix time in milliseconds.
 //! * Underlying assets are stored in the pallet account until redeemed.
-//! * Protocol fee is applied to the amount of the underlying asset and transferred to the fee receiver.
 //! * It's possible to issue new bonds for bonds that are already mature.
 //!
 //! ## Redeeming of new bonds
@@ -46,13 +46,13 @@ use frame_support::{
 	ensure,
 	pallet_prelude::{DispatchResult, Get},
 	sp_runtime::{
-		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub},
-		DispatchError, Permill, Saturating,
+		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub, Zero},
+		DispatchError,
 	},
 	traits::{Contains, ExistenceRequirement, Time},
 	PalletId,
 };
-use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use frame_system::{ensure_root, ensure_signed, pallet_prelude::OriginFor};
 use sp_core::MaxEncodedLen;
 use sp_std::{mem, vec::Vec};
 
@@ -113,19 +113,15 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
-		/// The origin which can issue new bonds.
-		type IssueOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
+		/// Origin permitted to issue new bonds, in addition to Root.
+		type IssueOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// Account that pays the underlying asset and receives the bonds when `issue` is called.
+		#[pallet::constant]
+		type IssuerAccount: Get<Self::AccountId>;
 
 		/// Asset types that are permitted to be used as underlying assets.
 		type AssetTypeWhitelist: Contains<AssetKind>;
-
-		/// Protocol fee.
-		#[pallet::constant]
-		type ProtocolFee: Get<Permill>;
-
-		/// Protocol fee receiver.
-		#[pallet::constant]
-		type FeeReceiver: Get<Self::AccountId>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -191,18 +187,18 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Issue new fungible bonds.
 		/// New asset id is registered and assigned to the bonds.
-		/// The number of bonds the issuer receives is 1:1 to the `amount` of the underlying asset
-		/// minus the protocol fee.
+		/// The number of bonds issued is 1:1 to the `amount` of the underlying asset.
 		/// The bond asset is registered with the empty string for the asset name,
 		/// and with the same existential deposit as of the underlying asset.
 		/// Bonds can be redeemed for the underlying asset once mature.
-		/// Protocol fee is applied to the amount, and transferred to `T::FeeReceiver`.
+		/// The underlying asset is debited from `T::IssuerAccount`, and the bonds are credited to
+		/// the same account.
 		/// When issuing new bonds with the underlying asset and maturity that matches existing bonds,
 		/// new amount of these existing bonds is issued, instead of registering new bonds.
 		/// It's possible to issue new bonds for bonds that are already mature.
 		///
 		/// Parameters:
-		/// - `origin`: issuer of new bonds, needs to be `T::IssueOrigin`
+		/// - `origin`: must be Root or `T::IssueOrigin`.
 		/// - `asset_id`: underlying asset id
 		/// - `amount`: the amount of the underlying asset
 		/// - `maturity`: Unix time in milliseconds, when the bonds will be mature.
@@ -213,7 +209,10 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::issue())]
 		pub fn issue(origin: OriginFor<T>, asset_id: AssetId, amount: T::Balance, maturity: Moment) -> DispatchResult {
-			let who = T::IssueOrigin::ensure_origin(origin)?;
+			if ensure_root(origin.clone()).is_err() {
+				T::IssueOrigin::ensure_origin(origin)?;
+			}
+			let who = T::IssuerAccount::get();
 
 			ensure!(
 				T::AssetTypeWhitelist::contains(
@@ -222,8 +221,6 @@ pub mod pallet {
 				Error::<T>::DisallowedAsset
 			);
 
-			let fee = T::ProtocolFee::get().mul_ceil(amount);
-			let amount_without_fee = amount.saturating_sub(fee);
 			let pallet_account = Self::pallet_account_id();
 
 			let bond_id = match BondIds::<T>::get((asset_id, maturity)) {
@@ -259,27 +256,14 @@ pub mod pallet {
 				}
 			};
 
-			T::Currency::transfer(
-				asset_id,
-				&who,
-				&pallet_account,
-				amount_without_fee,
-				ExistenceRequirement::AllowDeath,
-			)?;
-			T::Currency::transfer(
-				asset_id,
-				&who,
-				&T::FeeReceiver::get(),
-				fee,
-				ExistenceRequirement::AllowDeath,
-			)?;
-			T::Currency::deposit(bond_id, &who, amount_without_fee)?;
+			T::Currency::transfer(asset_id, &who, &pallet_account, amount, ExistenceRequirement::AllowDeath)?;
+			T::Currency::deposit(bond_id, &who, amount)?;
 
 			Self::deposit_event(Event::Issued {
 				issuer: who,
 				bond_id,
-				amount: amount_without_fee,
-				fee,
+				amount,
+				fee: Zero::zero(),
 			});
 
 			Ok(())

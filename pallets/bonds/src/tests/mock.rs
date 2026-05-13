@@ -56,14 +56,12 @@ pub const INITIAL_BALANCE: Balance = 1_000 * ONE;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
-pub const TREASURY: AccountId = 400;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
 thread_local! {
 	// maps AssetId -> existential deposit
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, (Balance, AssetKind)>> = RefCell::new(HashMap::default());
-	pub static PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 }
 
 construct_runtime!(
@@ -77,8 +75,7 @@ construct_runtime!(
 );
 
 parameter_types! {
-	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
-	pub TreasuryAccount: AccountId = TREASURY;
+	pub IssuerAccount: AccountId = ALICE;
 	pub const BondsPalletId: PalletId = PalletId(*b"pltbonds");
 }
 
@@ -110,9 +107,8 @@ impl pallet_bonds::Config for Test {
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
 	type IssueOrigin = EnsureSignedBy<AliceOrBob, AccountId>;
+	type IssuerAccount = IssuerAccount;
 	type AssetTypeWhitelist = AssetTypeWhitelist;
-	type ProtocolFee = ProtocolFee;
-	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = ();
 }
 
@@ -266,19 +262,13 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	registered_assets: Vec<(AssetId, (Balance, AssetKind))>,
-	protocol_fee: Permill,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		PROTOCOL_FEE.with(|v| {
-			*v.borrow_mut() = Permill::from_percent(0);
-		});
-
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, 1_000 * ONE)],
 			registered_assets: vec![(HDX, (NATIVE_EXISTENTIAL_DEPOSIT, AssetKind::Token))],
-			protocol_fee: Permill::from_percent(0),
 		}
 	}
 }
@@ -294,10 +284,6 @@ impl ExtBuilder {
 		self.registered_assets.push((asset, (ed, asset_kind)));
 		self
 	}
-	pub fn with_protocol_fee(mut self, fee: Permill) -> Self {
-		self.protocol_fee = fee;
-		self
-	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
@@ -306,10 +292,6 @@ impl ExtBuilder {
 			self.registered_assets.iter().for_each(|(asset, existential_details)| {
 				v.borrow_mut().insert(*asset, *existential_details);
 			});
-		});
-
-		PROTOCOL_FEE.with(|v| {
-			*v.borrow_mut() = self.protocol_fee;
 		});
 
 		orml_tokens::GenesisConfig::<Test> {
