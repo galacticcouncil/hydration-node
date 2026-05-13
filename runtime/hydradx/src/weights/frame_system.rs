@@ -66,7 +66,7 @@ impl<T: frame_system::Config> frame_system::WeightInfo for HydraWeight<T> {
 		//  Measured:  `0`
 		//  Estimated: `0`
 		// Minimum execution time: 3_996_000 picoseconds.
-		Weight::from_parts(27_288_508, 0)
+		Weight::from_parts(56_214_326, 1024)
 			// Standard Error: 3
 			.saturating_add(Weight::from_parts(524, 0).saturating_mul(b.into()))
 	}

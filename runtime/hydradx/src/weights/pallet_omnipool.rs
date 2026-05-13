@@ -164,7 +164,7 @@ impl<T: frame_system::Config> pallet_omnipool::WeightInfo for HydraWeight<T> {
 		//  Measured:  `5474`
 		//  Estimated: `8739`
 		// Minimum execution time: 346_949_000 picoseconds.
-		Weight::from_parts(349_286_000, 8739)
+		Weight::from_parts(324_835_980, 8739)
 			.saturating_add(T::DbWeight::get().reads(32_u64))
 			.saturating_add(T::DbWeight::get().writes(15_u64))
 	}

@@ -152,7 +152,7 @@ impl<T: frame_system::Config> pallet_hsm::WeightInfo for HydraWeight<T> {
 		//  Measured:  `4100`
 		//  Estimated: `26820`
 		// Minimum execution time: 788_290_000 picoseconds.
-		Weight::from_parts(794_134_000, 26820)
+		Weight::from_parts(1_747_094_800, 34866)
 			.saturating_add(T::DbWeight::get().reads(43_u64))
 			.saturating_add(T::DbWeight::get().writes(7_u64))
 	}
@@ -197,7 +197,7 @@ impl<T: frame_system::Config> pallet_hsm::WeightInfo for HydraWeight<T> {
 		//  Measured:  `4136`
 		//  Estimated: `26820`
 		// Minimum execution time: 786_162_000 picoseconds.
-		Weight::from_parts(789_631_000, 26820)
+		Weight::from_parts(671_186_350, 26820)
 			.saturating_add(T::DbWeight::get().reads(43_u64))
 			.saturating_add(T::DbWeight::get().writes(7_u64))
 	}
@@ -294,7 +294,7 @@ impl<T: frame_system::Config> pallet_hsm::WeightInfo for HydraWeight<T> {
 		//  Measured:  `3146`
 		//  Estimated: `16590`
 		// Minimum execution time: 610_063_000 picoseconds.
-		Weight::from_parts(614_125_000, 16590)
+		Weight::from_parts(632_548_750, 16590)
 			.saturating_add(T::DbWeight::get().reads(20_u64))
 	}
 	/// Storage: `HSM::Collaterals` (r:1 w:0)

@@ -524,7 +524,7 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 		//  Measured:  `3037 + e * (932 ±0)`
 		//  Estimated: `16590 + e * (5166 ±0)`
 		// Minimum execution time: 1_231_813_000 picoseconds.
-		Weight::from_parts(1_247_229_855, 16590)
+		Weight::from_parts(1_771_066_394, 16590)
 			// Standard Error: 2_041_316
 			.saturating_add(Weight::from_parts(2_611_727_644, 0).saturating_mul(e.into()))
 			.saturating_add(T::DbWeight::get().reads(19_u64))
