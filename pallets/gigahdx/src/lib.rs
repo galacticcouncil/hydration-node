@@ -95,13 +95,13 @@ pub mod pallet {
 		/// not the input — the MM may round at supply time and the stored
 		/// value MUST match the account's GIGAHDX balance.
 		pub gigahdx: Balance,
-		/// HDX amount that is frozen and cannot be unstaked until something
-		/// unfreezes it. The pallet is agnostic to the reason — any dependent
-		/// pallet (e.g. `pallet-gigahdx-rewards`) can call `freeze`/`unfreeze`
-		/// to pin part of the user's staked HDX. Enforced in `do_unstake`:
-		/// the post-unstake `hdx` must be `>= frozen`.
+		/// HDX pinned against `do_unstake` (`post-unstake hdx >= frozen`).
 		///
-		/// Invariant: `frozen <= hdx` at all times.
+		/// Sum of per-call freezes — *not* a max. Multiple concurrent reasons
+		/// (e.g. several active conviction-votes) stack, so `frozen` can
+		/// exceed `hdx`; that's how unstake-while-voting is blocked. Becomes
+		/// unstakeable again once each caller pairs its `freeze` with an
+		/// `unfreeze`.
 		pub frozen: Balance,
 		/// Total unstaking amount.
 		pub unstaking: Balance,
@@ -528,8 +528,14 @@ pub mod pallet {
 				}
 			});
 
-			T::MoneyMarket::withdraw(who, T::StHdxAssetId::get(), gigahdx_amount)
+			let actual_withdrawn = T::MoneyMarket::withdraw(who, T::StHdxAssetId::get(), gigahdx_amount)
 				.map_err(|_| Error::<T>::MoneyMarketWithdrawFailed)?;
+			// Mismatch breaks `burn_from(Precision::Exact)` or leaks untracked
+			// stHDX past cooldown accounting.
+			ensure!(
+				actual_withdrawn == gigahdx_amount,
+				Error::<T>::MoneyMarketWithdrawFailed
+			);
 
 			T::MultiCurrency::burn_from(
 				T::StHdxAssetId::get(),
@@ -588,14 +594,10 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// Add `delta` to `Stakes[who].frozen`, pinning that amount of the
-		/// user's staked HDX so it cannot be unstaked. Saturating; infallible.
-		///
-		/// The pallet is agnostic to the reason for the freeze. Callers must
-		/// cap `delta` such that the resulting `frozen` does not exceed the
-		/// user's current `Stakes[who].hdx` (the pallet does not validate this
-		/// — `do_unstake` enforces `frozen <= hdx` defensively, but a
-		/// caller that over-freezes can render the stake permanently locked).
+		/// Stack a freeze of `delta` onto `Stakes[who].frozen`. Saturating;
+		/// infallible. Each `freeze(who, delta)` must be paired with an
+		/// eventual `unfreeze(who, delta)`. See `StakeRecord.frozen` for the
+		/// sum-stacking semantics.
 		pub fn freeze(who: &T::AccountId, delta: Balance) {
 			if delta == 0 {
 				return;
@@ -606,9 +608,10 @@ pub mod pallet {
 			});
 		}
 
-		/// Subtract `delta` from `Stakes[who].frozen`, releasing previously
-		/// frozen stake. Saturating; infallible. Removes the stake record if
-		/// all three fields (`hdx`, `gigahdx`, `frozen`) become zero.
+		/// Subtract `delta` from `Stakes[who].frozen`. Saturating; infallible.
+		/// Removes the record only when every field is zero — matching
+		/// `unlock`'s predicate. Dropping it with `unstaking_count > 0` would
+		/// orphan `PendingUnstakes` entries.
 		pub fn unfreeze(who: &T::AccountId, delta: Balance) {
 			if delta == 0 {
 				return;
@@ -616,7 +619,12 @@ pub mod pallet {
 			Stakes::<T>::mutate_exists(who, |maybe| {
 				if let Some(stake) = maybe.as_mut() {
 					stake.frozen = stake.frozen.saturating_sub(delta);
-					if stake.hdx == 0 && stake.gigahdx == 0 && stake.frozen == 0 {
+					if stake.hdx == 0
+						&& stake.gigahdx == 0
+						&& stake.frozen == 0
+						&& stake.unstaking == 0
+						&& stake.unstaking_count == 0
+					{
 						*maybe = None;
 					}
 				}
@@ -645,6 +653,8 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::StHdxMintFailed)?;
 			let actual_minted = T::MoneyMarket::supply(who, T::StHdxAssetId::get(), gigahdx_to_mint)
 				.map_err(|_| Error::<T>::MoneyMarketSupplyFailed)?;
+			// Silent zero-mint would strand `amount` HDX with no redeemable gigahdx.
+			ensure!(actual_minted > 0, Error::<T>::MoneyMarketSupplyFailed);
 
 			Stakes::<T>::try_mutate(who, |maybe_stake| -> Result<(), Error<T>> {
 				let stake = maybe_stake.get_or_insert_with(StakeRecord::default);

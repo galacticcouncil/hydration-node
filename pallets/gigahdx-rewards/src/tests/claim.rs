@@ -88,6 +88,33 @@ fn claim_rewards_should_revert_and_preserve_pending_when_money_market_fails() {
 }
 
 #[test]
+fn claim_rewards_should_fail_when_caller_has_external_claim() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+		seed_pending_reward(ALICE, 10 * ONE);
+
+		// Simulate the caller holding HDX claimed by another pallet (legacy
+		// staking lock, vesting, etc.). `claim_rewards` must refuse to compound
+		// because FRAME's max-of-locks semantics would let the larger external
+		// lock shadow the freshly-applied gigahdx lock.
+		TestExternalClaims::set(50 * ONE);
+
+		assert_noop!(
+			GigaHdxRewards::claim_rewards(RawOrigin::Signed(ALICE).into()),
+			pallet_gigahdx::Error::<Test>::BlockedByExternalLock
+		);
+
+		// `PendingRewards` untouched — guard runs before `take`, no rewards burned.
+		assert_eq!(PendingRewards::<Test>::get(ALICE), 10 * ONE);
+
+		// After the external claim clears, the same caller can compound.
+		TestExternalClaims::reset();
+		assert_ok!(GigaHdxRewards::claim_rewards(RawOrigin::Signed(ALICE).into()));
+		assert_eq!(PendingRewards::<Test>::get(ALICE), 0);
+	});
+}
+
+#[test]
 fn claim_rewards_should_emit_event_with_gigahdx_received() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE));

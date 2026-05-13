@@ -76,6 +76,69 @@ fn on_before_vote_should_skip_when_vote_is_split_abstain() {
 }
 
 #[test]
+fn on_before_vote_should_clean_up_prior_record_when_downgrading_to_split() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+
+		// First cast a tracked Standard vote — record, freeze, and tally
+		// row all written.
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			standard_vote(true, Conviction::Locked6x, 50 * ONE),
+		));
+		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_some());
+		assert_eq!(stake_record(&ALICE).frozen, 50 * ONE);
+		let tally = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
+		assert_eq!(tally.voters_count, 1);
+		assert!(tally.total_weighted > 0);
+
+		// Downgrade to Split — the prior record, the freeze, and the tally
+		// row must all unwind so the user is not credited a reward share they
+		// no longer hold.
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			AccountVote::Split {
+				aye: 20 * ONE,
+				nay: 30 * ONE,
+			},
+		));
+		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_none());
+		assert_eq!(stake_record(&ALICE).frozen, 0);
+		assert!(ReferendaTotalWeightedVotes::<Test>::get(REF_A).is_none());
+	});
+}
+
+#[test]
+fn on_before_vote_should_clean_up_prior_record_when_downgrading_to_split_abstain() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			standard_vote(true, Conviction::Locked3x, 40 * ONE),
+		));
+		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_some());
+		assert_eq!(stake_record(&ALICE).frozen, 40 * ONE);
+
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			AccountVote::SplitAbstain {
+				aye: 10 * ONE,
+				nay: 10 * ONE,
+				abstain: 20 * ONE,
+			},
+		));
+		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_none());
+		assert_eq!(stake_record(&ALICE).frozen, 0);
+		assert!(ReferendaTotalWeightedVotes::<Test>::get(REF_A).is_none());
+	});
+}
+
+#[test]
 fn on_before_vote_should_cap_weighted_at_min_of_vote_and_stake() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake(ALICE, 50 * ONE);
@@ -380,18 +443,18 @@ fn on_remove_vote_should_accumulate_pending_rewards_across_referenda() {
 }
 
 #[test]
-fn on_remove_vote_should_scoop_remaining_reward_for_last_voter() {
+fn on_remove_vote_should_recycle_rounding_dust_to_accumulator() {
 	ExtBuilder::default()
 		.with_accumulator(1_000 * ONE)
 		.build()
 		.execute_with(|| {
-			// 3 voters, asymmetric weights designed to produce floor dust.
+			// 3 equal voters, weight=1 each, total_weighted=3. Allocation is
+			// 10% of 1_000 ONE = 100 ONE, so each share is floor(100 * ONE / 3)
+			// which leaves a 1-wei remainder after the last claimant.
 			stake(ALICE, 100 * ONE);
 			stake(BOB, 100 * ONE);
 			stake(CHARLIE, 100 * ONE);
 
-			// Use raw amounts where the division won't be exact:
-			// weighted = (1, 1, 1) with total 3 → share = floor(100*ONE * 1 / 3).
 			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
 				&ALICE,
 				REF_A,
@@ -408,16 +471,71 @@ fn on_remove_vote_should_scoop_remaining_reward_for_last_voter() {
 				standard_vote(true, Conviction::Locked1x, 1),
 			));
 
+			// First `on_remove_vote(Completed)` triggers the allocation pull
+			// from the accumulator pot into the allocated pot.
+			VotingHooksImpl::<Test>::on_remove_vote(&ALICE, REF_A, Status::Completed);
+			let accumulator_after_alloc = account_balance(&accumulator_pot());
+			assert_eq!(account_balance(&allocated_pot()), 100 * ONE);
+
+			VotingHooksImpl::<Test>::on_remove_vote(&BOB, REF_A, Status::Completed);
+			VotingHooksImpl::<Test>::on_remove_vote(&CHARLIE, REF_A, Status::Completed);
+
+			// All three voters get the same pro-rata share — no scoop bonus.
+			let alice = PendingRewards::<Test>::get(ALICE);
+			let bob = PendingRewards::<Test>::get(BOB);
+			let charlie = PendingRewards::<Test>::get(CHARLIE);
+			assert_eq!(alice, bob);
+			assert_eq!(bob, charlie);
+
+			let sum = alice + bob + charlie;
+			let dust = (100 * ONE) - sum;
+			assert!(dust > 0 && dust < 3, "expected 1-wei dust, got {dust}");
+
+			// Dust transferred from allocated pot back to accumulator pot
+			// rather than awarded to the last claimant.
+			assert_eq!(account_balance(&allocated_pot()), sum);
+			assert_eq!(
+				account_balance(&accumulator_pot()),
+				accumulator_after_alloc + dust,
+				"dust returned to accumulator pot"
+			);
+		});
+}
+
+#[test]
+fn on_remove_vote_should_credit_zero_to_zero_weighted_voter() {
+	ExtBuilder::default()
+		.with_accumulator(1_000 * ONE)
+		.build()
+		.execute_with(|| {
+			stake(ALICE, 100 * ONE);
+			stake(BOB, 100 * ONE);
+
+			// ALICE: real weight (Locked6x, 10 ONE → weighted = 60 ONE).
+			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+				&ALICE,
+				REF_A,
+				standard_vote(true, Conviction::Locked6x, 10 * ONE),
+			));
+			// BOB: vote_balance × multiplier / scale floors to 0 (smallest
+			// possible vote × None-conviction). With our reward multiplier
+			// scale this corresponds to a sub-scale vote balance.
+			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+				&BOB,
+				REF_A,
+				standard_vote(true, Conviction::None, 1),
+			));
+			let bob_rec = UserVoteRecords::<Test>::get(BOB, REF_A).unwrap();
+			assert_eq!(bob_rec.weighted, 0, "must be a zero-weighted vote");
+
+			// Allocate + claim. Even if BOB is the last claimant, the audit
+			// exploit is to scoop the full pool — with the fix he should get
+			// exactly zero.
 			VotingHooksImpl::<Test>::on_remove_vote(&ALICE, REF_A, Status::Completed);
 			VotingHooksImpl::<Test>::on_remove_vote(&BOB, REF_A, Status::Completed);
-			// Charlie is last → gets the remainder (dust included), guaranteeing pool drains to 0.
-			VotingHooksImpl::<Test>::on_remove_vote(&CHARLIE, REF_A, Status::Completed);
-			let sum = PendingRewards::<Test>::get(ALICE)
-				+ PendingRewards::<Test>::get(BOB)
-				+ PendingRewards::<Test>::get(CHARLIE);
-			assert_eq!(sum, 100 * ONE, "entire allocation distributed");
-			// Charlie's share is the largest (scoops the dust).
-			assert!(PendingRewards::<Test>::get(CHARLIE) >= PendingRewards::<Test>::get(ALICE));
+
+			assert_eq!(PendingRewards::<Test>::get(BOB), 0, "zero-weighted voter gets zero");
+			assert!(PendingRewards::<Test>::get(ALICE) > 0);
 		});
 }
 

@@ -34,12 +34,30 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 
 		// Standard votes only; Split / SplitAbstain have multiple sub-balances
 		// without a single principled answer for the eligible amount.
+		// Downgrade from a tracked Standard vote: drop the prior record so
+		// the user's freeze and weighted share don't outlive the vote.
 		let (vote_balance, conviction) = match vote {
 			AccountVote::Standard {
 				vote: std_vote,
 				balance,
 			} => (balance, std_vote.conviction),
-			_ => return Ok(()),
+			_ => {
+				if let Some(prev) = UserVoteRecords::<T>::take(who, ref_index) {
+					pallet_gigahdx::Pallet::<T>::unfreeze(who, prev.staked_vote_amount);
+					if !ReferendaRewardPool::<T>::contains_key(ref_index) {
+						ReferendaTotalWeightedVotes::<T>::mutate_exists(ref_index, |maybe| {
+							if let Some(tally) = maybe.as_mut() {
+								tally.total_weighted = tally.total_weighted.saturating_sub(prev.weighted);
+								tally.voters_count = tally.voters_count.saturating_sub(1);
+								if tally.voters_count == 0 {
+									*maybe = None;
+								}
+							}
+						});
+					}
+				}
+				return Ok(());
+			}
 		};
 
 		let staked_vote = vote_balance.min(staked);

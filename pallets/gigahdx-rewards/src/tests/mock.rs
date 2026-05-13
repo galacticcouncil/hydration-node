@@ -192,6 +192,32 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for TestMoneyMarket {
 	}
 }
 
+// ---------- TestExternalClaims ----------
+
+thread_local! {
+	pub static EXTERNAL_CLAIMS: RefCell<Balance> = const { RefCell::new(0) };
+}
+
+pub struct TestExternalClaims;
+
+impl TestExternalClaims {
+	#[allow(dead_code)]
+	pub fn set(value: Balance) {
+		EXTERNAL_CLAIMS.with(|v| *v.borrow_mut() = value);
+	}
+
+	#[allow(dead_code)]
+	pub fn reset() {
+		EXTERNAL_CLAIMS.with(|v| *v.borrow_mut() = 0);
+	}
+}
+
+impl pallet_gigahdx::traits::ExternalClaims<AccountId> for TestExternalClaims {
+	fn on(_who: &AccountId) -> Balance {
+		EXTERNAL_CLAIMS.with(|v| *v.borrow())
+	}
+}
+
 // ---------- pallet-gigahdx config ----------
 
 parameter_types! {
@@ -200,6 +226,7 @@ parameter_types! {
 	pub const GigaHdxLockId: LockIdentifier = GIGAHDX_LOCK_ID;
 	pub const GigaHdxMinStake: Balance = ONE; // 1 HDX
 	pub const GigaHdxCooldownPeriod: u64 = 100;
+	pub const GigaHdxMaxPendingUnstakes: u32 = 10;
 }
 
 impl pallet_gigahdx::Config for Test {
@@ -212,6 +239,8 @@ impl pallet_gigahdx::Config for Test {
 	type LockId = GigaHdxLockId;
 	type MinStake = GigaHdxMinStake;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
+	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
+	type ExternalClaims = TestExternalClaims;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();

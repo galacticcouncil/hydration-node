@@ -62,6 +62,8 @@ pub mod pallet {
 	use frame_support::traits::{Currency, ExistenceRequirement};
 	use frame_support::PalletId;
 	use frame_system::pallet_prelude::*;
+	use pallet_gigahdx::traits::ExternalClaims;
+	use pallet_gigahdx::MoneyMarketOperations;
 	use primitives::Balance;
 	use scale_info::TypeInfo;
 	use sp_std::fmt::Debug;
@@ -186,9 +188,19 @@ pub mod pallet {
 		///
 		/// Emits `RewardsClaimed` event when successful.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
+		#[pallet::weight(
+			<T as Config>::WeightInfo::claim_rewards()
+				.saturating_add(<T as pallet_gigahdx::Config>::MoneyMarket::supply_weight())
+		)]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			// Mirror `giga_stake`: a pre-existing HDX lock would shadow ours
+			// under FRAME's max-of-locks, leaving the staked HDX transferable.
+			ensure!(
+				<T as pallet_gigahdx::Config>::ExternalClaims::on(&who) == 0,
+				pallet_gigahdx::Error::<T>::BlockedByExternalLock
+			);
+
 			let total = PendingRewards::<T>::take(&who);
 			ensure!(total > 0, Error::<T>::NoPendingRewards);
 
@@ -233,10 +245,9 @@ pub mod pallet {
 				.unwrap_or(0)
 		}
 
-		/// Per-user share: pro-rata weighted vote against the frozen pool,
-		/// with last-claimer dust scoop. Returns the amount credited to
-		/// `PendingRewards[who]`. Mutates / deletes `ReferendaRewardPool` as
-		/// required.
+		/// Pro-rata weighted share of the pool. Returns the amount credited
+		/// to `PendingRewards[who]`. Rounding dust after the last claimant is
+		/// recycled to the accumulator pot, never scooped to a single voter.
 		pub(crate) fn record_user_reward(
 			who: &T::AccountId,
 			ref_index: ReferendumIndex,
@@ -252,11 +263,7 @@ pub mod pallet {
 			}
 			pool.voters_remaining = pool.voters_remaining.saturating_sub(1);
 
-			let user_reward: Balance = if pool.voters_remaining == 0 {
-				let r = pool.remaining_reward;
-				pool.remaining_reward = 0;
-				r
-			} else if pool.total_weighted_votes == 0 {
+			let user_reward: Balance = if pool.total_weighted_votes == 0 || record.weighted == 0 {
 				0
 			} else {
 				let share = multiply_by_rational_with_rounding(
@@ -280,7 +287,16 @@ pub mod pallet {
 				});
 			}
 
-			if pool.voters_remaining > 0 {
+			if pool.voters_remaining == 0 {
+				if pool.remaining_reward > 0 {
+					<T as pallet_gigahdx::Config>::NativeCurrency::transfer(
+						&Self::allocated_rewards_pot(),
+						&Self::reward_accumulator_pot(),
+						pool.remaining_reward,
+						ExistenceRequirement::AllowDeath,
+					)?;
+				}
+			} else {
 				ReferendaRewardPool::<T>::insert(ref_index, pool);
 			}
 
