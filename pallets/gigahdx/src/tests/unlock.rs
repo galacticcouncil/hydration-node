@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::mock::*;
-use crate::{Error, PendingUnstakes, Stakes};
+use crate::{Error, Stakes};
 use frame_support::sp_runtime::traits::AccountIdConversion;
 use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::{fungible::Inspect, LockIdentifier};
@@ -35,7 +35,8 @@ fn giga_unstake_should_create_pending_position_when_called() {
 		stake_alice_100();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 40 * ONE));
 
-		let entry = PendingUnstakes::<Test>::get(ALICE).expect("entry exists");
+		let entry = only_pending(ALICE);
+		assert_eq!(entry.id, 1);
 		assert_eq!(entry.amount, 40 * ONE);
 		assert_eq!(entry.expires_at, 1 + GigaHdxCooldownPeriod::get());
 
@@ -58,7 +59,7 @@ fn giga_unstake_should_drain_active_only_when_pot_empty() {
 		let s = Stakes::<Test>::get(ALICE).unwrap();
 		assert_eq!(s.hdx, 0);
 		assert_eq!(s.gigahdx, 0);
-		assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 100 * ONE);
+		assert_eq!(only_pending(ALICE).amount, 100 * ONE);
 		assert_eq!(lock_amount(ALICE, GIGAHDX_LOCK_ID), 100 * ONE);
 	});
 }
@@ -77,7 +78,7 @@ fn giga_unstake_should_skip_yield_transfer_when_payout_le_active() {
 			assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 10 * ONE));
 
 			assert_eq!(Stakes::<Test>::get(ALICE).unwrap().hdx, 70 * ONE);
-			assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 30 * ONE);
+			assert_eq!(only_pending(ALICE).amount, 30 * ONE);
 			assert_eq!(Balances::free_balance(ALICE), alice_balance_before);
 			assert_eq!(Balances::free_balance(pot_account()), pot_before);
 			assert_eq!(lock_amount(ALICE, GIGAHDX_LOCK_ID), 100 * ONE);
@@ -100,7 +101,7 @@ fn giga_unstake_should_extend_lock_when_payout_exceeds_active() {
 			let s = Stakes::<Test>::get(ALICE).unwrap();
 			assert_eq!(s.hdx, 0);
 			assert_eq!(s.gigahdx, 10 * ONE);
-			assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 270 * ONE);
+			assert_eq!(only_pending(ALICE).amount, 270 * ONE);
 
 			assert_eq!(Balances::free_balance(ALICE), alice_balance_before + 170 * ONE);
 			assert_eq!(Balances::free_balance(pot_account()), 30 * ONE);
@@ -111,18 +112,6 @@ fn giga_unstake_should_extend_lock_when_payout_exceeds_active() {
 }
 
 #[test]
-fn giga_unstake_should_fail_when_pending_position_exists() {
-	ExtBuilder::default().build().execute_with(|| {
-		stake_alice_100();
-		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 30 * ONE));
-		assert_noop!(
-			GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 10 * ONE),
-			Error::<Test>::PendingUnstakeAlreadyExists
-		);
-	});
-}
-
-#[test]
 fn unlock_should_fail_when_cooldown_not_elapsed() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
@@ -130,7 +119,7 @@ fn unlock_should_fail_when_cooldown_not_elapsed() {
 
 		System::set_block_number(GigaHdxCooldownPeriod::get());
 		assert_noop!(
-			GigaHdx::unlock(RawOrigin::Signed(ALICE).into()),
+			GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 1),
 			Error::<Test>::CooldownNotElapsed
 		);
 	});
@@ -143,9 +132,9 @@ fn unlock_should_release_lock_when_cooldown_elapsed() {
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
 
 		System::set_block_number(1 + GigaHdxCooldownPeriod::get());
-		assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into()));
+		assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 1));
 
-		assert!(PendingUnstakes::<Test>::get(ALICE).is_none());
+		assert_eq!(pending_count(ALICE), 0);
 		// Stakes was {0, 0} after full unstake → cleaned up by unlock.
 		assert!(Stakes::<Test>::get(ALICE).is_none());
 		assert_eq!(lock_amount(ALICE, GIGAHDX_LOCK_ID), 0);
@@ -158,9 +147,9 @@ fn unlock_should_keep_active_lock_when_partial_unstake() {
 		stake_alice_100();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 40 * ONE));
 		System::set_block_number(1 + GigaHdxCooldownPeriod::get());
-		assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into()));
+		assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 1));
 
-		assert!(PendingUnstakes::<Test>::get(ALICE).is_none());
+		assert_eq!(pending_count(ALICE), 0);
 		let s = Stakes::<Test>::get(ALICE).unwrap();
 		assert_eq!(s.hdx, 60 * ONE);
 		assert_eq!(s.gigahdx, 60 * ONE);
@@ -174,8 +163,8 @@ fn unlock_should_fail_when_no_pending_position() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
 		assert_noop!(
-			GigaHdx::unlock(RawOrigin::Signed(ALICE).into()),
-			Error::<Test>::NoPendingUnstake
+			GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 1),
+			Error::<Test>::PendingUnstakeNotFound
 		);
 	});
 }
@@ -185,11 +174,15 @@ fn giga_unstake_should_succeed_when_called_after_unlock() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 30 * ONE));
-		System::set_block_number(1 + GigaHdxCooldownPeriod::get());
-		assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into()));
+		let unlock_block = 1 + GigaHdxCooldownPeriod::get();
+		System::set_block_number(unlock_block);
+		assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 1));
 
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 20 * ONE));
-		assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 20 * ONE);
+		// Second unstake's id = current block at time of unstake.
+		let entry = only_pending(ALICE);
+		assert_eq!(entry.id, unlock_block);
+		assert_eq!(entry.amount, 20 * ONE);
 	});
 }
 
@@ -204,15 +197,18 @@ fn giga_unstake_should_handle_remaining_atokens_when_active_drained_by_yield() {
 		.execute_with(|| {
 			stake_alice_100();
 			assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 90 * ONE));
-			System::set_block_number(1 + GigaHdxCooldownPeriod::get());
-			assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into()));
+			let unlock_block = 1 + GigaHdxCooldownPeriod::get();
+			System::set_block_number(unlock_block);
+			assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 1));
 
 			let s = Stakes::<Test>::get(ALICE).unwrap();
 			assert_eq!(s.hdx, 0);
 			assert_eq!(s.gigahdx, 10 * ONE);
 
 			assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 10 * ONE));
-			assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 30 * ONE);
+			let entry = only_pending(ALICE);
+			assert_eq!(entry.id, unlock_block);
+			assert_eq!(entry.amount, 30 * ONE);
 			assert_eq!(Balances::free_balance(pot_account()), 0);
 		});
 }

@@ -100,19 +100,20 @@ pub mod pallet {
 		///
 		/// Invariant: `frozen <= hdx` at all times.
 		pub frozen: Balance,
+		/// Total unstaking amount.
+		pub unstaking: Balance,
+		/// Total number of unstaking positions.
+		pub unstaking_count: u16,
 	}
 
-	/// Pending-unstake record. At most one per account at a time.
+	/// One pending-unstake position. Keyed by the originating block; cooldown
+	/// expiry is `block + Config::CooldownPeriod`.
 	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq, Debug)]
-	pub struct PendingUnstake<BlockNumber> {
-		/// HDX value to release on `unlock`. Equals the unstake payout
-		/// (principal share consumed + yield received from gigapot).
+	pub struct PendingUnstake {
 		pub amount: Balance,
-		/// Block at which `unlock` becomes callable.
-		pub expires_at: BlockNumber,
 	}
 
-	pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+	pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -158,6 +159,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type CooldownPeriod: Get<BlockNumberFor<Self>>;
 
+		/// Maximum number of concurrent pending-unstake positions per account.
+		#[pallet::constant]
+		type MaxPendingUnstakes: Get<u32>;
+
 		type WeightInfo: WeightInfo;
 
 		/// Benchmark helper for setting up state that can't be created from
@@ -182,12 +187,19 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type GigaHdxPoolContract<T: Config> = StorageValue<_, EvmAddress, OptionQuery>;
 
-	/// At most one pending unstake per account. A second `giga_unstake`
-	/// while this slot is full is rejected — caller must wait for the
-	/// cooldown and `unlock` first.
+	/// Pending unstake positions, keyed by `(account, originating_block)`.
+	/// Same-block unstakes by the same account compound into one entry.
+	/// Per-account count bounded by `Config::MaxPendingUnstakes`.
 	#[pallet::storage]
-	pub type PendingUnstakes<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, PendingUnstake<BlockNumberFor<T>>, OptionQuery>;
+	pub type PendingUnstakes<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Twox64Concat,
+		BlockNumberFor<T>,
+		PendingUnstake,
+		OptionQuery,
+	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -199,6 +211,7 @@ pub mod pallet {
 		},
 		Unstaked {
 			who: T::AccountId,
+			position_id: BlockNumberFor<T>,
 			gigahdx_amount: Balance,
 			payout: Balance,
 			yield_share: Balance,
@@ -206,7 +219,14 @@ pub mod pallet {
 		},
 		Unlocked {
 			who: T::AccountId,
+			position_id: BlockNumberFor<T>,
 			amount: Balance,
+		},
+		UnstakeCancelled {
+			who: T::AccountId,
+			position_id: BlockNumberFor<T>,
+			amount: Balance,
+			gigahdx: Balance,
 		},
 		PoolContractUpdated {
 			contract: EvmAddress,
@@ -240,12 +260,12 @@ pub mod pallet {
 		MoneyMarketWithdrawFailed,
 		/// Arithmetic overflow during rate, lock, or storage update math.
 		Overflow,
-		/// The cooldown period has not yet elapsed for the pending unstake.
+		/// The cooldown period has not yet elapsed for the targeted position.
 		CooldownNotElapsed,
-		/// No pending unstake exists for the caller.
-		NoPendingUnstake,
-		/// Caller already has a pending unstake; must `unlock` it first.
-		PendingUnstakeAlreadyExists,
+		/// No pending unstake position with the supplied id exists for the caller.
+		PendingUnstakeNotFound,
+		/// Caller has reached `Config::MaxPendingUnstakes` concurrent positions.
+		TooManyPendingUnstakes,
 		/// `set_pool_contract` was called while gigahdx (aToken / stHDX) is
 		/// still in circulation. The pool is settable only when total stHDX
 		/// supply is zero.
@@ -367,40 +387,90 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Release the caller's pending-unstake position after the cooldown elapses.
+		/// Release a single pending-unstake position whose cooldown has elapsed.
 		///
-		/// Removes the `PendingUnstakes` entry for the caller and refreshes the combined
-		/// `Config::LockId` lock so the unstaked HDX becomes spendable. If the matching
-		/// `Stakes` record has been fully drained (both `hdx` and `gigahdx` are zero), it
-		/// is also removed.
+		/// Fails with `PendingUnstakeNotFound` if no position with `position_id`
+		/// exists, or `CooldownNotElapsed` if the targeted position is still cooling.
 		///
-		/// Fails with `NoPendingUnstake` if the caller has no pending position, or with
-		/// `CooldownNotElapsed` if `Config::CooldownPeriod` has not yet passed since the
-		/// position was opened.
+		/// Parameters:
+		/// - `position_id`: id of the position to release (as recorded in the
+		///   `Unstaked` event for the originating unstake).
 		///
 		/// Emits `Unlocked` event when successful.
 		///
 		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::unlock())]
-		pub fn unlock(origin: OriginFor<T>) -> DispatchResult {
+		pub fn unlock(origin: OriginFor<T>, position_id: BlockNumberFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let entry = PendingUnstakes::<T>::get(&who).ok_or(Error::<T>::NoPendingUnstake)?;
-			ensure!(
-				frame_system::Pallet::<T>::block_number() >= entry.expires_at,
-				Error::<T>::CooldownNotElapsed
-			);
 
-			PendingUnstakes::<T>::remove(&who);
-			Self::refresh_lock(&who)?;
-			if let Some(s) = Stakes::<T>::get(&who) {
-				if s.hdx == 0 && s.gigahdx == 0 && s.frozen == 0 {
-					Stakes::<T>::remove(&who);
+			let entry = PendingUnstakes::<T>::get(&who, position_id).ok_or(Error::<T>::PendingUnstakeNotFound)?;
+			let expires_at = position_id
+				.checked_add(&T::CooldownPeriod::get())
+				.ok_or(Error::<T>::Overflow)?;
+			ensure!(
+				frame_system::Pallet::<T>::block_number() >= expires_at,
+				Error::<T>::CooldownNotElapsed,
+			);
+			PendingUnstakes::<T>::remove(&who, position_id);
+
+			Stakes::<T>::mutate_exists(&who, |maybe| {
+				if let Some(s) = maybe.as_mut() {
+					s.unstaking = s.unstaking.saturating_sub(entry.amount);
+					s.unstaking_count = s.unstaking_count.saturating_sub(1);
+					if s.hdx == 0 && s.gigahdx == 0 && s.frozen == 0 && s.unstaking_count == 0 {
+						*maybe = None;
+					}
 				}
-			}
+			});
+			Self::refresh_lock(&who)?;
 
 			Self::deposit_event(Event::Unlocked {
 				who,
+				position_id,
 				amount: entry.amount,
+			});
+			Ok(())
+		}
+
+		/// Cancel a single pending-unstake position, folding its `amount` HDX
+		/// back into the active stake at the current exchange rate.
+		///
+		/// The pending HDX is already locked in the caller's account; this
+		/// extrinsic relabels it as active stake and mints fresh aTokens at
+		/// today's rate. The number of aTokens minted may differ from the
+		/// amount burned at unstake time if the exchange rate moved.
+		///
+		/// Cooldown is not a gate — cancellation is valid throughout the
+		/// pending window, until the caller invokes `unlock`.
+		///
+		/// Fails with `PendingUnstakeNotFound` if `position_id` is not present.
+		///
+		/// Parameters:
+		/// - `position_id`: id of the position to cancel.
+		///
+		/// Emits `UnstakeCancelled` event when successful.
+		///
+		#[pallet::call_index(4)]
+		#[pallet::weight(T::WeightInfo::cancel_unstake().saturating_add(T::MoneyMarket::supply_weight()))]
+		#[transactional]
+		pub fn cancel_unstake(origin: OriginFor<T>, position_id: BlockNumberFor<T>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let entry = PendingUnstakes::<T>::take(&who, position_id).ok_or(Error::<T>::PendingUnstakeNotFound)?;
+
+			Stakes::<T>::mutate(&who, |maybe| {
+				if let Some(s) = maybe {
+					s.unstaking = s.unstaking.saturating_sub(entry.amount);
+					s.unstaking_count = s.unstaking_count.saturating_sub(1);
+				}
+			});
+
+			let gigahdx = Self::do_stake(&who, entry.amount)?;
+			Self::deposit_event(Event::UnstakeCancelled {
+				who,
+				position_id,
+				amount: entry.amount,
+				gigahdx,
 			});
 			Ok(())
 		}
@@ -412,12 +482,15 @@ pub mod pallet {
 		/// layer so any Err here rolls back partial mutations.
 		#[transactional]
 		fn do_unstake(who: &T::AccountId, gigahdx_amount: Balance) -> DispatchResult {
-			ensure!(
-				PendingUnstakes::<T>::get(who).is_none(),
-				Error::<T>::PendingUnstakeAlreadyExists
-			);
-
 			let stake = Stakes::<T>::get(who).ok_or(Error::<T>::NoStake)?;
+			let now = frame_system::Pallet::<T>::block_number();
+			let is_new_position = !PendingUnstakes::<T>::contains_key(who, now);
+			if is_new_position {
+				ensure!(
+					(stake.unstaking_count as u32) < T::MaxPendingUnstakes::get(),
+					Error::<T>::TooManyPendingUnstakes
+				);
+			}
 			ensure!(gigahdx_amount > 0, Error::<T>::ZeroAmount);
 			ensure!(gigahdx_amount <= stake.gigahdx, Error::<T>::InsufficientStake);
 
@@ -433,14 +506,11 @@ pub mod pallet {
 			// Pre-decrement `gigahdx` so `LockableAToken.burn`'s `freeBalance`
 			// check (via the lock-manager precompile) lets the burn through.
 			let new_gigahdx = stake.gigahdx.checked_sub(gigahdx_amount).ok_or(Error::<T>::Overflow)?;
-			Stakes::<T>::insert(
-				who,
-				StakeRecord {
-					hdx: stake.hdx,
-					gigahdx: new_gigahdx,
-					frozen: stake.frozen,
-				},
-			);
+			Stakes::<T>::mutate(who, |maybe| {
+				if let Some(s) = maybe {
+					s.gigahdx = new_gigahdx;
+				}
+			});
 
 			T::MoneyMarket::withdraw(who, T::StHdxAssetId::get(), gigahdx_amount)
 				.map_err(|_| Error::<T>::MoneyMarketWithdrawFailed)?;
@@ -470,29 +540,28 @@ pub mod pallet {
 			};
 			let principal_consumed = stake.hdx.saturating_sub(new_hdx);
 
-			// Only `hdx` changes here; `gigahdx` was already pre-decremented
-			// before the MM call and must stay at that value.
+			let expires_at = now.checked_add(&T::CooldownPeriod::get()).ok_or(Error::<T>::Overflow)?;
+
+			PendingUnstakes::<T>::mutate(who, now, |maybe| {
+				let entry = maybe.get_or_insert(PendingUnstake { amount: 0 });
+				entry.amount = entry.amount.saturating_add(payout);
+			});
+
 			Stakes::<T>::mutate(who, |maybe| {
 				if let Some(s) = maybe {
 					s.hdx = new_hdx;
+					s.unstaking = s.unstaking.saturating_add(payout);
+					if is_new_position {
+						s.unstaking_count = s.unstaking_count.saturating_add(1);
+					}
 				}
 			});
 			TotalLocked::<T>::mutate(|x| *x = x.saturating_sub(principal_consumed));
-
-			let expires_at = frame_system::Pallet::<T>::block_number()
-				.checked_add(&T::CooldownPeriod::get())
-				.ok_or(Error::<T>::Overflow)?;
-			PendingUnstakes::<T>::insert(
-				who,
-				PendingUnstake {
-					amount: payout,
-					expires_at,
-				},
-			);
 			Self::refresh_lock(who)?;
 
 			Self::deposit_event(Event::Unstaked {
 				who: who.clone(),
+				position_id: now,
 				gigahdx_amount,
 				payout,
 				yield_share,
@@ -576,14 +645,14 @@ pub mod pallet {
 		}
 
 		/// Recompute the single combined balance lock for `who`:
-		/// `lock_amount = Stakes[who].hdx + PendingUnstakes[who].amount`.
-		/// Uses `set_lock` (not `extend_lock`) so the lock can shrink on unstake
-		/// or unlock. Removes the lock entirely when both components are zero.
+		/// `lock_amount = Stakes[who].hdx + Stakes[who].unstaking`. Uses
+		/// `set_lock` (not `extend_lock`) so the lock can shrink on unstake
+		/// or unlock. Removes the lock entirely when the total is zero.
 		#[transactional]
 		fn refresh_lock(who: &T::AccountId) -> DispatchResult {
-			let stake_amount = Stakes::<T>::get(who).map(|s| s.hdx).unwrap_or(0);
-			let pending = PendingUnstakes::<T>::get(who).map(|p| p.amount).unwrap_or(0);
-			let total = stake_amount.saturating_add(pending);
+			let total = Stakes::<T>::get(who)
+				.map(|s| s.hdx.saturating_add(s.unstaking))
+				.unwrap_or(0);
 			if total == 0 {
 				T::NativeCurrency::remove_lock(T::LockId::get(), who);
 			} else {

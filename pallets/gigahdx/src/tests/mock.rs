@@ -189,6 +189,7 @@ parameter_types! {
 	pub const GigaHdxLockId: LockIdentifier = GIGAHDX_LOCK_ID;
 	pub const GigaHdxMinStake: Balance = ONE; // 1 HDX
 	pub const GigaHdxCooldownPeriod: u64 = 100; // 100 blocks
+	pub const GigaHdxMaxPendingUnstakes: u32 = 10;
 }
 
 impl pallet_gigahdx::Config for Test {
@@ -201,9 +202,43 @@ impl pallet_gigahdx::Config for Test {
 	type LockId = GigaHdxLockId;
 	type MinStake = GigaHdxMinStake;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
+	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+}
+
+// ---------- Test helpers ----------
+
+/// Flattened view of a single pending-unstake entry, used by tests that
+/// assume exactly one position exists.
+#[allow(dead_code)]
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PendingView {
+	pub id: u64,
+	pub amount: Balance,
+	pub expires_at: u64,
+}
+
+/// Return the only pending-unstake entry for `who`. Panics if zero or more
+/// than one. Multi-position tests should iterate the storage directly.
+#[allow(dead_code)]
+pub fn only_pending(who: AccountId) -> PendingView {
+	let mut iter = pallet_gigahdx::PendingUnstakes::<Test>::iter_prefix(who);
+	let (id, p) = iter.next().expect("expected one pending position, got none");
+	assert!(iter.next().is_none(), "expected exactly one pending position");
+	PendingView {
+		id,
+		amount: p.amount,
+		expires_at: id + GigaHdxCooldownPeriod::get(),
+	}
+}
+
+#[allow(dead_code)]
+pub fn pending_count(who: AccountId) -> u16 {
+	pallet_gigahdx::Stakes::<Test>::get(who)
+		.map(|s| s.unstaking_count)
+		.unwrap_or(0)
 }
 
 // ---------- Test ext builder ----------

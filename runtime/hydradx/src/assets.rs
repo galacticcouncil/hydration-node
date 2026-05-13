@@ -1890,6 +1890,7 @@ parameter_types! {
 	pub const GigaHdxAssetIdConst: AssetId = 67;
 	pub const GigaHdxMinStake: Balance = UNITS;
 	pub const GigaHdxCooldownPeriod: BlockNumber = 30 * DAYS;
+	pub const GigaHdxMaxPendingUnstakes: u32 = 10;
 }
 
 impl pallet_gigahdx::Config for Runtime {
@@ -1905,6 +1906,7 @@ impl pallet_gigahdx::Config for Runtime {
 	type LockId = GigaHdxLockId;
 	type MinStake = GigaHdxMinStake;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
+	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type WeightInfo = weights::pallet_gigahdx::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = GigaHdxBenchmarkHelper;

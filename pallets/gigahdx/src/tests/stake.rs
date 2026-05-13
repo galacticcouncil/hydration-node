@@ -142,7 +142,7 @@ fn giga_stake_should_succeed_when_called_after_unlock() {
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 1_000 * ONE));
 
 		System::set_block_number(1 + GigaHdxCooldownPeriod::get());
-		assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into()));
+		assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 1));
 
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 500 * ONE));
 	});

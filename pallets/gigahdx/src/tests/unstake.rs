@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::mock::*;
-use crate::{Error, PendingUnstakes, Stakes, TotalLocked};
+use crate::{Error, Stakes, TotalLocked};
 use frame_support::sp_runtime::traits::AccountIdConversion;
 use frame_support::traits::fungibles::Inspect as FungiblesInspect;
 use frame_support::{assert_noop, assert_ok};
@@ -38,7 +38,7 @@ fn giga_unstake_should_move_active_to_position_when_pot_empty() {
 		assert_eq!(GigaHdx::total_gigahdx_supply(), 0);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), 0);
 
-		assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 100 * ONE);
+		assert_eq!(only_pending(ALICE).amount, 100 * ONE);
 		assert_eq!(locked_under_ghdx(ALICE), 100 * ONE);
 		assert_eq!(Balances::free_balance(ALICE), pre_free);
 	});
@@ -64,7 +64,7 @@ fn giga_unstake_should_pull_yield_from_pot_when_payout_exceeds_active() {
 			assert_eq!(s.hdx, 0);
 			assert_eq!(s.gigahdx, 0);
 
-			assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 130 * ONE);
+			assert_eq!(only_pending(ALICE).amount, 130 * ONE);
 			assert_eq!(locked_under_ghdx(ALICE), 130 * ONE);
 		});
 }
@@ -83,7 +83,7 @@ fn giga_unstake_should_split_state_when_partial() {
 		assert_eq!(TotalLocked::<Test>::get(), 60 * ONE);
 		assert_eq!(GigaHdx::total_gigahdx_supply(), 60 * ONE);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), 60 * ONE);
-		assert_eq!(PendingUnstakes::<Test>::get(ALICE).unwrap().amount, 40 * ONE);
+		assert_eq!(only_pending(ALICE).amount, 40 * ONE);
 	});
 }
 
@@ -145,7 +145,7 @@ fn giga_unstake_should_revert_storage_when_mm_withdraw_fails() {
 		assert_eq!(locked_under_ghdx(ALICE), pre_lock);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), pre_mm_balance);
 		assert_eq!(Tokens::balance(ST_HDX, &ALICE), pre_sthdx_balance);
-		assert!(PendingUnstakes::<Test>::get(ALICE).is_none());
+		assert_eq!(pending_count(ALICE), 0);
 	});
 }
 

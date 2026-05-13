@@ -92,6 +92,34 @@ fn locked_under_ghdx(account: &AccountId) -> Balance {
 		.unwrap_or(0)
 }
 
+/// Flattened view of a single pending-unstake entry for tests that assume one.
+#[derive(Clone, Debug)]
+struct PendingView {
+	#[allow(dead_code)]
+	id: u32,
+	amount: Balance,
+	expires_at: hydradx_runtime::BlockNumber,
+}
+
+/// Read the only pending-unstake position for `who`. Panics if zero or more than one.
+fn only_pending_position(who: &AccountId) -> PendingView {
+	let mut iter = pallet_gigahdx::PendingUnstakes::<Runtime>::iter_prefix(who);
+	let (id, p) = iter.next().expect("expected one pending position");
+	assert!(iter.next().is_none(), "expected exactly one pending position");
+	let cooldown: hydradx_runtime::BlockNumber = <Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+	PendingView {
+		id,
+		amount: p.amount,
+		expires_at: id + cooldown,
+	}
+}
+
+fn pending_count(who: &AccountId) -> u16 {
+	pallet_gigahdx::Stakes::<Runtime>::get(who)
+		.map(|s| s.unstaking_count)
+		.unwrap_or(0)
+}
+
 #[test]
 fn giga_stake_should_lock_hdx_in_user_account_when_called() {
 	TestNet::reset();
@@ -141,7 +169,7 @@ fn giga_unstake_should_burn_atoken_when_full_exit() {
 		assert_eq!(stake.hdx, 0);
 		assert_eq!(stake.gigahdx, 0);
 
-		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("position created");
+		let entry = only_pending_position(&alice);
 		assert_eq!(locked_under_ghdx(&alice), entry.amount);
 
 		let atoken_after_unstake = Currencies::free_balance(GIGAHDX, &alice);
@@ -170,7 +198,7 @@ fn giga_unstake_should_keep_proportional_state_when_partial() {
 		// it can exceed Alice's active 100, draining her active stake to zero;
 		// with a near-bootstrap rate the active stake just shrinks. Either way
 		// the combined lock equals active + position.
-		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("position created");
+		let entry = only_pending_position(&alice);
 		assert_eq!(locked_under_ghdx(&alice), stake.hdx + entry.amount);
 		assert!(entry.amount >= 40 * UNITS, "payout covers at least the principal share");
 	});
@@ -279,7 +307,7 @@ fn giga_unstake_should_create_pending_position_when_called() {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 40 * UNITS));
 
-		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("entry exists");
+		let entry = only_pending_position(&alice);
 		// Snapshot's gigapot may already hold yield → payout ≥ principal.
 		assert!(entry.amount >= 40 * UNITS, "position covers at least principal");
 
@@ -298,12 +326,12 @@ fn unlock_should_release_lock_when_cooldown_elapsed() {
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 
-		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).unwrap();
+		let entry = only_pending_position(&alice);
 		System::set_block_number(entry.expires_at);
 
-		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone())));
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), entry.id));
 
-		assert!(pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).is_none());
+		assert_eq!(pending_count(&alice), 0);
 		// Stakes was zero-active after full unstake → cleaned up by unlock.
 		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).is_none());
 		assert_eq!(lock_amount(&alice, GIGAHDX_LOCK_ID), 0);
@@ -522,7 +550,7 @@ fn giga_unstake_should_succeed_when_full_exit() {
 		));
 
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 0);
-		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("position exists");
+		let entry = only_pending_position(&alice);
 		assert!(entry.amount > 0);
 	});
 }
@@ -542,7 +570,7 @@ fn giga_unstake_should_fail_when_amount_exceeds_balance() {
 
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), gigahdx_before);
 		assert_eq!(Balances::free_balance(&alice), hdx_before);
-		assert!(pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).is_none());
+		assert_eq!(pending_count(&alice), 0);
 	});
 }
 
@@ -661,7 +689,7 @@ fn giga_unstake_should_succeed_with_inflated_payout_when_pot_donated() {
 			gigahdx_minted,
 		));
 
-		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("position created");
+		let entry = only_pending_position(&alice);
 		assert!(
 			entry.amount > 100 * UNITS,
 			"payout reflects inflated rate: got {} (staked 100 UNITS)",
@@ -687,7 +715,7 @@ fn giga_unstake_should_succeed_when_exchange_rate_extreme() {
 
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS,));
 
-		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("position created");
+		let entry = only_pending_position(&alice);
 		// payout = 100 * (10^15 + 100) / 100 = 10^15 + 100
 		assert_eq!(entry.amount, 1_000_000_000_000_000 * UNITS + 100 * UNITS);
 	});
@@ -786,7 +814,7 @@ fn partial_unstake_should_not_leak_when_locks_aggregated_via_max() {
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 500 * UNITS,));
 
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
-		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).unwrap();
+		let entry = only_pending_position(&alice);
 		assert_eq!(stake.hdx, 500 * UNITS);
 		assert_eq!(entry.amount, 500 * UNITS);
 
@@ -882,7 +910,7 @@ fn partial_unstake_should_drain_active_when_payout_exceeds_active() {
 		assert_eq!(stake.gigahdx, 50 * UNITS, "remaining atokens have zero cost basis now");
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 50 * UNITS);
 
-		let entry = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).expect("position created");
+		let entry = only_pending_position(&alice);
 		assert_eq!(entry.amount, 150 * UNITS);
 
 		assert_eq!(Balances::free_balance(&alice), alice_balance_before + 50 * UNITS,);
@@ -915,12 +943,12 @@ fn full_lifecycle_should_conserve_value_when_rate_inflated() {
 
 		// First unstake: 50 stHDX → payout 150, active drained.
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS,));
-		let entry1 = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).unwrap();
+		let entry1 = only_pending_position(&alice);
 		assert_eq!(entry1.amount, 150 * UNITS);
 
 		System::set_block_number(entry1.expires_at);
-		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone())));
-		assert!(pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).is_none());
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), entry1.id));
+		assert_eq!(pending_count(&alice), 0);
 
 		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("atokens remain");
 		assert_eq!(stake.hdx, 0);
@@ -930,18 +958,18 @@ fn full_lifecycle_should_conserve_value_when_rate_inflated() {
 		// Second unstake: pot 150, supply 50 → rate stays 3.0, payout = 150.
 		assert_rate_eq(GigaHdx::exchange_rate(), 3, 1);
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS,));
-		let entry2 = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).unwrap();
+		let entry2 = only_pending_position(&alice);
 		assert_eq!(entry2.amount, 150 * UNITS);
 
 		System::set_block_number(entry2.expires_at);
-		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone())));
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), entry2.id));
 
 		// Conservation: principal stayed in Alice's account (locked then unlocked);
 		// yield transferred = 50 + 150 = 200 = original_stake × (rate − 1).
 		assert_eq!(Balances::free_balance(&alice), starting_balance + 200 * UNITS);
 
 		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).is_none());
-		assert!(pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).is_none());
+		assert_eq!(pending_count(&alice), 0);
 		assert_eq!(locked_under_ghdx(&alice), 0);
 		assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 0);
 		assert_eq!(pallet_gigahdx::TotalLocked::<Runtime>::get(), 0);
@@ -1010,9 +1038,9 @@ fn first_staker_inflation_grief_should_be_self_defeating_against_real_aave() {
 			RuntimeOrigin::signed(alice.clone()),
 			alice_gigahdx - 1,
 		));
-		let position1 = pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice).unwrap();
+		let position1 = only_pending_position(&alice);
 		System::set_block_number(position1.expires_at);
-		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone())));
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), position1.id));
 		assert_eq!(GigaHdx::total_gigahdx_supply(), 1);
 
 		let gigapot = GigaHdx::gigapot_account_id();
@@ -1053,17 +1081,603 @@ fn first_staker_inflation_grief_should_be_self_defeating_against_real_aave() {
 }
 
 #[test]
-fn giga_unstake_should_fail_when_position_pending() {
+fn giga_unstake_should_fail_when_max_pending_positions_reached() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice: AccountId = ALICE.into();
+		fund(&alice, 1_000_000 * UNITS);
+		let max: u32 = <Runtime as pallet_gigahdx::Config>::MaxPendingUnstakes::get();
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(alice.clone()),
+			(max as Balance) * 100 * UNITS,
+		));
+		// Advance block between unstakes so each becomes a distinct position
+		// (same-block unstakes compound into one).
+		for _ in 0..max {
+			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 10 * UNITS));
+			System::set_block_number(System::block_number() + 1);
+		}
+		assert_noop!(
+			GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 10 * UNITS),
+			pallet_gigahdx::Error::<Runtime>::TooManyPendingUnstakes,
+		);
+	});
+}
+
+#[test]
+fn cancel_unstake_should_fail_when_no_pending() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let alice: AccountId = ALICE.into();
 		fund(&alice, 1_000 * UNITS);
-		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 1_000 * UNITS,));
-		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 300 * UNITS,));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS,));
 
 		assert_noop!(
-			GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS),
-			pallet_gigahdx::Error::<Runtime>::PendingUnstakeAlreadyExists,
+			GigaHdx::cancel_unstake(RuntimeOrigin::signed(alice), 0),
+			pallet_gigahdx::Error::<Runtime>::NoPendingUnstake,
 		);
+	});
+}
+
+#[test]
+fn cancel_unstake_should_restore_position_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+
+		let alice: AccountId = ALICE.into();
+		fund(&alice, 1_000 * UNITS);
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		let pre_lock = locked_under_ghdx(&alice);
+		let pre_atokens = Currencies::free_balance(GIGAHDX, &alice);
+
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 40 * UNITS));
+		assert_eq!(pending_count(&alice), 1);
+		let position_id = only_pending_position(&alice).id;
+
+		assert_ok!(GigaHdx::cancel_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			position_id
+		));
+
+		assert_eq!(pending_count(&alice), 0);
+		let s = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
+		assert_eq!(s.hdx, 100 * UNITS);
+		assert_eq!(locked_under_ghdx(&alice), pre_lock);
+		// AAVE rounding may shave a wei or two; tolerate small loss, forbid growth.
+		assert!(Currencies::free_balance(GIGAHDX, &alice) <= pre_atokens);
+		assert!(Currencies::free_balance(GIGAHDX, &alice) + 10 >= pre_atokens);
+	});
+}
+
+#[test]
+fn cancel_unstake_should_work_with_inflated_rate_e2e() {
+	// Pre-inflate pot so unstake pays yield from gigapot; cancel folds it back as principal.
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+
+		let alice: AccountId = ALICE.into();
+		let gigapot = GigaHdx::gigapot_account_id();
+		fund(&alice, 1_000_000 * UNITS);
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		fund(&gigapot, 200 * UNITS);
+		// rate = (100 + 200) / 100 = 3.0
+		assert_rate_eq(GigaHdx::exchange_rate(), 3, 1);
+
+		let pre_lock = locked_under_ghdx(&alice);
+		let pre_pot = Balances::free_balance(&gigapot);
+
+		// Full unstake → payout 300, principal 100, yield 200 (pot drained).
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert_eq!(Balances::free_balance(&gigapot), pre_pot - 200 * UNITS);
+		assert_eq!(locked_under_ghdx(&alice), pre_lock + 200 * UNITS);
+		let position_id = only_pending_position(&alice).id;
+
+		assert_ok!(GigaHdx::cancel_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			position_id
+		));
+
+		let s = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
+		assert_eq!(s.hdx, 300 * UNITS, "yield folded into principal");
+		// Re-supply at rate 1.0 (pot drained, supply 0 → bootstrap) → 300 atokens.
+		assert!(Currencies::free_balance(GIGAHDX, &alice) >= 300 * UNITS - 10);
+		assert_eq!(locked_under_ghdx(&alice), pre_lock + 200 * UNITS);
+		assert_eq!(Balances::free_balance(&gigapot), 0);
+	});
+}
+
+#[test]
+fn repeated_unstake_cancel_cycles_should_not_grow_position_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+
+		let alice: AccountId = ALICE.into();
+		fund(&alice, 1_000_000 * UNITS);
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		let initial_atokens = Currencies::free_balance(GIGAHDX, &alice);
+		let initial_balance = Balances::free_balance(&alice);
+
+		for _ in 0..5 {
+			let s = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
+			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), s.gigahdx));
+			let id = only_pending_position(&alice).id;
+			assert_ok!(GigaHdx::cancel_unstake(RuntimeOrigin::signed(alice.clone()), id));
+		}
+
+		// AAVE rounding may shave a few wei per cycle; forbid any growth.
+		assert!(Currencies::free_balance(GIGAHDX, &alice) <= initial_atokens);
+		assert_eq!(Balances::free_balance(&alice), initial_balance);
+	});
+}
+
+#[test]
+fn repeated_unstake_cancel_cycles_should_preserve_gigapot_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+
+		let alice: AccountId = ALICE.into();
+		let gigapot = GigaHdx::gigapot_account_id();
+		fund(&gigapot, 50 * UNITS);
+		fund(&alice, 1_000_000 * UNITS);
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		let initial_system_total =
+			pallet_gigahdx::TotalLocked::<Runtime>::get().saturating_add(Balances::free_balance(&gigapot));
+
+		for _ in 0..5 {
+			let s = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
+			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), s.gigahdx));
+			let id = only_pending_position(&alice).id;
+			assert_ok!(GigaHdx::cancel_unstake(RuntimeOrigin::signed(alice.clone()), id));
+		}
+
+		let final_system_total =
+			pallet_gigahdx::TotalLocked::<Runtime>::get().saturating_add(Balances::free_balance(&gigapot));
+		assert_eq!(final_system_total, initial_system_total);
+	});
+}
+
+#[test]
+fn cancel_unstake_should_preserve_frozen_when_user_has_active_vote_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		fund_bob_for_decision_deposit();
+
+		let alice: AccountId = ALICE.into();
+		fund(&alice, 1_200 * UNITS);
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 1_000 * UNITS));
+
+		let ref_index = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			ref_index,
+			aye_with_conviction(800 * UNITS, Conviction::Locked1x),
+		));
+		let frozen_before = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen;
+		assert_eq!(frozen_before, 800 * UNITS);
+
+		// Unstake the unfrozen portion (100 ≤ hdx 1000 − frozen 800).
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert_eq!(
+			pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen,
+			frozen_before,
+		);
+
+		let position_id = only_pending_position(&alice).id;
+		assert_ok!(GigaHdx::cancel_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			position_id
+		));
+		let s = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
+		assert_eq!(s.frozen, frozen_before, "cancel must not touch frozen");
+		assert_eq!(s.hdx, 1_000 * UNITS);
+		assert!(s.frozen <= s.hdx);
+	});
+}
+
+fn advance_block() {
+	System::set_block_number(System::block_number() + 1);
+}
+
+#[test]
+fn multiple_unstakes_should_create_distinct_positions_when_blocks_advance_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		let alice: AccountId = ALICE.into();
+		fund(&alice, 1_000 * UNITS);
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 300 * UNITS));
+
+		let mut expected_ids = vec![];
+		for _ in 0..3 {
+			expected_ids.push(System::block_number());
+			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS));
+			advance_block();
+		}
+
+		let mut positions: Vec<(u32, Balance)> = pallet_gigahdx::PendingUnstakes::<Runtime>::iter_prefix(&alice)
+			.map(|(id, p)| (id, p.amount))
+			.collect();
+		positions.sort_by_key(|(id, _)| *id);
+		let actual_ids: Vec<u32> = positions.iter().map(|(id, _)| *id).collect();
+		assert_eq!(actual_ids, expected_ids);
+		assert!(positions.iter().all(|(_, amt)| *amt == 50 * UNITS));
+	});
+}
+
+#[test]
+fn unstakes_should_compound_when_called_in_same_block_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		let alice: AccountId = ALICE.into();
+		fund(&alice, 1_000 * UNITS);
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 300 * UNITS));
+
+		let block = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 30 * UNITS));
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 20 * UNITS));
+
+		assert_eq!(pending_count(&alice), 1);
+		assert_eq!(
+			pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice, block)
+				.unwrap()
+				.amount,
+			50 * UNITS,
+		);
+	});
+}
+
+#[test]
+fn unlock_should_release_one_position_while_others_pending_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		let alice: AccountId = ALICE.into();
+		fund(&alice, 1_000 * UNITS);
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 300 * UNITS));
+
+		let id_a = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS));
+		advance_block();
+		let id_b = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 60 * UNITS));
+
+		let cooldown = <Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		System::set_block_number(id_a + cooldown);
+
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), id_a));
+
+		let remaining = only_pending_position(&alice);
+		assert_eq!(remaining.id, id_b);
+		assert_eq!(remaining.amount, 60 * UNITS);
+		// active 190 + pending 60 = 250
+		assert_eq!(locked_under_ghdx(&alice), 250 * UNITS);
+	});
+}
+
+#[test]
+fn cancel_unstake_should_target_specific_position_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		let alice: AccountId = ALICE.into();
+		fund(&alice, 1_000 * UNITS);
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 300 * UNITS));
+
+		let id_a = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 30 * UNITS));
+		advance_block();
+		let id_b = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 40 * UNITS));
+		advance_block();
+		let id_c = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS));
+
+		assert_ok!(GigaHdx::cancel_unstake(RuntimeOrigin::signed(alice.clone()), id_b));
+
+		let mut ids: Vec<u32> = pallet_gigahdx::PendingUnstakes::<Runtime>::iter_prefix(&alice)
+			.map(|(id, _)| id)
+			.collect();
+		ids.sort();
+		assert_eq!(ids, vec![id_a, id_c]);
+		// Cancel folded 40 UNITS back into active; lock total unchanged.
+		assert_eq!(locked_under_ghdx(&alice), 300 * UNITS);
+		assert_eq!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().hdx, 220 * UNITS);
+	});
+}
+
+#[test]
+fn multi_position_cycle_should_preserve_lock_balance_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		let alice: AccountId = ALICE.into();
+		fund(&alice, 1_000 * UNITS);
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 300 * UNITS));
+		let starting_lock = locked_under_ghdx(&alice);
+
+		let id_a = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 50 * UNITS));
+		advance_block();
+		let id_b = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 60 * UNITS));
+		advance_block();
+		let id_c = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 70 * UNITS));
+
+		assert_ok!(GigaHdx::cancel_unstake(RuntimeOrigin::signed(alice.clone()), id_b));
+		let cooldown = <Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		System::set_block_number(id_a + cooldown);
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), id_a));
+
+		let remaining = only_pending_position(&alice);
+		assert_eq!(remaining.id, id_c);
+		// Cancel keeps lock total; unlock(50) drops lock by 50.
+		assert_eq!(locked_under_ghdx(&alice), starting_lock - 50 * UNITS);
+	});
+}
+
+#[test]
+fn vote_freeze_should_coexist_with_multiple_pending_positions_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		fund_bob_for_decision_deposit();
+		let alice: AccountId = ALICE.into();
+		fund(&alice, 1_500 * UNITS);
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 1_200 * UNITS));
+
+		let id_a = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		let ref_index = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			ref_index,
+			aye_with_conviction(800 * UNITS, Conviction::Locked1x),
+		));
+		let frozen_before = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen;
+		assert_eq!(frozen_before, 800 * UNITS);
+
+		advance_block();
+		let id_b = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		assert_ok!(GigaHdx::cancel_unstake(RuntimeOrigin::signed(alice.clone()), id_a));
+		let cooldown = <Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		System::set_block_number(id_b + cooldown);
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), id_b));
+
+		let s = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
+		assert_eq!(s.frozen, frozen_before, "frozen must persist across multi-position ops");
+		assert!(s.frozen <= s.hdx);
+	});
+}
+
+#[test]
+fn cancel_should_handle_compounded_position_with_yield_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		let alice: AccountId = ALICE.into();
+		let gigapot = GigaHdx::gigapot_account_id();
+		fund(&alice, 1_000_000 * UNITS);
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		fund(&gigapot, 50 * UNITS);
+		assert_rate_eq(GigaHdx::exchange_rate(), 3, 2);
+
+		let block = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 40 * UNITS));
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 60 * UNITS));
+
+		assert_eq!(pending_count(&alice), 1);
+		assert_eq!(
+			pallet_gigahdx::PendingUnstakes::<Runtime>::get(&alice, block)
+				.unwrap()
+				.amount,
+			150 * UNITS,
+		);
+		assert_eq!(Balances::free_balance(&gigapot), 0);
+
+		assert_ok!(GigaHdx::cancel_unstake(RuntimeOrigin::signed(alice.clone()), block));
+
+		let s = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
+		assert_eq!(s.unstaking, 0);
+		assert_eq!(s.unstaking_count, 0);
+		assert_eq!(s.hdx, 150 * UNITS);
+		// AAVE may round scaled balance down by a few wei on re-supply.
+		assert!(s.gigahdx >= 150 * UNITS - 10);
+		assert_eq!(locked_under_ghdx(&alice), 150 * UNITS);
+	});
+}
+
+#[test]
+fn cancel_compounded_position_should_preserve_system_value_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		let alice: AccountId = ALICE.into();
+		let gigapot = GigaHdx::gigapot_account_id();
+		fund(&alice, 1_000_000 * UNITS);
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		fund(&gigapot, 50 * UNITS);
+
+		let block = System::block_number();
+		let baseline_total =
+			pallet_gigahdx::TotalLocked::<Runtime>::get().saturating_add(Balances::free_balance(&gigapot));
+
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 40 * UNITS));
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 60 * UNITS));
+		assert_ok!(GigaHdx::cancel_unstake(RuntimeOrigin::signed(alice.clone()), block));
+
+		let final_total =
+			pallet_gigahdx::TotalLocked::<Runtime>::get().saturating_add(Balances::free_balance(&gigapot));
+		assert_eq!(final_total, baseline_total);
+	});
+}
+
+/// Drive 10 unstake calls compounded into 4 positions across 4 blocks with
+/// rate inflation between phases. Returns the position ids in unstake order
+/// and the total yield transferred from the pot to alice.
+fn drive_complex_unstake_scenario(alice: &AccountId) -> (Vec<u32>, Balance) {
+	let gigapot = GigaHdx::gigapot_account_id();
+
+	// b1: 3× unstake at rate 1.0 → pending 300.
+	let b1 = System::block_number();
+	for _ in 0..3 {
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+	}
+
+	// b2: pot += 700 → rate 2.0. 2× unstake principal-covered → pending 400.
+	advance_block();
+	let b2 = System::block_number();
+	fund(&gigapot, 700 * UNITS);
+	for _ in 0..2 {
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+	}
+
+	// b3: pot total 1200 → rate 3.0. 3× unstake (1st drains active, rest pull yield) → pending 900.
+	advance_block();
+	let b3 = System::block_number();
+	fund(&gigapot, 1200 * UNITS);
+	for _ in 0..3 {
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+	}
+
+	// b4: 2× unstake, both pull yield (active is 0) → pending 600.
+	advance_block();
+	let b4 = System::block_number();
+	for _ in 0..2 {
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+	}
+
+	let s = pallet_gigahdx::Stakes::<Runtime>::get(alice).unwrap();
+	assert_eq!(s.hdx, 0);
+	assert_eq!(s.gigahdx, 0);
+	assert_eq!(s.unstaking_count, 4);
+	assert_eq!(s.unstaking, 2200 * UNITS);
+	assert_eq!(
+		pallet_gigahdx::PendingUnstakes::<Runtime>::get(alice, b1)
+			.unwrap()
+			.amount,
+		300 * UNITS
+	);
+	assert_eq!(
+		pallet_gigahdx::PendingUnstakes::<Runtime>::get(alice, b2)
+			.unwrap()
+			.amount,
+		400 * UNITS
+	);
+	assert_eq!(
+		pallet_gigahdx::PendingUnstakes::<Runtime>::get(alice, b3)
+			.unwrap()
+			.amount,
+		900 * UNITS
+	);
+	assert_eq!(
+		pallet_gigahdx::PendingUnstakes::<Runtime>::get(alice, b4)
+			.unwrap()
+			.amount,
+		600 * UNITS
+	);
+	assert_eq!(Balances::free_balance(&gigapot), 0);
+
+	(vec![b1, b2, b3, b4], 1200 * UNITS)
+}
+
+#[test]
+fn full_unstake_via_cancel_all_should_fold_yield_into_active_stake_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		let alice: AccountId = ALICE.into();
+		let initial_alice_total: Balance = 10_000 * UNITS;
+		fund(&alice, initial_alice_total);
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 1_000 * UNITS));
+
+		let (ids, total_yield) = drive_complex_unstake_scenario(&alice);
+		assert_eq!(total_yield, 1_200 * UNITS);
+		assert_eq!(Balances::free_balance(&alice), initial_alice_total + total_yield);
+		assert_eq!(locked_under_ghdx(&alice), 2200 * UNITS);
+
+		for id in ids.iter().rev() {
+			assert_ok!(GigaHdx::cancel_unstake(RuntimeOrigin::signed(alice.clone()), *id));
+		}
+
+		let s = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
+		assert_eq!(s.unstaking, 0);
+		assert_eq!(s.unstaking_count, 0);
+		assert_eq!(s.hdx, 2200 * UNITS);
+		assert_eq!(pallet_gigahdx::TotalLocked::<Runtime>::get(), 2200 * UNITS);
+		assert_eq!(locked_under_ghdx(&alice), 2200 * UNITS);
+		assert_eq!(Balances::free_balance(&alice), initial_alice_total + total_yield);
+	});
+}
+
+#[test]
+fn full_unstake_via_unlock_all_should_release_full_amount_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		let alice: AccountId = ALICE.into();
+		let initial_alice_total: Balance = 10_000 * UNITS;
+		fund(&alice, initial_alice_total);
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 1_000 * UNITS));
+
+		let (ids, total_yield) = drive_complex_unstake_scenario(&alice);
+		assert_eq!(total_yield, 1_200 * UNITS);
+
+		let cooldown = <Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		let last_id = *ids.last().unwrap();
+		System::set_block_number(last_id + cooldown);
+
+		for id in ids.iter() {
+			assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), *id));
+		}
+
+		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).is_none());
+		assert_eq!(pallet_gigahdx::TotalLocked::<Runtime>::get(), 0);
+		assert_eq!(locked_under_ghdx(&alice), 0);
+		assert_eq!(Balances::free_balance(&alice), initial_alice_total + total_yield);
+	});
+}
+
+#[test]
+fn unlock_should_release_full_compounded_amount_e2e() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		let alice: AccountId = ALICE.into();
+		let gigapot = GigaHdx::gigapot_account_id();
+		fund(&alice, 1_000_000 * UNITS);
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		fund(&gigapot, 50 * UNITS);
+
+		let block = System::block_number();
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 40 * UNITS));
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 60 * UNITS));
+		let pre_free = Balances::free_balance(&alice);
+		assert_eq!(locked_under_ghdx(&alice), 150 * UNITS);
+
+		let cooldown = <Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		System::set_block_number(block + cooldown);
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), block));
+
+		assert_eq!(pending_count(&alice), 0);
+		assert_eq!(Balances::free_balance(&alice), pre_free);
+		assert_eq!(locked_under_ghdx(&alice), 0);
 	});
 }

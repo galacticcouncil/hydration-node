@@ -156,4 +156,12 @@ impl<T: frame_system::Config> pallet_gigahdx::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	// Placeholder: cancel_unstake takes a pending entry then runs the full
+	// `do_stake` path. Conservatively reuse `giga_stake` storage cost plus the
+	// `PendingUnstakes` write. Re-benchmark before mainnet upgrade.
+	fn cancel_unstake() -> Weight {
+		Weight::from_parts(122_689_000, 4764)
+			.saturating_add(T::DbWeight::get().reads(14_u64))
+			.saturating_add(T::DbWeight::get().writes(6_u64))
+	}
 }

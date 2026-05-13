@@ -3,7 +3,9 @@
 use super::*;
 use frame_benchmarking::v2::*;
 use frame_support::assert_ok;
-use frame_support::traits::Currency;
+use frame_support::sp_runtime::traits::Saturating;
+use frame_support::traits::{Currency, Get};
+use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::RawOrigin;
 use primitives::{Balance, EvmAddress};
 
@@ -49,7 +51,9 @@ mod benches {
 		set_dummy_pool::<T>();
 
 		let caller: T::AccountId = whitelisted_caller();
-		let stake_amount: Balance = 100 * ONE;
+		let max: u32 = T::MaxPendingUnstakes::get();
+		let per_unstake: Balance = ONE;
+		let stake_amount: Balance = per_unstake.saturating_mul(max as Balance).saturating_mul(2);
 		fund::<T>(&caller, stake_amount.saturating_mul(10));
 
 		assert_ok!(Pallet::<T>::giga_stake(
@@ -58,18 +62,27 @@ mod benches {
 		));
 
 		// Worst case: payout > active → yield transferred from gigapot.
-		// Pre-fund the gigapot so the rate is > 1.
 		let gigapot = Pallet::<T>::gigapot_account_id();
 		fund::<T>(&gigapot, stake_amount.saturating_mul(2));
 
-		let stake = Stakes::<T>::get(&caller).expect("setup invariant");
-		let unstake_amount = stake.gigahdx;
+		// Pre-populate MaxPendingUnstakes - 1 positions across distinct blocks so
+		// the measured call hits the admission cap and the cached-counter update
+		// at the per-account upper bound.
+		for _ in 0..max.saturating_sub(1) {
+			assert_ok!(Pallet::<T>::giga_unstake(
+				RawOrigin::Signed(caller.clone()).into(),
+				per_unstake,
+			));
+			let next = frame_system::Pallet::<T>::block_number().saturating_add(1u32.into());
+			frame_system::Pallet::<T>::set_block_number(next);
+		}
+		let measured_amount = per_unstake;
 
 		#[extrinsic_call]
-		giga_unstake(RawOrigin::Signed(caller.clone()), unstake_amount);
+		giga_unstake(RawOrigin::Signed(caller.clone()), measured_amount);
 
-		assert!(PendingUnstakes::<T>::get(&caller).is_some());
-		assert_eq!(Stakes::<T>::get(&caller).map(|s| s.gigahdx).unwrap_or_default(), 0);
+		let s = Stakes::<T>::get(&caller).expect("stake recorded");
+		assert_eq!(s.unstaking_count as u32, max);
 	}
 
 	#[benchmark]
@@ -78,25 +91,37 @@ mod benches {
 		set_dummy_pool::<T>();
 
 		let caller: T::AccountId = whitelisted_caller();
-		let stake_amount: Balance = 100 * ONE;
+		let max: u32 = T::MaxPendingUnstakes::get();
+		let per_unstake: Balance = ONE;
+		let stake_amount: Balance = per_unstake.saturating_mul(max as Balance).saturating_mul(2);
 		fund::<T>(&caller, stake_amount.saturating_mul(10));
 
 		assert_ok!(Pallet::<T>::giga_stake(
 			RawOrigin::Signed(caller.clone()).into(),
 			stake_amount,
 		));
-		assert_ok!(Pallet::<T>::giga_unstake(
-			RawOrigin::Signed(caller.clone()).into(),
-			stake_amount,
-		));
+		let mut target_id: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		for i in 0..max {
+			let id = frame_system::Pallet::<T>::block_number();
+			assert_ok!(Pallet::<T>::giga_unstake(
+				RawOrigin::Signed(caller.clone()).into(),
+				per_unstake,
+			));
+			if i == 0 {
+				target_id = id;
+			}
+			let next = id.saturating_add(1u32.into());
+			frame_system::Pallet::<T>::set_block_number(next);
+		}
 
-		let position = PendingUnstakes::<T>::get(&caller).expect("position created");
-		frame_system::Pallet::<T>::set_block_number(position.expires_at);
+		let expires_at = target_id.saturating_add(T::CooldownPeriod::get());
+		frame_system::Pallet::<T>::set_block_number(expires_at);
 
 		#[extrinsic_call]
-		unlock(RawOrigin::Signed(caller.clone()));
+		unlock(RawOrigin::Signed(caller.clone()), target_id);
 
-		assert!(PendingUnstakes::<T>::get(&caller).is_none());
+		let s = Stakes::<T>::get(&caller).expect("stake remains");
+		assert_eq!(s.unstaking_count as u32, max - 1);
 	}
 
 	#[benchmark]
@@ -107,5 +132,47 @@ mod benches {
 		set_pool_contract(RawOrigin::Root, new_pool);
 
 		assert_eq!(GigaHdxPoolContract::<T>::get(), Some(new_pool));
+	}
+
+	#[benchmark]
+	fn cancel_unstake() {
+		assert_ok!(T::BenchmarkHelper::register_assets());
+		set_dummy_pool::<T>();
+
+		let caller: T::AccountId = whitelisted_caller();
+		let max: u32 = T::MaxPendingUnstakes::get();
+		let per_unstake: Balance = ONE;
+		let stake_amount: Balance = per_unstake.saturating_mul(max as Balance).saturating_mul(2);
+		fund::<T>(&caller, stake_amount.saturating_mul(10));
+
+		assert_ok!(Pallet::<T>::giga_stake(
+			RawOrigin::Signed(caller.clone()).into(),
+			stake_amount,
+		));
+
+		// Worst case: yield was paid → cancel folds principal + yield back.
+		let gigapot = Pallet::<T>::gigapot_account_id();
+		fund::<T>(&gigapot, stake_amount.saturating_mul(2));
+
+		let mut target_id: BlockNumberFor<T> = frame_system::Pallet::<T>::block_number();
+		for i in 0..max {
+			let id = frame_system::Pallet::<T>::block_number();
+			assert_ok!(Pallet::<T>::giga_unstake(
+				RawOrigin::Signed(caller.clone()).into(),
+				per_unstake,
+			));
+			if i + 1 == max {
+				target_id = id;
+			}
+			let next = id.saturating_add(1u32.into());
+			frame_system::Pallet::<T>::set_block_number(next);
+		}
+
+		#[extrinsic_call]
+		cancel_unstake(RawOrigin::Signed(caller.clone()), target_id);
+
+		let s = Stakes::<T>::get(&caller).expect("stake remains");
+		assert_eq!(s.unstaking_count as u32, max - 1);
+		assert!(s.hdx > 0);
 	}
 }
