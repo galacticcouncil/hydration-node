@@ -194,32 +194,30 @@ def fmt_pct(p: float, threshold: float) -> str:
     return f"{p:+.1f}%"
 
 
-def _ref_change_row(r: Row, threshold: float) -> str:
-    return (
-        f"| {r.pallet} | `{r.fn}` | "
-        f"{fmt_pct(r.ref_pct, threshold)} ({fmt_num(r.ref_old)} → {fmt_num(r.ref_new)}) |"
-    )
+def _cell_ref(r: Row, threshold: float) -> str:
+    if r.ref_old == r.ref_new:
+        return "—"
+    return f"{fmt_pct(r.ref_pct, threshold)} ({fmt_num(r.ref_old)} → {fmt_num(r.ref_new)})"
 
 
-def _proof_change_row(r: Row, threshold: float) -> str:
-    return (
-        f"| {r.pallet} | `{r.fn}` | "
-        f"{fmt_pct(r.proof_pct, threshold)} ({r.proof_old} → {r.proof_new}) |"
-    )
+def _cell_proof(r: Row, threshold: float) -> str:
+    if r.proof_old == r.proof_new:
+        return "—"
+    return f"{fmt_pct(r.proof_pct, threshold)} ({r.proof_old} → {r.proof_new})"
 
 
-def _rw_row(r: Row) -> str:
-    if r.reads_old != r.reads_new:
-        d = r.reads_new - r.reads_old
-        rcell = f"{r.reads_old} → {r.reads_new} (**{d:+d}**)"
-    else:
-        rcell = str(r.reads_new)
-    if r.writes_old != r.writes_new:
-        d = r.writes_new - r.writes_old
-        wcell = f"{r.writes_old} → {r.writes_new} (**{d:+d}**)"
-    else:
-        wcell = str(r.writes_new)
-    return f"| {r.pallet} | `{r.fn}` | {rcell} | {wcell} |"
+def _cell_reads(r: Row) -> str:
+    if r.reads_old == r.reads_new:
+        return "—"
+    d = r.reads_new - r.reads_old
+    return f"{r.reads_old} → {r.reads_new} (**{d:+d}**)"
+
+
+def _cell_writes(r: Row) -> str:
+    if r.writes_old == r.writes_new:
+        return "—"
+    d = r.writes_new - r.writes_old
+    return f"{r.writes_old} → {r.writes_new} (**{d:+d}**)"
 
 
 def render(rows: list[Row], changed_files: int, threshold: float, top_n: int) -> str:
@@ -235,60 +233,45 @@ def render(rows: list[Row], changed_files: int, threshold: float, top_n: int) ->
         out.append("_No weight changes detected._")
         return "\n".join(out) + "\n"
 
-    big_ref = [r for r in changed if abs(r.ref_pct) >= threshold]
-    big_proof = [r for r in changed if abs(r.proof_pct) >= threshold]
-    total_big = len(big_ref) + len(big_proof)
-    if total_big > 0:
+    # Group changed rows by pallet (preserving document order within each pallet).
+    by_pallet: dict[str, list[Row]] = {}
+    for r in changed:
+        by_pallet.setdefault(r.pallet, []).append(r)
+
+    def pallet_warns(rs: list[Row]) -> bool:
+        return any(abs(r.ref_pct) >= threshold or abs(r.proof_pct) >= threshold for r in rs)
+
+    warned = {p for p, rs in by_pallet.items() if pallet_warns(rs)}
+
+    if warned:
         out.append(
-            f"> ⚠️ **{total_big} extrinsic(s) exceed ±{threshold:g}% threshold** "
-            f"(ref_time: {len(big_ref)}, proof_size: {len(big_proof)})"
+            f"> ⚠️ **{len(warned)} pallet(s) have changes exceeding ±{threshold:g}% threshold**"
         )
         out.append("")
 
     out.append(
-        f"**{len(changed)} extrinsic(s) changed** across **{changed_files} file(s)**. "
+        f"**{len(changed)} extrinsic(s) changed** across **{len(by_pallet)} pallet(s)**. "
         f"New: {len(new_fns)}. Removed: {len(removed_fns)}."
     )
     out.append("")
 
-    # Biggest Increases (RefTime)
-    inc = sorted([r for r in changed if r.ref_pct > 0], key=lambda r: -r.ref_pct)[:top_n]
-    if inc:
-        out.append("### Biggest Increases (RefTime)")
-        out.append("")
-        out.append("| Pallet | Extrinsic | Change |")
-        out.append("|---|---|---|")
-        out.extend(_ref_change_row(r, threshold) for r in inc)
-        out.append("")
+    # Order: warned pallets first (alphabetical), then non-warned (alphabetical).
+    ordered = sorted(by_pallet.keys(), key=lambda p: (p not in warned, p))
 
-    # Biggest Decreases (RefTime)
-    dec = sorted([r for r in changed if r.ref_pct < 0], key=lambda r: r.ref_pct)[:top_n]
-    if dec:
-        out.append("### Biggest Decreases (RefTime)")
+    for pallet in ordered:
+        prefix = "### ⚠️ " if pallet in warned else "### "
+        out.append(f"{prefix}{pallet}")
         out.append("")
-        out.append("| Pallet | Extrinsic | Change |")
-        out.append("|---|---|---|")
-        out.extend(_ref_change_row(r, threshold) for r in dec)
-        out.append("")
-
-    # Biggest Changes (Proof Size)
-    proof = sorted([r for r in changed if r.proof_pct != 0], key=lambda r: -abs(r.proof_pct))[:top_n]
-    if proof:
-        out.append("### Biggest Changes (Proof Size)")
-        out.append("")
-        out.append("| Pallet | Extrinsic | Change |")
-        out.append("|---|---|---|")
-        out.extend(_proof_change_row(r, threshold) for r in proof)
-        out.append("")
-
-    # DB Reads / Writes Changes
-    rw = [r for r in changed if r.reads_old != r.reads_new or r.writes_old != r.writes_new]
-    if rw:
-        out.append("### DB Reads / Writes Changes")
-        out.append("")
-        out.append("| Pallet | Extrinsic | Reads | Writes |")
-        out.append("|---|---|---|---|")
-        out.extend(_rw_row(r) for r in rw)
+        out.append("| Extrinsic | RefTime | Proof Size | Reads | Writes |")
+        out.append("|---|---|---|---|---|")
+        for r in by_pallet[pallet]:
+            out.append(
+                f"| `{r.fn}` | "
+                f"{_cell_ref(r, threshold)} | "
+                f"{_cell_proof(r, threshold)} | "
+                f"{_cell_reads(r)} | "
+                f"{_cell_writes(r)} |"
+            )
         out.append("")
 
     if new_fns:
@@ -321,7 +304,7 @@ def render(rows: list[Row], changed_files: int, threshold: float, top_n: int) ->
 
     out.append("---")
     out.append(
-        f"_Threshold: ±{threshold:g}%. Top {top_n} per section. "
+        f"_Threshold: ±{threshold:g}%. "
         f"Base `Weight::from_parts(ref_time, proof_size)` compared; per-unit components ignored._"
     )
     return "\n".join(out) + "\n"

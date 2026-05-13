@@ -132,25 +132,26 @@ fmt_pct() {
 	}'
 }
 
-print_row_ref_change() {
-	# args: pallet fn ref_old ref_new ref_pct
-	local pallet="$1" fn="$2" ro="$3" rn="$4" rp="$5"
-	printf "| %s | %s | %s (%s → %s) |\n" \
-		"$pallet" "\`$fn\`" "$(fmt_pct "$rp")" "$(fmt_num "$ro")" "$(fmt_num "$rn")"
-}
-print_row_proof_change() {
-	local pallet="$1" fn="$2" po="$3" pn="$4" pp="$5"
-	printf "| %s | %s | %s (%s → %s) |\n" \
-		"$pallet" "\`$fn\`" "$(fmt_pct "$pp")" "$po" "$pn"
-}
-
 # Output ------------------------------------------------------------------
 out() { printf "%s\n" "$*"; }
 
-# Header
-TOTAL_FILES=$CHANGED_FILES
-TOTAL_BIG=$((BIG_REF + BIG_PROOF))
+# Aggregate per pallet: pallet<TAB>has_warning<TAB>count
+PALLETS_TSV="$WORK/pallets.tsv"
+awk -F'\t' -v t="$THRESHOLD" '
+	$1 == "changed" && ($4 != $5 || $6 != $7 || $8 != $9 || $10 != $11) {
+		cnt[$2]++
+		rp = $12+0; pp = $13+0
+		if (rp >= t || rp <= -t || pp >= t || pp <= -t) warn[$2] = 1
+	}
+	END {
+		for (p in cnt) print p "\t" (warn[p]+0) "\t" cnt[p]
+	}
+' "$ROWS" | sort -t$'\t' -k2,2nr -k1,1 > "$PALLETS_TSV"
 
+WARNED_PALLETS=$(awk -F'\t' '$2=="1"' "$PALLETS_TSV" | wc -l | tr -d ' ')
+TOTAL_PALLETS=$(wc -l < "$PALLETS_TSV" | tr -d ' ')
+
+# Header
 out "## Weight Diff Report"
 out ""
 if [[ $TOTAL_CHANGED -eq 0 && $TOTAL_NEW_FNS -eq 0 && $TOTAL_REMOVED_FNS -eq 0 && $TOTAL_NEW_FILE_FNS -eq 0 && $TOTAL_REMOVED_FILE_FNS -eq 0 ]]; then
@@ -158,83 +159,58 @@ if [[ $TOTAL_CHANGED -eq 0 && $TOTAL_NEW_FNS -eq 0 && $TOTAL_REMOVED_FNS -eq 0 &
 	exit 0
 fi
 
-if (( TOTAL_BIG > 0 )); then
-	out "> ⚠️ **${TOTAL_BIG} extrinsic(s) exceed ±${THRESHOLD}% threshold** (ref_time: $BIG_REF, proof_size: $BIG_PROOF)"
+if (( WARNED_PALLETS > 0 )); then
+	out "> ⚠️ **${WARNED_PALLETS} pallet(s) have changes exceeding ±${THRESHOLD}% threshold**"
 	out ""
 fi
 
 ALL_NEW=$((TOTAL_NEW_FNS + TOTAL_NEW_FILE_FNS))
 ALL_REMOVED=$((TOTAL_REMOVED_FNS + TOTAL_REMOVED_FILE_FNS))
-out "**${TOTAL_CHANGED} extrinsic(s) changed** across **${TOTAL_FILES} file(s)**. New: ${ALL_NEW}. Removed: ${ALL_REMOVED}."
+out "**${TOTAL_CHANGED} extrinsic(s) changed** across **${TOTAL_PALLETS} pallet(s)**. New: ${ALL_NEW}. Removed: ${ALL_REMOVED}."
 out ""
 
-# Biggest increases (RefTime)
-INC=$(awk -F'\t' '$1=="changed" && $12+0 > 0' "$ROWS" | sort -t$'\t' -k12,12 -nr | head -n "$TOP_N")
-if [[ -n "$INC" ]]; then
-	out "### Biggest Increases (RefTime)"
+# Per-pallet sections — warned pallets first (alphabetical), then non-warned (alphabetical).
+while IFS=$'\t' read -r pallet has_warn count; do
+	if [[ "$has_warn" == "1" ]]; then
+		out "### ⚠️ ${pallet}"
+	else
+		out "### ${pallet}"
+	fi
 	out ""
-	out "| Pallet | Extrinsic | Change |"
-	out "|---|---|---|"
-	while IFS=$'\t' read -r status pallet fn ref_old ref_new proof_old proof_new reads_old reads_new writes_old writes_new ref_pct proof_pct; do
-		print_row_ref_change "$pallet" "$fn" "$ref_old" "$ref_new" "$ref_pct"
-	done <<< "$INC"
-	out ""
-fi
+	out "| Extrinsic | RefTime | Proof Size | Reads | Writes |"
+	out "|---|---|---|---|---|"
 
-# Biggest decreases (RefTime)
-DEC=$(awk -F'\t' '$1=="changed" && $12+0 < 0' "$ROWS" | sort -t$'\t' -k12,12 -n | head -n "$TOP_N")
-if [[ -n "$DEC" ]]; then
-	out "### Biggest Decreases (RefTime)"
+	# Filter and iterate changed rows in this pallet, preserving document order.
+	awk -F'\t' -v p="$pallet" '$1=="changed" && $2==p && ($4!=$5 || $6!=$7 || $8!=$9 || $10!=$11)' "$ROWS" \
+		| while IFS=$'\t' read -r _status _pallet fn ref_old ref_new proof_old proof_new reads_old reads_new writes_old writes_new ref_pct proof_pct; do
+			if [[ "$ref_old" != "$ref_new" ]]; then
+				ref_cell="$(fmt_pct "$ref_pct") ($(fmt_num "$ref_old") → $(fmt_num "$ref_new"))"
+			else
+				ref_cell="—"
+			fi
+			if [[ "$proof_old" != "$proof_new" ]]; then
+				proof_cell="$(fmt_pct "$proof_pct") (${proof_old} → ${proof_new})"
+			else
+				proof_cell="—"
+			fi
+			if [[ "$reads_old" != "$reads_new" ]]; then
+				delta=$((reads_new - reads_old))
+				[[ $delta -gt 0 ]] && ds="+${delta}" || ds="${delta}"
+				reads_cell="${reads_old} → ${reads_new} (**${ds}**)"
+			else
+				reads_cell="—"
+			fi
+			if [[ "$writes_old" != "$writes_new" ]]; then
+				delta=$((writes_new - writes_old))
+				[[ $delta -gt 0 ]] && ds="+${delta}" || ds="${delta}"
+				writes_cell="${writes_old} → ${writes_new} (**${ds}**)"
+			else
+				writes_cell="—"
+			fi
+			printf "| \`%s\` | %s | %s | %s | %s |\n" "$fn" "$ref_cell" "$proof_cell" "$reads_cell" "$writes_cell"
+		done
 	out ""
-	out "| Pallet | Extrinsic | Change |"
-	out "|---|---|---|"
-	while IFS=$'\t' read -r status pallet fn ref_old ref_new proof_old proof_new reads_old reads_new writes_old writes_new ref_pct proof_pct; do
-		print_row_ref_change "$pallet" "$fn" "$ref_old" "$ref_new" "$ref_pct"
-	done <<< "$DEC"
-	out ""
-fi
-
-# Biggest Proof Size changes (signed, by absolute %)
-PROOF=$(awk -F'\t' 'BEGIN{OFS="\t"} $1=="changed" && $13+0 != 0 { a = ($13<0 ? -$13 : $13); print a, $0 }' "$ROWS" | sort -t$'\t' -k1,1 -nr | cut -f2- | head -n "$TOP_N")
-if [[ -n "$PROOF" ]]; then
-	out "### Biggest Changes (Proof Size)"
-	out ""
-	out "| Pallet | Extrinsic | Change |"
-	out "|---|---|---|"
-	while IFS=$'\t' read -r status pallet fn ref_old ref_new proof_old proof_new reads_old reads_new writes_old writes_new ref_pct proof_pct; do
-		print_row_proof_change "$pallet" "$fn" "$proof_old" "$proof_new" "$proof_pct"
-	done <<< "$PROOF"
-	out ""
-fi
-
-# Reads/Writes deltas
-RW=$(awk -F'\t' '$1=="changed" && ($8 != $9 || $10 != $11)' "$ROWS")
-if [[ -n "$RW" ]]; then
-	out "### DB Reads / Writes Changes"
-	out ""
-	out "| Pallet | Extrinsic | Reads | Writes |"
-	out "|---|---|---|---|"
-	while IFS=$'\t' read -r status pallet fn ref_old ref_new proof_old proof_new reads_old reads_new writes_old writes_new ref_pct proof_pct; do
-		rcell=""
-		if [[ "$reads_old" != "$reads_new" ]]; then
-			delta=$((reads_new - reads_old))
-			[[ $delta -gt 0 ]] && d="+${delta}" || d="${delta}"
-			rcell="${reads_old} → ${reads_new} (**${d}**)"
-		else
-			rcell="${reads_new}"
-		fi
-		wcell=""
-		if [[ "$writes_old" != "$writes_new" ]]; then
-			delta=$((writes_new - writes_old))
-			[[ $delta -gt 0 ]] && d="+${delta}" || d="${delta}"
-			wcell="${writes_old} → ${writes_new} (**${d}**)"
-		else
-			wcell="${writes_new}"
-		fi
-		printf "| %s | \`%s\` | %s | %s |\n" "$pallet" "$fn" "$rcell" "$wcell"
-	done <<< "$RW"
-	out ""
-fi
+done < "$PALLETS_TSV"
 
 # New fns (in modified files) + new files — sort by pallet then fn for stable ordering
 NEW_ROWS=$( { awk -F'\t' '$1=="new_fn"' "$ROWS"; cat "$NEW_FILES_TSV" 2>/dev/null; } | sort -s -t$'\t' -k2,2 || true)
@@ -273,4 +249,4 @@ if [[ -n "$RM_ROWS" ]]; then
 fi
 
 out "---"
-out "_Threshold: ±${THRESHOLD}%. Top ${TOP_N} per section. Base \`Weight::from_parts(ref_time, proof_size)\` compared; per-unit components ignored._"
+out "_Threshold: ±${THRESHOLD}%. Base \`Weight::from_parts(ref_time, proof_size)\` compared; per-unit components ignored._"
