@@ -1,0 +1,59 @@
+name: weight-diff
+
+on:
+  pull_request:
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  weight-diff:
+    name: Weight diff
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Fetch master
+        run: git fetch --no-tags --depth=1 origin master:refs/remotes/origin/master
+
+      - name: Materialize master weights into a temp dir
+        run: |
+          mkdir -p /tmp/weights-master/runtime/hydradx/src/weights
+          # Extract weights from master. If the path doesn't exist on master
+          # (e.g. brand-new directory in this PR), proceed with an empty dir.
+          git archive origin/master runtime/hydradx/src/weights 2>/dev/null \
+            | tar -x -C /tmp/weights-master || true
+
+      - name: Generate weight diff report
+        id: diff
+        run: |
+          set -euo pipefail
+          bash scripts/weight-diff/weight-diff.sh \
+            --old /tmp/weights-master/runtime/hydradx/src/weights \
+            --new runtime/hydradx/src/weights \
+            > weight-diff-report.md
+
+          if grep -q 'No weight changes detected' weight-diff-report.md; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "----- report preview -----"
+          head -40 weight-diff-report.md
+
+      - name: Post weight diff comment
+        if: steps.diff.outputs.has_changes == 'true'
+        uses: marocchino/sticky-pull-request-comment@v2.1.0
+        with:
+          header: weight-diff
+          path: weight-diff-report.md
+
+      - name: Remove stale weight-diff comment when no changes
+        if: steps.diff.outputs.has_changes == 'false'
+        uses: marocchino/sticky-pull-request-comment@v2.1.0
+        with:
+          header: weight-diff
+          delete: true
