@@ -1592,7 +1592,7 @@ impl pallet_bonds::Config for Runtime {
 	type ExistentialDeposits = AssetRegistry;
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
-	type IssueOrigin = Treasurer;
+	type IssueOrigin = EitherOf<EnsureRoot<Self::AccountId>, Treasurer>;
 	type IssuerAccount = TreasuryAccount;
 	type AssetTypeWhitelist = AssetTypeWhitelist;
 	type WeightInfo = weights::pallet_bonds::HydraWeight<Runtime>;

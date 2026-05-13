@@ -56,6 +56,7 @@ fn issue_bonds_should_work_when_issued_for_share_asset() {
 		let _ = with_transaction(|| {
 			// Arrange
 			let amount = 100 * UNITS;
+			let ed = 1_000;
 			let treasury = Treasury::account_id();
 			let maturity = NOW + MONTH;
 
@@ -64,14 +65,24 @@ fn issue_bonds_should_work_when_issued_for_share_asset() {
 				None,
 				Some(name.try_into().unwrap()),
 				AssetKind::XYK,
-				Some(1_000),
+				Some(ed),
 				None,
 				None,
 				None,
 				None,
 			)
 			.unwrap();
-			assert_ok!(Currencies::deposit(share_asset_id, &treasury, amount));
+			// Fund treasury with `amount + ed` — treasury can't be reaped (has consumers from
+			// holding HDX), so the transfer must leave at least ED behind.
+			assert_ok!(Currencies::deposit(share_asset_id, &treasury, amount + ed));
+			// Treasury is in DustRemovalWhitelist, so `SufficiencyCheck` charges the destination
+			// (bonds pallet account) an HDX-denominated ED when receiving an insufficient asset.
+			// Fund it so the hook succeeds.
+			assert_ok!(Balances::force_set_balance(
+				RuntimeOrigin::root(),
+				Bonds::pallet_account_id(),
+				10 * UNITS,
+			));
 
 			// Act
 			let bond_id = AssetRegistry::next_asset_id().unwrap();
@@ -87,9 +98,9 @@ fn issue_bonds_should_work_when_issued_for_share_asset() {
 				bond_asset_details.name.unwrap().into_inner(),
 				Bonds::bond_name(share_asset_id, maturity)
 			);
-			assert_eq!(bond_asset_details.existential_deposit, 1_000);
+			assert_eq!(bond_asset_details.existential_deposit, ed);
 
-			assert_balance!(&treasury, share_asset_id, 0);
+			assert_balance!(&treasury, share_asset_id, ed);
 			assert_balance!(&treasury, bond_id, amount);
 			assert_balance!(&Bonds::pallet_account_id(), share_asset_id, amount);
 

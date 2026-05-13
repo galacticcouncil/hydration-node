@@ -24,9 +24,9 @@ use frame_support::{
 		traits::{BlakeTwo256, IdentityLookup},
 		BuildStorage,
 	},
-	traits::{ConstU32, ConstU64, Everything, SortedMembers},
+	traits::{ConstU32, ConstU64, EitherOfDiverse, Everything, SortedMembers},
 };
-use frame_system::EnsureSignedBy;
+use frame_system::{EnsureRoot, EnsureSignedBy};
 use sp_core::H256;
 use sp_runtime::BoundedVec;
 use std::{cell::RefCell, collections::HashMap};
@@ -106,7 +106,7 @@ impl pallet_bonds::Config for Test {
 	type ExistentialDeposits = ExistentialDeposits;
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
-	type IssueOrigin = EnsureSignedBy<AliceOrBob, AccountId>;
+	type IssueOrigin = EitherOfDiverse<EnsureRoot<AccountId>, EnsureSignedBy<AliceOrBob, AccountId>>;
 	type IssuerAccount = IssuerAccount;
 	type AssetTypeWhitelist = AssetTypeWhitelist;
 	type WeightInfo = ();

@@ -52,7 +52,7 @@ use frame_support::{
 	traits::{Contains, ExistenceRequirement, Time},
 	PalletId,
 };
-use frame_system::{ensure_root, ensure_signed, pallet_prelude::OriginFor};
+use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use sp_core::MaxEncodedLen;
 use sp_std::{mem, vec::Vec};
 
@@ -198,7 +198,7 @@ pub mod pallet {
 		/// It's possible to issue new bonds for bonds that are already mature.
 		///
 		/// Parameters:
-		/// - `origin`: must be Root or `T::IssueOrigin`.
+		/// - `origin`: must be `T::IssueOrigin`.
 		/// - `asset_id`: underlying asset id
 		/// - `amount`: the amount of the underlying asset
 		/// - `maturity`: Unix time in milliseconds, when the bonds will be mature.
@@ -209,9 +209,7 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::issue())]
 		pub fn issue(origin: OriginFor<T>, asset_id: AssetId, amount: T::Balance, maturity: Moment) -> DispatchResult {
-			if ensure_root(origin.clone()).is_err() {
-				T::IssueOrigin::ensure_origin(origin)?;
-			}
+			T::IssueOrigin::ensure_origin(origin)?;
 			let who = T::IssuerAccount::get();
 
 			ensure!(
@@ -256,7 +254,13 @@ pub mod pallet {
 				}
 			};
 
-			T::Currency::transfer(asset_id, &who, &pallet_account, amount, ExistenceRequirement::AllowDeath)?;
+			T::Currency::transfer(
+				asset_id,
+				&who,
+				&pallet_account,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 			T::Currency::deposit(bond_id, &who, amount)?;
 
 			Self::deposit_event(Event::Issued {
