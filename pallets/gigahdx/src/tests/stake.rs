@@ -185,3 +185,63 @@ fn giga_stake_should_revert_storage_when_mm_supply_fails() {
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), 0);
 	});
 }
+
+#[test]
+fn giga_stake_should_subtract_own_existing_stake() {
+	// Alice has 1000 ONE total. Two 500 stakes max out her balance; a third
+	// stake of 1 must fail because own_claim now equals her whole balance.
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 500 * ONE));
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 500 * ONE));
+		assert_noop!(
+			GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), ONE),
+			Error::<Test>::InsufficientFreeBalance,
+		);
+	});
+}
+
+#[test]
+fn giga_stake_should_fail_when_external_claims_nonzero() {
+	// Strict policy: any non-zero external claim blocks admission,
+	// regardless of how much free balance the caller has.
+	ExtBuilder::default().build().execute_with(|| {
+		TestExternalClaims::set(ONE);
+		assert_noop!(
+			GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE),
+			Error::<Test>::BlockedByExternalLock,
+		);
+	});
+}
+
+#[test]
+fn giga_stake_should_fail_when_external_claim_appears_after_stake() {
+	// Existing staker who later acquires another lock (e.g. legacy
+	// staking) can't grow their gigahdx position.
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 400 * ONE));
+		TestExternalClaims::set(ONE);
+		assert_noop!(
+			GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), ONE),
+			Error::<Test>::BlockedByExternalLock,
+		);
+	});
+}
+
+#[test]
+fn giga_stake_should_treat_unstaking_as_own_claim() {
+	// After a full unstake, stake.hdx → 0 and stake.unstaking holds the pending
+	// amount. A fresh stake must still see that pending portion as committed.
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 600 * ONE));
+		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 600 * ONE));
+		let s = Stakes::<Test>::get(ALICE).unwrap();
+		assert_eq!(s.hdx, 0);
+		assert_eq!(s.unstaking, 600 * ONE);
+
+		assert_noop!(
+			GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 500 * ONE),
+			Error::<Test>::InsufficientFreeBalance,
+		);
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 400 * ONE));
+	});
+}

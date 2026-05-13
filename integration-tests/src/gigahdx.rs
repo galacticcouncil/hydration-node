@@ -1114,7 +1114,7 @@ fn cancel_unstake_should_fail_when_no_pending() {
 
 		assert_noop!(
 			GigaHdx::cancel_unstake(RuntimeOrigin::signed(alice), 0),
-			pallet_gigahdx::Error::<Runtime>::NoPendingUnstake,
+			pallet_gigahdx::Error::<Runtime>::PendingUnstakeNotFound,
 		);
 	});
 }
@@ -1679,5 +1679,66 @@ fn unlock_should_release_full_compounded_amount_e2e() {
 		assert_eq!(pending_count(&alice), 0);
 		assert_eq!(Balances::free_balance(&alice), pre_free);
 		assert_eq!(locked_under_ghdx(&alice), 0);
+	});
+}
+
+// Strict admission: any non-overlap-allowed lock (legacy staking, vesting,
+// democracy, …) blocks `giga_stake` entirely, even when free_balance is
+// sufficient. This prevents the lock-layering exploit at the root: the
+// `stk_stks` + `ghdxlock` overlap can never be set up in the first place.
+#[test]
+fn giga_stake_should_fail_when_caller_has_legacy_staking_lock() {
+	use frame_support::traits::{LockableCurrency, WithdrawReasons};
+
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			2_000 * UNITS,
+		));
+		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
+		<Balances as LockableCurrency<_>>::set_lock(*b"stk_stks", &alice, 1_000 * UNITS, WithdrawReasons::all());
+
+		assert_noop!(
+			GigaHdx::giga_stake(RuntimeOrigin::signed(alice), 500 * UNITS),
+			pallet_gigahdx::Error::<Runtime>::BlockedByExternalLock,
+		);
+	});
+}
+
+// `pyconvot` is in the runtime's overlap allowlist (HdxExternalClaims), so a
+// conviction-voting lock must NOT block stake admission — the voter's HDX is
+// only earmarked, not committed to a payout, so sharing it with a gigahdx
+// stake is safe.
+#[test]
+fn giga_stake_should_succeed_when_caller_has_conviction_voting_lock() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		reset_giga_state_for_fixture();
+		fund_bob_for_decision_deposit();
+
+		let alice: AccountId = ALICE.into();
+		fund(&alice, 1_000 * UNITS);
+
+		let ref_index = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			ref_index,
+			aye_with_conviction(800 * UNITS, Conviction::Locked1x),
+		));
+
+		let conviction_lock = pallet_balances::Locks::<Runtime>::get(&alice)
+			.iter()
+			.find(|l| l.id == *b"pyconvot")
+			.map(|l| l.amount)
+			.unwrap_or(0);
+		assert_eq!(conviction_lock, 800 * UNITS);
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 500 * UNITS));
+		assert_eq!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().hdx, 500 * UNITS,);
 	});
 }

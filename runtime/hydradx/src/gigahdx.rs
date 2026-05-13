@@ -20,6 +20,7 @@ use crate::Runtime;
 use evm::ExitReason::Succeed;
 use frame_support::sp_runtime::traits::Convert;
 use frame_support::sp_runtime::DispatchError;
+use frame_support::traits::LockIdentifier;
 use frame_support::weights::Weight;
 use hydradx_traits::evm::{CallContext, CallResult, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::gigahdx::MoneyMarketOperations;
@@ -187,5 +188,22 @@ impl ReferendaTrackInspect<ReferendumIndex, u16> for RuntimeReferenda {
 			| ReferendumInfo::TimedOut(..)
 			| ReferendumInfo::Killed(_) => None,
 		}
+	}
+}
+
+/// `ExternalClaims` impl: sum of HDX claimed by other pallets that should NOT
+/// overlap with a gigahdx stake. `ghdxlock` is excluded because the pallet
+/// accounts for it from its own ledger; `pyconvot` is excluded because a
+/// conviction vote is intentionally permitted to share HDX with a stake.
+pub struct HdxExternalClaims;
+
+impl pallet_gigahdx::traits::ExternalClaims<AccountId> for HdxExternalClaims {
+	fn on(who: &AccountId) -> Balance {
+		const ALLOWED_OVERLAP: &[LockIdentifier] = &[*b"ghdxlock", *b"pyconvot"];
+		pallet_balances::Locks::<Runtime>::get(who)
+			.iter()
+			.filter(|l| !ALLOWED_OVERLAP.contains(&l.id))
+			.map(|l| l.amount)
+			.fold(0, Balance::saturating_add)
 	}
 }

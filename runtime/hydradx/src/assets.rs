@@ -1907,6 +1907,7 @@ impl pallet_gigahdx::Config for Runtime {
 	type MinStake = GigaHdxMinStake;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
+	type ExternalClaims = crate::gigahdx::HdxExternalClaims;
 	type WeightInfo = weights::pallet_gigahdx::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = GigaHdxBenchmarkHelper;

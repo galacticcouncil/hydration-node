@@ -181,6 +181,26 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for TestMoneyMarket {
 	}
 }
 
+// ---------- TestExternalClaims ----------
+
+thread_local! {
+	pub static EXTERNAL_CLAIMS: RefCell<Balance> = const { RefCell::new(0) };
+}
+
+pub struct TestExternalClaims;
+
+impl TestExternalClaims {
+	pub fn set(value: Balance) {
+		EXTERNAL_CLAIMS.with(|v| *v.borrow_mut() = value);
+	}
+}
+
+impl pallet_gigahdx::traits::ExternalClaims<AccountId> for TestExternalClaims {
+	fn on(_who: &AccountId) -> Balance {
+		EXTERNAL_CLAIMS.with(|v| *v.borrow())
+	}
+}
+
 // ---------- pallet-gigahdx config ----------
 
 parameter_types! {
@@ -203,6 +223,7 @@ impl pallet_gigahdx::Config for Test {
 	type MinStake = GigaHdxMinStake;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
+	type ExternalClaims = TestExternalClaims;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
@@ -282,6 +303,7 @@ impl ExtBuilder {
 		let mut ext: sp_io::TestExternalities = t.into();
 		ext.execute_with(|| {
 			TestMoneyMarket::reset();
+			TestExternalClaims::set(0);
 			System::set_block_number(1);
 		});
 		ext

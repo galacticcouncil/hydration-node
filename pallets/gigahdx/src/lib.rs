@@ -33,6 +33,8 @@
 
 pub use pallet::*;
 
+pub mod traits;
+
 #[cfg(test)]
 mod tests;
 
@@ -60,6 +62,7 @@ impl<AccountId> BenchmarkHelper<AccountId> for () {
 
 #[frame_support::pallet]
 pub mod pallet {
+	pub use crate::traits::ExternalClaims;
 	pub use crate::weights::WeightInfo;
 	use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 	use frame_support::pallet_prelude::*;
@@ -69,7 +72,7 @@ pub mod pallet {
 	use frame_support::traits::fungibles::Mutate as FungiblesMutate;
 	use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 	use frame_support::traits::{
-		fungible, fungibles, Currency, ExistenceRequirement, LockIdentifier, LockableCurrency, WithdrawReasons,
+		fungibles, Currency, ExistenceRequirement, LockIdentifier, LockableCurrency, WithdrawReasons,
 	};
 	use frame_support::{transactional, PalletId};
 	use frame_system::pallet_prelude::*;
@@ -121,11 +124,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> {
-		/// Native (HDX) lockable currency. The `fungible::Inspect` bound is
-		/// required so `giga_stake` can use `reducible_balance` (free balance
-		/// minus transfer-blocking locks) instead of raw `free_balance`.
-		type NativeCurrency: LockableCurrency<Self::AccountId, Balance = Balance, Moment = BlockNumberFor<Self>>
-			+ fungible::Inspect<Self::AccountId, Balance = Balance>;
+		type NativeCurrency: LockableCurrency<Self::AccountId, Balance = Balance, Moment = BlockNumberFor<Self>>;
 
 		/// Multi-asset register that holds stHDX (and any other registered
 		/// fungible). Only this pallet mints / burns stHDX through it.
@@ -162,6 +161,12 @@ pub mod pallet {
 		/// Maximum number of concurrent pending-unstake positions per account.
 		#[pallet::constant]
 		type MaxPendingUnstakes: Get<u32>;
+
+		/// Inspector returning the sum of non-overlapping HDX claims on the
+		/// caller. Any non-zero value blocks `giga_stake` admission — the
+		/// strict policy rejects stakes whenever the account carries a lock
+		/// the runtime has not whitelisted for overlap (e.g. `pyconvot`).
+		type ExternalClaims: crate::traits::ExternalClaims<Self::AccountId>;
 
 		type WeightInfo: WeightInfo;
 
@@ -237,10 +242,15 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Stake amount is below `Config::MinStake`.
 		BelowMinStake,
-		/// Caller does not have enough unlocked HDX to back this stake (the
-		/// admission check uses `reducible_balance`, which subtracts every
-		/// transfer-blocking lock — including this pallet's own lock).
+		/// Caller doesn't have enough unencumbered HDX to back the stake
+		/// after subtracting their existing gigahdx commitment.
 		InsufficientFreeBalance,
+		/// Caller holds a non-overlapping lock (legacy staking, vesting, …)
+		/// reported by `Config::ExternalClaims`. Strict policy: gigahdx
+		/// admission requires the caller to have no claims on their HDX
+		/// other than those the runtime explicitly allows to coexist
+		/// (e.g. `pyconvot`). Release the conflicting lock before staking.
+		BlockedByExternalLock,
 		/// Unstake amount exceeds the caller's `Stakes.gigahdx`.
 		InsufficientStake,
 		/// Caller has no active stake record.
@@ -289,10 +299,12 @@ pub mod pallet {
 		/// money market (may differ from the requested mint amount by rounding).
 		///
 		/// Fails with `BelowMinStake` if `amount < Config::MinStake`, with
-		/// `InsufficientFreeBalance` if the caller's `reducible_balance` does not cover
-		/// `amount`, with `StHdxMintFailed` if stHDX minting fails (asset not registered,
-		/// max issuance hit), or with `MoneyMarketSupplyFailed` if the AAVE `Pool.supply`
-		/// call reverts.
+		/// `BlockedByExternalLock` if `Config::ExternalClaims::on(caller) > 0`
+		/// (the caller holds a non-allowed lock — strict policy rejects
+		/// stake admission entirely), with `InsufficientFreeBalance` if
+		/// `free_balance − own_gigahdx_commitment < amount`, with
+		/// `StHdxMintFailed` if stHDX minting fails, or with
+		/// `MoneyMarketSupplyFailed` if the AAVE `Pool.supply` call reverts.
 		///
 		/// Parameters:
 		/// - `amount`: HDX amount to stake. Must be at least `Config::MinStake`.
@@ -305,15 +317,19 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			ensure!(amount >= T::MinStake::get(), Error::<T>::BelowMinStake);
 
-			// Use `reducible_balance` so the check respects every transfer-blocking
-			// lock — including this pallet's own combined `LockId` lock (active
-			// stake + pending unstake) and any unrelated conviction/vesting locks.
-			let usable = <T::NativeCurrency as fungible::Inspect<T::AccountId>>::reducible_balance(
-				&who,
-				Preservation::Expendable,
-				Fortitude::Polite,
-			);
-			ensure!(usable >= amount, Error::<T>::InsufficientFreeBalance);
+			// Strict policy: refuse if the caller carries any lock the runtime
+			// does not whitelist for overlap. Lock-layering via `max()` would
+			// otherwise let the same HDX back both a gigahdx stake and another
+			// pallet's claim after a single transfer of the unlocked portion.
+			ensure!(T::ExternalClaims::on(&who) == 0, Error::<T>::BlockedByExternalLock);
+
+			// Own commitment (active + pending unstakes) still has to fit
+			// under free_balance — re-staking under the same `ghdxlock` must
+			// not exceed what the user actually owns.
+			let stake = Stakes::<T>::get(&who).unwrap_or_default();
+			let own_claim = stake.hdx.saturating_add(stake.unstaking);
+			let stakeable = T::NativeCurrency::free_balance(&who).saturating_sub(own_claim);
+			ensure!(stakeable >= amount, Error::<T>::InsufficientFreeBalance);
 
 			Self::do_stake(&who, amount)?;
 			Ok(())
@@ -613,9 +629,12 @@ pub mod pallet {
 		/// `Staked`.
 		///
 		/// Caller invariant: `amount` HDX must already be in `who`'s free
-		/// balance. This helper does not enforce the `MinStake` floor — callers
-		/// requiring that check (e.g. the `giga_stake` extrinsic) must perform
-		/// it before invoking `do_stake`.
+		/// balance. This helper performs **no admission control** — neither
+		/// the `MinStake` floor nor the `ExternalClaims`/headroom checks that
+		/// `giga_stake` applies. It is intended for trusted internal callers
+		/// (e.g. `cancel_unstake` rearranging already-locked HDX, or
+		/// `pallet-gigahdx-rewards` compounding accrued rewards). Untrusted
+		/// callers must replicate the `giga_stake` checks before invoking.
 		#[transactional]
 		pub fn do_stake(who: &T::AccountId, amount: Balance) -> Result<Balance, DispatchError> {
 			ensure!(amount > 0, Error::<T>::ZeroAmount);
