@@ -995,7 +995,7 @@ fn buy_should_fail_with_overflow_when_low_priced_asset_in_pays_for_large_high_pr
 	let native_reserve: Balance = 100_000_000_000_000_000;
 	let token_in_price = FixedU128::from_float(0.1);
 	let token_in_reserve: Balance = 100_000_000_000_000_000;
-	let token_out_price = FixedU128::from_float(1.981763482850658560);
+	let token_out_price = FixedU128::from_float(1.981_763_482_850_658_5);
 	let token_out_reserve: Balance = 100_000_000_000_000_000;
 	let asset_fee = Permill::from_rational(22u32, 1_000u32);
 	let protocol_fee = Permill::from_percent(3);
