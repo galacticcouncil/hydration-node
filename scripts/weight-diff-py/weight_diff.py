@@ -3,7 +3,7 @@
 of auto-generated Substrate weight files.
 
 Usage:
-    weight_diff.py --old <dir> --new <dir> [--threshold PCT] [--top N]
+    weight_diff.py --old <dir> --new <dir> [--threshold PCT]
     weight_diff.py --self-test
 """
 
@@ -16,6 +16,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator
+
+# Default flag threshold for the section/cell warnings (percent).
+DEFAULT_THRESHOLD: float = 10.0
 
 
 # ----------------------------------------------------------------------------
@@ -220,7 +223,7 @@ def _cell_writes(r: Row) -> str:
     return f"{r.writes_old} → {r.writes_new} (**{d:+d}**)"
 
 
-def render(rows: list[Row], changed_files: int, threshold: float, top_n: int) -> str:
+def render(rows: list[Row], changed_files: int, threshold: float) -> str:
     out: list[str] = []
     out.append("## Weight Diff Report")
     out.append("")
@@ -412,8 +415,7 @@ def main(argv: list[str]) -> int:
     p = argparse.ArgumentParser(description="Diff Substrate weight files between two dirs.")
     p.add_argument("--old", type=Path)
     p.add_argument("--new", type=Path)
-    p.add_argument("--threshold", type=float, default=10.0)
-    p.add_argument("--top", type=int, default=10)
+    p.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
     p.add_argument("--self-test", action="store_true")
     args = p.parse_args(argv)
 
@@ -428,7 +430,7 @@ def main(argv: list[str]) -> int:
         p.error(f"not a dir: {args.new}")
 
     rows, changed_files = diff_dirs(args.old, args.new)
-    sys.stdout.write(render(rows, changed_files, args.threshold, args.top))
+    sys.stdout.write(render(rows, changed_files, args.threshold))
     return 0
 
 

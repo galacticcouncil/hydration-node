@@ -3,23 +3,24 @@
 # of auto-generated Substrate weight files.
 #
 # Usage:
-#   weight-diff.sh --old <dir> --new <dir> [--threshold PCT] [--top N]
+#   weight-diff.sh --old <dir> --new <dir> [--threshold PCT]
 
 set -euo pipefail
+
+# Default flag threshold for the section/cell warnings (percent).
+readonly DEFAULT_THRESHOLD=10
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PARSER="$SCRIPT_DIR/parse_weights.awk"
 
 OLD_DIR=""; NEW_DIR=""
-THRESHOLD=10
-TOP_N=10
+THRESHOLD=$DEFAULT_THRESHOLD
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--old)       OLD_DIR="$2"; shift 2 ;;
 		--new)       NEW_DIR="$2"; shift 2 ;;
 		--threshold) THRESHOLD="$2"; shift 2 ;;
-		--top)       TOP_N="$2"; shift 2 ;;
 		-h|--help)
 			grep -E '^# ' "$0" | sed 's/^# \{0,1\}//'
 			exit 0 ;;
@@ -27,7 +28,7 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-[[ -z "$OLD_DIR" || -z "$NEW_DIR" ]] && { echo "Usage: $0 --old DIR --new DIR [--threshold PCT] [--top N]" >&2; exit 2; }
+[[ -z "$OLD_DIR" || -z "$NEW_DIR" ]] && { echo "Usage: $0 --old DIR --new DIR [--threshold PCT]" >&2; exit 2; }
 [[ -d "$OLD_DIR" ]] || { echo "Not a dir: $OLD_DIR" >&2; exit 2; }
 [[ -d "$NEW_DIR" ]] || { echo "Not a dir: $NEW_DIR" >&2; exit 2; }
 
