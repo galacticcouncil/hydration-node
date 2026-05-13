@@ -3,6 +3,7 @@
 mod cancel_unstake;
 mod do_stake;
 mod freeze;
+mod migrate;
 mod mock;
 mod multi_positions;
 mod set_pool_contract;

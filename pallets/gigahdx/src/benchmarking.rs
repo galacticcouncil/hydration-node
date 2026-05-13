@@ -135,6 +135,23 @@ mod benches {
 	}
 
 	#[benchmark]
+	fn migrate() {
+		assert_ok!(T::BenchmarkHelper::register_assets());
+		set_dummy_pool::<T>();
+
+		let caller: T::AccountId = whitelisted_caller();
+		let stake_amount: Balance = 100 * ONE;
+		assert_ok!(T::BenchmarkHelper::setup_legacy_staking_position(&caller, stake_amount));
+
+		#[extrinsic_call]
+		migrate(RawOrigin::Signed(caller.clone()));
+
+		let stake = Stakes::<T>::get(&caller).expect("gigahdx stake recorded");
+		assert!(stake.hdx >= stake_amount);
+		assert!(stake.gigahdx > 0);
+	}
+
+	#[benchmark]
 	fn cancel_unstake() {
 		assert_ok!(T::BenchmarkHelper::register_assets());
 		set_dummy_pool::<T>();

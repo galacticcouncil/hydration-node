@@ -18,7 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
 
-use crate::traits::{ActionData, GetReferendumState, PayablePercentage, VestingDetails};
+use crate::traits::{ActionData, ExternalClaims, GetReferendumState, PayablePercentage, VestingDetails};
 use crate::types::{Action, Balance, Period, Point, Position, StakingData};
 use frame_support::ensure;
 use frame_support::{
@@ -175,6 +175,11 @@ pub mod pallet {
 
 		/// Provides information about amount of vested tokens.
 		type Vesting: VestingDetails<Self::AccountId, Balance>;
+
+		/// Sum of HDX claimed by other pallets that must not back a legacy
+		/// stake (e.g. `ghdxlock`). The runtime decides what counts; `()`
+		/// disables the check.
+		type ExternalClaims: ExternalClaims<Self::AccountId>;
 
 		#[cfg(feature = "runtime-benchmarks")]
 		/// Max mumber of locks per account.  It's used in on_vote_worst_case benchmarks.
@@ -352,6 +357,11 @@ pub mod pallet {
 		/// Must remove the vote (`pallet_conviction_voting::remove_vote`) before
 		/// migrating to GIGAHDX via `force_unstake`.
 		ActiveVotesOngoing,
+
+		/// Caller's HDX is claimed by another pallet (e.g. `ghdxlock`).
+		/// Strict policy: legacy staking refuses any HDX backing that overlaps
+		/// with a non-whitelisted lock elsewhere.
+		BlockedByExternalLock,
 
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
@@ -822,6 +832,11 @@ impl<T: Config> Pallet<T> {
 		stake: Balance,
 		position: Option<&Position<BlockNumberFor<T>>>,
 	) -> Result<(), DispatchError> {
+		// Strict policy: any HDX claimed by a non-whitelisted lock elsewhere
+		// blocks legacy staking outright. Prevents the same HDX from backing
+		// both a legacy position and another pallet's claim (e.g. `ghdxlock`).
+		ensure!(T::ExternalClaims::on(who) == 0, Error::<T>::BlockedByExternalLock);
+
 		let free_balance = T::Currency::free_balance(T::NativeAssetId::get(), who);
 		let staked = position
 			.map(|p| p.stake.saturating_add(p.accumulated_locked_rewards))

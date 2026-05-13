@@ -201,6 +201,46 @@ impl pallet_gigahdx::traits::ExternalClaims<AccountId> for TestExternalClaims {
 	}
 }
 
+// ---------- TestLegacyStaking ----------
+
+thread_local! {
+	pub static LEGACY_STAKE_RESULT: RefCell<Option<Result<Balance, sp_runtime::DispatchError>>> = const { RefCell::new(None) };
+	pub static LEGACY_STAKE_CALLED_FOR: RefCell<Option<AccountId>> = const { RefCell::new(None) };
+}
+
+pub struct TestLegacyStaking;
+
+impl TestLegacyStaking {
+	#[allow(dead_code)]
+	pub fn set_ok(unlocked: Balance) {
+		LEGACY_STAKE_RESULT.with(|v| *v.borrow_mut() = Some(Ok(unlocked)));
+	}
+	#[allow(dead_code)]
+	pub fn set_err(err: sp_runtime::DispatchError) {
+		LEGACY_STAKE_RESULT.with(|v| *v.borrow_mut() = Some(Err(err)));
+	}
+	#[allow(dead_code)]
+	pub fn reset() {
+		LEGACY_STAKE_RESULT.with(|v| *v.borrow_mut() = None);
+		LEGACY_STAKE_CALLED_FOR.with(|v| *v.borrow_mut() = None);
+	}
+	#[allow(dead_code)]
+	pub fn called_for() -> Option<AccountId> {
+		LEGACY_STAKE_CALLED_FOR.with(|v| *v.borrow())
+	}
+}
+
+impl pallet_gigahdx::traits::LegacyStakeMigrator<AccountId> for TestLegacyStaking {
+	fn force_unstake(who: &AccountId) -> Result<Balance, sp_runtime::DispatchError> {
+		LEGACY_STAKE_CALLED_FOR.with(|v| *v.borrow_mut() = Some(*who));
+		LEGACY_STAKE_RESULT.with(|v| {
+			v.borrow_mut()
+				.take()
+				.unwrap_or(Err(sp_runtime::DispatchError::Other("legacy stake result not seeded")))
+		})
+	}
+}
+
 // ---------- pallet-gigahdx config ----------
 
 parameter_types! {
@@ -224,6 +264,7 @@ impl pallet_gigahdx::Config for Test {
 	type CooldownPeriod = GigaHdxCooldownPeriod;
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type ExternalClaims = TestExternalClaims;
+	type LegacyStaking = TestLegacyStaking;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
@@ -304,6 +345,7 @@ impl ExtBuilder {
 		ext.execute_with(|| {
 			TestMoneyMarket::reset();
 			TestExternalClaims::set(0);
+			TestLegacyStaking::reset();
 			System::set_block_number(1);
 		});
 		ext

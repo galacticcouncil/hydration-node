@@ -17,7 +17,7 @@ use hydradx_runtime::evm::{
 };
 use hydradx_runtime::{
 	Balances, ConvictionVoting, Currencies, Democracy, EVMAccounts, GigaHdx, Preimage, Referenda, Runtime,
-	RuntimeOrigin, Scheduler, System,
+	RuntimeOrigin, Scheduler, Staking, System,
 };
 use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, EVM};
 use orml_traits::MultiCurrency;
@@ -1740,5 +1740,133 @@ fn giga_stake_should_succeed_when_caller_has_conviction_voting_lock() {
 
 		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 500 * UNITS));
 		assert_eq!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().hdx, 500 * UNITS,);
+	});
+}
+
+/// Initialize legacy staking inside the gigahdx snapshot (which doesn't ship
+/// it pre-initialized). Funds the pot to clear `MissingPotBalance`.
+fn init_legacy_staking() {
+	let pot = pallet_staking::Pallet::<Runtime>::pot_account_id();
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		pot,
+		HDX,
+		(10_000 * UNITS) as i128,
+	));
+	assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
+}
+
+#[test]
+fn migrate_should_move_legacy_position_into_gigahdx_when_called() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice: AccountId = ALICE.into();
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			10_000 * UNITS,
+		));
+		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
+		init_legacy_staking();
+
+		let stake_amount = 5_000 * UNITS;
+		assert_ok!(Staking::stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
+		assert!(
+			pallet_staking::Pallet::<Runtime>::get_user_position_id(&alice)
+				.unwrap()
+				.is_some(),
+			"legacy position must exist pre-migrate"
+		);
+		assert_eq!(lock_amount(&alice, *b"stk_stks"), stake_amount);
+
+		assert_ok!(GigaHdx::migrate(RuntimeOrigin::signed(alice.clone())));
+
+		// Legacy side cleaned.
+		assert_eq!(
+			pallet_staking::Pallet::<Runtime>::get_user_position_id(&alice).unwrap(),
+			None
+		);
+		assert_eq!(lock_amount(&alice, *b"stk_stks"), 0);
+
+		// Gigahdx side populated. No legacy rewards accrued (pot just initialized),
+		// so unlocked equals stake_amount exactly.
+		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("gigahdx stake must exist");
+		assert_eq!(stake.hdx, stake_amount);
+		assert!(stake.gigahdx > 0, "aToken minted");
+		assert_eq!(lock_amount(&alice, GIGAHDX_LOCK_ID), stake_amount);
+	});
+}
+
+#[test]
+fn migrate_should_refuse_when_no_legacy_position() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice: AccountId = ALICE.into();
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			10_000 * UNITS,
+		));
+		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
+		init_legacy_staking();
+
+		assert_noop!(
+			GigaHdx::migrate(RuntimeOrigin::signed(alice.clone())),
+			pallet_staking::Error::<Runtime>::InconsistentState(
+				pallet_staking::pallet::InconsistentStateError::PositionNotFound
+			)
+		);
+		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).is_none());
+	});
+}
+
+#[test]
+fn legacy_stake_should_refuse_when_gigahdx_lock_present() {
+	// Strict policy: HDX already pledged under `ghdxlock` cannot back a legacy
+	// stake, otherwise the same balance would earn rewards from both pallets.
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice: AccountId = ALICE.into();
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			10_000 * UNITS,
+		));
+		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
+		init_legacy_staking();
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert!(locked_under_ghdx(&alice) > 0, "ghdxlock must be set");
+
+		assert_noop!(
+			Staking::stake(RuntimeOrigin::signed(alice.clone()), 1_000 * UNITS),
+			pallet_staking::Error::<Runtime>::BlockedByExternalLock
+		);
+	});
+}
+
+#[test]
+fn legacy_stake_should_succeed_after_giga_position_fully_exits() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice: AccountId = ALICE.into();
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			10_000 * UNITS,
+		));
+		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
+		init_legacy_staking();
+
+		// Stake → unstake → wait cooldown → unlock. Cleans the ghdxlock entirely.
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		let entry = only_pending_position(&alice);
+		System::set_block_number(entry.expires_at);
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), entry.id));
+		assert_eq!(lock_amount(&alice, GIGAHDX_LOCK_ID), 0);
+
+		// Legacy stake now succeeds — no overlapping claim left.
+		assert_ok!(Staking::stake(RuntimeOrigin::signed(alice.clone()), 1_000 * UNITS));
 	});
 }

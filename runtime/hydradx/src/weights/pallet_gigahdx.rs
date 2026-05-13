@@ -164,4 +164,10 @@ impl<T: frame_system::Config> pallet_gigahdx::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(14_u64))
 			.saturating_add(T::DbWeight::get().writes(6_u64))
 	}
+	// Placeholder — re-benchmark before mainnet upgrade.
+	fn migrate() -> Weight {
+		Weight::from_parts(180_000_000, 4764)
+			.saturating_add(T::DbWeight::get().reads(20_u64))
+			.saturating_add(T::DbWeight::get().writes(12_u64))
+	}
 }

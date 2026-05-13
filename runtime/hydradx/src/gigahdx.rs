@@ -207,3 +207,32 @@ impl pallet_gigahdx::traits::ExternalClaims<AccountId> for HdxExternalClaims {
 			.fold(0, Balance::saturating_add)
 	}
 }
+
+/// Adapter wiring `pallet_gigahdx::migrate` to the legacy NFT staking pallet.
+pub struct LegacyStakingMigrator;
+
+impl pallet_gigahdx::traits::LegacyStakeMigrator<AccountId> for LegacyStakingMigrator {
+	fn force_unstake(who: &AccountId) -> Result<Balance, sp_runtime::DispatchError> {
+		pallet_staking::Pallet::<Runtime>::force_unstake(who)
+	}
+}
+
+/// `ExternalClaims` impl for the legacy staking pallet. Mirrors
+/// `HdxExternalClaims` but with the legacy pallet's exclusions:
+/// `stk_stks` (its own lock — already deducted via the position),
+/// `ormlvest` (vesting — already deducted via the `Vesting` config),
+/// `pyconvot` (governance overlap allowed). Everything else — `ghdxlock`
+/// in particular — counts and blocks legacy staking from re-pledging
+/// HDX already claimed elsewhere.
+pub struct LegacyStakingExternalClaims;
+
+impl pallet_staking::traits::ExternalClaims<AccountId> for LegacyStakingExternalClaims {
+	fn on(who: &AccountId) -> Balance {
+		const ALLOWED_OVERLAP: &[LockIdentifier] = &[*b"stk_stks", *b"ormlvest", *b"pyconvot"];
+		pallet_balances::Locks::<Runtime>::get(who)
+			.iter()
+			.filter(|l| !ALLOWED_OVERLAP.contains(&l.id))
+			.map(|l| l.amount)
+			.fold(0, Balance::saturating_add)
+	}
+}

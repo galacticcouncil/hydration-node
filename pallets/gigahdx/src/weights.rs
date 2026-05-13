@@ -8,6 +8,7 @@ pub trait WeightInfo {
 	fn unlock() -> Weight;
 	fn set_pool_contract() -> Weight;
 	fn cancel_unstake() -> Weight;
+	fn migrate() -> Weight;
 }
 
 impl WeightInfo for () {
@@ -24,6 +25,9 @@ impl WeightInfo for () {
 		Weight::zero()
 	}
 	fn cancel_unstake() -> Weight {
+		Weight::zero()
+	}
+	fn migrate() -> Weight {
 		Weight::zero()
 	}
 }

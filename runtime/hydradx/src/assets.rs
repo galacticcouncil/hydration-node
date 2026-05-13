@@ -1659,6 +1659,7 @@ impl pallet_staking::Config for Runtime {
 	type ReferendumInfo = pallet_staking::integrations::conviction_voting::DirectReferendumStatus<Runtime>;
 	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
+	type ExternalClaims = crate::gigahdx::LegacyStakingExternalClaims;
 	type WeightInfo = weights::pallet_staking::HydraWeight<Runtime>;
 	type MinSlash = StakingMinSlash;
 
@@ -1908,6 +1909,7 @@ impl pallet_gigahdx::Config for Runtime {
 	type CooldownPeriod = GigaHdxCooldownPeriod;
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type ExternalClaims = crate::gigahdx::HdxExternalClaims;
+	type LegacyStaking = crate::gigahdx::LegacyStakingMigrator;
 	type WeightInfo = weights::pallet_gigahdx::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = GigaHdxBenchmarkHelper;
@@ -1939,6 +1941,18 @@ impl pallet_gigahdx::BenchmarkHelper<AccountId> for GigaHdxBenchmarkHelper {
 			))
 		})?;
 		Ok(())
+	}
+
+	fn setup_legacy_staking_position(who: &AccountId, amount: Balance) -> DispatchResult {
+		use frame_support::traits::Currency;
+		let _ = Balances::deposit_creating(who, amount.saturating_mul(10));
+		let staking_pot = pallet_staking::Pallet::<Runtime>::pot_account_id();
+		let _ = Balances::deposit_creating(&staking_pot, amount.saturating_mul(10));
+
+		// Idempotent — second-and-later calls hit `AlreadyInitialized`.
+		let _ = pallet_staking::Pallet::<Runtime>::initialize_staking(frame_system::RawOrigin::Root.into());
+
+		pallet_staking::Pallet::<Runtime>::stake(frame_system::RawOrigin::Signed(who.clone()).into(), amount)
 	}
 }
 

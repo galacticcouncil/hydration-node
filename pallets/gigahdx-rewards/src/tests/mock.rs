@@ -241,6 +241,7 @@ impl pallet_gigahdx::Config for Test {
 	type CooldownPeriod = GigaHdxCooldownPeriod;
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type ExternalClaims = TestExternalClaims;
+	type LegacyStaking = ();
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();

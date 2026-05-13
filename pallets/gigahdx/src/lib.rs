@@ -51,6 +51,11 @@ pub trait BenchmarkHelper<AccountId> {
 	/// Register the stHDX asset so subsequent `mint_into` calls succeed.
 	/// Must be idempotent — benchmarks may invoke this multiple times.
 	fn register_assets() -> sp_runtime::DispatchResult;
+
+	/// Used by the `migrate` benchmark. Must leave `who` with no external
+	/// claim that would survive `force_unstake` (otherwise migrate's
+	/// admission refuses).
+	fn setup_legacy_staking_position(who: &AccountId, amount: primitives::Balance) -> sp_runtime::DispatchResult;
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -58,11 +63,16 @@ impl<AccountId> BenchmarkHelper<AccountId> for () {
 	fn register_assets() -> sp_runtime::DispatchResult {
 		Ok(())
 	}
+	fn setup_legacy_staking_position(_who: &AccountId, _amount: primitives::Balance) -> sp_runtime::DispatchResult {
+		Err(sp_runtime::DispatchError::Other(
+			"BenchmarkHelper: no legacy staking source configured",
+		))
+	}
 }
 
 #[frame_support::pallet]
 pub mod pallet {
-	pub use crate::traits::ExternalClaims;
+	pub use crate::traits::{ExternalClaims, LegacyStakeMigrator};
 	pub use crate::weights::WeightInfo;
 	use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 	use frame_support::pallet_prelude::*;
@@ -168,6 +178,11 @@ pub mod pallet {
 		/// the runtime has not whitelisted for overlap (e.g. `pyconvot`).
 		type ExternalClaims: crate::traits::ExternalClaims<Self::AccountId>;
 
+		/// Bridge into the legacy NFT staking pallet. `migrate` calls
+		/// `force_unstake` here to destroy the caller's legacy position
+		/// before re-staking the freed HDX into gigahdx.
+		type LegacyStaking: crate::traits::LegacyStakeMigrator<Self::AccountId>;
+
 		type WeightInfo: WeightInfo;
 
 		/// Benchmark helper for setting up state that can't be created from
@@ -235,6 +250,15 @@ pub mod pallet {
 		},
 		PoolContractUpdated {
 			contract: EvmAddress,
+		},
+		/// Caller migrated their legacy NFT staking position into gigahdx.
+		/// `hdx_unlocked` is the sum of legacy stake + previously locked
+		/// rewards + freshly paid rewards; `gigahdx_received` is the aToken
+		/// amount actually credited by the money market.
+		MigratedFromLegacy {
+			who: T::AccountId,
+			hdx_unlocked: Balance,
+			gigahdx_received: Balance,
 		},
 	}
 
@@ -487,6 +511,50 @@ pub mod pallet {
 				position_id,
 				amount: entry.amount,
 				gigahdx,
+			});
+			Ok(())
+		}
+
+		/// Migrate the caller's legacy NFT staking position into gigahdx.
+		///
+		/// Atomically: destroys the legacy position via `LegacyStaking::
+		/// force_unstake` (paying out 100% of rewards — no sigmoid slash, no
+		/// unclaimable-period penalty), then re-stakes the freed HDX under
+		/// the same admission gate as `giga_stake`. Refuses partial migration
+		/// — the legacy position is consumed whole or not at all.
+		///
+		/// Admission runs *after* `force_unstake` so the legacy lock is no
+		/// longer counted against `ExternalClaims`.
+		///
+		/// Fails with `BelowMinStake` if the legacy position unlocks less
+		/// than `Config::MinStake`, with `BlockedByExternalLock` if the
+		/// caller still carries another non-overlap-whitelisted lock, with
+		/// `InsufficientFreeBalance` if the post-unstake balance can't cover
+		/// the new gigahdx claim, or with whatever error `force_unstake`
+		/// raises (e.g. ongoing referendum vote, no legacy position).
+		///
+		/// Emits `MigratedFromLegacy` event when successful.
+		#[pallet::call_index(5)]
+		#[pallet::weight(T::WeightInfo::migrate().saturating_add(T::MoneyMarket::supply_weight()))]
+		#[transactional]
+		pub fn migrate(origin: OriginFor<T>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let hdx_unlocked = T::LegacyStaking::force_unstake(&who)?;
+
+			ensure!(hdx_unlocked >= T::MinStake::get(), Error::<T>::BelowMinStake);
+			ensure!(T::ExternalClaims::on(&who) == 0, Error::<T>::BlockedByExternalLock);
+
+			let stake = Stakes::<T>::get(&who).unwrap_or_default();
+			let own_claim = stake.hdx.saturating_add(stake.unstaking);
+			let stakeable = T::NativeCurrency::free_balance(&who).saturating_sub(own_claim);
+			ensure!(stakeable >= hdx_unlocked, Error::<T>::InsufficientFreeBalance);
+
+			let gigahdx_received = Self::do_stake(&who, hdx_unlocked)?;
+			Self::deposit_event(Event::MigratedFromLegacy {
+				who,
+				hdx_unlocked,
+				gigahdx_received,
 			});
 			Ok(())
 		}
