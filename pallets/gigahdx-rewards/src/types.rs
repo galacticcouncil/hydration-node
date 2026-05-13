@@ -12,30 +12,32 @@ use scale_info::TypeInfo;
 /// `pallet-referenda` — only the runtime wiring does.
 pub type ReferendumIndex = u32;
 
-/// Multiplier scale shared by the legacy and lock-based rewards models.
-/// `reward_multiplier(c) / REWARD_MULTIPLIER_SCALE` gives the fractional
-/// weight; e.g. `None` = 1/10 = 0.1×.
-pub const REWARD_MULTIPLIER_SCALE: u128 = 10;
+/// Scale for `conviction_reward_multiplier`. Numerators read as percentages.
+pub const REWARD_MULTIPLIER_SCALE: u128 = 100;
 
-/// Map conviction → reward weight multiplier (numerator; divide by
-/// `REWARD_MULTIPLIER_SCALE` for the fractional weight).
+/// Map conviction → reward weight (percentage of `Locked3x = base`).
+/// `Locked3x` (28-day lock) is the unit; shorter locks earn fractions,
+/// longer locks earn multiples. `None` earns nothing — voters that don't
+/// commit to a lock period don't receive gigahdx-rewards.
 ///
-/// | Conviction | Multiplier |
-/// |------------|-----------|
-/// | None       | 0.1×       |
-/// | Locked1x   | 1×         |
-/// | Locked2x   | 2×         |
-/// | ...        | ...        |
-/// | Locked6x   | 6×         |
+/// | Conviction | Days lock | Multiplier |
+/// |------------|-----------|-----------|
+/// | None       | 0         | 0×        |
+/// | Locked1x   | 7         | 0.25×     |
+/// | Locked2x   | 14        | 0.5×      |
+/// | Locked3x   | 28        | 1× (base) |
+/// | Locked4x   | 56        | 2×        |
+/// | Locked5x   | 112       | 4×        |
+/// | Locked6x   | 224       | 8×        |
 pub fn conviction_reward_multiplier(conviction: Conviction) -> u128 {
 	match conviction {
-		Conviction::None => 1,
-		Conviction::Locked1x => 10,
-		Conviction::Locked2x => 20,
-		Conviction::Locked3x => 30,
-		Conviction::Locked4x => 40,
-		Conviction::Locked5x => 50,
-		Conviction::Locked6x => 60,
+		Conviction::None => 0,
+		Conviction::Locked1x => 25,
+		Conviction::Locked2x => 50,
+		Conviction::Locked3x => 100,
+		Conviction::Locked4x => 200,
+		Conviction::Locked5x => 400,
+		Conviction::Locked6x => 800,
 	}
 }
 

@@ -154,7 +154,8 @@ impl MoneyMarketOperations<AccountId, AssetId, Balance> for BenchmarkMoneyMarket
 /// - `0` (root) → 10%
 /// - `1` (whitelisted_caller) → 8%
 /// - `5` (treasurer) → 5%
-/// - any other track → 3% (default)
+/// - `9` (economic_parameters) → 5%
+/// - any other track → 2% (default)
 pub struct TrackRewardConfig;
 
 impl TrackRewardTable<u16> for TrackRewardConfig {
@@ -162,8 +163,8 @@ impl TrackRewardTable<u16> for TrackRewardConfig {
 		match track_id {
 			0 => Permill::from_percent(10),
 			1 => Permill::from_percent(8),
-			5 => Permill::from_percent(5),
-			_ => Permill::from_percent(3),
+			5 | 9 => Permill::from_percent(5),
+			_ => Permill::from_percent(2),
 		}
 	}
 }

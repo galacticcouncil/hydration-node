@@ -150,9 +150,8 @@ fn on_before_vote_should_cap_weighted_at_min_of_vote_and_stake() {
 		));
 		let rec = UserVoteRecords::<Test>::get(ALICE, REF_A).unwrap();
 		assert_eq!(rec.staked_vote_amount, 50 * ONE);
-		// Locked1x = 10 / 10 = 1× → weighted = 50 * ONE
-		assert_eq!(rec.weighted, 50 * ONE);
-		assert_eq!(rec.weighted, 50 * ONE * 10 / REWARD_MULTIPLIER_SCALE);
+		// Locked1x = 25 / 100 = 0.25× → weighted = 12.5 * ONE
+		assert_eq!(rec.weighted, 50 * ONE * 25 / REWARD_MULTIPLIER_SCALE);
 	});
 }
 
@@ -161,7 +160,7 @@ fn on_before_vote_should_replace_record_when_vote_is_edited() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake(ALICE, 100 * ONE);
 
-		// First vote: 30 HDX, 1x conviction → weighted = 30 * ONE.
+		// First vote: 30 HDX, Locked1x (0.25×) → weighted = 7.5 * ONE.
 		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
 			&ALICE,
 			REF_A,
@@ -169,9 +168,9 @@ fn on_before_vote_should_replace_record_when_vote_is_edited() {
 		));
 		let tally_1 = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
 		assert_eq!(tally_1.voters_count, 1);
-		assert_eq!(tally_1.total_weighted, 30 * ONE);
+		assert_eq!(tally_1.total_weighted, 30 * ONE * 25 / REWARD_MULTIPLIER_SCALE);
 
-		// Edit: 80 HDX, 2x → weighted = 160 * ONE.
+		// Edit: 80 HDX, Locked2x (0.5×) → weighted = 40 * ONE.
 		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
 			&ALICE,
 			REF_A,
@@ -179,11 +178,11 @@ fn on_before_vote_should_replace_record_when_vote_is_edited() {
 		));
 		let rec = UserVoteRecords::<Test>::get(ALICE, REF_A).unwrap();
 		assert_eq!(rec.staked_vote_amount, 80 * ONE);
-		assert_eq!(rec.weighted, 160 * ONE);
+		assert_eq!(rec.weighted, 80 * ONE * 50 / REWARD_MULTIPLIER_SCALE);
 
 		let tally_2 = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
 		assert_eq!(tally_2.voters_count, 1, "voter count unchanged on edit");
-		assert_eq!(tally_2.total_weighted, 160 * ONE, "total recomputed");
+		assert_eq!(tally_2.total_weighted, 80 * ONE * 50 / REWARD_MULTIPLIER_SCALE);
 	});
 }
 
@@ -455,20 +454,23 @@ fn on_remove_vote_should_recycle_rounding_dust_to_accumulator() {
 			stake(BOB, 100 * ONE);
 			stake(CHARLIE, 100 * ONE);
 
+			// Locked3x (1× weight) with 1-wei vote → weighted=1 each, total=3.
+			// 10% of 1_000 ONE allocated = 100 ONE; floor(100*ONE/3) per voter
+			// leaves 1 wei dust after the last claimant.
 			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
 				&ALICE,
 				REF_A,
-				standard_vote(true, Conviction::Locked1x, 1),
+				standard_vote(true, Conviction::Locked3x, 1),
 			));
 			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
 				&BOB,
 				REF_A,
-				standard_vote(true, Conviction::Locked1x, 1),
+				standard_vote(true, Conviction::Locked3x, 1),
 			));
 			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
 				&CHARLIE,
 				REF_A,
-				standard_vote(true, Conviction::Locked1x, 1),
+				standard_vote(true, Conviction::Locked3x, 1),
 			));
 
 			// First `on_remove_vote(Completed)` triggers the allocation pull
