@@ -171,11 +171,7 @@ out ""
 
 # Per-pallet sections — warned pallets first (alphabetical), then non-warned (alphabetical).
 while IFS=$'\t' read -r pallet has_warn count; do
-	if [[ "$has_warn" == "1" ]]; then
-		out "### ⚠️ ${pallet}"
-	else
-		out "### ${pallet}"
-	fi
+	out "### ${pallet}"
 	out ""
 	out "| Extrinsic | RefTime | Proof Size | Reads | Writes |"
 	out "|---|---|---|---|---|"

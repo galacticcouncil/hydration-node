@@ -259,8 +259,7 @@ def render(rows: list[Row], changed_files: int, threshold: float, top_n: int) ->
     ordered = sorted(by_pallet.keys(), key=lambda p: (p not in warned, p))
 
     for pallet in ordered:
-        prefix = "### ⚠️ " if pallet in warned else "### "
-        out.append(f"{prefix}{pallet}")
+        out.append(f"### {pallet}")
         out.append("")
         out.append("| Extrinsic | RefTime | Proof Size | Reads | Writes |")
         out.append("|---|---|---|---|---|")
