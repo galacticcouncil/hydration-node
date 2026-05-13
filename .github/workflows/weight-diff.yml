@@ -30,7 +30,7 @@ jobs:
         id: diff
         run: |
           set -euo pipefail
-          bash scripts/weight-diff/weight-diff.sh \
+          python3 scripts/weight-diff/weight_diff.py \
             --old /tmp/weights-master/runtime/hydradx/src/weights \
             --new runtime/hydradx/src/weights \
             > weight-diff-report.md
