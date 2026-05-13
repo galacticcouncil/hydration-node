@@ -5722,7 +5722,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.13.2"
+version = "1.13.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -10431,7 +10431,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydra-dx-math",
- "hydradx-adapters",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
