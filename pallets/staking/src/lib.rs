@@ -298,6 +298,16 @@ pub mod pallet {
 			accumulated_rps: FixedU128,
 			total_stake: Balance,
 		},
+
+		/// Position was force-unstaked through the GIGAHDX migration helper.
+		/// Distinct from `Unstaked` because no rewards were forfeited.
+		ForceUnstaked {
+			who: T::AccountId,
+			position_id: T::PositionItemId,
+			stake: Balance,
+			locked_rewards: Balance,
+			paid_rewards: Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -337,6 +347,11 @@ pub mod pallet {
 
 		/// Position contains processed votes. Removed these votes first before increasing stake or claiming.
 		ExistingProcessedVotes,
+
+		/// User still has an active conviction-vote on an ongoing referendum.
+		/// Must remove the vote (`pallet_conviction_voting::remove_vote`) before
+		/// migrating to GIGAHDX via `force_unstake`.
+		ActiveVotesOngoing,
 
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
@@ -837,6 +852,101 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(position_id)
+	}
+
+	/// Force-unstakes `who`'s legacy position for the GIGAHDX migration.
+	///
+	/// Unlike the regular `unstake`, this helper pays out 100% of accumulated
+	/// rewards — no sigmoid `PayablePercentage` slash, no `UnclaimablePeriods`
+	/// early-exit penalty. It exists solely so users can migrate to
+	/// `pallet-gigahdx` without losing rewards they earned in the legacy
+	/// staking system.
+	///
+	/// Fails (and rolls back atomically) if `who` still has a conviction-vote
+	/// on a referendum that has not finished — the legacy stake is the source
+	/// of that vote's voting power, so removing it mid-vote would leak state.
+	///
+	/// Returns the total amount unlocked for `who`:
+	/// `position.stake + accumulated_locked_rewards + paid_rewards`,
+	/// where `paid_rewards = new_rewards + accumulated_unpaid_rewards`.
+	///
+	/// This is a pallet-internal helper: no origin check, no weight. The
+	/// orchestrating migrate extrinsic owns both.
+	#[frame_support::transactional]
+	pub fn force_unstake(who: &T::AccountId) -> Result<Balance, DispatchError> {
+		ensure!(Self::is_initialized(), Error::<T>::NotInitialized);
+
+		let position_id =
+			Self::get_user_position_id(who)?.ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
+
+		let voting = Votes::<T>::get(position_id);
+		for (ref_index, _) in voting.votes.iter() {
+			ensure!(
+				T::ReferendumInfo::is_referendum_finished(*ref_index),
+				Error::<T>::ActiveVotesOngoing
+			);
+		}
+
+		Staking::<T>::try_mutate(|staking| -> Result<Balance, DispatchError> {
+			Self::update_rewards(staking)?;
+
+			let position = Positions::<T>::take(position_id)
+				.defensive_ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
+
+			let new_rewards = math::calculate_rewards(
+				staking.accumulated_reward_per_stake,
+				position.reward_per_stake,
+				position.stake,
+			)
+			.ok_or(Error::<T>::Arithmetic)?;
+
+			let paid_rewards = new_rewards
+				.checked_add(position.accumulated_unpaid_rewards)
+				.ok_or(Error::<T>::Arithmetic)?;
+
+			if !paid_rewards.is_zero() {
+				T::Currency::transfer(
+					T::NativeAssetId::get(),
+					&Self::pot_account_id(),
+					who,
+					paid_rewards,
+					ExistenceRequirement::AllowDeath,
+				)?;
+			}
+
+			staking.total_stake = staking
+				.total_stake
+				.checked_sub(position.stake)
+				.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
+
+			staking.pot_reserved_balance = staking
+				.pot_reserved_balance
+				.checked_sub(paid_rewards)
+				.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
+
+			T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(who))?;
+			T::Currency::remove_lock(STAKING_LOCK_ID, T::NativeAssetId::get(), who)?;
+
+			Votes::<T>::remove(position_id);
+			// `drain_prefix` returns an iterator — it must be consumed to actually drain.
+			let _ = VotesRewarded::<T>::drain_prefix(who).count();
+
+			Self::deposit_event(Event::ForceUnstaked {
+				who: who.clone(),
+				position_id,
+				stake: position.stake,
+				locked_rewards: position.accumulated_locked_rewards,
+				paid_rewards,
+			});
+
+			let unlocked = position
+				.stake
+				.checked_add(position.accumulated_locked_rewards)
+				.and_then(|x| x.checked_add(paid_rewards))
+				.ok_or(Error::<T>::Arithmetic)?;
+
+			Ok(unlocked)
+		})
 	}
 
 	fn is_owner(who: &T::AccountId, id: T::PositionItemId) -> bool {
