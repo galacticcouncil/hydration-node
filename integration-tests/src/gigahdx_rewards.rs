@@ -462,10 +462,13 @@ fn rewards_should_ignore_split_votes() {
 			},
 		));
 
-		// Split votes are dropped silently by `on_before_vote` — no record,
-		// no live-tally entry.
-		assert!(pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::get(&alice, r).is_none());
-		assert!(pallet_gigahdx_rewards::ReferendaTotalWeightedVotes::<Runtime>::get(r).is_none());
+		// Split votes ARE recorded (with weighted=0) so liquidation's
+		// clearance adapter can find them — but they earn no rewards.
+		let rec = pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::get(&alice, r).unwrap();
+		assert_eq!(rec.weighted, 0);
+		let tally = pallet_gigahdx_rewards::ReferendaTotalWeightedVotes::<Runtime>::get(r).unwrap();
+		assert_eq!(tally.total_weighted, 0);
+		assert_eq!(tally.voters_count, 1);
 
 		end_referendum();
 		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
@@ -474,11 +477,11 @@ fn rewards_should_ignore_split_votes() {
 			Some(ROOT_TRACK_CLASS),
 			r,
 		));
+		// Allocation briefly fires (pot moves out), but every voter has
+		// weighted=0 so all of `remaining_reward` is refunded back to the
+		// accumulator → net change is zero.
 		let accumulator_after = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
-		assert_eq!(
-			accumulator_after, accumulator_before,
-			"split votes must not trigger a pool allocation",
-		);
+		assert_eq!(accumulator_after, accumulator_before);
 		assert_eq!(pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&alice), 0);
 		assert!(pallet_gigahdx_rewards::ReferendaRewardPool::<Runtime>::get(r).is_none());
 	});
@@ -691,8 +694,11 @@ fn rewards_should_ignore_split_abstain_votes() {
 			},
 		));
 
-		assert!(pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::get(&alice, r).is_none());
-		assert!(pallet_gigahdx_rewards::ReferendaTotalWeightedVotes::<Runtime>::get(r).is_none());
+		let rec = pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::get(&alice, r).unwrap();
+		assert_eq!(rec.weighted, 0);
+		let tally = pallet_gigahdx_rewards::ReferendaTotalWeightedVotes::<Runtime>::get(r).unwrap();
+		assert_eq!(tally.total_weighted, 0);
+		assert_eq!(tally.voters_count, 1);
 
 		end_referendum();
 		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
