@@ -5740,3 +5740,140 @@ fn populate_oracle(
 	));
 	go_to_block(block.unwrap_or(10));
 }
+
+mod weight_uses_resolved_route {
+	use super::*;
+	use frame_support::dispatch::GetDispatchInfo;
+
+	fn stored_multi_hop_route() -> Vec<Trade<AssetId>> {
+		vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: DAI,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: DAI,
+				asset_out: DOT,
+			},
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: DOT,
+				asset_out: ETH,
+			},
+		]
+	}
+
+	#[test]
+	fn sell_weight_should_reflect_stored_route_when_input_route_is_empty() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let stored = stored_multi_hop_route();
+			assert_ok!(Router::force_insert_route(
+				RuntimeOrigin::root(),
+				Pair::new(HDX, ETH),
+				BoundedVec::truncate_from(stored.clone()),
+			));
+
+			let call = pallet_route_executor::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: ETH,
+				amount_in: UNITS,
+				min_amount_out: 0,
+				route: BoundedVec::new(),
+			};
+
+			let charged = call.get_dispatch_info().call_weight;
+			let expected = RouterWeightInfo::sell_weight(&stored);
+			assert_eq!(charged, expected);
+		});
+	}
+
+	#[test]
+	fn buy_weight_should_reflect_stored_route_when_input_route_is_empty() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let stored = stored_multi_hop_route();
+			assert_ok!(Router::force_insert_route(
+				RuntimeOrigin::root(),
+				Pair::new(HDX, ETH),
+				BoundedVec::truncate_from(stored.clone()),
+			));
+
+			let call = pallet_route_executor::Call::<Runtime>::buy {
+				asset_in: HDX,
+				asset_out: ETH,
+				amount_out: UNITS,
+				max_amount_in: u128::MAX,
+				route: BoundedVec::new(),
+			};
+
+			let charged = call.get_dispatch_info().call_weight;
+			let expected = RouterWeightInfo::buy_weight(&stored);
+			assert_eq!(charged, expected);
+		});
+	}
+
+	#[test]
+	fn sell_all_weight_should_reflect_stored_route_when_input_route_is_empty() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let stored = stored_multi_hop_route();
+			assert_ok!(Router::force_insert_route(
+				RuntimeOrigin::root(),
+				Pair::new(HDX, ETH),
+				BoundedVec::truncate_from(stored.clone()),
+			));
+
+			let call = pallet_route_executor::Call::<Runtime>::sell_all {
+				asset_in: HDX,
+				asset_out: ETH,
+				min_amount_out: 0,
+				route: BoundedVec::new(),
+			};
+
+			let charged = call.get_dispatch_info().call_weight;
+			let expected = RouterWeightInfo::sell_weight(&stored);
+			assert_eq!(charged, expected);
+		});
+	}
+
+	#[test]
+	fn sell_weight_should_be_higher_with_stored_multi_hop_route_than_without() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let call_without_stored = pallet_route_executor::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: ETH,
+				amount_in: UNITS,
+				min_amount_out: 0,
+				route: BoundedVec::new(),
+			};
+			let weight_without_stored = call_without_stored.get_dispatch_info().call_weight;
+
+			assert_ok!(Router::force_insert_route(
+				RuntimeOrigin::root(),
+				Pair::new(HDX, ETH),
+				BoundedVec::truncate_from(stored_multi_hop_route()),
+			));
+
+			let call_with_stored = pallet_route_executor::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: ETH,
+				amount_in: UNITS,
+				min_amount_out: 0,
+				route: BoundedVec::new(),
+			};
+			let weight_with_stored = call_with_stored.get_dispatch_info().call_weight;
+
+			assert!(
+				weight_with_stored.ref_time() > weight_without_stored.ref_time(),
+				"expected stored-route call to charge more ref_time than no-stored-route call \
+				 (got {} vs {})",
+				weight_with_stored.ref_time(),
+				weight_without_stored.ref_time(),
+			);
+		});
+	}
+}

@@ -18,7 +18,7 @@
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
-use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
+use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin, Treasurer};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
@@ -36,7 +36,7 @@ use frame_support::{
 	},
 	BoundedVec, PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use frame_system::{EnsureRoot, RawOrigin};
 use hydradx_adapters::{
 	stableswap_peg_oracle::PegOracle, AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT,
 	MultiCurrencyLockedBalance, OmnipoolHookAdapter, OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider,
@@ -1575,14 +1575,16 @@ impl pallet_stableswap::Config for Runtime {
 
 // Bonds
 parameter_types! {
-	pub ProtocolFee: Permill = Permill::from_percent(2);
 	pub const BondsPalletId: PalletId = PalletId(*b"pltbonds");
 }
 
 pub struct AssetTypeWhitelist;
 impl Contains<AssetKind> for AssetTypeWhitelist {
 	fn contains(t: &AssetKind) -> bool {
-		matches!(t, AssetKind::Token | AssetKind::XYK | AssetKind::StableSwap)
+		matches!(
+			t,
+			AssetKind::Token | AssetKind::XYK | AssetKind::StableSwap | AssetKind::Erc20
+		)
 	}
 }
 
@@ -1593,10 +1595,9 @@ impl pallet_bonds::Config for Runtime {
 	type ExistentialDeposits = AssetRegistry;
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
-	type IssueOrigin = EnsureSigned<AccountId>;
+	type IssueOrigin = EitherOf<EnsureRoot<Self::AccountId>, Treasurer>;
+	type IssuerAccount = TreasuryAccount;
 	type AssetTypeWhitelist = AssetTypeWhitelist;
-	type ProtocolFee = ProtocolFee;
-	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = weights::pallet_bonds::HydraWeight<Runtime>;
 }
 

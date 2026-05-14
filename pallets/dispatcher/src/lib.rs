@@ -381,7 +381,7 @@ pub mod pallet {
 			Ok(actual_weight.into())
 		}
 
-		#[pallet::call_index(6)]
+		#[pallet::call_index(7)]
 		#[pallet::weight({
 			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
