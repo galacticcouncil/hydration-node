@@ -979,3 +979,178 @@ fn on_finalize_clears_with_defensive_check() {
 			assert!(SlipFeeHubReserveAtBlockStart::<Test>::get(100).is_none());
 		});
 }
+
+// ========== Regression tests for buy-side slip-fee cap inversion (#1412) ==========
+//
+// Before the fix, `calculate_buy_state_changes` ignored `max_slip_fee` when
+// inverting buy-side slip and sell-side fees. When the cap fired, the inverse
+// produced a `delta_hub_reserve_in` inconsistent with the forward path, causing
+// the pool to be under-funded and the trade invariant
+// `delta_hub_reserve_in - total_protocol_fee >= D_net` to break.
+
+#[test]
+fn buy_should_deliver_exact_amount_when_slip_cap_fires() {
+	// Configure a very tight cap so it definitely fires for the trade below,
+	// then execute a buy and verify the buyer received exactly the requested amount.
+	let buy_amount = 50 * ONE;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP1, 100, 5000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			SlipFee::<Test>::put(SlipFeeConfig {
+				max_slip_fee: Permill::from_parts(1000), // 0.1% cap — definitely fires
+			});
+
+			let lp1_hdx_before = Tokens::free_balance(HDX, &LP1);
+			let lp1_token100_before = Tokens::free_balance(100, &LP1);
+
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP1),
+				HDX,
+				100,
+				buy_amount,
+				u128::MAX,
+			));
+
+			let lp1_hdx_after = Tokens::free_balance(HDX, &LP1);
+			let lp1_token100_after = Tokens::free_balance(100, &LP1);
+
+			// Buyer received exactly the requested amount of HDX
+			assert_eq!(
+				lp1_hdx_after - lp1_hdx_before,
+				buy_amount,
+				"buyer must receive exactly buy_amount HDX",
+			);
+			// Buyer's token-in balance decreased
+			assert!(
+				lp1_token100_after < lp1_token100_before,
+				"buyer's token 100 balance must decrease",
+			);
+		});
+}
+
+#[test]
+fn buy_with_cap_fired_should_match_math_layer_cost() {
+	// Compare on-chain buyer cost (token-in spent) to the math-layer prediction
+	// when the cap fires. Catches the originally-reported bug where the inverse
+	// returned a delta_hub_reserve_in inconsistent with the forward path.
+	let buy_amount = 50 * ONE;
+	let max_slip_fee = Permill::from_parts(1000); // 0.1%
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP1, 100, 5000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee });
+
+			// Snapshot state before trade
+			let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+			let token100_state = Omnipool::load_asset_state(100).unwrap();
+
+			let math_slip = hydra_dx_math::omnipool::types::TradeSlipFees {
+				asset_in_hub_reserve: token100_state.hub_reserve,
+				asset_in_delta: hydra_dx_math::omnipool::types::SignedBalance::zero(),
+				asset_out_hub_reserve: hdx_state.hub_reserve,
+				asset_out_delta: hydra_dx_math::omnipool::types::SignedBalance::zero(),
+				max_slip_fee,
+			};
+			let math_result = hydra_dx_math::omnipool::calculate_buy_state_changes(
+				&(&token100_state).into(),
+				&(&hdx_state).into(),
+				buy_amount,
+				Permill::zero(),
+				Permill::zero(),
+				Permill::zero(),
+				Some(&math_slip),
+			)
+			.expect("math layer must succeed in cap regime");
+			let expected_token_in_spent = *math_result.asset_in.delta_reserve;
+
+			let token100_before = Tokens::free_balance(100, &LP1);
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP1),
+				HDX,
+				100,
+				buy_amount,
+				u128::MAX,
+			));
+			let token100_after = Tokens::free_balance(100, &LP1);
+			let actual_token_in_spent = token100_before - token100_after;
+
+			assert_eq!(
+				actual_token_in_spent, expected_token_in_spent,
+				"on-chain spent must match math-layer prediction in cap regime: actual={actual_token_in_spent} math={expected_token_in_spent}",
+			);
+		});
+}
+
+#[test]
+fn buy_for_hub_asset_with_cap_fired_should_match_math_layer_cost() {
+	// Same as above but for the buy_for_hub_asset path (buying with LRNA directly).
+	// This path was also affected by the bug.
+	let buy_amount = 50 * ONE;
+	let max_slip_fee = Permill::from_parts(1000); // 0.1%
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, LRNA, 5000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee });
+
+			let token100_state = Omnipool::load_asset_state(100).unwrap();
+			let math_slip = hydra_dx_math::omnipool::types::HubTradeSlipFees {
+				asset_hub_reserve: token100_state.hub_reserve,
+				asset_delta: hydra_dx_math::omnipool::types::SignedBalance::zero(),
+				max_slip_fee,
+			};
+			let math_result = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
+				&(&token100_state).into(),
+				buy_amount,
+				Permill::zero(),
+				Some(&math_slip),
+			)
+			.expect("math layer must succeed in cap regime");
+			let expected_lrna_cost = *math_result.asset.delta_hub_reserve;
+
+			let lrna_before = Tokens::free_balance(LRNA, &LP3);
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP3),
+				100,
+				LRNA,
+				buy_amount,
+				u128::MAX,
+			));
+			let lrna_after = Tokens::free_balance(LRNA, &LP3);
+			let actual_lrna_cost = lrna_before - lrna_after;
+
+			assert_eq!(
+				actual_lrna_cost, expected_lrna_cost,
+				"on-chain LRNA cost must match math-layer prediction in cap regime: actual={actual_lrna_cost} math={expected_lrna_cost}",
+			);
+		});
+}

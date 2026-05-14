@@ -449,3 +449,99 @@ fn sequential_trades_accumulate_slip_within_block() {
 		no_slip_drop
 	);
 }
+
+// ============================================================
+// Regression tests for buy-side slip-fee cap inversion (#1412).
+//
+// Before the fix, when `max_slip_fee` was binding the inverse path of
+// `calculate_buy_state_changes` ignored the cap, producing an inconsistent
+// `delta_hub_reserve_in`. End-to-end this would have caused the trade to
+// fail or leave the pool slightly under-funded.
+// ============================================================
+
+#[test]
+fn buy_succeeds_when_slip_cap_is_binding() {
+	let buy_amount = 100 * UNITS;
+	// Tight cap to force the binding regime even for moderate trades.
+	let tight_cap = Permill::from_parts(1000); // 0.1%
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		init_omnipool();
+		assert_ok!(Omnipool::set_slip_fee(
+			RuntimeOrigin::root(),
+			Some(SlipFeeConfig {
+				max_slip_fee: tight_cap
+			}),
+		));
+
+		let trader = AccountId::from(BOB);
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			trader.clone(),
+			DAI,
+			(10_000_000 * UNITS) as i128,
+		));
+
+		let dai_before = Currencies::free_balance(DAI, &trader);
+		let hdx_before = Currencies::free_balance(HDX, &trader);
+
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(trader.clone()),
+			HDX,
+			DAI,
+			buy_amount,
+			u128::MAX,
+		));
+
+		// Buyer received exactly the requested HDX
+		let hdx_received = Currencies::free_balance(HDX, &trader) - hdx_before;
+		assert_eq!(hdx_received, buy_amount, "buyer must receive exactly buy_amount HDX");
+
+		// Buyer's DAI balance decreased
+		let dai_spent = dai_before - Currencies::free_balance(DAI, &trader);
+		assert!(dai_spent > 0, "buyer must spend DAI");
+	});
+}
+
+#[test]
+fn buy_with_lrna_succeeds_when_slip_cap_is_binding() {
+	let buy_amount = 100 * UNITS;
+	let tight_cap = Permill::from_parts(1000); // 0.1%
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		init_omnipool();
+		assert_ok!(Omnipool::set_slip_fee(
+			RuntimeOrigin::root(),
+			Some(SlipFeeConfig {
+				max_slip_fee: tight_cap
+			}),
+		));
+
+		let trader = AccountId::from(BOB);
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			trader.clone(),
+			LRNA,
+			(1_000_000 * UNITS) as i128,
+		));
+
+		let lrna_before = Currencies::free_balance(LRNA, &trader);
+		let dai_before = Currencies::free_balance(DAI, &trader);
+
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(trader.clone()),
+			DAI,
+			LRNA,
+			buy_amount,
+			u128::MAX,
+		));
+
+		let dai_received = Currencies::free_balance(DAI, &trader) - dai_before;
+		assert_eq!(dai_received, buy_amount, "buyer must receive exactly buy_amount DAI");
+
+		let lrna_spent = lrna_before - Currencies::free_balance(LRNA, &trader);
+		assert!(lrna_spent > 0, "buyer must spend LRNA");
+	});
+}

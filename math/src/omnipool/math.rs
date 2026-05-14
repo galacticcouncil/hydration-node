@@ -218,7 +218,7 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 
 	// Invert buy-side slip to find how much hub asset the user must provide
 	let slip_buy_amount = if let Some(slip) = slip {
-		let d_gross = invert_buy_side_slip(d_net, slip.asset_hub_reserve, slip.asset_delta)?;
+		let d_gross = invert_buy_side_slip(d_net, slip.asset_hub_reserve, slip.asset_delta, slip.max_slip_fee)?;
 		d_gross.checked_sub(d_net)?
 	} else {
 		0
@@ -277,14 +277,25 @@ pub fn calculate_buy_state_changes(
 
 	// Step 2: Invert buy-side slip to find D_gross from D_net
 	let d_gross = if let Some(slip) = slip {
-		invert_buy_side_slip(d_net, slip.asset_out_hub_reserve, slip.asset_out_delta)?
+		invert_buy_side_slip(
+			d_net,
+			slip.asset_out_hub_reserve,
+			slip.asset_out_delta,
+			slip.max_slip_fee,
+		)?
 	} else {
 		d_net
 	};
 
 	// Step 3: Invert sell-side fees (protocol_fee + sell slip) to find delta_hub_reserve_in
 	let delta_hub_reserve_in = if let Some(slip) = slip {
-		invert_sell_side_fees(d_gross, protocol_fee, slip.asset_in_hub_reserve, slip.asset_in_delta)?
+		invert_sell_side_fees(
+			d_gross,
+			protocol_fee,
+			slip.asset_in_hub_reserve,
+			slip.asset_in_delta,
+			slip.max_slip_fee,
+		)?
 	} else {
 		// No slip — original inversion
 		FixedU128::from_inner(d_net)
