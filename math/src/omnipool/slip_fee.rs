@@ -40,7 +40,7 @@ pub fn calculate_slip_fee_amount(
 
 	let abs_cumulative = cumulative.abs();
 
-	if slip_cap_fires_for(abs_cumulative, denom, max_slip_fee)? {
+	if slip_rate_exceeds_cap(abs_cumulative, denom, max_slip_fee)? {
 		Some(max_slip_fee.mul_floor(base_amount))
 	} else {
 		let amount_hp = U256::from(abs_cumulative)
@@ -52,7 +52,7 @@ pub fn calculate_slip_fee_amount(
 
 /// Returns `true` iff `|cumulative| * 10^6 > max_parts * denom`,
 /// the same threshold `calculate_slip_fee_amount` uses to switch to the capped formula.
-fn slip_cap_fires_for(abs_cumulative: Balance, denom: Balance, max_slip_fee: Permill) -> Option<bool> {
+fn slip_rate_exceeds_cap(abs_cumulative: Balance, denom: Balance, max_slip_fee: Permill) -> Option<bool> {
 	if denom == 0 || abs_cumulative == 0 {
 		return Some(false);
 	}
@@ -62,7 +62,7 @@ fn slip_cap_fires_for(abs_cumulative: Balance, denom: Balance, max_slip_fee: Per
 	Some(lhs > rhs)
 }
 
-fn slip_cap_fires(
+fn slip_rate_exceeds_cap_from_state(
 	hub_reserve_at_block_start: Balance,
 	prior_delta: SignedBalance,
 	delta_q: SignedBalance,
@@ -70,7 +70,7 @@ fn slip_cap_fires(
 ) -> Option<bool> {
 	let cumulative = prior_delta.checked_add(delta_q)?;
 	let denom = cumulative.add_to_unsigned(hub_reserve_at_block_start)?;
-	slip_cap_fires_for(cumulative.abs(), denom, max_slip_fee)
+	slip_rate_exceeds_cap(cumulative.abs(), denom, max_slip_fee)
 }
 
 /// Invert buy-side slip fee: given `D_net` (hub asset entering buy pool after slip),
@@ -90,7 +90,7 @@ pub(crate) fn invert_buy_side_slip(
 	// Uncapped inverse may have no real root for very large trades — in that case
 	// the cap is necessarily binding and we fall through to the capped formula.
 	if let Some(d_gross_uncapped) = invert_buy_side_slip_uncapped(d_net, l, c) {
-		if !slip_cap_fires(l, c, SignedBalance::Positive(d_gross_uncapped), max_slip_fee)? {
+		if !slip_rate_exceeds_cap_from_state(l, c, SignedBalance::Positive(d_gross_uncapped), max_slip_fee)? {
 			return Some(d_gross_uncapped);
 		}
 	}
@@ -185,7 +185,7 @@ pub(crate) fn invert_sell_side_fees(
 	max_slip_fee: Permill,
 ) -> Option<Balance> {
 	if let Some(u_uncapped) = invert_sell_side_fees_uncapped(d_gross, protocol_fee, l, c) {
-		if !slip_cap_fires(l, c, SignedBalance::Negative(u_uncapped), max_slip_fee)? {
+		if !slip_rate_exceeds_cap_from_state(l, c, SignedBalance::Negative(u_uncapped), max_slip_fee)? {
 			return Some(u_uncapped);
 		}
 	}

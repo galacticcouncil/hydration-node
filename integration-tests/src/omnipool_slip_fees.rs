@@ -450,8 +450,6 @@ fn sequential_trades_accumulate_slip_within_block() {
 	);
 }
 
-// Regression tests for buy-side slip-fee cap inversion (#1412).
-
 #[test]
 fn buy_succeeds_when_slip_cap_is_binding() {
 	let buy_amount = 100 * UNITS;
