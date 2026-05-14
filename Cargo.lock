@@ -5779,7 +5779,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "420.0.0"
+version = "422.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -8868,7 +8868,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-bonds"
-version = "2.4.0"
+version = "3.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9234,7 +9234,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispatcher"
-version = "1.7.3"
+version = "1.7.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10493,13 +10493,12 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.12.0"
+version = "2.12.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hydra-dx-math",
- "hydradx-adapters",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -13868,7 +13867,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.82.0"
+version = "1.84.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",

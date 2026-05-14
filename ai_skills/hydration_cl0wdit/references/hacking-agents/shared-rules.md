@@ -7,6 +7,8 @@ Your bundle has two sections:
 1. **Core source** (inline) — read in parallel chunks (offset + limit), compute offsets from the line count in your prompt.
 2. **Peripheral file manifest** — file paths under `# Peripheral Files (read on demand)`. Read only those relevant to your specialty.
 
+If your environment does not have a `Read` tool with offset/limit parameters, use the closest bounded file-read equivalent, such as `sed -n '<start>,<end>p'`, and parallelize those bounded reads when possible.
+
 When matching function names, check both public dispatchables (`#[pallet::call]`), hooks (`on_initialize`, `on_finalize`, `on_idle`, `on_runtime_upgrade`), and internal helpers they call.
 
 ## Cross-pallet patterns

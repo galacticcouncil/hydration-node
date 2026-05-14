@@ -7,6 +7,20 @@ For Hydration protocol-level context (architecture, products, tokenomics, Omnipo
 
 It lists available reference documents and their raw GitHub URLs.
 
+## Shared AI skills
+
+Repo-local AI skills live in `ai_skills/` so they can be used by multiple coding
+agents, not only Claude.
+
+When the user invokes a skill by name, or the task clearly matches a skill
+description, load the corresponding `ai_skills/<skill-name>/SKILL.md` file and
+follow its instructions. Resolve any relative paths in a skill from that skill's
+directory.
+
+Available shared skills:
+- `hydration_cl0wdit` - security audit workflow for Substrate runtime and pallet
+  code.
+
 ## Project overview
 
 Substrate-based parachain (Polkadot ecosystem) implementing DeFi protocols — DEX (Omnipool, Stableswap, XYK, LBP), DCA, OTC, bonds, staking, governance, and EVM compatibility.
