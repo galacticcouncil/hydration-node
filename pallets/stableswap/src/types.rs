@@ -3,21 +3,25 @@
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-use crate::{Config, Pallet, MAX_ASSETS_IN_POOL};
-use sp_runtime::Permill;
+use crate::{Config, Pallet, PoolPegs, MAX_ASSETS_IN_POOL};
+use sp_runtime::{Perbill, Permill};
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
+use hydradx_traits::stableswap::AssetAmount;
+use hydradx_traits::{OraclePeriod, Source};
 use orml_traits::MultiCurrency;
+use primitives::EvmAddress;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
 use sp_runtime::DispatchResult;
+
 pub(crate) type Balance = u128;
 
 /// Pool properties for 2-asset pool (v1)
@@ -76,7 +80,7 @@ where
 
 bitflags::bitflags! {
 	/// Indicates whether asset can be bought or sold to/from Omnipool and/or liquidity added/removed.
-	#[derive(Encode,Decode, MaxEncodedLen, TypeInfo)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, TypeInfo)]
 	pub struct Tradability: u8 {
 		/// Asset is frozen. No operations are allowed.
 		const FROZEN = 0b0000_0000;
@@ -100,6 +104,8 @@ impl Default for Tradability {
 #[cfg(feature = "runtime-benchmarks")]
 pub trait BenchmarkHelper<AssetId> {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult;
+	fn set_deposit_limit(asset_id: AssetId, limit: u128) -> DispatchResult;
+	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult;
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -142,5 +148,87 @@ impl<AssetId> StableswapHooks<AssetId> for () {
 
 	fn on_trade_weight(_n: usize) -> Weight {
 		Weight::zero()
+	}
+}
+
+pub type PegType = (Balance, Balance);
+
+pub type BoundedPegs = BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>;
+
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum PegSource<AssetId = ()> {
+	Value(PegType),
+	Oracle((Source, OraclePeriod, AssetId)),
+	MMOracle(EvmAddress),
+}
+
+pub type BoundedPegSources<AssetId> = BoundedVec<PegSource<AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>;
+
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct PoolPegInfo<BlockNumber, AssetId = ()> {
+	pub source: BoundedPegSources<AssetId>,
+	pub updated_at: BlockNumber,
+	pub max_peg_update: Perbill,
+	pub current: BoundedPegs,
+}
+
+impl<BlockNumber, AssetId> PoolPegInfo<BlockNumber, AssetId> {
+	pub fn with_new_pegs(self, pegs: &[PegType], at: BlockNumber) -> Self {
+		debug_assert_eq!(self.current.len(), pegs.len(), "Invalid pegs length");
+		PoolPegInfo {
+			source: self.source,
+			updated_at: at,
+			max_peg_update: self.max_peg_update,
+			current: BoundedPegs::truncate_from(pegs.to_vec()),
+		}
+	}
+}
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct PoolSnapshot<AssetId> {
+	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
+	pub reserves: BoundedVec<AssetReserve, ConstU32<MAX_ASSETS_IN_POOL>>,
+	pub amplification: u128,
+	pub fee: Permill,
+	pub block_fee: Permill,
+	pub pegs: BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>,
+	pub share_issuance: Balance,
+}
+
+impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
+	pub fn asset_idx(&self, asset_id: AssetId) -> Option<usize> {
+		self.assets.iter().position(|&asset| asset == asset_id)
+	}
+
+	// Safe retrieval of asset decimals info - we like to be on the safe side.
+	pub fn asset_decimals_at(&self, idx: usize) -> Option<u8> {
+		self.reserves.get(idx).map(|reserve| reserve.decimals)
+	}
+
+	pub fn asset_reserve_at(&self, idx: usize) -> Option<Balance> {
+		self.reserves.get(idx).map(|reserve| reserve.amount)
+	}
+
+	pub fn has_peg_source_set<T: Config>(&self, pool_id: T::AssetId) -> bool {
+		PoolPegs::<T>::get(pool_id).is_some()
+	}
+
+	pub fn update_reserves(mut self, amount_in: AssetAmount<AssetId>, amount_out: AssetAmount<AssetId>) -> Self {
+		let Some(asset_in_idx) = self.asset_idx(amount_in.asset_id) else {
+			return self;
+		};
+
+		let Some(asset_out_idx) = self.asset_idx(amount_out.asset_id) else {
+			return self;
+		};
+		let Some(a) = self.reserves.get_mut(asset_in_idx) else {
+			return self;
+		};
+		*a = a.saturating_add(amount_in.amount);
+		let Some(b) = self.reserves.get_mut(asset_out_idx) else {
+			return self;
+		};
+		*b = b.saturating_sub(amount_out.amount);
+		self
 	}
 }

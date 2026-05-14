@@ -1,18 +1,24 @@
 const fs = require('fs');
-const { TypeRegistry } = require('@polkadot/types');
-const { hexToU8a, u8aToHex } = require('@polkadot/util');
+const {TypeRegistry} = require('@polkadot/types');
+const {hexToU8a, u8aToHex} = require('@polkadot/util');
+const { xxhashAsHex } = require('@polkadot/util-crypto');
 
 // Define network names
-const NEW_NAME = "Hydration Local Testnet";
-const NEW_ID = "local_testnet";
+const NEW_NAME = process.env.CHAIN_NAME || "Hydration Local Testnet";
+const NEW_ID = process.env.CHAIN_ID || "local_testnet";
 const NEW_RELAY_CHAIN = "rococo_local_testnet";
 
 // Define replacement values
 const AURA_AUTHORITIES_VALUE = "0x08be4f21c56d926b91f020b5071f14935cb93f001f1127c53d3eac6eed23ffea64dc4d79aad5a9d01a359995838830a80733a0bff7e4eb087bfc621ef1873fec49";
 const COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE = "0x04d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d";
-const SYSTEM_ACCOUNT_VALUE = "0x000000000000000003000000000000000000e8890423c78a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080";
+const SYSTEM_ACCOUNT_VALUE = "0x00000000000000000100000000000000ba31bc09df123864f700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
 async function updateChainSpec(inputFile, outputFile) {
+    if (fs.existsSync(outputFile)) {
+        console.log(`Output file ${outputFile} already exists, skipping processing...`);
+        return;
+    }
+
     console.log('Starting the chain spec update script...');
     let chainSpec;
     try {
@@ -25,38 +31,110 @@ async function updateChainSpec(inputFile, outputFile) {
     // Create a new registry with custom types
     const registry = new TypeRegistry();
     registry.register({
+        HydraDxMathRatio: {
+            n: 'u128',
+            d: 'u128',
+        },
+        HydradxTraitsOracleVolume: {
+            aIn: 'u128',
+            bOut: 'u128',
+            aOut: 'u128',
+            bIn: 'u128',
+        },
+        HydradxTraitsOracleLiquidity: {
+            a: 'u128',
+            b: 'u128',
+        },
         EmaOracleEntry: {
-            price: {
-                n: 'u128',
-                d: 'u128',
-            },
-            volume: {
-                aIn: 'u128',
-                bOut: 'u128',
-                aOut: 'u128',
-                bIn: 'u128',
-            },
-            liquidity: {
-                a: 'u128',
-                b: 'u128',
-            },
-            updatedAt: 'u64',
+            price: 'HydraDxMathRatio',
+            volume: 'HydradxTraitsOracleVolume',
+            liquidity: 'HydradxTraitsOracleLiquidity',
+            sharesIssuance: 'Option<u128>',
+            updatedAt: 'u32',
+        },
+        OracleValue: '(EmaOracleEntry, u32)',
+        PalletLiquidityMiningFarmState: {
+            _enum: ['Active', 'Terminated']
+        },
+        Perquintill: 'u64',
+        FixedU128: 'u128',
+        AccountId32: '[u8; 32]',
+        PalletLiquidityMiningGlobalFarmData: {
+            id: 'u32',
+            owner: 'AccountId32',
+            updatedAt: 'u32',
+            totalSharesZ: 'u128',
+            accumulatedRpz: 'FixedU128',
+            rewardCurrency: 'u32',
+            pendingRewards: 'u128',
+            accumulatedPaidRewards: 'u128',
+            yieldPerPeriod: 'Perquintill',
+            plannedYieldingPeriods: 'u32',
+            blocksPerPeriod: 'u32',
+            incentivizedAsset: 'u32',
+            maxRewardPerPeriod: 'u128',
+            minDeposit: 'u128',
+            liveYieldFarmsCount: 'u32',
+            totalYieldFarmsCount: 'u32',
+            priceAdjustment: 'FixedU128',
+            state: 'PalletLiquidityMiningFarmState'
+        },
+        PalletLiquidityMiningLoyaltyCurve: {
+            initialRewardPercentage: 'FixedU128',
+            scaleCoef: 'u32',
+        },
+        PalletLiquidityMiningYieldFarmData: {
+            id: 'u32',
+            updatedAt: 'u32',
+            totalShares: 'u128',
+            totalValuedShares: 'u128',
+            accumulatedRpvs: 'FixedU128',
+            accumulatedRpz: 'FixedU128',
+            loyaltyCurve: 'Option<PalletLiquidityMiningLoyaltyCurve>',
+            multiplier: 'FixedU128',
+            state: 'PalletLiquidityMiningFarmState',
+            entriesCount: 'u64',
+            leftToDistribute: 'u128',
+            totalStopped: 'u32',
         },
     });
 
+    const governance = process.env.KEEP_GOVERNANCE ? {} : {
+        "0xaebd463ed9925c488c112434d61debc0ba7fb8745735dc3be2a2c61a72c39e78": COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE, // Council.members
+        "0xed25f63942de25ac5253ba64b5eb64d1ba7fb8745735dc3be2a2c61a72c39e78": COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE, // TechnicalCommittee.members
+    }
+
+    const deployer = process.env.NO_DEPLOYER ? {} : {
+        // EvmAccounts.ContractDeployer - allows deploying contracts
+        "0x2c2b3fbb4fc221c42de8259db454678f7c36c2657df4391d8b829a0c1347bd1ef065818ad972112ab4e06ea85b354e36222222ff7be76052e023ec1a306fcca8f9659d80": "0x", // ContractDeployer 0x222222ff7Be76052e023Ec1a306fCca8F9659D80
+        // EvmAccounts.ApprovedContract - allows managing balances/tokens
+        "0x2c2b3fbb4fc221c42de8259db454678fe74405d2678f6b81824443771f6fa86af065818ad972112ab4e06ea85b354e36222222ff7be76052e023ec1a306fcca8f9659d80": "0x", // ApprovedContract 0x222222ff7Be76052e023Ec1a306fCca8F9659D80
+        // System account balance for 0x222222
+        "0x99971b5749ac43e0235e41b0d37869188ee7418a6531173d60d1f6a82d8f4d5173d3a4140c3587d7bc56f1a1c01a1c5e45544800222222ff7be76052e023ec1a306fcca8f9659d8000000000000000001f0e76f06ebd150314000000": "0x000064a7b3b6e00d00000000000000000000000000000000000000000000000000000000000000000000000000000000", // 1 ETH for 0x222222
+    }
+
     // Define replacements
     const REPLACEMENTS = {
+        "0x0d715f2646c8f85767b5d2764bb2782604a74d81251e398fd8a0a4d55023bb3f": "0xf2070000", // parachainInfo.parachainId = 2034
         "0x57f8dc2f5ab09467896f47300f0424385e0621c4869aa60c02be9adcc98a0d1d": AURA_AUTHORITIES_VALUE, // aura.authorities
         "0x3c311d57d4daf52904616cf69648081e5e0621c4869aa60c02be9adcc98a0d1d": AURA_AUTHORITIES_VALUE, // auraExt.authorities
         "0xcec5070d609dd3497f72bde07fc96ba088dcde934c658227ee1dfafcd6e16903": AURA_AUTHORITIES_VALUE, // Session validators
         "0x15464cac3378d46f113cd5b7a4d71c845579297f4dfb9609e7e4c2ebab9ce40a": AURA_AUTHORITIES_VALUE, // CollatorSelection.invulnerables
-        "0xaebd463ed9925c488c112434d61debc0ba7fb8745735dc3be2a2c61a72c39e78": COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE, // Council.members
-        "0xed25f63942de25ac5253ba64b5eb64d1ba7fb8745735dc3be2a2c61a72c39e78": COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE, // TechnicalCommittee.members
+        ...governance,
         "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9de1e86a9a8c739864cf3cc5ec2bea59fd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d": SYSTEM_ACCOUNT_VALUE, // System account
+        ...deployer,
     };
+
+    // Set Configuration.IsTestnet to 1
+    const IS_TESTNET_KEY =
+        xxhashAsHex('Parameters', 128).replace('0x', '') +
+        xxhashAsHex('IsTestnet', 128).replace('0x', '');
+    REPLACEMENTS[`0x${IS_TESTNET_KEY}`] = '0x01';
 
     // Define keys to delete
     const KEYS_TO_DELETE = [
+        "0x26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac", // System.Number
+        "0x26aa394eea5630e07c48ae0c9558cef799e354094e5f3f9eddda2206fb22e261", // System.ParentHash
         "0x45323df7cc47150b3930e2666b0aa313911a5dd3f1155f5b7d0c5aa102a757f9", // ParachainSystem.lastDmqMqcHead
         "0x45323df7cc47150b3930e2666b0aa3133dca42deb008c6559ee789c9b9f70a2c", // ParachainSystem.lastHrmpMqcHeads
         "0x45323df7cc47150b3930e2666b0aa313a2bca190d36bd834cc73a38fc213ecbd", // ParachainSystem.lastRelayChainBlockNumber
@@ -72,14 +150,11 @@ async function updateChainSpec(inputFile, outputFile) {
     // Define prefixes to delete
     const PREFIXES_TO_DELETE = [
         "0x7cda3cfa86b349fdafce4979b197118f71cd3068e6118bfb392b798317f63a89", // Elections.voting
-        "0x5258a12472693b34a3ed25509781e55fb79", // emaOracle.accumulator
+        "0x5258a12472693b34a3ed25509781e55f3ffefddfbe00a43e565ba6114d1589ea", // emaOracle.accumulator
         "0xcec5070d609dd3497f72bde07fc96ba04c014e6bf8b8c2c011e7290b85696bb3", // Session.nextKeys
     ];
 
-    // Process deletions
-    KEYS_TO_DELETE.forEach((key) => {
-        delete chainSpec.genesis.raw.top[key];
-    });
+    KEYS_TO_DELETE.forEach((key) => delete chainSpec.genesis.raw.top[key]);
 
     // Process prefix-based deletions
     for (const prefix of PREFIXES_TO_DELETE) {
@@ -91,34 +166,87 @@ async function updateChainSpec(inputFile, outputFile) {
     }
 
     // Process EmaOracleEntry updates
-    console.log('Processing EmaOracleEntry updates...');
+    console.log('Processing EmaOracleEntry & GlobalFarm updates...');
     for (const [key, value] of Object.entries(chainSpec.genesis.raw.top)) {
-        if (key.startsWith("0x5258a12472693b34a3ed25509781e55fb79")) { // Prefix for EmaOracle.Oracles
+        if (key.startsWith("0x5258a12472693b34a3ed25509781e55fb79")) {
             try {
-                const decodedValue = registry.createType('EmaOracleEntry', hexToU8a(value));
-                if (decodedValue.updatedAt !== undefined) {
-                    decodedValue.updatedAt = 0; // Set updatedAt to 0
-                    chainSpec.genesis.raw.top[key] = u8aToHex(decodedValue.toU8a());
-                }
+                const originalBytes = hexToU8a(value);
+
+                // ✅ Decode as (EmaOracleEntry, u32) tuple
+                const decoded = registry.createType('(EmaOracleEntry, u32)', originalBytes);
+
+                const [entry, _blockNumber] = decoded;
+
+                console.log(`🔍 Key: ${key}`);
+                //console.log(`🔍 entry (human):`, entry.toHuman());
+                //console.log(`🔍 blockNumber (u32):`, blockNumber.toHuman());
+
+                entry.set('updatedAt', registry.createType('u32', 0));
+
+                // Update: reset blockNumber to 0
+                const updated = registry.createType('(EmaOracleEntry, u32)', [entry, 0]);
+                const reEncodedBytes = updated.toU8a();
+
+                chainSpec.genesis.raw.top[key] = u8aToHex(reEncodedBytes);
+
+                console.log(`✅ Updated ${key} → blockNumber reset to 0`);
             } catch (err) {
-                console.error(`Error processing EmaOracleEntry for key ${key}:`, err);
+                console.error(`❌ Error processing oracle key ${key}:`, err);
+            }
+        } else if (key.startsWith("0xa1a851f6ddab88c23c6615f42a0062df8d84255c07d18453a739a171ac5cf629") || key.startsWith("0xae438efb85a5af0e340133650eccd7638d84255c07d18453a739a171ac5cf629")) {
+            //NOTE: update omnipool's and xyk's LM global farms
+            try {
+                const decoded = registry.createType('PalletLiquidityMiningGlobalFarmData', hexToU8a(value));
+                const json = decoded.toJSON();
+                json.updatedAt = 0;
+                const updated = registry.createType('PalletLiquidityMiningGlobalFarmData', json);
+                chainSpec.genesis.raw.top[key] = u8aToHex(updated.toU8a());
+            } catch (err) {
+                console.error(`Error processing globalFarm for key ${key}:`, err);
+            }
+        } else if (key.startsWith("0xa1a851f6ddab88c23c6615f42a0062df7e1045c712fe23a3e89096e70b7ea444") || key.startsWith("0xae438efb85a5af0e340133650eccd7637e1045c712fe23a3e89096e70b7ea444")) {
+            //NOTE: update omnipool's and xyk's LM yield farms
+            try {
+                const decoded = registry.createType('PalletLiquidityMiningYieldFarmData', hexToU8a(value));
+                const json = decoded.toJSON();
+                json.updatedAt = 0;
+                const updated = registry.createType('PalletLiquidityMiningYieldFarmData', json);
+                chainSpec.genesis.raw.top[key] = u8aToHex(updated.toU8a());
+            } catch (err) {
+                console.error(`Error processing yeildFarm for key ${key}:`, err);
             }
         }
     }
 
-    // Apply replacements
     for (const [key, value] of Object.entries(REPLACEMENTS)) {
         chainSpec.genesis.raw.top[key] = value;
+    }
+
+    // Optional: preauthorize a runtime upgrade so the fork comes up with
+    // System.AuthorizedUpgrade populated. A single system.applyAuthorizedUpgrade(code)
+    // call is then enough to enact the new wasm — no governance step required.
+    if (process.env.AUTHORIZE_UPGRADE_CODE_HASH) {
+        const raw = process.env.AUTHORIZE_UPGRADE_CODE_HASH.toLowerCase().replace(/^0x/, '');
+        if (!/^[0-9a-f]{64}$/.test(raw)) {
+            throw new Error(`AUTHORIZE_UPGRADE_CODE_HASH must be a 0x-prefixed 32-byte hex string, got: ${process.env.AUTHORIZE_UPGRADE_CODE_HASH}`);
+        }
+        const checkVersion = process.env.AUTHORIZE_UPGRADE_CHECK_VERSION === 'false' ? '00' : '01';
+        const key = '0x' +
+            xxhashAsHex('System', 128).replace('0x', '') +
+            xxhashAsHex('AuthorizedUpgrade', 128).replace('0x', '');
+        chainSpec.genesis.raw.top[key] = '0x' + raw + checkVersion;
+        console.log(`✅ Preauthorized runtime upgrade: code_hash=0x${raw} check_version=${checkVersion === '01'}`);
     }
 
     // Update metadata fields
     chainSpec.name = NEW_NAME;
     chainSpec.id = NEW_ID;
     chainSpec.relay_chain = NEW_RELAY_CHAIN;
+    chainSpec.para_id = 2034;
 
     // Save the updated chain spec
     try {
-        fs.writeFileSync(outputFile, JSON.stringify(chainSpec, null, 4));
+        fs.writeFileSync(outputFile, JSON.stringify(chainSpec));
         console.log(`Chain spec updated successfully and saved to ${outputFile}`);
     } catch (err) {
         console.error('Error writing the updated chain spec file:', err);

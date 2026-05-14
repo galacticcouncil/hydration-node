@@ -17,7 +17,7 @@ use frame_system::RawOrigin;
 use hydradx_traits::router::{PoolType, TradeExecution};
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use pallet_omnipool::types::Tradability;
+use pallet_omnipool::types::{SlipFeeConfig, Tradability};
 use pallet_referrals::ReferralCode;
 
 pub fn update_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
@@ -52,6 +52,7 @@ fn next_block() {
 }
 
 const HDX: AssetId = 0;
+const LRNA: AssetId = 1;
 const DAI: AssetId = 2;
 
 pub fn init() -> DispatchResult {
@@ -105,6 +106,7 @@ runtime_benchmarks! {
 		update_balance(token_id, &acc, token_amount);
 
 		let current_position_id = Omnipool::next_position_id();
+		update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to wrost case
 
 	}: { Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price,Permill::from_percent(100), owner)? }
 	verify {
@@ -114,6 +116,7 @@ runtime_benchmarks! {
 
 	add_liquidity {
 		init()?;
+
 		let acc = Omnipool::protocol_account();
 		//Register new asset in asset registry
 		let token_id = register_asset(b"FCK".to_vec(), Balance::one()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
@@ -138,6 +141,8 @@ runtime_benchmarks! {
 		let current_position_id = Omnipool::next_position_id();
 
 		run_to_block(10);
+		update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to wrost case
+
 	}: { Omnipool::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)? }
 	verify {
 		assert!(Omnipool::positions(current_position_id).is_some());
@@ -188,8 +193,89 @@ runtime_benchmarks! {
 		assert!(hub_issuance_after < hub_issuance);
 	}
 
+	add_all_liquidity {
+		init()?;
+
+		let acc = Omnipool::protocol_account();
+		// Register new asset in asset registry
+		let token_id = register_asset(b"FCK".to_vec(), Balance::one()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		// Create account for token provider and set balance
+		let owner: AccountId = account("owner", 0, 1);
+
+		let token_price = FixedU128::from((1,5));
+		let token_amount = 200_000_000_000_000u128;
+
+		update_balance(token_id, &acc, token_amount);
+
+		// Add the token to the pool
+		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner)?;
+
+		// LP balance must stay within the circuit-breaker's per-block add-liquidity limit
+		// (5% of pool reserve). Pool reserve = token_amount = 200_000_000_000_000,
+		// 5% = 10_000_000_000_000. We use 5_000_000_000_000 (~2.5% of pool).
+		let lp_provider: AccountId = account("provider", 1, 1);
+		let lp_total = 5_000_000_000_000u128;
+		update_balance(token_id, &lp_provider, lp_total);
+
+		let current_position_id = Omnipool::next_position_id();
+
+		run_to_block(10);
+		update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
+
+	}: { Omnipool::add_all_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, Balance::zero())? }
+	verify {
+		assert!(Omnipool::positions(current_position_id).is_some());
+	}
+
+	remove_all_liquidity {
+		init()?;
+		let acc = Omnipool::protocol_account();
+		// Register new asset in asset registry
+		let token_id = register_asset(b"FCK".to_vec(), 1_u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		// Create account for token provider and set balance
+		let owner: AccountId = account("owner", 0, 1);
+
+		let token_price = FixedU128::from((1,5));
+		let token_amount = 200_000_000_000_000_u128;
+
+		update_balance(token_id, &acc, token_amount);
+
+		// Add the token to the pool
+		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner)?;
+
+		// Create LP provider account with correct balance and add some liquidity
+		let lp_provider: AccountId = account("provider", 1, 1);
+		update_balance(token_id, &lp_provider, 500_000_000_000_000);
+
+		let liquidity_added = 1_000_000_000_000_u128;
+
+		let current_position_id = Omnipool::next_position_id();
+
+		run_to_block(10);
+		Omnipool::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(), token_id, liquidity_added)?;
+
+		// to ensure worst case - Let's do a trade to make sure price changes, so LP provider receives some LRNA ( which does additional transfer)
+		let buyer: AccountId = account("buyer", 2, 1);
+		update_balance(DAI, &buyer, 500_000_000_000_000_u128);
+		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, DAI, 100_000_000_000_u128, 100_000_000_000_000_u128)?;
+
+		let hub_id = <Runtime as pallet_omnipool::Config>::HubAssetId::get();
+		let hub_issuance = <Runtime as pallet_omnipool::Config>::Currency::total_issuance(hub_id);
+	}: {Omnipool::remove_all_liquidity(RawOrigin::Signed(lp_provider.clone()).into(), current_position_id, 0u128)? }
+	verify {
+		// Ensure NFT instance was burned
+		assert!(Omnipool::positions(current_position_id).is_none());
+
+		// Ensure LRNA was burned
+		let hub_issuance_after  = <Runtime as pallet_omnipool::Config>::Currency::total_issuance(hub_id);
+		assert!(hub_issuance_after < hub_issuance);
+	}
+
 	sell {
 		init()?;
+
 		let acc = Omnipool::protocol_account();
 		// Register new asset in asset registry
 		let token_id = register_asset(b"FCK".to_vec(), 1_u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
@@ -231,6 +317,7 @@ runtime_benchmarks! {
 		let code = ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"MYCODE".to_vec());
 		Referrals::register_code(RawOrigin::Signed(owner).into(), code.clone())?;
 		Referrals::link_code(RawOrigin::Signed(seller.clone()).into(), code)?;
+
 	}: { Omnipool::sell(RawOrigin::Signed(seller.clone()).into(), token_id, DAI, amount_sell, buy_min_amount)? }
 	verify {
 		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(DAI, &seller) >= buy_min_amount);
@@ -342,6 +429,12 @@ runtime_benchmarks! {
 	verify {
 		let asset_state = Omnipool::assets(DAI).unwrap();
 		assert!(asset_state.cap == 100_000_000_000_000_000u128);
+	}
+
+	set_slip_fee {
+	}: { Omnipool::set_slip_fee(RawOrigin::Root.into(), Some(SlipFeeConfig { max_slip_fee: Permill::from_percent(50) }))? }
+	verify {
+		assert!(pallet_omnipool::SlipFee::<Runtime>::get().is_some());
 	}
 
 	withdraw_protocol_liquidity {
@@ -460,7 +553,7 @@ runtime_benchmarks! {
 		let buy_min_amount = 10_000_000_000_u128;
 
 	}: {
-		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_sell(PoolType::Omnipool, token_id, DAI, amount_sell).is_ok());
+		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_out_given_in(PoolType::Omnipool, token_id, DAI, amount_sell).is_ok());
 		if e != 0 {
 			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(seller.clone()).into(), PoolType::Omnipool, token_id, DAI, amount_sell, buy_min_amount).is_ok());
 		}
@@ -514,7 +607,7 @@ runtime_benchmarks! {
 
 	}: {
 		for _ in 1..c {
-			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_buy(PoolType::Omnipool, token_id, DAI, amount_buy).is_ok());
+			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_in_given_out(PoolType::Omnipool, token_id, DAI, amount_buy).is_ok());
 		}
 		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_buy(RawOrigin::Signed(seller.clone()).into(), PoolType::Omnipool, token_id, DAI, amount_buy, sell_max_limit).is_ok());
 	}

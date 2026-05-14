@@ -17,6 +17,7 @@
 
 //! Test environment for Assets pallet.
 #![allow(clippy::type_complexity)]
+#![allow(deprecated)]
 
 use core::ops::RangeInclusive;
 use sp_runtime::DispatchResult;
@@ -29,6 +30,9 @@ use crate as pallet_stableswap;
 
 use crate::Config;
 
+use crate::types::BoundedPegSources;
+use crate::{PegRawOracle, PegSource, PegType};
+use frame_support::__private::Get;
 use frame_support::traits::{Contains, Everything};
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, BoundedVec};
@@ -37,14 +41,16 @@ use frame_support::{
 	traits::{ConstU32, ConstU64},
 };
 use frame_system::EnsureRoot;
-use orml_traits::parameter_type_with_key;
+pub use num_traits::Zero;
+use orml_traits::currency::MutationHooks;
 pub use orml_traits::MultiCurrency;
-use sp_core::H256;
+use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, NamedMultiReservableCurrency};
+use sp_core::{H160, H256};
+use sp_runtime::Perbill;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError,
 };
-
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type Balance = u128;
@@ -73,6 +79,11 @@ thread_local! {
 	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
 	pub static LAST_LIQUDITY_CHANGE_HOOK: RefCell<Option<(AssetId, PoolState<AssetId>)>> = const { RefCell::new(None) };
 	pub static LAST_TRADE_HOOK: RefCell<Option<(AssetId, AssetId, AssetId, PoolState<AssetId>)>> = const { RefCell::new(None) };
+	pub static PEG_ORACLE_VALUES: RefCell<HashMap<(AssetId,AssetId), (Balance,Balance,u64)>> = RefCell::new(HashMap::default());
+		pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<(u32, u32)> = const { RefCell::new((2_000, 10_000)) }; // 20%
+	pub static MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = const { RefCell::new(Some((4_000, 10_000))) }; // 40%
+	pub static MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = const { RefCell::new(Some((2_000, 10_000))) }; // 20%
+	pub static ASSET_DEPOSIT_LIMIT: RefCell<HashMap<AssetId, Balance>> = RefCell::new(HashMap::default());
 }
 
 construct_runtime!(
@@ -82,6 +93,8 @@ construct_runtime!(
 		Tokens: orml_tokens,
 		Stableswap: pallet_stableswap,
 		Broadcast: pallet_broadcast,
+		CircuitBreaker: pallet_circuit_breaker,
+		Timestamp: pallet_timestamp,
 	}
 );
 
@@ -115,6 +128,18 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
+}
+
+parameter_types! {
+	pub const MinimumPeriod: u64 = primitives::constants::time::SLOT_DURATION / 2;
+}
+
+impl pallet_timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
 }
 
 parameter_type_with_key! {
@@ -124,16 +149,15 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
-	type CurrencyHooks = ();
+	type CurrencyHooks = Hooks;
 	type MaxLocks = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = ();
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = [u8; 8];
 	type DustRemovalWhitelist = Everything;
 }
 
@@ -173,12 +197,9 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	}
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
@@ -194,6 +215,7 @@ impl Config for Test {
 	type Hooks = DummyHookAdapter;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = DummyRegistry;
+	type TargetPegOracle = DummyPegOracle;
 }
 
 pub struct InitialLiquidity {
@@ -204,7 +226,13 @@ pub struct InitialLiquidity {
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	registered_assets: Vec<(Vec<u8>, AssetId, u8)>,
-	created_pools: Vec<(AccountId, PoolInfo<AssetId, u64>, InitialLiquidity)>,
+	created_pools: Vec<(
+		AccountId,
+		PoolInfo<AssetId, u64>,
+		InitialLiquidity,
+		Option<Vec<PegSource<AssetId>>>,
+	)>,
+	oracle_pegs: Option<Vec<((AssetId, AssetId), PegType)>>,
 }
 
 impl Default for ExtBuilder {
@@ -225,6 +253,7 @@ impl Default for ExtBuilder {
 			endowed_accounts: vec![],
 			registered_assets: vec![],
 			created_pools: vec![],
+			oracle_pegs: None,
 		}
 	}
 }
@@ -253,7 +282,20 @@ impl ExtBuilder {
 		pool: PoolInfo<AssetId, u64>,
 		initial_liquidity: InitialLiquidity,
 	) -> Self {
-		self.created_pools.push((who, pool, initial_liquidity));
+		self.created_pools.push((who, pool, initial_liquidity, None));
+		self
+	}
+
+	pub fn with_pool_with_pegs(
+		mut self,
+		who: AccountId,
+		pool: PoolInfo<AssetId, u64>,
+		initial_liquidity: InitialLiquidity,
+		pegs: Vec<PegSource<AssetId>>,
+		pegs_values: Option<Vec<((AssetId, AssetId), PegType)>>,
+	) -> Self {
+		self.created_pools.push((who, pool, initial_liquidity, Some(pegs)));
+		self.oracle_pegs = pegs_values;
 		self
 	}
 
@@ -288,7 +330,7 @@ impl ExtBuilder {
 		r.execute_with(|| {
 			frame_system::Pallet::<Test>::set_block_number(1);
 
-			for (_who, pool, initial_liquid) in self.created_pools {
+			for (_who, pool, initial_liquid, pegs) in self.created_pools {
 				let pool_id = retrieve_current_asset_id();
 				REGISTERED_ASSETS.with(|v| {
 					v.borrow_mut().insert(pool_id, (pool_id, 12));
@@ -297,22 +339,43 @@ impl ExtBuilder {
 					v.borrow_mut().insert(b"main".to_vec(), pool_id);
 				});
 
-				assert_ok!(Stableswap::create_pool(
-					RuntimeOrigin::root(),
-					pool_id,
-					pool.assets.clone().into(),
-					pool.initial_amplification.get(),
-					pool.fee,
-				));
+				if let Some(pegs) = pegs {
+					assert!(pegs.len() == pool.assets.len());
+					if let Some(ref pegs_values) = self.oracle_pegs {
+						for ((asset_a, asset_b), peg) in pegs_values.iter() {
+							set_peg_oracle_value(*asset_a, *asset_b, *peg, 0);
+						}
+					}
+
+					assert_ok!(Stableswap::create_pool_with_pegs(
+						RuntimeOrigin::root(),
+						pool_id,
+						pool.assets.clone(),
+						pool.initial_amplification.get(),
+						pool.fee,
+						BoundedPegSources::truncate_from(pegs),
+						Perbill::from_percent(100),
+					));
+				} else {
+					assert_ok!(Stableswap::create_pool(
+						RuntimeOrigin::root(),
+						pool_id,
+						pool.assets.clone(),
+						pool.initial_amplification.get(),
+						pool.fee,
+					));
+				}
+
 				POOL_IDS.with(|v| {
 					v.borrow_mut().push(pool_id);
 				});
 
 				if initial_liquid.assets.len() as u128 > Balance::zero() {
-					assert_ok!(Stableswap::add_liquidity(
+					assert_ok!(Stableswap::add_assets_liquidity(
 						RuntimeOrigin::signed(initial_liquid.account),
 						pool_id,
-						BoundedVec::truncate_from(initial_liquid.assets)
+						BoundedVec::truncate_from(initial_liquid.assets),
+						Balance::zero(),
 					));
 				}
 			}
@@ -327,8 +390,9 @@ use crate::types::BenchmarkHelper;
 use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect};
-use sp_runtime::traits::Zero;
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::Source;
+use hydradx_traits::{AccountIdFor, Inspect, RawEntry};
 
 pub struct DummyRegistry;
 
@@ -378,6 +442,22 @@ impl BenchmarkHelper<AssetId> for DummyRegistry {
 			v.borrow_mut().insert(asset_id, (asset_id, decimals));
 		});
 
+		Ok(())
+	}
+
+	fn set_deposit_limit(asset_id: AssetId, limit: u128) -> DispatchResult {
+		ASSET_DEPOSIT_LIMIT.with(|v| {
+			v.borrow_mut().insert(asset_id, limit);
+		});
+		Ok(()) //We set the deposit limit only for the prod benchmark
+	}
+
+	fn register_asset_peg(
+		asset_pair: (AssetId, AssetId),
+		peg: crate::types::PegType,
+		_source: Source,
+	) -> DispatchResult {
+		set_peg_oracle_value(asset_pair.0, asset_pair.1, peg, 0);
 		Ok(())
 	}
 }
@@ -461,7 +541,7 @@ pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
 
 	for event in last_events {
 		let e = event.clone();
-		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped { .. }) = e {
+		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 { .. }) = e {
 			swapped_events.push(e);
 		}
 	}
@@ -477,4 +557,182 @@ pub fn last_hydra_events(n: usize) -> Vec<RuntimeEvent> {
 		.rev()
 		.map(|e| e.event)
 		.collect()
+}
+
+pub struct DummyPegOracle;
+
+impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
+	type Error = ();
+
+	fn get_raw_entry(peg_asset: AssetId, source: PegSource<AssetId>) -> Result<RawEntry<Balance, u64>, Self::Error> {
+		match source {
+			PegSource::Oracle((_, _, oracle_asset)) => {
+				let (n, d, u) = PEG_ORACLE_VALUES
+					.with(|v| v.borrow().get(&(oracle_asset, peg_asset)).copied())
+					.ok_or(())?;
+
+				Ok(RawEntry {
+					price: (n, d),
+					volume: Default::default(),
+					liquidity: Default::default(),
+					shares_issuance: Default::default(),
+					updated_at: u,
+				})
+			}
+			PegSource::Value(peg) => Ok(RawEntry {
+				price: peg,
+				volume: Default::default(),
+				liquidity: Default::default(),
+				shares_issuance: Default::default(),
+				updated_at: System::block_number(),
+			}),
+			PegSource::MMOracle(H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])) => Ok(RawEntry {
+				price: (1, 1),
+				volume: Default::default(),
+				liquidity: Default::default(),
+				shares_issuance: Default::default(),
+				updated_at: System::block_number(),
+			}),
+			PegSource::MMOracle(H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])) => {
+				if System::block_number() == 2 {
+					return Ok(RawEntry {
+						price: (48, 100),
+						volume: Default::default(),
+						liquidity: Default::default(),
+						shares_issuance: Default::default(),
+						updated_at: System::block_number(),
+					});
+				}
+
+				Ok(RawEntry {
+					price: (1, 2),
+					volume: Default::default(),
+					liquidity: Default::default(),
+					shares_issuance: Default::default(),
+					updated_at: System::block_number(),
+				})
+			}
+			_ => panic!("unusupported oracle types: {source:?}"),
+		}
+	}
+}
+
+pub(crate) fn set_peg_oracle_value(asset_a: AssetId, asset_b: AssetId, price: (Balance, Balance), updated_at: u64) {
+	PEG_ORACLE_VALUES.with(|v| {
+		v.borrow_mut()
+			.insert((asset_a, asset_b), (price.0, price.1, updated_at));
+	});
+}
+
+parameter_types! {
+		pub NamedReserveId: [u8;8] = *b"test_res";
+			pub const MaxReserves: u32 = 50;
+		pub DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub const OmnipoolHubAsset: AssetId = 111;
+}
+
+pub struct DepositLimiter;
+
+impl pallet_circuit_breaker::traits::AssetDepositLimiter<AccountId, AssetId, Balance> for DepositLimiter {
+	type DepositLimit = AssetLimit;
+	type Period = LimitDepositPeriod;
+	type Issuance = AssetIssuance;
+	type OnLimitReached = LimitReachedHandler;
+	type OnLockdownDeposit = OnLockdownDepositHandler;
+	type OnDepositRelease = OnReleaseDepositHandler;
+}
+
+pub struct LimitDepositPeriod;
+
+impl Get<u128> for LimitDepositPeriod {
+	fn get() -> u128 {
+		10000u128
+	}
+}
+
+pub struct AssetLimit;
+
+impl GetByKey<AssetId, Option<Balance>> for AssetLimit {
+	fn get(k: &AssetId) -> Option<Balance> {
+		let asset = ASSET_DEPOSIT_LIMIT.with(|v| v.borrow().get(k).copied());
+		asset
+		//Some(asset.unwrap_or(Balance::MAX))
+	}
+}
+
+pub struct AssetIssuance;
+impl GetByKey<AssetId, Balance> for AssetIssuance {
+	fn get(k: &AssetId) -> Balance {
+		Tokens::total_issuance(k)
+	}
+}
+
+pub struct LimitReachedHandler;
+
+impl Happened<AssetId> for LimitReachedHandler {
+	fn happened(_t: &AssetId) {}
+}
+
+pub struct OnLockdownDepositHandler;
+impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
+	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
+		//assert_eq!(t.0, 0);
+		//assert_eq!(t.2, 1);
+
+		Tokens::reserve_named(&NamedReserveId::get(), t.0, &t.1, t.2)?;
+		Ok(())
+	}
+}
+
+pub struct OnReleaseDepositHandler;
+impl Handler<(AssetId, AccountId)> for OnReleaseDepositHandler {
+	fn handle(t: &(AssetId, AccountId)) -> DispatchResult {
+		let reserved_balance = Tokens::reserved_balance_named(&NamedReserveId::get(), t.0, &t.1);
+
+		Tokens::unreserve_named(&NamedReserveId::get(), t.0, &t.1, reserved_balance);
+
+		Ok(())
+	}
+}
+
+pub struct Hooks;
+
+impl MutationHooks<AccountId, AssetId, Balance> for Hooks {
+	type OnDust = ();
+	type OnSlash = ();
+	type PreDeposit = ();
+	type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Test>;
+	type PreTransfer = ();
+	type PostTransfer = ();
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
+}
+
+pub const WHITELISTED_ACCCOUNT: u64 = 2;
+
+pub struct CircuitBreakerWhitelist;
+
+impl Contains<AccountId> for CircuitBreakerWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		WHITELISTED_ACCCOUNT == *a
+	}
+}
+
+impl pallet_circuit_breaker::Config for Test {
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
+	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DepositLockWhitelist = frame_support::traits::Nothing;
+	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
+	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
+	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
+	type OmnipoolHubAsset = OmnipoolHubAsset;
+	type WeightInfo = ();
+	type DepositLimiter = DepositLimiter;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+	type TimestampProvider = Timestamp;
 }

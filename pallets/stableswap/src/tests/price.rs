@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::tests::*;
 use crate::types::PoolInfo;
 use frame_support::assert_ok;
@@ -44,11 +46,17 @@ fn test_spot_price_in_sell() {
 		.build()
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
 
 			let amount = 1_000_000_000_000_000_000;
 
-			let initial_spot_price = asset_spot_price(pool_id, asset_b);
+			let initial_spot_price = spot_price_first_asset(pool_id, asset_b);
 			assert_ok!(Stableswap::sell(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
@@ -63,7 +71,7 @@ fn test_spot_price_in_sell() {
 			let exec_price = exec_price / FixedU128::from(1_000_000_000_000);
 			assert!(exec_price >= initial_spot_price);
 
-			let final_spot_price = asset_spot_price(pool_id, asset_b);
+			let final_spot_price = spot_price_first_asset(pool_id, asset_b);
 			if exec_price > final_spot_price {
 				let p = (exec_price - final_spot_price) / final_spot_price;
 				assert!(p <= FixedU128::from_rational(1, 100_000));
@@ -111,11 +119,17 @@ fn test_spot_price_in_buy() {
 		.build()
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
 
 			let amount = 1_000_000;
 
-			let initial_spot_price = asset_spot_price(pool_id, asset_b);
+			let initial_spot_price = spot_price_first_asset(pool_id, asset_b);
 			assert_ok!(Stableswap::buy(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
@@ -131,7 +145,7 @@ fn test_spot_price_in_buy() {
 			let exec_price = exec_price / FixedU128::from(1_000_000_000_000);
 			assert!(exec_price >= initial_spot_price);
 
-			let final_spot_price = asset_spot_price(pool_id, asset_b);
+			let final_spot_price = spot_price_first_asset(pool_id, asset_b);
 			assert!(exec_price <= final_spot_price);
 		});
 }
@@ -174,16 +188,23 @@ fn test_share_price_in_add_remove_liquidity() {
 		.build()
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
 
 			let pool_account = pool_account(pool_id);
 			let amount = 1_000_000_000_000_000_000;
 			let share_price_initial = get_share_price(pool_id, 0);
 			let initial_shares = Tokens::total_issuance(pool_id);
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount)]),
+				Balance::zero(),
 			));
 
 			let final_shares = Tokens::total_issuance(pool_id);
@@ -247,7 +268,13 @@ fn test_share_price_in_add_shares_remove_liquidity() {
 		.build()
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
 
 			let pool_account = pool_account(pool_id);
 			let share_price_initial = get_share_price(pool_id, 0);
@@ -325,10 +352,11 @@ fn test_share_price_case() {
 			let amount = 1_000_000_000_000_000_000;
 			let share_price_initial = get_share_price(pool_id, 0);
 			let initial_shares = Tokens::total_issuance(pool_id);
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount)]),
+				Balance::zero(),
 			));
 
 			let final_shares = Tokens::total_issuance(pool_id);

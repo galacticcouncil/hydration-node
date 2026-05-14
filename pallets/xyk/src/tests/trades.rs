@@ -71,7 +71,86 @@ fn sell_test() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped3 {
+				swapper: ALICE,
+				filler: pair_account,
+				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
+				operation: pallet_broadcast::types::TradeOperation::ExactIn,
+				inputs: vec![Asset::new(asset_a, 456444678)],
+				outputs: vec![Asset::new(asset_b, 1363483591788)],
+				fees: vec![Fee::new(asset_b, 2732432046, Destination::Account(pair_account))],
+				operation_stack: vec![],
+			}
+			.into(),
+		]);
+	});
+}
+
+#[test]
+fn sell_with_discount_should_be_same_as_without_discount() {
+	new_test_ext().execute_with(|| {
+		let user_1 = ALICE;
+		let asset_a = ACA;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			RuntimeOrigin::signed(user_1),
+			asset_a,
+			200_000_000_000,
+			asset_b,
+			600_000_000_000_000,
+		));
+
+		let pair_account = XYK::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+		let share_token = XYK::share_token(pair_account);
+
+		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 400000000000000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 600000000000000);
+
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 600000000000000);
+
+		assert_ok!(XYK::sell(
+			RuntimeOrigin::signed(user_1),
+			asset_a,
+			asset_b,
+			456_444_678,
+			1000000000000,
+			true,
+		));
+
+		assert_eq!(Currency::free_balance(asset_a, &user_1), 999799543555322);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 401363483591788);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 600000000000000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200456444678);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 598636516408212);
+
+		expect_events(vec![
+			Event::PoolCreated {
+				who: ALICE,
+				asset_a,
+				asset_b,
+				initial_shares_amount: 600000000000000,
+				share_token,
+				pool: pair_account,
+			}
+			.into(),
+			Event::SellExecuted {
+				who: ALICE,
+				asset_in: asset_a,
+				asset_out: asset_b,
+				amount: 456444678,
+				sale_price: 1363483591788,
+				fee_asset: asset_b,
+				fee_amount: 2732432046,
+				pool: pair_account,
+			}
+			.into(),
+			pallet_broadcast::Event::Swapped3 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -116,8 +195,6 @@ fn execute_sell_should_use_event_id() {
 			},
 			amount: 456_444_678,
 			amount_b: 1363483591788,
-			discount: false,
-			discount_amount: 0_u128,
 			fee: (asset_b, 2732432046),
 		};
 
@@ -135,7 +212,7 @@ fn execute_sell_should_use_event_id() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -179,12 +256,13 @@ fn work_flow_happy_path_should_work() {
 
 		// User 1 really tries!
 		assert_noop!(
-			XYK::add_liquidity(
+			XYK::add_liquidity_with_limits(
 				RuntimeOrigin::signed(user_1),
 				asset_a,
 				asset_b,
 				800_000_000_000_000_000,
-				100
+				100,
+				0
 			),
 			Error::<Test>::InsufficientAssetBalance
 		);
@@ -210,12 +288,13 @@ fn work_flow_happy_path_should_work() {
 
 		// User 2 adds liquidity
 		let current_b_balance = Currency::free_balance(asset_b, &user_2);
-		assert_ok!(XYK::add_liquidity(
+		assert_ok!(XYK::add_liquidity_with_limits(
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,
 			300_000_000_000,
-			current_b_balance
+			current_b_balance,
+			0
 		));
 
 		assert_eq!(XYK::total_liquidity(pair_account), 650_000_000_000);
@@ -279,11 +358,13 @@ fn work_flow_happy_path_should_work() {
 
 		// User 2 removes liquidity
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,
-			10_000
+			10_000,
+			0,
+			0
 		));
 
 		let user_2_remove_1_balance_1 = Currency::free_balance(asset_a, &user_2);
@@ -293,11 +374,13 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(user_2_remove_1_balance_2, 994_487_000_225_286);
 		assert_eq!(Currency::free_balance(share_token, &user_2), 299_999_990_000);
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user_2),
 			asset_b,
 			asset_a,
-			10_000
+			10_000,
+			0,
+			0
 		));
 
 		let user_2_remove_2_balance_1 = Currency::free_balance(asset_a, &user_2);
@@ -321,11 +404,13 @@ fn work_flow_happy_path_should_work() {
 
 		assert_eq!(XYK::total_liquidity(pair_account), 649_999_980_000);
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,
-			18_000
+			18_000,
+			0,
+			0
 		));
 		assert_eq!(Currency::free_balance(share_token, &user_2), 299_999_962_000);
 
@@ -442,7 +527,7 @@ fn sell_with_correct_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: user_1,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -487,43 +572,6 @@ fn sell_without_sufficient_balance_should_not_work() {
 }
 
 #[test]
-fn sell_without_sufficient_discount_balance_should_not_work() {
-	new_test_ext().execute_with(|| {
-		let user = ALICE;
-		let asset_a = ACA;
-		let asset_b = DOT;
-
-		assert_ok!(XYK::create_pool(
-			RuntimeOrigin::signed(user),
-			asset_a,
-			1_000_000_000_000,
-			asset_b,
-			1_000_000_000_000,
-		));
-
-		assert_ok!(XYK::create_pool(
-			RuntimeOrigin::signed(user),
-			asset_a,
-			1_000_000_000_000,
-			HDX,
-			1_000_000_000_000,
-		));
-
-		assert_ok!(Currency::transfer(
-			RuntimeOrigin::signed(user),
-			BOB,
-			HDX,
-			998_999_999_999_999
-		));
-
-		assert_noop!(
-			XYK::sell(RuntimeOrigin::signed(user), ACA, DOT, 1_000_000_000, 100, true),
-			Error::<Test>::InsufficientNativeCurrencyBalance
-		);
-	});
-}
-
-#[test]
 fn buy_without_sufficient_balance_should_not_work() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;
@@ -548,50 +596,6 @@ fn buy_without_sufficient_balance_should_not_work() {
 		assert_noop!(
 			XYK::buy(RuntimeOrigin::signed(user), DOT, ACA, 1_000, 10_000, false),
 			Error::<Test>::InsufficientAssetBalance
-		);
-	});
-}
-
-#[test]
-fn buy_without_sufficient_discount_balance_should_not_work() {
-	new_test_ext().execute_with(|| {
-		let user = ALICE;
-		let asset_a = ACA;
-		let asset_b = DOT;
-
-		assert_ok!(XYK::create_pool(
-			RuntimeOrigin::signed(user),
-			asset_a,
-			1_000_000_000_000,
-			asset_b,
-			1_000_000_000_000,
-		));
-
-		assert_ok!(XYK::create_pool(
-			RuntimeOrigin::signed(user),
-			asset_b,
-			1_000_000_000_000,
-			HDX,
-			1_000_000_000_000,
-		));
-
-		assert_ok!(Currency::transfer(
-			RuntimeOrigin::signed(user),
-			BOB,
-			HDX,
-			998_999_999_999_999
-		));
-
-		assert_noop!(
-			XYK::buy(
-				RuntimeOrigin::signed(user),
-				DOT,
-				ACA,
-				1_000_000_000,
-				10_000_000_000,
-				true
-			),
-			Error::<Test>::InsufficientNativeCurrencyBalance
 		);
 	});
 }
@@ -660,13 +664,92 @@ fn single_buy_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: user_1,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
 				operation: pallet_broadcast::types::TradeOperation::ExactOut,
-				inputs: vec![Asset::new(asset_b, 6_666_666)],
-				outputs: vec![Asset::new(asset_a, 22_068_963_235)],
+				inputs: vec![Asset::new(asset_b, 22_068_963_235)],
+				outputs: vec![Asset::new(asset_a, 6_666_666)],
+				fees: vec![Fee::new(asset_b, 44_137_926, Destination::Account(pair_account))],
+				operation_stack: vec![],
+			}
+			.into(),
+		]);
+	});
+}
+
+#[test]
+fn buy_with_discount_should_be_same_as_without_discount() {
+	new_test_ext().execute_with(|| {
+		let user_1 = ALICE;
+		let asset_a = ACA;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			RuntimeOrigin::signed(user_1),
+			asset_a,
+			200_000_000,
+			asset_b,
+			640_000_000_000,
+		));
+
+		let pair_account = XYK::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+		let share_token = XYK::share_token(pair_account);
+
+		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_800_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_360_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 640_000_000_000);
+
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 640_000_000_000);
+
+		assert_ok!(XYK::buy(
+			RuntimeOrigin::signed(user_1),
+			asset_a,
+			asset_b,
+			6_666_666,
+			1_000_000_000_000,
+			true,
+		));
+
+		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_806_666_666);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_337_886_898_839);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 640_000_000_000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 193_333_334);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 662_113_101_161);
+
+		expect_events(vec![
+			Event::PoolCreated {
+				who: user_1,
+				asset_a,
+				asset_b,
+				initial_shares_amount: 640_000_000_000,
+				share_token,
+				pool: pair_account,
+			}
+			.into(),
+			Event::BuyExecuted {
+				who: user_1,
+				asset_out: asset_a,
+				asset_in: asset_b,
+				amount: 6_666_666,
+				buy_price: 22_068_963_235,
+				fee_asset: asset_b,
+				fee_amount: 44_137_926,
+				pool: pair_account,
+			}
+			.into(),
+			pallet_broadcast::Event::Swapped3 {
+				swapper: user_1,
+				filler: pair_account,
+				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
+				inputs: vec![Asset::new(asset_b, 22_068_963_235)],
+				outputs: vec![Asset::new(asset_a, 6_666_666)],
 				fees: vec![Fee::new(asset_b, 44_137_926, Destination::Account(pair_account))],
 				operation_stack: vec![],
 			}
@@ -694,12 +777,13 @@ fn create_pool_with_insufficient_liquidity_should_not_work() {
 fn add_liquidity_to_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			XYK::add_liquidity(
+			XYK::add_liquidity_with_limits(
 				RuntimeOrigin::signed(ALICE),
 				HDX,
 				ACA,
 				200_000_000_000_000_000,
-				600_000_000
+				600_000_000,
+				0
 			),
 			Error::<Test>::TokenPoolNotFound
 		);
@@ -710,7 +794,7 @@ fn add_liquidity_to_non_existing_pool_should_not_work() {
 fn remove_zero_liquidity_from_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 100),
+			XYK::remove_liquidity_with_limits(RuntimeOrigin::signed(ALICE), HDX, ACA, 100, 0, 0),
 			Error::<Test>::TokenPoolNotFound
 		);
 	});
@@ -722,24 +806,6 @@ fn sell_with_non_existing_pool_should_not_work() {
 		assert_noop!(
 			XYK::sell(RuntimeOrigin::signed(ALICE), HDX, DOT, 456_444_678, 1_000_000, false),
 			Error::<Test>::TokenPoolNotFound
-		);
-	});
-}
-
-#[test]
-fn discount_sell_with_no_native_pool_should_not_work() {
-	new_test_ext().execute_with(|| {
-		assert_ok!(XYK::create_pool(
-			RuntimeOrigin::signed(ALICE),
-			ACA,
-			1000,
-			DOT,
-			3_200_000
-		));
-
-		assert_noop!(
-			XYK::sell(RuntimeOrigin::signed(ALICE), ACA, DOT, 456_444_678, 1_000_000, true),
-			Error::<Test>::CannotApplyDiscount
 		);
 	});
 }
@@ -757,24 +823,6 @@ fn buy_with_non_existing_pool_should_not_work() {
 				false
 			),
 			Error::<Test>::TokenPoolNotFound
-		);
-	});
-}
-
-#[test]
-fn discount_buy_with_no_native_pool_should_not_work() {
-	new_test_ext().execute_with(|| {
-		assert_ok!(XYK::create_pool(
-			RuntimeOrigin::signed(ALICE),
-			ACA,
-			10_000,
-			DOT,
-			32_000_000
-		));
-
-		assert_noop!(
-			XYK::buy(RuntimeOrigin::signed(ALICE), ACA, DOT, 1000, 1_000_000_000, true),
-			Error::<Test>::CannotApplyDiscount
 		);
 	});
 }
@@ -825,11 +873,13 @@ fn money_in_sell_money_out_should_leave_the_same_balance() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200456444678);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 598636516408212);
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user_1),
 			asset_a,
 			asset_b,
-			600000000000000
+			600000000000000,
+			0,
+			0
 		));
 
 		let user_1_balance_a_after = Currency::free_balance(asset_a, &user_1);
@@ -871,29 +921,34 @@ fn money_in_money_out_should_leave_the_same_balance_for_both_accounts() {
 
 		assert!(XYK::exists(asset_pair));
 
-		assert_ok!(XYK::add_liquidity(
+		assert_ok!(XYK::add_liquidity_with_limits(
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,
 			100_000_000,
-			1_100_000_000_000
+			1_100_000_000_000,
+			0
 		));
 
 		assert_eq!(Currency::free_balance(share_token, &user_1), 100_000_000);
 		assert_eq!(Currency::free_balance(share_token, &user_2), 100_000_000);
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user_1),
 			asset_a,
 			asset_b,
-			100_000_000
+			100_000_000,
+			0,
+			0
 		));
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,
-			100_000_000
+			100_000_000,
+			0,
+			0
 		));
 
 		assert_eq!(XYK::total_liquidity(pair_account), 0);

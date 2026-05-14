@@ -9,6 +9,7 @@ use hydradx_traits::OraclePeriod;
 parameter_types! {
 	pub const LastBlockPeriod: OraclePeriod = OraclePeriod::LastBlock;
 	pub const ShortPeriod: OraclePeriod = OraclePeriod::Short;
+	pub const TenMinutesPeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
 
 // Helper aliases for the OraclePriceProvider using the Router and EmaOracle
@@ -16,3 +17,5 @@ pub type LastBlockOraclePrice =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, LastBlockPeriod>;
 pub type ShortOraclePrice =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ShortPeriod>;
+pub type TenMinutesOraclePrice =
+	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, TenMinutesPeriod>;

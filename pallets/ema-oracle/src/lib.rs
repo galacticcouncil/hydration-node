@@ -65,6 +65,7 @@
 //! prices you should use a spot price or similar.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::useless_conversion)]
 #![allow(clippy::manual_inspect)]
 
 use frame_support::pallet_prelude::*;
@@ -74,12 +75,11 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
-	OnLiquidityChangedHandler, OnTradeHandler, Volume,
+	OnLiquidityChangedHandler, OnTradeHandler, RawEntry, RawOracle, Volume,
 };
 use sp_arithmetic::traits::Saturating;
-use sp_arithmetic::FixedU128;
-use sp_arithmetic::Permill;
 use sp_runtime::traits::Convert;
+use sp_std::collections::btree_map::BTreeMap;
 use sp_std::marker::PhantomData;
 use sp_std::prelude::*;
 
@@ -89,6 +89,7 @@ mod tests;
 mod types;
 pub use types::*;
 
+pub mod migrations;
 #[allow(clippy::all)]
 pub mod weights;
 pub use weights::WeightInfo;
@@ -96,6 +97,18 @@ pub use weights::WeightInfo;
 pub const MAX_PERIODS: u32 = OraclePeriod::all_periods().len() as u32;
 
 pub const BIFROST_SOURCE: [u8; 8] = *b"bifrosto";
+
+/// Denominator used by `fractional_on_finalize_weight` to split the worst-case
+/// `on_finalize` cost across contributing calls. Not a hard cap — the `on_finalize`
+/// weight function is linear in entry count, so aggregate accounting stays correct
+/// even if more than this actually land in a block. Benchmarks measure a smaller
+/// range (see benchmarking file) and the linear formula extrapolates up to this value.
+pub const MAX_EXTERNAL_ENTRIES_PER_BLOCK: u32 = 100;
+
+/// Upper bound on the number of authorized (pair, account) entries per external oracle source.
+/// Used for worst-case weight estimation when removing a source, as `clear_prefix`
+/// must delete all associated authorization entries.
+pub const MAX_AUTHORIZED_ENTRIES_PER_SOURCE: u32 = 40;
 
 const LOG_TARGET: &str = "runtime::ema-oracle";
 
@@ -117,24 +130,22 @@ impl BenchmarkHelper<AssetId> for () {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::{BoundedBTreeMap, BoundedBTreeSet};
+	use frame_support::BoundedBTreeSet;
+	use frame_system::ensure_signed;
 	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 
 	#[pallet::pallet]
+	#[pallet::storage_version(migrations::STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
 
-		/// Origin that can enable oracle for assets that would be rejected by `OracleWhitelist` otherwise.
+		/// Origin that can enable oracle for assets that would be rejected by `OracleWhitelist` otherwise
+		/// and manage external oracle sources and authorized accounts.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
-		/// Origin that can update bifrost oracle via `update_bifrost_oracle` extrinsic.
-		type BifrostOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Provider for the current block number.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
@@ -145,12 +156,13 @@ pub mod pallet {
 		/// Whitelist determining what oracles are tracked by the pallet.
 		type OracleWhitelist: Contains<(Source, AssetId, AssetId)>;
 
+		/// Identifies internal (AMM) oracle sources.
+		/// Implemented with hardcoded source constants in the runtime (0 storage reads).
+		/// Used to count non-external entries in the accumulator without costly storage lookups.
+		type InternalSources: Contains<Source>;
+
 		/// Location to Asset Id converter
 		type LocationToAssetIdConversion: sp_runtime::traits::Convert<polkadot_xcm::VersionedLocation, Option<AssetId>>;
-
-		/// Maximum allowed percentage difference for bifrost oracle price update
-		#[pallet::constant]
-		type MaxAllowedPriceDifference: Get<Permill>;
 
 		/// Maximum number of unique oracle entries expected in one block.
 		#[pallet::constant]
@@ -167,8 +179,14 @@ pub mod pallet {
 		OracleNotFound,
 		/// Asset not found
 		AssetNotFound,
-		///The new price is outside the max allowed range
-		PriceOutsideAllowedRange,
+		/// The external source is already registered.
+		SourceAlreadyRegistered,
+		/// The external source was not found.
+		SourceNotFound,
+		/// The caller is not authorized for the given (source, pair).
+		NotAuthorized,
+		/// Price must not be zero.
+		PriceIsZero,
 	}
 
 	#[pallet::event]
@@ -178,16 +196,37 @@ pub mod pallet {
 		AddedToWhitelist { source: Source, assets: (AssetId, AssetId) },
 		/// Oracle was removed from the whitelist.
 		RemovedFromWhitelist { source: Source, assets: (AssetId, AssetId) },
+		/// Oracle price was updated
+		OracleUpdated {
+			source: Source,
+			assets: (AssetId, AssetId),
+			updates: BTreeMap<OraclePeriod, Price>,
+		},
+		/// An external oracle source was registered.
+		ExternalSourceRegistered { source: Source },
+		/// An external oracle source was removed.
+		ExternalSourceRemoved { source: Source },
+		/// An account was authorized to update the given (source, pair).
+		AuthorizedAccountAdded {
+			source: Source,
+			pair: (AssetId, AssetId),
+			account: T::AccountId,
+		},
+		/// An authorization was removed for the given (source, pair, account).
+		AuthorizedAccountRemoved {
+			source: Source,
+			pair: (AssetId, AssetId),
+			account: T::AccountId,
+		},
 	}
 
 	/// Accumulator for oracle data in current block that will be recorded at the end of the block.
 	#[pallet::storage]
+	#[pallet::unbounded]
 	#[pallet::getter(fn accumulator)]
-	pub type Accumulator<T: Config> = StorageValue<
-		_,
-		BoundedBTreeMap<(Source, (AssetId, AssetId)), OracleEntry<BlockNumberFor<T>>, T::MaxUniqueEntries>,
-		ValueQuery,
-	>;
+	#[pallet::whitelist_storage]
+	pub type Accumulator<T: Config> =
+		StorageValue<_, BTreeMap<(Source, (AssetId, AssetId)), OracleEntry<BlockNumberFor<T>>>, ValueQuery>;
 
 	/// Oracle storage keyed by data source, involved asset ids and the period length of the oracle.
 	///
@@ -211,10 +250,31 @@ pub mod pallet {
 	pub type WhitelistedAssets<T: Config> =
 		StorageValue<_, BoundedBTreeSet<(Source, (AssetId, AssetId)), T::MaxUniqueEntries>, ValueQuery>;
 
+	/// Registered external oracle sources.
+	#[pallet::storage]
+	pub type ExternalSources<T: Config> = StorageMap<_, Twox64Concat, Source, (), OptionQuery>;
+
+	/// Authorized accounts per (external oracle source, asset pair).
+	///
+	/// Authorization is scoped per-pair so that a compromised external oracle account can
+	/// only update the specific pairs it was authorized for, limiting DDoS blast radius.
+	/// The asset pair is stored in `ordered_pair` form.
+	#[pallet::storage]
+	pub type AuthorizedAccounts<T: Config> = StorageNMap<
+		_,
+		(
+			NMapKey<Twox64Concat, Source>,
+			NMapKey<Twox64Concat, (AssetId, AssetId)>,
+			NMapKey<Twox64Concat, T::AccountId>,
+		),
+		(),
+		OptionQuery,
+	>;
+
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
-		pub initial_data: Vec<(Source, (AssetId, AssetId), Price, Liquidity<Balance>)>,
+		pub initial_data: Vec<(Source, (AssetId, AssetId), Price, Liquidity<Balance>, Option<Balance>)>,
 		#[serde(skip)]
 		pub _marker: PhantomData<T>,
 	}
@@ -222,12 +282,13 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			for &(source, (asset_a, asset_b), price, liquidity) in self.initial_data.iter() {
+			for &(source, (asset_a, asset_b), price, liquidity, shares_issuance) in self.initial_data.iter() {
 				let entry: OracleEntry<BlockNumberFor<T>> = {
 					let e = OracleEntry {
 						price,
 						volume: Volume::default(),
 						liquidity,
+						shares_issuance,
 						updated_at: BlockNumberFor::<T>::zero(),
 					};
 					if ordered_pair(asset_a, asset_b) == (asset_a, asset_b) {
@@ -265,6 +326,14 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Add an oracle to the whitelist so it is tracked by the pallet.
+		///
+		/// Parameters:
+		/// - `origin`: `AuthorityOrigin`
+		/// - `source`: data source identifier
+		/// - `assets`: the asset pair to track
+		///
+		/// Emits `AddedToWhitelist` event when successful.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_oracle())]
 		pub fn add_oracle(origin: OriginFor<T>, source: Source, assets: (AssetId, AssetId)) -> DispatchResult {
@@ -282,6 +351,14 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Remove an oracle from the whitelist and delete all its stored entries.
+		///
+		/// Parameters:
+		/// - `origin`: `AuthorityOrigin`
+		/// - `source`: data source identifier
+		/// - `assets`: the asset pair to stop tracking
+		///
+		/// Emits `RemovedFromWhitelist` event when successful.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_oracle())]
 		pub fn remove_oracle(origin: OriginFor<T>, source: Source, assets: (AssetId, AssetId)) -> DispatchResult {
@@ -309,53 +386,238 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Update an oracle entry for BIFROST_SOURCE. Thin wrapper around `set_external_oracle`.
+		///
+		/// Parameters:
+		/// - `origin`: signed origin — must be authorized for the specific `(BIFROST_SOURCE, pair)`
+		/// - `asset_a`: XCM location of the first asset
+		/// - `asset_b`: XCM location of the second asset
+		/// - `price`: price as `(numerator, denominator)`
+		///
+		/// Emits `OracleUpdated` event on the next `on_finalize`.
+		#[deprecated(
+			note = "Use `set_external_oracle` instead. Kept only for backward compatibility with bifrost and will be removed in the future"
+		)]
+		#[allow(deprecated)]
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_bifrost_oracle())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_bifrost_oracle()
+			.saturating_add(fractional_on_finalize_weight::<T>(MAX_EXTERNAL_ENTRIES_PER_BLOCK)))]
 		pub fn update_bifrost_oracle(
 			origin: OriginFor<T>,
 			//NOTE: these must be boxed becasue of https://github.com/paritytech/polkadot-sdk/blob/6875d36b2dba537f3254aad3db76ac7aa656b7ab/substrate/frame/utility/src/lib.rs#L150
 			asset_a: Box<polkadot_xcm::VersionedLocation>,
 			asset_b: Box<polkadot_xcm::VersionedLocation>,
 			price: (Balance, Balance),
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			Self::do_set_oracle(who, BIFROST_SOURCE, asset_a, asset_b, price)
+		}
+
+		/// Submit an oracle price update for an external source.
+		///
+		/// The call is feeless on success (`Pays::No`).
+		///
+		/// Parameters:
+		/// - `origin`: signed origin — must be authorized for the specific `(source, pair)` via
+		///   `add_authorized_account`
+		/// - `source`: external source identifier (must be registered via `register_external_source`)
+		/// - `asset_a`: XCM location of the first asset
+		/// - `asset_b`: XCM location of the second asset
+		/// - `price`: price as `(numerator, denominator)` — both must be non-zero
+		///
+		/// Emits `OracleUpdated` event on the next `on_finalize`.
+		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_external_oracle()
+			.saturating_add(fractional_on_finalize_weight::<T>(MAX_EXTERNAL_ENTRIES_PER_BLOCK)))]
+		pub fn set_external_oracle(
+			origin: OriginFor<T>,
+			source: Source,
+			asset_a: Box<polkadot_xcm::VersionedLocation>,
+			asset_b: Box<polkadot_xcm::VersionedLocation>,
+			price: (Balance, Balance),
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			Self::do_set_oracle(who, source, asset_a, asset_b, price)
+		}
+
+		/// Update an external oracle entry using local `AssetId`s directly.
+		///
+		/// Cheaper variant of `set_external_oracle` for callers that already know the local
+		/// AssetIds — skips the `VersionedLocation` → `AssetId` conversion and the
+		/// `AssetRegistry::LocationAssets` storage read. Authorization shares the same
+		/// `AuthorizedAccounts` storage as the location variant.
+		///
+		/// Parameters:
+		/// - `origin`: signed origin — must be authorized for the specific `(source, pair)` via
+		///   `add_authorized_account`
+		/// - `source`: external source identifier (must be registered via `register_external_source`)
+		/// - `asset_a`: local AssetId of the first asset
+		/// - `asset_b`: local AssetId of the second asset
+		/// - `price`: price as `(numerator, denominator)` — both must be non-zero
+		///
+		/// The call is feeless on success (`Pays::No`).
+		///
+		/// Emits `OracleUpdated` event on the next `on_finalize`.
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_external_oracle_by_ids()
+			.saturating_add(fractional_on_finalize_weight::<T>(MAX_EXTERNAL_ENTRIES_PER_BLOCK)))]
+		pub fn set_external_oracle_by_ids(
+			origin: OriginFor<T>,
+			source: Source,
+			asset_a: AssetId,
+			asset_b: AssetId,
+			price: (Balance, Balance),
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			Self::do_set_oracle_inner(who, source, asset_a, asset_b, price)
+		}
+
+		/// Register a new external oracle source.
+		///
+		/// Parameters:
+		/// - `origin`: `AuthorityOrigin`
+		/// - `source`: 8-byte source identifier to register
+		///
+		/// Emits `ExternalSourceRegistered` event when successful.
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::register_external_source())]
+		pub fn register_external_source(origin: OriginFor<T>, source: Source) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			ensure!(
+				!ExternalSources::<T>::contains_key(source),
+				Error::<T>::SourceAlreadyRegistered
+			);
+			ExternalSources::<T>::insert(source, ());
+			Self::deposit_event(Event::ExternalSourceRegistered { source });
+			Ok(())
+		}
+
+		/// Remove an external oracle source, its per-pair authorizations, and ALL oracle data it
+		/// ever wrote (both committed `Oracles` rows and any in-flight `Accumulator` entries).
+		///
+		/// Parameters:
+		/// - `origin`: `AuthorityOrigin`
+		/// - `source`: source identifier to remove
+		///
+		/// Emits `ExternalSourceRemoved` event when successful.
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_external_source(MAX_AUTHORIZED_ENTRIES_PER_SOURCE))]
+		pub fn remove_external_source(origin: OriginFor<T>, source: Source) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
+			ExternalSources::<T>::remove(source);
+			let _ = AuthorizedAccounts::<T>::clear_prefix((source,), u32::MAX, None);
+			let _ = Oracles::<T>::clear_prefix((source,), u32::MAX, None);
+			Accumulator::<T>::mutate(|acc| acc.retain(|(s, _), _| *s != source));
+			Self::deposit_event(Event::ExternalSourceRemoved { source });
+			Ok(())
+		}
+
+		/// Authorize `account` to submit oracle updates for a specific `(source, pair)`.
+		///
+		/// Authorization is scoped per-pair so a compromised account can only update the
+		/// pairs it was explicitly granted, limiting DDoS blast radius.
+		///
+		/// Parameters:
+		/// - `origin`: `AuthorityOrigin`
+		/// - `source`: external source identifier (must already be registered)
+		/// - `assets`: the asset pair to authorize — stored in ordered form
+		/// - `account`: the account to authorize
+		///
+		/// Emits `AuthorizedAccountAdded` event when successful.
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_authorized_account())]
+		pub fn add_authorized_account(
+			origin: OriginFor<T>,
+			source: Source,
+			assets: (AssetId, AssetId),
+			account: T::AccountId,
 		) -> DispatchResult {
-			T::BifrostOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
+			let pair = ordered_pair(assets.0, assets.1);
+			AuthorizedAccounts::<T>::insert((source, pair, &account), ());
+			Self::deposit_event(Event::AuthorizedAccountAdded { source, pair, account });
+			Ok(())
+		}
 
-			let asset_a = T::LocationToAssetIdConversion::convert(*asset_a).ok_or(Error::<T>::AssetNotFound)?;
-			let asset_b = T::LocationToAssetIdConversion::convert(*asset_b).ok_or(Error::<T>::AssetNotFound)?;
-
-			let ordered_pair = ordered_pair(asset_a, asset_b);
-			let entry: OracleEntry<BlockNumberFor<T>> = {
-				let e = OracleEntry::new(
-					EmaPrice::new(price.0, price.1),
-					Volume::default(),
-					Liquidity::default(),
-					T::BlockNumberProvider::current_block_number(),
-				);
-				if ordered_pair == (asset_a, asset_b) {
-					e
-				} else {
-					e.inverted()
-				}
-			};
-
-			if let Some(reference_entry) = Self::oracle((BIFROST_SOURCE, ordered_pair, OraclePeriod::TenMinutes)) {
-				if !Self::is_within_range(reference_entry.0.price.into(), price) {
-					log::error!(
-						target: LOG_TARGET,
-						"Updating biforst oracle failed as the price is outside the allowed range"
-					);
-					return Err(Error::<T>::PriceOutsideAllowedRange.into());
-				}
-			}
-
-			Self::on_entry(BIFROST_SOURCE, ordered_pair, entry).map_err(|_| Error::<T>::TooManyUniqueEntries)?;
-
+		/// Revoke oracle-update authorization for `account` on a specific `(source, pair)`.
+		///
+		/// Parameters:
+		/// - `origin`: `AuthorityOrigin`
+		/// - `source`: external source identifier (must already be registered)
+		/// - `assets`: the asset pair to revoke — matched in ordered form
+		/// - `account`: the account to revoke
+		///
+		/// Emits `AuthorizedAccountRemoved` event when successful.
+		#[pallet::call_index(7)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_authorized_account())]
+		pub fn remove_authorized_account(
+			origin: OriginFor<T>,
+			source: Source,
+			assets: (AssetId, AssetId),
+			account: T::AccountId,
+		) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
+			let pair = ordered_pair(assets.0, assets.1);
+			AuthorizedAccounts::<T>::remove((source, pair, &account));
+			Self::deposit_event(Event::AuthorizedAccountRemoved { source, pair, account });
 			Ok(())
 		}
 	}
 }
 
 impl<T: Config> Pallet<T> {
+	fn do_set_oracle(
+		who: T::AccountId,
+		source: Source,
+		asset_a: Box<polkadot_xcm::VersionedLocation>,
+		asset_b: Box<polkadot_xcm::VersionedLocation>,
+		price: (Balance, Balance),
+	) -> DispatchResultWithPostInfo {
+		let asset_a = T::LocationToAssetIdConversion::convert(*asset_a).ok_or(Error::<T>::AssetNotFound)?;
+		let asset_b = T::LocationToAssetIdConversion::convert(*asset_b).ok_or(Error::<T>::AssetNotFound)?;
+
+		Self::do_set_oracle_inner(who, source, asset_a, asset_b, price)
+	}
+
+	fn do_set_oracle_inner(
+		who: T::AccountId,
+		source: Source,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		price: (Balance, Balance),
+	) -> DispatchResultWithPostInfo {
+		ensure!(ExternalSources::<T>::contains_key(source), Error::<T>::SourceNotFound);
+		ensure!(price.0 != 0 && price.1 != 0, Error::<T>::PriceIsZero);
+
+		let ordered = ordered_pair(asset_a, asset_b);
+
+		ensure!(
+			AuthorizedAccounts::<T>::contains_key((source, ordered, &who)),
+			Error::<T>::NotAuthorized
+		);
+		let entry: OracleEntry<BlockNumberFor<T>> = {
+			let e = OracleEntry::new(
+				EmaPrice::new(price.0, price.1),
+				Volume::default(),
+				Liquidity::default(),
+				None,
+				T::BlockNumberProvider::current_block_number(),
+			);
+			if ordered == (asset_a, asset_b) {
+				e
+			} else {
+				e.inverted()
+			}
+		};
+
+		Self::on_entry(source, ordered, entry).map_err(|_| Error::<T>::TooManyUniqueEntries)?;
+
+		Ok(Pays::No.into())
+	}
+
 	/// Insert or update data in the accumulator from received entry. Aggregates volume and
 	/// takes the most recent data for the rest.
 	pub(crate) fn on_entry(
@@ -363,7 +625,8 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<(), ()> {
-		if !T::OracleWhitelist::contains(&(src, assets.0, assets.1)) && src.ne(&BIFROST_SOURCE) {
+		let is_internal_source = T::InternalSources::contains(&src);
+		if !T::OracleWhitelist::contains(&(src, assets.0, assets.1)) && is_internal_source {
 			// if we don't track oracle for given asset pair, don't throw error
 			return Ok(());
 		}
@@ -373,10 +636,21 @@ impl<T: Config> Pallet<T> {
 				entry.accumulate_volume_and_update_from(&oracle_entry);
 				Ok(())
 			} else {
-				accumulator
-					.try_insert((src, assets), oracle_entry)
-					.map(|_| ())
-					.map_err(|_| ())
+				// The `MaxUniqueEntries` soft cap applies ONLY to non-external (AMM)
+				// entries. An authorized external caller must not be able to push
+				// legitimate AMM new-pair trades out of the accumulator by filling it
+				// with distinct external pairs.
+				if is_internal_source {
+					let non_external_len = accumulator
+						.keys()
+						.filter(|(s, _)| T::InternalSources::contains(s))
+						.count();
+					if non_external_len >= T::MaxUniqueEntries::get() as usize {
+						return Err(());
+					}
+				}
+				accumulator.insert((src, assets), oracle_entry);
+				Ok(())
 			}
 		})
 	}
@@ -426,31 +700,42 @@ impl<T: Config> Pallet<T> {
 	/// Update oracles based on data accumulated during the block.
 	fn update_oracles_from_accumulator() {
 		for ((src, assets), oracle_entry) in Accumulator::<T>::take().into_iter() {
+			let mut updates = BTreeMap::new();
+
 			// First we update the non-immediate oracles with the value of the `LastBlock` oracle.
 			for period in T::SupportedPeriods::get()
 				.into_iter()
 				.filter(|p| *p != OraclePeriod::LastBlock)
 			{
-				Self::update_oracle(src, assets, period, oracle_entry.clone());
+				let price = Self::update_oracle(src, assets, period, oracle_entry.clone());
+				updates.insert(period, price);
 			}
 			// As we use (the old value of) the `LastBlock` entry to update the other oracles it
 			// gets updated last.
-			Self::update_oracle(src, assets, OraclePeriod::LastBlock, oracle_entry.clone());
+			let price = Self::update_oracle(src, assets, OraclePeriod::LastBlock, oracle_entry.clone());
+			updates.insert(OraclePeriod::LastBlock, price);
+
+			Self::deposit_event(Event::<T>::OracleUpdated {
+				source: src,
+				assets,
+				updates,
+			});
 		}
 	}
 
 	/// Update the oracle of the given source, assets and period with `oracle_entry`.
+	/// Returns the updated price.
 	fn update_oracle(
 		src: Source,
 		assets: (AssetId, AssetId),
 		period: OraclePeriod,
 		incoming_entry: OracleEntry<BlockNumberFor<T>>,
-	) {
+	) -> Price {
 		Oracles::<T>::mutate((src, assets, period), |oracle| {
 			// initialize the oracle entry if it doesn't exist
 			if oracle.is_none() {
 				*oracle = Some((incoming_entry.clone(), T::BlockNumberProvider::current_block_number()));
-				return;
+				return incoming_entry.price;
 			}
 			if let Some((prev_entry, _)) = oracle.as_mut() {
 				let parent = T::BlockNumberProvider::current_block_number().saturating_sub(One::one());
@@ -479,8 +764,12 @@ impl<T: Config> Pallet<T> {
 						);
 						debug_assert!(false, "Updating to new value should not fail.");
 					});
-			};
-		});
+				prev_entry.price
+			} else {
+				// This branch should never be reached since we handle is_none above
+				incoming_entry.price
+			}
+		})
 	}
 
 	/// Return the updated oracle entry for the given source, assets and period.
@@ -524,17 +813,6 @@ impl<T: Config> Pallet<T> {
 			(entry, init)
 		})
 	}
-
-	fn is_within_range(reference_price: (u128, u128), new_price: (u128, u128)) -> bool {
-		let reference = FixedU128::from_rational(reference_price.0, reference_price.1);
-		let new_value = FixedU128::from_rational(new_price.0, new_price.1);
-
-		let percentage_difference = T::MaxAllowedPriceDifference::get();
-		let lower_bound = reference.saturating_mul(FixedU128::one().saturating_sub(percentage_difference.into()));
-		let upper_bound = reference.saturating_mul(FixedU128::one().saturating_add(percentage_difference.into()));
-
-		new_value >= lower_bound && new_value <= upper_bound
-	}
 }
 
 /// A callback handler for trading and liquidity activity that schedules oracle updates.
@@ -565,6 +843,7 @@ impl<T: Config> OnTradeHandler<AssetId, Balance, Price> for OnActivityHandler<T>
 		liquidity_a: Balance,
 		liquidity_b: Balance,
 		price: Price,
+		shares_issuance: Option<Balance>,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		// We assume that zero liquidity values are not valid and can be ignored.
 		if liquidity_a.is_zero() || liquidity_b.is_zero() {
@@ -584,6 +863,7 @@ impl<T: Config> OnTradeHandler<AssetId, Balance, Price> for OnActivityHandler<T>
 			price,
 			volume,
 			liquidity,
+			shares_issuance,
 			updated_at,
 		};
 		Pallet::<T>::on_trade(source, ordered_pair(asset_a, asset_b), entry)
@@ -591,9 +871,8 @@ impl<T: Config> OnTradeHandler<AssetId, Balance, Price> for OnActivityHandler<T>
 
 	fn on_trade_weight() -> Weight {
 		let max_entries = T::MaxUniqueEntries::get();
-		// on_trade + on_finalize / max_entries
 		T::WeightInfo::on_trade_multiple_tokens(max_entries)
-			.saturating_add(fractional_on_finalize_weight::<T>(max_entries))
+			.saturating_add(fractional_on_finalize_weight::<T>(MAX_EXTERNAL_ENTRIES_PER_BLOCK))
 	}
 }
 
@@ -607,6 +886,7 @@ impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance, Price> for OnActivit
 		liquidity_a: Balance,
 		liquidity_b: Balance,
 		price: Price,
+		shares_issuance: Option<Balance>,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		if liquidity_a.is_zero() || liquidity_b.is_zero() {
 			log::trace!(
@@ -623,6 +903,7 @@ impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance, Price> for OnActivit
 			// liquidity provision does not count as trade volume
 			volume: Volume::default(),
 			liquidity,
+			shares_issuance,
 			updated_at,
 		};
 		Pallet::<T>::on_liquidity_changed(source, ordered_pair(asset_a, asset_b), entry)
@@ -630,9 +911,8 @@ impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance, Price> for OnActivit
 
 	fn on_liquidity_changed_weight() -> Weight {
 		let max_entries = T::MaxUniqueEntries::get();
-		// on_liquidity + on_finalize / max_entries
 		T::WeightInfo::on_liquidity_changed_multiple_tokens(max_entries)
-			.saturating_add(fractional_on_finalize_weight::<T>(max_entries))
+			.saturating_add(fractional_on_finalize_weight::<T>(MAX_EXTERNAL_ENTRIES_PER_BLOCK))
 	}
 }
 
@@ -749,5 +1029,46 @@ pub struct OracleWhitelist<T>(PhantomData<T>);
 impl<T: Config> Contains<(Source, AssetId, AssetId)> for OracleWhitelist<T> {
 	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
 		WhitelistedAssets::<T>::get().contains(&(t.0, (t.1, t.2)))
+	}
+}
+
+impl<T: Config> RawOracle<AssetId, Balance, BlockNumberFor<T>> for Pallet<T> {
+	type Error = OracleError;
+
+	fn get_raw_entry(
+		source: Source,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		period: OraclePeriod,
+	) -> Result<RawEntry<Balance, BlockNumberFor<T>>, Self::Error> {
+		if asset_a == asset_b {
+			return Err(OracleError::SameAsset);
+		}
+		let assets = ordered_pair(asset_a, asset_b);
+		let (entry, _) = Self::oracle((source, assets, period)).ok_or(OracleError::NotPresent)?;
+		let entry = if (asset_a, asset_b) == assets {
+			entry
+		} else {
+			entry.inverted()
+		};
+		Ok(RawEntry {
+			price: (entry.price.n, entry.price.d),
+			volume: entry.volume,
+			liquidity: entry.liquidity,
+			shares_issuance: entry.shares_issuance,
+			updated_at: entry.updated_at,
+		})
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: Config> Pallet<T> {
+	// Helper function for runtime-benchmarking to directly set oracle value.
+	pub fn add_entry(
+		src: Source,
+		assets: (AssetId, AssetId),
+		oracle_entry: OracleEntry<BlockNumberFor<T>>,
+	) -> Result<(), DispatchError> {
+		Self::on_entry(src, assets, oracle_entry).map_err(|_| Error::<T>::OracleNotFound.into())
 	}
 }

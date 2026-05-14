@@ -33,12 +33,14 @@ use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::router::{RefundEdCalculator, Trade};
+use hydradx_traits::router::Trade;
 use hydradx_traits::{
 	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
 	Inspect as InspectRegistry, OraclePeriod, PriceOracle,
 };
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, GetByKey};
+use pallet_circuit_breaker::traits::AssetDepositLimiter;
+use pallet_circuit_breaker::Config;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool;
@@ -46,7 +48,7 @@ use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use primitive_types::{U128, U256};
 use sp_core::H256;
-use sp_runtime::traits::Zero;
+use sp_runtime::traits::{Bounded, Zero};
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError, DispatchResult, FixedU128,
@@ -54,6 +56,7 @@ use sp_runtime::{
 use sp_runtime::{BoundedVec, Permill};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -90,6 +93,9 @@ thread_local! {
 	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 	pub static WITHDRAWAL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
+	pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<(u32, u32)> = const { RefCell::new((2_000, 10_000)) }; // 20%
+	pub static MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = const { RefCell::new(Some((4_000, 10_000))) }; // 40%
+	pub static MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = const { RefCell::new(Some((2_000, 10_000))) }; // 20%
 }
 
 construct_runtime!(
@@ -103,6 +109,8 @@ construct_runtime!(
 		Currencies: pallet_currencies,
 		XYK: pallet_xyk,
 		Broadcast: pallet_broadcast,
+		CircuitBreaker: pallet_circuit_breaker,
+		Timestamp: pallet_timestamp,
 	}
 );
 
@@ -136,6 +144,18 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
+}
+
+parameter_types! {
+	pub const MinimumPeriod: u64 = primitives::constants::time::SLOT_DURATION / 2;
+}
+
+impl pallet_timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
 }
 
 impl pallet_balances::Config for Test {
@@ -152,6 +172,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_type_with_key! {
@@ -161,7 +182,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -191,10 +211,10 @@ parameter_types! {
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
 	pub BurnFee: Permill = Permill::zero();
+	pub const ReserveAccount: AccountId = 7;
 }
 
 impl pallet_omnipool::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Currencies;
@@ -236,12 +256,14 @@ impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
+	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 parameter_types! {
@@ -251,11 +273,9 @@ parameter_types! {
 
 	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
 	pub XYKExchangeFee: (u32, u32) = (3, 1_000);
-	pub const DiscountedFee: (u32, u32) = (7, 10_000);
 }
 
 impl pallet_xyk::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetRegistry = DummyRegistry<Test>;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currencies;
@@ -269,12 +289,70 @@ impl pallet_xyk::Config for Test {
 	type OracleSource = ();
 	type CanCreatePool = DummyCanCreatePool;
 	type AMMHandler = ();
-	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = DummyDuster;
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+impl pallet_broadcast::Config for Test {}
+
+pub struct CircuitBreakerWhitelist;
+
+pub const WHITELISTED_ACCCOUNT: u64 = 2;
+
+impl Contains<AccountId> for CircuitBreakerWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		WHITELISTED_ACCCOUNT == *a
+	}
+}
+
+parameter_types! {
+	pub DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub const OmnipoolHubAsset: AssetId = LRNA;
+}
+
+pub struct NoIssuanceIncreaseLimit<T>(PhantomData<T>);
+
+impl<T: Config> GetByKey<T::AssetId, Option<T::Balance>> for NoIssuanceIncreaseLimit<T> {
+	fn get(_: &T::AssetId) -> Option<T::Balance> {
+		Some(T::Balance::max_value())
+	}
+}
+
+pub struct NoIssuance<T>(PhantomData<T>);
+impl<T: Config> GetByKey<T::AssetId, T::Balance> for NoIssuance<T> {
+	fn get(_: &T::AssetId) -> T::Balance {
+		T::Balance::default()
+	}
+}
+
+pub struct DepositLimiter;
+
+impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositLimiter {
+	type DepositLimit = NoIssuanceIncreaseLimit<Test>;
+	type Period = ();
+	type Issuance = NoIssuance<Test>;
+	type OnLimitReached = ();
+	type OnLockdownDeposit = ();
+	type OnDepositRelease = ();
+}
+
+impl pallet_circuit_breaker::Config for Test {
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
+	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DepositLockWhitelist = frame_support::traits::Nothing;
+	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
+	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
+	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
+	type OmnipoolHubAsset = OmnipoolHubAsset;
+	type WeightInfo = ();
+	type DepositLimiter = DepositLimiter;
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+	type TimestampProvider = Timestamp;
 }
 
 pub struct Whitelist;
@@ -343,29 +421,17 @@ parameter_types! {
 type Pools = (Omnipool, XYK);
 
 impl pallet_route_executor::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
-	type InspectRegistry = DummyRegistry<Test>;
 	type AMM = Pools;
-	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type WeightInfo = ();
 }
-
-pub struct MockedEdCalculator;
-
-impl RefundEdCalculator<Balance> for MockedEdCalculator {
-	fn calculate() -> Balance {
-		1_000_000_000_000
-	}
-}
-
 pub struct PriceProviderMock {}
 
 impl PriceOracle<AssetId> for PriceProviderMock {
@@ -521,6 +587,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: initial_native_accounts,
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

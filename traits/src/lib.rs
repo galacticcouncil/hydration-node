@@ -18,10 +18,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::upper_case_acronyms)]
 
+pub mod circuit_breaker;
 pub mod evm;
 pub mod fee;
 pub mod liquidity_mining;
 pub mod nft;
+pub mod offchain;
 pub mod oracle;
 pub mod pools;
 pub mod price;
@@ -29,11 +31,12 @@ pub mod registry;
 pub mod router;
 pub mod stableswap;
 
+pub use offchain::*;
 pub use oracle::*;
 pub use registry::*;
 
 use codec::{Decode, Encode};
-use frame_support::dispatch::{self};
+use frame_support::dispatch::{self, DispatchResult};
 use frame_support::sp_runtime::{traits::Zero, DispatchError, RuntimeDebug};
 use frame_support::traits::LockIdentifier;
 use frame_support::weights::Weight;
@@ -49,12 +52,10 @@ pub struct AMMTransfer<AccountId, AssetId, AssetPair, Balance> {
 	pub assets: AssetPair,
 	pub amount: Balance,
 	pub amount_b: Balance,
-	pub discount: bool,
-	pub discount_amount: Balance,
 	pub fee: (AssetId, Balance),
 }
 
-/// Traits for handling AMM Pool trades.
+/// Trait providing info about AMM Pool.
 pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 	/// Check if both assets exist in a pool.
 	fn exists(assets: AssetPair) -> bool;
@@ -67,90 +68,6 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 
 	/// Return list of active assets in a given pool.
 	fn get_pool_assets(pool_account_id: &AccountId) -> Option<Vec<AssetId>>;
-
-	/// Calculate spot price for asset a and b.
-	fn get_spot_price_unchecked(asset_a: AssetId, asset_b: AssetId, amount: Amount) -> Amount;
-
-	/// Sell trade validation
-	/// Perform all necessary checks to validate an intended sale.
-	fn validate_sell(
-		origin: &AccountId,
-		assets: AssetPair,
-		amount: Amount,
-		min_bought: Amount,
-		discount: bool,
-	) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Amount>, frame_support::sp_runtime::DispatchError>;
-
-	/// Execute buy for given validated transfer.
-	fn execute_sell(transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>) -> dispatch::DispatchResult;
-
-	/// Perform asset swap.
-	/// Call execute following the validation.
-	fn sell(
-		origin: &AccountId,
-		assets: AssetPair,
-		amount: Amount,
-		min_bought: Amount,
-		discount: bool,
-	) -> dispatch::DispatchResult {
-		Self::execute_sell(&Self::validate_sell(origin, assets, amount, min_bought, discount)?)?;
-
-		Ok(())
-	}
-
-	/// Buy trade validation
-	/// Perform all necessary checks to validate an intended buy.
-	fn validate_buy(
-		origin: &AccountId,
-		assets: AssetPair,
-		amount: Amount,
-		max_limit: Amount,
-		discount: bool,
-	) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Amount>, frame_support::sp_runtime::DispatchError>;
-
-	/// Execute buy for given validated transfer.
-	fn execute_buy(
-		transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>,
-		destination: Option<&AccountId>,
-	) -> dispatch::DispatchResult;
-
-	/// Perform asset swap.
-	fn buy(
-		origin: &AccountId,
-		assets: AssetPair,
-		amount: Amount,
-		max_limit: Amount,
-		discount: bool,
-	) -> dispatch::DispatchResult {
-		Self::execute_buy(&Self::validate_buy(origin, assets, amount, max_limit, discount)?, None)?;
-
-		Ok(())
-	}
-
-	/// Perform asset swap and send bought assets to the destination account.
-	fn buy_for(
-		origin: &AccountId,
-		assets: AssetPair,
-		amount: Amount,
-		max_limit: Amount,
-		discount: bool,
-		dest: &AccountId,
-	) -> dispatch::DispatchResult {
-		Self::execute_buy(
-			&Self::validate_buy(origin, assets, amount, max_limit, discount)?,
-			Some(dest),
-		)?;
-		Ok(())
-	}
-	fn get_min_trading_limit() -> Amount;
-
-	fn get_min_pool_liquidity() -> Amount;
-
-	fn get_max_in_ratio() -> u128;
-
-	fn get_max_out_ratio() -> u128;
-
-	fn get_fee(pool_account_id: &AccountId) -> (u32, u32);
 }
 
 pub trait Resolver<AccountId, Intention, E> {
@@ -189,6 +106,7 @@ pub trait OnTradeHandler<AssetId, Balance, Price> {
 		liquidity_a: Balance,
 		liquidity_b: Balance,
 		price: Price,
+		shares_issuance: Option<Balance>,
 	) -> Result<Weight, (Weight, DispatchError)>;
 	/// Known overhead for a trade in `on_initialize/on_finalize`.
 	/// Needs to be specified here if we don't want to make AMM pools tightly coupled with the price oracle pallet, otherwise we can't access the weight.
@@ -206,6 +124,7 @@ impl<AssetId, Balance, Price> OnTradeHandler<AssetId, Balance, Price> for () {
 		_liquidity_a: Balance,
 		_liquidity_b: Balance,
 		_price: Price,
+		_shares_issuance: Option<Balance>,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		Ok(Weight::zero())
 	}
@@ -241,6 +160,7 @@ pub trait OnLiquidityChangedHandler<AssetId, Balance, Price> {
 		liquidity_a: Balance,
 		liquidity_b: Balance,
 		price: Price,
+		shares_issuance: Option<Balance>,
 	) -> Result<Weight, (Weight, DispatchError)>;
 	/// Known overhead for a liquidity change in `on_initialize/on_finalize`.
 	/// Needs to be specified here if we don't want to make AMM pools tightly coupled with the price oracle pallet, otherwise we can't access the weight.
@@ -258,6 +178,7 @@ impl<AssetId, Balance, Price> OnLiquidityChangedHandler<AssetId, Balance, Price>
 		_liq_a: Balance,
 		_liq_b: Balance,
 		_price: Price,
+		_shares_issuance: Option<Balance>,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		Ok(Weight::zero())
 	}
@@ -294,6 +215,8 @@ pub trait AMMAddLiquidity<AccountId, AssetId, Balance> {
 pub trait AccountFeeCurrency<AccountId> {
 	type AssetId;
 	fn get(a: &AccountId) -> Self::AssetId;
+	fn set(who: &AccountId, asset_id: Self::AssetId) -> DispatchResult;
+	fn is_payment_currency(asset_id: Self::AssetId) -> DispatchResult;
 }
 
 /// Provides account's balance of fee asset currency in a given currency

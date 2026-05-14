@@ -25,8 +25,10 @@ mod service;
 
 mod cli;
 mod command;
+mod liquidation_worker;
 mod rpc;
 
+#[allow(clippy::result_large_err)]
 fn main() -> sc_cli::Result<()> {
 	command::run()
 }

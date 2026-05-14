@@ -22,15 +22,17 @@ use pallet_transaction_multi_payment::{DepositAll, TransferFees, WeightInfo};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::constants::{
 	chain::{
-		BLOCK_PROCESSING_VELOCITY, CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT, RELAY_CHAIN_SLOT_DURATION_MILLIS,
-		UNINCLUDED_SEGMENT_CAPACITY,
+		BLOCK_PROCESSING_VELOCITY, CORE_ASSET_ID, DEFAULT_RELAY_PARENT_OFFSET, MAXIMUM_BLOCK_WEIGHT,
+		RELAY_CHAIN_SLOT_DURATION_MILLIS, UNINCLUDED_SEGMENT_CAPACITY,
 	},
 	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
 	time::{DAYS, HOURS, SLOT_DURATION},
 };
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use crate::circuit_breaker::IgnoreWithdrawFuse;
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::cmp::Ordering;
+use frame_support::migrations::FailedMigrationHandling;
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
@@ -70,7 +72,8 @@ impl Contains<RuntimeCall> for CallFilter {
 				| RuntimeCall::Whitelist(_)
 		) {
 			// always allow
-			// Note: this is done to avoid unnecessary check of paused storage.
+			// Note: this is done to avoid unnecessary check of paused storage, and to
+			// ensure that critical functions cannot be paused by TechnicalCommittee
 			return true;
 		}
 
@@ -117,6 +120,10 @@ impl Contains<RuntimeCall> for CallFilter {
 			RuntimeCall::EVM(pallet_evm::Call::create { .. }) => false,
 			RuntimeCall::EVM(pallet_evm::Call::create2 { .. }) => false,
 			RuntimeCall::OrmlXcm(_) => false,
+			//NOTE: this prevents creation of thombstone positions if nft was burned outside
+			//of pallet that created it.
+			RuntimeCall::Uniques(pallet_uniques::Call::burn { .. }) => false,
+			RuntimeCall::Router(pallet_route_executor::Call::set_route { .. }) => false,
 			_ => true,
 		}
 	}
@@ -155,7 +162,7 @@ parameter_types! {
 	/// Maximum length of block. Up to 5MB.
 	pub BlockLength: frame_system::limits::BlockLength =
 		frame_system::limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
-	pub const SS58Prefix: u16 = 63;
+	pub const SS58Prefix: u16 = 0;
 }
 
 //We get the base and add the multi payment overhead until we have proper solution for calculating ExtrinsicBaseWeight by using the benchmark overhead command.
@@ -216,22 +223,54 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type SingleBlockMigrations = ();
-	type MultiBlockMigrator = ();
+	type SingleBlockMigrations = migrations::SingleBlockMigrationsList;
+	type MultiBlockMigrator = MultiBlockMigrations;
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = weights::frame_system_extensions::HydraWeight<Runtime>;
 }
 
 parameter_types! {
-	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
+	pub MaxServiceWeight: Weight = NORMAL_DISPATCH_RATIO * BlockWeights::get().max_block;
+}
+
+impl pallet_migrations::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Migrations = migrations::MultiBlockMigrationsList;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
+	type CursorMaxLen = ConstU32<65_536>;
+	type IdentifierMaxLen = ConstU32<256>;
+	type MigrationStatusHandler = ();
+	type FailedMigrationHandler = LogErrorAndForceUnstuck;
+	type MaxServiceWeight = MaxServiceWeight;
+	type WeightInfo = weights::pallet_migrations::HydraWeight<Runtime>;
+}
+
+pub struct LogErrorAndForceUnstuck;
+impl frame_support::migrations::FailedMigrationHandler for LogErrorAndForceUnstuck {
+	fn failed(migration: Option<u32>) -> FailedMigrationHandling {
+		log::error!(
+			target: "runtime::migrations",
+			"Migration {migration:?} failed - halting all migrations and resuming chain"
+		);
+
+		// Clear the migration cursor entirely. Transactions resume, remaining migrations are
+		// skipped. State may be inconsistent.
+		FailedMigrationHandling::ForceUnstuck
+	}
+}
+
+parameter_types! {
 	pub const NativeAssetId : AssetId = CORE_ASSET_ID;
 }
 impl pallet_timestamp::Config for Runtime {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
 	type OnTimestampSet = ();
-	type MinimumPeriod = MinimumPeriod;
+	type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
 	type WeightInfo = weights::pallet_timestamp::HydraWeight<Runtime>;
 }
 
@@ -240,12 +279,24 @@ parameter_types! {
 	pub ReservedDmpWeight: Weight = BlockWeights::get().max_block / 4;
 }
 
-type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
+pub type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
 	Runtime,
 	RELAY_CHAIN_SLOT_DURATION_MILLIS,
 	BLOCK_PROCESSING_VELOCITY,
 	UNINCLUDED_SEGMENT_CAPACITY,
 >;
+
+pub struct RelayParentOffset;
+
+impl Get<u32> for RelayParentOffset {
+	fn get() -> u32 {
+		if Parameters::relay_parent_offset_override() {
+			0
+		} else {
+			DEFAULT_RELAY_PARENT_OFFSET
+		}
+	}
+}
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -255,10 +306,12 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type ReservedDmpWeight = ReservedDmpWeight;
 	type XcmpMessageHandler = XcmpQueue;
 	type ReservedXcmpWeight = ReservedXcmpWeight;
-	type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
+	type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
 	type ConsensusHook = ConsensusHook;
+	type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
+	type RelayParentOffset = RelayParentOffset;
 }
 
 parameter_types! {
@@ -269,7 +322,7 @@ impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type MaxAuthorities = MaxAuthorities;
 	type DisabledValidators = ();
-	type AllowMultipleBlocksPerSlot = ConstBool<false>;
+	type AllowMultipleBlocksPerSlot = ConstBool<true>;
 	type SlotDuration = ConstU64<SLOT_DURATION>;
 }
 
@@ -341,6 +394,7 @@ impl pallet_scheduler::Config for Runtime {
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = weights::pallet_scheduler::HydraWeight<Runtime>;
 	type Preimages = Preimage;
+	type BlockNumberProvider = System;
 }
 
 /// Used the compare the privilege of an origin inside the scheduler.
@@ -355,11 +409,6 @@ impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 		match (left, right) {
 			// Root is greater than anything.
 			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
-			// Check which one has more yes votes.
-			(
-				OriginCaller::Council(pallet_collective::RawOrigin::Members(l_yes_votes, l_count)),
-				OriginCaller::Council(pallet_collective::RawOrigin::Members(r_yes_votes, r_count)),
-			) => Some((l_yes_votes * r_count).cmp(&(r_yes_votes * l_count))),
 			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
 			_ => None,
 		}
@@ -384,6 +433,7 @@ impl pallet_session::Config for Runtime {
 	type SessionHandler = <opaque::SessionKeys as sp_runtime::traits::OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = opaque::SessionKeys;
 	type WeightInfo = ();
+	type DisablingStrategy = ();
 }
 
 impl pallet_utility::Config for Runtime {
@@ -420,6 +470,7 @@ parameter_types! {
 	pub const PendingUserNameExpiration: u32 = 7 * DAYS;
 	pub const MaxSuffixLength: u32 = 7;
 	pub const MaxUsernameLength: u32 = 32;
+	pub const UsernameDeposit: Balance = 5 * DOLLARS;
 }
 
 impl pallet_identity::Config for Runtime {
@@ -441,10 +492,27 @@ impl pallet_identity::Config for Runtime {
 	type MaxSuffixLength = MaxSuffixLength;
 	type MaxUsernameLength = MaxUsernameLength;
 	type WeightInfo = weights::pallet_identity::HydraWeight<Runtime>;
+	type UsernameDeposit = UsernameDeposit;
+	type UsernameGracePeriod = ConstU32<{ 30 * DAYS }>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 /// The type used to represent the kinds of proxying allowed.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+)]
 pub enum ProxyType {
 	Any,
 	CancelProxy,
@@ -467,11 +535,8 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Governance => matches!(
 				c,
 				RuntimeCall::Democracy(..)
-					| RuntimeCall::Council(..)
 					| RuntimeCall::TechnicalCommittee(..)
-					| RuntimeCall::Elections(..)
 					| RuntimeCall::Treasury(..)
-					| RuntimeCall::Tips(..)
 					| RuntimeCall::Utility(..)
 					| RuntimeCall::Preimage(..)
 					| RuntimeCall::Referenda(..)
@@ -531,6 +596,7 @@ impl pallet_proxy::Config for Runtime {
 	type CallHasher = BlakeTwo256;
 	type AnnouncementDepositBase = AnnouncementDepositBase;
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -547,9 +613,11 @@ impl pallet_multisig::Config for Runtime {
 	type DepositFactor = DepositFactor;
 	type MaxSignatories = MaxSignatories;
 	type WeightInfo = weights::pallet_multisig::HydraWeight<Runtime>;
+	type BlockNumberProvider = System;
 }
 
 impl pallet_genesis_history::Config for Runtime {}
+impl pallet_parameters::Config for Runtime {}
 
 /// Parameterized slow adjusting fee updated based on
 /// https://w3f-research.readthedocs.io/en/latest/polkadot/overview/2-token-economics.html?highlight=token%20economics#-2.-slow-adjusting-mechanism
@@ -603,16 +671,17 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = TransferFees<Currencies, DepositAll<Runtime>, TreasuryAccount>;
+	type OnChargeTransaction =
+		TransferFees<Runtime, Currencies, DepositAll<Runtime>, TreasuryAccount, IgnoreWithdrawFuse<Runtime>>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
+	type WeightInfo = weights::pallet_transaction_payment::HydraWeight<Runtime>;
 }
 
 impl pallet_transaction_multi_payment::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type AcceptedCurrencyOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type AcceptedCurrencyOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type Currencies = Currencies;
 	type RouteProvider = Router;
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
@@ -623,12 +692,11 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type InspectEvmAccounts = EVMAccounts;
 	type WeightToFee = WeightToFee;
 	type EvmPermit = evm::permit::EvmPermitHandler<Runtime>;
-	type TryCallCurrency<'a> = pallet_transaction_multi_payment::TryCallCurrency<Runtime>;
+	type TryCallCurrency<'a> = TryCallCurrency;
 	type SwappablePaymentAssetSupport = assets::XykPaymentAssetSupport;
 }
 
 impl pallet_relaychain_info::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type RelaychainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 }
 
@@ -650,7 +718,6 @@ parameter_types! {
 }
 
 impl pallet_collator_rewards::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type CurrencyId = AssetId;
 	type Currency = Currencies;
@@ -658,15 +725,18 @@ impl pallet_collator_rewards::Config for Runtime {
 	type RewardCurrencyId = NativeAssetId;
 	type RewardsBag = TreasuryAccount;
 	type ExcludedCollators = ExcludedCollators;
-	// We wrap the ` SessionManager` implementation of `CollatorSelection` to get the collators that
+	// We wrap the `SessionManager` implementation of `CollatorRotation` to get the collators that
 	// we hand out rewards to.
-	type SessionManager = CollatorSelection;
+	type SessionManager = CollatorRotation;
 	type MaxCandidates = MaxInvulnerables;
 }
 
+impl pallet_collator_rotation::Config for Runtime {
+	type Inner = CollatorSelection;
+}
+
 impl pallet_transaction_pause::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
 	type WeightInfo = weights::pallet_transaction_pause::HydraWeight<Runtime>;
 }
 
@@ -697,4 +767,8 @@ impl pallet_state_trie_migration::Config for Runtime {
 	type SignedDepositPerItem = MigrationSignedDepositPerItem;
 	type SignedDepositBase = MigrationSignedDepositBase;
 	type WeightInfo = weights::pallet_state_trie_migration::HydraWeight<Runtime>;
+}
+
+impl cumulus_pallet_weight_reclaim::Config for Runtime {
+	type WeightInfo = weights::cumulus_pallet_weight_reclaim::HydraWeight<Runtime>;
 }

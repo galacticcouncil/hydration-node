@@ -1,4 +1,5 @@
 use crate::tests::mock::*;
+use crate::tests::to_bounded_asset_vec;
 use crate::types::{PoolInfo, Tradability};
 use crate::{AssetTradability, Error, Pools};
 use frame_support::{assert_noop, assert_ok};
@@ -21,7 +22,7 @@ fn update_pool_should_work_when_all_parames_are_updated() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(0),
 			));
@@ -62,7 +63,7 @@ fn update_pool_should_work_when_only_fee_is_updated() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(0),
 			));
@@ -123,7 +124,7 @@ fn set_tradable_state_should_work_when_asset_in_pool() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(0),
 			));
@@ -154,7 +155,7 @@ fn set_tradable_state_should_fail_when_asset_not_in_pool() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(0),
 			));
@@ -177,5 +178,180 @@ fn set_tradable_state_should_fail_when_pool_does_not_exist() {
 				Stableswap::set_asset_tradable_state(RuntimeOrigin::root(), pool_id, 1, Tradability::FROZEN,),
 				Error::<Test>::PoolNotFound
 			);
+		});
+}
+
+#[test]
+fn set_tradable_state_should_remove_storage_when_state_is_default() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
+				100,
+				Permill::from_percent(0),
+			));
+
+			assert_ok!(Stableswap::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				pool_id,
+				asset_a,
+				Tradability::FROZEN,
+			));
+			assert!(<AssetTradability<Test>>::contains_key(pool_id, asset_a));
+
+			assert_ok!(Stableswap::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				pool_id,
+				asset_a,
+				Tradability::default(),
+			));
+
+			assert!(!<AssetTradability<Test>>::contains_key(pool_id, asset_a));
+		});
+}
+
+#[test]
+fn set_tradable_state_should_allow_all_operations_when_reset_to_default() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
+				100,
+				Permill::from_percent(0),
+			));
+
+			assert_ok!(Stableswap::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				pool_id,
+				asset_a,
+				Tradability::FROZEN,
+			));
+
+			assert_ok!(Stableswap::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				pool_id,
+				asset_a,
+				Tradability::default(),
+			));
+
+			let stored = <AssetTradability<Test>>::get(pool_id, asset_a);
+			assert_eq!(stored, Tradability::default());
+			assert!(stored.contains(Tradability::SELL));
+			assert!(stored.contains(Tradability::BUY));
+			assert!(stored.contains(Tradability::ADD_LIQUIDITY));
+			assert!(stored.contains(Tradability::REMOVE_LIQUIDITY));
+		});
+}
+
+#[test]
+fn set_tradable_state_should_handle_full_toggle_through_default_and_partial_flags() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
+				100,
+				Permill::from_percent(0),
+			));
+
+			assert_ok!(Stableswap::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				pool_id,
+				asset_a,
+				Tradability::FROZEN,
+			));
+			assert_eq!(<AssetTradability<Test>>::get(pool_id, asset_a), Tradability::FROZEN);
+
+			assert_ok!(Stableswap::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				pool_id,
+				asset_a,
+				Tradability::default(),
+			));
+			assert!(!<AssetTradability<Test>>::contains_key(pool_id, asset_a));
+
+			let partial = Tradability::SELL | Tradability::BUY;
+			assert_ok!(Stableswap::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				pool_id,
+				asset_a,
+				partial,
+			));
+			assert!(<AssetTradability<Test>>::contains_key(pool_id, asset_a));
+			assert_eq!(<AssetTradability<Test>>::get(pool_id, asset_a), partial);
+
+			assert_ok!(Stableswap::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				pool_id,
+				asset_a,
+				Tradability::default(),
+			));
+			assert!(!<AssetTradability<Test>>::contains_key(pool_id, asset_a));
+		});
+}
+
+#[test]
+fn set_tradable_state_should_not_create_storage_entry_when_initial_state_is_default() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
+				100,
+				Permill::from_percent(0),
+			));
+
+			assert!(!<AssetTradability<Test>>::contains_key(pool_id, asset_a));
+
+			assert_ok!(Stableswap::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				pool_id,
+				asset_a,
+				Tradability::default(),
+			));
+
+			assert!(!<AssetTradability<Test>>::contains_key(pool_id, asset_a));
 		});
 }

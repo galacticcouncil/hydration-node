@@ -1,18 +1,17 @@
-use codec::{Decode, Encode, MaxEncodedLen};
-use hydradx_traits::router::{AssetPair, RouteProvider, Trade};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use hydradx_traits::router::{AssetPair, Route, RouteProvider, Trade};
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
-use sp_std::vec::Vec;
 
 pub type Balance = u128;
 pub type ScheduleId = u32;
 pub type NamedReserveIdentifier = [u8; 8];
 
-const MAX_NUMBER_OF_TRADES: u32 = 5;
+const MAX_NUMBER_OF_TRADES: u32 = 9;
 
 /// DCA schedule containing information to execute repeating orders.
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub struct Schedule<AccountId, AssetId, BlockNumber> {
 	/// The owner of the schedule.
 	pub owner: AccountId,
@@ -41,7 +40,7 @@ impl<AccountId, AssetId, BlockNumber> Schedule<AccountId, AssetId, BlockNumber> 
 	}
 }
 
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub enum Order<AssetId> {
 	Sell {
 		asset_in: AssetId,
@@ -79,7 +78,7 @@ where
 		*asset_out
 	}
 
-	pub fn get_route_or_default<Provider: RouteProvider<AssetId>>(&self) -> Vec<Trade<AssetId>> {
+	pub fn get_route_or_default<Provider: RouteProvider<AssetId>>(&self) -> Route<AssetId> {
 		let route = match &self {
 			Order::Sell { route, .. } => route,
 			Order::Buy { route, .. } => route,
@@ -87,7 +86,7 @@ where
 		if route.is_empty() {
 			Provider::get_route(AssetPair::new(self.get_asset_in(), self.get_asset_out()))
 		} else {
-			route.to_vec()
+			route.clone()
 		}
 	}
 }

@@ -23,7 +23,9 @@
 //! different currencies and to validate transactions based on the account's fee payment asset.
 //!
 //! Shamelessly copied from pallet-evm and modified to support multi-currency fees.
+use crate::evm::evm_fee::evm_fee_payer;
 use crate::evm::WethAssetId;
+use ethereum::AuthorizationList;
 use fp_evm::{Account, TransactionValidationError};
 use frame_support::traits::Get;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
@@ -31,7 +33,7 @@ use pallet_evm::runner::Runner;
 use pallet_evm::{AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, RunnerError};
 use pallet_genesis_history::migration::Weight;
 use primitive_types::{H160, H256, U256};
-use primitives::{AssetId, Balance};
+use primitives::{AccountId, AssetId, Balance};
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
 
@@ -39,11 +41,12 @@ pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);
 
 impl<T, R, B> Runner<T> for WrapRunner<T, R, B>
 where
-	T: Config,
+	T: Config + pallet_dispatcher::Config + frame_system::Config,
 	R: Runner<T>,
 	<R as pallet_evm::Runner<T>>::Error: core::convert::From<TransactionValidationError>,
 	B: AccountFeeCurrencyBalanceInCurrency<AssetId, T::AccountId, Output = (Balance, Weight)>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	T::AccountId: From<AccountId>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 {
 	type Error = R::Error;
@@ -58,6 +61,7 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: Vec<(U256, H160, U256, Option<H160>)>,
 		is_transactional: bool,
 		weight_limit: Option<Weight>,
 		proof_size_base_cost: Option<u64>,
@@ -66,9 +70,11 @@ where
 		let (base_fee, mut weight) = T::FeeCalculator::min_gas_price();
 
 		let evm_currency = WethAssetId::get();
-		let account_id = T::AddressMapping::into_account_id(source);
-		let account_nonce = T::AccountProvider::account_nonce(&account_id.clone().into());
-		let (balance, b_weight) = B::get_balance_in_currency(evm_currency, &account_id);
+		let evm_account_id = T::AddressMapping::into_account_id(source);
+		let account_nonce = T::AccountProvider::account_nonce(&evm_account_id.clone().into());
+
+		let fee_payer = evm_fee_payer().map(T::AccountId::from).unwrap_or(evm_account_id);
+		let (balance, b_weight) = B::get_balance_in_currency(evm_currency, &fee_payer);
 
 		let (source_account, inner_weight) = (
 			Account {
@@ -98,6 +104,7 @@ where
 				max_priority_fee_per_gas,
 				value,
 				access_list,
+				authorization_list,
 			},
 			weight_limit,
 			proof_size_base_cost,
@@ -119,6 +126,7 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: AuthorizationList,
 		is_transactional: bool,
 		validate: bool,
 		weight_limit: Option<Weight>,
@@ -136,14 +144,19 @@ where
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.clone(),
+				convert_authorization_list(authorization_list.clone()),
 				is_transactional,
 				weight_limit,
 				proof_size_base_cost,
 				config,
 			)?;
 		}
+
+		let source_account_id = T::AddressMapping::into_account_id(source);
+		let original_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
+
 		// Validated, flag set to false
-		R::call(
+		let result = R::call(
 			source,
 			target,
 			input,
@@ -153,12 +166,24 @@ where
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
+			authorization_list,
 			is_transactional,
 			false,
 			weight_limit,
 			proof_size_base_cost,
 			config,
-		)
+		)?;
+
+		if validate && is_transactional && nonce.is_none() && max_priority_fee_per_gas.is_none() {
+			let current_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
+			debug_assert!(current_nonce > original_nonce);
+			frame_system::Account::<T>::mutate(source_account_id, |a| a.nonce = original_nonce);
+		}
+
+		// Store the exit reason for the last EVM call
+		pallet_dispatcher::Pallet::<T>::set_last_evm_call_exit_reason(&result.exit_reason);
+
+		Ok(result)
 	}
 
 	fn create(
@@ -170,6 +195,7 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: AuthorizationList,
 		is_transactional: bool,
 		validate: bool,
 		weight_limit: Option<Weight>,
@@ -187,6 +213,7 @@ where
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.clone(),
+				convert_authorization_list(authorization_list.clone()),
 				is_transactional,
 				weight_limit,
 				proof_size_base_cost,
@@ -203,6 +230,7 @@ where
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
+			authorization_list,
 			is_transactional,
 			false,
 			weight_limit,
@@ -221,6 +249,7 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: AuthorizationList,
 		is_transactional: bool,
 		validate: bool,
 		weight_limit: Option<Weight>,
@@ -238,6 +267,7 @@ where
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.clone(),
+				convert_authorization_list(authorization_list.clone()),
 				is_transactional,
 				weight_limit,
 				proof_size_base_cost,
@@ -255,6 +285,7 @@ where
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
+			authorization_list,
 			is_transactional,
 			false,
 			weight_limit,
@@ -272,6 +303,7 @@ where
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: AuthorizationList,
 		is_transactional: bool,
 		validate: bool,
 		weight_limit: Option<Weight>,
@@ -290,6 +322,7 @@ where
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.clone(),
+				convert_authorization_list(authorization_list.clone()),
 				is_transactional,
 				weight_limit,
 				proof_size_base_cost,
@@ -306,6 +339,7 @@ where
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
+			authorization_list,
 			is_transactional,
 			false,
 			weight_limit,
@@ -314,4 +348,18 @@ where
 			contract_address,
 		)
 	}
+}
+
+fn convert_authorization_list(auth_list: AuthorizationList) -> Vec<(U256, H160, U256, Option<H160>)> {
+	auth_list
+		.into_iter()
+		.map(|item| {
+			(
+				item.chain_id.into(),
+				item.address,
+				item.nonce,
+				None, // authority field not available in AuthorizationListItem
+			)
+		})
+		.collect()
 }

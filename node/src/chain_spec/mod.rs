@@ -48,7 +48,6 @@ const PARA_ID: u32 = 2034;
 const TOKEN_DECIMALS: u8 = 12;
 const TOKEN_SYMBOL: &str = "HDX";
 const PROTOCOL_ID: &str = "hdx";
-const STASH: Balance = 100 * UNITS;
 
 /// The extensions for the [`ChainSpec`].
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ChainSpecExtension, ChainSpecGroup)]
@@ -93,7 +92,6 @@ pub fn parachain_genesis(
 	_root_key: AccountId,
 	initial_authorities: (Vec<(AccountId, AuraId)>, Balance), // (initial auths, candidacy bond)
 	endowed_accounts: Vec<(AccountId, Balance)>,
-	council_members: Vec<AccountId>,
 	tech_committee_members: Vec<AccountId>,
 	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
 	registered_assets: Vec<(
@@ -108,8 +106,8 @@ pub fn parachain_genesis(
 	accepted_assets: Vec<(AssetId, Price)>, // (Asset id, Fallback price) - asset which fee can be paid with
 	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
 	claims_data: Vec<(EthereumAddress, Balance)>,
-	elections: Vec<(AccountId, Balance)>,
 	parachain_id: ParaId,
+	is_testnet: bool,
 	duster: DusterConfig,
 ) -> serde_json::Value {
 	serde_json::json!({
@@ -143,9 +141,6 @@ pub fn parachain_genesis(
 			.map(|k| (k.0.clone(), k.1 * UNITS))
 			.collect::<Vec<_>>(),
 	},
-	"council": {
-		"members": council_members,
-	},
 	"technicalCommittee": {
 		"members": tech_committee_members,
 	},
@@ -163,6 +158,9 @@ pub fn parachain_genesis(
 		"currencies": accepted_assets,
 		"accountCurrencies": Vec::<(AccountId, AssetId)>::new(),
 	},
+	"parameters": {
+		"isTestnet": is_testnet,
+	},
 	"tokens": {
 		"balances": if registered_assets.is_empty() {
 			vec![]
@@ -178,9 +176,6 @@ pub fn parachain_genesis(
 		},
 	},
 	"treasury": {
-	},
-	"elections": {
-		"members": elections,
 	},
 	"genesisHistory": {
 		"previousChain": hydradx_runtime::Chain::default()
@@ -198,9 +193,7 @@ pub fn parachain_genesis(
 		"initialData": Vec::<(hydradx_runtime::Source, (AssetId, AssetId), Price, hydradx_runtime::Liquidity<Balance>)>::new()
 	},
 	"duster": {
-		"accountBlacklist": duster.account_blacklist,
-		"rewardAccount": duster.reward_account,
-		"dustAccount": duster.dust_account
+		"accountWhitelist": duster.account_whitelist,
 	},
 	"omnipoolWarehouseLm": {
 	},

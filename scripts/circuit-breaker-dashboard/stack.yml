@@ -1,0 +1,24 @@
+version: '3.3'
+services:
+  web:
+    image: nginx:alpine
+    configs:
+      - source: circuit_breaker_dashboard
+        target: /usr/share/nginx/html/index.html
+        mode: 0o444
+    networks:
+      - gateway
+    logging:
+      driver: json-file
+    deploy:
+      labels:
+        traefik.http.routers.circuit-breaker.rule: Host(`circuit-breaker.lark.hydration.cloud`)
+        traefik.http.routers.circuit-breaker.tls: 'true'
+        traefik.http.routers.circuit-breaker.tls.certresolver: myresolver
+        traefik.http.services.circuit-breaker.loadbalancer.server.port: '80'
+configs:
+  circuit_breaker_dashboard:
+    external: true
+networks:
+  gateway:
+    external: true

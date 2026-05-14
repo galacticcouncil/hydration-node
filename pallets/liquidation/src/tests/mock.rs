@@ -2,7 +2,7 @@ use crate as pallet_liquidation;
 use crate::*;
 use ethabi::ethereum_types::H160;
 use evm::{ExitError, ExitSucceed};
-use frame_support::sp_runtime::traits::CheckedConversion;
+use frame_support::sp_runtime::traits::Convert;
 use frame_support::{
 	assert_ok, parameter_types,
 	sp_runtime::{
@@ -17,11 +17,9 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned};
 use hex_literal::hex;
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
+use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::fee::GetDynamicFee;
-use hydradx_traits::{
-	router::{PoolType, RefundEdCalculator},
-	OraclePeriod, PriceOracle,
-};
+use hydradx_traits::{router::PoolType, AccountFeeCurrency, OraclePeriod, PriceOracle};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
@@ -67,6 +65,7 @@ frame_support::construct_runtime!(
 
 parameter_types! {
 	pub const LiquidationGasLimit: u64 = 1_000_000;
+	pub const HollarId: u32 = 222;
 }
 
 parameter_type_with_key! {
@@ -87,7 +86,7 @@ fn decode_liquidation_call_data(data: Vec<u8>) -> Option<(EvmAddress, EvmAddress
 		let collateral_asset = EvmAddress::from(H256::from_slice(&data[4..36]));
 		let debt_asset = EvmAddress::from(H256::from_slice(&data[36..68]));
 		let user = EvmAddress::from(H256::from_slice(&data[68..100]));
-		let debt_to_cover = Balance::try_from(U256::checked_from(&data[100..132])?).ok()?;
+		let debt_to_cover = Balance::try_from(U256::from_big_endian(&data[100..132])).ok()?;
 		let receive_atoken = !H256(data[132..164].try_into().unwrap()).is_zero();
 
 		Some((collateral_asset, debt_asset, user, debt_to_cover, receive_atoken))
@@ -106,7 +105,13 @@ impl EVM<CallResult> for EvmMock {
 				let debt_asset = HydraErc20Mapping::decode_evm_address(data.1);
 
 				if collateral_asset.is_none() || debt_asset.is_none() {
-					return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
+					return CallResult {
+						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+						value: vec![],
+						contract: context.contract,
+						gas_used: U256::zero(),
+						gas_limit: U256::zero(),
+					};
 				};
 
 				let collateral_asset = collateral_asset.unwrap();
@@ -130,13 +135,33 @@ impl EVM<CallResult> for EvmMock {
 				);
 
 				if first_transfer_result.is_err() || second_transfer_result.is_err() {
-					return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
+					return CallResult {
+						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+						value: vec![],
+						contract: context.contract,
+						gas_used: U256::zero(),
+						gas_limit: U256::zero(),
+					};
 				}
 			}
-			None => return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]),
+			None => {
+				return CallResult {
+					exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+					value: vec![],
+					contract: context.contract,
+					gas_used: U256::zero(),
+					gas_limit: U256::zero(),
+				}
+			}
 		}
 
-		(ExitReason::Succeed(ExitSucceed::Returned), vec![])
+		CallResult {
+			exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+			value: vec![],
+			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
+		}
 	}
 
 	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {
@@ -146,6 +171,14 @@ impl EVM<CallResult> for EvmMock {
 
 pub struct HydraErc20Mapping;
 impl Erc20Mapping<AssetId> for HydraErc20Mapping {
+	fn asset_address(asset_id: AssetId) -> EvmAddress {
+		Self::encode_evm_address(asset_id)
+	}
+	fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
+		Self::decode_evm_address(address)
+	}
+}
+impl Erc20Encoding<AssetId> for HydraErc20Mapping {
 	fn encode_evm_address(asset_id: AssetId) -> EvmAddress {
 		let asset_id_bytes: [u8; 4] = asset_id.to_le_bytes();
 
@@ -190,7 +223,6 @@ impl pallet_evm::GasWeightMapping for DummyGasWeightMapping {
 	}
 }
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Test>;
 	type Evm = EvmMock;
 	type Router = Router;
@@ -201,19 +233,23 @@ impl Config for Test {
 	type ProfitReceiver = TreasuryAccount;
 	type RouterWeightInfo = ();
 	type WeightInfo = ();
+	type HollarId = HollarId;
+	type FlashMinter = ();
+	type EvmErrorDecoder = EvmErrorDecodeMock;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
+}
+
+pub struct EvmErrorDecodeMock;
+
+impl Convert<CallResult, DispatchError> for EvmErrorDecodeMock {
+	fn convert(_call_result: CallResult) -> DispatchError {
+		DispatchError::Other("Call failed")
+	}
 }
 
 parameter_types! {
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
-}
-
-pub struct MockedEdCalculator;
-
-impl RefundEdCalculator<Balance> for MockedEdCalculator {
-	fn calculate() -> Balance {
-		1_000_000_000_000
-	}
 }
 
 pub struct PriceProviderMock {}
@@ -231,14 +267,11 @@ impl PriceOracle<AssetId> for PriceProviderMock {
 }
 
 impl pallet_route_executor::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = HDXAssetId;
 	type Currency = FungibleCurrencies<Test>;
-	type InspectRegistry = AssetRegistry;
 	type AMM = Omnipool;
-	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
@@ -246,9 +279,7 @@ impl pallet_route_executor::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -286,10 +317,10 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -338,22 +369,19 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
+	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const MinTradingLimit: Balance = 1_000;
-	pub const MinPoolLiquidity: Balance = 1_000;
-	pub const DiscountedFee: (u32, u32) = (7, 10_000);
 }
 
 parameter_types! {
@@ -367,7 +395,6 @@ parameter_types! {
 type AssetLocation = u8;
 
 impl pallet_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EnsureRoot<AccountId>;
 	type Currency = Tokens;
 	type UpdateOrigin = EnsureSigned<AccountId>;
@@ -382,7 +409,6 @@ impl pallet_asset_registry::Config for Test {
 }
 
 impl pallet_omnipool::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Currencies;
@@ -472,11 +498,29 @@ impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProviderMock {
 	}
 }
 
+pub struct FeeCurrencyMock;
+impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
+	type AssetId = AssetId;
+
+	fn get(_a: &AccountId) -> Self::AssetId {
+		unimplemented!()
+	}
+	fn set(_who: &AccountId, _asset_id: Self::AssetId) -> DispatchResult {
+		unimplemented!()
+	}
+	fn is_payment_currency(_asset_id: Self::AssetId) -> DispatchResult {
+		unimplemented!()
+	}
+}
+
 impl pallet_evm_accounts::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type FeeMultiplier = ConstU32<10>;
 	type EvmNonceProvider = EvmNonceProviderMock;
 	type ControllerOrigin = EnsureRoot<AccountId>;
+	type AssetId = AssetId;
+	type Currency = FungibleCurrencies<Test>;
+	type ExistentialDeposits = ExistentialDeposits;
+	type FeeCurrency = FeeCurrencyMock;
 	type WeightInfo = ();
 }
 
@@ -559,6 +603,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: initial_native_accounts,
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

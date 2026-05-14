@@ -45,13 +45,16 @@ use frame_support::{
 	},
 	transactional, PalletId,
 };
+use hydradx_traits::router::Route;
+
 use frame_system::{
-	offchain::{SendTransactionTypes, SubmitTransaction},
+	offchain::SubmitTransaction,
 	pallet_prelude::{BlockNumberFor, OriginFor},
 };
 use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouteSpotPriceProvider, RouterT, Trade,
 };
+use hydradx_traits::CreateBare;
 use pallet_otc::weights::WeightInfo as OtcWeightInfo;
 pub use pallet_otc::OrderId;
 use sp_arithmetic::{
@@ -100,7 +103,6 @@ pub const OFFCHAIN_WORKER_DATA: &[u8] = b"hydradx/otc-settlements/data/";
 pub const OFFCHAIN_WORKER_DATA_LAST_UPDATE: &[u8] = b"hydradx/otc-settlements/data-last-update/";
 pub const SORTED_ORDERS_LOCK: &[u8] = b"hydradx/otc-settlements/lock/";
 pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
-pub const FILL_SEARCH_ITERATIONS: u32 = 40;
 
 pub type AssetIdOf<T> = <T as pallet_otc::Config>::AssetId;
 type SortedOtcsStorageType = OrderId;
@@ -113,10 +115,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_otc::Config + SendTransactionTypes<Call<Self>> {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
+	pub trait Config: frame_system::Config + pallet_otc::Config + CreateBare<Call<Self>> {
 		/// Named reservable multi currency.
 		type Currency: Mutate<Self::AccountId, AssetId = AssetIdOf<Self>, Balance = Balance>;
 
@@ -251,7 +250,7 @@ pub mod pallet {
 			_origin: OriginFor<T>,
 			otc_id: OrderId,
 			amount: Balance,
-			route: Vec<Trade<AssetIdOf<T>>>,
+			route: Route<AssetIdOf<T>>,
 		) -> DispatchResult {
 			// `is_execution` is set to `true`, so both full and partial closing of arbs is allowed.
 			// If set to `false`, an arb needs to be fully closed.
@@ -299,12 +298,12 @@ impl<T: Config> Pallet<T> {
 	pub fn settle_otc(
 		otc_id: OrderId,
 		amount: Balance,
-		route: Vec<Trade<AssetIdOf<T>>>,
+		route: Route<AssetIdOf<T>>,
 		is_execution: bool,
 	) -> DispatchResult {
 		log::debug!(
 			target: "offchain_worker::settle_otc",
-			"calling settle_otc(): otc_id: {:?} amount: {:?} route: {:?}", otc_id, amount, route);
+			"calling settle_otc(): otc_id: {otc_id:?} amount: {amount:?} route: {route:?}");
 
 		let pallet_acc = Self::account_id();
 
@@ -340,7 +339,7 @@ impl<T: Config> Pallet<T> {
 		if otc.partially_fillable && amount != otc.amount_in {
 			log::debug!(
 			target: "offchain_worker::settle_otc",
-				"calling partial fill order: amount {:?} ", amount);
+				"calling partial fill order: amount {amount:?} ");
 			pallet_otc::Pallet::<T>::partial_fill_order(RawOrigin::Signed(pallet_acc.clone()).into(), otc_id, amount)?;
 		} else {
 			log::debug!(
@@ -354,7 +353,7 @@ impl<T: Config> Pallet<T> {
 
 		log::debug!(
 			target: "offchain_worker::settle_otc",
-			"calling router sell: amount_in {:?} ", otc_amount_out);
+			"calling router sell: amount_in {otc_amount_out:?} ");
 
 		// Disable in the benchmarks and use existing weight from the router pallet.
 		#[cfg(not(feature = "runtime-benchmarks"))]
@@ -374,9 +373,7 @@ impl<T: Config> Pallet<T> {
 		let router_price_after = T::Router::spot_price_with_fee(&route).ok_or(Error::<T>::PriceNotAvailable)?;
 		log::debug!(
 			target: "offchain_worker::settle_otc",
-			"final router price: {:?}   otc_price: {:?} ",
-			router_price_after,
-			otc_price
+			"final router price: {router_price_after:?}   otc_price: {otc_price:?} ",
 		);
 
 		// Compare OTC and Router price.
@@ -506,7 +503,7 @@ impl<T: Config> Pallet<T> {
 				list.retain(|&(otc_id, otc_price, router_price_before, _)| {
 					log::debug!(
 						target: "offchain_worker::settle_otcs",
-						  "no arb, skipping OTC: {:?}", otc_id);
+						  "no arb, skipping OTC: {otc_id:?}");
 					router_price_before <= otc_price
 				});
 
@@ -534,7 +531,7 @@ impl<T: Config> Pallet<T> {
 		for otc_id in sorted_otcs.iter() {
 			log::debug!(
 			target: "offchain_worker::settle_otcs",
-				"test OTC id {:?} ", otc_id);
+				"test OTC id {otc_id:?} ");
 
 			let otc = <pallet_otc::Orders<T>>::get(otc_id).unwrap();
 			let route = T::Router::get_route(AssetPair {
@@ -545,16 +542,18 @@ impl<T: Config> Pallet<T> {
 			if let Some(sell_amt) = maybe_amount {
 				log::debug!(
 				target: "offchain_worker::settle_otcs",
-						"Sending TX for OTC id: {:?} amount: {:?}",
-						otc_id,
-						sell_amt
+						"Sending TX for OTC id: {otc_id:?} amount: {sell_amt:?}",
 					);
+
 				let call = Call::settle_otc_order {
 					otc_id: *otc_id,
 					amount: sell_amt,
 					route,
 				};
-				let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
+
+				// Create an unsigned extrinsic
+				let xt = T::create_bare(call.into());
+				let _ = SubmitTransaction::<T, Call<T>>::submit_transaction(xt);
 			}
 		}
 	}
@@ -563,7 +562,7 @@ impl<T: Config> Pallet<T> {
 	fn try_find_trade_amount(
 		otc_id: OrderId,
 		otc: &Order<T::AccountId, T::AssetId>,
-		route: &[Trade<AssetIdOf<T>>],
+		route: &Route<AssetIdOf<T>>,
 	) -> Option<Balance> {
 		// use binary search to determine the correct sell amount
 		let mut sell_amt = otc.amount_in; // start by trying to fill the whole order
@@ -578,17 +577,15 @@ impl<T: Config> Pallet<T> {
 		for i in 0..iters {
 			log::debug!(
 			target: "offchain_worker::settle_otcs",
-				"iteration: {:?}", i);
+				"iteration: {i:?}");
 			log::debug!(
 			target: "offchain_worker::settle_otcs::binary_search",
-				"\nsell_amt: {:?}\nsell_amt_up: {:?}\nsell_amt_down: {:?}", sell_amt, sell_amt_up, sell_amt_down);
-			match Self::settle_otc(otc_id, sell_amt, route.to_vec(), false) {
+				"\nsell_amt: {sell_amt:?}\nsell_amt_up: {sell_amt_up:?}\nsell_amt_down: {sell_amt_down:?}");
+			match Self::settle_otc(otc_id, sell_amt, route.clone(), false) {
 				Ok(_) => {
 					log::debug!(
 					target: "offchain_worker::settle_otcs",
-								"Extrinsic executed successfully for OTC id: {:?} amount: {:?}",
-								otc_id,
-								sell_amt
+								"Extrinsic executed successfully for OTC id: {otc_id:?} amount: {sell_amt:?}",
 							);
 					return Some(sell_amt);
 				}
@@ -596,19 +593,19 @@ impl<T: Config> Pallet<T> {
 					if error == Error::<T>::TradeAmountTooHigh.into() {
 						log::debug!(
 						   target: "offchain_worker::settle_otcs",
-							"Extrinsic failed: trade amount too high for OTC id: {:?} amount: {:?}", otc_id, sell_amt);
+							"Extrinsic failed: trade amount too high for OTC id: {otc_id:?} amount: {sell_amt:?}");
 
 						sell_amt_up = sell_amt;
 					} else if error == Error::<T>::TradeAmountTooLow.into() {
 						log::debug!(
 						   target: "offchain_worker::settle_otcs",
-							"Extrinsic failed: trade amount too low for OTC id: {:?} amount: {:?}", otc_id, sell_amt);
+							"Extrinsic failed: trade amount too low for OTC id: {otc_id:?} amount: {sell_amt:?}");
 
 						sell_amt_down = sell_amt;
 					} else {
 						log::debug!(
 						   target: "offchain_worker::settle_otcs",
-							"Extrinsic failed with error for OTC id: {:?} amount: {:?} error: {:?}", otc_id, sell_amt, error);
+							"Extrinsic failed with error for OTC id: {otc_id:?} amount: {sell_amt:?} error: {error:?}");
 						return None;
 					}
 				}
@@ -621,7 +618,7 @@ impl<T: Config> Pallet<T> {
 		}
 		// execute with the latest min value
 		if sell_amt_down != T::MinTradingLimit::get() {
-			match Self::settle_otc(otc_id, sell_amt_down, route.to_vec(), true) {
+			match Self::settle_otc(otc_id, sell_amt_down, route.clone(), true) {
 				Ok(_) => Some(sell_amt_down),
 				Err(_) => None,
 			}

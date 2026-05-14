@@ -24,6 +24,10 @@ impl fmt::Display for RuntimeInstanceError {
 pub struct RunCmd {
 	#[clap(flatten)]
 	pub base: cumulus_client_cli::RunCmd,
+
+	/// Disable fork-aware transaction pool and use legacy single-state pool instead
+	#[arg(long, default_value_t = false)]
+	pub disable_fork_aware_pool: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -50,6 +54,14 @@ pub struct Cli {
 
 	#[clap(flatten)]
 	pub ethereum_config: crate::service::evm::EthereumConfig,
+
+	#[arg(long)]
+	/// Disable override of TX priorities by the client.
+	pub no_tx_priority_override: bool,
+
+	/// Liquidation worker configuration
+	#[clap(flatten)]
+	pub liquidation_worker_config: crate::liquidation_worker::LiquidationWorkerConfig,
 }
 
 #[derive(Debug)]

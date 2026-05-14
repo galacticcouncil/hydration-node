@@ -38,11 +38,11 @@ fn get_token_value_of_lp_shares_should_return_valued_of_correct_token_when_amm_e
 			//Act & Assert
 			pretty_assertions::assert_eq!(
 				LiquidityMining::get_token_value_of_lp_shares(BSX, amm_pool_id, 1_000).unwrap(),
-				50
+				1_000
 			);
 			pretty_assertions::assert_eq!(
 				LiquidityMining::get_token_value_of_lp_shares(KSM, amm_pool_id, 1_000).unwrap(),
-				100
+				2_000
 			);
 		});
 }

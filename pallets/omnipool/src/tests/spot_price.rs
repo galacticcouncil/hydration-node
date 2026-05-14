@@ -256,11 +256,7 @@ fn compare_spot_price_with_and_without_fee_when_lrna_sold() {
 				.unwrap()
 				.checked_mul_int(sell_amount)
 				.unwrap();
-			let difference = if calculated_amount_out_with_fee > received {
-				calculated_amount_out_with_fee - received
-			} else {
-				received - calculated_amount_out_with_fee
-			};
+			let difference = calculated_amount_out_with_fee.abs_diff(received);
 			let relative_difference_with_fee = FixedU128::from_rational(difference, received);
 			let tolerated_difference = FixedU128::from_rational(2, 1000);
 

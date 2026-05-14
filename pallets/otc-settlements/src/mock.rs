@@ -29,10 +29,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned};
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
 use hydradx_traits::fee::GetDynamicFee;
-use hydradx_traits::{
-	router::{PoolType, RefundEdCalculator},
-	OraclePeriod, PriceOracle,
-};
+use hydradx_traits::{router::PoolType, OraclePeriod, PriceOracle};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
@@ -94,7 +91,6 @@ parameter_type_with_key! {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Test>;
 	type Router = Router;
 	type ProfitReceiver = TreasuryAccount;
@@ -110,7 +106,6 @@ impl pallet_otc::Config for Test {
 	type AssetId = AssetId;
 	type AssetRegistry = AssetRegistry;
 	type Currency = Currencies;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type Fee = OtcFee;
@@ -121,14 +116,6 @@ impl pallet_otc::Config for Test {
 parameter_types! {
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 		pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
-}
-
-pub struct MockedEdCalculator;
-
-impl RefundEdCalculator<Balance> for MockedEdCalculator {
-	fn calculate() -> Balance {
-		1_000_000_000_000
-	}
 }
 
 pub struct PriceProviderMock {}
@@ -146,14 +133,11 @@ impl PriceOracle<AssetId> for PriceProviderMock {
 }
 
 impl pallet_route_executor::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = HDXAssetId;
 	type Currency = FungibleCurrencies<Test>;
-	type InspectRegistry = AssetRegistry;
 	type AMM = Omnipool;
-	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
@@ -197,10 +181,10 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -249,26 +233,25 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
+	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 parameter_types! {
 	pub const MinTradingLimit: Balance = 1_000;
-	pub const MinPoolLiquidity: Balance = 1_000;
-	pub const DiscountedFee: (u32, u32) = (7, 10_000);
 }
 
 parameter_types! {
@@ -282,7 +265,6 @@ parameter_types! {
 type AssetLocation = u8;
 
 impl pallet_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EnsureRoot<AccountId>;
 	type Currency = Tokens;
 	type UpdateOrigin = EnsureSigned<u64>;
@@ -311,7 +293,6 @@ impl hydradx_traits::pools::DustRemovalAccountWhitelist<AccountId> for DummyDust
 }
 
 impl pallet_omnipool::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Currencies;
@@ -395,12 +376,22 @@ impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
 }
 
 pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+
+impl<LocalCall> frame_system::offchain::CreateTransactionBase<LocalCall> for Test
 where
-	RuntimeCall: From<C>,
+	RuntimeCall: From<LocalCall>,
 {
-	type OverarchingCall = RuntimeCall;
+	type RuntimeCall = RuntimeCall;
 	type Extrinsic = Extrinsic;
+}
+
+impl<LocalCall> hydradx_traits::CreateBare<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_bare(call: Self::RuntimeCall) -> Extrinsic {
+		Extrinsic::new_bare(call)
+	}
 }
 
 pub struct ExtBuilder {
@@ -505,6 +496,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: initial_native_accounts,
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

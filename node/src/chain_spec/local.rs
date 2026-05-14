@@ -61,8 +61,6 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				INITIAL_BALANCE,
 			),
 		],
-		// council members
-		vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 		// technical committee members
 		vec![
 			get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -107,18 +105,12 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 		],
 		// claims data
 		create_testnet_claims(),
-		// elections
-		vec![
-			(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5),
-			(get_account_id_from_seed::<sr25519::Public>("Bob"), STASH / 5),
-			(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
-		],
 		// parachain ID
 		PARA_ID.into(),
+		// is_testnet
+		true,
 		DusterConfig {
-			account_blacklist: vec![get_account_id_from_seed::<sr25519::Public>("Duster")],
-			reward_account: Some(get_account_id_from_seed::<sr25519::Public>("Duster")),
-			dust_account: Some(get_account_id_from_seed::<sr25519::Public>("Duster")),
+			account_whitelist: vec![get_account_id_from_seed::<sr25519::Public>("Duster")],
 		},
 	);
 

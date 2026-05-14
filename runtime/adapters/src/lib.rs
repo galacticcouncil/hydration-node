@@ -25,7 +25,7 @@ use frame_support::{
 		ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, FixedPointOperand, FixedU128,
 		SaturatedConversion,
 	},
-	traits::{Contains, LockIdentifier, OriginTrait},
+	traits::{Contains, ExistenceRequirement, LockIdentifier, OriginTrait},
 	weights::{Weight, WeightToFee},
 };
 use hydra_dx_math::{
@@ -46,7 +46,7 @@ use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use pallet_stableswap::types::{PoolState, StableswapHooks};
 use pallet_transaction_multi_payment::DepositFee;
-use polkadot_xcm::v4::prelude::*;
+use polkadot_xcm::v5::prelude::*;
 use primitive_types::{U128, U512};
 use primitives::constants::chain::{STABLESWAP_SOURCE, XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
@@ -63,8 +63,8 @@ use xcm_executor::{
 
 pub mod inspect;
 pub mod price;
+pub mod stableswap_peg_oracle;
 pub mod xcm_exchange;
-pub mod xcm_execute_filter;
 
 #[cfg(test)]
 mod tests;
@@ -153,8 +153,7 @@ impl<
 		_context: &XcmContext,
 	) -> Result<AssetsInHolding, XcmError> {
 		log::trace!(
-			target: "xcm::weight", "MultiCurrencyTrader::buy_weight weight: {:?}, payment: {:?}",
-			weight, payment
+			target: "xcm::weight", "MultiCurrencyTrader::buy_weight weight: {weight:?}, payment: {payment:?}",
 		);
 		let (asset_loc, price) = self.get_asset_and_price(&payment).ok_or(XcmError::AssetNotFound)?;
 		let fee = ConvertWeightToFee::weight_to_fee(&weight);
@@ -245,7 +244,7 @@ impl<
 				C::convert(asset).and_then(|id| {
 					let receiver = F::get();
 					D::deposit_fee(&receiver, id, amount.saturated_into::<Balance>())
-						.map_err(|e| log::trace!(target: "xcm::take_revenue", "Could not deposit fee: {:?}", e))
+						.map_err(|e| log::trace!(target: "xcm::take_revenue", "Could not deposit fee: {e:?}"))
 						.ok()
 				});
 			}
@@ -341,7 +340,8 @@ where
 		+ pallet_circuit_breaker::Config
 		+ frame_system::Config<RuntimeOrigin = Origin, AccountId = sp_runtime::AccountId32>
 		+ pallet_staking::Config
-		+ pallet_referrals::Config,
+		+ pallet_referrals::Config
+		+ pallet_broadcast::Config,
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
 	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
 	<Runtime as pallet_referrals::Config>::AssetId: From<AssetId>,
@@ -359,6 +359,7 @@ where
 			asset.after.reserve,
 			asset.after.hub_reserve,
 			Price::new(asset.after.reserve, asset.after.hub_reserve),
+			Some(asset.after.shares),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -400,6 +401,7 @@ where
 			asset_in.after.reserve,
 			asset_in.after.hub_reserve,
 			Price::new(asset_in.after.reserve, asset_in.after.hub_reserve),
+			Some(asset_in.after.shares),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -412,6 +414,7 @@ where
 			asset_out.after.hub_reserve,
 			asset_out.after.reserve,
 			Price::new(asset_out.after.hub_reserve, asset_out.after.reserve),
+			Some(asset_out.after.shares),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -440,6 +443,7 @@ where
 			asset.after.hub_reserve,
 			asset.after.reserve,
 			Price::new(asset.after.hub_reserve, asset.after.reserve),
+			Some(asset.after.shares),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -478,6 +482,9 @@ where
 		asset: AssetId,
 		amount: Balance,
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
+		//Within router, we use router as trader account, so we should get the actual user account to correctly process trade fee and accrue rewards
+		let trader = pallet_broadcast::Pallet::<Runtime>::get_swapper().unwrap_or(trader);
+
 		if asset == Lrna::get() {
 			return Ok(vec![]);
 		}
@@ -502,7 +509,13 @@ where
 	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
 		//TODO: here in future, we will change this to buyback HDX with the lrna amount
 		// for now, simply transfer the amount to treasury
-		MC::transfer(Lrna::get(), &fee_account, &ProtocolFeeRecipient::get(), amount)?;
+		MC::transfer(
+			Lrna::get(),
+			&fee_account,
+			&ProtocolFeeRecipient::get(),
+			amount,
+			ExistenceRequirement::AllowDeath,
+		)?;
 		Ok(Some((amount, ProtocolFeeRecipient::get())))
 	}
 }
@@ -611,6 +624,7 @@ where
 						Err(_) => return None,
 					}
 				}
+				PoolType::Aave => EmaPrice::from(1),
 				_ => return None,
 			};
 
@@ -621,31 +635,47 @@ where
 			return None;
 		}
 
-		let nominator = prices
-			.iter()
-			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.n)))?;
+		// To avoid overflows - process in chunks of 4 prices
+		let calculate_price_product = {
+			fn inner(prices: &[EmaPrice]) -> Option<EmaPrice> {
+				if prices.len() <= 4 {
+					// Base case: process directly
+					let nom = prices
+						.iter()
+						.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.n)))?;
+					let den = prices
+						.iter()
+						.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.d)))?;
+					Some(round_u512_to_rational((nom, den), Rounding::Nearest).into())
+				} else {
+					// Recursive case: chunk and recurse
+					let chunk_results: Vec<EmaPrice> = prices.chunks(4).map(inner).collect::<Option<Vec<_>>>()?;
 
-		let denominator = prices
-			.iter()
-			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.d)))?;
+					inner(&chunk_results)
+				}
+			}
+			inner
+		};
 
-		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
-
-		Some(EmaPrice::new(rat_as_u128.0, rat_as_u128.1))
+		calculate_price_product(&prices)
 	}
 }
 
-pub struct PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource>(PhantomData<(Runtime, LMInstance, OracleSource)>);
+pub struct PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource, AggregatedPriceGetter>(
+	PhantomData<(Runtime, LMInstance, OracleSource, AggregatedPriceGetter)>,
+);
 
-impl<Runtime, LMInstance, OracleSource> PriceAdjustment<GlobalFarmData<Runtime, LMInstance>>
-	for PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource>
+impl<Runtime, LMInstance, OracleSource, AggregatedPriceGetter> PriceAdjustment<GlobalFarmData<Runtime, LMInstance>>
+	for PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource, AggregatedPriceGetter>
 where
 	Runtime: warehouse_liquidity_mining::Config<LMInstance>
 		+ pallet_ema_oracle::Config
 		+ pallet_asset_registry::Config
+		+ pallet_route_executor::Config<AssetId = AssetId>
 		+ pallet_bonds::Config,
 	OracleSource: Get<[u8; 8]>,
 	u32: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
+	AggregatedPriceGetter: PriceOracle<AssetId, Price = EmaPrice>,
 {
 	type Error = DispatchError;
 	type PriceAdjustment = FixedU128;
@@ -666,15 +696,29 @@ where
 			global_farm.reward_currency.into()
 		};
 
-		let (price, _) = pallet_ema_oracle::Pallet::<Runtime>::get_price(
+		let r = pallet_ema_oracle::Pallet::<Runtime>::get_price(
 			reward_currency_id,
 			global_farm.incentivized_asset.into(),
 			OraclePeriod::TenMinutes,
 			OracleSource::get(),
-		)
-		.map_err(|_| DispatchError::Other("PriceAdjustmentNotAvailable"))?;
+		);
 
-		FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into())
+		if let Ok((price, _)) = r {
+			return FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into());
+		}
+
+		let assets = AssetPair::new(reward_currency_id, global_farm.incentivized_asset.into());
+		let route = pallet_route_executor::Routes::<Runtime>::get(assets.ordered_pair())
+			.ok_or(DispatchError::Other("PriceAdjustmentNotAvailable"))?;
+
+		let price = AggregatedPriceGetter::price(&route, OraclePeriod::TenMinutes)
+			.ok_or(DispatchError::Other("PriceAdjustmentNotAvailable"))?;
+
+		if assets == assets.ordered_pair() {
+			return FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into());
+		}
+
+		FixedU128::checked_from_rational(price.d, price.n).ok_or_else(|| ArithmeticError::Overflow.into())
 	}
 }
 
@@ -798,7 +842,8 @@ impl<
 			let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
 				.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
 				.saturated_into();
-			MultiCurrency::withdraw(currency_id, &who, amount).map_err(|e| XcmError::FailedToTransactAsset(e.into()))
+			MultiCurrency::withdraw(currency_id, &who, amount, ExistenceRequirement::AllowDeath)
+				.map_err(|e| XcmError::FailedToTransactAsset(e.into()))
 		})?;
 
 		Ok(asset.clone().into())
@@ -824,8 +869,14 @@ impl<
 		let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
 			.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
 			.saturated_into();
-		MultiCurrency::transfer(currency_id, &from_account, &to_account, amount)
-			.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
+		MultiCurrency::transfer(
+			currency_id,
+			&from_account,
+			&to_account,
+			amount,
+			ExistenceRequirement::AllowDeath,
+		)
+		.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
 
 		Ok(asset.clone().into())
 	}
@@ -997,6 +1048,7 @@ where
 				state.after[idx],
 				state.issuance_after,
 				Price::new(state.share_prices[idx].0, state.share_prices[idx].1),
+				None, //NOTE: shares issunace is already trancked as liquidity in ema
 			)
 			.map_err(|(_, e)| e)?;
 		}
@@ -1040,6 +1092,7 @@ where
 				state.after[idx],
 				state.issuance_after,
 				Price::new(state.share_prices[idx].0, state.share_prices[idx].1),
+				None, //NOTE: shares issunace is already trancked as liquidity in ema
 			)
 			.map_err(|(_, e)| e)?;
 		}
@@ -1058,28 +1111,28 @@ where
 
 /// Price provider that returns a price of an asset that can be used to pay tx fee.
 /// If an asset cannot be used as fee payment asset, None is returned.
-pub struct AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>(
-	PhantomData<(A, AC, RP, Oracle, FallbackPrice, Period)>,
+pub struct AssetFeeOraclePriceProvider<NativeAsset, FeePaymentAsset, Router, Oracle, FallbackPrice, Period>(
+	PhantomData<(NativeAsset, FeePaymentAsset, Router, Oracle, FallbackPrice, Period)>,
 );
 
-impl<AssetId, A, RP, AC, Oracle, FallbackPrice, Period> NativePriceOracle<AssetId, EmaPrice>
-	for AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>
+impl<AssetId, NativeAsset, Router, FeePaymentAsset, Oracle, FallbackPrice, Period> NativePriceOracle<AssetId, EmaPrice>
+	for AssetFeeOraclePriceProvider<NativeAsset, FeePaymentAsset, Router, Oracle, FallbackPrice, Period>
 where
-	RP: RouteProvider<AssetId>,
+	Router: RouteProvider<AssetId>,
 	Oracle: PriceOracle<AssetId, Price = EmaPrice>,
 	FallbackPrice: GetByKey<AssetId, Option<FixedU128>>,
 	Period: Get<OraclePeriod>,
-	A: Get<AssetId>,
+	NativeAsset: Get<AssetId>,
 	AssetId: Copy + PartialEq,
-	AC: Contains<AssetId>,
+	FeePaymentAsset: Contains<AssetId>,
 {
 	fn price(currency: AssetId) -> Option<EmaPrice> {
-		if currency == A::get() {
+		if currency == NativeAsset::get() {
 			return Some(EmaPrice::one());
 		}
 
-		if AC::contains(&currency) {
-			let route = RP::get_route(AssetPair::new(currency, A::get()));
+		if FeePaymentAsset::contains(&currency) {
+			let route = Router::get_route(AssetPair::new(currency, NativeAsset::get()));
 			if let Some(price) = Oracle::price(&route, Period::get()) {
 				Some(price)
 			} else {

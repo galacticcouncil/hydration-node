@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-traits"
-version = "3.13.0"
+version = "4.7.1"
 description = "Shared traits"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -14,9 +14,16 @@ serde = { workspace = true }
 impl-trait-for-tuples = { workspace = true }
 sp-arithmetic = { workspace = true }
 
+# Local dependencies
+primitives = { workspace = true }
+
 # Substrate dependencies
 frame-support = { workspace = true }
+frame-system = { workspace = true }
 sp-std = { workspace = true }
+pallet-evm = { workspace = true }
+
+orml-traits = { workspace = true }
 
 [features]
 default = ["std"]
@@ -24,5 +31,9 @@ std = [
     "serde/std",
     "codec/std",
     "frame-support/std",
+    "frame-system/std",
     "sp-std/std",
+    "primitives/std",
+    "pallet-evm/std",
+    "orml-traits/std",
 ]

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hydration Circuit Breaker</title>
+  <style>
+    :root {
+      --bg: #0a0e27;
+      --panel: #141a3d;
+      --text: #e8eaf6;
+      --muted: #8a8fb8;
+      --ok: #4caf50;
+      --warn: #ff9800;
+      --err: #f44336;
+      --accent: #64b5f6;
+      --border: #2a3356;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      line-height: 1.5;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { font-size: 20px; font-weight: 500; }
+    h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
+    .status { font-size: 12px; color: var(--muted); }
+    .status .dot {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--ok); margin-right: 6px; animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .controls { display: flex; gap: 8px; align-items: center; }
+    .controls input {
+      background: var(--panel); color: var(--text); border: 1px solid var(--border);
+      padding: 6px 10px; border-radius: 4px; font-family: inherit; font-size: 13px;
+      min-width: 320px;
+    }
+    .controls button {
+      background: var(--accent); color: var(--bg); border: none;
+      padding: 6px 14px; border-radius: 4px; cursor: pointer; font-weight: 500;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .global-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .stat { padding: 12px; }
+    .stat-label { font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .stat-value { font-size: 18px; font-family: 'SF Mono', Menlo, monospace; }
+    .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .bar {
+      height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+      margin-top: 8px;
+    }
+    .bar-fill { height: 100%; background: var(--ok); transition: width 0.3s, background 0.3s; }
+    .bar-fill.warn { background: var(--warn); }
+    .bar-fill.err { background: var(--err); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { font-weight: 500; color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+    td.num { font-family: 'SF Mono', Menlo, monospace; text-align: right; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 3px;
+      font-size: 11px; font-weight: 500;
+    }
+    .badge.ok { background: rgba(76,175,80,0.2); color: var(--ok); }
+    .badge.warn { background: rgba(255,152,0,0.2); color: var(--warn); }
+    .badge.err { background: rgba(244,67,54,0.2); color: var(--err); }
+    .asset { display: flex; align-items: center; gap: 8px; }
+    .asset-symbol { font-weight: 600; }
+    .asset-id { color: var(--muted); font-size: 11px; }
+    .loading { color: var(--muted); text-align: center; padding: 40px; }
+    .error { color: var(--err); padding: 12px; background: rgba(244,67,54,0.1); border-radius: 4px; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Hydration Circuit Breaker</h1>
+    <div class="controls">
+      <span class="status"><span class="dot"></span><span id="block">-</span></span>
+      <input id="rpc" value="wss://rpc.hydradx.cloud" />
+      <button id="reconnect">Reconnect</button>
+    </div>
+  </header>
+
+  <div id="error" class="error" style="display:none"></div>
+
+  <div class="panel">
+    <h2>Global Withdraw Limit</h2>
+    <div class="global-grid" id="global">
+      <div class="loading">Loading…</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Per-Asset Deposit Lockdown <span style="color:var(--muted); text-transform:none; font-size:12px; letter-spacing:0; font-weight:normal;">· fixed 24h window (14400 blocks), resets on next mint after expiry</span></h2>
+    <table id="assets">
+      <thead>
+        <tr>
+          <th>Asset</th>
+          <th>Status</th>
+          <th>Class.</th>
+          <th class="num">Net change</th>
+          <th class="num">Limit</th>
+          <th style="min-width:180px">Usage</th>
+          <th style="min-width:170px">Window</th>
+        </tr>
+      </thead>
+      <tbody><tr><td colspan="7" class="loading">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <script src="https://unpkg.com/@polkadot/util@13.2.1/bundle-polkadot-util.js"></script>
+  <script src="https://unpkg.com/@polkadot/util-crypto@13.2.1/bundle-polkadot-util-crypto.js"></script>
+  <script src="https://unpkg.com/@polkadot/types@16.0.1/bundle-polkadot-types.js"></script>
+  <script src="https://unpkg.com/@polkadot/api@16.0.1/bundle-polkadot-api.js"></script>
+
+  <script>
+  const { ApiPromise, WsProvider } = polkadotApi;
+  const { BN, formatBalance } = polkadotUtil;
+
+  let api = null;
+  let assetMeta = new Map();
+  let intervalId = null;
+
+  const BLOCK_TIME_S = 6;
+  // Per-asset deposit limit window: 1 day. A baseline older than this is effectively
+  // stale on-chain — the next mint will reset the window, so we display it as 0%.
+  const PERIOD_BLOCKS = 86400 / BLOCK_TIME_S; // 14400
+
+  function fmtBalance(raw, decimals = 12, unit = '') {
+    if (raw === null || raw === undefined) return '-';
+    const bn = new BN(raw.toString());
+    if (bn.isZero()) return '0' + (unit ? ` ${unit}` : '');
+    return formatBalance(bn, { decimals, withUnit: unit || false, forceUnit: '-', withSi: true });
+  }
+
+  function pctBar(n, d) {
+    if (!d || d === '0') return 0;
+    const num = BigInt(n.toString());
+    const den = BigInt(d.toString());
+    if (den === 0n) return 0;
+    return Math.min(100, Number((num * 10000n) / den) / 100);
+  }
+
+  function secondsToHuman(s) {
+    s = Math.max(0, Math.round(s));
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.round(s / 60)}m`;
+    if (s < 86400) return `${(s / 3600).toFixed(1)}h`;
+    return `${(s / 86400).toFixed(1)}d`;
+  }
+
+  function blocksToHuman(blocks) {
+    return secondsToHuman(blocks * BLOCK_TIME_S);
+  }
+
+  function msToHuman(ms) {
+    return secondsToHuman(Number(ms) / 1000);
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error');
+    el.textContent = msg;
+    el.style.display = msg ? 'block' : 'none';
+  }
+
+  async function loadAssetMetadata() {
+    const entries = await api.query.assetRegistry.assets.entries();
+    assetMeta.clear();
+    for (const [key, value] of entries) {
+      const id = key.args[0].toString();
+      const v = value.toHuman();
+      if (v) {
+        const rawLimit = v.xcmRateLimit || v.xcm_rate_limit;
+        const depositLimit = rawLimit ? BigInt(String(rawLimit).replace(/,/g, '')) : null;
+        assetMeta.set(id, {
+          symbol: v.symbol || v.name || `#${id}`,
+          name: v.name || v.symbol || `Asset ${id}`,
+          decimals: parseInt(v.decimals) || 12,
+          depositLimit,
+        });
+      }
+    }
+  }
+
+  async function updateGlobal() {
+    const [config, accumulator, lockdownUntil, now] = await Promise.all([
+      api.query.circuitBreaker.globalWithdrawLimitConfig(),
+      api.query.circuitBreaker.withdrawLimitAccumulator(),
+      api.query.circuitBreaker.withdrawLockdownUntil(),
+      api.query.timestamp.now(),
+    ]);
+
+    const el = document.getElementById('global');
+    if (config.isNone) {
+      el.innerHTML = '<div class="stat"><div class="stat-label">Status</div><div class="stat-value">Not configured</div></div>';
+      return;
+    }
+
+    const cfg = config.unwrap();
+    const limit = cfg.limit.toString();
+    const window = cfg.window.toString();
+    const [current, lastUpdate] = accumulator;
+    const currentBn = BigInt(current.toString());
+
+    // Accumulator decays linearly over window
+    const nowMs = BigInt(now.toString());
+    const lastMs = BigInt(lastUpdate.toString());
+    const windowMs = BigInt(window);
+    const elapsed = nowMs > lastMs ? nowMs - lastMs : 0n;
+    const decayed = windowMs > 0n ? (currentBn * elapsed) / windowMs : 0n;
+    const effectiveCurrent = currentBn > decayed ? currentBn - decayed : 0n;
+
+    const pct = pctBar(effectiveCurrent.toString(), limit);
+    const barClass = pct > 75 ? 'err' : pct > 50 ? 'warn' : '';
+
+    const lockActive = lockdownUntil && !lockdownUntil.isEmpty && BigInt(lockdownUntil.toString()) > nowMs;
+    const lockRemaining = lockActive ? BigInt(lockdownUntil.toString()) - nowMs : 0n;
+
+    el.innerHTML = `
+      <div class="stat">
+        <div class="stat-label">Status</div>
+        <div class="stat-value">
+          ${lockActive
+            ? `<span class="badge err">LOCKED ${msToHuman(lockRemaining)}</span>`
+            : `<span class="badge ok">Active</span>`}
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Used / Limit</div>
+        <div class="stat-value">${fmtBalance(effectiveCurrent.toString(), 12, 'HDX')} / ${fmtBalance(limit, 12, 'HDX')}</div>
+        <div class="bar"><div class="bar-fill ${barClass}" style="width:${pct}%"></div></div>
+        <div class="stat-sub">${pct.toFixed(2)}% utilised</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Window</div>
+        <div class="stat-value">${msToHuman(window)}</div>
+        <div class="stat-sub">decays linearly</div>
+      </div>
+    `;
+  }
+
+  async function updatePerAsset() {
+    const [lockdowns, overrides, header] = await Promise.all([
+      api.query.circuitBreaker.assetLockdownState.entries(),
+      api.query.circuitBreaker.globalAssetOverrides.entries(),
+      api.rpc.chain.getHeader(),
+    ]);
+
+    const overrideMap = new Map();
+    for (const [key, value] of overrides) {
+      overrideMap.set(key.args[0].toString(), value.toHuman());
+    }
+
+    const currentBlock = header.number.toNumber();
+
+    // Fetch current issuances for all assets with lockdown state
+    const assetIds = lockdowns.map(([key]) => key.args[0]);
+    const issuances = await api.query.tokens.totalIssuance.multi(
+      assetIds.map((id) => [id])
+    );
+
+    const hdxIssuance = await api.query.balances.totalIssuance();
+    const issuanceMap = new Map();
+    for (let i = 0; i < assetIds.length; i++) {
+      const id = assetIds[i].toString();
+      if (id === '0') {
+        issuanceMap.set(id, hdxIssuance.toString());
+      } else {
+        issuanceMap.set(id, issuances[i].toString());
+      }
+    }
+
+    const rows = [];
+    for (const [key, value] of lockdowns) {
+      const id = key.args[0].toString();
+      const meta = assetMeta.get(id) || { symbol: `#${id}`, name: `Asset ${id}`, decimals: 12, depositLimit: null };
+      const state = value.toHuman();
+      const classification = overrideMap.get(id) || '-';
+      const issuance = issuanceMap.get(id) || '0';
+
+      let status, windowCell, increase, diffBn = null;
+      if (state.Locked !== undefined) {
+        const unlockBlock = parseInt(state.Locked.replace(/,/g, ''));
+        const blocksLeft = Math.max(0, unlockBlock - currentBlock);
+        const lockPct = Math.min(100, Math.round((1 - blocksLeft / PERIOD_BLOCKS) * 100));
+        status = `<span class="badge err">LOCKED</span>`;
+        windowCell = `<div class="bar"><div class="bar-fill err" style="width:${lockPct}%"></div></div><div class="stat-sub">unlocks in ~${blocksToHuman(blocksLeft)}</div>`;
+        increase = '-';
+      } else if (state.Unlocked !== undefined) {
+        const [blockStr, balanceStr] = state.Unlocked;
+        const block = parseInt(blockStr.replace(/,/g, ''));
+        const baselineBalance = BigInt(balanceStr.replace(/,/g, ''));
+        const current = BigInt(issuance);
+        const blocksInWindow = currentBlock - block;
+        const blocksLeft = Math.max(0, PERIOD_BLOCKS - blocksInWindow);
+        const expired = blocksLeft === 0;
+        // Signed diff vs baseline. If the baseline is older than the period, the
+        // window is effectively reset — treat diff as 0 for display purposes.
+        diffBn = expired ? 0n : current - baselineBalance;
+        status = `<span class="badge ok">Unlocked</span>`;
+        if (expired) {
+          windowCell = `<div class="bar"><div class="bar-fill" style="width:100%; background: var(--muted)"></div></div><div class="stat-sub" style="color:var(--muted)">expired — next mint resets</div>`;
+        } else {
+          const windowPct = Math.min(100, Math.round((blocksInWindow / PERIOD_BLOCKS) * 100));
+          windowCell = `<div class="bar"><div class="bar-fill" style="width:${windowPct}%; background: var(--accent)"></div></div><div class="stat-sub">resets in ~${blocksToHuman(blocksLeft)}</div>`;
+        }
+        if (diffBn > 0n) {
+          increase = `<span style="color:var(--warn)">+${fmtBalance(diffBn.toString(), meta.decimals)}</span>`;
+        } else if (diffBn < 0n) {
+          const absDiff = -diffBn;
+          increase = `<span style="color:var(--ok)">−${fmtBalance(absDiff.toString(), meta.decimals)}</span>`;
+        } else {
+          increase = fmtBalance('0', meta.decimals);
+        }
+      }
+
+      let limitDisplay, usageBar, pct = 0;
+      const expired = state.Unlocked !== undefined
+        && (currentBlock - parseInt(state.Unlocked[0].replace(/,/g, ''))) >= PERIOD_BLOCKS;
+      if (meta.depositLimit) {
+        limitDisplay = fmtBalance(meta.depositLimit.toString(), meta.decimals);
+        if (diffBn !== null) {
+          if (expired) {
+            usageBar = `<div class="bar"><div class="bar-fill" style="width:0%"></div></div><div class="stat-sub">0.00%</div>`;
+          } else if (diffBn > 0n) {
+            pct = pctBar(diffBn.toString(), meta.depositLimit.toString());
+            const barClass = pct > 75 ? 'err' : pct > 50 ? 'warn' : '';
+            usageBar = `<div class="bar"><div class="bar-fill ${barClass}" style="width:${pct}%"></div></div><div class="stat-sub">${pct.toFixed(2)}%</div>`;
+          } else {
+            // Net outflow — headroom is wider than nominal limit
+            const headroom = meta.depositLimit - diffBn; // diffBn is <= 0, so this adds |diffBn|
+            usageBar = `<div class="bar"><div class="bar-fill" style="width:0%"></div></div><div class="stat-sub" style="color:var(--ok)">0% (headroom ${fmtBalance(headroom.toString(), meta.decimals)})</div>`;
+          }
+        } else {
+          usageBar = '<div class="stat-sub">-</div>';
+        }
+      } else {
+        limitDisplay = '<span style="color:var(--muted)">no limit</span>';
+        usageBar = '<div class="stat-sub">-</div>';
+      }
+
+      rows.push({
+        id,
+        symbol: meta.symbol,
+        status,
+        classification,
+        increase,
+        limitDisplay,
+        usageBar,
+        windowCell,
+        locked: state.Locked !== undefined,
+        pct,
+        hasLimit: !!meta.depositLimit,
+      });
+    }
+
+    rows.sort((a, b) => {
+      if (a.locked !== b.locked) return a.locked ? -1 : 1;
+      if (a.hasLimit !== b.hasLimit) return a.hasLimit ? -1 : 1;
+      if (a.hasLimit) return b.pct - a.pct;
+      return (a.symbol || '').localeCompare(b.symbol || '');
+    });
+
+    const tbody = document.querySelector('#assets tbody');
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td><div class="asset">
+          <span class="asset-symbol">${r.symbol}</span>
+          <span class="asset-id">#${r.id}</span>
+        </div></td>
+        <td>${r.status}</td>
+        <td>${r.classification}</td>
+        <td class="num">${r.increase}</td>
+        <td class="num">${r.limitDisplay}</td>
+        <td>${r.usageBar}</td>
+        <td>${r.windowCell}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function refresh() {
+    try {
+      const header = await api.rpc.chain.getHeader();
+      document.getElementById('block').textContent = `#${header.number.toNumber()}`;
+      await Promise.all([updateGlobal(), updatePerAsset()]);
+      showError('');
+    } catch (e) {
+      console.error(e);
+      showError(`Refresh failed: ${e.message}`);
+    }
+  }
+
+  async function connect() {
+    const url = document.getElementById('rpc').value.trim();
+    if (intervalId) { clearInterval(intervalId); intervalId = null; }
+    if (api) { await api.disconnect().catch(() => {}); api = null; }
+
+    try {
+      showError('');
+      document.getElementById('block').textContent = 'connecting…';
+      api = await ApiPromise.create({ provider: new WsProvider(url) });
+      await loadAssetMetadata();
+      await refresh();
+      intervalId = setInterval(refresh, 6000);
+    } catch (e) {
+      showError(`Connection failed: ${e.message}`);
+      document.getElementById('block').textContent = 'offline';
+    }
+  }
+
+  document.getElementById('reconnect').addEventListener('click', connect);
+  connect();
+  </script>
+</body>
+</html>

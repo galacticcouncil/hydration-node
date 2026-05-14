@@ -29,19 +29,21 @@ use crate::evm::precompiles::{
 use codec::Decode;
 use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
 use pallet_evm::{
-	ExitError, ExitRevert, ExitSucceed, IsPrecompileResult, Precompile, PrecompileFailure, PrecompileHandle,
-	PrecompileOutput, PrecompileResult, PrecompileSet,
+	AddressMapping, ExitError, ExitRevert, ExitSucceed, IsPrecompileResult, Precompile, PrecompileFailure,
+	PrecompileHandle, PrecompileOutput, PrecompileResult, PrecompileSet,
 };
 use pallet_evm_precompile_blake2::Blake2F;
 use pallet_evm_precompile_bn128::{Bn128Add, Bn128Mul, Bn128Pairing};
 use pallet_evm_precompile_modexp::Modexp;
 use pallet_evm_precompile_simple::{ECRecover, Identity, Ripemd160, Sha256};
-use sp_runtime::traits::Dispatchable;
+use sp_runtime::traits::{Dispatchable, One};
 
 use codec::alloc;
 use ethabi::Token;
+use frame_support::pallet_prelude::{Get, IsType};
 use hex_literal::hex;
 use primitive_types::{H160, U256};
+use sp_core::crypto::AccountId32;
 use sp_std::{borrow::ToOwned, vec::Vec};
 
 pub mod chainlink_adapter;
@@ -98,6 +100,7 @@ pub const BN_MUL: H160 = H160(hex!("0000000000000000000000000000000000000007"));
 pub const BN_PAIRING: H160 = H160(hex!("0000000000000000000000000000000000000008"));
 pub const BLAKE2F: H160 = H160(hex!("0000000000000000000000000000000000000009"));
 pub const CALLPERMIT: H160 = H160(hex!("000000000000000000000000000000000000080a"));
+pub const FLASH_LOAN_RECEIVER: H160 = H160(hex!("000000000000000000000000000000000000090a"));
 
 pub const ETH_PRECOMPILE_END: H160 = BLAKE2F;
 
@@ -105,13 +108,34 @@ pub fn is_standard_precompile(address: H160) -> bool {
 	!address.is_zero() && address <= ETH_PRECOMPILE_END
 }
 
+pub struct AllowedFlashLoanCallers;
+
+impl Get<sp_std::vec::Vec<H160>> for AllowedFlashLoanCallers {
+	fn get() -> sp_std::vec::Vec<H160> {
+		let Some(flash_minter) = pallet_hsm::Pallet::<crate::Runtime>::flash_minter() else {
+			log::warn!(target: "precompiles", "No flash minter configured, no flash loan precompile will be available");
+			return sp_std::vec![];
+		};
+		sp_std::vec![flash_minter]
+	}
+}
+
 impl<R> PrecompileSet for HydraDXPrecompiles<R>
 where
-	R: pallet_evm::Config + pallet_currencies::Config + pallet_evm_accounts::Config,
-	R::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
-	<R::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<pallet_evm::AccountIdOf<R>>>,
+	R: pallet_evm::Config
+		+ pallet_currencies::Config
+		+ pallet_evm_accounts::Config
+		+ pallet_stableswap::Config
+		+ pallet_liquidation::Config
+		+ pallet_hsm::Config,
+	<R as frame_system::Config>::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
+	<<R as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<pallet_evm::AccountIdOf<R>>>,
 	MultiCurrencyPrecompile<R>: Precompile,
 	ChainlinkOraclePrecompile<R>: Precompile,
+	<R as frame_system::pallet::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	<R as pallet_stableswap::pallet::Config>::AssetId: From<u32>,
+	R::AddressMapping: pallet_evm::AddressMapping<R::AccountId>,
+	pallet_evm::AccountIdOf<R>: From<R::AccountId>,
 {
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		let context = handle.context();
@@ -147,8 +171,27 @@ where
 			Some(pallet_evm_precompile_call_permit::CallPermitPrecompile::<R>::execute(
 				handle,
 			))
+		} else if address == FLASH_LOAN_RECEIVER {
+			Some(pallet_evm_precompile_flash_loan::FlashLoanReceiverPrecompile::<
+				R,
+				AllowedFlashLoanCallers,
+			>::execute(handle))
 		} else if address == DISPATCH_ADDR {
-			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
+			let caller_account = R::AddressMapping::into_account_id(handle.context().caller);
+			let original_nonce = frame_system::Pallet::<R>::account_nonce(caller_account.clone());
+
+			let dispatch_precompile_result = pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle);
+
+			let nonce_after = frame_system::Pallet::<R>::account_nonce(caller_account.clone());
+			if nonce_after > original_nonce {
+				let target = original_nonce + One::one();
+
+				if nonce_after != target {
+					frame_system::Account::<R>::mutate(caller_account, |acc| acc.nonce = target);
+				}
+			}
+
+			Some(dispatch_precompile_result)
 		} else if is_asset_address(address) {
 			Some(MultiCurrencyPrecompile::<R>::execute(handle))
 		} else if is_oracle_address(address) {

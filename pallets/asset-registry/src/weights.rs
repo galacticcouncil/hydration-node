@@ -17,7 +17,6 @@ pub trait WeightInfo {
 	fn unban_asset() -> Weight;
 }
 /// Weights for pallet_asset_registry using the hydraDX node and recommended hardware.
-
 impl WeightInfo for () {
 	/// Storage: `AssetRegistry::Assets` (r:1 w:1)
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)

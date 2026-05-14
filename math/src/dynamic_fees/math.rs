@@ -76,6 +76,15 @@ where
 		return previous_fee;
 	}
 
+	debug_assert!(!liquidity.is_zero(), "dynamic fee calc: current liquidity is zero");
+	debug_assert!(
+		!last_entry.liquidity.is_zero(),
+		"dynamic fee calc: oracle liquidity is zero"
+	);
+	if liquidity.is_zero() || last_entry.liquidity.is_zero() {
+		return previous_fee;
+	}
+
 	let (net_volume, volume_neg) = last_entry.net_volume(net_direction);
 	let (net_liquidity, liquid_neg) = (
 		last_entry.liquidity.abs_diff(liquidity),
@@ -134,10 +143,13 @@ where
 	};
 	let fixed_previous_fee: FixedU128 = previous_fee.into();
 
-	debug_assert!(
-		params.min_fee < params.max_fee,
-		"dynamic fee calc: Min fee is greater than max fee"
-	);
+	if params.min_fee > params.max_fee {
+		debug_assert!(
+			params.min_fee <= params.max_fee,
+			"dynamic fee calc: Min fee is greater than max fee"
+		);
+		return previous_fee;
+	}
 
 	if delta_neg {
 		fixed_previous_fee.saturating_sub(delta)

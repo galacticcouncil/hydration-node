@@ -19,6 +19,7 @@
 use crate::{
 	AccountId, AssetId, Balance, BlockNumber, Currencies, MaxSchedulesPerBlock, NamedReserveId, Runtime, DCA, XYK,
 };
+use pallet_dca::ScheduleExtraGas;
 
 use crate::benchmarking::{register_asset, set_period, setup_insufficient_asset_with_dot};
 use frame_benchmarking::account;
@@ -31,12 +32,12 @@ use frame_support::{
 };
 use frame_system::RawOrigin;
 use hydradx_traits::router::PoolType;
+use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, NamedMultiReservableCurrency};
 use pallet_dca::types::{Order, Schedule, ScheduleId};
 use pallet_dca::{ScheduleIdsPerBlock, Schedules};
 use pallet_route_executor::Trade;
-use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchResult;
@@ -145,8 +146,11 @@ fn schedule_sell_fake(
 
 //TODO: make it global
 
-pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
-	let bounded_vec: BoundedVec<Trade<AssetId>, ConstU32<5>> = trades.try_into().unwrap();
+pub fn create_bounded_vec(
+	trades: Vec<Trade<AssetId>>,
+) -> BoundedVec<Trade<AssetId>, ConstU32<{ pallet_route_executor::MAX_NUMBER_OF_TRADES }>> {
+	let bounded_vec: BoundedVec<Trade<AssetId>, ConstU32<{ pallet_route_executor::MAX_NUMBER_OF_TRADES }>> =
+		trades.try_into().unwrap();
 	bounded_vec
 }
 
@@ -214,7 +218,9 @@ runtime_benchmarks! {
 		let schedule_2 = schedule_buy_fake(seller.clone(), HDX, DAI, amount_buy);
 		let execution_block = 1005u32;
 
+		let schedule_id = DCA::next_schedule_id() + 1;
 		assert_ok!(DCA::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
+		ScheduleExtraGas::<Runtime>::insert(schedule_id, 1_000_000);//We add some extra gas to make sure we cover the worst case
 
 		assert_eq!(Currencies::free_balance(DAI, &seller),0);
 		let reserved_balance = get_named_reseve_balance(asset_in, seller.clone());
@@ -301,7 +307,9 @@ runtime_benchmarks! {
 		let schedule1 = schedule_sell_fake(seller.clone(), HDX, DAI, amount_sell);
 		let execution_block = 1005u32;
 
+		let schedule_id = DCA::next_schedule_id() + 1;
 		assert_ok!(DCA::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
+		ScheduleExtraGas::<Runtime>::insert(schedule_id, 1_000_000);
 
 		assert_eq!(Currencies::free_balance(DAI, &seller),0);
 		let reserved_balance = get_named_reseve_balance(HDX, seller.clone());
@@ -397,11 +405,19 @@ runtime_benchmarks! {
 		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_6 = register_asset(b"AS6".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_7 = register_asset(b"AS7".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_8 = register_asset(b"AS8".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_9 = register_asset(b"AS9".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		create_xyk_pool(asset_1, asset_2);
 		create_xyk_pool(asset_2, asset_3);
 		create_xyk_pool(asset_3, asset_4);
 		create_xyk_pool(asset_4, asset_5);
-		create_xyk_pool(asset_5, HDX);
+		create_xyk_pool(asset_5, asset_6);
+		create_xyk_pool(asset_6, asset_7);
+		create_xyk_pool(asset_7, asset_8);
+		create_xyk_pool(asset_8, asset_9);
+		create_xyk_pool(asset_9, HDX);
 
 		set_period(10);
 
@@ -429,6 +445,26 @@ runtime_benchmarks! {
 			Trade {
 				pool: PoolType::XYK,
 				asset_in: asset_5,
+				asset_out: asset_6,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_6,
+				asset_out: asset_7,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_7,
+				asset_out: asset_8,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_8,
+				asset_out: asset_9,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_9,
 				asset_out: HDX,
 			}
 		];
@@ -483,15 +519,48 @@ runtime_benchmarks! {
 
 		let amount_sell = 200 * ONE;
 		let schedule1 = schedule_fake(caller.clone(), HDX, DAI, amount_sell);
-		let schedule_id : ScheduleId = 0;
 
 		set_period(99);
-		let execution_block = 100u32;
-		assert_ok!(DCA::schedule(RawOrigin::Signed(caller).into(), schedule1, Option::Some(execution_block)));
+
+		let execution_block = 105u32;
+
+		// Fill block with MaxSchedulesPerBlock schedules to test worst case for linear search
+		for _ in 0..MaxSchedulesPerBlock::get() {
+			assert_ok!(DCA::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
+		}
+
+		// Terminate the last schedule which is at the last index in ScheduleIdsPerBlock
+		// This is worst case for linear search - must iterate through all elements
+		let schedule_id: ScheduleId = MaxSchedulesPerBlock::get() - 1;
+		ScheduleExtraGas::<Runtime>::insert(schedule_id, 1_000_000);
 
 	}: _(RawOrigin::Root, schedule_id, None)
 	verify {
 		assert!(<Schedules<Runtime>>::get::<ScheduleId>(schedule_id).is_none());
+		assert_eq!((MaxSchedulesPerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<Runtime>>::get::<BlockNumber>(execution_block).len());
+	}
+
+	unlock_reserves {
+		let caller: AccountId = create_account_with_native_balance()?;
+		fund_treasury()?; //Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
+
+		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &caller.clone(), 100_000_000_000_000_000i128)?;
+
+		<Currencies as NamedMultiReservableCurrency<AccountId>>::reserve_named(
+			&NamedReserveId::get(),
+			HDX,
+			&caller.clone(),
+			ONE
+		)?;
+	}: _(RawOrigin::Signed(caller.clone()), caller.clone(), HDX)
+	verify {
+		let reserved_balance = <Currencies as NamedMultiReservableCurrency<AccountId>>::reserved_balance_named(
+			&NamedReserveId::get(),
+			HDX,
+			&caller.clone(),
+		);
+
+		assert_eq!(reserved_balance, 0);
 	}
 
 }

@@ -29,21 +29,30 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::manual_inspect)]
 
-use frame_support::sp_runtime::{traits::Zero, DispatchError};
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
+use frame_support::{
+	sp_runtime::{traits::Zero, DispatchError},
+	traits::ExistenceRequirement,
+};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
-	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
-	OnTradeHandler, AMM,
+	AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler, OnTradeHandler,
+	AMM,
 };
 use pallet_broadcast::types::{Asset, Destination, Fee};
 
 use sp_std::{vec, vec::Vec};
 
 use crate::types::{Amount, AssetId, AssetPair, Balance};
+use frame_support::require_transactional;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::AMMAddLiquidity;
+use hydradx_traits::{
+	pools::DustRemovalAccountWhitelist,
+	registry::{AssetKind, Create},
+	Source,
+};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
 #[cfg(test)]
@@ -66,11 +75,6 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::{
-		pools::DustRemovalAccountWhitelist,
-		registry::{AssetKind, Create},
-		Source,
-	};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -80,8 +84,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_broadcast::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Registry support
 		type AssetRegistry: Create<Balance, AssetId = AssetId, Error = DispatchError>;
 
@@ -130,9 +132,6 @@ pub mod pallet {
 			+ OnTradeHandler<AssetId, Balance, Ratio>
 			+ OnLiquidityChangedHandler<AssetId, Balance, Ratio>;
 
-		/// Discounted fee
-		type DiscountedFee: Get<(u32, u32)>;
-
 		/// Account whitelist manager to exclude pool accounts from dusting mechanism.
 		type NonDustableWhitelistHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
 	}
@@ -150,14 +149,6 @@ pub mod pallet {
 
 		/// Liquidity is zero.
 		ZeroLiquidity,
-
-		/// It is not allowed to create a pool with zero initial price.
-		/// Not used, kept for backward compatibility
-		ZeroInitialPrice,
-
-		/// Overflow
-		/// Not used, kept for backward compatibility
-		CreatePoolAssetAmountInvalid,
 
 		/// Overflow
 		InvalidMintedLiquidity, // No tests - but it is currently not possible this error to occur due to previous checks in the code.
@@ -188,21 +179,22 @@ pub mod pallet {
 
 		/// Overflow
 		AddAssetAmountInvalid, // no tests
+
 		/// Overflow
 		RemoveAssetAmountInvalid, // no tests
+
 		/// Overflow
 		SellAssetAmountInvalid, // no tests
+
 		/// Overflow
 		BuyAssetAmountInvalid, // no tests
 
 		/// Overflow
 		FeeAmountInvalid,
 
-		/// Overflow
-		CannotApplyDiscount,
-
 		/// Max fraction of pool to buy in single transaction has been exceeded.
 		MaxOutRatioExceeded,
+
 		/// Max fraction of pool to sell in single transaction has been exceeded.
 		MaxInRatioExceeded,
 
@@ -211,6 +203,9 @@ pub mod pallet {
 
 		/// Pool cannot be created due to outside factors.
 		CannotCreatePool,
+
+		/// Slippage protection.
+		SlippageLimit,
 	}
 
 	#[pallet::event]
@@ -378,8 +373,8 @@ pub mod pallet {
 				pool: pair_account.clone(),
 			});
 
-			T::Currency::transfer(asset_a, &who, &pair_account, amount_a)?;
-			T::Currency::transfer(asset_b, &who, &pair_account, amount_b)?;
+			T::Currency::transfer(asset_a, &who, &pair_account, amount_a, ExistenceRequirement::AllowDeath)?;
+			T::Currency::transfer(asset_b, &who, &pair_account, amount_b, ExistenceRequirement::AllowDeath)?;
 
 			T::Currency::deposit(share_token, &who, shares_added)?;
 
@@ -407,8 +402,26 @@ pub mod pallet {
 			amount_b_max_limit: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::do_add_liquidity(who, asset_a, asset_b, amount_a, amount_b_max_limit)?;
+			Self::do_add_liquidity(who, asset_a, asset_b, amount_a, amount_b_max_limit, Balance::zero())?;
+			Ok(())
+		}
 
+		#[pallet::call_index(5)]
+		#[pallet::weight(
+			<T as Config>::WeightInfo::add_liquidity()
+				.saturating_add(T::AMMHandler::on_liquidity_changed_weight())
+		)]
+		#[transactional]
+		pub fn add_liquidity_with_limits(
+			origin: OriginFor<T>,
+			asset_a: AssetId,
+			asset_b: AssetId,
+			amount_a: Balance,
+			amount_b_max_limit: Balance,
+			min_shares: Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			Self::do_add_liquidity(who, asset_a, asset_b, amount_a, amount_b_max_limit, min_shares)?;
 			Ok(())
 		}
 
@@ -428,118 +441,28 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_a: AssetId,
 			asset_b: AssetId,
-			liquidity_amount: Balance,
+			share_amount: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			Self::do_remove_liquidity(who, asset_a, asset_b, share_amount, Balance::zero(), Balance::zero())
+		}
 
-			let asset_pair = AssetPair {
-				asset_in: asset_a,
-				asset_out: asset_b,
-			};
-
-			ensure!(!liquidity_amount.is_zero(), Error::<T>::ZeroLiquidity);
-
-			ensure!(Self::exists(asset_pair), Error::<T>::TokenPoolNotFound);
-
-			let pair_account = Self::get_pair_id(asset_pair);
-
-			let share_token = Self::share_token(&pair_account);
-
-			let total_shares = Self::total_liquidity(&pair_account);
-
-			let account_shares = T::Currency::free_balance(share_token, &who);
-
-			ensure!(total_shares >= liquidity_amount, Error::<T>::InsufficientLiquidity);
-
-			ensure!(account_shares >= liquidity_amount, Error::<T>::InsufficientAssetBalance);
-
-			// Account's liquidity left should be either 0 or at least MinPoolLiquidity
-			ensure!(
-				(account_shares.saturating_sub(liquidity_amount)) >= T::MinPoolLiquidity::get()
-					|| (account_shares == liquidity_amount),
-				Error::<T>::InsufficientLiquidity
-			);
-
-			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
-			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
-
-			let liquidity_out = hydra_dx_math::xyk::calculate_liquidity_out(
-				asset_a_reserve,
-				asset_b_reserve,
-				liquidity_amount,
-				total_shares,
-			)
-			.map_err(|_| Error::<T>::RemoveAssetAmountInvalid)?;
-
-			let (remove_amount_a, remove_amount_b) = liquidity_out;
-
-			ensure!(
-				T::Currency::free_balance(asset_a, &pair_account) >= remove_amount_a,
-				Error::<T>::InsufficientPoolAssetBalance
-			);
-			ensure!(
-				T::Currency::free_balance(asset_b, &pair_account) >= remove_amount_b,
-				Error::<T>::InsufficientPoolAssetBalance
-			);
-
-			let liquidity_left = total_shares
-				.checked_sub(liquidity_amount)
-				.ok_or(Error::<T>::InvalidLiquidityAmount)?;
-
-			T::Currency::transfer(asset_a, &pair_account, &who, remove_amount_a)?;
-			T::Currency::transfer(asset_b, &pair_account, &who, remove_amount_b)?;
-
-			T::Currency::withdraw(share_token, &who, liquidity_amount)?;
-
-			<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
-
-			let liquidity_a = T::Currency::total_balance(asset_a, &pair_account);
-			let liquidity_b = T::Currency::total_balance(asset_b, &pair_account);
-			T::AMMHandler::on_liquidity_changed(
-				T::OracleSource::get(),
-				asset_a,
-				asset_b,
-				remove_amount_a,
-				remove_amount_b,
-				liquidity_a,
-				liquidity_b,
-				Ratio::new(liquidity_a, liquidity_b),
-			)
-			.map_err(|(_w, e)| e)?;
-
-			Self::deposit_event(Event::LiquidityRemoved {
-				who: who.clone(),
-				asset_a,
-				asset_b,
-				shares: liquidity_amount,
-			});
-
-			if liquidity_left == 0 {
-				<ShareToken<T>>::remove(&pair_account);
-				<PoolAssets<T>>::remove(&pair_account);
-				<TotalLiquidity<T>>::remove(&pair_account);
-
-				// Ignore the failure, this cant stop liquidity removal
-				let r = T::NonDustableWhitelistHandler::remove_account(&pair_account);
-
-				if r.is_err() {
-					log::trace!(
-					target: "xyk::remova_liquidity", "XYK: Failed to remove account {:?} from dust-removal whitelist. Reason {:?}",
-						pair_account,
-					r
-					);
-				}
-
-				Self::deposit_event(Event::PoolDestroyed {
-					who,
-					asset_a,
-					asset_b,
-					share_token,
-					pool: pair_account,
-				});
-			}
-
-			Ok(())
+		#[pallet::call_index(6)]
+		#[pallet::weight(
+			<T as Config>::WeightInfo::remove_liquidity()
+				.saturating_add(T::AMMHandler::on_liquidity_changed_weight())
+		)]
+		#[transactional]
+		pub fn remove_liquidity_with_limits(
+			origin: OriginFor<T>,
+			asset_a: AssetId,
+			asset_b: AssetId,
+			share_amount: Balance,
+			min_amount_a: Balance,
+			min_amount_b: Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			Self::do_remove_liquidity(who, asset_a, asset_b, share_amount, min_amount_a, min_amount_b)
 		}
 
 		/// Trade asset in for asset out.
@@ -558,11 +481,16 @@ pub mod pallet {
 			asset_out: AssetId,
 			amount: Balance,
 			max_limit: Balance,
-			discount: bool,
+			_discount: bool,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_, _, _, _>>::sell(&who, AssetPair { asset_in, asset_out }, amount, max_limit, discount)?;
+			Self::execute_sell(&Self::validate_sell(
+				&who,
+				AssetPair { asset_in, asset_out },
+				amount,
+				max_limit,
+			)?)?;
 
 			Ok(())
 		}
@@ -582,11 +510,14 @@ pub mod pallet {
 			asset_in: AssetId,
 			amount: Balance,
 			max_limit: Balance,
-			discount: bool,
+			_discount: bool,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_, _, _, _>>::buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit, discount)?;
+			Self::execute_buy(
+				&Self::validate_buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit)?,
+				None,
+			)?;
 
 			Ok(())
 		}
@@ -594,12 +525,14 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	#[require_transactional]
 	fn do_add_liquidity(
 		who: T::AccountId,
 		asset_a: AssetId,
 		asset_b: AssetId,
 		amount_a: Balance,
 		amount_b_max_limit: Balance,
+		min_shares: Balance,
 	) -> Result<Balance, DispatchError> {
 		let asset_pair = AssetPair {
 			asset_in: asset_a,
@@ -645,6 +578,8 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(!shares_added.is_zero(), Error::<T>::InvalidMintedLiquidity);
 
+		ensure!(shares_added >= min_shares, Error::<T>::SlippageLimit);
+
 		// Make sure that account share liquidity is at least MinPoolLiquidity
 		ensure!(
 			account_shares
@@ -658,8 +593,8 @@ impl<T: Config> Pallet<T> {
 			.checked_add(shares_added)
 			.ok_or(Error::<T>::InvalidLiquidityAmount)?;
 
-		T::Currency::transfer(asset_a, &who, &pair_account, amount_a)?;
-		T::Currency::transfer(asset_b, &who, &pair_account, amount_b)?;
+		T::Currency::transfer(asset_a, &who, &pair_account, amount_a, ExistenceRequirement::AllowDeath)?;
+		T::Currency::transfer(asset_b, &who, &pair_account, amount_b, ExistenceRequirement::AllowDeath)?;
 
 		T::Currency::deposit(share_token, &who, shares_added)?;
 
@@ -676,6 +611,7 @@ impl<T: Config> Pallet<T> {
 			liquidity_a,
 			liquidity_b,
 			Ratio::new(liquidity_a, liquidity_b),
+			Some(liquidity_amount),
 		)
 		.map_err(|(_w, e)| e)?;
 
@@ -690,73 +626,150 @@ impl<T: Config> Pallet<T> {
 		Ok(shares_added)
 	}
 
-	/// Return balance of each asset in selected liquidity pool.
-	pub fn get_pool_balances(pool_address: T::AccountId) -> Option<Vec<(AssetId, Balance)>> {
-		let mut balances = Vec::new();
+	#[require_transactional]
+	fn do_remove_liquidity(
+		who: T::AccountId,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		share_amount: Balance,
+		min_amount_a: Balance,
+		min_amount_b: Balance,
+	) -> DispatchResult {
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
 
-		if let Some(assets) = Self::get_pool_assets(&pool_address) {
-			for item in &assets {
-				let reserve = T::Currency::free_balance(*item, &pool_address);
-				balances.push((*item, reserve));
-			}
-		}
-		Some(balances)
-	}
-	/// Calculate discounted trade fee
-	fn calculate_discounted_fee(amount: Balance) -> Result<Balance, DispatchError> {
-		Ok(
-			hydra_dx_math::fee::calculate_pool_trade_fee(amount, T::DiscountedFee::get())
-				.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?,
-		)
-	}
+		ensure!(share_amount > Balance::zero(), Error::<T>::ZeroLiquidity);
 
-	/// Calculate trade fee
-	fn calculate_fee(amount: Balance) -> Result<Balance, DispatchError> {
-		let fee = T::GetExchangeFee::get();
-		Ok(hydra_dx_math::fee::calculate_pool_trade_fee(amount, (fee.0, fee.1))
-			.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?)
-	}
+		ensure!(Self::exists(asset_pair), Error::<T>::TokenPoolNotFound);
 
-	pub fn pair_account_from_assets(asset_a: AssetId, asset_b: AssetId) -> T::AccountId {
-		T::AssetPairAccountId::from_assets(asset_a, asset_b, "xyk")
-	}
-}
+		let pair_account = Self::get_pair_id(asset_pair);
 
-// Implementation of AMM API which makes possible to plug the AMM pool into the exchange pallet.
-impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
-	fn exists(assets: AssetPair) -> bool {
-		<ShareToken<T>>::contains_key(Self::get_pair_id(assets))
-	}
+		let share_token = Self::share_token(&pair_account);
 
-	fn get_pair_id(assets: AssetPair) -> T::AccountId {
-		Self::pair_account_from_assets(assets.asset_in, assets.asset_out)
-	}
+		let total_shares = Self::total_liquidity(&pair_account);
 
-	fn get_share_token(assets: AssetPair) -> AssetId {
-		let pair_account = Self::get_pair_id(assets);
-		Self::share_token(&pair_account)
-	}
+		let account_shares = T::Currency::free_balance(share_token, &who);
 
-	fn get_pool_assets(pool_account_id: &T::AccountId) -> Option<Vec<AssetId>> {
-		let maybe_assets = <PoolAssets<T>>::get(pool_account_id);
-		maybe_assets.map(|assets| vec![assets.0, assets.1])
-	}
+		ensure!(total_shares >= share_amount, Error::<T>::InsufficientLiquidity);
 
-	fn get_spot_price_unchecked(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
-		let pair_account = Self::get_pair_id(AssetPair {
-			asset_out: asset_a,
-			asset_in: asset_b,
-		});
+		ensure!(account_shares >= share_amount, Error::<T>::InsufficientAssetBalance);
+
+		// Account's liquidity left should be either 0 or at least MinPoolLiquidity
+		ensure!(
+			(account_shares.saturating_sub(share_amount)) >= T::MinPoolLiquidity::get()
+				|| (account_shares == share_amount),
+			Error::<T>::InsufficientLiquidity
+		);
 
 		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-		hydra_dx_math::xyk::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount)
-			.unwrap_or_else(|_| Balance::zero())
+		let liquidity_out =
+			hydra_dx_math::xyk::calculate_liquidity_out(asset_a_reserve, asset_b_reserve, share_amount, total_shares)
+				.map_err(|_| Error::<T>::RemoveAssetAmountInvalid)?;
+
+		let (remove_amount_a, remove_amount_b) = liquidity_out;
+
+		ensure!(
+			T::Currency::free_balance(asset_a, &pair_account) >= remove_amount_a,
+			Error::<T>::InsufficientPoolAssetBalance
+		);
+		ensure!(
+			T::Currency::free_balance(asset_b, &pair_account) >= remove_amount_b,
+			Error::<T>::InsufficientPoolAssetBalance
+		);
+
+		ensure!(remove_amount_a >= min_amount_a, Error::<T>::SlippageLimit);
+		ensure!(remove_amount_b >= min_amount_b, Error::<T>::SlippageLimit);
+
+		let liquidity_left = total_shares
+			.checked_sub(share_amount)
+			.ok_or(Error::<T>::InvalidLiquidityAmount)?;
+
+		T::Currency::transfer(
+			asset_a,
+			&pair_account,
+			&who,
+			remove_amount_a,
+			ExistenceRequirement::AllowDeath,
+		)?;
+		T::Currency::transfer(
+			asset_b,
+			&pair_account,
+			&who,
+			remove_amount_b,
+			ExistenceRequirement::AllowDeath,
+		)?;
+
+		T::Currency::withdraw(share_token, &who, share_amount, ExistenceRequirement::AllowDeath)?;
+
+		<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
+
+		let liquidity_a = T::Currency::total_balance(asset_a, &pair_account);
+		let liquidity_b = T::Currency::total_balance(asset_b, &pair_account);
+		T::AMMHandler::on_liquidity_changed(
+			T::OracleSource::get(),
+			asset_a,
+			asset_b,
+			remove_amount_a,
+			remove_amount_b,
+			liquidity_a,
+			liquidity_b,
+			Ratio::new(liquidity_a, liquidity_b),
+			Some(liquidity_left),
+		)
+		.map_err(|(_w, e)| e)?;
+
+		Self::deposit_event(Event::LiquidityRemoved {
+			who: who.clone(),
+			asset_a,
+			asset_b,
+			shares: share_amount,
+		});
+
+		if liquidity_left == 0 {
+			<ShareToken<T>>::remove(&pair_account);
+			<PoolAssets<T>>::remove(&pair_account);
+			<TotalLiquidity<T>>::remove(&pair_account);
+
+			// Ignore the failure, this cant stop liquidity removal
+			let r = T::NonDustableWhitelistHandler::remove_account(&pair_account);
+
+			if r.is_err() {
+				log::trace!(
+				target: "xyk::remova_liquidity", "XYK: Failed to remove account {pair_account:?} from dust-removal whitelist. Reason {r:?}",
+				);
+			}
+
+			Self::deposit_event(Event::PoolDestroyed {
+				who,
+				asset_a,
+				asset_b,
+				share_token,
+				pool: pair_account,
+			});
+		}
+
+		Ok(())
+	}
+
+	/// Perform asset swap and send bought assets to the destination account.
+	pub fn buy_for(
+		origin: &T::AccountId,
+		assets: AssetPair,
+		amount: Balance,
+		max_limit: Balance,
+		dest: &T::AccountId,
+	) -> DispatchResult {
+		Self::execute_buy(&Self::validate_buy(origin, assets, amount, max_limit)?, Some(dest))?;
+		Ok(())
 	}
 
 	/// Validate a sell. Perform all necessary checks and calculations.
 	/// No storage changes are performed yet.
+	/// `discount` parameter has been deprecated.
 	///
 	/// Return `AMMTransfer` with all info needed to execute the transaction.
 	fn validate_sell(
@@ -764,8 +777,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		assets: AssetPair,
 		amount: Balance,
 		min_bought: Balance,
-		discount: bool,
-	) -> Result<AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>, sp_runtime::DispatchError> {
+	) -> Result<AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>, DispatchError> {
 		ensure!(
 			amount >= T::MinTradingLimit::get(),
 			Error::<T>::InsufficientTradingAmount
@@ -777,17 +789,6 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			T::Currency::free_balance(assets.asset_in, who) >= amount,
 			Error::<T>::InsufficientAssetBalance
 		);
-
-		// If discount, pool for Sell asset and native asset must exist
-		if discount {
-			ensure!(
-				Self::exists(AssetPair {
-					asset_in: assets.asset_in,
-					asset_out: T::NativeAssetId::get()
-				}),
-				Error::<T>::CannotApplyDiscount
-			);
-		}
 
 		let pair_account = Self::get_pair_id(assets);
 
@@ -813,11 +814,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			Error::<T>::MaxOutRatioExceeded
 		);
 
-		let transfer_fee = if discount {
-			Self::calculate_discounted_fee(amount_out)?
-		} else {
-			Self::calculate_fee(amount_out)?
-		};
+		let transfer_fee = Self::calculate_fee(amount_out)?;
 
 		let amount_out_without_fee = amount_out
 			.checked_sub(transfer_fee)
@@ -830,38 +827,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			Error::<T>::AssetAmountNotReachedLimit
 		);
 
-		let discount_fee = if discount {
-			let native_asset = T::NativeAssetId::get();
-
-			let native_pair_account = Self::get_pair_id(AssetPair {
-				asset_in: assets.asset_in,
-				asset_out: native_asset,
-			});
-
-			let native_reserve = T::Currency::free_balance(native_asset, &native_pair_account);
-			let asset_reserve = T::Currency::free_balance(assets.asset_in, &native_pair_account);
-
-			let native_fee_spot_price =
-				hydra_dx_math::xyk::calculate_spot_price(asset_reserve, native_reserve, transfer_fee)
-					.map_err(|_| Error::<T>::CannotApplyDiscount)?;
-
-			ensure!(
-				T::Currency::free_balance(native_asset, who) >= native_fee_spot_price,
-				Error::<T>::InsufficientNativeCurrencyBalance
-			);
-
-			native_fee_spot_price
-		} else {
-			Balance::zero()
-		};
-
 		let transfer = AMMTransfer {
 			origin: who.clone(),
 			assets,
 			amount,
 			amount_b: amount_out_without_fee,
-			discount,
-			discount_amount: discount_fee,
 			fee: (assets.asset_out, transfer_fee),
 		};
 
@@ -875,22 +845,19 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
-		if transfer.discount && transfer.discount_amount > 0u128 {
-			let native_asset = T::NativeAssetId::get();
-			T::Currency::withdraw(native_asset, &transfer.origin, transfer.discount_amount)?;
-		}
-
 		T::Currency::transfer(
 			transfer.assets.asset_in,
 			&transfer.origin,
 			&pair_account,
 			transfer.amount,
+			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
 			transfer.assets.asset_out,
 			&pair_account,
 			&transfer.origin,
 			transfer.amount_b,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		let liquidity_in = T::Currency::total_balance(transfer.assets.asset_in, &pair_account);
@@ -904,6 +871,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			liquidity_in,
 			liquidity_out,
 			Ratio::new(liquidity_in, liquidity_out),
+			Some(Self::total_liquidity(&pair_account)),
 		)
 		.map_err(|(_w, e)| e)?;
 
@@ -945,7 +913,6 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		assets: AssetPair,
 		amount: Balance,
 		max_limit: Balance,
-		discount: bool,
 	) -> Result<AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>, DispatchError> {
 		ensure!(
 			amount >= T::MinTradingLimit::get(),
@@ -969,17 +936,6 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			Error::<T>::MaxOutRatioExceeded
 		);
 
-		// If discount, pool for Sell asset and native asset must exist
-		if discount {
-			ensure!(
-				Self::exists(AssetPair {
-					asset_in: assets.asset_out,
-					asset_out: T::NativeAssetId::get()
-				}),
-				Error::<T>::CannotApplyDiscount
-			);
-		}
-
 		let buy_price = hydra_dx_math::xyk::calculate_in_given_out(asset_out_reserve, asset_in_reserve, amount)
 			.map_err(|_| Error::<T>::BuyAssetAmountInvalid)?;
 
@@ -991,11 +947,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			Error::<T>::MaxInRatioExceeded
 		);
 
-		let transfer_fee = if discount {
-			Self::calculate_discounted_fee(buy_price)?
-		} else {
-			Self::calculate_fee(buy_price)?
-		};
+		let transfer_fee = Self::calculate_fee(buy_price)?;
 
 		let buy_price_with_fee = buy_price
 			.checked_add(transfer_fee)
@@ -1008,37 +960,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			Error::<T>::InsufficientAssetBalance
 		);
 
-		let discount_fee = if discount {
-			let native_asset = T::NativeAssetId::get();
-
-			let native_pair_account = Self::get_pair_id(AssetPair {
-				asset_in: assets.asset_out,
-				asset_out: native_asset,
-			});
-
-			let native_reserve = T::Currency::free_balance(native_asset, &native_pair_account);
-			let asset_reserve = T::Currency::free_balance(assets.asset_out, &native_pair_account);
-
-			let native_fee_spot_price =
-				hydra_dx_math::xyk::calculate_spot_price(asset_reserve, native_reserve, transfer_fee)
-					.map_err(|_| Error::<T>::CannotApplyDiscount)?;
-
-			ensure!(
-				T::Currency::free_balance(native_asset, who) >= native_fee_spot_price,
-				Error::<T>::InsufficientNativeCurrencyBalance
-			);
-			native_fee_spot_price
-		} else {
-			Balance::zero()
-		};
-
 		let transfer = AMMTransfer {
 			origin: who.clone(),
 			assets,
 			amount,
 			amount_b: buy_price,
-			discount,
-			discount_amount: discount_fee,
 			fee: (assets.asset_in, transfer_fee),
 		};
 
@@ -1055,22 +981,19 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
-		if transfer.discount && transfer.discount_amount > 0 {
-			let native_asset = T::NativeAssetId::get();
-			T::Currency::withdraw(native_asset, &transfer.origin, transfer.discount_amount)?;
-		}
-
 		T::Currency::transfer(
 			transfer.assets.asset_out,
 			&pair_account,
 			destination.unwrap_or(&transfer.origin),
 			transfer.amount,
+			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
 			transfer.assets.asset_in,
 			&transfer.origin,
 			&pair_account,
 			transfer.amount_b + transfer.fee.1,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		let liquidity_in = T::Currency::total_balance(transfer.assets.asset_in, &pair_account);
@@ -1079,11 +1002,12 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			T::OracleSource::get(),
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,
-			transfer.amount,
 			transfer.amount_b,
+			transfer.amount,
 			liquidity_in,
 			liquidity_out,
 			Ratio::new(liquidity_in, liquidity_out),
+			Some(Self::total_liquidity(&pair_account)),
 		)
 		.map_err(|(_w, e)| e)?;
 
@@ -1104,8 +1028,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			pair_account.clone(),
 			pallet_broadcast::types::Filler::XYK(Self::share_token(&pair_account)),
 			pallet_broadcast::types::TradeOperation::ExactOut,
-			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
-			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
+			vec![Asset::new(transfer.assets.asset_in, transfer.amount_b)],
+			vec![Asset::new(transfer.assets.asset_out, transfer.amount)],
 			vec![Fee {
 				asset: transfer.fee.0,
 				amount: transfer.fee.1,
@@ -1116,24 +1040,49 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		Ok(())
 	}
 
-	fn get_min_trading_limit() -> Balance {
-		T::MinTradingLimit::get()
+	/// Return balance of each asset in selected liquidity pool.
+	pub fn get_pool_balances(pool_address: T::AccountId) -> Option<Vec<(AssetId, Balance)>> {
+		let mut balances = Vec::new();
+
+		if let Some(assets) = Self::get_pool_assets(&pool_address) {
+			for item in &assets {
+				let reserve = T::Currency::free_balance(*item, &pool_address);
+				balances.push((*item, reserve));
+			}
+		}
+		Some(balances)
 	}
 
-	fn get_min_pool_liquidity() -> Balance {
-		T::MinPoolLiquidity::get()
+	/// Calculate trade fee
+	fn calculate_fee(amount: Balance) -> Result<Balance, DispatchError> {
+		let fee = T::GetExchangeFee::get();
+		Ok(hydra_dx_math::fee::calculate_pool_trade_fee(amount, (fee.0, fee.1))
+			.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?)
 	}
 
-	fn get_max_in_ratio() -> u128 {
-		T::MaxInRatio::get()
+	pub fn pair_account_from_assets(asset_a: AssetId, asset_b: AssetId) -> T::AccountId {
+		T::AssetPairAccountId::from_assets(asset_a, asset_b, "xyk")
+	}
+}
+
+// Implementation of AMM API which makes possible to plug the AMM pool into the exchange pallet.
+impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
+	fn exists(assets: AssetPair) -> bool {
+		<ShareToken<T>>::contains_key(Self::get_pair_id(assets))
 	}
 
-	fn get_max_out_ratio() -> u128 {
-		T::MaxOutRatio::get()
+	fn get_pair_id(assets: AssetPair) -> T::AccountId {
+		Self::pair_account_from_assets(assets.asset_in, assets.asset_out)
 	}
 
-	fn get_fee(_pool_account_id: &T::AccountId) -> (u32, u32) {
-		T::GetExchangeFee::get()
+	fn get_share_token(assets: AssetPair) -> AssetId {
+		let pair_account = Self::get_pair_id(assets);
+		Self::share_token(&pair_account)
+	}
+
+	fn get_pool_assets(pool_account_id: &T::AccountId) -> Option<Vec<AssetId>> {
+		let maybe_assets = <PoolAssets<T>>::get(pool_account_id);
+		maybe_assets.map(|assets| vec![assets.0, assets.1])
 	}
 }
 
@@ -1145,31 +1094,6 @@ impl CanCreatePool<AssetId> for AllowAllPools {
 	}
 }
 
-impl<T: Config> AMMPosition<AssetId, Balance> for Pallet<T> {
-	type Error = DispatchError;
-
-	fn get_liquidity_behind_shares(
-		asset_a: AssetId,
-		asset_b: AssetId,
-		shares_amount: Balance,
-	) -> Result<(Balance, Balance), Self::Error> {
-		let asset_pair = AssetPair {
-			asset_in: asset_a,
-			asset_out: asset_b,
-		};
-
-		let pair_account = Self::get_pair_id(asset_pair);
-
-		let total_shares = Self::total_liquidity(&pair_account);
-
-		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
-		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
-
-		hydra_dx_math::xyk::calculate_liquidity_out(asset_a_reserve, asset_b_reserve, shares_amount, total_shares)
-			.map_err(|_| Error::<T>::RemoveAssetAmountInvalid.into())
-	}
-}
-
 impl<T: Config> AMMAddLiquidity<T::AccountId, AssetId, Balance> for Pallet<T> {
 	fn add_liquidity(
 		who: T::AccountId,
@@ -1178,6 +1102,6 @@ impl<T: Config> AMMAddLiquidity<T::AccountId, AssetId, Balance> for Pallet<T> {
 		amount_a: Balance,
 		amount_b_max_limit: Balance,
 	) -> Result<Balance, DispatchError> {
-		Self::do_add_liquidity(who, asset_a, asset_b, amount_a, amount_b_max_limit)
+		Self::do_add_liquidity(who, asset_a, asset_b, amount_a, amount_b_max_limit, Balance::zero())
 	}
 }

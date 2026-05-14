@@ -18,7 +18,7 @@
 //! The vote datatype.
 
 use crate::{Conviction, Delegations, ReferendumIndex};
-use codec::{Decode, Encode, EncodeLike, Input, MaxEncodedLen, Output};
+use codec::{Decode, DecodeWithMemTracking, Encode, EncodeLike, Input, MaxEncodedLen, Output};
 use frame_support::traits::Get;
 use scale_info::TypeInfo;
 use sp_runtime::{
@@ -28,7 +28,7 @@ use sp_runtime::{
 use sp_std::prelude::*;
 
 /// A number of lock periods, plus a vote, one way or the other.
-#[derive(Copy, Clone, Eq, PartialEq, Default, RuntimeDebug)]
+#[derive(Copy, Clone, Eq, PartialEq, Default, RuntimeDebug, DecodeWithMemTracking)]
 pub struct Vote {
 	pub aye: bool,
 	pub conviction: Conviction,
@@ -72,7 +72,7 @@ impl TypeInfo for Vote {
 }
 
 /// A vote for a referendum of a particular account.
-#[derive(Encode, MaxEncodedLen, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo)]
+#[derive(Encode, MaxEncodedLen, Decode, DecodeWithMemTracking, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo)]
 pub enum AccountVote<Balance> {
 	/// A standard vote, one-way (approve or reject) with a given amount of conviction.
 	Standard { vote: Vote, balance: Balance },
@@ -116,7 +116,7 @@ impl<Balance: Saturating> AccountVote<Balance> {
 #[derive(
 	Encode, MaxEncodedLen, Decode, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo,
 )]
-pub struct PriorLock<BlockNumber, Balance>(BlockNumber, Balance);
+pub struct PriorLock<BlockNumber, Balance>(pub BlockNumber, pub Balance);
 
 impl<BlockNumber: Ord + Copy + Zero, Balance: Ord + Copy + Zero> PriorLock<BlockNumber, Balance> {
 	/// Accumulates an additional lock.

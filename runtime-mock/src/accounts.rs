@@ -24,20 +24,8 @@ pub fn get_nonnative_endowed_accounts(assets: Vec<Asset>) -> Vec<(AccountId, Vec
 	(0..ACCOUNT_COUNT).map(|i| ([i; 32].into(), amounts.clone())).collect()
 }
 
-pub fn get_council_members() -> Vec<AccountId> {
-	(0..5).map(|i| [i; 32].into()).collect()
-}
-
 pub fn get_technical_committee() -> Vec<AccountId> {
 	(0..3).map(|i| [i; 32].into()).collect()
-}
-
-pub fn get_duster_reward_account() -> AccountId {
-	[0; 32].into()
-}
-
-pub fn get_duster_dest_account() -> AccountId {
-	[0; 32].into()
 }
 
 // Owner of initial positions

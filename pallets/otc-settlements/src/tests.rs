@@ -300,7 +300,7 @@ fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_foun
 				profit: 17_736_110_470_326,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: otc.owner,
 				filler: OtcSettlements::account_id(),
 				filler_type: pallet_broadcast::types::Filler::OTC(otc_id),
@@ -744,9 +744,10 @@ fn test_offchain_worker_unsigned_transaction_submission() {
 		let tx = pool_state.write().transactions.pop().unwrap();
 		assert!(pool_state.read().transactions.is_empty());
 		let tx = Extrinsic::decode(&mut &*tx).unwrap();
-		assert_eq!(tx.signature, None); // unsigned
+		// unsigned transactions have a bare preamble with no signature
+		assert!(matches!(tx.preamble, sp_runtime::generic::Preamble::Bare(_)));
 		assert_eq!(
-			tx.call,
+			tx.function,
 			crate::mock::RuntimeCall::OtcSettlements(crate::Call::settle_otc_order {
 				otc_id: 0,
 				amount: 2_413_749_694_825_193,

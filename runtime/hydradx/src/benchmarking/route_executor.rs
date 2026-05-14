@@ -155,28 +155,6 @@ fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 runtime_benchmarks! {
 	{Runtime, pallet_route_executor}
 
-	// Calculates the weight all the logic of ED handling of insufficient assets
-	skip_ed_handling_for_trade_with_insufficient_assets{
-		let asset_1 = register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		let asset_2 = register_external_asset(b"FCB".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-
-		let trade = Trade {
-			pool: PoolType::LBP,
-			asset_in: asset_1,
-			asset_out: asset_2
-		};
-
-	}: {
-		//We assume the worst case, so we change the state 4 times(1 add, 2 modify, 1 kill)
-		Router::disable_ed_handling_for_insufficient_assets(3, 0, trade);
-		Router::disable_ed_handling_for_insufficient_assets(3, 1, trade);
-		Router::disable_ed_handling_for_insufficient_assets(3, 2, trade);
-	}
-	verify {
-
-	}
-
-
 	calculate_and_execute_sell_in_lbp {
 		let c in 0..1;	// if c == 1, calculate_sell_trade_amounts is executed
 
@@ -199,7 +177,7 @@ runtime_benchmarks! {
 		if c != 0 {
 			Router::calculate_sell_trade_amounts(trades.as_slice(), amount_to_sell)?;
 		}
-		Router::sell(RawOrigin::Signed(seller.clone()).into(), asset_in, asset_out, amount_to_sell, 0u128, trades.clone())?;
+		Router::sell(RawOrigin::Signed(seller.clone()).into(), asset_in, asset_out, amount_to_sell, 0u128, trades.clone().try_into().unwrap())?;
 	}
 	verify {
 		assert_eq!(<Currencies as MultiCurrency<_>>::free_balance(
@@ -233,7 +211,7 @@ runtime_benchmarks! {
 			Router::calculate_buy_trade_amounts(trades.as_slice(), amount_to_buy)?;
 		}
 		if b != 0 {
-			Router::buy(RawOrigin::Signed(buyer.clone()).into(), asset_in, asset_out, amount_to_buy, u128::MAX, trades)?
+			Router::buy(RawOrigin::Signed(buyer.clone()).into(), asset_in, asset_out, amount_to_buy, u128::MAX, trades.try_into().unwrap())?
 		}
 	}
 	verify {
@@ -253,6 +231,10 @@ runtime_benchmarks! {
 		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_6 = register_asset(b"AS6".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_7 = register_asset(b"AS7".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_8 = register_asset(b"AS8".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_9 = register_asset(b"AS9".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_10 = register_asset(b"ASA".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		let caller: AccountId = funded_account("caller", 0, &[asset_1, asset_2,asset_3]);
 		create_xyk_pool(HDX, asset_2);
@@ -260,18 +242,11 @@ runtime_benchmarks! {
 		create_xyk_pool(asset_3, asset_4);
 		create_xyk_pool(asset_4, asset_5);
 		create_xyk_pool(asset_5, asset_6);
-		create_xyk_pool(HDX, asset_6);
-
-		//INIT OMNIPOOL
-		/*let acc = Omnipool::protocol_account();
-		crate::benchmarking::omnipool::init()?;
-		// Create account for token provider and set balance
-		let owner: AccountId = account("owner", 0, 1);
-		let token_price = FixedU128::from((5,1));
-		let token_amount = 100000 * UNITS;
-		update_balance(asset_6, &acc, token_amount);
-		// Add the token to the pool
-		Omnipool::add_token(RawOrigin::Root.into(), asset_6, token_price, Permill::from_percent(100), owner)?;*/
+		create_xyk_pool(asset_6, asset_7);
+		create_xyk_pool(asset_7, asset_8);
+		create_xyk_pool(asset_8, asset_9);
+		create_xyk_pool(asset_9, asset_10);
+		create_xyk_pool(HDX, asset_10);
 
 		let route = vec![Trade {
 			pool: PoolType::XYK,
@@ -293,31 +268,50 @@ runtime_benchmarks! {
 			pool: PoolType::XYK,
 			asset_in: asset_5,
 			asset_out: asset_6
+		},Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_6,
+			asset_out: asset_7
+		},
+		Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_7,
+			asset_out: asset_8
+		},
+		Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_8,
+			asset_out: asset_9
+		},
+		Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_9,
+			asset_out: asset_10
 		}];
 
 		set_period(10);
 
 		Router::set_route(
 			RawOrigin::Signed(caller.clone()).into(),
-			AssetPair::new(HDX, asset_6),
-			route,
+			AssetPair::new(HDX, asset_10),
+			route.try_into().unwrap(),
 		)?;
 
 		let better_route = vec![Trade {
 			pool: PoolType::XYK,
 			asset_in: HDX,
-			asset_out: asset_6
+			asset_out: asset_10
 		},];
 
 	}: {
 		Router::set_route(
 			RawOrigin::Signed(caller.clone()).into(),
-			AssetPair::new(HDX, asset_6),
-			better_route.clone(),
+			AssetPair::new(HDX, asset_10),
+			better_route.clone().try_into().unwrap(),
 		)?;
 	}
 	verify {
-		let stored_route = Router::route(AssetPair::new(HDX, asset_6)).unwrap();
+		let stored_route = Router::route(AssetPair::new(HDX, asset_10)).unwrap();
 		assert_eq!(stored_route, better_route);
 	}
 
@@ -328,6 +322,10 @@ runtime_benchmarks! {
 		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_6 = register_asset(b"AS6".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_7 = register_asset(b"AS7".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_8 = register_asset(b"AS8".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_9 = register_asset(b"AS9".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_10 = register_asset(b"ASA".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		let caller: AccountId = funded_account("caller", 0, &[asset_1, asset_2,asset_3]);
 		create_xyk_pool(HDX, asset_2);
@@ -335,9 +333,34 @@ runtime_benchmarks! {
 		create_xyk_pool(asset_3, asset_4);
 		create_xyk_pool(asset_4, asset_5);
 		create_xyk_pool(asset_5, asset_6);
-		create_xyk_pool(HDX, asset_6);
+		create_xyk_pool(asset_6, asset_7);
+		create_xyk_pool(asset_7, asset_8);
+		create_xyk_pool(asset_8, asset_9);
+		create_xyk_pool(asset_9, asset_10);
+		create_xyk_pool(HDX, asset_10);
 
-		let route = vec![Trade {
+		let route = vec![
+			Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_10,
+			asset_out: asset_9
+		},
+			Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_9,
+			asset_out: asset_8
+		},
+			Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_8,
+			asset_out: asset_7
+		},
+			Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_7,
+			asset_out: asset_6
+		},
+			Trade {
 			pool: PoolType::XYK,
 			asset_in: asset_6,
 			asset_out: asset_5
@@ -361,14 +384,14 @@ runtime_benchmarks! {
 	}: {
 		Router::force_insert_route(
 			RawOrigin::Root.into(),
-			AssetPair::new(asset_6, HDX),
-			route.clone(),
+			AssetPair::new(asset_10, HDX),
+			route.clone().try_into().unwrap(),
 		)?;
 	}
 	verify {
 
-		let stored_route = Router::route(AssetPair::new(HDX, asset_6)).unwrap();
-		assert_eq!(inverse_route(stored_route.to_vec()), route);
+		let stored_route = Router::route(AssetPair::new(HDX, asset_10)).unwrap();
+		assert_eq!(inverse_route(stored_route.to_vec().try_into().unwrap()), route);
 	}
 
 	get_route {
@@ -381,7 +404,7 @@ runtime_benchmarks! {
 		Router::force_insert_route(
 			RawOrigin::Root.into(),
 			AssetPair::new(HDX, DAI),
-			route,
+			route.try_into().unwrap(),
 		)?;
 	}: {
 		Router::get_route(AssetPair::new(HDX, DAI))

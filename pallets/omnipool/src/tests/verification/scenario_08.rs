@@ -73,11 +73,12 @@ fn complex_scenario_works() {
 
 			assert_hub_asset!();
 
+			let sell_amount = 20000000000000;
 			assert_ok!(Omnipool::sell(
 				RuntimeOrigin::signed(LP3),
 				1,
 				200,
-				20000000000000,
+				sell_amount,
 				10000000000000
 			));
 

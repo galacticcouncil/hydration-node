@@ -15,6 +15,13 @@ struct StorageCmd {
 	/// The pallets to scrape. If empty, entire chain state will be scraped.
 	#[arg(long, num_args = 0..)]
 	pallet: Vec<String>,
+	/// The pallets to exclude from scraping.
+	#[arg(long, num_args = 0..)]
+	exclude: Vec<String>,
+	/// Produce a slim snapshot by removing most user accounts from System.Account
+	/// and Tokens.Accounts, keeping only protocol, pool, and dev accounts.
+	#[arg(long)]
+	slim: bool,
 	#[allow(missing_docs)]
 	#[clap(flatten)]
 	shared: SharedParams,
@@ -31,11 +38,29 @@ struct BlocksCmd {
 	shared: SharedParams,
 }
 
+#[derive(Parser, Debug)]
+struct SaveChainspecCmd {
+	/// The block hash at which to get the runtime chainspec. Will be latest finalized head if not provided.
+	#[arg(long)]
+	at: Option<<Block as BlockT>::Hash>,
+	/// The pallets to include. If empty, entire chain state will be exported.
+	#[arg(long, num_args = 0..)]
+	pallet: Vec<String>,
+	/// The pallets to exclude from chainspec export.
+	#[arg(long, num_args = 0..)]
+	exclude: Vec<String>,
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	shared: SharedParams,
+}
+
 /// Possible commands of `scraper`.
 #[derive(Parser, Debug)]
+#[allow(clippy::enum_variant_names)]
 enum Command {
 	SaveStorage(StorageCmd),
 	SaveBlocks(BlocksCmd),
+	SaveChainspec(SaveChainspecCmd),
 }
 
 /// Shared parameters of the `scraper` commands.
@@ -79,27 +104,61 @@ fn main() {
 	let path = match args.command {
 		Command::SaveStorage(cmd) => {
 			let path = cmd.shared.get_path();
-
-			let snapshot_config = SnapshotConfig::new(path.clone());
+			let excluded_pallets = cmd.exclude;
+			let slim = cmd.slim;
 			let transport = Transport::Uri(cmd.shared.uri);
 
-			let online_config = OnlineConfig {
-				at: cmd.at,
-				state_snapshot: Some(snapshot_config),
-				pallets: cmd.pallet,
-				transport,
-				..Default::default()
-			};
+			if slim {
+				if !excluded_pallets.is_empty() {
+					println!("Warning: --exclude is ignored in --slim mode (slim filters by account, not by pallet)");
+				}
+				// Slim mode: don't auto-save, capture externalities, filter in memory, write once
+				let online_config = OnlineConfig {
+					at: cmd.at,
+					state_snapshot: None,
+					pallets: cmd.pallet,
+					transport,
+					..Default::default()
+				};
 
-			let mode = Mode::Online(online_config);
+				let mode = Mode::Online(online_config);
+				let builder = Builder::<Block>::new().mode(mode);
 
-			let builder = Builder::<Block>::new().mode(mode);
+				let ext = tokio::runtime::Builder::new_current_thread()
+					.enable_all()
+					.build()
+					.unwrap()
+					.block_on(async { builder.build().await.unwrap() });
 
-			tokio::runtime::Builder::new_current_thread()
-				.enable_all()
-				.build()
-				.unwrap()
-				.block_on(async { builder.build().await.unwrap() });
+				scraper::save_slim_snapshot::<Block>(ext.inner_ext, ext.header, path.clone())
+					.expect("Failed to save slim snapshot");
+			} else {
+				let snapshot_config = SnapshotConfig::new(path.clone());
+
+				let online_config = OnlineConfig {
+					at: cmd.at,
+					state_snapshot: Some(snapshot_config),
+					pallets: cmd.pallet,
+					transport,
+					..Default::default()
+				};
+
+				let mode = Mode::Online(online_config);
+				let builder = Builder::<Block>::new().mode(mode);
+
+				tokio::runtime::Builder::new_current_thread()
+					.enable_all()
+					.build()
+					.unwrap()
+					.block_on(async { builder.build().await.unwrap() });
+
+				// Post-process snapshot to exclude specified pallets
+				if !excluded_pallets.is_empty() {
+					println!("Filtering out excluded pallets: {excluded_pallets:?}");
+					scraper::filter_snapshot_by_excluded_pallets::<Block>(&path, &excluded_pallets)
+						.expect("Failed to filter snapshot by excluded pallets");
+				}
+			}
 
 			path
 		}
@@ -147,6 +206,22 @@ fn main() {
 			}
 
 			scraper::save_blocks_snapshot::<Block>(&block_arr, &path).unwrap();
+
+			path
+		}
+		Command::SaveChainspec(cmd) => {
+			let mut path = cmd.shared.get_path();
+			path.set_extension("json");
+
+			tokio::runtime::Builder::new_current_thread()
+				.enable_all()
+				.build()
+				.unwrap()
+				.block_on(async {
+					scraper::save_chainspec(cmd.at, path.clone(), cmd.shared.uri, cmd.exclude)
+						.await
+						.unwrap()
+				});
 
 			path
 		}

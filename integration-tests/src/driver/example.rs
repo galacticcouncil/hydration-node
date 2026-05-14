@@ -46,7 +46,7 @@ fn driver_test_example() {
 				stable_pool_id,
 				stable_asset_a,
 				stable_asset_b,
-				1u128 * 10u128.pow(stable_asset_a_decimals),
+				10u128.pow(stable_asset_a_decimals),
 				0u128,
 			));
 		});

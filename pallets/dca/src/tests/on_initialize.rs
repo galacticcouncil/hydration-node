@@ -183,7 +183,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_in: amount_to_sell,
-				min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+				min_buy_amount: 0,
 			}]);
 
 			assert_eq!(remaining_named_reserve, Currencies::reserved_balance(HDX, &ALICE));
@@ -253,25 +253,25 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 			set_to_blocknumber(702);
 
 			//Assert
-			let fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let fee_in_native = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 			assert_executed_sell_trades!(vec![
 				SellExecution {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
-					min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+					min_buy_amount: 0,
 				},
 				SellExecution {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
-					min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+					min_buy_amount: 0,
 				},
 				SellExecution {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: total_amount - 2 * (amount_to_sell + fee_in_native) - fee_in_native,
-					min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+					min_buy_amount: 0,
 				}
 			]);
 
@@ -322,7 +322,7 @@ fn sell_schedule_should_continue_when_there_is_exact_amount_in_left_as_remaining
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
-				min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+				min_buy_amount: 0,
 			}]);
 
 			assert!(DCA::schedules(0).is_some());
@@ -370,7 +370,7 @@ fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 			set_to_blocknumber(502);
 
 			//Assert
-			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 			assert_executed_buy_trades!(vec![BuyExecution {
 				asset_in: HDX,
 				asset_out: BTC,
@@ -448,7 +448,7 @@ fn one_buy_dca_execution_should_calculate_exact_amount_in_when_multiple_pools_in
 				}
 			]);
 
-			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 			assert_eq!(
 				total_amount - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - buy_fee_in_native,
 				Currencies::reserved_balance(HDX, &ALICE)
@@ -650,7 +650,7 @@ fn full_buy_dca_should_be_completed_when_some_successful_dca_execution_happened_
 					asset_out: BTC,
 				}]),
 			};
-			let buy_fee_in_native = DCA::get_transaction_fee(&order).unwrap();
+			let buy_fee_in_native = DCA::get_transaction_fee(&order, None).unwrap();
 			let total_amount = 2 * (CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + buy_fee_in_native) + buy_fee_in_native / 2;
 
 			let schedule = ScheduleBuilder::new()
@@ -887,10 +887,10 @@ fn rolling_dca_should_end_when_account_has_no_balance() {
 
 			//Assert
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
-			assert_number_of_executed_sell_trades!(3);
+			assert_number_of_executed_sell_trades!(2);
 
 			let schedule_id = 0;
-			assert_that_dca_is_terminated(ALICE, schedule_id, sp_runtime::TokenError::FundsUnavailable.into());
+			assert_that_dca_is_completed(ALICE, schedule_id);
 		});
 }
 
@@ -970,7 +970,7 @@ fn full_buy_dca_should_be_completed_without_leftover_fees_are_included_in_budget
 					asset_out: BTC,
 				}]),
 			};
-			let buy_fee_in_native = DCA::get_transaction_fee(&order).unwrap();
+			let buy_fee_in_native = DCA::get_transaction_fee(&order, None).unwrap();
 
 			let total_amount = 50 * ONE + 5 * buy_fee_in_native;
 
@@ -1170,7 +1170,7 @@ fn buy_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 
 			let schedule_id = 0;
 
-			assert_scheduled_ids!(512, vec![schedule_id]);
+			assert_scheduled_ids!(522, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(1, retries);
 			expect_dca_events(vec![
@@ -1183,7 +1183,7 @@ fn buy_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 				DcaEvent::ExecutionPlanned {
 					id: schedule_id,
 					who: ALICE,
-					block: 512,
+					block: 522,
 				}
 				.into(),
 			]);
@@ -1223,7 +1223,7 @@ fn sell_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 			assert_number_of_executed_sell_trades!(0);
 
 			let schedule_id = 0;
-			assert_scheduled_ids!(512, vec![schedule_id]);
+			assert_scheduled_ids!(522, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(1, retries);
 			expect_dca_events(vec![
@@ -1236,7 +1236,7 @@ fn sell_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 				DcaEvent::ExecutionPlanned {
 					id: schedule_id,
 					who: ALICE,
-					block: 512,
+					block: 522,
 				}
 				.into(),
 			]);
@@ -1282,9 +1282,9 @@ fn dca_trade_unallocation_should_be_rolled_back_when_trade_fails() {
 			set_to_blocknumber(502);
 
 			assert_number_of_executed_buy_trades!(0);
-			assert_scheduled_ids!(512, vec![schedule_id]);
+			assert_scheduled_ids!(522, vec![schedule_id]);
 
-			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 			assert_eq!(
 				Currencies::reserved_balance(HDX, &ALICE),
 				total_amount - buy_fee_in_native
@@ -1363,15 +1363,15 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 			//Act and assert
 			let schedule_id = 0;
 			set_to_blocknumber(502);
-			assert_scheduled_ids!(512, vec![schedule_id]);
+			assert_scheduled_ids!(522, vec![schedule_id]);
 
-			set_to_blocknumber(512);
-			assert_scheduled_ids!(532, vec![schedule_id]);
+			set_to_blocknumber(522);
+			assert_scheduled_ids!(562, vec![schedule_id]);
 
-			set_to_blocknumber(532);
-			assert_scheduled_ids!(572, vec![schedule_id]);
+			set_to_blocknumber(562);
+			assert_scheduled_ids!(642, vec![schedule_id]);
 
-			set_to_blocknumber(572);
+			set_to_blocknumber(642);
 			assert!(DCA::schedules(schedule_id).is_none());
 			assert_number_of_executed_buy_trades!(0);
 		});
@@ -1408,25 +1408,25 @@ fn dca_schedule_should_use_specified_max_retry_count() {
 			//Act and assert
 			let schedule_id = 0;
 			set_to_blocknumber(502);
-			assert_scheduled_ids!(512, vec![schedule_id]);
+			assert_scheduled_ids!(522, vec![schedule_id]);
 
-			set_to_blocknumber(512);
-			assert_scheduled_ids!(532, vec![schedule_id]);
+			set_to_blocknumber(522);
+			assert_scheduled_ids!(562, vec![schedule_id]);
 
-			set_to_blocknumber(532);
-			assert_scheduled_ids!(572, vec![schedule_id]);
+			set_to_blocknumber(562);
+			assert_scheduled_ids!(642, vec![schedule_id]);
 
-			set_to_blocknumber(572);
-			assert_scheduled_ids!(652, vec![schedule_id]);
+			set_to_blocknumber(642);
+			assert_scheduled_ids!(802, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(4, retries);
 
-			set_to_blocknumber(652);
-			assert_scheduled_ids!(812, vec![schedule_id]);
+			set_to_blocknumber(802);
+			assert_scheduled_ids!(1122, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(5, retries);
 
-			set_to_blocknumber(812);
+			set_to_blocknumber(1122);
 			assert!(DCA::schedules(schedule_id).is_none());
 			assert_number_of_executed_buy_trades!(0);
 		});
@@ -1461,7 +1461,7 @@ fn buy_dca_schedule_should_continue_on_slippage_error() {
 			//Act and assert
 			let schedule_id = 0;
 			set_to_blocknumber(502);
-			assert_scheduled_ids!(512, vec![schedule_id]);
+			assert_scheduled_ids!(522, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(1, retries);
 		});
@@ -1501,7 +1501,7 @@ fn sell_dca_schedule_continue_on_slippage_error() {
 			//Act and assert
 			let schedule_id = 0;
 			set_to_blocknumber(502);
-			assert_scheduled_ids!(512, vec![schedule_id]);
+			assert_scheduled_ids!(522, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(1, retries);
 		});
@@ -1541,15 +1541,15 @@ fn dca_schedule_retry_should_be_reset_when_successful_trade_after_failed_ones() 
 			//Act and assert
 			let schedule_id = 0;
 			set_to_blocknumber(502);
-			assert_scheduled_ids!(512, vec![schedule_id]);
+			assert_scheduled_ids!(522, vec![schedule_id]);
 
-			set_to_blocknumber(512);
-			assert_scheduled_ids!(532, vec![schedule_id]);
+			set_to_blocknumber(522);
+			assert_scheduled_ids!(562, vec![schedule_id]);
 
 			set_max_price_diff(Permill::from_percent(10));
 
-			set_to_blocknumber(532);
-			assert_scheduled_ids!(532 + ONE_HUNDRED_BLOCKS, vec![schedule_id]);
+			set_to_blocknumber(562);
+			assert_scheduled_ids!(562 + ONE_HUNDRED_BLOCKS, vec![schedule_id]);
 			assert_number_of_executed_sell_trades!(1);
 
 			let retries = DCA::retries_on_error(schedule_id);
@@ -1595,7 +1595,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(502);
 
 			//Assert
-			let buy_fee_in_dai = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let buy_fee_in_dai = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 			assert_balance!(TreasuryAccount::get(), DAI, buy_fee_in_dai);
 			assert_number_of_executed_buy_trades!(1);
 			assert_eq!(
@@ -1645,7 +1645,7 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 			set_to_blocknumber(502);
 
 			//Assert
-			let fee_in_dai = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let fee_in_dai = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 			assert_balance!(TreasuryAccount::get(), DAI, fee_in_dai);
 			assert_number_of_executed_buy_trades!(0);
 			assert_eq!(Currencies::reserved_balance(DAI, &ALICE), budget - fee_in_dai);
@@ -1693,7 +1693,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(502);
 
 			//Assert
-			let sell_fee_in_dai = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let sell_fee_in_dai = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 			assert_balance!(TreasuryAccount::get(), DAI, sell_fee_in_dai);
 			assert_eq!(
 				Currencies::reserved_balance(DAI, &ALICE),
@@ -1744,7 +1744,7 @@ fn sell_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 			set_to_blocknumber(502);
 
 			//Assert
-			let sell_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let sell_fee_in_native = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 			assert_balance!(TreasuryAccount::get(), HDX, sell_fee_in_native);
 			assert_eq!(
 				Currencies::reserved_balance(HDX, &ALICE),
@@ -1835,7 +1835,7 @@ fn buy_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 			set_to_blocknumber(502);
 
 			//Assert
-			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 
 			assert_balance!(TreasuryAccount::get(), HDX, buy_fee_in_native);
 			assert_eq!(
@@ -1925,12 +1925,12 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max
 			set_to_blocknumber(502);
 
 			//Assert
-			let fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let fee_in_native = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 			assert_executed_sell_trades!(vec![]);
 			assert_eq!(total_amount - fee_in_native, Currencies::reserved_balance(HDX, &ALICE));
 
 			let schedule_id = 0;
-			assert_scheduled_ids!(512, vec![schedule_id]);
+			assert_scheduled_ids!(522, vec![schedule_id]);
 			expect_dca_events(vec![
 				DcaEvent::TradeFailed {
 					id: schedule_id,
@@ -1941,7 +1941,7 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max
 				DcaEvent::ExecutionPlanned {
 					id: schedule_id,
 					who: ALICE,
-					block: 512,
+					block: 522,
 				}
 				.into(),
 			]);
@@ -1993,7 +1993,7 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_use
 			);
 
 			let schedule_id = 0;
-			assert_scheduled_ids!(512, vec![schedule_id]);
+			assert_scheduled_ids!(522, vec![schedule_id]);
 			expect_dca_events(vec![
 				DcaEvent::TradeFailed {
 					id: schedule_id,
@@ -2004,7 +2004,7 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_use
 				DcaEvent::ExecutionPlanned {
 					id: schedule_id,
 					who: ALICE,
-					block: 512,
+					block: 522,
 				}
 				.into(),
 			]);
@@ -2051,7 +2051,7 @@ fn one_buy_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_
 			//Act
 			set_to_blocknumber(502);
 
-			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 			//Assert
 			assert_executed_buy_trades!(vec![]);
 			assert_eq!(
@@ -2060,7 +2060,7 @@ fn one_buy_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_
 			);
 
 			let schedule_id = 0;
-			assert_scheduled_ids!(512, vec![schedule_id]);
+			assert_scheduled_ids!(522, vec![schedule_id]);
 		});
 }
 
@@ -2105,7 +2105,7 @@ fn specified_slippage_should_be_used_in_circuit_breaker_price_check() {
 			set_to_blocknumber(502);
 
 			//Assert
-			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 			assert_executed_buy_trades!(vec![]);
 			assert_eq!(
 				total_amount - buy_fee_in_native,
@@ -2113,7 +2113,7 @@ fn specified_slippage_should_be_used_in_circuit_breaker_price_check() {
 			);
 
 			let schedule_id = 0;
-			assert_scheduled_ids!(512, vec![schedule_id]);
+			assert_scheduled_ids!(522, vec![schedule_id]);
 
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(1, retries);
@@ -2169,7 +2169,7 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_in: amount_to_sell,
-				min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+				min_buy_amount: 0,
 			}]);
 
 			assert_that_dca_is_terminated(ALICE, schedule_id, Error::<Test>::NoFreeBlockFound.into());
@@ -2214,8 +2214,8 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 				assert_ok!(DCA::schedule(
 					RuntimeOrigin::signed(ALICE),
 					schedule,
-					Option::Some(1005)
-				)); //995 + 10 because 10 is the retry delay
+					Option::Some(1015)
+				)); //995 + 20 because 20 is the retry delay
 			}
 
 			//Act
@@ -2309,7 +2309,7 @@ fn dca_sell_schedule_should_be_terminated_when_schedule_allocation_is_more_than_
 					asset_out: BTC,
 				}]),
 			};
-			let fee_in_native = DCA::get_transaction_fee(&order).unwrap();
+			let fee_in_native = DCA::get_transaction_fee(&order, None).unwrap();
 			let total_amount = 2 * (amount_in + fee_in_native);
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -2587,7 +2587,7 @@ fn dca_should_continue_when_remainder_is_equal_to_min_trading_limit() {
 					asset_out: BTC,
 				}]),
 			};
-			let fee_in_native = DCA::get_transaction_fee(&order).unwrap();
+			let fee_in_native = DCA::get_transaction_fee(&order, None).unwrap();
 			let total_amount = 2 * (ONE + fee_in_native) + min_trade_limit;
 
 			let schedule = ScheduleBuilder::new()
@@ -2699,10 +2699,71 @@ fn dca_schedule_should_still_take_fee_when_order_fails() {
 			));
 
 			//Act and assert
-			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order, None).unwrap();
 			set_to_blocknumber(502);
 			assert_number_of_executed_buy_trades!(0);
 			assert_balance!(TreasuryAccount::get(), HDX, buy_fee_in_native);
+		});
+}
+
+#[test]
+fn dca_should_include_extra_gas_in_fee_calculation_on_retry() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			// Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 1000 * ONE;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_max_retries(Some(3))
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_amount_out: Balance::MIN,
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			let schedule_id = 0;
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), None));
+
+			let fee_without_extra_gas = DCA::get_transaction_fee(&schedule.order, None).unwrap();
+
+			// Simulate that extra gas was incremented after an out-of-gas error
+			let expected_gas_increment = crate::MAX_EXTRA_GAS / 3; // max_retries = 3
+			crate::ScheduleExtraGas::<Test>::insert(schedule_id, expected_gas_increment);
+
+			let fee_with_extra_gas = DCA::get_transaction_fee(&schedule.order, Some(schedule_id)).unwrap();
+
+			assert!(
+				fee_with_extra_gas > fee_without_extra_gas,
+				"Fee with extra gas ({fee_with_extra_gas}) should be higher than base fee ({fee_without_extra_gas})",
+			);
+
+			// Act
+			set_to_blocknumber(502);
+
+			//Assert
+			assert_number_of_executed_sell_trades!(1);
+
+			// Verify the fee charged included the extra gas
+			let expected_reserved = total_amount - amount_to_sell - fee_with_extra_gas;
+			assert_eq!(
+				Currencies::reserved_balance(HDX, &ALICE),
+				expected_reserved,
+				"Reserved balance should reflect fee with extra gas was charged"
+			);
 		});
 }
 

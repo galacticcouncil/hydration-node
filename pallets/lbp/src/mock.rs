@@ -61,8 +61,6 @@ pub const SAMPLE_AMM_TRANSFER: AMMTransfer<AccountId, AssetId, AssetPair, Balanc
 	},
 	amount: 1000,
 	amount_b: 10000,
-	discount: false,
-	discount_amount: 0_u128,
 	fee: (KUSD, 200),
 };
 
@@ -112,6 +110,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_type_with_key! {
@@ -125,7 +124,6 @@ parameter_types! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -173,12 +171,9 @@ impl LockedBalance<AssetId, AccountId, Balance> for MultiLockedBalance {
 	}
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currency;
 	type LockedBalance = MultiLockedBalance;
 	type CreatePoolOrigin = frame_system::EnsureRoot<u64>;

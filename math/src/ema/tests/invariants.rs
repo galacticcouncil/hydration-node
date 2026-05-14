@@ -71,6 +71,10 @@ fn period_fraction() -> impl Strategy<Value = Fraction> {
 	(typical_period()).prop_map(smoothing_from_period)
 }
 
+fn any_shares_issuance() -> impl Strategy<Value = Balance> {
+	any::<Balance>()
+}
+
 prop_compose! {
 	fn period_and_iterations()(p in long_period())(
 		period in Just(p),
@@ -198,12 +202,14 @@ proptest! {
 		(prev_price, incoming_price) in (any_price(), any_price()),
 		(prev_volume, incoming_volume) in (any_volume(), any_volume()),
 		(prev_liquidity, incoming_liquidity) in (any_liquidity(), any_liquidity()),
+		(prev_shares_issuance, incoming_shares_issuance) in (any_shares_issuance(), any_shares_issuance()),
 	) {
 		let simple_price = price_weighted_average(prev_price, incoming_price, smoothing);
 		let simple_volume = volume_weighted_average(prev_volume, incoming_volume, smoothing);
 		let simple_liquidity = liquidity_weighted_average(prev_liquidity, incoming_liquidity, smoothing);
-		let new_oracle = calculate_new_by_integrating_incoming((prev_price, prev_volume, prev_liquidity), (incoming_price, incoming_volume, incoming_liquidity), smoothing);
-		prop_assert_eq!(new_oracle, (simple_price, simple_volume, simple_liquidity));
+		let simple_shares_issuance = balance_weighted_average(prev_shares_issuance, incoming_shares_issuance, smoothing);
+		let new_oracle = calculate_new_by_integrating_incoming((prev_price, prev_volume, prev_liquidity, Some(prev_shares_issuance)), (incoming_price, incoming_volume, incoming_liquidity, Some(incoming_shares_issuance)), smoothing);
+		prop_assert_eq!(new_oracle, (simple_price, simple_volume, simple_liquidity, Some(simple_shares_issuance)));
 	}
 }
 
@@ -215,12 +221,14 @@ proptest! {
 		(prev_price, incoming_price) in (any_price(), any_price()),
 		prev_volume in any_volume(),
 		(prev_liquidity, incoming_liquidity) in (any_liquidity(), any_liquidity()),
+		(prev_shares_issuance, incoming_shares_issuance) in (any_shares_issuance(), any_shares_issuance()),
 	) {
 		let iterated_price = iterated_price_ema(iterations, prev_price, incoming_price, smoothing);
 		let iterated_volume = iterated_volume_ema(iterations, prev_volume, smoothing);
 		let iterated_liquidity = iterated_liquidity_ema(iterations, prev_liquidity, incoming_liquidity, smoothing);
-		let current_oracle = update_outdated_to_current(iterations, (prev_price, prev_volume, prev_liquidity), (incoming_price, incoming_liquidity), smoothing);
-		prop_assert_eq!(current_oracle, (iterated_price, iterated_volume, iterated_liquidity));
+		let iterated_shares = iterated_balance_ema(iterations, prev_shares_issuance, incoming_shares_issuance, smoothing);
+		let current_oracle = update_outdated_to_current(iterations, (prev_price, prev_volume, prev_liquidity, Some(prev_shares_issuance)), (incoming_price, incoming_liquidity, Some(incoming_shares_issuance)), smoothing);
+		prop_assert_eq!(current_oracle, (iterated_price, iterated_volume, iterated_liquidity, Some(iterated_shares)));
 	}
 }
 

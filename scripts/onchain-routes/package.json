@@ -1,0 +1,20 @@
+{
+  "name": "mint-limit",
+  "version": "1.0.0",
+  "main": "calcLength.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "type": "module",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@galacticcouncil/api-augment": "^0.8.1",
+    "@galacticcouncil/sdk": "^9.12.0",
+    "@polkadot/api": "^16.4.5",
+    "@polkadot/keyring": "^13.5.5",
+    "@polkadot/util": "^13.5.5"
+  }
+}

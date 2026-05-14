@@ -25,8 +25,9 @@
 //  $$$$$   $$$$$     $$      $$$$$$$$ $ $$$      $$$$$$$$   $$$  $$$$   $$$$$$$  $$$$   $$$$
 //                  $$$
 
-// Gov V1 (to be deprecated)
+// Gov V1 (legacy - remove once all vote locks have expired)
 pub mod old;
+pub(crate) use pallet_collective as pallet_collective_council;
 
 pub mod origins;
 pub mod tracks;
@@ -45,6 +46,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureRootWithSuccess};
+use hydradx_traits::evm::MaybeEvmCall;
 use pallet_collective::EnsureProportionAtLeast;
 use primitives::constants::{currency::DOLLARS, time::DAYS};
 use sp_arithmetic::Perbill;
@@ -62,7 +64,9 @@ parameter_types! {
 }
 
 pub type TechnicalCollective = pallet_collective::Instance2;
-impl pallet_collective::Config<TechnicalCollective> for Runtime {
+pub(crate) use pallet_collective as pallet_collective_technical_committee;
+
+impl pallet_collective_technical_committee::Config<TechnicalCollective> for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type Proposal = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
@@ -73,6 +77,9 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type WeightInfo = weights::pallet_collective_technical_committee::HydraWeight<Runtime>;
 	type MaxProposalWeight = MaxProposalWeight;
 	type SetMembersOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type DisapproveOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type KillOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type Consideration = ();
 }
 
 parameter_types! {
@@ -168,6 +175,7 @@ impl pallet_treasury::Config for Runtime {
 	type PayoutPeriod = TreasuryPayoutPeriod;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = (); // default impl is enough because we support only the native currency
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -184,7 +192,8 @@ impl pallet_conviction_voting::Config for Runtime {
 	type Polls = Referenda;
 	type VotingHooks = pallet_staking::integrations::conviction_voting::StakingConvictionVoting<Runtime>;
 	// Any single technical committee member may remove a vote.
-	type VoteRemovalOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
+	type VoteRemovalOrigin = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -204,7 +213,7 @@ impl pallet_whitelist::Config for Runtime {
 parameter_types! {
 	pub const AlarmInterval: BlockNumber = 1;
 	pub const SubmissionDeposit: Balance = DOLLARS;
-	pub const UndecidingTimeout: BlockNumber = 14 * DAYS;
+	pub const UndecidingTimeout: BlockNumber = 2 * DAYS;
 }
 
 impl pallet_referenda::Config for Runtime {
@@ -225,20 +234,39 @@ impl pallet_referenda::Config for Runtime {
 	type AlarmInterval = AlarmInterval;
 	type Tracks = TracksInfo;
 	type Preimages = Preimage;
+	type BlockNumberProvider = System;
 }
 
 impl origins::pallet_custom_origins::Config for Runtime {}
 
 parameter_types! {
 	pub const AaveManagerAccount: AccountId = AccountId::new(hex!("aa7e0000000000000000000000000000000aa7e0000000000000000000000000"));
+	pub const EmergencyAdminAccount: AccountId = AccountId::new(hex!("aa7e0000000000000000000000000000000aa7e1000000000000000000000000"));
+}
+
+pub struct EvmCallChecker;
+impl MaybeEvmCall<RuntimeCall> for EvmCallChecker {
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	fn is_evm_call(call: &RuntimeCall) -> bool {
+		matches!(call, RuntimeCall::EVM(pallet_evm::Call::call { .. }))
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn is_evm_call(_call: &RuntimeCall) -> bool {
+		true
+	}
 }
 
 impl pallet_dispatcher::Config for Runtime {
-	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
 	type RuntimeCall = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
+	type EvmCallIdentifier = EvmCallChecker;
 	type TreasuryManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
 	type AaveManagerOrigin = EitherOf<EnsureRoot<AccountId>, EconomicParameters>;
+	type EmergencyAdminOrigin = EitherOf<EnsureRoot<AccountId>, TechCommitteeMajority>;
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = AaveManagerAccount;
+	type EmergencyAdminAccount = EmergencyAdminAccount;
+	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
+	type EvmFeePayer = evm::EvmFeePayerImpl;
+	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
 }

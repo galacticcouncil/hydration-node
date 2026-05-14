@@ -99,7 +99,7 @@ pub use crate::types::{
 	Balance, DefaultPriceAdjustment, DepositData, DepositId, FarmId, FarmMultiplier, FarmState, GlobalFarmData,
 	GlobalFarmId, LoyaltyCurve, YieldFarmData, YieldFarmEntry, YieldFarmId,
 };
-use codec::{Decode, Encode, FullCodec};
+use codec::{Decode, DecodeWithMemTracking, Encode, FullCodec};
 use frame_support::{
 	defensive,
 	pallet_prelude::*,
@@ -108,7 +108,7 @@ use frame_support::{
 		traits::{AccountIdConversion, BlockNumberProvider, MaybeSerializeDeserialize, One, Zero},
 		RuntimeDebug,
 	},
-	traits::{Defensive, DefensiveOption},
+	traits::{Defensive, DefensiveOption, ExistenceRequirement},
 	PalletId,
 };
 
@@ -174,8 +174,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config<I: 'static = ()>: frame_system::Config + TypeInfo {
-		type RuntimeEvent: From<Event<Self, I>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Asset type.
 		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen + Into<u32>;
 
@@ -249,9 +247,6 @@ pub mod pallet {
 		/// Liquidity mining is in `active` or `terminated` state and action cannot be completed.
 		LiquidityMiningIsNotStopped,
 
-		/// LP shares amount is not valid.
-		InvalidDepositAmount,
-
 		/// Account is not allowed to perform action.
 		Forbidden,
 
@@ -316,13 +311,18 @@ pub mod pallet {
 		/// `incentivized_asset` is not registered in asset registry.
 		IncentivizedAssetNotRegistered,
 
+		/// Provided `amm_pool_id` doesn't match deposit's `amm_pool_id`.
+		AmmPoolIdMismatch,
+
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
 		InconsistentState(InconsistentStateError),
 	}
 
 	//NOTE: these errors should never happen.
-	#[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
+	#[derive(
+		Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug,
+	)]
 	pub enum InconsistentStateError {
 		/// Yield farm does not exist.
 		YieldFarmNotFound,
@@ -470,7 +470,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	/// - `reward_currency`: payoff currency of rewards.
 	/// - `owner`: liq. mining farm owner.
 	/// - `yield_per_period`: percentage return on `reward_currency` of all pools.
-	/// - `min_deposit`: minimum amount of LP shares to be deposited into liquidity mining by each user.
+	/// - `min_deposit`: minimum value of LP shares to be deposited into liquidity mining by each user.
 	/// - `price_adjustment`: price adjustment between `incentivized_asset` and `reward_currency`.
 	/// This value should be `1` if `incentivized_asset` and `reward_currency` are the same.
 	#[allow(clippy::too_many_arguments)]
@@ -534,7 +534,13 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		let global_farm_account = Self::farm_account_id(global_farm.id)?;
 
 		T::NonDustableWhitelistHandler::add_account(&global_farm_account)?;
-		T::MultiCurrency::transfer(reward_currency, &global_farm.owner, &global_farm_account, total_rewards)?;
+		T::MultiCurrency::transfer(
+			reward_currency,
+			&global_farm.owner,
+			&global_farm_account,
+			total_rewards,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		Ok((farm_id, max_reward_per_period))
 	}
@@ -577,7 +583,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	/// - `global_farm_id`: global farm id.
 	/// - `planned_yielding_periods`: planned number of periods to distribute `total_rewards`.
 	/// - `yield_per_period`: percentage return on `reward_currency` of all pools.
-	/// - `min_deposit`: minimum amount of LP shares to be deposited into liquidity mining by each user.
+	/// - `min_deposit`: minimum value of LP shares to be deposited into liquidity mining by each user.
 	fn update_global_farm(
 		global_farm_id: GlobalFarmId,
 		planned_yielding_periods: PeriodOf<T>,
@@ -657,6 +663,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				&global_farm_account,
 				&who,
 				undistributed_rewards,
+				ExistenceRequirement::AllowDeath,
 			)?;
 
 			//Mark for removal from storage on last `YieldFarm` in the farm removed.
@@ -1038,6 +1045,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 						&pot,
 						&global_farm_account,
 						yield_farm.left_to_distribute,
+						ExistenceRequirement::AllowDeath,
 					)?;
 
 					yield_farm.left_to_distribute = Zero::zero();
@@ -1255,9 +1263,16 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 									&pot,
 									&T::TreasuryAccountId::get(),
 									rewards,
+									ExistenceRequirement::AllowDeath,
 								)?;
 							} else {
-								T::MultiCurrency::transfer(global_farm.reward_currency, &pot, &who, rewards)?;
+								T::MultiCurrency::transfer(
+									global_farm.reward_currency,
+									&pot,
+									&who,
+									rewards,
+									ExistenceRequirement::AllowDeath,
+								)?;
 							}
 						}
 
@@ -1301,6 +1316,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		deposit_id: DepositId,
 		yield_farm_id: YieldFarmId,
 		unclaimable_rewards: Balance,
+		amm_pool_id: T::AmmPoolId,
 	) -> Result<(GlobalFarmId, Balance, bool), DispatchError> {
 		<Deposit<T, I>>::try_mutate_exists(deposit_id, |maybe_deposit| {
 			//NOTE: At this point deposit existence and owner must be checked by pallet calling this
@@ -1310,7 +1326,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				.defensive_ok_or::<Error<T, I>>(InconsistentStateError::DepositNotFound.into())?;
 
 			let farm_entry = deposit.remove_yield_farm_entry(yield_farm_id)?;
-			let amm_pool_id = deposit.amm_pool_id.clone();
+			ensure!(amm_pool_id == deposit.amm_pool_id, Error::<T, I>::AmmPoolIdMismatch);
 
 			<GlobalFarm<T, I>>::try_mutate_exists(
 				farm_entry.global_farm_id,
@@ -1381,6 +1397,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 									&pot,
 									&global_farm_account,
 									unclaimable_rewards,
+									ExistenceRequirement::AllowDeath,
 								)?;
 							}
 
@@ -1441,11 +1458,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 					let global_farm = maybe_global_farm
 						.as_mut()
 						.defensive_ok_or::<Error<T, I>>(InconsistentStateError::GlobalFarmNotFound.into())?;
-
-					ensure!(
-						deposit.shares.ge(&global_farm.min_deposit),
-						Error::<T, I>::InvalidDepositAmount,
-					);
 
 					//NOTE: If yield-farm is active also global-farm MUST be active.
 					ensure!(
@@ -1633,7 +1645,13 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 
 		if !reward.is_zero() {
 			let pot = Self::pot_account_id().ok_or(Error::<T, I>::ErrorGetAccountId)?;
-			T::MultiCurrency::transfer(global_farm.reward_currency, &global_farm_account, &pot, reward)?;
+			T::MultiCurrency::transfer(
+				global_farm.reward_currency,
+				&global_farm_account,
+				&pot,
+				reward,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			global_farm.accumulated_rpz =
 				math::calculate_accumulated_rps(global_farm.accumulated_rpz, global_farm.total_shares_z, reward)
@@ -1972,7 +1990,7 @@ impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Mutate<T::Accou
 		yield_farm_id: YieldFarmId,
 		amm_pool_id: Self::AmmPoolId,
 	) -> Result<(Self::Balance, Option<(T::AssetId, Self::Balance, Self::Balance)>, bool), Self::Error> {
-		let claim_data = if Self::is_yield_farm_claimable(global_farm_id, yield_farm_id, amm_pool_id) {
+		let claim_data = if Self::is_yield_farm_claimable(global_farm_id, yield_farm_id, amm_pool_id.clone()) {
 			let fail_on_doubleclaim = false;
 			let (_, reward_currency, claimed, unclaimable) =
 				Self::claim_rewards(who, deposit_id, yield_farm_id, fail_on_doubleclaim)?;
@@ -1984,7 +2002,7 @@ impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Mutate<T::Accou
 
 		let unclaimable = claim_data.map_or(Zero::zero(), |(_, _, unclaimable)| unclaimable);
 		let (_, withdrawn_amount, deposit_destroyed) =
-			Self::withdraw_lp_shares(deposit_id, yield_farm_id, unclaimable)?;
+			Self::withdraw_lp_shares(deposit_id, yield_farm_id, unclaimable, amm_pool_id)?;
 
 		Ok((withdrawn_amount, claim_data, deposit_destroyed))
 	}
@@ -1999,6 +2017,10 @@ impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Mutate<T::Accou
 
 	fn get_global_farm_id(deposit_id: DepositId, yield_farm_id: YieldFarmId) -> Option<u32> {
 		Self::get_global_farm_id(deposit_id, yield_farm_id)
+	}
+
+	fn get_yield_farm_ids(deposit_id: DepositId) -> Option<Vec<u32>> {
+		Self::deposit(deposit_id).map(|deposit| deposit.yield_farm_entries.iter().map(|e| e.yield_farm_id).collect())
 	}
 }
 

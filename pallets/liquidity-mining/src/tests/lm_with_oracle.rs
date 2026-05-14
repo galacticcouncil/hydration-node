@@ -109,7 +109,8 @@ fn non_full_farm_should_pay_rewards_with_half_speed_when_price_adjustmnet_is_fro
 			assert_ok!(LiquidityMining3::withdraw_lp_shares(
 				ALICE_DEPOSIT,
 				YIELD_FARM_A,
-				unclaimable
+				unclaimable,
+				BSX_TKN1_AMM
 			));
 
 			let (_, _, _, unclaimable) =
@@ -118,7 +119,8 @@ fn non_full_farm_should_pay_rewards_with_half_speed_when_price_adjustmnet_is_fro
 			assert_ok!(LiquidityMining3::withdraw_lp_shares(
 				BOB_DEPOSIT,
 				YIELD_FARM_B,
-				unclaimable
+				unclaimable,
+				BSX_TKN2_AMM
 			));
 
 			let (_, _, _, unclaimable) =
@@ -127,7 +129,8 @@ fn non_full_farm_should_pay_rewards_with_half_speed_when_price_adjustmnet_is_fro
 			assert_ok!(LiquidityMining3::withdraw_lp_shares(
 				CHARLIE_DEPOSIT,
 				YIELD_FARM_B,
-				unclaimable
+				unclaimable,
+				BSX_TKN2_AMM
 			));
 
 			let alice_claimed = Tokens::free_balance(BSX, &ALICE) - alice_bsx_balance_0;

@@ -7,7 +7,8 @@ use frame_support::{
 	traits::{Contains, StorePreimage},
 };
 use hydradx_runtime::{origins, Preimage};
-use polkadot_xcm::v3::prelude::*;
+use hydradx_traits::router::{AssetPair, PoolType, Trade};
+use polkadot_xcm::v5::prelude::*;
 use polkadot_xcm::VersionedXcm;
 use primitives::constants::currency::UNITS;
 use xcm_emulator::TestExt;
@@ -231,7 +232,7 @@ fn calling_pallet_xcm_send_extrinsic_should_not_be_filtered_by_call_filter() {
 	Hydra::execute_with(|| {
 		// the values here don't need to make sense, all we need is a valid Call
 		let call = hydradx_runtime::RuntimeCall::PolkadotXcm(pallet_xcm::Call::send {
-			dest: Box::new(MultiLocation::parent().into_versioned()),
+			dest: Box::new(Location::parent().into_versioned()),
 			message: Box::new(VersionedXcm::from(Xcm(vec![]))),
 		});
 
@@ -246,7 +247,7 @@ fn calling_orml_xcm_extrinsic_should_be_filtered_by_call_filter() {
 	Hydra::execute_with(|| {
 		// the values here don't need to make sense, all we need is a valid Call
 		let call = hydradx_runtime::RuntimeCall::OrmlXcm(orml_xcm::Call::send_as_sovereign {
-			dest: Box::new(MultiLocation::parent().into_versioned()),
+			dest: Box::new(Location::parent().into_versioned()),
 			message: Box::new(VersionedXcm::from(Xcm(vec![]))),
 		});
 
@@ -271,6 +272,7 @@ fn create_contract_from_evm_pallet_should_be_filtered_by_call_filter() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: [].into(),
+			authorization_list: [].into(),
 		});
 
 		assert!(!hydradx_runtime::CallFilter::contains(&call));
@@ -285,6 +287,7 @@ fn create_contract_from_evm_pallet_should_be_filtered_by_call_filter() {
 			max_fee_per_gas: U256::from(100000u64),
 			max_priority_fee_per_gas: None,
 			nonce: None,
+			authorization_list: [].into(),
 			access_list: [].into(),
 		});
 
@@ -320,5 +323,42 @@ fn referenda_can_not_be_filtered() {
 		});
 
 		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
+	});
+}
+
+#[test]
+fn burn_nft_should_be_filtered_out() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// the values here don't need to make sense, all we need is a valid Call
+		let call = hydradx_runtime::RuntimeCall::Uniques(pallet_uniques::Call::burn {
+			collection: 2222,
+			item: 1,
+			check_owner: None,
+		});
+
+		assert!(!hydradx_runtime::CallFilter::contains(&call));
+	});
+}
+
+#[test]
+fn router_set_route_should_be_filtered_out() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// the values here don't need to make sense, all we need is a valid Call
+		let call = hydradx_runtime::RuntimeCall::Router(pallet_route_executor::Call::set_route {
+			asset_pair: AssetPair::new(LRNA, DOT),
+			new_route: vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in: LRNA,
+				asset_out: DOT,
+			}]
+			.try_into()
+			.unwrap(),
+		});
+
+		assert!(!hydradx_runtime::CallFilter::contains(&call));
 	});
 }

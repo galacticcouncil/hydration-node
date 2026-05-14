@@ -19,6 +19,7 @@
 
 #![allow(clippy::all)]
 
+use codec::{Decode, Encode};
 use hydradx_runtime::{
 	opaque::{Block, Hash},
 	RuntimeApi,
@@ -27,17 +28,23 @@ use std::{sync::Arc, time::Duration};
 
 use cumulus_client_cli::CollatorOptions;
 use cumulus_client_collator::service::CollatorService;
+use cumulus_client_consensus_aura::collators::slot_based::{SlotBasedBlockImport, SlotBasedBlockImportHandle};
 use cumulus_client_consensus_common::ParachainBlockImport as TParachainBlockImport;
 use cumulus_client_consensus_proposer::Proposer;
 use cumulus_client_service::{
 	build_network, build_relay_chain_interface, prepare_node_config, start_relay_chain_tasks, BuildNetworkParams,
 	CollatorSybilResistance, DARecoveryProfile, StartRelayChainTasksParams,
 };
-use cumulus_primitives_core::{relay_chain::CollatorPair, ParaId};
-use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
+use cumulus_primitives_core::{
+	relay_chain::{CollatorPair, ValidationCode},
+	ParaId,
+};
+use cumulus_relay_chain_interface::RelayChainInterface;
 
 use fc_db::kv::Backend as FrontierBackend;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
+use fp_self_contained::SelfContainedCall;
+use frame_support::traits::GetCallMetadata;
 use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
@@ -45,12 +52,17 @@ use sc_network::NetworkBlock;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
+use sp_blockchain::{
+	EvmTransactionDetail, TransactionDetail, TransactionDetailProvider, TransactionPriorityModifier,
+	TransactionTypeDetail,
+};
 use sp_keystore::KeystorePtr;
+use sp_runtime::traits::Block as BlockT;
 use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, rpc};
+use crate::{chain_spec, cli, liquidation_worker, rpc};
 
 type ParachainClient = TFullClient<
 	Block,
@@ -63,7 +75,52 @@ type ParachainClient = TFullClient<
 
 type ParachainBackend = TFullBackend<Block>;
 
-type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, ParachainBackend>;
+type ParachainBlockImport =
+	TParachainBlockImport<Block, SlotBasedBlockImport<Block, Arc<ParachainClient>, ParachainClient>, ParachainBackend>;
+
+pub struct TxDetailProvider;
+impl TransactionDetailProvider for TxDetailProvider {
+	type Block = Block;
+
+	fn get_transaction_detail(&self, tx: &<Self::Block as BlockT>::Extrinsic) -> Option<TransactionDetail> {
+		let opaque_tx_encoded = tx.encode();
+		let tx = hydradx_runtime::HydraUncheckedExtrinsic::decode(&mut &*opaque_tx_encoded).ok()?;
+		let call_metadata = tx.0.function.get_call_metadata();
+
+		match tx.0.function {
+			hydradx_runtime::RuntimeCall::Ethereum(pallet_ethereum::Call::transact { ref transaction }) => {
+				if let Some(Ok(signer)) = tx.0.function.check_self_contained() {
+					let action = match transaction.clone() {
+						pallet_ethereum::Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
+						pallet_ethereum::Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
+						pallet_ethereum::Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
+						pallet_ethereum::Transaction::EIP7702(_) => return None, // EIP7702 not supported
+					};
+					let maybe_call_address = match action {
+						pallet_ethereum::TransactionAction::Call(call_address) => Some(call_address),
+						_ => None,
+					};
+
+					Some(TransactionDetail {
+						module: call_metadata.pallet_name,
+						extrinsic: call_metadata.function_name,
+						transaction_data: Some(TransactionTypeDetail::Evm(EvmTransactionDetail {
+							call_address: maybe_call_address,
+							signer: signer,
+						})),
+					})
+				} else {
+					None
+				}
+			}
+			_ => Some(TransactionDetail {
+				module: call_metadata.pallet_name,
+				extrinsic: call_metadata.function_name,
+				transaction_data: None,
+			}),
+		}
+	}
+}
 
 /// Starts a `ServiceBuilder` for a full service.
 ///
@@ -71,15 +128,17 @@ type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, P
 /// be able to perform chain operations.
 pub fn new_partial(
 	config: &Configuration,
+	no_tx_priority_override: bool,
 ) -> Result<
 	PartialComponents<
 		ParachainClient,
 		ParachainBackend,
 		(),
 		sc_consensus::DefaultImportQueue<Block>,
-		sc_transaction_pool::FullPool<Block, ParachainClient>,
+		sc_transaction_pool::TransactionPoolHandle<Block, ParachainClient>,
 		(
 			evm::BlockImport<Block, ParachainBlockImport, ParachainClient>,
+			SlotBasedBlockImportHandle<Block>,
 			Option<Telemetry>,
 			Option<TelemetryWorkerHandle>,
 			Arc<FrontierBackend<Block, ParachainClient>>,
@@ -115,12 +174,23 @@ pub fn new_partial(
 		.with_runtime_cache_size(config.executor.runtime_cache_size)
 		.build();
 
+	let tx_priority_json = if no_tx_priority_override {
+		None
+	} else {
+		Some(include_str!("./tx_priority.json"))
+	};
+
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts_record_import::<Block, RuntimeApi, _>(
 			config,
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
 			true,
+			Some(TransactionPriorityModifier::<Block>::new(
+				// Updating the file is not enough. The client needs to be rebuilt.
+				tx_priority_json,
+				Box::new(TxDetailProvider),
+			)),
 		)?;
 
 	let client = Arc::new(client);
@@ -132,13 +202,34 @@ pub fn new_partial(
 		telemetry
 	});
 
-	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
-		config.transaction_pool.clone(),
-		config.role.is_authority().into(),
-		config.prometheus_registry(),
-		task_manager.spawn_essential_handle(),
-		client.clone(),
+	let transaction_pool = Arc::from(
+		sc_transaction_pool::Builder::new(
+			task_manager.spawn_essential_handle(),
+			client.clone(),
+			config.role.is_authority().into(),
+		)
+		.with_options(config.transaction_pool.clone())
+		.with_prometheus(config.prometheus_registry())
+		.build(),
 	);
+
+	// Workaround for upstream Frontier bug: the v2→v3 RocksDB migration tries to
+	// open an existing 4-column database with 5 columns, but kvdb-rocksdb doesn't
+	// set `create_missing_column_families`, so the open fails. We pre-add the 5th
+	// column here so the migration finds the expected schema.
+	if matches!(config.database, fc_db::kv::DatabaseSource::RocksDb { .. }) {
+		let frontier_db_path = fc_db::kv::frontier_database_dir(&evm::db_config_dir(config), "db");
+		if frontier_db_path.exists() {
+			let db_cfg = kvdb_rocksdb::DatabaseConfig::with_columns(4);
+			if let Ok(mut db) = kvdb_rocksdb::Database::open(&db_cfg, &frontier_db_path) {
+				if db.num_columns() == 4 {
+					if let Err(e) = db.add_column() {
+						log::warn!("Failed to pre-add Frontier DB column for v2→v3 migration: {e}");
+					}
+				}
+			}
+		}
+	}
 
 	let frontier_backend = Arc::new(FrontierBackend::open(
 		Arc::clone(&client),
@@ -149,8 +240,9 @@ pub fn new_partial(
 	let evm_since = chain_spec::Extensions::try_get(&config.chain_spec)
 		.map(|e| e.evm_since)
 		.unwrap_or(1);
+	let (slot_based_block_import, block_import_handle) = SlotBasedBlockImport::new(client.clone(), client.clone());
 	let block_import = evm::BlockImport::new(
-		ParachainBlockImport::new(client.clone(), backend.clone()),
+		ParachainBlockImport::new(slot_based_block_import, backend.clone()),
 		client.clone(),
 		frontier_backend.clone(),
 		evm_since,
@@ -177,6 +269,7 @@ pub fn new_partial(
 		select_chain: (),
 		other: (
 			block_import,
+			block_import_handle,
 			telemetry,
 			telemetry_worker_handle,
 			frontier_backend,
@@ -194,14 +287,23 @@ async fn start_node_impl(
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
 	ethereum_config: evm::EthereumConfig,
+	liquidation_worker_config: liquidation_worker::LiquidationWorkerConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
+	no_tx_priority_override: bool,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
 	let parachain_config = prepare_node_config(parachain_config);
 
-	let params = new_partial(&parachain_config)?;
-	let (block_import, mut telemetry, telemetry_worker_handle, frontier_backend, filter_pool, fee_history_cache) =
-		params.other;
+	let params = new_partial(&parachain_config, no_tx_priority_override)?;
+	let (
+		block_import,
+		block_import_handle,
+		mut telemetry,
+		telemetry_worker_handle,
+		frontier_backend,
+		filter_pool,
+		fee_history_cache,
+	) = params.other;
 
 	let prometheus_registry = parachain_config.prometheus_registry().cloned();
 	let net_config = sc_network::config::FullNetworkConfiguration::<_, _, sc_network::NetworkWorker<Block, Hash>>::new(
@@ -213,7 +315,7 @@ async fn start_node_impl(
 	let backend = params.backend.clone();
 	let mut task_manager = params.task_manager;
 
-	let (relay_chain_interface, collator_key) = build_relay_chain_interface(
+	let (relay_chain_interface, collator_key, _, _) = build_relay_chain_interface(
 		polkadot_config,
 		&parachain_config,
 		telemetry_worker_handle,
@@ -229,19 +331,19 @@ async fn start_node_impl(
 	let transaction_pool = params.transaction_pool.clone();
 	let import_queue_service = params.import_queue.service();
 
-	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
-		build_network(BuildNetworkParams {
-			parachain_config: &parachain_config,
-			client: client.clone(),
-			transaction_pool: transaction_pool.clone(),
-			para_id,
-			spawn_handle: task_manager.spawn_handle(),
-			relay_chain_interface: relay_chain_interface.clone(),
-			import_queue: params.import_queue,
-			net_config,
-			sybil_resistance_level: CollatorSybilResistance::Resistant, // because of Aura
-		})
-		.await?;
+	let (network, system_rpc_tx, tx_handler_controller, sync_service) = build_network(BuildNetworkParams {
+		parachain_config: &parachain_config,
+		client: client.clone(),
+		transaction_pool: transaction_pool.clone(),
+		para_id,
+		spawn_handle: task_manager.spawn_handle(),
+		relay_chain_interface: relay_chain_interface.clone(),
+		import_queue: params.import_queue,
+		net_config,
+		sybil_resistance_level: CollatorSybilResistance::Resistant, // because of Aura
+		metrics: sc_network::service::NotificationMetrics::new(prometheus_registry.as_ref()),
+	})
+	.await?;
 
 	if parachain_config.offchain_worker.enabled {
 		use futures::FutureExt;
@@ -259,8 +361,29 @@ async fn start_node_impl(
 				enable_http_requests: false,
 				custom_extensions: move |_| vec![],
 			})
+			.expect("Failed to create offchain workers")
 			.run(client.clone(), task_manager.spawn_handle())
 			.boxed(),
+		);
+	}
+
+	// Data provided from the liquidation worker to RPC API.
+	let liquidation_task_data = Arc::new(liquidation_worker::LiquidationTaskData::new());
+
+	// By default, the liquidation worker is enabled for validator nodes and disabled for non-validator nodes.
+	if (validator && !(liquidation_worker_config.liquidation_worker == Some(false)))
+		|| (!validator && liquidation_worker_config.liquidation_worker == Some(true))
+	{
+		task_manager.spawn_handle().spawn(
+			"liquidation-worker",
+			None,
+			liquidation_worker::LiquidationTask::run(
+				client.clone(),
+				liquidation_worker_config,
+				transaction_pool.clone(),
+				task_manager.spawn_handle(),
+				liquidation_task_data.clone(),
+			),
 		);
 	}
 
@@ -302,13 +425,14 @@ async fn start_node_impl(
 				client: client.clone(),
 				pool: transaction_pool.clone(),
 				backend: backend.clone(),
+				liquidation_task_data: liquidation_task_data.clone(),
 			};
 
 			let module = rpc::create_full(deps)?;
 			let eth_deps = rpc::Deps {
 				client: client.clone(),
 				pool: transaction_pool.clone(),
-				graph: transaction_pool.pool().clone(),
+				graph: transaction_pool.clone(),
 				converter: Some(hydradx_runtime::TransactionConverter),
 				is_authority,
 				enable_dev_signer: ethereum_config.enable_dev_signer,
@@ -387,12 +511,15 @@ async fn start_node_impl(
 		relay_chain_slot_duration,
 		recovery_handle: Box::new(overseer_handle.clone()),
 		sync_service: sync_service.clone(),
+		prometheus_registry: prometheus_registry.as_ref(),
 	})?;
 
 	if validator {
 		start_consensus(
 			client.clone(),
+			backend,
 			block_import,
+			block_import_handle,
 			prometheus_registry.as_ref(),
 			telemetry.as_ref().map(|t| t.handle()),
 			&task_manager,
@@ -402,12 +529,9 @@ async fn start_node_impl(
 			relay_chain_slot_duration,
 			para_id,
 			collator_key.expect("Command line arguments do not allow this. qed"),
-			overseer_handle,
 			announce_block,
 		)?;
 	}
-
-	start_network.start_network();
 
 	Ok((task_manager, client))
 }
@@ -443,23 +567,21 @@ fn build_import_queue(
 
 fn start_consensus(
 	client: Arc<ParachainClient>,
+	backend: Arc<ParachainBackend>,
 	block_import: evm::BlockImport<Block, ParachainBlockImport, ParachainClient>,
+	block_import_handle: SlotBasedBlockImportHandle<Block>,
 	prometheus_registry: Option<&Registry>,
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
 	relay_chain_interface: Arc<dyn RelayChainInterface>,
-	transaction_pool: Arc<sc_transaction_pool::FullPool<Block, ParachainClient>>,
+	transaction_pool: Arc<sc_transaction_pool::TransactionPoolHandle<Block, ParachainClient>>,
 	keystore: KeystorePtr,
 	relay_chain_slot_duration: Duration,
 	para_id: ParaId,
 	collator_key: CollatorPair,
-	overseer_handle: OverseerHandle,
 	announce_block: Arc<dyn Fn(Hash, Option<Vec<u8>>) + Send + Sync>,
 ) -> Result<(), sc_service::Error> {
-	use cumulus_client_consensus_aura::collators::basic::{self as basic_aura, Params as BasicAuraParams};
-
-	// NOTE: because we use Aura here explicitly, we can use `CollatorSybilResistance::Resistant`
-	// when starting the network.
+	use cumulus_client_consensus_aura::collators::slot_based::{self as slot_based, Params as SlotBasedParams};
 
 	let proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
 		task_manager.spawn_handle(),
@@ -478,43 +600,55 @@ fn start_consensus(
 		client.clone(),
 	);
 
-	let params = BasicAuraParams {
+	let client_for_aura = client.clone();
+	let params = SlotBasedParams {
 		create_inherent_data_providers: move |_, ()| async move { Ok(()) },
 		block_import,
-		para_client: client,
+		para_client: client.clone(),
+		para_backend: backend.clone(),
 		relay_client: relay_chain_interface,
+		code_hash_provider: move |block_hash| {
+			client_for_aura
+				.code_at(block_hash)
+				.ok()
+				.map(|c| ValidationCode::from(c).hash())
+		},
 		keystore,
 		collator_key,
 		para_id,
-		overseer_handle,
-		relay_chain_slot_duration,
 		proposer,
 		collator_service,
-		// Very limited proposal time.
-		authoring_duration: Duration::from_millis(500),
-		collation_request_receiver: None,
+		authoring_duration: Duration::from_millis(1500),
+		reinitialize: false,
+		slot_offset: Duration::from_secs(1),
+		block_import_handle,
+		spawner: task_manager.spawn_handle(),
+		relay_chain_slot_duration,
+		export_pov: None,
+		max_pov_percentage: None,
 	};
 
-	let fut = basic_aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _>(params);
-	task_manager.spawn_essential_handle().spawn("aura", None, fut);
+	slot_based::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _, _>(params);
 
 	Ok(())
 }
 
 /// Start a parachain node.
 pub async fn start_node(
+	cli: cli::Cli,
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
-	ethereum_config: evm::EthereumConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
 	start_node_impl(
 		parachain_config,
 		polkadot_config,
-		ethereum_config,
+		cli.ethereum_config,
+		cli.liquidation_worker_config,
 		collator_options,
 		para_id,
+		cli.no_tx_priority_override,
 	)
 	.await
 }

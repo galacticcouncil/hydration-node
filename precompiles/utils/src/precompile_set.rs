@@ -475,6 +475,14 @@ impl<'a, H: PrecompileHandle> PrecompileHandle for RestrictiveHandle<'a, H> {
 	fn refund_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>) {
 		self.handle.refund_external_cost(ref_time, proof_size)
 	}
+
+	fn origin(&self) -> H160 {
+		self.handle.origin()
+	}
+
+	fn is_contract_being_constructed(&self, address: H160) -> bool {
+		self.handle.is_contract_being_constructed(address)
+	}
 }
 
 /// Allows to know if a precompile is active or not.

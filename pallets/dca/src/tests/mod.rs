@@ -9,6 +9,7 @@ pub mod mock;
 pub mod on_initialize;
 pub mod schedule;
 pub mod terminate;
+pub mod unlock_reserves;
 
 #[macro_export]
 macro_rules! assert_balance {
@@ -17,7 +18,7 @@ macro_rules! assert_balance {
 	}};
 }
 
-struct ScheduleBuilder {
+pub struct ScheduleBuilder {
 	pub owner: Option<AccountId>,
 	pub period: Option<BlockNumber>,
 	pub order: Option<Order<AssetId>>,
@@ -28,7 +29,7 @@ struct ScheduleBuilder {
 }
 
 impl ScheduleBuilder {
-	fn new() -> ScheduleBuilder {
+	pub fn new() -> ScheduleBuilder {
 		ScheduleBuilder {
 			owner: Some(ALICE),
 			period: Some(ONE_HUNDRED_BLOCKS),
@@ -85,7 +86,7 @@ impl ScheduleBuilder {
 		self
 	}
 
-	fn build(self) -> Schedule<AccountId, AssetId, BlockNumber> {
+	pub fn build(self) -> Schedule<AccountId, AssetId, BlockNumber> {
 		Schedule {
 			owner: self.owner.unwrap(),
 			period: self.period.unwrap(),
@@ -98,13 +99,13 @@ impl ScheduleBuilder {
 	}
 }
 
-pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
-	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
+pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<9>> {
+	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<9>> = trades.try_into().unwrap();
 	bounded_vec
 }
 
-pub fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
-	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
+pub fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<9>> {
+	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<9>> = schedule_ids.try_into().unwrap();
 	bounded_vec
 }
 #[macro_export]

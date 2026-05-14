@@ -19,18 +19,51 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::evm::EvmAddress;
-use crate::Runtime;
+use crate::{AssetLocation, Runtime};
 use hex_literal::hex;
-use hydradx_traits::{evm::Erc20Mapping, RegisterAssetHook};
+use hydradx_traits::evm::Erc20Mapping;
+use hydradx_traits::{evm::Erc20Encoding, BoundErc20, RegisterAssetHook};
+use polkadot_xcm::v5::Junction::AccountKey20;
+use polkadot_xcm::v5::Location;
 use primitive_types::{H160, H256};
 use primitives::AssetId;
+use primitives::EvmAddress;
 
 pub struct HydraErc20Mapping;
 
-/// Erc20Mapping logic for HydraDX
-/// The asset id (with type u32) is encoded in the last 4 bytes of EVM address
 impl Erc20Mapping<AssetId> for HydraErc20Mapping {
+	fn asset_address(asset_id: AssetId) -> EvmAddress {
+		pallet_asset_registry::Pallet::<Runtime>::contract_address(asset_id)
+			.unwrap_or_else(|| HydraErc20Mapping::encode_evm_address(asset_id))
+	}
+
+	fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
+		Self::decode_evm_address(address).or_else(|| {
+			pallet_asset_registry::Pallet::<Runtime>::location_to_asset(AssetLocation(Location::new(
+				0,
+				[AccountKey20 {
+					network: None,
+					key: address.into(),
+				}],
+			)))
+		})
+	}
+}
+
+sp_api::decl_runtime_apis! {
+	/// The API to query AssetId <-> EVM address conversions.
+	pub trait Erc20MappingApi where
+	{
+		/// Get the EVM address of the asset.
+		fn asset_address(asset_id: AssetId) -> EvmAddress;
+
+		/// Get the asset id corresponding to EVM address. If not found, returns `None`.
+		fn address_to_asset(address: EvmAddress) -> Option<AssetId>;
+	}
+}
+
+/// The asset id (with type u32) is encoded in the last 4 bytes of EVM address
+impl Erc20Encoding<AssetId> for HydraErc20Mapping {
 	fn encode_evm_address(asset_id: AssetId) -> EvmAddress {
 		let asset_id_bytes: [u8; 4] = asset_id.to_le_bytes();
 

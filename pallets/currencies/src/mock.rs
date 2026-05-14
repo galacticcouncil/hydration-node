@@ -47,6 +47,7 @@ impl frame_system::Config for Runtime {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 type CurrencyId = u32;
@@ -66,6 +67,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_type_with_key! {
@@ -81,7 +83,6 @@ parameter_types! {
 pub type ReserveIdentifier = [u8; 8];
 
 impl orml_tokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i64;
 	type CurrencyId = CurrencyId;
@@ -100,15 +101,18 @@ pub const X_TOKEN_ID: CurrencyId = 2;
 
 parameter_types! {
 	pub const GetNativeCurrencyId: CurrencyId = NATIVE_CURRENCY_ID;
+	pub const ReserveAccount: AccountId32 = AccountId32::new([9u8; 32]);
 }
 
 impl Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = AdaptedBasicCurrency;
 	type Erc20Currency = MockErc20Currency<Runtime>;
 	type BoundErc20 = MockBoundErc20<Runtime>;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type RegistryInspect = MockBoundErc20<Runtime>;
+	type EgressHandler = MockEgressHandler<Runtime>;
 	type WeightInfo = ();
 }
 pub type NativeCurrency = NativeCurrencyOf<Runtime>;
@@ -166,6 +170,7 @@ impl ExtBuilder {
 				.filter(|(_, currency_id, _)| *currency_id == NATIVE_CURRENCY_ID)
 				.map(|(account_id, _, initial_balance)| (account_id, initial_balance))
 				.collect::<Vec<_>>(),
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

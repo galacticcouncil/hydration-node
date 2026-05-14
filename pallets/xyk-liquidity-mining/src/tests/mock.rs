@@ -21,13 +21,13 @@ use super::*;
 use crate as liq_mining;
 use frame_support::weights::RuntimeDbWeight;
 use frame_support::{
-	dispatch, parameter_types,
+	parameter_types,
 	traits::{Everything, Nothing},
 	PalletId,
 };
 
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMMPosition, AMMTransfer, AMM};
+use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMM};
 use orml_traits::parameter_type_with_key;
 use pallet_liquidity_mining::{FarmMultiplier, YieldFarmId};
 use pallet_xyk::types::{AssetId, AssetPair, Balance};
@@ -144,6 +144,7 @@ impl system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 thread_local! {
@@ -204,74 +205,11 @@ pub struct DummyFarmEntry {
 pub struct DummyAMM;
 
 impl AMM<AccountId, AssetId, AssetPair, Balance> for DummyAMM {
-	fn get_max_out_ratio() -> u128 {
-		0_u32.into()
-	}
-
-	fn get_fee(_pool_account_id: &AccountId) -> (u32, u32) {
-		(0, 0)
-	}
-
-	fn get_max_in_ratio() -> u128 {
-		0_u32.into()
-	}
-
 	fn get_pool_assets(pool_id: &AccountId) -> Option<Vec<AssetId>> {
 		AMM_POOLS.with(|v| match v.borrow().get(pool_id) {
 			Some((_, pair)) => Some(vec![pair.asset_in, pair.asset_out]),
 			_ => None,
 		})
-	}
-
-	fn get_spot_price_unchecked(_asset_a: AssetId, _asset_b: AssetId, _amount: Balance) -> Balance {
-		Balance::from(0_u32)
-	}
-
-	fn validate_sell(
-		_origin: &AccountId,
-		_assets: AssetPair,
-		_amount: Balance,
-		_min_bought: Balance,
-		_discount: bool,
-	) -> Result<
-		hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-		frame_support::sp_runtime::DispatchError,
-	> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn execute_buy(
-		_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, u128>,
-		_destination: Option<&AccountId>,
-	) -> dispatch::DispatchResult {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn execute_sell(
-		_transfer: &hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-	) -> frame_support::dispatch::DispatchResult {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn validate_buy(
-		_origin: &AccountId,
-		_assets: AssetPair,
-		_amount: Balance,
-		_max_limit: Balance,
-		_discount: bool,
-	) -> Result<
-		hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-		frame_support::sp_runtime::DispatchError,
-	> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn get_min_pool_liquidity() -> Balance {
-		Balance::from(0_u32)
-	}
-
-	fn get_min_trading_limit() -> Balance {
-		Balance::from(0_u32)
 	}
 
 	// Fn bellow are used by liq. mining pallet
@@ -306,25 +244,17 @@ impl AMM<AccountId, AssetId, AssetPair, Balance> for DummyAMM {
 	}
 }
 
-impl AMMPosition<AssetId, Balance> for DummyAMM {
-	type Error = DispatchError;
+fn total_shares(id: &AccountId) -> u128 {
+	let assets = DummyAMM::get_pool_assets(id).unwrap();
+	let p = Tokens::free_balance(assets[0], id);
 
-	fn get_liquidity_behind_shares(
-		asset_a: AssetId,
-		asset_b: AssetId,
-		_shares_amount: Balance,
-	) -> Result<(Balance, Balance), Self::Error> {
-		let asset_pair = AssetPair {
-			asset_in: asset_a,
-			asset_out: asset_b,
-		};
-		let amm_pool_id = DummyAMM::get_pair_id(asset_pair);
-
-		Ok((
-			Tokens::free_balance(asset_a, &amm_pool_id),
-			Tokens::free_balance(asset_b, &amm_pool_id),
-		))
+	//NOTE: This is just for tests. On real chain some trade must happen before deposit can be
+	//added to LM.
+	if p.is_zero() {
+		return 1;
 	}
+
+	p
 }
 
 parameter_types! {
@@ -337,10 +267,11 @@ parameter_types! {
 	pub const MaxYieldFarmsPerGlobalFarm: u8 = 5;
 	pub const NftCollectionId: primitives::CollectionId = LM_NFT_COLLECTION;
 	pub const ReserveClassIdUpTo: u128 = 2;
+	pub const OracleSource: Source = *b"hydraxyk";
+	pub const PeriodOracle: OraclePeriod= OraclePeriod::TenMinutes;
 }
 
 impl liq_mining::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currencies = Tokens;
 	type CreateOrigin = frame_system::EnsureRoot<AccountId>;
 	type WeightInfo = ();
@@ -352,6 +283,45 @@ impl liq_mining::Config for Test {
 	type NonDustableWhitelistHandler = Whitelist;
 	type AssetRegistry = DummyRegistry<Test>;
 	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
+	type OracleSource = OracleSource;
+	type OraclePeriod = PeriodOracle;
+	type LiquidityOracle = DummyOracle;
+}
+
+use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::{AggregatedEntry, AggregatedOracle, Liquidity, Volume};
+pub struct DummyOracle;
+
+impl AggregatedOracle<AssetId, Balance, BlockNumber, EmaPrice> for DummyOracle {
+	type Error = DispatchError;
+
+	fn get_entry(
+		asset_a: AssetId,
+		asset_b: AssetId,
+		_period: OraclePeriod,
+		_source: Source,
+	) -> Result<hydradx_traits::AggregatedEntry<Balance, BlockNumber, EmaPrice>, Self::Error> {
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+		let amm_pool_id = DummyAMM::get_pair_id(asset_pair);
+
+		Ok(AggregatedEntry {
+			price: EmaPrice::default(),
+			liquidity: Liquidity {
+				a: Tokens::free_balance(asset_a, &amm_pool_id),
+				b: Tokens::free_balance(asset_b, &amm_pool_id),
+			},
+			volume: Volume::default(),
+			oracle_age: BlockNumber::default(),
+			shares_issuance: Some(total_shares(&amm_pool_id)),
+		})
+	}
+
+	fn get_entry_weight() -> Weight {
+		Weight::zero()
+	}
 }
 
 pub const ADD_LIQUIDITY_XYK_SHARE_AMOUNT: Balance = 20 * ONE;
@@ -871,6 +841,16 @@ impl hydradx_traits::liquidity_mining::Mutate<AccountId, AssetId, BlockNumber> f
 			Ok(())
 		})
 	}
+
+	fn get_yield_farm_ids(deposit_id: DepositId) -> Option<Vec<u32>> {
+		DEPOSITS.with(|v| {
+			let m = v.borrow();
+			m.get(&deposit_id).map(|_deposit| {
+				// Return an empty vector for now - this is a dummy implementation
+				Vec::new()
+			})
+		})
+	}
 }
 
 impl hydradx_traits::liquidity_mining::Inspect<AccountId> for DummyLiquidityMining {
@@ -911,6 +891,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_type_with_key! {
@@ -920,7 +901,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;

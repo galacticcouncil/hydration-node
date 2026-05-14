@@ -29,36 +29,48 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 mod tests;
 
 mod benchmarking;
-mod migration;
+mod migrations;
 pub mod weights;
 
 mod assets;
+pub mod circuit_breaker;
 pub mod evm;
 pub mod governance;
+mod helpers;
 mod system;
 pub mod types;
 pub mod xcm;
 
+extern crate alloc;
+use alloc::borrow::Cow;
+
+#[allow(ambiguous_glob_reexports)]
 pub use assets::*;
+pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions, NetworkId, NonFungible, Response};
+pub use frame_support::{assert_ok, parameter_types, storage::with_transaction, traits::TrackedStorageKey};
+pub use frame_system::RawOrigin;
 pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
-use pallet_asset_registry::AssetType;
-use pallet_currencies_rpc_runtime_api::AccountData;
+pub use pallet_asset_registry::AssetType;
+pub use pallet_currencies_rpc_runtime_api::AccountData;
+pub use pallet_referrals::{FeeDistribution, Level};
+pub use polkadot_xcm::opaque::lts::InteriorLocation;
 pub use system::*;
 pub use xcm::*;
 
 use codec::{Decode, Encode};
 use hydradx_traits::evm::InspectEvmAccounts;
+use primitives::EvmAddress;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
-use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
+pub use sp_runtime::{
+	generic, impl_opaque_keys,
 	traits::{
 		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
-	transaction_validity::{TransactionValidity, TransactionValidityError},
-	Permill,
+	transaction_validity::{InvalidTransaction, TransactionValidity, TransactionValidityError},
+	DispatchError, Permill, TransactionOutcome,
 };
 
 use sp_std::{convert::From, prelude::*};
@@ -66,7 +78,8 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
-use frame_support::{construct_runtime, pallet_prelude::Hooks, weights::Weight};
+use ethereum::AuthorizationList;
+use frame_support::{construct_runtime, pallet_prelude::Hooks, traits::Contains, weights::Weight};
 pub use hex_literal::hex;
 use orml_traits::MultiCurrency;
 /// Import HydraDX pallets
@@ -74,8 +87,10 @@ pub use pallet_claims;
 use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
 use pallet_evm::{Account as EVMAccount, FeeCalculator, GasWeightMapping, Runner};
 pub use pallet_genesis_history::Chain;
+use polkadot_xcm::prelude::XcmVersion;
 pub use primitives::{
-	AccountId, Amount, AssetId, Balance, BlockNumber, CollectionId, Hash, Index, ItemId, Price, Signature,
+	constants::time::SLOT_DURATION, AccountId, Amount, AssetId, Balance, BlockNumber, CollectionId, Hash, Index,
+	ItemId, Price, Signature,
 };
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -110,14 +125,14 @@ pub mod opaque {
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("hydradx"),
-	impl_name: create_runtime_str!("hydradx"),
+	spec_name: Cow::Borrowed("hydradx"),
+	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 290,
+	spec_version: 419,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 1,
+	system_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -128,17 +143,7 @@ pub fn native_version() -> NativeVersion {
 		can_author_with: Default::default(),
 	}
 }
-
-pub fn get_all_module_accounts() -> Vec<AccountId> {
-	vec![
-		TreasuryPalletId::get().into_account_truncating(),
-		VestingPalletId::get().into_account_truncating(),
-		ReferralsPalletId::get().into_account_truncating(),
-		BondsPalletId::get().into_account_truncating(),
-	]
-}
-
-// Create the runtime by composing the FRAME pallets that were previously configured.
+// Create the runtime by composing the FRAME pallets that were previously configured
 construct_runtime!(
 	pub enum Runtime
 	{
@@ -154,10 +159,8 @@ construct_runtime!(
 		Preimage: pallet_preimage = 15,
 		Identity: pallet_identity = 17,
 		Democracy: pallet_democracy exclude_parts { Config } = 19,
-		Elections: pallet_elections_phragmen = 21,
-		Council: pallet_collective::<Instance1> = 23,
+		// NOTE 19, 21, 23 & 27 are retired (was used by gov v1)
 		TechnicalCommittee: pallet_collective::<Instance2> = 25,
-		Tips: pallet_tips = 27,
 		Proxy: pallet_proxy = 29,
 		Multisig: pallet_multisig = 31,
 		Uniques: pallet_uniques = 32,
@@ -175,6 +178,7 @@ construct_runtime!(
 		Claims: pallet_claims = 53,
 		GenesisHistory: pallet_genesis_history = 55,
 		CollatorRewards: pallet_collator_rewards = 57,
+		CollatorRotation: pallet_collator_rotation = 58,
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
 		Duster: pallet_duster = 61,
@@ -193,6 +197,10 @@ construct_runtime!(
 		XYK: pallet_xyk = 74,
 		Referrals: pallet_referrals = 75,
 		Liquidation: pallet_liquidation = 76,
+		HSM: pallet_hsm = 82,
+		Parameters: pallet_parameters = 83,
+		Signet: pallet_signet = 84,
+		EthDispenser: pallet_dispenser = 85,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -226,6 +234,8 @@ construct_runtime!(
 		XcmpQueue: cumulus_pallet_xcmp_queue exclude_parts { Call } = 111,
 		// 113 was used by DmpQueue which is now replaced by MessageQueue
 		MessageQueue: pallet_message_queue = 114,
+		WeightReclaim: cumulus_pallet_weight_reclaim = 115,
+		MultiBlockMigrations: pallet_migrations = 116,
 
 		// ORML XCM
 		OrmlXcm: orml_xcm = 135,
@@ -250,13 +260,13 @@ pub type Address = AccountId;
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type as expected by this runtime.
-pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+pub type Block = generic::Block<Header, HydraUncheckedExtrinsic>;
 /// A Block signed with a Justification
 pub type SignedBlock = generic::SignedBlock<Block>;
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
-/// The SignedExtension to the basic transaction logic.
-pub type SignedExtra = (
+
+pub type InnerSignedExtra = (
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
@@ -268,8 +278,12 @@ pub type SignedExtra = (
 	pallet_claims::ValidateClaim<Runtime>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
+
+/// Wrap the tuple with `StorageWeightReclaim`.
+pub type SignedExtra = cumulus_pallet_weight_reclaim::StorageWeightReclaim<Runtime, InnerSignedExtra>;
+
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+pub type HydraUncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = fp_self_contained::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra, H160>;
@@ -280,15 +294,24 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	migration::Migrations,
+	migrations::SingleBlockMigrationsList,
 >;
 
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+impl<LocalCall> frame_system::offchain::CreateTransactionBase<LocalCall> for Runtime
 where
-	RuntimeCall: From<C>,
+	RuntimeCall: From<LocalCall>,
 {
-	type OverarchingCall = RuntimeCall;
-	type Extrinsic = UncheckedExtrinsic;
+	type RuntimeCall = RuntimeCall;
+	type Extrinsic = HydraUncheckedExtrinsic;
+}
+
+impl<LocalCall> hydradx_traits::CreateBare<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_bare(call: Self::RuntimeCall) -> HydraUncheckedExtrinsic {
+		HydraUncheckedExtrinsic::new_bare(call)
+	}
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -306,7 +329,6 @@ mod benches {
 		[pallet_claims, Claims]
 		[pallet_staking, Staking]
 		[pallet_referrals, Referrals]
-		[pallet_evm_accounts, EVMAccounts]
 		[pallet_otc, OTC]
 		[pallet_otc_settlements, OtcSettlements]
 		[pallet_liquidation, Liquidation]
@@ -315,13 +337,10 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
 		[pallet_democracy, Democracy]
-		[pallet_elections_phragmen, Elections]
 		[pallet_treasury, Treasury]
 		[pallet_scheduler, Scheduler]
 		[pallet_utility, Utility]
-		[pallet_tips, Tips]
 		[pallet_identity, Identity]
-		[pallet_collective_council, Council]
 		[pallet_collective_technical_committee, TechnicalCommittee]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_message_queue, MessageQueue]
@@ -329,12 +348,38 @@ mod benches {
 		[pallet_multisig, Multisig]
 		[pallet_proxy, Proxy]
 		[cumulus_pallet_parachain_system, ParachainSystem]
-		[pallet_collator_selection, CollatorSelection]
 		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
+		[pallet_xcm_benchmarks::fungible, XcmBalances]
+		[pallet_xcm_benchmarks::generic, XcmGeneric]
 		[pallet_conviction_voting, ConvictionVoting]
 		[pallet_referenda, Referenda]
 		[pallet_whitelist, Whitelist]
 		[pallet_dispatcher, Dispatcher]
+		[pallet_hsm, HSM]
+		[pallet_dynamic_fees, DynamicFees]
+		[pallet_signet, Signet]
+		[pallet_dispenser, EthDispenser]
+		//[ismp_parachain, IsmpParachain]
+		//[pallet_token_gateway, TokenGateway]
+		[frame_system_extensions, frame_system_benchmarking::extensions::Pallet::<Runtime>]
+		[pallet_transaction_payment, TransactionPayment]
+		[cumulus_pallet_weight_reclaim, WeightReclaim]
+		[pallet_currencies, benchmarking::currencies::Benchmark]
+		[orml_tokens, benchmarking::tokens::Benchmark]
+		[orml_vesting, benchmarking::vesting::Benchmark]
+		[pallet_transaction_multi_payment, benchmarking::multi_payment::Benchmark]
+		[pallet_duster, benchmarking::duster::Benchmark]
+		[pallet_omnipool, benchmarking::omnipool::Benchmark]
+		[pallet_route_executor, benchmarking::route_executor::Benchmark]
+		[pallet_dca, benchmarking::dca::Benchmark]
+		[pallet_xyk, benchmarking::xyk::Benchmark]
+		[pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee::Benchmark]
+		[pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining::Benchmark]
+		[pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining::Benchmark]
+		[pallet_ema_oracle, benchmarking::ema_oracle::Benchmark]
+		//[pallet_token_gateway_ismp, benchmarking::token_gateway_ismp::Benchmark]
+		[pallet_evm_accounts, benchmarking::evm_accounts::Benchmark]
+		[pallet_migrations, MultiBlockMigrations]
 	);
 }
 
@@ -367,7 +412,6 @@ impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
 cumulus_pallet_parachain_system::register_validate_block! {
 	Runtime = Runtime,
 	BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
-	CheckInherents = CheckInherents,
 }
 
 impl fp_self_contained::SelfContainedCall for RuntimeCall {
@@ -406,7 +450,13 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		len: usize,
 	) -> Option<Result<(), TransactionValidityError>> {
 		match self {
-			RuntimeCall::Ethereum(call) => call.pre_dispatch_self_contained(info, dispatch_info, len),
+			RuntimeCall::Ethereum(call) => {
+				// don't allow on-chain EVM transactions from a bound address
+				if EVMAccounts::bound_account_id(*info).is_some() {
+					return Some(Err(TransactionValidityError::Invalid(InvalidTransaction::BadSigner)));
+				}
+				call.pre_dispatch_self_contained(info, dispatch_info, len)
+			}
 			_ => None,
 		}
 	}
@@ -426,21 +476,24 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 
 pub struct TransactionConverter;
 
-impl fp_rpc::ConvertTransaction<UncheckedExtrinsic> for TransactionConverter {
-	fn convert_transaction(&self, transaction: pallet_ethereum::Transaction) -> UncheckedExtrinsic {
-		UncheckedExtrinsic::new_unsigned(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
+impl fp_rpc::ConvertTransaction<HydraUncheckedExtrinsic> for TransactionConverter {
+	fn convert_transaction(&self, transaction: pallet_ethereum::Transaction) -> HydraUncheckedExtrinsic {
+		HydraUncheckedExtrinsic::new_bare(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
 	}
 }
 
 impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConverter {
 	fn convert_transaction(&self, transaction: pallet_ethereum::Transaction) -> sp_runtime::OpaqueExtrinsic {
 		let extrinsic =
-			UncheckedExtrinsic::new_unsigned(pallet_ethereum::Call::<Runtime>::transact { transaction }.into());
+			HydraUncheckedExtrinsic::new_bare(pallet_ethereum::Call::<Runtime>::transact { transaction }.into());
 		let encoded = extrinsic.encode();
 		sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid")
 	}
 }
 
+use crate::evm::aave_trade_executor::AaveTradeExecutor;
+use crate::evm::aave_trade_executor::PoolData;
+use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	sp_runtime::{
@@ -449,8 +502,13 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
+use hydradx_traits::evm::Erc20Mapping;
+use pallet_liquidation::BorrowingContract;
+use pallet_route_executor::TradeExecution;
+pub use polkadot_xcm::latest::Junction;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use primitives::constants::chain::CORE_ASSET_ID;
+pub use sp_arithmetic::FixedU128;
 use sp_core::OpaqueMetadata;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -537,7 +595,7 @@ impl_runtime_apis! {
 
 	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
 		fn slot_duration() -> sp_consensus_aura::SlotDuration {
-			sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
+			sp_consensus_aura::SlotDuration::from_millis(SLOT_DURATION)
 		}
 
 		fn authorities() -> Vec<AuraId> {
@@ -548,6 +606,15 @@ impl_runtime_apis! {
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
 		fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
 			ParachainSystem::collect_collation_info(header)
+		}
+	}
+
+	impl cumulus_primitives_core::GetCoreSelectorApi<Block> for Runtime {
+		fn core_selector() -> (
+			cumulus_primitives_core::CoreSelector,
+			cumulus_primitives_core::ClaimQueueOffset,
+		) {
+			ParachainSystem::core_selector()
 		}
 	}
 
@@ -583,24 +650,24 @@ impl_runtime_apis! {
 					reserved: data.reserved,
 					frozen: data.frozen,
 				}
-			} else if matches!(AssetRegistry::asset_type(asset_id), Some(AssetKind::Erc20)) {
-				AccountData {
-					free: Self::free_balance(asset_id, who),
-					..Default::default()
-				}
 			} else {
-				let data = Tokens::accounts(who, asset_id);
-				AccountData {
-					free: data.free,
-					reserved: data.reserved,
-					frozen: data.frozen,
+				let tokens_data = Tokens::accounts(who.clone(), asset_id);
+				let mut data = AccountData {
+					free: tokens_data.free,
+					reserved: tokens_data.reserved,
+					frozen: tokens_data.frozen,
+				};
+				if matches!(AssetRegistry::asset_type(asset_id), Some(AssetKind::Erc20)) {
+					data.free = Self::free_balance(asset_id, who);
 				}
+				data
 			}
 		}
 
 		fn accounts(who: AccountId) -> Vec<(AssetId, AccountData<Balance>)> {
 			let mut result = Vec::new();
 
+			// Add native token (HDX)
 			let balance = System::account(&who).data;
 			result.push((
 				NativeAssetId::get(),
@@ -611,29 +678,43 @@ impl_runtime_apis! {
 				}
 			));
 
+			// Add tokens from orml_tokens
 			result.extend(
 				orml_tokens::Accounts::<Runtime>::iter_prefix(&who)
-					.map(|(asset_id, data)| (
-						asset_id,
-						AccountData {
+					.map(|(asset_id, data)| {
+						let mut account_data = AccountData {
 							free: data.free,
 							reserved: data.reserved,
 							frozen: data.frozen,
+						};
+
+						// Update free balance for ERC20 tokens
+						if matches!(AssetRegistry::asset_type(asset_id), Some(AssetKind::Erc20)) {
+							account_data.free = Currencies::free_balance(asset_id, &who);
 						}
-					))
+
+						(asset_id, account_data)
+					})
 			);
 
+			// Add ERC20 tokens with non-zero balance not yet added previously
+			let existing_ids: Vec<_> = result.iter().map(|(id, _)| *id).collect();
 			result.extend(
 				pallet_asset_registry::Assets::<Runtime>::iter()
 					.filter(|(_, info)| info.asset_type == AssetType::Erc20)
 					.filter_map(|(asset_id, _)| {
-						let free = Self::free_balance(asset_id, who.clone());
+						if existing_ids.contains(&asset_id) {
+							return None;
+						}
+
+						let free = Currencies::free_balance(asset_id, &who);
 						if free > 0 {
 							Some((
 								asset_id,
 								AccountData {
 									free,
-									..Default::default()
+									reserved: 0,
+									frozen: 0,
 								}
 							))
 						} else {
@@ -647,6 +728,10 @@ impl_runtime_apis! {
 
 		fn free_balance(asset_id: AssetId, who: AccountId) -> Balance {
 			Currencies::free_balance(asset_id, &who)
+		}
+
+		fn minimum_balance(asset_id: AssetId) -> Balance {
+			Currencies::minimum_balance(asset_id)
 		}
 	}
 
@@ -704,8 +789,7 @@ impl_runtime_apis! {
 		}
 
 		fn storage_at(address: H160, index: U256) -> H256 {
-			let mut tmp = [0u8; 32];
-			index.to_big_endian(&mut tmp);
+			let tmp = index.to_big_endian();
 			pallet_evm::AccountStorages::<Runtime>::get(address, H256::from_slice(&tmp[..]))
 		}
 
@@ -720,6 +804,7 @@ impl_runtime_apis! {
 			nonce: Option<U256>,
 			estimate: bool,
 			access_list: Option<Vec<(H160, Vec<H256>)>>,
+			authorization_list: Option<AuthorizationList>,
 		) -> Result<pallet_evm::CallInfo, sp_runtime::DispatchError> {
 			let mut config = <Runtime as pallet_evm::Config>::config().clone();
 			config.estimate = estimate;
@@ -762,10 +847,6 @@ impl_runtime_apis! {
 							_ => (None, None),
 						};
 
-			// don't allow calling EVM RPC or Runtime API from a bound address
-			if !estimate && EVMAccounts::bound_account_id(from).is_some() {
-				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
-			};
 
 			<Runtime as pallet_evm::Config>::Runner::call(
 				from,
@@ -777,6 +858,7 @@ impl_runtime_apis! {
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.unwrap_or_default(),
+				authorization_list.clone().unwrap_or_default(),
 				is_transactional,
 				validate,
 				weight_limit,
@@ -796,6 +878,7 @@ impl_runtime_apis! {
 			nonce: Option<U256>,
 			estimate: bool,
 			access_list: Option<Vec<(H160, Vec<H256>)>>,
+			authorization_list: Option<AuthorizationList>,
 		) -> Result<pallet_evm::CreateInfo, sp_runtime::DispatchError> {
 			let config = if estimate {
 				let mut config = <Runtime as pallet_evm::Config>::config().clone();
@@ -843,10 +926,6 @@ impl_runtime_apis! {
 					_ => (None, None),
 				};
 
-			// don't allow calling EVM RPC or Runtime API from a bound address
-			if !estimate && EVMAccounts::bound_account_id(from).is_some() {
-				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
-			};
 
 			// the address needs to have a permission to deploy smart contract
 			if !EVMAccounts::can_deploy_contracts(from) {
@@ -863,6 +942,7 @@ impl_runtime_apis! {
 				max_priority_fee_per_gas,
 				nonce,
 				Vec::new(),
+				authorization_list.clone().unwrap_or_default(),
 				is_transactional,
 				validate,
 				weight_limit,
@@ -935,7 +1015,7 @@ impl_runtime_apis! {
 
 	impl fp_rpc::ConvertTransactionRuntimeApi<Block> for Runtime {
 		fn convert_transaction(transaction: EthereumTransaction) -> <Block as BlockT>::Extrinsic {
-			UncheckedExtrinsic::new_unsigned(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
+			HydraUncheckedExtrinsic::new_bare(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
 		}
 	}
 
@@ -951,25 +1031,40 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_duster_rpc_runtime_api::DusterApi<Block, AccountId> for Runtime {
+		fn is_whitelisted(account: AccountId) -> bool {
+			pallet_duster::DusterWhitelist::<Runtime>::contains(&account)
+		}
+	}
+
+	impl evm::precompiles::erc20_mapping::Erc20MappingApi<Block> for Runtime {
+		fn asset_address(asset_id: AssetId) -> EvmAddress {
+			HydraErc20Mapping::asset_address(asset_id)
+		}
+		fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
+			HydraErc20Mapping::address_to_asset(address)
+		}
+	}
+
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: polkadot_xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
-			if !matches!(xcm_version, 3 | 4) {
+			if !matches!(xcm_version, 3..=5) {
 				return Err(XcmPaymentApiError::UnhandledXcmVersion);
 			}
 
 			let mut asset_locations = vec![
-		AssetLocation(polkadot_xcm::v3::MultiLocation {
+		AssetLocation(polkadot_xcm::v5::Location {
 				parents: 1,
 				interior: [
-					polkadot_xcm::v3::Junction::Parachain(ParachainInfo::get().into()),
-					polkadot_xcm::v3::Junction::GeneralIndex(CORE_ASSET_ID.into()),
+					polkadot_xcm::v5::Junction::Parachain(ParachainInfo::get().into()),
+					polkadot_xcm::v5::Junction::GeneralIndex(CORE_ASSET_ID.into()),
 				]
 				.into(),
 			}),
-			AssetLocation(polkadot_xcm::v3::MultiLocation {
+			AssetLocation(polkadot_xcm::v5::Location {
 				parents: 0,
 				interior: [
-					polkadot_xcm::v3::Junction::GeneralIndex(CORE_ASSET_ID.into()),
+					polkadot_xcm::v5::Junction::GeneralIndex(CORE_ASSET_ID.into()),
 				]
 				.into(),
 			})];
@@ -977,7 +1072,7 @@ impl_runtime_apis! {
 			let mut asset_registry_locations: Vec<AssetLocation> = pallet_asset_registry::LocationAssets::<Runtime>::iter_keys().collect();
 			asset_locations.append(&mut asset_registry_locations);
 
-			let versioned_locations = asset_locations.iter().map(|loc| VersionedAssetId::V3(polkadot_xcm::v3::AssetId::Concrete(loc.0)));
+			let versioned_locations = asset_locations.iter().map(|loc| VersionedAssetId::V5(polkadot_xcm::v5::AssetId(loc.0.clone())));
 
 			Ok(versioned_locations
 				.filter_map(|asset| asset.into_version(xcm_version).ok())
@@ -985,10 +1080,10 @@ impl_runtime_apis! {
 		}
 
 		fn query_weight_to_asset_fee(weight: Weight, asset: VersionedAssetId) -> Result<u128, XcmPaymentApiError> {
-			let v4_xcm_asset_id = asset.into_version(4).map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?;
+			let v5_xcm_asset_id = asset.into_version(5).map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?;
 
 			// get nested polkadot_xcm::AssetId type
-			let xcm_asset_id: &polkadot_xcm::v4::AssetId = v4_xcm_asset_id.try_as().map_err(|_| XcmPaymentApiError::WeightNotComputable)?;
+			let xcm_asset_id: &polkadot_xcm::v5::AssetId = v5_xcm_asset_id.try_as().map_err(|_| XcmPaymentApiError::WeightNotComputable)?;
 
 			let asset_id: AssetId = CurrencyIdConvert::convert(xcm_asset_id.clone().0).ok_or(XcmPaymentApiError::AssetNotFound)?;
 
@@ -1010,15 +1105,41 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
-		fn dry_run_call(origin: OriginCaller, call: RuntimeCall) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
-			PolkadotXcm::dry_run_call::<Runtime, xcm::XcmRouter, OriginCaller, RuntimeCall>(origin, call)
-		}
-
-		fn dry_run_xcm(origin_location: VersionedLocation, xcm: VersionedXcm<RuntimeCall>) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
-			PolkadotXcm::dry_run_xcm::<Runtime, xcm::XcmRouter, RuntimeCall, xcm::XcmConfig>(origin_location, xcm)
+	impl cumulus_primitives_aura::AuraUnincludedSegmentApi<Block> for Runtime {
+		fn can_build_upon(
+				included_hash: <Block as BlockT>::Hash,
+				slot: cumulus_primitives_aura::Slot,
+		) -> bool {
+				ConsensusHook::can_build_upon(included_hash, slot)
 		}
 	}
+
+	impl cumulus_primitives_core::RelayParentOffsetApi<Block> for Runtime {
+		fn relay_parent_offset() -> u32 {
+			RelayParentOffset::get()
+		}
+	}
+
+	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
+					fn dry_run_call(
+						origin: OriginCaller,
+						call: RuntimeCall,
+						result_xcms_version: XcmVersion
+					) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+						PolkadotXcm::dry_run_call::<
+							Runtime,
+							xcm::XcmRouter,
+							OriginCaller,
+							RuntimeCall>(origin, call, result_xcms_version)
+					}
+
+					fn dry_run_xcm(
+						origin_location: VersionedLocation,
+						xcm: VersionedXcm<RuntimeCall>
+					) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+						PolkadotXcm::dry_run_xcm::<Runtime, xcm::XcmRouter, RuntimeCall, xcm::XcmConfig>(origin_location, xcm)
+					}
+				}
 
 	impl xcm_runtime_apis::conversions::LocationToAccountApi<Block, AccountId> for Runtime {
 		fn convert_location(location: VersionedLocation) -> Result<
@@ -1032,63 +1153,89 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl evm::precompiles::chainlink_adapter::runtime_api::ChainlinkAdapterApi<Block, AccountId, evm::EvmAddress> for Runtime {
-		fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> evm::EvmAddress {
+	impl evm::precompiles::chainlink_adapter::runtime_api::ChainlinkAdapterApi<Block, AccountId, EvmAddress> for Runtime {
+		fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> EvmAddress {
 			evm::precompiles::chainlink_adapter::encode_oracle_address(asset_id_a, asset_id_b, period, source)
 		}
 
-		fn decode_oracle_address(oracle_address: evm::EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
+		fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
 			evm::precompiles::chainlink_adapter::decode_oracle_address(oracle_address)
+		}
+	}
+
+	impl evm::aave_trade_executor::runtime_api::AaveTradeExecutor<Block, Balance> for Runtime {
+		fn pairs() -> Vec<(AssetId, AssetId)> {
+			let pool = <BorrowingContract<Runtime>>::get();
+			let reserves = match AaveTradeExecutor::<Runtime>::get_reserves_list(pool) {
+				Ok(reserves) => reserves,
+				Err(_) => return vec![]
+			};
+			reserves.into_iter()
+				.filter_map(|reserve| {
+					let data = AaveTradeExecutor::<Runtime>::get_reserve_data(pool, reserve).ok()?;
+					let reserve_asset = HydraErc20Mapping::address_to_asset(reserve)?;
+					let atoken_asset = HydraErc20Mapping::address_to_asset(data.atoken_address)?;
+					Some((reserve_asset, atoken_asset))
+				})
+				.collect()
+		}
+
+		fn liquidity_depth(asset_in: AssetId, asset_out: AssetId) -> Option<Balance> {
+			AaveTradeExecutor::<Runtime>::get_liquidity_depth(PoolType::Aave, asset_in, asset_out).ok()
+		}
+
+		fn pool(reserve: AssetId, atoken: AssetId) -> PoolData<Balance> {
+			PoolData {
+				reserve,
+				atoken,
+				liqudity_in: Self::liquidity_depth(reserve, atoken).unwrap(),
+				liqudity_out: Self::liquidity_depth(atoken, reserve).unwrap(),
+			}
+		}
+
+		fn pools() -> Vec<PoolData<Balance>> {
+			Self::pairs().into_iter().map(|p| Self::pool(p.0, p.1)).collect()
 		}
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
+
 		fn benchmark_metadata(extra: bool) -> (
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{Benchmarking, BenchmarkList};
+			use frame_benchmarking::BenchmarkList;
 			use frame_support::traits::StorageInfoTrait;
-			use orml_benchmarking::list_benchmark as orml_list_benchmark;
 
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 
+			// This is defined once again in dispatch_benchmark, because list_benchmarks!
+			// and add_benchmarks! are macros exported by define_benchmarks! macros and those types
+			// are referenced in that call.
+			type XcmBalances = pallet_xcm_benchmarks::fungible::Pallet::<Runtime>;
+			type XcmGeneric = pallet_xcm_benchmarks::generic::Pallet::<Runtime>;
+
 			let mut list = Vec::<BenchmarkList>::new();
-
 			list_benchmarks!(list, extra);
-
-			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
-			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
-			orml_list_benchmark!(list, extra, orml_vesting, benchmarking::vesting);
-			orml_list_benchmark!(list, extra, pallet_transaction_multi_payment, benchmarking::multi_payment);
-			orml_list_benchmark!(list, extra, pallet_duster, benchmarking::duster);
-			orml_list_benchmark!(list, extra, pallet_omnipool, benchmarking::omnipool);
-			orml_list_benchmark!(list, extra, pallet_route_executor, benchmarking::route_executor);
-			orml_list_benchmark!(list, extra, pallet_dca, benchmarking::dca);
-			orml_list_benchmark!(list, extra, pallet_xyk, benchmarking::xyk);
-			orml_list_benchmark!(list, extra, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
-			orml_list_benchmark!(list, extra, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
-			orml_list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
-			orml_list_benchmark!(list, extra, pallet_ema_oracle, benchmarking::ema_oracle);
-
 			let storage_info = AllPalletsWithSystem::storage_info();
 
 			(list, storage_info)
 		}
 
+		#[allow(non_local_definitions)]
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
-		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
-			use frame_support::traits::TrackedStorageKey;
-			use orml_benchmarking::add_benchmark as orml_add_benchmark;
+		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
+			use frame_benchmarking::{BenchmarkError, BenchmarkBatch};
+
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use cumulus_primitives_core::ParaId;
 			use primitives::constants::chain::CORE_ASSET_ID;
-			use sp_std::sync::Arc;
+			 use polkadot_runtime_common::xcm_sender::ExponentialPrice;
+			 use primitives::constants::currency::CENTS;
 
 			impl frame_system_benchmarking::Config for Runtime {
 				fn setup_set_code_requirements(code: &sp_std::vec::Vec<u8>) -> Result<(), BenchmarkError> {
@@ -1104,17 +1251,37 @@ impl_runtime_apis! {
 			frame_support::parameter_types! {
 				pub const RandomParaId: ParaId = ParaId::new(22_222_222);
 				pub const ExistentialDeposit: u128 = 1_000_000_000_000;
-				pub AssetLocation: Location = Location::new(0, cumulus_primitives_core::Junctions::X1(
-					Arc::new([
+				pub CoreAssetLocation: Location = Location::new(0, [
 						cumulus_primitives_core::Junction::GeneralIndex(CORE_ASSET_ID.into())
-						])
-				));
+						]);
+				pub DaiLocation: Location = Location::new(0, [
+						cumulus_primitives_core::Junction::GeneralIndex(2)
+						]);
 			}
 
-			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Assets, Parent, ParentThen, Parachain};
+			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Assets, Parent, ParentThen, Parachain, WeightLimit};
+
+			use primitives::constants::currency::UNITS;
+
+			frame_support::parameter_types! {
+				/// The asset ID for the asset that we use to pay for message delivery fees.
+			pub FeeAssetId: cumulus_primitives_core::AssetId = AssetId(xcm::PolkadotLocation::get());
+			/// The base fee for the message delivery fees.
+			pub const BaseDeliveryFee: u128 = CENTS.saturating_mul(3);
+				pub ExistentialDepositAsset: Option<Asset> = Some((
+					CoreAssetLocation::get(),
+					ExistentialDeposit::get()
+				).into());
+			}
+
+			pub type PriceForParentDelivery = ExponentialPrice<FeeAssetId, BaseDeliveryFee, TransactionByteFee, ParachainSystem>;
 
 			impl pallet_xcm::benchmarking::Config for Runtime {
-				type DeliveryHelper = ();
+				type DeliveryHelper = cumulus_primitives_utility::ToParentDeliveryHelper<
+					xcm::XcmConfig,
+					ExistentialDepositAsset,
+					PriceForParentDelivery,
+				>;
 
 				fn reachable_dest() -> Option<Location> {
 					Some(Parent.into())
@@ -1132,7 +1299,7 @@ impl_runtime_apis! {
 					Some((
 						Asset {
 							fun: Fungible(ExistentialDeposit::get()),
-							id: AssetId(AssetLocation::get())
+							id: AssetId(CoreAssetLocation::get())
 						},
 						ParentThen(Parachain(RandomParaId::get().into()).into()).into(),
 					))
@@ -1146,7 +1313,7 @@ impl_runtime_apis! {
 					let destination = ParentThen(Parachain(RandomParaId::get().into()).into()).into();
 
 					let fee_asset: Asset = (
-						   AssetLocation::get(),
+						   CoreAssetLocation::get(),
 						   ExistentialDeposit::get(),
 					 ).into();
 
@@ -1157,7 +1324,7 @@ impl_runtime_apis! {
 					assert_eq!(Balances::free_balance(&who), balance);
 
 					let transfer_asset: Asset = (
-						   AssetLocation::get(),
+						   CoreAssetLocation::get(),
 						   ExistentialDeposit::get(),
 					 ).into();
 
@@ -1174,11 +1341,149 @@ impl_runtime_apis! {
 
 				fn get_asset() -> Asset {
 					Asset {
-						id: AssetId(Location::here()),
+						id: AssetId(PolkadotLocation::get()),
 						fun: Fungible(ExistentialDeposit::get()),
 					}
 				}
 			}
+
+			impl pallet_xcm_benchmarks::Config for Runtime {
+				type XcmConfig = xcm::XcmConfig;
+				type AccountIdConverter = xcm::LocationToAccountId;
+				type DeliveryHelper = cumulus_primitives_utility::ToParentDeliveryHelper<
+					xcm::XcmConfig,
+					ExistentialDepositAsset,
+					PriceForParentDelivery,
+				>;
+				fn valid_destination() -> Result<Location, BenchmarkError> {
+					Ok(PolkadotLocation::get())
+				}
+				fn worst_case_holding(depositable_count: u32) -> Assets {
+					// A mix of fungible and non-fungible assets
+					let holding_non_fungibles = MaxAssetsIntoHolding::get() / 2 - depositable_count;
+					let holding_fungibles = holding_non_fungibles - 2; // -2 for two `iter::once` bellow
+					let fungibles_amount: u128 = UNITS;
+					(0..holding_fungibles)
+						.map(|i| {
+							Asset {
+								id: AssetId(cumulus_primitives_core::GeneralIndex(i as u128).into()),
+								fun: Fungible(fungibles_amount * (i + 1) as u128), // non-zero amount
+							}
+						})
+						.chain(core::iter::once(Asset { id: AssetId(Here.into()), fun: Fungible(u128::MAX) }))
+						.chain(core::iter::once(Asset { id: AssetId(PolkadotLocation::get()), fun: Fungible(1_000_000 * UNITS) }))
+						.chain((0..holding_non_fungibles).map(|i| Asset {
+							id: AssetId(cumulus_primitives_core::GeneralIndex(i as u128).into()),
+							fun: NonFungible(pallet_xcm_benchmarks::asset_instance_from(i)),
+						}))
+						.collect::<Vec<_>>()
+						.into()
+				}
+			}
+
+			frame_support::parameter_types! {
+				pub const TrustedTeleporter: Option<(Location, Asset)> = Some((
+					PolkadotLocation::get(),
+					Asset { fun: Fungible(UNITS), id: AssetId(PolkadotLocation::get()) },
+				));
+				pub const CheckedAccount: Option<(AccountId, xcm_builder::MintLocation)> = None;
+				pub TrustedReserve: Option<(Location, Asset)> = Some((
+					PolkadotLocation::get(),
+					Asset { fun: Fungible(UNITS), id: AssetId(PolkadotLocation::get()) },
+				));
+			}
+
+			impl pallet_xcm_benchmarks::fungible::Config for Runtime {
+				type TransactAsset = Balances;
+
+				type CheckedAccount = CheckedAccount;
+				type TrustedTeleporter = TrustedTeleporter;
+				type TrustedReserve = TrustedReserve;
+
+				fn get_asset() -> Asset {
+					Asset {
+						id: AssetId(CoreAssetLocation::get()),
+						fun: Fungible(UNITS),
+					}
+				}
+			}
+
+			impl pallet_xcm_benchmarks::generic::Config for Runtime {
+				type TransactAsset = Balances;
+				type RuntimeCall = RuntimeCall;
+
+				fn worst_case_response() -> (u64, Response) {
+					(0u64, Response::Version(Default::default()))
+				}
+
+				fn worst_case_asset_exchange() -> Result<(Assets, Assets), BenchmarkError> {
+					//We can only exchange from single asset to another single one at worst case
+					let amount_to_sell = UNITS;
+					let received = init_omnipool(amount_to_sell);
+					let give : Assets = (AssetId(CoreAssetLocation::get()), amount_to_sell).into();
+					let want : Assets = (AssetId(DaiLocation::get()),  received).into();//We need to set the exact amount as pallet_xcm_benchmarks::fungibles exchange_asset benchmark test requires to have original wanted fungible amount in holding, but we always put the exact amount received
+					Ok((give, want))
+				}
+
+				fn universal_alias() -> Result<(Location, Junction), BenchmarkError> {
+										Err(BenchmarkError::Skip)
+				}
+
+				fn transact_origin_and_runtime_call() -> Result<(Location, RuntimeCall), BenchmarkError> {
+					Ok((PolkadotLocation::get(), frame_system::Call::remark_with_event { remark: vec![] }.into()))
+				}
+
+				fn subscribe_origin() -> Result<Location, BenchmarkError> {
+					Ok(PolkadotLocation::get())
+				}
+
+				fn claimable_asset() -> Result<(Location, Location, Assets), BenchmarkError> {
+					let origin = PolkadotLocation::get();
+					let assets: Assets = (AssetId(PolkadotLocation::get()), 1_000 * UNITS).into();
+					let ticket = Location { parents: 0, interior: Here };
+					Ok((origin, ticket, assets))
+				}
+
+				fn worst_case_for_trader() -> Result<(Asset, WeightLimit), BenchmarkError> {
+					Ok((Asset {
+						id: AssetId(CoreAssetLocation::get()),
+						fun: Fungible(UNITS),
+					}, WeightLimit::Unlimited))
+				}
+
+				fn unlockable_asset() -> Result<(Location, Location, Asset), BenchmarkError> {
+					Err(BenchmarkError::Skip)
+				}
+
+				fn export_message_origin_and_destination(
+				) -> Result<(Location, NetworkId, Junctions), BenchmarkError> {
+					Err(BenchmarkError::Skip)
+				}
+
+				fn alias_origin() -> Result<(Location, Location), BenchmarkError> {
+					Ok((
+						Location::new(1, [Parachain(1000)]),
+						Location::new(1, [Parachain(1000), Junction::AccountId32 { id: [111u8; 32], network: None }]),
+					))
+				}
+			}
+
+			type XcmBalances = pallet_xcm_benchmarks::fungible::Pallet::<Runtime>;
+			type XcmGeneric = pallet_xcm_benchmarks::generic::Pallet::<Runtime>;
+
+			#[allow(unused_variables)] // TODO: this variable is not used
+			let whitelist: Vec<TrackedStorageKey> = vec![
+				// Block Number
+				hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
+				// Total Issuance
+				hex!("c2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80").to_vec().into(),
+				// Execution Phase
+				hex!("26aa394eea5630e07c48ae0c9558cef7ff553b5a9862a516939d82b3d3d8661a").to_vec().into(),
+				// Event Count
+				hex!("26aa394eea5630e07c48ae0c9558cef70a98fdbe9ce6c55837576c60c7af3850").to_vec().into(),
+				// System Events
+				hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec().into(),
+			];
 
 			use frame_support::traits::WhitelistedStorageKeys;
 			let whitelist = AllPalletsWithSystem::whitelisted_storage_keys();
@@ -1187,20 +1492,6 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			add_benchmarks!(params, batches);
-
-			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
-			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);
-			orml_add_benchmark!(params, batches, orml_vesting, benchmarking::vesting);
-			orml_add_benchmark!(params, batches, pallet_transaction_multi_payment, benchmarking::multi_payment);
-			orml_add_benchmark!(params, batches, pallet_duster, benchmarking::duster);
-			orml_add_benchmark!(params, batches, pallet_omnipool, benchmarking::omnipool);
-			orml_add_benchmark!(params, batches, pallet_route_executor, benchmarking::route_executor);
-			orml_add_benchmark!(params, batches, pallet_dca, benchmarking::dca);
-			orml_add_benchmark!(params, batches, pallet_xyk, benchmarking::xyk);
-			orml_add_benchmark!(params, batches, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
-			orml_add_benchmark!(params, batches, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
-			orml_add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
-			orml_add_benchmark!(params, batches, pallet_ema_oracle, benchmarking::ema_oracle);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
@@ -1220,4 +1511,131 @@ impl_runtime_apis! {
 			Default::default()
 		}
 	}
+}
+
+#[cfg(feature = "runtime-benchmarks")] //Used only for benchmarking pallet_xcm_benchmarks::generic exchane_asset instruction
+fn init_omnipool(amount_to_sell: Balance) -> Balance {
+	use hydradx_traits::Mutate;
+	let caller: AccountId = frame_benchmarking::account("caller", 0, 1);
+	let hdx = 0;
+	let dai = 2;
+	let token_amount = 2000000000000u128 * 1_000_000_000;
+
+	//let loc : MultiLocation = Location::new(1, cumulus_primitives_core::[cumulus_primitives_core::Junction::GeneralIndex(dai.into());1]).into();
+	//			polkadot_xcm::opaque::lts::[polkadot_xcm::opaque::lts::Junction::GeneralIndex(dai.into())]
+
+	use frame_support::assert_ok;
+	use polkadot_xcm::v5::Junction::GeneralIndex;
+	use polkadot_xcm::v5::Location;
+	assert_ok!(AssetRegistry::set_location(
+		dai,
+		AssetLocation(Location::new(0, [GeneralIndex(dai.into())]))
+	));
+
+	Currencies::update_balance(
+		RuntimeOrigin::root(),
+		Omnipool::protocol_account(),
+		hdx,
+		(token_amount as i128) * 100,
+	)
+	.unwrap();
+	Currencies::update_balance(
+		RuntimeOrigin::root(),
+		Omnipool::protocol_account(),
+		dai,
+		(token_amount as i128) * 100,
+	)
+	.unwrap();
+	Currencies::update_balance(RuntimeOrigin::root(), caller.clone(), hdx, token_amount as i128).unwrap();
+	Currencies::update_balance(RuntimeOrigin::root(), caller.clone(), dai, token_amount as i128).unwrap();
+	let native_price = FixedU128::from_inner(1201500000000000);
+	let stable_price = FixedU128::from_inner(45_000_000_000);
+
+	let native_position_id = Omnipool::next_position_id();
+
+	assert_ok!(Omnipool::add_token(
+		RuntimeOrigin::root(),
+		hdx,
+		native_price,
+		Permill::from_percent(10),
+		caller.clone(),
+	));
+
+	let stable_position_id = Omnipool::next_position_id();
+
+	assert_ok!(Omnipool::add_token(
+		RuntimeOrigin::root(),
+		dai,
+		stable_price,
+		Permill::from_percent(100),
+		caller.clone(),
+	));
+
+	assert_ok!(Omnipool::sacrifice_position(
+		RuntimeOrigin::signed(caller.clone()),
+		native_position_id,
+	));
+
+	assert_ok!(Omnipool::sacrifice_position(
+		RuntimeOrigin::signed(caller),
+		stable_position_id,
+	));
+
+	assert_ok!(Referrals::set_reward_percentage(
+		RawOrigin::Root.into(),
+		0,
+		Level::None,
+		FeeDistribution::default(),
+	));
+	assert_ok!(Referrals::set_reward_percentage(
+		RawOrigin::Root.into(),
+		1,
+		Level::None,
+		FeeDistribution::default(),
+	));
+
+	assert_ok!(Omnipool::set_asset_tradable_state(
+		RuntimeOrigin::root(),
+		hdx,
+		pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
+	));
+
+	assert_ok!(Omnipool::set_asset_tradable_state(
+		RuntimeOrigin::root(),
+		dai,
+		pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
+	));
+
+	let _ = with_transaction(|| {
+		TransactionOutcome::Commit(AssetRegistry::update(
+			RawOrigin::Root.into(),
+			hdx,
+			None,
+			None,
+			None,
+			Some(amount_to_sell * 10),
+			None,
+			None,
+			None,
+			None,
+		))
+	})
+	.map_err(|_| ());
+
+	with_transaction::<Balance, DispatchError, _>(|| {
+		let caller2: AccountId = frame_benchmarking::account("caller2", 0, 1);
+		Currencies::update_balance(RuntimeOrigin::root(), caller2.clone(), hdx, token_amount as i128).unwrap();
+
+		assert_ok!(Router::sell(
+			RuntimeOrigin::signed(caller2.clone()),
+			hdx,
+			dai,
+			amount_to_sell,
+			0,
+			vec![].try_into().unwrap(),
+		));
+		let received = Currencies::free_balance(dai, &caller2);
+		TransactionOutcome::Rollback(Ok(received))
+	})
+	.unwrap()
 }
