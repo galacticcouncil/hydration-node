@@ -6,7 +6,6 @@ use num_traits::One;
 use primitive_types::U256;
 use sp_arithmetic::Permill;
 
-/// Permill scale (10^6).
 const PERMILL_SCALE: u128 = 1_000_000;
 
 /// Calculate the slip fee *amount* at full U256 precision, avoiding Permill truncation.
@@ -42,10 +41,8 @@ pub fn calculate_slip_fee_amount(
 	let abs_cumulative = cumulative.abs();
 
 	if slip_cap_fires_for(abs_cumulative, denom, max_slip_fee)? {
-		// Capped: use Permill for the capped amount
 		Some(max_slip_fee.mul_floor(base_amount))
 	} else {
-		// Full precision: |cumulative| * base_amount / denom
 		let amount_hp = U256::from(abs_cumulative)
 			.checked_mul(U256::from(base_amount))?
 			.checked_div(U256::from(denom))?;
@@ -53,14 +50,8 @@ pub fn calculate_slip_fee_amount(
 	}
 }
 
-/// Single source of truth for the slip-fee cap predicate.
-///
-/// Mirrors the check inside `calculate_slip_fee_amount`: returns `true` iff
-/// `|cumulative| * 10^6 > max_parts * denom`, the same threshold used to switch
-/// the forward path from the proportional formula to the linear-capped formula.
-///
-/// Returns `Some(false)` for the degenerate cases (zero denom, zero cumulative)
-/// so callers can fall through to the uncapped branch without special handling.
+/// Returns `true` iff `|cumulative| * 10^6 > max_parts * denom`,
+/// the same threshold `calculate_slip_fee_amount` uses to switch to the capped formula.
 fn slip_cap_fires_for(abs_cumulative: Balance, denom: Balance, max_slip_fee: Permill) -> Option<bool> {
 	if denom == 0 || abs_cumulative == 0 {
 		return Some(false);
@@ -71,8 +62,6 @@ fn slip_cap_fires_for(abs_cumulative: Balance, denom: Balance, max_slip_fee: Per
 	Some(lhs > rhs)
 }
 
-/// Returns `true` iff the forward slip-fee path would cap when called with
-/// `(hub_reserve_at_block_start, prior_delta, delta_q)`.
 fn slip_cap_fires(
 	hub_reserve_at_block_start: Balance,
 	prior_delta: SignedBalance,
@@ -84,49 +73,28 @@ fn slip_cap_fires(
 	slip_cap_fires_for(cumulative.abs(), denom, max_slip_fee)
 }
 
-/// Invert buy-side slip fee: given `D_net` (hub asset actually entering buy pool),
-/// find `D_gross` (hub asset before buy-side slip deduction).
+/// Invert buy-side slip fee: given `D_net` (hub asset entering buy pool after slip),
+/// find `D_gross` (before slip).
 ///
-/// Forward formula: `D_net = D_gross - slip(D_gross)`, where
-/// `slip = min(|cum|/(L+cum), max_slip_fee) * D_gross` and `cum = C + D_gross`.
+/// Forward: `D_net = D_gross - slip(D_gross)`, with
+/// `slip = min(|cum|/(L+cum), max_slip_fee) * D_gross`, `cum = C + D_gross`.
 ///
-/// - `d_net` — hub asset entering the buy pool after slip deduction
-/// - `l` — hub reserve at block start (Q₀)
-/// - `c` — cumulative signed hub asset delta before this trade
-/// - `max_slip_fee` — slip-fee cap; when the cap fires at the resulting `D_gross`,
-///   the inverse switches to the linear closed form.
-///
-/// Uncapped regime — two cases by sign of cumulative after the trade:
-/// - Case 1 (`cum >= 0`): `D_gross = D_net * (L+C) / (L - D_net)` (linear)
-/// - Case 2 (`C < 0, D_gross < |C|`): quadratic inversion
-///
-/// Capped regime — linear closed form: `D_gross = floor(D_net * 10^6 / (10^6 - max_parts)) + 1`.
-/// The `+ 1` matches the ceiling discipline of the uncapped path so that
-/// `forward(invert(d_net)) >= d_net` always holds.
+/// Uncapped: linear when `cum >= 0`, quadratic when `C < 0 && D_gross < |C|`.
+/// Capped: `D_gross = floor(D_net * 10^6 / (10^6 - max_parts))`.
 pub(crate) fn invert_buy_side_slip(
 	d_net: Balance,
 	l: Balance,
 	c: SignedBalance,
 	max_slip_fee: Permill,
 ) -> Option<Balance> {
-	// Try the uncapped (quadratic / linear) inverse first. It can fail to find
-	// a real root when the trade is so large that no uncapped d_gross exists —
-	// in that regime the cap MUST be binding, so we fall through to the linear
-	// capped formula below.
+	// Uncapped inverse may have no real root for very large trades — in that case
+	// the cap is necessarily binding and we fall through to the capped formula.
 	if let Some(d_gross_uncapped) = invert_buy_side_slip_uncapped(d_net, l, c) {
-		// Same predicate as `calculate_slip_fee_amount`: if forward wouldn't cap
-		// at this d_gross, the uncapped result is what the forward path uses.
 		if !slip_cap_fires(l, c, SignedBalance::Positive(d_gross_uncapped), max_slip_fee)? {
 			return Some(d_gross_uncapped);
 		}
 	}
 
-	// Capped regime — forward slip is `max.mul_floor(D_gross)`, so
-	//   D_net = D_gross - floor(max_parts * D_gross / 10^6)
-	// The closed form `D_gross = floor(D_net * 10^6 / (10^6 - max_parts))` is
-	// exact: it can be shown that `forward(D_gross) == D_net` for the floor result,
-	// so no `+1` ceiling adjustment is needed (unlike the uncapped path which uses
-	// quadratic/linear formulas that lose precision via integer division).
 	let max_parts = max_slip_fee.deconstruct() as u128;
 	let one_minus_max = PERMILL_SCALE.checked_sub(max_parts)?;
 	if one_minus_max == 0 {
@@ -138,9 +106,6 @@ pub(crate) fn invert_buy_side_slip(
 	to_balance!(d_gross_hp).ok()
 }
 
-/// Uncapped buy-side inverse (closed-form linear + quadratic fallback).
-///
-/// Kept private — production callers go through [`invert_buy_side_slip`].
 fn invert_buy_side_slip_uncapped(d_net: Balance, l: Balance, c: SignedBalance) -> Option<Balance> {
 	let s_buy = c.add_to_unsigned(l)?; // L + C
 	if s_buy == 0 {
@@ -204,24 +169,14 @@ fn invert_buy_side_slip_uncapped(d_net: Balance, l: Balance, c: SignedBalance) -
 	d_gross.checked_add(Balance::one())
 }
 
-/// Invert sell-side fees (protocol_fee + sell-side slip) to find `delta_hub_reserve_in`
-/// given `D_gross` (hub asset after sell-side deductions).
+/// Invert sell-side fees (protocol_fee + sell-side slip) to find `u = delta_hub_reserve_in`
+/// given `D_gross` (after sell-side deductions).
 ///
-/// Forward formula: `D_gross = u*(1 - pf) - slip(u)`, where `u = delta_hub_reserve_in`,
-/// `pf = protocol_fee`, and `slip(u) = min(|C-u|/(L+C-u), max_slip_fee) * u`.
+/// Forward: `D_gross = u*(1 - pf) - slip(u)`, with
+/// `slip(u) = min(|C-u|/(L+C-u), max_slip_fee) * u`.
 ///
-/// - `d_gross` — hub asset remaining after protocol fee and sell-side slip
-/// - `protocol_fee` — protocol fee rate
-/// - `l` — hub reserve at block start (Q₀) for the sell pool
-/// - `c` — cumulative signed hub asset delta before this trade (for the sell pool)
-/// - `max_slip_fee` — slip-fee cap; when the cap fires at the resulting `u`,
-///   the inverse switches to the linear closed form.
-///
-/// Uncapped regime — two cases by sign of `cum = C - u`:
-/// - Case A (`u > C`, cum < 0): `(k+1)*u² - (kS + C + D)*u + DS = 0`
-/// - Case B (`u <= C`, `C > 0`, opposing flow): `pf*u² + (D + kS - C)*u - DS = 0`
-///
-/// Capped regime — linear closed form: `u = floor(D_gross * 10^6 / (10^6 - pf_parts - max_parts)) + 1`.
+/// Uncapped quadratic with two cases by sign of `cum = C - u`.
+/// Capped: `u = floor(D_gross * 10^6 / (10^6 - pf_parts - max_parts))`.
 pub(crate) fn invert_sell_side_fees(
 	d_gross: Balance,
 	protocol_fee: Permill,
@@ -229,23 +184,12 @@ pub(crate) fn invert_sell_side_fees(
 	c: SignedBalance,
 	max_slip_fee: Permill,
 ) -> Option<Balance> {
-	// Try the uncapped quadratic first; it may fail (no real root) when the
-	// trade is too large for the uncapped regime — in which case the cap is
-	// necessarily binding and we fall through to the linear capped formula.
 	if let Some(u_uncapped) = invert_sell_side_fees_uncapped(d_gross, protocol_fee, l, c) {
-		// For sell side the cumulative after the trade is `C - u` (delta_q = -u).
 		if !slip_cap_fires(l, c, SignedBalance::Negative(u_uncapped), max_slip_fee)? {
 			return Some(u_uncapped);
 		}
 	}
 
-	// Capped regime — forward: D_gross = u - floor(pf*u/10^6) - floor(max*u/10^6).
-	// Continuous approximation: D_gross = u * (10^6 - pf_parts - max_parts) / 10^6.
-	// The closed form `u = floor(D_gross * 10^6 / (10^6 - pf_parts - max_parts))`
-	// satisfies `forward(u) >= D_gross` (overshoot of 0 or 1 unit, depending on
-	// modular alignment of pf*u and max*u). The forward path is then re-evaluated
-	// downstream against the actual `u`, so the slight overshoot propagates
-	// pool-favorably without breaking the round-trip invariant.
 	let pf_parts = protocol_fee.deconstruct() as u128;
 	let max_parts = max_slip_fee.deconstruct() as u128;
 	let denom_parts = PERMILL_SCALE.checked_sub(pf_parts)?.checked_sub(max_parts)?;
@@ -258,9 +202,6 @@ pub(crate) fn invert_sell_side_fees(
 	to_balance!(u_hp).ok()
 }
 
-/// Uncapped sell-side inverse (quadratic with two cases).
-///
-/// Kept private — production callers go through [`invert_sell_side_fees`].
 fn invert_sell_side_fees_uncapped(
 	d_gross: Balance,
 	protocol_fee: Permill,

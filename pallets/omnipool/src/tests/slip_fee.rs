@@ -980,18 +980,10 @@ fn on_finalize_clears_with_defensive_check() {
 		});
 }
 
-// ========== Regression tests for buy-side slip-fee cap inversion (#1412) ==========
-//
-// Before the fix, `calculate_buy_state_changes` ignored `max_slip_fee` when
-// inverting buy-side slip and sell-side fees. When the cap fired, the inverse
-// produced a `delta_hub_reserve_in` inconsistent with the forward path, causing
-// the pool to be under-funded and the trade invariant
-// `delta_hub_reserve_in - total_protocol_fee >= D_net` to break.
+// Regression tests for buy-side slip-fee cap inversion (#1412).
 
 #[test]
 fn buy_should_deliver_exact_amount_when_slip_cap_fires() {
-	// Configure a very tight cap so it definitely fires for the trade below,
-	// then execute a buy and verify the buyer received exactly the requested amount.
 	let buy_amount = 50 * ONE;
 
 	ExtBuilder::default()
@@ -1007,7 +999,7 @@ fn buy_should_deliver_exact_amount_when_slip_cap_fires() {
 		.build()
 		.execute_with(|| {
 			SlipFee::<Test>::put(SlipFeeConfig {
-				max_slip_fee: Permill::from_parts(1000), // 0.1% cap — definitely fires
+				max_slip_fee: Permill::from_parts(1000), // 0.1%
 			});
 
 			let lp1_hdx_before = Tokens::free_balance(HDX, &LP1);
@@ -1024,25 +1016,13 @@ fn buy_should_deliver_exact_amount_when_slip_cap_fires() {
 			let lp1_hdx_after = Tokens::free_balance(HDX, &LP1);
 			let lp1_token100_after = Tokens::free_balance(100, &LP1);
 
-			// Buyer received exactly the requested amount of HDX
-			assert_eq!(
-				lp1_hdx_after - lp1_hdx_before,
-				buy_amount,
-				"buyer must receive exactly buy_amount HDX",
-			);
-			// Buyer's token-in balance decreased
-			assert!(
-				lp1_token100_after < lp1_token100_before,
-				"buyer's token 100 balance must decrease",
-			);
+			assert_eq!(lp1_hdx_after - lp1_hdx_before, buy_amount);
+			assert!(lp1_token100_after < lp1_token100_before);
 		});
 }
 
 #[test]
 fn buy_with_cap_fired_should_match_math_layer_cost() {
-	// Compare on-chain buyer cost (token-in spent) to the math-layer prediction
-	// when the cap fires. Catches the originally-reported bug where the inverse
-	// returned a delta_hub_reserve_in inconsistent with the forward path.
 	let buy_amount = 50 * ONE;
 	let max_slip_fee = Permill::from_parts(1000); // 0.1%
 
@@ -1060,7 +1040,6 @@ fn buy_with_cap_fired_should_match_math_layer_cost() {
 		.execute_with(|| {
 			SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee });
 
-			// Snapshot state before trade
 			let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
 			let token100_state = Omnipool::load_asset_state(100).unwrap();
 
@@ -1091,20 +1070,14 @@ fn buy_with_cap_fired_should_match_math_layer_cost() {
 				buy_amount,
 				u128::MAX,
 			));
-			let token100_after = Tokens::free_balance(100, &LP1);
-			let actual_token_in_spent = token100_before - token100_after;
+			let actual_token_in_spent = token100_before - Tokens::free_balance(100, &LP1);
 
-			assert_eq!(
-				actual_token_in_spent, expected_token_in_spent,
-				"on-chain spent must match math-layer prediction in cap regime: actual={actual_token_in_spent} math={expected_token_in_spent}",
-			);
+			assert_eq!(actual_token_in_spent, expected_token_in_spent);
 		});
 }
 
 #[test]
 fn buy_for_hub_asset_with_cap_fired_should_match_math_layer_cost() {
-	// Same as above but for the buy_for_hub_asset path (buying with LRNA directly).
-	// This path was also affected by the bug.
 	let buy_amount = 50 * ONE;
 	let max_slip_fee = Permill::from_parts(1000); // 0.1%
 
@@ -1145,13 +1118,9 @@ fn buy_for_hub_asset_with_cap_fired_should_match_math_layer_cost() {
 				buy_amount,
 				u128::MAX,
 			));
-			let lrna_after = Tokens::free_balance(LRNA, &LP3);
-			let actual_lrna_cost = lrna_before - lrna_after;
+			let actual_lrna_cost = lrna_before - Tokens::free_balance(LRNA, &LP3);
 
-			assert_eq!(
-				actual_lrna_cost, expected_lrna_cost,
-				"on-chain LRNA cost must match math-layer prediction in cap regime: actual={actual_lrna_cost} math={expected_lrna_cost}",
-			);
+			assert_eq!(actual_lrna_cost, expected_lrna_cost);
 		});
 }
 

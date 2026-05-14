@@ -450,19 +450,11 @@ fn sequential_trades_accumulate_slip_within_block() {
 	);
 }
 
-// ============================================================
 // Regression tests for buy-side slip-fee cap inversion (#1412).
-//
-// Before the fix, when `max_slip_fee` was binding the inverse path of
-// `calculate_buy_state_changes` ignored the cap, producing an inconsistent
-// `delta_hub_reserve_in`. End-to-end this would have caused the trade to
-// fail or leave the pool slightly under-funded.
-// ============================================================
 
 #[test]
 fn buy_succeeds_when_slip_cap_is_binding() {
 	let buy_amount = 100 * UNITS;
-	// Tight cap to force the binding regime even for moderate trades.
 	let tight_cap = Permill::from_parts(1000); // 0.1%
 
 	TestNet::reset();
@@ -494,13 +486,11 @@ fn buy_succeeds_when_slip_cap_is_binding() {
 			u128::MAX,
 		));
 
-		// Buyer received exactly the requested HDX
 		let hdx_received = Currencies::free_balance(HDX, &trader) - hdx_before;
-		assert_eq!(hdx_received, buy_amount, "buyer must receive exactly buy_amount HDX");
+		assert_eq!(hdx_received, buy_amount);
 
-		// Buyer's DAI balance decreased
 		let dai_spent = dai_before - Currencies::free_balance(DAI, &trader);
-		assert!(dai_spent > 0, "buyer must spend DAI");
+		assert!(dai_spent > 0);
 	});
 }
 
@@ -539,9 +529,9 @@ fn buy_with_lrna_succeeds_when_slip_cap_is_binding() {
 		));
 
 		let dai_received = Currencies::free_balance(DAI, &trader) - dai_before;
-		assert_eq!(dai_received, buy_amount, "buyer must receive exactly buy_amount DAI");
+		assert_eq!(dai_received, buy_amount);
 
 		let lrna_spent = lrna_before - Currencies::free_balance(LRNA, &trader);
-		assert!(lrna_spent > 0, "buyer must spend LRNA");
+		assert!(lrna_spent > 0);
 	});
 }

@@ -3351,42 +3351,19 @@ fn cross_validate_buy_dot_with_lrna_with_prior_delta() {
 	);
 }
 
-// =============================================================================
-// Slip-fee cap inversion tests (regression for issue #1412).
-//
-// Invariant under test: in `calculate_buy_state_changes`, the round-trip
-// `d_net → invert → forward = d_net_forward` must satisfy `d_net_forward >= d_net`
-// (so the pool is never under-funded), with bounded overshoot regardless of
-// whether the slip-fee cap fires on the buy side, the sell side, both, or neither.
-//
-// Before the fix, the inverse functions ignored `max_slip_fee` and produced a
-// d_gross/u inconsistent with the forward cap, breaking the invariant when the
-// cap fired.
-// =============================================================================
+// Slip-fee cap inversion round-trip tests (#1412).
+// Invariant: in `calculate_buy_state_changes`, `forward(invert(d_net)) >= d_net`
+// (pool never under-funded) across all cap-fire regimes, with bounded overshoot.
 
-/// Maximum overshoot tolerated by the round-trip invariant.
-///
-/// The forward path performs several integer floor operations on top of the
-/// inverse's ceiling-adjusted result:
-///   - `+1` ceiling in `invert_buy_side_slip_uncapped`,
-///   - `+1` ceiling in `invert_sell_side_fees_uncapped`,
-///   - `pf.mul_floor(u)`, the two slip-fee floors, and the asset-fee floor each
-///     subtract slightly less than the inverse assumed, leaving extra units in
-///     `d_gross_forward` / `d_net_forward`.
-///
-/// Empirical worst case observed across the parameter sweep is +3. The +5 bound
-/// gives margin for boundary-rate cases without hiding real regressions; the
-/// pool-safety invariant (`d_net_actual >= d_net_target`) is asserted strictly.
+// Empirical worst case observed in the sweep is +3; +5 leaves margin without
+// hiding real regressions. Pool safety (`d_net_actual >= d_net_target`) is strict.
 const MAX_OVERSHOOT: Balance = 5;
 
-/// Computes `d_net` (the hub asset the buy pool must receive) the same way
-/// `calculate_buy_state_changes` does in its step 1.
 fn buy_d_net(out_state: &AssetReserveState<Balance>, amount: Balance, asset_fee: Permill) -> Balance {
 	let reserve_no_fee = (Permill::from_percent(100) - asset_fee).mul_floor(out_state.reserve);
 	out_state.hub_reserve * amount / (reserve_no_fee - amount) + 1
 }
 
-/// Asserts the round-trip invariant for `calculate_buy_state_changes`.
 fn assert_buy_round_trip(
 	in_state: &AssetReserveState<Balance>,
 	out_state: &AssetReserveState<Balance>,
@@ -3422,8 +3399,6 @@ fn assert_buy_round_trip(
 	);
 }
 
-// ---------- baseline: no cap fires on either side ----------
-
 #[test]
 fn calculate_buy_should_round_trip_when_no_slip_cap_fires() {
 	let asset_in_state = AssetReserveState {
@@ -3455,8 +3430,6 @@ fn calculate_buy_should_round_trip_when_no_slip_cap_fires() {
 		Some(&slip),
 	);
 }
-
-// ---------- cap fires only on the buy side (small output pool) ----------
 
 #[test]
 fn calculate_buy_should_round_trip_when_cap_fires_on_buy_side_only() {
@@ -3490,8 +3463,6 @@ fn calculate_buy_should_round_trip_when_cap_fires_on_buy_side_only() {
 	);
 }
 
-// ---------- cap fires only on the sell side (small input pool) ----------
-
 #[test]
 fn calculate_buy_should_round_trip_when_cap_fires_on_sell_side_only() {
 	let asset_in_state = AssetReserveState {
@@ -3523,8 +3494,6 @@ fn calculate_buy_should_round_trip_when_cap_fires_on_sell_side_only() {
 		Some(&slip),
 	);
 }
-
-// ---------- both caps fire (tightest invariant — exact match expected) ----------
 
 #[test]
 fn calculate_buy_should_round_trip_tightly_when_caps_fire_on_both_sides() {
@@ -3583,8 +3552,6 @@ fn calculate_buy_should_round_trip_tightly_when_caps_fire_on_both_sides() {
 	);
 }
 
-// ---------- buy-side cap with non-zero protocol fee ----------
-
 #[test]
 fn calculate_buy_should_round_trip_when_cap_fires_on_buy_side_with_protocol_fee() {
 	let asset_in_state = AssetReserveState {
@@ -3616,8 +3583,6 @@ fn calculate_buy_should_round_trip_when_cap_fires_on_buy_side_with_protocol_fee(
 		Some(&slip),
 	);
 }
-
-// ---------- sell-side cap with non-zero protocol fee ----------
 
 #[test]
 fn calculate_buy_should_round_trip_when_cap_fires_on_sell_side_with_protocol_fee() {
@@ -3651,8 +3616,6 @@ fn calculate_buy_should_round_trip_when_cap_fires_on_sell_side_with_protocol_fee
 	);
 }
 
-// ---------- both caps with all fees enabled (worst-case fee stack) ----------
-
 #[test]
 fn calculate_buy_should_round_trip_when_both_caps_fire_with_all_fees() {
 	let asset_in_state = AssetReserveState {
@@ -3685,8 +3648,6 @@ fn calculate_buy_should_round_trip_when_both_caps_fire_with_all_fees() {
 	);
 }
 
-// ---------- non-zero prior cumulative deltas (mid-block trades) ----------
-
 #[test]
 fn calculate_buy_should_round_trip_when_caps_fire_with_positive_input_delta() {
 	let asset_in_state = AssetReserveState {
@@ -3701,7 +3662,6 @@ fn calculate_buy_should_round_trip_when_caps_fire_with_positive_input_delta() {
 		shares: 1_000_000 * UNIT,
 		protocol_shares: 0u128,
 	};
-	// Earlier in this block, the input pool already had +5_000 UNIT hub injected.
 	let slip = TradeSlipFees {
 		asset_in_hub_reserve: asset_in_state.hub_reserve,
 		asset_in_delta: SignedBalance::Positive(5_000 * UNIT),
@@ -3784,11 +3744,8 @@ fn calculate_buy_should_round_trip_when_caps_fire_with_positive_output_delta() {
 	);
 }
 
-// ---------- boundary case: just below cap (uncapped path is used) ----------
-
 #[test]
 fn calculate_buy_should_round_trip_when_rate_is_just_below_cap_threshold() {
-	// max_slip_fee = 1%. Choose `amount` so the hub flow rate is well under 1%.
 	let asset_in_state = AssetReserveState {
 		reserve: 100_000_000 * UNIT,
 		hub_reserve: 100_000_000 * UNIT,
@@ -3819,11 +3776,8 @@ fn calculate_buy_should_round_trip_when_rate_is_just_below_cap_threshold() {
 	);
 }
 
-// ---------- regression: hub asset variant ----------
-
 #[test]
 fn calculate_buy_for_hub_asset_should_round_trip_when_slip_cap_fires() {
-	// Buying with hub asset (LRNA) directly into a small output pool.
 	let asset_out_state = AssetReserveState {
 		reserve: 1_000_000 * UNIT,
 		hub_reserve: 1_000_000 * UNIT,
@@ -3853,11 +3807,8 @@ fn calculate_buy_for_hub_asset_should_round_trip_when_slip_cap_fires() {
 	assert!(overshoot <= MAX_OVERSHOOT, "overshoot {overshoot} > {MAX_OVERSHOOT}");
 }
 
-// ---------- regression: large trade that previously broke the invariant ----------
-
 #[test]
 fn calculate_buy_should_round_trip_when_trade_is_close_to_pool_limit() {
-	// 10% of the output pool in one trade — well past the 1% cap.
 	let asset_in_state = AssetReserveState {
 		reserve: 1_000_000 * UNIT,
 		hub_reserve: 1_000_000 * UNIT,
@@ -3888,12 +3839,8 @@ fn calculate_buy_should_round_trip_when_trade_is_close_to_pool_limit() {
 	);
 }
 
-// ---------- parameter sweep: catches regressions across cap-regime boundaries ----------
-
 #[test]
 fn calculate_buy_should_round_trip_across_parameter_sweep() {
-	// Cover a grid of pool sizes, amounts, fees, prior deltas, and caps so any
-	// future regression on a specific (regime, fee, sign) combo gets caught.
 	let pool_sizes = [1_000_000u128, 10_000_000, 100_000_000];
 	let amount_ratios = [1u128, 5, 10, 50]; // amount = ratio * 1000 * UNIT
 	let max_slips = [
@@ -3913,7 +3860,6 @@ fn calculate_buy_should_round_trip_across_parameter_sweep() {
 		for &out_sz in &pool_sizes {
 			for &amt_ratio in &amount_ratios {
 				let amount = amt_ratio * 1_000 * UNIT;
-				// Skip configurations that would drain too much of the small pool.
 				if amount * 4 >= out_sz * UNIT {
 					continue;
 				}
@@ -3960,14 +3906,9 @@ fn calculate_buy_should_round_trip_across_parameter_sweep() {
 	}
 }
 
-// =============================================================================
-// "Cap actually binds" tests — verify we're really in the capped regime, not
-// silently sailing through the uncapped path with a cap that never engaged.
-// =============================================================================
+// "Cap actually binds" tests — verify the capped regime is exercised.
 
-/// Inverse `calculate_slip_fee_amount`: returns true iff the forward cap fired.
 fn cap_fired(slip_fee: Balance, base: Balance, max_slip_fee: Permill) -> bool {
-	// When the cap binds, slip_fee == max_slip_fee.mul_floor(base) exactly.
 	slip_fee == max_slip_fee.mul_floor(base)
 }
 
@@ -4003,8 +3944,7 @@ fn calculate_slip_fee_amount_should_return_proportional_when_rate_below_cap() {
 #[test]
 fn calculate_slip_fee_amount_should_bind_exactly_at_boundary_predicate() {
 	// Predicate is strict `>`: at |cum|*10^6 == max_parts*denom the cap does NOT fire.
-	// Build a configuration where the equality is exact: max = 1%, denom = 1_000_000,
-	// cum = 10_000  →  cum*10^6 == max_parts*denom (=10_000 * 1_000_000).
+	// Here max=1%, denom=1_000_000, cum=10_000 → equality is exact.
 	let hub_reserve = 990_000;
 	let cum = SignedBalance::Positive(10_000);
 	let base = 1_000_000 * UNIT;
@@ -4013,9 +3953,7 @@ fn calculate_slip_fee_amount_should_bind_exactly_at_boundary_predicate() {
 	let slip = calculate_slip_fee_amount(hub_reserve, SignedBalance::zero(), cum, max, base).unwrap();
 	let capped = max.mul_floor(base);
 	let proportional = (10_000u128 * base) / 1_000_000u128;
-	// Exactly at the boundary: forward should NOT cap (uses uncapped formula).
-	// Since proportional == capped at the exact boundary, both produce 10_000 * UNIT.
-	assert_eq!(slip, proportional, "boundary: should use proportional formula");
+	assert_eq!(slip, proportional);
 	assert_eq!(slip, capped, "at exact boundary, both formulas coincide");
 }
 
@@ -4023,29 +3961,16 @@ fn calculate_slip_fee_amount_should_bind_exactly_at_boundary_predicate() {
 fn invert_buy_side_slip_should_round_trip_exactly_in_capped_regime() {
 	use crate::omnipool::slip_fee::invert_buy_side_slip;
 
-	// Set up a configuration where the cap definitely fires on the buy side.
-	let l = 1_000_000 * UNIT; // hub reserve at block start
+	let l = 1_000_000 * UNIT;
 	let c = SignedBalance::zero();
 	let max = Permill::from_percent(1);
-	let d_net = 200_000 * UNIT; // 20% of the pool — well above the 1% cap
+	let d_net = 200_000 * UNIT;
 
-	let d_gross = invert_buy_side_slip(d_net, l, c, max).expect("inverse should succeed");
+	let d_gross = invert_buy_side_slip(d_net, l, c, max).unwrap();
 
-	// Forward path must produce slip == max * d_gross (cap binding).
-	let cum_after = SignedBalance::Positive(d_gross);
-	let slip = calculate_slip_fee_amount(l, c, cum_after, max, d_gross).unwrap();
-	assert!(
-		cap_fired(slip, d_gross, max),
-		"cap must bind: slip={slip} expected_cap={}",
-		max.mul_floor(d_gross),
-	);
-
-	// Round-trip must be exact in the cap regime: d_gross - slip == d_net.
-	let d_net_forward = d_gross - slip;
-	assert_eq!(
-		d_net_forward, d_net,
-		"capped buy-side inverse must round-trip exactly: forward={d_net_forward} target={d_net}",
-	);
+	let slip = calculate_slip_fee_amount(l, c, SignedBalance::Positive(d_gross), max, d_gross).unwrap();
+	assert!(cap_fired(slip, d_gross, max));
+	assert_eq!(d_gross - slip, d_net);
 }
 
 #[test]
@@ -4055,17 +3980,12 @@ fn invert_buy_side_slip_should_use_uncapped_path_when_below_cap() {
 	let l = 100_000_000 * UNIT;
 	let c = SignedBalance::zero();
 	let max = Permill::from_percent(1);
-	let d_net = 100 * UNIT; // tiny trade — cap should NOT fire
+	let d_net = 100 * UNIT;
 
-	let d_gross = invert_buy_side_slip(d_net, l, c, max).expect("inverse should succeed");
+	let d_gross = invert_buy_side_slip(d_net, l, c, max).unwrap();
 
-	let cum_after = SignedBalance::Positive(d_gross);
-	let slip = calculate_slip_fee_amount(l, c, cum_after, max, d_gross).unwrap();
-	assert!(
-		!cap_fired(slip, d_gross, max),
-		"cap must NOT bind: slip={slip} cap_value={}",
-		max.mul_floor(d_gross),
-	);
+	let slip = calculate_slip_fee_amount(l, c, SignedBalance::Positive(d_gross), max, d_gross).unwrap();
+	assert!(!cap_fired(slip, d_gross, max));
 }
 
 #[test]
@@ -4076,36 +3996,20 @@ fn invert_sell_side_fees_should_round_trip_in_capped_regime() {
 	let c = SignedBalance::zero();
 	let max = Permill::from_percent(1);
 	let pf = Permill::zero();
-	let d_gross = 200_000 * UNIT; // 20% — well above 1% cap
+	let d_gross = 200_000 * UNIT;
 
-	let u = invert_sell_side_fees(d_gross, pf, l, c, max).expect("inverse should succeed");
+	let u = invert_sell_side_fees(d_gross, pf, l, c, max).unwrap();
 
-	// Forward: cum_after = -u, slip should be capped.
-	let cum_after = SignedBalance::Negative(u);
-	let slip = calculate_slip_fee_amount(l, c, cum_after, max, u).unwrap();
-	assert!(
-		cap_fired(slip, u, max),
-		"cap must bind on sell side: slip={slip} expected_cap={}",
-		max.mul_floor(u),
-	);
+	let slip = calculate_slip_fee_amount(l, c, SignedBalance::Negative(u), max, u).unwrap();
+	assert!(cap_fired(slip, u, max));
 
-	// Round-trip safety: u - pf*u - slip >= d_gross
-	let pf_amount = pf.mul_floor(u);
-	let d_gross_forward = u - pf_amount - slip;
-	assert!(
-		d_gross_forward >= d_gross,
-		"sell-side capped inverse: pool must not be underfunded ({d_gross_forward} < {d_gross})",
-	);
-	assert!(
-		d_gross_forward - d_gross <= 1,
-		"sell-side capped overshoot must be ≤ 1, got {}",
-		d_gross_forward - d_gross,
-	);
+	let d_gross_forward = u - pf.mul_floor(u) - slip;
+	assert!(d_gross_forward >= d_gross, "underfunded: {d_gross_forward} < {d_gross}");
+	assert!(d_gross_forward - d_gross <= 1);
 }
 
 #[test]
 fn calculate_buy_state_changes_should_charge_capped_slip_on_both_sides_when_both_caps_bind() {
-	// Both pools small (1M), 2% trade, 1% cap → both caps must bind.
 	let in_state = AssetReserveState {
 		reserve: 1_000_000 * UNIT,
 		hub_reserve: 1_000_000 * UNIT,
@@ -4144,25 +4048,16 @@ fn calculate_buy_state_changes_should_charge_capped_slip_on_both_sides_when_both
 		_ => panic!("expected Decrease"),
 	};
 	let total_pf = r.fee.protocol_fee;
-	// With pf=0, total_pf = slip_sell + slip_buy. The sell side is `u`, so
-	// slip_sell = max.mul_floor(u). What's left is slip_buy on d_gross_forward.
+	// pf=0, so total_pf = slip_sell + slip_buy. slip_sell = max·u, slip_buy = max·d_gross_forward.
 	let slip_sell_expected = max.mul_floor(u);
-	assert!(
-		total_pf > slip_sell_expected,
-		"total_pf={total_pf} must include slip_buy on top of slip_sell={slip_sell_expected}",
-	);
+	assert!(total_pf > slip_sell_expected);
 	let slip_buy_actual = total_pf - slip_sell_expected;
 	let d_gross_forward = u - slip_sell_expected;
-	let slip_buy_expected = max.mul_floor(d_gross_forward);
-	assert_eq!(
-		slip_buy_actual, slip_buy_expected,
-		"buy-side slip must be exactly max·d_gross_forward (cap binding): actual={slip_buy_actual} expected={slip_buy_expected}",
-	);
+	assert_eq!(slip_buy_actual, max.mul_floor(d_gross_forward));
 }
 
 #[test]
 fn calculate_buy_state_changes_should_not_charge_capped_slip_when_caps_do_not_bind() {
-	// Huge pools, tiny trade — cap must NOT bind on either side.
 	let in_state = AssetReserveState {
 		reserve: 1_000_000_000 * UNIT,
 		hub_reserve: 1_000_000_000 * UNIT,
@@ -4178,7 +4073,7 @@ fn calculate_buy_state_changes_should_not_charge_capped_slip_when_caps_do_not_bi
 		asset_out_delta: SignedBalance::zero(),
 		max_slip_fee: max,
 	};
-	let amount = 1 * UNIT; // 10^-9 of pool — well below 1%
+	let amount = 1 * UNIT;
 
 	let r = calculate_buy_state_changes(
 		&in_state,
@@ -4196,10 +4091,6 @@ fn calculate_buy_state_changes_should_not_charge_capped_slip_when_caps_do_not_bi
 	};
 	let total_pf = r.fee.protocol_fee;
 
-	// Neither side caps → total slip should be way under what cap-binding would produce.
-	let cap_binding_total = max.mul_floor(u) + max.mul_floor(u); // upper bound if both fired
-	assert!(
-		total_pf < cap_binding_total / 100,
-		"slip should be far below cap value: total_pf={total_pf} cap_binding_total≈{cap_binding_total}",
-	);
+	let cap_binding_total = max.mul_floor(u) + max.mul_floor(u);
+	assert!(total_pf < cap_binding_total / 100);
 }
