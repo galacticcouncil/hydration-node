@@ -241,9 +241,10 @@ fn rewards_should_credit_pro_rata_when_two_stakers_vote() {
 
 		let r = begin_referendum();
 
-		// Alice 100 HDX × 3x → weighted = 300 * UNITS.
-		// Bob 200 HDX × 1x → weighted = 200 * UNITS.
-		// Total weighted = 500 * UNITS.
+		// Alice 100 HDX × Locked3x (1× base) → weighted = 100 * UNITS.
+		// Bob   100 HDX × Locked1x (0.25×)  → weighted =  25 * UNITS.
+		// Total weighted = 125 * UNITS — divides 10% of the 100_000-UNIT pot
+		// (= 10^16) cleanly into 8/5 and 1/5 shares with no rounding dust.
 		assert_ok!(ConvictionVoting::vote(
 			RuntimeOrigin::signed(alice.clone()),
 			r,
@@ -252,7 +253,7 @@ fn rewards_should_credit_pro_rata_when_two_stakers_vote() {
 		assert_ok!(ConvictionVoting::vote(
 			RuntimeOrigin::signed(bob.clone()),
 			r,
-			aye_with_conviction(200 * UNITS, Conviction::Locked1x),
+			aye_with_conviction(100 * UNITS, Conviction::Locked1x),
 		));
 
 		end_referendum();
@@ -282,6 +283,8 @@ fn rewards_should_credit_pro_rata_when_two_stakers_vote() {
 			expected_allocation,
 			"the entire allocation must be distributed across the two voters",
 		);
+		// Verify the pro-rata split: alice (weighted 100) gets 4× bob (weighted 25).
+		assert_eq!(alice_reward, 4 * bob_reward);
 
 		// Pool is deleted after the last claim drains it to zero.
 		assert!(
@@ -534,7 +537,8 @@ fn rewards_should_replace_weighted_when_vote_is_edited() {
 			aye_with_conviction(100 * UNITS, Conviction::Locked1x),
 		));
 		let tally_after_first = pallet_gigahdx_rewards::ReferendaTotalWeightedVotes::<Runtime>::get(r).unwrap();
-		assert_eq!(tally_after_first.total_weighted, 100 * UNITS);
+		// Locked1x = 0.25× → 100 * 0.25 = 25 UNITS weighted.
+		assert_eq!(tally_after_first.total_weighted, 25 * UNITS);
 		assert_eq!(tally_after_first.voters_count, 1);
 		assert_eq!(
 			pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen,
@@ -549,9 +553,10 @@ fn rewards_should_replace_weighted_when_vote_is_edited() {
 
 		let record = pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::get(&alice, r).unwrap();
 		assert_eq!(record.staked_vote_amount, 200 * UNITS);
-		assert_eq!(record.weighted, 600 * UNITS);
+		// Locked3x = 1× (base) → 200 * 1 = 200 UNITS weighted.
+		assert_eq!(record.weighted, 200 * UNITS);
 		let tally_after_edit = pallet_gigahdx_rewards::ReferendaTotalWeightedVotes::<Runtime>::get(r).unwrap();
-		assert_eq!(tally_after_edit.total_weighted, 600 * UNITS);
+		assert_eq!(tally_after_edit.total_weighted, 200 * UNITS);
 		assert_eq!(tally_after_edit.voters_count, 1, "edit must not increment voters_count");
 		assert_eq!(
 			pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen,
@@ -721,7 +726,8 @@ fn rewards_should_credit_nay_voters_same_as_aye() {
 
 		let record = pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::get(&alice, r).unwrap();
 		assert_eq!(record.staked_vote_amount, 100 * UNITS);
-		assert_eq!(record.weighted, 100 * UNITS);
+		// Locked1x = 0.25× → 100 * 0.25 = 25 UNITS weighted (nay/aye treated symmetrically).
+		assert_eq!(record.weighted, 25 * UNITS);
 
 		end_referendum();
 		let pot_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
