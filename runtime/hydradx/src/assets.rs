@@ -689,6 +689,9 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			BondsPalletId::get().into_account_truncating(),
 			pallet_route_executor::Pallet::<Runtime>::router_account(),
 			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS),
+			GigaHdxPalletId::get().into_account_truncating(),
+			pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot(),
+			pallet_gigahdx_rewards::Pallet::<Runtime>::allocated_rewards_pot(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
@@ -1657,6 +1660,7 @@ impl pallet_staking::Config for Runtime {
 	type ReferendumInfo = pallet_staking::integrations::conviction_voting::DirectReferendumStatus<Runtime>;
 	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
+	type ExternalClaims = crate::gigahdx::LegacyStakingExternalClaims;
 	type WeightInfo = weights::pallet_staking::HydraWeight<Runtime>;
 	type MinSlash = StakingMinSlash;
 
@@ -1873,6 +1877,96 @@ impl pallet_dispenser::Config for Runtime {
 	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = DispenserBenchmarkHelper;
+}
+
+parameter_types! {
+	pub const GigaHdxLockId: frame_support::traits::LockIdentifier = *b"ghdxlock";
+	pub const GigaHdxPalletId: frame_support::PalletId = frame_support::PalletId(*b"gigahdx!");
+	// stHDX invariants — verify on any runtime / AAVE configuration change:
+	//   (1) Mint/burn exclusive to `pallet-gigahdx` — rate denominator reads
+	//       global `total_issuance` directly; any external mint/burn dilutes stakers.
+	//   (2) Non-borrowable on AAVE (zero borrow cap / IRM returning 0). If
+	//       `liquidityIndex` drifts above 1 RAY the `aToken : stHDX = 1 : 1`
+	//       invariant breaks, leaking unlocked aTokens past the lock-manager.
+	pub const StHdxAssetId: AssetId = 670;
+	pub const GigaHdxAssetIdConst: AssetId = 67;
+	pub const GigaHdxMinStake: Balance = UNITS;
+	pub const GigaHdxCooldownPeriod: BlockNumber = 30 * DAYS;
+	pub const GigaHdxMaxPendingUnstakes: u32 = 10;
+}
+
+impl pallet_gigahdx::Config for Runtime {
+	type NativeCurrency = Balances;
+	type MultiCurrency = FungibleCurrencies<Runtime>;
+	type StHdxAssetId = StHdxAssetId;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type MoneyMarket = crate::gigahdx::AaveMoneyMarket;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MoneyMarket = crate::gigahdx::BenchmarkMoneyMarket;
+	type AuthorityOrigin = EitherOf<EnsureRoot<AccountId>, TechCommitteeMajority>;
+	type PalletId = GigaHdxPalletId;
+	type LockId = GigaHdxLockId;
+	type MinStake = GigaHdxMinStake;
+	type CooldownPeriod = GigaHdxCooldownPeriod;
+	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
+	type ExternalClaims = crate::gigahdx::HdxExternalClaims;
+	type LegacyStaking = crate::gigahdx::LegacyStakingMigrator;
+	type WeightInfo = weights::pallet_gigahdx::HydraWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = GigaHdxBenchmarkHelper;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct GigaHdxBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_gigahdx::BenchmarkHelper<AccountId> for GigaHdxBenchmarkHelper {
+	fn register_assets() -> DispatchResult {
+		if <AssetRegistry as hydradx_traits::registry::Inspect>::exists(StHdxAssetId::get()) {
+			return Ok(());
+		}
+		let name: BoundedVec<u8, RegistryStrLimit> = b"stHDX"
+			.to_vec()
+			.try_into()
+			.map_err(|_| DispatchError::Other("BoundedConversionFailed"))?;
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				Some(StHdxAssetId::get()),
+				Some(name),
+				AssetKind::Token,
+				1u128,
+				None,
+				None,
+				None,
+				None,
+			))
+		})?;
+		Ok(())
+	}
+
+	fn setup_legacy_staking_position(who: &AccountId, amount: Balance) -> DispatchResult {
+		use frame_support::traits::Currency;
+		let _ = Balances::deposit_creating(who, amount.saturating_mul(10));
+		let staking_pot = pallet_staking::Pallet::<Runtime>::pot_account_id();
+		let _ = Balances::deposit_creating(&staking_pot, amount.saturating_mul(10));
+
+		// Idempotent — second-and-later calls hit `AlreadyInitialized`.
+		let _ = pallet_staking::Pallet::<Runtime>::initialize_staking(frame_system::RawOrigin::Root.into());
+
+		pallet_staking::Pallet::<Runtime>::stake(frame_system::RawOrigin::Signed(who.clone()).into(), amount)
+	}
+}
+
+parameter_types! {
+	pub const GigaRewardPotPalletId: frame_support::PalletId = frame_support::PalletId(*b"gigarwd!");
+}
+
+impl pallet_gigahdx_rewards::Config for Runtime {
+	type TrackId = u16;
+	type Referenda = crate::gigahdx::RuntimeReferenda;
+	type TrackRewardConfig = crate::gigahdx::TrackRewardConfig;
+	type RewardPotPalletId = GigaRewardPotPalletId;
+	type WeightInfo = weights::pallet_gigahdx_rewards::HydraWeight<Runtime>;
 }
 
 #[cfg(feature = "runtime-benchmarks")]

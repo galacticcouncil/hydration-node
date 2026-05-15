@@ -23,7 +23,10 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_ema_oracle::Price;
 use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
 use primitive_types::{H160, U128, U256};
-use primitives::{constants::chain::OMNIPOOL_SOURCE, AssetId};
+use primitives::{
+	constants::chain::{GIGAHDX_SOURCE, OMNIPOOL_SOURCE},
+	AssetId,
+};
 use sp_runtime::{traits::Dispatchable, RuntimeDebug};
 use sp_std::{cmp::Ordering, marker::PhantomData};
 
@@ -49,7 +52,8 @@ where
 		+ pallet_evm::Config
 		+ pallet_asset_registry::Config
 		+ pallet_ema_oracle::Config
-		+ pallet_route_executor::Config,
+		+ pallet_route_executor::Config
+		+ pallet_gigahdx::Config,
 	EmaOracle: AggregatedPriceOracle<AssetId, BlockNumberFor<Runtime>, Price>,
 	Router: RouteProvider<AssetId>,
 	AssetId: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
@@ -88,7 +92,8 @@ where
 		+ pallet_evm::Config
 		+ pallet_asset_registry::Config
 		+ pallet_ema_oracle::Config
-		+ pallet_route_executor::Config,
+		+ pallet_route_executor::Config
+		+ pallet_gigahdx::Config,
 	EmaOracle: AggregatedPriceOracle<AssetId, BlockNumberFor<Runtime>, Price>,
 	Router: RouteProvider<AssetId>,
 	AssetId: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
@@ -153,6 +158,11 @@ where
 			let rat_as_u128 = round_to_rational((nominator, denominator), Rounding::Nearest);
 
 			Price::from(rat_as_u128)
+		}
+		// pallet-gigahdx floors the rate at 1.0 so AAVE never sees a sub-1 reading.
+		else if source == GIGAHDX_SOURCE {
+			let rate = pallet_gigahdx::Pallet::<Runtime>::exchange_rate();
+			Price { n: rate.n, d: rate.d }
 		} else {
 			let (price, _block_number) = <pallet_ema_oracle::Pallet<Runtime>>::get_price(
 				asset_id_a, asset_id_b, period, source,
@@ -354,4 +364,15 @@ fn decode_oracle_address_should_work() {
 		decode_oracle_address(H160::from(hex!("000001026f6d6e69706f6f6c0000000400000005"))),
 		Some((4, 5, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE))
 	);
+}
+
+#[test]
+fn encode_gigahdx_oracle_address_should_work() {
+	let addr = encode_oracle_address(670, 0, OraclePeriod::TenMinutes, GIGAHDX_SOURCE);
+	let (a, b, period, source) = decode_oracle_address(addr).unwrap();
+	assert_eq!(a, 670);
+	assert_eq!(b, 0);
+	assert_eq!(period, OraclePeriod::TenMinutes);
+	assert_eq!(source, GIGAHDX_SOURCE);
+	assert_eq!(addr, H160::from(hex!("0000010267696761686478730000029e00000000")));
 }

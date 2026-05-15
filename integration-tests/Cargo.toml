@@ -47,6 +47,8 @@ pallet-evm-accounts = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-liquidation = { workspace = true }
+pallet-gigahdx = { workspace = true }
+pallet-gigahdx-rewards = { workspace = true }
 liquidation-worker-support = { workspace = true }
 pallet-broadcast = { workspace = true }
 pallet-duster = { workspace = true }
@@ -228,6 +230,8 @@ std = [
     "precompile-utils/std",
     "pallet-transaction-pause/std",
     "pallet-liquidation/std",
+    "pallet-gigahdx/std",
+    "pallet-gigahdx-rewards/std",
     "pallet-broadcast/std",
     "pallet-dispatcher/std",
     "pallet-hsm/std",

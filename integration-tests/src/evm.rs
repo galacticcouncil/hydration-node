@@ -1954,7 +1954,7 @@ mod chainlink_precompile {
 	use hydradx_traits::{router::AssetPair, AggregatedPriceOracle, OraclePeriod};
 	use pallet_ema_oracle::Price;
 	use pallet_lbp::AssetId;
-	use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
+	use primitives::constants::chain::{GIGAHDX_SOURCE, OMNIPOOL_SOURCE, XYK_SOURCE};
 	use primitives::EvmAddress;
 
 	fn assert_prices_are_same(ema_price: Price, precompile_price: U256, asset_a_decimals: u8, asset_b_decimals: u8) {
@@ -2690,6 +2690,118 @@ mod chainlink_precompile {
 			let expected_decimals: u8 = 8;
 			let r: u8 = U256::from_big_endian(output.as_slice()).try_into().unwrap();
 			pretty_assertions::assert_eq!(r, expected_decimals);
+		});
+	}
+
+	const STHDX: AssetId = 670;
+	const HDX_ID: AssetId = 0;
+
+	fn register_st_hdx() {
+		if hydradx_runtime::AssetRegistry::decimals(STHDX).is_some() {
+			return;
+		}
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RuntimeOrigin::root(),
+			Some(STHDX),
+			Some(b"stHDX".to_vec().try_into().unwrap()),
+			pallet_asset_registry::AssetType::Token,
+			Some(1u128),
+			Some(b"stHDX".to_vec().try_into().unwrap()),
+			Some(12u8),
+			None,
+			None,
+			true,
+		));
+	}
+
+	fn seed_gigapot_and_supply(gigapot_hdx: Balance, st_hdx_supply: Balance) {
+		// `total_gigahdx_supply` reads orml-tokens issuance directly.
+		orml_tokens::TotalIssuance::<Runtime>::set(STHDX, st_hdx_supply);
+		let gigapot = pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id();
+		assert_ok!(Balances::force_set_balance(RuntimeOrigin::root(), gigapot, gigapot_hdx,));
+	}
+
+	fn chainlink_latest_answer(address: EvmAddress) -> U256 {
+		let data = EvmDataWriter::new_with_selector(AggregatorInterface::LatestAnswer).build();
+		let mut handle = MockHandle {
+			input: data,
+			context: Context {
+				address: evm_address(),
+				caller: address,
+				apparent_value: U256::from(0),
+			},
+			code_address: address,
+			is_static: true,
+		};
+		let PrecompileOutput { output, exit_status } =
+			ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle).unwrap();
+		pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned);
+		U256::from_big_endian(&output)
+	}
+
+	#[test]
+	fn chainlink_precompile_should_return_gigahdx_exchange_rate_when_source_is_gigahdx() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			register_st_hdx();
+			// 110 HDX in gigapot, 100 stHDX issued ⇒ rate = 1.1.
+			seed_gigapot_and_supply(110 * UNITS, 100 * UNITS);
+
+			pretty_assertions::assert_eq!(
+				pallet_gigahdx::Pallet::<Runtime>::exchange_rate().cmp(&hydra_dx_math::ratio::Ratio::new(11, 10)),
+				std::cmp::Ordering::Equal
+			);
+
+			let address = encode_oracle_address(STHDX, HDX_ID, OraclePeriod::TenMinutes, GIGAHDX_SOURCE);
+
+			// Pin the canonical mainnet feed address.
+			pretty_assertions::assert_eq!(
+				address,
+				EvmAddress::from(hex!("0000010267696761686478730000029e00000000"))
+			);
+
+			pretty_assertions::assert_eq!(chainlink_latest_answer(address), U256::from(110_000_000u128));
+		});
+	}
+
+	#[test]
+	fn chainlink_precompile_should_floor_at_one_when_gigahdx_reserves_drained() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			register_st_hdx();
+			// Full drain: native rate would be 0 — pallet floor must clamp to 1.0.
+			seed_gigapot_and_supply(0, 100 * UNITS);
+
+			pretty_assertions::assert_eq!(
+				pallet_gigahdx::Pallet::<Runtime>::exchange_rate().cmp(&hydra_dx_math::ratio::Ratio::one()),
+				std::cmp::Ordering::Equal
+			);
+
+			let address = encode_oracle_address(STHDX, HDX_ID, OraclePeriod::TenMinutes, GIGAHDX_SOURCE);
+
+			pretty_assertions::assert_eq!(chainlink_latest_answer(address), U256::from(100_000_000u128));
+		});
+	}
+
+	#[test]
+	fn chainlink_precompile_should_floor_at_one_when_gigahdx_partially_drained() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			register_st_hdx();
+			// Partial drain: native rate would be 0.5 — clamp must hit 1.0, not 50_000_000.
+			seed_gigapot_and_supply(50 * UNITS, 100 * UNITS);
+
+			pretty_assertions::assert_eq!(
+				pallet_gigahdx::Pallet::<Runtime>::exchange_rate().cmp(&hydra_dx_math::ratio::Ratio::one()),
+				std::cmp::Ordering::Equal
+			);
+
+			let address = encode_oracle_address(STHDX, HDX_ID, OraclePeriod::TenMinutes, GIGAHDX_SOURCE);
+
+			pretty_assertions::assert_eq!(chainlink_latest_answer(address), U256::from(100_000_000u128));
 		});
 	}
 }
