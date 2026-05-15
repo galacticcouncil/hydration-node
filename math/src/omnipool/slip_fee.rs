@@ -219,8 +219,8 @@ fn invert_sell_side_fees_uncapped(
 	};
 
 	let pf_parts = protocol_fee.deconstruct() as u128;
-	let k_parts = 1_000_000u128 - pf_parts;
-	let scale = U256::from(1_000_000u64);
+	let k_parts = PERMILL_SCALE.checked_sub(pf_parts)?;
+	let scale = U256::from(PERMILL_SCALE);
 
 	// Try Case B first when C > 0 (opposing flow, u <= C)
 	if c_is_positive {
@@ -293,7 +293,7 @@ fn invert_sell_side_fees_uncapped(
 
 	// Case A: (k+1)u² - (kS + C + D)u + DS = 0
 	// Applies when C <= 0 (always) or when C > 0 but Case B yielded u > C.
-	let a_u256 = U256::from(k_parts + 1_000_000);
+	let a_u256 = U256::from(k_parts.checked_add(PERMILL_SCALE)?);
 	// Safe: u128 * u128 fits in U256
 	let ks = U256::from(k_parts).saturating_mul(U256::from(s));
 	let d_scaled = U256::from(d_gross).saturating_mul(scale);
