@@ -6112,7 +6112,7 @@ dependencies = [
 
 [[package]]
 name = "ice-solver"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -9820,7 +9820,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "amm-simulator",
  "frame-benchmarking",
@@ -9903,7 +9903,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-intent"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

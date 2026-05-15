@@ -1873,8 +1873,10 @@ impl pallet_intent::Config for Runtime {
 
 parameter_types! {
 	pub const IcePalletId: PalletId = PalletId(*b"ice_ice#");
+	pub const IceFeeReceiverPalletId: PalletId = PalletId(*b"ice_fee#");
 	pub const IceFee: Permill = Permill::from_parts(200); // 0.02%
 	pub const SimulatorPriceDenom: AssetId = CORE_ASSET_ID;
+	pub IceFeeReceiver: AccountId = IceFeeReceiverPalletId::get().into_account_truncating();
 }
 
 /// Simulator configuration for the ICE pallet
@@ -1922,7 +1924,8 @@ impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
 impl pallet_ice::Config for Runtime {
 	type Currency = Currencies;
 	type PalletId = IcePalletId;
-	type Fee = IceFee;
+	type MatchedFee = IceFee;
+	type FeeReceiver = IceFeeReceiver;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type RegistryHandler = AssetRegistry;
 	type Simulator = HydrationSimulatorConfig;

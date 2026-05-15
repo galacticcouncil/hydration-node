@@ -1,5 +1,6 @@
 use crate::common::flow_graph::build_flow_graph;
 use crate::common::ring_detection::detect_rings;
+use frame_support::sp_runtime::Permill;
 use hydra_dx_math::types::Ratio;
 use ice_support::{AssetId, Intent, IntentData, Partial, SwapData};
 use sp_std::collections::btree_map::BTreeMap;
@@ -35,7 +36,7 @@ fn test_detect_ring_basic_3_cycle() {
 
 	let mut graph = build_flow_graph(&intents);
 	let prices = unit_prices(&[1, 2, 3]);
-	let rings = detect_rings(&mut graph, &prices);
+	let rings = detect_rings(&mut graph, &prices, Permill::zero());
 
 	assert_eq!(rings.len(), 1, "one ring expected, got {}", rings.len());
 	let ring = &rings[0];
@@ -67,7 +68,7 @@ fn test_ring_respects_entry_remaining_in() {
 	}
 
 	let prices = unit_prices(&[1, 2, 3]);
-	let rings = detect_rings(&mut graph, &prices);
+	let rings = detect_rings(&mut graph, &prices, Permill::zero());
 
 	assert_eq!(rings.len(), 1);
 	// All three legs must be bottlenecked at 40.
@@ -92,7 +93,7 @@ fn test_ring_skips_when_one_edge_below_min() {
 
 	let mut graph = build_flow_graph(&intents);
 	let prices = unit_prices(&[1, 2, 3]);
-	let rings = detect_rings(&mut graph, &prices);
+	let rings = detect_rings(&mut graph, &prices, Permill::zero());
 
 	assert_eq!(
 		rings.len(),
@@ -113,7 +114,7 @@ fn test_no_4_cycle_detected() {
 
 	let mut graph = build_flow_graph(&intents);
 	let prices = unit_prices(&[1, 2, 3, 4]);
-	let rings = detect_rings(&mut graph, &prices);
+	let rings = detect_rings(&mut graph, &prices, Permill::zero());
 
 	assert_eq!(rings.len(), 0, "detect_rings currently only looks for 3-cycles");
 }

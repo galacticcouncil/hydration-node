@@ -1,4 +1,5 @@
 use crate::v2::Solver;
+use frame_support::sp_runtime::Permill;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{AMMInterface, TradeExecution};
 use hydradx_traits::router::{PoolEdge, Route, Trade};
@@ -339,14 +340,14 @@ impl AMMInterface for MockAMMWithED {
 
 #[test]
 fn test_solve_empty() {
-	let result = Solver::<MockAMMOneToOne>::solve(vec![], ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(vec![], (), Permill::zero()).unwrap();
 	assert!(result.resolved_intents.is_empty());
 }
 
 #[test]
 fn test_solve_single_intent() {
 	let intents = vec![make_intent(1, 1, 2, 100, 90)];
-	let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 1);
 	assert_eq!(result.trades.len(), 1);
 	assert_eq!(result.resolved_intents[0].data.amount_in(), 100);
@@ -357,7 +358,7 @@ fn test_solve_single_intent() {
 #[test]
 fn test_uniform_price_two_opposing() {
 	let intents = vec![make_intent(1, 1, 2, 100, 90), make_intent(2, 2, 1, 100, 90)];
-	let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 2);
 	assert_eq!(result.trades.len(), 0);
 	assert_eq!(result.resolved_intents[0].data.amount_out(), 100);
@@ -367,7 +368,7 @@ fn test_uniform_price_two_opposing() {
 #[test]
 fn test_scarce_side_gets_spot() {
 	let intents = vec![make_intent(1, 1, 2, 100, 180), make_intent(2, 2, 1, 100, 45)];
-	let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMWithSlippage>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 2);
 	let alice = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
 	let bob = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
@@ -383,7 +384,7 @@ fn test_same_direction_uniform_rate() {
 		make_intent(2, 1, 2, 200, 180),
 		make_intent(3, 1, 2, 50, 45),
 	];
-	let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 3);
 	let rates: Vec<f64> = result
 		.resolved_intents
@@ -403,7 +404,7 @@ fn test_iterative_filtering() {
 		make_intent(2, 2, 1, 100, 95),
 		make_intent(3, 1, 2, 100, 200),
 	];
-	let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 2);
 	let ids: Vec<_> = result.resolved_intents.iter().map(|r| r.id).collect();
 	assert!(ids.contains(&1));
@@ -414,7 +415,7 @@ fn test_iterative_filtering() {
 #[test]
 fn test_no_opposing_flow() {
 	let intents = vec![make_intent(1, 1, 2, 100, 90), make_intent(2, 1, 2, 100, 90)];
-	let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 2);
 	assert!(!result.trades.is_empty());
 	assert_eq!(result.resolved_intents[0].data.amount_out(), 100);
@@ -424,15 +425,55 @@ fn test_no_opposing_flow() {
 #[test]
 fn test_perfect_match_cancel() {
 	let intents = vec![make_intent(1, 1, 2, 100, 90), make_intent(2, 2, 1, 100, 90)];
-	let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 2);
 	assert_eq!(result.trades.len(), 0);
 }
 
 #[test]
+fn test_perfect_match_with_fee_skims_matched_volume() {
+	// Two opposing 100/100 intents at 1:1 — fully matched, no AMM hop.
+	// 1% matched fee → user receives 99 instead of gross 100.
+	let intents = vec![make_intent(1, 1, 2, 100, 90), make_intent(2, 2, 1, 100, 90)];
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::from_percent(1)).unwrap();
+	assert_eq!(result.resolved_intents.len(), 2);
+	assert_eq!(result.trades.len(), 0, "perfect cancel, no AMM trade");
+	for ri in &result.resolved_intents {
+		assert_eq!(ri.data.amount_in(), 100);
+		assert_eq!(ri.data.amount_out(), 99, "matched output net of 1% fee");
+	}
+}
+
+#[test]
+fn test_fee_drops_non_partial_intent_when_net_below_min() {
+	// Min-out equals the gross rate (100 in → 100 out). With a 1% matched
+	// fee the net (99) violates the non-partial minimum, so both intents are
+	// dropped rather than under-delivering to the user.
+	let intents = vec![make_intent(1, 1, 2, 100, 100), make_intent(2, 2, 1, 100, 100)];
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::from_percent(1)).unwrap();
+	assert!(
+		result.resolved_intents.is_empty(),
+		"fee pushes both below min — nothing resolvable, got {:?}",
+		result.resolved_intents
+	);
+}
+
+#[test]
+fn test_amm_only_intent_unaffected_by_fee() {
+	// A single intent has no counterparty — it routes purely through the AMM
+	// and pays no matched-volume fee even when the fee rate is non-zero.
+	let intents = vec![make_intent(1, 1, 2, 100, 90)];
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::from_percent(1)).unwrap();
+	assert_eq!(result.resolved_intents.len(), 1);
+	let r = &result.resolved_intents[0];
+	assert_eq!(r.data.amount_in(), 100);
+	assert_eq!(r.data.amount_out(), 100, "pure-AMM volume bears no matched fee");
+}
+
+#[test]
 fn test_nonpartial_full_fill() {
 	let intents = vec![make_intent(1, 1, 2, 100, 90), make_intent(2, 2, 1, 100, 90)];
-	let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 	for ri in &result.resolved_intents {
 		assert_eq!(ri.data.amount_in(), 100);
 	}
@@ -441,7 +482,7 @@ fn test_nonpartial_full_fill() {
 #[test]
 fn test_partial_intent_at_clearing() {
 	let intents = vec![make_partial(1, 1, 2, 200, 180), make_intent(2, 2, 1, 100, 90)];
-	let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 2);
 	let r1 = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
 	assert_eq!(r1.data.amount_in(), 200);
@@ -451,7 +492,7 @@ fn test_partial_intent_at_clearing() {
 #[test]
 fn test_asymmetric_volumes_with_slippage() {
 	let intents = vec![make_partial(1, 1, 2, 200, 360), make_intent(2, 2, 1, 100, 45)];
-	let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMWithSlippage>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 2);
 	let alice = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
 	let bob = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
@@ -467,7 +508,7 @@ fn test_three_asset_ring() {
 		make_intent(2, 2, 3, 100, 90),
 		make_intent(3, 3, 1, 100, 90),
 	];
-	let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 3);
 	assert_eq!(result.trades.len(), 0, "Ring trade should avoid AMM entirely");
 	for ri in &result.resolved_intents {
@@ -480,7 +521,7 @@ fn test_three_asset_ring() {
 #[test]
 fn test_amm_failure_fallback() {
 	let intents = vec![make_intent(1, 1, 2, 200, 180), make_intent(2, 2, 1, 50, 45)];
-	let result = Solver::<MockAMMPartialFailure>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMPartialFailure>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 2);
 	assert_eq!(result.trades.len(), 0);
 	let r1 = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
@@ -492,7 +533,7 @@ fn test_amm_failure_fallback() {
 #[test]
 fn test_excess_backward_scarce_gets_spot() {
 	let intents = vec![make_intent(1, 2, 1, 100, 45), make_intent(2, 1, 2, 50, 90)];
-	let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMWithSlippage>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 2);
 	let alice = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
 	let bob = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
@@ -508,7 +549,7 @@ fn test_large_amounts_overflow_safe() {
 		make_intent(1, 1, 2, 1_000_000 * unit, 900_000 * unit),
 		make_intent(2, 2, 1, 1_000_000 * unit, 900_000 * unit),
 	];
-	let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 	assert_eq!(result.resolved_intents.len(), 2);
 	assert_eq!(result.trades.len(), 0);
 	for ri in &result.resolved_intents {
@@ -528,7 +569,7 @@ fn test_two_partials_same_direction_get_same_rate() {
 		make_partial(2, 1, 2, 200, 150),
 		make_intent(3, 2, 1, 100, 90),
 	];
-	let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMWithSlippage>::solve(intents, (), Permill::zero()).unwrap();
 	let p1 = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
 	let p2 = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
 	assert!(
@@ -558,8 +599,8 @@ fn test_partial_fill_order_independence() {
 		make_partial(2, 1, 2, 100, 195),
 		make_partial(1, 1, 2, 100, 195),
 	];
-	let r1 = Solver::<MockAMMWithSlippage>::solve(forward, ()).unwrap();
-	let r2 = Solver::<MockAMMWithSlippage>::solve(reversed, ()).unwrap();
+	let r1 = Solver::<MockAMMWithSlippage>::solve(forward, (), Permill::zero()).unwrap();
+	let r2 = Solver::<MockAMMWithSlippage>::solve(reversed, (), Permill::zero()).unwrap();
 	for id in [1u128, 2, 3] {
 		let a = r1.resolved_intents.iter().find(|r| r.id == id);
 		let b = r2.resolved_intents.iter().find(|r| r.id == id);
@@ -593,7 +634,7 @@ fn test_identical_partials_get_identical_fills() {
 		make_partial(2, 1, 2, 100, 195),
 		make_intent(3, 2, 1, 20, 9),
 	];
-	let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMWithSlippage>::solve(intents, (), Permill::zero()).unwrap();
 	let p1 = result.resolved_intents.iter().find(|r| r.id == 1);
 	let p2 = result.resolved_intents.iter().find(|r| r.id == 2);
 	match (p1, p2) {
@@ -619,7 +660,7 @@ fn test_partial_plus_non_partial_same_direction_uniform() {
 		make_intent(2, 1, 2, 100, 90),
 		make_intent(3, 2, 1, 100, 90),
 	];
-	let result = Solver::<MockAMMWithSlippage>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMWithSlippage>::solve(intents, (), Permill::zero()).unwrap();
 	let r1 = result.resolved_intents.iter().find(|r| r.id == 1).unwrap();
 	let r2 = result.resolved_intents.iter().find(|r| r.id == 2).unwrap();
 	assert!(
@@ -647,7 +688,7 @@ fn test_ring_respects_partial_remaining() {
 		make_intent(2, 2, 3, 100, 90),
 		make_intent(3, 3, 1, 100, 90),
 	];
-	let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 
 	let p = result.resolved_intents.iter().find(|r| r.id == 1);
 	if let Some(p) = p {
@@ -671,7 +712,7 @@ fn test_ring_respects_partial_remaining() {
 fn test_partial_below_ed_rejected() {
 	// ED = 10 (MockAMMWithED). remaining = amount_in - already_filled = 100 - 95 = 5 < 10.
 	let intents = vec![make_partial_filled(1, 1, 2, 100, 90, 95), make_intent(2, 2, 1, 100, 90)];
-	let result = Solver::<MockAMMWithED>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMWithED>::solve(intents, (), Permill::zero()).unwrap();
 	assert!(
 		result.resolved_intents.iter().all(|r| r.id != 1),
 		"partial below ED must be filtered; got {:?}",
@@ -687,7 +728,7 @@ fn test_partial_leaves_no_untradeable_dust() {
 		// Solver must either fill all 100 or cap at ≤90.
 		make_partial(1, 1, 2, 100, 90),
 	];
-	let result = Solver::<MockAMMWithED>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMWithED>::solve(intents, (), Permill::zero()).unwrap();
 	if let Some(r) = result.resolved_intents.iter().find(|r| r.id == 1) {
 		let original = 100u128;
 		let filled = r.data.amount_in();
@@ -709,7 +750,7 @@ fn test_partial_retry_honors_ed_out() {
 		make_partial(2, 1, 2, 50, 45),
 		make_intent(3, 2, 1, 100, 90),
 	];
-	let result = Solver::<MockAMMWithED>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMWithED>::solve(intents, (), Permill::zero()).unwrap();
 	for r in &result.resolved_intents {
 		assert!(
 			r.data.amount_out() >= 10,
@@ -729,7 +770,7 @@ fn test_cap_by_surplus_not_input_order() {
 		.collect();
 	// A high-surplus opposite-direction intent at the end — should survive any cap.
 	intents.push(make_intent(u128::MAX, 2, 1, 100, 10));
-	let result = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 	assert!(
 		result.resolved_intents.iter().any(|r| r.id == u128::MAX),
 		"high-surplus intent was dropped by first-N cap",
@@ -746,7 +787,7 @@ fn test_score_matches_pallet_recompute() {
 		make_partial(3, 1, 2, 200, 180),
 		make_intent(4, 1, 2, 50, 40),
 	];
-	let result = Solver::<MockAMMOneToOne>::solve(intents.clone(), ()).unwrap();
+	let result = Solver::<MockAMMOneToOne>::solve(intents.clone(), (), Permill::zero()).unwrap();
 	let pallet_recomputed = pallet_score(&intents, result.resolved_intents.as_slice());
 	assert_eq!(
 		result.score, pallet_recomputed,
@@ -763,7 +804,7 @@ fn test_all_resolved_amounts_above_ed() {
 		make_intent(2, 2, 1, 100, 90),
 		make_partial(3, 1, 2, 200, 180),
 	];
-	let result = Solver::<MockAMMWithED>::solve(intents, ()).unwrap();
+	let result = Solver::<MockAMMWithED>::solve(intents, (), Permill::zero()).unwrap();
 	for r in &result.resolved_intents {
 		assert!(
 			r.data.amount_in() >= 10,
@@ -793,7 +834,7 @@ fn test_saturating_accumulation() {
 		intents.push(make_intent(i * 2 + 2, 2, 1, per_intent, per_intent / 2));
 	}
 	// Must not panic.
-	let _ = Solver::<MockAMMOneToOne>::solve(intents, ()).unwrap();
+	let _ = Solver::<MockAMMOneToOne>::solve(intents, (), Permill::zero()).unwrap();
 }
 
 /// Simulate two solver calls on the same partial intent, emulating two
@@ -805,7 +846,7 @@ fn test_cumulative_partial_fill_across_calls() {
 	let intent1 = make_partial(1, 1, 2, original_amount_in, 150);
 	let opposite = make_intent(2, 2, 1, 100, 90);
 
-	let r1 = Solver::<MockAMMWithSlippage>::solve(vec![intent1, opposite.clone()], ()).unwrap();
+	let r1 = Solver::<MockAMMWithSlippage>::solve(vec![intent1, opposite.clone()], (), Permill::zero()).unwrap();
 	let first_fill = r1
 		.resolved_intents
 		.iter()
@@ -818,7 +859,7 @@ fn test_cumulative_partial_fill_across_calls() {
 	// Pallet would advance `filled` by first_fill. Second call sees remaining = original - first_fill.
 	if first_fill < original_amount_in {
 		let intent2 = make_partial_filled(1, 1, 2, original_amount_in, 150, first_fill);
-		let r2 = Solver::<MockAMMWithSlippage>::solve(vec![intent2, opposite], ()).unwrap();
+		let r2 = Solver::<MockAMMWithSlippage>::solve(vec![intent2, opposite], (), Permill::zero()).unwrap();
 		let second_fill = r2
 			.resolved_intents
 			.iter()

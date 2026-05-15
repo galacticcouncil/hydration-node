@@ -12,6 +12,7 @@
 use crate::replay_format::{Response, Trace};
 use crate::v2::Solver;
 use codec::Decode;
+use frame_support::sp_runtime::Permill;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{AMMInterface, TradeExecution};
 use hydradx_traits::router::{PoolEdge, Route};
@@ -155,7 +156,7 @@ fn run_fixture(raw: &str) -> (Solution, Solution) {
 	let intents = Vec::<Intent>::decode(&mut &intents_bytes[..]).expect("decode intents");
 	let expected = Solution::decode(&mut &solution_bytes[..]).expect("decode solution");
 	ReplayAMM::install(trace);
-	let actual = Solver::<ReplayAMM>::solve(intents, ()).expect("solver should succeed");
+	let actual = Solver::<ReplayAMM>::solve(intents, (), Permill::zero()).expect("solver should succeed");
 	// trace should be fully consumed
 	let remaining = RESPONSES.with(|q| q.borrow().len());
 	assert_eq!(

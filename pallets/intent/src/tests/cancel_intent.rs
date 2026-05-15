@@ -176,8 +176,7 @@ fn should_work_when_intent_was_partially_resolved_and_canceled_by_owner() {
 					&ResolvedIntent {
 						id,
 						data: resolve.data.clone()
-					},
-					0,
+					}
 				));
 
 				assert_eq!(

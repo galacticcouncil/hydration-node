@@ -151,7 +151,6 @@ pub mod pallet {
 			id: IntentId,
 			amount_in: Balance,
 			amount_out: Balance,
-			fee: Balance,
 		},
 
 		/// Portion of intent was resolved as part of ICE solution execution.
@@ -159,7 +158,6 @@ pub mod pallet {
 			id: IntentId,
 			amount_in: Balance,
 			amount_out: Balance,
-			fee: Balance,
 		},
 
 		/// Intent was canceled.
@@ -176,7 +174,6 @@ pub mod pallet {
 			id: IntentId,
 			amount_in: Balance,
 			amount_out: Balance,
-			fee: Balance,
 			remaining_budget: Balance,
 		},
 
@@ -663,8 +660,15 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Function resolves intent
-	pub fn intent_resolved(who: &T::AccountId, resolve: &ResolvedIntent, fee: Balance) -> DispatchResult {
+	/// Finalise a resolved intent: validate the resolution, update partial-fill
+	/// state, unreserve any remainder, and emit the appropriate event.
+	///
+	/// `resolve.amount_out` is interpreted as the **net** amount that has
+	/// already been paid out to the user by the caller (`pallet_ice`). The
+	/// matched-volume protocol fee is a per-asset protocol charge settled by
+	/// `pallet_ice`; it is not attributable to a single intent and is not
+	/// reported here.
+	pub fn intent_resolved(who: &T::AccountId, resolve: &ResolvedIntent) -> DispatchResult {
 		let ResolvedIntent { id, data: resolve } = resolve;
 		Intents::<T>::try_mutate_exists(id, |maybe_intent| {
 			let intent = maybe_intent.as_mut().ok_or(Error::<T>::IntentNotFound)?;
@@ -718,8 +722,7 @@ impl<T: Config> Pallet<T> {
 					Self::deposit_event(Event::IntentResolved {
 						id: *id,
 						amount_in: resolve.amount_in(),
-						amount_out: resolve.amount_out().saturating_sub(fee),
-						fee,
+						amount_out: resolve.amount_out(),
 					});
 				}
 				return Ok(());
@@ -732,16 +735,14 @@ impl<T: Config> Pallet<T> {
 					Self::deposit_event(Event::IntentResovedPartially {
 						id: *id,
 						amount_in: resolve.amount_in(),
-						amount_out: resolve.amount_out().saturating_sub(fee),
-						fee,
+						amount_out: resolve.amount_out(),
 					});
 				}
 				IntentData::Dca(ref dca) => {
 					Self::deposit_event(Event::DcaTradeExecuted {
 						id: *id,
 						amount_in: resolve.amount_in(),
-						amount_out: resolve.amount_out().saturating_sub(fee),
-						fee,
+						amount_out: resolve.amount_out(),
 						remaining_budget: dca.remaining_budget,
 					});
 				}
@@ -814,6 +815,16 @@ impl<T: Config> Pallet<T> {
 	/// accepts `None` origin) and paying the user only the hard limit while
 	/// the AMM yields closer to the oracle-derived price.
 	fn validate_dca_intent_resolve(dca: &DcaData, resolve: &IntentData) -> Result<(), DispatchError> {
+		// Period enforcement at resolve time. The `get_valid_intents`
+		// pre-filter also gates on the period, but a malicious collator can
+		// bypass it by hand-crafting a `submit_solution` (the call accepts
+		// `None` origin) with the DCA transformed to a `Swap`. Mirror the
+		// pre-filter gate here so an out-of-period trade is rejected.
+		let current_block: u32 = T::BlockNumberProvider::current_block_number()
+			.try_into()
+			.unwrap_or(u32::MAX);
+		let next_eligible = dca.last_execution_block.saturating_add(dca.period);
+		ensure!(current_block >= next_eligible, Error::<T>::IntentActive);
 		// Resolve must spend exactly per-trade amount
 		ensure!(resolve.amount_in() == dca.amount_in, Error::<T>::LimitViolation);
 		// Hard limit check (always enforced regardless of oracle)

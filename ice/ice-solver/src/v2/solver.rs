@@ -16,6 +16,7 @@ use crate::common;
 use crate::common::flow_graph;
 use crate::common::ring_detection;
 use crate::common::FlowDirection;
+use frame_support::sp_runtime::Permill;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::AMMInterface;
 use hydradx_traits::router::Route;
@@ -29,6 +30,31 @@ use sp_std::collections::btree_set::BTreeSet;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
 use sp_std::vec::Vec;
+
+/// Protocol fee charged on matched (intent-to-intent) volume.
+///
+/// Volume routed through AMMs pays only pool fees and is untouched here. The
+/// matched portion has the fee skimmed off the user-receive side; what the
+/// pallet eventually pays out is `gross × (1 − fee)`.
+#[derive(Clone, Copy, Default, Debug)]
+pub(crate) struct FeeCtx {
+	matched: Permill,
+}
+
+impl FeeCtx {
+	pub(crate) fn new(matched: Permill) -> Self {
+		Self { matched }
+	}
+
+	/// Subtract the matched-volume fee from a gross amount, floored.
+	pub(crate) fn apply(self, gross: Balance) -> Balance {
+		gross.saturating_sub(self.matched.mul_floor(gross))
+	}
+
+	pub(crate) fn rate(self) -> Permill {
+		self.matched
+	}
+}
 
 pub struct Solver<A: AMMInterface> {
 	_phantom: PhantomData<A>,
@@ -260,6 +286,7 @@ impl<A: AMMInterface> Solver<A> {
 		non_partial_fills: &mut Vec<IntentFill<'a>>,
 		spot_prices: &BTreeMap<AssetId, Ratio>,
 		state: &A::State,
+		fee_ctx: FeeCtx,
 	) {
 		const MAX_ITERATIONS: u32 = 10;
 		let mut pair_clearings: BTreeMap<AssetPair, PairClearing> = BTreeMap::new();
@@ -282,9 +309,15 @@ impl<A: AMMInterface> Solver<A> {
 			}
 
 			for (&(asset_a, asset_b), (forward, backward)) in &pair_groups {
-				if let Some(c) =
-					Self::compute_pair_clearing_with_fills(asset_a, asset_b, forward, backward, spot_prices, state)
-				{
+				if let Some(c) = Self::compute_pair_clearing_with_fills(
+					asset_a,
+					asset_b,
+					forward,
+					backward,
+					spot_prices,
+					state,
+					fee_ctx,
+				) {
 					pair_clearings.insert((asset_a, asset_b), c);
 				}
 			}
@@ -318,12 +351,14 @@ impl<A: AMMInterface> Solver<A> {
 		}
 	}
 
-	pub fn solve(intents: Vec<Intent>, initial_state: A::State) -> Result<Solution, A::Error> {
+	pub fn solve(intents: Vec<Intent>, initial_state: A::State, matched_fee: Permill) -> Result<Solution, A::Error> {
 		if intents.is_empty() {
 			return Ok(empty_solution());
 		}
 
-		log::debug!(target: "solver::v2", "solve() called with {} intents", intents.len());
+		log::debug!(target: "solver::v2", "solve() called with {} intents, matched_fee={:?}", intents.len(), matched_fee);
+
+		let fee_ctx = FeeCtx::new(matched_fee);
 
 		// 1. Pre-compute spot prices once for every asset that appears in any intent.
 		let spot_prices = Self::collect_spot_prices(&intents, &initial_state);
@@ -350,7 +385,7 @@ impl<A: AMMInterface> Solver<A> {
 		let (mut non_partial_fills, partial_fills) = Self::initial_fill_plan(&satisfiable_intents);
 
 		// Phase A: iteratively drop non-partials that fail at the combined clearing rate.
-		Self::stabilize_non_partials(&mut non_partial_fills, &spot_prices, &initial_state);
+		Self::stabilize_non_partials(&mut non_partial_fills, &spot_prices, &initial_state, fee_ctx);
 
 		// Phase B: joint per-pair partial-fill clearing. For each unordered pair (A, B),
 		// binary-search a single scale factor `t ∈ [0,1]` applied uniformly to the
@@ -361,7 +396,7 @@ impl<A: AMMInterface> Solver<A> {
 		// restores same-direction-same-fill-fraction and removes the order dependence of
 		// the previous per-partial sequential fit.
 		let mut fills = non_partial_fills;
-		Self::fit_partials_jointly(&mut fills, partial_fills, &spot_prices, &initial_state);
+		Self::fit_partials_jointly(&mut fills, partial_fills, &spot_prices, &initial_state, fee_ctx);
 
 		if fills.is_empty() {
 			log::debug!(target: "solver::v2", "all intents filtered out during iterative clearing");
@@ -377,7 +412,7 @@ impl<A: AMMInterface> Solver<A> {
 		if fills.len() > MAX_NUMBER_OF_RESOLVED_INTENTS as usize {
 			log::debug!(target: "solver::v2", "capping fills from {} to {} (keeping highest surplus)",
 				fills.len(), MAX_NUMBER_OF_RESOLVED_INTENTS);
-			Self::sort_by_estimated_surplus(&mut fills, &spot_prices, &initial_state);
+			Self::sort_by_estimated_surplus(&mut fills, &spot_prices, &initial_state, fee_ctx);
 			fills.truncate(MAX_NUMBER_OF_RESOLVED_INTENTS as usize);
 		}
 
@@ -419,7 +454,7 @@ impl<A: AMMInterface> Solver<A> {
 				})
 				.collect();
 			let mut graph = flow_graph::build_flow_graph(&graph_entries);
-			let rings = ring_detection::detect_rings(&mut graph, &spot_prices);
+			let rings = ring_detection::detect_rings(&mut graph, &spot_prices, fee_ctx.rate());
 
 			let mut ring_fills: BTreeMap<IntentId, RingFill> = BTreeMap::new();
 			for ring in &rings {
@@ -527,12 +562,18 @@ impl<A: AMMInterface> Solver<A> {
 						direct_match,
 						net_sell,
 					} => {
+						// Backward direction is fully matched (scarce side); apply fee.
 						if total_b_sold > 0 {
-							directed_rates.insert((asset_b, asset_a), Ratio::new(scarce_out, total_b_sold));
+							directed_rates
+								.insert((asset_b, asset_a), Ratio::new(fee_ctx.apply(scarce_out), total_b_sold));
 						}
 						if net_sell < A::existential_deposit(asset_a) {
 							if total_a_sold > 0 {
-								directed_rates.insert((asset_a, asset_b), Ratio::new(direct_match, total_a_sold));
+								// Whole forward direction is matched (no AMM hop) — apply fee.
+								directed_rates.insert(
+									(asset_a, asset_b),
+									Ratio::new(fee_ctx.apply(direct_match), total_a_sold),
+								);
 							}
 						} else {
 							let best = A::discover_routes(asset_a, asset_b, &state).ok().and_then(|routes| {
@@ -541,7 +582,9 @@ impl<A: AMMInterface> Solver<A> {
 							match best {
 								Some((route, amount_out, new_state)) => {
 									let adjusted_out = adjust_amm_output(amount_out);
-									let total_out = direct_match.saturating_add(adjusted_out);
+									// Forward: matched portion (`direct_match`) carries fee;
+									// AMM portion (`adjusted_out`) does not.
+									let total_out = fee_ctx.apply(direct_match).saturating_add(adjusted_out);
 									if total_a_sold > 0 {
 										directed_rates.insert((asset_a, asset_b), Ratio::new(total_out, total_a_sold));
 									}
@@ -556,7 +599,12 @@ impl<A: AMMInterface> Solver<A> {
 								None => {
 									let fallback = common::calc_amount_out(total_a_sold, pa, pb).unwrap_or(0);
 									if total_a_sold > 0 {
-										directed_rates.insert((asset_a, asset_b), Ratio::new(fallback, total_a_sold));
+										// Fallback path has no AMM execution — treat the
+										// implied output as matched and apply fee.
+										directed_rates.insert(
+											(asset_a, asset_b),
+											Ratio::new(fee_ctx.apply(fallback), total_a_sold),
+										);
 									}
 								}
 							}
@@ -568,11 +616,15 @@ impl<A: AMMInterface> Solver<A> {
 						net_sell,
 					} => {
 						if total_a_sold > 0 {
-							directed_rates.insert((asset_a, asset_b), Ratio::new(scarce_out, total_a_sold));
+							directed_rates
+								.insert((asset_a, asset_b), Ratio::new(fee_ctx.apply(scarce_out), total_a_sold));
 						}
 						if net_sell < A::existential_deposit(asset_b) {
 							if total_b_sold > 0 {
-								directed_rates.insert((asset_b, asset_a), Ratio::new(direct_match, total_b_sold));
+								directed_rates.insert(
+									(asset_b, asset_a),
+									Ratio::new(fee_ctx.apply(direct_match), total_b_sold),
+								);
 							}
 						} else {
 							let best = A::discover_routes(asset_b, asset_a, &state).ok().and_then(|routes| {
@@ -581,7 +633,7 @@ impl<A: AMMInterface> Solver<A> {
 							match best {
 								Some((route, amount_out, new_state)) => {
 									let adjusted_out = adjust_amm_output(amount_out);
-									let total_out = direct_match.saturating_add(adjusted_out);
+									let total_out = fee_ctx.apply(direct_match).saturating_add(adjusted_out);
 									if total_b_sold > 0 {
 										directed_rates.insert((asset_b, asset_a), Ratio::new(total_out, total_b_sold));
 									}
@@ -596,18 +648,22 @@ impl<A: AMMInterface> Solver<A> {
 								None => {
 									let fallback = common::calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
 									if total_b_sold > 0 {
-										directed_rates.insert((asset_b, asset_a), Ratio::new(fallback, total_b_sold));
+										directed_rates.insert(
+											(asset_b, asset_a),
+											Ratio::new(fee_ctx.apply(fallback), total_b_sold),
+										);
 									}
 								}
 							}
 						}
 					}
 					FlowDirection::PerfectCancel { a_as_b, b_as_a } => {
+						// 100% intent-to-intent matched on both directions.
 						if total_a_sold > 0 {
-							directed_rates.insert((asset_a, asset_b), Ratio::new(a_as_b, total_a_sold));
+							directed_rates.insert((asset_a, asset_b), Ratio::new(fee_ctx.apply(a_as_b), total_a_sold));
 						}
 						if total_b_sold > 0 {
-							directed_rates.insert((asset_b, asset_a), Ratio::new(b_as_a, total_b_sold));
+							directed_rates.insert((asset_b, asset_a), Ratio::new(fee_ctx.apply(b_as_a), total_b_sold));
 						}
 					}
 				}
@@ -634,6 +690,10 @@ impl<A: AMMInterface> Solver<A> {
 				for (key, dir) in &accum {
 					let remaining_in = dir.total_in.saturating_sub(dir.ring_in);
 
+					// `directed_rates` already encodes the matched-portion fee
+					// (gross matched output multiplied by `1 - fee`), so the
+					// pair-level output is post-fee. Ring fills are always
+					// intent-to-intent matched, so apply the fee here too.
 					let amm_out = if remaining_in > 0 {
 						if let Some(rate) = directed_rates.get(key) {
 							apply_rate(remaining_in, U256::from(rate.n), U256::from(rate.d))
@@ -644,7 +704,8 @@ impl<A: AMMInterface> Solver<A> {
 						0
 					};
 
-					let total_out = dir.ring_out.saturating_add(amm_out);
+					let ring_out_net = fee_ctx.apply(dir.ring_out);
+					let total_out = ring_out_net.saturating_add(amm_out);
 					if dir.total_in > 0 && total_out > 0 {
 						unified_rates.insert(*key, Ratio::new(total_out, dir.total_in));
 					}
@@ -934,6 +995,11 @@ impl<A: AMMInterface> Solver<A> {
 	}
 
 	/// Compute clearing rates from summed per-direction volumes.
+	///
+	/// Rates returned are net of the matched-volume fee: any output that
+	/// originates from intent-to-intent matching (not from an AMM hop) has the
+	/// `fee_ctx` haircut already applied. Volume routed through the AMM is
+	/// returned at its raw (post-pool-fee) rate.
 	fn compute_pair_clearing_from_totals(
 		asset_a: AssetId,
 		asset_b: AssetId,
@@ -941,6 +1007,7 @@ impl<A: AMMInterface> Solver<A> {
 		total_b_sold: Balance,
 		spot_prices: &BTreeMap<AssetId, Ratio>,
 		state: &A::State,
+		fee_ctx: FeeCtx,
 	) -> Option<PairClearing> {
 		if total_a_sold == 0 && total_b_sold == 0 {
 			return None;
@@ -982,10 +1049,15 @@ impl<A: AMMInterface> Solver<A> {
 				let routes = A::discover_routes(asset_a, asset_b, state).ok()?;
 				let (_, amount_out, _) = Self::select_best_route(&routes, asset_a, asset_b, net_sell, state)?;
 				let adjusted_out = adjust_amm_output(amount_out);
+				// Forward direction: `direct_match` is matched (intent-to-intent),
+				// `adjusted_out` is AMM. Only the matched share carries the fee.
+				let forward_out_net = fee_ctx.apply(direct_match).saturating_add(adjusted_out);
+				// Backward direction is the scarce side — 100% matched.
+				let backward_out_net = fee_ctx.apply(scarce_out);
 				Some(PairClearing {
-					forward_n: U256::from(direct_match.saturating_add(adjusted_out)),
+					forward_n: U256::from(forward_out_net),
 					forward_d: U256::from(total_a_sold),
-					backward_n: U256::from(scarce_out),
+					backward_n: U256::from(backward_out_net),
 					backward_d: U256::from(total_b_sold),
 				})
 			}
@@ -997,17 +1069,19 @@ impl<A: AMMInterface> Solver<A> {
 				let routes = A::discover_routes(asset_b, asset_a, state).ok()?;
 				let (_, amount_out, _) = Self::select_best_route(&routes, asset_b, asset_a, net_sell, state)?;
 				let adjusted_out = adjust_amm_output(amount_out);
+				let forward_out_net = fee_ctx.apply(scarce_out);
+				let backward_out_net = fee_ctx.apply(direct_match).saturating_add(adjusted_out);
 				Some(PairClearing {
-					forward_n: U256::from(scarce_out),
+					forward_n: U256::from(forward_out_net),
 					forward_d: U256::from(total_a_sold),
-					backward_n: U256::from(direct_match.saturating_add(adjusted_out)),
+					backward_n: U256::from(backward_out_net),
 					backward_d: U256::from(total_b_sold),
 				})
 			}
 			FlowDirection::PerfectCancel { a_as_b, b_as_a } => Some(PairClearing {
-				forward_n: U256::from(a_as_b),
+				forward_n: U256::from(fee_ctx.apply(a_as_b)),
 				forward_d: U256::from(total_a_sold),
-				backward_n: U256::from(b_as_a),
+				backward_n: U256::from(fee_ctx.apply(b_as_a)),
 				backward_d: U256::from(total_b_sold),
 			}),
 		}
@@ -1021,13 +1095,22 @@ impl<A: AMMInterface> Solver<A> {
 		backward: &[&IntentFill],
 		spot_prices: &BTreeMap<AssetId, Ratio>,
 		state: &A::State,
+		fee_ctx: FeeCtx,
 	) -> Option<PairClearing> {
 		if forward.is_empty() && backward.is_empty() {
 			return None;
 		}
 		let total_a_sold: Balance = forward.iter().map(|f| f.fill_amount).sum();
 		let total_b_sold: Balance = backward.iter().map(|f| f.fill_amount).sum();
-		Self::compute_pair_clearing_from_totals(asset_a, asset_b, total_a_sold, total_b_sold, spot_prices, state)
+		Self::compute_pair_clearing_from_totals(
+			asset_a,
+			asset_b,
+			total_a_sold,
+			total_b_sold,
+			spot_prices,
+			state,
+			fee_ctx,
+		)
 	}
 
 	/// Joint per-pair partial-fill fit.
@@ -1043,6 +1126,7 @@ impl<A: AMMInterface> Solver<A> {
 		partial_fills: Vec<IntentFill<'a>>,
 		spot_prices: &BTreeMap<AssetId, Ratio>,
 		state: &A::State,
+		fee_ctx: FeeCtx,
 	) {
 		// Group partials by unordered pair.
 		let mut partials_by_pair: BTreeMap<AssetPair, Vec<IntentFill<'a>>> = BTreeMap::new();
@@ -1137,9 +1221,15 @@ impl<A: AMMInterface> Solver<A> {
 
 					let meets = if total_f == 0 && total_b == 0 {
 						true
-					} else if let Some(c) =
-						Self::compute_pair_clearing_from_totals(asset_a, asset_b, total_f, total_b, spot_prices, state)
-					{
+					} else if let Some(c) = Self::compute_pair_clearing_from_totals(
+						asset_a,
+						asset_b,
+						total_f,
+						total_b,
+						spot_prices,
+						state,
+						fee_ctx,
+					) {
 						let f_ok = match tight_f {
 							Some((tn, td)) => c.forward_n.saturating_mul(td) >= tn.saturating_mul(c.forward_d),
 							None => true,
@@ -1181,6 +1271,7 @@ impl<A: AMMInterface> Solver<A> {
 					probe_total_b,
 					spot_prices,
 					state,
+					fee_ctx,
 				) {
 					Some(c) => {
 						let f_blocked = match tight_f {
@@ -1306,6 +1397,7 @@ impl<A: AMMInterface> Solver<A> {
 		fills: &mut [IntentFill<'a>],
 		spot_prices: &BTreeMap<AssetId, Ratio>,
 		state: &A::State,
+		fee_ctx: FeeCtx,
 	) {
 		// Build per-pair clearings from current volumes.
 		let mut pair_totals: BTreeMap<AssetPair, (Balance, Balance)> = BTreeMap::new();
@@ -1323,7 +1415,7 @@ impl<A: AMMInterface> Solver<A> {
 		}
 		let mut clearings: BTreeMap<AssetPair, PairClearing> = BTreeMap::new();
 		for (&(a, b), &(ta, tb)) in &pair_totals {
-			if let Some(c) = Self::compute_pair_clearing_from_totals(a, b, ta, tb, spot_prices, state) {
+			if let Some(c) = Self::compute_pair_clearing_from_totals(a, b, ta, tb, spot_prices, state, fee_ctx) {
 				clearings.insert((a, b), c);
 			}
 		}

@@ -79,6 +79,7 @@ const ROUTER_POOLS_POT: AccountId = 1;
 pub(crate) const ALICE: AccountId = 2;
 pub(crate) const BOB: AccountId = 3;
 pub(crate) const DAVE: AccountId = 4;
+pub(crate) const ICE_FEE_RECEIVER: AccountId = 999;
 
 frame_support::construct_runtime!(
 	pub enum Test {
@@ -262,6 +263,7 @@ impl pallet_broadcast::Config for Test {}
 parameter_types! {
 	pub const IceId: PalletId = PalletId(*b"iceTest#");
 	pub const IceFee: Permill = Permill::from_percent(0);
+	pub const IceFeeReceiver: AccountId = ICE_FEE_RECEIVER;
 }
 
 pub struct NoOpExtraGas;
@@ -277,7 +279,8 @@ impl hydradx_traits::evm::ExtraGasSupport for NoOpExtraGas {
 impl pallet_ice::Config for Test {
 	type Currency = Currencies;
 	type PalletId = IceId;
-	type Fee = IceFee;
+	type MatchedFee = IceFee;
+	type FeeReceiver = IceFeeReceiver;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type RegistryHandler = DummyRegistry;
 	type Simulator = TestSimulatorConfig;

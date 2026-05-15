@@ -113,7 +113,9 @@ fn run_solver_and_submit() -> Solution {
 	let block = hydradx_runtime::System::block_number();
 	let call = pallet_ice::Pallet::<Runtime>::run(
 		block,
-		|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| Solver::solve(intents, state).ok(),
+		|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+			Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+		},
 	)
 	.expect("Solver should produce a solution");
 
@@ -395,7 +397,7 @@ fn dca_matched_with_opposing_swap() {
 			{
 				let solution = &solution;
 				assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-				assert_eq!(solution.score, 147016637925436, "score");
+				assert_eq!(solution.score, 147014502641076, "score");
 				assert_eq!(solution.trades.len(), 1, "trades count");
 				{
 					let r = &solution.resolved_intents[0];
@@ -406,7 +408,7 @@ fn dca_matched_with_opposing_swap() {
 					assert_eq!(s.asset_in, 14);
 					assert_eq!(s.asset_out, 0);
 					assert_eq!(s.amount_in, 10000000000000u128);
-					assert_eq!(s.amount_out, 147409011313812u128);
+					assert_eq!(s.amount_out, 147407011313812u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -418,7 +420,7 @@ fn dca_matched_with_opposing_swap() {
 					assert_eq!(s.asset_in, 0);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 10000000000000u128);
-					assert_eq!(s.amount_out, 676421801464u128);
+					assert_eq!(s.amount_out, 676286517104u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 			}
@@ -1466,7 +1468,7 @@ fn dca_stays_alive_when_trade_fails_until_lockdown_is_lifted() {
 		// Solver operates off-chain (no circuit breaker there) so it produces a solution;
 		// on-chain dispatch rejects it because of the lockdown. Intent must stay untouched.
 		let call = pallet_ice::Pallet::<Runtime>::run(hydradx_runtime::System::block_number(), |intents, state| {
-			Solver::solve(intents, state).ok()
+			Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
 		});
 		if let Some(pallet_ice::Call::submit_solution { solution, .. }) = call {
 			hydradx_run_to_next_block();
@@ -1672,7 +1674,7 @@ fn dca_retries_every_block_until_success() {
 		}
 
 		let call = pallet_ice::Pallet::<Runtime>::run(hydradx_runtime::System::block_number(), |intents, state| {
-			Solver::solve(intents, state).ok()
+			Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
 		});
 		if let Some(pallet_ice::Call::submit_solution { solution, .. }) = call {
 			hydradx_run_to_next_block();
@@ -1852,7 +1854,7 @@ fn dca_period_can_be_bypassed_at_resolve_time() {
 				.collect();
 
 			let state = <<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::initial_state();
-			let solution = Solver::solve(crafted, state).expect("solver fills crafted intent");
+			let solution = Solver::solve(crafted, state, pallet_ice::ProtocolFee::<Runtime>::get()).expect("solver fills crafted intent");
 
 			let hdx_before = Currencies::total_balance(HDX, &alice);
 			let bnc_before = Currencies::total_balance(BNC, &alice);
@@ -1929,8 +1931,10 @@ fn dca_slippage_not_enforced_at_resolve_time() {
 			}
 
 			let block = hydradx_runtime::System::block_number();
-			let call = pallet_ice::Pallet::<Runtime>::run(block, |intents, state| Solver::solve(intents, state).ok())
-				.expect("solver should produce a solution");
+			let call = pallet_ice::Pallet::<Runtime>::run(block, |intents, state| {
+				Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+			})
+			.expect("solver should produce a solution");
 			let pallet_ice::Call::submit_solution { solution, .. } = call else {
 				panic!("Expected submit_solution call");
 			};

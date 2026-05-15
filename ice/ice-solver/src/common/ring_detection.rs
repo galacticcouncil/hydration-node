@@ -6,12 +6,20 @@
 
 use crate::common::flow_graph::{FlowGraph, IntentEntry, MatchFill, Pair};
 use crate::common::{calc_amount_out, mul_div};
+use frame_support::sp_runtime::Permill;
 use hydra_dx_math::types::Ratio;
 use ice_support::{AssetId, Balance};
 use sp_core::U256;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec;
 use sp_std::vec::Vec;
+
+/// Apply the matched-volume fee to a gross output. Ring fills are
+/// always intent-to-intent matched, so feasibility tests must compare
+/// the post-fee amount against each intent's `min_amount_out`.
+fn apply_matched_fee(gross: Balance, fee: Permill) -> Balance {
+	gross.saturating_sub(fee.mul_floor(gross))
+}
 
 /// A ring trade through 3 assets with fills on each edge.
 #[derive(Debug, Clone)]
@@ -29,7 +37,11 @@ pub struct RingTrade {
 /// participant receives at least their minimum.
 ///
 /// Fills at bottleneck volume and repeats until no more rings are found.
-pub fn detect_rings(graph: &mut FlowGraph, spot_prices: &BTreeMap<AssetId, Ratio>) -> Vec<RingTrade> {
+pub fn detect_rings(
+	graph: &mut FlowGraph,
+	spot_prices: &BTreeMap<AssetId, Ratio>,
+	matched_fee: Permill,
+) -> Vec<RingTrade> {
 	let mut rings = Vec::new();
 
 	loop {
@@ -97,9 +109,11 @@ pub fn detect_rings(graph: &mut FlowGraph, spot_prices: &BTreeMap<AssetId, Ratio
 					continue;
 				};
 
-				if ab_out_at_spot < ab_best.min_amount_out
-					|| bc_out_at_spot < bc_best.min_amount_out
-					|| ca_out_at_spot < ca_best.min_amount_out
+				// Compare post-fee output to each intent's minimum — the user
+				// receives `gross × (1 − fee)`, not gross.
+				if apply_matched_fee(ab_out_at_spot, matched_fee) < ab_best.min_amount_out
+					|| apply_matched_fee(bc_out_at_spot, matched_fee) < bc_best.min_amount_out
+					|| apply_matched_fee(ca_out_at_spot, matched_fee) < ca_best.min_amount_out
 				{
 					continue;
 				}
@@ -152,15 +166,15 @@ pub fn detect_rings(graph: &mut FlowGraph, spot_prices: &BTreeMap<AssetId, Ratio
 				// Final feasibility: verify each fill meets the intent's limit
 				// (spot rate should satisfy, but check after rounding)
 				let ab_entries = graph.get(&(a, b)).expect("edge (a,b) verified above");
-				if !fills_meet_limits(ab_entries, ab_amount_in, ab_amount_out) {
+				if !fills_meet_limits(ab_entries, ab_amount_in, ab_amount_out, matched_fee) {
 					continue;
 				}
 				let bc_entries = graph.get(&(b, c)).expect("edge (b,c) verified above");
-				if !fills_meet_limits(bc_entries, bc_amount_in, bc_amount_out) {
+				if !fills_meet_limits(bc_entries, bc_amount_in, bc_amount_out, matched_fee) {
 					continue;
 				}
 				let ca_entries = graph.get(&(c, a)).expect("edge (c,a) verified above");
-				if !fills_meet_limits(ca_entries, ca_amount_in, ca_amount_out) {
+				if !fills_meet_limits(ca_entries, ca_amount_in, ca_amount_out, matched_fee) {
 					continue;
 				}
 
@@ -211,7 +225,7 @@ fn first_with_remaining(entries: &[IntentEntry]) -> Option<&IntentEntry> {
 /// the remaining volume goes through the normal AMM path, and the final resolution
 /// always uses the full `amount_in` with a unified rate. Ring partial fills are
 /// internal bookkeeping, not user-visible partial fills.
-fn fills_meet_limits(entries: &[IntentEntry], total_in: Balance, total_out: Balance) -> bool {
+fn fills_meet_limits(entries: &[IntentEntry], total_in: Balance, total_out: Balance, matched_fee: Permill) -> bool {
 	let mut remaining_in = total_in;
 	for entry in entries {
 		if remaining_in == 0 {
@@ -224,10 +238,12 @@ fn fills_meet_limits(entries: &[IntentEntry], total_in: Balance, total_out: Bala
 		let fill_out = mul_div(U256::from(fill_in), U256::from(total_out), U256::from(total_in))
 			.and_then(|v| v.try_into().ok())
 			.unwrap_or(0u128);
+		// Compare against the post-fee receive — rings are 100% matched volume.
+		let user_receive = apply_matched_fee(fill_out, matched_fee);
 
 		if fill_in == entry.original_amount_in {
 			// Full fill: must meet the intent's absolute minimum
-			if fill_out < entry.min_amount_out {
+			if user_receive < entry.min_amount_out {
 				return false;
 			}
 		} else {
@@ -239,7 +255,7 @@ fn fills_meet_limits(entries: &[IntentEntry], total_in: Balance, total_out: Bala
 			)
 			.and_then(|v| v.try_into().ok())
 			.unwrap_or(0u128);
-			if fill_out < pro_rata_min {
+			if user_receive < pro_rata_min {
 				return false;
 			}
 		}

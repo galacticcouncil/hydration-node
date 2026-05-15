@@ -1,3 +1,4 @@
+mod matched_fee;
 mod mock;
 mod ocw;
 mod submit_solution;
