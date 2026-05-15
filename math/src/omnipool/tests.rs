@@ -3929,7 +3929,7 @@ fn calculate_slip_fee_amount_should_return_max_when_rate_exceeds_cap() {
 fn calculate_slip_fee_amount_should_return_proportional_when_rate_below_cap() {
 	// cum / denom = 1 / (10_000_000 + 1) ≈ 0 (well below 1% cap).
 	let hub_reserve = 10_000_000 * UNIT;
-	let cum = SignedBalance::Positive(1 * UNIT);
+	let cum = SignedBalance::Positive(UNIT);
 	let base = 1_000_000 * UNIT;
 	let max = Permill::from_percent(1);
 
@@ -4073,7 +4073,7 @@ fn calculate_buy_state_changes_should_not_charge_capped_slip_when_caps_do_not_bi
 		asset_out_delta: SignedBalance::zero(),
 		max_slip_fee: max,
 	};
-	let amount = 1 * UNIT;
+	let amount = UNIT;
 
 	let r = calculate_buy_state_changes(
 		&in_state,
