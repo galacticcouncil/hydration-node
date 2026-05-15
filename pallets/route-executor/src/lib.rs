@@ -17,6 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
+#![allow(clippy::useless_conversion)]
 
 use codec::MaxEncodedLen;
 use frame_support::traits::fungibles::Mutate;
@@ -77,8 +78,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_broadcast::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Asset id type
 		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen + AtLeast32BitUnsigned;
 
@@ -190,7 +189,7 @@ pub mod pallet {
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::sell_weight(route))]
+		#[pallet::weight(T::WeightInfo::sell_weight(&Pallet::<T>::get_route_or_default(*asset_in, *asset_out, route)))]
 		#[transactional]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -217,7 +216,7 @@ pub mod pallet {
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::buy_weight(route))]
+		#[pallet::weight(T::WeightInfo::buy_weight(&Pallet::<T>::get_route_or_default(*asset_in, *asset_out, route)))]
 		#[transactional]
 		pub fn buy(
 			origin: OriginFor<T>,
@@ -233,7 +232,7 @@ pub mod pallet {
 			Self::ensure_route_size(route.len())?;
 
 			let asset_pair = AssetPair::new(asset_in, asset_out);
-			let route = Self::get_route_or_default(route, asset_pair)?;
+			let route = Self::get_route_or_default(asset_in, asset_out, &route);
 			Self::ensure_route_arguments(&asset_pair, &route)?;
 
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
@@ -424,7 +423,7 @@ pub mod pallet {
 		/// Emits `RouteExecuted` when successful.
 		///
 		#[pallet::call_index(4)]
-		#[pallet::weight(T::WeightInfo::sell_weight(route))]
+		#[pallet::weight(T::WeightInfo::sell_weight(&Pallet::<T>::get_route_or_default(*asset_in, *asset_out, route)))]
 		#[transactional]
 		pub fn sell_all(
 			origin: OriginFor<T>,
@@ -461,7 +460,7 @@ impl<T: Config> Pallet<T> {
 		Self::ensure_route_size(route.len())?;
 
 		let asset_pair = AssetPair::new(asset_in, asset_out);
-		let route = Self::get_route_or_default(route, asset_pair)?;
+		let route = Self::get_route_or_default(asset_in, asset_out, &route);
 		Self::ensure_route_arguments(&asset_pair, &route)?;
 
 		let trader_account = Self::router_account();
@@ -559,16 +558,16 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn get_route_or_default(
-		route: Route<T::AssetId>,
-		asset_pair: AssetPair<T::AssetId>,
-	) -> Result<Route<T::AssetId>, DispatchError> {
-		let route = if !route.is_empty() {
-			route
+	pub fn get_route_or_default(
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		route: &Route<T::AssetId>,
+	) -> Route<T::AssetId> {
+		if !route.is_empty() {
+			route.clone()
 		} else {
-			<Pallet<T> as RouteProvider<T::AssetId>>::get_route(asset_pair)
-		};
-		Ok(route)
+			<Self as RouteProvider<T::AssetId>>::get_route(AssetPair::new(asset_in, asset_out))
+		}
 	}
 
 	fn validate_route(route: &Route<T::AssetId>) -> Result<(T::Balance, T::Balance), DispatchError> {

@@ -89,7 +89,6 @@ pub mod pallet {
 	use crate::traits::VolumeProvider;
 	use crate::types::FeeEntry;
 	use frame_support::pallet_prelude::*;
-	use frame_system::ensure_root;
 	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 	use sp_runtime::traits::{BlockNumberProvider, Zero};
 
@@ -111,8 +110,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Provider for the current block number.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
@@ -124,6 +121,9 @@ pub mod pallet {
 
 		/// Volume provider implementation
 		type RawOracle: VolumeProvider<Self::AssetId, Balance>;
+
+		/// Origin that can manage asset fee configuration
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		#[pallet::constant]
 		type AssetFeeParameters: Get<FeeParams<Self::Fee>>;
@@ -160,7 +160,7 @@ pub mod pallet {
 		/// This function allows setting either fixed or dynamic fee configuration for a specific asset.
 		///
 		/// # Arguments
-		/// * `origin` - Root origin required
+		/// * `origin` - Authority origin required
 		/// * `asset_id` - The asset ID to configure
 		/// * `config` - Fee configuration (Fixed or Dynamic)
 		#[pallet::call_index(0)]
@@ -170,7 +170,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			config: AssetFeeConfig<T::Fee>,
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			<T as Config>::AuthorityOrigin::ensure_origin(origin)?;
 
 			Self::validate_fee_config(&config)?;
 
@@ -189,12 +189,12 @@ pub mod pallet {
 		/// After removal, the asset will use the default dynamic fee parameters configured in the runtime.
 		///
 		/// # Arguments
-		/// * `origin` - Root origin required
+		/// * `origin` - Authority origin required
 		/// * `asset_id` - The asset ID to remove configuration for
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::remove_asset_fee())]
 		pub fn remove_asset_fee(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
-			ensure_root(origin)?;
+			<T as Config>::AuthorityOrigin::ensure_origin(origin)?;
 
 			AssetFeeConfiguration::<T>::remove(asset_id);
 
@@ -258,7 +258,7 @@ where
 					Error::<T>::InvalidFeeParameters
 				);
 				ensure!(
-					protocol_fee_params.min_fee <= asset_fee_params.max_fee
+					protocol_fee_params.min_fee <= protocol_fee_params.max_fee
 						&& !protocol_fee_params.amplification.is_zero(),
 					Error::<T>::InvalidFeeParameters
 				);
@@ -283,7 +283,7 @@ where
 	/// # Returns
 	/// A tuple of (asset_fee, protocol_fee)
 	fn update_fee(asset_id: T::AssetId, asset_liquidity: Balance, store: bool) -> (T::Fee, T::Fee) {
-		log::trace!(target: "dynamic-fees", "update_fee for asset_id: {:?}", asset_id);
+		log::trace!(target: "dynamic-fees", "update_fee for asset_id: {asset_id:?}");
 		let block_number = T::BlockNumberProvider::current_block_number();
 
 		let asset_config = Self::asset_fee_config(asset_id);
@@ -293,7 +293,7 @@ where
 				asset_fee,
 				protocol_fee,
 			}) => {
-				log::trace!(target: "dynamic-fees", "using fixed fees: {:?} {:?}", asset_fee, protocol_fee);
+				log::trace!(target: "dynamic-fees", "using fixed fees: {asset_fee:?} {protocol_fee:?}");
 				(asset_fee, protocol_fee)
 			}
 			Some(AssetFeeConfig::Dynamic {
@@ -363,8 +363,8 @@ where
 			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
 		};
 
-		log::trace!(target: "dynamic-fees", "block number: {:?}", block_number);
-		log::trace!(target: "dynamic-fees", "delta blocks: {:?}", delta_blocks);
+		log::trace!(target: "dynamic-fees", "block number: {block_number:?}");
+		log::trace!(target: "dynamic-fees", "delta blocks: {delta_blocks:?}");
 		log::trace!(target: "dynamic-fees", "oracle entry: in {:?}, out {:?}, liquidity: {:?}", raw_entry.amount_in(), raw_entry.amount_out(), raw_entry.liquidity());
 
 		let period = T::RawOracle::period() as u128;
@@ -374,7 +374,7 @@ where
 			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
 		}
 		let decay_factor = FixedU128::from_rational(4u128, period);
-		log::trace!(target: "dynamic-fees", "decay factor: {:?}", decay_factor);
+		log::trace!(target: "dynamic-fees", "decay factor: {decay_factor:?}");
 
 		let fee_updated_at: u128 = current_fee_entry.timestamp.saturated_into();
 		if !fee_updated_at.is_zero() {
@@ -421,7 +421,7 @@ where
 				},
 			);
 		}
-		log::trace!(target: "dynamic-fees", "new fees: {:?} {:?}", asset_fee, protocol_fee);
+		log::trace!(target: "dynamic-fees", "new fees: {asset_fee:?} {protocol_fee:?}");
 		(asset_fee, protocol_fee)
 	}
 }

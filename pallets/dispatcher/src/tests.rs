@@ -1,7 +1,6 @@
 use crate::mock::*;
 use crate::{Event, ExtraGas};
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays};
-use frame_support::pallet_prelude::Weight;
 use frame_support::{assert_noop, assert_ok, dispatch::PostDispatchInfo};
 use orml_tokens::Error;
 use orml_traits::MultiCurrency;
@@ -104,7 +103,7 @@ fn dispatch_with_extra_gas_should_fail_when_call_fails() {
 
 		let r = DispatchErrorWithPostInfo {
 			post_info: PostDispatchInfo {
-				actual_weight: Some(Weight::zero()),
+				actual_weight: None,
 				pays_fee: Pays::Yes,
 			},
 			error: Error::<Test>::BalanceTooLow.into(),
@@ -178,5 +177,115 @@ fn decrease_gas_limit_should_work() {
 		Dispatcher::decrease_extra_gas(1000);
 		assert_eq!(Dispatcher::extra_gas(), 0);
 		assert_eq!(ExtraGas::<Test>::get(), 0u64);
+	});
+}
+
+#[test]
+fn dispatch_as_emergency_admin_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let call = Box::new(RuntimeCall::Tokens(orml_tokens::Call::transfer {
+			dest: ALICE,
+			currency_id: HDX,
+			amount: 1_000,
+		}));
+
+		let call_hash = BlakeTwo256::hash_of(&call);
+		let admin_balance_before = Tokens::free_balance(HDX, &crate::mock::EmergencyAdminAccount::get());
+
+		assert_ok!(Dispatcher::dispatch_as_emergency_admin(RuntimeOrigin::root(), call));
+
+		let admin_balance_after = Tokens::free_balance(HDX, &crate::mock::EmergencyAdminAccount::get());
+
+		assert_eq!(admin_balance_after, admin_balance_before - 1_000);
+
+		expect_events(vec![Event::EmergencyAdminCallDispatched {
+			call_hash,
+			result: Ok(PostDispatchInfo {
+				actual_weight: None,
+				pays_fee: Pays::Yes,
+			}),
+		}
+		.into()]);
+	});
+}
+
+#[test]
+fn dispatch_as_emergency_admin_should_fail_when_bad_origin() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call = Box::new(RuntimeCall::System(frame_system::Call::remark_with_event {
+			remark: vec![1],
+		}));
+
+		assert_noop!(
+			Dispatcher::dispatch_as_emergency_admin(RuntimeOrigin::signed(ALICE), call),
+			DispatchError::BadOrigin
+		);
+		expect_events(vec![]);
+	});
+}
+
+#[test]
+fn dispatch_with_fee_payer_should_set_and_clear_fee_payer() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_eq!(get_fee_payer(), None);
+
+		let call = Box::new(RuntimeCall::Tokens(orml_tokens::Call::transfer {
+			dest: BOB,
+			currency_id: HDX,
+			amount: 1_000,
+		}));
+
+		assert_ok!(Dispatcher::dispatch_with_fee_payer(RuntimeOrigin::signed(ALICE), call,));
+
+		assert_eq!(get_fee_payer(), None);
+	});
+}
+
+#[test]
+fn dispatch_with_fee_payer_should_clear_on_failure() {
+	ExtBuilder::default().build().execute_with(|| {
+		let alice_initial_balance = Tokens::free_balance(HDX, &ALICE);
+
+		let call = Box::new(RuntimeCall::Tokens(orml_tokens::Call::transfer {
+			dest: BOB,
+			currency_id: HDX,
+			amount: alice_initial_balance + 1, // more than ALICE has
+		}));
+
+		assert!(Dispatcher::dispatch_with_fee_payer(RuntimeOrigin::signed(ALICE), call).is_err());
+
+		assert_eq!(get_fee_payer(), None);
+	});
+}
+
+#[test]
+fn dispatch_with_fee_payer_should_forward_dispatch_result() {
+	ExtBuilder::default().build().execute_with(|| {
+		let alice_initial_balance = Tokens::free_balance(HDX, &ALICE);
+		let bob_initial_balance = Tokens::free_balance(HDX, &BOB);
+
+		let call = Box::new(RuntimeCall::Tokens(orml_tokens::Call::transfer {
+			dest: BOB,
+			currency_id: HDX,
+			amount: 500,
+		}));
+
+		assert_ok!(Dispatcher::dispatch_with_fee_payer(RuntimeOrigin::signed(ALICE), call,));
+
+		assert_eq!(Tokens::free_balance(HDX, &ALICE), alice_initial_balance - 500);
+		assert_eq!(Tokens::free_balance(HDX, &BOB), bob_initial_balance + 500);
+	});
+}
+
+#[test]
+fn dispatch_with_fee_payer_should_require_signed_origin() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call = Box::new(RuntimeCall::System(frame_system::Call::remark { remark: vec![] }));
+
+		assert_noop!(
+			Dispatcher::dispatch_with_fee_payer(RuntimeOrigin::root(), call),
+			DispatchError::BadOrigin
+		);
 	});
 }

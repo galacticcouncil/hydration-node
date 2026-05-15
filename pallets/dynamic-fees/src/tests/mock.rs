@@ -28,6 +28,7 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
+use frame_system::EnsureRoot;
 use hydradx_traits::fee::GetDynamicFee;
 use sp_core::H256;
 use sp_runtime::{
@@ -100,6 +101,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_types! {
@@ -108,7 +110,6 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Fee = Fee;
 	type AssetId = AssetId;
 	type BlockNumberProvider = System;
@@ -116,6 +117,7 @@ impl Config for Test {
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 	type WeightInfo = ();
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 }
 
 pub struct ExtBuilder {

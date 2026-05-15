@@ -19,7 +19,6 @@
 #![allow(clippy::type_complexity)]
 
 use crate as pallet_hsm;
-use crate::types::CallResult;
 use crate::Config;
 use crate::ERC20Function;
 use core::ops::RangeInclusive;
@@ -34,10 +33,12 @@ use frame_support::traits::Contains;
 use frame_support::traits::{ConstU128, ConstU32, ConstU64, Everything};
 use frame_support::{construct_runtime, parameter_types};
 use frame_system::EnsureRoot;
+use hex_literal::hex;
 use hydra_dx_math::hsm::CoefficientRatio;
+use hydradx_traits::evm::CallResult;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{
-	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
+	evm::{CallContext, InspectEvmAccounts, EVM},
 	stableswap::AssetAmount,
 	AssetKind, BoundErc20, Inspect,
 };
@@ -46,8 +47,9 @@ use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
+use primitives::EvmAddress;
 use sp_core::{ByteArray, H256};
-use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
+use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, Convert, IdentityLookup};
 use sp_runtime::{BoundedVec, Perbill};
 use sp_runtime::{BuildStorage, DispatchError, Permill};
 use sp_std::num::NonZeroU16;
@@ -71,6 +73,9 @@ pub const BOB: AccountId = AccountId::new([2; 32]);
 pub const CHARLIE: AccountId = AccountId::new([3; 32]);
 pub const PROVIDER: AccountId = AccountId::new([4; 32]);
 
+pub const ARB_ACCOUNT: AccountId = AccountId::new([22; 32]);
+pub const PROFIT_RECEIVER: AccountId = AccountId::new([23; 32]);
+
 pub const ONE: Balance = 1_000_000_000_000_000_000;
 
 pub const GHO_ADDRESS: [u8; 20] = [1u8; 20];
@@ -84,7 +89,7 @@ macro_rules! assert_balance {
 
 thread_local! {
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, (u32,u8)>> = RefCell::new(HashMap::default());
-	pub static EVM_CALLS: RefCell<Vec<(EvmAddress, Vec<u8>)>> = RefCell::new(Vec::new());
+	pub static EVM_CALLS: RefCell<Vec<(EvmAddress, Vec<u8>)>> = const { RefCell::new(Vec::new()) };
 	pub static EVM_CALL_RESULTS: RefCell<HashMap<Vec<u8>, Vec<u8>>> = RefCell::new(HashMap::default());
 	pub static PEG_ORACLE_VALUES: RefCell<HashMap<(AssetId,AssetId), (Balance,Balance,u64)>> = RefCell::new(HashMap::default());
 	pub static EVM_ADDRESS_MAP: RefCell<HashMap<EvmAddress, AccountId>> = RefCell::new(HashMap::default());
@@ -130,20 +135,10 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
-
-pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
-where
-	RuntimeCall: From<C>,
-{
-	type OverarchingCall = RuntimeCall;
-	type Extrinsic = Extrinsic;
-}
+impl pallet_broadcast::Config for Test {}
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
@@ -152,7 +147,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -167,7 +161,6 @@ impl orml_tokens::Config for Test {
 
 // Mock Stableswap implementation
 impl pallet_stableswap::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type ShareAccountId = DummyAccountIdConstructor;
@@ -191,6 +184,9 @@ parameter_types! {
 	pub PalletId: frame_support::PalletId = frame_support::PalletId(*b"py/hsmdx");
 	pub const GasLimit: u64 = 1_000_000;
 	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
+	pub HsmArbProfitReceiver: AccountId =  PROFIT_RECEIVER;
+	pub const MinArbAmount: Balance =  1_000_000_000_000_000_000;
+	pub LoanReceiver: EvmAddress= hex!("000000000000000000000000000000000000090a").into();
 }
 
 pub struct DummyRegistry;
@@ -314,8 +310,14 @@ impl EVM<CallResult> for MockEvm {
 
 		// Check if the call has a pre-defined result in our mock
 		let maybe_predefined = EVM_CALL_RESULTS.with(|v| v.borrow().get(&data).cloned());
-		if let Some(result) = maybe_predefined {
-			return (ExitReason::Succeed(ExitSucceed::Stopped), result);
+		if let Some(_result) = maybe_predefined {
+			return CallResult {
+				exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
+				value: vec![],
+				contract: context.contract,
+				gas_used: U256::zero(),
+				gas_limit: U256::zero(),
+			};
 		}
 
 		// Handle the EVM functions
@@ -344,7 +346,13 @@ impl EVM<CallResult> for MockEvm {
 								// Increase the balance of the recipient
 								let _ = Tokens::update_balance(hollar_id, &recipient, amount as i128);
 
-								return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
+								return CallResult {
+									exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
+									value: vec![],
+									contract: context.contract,
+									gas_used: U256::zero(),
+									gas_limit: U256::zero(),
+								};
 							}
 						}
 					}
@@ -364,7 +372,13 @@ impl EVM<CallResult> for MockEvm {
 								// Decrease the balance of the caller
 								let _ = Tokens::update_balance(hollar_id, &account_id, -(amount as i128));
 
-								return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
+								return CallResult {
+									exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
+									value: vec![],
+									contract: context.contract,
+									gas_used: U256::zero(),
+									gas_limit: U256::zero(),
+								};
 							}
 						}
 					}
@@ -381,9 +395,9 @@ impl EVM<CallResult> for MockEvm {
 							let amount = U256::from_big_endian(&amount_bytes);
 
 							let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
-							let arb_account = ALICE;
+							let arb_account = ARB_ACCOUNT;
 							crate::Pallet::<Test>::mint_hollar(&arb_account, amount.as_u128()).unwrap();
-							let alice_evm = EvmAddress::from_slice(&ALICE.as_slice()[0..20]);
+							let alice_evm = EvmAddress::from_slice(&ARB_ACCOUNT.as_slice()[0..20]);
 							crate::Pallet::<Test>::execute_arbitrage_with_flash_loan(
 								alice_evm,
 								amount.as_u128(),
@@ -392,7 +406,7 @@ impl EVM<CallResult> for MockEvm {
 							.unwrap();
 
 							Tokens::transfer(
-								RuntimeOrigin::signed(ALICE),
+								RuntimeOrigin::signed(ARB_ACCOUNT),
 								crate::Pallet::<Test>::account_id(),
 								<Test as crate::Config>::HollarId::get(),
 								amount.as_u128(),
@@ -400,17 +414,56 @@ impl EVM<CallResult> for MockEvm {
 							.unwrap();
 
 							crate::Pallet::<Test>::burn_hollar(amount.as_u128()).unwrap();
-							return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
+							return CallResult {
+								exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+								value: vec![],
+								contract: context.contract,
+								gas_used: U256::zero(),
+								gas_limit: U256::zero(),
+							};
 						} else {
 							panic!("incorrect data len");
 						}
+					}
+					ERC20Function::MaxFlashLoan => {
+						let max_flash_loan_amount = U256::from(100_000_000_000_000_000_000_000u128);
+						let buf1 = max_flash_loan_amount.to_big_endian();
+						let bytes = Vec::from(buf1);
+						return CallResult {
+							exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+							value: bytes,
+							contract: context.contract,
+							gas_used: U256::zero(),
+							gas_limit: U256::zero(),
+						};
+					}
+					ERC20Function::GetFacilitatorBucket => {
+						let capacity = U256::from(1_000_000_000_000_000_000_000_000u128);
+						let level = U256::from(0u128);
+						let buf1 = capacity.to_big_endian();
+						let buf2 = level.to_big_endian();
+						let mut bytes = vec![];
+						bytes.extend_from_slice(&buf1);
+						bytes.extend_from_slice(&buf2);
+						return CallResult {
+							exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+							value: bytes,
+							contract: context.contract,
+							gas_used: U256::zero(),
+							gas_limit: U256::zero(),
+						};
 					}
 				}
 			}
 		}
 
-		// Default failure for unrecognized calls
-		(ExitReason::Error(ExitError::DesignatedInvalid), vec![])
+		CallResult {
+			exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+			value: vec![],
+			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
+		}
 	}
 
 	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {
@@ -426,6 +479,7 @@ fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
 	let provider_evm = EvmAddress::from_slice(&PROVIDER.as_slice()[0..20]);
 	let bob_evm = EvmAddress::from_slice(&BOB.as_slice()[0..20]);
 	let hsm_evm = EvmAddress::from_slice(&HSM::account_id().as_slice()[0..20]);
+	let arb_acc_evm = EvmAddress::from_slice(&ARB_ACCOUNT.as_slice()[0..20]);
 
 	if evm_addr == alice_evm {
 		ALICE
@@ -435,6 +489,8 @@ fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
 		BOB
 	} else if evm_addr == hsm_evm {
 		HSM::account_id()
+	} else if evm_addr == arb_acc_evm {
+		ARB_ACCOUNT
 	} else {
 		EVM_ADDRESS_MAP.with(|v| v.borrow().get(&evm_addr).cloned().expect("EVM address not found"))
 	}
@@ -518,7 +574,6 @@ impl BoundErc20 for GhoContractAddress {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type HollarId = HollarId;
 	type PalletId = PalletId;
@@ -528,9 +583,21 @@ impl Config for Test {
 	type EvmAccounts = MockEvmAccounts;
 	type GasLimit = GasLimit;
 	type GasWeightMapping = MockGasWeightMapping;
+	type MinArbitrageAmount = MinArbAmount;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = for_benchmark_tests::MockHSMBenchmarkHelper;
+	type ArbitrageProfitReceiver = HsmArbProfitReceiver;
+	type FlashLoanReceiver = LoanReceiver;
+	type EvmErrorDecoder = EvmErrorDecoderStruct;
+}
+
+pub struct EvmErrorDecoderStruct;
+
+impl Convert<CallResult, DispatchError> for EvmErrorDecoderStruct {
+	fn convert(_call_result: CallResult) -> DispatchError {
+		unimplemented!("We rather test such in integration tests")
+	}
 }
 
 pub struct Whitelist;
@@ -560,6 +627,25 @@ impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
 	}
 	fn weight_to_gas(_weight: Weight) -> u64 {
 		0
+	}
+}
+
+pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
+
+impl<LocalCall> frame_system::offchain::CreateTransactionBase<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	type RuntimeCall = RuntimeCall;
+	type Extrinsic = Extrinsic;
+}
+
+impl<LocalCall> hydradx_traits::CreateBare<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_bare(call: Self::RuntimeCall) -> Extrinsic {
+		Extrinsic::new_bare(call)
 	}
 }
 
@@ -696,7 +782,7 @@ impl ExtBuilder {
 					amplification,
 					fee,
 					BoundedPegSources::try_from(pegs).unwrap(),
-					Permill::from_percent(100),
+					Perbill::from_percent(100),
 				)
 				.unwrap();
 			}

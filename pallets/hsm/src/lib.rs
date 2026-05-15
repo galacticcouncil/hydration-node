@@ -12,7 +12,7 @@
 //! - Managing approved collateral assets for Hollar
 //! - Handling minting and burning of Hollar through integration with the GHO ERC20 token contract
 //! - Providing buy/sell functionality for users to exchange Hollar against collateral assets
-//! - Executing arbitrage opportunities to maintain price stability via offchain workers
+//! - Executing arbitrage opportunities using flash loans to maintain price stability via offchain workers
 //!
 //! ## Interface
 //!
@@ -23,14 +23,17 @@
 //! * `update_collateral_asset` - Update parameters for an existing collateral asset.
 //! * `sell` - Sell Hollar in exchange for collateral, or sell collateral for Hollar.
 //! * `buy` - Buy Hollar with collateral, or buy collateral with Hollar.
-//! * `execute_arbitrage` - Execute arbitrage opportunity between HSM and collateral stable pool (called by offchain worker).
+//! * `set_flash_minter` - Configure the flash loan contract address for arbitrage operations.
+//! * `execute_arbitrage` - Execute arbitrage opportunity between HSM and collateral stable pool using flash loans (called by offchain worker).
 
 pub use pallet::*;
 
-use crate::types::{Balance, CollateralInfo};
+use crate::types::{Arbitrage, Balance, CollateralInfo};
 pub use crate::weights::WeightInfo;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
+use frame_support::storage::with_transaction;
+use frame_support::traits::OriginTrait;
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -42,30 +45,33 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_system::{
-	offchain::{SendTransactionTypes, SubmitTransaction},
-	pallet_prelude::*,
-	Origin,
-};
+use frame_system::offchain::SubmitTransaction;
+use frame_system::{pallet_prelude::*, Origin};
 use hex_literal::hex;
 use hydra_dx_math::hsm::{CoefficientRatio, PegType, Price};
-use hydradx_traits::evm::EvmAddress;
+use hydradx_traits::evm::CallResult;
+use hydradx_traits::CreateBare;
 use hydradx_traits::{
 	evm::{CallContext, InspectEvmAccounts, EVM},
 	registry::BoundErc20,
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_traits::One;
 use pallet_stableswap::types::PoolSnapshot;
 use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
 use precompile_utils::evm::Bytes;
+use primitives::EvmAddress;
 use sp_core::{offchain::Duration, Get, H256, U256};
+use sp_runtime::traits::Convert;
 use sp_runtime::{
 	helpers_128bit::multiply_by_rational_with_rounding,
 	offchain::storage_lock::{StorageLock, Time},
 	traits::{AccountIdConversion, Zero},
 	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction},
-	AccountId32, ArithmeticError, DispatchError, Perbill, Permill, Rounding, RuntimeDebug,
+	AccountId32, ArithmeticError, DispatchError, FixedU128, Perbill, Permill, Rounding, RuntimeDebug,
+	SaturatedConversion, TransactionOutcome,
 };
+use sp_std::vec::Vec;
 
 pub mod traits;
 pub mod types;
@@ -85,6 +91,8 @@ pub enum ERC20Function {
 	Mint = "mint(address,uint256)",
 	Burn = "burn(uint256)",
 	FlashLoan = "flashLoan(address,address,uint256,bytes)",
+	MaxFlashLoan = "maxFlashLoan(address)",
+	GetFacilitatorBucket = "getFacilitatorBucket(address)",
 }
 
 /// Max number of approved assets.
@@ -95,29 +103,33 @@ pub enum ERC20Function {
 pub const MAX_COLLATERALS: u32 = 10;
 
 /// Unsigned transaction priority for arbitrage
-pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
+const UNSIGNED_TXS_PRIORITY: u64 = 100;
+
+/// Arbitrage direction constants
+/// Direction for buy operations (less Hollar in pool, creates buy opportunities)
+const ARBITRAGE_DIRECTION_BUY: u8 = 1;
+/// Direction for sell operations (more Hollar in pool, creates sell opportunities)
+const ARBITRAGE_DIRECTION_SELL: u8 = 2;
 
 /// Offchain Worker lock
-pub const OFFCHAIN_WORKER_LOCK: &[u8] = b"hydradx/hsm/arbitrage-lock/";
+const OFFCHAIN_WORKER_LOCK: &[u8] = b"hydradx/hsm/arbitrage-lock/";
 /// Lock timeout in milliseconds
-pub const LOCK_TIMEOUT: u64 = 5_000; // 5 seconds
+const LOCK_TIMEOUT: u64 = 5_000; // 5 seconds
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::types::Arbitrage;
 	use pallet_broadcast::types::Asset;
 	use pallet_evm::GasWeightMapping;
 	use sp_std::vec;
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_stableswap::Config + pallet_broadcast::Config + SendTransactionTypes<Call<Self>>
+		frame_system::Config + pallet_stableswap::Config + pallet_broadcast::Config + CreateBare<Call<Self>>
 	where
 		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Asset ID of Hollar
 		#[pallet::constant]
 		type HollarId: Get<Self::AssetId>;
@@ -132,14 +144,23 @@ pub mod pallet {
 		/// GHO contract address - EVM address of GHO token contract
 		type GhoContractAddress: BoundErc20<AssetId = Self::AssetId>;
 
+		/// Arbitrage profit receiver
+		type ArbitrageProfitReceiver: Get<Self::AccountId>;
+
 		/// Currency - fungible tokens trait to access token transfers
 		type Currency: Mutate<Self::AccountId, Balance = Balance, AssetId = Self::AssetId>;
 
 		/// EVM handler
-		type Evm: EVM<types::CallResult>;
+		type Evm: EVM<CallResult>;
 
 		/// EVM address converter
 		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
+
+		#[pallet::constant]
+		type MinArbitrageAmount: Get<Balance>;
+
+		#[pallet::constant]
+		type FlashLoanReceiver: Get<EvmAddress>;
 
 		/// The gas limit for the execution of EVM calls
 		#[pallet::constant]
@@ -147,6 +168,8 @@ pub mod pallet {
 
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
+
+		type EvmErrorDecoder: Convert<CallResult, DispatchError>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -208,8 +231,7 @@ pub mod pallet {
 		///
 		/// Parameters:
 		/// - `asset_id`: The ID of the asset removed from collaterals
-		/// - `amount`: The amount of the asset that was returned (should be zero)
-		CollateralRemoved { asset_id: T::AssetId, amount: Balance },
+		CollateralRemoved { asset_id: T::AssetId },
 		/// A collateral asset was updated
 		///
 		/// Parameters:
@@ -218,12 +240,14 @@ pub mod pallet {
 		/// - `max_buy_price_coefficient`: New max buy price coefficient if updated (None if not changed)
 		/// - `buy_back_fee`: New buy back fee if updated (None if not changed)
 		/// - `buyback_rate`: New buyback rate if updated (None if not changed)
+		/// - `max_in_holding`: New max collateral holding if updated (None if not changed)
 		CollateralUpdated {
 			asset_id: T::AssetId,
 			purchase_fee: Option<Permill>,
 			max_buy_price_coefficient: Option<CoefficientRatio>,
 			buy_back_fee: Option<Permill>,
 			buyback_rate: Option<Perbill>,
+			max_in_holding: Option<Option<Balance>>,
 		},
 		/// Arbitrage executed successfully
 		///
@@ -231,8 +255,10 @@ pub mod pallet {
 		/// - `asset_id`: The collateral asset used in the arbitrage
 		/// - `hollar_amount`: Amount of Hollar that was included in the arbitrage operation
 		ArbitrageExecuted {
+			arbitrage: u8,
 			asset_id: T::AssetId,
 			hollar_amount: Balance,
+			profit: Balance,
 		},
 
 		/// Flash minter address set
@@ -288,10 +314,6 @@ pub mod pallet {
 		///
 		/// There is no profitable arbitrage opportunity for the specified collateral.
 		NoArbitrageOpportunity,
-		/// Offchain lock error
-		///
-		/// Failed to acquire the lock for offchain workers, likely because another operation is in progress.
-		OffchainLockError,
 		/// Asset not in the pool
 		///
 		/// The specified asset was not found in the pool.
@@ -353,7 +375,30 @@ pub mod pallet {
 		/// 3. Only runs if it can obtain a lock (to prevent concurrent execution)
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			if sp_io::offchain::is_validator() {
-				let _ = Self::process_arbitrage_opportunities(block_number);
+				let lock_expiration = Duration::from_millis(crate::LOCK_TIMEOUT);
+				let mut lock = StorageLock::<'_, Time>::with_deadline(crate::OFFCHAIN_WORKER_LOCK, lock_expiration);
+
+				if let Ok(_guard) = lock.try_lock() {
+					log::debug!(
+						target: "hsm::offchain_worker",
+						"Processing arbitrage opportunities at block: {block_number:?}"
+					);
+
+					if let Some(call) = Self::process_arbitrage_opportunities(block_number) {
+						let xt = T::create_bare(call.into());
+						if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(xt) {
+							log::error!(
+								target: "hsm::offchain_worker",
+								"Failed to submit arbitrage transaction: {e:?}"
+							);
+						}
+					}
+				} else {
+					log::debug!(
+						target: "hsm::offchain_worker",
+						"Another instance of the offchain worker is already running"
+					);
+				};
 			}
 		}
 	}
@@ -514,7 +559,7 @@ pub mod pallet {
 
 			Collaterals::<T>::remove(asset_id);
 
-			Self::deposit_event(Event::<T>::CollateralRemoved { asset_id, amount });
+			Self::deposit_event(Event::<T>::CollateralRemoved { asset_id });
 
 			Ok(())
 		}
@@ -580,6 +625,7 @@ pub mod pallet {
 					max_buy_price_coefficient,
 					buy_back_fee,
 					buyback_rate,
+					max_in_holding,
 				});
 				Ok(())
 			})
@@ -739,7 +785,7 @@ pub mod pallet {
 					|pool_id, state| {
 						//we need to know how much hollar needs to be paid for given collateral amount
 						//so we simulate by selling exact collateral in
-						let hollar_amount =
+						let (hollar_amount, _) =
 							Self::simulate_out_given_in(pool_id, asset_out, T::HollarId::get(), amount_out, 0, state)?;
 						Ok((hollar_amount, amount_out))
 					},
@@ -770,42 +816,79 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Execute arbitrage opportunity between HSM and collateral stable pool
+		/// Execute arbitrage opportunity between HSM and collateral stable pool using flash loans
 		///
-		/// This call is designed to be triggered automatically by offchain workers. It:
-		/// 1. Detects price imbalances between HSM and a stable pool for a collateral
-		/// 2. If an opportunity exists, mints Hollar, swaps it for collateral on HSM
-		/// 3. Swaps that collateral for Hollar on the stable pool
-		/// 4. Burns the Hollar received from the arbitrage
+		/// This call is designed to be triggered automatically by offchain workers. It executes
+		/// arbitrage by taking a flash loan from the GHO contract and performing trades to profit
+		/// from price imbalances between HSM and the StableSwap pool.
+		///
+		/// The arbitrage execution flow:
+		/// 1. Takes a flash loan of Hollar from the GHO contract
+		/// 2. Executes trades between HSM and StableSwap pool based on arbitrage direction:
+		///    - For HollarIn (buy direction): Sell Hollar to HSM for collateral, then sell collateral back for Hollar in pool
+		///    - For HollarOut (sell direction): Sell Hollar for collateral in pool, then buy Hollar back from HSM
+		/// 3. Repays the flash loan
+		/// 4. Any remaining profit (in collateral) is transferred to the ArbitrageProfitReceiver
 		///
 		/// This helps maintain the peg of Hollar by profiting from and correcting price imbalances.
 		/// The call is unsigned and should only be executed by offchain workers.
 		///
 		/// Parameters:
 		/// - `origin`: Must be None (unsigned)
-		/// - `collateral_asset_id`: The ID of the collateral asset to check for arbitrage
+		/// - `collateral_asset_id`: The ID of the collateral asset to use for arbitrage
+		/// - `arbitrage`: Optional arbitrage parameters (direction and amount). If None, the function
+		///   will automatically find and calculate the optimal arbitrage opportunity.
 		///
 		/// Emits:
 		/// - `ArbitrageExecuted` when the arbitrage is successful
 		///
 		/// Errors:
+		/// - `FlashMinterNotSet` if the flash minter contract address has not been configured
 		/// - `AssetNotApproved` if the asset is not a registered collateral
 		/// - `NoArbitrageOpportunity` if there's no profitable arbitrage opportunity
 		/// - `MaxBuyPriceExceeded` if the arbitrage would exceed the maximum buy price
+		/// - `MaxBuyBackExceeded` if the arbitrage would exceed the buyback limit
 		/// - `InvalidEVMInteraction` if there's an error interacting with the Hollar ERC20 contract
 		/// - Other errors from underlying calls
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::execute_arbitrage()
 			.saturating_add(<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true))
 		)]
-		pub fn execute_arbitrage(origin: OriginFor<T>, collateral_asset_id: T::AssetId) -> DispatchResult {
+		pub fn execute_arbitrage(
+			origin: OriginFor<T>,
+			collateral_asset_id: T::AssetId,
+			arbitrage: Option<Arbitrage>,
+		) -> DispatchResult {
 			ensure_none(origin)?;
 
 			let (flash_minter, loan_receiver) =
 				GetFlashMinterSupport::<T>::get().ok_or(Error::<T>::FlashMinterNotSet)?;
 
 			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
-			let flash_loan_amount = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
+
+			let (arb_direction, flash_loan_amount) = match arbitrage {
+				Some(Arbitrage::HollarOut(arb_amount)) => {
+					ensure!(arb_amount > 0, Error::<T>::NoArbitrageOpportunity);
+					// if provided, we know what to do, but need to verify the size is ok
+					let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
+					ensure!(
+						Self::check_trade_size(collateral_asset_id, &collateral_info, &pool_state, arb_amount),
+						Error::<T>::NoArbitrageOpportunity
+					);
+					Arbitrage::HollarOut(arb_amount).into()
+				}
+				Some(Arbitrage::HollarIn(_)) => {
+					//Dev: we can simplify instead of trying to find it again
+					//but we keep for now as it used to be.
+					Self::find_arbitrage_opportunity(collateral_asset_id)
+						.ok_or(Error::<T>::NoArbitrageOpportunity)?
+						.into()
+				}
+				None => Self::find_arbitrage_opportunity(collateral_asset_id)
+					.ok_or(Error::<T>::NoArbitrageOpportunity)?
+					.into(),
+			};
+
 			ensure!(flash_loan_amount > 0, Error::<T>::NoArbitrageOpportunity);
 
 			let hsm_address = T::EvmAccounts::evm_address(&Self::account_id());
@@ -817,6 +900,7 @@ pub mod pallet {
 			let pool_id_u32: u32 = collateral_info.pool_id.into();
 			let arb_data = EvmDataWriter::new()
 				.write(0u8)
+				.write(arb_direction)
 				.write(c_asset_id)
 				.write(pool_id_u32)
 				.build();
@@ -827,21 +911,49 @@ pub mod pallet {
 				.write(Bytes(arb_data))
 				.build();
 
-			let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+			let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
-			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
-				return Err(Error::<T>::InvalidEVMInteraction.into());
+			let receiver_balance_initial = <T as crate::pallet::Config>::Currency::total_balance(
+				collateral_asset_id,
+				&T::ArbitrageProfitReceiver::get(),
+			);
+			if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
+				return Err(T::EvmErrorDecoder::convert(call_result));
 			}
+			let receiver_balance_final = <T as crate::pallet::Config>::Currency::total_balance(
+				collateral_asset_id,
+				&T::ArbitrageProfitReceiver::get(),
+			);
+			let profit = receiver_balance_final
+				.checked_sub(receiver_balance_initial)
+				.ok_or(Error::<T>::NoArbitrageOpportunity)?;
 
 			Self::deposit_event(Event::<T>::ArbitrageExecuted {
+				arbitrage: arb_direction,
 				asset_id: collateral_asset_id,
 				hollar_amount: flash_loan_amount,
+				profit,
 			});
 
 			Ok(())
 		}
 
+		/// Set the flash minter contract address
+		///
+		/// Configures the EVM address of the flash loan contract that will be used for arbitrage
+		/// operations. This contract must support the ERC-3156 flash loan standard and be trusted
+		/// to handle flash loans of Hollar tokens.
+		///
+		/// Parameters:
+		/// - `origin`: Must be authorized (governance/root)
+		/// - `flash_minter_addr`: The EVM address of the flash minter contract
+		///
+		/// Emits:
+		/// - `FlashMinterSet` when the address is successfully configured
+		///
+		/// Errors:
+		/// - Authorization errors if origin is not authorized
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_flash_minter())]
 		pub fn set_flash_minter(origin: OriginFor<T>, flash_minter_addr: EvmAddress) -> DispatchResult {
@@ -988,7 +1100,7 @@ where
 		let (final_hollar_amount, final_collateral_amount) =
 			calculate_final_amounts((sim_hollar_amount, sim_collateral_amount), buy_price)?;
 
-		log::trace!(target: "hsm", "Hollar amount {:?}, buyback limit {:?}", final_hollar_amount, buyback_limit);
+		log::trace!(target: "hsm", "Hollar amount {final_hollar_amount:?}, buyback limit {buyback_limit:?}");
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(
 			HollarAmountReceived::<T>::get(collateral_asset).saturating_add(final_hollar_amount) <= buyback_limit,
@@ -1031,7 +1143,7 @@ where
 		// 3. Burn Hollar by calling GHO contract
 		Self::burn_hollar(final_hollar_amount)?;
 
-		// 5. Update Hollar amount received in this block
+		// 4. Update Hollar amount received in this block
 		HollarAmountReceived::<T>::mutate(collateral_asset, |amount| {
 			*amount = amount.saturating_add(final_hollar_amount);
 		});
@@ -1059,7 +1171,7 @@ where
 		let peg = Self::get_asset_peg(collateral_asset, collateral_info.pool_id, &pool_state)?;
 		let purchase_price = hydra_dx_math::hsm::calculate_purchase_price(peg, collateral_info.purchase_fee);
 
-		log::trace!(target: "hsm", "Peg: {:?}, Purchase price {:?}", peg, purchase_price);
+		log::trace!(target: "hsm", "Peg: {peg:?}, Purchase price {purchase_price:?}");
 
 		let (hollar_amount, collateral_amount) = calculate_amounts(purchase_price)?;
 
@@ -1117,12 +1229,12 @@ where
 		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
 
 		// Execute the EVM call
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
 		// Check if the call was successful
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
-			log::error!(target: "hsm", "Mint Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
-			return Err(Error::<T>::InvalidEVMInteraction.into());
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
+			log::error!(target: "hsm", "Mint Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
+			return Err(T::EvmErrorDecoder::convert(call_result));
 		}
 
 		Ok(())
@@ -1146,12 +1258,12 @@ where
 		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
 
 		// Execute the EVM call
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
 		// Check if the call was successful
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
-			log::error!(target: "hsm", "Burn Hollar EVM execution failed. Reason: {:?}, value {:?}", exit_reason, value);
-			return Err(Error::<T>::InvalidEVMInteraction.into());
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
+			log::error!(target: "hsm", "Burn Hollar EVM execution failed. Reason: {:?}, value {:?}", call_result.exit_reason, call_result.value);
+			return Err(T::EvmErrorDecoder::convert(call_result));
 		}
 
 		Ok(())
@@ -1168,16 +1280,15 @@ where
 		amount_in: Balance,
 		min_amount_out: Balance,
 		pool_state: &PoolSnapshot<T::AssetId>,
-	) -> Result<Balance, DispatchError> {
-		let (amount_out, _) = pallet_stableswap::Pallet::<T>::simulate_sell(
+	) -> Result<(Balance, PoolSnapshot<T::AssetId>), DispatchError> {
+		pallet_stableswap::Pallet::<T>::simulate_sell(
 			pool_id,
 			asset_in,
 			asset_out,
 			amount_in,
 			min_amount_out,
 			Some(pool_state.clone()),
-		)?;
-		Ok(amount_out)
+		)
 	}
 
 	/// Simulates buying an asset with exact output in a StableSwap pool
@@ -1203,49 +1314,226 @@ where
 		Ok(amount_in)
 	}
 
-	/// Process arbitrage opportunities for all collateral assets
+	/// Process arbitrage opportunities for a selected collateral
 	///
-	/// This function:
-	/// 1. Acquires a lock to prevent concurrent execution
-	/// 2. Checks each collateral asset for arbitrage opportunities
-	/// 3. Submits unsigned transactions to execute profitable arbitrages
+	/// This function is called by the offchain worker to identify and prepare arbitrage
+	/// opportunities. It selects one collateral asset per block (based on block number rotation)
+	/// and checks if a profitable arbitrage exists. If found and the simulation succeeds,
+	/// it returns a Call to execute the arbitrage.
 	///
-	/// This is called from the offchain worker to maintain the Hollar peg.
-	fn process_arbitrage_opportunities(block_number: BlockNumberFor<T>) -> Result<(), DispatchError> {
-		let lock_expiration = Duration::from_millis(LOCK_TIMEOUT);
-		let mut lock = StorageLock::<'_, Time>::with_deadline(OFFCHAIN_WORKER_LOCK, lock_expiration);
+	/// Parameters:
+	/// - `block_number`: The current block number, used to rotate through collateral assets
+	///
+	/// Returns:
+	/// - `Some(Call::execute_arbitrage)` if a valid arbitrage opportunity is found
+	/// - `None` if no opportunity exists or simulation fails
+	pub fn process_arbitrage_opportunities(block_number: BlockNumberFor<T>) -> Option<Call<T>> {
+		let collaterals: Vec<T::AssetId> = Collaterals::<T>::iter_keys().collect();
+		if collaterals.is_empty() {
+			return None;
+		}
 
-		let r = if let Ok(_guard) = lock.try_lock() {
-			log::debug!(
-				target: "hsm::offchain_worker",
-				"Processing arbitrage opportunities at block: {:?}", block_number
-			);
+		// Select collateral asset based on block number
+		let bn: usize = block_number.saturated_into();
+		let idx = bn % collaterals.len();
+		// just to be safe
+		if idx >= collaterals.len() {
+			return None;
+		}
+		let selected_collateral = collaterals[idx];
 
-			for (asset_id, _) in <Collaterals<T>>::iter() {
-				if <T as Config>::Currency::balance(asset_id, &Self::account_id()) > 0 {
-					let call = Call::execute_arbitrage {
-						collateral_asset_id: asset_id,
-					};
-
-					if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()) {
-						log::error!(
-							target: "hsm::offchain_worker",
-							"Failed to submit transaction for asset {:?}: {:?}", asset_id, e
-						);
-					}
-				}
+		if let Some(arb) = Self::find_arbitrage_opportunity(selected_collateral) {
+			if Self::simulate_arbitrage(selected_collateral, arb).is_ok() {
+				return Some(Call::execute_arbitrage {
+					collateral_asset_id: selected_collateral,
+					arbitrage: Some(arb),
+				});
 			}
+		}
+		None
+	}
 
-			Ok(())
+	/// Finds arbitrage opportunities for a collateral asset
+	///
+	/// This function analyzes the price differences between HSM and the StableSwap pool
+	/// to identify profitable arbitrage opportunities. It calculates pool imbalances and
+	/// determines the optimal trade direction and size.
+	///
+	/// The function checks for two types of imbalances:
+	/// - Less Hollar in the pool: Creates buy opportunities (direction ARBITRAGE_DIRECTION_BUY)
+	/// - More Hollar in the pool: Creates sell opportunities (direction ARBITRAGE_DIRECTION_SELL)
+	///
+	/// Parameters:
+	/// - `asset_id`: The collateral asset ID to check for arbitrage opportunities
+	///
+	/// Returns:
+	/// - `Some((direction, amount))` if an arbitrage opportunity exists
+	///   - `direction`: ARBITRAGE_DIRECTION_BUY for buy operations, ARBITRAGE_DIRECTION_SELL for sell operations
+	///   - `amount`: The optimal trade size in Hollar units
+	/// - `None` if no profitable arbitrage opportunity is found
+	pub fn find_arbitrage_opportunity(asset_id: T::AssetId) -> Option<Arbitrage> {
+		let collateral_info = Self::collaterals(asset_id)?;
+		let pool_id = collateral_info.pool_id;
+
+		let pool_state = Self::get_stablepool_state(pool_id).ok()?;
+
+		let hollar_pos = pool_state.asset_idx(T::HollarId::get())?;
+		let collateral_pos = pool_state.asset_idx(asset_id)?;
+
+		// just to be on the safe side
+		if pool_state.reserves.len() <= hollar_pos.max(collateral_pos) {
+			return None;
+		}
+		if pool_state.pegs.len() <= hollar_pos.max(collateral_pos) {
+			return None;
+		}
+
+		let collateral_reserve = pool_state.asset_reserve_at(collateral_pos)?;
+		let hollar_reserve = pool_state.asset_reserve_at(hollar_pos)?;
+
+		let normalized_peg = Self::get_asset_peg(asset_id, pool_id, &pool_state).ok()?;
+		let (imbalance, imb_sign) =
+			hydra_dx_math::hsm::calculate_pool_imbalance(hollar_reserve, normalized_peg, collateral_reserve)?;
+
+		if imb_sign {
+			// Less HOLLAR in the pool
+			let op = Self::find_ideal_trade_size(asset_id, imbalance, &collateral_info, &pool_state)?;
+			Some(Arbitrage::HollarOut(op))
 		} else {
-			log::debug!(
-				target: "hsm::offchain_worker",
-				"Another instance of the offchain worker is already running"
-			);
-			Err(Error::<T>::OffchainLockError.into())
-		};
+			// More HOLLAR in the pool
+			let op = Self::calculate_ideal_trade_size(asset_id, imbalance, &collateral_info, &pool_state).ok()?;
+			Some(Arbitrage::HollarIn(op))
+		}
+	}
 
-		r
+	/// Finds the ideal trade size for arbitrage using binary search
+	///
+	/// This function uses a binary search algorithm to find the maximum profitable
+	/// trade size for arbitrage opportunities. It iteratively tests different trade
+	/// sizes to find the largest amount that still maintains profitability.
+	///
+	/// The search algorithm:
+	/// 1. Sets the maximum boundary to the calculated imbalance
+	/// 2. Uses binary search over 50 iterations to converge on the optimal size
+	/// 3. Tests each size using `check_trade_size` to verify profitability
+	///
+	/// Parameters:
+	/// - `collateral_asset_id`: The ID of the collateral asset being traded
+	/// - `imbalance`: The calculated pool imbalance amount
+	/// - `peg`: The peg ratio between Hollar and the collateral asset
+	/// - `info`: Collateral configuration including fees and limits
+	/// - `state`: Current state snapshot of the StableSwap pool
+	///
+	/// Returns:
+	/// - `Some(amount)` with the optimal trade size if found
+	/// - `None` if no profitable trade size can be determined
+	fn find_ideal_trade_size(
+		collateral_asset_id: T::AssetId,
+		imbalance: Balance,
+		info: &CollateralInfo<T::AssetId>,
+		state: &PoolSnapshot<T::AssetId>,
+	) -> Option<Balance> {
+		let max_flash_loan = Self::get_max_flash_loan_amount();
+		let free_capacity = Self::get_hsm_bucket_free_capacity();
+		let mut sell_amount_max = imbalance.min(max_flash_loan).min(free_capacity);
+		let mut sell_amount_min = 0u128;
+		let mut sell_amount = sell_amount_max / 2;
+		for _ in 0..50 {
+			if Self::check_trade_size(collateral_asset_id, info, state, sell_amount) {
+				sell_amount_min = sell_amount;
+			} else {
+				sell_amount_max = sell_amount;
+			}
+			sell_amount = ((sell_amount_max.saturating_sub(sell_amount_min)) / 2).saturating_add(sell_amount_min);
+		}
+		// Limit min arb size too.
+		if sell_amount_min > T::MinArbitrageAmount::get() {
+			Some(sell_amount_min)
+		} else {
+			None
+		}
+	}
+
+	/// Checks if a specific trade size is profitable for arbitrage
+	///
+	/// This function validates whether a proposed trade size would result in a profitable
+	/// arbitrage opportunity. It simulates the trade execution and compares the resulting
+	/// spot price with the HSM's sell price to determine profitability.
+	///
+	/// The validation process:
+	/// 1. Calculates HSM's purchase price including fees
+	/// 2. Simulates the trade in the StableSwap pool to get the new state
+	/// 3. Calculates the new spot price after the trade
+	/// 4. Compares the spot price with HSM's sell price for profitability
+	///
+	/// Parameters:
+	/// - `collateral_asset_id`: The ID of the collateral asset being traded
+	/// - `peg`: The peg ratio between Hollar and the collateral asset
+	/// - `info`: Collateral configuration including fees and purchase parameters
+	/// - `state`: Current state snapshot of the StableSwap pool
+	/// - `sell_amount`: The proposed trade size to validate
+	///
+	/// Returns:
+	/// - `true` if the trade size would be profitable
+	/// - `false` if the trade size would not be profitable or simulation fails
+	fn check_trade_size(
+		collateral_asset_id: T::AssetId,
+		info: &CollateralInfo<T::AssetId>,
+		state: &PoolSnapshot<T::AssetId>,
+		sell_amount: Balance,
+	) -> bool {
+		(|| -> Option<()> {
+			let collateral_pos = state.asset_idx(collateral_asset_id)?;
+			if collateral_pos >= state.pegs.len() {
+				// Better safe than sorry
+				debug_assert!(false, "Invalid collateral position");
+				return None;
+			}
+			let sell_price =
+				hydra_dx_math::hsm::calculate_purchase_price(state.pegs[collateral_pos], info.purchase_fee);
+			let sell_price = FixedU128::from_rational(sell_price.0, sell_price.1);
+
+			let (_, after_state) = Self::simulate_out_given_in(
+				info.pool_id,
+				T::HollarId::get(),
+				collateral_asset_id,
+				sell_amount,
+				0,
+				state,
+			)
+			.ok()?;
+
+			let reserves = after_state
+				.reserves
+				.iter()
+				.zip(state.assets.iter())
+				.map(|(r, a)| ((*a).into(), *r))
+				.collect::<Vec<_>>();
+
+			let after_spot = hydra_dx_math::stableswap::calculate_spot_price(
+				info.pool_id.into(),
+				reserves,
+				after_state.amplification,
+				T::HollarId::get().into(),
+				collateral_asset_id.into(),
+				after_state.share_issuance,
+				sell_amount,
+				Some(after_state.fee),
+				&after_state.pegs,
+			)?;
+
+			if after_spot.is_zero() {
+				// just to be safe
+				return None;
+			}
+			let after_spot = FixedU128::one().div(after_spot);
+
+			if after_spot > sell_price {
+				return Some(());
+			}
+			None
+		})()
+		.is_some()
 	}
 
 	/// Calculate if there's an arbitrage opportunity for a collateral asset
@@ -1255,62 +1543,42 @@ where
 	///
 	/// Returns the amount of Hollar to trade if there's an opportunity, or 0 otherwise.
 	/// Also returns errors if conditions prevent arbitrage execution.
-	fn calculate_arbitrage_opportunity(
+	fn calculate_ideal_trade_size(
 		collateral_asset_id: T::AssetId,
+		imbalance: Balance,
 		collateral_info: &CollateralInfo<T::AssetId>,
+		pool_state: &PoolSnapshot<T::AssetId>,
 	) -> Result<Balance, DispatchError> {
 		let hollar_id = T::HollarId::get();
-		let pool_id = collateral_info.pool_id;
-
-		let pool_state = Self::get_stablepool_state(pool_id)?;
-
-		let hollar_pos = pool_state
-			.asset_idx(T::HollarId::get())
-			.ok_or(Error::<T>::AssetNotFound)?;
-		let collateral_pos = pool_state
-			.asset_idx(collateral_asset_id)
-			.ok_or(Error::<T>::AssetNotFound)?;
-
-		// just to be on the safe side
-		ensure!(
-			pool_state.reserves.len() > hollar_pos.max(collateral_pos),
-			Error::<T>::InvalidPoolState
-		);
-		ensure!(
-			pool_state.pegs.len() > hollar_pos.max(collateral_pos),
-			Error::<T>::InvalidPoolState
-		);
-		let collateral_reserve = pool_state
-			.asset_reserve_at(collateral_pos)
-			.ok_or(Error::<T>::AssetNotFound)?;
-		let hollar_reserve = pool_state
-			.asset_reserve_at(hollar_pos)
-			.ok_or(Error::<T>::AssetNotFound)?;
-
-		let peg = Self::get_asset_peg(collateral_asset_id, collateral_info.pool_id, &pool_state)?;
-
-		let imbalance = hydra_dx_math::hsm::calculate_imbalance(hollar_reserve, peg, collateral_reserve)
-			.ok_or(ArithmeticError::Overflow)?;
 		let buyback_limit = hydra_dx_math::hsm::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
 
-		if buyback_limit == 0 {
-			return Ok(0);
-		}
+		ensure!(buyback_limit > 0, Error::<T>::MaxBuyBackExceeded);
 
 		// Simulate swap to determine execution price
 		// How much collateral asset we need to sell to buy max_buy_amt of Hollar
 		let sell_amt = Self::simulate_in_given_out(
-			pool_id,
+			collateral_info.pool_id,
 			collateral_asset_id,
 			hollar_id,
 			buyback_limit,
 			Balance::MAX,
-			&pool_state,
+			pool_state,
 		)?;
 		let execution_price = (sell_amt, buyback_limit);
 		let buy_price = hydra_dx_math::hsm::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)
 			.ok_or(ArithmeticError::Overflow)?;
-		let max_price = hydra_dx_math::hsm::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
+
+		let collateral_pos = pool_state
+			.asset_idx(collateral_asset_id)
+			.ok_or(ArithmeticError::Overflow)?;
+		if collateral_pos >= pool_state.pegs.len() {
+			return Err(Error::<T>::InvalidPoolState.into());
+		}
+
+		let max_price = hydra_dx_math::hsm::calculate_max_buy_price(
+			Self::get_asset_peg(collateral_asset_id, collateral_info.pool_id, pool_state)?,
+			collateral_info.max_buy_price_coefficient,
+		);
 
 		ensure!(
 			Self::ensure_max_price(buy_price, max_price),
@@ -1330,7 +1598,11 @@ where
 		let hollar_amount_received = Self::hollar_amount_received(collateral_asset_id);
 		let hollar_amount_to_trade = max_buy_amt.saturating_sub(hollar_amount_received);
 
-		Ok(hollar_amount_to_trade)
+		if hollar_amount_to_trade > T::MinArbitrageAmount::get() {
+			Ok(hollar_amount_to_trade)
+		} else {
+			Err(Error::<T>::MaxBuyBackExceeded.into())
+		}
 	}
 
 	fn get_asset_peg(
@@ -1361,6 +1633,30 @@ where
 		}
 	}
 
+	/// Execute arbitrage trades using flash loan funds
+	///
+	/// This function is called as part of the flash loan callback to perform the actual arbitrage
+	/// trades. It decodes the arbitrage parameters from the provided data and executes trades
+	/// between HSM and the StableSwap pool based on the direction.
+	///
+	/// Parameters:
+	/// - `account`: The EVM address of the flash loan receiver account
+	/// - `loan_amount`: The amount of Hollar borrowed via flash loan
+	/// - `data`: Encoded arbitrage parameters containing:
+	///   - action (u8): Must be 0 for arbitrage
+	///   - direction (u8): ARBITRAGE_DIRECTION_BUY or ARBITRAGE_DIRECTION_SELL
+	///   - collateral_asset_id (u32): The collateral asset to use
+	///   - stable_pool_id (u32): The StableSwap pool ID
+	///
+	/// Returns:
+	/// - `Ok(())` if arbitrage is executed successfully
+	/// - `Err` if the arbitrage fails
+	///
+	/// Errors:
+	/// - `InvalidArbitrageData` if the data cannot be decoded or is malformed
+	/// - `AssetNotApproved` if the collateral asset is not approved
+	/// - `InvalidPoolState` if the pool ID doesn't match the collateral's configured pool
+	/// - Other errors from trade execution
 	pub fn execute_arbitrage_with_flash_loan(account: EvmAddress, loan_amount: Balance, data: &[u8]) -> DispatchResult
 	where
 		<T as pallet_stableswap::Config>::AssetId: From<u32>,
@@ -1368,6 +1664,7 @@ where
 		let mut reader = EvmDataReader::new(data);
 		let action: u8 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
 		ensure!(action == 0, Error::<T>::InvalidArbitrageData);
+		let direction: u8 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
 		let collateral_asset_id: u32 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
 		let stable_pool_id: u32 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
 		let collateral_asset_id: T::AssetId = collateral_asset_id.into();
@@ -1381,58 +1678,99 @@ where
 		let initial_acc_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
 
 		let hollar_balance = <T as Config>::Currency::balance(T::HollarId::get(), &flash_loan_account);
-		log::trace!(target: "hsm", "Hollar balance in flash loan account: {:?}", hollar_balance);
+		log::trace!(target: "hsm", "Hollar balance in flash loan account: {hollar_balance:?}");
 
-		// Sell hollar to HSM for collateral
-		let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
-			&flash_loan_account,
-			collateral_asset_id,
-			|pool_id, state| {
-				//we need to know how much collateral needs to be paid for given hollar
-				//so we simulate by buying exact amount of hollar
-				let collateral_amount = Self::simulate_in_given_out(
-					pool_id,
-					collateral_asset_id,
-					T::HollarId::get(),
-					loan_amount,
-					Balance::MAX,
-					state,
-				)?;
-				Ok((loan_amount, collateral_amount))
-			},
-			|(hollar_amount, _), price| {
-				let collateral_amount = hydra_dx_math::hsm::calculate_collateral_amount(hollar_amount, price)
-					.ok_or(ArithmeticError::Overflow)?;
-				Ok((hollar_amount, collateral_amount))
-			},
-		)?;
-		debug_assert_eq!(hollar_amount, loan_amount);
-
-		// Buy hollar from the collateral stable pool
-		let origin: OriginFor<T> = Origin::<T>::Signed(flash_loan_account.clone()).into();
-		pallet_stableswap::Pallet::<T>::buy(
-			origin,
-			stable_pool_id,
-			T::HollarId::get(),
-			collateral_asset_id,
-			loan_amount,
-			collateral_received,
-		)?;
-
-		let final_acc_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
-		let remaining = final_acc_balance.saturating_sub(initial_acc_balance);
-		if remaining > 0 {
-			log::trace!(target: "hsm", "Collateral remaining : {:?}", remaining);
-			// In case there is some collateral left after the buy,
-			// we transfer it to the HSM account
-			let hsm_account = Self::account_id();
-			<T as Config>::Currency::transfer(
-				collateral_asset_id,
+		if direction == ARBITRAGE_DIRECTION_SELL {
+			// Sell hollar to HSM for collateral
+			let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
 				&flash_loan_account,
-				&hsm_account,
-				remaining,
-				Preservation::Expendable,
+				collateral_asset_id,
+				|pool_id, state| {
+					//we need to know how much collateral needs to be paid for given hollar
+					//so we simulate by buying exact amount of hollar
+					let collateral_amount = Self::simulate_in_given_out(
+						pool_id,
+						collateral_asset_id,
+						T::HollarId::get(),
+						loan_amount,
+						Balance::MAX,
+						state,
+					)?;
+					Ok((loan_amount, collateral_amount))
+				},
+				|(hollar_amount, _), price| {
+					let collateral_amount = hydra_dx_math::hsm::calculate_collateral_amount(hollar_amount, price)
+						.ok_or(ArithmeticError::Overflow)?;
+					Ok((hollar_amount, collateral_amount))
+				},
 			)?;
+			debug_assert_eq!(hollar_amount, loan_amount);
+
+			// Buy hollar from the collateral stable pool
+			let origin: OriginFor<T> = Origin::<T>::Signed(flash_loan_account.clone()).into();
+			pallet_stableswap::Pallet::<T>::buy(
+				origin,
+				stable_pool_id,
+				T::HollarId::get(),
+				collateral_asset_id,
+				loan_amount,
+				collateral_received,
+			)?;
+
+			let final_acc_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
+			let remaining = final_acc_balance.saturating_sub(initial_acc_balance);
+			if remaining > 0 {
+				log::trace!(target: "hsm", "Collateral remaining : {remaining:?}");
+				// In case there is some collateral left after the buy,
+				// we transfer it to the HSM account
+				<T as Config>::Currency::transfer(
+					collateral_asset_id,
+					&flash_loan_account,
+					&T::ArbitrageProfitReceiver::get(),
+					remaining,
+					Preservation::Expendable,
+				)?;
+			}
+		} else if direction == ARBITRAGE_DIRECTION_BUY {
+			let initial_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
+			debug_assert_eq!(initial_balance, 0);
+
+			let origin: OriginFor<T> = Origin::<T>::Signed(flash_loan_account.clone()).into();
+			pallet_stableswap::Pallet::<T>::sell(
+				origin.clone(),
+				stable_pool_id,
+				T::HollarId::get(),
+				collateral_asset_id,
+				loan_amount,
+				0u128,
+			)?;
+
+			let inter_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
+			let collateral_received = inter_balance.saturating_sub(initial_balance);
+
+			Pallet::<T>::buy(
+				origin,
+				collateral_asset_id,
+				T::HollarId::get(),
+				loan_amount,
+				collateral_received,
+			)?;
+
+			let final_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
+			let remaining = final_balance.saturating_sub(initial_balance);
+
+			if remaining > 0 {
+				log::trace!(target: "hsm", "Collateral remaining : {remaining:?}");
+				<T as Config>::Currency::transfer(
+					collateral_asset_id,
+					&flash_loan_account,
+					&T::ArbitrageProfitReceiver::get(),
+					remaining,
+					Preservation::Expendable,
+				)?;
+			}
+		} else {
+			return Err(Error::<T>::InvalidArbitrageData.into());
 		}
 
 		Ok(())
@@ -1445,6 +1783,106 @@ where
 			primitive_types::U128::from(buy_price.1).full_mul(primitive_types::U128::from(max_price.0));
 		buy_price_check <= max_price_check
 	}
+
+	fn get_max_flash_loan_amount() -> Balance {
+		let Some(minter) = FlashMinter::<T>::get() else {
+			return 0;
+		};
+		let Some(hollar_address) = Self::get_hollar_contract_address().ok() else {
+			return 0;
+		};
+		let context = CallContext::new_view(minter);
+		let data = EvmDataWriter::new_with_selector(ERC20Function::MaxFlashLoan)
+			.write(hollar_address)
+			.build();
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "hsm", "MaxFlashLoan exit reason: {:?}:{:?}", call_result.exit_reason, call_result.value);
+			0
+		} else {
+			if call_result.value.len() != 32 {
+				return 0;
+			}
+			U256::from_big_endian(&call_result.value[..]).try_into().unwrap_or(0)
+		}
+	}
+
+	/// Get the free capacity of HSM's facilitator bucket in the GHO contract
+	///
+	/// Queries the GHO (Hollar) ERC20 contract to determine how much Hollar the HSM
+	/// can still mint before reaching its facilitator bucket capacity limit. This is
+	/// calculated as the difference between the bucket's total capacity and current level.
+	///
+	/// The capacity limit controls the maximum amount of Hollar that HSM is authorized
+	/// to mint as a GHO facilitator.
+	///
+	/// Returns:
+	/// - The available capacity (capacity - level) as Balance
+	/// - Returns 0 if the contract address is not configured or the call fails
+	pub fn get_hsm_bucket_free_capacity() -> Balance {
+		let Some(hollar_address) = Self::get_hollar_contract_address().ok() else {
+			return 0;
+		};
+		let hsm_evm_addr = T::EvmAccounts::evm_address(&Self::account_id());
+		let context = CallContext::new_view(hollar_address);
+		let data = EvmDataWriter::new_with_selector(ERC20Function::GetFacilitatorBucket)
+			.write(hsm_evm_addr)
+			.build();
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "hsm", "GetFacilitatorBucket exit reason: {:?}:{:?}", call_result.exit_reason, call_result.value);
+			0
+		} else {
+			if call_result.value.len() != 64 {
+				return 0;
+			}
+			let capacity: u128 = U256::from_big_endian(&call_result.value[0..32]).try_into().unwrap_or(0);
+			let level: u128 = U256::from_big_endian(&call_result.value[32..64])
+				.try_into()
+				.unwrap_or(0);
+			log::trace!(target: "hsm", "Bucket capacity: {capacity:?}");
+			log::trace!(target: "hsm", "Bucket level: {level:?}");
+			capacity.saturating_sub(level)
+		}
+	}
+
+	/// Check if an account is the flash loan receiver account
+	///
+	/// Determines whether a given account is the designated flash loan receiver account
+	/// used during arbitrage operations. This is useful for special handling of the
+	/// flash loan account in trade execution logic.
+	///
+	/// Parameters:
+	/// - `account`: The account to check
+	///
+	/// Returns:
+	/// - `true` if the account is the flash loan receiver account
+	/// - `false` if it's not or if flash minter is not configured
+	pub fn is_flash_loan_account(account: &T::AccountId) -> bool {
+		GetFlashMinterSupport::<T>::get()
+			.is_some_and(|(_, loan_receiver)| T::EvmAccounts::account_id(loan_receiver) == *account)
+	}
+
+	/// Simulate an arbitrage execution without committing state changes
+	///
+	/// Executes the arbitrage operation within a database transaction that is always rolled back,
+	/// allowing the caller to test whether an arbitrage would succeed without actually applying
+	/// the changes. This is useful for validation and testing purposes.
+	///
+	/// Parameters:
+	/// - `collateral_asset_id`: The collateral asset to use for arbitrage
+	/// - `arb`: The arbitrage parameters (direction and amount)
+	///
+	/// Returns:
+	/// - `Ok(())` if the arbitrage simulation succeeds (but changes are rolled back)
+	/// - `Err` if the arbitrage would fail
+	pub fn simulate_arbitrage(collateral_asset_id: T::AssetId, arb: Arbitrage) -> DispatchResult {
+		with_transaction::<(), DispatchError, _>(|| {
+			let r = Self::execute_arbitrage(T::RuntimeOrigin::none(), collateral_asset_id, Some(arb));
+			TransactionOutcome::Rollback(r)
+		})
+	}
 }
 
 pub struct GetFlashMinterSupport<T>(sp_std::marker::PhantomData<T>);
@@ -1455,8 +1893,7 @@ where
 {
 	fn get() -> Option<(EvmAddress, EvmAddress)> {
 		let fm = FlashMinter::<T>::get()?;
-
-		let loan_receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
+		let loan_receiver: EvmAddress = T::FlashLoanReceiver::get();
 		Some((fm, loan_receiver))
 	}
 }

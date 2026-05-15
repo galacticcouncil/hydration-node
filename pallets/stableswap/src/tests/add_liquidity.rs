@@ -41,13 +41,14 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 
 			let pool_account = pool_account(pool_id);
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, initial_liquidity_amount),
 					AssetAmount::new(asset_b, initial_liquidity_amount),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
@@ -98,13 +99,14 @@ fn first_add_liquidity_should_work_when_pool_account_has_balance_that_user_provi
 			)
 			.expect("set pool_account balance failed");
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, 2 * initial_liquidity_amount),
 					AssetAmount::new(asset_b, initial_liquidity_amount),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_balance!(BOB, asset_a, 0);
@@ -176,10 +178,11 @@ fn first_add_liquidity_should_work_when_pool_has_balance_that_user_not_providing
 			)
 			.expect("set pool_account balance failed");
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, initial_liquidity_amount),])
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, initial_liquidity_amount),]),
+				Balance::zero(),
 			));
 
 			assert_balance!(BOB, asset_a, initial_liquidity_amount);
@@ -246,11 +249,18 @@ fn add_liquidity_should_emit_swapped_events() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
-			assert_ok!(Stableswap::add_liquidity(
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount),].try_into().unwrap()
+				vec![AssetAmount::new(asset_a, amount),].try_into().unwrap(),
+				Balance::zero(),
 			));
 
 			let received = Tokens::free_balance(pool_id, &BOB);
@@ -310,13 +320,14 @@ fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
 			let pool_account = pool_account(pool_id);
 
 			assert_noop!(
-				Stableswap::add_liquidity(
+				Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, initial_liquidity_amount),
 						AssetAmount::new(asset_b, initial_liquidity_amount),
-					])
+					]),
+					Balance::zero(),
 				),
 				Error::<Test>::InsufficientBalance
 			);
@@ -369,13 +380,14 @@ fn add_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 
 			let pool_account = pool_account(pool_id);
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, amount_added),
 					AssetAmount::new(asset_b, amount_added),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
@@ -426,13 +438,14 @@ fn add_liquidity_should_work_when_order_is_not_sorted() {
 
 			let pool_account = pool_account(pool_id);
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_b, amount_added),
 					AssetAmount::new(asset_a, amount_added),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
@@ -481,13 +494,14 @@ fn add_liquidity_should_fail_when_providing_insufficient_liquidity() {
 			let amount_added = 100;
 
 			assert_noop!(
-				Stableswap::add_liquidity(
+				Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_b, amount_added),
 						AssetAmount::new(asset_a, amount_added),
-					])
+					]),
+					Balance::zero(),
 				),
 				Error::<Test>::InsufficientTradingAmount
 			);
@@ -538,10 +552,11 @@ fn add_liquidity_should_work_when_providing_one_asset_only() {
 			let pool_id = get_pool_id_at(0);
 			let amount_added = 200 * ONE;
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)]),
+				Balance::zero(),
 			));
 		});
 }
@@ -594,13 +609,14 @@ fn add_liquidity_should_fail_when_providing_one_asset_not_in_pool() {
 			let amount_added = 200 * ONE;
 
 			assert_noop!(
-				Stableswap::add_liquidity(
+				Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, amount_added),
 						AssetAmount::new(asset_e, amount_added),
-					])
+					]),
+					Balance::zero(),
 				),
 				Error::<Test>::AssetNotInPool
 			);
@@ -644,13 +660,14 @@ fn add_liquidity_should_fail_when_provided_list_contains_same_assets() {
 			let pool_id = get_pool_id_at(0);
 			let amount_added = 100 * ONE;
 			assert_noop!(
-				Stableswap::add_liquidity(
+				Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, amount_added),
 						AssetAmount::new(asset_a, amount_added),
-					])
+					]),
+					Balance::zero(),
 				),
 				Error::<Test>::IncorrectAssets
 			);
@@ -690,13 +707,14 @@ fn add_initial_liquidity_should_work_when_asset_have_different_decimals() {
 
 			let pool_account = pool_account(pool_id);
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, initial_liquidity_amount_a),
 					AssetAmount::new(asset_b, initial_liquidity_amount_b),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_balance!(BOB, asset_a, to_precision!(100, dec_a));
@@ -747,11 +765,18 @@ fn add_liquidity_should_work_correctly() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
-			assert_ok!(Stableswap::add_liquidity(
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount),])
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount),]),
+				Balance::zero(),
 			));
 			let received = Tokens::free_balance(pool_id, &BOB);
 			assert_eq!(received, 1947597621401945851);
@@ -797,11 +822,18 @@ fn add_liquidity_should_work_correctly_when_fee_is_applied() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
-			assert_ok!(Stableswap::add_liquidity(
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount),])
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount),]),
+				Balance::zero(),
 			));
 			let received = Tokens::free_balance(pool_id, &BOB);
 			assert_eq!(received, 1947487201901031408);
@@ -847,7 +879,13 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
 			assert_ok!(Stableswap::add_liquidity_shares(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
@@ -916,7 +954,13 @@ fn add_liquidity_should_apply_fee_when_providing_exact_amount_of_shares() {
 		.build()
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
 			assert_ok!(Stableswap::add_liquidity_shares(
 				RuntimeOrigin::signed(BOB),
 				pool_id,

@@ -41,11 +41,12 @@ use frame_support::{
 	traits::{ConstU32, ConstU64},
 };
 use frame_system::EnsureRoot;
+pub use num_traits::Zero;
 use orml_traits::currency::MutationHooks;
 pub use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, NamedMultiReservableCurrency};
-use sp_core::H256;
-use sp_runtime::Permill;
+use sp_core::{H160, H256};
+use sp_runtime::Perbill;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError,
@@ -93,6 +94,7 @@ construct_runtime!(
 		Stableswap: pallet_stableswap,
 		Broadcast: pallet_broadcast,
 		CircuitBreaker: pallet_circuit_breaker,
+		Timestamp: pallet_timestamp,
 	}
 );
 
@@ -126,6 +128,18 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
+}
+
+parameter_types! {
+	pub const MinimumPeriod: u64 = primitives::constants::time::SLOT_DURATION / 2;
+}
+
+impl pallet_timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
 }
 
 parameter_type_with_key! {
@@ -135,7 +149,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -184,12 +197,9 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	}
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
@@ -344,7 +354,7 @@ impl ExtBuilder {
 						pool.initial_amplification.get(),
 						pool.fee,
 						BoundedPegSources::truncate_from(pegs),
-						Permill::from_percent(100),
+						Perbill::from_percent(100),
 					));
 				} else {
 					assert_ok!(Stableswap::create_pool(
@@ -361,10 +371,11 @@ impl ExtBuilder {
 				});
 
 				if initial_liquid.assets.len() as u128 > Balance::zero() {
-					assert_ok!(Stableswap::add_liquidity(
+					assert_ok!(Stableswap::add_assets_liquidity(
 						RuntimeOrigin::signed(initial_liquid.account),
 						pool_id,
-						BoundedVec::truncate_from(initial_liquid.assets)
+						BoundedVec::truncate_from(initial_liquid.assets),
+						Balance::zero(),
 					));
 				}
 			}
@@ -379,8 +390,9 @@ use crate::types::BenchmarkHelper;
 use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect, RawEntry, Source};
-use sp_runtime::traits::Zero;
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::Source;
+use hydradx_traits::{AccountIdFor, Inspect, RawEntry};
 
 pub struct DummyRegistry;
 
@@ -574,7 +586,33 @@ impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
 				shares_issuance: Default::default(),
 				updated_at: System::block_number(),
 			}),
-			_ => panic!("unusupported oracle types: {:?}", source),
+			PegSource::MMOracle(H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])) => Ok(RawEntry {
+				price: (1, 1),
+				volume: Default::default(),
+				liquidity: Default::default(),
+				shares_issuance: Default::default(),
+				updated_at: System::block_number(),
+			}),
+			PegSource::MMOracle(H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])) => {
+				if System::block_number() == 2 {
+					return Ok(RawEntry {
+						price: (48, 100),
+						volume: Default::default(),
+						liquidity: Default::default(),
+						shares_issuance: Default::default(),
+						updated_at: System::block_number(),
+					});
+				}
+
+				Ok(RawEntry {
+					price: (1, 2),
+					volume: Default::default(),
+					liquidity: Default::default(),
+					shares_issuance: Default::default(),
+					updated_at: System::block_number(),
+				})
+			}
+			_ => panic!("unusupported oracle types: {source:?}"),
 		}
 	}
 }
@@ -683,11 +721,11 @@ impl Contains<AccountId> for CircuitBreakerWhitelist {
 }
 
 impl pallet_circuit_breaker::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DepositLockWhitelist = frame_support::traits::Nothing;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
@@ -696,4 +734,5 @@ impl pallet_circuit_breaker::Config for Test {
 	type DepositLimiter = DepositLimiter;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type TimestampProvider = Timestamp;
 }

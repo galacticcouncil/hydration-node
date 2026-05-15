@@ -49,6 +49,7 @@ async function updateChainSpec(inputFile, outputFile) {
             price: 'HydraDxMathRatio',
             volume: 'HydradxTraitsOracleVolume',
             liquidity: 'HydradxTraitsOracleLiquidity',
+            sharesIssuance: 'Option<u128>',
             updatedAt: 'u32',
         },
         OracleValue: '(EmaOracleEntry, u32)',
@@ -104,7 +105,11 @@ async function updateChainSpec(inputFile, outputFile) {
     }
 
     const deployer = process.env.NO_DEPLOYER ? {} : {
-        "0x2c2b3fbb4fc221c42de8259db454678fe74405d2678f6b81824443771f6fa86af065818ad972112ab4e06ea85b354e36222222ff7be76052e023ec1a306fcca8f9659d80": "0x", // Contract deployer 0x222222ff7Be76052e023Ec1a306fCca8F9659D80
+        // EvmAccounts.ContractDeployer - allows deploying contracts
+        "0x2c2b3fbb4fc221c42de8259db454678f7c36c2657df4391d8b829a0c1347bd1ef065818ad972112ab4e06ea85b354e36222222ff7be76052e023ec1a306fcca8f9659d80": "0x", // ContractDeployer 0x222222ff7Be76052e023Ec1a306fCca8F9659D80
+        // EvmAccounts.ApprovedContract - allows managing balances/tokens
+        "0x2c2b3fbb4fc221c42de8259db454678fe74405d2678f6b81824443771f6fa86af065818ad972112ab4e06ea85b354e36222222ff7be76052e023ec1a306fcca8f9659d80": "0x", // ApprovedContract 0x222222ff7Be76052e023Ec1a306fCca8F9659D80
+        // System account balance for 0x222222
         "0x99971b5749ac43e0235e41b0d37869188ee7418a6531173d60d1f6a82d8f4d5173d3a4140c3587d7bc56f1a1c01a1c5e45544800222222ff7be76052e023ec1a306fcca8f9659d8000000000000000001f0e76f06ebd150314000000": "0x000064a7b3b6e00d00000000000000000000000000000000000000000000000000000000000000000000000000000000", // 1 ETH for 0x222222
     }
 
@@ -128,6 +133,8 @@ async function updateChainSpec(inputFile, outputFile) {
 
     // Define keys to delete
     const KEYS_TO_DELETE = [
+        "0x26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac", // System.Number
+        "0x26aa394eea5630e07c48ae0c9558cef799e354094e5f3f9eddda2206fb22e261", // System.ParentHash
         "0x45323df7cc47150b3930e2666b0aa313911a5dd3f1155f5b7d0c5aa102a757f9", // ParachainSystem.lastDmqMqcHead
         "0x45323df7cc47150b3930e2666b0aa3133dca42deb008c6559ee789c9b9f70a2c", // ParachainSystem.lastHrmpMqcHeads
         "0x45323df7cc47150b3930e2666b0aa313a2bca190d36bd834cc73a38fc213ecbd", // ParachainSystem.lastRelayChainBlockNumber
@@ -180,11 +187,6 @@ async function updateChainSpec(inputFile, outputFile) {
                 const updated = registry.createType('(EmaOracleEntry, u32)', [entry, 0]);
                 const reEncodedBytes = updated.toU8a();
 
-                if (originalBytes.length !== reEncodedBytes.length) {
-                    console.warn(`⚠️ Probably an encoding problem from incorrectly registered oracle types, please double check if the registered types correspond to the rust storage entry definition. Skipping key ${key}: original length ${originalBytes.length}, re-encoded length ${reEncodedBytes.length}`);
-                    continue;
-                }
-
                 chainSpec.genesis.raw.top[key] = u8aToHex(reEncodedBytes);
 
                 console.log(`✅ Updated ${key} → blockNumber reset to 0`);
@@ -220,6 +222,22 @@ async function updateChainSpec(inputFile, outputFile) {
         chainSpec.genesis.raw.top[key] = value;
     }
 
+    // Optional: preauthorize a runtime upgrade so the fork comes up with
+    // System.AuthorizedUpgrade populated. A single system.applyAuthorizedUpgrade(code)
+    // call is then enough to enact the new wasm — no governance step required.
+    if (process.env.AUTHORIZE_UPGRADE_CODE_HASH) {
+        const raw = process.env.AUTHORIZE_UPGRADE_CODE_HASH.toLowerCase().replace(/^0x/, '');
+        if (!/^[0-9a-f]{64}$/.test(raw)) {
+            throw new Error(`AUTHORIZE_UPGRADE_CODE_HASH must be a 0x-prefixed 32-byte hex string, got: ${process.env.AUTHORIZE_UPGRADE_CODE_HASH}`);
+        }
+        const checkVersion = process.env.AUTHORIZE_UPGRADE_CHECK_VERSION === 'false' ? '00' : '01';
+        const key = '0x' +
+            xxhashAsHex('System', 128).replace('0x', '') +
+            xxhashAsHex('AuthorizedUpgrade', 128).replace('0x', '');
+        chainSpec.genesis.raw.top[key] = '0x' + raw + checkVersion;
+        console.log(`✅ Preauthorized runtime upgrade: code_hash=0x${raw} check_version=${checkVersion === '01'}`);
+    }
+
     // Update metadata fields
     chainSpec.name = NEW_NAME;
     chainSpec.id = NEW_ID;
@@ -228,7 +246,7 @@ async function updateChainSpec(inputFile, outputFile) {
 
     // Save the updated chain spec
     try {
-        fs.writeFileSync(outputFile, JSON.stringify(chainSpec, null, 4));
+        fs.writeFileSync(outputFile, JSON.stringify(chainSpec));
         console.log(`Chain spec updated successfully and saved to ${outputFile}`);
     } catch (err) {
         console.error('Error writing the updated chain spec file:', err);

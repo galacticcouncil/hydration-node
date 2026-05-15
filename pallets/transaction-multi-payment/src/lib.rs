@@ -20,6 +20,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::large_enum_variant)]
 #![allow(clippy::manual_inspect)]
+#![allow(clippy::useless_conversion)]
 
 pub mod weights;
 
@@ -34,7 +35,7 @@ mod traits;
 
 pub use crate::traits::*;
 use frame_support::storage::with_transaction;
-use frame_support::traits::{Contains, IsSubType};
+use frame_support::traits::{Contains, ExistenceRequirement, IsSubType};
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -48,6 +49,7 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use hydradx_traits::fee::InspectTransactionFeeCurrency;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::{
@@ -100,7 +102,7 @@ pub mod pallet {
 
 				AcceptedCurrencyPrice::<T>::insert(asset_id, price);
 
-				weight += T::WeightInfo::get_oracle_price().ref_time();
+				weight += <T as pallet::Config>::WeightInfo::get_oracle_price().ref_time();
 			}
 
 			Weight::from_parts(weight, 0)
@@ -113,9 +115,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
-		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// The origin which can add/remove accepted currencies
 		type AcceptedCurrencyOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
@@ -229,6 +228,9 @@ pub mod pallet {
 
 		/// EVM permit call failed.
 		EvmPermitRunnerError,
+
+		/// EVM permit must not affect account nonce.
+		EvmPermitNonceInvariantViolated,
 	}
 
 	/// Account currency map
@@ -293,26 +295,7 @@ pub mod pallet {
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
-				ensure!(
-					currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
-					Error::<T>::UnsupportedCurrency
-				);
-			} else {
-				ensure!(
-					T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
-					Error::<T>::UnsupportedCurrency
-				);
-			}
-
-			<AccountCurrencyMap<T>>::insert(who.clone(), currency);
-
-			Self::deposit_event(Event::CurrencySet {
-				account_id: who,
-				asset_id: currency,
-			});
-
-			Ok(())
+			Self::do_set_currency(&who, currency)
 		}
 
 		/// Add a currency to the list of accepted currencies.
@@ -431,7 +414,7 @@ pub mod pallet {
 
 			let encoded = data.clone();
 			let mut encoded_extrinsic = encoded.as_slice();
-			let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> =
+			let maybe_call: Result<T::RuntimeCall, _> =
 				DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
 			let currency = if let Ok(call) = maybe_call {
@@ -501,7 +484,7 @@ pub mod pallet {
 
 						let encoded = data.clone();
 						let mut encoded_extrinsic = encoded.as_slice();
-						let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> =
+						let maybe_call: Result<T::RuntimeCall, _> =
 							DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
 						let currency = if let Ok(call) = maybe_call {
@@ -556,18 +539,54 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Returns the effective fee currency for `who`.
+	///
+	/// Behavior:
+	/// - If `get_currency(who)` is set, return that per-account currency.
+	/// - Otherwise, default by account type:
+	///     * EVM account     → `T::EvmAssetId::get()`
+	///     * non-EVM account → `T::NativeAssetId::get()`
 	pub fn account_currency(who: &T::AccountId) -> AssetIdOf<T>
 	where
 		BalanceOf<T>: FixedPointOperand,
 	{
-		Pallet::<T>::get_currency(who).unwrap_or_else(T::NativeAssetId::get)
+		Pallet::<T>::get_currency(who).unwrap_or_else(|| {
+			if T::InspectEvmAccounts::is_evm_account(who.clone()) {
+				T::EvmAssetId::get()
+			} else {
+				T::NativeAssetId::get()
+			}
+		})
+	}
+
+	fn do_set_currency(who: &T::AccountId, currency: AssetIdOf<T>) -> DispatchResult {
+		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
+			ensure!(
+				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
+				Error::<T>::UnsupportedCurrency
+			);
+		} else {
+			ensure!(
+				T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
+				Error::<T>::UnsupportedCurrency
+			);
+		}
+
+		<AccountCurrencyMap<T>>::insert(who.clone(), currency);
+
+		Self::deposit_event(Event::CurrencySet {
+			account_id: who.clone(),
+			asset_id: currency,
+		});
+
+		Ok(())
 	}
 
 	fn get_currency_price(currency: AssetIdOf<T>) -> Option<Price>
 	where
 		BalanceOf<T>: FixedPointOperand,
 	{
-		if let Some(price) = Self::price(currency) {
+		if let Some(price) = <Pallet<T> as NativePriceOracle<AssetIdOf<T>, Price>>::price(currency) {
 			Some(price)
 		} else {
 			// If not loaded in on_init, let's try first the spot price provider again
@@ -588,7 +607,7 @@ impl<T: Config> Pallet<T> {
 	) -> Option<FixedU128> {
 		let on_chain_route = T::RouteProvider::get_route(AssetPair::new(asset_id, native_asset));
 
-		T::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
+		T::OraclePriceProvider::price(&on_chain_route, OraclePeriod::TenMinutes)
 			.map(|ratio| FixedU128::from_rational(ratio.n, ratio.d))
 	}
 }
@@ -612,20 +631,19 @@ impl<T: Config> DepositFee<T::AccountId, AssetIdOf<T>, BalanceOf<T>> for Deposit
 }
 
 /// Implements the transaction payment for native as well as non-native currencies
-pub struct TransferFees<MC, DF, FR>(PhantomData<(MC, DF, FR)>);
+pub struct TransferFees<T, MC, DF, FR, WF>(PhantomData<(T, MC, DF, FR, WF)>);
 
-impl<T, MC, DF, FR> OnChargeTransaction<T> for TransferFees<MC, DF, FR>
+impl<T, MC, DF, FR, WF> OnChargeTransaction<T> for TransferFees<T, MC, DF, FR, WF>
 where
-	T: Config + pallet_utility::Config,
+	T: Config,
 	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
 	AssetIdOf<T>: Into<MC::CurrencyId>,
 	MC::Balance: FixedPointOperand,
 	FR: Get<T::AccountId>,
 	DF: DepositFee<T::AccountId, MC::CurrencyId, MC::Balance>,
-	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
-	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
 	BalanceOf<T>: FixedPointOperand,
 	BalanceOf<T>: From<MC::Balance>,
+	WF: WithdrawFuseControl,
 {
 	type LiquidityInfo = Option<PaymentInfo<Self::Balance, AssetIdOf<T>, Price>>;
 	type Balance = <MC as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -635,8 +653,8 @@ where
 	/// Note: The `fee` already includes the `tip`.
 	fn withdraw_fee(
 		who: &T::AccountId,
-		call: &<T as frame_system::Config>::RuntimeCall,
-		_info: &DispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
+		call: &T::RuntimeCall,
+		_info: &DispatchInfoOf<T::RuntimeCall>,
 		fee: Self::Balance,
 		_tip: Self::Balance,
 	) -> Result<Self::LiquidityInfo, TransactionValidityError> {
@@ -644,23 +662,7 @@ where
 			return Ok(None);
 		}
 
-		let currency = if let Some(Call::set_currency { currency }) = call.is_sub_type() {
-			*currency
-		} else if let Some(pallet_utility::pallet::Call::batch { calls })
-		| Some(pallet_utility::pallet::Call::batch_all { calls })
-		| Some(pallet_utility::pallet::Call::force_batch { calls }) = call.is_sub_type()
-		{
-			// `calls` can be empty Vec
-			match calls.first() {
-				Some(first_call) => match first_call.is_sub_type() {
-					Some(Call::set_currency { currency }) => *currency,
-					_ => Pallet::<T>::account_currency(who),
-				},
-				_ => Pallet::<T>::account_currency(who),
-			}
-		} else {
-			Pallet::<T>::account_currency(who)
-		};
+		let currency = Self::resolve_currency_from_call(who, call);
 
 		let (converted_fee, currency, price) = if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency)
 		{
@@ -701,7 +703,8 @@ where
 			(fee_in_dot, T::PolkadotNativeAssetId::get(), dot_hdx_price)
 		};
 
-		match MC::withdraw(currency.into(), who, converted_fee) {
+		WF::set_withdraw_fuse_active(false);
+		let res = match MC::withdraw(currency.into(), who, converted_fee, ExistenceRequirement::AllowDeath) {
 			Ok(()) => {
 				if currency == T::NativeAssetId::get() {
 					Ok(Some(PaymentInfo::Native(fee)))
@@ -710,7 +713,10 @@ where
 				}
 			}
 			Err(_) => Err(InvalidTransaction::Payment.into()),
-		}
+		};
+		WF::set_withdraw_fuse_active(true);
+
+		res
 	}
 
 	/// Since the predicted fee might have been too high, parts of the fee may
@@ -719,8 +725,8 @@ where
 	/// Note: The `fee` already includes the `tip`.
 	fn correct_and_deposit_fee(
 		who: &T::AccountId,
-		_dispatch_info: &DispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
-		_post_info: &PostDispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
+		_dispatch_info: &DispatchInfoOf<T::RuntimeCall>,
+		_post_info: &PostDispatchInfoOf<T::RuntimeCall>,
 		corrected_fee: Self::Balance,
 		tip: Self::Balance,
 		already_withdrawn: Self::LiquidityInfo,
@@ -753,6 +759,8 @@ where
 				}
 			};
 
+			WF::set_withdraw_fuse_active(false);
+
 			// refund to the account that paid the fees
 			MC::deposit(currency, who, refund)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
@@ -760,9 +768,61 @@ where
 			// deposit the fee
 			DF::deposit_fee(&fee_receiver, currency, fee + tip)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+			WF::set_withdraw_fuse_active(true);
 		}
 
 		Ok(())
+	}
+
+	fn can_withdraw_fee(
+		who: &T::AccountId,
+		call: &T::RuntimeCall,
+		_info: &DispatchInfoOf<T::RuntimeCall>,
+		fee: Self::Balance,
+		_tip: Self::Balance,
+	) -> Result<(), TransactionValidityError> {
+		if fee.is_zero() {
+			return Ok(());
+		}
+
+		let currency = Self::resolve_currency_from_call(who, call);
+
+		// Only validate for transaction fee currencies, not insufficient assets
+		if !T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
+			return Ok(());
+		}
+
+		// Convert fee from native currency to the target currency before checking
+		let price = Pallet::<T>::get_currency_price(currency)
+			.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+		let converted_fee =
+			convert_fee_with_price(fee, price).ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+		MC::ensure_can_withdraw(currency.into(), who, converted_fee).map_err(|_| InvalidTransaction::Payment.into())
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn endow_account(who: &T::AccountId, amount: Self::Balance) {
+		let currency = Pallet::<T>::account_currency(who);
+		let _ = MC::deposit(currency.into(), who, amount);
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn minimum_balance() -> Self::Balance {
+		// Without any context, return native asset's minimum balance
+		MC::minimum_balance(T::NativeAssetId::get().into())
+	}
+}
+
+impl<T: Config, MC, DF, FR, WF> TransferFees<T, MC, DF, FR, WF>
+where
+	MC: MultiCurrency<T::AccountId>,
+	AssetIdOf<T>: Into<MC::CurrencyId>,
+	WF: WithdrawFuseControl,
+{
+	fn resolve_currency_from_call(who: &T::AccountId, call: &T::RuntimeCall) -> AssetIdOf<T> {
+		T::TryCallCurrency::try_convert(call).unwrap_or_else(|_| Pallet::<T>::account_currency(who))
 	}
 }
 
@@ -828,43 +888,57 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 	fn get(who: &T::AccountId) -> Self::AssetId {
 		Pallet::<T>::account_currency(who)
 	}
+
+	fn set(who: &T::AccountId, asset_id: Self::AssetId) -> DispatchResult {
+		Self::do_set_currency(who, asset_id)
+	}
+	fn is_payment_currency(currency: Self::AssetId) -> DispatchResult {
+		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
+			ensure!(
+				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
+				Error::<T>::UnsupportedCurrency
+			);
+		} else {
+			ensure!(
+				T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
+				Error::<T>::UnsupportedCurrency
+			);
+		}
+
+		Ok(())
+	}
 }
 
-pub struct TryCallCurrency<T>(PhantomData<T>);
-impl<T> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for TryCallCurrency<T>
+/// Test-only implementation of `TryCallCurrency` for unit tests.
+/// Handles `set_currency` and batch patterns, but not `dispatch_with_extra_gas`
+/// (which requires `pallet_dispatcher` dependency).
+pub struct TestCallCurrency<T>(PhantomData<T>);
+impl<T: Config + pallet_utility::Config> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>>
+	for TestCallCurrency<T>
 where
-	T: Config + pallet_utility::Config,
 	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
 	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
 {
 	fn try_convert(
 		call: &<T as frame_system::Config>::RuntimeCall,
 	) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
-		if let Some(crate::pallet::Call::set_currency { currency }) = call.is_sub_type() {
-			Ok(*currency)
-		} else if let Some(pallet_utility::pallet::Call::batch { calls })
+		// Handle direct set_currency calls
+		if let Some(Call::set_currency { currency }) = call.is_sub_type() {
+			return Ok(*currency);
+		}
+
+		// Handle batch/batch_all/force_batch with set_currency as first call
+		if let Some(pallet_utility::pallet::Call::batch { calls })
 		| Some(pallet_utility::pallet::Call::batch_all { calls })
 		| Some(pallet_utility::pallet::Call::force_batch { calls }) = call.is_sub_type()
 		{
-			// `calls` can be empty Vec
-			match calls.first() {
-				Some(first_call) => match first_call.is_sub_type() {
-					Some(crate::pallet::Call::set_currency { currency }) => Ok(*currency),
-					_ => Err(call),
-				},
-				_ => Err(call),
+			if let Some(first_call) = calls.first() {
+				if let Some(Call::set_currency { currency }) = first_call.is_sub_type() {
+					return Ok(*currency);
+				}
 			}
-		} else {
-			Err(call)
 		}
-	}
-}
 
-pub struct NoCallCurrency<T>(PhantomData<T>);
-impl<T: Config> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for NoCallCurrency<T> {
-	fn try_convert(
-		call: &<T as frame_system::Config>::RuntimeCall,
-	) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
 		Err(call)
 	}
 }

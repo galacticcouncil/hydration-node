@@ -23,7 +23,7 @@ use std::collections::HashMap;
 
 use crate as pallet_omnipool;
 
-use crate::traits::ExternalPriceProvider;
+use crate::traits::{AssetInfo, ExternalPriceProvider};
 use frame_support::traits::{ConstU128, Everything};
 use frame_support::weights::Weight;
 use frame_support::{
@@ -57,7 +57,6 @@ pub const LP2: u64 = 2;
 pub const LP3: u64 = 3;
 pub const PROTOCOL_FEE_COLLECTOR: u64 = 4;
 pub const TRADE_FEE_COLLECTOR: u64 = 5;
-
 pub const ONE: Balance = 1_000_000_000_000;
 
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
@@ -80,6 +79,7 @@ thread_local! {
 	pub static WITHDRAWAL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 	pub static ON_TRADE_WITHDRAWAL: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static ON_TRADE_WITHDRAWAL_EXTRA: RefCell<Balance> = const { RefCell::new(0) };
 }
 
 construct_runtime!(
@@ -123,6 +123,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl pallet_balances::Config for Test {
@@ -139,6 +140,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_type_with_key! {
@@ -152,7 +154,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -185,12 +186,9 @@ parameter_types! {
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
 }
 
-impl pallet_broadcast::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_broadcast::Config for Test {}
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Tokens;
@@ -280,7 +278,12 @@ impl Default for ExtBuilder {
 		WITHDRAWAL_ADJUSTMENT.with(|v| {
 			*v.borrow_mut() = (0, 0, false);
 		});
-
+		ON_TRADE_WITHDRAWAL.with(|v| {
+			*v.borrow_mut() = Permill::from_percent(0);
+		});
+		ON_TRADE_WITHDRAWAL_EXTRA.with(|v| {
+			*v.borrow_mut() = Balance::zero();
+		});
 		Self {
 			endowed_accounts: vec![
 				(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -380,6 +383,11 @@ impl ExtBuilder {
 
 	pub fn with_on_trade_withdrawal(self, p: Permill) -> Self {
 		ON_TRADE_WITHDRAWAL.with(|v| *v.borrow_mut() = p);
+		self
+	}
+
+	pub fn with_on_trade_withdrawal_extra(self, extra: Balance) -> Self {
+		ON_TRADE_WITHDRAWAL_EXTRA.with(|v| *v.borrow_mut() = extra);
 		self
 	}
 
@@ -747,8 +755,15 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		let percentage = ON_TRADE_WITHDRAWAL.with(|v| *v.borrow());
 		let to_take = percentage.mul_floor(amount);
-		<Tokens as MultiCurrency<AccountId>>::transfer(asset, &fee_account, &TRADE_FEE_COLLECTOR, to_take)?;
-		Ok(vec![Some((to_take, TRADE_FEE_COLLECTOR))])
+		let add_extra = ON_TRADE_WITHDRAWAL_EXTRA.with(|v| *v.borrow());
+		<Tokens as MultiCurrency<AccountId>>::transfer(
+			asset,
+			&fee_account,
+			&TRADE_FEE_COLLECTOR,
+			to_take + add_extra,
+			ExistenceRequirement::AllowDeath,
+		)?;
+		Ok(vec![Some((to_take + add_extra, TRADE_FEE_COLLECTOR))])
 	}
 
 	fn consume_protocol_fee(
@@ -760,9 +775,20 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		}
 		if amount < 400_000_000 {
 			//less than ED -> dust
-			<Tokens as MultiCurrency<AccountId>>::withdraw(LRNA, &fee_account, amount)?;
+			<Tokens as MultiCurrency<AccountId>>::withdraw(
+				LRNA,
+				&fee_account,
+				amount,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)?;
 		} else {
-			<Tokens as MultiCurrency<AccountId>>::transfer(LRNA, &fee_account, &PROTOCOL_FEE_COLLECTOR, amount)?;
+			<Tokens as MultiCurrency<AccountId>>::transfer(
+				LRNA,
+				&fee_account,
+				&PROTOCOL_FEE_COLLECTOR,
+				amount,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)?;
 		}
 		Ok(Some((amount, PROTOCOL_FEE_COLLECTOR)))
 	}

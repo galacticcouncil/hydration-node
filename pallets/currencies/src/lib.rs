@@ -51,16 +51,16 @@ use frame_support::{
 	},
 };
 use frame_system::{ensure_root, ensure_signed, pallet_prelude::*};
-use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{AssetKind, BoundErc20};
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
-	currency::TransferAll,
+	currency::{OnTransfer, TransferAll},
 	BalanceStatus, BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency, GetByKey,
-	LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
+	Handler, LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
 	NamedBasicReservableCurrency, NamedMultiReservableCurrency,
 };
 use orml_utilities::with_transaction_result;
+use primitives::EvmAddress;
 use sp_runtime::{
 	traits::{CheckedSub, MaybeSerializeDeserialize, StaticLookup, Zero},
 	DispatchError, DispatchResult, Saturating,
@@ -92,9 +92,10 @@ pub mod module {
 	>>::ReserveIdentifier;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
+	pub trait Config: frame_system::Config
+	where
+		<Self::MultiCurrency as MultiCurrency<Self::AccountId>>::CurrencyId: codec::DecodeWithMemTracking,
+	{
 		type MultiCurrency: TransferAll<Self::AccountId>
 			+ MultiCurrencyExtended<Self::AccountId>
 			+ MultiLockableCurrency<Self::AccountId>
@@ -115,6 +116,12 @@ pub mod module {
 
 		#[pallet::constant]
 		type GetNativeCurrencyId: Get<CurrencyIdOf<Self>>;
+
+		/// Registry inspection provider (e.g., asset registry) decoupled via trait.
+		type RegistryInspect: hydradx_traits::registry::Inspect<AssetId = CurrencyIdOf<Self>>;
+
+		/// Egress handler for tracking token outflows.
+		type EgressHandler: AssetWithdrawHandler<Self::AccountId, CurrencyIdOf<Self>, BalanceOf<Self>>;
 
 		/// Weight information for extrinsics in this module.
 		type WeightInfo: WeightInfo;
@@ -184,7 +191,13 @@ pub mod module {
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
 			let to = T::Lookup::lookup(dest)?;
-			<Self as MultiCurrency<T::AccountId>>::transfer(currency_id, &from, &to, amount)?;
+			<Self as MultiCurrency<T::AccountId>>::transfer(
+				currency_id,
+				&from,
+				&to,
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 			Ok(())
 		}
 
@@ -201,7 +214,7 @@ pub mod module {
 		) -> DispatchResult {
 			let from = ensure_signed(origin)?;
 			let to = T::Lookup::lookup(dest)?;
-			T::NativeCurrency::transfer(&from, &to, amount)?;
+			T::NativeCurrency::transfer(&from, &to, amount, ExistenceRequirement::AllowDeath)?;
 
 			Self::deposit_event(Event::Transferred {
 				currency_id: T::GetNativeCurrencyId::get(),
@@ -295,10 +308,12 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		from: &T::AccountId,
 		to: &T::AccountId,
 		amount: Self::Balance,
+		existence_requirement: ExistenceRequirement,
 	) -> DispatchResult {
 		if amount.is_zero() || from == to {
 			return Ok(());
 		}
+
 		#[cfg(any(feature = "try-runtime", test))]
 		let (initial_source_balance, initial_dest_balance) = {
 			(
@@ -308,13 +323,21 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		};
 
 		if currency_id == T::GetNativeCurrencyId::get() {
-			T::NativeCurrency::transfer(from, to, amount)?;
+			T::NativeCurrency::transfer(from, to, amount, existence_requirement)?;
 		} else {
 			match T::BoundErc20::contract_address(currency_id) {
-				Some(contract) => T::Erc20Currency::transfer(contract, from, to, amount)?,
-				None => T::MultiCurrency::transfer(currency_id, from, to, amount)?,
+				Some(contract) => T::Erc20Currency::transfer(contract, from, to, amount, existence_requirement)?,
+				None => T::MultiCurrency::transfer(currency_id, from, to, amount, existence_requirement)?,
 			};
 		}
+
+		<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnTransfer::on_transfer(
+			currency_id,
+			from,
+			to,
+			amount
+		)?;
+
 		Self::deposit_event(Event::Transferred {
 			currency_id,
 			from: from.clone(),
@@ -352,6 +375,13 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 				None => T::MultiCurrency::deposit(currency_id, who, amount)?,
 			}
 		}
+
+		<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnDeposit::handle(&(
+			currency_id,
+			amount,
+			Some(who.clone()),
+		))?;
+
 		Self::deposit_event(Event::Deposited {
 			currency_id,
 			who: who.clone(),
@@ -360,18 +390,29 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		Ok(())
 	}
 
-	fn withdraw(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> DispatchResult {
+	fn withdraw(
+		currency_id: Self::CurrencyId,
+		who: &T::AccountId,
+		amount: Self::Balance,
+		existence_requirement: ExistenceRequirement,
+	) -> DispatchResult {
 		if amount.is_zero() {
 			return Ok(());
 		}
+
 		if currency_id == T::GetNativeCurrencyId::get() {
-			T::NativeCurrency::withdraw(who, amount)?;
+			T::NativeCurrency::withdraw(who, amount, existence_requirement)?;
 		} else {
 			match T::BoundErc20::contract_address(currency_id) {
-				Some(contract) => T::Erc20Currency::withdraw(contract, who, amount)?,
-				None => T::MultiCurrency::withdraw(currency_id, who, amount)?,
+				Some(contract) => T::Erc20Currency::withdraw(contract, who, amount, existence_requirement)?,
+				None => T::MultiCurrency::withdraw(currency_id, who, amount, existence_requirement)?,
 			}
 		}
+
+		<T::EgressHandler as AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>>>::OnWithdraw::handle(
+			&(currency_id, amount),
+		)?;
+
 		Self::deposit_event(Event::Withdrawn {
 			currency_id,
 			who: who.clone(),
@@ -586,7 +627,13 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 			T::NativeCurrency::reserve_named(id, who, value)
 		} else {
 			if let Some(contract) = T::BoundErc20::contract_address(currency_id) {
-				T::Erc20Currency::transfer(contract, who, &T::ReserveAccount::get(), value)?;
+				T::Erc20Currency::transfer(
+					contract,
+					who,
+					&T::ReserveAccount::get(),
+					value,
+					ExistenceRequirement::AllowDeath,
+				)?;
 				T::MultiCurrency::deposit(currency_id, who, value)?;
 			}
 			T::MultiCurrency::reserve_named(id, currency_id, who, value)
@@ -607,8 +654,14 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 					let remaining = T::MultiCurrency::unreserve_named(id, currency_id, who, value);
 					let unreserved = value.saturating_sub(remaining);
 					if unreserved > Zero::zero() {
-						T::MultiCurrency::withdraw(currency_id, who, unreserved)?;
-						T::Erc20Currency::transfer(contract, &T::ReserveAccount::get(), who, unreserved)?;
+						T::MultiCurrency::withdraw(currency_id, who, unreserved, ExistenceRequirement::AllowDeath)?;
+						T::Erc20Currency::transfer(
+							contract,
+							&T::ReserveAccount::get(),
+							who,
+							unreserved,
+							ExistenceRequirement::AllowDeath,
+						)?;
 					}
 					Ok(remaining)
 				})
@@ -668,16 +721,31 @@ where
 		<Pallet<T>>::ensure_can_withdraw(GetCurrencyId::get(), who, amount)
 	}
 
-	fn transfer(from: &T::AccountId, to: &T::AccountId, amount: Self::Balance) -> DispatchResult {
-		<Pallet<T> as MultiCurrency<T::AccountId>>::transfer(GetCurrencyId::get(), from, to, amount)
+	fn transfer(
+		from: &T::AccountId,
+		to: &T::AccountId,
+		amount: Self::Balance,
+		existence_requirement: ExistenceRequirement,
+	) -> DispatchResult {
+		<Pallet<T> as MultiCurrency<T::AccountId>>::transfer(
+			GetCurrencyId::get(),
+			from,
+			to,
+			amount,
+			existence_requirement,
+		)
 	}
 
 	fn deposit(who: &T::AccountId, amount: Self::Balance) -> DispatchResult {
 		<Pallet<T>>::deposit(GetCurrencyId::get(), who, amount)
 	}
 
-	fn withdraw(who: &T::AccountId, amount: Self::Balance) -> DispatchResult {
-		<Pallet<T>>::withdraw(GetCurrencyId::get(), who, amount)
+	fn withdraw(
+		who: &T::AccountId,
+		amount: Self::Balance,
+		existence_requirement: ExistenceRequirement,
+	) -> DispatchResult {
+		<Pallet<T>>::withdraw(GetCurrencyId::get(), who, amount, existence_requirement)
 	}
 
 	fn can_slash(who: &T::AccountId, amount: Self::Balance) -> bool {
@@ -802,8 +870,13 @@ where
 		Currency::ensure_can_withdraw(who, amount, WithdrawReasons::all(), new_balance)
 	}
 
-	fn transfer(from: &AccountId, to: &AccountId, amount: Self::Balance) -> DispatchResult {
-		Currency::transfer(from, to, amount, ExistenceRequirement::AllowDeath)
+	fn transfer(
+		from: &AccountId,
+		to: &AccountId,
+		amount: Self::Balance,
+		existence_requirement: ExistenceRequirement,
+	) -> DispatchResult {
+		Currency::transfer(from, to, amount, existence_requirement)
 	}
 
 	fn deposit(who: &AccountId, amount: Self::Balance) -> DispatchResult {
@@ -816,8 +889,8 @@ where
 		Ok(())
 	}
 
-	fn withdraw(who: &AccountId, amount: Self::Balance) -> DispatchResult {
-		Currency::withdraw(who, amount, WithdrawReasons::all(), ExistenceRequirement::AllowDeath).map(|_| ())
+	fn withdraw(who: &AccountId, amount: Self::Balance, existence_requirement: ExistenceRequirement) -> DispatchResult {
+		Currency::withdraw(who, amount, WithdrawReasons::all(), existence_requirement).map(|_| ())
 	}
 
 	fn can_slash(who: &AccountId, amount: Self::Balance) -> bool {
@@ -857,7 +930,7 @@ where
 		if by_amount.is_positive() {
 			Self::deposit(who, by_balance)
 		} else {
-			Self::withdraw(who, by_balance)
+			Self::withdraw(who, by_balance, ExistenceRequirement::AllowDeath)
 		}
 	}
 }
@@ -975,13 +1048,19 @@ impl<T: Config> TransferAll<T::AccountId> for Pallet<T> {
 			T::MultiCurrency::transfer_all(source, dest)?;
 
 			// transfer all free to dest
-			T::NativeCurrency::transfer(source, dest, T::NativeCurrency::free_balance(source))
+			T::NativeCurrency::transfer(
+				source,
+				dest,
+				T::NativeCurrency::free_balance(source),
+				ExistenceRequirement::AllowDeath,
+			)
 		})
 	}
 }
 
 use frame_support::traits::fungible::{Dust, Inspect, Mutate, Unbalanced};
 use frame_support::traits::tokens::{DepositConsequence, Fortitude, Preservation, Provenance, WithdrawConsequence};
+use hydradx_traits::circuit_breaker::AssetWithdrawHandler;
 
 impl<T: Config, AccountId, Currency, Amount, Moment> Inspect<AccountId>
 	for BasicCurrencyAdapter<T, Currency, Amount, Moment>
@@ -1073,7 +1152,9 @@ where
 	}
 }
 
+#[cfg(any(test, feature = "std"))]
 pub struct MockErc20Currency<T>(PhantomData<T>);
+#[cfg(any(test, feature = "std"))]
 impl<T: Config> MultiCurrency<T::AccountId> for MockErc20Currency<T> {
 	type CurrencyId = EvmAddress;
 	type Balance = BalanceOf<T>;
@@ -1107,6 +1188,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for MockErc20Currency<T> {
 		_from: &T::AccountId,
 		_to: &T::AccountId,
 		_amount: Self::Balance,
+		_existence_requirement: ExistenceRequirement,
 	) -> DispatchResult {
 		Ok(())
 	}
@@ -1115,7 +1197,12 @@ impl<T: Config> MultiCurrency<T::AccountId> for MockErc20Currency<T> {
 		Ok(())
 	}
 
-	fn withdraw(_currency_id: Self::CurrencyId, _who: &T::AccountId, _amount: Self::Balance) -> DispatchResult {
+	fn withdraw(
+		_currency_id: Self::CurrencyId,
+		_who: &T::AccountId,
+		_amount: Self::Balance,
+		_existence_requirement: ExistenceRequirement,
+	) -> DispatchResult {
 		Ok(())
 	}
 
@@ -1170,4 +1257,11 @@ impl<T: Config> BoundErc20 for MockBoundErc20<T> {
 	fn contract_address(_id: Self::AssetId) -> Option<EvmAddress> {
 		None
 	}
+}
+
+pub struct MockEgressHandler<T>(PhantomData<T>);
+impl<T: Config> AssetWithdrawHandler<T::AccountId, CurrencyIdOf<T>, BalanceOf<T>> for MockEgressHandler<T> {
+	type OnWithdraw = ();
+	type OnDeposit = ();
+	type OnTransfer = ();
 }

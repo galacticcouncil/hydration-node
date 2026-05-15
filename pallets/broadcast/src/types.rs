@@ -1,4 +1,4 @@
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ pub type IncrementalIdType = u32;
 pub type OtcOrderId = u32;
 pub type ScheduleId = u32;
 
-#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Clone, Copy, Debug, DecodeWithMemTracking, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum Filler {
 	Omnipool,
 	Stableswap(AssetId), // pool id
@@ -20,13 +20,13 @@ pub enum Filler {
 	HSM,
 }
 
-#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum Destination<AccountId> {
 	Account(AccountId),
 	Burned,
 }
 
-#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub struct Fee<AccountId> {
 	pub asset: AssetId,
 	pub amount: Balance,
@@ -42,7 +42,7 @@ impl<AccountId> Fee<AccountId> {
 	}
 }
 
-#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub struct Asset {
 	pub asset: AssetId,
 	pub amount: Balance,
@@ -54,7 +54,7 @@ impl Asset {
 }
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum ExecutionType {
 	Router(IncrementalIdType),
 	DCA(ScheduleId, IncrementalIdType),
@@ -64,7 +64,7 @@ pub enum ExecutionType {
 	Xcm([u8; 32], IncrementalIdType),
 }
 
-#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum TradeOperation {
 	ExactIn,
 	ExactOut,

@@ -14,7 +14,7 @@ pub type Price = FixedU128;
 
 bitflags::bitflags! {
 	/// Indicates whether asset can be bought or sold to/from Omnipool and/or liquidity added/removed.
-	#[derive(Encode,Decode, MaxEncodedLen, TypeInfo)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, TypeInfo)]
 	pub struct Tradability: u8 {
 		/// Asset is frozen. No operations are allowed.
 		const FROZEN = 0b0000_0000;
@@ -111,6 +111,16 @@ where
 			price: position.price,
 		}
 	}
+}
+
+/// Runtime-configurable slip fee parameters.
+/// When present in storage, slip fees are enabled with an implicit factor of 1.0
+/// (the `slip_factor` from the spec is intentionally omitted as a separate field).
+/// Setting the storage value to `None` disables slip fees entirely.
+#[derive(Clone, Debug, Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, TypeInfo, PartialEq, Eq)]
+pub struct SlipFeeConfig {
+	/// Maximum slip fee rate per side (capped at 50% by the set_slip_fee extrinsic)
+	pub max_slip_fee: Permill,
 }
 
 impl<Balance, AssetId> Position<Balance, AssetId>

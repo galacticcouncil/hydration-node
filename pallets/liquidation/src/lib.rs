@@ -40,10 +40,12 @@ use frame_support::{
 	},
 	PalletId,
 };
+
 use frame_system::{pallet_prelude::OriginFor, RawOrigin};
+use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{
-	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
+	evm::{CallContext, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -52,10 +54,11 @@ use precompile_utils::evm::{
 	writer::{EvmDataReader, EvmDataWriter},
 	Bytes,
 };
+use primitives::EvmAddress;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{crypto::AccountId32, H256, U256};
+use sp_runtime::traits::Convert;
 use sp_std::{vec, vec::Vec};
-
 #[cfg(test)]
 mod tests;
 
@@ -70,9 +73,9 @@ pub use pallet::*;
 
 pub type Balance = u128;
 pub type AssetId = u32;
-pub type CallResult = (ExitReason, Vec<u8>);
-
-pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = 1_000_000;
+//NOTE: `u64::max -1` is set in /node/src/tx_priority.json oracles' updates.
+//We don't want to frontrun oracle updates so these should be keept in sync.
+pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = u64::MAX - 2;
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
@@ -90,9 +93,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Multi currency.
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 
@@ -134,6 +134,8 @@ pub mod pallet {
 		/// Flash minter contract address and flash loan receiver address.
 		type FlashMinter: Get<Option<(EvmAddress, EvmAddress)>>;
 
+		type EvmErrorDecoder: Convert<CallResult, DispatchError>;
+
 		/// The origin which can update transaction priorities, allowed signers and call addresses
 		/// for the liquidation worker.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -162,21 +164,21 @@ pub mod pallet {
 					// receiving unsigned transaction from network - disallow
 					return InvalidTransaction::Call.into();
 				}
-				TransactionSource::Local => {}   // produced by off-chain worker
+				TransactionSource::Local => {}   // produced by offchain worker
 				TransactionSource::InBlock => {} // some other node included it in a block
 			};
 
-			let valid_tx = |provide| {
-				ValidTransaction::with_tag_prefix("liquidate_unsigned_call")
+			let valid_tx = |user| {
+				ValidTransaction::with_tag_prefix("liquidate_unsigned")
 					.priority(UNSIGNED_LIQUIDATION_PRIORITY)
-					.and_provides([&provide])
-					.longevity(2)
+					.and_provides([Encode::encode(user)])
+					.longevity(1)
 					.propagate(false)
 					.build()
 			};
 
 			match call {
-				Call::liquidate { .. } => valid_tx(b"liquidate_unsigned".to_vec()),
+				Call::liquidate { user, .. } => valid_tx(user),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -190,7 +192,6 @@ pub mod pallet {
 			user: EvmAddress,
 			collateral_asset: AssetId,
 			debt_asset: AssetId,
-			debt_to_cover: Balance,
 			profit: Balance,
 		},
 	}
@@ -245,7 +246,7 @@ pub mod pallet {
 			debt_to_cover: Balance,
 			route: Route<AssetId>,
 		) -> DispatchResult {
-			log::trace!(target: "liquidation","liquidating debt asset: {:?} for amount: {:?}", debt_asset, debt_to_cover);
+			log::trace!(target: "liquidation","liquidating debt asset: {debt_asset:?} for amount: {debt_to_cover:?}");
 
 			if debt_asset == T::HollarId::get() {
 				let (flash_minter, loan_receiver) = T::FlashMinter::get().ok_or(Error::<T>::FlashMinterNotSet)?;
@@ -262,11 +263,11 @@ pub mod pallet {
 					.write(Bytes(liquidation_data))
 					.build();
 
-				let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+				let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
-				if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-					log::error!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
-					return Err(Error::<T>::LiquidationCallFailed.into());
+				if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+					log::info!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
+					return Err(T::EvmErrorDecoder::convert(call_result));
 				}
 			} else {
 				let pallet_acc = Self::account_id();
@@ -352,11 +353,11 @@ impl<T: Config> Pallet<T> {
 		let context = CallContext::new_call(contract, liquidator);
 		let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
 
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::error!(target: "liquidation",
-						"Evm execution failed. Reason: {:?}", value);
-			return Err(Error::<T>::LiquidationCallFailed.into());
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::info!(target: "liquidation",
+						"Evm execution failed. Reason: {:?}", call_result.value);
+			return Err(T::EvmErrorDecoder::convert(call_result));
 		}
 
 		// swap collateral if necessary
@@ -366,7 +367,7 @@ impl<T: Config> Pallet<T> {
 				.defensive_ok_or(ArithmeticError::Underflow)?;
 
 			log::trace!(target: "liquidation",
-				"Collateral earned: {:?} for asset: {:?}", collateral_earned, collateral_asset);
+				"Collateral earned: {collateral_earned:?} for asset: {collateral_asset:?}");
 
 			T::Router::sell(
 				RawOrigin::Signed(liquidator_account.clone()).into(),
@@ -388,7 +389,7 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::NotProfitable)?;
 
 		log::trace!(target: "liquidation",
-				"Profit: {:?} for asset: {:?}", profit, debt_asset);
+				"Profit: {profit:?} for asset: {debt_asset:?}");
 
 		<T as Config>::Currency::transfer(
 			debt_asset,
@@ -402,7 +403,6 @@ impl<T: Config> Pallet<T> {
 			user,
 			collateral_asset,
 			debt_asset,
-			debt_to_cover,
 			profit,
 		});
 
@@ -412,7 +412,7 @@ impl<T: Config> Pallet<T> {
 	/// Liquidates an existing money market position.
 	pub fn liquidate_position(liquidator: EvmAddress, loan_amount: Balance, data: &[u8]) -> DispatchResult {
 		let (collateral_asset_id, debt_asset_id, user, route) = Self::decode_liquidation_data(data)?;
-		log::trace!(target: "liquidation", "collateral_asset_id: {}, debt_asset_id: {}, user: {:?}, route: {:?}", collateral_asset_id, debt_asset_id, user, route);
+		log::trace!(target: "liquidation", "collateral_asset_id: {collateral_asset_id}, debt_asset_id: {debt_asset_id}, user: {user:?}, route: {route:?}");
 		Self::liquidate_position_internal(liquidator, collateral_asset_id, debt_asset_id, loan_amount, user, route)
 	}
 
@@ -466,5 +466,14 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok((collateral_asset_id, debt_asset_id, user, Route::truncate_from(route)))
+	}
+}
+
+impl<T> Get<EvmAddress> for Pallet<T>
+where
+	T: Config,
+{
+	fn get() -> EvmAddress {
+		Self::borrowing_contract()
 	}
 }

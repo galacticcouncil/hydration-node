@@ -1,6 +1,6 @@
 [package]
 name = "pallet-stableswap"
-version = "5.4.3"
+version = "7.4.1"
 description = "AMM for correlated assets"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -23,6 +23,7 @@ serde = { workspace = true }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 pallet-broadcast = { workspace = true }
+primitives = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -40,6 +41,8 @@ hydra-dx-math = { workspace = true }
 # ORML dependencies
 orml-traits = { workspace = true }
 
+log = { workspace = true }
+
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
 
@@ -50,7 +53,10 @@ orml-tokens = { workspace = true, features = ["std"] }
 proptest = { workspace = true }
 test-utils = { workspace = true }
 pretty_assertions = "1.4.0"
-pallet-circuit-breaker = { workspace = true}
+pallet-circuit-breaker = { workspace = true }
+pallet-timestamp = { workspace = true }
+primitives = { workspace = true }
+hex-literal = { workspace = true }
 
 [features]
 default = ["std"]
@@ -59,11 +65,13 @@ runtime-benchmarks = [
     "frame-system/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
     "hydra-dx-math/runtime-benchmarks",
+    "pallet-circuit-breaker/runtime-benchmarks",
 ]
 std = [
     "serde/std",
     "codec/std",
     "scale-info/std",
+    "log/std",
     "frame-support/std",
     "frame-system/std",
     "sp-runtime/std",
@@ -74,6 +82,7 @@ std = [
     "frame-benchmarking/std",
     "orml-traits/std",
     "hydra-dx-math/std",
+    "hydradx-traits/std",
     "pallet-broadcast/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

@@ -307,3 +307,72 @@ fn protocol_fee_should_decrease_due_to_decay() {
 	let expected_fee = Permill::from_float(0.0998);
 	assert_eq!(calculated_asset_fee, expected_fee);
 }
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic(expected = "current liquidity is zero")]
+fn recalculate_asset_fee_should_panic_when_liquidity_is_zero() {
+	let volume = OracleEntry {
+		amount_in: 25,
+		amount_out: 20,
+		liquidity: 1000,
+		decay_factor: FixedU128::from_rational(2, 10),
+	};
+	let previous_fee = Permill::from_percent(10);
+	let last_block_diff = 1;
+	let params = FeeParams {
+		amplification: FixedU128::from(2),
+		decay: FixedU128::zero(),
+		min_fee: Permill::from_percent(1),
+		max_fee: Permill::from_percent(30),
+	};
+
+	// Should panic in debug mode when current_asset_liquidity is 0
+	let _calculated_fee = recalculate_asset_fee(volume, 0, previous_fee, last_block_diff, params);
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic(expected = "current liquidity is zero")]
+fn recalculate_protocol_fee_should_panic_when_liquidity_is_zero() {
+	let volume = OracleEntry {
+		amount_in: 25,
+		amount_out: 20,
+		liquidity: 1000,
+		decay_factor: FixedU128::from_rational(2, 10),
+	};
+	let previous_fee = Permill::from_percent(10);
+	let last_block_diff = 1;
+	let params = FeeParams {
+		amplification: FixedU128::from(2),
+		decay: FixedU128::zero(),
+		min_fee: Permill::from_percent(1),
+		max_fee: Permill::from_percent(30),
+	};
+
+	// Should panic in debug mode when current_asset_liquidity is 0
+	let _calculated_fee = recalculate_protocol_fee(volume, 0, previous_fee, last_block_diff, params);
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic(expected = "oracle liquidity is zero")]
+fn recalculate_asset_fee_should_panic_when_oracle_liquidity_is_zero() {
+	let volume = OracleEntry {
+		amount_in: 25,
+		amount_out: 20,
+		liquidity: 0, // Oracle recorded zero liquidity
+		decay_factor: FixedU128::from_rational(2, 10),
+	};
+	let previous_fee = Permill::from_percent(10);
+	let last_block_diff = 1;
+	let params = FeeParams {
+		amplification: FixedU128::from(2),
+		decay: FixedU128::zero(),
+		min_fee: Permill::from_percent(1),
+		max_fee: Permill::from_percent(30),
+	};
+
+	// Should panic in debug mode when oracle liquidity is 0
+	let _calculated_fee = recalculate_asset_fee(volume, 1000, previous_fee, last_block_diff, params);
+}

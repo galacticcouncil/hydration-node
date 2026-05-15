@@ -27,7 +27,10 @@ mod tests;
 
 pub mod migration;
 
-use frame_support::{traits::Get, BoundedVec};
+use frame_support::{
+	traits::{ExistenceRequirement, Get},
+	BoundedVec,
+};
 
 use orml_traits::MultiCurrency;
 use pallet_session::SessionManager;
@@ -56,8 +59,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Balance type
 		type Balance: Parameter
 			+ Member
@@ -123,7 +124,7 @@ impl<T: Config> SessionManager<T::AccountId> for Pallet<T> {
 			match maybe_collators_b {
 				Ok(collators_b) => Collators::<T>::insert(index, collators_b),
 				Err(_) => {
-					log::warn!(target: "runtime::collator-rewards", "Error reward collators: too many collators {:?}", collators);
+					log::warn!(target: "runtime::collator-rewards", "Error reward collators: too many collators {collators:?}");
 					return None;
 				}
 			}
@@ -142,13 +143,19 @@ impl<T: Config> SessionManager<T::AccountId> for Pallet<T> {
 		for collator in Collators::<T>::take(index) {
 			if !excluded.contains(&collator) {
 				let (currency, amount) = (T::RewardCurrencyId::get(), T::RewardPerCollator::get());
-				match T::Currency::transfer(currency, &T::RewardsBag::get(), &collator, amount) {
+				match T::Currency::transfer(
+					currency,
+					&T::RewardsBag::get(),
+					&collator,
+					amount,
+					ExistenceRequirement::AllowDeath,
+				) {
 					Ok(_) => Self::deposit_event(Event::CollatorRewarded {
 						who: collator,
 						amount,
 						currency,
 					}),
-					Err(err) => log::warn!(target: "runtime::collator-rewards", "Error reward collators: {:?}", err),
+					Err(err) => log::warn!(target: "runtime::collator-rewards", "Error reward collators: {err:?}"),
 				}
 			}
 		}

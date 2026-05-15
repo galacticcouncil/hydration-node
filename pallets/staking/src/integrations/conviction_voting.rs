@@ -4,10 +4,8 @@ use crate::types::{Action, Balance, Conviction, ReferendumIndex, Vote};
 use crate::{Config, Error, Pallet};
 use frame_support::defensive;
 use frame_support::dispatch::DispatchResult;
-use frame_support::traits::{PollStatus, Polling};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use pallet_conviction_voting::traits::VotingHooks;
-use pallet_conviction_voting::AccountVote;
+use pallet_conviction_voting::{AccountVote, Status, VotingHooks};
 use sp_core::Get;
 use sp_runtime::FixedPointNumber;
 
@@ -17,7 +15,7 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for StakingC
 where
 	T::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 {
-	fn on_vote(who: &T::AccountId, ref_index: ReferendumIndex, vote: AccountVote<Balance>) -> DispatchResult {
+	fn on_before_vote(who: &T::AccountId, ref_index: ReferendumIndex, vote: AccountVote<Balance>) -> DispatchResult {
 		let position_id = if let Some(position_id) = Pallet::<T>::get_user_position_id(who)? {
 			position_id
 		} else {
@@ -85,7 +83,7 @@ where
 		})
 	}
 
-	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex, ongoing: Option<bool>) {
+	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex, status: Status) {
 		let Some(maybe_position_id) = Pallet::<T>::get_user_position_id(who).ok() else {
 			return;
 		};
@@ -114,11 +112,10 @@ where
 					let points =
 						Pallet::<T>::calculate_points_for_action(Action::DemocracyVote, vote, max_position_vote);
 					// Add points only if referendum is finished
-					if let Some(is_ongoing) = ongoing {
-						if !is_ongoing {
-							position.action_points = position.action_points.saturating_add(points);
-						}
+					if let Status::Completed = status {
+						position.action_points = position.action_points.saturating_add(points);
 					}
+
 					Votes::<T>::mutate(position_id, |voting| {
 						voting.votes.remove(vote_idx);
 					});
@@ -128,7 +125,7 @@ where
 		});
 	}
 
-	fn balance_locked_on_unsuccessful_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
+	fn lock_balance_on_unsuccessful_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
 		let position_id = Pallet::<T>::get_user_position_id(who).ok()??;
 
 		if let Some(vote) = VotesRewarded::<T>::get(who, ref_index) {
@@ -195,24 +192,14 @@ where
 	}
 }
 
-pub struct ReferendumStatus<P, T>(sp_std::marker::PhantomData<(P, T)>);
+pub struct DirectReferendumStatus<T>(sp_std::marker::PhantomData<T>);
 
-impl<T, P: Polling<T>> GetReferendumState<ReferendumIndex> for ReferendumStatus<P, T>
-where
-	<P as Polling<T>>::Index: From<ReferendumIndex>,
-{
-	fn is_referendum_finished(_index: ReferendumIndex) -> bool {
-		let r = <P as Polling<T>>::try_access_poll::<bool>(_index.into(), |status| {
-			let r = match status {
-				PollStatus::Completed(_, _) => true,
-				PollStatus::Ongoing(_, _) => false,
-				PollStatus::None => false,
-			};
-			Ok(r)
-		});
-		debug_assert!(r.is_ok(), "Failed to access poll");
-		// If we failed to access poll, we assume that referendum is not finished - this should never be the case
-		// Note: we cant return true, because it would reward points.
-		r.unwrap_or(false)
+impl<T: pallet_referenda::Config> GetReferendumState<ReferendumIndex> for DirectReferendumStatus<T> {
+	fn is_referendum_finished(index: ReferendumIndex) -> bool {
+		match pallet_referenda::ReferendumInfoFor::<T>::get(index) {
+			Some(pallet_referenda::ReferendumInfo::Approved(..)) => true,
+			Some(pallet_referenda::ReferendumInfo::Rejected(..)) => true,
+			_ => false, // Ongoing, Cancelled, Killed, TimedOut -> not "finished" from points accumulation pov
+		}
 	}
 }

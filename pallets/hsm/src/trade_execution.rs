@@ -89,7 +89,7 @@ where
 					|| -> Result<Balance, DispatchError> {
 						let collateral_info = Collaterals::<T>::get(asset_out).ok_or(Error::<T>::AssetNotApproved)?;
 						let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
-						let hollar_amount = Self::simulate_out_given_in(
+						let (hollar_amount, _) = Self::simulate_out_given_in(
 							collateral_info.pool_id,
 							asset_out,
 							T::HollarId::get(),

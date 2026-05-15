@@ -26,7 +26,9 @@
 //                  $$$
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
+use core::marker::PhantomData;
 #[cfg(test)]
 pub mod mock;
 #[cfg(test)]
@@ -49,4 +51,47 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn is_testnet)]
 	pub type IsTestnet<T> = StorageValue<_, bool, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn relay_parent_offset_override)]
+	pub type RelayParentOffsetOverride<T> = StorageValue<_, bool, ValueQuery>;
+
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		pub is_testnet: bool,
+		pub relay_parent_offset_override: bool,
+		pub _phantom: PhantomData<T>,
+	}
+
+	impl<T: Config> Default for GenesisConfig<T> {
+		fn default() -> Self {
+			Self {
+				is_testnet: false,
+				relay_parent_offset_override: false,
+				_phantom: PhantomData,
+			}
+		}
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+		fn build(&self) {
+			IsTestnet::<T>::put(self.is_testnet);
+			RelayParentOffsetOverride::<T>::put(self.relay_parent_offset_override);
+		}
+	}
+
+	impl<T: Config> Pallet<T> {
+		/// Set the flag. Only used for tests.
+		#[cfg(feature = "std")]
+		pub fn set_testnet_flag(is_testnet: bool) {
+			IsTestnet::<T>::put(is_testnet);
+		}
+
+		/// Set the relay parent offset override. Only used for tests.
+		#[cfg(feature = "std")]
+		pub fn set_relay_parent_offset_override(override_enabled: bool) {
+			RelayParentOffsetOverride::<T>::put(override_enabled);
+		}
+	}
 }

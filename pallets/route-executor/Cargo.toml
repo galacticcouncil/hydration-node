@@ -1,6 +1,6 @@
 [package]
 name = "pallet-route-executor"
-version = "2.10.1"
+version = "2.12.1"
 description = "A pallet to execute a route containing a sequence of trades"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -35,7 +35,6 @@ sp-io = { workspace = true }
 pretty_assertions = { workspace = true }
 orml-tokens = { workspace = true }
 pallet-currencies = { workspace = true }
-hydradx-adapters = { workspace = true }
 test-utils = { workspace = true }
 
 [features]
@@ -54,9 +53,9 @@ std = [
   "frame-system/std",
   "orml-tokens/std",
   "orml-traits/std",
-  "hydradx-adapters/std",
   "pallet-balances/std",
   "pallet-broadcast/std",
+  "pallet-currencies/std",
   "hydradx-traits/std",
   "hydra-dx-math/std",
   "frame-benchmarking/std",

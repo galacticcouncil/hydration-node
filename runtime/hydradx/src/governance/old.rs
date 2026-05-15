@@ -74,7 +74,6 @@ parameter_types! {
 
 impl pallet_democracy::Config for Runtime {
 	type WeightInfo = weights::pallet_democracy::HydraWeight<Runtime>;
-	type RuntimeEvent = RuntimeEvent;
 	type Scheduler = Scheduler;
 	type Preimages = Preimage;
 	type Currency = Balances;

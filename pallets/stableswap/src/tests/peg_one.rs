@@ -10,14 +10,14 @@ use frame_support::{assert_noop, assert_ok, BoundedVec};
 use hydradx_traits::OraclePeriod;
 use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_runtime::DispatchError::BadOrigin;
-use sp_runtime::Permill;
+use sp_runtime::{Perbill, Permill};
 
 #[test]
 fn sell_with_peg_should_work_as_before_when_all_pegs_are_one() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id = 100;
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
@@ -36,13 +36,14 @@ fn sell_with_peg_should_work_as_before_when_all_pegs_are_one() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, 100 * ONE),
 					AssetAmount::new(asset_b, 100 * ONE),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_ok!(Stableswap::sell(
@@ -70,7 +71,7 @@ fn buy_should_work_as_before_when_all_pegs_are_one() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id: AssetId = 100;
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
 		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
@@ -88,13 +89,14 @@ fn buy_should_work_as_before_when_all_pegs_are_one() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, 100 * ONE),
 					AssetAmount::new(asset_b, 100 * ONE),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			assert_ok!(Stableswap::buy(
@@ -147,7 +149,7 @@ fn remove_liquidity_with_peg_should_work_as_before_when_pegs_are_one() {
 	let asset_b: AssetId = 2;
 	let asset_c: AssetId = 3;
 	let pool_id: AssetId = 100;
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -176,24 +178,26 @@ fn remove_liquidity_with_peg_should_work_as_before_when_pegs_are_one() {
 				max_peg_update,
 			));
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, 100 * ONE),
 					AssetAmount::new(asset_b, 200 * ONE),
 					AssetAmount::new(asset_c, 300 * ONE),
-				])
+				]),
+				Balance::zero(),
 			));
 
 			let amount_added = 200 * ONE;
 
 			let pool_account = pool_account(pool_id);
 
-			assert_ok!(Stableswap::add_liquidity(
+			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)]),
+				Balance::zero(),
 			));
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
@@ -230,51 +234,11 @@ fn remove_liquidity_with_peg_should_work_as_before_when_pegs_are_one() {
 }
 
 #[test]
-fn creating_pool_with_pegs_shoud_fails_when_assets_have_different_decimals() {
-	let asset_a: AssetId = 1;
-	let asset_b: AssetId = 2;
-	let asset_c: AssetId = 3;
-	let pool_id: AssetId = 100;
-	let max_peg_update = Permill::from_percent(100);
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(BOB, asset_a, 2_000_000_000_000_000_003),
-			(ALICE, asset_a, 52425995641788588073263117),
-			(ALICE, asset_b, 52033213790329),
-			(ALICE, asset_c, 119135337044269),
-		])
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 18)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 6)
-		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 6)
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 18)
-		.build()
-		.execute_with(|| {
-			assert_noop!(
-				Stableswap::create_pool_with_pegs(
-					RuntimeOrigin::root(),
-					pool_id,
-					to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
-					2000,
-					Permill::from_percent(0),
-					BoundedPegSources::truncate_from(vec![
-						PegSource::Value((1, 1)),
-						PegSource::Value((1, 1)),
-						PegSource::Value((1, 1))
-					]),
-					max_peg_update,
-				),
-				Error::<Test>::IncorrectAssetDecimals
-			);
-		});
-}
-
-#[test]
 fn should_fail_when_called_by_invalid_origin() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id = 100;
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
@@ -303,7 +267,7 @@ fn should_fail_when_invalid_amplification_specified() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id = 100;
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
@@ -328,40 +292,11 @@ fn should_fail_when_invalid_amplification_specified() {
 }
 
 #[test]
-fn should_fail_when_asset_decimals_are_not_same() {
-	let asset_a: AssetId = 1;
-	let asset_b: AssetId = 2;
-	let pool_id = 100;
-	let max_peg_update = Permill::from_percent(100);
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 18)
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
-		.build()
-		.execute_with(|| {
-			assert_noop!(
-				Stableswap::create_pool_with_pegs(
-					RuntimeOrigin::root(),
-					pool_id,
-					to_bounded_asset_vec(vec![asset_a, asset_b]),
-					100,
-					Permill::from_percent(0),
-					BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
-					max_peg_update,
-				),
-				Error::<Test>::IncorrectAssetDecimals
-			);
-		});
-}
-
-#[test]
 fn should_fail_when_no_target_peg_oracle() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id = 100;
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])

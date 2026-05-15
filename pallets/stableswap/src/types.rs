@@ -4,19 +4,20 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{Config, Pallet, PoolPegs, MAX_ASSETS_IN_POOL};
-use sp_runtime::Permill;
+use sp_runtime::{Perbill, Permill};
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{evm::EvmAddress, OraclePeriod, Source};
+use hydradx_traits::{OraclePeriod, Source};
 use orml_traits::MultiCurrency;
+use primitives::EvmAddress;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
 use sp_runtime::DispatchResult;
@@ -79,7 +80,7 @@ where
 
 bitflags::bitflags! {
 	/// Indicates whether asset can be bought or sold to/from Omnipool and/or liquidity added/removed.
-	#[derive(Encode,Decode, MaxEncodedLen, TypeInfo)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, TypeInfo)]
 	pub struct Tradability: u8 {
 		/// Asset is frozen. No operations are allowed.
 		const FROZEN = 0b0000_0000;
@@ -154,7 +155,7 @@ pub type PegType = (Balance, Balance);
 
 pub type BoundedPegs = BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>;
 
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum PegSource<AssetId = ()> {
 	Value(PegType),
 	Oracle((Source, OraclePeriod, AssetId)),
@@ -163,18 +164,20 @@ pub enum PegSource<AssetId = ()> {
 
 pub type BoundedPegSources<AssetId> = BoundedVec<PegSource<AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>;
 
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct PoolPegInfo<AssetId = ()> {
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct PoolPegInfo<BlockNumber, AssetId = ()> {
 	pub source: BoundedPegSources<AssetId>,
-	pub max_peg_update: Permill,
+	pub updated_at: BlockNumber,
+	pub max_peg_update: Perbill,
 	pub current: BoundedPegs,
 }
 
-impl<AssetId> PoolPegInfo<AssetId> {
-	pub fn with_new_pegs(self, pegs: &[PegType]) -> Self {
+impl<BlockNumber, AssetId> PoolPegInfo<BlockNumber, AssetId> {
+	pub fn with_new_pegs(self, pegs: &[PegType], at: BlockNumber) -> Self {
 		debug_assert_eq!(self.current.len(), pegs.len(), "Invalid pegs length");
 		PoolPegInfo {
 			source: self.source,
+			updated_at: at,
 			max_peg_update: self.max_peg_update,
 			current: BoundedPegs::truncate_from(pegs.to_vec()),
 		}
@@ -187,6 +190,7 @@ pub struct PoolSnapshot<AssetId> {
 	pub reserves: BoundedVec<AssetReserve, ConstU32<MAX_ASSETS_IN_POOL>>,
 	pub amplification: u128,
 	pub fee: Permill,
+	pub block_fee: Permill,
 	pub pegs: BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>,
 	pub share_issuance: Balance,
 }

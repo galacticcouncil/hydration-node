@@ -53,9 +53,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-	}
+	pub trait Config: frame_system::Config {}
 
 	#[pallet::storage]
 	/// Next available incremental ID
@@ -178,6 +176,9 @@ impl<T: Config> Pallet<T> {
 		Swapper::<T>::kill();
 	}
 
+	/// Sets the swapper account for trade event attribution.
+	/// This overwrites the original swapper in Swapped3 events.
+	/// Mainly used by the router where a temporary trade account executes the actual trade.
 	pub fn set_swapper(account_id: T::AccountId) {
 		Swapper::<T>::put(account_id);
 	}

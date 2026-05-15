@@ -128,7 +128,6 @@ impl Get<Option<AccountId>> for ExtAccount {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type AssetId = AssetId;
 	type Currency = Tokens;
@@ -178,6 +177,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_type_with_key! {
@@ -187,7 +187,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
@@ -201,7 +200,6 @@ impl orml_tokens::Config for Test {
 }
 
 impl mock_amm::pallet::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type TradeHooks = AmmTrader;
 }

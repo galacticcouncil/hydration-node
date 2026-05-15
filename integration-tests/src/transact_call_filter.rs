@@ -4,8 +4,7 @@ use crate::polkadot_test_net::*;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo};
 use sp_runtime::codec::Encode;
 
-use polkadot_xcm::v4::prelude::*;
-use sp_std::sync::Arc;
+use polkadot_xcm::v5::prelude::*;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -30,10 +29,10 @@ fn allowed_transact_call_should_pass_filter() {
 
 		let hdx_loc = Location::new(
 			1,
-			cumulus_primitives_core::Junctions::X2(Arc::new([
+			[
 				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
 				cumulus_primitives_core::Junction::GeneralIndex(0),
-			])),
+			],
 		);
 		let asset_to_withdraw: Asset = Asset {
 			id: cumulus_primitives_core::AssetId(hdx_loc.clone()),
@@ -51,7 +50,7 @@ fn allowed_transact_call_should_pass_filter() {
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most: call.get_dispatch_info().weight,
+				fallback_max_weight: Some(call.get_dispatch_info().call_weight),
 				origin_kind: OriginKind::SovereignAccount,
 				call: hydradx_runtime::RuntimeCall::Balances(call).encode().into(),
 			},
@@ -70,12 +69,7 @@ fn allowed_transact_call_should_pass_filter() {
 		// Act
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
 			Here,
-			Location::new(
-				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
-					HYDRA_PARA_ID
-				)])),
-			),
+			Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)],),
 			message
 		));
 	});
@@ -113,10 +107,10 @@ fn blocked_transact_calls_should_not_pass_filter() {
 
 		let hdx_loc = Location::new(
 			1,
-			cumulus_primitives_core::Junctions::X2(Arc::new([
+			[
 				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
 				cumulus_primitives_core::Junction::GeneralIndex(0),
-			])),
+			],
 		);
 		let asset_to_withdraw: Asset = Asset {
 			id: cumulus_primitives_core::AssetId(hdx_loc.clone()),
@@ -134,7 +128,7 @@ fn blocked_transact_calls_should_not_pass_filter() {
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most: call.get_dispatch_info().weight,
+				fallback_max_weight: Some(call.get_dispatch_info().call_weight),
 				origin_kind: OriginKind::Native,
 				call: hydradx_runtime::RuntimeCall::Treasury(call).encode().into(),
 			},
@@ -153,12 +147,7 @@ fn blocked_transact_calls_should_not_pass_filter() {
 		// Act
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
 			Here,
-			Location::new(
-				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
-					HYDRA_PARA_ID
-				)])),
-			),
+			Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)],),
 			message
 		));
 	});
@@ -191,10 +180,10 @@ fn safe_call_filter_should_respect_runtime_call_filter() {
 
 		let hdx_loc = Location::new(
 			1,
-			cumulus_primitives_core::Junctions::X2(Arc::new([
+			[
 				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
 				cumulus_primitives_core::Junction::GeneralIndex(0),
-			])),
+			],
 		);
 		let asset_to_withdraw: Asset = Asset {
 			id: cumulus_primitives_core::AssetId(hdx_loc.clone()),
@@ -212,7 +201,7 @@ fn safe_call_filter_should_respect_runtime_call_filter() {
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most: call.get_dispatch_info().weight,
+				fallback_max_weight: Some(call.get_dispatch_info().call_weight),
 				origin_kind: OriginKind::Native,
 				call: hydradx_runtime::RuntimeCall::Balances(call).encode().into(),
 			},
@@ -231,12 +220,7 @@ fn safe_call_filter_should_respect_runtime_call_filter() {
 		// Act
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
 			Here,
-			Location::new(
-				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
-					HYDRA_PARA_ID
-				)])),
-			),
+			Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)],),
 			message
 		));
 	});

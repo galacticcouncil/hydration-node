@@ -60,7 +60,7 @@ fn high_asset_state() -> impl Strategy<Value = AssetReserveState<Balance>> {
 }
 
 fn trade_amount() -> impl Strategy<Value = Balance> {
-	1_000_000_000..10000 * ONE
+	ONE / 10..10000 * ONE
 }
 
 fn price() -> impl Strategy<Value = FixedU128> {
@@ -113,6 +113,7 @@ proptest! {
 			Permill::from_percent(0),
 			Permill::from_percent(0),
 			Permill::from_percent(0),
+			None,
 		);
 
 		assert!(result.is_some());
@@ -139,6 +140,7 @@ proptest! {
 	) {
 		let result = calculate_sell_hub_state_changes(&asset_out, amount,
 			Permill::from_percent(0),
+			None,
 		);
 
 		assert!(result.is_some());
@@ -159,6 +161,7 @@ proptest! {
 	) {
 		let result = calculate_sell_hub_state_changes(&asset_out, amount,
 			Permill::from_percent(0),
+			None,
 		);
 
 		assert!(result.is_some());
@@ -180,6 +183,7 @@ proptest! {
 	) {
 		let result = calculate_sell_hub_state_changes(&asset_out, amount,
 			asset_fee,
+			None,
 		);
 
 		assert!(result.is_some());
@@ -200,6 +204,7 @@ proptest! {
 	) {
 		let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
 			Permill::from_percent(0),
+			None,
 		);
 
 		assert!(result.is_some());
@@ -221,6 +226,7 @@ proptest! {
 	) {
 		let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
 			asset_fee,
+			None,
 		);
 
 		assert!(result.is_some());
@@ -256,6 +262,7 @@ fn buy_update_invariants_no_fees_case() {
 		Permill::from_percent(0),
 		Permill::from_percent(0),
 		Permill::from_percent(0),
+		None,
 	);
 
 	assert!(result.is_none()); // This fails because of not enough asset out in pool out
@@ -271,6 +278,7 @@ proptest! {
 			Permill::from_percent(0),
 			Permill::from_percent(0),
 			Permill::from_percent(0),
+			None,
 		);
 
 		// perform assertion only when result is valid

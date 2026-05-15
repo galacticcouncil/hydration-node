@@ -6,8 +6,7 @@ mod staking;
 pub mod traits;
 
 use accounts::{
-	get_duster_dest_account, get_duster_reward_account, get_native_endowed_accounts, get_nonnative_endowed_accounts,
-	get_omnipool_position_owner, get_technical_committee,
+	get_native_endowed_accounts, get_nonnative_endowed_accounts, get_omnipool_position_owner, get_technical_committee,
 };
 use hydradx_runtime::Runtime as MockedRuntime;
 use hydradx_runtime::*;
@@ -87,6 +86,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			},
 			balances: BalancesConfig {
 				balances: native_endowed_accounts,
+				dev_accounts: None,
 			},
 			technical_committee: TechnicalCommitteeConfig {
 				members: get_technical_committee(),
@@ -121,10 +121,9 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			polkadot_xcm: Default::default(),
 			ema_oracle: Default::default(),
 			duster: DusterConfig {
-				account_blacklist: vec![],
-				reward_account: Some(get_duster_reward_account()),
-				dust_account: Some(get_duster_dest_account()),
+				account_whitelist: vec![],
 			},
+			parameters: Default::default(),
 			omnipool_warehouse_lm: Default::default(),
 			omnipool_liquidity_mining: Default::default(),
 			evm_chain_id: hydradx_runtime::EVMChainIdConfig {
@@ -135,6 +134,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			evm: Default::default(),
 			xyk_warehouse_lm: Default::default(),
 			xyk_liquidity_mining: Default::default(),
+			// ismp_parachain: Default::default(),
 		}
 		.build_storage()
 		.unwrap()

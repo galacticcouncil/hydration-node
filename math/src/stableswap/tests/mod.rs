@@ -2,6 +2,7 @@ mod amplification;
 mod invariants;
 mod multi_assets;
 mod prices;
+mod recalculate_pegs;
 mod two_assets;
 
 use crate::types::Balance;

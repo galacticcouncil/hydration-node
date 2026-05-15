@@ -1,10 +1,11 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
+use frame_support::sp_runtime::codec::Encode;
 use frame_support::{
 	assert_ok,
-	dispatch::DispatchInfo,
-	sp_runtime::{traits::SignedExtension, FixedU128, Permill},
+	dispatch::{DispatchInfo, GetDispatchInfo},
+	sp_runtime::{traits::DispatchTransaction, FixedU128, Permill},
 	weights::Weight,
 };
 use frame_system::RawOrigin;
@@ -29,23 +30,23 @@ fn non_native_fee_payment_works_with_oracle_price_based_on_onchain_route() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
 		);
 
 		let info = DispatchInfo {
-			weight: Weight::from_parts(106_957_000, 0),
+			call_weight: Weight::from_parts(106_957_000, 0),
 			..Default::default()
 		};
 		let len: usize = 10;
 
 		assert_ok!(
-			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
-				&AccountId::from(BOB),
-				&call,
-				&info,
-				len,
-			)
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(AccountId::from(BOB)).into(), &call, &info, len, 0,)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 		assert!(bob_balance > 0);
@@ -68,12 +69,8 @@ fn non_native_fee_payment_works_with_oracle_price_based_on_onchain_route() {
 		);
 
 		assert_ok!(
-			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
-				&AccountId::from(DAVE),
-				&call,
-				&info,
-				len,
-			)
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(AccountId::from(DAVE)).into(), &call, &info, len, 0,)
 		);
 
 		let dave_new_balance = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(DAVE));
@@ -87,6 +84,10 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 
 	// batch
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let first_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
 		);
@@ -96,18 +97,14 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 		});
 
 		let info = DispatchInfo {
-			weight: Weight::from_parts(106_957_000, 0),
+			call_weight: Weight::from_parts(106_957_000, 0),
 			..Default::default()
 		};
 		let len: usize = 10;
 
 		assert_ok!(
-			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
-				&AccountId::from(BOB),
-				&call,
-				&info,
-				len,
-			)
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(AccountId::from(BOB)).into(), &call, &info, len, 0,)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 		assert!(bob_balance > 0);
@@ -117,6 +114,10 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 
 	// batch_all
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let first_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
 		);
@@ -126,18 +127,14 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 		});
 
 		let info = DispatchInfo {
-			weight: Weight::from_parts(106_957_000, 0),
+			call_weight: Weight::from_parts(106_957_000, 0),
 			..Default::default()
 		};
 		let len: usize = 10;
 
 		assert_ok!(
-			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
-				&AccountId::from(BOB),
-				&call,
-				&info,
-				len,
-			)
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(AccountId::from(BOB)).into(), &call, &info, len, 0,)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 		assert!(bob_balance > 0);
@@ -145,8 +142,12 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 
 	TestNet::reset();
 
-	// batch_all
+	// force_batch
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let first_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
 		);
@@ -156,21 +157,171 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 		});
 
 		let info = DispatchInfo {
-			weight: Weight::from_parts(106_957_000, 0),
+			call_weight: Weight::from_parts(106_957_000, 0),
 			..Default::default()
 		};
 		let len: usize = 10;
 
 		assert_ok!(
-			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
-				&AccountId::from(BOB),
-				&call,
-				&info,
-				len,
-			)
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(AccountId::from(BOB)).into(), &call, &info, len, 0,)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 		assert!(bob_balance > 0);
+	});
+}
+
+#[test]
+fn set_currency_should_work_in_dispatch_with_extra_gas() {
+	// Regression test for https://github.com/galacticcouncil/hydration-node/issues/1296
+	// dispatch_with_extra_gas wrapping set_currency should charge the fee in the NEW currency,
+	// not in the previously stored account currency.
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
+		// BOB starts with no explicit fee currency (defaults to HDX).
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(BOB)), None);
+
+		let set_currency_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
+			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
+		);
+
+		let call = hydradx_runtime::RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
+			call: Box::new(set_currency_call),
+			extra_gas: 0,
+		});
+
+		let info = call.get_dispatch_info();
+		let len = call.encoded_size();
+
+		let bob_hdx_before = hydradx_runtime::Balances::free_balance(AccountId::from(BOB));
+		let bob_btc_before = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
+
+		assert_ok!(
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(AccountId::from(BOB)).into(), &call, &info, len, 0,)
+		);
+
+		let bob_hdx_after = hydradx_runtime::Balances::free_balance(AccountId::from(BOB));
+		let bob_btc_after = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
+
+		assert!(
+			bob_btc_after < bob_btc_before,
+			"BTC balance should decrease — fee must be charged in the new currency"
+		);
+		assert_eq!(bob_hdx_after, bob_hdx_before, "HDX must not be charged");
+	});
+}
+
+#[test]
+fn set_currency_should_work_in_dispatch_with_extra_gas_for_evm_account() {
+	// Regression test for https://github.com/galacticcouncil/hydration-node/issues/1293
+	// EVM accounts calling dispatch_with_extra_gas { set_currency } should charge the fee
+	// in the NEW currency, not in WETH (the default EVM account fee currency).
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
+		let evm_acc = evm_account();
+
+		// Fund the EVM account with WETH (default EVM fee currency) and DAI
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_acc.clone(),
+			WETH,
+			1_000_000_000_000_000_000i128,
+		));
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_acc.clone(),
+			DAI,
+			1_000_000_000_000_000_000i128,
+		));
+
+		assert_eq!(
+			MultiTransactionPayment::get_currency(evm_acc.clone()),
+			Some(WETH),
+			"EVM account should have WETH set as default fee currency"
+		);
+
+		let set_currency_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
+			pallet_transaction_multi_payment::Call::set_currency { currency: DAI },
+		);
+
+		let call = hydradx_runtime::RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
+			call: Box::new(set_currency_call),
+			extra_gas: 0,
+		});
+
+		let info = call.get_dispatch_info();
+		let len = call.encoded_size();
+
+		let weth_before = hydradx_runtime::Tokens::free_balance(WETH, &evm_acc);
+		let dai_before = hydradx_runtime::Tokens::free_balance(DAI, &evm_acc);
+
+		assert_ok!(
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(evm_acc.clone()).into(), &call, &info, len, 0,)
+		);
+
+		let weth_after = hydradx_runtime::Tokens::free_balance(WETH, &evm_acc);
+		let dai_after = hydradx_runtime::Tokens::free_balance(DAI, &evm_acc);
+
+		assert!(
+			dai_after < dai_before,
+			"DAI balance should decrease — fee must be charged in the new currency"
+		);
+		assert_eq!(weth_after, weth_before, "WETH must not be charged");
+	});
+}
+
+#[test]
+fn set_currency_should_not_work_in_dispatch_with_extra_gas_when_not_direct_inner_call() {
+	// set_currency must only be recognised when it is the direct inner call of
+	// dispatch_with_extra_gas, not when it is nested deeper (e.g. inside a batch inside the
+	// dispatcher). In that case the fee should fall back to the previously stored currency.
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
+		let set_currency_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
+			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
+		);
+
+		// Wrap set_currency inside a batch, then wrap that inside dispatch_with_extra_gas.
+		// The resolver only looks one level deep, so BTC should NOT be picked up.
+		let batch = hydradx_runtime::RuntimeCall::Utility(pallet_utility::Call::batch {
+			calls: vec![set_currency_call],
+		});
+
+		let call = hydradx_runtime::RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
+			call: Box::new(batch),
+			extra_gas: 0,
+		});
+
+		let info = call.get_dispatch_info();
+		let len = call.encoded_size();
+
+		let bob_btc_before = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
+
+		assert_ok!(
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(AccountId::from(BOB)).into(), &call, &info, len, 0,)
+		);
+
+		let bob_btc_after = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
+
+		assert_eq!(
+			bob_btc_after, bob_btc_before,
+			"BTC must not be charged when set_currency is nested deeper than the direct inner call"
+		);
 	});
 }
 
@@ -180,6 +331,10 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 
 	// batch
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let first_inner_call = hydradx_runtime::RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 		let second_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
@@ -189,7 +344,7 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 		});
 
 		let info = DispatchInfo {
-			weight: Weight::from_parts(106_957_000, 0),
+			call_weight: Weight::from_parts(106_957_000, 0),
 			..Default::default()
 		};
 		let len: usize = 10;
@@ -197,12 +352,8 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 		let bob_initial_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 
 		assert_ok!(
-			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
-				&AccountId::from(BOB),
-				&call,
-				&info,
-				len,
-			)
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(AccountId::from(BOB)).into(), &call, &info, len, 0,)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 		assert_eq!(bob_balance, bob_initial_balance);
@@ -212,6 +363,10 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 
 	// batch_all
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let first_inner_call = hydradx_runtime::RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 		let second_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
@@ -221,7 +376,7 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 		});
 
 		let info = DispatchInfo {
-			weight: Weight::from_parts(106_957_000, 0),
+			call_weight: Weight::from_parts(106_957_000, 0),
 			..Default::default()
 		};
 		let len: usize = 10;
@@ -229,12 +384,8 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 		let bob_initial_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 
 		assert_ok!(
-			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
-				&AccountId::from(BOB),
-				&call,
-				&info,
-				len,
-			)
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(AccountId::from(BOB)).into(), &call, &info, len, 0,)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 		assert_eq!(bob_balance, bob_initial_balance);
@@ -242,8 +393,12 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 
 	TestNet::reset();
 
-	// batch_all
+	// force_batch
 	Hydra::execute_with(|| {
+		// Ensure AcceptedCurrencyPrice is populated (transient storage set by on_initialize)
+		use frame_support::traits::OnInitialize;
+		hydradx_runtime::MultiTransactionPayment::on_initialize(1);
+
 		let first_inner_call = hydradx_runtime::RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 		let second_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
@@ -253,7 +408,7 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 		});
 
 		let info = DispatchInfo {
-			weight: Weight::from_parts(106_957_000, 0),
+			call_weight: Weight::from_parts(106_957_000, 0),
 			..Default::default()
 		};
 		let len: usize = 10;
@@ -261,12 +416,8 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 		let bob_initial_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 
 		assert_ok!(
-			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
-				&AccountId::from(BOB),
-				&call,
-				&info,
-				len,
-			)
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.validate_and_prepare(Some(AccountId::from(BOB)).into(), &call, &info, len, 0,)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 		assert_eq!(bob_balance, bob_initial_balance);
@@ -481,7 +632,7 @@ fn omnipool_spotprice_and_onchain_price_should_be_very_similar() {
 		));
 		do_trade_to_populate_oracle(DAI, DOT, 10 * UNITS);
 
-		set_relaychain_block_number(10);
+		go_to_block(10);
 
 		//Act
 		let spot_price = Omnipool::spot_price(DAI, DOT).unwrap();

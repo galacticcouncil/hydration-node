@@ -21,6 +21,7 @@
 
 use std::sync::Arc;
 
+use crate::liquidation_worker::LiquidationTaskData;
 use cumulus_primitives_core::PersistedValidationData;
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
@@ -32,11 +33,11 @@ use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
 use sc_client_api::{
 	backend::{Backend, StateBackend, StorageProvider},
 	client::BlockchainEvents,
+	BlockBackend, ProofProvider,
 };
 use sc_network::service::traits::NetworkService;
 use sc_network_sync::SyncingService;
 use sc_rpc::SubscriptionTaskExecutor;
-use sc_transaction_pool::{ChainApi, Pool};
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
@@ -62,16 +63,18 @@ pub struct FullDeps<C, P, B> {
 	pub pool: Arc<P>,
 	/// Backend used by the node.
 	pub backend: Arc<B>,
+	/// Data provided from the liquidation worker.
+	pub liquidation_task_data: Arc<LiquidationTaskData>,
 }
 
 /// Extra dependencies for Ethereum compatibility.
-pub struct Deps<C, P, A: ChainApi, CT> {
+pub struct Deps<C, P, CT> {
 	/// The client instance to use.
 	pub client: Arc<C>,
 	/// Transaction pool instance.
 	pub pool: Arc<P>,
 	/// Graph pool instance.
-	pub graph: Arc<Pool<A>>,
+	pub graph: Arc<P>,
 	/// Ethereum transaction converter.
 	pub converter: Option<CT>,
 	/// The Node authority flag
@@ -107,7 +110,7 @@ pub type RpcExtension = jsonrpsee::RpcModule<()>;
 /// Instantiate all full RPC extensions.
 pub fn create_full<C, P, B>(deps: FullDeps<C, P, B>) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
-	C: ProvideRuntimeApi<Block>,
+	C: ProvideRuntimeApi<Block> + BlockBackend<Block> + ProofProvider<Block>,
 	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError>,
 	C: Send + Sync + 'static,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
@@ -117,24 +120,32 @@ where
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::StateBackend<sp_runtime::traits::HashingFor<Block>>,
 {
+	use crate::liquidation_worker::rpc::{LiquidationWorker, LiquidationWorkerApiServer};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
 	use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut module = RpcExtension::new(());
-	let FullDeps { client, pool, backend } = deps;
+	let FullDeps {
+		client,
+		pool,
+		backend,
+		liquidation_task_data,
+	} = deps;
 
 	module.merge(System::new(client.clone(), pool).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
-	module.merge(StateMigration::new(client, backend).into_rpc())?;
+	module.merge(StateMigration::new(client.clone(), backend.clone()).into_rpc())?;
+
+	module.merge(LiquidationWorker::new(liquidation_task_data).into_rpc())?;
 
 	Ok(module)
 }
 
 /// Instantiate Ethereum-compatible RPC extensions.
-pub fn create<C, BE, P, A, CT>(
+pub fn create<C, BE, P, CT>(
 	mut io: RpcExtension,
-	deps: Deps<C, P, A, CT>,
+	deps: Deps<C, P, CT>,
 	subscription_task_executor: SubscriptionTaskExecutor,
 	pubsub_notification_sinks: Arc<
 		fc_mapping_sync::EthereumBlockNotificationSinks<fc_mapping_sync::EthereumBlockNotification<Block>>,
@@ -148,8 +159,7 @@ where
 	C: CallApiAt<Block>,
 	BE: Backend<Block> + 'static,
 	BE::State: StateBackend<BlakeTwo256>,
-	P: TransactionPool<Block = Block> + 'static,
-	A: ChainApi<Block = Block> + 'static,
+	P: TransactionPool<Block = Block, Hash = sp_core::H256> + 'static,
 	CT: ConvertTransaction<<Block as BlockT>::Extrinsic> + Send + Sync + 'static,
 {
 	use fc_rpc::{
@@ -200,12 +210,14 @@ where
 			relay_chain_state,
 			downward_messages: Default::default(),
 			horizontal_messages: Default::default(),
+			collator_peer_id: None,
+			relay_parent_descendants: Default::default(),
 		};
 		Ok((timestamp, parachain_inherent_data))
 	};
 
 	io.merge(
-		Eth::<_, _, _, _, _, _, _, HydraDxEthConfig<_, _>>::new(
+		Eth::<_, _, _, _, _, _, HydraDxEthConfig<_, _>>::new(
 			client.clone(),
 			pool.clone(),
 			graph.clone(),
@@ -268,7 +280,7 @@ where
 	Ok(io)
 }
 
-impl<C, P, A: ChainApi, CT: Clone> Clone for Deps<C, P, A, CT> {
+impl<C, P, CT: Clone> Clone for Deps<C, P, CT> {
 	fn clone(&self) -> Self {
 		Self {
 			client: self.client.clone(),

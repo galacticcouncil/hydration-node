@@ -1,8 +1,9 @@
+use frame_support::traits::ExistenceRequirement;
 use hydradx_traits::router::{AssetPair, RouteProvider};
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
 use pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse;
-use polkadot_xcm::v4::prelude::*;
+use polkadot_xcm::v5::prelude::*;
 use sp_core::Get;
 use sp_runtime::traits::{Convert, Zero};
 use sp_runtime::BoundedVec;
@@ -84,7 +85,7 @@ where
 			};
 
 			if !IssuanceIncreaseFuse::<Runtime>::can_mint(asset_in.into(), amount.into()) {
-				log::warn!(target: "xcm::exchange-asset", "Circuit breaker triggered for asset {:?}. Asset will be trapped.", asset_in);
+				log::warn!(target: "xcm::exchange-asset", "Circuit breaker triggered for asset {asset_in:?}. Asset will be trapped.");
 				return Err(give);
 			}
 
@@ -108,7 +109,7 @@ where
 					amount_received >= min_buy_amount.into(),
 					"Sell should return more than mininum buy amount."
 				);
-				Currency::withdraw(asset_out, &account, amount_received)?; // burn the received tokens
+				Currency::withdraw(asset_out, &account, amount_received, ExistenceRequirement::AllowDeath)?; // burn the received tokens
 				let holding: Asset = (wanted.id.clone(), amount_received.into()).into();
 
 				Ok(holding.into())
@@ -125,12 +126,12 @@ where
 			let Ok(amount_in) =
 				pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_in(&route, amount.into())
 			else {
-				log::warn!(target: "xcm::exchange-asset", "Failed to calculate expected amount in for route: {:?}", route);
+				log::warn!(target: "xcm::exchange-asset", "Failed to calculate expected amount in for route: {route:?}");
 				return Err(give);
 			};
 
 			if !IssuanceIncreaseFuse::<Runtime>::can_mint(asset_in.into(), amount_in.into().into()) {
-				log::warn!(target: "xcm::exchange-asset", "Circuit breaker triggered for asset {:?}. Asset will be trapped.", asset_in);
+				log::warn!(target: "xcm::exchange-asset", "Circuit breaker triggered for asset {asset_in:?}. Asset will be trapped.");
 				return Err(give);
 			}
 
@@ -147,7 +148,7 @@ where
 				let mut assets = sp_std::vec::Vec::with_capacity(2);
 				let left_over = Currency::free_balance(asset_in, &account);
 				if left_over > <Runtime as pallet_route_executor::Config>::Balance::zero() {
-					Currency::withdraw(asset_in, &account, left_over)?; // burn left over tokens
+					Currency::withdraw(asset_in, &account, left_over, ExistenceRequirement::AllowDeath)?; // burn left over tokens
 					let holding: Asset = (given.id.clone(), left_over.into()).into();
 					assets.push(holding);
 				}
@@ -156,7 +157,7 @@ where
 					amount_received == amount.into(),
 					"Buy should return exactly the amount we specified."
 				);
-				Currency::withdraw(asset_out, &account, amount_received)?; // burn the received tokens
+				Currency::withdraw(asset_out, &account, amount_received, ExistenceRequirement::AllowDeath)?; // burn the received tokens
 				let holding: Asset = (wanted.id.clone(), amount_received.into()).into();
 				assets.push(holding);
 				Ok(assets.into())

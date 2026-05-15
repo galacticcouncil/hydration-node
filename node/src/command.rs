@@ -18,6 +18,7 @@
 use crate::chain_spec;
 use crate::cli::{Cli, RelayChainCli, Subcommand};
 use crate::service::new_partial;
+use sc_transaction_pool::{TransactionPoolOptions, TransactionPoolType};
 
 use codec::Encode;
 use cumulus_client_service::storage_proof_size::HostFunctions as ReclaimHostFunctions;
@@ -117,7 +118,7 @@ impl SubstrateCli for RelayChainCli {
 	}
 }
 
-#[allow(clippy::borrowed_box)]
+#[allow(clippy::borrowed_box, clippy::result_large_err)]
 fn extract_genesis_wasm(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Result<Vec<u8>> {
 	let mut storage = chain_spec.build_storage()?;
 
@@ -128,6 +129,7 @@ fn extract_genesis_wasm(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Result<V
 }
 
 /// Parse and run command line arguments
+#[allow(clippy::result_large_err)]
 pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
 
@@ -213,7 +215,7 @@ pub fn run() -> sc_cli::Result<()> {
 					let db = partials.backend.expose_db();
 					let storage = partials.backend.expose_storage();
 
-					cmd.run(config, partials.client, db, storage)
+					cmd.run(config, partials.client, db, storage, None)
 				}),
 				BenchmarkCmd::Overhead(_) | BenchmarkCmd::Extrinsic(_) => {
 					Err("Unsupported benchmarking command".into())
@@ -272,10 +274,30 @@ pub fn run() -> sc_cli::Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run.base.normalize())?;
 
-			runner.run_node_until_exit(|config| async move {
+			runner.run_node_until_exit(|mut config| async move {
 				if cfg!(feature = "runtime-benchmarks") && config.role.is_authority() {
 					return Err("It is not allowed to run a collator node with the benchmarking runtime.".into());
 				};
+
+				// Use fork-aware pool by default, unless --disable-fork-aware-pool is set
+				let pool_config = &cli.run.base.base.pool_config;
+				let pool_type = if cli.run.disable_fork_aware_pool {
+					TransactionPoolType::SingleState
+				} else {
+					TransactionPoolType::ForkAware
+				};
+				config.transaction_pool = TransactionPoolOptions::new_with_params(
+					pool_config.pool_limit,
+					pool_config.pool_kbytes * 1024,
+					pool_config.tx_ban_seconds,
+					pool_type,
+					config.dev_key_seed.is_some(),
+				);
+
+				// Enable for all full nodes by default to store ISMP request/responses
+				if !config.role.is_authority() {
+					config.offchain_worker.indexing_enabled = true;
+				}
 
 				let polkadot_cli = RelayChainCli::new(
 					&config,
@@ -305,9 +327,9 @@ pub fn run() -> sc_cli::Result<()> {
 
 				let collator_options = cli.run.base.collator_options();
 
-				info!("Parachain id: {:?}", para_id);
-				info!("Parachain Account: {}", parachain_account);
-				info!("Parachain genesis state: {}", genesis_state);
+				info!("Parachain id: {para_id:?}");
+				info!("Parachain Account: {parachain_account}");
+				info!("Parachain genesis state: {genesis_state}");
 				info!(
 					"Is collating: {}",
 					if config.role.is_authority() { "yes" } else { "no" }
@@ -389,7 +411,7 @@ impl CliConfiguration<Self> for RelayChainCli {
 		self.base.base.role(is_dev)
 	}
 
-	fn transaction_pool(&self, is_dev: bool) -> Result<sc_service::config::TransactionPoolOptions> {
+	fn transaction_pool(&self, is_dev: bool) -> Result<TransactionPoolOptions> {
 		self.base.base.transaction_pool(is_dev)
 	}
 

@@ -7,7 +7,7 @@ use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, SaturatingAdd, Saturat
 use primitive_types::U256;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_arithmetic::per_things::Rounding as PTRounding;
-use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+use sp_arithmetic::{FixedPointNumber, FixedU128, PerThing, Perbill, Permill};
 use sp_std::ops::Div;
 use sp_std::prelude::*;
 use sp_std::vec;
@@ -318,10 +318,10 @@ pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
 	for (idx, reserve) in xp_hp.iter().enumerate() {
 		let dx_expected = if idx == asset_idx {
 			// dx_expected = xp[j] * d1 / d0 - new_y
-			reserve.checked_mul(d1)?.checked_div(d_hp)?.checked_sub(y_hp)?
+			reserve.checked_mul(&d1)?.checked_div(d_hp)?.checked_sub(y_hp)?
 		} else {
 			// dx_expected = xp[j] - xp[j] * d1 / d0
-			reserve.checked_sub(reserve.checked_mul(d1)?.checked_div(d_hp)?)?
+			reserve.checked_sub(&reserve.checked_mul(&d1)?.checked_div(d_hp)?)?
 		};
 
 		let expected = Balance::try_from(dx_expected).ok()?;
@@ -411,9 +411,9 @@ pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
 
 	for (idx, reserve) in xp_hp.iter().enumerate() {
 		let dx_expected = if idx == asset_idx {
-			y_hp.checked_sub(reserve.checked_mul(d1)?.checked_div(d_hp)?)?
+			y_hp.checked_sub(reserve.checked_mul(&d1)?.checked_div(d_hp)?)?
 		} else {
-			reserve.checked_mul(d1)?.checked_div(d_hp)?.checked_sub(*reserve)?
+			reserve.checked_mul(&d1)?.checked_div(d_hp)?.checked_sub(*reserve)?
 		};
 
 		let expected = Balance::try_from(dx_expected).ok()?;
@@ -565,7 +565,7 @@ pub(crate) fn calculate_d_internal<const D: u8>(
 	for _ in 0..D {
 		let d_p = xp_hp
 			.iter()
-			.try_fold(d, |acc, v| acc.checked_mul(d)?.checked_div(v.checked_mul(n_coins)?))?;
+			.try_fold(d, |acc, v| acc.checked_mul(d)?.checked_div(v.checked_mul(&n_coins)?))?;
 		let d_prev = d;
 
 		d = ann_hp
@@ -627,7 +627,7 @@ fn calculate_y_internal<const D: u8>(
 	let mut c = d_hp;
 
 	for reserve in xp_hp.iter() {
-		c = c.checked_mul(d_hp)?.checked_div(reserve.checked_mul(n_coins_hp)?)?;
+		c = c.checked_mul(d_hp)?.checked_div(reserve.checked_mul(&n_coins_hp)?)?;
 	}
 
 	c = c.checked_mul(d_hp)?.checked_div(ann_hp.checked_mul(n_coins_hp)?)?;
@@ -992,7 +992,7 @@ pub fn calculate_spot_price_between_two_stable_assets(
 	let reserves_hp: Vec<U256> = n_reserves.iter().map(|v| U256::from(*v)).collect();
 	let c = reserves_hp
 		.iter()
-		.try_fold(d, |acc, val| acc.checked_mul(d)?.checked_div(val.checked_mul(n)?))?;
+		.try_fold(d, |acc, val| acc.checked_mul(d)?.checked_div(val.checked_mul(&n)?))?;
 
 	let num = x0.checked_mul(ann.checked_mul(xi)?.checked_add(c)?)?;
 	let denom = xi.checked_mul(ann.checked_mul(x0)?.checked_add(c)?)?;
@@ -1017,12 +1017,19 @@ pub fn calculate_spot_price_between_two_stable_assets(
 
 pub fn recalculate_pegs(
 	current_pegs: &[(Balance, Balance)],
+	current_pegs_updated_at: u128,
 	target_pegs: &[((Balance, Balance), u128)],
 	block: u128,
-	max_peg_update: Permill,
+	max_peg_update: Perbill,
 	pool_fee: Permill,
 ) -> Option<(Permill, Vec<(Balance, Balance)>)> {
-	let deltas = calculate_peg_deltas(block, current_pegs, target_pegs, max_peg_update);
+	let deltas = calculate_peg_deltas(
+		block,
+		current_pegs,
+		current_pegs_updated_at,
+		target_pegs,
+		max_peg_update,
+	);
 	let trade_fee = calculate_target_fee(current_pegs, &deltas, pool_fee);
 	let new_pegs = calculate_new_pegs(current_pegs, &deltas);
 	Some((trade_fee, new_pegs))
@@ -1031,8 +1038,9 @@ pub fn recalculate_pegs(
 fn calculate_peg_deltas(
 	block_no: u128,
 	current: &[(Balance, Balance)],
+	current_updated_at: u128,
 	target: &[((Balance, Balance), u128)],
-	max_peg_update: Permill,
+	max_peg_update: Perbill,
 ) -> Vec<PegDelta> {
 	debug_assert_eq!(
 		current.len(),
@@ -1041,11 +1049,10 @@ fn calculate_peg_deltas(
 	);
 
 	let mut r = vec![];
+	let block_ct = block_no.saturating_sub(current_updated_at).max(1u128);
 	for (current, target) in current.iter().copied().zip(target.iter().copied()) {
 		let c: Ratio = current.into();
 		let t: Ratio = target.0.into();
-		let t_updated_at = target.1;
-		let block_ct = block_no.saturating_sub(t_updated_at).max(1u128);
 
 		let (delta, delta_neg) = if t > c {
 			(t.saturating_sub(&c), false)
@@ -1055,7 +1062,7 @@ fn calculate_peg_deltas(
 
 		//Ensure max peg target update
 		let b: Ratio = block_ct.into();
-		let max_move_ratio: Ratio = (max_peg_update.deconstruct() as u128, 1_000_000u128).into();
+		let max_move_ratio: Ratio = (max_peg_update.deconstruct() as u128, Perbill::ACCURACY as u128).into();
 		let max_peg_move = max_move_ratio.saturating_mul(&c).saturating_mul(&b);
 
 		if delta <= max_peg_move {

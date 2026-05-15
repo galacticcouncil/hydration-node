@@ -1,17 +1,32 @@
-use codec::{Decode, Encode};
+use codec::{Decode, DecodeWithMemTracking, Encode};
 use frame_support::__private::DispatchError;
 use frame_support::pallet_prelude::TypeInfo;
 use sp_std::vec::Vec;
 
-pub trait StableswapAddLiquidity<AccountId, AssetId, Balance> {
+pub trait StableswapLiquidityMutation<AccountId, AssetId, Balance> {
 	fn add_liquidity(
 		who: AccountId,
 		pool_id: AssetId,
 		assets_amounts: Vec<AssetAmount<AssetId>>,
 	) -> Result<Balance, DispatchError>;
+
+	fn remove_liquidity_one_asset(
+		who: AccountId,
+		pool_id: AssetId,
+		asset_id: AssetId,
+		share_amount: Balance,
+		min_amount_out: Balance,
+	) -> Result<Balance, DispatchError>;
+
+	fn remove_liquidity(
+		who: AccountId,
+		pool_id: AssetId,
+		share_amount: Balance,
+		min_amounts_out: Vec<AssetAmount<AssetId>>,
+	) -> Result<(), DispatchError>;
 }
 
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo)]
+#[derive(Debug, Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, TypeInfo)]
 pub struct AssetAmount<AssetId> {
 	pub asset_id: AssetId,
 	pub amount: u128,

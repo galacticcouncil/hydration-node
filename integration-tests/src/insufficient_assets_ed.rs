@@ -2,7 +2,6 @@
 
 use crate::assert_balance;
 use crate::assert_event_times;
-use crate::insufficient_assets_ed::v3::Junction::GeneralIndex;
 use crate::polkadot_test_net::*;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok, traits::Contains};
@@ -12,14 +11,18 @@ use hydradx_runtime::Omnipool;
 use hydradx_runtime::RuntimeOrigin as hydra_origin;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::{
-	origins::Origin, AssetRegistry as Registry, Currencies, DustRemovalWhitelist, InsufficientEDinHDX,
-	MultiTransactionPayment, NativeExistentialDeposit, RuntimeEvent, Tokens, TreasuryAccount, SUFFICIENCY_LOCK,
+	origins::Origin, AssetRegistry as Registry, Currencies, InsufficientEDinHDX, MultiTransactionPayment,
+	NativeExistentialDeposit, RuntimeEvent, Tokens, TreasuryAccount, SUFFICIENCY_LOCK,
 };
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use hydradx_traits::NativePriceOracle;
 use orml_traits::MultiCurrency;
-use polkadot_xcm::v3::{self, Junction::Parachain, Junctions::X2, MultiLocation};
+use pallet_duster::DusterWhitelist;
+use polkadot_xcm::v5::{
+	Junction::{GeneralIndex, Parachain},
+	Location,
+};
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::TransactionOutcome;
@@ -1169,7 +1172,7 @@ fn sender_should_pay_ed_when_tranferred_or_deposited_to_whitelisted_dest() {
 
 		let treasury = TreasuryAccount::get();
 
-		assert!(DustRemovalWhitelist::contains(&treasury));
+		assert!(DusterWhitelist::<hydradx_runtime::Runtime>::contains(&treasury));
 		assert_eq!(MultiTransactionPayment::account_currency(&BOB.into()), HDX);
 
 		let bob_fee_asset_balance = Currencies::free_balance(HDX, &BOB.into());
@@ -1266,7 +1269,7 @@ fn ed_should_be_released_when_whitelisted_account_was_killed() {
 			1
 		);
 
-		assert!(DustRemovalWhitelist::contains(&treasury));
+		assert!(DusterWhitelist::<hydradx_runtime::Runtime>::contains(&treasury));
 		assert_eq!(MultiTransactionPayment::account_currency(&treasury), HDX);
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &treasury);
 
@@ -1463,7 +1466,7 @@ fn ed_should_be_paid_in_insufficient_asset_through_dot() {
 			)
 			.unwrap();
 
-			set_relaychain_block_number(11);
+			go_to_block(11);
 
 			let alice_init_insuff_balance = 10 * UNITS;
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -1510,9 +1513,9 @@ fn ed_should_be_paid_in_insufficient_asset_through_dot() {
 }
 
 fn register_external_asset(general_index: u128) -> AssetId {
-	let location = hydradx_runtime::AssetLocation(MultiLocation::new(
+	let location = hydradx_runtime::AssetLocation(Location::new(
 		1,
-		X2(Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)),
+		[Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)],
 	));
 
 	let next_asset_id = Registry::next_asset_id().unwrap();

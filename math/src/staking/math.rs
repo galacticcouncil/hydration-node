@@ -53,7 +53,7 @@ pub fn calculate_slashed_points(
 /// - `period_length`: length of the one period in blocks
 /// - `block_number`: block number to calculate period for
 /// - `six_sec_block_since`: block number when staking switched to 6 sec. blocks and period
-/// `period_length` should be doubled
+/// - `period_length` should be doubled
 pub fn calculate_period_number(
 	period_length: NonZeroU128,
 	block_number: u128,

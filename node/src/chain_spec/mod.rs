@@ -107,6 +107,7 @@ pub fn parachain_genesis(
 	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
 	claims_data: Vec<(EthereumAddress, Balance)>,
 	parachain_id: ParaId,
+	is_testnet: bool,
 	duster: DusterConfig,
 ) -> serde_json::Value {
 	serde_json::json!({
@@ -157,6 +158,9 @@ pub fn parachain_genesis(
 		"currencies": accepted_assets,
 		"accountCurrencies": Vec::<(AccountId, AssetId)>::new(),
 	},
+	"parameters": {
+		"isTestnet": is_testnet,
+	},
 	"tokens": {
 		"balances": if registered_assets.is_empty() {
 			vec![]
@@ -189,9 +193,7 @@ pub fn parachain_genesis(
 		"initialData": Vec::<(hydradx_runtime::Source, (AssetId, AssetId), Price, hydradx_runtime::Liquidity<Balance>)>::new()
 	},
 	"duster": {
-		"accountBlacklist": duster.account_blacklist,
-		"rewardAccount": duster.reward_account,
-		"dustAccount": duster.dust_account
+		"accountWhitelist": duster.account_whitelist,
 	},
 	"omnipoolWarehouseLm": {
 	},

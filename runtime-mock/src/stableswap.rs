@@ -1,6 +1,7 @@
 use crate::{AccountId, MockedRuntime};
 use hydradx_runtime::RuntimeCall;
 use hydradx_traits::stableswap::AssetAmount;
+use num_traits::Zero;
 use serde::Deserialize;
 use serde::Deserializer;
 use sp_core::bounded_vec::BoundedVec;
@@ -90,9 +91,10 @@ impl Stablepools {
 		self.pools
 			.iter()
 			.map(|pool| {
-				RuntimeCall::Stableswap(pallet_stableswap::Call::add_liquidity {
+				RuntimeCall::Stableswap(pallet_stableswap::Call::add_assets_liquidity {
 					pool_id: pool.pool_id,
 					assets: BoundedVec::truncate_from(pool.get_asset_amounts()),
+					min_shares: crate::traits::Balance::zero(),
 				})
 			})
 			.collect()

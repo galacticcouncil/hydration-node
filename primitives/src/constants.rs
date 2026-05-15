@@ -24,6 +24,7 @@ pub mod currency {
 	pub const CENTS: Balance = DOLLARS / 100; // 1 UNITS ~= 1 cent
 	pub const MILLICENTS: Balance = CENTS / 1_000;
 	pub const NATIVE_EXISTENTIAL_DEPOSIT: Balance = CENTS;
+	pub const NATIVE_DECIMALS: u8 = 12;
 
 	pub fn deposit(items: u32, bytes: u32) -> Balance {
 		items as Balance * 2 * DOLLARS + (bytes as Balance) * 30 * MILLICENTS
@@ -42,7 +43,6 @@ pub mod time {
 	/// BLOCKS will be produced at a minimum duration defined by `SLOT_DURATION`.
 	/// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
 	/// up by `pallet_aura` to implement `fn slot_duration()`.
-
 	/// Change this to adjust the block time.
 	pub const MILLISECS_PER_BLOCK: u64 = 6_000;
 	pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
@@ -71,6 +71,7 @@ pub mod chain {
 
 	/// Core asset id
 	pub const CORE_ASSET_ID: AssetId = 0;
+	pub const HOLLAR_ASSET_ID: AssetId = 222;
 
 	/// We allow for 2 seconds of compute with a 6 seconds average block.
 	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
@@ -83,9 +84,10 @@ pub mod chain {
 	pub const STABLESWAP_SOURCE: [u8; 8] = *b"stablesw";
 	pub const XYK_SOURCE: [u8; 8] = *b"hydraxyk";
 
+	pub const DEFAULT_RELAY_PARENT_OFFSET: u32 = 1;
 	/// Maximum number of blocks simultaneously accepted by the Runtime, not yet included into the
 	/// relay chain.
-	pub const UNINCLUDED_SEGMENT_CAPACITY: u32 = 3;
+	pub const UNINCLUDED_SEGMENT_CAPACITY: u32 = (3 + DEFAULT_RELAY_PARENT_OFFSET) * BLOCK_PROCESSING_VELOCITY;
 	/// How many parachain blocks are processed by the relay chain per parent. Limits the number of
 	/// blocks authored per slot.
 	pub const BLOCK_PROCESSING_VELOCITY: u32 = 1;

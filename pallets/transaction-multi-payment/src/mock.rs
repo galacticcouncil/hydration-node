@@ -37,7 +37,7 @@ use hydradx_traits::{
 	AssetKind, OraclePeriod, PriceOracle,
 };
 use orml_traits::{currency::MutationHooks, parameter_type_with_key};
-use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
+use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use sp_core::{H160, H256, U256};
 use sp_runtime::DispatchError;
 use sp_std::cell::RefCell;
@@ -161,10 +161,10 @@ impl system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AcceptedCurrencyOrigin = frame_system::EnsureRoot<AccountId>;
 	type Currencies = Currencies;
 	type RouteProvider = DefaultRouteProvider;
@@ -176,7 +176,7 @@ impl Config for Test {
 	type EvmAssetId = EvmAssetId;
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = PermitDispatchHandler;
-	type TryCallCurrency<'a> = NoCallCurrency<Test>;
+	type TryCallCurrency<'a> = TestCallCurrency<Test>;
 	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
 }
 
@@ -297,15 +297,17 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 impl pallet_transaction_payment::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = TransferFees<Currencies, DepositAll<Test>, FeeReceiver>;
+	type OnChargeTransaction = TransferFees<Test, Currencies, DepositAll<Test>, FeeReceiver, ()>;
 	type LengthToFee = IdentityFee<Balance>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
+	type WeightInfo = ();
 }
 
 parameter_type_with_key! {
@@ -336,7 +338,6 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -350,28 +351,47 @@ impl orml_tokens::Config for Test {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = HdxAssetId;
+	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
 
 pub struct EvmNonceProvider;
 impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
-	fn get_nonce(_: sp_core::H160) -> sp_core::U256 {
-		sp_core::U256::zero()
+	fn get_nonce(_: H160) -> U256 {
+		U256::zero()
+	}
+}
+
+pub struct FeeCurrencyMock;
+impl AccountFeeCurrency<AccountId> for FeeCurrencyMock {
+	type AssetId = AssetId;
+
+	fn get(_a: &AccountId) -> Self::AssetId {
+		unimplemented!()
+	}
+	fn set(_who: &AccountId, _asset_id: Self::AssetId) -> DispatchResult {
+		unimplemented!()
+	}
+	fn is_payment_currency(_asset_id: AssetId) -> DispatchResult {
+		unimplemented!()
 	}
 }
 
 impl pallet_evm_accounts::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type EvmNonceProvider = EvmNonceProvider;
 	type FeeMultiplier = frame_support::traits::ConstU32<10>;
 	type ControllerOrigin = frame_system::EnsureRoot<AccountId>;
+	type AssetId = AssetId;
+	type Currency = FungibleCurrencies<Test>;
+	type ExistentialDeposits = ExistentialDeposits;
+	type FeeCurrency = FeeCurrencyMock;
 	type WeightInfo = ();
 }
 
@@ -434,6 +454,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: self.native_balances,
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

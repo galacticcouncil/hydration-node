@@ -1,7 +1,10 @@
 use codec::{Decode, Encode};
-use frame_support::sp_runtime::app_crypto::sp_core::{H160, U256};
-use frame_support::sp_runtime::{DispatchResult, RuntimeDebug};
+use frame_support::sp_runtime::app_crypto::sp_core::U256;
+use frame_support::sp_runtime::{DispatchError, DispatchResult, RuntimeDebug};
+use pallet_evm::ExitReason;
+use primitives::EvmAddress;
 use sp_std::vec::Vec;
+
 pub trait InspectEvmAccounts<AccountId> {
 	/// Returns `True` if the account is EVM truncated account.
 	fn is_evm_account(account_id: AccountId) -> bool;
@@ -25,8 +28,6 @@ pub trait InspectEvmAccounts<AccountId> {
 	/// Returns `True` if the address is allowed to manage balances and tokens.
 	fn is_approved_contract(address: EvmAddress) -> bool;
 }
-
-pub type EvmAddress = H160;
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug)]
 pub struct CallContext {
@@ -63,9 +64,22 @@ impl CallContext {
 	}
 }
 
+#[derive(Clone, Debug)]
+pub struct CallResult {
+	pub exit_reason: ExitReason,
+	pub value: Vec<u8>,
+	pub contract: EvmAddress,
+	pub gas_used: U256,
+	pub gas_limit: U256,
+}
+
 pub trait EVM<EvmResult> {
 	fn call(context: CallContext, data: Vec<u8>, value: U256, gas: u64) -> EvmResult;
 	fn view(context: CallContext, data: Vec<u8>, gas: u64) -> EvmResult;
+}
+
+pub trait MaybeEvmCall<RuntimeCall> {
+	fn is_evm_call(call: &RuntimeCall) -> bool;
 }
 
 /// ERC20 interface adapter
@@ -93,4 +107,39 @@ pub trait Erc20Encoding<AssetId> {
 pub trait Erc20Mapping<AssetId> {
 	fn asset_address(asset_id: AssetId) -> EvmAddress;
 	fn address_to_asset(address: EvmAddress) -> Option<AssetId>;
+}
+
+pub trait Erc20Inspect<CurrencyId> {
+	fn contract_address(id: CurrencyId) -> Option<EvmAddress>;
+
+	fn is_atoken(asset_id: CurrencyId) -> bool;
+}
+
+pub trait Erc20OnDust<AccountId, CurrencyId> {
+	fn on_dust(
+		account: &AccountId,
+		dust_dest_account: &AccountId,
+		currency_id: CurrencyId,
+	) -> frame_support::dispatch::DispatchResult;
+}
+
+/// Support for providing extra gas to EVM calls.
+/// Used when an operation runs out of gas and needs additional gas for retries.
+pub trait ExtraGasSupport {
+	/// Set extra gas to be added to subsequent EVM calls
+	fn set_extra_gas(gas: u64);
+	/// Clear any previously set extra gas
+	fn clear_extra_gas();
+	/// Returns the dispatch error that indicates an out of gas condition
+	fn out_of_gas_error() -> DispatchError;
+}
+
+/// Support for overriding the EVM fee payer.
+/// Used when a controller account should pay EVM gas fees
+/// on behalf of another account (e.g., a pureProxy).
+pub trait EvmFeePayerSupport {
+	type AccountId;
+
+	fn set_fee_payer(payer: Self::AccountId) -> Option<Self::AccountId>;
+	fn clear_fee_payer() -> Option<Self::AccountId>;
 }

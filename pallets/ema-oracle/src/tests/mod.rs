@@ -16,8 +16,10 @@
 // limitations under the License.
 
 mod add_and_remove_oracle;
+mod external_oracle;
 mod invariants;
 mod mock;
+mod oracle_updated_event;
 mod update_bifrost_oracle;
 
 use super::*;

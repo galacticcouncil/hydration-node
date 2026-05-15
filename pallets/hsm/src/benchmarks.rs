@@ -280,7 +280,7 @@ benchmarks! {
 		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10 * ONE);
 		<pallet_stableswap::Pallet<T> as frame_support::traits::OnFinalize<BlockNumberFor<T>>>::on_finalize(0u32.into()); // should not matter what block number it is
 
-	}: _(RawOrigin::None, collateral)
+	}: _(RawOrigin::None, collateral, None)
 	verify {
 		let acc_balance = <T as Config>::Currency::balance(collateral, &Pallet::<T>::account_id());
 		assert!(acc_balance < 10 * ONE);
@@ -494,7 +494,7 @@ where
 		amplification,
 		fee,
 		BoundedPegSources::try_from(pegs).unwrap(),
-		Permill::from_percent(100),
+		Perbill::from_percent(100),
 	)?;
 
 	let provider: T::AccountId = account("provider", 1, 1);

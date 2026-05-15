@@ -32,25 +32,26 @@ use primitives::constants::{
 	currency::UNITS,
 	time::{HOURS, MINUTES},
 };
+use sp_runtime::str_array as s;
 const fn percent(x: i32) -> sp_arithmetic::FixedI64 {
 	sp_arithmetic::FixedI64::from_rational(x as u128, 100)
 }
 
-use pallet_referenda::Curve;
+use pallet_referenda::{Curve, Track, TrackInfo};
 const APP_LINEAR: Curve = Curve::make_linear(7, 7, percent(50), percent(100));
 const APP_LINEAR_FLAT: Curve = Curve::make_linear(4, 7, percent(50), percent(100));
 const APP_RECIP: Curve = Curve::make_reciprocal(1, 7, percent(80), percent(50), percent(100));
-const SUP_LINEAR: Curve = Curve::make_linear(7, 7, percent(0), percent(50));
-const SUP_LINEAR_FROM_25: Curve = Curve::make_linear(7, 7, percent(0), percent(25));
-const SUP_RECIP: Curve = Curve::make_reciprocal(5, 7, percent(1), percent(0), percent(50));
-const SUP_FAST_RECIP: Curve = Curve::make_reciprocal(3, 7, percent(1), percent(0), percent(50));
+const SUP_LINEAR: Curve = Curve::make_linear(7, 7, percent(0), percent(36));
+const SUP_FAST_LINEAR: Curve = Curve::make_linear(7, 7, percent(0), percent(18));
+const SUP_RECIP: Curve = Curve::make_reciprocal(5, 7, percent(1), percent(0), percent(36));
+const SUP_FAST_RECIP: Curve = Curve::make_reciprocal(3, 7, percent(1), percent(0), percent(36));
 const SUP_WHITELISTED_CALLER: Curve = Curve::make_reciprocal(1, 28, percent(3), percent(2), percent(50));
 
-const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10] = [
-	(
-		0,
-		pallet_referenda::TrackInfo {
-			name: "root",
+const TRACKS_DATA: [Track<u16, Balance, BlockNumber>; 10] = [
+	Track {
+		id: 0,
+		info: TrackInfo {
+			name: s("root"),
 			max_deciding: 3,
 			decision_deposit: 1_000_000 * UNITS,
 			prepare_period: HOURS,
@@ -60,11 +61,11 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10
 			min_approval: APP_RECIP,
 			min_support: SUP_LINEAR,
 		},
-	),
-	(
-		1,
-		pallet_referenda::TrackInfo {
-			name: "whitelisted_caller",
+	},
+	Track {
+		id: 1,
+		info: TrackInfo {
+			name: s("whitelisted_caller"),
 			max_deciding: 3,
 			decision_deposit: 50_000 * UNITS,
 			prepare_period: 10 * MINUTES,
@@ -74,11 +75,11 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10
 			min_approval: APP_RECIP,
 			min_support: SUP_WHITELISTED_CALLER,
 		},
-	),
-	(
-		2,
-		pallet_referenda::TrackInfo {
-			name: "referendum_canceller",
+	},
+	Track {
+		id: 2,
+		info: TrackInfo {
+			name: s("referendum_canceller"),
 			max_deciding: 3,
 			decision_deposit: 250_000 * UNITS,
 			prepare_period: 60 * MINUTES,
@@ -88,11 +89,11 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10
 			min_approval: APP_LINEAR_FLAT,
 			min_support: SUP_FAST_RECIP,
 		},
-	),
-	(
-		3,
-		pallet_referenda::TrackInfo {
-			name: "referendum_killer",
+	},
+	Track {
+		id: 3,
+		info: TrackInfo {
+			name: s("referendum_killer"),
 			max_deciding: 3,
 			decision_deposit: 750_000 * UNITS,
 			prepare_period: 60 * MINUTES,
@@ -102,11 +103,11 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10
 			min_approval: APP_LINEAR_FLAT,
 			min_support: SUP_FAST_RECIP,
 		},
-	),
-	(
-		4,
-		pallet_referenda::TrackInfo {
-			name: "general_admin",
+	},
+	Track {
+		id: 4,
+		info: TrackInfo {
+			name: s("general_admin"),
 			max_deciding: 3,
 			decision_deposit: 250_000 * UNITS,
 			prepare_period: 60 * MINUTES,
@@ -116,11 +117,11 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10
 			min_approval: APP_RECIP,
 			min_support: SUP_RECIP,
 		},
-	),
-	(
-		5,
-		pallet_referenda::TrackInfo {
-			name: "treasurer",
+	},
+	Track {
+		id: 5,
+		info: TrackInfo {
+			name: s("treasurer"),
 			max_deciding: 3,
 			decision_deposit: 750_000 * UNITS,
 			prepare_period: 60 * MINUTES,
@@ -128,13 +129,13 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10
 			confirm_period: 12 * HOURS,
 			min_enactment_period: 10 * MINUTES,
 			min_approval: APP_RECIP,
-			min_support: SUP_LINEAR_FROM_25,
+			min_support: SUP_FAST_LINEAR,
 		},
-	),
-	(
-		6,
-		pallet_referenda::TrackInfo {
-			name: "spender",
+	},
+	Track {
+		id: 6,
+		info: TrackInfo {
+			name: s("spender"),
 			max_deciding: 3,
 			decision_deposit: 100_000 * UNITS,
 			prepare_period: 60 * MINUTES,
@@ -144,11 +145,11 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10
 			min_approval: APP_LINEAR,
 			min_support: SUP_RECIP,
 		},
-	),
-	(
-		7,
-		pallet_referenda::TrackInfo {
-			name: "tipper",
+	},
+	Track {
+		id: 7,
+		info: TrackInfo {
+			name: s("tipper"),
 			max_deciding: 3,
 			decision_deposit: 10_000 * UNITS,
 			prepare_period: 60 * MINUTES,
@@ -158,11 +159,11 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10
 			min_approval: APP_LINEAR_FLAT,
 			min_support: SUP_FAST_RECIP,
 		},
-	),
-	(
-		8,
-		pallet_referenda::TrackInfo {
-			name: "omnipool_admin",
+	},
+	Track {
+		id: 8,
+		info: TrackInfo {
+			name: s("omnipool_admin"),
 			max_deciding: 3,
 			decision_deposit: 250_000 * UNITS,
 			prepare_period: 60 * MINUTES,
@@ -172,11 +173,11 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10
 			min_approval: APP_RECIP,
 			min_support: SUP_RECIP,
 		},
-	),
-	(
-		9,
-		pallet_referenda::TrackInfo {
-			name: "economic_parameters",
+	},
+	Track {
+		id: 9,
+		info: TrackInfo {
+			name: s("economic_parameters"),
 			max_deciding: 3,
 			decision_deposit: 750_000 * UNITS,
 			prepare_period: 60 * MINUTES,
@@ -184,30 +185,32 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10
 			confirm_period: 12 * HOURS,
 			min_enactment_period: 10 * MINUTES,
 			min_approval: APP_RECIP,
-			min_support: SUP_LINEAR_FROM_25,
+			min_support: SUP_FAST_LINEAR,
 		},
-	),
+	},
 ];
 
-const TESTNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10] = [
-	(
-		0,
-		pallet_referenda::TrackInfo {
-			name: "root",
+const TESTNET_TRACKS_DATA: [Track<u16, Balance, BlockNumber>; 10] = [
+	Track {
+		id: 0,
+		info: TrackInfo {
+			name: s("root"),
 			max_deciding: 3,
 			decision_deposit: 1_000_000 * UNITS,
-			prepare_period: 1,
+			// Must be > 1 so that `pallet_referenda::nudge_referendum_preparing` benchmark stays
+			// in the prepare phase across the framework's block 0 -> 1 advance.
+			prepare_period: 2,
 			decision_period: 7 * DAYS,
 			confirm_period: 1,
 			min_enactment_period: 1,
 			min_approval: APP_RECIP,
 			min_support: SUP_LINEAR,
 		},
-	),
-	(
-		1,
-		pallet_referenda::TrackInfo {
-			name: "whitelisted_caller",
+	},
+	Track {
+		id: 1,
+		info: TrackInfo {
+			name: s("whitelisted_caller"),
 			max_deciding: 3,
 			decision_deposit: 50_000 * UNITS,
 			prepare_period: 1,
@@ -217,11 +220,11 @@ const TESTNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumb
 			min_approval: APP_RECIP,
 			min_support: SUP_WHITELISTED_CALLER,
 		},
-	),
-	(
-		2,
-		pallet_referenda::TrackInfo {
-			name: "referendum_canceller",
+	},
+	Track {
+		id: 2,
+		info: TrackInfo {
+			name: s("referendum_canceller"),
 			max_deciding: 3,
 			decision_deposit: 250_000 * UNITS,
 			prepare_period: 60 * MINUTES,
@@ -231,11 +234,11 @@ const TESTNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumb
 			min_approval: APP_LINEAR_FLAT,
 			min_support: SUP_FAST_RECIP,
 		},
-	),
-	(
-		3,
-		pallet_referenda::TrackInfo {
-			name: "referendum_killer",
+	},
+	Track {
+		id: 3,
+		info: TrackInfo {
+			name: s("referendum_killer"),
 			max_deciding: 3,
 			decision_deposit: 750_000 * UNITS,
 			prepare_period: 60 * MINUTES,
@@ -245,11 +248,11 @@ const TESTNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumb
 			min_approval: APP_LINEAR_FLAT,
 			min_support: SUP_FAST_RECIP,
 		},
-	),
-	(
-		4,
-		pallet_referenda::TrackInfo {
-			name: "general_admin",
+	},
+	Track {
+		id: 4,
+		info: TrackInfo {
+			name: s("general_admin"),
 			max_deciding: 3,
 			decision_deposit: 250_000 * UNITS,
 			prepare_period: 1,
@@ -259,11 +262,11 @@ const TESTNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumb
 			min_approval: APP_RECIP,
 			min_support: SUP_RECIP,
 		},
-	),
-	(
-		5,
-		pallet_referenda::TrackInfo {
-			name: "treasurer",
+	},
+	Track {
+		id: 5,
+		info: TrackInfo {
+			name: s("treasurer"),
 			max_deciding: 3,
 			decision_deposit: 750_000 * UNITS,
 			prepare_period: 1,
@@ -271,13 +274,13 @@ const TESTNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumb
 			confirm_period: 1,
 			min_enactment_period: 1,
 			min_approval: APP_RECIP,
-			min_support: SUP_LINEAR_FROM_25,
+			min_support: SUP_FAST_LINEAR,
 		},
-	),
-	(
-		6,
-		pallet_referenda::TrackInfo {
-			name: "spender",
+	},
+	Track {
+		id: 6,
+		info: TrackInfo {
+			name: s("spender"),
 			max_deciding: 3,
 			decision_deposit: 100_000 * UNITS,
 			prepare_period: 60 * MINUTES,
@@ -287,11 +290,11 @@ const TESTNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumb
 			min_approval: APP_LINEAR,
 			min_support: SUP_RECIP,
 		},
-	),
-	(
-		7,
-		pallet_referenda::TrackInfo {
-			name: "tipper",
+	},
+	Track {
+		id: 7,
+		info: TrackInfo {
+			name: s("tipper"),
 			max_deciding: 3,
 			decision_deposit: 10_000 * UNITS,
 			prepare_period: 60 * MINUTES,
@@ -301,11 +304,11 @@ const TESTNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumb
 			min_approval: APP_LINEAR_FLAT,
 			min_support: SUP_FAST_RECIP,
 		},
-	),
-	(
-		8,
-		pallet_referenda::TrackInfo {
-			name: "omnipool_admin",
+	},
+	Track {
+		id: 8,
+		info: TrackInfo {
+			name: s("omnipool_admin"),
 			max_deciding: 3,
 			decision_deposit: 250_000 * UNITS,
 			prepare_period: 1,
@@ -315,11 +318,11 @@ const TESTNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumb
 			min_approval: APP_RECIP,
 			min_support: SUP_RECIP,
 		},
-	),
-	(
-		9,
-		pallet_referenda::TrackInfo {
-			name: "economic_parameters",
+	},
+	Track {
+		id: 9,
+		info: TrackInfo {
+			name: s("economic_parameters"),
 			max_deciding: 3,
 			decision_deposit: 750_000 * UNITS,
 			prepare_period: 1,
@@ -327,22 +330,23 @@ const TESTNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumb
 			confirm_period: 1,
 			min_enactment_period: 1,
 			min_approval: APP_RECIP,
-			min_support: SUP_LINEAR_FROM_25,
+			min_support: SUP_FAST_LINEAR,
 		},
-	),
+	},
 ];
 
 pub struct TracksInfo;
 impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 	type Id = u16;
 	type RuntimeOrigin = <RuntimeOrigin as frame_support::traits::OriginTrait>::PalletsOrigin;
-	fn tracks() -> &'static [(Self::Id, pallet_referenda::TrackInfo<Balance, BlockNumber>)] {
+	fn tracks() -> impl Iterator<Item = Cow<'static, Track<Self::Id, Balance, BlockNumber>>> {
 		if Parameters::is_testnet() {
-			&TESTNET_TRACKS_DATA[..]
+			TESTNET_TRACKS_DATA.iter().map(Cow::Borrowed)
 		} else {
-			&TRACKS_DATA[..]
+			TRACKS_DATA.iter().map(Cow::Borrowed)
 		}
 	}
+
 	fn track_for(id: &Self::RuntimeOrigin) -> Result<Self::Id, ()> {
 		if let Ok(system_origin) = frame_system::RawOrigin::try_from(id.clone()) {
 			match system_origin {
@@ -366,4 +370,3 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 		}
 	}
 }
-pallet_referenda::impl_tracksinfo_get!(TracksInfo, Balance, BlockNumber);

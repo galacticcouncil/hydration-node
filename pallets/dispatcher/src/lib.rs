@@ -27,6 +27,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
+#![allow(clippy::useless_conversion)]
 
 #[cfg(test)]
 pub mod mock;
@@ -39,12 +40,16 @@ mod benchmarking;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
-use pallet_evm::GasWeightMapping;
-use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
+use hydradx_traits::evm::EvmFeePayerSupport;
+use hydradx_traits::evm::ExtraGasSupport;
+use hydradx_traits::evm::MaybeEvmCall;
+use pallet_evm::{ExitReason, GasWeightMapping};
+use sp_runtime::{traits::Dispatchable, DispatchError, DispatchResultWithInfo};
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_support::pallet_prelude::Weight;
+use frame_support::traits::Get;
 pub use pallet::*;
 
 #[frame_support::pallet]
@@ -57,6 +62,7 @@ pub mod pallet {
 		pallet_prelude::*,
 	};
 	use frame_system::pallet_prelude::*;
+	use pallet_evm::{ExitReason, ExitSucceed};
 	use sp_runtime::traits::{Dispatchable, Hash};
 	use sp_std::boxed::Box;
 
@@ -64,9 +70,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// The overarching call type.
 		type RuntimeCall: IsType<<Self as frame_system::Config>::RuntimeCall>
 			+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin, PostInfo = PostDispatchInfo>
@@ -76,14 +79,22 @@ pub mod pallet {
 			+ From<frame_system::Call<Self>>
 			+ Parameter;
 
+		/// The trait to check whether RuntimeCall is [pallet_evm::Call::call].
+		type EvmCallIdentifier: MaybeEvmCall<<Self as Config>::RuntimeCall>;
+
 		type TreasuryManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		type AaveManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type EmergencyAdminOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		type TreasuryAccount: Get<Self::AccountId>;
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
+		type EmergencyAdminAccount: Get<Self::AccountId>;
 
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
+
+		/// Support for overriding the EVM fee payer.
+		type EvmFeePayer: EvmFeePayerSupport<AccountId = Self::AccountId>;
 
 		/// The weight information for this pallet.
 		type WeightInfo: WeightInfo;
@@ -101,6 +112,37 @@ pub mod pallet {
 	#[pallet::getter(fn extra_gas)]
 	pub type ExtraGas<T: Config> = StorageValue<_, u64, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::whitelist_storage]
+	#[pallet::unbounded]
+	#[pallet::getter(fn last_evm_call_exit_reason)]
+	pub type LastEvmCallExitReason<T: Config> = StorageValue<_, ExitReason, OptionQuery>;
+
+	#[pallet::error]
+	pub enum Error<T> {
+		/// The EVM call execution failed. This happens when the EVM returns an exit reason
+		/// other than `ExitSucceed(Returned)` or `ExitSucceed(Stopped)`.
+		EvmCallFailed,
+		/// The provided call is not an EVM call. This extrinsic only accepts `pallet_evm::Call::call`.
+		NotEvmCall,
+		/// The EVM call ran out of gas.
+		EvmOutOfGas,
+		/// The EVM call resulted in an arithmetic overflow or underflow.
+		EvmArithmeticOverflowOrUnderflow,
+		/// Aave - supply cap has been exceeded.
+		AaveSupplyCapExceeded,
+		/// Aave - borrow cap has been exceeded.
+		AaveBorrowCapExceeded,
+		/// Aave - health factor is not below the threshold.
+		AaveHealthFactorNotBelowThreshold,
+		/// Aave - health factor is lesser than the liquidation threshold
+		AaveHealthFactorLowerThanLiquidationThreshold,
+		/// Aave - there is not enough collateral to cover a new borrow
+		CollateralCannotCoverNewBorrow,
+		/// Aave - the reserve is paused and no operations are allowed
+		AaveReservePaused,
+	}
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -112,13 +154,25 @@ pub mod pallet {
 			call_hash: T::Hash,
 			result: DispatchResultWithPostInfo,
 		},
+		EmergencyAdminCallDispatched {
+			call_hash: T::Hash,
+			result: DispatchResultWithPostInfo,
+		},
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		/// Reset the last EVM call exit reason on block finalization.
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			LastEvmCallExitReason::<T>::kill();
+		}
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().weight;
+			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
 
 			T::WeightInfo::dispatch_as_treasury(call_len)
@@ -137,7 +191,7 @@ pub mod pallet {
 				frame_system::Origin::<T>::Signed(T::TreasuryAccount::get()).into(),
 				*call,
 			);
-			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury(call_len)));
+			let actual_weight = actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury(call_len)));
 
 			Self::deposit_event(Event::<T>::TreasuryManagerCallDispatched { call_hash, result });
 
@@ -146,7 +200,7 @@ pub mod pallet {
 
 		#[pallet::call_index(1)]
 		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().weight;
+			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
 
 			T::WeightInfo::dispatch_as_aave_manager(call_len)
@@ -165,7 +219,8 @@ pub mod pallet {
 				frame_system::Origin::<T>::Signed(AaveManagerAccount::<T>::get()).into(),
 				*call,
 			);
-			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_aave_manager(call_len)));
+			let actual_weight =
+				actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_aave_manager(call_len)));
 
 			Self::deposit_event(Event::<T>::AaveManagerCallDispatched { call_hash, result });
 
@@ -192,7 +247,7 @@ pub mod pallet {
 		/// The extra gas is not refunded, even if not used.
 		#[pallet::call_index(3)]
 		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().weight;
+			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
 			let gas_weight = T::GasWeightMapping::gas_to_weight(*extra_gas, true);
 			T::WeightInfo::dispatch_with_extra_gas(call_len)
@@ -215,12 +270,136 @@ pub mod pallet {
 			// We need to add the extra gas to the actual weight - because evm execution does not account for it
 			// If actual weight is None, we still account for extra gas
 			let actual_weight = if let Some(weight) = actual_weight {
-				weight
+				let extra_weight = T::GasWeightMapping::gas_to_weight(extra_gas, true);
+				Some(weight.saturating_add(extra_weight))
 			} else {
-				Weight::zero()
+				None
 			};
-			let extra_weight = T::GasWeightMapping::gas_to_weight(extra_gas, true);
-			let actual_weight = Some(actual_weight.saturating_add(extra_weight));
+
+			match result {
+				Ok(_) => Ok(PostDispatchInfo {
+					actual_weight,
+					pays_fee: Pays::Yes,
+				}),
+				Err(err) => Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight,
+						pays_fee: Pays::Yes,
+					},
+					error: err.error,
+				}),
+			}
+		}
+
+		/// Execute a single EVM call.
+		/// This extrinsic will fail if the EVM call returns any other ExitReason than `ExitSucceed(Returned)` or `ExitSucceed(Stopped)`.
+		/// Look the [hydradx_runtime::evm::runner::WrapRunner] implementation for details.
+		///
+		/// Parameters:
+		/// - `origin`: Signed origin.
+		/// - `call`: presumably `pallet_evm::Call::call` as boxed `RuntimeCall`.
+		///
+		/// Emits `EvmCallFailed` event when failed.
+		#[pallet::call_index(4)]
+		#[pallet::weight({
+			let evm_call_weight = call.get_dispatch_info().call_weight;
+			let evm_call_len = call.encoded_size() as u32;
+			T::WeightInfo::dispatch_evm_call(evm_call_len)
+				.saturating_add(evm_call_weight)
+		})]
+		pub fn dispatch_evm_call(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			ensure!(T::EvmCallIdentifier::is_evm_call(&call), Error::<T>::NotEvmCall);
+
+			let (result, actual_weight) = Self::do_dispatch(origin, *call);
+			let post_info = PostDispatchInfo {
+				actual_weight,
+				pays_fee: Pays::Yes,
+			};
+
+			if let Some(exit_reason) = LastEvmCallExitReason::<T>::get() {
+				match exit_reason {
+					ExitReason::Succeed(ExitSucceed::Returned) | ExitReason::Succeed(ExitSucceed::Stopped) => {}
+					_ => {
+						return Err(DispatchErrorWithPostInfo {
+							post_info,
+							error: Error::<T>::EvmCallFailed.into(),
+						});
+					}
+				}
+			}
+
+			match result {
+				Ok(_) => Ok(post_info),
+				Err(err) => Err(DispatchErrorWithPostInfo {
+					post_info,
+					error: err.error,
+				}),
+			}
+		}
+
+		/// Dispatch a call as the emergency admin account.
+		///
+		/// This is a fast path for the Technical Committee to react to emergencies
+		/// (e.g., pausing exploited markets) without waiting for a full referendum.
+		/// The inner call is dispatched as a Signed origin from the configured
+		/// emergency admin account.
+		///
+		/// Parameters:
+		/// - `origin`: Must satisfy `EmergencyAdminOrigin` (TC majority or Root).
+		/// - `call`: The runtime call to dispatch as the emergency admin.
+		///
+		/// Emits `EmergencyAdminCallDispatched` with the call hash and dispatch result.
+		#[pallet::call_index(5)]
+		#[pallet::weight({
+			let call_weight = call.get_dispatch_info().call_weight;
+			let call_len = call.encoded_size() as u32;
+
+			T::WeightInfo::dispatch_as_emergency_admin(call_len)
+				.saturating_add(call_weight)
+		})]
+		pub fn dispatch_as_emergency_admin(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			T::EmergencyAdminOrigin::ensure_origin(origin)?;
+
+			let call_hash = T::Hashing::hash_of(&call);
+			let call_len = call.encoded_size() as u32;
+
+			let (result, actual_weight) = Self::do_dispatch(
+				frame_system::Origin::<T>::Signed(T::EmergencyAdminAccount::get()).into(),
+				*call,
+			);
+			let actual_weight =
+				actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_emergency_admin(call_len)));
+
+			Self::deposit_event(Event::<T>::EmergencyAdminCallDispatched { call_hash, result });
+
+			Ok(actual_weight.into())
+		}
+
+		#[pallet::call_index(7)]
+		#[pallet::weight({
+			let call_weight = call.get_dispatch_info().call_weight;
+			let call_len = call.encoded_size() as u32;
+			T::WeightInfo::dispatch_with_fee_payer(call_len)
+				.saturating_add(call_weight)
+		})]
+		pub fn dispatch_with_fee_payer(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			let signer = ensure_signed(origin.clone())?;
+
+			let previous = T::EvmFeePayer::set_fee_payer(signer);
+			let (result, actual_weight) = Self::do_dispatch(origin, *call);
+			match previous {
+				Some(p) => T::EvmFeePayer::set_fee_payer(p),
+				None => T::EvmFeePayer::clear_fee_payer(),
+			};
 
 			match result {
 				Ok(_) => Ok(PostDispatchInfo {
@@ -270,5 +449,23 @@ impl<T: Config> Pallet<T> {
 		if new_value > 0 {
 			ExtraGas::<T>::set(new_value);
 		}
+	}
+
+	pub fn set_last_evm_call_exit_reason(reason: &ExitReason) {
+		LastEvmCallExitReason::<T>::put(reason);
+	}
+}
+
+impl<T: Config> ExtraGasSupport for Pallet<T> {
+	fn set_extra_gas(gas: u64) {
+		ExtraGas::<T>::set(gas);
+	}
+
+	fn clear_extra_gas() {
+		ExtraGas::<T>::kill();
+	}
+
+	fn out_of_gas_error() -> DispatchError {
+		Error::<T>::EvmOutOfGas.into()
 	}
 }

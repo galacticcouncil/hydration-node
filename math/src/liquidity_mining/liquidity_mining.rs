@@ -18,7 +18,6 @@ use primitive_types::U128;
 /// `denom = t + scale_coef`
 ///
 /// `loyalty_multiplier = num/denom`
-
 pub fn calculate_loyalty_multiplier<Period: num_traits::CheckedSub + TryInto<u32> + TryInto<u128>>(
 	periods: Period,
 	initial_reward_percentage: FixedU128,

@@ -27,12 +27,12 @@ use sp_runtime::{
 	BuildStorage,
 };
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
 use frame_support::traits::Everything;
 
-use polkadot_xcm::v3::MultiLocation;
+use polkadot_xcm::v5::Location;
 
 use crate as pallet_asset_registry;
 use crate::types::{Name, Symbol};
@@ -96,19 +96,19 @@ impl system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
-#[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub struct AssetLocation(pub MultiLocation);
+#[derive(Debug, Default, Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+pub struct AssetLocation(pub Location);
 
-impl From<AssetLocation> for MultiLocation {
+impl From<AssetLocation> for Location {
 	fn from(location: AssetLocation) -> Self {
 		location.0
 	}
 }
 
 impl pallet_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Tokens;
 	type RegistryOrigin = frame_system::EnsureRoot<u64>;
 	type UpdateOrigin = frame_system::EnsureSigned<u64>;
@@ -129,7 +129,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;

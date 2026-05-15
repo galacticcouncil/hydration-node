@@ -30,7 +30,7 @@ use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
-use sp_runtime::Permill;
+use sp_runtime::{Perbill, Permill};
 
 const ASSET_ID_OFFSET: u32 = 2_000;
 
@@ -96,7 +96,7 @@ where
 		amplification,
 		trade_fee,
 		BoundedPegSources::truncate_from(peg_source),
-		Permill::from_percent(100),
+		Perbill::from_percent(100),
 	)
 	.expect("Failed to create pool");
 
@@ -170,27 +170,10 @@ benchmarks! {
 		let trade_fee = Permill::from_percent(1);
 		let caller: T::AccountId = account("caller", 0, 1);
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-	}: _<T::RuntimeOrigin>(successful_origin, pool_id.into(), BoundedVec::truncate_from(asset_ids), amplification, trade_fee, BoundedPegSources::truncate_from(peg_source), Permill::from_percent(100))
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id.into(), BoundedVec::truncate_from(asset_ids), amplification, trade_fee, BoundedPegSources::truncate_from(peg_source), Perbill::from_percent(100))
 	verify {
 		assert!(<Pools<T>>::get::<T::AssetId>(pool_id.into()).is_some());
 		assert!(<PoolPegs<T>>::get::<T::AssetId>(pool_id.into()).is_some());
-	}
-
-	add_liquidity{
-		let caller: T::AccountId = account("caller", 0, 1);
-		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
-
-		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		for asset_id in pool.assets.iter() {
-			T::Currency::update_balance(*asset_id, &caller, 300_000_000_000_000i128)?;
-			added_liquidity.push(AssetAmount::new(*asset_id, 300_000_000_000_000u128));
-		}
-		T::BenchmarkHelper::set_deposit_limit(pool_id, 1_000_000u128)?;//To trigger deposit limiter circuit breaker, leading to worst case
-
-	}: _(RawOrigin::Signed(caller.clone()), pool_id, added_liquidity.try_into().unwrap())
-	verify {
-		assert!(T::Currency::free_balance(pool_id, &caller) > 0u128);
 	}
 
 	add_assets_liquidity{
@@ -451,7 +434,7 @@ benchmarks! {
 		let (pool_id, _pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 
-		let new_max_peg_update = Permill::from_percent(50);
+		let new_max_peg_update = Perbill::from_percent(50);
 
 	}: _<T::RuntimeOrigin>(successful_origin, pool_id, new_max_peg_update)
 	verify {

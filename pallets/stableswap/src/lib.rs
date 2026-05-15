@@ -58,11 +58,14 @@
 
 extern crate core;
 
-use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional, BoundedVec, PalletId};
+use frame_support::{
+	pallet_prelude::{DispatchResult, Get},
+	traits::ExistenceRequirement,
+};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
-use hydradx_traits::{registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
+use hydradx_traits::{registry::Inspect, stableswap::StableswapLiquidityMutation, AccountIdFor};
 use num_traits::zero;
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
@@ -71,7 +74,6 @@ use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 use sp_std::vec;
 
-#[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::FixedU128;
 
 mod trade_execution;
@@ -93,6 +95,7 @@ use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_std::collections::btree_map::BTreeMap;
 pub use weights::WeightInfo;
 
+pub mod migrations;
 #[cfg(test)]
 pub(crate) mod tests;
 
@@ -122,17 +125,15 @@ pub mod pallet {
 	use pallet_broadcast::types::Fee;
 	use sp_runtime::traits::{BlockNumberProvider, Zero};
 	use sp_runtime::ArithmeticError;
-	use sp_runtime::Permill;
+	use sp_runtime::Perbill;
 	use sp_std::num::NonZeroU16;
 
 	#[pallet::pallet]
+	#[pallet::storage_version(migrations::STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_broadcast::Config {
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Provider for the current block number.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
@@ -201,7 +202,8 @@ pub mod pallet {
 	/// Pool peg info.
 	#[pallet::storage]
 	#[pallet::getter(fn pool_peg_info)]
-	pub type PoolPegs<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolPegInfo<T::AssetId>>;
+	pub type PoolPegs<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, PoolPegInfo<BlockNumberFor<T>, T::AssetId>>;
 
 	/// Tradability state of pool assets.
 	#[pallet::storage]
@@ -215,6 +217,11 @@ pub mod pallet {
 	pub type PoolSnapshots<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, PoolSnapshot<T::AssetId>, OptionQuery>;
 
+	/// Temporary pool's trade fee for current block.
+	#[pallet::storage]
+	#[pallet::getter(fn block_fee)]
+	pub type BlockFee<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Permill, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -224,7 +231,7 @@ pub mod pallet {
 			assets: Vec<T::AssetId>,
 			amplification: NonZeroU16,
 			fee: Permill,
-			peg: Option<PoolPegInfo<T::AssetId>>,
+			peg: Option<PoolPegInfo<BlockNumberFor<T>, T::AssetId>>,
 		},
 		/// Pool fee has been updated.
 		FeeUpdated { pool_id: T::AssetId, fee: Permill },
@@ -293,7 +300,7 @@ pub mod pallet {
 		/// Pool max peg update has been updated.
 		PoolMaxPegUpdateUpdated {
 			pool_id: T::AssetId,
-			max_peg_update: Permill,
+			max_peg_update: Perbill,
 		},
 	}
 
@@ -383,6 +390,15 @@ pub mod pallet {
 
 		/// Pool does not have pegs configured.
 		NoPegSource,
+
+		/// Trade would result in zero amount out.
+		ZeroAmountOut,
+
+		/// Trade would result in zero amount in.
+		ZeroAmountIn,
+
+		/// Invariant check failed inside a trade or liquidity operation.
+		InvariantError,
 	}
 
 	#[pallet::call]
@@ -520,43 +536,6 @@ pub mod pallet {
 			})
 		}
 
-		/// Add liquidity to selected pool.
-		///
-		/// Use `add_assets_liquidity` instead.
-		/// This extrinsics will be removed in the future.
-		///
-		/// First call of `add_liquidity` must provide "initial liquidity" of all assets.
-		///
-		/// If there is liquidity already in the pool, LP can provide liquidity of any number of pool assets.
-		///
-		/// LP must have sufficient amount of each asset.
-		///
-		/// Origin is given corresponding amount of shares.
-		///
-		/// Parameters:
-		/// - `origin`: liquidity provider
-		/// - `pool_id`: Pool Id
-		/// - `assets`: asset id and liquidity amount provided
-		///
-		/// Emits `LiquidityAdded` event when successful.
-		/// Emits `pallet_broadcast::Swapped` event when successful.
-		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
-							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
-		#[transactional]
-		#[deprecated(note = "Use add_assets_liquidity instead")]
-		pub fn add_liquidity(
-			origin: OriginFor<T>,
-			pool_id: T::AssetId,
-			assets: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			Self::do_add_liquidity(&who, pool_id, &assets, Balance::zero())?;
-
-			Ok(())
-		}
-
 		/// Add liquidity to selected pool given exact amount of shares to receive.
 		///
 		/// Similar to `add_liquidity` but LP specifies exact amount of shares to receive.
@@ -624,81 +603,7 @@ pub mod pallet {
 			min_amount_out: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-
-			ensure!(
-				Self::is_asset_allowed(pool_id, asset_id, Tradability::REMOVE_LIQUIDITY),
-				Error::<T>::NotAllowed
-			);
-			ensure!(share_amount > Balance::zero(), Error::<T>::InvalidAssetAmount);
-
-			let current_share_balance = T::Currency::free_balance(pool_id, &who);
-			ensure!(current_share_balance >= share_amount, Error::<T>::InsufficientShares);
-
-			// Retrive pool state.
-			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
-			let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
-			let pool_account = Self::pool_account(pool_id);
-			let initial_reserves = pool
-				.reserves_with_decimals::<T>(&pool_account)
-				.ok_or(Error::<T>::UnknownDecimals)?;
-			let share_issuance = T::Currency::total_issuance(pool_id);
-
-			ensure!(
-				share_issuance == share_amount
-					|| share_issuance.saturating_sub(share_amount) >= T::MinPoolLiquidity::get(),
-				Error::<T>::InsufficientLiquidityRemaining
-			);
-
-			let amplification = Self::get_amplification(&pool);
-			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, &pool)?;
-
-			Self::save_snapshot(pool_id);
-
-			//Calculate how much asset user will receive. Note that the fee is already subtracted from the amount.
-			let (amount, fee) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
-				&initial_reserves,
-				share_amount,
-				asset_idx,
-				share_issuance,
-				amplification,
-				trade_fee,
-				&asset_pegs,
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-			ensure!(amount >= min_amount_out, Error::<T>::SlippageLimit);
-
-			// Burn shares and transfer asset to user.
-			T::Currency::withdraw(pool_id, &who, share_amount)?;
-			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
-
-			// All done and updated. let's call the on_liquidity_changed hook.
-			Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
-
-			Self::deposit_event(Event::LiquidityRemoved {
-				pool_id,
-				who: who.clone(),
-				shares: share_amount,
-				amounts: vec![AssetAmount { asset_id, amount }],
-				fee,
-			});
-
-			pallet_broadcast::Pallet::<T>::deposit_trade_event(
-				who,
-				pool_account.clone(),
-				pallet_broadcast::types::Filler::Stableswap(pool_id.into()),
-				pallet_broadcast::types::TradeOperation::LiquidityRemove,
-				vec![Asset::new(pool_id.into(), share_amount)],
-				vec![Asset::new(asset_id.into(), amount)],
-				vec![Fee {
-					asset: pool_id.into(),
-					amount: fee,
-					destination: Destination::Account(pool_account),
-				}],
-			);
-
-			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
+			let _ = Self::do_remove_liquidity_one_asset(&who, pool_id, asset_id, share_amount, min_amount_out)?;
 
 			Ok(())
 		}
@@ -762,10 +667,11 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(shares <= max_share_amount, Error::<T>::SlippageLimit);
+			ensure!(shares >= 1, Error::<T>::ZeroAmountIn);
 
 			// Burn shares and transfer asset to user.
-			T::Currency::withdraw(pool_id, &who, shares)?;
-			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
+			T::Currency::withdraw(pool_id, &who, shares, ExistenceRequirement::AllowDeath)?;
+			T::Currency::transfer(asset_id, &pool_account, &who, amount, ExistenceRequirement::AllowDeath)?;
 
 			// All done and updated. let's call the on_liquidity_changed hook.
 			Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
@@ -795,8 +701,7 @@ pub mod pallet {
 				fees,
 			);
 
-			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;
 
 			Ok(())
 		}
@@ -857,8 +762,20 @@ pub mod pallet {
 
 			Self::save_snapshot(pool_id);
 
-			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
-			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
+			T::Currency::transfer(
+				asset_in,
+				&who,
+				&pool_account,
+				amount_in,
+				ExistenceRequirement::AllowDeath,
+			)?;
+			T::Currency::transfer(
+				asset_out,
+				&pool_account,
+				&who,
+				amount_out,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			//All done and updated. Let's call on_trade hook.
 			Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
@@ -887,8 +804,7 @@ pub mod pallet {
 				}],
 			);
 
-			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
+			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee)?;
 
 			Ok(())
 		}
@@ -952,8 +868,20 @@ pub mod pallet {
 
 			Self::save_snapshot(pool_id);
 
-			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
-			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
+			T::Currency::transfer(
+				asset_in,
+				&who,
+				&pool_account,
+				amount_in,
+				ExistenceRequirement::AllowDeath,
+			)?;
+			T::Currency::transfer(
+				asset_out,
+				&pool_account,
+				&who,
+				amount_out,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			//All done and updated. Let's call on_trade_hook.
 			Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
@@ -982,8 +910,7 @@ pub mod pallet {
 				}],
 			);
 
-			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
+			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee)?;
 
 			Ok(())
 		}
@@ -1018,9 +945,12 @@ pub mod pallet {
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let _ = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
 
-			AssetTradability::<T>::mutate(pool_id, asset_id, |current_state| {
-				*current_state = state;
-			});
+			// If the state is the default, we remove the entry to save storage.
+			if state == Tradability::default() {
+				AssetTradability::<T>::remove(pool_id, asset_id);
+			} else {
+				AssetTradability::<T>::insert(pool_id, asset_id, state);
+			}
 
 			Self::deposit_event(Event::TradableStateUpdated {
 				pool_id,
@@ -1121,7 +1051,7 @@ pub mod pallet {
 					amount
 				};
 
-				T::Currency::transfer(*asset_id, &pool_account, &who, amount)?;
+				T::Currency::transfer(*asset_id, &pool_account, &who, amount, ExistenceRequirement::AllowDeath)?;
 				amounts.push(AssetAmount {
 					asset_id: *asset_id,
 					amount,
@@ -1129,7 +1059,7 @@ pub mod pallet {
 			}
 
 			// Burn shares
-			T::Currency::withdraw(pool_id, &who, share_amount)?;
+			T::Currency::withdraw(pool_id, &who, share_amount, ExistenceRequirement::AllowDeath)?;
 
 			// All done and updated. let's call the on_liquidity_changed hook.
 			if share_amount != share_issuance {
@@ -1151,8 +1081,7 @@ pub mod pallet {
 				fee: Balance::zero(),
 			});
 
-			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;
 
 			Ok(())
 		}
@@ -1196,7 +1125,7 @@ pub mod pallet {
 			amplification: u16,
 			fee: Permill,
 			peg_source: BoundedPegSources<T::AssetId>,
-			max_peg_update: Permill,
+			max_peg_update: Perbill,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -1206,6 +1135,7 @@ pub mod pallet {
 
 			let peg_info = PoolPegInfo {
 				source: peg_source,
+				updated_at: T::BlockNumberProvider::current_block_number(),
 				max_peg_update,
 				current: BoundedPegs::truncate_from(initial_pegs.into_iter().map(|(v, _)| v).collect()),
 			};
@@ -1337,7 +1267,7 @@ pub mod pallet {
 		pub fn update_pool_max_peg_update(
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
-			max_peg_update: Permill,
+			max_peg_update: Perbill,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -1362,6 +1292,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			let _ = <PoolSnapshots<T>>::clear(u32::MAX, None);
+			let _ = <BlockFee<T>>::clear(u32::MAX, None);
 		}
 	}
 }
@@ -1382,12 +1313,13 @@ impl<T: Config> Pallet<T> {
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
 		let reserves = pool.reserves_with_decimals::<T>(&pool_account)?;
-		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).ok()?;
+		let (block_fee, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).ok()?;
 
 		Some(PoolSnapshot {
 			assets: pool.assets,
 			amplification,
 			fee: pool.fee,
+			block_fee,
 			reserves: BoundedVec::truncate_from(reserves),
 			pegs: BoundedVec::truncate_from(asset_pegs),
 			share_issuance,
@@ -1503,7 +1435,7 @@ impl<T: Config> Pallet<T> {
 		assets: &[T::AssetId],
 		amplification: NonZeroU16,
 		fee: Permill,
-		peg_info: Option<&PoolPegInfo<T::AssetId>>,
+		peg_info: Option<&PoolPegInfo<BlockNumberFor<T>, T::AssetId>>,
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(!Pools::<T>::contains_key(share_asset), Error::<T>::PoolExists);
 		ensure!(
@@ -1541,6 +1473,11 @@ impl<T: Config> Pallet<T> {
 		if let Some(p) = peg_info {
 			ensure!(p.current.len() == pool.assets.len(), Error::<T>::IncorrectInitialPegs);
 
+			let enforce_decimals = p.source.iter().any(|x| match x {
+				PegSource::Value(_) | PegSource::MMOracle(_) => false,
+				PegSource::Oracle(_) => true,
+			});
+
 			let asset_decimals: Vec<Option<u8>> = pool
 				.assets
 				.iter()
@@ -1548,10 +1485,12 @@ impl<T: Config> Pallet<T> {
 				.collect();
 			let asset_decimals: Option<Vec<u8>> = asset_decimals.into_iter().collect();
 			if let Some(decimals_info) = asset_decimals {
-				ensure!(
-					decimals_info.iter().all(|&x| x == decimals_info[0]),
-					Error::<T>::IncorrectAssetDecimals
-				);
+				if enforce_decimals {
+					ensure!(
+						decimals_info.iter().all(|&x| x == decimals_info[0]),
+						Error::<T>::IncorrectAssetDecimals
+					);
+				}
 			} else {
 				return Err(Error::<T>::UnknownDecimals.into());
 			}
@@ -1665,14 +1604,19 @@ impl<T: Config> Pallet<T> {
 		T::Currency::deposit(pool_id, who, share_amount)?;
 
 		for asset in assets.iter() {
-			T::Currency::transfer(asset.asset_id, who, &pool_account, asset.amount)?;
+			T::Currency::transfer(
+				asset.asset_id,
+				who,
+				&pool_account,
+				asset.amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 		}
 
 		// All done and updated. let's call the on_liquidity_changed hook.
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
-		#[cfg(any(feature = "try-runtime", test))]
-		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
+		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;
 
 		Self::deposit_event(Event::LiquidityAdded {
 			pool_id,
@@ -1758,13 +1702,18 @@ impl<T: Config> Pallet<T> {
 		Self::save_snapshot(pool_id);
 
 		T::Currency::deposit(pool_id, who, shares)?;
-		T::Currency::transfer(asset_id, who, &pool_account, amount_in)?;
+		T::Currency::transfer(
+			asset_id,
+			who,
+			&pool_account,
+			amount_in,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		//All done and update. let's call the on_liquidity_changed hook.
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
-		#[cfg(any(feature = "try-runtime", test))]
-		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
+		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;
 
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
@@ -1781,6 +1730,186 @@ impl<T: Config> Pallet<T> {
 		);
 
 		Ok(amount_in)
+	}
+
+	#[require_transactional]
+	fn do_remove_liquidity_one_asset(
+		who: &T::AccountId,
+		pool_id: T::AssetId,
+		asset_id: T::AssetId,
+		share_amount: Balance,
+		min_amount_out: Balance,
+	) -> Result<Balance, DispatchError> {
+		ensure!(
+			Self::is_asset_allowed(pool_id, asset_id, Tradability::REMOVE_LIQUIDITY),
+			Error::<T>::NotAllowed
+		);
+		ensure!(share_amount > Balance::zero(), Error::<T>::InvalidAssetAmount);
+
+		let current_share_balance = T::Currency::free_balance(pool_id, who);
+		ensure!(current_share_balance >= share_amount, Error::<T>::InsufficientShares);
+
+		// Retrieve pool state.
+		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+		let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
+		let pool_account = Self::pool_account(pool_id);
+		let initial_reserves = pool
+			.reserves_with_decimals::<T>(&pool_account)
+			.ok_or(Error::<T>::UnknownDecimals)?;
+		let share_issuance = T::Currency::total_issuance(pool_id);
+
+		ensure!(
+			share_issuance == share_amount || share_issuance.saturating_sub(share_amount) >= T::MinPoolLiquidity::get(),
+			Error::<T>::InsufficientLiquidityRemaining
+		);
+
+		let amplification = Self::get_amplification(&pool);
+		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, &pool)?;
+
+		Self::save_snapshot(pool_id);
+
+		// Calculate how much asset user will receive. Note that the fee is already subtracted from the amount.
+		let (amount, fee) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+			&initial_reserves,
+			share_amount,
+			asset_idx,
+			share_issuance,
+			amplification,
+			trade_fee,
+			&asset_pegs,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(amount >= min_amount_out, Error::<T>::SlippageLimit);
+		ensure!(amount >= 1, Error::<T>::ZeroAmountOut);
+
+		// Burn shares and transfer asset to user.
+		T::Currency::withdraw(pool_id, who, share_amount, ExistenceRequirement::AllowDeath)?;
+		T::Currency::transfer(asset_id, &pool_account, who, amount, ExistenceRequirement::AllowDeath)?;
+
+		// All done and updated. let's call the on_liquidity_changed hook.
+		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
+
+		Self::deposit_event(Event::LiquidityRemoved {
+			pool_id,
+			who: who.clone(),
+			shares: share_amount,
+			amounts: vec![AssetAmount { asset_id, amount }],
+			fee,
+		});
+
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
+			who.clone(),
+			pool_account.clone(),
+			pallet_broadcast::types::Filler::Stableswap(pool_id.into()),
+			pallet_broadcast::types::TradeOperation::LiquidityRemove,
+			vec![Asset::new(pool_id.into(), share_amount)],
+			vec![Asset::new(asset_id.into(), amount)],
+			vec![Fee {
+				asset: pool_id.into(),
+				amount: fee,
+				destination: Destination::Account(pool_account),
+			}],
+		);
+
+		Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;
+
+		Ok(amount)
+	}
+
+	#[require_transactional]
+	fn do_remove_liquidity(
+		who: &T::AccountId,
+		pool_id: T::AssetId,
+		share_amount: Balance,
+		min_amounts_out: &[AssetAmount<T::AssetId>],
+	) -> Result<(), DispatchError> {
+		ensure!(share_amount > Balance::zero(), Error::<T>::InvalidAssetAmount);
+
+		let current_share_balance = T::Currency::free_balance(pool_id, who);
+		ensure!(current_share_balance >= share_amount, Error::<T>::InsufficientShares);
+
+		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+		let pool_account = Self::pool_account(pool_id);
+		let initial_reserves = pool
+			.reserves_with_decimals::<T>(&pool_account)
+			.ok_or(Error::<T>::UnknownDecimals)?;
+		let share_issuance = T::Currency::total_issuance(pool_id);
+
+		// We want to ensure that given min amounts are correct. It must contain all pool assets.
+		// We convert vec of min amounts to a map.
+		// We first ensure the length, and if any asset is not found later on, we can return an error.
+		ensure!(min_amounts_out.len() == pool.assets.len(), Error::<T>::IncorrectAssets);
+		let mut min_amounts_out_map = BTreeMap::new();
+		for v in min_amounts_out.iter() {
+			let r = min_amounts_out_map.insert(v.asset_id, v.amount);
+			ensure!(r.is_none(), Error::<T>::IncorrectAssets);
+		}
+
+		Self::save_snapshot(pool_id);
+
+		// Store the amount of each asset that is transferred. Used as info in the event.
+		let mut amounts = Vec::with_capacity(pool.assets.len());
+
+		// 1. Calculate amount of each asset
+		// 2. ensure min amount is respected
+		// 3. transfer amount to user
+		for asset_id in pool.assets.iter() {
+			ensure!(
+				Self::is_asset_allowed(pool_id, *asset_id, Tradability::REMOVE_LIQUIDITY),
+				Error::<T>::NotAllowed
+			);
+			let min_amount = min_amounts_out_map
+				.remove(asset_id)
+				.ok_or(Error::<T>::IncorrectAssets)?;
+			let reserve = T::Currency::free_balance(*asset_id, &pool_account);
+
+			// Special case when withdrawing all remaining pool shares, so we can directly send all the remaining assets to the user.
+			let amount = if share_amount == share_issuance {
+				ensure!(reserve >= min_amount, Error::<T>::SlippageLimit);
+				reserve
+			} else {
+				let amount = hydra_dx_math::stableswap::calculate_liquidity_out(reserve, share_amount, share_issuance)
+					.ok_or(ArithmeticError::Overflow)?;
+				ensure!(amount >= min_amount, Error::<T>::SlippageLimit);
+				amount
+			};
+
+			ensure!(amount >= 1, Error::<T>::ZeroAmountOut);
+
+			T::Currency::transfer(*asset_id, &pool_account, who, amount, ExistenceRequirement::AllowDeath)?;
+			amounts.push(AssetAmount {
+				asset_id: *asset_id,
+				amount,
+			});
+		}
+
+		// Burn shares
+		T::Currency::withdraw(pool_id, who, share_amount, ExistenceRequirement::AllowDeath)?;
+
+		// All done and updated. let's call the on_liquidity_changed hook.
+		if share_amount != share_issuance {
+			Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
+		} else {
+			// Remove the pool.
+			Pools::<T>::remove(pool_id);
+			PoolPegs::<T>::remove(pool_id);
+			let _ = AssetTradability::<T>::clear_prefix(pool_id, MAX_ASSETS_IN_POOL, None);
+			T::DustAccountHandler::remove_account(&Self::pool_account(pool_id))?;
+			Self::deposit_event(Event::PoolDestroyed { pool_id });
+		}
+
+		Self::deposit_event(Event::LiquidityRemoved {
+			pool_id,
+			who: who.clone(),
+			shares: share_amount,
+			amounts,
+			fee: Balance::zero(),
+		});
+
+		Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;
+
+		Ok(())
 	}
 
 	#[inline]
@@ -1873,122 +2002,137 @@ impl<T: Config> Pallet<T> {
 		Ok(state)
 	}
 
-	#[cfg(any(feature = "try-runtime", test))]
 	fn ensure_add_liquidity_invariant(
 		pool_id: T::AssetId,
 		initial_reserves: &[AssetReserve],
 		initial_issuance: Balance,
-	) {
-		let pool = Pools::<T>::get(pool_id).unwrap();
-		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).unwrap();
-		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
-		debug_assert_ne!(
-			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			"Reserves have not changed"
-		);
-		let amplification = Self::get_amplification(&pool);
-		let initial_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, &asset_pegs)
-				.unwrap();
-		let final_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
-				.unwrap();
-		assert!(
-			final_d >= initial_d,
-			"Add liquidity Invariant broken: D+ is less than initial D; {:?} <= {:?}",
-			initial_d,
-			final_d
-		);
-		if initial_issuance.is_zero() {
-			return;
-		}
-		let current_share_issuance = T::Currency::total_issuance(pool_id);
-		let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
-		let final_r = FixedU128::from_rational(final_d, current_share_issuance);
-		assert!(
-			final_r >= initial_r,
-			"Add liquidity Invariant broken: R+ is less than initial R; {:?} <= {:?}",
-			initial_r,
-			final_r
-		);
+	) -> DispatchResult {
+		let r: DispatchResult = (|| {
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::InvariantError)?;
+			let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).map_err(|_| Error::<T>::InvariantError)?;
+			let final_reserves = pool
+				.reserves_with_decimals::<T>(&Self::pool_account(pool_id))
+				.ok_or(Error::<T>::InvariantError)?;
+			debug_assert_ne!(
+				initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+				final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+				"Reserves have not changed"
+			);
+			let amplification = Self::get_amplification(&pool);
+			let initial_d =
+				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, &asset_pegs)
+					.ok_or(Error::<T>::InvariantError)?;
+			let final_d =
+				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
+					.ok_or(Error::<T>::InvariantError)?;
+			ensure!(final_d >= initial_d, Error::<T>::InvariantError);
+			if initial_issuance.is_zero() {
+				return Ok(());
+			}
+			let current_share_issuance = T::Currency::total_issuance(pool_id);
+			ensure!(!current_share_issuance.is_zero(), Error::<T>::InvariantError);
+			let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
+			let final_r = FixedU128::from_rational(final_d, current_share_issuance);
+			ensure!(final_r >= initial_r, Error::<T>::InvariantError);
+			Ok(())
+		})();
+		debug_assert!(r.is_ok(), "Stableswap add_liquidity invariant: {r:?}");
+		r
 	}
 
-	#[cfg(any(feature = "try-runtime", test))]
 	fn ensure_remove_liquidity_invariant(
 		pool_id: T::AssetId,
 		initial_reserves: &[AssetReserve],
 		initial_issuance: Balance,
-	) {
-		let Some(pool) = Pools::<T>::get(pool_id) else {
-			return;
-		};
-		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).unwrap();
-		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
-		debug_assert_ne!(
-			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			"Reserves have not changed"
-		);
-		let amplification = Self::get_amplification(&pool);
-		let initial_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, &asset_pegs)
-				.unwrap();
-		let final_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
-				.unwrap();
-		assert!(
-			final_d <= initial_d,
-			"Remove liquidity Invariant broken: D+ is more than initial D; {:?} >= {:?}",
-			initial_d,
-			final_d
-		);
-		let current_share_issuance = T::Currency::total_issuance(pool_id);
-		if current_share_issuance.is_zero() {
-			return;
-		}
-		let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
-		let final_r = FixedU128::from_rational(final_d, current_share_issuance);
-		assert!(
-			final_r >= initial_r,
-			"Remove liquidity Invariant broken: R+ is less than initial R; {:?} <= {:?}",
-			initial_r,
-			final_r
-		);
+	) -> DispatchResult {
+		let r: DispatchResult = (|| {
+			let Some(pool) = Pools::<T>::get(pool_id) else {
+				return Ok(());
+			};
+			let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).map_err(|_| Error::<T>::InvariantError)?;
+			let final_reserves = pool
+				.reserves_with_decimals::<T>(&Self::pool_account(pool_id))
+				.ok_or(Error::<T>::InvariantError)?;
+			debug_assert_ne!(
+				initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+				final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+				"Reserves have not changed"
+			);
+			let amplification = Self::get_amplification(&pool);
+			let initial_d =
+				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, &asset_pegs)
+					.ok_or(Error::<T>::InvariantError)?;
+			let final_d =
+				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
+					.ok_or(Error::<T>::InvariantError)?;
+			ensure!(final_d <= initial_d, Error::<T>::InvariantError);
+			let current_share_issuance = T::Currency::total_issuance(pool_id);
+			if current_share_issuance.is_zero() {
+				return Ok(());
+			}
+			ensure!(!initial_issuance.is_zero(), Error::<T>::InvariantError);
+			let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
+			let final_r = FixedU128::from_rational(final_d, current_share_issuance);
+			ensure!(final_r >= initial_r, Error::<T>::InvariantError);
+			Ok(())
+		})();
+		debug_assert!(r.is_ok(), "Stableswap remove_liquidity invariant: {r:?}");
+		r
 	}
-	#[cfg(any(feature = "try-runtime", test))]
-	fn ensure_trade_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve], _fee: Permill) {
-		let pool = Pools::<T>::get(pool_id).unwrap();
-		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).unwrap();
-		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
-		debug_assert_ne!(
-			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			"Reserves are not changed"
-		);
-		let amplification = Self::get_amplification(&pool);
-		let initial_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, &asset_pegs)
-				.unwrap();
-		let final_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
-				.unwrap();
-		assert!(
-			final_d >= initial_d,
-			"Trade Invariant broken: D+ is less than initial D; {:?} <= {:?}",
-			initial_d,
-			final_d
-		);
+
+	fn ensure_trade_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve], _fee: Permill) -> DispatchResult {
+		let r: DispatchResult = (|| {
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::InvariantError)?;
+			let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).map_err(|_| Error::<T>::InvariantError)?;
+			let final_reserves = pool
+				.reserves_with_decimals::<T>(&Self::pool_account(pool_id))
+				.ok_or(Error::<T>::InvariantError)?;
+			debug_assert_ne!(
+				initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+				final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+				"Reserves are not changed"
+			);
+			let amplification = Self::get_amplification(&pool);
+			let initial_d =
+				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, &asset_pegs)
+					.ok_or(Error::<T>::InvariantError)?;
+			let final_d =
+				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
+					.ok_or(Error::<T>::InvariantError)?;
+			ensure!(final_d >= initial_d, Error::<T>::InvariantError);
+			Ok(())
+		})();
+		debug_assert!(r.is_ok(), "Stableswap trade invariant: {r:?}");
+		r
 	}
 }
 
-impl<T: Config> StableswapAddLiquidity<T::AccountId, T::AssetId, Balance> for Pallet<T> {
+impl<T: Config> StableswapLiquidityMutation<T::AccountId, T::AssetId, Balance> for Pallet<T> {
 	fn add_liquidity(
 		who: T::AccountId,
 		pool_id: T::AssetId,
 		assets: Vec<AssetAmount<T::AssetId>>,
 	) -> Result<Balance, DispatchError> {
 		Self::do_add_liquidity(&who, pool_id, &assets, Balance::zero())
+	}
+
+	fn remove_liquidity_one_asset(
+		who: T::AccountId,
+		pool_id: T::AssetId,
+		asset_id: T::AssetId,
+		share_amount: Balance,
+		min_amount_out: Balance,
+	) -> Result<Balance, DispatchError> {
+		Self::do_remove_liquidity_one_asset(&who, pool_id, asset_id, share_amount, min_amount_out)
+	}
+
+	fn remove_liquidity(
+		who: T::AccountId,
+		pool_id: T::AssetId,
+		share_amount: Balance,
+		min_amounts_out: Vec<AssetAmount<T::AssetId>>,
+	) -> Result<(), DispatchError> {
+		Self::do_remove_liquidity(&who, pool_id, share_amount, &min_amounts_out)
 	}
 }
 
@@ -2003,14 +2147,20 @@ impl<T: Config> Pallet<T> {
 			// No pegs for this pool, return default pegs
 			return Ok((pool.fee, vec![(1, 1); pool.assets.len()]));
 		};
+
 		// Move pegs to target pegs if necessary
-		let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
+		let current_block = T::BlockNumberProvider::current_block_number();
 		let target_pegs = Self::get_target_pegs(&pool.assets, &peg_info.source)?;
+
+		if peg_info.updated_at == current_block {
+			return Ok((Self::block_fee(pool_id).unwrap_or(pool.fee), peg_info.current.into()));
+		}
 
 		hydra_dx_math::stableswap::recalculate_pegs(
 			&peg_info.current,
+			peg_info.updated_at.saturated_into::<u128>(),
 			&target_pegs,
-			current_block,
+			current_block.saturated_into::<u128>(),
 			peg_info.max_peg_update,
 			pool.fee,
 		)
@@ -2027,9 +2177,10 @@ impl<T: Config> Pallet<T> {
 
 		// Store new pegs if pool has pegs configured
 		if let Some(peg_info) = PoolPegs::<T>::get(pool_id) {
-			let new_info = peg_info.with_new_pegs(&new_pegs);
+			let new_info = peg_info.with_new_pegs(&new_pegs, T::BlockNumberProvider::current_block_number());
 			PoolPegs::<T>::insert(pool_id, new_info);
-		};
+			BlockFee::<T>::insert(pool_id, trade_fee);
+		}
 
 		Ok((trade_fee, new_pegs))
 	}

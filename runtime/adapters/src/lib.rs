@@ -25,7 +25,7 @@ use frame_support::{
 		ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, FixedPointOperand, FixedU128,
 		SaturatedConversion,
 	},
-	traits::{Contains, LockIdentifier, OriginTrait},
+	traits::{Contains, ExistenceRequirement, LockIdentifier, OriginTrait},
 	weights::{Weight, WeightToFee},
 };
 use hydra_dx_math::{
@@ -46,7 +46,7 @@ use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use pallet_stableswap::types::{PoolState, StableswapHooks};
 use pallet_transaction_multi_payment::DepositFee;
-use polkadot_xcm::v4::prelude::*;
+use polkadot_xcm::v5::prelude::*;
 use primitive_types::{U128, U512};
 use primitives::constants::chain::{STABLESWAP_SOURCE, XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
@@ -153,8 +153,7 @@ impl<
 		_context: &XcmContext,
 	) -> Result<AssetsInHolding, XcmError> {
 		log::trace!(
-			target: "xcm::weight", "MultiCurrencyTrader::buy_weight weight: {:?}, payment: {:?}",
-			weight, payment
+			target: "xcm::weight", "MultiCurrencyTrader::buy_weight weight: {weight:?}, payment: {payment:?}",
 		);
 		let (asset_loc, price) = self.get_asset_and_price(&payment).ok_or(XcmError::AssetNotFound)?;
 		let fee = ConvertWeightToFee::weight_to_fee(&weight);
@@ -245,7 +244,7 @@ impl<
 				C::convert(asset).and_then(|id| {
 					let receiver = F::get();
 					D::deposit_fee(&receiver, id, amount.saturated_into::<Balance>())
-						.map_err(|e| log::trace!(target: "xcm::take_revenue", "Could not deposit fee: {:?}", e))
+						.map_err(|e| log::trace!(target: "xcm::take_revenue", "Could not deposit fee: {e:?}"))
 						.ok()
 				});
 			}
@@ -510,7 +509,13 @@ where
 	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
 		//TODO: here in future, we will change this to buyback HDX with the lrna amount
 		// for now, simply transfer the amount to treasury
-		MC::transfer(Lrna::get(), &fee_account, &ProtocolFeeRecipient::get(), amount)?;
+		MC::transfer(
+			Lrna::get(),
+			&fee_account,
+			&ProtocolFeeRecipient::get(),
+			amount,
+			ExistenceRequirement::AllowDeath,
+		)?;
 		Ok(Some((amount, ProtocolFeeRecipient::get())))
 	}
 }
@@ -630,17 +635,29 @@ where
 			return None;
 		}
 
-		let nominator = prices
-			.iter()
-			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.n)))?;
+		// To avoid overflows - process in chunks of 4 prices
+		let calculate_price_product = {
+			fn inner(prices: &[EmaPrice]) -> Option<EmaPrice> {
+				if prices.len() <= 4 {
+					// Base case: process directly
+					let nom = prices
+						.iter()
+						.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.n)))?;
+					let den = prices
+						.iter()
+						.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.d)))?;
+					Some(round_u512_to_rational((nom, den), Rounding::Nearest).into())
+				} else {
+					// Recursive case: chunk and recurse
+					let chunk_results: Vec<EmaPrice> = prices.chunks(4).map(inner).collect::<Option<Vec<_>>>()?;
 
-		let denominator = prices
-			.iter()
-			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.d)))?;
+					inner(&chunk_results)
+				}
+			}
+			inner
+		};
 
-		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
-
-		Some(EmaPrice::new(rat_as_u128.0, rat_as_u128.1))
+		calculate_price_product(&prices)
 	}
 }
 
@@ -825,7 +842,8 @@ impl<
 			let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
 				.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
 				.saturated_into();
-			MultiCurrency::withdraw(currency_id, &who, amount).map_err(|e| XcmError::FailedToTransactAsset(e.into()))
+			MultiCurrency::withdraw(currency_id, &who, amount, ExistenceRequirement::AllowDeath)
+				.map_err(|e| XcmError::FailedToTransactAsset(e.into()))
 		})?;
 
 		Ok(asset.clone().into())
@@ -851,8 +869,14 @@ impl<
 		let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
 			.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
 			.saturated_into();
-		MultiCurrency::transfer(currency_id, &from_account, &to_account, amount)
-			.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
+		MultiCurrency::transfer(
+			currency_id,
+			&from_account,
+			&to_account,
+			amount,
+			ExistenceRequirement::AllowDeath,
+		)
+		.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
 
 		Ok(asset.clone().into())
 	}

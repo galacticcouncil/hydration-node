@@ -49,52 +49,6 @@ macro_rules! assert_asset_invariant_not_decreased {
 	}};
 }
 
-/*
-fn assert_invariants_after_trade(
-	asset_in_old_state: &AssetReserveState<Balance>,
-	asset_in_new_state: &AssetReserveState<Balance>,
-	asset_out_old_state: &AssetReserveState<Balance>,
-	asset_out_new_state: &AssetReserveState<Balance>,
-	asset_fee_amount: Balance,
-	asset_fee: Permill,
-	extra_withdraw_fee: Permill,
-	desc: &str,
-) {
-	let asset_in_old_hub_reserve_hp = U256::from(asset_in_old_state.hub_reserve);
-	let asset_in_new_hub_reserve_hp = U256::from(asset_in_new_state.hub_reserve);
-
-	let delta_q = asset_in_old_hub_reserve_hp - asset_in_new_hub_reserve_hp;
-
-	let asset_out_old_hub_reserve_hp = U256::from(asset_out_old_state.hub_reserve);
-	let asset_out_new_hub_reserve_hp = U256::from(asset_out_new_state.hub_reserve);
-	let asset_out_old_reserve_hp = U256::from(asset_out_old_state.reserve);
-	let asset_out_new_reserve_hp = U256::from(asset_out_new_state.reserve);
-
-	let taken_fee_amount_hp = U256::from(extra_withdraw_fee.mul_floor(asset_fee_amount));
-
-	let qr_plus = asset_out_new_hub_reserve_hp * asset_out_new_reserve_hp;
-	let qr_with_fee = asset_out_old_hub_reserve_hp * (asset_out_old_reserve_hp - taken_fee_amount_hp);
-
-	let lhs = (qr_plus - qr_with_fee) / delta_q;
-	let fee_compl = Permill::one() - asset_fee;
-	let q_adj = U256::from(fee_compl.mul_floor(asset_out_old_state.hub_reserve));
-	let rh0 = (q_adj * asset_out_old_reserve_hp) / (asset_out_old_hub_reserve_hp + delta_q);
-	let rh1 = asset_out_new_reserve_hp + U256::from(asset_fee.mul_floor(asset_out_new_state.reserve));
-	let rh2 = (U256::from(asset_fee.mul_floor(asset_out_new_state.reserve)) * delta_q) / asset_out_old_hub_reserve_hp;
-
-	dbg!(rh0);
-	dbg!(rh1);
-	dbg!(rh2);
-
-	let r = rh1 - rh2;
-
-	let rhs = r - rh0;
-	dbg!(lhs);
-	dbg!(rhs);
-}
-
- */
-
 #[macro_export]
 macro_rules! assert_invariants_after_trade {
 	( $old_state:expr, $new_state:expr, $delta_q:expr, $fee_amount:expr, $asset_fee:expr, $extra_fee_taken:expr, $tolerance:expr, $decimals:expr, $desc:expr) => {{
@@ -1455,6 +1409,306 @@ proptest! {
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
 				assert_asset_invariant_not_decreased!(&old_state_200, &new_state_200, "Invariant 200");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
+
+				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
+				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
+			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn sell_native_for_asset_invariants_with_all_fees(amount in trade_amount(),
+		stable_price in price(),
+		stable_reserve in asset_reserve(),
+		native_reserve in asset_reserve(),
+		token_1 in pool_token(100),
+		token_2 in pool_token(200),
+		token_3 in pool_token(300),
+		token_4 in pool_token(400),
+		asset_fee in fee(),
+		protocol_fee in fee(),
+		withdraw_fee in withdrawal_fee(),
+	) {
+		let lp1: u64 = 100;
+		let lp2: u64 = 200;
+		let lp3: u64 = 300;
+		let lp4: u64 = 400;
+		let seller: u64 = 500;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
+				(lp1, 100, token_1.amount + 2 * ONE),
+				(lp2, 200, token_2.amount + 2 * ONE),
+				(lp3, 300, token_3.amount + 2 * ONE),
+				(lp4, 400, token_4.amount + 2 * ONE),
+				(seller, HDX, amount + 200 * ONE),
+			])
+			.with_registered_asset(100)
+			.with_registered_asset(200)
+			.with_registered_asset(300)
+			.with_registered_asset(400)
+			.with_asset_fee(asset_fee)
+			.with_protocol_fee(protocol_fee)
+			.with_burn_fee(Permill::from_percent(50))
+			.with_on_trade_withdrawal(withdraw_fee)
+			.with_initial_pool(
+				stable_price,
+				FixedU128::from(1),
+			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.build()
+			.execute_with(|| {
+				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
+				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
+				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
+				let old_asset_hub_liquidity = sum_asset_hub_liquidity();
+
+				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
+
+				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(seller), HDX, 300, amount, Balance::zero()));
+
+				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
+				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
+
+				assert_ne!(new_state_hdx.reserve, old_state_hdx.reserve);
+				assert_ne!(new_state_300.reserve, old_state_300.reserve);
+
+				assert_asset_invariant_not_decreased!(&old_state_hdx, &new_state_hdx, "Invariant HDX");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
+
+				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
+				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
+			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn sell_asset_for_native_invariants_with_all_fees(amount in trade_amount(),
+		stable_price in price(),
+		stable_reserve in asset_reserve(),
+		native_reserve in asset_reserve(),
+		token_1 in pool_token(100),
+		token_2 in pool_token(200),
+		token_3 in pool_token(300),
+		token_4 in pool_token(400),
+		asset_fee in fee(),
+		protocol_fee in fee(),
+		withdraw_fee in withdrawal_fee(),
+	) {
+		let lp1: u64 = 100;
+		let lp2: u64 = 200;
+		let lp3: u64 = 300;
+		let lp4: u64 = 400;
+		let seller: u64 = 500;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
+				(lp1, 100, token_1.amount + 2 * ONE),
+				(lp2, 200, token_2.amount + 2 * ONE),
+				(lp3, 300, token_3.amount + 2 * ONE),
+				(lp4, 400, token_4.amount + 2 * ONE),
+				(seller, 200, amount + 200 * ONE),
+			])
+			.with_registered_asset(100)
+			.with_registered_asset(200)
+			.with_registered_asset(300)
+			.with_registered_asset(400)
+			.with_asset_fee(asset_fee)
+			.with_protocol_fee(protocol_fee)
+			.with_burn_fee(Permill::from_percent(50))
+			.with_on_trade_withdrawal(withdraw_fee)
+			.with_initial_pool(
+				stable_price,
+				FixedU128::from(1),
+			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.build()
+			.execute_with(|| {
+				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
+				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
+				let old_asset_hub_liquidity = sum_asset_hub_liquidity();
+
+				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
+
+				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(seller), 200, HDX, amount, Balance::zero()));
+
+				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
+
+				assert_ne!(new_state_200.reserve, old_state_200.reserve);
+				assert_ne!(new_state_hdx.reserve, old_state_hdx.reserve);
+
+				assert_asset_invariant_not_decreased!(&old_state_200, &new_state_200, "Invariant 200");
+				assert_asset_invariant_not_decreased!(&old_state_hdx, &new_state_hdx, "Invariant HDX");
+
+				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
+				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
+			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn buy_native_with_asset_invariants_with_all_fees(amount in trade_amount(),
+		stable_price in price(),
+		stable_reserve in asset_reserve(),
+		native_reserve in asset_reserve(),
+		token_1 in pool_token(100),
+		token_2 in pool_token(200),
+		token_3 in pool_token(300),
+		token_4 in pool_token(400),
+		asset_fee in fee(),
+		protocol_fee in fee(),
+		withdraw_fee in withdrawal_fee(),
+	) {
+		let lp1: u64 = 100;
+		let lp2: u64 = 200;
+		let lp3: u64 = 300;
+		let lp4: u64 = 400;
+		let buyer: u64 = 500;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
+				(lp1, 100, token_1.amount + 2 * ONE),
+				(lp2, 200, token_2.amount + 2 * ONE),
+				(lp3, 300, token_3.amount + 2 * ONE),
+				(lp4, 400, token_4.amount + 2 * ONE),
+				(buyer, 200, amount * 1000 + 200 * ONE),
+			])
+			.with_registered_asset(100)
+			.with_registered_asset(200)
+			.with_registered_asset(300)
+			.with_registered_asset(400)
+			.with_asset_fee(asset_fee)
+			.with_protocol_fee(protocol_fee)
+			.with_burn_fee(Permill::from_percent(50))
+			.with_on_trade_withdrawal(withdraw_fee)
+			.with_initial_pool(
+				stable_price,
+				FixedU128::from(1),
+			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.build()
+			.execute_with(|| {
+				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
+				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
+				let old_asset_hub_liquidity = sum_asset_hub_liquidity();
+
+				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
+
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), HDX, 200, amount, Balance::MAX));
+
+				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
+
+				assert_ne!(new_state_200.reserve, old_state_200.reserve);
+				assert_ne!(new_state_hdx.reserve, old_state_hdx.reserve);
+
+				assert_asset_invariant_not_decreased!(&old_state_200, &new_state_200, "Invariant 200");
+				assert_asset_invariant_not_decreased!(&old_state_hdx, &new_state_hdx, "Invariant HDX");
+
+				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
+				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
+			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn buy_asset_with_native_invariants_with_all_fees(amount in trade_amount(),
+		stable_price in price(),
+		stable_reserve in asset_reserve(),
+		native_reserve in asset_reserve(),
+		token_1 in pool_token(100),
+		token_2 in pool_token(200),
+		token_3 in pool_token(300),
+		token_4 in pool_token(400),
+		asset_fee in fee(),
+		protocol_fee in fee(),
+		withdraw_fee in withdrawal_fee(),
+	) {
+		let lp1: u64 = 100;
+		let lp2: u64 = 200;
+		let lp3: u64 = 300;
+		let lp4: u64 = 400;
+		let buyer: u64 = 500;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
+				(lp1, 100, token_1.amount + 2 * ONE),
+				(lp2, 200, token_2.amount + 2 * ONE),
+				(lp3, 300, token_3.amount + 2 * ONE),
+				(lp4, 400, token_4.amount + 2 * ONE),
+				(buyer, HDX, amount * 1000 + 200 * ONE),
+			])
+			.with_registered_asset(100)
+			.with_registered_asset(200)
+			.with_registered_asset(300)
+			.with_registered_asset(400)
+			.with_asset_fee(asset_fee)
+			.with_protocol_fee(protocol_fee)
+			.with_burn_fee(Permill::from_percent(50))
+			.with_on_trade_withdrawal(withdraw_fee)
+			.with_initial_pool(
+				stable_price,
+				FixedU128::from(1),
+			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.build()
+			.execute_with(|| {
+				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
+				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
+				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
+				let old_asset_hub_liquidity = sum_asset_hub_liquidity();
+
+				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
+
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 300, HDX, amount, Balance::MAX));
+
+				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
+				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
+
+				assert_ne!(new_state_hdx.reserve, old_state_hdx.reserve);
+				assert_ne!(new_state_300.reserve, old_state_300.reserve);
+
+				assert_asset_invariant_not_decreased!(&old_state_hdx, &new_state_hdx, "Invariant HDX");
 				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());

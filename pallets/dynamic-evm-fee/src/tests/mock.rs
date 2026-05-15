@@ -32,7 +32,7 @@ use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency}
 use pallet_transaction_payment::Multiplier;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{BlakeTwo256, IdentityLookup, One},
 	BuildStorage, FixedPointNumber, FixedU128,
 };
 use sp_std::cell::RefCell;
@@ -73,6 +73,7 @@ frame_support::construct_runtime!(
 		 Currencies: pallet_currencies,
 		 Tokens: orml_tokens,
 		 DynamicEvmFee: dynamic_evm_fee,
+		 Parameters: pallet_parameters,
 	 }
 );
 
@@ -122,6 +123,7 @@ impl system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 pub struct MultiplierProviderMock;
@@ -140,9 +142,9 @@ impl NativePriceOracle<AssetId, EmaPrice> for NativePriceOracleMock {
 	}
 }
 
-pub struct DefaultBaseDFeePerGas;
+pub struct DefaultBaseFeePerGas;
 
-impl Get<u128> for DefaultBaseDFeePerGas {
+impl Get<u128> for DefaultBaseFeePerGas {
 	fn get() -> u128 {
 		15_000_000
 	}
@@ -162,14 +164,26 @@ impl Get<u128> for MaxBaseFeePerGas {
 	}
 }
 
+pub struct BaseFeePerGasMultiplier;
+impl Get<FixedU128> for BaseFeePerGasMultiplier {
+	fn get() -> FixedU128 {
+		if Parameters::is_testnet() {
+			FixedU128::from_rational(1, 10)
+		} else {
+			FixedU128::one()
+		}
+	}
+}
+
 impl Config for Test {
 	type AssetId = AssetId;
 	type MinBaseFeePerGas = MinBaseFeePerGas;
 	type MaxBaseFeePerGas = MaxBaseFeePerGas;
-	type DefaultBaseFeePerGas = DefaultBaseDFeePerGas;
+	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
 	type FeeMultiplier = MultiplierProviderMock;
 	type NativePriceOracle = NativePriceOracleMock;
 	type WethAssetId = HdxAssetId;
+	type BaseFeePerGasMultiplier = BaseFeePerGasMultiplier;
 	type WeightInfo = ();
 }
 
@@ -189,6 +203,7 @@ impl pallet_balances::Config for Test {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 parameter_types! {
@@ -205,7 +220,6 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -219,15 +233,18 @@ impl orml_tokens::Config for Test {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
 	type ReserveAccount = ();
 	type GetNativeCurrencyId = HdxAssetId;
+	type RegistryInspect = MockBoundErc20<Test>;
+	type EgressHandler = pallet_currencies::MockEgressHandler<Test>;
 	type WeightInfo = ();
 }
+
+impl pallet_parameters::Config for Test {}
 
 pub struct ExtBuilder {
 	base_weight: Weight,
@@ -259,6 +276,7 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: self.native_balances,
+			dev_accounts: None,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
