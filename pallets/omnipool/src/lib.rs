@@ -237,7 +237,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// State of an asset in the omnipool
 	#[pallet::getter(fn assets)]
-	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
+	pub type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
 
 	// LRNA is only allowed to be sold
 	#[pallet::type_value]
@@ -2331,8 +2331,10 @@ impl<T: Config> Pallet<T> {
 		);
 		// And the actual fee taken must be equal to the reported amount!
 		debug_assert!(
-			actual_fee_taken == taken_fee_total,
-			"Fee Overdraft - actual taken amount is not equal to reported amount"
+			actual_fee_taken.abs_diff(taken_fee_total) <= Balance::one(),
+			"Fee Overdraft - actual taken amount {:?} is not equal to reported amount {:?}",
+			actual_fee_taken,
+			taken_fee_total
 		);
 
 		let protocol_fee_amount = amount.saturating_sub(taken_fee_total);

@@ -68,7 +68,8 @@ pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
 pub const CHARLIE: [u8; 32] = [6u8; 32];
 pub const DAVE: [u8; 32] = [7u8; 32];
-pub const UNKNOWN: [u8; 32] = [8u8; 32];
+pub const EVE: [u8; 32] = [8u8; 32];
+pub const UNKNOWN: [u8; 32] = [9u8; 32];
 
 // Private key: 42d8d953e4f9246093a33e9ca6daa078501012f784adfe4bbed57918ff13be14
 // Address: 	0x222222ff7Be76052e023Ec1a306fCca8F9659D80
@@ -849,6 +850,7 @@ pub fn go_to_block(number: BlockNumber) {
 		hydradx_runtime::EVMAccounts::on_finalize(current_block);
 		hydradx_runtime::Stableswap::on_finalize(current_block);
 		hydradx_runtime::HSM::on_finalize(current_block);
+		hydradx_runtime::Omnipool::on_finalize(current_block);
 	}
 
 	// Set relay chain validation data BEFORE initializing the new block
@@ -908,9 +910,11 @@ pub fn go_to_block(number: BlockNumber) {
 	hydradx_runtime::EVMAccounts::on_initialize(number);
 	hydradx_runtime::Stableswap::on_initialize(number);
 	hydradx_runtime::HSM::on_initialize(number);
+	hydradx_runtime::Omnipool::on_initialize(number);
 }
 
 pub fn hydradx_run_to_next_block() {
+	pallet_aura::CurrentSlot::<hydradx_runtime::Runtime>::kill();
 	let b = hydradx_runtime::System::block_number();
 	go_to_block(b + 1);
 }

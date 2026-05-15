@@ -369,6 +369,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4436e0292ab1bb631b42973c61205e704475fe8126af845c8d923c0996328127"
 
 [[package]]
+name = "amm-simulator"
+version = "0.1.0"
+dependencies = [
+ "ethabi",
+ "evm",
+ "frame-support",
+ "hex-literal",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "ice-support",
+ "log",
+ "module-evm-utility-macro",
+ "num_enum",
+ "pallet-liquidation",
+ "pallet-omnipool",
+ "pallet-stableswap",
+ "parity-scale-codec",
+ "precompile-utils",
+ "primitive-types 0.13.1",
+ "primitives",
+ "sp-arithmetic",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3805,7 +3831,10 @@ source = "git+https://github.com/AcalaNetwork/ethabi?branch=acala#6e6ef9b3712aec
 dependencies = [
  "ethereum-types",
  "hex",
+ "serde",
  "sha3",
+ "thiserror 1.0.69",
+ "uint 0.10.0",
 ]
 
 [[package]]
@@ -5781,6 +5810,7 @@ dependencies = [
 name = "hydradx-runtime"
 version = "419.0.0"
 dependencies = [
+ "amm-simulator",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-weight-reclaim",
@@ -5811,6 +5841,7 @@ dependencies = [
  "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
+ "ice-support",
  "log",
  "module-evm-utility-macro",
  "num_enum",
@@ -5862,7 +5893,10 @@ dependencies = [
  "pallet-evm-precompile-simple",
  "pallet-genesis-history",
  "pallet-hsm",
+ "pallet-ice",
  "pallet-identity",
+ "pallet-intent",
+ "pallet-lazy-executor",
  "pallet-lbp",
  "pallet-liquidation",
  "pallet-liquidity-mining",
@@ -5908,6 +5942,7 @@ dependencies = [
  "pretty_assertions",
  "primitive-types 0.13.1",
  "primitives",
+ "route-findr",
  "scale-info",
  "serde",
  "serde_json",
@@ -5943,6 +5978,7 @@ version = "4.7.1"
 dependencies = [
  "frame-support",
  "frame-system",
+ "hydra-dx-math",
  "impl-trait-for-tuples",
  "orml-traits",
  "pallet-evm",
@@ -6072,6 +6108,57 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "ice-solver"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "ice-support",
+ "log",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-std",
+]
+
+[[package]]
+name = "ice-solver-bench"
+version = "0.1.0"
+dependencies = [
+ "amm-simulator",
+ "criterion",
+ "frame-remote-externalities",
+ "frame-support",
+ "frame-system",
+ "hydradx-runtime",
+ "hydradx-traits",
+ "ice-solver",
+ "ice-support",
+ "log",
+ "pallet-ema-oracle",
+ "pallet-intent",
+ "pallet-omnipool",
+ "primitives",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "tokio",
+]
+
+[[package]]
+name = "ice-support"
+version = "1.0.0"
+dependencies = [
+ "frame-support",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-std",
 ]
 
 [[package]]
@@ -9732,6 +9819,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-ice"
+version = "1.0.0"
+dependencies = [
+ "amm-simulator",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "ice-solver",
+ "ice-support",
+ "log",
+ "num-traits",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-broadcast",
+ "pallet-intent",
+ "pallet-route-executor",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "primitives",
+ "scale-info",
+ "sp-core",
+ "sp-externalities",
+ "sp-io",
+ "sp-runtime",
+ "sp-runtime-interface",
+ "sp-std",
+ "test-utils",
+]
+
+[[package]]
 name = "pallet-identity"
 version = "41.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
@@ -9779,6 +9899,53 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-intent"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "ice-support",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "primitives",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
+]
+
+[[package]]
+name = "pallet-lazy-executor"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex-literal",
+ "hydradx-traits",
+ "log",
+ "pallet-balances",
+ "pallet-transaction-payment",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -13710,6 +13877,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "route-findr"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "hydradx-traits",
+ "primitives",
+ "sp-runtime",
+]
+
+[[package]]
 name = "route-recognizer"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13801,6 +13978,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 name = "runtime-integration-tests"
 version = "1.84.0"
 dependencies = [
+ "amm-simulator",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcm",
@@ -13826,6 +14004,8 @@ dependencies = [
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
+ "ice-solver",
+ "ice-support",
  "libsecp256k1",
  "liquidation-worker-support",
  "module-evm-utility-macro",
@@ -13863,7 +14043,9 @@ dependencies = [
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
  "pallet-hsm",
+ "pallet-ice",
  "pallet-im-online",
+ "pallet-intent",
  "pallet-lbp",
  "pallet-liquidation",
  "pallet-liquidity-mining",
