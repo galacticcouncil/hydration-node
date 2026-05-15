@@ -128,6 +128,16 @@ pub mod pallet {
 
 	pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
+	/// Defensive tripwire bound for `realize_yield`. Aggregate solvency
+	/// guarantees the gigapot covers all accrued yield; a *per-account*
+	/// `realize_yield` can fall a few atomic units short purely from
+	/// cross-user floor-rounding (one staker's clamped negative residual
+	/// nudging another's rate up). Anything beyond this many atomic units is
+	/// an accounting bug, not rounding — `debug_assert` panics so tests and
+	/// fuzzing surface it; release still returns `GigapotInsufficient`.
+	/// 1 µHDX ≫ any realistic rounding accumulation, ≪ any real shortfall.
+	const MAX_GIGAPOT_ROUNDING_SHORTFALL: Balance = 1_000_000;
+
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
@@ -260,6 +270,13 @@ pub mod pallet {
 			hdx_unlocked: Balance,
 			gigahdx_received: Balance,
 		},
+		/// Accrued yield was moved from the gigapot into the caller's locked
+		/// stake principal. `amount` is the HDX transferred and added to
+		/// `Stakes[who].hdx`; `gigahdx` and the exchange rate are unchanged.
+		YieldRealized {
+			who: T::AccountId,
+			amount: Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -308,6 +325,9 @@ pub mod pallet {
 		/// Some HDX is currently frozen (e.g. backing an active reward-eligible
 		/// vote in `pallet-gigahdx-rewards`); release the freeze first.
 		StakeFrozen,
+		/// The gigapot lacks the HDX to cover the caller's accrued yield.
+		/// Only reachable in a drained/floored state, not normal operation.
+		GigapotInsufficient,
 	}
 
 	#[pallet::call]
@@ -556,6 +576,60 @@ pub mod pallet {
 				hdx_unlocked,
 				gigahdx_received,
 			});
+			Ok(())
+		}
+
+		/// Realize the caller's accrued yield into their locked stake principal.
+		///
+		/// Moves the HDX value the caller's GIGAHDX has gained since it was last
+		/// reconciled (`rate × gigahdx − Stakes[who].hdx`) from the gigapot into
+		/// the caller's account, folds it into `Stakes[who].hdx`, and refreshes
+		/// the lock. GIGAHDX balance and the exchange rate are unchanged. A
+		/// caller with no accrued yield (or no stake) is a successful no-op.
+		///
+		/// Emits `YieldRealized` event when there was yield to realize.
+		///
+		#[pallet::call_index(6)]
+		#[pallet::weight(T::WeightInfo::realize_yield())]
+		#[transactional]
+		pub fn realize_yield(origin: OriginFor<T>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let stake = Stakes::<T>::get(&who).unwrap_or_default();
+			let current_value =
+				Self::calculate_hdx_amount_given_gigahdx(stake.gigahdx).map_err(|_| Error::<T>::Overflow)?;
+			let accrued = current_value.saturating_sub(stake.hdx);
+			if accrued == 0 {
+				return Ok(());
+			}
+
+			if T::NativeCurrency::transfer(
+				&Self::gigapot_account_id(),
+				&who,
+				accrued,
+				ExistenceRequirement::AllowDeath,
+			)
+			.is_err()
+			{
+				let gigapot = T::NativeCurrency::free_balance(&Self::gigapot_account_id());
+				let shortfall = accrued.saturating_sub(gigapot);
+				debug_assert!(
+					shortfall <= MAX_GIGAPOT_ROUNDING_SHORTFALL,
+					"realize_yield: gigapot short by {shortfall} (accrued {accrued}, gigapot {gigapot}) \
+					 — exceeds rounding tolerance, indicates an accounting bug"
+				);
+				return Err(Error::<T>::GigapotInsufficient.into());
+			}
+
+			Stakes::<T>::try_mutate(&who, |maybe| -> Result<(), Error<T>> {
+				let s = maybe.get_or_insert_with(StakeRecord::default);
+				s.hdx = s.hdx.checked_add(accrued).ok_or(Error::<T>::Overflow)?;
+				Ok(())
+			})?;
+			TotalLocked::<T>::mutate(|x| *x = x.saturating_add(accrued));
+			Self::refresh_lock(&who)?;
+
+			Self::deposit_event(Event::YieldRealized { who, amount: accrued });
 			Ok(())
 		}
 	}

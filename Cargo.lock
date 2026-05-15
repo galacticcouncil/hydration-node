@@ -9697,7 +9697,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-gigahdx"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9710,6 +9710,7 @@ dependencies = [
  "pallet-balances",
  "parity-scale-codec",
  "primitives",
+ "proptest",
  "scale-info",
  "sp-core",
  "sp-io",

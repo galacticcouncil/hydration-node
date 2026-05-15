@@ -317,6 +317,38 @@ fn giga_unstake_should_create_pending_position_when_called() {
 }
 
 #[test]
+fn realize_yield_should_fold_accrued_into_principal_when_rate_increased() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_gigahdx();
+		reset_giga_state_for_fixture();
+
+		let alice: AccountId = ALICE.into();
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		// Inject yield into the gigapot so rate = (100 + 100) / 100 = 2.
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			GigaHdx::gigapot_account_id(),
+			100 * UNITS,
+		));
+
+		let rate_before = GigaHdx::exchange_rate();
+		let stake_before = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake exists");
+		assert_eq!(stake_before.hdx, 100 * UNITS);
+
+		assert_ok!(GigaHdx::realize_yield(RuntimeOrigin::signed(alice.clone())));
+
+		let stake_after = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake exists");
+		assert_eq!(stake_after.hdx, 200 * UNITS);
+		assert_eq!(stake_after.gigahdx, stake_before.gigahdx, "gigahdx unchanged");
+		assert_eq!(locked_under_ghdx(&alice), 200 * UNITS);
+		assert_eq!(Balances::free_balance(GigaHdx::gigapot_account_id()), 0);
+		assert_eq!(GigaHdx::exchange_rate(), rate_before, "exchange rate unchanged");
+	});
+}
+
+#[test]
 fn unlock_should_release_lock_when_cooldown_elapsed() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {

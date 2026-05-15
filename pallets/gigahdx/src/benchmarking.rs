@@ -140,7 +140,8 @@ mod benches {
 		set_dummy_pool::<T>();
 
 		let caller: T::AccountId = whitelisted_caller();
-		let stake_amount: Balance = 100 * ONE;
+		// Must clear legacy `pallet_staking::MinStake` (1_000 UNITS in the runtime).
+		let stake_amount: Balance = 10_000 * ONE;
 		assert_ok!(T::BenchmarkHelper::setup_legacy_staking_position(&caller, stake_amount));
 
 		#[extrinsic_call]
@@ -191,5 +192,30 @@ mod benches {
 		let s = Stakes::<T>::get(&caller).expect("stake remains");
 		assert_eq!(s.unstaking_count as u32, max - 1);
 		assert!(s.hdx > 0);
+	}
+
+	#[benchmark]
+	fn realize_yield() {
+		assert_ok!(T::BenchmarkHelper::register_assets());
+		set_dummy_pool::<T>();
+
+		let caller: T::AccountId = whitelisted_caller();
+		let amount: Balance = 100 * ONE;
+		fund::<T>(&caller, amount.saturating_mul(10));
+
+		assert_ok!(Pallet::<T>::giga_stake(
+			RawOrigin::Signed(caller.clone()).into(),
+			amount,
+		));
+
+		// Fund the gigapot so total_staked_hdx doubles → rate ≈ 2 → accrued ≈ amount.
+		fund::<T>(&Pallet::<T>::gigapot_account_id(), amount);
+
+		#[extrinsic_call]
+		realize_yield(RawOrigin::Signed(caller.clone()));
+
+		let s = Stakes::<T>::get(&caller).expect("stake recorded");
+		assert_eq!(s.gigahdx, amount);
+		assert!(s.hdx >= amount.saturating_mul(2));
 	}
 }
