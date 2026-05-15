@@ -196,3 +196,42 @@ fn realize_yield_should_work_when_pending_unstakes_exist() {
 			assert_eq!(yield_realized_amount(ALICE), Some(150 * ONE));
 		});
 }
+
+#[test]
+fn realize_yield_should_reconcile_pure_gigahdx_when_no_pending_unstakes() {
+	// Reach the "GIGAHDX with zero underlying hdx AND no pending unstakes"
+	// state: over-active partial unstake drains principal to 0, then `unlock`
+	// after cooldown clears the pending position (record survives because
+	// gigahdx > 0). realize_yield must still fold the full current value in.
+	ExtBuilder::default()
+		.with_pot_balance(200 * ONE)
+		.build()
+		.execute_with(|| {
+			assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+			assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 50 * ONE));
+
+			let p = only_pending(ALICE);
+			System::set_block_number(p.expires_at);
+			assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), p.id));
+
+			// Pure GIGAHDX: no principal, no pending, record still alive.
+			let s = Stakes::<Test>::get(ALICE).unwrap();
+			assert_eq!(s.hdx, 0);
+			assert_eq!(s.gigahdx, 50 * ONE);
+			assert_eq!(s.unstaking, 0);
+			assert_eq!(s.unstaking_count, 0);
+			assert_eq!(locked_under_ghdx(ALICE), 0);
+
+			assert_ok!(GigaHdx::realize_yield(RawOrigin::Signed(ALICE).into()));
+
+			let s = Stakes::<Test>::get(ALICE).unwrap();
+			assert_eq!(s.gigahdx, 50 * ONE); // unchanged
+			assert_eq!(s.hdx, 150 * ONE); // full current value folded in
+			assert_eq!(s.unstaking, 0);
+			assert_eq!(s.unstaking_count, 0);
+			assert_eq!(TotalLocked::<Test>::get(), 150 * ONE);
+			assert_eq!(locked_under_ghdx(ALICE), 150 * ONE);
+			assert_eq!(gigapot_balance(), 0);
+			assert_eq!(yield_realized_amount(ALICE), Some(150 * ONE));
+		});
+}
