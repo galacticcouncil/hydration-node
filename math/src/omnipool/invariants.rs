@@ -60,7 +60,7 @@ fn high_asset_state() -> impl Strategy<Value = AssetReserveState<Balance>> {
 }
 
 fn trade_amount() -> impl Strategy<Value = Balance> {
-	1_000_000_000..10000 * ONE
+	ONE / 10..10000 * ONE
 }
 
 fn price() -> impl Strategy<Value = FixedU128> {
