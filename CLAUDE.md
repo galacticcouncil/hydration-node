@@ -147,6 +147,68 @@ Types: `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `style`, `ci`, `build`
 
 **Branches:** `fix/description` or `feat/description`
 
+## Code comments and docs
+
+Default to **no comment**. Only write one when the *why* is non-obvious — a hidden
+invariant, a surprising decision, a workaround. If removing the comment wouldn't
+confuse a future reader who can see the code, don't write it.
+
+**Never restate what the code already says.** Well-named identifiers and types are
+the documentation. Comments that paraphrase the next line are noise.
+
+### Module / file headers
+One paragraph max. State what lives here; don't enumerate every item or describe
+the flow step-by-step.
+
+### Struct / enum field docs
+Skip the obvious (`pub unstaking: Balance`, `pub voters_count: u32`). Document a
+field only when its semantics are surprising — e.g. it stacks instead of replacing,
+must match an external balance, doubles as an idempotency signal.
+
+### Error variants
+One line each, or none if the name already tells the story. Don't write a
+paragraph explaining the policy that produces the error — that belongs at the
+check site.
+
+### Extrinsic docs
+Follow the Description / Parameters / Emits structure from the "Extrinsic
+documentation" section above, but keep the **Description to 1–2 lines plus at
+most one short paragraph** for genuinely load-bearing context. In particular:
+
+- Do not enumerate `Error` variants in the Description — the `#[pallet::error]`
+  enum is the source of truth.
+- Do not list internal implementation steps ("locks X, then mints Y, then calls
+  Z"). The code shows that.
+- Keep the *why* of any non-obvious constraint (e.g. "refuses while stHDX is in
+  circulation — outstanding aTokens would be stranded").
+
+### Trait method docs
+One line. If the trait-level doc already explains the contract, leave method
+docs out entirely.
+
+### Inline comments inside function bodies
+Reserve for:
+- Non-obvious invariants the next line relies on.
+- Why a defensive branch exists / why an error is intentionally swallowed.
+- Why an unusual construct (`drain_prefix(...).count()` to actually drain,
+  `set_lock` vs `extend_lock`, pre-decrement before an external call) is correct.
+
+Skip:
+- Narrating control flow ("// new record: increment voter count" above
+  `voters_count += 1`).
+- Explaining what a well-named helper does at its call site.
+- Restating the assertion in the next `ensure!`.
+
+### What to keep
+Comments that warn a future reader about something they would otherwise miss:
+- "Must match `LockableAToken.sol`'s `freeBalance` check"
+- "Saturating math — hooks must never block voting"
+- "Pool presence ⇔ allocation has run" (load-bearing idempotency signal)
+- "stHDX invariants — verify on AAVE config change: (1)…(2)…"
+
+If in doubt, delete the comment and see if the code still reads. If it does,
+leave it out.
+
 ## Versioning
 
 - **SemVer** on all crates — bump `Cargo.toml` version on changes
