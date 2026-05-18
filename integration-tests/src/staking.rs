@@ -2508,7 +2508,7 @@ fn increase_stake_should_work_when_referendum_ongoing_and_votes_processed() {
 }
 
 #[test]
-fn voting_on_next_referenda_should_process_votes() {
+fn removing_vote_should_process_votes() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		init_omnipool();
@@ -2569,27 +2569,41 @@ fn voting_on_next_referenda_should_process_votes() {
 
 		end_referendum();
 
+		let alice_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(&ALICE.into())
+			.unwrap()
+			.unwrap();
+
+		// Before remove_vote, the finished vote has not been settled: still recorded in Votes,
+		// no points awarded, and not present in VotesRewarded.
+		let position_before =
+			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(alice_position_id).unwrap();
+		assert!(
+			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(alice_position_id)
+				.votes
+				.iter()
+				.any(|(idx, _)| *idx == r)
+		);
 		assert!(
 			pallet_staking::Pallet::<hydradx_runtime::Runtime>::processed_votes::<AccountId, u32>(ALICE.into(), r)
 				.is_none()
 		);
 
-		let r = begin_referendum();
-		assert_ok!(ConvictionVoting::vote(
+		assert_ok!(ConvictionVoting::remove_vote(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			r,
-			AccountVote::Standard {
-				vote: Vote {
-					aye: true,
-					conviction: Conviction::Locked6x,
-				},
-				balance: 1_000_000 * UNITS,
-			}
+			Some(ROOT_TRACK),
+			r
 		));
+
+		// After remove_vote, settlement has happened: vote removed from Votes and points awarded.
 		assert!(
-			pallet_staking::Pallet::<hydradx_runtime::Runtime>::processed_votes::<AccountId, u32>(ALICE.into(), 0)
-				.is_some()
+			!pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(alice_position_id)
+				.votes
+				.iter()
+				.any(|(idx, _)| *idx == r)
 		);
+		let position_after =
+			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(alice_position_id).unwrap();
+		assert!(position_after.get_action_points() > position_before.get_action_points());
 	});
 }
 

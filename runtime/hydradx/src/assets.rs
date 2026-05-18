@@ -1629,10 +1629,6 @@ impl GetByKey<FixedU128, Point> for StakingMinSlash {
 	}
 }
 
-parameter_types! {
-	pub const MaxVotes: u32 = 25;
-}
-
 impl pallet_staking::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
@@ -1653,7 +1649,7 @@ impl pallet_staking::Config for Runtime {
 	type NFTCollectionId = ConstU128<2222>;
 	type Collections = FreezableNFT<Runtime, Self::RuntimeOrigin>;
 	type NFTHandler = Uniques;
-	type MaxVotes = MaxVotes;
+	type MaxVotes = governance::MaxVotes;
 	type ReferendumInfo = pallet_staking::integrations::conviction_voting::DirectReferendumStatus<Runtime>;
 	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
@@ -1663,6 +1659,12 @@ impl pallet_staking::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxLocks = MaxLocks;
 }
+
+//Make sure staking and conviction voting are using same `MaxVotes` value
+static_assertions::const_assert_eq!(
+	<Runtime as pallet_staking::Config>::MaxVotes::get(),
+	<Runtime as pallet_conviction_voting::Config>::MaxVotes::get()
+);
 
 // LBP
 pub struct AssetPairAccountId<T: frame_system::Config>(PhantomData<T>);
