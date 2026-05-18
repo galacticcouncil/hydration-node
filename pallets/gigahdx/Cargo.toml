@@ -1,6 +1,6 @@
 [package]
 name = "pallet-gigahdx"
-version = "0.1.0"
+version = "0.1.1"
 description = "Liquid-staking primitive on top of an EVM money market."
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -37,6 +37,7 @@ sp-runtime = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
 orml-traits = { workspace = true, features = ["std"] }
 orml-tokens = { workspace = true, features = ["std"] }
+proptest = { workspace = true }
 
 [features]
 default = ["std"]

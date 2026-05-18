@@ -170,4 +170,11 @@ impl<T: frame_system::Config> pallet_gigahdx::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(20_u64))
 			.saturating_add(T::DbWeight::get().writes(12_u64))
 	}
+	// Placeholder: rate read + gigapot→user transfer + Stakes/TotalLocked/lock
+	// updates. No money-market call. Re-benchmark before mainnet upgrade.
+	fn realize_yield() -> Weight {
+		Weight::from_parts(70_000_000, 4764)
+			.saturating_add(T::DbWeight::get().reads(8_u64))
+			.saturating_add(T::DbWeight::get().writes(5_u64))
+	}
 }
