@@ -19,6 +19,7 @@ use crate::Runtime;
 pub type UnreleasedSingleBlockMigrations = (
 	pallet_ema_oracle::migrations::v2::MigrateV1ToV2<Runtime, crate::assets::BifrostAccount>,
 	pallet_staking::migrations::SetTwoSecBlocksSince<Runtime>,
+	pallet_dca::migrations::MultiplySchedulesPeriodBy3<Runtime>,
 );
 
 // These migrations can run on every runtime upgrade
