@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::mock::*;
-use crate::traits::Seize;
 use crate::{Error, Stakes, TotalLocked};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
+use hydradx_traits::gigahdx::Seize;
 use primitives::Balance;
 
 fn locked_under_ghdx(account: AccountId) -> Balance {
@@ -42,7 +42,7 @@ fn snapshot_stake_should_fail_when_no_position() {
 fn pre_seize_should_zero_stakes_gigahdx_and_return_prior_value() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
-		let prev = <GigaHdxSeize as Seize<AccountId>>::pre_seize(&ALICE).unwrap();
+		let prev = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
 		assert_eq!(prev, 100 * ONE);
 		assert_eq!(Stakes::<Test>::get(ALICE).unwrap().gigahdx, 0);
 	});
@@ -53,13 +53,17 @@ fn finalise_seize_should_move_hdx_and_gigahdx_to_recipient() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 200 * ONE));
 		// Imitate the post-pre-seize state: gigahdx zeroed.
-		let orig_gigahdx = <GigaHdxSeize as Seize<AccountId>>::pre_seize(&ALICE).unwrap();
+		let orig_gigahdx = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
 		let seize_g = 80 * ONE;
 		let seize_h = 80 * ONE; // pro-rata 1:1 at seed rate
 		let residual = orig_gigahdx - seize_g;
 
-		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::finalise_seize(
-			&ALICE, &TREASURY, seize_h, seize_g, residual
+		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::on_seize(
+			&ALICE,
+			&TREASURY,
+			seize_h,
+			seize_g,
+			orig_gigahdx
 		));
 
 		let alice = Stakes::<Test>::get(ALICE).unwrap();
@@ -78,13 +82,13 @@ fn finalise_seize_should_remove_ghdxlock_when_fully_seized() {
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 200 * ONE));
 		assert_eq!(locked_under_ghdx(ALICE), 200 * ONE);
 
-		let orig_g = <GigaHdxSeize as Seize<AccountId>>::pre_seize(&ALICE).unwrap();
-		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::finalise_seize(
+		let orig_g = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
+		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::on_seize(
 			&ALICE,
 			&TREASURY,
 			200 * ONE,
 			orig_g,
-			0,
+			orig_g,
 		));
 
 		let entry = pallet_balances::Locks::<Test>::get(ALICE)
@@ -102,13 +106,13 @@ fn finalise_seize_should_refresh_ghdxlock_on_both_accounts() {
 		assert_eq!(locked_under_ghdx(ALICE), 200 * ONE);
 		assert_eq!(locked_under_ghdx(TREASURY), 0);
 
-		let orig_g = <GigaHdxSeize as Seize<AccountId>>::pre_seize(&ALICE).unwrap();
-		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::finalise_seize(
+		let orig_g = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
+		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::on_seize(
 			&ALICE,
 			&TREASURY,
 			80 * ONE,
 			80 * ONE,
-			orig_g - 80 * ONE,
+			orig_g,
 		));
 
 		assert_eq!(locked_under_ghdx(ALICE), 120 * ONE);
@@ -122,13 +126,13 @@ fn finalise_seize_should_keep_total_locked_unchanged() {
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 200 * ONE));
 		let before = TotalLocked::<Test>::get();
 
-		let orig_g = <GigaHdxSeize as Seize<AccountId>>::pre_seize(&ALICE).unwrap();
-		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::finalise_seize(
+		let orig_g = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
+		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::on_seize(
 			&ALICE,
 			&TREASURY,
 			80 * ONE,
 			80 * ONE,
-			orig_g - 80 * ONE,
+			orig_g,
 		));
 		assert_eq!(TotalLocked::<Test>::get(), before);
 	});
@@ -140,13 +144,13 @@ fn finalise_seize_should_clamp_frozen_to_remaining_hdx() {
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 200 * ONE));
 		crate::Pallet::<Test>::freeze(&ALICE, 150 * ONE);
 
-		let orig_g = <GigaHdxSeize as Seize<AccountId>>::pre_seize(&ALICE).unwrap();
-		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::finalise_seize(
+		let orig_g = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
+		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::on_seize(
 			&ALICE,
 			&TREASURY,
 			100 * ONE,
 			100 * ONE,
-			orig_g - 100 * ONE,
+			orig_g,
 		));
 		let s = Stakes::<Test>::get(ALICE).unwrap();
 		assert_eq!(s.hdx, 100 * ONE);
@@ -155,11 +159,74 @@ fn finalise_seize_should_clamp_frozen_to_remaining_hdx() {
 }
 
 #[test]
-fn finalise_seize_should_fail_when_slash_cannot_take_full_amount() {
+fn finalise_seize_should_absorb_dust_when_slash_short_by_ed() {
+	use frame_support::traits::{Currency, LockableCurrency, WithdrawReasons};
+	ExtBuilder::default().build().execute_with(|| {
+		// Stake so Alice has a `Stakes` consumer ref → `can_dec_provider` is
+		// false → `slash` will refuse to push her below ED.
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 200 * ONE));
+		let orig_g = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
+
+		// Foreign TRANSFER-scoped lock forces the seize down the slash branch.
+		<pallet_balances::Pallet<Test> as LockableCurrency<_>>::set_lock(
+			*b"foreign_",
+			&ALICE,
+			200 * ONE,
+			WithdrawReasons::TRANSFER,
+		);
+		// Free balance == seize amount: zero slack above the seize, so
+		// `slash` will short by exactly ED on a non-reapable account.
+		assert_ok!(pallet_balances::Pallet::<Test>::force_set_balance(
+			RawOrigin::Root.into(),
+			ALICE,
+			100 * ONE,
+		));
+
+		let ed = <pallet_balances::Pallet<Test> as Currency<AccountId>>::minimum_balance();
+		assert!(ed > 0);
+		// Force `can_dec_provider(ALICE) == false` (providers == 1, consumers > 0):
+		// the H1 trigger condition where `slash` honours the ED floor on a
+		// non-reapable account.
+		while frame_system::Pallet::<Test>::providers(&ALICE) > 1 {
+			frame_system::Pallet::<Test>::dec_providers(&ALICE).unwrap();
+		}
+		if frame_system::Pallet::<Test>::consumers(&ALICE) == 0 {
+			frame_system::Pallet::<Test>::inc_consumers(&ALICE).unwrap();
+		}
+		assert!(!frame_system::Pallet::<Test>::can_dec_provider(&ALICE));
+		let treasury_before = pallet_balances::Pallet::<Test>::free_balance(TREASURY);
+		let alice_before = pallet_balances::Pallet::<Test>::free_balance(ALICE);
+
+		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::on_seize(
+			&ALICE,
+			&TREASURY,
+			100 * ONE,
+			100 * ONE,
+			orig_g,
+		));
+
+		// Slash moved exactly `seize_hdx - ed`; the recipient received the
+		// same amount via resolve_creating, and ≤ED HDX stayed with Alice
+		// as the unslashable existential-deposit dust.
+		assert_eq!(
+			pallet_balances::Pallet::<Test>::free_balance(TREASURY) - treasury_before,
+			100 * ONE - ed,
+			"recipient credited with what slash actually moved"
+		);
+		assert_eq!(
+			alice_before - pallet_balances::Pallet::<Test>::free_balance(ALICE),
+			100 * ONE - ed,
+			"borrower's free balance dropped by exactly the slashed amount"
+		);
+	});
+}
+
+#[test]
+fn finalise_seize_should_fail_when_slash_short_by_more_than_ed() {
 	use frame_support::traits::{LockableCurrency, WithdrawReasons};
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 200 * ONE));
-		let orig_g = <GigaHdxSeize as Seize<AccountId>>::pre_seize(&ALICE).unwrap();
+		let orig_g = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
 
 		// Foreign lock blocks the transfer branch → slash branch fires.
 		<pallet_balances::Pallet<Test> as LockableCurrency<_>>::set_lock(
@@ -168,7 +235,9 @@ fn finalise_seize_should_fail_when_slash_cannot_take_full_amount() {
 			1_000 * ONE,
 			WithdrawReasons::all(),
 		);
-		// Drop Alice's balance below the seize amount so slash cannot take it all.
+		// Drop Alice's balance well below the seize amount so slash shorts
+		// by much more than ED — this is the Root-A "stake/lock ledger is
+		// broken" case the fail-loud tripwire is meant to catch.
 		assert_ok!(pallet_balances::Pallet::<Test>::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE,
@@ -176,13 +245,7 @@ fn finalise_seize_should_fail_when_slash_cannot_take_full_amount() {
 		));
 
 		assert_noop!(
-			<GigaHdxSeize as Seize<AccountId>>::finalise_seize(
-				&ALICE,
-				&TREASURY,
-				100 * ONE,
-				100 * ONE,
-				orig_g - 100 * ONE,
-			),
+			<GigaHdxSeize as Seize<AccountId>>::on_seize(&ALICE, &TREASURY, 100 * ONE, 100 * ONE, orig_g,),
 			Error::<Test>::SeizeFailed
 		);
 	});
@@ -192,13 +255,13 @@ fn finalise_seize_should_fail_when_slash_cannot_take_full_amount() {
 fn finalise_seize_should_fail_when_borrower_has_no_stake() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			<GigaHdxSeize as Seize<AccountId>>::finalise_seize(&ALICE, &TREASURY, 10 * ONE, 10 * ONE, 0),
+			<GigaHdxSeize as Seize<AccountId>>::on_seize(&ALICE, &TREASURY, 10 * ONE, 10 * ONE, 10 * ONE),
 			Error::<Test>::NoStake
 		);
 	});
 }
 
-/// REGRESSION FOR audit3 Finding 1 — `seize_finalise` refreshes the
+/// REGRESSION FOR audit3 Finding 1 — `on_seize` refreshes the
 /// borrower's `ghdxlock` AFTER the HDX transfer. When the borrower's free
 /// balance equals their staked amount (the realistic case: a user who
 /// staked everything they had), the stale pre-seize lock blocks the
@@ -216,16 +279,12 @@ fn finalise_seize_should_succeed_when_borrower_has_no_unlocked_balance() {
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), alice_balance));
 		assert_eq!(locked_under_ghdx(ALICE), alice_balance);
 
-		let orig_g = <GigaHdxSeize as Seize<AccountId>>::pre_seize(&ALICE).unwrap();
+		let orig_g = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
 		let seize_h = alice_balance / 10;
 		let seize_g = orig_g / 10;
 
-		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::finalise_seize(
-			&ALICE,
-			&TREASURY,
-			seize_h,
-			seize_g,
-			orig_g - seize_g,
+		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::on_seize(
+			&ALICE, &TREASURY, seize_h, seize_g, orig_g,
 		));
 
 		// After the fix: lock refreshed before transfer, seize completes,

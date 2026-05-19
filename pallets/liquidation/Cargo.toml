@@ -1,6 +1,6 @@
 [package]
 name = "pallet-liquidation"
-version = "2.4.2"
+version = "2.5.0"
 description = "A pallet for money market liquidations"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -43,8 +43,6 @@ primitive-types = { workspace = true }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 pallet-broadcast = { workspace = true }
-pallet-gigahdx = { workspace = true }
-pallet-gigahdx-rewards = { workspace = true }
 precompile-utils = { workspace = true }
 primitives = { workspace = true }
 
@@ -81,8 +79,6 @@ std = [
     "orml-traits/std",
     "hydradx-traits/std",
     "pallet-broadcast/std",
-    "pallet-gigahdx/std",
-    "pallet-gigahdx-rewards/std",
     "hydra-dx-math/std",
     "frame-benchmarking/std",
     "pallet-balances/std",

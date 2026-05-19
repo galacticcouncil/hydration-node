@@ -222,11 +222,6 @@ impl pallet_evm::GasWeightMapping for DummyGasWeightMapping {
 		0
 	}
 }
-parameter_types! {
-	pub const TestGigaHdxAssetId: AssetId = 67;
-	pub const TestStHdxAssetId: AssetId = 670;
-	pub const TestLiqAccount: AccountId = AccountId::new([7u8; 32]);
-}
 
 impl Config for Test {
 	type Currency = FungibleCurrencies<Test>;
@@ -243,13 +238,57 @@ impl Config for Test {
 	type FlashMinter = ();
 	type EvmErrorDecoder = EvmErrorDecodeMock;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
-	type GigaHdxAssetId = TestGigaHdxAssetId;
-	type StHdxAssetId = TestStHdxAssetId;
-	type GigaHdxLiquidationAccount = TestLiqAccount;
-	type TreasuryAccount = TreasuryAccount;
-	type GigaHdxPool = ();
-	type GigaHdxSeize = ();
-	type VoteClearance = ();
+	type GigaHdx = GigaHdxSupportMock;
+}
+
+/// Liquidation unit tests never reach the gigahdx seize path (they bail on the
+/// non-HOLLAR debt-asset guard), so every seize method just errors. The
+/// asset/account getters mirror the real runtime ids (67 / 670).
+pub struct GigaHdxSupportMock;
+
+impl crate::traits::GigaHdxSupport<AccountId> for GigaHdxSupportMock {
+	fn gigahdx_asset_id() -> AssetId {
+		67
+	}
+	fn sthdx_asset_id() -> AssetId {
+		670
+	}
+	fn liquidation_account() -> AccountId {
+		AccountId::new([7u8; 32])
+	}
+	fn pool_contract() -> Option<primitives::EvmAddress> {
+		None
+	}
+	fn realize_yield(_borrower: &AccountId) -> frame_support::dispatch::DispatchResult {
+		Err(DispatchError::Other("no gigahdx seize source configured"))
+	}
+	fn snapshot_stake(_borrower: &AccountId) -> Result<(primitives::Balance, primitives::Balance), DispatchError> {
+		Err(DispatchError::Other("no gigahdx seize source configured"))
+	}
+	fn on_pre_seize(_borrower: &AccountId) -> Result<primitives::Balance, DispatchError> {
+		Err(DispatchError::Other("no gigahdx seize source configured"))
+	}
+	fn on_seize(
+		_borrower: &AccountId,
+		_recipient: &AccountId,
+		_seize_hdx: primitives::Balance,
+		_seize_gigahdx: primitives::Balance,
+		_orig_gigahdx: primitives::Balance,
+	) -> frame_support::dispatch::DispatchResult {
+		Err(DispatchError::Other("no gigahdx seize source configured"))
+	}
+	fn force_release_vote_lock(_borrower: &AccountId, _amount: primitives::Balance) -> Result<(), DispatchError> {
+		Ok(())
+	}
+	fn borrower_pool_debt(_borrower: &AccountId, _debt_asset: AssetId) -> Result<primitives::Balance, DispatchError> {
+		Err(DispatchError::Other("no gigahdx seize source configured"))
+	}
+	fn clear_conflicting_votes(
+		_borrower: &AccountId,
+		_max_remaining_hdx: primitives::Balance,
+	) -> Result<u32, DispatchError> {
+		Ok(0)
+	}
 }
 
 pub struct EvmErrorDecodeMock;

@@ -19,7 +19,7 @@ use crate::evm::Executor;
 use crate::Runtime;
 use evm::ExitReason::Succeed;
 use frame_support::sp_runtime::traits::Convert;
-use frame_support::sp_runtime::DispatchError;
+use frame_support::sp_runtime::{DispatchError, DispatchResult};
 use frame_support::traits::LockIdentifier;
 use frame_support::weights::Weight;
 use hydradx_traits::evm::{CallContext, CallResult, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
@@ -220,16 +220,9 @@ impl sp_core::Get<AccountId> for GigaHdxLiquidationAccount {
 	}
 }
 
-/// Reads the current GIGAHDX AAVE pool address from `pallet_gigahdx`.
-pub struct ReadGigaHdxPoolContract;
-
-impl sp_core::Get<Option<EvmAddress>> for ReadGigaHdxPoolContract {
-	fn get() -> Option<EvmAddress> {
-		pallet_gigahdx::GigaHdxPoolContract::<Runtime>::get()
-	}
-}
-
-/// Adapter for `pallet_liquidation::Config::VoteClearance`.
+/// Selective force-removal of gigahdx-rewards votes that would otherwise pin
+/// HDX the protocol is about to seize. Delegated to by
+/// `GigaHdxLiquidationSupport`; also used directly by integration tests.
 ///
 /// Walks `pallet_gigahdx_rewards::UserVoteRecords[who]`, finds every vote
 /// whose `staked_vote_amount` exceeds the post-seize `max_remaining_hdx`,
@@ -292,6 +285,88 @@ impl pallet_gigahdx_rewards::traits::ClearConflictingVotes<AccountId> for GigaHd
 			);
 		}
 		Ok(())
+	}
+}
+
+/// Single `pallet_liquidation::Config::GigaHdx` adapter. Bundles the asset/
+/// account wiring, the live pool-contract lookup, the seize ledger ops
+/// (`pallet_gigahdx`) and the conviction-lock release (`GigaHdxVoteClearance`)
+/// the protocol-funded gigahdx liquidation path needs.
+pub struct GigaHdxLiquidationSupport;
+
+impl pallet_liquidation::traits::GigaHdxSupport<AccountId> for GigaHdxLiquidationSupport {
+	fn gigahdx_asset_id() -> AssetId {
+		<crate::assets::GigaHdxAssetIdConst as sp_core::Get<AssetId>>::get()
+	}
+
+	fn sthdx_asset_id() -> AssetId {
+		<crate::assets::StHdxAssetId as sp_core::Get<AssetId>>::get()
+	}
+
+	fn liquidation_account() -> AccountId {
+		<GigaHdxLiquidationAccount as sp_core::Get<AccountId>>::get()
+	}
+
+	fn pool_contract() -> Option<EvmAddress> {
+		pallet_gigahdx::GigaHdxPoolContract::<Runtime>::get()
+	}
+
+	fn realize_yield(borrower: &AccountId) -> DispatchResult {
+		<pallet_gigahdx::Pallet<Runtime> as hydradx_traits::gigahdx::Seize<AccountId>>::realize_yield(borrower)
+	}
+
+	fn snapshot_stake(borrower: &AccountId) -> Result<(Balance, Balance), DispatchError> {
+		<pallet_gigahdx::Pallet<Runtime> as hydradx_traits::gigahdx::Seize<AccountId>>::snapshot_stake(borrower)
+	}
+
+	fn on_pre_seize(borrower: &AccountId) -> Result<Balance, DispatchError> {
+		<pallet_gigahdx::Pallet<Runtime> as hydradx_traits::gigahdx::Seize<AccountId>>::on_pre_seize(borrower)
+	}
+
+	fn on_seize(
+		borrower: &AccountId,
+		recipient: &AccountId,
+		seize_hdx: Balance,
+		seize_gigahdx: Balance,
+		orig_gigahdx: Balance,
+	) -> DispatchResult {
+		<pallet_gigahdx::Pallet<Runtime> as hydradx_traits::gigahdx::Seize<AccountId>>::on_seize(
+			borrower,
+			recipient,
+			seize_hdx,
+			seize_gigahdx,
+			orig_gigahdx,
+		)
+	}
+
+	fn force_release_vote_lock(borrower: &AccountId, amount: Balance) -> Result<(), DispatchError> {
+		<GigaHdxVoteClearance as pallet_gigahdx_rewards::traits::ClearConflictingVotes<AccountId>>::force_release_vote_lock(
+			borrower, amount,
+		)
+	}
+
+	fn borrower_pool_debt(borrower: &AccountId, debt_asset: AssetId) -> Result<Balance, DispatchError> {
+		let pool = pallet_gigahdx::GigaHdxPoolContract::<Runtime>::get()
+			.ok_or(DispatchError::Other("gigahdx: pool contract not set"))?;
+		let asset_evm = HydraErc20Mapping::asset_address(debt_asset);
+		let reserve = crate::evm::aave_trade_executor::Aave::get_reserve_data(pool, asset_evm)
+			.map_err(|_| DispatchError::Other("gigahdx: get_reserve_data failed"))?;
+		let who_evm = pallet_evm_accounts::Pallet::<Runtime>::evm_address(borrower);
+		let variable = <Erc20Currency<Runtime> as ERC20>::balance_of(
+			CallContext::new_view(reserve.variable_debt_token_address),
+			who_evm,
+		);
+		let stable = <Erc20Currency<Runtime> as ERC20>::balance_of(
+			CallContext::new_view(reserve.stable_debt_token_address),
+			who_evm,
+		);
+		Ok(variable.saturating_add(stable))
+	}
+
+	fn clear_conflicting_votes(borrower: &AccountId, max_remaining_hdx: Balance) -> Result<u32, DispatchError> {
+		<GigaHdxVoteClearance as pallet_gigahdx_rewards::traits::ClearConflictingVotes<AccountId>>::clear_conflicting_votes(
+			borrower, max_remaining_hdx,
+		)
 	}
 }
 
