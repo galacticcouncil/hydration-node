@@ -4860,7 +4860,16 @@ mod aave_atoken {
 	use super::*;
 	use hydradx_runtime::DCA;
 
-	const PATH_TO_SNAPSHOT: &str = "dca-snapshot/SNAPSHOT";
+	// Snapshot at block 12309734, produced with:
+	//
+	//   ./target/release/scraper save-storage --slim \
+	//       --uri wss://hydration.dotters.network \
+	//       --at 0x5bfd245dd5612800f2291cef550a5e3f76b569e6de4d52d1c6cb122e674d838e \
+	//       --pallet Omnipool Stableswap AssetRegistry EVM DynamicFees EmaOracle \
+	//                MultiTransactionPayment Tokens Balances EVMAccounts Ethereum \
+	//                EVMChainId HSM Router System Aura Timestamp DCA \
+	//       --path integration-tests/dca-snapshot
+	const PATH_TO_SNAPSHOT: &str = "dca-snapshot/SNAPSHOT_12309734";
 
 	//Ignored as snapshot too big
 	//To verify locally, download snapshot with command `./target/release/scraper save-storage --uri wss://paseo-rpc.play.hydration.cloud --at 0x3db005212a4ae320a2808c6813880b583dacbf7df60b0314420e88f4f2dfe989`
@@ -4884,6 +4893,62 @@ mod aave_atoken {
 			let schedule = DCA::schedules(schedule_id);
 			assert!(schedule.is_some());
 		});
+	}
+
+	use frame_support::traits::OnInitialize;
+
+	#[test]
+	fn dca_should_succeed_after_retry_when_insufficient_balance_error_due_to_off_by_one_error() {
+		TestNet::reset();
+
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			//Arrange
+			assert_eq!(hydradx_runtime::System::block_number(), 12309734);
+			let schedule_id = 30972;
+			assert!(DCA::schedules(schedule_id).is_some());
+
+			//Act 1: first attempt fails with InsufficientBalance and is retried
+			DCA::on_initialize(12309735);
+			assert_trade_failed_with_omnipool_insufficient_balance(schedule_id);
+			assert_eq!(
+				DCA::retries_on_error(schedule_id),
+				1,
+				"first attempt should have been retried"
+			);
+			let retry_block =
+				DCA::schedule_execution_block(schedule_id).expect("schedule should be replanned to a retry block");
+
+			//Act 2: simulate elapsed time so aave liquidity index drifts (rounding boundary moves)
+			let now = hydradx_runtime::Timestamp::get();
+			hydradx_runtime::Timestamp::set_timestamp(now + 240_000);
+
+			//Act 3: run DCA at the retry block
+			DCA::on_initialize(retry_block);
+
+			//Assert: schedule still alive and retry counter reset (= the trade succeeded)
+			assert!(DCA::schedules(schedule_id).is_some(), "schedule must survive retry");
+			assert_eq!(
+				DCA::retries_on_error(schedule_id),
+				0,
+				"retry should have succeeded and reset the counter"
+			);
+		});
+	}
+
+	fn assert_trade_failed_with_omnipool_insufficient_balance(schedule_id: u32) {
+		let expected: sp_runtime::DispatchError = pallet_omnipool::Error::<Runtime>::InsufficientBalance.into();
+		let events = last_hydra_events(20);
+		let found = events.iter().any(|e| {
+			matches!(
+				e,
+				RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { id, error, .. })
+				if *id == schedule_id && *error == expected
+			)
+		});
+		assert!(
+			found,
+			"expected TradeFailed event with omnipool::InsufficientBalance for schedule {schedule_id}"
+		);
 	}
 }
 

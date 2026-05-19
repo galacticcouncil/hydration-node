@@ -22,8 +22,8 @@ use pallet_transaction_multi_payment::{DepositAll, TransferFees, WeightInfo};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::constants::{
 	chain::{
-		BLOCK_PROCESSING_VELOCITY, CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT, RELAY_CHAIN_SLOT_DURATION_MILLIS,
-		UNINCLUDED_SEGMENT_CAPACITY,
+		BLOCK_PROCESSING_VELOCITY, CORE_ASSET_ID, DEFAULT_RELAY_PARENT_OFFSET, MAXIMUM_BLOCK_WEIGHT,
+		RELAY_CHAIN_SLOT_DURATION_MILLIS, UNINCLUDED_SEGMENT_CAPACITY,
 	},
 	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
 	time::{DAYS, HOURS, SLOT_DURATION},
@@ -286,6 +286,18 @@ pub type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
 	UNINCLUDED_SEGMENT_CAPACITY,
 >;
 
+pub struct RelayParentOffset;
+
+impl Get<u32> for RelayParentOffset {
+	fn get() -> u32 {
+		if Parameters::relay_parent_offset_override() {
+			0
+		} else {
+			DEFAULT_RELAY_PARENT_OFFSET
+		}
+	}
+}
+
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type OnSystemEvent = pallet_relaychain_info::OnValidationDataHandler<Runtime>;
@@ -299,7 +311,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
 	type ConsensusHook = ConsensusHook;
 	type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
-	type RelayParentOffset = ConstU32<0>;
+	type RelayParentOffset = RelayParentOffset;
 }
 
 parameter_types! {
@@ -713,10 +725,14 @@ impl pallet_collator_rewards::Config for Runtime {
 	type RewardCurrencyId = NativeAssetId;
 	type RewardsBag = TreasuryAccount;
 	type ExcludedCollators = ExcludedCollators;
-	// We wrap the ` SessionManager` implementation of `CollatorSelection` to get the collators that
+	// We wrap the `SessionManager` implementation of `CollatorRotation` to get the collators that
 	// we hand out rewards to.
-	type SessionManager = CollatorSelection;
+	type SessionManager = CollatorRotation;
 	type MaxCandidates = MaxInvulnerables;
+}
+
+impl pallet_collator_rotation::Config for Runtime {
+	type Inner = CollatorSelection;
 }
 
 impl pallet_transaction_pause::Config for Runtime {

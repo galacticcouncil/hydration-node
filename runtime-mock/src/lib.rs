@@ -123,6 +123,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			duster: DusterConfig {
 				account_whitelist: vec![],
 			},
+			parameters: Default::default(),
 			omnipool_warehouse_lm: Default::default(),
 			omnipool_liquidity_mining: Default::default(),
 			evm_chain_id: hydradx_runtime::EVMChainIdConfig {

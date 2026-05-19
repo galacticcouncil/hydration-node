@@ -5,6 +5,7 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_noop;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::storage::with_transaction;
+use frame_support::traits::Get;
 use frame_support::traits::OnFinalize;
 use frame_support::traits::OnInitialize;
 use frame_support::{
@@ -13,7 +14,6 @@ use frame_support::{
 	traits::tokens::fungibles::Mutate,
 };
 use hydra_dx_math::ema::smoothing_from_period;
-use hydradx_runtime::bifrost_account;
 use hydradx_runtime::AssetLocation;
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::{EmaOracle, RuntimeOrigin};
@@ -30,7 +30,6 @@ use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
 use sp_runtime::traits::{DispatchTransaction, TransactionExtension};
-use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
 use sp_std::collections::btree_map::BTreeMap;
@@ -54,8 +53,8 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 
 const HDX: AssetId = CORE_ASSET_ID;
 
-pub(crate) const SUPPORTED_PERIODS: &[OraclePeriod] = &[LastBlock, Short, TenMinutes];
-const UNSUPPORTED_PERIODS: &[OraclePeriod] = &[Hour, Day, Week];
+pub(crate) const SUPPORTED_PERIODS: &[OraclePeriod] = &[LastBlock, Short, TenMinutes, Day];
+const UNSUPPORTED_PERIODS: &[OraclePeriod] = &[Hour, Week];
 
 #[ignore]
 #[test]
@@ -193,6 +192,11 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 			331509049407129600017073813722130790u128,
 		);
 
+		let hdx_lrna_day = Price::new(
+			275912650768799219879113001497259577106u128,
+			331509049407129600017073813722130790u128,
+		);
+
 		let hdx_lrna_last_block = Price::new(936334588000000000u128, 1124993995517813u128);
 
 		let lrna_dot_short = Price::new(
@@ -202,6 +206,11 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 
 		let lrna_dot_ten_minutes = Price::new(
 			264175035630151730654534455921460486402u128,
+			10299220574157342235602475141589164734u128,
+		);
+
+		let lrna_dot_day = Price::new(
+			264175007922830891611965686383394568966u128,
 			10299220574157342235602475141589164734u128,
 		);
 
@@ -216,6 +225,7 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 					updates: BTreeMap::from([
 						(Short, hdx_lrna_short),
 						(TenMinutes, hdx_lrna_ten_minutes),
+						(Day, hdx_lrna_day),
 						(LastBlock, hdx_lrna_last_block),
 					]),
 				}),
@@ -225,6 +235,7 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 					updates: BTreeMap::from([
 						(Short, lrna_dot_short),
 						(TenMinutes, lrna_dot_ten_minutes),
+						(Day, lrna_dot_day),
 						(LastBlock, lrna_dot_last_block),
 					]),
 				}),
@@ -441,12 +452,24 @@ fn arrange_bifrost_assets() -> (
 }
 
 #[test]
+#[allow(deprecated)]
 fn bifrost_oracle_should_be_updated() {
 	TestNet::reset();
 
 	let (asset_a_id, asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
 
 	Hydra::execute_with(|| {
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+			(asset_a_id, asset_b_id),
+			bifrost_account(),
+		));
+
 		assert_ok!(EmaOracle::add_oracle(
 			RuntimeOrigin::root(),
 			BIFROST_SOURCE,
@@ -477,20 +500,33 @@ fn bifrost_oracle_should_be_updated() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn bifrost_oracle_should_be_added_when_pair_not_whitelisted() {
 	TestNet::reset();
 
 	let (asset_a_id, asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
 
 	Hydra::execute_with(|| {
-		// act
+		// Arrange
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+			(asset_a_id, asset_b_id),
+			bifrost_account(),
+		));
+
+		// act - no whitelist setup, external sources bypass whitelist
 		assert_ok!(EmaOracle::update_bifrost_oracle(
 			RuntimeOrigin::signed(bifrost_account()),
 			asset_a,
 			asset_b,
 			(50, 100)
 		));
-		// will store the data received in the sell as oracle values
+
 		hydradx_run_to_next_block();
 
 		// assert
@@ -507,12 +543,25 @@ fn bifrost_oracle_should_be_added_when_pair_not_whitelisted() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn bifrost_oracle_update_should_return_fee() {
 	// arrange
 	TestNet::reset();
-	let (_asset_a_id, _asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
+	let (asset_a_id, asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
 	let balance = 10 * UNITS;
 	Hydra::execute_with(|| {
+		// Arrange
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+			(asset_a_id, asset_b_id),
+			bifrost_account(),
+		));
+
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			bifrost_account(),
@@ -559,11 +608,18 @@ fn bifrost_oracle_update_should_return_fee() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn bifrost_oracle_update_fail_should_charge_fee() {
 	// arrange
 	TestNet::reset();
 	let (_asset_a_id, _asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
 	Hydra::execute_with(|| {
+		// Register BIFROST_SOURCE but do NOT authorize ALICE
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+		));
+
 		let balance = hydradx_runtime::Currencies::free_balance(0, &ALICE.into());
 		let oracle_call = hydradx_runtime::RuntimeCall::EmaOracle(
 			pallet_ema_oracle::Call::<hydradx_runtime::Runtime>::update_bifrost_oracle {
@@ -586,7 +642,10 @@ fn bifrost_oracle_update_fail_should_charge_fee() {
 			"fee should be withdrawn"
 		);
 		let exec = EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE.into()), asset_a, asset_b, (50, 100));
-		assert_noop!(exec.clone(), BadOrigin);
+		assert_noop!(
+			exec.clone(),
+			pallet_ema_oracle::Error::<hydradx_runtime::Runtime>::NotAuthorized
+		);
 		let mut exec_err_post_info = exec.err().unwrap().post_info;
 		assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
 			pre_data,
@@ -600,5 +659,168 @@ fn bifrost_oracle_update_fail_should_charge_fee() {
 			balance,
 			"fee shouldn't be returned"
 		);
+	});
+}
+
+#[test]
+fn many_same_pair_external_updates_do_not_block_router_sell_through_omnipool() {
+	TestNet::reset();
+
+	let (asset_a_id, asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
+
+	Hydra::execute_with(|| {
+		hydradx_run_to_next_block();
+		init_omnipool();
+		// Drain accumulator entries produced by init_omnipool's add_token hooks.
+		hydradx_run_to_next_block();
+
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+		));
+		assert_ok!(EmaOracle::add_authorized_account(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+			(asset_a_id, asset_b_id),
+			bifrost_account(),
+		));
+
+		// 50 > MaxUniqueEntries (40) — if same-pair updates didn't merge, Router::sell below
+		// would be rejected with TooManyUniqueEntries.
+		let spam_count: u32 = 50;
+		for i in 0..spam_count {
+			assert_ok!(EmaOracle::set_external_oracle(
+				RuntimeOrigin::signed(bifrost_account()),
+				BIFROST_SOURCE,
+				asset_a.clone(),
+				asset_b.clone(),
+				(100 + i as u128, 99),
+			));
+		}
+
+		let acc = pallet_ema_oracle::Accumulator::<hydradx_runtime::Runtime>::get();
+		let bifrost_slots: usize = acc.keys().filter(|(src, _)| *src == BIFROST_SOURCE).count();
+		assert_eq!(bifrost_slots, 1);
+
+		let amount_in = 10 * UNITS;
+		let bob_dai_before = hydradx_runtime::Currencies::free_balance(DAI, &AccountId::from(BOB));
+		assert_ok!(hydradx_runtime::Router::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			amount_in,
+			0,
+			vec![].try_into().unwrap()
+		));
+		let bob_dai_after = hydradx_runtime::Currencies::free_balance(DAI, &AccountId::from(BOB));
+		assert!(bob_dai_after > bob_dai_before);
+
+		let acc = pallet_ema_oracle::Accumulator::<hydradx_runtime::Runtime>::get();
+		let bifrost_slots: usize = acc.keys().filter(|(src, _)| *src == BIFROST_SOURCE).count();
+		let omnipool_slots: usize = acc.keys().filter(|(src, _)| *src == OMNIPOOL_SOURCE).count();
+		assert_eq!(bifrost_slots, 1);
+		assert!(omnipool_slots >= 1);
+
+		hydradx_run_to_next_block();
+
+		assert!(EmaOracle::get_price(asset_a_id, asset_b_id, LastBlock, BIFROST_SOURCE).is_ok());
+		assert!(EmaOracle::get_price(HDX, LRNA, LastBlock, OMNIPOOL_SOURCE).is_ok());
+	});
+}
+
+#[test]
+fn router_sell_must_succeed_even_when_external_source_fills_accumulator() {
+	TestNet::reset();
+
+	// Register `pair_count + 1` assets, each with a unique XCM location, so the pallet's
+	// location→asset converter resolves them. Pairs are built as (base, base + i).
+	let base: AssetId = 200;
+	let pair_count: u32 = 45; // > MaxUniqueEntries (40) with margin
+	let para: u32 = 3000;
+	let ext_location = |asset_id: AssetId| -> polkadot_xcm::v5::Location {
+		polkadot_xcm::v5::Location::new(
+			1,
+			[
+				polkadot_xcm::v5::Junction::Parachain(para),
+				polkadot_xcm::v5::Junction::GeneralIndex(asset_id as u128),
+			],
+		)
+	};
+	let ext_boxed = |asset_id: AssetId| -> Box<polkadot_xcm::VersionedLocation> {
+		Box::new(ext_location(asset_id).into_versioned())
+	};
+
+	Hydra::execute_with(|| {
+		assert_ok!(with_transaction(|| {
+			hydradx_run_to_next_block();
+			for i in 0..=pair_count {
+				let asset_id = base + i;
+				let loc = ext_location(asset_id);
+				// 3-char symbol derived from i so each registration is unique.
+				let sym: Vec<u8> = format!("E{i:02}").into_bytes();
+				assert_ok!(AssetRegistry::register_sufficient_asset(
+					Some(asset_id),
+					Some(sym.try_into().unwrap()),
+					AssetKind::Token,
+					1_000_000,
+					None,
+					None,
+					Some(AssetLocation::try_from(loc).unwrap()),
+					None,
+				));
+			}
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		}));
+	});
+
+	Hydra::execute_with(|| {
+		hydradx_run_to_next_block();
+		init_omnipool();
+		// Drain accumulator entries produced by init_omnipool's add_token hooks.
+		hydradx_run_to_next_block();
+
+		assert_ok!(EmaOracle::register_external_source(
+			RuntimeOrigin::root(),
+			BIFROST_SOURCE,
+		));
+		for i in 1..=pair_count {
+			assert_ok!(EmaOracle::add_authorized_account(
+				RuntimeOrigin::root(),
+				BIFROST_SOURCE,
+				(base, base + i),
+				bifrost_account(),
+			));
+		}
+
+		// Fill the accumulator with `pair_count` DISTINCT external pair entries.
+		for i in 1..=pair_count {
+			assert_ok!(EmaOracle::set_external_oracle(
+				RuntimeOrigin::signed(bifrost_account()),
+				BIFROST_SOURCE,
+				ext_boxed(base),
+				ext_boxed(base + i),
+				(100, 99),
+			));
+		}
+
+		let acc = pallet_ema_oracle::Accumulator::<hydradx_runtime::Runtime>::get();
+		let external_slots: usize = acc.keys().filter(|(src, _)| *src == BIFROST_SOURCE).count();
+		let max_entries: u32 = <hydradx_runtime::Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries::get();
+		assert!(
+			external_slots >= max_entries as usize,
+			"expected >= {max_entries} external accumulator slots to trigger the cap, got {external_slots}"
+		);
+
+		let bob_dai_before = hydradx_runtime::Currencies::free_balance(DAI, &AccountId::from(BOB));
+		assert_ok!(hydradx_runtime::Router::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			10 * UNITS,
+			0,
+			vec![].try_into().unwrap(),
+		));
+		let bob_dai_after = hydradx_runtime::Currencies::free_balance(DAI, &AccountId::from(BOB));
+		assert!(bob_dai_after > bob_dai_before);
 	});
 }

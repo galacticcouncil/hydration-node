@@ -115,8 +115,6 @@ where
 	C: Send + Sync + 'static,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
-	// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
-	// C::Api: pallet_ismp_runtime_api::IsmpRuntimeApi<Block, sp_core::H256>,
 	C::Api: BlockBuilderApi<Block>,
 	P: TransactionPool + Sync + Send + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
@@ -139,8 +137,6 @@ where
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 	module.merge(StateMigration::new(client.clone(), backend.clone()).into_rpc())?;
 
-	// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
-	// module.merge(IsmpRpcHandler::new(client, backend)?.into_rpc())?;
 	module.merge(LiquidationWorker::new(liquidation_task_data).into_rpc())?;
 
 	Ok(module)

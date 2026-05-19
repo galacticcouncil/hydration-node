@@ -32,6 +32,9 @@ const MAX_ERROR_MESSAGE_LENGTH: u32 = 1024;
 /// Maximum batch sizes
 const MAX_BATCH_SIZE: u32 = 100;
 
+/// Hard upper bound for chain ID length (used as BoundedVec bound)
+pub const MAX_CHAIN_ID_LENGTH: u32 = 128;
+
 const EIP1559_TX_TYPE: u8 = 0x02;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -53,7 +56,9 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> {
+		/// Origin that is allowed to call administrative extrinsics
+		/// (set_config, withdraw_funds, pause, unpause).
 		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Currency for handling deposits and fees
@@ -63,18 +68,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
-		/// Maximum length for chain ID
-		#[pallet::constant]
-		type MaxChainIdLength: Get<u32>;
-
 		type WeightInfo: WeightInfo;
-
-		/// Maximum length of transaction data
-		#[pallet::constant]
-		type MaxDataLength: Get<u32>;
-
-		#[pallet::constant]
-		type MaxSignatureDeposit: Get<BalanceOf<Self>>;
 	}
 
 	// ========================================
@@ -110,24 +104,31 @@ pub mod pallet {
 		pub error_message: BoundedVec<u8, ConstU32<MAX_ERROR_MESSAGE_LENGTH>>,
 	}
 
+	/// Signet configuration data.
+	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, MaxEncodedLen)]
+	pub struct SignetConfigData<Balance: MaxEncodedLen> {
+		/// If `true`, all user-facing requests are blocked.
+		pub paused: bool,
+		/// Amount required as deposit for signature requests.
+		pub signature_deposit: Balance,
+		/// Maximum length for chain ID.
+		pub max_chain_id_length: u32,
+		/// Maximum length for EVM transaction data.
+		pub max_evm_data_length: u32,
+		/// The CAIP-2 chain identifier.
+		pub chain_id: BoundedVec<u8, ConstU32<MAX_CHAIN_ID_LENGTH>>,
+	}
+
 	// ========================================
 	// Storage
 	// ========================================
 
-	/// The admin account that controls this pallet
+	/// Global configuration for the signet pallet.
+	///
+	/// If `None`, the pallet has not been configured yet and cannot be used.
 	#[pallet::storage]
-	#[pallet::getter(fn admin)]
-	pub type Admin<T: Config> = StorageValue<_, T::AccountId>;
-
-	/// The amount required as deposit for signature requests
-	#[pallet::storage]
-	#[pallet::getter(fn signature_deposit)]
-	pub type SignatureDeposit<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
-
-	/// The CAIP-2 chain identifier
-	#[pallet::storage]
-	#[pallet::getter(fn chain_id)]
-	pub type ChainId<T: Config> = StorageValue<_, BoundedVec<u8, T::MaxChainIdLength>, ValueQuery>;
+	#[pallet::getter(fn signet_config)]
+	pub type SignetConfig<T: Config> = StorageValue<_, SignetConfigData<BalanceOf<T>>, OptionQuery>;
 
 	// ========================================
 	// Events
@@ -136,18 +137,18 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Pallet has been initialized with an admin
-		Initialized {
-			admin: T::AccountId,
+		/// Signet configuration has been updated.
+		ConfigUpdated {
 			signature_deposit: BalanceOf<T>,
+			max_chain_id_length: u32,
+			max_evm_data_length: u32,
 			chain_id: Vec<u8>,
 		},
 
-		/// Signature deposit amount has been updated
-		DepositUpdated {
-			old_deposit: BalanceOf<T>,
-			new_deposit: BalanceOf<T>,
-		},
+		/// Signet has been paused. No new requests will be accepted.
+		Paused,
+		/// Signet has been unpaused. New requests are allowed again.
+		Unpaused,
 
 		/// Funds have been withdrawn from the pallet
 		FundsWithdrawn {
@@ -212,28 +213,22 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// The pallet has already been initialized
-		AlreadyInitialized,
-		/// The pallet has not been initialized yet
-		NotInitialized,
-		/// Unauthorized - caller is not admin
-		Unauthorized,
+		/// The pallet has not been configured yet
+		NotConfigured,
+		/// Pallet is paused and cannot process this call.
+		Paused,
 		/// Insufficient funds for withdrawal
 		InsufficientFunds,
 		/// Invalid transaction data (empty)
 		InvalidTransaction,
 		/// Arrays must have the same length
 		InvalidInputLength,
-		/// The chain ID is too long
-		ChainIdTooLong,
 		/// Transaction data exceeds maximum allowed length
 		DataTooLong,
 		/// Invalid address format - must be exactly 20 bytes
 		InvalidAddress,
 		/// Priority fee cannot exceed max fee per gas (EIP-1559 requirement)
 		InvalidGasPrice,
-		/// Signature Deposit cannot exceed MaxSignatureDeposit
-		MaxDepositExceeded,
 	}
 
 	// ========================================
@@ -242,67 +237,57 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Initialize the pallet with admin, deposit, and chain ID
+		/// Set or update the signet configuration.
+		///
+		/// Can be called multiple times to update the configuration.
+		///
+		/// Parameters:
+		/// - `origin`: Must satisfy `UpdateOrigin`.
+		/// - `signature_deposit`: Deposit amount for signature requests.
+		/// - `max_chain_id_length`: Maximum chain ID length.
+		/// - `max_evm_data_length`: Maximum EVM transaction data length.
+		/// - `chain_id`: The CAIP-2 chain identifier.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::initialize())]
-		pub fn initialize(
+		#[pallet::weight(<T as Config>::WeightInfo::set_config())]
+		pub fn set_config(
 			origin: OriginFor<T>,
-			admin: T::AccountId,
 			signature_deposit: BalanceOf<T>,
-			chain_id: BoundedVec<u8, T::MaxChainIdLength>,
+			max_chain_id_length: u32,
+			max_evm_data_length: u32,
+			chain_id: BoundedVec<u8, ConstU32<MAX_CHAIN_ID_LENGTH>>,
 		) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
-			ensure!(Admin::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
 
-			ensure!(
-				signature_deposit <= T::MaxSignatureDeposit::get(),
-				Error::<T>::MaxDepositExceeded
-			);
+			let paused = SignetConfig::<T>::get().map(|c| c.paused).unwrap_or(false);
 
-			Admin::<T>::put(&admin);
-			SignatureDeposit::<T>::put(signature_deposit);
-			ChainId::<T>::put(chain_id.clone());
-
-			Self::deposit_event(Event::Initialized {
-				admin,
+			SignetConfig::<T>::put(SignetConfigData {
+				paused,
 				signature_deposit,
+				max_chain_id_length,
+				max_evm_data_length,
+				chain_id: chain_id.clone(),
+			});
+
+			Self::deposit_event(Event::ConfigUpdated {
+				signature_deposit,
+				max_chain_id_length,
+				max_evm_data_length,
 				chain_id: chain_id.to_vec(),
 			});
 
 			Ok(())
 		}
 
-		/// Update the signature deposit amount (admin only)
+		/// Withdraw funds from the pallet account.
+		///
+		/// Parameters:
+		/// - `origin`: Must satisfy `UpdateOrigin`.
+		/// - `recipient`: Account to receive the withdrawn funds.
+		/// - `amount`: Amount to withdraw.
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_deposit())]
-		pub fn update_deposit(origin: OriginFor<T>, new_deposit: BalanceOf<T>) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			let admin = Admin::<T>::get().ok_or(Error::<T>::NotInitialized)?;
-			ensure!(who == admin, Error::<T>::Unauthorized);
-
-			ensure!(
-				new_deposit < T::MaxSignatureDeposit::get(),
-				Error::<T>::MaxDepositExceeded
-			);
-
-			let old_deposit = SignatureDeposit::<T>::get();
-			SignatureDeposit::<T>::put(new_deposit);
-
-			Self::deposit_event(Event::DepositUpdated {
-				old_deposit,
-				new_deposit,
-			});
-
-			Ok(())
-		}
-
-		/// Withdraw funds from the pallet account (admin only)
-		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw_funds())]
 		pub fn withdraw_funds(origin: OriginFor<T>, recipient: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			let admin = Admin::<T>::get().ok_or(Error::<T>::NotInitialized)?;
-			ensure!(who == admin, Error::<T>::Unauthorized);
+			T::UpdateOrigin::ensure_origin(origin)?;
 
 			let pallet_account = Self::account_id();
 			let pallet_balance = T::Currency::free_balance(&pallet_account);
@@ -316,7 +301,7 @@ pub mod pallet {
 		}
 
 		/// Request a signature for a payload
-		#[pallet::call_index(3)]
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::sign())]
 		pub fn sign(
 			origin: OriginFor<T>,
@@ -329,20 +314,16 @@ pub mod pallet {
 		) -> DispatchResult {
 			let requester = ensure_signed(origin)?;
 
-			// Ensure initialized
-			ensure!(Admin::<T>::get().is_some(), Error::<T>::NotInitialized);
+			let config = SignetConfig::<T>::get().ok_or(Error::<T>::NotConfigured)?;
+			ensure!(!config.paused, Error::<T>::Paused);
 
-			// Get deposit amount
-			let deposit = SignatureDeposit::<T>::get();
+			let deposit = config.signature_deposit;
+			let chain_id = config.chain_id.to_vec();
 
 			// Transfer deposit from requester to pallet account
 			let pallet_account = Self::account_id();
 			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::AllowDeath)?;
 
-			// Get chain ID for event (convert BoundedVec to Vec)
-			let chain_id = ChainId::<T>::get().to_vec();
-
-			// Emit event
 			Self::deposit_event(Event::SignatureRequested {
 				sender: requester,
 				payload,
@@ -359,7 +340,7 @@ pub mod pallet {
 		}
 
 		/// Request a signature for a serialized transaction
-		#[pallet::call_index(4)]
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::sign_bidirectional())]
 		pub fn sign_bidirectional(
 			origin: OriginFor<T>,
@@ -375,20 +356,18 @@ pub mod pallet {
 		) -> DispatchResult {
 			let requester = ensure_signed(origin)?;
 
-			// Ensure initialized
-			ensure!(Admin::<T>::get().is_some(), Error::<T>::NotInitialized);
+			let config = SignetConfig::<T>::get().ok_or(Error::<T>::NotConfigured)?;
+			ensure!(!config.paused, Error::<T>::Paused);
 
 			// Validate transaction data
 			ensure!(!serialized_transaction.is_empty(), Error::<T>::InvalidTransaction);
 
-			// Get deposit amount
-			let deposit = SignatureDeposit::<T>::get();
+			let deposit = config.signature_deposit;
 
 			// Transfer deposit from requester to pallet account
 			let pallet_account = Self::account_id();
 			T::Currency::transfer(&requester, &pallet_account, deposit, ExistenceRequirement::AllowDeath)?;
 
-			// Emit event
 			Self::deposit_event(Event::SignBidirectionalRequested {
 				sender: requester,
 				serialized_transaction: serialized_transaction.to_vec(),
@@ -407,7 +386,7 @@ pub mod pallet {
 		}
 
 		/// Respond to signature requests (batch support)
-		#[pallet::call_index(5)]
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::respond())]
 		pub fn respond(
 			origin: OriginFor<T>,
@@ -416,10 +395,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let responder = ensure_signed(origin)?;
 
-			// Validate input lengths
 			ensure!(request_ids.len() == signatures.len(), Error::<T>::InvalidInputLength);
 
-			// Emit events for each response
 			for i in 0..request_ids.len() {
 				Self::deposit_event(Event::SignatureResponded {
 					request_id: request_ids[i],
@@ -432,7 +409,7 @@ pub mod pallet {
 		}
 
 		/// Report signature generation errors (batch support)
-		#[pallet::call_index(6)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::respond_error())]
 		pub fn respond_error(
 			origin: OriginFor<T>,
@@ -440,7 +417,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			let responder = ensure_signed(origin)?;
 
-			// Emit error events
 			for error in errors {
 				Self::deposit_event(Event::SignatureError {
 					request_id: error.request_id,
@@ -453,7 +429,7 @@ pub mod pallet {
 		}
 
 		/// Provide a read response with signature
-		#[pallet::call_index(7)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::respond_bidirectional())]
 		pub fn respond_bidirectional(
 			origin: OriginFor<T>,
@@ -463,7 +439,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			let responder = ensure_signed(origin)?;
 
-			// Just emit event
 			Self::deposit_event(Event::RespondBidirectionalEvent {
 				request_id,
 				responder,
@@ -471,6 +446,42 @@ pub mod pallet {
 				signature,
 			});
 
+			Ok(())
+		}
+
+		/// Pause the signet so that no new signing requests can be made.
+		///
+		/// Parameters:
+		/// - `origin`: Must satisfy `UpdateOrigin`.
+		#[pallet::call_index(7)]
+		#[pallet::weight(<T as Config>::WeightInfo::pause())]
+		pub fn pause(origin: OriginFor<T>) -> DispatchResult {
+			T::UpdateOrigin::ensure_origin(origin)?;
+			SignetConfig::<T>::mutate(|maybe_config| {
+				if let Some(config) = maybe_config {
+					config.paused = true;
+				}
+			});
+
+			Self::deposit_event(Event::Paused);
+			Ok(())
+		}
+
+		/// Unpause the signet so that signing requests are allowed again.
+		///
+		/// Parameters:
+		/// - `origin`: Must satisfy `UpdateOrigin`.
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as Config>::WeightInfo::unpause())]
+		pub fn unpause(origin: OriginFor<T>) -> DispatchResult {
+			T::UpdateOrigin::ensure_origin(origin)?;
+			SignetConfig::<T>::mutate(|maybe_config| {
+				if let Some(config) = maybe_config {
+					config.paused = false;
+				}
+			});
+
+			Self::deposit_event(Event::Unpaused);
 			Ok(())
 		}
 	}
@@ -483,20 +494,6 @@ pub mod pallet {
 		}
 
 		/// Build an EIP-1559 EVM transaction and return the RLP-encoded data
-		///
-		/// # Parameters
-		/// - `origin`: The signed origin
-		/// - `to_address`: Optional recipient address (None for contract creation)
-		/// - `value`: ETH value in wei
-		/// - `data`: Transaction data/calldata
-		/// - `nonce`: Transaction nonce
-		/// - `gas_limit`: Maximum gas units for transaction
-		/// - `max_fee_per_gas`: Maximum total fee per gas (base + priority)
-		/// - `max_priority_fee_per_gas`: Maximum priority fee (tip) per gas
-		/// - `chain_id`: Target EVM chain ID
-		///
-		/// # Returns
-		/// RLP-encoded transaction data with EIP-2718 type prefix (0x02 for EIP-1559)
 		pub fn build_evm_tx(
 			origin: OriginFor<T>,
 			to_address: Option<H160>,
@@ -511,7 +508,11 @@ pub mod pallet {
 		) -> Result<Vec<u8>, DispatchError> {
 			ensure_signed(origin)?;
 
-			ensure!(data.len() <= T::MaxDataLength::get() as usize, Error::<T>::DataTooLong);
+			let config = SignetConfig::<T>::get().ok_or(Error::<T>::NotConfigured)?;
+			ensure!(
+				data.len() <= config.max_evm_data_length as usize,
+				Error::<T>::DataTooLong
+			);
 			ensure!(max_priority_fee_per_gas <= max_fee_per_gas, Error::<T>::InvalidGasPrice);
 
 			let action = match to_address {

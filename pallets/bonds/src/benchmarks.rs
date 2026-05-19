@@ -20,7 +20,7 @@
 use super::*;
 
 use frame_benchmarking::benchmarks;
-use frame_support::{assert_ok, traits::EnsureOrigin};
+use frame_support::assert_ok;
 use frame_system::RawOrigin;
 
 use orml_traits::MultiCurrency;
@@ -42,14 +42,13 @@ benchmarks! {
 	issue {
 		pallet_timestamp::Pallet::<T>::set_timestamp(NOW.into());
 
-		let origin = T::IssueOrigin::try_successful_origin().unwrap();
-		let issuer = T::IssueOrigin::ensure_origin(origin).unwrap();
+		let issuer = T::IssuerAccount::get();
 		let amount: T::Balance = (200 * ONE).into();
 		let maturity = NOW + MONTH;
 
 		T::Currency::deposit(HDX, &issuer, amount)?;
 
-	}: _(RawOrigin::Signed(issuer), HDX, (100 * ONE).into(), maturity)
+	}: _(RawOrigin::Root, HDX, (100 * ONE).into(), maturity)
 	verify {
 		assert!(BondIds::<T>::get::<(AssetId, Moment)>((HDX, maturity)).is_some());
 	}
@@ -57,24 +56,20 @@ benchmarks! {
 	redeem {
 		pallet_timestamp::Pallet::<T>::set_timestamp(NOW.into());
 
-		let origin = T::IssueOrigin::try_successful_origin().unwrap();
-		let issuer = T::IssueOrigin::ensure_origin(origin).unwrap();
+		let issuer = T::IssuerAccount::get();
 		let amount: T::Balance = (200 * ONE).into();
-		//NOTE: bonds are insufficient so issuer must ED for it
+		// NOTE: bonds are insufficient so issuer must ED for it
 		T::Currency::deposit(HDX, &issuer, amount + (100 * ONE).into())?;
 
 		let maturity = NOW + MONTH;
 
-		assert_ok!(crate::Pallet::<T>::issue(RawOrigin::Signed(issuer.clone()).into(), HDX, amount, maturity));
-
-		let fee = <T as Config>::ProtocolFee::get().mul_ceil(amount);
-		let amount_without_fee: T::Balance = amount.checked_sub(&fee).unwrap();
+		assert_ok!(crate::Pallet::<T>::issue(RawOrigin::Root.into(), HDX, amount, maturity));
 
 		pallet_timestamp::Pallet::<T>::set_timestamp((NOW + 2 * MONTH).into());
 
 		let bond_id = Bonds::<T>::iter_keys().next().unwrap();
 
-	}: _(RawOrigin::Signed(issuer.clone()), bond_id, amount_without_fee)
+	}: _(RawOrigin::Signed(issuer.clone()), bond_id, amount)
 	verify {
 		assert_eq!(T::Currency::free_balance(bond_id, &issuer), 0u32.into());
 	}

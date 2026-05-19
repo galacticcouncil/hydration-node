@@ -180,6 +180,8 @@ impl pallet_treasury::Config for Runtime {
 
 parameter_types! {
 	pub const VoteLockingPeriod: BlockNumber = 7 * DAYS;
+	#[derive(Debug)]
+	pub const MaxVotes: u32 = 25;
 }
 
 impl pallet_conviction_voting::Config for Runtime {
@@ -187,7 +189,7 @@ impl pallet_conviction_voting::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type VoteLockingPeriod = VoteLockingPeriod;
-	type MaxVotes = ConstU32<25>;
+	type MaxVotes = MaxVotes;
 	type MaxTurnout = frame_support::traits::tokens::currency::ActiveIssuanceOf<Balances, Self::AccountId>;
 	type Polls = Referenda;
 	type VotingHooks = pallet_staking::integrations::conviction_voting::StakingConvictionVoting<Runtime>;
@@ -213,7 +215,7 @@ impl pallet_whitelist::Config for Runtime {
 parameter_types! {
 	pub const AlarmInterval: BlockNumber = 1;
 	pub const SubmissionDeposit: Balance = DOLLARS;
-	pub const UndecidingTimeout: BlockNumber = 14 * DAYS;
+	pub const UndecidingTimeout: BlockNumber = 2 * DAYS;
 }
 
 impl pallet_referenda::Config for Runtime {
@@ -267,7 +269,6 @@ impl pallet_dispatcher::Config for Runtime {
 	type DefaultAaveManagerAccount = AaveManagerAccount;
 	type EmergencyAdminAccount = EmergencyAdminAccount;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
-	type MigrationOperatorOrigin = EitherOf<EnsureRoot<AccountId>, TechCommitteeMajority>;
 	type EvmFeePayer = evm::EvmFeePayerImpl;
 	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
 }
