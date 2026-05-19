@@ -348,6 +348,119 @@ fn realize_yield_should_fold_accrued_into_principal_when_rate_increased() {
 	});
 }
 
+/// Setup for the realize-yield equivalence test with a deliberately
+/// non-terminating rate. Alice stakes 100 HDX and Bob 70 HDX (so Alice's
+/// GIGAHDX is *not* the whole supply and her per-account conversion actually
+/// floor-rounds), then 100 HDX of yield is injected into the gigapot. The
+/// resulting rate is 270/170 = 27/17 — `Ratio::new` does not reduce, and 17
+/// divides neither 100·UNITS nor the pot evenly. Returns Alice and her GIGAHDX.
+fn stake_two_then_set_rounding_rate() -> (AccountId, Balance) {
+	init_gigahdx();
+	reset_giga_state_for_fixture();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	fund(&bob, 1_000 * UNITS);
+
+	assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+	assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 70 * UNITS));
+	assert_ok!(Balances::force_set_balance(
+		RawOrigin::Root.into(),
+		GigaHdx::gigapot_account_id(),
+		100 * UNITS,
+	));
+	// total_staked_hdx = TotalLocked(170) + gigapot(100) = 270; supply = 170.
+	assert_rate_eq(GigaHdx::exchange_rate(), 270 * UNITS, 170 * UNITS);
+
+	let gigahdx = pallet_gigahdx::Stakes::<Runtime>::get(&alice)
+		.expect("stake exists")
+		.gigahdx;
+	assert_eq!(gigahdx, 100 * UNITS);
+	(alice, gigahdx)
+}
+
+#[test]
+fn realize_yield_should_match_direct_unstake_exactly_when_rate_causes_rounding() {
+	// Alice's 100·UNITS GIGAHDX at rate 27/17 converts to
+	// floor(10^14 · 27 / 17) = 158_823_529_411_764 (remainder 12/17 — a real
+	// floor-round, not a clean boundary). The three paths must still agree to
+	// the atomic unit: realize_yield leaves total_staked_hdx and the supply
+	// untouched, so all three evaluate the *same* floored conversion.
+	let expected: Balance = 158_823_529_411_764;
+	// Yield Alice consumes from the pot; the rest backs Bob's still-live stake.
+	let alice_accrued: Balance = expected - 100 * UNITS; // 58_823_529_411_764
+	let pot_residual: Balance = 100 * UNITS - alice_accrued; // 41_176_470_588_236
+
+	// Scenario 1: unstake everything directly — payout folds in the yield
+	// (100·UNITS principal + `alice_accrued` pulled from the gigapot).
+	let x1 = {
+		TestNet::reset();
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			let (alice, gigahdx) = stake_two_then_set_rounding_rate();
+
+			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), gigahdx));
+
+			let entry = only_pending_position(&alice);
+			assert_eq!(
+				Balances::free_balance(GigaHdx::gigapot_account_id()),
+				pot_residual,
+				"only Alice's share leaves the pot; Bob's backing stays"
+			);
+			entry.amount
+		})
+	};
+
+	// Scenario 2: realize yield — accrued HDX is folded into the locked
+	// principal, GIGAHDX and the rate left unchanged.
+	let x2 = {
+		TestNet::reset();
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			let (alice, _) = stake_two_then_set_rounding_rate();
+
+			assert_ok!(GigaHdx::realize_yield(RuntimeOrigin::signed(alice.clone())));
+
+			let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake exists");
+			assert_eq!(stake.hdx, locked_under_ghdx(&alice), "realized principal fully locked");
+			assert_eq!(
+				Balances::free_balance(GigaHdx::gigapot_account_id()),
+				pot_residual,
+				"only Alice's share leaves the pot; Bob's backing stays"
+			);
+			stake.hdx
+		})
+	};
+
+	// Scenario 3: realize yield, then unstake everything — Alice's pot share
+	// is already folded in, so the full payout comes from principal alone and
+	// the pot is untouched by the unstake.
+	let x3 = {
+		TestNet::reset();
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			let (alice, gigahdx) = stake_two_then_set_rounding_rate();
+
+			assert_ok!(GigaHdx::realize_yield(RuntimeOrigin::signed(alice.clone())));
+			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), gigahdx));
+
+			let entry = only_pending_position(&alice);
+			assert_eq!(
+				Balances::free_balance(GigaHdx::gigapot_account_id()),
+				pot_residual,
+				"only Alice's share leaves the pot; Bob's backing stays"
+			);
+			entry.amount
+		})
+	};
+
+	// The conversion really floor-rounds — otherwise the test is vacuous.
+	assert_ne!(expected % UNITS, 0, "rate must actually floor-round");
+
+	assert_eq!(x1, expected, "direct-unstake pending payout");
+	assert_eq!(x2, expected, "realized locked principal");
+	assert_eq!(x3, expected, "realize-then-unstake pending payout");
+	assert_eq!(x1, x2, "realize_yield must match direct unstake");
+	assert_eq!(x1, x3, "realize-then-unstake must match direct unstake");
+}
+
 #[test]
 fn unlock_should_release_lock_when_cooldown_elapsed() {
 	TestNet::reset();
