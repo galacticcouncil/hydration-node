@@ -73,7 +73,10 @@ function bench {
         exit 1
     fi
 
-    local output_file=${4:-"${OUTPUT}${1}.rs"}
+    # Normalize hyphens to underscores so output file matches the canonical
+    # Rust crate name (e.g., `pallet-stableswap` -> `pallet_stableswap.rs`).
+    local pallet_normalized="${1//-/_}"
+    local output_file=${4:-"${OUTPUT}${pallet_normalized}.rs"}
     echo "benchmarking '${1}::${2}' --check=${3}, writing results to '${output_file}'"
 
     # Check enabled
@@ -154,7 +157,7 @@ if [[ "${ALL}" -eq 1 ]]; then
     done < <(${BINARY} benchmark pallet --list=pallets | sed 1d)
 
     for option in "${options[@]}"; do
-      _path="${OUTPUT}${option}.rs"
+      _path="${OUTPUT}${option//-/_}.rs"
 
       touch "${_path}" # TODO: Remove this once benchmarking-cli doesn't fail on missing files
       bench "${option}" '*' "${CHECK}" "${_path}"
@@ -167,7 +170,7 @@ elif [[ "${ARGS[0]}" == *","* ]]; then
         if [[ "${_pallet_trimmed}" == "pallet_xcm_benchmarks" ]]; then
             bench_xcm "${CHECK}"
         else
-            _path="${OUTPUT}${_pallet_trimmed}.rs"
+            _path="${OUTPUT}${_pallet_trimmed//-/_}.rs"
             touch "${_path}" # TODO: Remove this once benchmarking-cli doesn't fail on missing files
             bench "${_pallet_trimmed}" '*' "${CHECK}" "${_path}"
         fi

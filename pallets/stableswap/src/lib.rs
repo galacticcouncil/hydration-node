@@ -1117,6 +1117,7 @@ pub mod pallet {
 		/// - `ShareAssetInPoolAssets`: If the share asset is among the pool assets.
 		/// - `AssetNotRegistered`: If one or more assets are not registered in the AssetRegistry.
 		/// - `InvalidAmplification`: If the amplification parameter is invalid.
+		/// - `IncorrectInitialPegs`: If the number of peg sources does not match the number of assets.
 		/// - `MissingTargetPegOracle`: If the target peg oracle entry is missing.
 		/// - `IncorrectAssetDecimals`: If the assets have different decimals.
 		///
@@ -2216,9 +2217,17 @@ impl<T: Config> Pallet<T> {
 			peg_sources.len(),
 			"Pool assets and peg sources must have the same length"
 		);
+		ensure!(
+			pool_assets.len() == peg_sources.len(),
+			Error::<T>::IncorrectInitialPegs
+		);
 		debug_assert!(
 			pool_assets.windows(2).all(|w| w[0] <= w[1]),
 			"pool_assets must be sorted ascending"
+		);
+		ensure!(
+			pool_assets.windows(2).all(|w| w[0] <= w[1]),
+			Error::<T>::IncorrectAssets
 		);
 
 		if pool_assets.is_empty() {
