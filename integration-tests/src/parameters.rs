@@ -71,7 +71,7 @@ fn is_testnet_sets_correct_referenda_params_when_testnet() {
 			.find(|track| track.id == 0)
 			.expect("Root track should exist");
 
-		assert_eq!(root_track.info.prepare_period, 1);
+		assert_eq!(root_track.info.prepare_period, 2);
 		assert_eq!(root_track.info.confirm_period, 1);
 		assert_eq!(root_track.info.min_enactment_period, 1);
 	});

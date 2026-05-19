@@ -3350,3 +3350,907 @@ fn cross_validate_buy_dot_with_lrna_with_prior_delta() {
 		*r_fresh.asset.delta_hub_reserve
 	);
 }
+
+// Slip-fee cap inversion round-trip tests (#1412).
+// Invariant: in `calculate_buy_state_changes`, `forward(invert(d_net)) >= d_net`
+// (pool never under-funded) across all cap-fire regimes, with bounded overshoot.
+
+// Empirical worst case observed in the sweep is +3; +5 leaves margin without
+// hiding real regressions. Pool safety (`d_net_actual >= d_net_target`) is strict.
+const MAX_OVERSHOOT: Balance = 5;
+
+fn buy_d_net(out_state: &AssetReserveState<Balance>, amount: Balance, asset_fee: Permill) -> Balance {
+	let reserve_no_fee = (Permill::from_percent(100) - asset_fee).mul_floor(out_state.reserve);
+	out_state.hub_reserve * amount / (reserve_no_fee - amount) + 1
+}
+
+fn assert_buy_round_trip(
+	in_state: &AssetReserveState<Balance>,
+	out_state: &AssetReserveState<Balance>,
+	amount: Balance,
+	asset_fee: Permill,
+	protocol_fee: Permill,
+	burn_fee: Permill,
+	slip: Option<&TradeSlipFees>,
+) {
+	let state_changes =
+		calculate_buy_state_changes(in_state, out_state, amount, asset_fee, protocol_fee, burn_fee, slip)
+			.expect("calculate_buy_state_changes should succeed");
+
+	let delta_hub_in = match state_changes.asset_in.delta_hub_reserve {
+		BalanceUpdate::Decrease(v) => v,
+		_ => panic!("expected Decrease for asset_in hub reserve"),
+	};
+	let total_pf = state_changes.fee.protocol_fee;
+
+	let d_net_expected = buy_d_net(out_state, amount, asset_fee);
+	let d_net_actual = delta_hub_in
+		.checked_sub(total_pf)
+		.expect("delta_hub_in must be >= total_pf");
+
+	assert!(
+		d_net_actual >= d_net_expected,
+		"pool UNDERFUNDED: hub_in={delta_hub_in} total_pf={total_pf} d_net_actual={d_net_actual} < d_net_target={d_net_expected}",
+	);
+	let overshoot = d_net_actual - d_net_expected;
+	assert!(
+		overshoot <= MAX_OVERSHOOT,
+		"over-charged by {overshoot} (limit {MAX_OVERSHOOT}): hub_in={delta_hub_in} total_pf={total_pf} d_net_actual={d_net_actual} d_net_target={d_net_expected}",
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_no_slip_cap_fires() {
+	let asset_in_state = AssetReserveState {
+		reserve: 100_000_000 * UNIT,
+		hub_reserve: 100_000_000 * UNIT,
+		shares: 100_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 100_000_000 * UNIT,
+		hub_reserve: 100_000_000 * UNIT,
+		shares: 100_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(1),
+	};
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		20_000 * UNIT,
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_cap_fires_on_buy_side_only() {
+	let asset_in_state = AssetReserveState {
+		reserve: 100_000_000 * UNIT,
+		hub_reserve: 100_000_000 * UNIT,
+		shares: 100_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(1),
+	};
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		20_000 * UNIT,
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_cap_fires_on_sell_side_only() {
+	let asset_in_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 100_000_000 * UNIT,
+		hub_reserve: 100_000_000 * UNIT,
+		shares: 100_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(1),
+	};
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		20_000 * UNIT,
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_tightly_when_caps_fire_on_both_sides() {
+	let asset_in_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(1),
+	};
+	let amount = 20_000 * UNIT;
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		amount,
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	);
+
+	// And specifically check the cap-cap regime is exactly tight (zero overshoot)
+	// because both capped formulas are closed-form inverses.
+	let state_changes = calculate_buy_state_changes(
+		&asset_in_state,
+		&asset_out_state,
+		amount,
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	)
+	.unwrap();
+	let delta_hub_in = match state_changes.asset_in.delta_hub_reserve {
+		BalanceUpdate::Decrease(v) => v,
+		_ => unreachable!(),
+	};
+	let total_pf = state_changes.fee.protocol_fee;
+	let d_net_actual = delta_hub_in - total_pf;
+	let d_net_expected = buy_d_net(&asset_out_state, amount, Permill::zero());
+	assert_eq!(
+		d_net_actual, d_net_expected,
+		"cap-cap regime should be tight (closed-form inverse on both sides)",
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_cap_fires_on_buy_side_with_protocol_fee() {
+	let asset_in_state = AssetReserveState {
+		reserve: 100_000_000 * UNIT,
+		hub_reserve: 100_000_000 * UNIT,
+		shares: 100_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(1),
+	};
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		20_000 * UNIT,
+		Permill::zero(),
+		Permill::from_rational(1u32, 1000u32), // 0.1% protocol fee
+		Permill::zero(),
+		Some(&slip),
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_cap_fires_on_sell_side_with_protocol_fee() {
+	let asset_in_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 100_000_000 * UNIT,
+		hub_reserve: 100_000_000 * UNIT,
+		shares: 100_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(1),
+	};
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		20_000 * UNIT,
+		Permill::zero(),
+		Permill::from_rational(1u32, 1000u32),
+		Permill::zero(),
+		Some(&slip),
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_both_caps_fire_with_all_fees() {
+	let asset_in_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(1),
+	};
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		20_000 * UNIT,
+		Permill::from_rational(25u32, 10_000u32), // 0.25% asset fee
+		Permill::from_rational(1u32, 1000u32),    // 0.1% protocol fee
+		Permill::from_percent(20),                // 20% burn fee
+		Some(&slip),
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_caps_fire_with_positive_input_delta() {
+	let asset_in_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::Positive(5_000 * UNIT),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(1),
+	};
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		20_000 * UNIT,
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_caps_fire_with_negative_input_delta() {
+	let asset_in_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::Negative(5_000 * UNIT),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(1),
+	};
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		20_000 * UNIT,
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_caps_fire_with_positive_output_delta() {
+	let asset_in_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::Positive(5_000 * UNIT),
+		max_slip_fee: Permill::from_percent(1),
+	};
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		20_000 * UNIT,
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_rate_is_just_below_cap_threshold() {
+	let asset_in_state = AssetReserveState {
+		reserve: 100_000_000 * UNIT,
+		hub_reserve: 100_000_000 * UNIT,
+		shares: 100_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 100_000_000 * UNIT,
+		hub_reserve: 100_000_000 * UNIT,
+		shares: 100_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(1),
+	};
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		500_000 * UNIT, // ~0.5% hub flow, under 1% cap
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	);
+}
+
+#[test]
+fn calculate_buy_for_hub_asset_should_round_trip_when_slip_cap_fires() {
+	let asset_out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let amount = 20_000 * UNIT;
+	let slip = HubTradeSlipFees {
+		asset_hub_reserve: asset_out_state.hub_reserve,
+		asset_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(1),
+	};
+
+	let r = calculate_buy_for_hub_asset_state_changes(&asset_out_state, amount, Permill::zero(), Some(&slip))
+		.expect("hub-asset buy should succeed");
+
+	let d_gross = match r.asset.delta_hub_reserve {
+		BalanceUpdate::Increase(v) => v,
+		_ => panic!("expected Increase for hub reserve"),
+	};
+	let slip_fee = r.fee.protocol_fee;
+	let d_net = d_gross.checked_sub(slip_fee).expect("d_gross must be >= slip fee");
+	let d_net_target = buy_d_net(&asset_out_state, amount, Permill::zero());
+
+	assert!(d_net >= d_net_target, "pool underfunded: {d_net} < {d_net_target}");
+	let overshoot = d_net - d_net_target;
+	assert!(overshoot <= MAX_OVERSHOOT, "overshoot {overshoot} > {MAX_OVERSHOOT}");
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_trade_is_close_to_pool_limit() {
+	let asset_in_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(1),
+	};
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		100_000 * UNIT, // 10% of pool — deeply in capped regime
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_across_parameter_sweep() {
+	let pool_sizes = [1_000_000u128, 10_000_000, 100_000_000];
+	let amount_ratios = [1u128, 5, 10, 50]; // amount = ratio * 1000 * UNIT
+	let max_slips = [
+		Permill::from_percent(1),
+		Permill::from_percent(5),
+		Permill::from_rational(1u32, 1000u32), // 0.1%
+	];
+	let pfs = [Permill::zero(), Permill::from_rational(1u32, 1000u32)];
+	let asset_fees = [Permill::zero(), Permill::from_rational(25u32, 10_000u32)];
+	let prior_deltas = [
+		SignedBalance::zero(),
+		SignedBalance::Positive(2_000 * UNIT),
+		SignedBalance::Negative(2_000 * UNIT),
+	];
+
+	for &in_sz in &pool_sizes {
+		for &out_sz in &pool_sizes {
+			for &amt_ratio in &amount_ratios {
+				let amount = amt_ratio * 1_000 * UNIT;
+				if amount * 4 >= out_sz * UNIT {
+					continue;
+				}
+				for &max_slip in &max_slips {
+					for &pf in &pfs {
+						for &asset_fee in &asset_fees {
+							for &in_delta in &prior_deltas {
+								for &out_delta in &prior_deltas {
+									let in_state = AssetReserveState {
+										reserve: in_sz * UNIT,
+										hub_reserve: in_sz * UNIT,
+										shares: in_sz * UNIT,
+										protocol_shares: 0u128,
+									};
+									let out_state = AssetReserveState {
+										reserve: out_sz * UNIT,
+										hub_reserve: out_sz * UNIT,
+										shares: out_sz * UNIT,
+										protocol_shares: 0u128,
+									};
+									let slip = TradeSlipFees {
+										asset_in_hub_reserve: in_state.hub_reserve,
+										asset_in_delta: in_delta,
+										asset_out_hub_reserve: out_state.hub_reserve,
+										asset_out_delta: out_delta,
+										max_slip_fee: max_slip,
+									};
+									assert_buy_round_trip(
+										&in_state,
+										&out_state,
+										amount,
+										asset_fee,
+										pf,
+										Permill::zero(),
+										Some(&slip),
+									);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// "Cap actually binds" tests — verify the capped regime is exercised.
+
+fn cap_fired(slip_fee: Balance, base: Balance, max_slip_fee: Permill) -> bool {
+	slip_fee == max_slip_fee.mul_floor(base)
+}
+
+#[test]
+fn calculate_slip_fee_amount_should_return_max_when_rate_exceeds_cap() {
+	// cum / denom = 5_000_000 / (10_000_000 + 5_000_000) = 1/3 ≈ 33% > 1% cap.
+	let hub_reserve = 10_000_000 * UNIT;
+	let cum = SignedBalance::Positive(5_000_000 * UNIT);
+	let base = 1_000_000 * UNIT;
+	let max = Permill::from_percent(1);
+
+	let slip = calculate_slip_fee_amount(hub_reserve, SignedBalance::zero(), cum, max, base).unwrap();
+	let expected = max.mul_floor(base);
+	assert_eq!(slip, expected, "cap must bind exactly: slip={slip} expected={expected}");
+}
+
+#[test]
+fn calculate_slip_fee_amount_should_return_proportional_when_rate_below_cap() {
+	// cum / denom = 1 / (10_000_000 + 1) ≈ 0 (well below 1% cap).
+	let hub_reserve = 10_000_000 * UNIT;
+	let cum = SignedBalance::Positive(UNIT);
+	let base = 1_000_000 * UNIT;
+	let max = Permill::from_percent(1);
+
+	let slip = calculate_slip_fee_amount(hub_reserve, SignedBalance::zero(), cum, max, base).unwrap();
+	let capped_value = max.mul_floor(base);
+	assert!(
+		slip < capped_value,
+		"cap must NOT bind here: slip={slip} cap_value={capped_value}",
+	);
+}
+
+#[test]
+fn calculate_slip_fee_amount_should_bind_exactly_at_boundary_predicate() {
+	// Predicate is strict `>`: at |cum|*10^6 == max_parts*denom the cap does NOT fire.
+	// Here max=1%, denom=1_000_000, cum=10_000 → equality is exact.
+	let hub_reserve = 990_000;
+	let cum = SignedBalance::Positive(10_000);
+	let base = 1_000_000 * UNIT;
+	let max = Permill::from_percent(1);
+
+	let slip = calculate_slip_fee_amount(hub_reserve, SignedBalance::zero(), cum, max, base).unwrap();
+	let capped = max.mul_floor(base);
+	let proportional = (10_000u128 * base) / 1_000_000u128;
+	assert_eq!(slip, proportional);
+	assert_eq!(slip, capped, "at exact boundary, both formulas coincide");
+}
+
+#[test]
+fn invert_buy_side_slip_should_round_trip_exactly_in_capped_regime() {
+	use crate::omnipool::slip_fee::invert_buy_side_slip;
+
+	let l = 1_000_000 * UNIT;
+	let c = SignedBalance::zero();
+	let max = Permill::from_percent(1);
+	let d_net = 200_000 * UNIT;
+
+	let d_gross = invert_buy_side_slip(d_net, l, c, max).unwrap();
+
+	let slip = calculate_slip_fee_amount(l, c, SignedBalance::Positive(d_gross), max, d_gross).unwrap();
+	assert!(cap_fired(slip, d_gross, max));
+	assert_eq!(d_gross - slip, d_net);
+}
+
+#[test]
+fn invert_buy_side_slip_should_use_uncapped_path_when_below_cap() {
+	use crate::omnipool::slip_fee::invert_buy_side_slip;
+
+	let l = 100_000_000 * UNIT;
+	let c = SignedBalance::zero();
+	let max = Permill::from_percent(1);
+	let d_net = 100 * UNIT;
+
+	let d_gross = invert_buy_side_slip(d_net, l, c, max).unwrap();
+
+	let slip = calculate_slip_fee_amount(l, c, SignedBalance::Positive(d_gross), max, d_gross).unwrap();
+	assert!(!cap_fired(slip, d_gross, max));
+}
+
+#[test]
+fn invert_sell_side_fees_should_round_trip_in_capped_regime() {
+	use crate::omnipool::slip_fee::invert_sell_side_fees;
+
+	let l = 1_000_000 * UNIT;
+	let c = SignedBalance::zero();
+	let max = Permill::from_percent(1);
+	let pf = Permill::zero();
+	let d_gross = 200_000 * UNIT;
+
+	let u = invert_sell_side_fees(d_gross, pf, l, c, max).unwrap();
+
+	let slip = calculate_slip_fee_amount(l, c, SignedBalance::Negative(u), max, u).unwrap();
+	assert!(cap_fired(slip, u, max));
+
+	let d_gross_forward = u - pf.mul_floor(u) - slip;
+	assert!(d_gross_forward >= d_gross, "underfunded: {d_gross_forward} < {d_gross}");
+	assert!(d_gross_forward - d_gross <= 1);
+}
+
+#[test]
+fn calculate_buy_state_changes_should_charge_capped_slip_on_both_sides_when_both_caps_bind() {
+	let in_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let max = Permill::from_percent(1);
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: max,
+	};
+	let amount = 20_000 * UNIT;
+
+	let r = calculate_buy_state_changes(
+		&in_state,
+		&out_state,
+		amount,
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	)
+	.unwrap();
+
+	let u = match r.asset_in.delta_hub_reserve {
+		BalanceUpdate::Decrease(v) => v,
+		_ => panic!("expected Decrease"),
+	};
+	let total_pf = r.fee.protocol_fee;
+	// pf=0, so total_pf = slip_sell + slip_buy. slip_sell = max·u, slip_buy = max·d_gross_forward.
+	let slip_sell_expected = max.mul_floor(u);
+	assert!(total_pf > slip_sell_expected);
+	let slip_buy_actual = total_pf - slip_sell_expected;
+	let d_gross_forward = u - slip_sell_expected;
+	assert_eq!(slip_buy_actual, max.mul_floor(d_gross_forward));
+}
+
+#[test]
+fn calculate_buy_state_changes_should_not_charge_capped_slip_when_caps_do_not_bind() {
+	let in_state = AssetReserveState {
+		reserve: 1_000_000_000 * UNIT,
+		hub_reserve: 1_000_000_000 * UNIT,
+		shares: 1_000_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let out_state = in_state.clone();
+	let max = Permill::from_percent(1);
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: max,
+	};
+	let amount = UNIT;
+
+	let r = calculate_buy_state_changes(
+		&in_state,
+		&out_state,
+		amount,
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	)
+	.unwrap();
+	let u = match r.asset_in.delta_hub_reserve {
+		BalanceUpdate::Decrease(v) => v,
+		_ => unreachable!(),
+	};
+	let total_pf = r.fee.protocol_fee;
+
+	let cap_binding_total = max.mul_floor(u) + max.mul_floor(u);
+	assert!(total_pf < cap_binding_total / 100);
+}
+
+// Guards that `calculate_buy_for_hub_asset_state_changes` actually feeds
+// `slip.max_slip_fee` into the buy-side inversion. Substituting a fixed
+// `Permill::one()`/200% there stops the cap binding, so the slip fee jumps from
+// the capped value to the (≈2x larger) uncapped one — caught below.
+#[test]
+fn calculate_buy_for_hub_asset_should_charge_exactly_capped_slip_when_cap_binds() {
+	let asset_out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let amount = 20_000 * UNIT;
+	let max = Permill::from_percent(1);
+	let slip = HubTradeSlipFees {
+		asset_hub_reserve: asset_out_state.hub_reserve,
+		asset_delta: SignedBalance::zero(),
+		max_slip_fee: max,
+	};
+
+	let r = calculate_buy_for_hub_asset_state_changes(&asset_out_state, amount, Permill::zero(), Some(&slip))
+		.expect("hub-asset buy should succeed");
+
+	let d_gross = match r.asset.delta_hub_reserve {
+		BalanceUpdate::Increase(v) => v,
+		_ => panic!("expected Increase for hub reserve"),
+	};
+	let slip_fee = r.fee.protocol_fee;
+	assert!(slip_fee > 0, "cap regime must charge a non-zero slip fee");
+
+	// Recomputing the forward slip from the returned D_gross confirms the trade
+	// is genuinely in the capped regime (uncapped rate exceeds the 1% cap).
+	let forward_slip = calculate_slip_fee_amount(
+		slip.asset_hub_reserve,
+		slip.asset_delta,
+		SignedBalance::Positive(d_gross),
+		max,
+		d_gross,
+	)
+	.unwrap();
+	assert!(
+		cap_fired(forward_slip, d_gross, max),
+		"trade must be in the capped regime"
+	);
+
+	// The charged slip equals the capped value (modulo the inversion's
+	// double-flooring). The uncapped value would be ~2x this — far outside MAX_OVERSHOOT.
+	let capped = max.mul_floor(d_gross);
+	assert!(
+		slip_fee.abs_diff(capped) <= MAX_OVERSHOOT,
+		"charged slip {slip_fee} must match capped value {capped}",
+	);
+}
+
+#[test]
+fn calculate_buy_for_hub_asset_slip_fee_should_scale_with_max_slip_fee() {
+	let asset_out_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let amount = 20_000 * UNIT;
+
+	let fee_at = |max: Permill| {
+		let slip = HubTradeSlipFees {
+			asset_hub_reserve: asset_out_state.hub_reserve,
+			asset_delta: SignedBalance::zero(),
+			max_slip_fee: max,
+		};
+		calculate_buy_for_hub_asset_state_changes(&asset_out_state, amount, Permill::zero(), Some(&slip))
+			.unwrap()
+			.fee
+			.protocol_fee
+	};
+
+	// Both caps bind (uncapped rate ≈ 2%). If `max_slip_fee` were ignored, both
+	// calls would return the same uncapped fee and this strict ordering would break.
+	let half_pct = fee_at(Permill::from_rational(5u32, 1000u32));
+	let one_pct = fee_at(Permill::from_percent(1));
+	assert!(
+		half_pct < one_pct,
+		"lower cap must charge less slip: {half_pct} !< {one_pct}"
+	);
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_max_slip_fee_is_zero() {
+	let asset_in_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = asset_in_state.clone();
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::zero(),
+	};
+
+	assert_buy_round_trip(
+		&asset_in_state,
+		&asset_out_state,
+		20_000 * UNIT,
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	);
+
+	// max_slip_fee == 0 caps slip to zero on both legs; with no protocol/burn fee
+	// the trade incurs no protocol fee at all.
+	let r = calculate_buy_state_changes(
+		&asset_in_state,
+		&asset_out_state,
+		20_000 * UNIT,
+		Permill::zero(),
+		Permill::zero(),
+		Permill::zero(),
+		Some(&slip),
+	)
+	.unwrap();
+	assert_eq!(r.fee.protocol_fee, 0, "zero slip cap must charge zero slip");
+}
+
+#[test]
+fn calculate_buy_should_round_trip_when_max_slip_fee_is_99_percent() {
+	// A 99% cap is effectively unreachable for sane trades — this exercises the
+	// uncapped path with a near-maximal cap to confirm no boundary surprises.
+	let asset_in_state = AssetReserveState {
+		reserve: 1_000_000 * UNIT,
+		hub_reserve: 1_000_000 * UNIT,
+		shares: 1_000_000 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = asset_in_state.clone();
+	let slip = TradeSlipFees {
+		asset_in_hub_reserve: asset_in_state.hub_reserve,
+		asset_in_delta: SignedBalance::zero(),
+		asset_out_hub_reserve: asset_out_state.hub_reserve,
+		asset_out_delta: SignedBalance::zero(),
+		max_slip_fee: Permill::from_percent(99),
+	};
+
+	for amount in [UNIT, 1_000 * UNIT, 50_000 * UNIT, 100_000 * UNIT] {
+		assert_buy_round_trip(
+			&asset_in_state,
+			&asset_out_state,
+			amount,
+			Permill::zero(),
+			Permill::zero(),
+			Permill::zero(),
+			Some(&slip),
+		);
+	}
+}

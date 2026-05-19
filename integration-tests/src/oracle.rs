@@ -53,8 +53,8 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 
 const HDX: AssetId = CORE_ASSET_ID;
 
-pub(crate) const SUPPORTED_PERIODS: &[OraclePeriod] = &[LastBlock, Short, TenMinutes];
-const UNSUPPORTED_PERIODS: &[OraclePeriod] = &[Hour, Day, Week];
+pub(crate) const SUPPORTED_PERIODS: &[OraclePeriod] = &[LastBlock, Short, TenMinutes, Day];
+const UNSUPPORTED_PERIODS: &[OraclePeriod] = &[Hour, Week];
 
 #[ignore]
 #[test]
@@ -192,6 +192,11 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 			331509049407129600017073813722130790u128,
 		);
 
+		let hdx_lrna_day = Price::new(
+			275912650768799219879113001497259577106u128,
+			331509049407129600017073813722130790u128,
+		);
+
 		let hdx_lrna_last_block = Price::new(936334588000000000u128, 1124993995517813u128);
 
 		let lrna_dot_short = Price::new(
@@ -201,6 +206,11 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 
 		let lrna_dot_ten_minutes = Price::new(
 			264175035630151730654534455921460486402u128,
+			10299220574157342235602475141589164734u128,
+		);
+
+		let lrna_dot_day = Price::new(
+			264175007922830891611965686383394568966u128,
 			10299220574157342235602475141589164734u128,
 		);
 
@@ -215,6 +225,7 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 					updates: BTreeMap::from([
 						(Short, hdx_lrna_short),
 						(TenMinutes, hdx_lrna_ten_minutes),
+						(Day, hdx_lrna_day),
 						(LastBlock, hdx_lrna_last_block),
 					]),
 				}),
@@ -224,6 +235,7 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 					updates: BTreeMap::from([
 						(Short, lrna_dot_short),
 						(TenMinutes, lrna_dot_ten_minutes),
+						(Day, lrna_dot_day),
 						(LastBlock, lrna_dot_last_block),
 					]),
 				}),
