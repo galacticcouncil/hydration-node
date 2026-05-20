@@ -80,7 +80,6 @@ pub mod pallet {
 	use frame_support::sp_runtime::traits::{AccountIdConversion, CheckedAdd};
 	use frame_support::sp_runtime::{ArithmeticError, Rounding};
 	use frame_support::traits::fungibles::Mutate as FungiblesMutate;
-	use frame_support::traits::tokens::imbalance::Imbalance;
 	use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 	use frame_support::traits::{
 		fungibles, Currency, ExistenceRequirement, LockIdentifier, LockableCurrency, WithdrawReasons,
@@ -956,9 +955,7 @@ pub mod pallet {
 				// `SeizeFailed` revert.
 				debug_assert!(
 					seize_gigahdx <= orig_gigahdx,
-					"on_seize: seize_gigahdx ({:?}) exceeds orig_gigahdx snapshot ({:?})",
-					seize_gigahdx,
-					orig_gigahdx,
+					"on_seize: seize_gigahdx ({seize_gigahdx:?}) exceeds orig_gigahdx snapshot ({orig_gigahdx:?})",
 				);
 				let residual_borrower_gigahdx =
 					orig_gigahdx.checked_sub(seize_gigahdx).ok_or(Error::<T>::SeizeFailed)?;

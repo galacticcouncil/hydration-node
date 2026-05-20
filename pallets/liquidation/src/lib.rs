@@ -396,8 +396,7 @@ impl<T: Config> Pallet<T> {
 		let realize_yield_result = T::GigaHdx::realize_yield(&borrower);
 		debug_assert!(
 			realize_yield_result.is_ok(),
-			"liquidate_gigahdx: realize_yield failed unexpectedly: {:?}",
-			realize_yield_result,
+			"liquidate_gigahdx: realize_yield failed unexpectedly: {realize_yield_result:?}",
 		);
 		realize_yield_result.map_err(|_| Error::<T>::RealizeYieldFailed)?;
 
