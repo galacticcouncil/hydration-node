@@ -5780,7 +5780,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "420.0.0"
+version = "422.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5859,10 +5859,13 @@ dependencies = [
  "pallet-evm-precompile-call-permit",
  "pallet-evm-precompile-dispatch",
  "pallet-evm-precompile-flash-loan",
+ "pallet-evm-precompile-lock-manager",
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
  "pallet-fee-processor",
  "pallet-genesis-history",
+ "pallet-gigahdx",
+ "pallet-gigahdx-rewards",
  "pallet-hsm",
  "pallet-identity",
  "pallet-lbp",
@@ -5942,7 +5945,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.7.1"
+version = "4.9.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9622,6 +9625,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-evm-precompile-lock-manager"
+version = "1.0.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "log",
+ "num_enum",
+ "pallet-evm",
+ "pallet-gigahdx",
+ "parity-scale-codec",
+ "precompile-utils",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-evm-precompile-modexp"
 version = "2.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2506#beba745d94f4e368adee4a4cddc014155fdbb5c7"
@@ -9692,6 +9714,53 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-gigahdx"
+version = "0.1.3"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "parity-scale-codec",
+ "primitives",
+ "proptest",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-gigahdx-rewards"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-conviction-voting",
+ "pallet-gigahdx",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -9834,7 +9903,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "2.4.2"
+version = "2.5.0"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -12860,7 +12929,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "6.3.0"
+version = "6.4.0"
 dependencies = [
  "frame-support",
  "hex-literal",
@@ -13888,6 +13957,8 @@ dependencies = [
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
  "pallet-fee-processor",
+ "pallet-gigahdx",
+ "pallet-gigahdx-rewards",
  "pallet-hsm",
  "pallet-im-online",
  "pallet-lbp",

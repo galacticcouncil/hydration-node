@@ -273,3 +273,44 @@ fn stake_should_not_work_when_tokens_are_vestred() {
 			);
 		});
 }
+
+#[test]
+fn stake_should_fail_when_any_external_claim_present() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE)])
+		.with_initialized_staking()
+		.start_at_block(1_452_987)
+		.build()
+		.execute_with(|| {
+			// Even a tiny external claim refuses the stake outright.
+			TestExternalClaims::set(1);
+
+			assert_noop!(
+				Staking::stake(RuntimeOrigin::signed(ALICE), 50 * ONE),
+				Error::<Test>::BlockedByExternalLock
+			);
+
+			// Clearing the claim lets the same stake succeed.
+			TestExternalClaims::reset();
+			assert_ok!(Staking::stake(RuntimeOrigin::signed(ALICE), 50 * ONE));
+		});
+}
+
+#[test]
+fn increase_stake_should_fail_when_any_external_claim_present() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 200 * ONE)])
+		.with_initialized_staking()
+		.start_at_block(1_452_987)
+		.with_stakes(vec![(ALICE, 50 * ONE, 1_452_987, 0)])
+		.build()
+		.execute_with(|| {
+			TestExternalClaims::set(1);
+			let position_id = Staking::get_user_position_id(&ALICE).unwrap().unwrap();
+
+			assert_noop!(
+				Staking::increase_stake(RuntimeOrigin::signed(ALICE), position_id, 10 * ONE),
+				Error::<Test>::BlockedByExternalLock
+			);
+		});
+}
