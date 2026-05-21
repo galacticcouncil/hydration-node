@@ -22,7 +22,7 @@ use frame_support::{assert_noop, assert_ok};
 pub use pretty_assertions::assert_eq;
 
 #[test]
-fn partially_redeem_bonds_should_work_when_fee_is_zero() {
+fn partially_redeem_bonds_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
 		let maturity = NOW + MONTH;
@@ -54,8 +54,6 @@ fn partially_redeem_bonds_should_work_when_fee_is_zero() {
 		);
 		assert_eq!(Tokens::free_balance(bond_id, &ALICE), amount - redeem_amount);
 
-		assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), 0);
-
 		assert_eq!(
 			Tokens::free_balance(HDX, &Bonds::pallet_account_id()),
 			amount - redeem_amount
@@ -64,57 +62,7 @@ fn partially_redeem_bonds_should_work_when_fee_is_zero() {
 }
 
 #[test]
-fn partially_redeem_bonds_should_work_when_fee_is_non_zero() {
-	ExtBuilder::default()
-		.with_protocol_fee(Permill::from_percent(10))
-		.build()
-		.execute_with(|| {
-			// Arrange
-			let maturity = NOW + MONTH;
-			let amount = ONE;
-			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
-			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
-			let redeem_amount = amount_without_fee.checked_div(4).unwrap();
-
-			let bond_id = next_asset_id();
-			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
-
-			Timestamp::set_timestamp(NOW + 2 * MONTH);
-
-			// Act
-			assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount));
-
-			// Assert
-			expect_events(vec![Event::Redeemed {
-				who: ALICE,
-				bond_id,
-				amount: redeem_amount,
-			}
-			.into()]);
-
-			assert_eq!(Bonds::bond(bond_id), Some((HDX, maturity)));
-			assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
-
-			assert_eq!(
-				Tokens::free_balance(HDX, &ALICE),
-				INITIAL_BALANCE - amount + redeem_amount
-			);
-			assert_eq!(
-				Tokens::free_balance(bond_id, &ALICE),
-				amount_without_fee - redeem_amount
-			);
-
-			assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), fee);
-
-			assert_eq!(
-				Tokens::free_balance(HDX, &Bonds::pallet_account_id()),
-				amount_without_fee - redeem_amount
-			);
-		});
-}
-
-#[test]
-fn fully_redeem_bonds_should_work_when_fee_is_zero() {
+fn fully_redeem_bonds_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
 		let maturity = NOW + MONTH;
@@ -142,50 +90,8 @@ fn fully_redeem_bonds_should_work_when_fee_is_zero() {
 		assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE);
 		assert_eq!(Tokens::free_balance(bond_id, &ALICE), 0);
 
-		assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), 0);
-
 		assert_eq!(Tokens::free_balance(HDX, &Bonds::pallet_account_id()), 0);
 	});
-}
-
-#[test]
-fn fully_redeem_bonds_should_work_when_fee_is_non_zero() {
-	ExtBuilder::default()
-		.with_protocol_fee(Permill::from_percent(10))
-		.build()
-		.execute_with(|| {
-			// Arrange
-			let maturity = NOW + MONTH;
-			let amount = ONE;
-			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
-			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
-
-			let bond_id = next_asset_id();
-			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
-
-			Timestamp::set_timestamp(NOW + 2 * MONTH);
-
-			// Act
-			assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, amount_without_fee));
-
-			// Assert
-			expect_events(vec![Event::Redeemed {
-				who: ALICE,
-				bond_id,
-				amount: amount_without_fee,
-			}
-			.into()]);
-
-			assert!(crate::Bonds::<Test>::contains_key(bond_id));
-			assert!(crate::BondIds::<Test>::contains_key((HDX, maturity)));
-
-			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - fee);
-			assert_eq!(Tokens::free_balance(bond_id, &ALICE), 0);
-
-			assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), fee);
-
-			assert_eq!(Tokens::free_balance(HDX, &Bonds::pallet_account_id()), 0);
-		});
 }
 
 #[test]
@@ -222,8 +128,6 @@ fn redeem_bonds_should_work_when_redeemed_from_non_issuer_account() {
 
 		assert_eq!(Tokens::free_balance(HDX, &BOB), redeem_amount);
 		assert_eq!(Tokens::free_balance(bond_id, &BOB), 0);
-
-		assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), 0);
 
 		assert_eq!(
 			Tokens::free_balance(HDX, &Bonds::pallet_account_id()),

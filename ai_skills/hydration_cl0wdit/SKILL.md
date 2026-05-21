@@ -8,6 +8,19 @@ allowed-tools: Read, Glob, Grep, WebFetch, Bash, Agent
 
 You are the orchestrator of a parallelized security audit of a Substrate runtime and/or its pallets.
 
+## Codex compatibility
+
+This skill is shared across agent environments. If you are running in Codex, map the Claude-oriented tool names as follows:
+
+- `Read` -> `sed`, `rg`, or other file-read commands.
+- `Glob` -> `rg --files` or `find`.
+- `Grep` -> `rg`.
+- `Bash` -> `exec_command`.
+- `WebFetch` -> the web tool, or `curl` only when shell network access is available.
+- `Agent` -> Codex sub-agents, following the active Codex environment policy for agent spawning. If sub-agents are unavailable or disallowed in the current environment, run a reduced local review or ask the user how to proceed.
+
+The banner and four-turn orchestration apply only when the user requests an audit run. They do not apply when the user asks to inspect, update, or explain this skill.
+
 ## Mode Selection
 
 **Exclude pattern:** skip directories `tests/`, `benchmarking/`, `mock/` and files matching `*test*.rs`, `*mock*.rs`, `*bench*.rs`.
@@ -18,7 +31,7 @@ You are the orchestrator of a parallelized security audit of a Substrate runtime
 **Flags:**
 
 - `--pr <ref>`: Audit a specific pull request. `<ref>` can be a PR number or a full GitHub PR URL. Do NOT use `gh` — fetch PR data via `WebFetch` against the GitHub API (`https://api.github.com/repos/{owner}/{repo}/pulls/{number}/files`). Parse the response for changed `.rs` files.
-- `--file-output` (off by default): also write the report to a markdown file (path per `{resolved_path}/report-formatting.md`). Never write a report file unless explicitly passed.
+- `--file-output` (off by default): also write the report to a markdown file at the path specified by `{resolved_path}/report-formatting.md`. Never write a report file unless explicitly passed.
 
 ## Orchestration
 
@@ -29,7 +42,7 @@ a. Discover in-scope `.rs` files per mode selection:
    - **With `--pr`:** Use `WebFetch` to call `https://api.github.com/repos/{owner}/{repo}/pulls/{number}/files` (extract owner/repo from the git remote or the provided URL). Parse the JSON response for changed `.rs` files, then split them into production vs test/bench/mock lists using the same patterns. Do NOT use `gh`.
 b. Glob for `**/references/attack-vectors/substrate-attack-vectors.md` — extract the `references/` directory (two levels up) as `{resolved_path}`
 c. Read the local `VERSION` file from the same directory as this skill
-d. Bash `curl -sf https://raw.githubusercontent.com/galacticcouncil/hydration-node/main/.claude/skills/hydration_cl0wdit/VERSION`
+d. Fetch `https://raw.githubusercontent.com/galacticcouncil/hydration-node/main/ai_skills/hydration_cl0wdit/VERSION` (`Bash curl -sf` in Claude; web tool in Codex when shell network is restricted)
 e. Bash `mktemp -d /tmp/audit-XXXXXX` → store as `{bundle_dir}`
 
 If the remote VERSION fetch succeeds and differs from local, print `⚠ hydration_cl0wdit v{local} is outdated — a newer version is available in the repo`. If it fails, skip silently.
@@ -59,7 +72,7 @@ Every hacking agent (1–10) receives the full production codebase via `source.m
 
 Print line counts for every bundle and `source.md`. Do NOT inline file content into agent prompts.
 
-**Turn 3 — Spawn.** In one message, spawn all 11 agents as parallel foreground Agent calls. Prompt template (substitute real values):
+**Turn 3 — Spawn.** In one message, spawn all 11 agents as parallel audit workers (Claude: foreground Agent calls; Codex: sub-agents). Prompt template (substitute real values):
 
 ```
 Your bundle file is {bundle_dir}/agent-N-bundle.md (XXXX lines).

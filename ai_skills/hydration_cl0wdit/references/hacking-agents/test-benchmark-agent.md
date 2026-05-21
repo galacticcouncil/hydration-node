@@ -13,6 +13,7 @@ You ONLY examine test, benchmark, and mock files — the inverse of what the vec
 ## Workflow
 
 1. Read your bundle file in **parallel 1000-line chunks** on your first turn. The line count is in your prompt — compute the offsets and issue all Read calls at once. Do NOT read without a limit. These are your ONLY file reads — do NOT read any other file after this step.
+   If your environment does not have a `Read` tool with offset/limit parameters, use the closest bounded file-read equivalent, such as `sed -n '<start>,<end>p'`, and parallelize those bounded reads when possible.
 2. **Map production dispatchables.** From the production code summary in your bundle, extract every `#[pallet::call]` dispatchable, every hook (`on_initialize`, `on_finalize`, `on_idle`, `on_runtime_upgrade`), and every public function that mutates storage. This is your coverage checklist.
 3. **Test coverage audit.** For each dispatchable/hook on the checklist:
    - **Present:** test exists → check if it covers: (a) happy path, (b) error/revert path, (c) edge cases (zero amounts, max values, empty collections, boundary conditions).
