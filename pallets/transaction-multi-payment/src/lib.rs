@@ -194,15 +194,8 @@ pub mod pallet {
 			destination_account_id: T::AccountId,
 		},
 
-		/// Signed-branch sponsorship marker. `sponsored_fee` is the
-		/// weight-derived Substrate fee; the EVM-side gas is in the
-		/// `pallet_evm` events. Join with `TransactionFeePaid` for the
-		/// exact amount.
-		FeeSponsored {
-			from: H160,
-			fee_payer: T::AccountId,
-			sponsored_fee: BalanceOf<T>,
-		},
+		/// Signed-branch dispatch permit fee payer
+		FeeSponsored { from: H160, fee_payer: T::AccountId },
 	}
 
 	#[pallet::error]
@@ -532,13 +525,7 @@ pub mod pallet {
 
 			match result {
 				Ok(_) => {
-					let declared = <T as Config>::EvmPermit::dispatch_weight(gas_limit).saturating_mul(2);
-					let sponsored_fee: BalanceOf<T> = <T as pallet::Config>::WeightToFee::weight_to_fee(&declared);
-					Self::deposit_event(Event::<T>::FeeSponsored {
-						from,
-						fee_payer: signer,
-						sponsored_fee,
-					});
+					Self::deposit_event(Event::<T>::FeeSponsored { from, fee_payer: signer });
 					Ok(().into())
 				}
 				Err(e) => {
