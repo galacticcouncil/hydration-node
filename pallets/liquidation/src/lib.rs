@@ -297,12 +297,18 @@ pub mod pallet {
 		) -> DispatchResult {
 			log::trace!(target: "liquidation","liquidating debt asset: {debt_asset:?} for amount: {debt_to_cover:?}");
 
-			if collateral_asset == T::GigaHdx::gigahdx_asset_id() {
+			if collateral_asset == T::GigaHdx::gigahdx_asset_id()
+				|| collateral_asset == T::GigaHdx::sthdx_asset_id()
+			{
 				// Protocol-funded gigahdx liquidation: treasury borrows HOLLAR,
 				// repays the borrower's debt via Aave's liquidationCall with
 				// `receiveAToken=true`, then matching HDX is seized from the
 				// borrower's substrate wallet and re-locked under the
 				// liquidation account. `route` is unused on this path.
+				// Accept BOTH the GIGAHDX aToken id (67) and the stHDX
+				// underlying id (670): PEPL's `address_to_asset` resolves the
+				// reserve's underlying address (= stHDX), and tests/direct
+				// callers may use either; both refer to the same position.
 				let _ = route;
 				return Self::liquidate_gigahdx(debt_asset, user, debt_to_cover);
 			}

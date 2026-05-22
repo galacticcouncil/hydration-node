@@ -344,7 +344,9 @@ use sp_state_machine::TrieBackendBuilder;
 use sp_trie::{HashDBT, PrefixedMemoryDB};
 
 const PAGE_SIZE: u32 = 1000; //Limiting as bigger values lead to error when calling PROD RPCs
-const CONCURRENCY: usize = 1000;
+// Fork-test: 1000 trips lark's Subway WS proxy on big scrapes (>50K keys).
+// 50 is slower but reliable. See .claude/gigahdx-liquidation-test.md gotcha #1.
+const CONCURRENCY: usize = 50;
 
 const ESTIMATED_TOTAL_KEYS: u64 = 350_000;
 

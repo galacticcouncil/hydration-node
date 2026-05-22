@@ -215,8 +215,15 @@ pub struct GigaHdxLiquidationAccount;
 
 impl sp_core::Get<AccountId> for GigaHdxLiquidationAccount {
 	fn get() -> AccountId {
-		use frame_support::sp_runtime::traits::AccountIdConversion;
-		frame_support::PalletId(*b"gigaliq!").into_account_truncating()
+		// FORK-TEST: return //Bob (H160-prefixed AccountId32) so the
+		// `T::EvmAccounts::account_id(liq_evm) == liq_account` check passes
+		// without binding. PalletId-derived accounts are NOT H160-prefixed,
+		// so substrate↔EVM round-trip returns a different account and the
+		// LiquidationAccountNotBound check fires. DO NOT SHIP — see
+		// .claude/gigahdx-liquidation-test.md gotcha #11.
+		sp_runtime::AccountId32::from(hex_literal::hex!(
+			"8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"
+		))
 	}
 }
 
