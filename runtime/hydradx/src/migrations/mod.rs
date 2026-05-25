@@ -15,6 +15,7 @@
 
 use crate::Runtime;
 
+pub mod conviction_voting;
 pub mod scheduler;
 
 // New migrations which need to be cleaned up after every Runtime upgrade
@@ -23,6 +24,7 @@ pub type UnreleasedSingleBlockMigrations = (
 	pallet_staking::migrations::SetTwoSecBlocksSince<Runtime>,
 	pallet_dca::migrations::MultiplySchedulesPeriodBy3<Runtime>,
 	scheduler::MigrateSchedulerTo2sBlocks<Runtime>,
+	conviction_voting::MigrateConvictionVotingTo2sBlocks<Runtime>,
 );
 
 // These migrations can run on every runtime upgrade
