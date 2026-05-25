@@ -661,7 +661,7 @@ where
 
 impl pallet_ema_oracle::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EconomicParameters>;
-	/// The definition of the oracle time periods currently assumes a 6 second block time.
+	/// The definition of the oracle time periods currently assumes a 2 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
 	type BlockNumberProvider = System;
