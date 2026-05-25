@@ -603,18 +603,6 @@ fn start_consensus(
 	let client_for_aura = client.clone();
 	let params = SlotBasedParams {
 		create_inherent_data_providers: move |_, ()| async move { Ok(()) },
-		// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
-		// create_inherent_data_providers: move |parent, ()| {
-		// 	let client = client_clone.clone();
-		// 	let relay_chain_interface = relay_chain_interface_clone.clone();
-		// 	async move {
-		// 		let inherent =
-		// 			ismp_parachain_inherent::ConsensusInherentProvider::create(parent, client, relay_chain_interface)
-		// 				.await?;
-		//
-		// 		Ok(inherent)
-		// 	}
-		// },
 		block_import,
 		para_client: client.clone(),
 		para_backend: backend.clone(),

@@ -298,11 +298,11 @@ fn unified_event_context_should_be_cleared_when_error_happens_in_xcm_prepare() {
 
 	// Act
 	Acala::execute_with(|| {
-		//We make a big xcm so it results in error
-		const ARRAY_REPEAT_VALUE: cumulus_primitives_core::Instruction<()> =
-			cumulus_primitives_core::Instruction::RefundSurplus;
-		let message: cumulus_primitives_core::Xcm<()> =
-			cumulus_primitives_core::Xcm([ARRAY_REPEAT_VALUE; 10000].to_vec());
+		let message = Xcm(vec![Transact {
+			fallback_max_weight: None,
+			origin_kind: OriginKind::SovereignAccount,
+			call: vec![0xff].into(),
+		}]);
 
 		let dest_hydradx = Location::new(1, [cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]);
 

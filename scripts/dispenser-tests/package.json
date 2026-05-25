@@ -14,7 +14,6 @@
       "**/*.test.ts"
     ]
   },
-  "type": "module",
   "dependencies": {
     "@polkadot/api": "latest",
     "@polkadot/keyring": "^12.6.2",

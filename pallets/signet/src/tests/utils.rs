@@ -1,4 +1,4 @@
-use crate::{tests::MaxChainIdLength, AffinePoint, ErrorResponse, Signature};
+use crate::{AffinePoint, ErrorResponse, Signature};
 use sp_core::ConstU32;
 use sp_runtime::BoundedVec;
 
@@ -15,10 +15,6 @@ pub fn bounded_sig<const N: u32>(v: Vec<Signature>) -> BoundedVec<Signature, Con
 }
 
 pub fn bounded_err<const N: u32>(v: Vec<ErrorResponse>) -> BoundedVec<ErrorResponse, ConstU32<N>> {
-	BoundedVec::try_from(v).unwrap()
-}
-
-pub fn bounded_chain_id(v: Vec<u8>) -> BoundedVec<u8, MaxChainIdLength> {
 	BoundedVec::try_from(v).unwrap()
 }
 

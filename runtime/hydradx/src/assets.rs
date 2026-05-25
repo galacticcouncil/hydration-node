@@ -18,7 +18,7 @@
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
-use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
+use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin, Treasurer};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
@@ -36,7 +36,7 @@ use frame_support::{
 	},
 	BoundedVec, PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use frame_system::{EnsureRoot, RawOrigin};
 use hydradx_adapters::{
 	stableswap_peg_oracle::PegOracle, AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT,
 	MultiCurrencyLockedBalance, OmnipoolHookAdapter, OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider,
@@ -429,7 +429,7 @@ impl pallet_currencies::Config for Runtime {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeAssetId;
 	type RegistryInspect = AssetRegistry;
-	type EgressHandler = circuit_breaker::WithdrawLimitHandler<NativeAssetId>;
+	type EgressHandler = circuit_breaker::WithdrawLimitHandler;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
 
@@ -633,7 +633,8 @@ impl pallet_circuit_breaker::Config for Runtime {
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<{ pallet_ema_oracle::MAX_PERIODS }>> = BoundedVec::truncate_from(vec![
-		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes, OraclePeriod::Day,
+	]);
 	// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
 	pub BifrostAccount: AccountId = hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into();
 }
@@ -929,6 +930,11 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 		let errors: Vec<DispatchError> = vec![
 			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
 			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
+			// Off-by-one rounding on aToken balanceOf can trip the omnipool's
+			// pre-trade ensure_can_withdraw. Retry on a later block — the aave
+			// liquidity index is timestamp-dependent, so the rounding boundary
+			// shifts and a later attempt may pass.
+			pallet_omnipool::Error::<Runtime>::InsufficientBalance.into(),
 			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
 			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];
@@ -1566,14 +1572,16 @@ impl pallet_stableswap::Config for Runtime {
 
 // Bonds
 parameter_types! {
-	pub ProtocolFee: Permill = Permill::from_percent(2);
 	pub const BondsPalletId: PalletId = PalletId(*b"pltbonds");
 }
 
 pub struct AssetTypeWhitelist;
 impl Contains<AssetKind> for AssetTypeWhitelist {
 	fn contains(t: &AssetKind) -> bool {
-		matches!(t, AssetKind::Token | AssetKind::XYK | AssetKind::StableSwap)
+		matches!(
+			t,
+			AssetKind::Token | AssetKind::XYK | AssetKind::StableSwap | AssetKind::Erc20
+		)
 	}
 }
 
@@ -1584,10 +1592,9 @@ impl pallet_bonds::Config for Runtime {
 	type ExistentialDeposits = AssetRegistry;
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
-	type IssueOrigin = EnsureSigned<AccountId>;
+	type IssueOrigin = EitherOf<EnsureRoot<Self::AccountId>, Treasurer>;
+	type IssuerAccount = TreasuryAccount;
 	type AssetTypeWhitelist = AssetTypeWhitelist;
-	type ProtocolFee = ProtocolFee;
-	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = weights::pallet_bonds::HydraWeight<Runtime>;
 }
 
@@ -1622,10 +1629,6 @@ impl GetByKey<FixedU128, Point> for StakingMinSlash {
 	}
 }
 
-parameter_types! {
-	pub const MaxVotes: u32 = 25;
-}
-
 impl pallet_staking::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
@@ -1646,7 +1649,7 @@ impl pallet_staking::Config for Runtime {
 	type NFTCollectionId = ConstU128<2222>;
 	type Collections = FreezableNFT<Runtime, Self::RuntimeOrigin>;
 	type NFTHandler = Uniques;
-	type MaxVotes = MaxVotes;
+	type MaxVotes = governance::MaxVotes;
 	type ReferendumInfo = pallet_staking::integrations::conviction_voting::DirectReferendumStatus<Runtime>;
 	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
@@ -1656,6 +1659,12 @@ impl pallet_staking::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxLocks = MaxLocks;
 }
+
+//Make sure staking and conviction voting are using same `MaxVotes` value
+static_assertions::const_assert_eq!(
+	<Runtime as pallet_staking::Config>::MaxVotes::get(),
+	<Runtime as pallet_conviction_voting::Config>::MaxVotes::get()
+);
 
 // LBP
 pub struct AssetPairAccountId<T: frame_system::Config>(PhantomData<T>);
@@ -1833,30 +1842,19 @@ impl pallet_hsm::Config for Runtime {
 
 parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
-	pub const MaxChainIdLength: u32 = 128;
-
-	pub const MaxEvmDataLength: u32 = 100_000;
-	pub const MaxSignatureDeposit: Balance = 200_000_000_000_000;
 }
 
 impl pallet_signet::Config for Runtime {
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
-	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
-	type MaxDataLength = MaxEvmDataLength;
-	type UpdateOrigin = EnsureRoot<AccountId>;
-	type MaxSignatureDeposit = MaxSignatureDeposit;
+	type UpdateOrigin = EitherOf<EnsureRoot<AccountId>, TechCommitteeMajority>;
 }
 
 parameter_types! {
 	pub const SigEthPalletId: PalletId = PalletId(*b"py/fucet");
-	pub const SigEthFaucetDispenserFee: u128 = 5_000;
-	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000_000_000_000;
-	pub const SigEthFaucetMinRequest: u64 = 0;
 	pub const SigEthFaucetFeeAssetId: AssetId = 0;
 	pub const SigEthFaucetFaucetAssetId: AssetId = 20;
-	pub const SigEthMinFaucetThreshold: u128 = 50_000_000_000_000_000u128;
 }
 
 // Treasury as the fee receiver (reuses the Treasury pallet account)
@@ -1867,26 +1865,52 @@ impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
 	}
 }
 
-pub struct SigEthFaucetContractAddr;
-impl frame_support::traits::Get<EvmAddress> for SigEthFaucetContractAddr {
-	fn get() -> EvmAddress {
-		// 0x189d33ea9A9701fdb67C21df7420868193dcf578
-		EvmAddress::from(hex_literal::hex!("189d33ea9A9701fdb67C21df7420868193dcf578"))
-	}
-}
-
 impl pallet_dispenser::Config for Runtime {
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type Currency = FungibleCurrencies<Runtime>;
-	type MinimumRequestAmount = SigEthFaucetMinRequest;
-	type MaxDispenseAmount = SigEthFaucetMaxDispense;
-	type DispenserFee = SigEthFaucetDispenserFee;
 	type FeeAsset = SigEthFaucetFeeAssetId;
 	type FaucetAsset = SigEthFaucetFaucetAssetId;
 	type FeeDestination = SigEthFaucetTreasuryAccount;
-	type FaucetAddress = SigEthFaucetContractAddr;
 	type PalletId = SigEthPalletId;
-	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = DispenserBenchmarkHelper;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct DispenserBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_dispenser::BenchmarkHelper<AccountId> for DispenserBenchmarkHelper {
+	fn register_asset(asset_id: AssetId, min_balance: Balance) -> DispatchResult {
+		if <AssetRegistry as hydradx_traits::registry::Inspect>::exists(asset_id) {
+			return Ok(());
+		}
+		let name: BoundedVec<u8, RegistryStrLimit> = asset_id
+			.to_le_bytes()
+			.to_vec()
+			.try_into()
+			.map_err(|_| DispatchError::Other("BoundedConversionFailed"))?;
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				Some(asset_id),
+				Some(name),
+				AssetKind::Token,
+				min_balance,
+				None,
+				None,
+				None,
+				None,
+			))
+		})?;
+		Ok(())
+	}
+
+	fn mint(asset_id: AssetId, who: &AccountId, amount: Balance) -> DispatchResult {
+		use frame_support::traits::fungibles::Mutate;
+		<FungibleCurrencies<Runtime> as Mutate<AccountId>>::mint_into(asset_id, who, amount)?;
+		Ok(())
+	}
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);

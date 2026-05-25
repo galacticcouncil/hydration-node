@@ -785,6 +785,27 @@ pub fn expect_hydra_events(event: Vec<hydradx_runtime::RuntimeEvent>) {
 	}
 }
 
+pub fn get_trapped_amount(trapped_event: &hydradx_runtime::RuntimeEvent) -> u128 {
+	use polkadot_xcm::v5::{Assets as MultiAssets, Fungibility};
+
+	if let hydradx_runtime::RuntimeEvent::PolkadotXcm(pallet_xcm::Event::AssetsTrapped { assets, .. }) = trapped_event {
+		let v5_assets: MultiAssets = assets
+			.clone()
+			.try_into()
+			.expect("trapped assets should be convertible to v5 MultiAssets; qed");
+		let asset = v5_assets
+			.into_inner()
+			.into_iter()
+			.next()
+			.expect("at least one trapped asset; qed");
+		if let Fungibility::Fungible(amount) = asset.fun {
+			return amount;
+		}
+		panic!("Trapped asset is not fungible");
+	}
+	panic!("No trapped asset");
+}
+
 use frame_support::traits::OnFinalize;
 
 pub fn go_to_block(number: BlockNumber) {

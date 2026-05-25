@@ -6,6 +6,8 @@ use num_traits::One;
 use primitive_types::U256;
 use sp_arithmetic::Permill;
 
+const PERMILL_SCALE: u128 = 1_000_000;
+
 /// Calculate the slip fee *amount* at full U256 precision, avoiding Permill truncation.
 ///
 /// Computes: `min(|cumulative| / (Q₀ + cumulative), max_slip_fee) × base_amount`
@@ -38,18 +40,9 @@ pub fn calculate_slip_fee_amount(
 
 	let abs_cumulative = cumulative.abs();
 
-	// Check if rate exceeds max_slip_fee: |cum| * 1_000_000 / denom > max_parts?
-	// Safe: u128 * 1_000_000 fits in U256
-	let rate_millionths = U256::from(abs_cumulative)
-		.saturating_mul(U256::from(1_000_000u64))
-		.checked_div(U256::from(denom))?;
-	let max_parts = max_slip_fee.deconstruct() as u64;
-
-	if rate_millionths > U256::from(max_parts) {
-		// Capped: use Permill for the capped amount
+	if slip_rate_exceeds_cap(abs_cumulative, denom, max_slip_fee)? {
 		Some(max_slip_fee.mul_floor(base_amount))
 	} else {
-		// Full precision: |cumulative| * base_amount / denom
 		let amount_hp = U256::from(abs_cumulative)
 			.checked_mul(U256::from(base_amount))?
 			.checked_div(U256::from(denom))?;
@@ -57,19 +50,63 @@ pub fn calculate_slip_fee_amount(
 	}
 }
 
-/// Invert buy-side slip fee: given D_net (hub asset actually entering buy pool),
-/// find D_gross (hub asset before buy-side slip deduction).
+/// Returns `true` iff `|cumulative| * 10^6 > max_parts * denom`,
+/// the same threshold `calculate_slip_fee_amount` uses to switch to the capped formula.
+fn slip_rate_exceeds_cap(abs_cumulative: Balance, denom: Balance, max_slip_fee: Permill) -> Option<bool> {
+	if denom == 0 || abs_cumulative == 0 {
+		return Some(false);
+	}
+	let max_parts = max_slip_fee.deconstruct() as u128;
+	let lhs = U256::from(abs_cumulative).checked_mul(U256::from(PERMILL_SCALE))?;
+	let rhs = U256::from(max_parts).checked_mul(U256::from(denom))?;
+	Some(lhs > rhs)
+}
+
+fn slip_rate_exceeds_cap_from_state(
+	hub_reserve_at_block_start: Balance,
+	prior_delta: SignedBalance,
+	delta_q: SignedBalance,
+	max_slip_fee: Permill,
+) -> Option<bool> {
+	let cumulative = prior_delta.checked_add(delta_q)?;
+	let denom = cumulative.add_to_unsigned(hub_reserve_at_block_start)?;
+	slip_rate_exceeds_cap(cumulative.abs(), denom, max_slip_fee)
+}
+
+/// Invert buy-side slip fee: given `D_net` (hub asset entering buy pool after slip),
+/// find `D_gross` (before slip).
 ///
-/// Forward formula: `D_net = D_gross - |cum| * D_gross / (L + cum)` where `cum = C + D_gross`.
+/// Forward: `D_net = D_gross - slip(D_gross)`, with
+/// `slip = min(|cum|/(L+cum), max_slip_fee) * D_gross`, `cum = C + D_gross`.
 ///
-/// - `d_net` — hub asset entering the buy pool after slip deduction
-/// - `l` — hub reserve at block start (Q₀)
-/// - `c` — cumulative signed hub asset delta before this trade
-///
-/// Two cases based on the sign of cumulative after the trade:
-/// - Case 1 (cum >= 0): `D_gross = D_net * (L+C) / (L - D_net)` (linear)
-/// - Case 2 (C < 0, D_gross < |C|): quadratic inversion
-pub(crate) fn invert_buy_side_slip(d_net: Balance, l: Balance, c: SignedBalance) -> Option<Balance> {
+/// Uncapped: linear when `cum >= 0`, quadratic when `C < 0 && D_gross < |C|`.
+/// Capped: `D_gross = floor(D_net * 10^6 / (10^6 - max_parts))`.
+pub(crate) fn invert_buy_side_slip(
+	d_net: Balance,
+	l: Balance,
+	c: SignedBalance,
+	max_slip_fee: Permill,
+) -> Option<Balance> {
+	// Uncapped inverse may have no real root for very large trades — in that case
+	// the cap is necessarily binding and we fall through to the capped formula.
+	if let Some(d_gross_uncapped) = invert_buy_side_slip_uncapped(d_net, l, c) {
+		if !slip_rate_exceeds_cap_from_state(l, c, SignedBalance::Positive(d_gross_uncapped), max_slip_fee)? {
+			return Some(d_gross_uncapped);
+		}
+	}
+
+	let max_parts = max_slip_fee.deconstruct() as u128;
+	let one_minus_max = PERMILL_SCALE.checked_sub(max_parts)?;
+	if one_minus_max == 0 {
+		return None;
+	}
+	let d_gross_hp = U256::from(d_net)
+		.checked_mul(U256::from(PERMILL_SCALE))?
+		.checked_div(U256::from(one_minus_max))?;
+	to_balance!(d_gross_hp).ok()
+}
+
+fn invert_buy_side_slip_uncapped(d_net: Balance, l: Balance, c: SignedBalance) -> Option<Balance> {
 	let s_buy = c.add_to_unsigned(l)?; // L + C
 	if s_buy == 0 {
 		return None;
@@ -132,21 +169,40 @@ pub(crate) fn invert_buy_side_slip(d_net: Balance, l: Balance, c: SignedBalance)
 	d_gross.checked_add(Balance::one())
 }
 
-/// Invert sell-side fees (protocol_fee + sell-side slip) to find `delta_hub_reserve_in`
-/// given D_gross (hub asset after sell-side deductions).
+/// Invert sell-side fees (protocol_fee + sell-side slip) to find `u = delta_hub_reserve_in`
+/// given `D_gross` (after sell-side deductions).
 ///
-/// Forward formula: `D_gross = u*(1-pf) - slip_fee(u)` where `u = delta_hub_reserve_in`,
-/// `pf = protocol_fee`, and `slip_fee = |C - u| * u / (L + C - u)`.
+/// Forward: `D_gross = u*(1 - pf) - slip(u)`, with
+/// `slip(u) = min(|C-u|/(L+C-u), max_slip_fee) * u`.
 ///
-/// - `d_gross` — hub asset remaining after protocol fee and sell-side slip
-/// - `protocol_fee` — protocol fee rate
-/// - `l` — hub reserve at block start (Q₀) for the sell pool
-/// - `c` — cumulative signed hub asset delta before this trade (for the sell pool)
-///
-/// Two cases based on the sign of cumulative = C - u (hub asset outflow is negative):
-/// - Case A (u > C, cumulative < 0): `(k+1)*u² - (kS + C + D)*u + DS = 0`
-/// - Case B (u <= C, C > 0, opposing flow): `pf*u² + (D + kS - C)*u - DS = 0`
+/// Uncapped quadratic with two cases by sign of `cum = C - u`.
+/// Capped: `u = floor(D_gross * 10^6 / (10^6 - pf_parts - max_parts))`.
 pub(crate) fn invert_sell_side_fees(
+	d_gross: Balance,
+	protocol_fee: Permill,
+	l: Balance,
+	c: SignedBalance,
+	max_slip_fee: Permill,
+) -> Option<Balance> {
+	if let Some(u_uncapped) = invert_sell_side_fees_uncapped(d_gross, protocol_fee, l, c) {
+		if !slip_rate_exceeds_cap_from_state(l, c, SignedBalance::Negative(u_uncapped), max_slip_fee)? {
+			return Some(u_uncapped);
+		}
+	}
+
+	let pf_parts = protocol_fee.deconstruct() as u128;
+	let max_parts = max_slip_fee.deconstruct() as u128;
+	let denom_parts = PERMILL_SCALE.checked_sub(pf_parts)?.checked_sub(max_parts)?;
+	if denom_parts == 0 {
+		return None;
+	}
+	let u_hp = U256::from(d_gross)
+		.checked_mul(U256::from(PERMILL_SCALE))?
+		.checked_div(U256::from(denom_parts))?;
+	to_balance!(u_hp).ok()
+}
+
+fn invert_sell_side_fees_uncapped(
 	d_gross: Balance,
 	protocol_fee: Permill,
 	l: Balance,
@@ -163,8 +219,8 @@ pub(crate) fn invert_sell_side_fees(
 	};
 
 	let pf_parts = protocol_fee.deconstruct() as u128;
-	let k_parts = 1_000_000u128 - pf_parts;
-	let scale = U256::from(1_000_000u64);
+	let k_parts = PERMILL_SCALE.checked_sub(pf_parts)?;
+	let scale = U256::from(PERMILL_SCALE);
 
 	// Try Case B first when C > 0 (opposing flow, u <= C)
 	if c_is_positive {
@@ -237,7 +293,7 @@ pub(crate) fn invert_sell_side_fees(
 
 	// Case A: (k+1)u² - (kS + C + D)u + DS = 0
 	// Applies when C <= 0 (always) or when C > 0 but Case B yielded u > C.
-	let a_u256 = U256::from(k_parts + 1_000_000);
+	let a_u256 = U256::from(k_parts.checked_add(PERMILL_SCALE)?);
 	// Safe: u128 * u128 fits in U256
 	let ks = U256::from(k_parts).saturating_mul(U256::from(s));
 	let d_scaled = U256::from(d_gross).saturating_mul(scale);

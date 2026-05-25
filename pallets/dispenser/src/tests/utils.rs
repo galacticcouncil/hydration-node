@@ -2,17 +2,13 @@ use alloy_primitives::{Address, U256};
 use alloy_sol_types::SolCall;
 use alloy_sol_types::SolValue;
 use codec::Encode;
-use sp_core::Get;
 use sp_io::hashing::keccak_256;
 use sp_runtime::{AccountId32, BoundedVec};
 
-use crate::tests::Dispenser;
-use crate::{
-	tests::{MaxChainIdLength, Test},
-	EvmTransactionParams,
-};
+use crate::tests::{Dispenser, Test};
+use crate::EvmTransactionParams;
 
-pub fn bounded_chain_id(v: Vec<u8>) -> BoundedVec<u8, MaxChainIdLength> {
+pub fn bounded_chain_id(v: Vec<u8>) -> BoundedVec<u8, frame_support::traits::ConstU32<128>> {
 	BoundedVec::try_from(v).unwrap()
 }
 
@@ -39,15 +35,16 @@ pub fn compute_request_id(
 ) -> [u8; 32] {
 	use sp_core::crypto::Ss58Codec;
 
+	let config = Dispenser::dispenser_config().expect("dispenser must be configured");
+
 	let call = crate::IGasFaucet::fundCall {
 		to: Address::from_slice(to.as_bytes()),
 		amount: U256::from(amount_wei),
 	};
 
-	let faucet_addr = <Test as crate::Config>::FaucetAddress::get();
 	let rlp_encoded = pallet_signet::Pallet::<Test>::build_evm_tx(
 		frame_system::RawOrigin::Signed(requester.clone()).into(),
-		Some(faucet_addr),
+		Some(config.faucet_address),
 		0u128,
 		call.abi_encode(),
 		tx_params.nonce,
@@ -68,12 +65,6 @@ pub fn compute_request_id(
 
 	let account_id32 = sp_runtime::AccountId32::from(account_bytes);
 	let sender_ss58 = account_id32.to_ss58check_with_version(sp_core::crypto::Ss58AddressFormat::custom(0));
-	let path = {
-		let req_scale = requester.encode();
-		let mut s = String::from("0x");
-		s.push_str(&hex::encode(req_scale));
-		s
-	};
 
 	// CAIP-2 chain ID format
 	let caip2_id = format!("eip155:{}", tx_params.chain_id);
@@ -83,7 +74,7 @@ pub fn compute_request_id(
 		rlp_encoded.as_slice(),
 		caip2_id.as_str(),
 		0u32,
-		path.as_str(),
+		core::str::from_utf8(crate::SIGNING_PATH).unwrap(),
 		"ecdsa",
 		"ethereum",
 		"",

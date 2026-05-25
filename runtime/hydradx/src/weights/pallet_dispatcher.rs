@@ -123,47 +123,6 @@ impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
 			// Standard Error: 0
 			.saturating_add(Weight::from_parts(315, 0).saturating_mul(n.into()))
 	}
-	/// Storage: `Dispatcher::CleanupEnabled` (r:0 w:1)
-	/// Proof: `Dispatcher::CleanupEnabled` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	fn pause_hyperbridge_cleanup() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0`
-		//  Estimated: `0`
-		// Minimum execution time: 8_668_000 picoseconds.
-		Weight::from_parts(8_864_000, 0)
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
-	/// Storage: `Dispatcher::CleanupEnabled` (r:1 w:0)
-	/// Proof: `Dispatcher::CleanupEnabled` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	/// Storage: `Dispatcher::CleanupStage` (r:1 w:0)
-	/// Proof: `Dispatcher::CleanupStage` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	/// Storage: UNKNOWN KEY `0x103895530afb23bb607661426d55eb8bf0f16a60fa21b8baaa82ee16ed43643d` (r:2501 w:2500)
-	/// Proof: UNKNOWN KEY `0x103895530afb23bb607661426d55eb8bf0f16a60fa21b8baaa82ee16ed43643d` (r:2501 w:2500)
-	/// The range of component `n` is `[1, 2500]`.
-	fn cleanup_on_idle(n: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `8192 + n * (10 ±0)`
-		//  Estimated: `1529265 + n * (2484 ±55)`
-		// Minimum execution time: 30_416_000 picoseconds.
-		Weight::from_parts(464_703_446, 1529265)
-			// Standard Error: 16_188
-			.saturating_add(Weight::from_parts(727_385, 0).saturating_mul(n.into()))
-			.saturating_add(T::DbWeight::get().reads(616_u64))
-			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(n.into())))
-			.saturating_add(T::DbWeight::get().writes(613_u64))
-			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(n.into())))
-			.saturating_add(Weight::from_parts(0, 2484).saturating_mul(n.into()))
-	}
-	/// Storage: `Dispatcher::CleanupEnabled` (r:1 w:0)
-	/// Proof: `Dispatcher::CleanupEnabled` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	fn cleanup_on_idle_limit_zero() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0`
-		//  Estimated: `1486`
-		// Minimum execution time: 1_834_000 picoseconds.
-		Weight::from_parts(1_929_000, 1486)
-			.saturating_add(T::DbWeight::get().reads(1_u64))
-	}
 	/// The range of component `n` is `[1, 10000]`.
 	fn dispatch_with_fee_payer(n: u32) -> Weight {
 		// Proof Size summary in bytes:

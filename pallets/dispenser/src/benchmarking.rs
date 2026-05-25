@@ -6,11 +6,6 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use sp_runtime::traits::AccountIdConversion;
 
-fn bench_chain_id<T: Config>() -> BoundedVec<u8, <T as pallet_signet::Config>::MaxChainIdLength> {
-	let v: Vec<u8> = b"bench-chain".to_vec();
-	BoundedVec::try_from(v).expect("bench-chain fits MaxChainIdLength")
-}
-
 #[benchmarks(where T: Config)]
 mod benches {
 	use super::*;
@@ -19,17 +14,36 @@ mod benches {
 	use core::ops::{Add, Mul};
 	use frame_support::traits::Currency;
 
+	fn test_config_data() -> DispenserConfigData {
+		DispenserConfigData {
+			paused: false,
+			faucet_balance_wei: (u64::MAX - 1) as u128,
+			faucet_address: EvmAddress::from([1u8; 20]),
+			min_faucet_threshold: 1,
+			min_request: 100,
+			max_dispense: 1_000_000_000,
+			dispenser_fee: 10,
+		}
+	}
+
 	#[benchmark]
-	fn set_faucet_balance() {
-		DispenserConfig::<T>::put(DispenserConfigData { paused: false });
+	fn set_config() {
 		#[extrinsic_call]
-		set_faucet_balance(RawOrigin::Root, 123u128);
-		assert_eq!(FaucetBalanceWei::<T>::get(), 123u128);
+		set_config(
+			RawOrigin::Root,
+			EvmAddress::from([1u8; 20]),
+			1u128,
+			100u128,
+			1_000_000_000u128,
+			10u128,
+			1_000_000_000_000u128,
+		);
+		assert!(DispenserConfig::<T>::get().is_some());
 	}
 
 	#[benchmark]
 	fn pause() {
-		DispenserConfig::<T>::put(DispenserConfigData { paused: false });
+		DispenserConfig::<T>::put(test_config_data());
 
 		#[extrinsic_call]
 		pause(RawOrigin::Root);
@@ -39,7 +53,9 @@ mod benches {
 
 	#[benchmark]
 	fn unpause() {
-		DispenserConfig::<T>::put(DispenserConfigData { paused: true });
+		let mut cfg = test_config_data();
+		cfg.paused = true;
+		DispenserConfig::<T>::put(cfg);
 
 		#[extrinsic_call]
 		unpause(RawOrigin::Root);
@@ -50,7 +66,6 @@ mod benches {
 	#[benchmark]
 	fn request_fund() {
 		let signet_admin: T::AccountId = whitelisted_caller();
-		let chain_id = super::bench_chain_id::<T>();
 
 		let pallet_account: T::AccountId = Pallet::<T>::account_id();
 		let signet_pallet_account: T::AccountId =
@@ -59,24 +74,25 @@ mod benches {
 		let fee_asset = T::FeeAsset::get();
 		let faucet_asset = T::FaucetAsset::get();
 
-		<T as pallet::Config>::Currency::set_balance(fee_asset, &signet_admin, 340266920938463463374607431768211455);
-		<T as pallet::Config>::Currency::set_balance(
-			faucet_asset,
-			&signet_admin,
-			340282366920938463463374607431768211455,
-		);
-		<T as pallet::Config>::Currency::set_balance(fee_asset, &pallet_account, 340266920938463463374607431768211455);
-		<T as pallet::Config>::Currency::set_balance(
-			faucet_asset,
-			&pallet_account,
-			340282366920938463463374607431768211455,
-		);
+		// Register assets in the registry so mint_into works in the real runtime.
+		assert_ok!(T::BenchmarkHelper::register_asset(fee_asset, 1));
+		assert_ok!(T::BenchmarkHelper::register_asset(faucet_asset, 1));
+
+		let large_balance: Balance = 340_266_920_938_463_463_374_607_431_768_211_455;
+		assert_ok!(T::BenchmarkHelper::mint(fee_asset, &signet_admin, large_balance));
+		assert_ok!(T::BenchmarkHelper::mint(faucet_asset, &signet_admin, large_balance));
+		assert_ok!(T::BenchmarkHelper::mint(fee_asset, &pallet_account, large_balance));
+		assert_ok!(T::BenchmarkHelper::mint(faucet_asset, &pallet_account, large_balance));
 
 		let ed_native: BalanceOf<T> = <T as pallet_signet::Config>::Currency::minimum_balance();
-		assert_ok!(pallet_signet::Pallet::<T>::initialize(
+		let chain_id: BoundedVec<u8, frame_support::traits::ConstU32<{ pallet_signet::MAX_CHAIN_ID_LENGTH }>> =
+			BoundedVec::try_from(b"bench-chain".to_vec()).expect("bench-chain fits");
+
+		assert_ok!(pallet_signet::Pallet::<T>::set_config(
 			RawOrigin::Root.into(),
-			signet_admin,
 			ed_native,
+			128u32,
+			100_000u32,
 			chain_id,
 		));
 
@@ -84,11 +100,8 @@ mod benches {
 		let _ = <T as pallet_signet::Config>::Currency::deposit_creating(&pallet_account, requester_needed);
 		let _ = <T as pallet_signet::Config>::Currency::deposit_creating(&signet_pallet_account, requester_needed);
 
-		let current_faucet_bal: u128 = (u64::MAX - 1) as u128;
-		assert_ok!(Pallet::<T>::set_faucet_balance(
-			RawOrigin::Root.into(),
-			current_faucet_bal
-		));
+		// Set dispenser config with a large faucet balance
+		DispenserConfig::<T>::put(test_config_data());
 
 		let caller: T::AccountId = whitelisted_caller();
 
@@ -109,10 +122,10 @@ mod benches {
 			amount: U256::from(amount),
 		};
 
-		let faucet_addr = T::FaucetAddress::get();
+		let config = DispenserConfig::<T>::get().expect("config must be set");
 		let rlp = pallet_signet::Pallet::<T>::build_evm_tx(
 			RawOrigin::Signed(caller.clone()).into(),
-			Some(faucet_addr),
+			Some(config.faucet_address),
 			0u128,
 			call.abi_encode(),
 			tx.nonce,
@@ -124,12 +137,7 @@ mod benches {
 		)
 		.expect("build_evm_tx ok in benchmark");
 
-		let path_bytes: Vec<u8> = {
-			let enc = caller.encode();
-			let mut s = String::from("0x");
-			s.push_str(&hex::encode(enc));
-			s.into_bytes()
-		};
+		let path = SIGNING_PATH.to_vec();
 
 		// CAIP-2 chain ID format
 		let caip2_id = alloc::format!("eip155:{}", tx.chain_id);
@@ -139,11 +147,12 @@ mod benches {
 			&rlp,
 			&caip2_id,
 			0,
-			&path_bytes,
+			&path,
 			b"ecdsa",
 			b"ethereum",
 			b"",
-		);
+		)
+		.expect("generate_request_id ok in benchmark");
 
 		#[extrinsic_call]
 		request_fund(RawOrigin::Signed(caller), to, amount, req_id, tx);
