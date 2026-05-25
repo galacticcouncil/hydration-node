@@ -152,7 +152,7 @@ mod test {
 			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(460));
 			let migrated_agenda = pallet_scheduler::Agenda::<Runtime>::get(400);
 			let migrated_schedule = migrated_agenda.get(0).and_then(Option::as_ref).unwrap();
-			assert_eq!(migrated_schedule.maybe_periodic, Some((30, 3)));
+			assert_eq!(migrated_schedule.maybe_periodic, Some((30, 2)));
 			assert_eq!(pallet_scheduler::Lookup::<Runtime>::get(named_id), Some((460, 0)));
 
 			MigrateSchedulerTo2sBlocks::<Runtime>::on_runtime_upgrade();
