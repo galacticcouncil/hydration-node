@@ -992,9 +992,7 @@ where
 		for event in events {
 			match &event.event {
 				RuntimeEvent::EVM(pallet_evm::Event::Log { log }) => {
-					if pool_addresses.contains(&log.address)
-						&& log.topics.first().copied() == Some(events::BORROW)
-					{
+					if pool_addresses.contains(&log.address) && log.topics.first().copied() == Some(events::BORROW) {
 						if let Some(&borrower) = log.topics.get(2) {
 							new_borrows.push((UserAddress::from(borrower), log.address));
 						}

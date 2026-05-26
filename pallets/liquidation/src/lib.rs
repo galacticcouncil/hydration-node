@@ -297,9 +297,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			log::trace!(target: "liquidation","liquidating debt asset: {debt_asset:?} for amount: {debt_to_cover:?}");
 
-			if collateral_asset == T::GigaHdx::gigahdx_asset_id()
-				|| collateral_asset == T::GigaHdx::sthdx_asset_id()
-			{
+			if collateral_asset == T::GigaHdx::gigahdx_asset_id() || collateral_asset == T::GigaHdx::sthdx_asset_id() {
 				// Protocol-funded gigahdx liquidation: treasury borrows HOLLAR,
 				// repays the borrower's debt via Aave's liquidationCall with
 				// `receiveAToken=true`, then matching HDX is seized from the
