@@ -1,5 +1,3 @@
-// Trigger and inspect `pallet-liquidation::liquidate` for a GIGAHDX position.
-
 import type { ApiPromise } from "@polkadot/api";
 import type { KeyringPair } from "./api";
 import { HOLLAR_ASSET_ID } from "./constants";
@@ -10,14 +8,7 @@ export interface LiquidationResult {
 	gigaHdxLiquidated: any | null;
 }
 
-/**
- * Submit `pallet_liquidation::liquidate(collateralAssetId, HOLLAR, borrower, amount, [])`
- * and return the block events plus the `GigaHdxLiquidated` event (if any).
- *
- * The OR-clause routing fix in `pallets/liquidation/src/lib.rs` makes BOTH
- * `collateralAssetId == 67` (GIGAHDX aToken) and `670` (stHDX underlying)
- * dispatch to `liquidate_gigahdx`. PEPL uses 670 in production.
- */
+// Both collateralAssetId 67 and 670 route to liquidate_gigahdx (PEPL uses 670)
 export async function liquidate(
 	api: ApiPromise,
 	signer: KeyringPair,

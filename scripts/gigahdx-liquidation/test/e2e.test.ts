@@ -1,19 +1,3 @@
-// E2E test for GIGAHDX liquidation via pallet-liquidation::liquidate_gigahdx.
-//
-// Prerequisites:
-//   - Local zombienet fork running on ws://127.0.0.1:9999 (override with WS_URL)
-//   - State sourced from a lark2 snapshot WITH the GIGAHDX pool already
-//     deployed and wired (Phase 7 of GIGAHDX-LARK-DEPLOY-RUNBOOK.md complete)
-//   - //Alice is the sole TC member on this chain (lark default)
-//
-// Test groups:
-//   1. Preconditions — pool approval, borrower setup, oracle state
-//   2. Dispatch routing — stHDX (670) and GIGAHDX (67) both reach liquidate_gigahdx
-//   3. Negative cases — wrong debt asset, no position, healthy position
-//   4. Post-liquidation state — borrower stakes, locks, totals
-//   5. Sequential liquidations — multiple small liquidations drain position
-//   6. Staking lifecycle — stake, unstake, cancel_unstake basic flows
-
 import { expect } from "chai";
 import { connect, type ChainContext } from "../src/api";
 import { ensureGigahdxPoolApproved } from "../src/governance";
@@ -40,17 +24,9 @@ import {
 } from "../src/queries";
 
 const ONE_HOLLAR = 10n ** 18n;
-const PRICE_CRASH_TARGET = 1_000_000n; // $0.01 — enough to push HF below 1
-
-// Chopsticks runs lark2 mainnet state — Alice already has a real position
-// that should be liquidatable after a price crash. On zombienet we set up a
-// fresh //LIQTEST_BORROWER instead (chopsticks lacks Ethereum-RPC so we can't
-// drive the borrow flow over `eth_*`).
-const CHOPSTICKS_BORROWER_EVM = "0xd43593c715fdd31c61141abd04a99fd6822c8558"; // //Alice EVM
-
-// ============================================================================
-// 1. Preconditions
-// ============================================================================
+const PRICE_CRASH_TARGET = 1_000_000n; // $0.01
+// Chopsticks uses Alice's lark2 position; zombienet uses //LIQTEST_BORROWER (no Ethereum-RPC)
+const CHOPSTICKS_BORROWER_EVM = "0xd43593c715fdd31c61141abd04a99fd6822c8558";
 describe("GIGAHDX liquidation — preconditions", function () {
 	this.timeout(180_000);
 
@@ -98,9 +74,6 @@ describe("GIGAHDX liquidation — preconditions", function () {
 	});
 });
 
-// ============================================================================
-// 2. Dispatch routing
-// ============================================================================
 describe("GIGAHDX liquidation — dispatch routing", function () {
 	this.timeout(180_000);
 
@@ -169,9 +142,6 @@ describe("GIGAHDX liquidation — dispatch routing", function () {
 	});
 });
 
-// ============================================================================
-// 3. Negative cases
-// ============================================================================
 describe("GIGAHDX liquidation — negative cases", function () {
 	this.timeout(180_000);
 
@@ -211,7 +181,6 @@ describe("GIGAHDX liquidation — negative cases", function () {
 	it("should reject liquidation when borrower has no gigahdx position", async () => {
 		if (isChopsticks()) return;
 
-		// Charlie has no stake — use a fresh random-ish address
 		const NO_POSITION_EVM = "0x0000000000000000000000000000000000dead01";
 		try {
 			await liquidate(ctx.api, ctx.bob, GIGAHDX_ASSET_ID, NO_POSITION_EVM, ONE_HOLLAR);
@@ -227,13 +196,11 @@ describe("GIGAHDX liquidation — negative cases", function () {
 	it("should reject liquidation when borrower position is healthy (HF > 1)", async () => {
 		if (isChopsticks()) return;
 
-		// Set up a fresh borrower but do NOT crash the price — HF stays above 1.
 		let healthyBorrower: BorrowerHandle | null = null;
 		try {
 			await ensureLiquidator(ctx.api, ctx.bob);
 			healthyBorrower = await setupBorrower(ctx);
 		} catch {
-			// If setup fails (e.g. existing position), skip gracefully
 			return;
 		}
 
@@ -245,8 +212,6 @@ describe("GIGAHDX liquidation — negative cases", function () {
 				healthyBorrower!.evm,
 				ONE_HOLLAR
 			);
-			// AAVE reverts internally when HF >= 1; the pallet surfaces this as
-			// LiquidationCallFailed.
 			expect.fail("should have rejected liquidation of healthy position");
 		} catch (e: any) {
 			expect(e.message).to.match(
@@ -257,9 +222,6 @@ describe("GIGAHDX liquidation — negative cases", function () {
 	});
 });
 
-// ============================================================================
-// 4. Post-liquidation state
-// ============================================================================
 describe("GIGAHDX liquidation — post-liquidation state", function () {
 	this.timeout(240_000);
 
@@ -282,7 +244,6 @@ describe("GIGAHDX liquidation — post-liquidation state", function () {
 			await ensureLiquidator(ctx.api, ctx.bob);
 			borrower = await setupBorrower(ctx);
 
-			// Snapshot state before liquidation
 			stakesBefore = await queryStakes(ctx.api, borrower!.substrate);
 			totalLockedBefore = await queryTotalLocked(ctx.api);
 
@@ -342,9 +303,6 @@ describe("GIGAHDX liquidation — post-liquidation state", function () {
 	});
 });
 
-// ============================================================================
-// 5. Sequential liquidations
-// ============================================================================
 describe("GIGAHDX liquidation — sequential small liquidations", function () {
 	this.timeout(300_000);
 
@@ -420,9 +378,6 @@ describe("GIGAHDX liquidation — sequential small liquidations", function () {
 	});
 });
 
-// ============================================================================
-// 6. Staking lifecycle
-// ============================================================================
 describe("GIGAHDX staking — lifecycle basics", function () {
 	this.timeout(180_000);
 
@@ -439,10 +394,8 @@ describe("GIGAHDX staking — lifecycle basics", function () {
 	it("should create a stake record when gigaStake is called", async () => {
 		if (isChopsticks()) return;
 
-		// Use a fresh account to avoid conflicts
 		const staker = ctx.keyring.addFromUri("//LIFECYCLE_TEST_STAKER");
 
-		// Fund from Alice
 		const { signAndWait } = await import("../src/utils");
 		try {
 			await signAndWait(
@@ -455,14 +408,12 @@ describe("GIGAHDX staking — lifecycle basics", function () {
 			return; // Alice may not have enough funds on a greenfield chain
 		}
 
-		// Bind EVM
 		try {
 			await signAndWait(ctx.api, ctx.api.tx.evmAccounts.bindEvmAddress(), staker, "lifecycle.bindEvm");
 		} catch (e: any) {
 			if (!/AlreadyBound/.test(e.message)) return; // skip if pallet not available
 		}
 
-		// Stake
 		const stakeAmount = 100_000n * 10n ** 12n;
 		try {
 			await signAndWait(

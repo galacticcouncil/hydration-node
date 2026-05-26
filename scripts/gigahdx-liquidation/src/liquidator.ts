@@ -1,12 +1,4 @@
-// Liquidator setup — //Bob plays the GigaHdxLiquidationAccount role on local
-// zombienet. He must have collateral on the MAIN AAVE pool so the HOLLAR
-// flash-borrow that pallet-liquidation does on the gigahdx liquidation path
-// succeeds.
-//
-// Bob does NOT need `evmAccounts.bindEvmAddress`: his EVM address is the
-// implicit truncated form of his substrate AccountId32 (first 20 bytes).
-// Calling bind on Bob assigns a *different* (key-derived) EVM address.
-
+// Bob's EVM address is the implicit truncated AccountId32, NOT key-derived (don't call bind)
 import type { ApiPromise } from "@polkadot/api";
 import { ethers } from "ethers";
 import { DEFAULT_FEE, DEFAULT_GAS, WS_URL } from "./constants";
@@ -35,19 +27,12 @@ async function getMainCollateralBase(): Promise<bigint> {
 	return BigInt("0x" + result.slice(2, 2 + 64));
 }
 
-/**
- * Ensure //Bob has enough collateral on the MAIN AAVE pool so its
- * HOLLAR availableBorrows headroom covers pallet-liquidation's flash-borrow.
- * Idempotent.
- */
 export async function ensureLiquidator(api: ApiPromise, bob: KeyringPair): Promise<void> {
 	const collateral = await getMainCollateralBase();
 	if (collateral >= MIN_COLLATERAL_BASE) return;
 
-	const supplyAmount = 10n * 10n ** 18n; // 10 WETH
+	const supplyAmount = 10n * 10n ** 18n;
 
-	// MAIN pool must be allowed to pull Bob's WETH. Approve first (idempotent —
-	// over-writes any prior allowance to the exact supply amount).
 	const approveData = "0x" + SEL_APPROVE + pad32(MAIN_POOL) + uint32(supplyAmount);
 	await signAndWait(
 		api,

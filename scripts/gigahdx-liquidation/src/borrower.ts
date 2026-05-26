@@ -1,15 +1,3 @@
-// Borrower setup — creates a fresh //LIQTEST_BORROWER position big enough to
-// produce a meaningful liquidation:
-//   1. Bob funds the borrower with HDX
-//   2. Borrower binds EVM
-//   3. Borrower gigaStakes (→ stHDX minted into GIGAHDX pool, GIGAHDX aToken
-//      minted to borrower EVM address)
-//   4. Borrower enables stHDX as collateral on GIGAHDX pool
-//   5. Borrower borrows HOLLAR up to ~90 % of LTV
-//
-// All steps are idempotent: if the borrower already has the expected state,
-// the helper skips ahead.
-
 import type { ApiPromise } from "@polkadot/api";
 import {
 	BORROWER_EVM,
@@ -23,12 +11,12 @@ import {
 import type { ChainContext, KeyringPair } from "./api";
 import { signAndWait, pad32, uint32 } from "./utils";
 
-const STAKE_HDX = 100_000n * 10n ** 12n; // 100K HDX
-const FUND_HDX = 250_000n * 10n ** 12n; // 250K HDX from Bob
-const BORROW_HOLLAR = 80n * 10n ** 18n; // ~$80 worth
+const STAKE_HDX = 100_000n * 10n ** 12n;
+const FUND_HDX = 250_000n * 10n ** 12n;
+const BORROW_HOLLAR = 80n * 10n ** 18n;
 
-const SEL_SET_USE_RESERVE = "5a3b74b9"; // setUserUseReserveAsCollateral(asset, bool)
-const SEL_BORROW = "a415bcad"; // borrow(asset, amount, rateMode, referralCode, onBehalfOf)
+const SEL_SET_USE_RESERVE = "5a3b74b9";
+const SEL_BORROW = "a415bcad";
 
 export interface BorrowerHandle {
 	signer: KeyringPair;

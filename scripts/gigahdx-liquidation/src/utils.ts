@@ -10,18 +10,7 @@ export const pad32 = (hex: string): string =>
 export const uint32 = (n: bigint | number): string =>
 	pad32(BigInt(n).toString(16));
 
-/**
- * Sign and wait for inclusion. Resolves with all events in the block.
- * Rejects on dispatch error, ExtrinsicFailed, or any evm.ExecutedFailed.
- *
- * Uses `nonce: -1` so polkadot-js queries `accountNextIndex` and picks the
- * next-available nonce — important on a long-running test chain where stale
- * txs may be sitting in the pool and would otherwise cause "Priority is too
- * low" rejections.
- *
- * On chopsticks (Manual block mode), forces `dev_newBlock` after the tx is
- * submitted so it actually lands.
- */
+// nonce: -1 avoids "Priority too low" on stale tx pools; chopsticks needs dev_newBlock after submit
 export async function signAndWait(
 	api: ApiPromise,
 	tx: SubmittableExtrinsic<"promise">,
@@ -54,13 +43,11 @@ export async function signAndWait(
 	});
 
 	if (onChopsticks) {
-		// Give the tx a moment to enter the pool, then force a new block.
 		await new Promise((r) => setTimeout(r, 200));
 		try {
 			const provider = (api as any)._rpcCore.provider;
 			await provider.send("dev_newBlock", [{ count: 1 }]);
 		} catch {
-			// If newBlock fails (e.g. tx already produced a block), ignore.
 		}
 	}
 

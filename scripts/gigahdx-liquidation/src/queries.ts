@@ -1,5 +1,3 @@
-// Read-only helpers for inspecting on-chain state in tests.
-
 import type { ApiPromise } from "@polkadot/api";
 import { ethers } from "ethers";
 import { WS_URL, GIGAHDX_POOL } from "./constants";
@@ -46,7 +44,7 @@ export async function queryHealthFactor(borrowerEvm: string): Promise<bigint> {
 	const data = "0x" + SEL_GET_USER_ACCOUNT_DATA + pad32(borrowerEvm);
 	const result = await provider.call({ to: GIGAHDX_POOL, data });
 	if (!result || result === "0x" || result.length < 2 + 6 * 64) return 0n;
-	// getUserAccountData returns 6 uint256 slots; healthFactor is slot[5]
+	// healthFactor is slot[5]
 	return BigInt("0x" + result.slice(2 + 5 * 64, 2 + 6 * 64));
 }
 
