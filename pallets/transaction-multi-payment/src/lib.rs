@@ -525,7 +525,10 @@ pub mod pallet {
 
 			match result {
 				Ok(_) => {
-					Self::deposit_event(Event::<T>::FeeSponsored { from, fee_payer: signer });
+					Self::deposit_event(Event::<T>::FeeSponsored {
+						from,
+						fee_payer: signer,
+					});
 					Ok(().into())
 				}
 				Err(e) => {

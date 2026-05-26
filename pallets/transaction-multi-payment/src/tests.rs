@@ -1480,4 +1480,3 @@ fn dispatch_should_correctly_call_validate_and_dispatch() {
 			assert_eq!(PermitDispatchHandler::last_dispatch_call_data(), expected);
 		});
 }
-
