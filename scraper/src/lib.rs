@@ -344,8 +344,7 @@ use sp_state_machine::TrieBackendBuilder;
 use sp_trie::{HashDBT, PrefixedMemoryDB};
 
 const PAGE_SIZE: u32 = 1000;
-// 50: lark's Subway proxy throttles at 1000 concurrency on big scrapes
-const CONCURRENCY: usize = 50;
+const CONCURRENCY: usize = 1000;
 
 const ESTIMATED_TOTAL_KEYS: u64 = 350_000;
 
