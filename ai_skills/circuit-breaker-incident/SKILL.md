@@ -11,12 +11,13 @@ All scripts are in `scripts/` and use ESM (`import`). Run with `node <script>`.
 
 | Script | Purpose | Usage |
 |---|---|---|
-| `query-lockdown.js` | Check lockdown state + trace XCM origin | `NODE_PATH=$(npm root -g) node query-lockdown.js <ASSET_ID> [TRIGGER_BLOCK]` |
-| `get-spot-price.js` | USD spot price via Hydration SDK | `node get-spot-price.js <ASSET_ID>` (run from `hydration-node/scripts/mint-limit/`) |
-| `scan-deposits.js` | Scan all deposits in lookback period | `node scan-deposits.js <ASSET_ID> <TRIGGER_BLOCK> [PERIOD=14400] [BATCH_SIZE=50]` |
-| `generate-tc-unlock.js` | Generate TC proposal hex to lift lockdown + raise limit | `node generate-tc-unlock.js <ASSET_ID> <NEW_LIMIT_HUMAN> [TC_THRESHOLD=4]` |
+| `query-lockdown.cjs` | Check lockdown state + look up XCM relay block | `node query-lockdown.cjs <ASSET_ID> [TRIGGER_BLOCK]` (run from `hydration-node/scripts/mint-limit/`) |
+| `get-trigger-events.cjs` | Dump `tokens.Deposited` / `Reserved` / `AssetLockdown` / `messageQueue.Processed` events around the trigger block | `node get-trigger-events.cjs <ASSET_ID> <TRIGGER_BLOCK> [WINDOW=2]` (run from `hydration-node/scripts/mint-limit/`) |
+| `scripts/mint-limit/get-spot-price.js` | USD spot price via Hydration SDK | `node scripts/mint-limit/get-spot-price.js <ASSET_ID>` (lives in `scripts/mint-limit/` because it needs the SDK from its `node_modules`) |
+| `scan-deposits.js` | Scan all deposits in lookback period | `node scan-deposits.js <ASSET_ID> <TRIGGER_BLOCK> [PERIOD=14400] [BATCH_SIZE=50]` (run from `hydration-node/scripts/mint-limit/`) |
+| `generate-tc-unlock.js` | Generate TC proposal hex to lift lockdown + raise limit | `node generate-tc-unlock.js <ASSET_ID> <NEW_LIMIT_HUMAN> [TC_THRESHOLD=4]` (run from `hydration-node/scripts/mint-limit/`) |
 
-**Note**: `query-lockdown.js` uses CommonJS (`require`). The others use ESM (`import`). Both `scan-deposits.js` and `generate-tc-unlock.js` auto-fetch asset decimals/symbol from chain.
+**Note**: `.cjs` scripts use CommonJS (`require`); `.js` scripts use ESM (`import`). All scripts depend on `@polkadot/api` (and `get-spot-price.js` also on `@galacticcouncil/sdk`), which live in `hydration-node/scripts/mint-limit/node_modules` — so run each script from that directory.
 
 ## Quick Response Workflow
 
@@ -31,9 +32,9 @@ When a circuit breaker alert comes in (e.g. from snakewatch):
 
 ## Known Gotchas
 
-- **ESM vs CommonJS**: `scripts/mint-limit/` has `"type": "module"` in package.json. Scripts using `require()` (like `query-lockdown.js`) must be saved as `.cjs`. Scripts using `import` (like `get-spot-price.js`) work as `.js`.
+- **ESM vs CommonJS**: `scripts/mint-limit/` has `"type": "module"` in package.json (and so does the repo's parent dir). Scripts using `require()` must be saved as `.cjs` (e.g. `query-lockdown.cjs`). Scripts using `import` (e.g. `get-spot-price.js`, `scan-deposits.js`) work as `.js`.
 - **Subscan API key required**: All API endpoints return 403 without `X-API-Key` header. Use chain-direct queries as fallback.
-- **Spot price script can fail silently**: `get-spot-price.js` may fail for assets without good liquidity routes. Always check exit code and use CoinGecko fallback.
+- **Spot price script can fail silently**: `get-spot-price.js` may fail for assets without good liquidity routes. Always check exit code and fall back to the omnipool state query in `references/price-from-omnipool.md`.
 
 ## Step 1: Find the Lockdown Event
 
@@ -55,13 +56,23 @@ curl -s -X POST 'https://hydration.api.subscan.io/api/scan/event' \
 
 ## Step 2: Get All Events in Trigger Block
 
+Preferred (chain-direct, no API key needed):
+
+```bash
+cd hydration-node/scripts/mint-limit
+node ../../ai_skills/circuit-breaker-incident/scripts/get-trigger-events.cjs <ASSET_ID> <TRIGGER_BLOCK>
+```
+
+Look for the sequence: `messageQueue.Processed` → `tokens.Deposited` → `circuitBreaker.AssetLockdown`. The `messageQueue.Processed` event has the XCM origin (e.g. `{"sibling":2004}` = Moonbeam, `{"sibling":1000}` = Asset Hub Polkadot). The `tokens.Reserved` amount equals the over-limit excess.
+
+Subscan fallback (requires `SUBSCAN_API_KEY`):
+
 ```bash
 curl -s -X POST 'https://hydration.api.subscan.io/api/v2/scan/events' \
   -H 'Content-Type: application/json' \
+  -H "X-API-Key: $SUBSCAN_API_KEY" \
   -d '{"block_num":<BLOCK>,"page":0,"row":100}'
 ```
-
-Look for the sequence: `messageQueue.Processed` → `tokens.Deposited` → `circuitbreaker.AssetLockdown`. The `messageQueue.Processed` event has the XCM origin (e.g. `Sibling: 2004` = Moonbeam).
 
 ## Step 3: Query Asset Details from Chain
 
@@ -108,14 +119,9 @@ cd hydration-node/scripts/mint-limit && node get-spot-price.js <ASSET_ID> 2>/dev
 This calls `sdk.api.router.getBestSpotPrice(assetId, '10')` where `'10'` is USDT.
 Returns JSON: `{"assetId":"16","symbol":"GLMR","decimals":18,"usdPrice":0.0147}`
 
-**Note**: The script lives in both `skills/circuit-breaker-incident/scripts/` and `hydration-node/scripts/mint-limit/`. Must run from `mint-limit/` dir (needs its `node_modules` with `@galacticcouncil/sdk`). Use `2>/dev/null` to suppress noisy polkadot disconnect logs.
+**Note**: The script lives in `hydration-node/scripts/mint-limit/` (needs its `node_modules` with `@galacticcouncil/sdk`). Use `2>/dev/null` to suppress noisy polkadot disconnect logs.
 
-**Fallback**: CoinGecko API (see CoinGecko IDs table below):
-```
-https://api.coingecko.com/api/v3/simple/price?ids=<COINGECKO_ID>&vs_currencies=usd
-```
-
-**Note**: `get-spot-price.js` can fail silently for some assets (e.g. EURC). Always check exit code and fall back to CoinGecko if needed.
+**Fallback**: If `get-spot-price.js` fails (e.g. EURC has no good route), query omnipool state directly — see `references/price-from-omnipool.md`.
 
 ## Step 5: Find the XCM Message Link
 
@@ -267,22 +273,6 @@ for (let batchStart = START_BLOCK; batchStart < TRIGGER_BLOCK; batchStart += BAT
 ```
 
 This takes ~3-5 minutes for the full 14,400-block window. Group results by recipient to identify the main depositors.
-
-## CoinGecko IDs for Common Hydration Assets
-
-| Asset (ID) | CoinGecko ID |
-|---|---|
-| HDX (0) | `hydradx` |
-| DOT (5) | `polkadot` |
-| USDT (10) | `tether` |
-| GLMR (16) | `moonbeam` |
-| ASTR (9) | `astar` |
-| CFG (41) | `centrifuge` |
-| BNC (14) | `bifrost-native-coin` |
-| jitoSOL (40) | `jito-staked-sol` |
-| IBTC (11) | `interbtc` |
-| INTR (12) | `interlay` |
-| EURC (44) | `euro-coin` |
 
 ## Past Incidents (Reference)
 

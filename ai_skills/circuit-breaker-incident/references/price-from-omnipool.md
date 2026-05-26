@@ -21,7 +21,7 @@ async function main() {
     const price = (hubPerTargetUnit * 10**TARGET_DECIMALS) / (hubPerUsdtUnit * 10**6);
     console.log('Price in USD:', price);
   } else {
-    console.log('Asset not in omnipool or state null — use CoinGecko fallback');
+    console.log('Asset not in omnipool or state null — try a different quote asset');
   }
   await api.disconnect();
 }
@@ -29,12 +29,4 @@ main();
 "
 ```
 
-**Note**: If USDT (asset 10) returns null, it may not be in the omnipool. Try DOT (asset 5) as intermediate, or fall back to CoinGecko API.
-
-## CoinGecko Fallback
-
-See SKILL.md for full CoinGecko ID mapping table.
-
-```
-https://api.coingecko.com/api/v3/simple/price?ids=<COINGECKO_ID>&vs_currencies=usd
-```
+**Note**: If USDT (asset 10) returns null for either side, try DOT (asset 5) as the intermediate / quote asset and convert via DOT/USDT.

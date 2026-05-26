@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Usage: NODE_PATH=$(npm root -g) node query-lockdown.js <ASSET_ID>
+// Usage: node query-lockdown.cjs <ASSET_ID> [TRIGGER_BLOCK]
+// Run from hydration-node/scripts/mint-limit/ so @polkadot/api resolves.
 // Queries circuit breaker lockdown state, asset details, and finds the XCM relay block
 // for constructing the Subscan XCM message search link.
 
@@ -34,27 +35,17 @@ async function main() {
     console.log(`~Hours remaining: ${hoursRemaining.toFixed(1)}h`);
   }
 
-  // Find trigger block from Subscan
+  // Relay block lookup at trigger time (via parachainSystem storage — robust against
+  // changes to extrinsic versions; the prior extrinsic-decode approach broke on v5 extrinsics).
   const triggerBlock = process.argv[3] ? parseInt(process.argv[3]) : null;
   if (triggerBlock) {
-    console.log(`\n=== XCM Origin Search ===`);
-    // Check blocks before trigger for HRMP messages
-    for (let offset = 1; offset <= 5; offset++) {
-      const checkBlock = triggerBlock - offset;
-      const hash = await api.rpc.chain.getBlockHash(checkBlock);
-      const block = await api.rpc.chain.getBlock(hash);
-      const vd = block.block.extrinsics[1].method.args[0].toJSON();
-      const hm = vd.horizontalMessages;
-      
-      for (const [pid, msgs] of Object.entries(hm)) {
-        if (msgs.length > 0) {
-          const relayBlock = msgs[0].sentAt;
-          console.log(`Block ${checkBlock}: Para ${pid} sent ${msgs.length} msg(s), relay block: ${relayBlock}`);
-          console.log(`\nSubscan XCM search link:`);
-          console.log(`https://hydration.subscan.io/xcm_message?page=1&time_dimension=block&block_start=${relayBlock - 5}&block_end=${relayBlock + 5}`);
-        }
-      }
-    }
+    console.log(`\n=== XCM Relay Block Lookup ===`);
+    const triggerHash = await api.rpc.chain.getBlockHash(triggerBlock);
+    const apiAt = await api.at(triggerHash);
+    const relayBlock = (await apiAt.query.parachainSystem.lastRelayChainBlockNumber()).toNumber();
+    console.log(`Trigger block ${triggerBlock} → relay block ${relayBlock}`);
+    console.log(`\nSubscan XCM search link:`);
+    console.log(`https://hydration.subscan.io/xcm_message?page=1&time_dimension=block&block_start=${relayBlock - 5}&block_end=${relayBlock + 5}`);
   }
 
   await api.disconnect();
