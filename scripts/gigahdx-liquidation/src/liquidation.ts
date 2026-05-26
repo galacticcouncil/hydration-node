@@ -23,11 +23,12 @@ export async function liquidate(
 	signer: KeyringPair,
 	collateralAssetId: number,
 	borrowerEvm: string,
-	amount: bigint
+	amount: bigint,
+	debtAssetId: number = HOLLAR_ASSET_ID
 ): Promise<LiquidationResult> {
 	const tx = api.tx.liquidation.liquidate(
 		collateralAssetId,
-		HOLLAR_ASSET_ID,
+		debtAssetId,
 		borrowerEvm,
 		amount.toString(),
 		[]
