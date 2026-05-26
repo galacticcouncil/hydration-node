@@ -35,17 +35,27 @@ async function main() {
     console.log(`~Hours remaining: ${hoursRemaining.toFixed(1)}h`);
   }
 
-  // Relay block lookup at trigger time (via parachainSystem storage — robust against
-  // changes to extrinsic versions; the prior extrinsic-decode approach broke on v5 extrinsics).
+  // Relay-block window in which the triggering XCM was sent.
+  // hrmpWatermark advances to the relay block up to which HRMP messages have been consumed.
+  // The "tight" sent-at range is (prevWatermark, triggerWatermark], but Subscan's xcm_message
+  // index appears fuzzy on the relay-block filter (or the message's sentAt can sit earlier than
+  // the watermark advance), so widen by ±10 for the search URL.
   const triggerBlock = process.argv[3] ? parseInt(process.argv[3]) : null;
   if (triggerBlock) {
     console.log(`\n=== XCM Relay Block Lookup ===`);
     const triggerHash = await api.rpc.chain.getBlockHash(triggerBlock);
-    const apiAt = await api.at(triggerHash);
-    const relayBlock = (await apiAt.query.parachainSystem.lastRelayChainBlockNumber()).toNumber();
-    console.log(`Trigger block ${triggerBlock} → relay block ${relayBlock}`);
-    console.log(`\nSubscan XCM search link:`);
-    console.log(`https://hydration.subscan.io/xcm_message?page=1&time_dimension=block&block_start=${relayBlock - 5}&block_end=${relayBlock + 5}`);
+    const prevHash = await api.rpc.chain.getBlockHash(triggerBlock - 1);
+    const triggerWatermark = (await (await api.at(triggerHash)).query.parachainSystem.hrmpWatermark()).toNumber();
+    const prevWatermark = (await (await api.at(prevHash)).query.parachainSystem.hrmpWatermark()).toNumber();
+    const buffer = 10;
+    const searchStart = prevWatermark - buffer;
+    const searchEnd = triggerWatermark + buffer;
+    console.log(`hrmpWatermark: ${prevWatermark} (block ${triggerBlock - 1}) → ${triggerWatermark} (block ${triggerBlock})`);
+    console.log(`Tight sent-at window: (${prevWatermark}, ${triggerWatermark}]`);
+    console.log(`\nBlock events:`);
+    console.log(`https://hydration.subscan.io/block/${triggerBlock}?tab=event`);
+    console.log(`\nSubscan XCM search link (widened by ±${buffer} for fuzzy relay-block matching):`);
+    console.log(`https://hydration.subscan.io/xcm_message?page=1&time_dimension=block&block_start=${searchStart}&block_end=${searchEnd}`);
   }
 
   await api.disconnect();

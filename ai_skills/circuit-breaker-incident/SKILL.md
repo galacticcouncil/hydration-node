@@ -125,53 +125,22 @@ Returns JSON: `{"assetId":"16","symbol":"GLMR","decimals":18,"usdPrice":0.0147}`
 
 ## Step 5: Find the XCM Message Link
 
-The `messageQueue.Processed` event gives the origin parachain and message hash, but the critical deliverable is the **Subscan XCM message link** showing the full cross-chain trace.
+`query-lockdown.cjs <ASSET_ID> <TRIGGER_BLOCK>` already prints the Subscan XCM search link — no extra steps needed in the normal case. This section just explains how that link is built and what to do if it fails.
 
-### 5a: Get the relay chain block number
+### How the link is built
 
-The XCM was received as an HRMP message in the block **before** the trigger block. Query it:
+The script reads `parachainSystem.hrmpWatermark` at the trigger block and at the prior block:
 
-```javascript
-NODE_PATH=$(npm root -g) node -e "
-const { ApiPromise, WsProvider } = require('@polkadot/api');
-async function main() {
-  const api = await ApiPromise.create({ provider: new WsProvider('wss://rpc.hydradx.cloud'), noInitWarn: true });
-  const hash = await api.rpc.chain.getBlockHash(TRIGGER_BLOCK - 1);
-  const block = await api.rpc.chain.getBlock(hash);
-  const vd = block.block.extrinsics[1].method.args[0].toJSON();
-  const hm = vd.horizontalMessages;
-  for (const [pid, msgs] of Object.entries(hm)) {
-    if (msgs.length > 0) {
-      console.log('Para', pid, ':', msgs.length, 'msgs, sentAt:', msgs[0].sentAt);
-    }
-  }
-  await api.disconnect();
-}
-main();
-"
-```
-
-Look for the origin parachain (from Step 2). The `sentAt` value is the **relay chain block number**.
-
-**Note**: If no messages found at `TRIGGER_BLOCK - 1`, check `TRIGGER_BLOCK - 2` through `TRIGGER_BLOCK - 5`. The message queue may process with a delay.
-
-### 5b: Construct the Subscan XCM message search URL
-
-Use the relay block with ±5 buffer (Subscan's filter needs some range):
-
-```
-https://hydration.subscan.io/xcm_message?page=1&time_dimension=block&block_start=<RELAY_BLOCK-5>&block_end=<RELAY_BLOCK+5>
-```
-
-Example: relay block 29959078 →
-`https://hydration.subscan.io/xcm_message?page=1&time_dimension=block&block_start=29959073&block_end=29959083`
-
-The matching XCM message in the results links to the full trace (e.g. `/xcm_message/polkadot-xxx`).
+- `hrmpWatermark` is the relay block up to which HRMP messages have been consumed.
+- The triggering XCM was sent at a relay block in `(prevWatermark, triggerWatermark]` — the "tight" window.
+- The Subscan link widens this by **±10 relay blocks** because Subscan's XCM filter is fuzzy on the relay-block dimension (and the message's `sentAt` can sit slightly outside the watermark advance).
 
 ### Important notes
-- Subscan XCM message API (`api/scan/xcm/messages`) is **paywalled (402)**. Use UI links.
-- Subscan UI has **Cloudflare protection** — `web_fetch`/`curl` won't work. Provide links to user.
-- The `messageQueue.Processed` event's `id` hash is **NOT searchable** on Subscan.
+- Subscan XCM message API (`api/scan/xcm/messages`) is **paywalled (402)**. Use the UI link.
+- Subscan UI has **Cloudflare protection** — `web_fetch`/`curl` won't work; give the link to the user.
+- The `messageQueue.Processed` event's `id` hash is **NOT searchable** on Subscan; identify the message by matching the deposit amount + recipient against the XCM trace.
+- If the ±10 window returns nothing, widen further (±25, ±50). Subscan indexing may also lag for very recent blocks.
+- The link may return multiple XCM messages in the window — pick the one whose amount/recipient matches the `tokens.Deposited` event from Step 2.
 
 ## Step 6: Report Template
 
