@@ -9,7 +9,7 @@ const NEW_ID = process.env.CHAIN_ID || "local_testnet";
 const NEW_RELAY_CHAIN = "rococo_local_testnet";
 
 // Define replacement values
-const AURA_AUTHORITIES_VALUE = "0x08be4f21c56d926b91f020b5071f14935cb93f001f1127c53d3eac6eed23ffea64dc4d79aad5a9d01a359995838830a80733a0bff7e4eb087bfc621ef1873fec49";
+const AURA_AUTHORITIES_VALUE = "0x08d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48";
 const COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE = "0x04d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d";
 const SYSTEM_ACCOUNT_VALUE = "0x00000000000000000100000000000000ba31bc09df123864f700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
@@ -113,6 +113,45 @@ async function updateChainSpec(inputFile, outputFile) {
         "0x99971b5749ac43e0235e41b0d37869188ee7418a6531173d60d1f6a82d8f4d5173d3a4140c3587d7bc56f1a1c01a1c5e45544800222222ff7be76052e023ec1a306fcca8f9659d8000000000000000001f0e76f06ebd150314000000": "0x000064a7b3b6e00d00000000000000000000000000000000000000000000000000000000000000000000000000000000", // 1 ETH for 0x222222
     }
 
+    // Approve GIGAHDX pool as EVM controller (ControllerOrigin = EnsureRoot|GeneralAdmin, not TC)
+    const GIGAHDX_POOL_ADDR = (process.env.GIGAHDX_POOL || 'b952ae92cc4d8d703d2d71ab541bab34c94b944a').toLowerCase();
+    const { blake2AsHex } = require('@polkadot/util-crypto');
+    const poolBytes = Buffer.from(GIGAHDX_POOL_ADDR, 'hex');
+    const poolHash = blake2AsHex(poolBytes, 128).replace('0x', '');
+    const approvedContractPrefix = '2c2b3fbb4fc221c42de8259db454678fe74405d2678f6b81824443771f6fa86a';
+    const gigaPoolApprovedKey = '0x' + approvedContractPrefix + poolHash + GIGAHDX_POOL_ADDR;
+
+    // Fund //Bob for EVM gas (needs HDX on real account + WETH on EVM-mapped truncated account)
+    const BOB_PUB = '8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48';
+    const bobPubBytes = Buffer.from(BOB_PUB, 'hex');
+    const bobAccountHash = blake2AsHex(bobPubBytes, 128).replace('0x', '');
+    const systemPrefix = '26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9';
+    const bobSystemKey = '0x' + systemPrefix + bobAccountHash + BOB_PUB;
+    // EVM maps BOB_EVM via truncated_account_id: b"ETH\0" + 20-byte-evm + 8 zero bytes
+    const BOB_EVM_TRUNCATED = '455448008eaf04151687736326c9fea17e25fc52876136930000000000000000';
+    const bobTruncBytes = Buffer.from(BOB_EVM_TRUNCATED, 'hex');
+    const bobTruncHash = blake2AsHex(bobTruncBytes, 128).replace('0x', '');
+    const tokensPrefix = xxhashAsHex('Tokens', 128).replace('0x', '') + xxhashAsHex('Accounts', 128).replace('0x', '');
+    const bobTruncSystemKey = '0x' + systemPrefix + bobTruncHash + BOB_EVM_TRUNCATED;
+    // orml_tokens::Accounts uses Twox64Concat for CurrencyId, not Blake2_128Concat
+    // WETH (asset 20, 18 decimals) for EVM gas
+    const wethId = Buffer.alloc(4); wethId.writeUInt32LE(20);
+    const wethTwox = xxhashAsHex(wethId, 64).replace('0x', '');
+    const bobTruncWethKey = '0x' + tokensPrefix + bobTruncHash + BOB_EVM_TRUNCATED + wethTwox + wethId.toString('hex');
+    // DOT (asset 5, 10 decimals) for MAIN pool collateral
+    const dotId = Buffer.alloc(4); dotId.writeUInt32LE(5);
+    const dotTwox = xxhashAsHex(dotId, 64).replace('0x', '');
+    const bobTruncDotKey = '0x' + tokensPrefix + bobTruncHash + BOB_EVM_TRUNCATED + dotTwox + dotId.toString('hex');
+    // Helper: encode orml_tokens::AccountData { free, reserved: 0, frozen: 0 }
+    function tokenBalance(amount) {
+        const buf = Buffer.alloc(16);
+        buf.writeBigUInt64LE(amount & 0xFFFFFFFFFFFFFFFFn, 0);
+        buf.writeBigUInt64LE(amount >> 64n, 8);
+        return '0x' + buf.toString('hex') + '0'.repeat(64);
+    }
+    const WETH_BALANCE = tokenBalance(1000n * 10n ** 18n);
+    const DOT_BALANCE = tokenBalance(1_000_000n * 10n ** 10n); // 1M DOT
+
     // Define replacements
     const REPLACEMENTS = {
         "0x0d715f2646c8f85767b5d2764bb2782604a74d81251e398fd8a0a4d55023bb3f": "0xf2070000", // parachainInfo.parachainId = 2034
@@ -123,6 +162,8 @@ async function updateChainSpec(inputFile, outputFile) {
         ...governance,
         "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9de1e86a9a8c739864cf3cc5ec2bea59fd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d": SYSTEM_ACCOUNT_VALUE, // System account
         ...deployer,
+        [gigaPoolApprovedKey]: "0x", // ApprovedContract for GIGAHDX pool
+        [bobSystemKey]: SYSTEM_ACCOUNT_VALUE, // System.Account(Bob) — HDX for gigaStake + extrinsic fees
     };
 
     // Set Configuration.IsTestnet to 1
@@ -130,6 +171,18 @@ async function updateChainSpec(inputFile, outputFile) {
         xxhashAsHex('Parameters', 128).replace('0x', '') +
         xxhashAsHex('IsTestnet', 128).replace('0x', '');
     REPLACEMENTS[`0x${IS_TESTNET_KEY}`] = '0x01';
+
+    // BorrowingContract → GIGAHDX pool so liquidation borrows HOLLAR from the same pool
+    const BORROW_KEY =
+        xxhashAsHex('Liquidation', 128).replace('0x', '') +
+        xxhashAsHex('BorrowingContract', 128).replace('0x', '');
+    REPLACEMENTS[`0x${BORROW_KEY}`] = '0x' + GIGAHDX_POOL_ADDR;
+
+    // RelayParentOffset=0 so local relay can supply enough ancestor blocks
+    const RELAY_OFFSET_KEY =
+        xxhashAsHex('Parameters', 128).replace('0x', '') +
+        xxhashAsHex('RelayParentOffsetOverride', 128).replace('0x', '');
+    REPLACEMENTS[`0x${RELAY_OFFSET_KEY}`] = '0x01';
 
     // Define keys to delete
     const KEYS_TO_DELETE = [
@@ -146,6 +199,16 @@ async function updateChainSpec(inputFile, outputFile) {
         "0xcec5070d609dd3497f72bde07fc96ba0e0cdd062e6eaf24295ad4ccfc41d4609", // Session.queuedKeys
         "0xcec5070d609dd3497f72bde07fc96ba072763800a36a99fdfc7c10f6415f6ee6", // Session.currentIndex
     ];
+
+    // ParachainSystem stale state from snapshot breaks first-block validation
+    const PS_PREFIX = xxhashAsHex('ParachainSystem', 128).replace('0x', '');
+    for (const item of [
+        'UnincludedSegment', 'AggregatedUnincludedSegment', 'RelayStateProof',
+        'RelevantMessagingState', 'ValidationData', 'UpgradeRestrictionSignal',
+        'UpgradeGoAhead', 'HostConfiguration',
+    ]) {
+        KEYS_TO_DELETE.push('0x' + PS_PREFIX + xxhashAsHex(item, 128).replace('0x', ''));
+    }
 
     // Define prefixes to delete
     const PREFIXES_TO_DELETE = [
@@ -236,6 +299,16 @@ async function updateChainSpec(inputFile, outputFile) {
             xxhashAsHex('AuthorizedUpgrade', 128).replace('0x', '');
         chainSpec.genesis.raw.top[key] = '0x' + raw + checkVersion;
         console.log(`✅ Preauthorized runtime upgrade: code_hash=0x${raw} check_version=${checkVersion === '01'}`);
+    }
+
+    // Inject locally-built runtime WASM so the fork uses our code changes
+    const wasmPath = process.env.WASM_PATH || '../../target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm';
+    if (fs.existsSync(wasmPath)) {
+        const wasmBytes = fs.readFileSync(wasmPath);
+        chainSpec.genesis.raw.top['0x3a636f6465'] = '0x' + wasmBytes.toString('hex');
+        console.log(`✅ Injected local WASM (${(wasmBytes.length / 1024 / 1024).toFixed(1)} MB) from ${wasmPath}`);
+    } else {
+        console.warn(`⚠️  No local WASM at ${wasmPath} — fork will use snapshot runtime`);
     }
 
     // Update metadata fields
