@@ -2312,7 +2312,7 @@ parameter_types! {
 	pub const MaxFeeConversionsPerBlock: u32 = 5;
 }
 
-/// Staking fee receiver for non-HDX path — 10% of converted HDX.
+/// Legacy staking fee receiver for non-HDX path — 5% of converted HDX.
 pub struct StakingFeeReceiver;
 
 impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for StakingFeeReceiver {
@@ -2323,7 +2323,7 @@ impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for StakingF
 	}
 
 	fn percentage() -> Permill {
-		Permill::from_percent(10)
+		Permill::from_percent(5)
 	}
 
 	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
@@ -2334,7 +2334,7 @@ impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for StakingF
 		Ok(())
 	}
 }
-/// Staking fee receiver for HDX path — 10% of HDX trade fees.
+/// Legacy staking fee receiver for HDX path — 5% of HDX trade fees.
 pub struct HdxStakingFeeReceiver;
 
 impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for HdxStakingFeeReceiver {
@@ -2345,7 +2345,56 @@ impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for HdxStaki
 	}
 
 	fn percentage() -> Permill {
-		Permill::from_percent(10)
+		Permill::from_percent(5)
+	}
+
+	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+
+	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+}
+
+/// GigaHDX main pot — 15% of trade fees. HDX accrued here lifts the gigaHDX
+/// exchange rate (`total_staked_hdx = TotalLocked + free_balance(gigapot)`),
+/// so a plain transfer is the only side-effect required.
+pub struct GigaHdxFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for GigaHdxFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(15)
+	}
+
+	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+
+	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
+		Ok(())
+	}
+}
+
+/// GigaHDX rewards accumulator — 25% of trade fees. Externally funded pot
+/// drained by `pallet-gigahdx-rewards` into per-track allocations.
+pub struct GigaHdxRewardsFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for GigaHdxRewardsFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(25)
 	}
 
 	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
@@ -2368,7 +2417,7 @@ impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for Referral
 	}
 
 	fn percentage() -> Permill {
-		Permill::from_percent(10)
+		Permill::from_percent(5)
 	}
 
 	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
@@ -2393,7 +2442,17 @@ impl pallet_fee_processor::Config for Runtime {
 	type HdxAssetId = NativeAssetId;
 	type LrnaAssetId = LRNA;
 	type MaxConversionsPerBlock = MaxFeeConversionsPerBlock;
-	type FeeReceivers = (StakingFeeReceiver, ReferralsFeeReceiver);
-	type HdxFeeReceivers = (HdxStakingFeeReceiver,);
+	type FeeReceivers = (
+		GigaHdxFeeReceiver,
+		GigaHdxRewardsFeeReceiver,
+		StakingFeeReceiver,
+		ReferralsFeeReceiver,
+	);
+	type HdxFeeReceivers = (
+		GigaHdxFeeReceiver,
+		GigaHdxRewardsFeeReceiver,
+		HdxStakingFeeReceiver,
+		ReferralsFeeReceiver,
+	);
 	type WeightInfo = ();
 }

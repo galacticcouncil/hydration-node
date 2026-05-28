@@ -54,7 +54,13 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 
 fn seed_pot_accounts() {
 	// Ensure all pot accounts have at least ED so small fee transfers don't fail
-	for pot in [FeeProcessor::pot_account_id(), staking_pot(), referrals_pot()] {
+	for pot in [
+		FeeProcessor::pot_account_id(),
+		staking_pot(),
+		referrals_pot(),
+		gigahdx_pot(),
+		gigahdx_rewards_pot(),
+	] {
 		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			pot,
@@ -74,6 +80,14 @@ fn referrals_pot() -> AccountId {
 
 fn fee_processor_pot() -> AccountId {
 	FeeProcessor::pot_account_id()
+}
+
+fn gigahdx_pot() -> AccountId {
+	pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id()
+}
+
+fn gigahdx_rewards_pot() -> AccountId {
+	pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot()
 }
 
 // ---------------------------------------------------------------------------
@@ -1320,6 +1334,217 @@ fn router_trade_fee_distribution_matches_direct_trade() {
 		assert!(
 			referrals_increase > 0,
 			"Referrals should receive HDX from router trade conversion"
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Tests: HDX path delivers fees to all four configured receivers
+// HdxFeeReceivers = (GigaHdx 15%, GigaHdxRewards 25%, HdxStaking 5%, Referrals 5%)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn buying_hdx_from_omnipool_credits_all_four_hdx_fee_pots() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		let giga_before = Currencies::free_balance(HDX, &gigahdx_pot());
+		let giga_rewards_before = Currencies::free_balance(HDX, &gigahdx_rewards_pot());
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
+
+		// Buy 100 HDX with DAI — fee leg is on `asset_out` (HDX), so this hits
+		// the HDX path of process_trade_fee and distributes synchronously.
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			u128::MAX,
+		));
+
+		// Pull the exact HDX trade-fee amount from the FeeReceived event so the
+		// per-receiver assertions are pinned to the same input. Oracle-population
+		// trades in `init_omnipool_with_oracle_for_block_24` also emit FeeReceived
+		// events in the same block, so iterate in reverse to grab the buy's event.
+		let events = last_hydra_events(200);
+		let fee_amount = events
+			.iter()
+			.rev()
+			.find_map(|e| match e {
+				hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::FeeReceived {
+					asset,
+					amount,
+					..
+				}) if *asset == HDX => Some(*amount),
+				_ => None,
+			})
+			.expect("FeeReceived event for HDX must be emitted");
+		assert!(fee_amount > 0, "Recorded fee take must be non-zero");
+
+		// `amount` in FeeReceived is the post-mul_floor take (50% of the raw fee).
+		// Each receiver gets floor(fee_amount * its_pct / total_pct).
+		// total_pct = 50%, receiver_pct ∈ {15, 25, 5, 5}.
+		let pct = |p: u32| Permill::from_percent(p).deconstruct() as u128;
+		let total = pct(50);
+		let share = |p: u32| {
+			sp_runtime::helpers_128bit::multiply_by_rational_with_rounding(
+				fee_amount,
+				pct(p),
+				total,
+				sp_runtime::Rounding::Down,
+			)
+			.unwrap()
+		};
+
+		let giga_increase = Currencies::free_balance(HDX, &gigahdx_pot()) - giga_before;
+		let giga_rewards_increase = Currencies::free_balance(HDX, &gigahdx_rewards_pot()) - giga_rewards_before;
+		let staking_increase = Currencies::free_balance(HDX, &staking_pot()) - staking_before;
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()) - referrals_before;
+
+		assert_eq!(giga_increase, share(15), "gigaHDX pot must receive 15/50 share");
+		assert_eq!(
+			giga_rewards_increase,
+			share(25),
+			"gigaHDX rewards pot must receive 25/50 share"
+		);
+		assert_eq!(staking_increase, share(5), "legacy staking pot must receive 5/50 share");
+		assert_eq!(referrals_increase, share(5), "referrals pot must receive 5/50 share");
+
+		// Conservation: the four receiver shares plus any rounding dust account
+		// for the full take. With three 5% slices and one 15%/25%, distinct
+		// numerator/denominator pairs each round down independently, so dust ≤ 3.
+		let sum = giga_increase + giga_rewards_increase + staking_increase + referrals_increase;
+		assert!(
+			sum <= fee_amount && fee_amount - sum <= 3,
+			"sum of receiver shares ({}) must equal take ({}) within 3 wei rounding",
+			sum,
+			fee_amount
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Tests: Non-HDX path — fee accrues in pot, converts on next block via
+// on_idle, then distributes to all four receivers (plus a nested HDX fee
+// from the conversion swap itself).
+// ---------------------------------------------------------------------------
+
+#[test]
+fn selling_for_dai_then_advancing_block_distributes_converted_hdx_to_all_four_pots() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		let giga_before = Currencies::free_balance(HDX, &gigahdx_pot());
+		let giga_rewards_before = Currencies::free_balance(HDX, &gigahdx_rewards_pot());
+		let staking_before = Currencies::free_balance(HDX, &staking_pot());
+		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
+
+		// Sell HDX → DAI: fee is on `asset_out` (DAI), so the non-HDX path takes
+		// 50% × fee into the fee-processor pot and marks DAI pending.
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+		));
+		assert!(
+			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should be pending after the non-HDX-fee trade"
+		);
+
+		// Forward a block, then run on_idle — `go_to_block` doesn't invoke on_idle,
+		// so we call it explicitly with generous weight. This is the path the chain
+		// will take in production once the next block fires.
+		hydradx_run_to_next_block();
+		let weight = frame_support::weights::Weight::from_parts(1_000_000_000_000, u64::MAX);
+		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
+
+		assert!(
+			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
+			"DAI should have been converted via on_idle"
+		);
+
+		// The primary distribution operates on `hdx_out` from the Converted event
+		// — the actual HDX yielded by the DAI→HDX swap inside the pallet.
+		let events = last_hydra_events(500);
+		let hdx_out = events
+			.iter()
+			.rev()
+			.find_map(|e| match e {
+				hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::Converted {
+					asset_id,
+					hdx_out,
+					..
+				}) if *asset_id == DAI => Some(*hdx_out),
+				_ => None,
+			})
+			.expect("Converted event for DAI must be emitted");
+		assert!(hdx_out > 0, "Conversion must yield non-zero HDX");
+
+		// The swap that produced `hdx_out` also charges an HDX trade fee on the
+		// HDX leg, re-entering process_trade_fee as the HDX path. That secondary
+		// event's `amount` is the post-mul_floor take (50% × raw fee), and the
+		// same 4 receivers split it via HdxFeeReceivers. Multiple HDX FeeReceived
+		// events from prior oracle-population trades persist in the events buffer,
+		// so iterate in reverse to grab the latest (= conversion swap's) one.
+		let secondary_take = events
+			.iter()
+			.rev()
+			.find_map(|e| match e {
+				hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::FeeReceived {
+					asset,
+					amount,
+					..
+				}) if *asset == HDX => Some(*amount),
+				_ => None,
+			})
+			.expect("Nested HDX FeeReceived event must be emitted from the conversion swap");
+
+		// Each receiver gets floor(hdx_out * pct / 50) from the non-HDX path
+		// AND floor(secondary_take * pct / 50) from the nested HDX path.
+		let pct = |p: u32| Permill::from_percent(p).deconstruct() as u128;
+		let total = pct(50);
+		let share = |source: u128, p: u32| {
+			sp_runtime::helpers_128bit::multiply_by_rational_with_rounding(
+				source,
+				pct(p),
+				total,
+				sp_runtime::Rounding::Down,
+			)
+			.unwrap()
+		};
+		let expected = |p: u32| share(hdx_out, p) + share(secondary_take, p);
+
+		let giga_increase = Currencies::free_balance(HDX, &gigahdx_pot()) - giga_before;
+		let giga_rewards_increase = Currencies::free_balance(HDX, &gigahdx_rewards_pot()) - giga_rewards_before;
+		let staking_increase = Currencies::free_balance(HDX, &staking_pot()) - staking_before;
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()) - referrals_before;
+
+		assert_eq!(
+			giga_increase,
+			expected(15),
+			"gigaHDX pot must receive 15/50 of non-HDX hdx_out plus 15/50 of nested HDX take"
+		);
+		assert_eq!(
+			giga_rewards_increase,
+			expected(25),
+			"gigaHDX rewards pot must receive 25/50 of both inflows"
+		);
+		assert_eq!(
+			staking_increase,
+			expected(5),
+			"legacy staking pot must receive 5/50 of both inflows"
+		);
+		assert_eq!(
+			referrals_increase,
+			expected(5),
+			"referrals pot must receive 5/50 of both inflows"
 		);
 	});
 }
