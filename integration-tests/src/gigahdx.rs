@@ -2015,3 +2015,102 @@ fn legacy_stake_should_succeed_after_giga_position_fully_exits() {
 		assert_ok!(Staking::stake(RuntimeOrigin::signed(alice.clone()), 1_000 * UNITS));
 	});
 }
+
+//TODO: fix before merge as dust can bloat the chain
+/// Full unstake at a rounding rate leaves dust in `Stakes.hdx`. After cooldown
+/// + unlock, the cleanup branch does not fire (it requires `hdx == 0`), so
+/// the `Stakes` record and the `ghdxlock` both survive with the dust amount.
+/// The user has no extrinsic to release the leaked lock.
+#[test]
+fn full_unstake_should_leave_hdx_residue_when_rate_causes_rounding() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		const DUST: Balance = 1;
+
+		let (alice, gigahdx) = stake_two_then_set_rounding_rate();
+
+		let stake_before = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake exists");
+		assert_eq!(stake_before.hdx, 100 * UNITS);
+		assert_eq!(stake_before.gigahdx, gigahdx);
+
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), gigahdx));
+
+		let stake_after = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("record persists");
+		assert_eq!(stake_after.gigahdx, 0, "all gigahdx burned");
+		assert_eq!(stake_after.hdx, 0);
+
+		let small_principal: Balance = 7 * UNITS;
+
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(alice.clone()),
+			small_principal,
+		));
+		let after_restake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake exists");
+		let gigahdx_minted = after_restake.gigahdx;
+
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			gigahdx_minted,
+		));
+
+		// Residue stuck in `Stakes.hdx` after full unstake.
+		let stake_final = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("record persists");
+		assert_eq!(stake_final.gigahdx, 0, "all gigahdx burned");
+		assert_eq!(
+			stake_final.hdx, DUST,
+			"residue not absorbed — exactly {} atomic unit(s) stuck in Stakes.hdx",
+			DUST,
+		);
+
+
+		// Fast-forward past the cooldown and unlock the compounded position.
+		// The cleanup branch in `unlock` checks
+		//   `s.hdx == 0 && s.gigahdx == 0 && s.frozen == 0 && s.unstaking_count == 0`
+		// — `hdx == 1` blocks it, so the record (and the ghdxlock) survive.
+		let positions: Vec<_> = pallet_gigahdx::PendingUnstakes::<Runtime>::iter_prefix(&alice).collect();
+		assert_eq!(positions.len(), 1);
+		let cooldown: hydradx_runtime::BlockNumber = <Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		let expiry = positions[0].0 + cooldown;
+		System::set_block_number(expiry);
+		for (id, _) in positions {
+			assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), id));
+		}
+		assert_eq!(pending_count(&alice), 0, "all pending positions released");
+
+		// Storage leak: record persists holding only the residue.
+		let stake_leak = pallet_gigahdx::Stakes::<Runtime>::get(&alice)
+			.expect("stake record was not cleaned up after full unstake + unlock");
+		assert_eq!(
+			stake_leak,
+			pallet_gigahdx::pallet::StakeRecord {
+				hdx: DUST,
+				gigahdx: 0,
+				frozen: 0,
+				unstaking: 0,
+				unstaking_count: 0,
+			},
+			"stale record holding exactly {} atomic unit of hdx, all other fields zero",
+			DUST,
+		);
+
+		// Lock leak: ghdxlock refreshed to hdx + unstaking = 1 + 0 = 1.
+		assert_eq!(
+			locked_under_ghdx(&alice),
+			DUST,
+			"ghdxlock left at exactly {} atomic unit — permanent lock dust",
+			DUST,
+		);
+
+		// The user has no extrinsic that can release this dust:
+		// `gigahdx == 0` makes non-zero unstakes fail with `InsufficientStake`,
+		// and zero would fail with `ZeroAmount`. The record is stuck forever.
+		assert_noop!(
+			GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 1),
+			pallet_gigahdx::Error::<Runtime>::InsufficientStake,
+		);
+		assert_noop!(
+			GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 0),
+			pallet_gigahdx::Error::<Runtime>::ZeroAmount,
+		);
+	});
+}
