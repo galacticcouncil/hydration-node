@@ -285,6 +285,63 @@ fn currencies_withdraw_orml_buffers_burn_log() {
 	});
 }
 
+/// A/B parity: the node-indexing path (`SyntheticEthLogsApi`, derived from this
+/// block's events) must produce byte-identical `(tx, status, receipt)` to the
+/// on-chain flusher (derived from the mutation-hook buffer). Both share
+/// `assemble_synth_txs`, so this proves the event-derived *entries* match the
+/// hook-buffered entries — the guarantee that lets the node variant replace the
+/// on-chain pallet without changing what evm clients see.
+#[test]
+fn synthetic_eth_logs_api_matches_on_chain_flusher() {
+	use frame_support::traits::OnFinalize;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let n = frame_system::Pallet::<Runtime>::block_number();
+		SyntheticLogsPending::<Runtime>::kill();
+		frame_system::Pallet::<Runtime>::reset_events();
+		// No real eth txs in this block, so both paths index synth txs from 0:
+		// the flusher reads `Pending::count()`, the API reads
+		// `CurrentTransactionStatuses` — pin both to empty.
+		pallet_ethereum::CurrentTransactionStatuses::<Runtime>::kill();
+		assert_eq!(
+			pallet_ethereum::Pending::<Runtime>::count(),
+			0,
+			"no real eth txs expected in this block"
+		);
+
+		// substrate-origin movements: orml-tokens (DAI) + native balances (HDX).
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			BOB.into(),
+			DAI,
+			UNITS,
+		));
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			BOB.into(),
+			HDX,
+			2 * UNITS,
+		));
+
+		// A — node-indexing path: assemble synth txs from the block's events.
+		let api_txs = hydradx_runtime::evm::event_logs::synthetic_transactions();
+		assert!(!api_txs.is_empty(), "API must yield synth txs for the transfers");
+
+		// B — on-chain path: flush the mutation-hook buffer into pallet_ethereum::Pending.
+		SyntheticLogs::on_finalize(n);
+		let count = pallet_ethereum::Pending::<Runtime>::count();
+		let on_chain: Vec<_> = (0..count)
+			.filter_map(|i| pallet_ethereum::Pending::<Runtime>::get(i))
+			.collect();
+
+		assert_eq!(
+			api_txs, on_chain,
+			"SyntheticEthLogsApi(events) must be byte-identical to the on-chain flusher(hook buffer)",
+		);
+	});
+}
+
 // dispatcher precompile → substrate transfer/swap → must surface via eth_getLogs.
 
 #[test]
