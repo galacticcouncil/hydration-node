@@ -23,6 +23,7 @@ use frame_system::pallet_prelude::*;
 use pallet_broadcast::types::ExecutionType;
 use pallet_ethereum::{Receipt, Transaction, TransactionAction, TransactionStatus};
 use scale_info::TypeInfo;
+use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::prelude::*;
 
 pub use pallet::*;
@@ -75,7 +76,17 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_finalize(_n: BlockNumberFor<T>) {
+		fn on_finalize(n: BlockNumberFor<T>) {
+			// Must run before `pallet_ethereum::on_finalize` builds this block's
+			// eth block (declared earlier in `construct_runtime!`). After that
+			// runs, `CurrentBlock` carries this block's number; seeing that here
+			// means the ordering is broken and our synth txs would land in the
+			// wrong block.
+			debug_assert!(
+				pallet_ethereum::CurrentBlock::<T>::get().map_or(true, |b| b.header.number
+					< U256::from(UniqueSaturatedInto::<u128>::unique_saturated_into(n))),
+				"pallet-synthetic-logs on_finalize must run before pallet_ethereum",
+			);
 			let drained = Pending::<T>::take();
 			if drained.is_empty() {
 				return;
@@ -131,19 +142,30 @@ impl<T: Config> Pallet<T> {
 
 		groups.sort_by(|a, b| bucket_sort_key(&a.0).cmp(&bucket_sort_key(&b.0)));
 
+		// Per-block entropy folded into the envelope so synth-tx hashes never
+		// collide across blocks (frontier indexes txs by `transaction.hash()`;
+		// without this, `Extrinsic(2)` in block N and N+1 hash identically and
+		// `eth_getTransactionReceipt` can only resolve one of them). `nonce`
+		// (bucket) and `value` (group_index) keep hashes distinct within a block.
+		let mut block_domain = Vec::new();
+		block_domain.extend_from_slice(b"hydration-synth-v1");
+		block_domain.extend_from_slice(frame_system::Pallet::<T>::parent_hash().as_ref());
+		block_domain.extend_from_slice(&frame_system::Pallet::<T>::block_number().encode());
+
 		for (idx, (bucket, logs)) in groups.into_iter().enumerate() {
-			Self::insert_synth_tx(bucket, logs, idx as u32);
+			Self::insert_synth_tx(bucket, logs, idx as u32, block_domain.clone());
 		}
 	}
 
-	fn insert_synth_tx(bucket: Bucket, logs: Vec<ethereum::Log>, group_index: u32) {
+	fn insert_synth_tx(bucket: Bucket, logs: Vec<ethereum::Log>, group_index: u32, input: Vec<u8>) {
 		let chain_id = <T as Config>::ChainId::get();
 		let nonce = bucket_nonce(bucket);
 
 		let signature = ethereum::eip2930::TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS)
 			.expect("synthetic signature constants are within valid ECDSA range; qed");
 		// `value = group_index` so two synth txs sharing the same bucket-nonce in
-		// one block produce distinct envelope hashes (frontier indexes by hash).
+		// one block produce distinct envelope hashes (frontier indexes by hash);
+		// `input` carries per-block domain separation against cross-block collisions.
 		let transaction = Transaction::EIP1559(EIP1559Transaction {
 			chain_id,
 			nonce: U256::from(nonce),
@@ -152,7 +174,7 @@ impl<T: Config> Pallet<T> {
 			gas_limit: U256::zero(),
 			action: TransactionAction::Call(SENTINEL_ADDRESS),
 			value: U256::from(group_index),
-			input: Vec::new(),
+			input,
 			access_list: Vec::new(),
 			signature,
 		});
