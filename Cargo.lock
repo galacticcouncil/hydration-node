@@ -12767,6 +12767,7 @@ dependencies = [
  "pallet-currencies-rpc-runtime-api",
  "pallet-ethereum",
  "pallet-evm",
+ "pallet-liquidation",
  "parity-scale-codec",
  "pepl-worker-support",
  "pretty_assertions",

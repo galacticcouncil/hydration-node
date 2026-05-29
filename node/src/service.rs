@@ -348,7 +348,11 @@ async fn start_node_impl(
 			"pepl-worker-runner",
 			"pepl-worker",
 			pepl_worker::run(
-				LiquidationTask::new(RuntimeClient::new(client.clone()), liquidation_worker_config.into()),
+				LiquidationTask::new(
+					RuntimeClient::new(client.clone()),
+					transaction_pool.clone(),
+					liquidation_worker_config.into(),
+				),
 				client.clone(),
 			),
 		);

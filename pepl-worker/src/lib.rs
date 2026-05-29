@@ -1,4 +1,5 @@
 use codec::{Decode, Encode};
+use cumulus_primitives_core::BlockT;
 use fp_rpc::EthereumRuntimeRPCApi;
 use fp_self_contained::SelfContainedCall;
 use frame_system::EventRecord;
@@ -17,6 +18,7 @@ use pepl_worker_support::types::AssetId;
 use pepl_worker_support::types::Balance;
 use pepl_worker_support::types::BlockNumber;
 use pepl_worker_support::types::Borrower;
+use pepl_worker_support::types::LiquidationOption;
 use pepl_worker_support::types::MoneyMarket;
 use pepl_worker_support::types::Timestamp;
 use pepl_worker_support::Hydration;
@@ -27,6 +29,7 @@ use sc_client_api::HeaderBackend;
 use sc_client_api::StorageKey;
 use sc_transaction_pool_api::InPoolTransaction;
 use sc_transaction_pool_api::TransactionPool;
+use sc_transaction_pool_api::TransactionSource;
 use serde::Deserialize;
 use sp_api::ProvideRuntimeApi;
 use sp_core::H160;
@@ -34,7 +37,9 @@ use sp_core::H256;
 use sp_core::U256;
 use sp_runtime::traits::Block;
 use sp_runtime::traits::Zero;
+use sp_runtime::BoundedVec;
 use sp_runtime::OpaqueExtrinsic;
+use sp_runtime::SaturatedConversion;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -253,18 +258,25 @@ impl Default for LiquidationTaskConfig {
 	}
 }
 
-pub struct LiquidationTask<C, B> {
+pub struct LiquidationTask<C, B, TP> {
 	client: C,
 	pub https: https::Client,
 	pub url: Uri,
+	pub transaction_pool: Arc<TP>,
 	borrowers: HashMap<EvmAddress, Borrower>,
 	system_events_key: StorageKey,
 	_phantom: PhantomData<B>,
 	cfg: LiquidationTaskConfig,
 }
 
-impl<C: RuntimeClient<B>, B: Block> LiquidationTask<C, B> {
-	pub fn new(client: C, cfg: LiquidationTaskConfig) -> Self {
+impl<C, B, TP> LiquidationTask<C, B, TP>
+where
+	C: RuntimeClient<B>,
+	B: Block,
+	TP: TransactionPool<Block = B> + 'static,
+	<B as BlockT>::Extrinsic: frame_support::traits::IsType<hydradx_runtime::opaque::UncheckedExtrinsic>,
+{
+	pub fn new(client: C, transaction_pool: Arc<TP>, cfg: LiquidationTaskConfig) -> Self {
 		//It's ok to panic here, collator should fix URL or disable liquidation worker
 		let url = cfg
 			.omniwatch_url
@@ -274,6 +286,7 @@ impl<C: RuntimeClient<B>, B: Block> LiquidationTask<C, B> {
 		Self {
 			client,
 			https: https::new(),
+			transaction_pool,
 			url,
 			borrowers: HashMap::new(),
 			system_events_key: StorageKey(storage_key::SYSTEM_EVENTS.to_vec()),
@@ -285,7 +298,7 @@ impl<C: RuntimeClient<B>, B: Block> LiquidationTask<C, B> {
 	/// Function updates borrower's data if necessary, checks borrower's health factor and liquidate
 	/// if necessary
 	/// WARN: this function assume `MoneyMarket`'s state is up to date for current block.
-	fn process_borrower<RA: RuntimeApiProvider<B>>(
+	async fn process_borrower<RA: RuntimeApiProvider<B>>(
 		&self,
 		hydration: &Hydration,
 		api: &RA,
@@ -351,15 +364,83 @@ impl<C: RuntimeClient<B>, B: Block> LiquidationTask<C, B> {
 			}
 		};
 
-		let priority = borrower
+		let priority: u64 = borrower
 			.total_collateral
 			.checked_div(ONE_BASE.into())
-			.unwrap_or(Zero::zero());
-		//submit liquidation
+			.unwrap_or(Zero::zero())
+			.saturated_into();
+
+		//NOTE: we don't want to retry if this fn fail so only log err and return `()` for now
+		let _ = self.submit_liquidation(block, borrower, &liq_option, priority, money_market)
+			.await
+			.inspect_err(|_| {
+				log::error!(target: LOG_TARGET, "{:?} LiquidationTask.process_borrower(): failed to submit liquidation tx: borrower: {:?}, liquidation_option: {:?}, priority: {:?}, duration: {:?}", log_prefix, borrower.address, liq_option, priority, timer.elapsed().as_nanos());
+			});
+	}
+
+	async fn submit_liquidation(
+		&self,
+		block: B::Hash,
+		borrower: &Borrower,
+		liquidation: &LiquidationOption,
+		priority: u64,
+		money_market: &MoneyMarket,
+	) -> Result<(), ()> {
+		let log_prefix = self.cfg.log_prefix.as_str();
+
+		let Some(coll) = money_market.reserves.get(&liquidation.collateral_asset) else {
+			log::error!(target: LOG_TARGET, "{:?} LiquidationTask.submit_liquidation(): failed to get reseve. THIS SHOULD NEVER HAPPEN, please report to project maintainers, reserve: {:?}", log_prefix, liquidation.collateral_asset);
+			return Err(());
+		};
+
+		let Some(debt) = money_market.reserves.get(&liquidation.debt_asset) else {
+			log::error!(target: LOG_TARGET, "{:?} LiquidationTask.submit_liquidation(): failed to get reseve. THIS SHOULD NEVER HAPPEN, please report to project maintainers, reserve: {:?}", log_prefix, liquidation.collateral_asset);
+			return Err(());
+		};
+
+		let tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate {
+			collateral_asset: coll.asset_id,
+			debt_asset: debt.asset_id,
+			user: borrower.address,
+			debt_to_cover: liquidation.debt_to_liquidate.saturated_into(),
+			route: BoundedVec::new(),
+			unsinged_priority: Some(priority),
+		});
+
+		let encoded_tx: fp_self_contained::UncheckedExtrinsic<
+			hydradx_runtime::Address,
+			RuntimeCall,
+			hydradx_runtime::Signature,
+			hydradx_runtime::SignedExtra,
+		> = fp_self_contained::UncheckedExtrinsic::new_bare(tx.clone());
+		let encoded = encoded_tx.encode();
+
+		let opaque_tx =
+			sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).map_err(|e| {
+				log::error!(target: LOG_TARGET, "{:?} LiquidationTask.submit_liquidation(): failed to decode tx. THIS SHOULD NEVER HAPPEN, please report to project maintainers: err: {:?}, tx: {:?}", log_prefix, e, tx);
+			()
+		})?;
+
+		match self
+			.transaction_pool
+			.submit_one(block, TransactionSource::Local, opaque_tx.into())
+			.await
+		{
+			Ok(_) => Ok(()),
+			Err(e) => {
+				log::error!(target: LOG_TARGET, "{:?} LiquidationTask.submit_liquidation(): failed to submit liquidation transaction, err: {:?}", log_prefix, e);
+				Err(())
+			}
+		}
 	}
 }
 
-impl<C: RuntimeClient<B>, B: Block> LiquidationTask<C, B> {
+impl<C, B, TP> LiquidationTask<C, B, TP>
+where
+	C: RuntimeClient<B>,
+	B: Block,
+	TP: TransactionPool<Block = B> + 'static,
+{
 	/// Function returns all events from `system.events` storage at `block`
 	pub fn load_events(&self, block: B::Hash) -> Vec<EventRecord<RuntimeEvent, hydradx_runtime::Hash>> {
 		let timer = Instant::now();
@@ -525,15 +606,15 @@ pub(crate) fn is_oracle_update_tx(
 	return Some(transaction);
 }
 
-pub async fn run<C, B, CL>(task: LiquidationTask<C, B>, client: Arc<CL>)
+pub async fn run<C, B, CL, TP>(task: LiquidationTask<C, B, TP>, client: Arc<CL>)
 where
 	CL: BlockchainEvents<B> + 'static,
 	CL: HeaderBackend<B>,
 	CL: ProvideRuntimeApi<B>,
 	CL::Api: EthereumRuntimeRPCApi<B> + Erc20MappingApi<B> + CurrenciesApi<B, AssetId, AccountId, Balance>,
-
 	B: hydradx_runtime::BlockT,
 	<B as Block>::Extrinsic: From<OpaqueExtrinsic>,
+	TP: TransactionPool<Block = B> + 'static,
 {
 	let mut blocks_stream = client.import_notification_stream();
 	let who = H160(hex!["288e0dbd476cbfc7dfc1268c00b9e5081e9d9b1a"]);
