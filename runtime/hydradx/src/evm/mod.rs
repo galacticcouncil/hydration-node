@@ -56,6 +56,7 @@ pub mod aave_trade_executor;
 mod accounts_conversion;
 mod erc20_currency;
 pub mod erc20_logs;
+pub mod event_logs;
 pub mod evm_error_decoder;
 mod evm_fee;
 mod executor;

@@ -23,9 +23,16 @@ fn evm_address_of(account: &AccountId) -> H160 {
 	pallet_evm_accounts::Pallet::<Runtime>::evm_address(account)
 }
 
-fn push_transfer_log(asset: AssetId, from: H160, to: H160, amount: Balance) {
+/// Resolve a token movement to its ERC-20 `Transfer` log; emitter is the
+/// asset's evm address. Shared by the mutation-hook path (below) and the
+/// event-reader (`event_logs`), so both produce byte-identical logs.
+pub fn transfer_log(asset: AssetId, from: H160, to: H160, amount: Balance) -> (H160, ethereum::Log) {
 	let address = HydraErc20Mapping::asset_address(asset);
-	let log = build_erc20_transfer_log(address, from, to, U256::from(amount));
+	(address, build_erc20_transfer_log(address, from, to, U256::from(amount)))
+}
+
+fn push_transfer_log(asset: AssetId, from: H160, to: H160, amount: Balance) {
+	let (address, log) = transfer_log(asset, from, to, amount);
 	if !crate::evm::runner::append_to_current_evm_frame(log.clone()) {
 		SyntheticLogs::<Runtime>::push(address, log);
 	}
