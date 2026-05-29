@@ -28,11 +28,31 @@
 
 use crate::evm::{erc20_logs, swap_logs};
 use crate::{Runtime, RuntimeEvent};
+use frame_support::traits::Get;
+use frame_system::Phase;
 use hydradx_traits::evm::InspectEvmAccounts;
+use pallet_broadcast::types::ExecutionType;
+use pallet_ethereum::{Receipt, Transaction, TransactionStatus};
+use pallet_synthetic_logs::{assemble_synth_txs, Bucket, HookPhase};
 use primitive_types::H160;
 use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::AccountId;
+use sp_runtime::traits::UniqueSaturatedInto;
+use sp_std::collections::btree_set::BTreeSet;
 use sp_std::vec::Vec;
+
+sp_api::decl_runtime_apis! {
+	/// Synthetic ethereum tx records derived from a block's substrate events
+	/// (token transfers + `Swapped3` swaps), for the node's eth-rpc indexing
+	/// layer. Read-only; consumes no consensus state.
+	pub trait SyntheticEthLogsApi {
+		/// `(transaction, status, receipt)` triples for the block at which this
+		/// API is invoked, assembled from `frame_system::Events`. Excludes
+		/// events emitted inside ethereum transactions (those logs are already
+		/// in the real eth tx). Indices continue after the block's real eth txs.
+		fn synthetic_transactions() -> Vec<(Transaction, TransactionStatus, Receipt)>;
+	}
+}
 
 fn evm_addr(account: &AccountId) -> H160 {
 	pallet_evm_accounts::Pallet::<Runtime>::evm_address(account)
@@ -85,4 +105,79 @@ pub fn logs_from_event(event: &RuntimeEvent) -> Vec<(H160, ethereum::Log)> {
 			.collect(),
 		_ => Vec::new(),
 	}
+}
+
+/// Bucket origin for hook-phase events. Only `Swapped3` carries its
+/// originating context (`operation_stack`) in the event itself, so swaps in
+/// `on_initialize`/`on_finalize` (e.g. DCA) recover their per-schedule
+/// attribution; other hook-phase events fall back to `None` (coarser grouping
+/// than the on-chain hook path, which read the live broadcast context).
+fn event_origin_hint(event: &RuntimeEvent) -> Option<ExecutionType> {
+	match event {
+		RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 { operation_stack, .. }) => {
+			operation_stack.first().copied()
+		}
+		_ => None,
+	}
+}
+
+/// Assemble this block's synthetic ethereum txs from `frame_system::Events`.
+/// Backs the `SyntheticEthLogsApi`; uses the same `assemble_synth_txs` the
+/// on-chain flusher uses, so output is byte-identical (A/B parity).
+pub fn synthetic_transactions() -> Vec<(Transaction, TransactionStatus, Receipt)> {
+	let records: Vec<_> = frame_system::Pallet::<Runtime>::read_events_no_consensus().collect();
+
+	// Extrinsics that executed an ethereum tx: their substrate-dispatched
+	// transfers/swaps already emitted inline logs into the real eth tx, so we
+	// must not re-synthesize them. Identify by the `Executed` event they emit.
+	let mut evm_extrinsics: BTreeSet<u32> = BTreeSet::new();
+	for rec in records.iter() {
+		if matches!(
+			rec.event,
+			RuntimeEvent::Ethereum(pallet_ethereum::Event::Executed { .. })
+		) {
+			if let Phase::ApplyExtrinsic(i) = rec.phase {
+				evm_extrinsics.insert(i);
+			}
+		}
+	}
+
+	let mut entries: Vec<(Bucket, H160, ethereum::Log)> = Vec::new();
+	for rec in records.iter() {
+		let bucket = match rec.phase {
+			Phase::ApplyExtrinsic(i) => {
+				if evm_extrinsics.contains(&i) {
+					continue;
+				}
+				Bucket::Extrinsic(i)
+			}
+			Phase::Initialization => Bucket::Hook {
+				phase: HookPhase::Initialization,
+				origin: event_origin_hint(&rec.event),
+			},
+			Phase::Finalization => Bucket::Hook {
+				phase: HookPhase::Finalization,
+				origin: event_origin_hint(&rec.event),
+			},
+		};
+		for (emitter, log) in logs_from_event(&rec.event) {
+			entries.push((bucket, emitter, log));
+		}
+	}
+
+	if entries.is_empty() {
+		return Vec::new();
+	}
+
+	let chain_id = <Runtime as pallet_evm::Config>::ChainId::get();
+	let parent_hash = frame_system::Pallet::<Runtime>::parent_hash();
+	let block_number =
+		UniqueSaturatedInto::<u64>::unique_saturated_into(frame_system::Pallet::<Runtime>::block_number());
+	// real eth txs of this block are finalized into CurrentTransactionStatuses;
+	// synth txs continue after them — matches the flusher's `Pending::count()`.
+	let base_tx_index = pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get()
+		.map(|s| s.len() as u32)
+		.unwrap_or(0);
+
+	assemble_synth_txs(entries, chain_id, parent_hash.as_ref(), block_number, base_tx_index)
 }

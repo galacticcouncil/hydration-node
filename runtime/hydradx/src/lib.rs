@@ -129,7 +129,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 413,
+	spec_version: 414,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1056,6 +1056,13 @@ impl_runtime_apis! {
 		}
 		fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
 			HydraErc20Mapping::address_to_asset(address)
+		}
+	}
+
+	impl evm::event_logs::SyntheticEthLogsApi<Block> for Runtime {
+		fn synthetic_transactions(
+		) -> Vec<(pallet_ethereum::Transaction, pallet_ethereum::TransactionStatus, pallet_ethereum::Receipt)> {
+			evm::event_logs::synthetic_transactions()
 		}
 	}
 
