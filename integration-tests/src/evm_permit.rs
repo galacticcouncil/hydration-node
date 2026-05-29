@@ -3073,8 +3073,7 @@ mod sponsored_paymaster {
 
 	// `pallet_timestamp::Pallet::now()` is 0 in tests by default — without
 	// `set_timestamp` below, `deadline = 1 >= 0` passes and we'd silently
-	// exercise the dry-run path instead. User also needs HDX so the dry-run
-	// wouldn't catch insufficient balance first.
+	// exercise the real-run path instead of the deadline check.
 	#[test]
 	fn signed_dispatch_permit_should_fail_with_expired_when_deadline_in_past_and_not_pause() {
 		TestNet::reset();
@@ -3127,7 +3126,7 @@ mod sponsored_paymaster {
 	}
 
 	#[test]
-	fn signed_dispatch_permit_should_fail_with_inner_call_would_fail_when_inner_call_reverts_and_not_pause() {
+	fn signed_dispatch_permit_should_fail_with_call_execution_error_when_inner_call_reverts_and_not_pause() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -3164,10 +3163,10 @@ mod sponsored_paymaster {
 				s,
 			);
 
-			let err = result.expect_err("inner call would fail must produce an error");
+			let err = result.expect_err("inner-call revert must produce an error");
 			assert_eq!(
 				err.error,
-				pallet_transaction_multi_payment::Error::<Runtime>::InnerCallWouldFail.into(),
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitCallExecutionError.into(),
 			);
 			assert_dispatch_permit_not_paused();
 		});
@@ -3288,11 +3287,11 @@ mod sponsored_paymaster {
 		});
 	}
 
-	// Guards against the signed-branch's 2× weight reservation ever leaking
-	// into user-paid fees on the unsigned path. 30% tolerance matches the
-	// pre-existing `compare_fee_in_hdx_between_evm_and_native_*` test.
+	// Guards the unsigned-path user fee against any future weight-macro change
+	// on `dispatch_permit` (signed and unsigned share the same `pallet::weight`).
+	// 30% tolerance matches the pre-existing `compare_fee_in_hdx_between_evm_and_native_*` test.
 	#[test]
-	fn unsigned_dispatch_permit_user_fee_must_not_be_doubled_by_signed_branch_weight_macro() {
+	fn unsigned_dispatch_permit_user_fee_should_stay_within_native_tolerance() {
 		TestNet::reset();
 
 		let user_evm_address = alith_evm_address();
@@ -3379,7 +3378,7 @@ mod sponsored_paymaster {
 			let tolerated_fee_difference = FixedU128::from_rational(30, 100);
 			assert!(
 				relative_fee_difference < tolerated_fee_difference,
-				"unsigned user fee leaked from signed-branch weight change! \
+				"unsigned dispatch_permit fee drifted outside native tolerance! \
 				 evm_fee={} native_fee={} relative_difference={:?} (tolerated < {:?})",
 				evm_fee,
 				native_fee,
@@ -3387,105 +3386,6 @@ mod sponsored_paymaster {
 				tolerated_fee_difference
 			);
 		})
-	}
-
-	#[test]
-	fn parity_dry_run_and_real_run_should_agree_on_omnipool_sell_success() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			init_omnipool_with_oracle_for_block_10();
-			let paymaster = paymaster_account();
-			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
-			let user_acc = MockAccount::new(alith_truncated_account());
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				user_acc.address(),
-				HDX,
-				(10 * UNITS) as i128,
-			));
-
-			let (result, _, _) = submit_signed_dispatch_permit_omni_sell(paymaster, 1_000_000_000);
-			assert_ok!(result);
-			assert_dispatch_permit_not_paused();
-		});
-	}
-
-	#[test]
-	fn parity_dry_run_and_real_run_should_agree_on_omnipool_sell_failure_slippage() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			init_omnipool_with_oracle_for_block_10();
-			let paymaster = paymaster_account();
-			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
-			let user_acc = MockAccount::new(alith_truncated_account());
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				user_acc.address(),
-				HDX,
-				(10 * UNITS) as i128,
-			));
-
-			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount: 1_000_000_000,
-				min_buy_amount: u128::MAX, // impossible slippage
-			});
-			let (from, data, gas_limit, deadline, v, r, s) =
-				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
-
-			let result = MultiTransactionPayment::dispatch_permit(
-				RuntimeOrigin::signed(paymaster),
-				from,
-				DISPATCH_ADDR,
-				U256::from(0),
-				data,
-				gas_limit,
-				deadline,
-				v,
-				r,
-				s,
-			);
-
-			assert!(result.is_err());
-			assert_dispatch_permit_not_paused();
-		});
-	}
-
-	#[test]
-	fn parity_dry_run_should_not_persist_state_changes() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			init_omnipool_with_oracle_for_block_10();
-			let paymaster = paymaster_account();
-			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
-			let user_acc = MockAccount::new(alith_truncated_account());
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				user_acc.address(),
-				HDX,
-				(10 * UNITS) as i128,
-			));
-
-			let initial_hdx = user_acc.balance(HDX);
-			let initial_dai = user_acc.balance(DAI);
-
-			let sell_amount: Balance = 1_000_000_000;
-			let (result, _, _) = submit_signed_dispatch_permit_omni_sell(paymaster, sell_amount);
-			assert_ok!(result);
-
-			let hdx_spent = initial_hdx - user_acc.balance(HDX);
-			let dai_received = user_acc.balance(DAI) - initial_dai;
-
-			assert_eq!(
-				hdx_spent, sell_amount,
-				"user HDX must reflect ONE sell, not two — dry-run state must roll back"
-			);
-			assert!(dai_received > 0);
-		});
 	}
 
 	// Save/restore tests simulate recursion by pre-setting an outer override
@@ -3572,7 +3472,7 @@ mod sponsored_paymaster {
 	}
 
 	#[test]
-	fn signed_dispatch_permit_should_restore_previous_fee_payer_override_on_dry_run_failure() {
+	fn signed_dispatch_permit_should_restore_previous_fee_payer_override_on_real_run_failure() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -3644,9 +3544,9 @@ mod sponsored_paymaster {
 				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
 
 			// Direct extrinsic call bypasses the SignedExtension pre-dispatch,
-			// so we observe how the body itself handles u64::MAX: the dry-run
+			// so we observe how the body itself handles u64::MAX: the real run
 			// hits Runner pre-validation (`gas_limit > block_gas_limit`) and
-			// returns Err → InnerCallWouldFail.
+			// returns Err → EvmPermitRunnerError.
 			let result = MultiTransactionPayment::dispatch_permit(
 				RuntimeOrigin::signed(paymaster),
 				from,
@@ -3692,8 +3592,15 @@ mod sponsored_paymaster {
 		});
 	}
 
+	// Signed-branch divergence from unsigned: when the inner call reverts,
+	// `do_dispatch_permit_signed` returns Err. FRAME wraps every dispatchable
+	// in a storage layer, so the Err rolls back the `NoncesStorage` increment
+	// that `T::EvmPermit::dispatch_permit` performed before checking
+	// `exit_reason`. Net effect: the user keeps their permit nonce and can
+	// re-submit the same signed payload (unsigned path does NOT roll back
+	// and therefore consumes the nonce on revert).
 	#[test]
-	fn adversarial_dry_run_failure_should_leave_permit_nonce_unchanged_so_user_can_retry() {
+	fn adversarial_signed_dispatch_permit_should_leave_permit_nonce_unchanged_on_real_run_revert() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -3736,8 +3643,8 @@ mod sponsored_paymaster {
 
 			let nonce_after = pallet_evm_precompile_call_permit::NoncesStorage::get(alith);
 			assert_eq!(
-				nonce_before, nonce_after,
-				"call-permit nonce MUST NOT advance when 5b rejects the call"
+				nonce_after, nonce_before,
+				"call-permit nonce MUST NOT advance — Err rolls back the runner's nonce bump"
 			);
 			assert_dispatch_permit_not_paused();
 		});
@@ -3748,7 +3655,7 @@ mod sponsored_paymaster {
 	// invalid permits pays the same as a legitimate paymaster spamming valid
 	// ones, so griefing is uniformly expensive.
 	#[test]
-	fn signed_dispatch_permit_should_use_default_post_info_on_dry_run_failure() {
+	fn signed_dispatch_permit_should_use_default_post_info_on_real_run_failure() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -3785,12 +3692,12 @@ mod sponsored_paymaster {
 				s,
 			);
 
-			let err = result.expect_err("expected dry-run failure");
+			let err = result.expect_err("expected real-run failure");
 			assert_eq!(
 				err.error,
-				pallet_transaction_multi_payment::Error::<Runtime>::InnerCallWouldFail.into(),
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitCallExecutionError.into(),
 			);
-			// actual_weight = None → SignedExtension uses declared (2×), no refund.
+			// actual_weight = None → SignedExtension uses declared weight, no refund.
 			assert_eq!(err.post_info.actual_weight, None);
 		});
 	}

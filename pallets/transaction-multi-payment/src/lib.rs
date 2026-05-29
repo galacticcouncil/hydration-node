@@ -238,9 +238,6 @@ pub mod pallet {
 
 		/// EVM permit must not affect account nonce.
 		EvmPermitNonceInvariantViolated,
-
-		/// Inner EVM call would fail when dry-run on the signed branch.
-		InnerCallWouldFail,
 	}
 
 	/// Account currency map
@@ -394,14 +391,9 @@ pub mod pallet {
 		/// Signed: the signer (paymaster) pays both the Substrate extrinsic
 		/// fee and the EVM-side gas; `permit.from` is touched only by the
 		/// inner call's effects. Root is rejected.
-		///
-		/// Declared weight is 2× the EVM dispatch weight to cover the signed
-		/// branch's dry-run + real-run; `pallet::weight` can't see the origin
-		/// so unsigned consumers also reserve 2× (no fee impact since unsigned
-		/// has no SignedExtension fee path).
 		#[pallet::call_index(4)]
 		#[pallet::weight(
-			<T as Config>::EvmPermit::dispatch_weight(*gas_limit).saturating_mul(2)
+			<T as Config>::EvmPermit::dispatch_weight(*gas_limit)
 		)]
 		pub fn dispatch_permit(
 			origin: OriginFor<T>,
@@ -474,24 +466,6 @@ pub mod pallet {
 			Ok(result)
 		}
 
-		pub(crate) fn dry_run_inner_call(
-			from: H160,
-			to: H160,
-			value: U256,
-			data: Vec<u8>,
-			gas_limit: u64,
-		) -> Result<(), DispatchError> {
-			with_transaction::<(), DispatchError, _>(|| {
-				let (gas_price, _) = T::EvmPermit::gas_price();
-				let result =
-					T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![]);
-				match result {
-					Ok(_) => TransactionOutcome::Rollback(Ok(())),
-					Err(e) => TransactionOutcome::Rollback(Err(e.error)),
-				}
-			})
-		}
-
 		pub(crate) fn do_dispatch_permit_signed(
 			signer: T::AccountId,
 			from: H160,
@@ -511,11 +485,6 @@ pub mod pallet {
 				return Err(e.into());
 			}
 
-			if Self::dry_run_inner_call(from, to, value, data.clone(), gas_limit).is_err() {
-				Self::restore_fee_payer(previous_fee_payer);
-				return Err(Error::<T>::InnerCallWouldFail.into());
-			}
-
 			let (gas_price, _) = T::EvmPermit::gas_price();
 			let result = T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![]);
 
@@ -531,12 +500,11 @@ pub mod pallet {
 					});
 					Ok(().into())
 				}
-				Err(e) => {
-					if e.error == Error::<T>::EvmPermitRunnerError.into() {
-						T::EvmPermit::on_dispatch_permit_error();
-					}
-					Err(e.error.into())
-				}
+				// Signed branch must NEVER call `on_dispatch_permit_error()`:
+				// autopause is the unsigned-path defense against free mempool
+				// grief; on the signed path the paymaster pays the extrinsic
+				// fee per attempt, so there is no cheap-DOS to defend against.
+				Err(e) => Err(e.error.into()),
 			}
 		}
 
