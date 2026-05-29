@@ -61,7 +61,7 @@ use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, cli, liquidation_worker, rpc};
+use crate::{chain_spec, cli, rpc};
 
 type ParachainClient = TFullClient<
 	Block,
@@ -264,7 +264,7 @@ async fn start_node_impl(
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
 	ethereum_config: evm::EthereumConfig,
-	liquidation_worker_config: liquidation_worker::LiquidationWorkerConfig,
+	liquidation_worker_config: pepl_worker::LiquidationWorkerCli,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 	no_tx_priority_override: bool,
@@ -337,22 +337,19 @@ async fn start_node_impl(
 		);
 	}
 
-	// Data provided from the liquidation worker to RPC API.
-	let liquidation_task_data = Arc::new(liquidation_worker::LiquidationTaskData::new());
-
 	// By default, the liquidation worker is enabled for validator nodes and disabled for non-validator nodes.
 	if (validator && !(liquidation_worker_config.liquidation_worker == Some(false)))
 		|| (!validator && liquidation_worker_config.liquidation_worker == Some(true))
 	{
+		use pepl_worker::LiquidationTask;
+		use pepl_worker_support::types::RuntimeClient;
+
 		task_manager.spawn_handle().spawn(
-			"liquidation-worker",
-			None,
-			liquidation_worker::LiquidationTask::run(
+			"pepl-worker-runner",
+			"pepl-worker",
+			pepl_worker::run(
+				LiquidationTask::new(RuntimeClient::new(client.clone()), liquidation_worker_config.into()),
 				client.clone(),
-				liquidation_worker_config,
-				transaction_pool.clone(),
-				task_manager.spawn_handle(),
-				liquidation_task_data.clone(),
 			),
 		);
 	}
@@ -395,7 +392,6 @@ async fn start_node_impl(
 				client: client.clone(),
 				pool: transaction_pool.clone(),
 				backend: backend.clone(),
-				liquidation_task_data: liquidation_task_data.clone(),
 			};
 
 			let module = rpc::create_full(deps)?;

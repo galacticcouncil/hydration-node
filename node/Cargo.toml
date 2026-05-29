@@ -41,6 +41,8 @@ primitives = { workspace = true }
 pallet-claims = { workspace = true }
 pallet-liquidation = { workspace = true }
 liquidation-worker-support = { workspace = true }
+pepl-worker = { workspace = true }
+pepl-worker-support = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true }

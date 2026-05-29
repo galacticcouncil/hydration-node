@@ -51,8 +51,8 @@ members = [
     'pallets/hsm',
     'pallets/signet',
     'pallets/dispenser',
-    'node/src/pepl-worker',
-    'node/src/pepl-worker/support',
+    'pepl-worker',
+    'pepl-worker/support',
 ]
 
 resolver = "2"
@@ -165,8 +165,8 @@ pallet-hsm = { path = "pallets/hsm", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
 pallet-signet = { path = "pallets/signet", default-features = false }
 pallet-dispenser = { path = "pallets/dispenser", default-features = false }
-pepl-worker = { path = "/node/src/pepl-worker", default-features = false }
-pepl-worker-support = { path = "/node/src/pepl-worker/support", default-features = false }
+pepl-worker = { path = "pepl-worker", default-features = false }
+pepl-worker-support = { path = "pepl-worker/support", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

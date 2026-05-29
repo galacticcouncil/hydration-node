@@ -29,6 +29,12 @@ pallet-evm = { workspace = true }
 pallet-ethereum = { workspace = true }
 sp-runtime = { workspace = true }
 fp-self-contained = { workspace = true }
+pepl-worker-support = { workspace = true }
+sc-transaction-pool-api = { workspace = true }
+futures = { workspace = true }
+fp-rpc = { workspace = true }
+sp-arithmetic = { workspace = true }
+pallet-currencies-rpc-runtime-api = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

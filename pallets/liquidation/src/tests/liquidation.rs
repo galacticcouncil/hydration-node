@@ -3,7 +3,9 @@
 #![allow(clippy::bool_assert_comparison)]
 
 pub use crate::tests::mock::*;
-use crate::{Error, Event};
+use crate::{pallet, Error, Event, Route, BASE_UNSIGNED_LIQUIDATION_PRIORITY, MAX_UNSIGNED_LIQUIDATION_PRIORITY};
+use codec::Encode;
+use frame_support::pallet_prelude::TransactionSource;
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
@@ -18,6 +20,8 @@ pub fn expect_last_events(e: Vec<RuntimeEvent>) {
 		test_utils::expect_event::<RuntimeEvent, Test>(event);
 	}
 }
+use frame_support::pallet_prelude::ValidTransaction;
+use frame_support::pallet_prelude::ValidateUnsigned;
 use primitives::EvmAddress;
 
 #[test]
@@ -61,6 +65,7 @@ fn liquidation_should_transfer_profit_to_treasury() {
 			bob_evm_address,
 			debt_to_cover,
 			route,
+			None
 		));
 
 		// Assert
@@ -123,6 +128,7 @@ fn liquidation_should_work_when_debt_and_collateral_asset_is_same() {
 			bob_evm_address,
 			debt_to_cover,
 			BoundedVec::new(),
+			None,
 		));
 
 		// Assert
@@ -165,6 +171,7 @@ fn liquidation_should_fail_if_not_profitable() {
 				bob_evm_address,
 				debt_to_cover,
 				route,
+				None,
 			),
 			Error::<Test>::NotProfitable
 		);
@@ -222,6 +229,7 @@ fn initial_pallet_balance_should_not_change_after_execution() {
 			bob_evm_address,
 			debt_to_cover,
 			route,
+			None,
 		));
 
 		// Assert
@@ -271,5 +279,69 @@ fn set_borrowing_contract_should_work() {
 		));
 
 		assert_eq!(Liquidation::borrowing_contract(), EvmAddress::from_slice(&[1; 20]));
+	});
+}
+
+#[test]
+fn validate_unsinged_should_work_when_submitted_from_local() {
+	ExtBuilder::default().build().execute_with(|| {
+		let collateral_asset: AssetId = HDX;
+		let debt_asset: AssetId = DOT;
+		let user: EvmAddress = EvmAccounts::evm_address(&BOB);
+		let debt_to_cover: Balance = 1_000;
+		let route: Route<AssetId> = BoundedVec::new();
+		let unsinged_priority = Some(1_000);
+
+		let c = pallet::Call::<Test>::liquidate {
+			collateral_asset,
+			debt_asset,
+			user,
+			debt_to_cover,
+			route,
+			unsinged_priority,
+		};
+
+		assert_eq!(
+			Liquidation::validate_unsigned(TransactionSource::Local, &c),
+			Ok(ValidTransaction {
+				priority: BASE_UNSIGNED_LIQUIDATION_PRIORITY + unsinged_priority.unwrap(),
+				requires: vec![],
+				provides: vec![("liquidate_unsigned", user).encode()],
+				longevity: 1,
+				propagate: false,
+			})
+		);
+	});
+}
+
+#[test]
+fn validate_unsinged_priority_should_be_up_to_max_unsigned_liquidation_priority() {
+	ExtBuilder::default().build().execute_with(|| {
+		let collateral_asset: AssetId = HDX;
+		let debt_asset: AssetId = DOT;
+		let user: EvmAddress = EvmAccounts::evm_address(&BOB);
+		let debt_to_cover: Balance = 1_000;
+		let route: Route<AssetId> = BoundedVec::new();
+		let unsinged_priority = Some(u64::MAX);
+
+		let c = pallet::Call::<Test>::liquidate {
+			collateral_asset,
+			debt_asset,
+			user,
+			debt_to_cover,
+			route,
+			unsinged_priority,
+		};
+
+		assert_eq!(
+			Liquidation::validate_unsigned(TransactionSource::Local, &c),
+			Ok(ValidTransaction {
+				priority: MAX_UNSIGNED_LIQUIDATION_PRIORITY,
+				requires: vec![],
+				provides: vec![("liquidate_unsigned", user).encode()],
+				longevity: 1,
+				propagate: false,
+			})
+		);
 	});
 }

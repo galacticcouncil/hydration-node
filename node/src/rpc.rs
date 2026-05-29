@@ -21,7 +21,6 @@
 
 use std::sync::Arc;
 
-use crate::liquidation_worker::LiquidationTaskData;
 use cumulus_primitives_core::PersistedValidationData;
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
@@ -63,8 +62,6 @@ pub struct FullDeps<C, P, B> {
 	pub pool: Arc<P>,
 	/// Backend used by the node.
 	pub backend: Arc<B>,
-	/// Data provided from the liquidation worker.
-	pub liquidation_task_data: Arc<LiquidationTaskData>,
 }
 
 /// Extra dependencies for Ethereum compatibility.
@@ -122,18 +119,12 @@ where
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::StateBackend<sp_runtime::traits::HashingFor<Block>>,
 {
-	use crate::liquidation_worker::rpc::{LiquidationWorker, LiquidationWorkerApiServer};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
 	use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut module = RpcExtension::new(());
-	let FullDeps {
-		client,
-		pool,
-		backend,
-		liquidation_task_data,
-	} = deps;
+	let FullDeps { client, pool, backend } = deps;
 
 	module.merge(System::new(client.clone(), pool).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
@@ -141,7 +132,6 @@ where
 
 	// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
 	// module.merge(IsmpRpcHandler::new(client, backend)?.into_rpc())?;
-	module.merge(LiquidationWorker::new(liquidation_task_data).into_rpc())?;
 
 	Ok(module)
 }

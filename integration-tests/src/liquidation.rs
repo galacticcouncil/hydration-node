@@ -296,7 +296,8 @@ fn liquidation_should_work() {
 			DOT,
 			alice_evm_address,
 			borrow_dot_amount,
-			route
+			route,
+			None,
 		));
 
 		// Assert
@@ -415,7 +416,8 @@ fn liquidation_should_fail_when_debt_asset_is_under_deposit_lockdown() {
 			DOT,
 			alice_evm_address,
 			borrow_dot_amount,
-			route
+			route,
+			None,
 		)
 		.is_err());
 
@@ -511,7 +513,8 @@ fn liquidation_should_revert_correctly_when_evm_call_fails() {
 				DOT,
 				alice_evm_address,
 				borrow_dot_amount,
-				route
+				route,
+				None,
 			),
 			pallet_dispatcher::Error::<Runtime>::AaveHealthFactorNotBelowThreshold
 		);
@@ -678,6 +681,7 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 			alice_evm_address,
 			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
+			None,
 		));
 
 		// Assert
@@ -806,6 +810,7 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 			alice_evm_address,
 			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
+			None,
 		));
 
 		// Assert
@@ -948,6 +953,7 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 			alice_evm_address,
 			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
+			None,
 		));
 
 		let money_market_data = MoneyMarketData::<Block, OriginCaller, RuntimeCall, RuntimeEvent>::new::<
@@ -1100,6 +1106,7 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 			alice_evm_address,
 			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
+			None,
 		));
 
 		// Assert
@@ -1224,6 +1231,7 @@ fn calculate_debt_to_liquidate_with_two_different_assets() {
 			alice_evm_address,
 			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
+			None,
 		));
 
 		// Assert
@@ -1434,6 +1442,7 @@ fn calculate_debt_to_liquidate_with_three_different_assets() {
 			alice_evm_address,
 			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
+			None,
 		));
 
 		// Assert

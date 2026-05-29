@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use codec::{Decode, Encode};
 use cumulus_primitives_core::BlockT;
 use ethabi::ethereum_types::U256;
@@ -572,6 +574,7 @@ where
 				user: borrower.user_address,
 				debt_to_cover: debt_to_liquidate,
 				route: BoundedVec::new(),
+				unsinged_priority: None,
 			});
 
 			let encoded_tx: fp_self_contained::UncheckedExtrinsic<
@@ -897,6 +900,7 @@ where
 			user: Default::default(),
 			debt_to_cover: Default::default(),
 			route: BoundedVec::new(),
+			unsinged_priority: None,
 		};
 		let liquidation_weight = liquidation_weight.get_dispatch_info().call_weight;
 

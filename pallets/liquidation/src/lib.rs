@@ -73,9 +73,18 @@ pub use pallet::*;
 
 pub type Balance = u128;
 pub type AssetId = u32;
-//NOTE: `u64::max -1` is set in /node/src/tx_priority.json oracles' updates.
+pub type Priority = u64;
+
+//NOTE: `u64::max - 1` is set in /node/src/tx_priority.json oracles' updates.
 //We don't want to frontrun oracle updates so these should be keept in sync.
-pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = u64::MAX - 2;
+pub const MAX_UNSIGNED_LIQUIDATION_PRIORITY: Priority = u64::MAX - 2;
+//NOTE: base unsigned liquidation tx priority. `unsinged_priority` param is added on top of this
+//and it should represent collateral at risk(max. 10_000_000.0[BASE]).
+const BASE_UNSIGNED_LIQUIDATION_PRIORITY: Priority = MAX_UNSIGNED_LIQUIDATION_PRIORITY - 10_000_000;
+//TODO: check and update polkadot-sdk `MAX_USER_TX_PRIORITY`(`substrate/frame/transaction-payment/src/lib.rs`)
+//to refelt this value. It should be always smaller than `BASE_UNSIGNED_LIQUIDATION_PRIORITY`
+//otherwise users can potentially frontrun it with high enough tip
+
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
@@ -168,17 +177,25 @@ pub mod pallet {
 				TransactionSource::InBlock => {} // some other node included it in a block
 			};
 
-			let valid_tx = |user| {
+			let valid_tx = |user, priority| {
 				ValidTransaction::with_tag_prefix("liquidate_unsigned")
-					.priority(UNSIGNED_LIQUIDATION_PRIORITY)
-					.and_provides([Encode::encode(user)])
+					.priority(
+						BASE_UNSIGNED_LIQUIDATION_PRIORITY
+							.saturating_add(priority)
+							.min(MAX_UNSIGNED_LIQUIDATION_PRIORITY),
+					)
+					.and_provides(user)
 					.longevity(1)
 					.propagate(false)
 					.build()
 			};
 
 			match call {
-				Call::liquidate { user, .. } => valid_tx(user),
+				Call::liquidate {
+					user,
+					unsinged_priority,
+					..
+				} => valid_tx(user, unsinged_priority.unwrap_or(0)),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -230,6 +247,8 @@ pub mod pallet {
 		/// - `user`: EVM address of the MM position that we want to liquidate.
 		/// - `debt_to_cover`: Amount of debt we want to liquidate.
 		/// - `route`: The route we trade against. Required for the fee calculation.
+		/// - `unsinged_priority`: Optional priority added on top of `BASE_UNSIGNED_LIQUIDATION_PRIORITY` for
+		/// unsigned liquidation extrinsics.
 		///
 		/// Emits `Liquidated` event when successful.
 		///
@@ -245,6 +264,7 @@ pub mod pallet {
 			user: EvmAddress,
 			debt_to_cover: Balance,
 			route: Route<AssetId>,
+			_unsinged_priority: Option<Priority>,
 		) -> DispatchResult {
 			log::trace!(target: "liquidation","liquidating debt asset: {debt_asset:?} for amount: {debt_to_cover:?}");
 
