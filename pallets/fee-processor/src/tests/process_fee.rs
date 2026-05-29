@@ -187,6 +187,29 @@ fn deposit_callbacks_fire_after_conversion() {
 }
 
 #[test]
+fn hdx_equivalent_uses_hdx_per_asset_price_direction() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Stored price is the HDX-first direction `get_price(HDX, asset) = 3/1` (3 HDX per asset).
+		// The mock returns the inverse for the swapped direction, so an inverted call would yield
+		// `amount / 3` instead of `amount * 3` — pinning the value guards the price-arg order.
+		set_mock_price(Some(hydra_dx_math::ema::EmaPrice::new(3, 1)));
+		let amount = 100 * ONE;
+
+		let _ = Pallet::<Test>::process_trade_fee(FEE_SOURCE, ALICE, DOT, amount);
+
+		System::assert_has_event(
+			Event::FeeReceived {
+				asset: DOT,
+				amount,
+				hdx_equivalent: 300 * ONE,
+				trader: Some(ALICE),
+			}
+			.into(),
+		);
+	});
+}
+
+#[test]
 fn event_emitted_for_non_hdx_fee() {
 	ExtBuilder::default().build().execute_with(|| {
 		let amount = 500 * ONE;

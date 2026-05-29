@@ -258,8 +258,11 @@ pub mod pallet {
 
 		/// Calculate HDX equivalent using spot price from oracle.
 		fn calculate_hdx_equivalent(asset: T::AssetId, amount: Balance) -> Result<Balance, DispatchError> {
+			// Price convention (see runtime adapter `ConvertBalance`): to convert an amount of
+			// `from` into `to`, use `get_price(to, from)` then multiply by `n/d`. Here we convert
+			// `asset` → HDX, so the target HDX is the first argument.
 			let price =
-				T::PriceProvider::get_price(asset, T::HdxAssetId::get()).ok_or(Error::<T>::PriceNotAvailable)?;
+				T::PriceProvider::get_price(T::HdxAssetId::get(), asset).ok_or(Error::<T>::PriceNotAvailable)?;
 
 			let hdx_amount = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down)
 				.ok_or(Error::<T>::Arithmetic)?;

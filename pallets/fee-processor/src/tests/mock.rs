@@ -212,8 +212,16 @@ pub struct MockPriceProvider;
 impl PriceProvider<AssetId> for MockPriceProvider {
 	type Price = EmaPrice;
 
-	fn get_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
-		MOCK_PRICE.with(|p| *p.borrow())
+	fn get_price(asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
+		let price = MOCK_PRICE.with(|p| *p.borrow())?;
+		// Convention: `get_price(a, b).n/d` is "a per b". The pallet converts an asset into HDX
+		// via `get_price(HDX, asset)`, so the stored price applies to the HDX-first direction.
+		// A swapped (buggy) call hits the `else` branch and gets the inverse, surfacing the bug.
+		if asset_a == HDX {
+			Some(price)
+		} else {
+			Some(EmaPrice::new(price.d, price.n))
+		}
 	}
 }
 
