@@ -316,6 +316,61 @@ fn bucket_nonce_layout_is_distinct_per_class() {
 	);
 }
 
+// The pure assembly shared by the on-chain flusher and the (future) node
+// runtime API: one synth tx per bucket, sorted, indices continuing from the
+// real-eth-tx base, insertion order preserved within a bucket.
+#[test]
+fn assemble_synth_txs_groups_indexes_and_orders() {
+	let entries = vec![
+		(Bucket::Extrinsic(2), H160::repeat_byte(0xAA), log(1)),
+		(Bucket::Extrinsic(0), H160::repeat_byte(0xBB), log(2)),
+		(Bucket::Extrinsic(2), H160::repeat_byte(0xCC), log(3)),
+	];
+	let txs = assemble_synth_txs(entries, 222_222, &[0x42u8; 32], 100, 5);
+
+	// two distinct buckets → two synth txs, sorted Extrinsic(0) < Extrinsic(2)
+	assert_eq!(txs.len(), 2);
+	let (_, s0, r0) = &txs[0];
+	let (_, s1, _) = &txs[1];
+
+	// indices continue from base_tx_index (5)
+	assert_eq!(s0.transaction_index, 5);
+	assert_eq!(s1.transaction_index, 6);
+
+	// Extrinsic(0) holds its single log; Extrinsic(2) keeps insertion order (1 then 3)
+	assert_eq!(s0.logs.len(), 1);
+	assert_eq!(s0.logs[0].address.0[19], 2);
+	assert_eq!(s1.logs.len(), 2);
+	assert_eq!(s1.logs[0].address.0[19], 1);
+	assert_eq!(s1.logs[1].address.0[19], 3);
+
+	// distinct hashes; sentinel from/to; receipt mirrors the status
+	assert_ne!(s0.transaction_hash, s1.transaction_hash);
+	assert_eq!(s0.from, SENTINEL_ADDRESS);
+	assert_eq!(s0.to, Some(SENTINEL_ADDRESS));
+	match r0 {
+		crate::Receipt::EIP1559(d) => {
+			assert_eq!(d.status_code, 1);
+			assert_eq!(d.logs.len(), 1);
+		}
+		_ => panic!("expected EIP1559 receipt"),
+	}
+}
+
+#[test]
+fn assemble_synth_txs_hash_differs_across_blocks() {
+	let mk = |parent: &[u8], bn: u64| {
+		let entries = vec![(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1))];
+		assemble_synth_txs(entries, 222_222, parent, bn, 0)[0]
+			.1
+			.transaction_hash
+	};
+	// same bucket + base index, different block identity → different synth-tx hash
+	assert_ne!(mk(&[0x11u8; 32], 100), mk(&[0x22u8; 32], 101));
+	// determinism
+	assert_eq!(mk(&[0x11u8; 32], 100), mk(&[0x11u8; 32], 100));
+}
+
 fn log(tag: u8) -> ethereum::Log {
 	let mut addr = [0u8; 20];
 	addr[19] = tag;

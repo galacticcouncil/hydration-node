@@ -135,92 +135,108 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn flush(entries: Vec<(Bucket, H160, ethereum::Log)>) {
-		// Group by bucket, keyed by `bucket_sort_key` (unique per bucket). The
-		// BTreeMap groups in O(N log G) instead of the O(N*G) linear `find`, and
-		// iterates in ascending key order — exactly the flush order we want, so
-		// no separate sort. Insertion order within a bucket is preserved.
-		let mut groups: BTreeMap<(u8, u64), (Bucket, Vec<ethereum::Log>)> = BTreeMap::new();
-		for (bucket, _emitter, log) in entries {
-			groups
-				.entry(bucket_sort_key(&bucket))
-				.or_insert_with(|| (bucket, Vec::new()))
-				.1
-				.push(log);
-		}
+		let chain_id = <T as Config>::ChainId::get();
+		let parent_hash = frame_system::Pallet::<T>::parent_hash();
+		let block_number = UniqueSaturatedInto::<u64>::unique_saturated_into(frame_system::Pallet::<T>::block_number());
+		// synth txs continue after the block's real eth txs.
+		let base_tx_index = pallet_ethereum::Pending::<T>::count();
 
-		// Per-block entropy folded into the envelope so synth-tx hashes never
-		// collide across blocks (frontier indexes txs by `transaction.hash()`;
-		// without this, `Extrinsic(2)` in block N and N+1 hash identically and
-		// `eth_getTransactionReceipt` can only resolve one of them). `nonce`
-		// (bucket) and `value` (group_index) keep hashes distinct within a block.
-		let mut block_domain = Vec::new();
-		block_domain.extend_from_slice(b"hydration-synth-v1");
-		block_domain.extend_from_slice(frame_system::Pallet::<T>::parent_hash().as_ref());
-		block_domain.extend_from_slice(&frame_system::Pallet::<T>::block_number().encode());
-
-		for (idx, (_key, (bucket, logs))) in groups.into_iter().enumerate() {
-			Self::insert_synth_tx(bucket, logs, idx as u32, block_domain.clone());
+		for (transaction, status, receipt) in
+			assemble_synth_txs(entries, chain_id, parent_hash.as_ref(), block_number, base_tx_index)
+		{
+			pallet_ethereum::Pending::<T>::insert(status.transaction_index, (transaction, status, receipt));
 		}
 	}
+}
 
-	fn insert_synth_tx(bucket: Bucket, logs: Vec<ethereum::Log>, group_index: u32, input: Vec<u8>) {
-		let chain_id = <T as Config>::ChainId::get();
-		let nonce = bucket_nonce(bucket);
+/// Per-block domain-separation seed folded into each synth tx's `input`, so
+/// envelope hashes are unique per block (frontier indexes txs by hash; without
+/// this, `Extrinsic(2)` in block N and N+1 would hash identically).
+fn block_domain(parent_hash: &[u8], block_number: u64) -> Vec<u8> {
+	let mut seed = Vec::with_capacity(18 + parent_hash.len() + 8);
+	seed.extend_from_slice(b"hydration-synth-v1");
+	seed.extend_from_slice(parent_hash);
+	seed.extend_from_slice(&block_number.to_le_bytes());
+	seed
+}
 
-		let signature = ethereum::eip2930::TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS)
-			.expect("synthetic signature constants are within valid ECDSA range; qed");
-		// `value = group_index` so two synth txs sharing the same bucket-nonce in
-		// one block produce distinct envelope hashes (frontier indexes by hash);
-		// `input` carries per-block domain separation against cross-block collisions.
+fn logs_bloom(logs: &[ethereum::Log]) -> Bloom {
+	let mut bloom = Bloom::default();
+	for log in logs {
+		bloom.accrue(BloomInput::Raw(&log.address[..]));
+		for topic in log.topics.iter() {
+			bloom.accrue(BloomInput::Raw(&topic[..]));
+		}
+	}
+	bloom
+}
+
+/// Assemble synthetic ethereum txs from bucketed logs. **Pure** — no storage,
+/// no `T`. Shared by the on-chain flusher (`flush`) and the node-indexing
+/// runtime API, so both yield byte-identical txs (the A/B parity guarantee).
+///
+/// One synth tx per bucket, emitted in ascending `bucket_sort_key` order
+/// (init hooks < extrinsics by index < finalize hooks), insertion order
+/// preserved within a bucket. `base_tx_index` is the count of real eth txs
+/// already in the block; synth tx indices continue from there. Grouping is
+/// O(N log G) via the BTreeMap (vs an O(N*G) linear scan).
+pub fn assemble_synth_txs(
+	entries: Vec<(Bucket, H160, ethereum::Log)>,
+	chain_id: u64,
+	parent_hash: &[u8],
+	block_number: u64,
+	base_tx_index: u32,
+) -> Vec<(Transaction, TransactionStatus, Receipt)> {
+	let mut groups: BTreeMap<(u8, u64), (Bucket, Vec<ethereum::Log>)> = BTreeMap::new();
+	for (bucket, _emitter, log) in entries {
+		groups
+			.entry(bucket_sort_key(&bucket))
+			.or_insert_with(|| (bucket, Vec::new()))
+			.1
+			.push(log);
+	}
+
+	let input = block_domain(parent_hash, block_number);
+	let signature = ethereum::eip2930::TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS)
+		.expect("synthetic signature constants are within valid ECDSA range; qed");
+
+	let mut out = Vec::with_capacity(groups.len());
+	for (group_index, (_key, (bucket, logs))) in groups.into_iter().enumerate() {
+		let group_index = group_index as u32;
+		// `value = group_index` keeps hashes distinct within a block; `input`
+		// (block domain) keeps them distinct across blocks.
 		let transaction = Transaction::EIP1559(EIP1559Transaction {
 			chain_id,
-			nonce: U256::from(nonce),
+			nonce: U256::from(bucket_nonce(bucket)),
 			max_priority_fee_per_gas: U256::zero(),
 			max_fee_per_gas: U256::zero(),
 			gas_limit: U256::zero(),
 			action: TransactionAction::Call(SENTINEL_ADDRESS),
 			value: U256::from(group_index),
-			input,
+			input: input.clone(),
 			access_list: Vec::new(),
-			signature,
+			signature: signature.clone(),
 		});
-
-		// canonical envelope hash so frontier's tx-index resolves it.
 		let transaction_hash = transaction.hash();
-
-		let mut bloom: Bloom = Bloom::default();
-		Self::compute_logs_bloom(&logs, &mut bloom);
-
-		let tx_index = pallet_ethereum::Pending::<T>::count();
-
+		let bloom = logs_bloom(&logs);
 		let status = TransactionStatus {
 			transaction_hash,
-			transaction_index: tx_index,
+			transaction_index: base_tx_index + group_index,
 			from: SENTINEL_ADDRESS,
 			to: Some(SENTINEL_ADDRESS),
 			contract_address: None,
 			logs: logs.clone(),
 			logs_bloom: bloom,
 		};
-
 		let receipt = Receipt::EIP1559(ethereum::EIP658ReceiptData {
 			status_code: 1,
 			used_gas: U256::zero(),
 			logs_bloom: bloom,
 			logs,
 		});
-
-		pallet_ethereum::Pending::<T>::insert(tx_index, (transaction, status, receipt));
+		out.push((transaction, status, receipt));
 	}
-
-	fn compute_logs_bloom(logs: &[ethereum::Log], bloom: &mut Bloom) {
-		for log in logs {
-			bloom.accrue(BloomInput::Raw(&log.address[..]));
-			for topic in log.topics.iter() {
-				bloom.accrue(BloomInput::Raw(&topic[..]));
-			}
-		}
-	}
+	out
 }
 
 /// keccak256("Transfer(address,address,uint256)")
