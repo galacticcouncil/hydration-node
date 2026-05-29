@@ -24,6 +24,7 @@ use pallet_broadcast::types::ExecutionType;
 use pallet_ethereum::{Receipt, Transaction, TransactionAction, TransactionStatus};
 use scale_info::TypeInfo;
 use sp_runtime::traits::UniqueSaturatedInto;
+use sp_std::collections::btree_map::BTreeMap;
 use sp_std::prelude::*;
 
 pub use pallet::*;
@@ -98,18 +99,20 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	pub fn push(emitter: H160, log: ethereum::Log) {
+		// `decode_len` + `append` keep this O(1) per call: neither decodes the
+		// whole buffer, so N pushes in a block cost O(N) rather than the O(N^2)
+		// a `mutate(|v| v.push(..))` read-modify-write would incur (every native
+		// balance move hits this hook).
+		let len = Pending::<T>::decode_len().unwrap_or(0) as u32;
+		if len >= MAX_PENDING_LOGS {
+			log::warn!(
+				target: "runtime::synthetic-logs",
+				"pending buffer full ({len} entries); dropping log for {emitter:?}",
+			);
+			return;
+		}
 		let bucket = Self::current_bucket();
-		Pending::<T>::mutate(|v| {
-			if v.len() as u32 >= MAX_PENDING_LOGS {
-				let n = v.len();
-				log::warn!(
-					target: "runtime::synthetic-logs",
-					"pending buffer full ({n} entries); dropping log for {emitter:?}",
-				);
-				return;
-			}
-			v.push((bucket, emitter, log));
-		});
+		Pending::<T>::append((bucket, emitter, log));
 	}
 
 	// reads `frame_system::ExecutionPhase` directly so on_idle (where substrate
@@ -132,15 +135,18 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn flush(entries: Vec<(Bucket, H160, ethereum::Log)>) {
-		let mut groups: Vec<(Bucket, Vec<ethereum::Log>)> = Vec::new();
+		// Group by bucket, keyed by `bucket_sort_key` (unique per bucket). The
+		// BTreeMap groups in O(N log G) instead of the O(N*G) linear `find`, and
+		// iterates in ascending key order — exactly the flush order we want, so
+		// no separate sort. Insertion order within a bucket is preserved.
+		let mut groups: BTreeMap<(u8, u64), (Bucket, Vec<ethereum::Log>)> = BTreeMap::new();
 		for (bucket, _emitter, log) in entries {
-			match groups.iter_mut().find(|(b, _)| *b == bucket) {
-				Some((_, logs)) => logs.push(log),
-				None => groups.push((bucket, vec![log])),
-			}
+			groups
+				.entry(bucket_sort_key(&bucket))
+				.or_insert_with(|| (bucket, Vec::new()))
+				.1
+				.push(log);
 		}
-
-		groups.sort_by(|a, b| bucket_sort_key(&a.0).cmp(&bucket_sort_key(&b.0)));
 
 		// Per-block entropy folded into the envelope so synth-tx hashes never
 		// collide across blocks (frontier indexes txs by `transaction.hash()`;
@@ -152,7 +158,7 @@ impl<T: Config> Pallet<T> {
 		block_domain.extend_from_slice(frame_system::Pallet::<T>::parent_hash().as_ref());
 		block_domain.extend_from_slice(&frame_system::Pallet::<T>::block_number().encode());
 
-		for (idx, (bucket, logs)) in groups.into_iter().enumerate() {
+		for (idx, (_key, (bucket, logs))) in groups.into_iter().enumerate() {
 			Self::insert_synth_tx(bucket, logs, idx as u32, block_domain.clone());
 		}
 	}
