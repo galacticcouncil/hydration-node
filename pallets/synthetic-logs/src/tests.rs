@@ -119,6 +119,43 @@ fn synth_envelope_hash_is_unique_per_group_index() {
 	assert_eq!(mk(7, 42).hash(), mk(7, 42).hash());
 }
 
+// The same bucket + group_index recurs every block (nonce is bucket-derived,
+// group_index resets per block), so without per-block entropy the envelope
+// hash would collide across blocks and frontier could only resolve one of
+// them. The flusher folds parent_hash + block number into `input`; assert that
+// distinguishes otherwise-identical envelopes.
+#[test]
+fn synth_envelope_hash_is_unique_per_block() {
+	use crate::Transaction;
+	use ethereum::{eip2930::TransactionSignature, EIP1559Transaction, TransactionAction};
+
+	let signature = TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS).expect("synth sig in range");
+	let mk = |block_domain: &[u8]| {
+		Transaction::EIP1559(EIP1559Transaction {
+			chain_id: 222_222,
+			nonce: U256::from(u64::MAX - 3), // same bucket
+			max_priority_fee_per_gas: U256::zero(),
+			max_fee_per_gas: U256::zero(),
+			gas_limit: U256::zero(),
+			action: TransactionAction::Call(SENTINEL_ADDRESS),
+			value: U256::zero(), // same group_index
+			input: block_domain.to_vec(),
+			access_list: Vec::new(),
+			signature: signature.clone(),
+		})
+	};
+
+	let block_n = b"hydration-synth-v1\x00block-n-parent-hash\x00\x64";
+	let block_n1 = b"hydration-synth-v1\x00block-n1-parent-hash\x00\x65";
+	assert_ne!(
+		mk(block_n).hash(),
+		mk(block_n1).hash(),
+		"same bucket+group_index in different blocks must hash differently"
+	);
+	// determinism within a block
+	assert_eq!(mk(block_n).hash(), mk(block_n).hash());
+}
+
 // Bucket grouping must (a) collapse repeated (bucket, log) entries from the
 // same bucket into one group, and (b) sort init < extrinsic < finalize.
 #[test]
