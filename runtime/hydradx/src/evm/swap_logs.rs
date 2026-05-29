@@ -11,10 +11,9 @@ use crate::Runtime;
 use hydradx_traits::evm::InspectEvmAccounts;
 use pallet_broadcast::types::{Asset, ExecutionType, Fee, Filler, TradeOperation};
 use pallet_broadcast::OnTrade;
-use pallet_synthetic_logs::{encode_uint256_quad, h160_to_h256, Pallet as SyntheticLogs, SWAP_TOPIC};
+use pallet_synthetic_logs::{build_uniswap_v2_swap_log, Pallet as SyntheticLogs};
 use primitive_types::{H160, U256};
 use primitives::AccountId;
-use sp_std::vec;
 
 pub struct EmitUniswapV2SwapLog;
 
@@ -54,24 +53,6 @@ impl OnTrade<AccountId> for EmitUniswapV2SwapLog {
 			return;
 		}
 
-		// token0 < token1 by id so amounts map deterministically.
-		let token0_id = in_asset.min(out_asset);
-		let (a0_in, a1_in, a0_out, a1_out) = if in_asset == token0_id {
-			(
-				U256::from(in_amount),
-				U256::zero(),
-				U256::zero(),
-				U256::from(out_amount),
-			)
-		} else {
-			(
-				U256::zero(),
-				U256::from(in_amount),
-				U256::from(out_amount),
-				U256::zero(),
-			)
-		};
-
 		let pool_address = derive_pool_address(filler);
 		// would clash with HydraErc20Mapping; skip (probability ~2^-128).
 		if is_asset_address(pool_address) {
@@ -85,11 +66,16 @@ impl OnTrade<AccountId> for EmitUniswapV2SwapLog {
 		let sender = evm_address_of(swapper);
 		let recipient = sender;
 
-		let log = ethereum::Log {
-			address: pool_address,
-			topics: vec![SWAP_TOPIC, h160_to_h256(sender), h160_to_h256(recipient)],
-			data: encode_uint256_quad(a0_in, a1_in, a0_out, a1_out),
-		};
+		// token0 = lower asset id, so amounts map deterministically.
+		let input_is_token0 = in_asset <= out_asset;
+		let log = build_uniswap_v2_swap_log(
+			pool_address,
+			sender,
+			recipient,
+			input_is_token0,
+			U256::from(in_amount),
+			U256::from(out_amount),
+		);
 
 		if !crate::evm::runner::append_to_current_evm_frame(log.clone()) {
 			SyntheticLogs::<Runtime>::push(pool_address, log);

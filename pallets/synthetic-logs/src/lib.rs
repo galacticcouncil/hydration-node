@@ -270,6 +270,45 @@ pub fn encode_uint256_quad(a: U256, b: U256, c: U256, d: U256) -> Vec<u8> {
 	data
 }
 
+// --- pure log-shape builders ------------------------------------------------
+// The evm-log *shape* lives here, decoupled from how it's delivered (substrate
+// mutation hook → on-chain synth tx, or node-side eth-rpc indexing). Callers
+// resolve addresses; these just encode. Unit-tested for evm-client parity.
+
+/// ERC-20 `Transfer(from, to, value)` log emitted from `token`'s address.
+pub fn build_erc20_transfer_log(token: H160, from: H160, to: H160, amount: U256) -> ethereum::Log {
+	ethereum::Log {
+		address: token,
+		topics: vec![TRANSFER_TOPIC, h160_to_h256(from), h160_to_h256(to)],
+		data: encode_u256_be(amount).to_vec(),
+	}
+}
+
+/// Uniswap-v2 `Swap(sender, a0In, a1In, a0Out, a1Out, to)` log from `pool`.
+///
+/// `input_is_token0` is whether the trade's input asset sorts as token0 of the
+/// pair (token0 = the lower asset id); it selects which `amountN{In,Out}` slots
+/// the in/out amounts land in.
+pub fn build_uniswap_v2_swap_log(
+	pool: H160,
+	sender: H160,
+	recipient: H160,
+	input_is_token0: bool,
+	in_amount: U256,
+	out_amount: U256,
+) -> ethereum::Log {
+	let (a0_in, a1_in, a0_out, a1_out) = if input_is_token0 {
+		(in_amount, U256::zero(), U256::zero(), out_amount)
+	} else {
+		(U256::zero(), in_amount, out_amount, U256::zero())
+	};
+	ethereum::Log {
+		address: pool,
+		topics: vec![SWAP_TOPIC, h160_to_h256(sender), h160_to_h256(recipient)],
+		data: encode_uint256_quad(a0_in, a1_in, a0_out, a1_out),
+	}
+}
+
 // 0=init hooks, 1=extrinsics (by index), 2=finalize hooks — preserves wall-clock order.
 fn bucket_sort_key(bucket: &Bucket) -> (u8, u64) {
 	match bucket {

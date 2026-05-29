@@ -11,13 +11,11 @@ use orml_traits::currency::{
 	OnDeposit, OnRepatriate, OnReserve, OnSlash, OnSlashReserved, OnTransfer, OnUnreserve, OnWithdraw,
 };
 use orml_traits::BalanceStatus;
-use pallet_synthetic_logs::{
-	encode_u256_be, h160_to_h256, reserved_address_of, Pallet as SyntheticLogs, TRANSFER_TOPIC,
-};
+use pallet_synthetic_logs::{build_erc20_transfer_log, reserved_address_of, Pallet as SyntheticLogs};
 use primitive_types::{H160, U256};
 use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::{AccountId, AssetId, Balance};
-use sp_std::{marker::PhantomData, vec::Vec};
+use sp_std::marker::PhantomData;
 
 pub struct EmitErc20TransferLog;
 
@@ -27,13 +25,7 @@ fn evm_address_of(account: &AccountId) -> H160 {
 
 fn push_transfer_log(asset: AssetId, from: H160, to: H160, amount: Balance) {
 	let address = HydraErc20Mapping::asset_address(asset);
-	let mut data = Vec::with_capacity(32);
-	data.extend_from_slice(&encode_u256_be(U256::from(amount)));
-	let log = ethereum::Log {
-		address,
-		topics: sp_std::vec![TRANSFER_TOPIC, h160_to_h256(from), h160_to_h256(to)],
-		data,
-	};
+	let log = build_erc20_transfer_log(address, from, to, U256::from(amount));
 	if !crate::evm::runner::append_to_current_evm_frame(log.clone()) {
 		SyntheticLogs::<Runtime>::push(address, log);
 	}

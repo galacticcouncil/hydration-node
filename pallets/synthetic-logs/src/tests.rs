@@ -43,6 +43,51 @@ fn encode_uint256_quad_is_128_bytes() {
 }
 
 #[test]
+fn build_erc20_transfer_log_matches_erc20_transfer_shape() {
+	let token = H160::repeat_byte(0xAB);
+	let from = H160::repeat_byte(0x11);
+	let to = H160::repeat_byte(0x22);
+	let log = build_erc20_transfer_log(token, from, to, U256::from(1_000u64));
+
+	assert_eq!(log.address, token);
+	assert_eq!(log.topics.len(), 3);
+	assert_eq!(log.topics[0], TRANSFER_TOPIC);
+	assert_eq!(log.topics[1], h160_to_h256(from));
+	assert_eq!(log.topics[2], h160_to_h256(to));
+	// non-indexed `value` is a single left-padded uint256
+	assert_eq!(log.data.len(), 32);
+	assert_eq!(U256::from_big_endian(&log.data), U256::from(1_000u64));
+}
+
+#[test]
+fn build_uniswap_v2_swap_log_maps_amounts_by_token0_side() {
+	let pool = H160::repeat_byte(0x77);
+	let sender = H160::repeat_byte(0x33);
+	let recipient = H160::repeat_byte(0x44);
+	let (in_amt, out_amt) = (U256::from(500u64), U256::from(900u64));
+
+	// input is token0 → (a0In, a1In, a0Out, a1Out) = (in, 0, 0, out)
+	let log0 = build_uniswap_v2_swap_log(pool, sender, recipient, true, in_amt, out_amt);
+	assert_eq!(log0.address, pool);
+	assert_eq!(
+		log0.topics,
+		vec![SWAP_TOPIC, h160_to_h256(sender), h160_to_h256(recipient)]
+	);
+	assert_eq!(log0.data.len(), 128);
+	assert_eq!(U256::from_big_endian(&log0.data[0..32]), in_amt); // amount0In
+	assert_eq!(U256::from_big_endian(&log0.data[32..64]), U256::zero()); // amount1In
+	assert_eq!(U256::from_big_endian(&log0.data[64..96]), U256::zero()); // amount0Out
+	assert_eq!(U256::from_big_endian(&log0.data[96..128]), out_amt); // amount1Out
+
+	// input is token1 → mirrored
+	let log1 = build_uniswap_v2_swap_log(pool, sender, recipient, false, in_amt, out_amt);
+	assert_eq!(U256::from_big_endian(&log1.data[0..32]), U256::zero()); // amount0In
+	assert_eq!(U256::from_big_endian(&log1.data[32..64]), in_amt); // amount1In
+	assert_eq!(U256::from_big_endian(&log1.data[64..96]), out_amt); // amount0Out
+	assert_eq!(U256::from_big_endian(&log1.data[96..128]), U256::zero()); // amount1Out
+}
+
+#[test]
 fn synth_signature_is_in_valid_range() {
 	// Confirms our constant signature passes the ECDSA range check; the
 	// flusher panics with a message if this regresses.
