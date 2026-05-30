@@ -53,7 +53,7 @@ use hydradx_traits::circuit_breaker::WithdrawFuseControl;
 use hydradx_traits::fee::InspectTransactionFeeCurrency;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::{
-	evm::InspectEvmAccounts,
+	evm::{EvmFeePayerSupport, InspectEvmAccounts},
 	router::{AssetPair, RouteProvider},
 	AccountFeeCurrency, NativePriceOracle, OraclePeriod, PriceOracle,
 };
@@ -160,6 +160,10 @@ pub mod pallet {
 		/// Try to retrieve fee currency from runtime call.
 		/// It is generic implementation to avoid tight coupling with other pallets such as utility.
 		type TryCallCurrency<'a>: TryConvert<&'a <Self as frame_system::Config>::RuntimeCall, AssetIdOf<Self>>;
+
+		/// EVM fee-payer override; used by the signed branch of `dispatch_permit`
+		/// to charge the paymaster instead of `permit.from`.
+		type EvmFeePayer: EvmFeePayerSupport<AccountId = Self::AccountId>;
 	}
 
 	#[pallet::event]
@@ -189,6 +193,9 @@ pub mod pallet {
 			non_native_fee_amount: BalanceOf<T>,
 			destination_account_id: T::AccountId,
 		},
+
+		/// Signed-branch dispatch permit fee payer
+		FeeSponsored { from: H160, fee_payer: T::AccountId },
 	}
 
 	#[pallet::error]
@@ -376,10 +383,14 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Dispatch EVM permit.
-		/// The main purpose of this function is to allow EVM accounts to pay for the transaction fee in non-native currency
-		/// by allowing them to self-dispatch pre-signed permit.
-		/// The EVM fee is paid in the currency set for the account.
+		/// Dispatch a pre-signed EVM permit.
+		///
+		/// Unsigned: the EVM account `from` pays for the dispatch via
+		/// `withdraw_fee` in its chosen currency.
+		///
+		/// Signed: the signer (paymaster) pays both the Substrate extrinsic
+		/// fee and the EVM-side gas; `permit.from` is touched only by the
+		/// inner call's effects. Root is rejected.
 		#[pallet::call_index(4)]
 		#[pallet::weight(
 			<T as Config>::EvmPermit::dispatch_weight(*gas_limit)
@@ -396,20 +407,36 @@ pub mod pallet {
 			r: H256,
 			s: H256,
 		) -> DispatchResultWithPostInfo {
-			ensure_none(origin)?;
+			if let Ok(signer) = ensure_signed(origin.clone()) {
+				Self::do_dispatch_permit_signed(signer, from, to, value, data, gas_limit, deadline, v, r, s)
+			} else {
+				ensure_none(origin)?;
+				Self::do_dispatch_permit_unsigned(from, to, value, data, gas_limit, deadline, v, r, s)
+			}
+		}
+	}
 
-			// dispatch permit should never return error.
-			// validate_unsigned should prevent the transaction getting to this point in case of invalid permit.
-			// In case of any error, we call error handler ( which should pause this transaction) and return ok.
-
+	impl<T: Config> Pallet<T>
+	where
+		BalanceOf<T>: FixedPointOperand,
+	{
+		pub(crate) fn do_dispatch_permit_unsigned(
+			from: H160,
+			to: H160,
+			value: U256,
+			data: Vec<u8>,
+			gas_limit: u64,
+			deadline: U256,
+			v: u8,
+			r: H256,
+			s: H256,
+		) -> DispatchResultWithPostInfo {
 			if T::EvmPermit::validate_permit(from, to, data.clone(), value, gas_limit, deadline, v, r, s).is_err() {
 				T::EvmPermit::on_dispatch_permit_error();
 				return Ok(PostDispatchInfo::default());
 			};
 
 			let (gas_price, _) = T::EvmPermit::gas_price();
-
-			// Set fee currency for the evm dispatch
 			let account_id = T::InspectEvmAccounts::account_id(from);
 
 			let encoded = data.clone();
@@ -427,7 +454,7 @@ pub mod pallet {
 
 			let result = T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![])
 				.unwrap_or_else(|e| {
-					// In case of runner error, account has not been charged, so we need to call error handler to pause dispatch error
+					// RunnerError = account wasn't charged, so the dispatch can't have produced anything.
 					if e.error == Error::<T>::EvmPermitRunnerError.into() {
 						T::EvmPermit::on_dispatch_permit_error();
 					}
@@ -437,6 +464,59 @@ pub mod pallet {
 			TransactionCurrencyOverride::<T>::remove(account_id.clone());
 
 			Ok(result)
+		}
+
+		pub(crate) fn do_dispatch_permit_signed(
+			signer: T::AccountId,
+			from: H160,
+			to: H160,
+			value: U256,
+			data: Vec<u8>,
+			gas_limit: u64,
+			deadline: U256,
+			v: u8,
+			r: H256,
+			s: H256,
+		) -> DispatchResultWithPostInfo {
+			let previous_fee_payer = T::EvmFeePayer::set_fee_payer(signer.clone());
+
+			if let Err(e) = T::EvmPermit::validate_permit(from, to, data.clone(), value, gas_limit, deadline, v, r, s) {
+				Self::restore_fee_payer(previous_fee_payer);
+				return Err(e.into());
+			}
+
+			let (gas_price, _) = T::EvmPermit::gas_price();
+			let result = T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![]);
+
+			// Restore AFTER the dispatch so the runner's post-execution refund
+			// (`correct_and_deposit_fee`) also routes to the paymaster.
+			Self::restore_fee_payer(previous_fee_payer);
+
+			match result {
+				Ok(_) => {
+					Self::deposit_event(Event::<T>::FeeSponsored {
+						from,
+						fee_payer: signer,
+					});
+					Ok(().into())
+				}
+				// Signed branch must NEVER call `on_dispatch_permit_error()`:
+				// autopause is the unsigned-path defense against free mempool
+				// grief; on the signed path the paymaster pays the extrinsic
+				// fee per attempt, so there is no cheap-DOS to defend against.
+				Err(e) => Err(e.error.into()),
+			}
+		}
+
+		fn restore_fee_payer(previous: Option<T::AccountId>) {
+			match previous {
+				Some(prev) => {
+					let _ = T::EvmFeePayer::set_fee_payer(prev);
+				}
+				None => {
+					let _ = T::EvmFeePayer::clear_fee_payer();
+				}
+			}
 		}
 	}
 
