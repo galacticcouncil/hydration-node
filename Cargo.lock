@@ -6260,6 +6260,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "futures",
+ "futures-timer",
  "hex-literal",
  "hydra-dx-build-script-utils",
  "hydradx-runtime",

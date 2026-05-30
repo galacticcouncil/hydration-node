@@ -21,3 +21,4 @@ pub mod liquidation_worker;
 pub mod rpc;
 pub mod service;
 pub mod synthetic_logs_override;
+pub mod synthetic_mapping_sync;
