@@ -7,60 +7,100 @@
 //! variant.
 //!
 //! Wraps the stock Frontier `StorageOverride` and augments its reads with
-//! synthetic ethereum txs — substrate `Transfer`/`Swapped3` events translated
-//! to ERC-20 `Transfer` / uniswap-v2 `Swap` logs by `SyntheticEthLogsApi`. The
-//! synth txs are NOT in consensus state; they are produced on demand from the
-//! block's events, so `eth_getLogs` / `eth_getBlockReceipts` surface
-//! substrate-origin activity with no on-chain synthetic-tx injection.
+//! synthetic ethereum txs — substrate `Transfer`/`Swapped3`/`pallet_evm` log
+//! events translated to ERC-20 `Transfer` / uniswap-v2 `Swap` logs. The synth
+//! txs are NOT in consensus state; they're produced **client-side** from the
+//! block's events read out of state, using the pure
+//! `event_logs::synthetic_txs_from_records`. Because this never invokes a
+//! runtime API, it works against ANY runtime version — including blocks
+//! produced before this runtime shipped (bounded only by whether their events
+//! still decode).
 //!
 //! - `current_transaction_statuses` / `current_receipts`: real entries first,
-//!   then synth (whose `transaction_index` continues from the real count, set
-//!   by the runtime API), so positions line up across both.
-//! - `current_block`: real transactions are left untouched (the tx root stays
-//!   consistent); we only OR the synth-log blooms into `header.logs_bloom` so
-//!   `filter_range_logs`' header-bloom prefilter doesn't skip blocks whose only
-//!   matching logs are synthetic. Over-inclusive blooms are safe — the per-log
-//!   scan re-checks. Synth txs surface via `eth_getLogs` and (with the hash
-//!   index) `eth_getTransactionReceipt`, not the block's tx list.
+//!   then synth (whose `transaction_index` continues from the real count).
+//! - `current_block`: real tx list untouched; only OR the synth-log blooms into
+//!   `header.logs_bloom` so `filter_range_logs`' header-bloom prefilter doesn't
+//!   skip synth-only blocks.
 
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
+use codec::Decode;
 use fc_rpc::StorageOverride;
 use fp_rpc::TransactionStatus;
-use hydradx_runtime::evm::event_logs::SyntheticEthLogsApi;
+use frame_system::EventRecord;
+use hydradx_runtime::{evm::event_logs::synthetic_txs_from_records, RuntimeEvent};
 use pallet_ethereum::{Block as EthBlock, Receipt as EthReceipt, Transaction as EthTransaction};
 use primitives::Block;
-use sp_api::ProvideRuntimeApi;
-use sp_core::{H160, H256, U256};
-use sp_runtime::{traits::Block as BlockT, Permill};
+use sc_client_api::{backend::Backend, StorageProvider};
+use sp_blockchain::HeaderBackend;
+use sp_core::{hashing::twox_128, H160, H256, U256};
+use sp_runtime::traits::{Block as BlockT, Header as HeaderT, UniqueSaturatedInto};
+use sp_storage::StorageKey;
 
 type Hash = <Block as BlockT>::Hash;
 
-pub struct SyntheticStorageOverride<C> {
+pub struct SyntheticStorageOverride<C, BE> {
 	inner: Arc<dyn StorageOverride<Block>>,
 	client: Arc<C>,
+	_marker: PhantomData<BE>,
 }
 
-impl<C> SyntheticStorageOverride<C> {
+impl<C, BE> SyntheticStorageOverride<C, BE> {
 	pub fn new(inner: Arc<dyn StorageOverride<Block>>, client: Arc<C>) -> Self {
-		Self { inner, client }
+		Self {
+			inner,
+			client,
+			_marker: PhantomData,
+		}
 	}
 }
 
-impl<C> SyntheticStorageOverride<C>
+fn storage_key(pallet: &[u8], item: &[u8]) -> StorageKey {
+	StorageKey([twox_128(pallet), twox_128(item)].concat())
+}
+
+impl<C, BE> SyntheticStorageOverride<C, BE>
 where
-	C: ProvideRuntimeApi<Block> + Send + Sync,
-	C::Api: SyntheticEthLogsApi<Block>,
+	C: StorageProvider<Block, BE> + HeaderBackend<Block> + Send + Sync + 'static,
+	BE: Backend<Block> + Send + Sync + 'static,
 {
+	fn read_decode<T: Decode>(&self, at: Hash, key: &StorageKey) -> Option<T> {
+		let data = self.client.storage(at, key).ok().flatten()?;
+		Decode::decode(&mut &data.0[..]).ok()
+	}
+
 	fn synthetic(&self, at: Hash) -> Vec<(EthTransaction, TransactionStatus, EthReceipt)> {
-		self.client.runtime_api().synthetic_transactions(at).unwrap_or_default()
+		let records: Vec<EventRecord<RuntimeEvent, H256>> =
+			match self.read_decode(at, &storage_key(b"System", b"Events")) {
+				Some(r) => r,
+				None => return Vec::new(),
+			};
+		if records.is_empty() {
+			return Vec::new();
+		}
+		let header = match self.client.header(at) {
+			Ok(Some(h)) => h,
+			_ => return Vec::new(),
+		};
+		let parent_hash = *header.parent_hash();
+		let block_number: u64 = (*header.number()).unique_saturated_into();
+		let chain_id: u64 = self
+			.read_decode(at, &storage_key(b"EVMChainId", b"ChainId"))
+			.unwrap_or_default();
+		let base_tx_index = self
+			.inner
+			.current_transaction_statuses(at)
+			.map(|s| s.len() as u32)
+			.unwrap_or(0);
+
+		synthetic_txs_from_records(&records, chain_id, parent_hash.as_ref(), block_number, base_tx_index)
 	}
 }
 
-impl<C> StorageOverride<Block> for SyntheticStorageOverride<C>
+impl<C, BE> StorageOverride<Block> for SyntheticStorageOverride<C, BE>
 where
-	C: ProvideRuntimeApi<Block> + Send + Sync,
-	C::Api: SyntheticEthLogsApi<Block>,
+	C: StorageProvider<Block, BE> + HeaderBackend<Block> + Send + Sync + 'static,
+	BE: Backend<Block> + Send + Sync + 'static,
 {
 	fn account_code_at(&self, at: Hash, address: H160) -> Option<Vec<u8>> {
 		self.inner.account_code_at(at, address)
@@ -104,7 +144,7 @@ where
 		}
 	}
 
-	fn elasticity(&self, at: Hash) -> Option<Permill> {
+	fn elasticity(&self, at: Hash) -> Option<sp_runtime::Permill> {
 		self.inner.elasticity(at)
 	}
 
