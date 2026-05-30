@@ -16,9 +16,13 @@
 //! produced before this runtime shipped (bounded only by whether their events
 //! still decode).
 //!
-//! - `current_transaction_statuses` / `current_receipts`: real entries first,
-//!   then synth (whose `transaction_index` continues from the real count).
-//! - `current_block`: real tx list untouched; only OR the synth-log blooms into
+//! All three views stay index-aligned (real entries first, synth appended in a
+//! stable order, `transaction_index` continuing from the real count) so a synth
+//! tx's mapping-DB index resolves consistently across them:
+//! - `current_transaction_statuses` / `current_receipts`: real, then synth.
+//! - `current_block`: synth txs appended to `transactions` (so
+//!   `eth_getTransactionByHash`/`*_receipt` can index them — fc-rpc does
+//!   `block.transactions[index]`), and the synth-log blooms OR'd into
 //!   `header.logs_bloom` so `filter_range_logs`' header-bloom prefilter doesn't
 //!   skip synth-only blocks.
 
@@ -108,10 +112,11 @@ where
 
 	fn current_block(&self, at: Hash) -> Option<EthBlock> {
 		let mut block = self.inner.current_block(at)?;
-		for (_, status, _) in self.synthetic(at) {
+		for (tx, status, _) in self.synthetic(at) {
 			for (h, s) in block.header.logs_bloom.0.iter_mut().zip(status.logs_bloom.0.iter()) {
 				*h |= *s;
 			}
+			block.transactions.push(tx);
 		}
 		Some(block)
 	}
