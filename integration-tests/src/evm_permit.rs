@@ -3126,7 +3126,7 @@ mod sponsored_paymaster {
 	}
 
 	#[test]
-	fn signed_dispatch_permit_should_fail_with_call_execution_error_when_inner_call_reverts_and_not_pause() {
+	fn signed_dispatch_permit_should_commit_and_consume_nonce_when_inner_call_reverts() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -3163,10 +3163,13 @@ mod sponsored_paymaster {
 				s,
 			);
 
-			let err = result.expect_err("inner-call revert must produce an error");
+			// Inner call reverts, but the signed branch commits like the unsigned
+			// path: the extrinsic returns Ok and the permit nonce is consumed.
+			assert_ok!(result);
 			assert_eq!(
-				err.error,
-				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitCallExecutionError.into(),
+				pallet_evm_precompile_call_permit::NoncesStorage::get(from),
+				U256::one(),
+				"revert must still consume the permit nonce",
 			);
 			assert_dispatch_permit_not_paused();
 		});
@@ -3472,7 +3475,7 @@ mod sponsored_paymaster {
 	}
 
 	#[test]
-	fn signed_dispatch_permit_should_restore_previous_fee_payer_override_on_real_run_failure() {
+	fn signed_dispatch_permit_should_restore_previous_fee_payer_override_on_real_run_revert() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -3511,12 +3514,13 @@ mod sponsored_paymaster {
 				r,
 				s,
 			);
-			assert!(result.is_err());
+			// Revert now commits (Ok); the override is still restored to the outer value.
+			assert_ok!(result);
 
 			assert_eq!(
 				hydradx_runtime::evm::evm_fee_payer(),
 				Some(outer),
-				"outer override must survive the early-return path",
+				"outer override must be restored after the revert-commit path",
 			);
 
 			hydradx_runtime::evm::clear_evm_fee_payer();
@@ -3592,15 +3596,13 @@ mod sponsored_paymaster {
 		});
 	}
 
-	// Signed-branch divergence from unsigned: when the inner call reverts,
-	// `do_dispatch_permit_signed` returns Err. FRAME wraps every dispatchable
-	// in a storage layer, so the Err rolls back the `NoncesStorage` increment
-	// that `T::EvmPermit::dispatch_permit` performed before checking
-	// `exit_reason`. Net effect: the user keeps their permit nonce and can
-	// re-submit the same signed payload (unsigned path does NOT roll back
-	// and therefore consumes the nonce on revert).
+	// Signed branch matches the unsigned path on revert: when the inner call
+	// reverts, `do_dispatch_permit_signed` returns Ok(post_info), committing the
+	// `NoncesStorage` increment that `T::EvmPermit::dispatch_permit` performed
+	// before checking `exit_reason`. Net effect: the permit nonce is consumed,
+	// so the same signed payload cannot be replayed.
 	#[test]
-	fn adversarial_signed_dispatch_permit_should_leave_permit_nonce_unchanged_on_real_run_revert() {
+	fn signed_dispatch_permit_should_consume_permit_nonce_on_real_run_revert() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -3639,23 +3641,24 @@ mod sponsored_paymaster {
 				r,
 				s,
 			);
-			assert!(result.is_err());
+			assert_ok!(result);
 
 			let nonce_after = pallet_evm_precompile_call_permit::NoncesStorage::get(alith);
 			assert_eq!(
-				nonce_after, nonce_before,
-				"call-permit nonce MUST NOT advance — Err rolls back the runner's nonce bump"
+				nonce_after,
+				nonce_before + U256::one(),
+				"call-permit nonce MUST advance — Ok commits the runner's nonce bump"
 			);
 			assert_dispatch_permit_not_paused();
 		});
 	}
 
-	// Failed signed dispatches must cost the signer full declared weight (no
-	// custom refund). This is an anti-grief property: an attacker spamming
-	// invalid permits pays the same as a legitimate paymaster spamming valid
-	// ones, so griefing is uniformly expensive.
+	// A RunnerError (account never charged) is the one path the signed branch
+	// still fails hard on: it returns Err with default post info, costing the
+	// signer full declared weight (no refund). Anti-grief — spamming permits the
+	// runner rejects is as expensive as any legitimate sponsored dispatch.
 	#[test]
-	fn signed_dispatch_permit_should_use_default_post_info_on_real_run_failure() {
+	fn signed_dispatch_permit_should_use_default_post_info_on_runner_error() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -3674,10 +3677,12 @@ mod sponsored_paymaster {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount: 1_000_000_000,
-				min_buy_amount: u128::MAX,
+				min_buy_amount: 0,
 			});
+			// Sign for u64::MAX gas so the permit validates, then the runner rejects
+			// it (gas_limit exceeds the block gas limit) → EvmPermitRunnerError.
 			let (from, data, gas_limit, deadline, v, r, s) =
-				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+				build_permit_for_call(&inner_call, u64::MAX, U256::from(1_000_000_000_000u128));
 
 			let result = MultiTransactionPayment::dispatch_permit(
 				RuntimeOrigin::signed(paymaster),
@@ -3692,10 +3697,10 @@ mod sponsored_paymaster {
 				s,
 			);
 
-			let err = result.expect_err("expected real-run failure");
+			let err = result.expect_err("expected runner error");
 			assert_eq!(
 				err.error,
-				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitCallExecutionError.into(),
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitRunnerError.into(),
 			);
 			// actual_weight = None → SignedExtension uses declared weight, no refund.
 			assert_eq!(err.post_info.actual_weight, None);
