@@ -5633,7 +5633,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.1.0"
+version = "15.1.1"
 dependencies = [
  "async-trait",
  "clap",
@@ -5679,6 +5679,7 @@ dependencies = [
  "pallet-ethereum",
  "pallet-evm",
  "pallet-liquidation",
+ "pallet-synthetic-logs",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "polkadot-cli",

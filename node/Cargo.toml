@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "15.1.0"
+version = "15.1.1"
 description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -42,6 +42,7 @@ hydradx-runtime = { workspace = true, features = ["std"] }
 primitives = { workspace = true }
 pallet-claims = { workspace = true }
 pallet-liquidation = { workspace = true }
+pallet-synthetic-logs = { workspace = true, features = ["std"] }
 liquidation-worker-support = { workspace = true }
 
 # Substrate dependencies
