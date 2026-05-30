@@ -1732,7 +1732,6 @@ parameter_types! {
 	pub const MinCodeLength: u32 = 4;
 	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 	pub const ReferralsSeedAmount: Balance = 10_000_000_000_000;
-	pub ReferralsExternalRewardAccount: Option<AccountId> = Some(StakingPalletId::get().into_account_truncating());
 }
 
 impl pallet_referrals::Config for Runtime {
@@ -1745,7 +1744,6 @@ impl pallet_referrals::Config for Runtime {
 	type CodeLength = MaxCodeLength;
 	type MinCodeLength = MinCodeLength;
 	type LevelVolumeAndRewardPercentages = ReferralsLevelVolumeAndRewards;
-	type ExternalAccount = ReferralsExternalRewardAccount;
 	type SeedNativeAmount = ReferralsSeedAmount;
 	type WeightInfo = weights::pallet_referrals::HydraWeight<Runtime>;
 }
@@ -2049,36 +2047,32 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 			Level::Tier3 => 61_111 * UNITS,
 			Level::Tier4 => 763_888 * UNITS,
 		};
+		// referrer + trader split 100% of the referrals slice; tier shifts the proportion toward
+		// the referrer. `None` mints nothing (no referrer). See pallet-fee-processor for the slice.
 		let rewards = match k {
 			Level::None => FeeDistribution {
 				referrer: Permill::zero(),
 				trader: Permill::zero(),
-				external: Permill::from_percent(50),
 			},
 			Level::Tier0 => FeeDistribution {
-				referrer: Permill::from_percent(3),
-				trader: Permill::from_percent(2),
-				external: Permill::from_percent(45),
+				referrer: Permill::from_percent(60),
+				trader: Permill::from_percent(40),
 			},
 			Level::Tier1 => FeeDistribution {
-				referrer: Permill::from_percent(6),
-				trader: Permill::from_percent(4),
-				external: Permill::from_percent(40),
+				referrer: Permill::from_percent(65),
+				trader: Permill::from_percent(35),
 			},
 			Level::Tier2 => FeeDistribution {
-				referrer: Permill::from_percent(9),
-				trader: Permill::from_percent(6),
-				external: Permill::from_percent(35),
+				referrer: Permill::from_percent(70),
+				trader: Permill::from_percent(30),
 			},
 			Level::Tier3 => FeeDistribution {
-				referrer: Permill::from_percent(12),
-				trader: Permill::from_percent(8),
-				external: Permill::from_percent(30),
+				referrer: Permill::from_percent(75),
+				trader: Permill::from_percent(25),
 			},
 			Level::Tier4 => FeeDistribution {
-				referrer: Permill::from_percent(15),
-				trader: Permill::from_percent(10),
-				external: Permill::from_percent(25),
+				referrer: Permill::from_percent(80),
+				trader: Permill::from_percent(20),
 			},
 		};
 		(volume, rewards)
@@ -2088,73 +2082,7 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
 use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
-#[cfg(feature = "runtime-benchmarks")]
-use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
-
-#[cfg(feature = "runtime-benchmarks")]
-pub struct ReferralsBenchmarkHelper;
-
-#[cfg(feature = "runtime-benchmarks")]
-impl RefBenchmarkHelper<AssetId, Balance> for ReferralsBenchmarkHelper {
-	fn prepare_convertible_asset_and_amount() -> (AssetId, Balance) {
-		let asset_id: u32 = 1234u32;
-		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id.to_le_bytes().to_vec().try_into().unwrap();
-
-		with_transaction(|| {
-			TransactionOutcome::Commit(AssetRegistry::register_asset(
-				Some(asset_id),
-				Some(asset_name.clone()),
-				AssetKind::Token,
-				Some(1_000_000),
-				Some(asset_name),
-				Some(18),
-				None,
-				None,
-				true,
-			))
-		})
-		.unwrap();
-
-		let native_price = FixedU128::from_inner(1201500000000000);
-		let asset_price = FixedU128::from_inner(45_000_000_000);
-
-		Currencies::update_balance(
-			RuntimeOrigin::root(),
-			Omnipool::protocol_account(),
-			NativeAssetId::get(),
-			1_000_000_000_000_000_000,
-		)
-		.unwrap();
-
-		Currencies::update_balance(
-			RuntimeOrigin::root(),
-			Omnipool::protocol_account(),
-			asset_id,
-			1_000_000_000_000_000_000_000_000,
-		)
-		.unwrap();
-
-		Omnipool::add_token(
-			RuntimeOrigin::root(),
-			NativeAssetId::get(),
-			native_price,
-			Permill::from_percent(10),
-			TreasuryAccount::get(),
-		)
-		.unwrap();
-
-		Omnipool::add_token(
-			RuntimeOrigin::root(),
-			asset_id,
-			asset_price,
-			Permill::from_percent(10),
-			TreasuryAccount::get(),
-		)
-		.unwrap();
-		(1234, 1_000_000_000_000_000_000)
-	}
-}
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsDummyPriceProvider;

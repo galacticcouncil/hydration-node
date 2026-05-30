@@ -72,7 +72,6 @@ thread_local! {
 	pub static TIER_VOLUME: RefCell<HashMap<Level, Option<Balance>>> = RefCell::new(HashMap::default());
 	pub static TIER_REWARDS: RefCell<HashMap<Level, FeeDistribution>> = RefCell::new(HashMap::default());
 	pub static SEED_AMOUNT: RefCell<Balance> = RefCell::new(Balance::zero());
-	pub static EXTERNAL_ACCOUNT: RefCell<Option<AccountId>> = const { RefCell::new(None) };
 }
 
 construct_runtime!(
@@ -121,14 +120,6 @@ impl Get<Balance> for SeedAmount {
 	}
 }
 
-pub struct ExtAccount;
-
-impl Get<Option<AccountId>> for ExtAccount {
-	fn get() -> Option<AccountId> {
-		EXTERNAL_ACCOUNT.with(|v| *v.borrow())
-	}
-}
-
 impl Config for Test {
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type AssetId = AssetId;
@@ -139,7 +130,6 @@ impl Config for Test {
 	type CodeLength = CodeLength;
 	type MinCodeLength = MinCodeLength;
 	type LevelVolumeAndRewardPercentages = LevelVolumeAndRewards;
-	type ExternalAccount = ExtAccount;
 	type SeedNativeAmount = SeedAmount;
 	type WeightInfo = ();
 }
@@ -226,10 +216,6 @@ impl Default for ExtBuilder {
 		TIER_REWARDS.with(|v| {
 			v.borrow_mut().clear();
 		});
-		EXTERNAL_ACCOUNT.with(|v| {
-			let mut c = v.borrow_mut();
-			*c = None;
-		});
 
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_ALICE_BALANCE)],
@@ -289,14 +275,6 @@ impl ExtBuilder {
 	pub fn with_global_tier_rewards(self, rewards: HashMap<Level, FeeDistribution>) -> Self {
 		TIER_REWARDS.with(|v| {
 			v.swap(&RefCell::new(rewards));
-		});
-		self
-	}
-
-	pub fn with_external_account(self, acc: AccountId) -> Self {
-		EXTERNAL_ACCOUNT.with(|v| {
-			let mut m = v.borrow_mut();
-			*m = Some(acc);
 		});
 		self
 	}
@@ -420,7 +398,7 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 			.expect("to have a price");
 		let amount_out = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down).unwrap();
 
-		Tokens::mint_into(asset_out, &_who, amount_out)?;
+		Tokens::mint_into(asset_out, _who, amount_out)?;
 		let fee_amount = TRADE_PERCENTAGE.mul_floor(amount_out);
 		Ok(TradeResult {
 			amount_in: amount,
@@ -436,13 +414,9 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 		fee_asset: AssetId,
 		fee: Balance,
 	) -> Result<(), DispatchError> {
-		println!("on_trade_fee: fee_asset: {:?}, fee: {:?}", fee_asset, fee);
-		let price = ConversionPrice::get_price(HDX, fee_asset.clone()).expect("Asset price");
-		println!("on_trade_fee: price: {:?}", price);
+		let price = ConversionPrice::get_price(HDX, fee_asset).expect("Asset price");
 		let total_taken = fee / 2;
 		let hdx_amount = multiply_by_rational_with_rounding(total_taken, price.n, price.d, Rounding::Down).unwrap();
-
-		println!("on_trade_fee: hdx: {:?}", hdx_amount);
 
 		// Mint shares (on_pre_fee_deposit equivalent)
 		Referrals::on_fee_received(*trader, hdx_amount)?;

@@ -129,7 +129,7 @@ fn trading_in_omnipool_should_increase_referrer_shares() {
 			0
 		));
 		let referrer_shares = Referrals::referrer_shares::<AccountId>(ALICE.into());
-		assert_eq!(referrer_shares, 8562303);
+		assert_eq!(referrer_shares, 171246077);
 	});
 }
 #[test]
@@ -151,30 +151,7 @@ fn trading_in_omnipool_should_increase_trader_shares() {
 			0
 		));
 		let trader_shares = Referrals::trader_shares::<AccountId>(BOB.into());
-		assert_eq!(trader_shares, 5708202);
-	});
-}
-#[test]
-fn trading_in_omnipool_should_increase_external_shares() {
-	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_24();
-		let code =
-			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
-		assert_ok!(Referrals::register_code(
-			RuntimeOrigin::signed(ALICE.into()),
-			code.clone()
-		));
-		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
-		assert_ok!(Omnipool::sell(
-			RuntimeOrigin::signed(BOB.into()),
-			HDX,
-			DAI,
-			1_000_000_000_000,
-			0
-		));
-
-		let external_shares = Referrals::trader_shares::<AccountId>(Staking::pot_account_id());
-		assert_eq!(external_shares, 380407537221);
+		assert_eq!(trader_shares, 114164051);
 	});
 }
 
@@ -197,7 +174,7 @@ fn trading_in_omnipool_should_increase_total_shares_correctly() {
 			0
 		));
 		let total_shares = Referrals::total_shares();
-		assert_eq!(total_shares, 380421807726);
+		assert_eq!(total_shares, 285410128);
 	});
 }
 
@@ -231,7 +208,7 @@ fn claiming_rewards_should_convert_all_assets_to_reward_asset() {
 
 		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE.into())));
 		let new_balance = Currencies::free_balance(HDX, &ALICE.into());
-		assert_eq!(new_balance - old_balance, 8191014);
+		assert_eq!(new_balance - old_balance, 211323606865);
 		assert_eq!(Referrals::referrer_shares::<AccountId>(ALICE.into()), 0);
 	});
 }
@@ -266,8 +243,8 @@ fn claiming_rewards_should_pay_trader_their_rebate() {
 		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB.into())));
 
 		let new_balance = Currencies::free_balance(HDX, &BOB.into());
-		// Trader rebate ≈ 2/3 of the referrer reward (trader 2% vs referrer 3% of the slice).
-		assert_eq!(new_balance - old_balance, 5460675);
+		// Trader rebate ≈ 2/3 of the referrer reward (trader 40% vs referrer 60% of the slice).
+		assert_eq!(new_balance - old_balance, 140882404966);
 		assert_eq!(Referrals::trader_shares::<AccountId>(BOB.into()), 0);
 	});
 }
@@ -313,7 +290,7 @@ fn claim_should_work_when_trade_happens_via_router() {
 		//Assert that user receives claim amounts
 		let new_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let claimed_amount = new_balance - old_balance;
-		assert_eq!(claimed_amount, 8191014);
+		assert_eq!(claimed_amount, 211323606865);
 	});
 
 	//We check if the same happens with normal omni trade
@@ -352,7 +329,7 @@ fn claim_should_work_when_trade_happens_via_router() {
 		//Assert that user receives claim amounts
 		let new_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let claimed_amount = new_balance - old_balance;
-		assert_eq!(claimed_amount, 8191014);
+		assert_eq!(claimed_amount, 211323606865);
 	});
 }
 
@@ -396,9 +373,10 @@ fn trading_in_omnipool_should_transfer_some_portion_of_fee_when_no_code_linked()
 		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 		let ref_pot_hdx_after = Currencies::free_balance(HDX, &Referrals::pot_account_id());
 		assert_eq!(ref_pot_hdx_after - ref_pot_hdx_before, 338913933985);
-		let external_shares = Referrals::trader_shares::<AccountId>(Staking::pot_account_id());
-		let total_shares = Referrals::total_shares();
-		assert_eq!(total_shares, external_shares);
+		// No code linked → Level::None mints no shares (referrer/trader 0, external removed).
+		// The staking pot no longer receives any referral shares.
+		assert_eq!(Referrals::trader_shares::<AccountId>(Staking::pot_account_id()), 0);
+		assert_eq!(Referrals::total_shares(), 0);
 	});
 }
 
@@ -420,14 +398,15 @@ fn trading_in_omnipool_should_use_global_rewards_when_not_set() {
 			1_000_000_000_000,
 			0
 		));
+		// Tier0 split is referrer 60 : trader 40 (≈3:2, ±1 wei from independent flooring).
 		let referrer_shares = Referrals::referrer_shares::<AccountId>(ALICE.into());
-		assert_eq!(referrer_shares, 8562303);
+		assert_eq!(referrer_shares, 171246077);
 		let trader_shares = Referrals::trader_shares::<AccountId>(BOB.into());
-		assert_eq!(trader_shares, 5708202);
-		let external_shares = Referrals::trader_shares::<AccountId>(Staking::pot_account_id());
-		assert_eq!(external_shares, 380407537221);
+		assert_eq!(trader_shares, 114164051);
+		// Staking pot no longer receives external referral shares.
+		assert_eq!(Referrals::trader_shares::<AccountId>(Staking::pot_account_id()), 0);
 		let total_shares = Referrals::total_shares();
-		assert_eq!(total_shares, referrer_shares + trader_shares + external_shares);
+		assert_eq!(total_shares, referrer_shares + trader_shares);
 	});
 }
 
@@ -442,7 +421,6 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 			FeeDistribution {
 				referrer: Permill::from_percent(2),
 				trader: Permill::from_percent(1),
-				external: Permill::from_percent(10),
 			}
 		));
 		let code =
@@ -459,14 +437,14 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 			1_000_000_000_000,
 			0
 		));
+		// Override split is referrer 2 : trader 1 = 2:1.
 		let referrer_shares = Referrals::referrer_shares::<AccountId>(ALICE.into());
 		assert_eq!(referrer_shares, 5708202);
 		let trader_shares = Referrals::trader_shares::<AccountId>(BOB.into());
 		assert_eq!(trader_shares, 2854101);
-		let external_shares = Referrals::trader_shares::<AccountId>(Staking::pot_account_id());
-		assert_eq!(external_shares, 380307643675);
+		assert_eq!(referrer_shares, trader_shares * 2, "referrer:trader must be 2:1");
 		let total_shares = Referrals::total_shares();
-		assert_eq!(total_shares, referrer_shares + trader_shares + external_shares);
+		assert_eq!(total_shares, referrer_shares + trader_shares);
 	});
 }
 
@@ -624,7 +602,9 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 }
 
 #[test]
-fn trading_in_omnipool_should_increase_staking_shares_when_no_code_linked() {
+fn trading_should_not_give_staking_pot_any_referral_shares() {
+	// The `external` reward (which used to route referral shares to the staking pot) was
+	// removed; staking is funded directly by the fee processor instead.
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_24();
 		assert_ok!(Omnipool::sell(
@@ -636,11 +616,8 @@ fn trading_in_omnipool_should_increase_staking_shares_when_no_code_linked() {
 		));
 		let staking_acc = Staking::pot_account_id();
 
-		let staking_shares = Referrals::trader_shares::<AccountId>(staking_acc);
-		assert_eq!(staking_shares, 380421807727);
-
-		let total_shares = Referrals::total_shares();
-		assert_eq!(total_shares, staking_shares);
+		assert_eq!(Referrals::trader_shares::<AccountId>(staking_acc), 0);
+		assert_eq!(Referrals::total_shares(), 0);
 	});
 }
 

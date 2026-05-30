@@ -27,7 +27,6 @@ fn complete_referral_flow_should_work_as_expected() {
 				FeeDistribution {
 					referrer: Permill::from_percent(50),
 					trader: Permill::from_percent(20),
-					external: Permill::from_percent(30),
 				},
 			),
 			(
@@ -36,7 +35,6 @@ fn complete_referral_flow_should_work_as_expected() {
 				FeeDistribution {
 					referrer: Permill::from_percent(50),
 					trader: Permill::from_percent(20),
-					external: Permill::from_percent(30),
 				},
 			),
 			(
@@ -45,7 +43,6 @@ fn complete_referral_flow_should_work_as_expected() {
 				FeeDistribution {
 					referrer: Permill::from_float(0.03),
 					trader: Permill::from_float(0.01),
-					external: Permill::from_float(0.002),
 				},
 			),
 			(
@@ -54,7 +51,6 @@ fn complete_referral_flow_should_work_as_expected() {
 				FeeDistribution {
 					referrer: Permill::from_float(0.03),
 					trader: Permill::from_float(0.01),
-					external: Permill::from_float(0.002),
 				},
 			),
 			(
@@ -63,7 +59,6 @@ fn complete_referral_flow_should_work_as_expected() {
 				FeeDistribution {
 					referrer: Permill::from_percent(20),
 					trader: Permill::from_percent(10),
-					external: Permill::from_percent(70),
 				},
 			),
 			(
@@ -72,7 +67,6 @@ fn complete_referral_flow_should_work_as_expected() {
 				FeeDistribution {
 					referrer: Permill::from_percent(30),
 					trader: Permill::from_percent(10),
-					external: Permill::from_percent(60),
 				},
 			),
 		])
@@ -148,9 +142,7 @@ fn complete_referral_flow_should_work_as_expected() {
 			let total_distributed = charlie_received + bob_received + alice_received;
 			assert!(
 				total_distributed <= pot_balance,
-				"distributed {} > pot {}",
-				total_distributed,
-				pot_balance
+				"distributed {total_distributed} > pot {pot_balance}"
 			);
 			assert!(total_distributed > 0, "should have distributed something");
 

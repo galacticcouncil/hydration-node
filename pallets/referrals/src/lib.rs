@@ -135,22 +135,16 @@ impl Level {
 	Clone, Copy, Default, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo,
 )]
 pub struct FeeDistribution {
-	/// Percentage of the fee that goes to the referrer.
+	/// Percentage of the referrals slice that goes to the referrer.
 	pub referrer: Permill,
-	/// Percentage of the fee that goes back to the trader.
+	/// Percentage of the referrals slice that goes back to the trader.
 	pub trader: Permill,
-	/// Percentage of the fee that goes to specific account given by `ExternalAccount` config parameter as reward.r
-	pub external: Permill,
 }
 
 impl FeeDistribution {
-	// Ensure that the sum of percentages is correct.
+	// Ensure that the sum of percentages does not exceed 100%.
 	fn is_correct(&self) -> bool {
-		self.referrer
-			.checked_add(&self.trader)
-			.and_then(|sum| sum.checked_add(&self.external))
-			.map(|_| true)
-			.unwrap_or(false)
+		self.referrer.checked_add(&self.trader).is_some()
 	}
 }
 
@@ -203,9 +197,6 @@ pub mod pallet {
 
 		/// Volume and Global reward percentages for all assets if not specified explicitly for the asset.
 		type LevelVolumeAndRewardPercentages: GetByKey<Level, (Balance, FeeDistribution)>;
-
-		/// External account that receives some percentage of the fee. Usually something like staking.
-		type ExternalAccount: Get<Option<Self::AccountId>>;
 
 		/// Seed amount that was sent to the reward pot.
 		#[pallet::constant]
@@ -527,12 +518,7 @@ pub mod pallet {
 
 			//ensure that total percentage does not exceed 100%
 			ensure!(
-				rewards
-					.referrer
-					.checked_add(&rewards.trader)
-					.ok_or(Error::<T>::IncorrectRewardPercentage)?
-					.checked_add(&rewards.external)
-					.is_some(),
+				rewards.referrer.checked_add(&rewards.trader).is_some(),
 				Error::<T>::IncorrectRewardPercentage
 			);
 
@@ -563,7 +549,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Called by FeeProcessor when HDX is deposited to referrals pot.
-	/// Calculates and records referrer/trader/external shares from HDX amount.
+	/// Calculates and records referrer/trader shares from the HDX amount.
 	/// No transfer or price conversion is needed — amount is already in HDX.
 	pub fn on_fee_received(trader: T::AccountId, hdx_amount: Balance) -> DispatchResult {
 		let (level, ref_account) = if let Some(acc) = Self::linked_referral_account(&trader) {
@@ -587,11 +573,6 @@ impl<T: Config> Pallet<T> {
 			0
 		};
 		let trader_shares = rewards.trader.mul_floor(hdx_amount);
-		let external_shares = if T::ExternalAccount::get().is_some() {
-			rewards.external.mul_floor(hdx_amount)
-		} else {
-			0
-		};
 
 		// Checkpoint affected users before share mutations
 		if let Some(ref acc) = ref_account {
@@ -602,15 +583,8 @@ impl<T: Config> Pallet<T> {
 		if trader_shares > 0 {
 			Self::checkpoint_user(&trader)?;
 		}
-		if let Some(ref acc) = T::ExternalAccount::get() {
-			if external_shares > 0 {
-				Self::checkpoint_user(acc)?;
-			}
-		}
 
-		let total_shares = referrer_shares
-			.saturating_add(trader_shares)
-			.saturating_add(external_shares);
+		let total_shares = referrer_shares.saturating_add(trader_shares);
 
 		TotalShares::<T>::mutate(|v| {
 			*v = v.saturating_add(total_shares);
@@ -630,14 +604,6 @@ impl<T: Config> Pallet<T> {
 			});
 		}
 
-		if let Some(ref acc) = T::ExternalAccount::get() {
-			if external_shares > 0 {
-				TraderShares::<T>::mutate(acc, |v| {
-					*v = v.saturating_add(external_shares);
-				});
-			}
-		}
-
 		// Set debt for affected users after share mutations
 		if let Some(ref acc) = ref_account {
 			if referrer_shares > 0 {
@@ -646,11 +612,6 @@ impl<T: Config> Pallet<T> {
 		}
 		if trader_shares > 0 {
 			Self::set_user_debt(&trader);
-		}
-		if let Some(ref acc) = T::ExternalAccount::get() {
-			if external_shares > 0 {
-				Self::set_user_debt(acc);
-			}
 		}
 
 		Ok(())

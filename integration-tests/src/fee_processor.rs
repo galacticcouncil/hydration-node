@@ -161,17 +161,12 @@ fn hdx_fee_generates_referral_shares() {
 		let referrer_increase = Referrals::referrer_shares(AccountId::from(ALICE)) - referrer_shares_before;
 		let trader_increase = Referrals::trader_shares(AccountId::from(BOB)) - trader_shares_before;
 
-		// Tier0 split is referrer 3% : trader 2% = 3:2.
+		// Tier0 split is referrer 60% : trader 40% (≈3:2, ±wei from independent flooring).
 		assert_eq!(
-			referrer_increase, 5667,
+			referrer_increase, 113359,
 			"Referrer shares should accrue from HDX fee trade"
 		);
-		assert_eq!(trader_increase, 3778, "Trader shares should accrue from HDX fee trade");
-		assert_eq!(
-			referrer_increase * 2,
-			trader_increase * 3,
-			"Referrer:trader must be 3:2"
-		);
+		assert_eq!(trader_increase, 75572, "Trader shares should accrue from HDX fee trade");
 	});
 }
 
@@ -201,9 +196,7 @@ fn non_hdx_fee_from_omnipool_trade_is_accumulated_in_fee_processor_pot() {
 
 		assert!(
 			pot_dai_after > pot_dai_before,
-			"Fee processor pot should accumulate DAI fees. Before: {}, After: {}",
-			pot_dai_before,
-			pot_dai_after
+			"Fee processor pot should accumulate DAI fees. Before: {pot_dai_before}, After: {pot_dai_after}",
 		);
 
 		assert!(
@@ -267,10 +260,7 @@ fn non_hdx_fee_conversion_distributes_to_all_receivers() {
 		let tolerance = staking_increase / 10; // 10% tolerance
 		assert!(
 			diff <= tolerance,
-			"Staking (10%) and referrals (10%) should receive roughly equal amounts: {} vs {} (diff: {})",
-			staking_increase,
-			referrals_increase,
-			diff
+			"Staking (10%) and referrals (10%) should receive roughly equal amounts: {staking_increase} vs {referrals_increase} (diff: {diff})",
 		);
 	});
 }
@@ -464,9 +454,7 @@ fn non_hdx_fee_generates_referral_shares_for_linked_trader() {
 
 		assert!(
 			referrer_shares_after > referrer_shares_before,
-			"Referrer shares should increase from non-HDX fee trade. Before: {}, After: {}",
-			referrer_shares_before,
-			referrer_shares_after
+			"Referrer shares should increase from non-HDX fee trade. Before: {referrer_shares_before}, After: {referrer_shares_after}",
 		);
 	});
 }
@@ -812,8 +800,7 @@ fn low_decimal_asset_converts_without_min_amount_gate() {
 		let pot_balance = Currencies::free_balance(low_dec_asset, &fee_processor_pot());
 		assert!(
 			pot_balance > 0,
-			"Fee pot should have low-decimal asset fees: {}",
-			pot_balance
+			"Fee pot should have low-decimal asset fees: {pot_balance}",
 		);
 		assert!(
 			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(low_dec_asset),
@@ -1448,9 +1435,7 @@ fn buying_hdx_from_omnipool_credits_all_four_hdx_fee_pots() {
 		let sum = giga_increase + giga_rewards_increase + staking_increase + referrals_increase;
 		assert!(
 			sum <= fee_amount && fee_amount - sum <= 3,
-			"sum of receiver shares ({}) must equal take ({}) within 3 wei rounding",
-			sum,
-			fee_amount
+			"sum of receiver shares ({sum}) must equal take ({fee_amount}) within 3 wei rounding",
 		);
 	});
 }
