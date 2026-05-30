@@ -293,9 +293,7 @@ impl pallet_xyk::Config for Test {
 	type NonDustableWhitelistHandler = DummyDuster;
 }
 
-impl pallet_broadcast::Config for Test {
-	type OnTrade = ();
-}
+impl pallet_broadcast::Config for Test {}
 
 pub struct CircuitBreakerWhitelist;
 

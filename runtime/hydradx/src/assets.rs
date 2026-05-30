@@ -18,7 +18,7 @@
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
-use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
+use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin, Treasurer};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
@@ -36,7 +36,7 @@ use frame_support::{
 	},
 	BoundedVec, PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use frame_system::{EnsureRoot, RawOrigin};
 use hydradx_adapters::{
 	stableswap_peg_oracle::PegOracle, AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT,
 	MultiCurrencyLockedBalance, OmnipoolHookAdapter, OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider,
@@ -120,9 +120,6 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = MaxFreezes;
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
-	// node-indexing variant: native-HDX movements are surfaced off-chain by
-	// `SyntheticEthLogsApi` (reads `pallet_balances::Event`), not a hook.
-	type RuntimeHooks = ();
 }
 
 pub struct CurrencyHooks;
@@ -133,16 +130,6 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>;
 	type PreTransfer = SufficiencyCheck;
 	type PostTransfer = ();
-	// node-indexing variant: token movements are surfaced off-chain by
-	// `SyntheticEthLogsApi` (reads orml-tokens events), not mutation hooks.
-	// (The `Pre/Post*` slots below exist only on the `-patch-hooks` fork; they
-	// are dropped when merging onto the upstream ORML in phase 5.)
-	type PreWithdraw = ();
-	type PostWithdraw = ();
-	type PostReserve = ();
-	type PostUnreserve = ();
-	type PostSlashReserved = ();
-	type PostRepatriate = ();
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
 }
@@ -442,7 +429,7 @@ impl pallet_currencies::Config for Runtime {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeAssetId;
 	type RegistryInspect = AssetRegistry;
-	type EgressHandler = circuit_breaker::WithdrawLimitHandler<NativeAssetId>;
+	type EgressHandler = circuit_breaker::WithdrawLimitHandler;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
 
@@ -646,7 +633,8 @@ impl pallet_circuit_breaker::Config for Runtime {
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<{ pallet_ema_oracle::MAX_PERIODS }>> = BoundedVec::truncate_from(vec![
-		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes, OraclePeriod::Day,
+	]);
 	// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
 	pub BifrostAccount: AccountId = hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into();
 }
@@ -942,6 +930,11 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 		let errors: Vec<DispatchError> = vec![
 			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
 			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
+			// Off-by-one rounding on aToken balanceOf can trip the omnipool's
+			// pre-trade ensure_can_withdraw. Retry on a later block — the aave
+			// liquidity index is timestamp-dependent, so the rounding boundary
+			// shifts and a later attempt may pass.
+			pallet_omnipool::Error::<Runtime>::InsufficientBalance.into(),
 			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
 			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];
@@ -1579,14 +1572,16 @@ impl pallet_stableswap::Config for Runtime {
 
 // Bonds
 parameter_types! {
-	pub ProtocolFee: Permill = Permill::from_percent(2);
 	pub const BondsPalletId: PalletId = PalletId(*b"pltbonds");
 }
 
 pub struct AssetTypeWhitelist;
 impl Contains<AssetKind> for AssetTypeWhitelist {
 	fn contains(t: &AssetKind) -> bool {
-		matches!(t, AssetKind::Token | AssetKind::XYK | AssetKind::StableSwap)
+		matches!(
+			t,
+			AssetKind::Token | AssetKind::XYK | AssetKind::StableSwap | AssetKind::Erc20
+		)
 	}
 }
 
@@ -1597,10 +1592,9 @@ impl pallet_bonds::Config for Runtime {
 	type ExistentialDeposits = AssetRegistry;
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
-	type IssueOrigin = EnsureSigned<AccountId>;
+	type IssueOrigin = EitherOf<EnsureRoot<Self::AccountId>, Treasurer>;
+	type IssuerAccount = TreasuryAccount;
 	type AssetTypeWhitelist = AssetTypeWhitelist;
-	type ProtocolFee = ProtocolFee;
-	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = weights::pallet_bonds::HydraWeight<Runtime>;
 }
 
@@ -1635,10 +1629,6 @@ impl GetByKey<FixedU128, Point> for StakingMinSlash {
 	}
 }
 
-parameter_types! {
-	pub const MaxVotes: u32 = 25;
-}
-
 impl pallet_staking::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
@@ -1659,7 +1649,7 @@ impl pallet_staking::Config for Runtime {
 	type NFTCollectionId = ConstU128<2222>;
 	type Collections = FreezableNFT<Runtime, Self::RuntimeOrigin>;
 	type NFTHandler = Uniques;
-	type MaxVotes = MaxVotes;
+	type MaxVotes = governance::MaxVotes;
 	type ReferendumInfo = pallet_staking::integrations::conviction_voting::DirectReferendumStatus<Runtime>;
 	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
@@ -1669,6 +1659,12 @@ impl pallet_staking::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxLocks = MaxLocks;
 }
+
+//Make sure staking and conviction voting are using same `MaxVotes` value
+static_assertions::const_assert_eq!(
+	<Runtime as pallet_staking::Config>::MaxVotes::get(),
+	<Runtime as pallet_conviction_voting::Config>::MaxVotes::get()
+);
 
 // LBP
 pub struct AssetPairAccountId<T: frame_system::Config>(PhantomData<T>);
@@ -1812,9 +1808,7 @@ impl pallet_liquidation::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 }
 
-impl pallet_broadcast::Config for Runtime {
-	type OnTrade = ();
-}
+impl pallet_broadcast::Config for Runtime {}
 
 parameter_types! {
 	pub const HsmGasLimit: u64 = 400_000;

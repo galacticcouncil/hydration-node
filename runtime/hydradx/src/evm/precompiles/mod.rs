@@ -191,11 +191,9 @@ where
 				}
 			}
 
-			// Drain logs that substrate hooks pushed during the dispatch
-			// (e.g. orml-tokens PostTransfer, pallet_balances RuntimeHooks,
-			// pallet_broadcast OnTrade) and emit them inline at the dispatcher
-			// precompile's call site so log_index ordering matches execution
-			// order in the resulting eth tx receipt / info.logs.
+			// Drain any frame logs emitted inline during the dispatch and
+			// re-emit them at the dispatcher precompile's call site so log_index
+			// ordering matches execution order in the resulting eth tx receipt.
 			if matches!(
 				&dispatch_precompile_result,
 				Ok(PrecompileOutput {

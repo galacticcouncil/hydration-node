@@ -7,6 +7,29 @@ For Hydration protocol-level context (architecture, products, tokenomics, Omnipo
 
 It lists available reference documents and their raw GitHub URLs.
 
+## Shared AI skills
+
+Repo-local AI skills live in `ai_skills/` so they can be used by multiple coding
+agents, not only Claude.
+
+When the user invokes a skill by name, or the task clearly matches a skill
+description, load the corresponding `ai_skills/<skill-name>/SKILL.md` file and
+follow its instructions. Resolve any relative paths in a skill from that skill's
+directory.
+
+Available shared skills:
+- `hydration_cl0wdit` - security audit workflow for Substrate runtime and pallet
+  code.
+- `circuit-breaker-incident` - investigate snakewatch lockdown alerts (XCM
+  deposit fuse, trade/liquidity limits).
+
+## Operator runbooks & docs
+
+- `scripts/mint-limit/README.md` — generate TC proposals to set XCM mint limits and lift circuit breaker lockdowns
+- `scripts/dca-monitor/README.md` — verify DCA fixes on a Chopsticks fork before deploying a runtime upgrade
+- `scripts/onchain-routes/README.md` — generate TC proposals to register/update on-chain router routes
+- `integration-tests/README.md` — debug prod issues via scraper snapshots + integration tests
+
 ## Project overview
 
 Substrate-based parachain (Polkadot ecosystem) implementing DeFi protocols — DEX (Omnipool, Stableswap, XYK, LBP), DCA, OTC, bonds, staking, governance, and EVM compatibility.
@@ -32,6 +55,83 @@ Single pallet test: `cargo test -p pallet-omnipool --locked`
 
 All cargo commands use `--config net.git-fetch-with-cli=true` (see Makefile).
 
+## Test Naming Convention
+
+Use BDD-style "should-when" naming for all tests. The test name should read as a specification of behavior.
+
+**Format:** `<subject>_should_<expected_outcome>_when_<condition>`
+
+**Examples:**
+- `transfer_should_fail_when_balance_is_insufficient`
+- `route_suggester_should_return_shortest_path_when_multiple_routes_exist`
+- `sell_should_succeed_when_slippage_within_limit`
+- `add_liquidity_should_fail_when_pool_is_frozen`
+
+**Rules:**
+- Use `snake_case` (Rust convention).
+- For success cases, use `should_<outcome>_when_<condition>` (omit "succeed" if the outcome is descriptive enough).
+- For failure cases, prefer `should_fail_when_<condition>` and assert on the specific error.
+- The `<subject>` is typically the function/extrinsic under test.
+- Avoid generic names like `test_1`, `it_works`, or `basic_test`.
+- One behavior per test — if you need "and" in the name, split it into two tests.
+
+## Extrinsic documentation
+
+Every public extrinsic in `#[pallet::call]` blocks must have a rustdoc comment that follows
+this standard structure. See `pallets/omnipool/src/lib.rs` and `pallets/stableswap/src/lib.rs`
+for canonical examples.
+
+**Required sections (in order):**
+
+1. **Description** — one-line summary, then any longer explanation as additional paragraphs.
+   Cover what the extrinsic does, important preconditions, and notable side effects (NFT
+   minting, hooks, tradability flags, error conditions worth highlighting).
+2. **Parameters** — a `Parameters:` block listing every argument as `` - `name`: description ``.
+   Include `origin` when its required type is non-trivial (e.g. `T::AuthorityOrigin`).
+3. **Emitted events** — a final line of the form `` Emits `EventName` event when successful. ``
+   If multiple events are emitted, list each on its own line.
+
+**Format:**
+
+```rust
+/// <One-line summary of what the extrinsic does.>
+///
+/// <Optional longer explanation: preconditions, side effects, error conditions,
+/// hook invocations, tradability flags, etc. Use multiple paragraphs as needed.>
+///
+/// Parameters:
+/// - `origin`: <only if origin type is non-trivial, e.g. Must be T::AuthorityOrigin>
+/// - `param_a`: <what it represents and any constraints>
+/// - `param_b`: <what it represents and any constraints>
+///
+/// Emits `SomethingHappened` event when successful.
+///
+#[pallet::call_index(N)]
+#[pallet::weight(...)]
+#[transactional]
+pub fn my_extrinsic(...) -> DispatchResult { ... }
+```
+
+**Rules:**
+- Use `///` doc comments (rustdoc), not `//` line comments.
+- Blank `///` lines separate paragraphs and the three sections.
+- Wrap identifiers, types, and values in backticks (e.g. `` `asset_id` ``, `` `T::AuthorityOrigin` ``).
+- Phrase the emitted-events line consistently: `` Emits `X` event when successful. ``
+- If the extrinsic delegates to another (e.g. `add_liquidity` → `add_liquidity_with_limit`),
+  still document it in full — do not rely on the reader following the delegation.
+- Keep parameter names in the doc identical to the function signature.
+
+## Running tests
+
+Dont't run tests with --release flag!
+
+Do NOT prefix `cargo` commands with inline environment variables like 
+`RUST_LOG=... cargo test`. Instead, export them first:
+
+    export RUST_LOG=evm=error
+    cargo test --locked -p runtime-integration-tests ...
+
+
 ## Code style
 
 - **Tabs for indentation** (hard_tabs = true), max line width 120
@@ -55,6 +155,68 @@ Types: `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `style`, `ci`, `build`
 - Breaking changes: add `!` after scope (e.g., `feat(claim)!: ...`)
 
 **Branches:** `fix/description` or `feat/description`
+
+## Code comments and docs
+
+Default to **no comment**. Only write one when the *why* is non-obvious — a hidden
+invariant, a surprising decision, a workaround. If removing the comment wouldn't
+confuse a future reader who can see the code, don't write it.
+
+**Never restate what the code already says.** Well-named identifiers and types are
+the documentation. Comments that paraphrase the next line are noise.
+
+### Module / file headers
+One paragraph max. State what lives here; don't enumerate every item or describe
+the flow step-by-step.
+
+### Struct / enum field docs
+Skip the obvious (`pub unstaking: Balance`, `pub voters_count: u32`). Document a
+field only when its semantics are surprising — e.g. it stacks instead of replacing,
+must match an external balance, doubles as an idempotency signal.
+
+### Error variants
+One line each, or none if the name already tells the story. Don't write a
+paragraph explaining the policy that produces the error — that belongs at the
+check site.
+
+### Extrinsic docs
+Follow the Description / Parameters / Emits structure from the "Extrinsic
+documentation" section above, but keep the **Description to 1–2 lines plus at
+most one short paragraph** for genuinely load-bearing context. In particular:
+
+- Do not enumerate `Error` variants in the Description — the `#[pallet::error]`
+  enum is the source of truth.
+- Do not list internal implementation steps ("locks X, then mints Y, then calls
+  Z"). The code shows that.
+- Keep the *why* of any non-obvious constraint (e.g. "refuses while stHDX is in
+  circulation — outstanding aTokens would be stranded").
+
+### Trait method docs
+One line. If the trait-level doc already explains the contract, leave method
+docs out entirely.
+
+### Inline comments inside function bodies
+Reserve for:
+- Non-obvious invariants the next line relies on.
+- Why a defensive branch exists / why an error is intentionally swallowed.
+- Why an unusual construct (`drain_prefix(...).count()` to actually drain,
+  `set_lock` vs `extend_lock`, pre-decrement before an external call) is correct.
+
+Skip:
+- Narrating control flow ("// new record: increment voter count" above
+  `voters_count += 1`).
+- Explaining what a well-named helper does at its call site.
+- Restating the assertion in the next `ensure!`.
+
+### What to keep
+Comments that warn a future reader about something they would otherwise miss:
+- "Must match `LockableAToken.sol`'s `freeBalance` check"
+- "Saturating math — hooks must never block voting"
+- "Pool presence ⇔ allocation has run" (load-bearing idempotency signal)
+- "stHDX invariants — verify on AAVE config change: (1)…(2)…"
+
+If in doubt, delete the comment and see if the code still reads. If it does,
+leave it out.
 
 ## Versioning
 

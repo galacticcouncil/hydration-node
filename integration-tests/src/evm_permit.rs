@@ -2538,3 +2538,1311 @@ pub fn init_omnipol() {
 		TREASURY_ACCOUNT_INIT_BALANCE,
 	));
 }
+
+// Tests validating that the CALLPERMIT precompile and dispatch_permit share
+// a single permit domain by design. dispatch_permit is a self-relay mechanism:
+// the user signs one permit and submits it as an unsigned extrinsic to pay fees
+// in a non-native currency. The shared EIP-712 digest and nonce space are intentional.
+
+#[test]
+fn permit_is_accepted_by_both_callpermit_and_dispatch_permit_by_design() {
+	// The CALLPERMIT precompile and dispatch_permit share the same EIP-712 domain
+	// and nonce space. A permit signed once can be submitted via either interface.
+	// This is by design — dispatch_permit is a self-relay path, not a separate trust domain.
+	TestNet::reset();
+
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			WETH,
+			to_ether(1),
+			0,
+		));
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			user_acc.address(),
+			HDX,
+			(10 * UNITS) as i128,
+		));
+
+		let initial_user_weth = user_acc.balance(WETH);
+
+		let omni_sell =
+			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 10_000_000,
+				min_buy_amount: 0,
+			});
+
+		let gas_limit = 1_000_000u64;
+		let deadline = U256::from(1_000_000_000_000u128);
+
+		// Generate permit using the shared CALLPERMIT domain
+		let permit =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+				CALLPERMIT,
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				omni_sell.encode(),
+				gas_limit,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+
+		// Submit via dispatch_permit (self-relay path)
+		assert_ok!(MultiTransactionPayment::dispatch_permit(
+			hydradx_runtime::RuntimeOrigin::none(),
+			user_evm_address,
+			DISPATCH_ADDR,
+			U256::from(0),
+			omni_sell.encode(),
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		));
+
+		// Signer pays the EVM fee via dispatch_permit (expected for self-relay)
+		let fee_paid = initial_user_weth - user_acc.balance(WETH);
+		assert!(
+			fee_paid > 0,
+			"signer should pay fee when self-relaying via dispatch_permit"
+		);
+
+		// Permit nonce consumed — prevents reuse via either interface
+		let permit_nonce =
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				user_evm_address,
+			);
+		assert_eq!(permit_nonce, U256::one());
+	})
+}
+
+#[test]
+fn shared_nonce_prevents_permit_reuse_across_submission_paths() {
+	// The shared nonce space ensures a permit can only be used once, regardless
+	// of which interface it was submitted through. This is the intended replay protection.
+	TestNet::reset();
+
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			WETH,
+			to_ether(1),
+			0,
+		));
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			user_acc.address(),
+			HDX,
+			(10 * UNITS) as i128,
+		));
+
+		let omni_sell =
+			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 10_000_000,
+				min_buy_amount: 0,
+			});
+
+		let gas_limit = 1_000_000u64;
+		let deadline = U256::from(1_000_000_000_000u128);
+
+		let permit =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+				CALLPERMIT,
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				omni_sell.encode(),
+				gas_limit,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+
+		// First use succeeds
+		assert_ok!(MultiTransactionPayment::dispatch_permit(
+			hydradx_runtime::RuntimeOrigin::none(),
+			user_evm_address,
+			DISPATCH_ADDR,
+			U256::from(0),
+			omni_sell.encode(),
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		));
+
+		assert_eq!(
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				user_evm_address,
+			),
+			U256::one()
+		);
+
+		// Second use of the same permit is rejected — nonce already consumed
+		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
+			from: user_evm_address,
+			to: DISPATCH_ADDR,
+			value: U256::from(0),
+			data: omni_sell.encode(),
+			gas_limit,
+			deadline,
+			v: v.serialize(),
+			r: H256::from(rs.r.b32()),
+			s: H256::from(rs.s.b32()),
+		};
+		assert!(
+			MultiTransactionPayment::validate_unsigned(TransactionSource::External, &call).is_err(),
+			"same permit cannot be used twice — shared nonce prevents replay"
+		);
+	})
+}
+
+#[test]
+fn dispatch_permit_fee_currency_override_works_with_any_to_address() {
+	// dispatch_permit decodes fee currency from `data` regardless of the `to` address.
+	// This is safe because `data` is part of the signed permit — the signer explicitly
+	// committed to this data. An external party cannot alter it post-signature.
+	TestNet::reset();
+
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			user_acc.address(),
+			DAI,
+			100_000_000_000_000_000_000i128,
+		));
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			WETH,
+			to_ether(1),
+			0,
+		));
+
+		let initial_dai = user_acc.balance(DAI);
+		let initial_weth = user_acc.balance(WETH);
+
+		// The signer explicitly signs a permit with set_currency(DAI) as data.
+		// The `to` address does not need to be DISPATCH_ADDR for fee currency
+		// detection to work — this is by design since data is signer-committed.
+		let set_currency_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
+			pallet_transaction_multi_payment::Call::set_currency { currency: DAI },
+		);
+		let data = set_currency_call.encode();
+
+		let arbitrary_to: sp_core::H160 = sp_core::H160::from_low_u64_be(0xdeadbeef);
+
+		let gas_limit = 1_000_000u64;
+		let deadline = U256::from(1_000_000_000_000u128);
+
+		let permit =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+				CALLPERMIT,
+				user_evm_address,
+				arbitrary_to,
+				U256::from(0),
+				data.clone(),
+				gas_limit,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+
+		assert_ok!(MultiTransactionPayment::dispatch_permit(
+			hydradx_runtime::RuntimeOrigin::none(),
+			user_evm_address,
+			arbitrary_to,
+			U256::from(0),
+			data,
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		));
+
+		let dai_spent = initial_dai - user_acc.balance(DAI);
+		let weth_spent = initial_weth - user_acc.balance(WETH);
+
+		// Fee currency override applied from data regardless of `to` address.
+		// This is safe: the signer chose this data and signed over it.
+		assert!(dai_spent > 0, "DAI should be used as fee currency per signer's data");
+		assert_eq!(weth_spent, 0, "WETH should not be touched when DAI is overridden");
+	})
+}
+
+#[cfg(test)]
+mod sponsored_paymaster {
+	use super::*;
+	use hydradx_runtime::{CallFilter, RuntimeEvent};
+	use sp_core::H160;
+	// Disambiguate from pretty_assertions::assert_eq inside this module.
+	use core::assert_eq;
+
+	fn paymaster_account() -> AccountId {
+		AccountId::from(crate::polkadot_test_net::BOB)
+	}
+
+	fn assert_dispatch_permit_not_paused() {
+		let dummy =
+			RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::<Runtime>::dispatch_permit {
+				from: H160::zero(),
+				to: H160::zero(),
+				value: U256::zero(),
+				data: vec![],
+				gas_limit: 0,
+				deadline: U256::zero(),
+				v: 0,
+				r: H256::zero(),
+				s: H256::zero(),
+			});
+		assert!(CallFilter::contains(&dummy), "dispatch_permit MUST NOT be autopaused");
+	}
+
+	fn build_permit_for_call(
+		inner_call: &RuntimeCall,
+		gas_limit: u64,
+		deadline: U256,
+	) -> (H160, Vec<u8>, u64, U256, u8, H256, H256) {
+		let from = alith_evm_address();
+		let secret_key = SecretKey::parse(&alith_secret_key()).unwrap();
+		let data = inner_call.encode();
+
+		let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<Runtime>::generate_permit(
+			CALLPERMIT,
+			from,
+			DISPATCH_ADDR,
+			U256::from(0),
+			data.clone(),
+			gas_limit,
+			U256::zero(),
+			deadline,
+		);
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+		(
+			from,
+			data,
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		)
+	}
+
+	fn submit_signed_dispatch_permit_omni_sell(
+		paymaster: AccountId,
+		sell_amount: Balance,
+	) -> (
+		frame_support::dispatch::DispatchResultWithPostInfo,
+		MockAccount,
+		RuntimeCall,
+	) {
+		let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+			asset_in: HDX,
+			asset_out: DAI,
+			amount: sell_amount,
+			min_buy_amount: 0,
+		});
+		let (from, data, gas_limit, deadline, v, r, s) =
+			build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+		let result = MultiTransactionPayment::dispatch_permit(
+			RuntimeOrigin::signed(paymaster),
+			from,
+			DISPATCH_ADDR,
+			U256::from(0),
+			data,
+			gas_limit,
+			deadline,
+			v,
+			r,
+			s,
+		);
+
+		(result, MockAccount::new(alith_truncated_account()), inner_call)
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_execute_inner_call_and_user_hdx_should_change_only_by_swap_amount() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			let user_acc = MockAccount::new(alith_truncated_account());
+
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+			// Zero WETH so user has nothing to pay EVM gas with even if routing fails.
+			let user_weth = user_acc.balance(WETH);
+			if user_weth > 0 {
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					user_acc.address(),
+					WETH,
+					-(user_weth as i128),
+				));
+			}
+
+			let initial_user_hdx = user_acc.balance(HDX);
+			let initial_user_weth = user_acc.balance(WETH);
+			let initial_user_dai = user_acc.balance(DAI);
+			let initial_paymaster_hdx = Currencies::free_balance(HDX, &paymaster);
+
+			let sell_amount: Balance = 1_000_000_000;
+			let (result, _, _) = submit_signed_dispatch_permit_omni_sell(paymaster.clone(), sell_amount);
+			assert_ok!(result);
+
+			assert_eq!(
+				user_acc.balance(WETH),
+				initial_user_weth,
+				"user WETH must NOT change — paymaster pays EVM gas"
+			);
+			assert_eq!(
+				initial_user_hdx - user_acc.balance(HDX),
+				sell_amount,
+				"user HDX must decrease ONLY by the sell amount (no fee/gas debit)"
+			);
+			assert!(user_acc.balance(DAI) > initial_user_dai);
+			assert!(Currencies::free_balance(HDX, &paymaster) < initial_paymaster_hdx);
+		});
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_emit_fee_sponsored_event_on_success() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let (result, _, _) = submit_signed_dispatch_permit_omni_sell(paymaster.clone(), 1_000_000_000);
+			assert_ok!(result);
+
+			let alith = alith_evm_address();
+			let found = frame_system::Pallet::<Runtime>::events().iter().any(|record| {
+				matches!(
+					&record.event,
+					RuntimeEvent::MultiTransactionPayment(pallet_transaction_multi_payment::Event::FeeSponsored {
+						from,
+						fee_payer,
+						..
+					}) if *from == alith && *fee_payer == paymaster
+				)
+			});
+			assert!(found, "FeeSponsored event should be emitted on success");
+		});
+	}
+
+	#[test]
+	fn dispatch_permit_should_reject_root_origin_with_bad_origin() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 100,
+				min_buy_amount: 0,
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::root(),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			);
+
+			assert_noop!(result, frame_support::sp_runtime::traits::BadOrigin);
+		});
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_fail_when_signature_is_invalid_and_not_pause_extrinsic() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 100,
+				min_buy_amount: 0,
+			});
+			let (from, data, gas_limit, deadline, _v, _r, _s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+			let bad_r = H256::from([0xAAu8; 32]);
+			let bad_s = H256::from([0xBBu8; 32]);
+
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				27,
+				bad_r,
+				bad_s,
+			);
+
+			let err = result.expect_err("bad signature must produce an error");
+			assert_eq!(
+				err.error,
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitInvalid.into(),
+			);
+			assert_dispatch_permit_not_paused();
+		});
+	}
+
+	// `pallet_timestamp::Pallet::now()` is 0 in tests by default — without
+	// `set_timestamp` below, `deadline = 1 >= 0` passes and we'd silently
+	// exercise the real-run path instead of the deadline check.
+	#[test]
+	fn signed_dispatch_permit_should_fail_with_expired_when_deadline_in_past_and_not_pause() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			// Anchor time well beyond the deadline; see test-env note above.
+			pallet_timestamp::Pallet::<Runtime>::set_timestamp(1_000_000_000_000);
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 1_000_000_000,
+				min_buy_amount: 0,
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1));
+
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			);
+
+			let err = result.expect_err("expired deadline must produce an error");
+			assert_eq!(
+				err.error,
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitExpired.into(),
+			);
+			assert_dispatch_permit_not_paused();
+		});
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_fail_with_call_execution_error_when_inner_call_reverts_and_not_pause() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 100,
+				min_buy_amount: u128::MAX, // unachievable slippage
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			);
+
+			let err = result.expect_err("inner-call revert must produce an error");
+			assert_eq!(
+				err.error,
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitCallExecutionError.into(),
+			);
+			assert_dispatch_permit_not_paused();
+		});
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_fail_when_replayed_with_same_nonce() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 1_000_000_000,
+				min_buy_amount: 0,
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			assert_ok!(MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster.clone()),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data.clone(),
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			));
+
+			// Second submission of the same permit — nonce now stale.
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			);
+			assert!(result.is_err(), "replay must fail");
+			assert_dispatch_permit_not_paused();
+		});
+	}
+
+	#[test]
+	fn unsigned_dispatch_permit_should_still_work_when_signed_branch_is_added() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Tokens::set_balance(
+				RawOrigin::Root.into(),
+				user_acc.address(),
+				WETH,
+				to_ether(1),
+				0,
+			));
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 100,
+				min_buy_amount: 0,
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			assert_ok!(MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::none(),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			));
+
+			// Unsigned-path success should NOT emit FeeSponsored.
+			let alith = alith_evm_address();
+			let unsigned_emitted_fee_sponsored = frame_system::Pallet::<Runtime>::events().iter().any(|record| {
+				matches!(
+					&record.event,
+					RuntimeEvent::MultiTransactionPayment(pallet_transaction_multi_payment::Event::FeeSponsored { from, .. })
+						if *from == alith
+				)
+			});
+			assert!(
+				!unsigned_emitted_fee_sponsored,
+				"unsigned branch must NOT emit FeeSponsored"
+			);
+		});
+	}
+
+	// Guards the unsigned-path user fee against any future weight-macro change
+	// on `dispatch_permit` (signed and unsigned share the same `pallet::weight`).
+	// 30% tolerance matches the pre-existing `compare_fee_in_hdx_between_evm_and_native_*` test.
+	#[test]
+	fn unsigned_dispatch_permit_user_fee_should_stay_within_native_tolerance() {
+		TestNet::reset();
+
+		let user_evm_address = alith_evm_address();
+		let user_secret_key = alith_secret_key();
+		let user_acc = MockAccount::new(alith_truncated_account());
+		let fee_currency = WETH;
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			assert_ok!(Tokens::set_balance(
+				RawOrigin::Root.into(),
+				user_acc.address(),
+				WETH,
+				to_ether(1),
+				0,
+			));
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let alice_currency_balance_initial = Currencies::free_balance(fee_currency, &user_acc.address());
+
+			let omni_sell = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 10_000_000_000,
+				min_buy_amount: 0,
+			});
+			let gas_limit = 1_000_000;
+			let deadline = U256::from(1_000_000_000_000u128);
+			let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<Runtime>::generate_permit(
+				CALLPERMIT,
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				omni_sell.encode(),
+				gas_limit * 10,
+				U256::zero(),
+				deadline,
+			);
+			let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+			let message = Message::parse(&permit);
+			let (rs, v) = sign(&message, &secret_key);
+
+			assert_ok!(MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::none(),
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				omni_sell.encode(),
+				gas_limit * 10,
+				deadline,
+				v.serialize(),
+				H256::from(rs.r.b32()),
+				H256::from(rs.s.b32()),
+			));
+
+			let alice_currency_balance_after_unsigned = Currencies::free_balance(fee_currency, &user_acc.address());
+			let evm_fee = alice_currency_balance_initial - alice_currency_balance_after_unsigned;
+			assert!(evm_fee > 0);
+
+			// Native baseline: pre-dispatch the same call, charges native fee.
+			let info = omni_sell.get_dispatch_info();
+			let len: usize = 146;
+			let pre = pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0).validate_and_prepare(
+				Some(user_acc.address()).into(),
+				&omni_sell,
+				&info,
+				len,
+				0,
+			);
+			assert_ok!(&pre);
+
+			let alice_currency_balance_after_native = Currencies::free_balance(fee_currency, &user_acc.address());
+			let native_fee = alice_currency_balance_after_unsigned - alice_currency_balance_after_native;
+			assert!(native_fee > 0);
+
+			let fee_difference = evm_fee.saturating_sub(native_fee);
+			let relative_fee_difference = FixedU128::from_rational(fee_difference, native_fee);
+			let tolerated_fee_difference = FixedU128::from_rational(30, 100);
+			assert!(
+				relative_fee_difference < tolerated_fee_difference,
+				"unsigned dispatch_permit fee drifted outside native tolerance! \
+				 evm_fee={} native_fee={} relative_difference={:?} (tolerated < {:?})",
+				evm_fee,
+				native_fee,
+				relative_fee_difference,
+				tolerated_fee_difference
+			);
+		})
+	}
+
+	// Save/restore tests simulate recursion by pre-setting an outer override
+	// (constructing a real recursive EVM permit would need a second keypair
+	// with careful nonce sequencing).
+
+	#[test]
+	fn signed_dispatch_permit_should_restore_previous_fee_payer_override_on_success() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			// Simulate an outer caller that already set the override.
+			let outer = AccountId::from(crate::polkadot_test_net::CHARLIE);
+			hydradx_runtime::evm::set_evm_fee_payer(outer.clone());
+			assert_eq!(hydradx_runtime::evm::evm_fee_payer(), Some(outer.clone()));
+
+			let (result, _, _) = submit_signed_dispatch_permit_omni_sell(paymaster, 1_000_000_000);
+			assert_ok!(result);
+
+			assert_eq!(
+				hydradx_runtime::evm::evm_fee_payer(),
+				Some(outer),
+				"outer fee-payer override must be RESTORED, not cleared"
+			);
+
+			hydradx_runtime::evm::clear_evm_fee_payer();
+		});
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_restore_previous_fee_payer_override_on_permit_validation_failure() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+
+			let outer = AccountId::from(crate::polkadot_test_net::CHARLIE);
+			hydradx_runtime::evm::set_evm_fee_payer(outer.clone());
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 1_000_000_000,
+				min_buy_amount: 0,
+			});
+			let (from, data, gas_limit, deadline, _v, _r, _s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				27,
+				H256::from([0xAA; 32]),
+				H256::from([0xBB; 32]),
+			);
+			assert!(result.is_err());
+
+			assert_eq!(
+				hydradx_runtime::evm::evm_fee_payer(),
+				Some(outer),
+				"outer override must survive the early-return path",
+			);
+
+			hydradx_runtime::evm::clear_evm_fee_payer();
+		});
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_restore_previous_fee_payer_override_on_real_run_failure() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let outer = AccountId::from(crate::polkadot_test_net::CHARLIE);
+			hydradx_runtime::evm::set_evm_fee_payer(outer.clone());
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 1_000_000_000,
+				min_buy_amount: u128::MAX,
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			);
+			assert!(result.is_err());
+
+			assert_eq!(
+				hydradx_runtime::evm::evm_fee_payer(),
+				Some(outer),
+				"outer override must survive the early-return path",
+			);
+
+			hydradx_runtime::evm::clear_evm_fee_payer();
+		});
+	}
+
+	#[test]
+	fn adversarial_u64_max_gas_limit_should_not_corrupt_state() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+
+			hydradx_runtime::evm::clear_evm_fee_payer();
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 1_000_000_000,
+				min_buy_amount: 0,
+			});
+			let (from, data, _, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			// Direct extrinsic call bypasses the SignedExtension pre-dispatch,
+			// so we observe how the body itself handles u64::MAX: the real run
+			// hits Runner pre-validation (`gas_limit > block_gas_limit`) and
+			// returns Err → EvmPermitRunnerError.
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				u64::MAX, // ← attack vector
+				deadline,
+				v,
+				r,
+				s,
+			);
+
+			assert!(result.is_err(), "u64::MAX gas_limit must be rejected");
+			assert_dispatch_permit_not_paused();
+			assert_eq!(
+				hydradx_runtime::evm::evm_fee_payer(),
+				None,
+				"fee-payer override MUST NOT leak from a rejected submission",
+			);
+		});
+	}
+
+	#[test]
+	fn adversarial_insufficient_paymaster_balance_should_not_leak_fee_payer() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			// Exactly ED — survives, can't pay fees.
+			assert_ok!(Balances::mint_into(&paymaster, NativeExistentialDeposit::get()));
+
+			hydradx_runtime::evm::clear_evm_fee_payer();
+
+			let (result, _, _) = submit_signed_dispatch_permit_omni_sell(paymaster, 1_000_000_000);
+
+			// Direct extrinsic call bypasses SignedExtension; either Ok (body
+			// ran with EVM fee debit failing internally) or Err is acceptable.
+			let _ = result;
+			assert_eq!(hydradx_runtime::evm::evm_fee_payer(), None);
+			assert_dispatch_permit_not_paused();
+		});
+	}
+
+	// Signed-branch divergence from unsigned: when the inner call reverts,
+	// `do_dispatch_permit_signed` returns Err. FRAME wraps every dispatchable
+	// in a storage layer, so the Err rolls back the `NoncesStorage` increment
+	// that `T::EvmPermit::dispatch_permit` performed before checking
+	// `exit_reason`. Net effect: the user keeps their permit nonce and can
+	// re-submit the same signed payload (unsigned path does NOT roll back
+	// and therefore consumes the nonce on revert).
+	#[test]
+	fn adversarial_signed_dispatch_permit_should_leave_permit_nonce_unchanged_on_real_run_revert() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let alith = alith_evm_address();
+			let nonce_before = pallet_evm_precompile_call_permit::NoncesStorage::get(alith);
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 1_000_000_000,
+				min_buy_amount: u128::MAX,
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			);
+			assert!(result.is_err());
+
+			let nonce_after = pallet_evm_precompile_call_permit::NoncesStorage::get(alith);
+			assert_eq!(
+				nonce_after, nonce_before,
+				"call-permit nonce MUST NOT advance — Err rolls back the runner's nonce bump"
+			);
+			assert_dispatch_permit_not_paused();
+		});
+	}
+
+	// Failed signed dispatches must cost the signer full declared weight (no
+	// custom refund). This is an anti-grief property: an attacker spamming
+	// invalid permits pays the same as a legitimate paymaster spamming valid
+	// ones, so griefing is uniformly expensive.
+	#[test]
+	fn signed_dispatch_permit_should_use_default_post_info_on_real_run_failure() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 1_000_000_000,
+				min_buy_amount: u128::MAX,
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			);
+
+			let err = result.expect_err("expected real-run failure");
+			assert_eq!(
+				err.error,
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitCallExecutionError.into(),
+			);
+			// actual_weight = None → SignedExtension uses declared weight, no refund.
+			assert_eq!(err.post_info.actual_weight, None);
+		});
+	}
+
+	#[test]
+	fn adversarial_empty_data_should_be_handled_cleanly() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+
+			hydradx_runtime::evm::clear_evm_fee_payer();
+
+			let from = alith_evm_address();
+			let secret_key = SecretKey::parse(&alith_secret_key()).unwrap();
+			let gas_limit = 100_000;
+			let deadline = U256::from(1_000_000_000_000u128);
+
+			let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<Runtime>::generate_permit(
+				CALLPERMIT,
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				vec![], // ← empty data
+				gas_limit,
+				U256::zero(),
+				deadline,
+			);
+			let message = Message::parse(&permit);
+			let (rs, v) = sign(&message, &secret_key);
+
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				vec![],
+				gas_limit,
+				deadline,
+				v.serialize(),
+				H256::from(rs.r.b32()),
+				H256::from(rs.s.b32()),
+			);
+
+			// Outcome irrelevant; invariants are what matter.
+			let _ = result;
+			assert_eq!(hydradx_runtime::evm::evm_fee_payer(), None);
+			assert_dispatch_permit_not_paused();
+		});
+	}
+
+	#[test]
+	fn adversarial_two_paymasters_racing_for_same_permit_should_settle_cleanly() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster_a = paymaster_account();
+			let paymaster_b = AccountId::from(crate::polkadot_test_net::CHARLIE);
+			assert_ok!(Balances::mint_into(&paymaster_a, 100 * UNITS));
+			assert_ok!(Balances::mint_into(&paymaster_b, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 1_000_000_000,
+				min_buy_amount: 0,
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			let initial_dai = user_acc.balance(DAI);
+
+			assert_ok!(MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster_a),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data.clone(),
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			));
+			let dai_after_first = user_acc.balance(DAI);
+			assert!(dai_after_first > initial_dai);
+
+			let result_b = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster_b),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			);
+			assert!(result_b.is_err(), "second paymaster's submission must fail");
+
+			let dai_after_second = user_acc.balance(DAI);
+			assert_eq!(
+				dai_after_first, dai_after_second,
+				"second submission must NOT trigger another sell",
+			);
+
+			assert_eq!(hydradx_runtime::evm::evm_fee_payer(), None);
+			assert_dispatch_permit_not_paused();
+		});
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_clear_fee_payer_when_no_previous_override() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			hydradx_runtime::evm::clear_evm_fee_payer();
+			assert_eq!(hydradx_runtime::evm::evm_fee_payer(), None);
+
+			let (result, _, _) = submit_signed_dispatch_permit_omni_sell(paymaster, 1_000_000_000);
+			assert_ok!(result);
+
+			assert_eq!(
+				hydradx_runtime::evm::evm_fee_payer(),
+				None,
+				"override must be CLEARED when no outer override existed",
+			);
+		});
+	}
+}
