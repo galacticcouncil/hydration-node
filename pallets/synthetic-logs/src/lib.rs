@@ -171,6 +171,28 @@ pub fn h160_to_h256(addr: H160) -> H256 {
 	H256(bytes)
 }
 
+/// Pure mirror of `pallet_evm_accounts::evm_address`: an EVM-derived account is
+/// `b"ETH\0" ++ <20-byte h160> ++ [0u8; 8]`; otherwise truncate to 20 bytes. No
+/// state read — so it works client-side and against any runtime version.
+pub fn account_to_evm_address(account: &[u8]) -> H160 {
+	if account.len() >= 32 && &account[0..4] == b"ETH\0" && account[24..32] == [0u8; 8] {
+		H160::from_slice(&account[4..24])
+	} else {
+		H160::from_slice(&account[..20])
+	}
+}
+
+/// Pure mirror of `HydraErc20Mapping::encode_evm_address`: `0x..01 ++ asset_id`
+/// (big-endian in the last 4 bytes). Correct for the registry assets that emit
+/// orml/balances events; bound real-ERC20 assets transact as real contracts and
+/// surface via real EVM logs, so they never reach this path.
+pub fn asset_evm_address(asset_id: u32) -> H160 {
+	let mut bytes = [0u8; 20];
+	bytes[15] = 1;
+	bytes[16..20].copy_from_slice(&asset_id.to_be_bytes());
+	H160(bytes)
+}
+
 /// per-owner sentinel for reserved balance: `Transfer(owner, reserved_address_of(owner))`
 /// on reserve, inverse on unreserve. derivation: xor first byte with `0xEE`
 /// (reversible). collision with asset-prefix range `0x000…01<asset_id>` is `2^-128`.
