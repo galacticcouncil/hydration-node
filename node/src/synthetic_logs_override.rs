@@ -30,7 +30,6 @@ use fp_rpc::TransactionStatus;
 use frame_system::EventRecord;
 use hydradx_runtime::{evm::event_logs::synthetic_txs_from_records, RuntimeEvent};
 use pallet_ethereum::{Block as EthBlock, Receipt as EthReceipt, Transaction as EthTransaction};
-use pallet_synthetic_logs::SENTINEL_ADDRESS;
 use primitives::Block;
 use sc_client_api::{backend::Backend, StorageProvider};
 use sp_blockchain::HeaderBackend;
@@ -88,17 +87,11 @@ where
 		let chain_id: u64 = self
 			.read_decode(at, &storage_key(b"EVMChainId", b"ChainId"))
 			.unwrap_or_default();
-		let real_statuses = self.inner.current_transaction_statuses(at).unwrap_or_default();
-		// Idempotency guard: runtimes in the on-chain synthetic-logs era (the
-		// `SyntheticLogs` pallet, ~spec 413–421) already inject sentinel-signed
-		// synth txs into `pallet_ethereum`. Re-synthesizing here would double
-		// every log, so defer to the on-chain set whenever it's present. Older
-		// runtimes (no pallet) and the post-removal runtime carry none, so we
-		// synthesize as usual.
-		if real_statuses.iter().any(|s| s.from == SENTINEL_ADDRESS) {
-			return Vec::new();
-		}
-		let base_tx_index = real_statuses.len() as u32;
+		let base_tx_index = self
+			.inner
+			.current_transaction_statuses(at)
+			.map(|s| s.len() as u32)
+			.unwrap_or(0);
 
 		synthetic_txs_from_records(&records, chain_id, parent_hash.as_ref(), block_number, base_tx_index)
 	}

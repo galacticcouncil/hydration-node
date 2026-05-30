@@ -19,9 +19,14 @@
 //!   before this runtime shipped are still indexed (bounded only by whether
 //!   their events still decode).
 //!
-//! v1 scope: token `Transfer` (orml-tokens + native HDX via pallet-balances),
-//! `Swapped3` → uniswap-v2 `Swap`, and `pallet_evm::Event::Log` from internal
-//! `Executor::call` paths (deduped against real eth txs).
+//! Scope: every balance movement (orml-tokens + native HDX via pallet-balances)
+//! — transfer, mint, burn/slash/dust, reserve/unreserve, repatriate, and
+//! lock/freeze — mapped to erc20 `Transfer` so a holder's aggregated transfers
+//! reconstruct its transferable balance (reserved and frozen amounts move to
+//! distinct per-owner sentinels). Plus `Swapped3` → uniswap-v2 `Swap`, and
+//! `pallet_evm::Event::Log` from internal `Executor::call` paths (deduped
+//! against real eth txs). This is the off-chain replica of what the removed
+//! on-chain synthetic-logs hooks emitted.
 
 use crate::{Runtime, RuntimeEvent};
 use frame_support::traits::Get;
@@ -30,7 +35,7 @@ use pallet_broadcast::types::{Asset, ExecutionType, TradeOperation};
 use pallet_ethereum::{Receipt, Transaction, TransactionStatus};
 use pallet_synthetic_logs::{
 	account_to_evm_address, assemble_synth_txs, asset_evm_address, build_erc20_transfer_log, build_uniswap_v2_swap_log,
-	Bucket, HookPhase,
+	frozen_address_of, reserved_address_of, Bucket, HookPhase,
 };
 use primitive_types::{H160, U256};
 use primitives::constants::chain::CORE_ASSET_ID;
@@ -51,8 +56,30 @@ sp_api::decl_runtime_apis! {
 	}
 }
 
+const ZERO: H160 = H160([0u8; 20]);
+
 fn evm_addr(account: &AccountId) -> H160 {
 	account_to_evm_address(account.as_ref())
+}
+
+/// reserve repatriation → `Transfer(reserved_sentinel(from), to_or_its_reserved_sentinel)`.
+fn repatriate(
+	asset: u32,
+	from_owner: H160,
+	to_owner: H160,
+	amount: u128,
+	to_reserved: bool,
+) -> Vec<(H160, ethereum::Log)> {
+	let to = if to_reserved {
+		reserved_address_of(to_owner)
+	} else {
+		to_owner
+	};
+	transfer(asset, reserved_address_of(from_owner), to, amount)
+}
+
+fn to_reserved(status: &orml_traits::BalanceStatus) -> bool {
+	matches!(status, orml_traits::BalanceStatus::Reserved)
 }
 
 // Pure mirror of `erc20_mapping::is_asset_address`: prefix `0x..01` (15 zero
@@ -61,34 +88,161 @@ fn is_asset_address(addr: H160) -> bool {
 	addr.0[..15] == [0u8; 15] && addr.0[15] == 1
 }
 
+/// One erc20 `Transfer(from, to, amount)` on `asset`'s evm address, or empty for
+/// a zero amount. The single primitive every balance movement below maps onto:
+/// mint = `from` zero, burn = `to` zero, reserve/lock = `to` the owner's
+/// reserved/frozen sentinel. Aggregating these per (asset, holder) reconstructs
+/// the holder's transferable balance.
+fn transfer(asset: u32, from: H160, to: H160, amount: u128) -> Vec<(H160, ethereum::Log)> {
+	if amount == 0 {
+		return Vec::new();
+	}
+	let addr = asset_evm_address(asset);
+	sp_std::vec![(addr, build_erc20_transfer_log(addr, from, to, U256::from(amount)))]
+}
+
 /// Pure: evm logs an indexer should see for one runtime event.
+///
+/// Covers every balance movement the on-chain synthetic-logs hooks did, now
+/// driven off-chain from events: transfer, deposit/mint (`0x0 → who`),
+/// withdraw/slash/burn/dust (`who → 0x0`), reserve/unreserve (`who ↔
+/// reserved_address_of(who)`), reserve repatriation, plus lock/freeze (`who ↔
+/// frozen_address_of(who)`, by frozen delta) so a holder's aggregated transfers
+/// equal its transferable balance.
 pub fn logs_from_event(event: &RuntimeEvent) -> Vec<(H160, ethereum::Log)> {
+	use orml_tokens::Event as Tokens;
+	use pallet_balances::Event as Balances;
 	match event {
-		RuntimeEvent::Tokens(orml_tokens::Event::Transfer {
+		// ---- orml-tokens (non-native assets) ----
+		RuntimeEvent::Tokens(Tokens::Transfer {
 			currency_id,
 			from,
 			to,
 			amount,
+		}) => transfer(*currency_id, evm_addr(from), evm_addr(to), *amount),
+		RuntimeEvent::Tokens(Tokens::Deposited {
+			currency_id,
+			who,
+			amount,
+		}) => transfer(*currency_id, ZERO, evm_addr(who), *amount),
+		RuntimeEvent::Tokens(Tokens::Withdrawn {
+			currency_id,
+			who,
+			amount,
+		})
+		| RuntimeEvent::Tokens(Tokens::DustLost {
+			currency_id,
+			who,
+			amount,
+		}) => transfer(*currency_id, evm_addr(who), ZERO, *amount),
+		RuntimeEvent::Tokens(Tokens::Slashed {
+			currency_id,
+			who,
+			free_amount,
+			reserved_amount,
 		}) => {
-			if *amount == 0 {
-				return Vec::new();
-			}
-			let addr = asset_evm_address(*currency_id);
-			sp_std::vec![(
-				addr,
-				build_erc20_transfer_log(addr, evm_addr(from), evm_addr(to), U256::from(*amount))
-			)]
+			let owner = evm_addr(who);
+			let mut logs = transfer(*currency_id, owner, ZERO, *free_amount);
+			logs.extend(transfer(
+				*currency_id,
+				reserved_address_of(owner),
+				ZERO,
+				*reserved_amount,
+			));
+			logs
 		}
-		RuntimeEvent::Balances(pallet_balances::Event::Transfer { from, to, amount }) => {
-			if *amount == 0 {
-				return Vec::new();
-			}
-			let addr = asset_evm_address(CORE_ASSET_ID);
-			sp_std::vec![(
-				addr,
-				build_erc20_transfer_log(addr, evm_addr(from), evm_addr(to), U256::from(*amount))
-			)]
+		RuntimeEvent::Tokens(Tokens::Reserved {
+			currency_id,
+			who,
+			amount,
+		}) => {
+			let owner = evm_addr(who);
+			transfer(*currency_id, owner, reserved_address_of(owner), *amount)
 		}
+		RuntimeEvent::Tokens(Tokens::Unreserved {
+			currency_id,
+			who,
+			amount,
+		}) => {
+			let owner = evm_addr(who);
+			transfer(*currency_id, reserved_address_of(owner), owner, *amount)
+		}
+		RuntimeEvent::Tokens(Tokens::ReserveRepatriated {
+			currency_id,
+			from,
+			to,
+			amount,
+			status,
+		}) => repatriate(*currency_id, evm_addr(from), evm_addr(to), *amount, to_reserved(status)),
+		RuntimeEvent::Tokens(Tokens::Locked {
+			currency_id,
+			who,
+			amount,
+		}) => {
+			let owner = evm_addr(who);
+			transfer(*currency_id, owner, frozen_address_of(owner), *amount)
+		}
+		RuntimeEvent::Tokens(Tokens::Unlocked {
+			currency_id,
+			who,
+			amount,
+		}) => {
+			let owner = evm_addr(who);
+			transfer(*currency_id, frozen_address_of(owner), owner, *amount)
+		}
+
+		// ---- native HDX (pallet-balances) ----
+		RuntimeEvent::Balances(Balances::Transfer { from, to, amount }) => {
+			transfer(CORE_ASSET_ID, evm_addr(from), evm_addr(to), *amount)
+		}
+		// Mint: `Deposit` (Currency api) and `Minted` (fungible api) are emitted by
+		// disjoint code paths — a given increase emits exactly one, so mapping both
+		// captures every increase once.
+		RuntimeEvent::Balances(Balances::Deposit { who, amount })
+		| RuntimeEvent::Balances(Balances::Minted { who, amount }) => transfer(CORE_ASSET_ID, ZERO, evm_addr(who), *amount),
+		// Burn: likewise `Withdraw`/`Burned`/`Slashed`/`DustLost` are disjoint.
+		RuntimeEvent::Balances(Balances::Withdraw { who, amount })
+		| RuntimeEvent::Balances(Balances::Burned { who, amount })
+		| RuntimeEvent::Balances(Balances::Slashed { who, amount })
+		| RuntimeEvent::Balances(Balances::DustLost { account: who, amount }) => {
+			transfer(CORE_ASSET_ID, evm_addr(who), ZERO, *amount)
+		}
+		RuntimeEvent::Balances(Balances::Reserved { who, amount }) => {
+			let owner = evm_addr(who);
+			transfer(CORE_ASSET_ID, owner, reserved_address_of(owner), *amount)
+		}
+		RuntimeEvent::Balances(Balances::Unreserved { who, amount }) => {
+			let owner = evm_addr(who);
+			transfer(CORE_ASSET_ID, reserved_address_of(owner), owner, *amount)
+		}
+		RuntimeEvent::Balances(Balances::ReserveRepatriated {
+			from,
+			to,
+			amount,
+			destination_status,
+		}) => repatriate(
+			CORE_ASSET_ID,
+			evm_addr(from),
+			evm_addr(to),
+			*amount,
+			matches!(
+				destination_status,
+				frame_support::traits::tokens::BalanceStatus::Reserved
+			),
+		),
+		// Lock + freeze both adjust `frozen`; each event carries the frozen delta.
+		RuntimeEvent::Balances(Balances::Locked { who, amount })
+		| RuntimeEvent::Balances(Balances::Frozen { who, amount }) => {
+			let owner = evm_addr(who);
+			transfer(CORE_ASSET_ID, owner, frozen_address_of(owner), *amount)
+		}
+		RuntimeEvent::Balances(Balances::Unlocked { who, amount })
+		| RuntimeEvent::Balances(Balances::Thawed { who, amount }) => {
+			let owner = evm_addr(who);
+			transfer(CORE_ASSET_ID, frozen_address_of(owner), owner, *amount)
+		}
+
+		// ---- swaps ----
 		RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 {
 			swapper,
 			filler,
@@ -238,4 +392,189 @@ pub fn synthetic_transactions() -> Vec<(Transaction, TransactionStatus, Receipt)
 		.map(|s| s.len() as u32)
 		.unwrap_or(0);
 	synthetic_txs_from_records(&records, chain_id, parent_hash.as_ref(), block_number, base_tx_index)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use orml_tokens::Event as Tokens;
+	use pallet_balances::Event as Balances;
+	use pretty_assertions::assert_eq;
+
+	const HDX: u32 = CORE_ASSET_ID;
+	const DAI: u32 = 2;
+
+	fn acc(n: u8) -> AccountId {
+		AccountId::from([n; 32])
+	}
+	fn owner_of(n: u8) -> H160 {
+		H160([n; 20])
+	}
+	fn from_of(log: &ethereum::Log) -> H160 {
+		H160::from_slice(&log.topics[1].0[12..])
+	}
+	fn to_of(log: &ethereum::Log) -> H160 {
+		H160::from_slice(&log.topics[2].0[12..])
+	}
+	fn amount_of(log: &ethereum::Log) -> u128 {
+		U256::from_big_endian(&log.data).low_u128()
+	}
+	fn one(event: RuntimeEvent) -> (H160, ethereum::Log) {
+		let logs = logs_from_event(&event);
+		assert_eq!(logs.len(), 1, "expected exactly one log");
+		logs.into_iter().next().unwrap()
+	}
+
+	#[test]
+	fn token_transfer_should_map_to_erc20_transfer_on_asset_address() {
+		let (emitter, log) = one(RuntimeEvent::Tokens(Tokens::Transfer {
+			currency_id: DAI,
+			from: acc(1),
+			to: acc(2),
+			amount: 500,
+		}));
+		assert_eq!(emitter, asset_evm_address(DAI));
+		assert_eq!(from_of(&log), owner_of(1));
+		assert_eq!(to_of(&log), owner_of(2));
+		assert_eq!(amount_of(&log), 500);
+	}
+
+	#[test]
+	fn native_transfer_should_map_to_core_asset_address() {
+		let (emitter, _) = one(RuntimeEvent::Balances(Balances::Transfer {
+			from: acc(1),
+			to: acc(2),
+			amount: 7,
+		}));
+		assert_eq!(emitter, asset_evm_address(HDX));
+	}
+
+	#[test]
+	fn deposit_and_mint_should_map_to_transfer_from_zero() {
+		for ev in [
+			RuntimeEvent::Tokens(Tokens::Deposited {
+				currency_id: DAI,
+				who: acc(1),
+				amount: 9,
+			}),
+			RuntimeEvent::Balances(Balances::Deposit { who: acc(1), amount: 9 }),
+			RuntimeEvent::Balances(Balances::Minted { who: acc(1), amount: 9 }),
+		] {
+			let (_, log) = one(ev);
+			assert_eq!(from_of(&log), ZERO);
+			assert_eq!(to_of(&log), owner_of(1));
+		}
+	}
+
+	#[test]
+	fn withdraw_burn_slash_dust_should_map_to_transfer_to_zero() {
+		for ev in [
+			RuntimeEvent::Tokens(Tokens::Withdrawn {
+				currency_id: DAI,
+				who: acc(1),
+				amount: 3,
+			}),
+			RuntimeEvent::Balances(Balances::Withdraw { who: acc(1), amount: 3 }),
+			RuntimeEvent::Balances(Balances::Burned { who: acc(1), amount: 3 }),
+			RuntimeEvent::Balances(Balances::Slashed { who: acc(1), amount: 3 }),
+			RuntimeEvent::Balances(Balances::DustLost {
+				account: acc(1),
+				amount: 3,
+			}),
+		] {
+			let (_, log) = one(ev);
+			assert_eq!(from_of(&log), owner_of(1));
+			assert_eq!(to_of(&log), ZERO);
+		}
+	}
+
+	#[test]
+	fn reserve_should_move_to_reserved_sentinel_and_unreserve_back() {
+		let owner = owner_of(1);
+		let (_, r) = one(RuntimeEvent::Balances(Balances::Reserved { who: acc(1), amount: 4 }));
+		assert_eq!(from_of(&r), owner);
+		assert_eq!(to_of(&r), reserved_address_of(owner));
+		let (_, u) = one(RuntimeEvent::Balances(Balances::Unreserved { who: acc(1), amount: 4 }));
+		assert_eq!(from_of(&u), reserved_address_of(owner));
+		assert_eq!(to_of(&u), owner);
+	}
+
+	#[test]
+	fn lock_should_use_frozen_sentinel_distinct_from_reserved() {
+		let owner = owner_of(1);
+		assert_ne!(frozen_address_of(owner), reserved_address_of(owner));
+		let (_, l) = one(RuntimeEvent::Balances(Balances::Frozen { who: acc(1), amount: 6 }));
+		assert_eq!(from_of(&l), owner);
+		assert_eq!(to_of(&l), frozen_address_of(owner));
+		let (_, t) = one(RuntimeEvent::Balances(Balances::Thawed { who: acc(1), amount: 6 }));
+		assert_eq!(from_of(&t), frozen_address_of(owner));
+		assert_eq!(to_of(&t), owner);
+	}
+
+	#[test]
+	fn token_slash_should_split_free_and_reserved() {
+		let owner = owner_of(1);
+		let logs = logs_from_event(&RuntimeEvent::Tokens(Tokens::Slashed {
+			currency_id: DAI,
+			who: acc(1),
+			free_amount: 10,
+			reserved_amount: 5,
+		}));
+		assert_eq!(logs.len(), 2);
+		assert_eq!(from_of(&logs[0].1), owner);
+		assert_eq!(amount_of(&logs[0].1), 10);
+		assert_eq!(from_of(&logs[1].1), reserved_address_of(owner));
+		assert_eq!(amount_of(&logs[1].1), 5);
+		assert!(logs.iter().all(|(_, l)| to_of(l) == ZERO));
+	}
+
+	#[test]
+	fn zero_amount_should_emit_no_log() {
+		assert!(logs_from_event(&RuntimeEvent::Balances(Balances::Transfer {
+			from: acc(1),
+			to: acc(2),
+			amount: 0,
+		}))
+		.is_empty());
+	}
+
+	// the headline invariant: aggregating (incoming − outgoing) erc20 transfer
+	// amounts for an owner reconstructs its *transferable* balance.
+	#[test]
+	fn aggregated_transfers_should_reconstruct_transferable_balance() {
+		let owner = owner_of(1);
+		// free 100, then reserve 20 (free→reserved), then freeze 30 (lien on free).
+		// transferable = free(80) − frozen(30) = 50.
+		let events = [
+			RuntimeEvent::Balances(Balances::Minted {
+				who: acc(1),
+				amount: 100,
+			}),
+			RuntimeEvent::Balances(Balances::Reserved {
+				who: acc(1),
+				amount: 20,
+			}),
+			RuntimeEvent::Balances(Balances::Frozen {
+				who: acc(1),
+				amount: 30,
+			}),
+		];
+		let net = |target: H160| -> i128 {
+			let mut bal = 0i128;
+			for ev in events.iter() {
+				for (_, log) in logs_from_event(ev) {
+					if to_of(&log) == target {
+						bal += amount_of(&log) as i128;
+					}
+					if from_of(&log) == target {
+						bal -= amount_of(&log) as i128;
+					}
+				}
+			}
+			bal
+		};
+		assert_eq!(net(owner), 50, "owner aggregate must equal transferable balance");
+		assert_eq!(net(reserved_address_of(owner)), 20, "reserved sentinel holds reserved");
+		assert_eq!(net(frozen_address_of(owner)), 30, "frozen sentinel holds frozen");
+	}
 }

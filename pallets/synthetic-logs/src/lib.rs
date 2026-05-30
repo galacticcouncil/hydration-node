@@ -202,6 +202,17 @@ pub fn reserved_address_of(owner: H160) -> H160 {
 	H160(bytes)
 }
 
+/// per-owner sentinel for frozen (locked) balance, kept DISTINCT from
+/// [`reserved_address_of`] (xor `0xDD` vs `0xEE`) so locks and reserves never
+/// alias. moving the frozen delta to this sentinel makes the owner's aggregated
+/// transfer balance equal its *transferable* balance (free minus frozen): a lock
+/// freezes free in place, so we mirror that as `Transfer(owner, frozen_address_of(owner))`.
+pub fn frozen_address_of(owner: H160) -> H160 {
+	let mut bytes = owner.0;
+	bytes[0] ^= 0xDD;
+	H160(bytes)
+}
+
 pub fn encode_u256_be(value: U256) -> [u8; 32] {
 	value.to_big_endian()
 }

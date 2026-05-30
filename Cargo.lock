@@ -5633,7 +5633,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.1.1"
+version = "15.1.2"
 dependencies = [
  "async-trait",
  "clap",
@@ -5679,7 +5679,6 @@ dependencies = [
  "pallet-ethereum",
  "pallet-evm",
  "pallet-liquidation",
- "pallet-synthetic-logs",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "polkadot-cli",
@@ -5782,7 +5781,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "422.0.0"
+version = "423.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -10715,7 +10714,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-synthetic-logs"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ethereum",
  "ethereum-types",
