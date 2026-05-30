@@ -228,10 +228,6 @@ impl pallet_ethereum::Config for Runtime {
 	type ExtraDataLength = sp_core::ConstU32<1>;
 }
 
-impl pallet_synthetic_logs::Config for Runtime {
-	type ChainId = <Runtime as pallet_evm::Config>::ChainId;
-}
-
 pub struct EvmNonceProvider;
 impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
 	fn get_nonce(evm_address: sp_core::H160) -> U256 {

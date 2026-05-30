@@ -103,6 +103,19 @@ pub fn logs_from_event(event: &RuntimeEvent) -> Vec<(H160, ethereum::Log)> {
 		}) => swap_logs::swap_log(swapper, filler, operation, inputs, outputs)
 			.into_iter()
 			.collect(),
+		// EVM logs from internal `Executor::call` paths (hsm, dispatcher-driven,
+		// liquidations) that aren't part of a user eth tx. The caller skips these
+		// when they belong to a real `Ethereum::transact` (already in that tx).
+		RuntimeEvent::EVM(pallet_evm::Event::Log { log }) => {
+			sp_std::vec![(
+				log.address,
+				ethereum::Log {
+					address: log.address,
+					topics: log.topics.clone(),
+					data: log.data.clone(),
+				}
+			)]
+		}
 		_ => Vec::new(),
 	}
 }
@@ -127,30 +140,35 @@ fn event_origin_hint(event: &RuntimeEvent) -> Option<ExecutionType> {
 pub fn synthetic_transactions() -> Vec<(Transaction, TransactionStatus, Receipt)> {
 	let records: Vec<_> = frame_system::Pallet::<Runtime>::read_events_no_consensus().collect();
 
-	// Extrinsics that executed an ethereum tx: their substrate-dispatched
-	// transfers/swaps already emitted inline logs into the real eth tx, so we
-	// must not re-synthesize them. Identify by the `Executed` event they emit.
-	let mut evm_extrinsics: BTreeSet<u32> = BTreeSet::new();
+	// Extrinsics that ran a real eth tx: their EVM logs are already in that tx's
+	// receipt, so skip re-synthesizing `pallet_evm::Event::Log` for them.
+	let mut evm_tx_extrinsics: BTreeSet<u32> = BTreeSet::new();
 	for rec in records.iter() {
 		if matches!(
 			rec.event,
 			RuntimeEvent::Ethereum(pallet_ethereum::Event::Executed { .. })
 		) {
 			if let Phase::ApplyExtrinsic(i) = rec.phase {
-				evm_extrinsics.insert(i);
+				evm_tx_extrinsics.insert(i);
 			}
 		}
 	}
 
+	// Substrate token/trade events are never inline-emitted on-chain, so they're
+	// always synthesized (even when emitted during an eth tx — they're not in
+	// that tx's logs). Only `pallet_evm::Event::Log` from a real eth tx is
+	// skipped (already in that tx).
 	let mut entries: Vec<(Bucket, H160, ethereum::Log)> = Vec::new();
 	for rec in records.iter() {
-		let bucket = match rec.phase {
-			Phase::ApplyExtrinsic(i) => {
-				if evm_extrinsics.contains(&i) {
+		if matches!(rec.event, RuntimeEvent::EVM(pallet_evm::Event::Log { .. })) {
+			if let Phase::ApplyExtrinsic(i) = rec.phase {
+				if evm_tx_extrinsics.contains(&i) {
 					continue;
 				}
-				Bucket::Extrinsic(i)
 			}
+		}
+		let bucket = match rec.phase {
+			Phase::ApplyExtrinsic(i) => Bucket::Extrinsic(i),
 			Phase::Initialization => Bucket::Hook {
 				phase: HookPhase::Initialization,
 				origin: event_origin_hint(&rec.event),

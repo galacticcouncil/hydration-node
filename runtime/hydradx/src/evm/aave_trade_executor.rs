@@ -126,7 +126,6 @@ where
 		+ pallet_evm_accounts::Config
 		+ pallet_broadcast::Config
 		+ pallet_dispatcher::Config
-		+ pallet_synthetic_logs::Config
 		+ frame_system::Config<AccountId = sp_runtime::AccountId32>,
 	T::AssetNativeLocation: Into<Location>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
@@ -425,8 +424,7 @@ where
 		+ pallet_evm_accounts::Config
 		+ pallet_broadcast::Config
 		+ frame_system::Config<AccountId = sp_runtime::AccountId32>
-		+ pallet_dispatcher::Config
-		+ pallet_synthetic_logs::Config,
+		+ pallet_dispatcher::Config,
 	T::AssetNativeLocation: Into<Location>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,

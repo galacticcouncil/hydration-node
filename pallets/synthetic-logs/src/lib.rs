@@ -3,12 +3,11 @@
 // Copyright (C) 2020-2026  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
-//! buffers ethereum-shaped logs from substrate hooks; on_finalize flushes them
-//! as synthetic `pallet_ethereum::Transaction` records so eth json-rpc surfaces
-//! them. one synth tx per bucket: per-extrinsic, or per hook-phase + broadcast
-//! origin (so each dca schedule etc. gets its own tx).
-//!
-//! must be declared before `pallet_ethereum` in `construct_runtime!`.
+//! Pure primitives for turning substrate token/trade events into synthetic
+//! ethereum `Transaction`/`TransactionStatus`/`Receipt` records (one synth tx
+//! per bucket: per-extrinsic, or per hook-phase + broadcast origin). The
+//! node-indexing layer assembles and serves these off-chain via eth json-rpc
+//! (`SyntheticEthLogsApi`); nothing here touches chain state.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -18,16 +17,12 @@ mod tests;
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethereum::EIP1559Transaction;
 use ethereum_types::{Bloom, BloomInput, H160, H256, U256};
-use frame_support::pallet_prelude::*;
-use frame_system::pallet_prelude::*;
+use frame_support::pallet_prelude::RuntimeDebug;
 use pallet_broadcast::types::ExecutionType;
 use pallet_ethereum::{Receipt, Transaction, TransactionAction, TransactionStatus};
 use scale_info::TypeInfo;
-use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::prelude::*;
-
-pub use pallet::*;
 
 /// `from`/`to` for synthetic txs. logs inside carry their own emitter address.
 pub const SENTINEL_ADDRESS: H160 = H160([
@@ -58,96 +53,9 @@ pub enum Bucket {
 	},
 }
 
-#[frame_support::pallet]
-pub mod pallet {
-	use super::*;
-
-	#[pallet::pallet]
-	pub struct Pallet<T>(_);
-
-	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_ethereum::Config + pallet_broadcast::Config {
-		type ChainId: Get<u64>;
-	}
-
-	#[pallet::storage]
-	#[pallet::whitelist_storage]
-	#[pallet::unbounded]
-	pub type Pending<T: Config> = StorageValue<_, Vec<(Bucket, H160, ethereum::Log)>, ValueQuery>;
-
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_finalize(n: BlockNumberFor<T>) {
-			// Must run before `pallet_ethereum::on_finalize` builds this block's
-			// eth block (declared earlier in `construct_runtime!`). After that
-			// runs, `CurrentBlock` carries this block's number; seeing that here
-			// means the ordering is broken and our synth txs would land in the
-			// wrong block.
-			debug_assert!(
-				pallet_ethereum::CurrentBlock::<T>::get().map_or(true, |b| b.header.number
-					< U256::from(UniqueSaturatedInto::<u128>::unique_saturated_into(n))),
-				"pallet-synthetic-logs on_finalize must run before pallet_ethereum",
-			);
-			let drained = Pending::<T>::take();
-			if drained.is_empty() {
-				return;
-			}
-			Self::flush(drained);
-		}
-	}
-}
-
-impl<T: Config> Pallet<T> {
-	pub fn push(emitter: H160, log: ethereum::Log) {
-		// `decode_len` + `append` keep this O(1) per call: neither decodes the
-		// whole buffer, so N pushes in a block cost O(N) rather than the O(N^2)
-		// a `mutate(|v| v.push(..))` read-modify-write would incur (every native
-		// balance move hits this hook).
-		let len = Pending::<T>::decode_len().unwrap_or(0) as u32;
-		if len >= MAX_PENDING_LOGS {
-			log::warn!(
-				target: "runtime::synthetic-logs",
-				"pending buffer full ({len} entries); dropping log for {emitter:?}",
-			);
-			return;
-		}
-		let bucket = Self::current_bucket();
-		Pending::<T>::append((bucket, emitter, log));
-	}
-
-	// reads `frame_system::ExecutionPhase` directly so on_idle (where substrate
-	// has already set Phase=Finalization) buckets as Finalization too.
-	fn current_bucket() -> Bucket {
-		use frame_system::Phase;
-		let phase_key = frame_support::storage::storage_prefix(b"System", b"ExecutionPhase");
-		let phase: Phase = frame_support::storage::unhashed::get::<Phase>(&phase_key).unwrap_or_default();
-		match phase {
-			Phase::ApplyExtrinsic(i) => Bucket::Extrinsic(i),
-			Phase::Finalization => Bucket::Hook {
-				phase: HookPhase::Finalization,
-				origin: pallet_broadcast::Pallet::<T>::get_context().first().copied(),
-			},
-			Phase::Initialization => Bucket::Hook {
-				phase: HookPhase::Initialization,
-				origin: pallet_broadcast::Pallet::<T>::get_context().first().copied(),
-			},
-		}
-	}
-
-	fn flush(entries: Vec<(Bucket, H160, ethereum::Log)>) {
-		let chain_id = <T as Config>::ChainId::get();
-		let parent_hash = frame_system::Pallet::<T>::parent_hash();
-		let block_number = UniqueSaturatedInto::<u64>::unique_saturated_into(frame_system::Pallet::<T>::block_number());
-		// synth txs continue after the block's real eth txs.
-		let base_tx_index = pallet_ethereum::Pending::<T>::count();
-
-		for (transaction, status, receipt) in
-			assemble_synth_txs(entries, chain_id, parent_hash.as_ref(), block_number, base_tx_index)
-		{
-			pallet_ethereum::Pending::<T>::insert(status.transaction_index, (transaction, status, receipt));
-		}
-	}
-}
+// This crate is a pure library of evm-log primitives (no pallet): the
+// node-indexing variant builds synthetic txs off-chain via `SyntheticEthLogsApi`
+// (runtime/hydradx `evm::event_logs`), which calls `assemble_synth_txs` here.
 
 /// Per-block domain-separation seed folded into each synth tx's `input`, so
 /// envelope hashes are unique per block (frontier indexes txs by hash; without

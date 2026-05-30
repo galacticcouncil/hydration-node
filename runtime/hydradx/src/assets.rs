@@ -120,24 +120,29 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = MaxFreezes;
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
-	type RuntimeHooks = EmitErc20TransferLog;
+	// node-indexing variant: native-HDX movements are surfaced off-chain by
+	// `SyntheticEthLogsApi` (reads `pallet_balances::Event`), not a hook.
+	type RuntimeHooks = ();
 }
 
 pub struct CurrencyHooks;
 impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnDust = Duster;
-	type OnSlash = EmitErc20TransferLog;
+	type OnSlash = ();
 	type PreDeposit = SufficiencyCheck;
-	type PostDeposit =
-		OnDepositTuple<pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>, EmitErc20TransferLog>;
+	type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>;
 	type PreTransfer = SufficiencyCheck;
-	type PostTransfer = EmitErc20TransferLog;
+	type PostTransfer = ();
+	// node-indexing variant: token movements are surfaced off-chain by
+	// `SyntheticEthLogsApi` (reads orml-tokens events), not mutation hooks.
+	// (The `Pre/Post*` slots below exist only on the `-patch-hooks` fork; they
+	// are dropped when merging onto the upstream ORML in phase 5.)
 	type PreWithdraw = ();
-	type PostWithdraw = EmitErc20TransferLog;
-	type PostReserve = EmitErc20TransferLog;
-	type PostUnreserve = EmitErc20TransferLog;
-	type PostSlashReserved = EmitErc20TransferLog;
-	type PostRepatriate = EmitErc20TransferLog;
+	type PostWithdraw = ();
+	type PostReserve = ();
+	type PostUnreserve = ();
+	type PostSlashReserved = ();
+	type PostRepatriate = ();
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
 }
@@ -1808,7 +1813,7 @@ impl pallet_liquidation::Config for Runtime {
 }
 
 impl pallet_broadcast::Config for Runtime {
-	type OnTrade = crate::evm::swap_logs::EmitUniswapV2SwapLog;
+	type OnTrade = ();
 }
 
 parameter_types! {
@@ -2003,7 +2008,6 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 }
 
 use crate::evm::aave_trade_executor::Aave;
-use crate::evm::erc20_logs::{EmitErc20TransferLog, OnDepositTuple};
 #[cfg(feature = "runtime-benchmarks")]
 use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]

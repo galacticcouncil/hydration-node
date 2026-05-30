@@ -3,19 +3,17 @@
 // Copyright (C) 2020-2026  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
-//! translates `Swapped3` events to uniswap-v2 `Swap` logs (every defi aggregator
-//! indexes by that signature). v1: bilateral `ExactIn`/`ExactOut` only.
+//! Translates a `Swapped3` trade into a uniswap-v2 `Swap` log (every defi
+//! aggregator indexes that signature). The event-reader (`event_logs`) calls
+//! `swap_log`; there is no on-chain hook. v1: bilateral `ExactIn`/`ExactOut`.
 
 use crate::evm::precompiles::erc20_mapping::is_asset_address;
 use crate::Runtime;
 use hydradx_traits::evm::InspectEvmAccounts;
-use pallet_broadcast::types::{Asset, ExecutionType, Fee, Filler, TradeOperation};
-use pallet_broadcast::OnTrade;
-use pallet_synthetic_logs::{build_uniswap_v2_swap_log, Pallet as SyntheticLogs};
+use pallet_broadcast::types::{Asset, TradeOperation};
+use pallet_synthetic_logs::build_uniswap_v2_swap_log;
 use primitive_types::{H160, U256};
 use primitives::AccountId;
-
-pub struct EmitUniswapV2SwapLog;
 
 fn evm_address_of(account: &AccountId) -> H160 {
 	pallet_evm_accounts::Pallet::<Runtime>::evm_address(account)
@@ -27,10 +25,8 @@ fn derive_pool_address(filler: &AccountId) -> H160 {
 }
 
 /// Translate a trade into its uniswap-v2 `Swap` log (emitter = pool's evm
-/// address), or `None` for trades outside v1 scope. Shared by the `OnTrade`
-/// hook (below) and the event-reader (`event_logs`), so both agree byte-for-byte.
-///
-/// v1: only bilateral `ExactIn`/`ExactOut` (single input and output asset).
+/// address), or `None` for trades outside v1 scope (single input and output
+/// asset, `ExactIn`/`ExactOut`).
 pub fn swap_log(
 	swapper: &AccountId,
 	filler: &AccountId,
@@ -78,23 +74,4 @@ pub fn swap_log(
 		U256::from(out_amount),
 	);
 	Some((pool_address, log))
-}
-
-impl OnTrade<AccountId> for EmitUniswapV2SwapLog {
-	fn on_trade(
-		swapper: &AccountId,
-		filler: &AccountId,
-		_filler_type: &Filler,
-		operation: &TradeOperation,
-		inputs: &[Asset],
-		outputs: &[Asset],
-		_fees: &[Fee<AccountId>],
-		_operation_stack: &[ExecutionType],
-	) {
-		if let Some((pool_address, log)) = swap_log(swapper, filler, operation, inputs, outputs) {
-			if !crate::evm::runner::append_to_current_evm_frame(log.clone()) {
-				SyntheticLogs::<Runtime>::push(pool_address, log);
-			}
-		}
-	}
 }

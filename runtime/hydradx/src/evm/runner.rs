@@ -37,16 +37,14 @@ use primitives::{AccountId, AssetId, Balance};
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
 
-// per-evm-frame buffer of substrate-hook logs. precompiles that trigger
-// substrate dispatches drain it inline (preserves log_index order); the
-// runner's end-drain is a safety net.
+// per-evm-frame buffer. The node-indexing variant no longer feeds this from
+// substrate hooks (substrate-origin logs are synthesized off-chain by
+// `SyntheticEthLogsApi`), so the buffer stays empty in practice; the
+// `using`/`drain` plumbing is retained as a no-op seam for any precompile that
+// still wants to emit a frame log inline (e.g. erc20 `Approval`).
 mod evm_frame_logs {
 	use sp_std::vec::Vec;
 	environmental::environmental!(EVM_FRAME_LOGS: Vec<ethereum::Log>);
-
-	pub fn append(log: ethereum::Log) -> bool {
-		EVM_FRAME_LOGS::with(|buf| buf.push(log)).is_some()
-	}
 
 	pub fn using<R, F: FnOnce() -> R>(buf: &mut Vec<ethereum::Log>, f: F) -> R {
 		EVM_FRAME_LOGS::using_once(buf, f)
@@ -55,11 +53,6 @@ mod evm_frame_logs {
 	pub fn drain() -> Vec<ethereum::Log> {
 		EVM_FRAME_LOGS::with(sp_std::mem::take).unwrap_or_default()
 	}
-}
-
-/// returns true if a frame is active; false → caller should fall back to synthetic-logs.
-pub fn append_to_current_evm_frame(log: ethereum::Log) -> bool {
-	evm_frame_logs::append(log)
 }
 
 pub fn drain_current_evm_frame_logs() -> Vec<ethereum::Log> {

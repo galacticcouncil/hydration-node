@@ -3,7 +3,6 @@
 #![cfg(not(feature = "runtime-benchmarks"))]
 mod aave_router;
 mod asset_registry;
-mod balances_tokens_hooks;
 mod bonds;
 mod call_filter;
 mod circuit_breaker;
