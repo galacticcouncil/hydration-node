@@ -42,7 +42,7 @@ use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::AccountId;
 use sp_core::H256;
 use sp_runtime::traits::UniqueSaturatedInto;
-use sp_std::collections::btree_set::BTreeSet;
+use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
 
 sp_api::decl_runtime_apis! {
@@ -200,12 +200,20 @@ pub fn logs_from_event(event: &RuntimeEvent) -> Vec<(H160, ethereum::Log)> {
 		// captures every increase once.
 		RuntimeEvent::Balances(Balances::Deposit { who, amount })
 		| RuntimeEvent::Balances(Balances::Minted { who, amount }) => transfer(CORE_ASSET_ID, ZERO, evm_addr(who), *amount),
-		// Burn: likewise `Withdraw`/`Burned`/`Slashed`/`DustLost` are disjoint.
+		// Burn: `Withdraw`/`Burned`/`DustLost` are disjoint reductions of free balance.
 		RuntimeEvent::Balances(Balances::Withdraw { who, amount })
 		| RuntimeEvent::Balances(Balances::Burned { who, amount })
-		| RuntimeEvent::Balances(Balances::Slashed { who, amount })
 		| RuntimeEvent::Balances(Balances::DustLost { account: who, amount }) => {
 			transfer(CORE_ASSET_ID, evm_addr(who), ZERO, *amount)
+		}
+		// Native `Slashed` can't tell free from reserved at the event level, but in
+		// this runtime native slashing only ever hits *reserved* balance (governance
+		// bonds/deposits via democracy & elections `slash_reserved`); there are no
+		// free native-slash call sites. So we burn from the reserved sentinel, which
+		// keeps transferable reconstruction correct. Revisit if a free native-slash
+		// path is ever introduced. (orml `Slashed` splits free/reserved explicitly.)
+		RuntimeEvent::Balances(Balances::Slashed { who, amount }) => {
+			transfer(CORE_ASSET_ID, reserved_address_of(evm_addr(who)), ZERO, *amount)
 		}
 		RuntimeEvent::Balances(Balances::Reserved { who, amount }) => {
 			let owner = evm_addr(who);
@@ -322,37 +330,63 @@ fn event_origin_hint(event: &RuntimeEvent) -> Option<ExecutionType> {
 	}
 }
 
+type LogKey = (H160, Vec<H256>, Vec<u8>);
+
+fn log_key(address: H160, topics: &[H256], data: &[u8]) -> LogKey {
+	(address, topics.to_vec(), data.to_vec())
+}
+
 /// PURE: assemble a block's synthetic txs from its event records. Shared by the
-/// runtime API and the node's client-side indexer (which passes records read
-/// from state + the block's `chain_id`/`parent_hash`/`number` and the count of
-/// real eth txs as `base_tx_index`).
+/// runtime API and the node's client-side indexer. `real_statuses` are the
+/// block's real eth-tx statuses — used both to index synth txs after them
+/// (`base_tx_index`) and to dedup `EVM::Log` events that already appear in a
+/// real tx's receipt.
 pub fn synthetic_txs_from_records(
 	records: &[EventRecord<RuntimeEvent, H256>],
 	chain_id: u64,
 	parent_hash: &[u8],
 	block_number: u64,
-	base_tx_index: u32,
+	real_statuses: &[TransactionStatus],
 ) -> Vec<(Transaction, TransactionStatus, Receipt)> {
-	// Extrinsics that ran a real eth tx: their EVM logs are already in that tx's
-	// receipt, so skip re-synthesizing `pallet_evm::Event::Log` for them.
-	let mut evm_tx_extrinsics: BTreeSet<u32> = BTreeSet::new();
+	let base_tx_index = real_statuses.len() as u32;
+
+	// Per-log dedup: the stack runner emits an `EVM::Log` event for every log,
+	// AND a real eth tx records the same logs in its receipt — so an `EVM::Log`
+	// already present in the real tx of its extrinsic is a duplicate. Map each
+	// eth-tx extrinsic to a multiset of its receipt logs and drop matches
+	// one-for-one; any EXTRA logs in that extrinsic (a separate internal
+	// `Executor::call`) survive and are synthesized. Real tx statuses are in the
+	// same order as their `Executed` events.
+	let mut real_logs_by_ext: BTreeMap<u32, BTreeMap<LogKey, u32>> = BTreeMap::new();
+	let mut nth_eth_tx = 0usize;
 	for rec in records.iter() {
 		if matches!(
 			rec.event,
 			RuntimeEvent::Ethereum(pallet_ethereum::Event::Executed { .. })
 		) {
 			if let Phase::ApplyExtrinsic(i) = rec.phase {
-				evm_tx_extrinsics.insert(i);
+				if let Some(status) = real_statuses.get(nth_eth_tx) {
+					let ms = real_logs_by_ext.entry(i).or_default();
+					for log in status.logs.iter() {
+						*ms.entry(log_key(log.address, &log.topics, &log.data)).or_insert(0) += 1;
+					}
+				}
 			}
+			nth_eth_tx += 1;
 		}
 	}
 
 	let mut entries: Vec<(Bucket, H160, ethereum::Log)> = Vec::new();
 	for rec in records.iter() {
-		if matches!(rec.event, RuntimeEvent::EVM(pallet_evm::Event::Log { .. })) {
+		if let RuntimeEvent::EVM(pallet_evm::Event::Log { log }) = &rec.event {
 			if let Phase::ApplyExtrinsic(i) = rec.phase {
-				if evm_tx_extrinsics.contains(&i) {
-					continue;
+				if let Some(ms) = real_logs_by_ext.get_mut(&i) {
+					if let Some(count) = ms.get_mut(&log_key(log.address, &log.topics, &log.data)) {
+						if *count > 0 {
+							*count -= 1;
+							continue;
+						}
+					}
 				}
 			}
 		}
@@ -388,10 +422,8 @@ pub fn synthetic_transactions() -> Vec<(Transaction, TransactionStatus, Receipt)
 	let parent_hash = frame_system::Pallet::<Runtime>::parent_hash();
 	let block_number =
 		UniqueSaturatedInto::<u64>::unique_saturated_into(frame_system::Pallet::<Runtime>::block_number());
-	let base_tx_index = pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get()
-		.map(|s| s.len() as u32)
-		.unwrap_or(0);
-	synthetic_txs_from_records(&records, chain_id, parent_hash.as_ref(), block_number, base_tx_index)
+	let real_statuses = pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get().unwrap_or_default();
+	synthetic_txs_from_records(&records, chain_id, parent_hash.as_ref(), block_number, &real_statuses)
 }
 
 #[cfg(test)]
@@ -467,7 +499,7 @@ mod tests {
 	}
 
 	#[test]
-	fn withdraw_burn_slash_dust_should_map_to_transfer_to_zero() {
+	fn withdraw_burn_dust_should_map_to_transfer_to_zero() {
 		for ev in [
 			RuntimeEvent::Tokens(Tokens::Withdrawn {
 				currency_id: DAI,
@@ -476,7 +508,6 @@ mod tests {
 			}),
 			RuntimeEvent::Balances(Balances::Withdraw { who: acc(1), amount: 3 }),
 			RuntimeEvent::Balances(Balances::Burned { who: acc(1), amount: 3 }),
-			RuntimeEvent::Balances(Balances::Slashed { who: acc(1), amount: 3 }),
 			RuntimeEvent::Balances(Balances::DustLost {
 				account: acc(1),
 				amount: 3,
@@ -486,6 +517,14 @@ mod tests {
 			assert_eq!(from_of(&log), owner_of(1));
 			assert_eq!(to_of(&log), ZERO);
 		}
+	}
+
+	#[test]
+	fn native_slash_should_burn_from_reserved_sentinel() {
+		// native slashing only ever hits reserved balance in this runtime.
+		let (_, log) = one(RuntimeEvent::Balances(Balances::Slashed { who: acc(1), amount: 3 }));
+		assert_eq!(from_of(&log), reserved_address_of(owner_of(1)));
+		assert_eq!(to_of(&log), ZERO);
 	}
 
 	#[test]
@@ -576,5 +615,65 @@ mod tests {
 		assert_eq!(net(owner), 50, "owner aggregate must equal transferable balance");
 		assert_eq!(net(reserved_address_of(owner)), 20, "reserved sentinel holds reserved");
 		assert_eq!(net(frozen_address_of(owner)), 30, "frozen sentinel holds frozen");
+	}
+
+	// gap-2: an `EVM::Log` already in the real eth tx's receipt is deduped, but an
+	// extra log from a separate internal call in the same extrinsic survives.
+	#[test]
+	fn evm_log_dedup_should_drop_receipt_duplicates_but_keep_internal_logs() {
+		// the event carries `fp_evm::Log`; the receipt carries `ethereum::Log`.
+		let dup_addr = H160([9u8; 20]);
+		let internal_addr = H160([8u8; 20]);
+		let evm_log = |addr: H160, t: u8, d: u8| fp_evm::Log {
+			address: addr,
+			topics: sp_std::vec![H256([t; 32])],
+			data: sp_std::vec![d],
+		};
+		let receipt_dup = ethereum::Log {
+			address: dup_addr,
+			topics: sp_std::vec![H256([1u8; 32])],
+			data: sp_std::vec![1],
+		};
+		let rec = |event| EventRecord {
+			phase: Phase::ApplyExtrinsic(0),
+			event,
+			topics: sp_std::vec![],
+		};
+		let records = sp_std::vec![
+			rec(RuntimeEvent::Ethereum(pallet_ethereum::Event::Executed {
+				from: H160::zero(),
+				to: H160::zero(),
+				transaction_hash: H256::zero(),
+				exit_reason: fp_evm::ExitReason::Succeed(fp_evm::ExitSucceed::Returned),
+				extra_data: sp_std::vec![],
+			})),
+			rec(RuntimeEvent::EVM(pallet_evm::Event::Log {
+				log: evm_log(dup_addr, 1, 1),
+			})),
+			rec(RuntimeEvent::EVM(pallet_evm::Event::Log {
+				log: evm_log(internal_addr, 2, 4),
+			})),
+		];
+		let real = sp_std::vec![TransactionStatus {
+			transaction_hash: H256::zero(),
+			transaction_index: 0,
+			from: H160::zero(),
+			to: None,
+			contract_address: None,
+			logs: sp_std::vec![receipt_dup],
+			logs_bloom: Default::default(),
+		}];
+		let out = synthetic_txs_from_records(&records, 1, &[0u8; 32], 1, &real);
+		let synth_logs: Vec<ethereum::Log> = out.iter().flat_map(|(_, s, _)| s.logs.clone()).collect();
+		assert!(
+			synth_logs.iter().any(|l| l.address == internal_addr),
+			"internal-call log must be synthesized"
+		);
+		assert!(
+			!synth_logs.iter().any(|l| l.address == dup_addr),
+			"receipt-duplicate log must be dropped"
+		);
+		// synth tx indices continue after the one real eth tx.
+		assert_eq!(out[0].1.transaction_index, 1);
 	}
 }

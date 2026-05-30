@@ -87,13 +87,9 @@ where
 		let chain_id: u64 = self
 			.read_decode(at, &storage_key(b"EVMChainId", b"ChainId"))
 			.unwrap_or_default();
-		let base_tx_index = self
-			.inner
-			.current_transaction_statuses(at)
-			.map(|s| s.len() as u32)
-			.unwrap_or(0);
+		let real_statuses = self.inner.current_transaction_statuses(at).unwrap_or_default();
 
-		synthetic_txs_from_records(&records, chain_id, parent_hash.as_ref(), block_number, base_tx_index)
+		synthetic_txs_from_records(&records, chain_id, parent_hash.as_ref(), block_number, &real_statuses)
 	}
 }
 
