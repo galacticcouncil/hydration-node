@@ -493,18 +493,21 @@ pub mod pallet {
 			Self::restore_fee_payer(previous_fee_payer);
 
 			match result {
-				Ok(_) => {
+				Ok(post) => {
 					Self::deposit_event(Event::<T>::FeeSponsored {
 						from,
 						fee_payer: signer,
 					});
-					Ok(().into())
+					// Forward actual weight/`Pays::No`: charge gas used, not `gas_limit`.
+					Ok(post)
 				}
-				// Signed branch must NEVER call `on_dispatch_permit_error()`:
-				// autopause is the unsigned-path defense against free mempool
-				// grief; on the signed path the paymaster pays the extrinsic
-				// fee per attempt, so there is no cheap-DOS to defend against.
-				Err(e) => Err(e.error.into()),
+				// RunnerError: nothing charged. Keep Err (`Pays::Yes`) so the paymaster
+				// still pays the extrinsic fee — the per-attempt cost that replaces the
+				// unsigned-path autopause. Never call `on_dispatch_permit_error()` here.
+				Err(e) if e.error == Error::<T>::EvmPermitRunnerError.into() => Err(e.error.into()),
+				// Revert already consumed the nonce and charged gas; commit it like the
+				// unsigned path. Returning Err would roll the nonce back → replayable.
+				Err(e) => Ok(e.post_info),
 			}
 		}
 
