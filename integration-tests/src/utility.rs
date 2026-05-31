@@ -7,7 +7,7 @@ use pallet_broadcast::types::Destination;
 use crate::assert_balance;
 use hydradx_runtime::LBP;
 use hydradx_runtime::XYK;
-use hydradx_runtime::{Currencies, Omnipool, Runtime};
+use hydradx_runtime::{Currencies, FeeProcessor, Omnipool, Runtime};
 use hydradx_runtime::{RuntimeCall, Utility};
 use hydradx_traits::router::PoolType;
 use pallet_broadcast::types::Asset;
@@ -97,11 +97,10 @@ fn batch_execution_type_should_be_included_in_batch() {
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
-					fees: vec![Fee::new(
-						HDX,
-						11736653730,
-						Destination::Account(Omnipool::protocol_account())
-					)],
+					fees: vec![
+						Fee::new(HDX, 5868326866, Destination::Account(Omnipool::protocol_account())),
+						Fee::new(HDX, 5868326864, Destination::Account(FeeProcessor::pot_account_id())),
+					],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				},
 				pallet_broadcast::Event::<Runtime>::Swapped3 {
@@ -286,11 +285,10 @@ fn nested_batch_should_represent_embeddedness() {
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
-					fees: vec![Fee::new(
-						HDX,
-						11736653730,
-						Destination::Account(Omnipool::protocol_account())
-					)],
+					fees: vec![
+						Fee::new(HDX, 5868326866, Destination::Account(Omnipool::protocol_account())),
+						Fee::new(HDX, 5868326864, Destination::Account(FeeProcessor::pot_account_id())),
+					],
 					operation_stack: vec![
 						ExecutionType::Batch(0),
 						ExecutionType::Batch(1),

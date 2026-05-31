@@ -692,6 +692,7 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			GigaHdxPalletId::get().into_account_truncating(),
 			pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot(),
 			pallet_gigahdx_rewards::Pallet::<Runtime>::allocated_rewards_pot(),
+			pallet_fee_processor::Pallet::<Runtime>::pot_account_id(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {

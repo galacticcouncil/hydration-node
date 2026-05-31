@@ -11,8 +11,8 @@ use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{AssetPairAccountIdFor, NamedReserveId};
 use hydradx_runtime::{
-	AssetRegistry, Balances, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin,
-	Stableswap, Tokens, Treasury, DCA,
+	AssetRegistry, Balances, Currencies, FeeProcessor, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent,
+	RuntimeOrigin, Stableswap, Tokens, Treasury, DCA,
 };
 use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::router::AssetPair;
@@ -253,11 +253,10 @@ mod omnipool {
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(LRNA, 70175440163919)],
 						outputs: vec![Asset::new(DAI, amount_out)],
-						fees: vec![Fee::new(
-							DAI,
-							250626566417,
-							Destination::Account(Omnipool::protocol_account())
-						)],
+						fees: vec![
+							Fee::new(DAI, 125313283209, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 125313283208, Destination::Account(FeeProcessor::pot_account_id())),
+						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
@@ -299,11 +298,10 @@ mod omnipool {
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(LRNA, 70175443178473)],
 						outputs: vec![Asset::new(DAI, amount_out)],
-						fees: vec![Fee::new(
-							DAI,
-							250626566417,
-							Destination::Account(Omnipool::protocol_account())
-						)],
+						fees: vec![
+							Fee::new(DAI, 125313283209, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 125313283208, Destination::Account(FeeProcessor::pot_account_id())),
+						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
@@ -848,11 +846,10 @@ mod omnipool {
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 49974999160577)],
 						outputs: vec![Asset::new(DAI, 71214372624206)],
-						fees: vec![Fee::new(
-							DAI,
-							178482136903,
-							Destination::Account(Omnipool::protocol_account())
-						)],
+						fees: vec![
+							Fee::new(DAI, 89241068452, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 89241068451, Destination::Account(FeeProcessor::pot_account_id())),
+						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
@@ -894,11 +891,10 @@ mod omnipool {
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 49974997362314)],
 						outputs: vec![Asset::new(DAI, 71214367824533)],
-						fees: vec![Fee::new(
-							DAI,
-							178482124874,
-							Destination::Account(Omnipool::protocol_account())
-						)],
+						fees: vec![
+							Fee::new(DAI, 89241062438, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 89241062436, Destination::Account(FeeProcessor::pot_account_id())),
+						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
@@ -4756,7 +4752,7 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			assert_balance!(ALICE.into(), HDX, 5268049466638470);
+			assert_balance!(ALICE.into(), HDX, 5268049466638357);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}

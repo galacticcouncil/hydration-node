@@ -3,8 +3,8 @@
 use super::assert_balance;
 use crate::polkadot_test_net::*;
 use hydradx_runtime::{
-	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
-	LBP, XYK,
+	AssetRegistry, BlockNumber, Currencies, FeeProcessor, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin,
+	Stableswap, LBP, XYK,
 };
 use sp_core::bounded_vec::BoundedVec;
 
@@ -2468,11 +2468,14 @@ mod omnipool_router_tests {
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 12_008_864_246)],
 						outputs: vec![Asset::new(DAI, amount_out)],
-						fees: vec![Fee::new(
-							DAI,
-							667155563986401,
-							Destination::Account(Omnipool::protocol_account()),
-						)],
+						fees: vec![
+							Fee::new(DAI, 333577781993201, Destination::Account(Omnipool::protocol_account()),),
+							Fee::new(
+								DAI,
+								333577781993200,
+								Destination::Account(FeeProcessor::pot_account_id()),
+							),
+						],
 						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 					}
 				]
@@ -2503,7 +2506,7 @@ mod omnipool_router_tests {
 					amount_in: amount_to_sell,
 					amount_out,
 					hub_amount_in: 12014871681,
-					hub_amount_out: 12038886566,
+					hub_amount_out: 12023875407,
 					asset_fee_amount: 667155563986401,
 					protocol_fee_amount: 6_007_435,
 				}
@@ -2531,11 +2534,14 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 12_008_864_246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
-					fees: vec![Fee::new(
-						DAI,
-						667155563986401,
-						Destination::Account(Omnipool::protocol_account()),
-					)],
+					fees: vec![
+						Fee::new(DAI, 333577781993201, Destination::Account(Omnipool::protocol_account())),
+						Fee::new(
+							DAI,
+							333577781993200,
+							Destination::Account(FeeProcessor::pot_account_id()),
+						),
+					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -2709,11 +2715,14 @@ mod omnipool_router_tests {
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(LRNA, 4511287241)],
 						outputs: vec![Asset::new(DAI, amount_to_buy)],
-						fees: vec![Fee::new(
-							DAI,
-							250626566416041,
-							Destination::Account(Omnipool::protocol_account()),
-						)],
+						fees: vec![
+							Fee::new(DAI, 125313283208021, Destination::Account(Omnipool::protocol_account()),),
+							Fee::new(
+								DAI,
+								125313283208020,
+								Destination::Account(FeeProcessor::pot_account_id()),
+							),
+						],
 						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 					}
 				]
@@ -2744,7 +2753,7 @@ mod omnipool_router_tests {
 					amount_in,
 					amount_out: amount_to_buy,
 					hub_amount_in: 4513544013,
-					hub_amount_out: 4522565481,
+					hub_amount_out: 4516926362,
 					asset_fee_amount: 250626566416041,
 					protocol_fee_amount: 2256772,
 				}
@@ -2771,11 +2780,14 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(LRNA, 4511287241)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
-					fees: vec![Fee::new(
-						DAI,
-						250626566416041,
-						Destination::Account(Omnipool::protocol_account()),
-					)],
+					fees: vec![
+						Fee::new(DAI, 125313283208021, Destination::Account(Omnipool::protocol_account())),
+						Fee::new(
+							DAI,
+							125313283208020,
+							Destination::Account(FeeProcessor::pot_account_id()),
+						),
+					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
