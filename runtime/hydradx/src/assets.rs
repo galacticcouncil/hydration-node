@@ -610,8 +610,8 @@ impl Contains<AccountId> for DepositLockWhitelist {
 }
 
 parameter_types! {
-	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (5_000, 10_000);	// 50%
-	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((500, 10_000));	// 5%
+	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (1_670, 10_000);	// 17%
+	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((167, 10_000));	// 1.7%
 }
 
 impl pallet_circuit_breaker::Config for Runtime {

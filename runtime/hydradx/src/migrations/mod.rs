@@ -15,6 +15,7 @@
 
 use crate::Runtime;
 
+pub mod circuit_breaker;
 pub mod conviction_voting;
 pub mod scheduler;
 
@@ -23,6 +24,7 @@ pub type UnreleasedSingleBlockMigrations = (
 	pallet_ema_oracle::migrations::v2::MigrateV1ToV2<Runtime, crate::assets::BifrostAccount>,
 	pallet_staking::migrations::SetTwoSecBlocksSince<Runtime>,
 	pallet_dca::migrations::MultiplySchedulesPeriodBy3<Runtime>,
+	circuit_breaker::MigrateCircuitBreakerLimitsTo2sBlocks<Runtime>,
 	scheduler::MigrateSchedulerTo2sBlocks<Runtime>,
 	conviction_voting::MigrateConvictionVotingTo2sBlocks<Runtime>,
 );
