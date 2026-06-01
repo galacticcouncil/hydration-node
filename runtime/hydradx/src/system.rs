@@ -158,7 +158,8 @@ parameter_types! {
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
 	pub ExtrinsicBaseWeight: Weight = get_extrinsic_base_weight();
-	pub const BlockHashCount: BlockNumber = 2400;
+	/// Keep about 4 hours of block hashes with 2s blocks.
+	pub const BlockHashCount: BlockNumber = 7200;
 	/// Maximum length of block. Up to 5MB.
 	pub BlockLength: frame_system::limits::BlockLength =
 		frame_system::limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
