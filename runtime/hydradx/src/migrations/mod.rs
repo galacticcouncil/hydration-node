@@ -17,6 +17,7 @@ use crate::Runtime;
 
 pub mod circuit_breaker;
 pub mod conviction_voting;
+pub mod referenda;
 pub mod scheduler;
 pub mod stableswap;
 
@@ -28,6 +29,7 @@ pub type UnreleasedSingleBlockMigrations = (
 	circuit_breaker::MigrateCircuitBreakerLimitsTo2sBlocks<Runtime>,
 	stableswap::MigrateStableswapMaxPegUpdateTo2sBlocks<Runtime>,
 	scheduler::MigrateSchedulerTo2sBlocks<Runtime>,
+	referenda::MigrateReferendaTo2sBlocks<Runtime>,
 	conviction_voting::MigrateConvictionVotingTo2sBlocks<Runtime>,
 );
 
