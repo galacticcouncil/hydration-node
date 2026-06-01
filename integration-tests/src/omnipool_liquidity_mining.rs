@@ -3129,10 +3129,12 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 		do_lrna_hdx_trade();
 
 		//Create bodns
+		//NOTE: leave the treasury (bonds `IssuerAccount`) some native balance above ED after
+		//issuing, otherwise it loses its provider ref and the sufficiency-ED native lock fails.
 		assert_ok!(hydradx_runtime::Balances::force_set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			Treasury::account_id(),
-			2_000_000 * UNITS,
+			3_000_000 * UNITS,
 		));
 
 		let maturity = NOW + MONTH;
