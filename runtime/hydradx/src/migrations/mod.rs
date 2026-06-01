@@ -18,6 +18,7 @@ use crate::Runtime;
 pub mod circuit_breaker;
 pub mod conviction_voting;
 pub mod scheduler;
+pub mod stableswap;
 
 // New migrations which need to be cleaned up after every Runtime upgrade
 pub type UnreleasedSingleBlockMigrations = (
@@ -25,6 +26,7 @@ pub type UnreleasedSingleBlockMigrations = (
 	pallet_staking::migrations::SetTwoSecBlocksSince<Runtime>,
 	pallet_dca::migrations::MultiplySchedulesPeriodBy3<Runtime>,
 	circuit_breaker::MigrateCircuitBreakerLimitsTo2sBlocks<Runtime>,
+	stableswap::MigrateStableswapMaxPegUpdateTo2sBlocks<Runtime>,
 	scheduler::MigrateSchedulerTo2sBlocks<Runtime>,
 	conviction_voting::MigrateConvictionVotingTo2sBlocks<Runtime>,
 );
