@@ -19,6 +19,8 @@ use pallet_conviction_voting::{AccountVote, Status, VotingHooks};
 use primitives::Balance;
 use sp_std::marker::PhantomData;
 
+const LOG_TARGET: &str = "gigahdx-rewards::voting_hooks";
+
 /// `VotingHooks` impl for this pallet. The runtime wires this through a
 /// tuple adapter alongside any other consumer (typically staking).
 pub struct VotingHooksImpl<T>(PhantomData<T>);
@@ -121,7 +123,10 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 		// referendum status — or `voters_remaining` never reaches zero and the
 		// pool entry plus this voter's pro-rata share leak permanently.
 		if ReferendaRewardPool::<T>::contains_key(ref_index) {
-			let _ = Pallet::<T>::record_user_reward(who, ref_index, &record);
+			if let Err(e) = Pallet::<T>::record_user_reward(who, ref_index, &record) {
+				debug_assert!(false, "record_user_reward failed in on_remove_vote: {e:?}");
+				log::error!(target: LOG_TARGET, "record_user_reward failed for ref {ref_index:?}: {e:?}");
+			}
 			return;
 		}
 
@@ -137,7 +142,10 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 		});
 
 		if matches!(status, Status::Completed) {
-			let _ = maybe_allocate_and_record::<T>(who, ref_index, &record);
+			if let Err(e) = maybe_allocate_and_record::<T>(who, ref_index, &record) {
+				debug_assert!(false, "maybe_allocate_and_record failed in on_remove_vote: {e:?}");
+				log::error!(target: LOG_TARGET, "maybe_allocate_and_record failed for ref {ref_index:?}: {e:?}");
+			}
 		}
 	}
 
