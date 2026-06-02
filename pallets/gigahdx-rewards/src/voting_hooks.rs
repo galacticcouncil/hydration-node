@@ -156,11 +156,38 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 		None
 	}
 
+	// `on_before_vote` / `on_remove_vote` short-circuit at `Stakes[who].hdx == 0`,
+	// so the conviction-voting `vote` / `remove_vote` benchmarks must make `who`
+	// a gigahdx staker for their weight to cover this hook's per-vote storage
+	// writes (tally + `UserVoteRecords` + `freeze`/`unfreeze`). Seed the record
+	// directly — the hook only reads `.hdx` and mutates `.frozen`, so no
+	// money-market / lock setup is needed.
+	//
+	// The one-time-per-referendum allocation path (`Status::Completed` → pot
+	// transfer + `record_user_reward`) is not reachable here: the benchmark's
+	// poll stays Ongoing, so that bounded cost is paid by — and documented on —
+	// the first post-completion remover rather than charged per vote.
 	#[cfg(feature = "runtime-benchmarks")]
-	fn on_vote_worst_case(_who: &T::AccountId) {}
+	fn on_vote_worst_case(who: &T::AccountId) {
+		seed_staker_worst_case::<T>(who);
+	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn on_remove_vote_worst_case(_who: &T::AccountId) {}
+	fn on_remove_vote_worst_case(who: &T::AccountId) {
+		seed_staker_worst_case::<T>(who);
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+fn seed_staker_worst_case<T: Config>(who: &T::AccountId) {
+	pallet_gigahdx::Stakes::<T>::insert(
+		who,
+		pallet_gigahdx::StakeRecord {
+			hdx: 1_000_000_000_000_000,
+			gigahdx: 1_000_000_000_000_000,
+			..Default::default()
+		},
+	);
 }
 
 /// Allocate the pool on first call for a completed referendum, then credit

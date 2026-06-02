@@ -119,6 +119,16 @@ pub mod pallet {
 		pub unstaking_count: u16,
 	}
 
+	impl StakeRecord {
+		/// True when the record carries no state and can be reaped. Shared by
+		/// `unlock` and `unfreeze` so their reap predicates stay in lockstep —
+		/// dropping a record while any field is non-zero (e.g. residual
+		/// `unstaking`) would orphan `PendingUnstakes` entries or its lock.
+		fn is_empty(&self) -> bool {
+			self.hdx == 0 && self.gigahdx == 0 && self.frozen == 0 && self.unstaking == 0 && self.unstaking_count == 0
+		}
+	}
+
 	/// One pending-unstake position. Keyed by the originating block; cooldown
 	/// expiry is `block + Config::CooldownPeriod`.
 	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq, Debug)]
@@ -359,22 +369,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::giga_stake().saturating_add(T::MoneyMarket::supply_weight()))]
 		pub fn giga_stake(origin: OriginFor<T>, amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(amount >= T::MinStake::get(), Error::<T>::BelowMinStake);
-
-			// Strict policy: refuse if the caller carries any lock the runtime
-			// does not whitelist for overlap. Lock-layering via `max()` would
-			// otherwise let the same HDX back both a gigahdx stake and another
-			// pallet's claim after a single transfer of the unlocked portion.
-			ensure!(T::ExternalClaims::on(&who) == 0, Error::<T>::BlockedByExternalLock);
-
-			// Own commitment (active + pending unstakes) still has to fit
-			// under free_balance — re-staking under the same `ghdxlock` must
-			// not exceed what the user actually owns.
-			let stake = Stakes::<T>::get(&who).unwrap_or_default();
-			let own_claim = stake.hdx.saturating_add(stake.unstaking);
-			let stakeable = T::NativeCurrency::free_balance(&who).saturating_sub(own_claim);
-			ensure!(stakeable >= amount, Error::<T>::InsufficientFreeBalance);
-
+			Self::ensure_stakeable(&who, amount)?;
 			Self::do_stake(&who, amount)?;
 			Ok(())
 		}
@@ -477,7 +472,7 @@ pub mod pallet {
 				if let Some(s) = maybe.as_mut() {
 					s.unstaking = s.unstaking.saturating_sub(entry.amount);
 					s.unstaking_count = s.unstaking_count.saturating_sub(1);
-					if s.hdx == 0 && s.gigahdx == 0 && s.frozen == 0 && s.unstaking_count == 0 {
+					if s.is_empty() {
 						*maybe = None;
 					}
 				}
@@ -562,13 +557,9 @@ pub mod pallet {
 
 			let hdx_unlocked = T::LegacyStaking::force_unstake(&who)?;
 
-			ensure!(hdx_unlocked >= T::MinStake::get(), Error::<T>::BelowMinStake);
-			ensure!(T::ExternalClaims::on(&who) == 0, Error::<T>::BlockedByExternalLock);
-
-			let stake = Stakes::<T>::get(&who).unwrap_or_default();
-			let own_claim = stake.hdx.saturating_add(stake.unstaking);
-			let stakeable = T::NativeCurrency::free_balance(&who).saturating_sub(own_claim);
-			ensure!(stakeable >= hdx_unlocked, Error::<T>::InsufficientFreeBalance);
+			// Admission runs *after* `force_unstake` so the legacy lock is no
+			// longer counted against `ExternalClaims`.
+			Self::ensure_stakeable(&who, hdx_unlocked)?;
 
 			let gigahdx_received = Self::do_stake(&who, hdx_unlocked)?;
 			Self::deposit_event(Event::MigratedFromLegacy {
@@ -773,16 +764,29 @@ pub mod pallet {
 			Stakes::<T>::mutate_exists(who, |maybe| {
 				if let Some(stake) = maybe.as_mut() {
 					stake.frozen = stake.frozen.saturating_sub(delta);
-					if stake.hdx == 0
-						&& stake.gigahdx == 0
-						&& stake.frozen == 0
-						&& stake.unstaking == 0
-						&& stake.unstaking_count == 0
-					{
+					if stake.is_empty() {
 						*maybe = None;
 					}
 				}
 			});
+		}
+
+		/// Admission gate shared by `giga_stake` and `migrate`.
+		///
+		/// Enforces the `MinStake` floor, the strict no-overlapping-lock policy
+		/// (lock-layering via `max()` would otherwise let the same HDX back both
+		/// a gigahdx stake and another pallet's claim after a single transfer of
+		/// the unlocked portion), and that the caller's own commitment (active +
+		/// pending unstakes) plus `amount` still fits under their free balance.
+		fn ensure_stakeable(who: &T::AccountId, amount: Balance) -> DispatchResult {
+			ensure!(amount >= T::MinStake::get(), Error::<T>::BelowMinStake);
+			ensure!(T::ExternalClaims::on(who) == 0, Error::<T>::BlockedByExternalLock);
+
+			let stake = Stakes::<T>::get(who).unwrap_or_default();
+			let own_claim = stake.hdx.saturating_add(stake.unstaking);
+			let stakeable = T::NativeCurrency::free_balance(who).saturating_sub(own_claim);
+			ensure!(stakeable >= amount, Error::<T>::InsufficientFreeBalance);
+			Ok(())
 		}
 
 		/// Computes the stHDX amount at the current rate, mints it into `who`,
