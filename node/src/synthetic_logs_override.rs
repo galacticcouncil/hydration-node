@@ -3,28 +3,15 @@
 // Copyright (C) 2020-2026  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
-//! Node-side `StorageOverride` wrapper for the synthetic-logs node-indexing
-//! variant.
+//! `StorageOverride` that augments Frontier's reads with synthetic ethereum txs,
+//! produced client-side from a block's events via
+//! `event_logs::synthetic_txs_from_records` (no runtime API, any runtime version).
 //!
-//! Wraps the stock Frontier `StorageOverride` and augments its reads with
-//! synthetic ethereum txs — substrate `Transfer`/`Swapped3`/`pallet_evm` log
-//! events translated to ERC-20 `Transfer` / uniswap-v2 `Swap` logs. The synth
-//! txs are NOT in consensus state; they're produced **client-side** from the
-//! block's events read out of state, using the pure
-//! `event_logs::synthetic_txs_from_records`. Because this never invokes a
-//! runtime API, it works against ANY runtime version — including blocks
-//! produced before this runtime shipped (bounded only by whether their events
-//! still decode).
-//!
-//! All three views stay index-aligned (real entries first, synth appended in a
-//! stable order, `transaction_index` continuing from the real count) so a synth
-//! tx's mapping-DB index resolves consistently across them:
-//! - `current_transaction_statuses` / `current_receipts`: real, then synth.
-//! - `current_block`: synth txs appended to `transactions` (so
-//!   `eth_getTransactionByHash`/`*_receipt` can index them — fc-rpc does
-//!   `block.transactions[index]`), and the synth-log blooms OR'd into
-//!   `header.logs_bloom` so `filter_range_logs`' header-bloom prefilter doesn't
-//!   skip synth-only blocks.
+//! Real entries come first, synth appended in stable order, so a synth tx's index
+//! resolves consistently across `current_transaction_statuses`/`current_receipts`
+//! and `current_block.transactions` (fc-rpc indexes `block.transactions[index]`).
+//! Synth blooms are OR'd into the header so the `eth_getLogs` bloom prefilter
+//! keeps synth-only blocks.
 
 use std::{marker::PhantomData, sync::Arc};
 

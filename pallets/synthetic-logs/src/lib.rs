@@ -226,9 +226,7 @@ pub fn encode_uint256_quad(a: U256, b: U256, c: U256, d: U256) -> Vec<u8> {
 }
 
 // --- pure log-shape builders ------------------------------------------------
-// The evm-log *shape* lives here, decoupled from how it's delivered (substrate
-// mutation hook → on-chain synth tx, or node-side eth-rpc indexing). Callers
-// resolve addresses; these just encode. Unit-tested for evm-client parity.
+// Callers resolve addresses; these just encode the evm-log shape.
 
 /// ERC-20 `Transfer(from, to, value)` log emitted from `token`'s address.
 pub fn build_erc20_transfer_log(token: H160, from: H160, to: H160, amount: U256) -> ethereum::Log {

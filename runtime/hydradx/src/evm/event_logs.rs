@@ -3,30 +3,15 @@
 // Copyright (C) 2020-2026  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
-//! Event → synthetic-eth-tx translation for the node-indexing variant.
+//! Pure event → synthetic-eth-tx translation for the node-indexing variant.
 //!
-//! Pure translation: `synthetic_txs_from_records` turns a block's
-//! `EventRecord`s into synthetic `(Transaction, TransactionStatus, Receipt)`
-//! triples using only pure helpers (`account_to_evm_address`,
-//! `asset_evm_address`, the `build_*`/`assemble_synth_txs` primitives) — no
-//! runtime-state reads. That's what lets the SAME code serve two callers:
-//!
-//! - `SyntheticEthLogsApi` (this runtime), gathering events from
-//!   `frame_system::Events` — fast path for the current+ runtime; and
-//! - the node's client-side indexer, which reads `System::Events` from state
-//!   and calls `synthetic_txs_from_records` directly — works against ANY
-//!   runtime version (it never invokes a runtime API), so blocks produced
-//!   before this runtime shipped are still indexed (bounded only by whether
-//!   their events still decode).
-//!
-//! Scope: every balance movement (orml-tokens + native HDX via pallet-balances)
-//! — transfer, mint, burn/slash/dust, reserve/unreserve, repatriate, and
-//! lock/freeze — mapped to erc20 `Transfer` so a holder's aggregated transfers
-//! reconstruct its transferable balance (reserved and frozen amounts move to
-//! distinct per-owner sentinels). Plus `Swapped3` → uniswap-v2 `Swap`, and
-//! `pallet_evm::Event::Log` from internal `Executor::call` paths (deduped
-//! against real eth txs). This is the off-chain replica of what the removed
-//! on-chain synthetic-logs hooks emitted.
+//! `synthetic_txs_from_records` turns a block's `EventRecord`s into
+//! `(Transaction, TransactionStatus, Receipt)` triples with no state reads, so
+//! the node's client-side indexer can call it for any runtime version. Balance
+//! movements map to erc20 `Transfer` (reserved/frozen go to per-owner sentinels
+//! so aggregated transfers equal an account's transferable balance), plus
+//! `Swapped3` → uniswap-v2 `Swap` and internal `pallet_evm::Log` (deduped vs
+//! real eth txs).
 
 use crate::{Runtime, RuntimeEvent};
 use frame_support::traits::Get;
@@ -88,11 +73,8 @@ fn is_asset_address(addr: H160) -> bool {
 	addr.0[..15] == [0u8; 15] && addr.0[15] == 1
 }
 
-/// One erc20 `Transfer(from, to, amount)` on `asset`'s evm address, or empty for
-/// a zero amount. The single primitive every balance movement below maps onto:
-/// mint = `from` zero, burn = `to` zero, reserve/lock = `to` the owner's
-/// reserved/frozen sentinel. Aggregating these per (asset, holder) reconstructs
-/// the holder's transferable balance.
+/// One erc20 `Transfer` on `asset`'s evm address (empty for zero). Mint = `from`
+/// zero, burn = `to` zero, reserve/lock = `to` the owner's sentinel.
 fn transfer(asset: u32, from: H160, to: H160, amount: u128) -> Vec<(H160, ethereum::Log)> {
 	if amount == 0 {
 		return Vec::new();
@@ -101,14 +83,7 @@ fn transfer(asset: u32, from: H160, to: H160, amount: u128) -> Vec<(H160, ethere
 	sp_std::vec![(addr, build_erc20_transfer_log(addr, from, to, U256::from(amount)))]
 }
 
-/// Pure: evm logs an indexer should see for one runtime event.
-///
-/// Covers every balance movement the on-chain synthetic-logs hooks did, now
-/// driven off-chain from events: transfer, deposit/mint (`0x0 → who`),
-/// withdraw/slash/burn/dust (`who → 0x0`), reserve/unreserve (`who ↔
-/// reserved_address_of(who)`), reserve repatriation, plus lock/freeze (`who ↔
-/// frozen_address_of(who)`, by frozen delta) so a holder's aggregated transfers
-/// equal its transferable balance.
+/// Pure: the evm logs an indexer should see for one runtime event.
 pub fn logs_from_event(event: &RuntimeEvent) -> Vec<(H160, ethereum::Log)> {
 	use orml_tokens::Event as Tokens;
 	use pallet_balances::Event as Balances;
@@ -206,12 +181,8 @@ pub fn logs_from_event(event: &RuntimeEvent) -> Vec<(H160, ethereum::Log)> {
 		| RuntimeEvent::Balances(Balances::DustLost { account: who, amount }) => {
 			transfer(CORE_ASSET_ID, evm_addr(who), ZERO, *amount)
 		}
-		// Native `Slashed` can't tell free from reserved at the event level, but in
-		// this runtime native slashing only ever hits *reserved* balance (governance
-		// bonds/deposits via democracy & elections `slash_reserved`); there are no
-		// free native-slash call sites. So we burn from the reserved sentinel, which
-		// keeps transferable reconstruction correct. Revisit if a free native-slash
-		// path is ever introduced. (orml `Slashed` splits free/reserved explicitly.)
+		// Native slashing here only ever hits reserved balance (governance bonds via
+		// democracy/elections); the event can't distinguish, so burn the reserved sentinel.
 		RuntimeEvent::Balances(Balances::Slashed { who, amount }) => {
 			transfer(CORE_ASSET_ID, reserved_address_of(evm_addr(who)), ZERO, *amount)
 		}
@@ -350,13 +321,9 @@ pub fn synthetic_txs_from_records(
 ) -> Vec<(Transaction, TransactionStatus, Receipt)> {
 	let base_tx_index = real_statuses.len() as u32;
 
-	// Per-log dedup: the stack runner emits an `EVM::Log` event for every log,
-	// AND a real eth tx records the same logs in its receipt — so an `EVM::Log`
-	// already present in the real tx of its extrinsic is a duplicate. Map each
-	// eth-tx extrinsic to a multiset of its receipt logs and drop matches
-	// one-for-one; any EXTRA logs in that extrinsic (a separate internal
-	// `Executor::call`) survive and are synthesized. Real tx statuses are in the
-	// same order as their `Executed` events.
+	// An EVM log is also recorded in the receipt of the real eth tx in its extrinsic,
+	// so drop EVM::Log events matching that receipt (one-for-one); extra logs from a
+	// separate internal Executor::call survive. Real statuses follow Executed order.
 	let mut real_logs_by_ext: BTreeMap<u32, BTreeMap<LogKey, u32>> = BTreeMap::new();
 	let mut nth_eth_tx = 0usize;
 	for rec in records.iter() {
