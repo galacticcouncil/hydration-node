@@ -1,0 +1,43 @@
+# Swarm stack for the coretime renewal watchdog on lark.
+#
+# Runs the prebuilt galacticcouncil/coretime-alert image (built from the
+# Dockerfile in this dir). The image already loops the check hourly. The Discord
+# webhook is injected as the DISCORD_WEBHOOK_URL env var, resolved at deploy time
+# from the swarmpit MCP server's environment via $env — never stored in the repo.
+# State is persisted on a local volume so the alert cooldown survives restarts.
+#
+# Rebuild/publish: docker build -t galacticcouncil/coretime-alert:latest . && docker push …
+# autoredeploy picks up a new :latest automatically.
+
+services:
+  watchdog:
+    image: galacticcouncil/coretime-alert:latest
+    isolation: default
+    environment:
+      DISCORD_WEBHOOK_URL: $env:DISCORD_WEBHOOK_URL
+      ALERT_COOLDOWN_HOURS: '12'
+      LEADIN_ALERT_DAYS: '3'
+      TOTAL_ALERT_DAYS: '7'
+      CHECK_INTERVAL_SECONDS: '3600'
+      STATE_FILE: /app/state/.state.json
+    volumes:
+      - state:/app/state
+    networks:
+      - default
+    logging:
+      driver: json-file
+    deploy:
+      replicas: 1
+      labels:
+        swarmpit.service.deployment.autoredeploy: 'true'
+      restart_policy:
+        condition: any
+        delay: 30s
+
+networks:
+  default:
+    driver: overlay
+
+volumes:
+  state:
+    driver: local
