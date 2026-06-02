@@ -3056,6 +3056,142 @@ fn gigahdx_liquidation_should_clear_vote_when_referendum_already_completed() {
 	});
 }
 
+/// Reproduces code-review finding #3: the `on_seize` `frozen.min(hdx)` clamp
+/// collapses the sum-stacked freeze of multiple still-live conviction votes, so
+/// `Stakes.frozen` stops equalling the sum of the borrower's live vote records.
+/// That desync later lets a `remove_vote` `unfreeze` drive `frozen` below what
+/// the remaining live vote backs, bypassing `do_unstake`'s `hdx >= frozen`
+/// guard — the borrower unstakes HDX still backing an active reward vote.
+///
+/// Two votes, each individually <= the post-seize residual (so the strict `>`
+/// filter in `clear_conflicting_votes` keeps BOTH), but summing above it. The
+/// invariant documented on `StakeRecord.frozen` — `frozen == sum of live vote
+/// records` — must survive the seize. The lossy clamp breaks it.
+///
+/// Asserts the correct (post-fix) invariant, so it FAILS on the current code.
+#[test]
+fn gigahdx_liquidation_should_keep_frozen_equal_to_live_vote_sum() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		use crate::liquidation::{borrow, get_user_account_data};
+		use hydradx_runtime::BorrowingTreasuryAccount;
+		use hydradx_traits::gigahdx::Seize;
+		use pallet_gigahdx_rewards::traits::ClearConflictingVotes;
+		use sp_core::Get;
+
+		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
+		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
+		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let treasury_evm = EVMAccounts::evm_address(&BorrowingTreasuryAccount::get());
+		let treasury_evm_account = EVMAccounts::account_id(treasury_evm);
+
+		let stake_amount = 10_000 * UNITS;
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
+
+		// Two votes of 6_000 each on two referenda. Each is <= the post-seize
+		// residual (kept by `clear_conflicting_votes`), but 12_000 exceeds it.
+		let vote = 6_000 * UNITS;
+		let ref1 = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			ref1,
+			aye_with_conviction(vote, Conviction::Locked1x),
+		));
+		let ref2 = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			ref2,
+			aye_with_conviction(vote, Conviction::Locked1x),
+		));
+		assert_eq!(
+			pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen,
+			2 * vote,
+			"two stacked votes freeze their sum"
+		);
+
+		// Underwater position.
+		let borrow_amount: Balance = 5 * HOLLAR_DECIMALS_18;
+		borrow(pool, alice_evm, hollar_addr, borrow_amount);
+		fund_treasury_for_liquidation(pool);
+		crash_st_hdx_price(oracle, st_hdx_evm);
+		assert!(
+			get_user_account_data(pool, alice_evm).unwrap().health_factor < U256::from(1_000_000_000_000_000_000u128)
+		);
+
+		// === Seize flow (mirrors `liquidate_gigahdx`) ===
+		let (orig_hdx, orig_gigahdx) =
+			<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::snapshot_stake(&alice).unwrap();
+		<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::on_pre_seize(&alice).unwrap();
+
+		// Keep the seized slice small so the residual stays above a single vote.
+		let debt_to_cover = borrow_amount / 4;
+		borrow(pool, treasury_evm, hollar_addr, debt_to_cover);
+		let before = Currencies::free_balance(GIGAHDX, &treasury_evm_account);
+		let liq_data = pallet_liquidation::Pallet::<Runtime>::encode_liquidation_call_data(
+			ST_HDX,
+			HOLLAR_ASSET_ID,
+			alice_evm,
+			debt_to_cover,
+			true,
+		);
+		assert!(matches!(
+			Executor::<Runtime>::call(
+				CallContext::new_call(pool, treasury_evm),
+				liq_data,
+				U256::zero(),
+				50_000_000
+			)
+			.exit_reason,
+			fp_evm::ExitReason::Succeed(_)
+		));
+		let actual_seized = Currencies::free_balance(GIGAHDX, &treasury_evm_account) - before;
+		let seize_hdx = (U256::from(orig_hdx) * U256::from(actual_seized) / U256::from(orig_gigahdx)).as_u128();
+		let residual_hdx = orig_hdx - seize_hdx;
+
+		// Preconditions: each vote fits under the residual (so both are kept), but
+		// the stacked sum exceeds it (so the clamp actually loses information).
+		assert!(
+			vote <= residual_hdx,
+			"vote {vote} must be <= residual {residual_hdx} so both votes are kept"
+		);
+		assert!(
+			2 * vote > residual_hdx,
+			"stacked sum {} must exceed residual {residual_hdx} to trigger the clamp",
+			2 * vote
+		);
+
+		let cleared =
+			<hydradx_runtime::gigahdx::GigaHdxVoteClearance as ClearConflictingVotes<AccountId>>::clear_conflicting_votes(
+				&alice,
+				residual_hdx,
+			)
+			.unwrap();
+
+		<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::on_seize(
+			&alice,
+			&liq_account,
+			seize_hdx,
+			actual_seized,
+			orig_gigahdx,
+		)
+		.unwrap();
+
+		// The invariant: `frozen` must equal the sum of the borrower's remaining
+		// live vote records. The lossy clamp collapses it to `hdx` while both
+		// records survive `clear` (cleared == {cleared}), desyncing the unstake guard.
+		let live_vote_sum: Balance = pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::iter_prefix(&alice)
+			.map(|(_, rec)| rec.staked_vote_amount)
+			.sum();
+		let frozen = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen;
+		assert_eq!(
+			frozen, live_vote_sum,
+			"frozen ({frozen}) must equal the sum of live vote records ({live_vote_sum}); \
+			 the on_seize clamp collapsed it, so a later remove_vote would unfreeze \
+			 against a deflated value and bypass the do_unstake guard"
+		);
+	});
+}
+
 // ============================================================================
 // HOLLAR borrow regression baseline.
 //

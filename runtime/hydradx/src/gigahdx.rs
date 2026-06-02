@@ -234,9 +234,23 @@ pub struct GigaHdxVoteClearance;
 
 impl pallet_gigahdx_rewards::traits::ClearConflictingVotes<AccountId> for GigaHdxVoteClearance {
 	fn clear_conflicting_votes(who: &AccountId, max_hdx: Balance) -> Result<u32, sp_runtime::DispatchError> {
+		// Remove votes until the *sum* of the kept freezes fits under `max_hdx`,
+		// not just the votes that individually exceed it. Per `StakeRecord.frozen`
+		// the freezes stack, so several small kept votes can sum above the residual
+		// stake; `on_seize` would then clamp `frozen` lossily and a later
+		// `remove_vote` could unfreeze below the live-vote sum, bypassing the
+		// `do_unstake` guard. Greedily keep votes in iteration order up to the
+		// budget and drop the rest, preserving `sum(kept) <= max_hdx`.
+		let mut kept: Balance = 0;
 		let to_remove: sp_std::vec::Vec<pallet_gigahdx_rewards::types::ReferendumIndex> =
 			pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::iter_prefix(who)
-				.filter_map(|(ref_index, rec)| (rec.staked_vote_amount > max_hdx).then_some(ref_index))
+				.filter_map(|(ref_index, rec)| match kept.checked_add(rec.staked_vote_amount) {
+					Some(sum) if sum <= max_hdx => {
+						kept = sum;
+						None
+					}
+					_ => Some(ref_index),
+				})
 				.collect();
 		let mut count = 0u32;
 		for ref_index in to_remove {
