@@ -702,6 +702,18 @@ pub mod pallet {
 				)?;
 				(0, yield_amount)
 			};
+
+			// Full exit (all aTokens burned): any `hdx` above the frozen floor
+			// is unbacked rounding dust that no later `giga_unstake` could
+			// release (it needs `gigahdx > 0`). Fold it into this position's
+			// cooldown payout so the holder reclaims it and the record reaps
+			// cleanly at `unlock`, instead of stranding the record + lock.
+			let (new_hdx, payout) = if new_gigahdx == 0 {
+				let dust = new_hdx.saturating_sub(stake.frozen);
+				(new_hdx.saturating_sub(dust), payout.saturating_add(dust))
+			} else {
+				(new_hdx, payout)
+			};
 			let principal_consumed = stake.hdx.saturating_sub(new_hdx);
 
 			let expires_at = now.checked_add(&T::CooldownPeriod::get()).ok_or(Error::<T>::Overflow)?;

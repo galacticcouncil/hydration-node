@@ -115,25 +115,30 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 		};
 		pallet_gigahdx::Pallet::<T>::unfreeze(who, record.staked_vote_amount);
 
-		// Maintain the live tally only while the ref is still pre-allocation.
-		// Pool presence = "allocation has run" idempotency signal.
-		if !ReferendaRewardPool::<T>::contains_key(ref_index) {
-			ReferendaTotalWeightedVotes::<T>::mutate_exists(ref_index, |maybe| {
-				if let Some(tally) = maybe.as_mut() {
-					tally.total_weighted = tally.total_weighted.saturating_sub(record.weighted);
-					tally.voters_count = tally.voters_count.saturating_sub(1);
-					if tally.voters_count == 0 {
-						*maybe = None;
-					}
-				}
-			});
-		}
-
-		if !matches!(status, Status::Completed) {
+		// Pool presence = "allocation has run" idempotency signal. A counted
+		// voter that arrives after allocation MUST always be recorded against
+		// the pool — regardless of the (possibly pruned, `Status::None`)
+		// referendum status — or `voters_remaining` never reaches zero and the
+		// pool entry plus this voter's pro-rata share leak permanently.
+		if ReferendaRewardPool::<T>::contains_key(ref_index) {
+			let _ = Pallet::<T>::record_user_reward(who, ref_index, &record);
 			return;
 		}
 
-		let _ = maybe_allocate_and_record::<T>(who, ref_index, &record);
+		// Pre-allocation: drop this voter from the live tally.
+		ReferendaTotalWeightedVotes::<T>::mutate_exists(ref_index, |maybe| {
+			if let Some(tally) = maybe.as_mut() {
+				tally.total_weighted = tally.total_weighted.saturating_sub(record.weighted);
+				tally.voters_count = tally.voters_count.saturating_sub(1);
+				if tally.voters_count == 0 {
+					*maybe = None;
+				}
+			}
+		});
+
+		if matches!(status, Status::Completed) {
+			let _ = maybe_allocate_and_record::<T>(who, ref_index, &record);
+		}
 	}
 
 	fn lock_balance_on_unsuccessful_vote(_who: &T::AccountId, _ref_index: ReferendumIndex) -> Option<Balance> {

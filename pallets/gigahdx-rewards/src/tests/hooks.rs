@@ -413,6 +413,52 @@ fn on_remove_vote_should_record_user_reward_pro_rata() {
 }
 
 #[test]
+fn on_remove_vote_should_record_counted_voter_when_referendum_pruned_after_allocation() {
+	ExtBuilder::default()
+		.with_accumulator(1_000 * ONE)
+		.build()
+		.execute_with(|| {
+			stake(ALICE, 100 * ONE);
+			stake(BOB, 100 * ONE);
+
+			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+				&ALICE,
+				REF_A,
+				standard_vote(true, Conviction::Locked1x, 10 * ONE),
+			));
+			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+				&BOB,
+				REF_A,
+				standard_vote(true, Conviction::Locked1x, 10 * ONE),
+			));
+
+			// Alice finalizes the referendum: pool allocated, alice recorded.
+			VotingHooksImpl::<Test>::on_remove_vote(&ALICE, REF_A, Status::Completed);
+			let pool = ReferendaRewardPool::<Test>::get(REF_A).expect("pool created");
+			assert_eq!(pool.voters_remaining, 1, "bob still outstanding");
+			assert_eq!(PendingRewards::<Test>::get(ALICE), 50 * ONE);
+
+			let acc_before = account_balance(&accumulator_pot());
+			let alloc_before = account_balance(&allocated_pot());
+
+			// Bob removes his vote only after the referendum info was pruned, so
+			// the hook sees `Status::None`. He is still a counted voter and must
+			// be accounted against the allocated pool — otherwise the pool entry
+			// and his pro-rata share leak permanently.
+			VotingHooksImpl::<Test>::on_remove_vote(&BOB, REF_A, Status::None);
+
+			assert_eq!(PendingRewards::<Test>::get(BOB), 50 * ONE, "bob credited his share");
+			assert!(
+				ReferendaRewardPool::<Test>::get(REF_A).is_none(),
+				"pool reaped once the last counted voter is accounted",
+			);
+			// Even split (no rounding remainder) → no recycle and no re-allocation.
+			assert_eq!(account_balance(&allocated_pot()), alloc_before, "no spurious transfer");
+			assert_eq!(account_balance(&accumulator_pot()), acc_before, "no re-allocation");
+		});
+}
+
+#[test]
 fn on_remove_vote_should_accumulate_pending_rewards_across_referenda() {
 	ExtBuilder::default()
 		.with_accumulator(1_000 * ONE)
