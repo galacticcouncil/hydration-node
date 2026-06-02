@@ -4,7 +4,7 @@ use crate::polkadot_test_net::*;
 use frame_support::{assert_ok, traits::Hooks};
 use frame_system::RawOrigin;
 use hydradx_runtime::{
-	Currencies, FeeProcessor, Omnipool, Referrals, Router, Runtime, RuntimeOrigin, Staking, System, Tokens, Treasury,
+	Currencies, FeeProcessor, Omnipool, Referrals, Router, Runtime, RuntimeOrigin, Staking, System, Tokens,
 };
 use orml_traits::MultiCurrency;
 use pallet_fee_processor::WeightInfo;
@@ -103,7 +103,6 @@ fn hdx_fee_distributes_to_hdx_receivers() {
 
 		let staking_before = Currencies::free_balance(HDX, &staking_pot());
 		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
-		let treasury_before = Currencies::free_balance(HDX, &Treasury::account_id());
 
 		// Sell DAI for HDX — the trade fee on the HDX side will be in HDX
 		assert_ok!(Omnipool::sell(
@@ -116,22 +115,16 @@ fn hdx_fee_distributes_to_hdx_receivers() {
 
 		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_before);
 		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_before);
-		let treasury_increase = Currencies::free_balance(HDX, &Treasury::account_id()).saturating_sub(treasury_before);
 
-		// Staking receives its HDX-path slice directly.
+		// Referrals participates in the HDX fee path (ReferralsFeeReceiver is in HdxFeeReceivers),
+		// so both pots receive their identical 5%/50% slice directly, without any conversion step.
 		assert_eq!(
 			staking_increase, 188932,
 			"Staking pot should receive its HDX-path slice"
 		);
-		// No referral shares exist, so the referrals slice is routed to the treasury rather than
-		// stranded in the (unclaimable) referrals pot.
 		assert_eq!(
-			referrals_increase, 0,
-			"Referrals pot must not be funded while TotalShares == 0"
-		);
-		assert_eq!(
-			treasury_increase, 188932,
-			"Referrals slice should be routed to the treasury while TotalShares == 0"
+			referrals_increase, 188932,
+			"Referrals pot should receive its HDX-path slice"
 		);
 	});
 }
@@ -234,7 +227,6 @@ fn non_hdx_fee_conversion_distributes_to_all_receivers() {
 
 		let staking_before = Currencies::free_balance(HDX, &staking_pot());
 		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
-		let treasury_before = Currencies::free_balance(HDX, &Treasury::account_id());
 
 		// Manually trigger conversion
 		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
@@ -254,27 +246,21 @@ fn non_hdx_fee_conversion_distributes_to_all_receivers() {
 		// HDX should be distributed to all configured receiver pots
 		// FeeReceivers: StakingFeeReceiver 10%, ReferralsFeeReceiver 10%
 		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_before);
-		let referrals_pot_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_before);
-		// No referral shares exist, so the referrals slice is routed to the treasury, not the pot.
-		let referrals_increase = Currencies::free_balance(HDX, &Treasury::account_id()).saturating_sub(treasury_before);
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_before);
 
 		assert!(staking_increase > 0, "Staking pot should receive HDX from conversion");
-		assert_eq!(
-			referrals_pot_increase, 0,
-			"Referrals pot must not be funded while TotalShares == 0"
-		);
 		assert!(
 			referrals_increase > 0,
-			"Referrals slice should reach the treasury from conversion"
+			"Referrals pot should receive HDX from conversion"
 		);
 
-		// Staking and referrals both get the same 5/50 slice, so the treasury-routed referrals
-		// amount should roughly match the staking pot's increase.
+		// Staking and referrals both get 10%, but referrals on_fee_received callback
+		// redistributes some HDX to referrers, so the pot balance may be slightly less.
 		let diff = staking_increase.abs_diff(referrals_increase);
 		let tolerance = staking_increase / 10; // 10% tolerance
 		assert!(
 			diff <= tolerance,
-			"Staking and referrals should receive roughly equal amounts: {staking_increase} vs {referrals_increase} (diff: {diff})",
+			"Staking (10%) and referrals (10%) should receive roughly equal amounts: {staking_increase} vs {referrals_increase} (diff: {diff})",
 		);
 	});
 }
@@ -304,7 +290,6 @@ fn non_hdx_conversion_distributes_exact_proportional_amounts_to_each_receiver() 
 
 		let staking_before = Currencies::free_balance(HDX, &staking_pot());
 		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
-		let treasury_before = Currencies::free_balance(HDX, &Treasury::account_id());
 		let gigahdx_before = Currencies::free_balance(HDX, &gigahdx_pot());
 		let rewards_before = Currencies::free_balance(HDX, &gigahdx_rewards_pot());
 
@@ -351,13 +336,7 @@ fn non_hdx_conversion_distributes_exact_proportional_amounts_to_each_receiver() 
 		let gigahdx_increase = Currencies::free_balance(HDX, &gigahdx_pot()) - gigahdx_before;
 		let rewards_increase = Currencies::free_balance(HDX, &gigahdx_rewards_pot()) - rewards_before;
 		let staking_increase = Currencies::free_balance(HDX, &staking_pot()) - staking_before;
-		// No referral shares exist, so the referrals slice is routed to the treasury, not the pot.
-		let referrals_pot_increase = Currencies::free_balance(HDX, &referrals_pot()) - referrals_before;
-		let referrals_increase = Currencies::free_balance(HDX, &Treasury::account_id()) - treasury_before;
-		assert_eq!(
-			referrals_pot_increase, 0,
-			"Referrals pot must not be funded while TotalShares == 0"
-		);
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()) - referrals_before;
 
 		// Every receiver gets at least its primary `hdx_out` share, plus a strictly positive
 		// secondary slice — so each strictly exceeds the primary share.
@@ -535,7 +514,6 @@ fn multiple_hdx_trades_accumulate_in_all_hdx_receivers() {
 
 		let staking_initial = Currencies::free_balance(HDX, &staking_pot());
 		let referrals_initial = Currencies::free_balance(HDX, &referrals_pot());
-		let treasury_initial = Currencies::free_balance(HDX, &Treasury::account_id());
 
 		// Multiple HDX-generating trades
 		for _ in 0..3 {
@@ -549,9 +527,7 @@ fn multiple_hdx_trades_accumulate_in_all_hdx_receivers() {
 		}
 
 		let staking_total = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_initial);
-		let referrals_pot_total = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_initial);
-		// No referral shares exist, so the referrals slice is routed to the treasury, not the pot.
-		let referrals_total = Currencies::free_balance(HDX, &Treasury::account_id()).saturating_sub(treasury_initial);
+		let referrals_total = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_initial);
 
 		// Both staking and referrals are in HdxFeeReceivers, so both accumulate across the 3 trades
 		// (3 × the single-trade slice of 188932).
@@ -560,12 +536,8 @@ fn multiple_hdx_trades_accumulate_in_all_hdx_receivers() {
 			"Staking pot should accumulate from multiple HDX trades"
 		);
 		assert_eq!(
-			referrals_pot_total, 0,
-			"Referrals pot must not be funded while TotalShares == 0"
-		);
-		assert_eq!(
 			referrals_total, 566796,
-			"Referrals slice should accumulate in the treasury from multiple HDX trades"
+			"Referrals pot should accumulate from multiple HDX trades"
 		);
 	});
 }
@@ -678,7 +650,6 @@ fn tiny_hdx_fee_distributes_to_configured_receivers() {
 		let rewards_before = Currencies::free_balance(HDX, &gigahdx_rewards_pot());
 		let staking_before = Currencies::free_balance(HDX, &staking_pot());
 		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
-		let treasury_before = Currencies::free_balance(HDX, &Treasury::account_id());
 
 		//Act: HdxFeeReceivers = GigaHdx 15% + GigaHdxRewards 25% + HdxStaking 5% + Referrals 5%
 		// (total 50%). fee = 100 → take = 50, distributed as 15 / 25 / 5 / 5.
@@ -691,12 +662,7 @@ fn tiny_hdx_fee_distributes_to_configured_receivers() {
 			25
 		);
 		assert_eq!(Currencies::free_balance(HDX, &staking_pot()) - staking_before, 5);
-		// No referral shares exist, so the referrals slice (5) is routed to the treasury, not the pot.
-		assert_eq!(Currencies::free_balance(HDX, &referrals_pot()) - referrals_before, 0);
-		assert_eq!(
-			Currencies::free_balance(HDX, &Treasury::account_id()) - treasury_before,
-			5
-		);
+		assert_eq!(Currencies::free_balance(HDX, &referrals_pot()) - referrals_before, 5);
 	});
 }
 
@@ -935,26 +901,19 @@ fn buy_trade_distributes_fees_same_as_sell() {
 		// Convert and verify configured receiver pots get HDX
 		let staking_pre = Currencies::free_balance(HDX, &staking_pot());
 		let referrals_pre = Currencies::free_balance(HDX, &referrals_pot());
-		let treasury_pre = Currencies::free_balance(HDX, &Treasury::account_id());
 
 		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 
 		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_pre);
-		let referrals_pot_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_pre);
-		// No referral shares exist, so the referrals slice is routed to the treasury, not the pot.
-		let referrals_increase = Currencies::free_balance(HDX, &Treasury::account_id()).saturating_sub(treasury_pre);
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_pre);
 
 		assert!(
 			staking_increase > 0,
 			"Staking should receive HDX from buy trade conversion"
 		);
-		assert_eq!(
-			referrals_pot_increase, 0,
-			"Referrals pot must not be funded while TotalShares == 0"
-		);
 		assert!(
 			referrals_increase > 0,
-			"Referrals slice should reach the treasury from buy trade conversion"
+			"Referrals should receive HDX from buy trade conversion"
 		);
 	});
 }
@@ -1378,26 +1337,19 @@ fn router_trade_fee_distribution_matches_direct_trade() {
 		// Convert and verify configured receiver pots get HDX
 		let staking_pre = Currencies::free_balance(HDX, &staking_pot());
 		let referrals_pre = Currencies::free_balance(HDX, &referrals_pot());
-		let treasury_pre = Currencies::free_balance(HDX, &Treasury::account_id());
 
 		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 
 		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_pre);
-		let referrals_pot_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_pre);
-		// No referral shares exist, so the referrals slice is routed to the treasury, not the pot.
-		let referrals_increase = Currencies::free_balance(HDX, &Treasury::account_id()).saturating_sub(treasury_pre);
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_pre);
 
 		assert!(
 			staking_increase > 0,
 			"Staking should receive HDX from router trade conversion"
 		);
-		assert_eq!(
-			referrals_pot_increase, 0,
-			"Referrals pot must not be funded while TotalShares == 0"
-		);
 		assert!(
 			referrals_increase > 0,
-			"Referrals slice should reach the treasury from router trade conversion"
+			"Referrals should receive HDX from router trade conversion"
 		);
 	});
 }
@@ -1418,7 +1370,6 @@ fn buying_hdx_from_omnipool_credits_all_four_hdx_fee_pots() {
 		let giga_rewards_before = Currencies::free_balance(HDX, &gigahdx_rewards_pot());
 		let staking_before = Currencies::free_balance(HDX, &staking_pot());
 		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
-		let treasury_before = Currencies::free_balance(HDX, &Treasury::account_id());
 
 		// Buy 100 HDX with DAI — fee leg is on `asset_out` (HDX), so this hits
 		// the HDX path of process_trade_fee and distributes synchronously.
@@ -1467,13 +1418,7 @@ fn buying_hdx_from_omnipool_credits_all_four_hdx_fee_pots() {
 		let giga_increase = Currencies::free_balance(HDX, &gigahdx_pot()) - giga_before;
 		let giga_rewards_increase = Currencies::free_balance(HDX, &gigahdx_rewards_pot()) - giga_rewards_before;
 		let staking_increase = Currencies::free_balance(HDX, &staking_pot()) - staking_before;
-		// No referral shares exist, so the referrals slice is routed to the treasury, not the pot.
-		let referrals_pot_increase = Currencies::free_balance(HDX, &referrals_pot()) - referrals_before;
-		let referrals_increase = Currencies::free_balance(HDX, &Treasury::account_id()) - treasury_before;
-		assert_eq!(
-			referrals_pot_increase, 0,
-			"Referrals pot must not be funded while TotalShares == 0"
-		);
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()) - referrals_before;
 
 		assert_eq!(giga_increase, share(15), "gigaHDX pot must receive 15/50 share");
 		assert_eq!(
@@ -1482,11 +1427,7 @@ fn buying_hdx_from_omnipool_credits_all_four_hdx_fee_pots() {
 			"gigaHDX rewards pot must receive 25/50 share"
 		);
 		assert_eq!(staking_increase, share(5), "legacy staking pot must receive 5/50 share");
-		assert_eq!(
-			referrals_increase,
-			share(5),
-			"referrals 5/50 share must be routed to the treasury"
-		);
+		assert_eq!(referrals_increase, share(5), "referrals pot must receive 5/50 share");
 
 		// Conservation: the four receiver shares plus any rounding dust account
 		// for the full take. With three 5% slices and one 15%/25%, distinct
@@ -1535,9 +1476,6 @@ fn selling_for_dai_then_advancing_block_distributes_converted_hdx_to_all_four_po
 		// so we call it explicitly with generous weight. This is the path the chain
 		// will take in production once the next block fires.
 		hydradx_run_to_next_block();
-		// Snapshot the treasury right before conversion: with no referral shares the referrals
-		// slice is routed here, and this isolates it from any block-production effects above.
-		let treasury_before = Currencies::free_balance(HDX, &Treasury::account_id());
 		let weight = frame_support::weights::Weight::from_parts(1_000_000_000_000, u64::MAX);
 		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
 
@@ -1600,14 +1538,7 @@ fn selling_for_dai_then_advancing_block_distributes_converted_hdx_to_all_four_po
 		let giga_increase = Currencies::free_balance(HDX, &gigahdx_pot()) - giga_before;
 		let giga_rewards_increase = Currencies::free_balance(HDX, &gigahdx_rewards_pot()) - giga_rewards_before;
 		let staking_increase = Currencies::free_balance(HDX, &staking_pot()) - staking_before;
-		// No referral shares exist, so the referrals slice (primary + nested HDX) is routed to the
-		// treasury, not the pot.
-		let referrals_pot_increase = Currencies::free_balance(HDX, &referrals_pot()) - referrals_before;
-		let referrals_increase = Currencies::free_balance(HDX, &Treasury::account_id()) - treasury_before;
-		assert_eq!(
-			referrals_pot_increase, 0,
-			"Referrals pot must not be funded while TotalShares == 0"
-		);
+		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()) - referrals_before;
 
 		assert_eq!(
 			giga_increase,
@@ -1627,7 +1558,7 @@ fn selling_for_dai_then_advancing_block_distributes_converted_hdx_to_all_four_po
 		assert_eq!(
 			referrals_increase,
 			expected(5),
-			"referrals 5/50 of both inflows must be routed to the treasury"
+			"referrals pot must receive 5/50 of both inflows"
 		);
 	});
 }
@@ -1834,24 +1765,18 @@ fn referrer_may_claim_a_bounded_cut_during_the_conversion_gap() {
 	});
 }
 
-/// FINDING 5 — referral fee slice must not strand in the pot when `TotalShares == 0`.
-///
-/// The referrals accumulator (`RewardPerShare`) divides by `TotalShares`, so it cannot
-/// record a deposit while no shares exist (genesis/pre-adoption, or after every holder has
-/// claimed and burned). Previously the slice was still transferred into the referrals pot,
-/// where — never reflected in `RewardPerShare` — it was permanently unclaimable.
-///
-/// Fix: while `TotalShares == 0` the slice is routed to the treasury instead. The referrals
-/// pot is left untouched and the accumulator correctly stays zero (no shareholder to
-/// attribute the deposit to); the value is preserved in the treasury.
+/// FINDING 5 (accepted limitation) — while `TotalShares == 0` the referrals slice is still
+/// deposited into the referrals pot, but the accumulator (`RewardPerShare`) divides by
+/// `TotalShares` and so cannot record it yet. This is accepted for the genesis/pre-adoption
+/// window; once any referral shares exist, deposits accrue normally. (A treasury-redirect fix
+/// was reverted because it polluted the shared treasury fee accounting.)
 #[test]
-fn referral_fee_with_zero_shares_should_be_routed_to_treasury() {
+fn referral_fee_with_zero_shares_is_deposited_to_pot_but_not_yet_accrued() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_24();
 
-		// No referral codes registered/linked → no referral shares exist.
 		assert_eq!(Referrals::total_shares(), 0, "no referral shares in the system");
 		assert!(
 			pallet_referrals::RewardPerShare::<Runtime>::get().is_zero(),
@@ -1859,10 +1784,9 @@ fn referral_fee_with_zero_shares_should_be_routed_to_treasury() {
 		);
 
 		let referrals_pot_before = Currencies::free_balance(HDX, &referrals_pot());
-		let treasury_before = Currencies::free_balance(HDX, &Treasury::account_id());
 
-		// An unlinked trader generates a non-HDX (DAI) fee, then it is converted to HDX —
-		// the referrals slice would normally be transferred into the referrals pot.
+		// An unlinked trader generates a non-HDX (DAI) fee that is converted to HDX; the
+		// referrals slice is transferred into the referrals pot.
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
 			HDX,
@@ -1872,24 +1796,15 @@ fn referral_fee_with_zero_shares_should_be_routed_to_treasury() {
 		));
 		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 
-		let referrals_pot_increase =
-			Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_pot_before);
-		let treasury_increase = Currencies::free_balance(HDX, &Treasury::account_id()).saturating_sub(treasury_before);
+		let deposited = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_pot_before);
 
-		// The slice was generated and routed to the treasury, not stranded in the pot...
-		assert!(
-			treasury_increase > 0,
-			"the un-attributable referrals slice must be routed to the treasury"
-		);
-		assert_eq!(
-			referrals_pot_increase, 0,
-			"the referrals pot must not retain un-attributable HDX"
-		);
-		// ...and the accumulator correctly stays zero (no shares to attribute to).
+		// The slice lands in the referrals pot...
+		assert!(deposited > 0, "the referrals slice is deposited into the referrals pot");
+		// ...but with zero shares the accumulator cannot record it (accepted limitation).
 		assert_eq!(Referrals::total_shares(), 0, "still no referral shares");
 		assert!(
 			pallet_referrals::RewardPerShare::<Runtime>::get().is_zero(),
-			"RewardPerShare must stay zero — there is no shareholder to attribute the deposit to"
+			"with zero shares the deposit is not (yet) reflected in the accumulator"
 		);
 	});
 }
