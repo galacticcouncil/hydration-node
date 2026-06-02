@@ -149,12 +149,12 @@ impl pallet_currencies::Config for Test {
 
 // --- Mock Convert ---
 thread_local! {
-	static CONVERT_RESULT: RefCell<Option<Balance>> = RefCell::new(Some(1000 * ONE));
-	static CONVERT_CALLS: RefCell<Vec<(AccountId, AssetId, AssetId, Balance)>> = RefCell::new(Vec::new());
-	static PRE_DEPOSIT_CALLS: RefCell<Vec<(AccountId, Balance)>> = RefCell::new(Vec::new());
-	static DEPOSIT_CALLS: RefCell<Vec<Balance>> = RefCell::new(Vec::new());
-	static HDX_PRE_DEPOSIT_CALLS: RefCell<Vec<(AccountId, Balance)>> = RefCell::new(Vec::new());
-	static HDX_DEPOSIT_CALLS: RefCell<Vec<Balance>> = RefCell::new(Vec::new());
+	static CONVERT_RESULT: RefCell<Option<Balance>> = const { RefCell::new(Some(1000 * ONE)) };
+	static CONVERT_CALLS: RefCell<Vec<(AccountId, AssetId, AssetId, Balance)>> = const { RefCell::new(Vec::new()) };
+	static PRE_DEPOSIT_CALLS: RefCell<Vec<(AccountId, Balance)>> = const { RefCell::new(Vec::new()) };
+	static DEPOSIT_CALLS: RefCell<Vec<Balance>> = const { RefCell::new(Vec::new()) };
+	static HDX_PRE_DEPOSIT_CALLS: RefCell<Vec<(AccountId, Balance)>> = const { RefCell::new(Vec::new()) };
+	static HDX_DEPOSIT_CALLS: RefCell<Vec<Balance>> = const { RefCell::new(Vec::new()) };
 	static PRE_DEPOSIT_FAILS: RefCell<bool> = const { RefCell::new(false) };
 }
 
@@ -204,7 +204,7 @@ pub fn hdx_deposit_calls() -> Vec<Balance> {
 
 // --- Mock PriceProvider ---
 thread_local! {
-	static MOCK_PRICE: RefCell<Option<EmaPrice>> = RefCell::new(Some(EmaPrice::new(2, 1)));
+	static MOCK_PRICE: RefCell<Option<EmaPrice>> = const { RefCell::new(Some(EmaPrice::new(2, 1))) };
 }
 
 pub struct MockPriceProvider;
