@@ -1,6 +1,6 @@
 [package]
 name = "pallet-gigahdx"
-version = "0.1.1"
+version = "1.0.0"
 description = "Liquid-staking primitive on top of an EVM money market."
 authors = ["GalacticCouncil"]
 edition = "2021"
