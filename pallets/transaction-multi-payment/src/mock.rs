@@ -33,6 +33,7 @@ use frame_support::{
 };
 use frame_system as system;
 use hydradx_traits::{
+	evm::EvmFeePayerSupport,
 	router::{RouteProvider, Trade},
 	AssetKind, OraclePeriod, PriceOracle,
 };
@@ -178,6 +179,29 @@ impl Config for Test {
 	type EvmPermit = PermitDispatchHandler;
 	type TryCallCurrency<'a> = TestCallCurrency<Test>;
 	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
+	type EvmFeePayer = MockEvmFeePayer;
+}
+
+thread_local! {
+	static MOCK_EVM_FEE_PAYER: RefCell<Option<AccountId>> = const { RefCell::new(None) };
+}
+
+/// Mock EVM fee payer override.
+///
+/// Thread-local so tests can observe it. Phase 2 wiring; no production semantics —
+/// the signed branch tests assert that this is set/cleared at the right points.
+pub struct MockEvmFeePayer;
+
+impl EvmFeePayerSupport for MockEvmFeePayer {
+	type AccountId = AccountId;
+
+	fn set_fee_payer(payer: Self::AccountId) -> Option<Self::AccountId> {
+		MOCK_EVM_FEE_PAYER.with(|v| v.borrow_mut().replace(payer))
+	}
+
+	fn clear_fee_payer() -> Option<Self::AccountId> {
+		MOCK_EVM_FEE_PAYER.with(|v| v.borrow_mut().take())
+	}
 }
 
 pub struct MockedInsufficientAssetSupport;
@@ -599,8 +623,11 @@ impl EVMPermit for PermitDispatchHandler {
 		(U256::from(222u128), Weight::zero())
 	}
 
-	fn dispatch_weight(_gas_limit: u64) -> Weight {
-		todo!()
+	fn dispatch_weight(gas_limit: u64) -> Weight {
+		// Mock weight: 1 picosecond of refTime per gas unit, no proof size.
+		// Concrete enough for tests that exercise weight bookkeeping; not
+		// representative of production weight.
+		Weight::from_parts(gas_limit, 0)
 	}
 
 	fn permit_nonce(_account: H160) -> U256 {
