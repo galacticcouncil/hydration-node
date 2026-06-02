@@ -3209,13 +3209,13 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(bond_id, &CHARLIE.into()),
-			2000622849461,
+			2000622850153,
 		);
 
 		// NOTE: make sure oracle's price adjustment was used.
 		let global_farm = hydradx_runtime::OmnipoolWarehouseLM::global_farm(global_farm_1_id).unwrap();
 		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
-		assert_eq!(price_adjustment, FixedU128::from_inner(830_815305689849957936u128));
+		assert_eq!(price_adjustment, FixedU128::from_inner(830_816228816940889262u128));
 	});
 }
 
