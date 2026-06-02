@@ -234,7 +234,6 @@ impl pallet_balances::Config for Test {
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
-	type RuntimeHooks = ();
 }
 
 impl pallet_currencies::Config for Test {
@@ -249,9 +248,7 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_broadcast::Config for Test {
-	type OnTrade = ();
-}
+impl pallet_broadcast::Config for Test {}
 
 parameter_types! {
 	pub const MinTradingLimit: Balance = 1_000;

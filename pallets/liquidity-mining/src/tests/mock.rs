@@ -284,7 +284,6 @@ impl pallet_balances::Config for Test {
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
-	type RuntimeHooks = ();
 }
 
 impl orml_tokens::Config for Test {

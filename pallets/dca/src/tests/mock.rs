@@ -340,7 +340,6 @@ impl pallet_balances::Config for Test {
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
-	type RuntimeHooks = ();
 }
 
 impl pallet_currencies::Config for Test {
@@ -364,9 +363,7 @@ parameter_types! {
 
 }
 
-impl pallet_broadcast::Config for Test {
-	type OnTrade = ();
-}
+impl pallet_broadcast::Config for Test {}
 
 type Pools = (OmniPool, Xyk);
 

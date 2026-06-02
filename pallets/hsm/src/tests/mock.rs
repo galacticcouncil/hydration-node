@@ -138,9 +138,7 @@ impl frame_system::Config for Test {
 	type ExtensionsWeightInfo = ();
 }
 
-impl pallet_broadcast::Config for Test {
-	type OnTrade = ();
-}
+impl pallet_broadcast::Config for Test {}
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {

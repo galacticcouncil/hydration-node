@@ -204,7 +204,6 @@ impl pallet_balances::Config for Test {
 	type RuntimeHoldReason = ();
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
-	type RuntimeHooks = ();
 }
 
 parameter_types! {

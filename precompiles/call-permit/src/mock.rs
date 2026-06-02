@@ -100,7 +100,6 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = ();
 	type RuntimeFreezeReason = ();
 	type DoneSlashHandler = ();
-	type RuntimeHooks = ();
 }
 
 mock_account!(CallPermit, |_| MockAccount::from_u64(1));

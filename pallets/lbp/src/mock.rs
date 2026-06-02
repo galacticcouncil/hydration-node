@@ -171,9 +171,7 @@ impl LockedBalance<AssetId, AccountId, Balance> for MultiLockedBalance {
 	}
 }
 
-impl pallet_broadcast::Config for Test {
-	type OnTrade = ();
-}
+impl pallet_broadcast::Config for Test {}
 
 impl Config for Test {
 	type MultiCurrency = Currency;

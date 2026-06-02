@@ -192,9 +192,7 @@ impl CanCreatePool<AssetId> for Disallow10_10Pool {
 	}
 }
 
-impl pallet_broadcast::Config for Test {
-	type OnTrade = ();
-}
+impl pallet_broadcast::Config for Test {}
 
 impl xyk::Config for Test {
 	type AssetRegistry = AssetRegistry;

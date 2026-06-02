@@ -197,9 +197,7 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	}
 }
 
-impl pallet_broadcast::Config for Test {
-	type OnTrade = ();
-}
+impl pallet_broadcast::Config for Test {}
 
 impl Config for Test {
 	type AssetId = AssetId;
@@ -708,12 +706,6 @@ impl MutationHooks<AccountId, AssetId, Balance> for Hooks {
 	type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Test>;
 	type PreTransfer = ();
 	type PostTransfer = ();
-	type PreWithdraw = ();
-	type PostWithdraw = ();
-	type PostReserve = ();
-	type PostUnreserve = ();
-	type PostSlashReserved = ();
-	type PostRepatriate = ();
 	type OnNewTokenAccount = ();
 	type OnKilledTokenAccount = ();
 }
