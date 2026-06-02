@@ -186,6 +186,13 @@ where
 		execute_gas_limit_multiplier,
 	} = deps;
 
+	// Clones for the custom `eth_getLogs` (registered below) — `frontier_backend`
+	// and `block_data_cache` are moved into `EthFilter::new`.
+	let getlogs_client = client.clone();
+	let getlogs_backend = frontier_backend.clone();
+	let getlogs_cache = block_data_cache.clone();
+	let getlogs_max = max_past_logs;
+
 	let mut signers = Vec::new();
 	if enable_dev_signer {
 		signers.push(Box::new(EthDevSigner::new()) as Box<dyn EthSigner>);
@@ -252,6 +259,20 @@ where
 		)
 		.into_rpc(),
 	)?;
+
+	// Replace fc-rpc's `eth_getLogs` with the synth-aware, canonical-hash filter:
+	// fc-rpc derives `log.blockHash` from `current_block().header`, so it must stay
+	// canonical (no bloom mutation) to round-trip via `eth_getBlockByHash`.
+	io.remove_method("eth_getLogs");
+	io.register_async_method("eth_getLogs", move |params, _ctx, _ext| {
+		let client = getlogs_client.clone();
+		let backend = getlogs_backend.clone();
+		let cache = getlogs_cache.clone();
+		async move {
+			let filter = params.one::<fc_rpc_core::types::Filter>()?;
+			crate::synthetic_eth_filter::logs(client, backend, cache, getlogs_max, filter).await
+		}
+	})?;
 
 	io.merge(
 		EthPubSub::new(

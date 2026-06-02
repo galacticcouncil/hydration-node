@@ -5633,7 +5633,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.1.4"
+version = "15.1.5"
 dependencies = [
  "async-trait",
  "clap",
@@ -5673,6 +5673,7 @@ dependencies = [
  "kvdb-rocksdb",
  "liquidation-worker-support",
  "log",
+ "lru 0.12.5",
  "num_cpus",
  "pallet-claims",
  "pallet-currencies-rpc-runtime-api",
@@ -5685,6 +5686,7 @@ dependencies = [
  "polkadot-primitives",
  "polkadot-service",
  "primitives",
+ "rlp 0.6.1",
  "sc-basic-authorship",
  "sc-chain-spec",
  "sc-cli",
@@ -13826,7 +13828,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.87.0"
+version = "1.87.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",

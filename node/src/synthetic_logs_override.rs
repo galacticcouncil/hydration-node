@@ -10,16 +10,21 @@
 //! Real entries come first, synth appended in stable order, so a synth tx's index
 //! resolves consistently across `current_transaction_statuses`/`current_receipts`
 //! and `current_block.transactions` (fc-rpc indexes `block.transactions[index]`).
-//! Synth blooms are OR'd into the header so the `eth_getLogs` bloom prefilter
-//! keeps synth-only blocks.
+//! The block header is left canonical (hash unchanged); `eth_getLogs` discovery of
+//! synth-only blocks is handled by `synthetic_eth_filter`.
 
-use std::{marker::PhantomData, sync::Arc};
+use std::{
+	marker::PhantomData,
+	num::NonZeroUsize,
+	sync::{Arc, Mutex},
+};
 
 use codec::Decode;
 use fc_rpc::StorageOverride;
 use fp_rpc::TransactionStatus;
 use frame_system::EventRecord;
 use hydradx_runtime::{evm::event_logs::synthetic_txs_from_records, RuntimeEvent};
+use lru::LruCache;
 use pallet_ethereum::{Block as EthBlock, Receipt as EthReceipt, Transaction as EthTransaction};
 use primitives::Block;
 use sc_client_api::{backend::Backend, StorageProvider};
@@ -29,10 +34,17 @@ use sp_runtime::traits::{Block as BlockT, Header as HeaderT, UniqueSaturatedInto
 use sp_storage::StorageKey;
 
 type Hash = <Block as BlockT>::Hash;
+type SynthTxs = Vec<(EthTransaction, TransactionStatus, EthReceipt)>;
+
+// `synthetic()` is invoked once each by `current_block`/`current_receipts`/
+// `current_transaction_statuses`, so a range `eth_getLogs` would re-read and
+// re-translate a block's events 3× without this per-block cache.
+const SYNTH_CACHE_CAP: usize = 256;
 
 pub struct SyntheticStorageOverride<C, BE> {
 	inner: Arc<dyn StorageOverride<Block>>,
 	client: Arc<C>,
+	cache: Mutex<LruCache<Hash, Arc<SynthTxs>>>,
 	_marker: PhantomData<BE>,
 }
 
@@ -41,6 +53,9 @@ impl<C, BE> SyntheticStorageOverride<C, BE> {
 		Self {
 			inner,
 			client,
+			cache: Mutex::new(LruCache::new(
+				NonZeroUsize::new(SYNTH_CACHE_CAP).expect("non-zero; qed"),
+			)),
 			_marker: PhantomData,
 		}
 	}
@@ -60,7 +75,16 @@ where
 		Decode::decode(&mut &data.0[..]).ok()
 	}
 
-	fn synthetic(&self, at: Hash) -> Vec<(EthTransaction, TransactionStatus, EthReceipt)> {
+	fn synthetic(&self, at: Hash) -> SynthTxs {
+		if let Some(hit) = self.cache.lock().expect("synth cache mutex; qed").get(&at) {
+			return (**hit).clone();
+		}
+		let txs = Arc::new(self.compute_synthetic(at));
+		self.cache.lock().expect("synth cache mutex; qed").put(at, txs.clone());
+		(*txs).clone()
+	}
+
+	fn compute_synthetic(&self, at: Hash) -> SynthTxs {
 		let records: Vec<EventRecord<RuntimeEvent, H256>> =
 			match self.read_decode(at, &storage_key(b"System", b"Events")) {
 				Some(r) => r,
@@ -99,10 +123,12 @@ where
 
 	fn current_block(&self, at: Hash) -> Option<EthBlock> {
 		let mut block = self.inner.current_block(at)?;
-		for (tx, status, _) in self.synthetic(at) {
-			for (h, s) in block.header.logs_bloom.0.iter_mut().zip(status.logs_bloom.0.iter()) {
-				*h |= *s;
-			}
+		// Append synth txs so `eth_getTransactionByHash`/`*_receipt` can index them
+		// (fc-rpc does `block.transactions[index]`). The header is left UNTOUCHED so
+		// the canonical eth block hash is preserved — surfacing synth logs in
+		// `eth_getLogs` is handled by `synthetic_eth_filter`, not by mutating the
+		// header bloom (which would change the block hash).
+		for (tx, _, _) in self.synthetic(at) {
 			block.transactions.push(tx);
 		}
 		Some(block)
