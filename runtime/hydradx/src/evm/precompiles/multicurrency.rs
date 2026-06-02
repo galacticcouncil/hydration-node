@@ -235,8 +235,6 @@ where
 			output: e.encode(),
 		})?;
 
-		crate::evm::precompiles::emit_buffered_evm_frame_logs(handle)?;
-
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
@@ -334,8 +332,6 @@ where
 			exit_status: ExitRevert::Reverted,
 			output: e.encode(),
 		})?;
-
-		crate::evm::precompiles::emit_buffered_evm_frame_logs(handle)?;
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}

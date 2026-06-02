@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "424.0.0"
+version = "425.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -21,7 +21,6 @@ smallvec = { workspace = true }
 log = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 evm = { workspace = true, features = ["with-codec"] }
-environmental = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 
@@ -265,7 +264,6 @@ std = [
     "codec/std",
     "serde",
     "scale-info/std",
-    "environmental/std",
     "frame-executive/std",
     "frame-support/std",
     "frame-system/std",

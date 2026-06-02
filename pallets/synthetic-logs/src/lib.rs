@@ -36,8 +36,6 @@ pub const SYNTH_SIG_RS: H256 = H256([
 	0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
 ]);
 
-pub const MAX_PENDING_LOGS: u32 = 4096;
-
 #[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug, PartialEq, Eq)]
 pub enum HookPhase {
 	Initialization,
