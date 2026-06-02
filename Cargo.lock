@@ -5757,7 +5757,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 4.3.1",
+ "pallet-staking 5.0.0",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
@@ -5779,7 +5779,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "421.0.0"
+version = "422.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5858,9 +5858,12 @@ dependencies = [
  "pallet-evm-precompile-call-permit",
  "pallet-evm-precompile-dispatch",
  "pallet-evm-precompile-flash-loan",
+ "pallet-evm-precompile-lock-manager",
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
  "pallet-genesis-history",
+ "pallet-gigahdx",
+ "pallet-gigahdx-rewards",
  "pallet-hsm",
  "pallet-identity",
  "pallet-lbp",
@@ -5884,7 +5887,7 @@ dependencies = [
  "pallet-session",
  "pallet-signet",
  "pallet-stableswap",
- "pallet-staking 4.3.1",
+ "pallet-staking 5.0.0",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -5940,7 +5943,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.7.1"
+version = "4.8.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9620,6 +9623,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-evm-precompile-lock-manager"
+version = "1.0.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "log",
+ "num_enum",
+ "pallet-evm",
+ "pallet-gigahdx",
+ "parity-scale-codec",
+ "precompile-utils",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-evm-precompile-modexp"
 version = "2.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2506#beba745d94f4e368adee4a4cddc014155fdbb5c7"
@@ -9668,6 +9690,53 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-gigahdx"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "parity-scale-codec",
+ "primitives",
+ "proptest",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-gigahdx-rewards"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-conviction-voting",
+ "pallet-gigahdx",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -10574,7 +10643,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "4.3.1"
+version = "5.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12836,7 +12905,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "6.3.0"
+version = "6.4.0"
 dependencies = [
  "frame-support",
  "hex-literal",
@@ -13800,7 +13869,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.87.0"
+version = "1.88.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -13863,6 +13932,8 @@ dependencies = [
  "pallet-evm",
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
+ "pallet-gigahdx",
+ "pallet-gigahdx-rewards",
  "pallet-hsm",
  "pallet-im-online",
  "pallet-lbp",
@@ -13879,7 +13950,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.3.1",
+ "pallet-staking 5.0.0",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
@@ -13945,7 +14016,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 4.3.1",
+ "pallet-staking 5.0.0",
  "primitives",
  "scraper",
  "serde",
