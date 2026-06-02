@@ -2930,6 +2930,132 @@ fn gigahdx_liquidation_should_force_remove_conflicting_vote() {
 	});
 }
 
+/// Reproduces code-review finding #1: a borrower whose conflicting vote sits on
+/// a *completed* referendum can no longer be liquidated.
+///
+/// `clear_conflicting_votes` must resolve a vote's track class before it can
+/// call `remove_vote`. It reads `ReferendumTracks` (the rewards cache) and
+/// falls back to `ReferendumInfoFor` — but completed referenda carry no track
+/// id on this SDK, and `ReferendumTracks[ref]` is *pruned* the moment the
+/// referendum's reward pool is allocated (the first post-completion remover
+/// triggers `maybe_allocate_and_record`). Once both are gone the class is
+/// unresolvable, so `clear_conflicting_votes` returns `DispatchError::Other`,
+/// which the `#[transactional]` `liquidate_gigahdx` turns into a full revert —
+/// the underwater position becomes permanently unliquidatable.
+///
+/// Scenario: Alice (the borrower) and Bob both stake and vote with conviction
+/// on the same referendum. The referendum completes; Bob removes his vote,
+/// which allocates the pool and prunes `ReferendumTracks`. Alice never removes
+/// hers. When liquidation tries to clear Alice's conflicting vote, the class is
+/// unresolvable.
+///
+/// This test asserts the *correct* (post-fix) behaviour: the clearance must
+/// succeed and drop Alice's freeze. It therefore FAILS on the current code at
+/// the `clear_conflicting_votes` call — that failure is the bug.
+#[test]
+fn gigahdx_liquidation_should_clear_vote_when_referendum_already_completed() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		use crate::liquidation::{borrow, get_user_account_data};
+		use hydradx_runtime::gigahdx::RuntimeReferenda;
+		use hydradx_traits::gigahdx::Seize;
+		use pallet_gigahdx_rewards::traits::{ClearConflictingVotes, ReferendaTrackInspect};
+
+		let (alice, bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
+		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
+
+		// Bob is bound by `liquidation_test_setup` but not funded — give him HDX
+		// so he can stake and become a tracked voter.
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			bob.clone(),
+			100_000 * UNITS,
+		));
+
+		// Both Alice and Bob stake and vote on the SAME referendum with
+		// conviction. Bob must be a staker so his post-completion `remove_vote`
+		// fires `on_remove_vote(Completed)` → allocates the pool → prunes
+		// `ReferendumTracks`.
+		let stake_amount = 10_000 * UNITS;
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), stake_amount));
+
+		let ref_index = begin_referendum_by_bob();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			ref_index,
+			aye_with_conviction(stake_amount, Conviction::Locked3x),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(bob.clone()),
+			ref_index,
+			aye_with_conviction(stake_amount, Conviction::Locked3x),
+		));
+		assert_eq!(
+			pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen,
+			stake_amount,
+			"alice's full stake is frozen by her vote"
+		);
+
+		// Alice borrows HOLLAR and the price is crashed → her position is
+		// underwater (this is the position liquidation must be able to close).
+		let borrow_amount: Balance = 5 * HOLLAR_DECIMALS_18;
+		borrow(pool, alice_evm, hollar_addr, borrow_amount);
+		fund_treasury_for_liquidation(pool);
+		crash_st_hdx_price(oracle, st_hdx_evm);
+		let alice_data = get_user_account_data(pool, alice_evm).unwrap();
+		assert!(alice_data.health_factor < U256::from(1_000_000_000_000_000_000u128));
+
+		// The referendum completes. Bob removes his vote post-completion, which
+		// allocates the reward pool and PRUNES `ReferendumTracks[ref_index]`.
+		let now = System::block_number();
+		fast_forward_to(now + 12 * DAYS);
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(bob.clone()),
+			Some(0), // root track
+			ref_index,
+		));
+
+		// Precondition for the bug: the track is now unresolvable by either
+		// source `clear_conflicting_votes` consults.
+		assert!(
+			pallet_gigahdx_rewards::ReferendumTracks::<Runtime>::get(ref_index).is_none(),
+			"track cache pruned by pool allocation"
+		);
+		assert!(
+			RuntimeReferenda::track_of(ref_index).is_none(),
+			"completed referendum exposes no track id on this SDK"
+		);
+		// Alice's stale vote record is still present and still freezes her stake.
+		assert!(
+			pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::get(&alice, ref_index).is_some(),
+			"alice never removed her vote"
+		);
+
+		// Snapshot the stake exactly as `liquidate_gigahdx` does, then attempt
+		// the vote clearance the extrinsic performs before the seize.
+		let (_orig_hdx, _orig_gigahdx) =
+			<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::snapshot_stake(&alice).unwrap();
+
+		// EXPECTED (post-fix): clearance succeeds and Alice's freeze drops, so
+		// the seize can proceed. On the current code this returns
+		// `Err(DispatchError::Other("gigahdx: cannot resolve class for vote"))`,
+		// which `liquidate_gigahdx` would surface as `ClearVotingLocksFailed`
+		// and revert — that is the bug this test demonstrates.
+		let cleared =
+			<hydradx_runtime::gigahdx::GigaHdxVoteClearance as ClearConflictingVotes<AccountId>>::clear_conflicting_votes(
+				&alice, 0,
+			)
+			.expect("must clear a conflicting vote even on a completed/pruned referendum");
+		assert_eq!(cleared, 1, "exactly one vote removed");
+		assert_eq!(
+			pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen,
+			0,
+			"frozen must drop so the seize can transfer alice's HDX"
+		);
+	});
+}
+
 // ============================================================================
 // HOLLAR borrow regression baseline.
 //

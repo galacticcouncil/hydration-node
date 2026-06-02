@@ -240,17 +240,28 @@ impl pallet_gigahdx_rewards::traits::ClearConflictingVotes<AccountId> for GigaHd
 				.collect();
 		let mut count = 0u32;
 		for ref_index in to_remove {
-			let class = pallet_gigahdx_rewards::ReferendumTracks::<Runtime>::get(ref_index)
-				.or_else(|| {
-					use pallet_referenda::ReferendumInfo;
-					match pallet_referenda::ReferendumInfoFor::<Runtime>::get(ref_index)? {
-						ReferendumInfo::Ongoing(status) => Some(status.track),
+			// Resolve the poll's class from conviction-voting's own ledger: the
+			// vote sits in `VotingFor[who][class]` whether the referendum is
+			// ongoing or completed. `remove_vote` requires `Some(class)` for a
+			// completed poll (it can only infer the class of an ongoing one),
+			// and neither the rewards `ReferendumTracks` cache (pruned once the
+			// reward pool is allocated) nor `ReferendumInfoFor` (no track id on
+			// completed variants) survives long enough to be a reliable source.
+			let class =
+				pallet_conviction_voting::VotingFor::<Runtime>::iter_prefix(who).find_map(
+					|(class, voting)| match voting {
+						pallet_conviction_voting::Voting::Casting(casting) => {
+							casting.votes.iter().any(|(idx, _)| *idx == ref_index).then_some(class)
+						}
 						_ => None,
-					}
-				})
-				.ok_or(sp_runtime::DispatchError::Other(
-					"gigahdx: cannot resolve class for vote",
-				))?;
+					},
+				);
+			// No live conviction vote for this ref — the rewards record is stale
+			// (the vote was already removed elsewhere, which fired the unfreeze).
+			// Skip rather than abort the whole liquidation.
+			let Some(class) = class else {
+				continue;
+			};
 			let origin: crate::RuntimeOrigin = frame_system::RawOrigin::Signed(who.clone()).into();
 			pallet_conviction_voting::Pallet::<Runtime>::remove_vote(origin, Some(class), ref_index)?;
 			count = count.saturating_add(1);
