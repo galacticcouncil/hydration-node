@@ -295,3 +295,60 @@ fn finalise_seize_should_succeed_when_borrower_has_no_unlocked_balance() {
 		assert_eq!(locked_under_ghdx(TREASURY), seize_h);
 	});
 }
+
+// `on_seize` is handed `seize_gigahdx` measured against the borrower's *live*
+// aToken balance, while `orig_gigahdx` is the pallet's ledger snapshot. They
+// are equal while the stHDX invariants hold (mint-exclusive + non-borrowable).
+// If a future config change ever lets the live balance exceed the snapshot, the
+// defensive tripwire must fire: in debug/fuzz builds the `debug_assert` panics
+// so the broken invariant is surfaced loudly; release builds compile the assert
+// out and clamp so the seize lands instead of underflow-reverting the whole
+// liquidation. The two variants pin both halves (CI runs `test --release`).
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic(expected = "exceeds orig_gigahdx snapshot")]
+fn on_seize_should_panic_in_debug_when_seize_gigahdx_exceeds_snapshot() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+		let orig_gigahdx = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
+		// Live aToken (150) > snapshot (100) → debug_assert panics.
+		let _ = <GigaHdxSeize as Seize<AccountId>>::on_seize(
+			&ALICE,
+			&TREASURY,
+			50 * ONE,
+			orig_gigahdx + 50 * ONE,
+			orig_gigahdx,
+		);
+	});
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn on_seize_should_clamp_in_release_when_seize_gigahdx_exceeds_snapshot() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+		let orig_gigahdx = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
+		assert_eq!(orig_gigahdx, 100 * ONE);
+
+		// Release degrades gracefully: clamps instead of underflow-reverting.
+		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::on_seize(
+			&ALICE,
+			&TREASURY,
+			50 * ONE,
+			orig_gigahdx + 50 * ONE,
+			orig_gigahdx,
+		));
+
+		// Borrower's residual gigahdx clamps to zero (never underflows).
+		let alice = Stakes::<Test>::get(ALICE).unwrap();
+		assert_eq!(alice.gigahdx, 0);
+		assert_eq!(alice.hdx, 50 * ONE);
+		assert_eq!(locked_under_ghdx(ALICE), 50 * ONE);
+
+		// Recipient is credited the real seized aToken (unclamped — it genuinely
+		// received that balance from Aave) and the seized HDX.
+		let recipient = Stakes::<Test>::get(TREASURY).unwrap();
+		assert_eq!(recipient.hdx, 50 * ONE);
+		assert_eq!(recipient.gigahdx, orig_gigahdx + 50 * ONE);
+	});
+}

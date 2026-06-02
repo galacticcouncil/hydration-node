@@ -952,8 +952,10 @@ pub mod pallet {
 
 		/// `orig_gigahdx` is the borrower's pre-seize aToken balance from
 		/// `snapshot_stake`; `on_pre_seize` has since zeroed the stored value,
-		/// so the residual cannot be derived from state here. The `checked_sub`
-		/// also rejects a `seize_gigahdx` larger than the snapshot.
+		/// so the residual cannot be derived from state here. Both seize amounts
+		/// are clamped to the borrower's staked/snapshot values (see body) so the
+		/// seize degrades gracefully if a future stHDX-invariant break ever lets
+		/// the live balance exceed the snapshot, rather than reverting.
 		#[transactional]
 		fn on_seize(
 			borrower: &T::AccountId,
@@ -962,24 +964,32 @@ pub mod pallet {
 			seize_gigahdx: Balance,
 			orig_gigahdx: Balance,
 		) -> DispatchResult {
+			// `seize_hdx`/`seize_gigahdx` are measured against the borrower's live
+			// balances; clamp them to the staked/snapshot values so a future
+			// stHDX-invariant break degrades gracefully in release instead of
+			// underflow-reverting the liquidation. The debug_asserts keep the
+			// broken state fail-loud under test/fuzz.
+			// `None` means no stake; the try_mutate below returns `NoStake`. Only
+			// assert/clamp `seize_hdx` when a stake exists so that error path stays
+			// graceful.
+			let maybe_staked_hdx = Stakes::<T>::get(borrower).map(|s| s.hdx);
+			debug_assert!(
+				seize_gigahdx <= orig_gigahdx,
+				"on_seize: seize_gigahdx ({seize_gigahdx:?}) exceeds orig_gigahdx snapshot ({orig_gigahdx:?})",
+			);
+			debug_assert!(
+				maybe_staked_hdx.is_none_or(|h| seize_hdx <= h),
+				"on_seize: seize_hdx ({seize_hdx:?}) exceeds staked hdx ({maybe_staked_hdx:?})",
+			);
+			let seize_hdx = maybe_staked_hdx.map_or(seize_hdx, |h| seize_hdx.min(h));
+
 			Stakes::<T>::try_mutate(borrower, |maybe| -> DispatchResult {
 				let s = maybe.as_mut().ok_or(Error::<T>::NoStake)?;
-				// `seize_gigahdx` must not exceed the borrower's snapshot — a
-				// larger ask means the caller mis-computed the pro-rata split.
-				// Treated as unreachable in production; the debug_assert turns
-				// it into a hard panic under fuzzing instead of a silent
-				// `SeizeFailed` revert.
-				debug_assert!(
-					seize_gigahdx <= orig_gigahdx,
-					"on_seize: seize_gigahdx ({seize_gigahdx:?}) exceeds orig_gigahdx snapshot ({orig_gigahdx:?})",
-				);
-				let residual_borrower_gigahdx =
-					orig_gigahdx.checked_sub(seize_gigahdx).ok_or(Error::<T>::SeizeFailed)?;
-				s.hdx = s.hdx.checked_sub(seize_hdx).ok_or(Error::<T>::Overflow)?;
+				s.hdx = s.hdx.saturating_sub(seize_hdx);
 				// Votes stay intact across a seize; clamp `frozen` so the
 				// `hdx >= frozen` invariant still holds on the residual stake.
 				s.frozen = s.frozen.min(s.hdx);
-				s.gigahdx = residual_borrower_gigahdx;
+				s.gigahdx = orig_gigahdx.saturating_sub(seize_gigahdx);
 				Ok(())
 			})?;
 			// Shrink the borrower's lock *before* withdrawing. The stale
