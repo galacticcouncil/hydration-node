@@ -19,6 +19,8 @@ use pallet_conviction_voting::{AccountVote, Conviction, Status, VotingHooks};
 use primitives::Balance;
 use sp_std::marker::PhantomData;
 
+const LOG_TARGET: &str = "gigahdx-rewards::voting_hooks";
+
 /// `VotingHooks` impl for this pallet. The runtime wires this through a
 /// tuple adapter alongside any other consumer (typically staking).
 pub struct VotingHooksImpl<T>(PhantomData<T>);
@@ -105,25 +107,36 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 		};
 		pallet_gigahdx::Pallet::<T>::unfreeze(who, record.staked_vote_amount);
 
-		// Maintain the live tally only while the ref is still pre-allocation.
-		// Pool presence = "allocation has run" idempotency signal.
-		if !ReferendaRewardPool::<T>::contains_key(ref_index) {
-			ReferendaTotalWeightedVotes::<T>::mutate_exists(ref_index, |maybe| {
-				if let Some(tally) = maybe.as_mut() {
-					tally.total_weighted = tally.total_weighted.saturating_sub(record.weighted);
-					tally.voters_count = tally.voters_count.saturating_sub(1);
-					if tally.voters_count == 0 {
-						*maybe = None;
-					}
-				}
-			});
-		}
-
-		if !matches!(status, Status::Completed) {
+		// Pool presence = "allocation has run" idempotency signal. A counted
+		// voter that arrives after allocation MUST always be recorded against
+		// the pool — regardless of the (possibly pruned, `Status::None`)
+		// referendum status — or `voters_remaining` never reaches zero and the
+		// pool entry plus this voter's pro-rata share leak permanently.
+		if ReferendaRewardPool::<T>::contains_key(ref_index) {
+			if let Err(e) = Pallet::<T>::record_user_reward(who, ref_index, &record) {
+				debug_assert!(false, "record_user_reward failed in on_remove_vote: {e:?}");
+				log::error!(target: LOG_TARGET, "record_user_reward failed for ref {ref_index:?}: {e:?}");
+			}
 			return;
 		}
 
-		let _ = maybe_allocate_and_record::<T>(who, ref_index, &record);
+		// Pre-allocation: drop this voter from the live tally.
+		ReferendaTotalWeightedVotes::<T>::mutate_exists(ref_index, |maybe| {
+			if let Some(tally) = maybe.as_mut() {
+				tally.total_weighted = tally.total_weighted.saturating_sub(record.weighted);
+				tally.voters_count = tally.voters_count.saturating_sub(1);
+				if tally.voters_count == 0 {
+					*maybe = None;
+				}
+			}
+		});
+
+		if matches!(status, Status::Completed) {
+			if let Err(e) = maybe_allocate_and_record::<T>(who, ref_index, &record) {
+				debug_assert!(false, "maybe_allocate_and_record failed in on_remove_vote: {e:?}");
+				log::error!(target: LOG_TARGET, "maybe_allocate_and_record failed for ref {ref_index:?}: {e:?}");
+			}
+		}
 	}
 
 	fn lock_balance_on_unsuccessful_vote(_who: &T::AccountId, _ref_index: ReferendumIndex) -> Option<Balance> {
@@ -133,11 +146,38 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 		None
 	}
 
+	// `on_before_vote` / `on_remove_vote` short-circuit at `Stakes[who].hdx == 0`,
+	// so the conviction-voting `vote` / `remove_vote` benchmarks must make `who`
+	// a gigahdx staker for their weight to cover this hook's per-vote storage
+	// writes (tally + `UserVoteRecords` + `freeze`/`unfreeze`). Seed the record
+	// directly — the hook only reads `.hdx` and mutates `.frozen`, so no
+	// money-market / lock setup is needed.
+	//
+	// The one-time-per-referendum allocation path (`Status::Completed` → pot
+	// transfer + `record_user_reward`) is not reachable here: the benchmark's
+	// poll stays Ongoing, so that bounded cost is paid by — and documented on —
+	// the first post-completion remover rather than charged per vote.
 	#[cfg(feature = "runtime-benchmarks")]
-	fn on_vote_worst_case(_who: &T::AccountId) {}
+	fn on_vote_worst_case(who: &T::AccountId) {
+		seed_staker_worst_case::<T>(who);
+	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn on_remove_vote_worst_case(_who: &T::AccountId) {}
+	fn on_remove_vote_worst_case(who: &T::AccountId) {
+		seed_staker_worst_case::<T>(who);
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+fn seed_staker_worst_case<T: Config>(who: &T::AccountId) {
+	pallet_gigahdx::Stakes::<T>::insert(
+		who,
+		pallet_gigahdx::StakeRecord {
+			hdx: 1_000_000_000_000_000,
+			gigahdx: 1_000_000_000_000_000,
+			..Default::default()
+		},
+	);
 }
 
 /// Allocate the pool on first call for a completed referendum, then credit

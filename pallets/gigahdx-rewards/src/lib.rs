@@ -28,9 +28,9 @@
 //! - First `on_remove_vote` for a completed referendum lazily transfers
 //!   `track_pct × accumulator_balance` into the allocated pot and snapshots
 //!   the frozen denominator.
-//! - Per-user shares are pro-rata against that frozen denominator. The last
-//!   claimant scoops any remaining dust, draining the pool to exactly zero
-//!   and triggering storage cleanup.
+//! - Per-user shares are pro-rata against that frozen denominator. Once the
+//!   last counted voter is paid, any rounding dust left in the pool is
+//!   recycled to the accumulator pot and the pool entry is cleaned up.
 //! - `claim_rewards` atomically compounds the user's accumulated HDX back
 //!   into their gigahdx position.
 

@@ -4387,3 +4387,68 @@ fn gigahdx_liquidation_e2e_should_seize_when_borrower_has_unrelated_lock() {
 		);
 	});
 }
+
+//TODO: fix before merge as dust can bloat the chain
+/// Full unstake at a rounding rate folds the unbacked principal residue into
+/// the cooldown payout, so no dust strands in `Stakes.hdx`. After cooldown +
+/// unlock both the `Stakes` record and the `ghdxlock` are reaped.
+#[test]
+fn full_unstake_should_reap_record_when_rate_causes_rounding() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let (alice, gigahdx) = stake_two_then_set_rounding_rate();
+
+		let stake_before = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake exists");
+		assert_eq!(stake_before.hdx, 100 * UNITS);
+		assert_eq!(stake_before.gigahdx, gigahdx);
+
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), gigahdx));
+
+		let stake_after = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("record persists");
+		assert_eq!(stake_after.gigahdx, 0, "all gigahdx burned");
+		assert_eq!(stake_after.hdx, 0);
+
+		let small_principal: Balance = 7 * UNITS;
+
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(alice.clone()),
+			small_principal,
+		));
+		let after_restake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake exists");
+		let gigahdx_minted = after_restake.gigahdx;
+
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			gigahdx_minted,
+		));
+
+		// Rounding residue is folded into the cooldown payout, not stranded.
+		let stake_final = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("record persists");
+		assert_eq!(stake_final.gigahdx, 0, "all gigahdx burned");
+		assert_eq!(stake_final.hdx, 0, "residue folded into payout — no dust in Stakes.hdx");
+
+		// Fast-forward past the cooldown and unlock the compounded position.
+		let positions: Vec<_> = pallet_gigahdx::PendingUnstakes::<Runtime>::iter_prefix(&alice).collect();
+		assert_eq!(positions.len(), 1);
+		let cooldown: hydradx_runtime::BlockNumber = <Runtime as pallet_gigahdx::Config>::CooldownPeriod::get();
+		let expiry = positions[0].0 + cooldown;
+		System::set_block_number(expiry);
+		for (id, _) in positions {
+			assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), id));
+		}
+		assert_eq!(pending_count(&alice), 0, "all pending positions released");
+
+		// Record reaped: nothing backs it once the dust is reclaimed.
+		assert!(
+			pallet_gigahdx::Stakes::<Runtime>::get(&alice).is_none(),
+			"stake record reaped after full unstake + unlock",
+		);
+
+		// Lock reaped: no residual ghdxlock dust.
+		assert_eq!(
+			locked_under_ghdx(&alice),
+			0,
+			"ghdxlock fully released — no permanent lock dust",
+		);
+	});
+}

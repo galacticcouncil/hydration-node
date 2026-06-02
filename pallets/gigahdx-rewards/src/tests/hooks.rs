@@ -430,6 +430,52 @@ fn on_remove_vote_should_record_user_reward_pro_rata() {
 }
 
 #[test]
+fn on_remove_vote_should_record_counted_voter_when_referendum_pruned_after_allocation() {
+	ExtBuilder::default()
+		.with_accumulator(1_000 * ONE)
+		.build()
+		.execute_with(|| {
+			stake(ALICE, 100 * ONE);
+			stake(BOB, 100 * ONE);
+
+			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+				&ALICE,
+				REF_A,
+				standard_vote(true, Conviction::Locked1x, 10 * ONE),
+			));
+			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+				&BOB,
+				REF_A,
+				standard_vote(true, Conviction::Locked1x, 10 * ONE),
+			));
+
+			// Alice finalizes the referendum: pool allocated, alice recorded.
+			VotingHooksImpl::<Test>::on_remove_vote(&ALICE, REF_A, Status::Completed);
+			let pool = ReferendaRewardPool::<Test>::get(REF_A).expect("pool created");
+			assert_eq!(pool.voters_remaining, 1, "bob still outstanding");
+			assert_eq!(PendingRewards::<Test>::get(ALICE), 50 * ONE);
+
+			let acc_before = account_balance(&accumulator_pot());
+			let alloc_before = account_balance(&allocated_pot());
+
+			// Bob removes his vote only after the referendum info was pruned, so
+			// the hook sees `Status::None`. He is still a counted voter and must
+			// be accounted against the allocated pool — otherwise the pool entry
+			// and his pro-rata share leak permanently.
+			VotingHooksImpl::<Test>::on_remove_vote(&BOB, REF_A, Status::None);
+
+			assert_eq!(PendingRewards::<Test>::get(BOB), 50 * ONE, "bob credited his share");
+			assert!(
+				ReferendaRewardPool::<Test>::get(REF_A).is_none(),
+				"pool reaped once the last counted voter is accounted",
+			);
+			// Even split (no rounding remainder) → no recycle and no re-allocation.
+			assert_eq!(account_balance(&allocated_pot()), alloc_before, "no spurious transfer");
+			assert_eq!(account_balance(&accumulator_pot()), acc_before, "no re-allocation");
+		});
+}
+
+#[test]
 fn on_remove_vote_should_accumulate_pending_rewards_across_referenda() {
 	ExtBuilder::default()
 		.with_accumulator(1_000 * ONE)
@@ -638,4 +684,85 @@ fn on_remove_vote_should_emit_pool_allocated_event() {
 				RuntimeEvent::GigaHdxRewards(Event::RewardPoolAllocated { ref_index, .. }) if *ref_index == REF_A
 			)));
 		});
+}
+
+/// Sybil-resistance: splitting the same stake across two accounts must not earn
+/// more than a single account voting with the combined stake. Weighted votes
+/// are linear in stake and the pool is a fixed pro-rata split, so two half-votes
+/// sum to exactly one full vote. An honest co-voter (BOB) is present in both
+/// scenarios so the attacker competes for a *shared* pool — a solo voter would
+/// trivially scoop 100% either way. Scaled down from the 1M / 500K+500K example;
+/// the property is scale-invariant.
+#[test]
+fn on_remove_vote_should_not_reward_more_when_voter_splits_stake_across_accounts() {
+	// Scenario A — one account votes the full stake (ALICE = attacker).
+	let single = ExtBuilder::default()
+		.with_accumulator(1_000 * ONE)
+		.build()
+		.execute_with(|| {
+			stake(ALICE, 600 * ONE);
+			stake(BOB, 400 * ONE);
+
+			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+				&ALICE,
+				REF_A,
+				standard_vote(true, Conviction::Locked6x, 600 * ONE),
+			));
+			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+				&BOB,
+				REF_A,
+				standard_vote(true, Conviction::Locked6x, 400 * ONE),
+			));
+			// weighted (×8): ALICE 4800, BOB 3200 → total 8000 ONE.
+
+			// Attacker removes first (not last → no dust scoop); BOB last.
+			VotingHooksImpl::<Test>::on_remove_vote(&ALICE, REF_A, Status::Completed);
+			VotingHooksImpl::<Test>::on_remove_vote(&BOB, REF_A, Status::Completed);
+
+			// pool = 10% of 1000 = 100 ONE. ALICE = floor(4800·100/8000) = 60.
+			assert_eq!(PendingRewards::<Test>::get(ALICE), 60 * ONE);
+			assert_eq!(PendingRewards::<Test>::get(BOB), 40 * ONE);
+			PendingRewards::<Test>::get(ALICE)
+		});
+
+	// Scenario B — same stake split across two accounts (ALICE + CHARLIE),
+	// honest co-voter BOB unchanged.
+	let split = ExtBuilder::default()
+		.with_accumulator(1_000 * ONE)
+		.build()
+		.execute_with(|| {
+			stake(ALICE, 300 * ONE);
+			stake(CHARLIE, 300 * ONE);
+			stake(BOB, 400 * ONE);
+
+			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+				&ALICE,
+				REF_A,
+				standard_vote(true, Conviction::Locked6x, 300 * ONE),
+			));
+			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+				&CHARLIE,
+				REF_A,
+				standard_vote(true, Conviction::Locked6x, 300 * ONE),
+			));
+			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+				&BOB,
+				REF_A,
+				standard_vote(true, Conviction::Locked6x, 400 * ONE),
+			));
+			// weighted (×8): 2400 + 2400 + 3200 → total 8000 ONE (identical).
+
+			VotingHooksImpl::<Test>::on_remove_vote(&ALICE, REF_A, Status::Completed);
+			VotingHooksImpl::<Test>::on_remove_vote(&CHARLIE, REF_A, Status::Completed);
+			VotingHooksImpl::<Test>::on_remove_vote(&BOB, REF_A, Status::Completed);
+
+			// ALICE = CHARLIE = floor(2400·100/8000) = 30 each.
+			assert_eq!(PendingRewards::<Test>::get(ALICE), 30 * ONE);
+			assert_eq!(PendingRewards::<Test>::get(CHARLIE), 30 * ONE);
+			assert_eq!(PendingRewards::<Test>::get(BOB), 40 * ONE);
+			PendingRewards::<Test>::get(ALICE) + PendingRewards::<Test>::get(CHARLIE)
+		});
+
+	assert!(split <= single, "splitting stake must never increase rewards");
+	assert_eq!(split, single, "split {split} must equal single {single}");
 }

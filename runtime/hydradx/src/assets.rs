@@ -1894,7 +1894,7 @@ parameter_types! {
 	pub const StHdxAssetId: AssetId = 670;
 	pub const GigaHdxAssetIdConst: AssetId = 67;
 	pub const GigaHdxMinStake: Balance = UNITS;
-	pub const GigaHdxCooldownPeriod: BlockNumber = 30 * DAYS;
+	pub const GigaHdxCooldownPeriod: BlockNumber = 28 * DAYS;
 	pub const GigaHdxMaxPendingUnstakes: u32 = 10;
 }
 
