@@ -2342,7 +2342,14 @@ impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for Referral
 	type Error = sp_runtime::DispatchError;
 
 	fn destination() -> AccountId {
-		pallet_referrals::Pallet::<Runtime>::pot_account_id()
+		// With no shareholders the accumulator can't attribute a deposit (it divides by
+		// `TotalShares`), so route the slice to the treasury instead of stranding it in the pot
+		// where nobody could ever claim it (audit 2026-06-02, finding 5).
+		if pallet_referrals::Pallet::<Runtime>::total_shares() == 0 {
+			TreasuryAccount::get()
+		} else {
+			pallet_referrals::Pallet::<Runtime>::pot_account_id()
+		}
 	}
 
 	fn percentage() -> Permill {
@@ -2354,6 +2361,11 @@ impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for Referral
 	}
 
 	fn on_fee_received(amount: Balance) -> Result<(), Self::Error> {
+		// Mirror `destination()`: with no shareholders the slice went to the treasury, not the
+		// pot, so there is nothing to accrue into the accumulator.
+		if pallet_referrals::Pallet::<Runtime>::total_shares() == 0 {
+			return Ok(());
+		}
 		pallet_referrals::Pallet::<Runtime>::on_hdx_deposited(amount)
 	}
 }

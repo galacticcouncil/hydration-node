@@ -132,17 +132,19 @@ pub mod pallet {
 		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
 			let convert_weight = T::WeightInfo::convert();
 
-			if remaining_weight.ref_time() < convert_weight.ref_time() {
+			// Budget conversions against BOTH weight dimensions: each `do_convert` runs a real
+			// Omnipool sell with non-trivial proof size, so gating on `ref_time` alone could
+			// overweight the block's PoV. A zero-cost dimension imposes no limit.
+			let fits = |budget: u64, cost: u64| if cost == 0 { u64::MAX } else { budget / cost };
+			let max_conversions = fits(remaining_weight.ref_time(), convert_weight.ref_time())
+				.min(fits(remaining_weight.proof_size(), convert_weight.proof_size()))
+				.min(T::MaxConversionsPerBlock::get() as u64);
+
+			if max_conversions == 0 {
 				return Weight::zero();
 			}
 
 			let mut used_weight = Weight::zero();
-
-			let max_conversions = remaining_weight
-				.ref_time()
-				.checked_div(convert_weight.ref_time())
-				.unwrap_or(0)
-				.min(T::MaxConversionsPerBlock::get() as u64);
 
 			for asset_id in PendingConversions::<T>::iter_keys().take(max_conversions as usize) {
 				match Self::do_convert(asset_id) {

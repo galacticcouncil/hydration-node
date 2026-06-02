@@ -130,7 +130,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
 	spec_version: 425,
-	impl_version: 0,
+	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
 	system_version: 1,
@@ -379,6 +379,7 @@ mod benches {
 		[pallet_omnipool, benchmarking::omnipool::Benchmark]
 		[pallet_route_executor, benchmarking::route_executor::Benchmark]
 		[pallet_dca, benchmarking::dca::Benchmark]
+		[pallet_fee_processor, benchmarking::fee_processor::Benchmark]
 		[pallet_xyk, benchmarking::xyk::Benchmark]
 		[pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee::Benchmark]
 		[pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining::Benchmark]

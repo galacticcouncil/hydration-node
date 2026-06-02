@@ -139,7 +139,7 @@ fn initialize_yield_farm(owner: AccountId, id: GlobalFarmId, asset: AssetId) -> 
 	OmnipoolLiquidityMining::create_yield_farm(RawOrigin::Signed(owner).into(), id, asset, FixedU128::one(), None)
 }
 
-fn initialize_omnipool(additional_asset: Option<AssetId>) -> DispatchResult {
+pub fn initialize_omnipool(additional_asset: Option<AssetId>) -> DispatchResult {
 	let stable_amount: Balance = 1_000_000_000_000_000u128;
 	let native_amount: Balance = 1_000_000_000_000_000u128;
 	let stable_price: FixedU128 = FixedU128::from((1, 2));

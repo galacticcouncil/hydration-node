@@ -18,6 +18,7 @@
 mod claim;
 mod flow;
 mod link;
+mod migration;
 mod mock_amm;
 mod register;
 mod tiers;
