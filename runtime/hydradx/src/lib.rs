@@ -1051,13 +1051,6 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl evm::event_logs::SyntheticEthLogsApi<Block> for Runtime {
-		fn synthetic_transactions(
-		) -> Vec<(pallet_ethereum::Transaction, pallet_ethereum::TransactionStatus, pallet_ethereum::Receipt)> {
-			evm::event_logs::synthetic_transactions()
-		}
-	}
-
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: polkadot_xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
 			if !matches!(xcm_version, 3..=5) {

@@ -17,8 +17,7 @@ use super::synthetic_logs::{
 	account_to_evm_address, assemble_synth_txs, asset_evm_address, build_erc20_transfer_log, build_uniswap_v2_swap_log,
 	frozen_address_of, reserved_address_of, Bucket, HookPhase,
 };
-use crate::{Runtime, RuntimeEvent};
-use frame_support::traits::Get;
+use crate::RuntimeEvent;
 use frame_system::{EventRecord, Phase};
 use pallet_broadcast::types::{Asset, ExecutionType, TradeOperation};
 use pallet_ethereum::{Receipt, Transaction, TransactionStatus};
@@ -26,20 +25,8 @@ use primitive_types::{H160, U256};
 use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::AccountId;
 use sp_core::H256;
-use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
-
-sp_api::decl_runtime_apis! {
-	/// Synthetic ethereum tx records derived from a block's substrate events,
-	/// for the node's eth-rpc indexing layer. Read-only; no consensus state.
-	pub trait SyntheticEthLogsApi {
-		/// `(transaction, status, receipt)` triples for the block at which this
-		/// API is invoked, assembled from `frame_system::Events`. Indices
-		/// continue after the block's real eth txs.
-		fn synthetic_transactions() -> Vec<(Transaction, TransactionStatus, Receipt)>;
-	}
-}
 
 const ZERO: H160 = H160([0u8; 20]);
 
@@ -377,20 +364,6 @@ pub fn synthetic_txs_from_records(
 		return Vec::new();
 	}
 	assemble_synth_txs(entries, chain_id, parent_hash, block_number, base_tx_index)
-}
-
-/// Runtime-API impl: gather this block's events + context from state, then
-/// delegate to the pure `synthetic_txs_from_records`.
-pub fn synthetic_transactions() -> Vec<(Transaction, TransactionStatus, Receipt)> {
-	let records: Vec<_> = frame_system::Pallet::<Runtime>::read_events_no_consensus()
-		.map(|boxed| *boxed)
-		.collect();
-	let chain_id = <Runtime as pallet_evm::Config>::ChainId::get();
-	let parent_hash = frame_system::Pallet::<Runtime>::parent_hash();
-	let block_number =
-		UniqueSaturatedInto::<u64>::unique_saturated_into(frame_system::Pallet::<Runtime>::block_number());
-	let real_statuses = pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get().unwrap_or_default();
-	synthetic_txs_from_records(&records, chain_id, parent_hash.as_ref(), block_number, &real_statuses)
 }
 
 #[cfg(test)]
