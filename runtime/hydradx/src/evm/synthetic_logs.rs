@@ -9,9 +9,6 @@
 //! assembles and serves these off-chain over eth json-rpc by calling
 //! `event_logs::synthetic_txs_from_records`; nothing here touches chain state.
 
-#[cfg(test)]
-mod tests;
-
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethereum::EIP1559Transaction;
 use ethereum_types::{Bloom, BloomInput, H160, H256, U256};
@@ -316,5 +313,380 @@ fn origin_tag(origin: &ExecutionType) -> u64 {
 		ExecutionType::Omnipool(id) => 0x0400_0000_0000 | (*id as u64),
 		ExecutionType::XcmExchange(id) => 0x0500_0000_0000 | (*id as u64),
 		ExecutionType::Xcm(_, id) => 0x0600_0000_0000 | (*id as u64),
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use ethereum_types::{H160, U256};
+
+	#[test]
+	fn h160_to_h256_left_pads_with_zeros() {
+		let addr = H160([
+			0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa,
+			0xbb, 0xcc,
+		]);
+		let topic = h160_to_h256(addr);
+		// First 12 bytes zero, last 20 bytes are the address.
+		assert_eq!(&topic.0[..12], &[0u8; 12]);
+		assert_eq!(&topic.0[12..], &addr.0[..]);
+	}
+
+	#[test]
+	fn encode_u256_be_round_trip() {
+		let value = U256::from(123_456_789u64);
+		let encoded = encode_u256_be(value);
+		assert_eq!(encoded.len(), 32);
+		assert_eq!(U256::from_big_endian(&encoded), value);
+	}
+
+	#[test]
+	fn encode_uint256_quad_is_128_bytes() {
+		let data = encode_uint256_quad(U256::from(1u64), U256::from(2u64), U256::from(3u64), U256::from(4u64));
+		assert_eq!(data.len(), 128);
+		assert_eq!(U256::from_big_endian(&data[0..32]), U256::from(1u64));
+		assert_eq!(U256::from_big_endian(&data[32..64]), U256::from(2u64));
+		assert_eq!(U256::from_big_endian(&data[64..96]), U256::from(3u64));
+		assert_eq!(U256::from_big_endian(&data[96..128]), U256::from(4u64));
+	}
+
+	#[test]
+	fn build_erc20_transfer_log_matches_erc20_transfer_shape() {
+		let token = H160::repeat_byte(0xAB);
+		let from = H160::repeat_byte(0x11);
+		let to = H160::repeat_byte(0x22);
+		let log = build_erc20_transfer_log(token, from, to, U256::from(1_000u64));
+
+		assert_eq!(log.address, token);
+		assert_eq!(log.topics.len(), 3);
+		assert_eq!(log.topics[0], TRANSFER_TOPIC);
+		assert_eq!(log.topics[1], h160_to_h256(from));
+		assert_eq!(log.topics[2], h160_to_h256(to));
+		// non-indexed `value` is a single left-padded uint256
+		assert_eq!(log.data.len(), 32);
+		assert_eq!(U256::from_big_endian(&log.data), U256::from(1_000u64));
+	}
+
+	#[test]
+	fn build_uniswap_v2_swap_log_maps_amounts_by_token0_side() {
+		let pool = H160::repeat_byte(0x77);
+		let sender = H160::repeat_byte(0x33);
+		let recipient = H160::repeat_byte(0x44);
+		let (in_amt, out_amt) = (U256::from(500u64), U256::from(900u64));
+
+		// input is token0 → (a0In, a1In, a0Out, a1Out) = (in, 0, 0, out)
+		let log0 = build_uniswap_v2_swap_log(pool, sender, recipient, true, in_amt, out_amt);
+		assert_eq!(log0.address, pool);
+		assert_eq!(
+			log0.topics,
+			vec![SWAP_TOPIC, h160_to_h256(sender), h160_to_h256(recipient)]
+		);
+		assert_eq!(log0.data.len(), 128);
+		assert_eq!(U256::from_big_endian(&log0.data[0..32]), in_amt); // amount0In
+		assert_eq!(U256::from_big_endian(&log0.data[32..64]), U256::zero()); // amount1In
+		assert_eq!(U256::from_big_endian(&log0.data[64..96]), U256::zero()); // amount0Out
+		assert_eq!(U256::from_big_endian(&log0.data[96..128]), out_amt); // amount1Out
+
+		// input is token1 → mirrored
+		let log1 = build_uniswap_v2_swap_log(pool, sender, recipient, false, in_amt, out_amt);
+		assert_eq!(U256::from_big_endian(&log1.data[0..32]), U256::zero()); // amount0In
+		assert_eq!(U256::from_big_endian(&log1.data[32..64]), in_amt); // amount1In
+		assert_eq!(U256::from_big_endian(&log1.data[64..96]), out_amt); // amount0Out
+		assert_eq!(U256::from_big_endian(&log1.data[96..128]), U256::zero()); // amount1Out
+	}
+
+	#[test]
+	fn synth_signature_is_in_valid_range() {
+		// Confirms our constant signature passes the ECDSA range check; the
+		// flusher panics with a message if this regresses.
+		let sig = ethereum::eip2930::TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS);
+		assert!(sig.is_some(), "synthetic signature constants must satisfy ECDSA range");
+	}
+
+	#[test]
+	fn known_topic_constants_match_expected_keccak256() {
+		// ERC-20 Transfer(address,address,uint256)
+		let expected_transfer = [
+			0xdd, 0xf2, 0x52, 0xad, 0x1b, 0xe2, 0xc8, 0x9b, 0x69, 0xc2, 0xb0, 0x68, 0xfc, 0x37, 0x8d, 0xaa, 0x95, 0x2b,
+			0xa7, 0xf1, 0x63, 0xc4, 0xa1, 0x16, 0x28, 0xf5, 0x5a, 0x4d, 0xf5, 0x23, 0xb3, 0xef,
+		];
+		assert_eq!(TRANSFER_TOPIC.0, expected_transfer);
+
+		// Uniswap V2 Swap(address,uint256,uint256,uint256,uint256,address)
+		let expected_swap = [
+			0xd7, 0x8a, 0xd9, 0x5f, 0xa4, 0x6c, 0x99, 0x4b, 0x65, 0x51, 0xd0, 0xda, 0x85, 0xfc, 0x27, 0x5f, 0xe6, 0x13,
+			0xce, 0x37, 0x65, 0x7f, 0xb8, 0xd5, 0xe3, 0xd1, 0x30, 0x84, 0x01, 0x59, 0xd8, 0x22,
+		];
+		assert_eq!(SWAP_TOPIC.0, expected_swap);
+
+		// ERC-20 Approval(address,address,uint256)
+		let expected_approval = [
+			0x8c, 0x5b, 0xe1, 0xe5, 0xeb, 0xec, 0x7d, 0x5b, 0xd1, 0x4f, 0x71, 0x42, 0x7d, 0x1e, 0x84, 0xf3, 0xdd, 0x03,
+			0x14, 0xc0, 0xf7, 0xb2, 0x29, 0x1e, 0x5b, 0x20, 0x0a, 0xc8, 0xc7, 0xc3, 0xb9, 0x25,
+		];
+		assert_eq!(APPROVAL_TOPIC.0, expected_approval);
+	}
+
+	#[test]
+	fn reserved_address_of_is_reversible() {
+		let owner = H160([
+			0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa,
+			0xbb, 0xcc,
+		]);
+		let sentinel = reserved_address_of(owner);
+		assert_ne!(owner, sentinel);
+		assert_eq!(reserved_address_of(sentinel), owner, "xor with 0xEE is its own inverse");
+	}
+
+	// Two synth txs sharing the same bucket-nonce class but different group_index
+	// must have distinct canonical envelope hashes — frontier indexes by hash, so
+	// a collision would mean one synth tx shadows the other in eth_getTransactionByHash.
+	#[test]
+	fn synth_envelope_hash_is_unique_per_group_index() {
+		use super::Transaction;
+		use ethereum::{eip2930::TransactionSignature, EIP1559Transaction, TransactionAction};
+
+		let signature = TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS).expect("synth sig in range");
+		let mk = |group_index: u32, nonce: u64| {
+			Transaction::EIP1559(EIP1559Transaction {
+				chain_id: 222_222,
+				nonce: U256::from(nonce),
+				max_priority_fee_per_gas: U256::zero(),
+				max_fee_per_gas: U256::zero(),
+				gas_limit: U256::zero(),
+				action: TransactionAction::Call(SENTINEL_ADDRESS),
+				value: U256::from(group_index),
+				input: Vec::new(),
+				access_list: Vec::new(),
+				signature: signature.clone(),
+			})
+		};
+
+		// same nonce (same bucket-nonce class) but different group_index → distinct hashes
+		let nonce = u64::MAX - 3; // Hook { Init, None }
+		assert_ne!(mk(0, nonce).hash(), mk(1, nonce).hash());
+		assert_ne!(mk(0, nonce).hash(), mk(2, nonce).hash());
+		assert_ne!(mk(1, nonce).hash(), mk(2, nonce).hash());
+
+		// determinism: same (group_index, nonce) → same hash
+		assert_eq!(mk(7, 42).hash(), mk(7, 42).hash());
+	}
+
+	// The same bucket + group_index recurs every block (nonce is bucket-derived,
+	// group_index resets per block), so without per-block entropy the envelope
+	// hash would collide across blocks and frontier could only resolve one of
+	// them. The flusher folds parent_hash + block number into `input`; assert that
+	// distinguishes otherwise-identical envelopes.
+	#[test]
+	fn synth_envelope_hash_is_unique_per_block() {
+		use super::Transaction;
+		use ethereum::{eip2930::TransactionSignature, EIP1559Transaction, TransactionAction};
+
+		let signature = TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS).expect("synth sig in range");
+		let mk = |block_domain: &[u8]| {
+			Transaction::EIP1559(EIP1559Transaction {
+				chain_id: 222_222,
+				nonce: U256::from(u64::MAX - 3), // same bucket
+				max_priority_fee_per_gas: U256::zero(),
+				max_fee_per_gas: U256::zero(),
+				gas_limit: U256::zero(),
+				action: TransactionAction::Call(SENTINEL_ADDRESS),
+				value: U256::zero(), // same group_index
+				input: block_domain.to_vec(),
+				access_list: Vec::new(),
+				signature: signature.clone(),
+			})
+		};
+
+		let block_n = b"hydration-synth-v1\x00block-n-parent-hash\x00\x64";
+		let block_n1 = b"hydration-synth-v1\x00block-n1-parent-hash\x00\x65";
+		assert_ne!(
+			mk(block_n).hash(),
+			mk(block_n1).hash(),
+			"same bucket+group_index in different blocks must hash differently"
+		);
+		// determinism within a block
+		assert_eq!(mk(block_n).hash(), mk(block_n).hash());
+	}
+
+	// Bucket grouping must (a) collapse repeated (bucket, log) entries from the
+	// same bucket into one group, and (b) sort init < extrinsic < finalize.
+	#[test]
+	fn flush_bucket_grouping_and_sort_order() {
+		use pallet_broadcast::types::ExecutionType;
+
+		// Bare grouping helper that mirrors `flush`'s grouping step (without
+		// driving the full pallet runtime). We test the visible invariants:
+		// 1. preserves insertion order within a bucket
+		// 2. produces one group per distinct bucket
+		let entries: Vec<(Bucket, ethereum::Log)> = vec![
+			(Bucket::Extrinsic(2), log(1)),
+			(
+				Bucket::Hook {
+					phase: HookPhase::Initialization,
+					origin: None,
+				},
+				log(2),
+			),
+			(Bucket::Extrinsic(2), log(3)),
+			(
+				Bucket::Hook {
+					phase: HookPhase::Finalization,
+					origin: None,
+				},
+				log(4),
+			),
+			(Bucket::Extrinsic(0), log(5)),
+			(
+				Bucket::Hook {
+					phase: HookPhase::Initialization,
+					origin: Some(ExecutionType::DCA(7, 1)),
+				},
+				log(6),
+			),
+		];
+
+		let mut groups: Vec<(Bucket, Vec<ethereum::Log>)> = Vec::new();
+		for (bucket, log) in entries {
+			match groups.iter_mut().find(|(b, _)| *b == bucket) {
+				Some((_, logs)) => logs.push(log),
+				None => groups.push((bucket, vec![log])),
+			}
+		}
+		groups.sort_by(|a, b| bucket_sort_key(&a.0).cmp(&bucket_sort_key(&b.0)));
+
+		// 5 distinct buckets, in order: Init/None < Init/DCA < Extrinsic(0) < Extrinsic(2) < Final/None
+		let order: Vec<Bucket> = groups.iter().map(|(b, _)| *b).collect();
+		assert!(matches!(
+			order[0],
+			Bucket::Hook {
+				phase: HookPhase::Initialization,
+				origin: None
+			}
+		));
+		assert!(matches!(
+			order[1],
+			Bucket::Hook {
+				phase: HookPhase::Initialization,
+				origin: Some(ExecutionType::DCA(_, _))
+			}
+		));
+		assert!(matches!(order[2], Bucket::Extrinsic(0)));
+		assert!(matches!(order[3], Bucket::Extrinsic(2)));
+		assert!(matches!(
+			order[4],
+			Bucket::Hook {
+				phase: HookPhase::Finalization,
+				origin: None
+			}
+		));
+
+		// Extrinsic(2) holds both its logs in insertion order.
+		let ext2_logs = &groups
+			.iter()
+			.find(|(b, _)| matches!(b, Bucket::Extrinsic(2)))
+			.unwrap()
+			.1;
+		assert_eq!(ext2_logs.len(), 2);
+		assert_eq!(ext2_logs[0].address.0[19], 1);
+		assert_eq!(ext2_logs[1].address.0[19], 3);
+	}
+
+	#[test]
+	fn bucket_nonce_layout_is_distinct_per_class() {
+		use pallet_broadcast::types::ExecutionType;
+		let cases = [
+			Bucket::Extrinsic(0),
+			Bucket::Extrinsic(7),
+			Bucket::Hook {
+				phase: HookPhase::Initialization,
+				origin: None,
+			},
+			Bucket::Hook {
+				phase: HookPhase::Initialization,
+				origin: Some(ExecutionType::DCA(123, 1)),
+			},
+			Bucket::Hook {
+				phase: HookPhase::Finalization,
+				origin: None,
+			},
+			Bucket::Hook {
+				phase: HookPhase::Finalization,
+				origin: Some(ExecutionType::Router(99)),
+			},
+		];
+		let nonces: Vec<u64> = cases.iter().map(|b| bucket_nonce(*b)).collect();
+		let unique: std::collections::BTreeSet<_> = nonces.iter().collect();
+		assert_eq!(
+			unique.len(),
+			cases.len(),
+			"every bucket class must produce a distinct nonce"
+		);
+	}
+
+	// The pure assembly shared by the on-chain flusher and the (future) node
+	// runtime API: one synth tx per bucket, sorted, indices continuing from the
+	// real-eth-tx base, insertion order preserved within a bucket.
+	#[test]
+	fn assemble_synth_txs_groups_indexes_and_orders() {
+		let entries = vec![
+			(Bucket::Extrinsic(2), H160::repeat_byte(0xAA), log(1)),
+			(Bucket::Extrinsic(0), H160::repeat_byte(0xBB), log(2)),
+			(Bucket::Extrinsic(2), H160::repeat_byte(0xCC), log(3)),
+		];
+		let txs = assemble_synth_txs(entries, 222_222, &[0x42u8; 32], 100, 5);
+
+		// two distinct buckets → two synth txs, sorted Extrinsic(0) < Extrinsic(2)
+		assert_eq!(txs.len(), 2);
+		let (_, s0, r0) = &txs[0];
+		let (_, s1, _) = &txs[1];
+
+		// indices continue from base_tx_index (5)
+		assert_eq!(s0.transaction_index, 5);
+		assert_eq!(s1.transaction_index, 6);
+
+		// Extrinsic(0) holds its single log; Extrinsic(2) keeps insertion order (1 then 3)
+		assert_eq!(s0.logs.len(), 1);
+		assert_eq!(s0.logs[0].address.0[19], 2);
+		assert_eq!(s1.logs.len(), 2);
+		assert_eq!(s1.logs[0].address.0[19], 1);
+		assert_eq!(s1.logs[1].address.0[19], 3);
+
+		// distinct hashes; sentinel from/to; receipt mirrors the status
+		assert_ne!(s0.transaction_hash, s1.transaction_hash);
+		assert_eq!(s0.from, SENTINEL_ADDRESS);
+		assert_eq!(s0.to, Some(SENTINEL_ADDRESS));
+		match r0 {
+			super::Receipt::EIP1559(d) => {
+				assert_eq!(d.status_code, 1);
+				assert_eq!(d.logs.len(), 1);
+			}
+			_ => panic!("expected EIP1559 receipt"),
+		}
+	}
+
+	#[test]
+	fn assemble_synth_txs_hash_differs_across_blocks() {
+		let mk = |parent: &[u8], bn: u64| {
+			let entries = vec![(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1))];
+			assemble_synth_txs(entries, 222_222, parent, bn, 0)[0]
+				.1
+				.transaction_hash
+		};
+		// same bucket + base index, different block identity → different synth-tx hash
+		assert_ne!(mk(&[0x11u8; 32], 100), mk(&[0x22u8; 32], 101));
+		// determinism
+		assert_eq!(mk(&[0x11u8; 32], 100), mk(&[0x11u8; 32], 100));
+	}
+
+	fn log(tag: u8) -> ethereum::Log {
+		let mut addr = [0u8; 20];
+		addr[19] = tag;
+		ethereum::Log {
+			address: H160(addr),
+			topics: vec![TRANSFER_TOPIC],
+			data: Vec::new(),
+		}
 	}
 }
