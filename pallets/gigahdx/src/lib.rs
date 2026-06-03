@@ -1012,6 +1012,14 @@ pub mod pallet {
 				if can_transfer {
 					T::NativeCurrency::transfer(borrower, recipient, seize_hdx, ExistenceRequirement::AllowDeath)?;
 				} else {
+					// Intentional policy: liquidation outranks every lock. `slash` takes
+					// the HDX regardless of `ormlvest` vesting, `pyconvot`, or any other
+					// foreign lock; the lock owner bears any later `balance < lock`
+					// shortfall. gigahdx's own ledger stays consistent regardless:
+					// `seize_hdx <= active hdx` (snapshot reads only `s.hdx`) and the
+					// lock invariant `balance >= hdx + unstaking` together guarantee
+					// `balance_new >= hdx_new + unstaking`, so `unstaking` /
+					// `PendingUnstakes` are never stranded by the slash.
 					// `slash` ignores locks (unlike `transfer`), but
 					// `pallet_balances` refuses to push a non-reapable
 					// account below ED. Tolerate that ≤ED dust — Aave has

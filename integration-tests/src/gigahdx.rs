@@ -2156,6 +2156,43 @@ fn set_oracle_price_source(oracle: EvmAddress, asset: EvmAddress, source: EvmAdd
 	);
 }
 
+/// Resolve a pool's `PoolConfigurator` via its addresses provider.
+fn pool_configurator(pool: EvmAddress) -> EvmAddress {
+	let r = Executor::<Runtime>::view(CallContext::new_view(pool), selector("ADDRESSES_PROVIDER()"), 100_000);
+	let pap = EvmAddress::from_slice(&r.value[12..32]);
+	let r = Executor::<Runtime>::view(CallContext::new_view(pap), selector("getPoolConfigurator()"), 100_000);
+	EvmAddress::from_slice(&r.value[12..32])
+}
+
+/// Set the `LIQUIDATION_PROTOCOL_FEE` (bps) for `asset` on `pool`, as the ACL admin.
+///
+/// The gigahdx liquidation tests call this with `0` to mirror a **deploy
+/// requirement**: the stHDX reserve must run with a zero protocol fee. A
+/// non-zero fee diverts seized collateral to the Aave collector as GIGAHDX
+/// aTokens with no backing HDX in that account, breaking the per-account
+/// backing invariant and stranding a later `giga_unstake`. The live snapshot
+/// ships this reserve at 1000 bps, so the tests must zero it to exercise the
+/// intended production config. See finding #6.
+fn set_liquidation_protocol_fee(pool: EvmAddress, asset: EvmAddress, fee_bps: u64) {
+	use hex_literal::hex;
+	let acl_admin = EvmAddress::from_slice(&hex!("aa7e0000000000000000000000000000000aa7e0"));
+	let configurator = pool_configurator(pool);
+	let mut data = selector("setLiquidationProtocolFee(address,uint256)");
+	data.extend_from_slice(H256::from(asset).as_bytes());
+	data.extend_from_slice(&H256::from_low_u64_be(fee_bps).0);
+	let result = Executor::<Runtime>::call(
+		CallContext::new_call(configurator, acl_admin),
+		data,
+		U256::zero(),
+		500_000,
+	);
+	assert!(
+		matches!(result.exit_reason, fp_evm::ExitReason::Succeed(_)),
+		"setLiquidationProtocolFee failed: {:?}",
+		result.exit_reason
+	);
+}
+
 /// Resolve the GIGAHDX pool's own oracle (it's distinct from the main pool's).
 fn giga_pool_oracle(giga_pool: EvmAddress) -> EvmAddress {
 	let r = Executor::<Runtime>::view(
@@ -4035,6 +4072,8 @@ fn gigahdx_liquidation_extrinsic_should_consolidate_seized_gigahdx_and_hollar_de
 		assert!(realized > 0);
 
 		// --- The real extrinsic. ---
+		set_liquidation_protocol_fee(pool, st_hdx_evm, 0);
+		let collector_before = Currencies::free_balance(GIGAHDX, &gigahdx_atoken_collector());
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(bob),
 			GIGAHDX,
@@ -4060,10 +4099,19 @@ fn gigahdx_liquidation_extrinsic_should_consolidate_seized_gigahdx_and_hollar_de
 		// Conservation: realized principal and the aToken are split between the
 		// borrower's residual and the liquidation account.
 		assert_eq!(alice_after.hdx + liq_stake.hdx, realized, "HDX conserved");
+		let collector_fee =
+			Currencies::free_balance(GIGAHDX, &gigahdx_atoken_collector()).saturating_sub(collector_before);
+		assert_eq!(collector_fee, 0, "stHDX reserve fee zeroed: collector receives nothing");
 		assert_eq!(
-			alice_after.gigahdx + liq_stake.gigahdx,
+			alice_after.gigahdx + liq_stake.gigahdx + collector_fee,
 			10_000 * UNITS,
-			"GIGAHDX conserved"
+			"GIGAHDX conserved across borrower residual + liquidator + collector fee"
+		);
+		// Borrower invariant (finding #6): ledger must equal real aToken balance.
+		assert_eq!(
+			Currencies::free_balance(GIGAHDX, &alice),
+			alice_after.gigahdx,
+			"borrower GIGAHDX ledger must equal their real aToken balance"
 		);
 
 		// The seized aToken landed in the liquidation account itself (no
@@ -4119,6 +4167,19 @@ fn e2e_provision_liq_account(liq_account: &AccountId, main_mm: EvmAddress) -> Ev
 	liq_evm
 }
 
+/// Substrate account of the GIGAHDX aToken's reserve treasury (the Aave-fork
+/// collector) — recipient of the `LIQUIDATION_PROTOCOL_FEE` slice of seized
+/// collateral.
+fn gigahdx_atoken_collector() -> AccountId {
+	let atoken = HydraErc20Mapping::asset_address(GIGAHDX);
+	let r = Executor::<Runtime>::view(
+		CallContext::new_view(atoken),
+		selector("RESERVE_TREASURY_ADDRESS()"),
+		100_000,
+	);
+	EVMAccounts::account_id(EvmAddress::from_slice(&r.value[12..32]))
+}
+
 /// Every successful gigahdx liquidation must leave exactly this state, so the
 /// three guarantees are checked uniformly:
 ///  1. Seized GIGAHDX — the liquidation account's aToken balance equals its
@@ -4140,10 +4201,31 @@ fn e2e_assert_consolidated(
 	main_mm: EvmAddress,
 	alice_debt_before: U256,
 	expected_principal: Balance,
+	collector_before: Balance,
 ) {
 	use crate::liquidation::get_user_account_data;
 	let liq_stake = pallet_gigahdx::Stakes::<Runtime>::get(liq_account).expect("liq stake record");
 	let alice_after = pallet_gigahdx::Stakes::<Runtime>::get(alice).expect("borrower stake record");
+
+	// The `LIQUIDATION_PROTOCOL_FEE` slice of seized collateral lands on the Aave
+	// reserve collector (a protocol account) as aTokens — separate from the
+	// liquidator slice on `liq_account`. Measure it so the seized collateral is
+	// accounted for in full, not just the liquidator's share.
+	let collector = gigahdx_atoken_collector();
+	let collector_fee = Currencies::free_balance(GIGAHDX, &collector).saturating_sub(collector_before);
+	assert_eq!(
+		collector_fee, 0,
+		"stHDX reserve fee zeroed: the collector must receive nothing (no unbacked aToken)"
+	);
+
+	// Borrower invariant (finding #6): the recorded ledger must equal the real
+	// aToken balance. If it overstates (by the protocol-fee slice), a later
+	// `giga_unstake` of the full ledger strands that sliver.
+	assert_eq!(
+		Currencies::free_balance(GIGAHDX, alice),
+		alice_after.gigahdx,
+		"borrower GIGAHDX ledger must equal their real aToken balance"
+	);
 
 	// 1. Seized GIGAHDX: real, ledger-consistent, exactly conserved.
 	assert!(liq_stake.gigahdx > 0, "seized aToken recorded");
@@ -4153,7 +4235,7 @@ fn e2e_assert_consolidated(
 		"seized aToken balance matches the ledger"
 	);
 	assert_eq!(
-		alice_after.gigahdx + liq_stake.gigahdx,
+		alice_after.gigahdx + liq_stake.gigahdx + collector_fee,
 		expected_principal,
 		"GIGAHDX conserved — seized amount is exactly correct"
 	);
@@ -4218,6 +4300,8 @@ fn gigahdx_liquidation_e2e_should_seize_when_normal_staker() {
 		let debt_before = pre.total_debt_base;
 		let alice_gigahdx_before = Currencies::free_balance(GIGAHDX, &alice);
 
+		set_liquidation_protocol_fee(pool, st_hdx_evm, 0);
+		let collector_before = Currencies::free_balance(GIGAHDX, &gigahdx_atoken_collector());
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(bob),
 			GIGAHDX,
@@ -4238,6 +4322,7 @@ fn gigahdx_liquidation_e2e_should_seize_when_normal_staker() {
 			main_mm,
 			debt_before,
 			stake_amount,
+			collector_before,
 		);
 	});
 }
@@ -4296,6 +4381,8 @@ fn gigahdx_liquidation_e2e_should_remove_unbacked_vote_when_borrower_has_convict
 		};
 		assert!(tally_before > 0);
 
+		set_liquidation_protocol_fee(pool, st_hdx_evm, 0);
+		let collector_before = Currencies::free_balance(GIGAHDX, &gigahdx_atoken_collector());
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(alice.clone()),
 			GIGAHDX,
@@ -4340,6 +4427,7 @@ fn gigahdx_liquidation_e2e_should_remove_unbacked_vote_when_borrower_has_convict
 			main_mm,
 			debt_before,
 			stake_amount,
+			collector_before,
 		);
 	});
 }
@@ -4390,6 +4478,8 @@ fn gigahdx_liquidation_e2e_should_keep_vote_still_backed_by_residual_stake() {
 		};
 		assert!(tally_before > 0);
 
+		set_liquidation_protocol_fee(pool, st_hdx_evm, 0);
+		let collector_before = Currencies::free_balance(GIGAHDX, &gigahdx_atoken_collector());
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(alice.clone()),
 			GIGAHDX,
@@ -4425,6 +4515,7 @@ fn gigahdx_liquidation_e2e_should_keep_vote_still_backed_by_residual_stake() {
 			main_mm,
 			debt_before,
 			stake_amount,
+			collector_before,
 		);
 	});
 }
@@ -4611,6 +4702,8 @@ fn gigahdx_liquidation_e2e_should_seize_when_borrower_has_unrelated_lock() {
 		let liq_hdx_before = Balances::free_balance(&liq_account);
 		let issuance_before = Balances::total_issuance();
 
+		set_liquidation_protocol_fee(pool, st_hdx_evm, 0);
+		let collector_before = Currencies::free_balance(GIGAHDX, &gigahdx_atoken_collector());
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(bob),
 			GIGAHDX,
@@ -4646,6 +4739,7 @@ fn gigahdx_liquidation_e2e_should_seize_when_borrower_has_unrelated_lock() {
 			main_mm,
 			debt_before,
 			stake_amount,
+			collector_before,
 		);
 	});
 }

@@ -385,20 +385,18 @@ impl<T: Config> Pallet<T> {
 		let borrower = T::EvmAccounts::account_id(user);
 
 		// Fold accrued yield into the borrower's locked stake first, so the
-		// snapshot reflects the position's true HDX value. Without this a
-		// drained-stake borrower (`Stakes.hdx == 0`, `gigahdx > 0`) would
-		// snapshot `orig_hdx = 0` and the pro-rata `seize_hdx` below would
-		// round to zero — the protocol would take the aToken but seize no
-		// matching HDX.
-		// Treated as infallible in production; the debug_assert turns a
-		// failure into a hard panic under fuzzing instead of a silent
-		// `RealizeYieldFailed` revert.
-		let realize_yield_result = T::GigaHdx::realize_yield(&borrower);
-		debug_assert!(
-			realize_yield_result.is_ok(),
-			"liquidate_gigahdx: realize_yield failed unexpectedly: {realize_yield_result:?}",
-		);
-		realize_yield_result.map_err(|_| Error::<T>::RealizeYieldFailed)?;
+		// snapshot reflects the position's true HDX value: a drained-stake
+		// borrower (`Stakes.hdx == 0`, `gigahdx > 0`) would otherwise snapshot
+		// `orig_hdx = 0` and the pro-rata `seize_hdx` below would round to zero.
+		//
+		// Best-effort: a gigapot shortfall (`GigapotInsufficient`) must NOT block
+		// the liquidation. Realizing yield is only an optimisation for the seize;
+		// on failure we proceed with the un-incremented snapshot (a smaller
+		// `seize_hdx`) rather than reverting and leaving the underwater position
+		// and its bad debt in place. Liquidation outranks the yield fold.
+		if let Err(e) = T::GigaHdx::realize_yield(&borrower) {
+			log::warn!(target: "liquidation", "gigahdx: realize_yield failed, proceeding without it: {e:?}");
+		}
 
 		let (orig_hdx, orig_gigahdx) =
 			T::GigaHdx::snapshot_stake(&borrower).map_err(|_| Error::<T>::NoGigaHdxPosition)?;
