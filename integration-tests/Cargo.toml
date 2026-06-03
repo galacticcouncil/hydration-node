@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.87.1"
+version = "1.88.1"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -47,6 +47,8 @@ pallet-evm-accounts = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-liquidation = { workspace = true }
+pallet-gigahdx = { workspace = true }
+pallet-gigahdx-rewards = { workspace = true }
 liquidation-worker-support = { workspace = true }
 pallet-broadcast = { workspace = true }
 pallet-synthetic-logs = { workspace = true }
@@ -230,6 +232,8 @@ std = [
     "precompile-utils/std",
     "pallet-transaction-pause/std",
     "pallet-liquidation/std",
+    "pallet-gigahdx/std",
+    "pallet-gigahdx-rewards/std",
     "pallet-broadcast/std",
     "pallet-dispatcher/std",
     "pallet-hsm/std",

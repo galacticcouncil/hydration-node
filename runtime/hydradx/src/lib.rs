@@ -35,6 +35,7 @@ pub mod weights;
 mod assets;
 pub mod circuit_breaker;
 pub mod evm;
+pub mod gigahdx;
 pub mod governance;
 mod helpers;
 mod system;
@@ -201,6 +202,8 @@ construct_runtime!(
 		Parameters: pallet_parameters = 83,
 		Signet: pallet_signet = 84,
 		EthDispenser: pallet_dispenser = 85,
+		GigaHdx: pallet_gigahdx = 86,
+		GigaHdxRewards: pallet_gigahdx_rewards = 87,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -359,6 +362,8 @@ mod benches {
 		[pallet_dynamic_fees, DynamicFees]
 		[pallet_signet, Signet]
 		[pallet_dispenser, EthDispenser]
+		[pallet_gigahdx, GigaHdx]
+		[pallet_gigahdx_rewards, GigaHdxRewards]
 		//[ismp_parachain, IsmpParachain]
 		//[pallet_token_gateway, TokenGateway]
 		[frame_system_extensions, frame_system_benchmarking::extensions::Pallet::<Runtime>]
