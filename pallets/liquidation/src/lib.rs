@@ -43,6 +43,7 @@ use frame_support::{
 use frame_system::{pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::Erc20Mapping;
+use hydradx_traits::gigahdx::Seize;
 use hydradx_traits::{
 	evm::{CallContext, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
@@ -303,6 +304,16 @@ pub mod pallet {
 				// `receiveAToken=true`, then matching HDX is seized from the
 				// borrower's substrate wallet and re-locked under the
 				// liquidation account. `route` is unused on this path.
+				//
+				// Routing is unconditional on the collateral: the gigahdx reserve lists
+				// HOLLAR as its ONLY borrowable asset, so GIGAHDX collateral always
+				// implies a HOLLAR-debt position. `liquidate_gigahdx`'s
+				// `debt_asset == HollarId` check is therefore a fail-closed guard, not a
+				// router. A gigahdx position can only be seized through this path (the
+				// locked aToken needs the `on_pre_seize`/`on_seize` dance), so it must
+				// never fall through to the generic path below. If that reserve is ever
+				// configured with another borrowable asset, `liquidate_gigahdx` must be
+				// extended to handle it.
 				let _ = route;
 				return Self::liquidate_gigahdx(debt_asset, user, debt_to_cover);
 			}
@@ -516,27 +527,35 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Encode an AAVE Pool `borrow(asset, amount, interestRateMode=2, referralCode=0, onBehalfOf)`
-	/// call. `interestRateMode = 2` is variable-rate.
-	pub fn encode_borrow_call_data(asset: EvmAddress, amount: Balance, on_behalf_of: EvmAddress) -> Vec<u8> {
-		let mut data = Into::<u32>::into(Function::Borrow).to_be_bytes().to_vec();
+	/// Encode an AAVE Pool `borrow`/`repay` call. Both share the leading
+	/// `(asset, amount, interestRateMode=2, ...)` words; `borrow` carries an extra
+	/// `referralCode=0` word before `onBehalfOf`. `interestRateMode = 2` is variable-rate.
+	fn encode_pool_debt_call(
+		selector: Function,
+		asset: EvmAddress,
+		amount: Balance,
+		on_behalf_of: EvmAddress,
+		with_referral: bool,
+	) -> Vec<u8> {
+		let mut data = Into::<u32>::into(selector).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(asset).as_bytes());
 		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
 		data.extend_from_slice(H256::from_uint(&U256::from(2u8)).as_bytes()); // variable rate
-		data.extend_from_slice(H256::from_uint(&U256::from(0u8)).as_bytes()); // referral
+		if with_referral {
+			data.extend_from_slice(H256::from_uint(&U256::from(0u8)).as_bytes()); // referral
+		}
 		data.extend_from_slice(H256::from(on_behalf_of).as_bytes());
 		data
 	}
 
-	/// Encode an AAVE Pool `repay(asset, amount, interestRateMode=2, onBehalfOf)`
-	/// call. `interestRateMode = 2` is variable-rate, matching the borrow.
+	/// Encode an AAVE Pool `borrow(asset, amount, interestRateMode=2, referralCode=0, onBehalfOf)` call.
+	pub fn encode_borrow_call_data(asset: EvmAddress, amount: Balance, on_behalf_of: EvmAddress) -> Vec<u8> {
+		Self::encode_pool_debt_call(Function::Borrow, asset, amount, on_behalf_of, true)
+	}
+
+	/// Encode an AAVE Pool `repay(asset, amount, interestRateMode=2, onBehalfOf)` call.
 	pub fn encode_repay_call_data(asset: EvmAddress, amount: Balance, on_behalf_of: EvmAddress) -> Vec<u8> {
-		let mut data = Into::<u32>::into(Function::Repay).to_be_bytes().to_vec();
-		data.extend_from_slice(H256::from(asset).as_bytes());
-		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
-		data.extend_from_slice(H256::from_uint(&U256::from(2u8)).as_bytes()); // variable rate
-		data.extend_from_slice(H256::from(on_behalf_of).as_bytes());
-		data
+		Self::encode_pool_debt_call(Function::Repay, asset, amount, on_behalf_of, false)
 	}
 
 	pub fn encode_liquidation_call_data(

@@ -2405,7 +2405,6 @@ fn gigahdx_liquidation_should_not_seize_from_users_free_balance() {
 		use frame_support::traits::tokens::{Fortitude, Preservation};
 		use hydradx_runtime::BorrowingTreasuryAccount;
 		use hydradx_traits::gigahdx::Seize;
-		use pallet_gigahdx_rewards::traits::ClearConflictingVotes;
 		use sp_core::Get;
 
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
@@ -2477,11 +2476,6 @@ fn gigahdx_liquidation_should_not_seize_from_users_free_balance() {
 			"partial liquidation: only part of the stake is seized"
 		);
 
-		// No-op here (Alice has no vote); kept for parity with the production flow.
-		<hydradx_runtime::gigahdx::GigaHdxVoteClearance as ClearConflictingVotes<AccountId>>::force_release_vote_lock(
-			&alice, seize_hdx,
-		)
-		.unwrap();
 		<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::on_seize(
 			&alice,
 			&liq_account,
@@ -2502,110 +2496,6 @@ fn gigahdx_liquidation_should_not_seize_from_users_free_balance() {
 			<Balances as Inspect<AccountId>>::reducible_balance(&alice, Preservation::Expendable, Fortitude::Polite);
 		assert_eq!(transferable_after, transferable_before);
 		assert_eq!(transferable_after, free_buffer);
-	});
-}
-
-/// Same as above with an active full-stake conviction vote: the surgical
-/// pyconvot reduction must not over-release.
-#[test]
-fn gigahdx_liquidation_should_not_seize_from_free_balance_with_active_vote() {
-	TestNet::reset();
-	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		use crate::liquidation::{borrow, get_user_account_data};
-		use frame_support::traits::fungible::Inspect;
-		use frame_support::traits::tokens::{Fortitude, Preservation};
-		use hydradx_runtime::BorrowingTreasuryAccount;
-		use hydradx_traits::gigahdx::Seize;
-		use pallet_gigahdx_rewards::traits::ClearConflictingVotes;
-		use sp_core::Get;
-
-		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
-		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
-		let treasury_evm = EVMAccounts::evm_address(&BorrowingTreasuryAccount::get());
-		let treasury_evm_account = EVMAccounts::account_id(treasury_evm);
-
-		let stake_amount = 10_000 * UNITS;
-		let free_buffer = 250 * UNITS;
-		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			alice.clone(),
-			stake_amount + free_buffer,
-		));
-
-		let ref_index = begin_referendum_by_bob();
-		assert_ok!(ConvictionVoting::vote(
-			RuntimeOrigin::signed(alice.clone()),
-			ref_index,
-			aye_with_conviction(stake_amount, Conviction::Locked3x),
-		));
-		let transferable_before =
-			<Balances as Inspect<AccountId>>::reducible_balance(&alice, Preservation::Expendable, Fortitude::Polite);
-		assert_eq!(transferable_before, free_buffer);
-
-		let borrow_amount: Balance = 5 * HOLLAR_DECIMALS_18;
-		borrow(pool, alice_evm, hollar_addr, borrow_amount);
-		fund_treasury_for_liquidation(pool);
-		crash_st_hdx_price(oracle, st_hdx_evm);
-		assert!(
-			get_user_account_data(pool, alice_evm).unwrap().health_factor < U256::from(1_000_000_000_000_000_000u128)
-		);
-
-		let total_balance_before = Balances::free_balance(&alice);
-		let (orig_hdx, orig_gigahdx) =
-			<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::snapshot_stake(&alice).unwrap();
-		<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::on_pre_seize(&alice).unwrap();
-		let debt_to_cover = borrow_amount / 2;
-		borrow(pool, treasury_evm, hollar_addr, debt_to_cover);
-		let g_before = Currencies::free_balance(GIGAHDX, &treasury_evm_account);
-		let liq_data = pallet_liquidation::Pallet::<Runtime>::encode_liquidation_call_data(
-			ST_HDX,
-			HOLLAR_ASSET_ID,
-			alice_evm,
-			debt_to_cover,
-			true,
-		);
-		assert!(matches!(
-			Executor::<Runtime>::call(
-				CallContext::new_call(pool, treasury_evm),
-				liq_data,
-				U256::zero(),
-				50_000_000
-			)
-			.exit_reason,
-			fp_evm::ExitReason::Succeed(_)
-		));
-		let actual_seized = Currencies::free_balance(GIGAHDX, &treasury_evm_account) - g_before;
-		let seize_hdx = (U256::from(orig_hdx) * U256::from(actual_seized) / U256::from(orig_gigahdx)).as_u128();
-		assert!(seize_hdx > 0 && seize_hdx < stake_amount);
-
-		<hydradx_runtime::gigahdx::GigaHdxVoteClearance as ClearConflictingVotes<AccountId>>::force_release_vote_lock(
-			&alice, seize_hdx,
-		)
-		.unwrap();
-		<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::on_seize(
-			&alice,
-			&liq_account,
-			seize_hdx,
-			actual_seized,
-			orig_gigahdx,
-		)
-		.unwrap();
-
-		assert_eq!(total_balance_before - Balances::free_balance(&alice), seize_hdx);
-		assert_eq!(lock_amount(&alice, GIGAHDX_LOCK_ID), stake_amount - seize_hdx);
-
-		let pyconvot_after = pallet_balances::Locks::<Runtime>::get(&alice)
-			.iter()
-			.find(|l| l.id == *b"pyconvot")
-			.map(|l| l.amount)
-			.unwrap_or(0);
-		assert_eq!(pyconvot_after, stake_amount - seize_hdx);
-
-		let transferable_after =
-			<Balances as Inspect<AccountId>>::reducible_balance(&alice, Preservation::Expendable, Fortitude::Polite);
-		assert_eq!(transferable_after, transferable_before);
 	});
 }
 
@@ -2845,8 +2735,8 @@ fn gigahdx_liquidation_should_force_remove_conflicting_vote() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		use crate::liquidation::{borrow, get_user_account_data};
 		use hydradx_runtime::BorrowingTreasuryAccount;
+		use hydradx_traits::gigahdx::ClearConflictingVotes;
 		use hydradx_traits::gigahdx::Seize;
-		use pallet_gigahdx_rewards::traits::ClearConflictingVotes;
 		use sp_core::Get;
 
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
@@ -2995,8 +2885,9 @@ fn gigahdx_liquidation_should_clear_vote_when_referendum_already_completed() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		use crate::liquidation::{borrow, get_user_account_data};
 		use hydradx_runtime::gigahdx::RuntimeReferenda;
+		use hydradx_traits::gigahdx::ClearConflictingVotes;
 		use hydradx_traits::gigahdx::Seize;
-		use pallet_gigahdx_rewards::traits::{ClearConflictingVotes, ReferendaTrackInspect};
+		use pallet_gigahdx_rewards::traits::ReferendaTrackInspect;
 
 		let (alice, bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
@@ -3112,8 +3003,8 @@ fn gigahdx_liquidation_should_keep_frozen_equal_to_live_vote_sum() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		use crate::liquidation::{borrow, get_user_account_data};
 		use hydradx_runtime::BorrowingTreasuryAccount;
+		use hydradx_traits::gigahdx::ClearConflictingVotes;
 		use hydradx_traits::gigahdx::Seize;
-		use pallet_gigahdx_rewards::traits::ClearConflictingVotes;
 		use sp_core::Get;
 
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
@@ -3288,7 +3179,7 @@ fn borrow_hollar_should_succeed_directly_after_giga_stake() {
 fn clear_conflicting_votes_should_remove_split_votes() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		use pallet_gigahdx_rewards::traits::ClearConflictingVotes;
+		use hydradx_traits::gigahdx::ClearConflictingVotes;
 
 		let (alice, _bob, _alice_evm, _pool, _oracle, _hollar_addr) = liquidation_test_setup();
 
@@ -3334,8 +3225,8 @@ fn gigahdx_liquidation_should_succeed_when_borrower_has_split_vote() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		use crate::liquidation::{borrow, get_user_account_data};
 		use hydradx_runtime::BorrowingTreasuryAccount;
+		use hydradx_traits::gigahdx::ClearConflictingVotes;
 		use hydradx_traits::gigahdx::Seize;
-		use pallet_gigahdx_rewards::traits::ClearConflictingVotes;
 		use sp_core::Get;
 
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
@@ -3407,9 +3298,10 @@ fn gigahdx_liquidation_should_succeed_when_borrower_has_split_vote() {
 
 		let seize_hdx = (U256::from(orig_hdx) * U256::from(actual_seized) / U256::from(orig_gigahdx)).as_u128();
 
-		// Surgical pyconvot release before finalise_seize.
-		<hydradx_runtime::gigahdx::GigaHdxVoteClearance as ClearConflictingVotes<AccountId>>::force_release_vote_lock(
-			&alice, seize_hdx,
+		// Real production clearance: remove the now-unbacked vote and resync the lock.
+		<hydradx_runtime::gigahdx::GigaHdxVoteClearance as ClearConflictingVotes<AccountId>>::clear_conflicting_votes(
+			&alice,
+			orig_hdx - seize_hdx,
 		)
 		.unwrap();
 
@@ -3431,135 +3323,13 @@ fn gigahdx_liquidation_should_succeed_when_borrower_has_split_vote() {
 		// Post-conditions.
 		let alice_stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
 		assert_eq!(alice_stake.hdx, orig_hdx - seize_hdx);
-		assert_eq!(
-			alice_stake.frozen, alice_stake.hdx,
-			"frozen clamped to remaining hdx (vote kept intact)"
-		);
+		assert_eq!(alice_stake.frozen, 0, "vote removed by clearance, stake fully unfrozen");
 		assert_eq!(lock_amount(&alice, GIGAHDX_LOCK_ID), alice_stake.hdx);
 
-		// The Split vote record is still present in UserVoteRecords because
-		// liquidation no longer clears votes.
 		assert!(
-			pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::get(&alice, ref_index).is_some(),
-			"Split vote record stays intact"
+			pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::get(&alice, ref_index).is_none(),
+			"Split vote record removed by clearance"
 		);
-	});
-}
-
-/// Audit3 Finding 2: seize must succeed when the borrower has an active
-/// conviction vote covering the full stake. `pyconvot` drops by exactly
-/// `seize_hdx`; the vote stays in `VotingFor`.
-#[test]
-fn liquidate_should_succeed_when_borrower_has_active_conviction_vote() {
-	TestNet::reset();
-	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		use crate::liquidation::{borrow, get_user_account_data};
-		use hydradx_runtime::BorrowingTreasuryAccount;
-		use hydradx_traits::gigahdx::Seize;
-		use pallet_gigahdx_rewards::traits::ClearConflictingVotes;
-		use sp_core::Get;
-
-		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
-		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
-		let treasury_evm = EVMAccounts::evm_address(&BorrowingTreasuryAccount::get());
-		let treasury_evm_account = EVMAccounts::account_id(treasury_evm);
-
-		// Tighten Alice's balance — free balance just above the staked amount.
-		let stake_amount = 10_000 * UNITS;
-		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			alice.clone(),
-			stake_amount + 100 * UNITS,
-		));
-
-		// Active Locked3x vote committing the full stake → pyconvot = 10k.
-		let ref_index = begin_referendum_by_bob();
-		assert_ok!(ConvictionVoting::vote(
-			RuntimeOrigin::signed(alice.clone()),
-			ref_index,
-			aye_with_conviction(stake_amount, Conviction::Locked3x),
-		));
-		let pyconvot_pre = pallet_balances::Locks::<Runtime>::get(&alice)
-			.iter()
-			.find(|l| l.id == *b"pyconvot")
-			.map(|l| l.amount)
-			.unwrap_or(0);
-		assert_eq!(pyconvot_pre, stake_amount);
-
-		let borrow_amount: Balance = 5 * HOLLAR_DECIMALS_18;
-		borrow(pool, alice_evm, hollar_addr, borrow_amount);
-		fund_treasury_for_liquidation(pool);
-		crash_st_hdx_price(oracle, st_hdx_evm);
-		assert!(
-			get_user_account_data(pool, alice_evm).unwrap().health_factor < U256::from(1_000_000_000_000_000_000u128)
-		);
-
-		// Replay the pallet flow step by step (the extrinsic path hits an
-		// unrelated EVM borrow revert inside `#[transactional]`).
-		let (orig_hdx, orig_gigahdx) =
-			<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::snapshot_stake(&alice).unwrap();
-
-		<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::on_pre_seize(&alice).unwrap();
-
-		let debt_to_cover = borrow_amount / 2;
-		borrow(pool, treasury_evm, hollar_addr, debt_to_cover);
-		let before = Currencies::free_balance(GIGAHDX, &treasury_evm_account);
-		let liq_data = pallet_liquidation::Pallet::<Runtime>::encode_liquidation_call_data(
-			ST_HDX,
-			HOLLAR_ASSET_ID,
-			alice_evm,
-			debt_to_cover,
-			true,
-		);
-		assert!(matches!(
-			Executor::<Runtime>::call(
-				CallContext::new_call(pool, treasury_evm),
-				liq_data,
-				U256::zero(),
-				50_000_000
-			)
-			.exit_reason,
-			fp_evm::ExitReason::Succeed(_)
-		));
-		let actual_seized = Currencies::free_balance(GIGAHDX, &treasury_evm_account) - before;
-		let seize_hdx = (U256::from(orig_hdx) * U256::from(actual_seized) / U256::from(orig_gigahdx)).as_u128();
-		assert!(seize_hdx > 0);
-
-		<hydradx_runtime::gigahdx::GigaHdxVoteClearance as ClearConflictingVotes<AccountId>>::force_release_vote_lock(
-			&alice, seize_hdx,
-		)
-		.unwrap();
-
-		let pyconvot_after_release = pallet_balances::Locks::<Runtime>::get(&alice)
-			.iter()
-			.find(|l| l.id == *b"pyconvot")
-			.map(|l| l.amount)
-			.unwrap_or(0);
-		assert_eq!(pyconvot_after_release, stake_amount - seize_hdx);
-
-		assert_ok!(<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::on_seize(
-			&alice,
-			&liq_account,
-			seize_hdx,
-			actual_seized,
-			orig_gigahdx,
-		));
-
-		let alice_stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
-		assert_eq!(alice_stake.hdx, orig_hdx - seize_hdx);
-		assert_eq!(alice_stake.gigahdx, orig_gigahdx - actual_seized);
-		assert_eq!(alice_stake.frozen, alice_stake.hdx);
-
-		let voting = pallet_conviction_voting::VotingFor::<Runtime>::get(&alice, 0u16);
-		match voting {
-			pallet_conviction_voting::Voting::Casting(casting) => {
-				assert_eq!(casting.votes.len(), 1);
-				assert_eq!(casting.votes[0].0, ref_index);
-			}
-			pallet_conviction_voting::Voting::Delegating(_) => panic!("unexpected delegating state"),
-		}
 	});
 }
 
@@ -3762,218 +3532,6 @@ fn liquidate_should_succeed_when_borrower_has_unrelated_lock() {
 		assert_eq!(alice_before - Balances::free_balance(&alice), seize_hdx);
 		assert_eq!(Balances::free_balance(&liq_account) - liq_before, seize_hdx);
 		assert_eq!(Balances::total_issuance(), issuance_before);
-	});
-}
-
-/// After seize: vote stays in `VotingFor` (tally unchanged), lock is the
-/// reduced one, and a later `unlock` recomputes — never above the original
-/// commitment.
-#[test]
-fn liquidation_should_leave_vote_record_intact_but_release_lock() {
-	TestNet::reset();
-	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		use crate::liquidation::{borrow, get_user_account_data};
-		use hydradx_runtime::BorrowingTreasuryAccount;
-		use hydradx_traits::gigahdx::Seize;
-		use pallet_gigahdx_rewards::traits::ClearConflictingVotes;
-		use sp_core::Get;
-
-		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
-		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
-		let treasury_evm = EVMAccounts::evm_address(&BorrowingTreasuryAccount::get());
-		let treasury_evm_account = EVMAccounts::account_id(treasury_evm);
-
-		let stake_amount = 10_000 * UNITS;
-		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			alice.clone(),
-			stake_amount + 100 * UNITS,
-		));
-
-		let ref_index = begin_referendum_by_bob();
-		assert_ok!(ConvictionVoting::vote(
-			RuntimeOrigin::signed(alice.clone()),
-			ref_index,
-			aye_with_conviction(stake_amount, Conviction::Locked3x),
-		));
-
-		// Capture pre-liquidation tally for the referendum.
-		let tally_before = match pallet_referenda::ReferendumInfoFor::<Runtime>::get(ref_index).unwrap() {
-			pallet_referenda::ReferendumInfo::Ongoing(s) => s.tally.ayes,
-			_ => panic!("referendum should be ongoing"),
-		};
-		assert!(tally_before > 0);
-
-		// Drive to undercollateralized + run the seize.
-		let borrow_amount: Balance = 5 * HOLLAR_DECIMALS_18;
-		borrow(pool, alice_evm, hollar_addr, borrow_amount);
-		fund_treasury_for_liquidation(pool);
-		crash_st_hdx_price(oracle, st_hdx_evm);
-		assert!(
-			get_user_account_data(pool, alice_evm).unwrap().health_factor < U256::from(1_000_000_000_000_000_000u128)
-		);
-
-		let (orig_hdx, orig_gigahdx) =
-			<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::snapshot_stake(&alice).unwrap();
-		<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::on_pre_seize(&alice).unwrap();
-		let debt_to_cover = borrow_amount / 2;
-		borrow(pool, treasury_evm, hollar_addr, debt_to_cover);
-		let before = Currencies::free_balance(GIGAHDX, &treasury_evm_account);
-		let liq_data = pallet_liquidation::Pallet::<Runtime>::encode_liquidation_call_data(
-			ST_HDX,
-			HOLLAR_ASSET_ID,
-			alice_evm,
-			debt_to_cover,
-			true,
-		);
-		assert!(matches!(
-			Executor::<Runtime>::call(
-				CallContext::new_call(pool, treasury_evm),
-				liq_data,
-				U256::zero(),
-				50_000_000
-			)
-			.exit_reason,
-			fp_evm::ExitReason::Succeed(_)
-		));
-		let actual_seized = Currencies::free_balance(GIGAHDX, &treasury_evm_account) - before;
-		let seize_hdx = (U256::from(orig_hdx) * U256::from(actual_seized) / U256::from(orig_gigahdx)).as_u128();
-
-		<hydradx_runtime::gigahdx::GigaHdxVoteClearance as ClearConflictingVotes<AccountId>>::force_release_vote_lock(
-			&alice, seize_hdx,
-		)
-		.unwrap();
-		<pallet_gigahdx::Pallet<Runtime> as Seize<AccountId>>::on_seize(
-			&alice,
-			&liq_account,
-			seize_hdx,
-			actual_seized,
-			orig_gigahdx,
-		)
-		.unwrap();
-
-		// Vote and tally are unchanged.
-		let voting = pallet_conviction_voting::VotingFor::<Runtime>::get(&alice, 0u16);
-		match voting {
-			pallet_conviction_voting::Voting::Casting(casting) => {
-				assert_eq!(casting.votes.len(), 1);
-				let (recorded_ref, recorded_vote) = casting.votes[0];
-				assert_eq!(recorded_ref, ref_index);
-				assert_eq!(recorded_vote.balance(), stake_amount);
-			}
-			pallet_conviction_voting::Voting::Delegating(_) => panic!("unexpected delegating state"),
-		}
-		let tally_after = match pallet_referenda::ReferendumInfoFor::<Runtime>::get(ref_index).unwrap() {
-			pallet_referenda::ReferendumInfo::Ongoing(s) => s.tally.ayes,
-			_ => panic!("referendum should still be ongoing"),
-		};
-		assert_eq!(tally_after, tally_before);
-
-		let pyconvot_after_seize = pallet_balances::Locks::<Runtime>::get(&alice)
-			.iter()
-			.find(|l| l.id == *b"pyconvot")
-			.map(|l| l.amount)
-			.unwrap_or(0);
-		assert_eq!(pyconvot_after_seize, stake_amount - seize_hdx);
-
-		// Fee buffer is transferable post-seize.
-		let recipient: AccountId = AccountId::from([42u8; 32]);
-		assert_ok!(Balances::transfer_keep_alive(
-			RuntimeOrigin::signed(alice.clone()),
-			recipient.clone().into(),
-			50 * UNITS,
-		));
-
-		// `unlock` re-derives from `VotingFor` — never above the original commitment.
-		System::set_block_number(System::block_number() + 200 * DAYS);
-		let _ = ConvictionVoting::unlock(RuntimeOrigin::signed(alice.clone()), 0u16, alice.clone().into());
-		let pyconvot_after_unlock = pallet_balances::Locks::<Runtime>::get(&alice)
-			.iter()
-			.find(|l| l.id == *b"pyconvot")
-			.map(|l| l.amount)
-			.unwrap_or(0);
-		assert!(pyconvot_after_unlock <= stake_amount);
-	});
-}
-
-#[test]
-fn force_release_vote_lock_should_only_touch_pyconvot() {
-	TestNet::reset();
-	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		use pallet_gigahdx_rewards::traits::ClearConflictingVotes;
-
-		let (alice, _bob, _alice_evm, _pool, _oracle, _hollar_addr) = liquidation_test_setup();
-
-		let stake_amount = 5_000 * UNITS;
-		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
-		let ref_index = begin_referendum_by_bob();
-		assert_ok!(ConvictionVoting::vote(
-			RuntimeOrigin::signed(alice.clone()),
-			ref_index,
-			aye_with_conviction(2_000 * UNITS, Conviction::Locked1x),
-		));
-
-		let ghdxlock_pre = pallet_balances::Locks::<Runtime>::get(&alice)
-			.iter()
-			.find(|l| l.id == *b"ghdxlock")
-			.map(|l| l.amount)
-			.unwrap_or(0);
-		let pyconvot_pre = pallet_balances::Locks::<Runtime>::get(&alice)
-			.iter()
-			.find(|l| l.id == *b"pyconvot")
-			.map(|l| l.amount)
-			.unwrap_or(0);
-		assert_eq!(ghdxlock_pre, stake_amount);
-		assert_eq!(pyconvot_pre, 2_000 * UNITS);
-
-		<hydradx_runtime::gigahdx::GigaHdxVoteClearance as ClearConflictingVotes<AccountId>>::force_release_vote_lock(
-			&alice,
-			500 * UNITS,
-		)
-		.unwrap();
-
-		let ghdxlock_post = pallet_balances::Locks::<Runtime>::get(&alice)
-			.iter()
-			.find(|l| l.id == *b"ghdxlock")
-			.map(|l| l.amount)
-			.unwrap_or(0);
-		let pyconvot_post = pallet_balances::Locks::<Runtime>::get(&alice)
-			.iter()
-			.find(|l| l.id == *b"pyconvot")
-			.map(|l| l.amount)
-			.unwrap_or(0);
-		assert_eq!(ghdxlock_post, ghdxlock_pre);
-		assert_eq!(pyconvot_post, pyconvot_pre - 500 * UNITS);
-	});
-}
-
-#[test]
-fn force_release_vote_lock_should_remove_lock_when_amount_exceeds_balance() {
-	TestNet::reset();
-	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		use pallet_gigahdx_rewards::traits::ClearConflictingVotes;
-
-		let (alice, _bob, _alice_evm, _pool, _oracle, _hollar_addr) = liquidation_test_setup();
-
-		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 5_000 * UNITS));
-		let ref_index = begin_referendum_by_bob();
-		assert_ok!(ConvictionVoting::vote(
-			RuntimeOrigin::signed(alice.clone()),
-			ref_index,
-			aye_with_conviction(1_000 * UNITS, Conviction::Locked1x),
-		));
-
-		<hydradx_runtime::gigahdx::GigaHdxVoteClearance as ClearConflictingVotes<AccountId>>::force_release_vote_lock(
-			&alice,
-			10_000 * UNITS, // way more than the 1k pyconvot lock
-		)
-		.unwrap();
-
-		let locks = pallet_balances::Locks::<Runtime>::get(&alice);
-		let pyconvot_post = locks.iter().find(|l| l.id == *b"pyconvot");
-		assert!(pyconvot_post.is_none());
 	});
 }
 
@@ -4383,6 +3941,9 @@ fn gigahdx_liquidation_e2e_should_remove_unbacked_vote_when_borrower_has_convict
 
 		set_liquidation_protocol_fee(pool, st_hdx_evm, 0);
 		let collector_before = Currencies::free_balance(GIGAHDX, &gigahdx_atoken_collector());
+		let issuance_before = Balances::total_issuance();
+		let alice_hdx_before = Balances::free_balance(&alice);
+		let liq_hdx_before = Balances::free_balance(&liq_account);
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(alice.clone()),
 			GIGAHDX,
@@ -4393,6 +3954,37 @@ fn gigahdx_liquidation_e2e_should_remove_unbacked_vote_when_borrower_has_convict
 		));
 
 		let liq_stake = pallet_gigahdx::Stakes::<Runtime>::get(&liq_account).unwrap();
+		// `clear_conflicting_votes` removed the unbacked vote AND resynced the
+		// `pyconvot` lock via conviction-voting's `unlock`, so the seize went
+		// through a CLEAN transfer — not the slash fallback — and the borrower's
+		// free buffer is preserved (slash would have left the account over-locked).
+		let seize_hdx = liq_stake.hdx;
+		assert!(
+			seize_hdx > 100 * UNITS,
+			"seize ({seize_hdx}) exceeds the free buffer — only a resynced lock makes a clean transfer possible"
+		);
+		assert_eq!(
+			alice_hdx_before - Balances::free_balance(&alice),
+			seize_hdx,
+			"borrower loses exactly the seized HDX"
+		);
+		assert_eq!(
+			Balances::free_balance(&liq_account) - liq_hdx_before,
+			seize_hdx,
+			"liquidation account gains exactly the seized HDX"
+		);
+		assert_eq!(
+			Balances::total_issuance(),
+			issuance_before,
+			"transfer leaves total issuance flat"
+		);
+		// Lock resynced to zero (vote removed on an ongoing referendum, no
+		// conviction lock remains), so the 100-UNIT free buffer stays transferable.
+		assert_eq!(
+			pyconvot(&alice),
+			0,
+			"pyconvot resynced to zero after vote removal + unlock"
+		);
 		// The vote is no longer backed by the borrower's residual stake, so
 		// the extrinsic removed it: gigahdx vote record gone, conviction vote
 		// dropped, and the referendum tally fell accordingly.

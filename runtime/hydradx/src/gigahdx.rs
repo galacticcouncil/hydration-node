@@ -232,7 +232,7 @@ impl sp_core::Get<AccountId> for GigaHdxLiquidationAccount {
 /// then unfreezes `Stakes.frozen` and drops `UserVoteRecord`.
 pub struct GigaHdxVoteClearance;
 
-impl pallet_gigahdx_rewards::traits::ClearConflictingVotes<AccountId> for GigaHdxVoteClearance {
+impl hydradx_traits::gigahdx::ClearConflictingVotes<AccountId> for GigaHdxVoteClearance {
 	fn clear_conflicting_votes(who: &AccountId, max_hdx: Balance) -> Result<u32, sp_runtime::DispatchError> {
 		// Remove votes until the *sum* of the kept freezes fits under `max_hdx`,
 		// not just the votes that individually exceed it. Per `StakeRecord.frozen`
@@ -253,6 +253,7 @@ impl pallet_gigahdx_rewards::traits::ClearConflictingVotes<AccountId> for GigaHd
 				})
 				.collect();
 		let mut count = 0u32;
+		let mut classes: sp_std::vec::Vec<_> = sp_std::vec::Vec::new();
 		for ref_index in to_remove {
 			// Resolve the poll's class from conviction-voting's own ledger: the
 			// vote sits in `VotingFor[who][class]` whether the referendum is
@@ -278,38 +279,24 @@ impl pallet_gigahdx_rewards::traits::ClearConflictingVotes<AccountId> for GigaHd
 			};
 			let origin: crate::RuntimeOrigin = frame_system::RawOrigin::Signed(who.clone()).into();
 			pallet_conviction_voting::Pallet::<Runtime>::remove_vote(origin, Some(class), ref_index)?;
+			if !classes.contains(&class) {
+				classes.push(class);
+			}
 			count = count.saturating_add(1);
 		}
+		// Resync the `pyconvot` lock for each touched class through conviction-
+		// voting's own ledger (`unlock` -> `update_lock`). `remove_vote` does not
+		// recompute the balance lock, so without this it stays stale at the
+		// pre-removal amount — over-locking the borrower and forcing `on_seize`'s
+		// clean transfer to fall through to slash. Best-effort: a failed resync
+		// must not abort the liquidation (the slash fallback still covers it).
+		let target =
+			<<Runtime as frame_system::Config>::Lookup as sp_runtime::traits::StaticLookup>::unlookup(who.clone());
+		for class in classes {
+			let origin: crate::RuntimeOrigin = frame_system::RawOrigin::Signed(who.clone()).into();
+			let _ = pallet_conviction_voting::Pallet::<Runtime>::unlock(origin, class, target.clone());
+		}
 		Ok(count)
-	}
-
-	/// Goes through `LockableCurrency::{set_lock,remove_lock}` so
-	/// `Account.frozen` gets recomputed; raw `Locks` mutation would leave
-	/// it stale and the transfer-time freeze check would miss the change.
-	fn force_release_vote_lock(who: &AccountId, amount: Balance) -> Result<(), sp_runtime::DispatchError> {
-		use frame_support::traits::{LockableCurrency, WithdrawReasons};
-		const PYCONVOT: LockIdentifier = *b"pyconvot";
-
-		let current = pallet_balances::Locks::<Runtime>::get(who)
-			.iter()
-			.find(|l| l.id == PYCONVOT)
-			.map(|l| l.amount)
-			.unwrap_or(0);
-		if current == 0 {
-			return Ok(());
-		}
-		let new_amount = current.saturating_sub(amount);
-		if new_amount == 0 {
-			<pallet_balances::Pallet<Runtime> as LockableCurrency<AccountId>>::remove_lock(PYCONVOT, who);
-		} else {
-			<pallet_balances::Pallet<Runtime> as LockableCurrency<AccountId>>::set_lock(
-				PYCONVOT,
-				who,
-				new_amount,
-				WithdrawReasons::except(WithdrawReasons::RESERVE),
-			);
-		}
-		Ok(())
 	}
 }
 
@@ -319,23 +306,7 @@ impl pallet_gigahdx_rewards::traits::ClearConflictingVotes<AccountId> for GigaHd
 /// the protocol-funded gigahdx liquidation path needs.
 pub struct GigaHdxLiquidationSupport;
 
-impl pallet_liquidation::traits::GigaHdxSupport<AccountId> for GigaHdxLiquidationSupport {
-	fn gigahdx_asset_id() -> AssetId {
-		<crate::assets::GigaHdxAssetIdConst as sp_core::Get<AssetId>>::get()
-	}
-
-	fn sthdx_asset_id() -> AssetId {
-		<crate::assets::StHdxAssetId as sp_core::Get<AssetId>>::get()
-	}
-
-	fn liquidation_account() -> AccountId {
-		<GigaHdxLiquidationAccount as sp_core::Get<AccountId>>::get()
-	}
-
-	fn pool_contract() -> Option<EvmAddress> {
-		pallet_gigahdx::GigaHdxPoolContract::<Runtime>::get()
-	}
-
+impl hydradx_traits::gigahdx::Seize<AccountId> for GigaHdxLiquidationSupport {
 	fn realize_yield(borrower: &AccountId) -> DispatchResult {
 		<pallet_gigahdx::Pallet<Runtime> as hydradx_traits::gigahdx::Seize<AccountId>>::realize_yield(borrower)
 	}
@@ -363,16 +334,27 @@ impl pallet_liquidation::traits::GigaHdxSupport<AccountId> for GigaHdxLiquidatio
 			orig_gigahdx,
 		)
 	}
+}
 
-	fn force_release_vote_lock(borrower: &AccountId, amount: Balance) -> Result<(), DispatchError> {
-		<GigaHdxVoteClearance as pallet_gigahdx_rewards::traits::ClearConflictingVotes<AccountId>>::force_release_vote_lock(
-			borrower, amount,
-		)
+impl pallet_liquidation::traits::GigaHdxSupport<AccountId> for GigaHdxLiquidationSupport {
+	fn gigahdx_asset_id() -> AssetId {
+		<crate::assets::GigaHdxAssetIdConst as sp_core::Get<AssetId>>::get()
+	}
+
+	fn sthdx_asset_id() -> AssetId {
+		<crate::assets::StHdxAssetId as sp_core::Get<AssetId>>::get()
+	}
+
+	fn liquidation_account() -> AccountId {
+		<GigaHdxLiquidationAccount as sp_core::Get<AccountId>>::get()
+	}
+
+	fn pool_contract() -> Option<EvmAddress> {
+		pallet_gigahdx::GigaHdxPoolContract::<Runtime>::get()
 	}
 
 	fn borrower_pool_debt(borrower: &AccountId, debt_asset: AssetId) -> Result<Balance, DispatchError> {
-		let pool = pallet_gigahdx::GigaHdxPoolContract::<Runtime>::get()
-			.ok_or(DispatchError::Other("gigahdx: pool contract not set"))?;
+		let pool = Self::pool_contract().ok_or(DispatchError::Other("gigahdx: pool contract not set"))?;
 		let asset_evm = HydraErc20Mapping::asset_address(debt_asset);
 		let reserve = crate::evm::aave_trade_executor::Aave::get_reserve_data(pool, asset_evm)
 			.map_err(|_| DispatchError::Other("gigahdx: get_reserve_data failed"))?;
@@ -389,8 +371,9 @@ impl pallet_liquidation::traits::GigaHdxSupport<AccountId> for GigaHdxLiquidatio
 	}
 
 	fn clear_conflicting_votes(borrower: &AccountId, max_remaining_hdx: Balance) -> Result<u32, DispatchError> {
-		<GigaHdxVoteClearance as pallet_gigahdx_rewards::traits::ClearConflictingVotes<AccountId>>::clear_conflicting_votes(
-			borrower, max_remaining_hdx,
+		<GigaHdxVoteClearance as hydradx_traits::gigahdx::ClearConflictingVotes<AccountId>>::clear_conflicting_votes(
+			borrower,
+			max_remaining_hdx,
 		)
 	}
 }

@@ -3,8 +3,7 @@
 //! Traits used by `pallet-gigahdx-rewards` to abstract over the runtime's
 //! referenda configuration and the per-track reward percentage table.
 
-use primitives::Balance;
-use sp_runtime::{DispatchError, Permill};
+use sp_runtime::Permill;
 
 /// Lookup of referendum index → track id.
 pub trait ReferendaTrackInspect<RefIdx, TrackId> {
@@ -22,25 +21,4 @@ pub trait TrackRewardTable<TrackId> {
 	/// referendum on this track. Returning `Permill::zero()` is a valid
 	/// way to opt a track out of rewards entirely.
 	fn reward_percentage(track_id: TrackId) -> Permill;
-}
-
-/// Conviction-voting interactions used by `pallet-liquidation` during a
-/// gigahdx liquidation. `force_release_vote_lock` exists because
-/// `try_remove_vote` does not resync the `pyconvot` lock — leaving the
-/// borrower's transfer freeze stale on the seize path.
-pub trait ClearConflictingVotes<AccountId> {
-	fn clear_conflicting_votes(who: &AccountId, max_remaining_hdx: Balance) -> Result<u32, DispatchError>;
-
-	/// Saturating reduction of the `pyconvot` lock by `amount`.
-	fn force_release_vote_lock(who: &AccountId, amount: Balance) -> Result<(), DispatchError>;
-}
-
-impl<AccountId> ClearConflictingVotes<AccountId> for () {
-	fn clear_conflicting_votes(_who: &AccountId, _max_remaining_hdx: Balance) -> Result<u32, DispatchError> {
-		Ok(0)
-	}
-
-	fn force_release_vote_lock(_who: &AccountId, _amount: Balance) -> Result<(), DispatchError> {
-		Ok(())
-	}
 }

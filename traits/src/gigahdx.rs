@@ -106,3 +106,16 @@ pub trait Seize<AccountId> {
 		orig_gigahdx: Balance,
 	) -> DispatchResult;
 }
+
+/// Conviction-voting interaction used by `pallet-liquidation` during a gigahdx
+/// liquidation: it removes votes no longer backed by the borrower's residual
+/// stake and resyncs the `pyconvot` lock via conviction-voting's `unlock`.
+pub trait ClearConflictingVotes<AccountId> {
+	fn clear_conflicting_votes(who: &AccountId, max_remaining_hdx: Balance) -> Result<u32, DispatchError>;
+}
+
+impl<AccountId> ClearConflictingVotes<AccountId> for () {
+	fn clear_conflicting_votes(_who: &AccountId, _max_remaining_hdx: Balance) -> Result<u32, DispatchError> {
+		Ok(0)
+	}
+}

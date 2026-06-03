@@ -246,19 +246,7 @@ impl Config for Test {
 /// asset/account getters mirror the real runtime ids (67 / 670).
 pub struct GigaHdxSupportMock;
 
-impl crate::traits::GigaHdxSupport<AccountId> for GigaHdxSupportMock {
-	fn gigahdx_asset_id() -> AssetId {
-		67
-	}
-	fn sthdx_asset_id() -> AssetId {
-		670
-	}
-	fn liquidation_account() -> AccountId {
-		AccountId::new([7u8; 32])
-	}
-	fn pool_contract() -> Option<primitives::EvmAddress> {
-		None
-	}
+impl hydradx_traits::gigahdx::Seize<AccountId> for GigaHdxSupportMock {
 	fn realize_yield(_borrower: &AccountId) -> frame_support::dispatch::DispatchResult {
 		Err(DispatchError::Other("no gigahdx seize source configured"))
 	}
@@ -277,8 +265,20 @@ impl crate::traits::GigaHdxSupport<AccountId> for GigaHdxSupportMock {
 	) -> frame_support::dispatch::DispatchResult {
 		Err(DispatchError::Other("no gigahdx seize source configured"))
 	}
-	fn force_release_vote_lock(_borrower: &AccountId, _amount: primitives::Balance) -> Result<(), DispatchError> {
-		Ok(())
+}
+
+impl crate::traits::GigaHdxSupport<AccountId> for GigaHdxSupportMock {
+	fn gigahdx_asset_id() -> AssetId {
+		67
+	}
+	fn sthdx_asset_id() -> AssetId {
+		670
+	}
+	fn liquidation_account() -> AccountId {
+		AccountId::new([7u8; 32])
+	}
+	fn pool_contract() -> Option<primitives::EvmAddress> {
+		None
 	}
 	fn borrower_pool_debt(_borrower: &AccountId, _debt_asset: AssetId) -> Result<primitives::Balance, DispatchError> {
 		Err(DispatchError::Other("no gigahdx seize source configured"))
