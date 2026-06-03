@@ -214,12 +214,11 @@ where
 		let mut input = handle.read_input()?;
 		input.expect_arguments(2)?;
 
-		let to_h160: H160 = input.read::<Address>()?.into();
-		let from_h160: H160 = handle.context().caller;
+		let to: H160 = input.read::<Address>()?.into();
 		let amount = input.read::<Balance>()?;
 
-		let origin = ExtendedAddressMapping::into_account_id(from_h160);
-		let to = ExtendedAddressMapping::into_account_id(to_h160);
+		let origin = ExtendedAddressMapping::into_account_id(handle.context().caller);
+		let to = ExtendedAddressMapping::into_account_id(to);
 
 		log::debug!(target: "evm", "multicurrency: transfer from: {origin:?}, to: {to:?}, amount: {amount:?}");
 
@@ -316,15 +315,15 @@ where
 			}
 		}
 
-		let from_acc = ExtendedAddressMapping::into_account_id(from);
-		let to_acc = ExtendedAddressMapping::into_account_id(to);
+		let from = ExtendedAddressMapping::into_account_id(from);
+		let to = ExtendedAddressMapping::into_account_id(to);
 
-		log::debug!(target: "evm", "multicurrency: transferFrom from: {from_acc:?}, to: {to_acc:?}, amount: {amount:?}");
+		log::debug!(target: "evm", "multicurrency: transferFrom from: {from:?}, to: {to:?}, amount: {amount:?}");
 
 		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
 			asset_id,
-			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from_acc)),
-			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to_acc)),
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from)),
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
 			amount,
 			ExistenceRequirement::AllowDeath,
 		)

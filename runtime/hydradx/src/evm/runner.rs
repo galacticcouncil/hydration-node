@@ -155,6 +155,7 @@ where
 		let source_account_id = T::AddressMapping::into_account_id(source);
 		let original_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
 
+		// Validated, flag set to false
 		let result = R::call(
 			source,
 			target,
@@ -219,7 +220,8 @@ where
 				config,
 			)?;
 		}
-		let result = R::create(
+		// Validated, flag set to false
+		R::create(
 			source,
 			init,
 			value,
@@ -234,8 +236,7 @@ where
 			weight_limit,
 			proof_size_base_cost,
 			config,
-		)?;
-		Ok(result)
+		)
 	}
 
 	fn create2(
@@ -273,7 +274,8 @@ where
 				config,
 			)?;
 		}
-		let result = R::create2(
+		//Validated, flag set to false
+		R::create2(
 			source,
 			init,
 			salt,
@@ -289,8 +291,7 @@ where
 			weight_limit,
 			proof_size_base_cost,
 			config,
-		)?;
-		Ok(result)
+		)
 	}
 
 	fn create_force_address(
@@ -328,7 +329,8 @@ where
 				config,
 			)?;
 		}
-		let result = R::create_force_address(
+		//Validated, flag set to false
+		R::create_force_address(
 			source,
 			init,
 			value,
@@ -344,8 +346,7 @@ where
 			proof_size_base_cost,
 			config,
 			contract_address,
-		)?;
-		Ok(result)
+		)
 	}
 }
 
