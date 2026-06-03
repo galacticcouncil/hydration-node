@@ -134,7 +134,9 @@ where
 
 // Mirror of fc-rpc's `filter_block_logs`, but `block` carries the canonical header
 // (the override doesn't mutate it), so `block_hash` here equals the fc-db mapping
-// key and round-trips via `eth_getBlockByHash`.
+// key and round-trips via `eth_getBlockByHash`. Counters kept manual to match
+// upstream (`block_log_index` spans both loops, so it isn't an `enumerate`).
+#[allow(clippy::explicit_counter_loop)]
 fn filter_block_logs(filter: &Filter, block: EthereumBlock, statuses: Vec<TransactionStatus>) -> Vec<Log> {
 	let params = FilteredParams::new(filter.clone());
 	let block_hash = H256::from(keccak_256(&rlp::encode(&block.header)));
