@@ -5320,11 +5320,7 @@ mod route_spot_price {
 					.unwrap()
 					.checked_mul_int(amount_to_sell)
 					.unwrap();
-				let difference = if expected_amount_out > calculated_amount_out {
-					expected_amount_out - calculated_amount_out
-				} else {
-					calculated_amount_out - expected_amount_out
-				};
+				let difference = expected_amount_out.abs_diff(calculated_amount_out);
 				let relative_difference = FixedU128::from_rational(difference, expected_amount_out);
 				let tolerated_difference = FixedU128::from_rational(1, 100);
 				// The difference of the amount out calculated with spot price should be less than 1%
@@ -5391,11 +5387,7 @@ mod route_spot_price {
 					.unwrap()
 					.checked_mul_int(amount_to_sell)
 					.unwrap();
-				let difference = if expected_amount_out > calculated_amount_out {
-					expected_amount_out - calculated_amount_out
-				} else {
-					calculated_amount_out - expected_amount_out
-				};
+				let difference = expected_amount_out.abs_diff(calculated_amount_out);
 				let relative_difference = FixedU128::from_rational(difference, expected_amount_out);
 				let tolerated_difference = FixedU128::from_rational(1, 100);
 				// The difference of the amount out calculated with spot price should be less than 1%

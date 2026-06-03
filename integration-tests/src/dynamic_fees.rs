@@ -834,10 +834,10 @@ fn fees_should_be_applied_correctly_when_min_equals_max_in_dynamic_config() {
 	println!("DOT asset fee: 1% (applied on DOT being sold)");
 	println!("HDX protocol fee: 0.5% (applied on HDX being received)");
 	println!("---");
-	println!("Amount received with zero fees: {}", amount_out_with_zero_fee);
-	println!("Amount received with fees: {}", amount_out_with_fee);
-	println!("Difference: {}", actual_difference);
-	println!("Actual percentage difference: {:.4}%", actual_percentage_value);
+	println!("Amount received with zero fees: {amount_out_with_zero_fee}");
+	println!("Amount received with fees: {amount_out_with_fee}");
+	println!("Difference: {actual_difference}");
+	println!("Actual percentage difference: {actual_percentage_value:.4}%");
 	println!("====================================\n");
 
 	// Verify the fees were applied (should see some difference)
@@ -850,16 +850,10 @@ fn fees_should_be_applied_correctly_when_min_equals_max_in_dynamic_config() {
 
 	assert!(
 		actual_percentage_value >= expected_percentage - tolerance,
-		"Actual fee percentage ({:.4}%) is lower than expected ({:.2}% - {:.2}%)",
-		actual_percentage_value,
-		expected_percentage,
-		tolerance
+		"Actual fee percentage ({actual_percentage_value:.4}%) is lower than expected ({expected_percentage:.2}% - {tolerance:.2}%)"
 	);
 	assert!(
 		actual_percentage_value <= expected_percentage + tolerance,
-		"Actual fee percentage ({:.4}%) is higher than expected ({:.2}% + {:.2}%)",
-		actual_percentage_value,
-		expected_percentage,
-		tolerance
+		"Actual fee percentage ({actual_percentage_value:.4}%) is higher than expected ({expected_percentage:.2}% + {tolerance:.2}%)"
 	);
 }

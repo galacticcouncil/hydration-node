@@ -20,10 +20,11 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::service::ParachainClient;
+use crate::synthetic_logs::mapping_sync::SyntheticMappingSyncWorker;
 use cumulus_client_consensus_common::ParachainBlockImportMarker;
 use fc_consensus::Error;
 use fc_db::kv::Backend as FrontierBackend;
-use fc_mapping_sync::{kv::MappingSyncWorker, SyncStrategy};
+use fc_mapping_sync::SyncStrategy;
 use fc_rpc::{EthTask, StorageOverride};
 use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_consensus::ensure_log;
@@ -159,7 +160,7 @@ pub fn spawn_frontier_tasks(
 	task_manager.spawn_essential_handle().spawn(
 		"frontier-mapping-sync-worker",
 		None,
-		MappingSyncWorker::new(
+		SyntheticMappingSyncWorker::new(
 			client.import_notification_stream(),
 			Duration::new(6, 0),
 			client.clone(),

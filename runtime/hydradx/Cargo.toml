@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "422.0.0"
+version = "425.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -21,6 +21,8 @@ smallvec = { workspace = true }
 log = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 evm = { workspace = true, features = ["with-codec"] }
+alloy-primitives = { workspace = true }
+alloy-sol-types = { workspace = true }
 
 # local dependencies
 primitives = { workspace = true }
@@ -189,6 +191,7 @@ serde_json = { workspace = true, default-features = false, features = [
     "alloc",
 ] }
 ethereum = { workspace = true }
+ethereum-types = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
