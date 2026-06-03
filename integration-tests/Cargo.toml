@@ -51,7 +51,6 @@ pallet-gigahdx = { workspace = true }
 pallet-gigahdx-rewards = { workspace = true }
 liquidation-worker-support = { workspace = true }
 pallet-broadcast = { workspace = true }
-pallet-synthetic-logs = { workspace = true }
 ethereum-types = { workspace = true }
 pallet-duster = { workspace = true }
 pallet-duster-rpc-runtime-api = { workspace = true }

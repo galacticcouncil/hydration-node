@@ -5,11 +5,9 @@
 
 //! Pure primitives for turning substrate token/trade events into synthetic
 //! ethereum `Transaction`/`TransactionStatus`/`Receipt` records (one synth tx
-//! per bucket: per-extrinsic, or per hook-phase + broadcast origin). The
-//! node-indexing layer assembles and serves these off-chain via eth json-rpc
-//! (`SyntheticEthLogsApi`); nothing here touches chain state.
-
-#![cfg_attr(not(feature = "std"), no_std)]
+//! per bucket: per-extrinsic, or per hook-phase + broadcast origin). The node
+//! assembles and serves these off-chain over eth json-rpc by calling
+//! `event_logs::synthetic_txs_from_records`; nothing here touches chain state.
 
 #[cfg(test)]
 mod tests;
@@ -51,10 +49,6 @@ pub enum Bucket {
 	},
 }
 
-// This crate is a pure library of evm-log primitives (no pallet): the
-// node-indexing variant builds synthetic txs off-chain via `SyntheticEthLogsApi`
-// (runtime/hydradx `evm::event_logs`), which calls `assemble_synth_txs` here.
-
 /// Per-block domain-separation seed folded into each synth tx's `input`, so
 /// envelope hashes are unique per block (frontier indexes txs by hash; without
 /// this, `Extrinsic(2)` in block N and N+1 would hash identically).
@@ -78,8 +72,7 @@ fn logs_bloom(logs: &[ethereum::Log]) -> Bloom {
 }
 
 /// Assemble synthetic ethereum txs from bucketed logs. **Pure** — no storage,
-/// no `T`. Shared by the on-chain flusher (`flush`) and the node-indexing
-/// runtime API, so both yield byte-identical txs (the A/B parity guarantee).
+/// no `T`.
 ///
 /// One synth tx per bucket, emitted in ascending `bucket_sort_key` order
 /// (init hooks < extrinsics by index < finalize hooks), insertion order

@@ -63,6 +63,7 @@ mod gas_to_weight_mapping;
 pub mod permit;
 pub mod precompiles;
 mod runner;
+pub mod synthetic_logs;
 
 use crate::circuit_breaker::IgnoreWithdrawFuse;
 pub use erc20_currency::Erc20Currency;

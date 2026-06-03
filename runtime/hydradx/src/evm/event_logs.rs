@@ -13,15 +13,15 @@
 //! `Swapped3` → uniswap-v2 `Swap` and internal `pallet_evm::Log` (deduped vs
 //! real eth txs).
 
+use super::synthetic_logs::{
+	account_to_evm_address, assemble_synth_txs, asset_evm_address, build_erc20_transfer_log, build_uniswap_v2_swap_log,
+	frozen_address_of, reserved_address_of, Bucket, HookPhase,
+};
 use crate::{Runtime, RuntimeEvent};
 use frame_support::traits::Get;
 use frame_system::{EventRecord, Phase};
 use pallet_broadcast::types::{Asset, ExecutionType, TradeOperation};
 use pallet_ethereum::{Receipt, Transaction, TransactionStatus};
-use pallet_synthetic_logs::{
-	account_to_evm_address, assemble_synth_txs, asset_evm_address, build_erc20_transfer_log, build_uniswap_v2_swap_log,
-	frozen_address_of, reserved_address_of, Bucket, HookPhase,
-};
 use primitive_types::{H160, U256};
 use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::AccountId;

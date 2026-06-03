@@ -3,11 +3,7 @@
 // Copyright (C) 2020-2026  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
-//! Unit tests for the pure helpers exported by `pallet-synthetic-logs`.
-//!
-//! End-to-end tests (push -> on_finalize -> pallet_ethereum::Pending writes)
-//! live in `integration-tests` because they require a runtime that wires
-//! pallet_ethereum, pallet_evm, frame_system, and pallet_broadcast together.
+//! Unit tests for the pure synthetic-log helpers.
 
 use super::*;
 use ethereum_types::{H160, U256};
@@ -135,7 +131,7 @@ fn reserved_address_of_is_reversible() {
 // a collision would mean one synth tx shadows the other in eth_getTransactionByHash.
 #[test]
 fn synth_envelope_hash_is_unique_per_group_index() {
-	use crate::Transaction;
+	use super::Transaction;
 	use ethereum::{eip2930::TransactionSignature, EIP1559Transaction, TransactionAction};
 
 	let signature = TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS).expect("synth sig in range");
@@ -171,7 +167,7 @@ fn synth_envelope_hash_is_unique_per_group_index() {
 // distinguishes otherwise-identical envelopes.
 #[test]
 fn synth_envelope_hash_is_unique_per_block() {
-	use crate::Transaction;
+	use super::Transaction;
 	use ethereum::{eip2930::TransactionSignature, EIP1559Transaction, TransactionAction};
 
 	let signature = TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS).expect("synth sig in range");
@@ -349,7 +345,7 @@ fn assemble_synth_txs_groups_indexes_and_orders() {
 	assert_eq!(s0.from, SENTINEL_ADDRESS);
 	assert_eq!(s0.to, Some(SENTINEL_ADDRESS));
 	match r0 {
-		crate::Receipt::EIP1559(d) => {
+		super::Receipt::EIP1559(d) => {
 			assert_eq!(d.status_code, 1);
 			assert_eq!(d.logs.len(), 1);
 		}

@@ -241,7 +241,7 @@ pub fn emit_approval_log(
 	spender: H160,
 	amount: U256,
 ) -> EvmResult<()> {
-	use pallet_synthetic_logs::{encode_u256_be, h160_to_h256, APPROVAL_TOPIC};
+	use crate::evm::synthetic_logs::{encode_u256_be, h160_to_h256, APPROVAL_TOPIC};
 	let topics = sp_std::vec![APPROVAL_TOPIC, h160_to_h256(owner), h160_to_h256(spender)];
 	let data = encode_u256_be(amount).to_vec();
 	let cost = costs::log_costs(topics.len(), data.len()).map_err(|_| PrecompileFailure::Error {

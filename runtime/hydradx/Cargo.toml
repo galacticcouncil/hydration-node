@@ -43,7 +43,6 @@ pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
 pallet-broadcast = { workspace = true }
-pallet-synthetic-logs = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
@@ -192,6 +191,7 @@ serde_json = { workspace = true, default-features = false, features = [
     "alloc",
 ] }
 ethereum = { workspace = true }
+ethereum-types = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
@@ -393,7 +393,6 @@ std = [
     "pallet-referenda/std",
     "pallet-whitelist/std",
     "pallet-broadcast/std",
-    "pallet-synthetic-logs/std",
     "pallet-dispatcher/std",
     "pallet-signet/std",
     "pallet-dispenser/std",
