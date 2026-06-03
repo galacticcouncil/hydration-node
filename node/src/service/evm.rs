@@ -20,7 +20,7 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::service::ParachainClient;
-use crate::synthetic_mapping_sync::SyntheticMappingSyncWorker;
+use crate::synthetic_logs::mapping_sync::SyntheticMappingSyncWorker;
 use cumulus_client_consensus_common::ParachainBlockImportMarker;
 use fc_consensus::Error;
 use fc_db::kv::Backend as FrontierBackend;

@@ -11,7 +11,7 @@
 //! resolves consistently across `current_transaction_statuses`/`current_receipts`
 //! and `current_block.transactions` (fc-rpc indexes `block.transactions[index]`).
 //! The block header is left canonical (hash unchanged); `eth_getLogs` discovery of
-//! synth-only blocks is handled by `synthetic_eth_filter`.
+//! synth-only blocks is handled by the sibling `eth_filter` module.
 
 use std::{
 	marker::PhantomData,
@@ -126,7 +126,7 @@ where
 		// Append synth txs so `eth_getTransactionByHash`/`*_receipt` can index them
 		// (fc-rpc does `block.transactions[index]`). The header is left UNTOUCHED so
 		// the canonical eth block hash is preserved — surfacing synth logs in
-		// `eth_getLogs` is handled by `synthetic_eth_filter`, not by mutating the
+		// `eth_getLogs` is handled by the `eth_filter` module, not by mutating the
 		// header bloom (which would change the block hash).
 		for (tx, _, _) in self.synthetic(at) {
 			block.transactions.push(tx);

@@ -270,7 +270,7 @@ where
 		let cache = getlogs_cache.clone();
 		async move {
 			let filter = params.one::<fc_rpc_core::types::Filter>()?;
-			crate::synthetic_eth_filter::logs(client, backend, cache, getlogs_max, filter).await
+			crate::synthetic_logs::eth_filter::logs(client, backend, cache, getlogs_max, filter).await
 		}
 	})?;
 

@@ -392,7 +392,7 @@ async fn start_node_impl(
 	// block's events read out of state — no on-chain synth txs, and works on
 	// any runtime version (no runtime-API dependency).
 	let overrides: Arc<dyn fc_rpc::StorageOverride<Block>> =
-		Arc::new(crate::synthetic_logs_override::SyntheticStorageOverride::<
+		Arc::new(crate::synthetic_logs::storage_override::SyntheticStorageOverride::<
 			ParachainClient,
 			ParachainBackend,
 		>::new(

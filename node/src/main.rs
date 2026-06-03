@@ -27,9 +27,7 @@ mod cli;
 mod command;
 mod liquidation_worker;
 mod rpc;
-mod synthetic_eth_filter;
-mod synthetic_logs_override;
-mod synthetic_mapping_sync;
+mod synthetic_logs;
 
 #[allow(clippy::result_large_err)]
 fn main() -> sc_cli::Result<()> {
