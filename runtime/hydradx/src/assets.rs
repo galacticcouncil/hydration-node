@@ -1913,6 +1913,7 @@ impl pallet_gigahdx::Config for Runtime {
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type ExternalClaims = crate::gigahdx::HdxExternalClaims;
 	type LegacyStaking = crate::gigahdx::LegacyStakingMigrator;
+	type VotingCommitment = GigaHdxRewards;
 	type WeightInfo = weights::pallet_gigahdx::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = GigaHdxBenchmarkHelper;

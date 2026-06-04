@@ -16,12 +16,13 @@ use hydradx_runtime::evm::{
 	precompiles::handle::EvmDataWriter, Executor,
 };
 use hydradx_runtime::{
-	Balances, ConvictionVoting, Currencies, Democracy, EVMAccounts, GigaHdx, Preimage, Referenda, Runtime,
-	RuntimeOrigin, Scheduler, Staking, System,
+	Balances, ConvictionVoting, Currencies, Democracy, EVMAccounts, GigaHdx, GigaHdxRewards, Preimage, Referenda,
+	Runtime, RuntimeOrigin, Scheduler, Staking, System,
 };
 use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, EVM};
 use orml_traits::MultiCurrency;
 use pallet_conviction_voting::{AccountVote, Conviction, Vote};
+use pallet_gigahdx::traits::VotingCommitmentInspect;
 use primitives::constants::time::DAYS;
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
 use sp_core::{H160, H256, U256};
@@ -1405,15 +1406,12 @@ fn cancel_unstake_should_preserve_frozen_when_user_has_active_vote_e2e() {
 			ref_index,
 			aye_with_conviction(800 * UNITS, Conviction::Locked1x),
 		));
-		let frozen_before = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen;
+		let frozen_before = GigaHdxRewards::committed(&alice);
 		assert_eq!(frozen_before, 800 * UNITS);
 
 		// Unstake the unfrozen portion (100 ≤ hdx 1000 − frozen 800).
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
-		assert_eq!(
-			pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen,
-			frozen_before,
-		);
+		assert_eq!(GigaHdxRewards::committed(&alice), frozen_before,);
 
 		let position_id = only_pending_position(&alice).id;
 		assert_ok!(GigaHdx::cancel_unstake(
@@ -1421,9 +1419,13 @@ fn cancel_unstake_should_preserve_frozen_when_user_has_active_vote_e2e() {
 			position_id
 		));
 		let s = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
-		assert_eq!(s.frozen, frozen_before, "cancel must not touch frozen");
+		assert_eq!(
+			GigaHdxRewards::committed(&alice),
+			frozen_before,
+			"cancel must not touch frozen"
+		);
 		assert_eq!(s.hdx, 1_000 * UNITS);
-		assert!(s.frozen <= s.hdx);
+		assert!(GigaHdxRewards::committed(&alice) <= s.hdx);
 	});
 }
 
@@ -1589,7 +1591,7 @@ fn vote_freeze_should_coexist_with_multiple_pending_positions_e2e() {
 			ref_index,
 			aye_with_conviction(800 * UNITS, Conviction::Locked1x),
 		));
-		let frozen_before = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen;
+		let frozen_before = GigaHdxRewards::committed(&alice);
 		assert_eq!(frozen_before, 800 * UNITS);
 
 		advance_block();
@@ -1602,8 +1604,12 @@ fn vote_freeze_should_coexist_with_multiple_pending_positions_e2e() {
 		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), id_b));
 
 		let s = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap();
-		assert_eq!(s.frozen, frozen_before, "frozen must persist across multi-position ops");
-		assert!(s.frozen <= s.hdx);
+		assert_eq!(
+			GigaHdxRewards::committed(&alice),
+			frozen_before,
+			"frozen must persist across multi-position ops"
+		);
+		assert!(GigaHdxRewards::committed(&alice) <= s.hdx);
 	});
 }
 
