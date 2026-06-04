@@ -235,23 +235,15 @@ pub struct GigaHdxVoteClearance;
 
 impl hydradx_traits::gigahdx::ClearConflictingVotes<AccountId> for GigaHdxVoteClearance {
 	fn clear_conflicting_votes(who: &AccountId, max_hdx: Balance) -> Result<u32, sp_runtime::DispatchError> {
-		// Greedily keep votes in iteration order while the *sum* of kept
-		// reservations fits under `max_hdx`, dropping the rest so
-		// `sum(kept) <= max_hdx`. The unstake commitment is now the *max*
-		// (overlap) of live reservations, not their sum (see
-		// `committed_with_count`), so this sum-based budget is conservative — it
-		// may clear more votes than strictly required. Revisit together with the
-		// deferred liquidation vote-clearance rework.
-		let mut kept: Balance = 0;
+		// Conviction-voting locks overlap: the same HDX backs every concurrent
+		// vote, so the unstake commitment is the *max* (overlap) of live
+		// reservations, not their sum (see `committed_with_count`). A vote
+		// therefore "fits" under the residual stake iff its own reservation
+		// does — remove exactly the votes whose reservation exceeds `max_hdx`,
+		// matching the commitment guard.
 		let to_remove: sp_std::vec::Vec<pallet_gigahdx_rewards::types::ReferendumIndex> =
 			pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::iter_prefix(who)
-				.filter_map(|(ref_index, rec)| match kept.checked_add(rec.staked_vote_amount) {
-					Some(sum) if sum <= max_hdx => {
-						kept = sum;
-						None
-					}
-					_ => Some(ref_index),
-				})
+				.filter_map(|(ref_index, rec)| (rec.staked_vote_amount > max_hdx).then_some(ref_index))
 				.collect();
 		let mut count = 0u32;
 		let mut classes: sp_std::vec::Vec<_> = sp_std::vec::Vec::new();
