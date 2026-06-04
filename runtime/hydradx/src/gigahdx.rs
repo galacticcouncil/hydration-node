@@ -234,13 +234,13 @@ pub struct GigaHdxVoteClearance;
 
 impl hydradx_traits::gigahdx::ClearConflictingVotes<AccountId> for GigaHdxVoteClearance {
 	fn clear_conflicting_votes(who: &AccountId, max_hdx: Balance) -> Result<u32, sp_runtime::DispatchError> {
-		// Remove votes until the *sum* of the kept freezes fits under `max_hdx`,
-		// not just the votes that individually exceed it. Per `StakeRecord.frozen`
-		// the freezes stack, so several small kept votes can sum above the residual
-		// stake; `on_seize` would then clamp `frozen` lossily and a later
-		// `remove_vote` could unfreeze below the live-vote sum, bypassing the
-		// `do_unstake` guard. Greedily keep votes in iteration order up to the
-		// budget and drop the rest, preserving `sum(kept) <= max_hdx`.
+		// Greedily keep votes in iteration order while the *sum* of kept
+		// reservations fits under `max_hdx`, dropping the rest so
+		// `sum(kept) <= max_hdx`. The unstake commitment is now the *max*
+		// (overlap) of live reservations, not their sum (see
+		// `committed_with_count`), so this sum-based budget is conservative — it
+		// may clear more votes than strictly required. Revisit together with the
+		// deferred liquidation vote-clearance rework.
 		let mut kept: Balance = 0;
 		let to_remove: sp_std::vec::Vec<pallet_gigahdx_rewards::types::ReferendumIndex> =
 			pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::iter_prefix(who)

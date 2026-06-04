@@ -54,12 +54,13 @@ fn on_before_vote_should_record_split_vote_with_zero_weight() {
 				nay: 60 * ONE,
 			},
 		));
-		// Recorded so liquidation's clearance adapter can reach it. Weight is
-		// zero (Conviction::None) so no reward share, but the slot exists.
+		// Recorded so liquidation's clearance adapter can reach it and the
+		// unstake commitment accounts for the locked HDX. Weight is zero
+		// (Conviction::None) so no reward share, but the slot exists.
 		let rec = UserVoteRecords::<Test>::get(ALICE, REF_A).unwrap();
 		assert_eq!(rec.staked_vote_amount, 100 * ONE);
 		assert_eq!(rec.weighted, 0);
-		assert_eq!(stake_record(&ALICE).frozen, 100 * ONE);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 100 * ONE);
 		let tally = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
 		assert_eq!(tally.voters_count, 1);
 		assert_eq!(tally.total_weighted, 0);
@@ -82,7 +83,7 @@ fn on_before_vote_should_record_split_abstain_vote_with_zero_weight() {
 		let rec = UserVoteRecords::<Test>::get(ALICE, REF_A).unwrap();
 		assert_eq!(rec.staked_vote_amount, 100 * ONE);
 		assert_eq!(rec.weighted, 0);
-		assert_eq!(stake_record(&ALICE).frozen, 100 * ONE);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 100 * ONE);
 		let tally = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
 		assert_eq!(tally.voters_count, 1);
 		assert_eq!(tally.total_weighted, 0);
@@ -100,14 +101,13 @@ fn on_before_vote_should_replace_record_when_downgrading_to_split() {
 			REF_A,
 			standard_vote(true, Conviction::Locked6x, 50 * ONE),
 		));
-		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_some());
 		assert_eq!(GigaHdxRewards::committed(&ALICE), 50 * ONE);
-		let tally = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
-		assert_eq!(tally.voters_count, 1);
-		assert!(tally.total_weighted > 0);
+		let tally_1 = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
+		assert_eq!(tally_1.voters_count, 1);
+		assert!(tally_1.total_weighted > 0);
 
-		// Downgrade to Split — record replaced with zero-weight version,
-		// freeze recomputed against the new (Split-balance) commitment,
+		// Downgrade to Split — record replaced with a zero-weight version, the
+		// commitment recomputed against the new (Split-balance) reservation,
 		// voter count unchanged, total_weighted drops to zero.
 		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
 			&ALICE,
@@ -117,9 +117,16 @@ fn on_before_vote_should_replace_record_when_downgrading_to_split() {
 				nay: 30 * ONE,
 			},
 		));
-		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_none());
-		assert_eq!(GigaHdxRewards::committed(&ALICE), 0);
-		assert!(ReferendaTotalWeightedVotes::<Test>::get(REF_A).is_none());
+		let rec = UserVoteRecords::<Test>::get(ALICE, REF_A).unwrap();
+		assert_eq!(rec.staked_vote_amount, 50 * ONE);
+		assert_eq!(rec.weighted, 0);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 50 * ONE);
+		let tally_2 = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
+		assert_eq!(tally_2.voters_count, 1, "voter count unchanged on edit");
+		assert_eq!(
+			tally_2.total_weighted, 0,
+			"total drops with Split conviction-less weight"
+		);
 	});
 }
 
@@ -133,7 +140,6 @@ fn on_before_vote_should_replace_record_when_downgrading_to_split_abstain() {
 			REF_A,
 			standard_vote(true, Conviction::Locked3x, 40 * ONE),
 		));
-		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_some());
 		assert_eq!(GigaHdxRewards::committed(&ALICE), 40 * ONE);
 
 		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
@@ -145,9 +151,10 @@ fn on_before_vote_should_replace_record_when_downgrading_to_split_abstain() {
 				abstain: 20 * ONE,
 			},
 		));
-		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_none());
-		assert_eq!(GigaHdxRewards::committed(&ALICE), 0);
-		assert!(ReferendaTotalWeightedVotes::<Test>::get(REF_A).is_none());
+		let rec = UserVoteRecords::<Test>::get(ALICE, REF_A).unwrap();
+		assert_eq!(rec.staked_vote_amount, 40 * ONE);
+		assert_eq!(rec.weighted, 0);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 40 * ONE);
 	});
 }
 

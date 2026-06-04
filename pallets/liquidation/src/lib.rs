@@ -494,7 +494,8 @@ impl<T: Config> Pallet<T> {
 
 		// Remove conviction votes no longer backed by the borrower's residual
 		// stake so the protocol doesn't carry unbacked governance weight; the
-		// `remove_vote` hook also unfreezes the matching `Stakes.frozen`.
+		// `remove_vote` hook also drops the matching `UserVoteRecord`, shrinking
+		// the borrower's lazily-derived unstake commitment.
 		let residual_hdx = orig_hdx.saturating_sub(seize_hdx);
 		T::GigaHdx::clear_conflicting_votes(&borrower, residual_hdx).map_err(|_| Error::<T>::ClearVotingLocksFailed)?;
 

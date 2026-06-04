@@ -3,9 +3,10 @@
 //! `VotingHooks` integration for `pallet-gigahdx-rewards`.
 //!
 //! [`VotingHooksImpl`] is the pallet's own `VotingHooks` implementation:
-//! it snapshots eligible votes into storage and freezes the corresponding
-//! gigahdx stake. The runtime is responsible for combining this hook with
-//! any other `VotingHooks` consumer (typically staking) when wiring
+//! it snapshots votes into `UserVoteRecords` (the source of truth for both
+//! reward weighting and the lazily-derived `giga_unstake` commitment). The
+//! runtime is responsible for combining this hook with any other `VotingHooks`
+//! consumer (typically staking) when wiring
 //! `pallet-conviction-voting::Config::VotingHooks`.
 
 use crate::pallet::{
@@ -34,37 +35,22 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 			return Ok(());
 		}
 
-		// Every vote variant places a `pyconvot` lock on the user's HDX, so
-		// we record every variant — even Split / SplitAbstain which earn no
-		// rewards — so liquidation's `clear_conflicting_votes` can find and
-		// remove them. Non-Standard variants are recorded with
-		// `Conviction::None` which yields `weighted = 0`, so they take a
-		// slot in `voters_remaining` but distort no reward distribution
+		// Every vote variant places a `pyconvot` lock on the user's HDX, so we
+		// record every variant — even Split / SplitAbstain which earn no rewards
+		// — so liquidation's `clear_conflicting_votes` can reach them and the
+		// `giga_unstake` commitment guard accounts for the locked HDX. Non-Standard
+		// variants are recorded with `Conviction::None` (so `weighted = 0`): they
+		// take a `voters_remaining` slot but distort no reward distribution
 		// (`record_user_reward` short-circuits to zero on `weighted == 0`).
 		let (vote_balance, conviction) = match vote {
 			AccountVote::Standard {
 				vote: std_vote,
 				balance,
 			} => (balance, std_vote.conviction),
-			_ => {
-				if let Some(prev) = UserVoteRecords::<T>::take(who, ref_index) {
-					if !ReferendaRewardPool::<T>::contains_key(ref_index) {
-						ReferendaTotalWeightedVotes::<T>::mutate_exists(ref_index, |maybe| {
-							if let Some(tally) = maybe.as_mut() {
-								tally.total_weighted = tally.total_weighted.saturating_sub(prev.weighted);
-								tally.voters_count = tally.voters_count.saturating_sub(1);
-								if tally.voters_count == 0 {
-									*maybe = None;
-								}
-							}
-						});
-					}
-				}
-				return Ok(());
-			//AccountVote::Split { aye, nay } => (aye.saturating_add(nay), Conviction::None),
-			//AccountVote::SplitAbstain { aye, nay, abstain } => {
-			//	(aye.saturating_add(nay).saturating_add(abstain), Conviction::None)
-			//}
+			AccountVote::Split { aye, nay } => (aye.saturating_add(nay), Conviction::None),
+			AccountVote::SplitAbstain { aye, nay, abstain } => {
+				(aye.saturating_add(nay).saturating_add(abstain), Conviction::None)
+			}
 		};
 
 		let staked_vote = vote_balance.min(staked);
@@ -152,8 +138,8 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 	}
 
 	fn lock_balance_on_unsuccessful_vote(_who: &T::AccountId, _ref_index: ReferendumIndex) -> Option<Balance> {
-		// Rewards never locks user balance — it operates on the `frozen`
-		// field of the gigahdx stake record. Letting the tuple's `or`
+		// Rewards never locks user balance — the gigahdx unstake commitment is
+		// derived lazily from `UserVoteRecords`. Letting the tuple's `or`
 		// fallback pass through whatever the other hook (staking) says.
 		None
 	}

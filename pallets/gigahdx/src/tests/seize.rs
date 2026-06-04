@@ -139,26 +139,6 @@ fn finalise_seize_should_keep_total_locked_unchanged() {
 }
 
 #[test]
-fn finalise_seize_should_clamp_frozen_to_remaining_hdx() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 200 * ONE));
-		crate::Pallet::<Test>::freeze(&ALICE, 150 * ONE);
-
-		let orig_g = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
-		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::on_seize(
-			&ALICE,
-			&TREASURY,
-			100 * ONE,
-			100 * ONE,
-			orig_g,
-		));
-		let s = Stakes::<Test>::get(ALICE).unwrap();
-		assert_eq!(s.hdx, 100 * ONE);
-		assert_eq!(s.frozen, 100 * ONE);
-	});
-}
-
-#[test]
 fn finalise_seize_should_absorb_dust_when_slash_short_by_ed() {
 	use frame_support::traits::{Currency, LockableCurrency, WithdrawReasons};
 	ExtBuilder::default().build().execute_with(|| {

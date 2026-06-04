@@ -968,9 +968,6 @@ pub mod pallet {
 			Stakes::<T>::try_mutate(borrower, |maybe| -> DispatchResult {
 				let s = maybe.as_mut().ok_or(Error::<T>::NoStake)?;
 				s.hdx = s.hdx.saturating_sub(seize_hdx);
-				// Votes stay intact across a seize; clamp `frozen` so the
-				// `hdx >= frozen` invariant still holds on the residual stake.
-				s.frozen = s.frozen.min(s.hdx);
 				s.gigahdx = orig_gigahdx.saturating_sub(seize_gigahdx);
 				Ok(())
 			})?;
