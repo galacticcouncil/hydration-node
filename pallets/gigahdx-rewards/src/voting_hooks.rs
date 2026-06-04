@@ -3,19 +3,21 @@
 //! `VotingHooks` integration for `pallet-gigahdx-rewards`.
 //!
 //! [`VotingHooksImpl`] is the pallet's own `VotingHooks` implementation:
-//! it snapshots eligible votes into storage and freezes the corresponding
-//! gigahdx stake. The runtime is responsible for combining this hook with
-//! any other `VotingHooks` consumer (typically staking) when wiring
+//! it snapshots votes into `UserVoteRecords` (the source of truth for both
+//! reward weighting and the lazily-derived `giga_unstake` commitment). The
+//! runtime is responsible for combining this hook with any other `VotingHooks`
+//! consumer (typically staking) when wiring
 //! `pallet-conviction-voting::Config::VotingHooks`.
 
 use crate::pallet::{
-	Config, Event, Pallet, ReferendaRewardPool, ReferendaTotalWeightedVotes, ReferendumTracks, UserVoteRecords,
+	Config, Event, Pallet, ReferendaRewardPool, ReferendaTotalWeightedVotes, ReferendumTracks, UserVoteCount,
+	UserVoteRecords,
 };
 use crate::traits::{ReferendaTrackInspect, TrackRewardTable};
 use crate::types::{ReferendaReward, ReferendumIndex, ReferendumLiveTally, UserVoteRecord};
 use frame_support::dispatch::DispatchResult;
-use frame_support::traits::{Currency, ExistenceRequirement};
-use pallet_conviction_voting::{AccountVote, Status, VotingHooks};
+use frame_support::traits::{Currency, ExistenceRequirement, Get};
+use pallet_conviction_voting::{AccountVote, Conviction, Status, VotingHooks};
 use primitives::Balance;
 use sp_std::marker::PhantomData;
 
@@ -34,31 +36,21 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 			return Ok(());
 		}
 
-		// Standard votes only; Split / SplitAbstain have multiple sub-balances
-		// without a single principled answer for the eligible amount.
-		// Downgrade from a tracked Standard vote: drop the prior record so
-		// the user's freeze and weighted share don't outlive the vote.
+		// Every vote variant places a `pyconvot` lock on the user's HDX, so we
+		// record every variant — even Split / SplitAbstain which earn no rewards
+		// — so liquidation's `clear_conflicting_votes` can reach them and the
+		// `giga_unstake` commitment guard accounts for the locked HDX. Non-Standard
+		// variants are recorded with `Conviction::None` (so `weighted = 0`): they
+		// take a `voters_remaining` slot but distort no reward distribution
+		// (`record_user_reward` short-circuits to zero on `weighted == 0`).
 		let (vote_balance, conviction) = match vote {
 			AccountVote::Standard {
 				vote: std_vote,
 				balance,
 			} => (balance, std_vote.conviction),
-			_ => {
-				if let Some(prev) = UserVoteRecords::<T>::take(who, ref_index) {
-					pallet_gigahdx::Pallet::<T>::unfreeze(who, prev.staked_vote_amount);
-					if !ReferendaRewardPool::<T>::contains_key(ref_index) {
-						ReferendaTotalWeightedVotes::<T>::mutate_exists(ref_index, |maybe| {
-							if let Some(tally) = maybe.as_mut() {
-								tally.total_weighted = tally.total_weighted.saturating_sub(prev.weighted);
-								tally.voters_count = tally.voters_count.saturating_sub(1);
-								if tally.voters_count == 0 {
-									*maybe = None;
-								}
-							}
-						});
-					}
-				}
-				return Ok(());
+			AccountVote::Split { aye, nay } => (aye.saturating_add(nay), Conviction::None),
+			AccountVote::SplitAbstain { aye, nay, abstain } => {
+				(aye.saturating_add(nay).saturating_add(abstain), Conviction::None)
 			}
 		};
 
@@ -84,8 +76,7 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 		let prev = UserVoteRecords::<T>::get(who, ref_index);
 		match prev {
 			Some(prev) => {
-				// Edit: unfreeze old, freeze new; voter count unchanged.
-				pallet_gigahdx::Pallet::<T>::unfreeze(who, prev.staked_vote_amount);
+				// Edit: voter count unchanged.
 				if live_tally_active {
 					ReferendaTotalWeightedVotes::<T>::mutate_exists(ref_index, |maybe| {
 						let tally = maybe.get_or_insert_with(ReferendumLiveTally::default);
@@ -95,7 +86,9 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 				}
 			}
 			None => {
-				// New record: increment voter count.
+				// New record: bump the per-user record count (record inserted below,
+				// regardless of `live_tally_active`).
+				UserVoteCount::<T>::mutate(who, |c| *c = c.saturating_add(1));
 				if live_tally_active {
 					ReferendaTotalWeightedVotes::<T>::mutate_exists(ref_index, |maybe| {
 						let tally = maybe.get_or_insert_with(ReferendumLiveTally::default);
@@ -106,7 +99,6 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 			}
 		}
 		UserVoteRecords::<T>::insert(who, ref_index, new_record);
-		pallet_gigahdx::Pallet::<T>::freeze(who, staked_vote);
 
 		Ok(())
 	}
@@ -115,7 +107,7 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 		let Some(record) = UserVoteRecords::<T>::take(who, ref_index) else {
 			return; // no eligible vote was tracked
 		};
-		pallet_gigahdx::Pallet::<T>::unfreeze(who, record.staked_vote_amount);
+		UserVoteCount::<T>::mutate(who, |c| *c = c.saturating_sub(1));
 
 		// Pool presence = "allocation has run" idempotency signal. A counted
 		// voter that arrives after allocation MUST always be recorded against
@@ -150,18 +142,18 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 	}
 
 	fn lock_balance_on_unsuccessful_vote(_who: &T::AccountId, _ref_index: ReferendumIndex) -> Option<Balance> {
-		// Rewards never locks user balance — it operates on the `frozen`
-		// field of the gigahdx stake record. Letting the tuple's `or`
+		// Rewards never locks user balance — the gigahdx unstake commitment is
+		// derived lazily from `UserVoteRecords`. Letting the tuple's `or`
 		// fallback pass through whatever the other hook (staking) says.
 		None
 	}
 
 	// `on_before_vote` / `on_remove_vote` short-circuit at `Stakes[who].hdx == 0`,
 	// so the conviction-voting `vote` / `remove_vote` benchmarks must make `who`
-	// a gigahdx staker for their weight to cover this hook's per-vote storage
-	// writes (tally + `UserVoteRecords` + `freeze`/`unfreeze`). Seed the record
-	// directly — the hook only reads `.hdx` and mutates `.frozen`, so no
-	// money-market / lock setup is needed.
+	// a gigahdx staker for their weight to cover this hook's per-vote work (tally
+	// + `UserVoteRecords` write). Seed the stake record directly — the hook only
+	// reads `.hdx`, so no money-market / lock setup is needed. (The freeze is no
+	// longer maintained here; it's pulled lazily by `giga_unstake` instead.)
 	//
 	// The one-time-per-referendum allocation path (`Status::Completed` → pot
 	// transfer + `record_user_reward`) is not reachable here: the benchmark's
@@ -188,6 +180,33 @@ fn seed_staker_worst_case<T: Config>(who: &T::AccountId) {
 			..Default::default()
 		},
 	);
+}
+
+/// `giga_unstake`'s freeze guard: the HDX of `who`'s stake currently backing
+/// active votes. The same locked HDX backs every concurrent vote, so the
+/// commitment is the *largest* reservation, not their sum — `max` over the
+/// user's active per-referendum records. Pulled lazily at unstake, never
+/// maintained on the voting path.
+impl<T: Config> pallet_gigahdx::traits::VotingCommitmentInspect<T::AccountId> for Pallet<T> {
+	fn committed_with_count(who: &T::AccountId) -> (Balance, u32) {
+		let mut max = 0;
+		let mut count = 0u32;
+		for record in UserVoteRecords::<T>::iter_prefix_values(who) {
+			count = count.saturating_add(1);
+			if record.staked_vote_amount > max {
+				max = record.staked_vote_amount;
+			}
+		}
+		(max, count)
+	}
+
+	fn committed_weight() -> frame_support::weights::Weight {
+		// Worst case: a staker holding conviction-voting's `MaxVotes` (25) in
+		// every governance track (10) → up to 250 `UserVoteRecords` reads. Keep
+		// in sync with the runtime's conviction-voting `MaxVotes` × track count.
+		// `giga_unstake` refunds down to the count actually scanned.
+		<T as frame_system::Config>::DbWeight::get().reads(250)
+	}
 }
 
 /// Allocate the pool on first call for a completed referendum, then credit

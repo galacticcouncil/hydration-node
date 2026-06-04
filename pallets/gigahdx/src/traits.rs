@@ -2,8 +2,41 @@
 
 //! Hooks injected by the runtime to customize gigahdx admission logic.
 
+use frame_support::weights::Weight;
 use primitives::Balance;
 use sp_runtime::DispatchError;
+
+/// HDX of `who`'s stake currently committed to active votes — the floor
+/// `do_unstake` must keep `hdx` above. Pulled lazily at unstake time (the
+/// rewards pallet returns the max over the user's active per-referendum
+/// reservations), so the freeze costs nothing on the voting path.
+pub trait VotingCommitmentInspect<AccountId> {
+	/// `(committed balance, number of vote reservations scanned)`. The count
+	/// lets `giga_unstake` refund post-dispatch down to the reads it actually
+	/// performed, since the declared weight (which can't see the caller) must
+	/// assume the worst case.
+	fn committed_with_count(who: &AccountId) -> (Balance, u32);
+
+	/// Committed balance only.
+	fn committed(who: &AccountId) -> Balance {
+		Self::committed_with_count(who).0
+	}
+
+	/// Worst-case weight of one `committed*` call (the bounded `UserVoteRecords`
+	/// scan), declared on `giga_unstake`; the extrinsic refunds down to the
+	/// actual reservation count post-dispatch.
+	fn committed_weight() -> Weight;
+}
+
+impl<AccountId> VotingCommitmentInspect<AccountId> for () {
+	fn committed_with_count(_who: &AccountId) -> (Balance, u32) {
+		(0, 0)
+	}
+
+	fn committed_weight() -> Weight {
+		Weight::zero()
+	}
+}
 
 /// Sum of HDX claimed by other pallets on `who`. `giga_stake` subtracts this
 /// from the caller's free balance to ensure the new stake doesn't overlap

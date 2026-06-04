@@ -131,6 +131,13 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Number of `UserVoteRecords` entries held by `who`, maintained on insert
+	/// and removal. Lets the gigahdx liquidation charge exact weight for the
+	/// vote-clearance loop from the borrower's count, without an O(n) scan at
+	/// weight-calculation time.
+	#[pallet::storage]
+	pub type UserVoteCount<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
+
 	/// Running sum of HDX owed to `who` across all completed referenda.
 	#[pallet::storage]
 	pub type PendingRewards<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;

@@ -1810,6 +1810,7 @@ impl pallet_liquidation::Config for Runtime {
 	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
 	type EvmErrorDecoder = EvmErrorDecoder;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type GigaHdx = crate::gigahdx::GigaHdxLiquidationSupport;
 }
 
 impl pallet_broadcast::Config for Runtime {}
@@ -1913,6 +1914,7 @@ impl pallet_gigahdx::Config for Runtime {
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type ExternalClaims = crate::gigahdx::HdxExternalClaims;
 	type LegacyStaking = crate::gigahdx::LegacyStakingMigrator;
+	type VotingCommitment = GigaHdxRewards;
 	type WeightInfo = weights::pallet_gigahdx::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = GigaHdxBenchmarkHelper;

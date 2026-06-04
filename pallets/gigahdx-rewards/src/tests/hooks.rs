@@ -2,10 +2,12 @@
 
 use super::mock::*;
 use crate::pallet::{
-	Event, PendingRewards, ReferendaRewardPool, ReferendaTotalWeightedVotes, ReferendumTracks, UserVoteRecords,
+	Event, PendingRewards, ReferendaRewardPool, ReferendaTotalWeightedVotes, ReferendumTracks, UserVoteCount,
+	UserVoteRecords,
 };
 use crate::types::REWARD_MULTIPLIER_SCALE;
 use crate::voting_hooks::VotingHooksImpl;
+use pallet_gigahdx::traits::VotingCommitmentInspect;
 
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
@@ -13,6 +15,7 @@ use pallet_conviction_voting::{AccountVote, Conviction, Status, Vote, VotingHook
 
 const REF_A: u32 = 7;
 const REF_B: u32 = 9;
+const REF_C: u32 = 11;
 
 fn standard_vote(aye: bool, conviction: Conviction, balance: u128) -> AccountVote<u128> {
 	AccountVote::Standard {
@@ -41,7 +44,7 @@ fn on_before_vote_should_skip_when_user_has_no_stake() {
 }
 
 #[test]
-fn on_before_vote_should_skip_when_vote_is_split() {
+fn on_before_vote_should_record_split_vote_with_zero_weight() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake(ALICE, 100 * ONE);
 		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
@@ -52,13 +55,21 @@ fn on_before_vote_should_skip_when_vote_is_split() {
 				nay: 60 * ONE,
 			},
 		));
-		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_none());
-		assert!(ReferendaTotalWeightedVotes::<Test>::get(REF_A).is_none());
+		// Recorded so liquidation's clearance adapter can reach it and the
+		// unstake commitment accounts for the locked HDX. Weight is zero
+		// (Conviction::None) so no reward share, but the slot exists.
+		let rec = UserVoteRecords::<Test>::get(ALICE, REF_A).unwrap();
+		assert_eq!(rec.staked_vote_amount, 100 * ONE);
+		assert_eq!(rec.weighted, 0);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 100 * ONE);
+		let tally = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
+		assert_eq!(tally.voters_count, 1);
+		assert_eq!(tally.total_weighted, 0);
 	});
 }
 
 #[test]
-fn on_before_vote_should_skip_when_vote_is_split_abstain() {
+fn on_before_vote_should_record_split_abstain_vote_with_zero_weight() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake(ALICE, 100 * ONE);
 		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
@@ -70,32 +81,35 @@ fn on_before_vote_should_skip_when_vote_is_split_abstain() {
 				abstain: 80 * ONE,
 			},
 		));
-		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_none());
-		assert!(ReferendaTotalWeightedVotes::<Test>::get(REF_A).is_none());
+		let rec = UserVoteRecords::<Test>::get(ALICE, REF_A).unwrap();
+		assert_eq!(rec.staked_vote_amount, 100 * ONE);
+		assert_eq!(rec.weighted, 0);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 100 * ONE);
+		let tally = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
+		assert_eq!(tally.voters_count, 1);
+		assert_eq!(tally.total_weighted, 0);
 	});
 }
 
 #[test]
-fn on_before_vote_should_clean_up_prior_record_when_downgrading_to_split() {
+fn on_before_vote_should_replace_record_when_downgrading_to_split() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake(ALICE, 100 * ONE);
 
-		// First cast a tracked Standard vote — record, freeze, and tally
-		// row all written.
+		// First cast a tracked Standard vote.
 		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
 			&ALICE,
 			REF_A,
 			standard_vote(true, Conviction::Locked6x, 50 * ONE),
 		));
-		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_some());
-		assert_eq!(stake_record(&ALICE).frozen, 50 * ONE);
-		let tally = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
-		assert_eq!(tally.voters_count, 1);
-		assert!(tally.total_weighted > 0);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 50 * ONE);
+		let tally_1 = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
+		assert_eq!(tally_1.voters_count, 1);
+		assert!(tally_1.total_weighted > 0);
 
-		// Downgrade to Split — the prior record, the freeze, and the tally
-		// row must all unwind so the user is not credited a reward share they
-		// no longer hold.
+		// Downgrade to Split — record replaced with a zero-weight version, the
+		// commitment recomputed against the new (Split-balance) reservation,
+		// voter count unchanged, total_weighted drops to zero.
 		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
 			&ALICE,
 			REF_A,
@@ -104,14 +118,21 @@ fn on_before_vote_should_clean_up_prior_record_when_downgrading_to_split() {
 				nay: 30 * ONE,
 			},
 		));
-		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_none());
-		assert_eq!(stake_record(&ALICE).frozen, 0);
-		assert!(ReferendaTotalWeightedVotes::<Test>::get(REF_A).is_none());
+		let rec = UserVoteRecords::<Test>::get(ALICE, REF_A).unwrap();
+		assert_eq!(rec.staked_vote_amount, 50 * ONE);
+		assert_eq!(rec.weighted, 0);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 50 * ONE);
+		let tally_2 = ReferendaTotalWeightedVotes::<Test>::get(REF_A).unwrap();
+		assert_eq!(tally_2.voters_count, 1, "voter count unchanged on edit");
+		assert_eq!(
+			tally_2.total_weighted, 0,
+			"total drops with Split conviction-less weight"
+		);
 	});
 }
 
 #[test]
-fn on_before_vote_should_clean_up_prior_record_when_downgrading_to_split_abstain() {
+fn on_before_vote_should_replace_record_when_downgrading_to_split_abstain() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake(ALICE, 100 * ONE);
 
@@ -120,8 +141,7 @@ fn on_before_vote_should_clean_up_prior_record_when_downgrading_to_split_abstain
 			REF_A,
 			standard_vote(true, Conviction::Locked3x, 40 * ONE),
 		));
-		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_some());
-		assert_eq!(stake_record(&ALICE).frozen, 40 * ONE);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 40 * ONE);
 
 		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
 			&ALICE,
@@ -132,9 +152,10 @@ fn on_before_vote_should_clean_up_prior_record_when_downgrading_to_split_abstain
 				abstain: 20 * ONE,
 			},
 		));
-		assert!(UserVoteRecords::<Test>::get(ALICE, REF_A).is_none());
-		assert_eq!(stake_record(&ALICE).frozen, 0);
-		assert!(ReferendaTotalWeightedVotes::<Test>::get(REF_A).is_none());
+		let rec = UserVoteRecords::<Test>::get(ALICE, REF_A).unwrap();
+		assert_eq!(rec.staked_vote_amount, 40 * ONE);
+		assert_eq!(rec.weighted, 0);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 40 * ONE);
 	});
 }
 
@@ -222,14 +243,14 @@ fn on_before_vote_should_increment_voter_count_only_for_new_records() {
 fn on_before_vote_should_freeze_stake_for_voted_amount() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake(ALICE, 100 * ONE);
-		assert_eq!(stake_record(&ALICE).frozen, 0);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 0);
 
 		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
 			&ALICE,
 			REF_A,
 			standard_vote(true, Conviction::Locked1x, 60 * ONE),
 		));
-		assert_eq!(stake_record(&ALICE).frozen, 60 * ONE);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 60 * ONE);
 
 		// Edit lowers vote → frozen recomputed (unfreeze old, freeze new).
 		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
@@ -237,7 +258,7 @@ fn on_before_vote_should_freeze_stake_for_voted_amount() {
 			REF_A,
 			standard_vote(true, Conviction::Locked1x, 20 * ONE),
 		));
-		assert_eq!(stake_record(&ALICE).frozen, 20 * ONE);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 20 * ONE);
 	});
 }
 
@@ -286,10 +307,10 @@ fn on_remove_vote_should_unfreeze_stake() {
 			REF_A,
 			standard_vote(true, Conviction::Locked1x, 70 * ONE),
 		));
-		assert_eq!(stake_record(&ALICE).frozen, 70 * ONE);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 70 * ONE);
 
 		VotingHooksImpl::<Test>::on_remove_vote(&ALICE, REF_A, Status::Ongoing);
-		assert_eq!(stake_record(&ALICE).frozen, 0);
+		assert_eq!(GigaHdxRewards::committed(&ALICE), 0);
 	});
 }
 
@@ -748,4 +769,190 @@ fn on_remove_vote_should_not_reward_more_when_voter_splits_stake_across_accounts
 
 	assert!(split <= single, "splitting stake must never increase rewards");
 	assert_eq!(split, single, "split {split} must equal single {single}");
+}
+
+// ---------------------------------------------------------------------------
+// Frozen-overlap spec (currently FAILING — drives the `frozen` redesign).
+//
+// `frozen` must equal the MAX over the user's active per-referendum
+// reservations (the overlapping commitment), not their SUM. The hook today
+// stacks `freeze`/`unfreeze` deltas, so concurrent partial votes over-freeze.
+// These unit specs are the fast mirror of the integration tests in
+// `integration-tests/src/gigahdx_rewards.rs`; they flip green once `frozen`
+// becomes a recomputed max.
+// ---------------------------------------------------------------------------
+
+/// Three partial votes (X/2 each) over the same stake overlap — only X/2 is
+/// ever committed. CURRENT BUG: frozen sums to 3 * X/2.
+#[test]
+fn frozen_should_equal_overlap_not_sum_when_voting_partial_on_multiple_referenda() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+		let half = 50 * ONE;
+
+		for r in [REF_A, REF_B, REF_C] {
+			assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+				&ALICE,
+				r,
+				standard_vote(true, Conviction::Locked3x, half),
+			));
+		}
+
+		// DESIRED: max(X/2, X/2, X/2) = X/2.  CURRENT BUG: 3 * X/2.
+		assert_eq!(
+			GigaHdxRewards::committed(&ALICE),
+			half,
+			"frozen must be the overlap (X/2), not the sum of the votes"
+		);
+	});
+}
+
+/// Removing the single largest vote must recompute `frozen` down to the
+/// next-highest reservation. CURRENT BUG: `frozen -= removed` leaves sum-minus-max.
+#[test]
+fn frozen_should_recompute_to_second_highest_when_largest_vote_removed() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+		let quarter = 25 * ONE;
+
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			standard_vote(true, Conviction::Locked1x, quarter),
+		));
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_B,
+			standard_vote(true, Conviction::Locked1x, quarter),
+		));
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_C,
+			standard_vote(true, Conviction::Locked1x, 100 * ONE),
+		));
+
+		VotingHooksImpl::<Test>::on_remove_vote(&ALICE, REF_C, Status::Ongoing);
+
+		// DESIRED: max(X/4, X/4) = X/4.  CURRENT BUG: 1.5X - X = X/2.
+		assert_eq!(
+			GigaHdxRewards::committed(&ALICE),
+			quarter,
+			"removing the largest vote must recompute frozen to the next-highest reservation"
+		);
+	});
+}
+
+/// Editing the largest vote *down* must recompute `frozen` to the true
+/// overlap, not just subtract the delta off a summed base.
+#[test]
+fn frozen_should_lower_when_largest_vote_edited_down() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+		let quarter = 25 * ONE;
+
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			standard_vote(true, Conviction::Locked1x, quarter),
+		));
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_B,
+			standard_vote(true, Conviction::Locked1x, 100 * ONE),
+		));
+
+		// Edit REF_B down to X/4.
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_B,
+			standard_vote(true, Conviction::Locked1x, quarter),
+		));
+
+		// DESIRED: max(X/4, X/4) = X/4.  CURRENT BUG: X/2.
+		assert_eq!(
+			GigaHdxRewards::committed(&ALICE),
+			quarter,
+			"editing the largest vote down must recompute frozen, not subtract a delta off a summed base"
+		);
+	});
+}
+
+#[test]
+fn user_vote_count_should_increment_on_new_vote_and_decrement_on_remove() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 0);
+
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			standard_vote(true, Conviction::Locked1x, 50 * ONE),
+		));
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 1);
+
+		VotingHooksImpl::<Test>::on_remove_vote(&ALICE, REF_A, Status::Ongoing);
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 0);
+	});
+}
+
+#[test]
+fn user_vote_count_should_increment_for_split_vote() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			AccountVote::Split {
+				aye: 40 * ONE,
+				nay: 60 * ONE,
+			},
+		));
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 1, "Split votes are tracked too");
+	});
+}
+
+#[test]
+fn user_vote_count_should_stay_unchanged_when_vote_is_edited() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			standard_vote(true, Conviction::Locked1x, 50 * ONE),
+		));
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 1);
+
+		// Edit the same referendum's vote — count must not change.
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			standard_vote(true, Conviction::Locked3x, 80 * ONE),
+		));
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 1, "an edit is not a new record");
+	});
+}
+
+#[test]
+fn user_vote_count_should_track_votes_across_multiple_referenda() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			standard_vote(true, Conviction::Locked1x, 30 * ONE),
+		));
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_B,
+			standard_vote(true, Conviction::Locked1x, 40 * ONE),
+		));
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 2);
+
+		VotingHooksImpl::<Test>::on_remove_vote(&ALICE, REF_A, Status::Ongoing);
+		assert_eq!(
+			UserVoteCount::<Test>::get(ALICE),
+			1,
+			"only the removed referendum decrements"
+		);
+	});
 }

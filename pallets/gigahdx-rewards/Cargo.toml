@@ -1,6 +1,6 @@
 [package]
 name = "pallet-gigahdx-rewards"
-version = "1.0.0"
+version = "1.1.0"
 description = "Conviction-voting reward distribution for gigahdx stakers."
 authors = ["GalacticCouncil"]
 edition = "2021"

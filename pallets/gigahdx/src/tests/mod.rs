@@ -8,6 +8,7 @@ mod migrate;
 mod mock;
 mod multi_positions;
 mod realize_yield;
+mod seize;
 mod set_pool_contract;
 mod stake;
 mod unlock;
