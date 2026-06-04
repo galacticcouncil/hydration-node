@@ -218,4 +218,43 @@ mod benches {
 		assert_eq!(s.gigahdx, amount);
 		assert!(s.hdx >= amount.saturating_mul(2));
 	}
+
+	/// Substrate-side seize sequence run by `pallet_liquidation::liquidate_gigahdx`
+	/// (the EVM borrow/liquidationCall/repay are charged separately as gas):
+	/// `realize_yield` + `snapshot_stake` + `on_pre_seize` + `on_seize`.
+	#[benchmark]
+	fn seize() {
+		use hydradx_traits::gigahdx::Seize;
+
+		assert_ok!(T::BenchmarkHelper::register_assets());
+		set_dummy_pool::<T>();
+
+		let borrower: T::AccountId = whitelisted_caller();
+		let recipient: T::AccountId = account("recipient", 0, 0);
+		let amount: Balance = 100 * ONE;
+		fund::<T>(&borrower, amount.saturating_mul(10));
+
+		assert_ok!(Pallet::<T>::giga_stake(
+			RawOrigin::Signed(borrower.clone()).into(),
+			amount,
+		));
+
+		// Fund the gigapot so `realize_yield` transfers accrued yield (worst case).
+		fund::<T>(&Pallet::<T>::gigapot_account_id(), amount);
+
+		let (orig_hdx, orig_gigahdx) = <Pallet<T> as Seize<T::AccountId>>::snapshot_stake(&borrower).unwrap();
+		let seize_hdx = orig_hdx / 2;
+		let seize_gigahdx = orig_gigahdx / 2;
+
+		#[block]
+		{
+			let _ = <Pallet<T> as Seize<T::AccountId>>::realize_yield(&borrower);
+			let (_h, og) = <Pallet<T> as Seize<T::AccountId>>::snapshot_stake(&borrower).unwrap();
+			<Pallet<T> as Seize<T::AccountId>>::on_pre_seize(&borrower).unwrap();
+			<Pallet<T> as Seize<T::AccountId>>::on_seize(&borrower, &recipient, seize_hdx, seize_gigahdx, og).unwrap();
+		}
+
+		let s = Stakes::<T>::get(&borrower).expect("stake remains");
+		assert_eq!(s.gigahdx, orig_gigahdx.saturating_sub(seize_gigahdx));
+	}
 }

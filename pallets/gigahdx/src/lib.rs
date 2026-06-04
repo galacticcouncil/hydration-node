@@ -30,6 +30,9 @@
 //! `giga_unstake` is the reverse path.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+// `giga_unstake` returns `DispatchResultWithPostInfo`; the call macro's
+// `.map(Into::into).map_err(Into::into)` wrapper is then an identity conversion.
+#![allow(clippy::useless_conversion)]
 
 pub use pallet::*;
 
@@ -105,18 +108,19 @@ pub mod pallet {
 		/// not the input — the MM may round at supply time and the stored
 		/// value MUST match the account's GIGAHDX balance.
 		pub gigahdx: Balance,
-		/// HDX pinned against `do_unstake` (`post-unstake hdx >= frozen`).
-		///
-		/// Sum of per-call freezes — *not* a max. Multiple concurrent reasons
-		/// (e.g. several active conviction-votes) stack, so `frozen` can
-		/// exceed `hdx`; that's how unstake-while-voting is blocked. Becomes
-		/// unstakeable again once each caller pairs its `freeze` with an
-		/// `unfreeze`.
-		pub frozen: Balance,
 		/// Total unstaking amount.
 		pub unstaking: Balance,
 		/// Total number of unstaking positions.
 		pub unstaking_count: u16,
+	}
+
+	impl StakeRecord {
+		/// True when the record carries no state and can be reaped — dropping a
+		/// record while any field is non-zero (e.g. residual `unstaking`) would
+		/// orphan `PendingUnstakes` entries or its lock.
+		fn is_empty(&self) -> bool {
+			self.hdx == 0 && self.gigahdx == 0 && self.unstaking == 0 && self.unstaking_count == 0
+		}
 	}
 
 	/// One pending-unstake position. Keyed by the originating block; cooldown
@@ -192,6 +196,11 @@ pub mod pallet {
 		/// `force_unstake` here to destroy the caller's legacy position
 		/// before re-staking the freed HDX into gigahdx.
 		type LegacyStaking: crate::traits::LegacyStakeMigrator<Self::AccountId>;
+
+		/// HDX backing the caller's active votes — the floor `giga_unstake`
+		/// keeps `hdx` above. Pulled lazily here (not maintained on the voting
+		/// path); wired to `pallet-gigahdx-rewards` in the runtime.
+		type VotingCommitment: crate::traits::VotingCommitmentInspect<Self::AccountId>;
 
 		type WeightInfo: WeightInfo;
 
@@ -321,9 +330,9 @@ pub mod pallet {
 		/// still in circulation. The pool is settable only when total stHDX
 		/// supply is zero.
 		OutstandingStake,
-		/// Unstake would reduce `Stakes[who].hdx` below `Stakes[who].frozen`.
-		/// Some HDX is currently frozen (e.g. backing an active reward-eligible
-		/// vote in `pallet-gigahdx-rewards`); release the freeze first.
+		/// Unstake would drop `Stakes[who].hdx` below the HDX backing the
+		/// caller's active votes (`T::VotingCommitment`); remove the relevant
+		/// conviction votes first.
 		StakeFrozen,
 		/// `slash` fallback could not extract the full `seize_hdx` from the
 		/// borrower's account (e.g. existential-deposit constraint).
@@ -362,22 +371,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::giga_stake().saturating_add(T::MoneyMarket::supply_weight()))]
 		pub fn giga_stake(origin: OriginFor<T>, amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(amount >= T::MinStake::get(), Error::<T>::BelowMinStake);
-
-			// Strict policy: refuse if the caller carries any lock the runtime
-			// does not whitelist for overlap. Lock-layering via `max()` would
-			// otherwise let the same HDX back both a gigahdx stake and another
-			// pallet's claim after a single transfer of the unlocked portion.
-			ensure!(T::ExternalClaims::on(&who) == 0, Error::<T>::BlockedByExternalLock);
-
-			// Own commitment (active + pending unstakes) still has to fit
-			// under free_balance — re-staking under the same `ghdxlock` must
-			// not exceed what the user actually owns.
-			let stake = Stakes::<T>::get(&who).unwrap_or_default();
-			let own_claim = stake.hdx.saturating_add(stake.unstaking);
-			let stakeable = T::NativeCurrency::free_balance(&who).saturating_sub(own_claim);
-			ensure!(stakeable >= amount, Error::<T>::InsufficientFreeBalance);
-
+			Self::ensure_stakeable(&who, amount)?;
 			Self::do_stake(&who, amount)?;
 			Ok(())
 		}
@@ -414,10 +408,19 @@ pub mod pallet {
 		/// Emits `Unstaked` event when successful.
 		///
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::giga_unstake().saturating_add(T::MoneyMarket::withdraw_weight()))]
-		pub fn giga_unstake(origin: OriginFor<T>, gigahdx_amount: Balance) -> DispatchResult {
+		#[pallet::weight(T::WeightInfo::giga_unstake()
+			.saturating_add(T::MoneyMarket::withdraw_weight())
+			.saturating_add(<T::VotingCommitment as crate::traits::VotingCommitmentInspect<T::AccountId>>::committed_weight()))]
+		pub fn giga_unstake(origin: OriginFor<T>, gigahdx_amount: Balance) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
-			Self::do_unstake(&who, gigahdx_amount)
+			// The weight annotation can't see the caller, so it declared the
+			// worst-case vote scan (`committed_weight()`); refund down to the
+			// reservations actually read.
+			let votes_scanned = Self::do_unstake(&who, gigahdx_amount)?;
+			let actual = T::WeightInfo::giga_unstake()
+				.saturating_add(T::MoneyMarket::withdraw_weight())
+				.saturating_add(<T as frame_system::Config>::DbWeight::get().reads(votes_scanned.into()));
+			Ok(Some(actual).into())
 		}
 
 		/// Set the AAVE V3 Pool contract address used by the money-market adapter.
@@ -480,7 +483,7 @@ pub mod pallet {
 				if let Some(s) = maybe.as_mut() {
 					s.unstaking = s.unstaking.saturating_sub(entry.amount);
 					s.unstaking_count = s.unstaking_count.saturating_sub(1);
-					if s.hdx == 0 && s.gigahdx == 0 && s.frozen == 0 && s.unstaking_count == 0 {
+					if s.is_empty() {
 						*maybe = None;
 					}
 				}
@@ -565,13 +568,9 @@ pub mod pallet {
 
 			let hdx_unlocked = T::LegacyStaking::force_unstake(&who)?;
 
-			ensure!(hdx_unlocked >= T::MinStake::get(), Error::<T>::BelowMinStake);
-			ensure!(T::ExternalClaims::on(&who) == 0, Error::<T>::BlockedByExternalLock);
-
-			let stake = Stakes::<T>::get(&who).unwrap_or_default();
-			let own_claim = stake.hdx.saturating_add(stake.unstaking);
-			let stakeable = T::NativeCurrency::free_balance(&who).saturating_sub(own_claim);
-			ensure!(stakeable >= hdx_unlocked, Error::<T>::InsufficientFreeBalance);
+			// Admission runs *after* `force_unstake` so the legacy lock is no
+			// longer counted against `ExternalClaims`.
+			Self::ensure_stakeable(&who, hdx_unlocked)?;
 
 			let gigahdx_received = Self::do_stake(&who, hdx_unlocked)?;
 			Self::deposit_event(Event::MigratedFromLegacy {
@@ -655,7 +654,7 @@ pub mod pallet {
 		/// `#[transactional]` attribute wraps the body in its own storage
 		/// layer so any Err here rolls back partial mutations.
 		#[transactional]
-		fn do_unstake(who: &T::AccountId, gigahdx_amount: Balance) -> DispatchResult {
+		fn do_unstake(who: &T::AccountId, gigahdx_amount: Balance) -> Result<u32, DispatchError> {
 			let stake = Stakes::<T>::get(who).ok_or(Error::<T>::NoStake)?;
 			let now = frame_system::Pallet::<T>::block_number();
 			let is_new_position = !PendingUnstakes::<T>::contains_key(who, now);
@@ -671,11 +670,17 @@ pub mod pallet {
 			// Payout reads live rate state — must run before any mint/burn below.
 			let payout = Self::calculate_hdx_amount_given_gigahdx(gigahdx_amount).map_err(|_| Error::<T>::Overflow)?;
 
-			// Reject the unstake up-front if it would breach the frozen guard.
-			// `new_hdx = stake.hdx.saturating_sub(payout)` (any excess comes from
-			// the gigapot as yield, not from `hdx`); we need `new_hdx >= frozen`.
+			// Reject the unstake up-front if it would breach the voting-commitment
+			// guard. `committed` is the HDX backing the caller's active votes (max
+			// over their reservations), pulled lazily from the rewards pallet —
+			// not maintained on the voting path. `new_hdx = stake.hdx - payout`
+			// (any excess comes from the gigapot as yield, not from `hdx`); we
+			// need `new_hdx >= committed`.
+			let (committed, votes_scanned) = <T::VotingCommitment as crate::traits::VotingCommitmentInspect<
+				T::AccountId,
+			>>::committed_with_count(who);
 			let projected_hdx = stake.hdx.saturating_sub(payout);
-			ensure!(projected_hdx >= stake.frozen, Error::<T>::StakeFrozen);
+			ensure!(projected_hdx >= committed, Error::<T>::StakeFrozen);
 
 			// Pre-decrement `gigahdx` so `LockableAToken.burn`'s `freeBalance`
 			// check (via the lock-manager precompile) lets the burn through.
@@ -718,6 +723,18 @@ pub mod pallet {
 				)?;
 				(0, yield_amount)
 			};
+
+			// Full exit (all aTokens burned): any `hdx` above the committed floor
+			// is unbacked rounding dust that no later `giga_unstake` could
+			// release (it needs `gigahdx > 0`). Fold it into this position's
+			// cooldown payout so the holder reclaims it and the record reaps
+			// cleanly at `unlock`, instead of stranding the record + lock.
+			let (new_hdx, payout) = if new_gigahdx == 0 {
+				let dust = new_hdx.saturating_sub(committed);
+				(new_hdx.saturating_sub(dust), payout.saturating_add(dust))
+			} else {
+				(new_hdx, payout)
+			};
 			let principal_consumed = stake.hdx.saturating_sub(new_hdx);
 
 			let expires_at = now.checked_add(&T::CooldownPeriod::get()).ok_or(Error::<T>::Overflow)?;
@@ -747,46 +764,27 @@ pub mod pallet {
 				yield_share,
 				expires_at,
 			});
-			Ok(())
+			Ok(votes_scanned)
 		}
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// Stack a freeze of `delta` onto `Stakes[who].frozen`. Saturating;
-		/// infallible. Each `freeze(who, delta)` must be paired with an
-		/// eventual `unfreeze(who, delta)`. See `StakeRecord.frozen` for the
-		/// sum-stacking semantics.
-		pub fn freeze(who: &T::AccountId, delta: Balance) {
-			if delta == 0 {
-				return;
-			}
-			Stakes::<T>::mutate(who, |maybe| {
-				let stake = maybe.get_or_insert_with(StakeRecord::default);
-				stake.frozen = stake.frozen.saturating_add(delta);
-			});
-		}
+		/// Admission gate shared by `giga_stake` and `migrate`.
+		///
+		/// Enforces the `MinStake` floor, the strict no-overlapping-lock policy
+		/// (lock-layering via `max()` would otherwise let the same HDX back both
+		/// a gigahdx stake and another pallet's claim after a single transfer of
+		/// the unlocked portion), and that the caller's own commitment (active +
+		/// pending unstakes) plus `amount` still fits under their free balance.
+		fn ensure_stakeable(who: &T::AccountId, amount: Balance) -> DispatchResult {
+			ensure!(amount >= T::MinStake::get(), Error::<T>::BelowMinStake);
+			ensure!(T::ExternalClaims::on(who) == 0, Error::<T>::BlockedByExternalLock);
 
-		/// Subtract `delta` from `Stakes[who].frozen`. Saturating; infallible.
-		/// Removes the record only when every field is zero — matching
-		/// `unlock`'s predicate. Dropping it with `unstaking_count > 0` would
-		/// orphan `PendingUnstakes` entries.
-		pub fn unfreeze(who: &T::AccountId, delta: Balance) {
-			if delta == 0 {
-				return;
-			}
-			Stakes::<T>::mutate_exists(who, |maybe| {
-				if let Some(stake) = maybe.as_mut() {
-					stake.frozen = stake.frozen.saturating_sub(delta);
-					if stake.hdx == 0
-						&& stake.gigahdx == 0
-						&& stake.frozen == 0
-						&& stake.unstaking == 0
-						&& stake.unstaking_count == 0
-					{
-						*maybe = None;
-					}
-				}
-			});
+			let stake = Stakes::<T>::get(who).unwrap_or_default();
+			let own_claim = stake.hdx.saturating_add(stake.unstaking);
+			let stakeable = T::NativeCurrency::free_balance(who).saturating_sub(own_claim);
+			ensure!(stakeable >= amount, Error::<T>::InsufficientFreeBalance);
+			Ok(())
 		}
 
 		/// Computes the stHDX amount at the current rate, mints it into `who`,
@@ -920,6 +918,10 @@ pub mod pallet {
 			Self::do_realize_yield(borrower).map(|_| ())
 		}
 
+		fn seize_weight() -> frame_support::weights::Weight {
+			T::WeightInfo::seize()
+		}
+
 		fn snapshot_stake(borrower: &T::AccountId) -> Result<(Balance, Balance), DispatchError> {
 			let s = Stakes::<T>::get(borrower).ok_or(Error::<T>::NoStake)?;
 			Ok((s.hdx, s.gigahdx))
@@ -936,8 +938,10 @@ pub mod pallet {
 
 		/// `orig_gigahdx` is the borrower's pre-seize aToken balance from
 		/// `snapshot_stake`; `on_pre_seize` has since zeroed the stored value,
-		/// so the residual cannot be derived from state here. The `checked_sub`
-		/// also rejects a `seize_gigahdx` larger than the snapshot.
+		/// so the residual cannot be derived from state here. Both seize amounts
+		/// are clamped to the borrower's staked/snapshot values (see body) so the
+		/// seize degrades gracefully if a future stHDX-invariant break ever lets
+		/// the live balance exceed the snapshot, rather than reverting.
 		#[transactional]
 		fn on_seize(
 			borrower: &T::AccountId,
@@ -946,24 +950,29 @@ pub mod pallet {
 			seize_gigahdx: Balance,
 			orig_gigahdx: Balance,
 		) -> DispatchResult {
+			// `seize_hdx`/`seize_gigahdx` are measured against the borrower's live
+			// balances; clamp them to the staked/snapshot values so a future
+			// stHDX-invariant break degrades gracefully in release instead of
+			// underflow-reverting the liquidation. The debug_asserts keep the
+			// broken state fail-loud under test/fuzz.
+			// `None` means no stake; the try_mutate below returns `NoStake`. Only
+			// assert/clamp `seize_hdx` when a stake exists so that error path stays
+			// graceful.
+			let maybe_staked_hdx = Stakes::<T>::get(borrower).map(|s| s.hdx);
+			debug_assert!(
+				seize_gigahdx <= orig_gigahdx,
+				"on_seize: seize_gigahdx ({seize_gigahdx:?}) exceeds orig_gigahdx snapshot ({orig_gigahdx:?})",
+			);
+			debug_assert!(
+				maybe_staked_hdx.is_none_or(|h| seize_hdx <= h),
+				"on_seize: seize_hdx ({seize_hdx:?}) exceeds staked hdx ({maybe_staked_hdx:?})",
+			);
+			let seize_hdx = maybe_staked_hdx.map_or(seize_hdx, |h| seize_hdx.min(h));
+
 			Stakes::<T>::try_mutate(borrower, |maybe| -> DispatchResult {
 				let s = maybe.as_mut().ok_or(Error::<T>::NoStake)?;
-				// `seize_gigahdx` must not exceed the borrower's snapshot — a
-				// larger ask means the caller mis-computed the pro-rata split.
-				// Treated as unreachable in production; the debug_assert turns
-				// it into a hard panic under fuzzing instead of a silent
-				// `SeizeFailed` revert.
-				debug_assert!(
-					seize_gigahdx <= orig_gigahdx,
-					"on_seize: seize_gigahdx ({seize_gigahdx:?}) exceeds orig_gigahdx snapshot ({orig_gigahdx:?})",
-				);
-				let residual_borrower_gigahdx =
-					orig_gigahdx.checked_sub(seize_gigahdx).ok_or(Error::<T>::SeizeFailed)?;
-				s.hdx = s.hdx.checked_sub(seize_hdx).ok_or(Error::<T>::Overflow)?;
-				// Votes stay intact across a seize; clamp `frozen` so the
-				// `hdx >= frozen` invariant still holds on the residual stake.
-				s.frozen = s.frozen.min(s.hdx);
-				s.gigahdx = residual_borrower_gigahdx;
+				s.hdx = s.hdx.saturating_sub(seize_hdx);
+				s.gigahdx = orig_gigahdx.saturating_sub(seize_gigahdx);
 				Ok(())
 			})?;
 			// Shrink the borrower's lock *before* withdrawing. The stale
@@ -986,6 +995,14 @@ pub mod pallet {
 				if can_transfer {
 					T::NativeCurrency::transfer(borrower, recipient, seize_hdx, ExistenceRequirement::AllowDeath)?;
 				} else {
+					// Intentional policy: liquidation outranks every lock. `slash` takes
+					// the HDX regardless of `ormlvest` vesting, `pyconvot`, or any other
+					// foreign lock; the lock owner bears any later `balance < lock`
+					// shortfall. gigahdx's own ledger stays consistent regardless:
+					// `seize_hdx <= active hdx` (snapshot reads only `s.hdx`) and the
+					// lock invariant `balance >= hdx + unstaking` together guarantee
+					// `balance_new >= hdx_new + unstaking`, so `unstaking` /
+					// `PendingUnstakes` are never stranded by the slash.
 					// `slash` ignores locks (unlike `transfer`), but
 					// `pallet_balances` refuses to push a non-reapable
 					// account below ED. Tolerate that ≤ED dust — Aave has

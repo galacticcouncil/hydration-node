@@ -28,9 +28,9 @@
 //! - First `on_remove_vote` for a completed referendum lazily transfers
 //!   `track_pct × accumulator_balance` into the allocated pot and snapshots
 //!   the frozen denominator.
-//! - Per-user shares are pro-rata against that frozen denominator. The last
-//!   claimant scoops any remaining dust, draining the pool to exactly zero
-//!   and triggering storage cleanup.
+//! - Per-user shares are pro-rata against that frozen denominator. Once the
+//!   last counted voter is paid, any rounding dust left in the pool is
+//!   recycled to the accumulator pot and the pool entry is cleaned up.
 //! - `claim_rewards` atomically compounds the user's accumulated HDX back
 //!   into their gigahdx position.
 
@@ -130,6 +130,13 @@ pub mod pallet {
 		UserVoteRecord,
 		OptionQuery,
 	>;
+
+	/// Number of `UserVoteRecords` entries held by `who`, maintained on insert
+	/// and removal. Lets the gigahdx liquidation charge exact weight for the
+	/// vote-clearance loop from the borrower's count, without an O(n) scan at
+	/// weight-calculation time.
+	#[pallet::storage]
+	pub type UserVoteCount<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
 
 	/// Running sum of HDX owed to `who` across all completed referenda.
 	#[pallet::storage]

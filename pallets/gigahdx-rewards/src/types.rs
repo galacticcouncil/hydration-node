@@ -64,11 +64,13 @@ pub struct ReferendaReward<TrackId> {
 	/// Frozen denominator for pro-rata math.
 	pub total_weighted_votes: u128,
 	/// Countdown of voters who still hold a `UserVoteRecord` for this
-	/// referendum. When this reaches zero on a per-user payout, the last
-	/// claimant scoops `remaining_reward` and the pool entry is deleted.
+	/// referendum. When this reaches zero on a per-user payout, any
+	/// `remaining_reward` dust is recycled to the accumulator pot and the
+	/// pool entry is deleted.
 	pub voters_remaining: u32,
-	/// Decremented on each per-user payout. Equals `total_reward` at
-	/// allocation; drained to exactly zero by the final claimant.
+	/// Decremented on each per-user payout by the capped share. Equals
+	/// `total_reward` at allocation; any residual after the final payout is
+	/// recycled to the accumulator pot.
 	pub remaining_reward: Balance,
 }
 

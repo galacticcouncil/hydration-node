@@ -295,3 +295,29 @@ fn liquidate_with_gigahdx_collateral_should_refuse_when_debt_is_not_hollar() {
 		);
 	});
 }
+
+// Finding #5: a gigapot shortfall makes `realize_yield` return an error, but that
+// must NOT abort the liquidation — folding yield is only an optimisation for the
+// seize snapshot, and an underwater position must still be liquidatable. The
+// mock's `realize_yield` always errors; the flow must proceed past it and fail at
+// the next step (`snapshot_stake` -> `NoGigaHdxPosition`) rather than reverting
+// with `RealizeYieldFailed`.
+#[test]
+fn liquidate_gigahdx_should_proceed_when_realize_yield_fails() {
+	ExtBuilder::default().build().execute_with(|| {
+		let user_evm = EvmAccounts::evm_address(&BOB);
+		// collateral == gigahdx asset (67) routes into `liquidate_gigahdx`;
+		// debt == HollarId (222) passes the debt-asset guard.
+		assert_noop!(
+			Liquidation::liquidate(
+				RuntimeOrigin::signed(BOB),
+				67,
+				222,
+				user_evm,
+				1_000 * ONE,
+				Default::default(),
+			),
+			Error::<Test>::NoGigaHdxPosition
+		);
+	});
+}

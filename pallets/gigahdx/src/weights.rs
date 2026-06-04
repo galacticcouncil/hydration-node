@@ -10,6 +10,7 @@ pub trait WeightInfo {
 	fn cancel_unstake() -> Weight;
 	fn migrate() -> Weight;
 	fn realize_yield() -> Weight;
+	fn seize() -> Weight;
 }
 
 impl WeightInfo for () {
@@ -32,6 +33,9 @@ impl WeightInfo for () {
 		Weight::zero()
 	}
 	fn realize_yield() -> Weight {
+		Weight::zero()
+	}
+	fn seize() -> Weight {
 		Weight::zero()
 	}
 }

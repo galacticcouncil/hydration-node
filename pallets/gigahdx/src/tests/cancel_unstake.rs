@@ -233,19 +233,17 @@ fn cancel_unstake_should_rollback_when_supply_fails() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn cancel_unstake_should_preserve_frozen_amount() {
+fn cancel_unstake_should_preserve_voting_commitment_guard() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
-		// Freeze 30 before unstake; partial unstake of 50 leaves hdx=50 ≥ frozen=30.
-		GigaHdx::freeze(&ALICE, 30 * ONE);
+		// 30 HDX committed to votes; partial unstake of 50 leaves hdx=50 ≥ 30.
+		TestVotingCommitment::set(30 * ONE);
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 50 * ONE));
-		assert_eq!(Stakes::<Test>::get(ALICE).unwrap().frozen, 30 * ONE);
 
 		assert_ok!(GigaHdx::cancel_unstake(RawOrigin::Signed(ALICE).into(), 1));
 		let s = Stakes::<Test>::get(ALICE).unwrap();
-		assert_eq!(s.frozen, 30 * ONE, "cancel must not touch frozen");
 		assert_eq!(s.hdx, 100 * ONE);
-		assert!(s.frozen <= s.hdx, "invariant frozen ≤ hdx preserved");
+		assert!(30 * ONE <= s.hdx, "invariant: committed ≤ hdx preserved");
 	});
 }
 
@@ -376,6 +374,91 @@ fn repeated_unstake_cancel_cycles_should_not_drain_gigapot() {
 				"system total (TotalLocked + pot) must be conserved across cycles",
 			);
 		});
+}
+
+#[test]
+fn unstake_without_realize_then_cancel_should_not_extract_yield_when_other_staker_present() {
+	// User-reported scenario: stake, let the rate climb via accrued yield, then
+	// `giga_unstake` (which pays out at the *current* rate, pulling unrealized
+	// yield from the gigapot) and immediately `cancel_unstake`. With a second
+	// staker present the supply never zeroes, so the rate stays elevated through
+	// the whole cycle — the case the other anti-extraction tests don't cover.
+	//
+	// Expectation: the cycle is exactly equivalent to `realize_yield`. Alice's
+	// gigahdx (and thus her redeemable claim) is unchanged; only her principal
+	// absorbs her *own* accrued yield. Bob and the rest of the pot are untouched.
+	ExtBuilder::default().build().execute_with(|| {
+		// Alice + Bob each stake 100 at rate 1.0 → supply 200.
+		stake_alice_100();
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(BOB).into(), 100 * ONE));
+
+		// 100 HDX of yield lands in the pot → rate = 300 / 200 = 1.5.
+		assert_ok!(Balances::transfer_keep_alive(
+			RawOrigin::Signed(TREASURY).into(),
+			pot(),
+			100 * ONE,
+		));
+
+		let bob_before = Stakes::<Test>::get(BOB).unwrap();
+		let alice_gigahdx_before = Stakes::<Test>::get(ALICE).unwrap().gigahdx;
+		let alice_claim_before = alice_claim_hdx_value();
+		let system_total_before = TotalLocked::<Test>::get().saturating_add(Balances::free_balance(pot()));
+
+		// Unstake the whole position without realizing first, then cancel.
+		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+		// payout = 100 × 1.5 = 150; the 50 above principal is pulled from the pot.
+		assert_eq!(only_pending(ALICE).amount, 150 * ONE);
+		assert_eq!(Balances::free_balance(pot()), 50 * ONE);
+
+		assert_ok!(GigaHdx::cancel_unstake(RawOrigin::Signed(ALICE).into(), 1));
+
+		let alice_after = Stakes::<Test>::get(ALICE).unwrap();
+		// gigahdx restored exactly (re-mint of 150 at rate 1.5 = 100) — no inflation.
+		assert_eq!(alice_after.gigahdx, alice_gigahdx_before);
+		// Principal absorbed only Alice's own 50 of accrued yield: 100 → 150.
+		assert_eq!(alice_after.hdx, 150 * ONE);
+
+		// Redeemable claim must not grow.
+		assert_eq!(alice_claim_hdx_value(), alice_claim_before);
+
+		// Bob and the system total are untouched (50 left in pot + 50 folded into
+		// Alice's principal == the original 100 of yield).
+		assert_eq!(Stakes::<Test>::get(BOB).unwrap(), bob_before);
+		assert_eq!(Balances::free_balance(pot()), 50 * ONE);
+		let system_total_after = TotalLocked::<Test>::get().saturating_add(Balances::free_balance(pot()));
+		assert_eq!(system_total_after, system_total_before);
+	});
+}
+
+#[test]
+fn unstake_then_cancel_should_match_realize_yield_end_state() {
+	// The unstake-without-realize → cancel cycle must leave Alice in the exact
+	// same state as a direct `realize_yield` from an identical starting point.
+	let alice_state = |realize_path: bool| -> (Balance, Balance, Balance) {
+		let mut out = (0, 0, 0);
+		ExtBuilder::default().build().execute_with(|| {
+			stake_alice_100();
+			assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(BOB).into(), 100 * ONE));
+			assert_ok!(Balances::transfer_keep_alive(
+				RawOrigin::Signed(TREASURY).into(),
+				pot(),
+				100 * ONE,
+			));
+
+			if realize_path {
+				assert_ok!(GigaHdx::realize_yield(RawOrigin::Signed(ALICE).into()));
+			} else {
+				assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+				assert_ok!(GigaHdx::cancel_unstake(RawOrigin::Signed(ALICE).into(), 1));
+			}
+
+			let s = Stakes::<Test>::get(ALICE).unwrap();
+			out = (s.hdx, s.gigahdx, Balances::free_balance(pot()));
+		});
+		out
+	};
+
+	assert_eq!(alice_state(true), alice_state(false));
 }
 
 #[test]

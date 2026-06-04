@@ -93,7 +93,6 @@ fn realize_checked(a: AccountId) {
 	let record_present = before.is_some();
 	let hdx_before = before.as_ref().map(|s| s.hdx).unwrap_or(0);
 	let gigahdx_before = before.as_ref().map(|s| s.gigahdx).unwrap_or(0);
-	let frozen_before = before.as_ref().map(|s| s.frozen).unwrap_or(0);
 	let unstaking_before = before.as_ref().map(|s| s.unstaking).unwrap_or(0);
 
 	let supply_before = GigaHdx::total_gigahdx_supply();
@@ -130,7 +129,6 @@ fn realize_checked(a: AccountId) {
 
 	let hdx_after = after.as_ref().map(|s| s.hdx).unwrap_or(0);
 	let gigahdx_after = after.as_ref().map(|s| s.gigahdx).unwrap_or(0);
-	let frozen_after = after.as_ref().map(|s| s.frozen).unwrap_or(0);
 	let unstaking_after = after.as_ref().map(|s| s.unstaking).unwrap_or(0);
 	let accrued = hdx_after - hdx_before;
 	let cv_before = current_value(gigahdx_before);
@@ -139,7 +137,6 @@ fn realize_checked(a: AccountId) {
 	assert_eq!(gigahdx_after, gigahdx_before, "INV3 gigahdx changed");
 	assert_eq!(GigaHdx::total_gigahdx_supply(), supply_before, "INV3 supply changed");
 	assert_eq!(GigaHdx::exchange_rate(), rate_before, "INV3 rate changed");
-	assert_eq!(frozen_after, frozen_before, "INV3 frozen changed");
 	assert_eq!(unstaking_after, unstaking_before, "INV3 unstaking changed");
 
 	// INV4: pure transfer gigapot → who, no mint.

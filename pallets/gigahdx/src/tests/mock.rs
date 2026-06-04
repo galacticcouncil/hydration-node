@@ -201,6 +201,30 @@ impl pallet_gigahdx::traits::ExternalClaims<AccountId> for TestExternalClaims {
 	}
 }
 
+// ---------- TestVotingCommitment ----------
+
+thread_local! {
+	pub static VOTING_COMMITMENT: RefCell<Balance> = const { RefCell::new(0) };
+}
+
+pub struct TestVotingCommitment;
+
+impl TestVotingCommitment {
+	pub fn set(value: Balance) {
+		VOTING_COMMITMENT.with(|v| *v.borrow_mut() = value);
+	}
+}
+
+impl pallet_gigahdx::traits::VotingCommitmentInspect<AccountId> for TestVotingCommitment {
+	fn committed_with_count(_who: &AccountId) -> (Balance, u32) {
+		(VOTING_COMMITMENT.with(|v| *v.borrow()), 0)
+	}
+
+	fn committed_weight() -> frame_support::weights::Weight {
+		frame_support::weights::Weight::zero()
+	}
+}
+
 // ---------- TestLegacyStaking ----------
 
 thread_local! {
@@ -265,6 +289,7 @@ impl pallet_gigahdx::Config for Test {
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type ExternalClaims = TestExternalClaims;
 	type LegacyStaking = TestLegacyStaking;
+	type VotingCommitment = TestVotingCommitment;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
@@ -345,6 +370,7 @@ impl ExtBuilder {
 		ext.execute_with(|| {
 			TestMoneyMarket::reset();
 			TestExternalClaims::set(0);
+			TestVotingCommitment::set(0);
 			TestLegacyStaking::reset();
 			System::set_block_number(1);
 		});

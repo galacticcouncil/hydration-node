@@ -1884,7 +1884,7 @@ parameter_types! {
 	pub const StHdxAssetId: AssetId = 670;
 	pub const GigaHdxAssetIdConst: AssetId = 67;
 	pub const GigaHdxMinStake: Balance = UNITS;
-	pub const GigaHdxCooldownPeriod: BlockNumber = 30 * DAYS;
+	pub const GigaHdxCooldownPeriod: BlockNumber = 28 * DAYS;
 	pub const GigaHdxMaxPendingUnstakes: u32 = 10;
 }
 
@@ -1904,6 +1904,7 @@ impl pallet_gigahdx::Config for Runtime {
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type ExternalClaims = crate::gigahdx::HdxExternalClaims;
 	type LegacyStaking = crate::gigahdx::LegacyStakingMigrator;
+	type VotingCommitment = GigaHdxRewards;
 	type WeightInfo = weights::pallet_gigahdx::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = GigaHdxBenchmarkHelper;
