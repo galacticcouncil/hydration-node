@@ -9698,7 +9698,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-gigahdx"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9721,7 +9721,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-gigahdx-rewards"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

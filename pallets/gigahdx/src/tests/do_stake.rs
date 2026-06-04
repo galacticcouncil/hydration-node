@@ -16,7 +16,6 @@ fn do_stake_should_create_new_stake_record_when_user_had_none() {
 		let s = Stakes::<Test>::get(ALICE).unwrap();
 		assert_eq!(s.hdx, 5 * ONE);
 		assert_eq!(s.gigahdx, 5 * ONE); // 1:1 bootstrap rate
-		assert_eq!(s.frozen, 0);
 		assert_eq!(TotalLocked::<Test>::get(), 5 * ONE);
 		assert_eq!(TestMoneyMarket::balance_of(&ALICE), 5 * ONE);
 	});

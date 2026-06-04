@@ -19,6 +19,8 @@
 
 use crate::gigahdx::PATH_TO_SNAPSHOT;
 use crate::polkadot_test_net::{hydra_live_ext, TestNet, ALICE, BOB, CHARLIE, DAVE, UNITS};
+use codec::Encode;
+use frame_support::dispatch::GetDispatchInfo;
 use frame_support::traits::{schedule::DispatchTime, Bounded, OnInitialize, StorePreimage};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
@@ -27,9 +29,12 @@ use hydradx_runtime::{
 	GigaHdx, GigaHdxRewards, OriginCaller, Preimage, Referenda, Runtime, RuntimeOrigin, Scheduler, System,
 };
 use pallet_conviction_voting::{AccountVote, Conviction, Vote};
+use pallet_gigahdx::traits::VotingCommitmentInspect;
 use pallet_referenda::ReferendumIndex;
+use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::constants::time::DAYS;
 use primitives::AccountId;
+use sp_runtime::traits::{DispatchTransaction, Dispatchable, TransactionExtension};
 use xcm_emulator::Network;
 
 // ---------------------------------------------------------------------------
@@ -365,8 +370,7 @@ fn giga_unstake_should_fail_when_stake_is_frozen_by_active_vote() {
 
 		// Stake.frozen now equals 100 HDX (the staked-vote-capped balance) —
 		// any unstake that would bring `hdx < frozen` must fail with `StakeFrozen`.
-		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("alice has stake");
-		assert_eq!(stake.frozen, 100 * UNITS);
+		assert_eq!(GigaHdxRewards::committed(&alice), 100 * UNITS);
 
 		// `giga_unstake` operates on gigahdx (atokens) but the frozen check is
 		// against the post-payout HDX side. Burning all 100 atokens would set
@@ -383,8 +387,11 @@ fn giga_unstake_should_fail_when_stake_is_frozen_by_active_vote() {
 			Some(ROOT_TRACK_CLASS),
 			r,
 		));
-		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("alice still has stake");
-		assert_eq!(stake.frozen, 0, "remove_vote must unfreeze the stake");
+		assert_eq!(
+			GigaHdxRewards::committed(&alice),
+			0,
+			"remove_vote must unfreeze the stake"
+		);
 
 		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
 	});
@@ -543,10 +550,7 @@ fn rewards_should_replace_weighted_when_vote_is_edited() {
 		// Locked1x = 0.25× → 100 * 0.25 = 25 UNITS weighted.
 		assert_eq!(tally_after_first.total_weighted, 25 * UNITS);
 		assert_eq!(tally_after_first.voters_count, 1);
-		assert_eq!(
-			pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen,
-			100 * UNITS,
-		);
+		assert_eq!(GigaHdxRewards::committed(&alice), 100 * UNITS,);
 
 		assert_ok!(ConvictionVoting::vote(
 			RuntimeOrigin::signed(alice.clone()),
@@ -561,10 +565,7 @@ fn rewards_should_replace_weighted_when_vote_is_edited() {
 		let tally_after_edit = pallet_gigahdx_rewards::ReferendaTotalWeightedVotes::<Runtime>::get(r).unwrap();
 		assert_eq!(tally_after_edit.total_weighted, 200 * UNITS);
 		assert_eq!(tally_after_edit.voters_count, 1, "edit must not increment voters_count");
-		assert_eq!(
-			pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen,
-			200 * UNITS,
-		);
+		assert_eq!(GigaHdxRewards::committed(&alice), 200 * UNITS,);
 
 		end_referendum();
 		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
@@ -613,7 +614,7 @@ fn rewards_should_skip_allocation_when_referendum_is_cancelled() {
 		assert_eq!(pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&alice), 0);
 		assert!(pallet_gigahdx_rewards::ReferendaRewardPool::<Runtime>::get(r).is_none());
 		assert_eq!(
-			pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().frozen,
+			GigaHdxRewards::committed(&alice),
 			0,
 			"cancelled referendum must still unfreeze the stake",
 		);
@@ -782,6 +783,365 @@ fn rewards_should_cleanup_with_zero_payout_when_accumulator_is_empty() {
 		assert_noop!(
 			GigaHdxRewards::claim_rewards(RuntimeOrigin::signed(alice)),
 			pallet_gigahdx_rewards::Error::<Runtime>::NoPendingRewards,
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Voting commitment = the *overlap* of a staker's votes (the max single
+// reservation), not their sum: conviction voting locks the same balance for
+// every concurrent vote, so N partial votes of `amount` commit `amount`, not
+// `N * amount`. `giga_unstake` pulls it lazily via `GigaHdxRewards::committed`.
+//
+// Scenario: Alice stakes X, votes X/2 on three live referenda. The other X/2
+// is never used for voting and stays unstakeable.
+// ---------------------------------------------------------------------------
+#[test]
+fn giga_unstake_should_release_unused_half_when_voting_partial_amount_on_multiple_referenda() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into();
+
+		// 1. Alice stakes X HDX -> receives gigahdx.
+		let x = 100 * UNITS;
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
+
+		let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake should exist");
+		assert_eq!(stake.hdx, x);
+		assert_eq!(GigaHdxRewards::committed(&alice), 0);
+		let gigahdx_total = stake.gigahdx;
+
+		// 2. Three referenda; Alice votes X/2 on each. Cast each vote right after
+		//    opening its referendum (votes persist regardless of later status).
+		let half = x / 2;
+		for _ in 0..3 {
+			let r = begin_referendum();
+			assert_ok!(ConvictionVoting::vote(
+				RuntimeOrigin::signed(alice.clone()),
+				r,
+				aye_with_conviction(half, Conviction::Locked3x),
+			));
+		}
+
+		// 3. Only X/2 is ever committed — the same half backs all three votes.
+		assert_eq!(GigaHdxRewards::committed(&alice), half);
+
+		// 4. Alice unstakes the unused half — never used for voting, so it
+		//    succeeds (post-unstake hdx = X/2 ≥ committed X/2).
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			gigahdx_total / 2,
+		));
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Voting-commitment guard coverage.
+//
+// `GigaHdxRewards::committed(who)` is the MAX over the user's active
+// per-referendum reservations (`UserVoteRecords[who, *].staked_vote_amount`) —
+// the overlap, never the sum. `giga_unstake` pulls it lazily; nothing is
+// maintained on the voting path. These cover add, remove, edit-down, edit-up,
+// clear-all and the over-stake cap.
+// ---------------------------------------------------------------------------
+
+/// Removing the single largest vote drops `committed` to the next-highest
+/// reservation (it is computed fresh from the surviving votes, not decremented).
+#[test]
+fn frozen_guard_should_recompute_to_second_highest_when_largest_vote_removed() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into();
+		let x = 100 * UNITS;
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
+		let gigahdx_total = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().gigahdx;
+
+		let quarter = x / 4;
+
+		// Two small reservations, then the large one created last so it is fresh
+		// and unambiguously removable while ongoing.
+		let r_a = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r_a,
+			aye_with_conviction(quarter, Conviction::Locked1x),
+		));
+		let r_b = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r_b,
+			aye_with_conviction(quarter, Conviction::Locked1x),
+		));
+		let r_max = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r_max,
+			aye_with_conviction(x, Conviction::Locked1x),
+		));
+
+		// Remove the largest vote.
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(alice.clone()),
+			Some(ROOT_TRACK_CLASS),
+			r_max,
+		));
+
+		// committed = max(X/4, X/4) = X/4 (the removed X reservation is gone).
+		assert_eq!(
+			GigaHdxRewards::committed(&alice),
+			quarter,
+			"removing the largest vote drops committed to the next-highest reservation"
+		);
+
+		// The freed 3X/4 must be unstakeable.
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			gigahdx_total - gigahdx_total / 4,
+		));
+	});
+}
+
+/// Editing the largest vote *down* lowers `committed` to the true overlap.
+#[test]
+fn frozen_guard_should_lower_when_largest_vote_edited_down() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into();
+		let x = 100 * UNITS;
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
+		let gigahdx_total = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().gigahdx;
+
+		let quarter = x / 4;
+
+		// A smaller reservation on another referendum.
+		let r_other = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r_other,
+			aye_with_conviction(quarter, Conviction::Locked1x),
+		));
+
+		// The large reservation, created last so it is still ongoing for the edit.
+		let r_edit = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r_edit,
+			aye_with_conviction(x, Conviction::Locked1x),
+		));
+
+		// Edit it down to X/4.
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r_edit,
+			aye_with_conviction(quarter, Conviction::Locked1x),
+		));
+
+		// committed = max(X/4 other, X/4 edited) = X/4.
+		assert_eq!(
+			GigaHdxRewards::committed(&alice),
+			quarter,
+			"editing the largest vote down lowers committed to the true overlap"
+		);
+
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			gigahdx_total - gigahdx_total / 4,
+		));
+	});
+}
+
+/// Editing a vote *up* raises `committed` to the new amount.
+#[test]
+fn frozen_guard_should_raise_when_vote_edited_up() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into();
+		let x = 100 * UNITS;
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
+		let gigahdx_total = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().gigahdx;
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(x / 4, Conviction::Locked1x),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(x / 2, Conviction::Locked1x),
+		));
+
+		assert_eq!(
+			GigaHdxRewards::committed(&alice),
+			x / 2,
+			"editing a vote up must raise frozen to the new reservation"
+		);
+
+		// The remaining free half is still unstakeable.
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			gigahdx_total / 2,
+		));
+	});
+}
+
+/// Removing every vote clears `committed` to zero and frees the whole stake.
+#[test]
+fn frozen_guard_should_clear_when_all_votes_removed() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into();
+		let x = 100 * UNITS;
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
+		let gigahdx_total = pallet_gigahdx::Stakes::<Runtime>::get(&alice).unwrap().gigahdx;
+
+		let half = x / 2;
+		let mut refs = sp_std::vec::Vec::new();
+		for _ in 0..3 {
+			let r = begin_referendum();
+			assert_ok!(ConvictionVoting::vote(
+				RuntimeOrigin::signed(alice.clone()),
+				r,
+				aye_with_conviction(half, Conviction::Locked1x),
+			));
+			refs.push(r);
+		}
+
+		for r in refs {
+			assert_ok!(ConvictionVoting::remove_vote(
+				RuntimeOrigin::signed(alice.clone()),
+				Some(ROOT_TRACK_CLASS),
+				r,
+			));
+		}
+
+		assert_eq!(
+			GigaHdxRewards::committed(&alice),
+			0,
+			"removing all votes must clear frozen"
+		);
+
+		assert_ok!(GigaHdx::giga_unstake(
+			RuntimeOrigin::signed(alice.clone()),
+			gigahdx_total,
+		));
+	});
+}
+
+/// A vote larger than the staked amount commits only the stake (`min(vote,
+/// staked)`), never the raw vote balance.
+#[test]
+fn frozen_guard_should_cap_at_stake_when_voting_more_than_staked() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into();
+		let x = 100 * UNITS;
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(2 * x, Conviction::Locked1x),
+		));
+
+		assert_eq!(
+			GigaHdxRewards::committed(&alice),
+			x,
+			"frozen must be capped at the staked amount, not the raw vote balance"
+		);
+	});
+}
+
+/// `giga_unstake`'s weight declares the worst-case `UserVoteRecords` scan
+/// (`reads(250)`), so pre-dispatch charges that fee up front; post-dispatch then
+/// refunds the unused portion down to the reservations actually read. Exercised
+/// through the real `ChargeTransactionPayment` extension: HDX leaves the account
+/// at pre-dispatch, and some comes back at post-dispatch.
+#[test]
+fn giga_unstake_should_charge_worst_case_fee_then_refund_unused_scan() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into();
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		// Two active votes: the actual scan reads 2 records, far below the
+		// worst-case 250 the weight declares — so a real refund is due.
+		let quarter = 25 * UNITS;
+		for _ in 0..2 {
+			let r = begin_referendum();
+			assert_ok!(ConvictionVoting::vote(
+				RuntimeOrigin::signed(alice.clone()),
+				r,
+				aye_with_conviction(quarter, Conviction::Locked1x),
+			));
+		}
+		assert_eq!(GigaHdxRewards::committed(&alice), quarter);
+
+		let call = hydradx_runtime::RuntimeCall::GigaHdx(pallet_gigahdx::Call::giga_unstake {
+			gigahdx_amount: 10 * UNITS,
+		});
+		let info = call.get_dispatch_info();
+		let len = call.encoded_size();
+
+		// Staked HDX stays (locked) in Alice's account across the unstake, so the
+		// only free-balance movement here is the fee charge / refund.
+		let balance_before = Balances::free_balance(&alice);
+
+		// Pre-dispatch: withdraw the worst-case fee (weight includes reads(250)).
+		let pre = ChargeTransactionPayment::<Runtime>::from(0).validate_and_prepare(
+			Some(alice.clone()).into(),
+			&call,
+			&info,
+			len,
+			0,
+		);
+		assert_ok!(&pre);
+		let (pre_data, _) = pre.unwrap();
+
+		let balance_after_charge = Balances::free_balance(&alice);
+		let charged = balance_before - balance_after_charge;
+		assert!(charged > 0, "pre-dispatch must charge the worst-case fee");
+
+		// Dispatch: returns the actual weight (base + reads(2)).
+		let result = call.dispatch(RuntimeOrigin::signed(alice.clone()));
+		assert_ok!(result);
+
+		// Post-dispatch: refund the over-declared scan weight.
+		assert_ok!(ChargeTransactionPayment::<Runtime>::post_dispatch(
+			pre_data,
+			&info,
+			&mut result.unwrap(),
+			len,
+			&Ok(()),
+		));
+
+		let balance_final = Balances::free_balance(&alice);
+		let refunded = balance_final - balance_after_charge;
+		let actual_fee = balance_before - balance_final;
+
+		assert!(
+			refunded > 0,
+			"post-dispatch must refund the unused worst-case scan weight"
+		);
+		assert!(
+			actual_fee < charged,
+			"net fee paid must be below the worst-case pre-charge"
 		);
 	});
 }

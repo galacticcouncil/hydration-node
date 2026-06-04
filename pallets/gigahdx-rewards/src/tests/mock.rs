@@ -242,6 +242,7 @@ impl pallet_gigahdx::Config for Test {
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type ExternalClaims = TestExternalClaims;
 	type LegacyStaking = ();
+	type VotingCommitment = GigaHdxRewards;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
@@ -303,11 +304,6 @@ pub fn fund_accumulator(amount: Balance) {
 pub fn account_balance(who: &AccountId) -> Balance {
 	use frame_support::traits::Currency;
 	<Balances as Currency<AccountId>>::free_balance(who)
-}
-
-/// Convenience getter for a Stake record; returns a default record if absent.
-pub fn stake_record(who: &AccountId) -> pallet_gigahdx::pallet::StakeRecord {
-	pallet_gigahdx::Stakes::<Test>::get(who).unwrap_or_default()
 }
 
 /// Drain all `frame_system::events()` and return them.

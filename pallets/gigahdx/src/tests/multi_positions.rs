@@ -518,10 +518,11 @@ fn multiple_pending_positions_should_conserve_system_total() {
 }
 
 #[test]
-fn frozen_should_remain_invariant_across_multi_position_operations() {
+fn voting_commitment_should_remain_invariant_across_multi_position_operations() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 300 * ONE));
-		GigaHdx::freeze(&ALICE, 50 * ONE);
+		// 50 HDX committed to votes throughout — the guard must keep hdx above it.
+		TestVotingCommitment::set(50 * ONE);
 
 		let b0 = System::block_number();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
@@ -533,7 +534,6 @@ fn frozen_should_remain_invariant_across_multi_position_operations() {
 		assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), b1));
 
 		let s = Stakes::<Test>::get(ALICE).unwrap();
-		assert_eq!(s.frozen, 50 * ONE);
-		assert!(s.frozen <= s.hdx);
+		assert!(50 * ONE <= s.hdx, "hdx must stay above the voting commitment");
 	});
 }
