@@ -2238,7 +2238,7 @@ fn liquidation_test_setup() -> (AccountId, AccountId, EvmAddress, EvmAddress, Ev
 /// Fund the treasury and giga-stake on its behalf so it has collateral to
 /// borrow HOLLAR against during a liquidation. Also enables stHDX as
 /// collateral for the treasury's EVM account.
-fn fund_treasury_for_liquidation(pool: EvmAddress) {
+fn fund_treasury_for_liquidation(_pool: EvmAddress) {
 	use hydradx_runtime::BorrowingTreasuryAccount;
 	let treasury = BorrowingTreasuryAccount::get();
 	assert_ok!(Balances::force_set_balance(
@@ -2251,7 +2251,6 @@ fn fund_treasury_for_liquidation(pool: EvmAddress) {
 		RuntimeOrigin::signed(treasury.clone()),
 		1_000_000 * UNITS
 	));
-	let treasury_evm = EVMAccounts::evm_address(&treasury);
 }
 
 /// Crash stHDX price to 30% of `original` on the gigahdx pool's oracle.
@@ -2650,7 +2649,7 @@ fn gigahdx_liquidation_should_keep_total_locked_invariant() {
 fn other_users_should_stake_normally_after_liquidation() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		use crate::liquidation::{borrow, get_user_account_data};
+		use crate::liquidation::borrow;
 		use hydradx_runtime::BorrowingTreasuryAccount;
 		use hydradx_traits::gigahdx::Seize;
 		use sp_core::Get;
@@ -4085,7 +4084,7 @@ fn gigahdx_liquidation_should_land_when_foreign_lock_forces_slash_with_zero_slac
 
 		let borrow_amount: Balance = 5 * HOLLAR_DECIMALS_18;
 		borrow(pool, alice_evm, hollar_addr, borrow_amount);
-		let liq_evm = e2e_provision_liq_account(&liq_account, main_mm);
+		let _liq_evm = e2e_provision_liq_account(&liq_account, main_mm);
 		crash_st_hdx_price(oracle, st_hdx_evm);
 		let pre = get_user_account_data(pool, alice_evm).unwrap();
 		assert!(pre.health_factor < U256::from(1_000_000_000_000_000_000u128));
