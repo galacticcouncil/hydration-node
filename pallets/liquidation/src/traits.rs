@@ -3,6 +3,7 @@
 //! Traits the runtime implements to wire the protocol-funded gigahdx
 //! liquidation path into `pallet-liquidation`.
 
+use frame_support::weights::Weight;
 use hydradx_traits::gigahdx::Seize;
 use primitives::{AssetId, Balance, EvmAddress};
 use sp_runtime::DispatchError;
@@ -40,4 +41,10 @@ pub trait GigaHdxSupport<AccountId>: Seize<AccountId> {
 	/// not carry governance weight no longer backed by stake. Returns the
 	/// number of votes removed.
 	fn clear_conflicting_votes(borrower: &AccountId, max_remaining_hdx: Balance) -> Result<u32, DispatchError>;
+
+	/// Exact weight of the `clear_conflicting_votes` loop for the position owned
+	/// by `user`, derived from the borrower's recorded vote count. Read in the
+	/// `liquidate` weight annotation so the permissionless call is charged
+	/// precisely — no worst-case pre-charge, no refund.
+	fn clear_weight_for(user: EvmAddress) -> Weight;
 }

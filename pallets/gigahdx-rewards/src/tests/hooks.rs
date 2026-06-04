@@ -2,7 +2,8 @@
 
 use super::mock::*;
 use crate::pallet::{
-	Event, PendingRewards, ReferendaRewardPool, ReferendaTotalWeightedVotes, ReferendumTracks, UserVoteRecords,
+	Event, PendingRewards, ReferendaRewardPool, ReferendaTotalWeightedVotes, ReferendumTracks, UserVoteCount,
+	UserVoteRecords,
 };
 use crate::types::REWARD_MULTIPLIER_SCALE;
 use crate::voting_hooks::VotingHooksImpl;
@@ -872,6 +873,86 @@ fn frozen_should_lower_when_largest_vote_edited_down() {
 			GigaHdxRewards::committed(&ALICE),
 			quarter,
 			"editing the largest vote down must recompute frozen, not subtract a delta off a summed base"
+		);
+	});
+}
+
+#[test]
+fn user_vote_count_should_increment_on_new_vote_and_decrement_on_remove() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 0);
+
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			standard_vote(true, Conviction::Locked1x, 50 * ONE),
+		));
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 1);
+
+		VotingHooksImpl::<Test>::on_remove_vote(&ALICE, REF_A, Status::Ongoing);
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 0);
+	});
+}
+
+#[test]
+fn user_vote_count_should_increment_for_split_vote() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			AccountVote::Split {
+				aye: 40 * ONE,
+				nay: 60 * ONE,
+			},
+		));
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 1, "Split votes are tracked too");
+	});
+}
+
+#[test]
+fn user_vote_count_should_stay_unchanged_when_vote_is_edited() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			standard_vote(true, Conviction::Locked1x, 50 * ONE),
+		));
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 1);
+
+		// Edit the same referendum's vote — count must not change.
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			standard_vote(true, Conviction::Locked3x, 80 * ONE),
+		));
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 1, "an edit is not a new record");
+	});
+}
+
+#[test]
+fn user_vote_count_should_track_votes_across_multiple_referenda() {
+	ExtBuilder::default().build().execute_with(|| {
+		stake(ALICE, 100 * ONE);
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_A,
+			standard_vote(true, Conviction::Locked1x, 30 * ONE),
+		));
+		assert_ok!(VotingHooksImpl::<Test>::on_before_vote(
+			&ALICE,
+			REF_B,
+			standard_vote(true, Conviction::Locked1x, 40 * ONE),
+		));
+		assert_eq!(UserVoteCount::<Test>::get(ALICE), 2);
+
+		VotingHooksImpl::<Test>::on_remove_vote(&ALICE, REF_A, Status::Ongoing);
+		assert_eq!(
+			UserVoteCount::<Test>::get(ALICE),
+			1,
+			"only the removed referendum decrements"
 		);
 	});
 }

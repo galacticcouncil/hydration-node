@@ -24,6 +24,7 @@ use frame_support::traits::LockIdentifier;
 use frame_support::weights::Weight;
 use hydradx_traits::evm::{CallContext, CallResult, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::gigahdx::MoneyMarketOperations;
+use pallet_conviction_voting::weights::WeightInfo as _;
 use pallet_evm::GasWeightMapping;
 use pallet_gigahdx_rewards::traits::{ReferendaTrackInspect, TrackRewardTable};
 use pallet_gigahdx_rewards::types::ReferendumIndex;
@@ -278,7 +279,15 @@ impl hydradx_traits::gigahdx::ClearConflictingVotes<AccountId> for GigaHdxVoteCl
 				continue;
 			};
 			let origin: crate::RuntimeOrigin = frame_system::RawOrigin::Signed(who.clone()).into();
-			pallet_conviction_voting::Pallet::<Runtime>::remove_vote(origin, Some(class), ref_index)?;
+			// Best-effort, symmetric with the `unlock` resync below: a single vote
+			// that refuses to clear must not abort the whole liquidation — an
+			// underwater borrower could otherwise pin one vote into an erroring
+			// state and block their own liquidation indefinitely. Skip it; the
+			// residual `pyconvot` lock is absorbed by `on_seize`'s slash fallback.
+			if let Err(e) = pallet_conviction_voting::Pallet::<Runtime>::remove_vote(origin, Some(class), ref_index) {
+				log::warn!(target: "liquidation", "gigahdx: remove_vote failed for ref {ref_index:?}, skipping: {e:?}");
+				continue;
+			}
 			if !classes.contains(&class) {
 				classes.push(class);
 			}
@@ -298,6 +307,18 @@ impl hydradx_traits::gigahdx::ClearConflictingVotes<AccountId> for GigaHdxVoteCl
 		}
 		Ok(count)
 	}
+
+	fn clear_weight(votes: u32) -> Weight {
+		// Per cleared vote: a `VotingFor[who]` class scan (≤ GOV_TRACK_COUNT
+		// reads), one `remove_vote`, and one `unlock` (per-class, folded per-vote
+		// as a safe upper bound). Keep `GOV_TRACK_COUNT` in sync with the runtime
+		// governance track count (see `governance::tracks`).
+		const GOV_TRACK_COUNT: u64 = 10;
+		let per_vote = <Runtime as pallet_conviction_voting::Config>::WeightInfo::remove_vote()
+			.saturating_add(<Runtime as pallet_conviction_voting::Config>::WeightInfo::unlock())
+			.saturating_add(<Runtime as frame_system::Config>::DbWeight::get().reads(GOV_TRACK_COUNT));
+		per_vote.saturating_mul(votes.into())
+	}
 }
 
 /// Single `pallet_liquidation::Config::GigaHdx` adapter. Bundles the asset/
@@ -309,6 +330,10 @@ pub struct GigaHdxLiquidationSupport;
 impl hydradx_traits::gigahdx::Seize<AccountId> for GigaHdxLiquidationSupport {
 	fn realize_yield(borrower: &AccountId) -> DispatchResult {
 		<pallet_gigahdx::Pallet<Runtime> as hydradx_traits::gigahdx::Seize<AccountId>>::realize_yield(borrower)
+	}
+
+	fn seize_weight() -> Weight {
+		<pallet_gigahdx::Pallet<Runtime> as hydradx_traits::gigahdx::Seize<AccountId>>::seize_weight()
 	}
 
 	fn snapshot_stake(borrower: &AccountId) -> Result<(Balance, Balance), DispatchError> {
@@ -375,6 +400,12 @@ impl pallet_liquidation::traits::GigaHdxSupport<AccountId> for GigaHdxLiquidatio
 			borrower,
 			max_remaining_hdx,
 		)
+	}
+
+	fn clear_weight_for(user: EvmAddress) -> Weight {
+		let borrower = pallet_evm_accounts::Pallet::<Runtime>::account_id(user);
+		let votes = pallet_gigahdx_rewards::UserVoteCount::<Runtime>::get(&borrower);
+		<GigaHdxVoteClearance as hydradx_traits::gigahdx::ClearConflictingVotes<AccountId>>::clear_weight(votes)
 	}
 }
 

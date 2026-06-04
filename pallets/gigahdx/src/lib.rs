@@ -918,6 +918,10 @@ pub mod pallet {
 			Self::do_realize_yield(borrower).map(|_| ())
 		}
 
+		fn seize_weight() -> frame_support::weights::Weight {
+			T::WeightInfo::seize()
+		}
+
 		fn snapshot_stake(borrower: &T::AccountId) -> Result<(Balance, Balance), DispatchError> {
 			let s = Stakes::<T>::get(borrower).ok_or(Error::<T>::NoStake)?;
 			Ok((s.hdx, s.gigahdx))

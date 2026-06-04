@@ -277,12 +277,24 @@ pub mod pallet {
 		/// Emits `Liquidated` event when successful.
 		///
 		#[pallet::call_index(0)]
-		// Worst case is the gigahdx branch: up to 3 full-gas EVM calls
-		// (borrow + liquidationCall + surplus repay) plus the adapter's
-		// debt-read view calls. Budget 4× `GasLimit` so the annotation
-		// stays a safe upper bound for every branch.
+		// Two branches with different substrate costs (the EVM gas budget is shared):
+		//   - generic: `liquidate()` benchmark + the router sell weight.
+		//   - gigahdx: `liquidate()` (pallet-level reads) + the benchmarked seize
+		//     sequence (`seize_weight`) + the exact vote-clearance loop
+		//     (`clear_weight_for`, from the borrower's recorded vote count). The
+		//     route is unused on this branch.
+		// Both add 4× `GasLimit`: the gigahdx branch makes up to 3 full-gas EVM
+		// calls (borrow + liquidationCall + surplus repay) plus the adapter's
+		// cheaper debt-read view calls; 4× is the shared safe upper bound.
 		#[pallet::weight(<T as Config>::WeightInfo::liquidate()
-			.saturating_add(<T as Config>::RouterWeightInfo::sell_weight(route))
+			.saturating_add(
+				if *collateral_asset == <T as Config>::GigaHdx::gigahdx_asset_id() {
+					<T as Config>::GigaHdx::seize_weight()
+						.saturating_add(<T as Config>::GigaHdx::clear_weight_for(*user))
+				} else {
+					<T as Config>::RouterWeightInfo::sell_weight(route)
+				}
+			)
 			.saturating_add(
 				<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true)
 					.saturating_mul(4)

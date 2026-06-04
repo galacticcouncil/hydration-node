@@ -105,6 +105,14 @@ pub trait Seize<AccountId> {
 		seize_gigahdx: Balance,
 		orig_gigahdx: Balance,
 	) -> DispatchResult;
+
+	/// Benchmarked weight of the substrate-side seize sequence
+	/// (`realize_yield` + `snapshot_stake` + `on_pre_seize` + `on_seize`).
+	/// Used by the liquidation weight annotation on the gigahdx branch.
+	/// Defaults to zero for test / no-op impls.
+	fn seize_weight() -> Weight {
+		Weight::zero()
+	}
 }
 
 /// Conviction-voting interaction used by `pallet-liquidation` during a gigahdx
@@ -112,6 +120,14 @@ pub trait Seize<AccountId> {
 /// stake and resyncs the `pyconvot` lock via conviction-voting's `unlock`.
 pub trait ClearConflictingVotes<AccountId> {
 	fn clear_conflicting_votes(who: &AccountId, max_remaining_hdx: Balance) -> Result<u32, DispatchError>;
+
+	/// Weight of clearing `votes` conviction votes. Used by the liquidation
+	/// weight annotation to charge the vote-clearance loop exactly. Defaults to
+	/// zero for test / no-op impls.
+	fn clear_weight(votes: u32) -> Weight {
+		let _ = votes;
+		Weight::zero()
+	}
 }
 
 impl<AccountId> ClearConflictingVotes<AccountId> for () {

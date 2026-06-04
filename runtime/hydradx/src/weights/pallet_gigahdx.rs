@@ -261,4 +261,27 @@ impl<T: frame_system::Config> pallet_gigahdx::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(7_u64))
 			.saturating_add(T::DbWeight::get().writes(4_u64))
 	}
+	/// Storage: `GigaHdx::Stakes` (r:2 w:2)
+	/// Proof: `GigaHdx::Stakes` (`max_values`: None, `max_size`: Some(98), added: 2573, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:1 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::TotalIssuance` (r:1 w:0)
+	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `GigaHdx::TotalLocked` (r:1 w:1)
+	/// Proof: `GigaHdx::TotalLocked` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:2 w:2)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `Balances::Locks` (r:2 w:2)
+	/// Proof: `Balances::Locks` (`max_values`: None, `max_size`: Some(1299), added: 3774, mode: `MaxEncodedLen`)
+	/// Storage: `Balances::Freezes` (r:2 w:0)
+	/// Proof: `Balances::Freezes` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
+	fn seize() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1053`
+		//  Estimated: `8538`
+		// Minimum execution time: 183_000_000 picoseconds.
+		Weight::from_parts(186_000_000, 8538)
+			.saturating_add(T::DbWeight::get().reads(11_u64))
+			.saturating_add(T::DbWeight::get().writes(7_u64))
+	}
 }

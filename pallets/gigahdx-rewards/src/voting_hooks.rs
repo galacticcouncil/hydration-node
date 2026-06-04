@@ -10,7 +10,8 @@
 //! `pallet-conviction-voting::Config::VotingHooks`.
 
 use crate::pallet::{
-	Config, Event, Pallet, ReferendaRewardPool, ReferendaTotalWeightedVotes, ReferendumTracks, UserVoteRecords,
+	Config, Event, Pallet, ReferendaRewardPool, ReferendaTotalWeightedVotes, ReferendumTracks, UserVoteCount,
+	UserVoteRecords,
 };
 use crate::traits::{ReferendaTrackInspect, TrackRewardTable};
 use crate::types::{ReferendaReward, ReferendumIndex, ReferendumLiveTally, UserVoteRecord};
@@ -85,7 +86,9 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 				}
 			}
 			None => {
-				// New record: increment voter count.
+				// New record: bump the per-user record count (record inserted below,
+				// regardless of `live_tally_active`).
+				UserVoteCount::<T>::mutate(who, |c| *c = c.saturating_add(1));
 				if live_tally_active {
 					ReferendaTotalWeightedVotes::<T>::mutate_exists(ref_index, |maybe| {
 						let tally = maybe.get_or_insert_with(ReferendumLiveTally::default);
@@ -104,6 +107,7 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 		let Some(record) = UserVoteRecords::<T>::take(who, ref_index) else {
 			return; // no eligible vote was tracked
 		};
+		UserVoteCount::<T>::mutate(who, |c| *c = c.saturating_sub(1));
 
 		// Pool presence = "allocation has run" idempotency signal. A counted
 		// voter that arrives after allocation MUST always be recorded against

@@ -289,6 +289,10 @@ impl crate::traits::GigaHdxSupport<AccountId> for GigaHdxSupportMock {
 	) -> Result<u32, DispatchError> {
 		Ok(0)
 	}
+
+	fn clear_weight_for(_user: primitives::EvmAddress) -> frame_support::weights::Weight {
+		frame_support::weights::Weight::zero()
+	}
 }
 
 pub struct EvmErrorDecodeMock;
