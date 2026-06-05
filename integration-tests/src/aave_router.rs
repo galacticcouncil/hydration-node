@@ -1551,3 +1551,84 @@ pub fn set_ed(asset_id: AssetId, ed: u128) {
 	)
 	.unwrap();
 }
+
+// ── Propeller: EVM-dispatched DCA (REQ-DCA) ────────────────────────────────
+// Validates the production swap path for the Propeller SubLoop: a Solidity
+// contract SCALE-encodes `pallet_dca::schedule(...)` (see
+// aave-v3-deploy/propeller-vault `DcaDispatch` library) and dispatches it via
+// the 0x0401 precompile. The schedule must be owned by the *caller's* mapped
+// account (== `DcaDispatch.ownerOf(address(this))`), and route asset→aToken
+// through `PoolType::Aave` — the HOLLAR↔aPRIME loop in miniature (DOT↔ADOT here).
+#[test]
+fn propeller_evm_dispatched_dca_schedule_is_owned_by_caller() {
+	use hydradx_runtime::DCA;
+	use pallet_dca::types::{Order, Schedule};
+	use pallet_evm::{AddressMapping, FeeCalculator};
+	use sp_runtime::Permill;
+
+	with_aave(|| {
+		// Stand-in "SubLoop" EVM account (unbound, like a contract). The dispatch
+		// precompile maps it via AddressMapping — the same [addr][b"ETH\0"][0*8]
+		// derivation as DcaDispatch.ownerOf in Solidity.
+		let source = EvmAddress::from_slice(&hex!("0000000000000000000000000000000000000a5e"));
+		let owner: AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(source);
+
+		// Fund the loop account: DOT budget + native for DCA fees.
+		let budget = 100 * ONE;
+		assert_ok!(Currencies::deposit(DOT, &owner, 3 * budget));
+		assert_ok!(Currencies::deposit(HDX, &owner, 100 * UNITS));
+
+		// The exact call DcaDispatch encodes: Sell DOT -> ADOT via [Aave].
+		let schedule = Schedule {
+			owner: owner.clone(),
+			period: 5u32,
+			total_amount: budget,
+			max_retries: None,
+			stability_threshold: None,
+			slippage: Some(Permill::from_percent(5)),
+			order: Order::Sell {
+				asset_in: DOT,
+				asset_out: ADOT,
+				amount_in: ONE,
+				min_amount_out: 0,
+				route: BoundedVec::truncate_from(vec![Trade {
+					pool: Aave,
+					asset_in: DOT,
+					asset_out: ADOT,
+				}]),
+			},
+		};
+		let call = RuntimeCall::DCA(pallet_dca::Call::schedule {
+			schedule,
+			start_execution_block: None,
+		});
+
+		let dot_before = Currencies::free_balance(DOT, &owner);
+		let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+		// Dispatch from EVM through 0x0401 — origin becomes the loop account.
+		assert_ok!(hydradx_runtime::EVM::call(
+			evm_signed_origin(source),
+			source,
+			DISPATCH_ADDR,
+			call.encode(),
+			U256::zero(),
+			2_000_000,
+			gas_price.0 * 10,
+			None,
+			Some(U256::zero()),
+			[].into(),
+			vec![],
+		));
+
+		// Schedule created via the EVM dispatch, owned by the mapped account.
+		let sched = DCA::schedules(0).expect("schedule created via 0x0401 dispatch");
+		assert_eq!(sched.owner, owner, "DCA owner == AddressMapping(EVM caller)");
+
+		// Budget was reserved from the loop account → the schedule is live.
+		assert!(
+			Currencies::free_balance(DOT, &owner) <= dot_before - budget,
+			"DCA reserved the budget from the loop account"
+		);
+	})
+}
