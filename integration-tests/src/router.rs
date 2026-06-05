@@ -2469,10 +2469,10 @@ mod omnipool_router_tests {
 						inputs: vec![Asset::new(LRNA, 12_008_864_246)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![
-							Fee::new(DAI, 333577781993201, Destination::Account(Omnipool::protocol_account()),),
+							Fee::new(DAI, 366935560192521, Destination::Account(Omnipool::protocol_account()),),
 							Fee::new(
 								DAI,
-								333577781993200,
+								300220003793880,
 								Destination::Account(FeeProcessor::pot_account_id()),
 							),
 						],
@@ -2506,7 +2506,7 @@ mod omnipool_router_tests {
 					amount_in: amount_to_sell,
 					amount_out,
 					hub_amount_in: 12014871681,
-					hub_amount_out: 12023875407,
+					hub_amount_out: 12025376523,
 					asset_fee_amount: 667155563986401,
 					protocol_fee_amount: 6_007_435,
 				}
@@ -2535,10 +2535,10 @@ mod omnipool_router_tests {
 					inputs: vec![Asset::new(LRNA, 12_008_864_246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![
-						Fee::new(DAI, 333577781993201, Destination::Account(Omnipool::protocol_account())),
+						Fee::new(DAI, 366935560192521, Destination::Account(Omnipool::protocol_account())),
 						Fee::new(
 							DAI,
-							333577781993200,
+							300220003793880,
 							Destination::Account(FeeProcessor::pot_account_id()),
 						),
 					],
@@ -2716,10 +2716,10 @@ mod omnipool_router_tests {
 						inputs: vec![Asset::new(LRNA, 4511287241)],
 						outputs: vec![Asset::new(DAI, amount_to_buy)],
 						fees: vec![
-							Fee::new(DAI, 125313283208021, Destination::Account(Omnipool::protocol_account()),),
+							Fee::new(DAI, 137844611528823, Destination::Account(Omnipool::protocol_account()),),
 							Fee::new(
 								DAI,
-								125313283208020,
+								112781954887218,
 								Destination::Account(FeeProcessor::pot_account_id()),
 							),
 						],
@@ -2753,7 +2753,7 @@ mod omnipool_router_tests {
 					amount_in,
 					amount_out: amount_to_buy,
 					hub_amount_in: 4513544013,
-					hub_amount_out: 4516926362,
+					hub_amount_out: 4517490274,
 					asset_fee_amount: 250626566416041,
 					protocol_fee_amount: 2256772,
 				}
@@ -2781,10 +2781,10 @@ mod omnipool_router_tests {
 					inputs: vec![Asset::new(LRNA, 4511287241)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
 					fees: vec![
-						Fee::new(DAI, 125313283208021, Destination::Account(Omnipool::protocol_account())),
+						Fee::new(DAI, 137844611528823, Destination::Account(Omnipool::protocol_account())),
 						Fee::new(
 							DAI,
-							125313283208020,
+							112781954887218,
 							Destination::Account(FeeProcessor::pot_account_id()),
 						),
 					],

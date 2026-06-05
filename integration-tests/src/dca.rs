@@ -254,8 +254,8 @@ mod omnipool {
 						inputs: vec![Asset::new(LRNA, 70175440163919)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![
-							Fee::new(DAI, 125313283209, Destination::Account(Omnipool::protocol_account())),
-							Fee::new(DAI, 125313283208, Destination::Account(FeeProcessor::pot_account_id())),
+							Fee::new(DAI, 137844611530, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 112781954887, Destination::Account(FeeProcessor::pot_account_id())),
 						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
@@ -299,8 +299,8 @@ mod omnipool {
 						inputs: vec![Asset::new(LRNA, 70175443178473)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![
-							Fee::new(DAI, 125313283209, Destination::Account(Omnipool::protocol_account())),
-							Fee::new(DAI, 125313283208, Destination::Account(FeeProcessor::pot_account_id())),
+							Fee::new(DAI, 137844611530, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 112781954887, Destination::Account(FeeProcessor::pot_account_id())),
 						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
@@ -847,8 +847,8 @@ mod omnipool {
 						inputs: vec![Asset::new(LRNA, 49974999160577)],
 						outputs: vec![Asset::new(DAI, 71214372624206)],
 						fees: vec![
-							Fee::new(DAI, 89241068452, Destination::Account(Omnipool::protocol_account())),
-							Fee::new(DAI, 89241068451, Destination::Account(FeeProcessor::pot_account_id())),
+							Fee::new(DAI, 98165175298, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 80316961605, Destination::Account(FeeProcessor::pot_account_id())),
 						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
@@ -892,8 +892,8 @@ mod omnipool {
 						inputs: vec![Asset::new(LRNA, 49974997362314)],
 						outputs: vec![Asset::new(DAI, 71214367824533)],
 						fees: vec![
-							Fee::new(DAI, 89241062438, Destination::Account(Omnipool::protocol_account())),
-							Fee::new(DAI, 89241062436, Destination::Account(FeeProcessor::pot_account_id())),
+							Fee::new(DAI, 98165168682, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 80316956192, Destination::Account(FeeProcessor::pot_account_id())),
 						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
@@ -4752,7 +4752,7 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			assert_balance!(ALICE.into(), HDX, 5268049466638357);
+			assert_balance!(ALICE.into(), HDX, 5268049466638368);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}

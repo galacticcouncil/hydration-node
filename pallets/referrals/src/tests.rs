@@ -16,9 +16,9 @@
 // limitations under the License.
 
 mod claim;
+mod convert;
 mod flow;
 mod link;
-mod migration;
 mod mock_amm;
 mod register;
 mod tiers;
@@ -30,8 +30,6 @@ use crate::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use frame_support::traits::fungibles::Mutate;
-use frame_support::traits::tokens::{Fortitude, Precision};
 use frame_support::{
 	assert_noop, assert_ok, construct_runtime, parameter_types,
 	sp_runtime::traits::{BlakeTwo256, ConstU32, ConstU64, IdentityLookup, Zero},
@@ -43,7 +41,7 @@ use sp_core::H256;
 use crate::tests::mock_amm::{Hooks, TradeResult};
 use frame_system::EnsureRoot;
 use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::price::PriceProvider;
+use hydradx_traits::fee_processor::Convert;
 use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
@@ -55,7 +53,6 @@ pub(crate) type AccountId = u64;
 pub(crate) type AssetId = u32;
 
 pub(crate) const ONE: Balance = 1_000_000_000_000;
-pub(crate) const ONE_E18: u128 = 1_000_000_000_000_000_000;
 
 pub const HDX: AssetId = 0;
 pub const DAI: AssetId = 2;
@@ -125,6 +122,8 @@ impl Config for Test {
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type AssetId = AssetId;
 	type Currency = Tokens;
+	type Convert = AssetConvert;
+	type PriceProvider = ConversionPrice;
 	type RewardAsset = RewardAsset;
 	type PalletId = RefarralPalletId;
 	type RegistrationFee = RegistrationFee;
@@ -133,6 +132,9 @@ impl Config for Test {
 	type LevelVolumeAndRewardPercentages = LevelVolumeAndRewards;
 	type SeedNativeAmount = SeedAmount;
 	type WeightInfo = ();
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = Benchmarking;
 }
 
 impl frame_system::Config for Test {
@@ -197,9 +199,7 @@ pub struct ExtBuilder {
 	referrer_shares: Vec<(AccountId, Balance)>,
 	trader_shares: Vec<(AccountId, Balance)>,
 	tiers: Vec<(AssetId, Level, FeeDistribution)>,
-	reward_per_share: Option<U256>,
-	user_reward_debts: Vec<(AccountId, U256)>,
-	user_accumulated_rewards: Vec<(AccountId, Balance)>,
+	assets: Vec<AssetId>,
 }
 
 impl Default for ExtBuilder {
@@ -223,9 +223,7 @@ impl Default for ExtBuilder {
 			referrer_shares: vec![],
 			trader_shares: vec![],
 			tiers: vec![],
-			reward_per_share: None,
-			user_reward_debts: vec![],
-			user_accumulated_rewards: vec![],
+			assets: vec![],
 		}
 	}
 }
@@ -246,6 +244,10 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_assets(mut self, shares: Vec<AssetId>) -> Self {
+		self.assets.extend(shares);
+		self
+	}
 	pub fn with_tiers(mut self, shares: Vec<(AssetId, Level, FeeDistribution)>) -> Self {
 		self.tiers.extend(shares);
 		self
@@ -280,21 +282,6 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_reward_per_share(mut self, rps: U256) -> Self {
-		self.reward_per_share = Some(rps);
-		self
-	}
-
-	pub fn with_user_reward_debts(mut self, debts: Vec<(AccountId, U256)>) -> Self {
-		self.user_reward_debts.extend(debts);
-		self
-	}
-
-	pub fn with_user_accumulated_rewards(mut self, rewards: Vec<(AccountId, Balance)>) -> Self {
-		self.user_accumulated_rewards.extend(rewards);
-		self
-	}
-
 	#[cfg(feature = "runtime-benchmarks")]
 	pub fn with_default_volumes(self) -> Self {
 		let mut volumes = HashMap::new();
@@ -324,10 +311,6 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 
-		let reward_per_share = self.reward_per_share;
-		let user_reward_debts = self.user_reward_debts.clone();
-		let user_accumulated_rewards = self.user_accumulated_rewards.clone();
-
 		r.execute_with(|| {
 			for (acc, amount) in self.referrer_shares.iter() {
 				ReferrerShares::<Test>::insert(acc, amount);
@@ -341,22 +324,16 @@ impl ExtBuilder {
 					*v = v.saturating_add(*amount);
 				});
 			}
-
-			// Set accumulator state
-			if let Some(rps) = reward_per_share {
-				RewardPerShare::<Test>::put(rps);
-			}
-			for (acc, debt) in user_reward_debts.iter() {
-				UserRewardDebt::<Test>::insert(acc, debt);
-			}
-			for (acc, rewards) in user_accumulated_rewards.iter() {
-				UserAccumulatedRewards::<Test>::insert(acc, rewards);
-			}
 		});
 
 		r.execute_with(|| {
 			for (asset, level, tier) in self.tiers.iter() {
 				AssetRewards::<Test>::insert(asset, level, tier);
+			}
+		});
+		r.execute_with(|| {
+			for asset in self.assets.iter() {
+				PendingConversions::<Test>::insert(asset, ());
 			}
 		});
 		r.execute_with(|| {
@@ -374,6 +351,27 @@ impl ExtBuilder {
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+}
+
+pub struct AssetConvert;
+
+impl Convert<AccountId, AssetId, Balance> for AssetConvert {
+	type Error = DispatchError;
+
+	fn convert(
+		who: AccountId,
+		asset_from: AssetId,
+		asset_to: AssetId,
+		amount: Balance,
+	) -> Result<Balance, Self::Error> {
+		let price = CONVERSION_RATE
+			.with(|v| v.borrow().get(&(asset_to, asset_from)).copied())
+			.ok_or(Error::<Test>::ConversionMinTradingAmountNotReached)?;
+		let result = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down).unwrap();
+		Tokens::update_balance(asset_from, &who, -(amount as i128)).unwrap();
+		Tokens::update_balance(asset_to, &who, result as i128).unwrap();
+		Ok(result)
+	}
 }
 
 #[macro_export]
@@ -398,8 +396,6 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 			.with(|v| v.borrow().get(&(asset_out, asset_in)).copied())
 			.expect("to have a price");
 		let amount_out = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down).unwrap();
-
-		Tokens::mint_into(asset_out, _who, amount_out)?;
 		let fee_amount = TRADE_PERCENTAGE.mul_floor(amount_out);
 		Ok(TradeResult {
 			amount_in: amount,
@@ -415,29 +411,29 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 		fee_asset: AssetId,
 		fee: Balance,
 	) -> Result<(), DispatchError> {
-		let price = ConversionPrice::get_price(HDX, fee_asset).expect("Asset price");
-		let total_taken = fee / 2;
-		let hdx_amount = multiply_by_rational_with_rounding(total_taken, price.n, price.d, Rounding::Down).unwrap();
-
-		// Mint shares (on_pre_fee_deposit equivalent)
-		Referrals::on_fee_received(*trader, hdx_amount)?;
-
-		// Deposit HDX to pot
-		Tokens::mint_into(HDX, &Referrals::pot_account_id(), hdx_amount)?;
-
-		Tokens::burn_from(
-			fee_asset,
-			source,
-			total_taken,
-			Preservation::Expendable,
-			Precision::Exact,
-			Fortitude::Force,
-		)
-		.expect("remove from source");
-
-		// Bump accumulator (on_fee_received equivalent)
-		Referrals::on_hdx_deposited(hdx_amount)?;
-		Ok(())
+		// Simulate the fee-processor: offer referrals the slice, then transfer only the
+		// amount it actually consumes into the pot (the remainder stays with `source`).
+		// Wrapped in a transaction so a failed transfer rolls back the share minting,
+		// matching the atomic on-chain trade path.
+		frame_support::storage::with_transaction(|| {
+			let r = (|| -> Result<(), DispatchError> {
+				let used = Referrals::process_trade_fee(*trader, fee_asset, fee)?;
+				if used > 0 {
+					<Tokens as MultiCurrency<AccountId>>::transfer(
+						fee_asset,
+						source,
+						&Referrals::pot_account_id(),
+						used,
+						frame_support::traits::ExistenceRequirement::AllowDeath,
+					)?;
+				}
+				Ok(())
+			})();
+			match r {
+				Ok(()) => sp_runtime::TransactionOutcome::Commit(Ok(())),
+				Err(e) => sp_runtime::TransactionOutcome::Rollback(Err(e)),
+			}
+		})
 	}
 }
 
@@ -451,5 +447,25 @@ impl PriceProvider<AssetId> for ConversionPrice {
 			return Some(EmaPrice::one());
 		}
 		CONVERSION_RATE.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+use crate::traits::BenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct Benchmarking;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl BenchmarkHelper<AssetId, Balance> for Benchmarking {
+	fn prepare_convertible_asset_and_amount() -> (AssetId, Balance) {
+		let price = EmaPrice::new(1_000_000_000_000, 1_000_000_000_000);
+		CONVERSION_RATE.with(|v| {
+			let mut m = v.borrow_mut();
+			m.insert((1234, HDX), price);
+			m.insert((HDX, 1234), price.inverted());
+		});
+
+		(1234, 1_000_000_000_000)
 	}
 }

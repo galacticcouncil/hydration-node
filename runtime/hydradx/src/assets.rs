@@ -1739,6 +1739,12 @@ impl pallet_referrals::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
+	type Convert = ConvertViaOmnipool<Omnipool>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type PriceProvider =
+		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type PriceProvider = ReferralsDummyPriceProvider;
 	type RewardAsset = NativeAssetId;
 	type PalletId = ReferralsPalletId;
 	type RegistrationFee = RegistrationFee;
@@ -1747,6 +1753,8 @@ impl pallet_referrals::Config for Runtime {
 	type LevelVolumeAndRewardPercentages = ReferralsLevelVolumeAndRewards;
 	type SeedNativeAmount = ReferralsSeedAmount;
 	type WeightInfo = weights::pallet_referrals::HydraWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ReferralsBenchmarkHelper;
 }
 
 parameter_types! {
@@ -2087,6 +2095,73 @@ use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
 
 #[cfg(feature = "runtime-benchmarks")]
+use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct ReferralsBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl RefBenchmarkHelper<AssetId, Balance> for ReferralsBenchmarkHelper {
+	fn prepare_convertible_asset_and_amount() -> (AssetId, Balance) {
+		let asset_id: u32 = 1234u32;
+		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id.to_le_bytes().to_vec().try_into().unwrap();
+
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_asset(
+				Some(asset_id),
+				Some(asset_name.clone()),
+				AssetKind::Token,
+				Some(1_000_000),
+				Some(asset_name),
+				Some(18),
+				None,
+				None,
+				true,
+			))
+		})
+		.unwrap();
+
+		let native_price = FixedU128::from_inner(1201500000000000);
+		let asset_price = FixedU128::from_inner(45_000_000_000);
+
+		Currencies::update_balance(
+			RuntimeOrigin::root(),
+			Omnipool::protocol_account(),
+			NativeAssetId::get(),
+			1_000_000_000_000_000_000,
+		)
+		.unwrap();
+
+		Currencies::update_balance(
+			RuntimeOrigin::root(),
+			Omnipool::protocol_account(),
+			asset_id,
+			1_000_000_000_000_000_000_000_000,
+		)
+		.unwrap();
+
+		Omnipool::add_token(
+			RuntimeOrigin::root(),
+			NativeAssetId::get(),
+			native_price,
+			Permill::from_percent(10),
+			TreasuryAccount::get(),
+		)
+		.unwrap();
+
+		Omnipool::add_token(
+			RuntimeOrigin::root(),
+			asset_id,
+			asset_price,
+			Permill::from_percent(10),
+			TreasuryAccount::get(),
+		)
+		.unwrap();
+		(1234, 1_000_000_000_000_000_000)
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsDummyPriceProvider;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -2245,7 +2320,7 @@ parameter_types! {
 /// Legacy staking fee receiver for non-HDX path — 5% of converted HDX.
 pub struct StakingFeeReceiver;
 
-impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for StakingFeeReceiver {
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for StakingFeeReceiver {
 	type Error = sp_runtime::DispatchError;
 
 	fn destination() -> AccountId {
@@ -2254,20 +2329,12 @@ impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for StakingF
 
 	fn percentage() -> Permill {
 		Permill::from_percent(5)
-	}
-
-	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
-		Ok(())
-	}
-
-	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
-		Ok(())
 	}
 }
 /// Legacy staking fee receiver for HDX path — 5% of HDX trade fees.
 pub struct HdxStakingFeeReceiver;
 
-impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for HdxStakingFeeReceiver {
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for HdxStakingFeeReceiver {
 	type Error = sp_runtime::DispatchError;
 
 	fn destination() -> AccountId {
@@ -2276,14 +2343,6 @@ impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for HdxStaki
 
 	fn percentage() -> Permill {
 		Permill::from_percent(5)
-	}
-
-	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
-		Ok(())
-	}
-
-	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
-		Ok(())
 	}
 }
 
@@ -2292,7 +2351,7 @@ impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for HdxStaki
 /// so a plain transfer is the only side-effect required.
 pub struct GigaHdxFeeReceiver;
 
-impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for GigaHdxFeeReceiver {
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for GigaHdxFeeReceiver {
 	type Error = sp_runtime::DispatchError;
 
 	fn destination() -> AccountId {
@@ -2302,21 +2361,13 @@ impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for GigaHdxF
 	fn percentage() -> Permill {
 		Permill::from_percent(15)
 	}
-
-	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
-		Ok(())
-	}
-
-	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
-		Ok(())
-	}
 }
 
 /// GigaHDX rewards accumulator — 25% of trade fees. Externally funded pot
 /// drained by `pallet-gigahdx-rewards` into per-track allocations.
 pub struct GigaHdxRewardsFeeReceiver;
 
-impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for GigaHdxRewardsFeeReceiver {
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for GigaHdxRewardsFeeReceiver {
 	type Error = sp_runtime::DispatchError;
 
 	fn destination() -> AccountId {
@@ -2326,20 +2377,14 @@ impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for GigaHdxR
 	fn percentage() -> Permill {
 		Permill::from_percent(25)
 	}
-
-	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
-		Ok(())
-	}
-
-	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
-		Ok(())
-	}
 }
 
-/// Referrals fee receiver — needs trader context for share calculation.
+/// Referrals fee receiver — takes its 5% slice in the *raw* (unconverted) asset.
+/// The fee-processor transfers the slice into the referrals pot, then
+/// `on_raw_fee_received` mints shares and marks the asset for self-conversion.
 pub struct ReferralsFeeReceiver;
 
-impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for ReferralsFeeReceiver {
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for ReferralsFeeReceiver {
 	type Error = sp_runtime::DispatchError;
 
 	fn destination() -> AccountId {
@@ -2350,12 +2395,20 @@ impl hydradx_traits::fee_processor::FeeReceiver<AccountId, Balance> for Referral
 		Permill::from_percent(5)
 	}
 
-	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
-		pallet_referrals::Pallet::<Runtime>::on_fee_received(trader, amount)
+	fn accepts_raw_asset() -> bool {
+		true
 	}
 
-	fn on_fee_received(amount: Balance) -> Result<(), Self::Error> {
-		pallet_referrals::Pallet::<Runtime>::on_hdx_deposited(amount)
+	fn on_raw_fee_received(
+		trader: AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<Vec<(AccountId, Balance)>, Self::Error> {
+		let used = pallet_referrals::Pallet::<Runtime>::process_trade_fee(trader, asset, amount)?;
+		Ok(sp_std::vec![(
+			pallet_referrals::Pallet::<Runtime>::pot_account_id(),
+			used
+		)])
 	}
 }
 
@@ -2363,11 +2416,6 @@ impl pallet_fee_processor::Config for Runtime {
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
 	type Convert = ConvertViaOmnipool<Omnipool>;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type PriceProvider =
-		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type PriceProvider = ReferralsDummyPriceProvider;
 	type PalletId = FeeProcessorPalletId;
 	type HdxAssetId = NativeAssetId;
 	type LrnaAssetId = LRNA;

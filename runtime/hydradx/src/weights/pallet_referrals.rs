@@ -96,6 +96,15 @@ impl<T: frame_system::Config> pallet_referrals::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	fn convert() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `2234`
+		//  Estimated: `8790`
+		// Minimum execution time: 405_991_000 picoseconds.
+		Weight::from_parts(407_760_000, 8790)
+			.saturating_add(T::DbWeight::get().reads(36_u64))
+			.saturating_add(T::DbWeight::get().writes(15_u64))
+	}
 	/// Storage: `Referrals::PendingConversions` (r:1 w:0)
 	/// Proof: `Referrals::PendingConversions` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
 	/// Storage: `Referrals::ReferrerShares` (r:1 w:1)

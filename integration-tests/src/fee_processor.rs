@@ -68,6 +68,17 @@ fn seed_pot_accounts() {
 			UNITS as i128,
 		));
 	}
+
+	// The referrals pot reserves `SeedNativeAmount` HDX that is never distributed
+	// (`claim_rewards` subtracts it before computing rewards). Fund it so converted/raw
+	// referral fees on top of the seed are actually claimable in these tests.
+	let seed = <Runtime as pallet_referrals::Config>::SeedNativeAmount::get();
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		referrals_pot(),
+		HDX,
+		seed as i128,
+	));
 }
 
 fn staking_pot() -> AccountId {
@@ -116,15 +127,16 @@ fn hdx_fee_distributes_to_hdx_receivers() {
 		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_before);
 		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_before);
 
-		// Referrals participates in the HDX fee path (ReferralsFeeReceiver is in HdxFeeReceivers),
-		// so both pots receive their identical 5%/50% slice directly, without any conversion step.
+		// On the HDX path staking receives HDX directly (HdxStaking 5% slice). The trader is
+		// unlinked, so referrals consumes none of its offered slice and the referrals pot stays
+		// empty — the un-taken slice remains with the Omnipool trade fee.
 		assert_eq!(
 			staking_increase, 188932,
-			"Staking pot should receive its HDX-path slice"
+			"Staking pot should receive its HDX-path convert slice"
 		);
 		assert_eq!(
-			referrals_increase, 188932,
-			"Referrals pot should receive its HDX-path slice"
+			referrals_increase, 0,
+			"Referrals pot should receive nothing for an unlinked trade"
 		);
 	});
 }
@@ -148,8 +160,8 @@ fn hdx_fee_generates_referral_shares() {
 		let referrer_shares_before = Referrals::referrer_shares(AccountId::from(ALICE));
 		let trader_shares_before = Referrals::trader_shares(AccountId::from(BOB));
 
-		// DAI->HDX trade generates HDX fees. ReferralsFeeReceiver is part of HdxFeeReceivers,
-		// so its on_pre_fee_deposit fires and referrer/trader shares accrue (Tier0 3%/2% split).
+		// DAI->HDX trade generates HDX fees. The raw referrals slice flows into the pot and
+		// `on_raw_fee_received` mints referrer/trader shares (Tier0 60%/40% split).
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
 			DAI,
@@ -207,13 +219,16 @@ fn non_hdx_fee_from_omnipool_trade_is_accumulated_in_fee_processor_pot() {
 }
 
 #[test]
-fn non_hdx_fee_conversion_distributes_to_all_receivers() {
+fn non_hdx_fee_conversion_distributes_to_convert_receivers_only() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_24();
 
-		// Execute a trade that generates DAI fees
+		// Execute a trade that generates DAI fees. The trader is unlinked, so referrals consumes
+		// none of its offered slice; the fee-processor pot holds the 45% convert take
+		// (giga 15% + rewards 25% + staking 5%) for conversion.
+		let referrals_dai_before = Currencies::free_balance(DAI, &referrals_pot());
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
 			HDX,
@@ -224,9 +239,15 @@ fn non_hdx_fee_conversion_distributes_to_all_receivers() {
 
 		let pot_dai = Currencies::free_balance(DAI, &fee_processor_pot());
 		assert!(pot_dai > 0, "Fee processor pot should have DAI");
+		assert_eq!(
+			Currencies::free_balance(DAI, &referrals_pot()),
+			referrals_dai_before,
+			"Referrals pot receives nothing for an unlinked trade"
+		);
 
+		let gigahdx_before = Currencies::free_balance(HDX, &gigahdx_pot());
+		let rewards_before = Currencies::free_balance(HDX, &gigahdx_rewards_pot());
 		let staking_before = Currencies::free_balance(HDX, &staking_pot());
-		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
 
 		// Manually trigger conversion
 		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
@@ -243,25 +264,15 @@ fn non_hdx_fee_conversion_distributes_to_all_receivers() {
 			"DAI should no longer be pending"
 		);
 
-		// HDX should be distributed to all configured receiver pots
-		// FeeReceivers: StakingFeeReceiver 10%, ReferralsFeeReceiver 10%
+		// Converted HDX is distributed ONLY to the convert receivers (giga/rewards/staking).
+		// The referrals receiver takes its slice in raw DAI, so it does NOT participate here.
+		let gigahdx_increase = Currencies::free_balance(HDX, &gigahdx_pot()).saturating_sub(gigahdx_before);
+		let rewards_increase = Currencies::free_balance(HDX, &gigahdx_rewards_pot()).saturating_sub(rewards_before);
 		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_before);
-		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_before);
 
+		assert!(gigahdx_increase > 0, "GigaHdx pot should receive HDX from conversion");
+		assert!(rewards_increase > 0, "Rewards pot should receive HDX from conversion");
 		assert!(staking_increase > 0, "Staking pot should receive HDX from conversion");
-		assert!(
-			referrals_increase > 0,
-			"Referrals pot should receive HDX from conversion"
-		);
-
-		// Staking and referrals both get 10%, but referrals on_fee_received callback
-		// redistributes some HDX to referrers, so the pot balance may be slightly less.
-		let diff = staking_increase.abs_diff(referrals_increase);
-		let tolerance = staking_increase / 10; // 10% tolerance
-		assert!(
-			diff <= tolerance,
-			"Staking (10%) and referrals (10%) should receive roughly equal amounts: {staking_increase} vs {referrals_increase} (diff: {diff})",
-		);
 	});
 }
 
@@ -312,63 +323,65 @@ fn non_hdx_conversion_distributes_exact_proportional_amounts_to_each_receiver() 
 			.expect("Converted event must be emitted");
 		assert!(hdx_out > 0, "Swap should produce non-zero HDX");
 
-		// Runtime non-HDX config: GigaHdx 15% + GigaHdxRewards 25% + Staking 5% + Referrals 5%
-		// → total_pct = 50%. Each receiver's exact share of the converted hdx_out is
-		//   floor(hdx_out * pct / total_pct).
-		let total_pct = Permill::from_percent(50).deconstruct() as u128;
-		let share = |pct: u32| {
+		// Non-HDX convert path: only the convert receivers (GigaHdx 15% + GigaHdxRewards 25% +
+		// Staking 5%) share the converted `hdx_out`, proportional to their weight relative to the
+		// 45% convert total. The trader is unlinked, so referrals consumed nothing at trade time
+		// and does NOT participate in this conversion distribution.
+		let convert_total = Permill::from_percent(45).deconstruct() as u128;
+
+		// The DAI→HDX conversion swap itself charges an HDX trade fee that re-enters via the HDX
+		// path. The fee-processor pot doing the swap is unlinked, so referrals consumes nothing and
+		// the FeeReceived `amount` is exactly the 45% convert take split among the 3 receivers.
+		let nested_convert_take = events
+			.iter()
+			.rev()
+			.find_map(|e| match e {
+				hydradx_runtime::RuntimeEvent::FeeProcessor(pallet_fee_processor::Event::FeeReceived {
+					asset,
+					amount,
+					..
+				}) if *asset == HDX => Some(*amount),
+				_ => None,
+			})
+			.expect("Nested HDX FeeReceived event must be emitted by the conversion swap");
+
+		let convert_share = |source: u128, pct: u32| {
 			multiply_by_rational_with_rounding(
-				hdx_out,
+				source,
 				Permill::from_percent(pct).deconstruct() as u128,
-				total_pct,
+				convert_total,
 				Rounding::Down,
 			)
 			.unwrap()
 		};
-		let gigahdx_share = share(15);
-		let rewards_share = share(25);
-		let staking_share = share(5);
-		let referrals_share = share(5);
+		let expected = |pct: u32| convert_share(hdx_out, pct) + convert_share(nested_convert_take, pct);
 
-		// Captured before the conversion. Each pot's increase is its share of `hdx_out` PLUS a
-		// share of the secondary HDX-side trade fee generated by the DAI→HDX conversion swap
-		// itself (that fee re-enters via the HDX path and distributes in the same 15:25:5:5 split).
 		let gigahdx_increase = Currencies::free_balance(HDX, &gigahdx_pot()) - gigahdx_before;
 		let rewards_increase = Currencies::free_balance(HDX, &gigahdx_rewards_pot()) - rewards_before;
 		let staking_increase = Currencies::free_balance(HDX, &staking_pot()) - staking_before;
 		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()) - referrals_before;
 
-		// Every receiver gets at least its primary `hdx_out` share, plus a strictly positive
-		// secondary slice — so each strictly exceeds the primary share.
-		assert!(
-			gigahdx_increase > gigahdx_share,
-			"GigaHdx must exceed its 15/50 primary share"
-		);
-		assert!(
-			rewards_increase > rewards_share,
-			"Rewards must exceed its 25/50 primary share"
-		);
-		assert!(
-			staking_increase > staking_share,
-			"Staking must exceed its 5/50 primary share"
-		);
-		assert!(
-			referrals_increase > referrals_share,
-			"Referrals must exceed its 5/50 primary share"
-		);
-
-		// Staking (5%) and Referrals (5%) are configured identically in both the non-HDX and HDX
-		// paths, so their realized inflows are exactly equal.
 		assert_eq!(
-			staking_increase, referrals_increase,
-			"Staking and Referrals (both 5%) must receive identical amounts"
+			gigahdx_increase,
+			expected(15),
+			"GigaHdx total inflow (15/45 of both takes)"
+		);
+		assert_eq!(
+			rewards_increase,
+			expected(25),
+			"Rewards total inflow (25/45 of both takes)"
+		);
+		assert_eq!(
+			staking_increase,
+			expected(5),
+			"Staking total inflow (5/45 of both takes)"
 		);
 
-		// Deterministic exact distribution (primary + secondary), in the 15:25:5:5 proportion.
-		assert_eq!(gigahdx_increase, 1101298710708, "GigaHdx total inflow");
-		assert_eq!(rewards_increase, 1835497851180, "Rewards total inflow");
-		assert_eq!(staking_increase, 367099570236, "Staking total inflow");
-		assert_eq!(referrals_increase, 367099570236, "Referrals total inflow");
+		// Unlinked trader → referrals received nothing.
+		assert_eq!(
+			referrals_increase, 0,
+			"Referrals receives nothing for an unlinked trade"
+		);
 
 		// PendingConversions cleared, DAI fully drained.
 		assert!(
@@ -529,15 +542,15 @@ fn multiple_hdx_trades_accumulate_in_all_hdx_receivers() {
 		let staking_total = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_initial);
 		let referrals_total = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_initial);
 
-		// Both staking and referrals are in HdxFeeReceivers, so both accumulate across the 3 trades
-		// (3 × the single-trade slice of 188932).
+		// Staking accumulates its HDX slice across the 3 trades (3 × 188932). The trader is
+		// unlinked, so referrals consumes nothing across all trades.
 		assert_eq!(
 			staking_total, 566796,
 			"Staking pot should accumulate from multiple HDX trades"
 		);
 		assert_eq!(
-			referrals_total, 566796,
-			"Referrals pot should accumulate from multiple HDX trades"
+			referrals_total, 0,
+			"Referrals pot should receive nothing for unlinked trades"
 		);
 	});
 }
@@ -651,18 +664,18 @@ fn tiny_hdx_fee_distributes_to_configured_receivers() {
 		let staking_before = Currencies::free_balance(HDX, &staking_pot());
 		let referrals_before = Currencies::free_balance(HDX, &referrals_pot());
 
-		//Act: HdxFeeReceivers = GigaHdx 15% + GigaHdxRewards 25% + HdxStaking 5% + Referrals 5%
-		// (total 50%). fee = 100 → take = 50, distributed as 15 / 25 / 5 / 5.
+		//Act: HdxFeeReceivers = GigaHdx 15% + GigaHdxRewards 25% + HdxStaking 5% + Referrals 5%.
+		// The trader is unlinked, so referrals consumes nothing → total take = 45 (15 / 25 / 5).
 		assert_ok!(FeeProcessor::process_trade_fee(source, trader, HDX, 100));
 
-		//Assert: each receiver gets its exact slice of the taken fee.
+		//Assert: each receiver gets its exact slice of the taken fee; referrals gets nothing.
 		assert_eq!(Currencies::free_balance(HDX, &gigahdx_pot()) - gigahdx_before, 15);
 		assert_eq!(
 			Currencies::free_balance(HDX, &gigahdx_rewards_pot()) - rewards_before,
 			25
 		);
 		assert_eq!(Currencies::free_balance(HDX, &staking_pot()) - staking_before, 5);
-		assert_eq!(Currencies::free_balance(HDX, &referrals_pot()) - referrals_before, 5);
+		assert_eq!(Currencies::free_balance(HDX, &referrals_pot()) - referrals_before, 0);
 	});
 }
 
@@ -877,6 +890,7 @@ fn buy_trade_distributes_fees_same_as_sell() {
 		init_omnipool_with_oracle_for_block_24();
 
 		let pot_dai_before = Currencies::free_balance(DAI, &fee_processor_pot());
+		let referrals_dai_before = Currencies::free_balance(DAI, &referrals_pot());
 
 		// Buy DAI using HDX — generates DAI fee (non-HDX path)
 		assert_ok!(Omnipool::buy(
@@ -892,28 +906,36 @@ fn buy_trade_distributes_fees_same_as_sell() {
 			pot_dai_after > pot_dai_before,
 			"Fee processor pot should accumulate DAI fees from buy trade"
 		);
+		// Unlinked trader → referrals consumes nothing, just like a sell.
+		assert_eq!(
+			Currencies::free_balance(DAI, &referrals_pot()),
+			referrals_dai_before,
+			"Referrals pot receives nothing for an unlinked buy trade"
+		);
 
 		assert!(
 			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
 			"DAI should be marked pending for conversion from buy trade"
 		);
 
-		// Convert and verify configured receiver pots get HDX
+		// Convert and verify the convert receivers (giga/rewards/staking) get HDX.
+		let giga_pre = Currencies::free_balance(HDX, &gigahdx_pot());
+		let rewards_pre = Currencies::free_balance(HDX, &gigahdx_rewards_pot());
 		let staking_pre = Currencies::free_balance(HDX, &staking_pot());
-		let referrals_pre = Currencies::free_balance(HDX, &referrals_pot());
 
 		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 
-		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_pre);
-		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_pre);
-
 		assert!(
-			staking_increase > 0,
-			"Staking should receive HDX from buy trade conversion"
+			Currencies::free_balance(HDX, &gigahdx_pot()).saturating_sub(giga_pre) > 0,
+			"GigaHdx should receive HDX from buy trade conversion"
 		);
 		assert!(
-			referrals_increase > 0,
-			"Referrals should receive HDX from buy trade conversion"
+			Currencies::free_balance(HDX, &gigahdx_rewards_pot()).saturating_sub(rewards_pre) > 0,
+			"Rewards should receive HDX from buy trade conversion"
+		);
+		assert!(
+			Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_pre) > 0,
+			"Staking should receive HDX from buy trade conversion"
 		);
 	});
 }
@@ -1317,6 +1339,7 @@ fn router_trade_fee_distribution_matches_direct_trade() {
 		init_omnipool_with_oracle_for_block_24();
 
 		let pot_dai_before = Currencies::free_balance(DAI, &fee_processor_pot());
+		let referrals_dai_before = Currencies::free_balance(DAI, &referrals_pot());
 
 		// Trade via router: HDX→DAI (non-HDX fee path)
 		assert_ok!(Router::sell(
@@ -1333,23 +1356,31 @@ fn router_trade_fee_distribution_matches_direct_trade() {
 			pot_dai_after > pot_dai_before,
 			"Fee processor pot should accumulate DAI fees from router trade"
 		);
+		// Router trade routes fees identically to a direct trade: unlinked → referrals gets nothing.
+		assert_eq!(
+			Currencies::free_balance(DAI, &referrals_pot()),
+			referrals_dai_before,
+			"Referrals pot receives nothing for an unlinked router trade"
+		);
 
-		// Convert and verify configured receiver pots get HDX
+		// Convert and verify the convert receivers (giga/rewards/staking) get HDX.
+		let giga_pre = Currencies::free_balance(HDX, &gigahdx_pot());
+		let rewards_pre = Currencies::free_balance(HDX, &gigahdx_rewards_pot());
 		let staking_pre = Currencies::free_balance(HDX, &staking_pot());
-		let referrals_pre = Currencies::free_balance(HDX, &referrals_pot());
 
 		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 
-		let staking_increase = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_pre);
-		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_pre);
-
 		assert!(
-			staking_increase > 0,
-			"Staking should receive HDX from router trade conversion"
+			Currencies::free_balance(HDX, &gigahdx_pot()).saturating_sub(giga_pre) > 0,
+			"GigaHdx should receive HDX from router trade conversion"
 		);
 		assert!(
-			referrals_increase > 0,
-			"Referrals should receive HDX from router trade conversion"
+			Currencies::free_balance(HDX, &gigahdx_rewards_pot()).saturating_sub(rewards_pre) > 0,
+			"Rewards should receive HDX from router trade conversion"
+		);
+		assert!(
+			Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_pre) > 0,
+			"Staking should receive HDX from router trade conversion"
 		);
 	});
 }
@@ -1400,42 +1431,60 @@ fn buying_hdx_from_omnipool_credits_all_four_hdx_fee_pots() {
 			.expect("FeeReceived event for HDX must be emitted");
 		assert!(fee_amount > 0, "Recorded fee take must be non-zero");
 
-		// `amount` in FeeReceived is the post-mul_floor take (50% of the raw fee).
-		// Each receiver gets floor(fee_amount * its_pct / total_pct).
-		// total_pct = 50%, receiver_pct ∈ {15, 25, 5, 5}.
+		// `amount` in FeeReceived is the TOTAL taken. The trader is unlinked, so referrals consumes
+		// nothing and the total take is exactly the 45% convert take. The convert receivers
+		// (giga/rewards/staking) split it against the 45% convert total, so giga = floor(take*15/45).
 		let pct = |p: u32| Permill::from_percent(p).deconstruct() as u128;
-		let total = pct(50);
-		let share = |p: u32| {
-			sp_runtime::helpers_128bit::multiply_by_rational_with_rounding(
-				fee_amount,
-				pct(p),
-				total,
-				sp_runtime::Rounding::Down,
-			)
-			.unwrap()
-		};
+		let convert_total = pct(45);
 
 		let giga_increase = Currencies::free_balance(HDX, &gigahdx_pot()) - giga_before;
 		let giga_rewards_increase = Currencies::free_balance(HDX, &gigahdx_rewards_pot()) - giga_rewards_before;
 		let staking_increase = Currencies::free_balance(HDX, &staking_pot()) - staking_before;
 		let referrals_increase = Currencies::free_balance(HDX, &referrals_pot()) - referrals_before;
 
-		assert_eq!(giga_increase, share(15), "gigaHDX pot must receive 15/50 share");
+		// The 45% convert take = total taken minus the raw referrals slice.
+		let take = fee_amount - referrals_increase;
+		let convert_share = |p: u32| {
+			sp_runtime::helpers_128bit::multiply_by_rational_with_rounding(
+				take,
+				pct(p),
+				convert_total,
+				sp_runtime::Rounding::Down,
+			)
+			.unwrap()
+		};
+
+		assert_eq!(
+			giga_increase,
+			convert_share(15),
+			"gigaHDX pot must receive 15/45 of the take"
+		);
 		assert_eq!(
 			giga_rewards_increase,
-			share(25),
-			"gigaHDX rewards pot must receive 25/50 share"
+			convert_share(25),
+			"gigaHDX rewards pot must receive 25/45 of the take"
 		);
-		assert_eq!(staking_increase, share(5), "legacy staking pot must receive 5/50 share");
-		assert_eq!(referrals_increase, share(5), "referrals pot must receive 5/50 share");
+		assert_eq!(
+			staking_increase,
+			convert_share(5),
+			"legacy staking pot must receive 5/45 of the take"
+		);
+		assert_eq!(
+			referrals_increase, 0,
+			"referrals pot receives nothing for an unlinked trade"
+		);
 
-		// Conservation: the four receiver shares plus any rounding dust account
-		// for the full take. With three 5% slices and one 15%/25%, distinct
-		// numerator/denominator pairs each round down independently, so dust ≤ 3.
-		let sum = giga_increase + giga_rewards_increase + staking_increase + referrals_increase;
+		// Conservation: the three convert shares sum to the take within rounding dust (≤ 3 wei from
+		// three independent floor divisions), and take == the total fee taken (referrals consumed 0).
+		let convert_sum = giga_increase + giga_rewards_increase + staking_increase;
 		assert!(
-			sum <= fee_amount && fee_amount - sum <= 3,
-			"sum of receiver shares ({sum}) must equal take ({fee_amount}) within 3 wei rounding",
+			convert_sum <= take && take - convert_sum <= 3,
+			"convert shares ({convert_sum}) must equal take ({take}) within 3 wei rounding",
+		);
+		assert_eq!(
+			take + referrals_increase,
+			fee_amount,
+			"take plus raw referrals slice must equal the total fee taken"
 		);
 	});
 }
@@ -1520,20 +1569,23 @@ fn selling_for_dai_then_advancing_block_distributes_converted_hdx_to_all_four_po
 			})
 			.expect("Nested HDX FeeReceived event must be emitted from the conversion swap");
 
-		// Each receiver gets floor(hdx_out * pct / 50) from the non-HDX path
-		// AND floor(secondary_take * pct / 50) from the nested HDX path.
+		// The convert receivers (giga/rewards/staking) split BOTH `hdx_out` (non-HDX path) and the
+		// nested conversion fee's 45% convert-take against the 45% convert total. The conversion
+		// swap is performed by the unlinked fee-processor pot, so referrals consumes nothing and
+		// `secondary_take` is exactly the 45% convert take split among the 3 receivers.
 		let pct = |p: u32| Permill::from_percent(p).deconstruct() as u128;
-		let total = pct(50);
-		let share = |source: u128, p: u32| {
+		let convert_total = pct(45);
+		let nested_convert_take = secondary_take;
+		let convert_share = |source: u128, p: u32| {
 			sp_runtime::helpers_128bit::multiply_by_rational_with_rounding(
 				source,
 				pct(p),
-				total,
+				convert_total,
 				sp_runtime::Rounding::Down,
 			)
 			.unwrap()
 		};
-		let expected = |p: u32| share(hdx_out, p) + share(secondary_take, p);
+		let expected = |p: u32| convert_share(hdx_out, p) + convert_share(nested_convert_take, p);
 
 		let giga_increase = Currencies::free_balance(HDX, &gigahdx_pot()) - giga_before;
 		let giga_rewards_increase = Currencies::free_balance(HDX, &gigahdx_rewards_pot()) - giga_rewards_before;
@@ -1543,49 +1595,42 @@ fn selling_for_dai_then_advancing_block_distributes_converted_hdx_to_all_four_po
 		assert_eq!(
 			giga_increase,
 			expected(15),
-			"gigaHDX pot must receive 15/50 of non-HDX hdx_out plus 15/50 of nested HDX take"
+			"gigaHDX pot must receive 15/45 of hdx_out plus 15/45 of the nested convert take"
 		);
 		assert_eq!(
 			giga_rewards_increase,
 			expected(25),
-			"gigaHDX rewards pot must receive 25/50 of both inflows"
+			"gigaHDX rewards pot must receive 25/45 of both takes"
 		);
 		assert_eq!(
 			staking_increase,
 			expected(5),
-			"legacy staking pot must receive 5/50 of both inflows"
+			"legacy staking pot must receive 5/45 of both takes"
 		);
+
+		// Unlinked trader → referrals received nothing.
 		assert_eq!(
-			referrals_increase,
-			expected(5),
-			"referrals pot must receive 5/50 of both inflows"
+			referrals_increase, 0,
+			"referrals pot receives nothing for an unlinked trade"
 		);
 	});
 }
 
 // ---------------------------------------------------------------------------
-// FINDING 2 — optimistic referral shares vs. deferred conversion (audit-2026-06-02.md).
-// These document the intended accumulate-and-retry design: optimistic shares survive a
-// failed conversion and are backed once enough of the asset accumulates to convert, and a
-// claim during that gap is permitted but always solvent.
+// Referral share model (post-refactor): the referrals slice is taken in the
+// RAW fee asset into the referrals pot, shares are minted at trade time, and
+// the raw asset is converted to HDX by the referrals pallet's own `convert`
+// before rewards become claimable.
 // ---------------------------------------------------------------------------
 
-/// FINDING 2 (by design) — optimistic referral shares survive a failed conversion and are
-/// backed once the asset eventually converts.
-///
-/// The non-HDX path mints referral shares immediately from the oracle `hdx_equivalent`,
-/// before the backing HDX exists. If a conversion fails (typically because the accumulated
-/// amount is still sub-ED dust), `on_idle` drops the `PendingConversions` entry as a safety
-/// valve so it does not keep failing — the asset stays in the pot and a later fee re-queues
-/// it. The shares are intentionally NOT rolled back: once more of the asset arrives and the
-/// conversion succeeds, the accumulator is bumped and the shares become claimable.
+/// Non-HDX path: the referrals slice is deposited into the referrals pot in the
+/// RAW asset (DAI), referral shares are minted at trade time, and the asset is
+/// marked pending in the referrals pallet's own conversion queue.
 #[test]
-fn optimistic_shares_are_backed_once_the_asset_eventually_converts() {
+fn non_hdx_referral_slice_is_deposited_raw_and_shares_minted_at_trade_time() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		use pallet_omnipool::types::Tradability;
-
 		init_omnipool_with_oracle_for_block_24();
 
 		// ALICE refers BOB.
@@ -1598,9 +1643,9 @@ fn optimistic_shares_are_backed_once_the_asset_eventually_converts() {
 		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
 
 		assert_eq!(Referrals::total_shares(), 0, "no referral shares before the trade");
+		let pot_dai_before = Currencies::free_balance(DAI, &referrals_pot());
 
-		// BOB trades into DAI (non-HDX fee path): shares are minted optimistically from the
-		// oracle hdx_equivalent, before any HDX backs them.
+		// BOB trades into DAI (non-HDX fee path).
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
 			HDX,
@@ -1608,94 +1653,38 @@ fn optimistic_shares_are_backed_once_the_asset_eventually_converts() {
 			10 * UNITS,
 			0,
 		));
-		let minted_shares = Referrals::referrer_shares::<AccountId>(ALICE.into());
+
+		// The referrals slice is deposited in the RAW asset (DAI), not converted HDX.
+		let pot_dai_after = Currencies::free_balance(DAI, &referrals_pot());
 		assert!(
-			minted_shares > 0,
-			"referrer shares are minted optimistically on the trade"
-		);
-		assert!(
-			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
-			"DAI is pending conversion"
-		);
-		assert!(
-			pallet_referrals::RewardPerShare::<Runtime>::get().is_zero(),
-			"nothing has backed the minted shares yet"
+			pot_dai_after > pot_dai_before,
+			"referrals pot should receive the raw DAI slice. before: {pot_dai_before}, after: {pot_dai_after}"
 		);
 
-		// Force the conversion to fail (here via a freeze; in practice it is usually a sub-ED
-		// dust amount). `on_idle` drops the pending entry as a safety valve so it does not keep
-		// failing, but the DAI stays in the pot and the shares are NOT rolled back.
-		let pot_dai = Currencies::free_balance(DAI, &fee_processor_pot());
-		assert!(pot_dai > 0, "the unconverted DAI sits in the pot");
-		assert_ok!(Omnipool::set_asset_tradable_state(
-			hydradx_runtime::RuntimeOrigin::root(),
-			DAI,
-			Tradability::FROZEN,
-		));
-		let weight = frame_support::weights::Weight::from_parts(1_000_000_000_000, u64::MAX);
-		pallet_fee_processor::Pallet::<Runtime>::on_idle(System::block_number(), weight);
-
-		assert!(
-			!pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
-			"on_idle drops the pending entry so it does not keep failing on a doomed conversion"
-		);
+		// Shares are minted at trade time for both referrer and trader.
+		let referrer_shares = Referrals::referrer_shares::<AccountId>(ALICE.into());
+		let trader_shares = Referrals::trader_shares::<AccountId>(BOB.into());
+		assert!(referrer_shares > 0, "referrer shares minted at trade time");
+		assert!(trader_shares > 0, "trader shares minted at trade time");
 		assert_eq!(
-			Referrals::referrer_shares::<AccountId>(ALICE.into()),
-			minted_shares,
-			"shares are intentionally retained — they will be backed once the asset converts"
-		);
-		assert!(
-			Currencies::free_balance(DAI, &fee_processor_pot()) >= pot_dai,
-			"the DAI stays in the pot, awaiting a later successful conversion"
-		);
-		assert!(
-			pallet_referrals::RewardPerShare::<Runtime>::get().is_zero(),
-			"still unbacked while the conversion cannot succeed"
+			Referrals::total_shares(),
+			referrer_shares + trader_shares,
+			"total shares equal the sum of referrer and trader shares"
 		);
 
-		// More of the asset arrives: unfreeze and generate further DAI fees, re-queuing the
-		// conversion (in production this is simply the next trade in that asset).
-		assert_ok!(Omnipool::set_asset_tradable_state(
-			hydradx_runtime::RuntimeOrigin::root(),
-			DAI,
-			Tradability::SELL | Tradability::BUY | Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY,
-		));
-		assert_ok!(Omnipool::sell(
-			RuntimeOrigin::signed(BOB.into()),
-			HDX,
-			DAI,
-			10 * UNITS,
-			0,
-		));
+		// The DAI is queued in the referrals pallet's OWN conversion queue (not the
+		// fee-processor's) — the fee-processor pot never saw this slice.
 		assert!(
-			pallet_fee_processor::PendingConversions::<Runtime>::contains_key(DAI),
-			"the new fee re-queues DAI for conversion"
-		);
-
-		// The conversion now succeeds and backs the accumulated shares.
-		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
-		assert!(
-			!pallet_referrals::RewardPerShare::<Runtime>::get().is_zero(),
-			"the realized HDX now backs the previously-unbacked shares"
-		);
-
-		// ALICE can now claim real HDX — the originally-failed shares were not lost.
-		let alice_before = Currencies::free_balance(HDX, &AccountId::from(ALICE));
-		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE.into())));
-		let claimed = Currencies::free_balance(HDX, &AccountId::from(ALICE)).saturating_sub(alice_before);
-		assert!(
-			claimed > 0,
-			"the referrer claims the backing that arrived once the asset finally converted"
+			Referrals::pending_conversions(DAI).is_some(),
+			"referrals pallet marks DAI for its own conversion"
 		);
 	});
 }
 
-/// FINDING 2 (by design) — during the gap between optimistic share minting and the backing
-/// conversion, a referrer may claim a cut of HDX flowing into the pot. This is accepted: the
-/// claim is always bounded by what was actually deposited (the accumulator stays solvent),
-/// and the referrer's own backing still arrives once their asset converts.
+/// Shares minted from a non-HDX trade become claimable once the referrals
+/// pallet converts its raw asset slice to HDX via `Referrals::convert`.
 #[test]
-fn referrer_may_claim_a_bounded_cut_during_the_conversion_gap() {
+fn referral_shares_become_claimable_after_referrals_converts_raw_asset() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -1710,8 +1699,6 @@ fn referrer_may_claim_a_bounded_cut_during_the_conversion_gap() {
 		));
 		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
 
-		// BOB's referred (non-HDX) trade mints shares from the estimate. Its conversion has
-		// not run yet, so the shares are not yet backed — this is the gap.
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
 			HDX,
@@ -1724,87 +1711,85 @@ fn referrer_may_claim_a_bounded_cut_during_the_conversion_gap() {
 			"ALICE accrued referrer shares from BOB's trade"
 		);
 		assert!(
-			pallet_referrals::RewardPerShare::<Runtime>::get().is_zero(),
-			"the shares are not yet backed"
+			Referrals::pending_conversions(DAI).is_some(),
+			"raw DAI slice is pending conversion in the referrals pallet"
 		);
 
-		// An unrelated, unlinked trader (DAVE) deposits real HDX into the referrals pot via the
-		// HDX fee path, bumping the accumulator over the existing shares.
-		assert_ok!(Currencies::update_balance(
-			RawOrigin::Root.into(),
-			DAVE.into(),
-			DAI,
-			(1_000 * UNITS) as i128,
-		));
-		let pot_before = Currencies::free_balance(HDX, &referrals_pot());
-		assert_ok!(Omnipool::sell(
-			RuntimeOrigin::signed(DAVE.into()),
-			DAI,
-			HDX,
-			100 * UNITS,
-			0,
-		));
-		let dave_deposit = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(pot_before);
-		assert!(dave_deposit > 0, "DAVE's HDX-leg referrals slice landed in the pot");
+		// Convert the referrals pot's raw DAI to HDX so rewards are backed.
+		assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 		assert!(
-			!pallet_referrals::RewardPerShare::<Runtime>::get().is_zero(),
-			"DAVE's deposit bumped the accumulator"
+			Referrals::pending_conversions(DAI).is_none(),
+			"DAI no longer pending after referrals conversion"
 		);
 
-		// ALICE claims during the gap. This is permitted by the accumulate-and-retry design,
-		// and the amount is bounded by what was actually deposited — the pot stays solvent.
+		// ALICE can now claim real HDX proportional to her shares.
 		let alice_before = Currencies::free_balance(HDX, &AccountId::from(ALICE));
 		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE.into())));
 		let claimed = Currencies::free_balance(HDX, &AccountId::from(ALICE)).saturating_sub(alice_before);
-
-		assert!(claimed > 0, "a gap claim is permitted; claimed {claimed}");
 		assert!(
-			claimed <= dave_deposit,
-			"solvency: a claim can never exceed the HDX actually deposited ({claimed} > {dave_deposit})"
+			claimed > 0,
+			"the referrer claims HDX once the raw slice is converted; claimed {claimed}"
+		);
+
+		// Shares consumed on claim.
+		assert_eq!(
+			Referrals::referrer_shares::<AccountId>(ALICE.into()),
+			0,
+			"referrer shares consumed by the claim"
 		);
 	});
 }
 
-/// FINDING 5 (accepted limitation) — while `TotalShares == 0` the referrals slice is still
-/// deposited into the referrals pot, but the accumulator (`RewardPerShare`) divides by
-/// `TotalShares` and so cannot record it yet. This is accepted for the genesis/pre-adoption
-/// window; once any referral shares exist, deposits accrue normally. (A treasury-redirect fix
-/// was reverted because it polluted the shared treasury fee accounting.)
+/// HDX path: the referrals slice is the RAW HDX (5%), deposited directly into
+/// the referrals pot with no conversion step, and shares are minted at trade time.
 #[test]
-fn referral_fee_with_zero_shares_is_deposited_to_pot_but_not_yet_accrued() {
+fn hdx_referral_slice_is_raw_hdx_and_immediately_claimable() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_24();
 
-		assert_eq!(Referrals::total_shares(), 0, "no referral shares in the system");
-		assert!(
-			pallet_referrals::RewardPerShare::<Runtime>::get().is_zero(),
-			"accumulator starts at zero"
-		);
+		// ALICE refers BOB.
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"FEETEST".to_vec());
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE.into()),
+			code.clone()
+		));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
 
-		let referrals_pot_before = Currencies::free_balance(HDX, &referrals_pot());
+		let pot_hdx_before = Currencies::free_balance(HDX, &referrals_pot());
 
-		// An unlinked trader generates a non-HDX (DAI) fee that is converted to HDX; the
-		// referrals slice is transferred into the referrals pot.
+		// DAI -> HDX: fee leg is on HDX, so the referrals slice is raw HDX.
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
-			HDX,
 			DAI,
+			HDX,
 			10 * UNITS,
 			0,
 		));
-		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 
-		let deposited = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_pot_before);
-
-		// The slice lands in the referrals pot...
-		assert!(deposited > 0, "the referrals slice is deposited into the referrals pot");
-		// ...but with zero shares the accumulator cannot record it (accepted limitation).
-		assert_eq!(Referrals::total_shares(), 0, "still no referral shares");
+		// The pot received raw HDX directly — nothing pending for the referrals pallet.
 		assert!(
-			pallet_referrals::RewardPerShare::<Runtime>::get().is_zero(),
-			"with zero shares the deposit is not (yet) reflected in the accumulator"
+			Currencies::free_balance(HDX, &referrals_pot()) > pot_hdx_before,
+			"referrals pot receives raw HDX on the HDX fee path"
+		);
+		assert!(
+			Referrals::pending_conversions(HDX).is_none(),
+			"HDX is the reward asset — never queued for conversion"
+		);
+		assert!(
+			Referrals::referrer_shares::<AccountId>(ALICE.into()) > 0,
+			"referrer shares minted on the HDX path too"
+		);
+
+		// Rewards are claimable immediately — no conversion needed.
+		let alice_before = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE.into())));
+		let claimed = Currencies::free_balance(HDX, &AccountId::from(ALICE)).saturating_sub(alice_before);
+		assert!(
+			claimed > 0,
+			"referrer claims HDX immediately on the HDX path; claimed {claimed}"
 		);
 	});
 }

@@ -52,8 +52,8 @@ fn setting_asset_tier_should_fail_when_total_percentage_exceeds_hundred_percent(
 				DAI,
 				Level::Tier0,
 				FeeDistribution {
-					referrer: Permill::from_percent(60),
-					trader: Permill::from_percent(50),
+					referrer: Permill::from_percent(70),
+					trader: Permill::from_percent(40),
 				}
 			),
 			Error::<Test>::IncorrectRewardPercentage

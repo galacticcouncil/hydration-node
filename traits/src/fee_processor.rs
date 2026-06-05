@@ -9,34 +9,56 @@ use sp_std::vec::Vec;
 
 /// Trait for fee distribution recipients.
 /// Implemented by each fee receiver (staking, referrals, etc.).
-pub trait FeeReceiver<AccountId, Balance> {
+///
+/// Most receivers want their slice in HDX: the fee-processor converts the
+/// non-HDX fee to HDX and transfers it to `destination()`. A receiver that
+/// returns `true` from `accepts_raw_asset()` instead receives its slice in the
+/// original (unconverted) asset and handles conversion/accounting itself
+/// (used by pallet-referrals).
+///
+/// A raw receiver may consume LESS than the slice it is offered (e.g. an
+/// unlinked trade mints no referral shares). `on_raw_fee_received` returns how
+/// much it actually wants, per destination; the processor transfers only that
+/// and leaves the remainder with the fee `source` — nothing is socialized.
+pub trait FeeReceiver<AccountId, AssetId, Balance> {
 	type Error;
 
-	/// Account where HDX should be deposited.
+	/// Account where the fee slice should be deposited.
 	fn destination() -> AccountId;
 
 	/// Percentage of total fees to receive.
 	fn percentage() -> Permill;
 
-	/// Returns all (destination, percentage) pairs for distribution.
-	/// Individual receiver: returns `vec![(destination(), percentage())]`.
-	/// Tuple: returns combined list from all receivers.
-	fn destinations() -> Vec<(AccountId, Permill)> {
-		sp_std::vec![(Self::destination(), Self::percentage())]
+	/// Whether this receiver accepts the raw (unconverted) trade-fee asset.
+	/// When `true`, the processor offers the slice in the original asset via
+	/// `on_raw_fee_received` instead of converting it to HDX.
+	fn accepts_raw_asset() -> bool {
+		false
 	}
 
-	/// Optimistic pre-deposit callback with trader context.
-	/// Called BEFORE actual HDX transfer/conversion. The amount is based on
-	/// spot price and may differ from the final transfer amount.
-	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error>;
+	/// Returns all `(destination, percentage, accepts_raw_asset)` triples.
+	/// Individual receiver: returns a single triple.
+	/// Tuple: returns the combined list from all receivers.
+	fn destinations() -> Vec<(AccountId, Permill, bool)> {
+		sp_std::vec![(Self::destination(), Self::percentage(), Self::accepts_raw_asset())]
+	}
 
-	/// Post-deposit callback after HDX has been distributed to pots.
-	/// Called after `distribute_to_pots` completes. No trader context needed.
-	fn on_fee_received(amount: Balance) -> Result<(), Self::Error>;
+	/// Offer a raw-asset receiver a slice of `amount` in `asset` for `trader`.
+	/// Returns the `(destination, amount_used)` entries it actually wants — the
+	/// processor transfers exactly `amount_used` from the fee source to each
+	/// destination and leaves any unconsumed remainder with the source. Only
+	/// invoked for receivers that return `true` from `accepts_raw_asset()`.
+	fn on_raw_fee_received(
+		_trader: AccountId,
+		_asset: AssetId,
+		_amount: Balance,
+	) -> Result<Vec<(AccountId, Balance)>, Self::Error> {
+		Ok(Vec::new())
+	}
 }
 
 /// No-op implementation.
-impl<AccountId: Default, Balance> FeeReceiver<AccountId, Balance> for () {
+impl<AccountId: Default, AssetId, Balance> FeeReceiver<AccountId, AssetId, Balance> for () {
 	type Error = DispatchError;
 
 	fn destination() -> AccountId {
@@ -47,16 +69,8 @@ impl<AccountId: Default, Balance> FeeReceiver<AccountId, Balance> for () {
 		Permill::zero()
 	}
 
-	fn destinations() -> Vec<(AccountId, Permill)> {
+	fn destinations() -> Vec<(AccountId, Permill, bool)> {
 		Vec::new()
-	}
-
-	fn on_pre_fee_deposit(_trader: AccountId, _amount: Balance) -> Result<(), Self::Error> {
-		Ok(())
-	}
-
-	fn on_fee_received(_amount: Balance) -> Result<(), Self::Error> {
-		Ok(())
 	}
 }
 
@@ -65,6 +79,7 @@ impl<AccountId: Default, Balance> FeeReceiver<AccountId, Balance> for () {
 #[impl_trait_for_tuples::impl_for_tuples(1, 6)]
 impl<
 		AccountId: Clone,
+		AssetId: Clone,
 		Balance: Copy
 			+ Zero
 			+ Saturating
@@ -76,9 +91,9 @@ impl<
 			+ sp_arithmetic::traits::UniqueSaturatedInto<u128>
 			+ sp_arithmetic::traits::UniqueSaturatedInto<u32>
 			+ From<u32>,
-	> FeeReceiver<AccountId, Balance> for Tuple
+	> FeeReceiver<AccountId, AssetId, Balance> for Tuple
 {
-	for_tuples!( where #(Tuple: FeeReceiver<AccountId, Balance, Error=DispatchError>)* );
+	for_tuples!( where #(Tuple: FeeReceiver<AccountId, AssetId, Balance, Error=DispatchError>)* );
 	type Error = DispatchError;
 
 	fn destination() -> AccountId {
@@ -92,34 +107,29 @@ impl<
 		total
 	}
 
-	fn destinations() -> Vec<(AccountId, Permill)> {
+	fn destinations() -> Vec<(AccountId, Permill, bool)> {
 		let mut result = Vec::new();
 		for_tuples!( #( result.extend(Tuple::destinations()); )* );
 		result
 	}
 
-	fn on_pre_fee_deposit(trader: AccountId, total: Balance) -> Result<(), Self::Error> {
+	fn on_raw_fee_received(
+		trader: AccountId,
+		asset: AssetId,
+		total: Balance,
+	) -> Result<Vec<(AccountId, Balance)>, Self::Error> {
+		let mut result = Vec::new();
 		for_tuples!(
 			#(
-				let amount = Tuple::percentage().mul_floor(total);
-				if !amount.is_zero() {
-					Tuple::on_pre_fee_deposit(trader.clone(), amount)?;
+				if Tuple::accepts_raw_asset() {
+					let amount = Tuple::percentage().mul_floor(total);
+					if !amount.is_zero() {
+						result.extend(Tuple::on_raw_fee_received(trader.clone(), asset.clone(), amount)?);
+					}
 				}
 			)*
 		);
-		Ok(())
-	}
-
-	fn on_fee_received(total: Balance) -> Result<(), Self::Error> {
-		for_tuples!(
-			#(
-				let amount = Tuple::percentage().mul_floor(total);
-				if !amount.is_zero() {
-					Tuple::on_fee_received(amount)?;
-				}
-			)*
-		);
-		Ok(())
+		Ok(result)
 	}
 }
 

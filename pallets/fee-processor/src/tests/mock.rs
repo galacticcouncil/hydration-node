@@ -8,9 +8,7 @@ use frame_support::{
 	traits::{Everything, Nothing},
 	PalletId,
 };
-use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::fee_processor::{Convert as ConvertTrait, FeeReceiver};
-use hydradx_traits::price::PriceProvider;
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
@@ -151,15 +149,20 @@ impl pallet_currencies::Config for Test {
 thread_local! {
 	static CONVERT_RESULT: RefCell<Option<Balance>> = const { RefCell::new(Some(1000 * ONE)) };
 	static CONVERT_CALLS: RefCell<Vec<(AccountId, AssetId, AssetId, Balance)>> = const { RefCell::new(Vec::new()) };
-	static PRE_DEPOSIT_CALLS: RefCell<Vec<(AccountId, Balance)>> = const { RefCell::new(Vec::new()) };
-	static DEPOSIT_CALLS: RefCell<Vec<Balance>> = const { RefCell::new(Vec::new()) };
-	static HDX_PRE_DEPOSIT_CALLS: RefCell<Vec<(AccountId, Balance)>> = const { RefCell::new(Vec::new()) };
-	static HDX_DEPOSIT_CALLS: RefCell<Vec<Balance>> = const { RefCell::new(Vec::new()) };
-	static PRE_DEPOSIT_FAILS: RefCell<bool> = const { RefCell::new(false) };
+	// Raw-asset receiver notifications: (trader, asset, amount offered).
+	static RAW_FEE_CALLS: RefCell<Vec<(AccountId, AssetId, Balance)>> = const { RefCell::new(Vec::new()) };
+	static HDX_RAW_FEE_CALLS: RefCell<Vec<(AccountId, AssetId, Balance)>> = const { RefCell::new(Vec::new()) };
+	static RAW_FEE_FAILS: RefCell<bool> = const { RefCell::new(false) };
+	// When set, the raw receiver consumes this fixed amount instead of the whole offered slice.
+	static RAW_FEE_USED: RefCell<Option<Balance>> = const { RefCell::new(None) };
 }
 
-pub fn set_pre_deposit_should_fail(fail: bool) {
-	PRE_DEPOSIT_FAILS.with(|f| *f.borrow_mut() = fail);
+pub fn set_raw_fee_should_fail(fail: bool) {
+	RAW_FEE_FAILS.with(|f| *f.borrow_mut() = fail);
+}
+
+pub fn set_raw_fee_used(used: Option<Balance>) {
+	RAW_FEE_USED.with(|u| *u.borrow_mut() = used);
 }
 
 pub struct MockConvert;
@@ -186,54 +189,20 @@ pub fn convert_calls() -> Vec<(AccountId, AssetId, AssetId, Balance)> {
 	CONVERT_CALLS.with(|c| c.borrow().clone())
 }
 
-pub fn pre_deposit_calls() -> Vec<(AccountId, Balance)> {
-	PRE_DEPOSIT_CALLS.with(|c| c.borrow().clone())
+pub fn raw_fee_calls() -> Vec<(AccountId, AssetId, Balance)> {
+	RAW_FEE_CALLS.with(|c| c.borrow().clone())
 }
 
-pub fn deposit_calls() -> Vec<Balance> {
-	DEPOSIT_CALLS.with(|c| c.borrow().clone())
-}
-
-pub fn hdx_pre_deposit_calls() -> Vec<(AccountId, Balance)> {
-	HDX_PRE_DEPOSIT_CALLS.with(|c| c.borrow().clone())
-}
-
-pub fn hdx_deposit_calls() -> Vec<Balance> {
-	HDX_DEPOSIT_CALLS.with(|c| c.borrow().clone())
-}
-
-// --- Mock PriceProvider ---
-thread_local! {
-	static MOCK_PRICE: RefCell<Option<EmaPrice>> = const { RefCell::new(Some(EmaPrice::new(2, 1))) };
-}
-
-pub struct MockPriceProvider;
-
-impl PriceProvider<AssetId> for MockPriceProvider {
-	type Price = EmaPrice;
-
-	fn get_price(asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
-		let price = MOCK_PRICE.with(|p| *p.borrow())?;
-		// Convention: `get_price(a, b).n/d` is "a per b". The pallet converts an asset into HDX
-		// via `get_price(HDX, asset)`, so the stored price applies to the HDX-first direction.
-		// A swapped (buggy) call hits the `else` branch and gets the inverse, surfacing the bug.
-		if asset_a == HDX {
-			Some(price)
-		} else {
-			Some(EmaPrice::new(price.d, price.n))
-		}
-	}
-}
-
-pub fn set_mock_price(price: Option<EmaPrice>) {
-	MOCK_PRICE.with(|p| *p.borrow_mut() = price);
+pub fn hdx_raw_fee_calls() -> Vec<(AccountId, AssetId, Balance)> {
+	HDX_RAW_FEE_CALLS.with(|c| c.borrow().clone())
 }
 
 // --- Mock FeeReceivers ---
+// Staking is a plain HDX-target receiver; Referrals is a raw-asset receiver.
 
 pub struct StakingFeeReceiver;
 
-impl FeeReceiver<AccountId, Balance> for StakingFeeReceiver {
+impl FeeReceiver<AccountId, AssetId, Balance> for StakingFeeReceiver {
 	type Error = DispatchError;
 
 	fn destination() -> AccountId {
@@ -243,24 +212,11 @@ impl FeeReceiver<AccountId, Balance> for StakingFeeReceiver {
 	fn percentage() -> Permill {
 		Permill::from_percent(70)
 	}
-
-	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
-		if PRE_DEPOSIT_FAILS.with(|f| *f.borrow()) {
-			return Err(DispatchError::Other("PreDepositFailed"));
-		}
-		PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().push((trader, amount)));
-		Ok(())
-	}
-
-	fn on_fee_received(amount: Balance) -> Result<(), Self::Error> {
-		DEPOSIT_CALLS.with(|c| c.borrow_mut().push(amount));
-		Ok(())
-	}
 }
 
 pub struct ReferralsFeeReceiver;
 
-impl FeeReceiver<AccountId, Balance> for ReferralsFeeReceiver {
+impl FeeReceiver<AccountId, AssetId, Balance> for ReferralsFeeReceiver {
 	type Error = DispatchError;
 
 	fn destination() -> AccountId {
@@ -271,14 +227,22 @@ impl FeeReceiver<AccountId, Balance> for ReferralsFeeReceiver {
 		Permill::from_percent(30)
 	}
 
-	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
-		PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().push((trader, amount)));
-		Ok(())
+	fn accepts_raw_asset() -> bool {
+		true
 	}
 
-	fn on_fee_received(amount: Balance) -> Result<(), Self::Error> {
-		DEPOSIT_CALLS.with(|c| c.borrow_mut().push(amount));
-		Ok(())
+	fn on_raw_fee_received(
+		trader: AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<Vec<(AccountId, Balance)>, Self::Error> {
+		if RAW_FEE_FAILS.with(|f| *f.borrow()) {
+			return Err(DispatchError::Other("RawFeeFailed"));
+		}
+		RAW_FEE_CALLS.with(|c| c.borrow_mut().push((trader, asset, amount)));
+		// Consume the whole offered slice unless a test overrides the used amount.
+		let used = RAW_FEE_USED.with(|u| *u.borrow()).unwrap_or(amount);
+		Ok(vec![(REFERRALS_POT, used)])
 	}
 }
 
@@ -286,7 +250,7 @@ impl FeeReceiver<AccountId, Balance> for ReferralsFeeReceiver {
 
 pub struct HdxStakingFeeReceiver;
 
-impl FeeReceiver<AccountId, Balance> for HdxStakingFeeReceiver {
+impl FeeReceiver<AccountId, AssetId, Balance> for HdxStakingFeeReceiver {
 	type Error = DispatchError;
 
 	fn destination() -> AccountId {
@@ -296,21 +260,11 @@ impl FeeReceiver<AccountId, Balance> for HdxStakingFeeReceiver {
 	fn percentage() -> Permill {
 		Permill::from_percent(50)
 	}
-
-	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
-		HDX_PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().push((trader, amount)));
-		Ok(())
-	}
-
-	fn on_fee_received(amount: Balance) -> Result<(), Self::Error> {
-		HDX_DEPOSIT_CALLS.with(|c| c.borrow_mut().push(amount));
-		Ok(())
-	}
 }
 
 pub struct HdxReferralsFeeReceiver;
 
-impl FeeReceiver<AccountId, Balance> for HdxReferralsFeeReceiver {
+impl FeeReceiver<AccountId, AssetId, Balance> for HdxReferralsFeeReceiver {
 	type Error = DispatchError;
 
 	fn destination() -> AccountId {
@@ -321,14 +275,18 @@ impl FeeReceiver<AccountId, Balance> for HdxReferralsFeeReceiver {
 		Permill::from_percent(50)
 	}
 
-	fn on_pre_fee_deposit(trader: AccountId, amount: Balance) -> Result<(), Self::Error> {
-		HDX_PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().push((trader, amount)));
-		Ok(())
+	fn accepts_raw_asset() -> bool {
+		true
 	}
 
-	fn on_fee_received(amount: Balance) -> Result<(), Self::Error> {
-		HDX_DEPOSIT_CALLS.with(|c| c.borrow_mut().push(amount));
-		Ok(())
+	fn on_raw_fee_received(
+		trader: AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<Vec<(AccountId, Balance)>, Self::Error> {
+		HDX_RAW_FEE_CALLS.with(|c| c.borrow_mut().push((trader, asset, amount)));
+		let used = RAW_FEE_USED.with(|u| *u.borrow()).unwrap_or(amount);
+		Ok(vec![(HDX_REFERRALS_POT, used)])
 	}
 }
 
@@ -336,7 +294,6 @@ impl pallet_fee_processor::Config for Test {
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Test>;
 	type Convert = MockConvert;
-	type PriceProvider = MockPriceProvider;
 	type PalletId = FeeProcessorPalletId;
 	type HdxAssetId = NativeAssetId;
 	type LrnaAssetId = LrnaAssetId;
@@ -404,12 +361,10 @@ impl ExtBuilder {
 			// Reset thread_local state
 			CONVERT_RESULT.with(|r| *r.borrow_mut() = Some(1000 * ONE));
 			CONVERT_CALLS.with(|c| c.borrow_mut().clear());
-			PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().clear());
-			DEPOSIT_CALLS.with(|c| c.borrow_mut().clear());
-			HDX_PRE_DEPOSIT_CALLS.with(|c| c.borrow_mut().clear());
-			HDX_DEPOSIT_CALLS.with(|c| c.borrow_mut().clear());
-			PRE_DEPOSIT_FAILS.with(|f| *f.borrow_mut() = false);
-			MOCK_PRICE.with(|p| *p.borrow_mut() = Some(EmaPrice::new(2, 1)));
+			RAW_FEE_CALLS.with(|c| c.borrow_mut().clear());
+			HDX_RAW_FEE_CALLS.with(|c| c.borrow_mut().clear());
+			RAW_FEE_FAILS.with(|f| *f.borrow_mut() = false);
+			RAW_FEE_USED.with(|u| *u.borrow_mut() = None);
 		});
 		ext
 	}

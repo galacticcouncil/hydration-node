@@ -98,8 +98,8 @@ fn batch_execution_type_should_be_included_in_batch() {
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
 					fees: vec![
-						Fee::new(HDX, 5868326866, Destination::Account(Omnipool::protocol_account())),
-						Fee::new(HDX, 5868326864, Destination::Account(FeeProcessor::pot_account_id())),
+						Fee::new(HDX, 6455159552, Destination::Account(Omnipool::protocol_account())),
+						Fee::new(HDX, 5281494178, Destination::Account(FeeProcessor::pot_account_id())),
 					],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				},
@@ -286,8 +286,8 @@ fn nested_batch_should_represent_embeddedness() {
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
 					fees: vec![
-						Fee::new(HDX, 5868326866, Destination::Account(Omnipool::protocol_account())),
-						Fee::new(HDX, 5868326864, Destination::Account(FeeProcessor::pot_account_id())),
+						Fee::new(HDX, 6455159552, Destination::Account(Omnipool::protocol_account())),
+						Fee::new(HDX, 5281494178, Destination::Account(FeeProcessor::pot_account_id())),
 					],
 					operation_stack: vec![
 						ExecutionType::Batch(0),

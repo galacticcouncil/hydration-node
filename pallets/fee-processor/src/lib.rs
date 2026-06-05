@@ -18,12 +18,10 @@ pub mod pallet {
 	use frame_support::traits::tokens::Preservation;
 	use frame_support::PalletId;
 	use frame_system::pallet_prelude::*;
-	use hydra_dx_math::ema::EmaPrice;
 	use hydradx_traits::fee_processor::{Convert, FeeReceiver};
-	use hydradx_traits::price::PriceProvider;
 	use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 	use sp_runtime::traits::AccountIdConversion;
-	use sp_runtime::{Permill, Rounding};
+	use sp_runtime::{Permill, Rounding, Saturating};
 	use sp_std::vec::Vec;
 
 	#[pallet::pallet]
@@ -40,9 +38,6 @@ pub mod pallet {
 
 		/// Converter for swapping assets to HDX.
 		type Convert: Convert<Self::AccountId, Self::AssetId, Balance, Error = DispatchError>;
-
-		/// Spot price provider for calculating HDX equivalent before conversion.
-		type PriceProvider: PriceProvider<Self::AssetId, Price = EmaPrice>;
 
 		/// Pallet ID for the fee accumulation account.
 		#[pallet::constant]
@@ -61,11 +56,11 @@ pub mod pallet {
 		type MaxConversionsPerBlock: Get<u32>;
 
 		/// Tuple of fee receivers implementing FeeReceiver trait (used for non-HDX path).
-		type FeeReceivers: FeeReceiver<Self::AccountId, Balance, Error = DispatchError>;
+		type FeeReceivers: FeeReceiver<Self::AccountId, Self::AssetId, Balance, Error = DispatchError>;
 
 		/// Fee receivers for direct HDX fees (may differ from FeeReceivers).
 		/// For example, HDX fees may skip certain receivers and redistribute their share.
-		type HdxFeeReceivers: FeeReceiver<Self::AccountId, Balance, Error = DispatchError>;
+		type HdxFeeReceivers: FeeReceiver<Self::AccountId, Self::AssetId, Balance, Error = DispatchError>;
 
 		/// Weight information.
 		type WeightInfo: WeightInfo;
@@ -83,7 +78,6 @@ pub mod pallet {
 		FeeReceived {
 			asset: T::AssetId,
 			amount: Balance,
-			hdx_equivalent: Balance,
 			trader: Option<T::AccountId>,
 		},
 
@@ -185,12 +179,15 @@ pub mod pallet {
 
 		/// Process a trade fee from Omnipool.
 		///
-		/// Pulls only the portion of the fee specified by the configured receivers
-		/// (sum of their percentages). The remainder stays at `source`.
+		/// Splits the fee among the configured receivers. Two kinds of receivers:
 		///
-		/// HDX path: take and distribute proportionally to `HdxFeeReceivers`.
-		/// Non-HDX path: take into pallet pot, mark for `on_idle` conversion to HDX,
-		/// then distribute to `FeeReceivers`.
+		/// - Raw-asset receivers (`accepts_raw_asset()` — e.g. referrals): their slice
+		///   is transferred in the *original* asset directly to their destination, then
+		///   `on_raw_fee_received` notifies them so they handle conversion/accounting.
+		/// - HDX-target receivers: their combined slice is taken into the pallet pot.
+		///   On the HDX path it is distributed immediately; on the non-HDX path it is
+		///   marked for `on_idle` conversion to HDX and distributed afterwards.
+		///
 		/// LRNA: skipped (not expected).
 		pub fn process_trade_fee(
 			source: T::AccountId,
@@ -203,77 +200,59 @@ pub mod pallet {
 				return Ok(None);
 			}
 
-			if asset == T::HdxAssetId::get() {
-				let total_pct = T::HdxFeeReceivers::percentage();
-				let take = total_pct.mul_floor(amount);
-				if take == 0 {
-					return Ok(None);
-				}
-
-				let pot = Self::pot_account_id();
-				T::Currency::transfer(asset, &source, &pot, take, Preservation::Expendable)?;
-
-				// Callbacks pass the conceptual full trade-fee amount — tuple impl auto-splits
-				// to `their_pct.mul_floor(amount)`, which equals each receiver's actual share.
-				T::HdxFeeReceivers::on_pre_fee_deposit(trader.clone(), amount)?;
-				Self::distribute_proportionally(&pot, take, T::HdxFeeReceivers::destinations(), total_pct)?;
-				T::HdxFeeReceivers::on_fee_received(amount)?;
-
-				Self::deposit_event(Event::FeeReceived {
-					asset,
-					amount: take,
-					hdx_equivalent: take,
-					trader: Some(trader),
-				});
-
-				Ok(Some((take, pot)))
+			let is_hdx = asset == T::HdxAssetId::get();
+			let destinations = if is_hdx {
+				T::HdxFeeReceivers::destinations()
 			} else {
-				let total_pct = T::FeeReceivers::percentage();
-				let take = total_pct.mul_floor(amount);
-				if take == 0 {
-					return Ok(None);
+				T::FeeReceivers::destinations()
+			};
+
+			let pot = Self::pot_account_id();
+			let mut total_taken: Balance = 0;
+
+			// Raw-asset receivers: each reports how much of its slice it actually wants
+			// (per destination). Transfer exactly that in the original asset and leave any
+			// unconsumed remainder with `source` — nothing is socialized.
+			let raw_takes = if is_hdx {
+				T::HdxFeeReceivers::on_raw_fee_received(trader.clone(), asset, amount)?
+			} else {
+				T::FeeReceivers::on_raw_fee_received(trader.clone(), asset, amount)?
+			};
+			for (dest, used) in raw_takes {
+				if used > 0 {
+					T::Currency::transfer(asset, &source, &dest, used, Preservation::Expendable)?;
+					total_taken = total_taken.saturating_add(used);
 				}
-
-				let pot = Self::pot_account_id();
-				T::Currency::transfer(asset, &source, &pot, take, Preservation::Expendable)?;
-
-				// Optimistic pre-deposit uses HDX equivalent of the *full* fee amount.
-				// Tuple impl auto-splits so each receiver sees `their_pct * hdx_equivalent`,
-				// which is what they would receive if conversion were lossless at spot.
-				let hdx_equivalent = Self::calculate_hdx_equivalent(asset, amount).unwrap_or(0);
-				if hdx_equivalent > 0 {
-					T::FeeReceivers::on_pre_fee_deposit(trader.clone(), hdx_equivalent)?;
-				}
-
-				PendingConversions::<T>::insert(asset, ());
-
-				Self::deposit_event(Event::FeeReceived {
-					asset,
-					amount: take,
-					hdx_equivalent,
-					trader: Some(trader),
-				});
-
-				Ok(Some((take, pot)))
 			}
-		}
 
-		/// Calculate HDX equivalent using spot price from oracle.
-		fn calculate_hdx_equivalent(asset: T::AssetId, amount: Balance) -> Result<Balance, DispatchError> {
-			// Price convention (see runtime adapter `ConvertBalance`): to convert an amount of
-			// `from` into `to`, use `get_price(to, from)` then multiply by `n/d`. Here we convert
-			// `asset` → HDX, so the target HDX is the first argument.
-			let price =
-				T::PriceProvider::get_price(T::HdxAssetId::get(), asset).ok_or(Error::<T>::PriceNotAvailable)?;
+			// HDX-target receivers: combined slice into the pot.
+			let convert_pct = Self::convert_percentage(&destinations);
+			let take = convert_pct.mul_floor(amount);
+			if take > 0 {
+				T::Currency::transfer(asset, &source, &pot, take, Preservation::Expendable)?;
+				if is_hdx {
+					Self::distribute_proportionally(&pot, take, destinations, convert_pct)?;
+				} else {
+					PendingConversions::<T>::insert(asset, ());
+				}
+				total_taken = total_taken.saturating_add(take);
+			}
 
-			let hdx_amount = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down)
-				.ok_or(Error::<T>::Arithmetic)?;
+			if total_taken == 0 {
+				return Ok(None);
+			}
 
-			Ok(hdx_amount)
+			Self::deposit_event(Event::FeeReceived {
+				asset,
+				amount: total_taken,
+				trader: Some(trader),
+			});
+
+			Ok(Some((total_taken, pot)))
 		}
 
 		/// Internal conversion: swap pot's asset balance to HDX, distribute the proceeds
-		/// proportionally to receivers based on their relative weights.
+		/// proportionally to the HDX-target receivers based on their relative weights.
 		fn do_convert(asset_id: T::AssetId) -> DispatchResult {
 			ensure!(asset_id != T::HdxAssetId::get(), Error::<T>::AlreadyHdx);
 
@@ -284,13 +263,9 @@ pub mod pallet {
 
 			PendingConversions::<T>::remove(asset_id);
 
-			let total_pct = T::FeeReceivers::percentage();
-			Self::distribute_proportionally(&pot, hdx_received, T::FeeReceivers::destinations(), total_pct)?;
-
-			// Scale received HDX up to the conceptual full-fee amount so the tuple's
-			// auto-split (`their_pct * scaled`) equals each receiver's actual transfer.
-			let scaled = Self::scale_to_full(hdx_received, total_pct);
-			T::FeeReceivers::on_fee_received(scaled)?;
+			let destinations = T::FeeReceivers::destinations();
+			let convert_pct = Self::convert_percentage(&destinations);
+			Self::distribute_proportionally(&pot, hdx_received, destinations, convert_pct)?;
 
 			Self::deposit_event(Event::Converted {
 				asset_id,
@@ -301,19 +276,31 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Distribute `total` HDX among `destinations` proportionally to each
-		/// destination's percentage relative to `total_pct` (sum of all percentages).
+		/// Sum of percentages of the HDX-target (non-raw) receivers.
+		fn convert_percentage(destinations: &[(T::AccountId, Permill, bool)]) -> Permill {
+			destinations
+				.iter()
+				.filter(|(_, _, accepts_raw)| !accepts_raw)
+				.fold(Permill::zero(), |acc, (_, pct, _)| acc.saturating_add(*pct))
+		}
+
+		/// Distribute `total` HDX among the HDX-target `destinations` proportionally to
+		/// each destination's percentage relative to `total_pct`. Raw-asset receivers are
+		/// skipped — they were already paid in the original asset.
 		fn distribute_proportionally(
 			source: &T::AccountId,
 			total: Balance,
-			destinations: Vec<(T::AccountId, Permill)>,
+			destinations: Vec<(T::AccountId, Permill, bool)>,
 			total_pct: Permill,
 		) -> DispatchResult {
 			if total == 0 || total_pct.is_zero() {
 				return Ok(());
 			}
 			let denom = total_pct.deconstruct() as u128;
-			for (dest, pct) in destinations {
+			for (dest, pct, accepts_raw) in destinations {
+				if accepts_raw {
+					continue;
+				}
 				let numer = pct.deconstruct() as u128;
 				let amount = multiply_by_rational_with_rounding(total, numer, denom, Rounding::Down)
 					.ok_or(Error::<T>::Arithmetic)?;
@@ -322,17 +309,6 @@ pub mod pallet {
 				}
 			}
 			Ok(())
-		}
-
-		/// Scale `actual` (which represents `total_pct` of the conceptual full amount)
-		/// back up to the full amount, so tuple auto-split callbacks compute correct
-		/// per-receiver shares.
-		fn scale_to_full(actual: Balance, total_pct: Permill) -> Balance {
-			if total_pct.is_zero() {
-				return 0;
-			}
-			multiply_by_rational_with_rounding(actual, 1_000_000u128, total_pct.deconstruct() as u128, Rounding::Down)
-				.unwrap_or(actual)
 		}
 	}
 }

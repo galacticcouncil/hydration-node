@@ -162,13 +162,18 @@ fn distribute_proportionally_uses_total_param_not_actual_pot_balance() {
 
 		assert_ok!(FeeProcessor::convert(RuntimeOrigin::signed(ALICE), DOT));
 
-		// Receivers split only `hdx_from_swap` (70/30 in mock), not the pot total.
+		// Only the convert receiver (staking) shares the swap output; the raw referrals
+		// receiver is paid in the original asset, not from the converted HDX.
 		let staking_received =
 			<FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &STAKING_POT) - staking_before;
 		let referrals_received =
 			<FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &REFERRALS_POT) - referrals_before;
-		assert_eq!(staking_received, 700 * ONE, "staking gets 70% of swap output only");
-		assert_eq!(referrals_received, 300 * ONE, "referrals gets 30% of swap output only");
+		assert_eq!(
+			staking_received,
+			1_000 * ONE,
+			"staking (only convert receiver) gets the full swap output"
+		);
+		assert_eq!(referrals_received, 0, "raw referrals receiver gets no converted HDX");
 
 		// Pre-existing HDX in pot is untouched (pot balance equals what was there before
 		// the swap topup, since the swap output flows out to receivers in full).
@@ -198,11 +203,11 @@ fn on_idle_respects_max_conversions_per_block() {
 		let weight = frame_support::weights::Weight::from_parts(u64::MAX, u64::MAX);
 		let _used = FeeProcessor::on_idle(1u64, weight);
 
-		// Should have processed at most MaxConversionsPerBlock (5)
-		let remaining = PendingConversions::<Test>::count();
-		assert!(
-			remaining >= 5,
-			"Should have at most 5 processed, remaining = {remaining}"
+		// Should have processed exactly MaxConversionsPerBlock (5) of the 10 pending.
+		assert_eq!(
+			PendingConversions::<Test>::count(),
+			5,
+			"Exactly MaxConversionsPerBlock (5) of 10 must be processed"
 		);
 	});
 }
