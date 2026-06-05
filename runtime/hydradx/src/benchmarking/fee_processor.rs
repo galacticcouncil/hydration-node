@@ -28,6 +28,7 @@ use sp_runtime::DispatchResult;
 use sp_std::vec;
 
 const HDX: AssetId = 0;
+const LRNA: AssetId = 1;
 const DAI: AssetId = 2;
 const ONE: Balance = 1_000_000_000_000;
 
@@ -38,15 +39,16 @@ fn fund(who: AccountId, asset: AssetId, amount: Balance) -> DispatchResult {
 runtime_benchmarks! {
 	{ Runtime, pallet_fee_processor }
 
-	// Worst case: a non-HDX pot balance is sold via Omnipool and distributed to all four
-	// receivers (the slice routed to the referrals receiver is the heaviest leg).
+	// Worst case: a non-HDX pot balance is sold via Omnipool and the proceeds distributed in HDX
+	// to the convert receivers (GigaHdx, GigaHdxRewards, Staking). The raw referrals receiver is
+	// paid in the original asset at trade time, so it is not part of `convert`.
 	convert {
 		crate::benchmarking::omnipool_liquidity_mining::initialize_omnipool(None)?;
 
-		// Pre-create every account the conversion touches (receiver pots, treasury, referrals
-		// pot) so that distributing to a not-yet-existing account — including the tiny fee-on-fee
-		// slices from the Omnipool sell itself — never trips ED. On the live chain these are all
-		// genesis-funded.
+		// Pre-create every account `convert` (and the oracle-warming sells) touches — the
+		// fee-processor pot, the receiver pots it distributes HDX to, and the referrals pot —
+		// so a transfer to a not-yet-existing account never trips ED. On the live chain these
+		// are all genesis-funded.
 		let seed = 1_000 * ONE;
 		for p in [
 			FeeProcessor::pot_account_id(),
@@ -59,17 +61,26 @@ runtime_benchmarks! {
 			fund(p, HDX, seed)?;
 		}
 
-		// Warm the EMA oracle with HDX/DAI trades across a period — the conversion's Omnipool
-		// sell and the dynamic fee both read the oracle. Each HDX->DAI sell also accrues a DAI
-		// fee into the fee-processor pot (the non-HDX path), which is what `convert` consumes.
+		// Seed, BEFORE any fee flows in, the asset accounts the oracle-warming sells credit with
+		// a sub-ED slice (which would otherwise fail to create the account):
+		//   - DAI to the fee-processor pot (asset-fee convert slice) and the referrals pot,
+		//   - LRNA to the Treasury (the Omnipool protocol fee recipient).
+		// The fee-processor pot's DAI is what `convert` sells via Omnipool; keep it small relative
+		// to the pool's DAI reserve so the sell stays within the converter's 5% slippage guard
+		// (real accrued fees are a tiny fraction of liquidity; the weight is amount-independent).
+		let pot = FeeProcessor::pot_account_id();
+		fund(pot.clone(), DAI, ONE)?;
+		fund(pallet_referrals::Pallet::<Runtime>::pot_account_id(), DAI, ONE)?;
+		fund(crate::Treasury::account_id(), LRNA, 100 * ONE)?;
+
+		// Warm the EMA oracle with HDX/DAI trades across a period — `convert`'s Omnipool sell and
+		// the dynamic fee both read the oracle. Each HDX->DAI sell also accrues a DAI fee into the
+		// fee-processor pot (the non-HDX path), which is what `convert` consumes.
 		let trader: AccountId = account("trader", 0, 0);
 		fund(trader.clone(), HDX, 100_000 * ONE)?;
 		Omnipool::sell(RawOrigin::Signed(trader.clone()).into(), HDX, DAI, 100 * ONE, 0)?;
 		set_period(24);
 		Omnipool::sell(RawOrigin::Signed(trader.clone()).into(), HDX, DAI, 100 * ONE, 0)?;
-
-		let pot = FeeProcessor::pot_account_id();
-		fund(pot.clone(), DAI, 100 * ONE)?;
 
 		let caller: AccountId = account("caller", 1, 0);
 		fund(caller.clone(), HDX, seed)?;

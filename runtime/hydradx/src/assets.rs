@@ -2432,5 +2432,5 @@ impl pallet_fee_processor::Config for Runtime {
 		HdxStakingFeeReceiver,
 		ReferralsFeeReceiver,
 	);
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_fee_processor::HydraWeight<Runtime>;
 }
