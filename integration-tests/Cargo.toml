@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.89.0"
+version = "1.90.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -26,6 +26,7 @@ pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-stableswap = { workspace = true }
 pallet-referrals = { workspace = true }
+pallet-fee-processor = { workspace = true }
 pallet-asset-registry = { workspace = true }
 hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }

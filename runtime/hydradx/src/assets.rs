@@ -692,6 +692,7 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			GigaHdxPalletId::get().into_account_truncating(),
 			pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot(),
 			pallet_gigahdx_rewards::Pallet::<Runtime>::allocated_rewards_pot(),
+			pallet_fee_processor::Pallet::<Runtime>::pot_account_id(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
@@ -1431,7 +1432,6 @@ use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;
 use pallet_hsm::WeightInfo;
-use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::types::PegType;
@@ -1733,7 +1733,6 @@ parameter_types! {
 	pub const MinCodeLength: u32 = 4;
 	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 	pub const ReferralsSeedAmount: Balance = 10_000_000_000_000;
-	pub ReferralsExternalRewardAccount: Option<AccountId> = Some(StakingPalletId::get().into_account_truncating());
 }
 
 impl pallet_referrals::Config for Runtime {
@@ -1752,7 +1751,6 @@ impl pallet_referrals::Config for Runtime {
 	type CodeLength = MaxCodeLength;
 	type MinCodeLength = MinCodeLength;
 	type LevelVolumeAndRewardPercentages = ReferralsLevelVolumeAndRewards;
-	type ExternalAccount = ReferralsExternalRewardAccount;
 	type SeedNativeAmount = ReferralsSeedAmount;
 	type WeightInfo = weights::pallet_referrals::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
@@ -2010,7 +2008,7 @@ impl pallet_dispenser::BenchmarkHelper<AccountId> for DispenserBenchmarkHelper {
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
-impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
+impl<SP> hydradx_traits::fee_processor::Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where
 	SP: SpotPriceProvider<AssetId, Price = FixedU128>,
 {
@@ -2022,10 +2020,8 @@ where
 		asset_to: AssetId,
 		amount: Balance,
 	) -> Result<Balance, Self::Error> {
-		if amount < <Runtime as pallet_omnipool::Config>::MinimumTradingLimit::get() {
-			return Err(pallet_referrals::Error::<Runtime>::ConversionMinTradingAmountNotReached.into());
-		}
-		let price = SP::spot_price(asset_to, asset_from).ok_or(pallet_referrals::Error::<Runtime>::PriceNotFound)?;
+		let price =
+			SP::spot_price(asset_to, asset_from).ok_or(pallet_fee_processor::Error::<Runtime>::PriceNotAvailable)?;
 		let amount_to_receive = price.saturating_mul_int(amount);
 		let min_expected = amount_to_receive
 			.saturating_sub(Permill::from_percent(5).mul_floor(amount_to_receive))
@@ -2040,7 +2036,7 @@ where
 		);
 		if let Err(error) = r {
 			if error == pallet_omnipool::Error::<Runtime>::ZeroAmountOut.into() {
-				return Err(pallet_referrals::Error::<Runtime>::ConversionZeroAmountReceived.into());
+				return Err(pallet_fee_processor::Error::<Runtime>::ConversionFailed.into());
 			}
 			return Err(error);
 		}
@@ -2061,36 +2057,32 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 			Level::Tier3 => 61_111 * UNITS,
 			Level::Tier4 => 763_888 * UNITS,
 		};
+		// referrer + trader split 100% of the referrals slice; tier shifts the proportion toward
+		// the referrer. `None` mints nothing (no referrer). See pallet-fee-processor for the slice.
 		let rewards = match k {
 			Level::None => FeeDistribution {
 				referrer: Permill::zero(),
 				trader: Permill::zero(),
-				external: Permill::from_percent(50),
 			},
 			Level::Tier0 => FeeDistribution {
-				referrer: Permill::from_percent(3),
-				trader: Permill::from_percent(2),
-				external: Permill::from_percent(45),
+				referrer: Permill::from_percent(60),
+				trader: Permill::from_percent(40),
 			},
 			Level::Tier1 => FeeDistribution {
-				referrer: Permill::from_percent(6),
-				trader: Permill::from_percent(4),
-				external: Permill::from_percent(40),
+				referrer: Permill::from_percent(65),
+				trader: Permill::from_percent(35),
 			},
 			Level::Tier2 => FeeDistribution {
-				referrer: Permill::from_percent(9),
-				trader: Permill::from_percent(6),
-				external: Permill::from_percent(35),
+				referrer: Permill::from_percent(70),
+				trader: Permill::from_percent(30),
 			},
 			Level::Tier3 => FeeDistribution {
-				referrer: Permill::from_percent(12),
-				trader: Permill::from_percent(8),
-				external: Permill::from_percent(30),
+				referrer: Permill::from_percent(75),
+				trader: Permill::from_percent(25),
 			},
 			Level::Tier4 => FeeDistribution {
-				referrer: Permill::from_percent(15),
-				trader: Permill::from_percent(10),
-				external: Permill::from_percent(25),
+				referrer: Permill::from_percent(80),
+				trader: Permill::from_percent(20),
 			},
 		};
 		(volume, rewards)
@@ -2100,9 +2092,10 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
 use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
+use pallet_xyk::types::AssetPair;
+
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
-use pallet_xyk::types::AssetPair;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;
@@ -2164,6 +2157,20 @@ impl RefBenchmarkHelper<AssetId, Balance> for ReferralsBenchmarkHelper {
 			TreasuryAccount::get(),
 		)
 		.unwrap();
+
+		// `convert` sells the pot asset via Omnipool; that trade routes its HDX fee through the
+		// fee-processor to the gigaHDX / rewards / staking pots (empty in the benchmark genesis).
+		// Pre-create them so the sub-ED fee slices don't fail to create the account.
+		for p in [
+			pallet_fee_processor::Pallet::<Runtime>::pot_account_id(),
+			pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id(),
+			pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot(),
+			pallet_staking::Pallet::<Runtime>::pot_account_id(),
+			pallet_referrals::Pallet::<Runtime>::pot_account_id(),
+		] {
+			Currencies::update_balance(RuntimeOrigin::root(), p, NativeAssetId::get(), 1_000_000_000_000_000).unwrap();
+		}
+
 		(1234, 1_000_000_000_000_000_000)
 	}
 }
@@ -2313,4 +2320,131 @@ impl TryConvert<&<Runtime as frame_system::Config>::RuntimeCall, AssetIdOf<Runti
 			Err(call)
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// pallet-fee-processor — FeeReceiver impls and Config
+// ---------------------------------------------------------------------------
+
+parameter_types! {
+	pub const FeeProcessorPalletId: PalletId = PalletId(*b"feeproc/");
+	pub const MaxFeeConversionsPerBlock: u32 = 5;
+}
+
+/// Legacy staking fee receiver for non-HDX path — 5% of converted HDX.
+pub struct StakingFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for StakingFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_staking::Pallet::<Runtime>::pot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(5)
+	}
+}
+/// Legacy staking fee receiver for HDX path — 5% of HDX trade fees.
+pub struct HdxStakingFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for HdxStakingFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_staking::Pallet::<Runtime>::pot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(5)
+	}
+}
+
+/// GigaHDX main pot — 15% of trade fees. HDX accrued here lifts the gigaHDX
+/// exchange rate (`total_staked_hdx = TotalLocked + free_balance(gigapot)`),
+/// so a plain transfer is the only side-effect required.
+pub struct GigaHdxFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for GigaHdxFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(15)
+	}
+}
+
+/// GigaHDX rewards accumulator — 25% of trade fees. Externally funded pot
+/// drained by `pallet-gigahdx-rewards` into per-track allocations.
+pub struct GigaHdxRewardsFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for GigaHdxRewardsFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(25)
+	}
+}
+
+/// Referrals fee receiver — takes its 5% slice in the *raw* (unconverted) asset.
+/// The fee-processor transfers the slice into the referrals pot, then
+/// `on_raw_fee_received` mints shares and marks the asset for self-conversion.
+pub struct ReferralsFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for ReferralsFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_referrals::Pallet::<Runtime>::pot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(5)
+	}
+
+	fn accepts_raw_asset() -> bool {
+		true
+	}
+
+	fn on_raw_fee_received(
+		trader: AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<Vec<(AccountId, Balance)>, Self::Error> {
+		let used = pallet_referrals::Pallet::<Runtime>::process_trade_fee(trader, asset, amount)?;
+		Ok(sp_std::vec![(
+			pallet_referrals::Pallet::<Runtime>::pot_account_id(),
+			used
+		)])
+	}
+}
+
+impl pallet_fee_processor::Config for Runtime {
+	type AssetId = AssetId;
+	type Currency = FungibleCurrencies<Runtime>;
+	type Convert = ConvertViaOmnipool<Omnipool>;
+	type PalletId = FeeProcessorPalletId;
+	type HdxAssetId = NativeAssetId;
+	type LrnaAssetId = LRNA;
+	type MaxConversionsPerBlock = MaxFeeConversionsPerBlock;
+	type FeeReceivers = (
+		GigaHdxFeeReceiver,
+		GigaHdxRewardsFeeReceiver,
+		StakingFeeReceiver,
+		ReferralsFeeReceiver,
+	);
+	type HdxFeeReceivers = (
+		GigaHdxFeeReceiver,
+		GigaHdxRewardsFeeReceiver,
+		HdxStakingFeeReceiver,
+		ReferralsFeeReceiver,
+	);
+	type WeightInfo = weights::pallet_fee_processor::HydraWeight<Runtime>;
 }

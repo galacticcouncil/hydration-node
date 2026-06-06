@@ -108,7 +108,7 @@ fn omnipool_trades_are_ingested_into_oracle() {
 
 		// assert
 		let expected_a = ((936334588000000000, 1124993995517813).into(), 0);
-		let expected_b = ((87719064743683, 2250006019587887).into(), 0);
+		let expected_b = ((87719064743683, 2250006012832874).into(), 0);
 		for supported_period in SUPPORTED_PERIODS {
 			assert_eq!(
 				EmaOracle::get_price(asset_a, LRNA, *supported_period, OMNIPOOL_SOURCE),
@@ -200,21 +200,21 @@ fn oracle_updated_event_is_emitted_on_omnipool_trade() {
 		let hdx_lrna_last_block = Price::new(936334588000000000u128, 1124993995517813u128);
 
 		let lrna_dot_short = Price::new(
-			264175141927355168031033383691740147272u128,
+			264175141935748117028484731384223050162u128,
 			10299220574157342235602475141589164734u128,
 		);
 
 		let lrna_dot_ten_minutes = Price::new(
-			264175035630151730654534455921460486402u128,
+			264175035631896799257964934154550990963u128,
 			10299220574157342235602475141589164734u128,
 		);
 
 		let lrna_dot_day = Price::new(
-			264175007922830891611965686383394568966u128,
+			264175007922843130479332291362322569866u128,
 			10299220574157342235602475141589164734u128,
 		);
 
-		let lrna_dot_last_block = Price::new(2250006012082300u128, 87719064743683u128);
+		let lrna_dot_last_block = Price::new(2250006012832874u128, 87719064743683u128);
 
 		pretty_assertions::assert_eq!(
 			oracle_updated_events,
@@ -269,7 +269,7 @@ fn omnipool_hub_asset_trades_are_ingested_into_oracle() {
 		hydradx_run_to_next_block();
 
 		// assert
-		let expected = ((936324588000000000, 1125006037627185).into(), 0);
+		let expected = ((936324588000000000, 1125006030851737).into(), 0);
 		for supported_period in SUPPORTED_PERIODS {
 			assert_eq!(
 				EmaOracle::get_price(HDX, LRNA, *supported_period, OMNIPOOL_SOURCE),

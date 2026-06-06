@@ -27,7 +27,6 @@ fn complete_referral_flow_should_work_as_expected() {
 				FeeDistribution {
 					referrer: Permill::from_float(0.005),
 					trader: Permill::from_float(0.002),
-					external: Permill::from_float(0.002),
 				},
 			),
 			(
@@ -36,7 +35,6 @@ fn complete_referral_flow_should_work_as_expected() {
 				FeeDistribution {
 					referrer: Permill::from_float(0.005),
 					trader: Permill::from_float(0.002),
-					external: Permill::from_float(0.002),
 				},
 			),
 			(
@@ -45,7 +43,6 @@ fn complete_referral_flow_should_work_as_expected() {
 				FeeDistribution {
 					referrer: Permill::from_float(0.03),
 					trader: Permill::from_float(0.01),
-					external: Permill::from_float(0.002),
 				},
 			),
 			(
@@ -54,7 +51,6 @@ fn complete_referral_flow_should_work_as_expected() {
 				FeeDistribution {
 					referrer: Permill::from_float(0.03),
 					trader: Permill::from_float(0.01),
-					external: Permill::from_float(0.002),
 				},
 			),
 			(
@@ -63,7 +59,6 @@ fn complete_referral_flow_should_work_as_expected() {
 				FeeDistribution {
 					referrer: Permill::from_float(0.002),
 					trader: Permill::from_float(0.001),
-					external: Permill::from_float(0.002),
 				},
 			),
 			(
@@ -72,7 +67,6 @@ fn complete_referral_flow_should_work_as_expected() {
 				FeeDistribution {
 					referrer: Permill::from_float(0.03),
 					trader: Permill::from_float(0.01),
-					external: Permill::from_float(0.002),
 				},
 			),
 		])

@@ -139,7 +139,7 @@ fn initialize_yield_farm(owner: AccountId, id: GlobalFarmId, asset: AssetId) -> 
 	OmnipoolLiquidityMining::create_yield_farm(RawOrigin::Signed(owner).into(), id, asset, FixedU128::one(), None)
 }
 
-fn initialize_omnipool(additional_asset: Option<AssetId>) -> DispatchResult {
+pub fn initialize_omnipool(additional_asset: Option<AssetId>) -> DispatchResult {
 	let stable_amount: Balance = 1_000_000_000_000_000u128;
 	let native_amount: Balance = 1_000_000_000_000_000u128;
 	let stable_price: FixedU128 = FixedU128::from((1, 2));
@@ -284,6 +284,19 @@ fn initialize_omnipool(additional_asset: Option<AssetId>) -> DispatchResult {
 
 	//NOTE: This is necessary for oracle to provide price.
 	set_period(10);
+
+	// The closing LRNA->HDX trade routes its HDX fee through the fee-processor, which distributes
+	// to the gigaHDX / rewards / staking pots (and offers the referrals pot its slice). Pre-create
+	// those accounts so the sub-ED fee slices don't fail to create them (genesis-funded on chain).
+	for p in [
+		FeeProcessor::pot_account_id(),
+		pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id(),
+		pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot(),
+		pallet_staking::Pallet::<Runtime>::pot_account_id(),
+		pallet_referrals::Pallet::<Runtime>::pot_account_id(),
+	] {
+		fund(p, HDX, 1_000 * ONE)?;
+	}
 
 	do_lrna_hdx_trade()
 }
