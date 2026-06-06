@@ -2157,6 +2157,20 @@ impl RefBenchmarkHelper<AssetId, Balance> for ReferralsBenchmarkHelper {
 			TreasuryAccount::get(),
 		)
 		.unwrap();
+
+		// `convert` sells the pot asset via Omnipool; that trade routes its HDX fee through the
+		// fee-processor to the gigaHDX / rewards / staking pots (empty in the benchmark genesis).
+		// Pre-create them so the sub-ED fee slices don't fail to create the account.
+		for p in [
+			pallet_fee_processor::Pallet::<Runtime>::pot_account_id(),
+			pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id(),
+			pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot(),
+			pallet_staking::Pallet::<Runtime>::pot_account_id(),
+			pallet_referrals::Pallet::<Runtime>::pot_account_id(),
+		] {
+			Currencies::update_balance(RuntimeOrigin::root(), p, NativeAssetId::get(), 1_000_000_000_000_000).unwrap();
+		}
+
 		(1234, 1_000_000_000_000_000_000)
 	}
 }
