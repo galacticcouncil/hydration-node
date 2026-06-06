@@ -1,0 +1,22 @@
+endpoint: wss://2.lark.hydration.cloud
+mock-signature-host: true
+port: 8011
+
+import-storage:
+  System:
+    Account:
+      - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+        - providers: 1
+          data:
+            free: '1000000000000000000000000'
+  Tokens:
+    Accounts:
+      - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+          - 20 # WETH (collateral)
+        - free: '1000000000000000000000'
+      - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+          - 21 # USDC (loop stand-in for PRIME)
+        - free: '100000000000000'
+      - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+          - 5 # DOT
+        - free: '100000000000000000000'
