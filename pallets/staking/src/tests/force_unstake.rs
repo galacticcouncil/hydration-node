@@ -150,8 +150,11 @@ fn force_unstake_should_emit_force_unstaked_event() {
 		});
 }
 
+// Migration must not silently drop `VotesRewarded` (finished votes kept so their
+// conviction lock — including losing/nay votes — is applied on removal). The
+// caller must remove every vote first; until then `force_unstake` is refused.
 #[test]
-fn force_unstake_should_clear_votes_and_votes_rewarded() {
+fn force_unstake_should_fail_when_votes_rewarded_present() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 150_000 * ONE)])
 		.with_initialized_staking()
@@ -201,12 +204,13 @@ fn force_unstake_should_clear_votes_and_votes_rewarded() {
 			assert!(crate::Votes::<Test>::contains_key(alice_position_id));
 			assert!(VotesRewarded::<Test>::contains_prefix(ALICE));
 
-			//Act
-			assert_ok!(Staking::force_unstake(&ALICE));
+			//Act & assert: refused while any vote/`VotesRewarded` entry remains.
+			assert_noop!(Staking::force_unstake(&ALICE), Error::<Test>::ExistingVotes);
 
-			//Assert
-			assert!(Votes::<Test>::get(alice_position_id).votes.is_empty());
-			assert!(!VotesRewarded::<Test>::contains_prefix(ALICE));
+			// Storage untouched — atomic rollback.
+			assert!(Staking::positions(alice_position_id).is_some());
+			assert!(Staking::get_user_position_id(&ALICE).unwrap().is_some());
+			assert!(VotesRewarded::<Test>::contains_prefix(ALICE));
 		});
 }
 
@@ -236,7 +240,7 @@ fn force_unstake_should_fail_when_active_ongoing_vote_present() {
 			let total_stake_before = Staking::staking().total_stake;
 
 			//Act & assert
-			assert_noop!(Staking::force_unstake(&ALICE), Error::<Test>::ActiveVotesOngoing);
+			assert_noop!(Staking::force_unstake(&ALICE), Error::<Test>::ExistingVotes);
 
 			// Storage must be untouched — atomic rollback.
 			assert!(Staking::positions(alice_position_id).is_some());
@@ -279,13 +283,17 @@ fn force_unstake_should_fail_when_mixed_ongoing_and_finished_votes() {
 			let alice_position_id = 0;
 
 			//Act & assert
-			assert_noop!(Staking::force_unstake(&ALICE), Error::<Test>::ActiveVotesOngoing);
+			assert_noop!(Staking::force_unstake(&ALICE), Error::<Test>::ExistingVotes);
 			assert!(Staking::positions(alice_position_id).is_some());
 		});
 }
 
+// Even a vote on a *finished* referendum blocks migration: it must be removed
+// first so conviction-voting applies its conviction lock (winning *and* losing
+// side) while the legacy position still backs the vote. Leaving it would strand
+// the loser's lock post-migration.
 #[test]
-fn force_unstake_should_succeed_when_only_finished_votes_present() {
+fn force_unstake_should_fail_when_finished_votes_present() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 150_000 * ONE)])
 		.with_initialized_staking()
@@ -293,6 +301,7 @@ fn force_unstake_should_succeed_when_only_finished_votes_present() {
 		.with_stakes(vec![(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE)])
 		.with_votings(vec![(
 			0,
+			// DummyReferendumStatus: even index = finished.
 			vec![(
 				2_u32,
 				Vote {
@@ -307,12 +316,12 @@ fn force_unstake_should_succeed_when_only_finished_votes_present() {
 			set_block_number(1_470_000);
 			let alice_position_id = 0;
 
-			//Act
-			assert_ok!(Staking::force_unstake(&ALICE));
+			//Act & assert
+			assert_noop!(Staking::force_unstake(&ALICE), Error::<Test>::ExistingVotes);
 
-			//Assert
-			assert!(Staking::positions(alice_position_id).is_none());
-			assert!(Votes::<Test>::get(alice_position_id).votes.is_empty());
+			// Storage untouched — atomic rollback.
+			assert!(Staking::positions(alice_position_id).is_some());
+			assert!(!Votes::<Test>::get(alice_position_id).votes.is_empty());
 		});
 }
 

@@ -5758,7 +5758,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 5.0.0",
+ "pallet-staking 5.1.0",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
@@ -5780,7 +5780,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "425.0.0"
+version = "426.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5889,7 +5889,7 @@ dependencies = [
  "pallet-session",
  "pallet-signet",
  "pallet-stableswap",
- "pallet-staking 5.0.0",
+ "pallet-staking 5.1.0",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -9745,7 +9745,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-gigahdx-rewards"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9903,7 +9903,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "2.5.0"
+version = "2.5.1"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -10667,7 +10667,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "5.0.0"
+version = "5.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -13893,7 +13893,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.90.0"
+version = "1.99.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -13975,7 +13975,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 5.0.0",
+ "pallet-staking 5.1.0",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
@@ -14041,7 +14041,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 5.0.0",
+ "pallet-staking 5.1.0",
  "primitives",
  "scraper",
  "serde",
