@@ -49,7 +49,7 @@ pub struct EthereumConfig {
 	pub max_past_logs: u32,
 
 	/// Maximum fee history cache size.
-	#[clap(long, default_value = "2048")]
+	#[clap(long, default_value = "6144")]
 	pub fee_history_limit: u64,
 
 	#[clap(long)]
@@ -176,9 +176,8 @@ pub fn spawn_frontier_tasks(
 	);
 
 	// Spawn Frontier EthFilterApi maintenance task.
-	// Each filter is allowed to stay in the pool for 100 blocks.
-	// TODO: 2s increase?
-	const FILTER_RETAIN_THRESHOLD: u64 = 100;
+	// Each filter is allowed to stay in the pool for about 10 minutes with 2s blocks.
+	const FILTER_RETAIN_THRESHOLD: u64 = 300;
 	task_manager.spawn_essential_handle().spawn(
 		"frontier-filter-pool",
 		None,
@@ -186,7 +185,6 @@ pub fn spawn_frontier_tasks(
 	);
 
 	// Spawn Frontier FeeHistory cache maintenance task.
-	// TODO: 2s increase default from 2048?
 	task_manager.spawn_essential_handle().spawn(
 		"frontier-fee-history",
 		None,
