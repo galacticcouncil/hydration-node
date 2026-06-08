@@ -21,7 +21,7 @@ use crate::gigahdx::PATH_TO_SNAPSHOT;
 use crate::polkadot_test_net::{hydra_live_ext, TestNet, ALICE, BOB, CHARLIE, DAVE, UNITS};
 use codec::Encode;
 use frame_support::dispatch::GetDispatchInfo;
-use frame_support::traits::{schedule::DispatchTime, Bounded, OnInitialize, StorePreimage};
+use frame_support::traits::{schedule::DispatchTime, Bounded, LockIdentifier, OnInitialize, StorePreimage};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use hydradx_runtime::{
@@ -102,6 +102,77 @@ fn fast_forward_to(n: u32) {
 	while System::block_number() < n {
 		next_block();
 	}
+}
+
+/// Step blocks until the referendum reaches a decided state, then stop
+/// immediately. Unlike `end_referendum` (which overshoots by a fixed 12 days,
+/// past the `end + VoteLockingPeriod` window), this lands `now ≈ end` so the
+/// conviction lock applied by `remove_vote` is still active and observable.
+fn fast_forward_until_completed(r: ReferendumIndex) {
+	let mut guard = 0u32;
+	loop {
+		match pallet_referenda::ReferendumInfoFor::<Runtime>::get(r) {
+			Some(pallet_referenda::ReferendumInfo::Approved(..))
+			| Some(pallet_referenda::ReferendumInfo::Rejected(..)) => break,
+			_ => {}
+		}
+		next_block();
+		guard = guard.saturating_add(1);
+		assert!(guard < 20 * DAYS, "referendum did not reach a decided state in time");
+	}
+}
+
+/// Deterministically drive a referendum to a decided state. A real `Approved`
+/// outcome is unreachable on the mainnet-state snapshot (root-track *support* is
+/// turnout ÷ active issuance, far below threshold at test scale), so force the
+/// poll status directly. `remove_vote` only reads the moment + variant, so this
+/// faithfully exercises the completed-referendum reward/lock path for either
+/// outcome. `end = now`, so the conviction-lock window (`end + VoteLockingPeriod`)
+/// is open at the immediately-following `remove_vote`.
+fn force_referendum_completed(r: ReferendumIndex, approved: bool) {
+	let now = System::block_number();
+	if approved {
+		pallet_referenda::ReferendumInfoFor::<Runtime>::insert(
+			r,
+			pallet_referenda::ReferendumInfo::Approved(now, None, None),
+		);
+	} else {
+		pallet_referenda::ReferendumInfoFor::<Runtime>::insert(
+			r,
+			pallet_referenda::ReferendumInfo::Rejected(now, None, None),
+		);
+	}
+}
+
+const CONVICTION_VOTING_ID: LockIdentifier = *b"pyconvot";
+const GIGAHDX_LOCK_ID: LockIdentifier = *b"ghdxlock";
+
+/// Amount currently locked under `id` on `who`'s HDX, or 0.
+fn lock_for(who: &AccountId, id: LockIdentifier) -> u128 {
+	Balances::locks(who)
+		.iter()
+		.find(|l| l.id == id)
+		.map(|l| l.amount)
+		.unwrap_or(0)
+}
+
+/// Conviction-voting (`pyconvot`) lock currently held on `who`'s HDX, or 0.
+fn conviction_lock(who: &AccountId) -> u128 {
+	lock_for(who, CONVICTION_VOTING_ID)
+}
+
+/// Clear any expired conviction (`pyconvot`) lock for `who` on the root track.
+fn conviction_unlock(who: &AccountId) {
+	assert_ok!(ConvictionVoting::unlock(
+		RuntimeOrigin::signed(who.clone()),
+		ROOT_TRACK_CLASS,
+		who.clone(),
+	));
+}
+
+/// gigahdx cooldown (blocks between `giga_unstake` and `unlock`).
+fn gigahdx_cooldown() -> BlockNumber {
+	<Runtime as pallet_gigahdx::Config>::CooldownPeriod::get()
 }
 
 fn next_block() {
@@ -296,6 +367,462 @@ fn rewards_should_credit_pro_rata_when_two_stakers_vote() {
 			pallet_gigahdx_rewards::ReferendaRewardPool::<Runtime>::get(r).is_none(),
 			"pool must be cleaned up after last voter",
 		);
+	});
+}
+
+// Voting rewards are paid for *participation*, weighted by conviction — never by
+// vote direction or referendum outcome (`record_user_reward` splits the pool
+// pro-rata by `weighted`, with no aye/nay or pass/reject branch anywhere). This
+// test pins that property explicitly: a referendum that ends `Rejected` still
+// pays both the (losing) AYE voter and the NAY voter their full pro-rata share.
+#[test]
+fn rewards_should_credit_voters_when_referendum_is_rejected() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into(); // AYE — ends up on the losing side
+		let bob: AccountId = BOB.into(); // NAY — outweighs AYE so the referendum is rejected
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 300 * UNITS));
+
+		let r = begin_referendum();
+
+		// Tally weight (conviction-voting's 1× for Locked1x): AYE 100 vs NAY 300 ⇒ approval
+		// 25% < the root track's end-of-period threshold, so the referendum ends `Rejected`
+		// and Alice's AYE is on the losing side.
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(100 * UNITS, Conviction::Locked1x),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(bob.clone()),
+			r,
+			nay_with_conviction(300 * UNITS, Conviction::Locked1x),
+		));
+
+		fast_forward_until_completed(r);
+
+		// Precondition for the test's premise: the AYE side actually lost.
+		assert!(
+			matches!(
+				pallet_referenda::ReferendumInfoFor::<Runtime>::get(r),
+				Some(pallet_referenda::ReferendumInfo::Rejected(..))
+			),
+			"referendum must end Rejected so the AYE voter is on the losing side",
+		);
+
+		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		// Root-track allocation = 10% of the accumulator at the first remove_vote.
+		let expected_allocation = accumulator_before / 10;
+
+		// Alice removes first (takes her exact pro-rata share); Bob (last) scoops the rest.
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(alice.clone()),
+			Some(ROOT_TRACK_CLASS),
+			r,
+		));
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(bob.clone()),
+			Some(ROOT_TRACK_CLASS),
+			r,
+		));
+
+		let alice_reward = pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&alice);
+		let bob_reward = pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&bob);
+
+		// Reward weight (gigahdx's 0.25× for Locked1x): Alice 25, Bob 75 ⇒ 1:3 split of the
+		// whole pool — paid despite the rejection, with the losing AYE voter included.
+		assert!(alice_reward > 0, "losing AYE voter must still receive a reward");
+		assert_eq!(
+			bob_reward,
+			3 * alice_reward,
+			"rewards follow weighted votes (25:75), not the outcome"
+		);
+		assert_eq!(
+			alice_reward.saturating_add(bob_reward),
+			expected_allocation,
+			"the entire allocation must be distributed across both voters regardless of outcome",
+		);
+
+		// Lock-symmetry: rewards are outcome-independent, but the conviction
+		// *lock* must be too. The winning NAY voter is locked by conviction-voting
+		// for the vote balance; the losing AYE voter must be locked for the same
+		// period on the staked amount her reward was computed on. Before the
+		// `lock_balance_on_unsuccessful_vote` fix the loser had no `pyconvot` lock
+		// and could farm the conviction-weighted reward, then exit on only the
+		// 28-day unstake cooldown — never paying the lock the multiplier prices in.
+		assert_eq!(
+			conviction_lock(&bob),
+			300 * UNITS,
+			"winning voter is conviction-locked for the vote balance",
+		);
+		assert_eq!(
+			conviction_lock(&alice),
+			100 * UNITS,
+			"losing voter must be conviction-locked symmetrically (regression guard)",
+		);
+	});
+}
+
+// Mirror of `rewards_should_credit_voters_when_referendum_is_rejected`: identical
+// stakes/convictions (Alice 100, Bob 300, both Locked1x), so identical reward
+// weights (25 : 75) and therefore identical rewards — but the AYE/NAY directions
+// are swapped so the referendum ends `Approved` instead of `Rejected`. The two
+// tests together prove the payout is a pure function of weighted participation,
+// independent of the outcome: both voters get the exact same share either way.
+#[test]
+fn rewards_should_credit_voters_when_referendum_is_approved() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into(); // NAY — ends up on the losing side
+		let bob: AccountId = BOB.into(); // AYE — outweighs NAY so the referendum is approved
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 300 * UNITS));
+
+		let r = begin_referendum();
+
+		// Same amounts/convictions as the rejected test, only the directions are swapped:
+		// tally weight AYE 300 vs NAY 100 ⇒ 75% approval, so the referendum ends `Approved`.
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r,
+			nay_with_conviction(100 * UNITS, Conviction::Locked1x),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(bob.clone()),
+			r,
+			aye_with_conviction(300 * UNITS, Conviction::Locked1x),
+		));
+
+		// A real `Approved` is unreachable at test scale (support threshold), so
+		// force it — `remove_vote` reads only the outcome, which is what we test.
+		force_referendum_completed(r, true);
+
+		// Premise: this referendum approves (opposite outcome to the rejected mirror).
+		assert!(
+			matches!(
+				pallet_referenda::ReferendumInfoFor::<Runtime>::get(r),
+				Some(pallet_referenda::ReferendumInfo::Approved(..))
+			),
+			"referendum must end Approved",
+		);
+
+		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let expected_allocation = accumulator_before / 10;
+
+		// Alice removes first (exact pro-rata share); Bob (last) scoops the rest.
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(alice.clone()),
+			Some(ROOT_TRACK_CLASS),
+			r,
+		));
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(bob.clone()),
+			Some(ROOT_TRACK_CLASS),
+			r,
+		));
+
+		let alice_reward = pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&alice);
+		let bob_reward = pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&bob);
+
+		// Exactly the same split as the rejected mirror (25 : 75), proving the reward is
+		// outcome-independent: the losing NAY voter and the winning AYE voter are both paid.
+		assert!(alice_reward > 0, "losing NAY voter must still receive a reward");
+		assert_eq!(
+			bob_reward,
+			3 * alice_reward,
+			"rewards follow weighted votes (25:75), not the outcome"
+		);
+		assert_eq!(
+			alice_reward.saturating_add(bob_reward),
+			expected_allocation,
+			"the entire allocation must be distributed across both voters regardless of outcome",
+		);
+
+		// Lock-symmetry, approved mirror: the winning AYE voter is locked by
+		// conviction-voting; the losing NAY voter must be locked the same way on
+		// her staked amount. Same property as the rejected test, opposite outcome.
+		assert_eq!(
+			conviction_lock(&bob),
+			300 * UNITS,
+			"winning voter is conviction-locked for the vote balance",
+		);
+		assert_eq!(
+			conviction_lock(&alice),
+			100 * UNITS,
+			"losing voter must be conviction-locked symmetrically (regression guard)",
+		);
+	});
+}
+
+// Removing a vote while the referendum is still *ongoing* forfeits the vote: no
+// reward is allocated (the referendum never completed) and conviction-voting
+// applies no `pyconvot` lock (the lock only attaches to a *completed* vote). The
+// gigahdx unstake-freeze is released either way. Identical for AYE and NAY.
+#[test]
+fn remove_vote_during_referendum_should_not_lock_or_reward_for_both_directions() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into(); // AYE
+		let bob: AccountId = BOB.into(); // NAY
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 100 * UNITS));
+
+		let r = begin_referendum();
+
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(100 * UNITS, Conviction::Locked3x),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(bob.clone()),
+			r,
+			nay_with_conviction(100 * UNITS, Conviction::Locked3x),
+		));
+
+		// Active votes freeze the stake (unstake guard) but place no `pyconvot`
+		// lock yet — the referendum is still ongoing.
+		assert_eq!(GigaHdxRewards::committed(&alice), 100 * UNITS);
+		assert_eq!(GigaHdxRewards::committed(&bob), 100 * UNITS);
+
+		// Remove while ongoing (no fast-forward).
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(alice.clone()),
+			Some(ROOT_TRACK_CLASS),
+			r,
+		));
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(bob.clone()),
+			Some(ROOT_TRACK_CLASS),
+			r,
+		));
+
+		for who in [alice.clone(), bob.clone()] {
+			assert_eq!(
+				pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&who),
+				0,
+				"no reward for an ongoing (never-completed) referendum"
+			);
+			// No conviction *commitment* was incurred: a vote removed while ongoing
+			// accrues no lock period, so `unlock` clears the `pyconvot` lock
+			// *immediately* — no fast-forward — unlike a vote removed after
+			// completion (which stays locked for the full conviction period).
+			conviction_unlock(&who);
+			assert_eq!(
+				conviction_lock(&who),
+				0,
+				"ongoing-removed vote incurs no conviction-period lock"
+			);
+			// Freeze lifted → unstake proceeds immediately (only the cooldown applies).
+			assert_eq!(GigaHdxRewards::committed(&who), 0);
+			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(who.clone()), 100 * UNITS));
+		}
+	});
+}
+
+// Parity with the AYE freeze test (`giga_unstake_should_fail_when_stake_is_frozen_by_active_vote`):
+// a NAY vote freezes the gigahdx stake exactly the same way, and `remove_vote`
+// releases it.
+#[test]
+fn giga_unstake_should_fail_when_stake_is_frozen_by_active_nay_vote() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into();
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r,
+			nay_with_conviction(100 * UNITS, Conviction::Locked1x),
+		));
+
+		assert_eq!(GigaHdxRewards::committed(&alice), 100 * UNITS);
+		assert_noop!(
+			GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS),
+			pallet_gigahdx::Error::<Runtime>::StakeFrozen,
+		);
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(alice.clone()),
+			Some(ROOT_TRACK_CLASS),
+			r,
+		));
+		assert_eq!(
+			GigaHdxRewards::committed(&alice),
+			0,
+			"remove_vote must unfreeze the stake"
+		);
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+	});
+}
+
+// Full post-completion lifecycle proven identical for AYE (winning side of the
+// forced approval) and NAY (losing side): both are rewarded, both are
+// conviction-locked for the staked amount, both can `giga_unstake` (the
+// conviction lock relabels in place — it never blocks the unstake), and after
+// the cooldown + conviction period both the `ghdxlock` and the `pyconvot` lock
+// release cleanly. This is the "everything works the same as AYE — locking,
+// unlocking, unstaking" guarantee.
+#[test]
+fn conviction_vote_full_lifecycle_should_match_for_aye_and_nay() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into(); // AYE — winning side of the forced approval
+		let bob: AccountId = BOB.into(); // NAY — losing side
+
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 100 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 100 * UNITS));
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(100 * UNITS, Conviction::Locked1x),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(bob.clone()),
+			r,
+			nay_with_conviction(100 * UNITS, Conviction::Locked1x),
+		));
+
+		force_referendum_completed(r, true);
+		let completed_at = System::block_number();
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(alice.clone()),
+			Some(ROOT_TRACK_CLASS),
+			r,
+		));
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(bob.clone()),
+			Some(ROOT_TRACK_CLASS),
+			r,
+		));
+
+		// Post-completion state is identical for the winning AYE and losing NAY voter.
+		for who in [alice.clone(), bob.clone()] {
+			assert!(
+				pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&who) > 0,
+				"both voters rewarded regardless of side"
+			);
+			assert_eq!(
+				conviction_lock(&who),
+				100 * UNITS,
+				"both voters conviction-locked for the staked amount"
+			);
+			// Vote record gone → unstake guard released.
+			assert_eq!(GigaHdxRewards::committed(&who), 0);
+			// Unlock before the conviction period elapses is a no-op — the
+			// commitment holds (contrast: a vote removed while ongoing clears at once).
+			conviction_unlock(&who);
+			assert_eq!(
+				conviction_lock(&who),
+				100 * UNITS,
+				"conviction lock persists until the period elapses"
+			);
+			// Conviction lock does not block the unstake (it relabels in place).
+			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(who.clone()), 100 * UNITS));
+			// Still conviction-locked: the unstake does not shorten the commitment.
+			assert_eq!(
+				conviction_lock(&who),
+				100 * UNITS,
+				"conviction lock persists through the gigahdx unstake"
+			);
+		}
+
+		// Past the cooldown (28 DAYS) — which exceeds the conviction period (7 DAYS) —
+		// both the gigahdx `unlock` and conviction-voting `unlock` release cleanly.
+		System::set_block_number(completed_at + gigahdx_cooldown() + 1);
+		for who in [alice.clone(), bob.clone()] {
+			assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(who.clone()), completed_at));
+			conviction_unlock(&who);
+			assert_eq!(
+				lock_for(&who, GIGAHDX_LOCK_ID),
+				0,
+				"ghdxlock released after gigahdx unlock"
+			);
+			assert_eq!(conviction_lock(&who), 0, "conviction lock released after the period");
+		}
+	});
+}
+
+// Partial vote: stake X, vote with X/2. The reward, the unstake freeze, and the
+// conviction lock must all track the *voted* amount (X/2) — not the full stake
+// and not zero — identically for the winning AYE and losing NAY voter. The
+// unvoted half carries no conviction commitment.
+#[test]
+fn partial_vote_should_lock_and_reward_only_the_voted_amount_for_both_directions() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		init_rewards();
+
+		let alice: AccountId = ALICE.into(); // AYE — winning side of the forced approval
+		let bob: AccountId = BOB.into(); // NAY — losing side
+
+		// Stake X = 200, vote with X/2 = 100.
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), 200 * UNITS));
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(bob.clone()), 200 * UNITS));
+
+		let r = begin_referendum();
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			r,
+			aye_with_conviction(100 * UNITS, Conviction::Locked1x),
+		));
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(bob.clone()),
+			r,
+			nay_with_conviction(100 * UNITS, Conviction::Locked1x),
+		));
+
+		// Freeze (unstake guard) is the voted half only — the other X/2 stays
+		// unstakeable while the vote is active.
+		assert_eq!(GigaHdxRewards::committed(&alice), 100 * UNITS);
+		assert_eq!(GigaHdxRewards::committed(&bob), 100 * UNITS);
+
+		force_referendum_completed(r, true);
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(alice.clone()),
+			Some(ROOT_TRACK_CLASS),
+			r,
+		));
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(bob.clone()),
+			Some(ROOT_TRACK_CLASS),
+			r,
+		));
+
+		for who in [alice.clone(), bob.clone()] {
+			assert!(
+				pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&who) > 0,
+				"voted stake earns a reward"
+			);
+			// The crux: lock equals the voted amount (X/2 = 100), not the full
+			// stake (X = 200) and not zero — same for the winning AYE and losing NAY.
+			assert_eq!(
+				conviction_lock(&who),
+				100 * UNITS,
+				"conviction lock equals the voted amount (X/2), not the full stake"
+			);
+			assert_eq!(GigaHdxRewards::committed(&who), 0, "freeze released after remove");
+		}
 	});
 }
 

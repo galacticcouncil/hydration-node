@@ -266,6 +266,17 @@ pub mod pallet {
 		/// Performs a flash loan to get funds to pay for the debt.
 		/// Received collateral is swapped and the profit is transferred to `FeeReceiver`.
 		///
+		/// Permissionless and caller-supplied `route` are intentional. This call exists
+		/// only to keep the money market solvent: the goal is that the position is
+		/// liquidated, not that the protocol captures the surplus. A caller can pick a
+		/// `route` that prices the collateral so that little or no profit reaches
+		/// `FeeReceiver` — that is acceptable. It is not an exploit: anyone can already
+		/// liquidate the same position by calling Aave's `liquidationCall` directly and
+		/// keep the entire bonus themselves. So reports framing the open origin or the
+		/// attacker-chosen route as a fund-redirection vulnerability are out of scope by
+		/// design; the only invariant that matters here is that unhealthy positions can
+		/// always be closed.
+		///
 		/// Parameters:
 		/// - `origin`: Signed origin.
 		/// - `collateral_asset`: Asset ID used as collateral in the MM position.

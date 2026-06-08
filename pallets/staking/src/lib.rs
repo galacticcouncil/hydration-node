@@ -353,9 +353,9 @@ pub mod pallet {
 		/// Position contains processed votes. Removed these votes first before increasing stake or claiming.
 		ExistingProcessedVotes,
 
-		/// User still has an active conviction-vote on an ongoing referendum.
-		/// Must remove the vote (`pallet_conviction_voting::remove_vote`) before
-		/// migrating to GIGAHDX via `force_unstake`.
+		/// Retained for API/error-index stability. No longer emitted: migration
+		/// (`force_unstake`) now refuses any registered vote with `ExistingVotes`,
+		/// matching the regular `unstake` precondition.
 		ActiveVotesOngoing,
 
 		/// Caller's HDX is claimed by another pallet (e.g. `ghdxlock`).
@@ -877,9 +877,11 @@ impl<T: Config> Pallet<T> {
 	/// `pallet-gigahdx` without losing rewards they earned in the legacy
 	/// staking system.
 	///
-	/// Fails (and rolls back atomically) if `who` still has a conviction-vote
-	/// on a referendum that has not finished — the legacy stake is the source
-	/// of that vote's voting power, so removing it mid-vote would leak state.
+	/// Fails (and rolls back atomically) with `ExistingVotes` if `who` still has
+	/// any registered conviction-vote — finished or ongoing. The caller must
+	/// `remove_vote` every vote first, while the legacy position still backs them,
+	/// so conviction-voting applies the conviction lock to winning *and* losing
+	/// votes before the position is destroyed. Same precondition as `unstake`.
 	///
 	/// Returns the total amount unlocked for `who`:
 	/// `position.stake + accumulated_locked_rewards + paid_rewards`,
@@ -894,13 +896,20 @@ impl<T: Config> Pallet<T> {
 		let position_id =
 			Self::get_user_position_id(who)?.ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
 
+		// Migration must not launder away conviction commitments: require every vote
+		// removed first (same precondition as the regular `unstake`). Removed while the
+		// legacy position still backs the vote, conviction-voting applies the conviction
+		// lock — including to losing/nay votes via the legacy
+		// `lock_balance_on_unsuccessful_vote` hook. Letting finished-referendum votes
+		// survive migration would strand those losing-vote locks: post-migration neither
+		// the legacy hook (position burned) nor the gigahdx-rewards hook (never tracked
+		// legacy-era votes) owns them, so the loser escapes the conviction period.
+		use frame_support::StorageDoubleMap;
 		let voting = Votes::<T>::get(position_id);
-		for (ref_index, _) in voting.votes.iter() {
-			ensure!(
-				T::ReferendumInfo::is_referendum_finished(*ref_index),
-				Error::<T>::ActiveVotesOngoing
-			);
-		}
+		ensure!(
+			voting.votes.is_empty() && !VotesRewarded::<T>::contains_prefix(who),
+			Error::<T>::ExistingVotes
+		);
 
 		Staking::<T>::try_mutate(|staking| -> Result<Balance, DispatchError> {
 			Self::update_rewards(staking)?;

@@ -1907,6 +1907,28 @@ fn init_legacy_staking() {
 	assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 }
 
+/// Submit a root-track referendum (trivial remark proposal) and place its
+/// decision deposit. Returns the referendum index.
+fn submit_remark_referendum(submitter: &AccountId, depositor: &AccountId) -> u32 {
+	use frame_support::traits::{schedule::DispatchTime, Bounded, StorePreimage};
+	use hydradx_runtime::Preimage;
+	let call = hydradx_runtime::RuntimeCall::System(frame_system::Call::remark { remark: vec![1, 2, 3] });
+	let bounded: Bounded<_, <Runtime as frame_system::Config>::Hashing> = Preimage::bound(call).unwrap();
+	let now = System::block_number();
+	let ref_index = pallet_referenda::ReferendumCount::<Runtime>::get();
+	assert_ok!(Referenda::submit(
+		RuntimeOrigin::signed(submitter.clone()),
+		Box::new(RawOrigin::Root.into()),
+		bounded,
+		DispatchTime::At(now + 100),
+	));
+	assert_ok!(Referenda::place_decision_deposit(
+		RuntimeOrigin::signed(depositor.clone()),
+		ref_index,
+	));
+	ref_index
+}
+
 #[test]
 fn migrate_should_move_legacy_position_into_gigahdx_when_called() {
 	TestNet::reset();
@@ -1968,6 +1990,128 @@ fn migrate_should_refuse_when_no_legacy_position() {
 			)
 		);
 		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).is_none());
+	});
+}
+
+// Migration must not launder away a conviction commitment: `migrate` is refused
+// while any conviction vote is still registered against the legacy position. The
+// caller must `remove_vote` first (which applies the conviction lock — including
+// to losing votes — while the legacy position still backs it), then migrate.
+#[test]
+fn migrate_should_be_refused_while_conviction_vote_active_then_succeed_after_removal() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			10_000 * UNITS,
+		));
+		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
+		init_legacy_staking();
+		fund_bob_for_decision_deposit();
+
+		assert_ok!(Staking::stake(RuntimeOrigin::signed(alice.clone()), 1_000 * UNITS));
+
+		let ref_index = submit_remark_referendum(&alice, &bob);
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			ref_index,
+			AccountVote::Standard {
+				vote: Vote {
+					aye: false,
+					conviction: Conviction::Locked1x,
+				},
+				balance: 1_000 * UNITS,
+			},
+		));
+
+		// Refused while the vote is registered (previously this leniently allowed
+		// finished votes to survive migration, stranding the losing-vote lock).
+		assert_noop!(
+			GigaHdx::migrate(RuntimeOrigin::signed(alice.clone())),
+			pallet_staking::Error::<Runtime>::ExistingVotes
+		);
+		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).is_none());
+
+		// Remove the vote, then migration succeeds.
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(alice.clone()),
+			Some(0u16),
+			ref_index,
+		));
+		assert_ok!(GigaHdx::migrate(RuntimeOrigin::signed(alice.clone())));
+		assert!(
+			pallet_gigahdx::Stakes::<Runtime>::get(&alice).is_some(),
+			"gigahdx position opened once the vote is cleared"
+		);
+	});
+}
+
+// The security goal end-to-end: a *losing* legacy vote gets conviction-locked
+// when removed before migration, and that lock carries into the gigahdx position
+// — it cannot be laundered away by migrating.
+#[test]
+fn losing_vote_should_be_conviction_locked_before_legacy_migration() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let alice: AccountId = ALICE.into();
+		let bob: AccountId = BOB.into();
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			alice.clone(),
+			10_000 * UNITS,
+		));
+		let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
+		init_legacy_staking();
+		fund_bob_for_decision_deposit();
+
+		assert_ok!(Staking::stake(RuntimeOrigin::signed(alice.clone()), 1_000 * UNITS));
+
+		let ref_index = submit_remark_referendum(&alice, &bob);
+		// Vote AYE — the losing side once the referendum is rejected.
+		assert_ok!(ConvictionVoting::vote(
+			RuntimeOrigin::signed(alice.clone()),
+			ref_index,
+			AccountVote::Standard {
+				vote: Vote {
+					aye: true,
+					conviction: Conviction::Locked1x,
+				},
+				balance: 1_000 * UNITS,
+			},
+		));
+
+		// Force the referendum to Rejected so Alice's AYE is on the losing side.
+		// `end = now`, so the conviction-lock window is open at the next remove.
+		let now = System::block_number();
+		pallet_referenda::ReferendumInfoFor::<Runtime>::insert(
+			ref_index,
+			pallet_referenda::ReferendumInfo::Rejected(now, None, None),
+		);
+
+		// Remove the losing vote while still a legacy staker → legacy hook applies
+		// the conviction lock to the loser.
+		assert_ok!(ConvictionVoting::remove_vote(
+			RuntimeOrigin::signed(alice.clone()),
+			Some(0u16),
+			ref_index,
+		));
+		assert_eq!(
+			lock_amount(&alice, *b"pyconvot"),
+			1_000 * UNITS,
+			"losing legacy vote must be conviction-locked on removal"
+		);
+
+		// Migration succeeds and the conviction lock survives — not laundered away.
+		assert_ok!(GigaHdx::migrate(RuntimeOrigin::signed(alice.clone())));
+		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&alice).is_some());
+		assert_eq!(
+			lock_amount(&alice, *b"pyconvot"),
+			1_000 * UNITS,
+			"conviction lock carries into the migrated gigahdx position"
+		);
 	});
 }
 

@@ -141,11 +141,18 @@ impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for VotingHo
 		}
 	}
 
-	fn lock_balance_on_unsuccessful_vote(_who: &T::AccountId, _ref_index: ReferendumIndex) -> Option<Balance> {
-		// Rewards never locks user balance — the gigahdx unstake commitment is
-		// derived lazily from `UserVoteRecords`. Letting the tuple's `or`
-		// fallback pass through whatever the other hook (staking) says.
-		None
+	fn lock_balance_on_unsuccessful_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
+		// Symmetric conviction lock. Conviction-voting locks the *winning* side
+		// for the conviction period automatically; the losing side is locked
+		// only if a hook opts in here. We must opt in: the reward weight is
+		// `staked_vote × conviction_multiplier`, so without a losing-side lock a
+		// staker could vote max-conviction on the losing side, collect the
+		// boosted reward, and exit on only the unstake cooldown — never paying
+		// the lock the multiplier is meant to price in. Legacy staking locked
+		// both ways for the same reason. Lock exactly the staked amount the
+		// reward was computed on (the record still exists here — conviction-voting
+		// calls this before `on_remove_vote` takes it).
+		UserVoteRecords::<T>::get(who, ref_index).map(|r| r.staked_vote_amount)
 	}
 
 	// `on_before_vote` / `on_remove_vote` short-circuit at `Stakes[who].hdx == 0`,
