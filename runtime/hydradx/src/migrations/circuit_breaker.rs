@@ -119,13 +119,13 @@ mod test {
 
 			TradeVolumeLimitPerAsset::<Runtime>::insert(asset, (5_000, 10_000));
 			LiquidityAddLimitPerAsset::<Runtime>::insert(asset, Some((500, 10_000)));
-			LiquidityRemoveLimitPerAsset::<Runtime>::insert(asset, None);
+			LiquidityRemoveLimitPerAsset::<Runtime>::insert(asset, None::<(u32, u32)>);
 
 			MigrateCircuitBreakerLimitsTo2sBlocks::<Runtime>::on_runtime_upgrade();
 
 			assert_eq!(TradeVolumeLimitPerAsset::<Runtime>::get(asset), (1_666, 10_000));
 			assert_eq!(LiquidityAddLimitPerAsset::<Runtime>::get(asset), Some((166, 10_000)));
-			assert_eq!(LiquidityRemoveLimitPerAsset::<Runtime>::get(asset), None);
+			assert_eq!(LiquidityRemoveLimitPerAsset::<Runtime>::get(asset), None::<(u32, u32)>);
 
 			MigrateCircuitBreakerLimitsTo2sBlocks::<Runtime>::on_runtime_upgrade();
 
