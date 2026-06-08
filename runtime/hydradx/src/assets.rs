@@ -904,10 +904,10 @@ impl frame_system::offchain::SigningTypes for Runtime {
 
 parameter_types! {
 	pub MinBudgetInNativeCurrency: Balance = 1000 * UNITS;
-	pub MaxSchedulesPerBlock: u32 = 6;
+	pub MaxSchedulesPerBlock: u32 = 2;
 	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
 	pub MaxConfigurablePriceDifference: Permill = Permill::from_percent(5);
-	pub MinimalPeriod: u32 = 5;
+	pub MinimalPeriod: u32 = 15;
 	pub BumpChance: Percent = Percent::from_percent(17);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
