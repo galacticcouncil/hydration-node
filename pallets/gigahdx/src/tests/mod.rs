@@ -5,7 +5,7 @@ mod do_stake;
 mod freeze;
 mod invariants;
 mod migrate;
-mod mock;
+pub(crate) mod mock;
 mod multi_positions;
 mod realize_yield;
 mod seize;
