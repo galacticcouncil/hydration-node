@@ -20,6 +20,15 @@ directory.
 Available shared skills:
 - `hydration_cl0wdit` - security audit workflow for Substrate runtime and pallet
   code.
+- `circuit-breaker-incident` - investigate snakewatch lockdown alerts (XCM
+  deposit fuse, trade/liquidity limits).
+
+## Operator runbooks & docs
+
+- `scripts/mint-limit/README.md` — generate TC proposals to set XCM mint limits and lift circuit breaker lockdowns
+- `scripts/dca-monitor/README.md` — verify DCA fixes on a Chopsticks fork before deploying a runtime upgrade
+- `scripts/onchain-routes/README.md` — generate TC proposals to register/update on-chain router routes
+- `integration-tests/README.md` — debug prod issues via scraper snapshots + integration tests
 
 ## Project overview
 

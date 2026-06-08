@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::traits::{Freeze, VestingDetails};
+use crate::traits::{ExternalClaims, Freeze, VestingDetails};
 use crate::types::{Vote, Voting};
 use crate::*;
+use std::cell::RefCell;
 
 use frame_support::traits::Everything;
 use frame_support::{assert_ok, PalletId};
@@ -227,6 +228,7 @@ impl pallet_staking::Config for Test {
 	type MaxPointsPerAction = DummyMaxPointsPerAction;
 	type ReferendumInfo = DummyReferendumStatus;
 	type Vesting = DummyVesting;
+	type ExternalClaims = TestExternalClaims;
 	type Collections = FreezableUniques;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type MinSlash = DummyMinSlash;
@@ -272,6 +274,29 @@ impl VestingDetails<AccountId, Balance> for DummyVesting {
 		}
 
 		Zero::zero()
+	}
+}
+
+thread_local! {
+	pub static EXTERNAL_CLAIMS: RefCell<Balance> = const { RefCell::new(0) };
+}
+
+pub struct TestExternalClaims;
+
+impl TestExternalClaims {
+	#[allow(dead_code)]
+	pub fn set(value: Balance) {
+		EXTERNAL_CLAIMS.with(|v| *v.borrow_mut() = value);
+	}
+	#[allow(dead_code)]
+	pub fn reset() {
+		EXTERNAL_CLAIMS.with(|v| *v.borrow_mut() = 0);
+	}
+}
+
+impl ExternalClaims<AccountId> for TestExternalClaims {
+	fn on(_who: &AccountId) -> Balance {
+		EXTERNAL_CLAIMS.with(|v| *v.borrow())
 	}
 }
 
@@ -341,6 +366,7 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 		r.execute_with(|| {
+			TestExternalClaims::reset();
 			pallet_staking::SixSecBlocksSince::<Test>::put(1_000_000_000);
 
 			if self.initial_block_number.is_zero() {

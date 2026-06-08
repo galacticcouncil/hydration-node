@@ -18,7 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
 
-use crate::traits::{ActionData, GetReferendumState, PayablePercentage, VestingDetails};
+use crate::traits::{ActionData, ExternalClaims, GetReferendumState, PayablePercentage, VestingDetails};
 use crate::types::{Action, Balance, Period, Point, Position, StakingData};
 use frame_support::ensure;
 use frame_support::{
@@ -176,6 +176,11 @@ pub mod pallet {
 		/// Provides information about amount of vested tokens.
 		type Vesting: VestingDetails<Self::AccountId, Balance>;
 
+		/// Sum of HDX claimed by other pallets that must not back a legacy
+		/// stake (e.g. `ghdxlock`). The runtime decides what counts; `()`
+		/// disables the check.
+		type ExternalClaims: ExternalClaims<Self::AccountId>;
+
 		#[cfg(feature = "runtime-benchmarks")]
 		/// Max mumber of locks per account.  It's used in on_vote_worst_case benchmarks.
 		type MaxLocks: Get<u32>;
@@ -309,6 +314,16 @@ pub mod pallet {
 			accumulated_rps: FixedU128,
 			total_stake: Balance,
 		},
+
+		/// Position was force-unstaked through the GIGAHDX migration helper.
+		/// Distinct from `Unstaked` because no rewards were forfeited.
+		ForceUnstaked {
+			who: T::AccountId,
+			position_id: T::PositionItemId,
+			stake: Balance,
+			locked_rewards: Balance,
+			paid_rewards: Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -348,6 +363,16 @@ pub mod pallet {
 
 		/// Position contains processed votes. Removed these votes first before increasing stake or claiming.
 		ExistingProcessedVotes,
+
+		/// Retained for API/error-index stability. No longer emitted: migration
+		/// (`force_unstake`) now refuses any registered vote with `ExistingVotes`,
+		/// matching the regular `unstake` precondition.
+		ActiveVotesOngoing,
+
+		/// Caller's HDX is claimed by another pallet (e.g. `ghdxlock`).
+		/// Strict policy: legacy staking refuses any HDX backing that overlaps
+		/// with a non-whitelisted lock elsewhere.
+		BlockedByExternalLock,
 
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
@@ -818,6 +843,11 @@ impl<T: Config> Pallet<T> {
 		stake: Balance,
 		position: Option<&Position<BlockNumberFor<T>>>,
 	) -> Result<(), DispatchError> {
+		// Strict policy: any HDX claimed by a non-whitelisted lock elsewhere
+		// blocks legacy staking outright. Prevents the same HDX from backing
+		// both a legacy position and another pallet's claim (e.g. `ghdxlock`).
+		ensure!(T::ExternalClaims::on(who) == 0, Error::<T>::BlockedByExternalLock);
+
 		let free_balance = T::Currency::free_balance(T::NativeAssetId::get(), who);
 		let staked = position
 			.map(|p| p.stake.saturating_add(p.accumulated_locked_rewards))
@@ -848,6 +878,110 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(position_id)
+	}
+
+	/// Force-unstakes `who`'s legacy position for the GIGAHDX migration.
+	///
+	/// Unlike the regular `unstake`, this helper pays out 100% of accumulated
+	/// rewards — no sigmoid `PayablePercentage` slash, no `UnclaimablePeriods`
+	/// early-exit penalty. It exists solely so users can migrate to
+	/// `pallet-gigahdx` without losing rewards they earned in the legacy
+	/// staking system.
+	///
+	/// Fails (and rolls back atomically) with `ExistingVotes` if `who` still has
+	/// any registered conviction-vote — finished or ongoing. The caller must
+	/// `remove_vote` every vote first, while the legacy position still backs them,
+	/// so conviction-voting applies the conviction lock to winning *and* losing
+	/// votes before the position is destroyed. Same precondition as `unstake`.
+	///
+	/// Returns the total amount unlocked for `who`:
+	/// `position.stake + accumulated_locked_rewards + paid_rewards`,
+	/// where `paid_rewards = new_rewards + accumulated_unpaid_rewards`.
+	///
+	/// This is a pallet-internal helper: no origin check, no weight. The
+	/// orchestrating migrate extrinsic owns both.
+	#[frame_support::transactional]
+	pub fn force_unstake(who: &T::AccountId) -> Result<Balance, DispatchError> {
+		ensure!(Self::is_initialized(), Error::<T>::NotInitialized);
+
+		let position_id =
+			Self::get_user_position_id(who)?.ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
+
+		// Migration must not launder away conviction commitments: require every vote
+		// removed first (same precondition as the regular `unstake`). Removed while the
+		// legacy position still backs the vote, conviction-voting applies the conviction
+		// lock — including to losing/nay votes via the legacy
+		// `lock_balance_on_unsuccessful_vote` hook. Letting finished-referendum votes
+		// survive migration would strand those losing-vote locks: post-migration neither
+		// the legacy hook (position burned) nor the gigahdx-rewards hook (never tracked
+		// legacy-era votes) owns them, so the loser escapes the conviction period.
+		use frame_support::StorageDoubleMap;
+		let voting = Votes::<T>::get(position_id);
+		ensure!(
+			voting.votes.is_empty() && !VotesRewarded::<T>::contains_prefix(who),
+			Error::<T>::ExistingVotes
+		);
+
+		Staking::<T>::try_mutate(|staking| -> Result<Balance, DispatchError> {
+			Self::update_rewards(staking)?;
+
+			let position = Positions::<T>::take(position_id)
+				.defensive_ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
+
+			let new_rewards = math::calculate_rewards(
+				staking.accumulated_reward_per_stake,
+				position.reward_per_stake,
+				position.stake,
+			)
+			.ok_or(Error::<T>::Arithmetic)?;
+
+			let paid_rewards = new_rewards
+				.checked_add(position.accumulated_unpaid_rewards)
+				.ok_or(Error::<T>::Arithmetic)?;
+
+			if !paid_rewards.is_zero() {
+				T::Currency::transfer(
+					T::NativeAssetId::get(),
+					&Self::pot_account_id(),
+					who,
+					paid_rewards,
+					ExistenceRequirement::AllowDeath,
+				)?;
+			}
+
+			staking.total_stake = staking
+				.total_stake
+				.checked_sub(position.stake)
+				.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
+
+			staking.pot_reserved_balance = staking
+				.pot_reserved_balance
+				.checked_sub(paid_rewards)
+				.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
+
+			T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(who))?;
+			T::Currency::remove_lock(STAKING_LOCK_ID, T::NativeAssetId::get(), who)?;
+
+			Votes::<T>::remove(position_id);
+			// `drain_prefix` returns an iterator — it must be consumed to actually drain.
+			let _ = VotesRewarded::<T>::drain_prefix(who).count();
+
+			Self::deposit_event(Event::ForceUnstaked {
+				who: who.clone(),
+				position_id,
+				stake: position.stake,
+				locked_rewards: position.accumulated_locked_rewards,
+				paid_rewards,
+			});
+
+			let unlocked = position
+				.stake
+				.checked_add(position.accumulated_locked_rewards)
+				.and_then(|x| x.checked_add(paid_rewards))
+				.ok_or(Error::<T>::Arithmetic)?;
+
+			Ok(unlocked)
+		})
 	}
 
 	fn is_owner(who: &T::AccountId, id: T::PositionItemId) -> bool {

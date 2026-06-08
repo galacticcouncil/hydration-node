@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.85.0"
+version = "1.99.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -26,6 +26,7 @@ pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-stableswap = { workspace = true }
 pallet-referrals = { workspace = true }
+pallet-fee-processor = { workspace = true }
 pallet-asset-registry = { workspace = true }
 hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
@@ -47,6 +48,8 @@ pallet-evm-accounts = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-liquidation = { workspace = true }
+pallet-gigahdx = { workspace = true }
+pallet-gigahdx-rewards = { workspace = true }
 liquidation-worker-support = { workspace = true }
 pallet-broadcast = { workspace = true }
 pallet-duster = { workspace = true }
@@ -228,6 +231,8 @@ std = [
     "precompile-utils/std",
     "pallet-transaction-pause/std",
     "pallet-liquidation/std",
+    "pallet-gigahdx/std",
+    "pallet-gigahdx-rewards/std",
     "pallet-broadcast/std",
     "pallet-dispatcher/std",
     "pallet-hsm/std",

@@ -39,9 +39,9 @@ use frame_support::{
 use sp_core::H256;
 
 use crate::tests::mock_amm::{Hooks, TradeResult};
-use crate::traits::Convert;
 use frame_system::EnsureRoot;
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::fee_processor::Convert;
 use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
@@ -70,7 +70,6 @@ thread_local! {
 	pub static TIER_VOLUME: RefCell<HashMap<Level, Option<Balance>>> = RefCell::new(HashMap::default());
 	pub static TIER_REWARDS: RefCell<HashMap<Level, FeeDistribution>> = RefCell::new(HashMap::default());
 	pub static SEED_AMOUNT: RefCell<Balance> = RefCell::new(Balance::zero());
-	pub static EXTERNAL_ACCOUNT: RefCell<Option<AccountId>> = const { RefCell::new(None) };
 }
 
 construct_runtime!(
@@ -119,14 +118,6 @@ impl Get<Balance> for SeedAmount {
 	}
 }
 
-pub struct ExtAccount;
-
-impl Get<Option<AccountId>> for ExtAccount {
-	fn get() -> Option<AccountId> {
-		EXTERNAL_ACCOUNT.with(|v| *v.borrow())
-	}
-}
-
 impl Config for Test {
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type AssetId = AssetId;
@@ -139,7 +130,6 @@ impl Config for Test {
 	type CodeLength = CodeLength;
 	type MinCodeLength = MinCodeLength;
 	type LevelVolumeAndRewardPercentages = LevelVolumeAndRewards;
-	type ExternalAccount = ExtAccount;
 	type SeedNativeAmount = SeedAmount;
 	type WeightInfo = ();
 
@@ -227,10 +217,6 @@ impl Default for ExtBuilder {
 		TIER_REWARDS.with(|v| {
 			v.borrow_mut().clear();
 		});
-		EXTERNAL_ACCOUNT.with(|v| {
-			let mut c = v.borrow_mut();
-			*c = None;
-		});
 
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_ALICE_BALANCE)],
@@ -292,14 +278,6 @@ impl ExtBuilder {
 	pub fn with_global_tier_rewards(self, rewards: HashMap<Level, FeeDistribution>) -> Self {
 		TIER_REWARDS.with(|v| {
 			v.swap(&RefCell::new(rewards));
-		});
-		self
-	}
-
-	pub fn with_external_account(self, acc: AccountId) -> Self {
-		EXTERNAL_ACCOUNT.with(|v| {
-			let mut m = v.borrow_mut();
-			*m = Some(acc);
 		});
 		self
 	}
@@ -433,8 +411,29 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 		fee_asset: AssetId,
 		fee: Balance,
 	) -> Result<(), DispatchError> {
-		Referrals::process_trade_fee(*source, *trader, fee_asset, fee)?;
-		Ok(())
+		// Simulate the fee-processor: offer referrals the slice, then transfer only the
+		// amount it actually consumes into the pot (the remainder stays with `source`).
+		// Wrapped in a transaction so a failed transfer rolls back the share minting,
+		// matching the atomic on-chain trade path.
+		frame_support::storage::with_transaction(|| {
+			let r = (|| -> Result<(), DispatchError> {
+				let used = Referrals::process_trade_fee(*trader, fee_asset, fee)?;
+				if used > 0 {
+					<Tokens as MultiCurrency<AccountId>>::transfer(
+						fee_asset,
+						source,
+						&Referrals::pot_account_id(),
+						used,
+						frame_support::traits::ExistenceRequirement::AllowDeath,
+					)?;
+				}
+				Ok(())
+			})();
+			match r {
+				Ok(()) => sp_runtime::TransactionOutcome::Commit(Ok(())),
+				Err(e) => sp_runtime::TransactionOutcome::Rollback(Err(e)),
+			}
+		})
 	}
 }
 

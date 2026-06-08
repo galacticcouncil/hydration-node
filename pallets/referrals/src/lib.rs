@@ -51,13 +51,13 @@ pub mod traits;
 
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use frame_support::traits::fungibles::{Inspect, Mutate};
 use frame_support::traits::tokens::Preservation;
 use frame_support::{defensive, ensure, transactional};
 use frame_system::{
 	ensure_signed,
 	pallet_prelude::{BlockNumberFor, OriginFor},
 };
+use hydradx_traits::fee_processor::Convert;
 use hydradx_traits::price::PriceProvider;
 use orml_traits::GetByKey;
 use scale_info::TypeInfo;
@@ -141,12 +141,10 @@ impl Level {
 	Clone, Copy, Default, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo,
 )]
 pub struct FeeDistribution {
-	/// Percentage of the fee that goes to the referrer.
+	/// Percentage of the referrals slice that goes to the referrer.
 	pub referrer: Permill,
-	/// Percentage of the fee that goes back to the trader.
+	/// Percentage of the referrals slice that goes back to the trader.
 	pub trader: Permill,
-	/// Percentage of the fee that goes to specific account given by `ExternalAccount` config parameter as reward.r
-	pub external: Permill,
 }
 
 #[derive(Clone, Debug, PartialEq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
@@ -164,7 +162,6 @@ impl<AssetId> AssetAmount<AssetId> {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::Convert;
 	use frame_support::pallet_prelude::*;
 	use frame_support::sp_runtime::ArithmeticError;
 	use frame_support::traits::fungibles::{Inspect, Mutate};
@@ -215,9 +212,6 @@ pub mod pallet {
 
 		/// Volume and Global reward percentages for all assets if not specified explicitly for the asset.
 		type LevelVolumeAndRewardPercentages: GetByKey<Level, (Balance, FeeDistribution)>;
-
-		/// External account that receives some percentage of the fee. Usually something like staking.
-		type ExternalAccount: Get<Option<Self::AccountId>>;
 
 		/// Seed amount that was sent to the reward pot.
 		#[pallet::constant]
@@ -591,12 +585,7 @@ pub mod pallet {
 
 			//ensure that total percentage does not exceed 100%
 			ensure!(
-				rewards
-					.referrer
-					.checked_add(&rewards.trader)
-					.ok_or(Error::<T>::IncorrectRewardPercentage)?
-					.checked_add(&rewards.external)
-					.is_some(),
+				rewards.referrer.checked_add(&rewards.trader).is_some(),
 				Error::<T>::IncorrectRewardPercentage
 			);
 
@@ -658,21 +647,27 @@ impl<T: Config> Pallet<T> {
 		ReferralCode::<T::CodeLength>::truncate_from(r)
 	}
 
-	/// Process trader fee
-	/// `source`: account to take the fee from
-	/// `trader`: account that does the trade
+	/// Mint referral shares for an offered trade-fee slice and report how much of it is used.
 	///
-	/// Returns used amount and recipient on success.
+	/// The fee-processor offers the referrals slice (in `asset_id`); this splits it between
+	/// the referrer (if the trader is linked) and the trader per the tier's `FeeDistribution`,
+	/// mints shares valued in `RewardAsset` at the current price, and returns the consumed
+	/// amount (`referrer_reward + trader_reward`). The processor transfers exactly that into
+	/// the pot and leaves the remainder with the fee source — an unlinked trade with no reward
+	/// mints nothing and consumes nothing. A non-reward asset is marked for later conversion.
+	///
+	/// `trader`: account that did the trade.
+	/// `asset_id`: asset of the offered fee slice.
+	/// `amount`: the offered slice amount in `asset_id`.
 	#[transactional]
 	pub fn process_trade_fee(
-		source: T::AccountId,
 		trader: T::AccountId,
 		asset_id: T::AssetId,
 		amount: Balance,
-	) -> Result<Option<(Balance, T::AccountId)>, DispatchError> {
+	) -> Result<Balance, DispatchError> {
 		let Some(price) = T::PriceProvider::get_price(T::RewardAsset::get(), asset_id.clone()) else {
 			// no price, no fun.
-			return Ok(None);
+			return Ok(0);
 		};
 
 		let (level, ref_account) = if let Some(acc) = Self::linked_referral_account(&trader) {
@@ -681,7 +676,7 @@ impl<T: Config> Pallet<T> {
 				(level, Some(acc))
 			} else {
 				defensive!("Referrer details not found");
-				return Ok(None);
+				return Ok(0);
 			}
 		} else {
 			(Level::None, None)
@@ -691,32 +686,14 @@ impl<T: Config> Pallet<T> {
 		let rewards = Self::asset_rewards(asset_id.clone(), level)
 			.unwrap_or_else(|| T::LevelVolumeAndRewardPercentages::get(&level).1);
 
-		// Rewards
-		let external_account = T::ExternalAccount::get();
 		let referrer_reward = if ref_account.is_some() {
 			rewards.referrer.mul_floor(amount)
 		} else {
 			0
 		};
 		let trader_reward = rewards.trader.mul_floor(amount);
-		let external_reward = if external_account.is_some() {
-			rewards.external.mul_floor(amount)
-		} else {
-			0
-		};
-		let total_taken = referrer_reward
-			.saturating_add(trader_reward)
-			.saturating_add(external_reward);
-		ensure!(total_taken <= amount, Error::<T>::IncorrectRewardCalculation);
-		let balance_before = T::Currency::total_balance(asset_id.clone(), &Self::pot_account_id());
-		T::Currency::transfer(
-			asset_id.clone(),
-			&source,
-			&Self::pot_account_id(),
-			total_taken,
-			Preservation::Preserve,
-		)?;
-		let balance_after = T::Currency::total_balance(asset_id.clone(), &Self::pot_account_id());
+		let used = referrer_reward.saturating_add(trader_reward);
+		ensure!(used <= amount, Error::<T>::IncorrectRewardCalculation);
 
 		let referrer_shares = if ref_account.is_some() {
 			multiply_by_rational_with_rounding(referrer_reward, price.n, price.d, Rounding::Down)
@@ -726,19 +703,9 @@ impl<T: Config> Pallet<T> {
 		};
 		let trader_shares = multiply_by_rational_with_rounding(trader_reward, price.n, price.d, Rounding::Down)
 			.ok_or(ArithmeticError::Overflow)?;
-		let external_shares = if external_account.is_some() {
-			multiply_by_rational_with_rounding(external_reward, price.n, price.d, Rounding::Down)
-				.ok_or(ArithmeticError::Overflow)?
-		} else {
-			0
-		};
 
 		TotalShares::<T>::mutate(|v| {
-			*v = v.saturating_add(
-				referrer_shares
-					.saturating_add(trader_shares)
-					.saturating_add(external_shares),
-			);
+			*v = v.saturating_add(referrer_shares.saturating_add(trader_shares));
 		});
 
 		if let Some(acc) = ref_account {
@@ -754,23 +721,11 @@ impl<T: Config> Pallet<T> {
 			});
 		}
 
-		if let Some(acc) = external_account {
-			TraderShares::<T>::mutate(acc, |v| {
-				*v = v.saturating_add(external_shares);
-			});
-		}
-
-		if asset_id != T::RewardAsset::get() {
+		// Only mark for conversion if we actually consume a non-reward asset.
+		if used > 0 && asset_id != T::RewardAsset::get() {
 			PendingConversions::<T>::insert(asset_id, ());
 		}
 
-		// To support ATokens - we might need to allow tolerance of 1 unit
-		// we calculated the shares based on calculated total_taken (which is correct)
-		// but we need to report back that we have actually taken +1 sometimes.
-		let actual_taken = balance_after.saturating_sub(balance_before);
-		let actual_diff = actual_taken.abs_diff(total_taken);
-		ensure!(actual_diff <= 1, ArithmeticError::Overflow);
-
-		Ok(Some((actual_taken, Self::pot_account_id())))
+		Ok(used)
 	}
 }

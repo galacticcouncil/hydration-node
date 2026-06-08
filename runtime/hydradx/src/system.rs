@@ -695,6 +695,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type EvmPermit = evm::permit::EvmPermitHandler<Runtime>;
 	type TryCallCurrency<'a> = TryCallCurrency;
 	type SwappablePaymentAssetSupport = assets::XykPaymentAssetSupport;
+	type EvmFeePayer = evm::EvmFeePayerImpl;
 }
 
 impl pallet_relaychain_info::Config for Runtime {
