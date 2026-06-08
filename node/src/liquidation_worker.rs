@@ -288,24 +288,30 @@ where
 			HashMap::new();
 		let mut pool_configurators: HashMap<EvmAddress, EvmAddress> = HashMap::new();
 		for pap in pap_contracts.iter() {
-			let Ok(mm) = MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
+			let mm = match MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
 				ApiProvider::<&C::Api>(runtime_api.deref()),
 				current_hash,
 				*pap,
 				caller,
-			) else {
-				tracing::error!(target: LOG_TARGET, "liquidation-worker: MoneyMarketData initialization failed for PAP {:?}", pap);
-				return;
+			) {
+				Ok(mm) => mm,
+				// A misconfigured pool must not be silently skipped: fail PEPL loudly so the operator
+				// fixes the config instead of the node continuing with liquidations silently down.
+				Err(e) => panic!(
+					"liquidation-worker: pool misconfigured. MoneyMarketData init failed for PAP {pap:?}: {e:?}. Fix --pap-contract; PEPL will not start."
+				),
 			};
 			let pool_addr = mm.pool_contract();
-			let Ok(configurator) =
-				MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool_configurator::<
+			let configurator =
+				match MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool_configurator::<
 					ApiProvider<&C::Api>,
 				>(&ApiProvider::<&C::Api>(runtime_api.deref()), current_hash, *pap, caller)
-			else {
-				tracing::error!(target: LOG_TARGET, "liquidation-worker: fetch_pool_configurator failed for PAP {:?}", pap);
-				return;
-			};
+				{
+					Ok(configurator) => configurator,
+					Err(e) => panic!(
+						"liquidation-worker: pool misconfigured. Failed to fetch pool configurator for PAP {pap:?}: {e:?}. Fix --pap-contract; PEPL will not start."
+					),
+				};
 			tracing::info!(
 				target: LOG_TARGET,
 				"liquidation-worker: configured pool pap={:?} pool={:?} configurator={:?} reserves={}",
