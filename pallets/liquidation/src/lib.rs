@@ -303,10 +303,6 @@ pub mod pallet {
 				// `receiveAToken=true`, then matching HDX is seized from the
 				// borrower's substrate wallet and re-locked under the
 				// liquidation account. `route` is unused on this path.
-				// Accept BOTH the GIGAHDX aToken id (67) and the stHDX
-				// underlying id (670): PEPL's `address_to_asset` resolves the
-				// reserve's underlying address (= stHDX), and tests/direct
-				// callers may use either; both refer to the same position.
 				let _ = route;
 				return Self::liquidate_gigahdx(debt_asset, user, debt_to_cover);
 			}

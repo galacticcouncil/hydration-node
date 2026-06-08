@@ -295,8 +295,6 @@ where
 				caller,
 			) {
 				Ok(mm) => mm,
-				// A misconfigured pool must not be silently skipped: fail PEPL loudly so the operator
-				// fixes the config instead of the node continuing with liquidations silently down.
 				Err(e) => panic!(
 					"liquidation-worker: pool misconfigured. MoneyMarketData init failed for PAP {pap:?}: {e:?}. Fix --pap-contract; PEPL will not start."
 				),
