@@ -482,9 +482,8 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			for (asset_id, _) in PendingConversions::<T>::iter() {
 				let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
-				// Best-effort, matching `on_idle`: a slice that can't be converted (e.g. below the
-				// converter's min trading limit) is skipped, not fatal — the funds stay in the pot
-				// and the entry is dropped so it can't block this or anyone else's claim.
+				// Best-effort, like `on_idle`: skip an un-convertible slice rather than revert the
+				// whole claim. Funds stay in the pot and re-queue on the next fee.
 				let _ = T::Convert::convert(
 					Self::pot_account_id(),
 					asset_id.clone(),

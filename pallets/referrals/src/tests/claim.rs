@@ -74,11 +74,7 @@ fn claim_rewards_should_remove_assets_from_the_list_when_not_successful() {
 		});
 }
 
-// Regression: a sub-`MinTradingLimit` dust balance of a non-reward asset in `PendingConversions`
-// must not block reward claims. The converter rejects the dust with a non-referrals error
-// (`InsufficientTradingAmount`), which the claim loop only tolerates for its own two legacy
-// variants — so today it reverts the whole claim instead of skipping the dust like `on_idle`
-// does. This test asserts the desired self-healing behaviour and currently FAILS, proving the bug.
+// Regression: sub-`MinTradingLimit` dust in `PendingConversions` must not block reward claims.
 #[test]
 fn claim_rewards_should_succeed_when_pending_asset_balance_is_below_min_trading_limit() {
 	ExtBuilder::default()

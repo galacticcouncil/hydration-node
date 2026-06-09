@@ -70,9 +70,7 @@ thread_local! {
 	pub static TIER_VOLUME: RefCell<HashMap<Level, Option<Balance>>> = RefCell::new(HashMap::default());
 	pub static TIER_REWARDS: RefCell<HashMap<Level, FeeDistribution>> = RefCell::new(HashMap::default());
 	pub static SEED_AMOUNT: RefCell<Balance> = RefCell::new(Balance::zero());
-	// Mirrors the runtime `MinTradingLimit`: `AssetConvert` rejects sub-minimum amounts with a
-	// non-referrals error, exactly as `ConvertViaOmnipool` -> `Omnipool::sell` does in production.
-	// 0 disables the gate so existing tests are unaffected.
+	// Mirrors runtime `MinTradingLimit`: reject sub-minimum amounts. 0 = disabled.
 	pub static CONVERT_MIN_AMOUNT: RefCell<Balance> = RefCell::new(Balance::zero());
 }
 
@@ -380,9 +378,7 @@ impl Convert<AccountId, AssetId, Balance> for AssetConvert {
 	) -> Result<Balance, Self::Error> {
 		let min_amount = CONVERT_MIN_AMOUNT.with(|v| *v.borrow());
 		if amount > 0 && amount < min_amount {
-			// Production parity: the omnipool-backed converter rejects sub-`MinTradingLimit`
-			// amounts with `pallet_omnipool::Error::InsufficientTradingAmount` — an error that
-			// is *not* one of the two referrals-specific variants `claim_rewards` tolerates.
+			// Like `ConvertViaOmnipool`: sub-min amounts fail with a non-referrals error.
 			return Err(DispatchError::Other("InsufficientTradingAmount"));
 		}
 		let price = CONVERSION_RATE
