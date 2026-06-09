@@ -7,6 +7,23 @@ use sp_std::vec::Vec;
 // Used by pallet-fee-processor to distribute trading fees.
 // ---------------------------------------------------------------------------
 
+/// A resolved fee destination: the account a receiver's slice is paid to, its
+/// share, and the two flags the processor needs to route the slice correctly.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct FeeDestination<AccountId> {
+	/// Account that receives the slice.
+	pub account: AccountId,
+	/// Receiver's share of the total fee.
+	pub percentage: Permill,
+	/// Receiver takes its slice in the raw (unconverted) trade-fee asset
+	/// instead of HDX (handled via `on_raw_fee_received`).
+	pub accepts_raw: bool,
+	/// When the slice is paid in HDX, hold it in the pot while `account` is
+	/// below the existential deposit and flush only once the accumulated amount
+	/// would lift it to/above ED. Ignored for raw receivers.
+	pub hold_until_ed: bool,
+}
+
 /// Trait for fee distribution recipients.
 /// Implemented by each fee receiver (staking, referrals, etc.).
 ///
@@ -36,11 +53,27 @@ pub trait FeeReceiver<AccountId, AssetId, Balance> {
 		false
 	}
 
-	/// Returns all `(destination, percentage, accepts_raw_asset)` triples.
-	/// Individual receiver: returns a single triple.
+	/// Whether the processor should buffer this receiver's HDX slices in the pot
+	/// while its account sits below the existential deposit, flushing only once
+	/// the accumulated amount would lift it to/above ED. Defaults to `true` so a
+	/// receiver whose pot may be uninitialized never reverts a trade with
+	/// `Token::BelowMinimum`. Receivers paid in a raw asset, or whose account is
+	/// always provider-backed, can override to `false` to be paid every slice
+	/// immediately.
+	fn hold_until_ed() -> bool {
+		true
+	}
+
+	/// Returns all resolved `FeeDestination`s.
+	/// Individual receiver: returns a single entry.
 	/// Tuple: returns the combined list from all receivers.
-	fn destinations() -> Vec<(AccountId, Permill, bool)> {
-		sp_std::vec![(Self::destination(), Self::percentage(), Self::accepts_raw_asset())]
+	fn destinations() -> Vec<FeeDestination<AccountId>> {
+		sp_std::vec![FeeDestination {
+			account: Self::destination(),
+			percentage: Self::percentage(),
+			accepts_raw: Self::accepts_raw_asset(),
+			hold_until_ed: Self::hold_until_ed(),
+		}]
 	}
 
 	/// Offer a raw-asset receiver a slice of `amount` in `asset` for `trader`.
@@ -69,7 +102,7 @@ impl<AccountId: Default, AssetId, Balance> FeeReceiver<AccountId, AssetId, Balan
 		Permill::zero()
 	}
 
-	fn destinations() -> Vec<(AccountId, Permill, bool)> {
+	fn destinations() -> Vec<FeeDestination<AccountId>> {
 		Vec::new()
 	}
 }
@@ -107,7 +140,7 @@ impl<
 		total
 	}
 
-	fn destinations() -> Vec<(AccountId, Permill, bool)> {
+	fn destinations() -> Vec<FeeDestination<AccountId>> {
 		let mut result = Vec::new();
 		for_tuples!( #( result.extend(Tuple::destinations()); )* );
 		result

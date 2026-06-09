@@ -18,7 +18,7 @@ pub mod pallet {
 	use frame_support::traits::tokens::Preservation;
 	use frame_support::PalletId;
 	use frame_system::pallet_prelude::*;
-	use hydradx_traits::fee_processor::{Convert, FeeReceiver};
+	use hydradx_traits::fee_processor::{Convert, FeeDestination, FeeReceiver};
 	use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 	use sp_runtime::traits::AccountIdConversion;
 	use sp_runtime::{Permill, Rounding, Saturating};
@@ -70,6 +70,14 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn pending_conversions)]
 	pub type PendingConversions<T: Config> = CountedStorageMap<_, Blake2_128Concat, T::AssetId, (), OptionQuery>;
+
+	/// HDX held in the pot for a `hold_until_ed` receiver whose account is still
+	/// below the existential deposit. The HDX physically lives in
+	/// `pot_account_id()`; this map only earmarks how much of it belongs to each
+	/// destination. Flushed to the destination once `balance + held + slice ≥ ED`.
+	#[pallet::storage]
+	#[pallet::getter(fn held_fees)]
+	pub type HeldFees<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -208,6 +216,7 @@ pub mod pallet {
 			};
 
 			let pot = Self::pot_account_id();
+			Self::ensure_pot_exists();
 			let mut total_taken: Balance = 0;
 
 			// Raw-asset receivers: each reports how much of its slice it actually wants
@@ -257,6 +266,7 @@ pub mod pallet {
 			ensure!(asset_id != T::HdxAssetId::get(), Error::<T>::AlreadyHdx);
 
 			let pot = Self::pot_account_id();
+			Self::ensure_pot_exists();
 			let balance = T::Currency::balance(asset_id, &pot);
 
 			let hdx_received = T::Convert::convert(pot.clone(), asset_id, T::HdxAssetId::get(), balance)?;
@@ -276,36 +286,78 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Give the pot a provider reference if it has none, so it survives at a
+		/// zero balance between trades. Without this a fresh-chain pot is created
+		/// and reaped within a single distribution, surfacing as
+		/// `Token::FundsUnavailable`. Idempotent: a no-op once the pot holds a
+		/// balance or has already been provided.
+		fn ensure_pot_exists() {
+			let pot = Self::pot_account_id();
+			if frame_system::Pallet::<T>::providers(&pot) == 0 {
+				let _ = frame_system::Pallet::<T>::inc_providers(&pot);
+			}
+		}
+
 		/// Sum of percentages of the HDX-target (non-raw) receivers.
-		fn convert_percentage(destinations: &[(T::AccountId, Permill, bool)]) -> Permill {
+		fn convert_percentage(destinations: &[FeeDestination<T::AccountId>]) -> Permill {
 			destinations
 				.iter()
-				.filter(|(_, _, accepts_raw)| !accepts_raw)
-				.fold(Permill::zero(), |acc, (_, pct, _)| acc.saturating_add(*pct))
+				.filter(|d| !d.accepts_raw)
+				.fold(Permill::zero(), |acc, d| acc.saturating_add(d.percentage))
 		}
 
 		/// Distribute `total` HDX among the HDX-target `destinations` proportionally to
 		/// each destination's percentage relative to `total_pct`. Raw-asset receivers are
 		/// skipped — they were already paid in the original asset.
+		///
+		/// `total` is already sitting in `source` (the pot). For a `hold_until_ed`
+		/// destination whose account would still be below ED after receiving its
+		/// slice, the slice is left in the pot and tracked in `HeldFees` instead of
+		/// transferred — avoiding a `Token::BelowMinimum` revert. The buffer is
+		/// flushed (held + new slice) the moment `balance + held + slice ≥ ED`.
 		fn distribute_proportionally(
 			source: &T::AccountId,
 			total: Balance,
-			destinations: Vec<(T::AccountId, Permill, bool)>,
+			destinations: Vec<FeeDestination<T::AccountId>>,
 			total_pct: Permill,
 		) -> DispatchResult {
 			if total == 0 || total_pct.is_zero() {
 				return Ok(());
 			}
+			let hdx = T::HdxAssetId::get();
+			let ed = T::Currency::minimum_balance(hdx);
 			let denom = total_pct.deconstruct() as u128;
-			for (dest, pct, accepts_raw) in destinations {
+			for FeeDestination {
+				account,
+				percentage,
+				accepts_raw,
+				hold_until_ed,
+			} in destinations
+			{
 				if accepts_raw {
 					continue;
 				}
-				let numer = pct.deconstruct() as u128;
-				let amount = multiply_by_rational_with_rounding(total, numer, denom, Rounding::Down)
+				let numer = percentage.deconstruct() as u128;
+				let slice = multiply_by_rational_with_rounding(total, numer, denom, Rounding::Down)
 					.ok_or(Error::<T>::Arithmetic)?;
-				if amount > 0 {
-					T::Currency::transfer(T::HdxAssetId::get(), source, &dest, amount, Preservation::Expendable)?;
+				if slice == 0 {
+					continue;
+				}
+
+				if hold_until_ed {
+					// `slice` is already in the pot; flush the accumulated buffer
+					// only if the account would then reach ED, else keep holding.
+					let held = HeldFees::<T>::get(&account);
+					let pending = held.saturating_add(slice);
+					let balance = T::Currency::balance(hdx, &account);
+					if balance.saturating_add(pending) >= ed {
+						T::Currency::transfer(hdx, source, &account, pending, Preservation::Expendable)?;
+						HeldFees::<T>::remove(&account);
+					} else {
+						HeldFees::<T>::insert(&account, pending);
+					}
+				} else {
+					T::Currency::transfer(hdx, source, &account, slice, Preservation::Expendable)?;
 				}
 			}
 			Ok(())

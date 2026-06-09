@@ -2404,6 +2404,62 @@ fn crash_st_hdx_price(oracle: EvmAddress, st_hdx_evm: EvmAddress) {
 	set_oracle_price_source(oracle, st_hdx_evm, mock);
 }
 
+/// Attempt `Pool.borrow(asset, amount)` as `user` without asserting success,
+/// returning the raw EVM exit reason so the caller can assert on a revert.
+fn try_aave_borrow(pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: Balance) -> fp_evm::ExitReason {
+	let data = EvmDataWriter::new_with_selector(liquidation_worker_support::Function::Borrow)
+		.write(asset)
+		.write(amount)
+		.write(2u32) // variable interest rate mode
+		.write(0u32) // referral code
+		.write(user) // onBehalfOf
+		.build();
+	Executor::<Runtime>::call(CallContext::new_call(pool, user), data, U256::zero(), 50_000_000).exit_reason
+}
+
+#[test]
+fn aave_borrow_should_revert_when_asset_is_sthdx() {
+	// stHDX must be non-borrowable on the GIGAHDX AAVE pool (zero borrow cap /
+	// IRM returning 0). If it ever became borrowable, a drifting liquidityIndex
+	// would break the `aToken : stHDX = 1 : 1` invariant and leak unlocked
+	// aTokens past the lock-manager (see the stHDX invariants in `assets.rs`).
+	// Enforcement lives in the AAVE reserve config, not in runtime code, so this
+	// pins the deploy/snapshot setup against silent regression.
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		use crate::liquidation::get_user_account_data;
+
+		let (alice, _bob, alice_evm, pool, _oracle, _hollar) = liquidation_test_setup();
+		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
+
+		// Large stake → ample GIGAHDX collateral, so a stHDX borrow would clear
+		// the collateral check if the asset were borrowable. This makes the
+		// revert attributable to the disabled reserve, not thin collateral.
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(alice.clone()),
+			10_000 * UNITS
+		));
+
+		let data = get_user_account_data(pool, alice_evm).unwrap();
+		assert!(
+			data.available_borrows_base > U256::zero(),
+			"precondition: Alice must have borrowing power so the revert is attributable to stHDX being non-borrowable",
+		);
+
+		let st_hdx_before = Currencies::free_balance(ST_HDX, &alice);
+
+		let exit = try_aave_borrow(pool, alice_evm, st_hdx_evm, UNITS);
+		assert!(
+			matches!(exit, fp_evm::ExitReason::Revert(_)),
+			"borrowing stHDX must revert (reserve must be non-borrowable); got {:?}",
+			exit,
+		);
+
+		// No stHDX may reach the user.
+		assert_eq!(Currencies::free_balance(ST_HDX, &alice), st_hdx_before);
+	});
+}
+
 /// Executes the same flow as `pallet_liquidation::liquidate_gigahdx` step by
 /// step from the test, so we exercise the real building blocks (AAVE pool,
 /// LockableAToken precompile, Seize trait, lock refresh) end-to-end against
