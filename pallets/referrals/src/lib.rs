@@ -482,21 +482,15 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			for (asset_id, _) in PendingConversions::<T>::iter() {
 				let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
-				let r = T::Convert::convert(
+				// Best-effort, matching `on_idle`: a slice that can't be converted (e.g. below the
+				// converter's min trading limit) is skipped, not fatal — the funds stay in the pot
+				// and the entry is dropped so it can't block this or anyone else's claim.
+				let _ = T::Convert::convert(
 					Self::pot_account_id(),
 					asset_id.clone(),
 					T::RewardAsset::get(),
 					asset_balance,
 				);
-				if let Err(error) = r {
-					// We allow these errors to continue claiming as the current amount of asset that needed to be converted
-					// has very low impact on the rewards.
-					if error != Error::<T>::ConversionMinTradingAmountNotReached.into()
-						&& error != Error::<T>::ConversionZeroAmountReceived.into()
-					{
-						return Err(error);
-					}
-				}
 				PendingConversions::<T>::remove(asset_id);
 			}
 			let referrer_shares = ReferrerShares::<T>::take(&who);
