@@ -100,6 +100,11 @@ fn claim_rewards_should_succeed_when_pending_asset_balance_is_below_min_trading_
 			assert_eq!(Tokens::free_balance(HDX, &BOB), 5_000_000_000_000);
 			// The dust entry is dropped rather than left to block future claims.
 			assert_eq!(PendingConversions::<Test>::count(), 0);
+			// The skipped conversion is surfaced as an event, not silently swallowed.
+			assert!(System::events().iter().any(|r| matches!(
+				&r.event,
+				RuntimeEvent::Referrals(Event::ConversionFailed { asset_id, .. }) if *asset_id == DAI
+			)));
 		});
 }
 
