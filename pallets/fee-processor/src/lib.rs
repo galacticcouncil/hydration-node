@@ -216,7 +216,6 @@ pub mod pallet {
 			};
 
 			let pot = Self::pot_account_id();
-			Self::ensure_pot_exists();
 			let mut total_taken: Balance = 0;
 
 			// Raw-asset receivers: each reports how much of its slice it actually wants
@@ -266,7 +265,6 @@ pub mod pallet {
 			ensure!(asset_id != T::HdxAssetId::get(), Error::<T>::AlreadyHdx);
 
 			let pot = Self::pot_account_id();
-			Self::ensure_pot_exists();
 			let balance = T::Currency::balance(asset_id, &pot);
 
 			let hdx_received = T::Convert::convert(pot.clone(), asset_id, T::HdxAssetId::get(), balance)?;
@@ -284,18 +282,6 @@ pub mod pallet {
 			});
 
 			Ok(())
-		}
-
-		/// Give the pot a provider reference if it has none, so it survives at a
-		/// zero balance between trades. Without this a fresh-chain pot is created
-		/// and reaped within a single distribution, surfacing as
-		/// `Token::FundsUnavailable`. Idempotent: a no-op once the pot holds a
-		/// balance or has already been provided.
-		fn ensure_pot_exists() {
-			let pot = Self::pot_account_id();
-			if frame_system::Pallet::<T>::providers(&pot) == 0 {
-				let _ = frame_system::Pallet::<T>::inc_providers(&pot);
-			}
 		}
 
 		/// Sum of percentages of the HDX-target (non-raw) receivers.

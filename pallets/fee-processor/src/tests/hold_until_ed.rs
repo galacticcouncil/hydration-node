@@ -99,18 +99,14 @@ fn hdx_fee_should_not_revert_when_pot_account_starts_empty() {
 	ExtBuilder::default().build().execute_with(|| {
 		set_hdx_existential_deposit(ONE);
 		let pot = FeeProcessor::pot_account_id();
-		drain(HDX, &pot); // reaped pot mimics a fresh chain
+		drain(HDX, &pot);
 		assert_eq!(balance(HDX, &pot), 0);
 
-		// `ensure_pot_exists` provider-backs the reaped pot so distributing the full
-		// `take` through it does not revert with FundsUnavailable. amount = 2*ONE so
-		// take = ONE (>= ED) is deposited and the slice is delivered to the receiver.
+		// A take >= ED creates the pot on deposit and the slice is delivered without
+		// reverting. In production the pot is seeded >= ED before deployment, so it is
+		// never actually empty; this pins the create-on-deposit edge regardless.
 		let before = balance(HDX, &HDX_STAKING_POT);
 		assert_ok!(Pallet::<Test>::process_trade_fee(FEE_SOURCE, ALICE, HDX, 2 * ONE));
 		assert_eq!(balance(HDX, &HDX_STAKING_POT), before + ONE, "slice delivered");
-		assert!(
-			frame_system::Pallet::<Test>::providers(&pot) >= 1,
-			"pot kept alive by ensure_pot_exists",
-		);
 	});
 }
