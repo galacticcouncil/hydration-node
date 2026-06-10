@@ -1,0 +1,29 @@
+{
+  "name": "gigahdx-liquidation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "End-to-end test for GIGAHDX liquidation via pallet-liquidation::liquidate_gigahdx",
+  "scripts": {
+    "test": "mocha --config .mocharc.json",
+    "chopsticks": "chopsticks --config chopsticks-config.yml --port 8013",
+    "test:chopsticks": "WS_URL=ws://127.0.0.1:8013 CHOPSTICKS=1 mocha --config .mocharc.json"
+  },
+  "dependencies": {
+    "@polkadot/api": "^16.0.0",
+    "@polkadot/keyring": "^13.0.0",
+    "@polkadot/util": "^13.0.0",
+    "@polkadot/util-crypto": "^13.0.0",
+    "ethers": "^6.16.0"
+  },
+  "devDependencies": {
+    "@acala-network/chopsticks": "^1.4.1",
+    "@types/chai": "^4.3.20",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.0.0",
+    "chai": "^4.5.0",
+    "mocha": "^10.8.0",
+    "sqlite3": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}

@@ -15,7 +15,7 @@
           "configuration": {
             "config": {
               "async_backing_params": {
-                "max_candidate_depth": 3,
+                "max_candidate_depth": 4,
                 "allowed_ancestry_len": 2
               }
             }
@@ -54,7 +54,7 @@
   "hrmp_channels": [],
   "parachains": [
     {
-      "id": 2032,
+      "id": 2034,
       "cumulus_based": true,
       "chain": "local",
       "collators": [

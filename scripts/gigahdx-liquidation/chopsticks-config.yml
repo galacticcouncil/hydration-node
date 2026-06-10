@@ -1,0 +1,20 @@
+endpoint: wss://2.lark.hydration.cloud
+mock-signature-host: true
+build-block-mode: Manual
+runtime-log-level: 4
+wasm-override: ../../target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm
+import-storage:
+  System:
+    Account:
+      - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY  # Alice
+        - data:
+            free: '1000000000000000000000000000'  # 1B HDX
+            reserved: '0'
+            frozen: '0'
+            flags: '170141183460469231731687303715884105728'
+      - - - 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty  # Bob
+        - data:
+            free: '1000000000000000000000000000'  # 1B HDX
+            reserved: '0'
+            frozen: '0'
+            flags: '170141183460469231731687303715884105728'
