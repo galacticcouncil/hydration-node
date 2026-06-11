@@ -22,7 +22,6 @@ use hydradx_traits::{
 	router::{AssetPair, RouteProvider},
 	OraclePeriod, PriceOracle,
 };
-use test_utils::assert_eq_approx;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -647,11 +646,15 @@ fn omnipool_spotprice_and_onchain_price_should_be_very_similar() {
 		let onchain_oracle_price = FixedU128::from_rational(onchain_oracle_price.n, onchain_oracle_price.d);
 
 		//Assert
-		assert_eq_approx!(
-			spot_price.to_float(),
-			onchain_oracle_price.to_float(),
-			0.0001,
-			"too different"
+		// The fee processor retains part of each trade fee in the pool, so the instantaneous spot
+		// price diverges slightly more from the oracle than before. Assert relative agreement
+		// within 0.1% rather than a magnitude-sensitive absolute tolerance.
+		let spot = spot_price.to_float();
+		let oracle = onchain_oracle_price.to_float();
+		let relative_diff = (spot - oracle).abs() / oracle;
+		assert!(
+			relative_diff < 0.001,
+			"spot price {spot} and onchain oracle price {oracle} differ by {relative_diff} (>0.1%)"
 		);
 	});
 }

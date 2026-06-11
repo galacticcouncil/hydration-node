@@ -46,6 +46,7 @@ members = [
     'pallets/liquidation',
     'precompiles/call-permit',
     'precompiles/flash-loan',
+    'precompiles/lock-manager',
     'runtime-mock',
     'pallets/broadcast',
     'liquidation-worker-support',
@@ -59,6 +60,9 @@ members = [
     'ice/ice-solver',
     'ice/solver-bench',
     'pallets/ice/amm-simulator',
+    "pallets/fee-processor",
+    "pallets/gigahdx",
+    "pallets/gigahdx-rewards",
 ]
 
 resolver = "2"
@@ -167,6 +171,7 @@ pallet-lbp = { path = "pallets/lbp", default-features = false }
 pallet-xyk = { path = "pallets/xyk", default-features = false }
 pallet-xyk-liquidity-mining = { path = "pallets/xyk-liquidity-mining", default-features = false }
 pallet-referrals = { path = "pallets/referrals", default-features = false }
+pallet-fee-processor= { path = "pallets/fee-processor", default-features = false }
 pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false }
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
 pallet-liquidation = { path = "pallets/liquidation", default-features = false }
@@ -181,6 +186,8 @@ pallet-ice = { path = "pallets/ice", default-features = false }
 ice-support = { path = "pallets/ice/support", default-features = false }
 amm-simulator = { path = "pallets/ice/amm-simulator", default-features = false }
 pallet-lazy-executor = { path = "pallets/lazy-executor", default-features = false }
+pallet-gigahdx = { path = "pallets/gigahdx", default-features = false }
+pallet-gigahdx-rewards = { path = "pallets/gigahdx-rewards", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
@@ -190,6 +197,7 @@ integration-tests = { path = "integration-tests", default-features = false }
 
 pallet-evm-precompile-call-permit = { path = "precompiles/call-permit", default-features = false }
 pallet-evm-precompile-flash-loan = { path = "precompiles/flash-loan", default-features = false }
+pallet-evm-precompile-lock-manager = { path = "precompiles/lock-manager", default-features = false }
 precompile-utils = { path = "precompiles/utils", default-features = false }
 
 # Frame

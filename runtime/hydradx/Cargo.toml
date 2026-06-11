@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "420.0.0"
+version = "427.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -42,6 +42,7 @@ pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
+pallet-fee-processor= { workspace = true }
 pallet-broadcast = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
@@ -185,6 +186,9 @@ pallet-evm-precompile-bn128 = { workspace = true }
 pallet-evm-precompile-blake2 = { workspace = true }
 pallet-evm-precompile-call-permit = { workspace = true }
 pallet-evm-precompile-flash-loan = { workspace = true }
+pallet-evm-precompile-lock-manager = { workspace = true }
+pallet-gigahdx = { workspace = true }
+pallet-gigahdx-rewards = { workspace = true }
 precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = { workspace = true }
@@ -248,6 +252,7 @@ runtime-benchmarks = [
     "pallet-hsm/runtime-benchmarks",
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
+    "pallet-fee-processor/runtime-benchmarks",
     "pallet-transaction-multi-payment/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
     "pallet-message-queue/runtime-benchmarks",
@@ -262,6 +267,8 @@ runtime-benchmarks = [
     "pallet-xcm-benchmarks/runtime-benchmarks",
     "pallet-signet/runtime-benchmarks",
     "pallet-dispenser/runtime-benchmarks",
+    "pallet-gigahdx/runtime-benchmarks",
+    "pallet-gigahdx-rewards/runtime-benchmarks",
     "cumulus-pallet-weight-reclaim/runtime-benchmarks",
 ]
 std = [
@@ -376,8 +383,12 @@ std = [
     "pallet-evm-precompile-blake2/std",
     "pallet-evm-precompile-call-permit/std",
     "pallet-evm-precompile-flash-loan/std",
+    "pallet-evm-precompile-lock-manager/std",
+    "pallet-gigahdx/std",
+    "pallet-gigahdx-rewards/std",
     "pallet-xyk/std",
     "pallet-referrals/std",
+    "pallet-fee-processor/std",
     "pallet-evm-accounts/std",
     "pallet-evm-accounts-rpc-runtime-api/std",
     "pallet-xyk-liquidity-mining/std",
@@ -468,6 +479,7 @@ try-runtime = [
     "pallet-xyk/try-runtime",
     "pallet-hsm/try-runtime",
     "pallet-referrals/try-runtime",
+    "pallet-fee-processor/try-runtime",
     "pallet-evm-accounts/try-runtime",
     "pallet-xyk-liquidity-mining/try-runtime",
     "pallet-message-queue/try-runtime",

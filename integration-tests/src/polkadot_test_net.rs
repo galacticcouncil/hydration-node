@@ -538,6 +538,14 @@ pub mod hydra {
 		let btc_amount = 1_000_000_000u128;
 		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		// Fee-processor distributes the swept HDX into these pots. The `fungibles::Mutate`
+		// deposit path enforces the existential deposit regardless of the dust whitelist, so
+		// each pot must already exist with >= ED or a sub-ED fee slice reverts the trade.
+		let fee_processor_account = pallet_fee_processor::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		let gigahdx_account = pallet_gigahdx::Pallet::<hydradx_runtime::Runtime>::gigapot_account_id();
+		let gigahdx_rewards_account =
+			pallet_gigahdx_rewards::Pallet::<hydradx_runtime::Runtime>::reward_accumulator_pot();
+		let referrals_account = pallet_referrals::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 
 		let existential_deposit = NativeExistentialDeposit::get();
 
@@ -551,6 +559,10 @@ pub mod hydra {
 					(omnipool_account.clone(), native_amount),
 					(vesting_account(), 10_000 * UNITS),
 					(staking_account, UNITS),
+					(fee_processor_account, UNITS),
+					(gigahdx_account, UNITS),
+					(gigahdx_rewards_account, UNITS),
+					(referrals_account, UNITS),
 				],
 				dev_accounts: None,
 			},

@@ -13,7 +13,6 @@ fn setting_asset_tier_should_fail_when_not_correct_origin() {
 				FeeDistribution {
 					referrer: Permill::from_percent(1),
 					trader: Permill::from_percent(2),
-					external: Permill::from_percent(2),
 				}
 			),
 			BadOrigin
@@ -31,7 +30,6 @@ fn setting_asset_tier_should_correctly_update_storage() {
 			FeeDistribution {
 				referrer: Permill::from_percent(1),
 				trader: Permill::from_percent(2),
-				external: Permill::from_percent(3),
 			}
 		));
 		let d = AssetRewards::<Test>::get(DAI, Level::Tier0);
@@ -40,7 +38,6 @@ fn setting_asset_tier_should_correctly_update_storage() {
 			Some(FeeDistribution {
 				referrer: Permill::from_percent(1),
 				trader: Permill::from_percent(2),
-				external: Permill::from_percent(3),
 			})
 		)
 	});
@@ -55,9 +52,8 @@ fn setting_asset_tier_should_fail_when_total_percentage_exceeds_hundred_percent(
 				DAI,
 				Level::Tier0,
 				FeeDistribution {
-					referrer: Permill::from_percent(60),
+					referrer: Permill::from_percent(70),
 					trader: Permill::from_percent(40),
-					external: Permill::from_percent(10),
 				}
 			),
 			Error::<Test>::IncorrectRewardPercentage
@@ -75,7 +71,6 @@ fn setting_asset_tier_should_emit_event() {
 			FeeDistribution {
 				referrer: Permill::from_percent(1),
 				trader: Permill::from_percent(2),
-				external: Permill::from_percent(3),
 			}
 		));
 		expect_events(vec![Event::AssetRewardsUpdated {
@@ -84,7 +79,6 @@ fn setting_asset_tier_should_emit_event() {
 			rewards: FeeDistribution {
 				referrer: Permill::from_percent(1),
 				trader: Permill::from_percent(2),
-				external: Permill::from_percent(3),
 			},
 		}
 		.into()]);
