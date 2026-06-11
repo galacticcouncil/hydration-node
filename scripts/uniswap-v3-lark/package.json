@@ -1,0 +1,37 @@
+{
+  "name": "uniswap-v3-lark",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Deploy and validate Uniswap v3 as a native router venue on Hydration (lark)",
+  "engines": {
+    "node": ">=20.6"
+  },
+  "scripts": {
+    "cli": "tsx src/cli.ts",
+    "fund": "tsx src/cli.ts fund",
+    "whitelist": "tsx src/cli.ts whitelist",
+    "deploy": "tsx src/cli.ts deploy",
+    "seed": "tsx src/cli.ts seed",
+    "set-addresses": "tsx src/cli.ts set-addresses",
+    "preflight": "tsx src/cli.ts preflight",
+    "swap-test": "tsx src/cli.ts swap-test",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@polkadot/api": "^16.4.1",
+    "@polkadot/util": "^14.0.0",
+    "@polkadot/util-crypto": "^14.0.0",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}
