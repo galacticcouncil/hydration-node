@@ -209,9 +209,9 @@ construct_runtime!(
 		GigaHdxRewards: pallet_gigahdx_rewards = 87,
 
 		//ICE
-		LazyExecutor: pallet_lazy_executor = 86,
-		Intent: pallet_intent = 87,
-		ICE: pallet_ice = 88,
+		LazyExecutor: pallet_lazy_executor = 97,
+		Intent: pallet_intent = 98,
+		ICE: pallet_ice = 99,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
