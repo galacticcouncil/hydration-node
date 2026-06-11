@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
 use amm_simulator::HydrationSimulator;
-use ice_solver::v2::Solver as IceSolver;
+use ice_solver::v3::Solver as IceSolver;
 use ice_solver_bench::{
 	clear_intent_storage, generate_mixed_intents, generate_mixed_partial_intents, generate_partial_intents,
 	generate_resolvable_intents, generate_unresolvable_intents, get_initial_state, load_snapshot,

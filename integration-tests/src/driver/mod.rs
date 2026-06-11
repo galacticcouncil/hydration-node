@@ -22,7 +22,7 @@ use sp_runtime::{FixedU128, Permill};
 use sp_std::cell::RefCell;
 use xcm_emulator::TestExt;
 
-use ice_solver::v2::Solver as IceSolver;
+use ice_solver::v3::Solver as IceSolver;
 use pallet_omnipool::types::SlipFeeConfig;
 
 type Solver = IceSolver<HydrationSimulator<hydradx_runtime::HydrationSimulatorConfig>>;
@@ -62,6 +62,21 @@ impl HydrationTestDriver {
 		let ext = hydra_live_ext(path);
 		let mut driver = Self::default();
 		driver.ext = Some(RefCell::new(ext));
+		// The fee-processor pot must hold ≥ ED of HDX before it can receive
+		// sub-ED fee takes (`Token(BelowMinimum)` otherwise). On mainnet this
+		// is a pre-deployment seeding op; older snapshots predate it.
+		driver.execute(|| {
+			let pot = pallet_fee_processor::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+			let ed = <hydradx_runtime::Runtime as pallet_balances::Config>::ExistentialDeposit::get();
+			if <Currencies as orml_traits::MultiCurrency<AccountId>>::free_balance(0, &pot) < ed {
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					pot,
+					0,
+					ed as i128,
+				));
+			}
+		});
 		driver
 	}
 

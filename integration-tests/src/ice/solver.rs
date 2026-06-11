@@ -12,7 +12,7 @@ use hydradx_traits::amm::{AmmSimulator, SimulatorConfig, SimulatorSet};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::BoundErc20;
-use ice_solver::v2::Solver as IceSolver;
+use ice_solver::v3::Solver as IceSolver;
 use ice_support::{Solution, MAX_NUMBER_OF_RESOLVED_INTENTS};
 use orml_traits::MultiCurrency;
 use pallet_omnipool::types::SlipFeeConfig;
@@ -464,7 +464,7 @@ fn stableswap_intent() {
 			panic!("Expected submit_solution call");
 		};
 		assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-		assert_eq!(solution.score, 992925628769399913, "score");
+		assert_eq!(solution.score, 992825336206522974, "score");
 		assert_eq!(solution.trades.len(), 1, "trades count");
 		{
 			let r = &solution.resolved_intents[0];
@@ -475,10 +475,24 @@ fn stableswap_intent() {
 			assert_eq!(s.asset_in, 10);
 			assert_eq!(s.asset_out, 18);
 			assert_eq!(s.amount_in, 1000000u128);
-			assert_eq!(s.amount_out, 1002925628769399913u128);
+			assert_eq!(s.amount_out, 1002825336206522974u128);
 			assert_eq!(s.partial, ice_support::Partial::No);
 		}
-		assert_eq!(solution.resolved_intents.len(), 1, "Should resolve the intent");
+		assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
+		assert_eq!(solution.score, 992825336206522974, "score");
+		assert_eq!(solution.trades.len(), 1, "trades count");
+		{
+			let r = &solution.resolved_intents[0];
+			assert_eq!(r.id, 32752052247409382067756072960000);
+			let ice_support::IntentData::Swap(ref s) = r.data else {
+				panic!("expected Swap");
+			};
+			assert_eq!(s.asset_in, 10);
+			assert_eq!(s.asset_out, 18);
+			assert_eq!(s.amount_in, 1000000u128);
+			assert_eq!(s.amount_out, 1002825336206522974u128);
+			assert_eq!(s.partial, ice_support::Partial::No);
+		}
 
 		crate::polkadot_test_net::hydradx_run_to_next_block();
 		assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
@@ -489,7 +503,7 @@ fn stableswap_intent() {
 		let alice_a_after = Currencies::total_balance(asset_a, &ALICE.into());
 		let alice_b_after = Currencies::total_balance(asset_b, &ALICE.into());
 		assert_eq!(alice_a_after, 9000000u128);
-		assert_eq!(alice_b_after, 1002925628769399913u128);
+		assert_eq!(alice_b_after, 1002825336206522974u128);
 
 		assert!(alice_a_after < alice_a_before, "Alice should have less asset_a");
 		assert!(alice_b_after > alice_b_before, "Alice should have more asset_b");
@@ -523,7 +537,7 @@ fn solver_two_intents() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 62731408053389225, "score");
+			assert_eq!(solution.score, 62725134812583887, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -534,7 +548,7 @@ fn solver_two_intents() {
 				assert_eq!(s.asset_in, 5);
 				assert_eq!(s.asset_out, 0);
 				assert_eq!(s.amount_in, 1000000000000u128);
-				assert_eq!(s.amount_out, 62732408053389225u128);
+				assert_eq!(s.amount_out, 62726134812583887u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 
@@ -592,18 +606,6 @@ fn solver_execute_solution1() {
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960001);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 10000000000000u128);
-				assert_eq!(s.amount_out, 147407011313812u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -614,9 +616,47 @@ fn solver_execute_solution1() {
 				assert_eq!(s.amount_out, 676286517104u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 10000000000000u128);
+				assert_eq!(s.amount_out, 147407011313812u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
 
 			// Verify solution structure
-			assert_eq!(solution.resolved_intents.len(), 2, "Should resolve both intents");
+			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
+			assert_eq!(solution.score, 147014502641076, "score");
+			assert_eq!(solution.trades.len(), 1, "trades count");
+			{
+				let r = &solution.resolved_intents[0];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 10000000000000u128);
+				assert_eq!(s.amount_out, 676286517104u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 10000000000000u128);
+				assert_eq!(s.amount_out, 147407011313812u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
 			assert!(solution.score > 0, "Solution score should be positive");
 
 			// Verify each resolved intent
@@ -774,7 +814,7 @@ fn solver_execute_solution_with_buy_intents() {
 
 			let solution = captured_solution.expect("Solution should be captured");
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 114869319959659, "score");
+			assert_eq!(solution.score, 114855833027664, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -785,12 +825,26 @@ fn solver_execute_solution_with_buy_intents() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 2000000000000000u128);
-				assert_eq!(s.amount_out, 134869319959659u128);
+				assert_eq!(s.amount_out, 134855833027664u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 
 			// Verify solution structure
-			assert_eq!(solution.resolved_intents.len(), 1, "Should resolve intent");
+			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
+			assert_eq!(solution.score, 114855833027664, "score");
+			assert_eq!(solution.trades.len(), 1, "trades count");
+			{
+				let r = &solution.resolved_intents[0];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 2000000000000000u128);
+				assert_eq!(s.amount_out, 134855833027664u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
 			let resolved = &solution.resolved_intents[0];
 			let ice_support::IntentData::Swap(ref swap_data) = resolved.data else {
 				panic!("expected Swap");
@@ -810,7 +864,7 @@ fn solver_execute_solution_with_buy_intents() {
 			let alice_balance_a_after = Currencies::total_balance(asset_a, &alice);
 			let alice_balance_b_after = Currencies::total_balance(asset_b, &alice);
 			assert_eq!(alice_balance_a_after, 18000000000000000u128);
-			assert_eq!(alice_balance_b_after, 134869319959659u128);
+			assert_eq!(alice_balance_b_after, 134855833027664u128);
 
 			// Verify balance changes
 			assert!(
@@ -911,10 +965,34 @@ fn solver_mixed_intents() {
 			let fee_before = fee_receiver_snapshot(&solution);
 			let fee_expected = expected_matched_fees(&solution);
 			assert_eq!(solution.resolved_intents.len(), 5, "resolved count");
-			assert_eq!(solution.score, 147345023865181200, "score");
+			assert_eq!(solution.score, 147345023865218257, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
+				assert_eq!(r.id, 32752052247409382067756072960003);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 10000000000000000u128);
+				assert_eq!(s.amount_out, 676286517104112u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 100000000000000u128);
+				assert_eq!(s.amount_out, 6762865171041u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[2];
 				assert_eq!(r.id, 32752052247409382067756072960004);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -926,30 +1004,6 @@ fn solver_mixed_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[1];
-				assert_eq!(r.id, 32752052247409382067756072960003);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 676286517104100u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[2];
-				assert_eq!(r.id, 32752052247409382067756072960002);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 100000000000u128);
-				assert_eq!(s.amount_out, 1467549504538u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
 				let r = &solution.resolved_intents[3];
 				assert_eq!(r.id, 32752052247409382067756072960001);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
@@ -958,19 +1012,19 @@ fn solver_mixed_intents() {
 				assert_eq!(s.asset_in, 14);
 				assert_eq!(s.asset_out, 0);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 146754950453800000u128);
+				assert_eq!(s.amount_out, 146754950453837045u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
 				let r = &solution.resolved_intents[4];
-				assert_eq!(r.id, 32752052247409382067756072960000);
+				assert_eq!(r.id, 32752052247409382067756072960002);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
-				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 100000000000000u128);
-				assert_eq!(s.amount_out, 6762865171041u128);
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 100000000000u128);
+				assert_eq!(s.amount_out, 1467549504538u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			// Verify solution structure
@@ -997,12 +1051,12 @@ fn solver_mixed_intents() {
 			let dave_bnc_after = Currencies::total_balance(bnc, &dave);
 			assert_eq!(alice_hdx_after, 9800000000000000u128);
 			assert_eq!(alice_bnc_after, 10013525730342082u128);
-			assert_eq!(bob_hdx_after, 156754950453800000u128);
+			assert_eq!(bob_hdx_after, 156754950453837045u128);
 			assert_eq!(bob_bnc_after, 0u128);
 			assert_eq!(charlie_hdx_after, 10001467549504538u128);
 			assert_eq!(charlie_bnc_after, 9999900000000000u128);
 			assert_eq!(dave_hdx_after, 0u128);
-			assert_eq!(dave_bnc_after, 10676286517104100u128);
+			assert_eq!(dave_bnc_after, 10676286517104112u128);
 
 			// Verify Alice (sells HDX for BNC)
 			assert!(
@@ -1077,7 +1131,7 @@ fn solver_v1_single_intent() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 605597958156, "score");
+			assert_eq!(solution.score, 605530518842, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1088,12 +1142,26 @@ fn solver_v1_single_intent() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 10000000000000u128);
-				assert_eq!(s.amount_out, 674393147996u128);
+				assert_eq!(s.amount_out, 674325708682u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 
 			// Verify solution structure
-			assert_eq!(solution.resolved_intents.len(), 1, "Should resolve exactly 1 intent");
+			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
+			assert_eq!(solution.score, 605530518842, "score");
+			assert_eq!(solution.trades.len(), 1, "trades count");
+			{
+				let r = &solution.resolved_intents[0];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 10000000000000u128);
+				assert_eq!(s.amount_out, 674325708682u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
 			assert!(solution.score > 0, "Solution score should be positive");
 
 			// Verify the resolved intent
@@ -1135,7 +1203,7 @@ fn solver_v1_single_intent() {
 			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
 			let alice_bnc_after = Currencies::total_balance(bnc, &alice);
 			assert_eq!(alice_hdx_after, 90000000000000u128);
-			assert_eq!(alice_bnc_after, 674393147996u128);
+			assert_eq!(alice_bnc_after, 674325708682u128);
 
 			// Single intent → fully AMM-routed → zero matched volume → no
 			// protocol fee. User receives the full resolved amount_out, and
@@ -1206,18 +1274,6 @@ fn solver_v1_two_intents_partial_match() {
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960001);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 500000000000u128);
-				assert_eq!(s.amount_out, 7390359076508u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -1226,6 +1282,18 @@ fn solver_v1_two_intents_partial_match() {
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 1000000000000000u128);
 				assert_eq!(s.amount_out, 67431738964548u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 500000000000u128);
+				assert_eq!(s.amount_out, 7390359076508u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			// Verify both intents resolved
@@ -1338,18 +1406,18 @@ fn solver_v1_five_mixed_intents() {
 			let fee_before = fee_receiver_snapshot(&solution);
 			let fee_expected = expected_matched_fees(&solution);
 			assert_eq!(solution.resolved_intents.len(), 5, "resolved count");
-			assert_eq!(solution.score, 4724021939126333, "score");
+			assert_eq!(solution.score, 4724021939126336, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960004);
+				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 50000000000000u128);
-				assert_eq!(s.amount_out, 737266858946366u128);
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 500000000000000u128);
+				assert_eq!(s.amount_out, 33814325855205u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -1385,19 +1453,19 @@ fn solver_v1_five_mixed_intents() {
 				assert_eq!(s.asset_in, 14);
 				assert_eq!(s.asset_out, 0);
 				assert_eq!(s.amount_in, 300000000000000u128);
-				assert_eq!(s.amount_out, 4423601153678196u128);
+				assert_eq!(s.amount_out, 4423601153678199u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
 				let r = &solution.resolved_intents[4];
-				assert_eq!(r.id, 32752052247409382067756072960000);
+				assert_eq!(r.id, 32752052247409382067756072960004);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
-				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 500000000000000u128);
-				assert_eq!(s.amount_out, 33814325855205u128);
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 50000000000000u128);
+				assert_eq!(s.amount_out, 737266858946366u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			// Verify solution structure
@@ -1422,7 +1490,7 @@ fn solver_v1_five_mixed_intents() {
 			let charlie_bnc_after = Currencies::total_balance(bnc, &charlie);
 			assert_eq!(alice_hdx_after, 500000000000000u128);
 			assert_eq!(alice_bnc_after, 33814325855205u128);
-			assert_eq!(bob_hdx_after, 4423601153678196u128);
+			assert_eq!(bob_hdx_after, 4423601153678199u128);
 			assert_eq!(bob_bnc_after, 200000000000000u128);
 			assert_eq!(charlie_hdx_after, 300000000000000u128);
 			assert_eq!(charlie_bnc_after, 13525730342082u128);
@@ -1496,7 +1564,7 @@ fn solver_v1_uniform_price_all_sells() {
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960004);
+				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
@@ -1508,14 +1576,14 @@ fn solver_v1_uniform_price_all_sells() {
 			}
 			{
 				let r = &solution.resolved_intents[1];
-				assert_eq!(r.id, 32752052247409382067756072960003);
+				assert_eq!(r.id, 32752052247409382067756072960004);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 100000000000000u128);
-				assert_eq!(s.amount_out, 6762865171041u128);
+				assert_eq!(s.amount_in, 500000000000000u128);
+				assert_eq!(s.amount_out, 33814325855205u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -1532,6 +1600,18 @@ fn solver_v1_uniform_price_all_sells() {
 			}
 			{
 				let r = &solution.resolved_intents[3];
+				assert_eq!(r.id, 32752052247409382067756072960003);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 100000000000000u128);
+				assert_eq!(s.amount_out, 6762865171041u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[4];
 				assert_eq!(r.id, 32752052247409382067756072960001);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -1540,18 +1620,6 @@ fn solver_v1_uniform_price_all_sells() {
 				assert_eq!(s.asset_out, 0);
 				assert_eq!(s.amount_in, 300000000000000u128);
 				assert_eq!(s.amount_out, 4424788497229060u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[4];
-				assert_eq!(r.id, 32752052247409382067756072960000);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 500000000000000u128);
-				assert_eq!(s.amount_out, 33814325855205u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
@@ -1651,6 +1719,18 @@ fn solver_v1_uniform_price_opposite_sells() {
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 500000000000000u128);
+				assert_eq!(s.amount_out, 33814325855206u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960002);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -1662,7 +1742,7 @@ fn solver_v1_uniform_price_opposite_sells() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[1];
+				let r = &solution.resolved_intents[2];
 				assert_eq!(r.id, 32752052247409382067756072960001);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -1671,18 +1751,6 @@ fn solver_v1_uniform_price_opposite_sells() {
 				assert_eq!(s.asset_out, 0);
 				assert_eq!(s.amount_in, 10380308715000u128);
 				assert_eq!(s.amount_out, 153043500572274u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[2];
-				assert_eq!(r.id, 32752052247409382067756072960000);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 500000000000000u128);
-				assert_eq!(s.amount_out, 33814325855206u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
@@ -1814,7 +1882,7 @@ fn intent_with_on_success_callback() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 13739334785212, "score");
+			assert_eq!(solution.score, 13737860851734, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1825,10 +1893,24 @@ fn intent_with_on_success_callback() {
 				assert_eq!(s.asset_in, 14);
 				assert_eq!(s.asset_out, 0);
 				assert_eq!(s.amount_in, 1000000000000u128);
-				assert_eq!(s.amount_out, 14739334785212u128);
+				assert_eq!(s.amount_out, 14737860851734u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
-			assert_eq!(solution.resolved_intents.len(), 1, "Should resolve the intent");
+			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
+			assert_eq!(solution.score, 13737860851734, "score");
+			assert_eq!(solution.trades.len(), 1, "trades count");
+			{
+				let r = &solution.resolved_intents[0];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 1000000000000u128);
+				assert_eq!(s.amount_out, 14737860851734u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
 
 			crate::polkadot_test_net::hydradx_run_to_next_block();
 
@@ -1921,7 +2003,7 @@ fn usdt_weth_single_intent() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 46094859399839102, "score");
+			assert_eq!(solution.score, 46090249374815561, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1932,11 +2014,25 @@ fn usdt_weth_single_intent() {
 				assert_eq!(s.asset_in, 10);
 				assert_eq!(s.asset_out, 20);
 				assert_eq!(s.amount_in, 100000000u128);
-				assert_eq!(s.amount_out, 46100250235418617u128);
+				assert_eq!(s.amount_out, 46095640210395076u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			// Verify solution structure
-			assert_eq!(solution.resolved_intents.len(), 1, "Should resolve exactly 1 intent");
+			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
+			assert_eq!(solution.score, 46090249374815561, "score");
+			assert_eq!(solution.trades.len(), 1, "trades count");
+			{
+				let r = &solution.resolved_intents[0];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 10);
+				assert_eq!(s.asset_out, 20);
+				assert_eq!(s.amount_in, 100000000u128);
+				assert_eq!(s.amount_out, 46095640210395076u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
 			assert!(solution.score > 0, "Solution score should be positive");
 
 			// Verify the resolved intent
@@ -1974,7 +2070,7 @@ fn usdt_weth_single_intent() {
 			let alice_usdt_after = Currencies::total_balance(usdt, &alice);
 			let alice_weth_after = Currencies::total_balance(weth, &alice);
 			assert_eq!(alice_usdt_after, 900000000u128);
-			assert_eq!(alice_weth_after, 46100250235418617u128);
+			assert_eq!(alice_weth_after, 46095640210395076u128);
 
 			// Verify balances changed correctly
 			assert!(
@@ -2052,7 +2148,7 @@ fn usdt_weth_solver_vs_router() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 46094859399839102, "score");
+			assert_eq!(solution.score, 46090249374815561, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -2063,7 +2159,7 @@ fn usdt_weth_solver_vs_router() {
 				assert_eq!(s.asset_in, 10);
 				assert_eq!(s.asset_out, 20);
 				assert_eq!(s.amount_in, 100000000u128);
-				assert_eq!(s.amount_out, 46100250235418617u128);
+				assert_eq!(s.amount_out, 46095640210395076u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
@@ -2097,7 +2193,7 @@ fn usdt_weth_solver_vs_router() {
 			let bob_usdt_after = Currencies::total_balance(usdt, &bob);
 			let bob_weth_after = Currencies::total_balance(weth, &bob);
 			assert_eq!(bob_usdt_after, 900000000u128);
-			assert_eq!(bob_weth_after, 46083861907558025u128);
+			assert_eq!(bob_weth_after, 46083861907566393u128);
 
 			let router_usdt_spent = bob_usdt_before - bob_usdt_after;
 			let router_weth_received = bob_weth_after - bob_weth_before;
@@ -2187,18 +2283,6 @@ fn usdt_weth_two_opposing_intents() {
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960001);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 20);
-				assert_eq!(s.asset_out, 10);
-				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 21595093u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -2209,9 +2293,8 @@ fn usdt_weth_two_opposing_intents() {
 				assert_eq!(s.amount_out, 46139078578077639u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
-			// fee so it is only sanity-checked.
 			{
-				let r = &solution.resolved_intents[0];
+				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960001);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -2219,11 +2302,12 @@ fn usdt_weth_two_opposing_intents() {
 				assert_eq!(s.asset_in, 20);
 				assert_eq!(s.asset_out, 10);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert!(s.amount_out > 0);
+				assert_eq!(s.amount_out, 21595093u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
+			// fee so it is only sanity-checked.
 			{
-				let r = &solution.resolved_intents[1];
+				let r = &solution.resolved_intents[0];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -2231,6 +2315,18 @@ fn usdt_weth_two_opposing_intents() {
 				assert_eq!(s.asset_in, 10);
 				assert_eq!(s.asset_out, 20);
 				assert_eq!(s.amount_in, 100000000u128);
+				assert!(s.amount_out > 0);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 20);
+				assert_eq!(s.asset_out, 10);
+				assert_eq!(s.amount_in, 10000000000000000u128);
 				assert!(s.amount_out > 0);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
@@ -2326,7 +2422,7 @@ fn eth_3pool_single_intent() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 212076262852531149120, "score");
+			assert_eq!(solution.score, 212055053226245896006, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -2337,7 +2433,7 @@ fn eth_3pool_single_intent() {
 				assert_eq!(s.asset_in, 34);
 				assert_eq!(s.asset_out, 103);
 				assert_eq!(s.amount_in, 100000000000000000u128);
-				assert_eq!(s.amount_out, 212096262852531149120u128);
+				assert_eq!(s.amount_out, 212075053226245896006u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
@@ -2348,7 +2444,7 @@ fn eth_3pool_single_intent() {
 			let alice_eth_after = Currencies::total_balance(eth, &alice);
 			let alice_3pool_after = Currencies::total_balance(pool3, &alice);
 			assert_eq!(alice_eth_after, 900000000000000000u128);
-			assert_eq!(alice_3pool_after, 212096262852531149120u128);
+			assert_eq!(alice_3pool_after, 212075053226245896006u128);
 
 			let eth_spent = alice_eth_before - alice_eth_after;
 			let pool3_received = alice_3pool_after - alice_3pool_before;
@@ -2418,7 +2514,7 @@ fn eth_3pool_solver_vs_router() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 212076262852531149120, "score");
+			assert_eq!(solution.score, 212055053226245896006, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -2429,7 +2525,7 @@ fn eth_3pool_solver_vs_router() {
 				assert_eq!(s.asset_in, 34);
 				assert_eq!(s.asset_out, 103);
 				assert_eq!(s.amount_in, 100000000000000000u128);
-				assert_eq!(s.amount_out, 212096262852531149120u128);
+				assert_eq!(s.amount_out, 212075053226245896006u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
@@ -2557,18 +2653,6 @@ fn _eth_3pool_two_opposing_intents() {
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960001);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 103);
-				assert_eq!(s.asset_out, 34);
-				assert_eq!(s.amount_in, 100000000000000000000u128);
-				assert_eq!(s.amount_out, 46500792162135263u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -2577,6 +2661,18 @@ fn _eth_3pool_two_opposing_intents() {
 				assert_eq!(s.asset_out, 103);
 				assert_eq!(s.amount_in, 100000000000000000u128);
 				assert_eq!(s.amount_out, 214532969956754998052u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 103);
+				assert_eq!(s.asset_out, 34);
+				assert_eq!(s.amount_in, 100000000000000000000u128);
+				assert_eq!(s.amount_out, 46500792162135263u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
@@ -2659,6 +2755,18 @@ fn solver_ring_trade_triangle_execute() {
 			assert_eq!(solution.trades.len(), 2, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 1000000000000000u128);
+				assert_eq!(s.amount_out, 67446698202754u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960002);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -2670,7 +2778,7 @@ fn solver_ring_trade_triangle_execute() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[1];
+				let r = &solution.resolved_intents[2];
 				assert_eq!(r.id, 32752052247409382067756072960001);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -2681,8 +2789,14 @@ fn solver_ring_trade_triangle_execute() {
 				assert_eq!(s.amount_out, 1173241107u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
+			let fee_before = fee_receiver_snapshot(&solution);
+			let fee_expected = expected_matched_fees(&solution);
+
+			assert_eq!(solution.resolved_intents.len(), 3, "resolved count");
+			assert_eq!(solution.score, 5845681041331610, "score");
+			assert_eq!(solution.trades.len(), 2, "trades count");
 			{
-				let r = &solution.resolved_intents[2];
+				let r = &solution.resolved_intents[0];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -2693,10 +2807,30 @@ fn solver_ring_trade_triangle_execute() {
 				assert_eq!(s.amount_out, 67446698202754u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
-			let fee_before = fee_receiver_snapshot(&solution);
-			let fee_expected = expected_matched_fees(&solution);
-
-			assert_eq!(solution.resolved_intents.len(), 3, "All 3 intents should be resolved");
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960002);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 5);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 100000000000u128);
+				assert_eq!(s.amount_out, 6278734169887749u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[2];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 5);
+				assert_eq!(s.amount_in, 5000000000000u128);
+				assert_eq!(s.amount_out, 1173241107u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
 			assert!(solution.trades.len() < 3, "Ring should reduce AMM trades below 3");
 
 			let alice_hdx_before = Currencies::total_balance(hdx, &alice);
@@ -2881,6 +3015,18 @@ fn solver_ring_trade_vs_direct_trades() {
 				assert_eq!(solution.trades.len(), 2, "trades count");
 				{
 					let r = &solution.resolved_intents[0];
+					assert_eq!(r.id, 32752052247409382067756072960000);
+					let ice_support::IntentData::Swap(ref s) = r.data else {
+						panic!("expected Swap");
+					};
+					assert_eq!(s.asset_in, 0);
+					assert_eq!(s.asset_out, 14);
+					assert_eq!(s.amount_in, 1000000000000000u128);
+					assert_eq!(s.amount_out, 67446698202754u128);
+					assert_eq!(s.partial, ice_support::Partial::No);
+				}
+				{
+					let r = &solution.resolved_intents[1];
 					assert_eq!(r.id, 32752052247409382067756072960002);
 					let ice_support::IntentData::Swap(ref s) = r.data else {
 						panic!("expected Swap");
@@ -2892,7 +3038,7 @@ fn solver_ring_trade_vs_direct_trades() {
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
-					let r = &solution.resolved_intents[1];
+					let r = &solution.resolved_intents[2];
 					assert_eq!(r.id, 32752052247409382067756072960001);
 					let ice_support::IntentData::Swap(ref s) = r.data else {
 						panic!("expected Swap");
@@ -2901,18 +3047,6 @@ fn solver_ring_trade_vs_direct_trades() {
 					assert_eq!(s.asset_out, 5);
 					assert_eq!(s.amount_in, 5000000000000u128);
 					assert_eq!(s.amount_out, 1173241107u128);
-					assert_eq!(s.partial, ice_support::Partial::No);
-				}
-				{
-					let r = &solution.resolved_intents[2];
-					assert_eq!(r.id, 32752052247409382067756072960000);
-					let ice_support::IntentData::Swap(ref s) = r.data else {
-						panic!("expected Swap");
-					};
-					assert_eq!(s.asset_in, 0);
-					assert_eq!(s.asset_out, 14);
-					assert_eq!(s.amount_in, 1000000000000000u128);
-					assert_eq!(s.amount_out, 67446698202754u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				let mut alice_resolved_bnc = 0u128;
@@ -3021,94 +3155,10 @@ fn solver_mixed_batch_12_intents() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 12, "resolved count");
-			assert_eq!(solution.score, 11875262517424110, "score");
+			assert_eq!(solution.score, 11875262517424109, "score");
 			assert_eq!(solution.trades.len(), 3, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960011);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 5);
-				assert_eq!(s.amount_in, 10000000000000u128);
-				assert_eq!(s.amount_out, 2346482214u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[1];
-				assert_eq!(r.id, 32752052247409382067756072960010);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 5);
-				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 100000000000u128);
-				assert_eq!(s.amount_out, 424430633328854u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[2];
-				assert_eq!(r.id, 32752052247409382067756072960009);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 5);
-				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 50000000000u128);
-				assert_eq!(s.amount_out, 212215316664427u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[3];
-				assert_eq!(r.id, 32752052247409382067756072960008);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 5);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 150000000000u128);
-				assert_eq!(s.amount_out, 9446755181733563u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[4];
-				assert_eq!(r.id, 32752052247409382067756072960007);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 5);
-				assert_eq!(s.amount_in, 20000000000000u128);
-				assert_eq!(s.amount_out, 4692964428u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[5];
-				assert_eq!(r.id, 32752052247409382067756072960006);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 5);
-				assert_eq!(s.amount_in, 4000000000000000u128);
-				assert_eq!(s.amount_out, 63462581018u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[6];
-				assert_eq!(r.id, 32752052247409382067756072960005);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 5);
-				assert_eq!(s.amount_in, 3000000000000000u128);
-				assert_eq!(s.amount_out, 47596935763u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[7];
 				assert_eq!(r.id, 32752052247409382067756072960004);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -3120,7 +3170,43 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[8];
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960006);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 5);
+				assert_eq!(s.amount_in, 4000000000000000u128);
+				assert_eq!(s.amount_out, 63462581017u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[2];
+				assert_eq!(r.id, 32752052247409382067756072960005);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 5);
+				assert_eq!(s.amount_in, 3000000000000000u128);
+				assert_eq!(s.amount_out, 47596935763u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[3];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 10000000000000000u128);
+				assert_eq!(s.amount_out, 674006392370210u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[4];
 				assert_eq!(r.id, 32752052247409382067756072960003);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -3132,7 +3218,43 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[9];
+				let r = &solution.resolved_intents[5];
+				assert_eq!(r.id, 32752052247409382067756072960008);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 5);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 150000000000u128);
+				assert_eq!(s.amount_out, 9446755181733563u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[6];
+				assert_eq!(r.id, 32752052247409382067756072960010);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 5);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 100000000000u128);
+				assert_eq!(s.amount_out, 424430633328854u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[7];
+				assert_eq!(r.id, 32752052247409382067756072960009);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 5);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 50000000000u128);
+				assert_eq!(s.amount_out, 212215316664427u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[8];
 				assert_eq!(r.id, 32752052247409382067756072960002);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -3144,7 +3266,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[10];
+				let r = &solution.resolved_intents[9];
 				assert_eq!(r.id, 32752052247409382067756072960001);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -3156,15 +3278,27 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[11];
-				assert_eq!(r.id, 32752052247409382067756072960000);
+				let r = &solution.resolved_intents[10];
+				assert_eq!(r.id, 32752052247409382067756072960007);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
-				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 674006392370210u128);
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 5);
+				assert_eq!(s.amount_in, 20000000000000u128);
+				assert_eq!(s.amount_out, 4692964428u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[11];
+				assert_eq!(r.id, 32752052247409382067756072960011);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 5);
+				assert_eq!(s.amount_in, 10000000000000u128);
+				assert_eq!(s.amount_out, 2346482214u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
@@ -3390,94 +3524,10 @@ fn solver_mixed_batch_vs_direct_trades() {
 					panic!("Expected submit_solution call");
 				};
 				assert_eq!(solution.resolved_intents.len(), 12, "resolved count");
-				assert_eq!(solution.score, 11875262517424110, "score");
+				assert_eq!(solution.score, 11875262517424109, "score");
 				assert_eq!(solution.trades.len(), 3, "trades count");
 				{
 					let r = &solution.resolved_intents[0];
-					assert_eq!(r.id, 32752052247409382067756072960011);
-					let ice_support::IntentData::Swap(ref s) = r.data else {
-						panic!("expected Swap");
-					};
-					assert_eq!(s.asset_in, 14);
-					assert_eq!(s.asset_out, 5);
-					assert_eq!(s.amount_in, 10000000000000u128);
-					assert_eq!(s.amount_out, 2346482214u128);
-					assert_eq!(s.partial, ice_support::Partial::No);
-				}
-				{
-					let r = &solution.resolved_intents[1];
-					assert_eq!(r.id, 32752052247409382067756072960010);
-					let ice_support::IntentData::Swap(ref s) = r.data else {
-						panic!("expected Swap");
-					};
-					assert_eq!(s.asset_in, 5);
-					assert_eq!(s.asset_out, 14);
-					assert_eq!(s.amount_in, 100000000000u128);
-					assert_eq!(s.amount_out, 424430633328854u128);
-					assert_eq!(s.partial, ice_support::Partial::No);
-				}
-				{
-					let r = &solution.resolved_intents[2];
-					assert_eq!(r.id, 32752052247409382067756072960009);
-					let ice_support::IntentData::Swap(ref s) = r.data else {
-						panic!("expected Swap");
-					};
-					assert_eq!(s.asset_in, 5);
-					assert_eq!(s.asset_out, 14);
-					assert_eq!(s.amount_in, 50000000000u128);
-					assert_eq!(s.amount_out, 212215316664427u128);
-					assert_eq!(s.partial, ice_support::Partial::No);
-				}
-				{
-					let r = &solution.resolved_intents[3];
-					assert_eq!(r.id, 32752052247409382067756072960008);
-					let ice_support::IntentData::Swap(ref s) = r.data else {
-						panic!("expected Swap");
-					};
-					assert_eq!(s.asset_in, 5);
-					assert_eq!(s.asset_out, 0);
-					assert_eq!(s.amount_in, 150000000000u128);
-					assert_eq!(s.amount_out, 9446755181733563u128);
-					assert_eq!(s.partial, ice_support::Partial::No);
-				}
-				{
-					let r = &solution.resolved_intents[4];
-					assert_eq!(r.id, 32752052247409382067756072960007);
-					let ice_support::IntentData::Swap(ref s) = r.data else {
-						panic!("expected Swap");
-					};
-					assert_eq!(s.asset_in, 14);
-					assert_eq!(s.asset_out, 5);
-					assert_eq!(s.amount_in, 20000000000000u128);
-					assert_eq!(s.amount_out, 4692964428u128);
-					assert_eq!(s.partial, ice_support::Partial::No);
-				}
-				{
-					let r = &solution.resolved_intents[5];
-					assert_eq!(r.id, 32752052247409382067756072960006);
-					let ice_support::IntentData::Swap(ref s) = r.data else {
-						panic!("expected Swap");
-					};
-					assert_eq!(s.asset_in, 0);
-					assert_eq!(s.asset_out, 5);
-					assert_eq!(s.amount_in, 4000000000000000u128);
-					assert_eq!(s.amount_out, 63462581018u128);
-					assert_eq!(s.partial, ice_support::Partial::No);
-				}
-				{
-					let r = &solution.resolved_intents[6];
-					assert_eq!(r.id, 32752052247409382067756072960005);
-					let ice_support::IntentData::Swap(ref s) = r.data else {
-						panic!("expected Swap");
-					};
-					assert_eq!(s.asset_in, 0);
-					assert_eq!(s.asset_out, 5);
-					assert_eq!(s.amount_in, 3000000000000000u128);
-					assert_eq!(s.amount_out, 47596935763u128);
-					assert_eq!(s.partial, ice_support::Partial::No);
-				}
-				{
-					let r = &solution.resolved_intents[7];
 					assert_eq!(r.id, 32752052247409382067756072960004);
 					let ice_support::IntentData::Swap(ref s) = r.data else {
 						panic!("expected Swap");
@@ -3489,7 +3539,43 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
-					let r = &solution.resolved_intents[8];
+					let r = &solution.resolved_intents[1];
+					assert_eq!(r.id, 32752052247409382067756072960006);
+					let ice_support::IntentData::Swap(ref s) = r.data else {
+						panic!("expected Swap");
+					};
+					assert_eq!(s.asset_in, 0);
+					assert_eq!(s.asset_out, 5);
+					assert_eq!(s.amount_in, 4000000000000000u128);
+					assert_eq!(s.amount_out, 63462581017u128);
+					assert_eq!(s.partial, ice_support::Partial::No);
+				}
+				{
+					let r = &solution.resolved_intents[2];
+					assert_eq!(r.id, 32752052247409382067756072960005);
+					let ice_support::IntentData::Swap(ref s) = r.data else {
+						panic!("expected Swap");
+					};
+					assert_eq!(s.asset_in, 0);
+					assert_eq!(s.asset_out, 5);
+					assert_eq!(s.amount_in, 3000000000000000u128);
+					assert_eq!(s.amount_out, 47596935763u128);
+					assert_eq!(s.partial, ice_support::Partial::No);
+				}
+				{
+					let r = &solution.resolved_intents[3];
+					assert_eq!(r.id, 32752052247409382067756072960000);
+					let ice_support::IntentData::Swap(ref s) = r.data else {
+						panic!("expected Swap");
+					};
+					assert_eq!(s.asset_in, 0);
+					assert_eq!(s.asset_out, 14);
+					assert_eq!(s.amount_in, 10000000000000000u128);
+					assert_eq!(s.amount_out, 674006392370210u128);
+					assert_eq!(s.partial, ice_support::Partial::No);
+				}
+				{
+					let r = &solution.resolved_intents[4];
 					assert_eq!(r.id, 32752052247409382067756072960003);
 					let ice_support::IntentData::Swap(ref s) = r.data else {
 						panic!("expected Swap");
@@ -3501,7 +3587,43 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
-					let r = &solution.resolved_intents[9];
+					let r = &solution.resolved_intents[5];
+					assert_eq!(r.id, 32752052247409382067756072960008);
+					let ice_support::IntentData::Swap(ref s) = r.data else {
+						panic!("expected Swap");
+					};
+					assert_eq!(s.asset_in, 5);
+					assert_eq!(s.asset_out, 0);
+					assert_eq!(s.amount_in, 150000000000u128);
+					assert_eq!(s.amount_out, 9446755181733563u128);
+					assert_eq!(s.partial, ice_support::Partial::No);
+				}
+				{
+					let r = &solution.resolved_intents[6];
+					assert_eq!(r.id, 32752052247409382067756072960010);
+					let ice_support::IntentData::Swap(ref s) = r.data else {
+						panic!("expected Swap");
+					};
+					assert_eq!(s.asset_in, 5);
+					assert_eq!(s.asset_out, 14);
+					assert_eq!(s.amount_in, 100000000000u128);
+					assert_eq!(s.amount_out, 424430633328854u128);
+					assert_eq!(s.partial, ice_support::Partial::No);
+				}
+				{
+					let r = &solution.resolved_intents[7];
+					assert_eq!(r.id, 32752052247409382067756072960009);
+					let ice_support::IntentData::Swap(ref s) = r.data else {
+						panic!("expected Swap");
+					};
+					assert_eq!(s.asset_in, 5);
+					assert_eq!(s.asset_out, 14);
+					assert_eq!(s.amount_in, 50000000000u128);
+					assert_eq!(s.amount_out, 212215316664427u128);
+					assert_eq!(s.partial, ice_support::Partial::No);
+				}
+				{
+					let r = &solution.resolved_intents[8];
 					assert_eq!(r.id, 32752052247409382067756072960002);
 					let ice_support::IntentData::Swap(ref s) = r.data else {
 						panic!("expected Swap");
@@ -3513,7 +3635,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
-					let r = &solution.resolved_intents[10];
+					let r = &solution.resolved_intents[9];
 					assert_eq!(r.id, 32752052247409382067756072960001);
 					let ice_support::IntentData::Swap(ref s) = r.data else {
 						panic!("expected Swap");
@@ -3525,15 +3647,27 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
-					let r = &solution.resolved_intents[11];
-					assert_eq!(r.id, 32752052247409382067756072960000);
+					let r = &solution.resolved_intents[10];
+					assert_eq!(r.id, 32752052247409382067756072960007);
 					let ice_support::IntentData::Swap(ref s) = r.data else {
 						panic!("expected Swap");
 					};
-					assert_eq!(s.asset_in, 0);
-					assert_eq!(s.asset_out, 14);
-					assert_eq!(s.amount_in, 10000000000000000u128);
-					assert_eq!(s.amount_out, 674006392370210u128);
+					assert_eq!(s.asset_in, 14);
+					assert_eq!(s.asset_out, 5);
+					assert_eq!(s.amount_in, 20000000000000u128);
+					assert_eq!(s.amount_out, 4692964428u128);
+					assert_eq!(s.partial, ice_support::Partial::No);
+				}
+				{
+					let r = &solution.resolved_intents[11];
+					assert_eq!(r.id, 32752052247409382067756072960011);
+					let ice_support::IntentData::Swap(ref s) = r.data else {
+						panic!("expected Swap");
+					};
+					assert_eq!(s.asset_in, 14);
+					assert_eq!(s.asset_out, 5);
+					assert_eq!(s.amount_in, 10000000000000u128);
+					assert_eq!(s.amount_out, 2346482214u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				let fee_before = fee_receiver_snapshot(&solution);
@@ -3606,18 +3740,6 @@ fn solver_near_perfect_cancel_ed_remainder() {
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960001);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 68000000000000u128);
-				assert_eq!(s.amount_out, 1005073500952042u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -3626,6 +3748,18 @@ fn solver_near_perfect_cancel_ed_remainder() {
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 1000000000000000u128);
 				assert_eq!(s.amount_out, 67628651710411u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 68000000000000u128);
+				assert_eq!(s.amount_out, 1005073500952042u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			// Near-perfect cancel: at most 1 small AMM trade for the net remainder
@@ -3718,18 +3852,6 @@ fn solver_existential_deposit_amounts() {
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960001);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 7000000000000u128);
-				assert_eq!(s.amount_out, 103454923458761u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -3740,10 +3862,48 @@ fn solver_existential_deposit_amounts() {
 				assert_eq!(s.amount_out, 6762865171042u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 7000000000000u128);
+				assert_eq!(s.amount_out, 103454923458761u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
 			let fee_before = fee_receiver_snapshot(&solution);
 			let fee_expected = expected_matched_fees(&solution);
 
-			assert_eq!(solution.resolved_intents.len(), 2, "Both intents must be resolved");
+			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
+			assert_eq!(solution.score, 46217788629803, "score");
+			assert_eq!(solution.trades.len(), 1, "trades count");
+			{
+				let r = &solution.resolved_intents[0];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 100000000000000u128);
+				assert_eq!(s.amount_out, 6762865171042u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 7000000000000u128);
+				assert_eq!(s.amount_out, 103454923458761u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
 			assert!(
 				solution.trades.len() <= 1,
 				"Near-cancel should need at most 1 small AMM trade"
@@ -3828,18 +3988,6 @@ fn solver_amm_remainder_below_ed() {
 			assert_eq!(solution.trades.len(), 0, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960001);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 3420000000000u128);
-				assert_eq!(s.amount_out, 49990000000000u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -3848,6 +3996,18 @@ fn solver_amm_remainder_below_ed() {
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 50000000000000u128);
 				assert_eq!(s.amount_out, 3381432585521u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 3420000000000u128);
+				assert_eq!(s.amount_out, 49990000000000u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
@@ -3919,18 +4079,6 @@ fn solver_amm_remainder_dust() {
 			assert_eq!(solution.trades.len(), 0, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960001);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 3390000000000u128);
-				assert_eq!(s.amount_out, 49990000000000u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -3939,6 +4087,18 @@ fn solver_amm_remainder_dust() {
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 50000000000000u128);
 				assert_eq!(s.amount_out, 3381432585521u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 3390000000000u128);
+				assert_eq!(s.amount_out, 49990000000000u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
@@ -4015,14 +4175,14 @@ fn solver_three_intent_dust_remainder() {
 			assert_eq!(solution.trades.len(), 0, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960002);
+				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 3390000000000u128);
-				assert_eq!(s.amount_out, 49990000000000u128);
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 100000000000000u128);
+				assert_eq!(s.amount_out, 6762865171042u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -4039,14 +4199,14 @@ fn solver_three_intent_dust_remainder() {
 			}
 			{
 				let r = &solution.resolved_intents[2];
-				assert_eq!(r.id, 32752052247409382067756072960000);
+				assert_eq!(r.id, 32752052247409382067756072960002);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
-				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 100000000000000u128);
-				assert_eq!(s.amount_out, 6762865171042u128);
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 3390000000000u128);
+				assert_eq!(s.amount_out, 49990000000000u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			// Pure direct match: no AMM hop.
@@ -4122,7 +4282,33 @@ fn solver_ice_fee_lands_in_fee_receiver() {
 			let pallet_ice::Call::submit_solution { solution, .. } = call else {
 				panic!("Expected submit_solution call");
 			};
-			assert_eq!(solution.resolved_intents.len(), 2, "Both intents must be resolved");
+			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
+			assert_eq!(solution.score, 1334306026106478, "score");
+			assert_eq!(solution.trades.len(), 1, "trades count");
+			{
+				let r = &solution.resolved_intents[0];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 1000000000000000u128);
+				assert_eq!(s.amount_out, 67628651710411u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[1];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 100000000000000u128);
+				assert_eq!(s.amount_out, 1476677374396067u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
 
 			let ice_fee: Permill = <Runtime as pallet_ice::Config>::MatchedFee::get();
 			assert!(!ice_fee.is_zero(), "default ICE fee must be non-zero for this test");
@@ -4326,34 +4512,22 @@ fn solver_v2_partial_fill_whale() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 4, "resolved count");
-			assert_eq!(solution.score, 1947000006488054, "score");
+			assert_eq!(solution.score, 1946999999999997, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960002);
+				assert_eq!(r.id, 32752052247409382067756072960003);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 650000000060173u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
+				assert_eq!(s.amount_in, 1048233527765180661u128);
+				assert_eq!(s.amount_out, 68135179304736742u128);
+				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
 			{
 				let r = &solution.resolved_intents[1];
-				assert_eq!(r.id, 32752052247409382067756072960001);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 650000000060173u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[2];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -4361,20 +4535,32 @@ fn solver_v2_partial_fill_whale() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 650000000060173u128);
+				assert_eq!(s.amount_out, 649999999999999u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[3];
-				assert_eq!(r.id, 32752052247409382067756072960003);
+				let r = &solution.resolved_intents[2];
+				assert_eq!(r.id, 32752052247409382067756072960001);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 1048233525000000000u128);
-				assert_eq!(s.amount_out, 68135179131307535u128);
-				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
+				assert_eq!(s.amount_in, 10000000000000000u128);
+				assert_eq!(s.amount_out, 649999999999999u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[3];
+				assert_eq!(r.id, 32752052247409382067756072960002);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 10000000000000000u128);
+				assert_eq!(s.amount_out, 649999999999999u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 
 			println!(
@@ -4539,7 +4725,7 @@ fn solver_v2_single_partial_whale() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 3046956489, "score");
+			assert_eq!(solution.score, 0, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -4549,8 +4735,8 @@ fn solver_v2_single_partial_whale() {
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 1081219503238677977u128);
-				assert_eq!(s.amount_out, 70279270757470557u128);
+				assert_eq!(s.amount_in, 1078233527765180676u128);
+				assert_eq!(s.amount_out, 70085179304736743u128);
 				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
@@ -4563,7 +4749,21 @@ fn solver_v2_single_partial_whale() {
 				solution.score
 			);
 
-			assert_eq!(solution.resolved_intents.len(), 1, "Whale should be resolved");
+			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
+			assert_eq!(solution.score, 0, "score");
+			assert_eq!(solution.trades.len(), 1, "trades count");
+			{
+				let r = &solution.resolved_intents[0];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 14);
+				assert_eq!(s.amount_in, 1078233527765180676u128);
+				assert_eq!(s.amount_out, 70085179304736743u128);
+				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
+			}
 
 			let ri = &solution.resolved_intents[0];
 			let ice_support::IntentData::Swap(ref s) = ri.data else {
@@ -4617,8 +4817,8 @@ fn solver_v2_single_partial_whale() {
 			// Verify Dave's balances
 			let dave_hdx_after = Currencies::total_balance(hdx, &dave);
 			let dave_bnc_after = Currencies::total_balance(bnc, &dave);
-			assert_eq!(dave_hdx_after, 8918780496761322023u128);
-			assert_eq!(dave_bnc_after, 70279270757470557u128);
+			assert_eq!(dave_hdx_after, 8921766472234819324u128);
+			assert_eq!(dave_bnc_after, 70085179304736743u128);
 			let hdx_spent = dave_hdx_before.saturating_sub(dave_hdx_after);
 			let bnc_received = dave_bnc_after.saturating_sub(dave_bnc_before);
 
@@ -4830,19 +5030,19 @@ fn solver_v2_all_partial_same_direction() {
 			let pallet_ice::Call::submit_solution { solution, .. } = call else {
 				panic!("Expected submit_solution call");
 			};
-			assert_eq!(solution.resolved_intents.len(), 3, "resolved count");
-			assert_eq!(solution.score, 8006886170885890, "score");
+			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
+			assert_eq!(solution.score, 12488845768617494, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960002);
+				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 125107596400000000u128);
-				assert_eq!(s.amount_out, 8257101362657178u128);
+				assert_eq!(s.amount_in, 500000000000000000u128);
+				assert_eq!(s.amount_out, 32805528605385934u128);
 				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
 			{
@@ -4853,20 +5053,8 @@ fn solver_v2_all_partial_same_direction() {
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 187661394600000000u128);
-				assert_eq!(s.amount_out, 12385652043985767u128);
-				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
-			}
-			{
-				let r = &solution.resolved_intents[2];
-				assert_eq!(r.id, 32752052247409382067756072960000);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 312768991000000000u128);
-				assert_eq!(s.amount_out, 20642753406642945u128);
+				assert_eq!(s.amount_in, 300000000000000000u128);
+				assert_eq!(s.amount_out, 19683317163231560u128);
 				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
 
@@ -5025,7 +5213,7 @@ fn solver_v2_small_partial_fully_filled() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 17436998989586, "score");
+			assert_eq!(solution.score, 17430255289688, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -5036,7 +5224,7 @@ fn solver_v2_small_partial_fully_filled() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 1000000000000000u128);
-				assert_eq!(s.amount_out, 67436998989586u128);
+				assert_eq!(s.amount_out, 67430255289688u128);
 				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
@@ -5076,7 +5264,7 @@ fn solver_v2_small_partial_fully_filled() {
 			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
 			let alice_bnc_after = Currencies::total_balance(bnc, &alice);
 			assert_eq!(alice_hdx_after, 9000000000000000u128);
-			assert_eq!(alice_bnc_after, 67436998989586u128);
+			assert_eq!(alice_bnc_after, 67430255289688u128);
 			let hdx_spent = alice_hdx_before.saturating_sub(alice_hdx_after);
 			let bnc_received = alice_bnc_after.saturating_sub(alice_bnc_before);
 
@@ -5180,7 +5368,7 @@ fn solver_v2_mixed_small_partial_and_non_partial() {
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960001);
+				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
@@ -5192,7 +5380,7 @@ fn solver_v2_mixed_small_partial_and_non_partial() {
 			}
 			{
 				let r = &solution.resolved_intents[1];
-				assert_eq!(r.id, 32752052247409382067756072960000);
+				assert_eq!(r.id, 32752052247409382067756072960001);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
@@ -5528,31 +5716,19 @@ fn solver_v2_competing_partial_intents() {
 			let pallet_ice::Call::submit_solution { solution, .. } = call else {
 				panic!("Expected submit_solution call");
 			};
-			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 4091488, "score");
+			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
+			assert_eq!(solution.score, 1, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960001);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 312768990000000000u128);
-				assert_eq!(s.amount_out, 20642753342045744u128);
-				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
-			}
-			{
-				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 312768990000000000u128);
-				assert_eq!(s.amount_out, 20642753342045744u128);
+				assert_eq!(s.amount_in, 625537982916863060u128);
+				assert_eq!(s.amount_out, 41285506872512962u128);
 				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
 
@@ -5937,7 +6113,7 @@ fn solver_v2_cancel_after_partial_fill() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 3046956489, "score");
+			assert_eq!(solution.score, 0, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -5947,8 +6123,8 @@ fn solver_v2_cancel_after_partial_fill() {
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 1081219503238677977u128);
-				assert_eq!(s.amount_out, 70279270757470557u128);
+				assert_eq!(s.amount_in, 1078233527765180676u128);
+				assert_eq!(s.amount_out, 70085179304736743u128);
 				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
@@ -6112,7 +6288,7 @@ fn solver_v2_partial_loose_limit_full_fill() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 65176201724183457, "score");
+			assert_eq!(solution.score, 65169684004011039, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -6123,7 +6299,7 @@ fn solver_v2_partial_loose_limit_full_fill() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 1000000000000000000u128);
-				assert_eq!(s.amount_out, 65177201724183457u128);
+				assert_eq!(s.amount_out, 65170684004011039u128);
 				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
 
@@ -6241,7 +6417,7 @@ fn solver_v2_single_intent_hdx_to_hydrated_tether() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 19124562085823431471, "score");
+			assert_eq!(solution.score, 19122549629614849128, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -6252,11 +6428,25 @@ fn solver_v2_single_intent_hdx_to_hydrated_tether() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 1111);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 20124562085823431471u128);
+				assert_eq!(s.amount_out, 20122549629614849128u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 
-			assert_eq!(solution.resolved_intents.len(), 1, "Should resolve exactly 1 intent");
+			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
+			assert_eq!(solution.score, 19122549629614849128, "score");
+			assert_eq!(solution.trades.len(), 1, "trades count");
+			{
+				let r = &solution.resolved_intents[0];
+				assert_eq!(r.id, 32752052247409382067756072960000);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 0);
+				assert_eq!(s.asset_out, 1111);
+				assert_eq!(s.amount_in, 10000000000000000u128);
+				assert_eq!(s.amount_out, 20122549629614849128u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
 			assert!(solution.score > 0, "Score should be positive");
 
 			let resolved = &solution.resolved_intents[0];
@@ -6310,7 +6500,7 @@ fn solver_v2_single_intent_hdx_to_hydrated_tether() {
 			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
 			let alice_husdt_after = Currencies::total_balance(husdt, &alice);
 			assert_eq!(alice_hdx_after, 90000000000000000u128);
-			assert_eq!(alice_husdt_after, 20124562085823431471u128);
+			assert_eq!(alice_husdt_after, 20122549629614849128u128);
 			let hdx_spent = alice_hdx_before.saturating_sub(alice_hdx_after);
 			let husdt_received = alice_husdt_after.saturating_sub(alice_husdt_before);
 
@@ -6474,14 +6664,14 @@ fn solver_v2_four_intents_hdx_to_different_atokens() {
 			}
 			{
 				let r = &solution.resolved_intents[1];
-				assert_eq!(r.id, 32752052247409382067756072960002);
+				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
 				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 1113);
+				assert_eq!(s.asset_out, 1111);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 20098700243456728695u128);
+				assert_eq!(s.amount_out, 20119698138402900128u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -6498,14 +6688,14 @@ fn solver_v2_four_intents_hdx_to_different_atokens() {
 			}
 			{
 				let r = &solution.resolved_intents[3];
-				assert_eq!(r.id, 32752052247409382067756072960000);
+				assert_eq!(r.id, 32752052247409382067756072960002);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
 				assert_eq!(s.asset_in, 0);
-				assert_eq!(s.asset_out, 1111);
+				assert_eq!(s.asset_out, 1113);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 20119698138402900128u128);
+				assert_eq!(s.amount_out, 20098700243456728695u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
@@ -6852,7 +7042,7 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 4, "resolved count");
-			assert_eq!(solution.score, 36203275012688809105, "score");
+			assert_eq!(solution.score, 36203275012696113837, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -6862,20 +7052,20 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				};
 				assert_eq!(s.asset_in, 1110);
 				assert_eq!(s.asset_out, 1113);
-				assert_eq!(s.amount_in, 10074432980274158268u128);
-				assert_eq!(s.amount_out, 10050718343691878441u128);
+				assert_eq!(s.amount_in, 10074432980276737426u128);
+				assert_eq!(s.amount_out, 10050718343693021999u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
 				let r = &solution.resolved_intents[1];
-				assert_eq!(r.id, 32752052247409382067756072960002);
+				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
-				assert_eq!(s.asset_in, 1113);
-				assert_eq!(s.asset_out, 1111);
-				assert_eq!(s.amount_in, 10052728889469772396u128);
-				assert_eq!(s.amount_out, 10050718343691878665u128);
+				assert_eq!(s.asset_in, 1111);
+				assert_eq!(s.asset_out, 1110);
+				assert_eq!(s.amount_in, 10062281042911715735u128);
+				assert_eq!(s.amount_out, 10050718343693022796u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -6886,20 +7076,20 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				};
 				assert_eq!(s.asset_in, 1111);
 				assert_eq!(s.asset_out, 1113);
-				assert_eq!(s.amount_in, 10061330244167713258u128);
-				assert_eq!(s.amount_out, 10051119981613172761u128);
+				assert_eq!(s.amount_in, 10061330244171591252u128);
+				assert_eq!(s.amount_out, 10051119981617046819u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
 				let r = &solution.resolved_intents[3];
-				assert_eq!(r.id, 32752052247409382067756072960000);
+				assert_eq!(r.id, 32752052247409382067756072960002);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
 				};
-				assert_eq!(s.asset_in, 1111);
-				assert_eq!(s.asset_out, 1110);
-				assert_eq!(s.amount_in, 10062281042911715735u128);
-				assert_eq!(s.amount_out, 10050718343691879238u128);
+				assert_eq!(s.asset_in, 1113);
+				assert_eq!(s.asset_out, 1111);
+				assert_eq!(s.amount_in, 10052728889470916183u128);
+				assert_eq!(s.amount_out, 10050718343693022223u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 
@@ -7134,7 +7324,7 @@ fn ice_intent_with_evm_gas_eater_token() {
 			panic!("Expected submit_solution call");
 		};
 		assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-		assert_eq!(solution.score, 1993001695769573, "score");
+		assert_eq!(solution.score, 1992802295599997, "score");
 		assert_eq!(solution.trades.len(), 1, "trades count");
 		{
 			let r = &solution.resolved_intents[0];
@@ -7145,7 +7335,7 @@ fn ice_intent_with_evm_gas_eater_token() {
 			assert_eq!(s.asset_in, 1000002);
 			assert_eq!(s.asset_out, 0);
 			assert_eq!(s.amount_in, 200000000000000000u128);
-			assert_eq!(s.amount_out, 1994001695769573u128);
+			assert_eq!(s.amount_out, 1993802295599997u128);
 			assert_eq!(s.partial, ice_support::Partial::No);
 		}
 		let fee_before = fee_receiver_snapshot(&solution);
@@ -7182,7 +7372,7 @@ fn ice_intent_with_evm_gas_eater_token() {
 		// Single intent → no matched volume → no protocol fee. Alice
 		// receives the full resolved amount_out; FeeReceiver gains nothing.
 		let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
-		assert_eq!(alice_hdx_after, 2994001695769573u128);
+		assert_eq!(alice_hdx_after, 2993802295599997u128);
 		let hdx_received = alice_hdx_after.saturating_sub(alice_hdx_before);
 
 		assert_eq!(
@@ -7306,750 +7496,6 @@ fn solver_caps_at_max_resolved_intents() {
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960001);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[1];
-				assert_eq!(r.id, 32752052247409382067756072960003);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[2];
-				assert_eq!(r.id, 32752052247409382067756072960005);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[3];
-				assert_eq!(r.id, 32752052247409382067756072960007);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[4];
-				assert_eq!(r.id, 32752052247409382067756072960009);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[5];
-				assert_eq!(r.id, 32752052247409382067756072960011);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[6];
-				assert_eq!(r.id, 32752052247409382067756072960013);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[7];
-				assert_eq!(r.id, 32752052247409382067756072960015);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[8];
-				assert_eq!(r.id, 32752052247409382067756072960017);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[9];
-				assert_eq!(r.id, 32752052247409382067756072960019);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[10];
-				assert_eq!(r.id, 32752052247409382067756072960021);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[11];
-				assert_eq!(r.id, 32752052247409382067756072960023);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[12];
-				assert_eq!(r.id, 32752052247409382067756072960025);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[13];
-				assert_eq!(r.id, 32752052247409382067756072960027);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[14];
-				assert_eq!(r.id, 32752052247409382067756072960029);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[15];
-				assert_eq!(r.id, 32752052247409382067756072960031);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[16];
-				assert_eq!(r.id, 32752052247409382067756072960033);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[17];
-				assert_eq!(r.id, 32752052247409382067756072960035);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[18];
-				assert_eq!(r.id, 32752052247409382067756072960037);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[19];
-				assert_eq!(r.id, 32752052247409382067756072960039);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[20];
-				assert_eq!(r.id, 32752052247409382067756072960041);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[21];
-				assert_eq!(r.id, 32752052247409382067756072960043);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[22];
-				assert_eq!(r.id, 32752052247409382067756072960045);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[23];
-				assert_eq!(r.id, 32752052247409382067756072960047);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[24];
-				assert_eq!(r.id, 32752052247409382067756072960049);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[25];
-				assert_eq!(r.id, 32752052247409382067756072960051);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[26];
-				assert_eq!(r.id, 32752052247409382067756072960053);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[27];
-				assert_eq!(r.id, 32752052247409382067756072960055);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[28];
-				assert_eq!(r.id, 32752052247409382067756072960057);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[29];
-				assert_eq!(r.id, 32752052247409382067756072960059);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[30];
-				assert_eq!(r.id, 32752052247409382067756072960061);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[31];
-				assert_eq!(r.id, 32752052247409382067756072960063);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[32];
-				assert_eq!(r.id, 32752052247409382067756072960065);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[33];
-				assert_eq!(r.id, 32752052247409382067756072960067);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[34];
-				assert_eq!(r.id, 32752052247409382067756072960069);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[35];
-				assert_eq!(r.id, 32752052247409382067756072960071);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[36];
-				assert_eq!(r.id, 32752052247409382067756072960073);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[37];
-				assert_eq!(r.id, 32752052247409382067756072960075);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[38];
-				assert_eq!(r.id, 32752052247409382067756072960077);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[39];
-				assert_eq!(r.id, 32752052247409382067756072960079);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[40];
-				assert_eq!(r.id, 32752052247409382067756072960081);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[41];
-				assert_eq!(r.id, 32752052247409382067756072960083);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[42];
-				assert_eq!(r.id, 32752052247409382067756072960085);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[43];
-				assert_eq!(r.id, 32752052247409382067756072960087);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[44];
-				assert_eq!(r.id, 32752052247409382067756072960089);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[45];
-				assert_eq!(r.id, 32752052247409382067756072960091);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[46];
-				assert_eq!(r.id, 32752052247409382067756072960093);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[47];
-				assert_eq!(r.id, 32752052247409382067756072960095);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[48];
-				assert_eq!(r.id, 32752052247409382067756072960097);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[49];
-				assert_eq!(r.id, 32752052247409382067756072960099);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[50];
-				assert_eq!(r.id, 32752052247409382067756072960101);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[51];
-				assert_eq!(r.id, 32752052247409382067756072960103);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[52];
-				assert_eq!(r.id, 32752052247409382067756072960105);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[53];
-				assert_eq!(r.id, 32752052247409382067756072960107);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[54];
-				assert_eq!(r.id, 32752052247409382067756072960109);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[55];
-				assert_eq!(r.id, 32752052247409382067756072960111);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[56];
-				assert_eq!(r.id, 32752052247409382067756072960113);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[57];
-				assert_eq!(r.id, 32752052247409382067756072960115);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[58];
-				assert_eq!(r.id, 32752052247409382067756072960117);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[59];
-				assert_eq!(r.id, 32752052247409382067756072960119);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[60];
-				assert_eq!(r.id, 32752052247409382067756072960121);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[61];
-				assert_eq!(r.id, 32752052247409382067756072960123);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 14);
-				assert_eq!(s.asset_out, 0);
-				assert_eq!(s.amount_in, 30000000000000u128);
-				assert_eq!(s.amount_out, 442984002343603u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[62];
 				assert_eq!(r.id, 32752052247409382067756072960000);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8061,7 +7507,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[63];
+				let r = &solution.resolved_intents[1];
 				assert_eq!(r.id, 32752052247409382067756072960002);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8073,7 +7519,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[64];
+				let r = &solution.resolved_intents[2];
 				assert_eq!(r.id, 32752052247409382067756072960004);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8085,7 +7531,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[65];
+				let r = &solution.resolved_intents[3];
 				assert_eq!(r.id, 32752052247409382067756072960006);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8097,7 +7543,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[66];
+				let r = &solution.resolved_intents[4];
 				assert_eq!(r.id, 32752052247409382067756072960008);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8109,7 +7555,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[67];
+				let r = &solution.resolved_intents[5];
 				assert_eq!(r.id, 32752052247409382067756072960010);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8121,7 +7567,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[68];
+				let r = &solution.resolved_intents[6];
 				assert_eq!(r.id, 32752052247409382067756072960012);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8133,7 +7579,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[69];
+				let r = &solution.resolved_intents[7];
 				assert_eq!(r.id, 32752052247409382067756072960014);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8145,7 +7591,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[70];
+				let r = &solution.resolved_intents[8];
 				assert_eq!(r.id, 32752052247409382067756072960016);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8157,7 +7603,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[71];
+				let r = &solution.resolved_intents[9];
 				assert_eq!(r.id, 32752052247409382067756072960018);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8169,7 +7615,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[72];
+				let r = &solution.resolved_intents[10];
 				assert_eq!(r.id, 32752052247409382067756072960020);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8181,7 +7627,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[73];
+				let r = &solution.resolved_intents[11];
 				assert_eq!(r.id, 32752052247409382067756072960022);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8193,7 +7639,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[74];
+				let r = &solution.resolved_intents[12];
 				assert_eq!(r.id, 32752052247409382067756072960024);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8205,7 +7651,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[75];
+				let r = &solution.resolved_intents[13];
 				assert_eq!(r.id, 32752052247409382067756072960026);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8217,7 +7663,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[76];
+				let r = &solution.resolved_intents[14];
 				assert_eq!(r.id, 32752052247409382067756072960028);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8229,7 +7675,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[77];
+				let r = &solution.resolved_intents[15];
 				assert_eq!(r.id, 32752052247409382067756072960030);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8241,7 +7687,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[78];
+				let r = &solution.resolved_intents[16];
 				assert_eq!(r.id, 32752052247409382067756072960032);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8253,7 +7699,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[79];
+				let r = &solution.resolved_intents[17];
 				assert_eq!(r.id, 32752052247409382067756072960034);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8265,7 +7711,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[80];
+				let r = &solution.resolved_intents[18];
 				assert_eq!(r.id, 32752052247409382067756072960036);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8277,7 +7723,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[81];
+				let r = &solution.resolved_intents[19];
 				assert_eq!(r.id, 32752052247409382067756072960038);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8289,7 +7735,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[82];
+				let r = &solution.resolved_intents[20];
 				assert_eq!(r.id, 32752052247409382067756072960040);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8301,7 +7747,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[83];
+				let r = &solution.resolved_intents[21];
 				assert_eq!(r.id, 32752052247409382067756072960042);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8313,7 +7759,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[84];
+				let r = &solution.resolved_intents[22];
 				assert_eq!(r.id, 32752052247409382067756072960044);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8325,7 +7771,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[85];
+				let r = &solution.resolved_intents[23];
 				assert_eq!(r.id, 32752052247409382067756072960046);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8337,7 +7783,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[86];
+				let r = &solution.resolved_intents[24];
 				assert_eq!(r.id, 32752052247409382067756072960048);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8349,7 +7795,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[87];
+				let r = &solution.resolved_intents[25];
 				assert_eq!(r.id, 32752052247409382067756072960050);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8361,7 +7807,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[88];
+				let r = &solution.resolved_intents[26];
 				assert_eq!(r.id, 32752052247409382067756072960052);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8373,7 +7819,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[89];
+				let r = &solution.resolved_intents[27];
 				assert_eq!(r.id, 32752052247409382067756072960054);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8385,7 +7831,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[90];
+				let r = &solution.resolved_intents[28];
 				assert_eq!(r.id, 32752052247409382067756072960056);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8397,7 +7843,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[91];
+				let r = &solution.resolved_intents[29];
 				assert_eq!(r.id, 32752052247409382067756072960058);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8409,7 +7855,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[92];
+				let r = &solution.resolved_intents[30];
 				assert_eq!(r.id, 32752052247409382067756072960060);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8421,7 +7867,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[93];
+				let r = &solution.resolved_intents[31];
 				assert_eq!(r.id, 32752052247409382067756072960062);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8433,7 +7879,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[94];
+				let r = &solution.resolved_intents[32];
 				assert_eq!(r.id, 32752052247409382067756072960064);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8445,7 +7891,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[95];
+				let r = &solution.resolved_intents[33];
 				assert_eq!(r.id, 32752052247409382067756072960066);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8457,7 +7903,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[96];
+				let r = &solution.resolved_intents[34];
 				assert_eq!(r.id, 32752052247409382067756072960068);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8469,7 +7915,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[97];
+				let r = &solution.resolved_intents[35];
 				assert_eq!(r.id, 32752052247409382067756072960070);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8481,7 +7927,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[98];
+				let r = &solution.resolved_intents[36];
 				assert_eq!(r.id, 32752052247409382067756072960072);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8493,7 +7939,7 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
-				let r = &solution.resolved_intents[99];
+				let r = &solution.resolved_intents[37];
 				assert_eq!(r.id, 32752052247409382067756072960074);
 				let ice_support::IntentData::Swap(ref s) = r.data else {
 					panic!("expected Swap");
@@ -8502,6 +7948,750 @@ fn solver_caps_at_max_resolved_intents() {
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 500000000000000u128);
 				assert_eq!(s.amount_out, 33814325855205u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[38];
+				assert_eq!(r.id, 32752052247409382067756072960001);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[39];
+				assert_eq!(r.id, 32752052247409382067756072960003);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[40];
+				assert_eq!(r.id, 32752052247409382067756072960005);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[41];
+				assert_eq!(r.id, 32752052247409382067756072960007);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[42];
+				assert_eq!(r.id, 32752052247409382067756072960009);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[43];
+				assert_eq!(r.id, 32752052247409382067756072960011);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[44];
+				assert_eq!(r.id, 32752052247409382067756072960013);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[45];
+				assert_eq!(r.id, 32752052247409382067756072960015);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[46];
+				assert_eq!(r.id, 32752052247409382067756072960017);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[47];
+				assert_eq!(r.id, 32752052247409382067756072960019);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[48];
+				assert_eq!(r.id, 32752052247409382067756072960021);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[49];
+				assert_eq!(r.id, 32752052247409382067756072960023);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[50];
+				assert_eq!(r.id, 32752052247409382067756072960025);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[51];
+				assert_eq!(r.id, 32752052247409382067756072960027);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[52];
+				assert_eq!(r.id, 32752052247409382067756072960029);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[53];
+				assert_eq!(r.id, 32752052247409382067756072960031);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[54];
+				assert_eq!(r.id, 32752052247409382067756072960033);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[55];
+				assert_eq!(r.id, 32752052247409382067756072960035);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[56];
+				assert_eq!(r.id, 32752052247409382067756072960037);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[57];
+				assert_eq!(r.id, 32752052247409382067756072960039);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[58];
+				assert_eq!(r.id, 32752052247409382067756072960041);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[59];
+				assert_eq!(r.id, 32752052247409382067756072960043);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[60];
+				assert_eq!(r.id, 32752052247409382067756072960045);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[61];
+				assert_eq!(r.id, 32752052247409382067756072960047);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[62];
+				assert_eq!(r.id, 32752052247409382067756072960049);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[63];
+				assert_eq!(r.id, 32752052247409382067756072960051);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[64];
+				assert_eq!(r.id, 32752052247409382067756072960053);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[65];
+				assert_eq!(r.id, 32752052247409382067756072960055);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[66];
+				assert_eq!(r.id, 32752052247409382067756072960057);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[67];
+				assert_eq!(r.id, 32752052247409382067756072960059);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[68];
+				assert_eq!(r.id, 32752052247409382067756072960061);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[69];
+				assert_eq!(r.id, 32752052247409382067756072960063);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[70];
+				assert_eq!(r.id, 32752052247409382067756072960065);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[71];
+				assert_eq!(r.id, 32752052247409382067756072960067);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[72];
+				assert_eq!(r.id, 32752052247409382067756072960069);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[73];
+				assert_eq!(r.id, 32752052247409382067756072960071);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[74];
+				assert_eq!(r.id, 32752052247409382067756072960073);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[75];
+				assert_eq!(r.id, 32752052247409382067756072960075);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[76];
+				assert_eq!(r.id, 32752052247409382067756072960077);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[77];
+				assert_eq!(r.id, 32752052247409382067756072960079);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[78];
+				assert_eq!(r.id, 32752052247409382067756072960081);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[79];
+				assert_eq!(r.id, 32752052247409382067756072960083);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[80];
+				assert_eq!(r.id, 32752052247409382067756072960085);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[81];
+				assert_eq!(r.id, 32752052247409382067756072960087);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[82];
+				assert_eq!(r.id, 32752052247409382067756072960089);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[83];
+				assert_eq!(r.id, 32752052247409382067756072960091);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[84];
+				assert_eq!(r.id, 32752052247409382067756072960093);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[85];
+				assert_eq!(r.id, 32752052247409382067756072960095);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[86];
+				assert_eq!(r.id, 32752052247409382067756072960097);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[87];
+				assert_eq!(r.id, 32752052247409382067756072960099);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[88];
+				assert_eq!(r.id, 32752052247409382067756072960101);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[89];
+				assert_eq!(r.id, 32752052247409382067756072960103);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[90];
+				assert_eq!(r.id, 32752052247409382067756072960105);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[91];
+				assert_eq!(r.id, 32752052247409382067756072960107);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[92];
+				assert_eq!(r.id, 32752052247409382067756072960109);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[93];
+				assert_eq!(r.id, 32752052247409382067756072960111);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[94];
+				assert_eq!(r.id, 32752052247409382067756072960113);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[95];
+				assert_eq!(r.id, 32752052247409382067756072960115);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[96];
+				assert_eq!(r.id, 32752052247409382067756072960117);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[97];
+				assert_eq!(r.id, 32752052247409382067756072960119);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[98];
+				assert_eq!(r.id, 32752052247409382067756072960121);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
+				assert_eq!(s.partial, ice_support::Partial::No);
+			}
+			{
+				let r = &solution.resolved_intents[99];
+				assert_eq!(r.id, 32752052247409382067756072960123);
+				let ice_support::IntentData::Swap(ref s) = r.data else {
+					panic!("expected Swap");
+				};
+				assert_eq!(s.asset_in, 14);
+				assert_eq!(s.asset_out, 0);
+				assert_eq!(s.amount_in, 30000000000000u128);
+				assert_eq!(s.amount_out, 442984002343603u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
