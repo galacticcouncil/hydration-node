@@ -1,0 +1,29 @@
+[package]
+name = "ice-solver-bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+hydradx-runtime = { workspace = true, features = ["std"] }
+hydradx-traits = { workspace = true, features = ["std"] }
+ice-solver = { workspace = true, features = ["std"] }
+ice-support = { workspace = true, features = ["std"] }
+amm-simulator = { workspace = true, features = ["std"] }
+pallet-intent = { workspace = true, features = ["std"] }
+pallet-omnipool = { workspace = true, features = ["std"] }
+pallet-ema-oracle = { workspace = true, features = ["std"] }
+primitives = { workspace = true, features = ["std"] }
+frame-support = { workspace = true, features = ["std"] }
+frame-system = { workspace = true, features = ["std"] }
+frame-remote-externalities = { workspace = true }
+sp-core = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, features = ["std"] }
+tokio = { workspace = true }
+criterion = { workspace = true }
+log = { workspace = true, features = ["std"] }
+
+[[bench]]
+name = "solver"
+harness = false
