@@ -35,10 +35,17 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MultiplySchedulesPeriodBy3<T> {
 			return T::DbWeight::get().reads(reads);
 		}
 
-		for (key, mut schedule) in crate::Schedules::<T>::iter() {
+		let schedules: sp_std::vec::Vec<_> = crate::Schedules::<T>::iter().collect();
+		reads.saturating_accrue(schedules.len() as u64);
+
+		log::info!(
+			"MultiplySchedulesPeriodBy3 found schedules: {:?}, processing cap: 150",
+			schedules.len()
+		);
+
+		for (key, mut schedule) in schedules {
 			schedule.period = schedule.period.saturating_mul(3u32.into());
 			crate::Schedules::<T>::insert(key, schedule);
-			reads.saturating_inc();
 			writes.saturating_inc();
 
 			// At the time before the migration there are ~60 schedules.

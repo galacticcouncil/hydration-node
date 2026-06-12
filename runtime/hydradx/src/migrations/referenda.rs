@@ -72,25 +72,38 @@ where
 
 		let mut reads = 1u64;
 		let mut ongoing_referenda = Vec::new();
+		let mut ongoing_count = 0u64;
 
 		for (index, info) in ReferendumInfoFor::<T, I>::iter() {
 			reads.saturating_inc();
 
 			if let ReferendumInfo::Ongoing(status) = info {
-				if ongoing_referenda.len() as u64 >= MAX_ACTIVE_REFERENDA {
-					log::error!(
-						"MigrateReferendaTo2sBlocks skipped because ReferendumInfoFor has more than {:?} ongoing referenda",
-						MAX_ACTIVE_REFERENDA
-					);
-					return T::DbWeight::get().reads(reads);
-				}
+				ongoing_count.saturating_inc();
 
-				ongoing_referenda.push((index, status));
+				if ongoing_count <= MAX_ACTIVE_REFERENDA {
+					ongoing_referenda.push((index, status));
+				}
 			}
 		}
 
 		let current_block = <T as pallet::Config<I>>::BlockNumberProvider::current_block_number();
 		let checked = reads.saturating_sub(1);
+		log::info!(
+			"MigrateReferendaTo2sBlocks found ReferendumInfoFor records: {:?}, ongoing: {:?}, ongoing cap: {:?}",
+			checked,
+			ongoing_count,
+			MAX_ACTIVE_REFERENDA,
+		);
+
+		if ongoing_count > MAX_ACTIVE_REFERENDA {
+			log::error!(
+				"MigrateReferendaTo2sBlocks skipped because ReferendumInfoFor has {:?} ongoing referenda, cap: {:?}",
+				ongoing_count,
+				MAX_ACTIVE_REFERENDA,
+			);
+			return T::DbWeight::get().reads(reads);
+		}
+
 		let ongoing_len = ongoing_referenda.len();
 		let mut migrated = 0u64;
 		let mut writes = 0u64;

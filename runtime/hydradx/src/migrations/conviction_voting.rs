@@ -45,17 +45,22 @@ impl<T: pallet::Config<I>, I: 'static> OnRuntimeUpgrade for MigrateConvictionVot
 		}
 
 		let current_block = <T as pallet::Config<I>>::BlockNumberProvider::current_block_number();
-		let voting_for_records = VotingFor::<T, I>::iter()
-			.take(MAX_VOTING_FOR_RECORDS.saturating_add(1) as usize)
-			.count() as u64;
+		let voting_for_records = VotingFor::<T, I>::iter().count() as u64;
 		let mut reads = 1u64.saturating_add(voting_for_records);
 		let mut writes = 0u64;
 		let mut migrated = 0u64;
 
+		log::info!(
+			"MigrateConvictionVotingTo2sBlocks found VotingFor records: {:?}, cap: {:?}",
+			voting_for_records,
+			MAX_VOTING_FOR_RECORDS,
+		);
+
 		if voting_for_records > MAX_VOTING_FOR_RECORDS {
 			log::error!(
-				"MigrateConvictionVotingTo2sBlocks skipped because VotingFor has more than {:?} records",
-				MAX_VOTING_FOR_RECORDS
+				"MigrateConvictionVotingTo2sBlocks skipped because VotingFor has {:?} records, cap: {:?}",
+				voting_for_records,
+				MAX_VOTING_FOR_RECORDS,
 			);
 			return T::DbWeight::get().reads(reads);
 		}

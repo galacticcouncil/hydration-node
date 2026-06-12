@@ -50,8 +50,17 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo2sBlocks<T> {
 		let lookup: Vec<_> = pallet_scheduler::Lookup::<T>::iter().collect();
 		let lookup_len = lookup.len() as u64;
 
+		log::info!(
+			"MigrateSchedulerTo2sBlocks found Agenda entries: {:?}, Agenda cap: 150, Lookup entries: {:?}, Lookup cap: 5",
+			agenda_len,
+			lookup_len,
+		);
+
 		if agenda_len >= 150 {
-			log::error!("Error: more than 150 agendas exist, len: {:?}", agenda_len);
+			log::error!(
+				"MigrateSchedulerTo2sBlocks skipped because Agenda has {:?} entries, cap: 150",
+				agenda_len
+			);
 			return T::DbWeight::get().reads_writes(agenda_len.saturating_add(lookup_len).saturating_add(1), 0);
 		}
 

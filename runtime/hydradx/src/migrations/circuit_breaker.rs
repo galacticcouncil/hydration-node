@@ -33,9 +33,10 @@ impl<T: pallet::Config> MigrateCircuitBreakerLimitsTo2sBlocks<T> {
 			true
 		} else {
 			log::error!(
-				"MigrateCircuitBreakerLimitsTo2sBlocks skipped because {:?} has more than {:?} entries",
+				"MigrateCircuitBreakerLimitsTo2sBlocks skipped because {:?} has {:?} entries, cap: {:?}",
 				map,
-				MAX_LIMIT_ENTRIES_PER_MAP
+				len,
+				MAX_LIMIT_ENTRIES_PER_MAP,
 			);
 			false
 		}
@@ -49,31 +50,33 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateCircuitBreakerLimitsTo2sBloc
 			return T::DbWeight::get().reads(1);
 		}
 
-		let trade_limits: Vec<_> = TradeVolumeLimitPerAsset::<T>::iter()
-			.take(MAX_LIMIT_ENTRIES_PER_MAP.saturating_add(1) as usize)
-			.collect();
-		let add_limits: Vec<_> = LiquidityAddLimitPerAsset::<T>::iter()
-			.take(MAX_LIMIT_ENTRIES_PER_MAP.saturating_add(1) as usize)
-			.collect();
-		let remove_limits: Vec<_> = LiquidityRemoveLimitPerAsset::<T>::iter()
-			.take(MAX_LIMIT_ENTRIES_PER_MAP.saturating_add(1) as usize)
-			.collect();
+		let trade_limits: Vec<_> = TradeVolumeLimitPerAsset::<T>::iter().collect();
+		let add_limits: Vec<_> = LiquidityAddLimitPerAsset::<T>::iter().collect();
+		let remove_limits: Vec<_> = LiquidityRemoveLimitPerAsset::<T>::iter().collect();
+		let trade_limits_len = trade_limits.len();
+		let add_limits_len = add_limits.len();
+		let remove_limits_len = remove_limits.len();
 
 		let reads = 1u64
-			.saturating_add(trade_limits.len() as u64)
-			.saturating_add(add_limits.len() as u64)
-			.saturating_add(remove_limits.len() as u64);
+			.saturating_add(trade_limits_len as u64)
+			.saturating_add(add_limits_len as u64)
+			.saturating_add(remove_limits_len as u64);
 
-		if !Self::is_within_limit(trade_limits.len() as u64, "TradeVolumeLimitPerAsset")
-			|| !Self::is_within_limit(add_limits.len() as u64, "LiquidityAddLimitPerAsset")
-			|| !Self::is_within_limit(remove_limits.len() as u64, "LiquidityRemoveLimitPerAsset")
+		log::info!(
+			"MigrateCircuitBreakerLimitsTo2sBlocks found entries - trade: {:?}, add liquidity: {:?}, remove liquidity: {:?}, cap per map: {:?}",
+			trade_limits_len,
+			add_limits_len,
+			remove_limits_len,
+			MAX_LIMIT_ENTRIES_PER_MAP,
+		);
+
+		if !Self::is_within_limit(trade_limits_len as u64, "TradeVolumeLimitPerAsset")
+			|| !Self::is_within_limit(add_limits_len as u64, "LiquidityAddLimitPerAsset")
+			|| !Self::is_within_limit(remove_limits_len as u64, "LiquidityRemoveLimitPerAsset")
 		{
 			return T::DbWeight::get().reads(reads);
 		}
 
-		let trade_limits_len = trade_limits.len();
-		let add_limits_len = add_limits.len();
-		let remove_limits_len = remove_limits.len();
 		let mut writes = 0u64;
 
 		for (asset, limit) in trade_limits {
