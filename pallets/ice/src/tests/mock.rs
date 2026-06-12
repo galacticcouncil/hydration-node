@@ -586,6 +586,7 @@ impl ExtBuilder {
 		self
 	}
 
+	#[allow(clippy::too_many_arguments)]
 	pub fn with_router_settlement(
 		mut self,
 		trade_type: SwapType,

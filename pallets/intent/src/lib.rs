@@ -27,6 +27,7 @@
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::useless_conversion)]
 
 #[cfg(test)]
 mod tests;
@@ -350,7 +351,7 @@ pub mod pallet {
 				let tx = T::create_bare(call.into());
 				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
 					debug_assert!(false, "laxy-executorn: failed to submit dispatch_top transaction");
-					log::error!(target: OCW_LOG_TARGET, "{:?}: to submit cleanup_intent call, err: {:?}", LOG_PREFIX, e);
+					log::error!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: to submit cleanup_intent call, err: {e:?}");
 				};
 			}
 		}
@@ -540,8 +541,7 @@ impl<T: Config> Pallet<T> {
 						// Period eligibility
 						let next_eligible = dca.last_execution_block.saturating_add(dca.period);
 						if current_block < next_eligible {
-							log::debug!(target: OCW_LOG_TARGET, "{:?}: get_valid_intents(), DCA intent {:?} skipped: period not elapsed (current_block: {}, next_eligible: {})",
-								LOG_PREFIX, id, current_block, next_eligible);
+							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: get_valid_intents(), DCA intent {id:?} skipped: period not elapsed (current_block: {current_block}, next_eligible: {next_eligible})");
 							return None;
 						}
 						// Budget sufficient for a trade

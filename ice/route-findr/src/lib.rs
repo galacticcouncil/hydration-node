@@ -342,7 +342,7 @@ mod tests {
 					.chain(route.iter().map(|t| t.asset_out))
 					.collect();
 				let unique: alloc::collections::BTreeSet<_> = assets.iter().collect();
-				assert_eq!(assets.len(), unique.len(), "route has cycle: {:?}", route);
+				assert_eq!(assets.len(), unique.len(), "route has cycle: {route:?}");
 			}
 		}
 

@@ -346,20 +346,20 @@ fn find_pool(
 	snapshot: &StableswapSnapshot,
 ) -> Result<(AssetId, &PoolSnapshot<AssetId>), SimulatorError> {
 	if let Some(pool) = snapshot.pools.get(&asset_a) {
-		if pool.assets.iter().any(|&a| a == asset_b) {
+		if pool.assets.contains(&asset_b) {
 			return Ok((asset_a, pool));
 		}
 	}
 
 	if let Some(pool) = snapshot.pools.get(&asset_b) {
-		if pool.assets.iter().any(|&a| a == asset_a) {
+		if pool.assets.contains(&asset_a) {
 			return Ok((asset_b, pool));
 		}
 	}
 
 	for (pool_id, pool) in &snapshot.pools {
-		let has_a = pool.assets.iter().any(|&a| a == asset_a);
-		let has_b = pool.assets.iter().any(|&a| a == asset_b);
+		let has_a = pool.assets.contains(&asset_a);
+		let has_b = pool.assets.contains(&asset_b);
 		if has_a && has_b {
 			return Ok((*pool_id, pool));
 		}

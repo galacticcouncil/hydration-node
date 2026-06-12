@@ -42,7 +42,7 @@ fn should_work_when_intent_is_valid() {
 				let id = match r {
 					Ok(id) => id,
 					_ => {
-						panic!("Expected Ok(_). Got {:#?}", r);
+						panic!("Expected Ok(_). Got {r:#?}");
 					}
 				};
 
@@ -245,7 +245,7 @@ fn should_work_when_intent_has_no_deadline() {
 				let id = match r {
 					Ok(id) => id,
 					_ => {
-						panic!("Expected Ok(_). Got {:#?}", r);
+						panic!("Expected Ok(_). Got {r:#?}");
 					}
 				};
 

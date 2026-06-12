@@ -354,7 +354,7 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 
 			//Act 4
 			let mut s4 = s.clone();
-			s4.score = Score::max_value();
+			s4.score = Score::MAX;
 			let call = Call::submit_solution { solution: s4 };
 
 			assert_noop!(

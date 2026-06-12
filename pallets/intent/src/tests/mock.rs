@@ -157,8 +157,8 @@ pub(crate) const MIN_DCA_PERIOD: u32 = 5;
 
 thread_local! {
 	pub static QUEUD_TASKS: RefCell<Vec<(Source, AccountId)>> = RefCell::new(Vec::default());
-	pub static ORACLE_PRICE: RefCell<Option<EmaPrice>> = RefCell::new(None);
-	pub static BLOCK_NUMBER: RefCell<u64> = RefCell::new(1);
+	pub static ORACLE_PRICE: RefCell<Option<EmaPrice>> = const { RefCell::new(None) };
+	pub static BLOCK_NUMBER: RefCell<u64> = const { RefCell::new(1) };
 }
 
 pub fn set_oracle_price(price: Option<EmaPrice>) {

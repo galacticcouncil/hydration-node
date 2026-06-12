@@ -131,7 +131,7 @@ impl<DP: DataProvider> Simulator<DP> {
 
 		let (exit_reason, value) = DP::view(ctx, data, GAS_LIMIT);
 		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::error!(target: LOG_TARGET, "to get reserves list reason: {:?}, value: {:?}", exit_reason, value);
+			log::error!(target: LOG_TARGET, "to get reserves list reason: {exit_reason:?}, value: {value:?}");
 			return Err(SimulatorError::Other);
 		}
 
@@ -163,7 +163,7 @@ impl<DP: DataProvider> Simulator<DP> {
 
 		let (exit_reason, value) = DP::view(ctc, data, GAS_LIMIT);
 		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::error!(target: LOG_TARGET, "to get reserves data, reason: {:?}, value: {:?}", exit_reason, value);
+			log::error!(target: LOG_TARGET, "to get reserves data, reason: {exit_reason:?}, value: {value:?}");
 			return Err(SimulatorError::Other);
 		}
 
@@ -225,7 +225,7 @@ impl<DP: DataProvider> Simulator<DP> {
 
 		let (exit_reason, value) = DP::view(ctx, data, GAS_LIMIT);
 		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::error!(target: LOG_TARGET, "to get scaled total supply, reserve: {:?}, reason: {:?}, value: {:?}", reserve, exit_reason, value );
+			log::error!(target: LOG_TARGET, "to get scaled total supply, reserve: {reserve:?}, reason: {exit_reason:?}, value: {value:?}");
 			return Err(SimulatorError::Other);
 		}
 
@@ -258,8 +258,8 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			};
 
 			let Some(asset_id) = DP::address_to_asset(addr) else {
-				debug_assert!(false, "Failed to map reserve address to asset, reserve: {:?}", addr);
-				log::error!(target: LOG_TARGET, "to map reserve address to asset, reserve: {:?}", addr);
+				debug_assert!(false, "Failed to map reserve address to asset, reserve: {addr:?}");
+				log::error!(target: LOG_TARGET, "to map reserve address to asset, reserve: {addr:?}");
 				snapshot.reserves.clear();
 				break;
 			};

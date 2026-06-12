@@ -55,6 +55,7 @@ construct_runtime!(
 pub mod mock_pallet {
 	pub use pallet::*;
 	#[frame_support::pallet(dev_mode)]
+	#[allow(clippy::let_unit_value)]
 	pub mod pallet {
 		use crate::tests::mock::AccountId;
 		use crate::{ensure_signed, OriginFor};
@@ -211,7 +212,6 @@ where
 }
 
 impl pallet_lazy_executor::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type UnsignedPriority = ConstU64<100>;
 	type UnsignedLongevity = ConstU64<3>;

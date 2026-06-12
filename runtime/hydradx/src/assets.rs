@@ -1906,11 +1906,11 @@ impl<S: SimulatorSet> hydradx_traits::amm::RouteDiscovery<S::State> for SmartRou
 		let routes = route_findr::get_routes(asset_in, asset_out, pool_edges);
 
 		if routes.is_empty() {
-			log::debug!(target: "solver", "no routes found for {} -> {}", asset_in, asset_out);
+			log::debug!(target: "solver", "no routes found for {asset_in} -> {asset_out}");
 			return Err(SimulatorError::NotSupported);
 		}
 
-		log::debug!(target: "solver", "found {} route(s) for {} -> {}", routes.len(), asset_in, asset_out);
+		log::debug!(target: "solver", "found {} route(s) for {asset_in} -> {asset_out}", routes.len());
 		Ok(routes)
 	}
 }

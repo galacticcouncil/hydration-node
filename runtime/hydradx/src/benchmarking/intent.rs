@@ -5,8 +5,7 @@ use frame_benchmarking::account;
 use frame_system::RawOrigin;
 use ice_support::IntentDataInput;
 use ice_support::IntentId;
-use ice_support::SwapData;
-use ice_support::SwapType;
+use ice_support::SwapParams;
 use orml_benchmarking::runtime_benchmarks;
 use pallet_intent::types::Intent as IntentT;
 use pallet_intent::types::IntentInput;
@@ -46,7 +45,6 @@ runtime_benchmarks! {
 				asset_out: DAI,
 				amount_in: 3000 * TRIL,
 				amount_out: 10 * QUINTIL,
-				swap_type: SwapType::ExactIn,
 				partial: false,
 			}),
 			deadline: Some(DEADLINE),
@@ -76,7 +74,6 @@ runtime_benchmarks! {
 				asset_out: DAI,
 				amount_in: 3000 * TRIL,
 				amount_out: 10 * QUINTIL,
-				swap_type: SwapType::ExactIn,
 				partial: false,
 			}),
 			deadline: Some(DEADLINE),
@@ -111,13 +108,12 @@ runtime_benchmarks! {
 		//NOTE: it's ok to use junk, we are not really dispatching it.
 		let on_resolved: Vec<u8> = vec![255; MAX_DATA_SIZE as usize];
 
-		let intent = IntentT {
-			data: IntentData::Swap(SwapData {
+		let intent = IntentInput {
+			data: IntentDataInput::Swap(SwapParams {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: 3000 * TRIL,
 				amount_out: 10 * QUINTIL,
-				swap_type: SwapType::ExactIn,
 				partial: false,
 			}),
 			deadline: Some(DEADLINE),

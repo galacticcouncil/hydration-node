@@ -45,7 +45,15 @@ fn bench_resolvable(c: &mut Criterion) {
 	for n in [10, 50, 100, 200] {
 		let intents = generate_resolvable_intents(n);
 		group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
-			b.iter(|| ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone()))))
+			b.iter(|| {
+				ext.execute_with(|| {
+					Solver::solve(
+						black_box(intents.clone()),
+						black_box(state.clone()),
+						black_box(Permill::zero()),
+					)
+				})
+			})
 		});
 	}
 	group.finish();
@@ -60,7 +68,15 @@ fn bench_unresolvable(c: &mut Criterion) {
 	for n in [10, 50, 100, 500, 1000, 5000] {
 		let intents = generate_unresolvable_intents(n);
 		group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
-			b.iter(|| ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone()))))
+			b.iter(|| {
+				ext.execute_with(|| {
+					Solver::solve(
+						black_box(intents.clone()),
+						black_box(state.clone()),
+						black_box(Permill::zero()),
+					)
+				})
+			})
 		});
 	}
 	group.finish();
@@ -74,9 +90,17 @@ fn bench_mixed(c: &mut Criterion) {
 	let mut group = c.benchmark_group("solver_mixed");
 	for (good, bad) in [(50, 50), (50, 500), (50, 5000), (100, 5000)] {
 		let intents = generate_mixed_intents(good, bad);
-		let label = format!("{}good_{}bad", good, bad);
+		let label = format!("{good}good_{bad}bad");
 		group.bench_with_input(BenchmarkId::new("intents", &label), &label, |b, _| {
-			b.iter(|| ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone()))))
+			b.iter(|| {
+				ext.execute_with(|| {
+					Solver::solve(
+						black_box(intents.clone()),
+						black_box(state.clone()),
+						black_box(Permill::zero()),
+					)
+				})
+			})
 		});
 	}
 	group.finish();
@@ -115,7 +139,15 @@ fn bench_partial(c: &mut Criterion) {
 	for n in [1, 2, 5, 10, 20] {
 		let intents = generate_partial_intents(n);
 		group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
-			b.iter(|| ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone()))))
+			b.iter(|| {
+				ext.execute_with(|| {
+					Solver::solve(
+						black_box(intents.clone()),
+						black_box(state.clone()),
+						black_box(Permill::zero()),
+					)
+				})
+			})
 		});
 	}
 	group.finish();
@@ -130,9 +162,17 @@ fn bench_mixed_partial(c: &mut Criterion) {
 	// (non-partial, partial)
 	for (np, p) in [(10, 1), (10, 5), (10, 10), (50, 10), (50, 50), (100, 20)] {
 		let intents = generate_mixed_partial_intents(np, p);
-		let label = format!("{}np_{}p", np, p);
+		let label = format!("{np}np_{p}p");
 		group.bench_with_input(BenchmarkId::new("intents", &label), &label, |b, _| {
-			b.iter(|| ext.execute_with(|| Solver::solve(black_box(intents.clone()), black_box(state.clone()))))
+			b.iter(|| {
+				ext.execute_with(|| {
+					Solver::solve(
+						black_box(intents.clone()),
+						black_box(state.clone()),
+						black_box(Permill::zero()),
+					)
+				})
+			})
 		});
 	}
 	group.finish();

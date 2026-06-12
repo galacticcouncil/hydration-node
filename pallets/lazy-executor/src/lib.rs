@@ -167,7 +167,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
-			log::debug!(target: LOG_TARGET, "run offchain worker on block: {:?}", block_number);
+			log::debug!(target: LOG_TARGET, "run offchain worker on block: {block_number:?}");
 
 			let mut next_id = Self::dispatch_next_id();
 			for _ in 0..Self::max_txs_per_block() {
@@ -183,7 +183,7 @@ pub mod pallet {
 					let tx = T::create_bare(call.into());
 					if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
 						debug_assert!(false, "laxy-executorn: failed to submit dispatch_top transaction");
-						log::error!(target: LOG_TARGET, "to submit dispatch_top call, err: {:?}", e);
+						log::error!(target: LOG_TARGET, "to submit dispatch_top call, err: {e:?}");
 					}
 				} else {
 					break;

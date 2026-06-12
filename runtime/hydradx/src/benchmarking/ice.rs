@@ -12,7 +12,7 @@ use ice_support::IntentId;
 use ice_support::Price;
 use ice_support::Solution;
 use ice_support::SwapData;
-use ice_support::SwapType;
+use ice_support::SwapParams;
 use ice_support::MAX_NUMBER_OF_RESOLVED_INTENTS;
 use orml_benchmarking::runtime_benchmarks;
 use pallet_intent::types::Intent as IntentT;
@@ -67,17 +67,16 @@ runtime_benchmarks! {
 			amount: 10 * TRIL
 		}).encode();
 
-		let swap_data = SwapData {
+		let swap_params = SwapParams {
 			asset_in: HDX,
 			asset_out: DAI,
 			amount_in: 3000 * TRIL,
 			amount_out: 10 * QUINTIL,
-			swap_type: SwapType::ExactIn,
 			partial: false,
 		};
 
 		let intent = IntentInput {
-			data: IntentDataInput::Swap(swap_data.clone()),
+			data: IntentDataInput::Swap(swap_params.clone()),
 			deadline: DEADLINE,
 			on_resolved: Some(cb.clone().try_into().unwrap()),
 		};
@@ -89,7 +88,7 @@ runtime_benchmarks! {
 
 		let resolved_intents = vec![IntentIce {
 			id,
-			data: IntentData::Swap(swap_data),
+			data: IntentData::Swap(SwapData::from(&swap_params)),
 		}];
 
 		let mut cp: BTreeMap<AssetId, Price> = BTreeMap::new();
