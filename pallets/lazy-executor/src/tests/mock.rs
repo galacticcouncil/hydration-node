@@ -55,7 +55,6 @@ construct_runtime!(
 pub mod mock_pallet {
 	pub use pallet::*;
 	#[frame_support::pallet(dev_mode)]
-	#[allow(clippy::let_unit_value)]
 	pub mod pallet {
 		use crate::tests::mock::AccountId;
 		use crate::{ensure_signed, OriginFor};
@@ -65,9 +64,7 @@ pub mod mock_pallet {
 		pub struct Pallet<T>(_);
 
 		#[pallet::config]
-		pub trait Config: frame_system::Config<AccountId = AccountId> + Sized {
-			type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-		}
+		pub trait Config: frame_system::Config<AccountId = AccountId, RuntimeEvent: From<Event<Self>>> + Sized {}
 
 		#[pallet::event]
 		#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -169,9 +166,7 @@ impl frame_system::Config for Test {
 	type ExtensionsWeightInfo = ();
 }
 
-impl mock_pallet::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-}
+impl mock_pallet::Config for Test {}
 
 parameter_types! {
 	pub const MaxLocks: u32 = 20;
