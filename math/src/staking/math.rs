@@ -50,22 +50,40 @@ pub fn calculate_slashed_points(
 /// Function calculates period number from block number and period size.
 ///
 /// Parameters:
-/// - `period_length`: length of the one period in blocks
+/// - `period_length`: length of one period based on 12s blocks (this was the initial default)
 /// - `block_number`: block number to calculate period for
-/// - `six_sec_block_since`: block number when staking switched to 6 sec. blocks and period
-/// - `period_length` should be doubled
+/// - `six_sec_blocks_since`: block number when staking switched to 6s blocks
+/// - `two_sec_blocks_since`: block number when staking switched to 2s blocks
 pub fn calculate_period_number(
 	period_length: NonZeroU128,
 	block_number: u128,
-	six_sec_block_since: NonZeroU128,
+	six_sec_blocks_since: NonZeroU128,
+	two_sec_blocks_since: NonZeroU128,
 ) -> Period {
-	if block_number.le(&Into::<u128>::into(six_sec_block_since)) {
-		return block_number.saturating_div(period_length.get());
+	let period_length = period_length.get();
+	let six_sec_blocks_since = six_sec_blocks_since.get();
+	let two_sec_blocks_since = two_sec_blocks_since.get();
+
+	if block_number.le(&six_sec_blocks_since) {
+		return block_number.saturating_div(period_length);
 	}
 
-	Into::<u128>::into(six_sec_block_since)
-		.saturating_add(block_number)
-		.saturating_div(period_length.get().saturating_mul(2))
+	if block_number.le(&two_sec_blocks_since) || two_sec_blocks_since <= six_sec_blocks_since {
+		return six_sec_blocks_since
+			.saturating_add(block_number)
+			.saturating_div(period_length.saturating_mul(2));
+	}
+
+	let normalized_blocks = six_sec_blocks_since
+		.saturating_mul(6)
+		.saturating_add(
+			two_sec_blocks_since
+				.saturating_sub(six_sec_blocks_since)
+				.saturating_mul(3),
+		)
+		.saturating_add(block_number.saturating_sub(two_sec_blocks_since));
+
+	normalized_blocks.saturating_div(period_length.saturating_mul(6))
 }
 
 /// Function calculates total amount of `Points` user have accumulated until now.

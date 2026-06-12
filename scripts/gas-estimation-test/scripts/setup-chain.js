@@ -22,6 +22,7 @@ const { Keyring } = require("@polkadot/keyring");
 const { blake2AsHex } = require("@polkadot/util-crypto");
 
 const WS_URL = process.env.WS_URL || "ws://127.0.0.1:9999";
+const BLOCK_TIME_MS = 2000;
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -169,7 +170,7 @@ async function main() {
   // Step 5: Wait for approval
   console.log("  [5/5] Waiting for referendum to pass...");
   for (let i = 0; i < 60; i++) {
-    await sleep(6000);
+    await sleep(BLOCK_TIME_MS);
 
     const info = await api.query.referenda.referendumInfoFor(refIndex);
     const infoJson = info.toJSON();
@@ -193,7 +194,7 @@ async function main() {
 
   // Verify
   console.log("\n  Verifying EVM setup...");
-  await sleep(6000);
+  await sleep(BLOCK_TIME_MS);
 
   const newBalance = await api.rpc.eth
     .getBalance("0xC19A2970A13ac19898c47d59Cbd0278D428EBC7c")

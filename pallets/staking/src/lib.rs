@@ -71,7 +71,7 @@ pub mod pallet {
 	use sp_runtime::traits::AtLeast32BitUnsigned;
 
 	/// Current storage version.
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -194,6 +194,11 @@ pub mod pallet {
 		u32::MAX.into()
 	}
 
+	#[pallet::type_value]
+	pub fn DefaultTwoSecSince<T: Config>() -> BlockNumberFor<T> {
+		u32::MAX.into()
+	}
+
 	#[pallet::storage]
 	/// Global staking state.
 	#[pallet::getter(fn staking)]
@@ -255,6 +260,12 @@ pub mod pallet {
 	#[pallet::getter(fn six_sec_blocks_since)]
 	pub(super) type SixSecBlocksSince<T: Config> =
 		StorageValue<_, BlockNumberFor<T>, ValueQuery, DefaultSixSecSince<T>>;
+
+	#[pallet::storage]
+	/// Block number when we switched to 2 sec. blocks.
+	#[pallet::getter(fn two_sec_blocks_since)]
+	pub(super) type TwoSecBlocksSince<T: Config> =
+		StorageValue<_, BlockNumberFor<T>, ValueQuery, DefaultTwoSecSince<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -1085,6 +1096,7 @@ impl<T: Config> Pallet<T> {
 			NonZeroU128::try_from(T::PeriodLength::get().saturated_into::<u128>()).ok()?,
 			block.saturated_into(),
 			NonZeroU128::try_from(Self::six_sec_blocks_since().saturated_into::<u128>()).ok()?,
+			NonZeroU128::try_from(Self::two_sec_blocks_since().saturated_into::<u128>()).ok()?,
 		))
 	}
 

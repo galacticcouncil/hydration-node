@@ -31,6 +31,7 @@ const WASM_PATH = process.env.WASM || './hydradx_runtime.compact.compressed.wasm
 const SURI = process.env.SURI || '//Alice';
 const VOTE_HDX = BigInt(process.env.VOTE_HDX || '3000000000');
 const ENACT_AFTER = parseInt(process.env.ENACT_AFTER || '10', 10);
+const BLOCK_TIME_MS = 2000;
 
 const HDX_DECIMALS = 12n;
 const VOTE_AMOUNT = VOTE_HDX * 10n ** HDX_DECIMALS;
@@ -137,7 +138,7 @@ async function main() {
     const head = await api.rpc.chain.getHeader();
     const state = h?.Ongoing?.deciding ? 'deciding' : (h?.Ongoing ? 'preparing' : 'unknown');
     console.log(`  block #${head.number.toNumber()} — ${state}`);
-    await new Promise((r) => setTimeout(r, 6000));
+    await new Promise((r) => setTimeout(r, BLOCK_TIME_MS));
   }
   if (!approved) throw new Error('Referendum did not pass in time');
 
@@ -151,7 +152,7 @@ async function main() {
       break;
     }
     console.log(`  block #${head.number.toNumber()}: not yet authorized`);
-    await new Promise((r) => setTimeout(r, 6000));
+    await new Promise((r) => setTimeout(r, BLOCK_TIME_MS));
   }
   if (auth.isNone) throw new Error('Upgrade not authorized after waiting');
 
@@ -170,7 +171,7 @@ async function main() {
   // 6. Wait for specVersion to bump
   console.log('Waiting for runtime upgrade to take effect...');
   for (let i = 0; i < 30; i++) {
-    await new Promise((r) => setTimeout(r, 6000));
+    await new Promise((r) => setTimeout(r, BLOCK_TIME_MS));
     const v = await api.rpc.state.getRuntimeVersion();
     const head = await api.rpc.chain.getHeader();
     const cur = v.specVersion.toNumber();

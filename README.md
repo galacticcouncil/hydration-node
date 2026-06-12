@@ -73,9 +73,12 @@ Grab `zombienet` utility used to start network from [releases](https://github.co
 
 Start local testnet with 4 relay chain validators and HydraDX as a parachain with 2 collators.
 
-```
+```bash
 cd launch-configs/zombienet/
 zombienet spawn local.json
+
+# Enable 2s block time
+npm exec --yes --package=@polkadot/api --package=@polkadot/util-crypto -- node scripts/assign_cores.js
 ```
 
 ## Interaction with the node

@@ -5633,7 +5633,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.0.2"
+version = "15.1.0"
 dependencies = [
  "async-trait",
  "clap",
@@ -5758,7 +5758,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 5.1.0",
+ "pallet-staking 5.2.0",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
@@ -5889,7 +5889,7 @@ dependencies = [
  "pallet-session",
  "pallet-signet",
  "pallet-stableswap",
- "pallet-staking 5.1.0",
+ "pallet-staking 5.2.0",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -9143,7 +9143,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.18.1"
+version = "1.19.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -10667,7 +10667,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "5.1.0"
+version = "5.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12929,7 +12929,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "6.4.0"
+version = "6.4.1"
 dependencies = [
  "frame-support",
  "hex-literal",
@@ -13975,7 +13975,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 5.1.0",
+ "pallet-staking 5.2.0",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
@@ -14041,7 +14041,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 5.1.0",
+ "pallet-staking 5.2.0",
  "primitives",
  "scraper",
  "serde",

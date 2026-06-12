@@ -88,7 +88,8 @@ fn calculate_period_number_should_work_when_period_length_is_not_zero() {
 		calculate_period_number(
 			NonZeroU128::try_from(1_u128).unwrap(),
 			12_341_u128,
-			NonZeroU128::try_from(12_341_u128).unwrap()
+			NonZeroU128::try_from(12_341_u128).unwrap(),
+			NonZeroU128::try_from(u32::MAX as u128).unwrap()
 		),
 		12_341_u128
 	);
@@ -97,7 +98,8 @@ fn calculate_period_number_should_work_when_period_length_is_not_zero() {
 		calculate_period_number(
 			NonZeroU128::try_from(1_000_u128).unwrap(),
 			12_341_u128,
-			NonZeroU128::try_from(12_342_u128).unwrap()
+			NonZeroU128::try_from(12_342_u128).unwrap(),
+			NonZeroU128::try_from(u32::MAX as u128).unwrap()
 		),
 		12_u128
 	);
@@ -106,7 +108,8 @@ fn calculate_period_number_should_work_when_period_length_is_not_zero() {
 		calculate_period_number(
 			NonZeroU128::try_from(1_000_u128).unwrap(),
 			1_u128,
-			NonZeroU128::try_from(1).unwrap()
+			NonZeroU128::try_from(1).unwrap(),
+			NonZeroU128::try_from(u32::MAX as u128).unwrap()
 		),
 		0_u128
 	);
@@ -115,7 +118,8 @@ fn calculate_period_number_should_work_when_period_length_is_not_zero() {
 		calculate_period_number(
 			NonZeroU128::try_from(82_u128).unwrap(),
 			12_341_u128,
-			NonZeroU128::try_from(12_341_u128).unwrap()
+			NonZeroU128::try_from(12_341_u128).unwrap(),
+			NonZeroU128::try_from(u32::MAX as u128).unwrap()
 		),
 		150_u128
 	);
@@ -126,7 +130,8 @@ fn calculate_period_number_should_work_when_period_length_is_not_zero() {
 		calculate_period_number(
 			NonZeroU128::try_from(41_u128).unwrap(),
 			12_341_u128,
-			NonZeroU128::try_from(5_001_u128).unwrap()
+			NonZeroU128::try_from(5_001_u128).unwrap(),
+			NonZeroU128::try_from(u32::MAX as u128).unwrap()
 		),
 		211_u128
 	);
@@ -138,9 +143,66 @@ fn calculate_period_number_should_work_when_period_length_is_not_zero() {
 		calculate_period_number(
 			NonZeroU128::try_from(2_617_u128).unwrap(),
 			678_789_789_u128,
-			NonZeroU128::try_from(89_789_124_u128).unwrap()
+			NonZeroU128::try_from(89_789_124_u128).unwrap(),
+			NonZeroU128::try_from(u32::MAX as u128).unwrap()
 		),
 		146_843_u128
+	);
+}
+
+#[test]
+fn calculate_period_number_should_work_after_two_sec_transition() {
+	assert_eq!(
+		calculate_period_number(
+			NonZeroU128::try_from(10_u128).unwrap(),
+			100_u128,
+			NonZeroU128::try_from(100_u128).unwrap(),
+			NonZeroU128::try_from(200_u128).unwrap()
+		),
+		10_u128
+	);
+
+	assert_eq!(
+		calculate_period_number(
+			NonZeroU128::try_from(10_u128).unwrap(),
+			200_u128,
+			NonZeroU128::try_from(100_u128).unwrap(),
+			NonZeroU128::try_from(200_u128).unwrap()
+		),
+		15_u128
+	);
+
+	assert_eq!(
+		calculate_period_number(
+			NonZeroU128::try_from(10_u128).unwrap(),
+			259_u128,
+			NonZeroU128::try_from(100_u128).unwrap(),
+			NonZeroU128::try_from(200_u128).unwrap()
+		),
+		15_u128
+	);
+
+	assert_eq!(
+		calculate_period_number(
+			NonZeroU128::try_from(10_u128).unwrap(),
+			260_u128,
+			NonZeroU128::try_from(100_u128).unwrap(),
+			NonZeroU128::try_from(200_u128).unwrap()
+		),
+		16_u128
+	);
+}
+
+#[test]
+fn calculate_period_number_should_fall_back_when_two_sec_transition_is_invalid() {
+	assert_eq!(
+		calculate_period_number(
+			NonZeroU128::try_from(10_u128).unwrap(),
+			200_u128,
+			NonZeroU128::try_from(100_u128).unwrap(),
+			NonZeroU128::try_from(50_u128).unwrap()
+		),
+		15_u128
 	);
 }
 

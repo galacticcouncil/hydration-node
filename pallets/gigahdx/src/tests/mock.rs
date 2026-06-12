@@ -317,7 +317,7 @@ pub fn only_pending(who: AccountId) -> PendingView {
 	PendingView {
 		id,
 		amount: p.amount,
-		expires_at: id + GigaHdxCooldownPeriod::get(),
+		expires_at: GigaHdx::cooldown_expires_at(id).expect("cooldown expiry should fit"),
 	}
 }
 

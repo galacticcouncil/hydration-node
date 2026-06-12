@@ -14,6 +14,20 @@ use pretty_assertions::assert_eq;
 //NOTE: Referendums with even indexes are finished.
 
 #[test]
+fn staking_period_number_should_account_for_two_sec_transition() {
+	ExtBuilder::default().build().execute_with(|| {
+		SixSecBlocksSince::<Test>::put(100);
+		TwoSecBlocksSince::<Test>::put(200);
+
+		assert_eq!(Staking::get_period_number(100), Some(0));
+		assert_eq!(Staking::get_period_number(200), Some(0));
+		assert_eq!(Staking::get_period_number(59_299), Some(0));
+		assert_eq!(Staking::get_period_number(59_300), Some(1));
+		assert_eq!(Staking::get_period_number(119_300), Some(2));
+	});
+}
+
+#[test]
 fn process_votes_should_work_when_referendum_is_finished() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![

@@ -38,6 +38,8 @@ pub use pallet::*;
 
 pub mod traits;
 
+pub mod migrations;
+
 #[cfg(test)]
 mod tests;
 
@@ -80,7 +82,7 @@ pub mod pallet {
 	use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 	use frame_support::pallet_prelude::*;
 	use frame_support::sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-	use frame_support::sp_runtime::traits::{AccountIdConversion, CheckedAdd};
+	use frame_support::sp_runtime::traits::{AccountIdConversion, CheckedAdd, SaturatedConversion};
 	use frame_support::sp_runtime::{ArithmeticError, Rounding};
 	use frame_support::traits::fungibles::Mutate as FungiblesMutate;
 	use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
@@ -130,7 +132,12 @@ pub mod pallet {
 		pub amount: Balance,
 	}
 
-	pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+
+	#[pallet::type_value]
+	pub fn DefaultTwoSecSince<T: Config>() -> BlockNumberFor<T> {
+		u32::MAX.into()
+	}
 
 	/// Defensive tripwire bound for `realize_yield`. Aggregate solvency
 	/// guarantees the gigapot covers all accrued yield; a *per-account*
@@ -239,6 +246,12 @@ pub mod pallet {
 		PendingUnstake,
 		OptionQuery,
 	>;
+
+	#[pallet::storage]
+	/// Block number when the runtime switched to 2 second blocks.
+	#[pallet::getter(fn two_sec_blocks_since)]
+	pub(super) type TwoSecBlocksSince<T: Config> =
+		StorageValue<_, BlockNumberFor<T>, ValueQuery, DefaultTwoSecSince<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -470,9 +483,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			let entry = PendingUnstakes::<T>::get(&who, position_id).ok_or(Error::<T>::PendingUnstakeNotFound)?;
-			let expires_at = position_id
-				.checked_add(&T::CooldownPeriod::get())
-				.ok_or(Error::<T>::Overflow)?;
+			let expires_at = Self::cooldown_expires_at(position_id)?;
 			ensure!(
 				frame_system::Pallet::<T>::block_number() >= expires_at,
 				Error::<T>::CooldownNotElapsed,
@@ -737,7 +748,7 @@ pub mod pallet {
 			};
 			let principal_consumed = stake.hdx.saturating_sub(new_hdx);
 
-			let expires_at = now.checked_add(&T::CooldownPeriod::get()).ok_or(Error::<T>::Overflow)?;
+			let expires_at = Self::cooldown_expires_at(now)?;
 
 			PendingUnstakes::<T>::mutate(who, now, |maybe| {
 				let entry = maybe.get_or_insert(PendingUnstake { amount: 0 });
@@ -769,6 +780,37 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		/// Expiry block for a pending unstake position keyed by its originating block.
+		/// Positions created before the 2s switch preserve their remaining wall-clock cooldown.
+		pub fn cooldown_expires_at(unstaked_at: BlockNumberFor<T>) -> Result<BlockNumberFor<T>, Error<T>> {
+			let switch_block = Self::two_sec_blocks_since();
+			let cooldown = T::CooldownPeriod::get();
+
+			if switch_block == u32::MAX.into() || unstaked_at >= switch_block {
+				return unstaked_at.checked_add(&cooldown).ok_or(Error::<T>::Overflow);
+			}
+
+			let created_at: u128 = unstaked_at.saturated_into();
+			let switch: u128 = switch_block.saturated_into();
+			// Runtime cooldown is now expressed in 2s blocks; pre-switch positions were created with 6s blocks.
+			let old_cooldown: u128 = cooldown.saturated_into::<u128>() / 3;
+			let old_expires_at = created_at.checked_add(old_cooldown).ok_or(Error::<T>::Overflow)?;
+
+			let expires_at = if old_expires_at <= switch {
+				old_expires_at
+			} else {
+				let remaining_at_switch = old_expires_at.checked_sub(switch).ok_or(Error::<T>::Overflow)?;
+				switch
+					.checked_add(remaining_at_switch.checked_mul(3).ok_or(Error::<T>::Overflow)?)
+					.ok_or(Error::<T>::Overflow)?
+			};
+
+			let converted: BlockNumberFor<T> = expires_at.saturated_into();
+			let roundtrip: u128 = converted.saturated_into();
+			ensure!(roundtrip == expires_at, Error::<T>::Overflow);
+			Ok(converted)
+		}
+
 		/// Admission gate shared by `giga_stake` and `migrate`.
 		///
 		/// Enforces the `MinStake` floor, the strict no-overlapping-lock policy
