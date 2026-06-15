@@ -37,6 +37,8 @@ mod tests;
 pub use pallet::*;
 
 use frame_support::pallet_prelude::*;
+use frame_system::pallet_prelude::OriginFor;
+use sp_core::H160;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -55,6 +57,18 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn relay_parent_offset_override)]
 	pub type RelayParentOffsetOverride<T> = StorageValue<_, bool, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn uniswap_v3_factory)]
+	pub type UniswapV3Factory<T> = StorageValue<_, H160, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn uniswap_v3_swap_router)]
+	pub type UniswapV3SwapRouter<T> = StorageValue<_, H160, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn uniswap_v3_quoter)]
+	pub type UniswapV3Quoter<T> = StorageValue<_, H160, OptionQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
@@ -78,6 +92,24 @@ pub mod pallet {
 		fn build(&self) {
 			IsTestnet::<T>::put(self.is_testnet);
 			RelayParentOffsetOverride::<T>::put(self.relay_parent_offset_override);
+		}
+	}
+
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		#[pallet::call_index(0)]
+		#[pallet::weight(T::DbWeight::get().writes(3))]
+		pub fn set_uniswap_v3_addresses(
+			origin: OriginFor<T>,
+			factory: H160,
+			swap_router: H160,
+			quoter: H160,
+		) -> DispatchResult {
+			frame_system::ensure_root(origin)?;
+			UniswapV3Factory::<T>::put(factory);
+			UniswapV3SwapRouter::<T>::put(swap_router);
+			UniswapV3Quoter::<T>::put(quoter);
+			Ok(())
 		}
 	}
 

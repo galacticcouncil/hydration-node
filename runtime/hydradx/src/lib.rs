@@ -129,7 +129,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 428,
+	spec_version: 429,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -502,6 +502,7 @@ impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConv
 use crate::evm::aave_trade_executor::AaveTradeExecutor;
 use crate::evm::aave_trade_executor::PoolData;
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+use crate::evm::uniswap_v3_trade_executor::UniswapV3TradeExecutor;
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	sp_runtime::{
@@ -1203,6 +1204,24 @@ impl_runtime_apis! {
 
 		fn pools() -> Vec<PoolData<Balance>> {
 			Self::pairs().into_iter().map(|p| Self::pool(p.0, p.1)).collect()
+		}
+	}
+
+	impl evm::uniswap_v3_trade_executor::runtime_api::UniswapV3Api<Block, Balance> for Runtime {
+		fn pool(asset_a: AssetId, asset_b: AssetId, fee: u32) -> Option<EvmAddress> {
+			UniswapV3TradeExecutor::<Runtime>::find_pool(asset_a, asset_b, fee).ok().flatten()
+		}
+
+		fn quote_sell(asset_in: AssetId, asset_out: AssetId, fee: u32, amount_in: Balance) -> Option<Balance> {
+			UniswapV3TradeExecutor::<Runtime>::quote_out_given_in(asset_in, asset_out, fee, amount_in).ok()
+		}
+
+		fn quote_buy(asset_in: AssetId, asset_out: AssetId, fee: u32, amount_out: Balance) -> Option<Balance> {
+			UniswapV3TradeExecutor::<Runtime>::quote_in_given_out(asset_in, asset_out, fee, amount_out).ok()
+		}
+
+		fn liquidity_depth(asset_in: AssetId, asset_out: AssetId, fee: u32) -> Option<Balance> {
+			UniswapV3TradeExecutor::<Runtime>::liquidity_depth(asset_in, asset_out, fee).ok()
 		}
 	}
 
