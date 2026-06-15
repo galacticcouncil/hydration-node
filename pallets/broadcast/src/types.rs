@@ -18,6 +18,7 @@ pub enum Filler {
 	OTC(OtcOrderId),
 	AAVE, // ICE(solution_id/block id),      swapper: alice, filler: solver
 	HSM,
+	UniswapV3,
 }
 
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
