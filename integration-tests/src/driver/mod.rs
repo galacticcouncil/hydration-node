@@ -468,7 +468,7 @@ impl HydrationTestDriver {
 		self
 	}
 
-	#[expect(dead_code, reason = "will be used once DCA integration tests call this helper")]
+	#[allow(clippy::too_many_arguments)]
 	pub fn submit_dca_intent(
 		&self,
 		who: AccountId,

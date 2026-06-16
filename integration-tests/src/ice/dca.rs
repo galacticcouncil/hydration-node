@@ -4,7 +4,7 @@ use frame_support::assert_ok;
 use frame_support::traits::Time;
 use hydradx_runtime::{Currencies, Runtime, RuntimeEvent, RuntimeOrigin};
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
-use ice_solver::v3::Solver as IceSolver;
+use ice_solver::v4::Solver as IceSolver;
 use ice_support::Solution;
 use orml_traits::{MultiCurrency, MultiReservableCurrency};
 use pallet_omnipool::types::SlipFeeConfig;
@@ -46,7 +46,7 @@ fn enable_slip_fees() {
 /// Prints `assert_eq!(...)` lines that pin down every field of a Solution.
 #[allow(dead_code)]
 fn dump_solution(label: &str, solution: &ice_support::Solution) {
-	println!("// === DUMP_SOLUTION BEGIN: {} ===", label);
+	println!("// === DUMP_SOLUTION BEGIN: {label} ===");
 	println!(
 		"assert_eq!(solution.resolved_intents.len(), {}, \"resolved count\");",
 		solution.resolved_intents.len()
@@ -61,7 +61,7 @@ fn dump_solution(label: &str, solution: &ice_support::Solution) {
 			ice_support::IntentData::Swap(sw) => {
 				let partial_str = match sw.partial {
 					ice_support::Partial::No => "ice_support::Partial::No".to_string(),
-					ice_support::Partial::Yes(b) => format!("ice_support::Partial::Yes({}u128)", b),
+					ice_support::Partial::Yes(b) => format!("ice_support::Partial::Yes({b}u128)"),
 				};
 				println!(
 					"{{ let r = &solution.resolved_intents[{i}]; assert_eq!(r.id, {id}); \
@@ -96,7 +96,7 @@ fn dump_solution(label: &str, solution: &ice_support::Solution) {
 			}
 		}
 	}
-	println!("// === DUMP_SOLUTION END: {} ===", label);
+	println!("// === DUMP_SOLUTION END: {label} ===");
 }
 
 /// Prints `assert_eq!(<var>, <value>u128);` for each named variable.
@@ -334,7 +334,7 @@ fn dca_rolling_budget_continues() {
 						_ => unreachable!(),
 					};
 					assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-					assert_eq!(solution.score, expected_score, "score iter {}", i);
+					assert_eq!(solution.score, expected_score, "score iter {i}");
 					assert_eq!(solution.trades.len(), 1, "trades count");
 					let r = &solution.resolved_intents[0];
 					assert_eq!(r.id, 32752052247409382067756072960000);
@@ -344,7 +344,7 @@ fn dca_rolling_budget_continues() {
 					assert_eq!(s.asset_in, 0);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 10000000000000u128);
-					assert_eq!(s.amount_out, expected_amount_out, "amount_out iter {}", i);
+					assert_eq!(s.amount_out, expected_amount_out, "amount_out iter {i}");
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				assert_eq!(
@@ -397,7 +397,7 @@ fn dca_matched_with_opposing_swap() {
 			{
 				let solution = &solution;
 				assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-				assert_eq!(solution.score, 147014502641076, "score");
+				assert_eq!(solution.score, 147014502641077, "score");
 				assert_eq!(solution.trades.len(), 1, "trades count");
 				{
 					let r = &solution.resolved_intents[0];
@@ -408,7 +408,7 @@ fn dca_matched_with_opposing_swap() {
 					assert_eq!(s.asset_in, 0);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 10000000000000u128);
-					assert_eq!(s.amount_out, 676286517104u128);
+					assert_eq!(s.amount_out, 676286517105u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -775,7 +775,7 @@ fn dca_rolling_terminates_gracefully_on_funds_exhaustion() {
 				if trades < expected.len() {
 					let (expected_score, expected_amount_out) = expected[trades];
 					assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-					assert_eq!(solution.score, expected_score, "score iter {}", trades);
+					assert_eq!(solution.score, expected_score, "score iter {trades}");
 					assert_eq!(solution.trades.len(), 1, "trades count");
 					let r = &solution.resolved_intents[0];
 					assert_eq!(r.id, 32752052247409382067756072960000);
@@ -785,7 +785,7 @@ fn dca_rolling_terminates_gracefully_on_funds_exhaustion() {
 					assert_eq!(s.asset_in, 0);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 10000000000000u128);
-					assert_eq!(s.amount_out, expected_amount_out, "amount_out iter {}", trades);
+					assert_eq!(s.amount_out, expected_amount_out, "amount_out iter {trades}");
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				trades += 1;
@@ -1473,7 +1473,7 @@ fn dca_stays_alive_when_trade_fails_until_lockdown_is_lifted() {
 		if let Some(pallet_ice::Call::submit_solution { solution, .. }) = call {
 			hydradx_run_to_next_block();
 			let res = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
-			assert!(res.is_err(), "submit must fail during lockdown; got {:?}", res);
+			assert!(res.is_err(), "submit must fail during lockdown; got {res:?}");
 		}
 
 		let intent_after_failed = pallet_intent::Intents::<Runtime>::get(intent_id).unwrap();
@@ -1864,8 +1864,7 @@ fn dca_period_can_be_bypassed_at_resolve_time() {
 
 			assert!(
 				result.is_err(),
-				"out-of-period trade must be rejected; got {:?}",
-				result
+				"out-of-period trade must be rejected; got {result:?}"
 			);
 			assert_eq!(Currencies::total_balance(HDX, &alice), hdx_before);
 			assert_eq!(Currencies::total_balance(BNC, &alice), bnc_before);

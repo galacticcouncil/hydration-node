@@ -82,7 +82,7 @@ pub mod pallet {
 	use super::*;
 	use frame_system::offchain::SubmitTransaction;
 	use hydradx_traits::CreateBare;
-	use ice_solver::v3::Solver;
+	use ice_solver::v4::Solver;
 	use ice_support::SwapType;
 
 	#[pallet::pallet]

@@ -12,7 +12,7 @@ use hydradx_traits::amm::{AmmSimulator, SimulatorConfig, SimulatorSet};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::BoundErc20;
-use ice_solver::v3::Solver as IceSolver;
+use ice_solver::v4::Solver as IceSolver;
 use ice_support::{Solution, MAX_NUMBER_OF_RESOLVED_INTENTS};
 use orml_traits::MultiCurrency;
 use pallet_omnipool::types::SlipFeeConfig;
@@ -131,7 +131,7 @@ type HollarSolver = IceSolver<HollarSimulator>;
 /// Prints `assert_eq!(...)` lines that pin down every field of a Solution.
 #[allow(dead_code)]
 fn dump_solution(label: &str, solution: &ice_support::Solution) {
-	println!("// === DUMP_SOLUTION BEGIN: {} ===", label);
+	println!("// === DUMP_SOLUTION BEGIN: {label} ===");
 	println!(
 		"assert_eq!(solution.resolved_intents.len(), {}, \"resolved count\");",
 		solution.resolved_intents.len()
@@ -146,7 +146,7 @@ fn dump_solution(label: &str, solution: &ice_support::Solution) {
 			ice_support::IntentData::Swap(sw) => {
 				let partial_str = match sw.partial {
 					ice_support::Partial::No => "ice_support::Partial::No".to_string(),
-					ice_support::Partial::Yes(b) => format!("ice_support::Partial::Yes({}u128)", b),
+					ice_support::Partial::Yes(b) => format!("ice_support::Partial::Yes({b}u128)"),
 				};
 				println!(
 					"{{ let r = &solution.resolved_intents[{i}]; assert_eq!(r.id, {id}); \
@@ -181,7 +181,7 @@ fn dump_solution(label: &str, solution: &ice_support::Solution) {
 			}
 		}
 	}
-	println!("// === DUMP_SOLUTION END: {} ===", label);
+	println!("// === DUMP_SOLUTION END: {label} ===");
 }
 
 /// Prints `assert_eq!(<var>, <value>u128);` for each named variable.
@@ -251,22 +251,19 @@ fn simulator_sell() {
 					"New snapshot should have slip fee config"
 				);
 				assert!(
-					new_snapshot.slip_fee_delta.get(&asset_in).is_some(),
+					new_snapshot.slip_fee_delta.contains_key(&asset_in),
 					"Asset in slip fee delta should be in snapshot"
 				);
 				assert!(
-					new_snapshot.slip_fee_delta.get(&asset_out).is_some(),
+					new_snapshot.slip_fee_delta.contains_key(&asset_out),
 					"Asset out slip fee delta should be in snapshot"
 				);
 				assert!(
-					new_snapshot.slip_fee_hubreserve_at_block_start.get(&asset_in).is_some(),
+					new_snapshot.slip_fee_hubreserve_at_block_start.contains_key(&asset_in),
 					"Asset in slip fee hub reserve at block start should be in snapshot"
 				);
 				assert!(
-					new_snapshot
-						.slip_fee_hubreserve_at_block_start
-						.get(&asset_out)
-						.is_some(),
+					new_snapshot.slip_fee_hubreserve_at_block_start.contains_key(&asset_out),
 					"Asset out slip fee hub reserve at block start should be in snapshot"
 				);
 			}
@@ -276,8 +273,7 @@ fn simulator_sell() {
 						e,
 						SimulatorError::TradeTooSmall | SimulatorError::TradeTooLarge | SimulatorError::Other
 					),
-					"Unexpected error: {:?}",
-					e
+					"Unexpected error: {e:?}"
 				);
 			}
 		}
@@ -296,7 +292,7 @@ fn stableswap_snapshot() {
 			"Min trading limit should be set"
 		);
 
-		for (_pool_id, pool) in &stableswap_snapshot.pools {
+		for pool in stableswap_snapshot.pools.values() {
 			assert!(!pool.assets.is_empty(), "Pool should have assets");
 			assert!(pool.amplification > 0, "Amplification should be positive");
 			assert!(pool.share_issuance > 0, "Share issuance should be positive");
@@ -414,9 +410,7 @@ fn stableswap_intent() {
 		}
 
 		let Some((_pool_id, asset_a, asset_b, decimals_a)) = selected_pool else {
-			// No suitable pool found in this snapshot, skip test
-			assert!(false, "no suitable pool to test stablepool intent");
-			return;
+			panic!("no suitable pool to test stablepool intent");
 		};
 
 		let amount_in = 10u128.pow(decimals_a as u32);
@@ -602,7 +596,7 @@ fn solver_execute_solution1() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 147014502641076, "score");
+			assert_eq!(solution.score, 147014502641077, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -613,7 +607,7 @@ fn solver_execute_solution1() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 10000000000000u128);
-				assert_eq!(s.amount_out, 676286517104u128);
+				assert_eq!(s.amount_out, 676286517105u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -631,7 +625,7 @@ fn solver_execute_solution1() {
 
 			// Verify solution structure
 			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 147014502641076, "score");
+			assert_eq!(solution.score, 147014502641077, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -642,7 +636,7 @@ fn solver_execute_solution1() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 10000000000000u128);
-				assert_eq!(s.amount_out, 676286517104u128);
+				assert_eq!(s.amount_out, 676286517105u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -710,7 +704,7 @@ fn solver_execute_solution1() {
 			let bob_balance_a_after = Currencies::total_balance(asset_a, &bob);
 			let bob_balance_b_after = Currencies::total_balance(asset_b, &bob);
 			assert_eq!(alice_balance_a_after, 90000000000000u128);
-			assert_eq!(alice_balance_b_after, 676286517104u128);
+			assert_eq!(alice_balance_b_after, 676286517105u128);
 			assert_eq!(bob_balance_a_after, 147407011313812u128);
 			assert_eq!(bob_balance_b_after, 90000000000000u128);
 
@@ -965,7 +959,7 @@ fn solver_mixed_intents() {
 			let fee_before = fee_receiver_snapshot(&solution);
 			let fee_expected = expected_matched_fees(&solution);
 			assert_eq!(solution.resolved_intents.len(), 5, "resolved count");
-			assert_eq!(solution.score, 147345023865218257, "score");
+			assert_eq!(solution.score, 147345023865218258, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -976,7 +970,7 @@ fn solver_mixed_intents() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 676286517104112u128);
+				assert_eq!(s.amount_out, 676286517104113u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -1056,7 +1050,7 @@ fn solver_mixed_intents() {
 			assert_eq!(charlie_hdx_after, 10001467549504538u128);
 			assert_eq!(charlie_bnc_after, 9999900000000000u128);
 			assert_eq!(dave_hdx_after, 0u128);
-			assert_eq!(dave_bnc_after, 10676286517104112u128);
+			assert_eq!(dave_bnc_after, 10676286517104113u128);
 
 			// Verify Alice (sells HDX for BNC)
 			assert!(
@@ -1654,8 +1648,7 @@ fn solver_v1_uniform_price_all_sells() {
 			let charlie_diff = charlie_bnc_received.abs_diff(expected_charlie);
 			assert!(
 				charlie_diff <= 1,
-				"Charlie's amount should be proportional to Alice's (diff: {})",
-				charlie_diff
+				"Charlie's amount should be proportional to Alice's (diff: {charlie_diff})"
 			);
 
 			// Proportionality check: Dave (100 HDX) should get 1/5 of Alice's BNC
@@ -1663,8 +1656,7 @@ fn solver_v1_uniform_price_all_sells() {
 			let dave_diff = dave_bnc_received.abs_diff(expected_dave);
 			assert!(
 				dave_diff <= 1,
-				"Dave's amount should be proportional to Alice's (diff: {})",
-				dave_diff
+				"Dave's amount should be proportional to Alice's (diff: {dave_diff})"
 			);
 
 			assert_fee_receiver_gained(&fee_before, &fee_expected);
@@ -1715,7 +1707,7 @@ fn solver_v1_uniform_price_opposite_sells() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 3, "resolved count");
-			assert_eq!(solution.score, 3133516372094475, "score");
+			assert_eq!(solution.score, 3133516372094476, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1726,7 +1718,7 @@ fn solver_v1_uniform_price_opposite_sells() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 500000000000000u128);
-				assert_eq!(s.amount_out, 33814325855206u128);
+				assert_eq!(s.amount_out, 33814325855207u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -1776,7 +1768,7 @@ fn solver_v1_uniform_price_opposite_sells() {
 			let eve_hdx_after = Currencies::total_balance(hdx, &eve);
 			let eve_bnc_after = Currencies::total_balance(bnc, &eve);
 			assert_eq!(alice_hdx_after, 500000000000000u128);
-			assert_eq!(alice_bnc_after, 33814325855206u128);
+			assert_eq!(alice_bnc_after, 33814325855207u128);
 			assert_eq!(eve_hdx_after, 153043500572274u128);
 			assert_eq!(eve_bnc_after, 89619691285000u128);
 
@@ -1802,8 +1794,7 @@ fn solver_v1_uniform_price_opposite_sells() {
 			// Allow small difference due to integer rounding and AMM price impact
 			assert!(
 				rate_diff_pct < 1.0,
-				"Rates should be consistent (diff: {:.6}%)",
-				rate_diff_pct
+				"Rates should be consistent (diff: {rate_diff_pct:.6}%)"
 			);
 
 			assert_fee_receiver_gained(&fee_before, &fee_expected);
@@ -1925,8 +1916,7 @@ fn intent_with_on_success_callback() {
 			assert!(alice_hdx_received > 0, "Alice should have received some HDX");
 			assert!(
 				alice_hdx_received >= hdx_to_transfer,
-				"Alice should have received at least {} HDX for the callback",
-				hdx_to_transfer
+				"Alice should have received at least {hdx_to_transfer} HDX for the callback"
 			);
 
 			// Dispatch the callback from lazy executor queue
@@ -1947,8 +1937,7 @@ fn intent_with_on_success_callback() {
 			let bob_hdx_received = bob_hdx_final.saturating_sub(bob_hdx_before);
 			assert_eq!(
 				bob_hdx_received, hdx_to_transfer,
-				"Bob should have received {} HDX from callback",
-				hdx_to_transfer
+				"Bob should have received {hdx_to_transfer} HDX from callback"
 			);
 
 			// Alice's final HDX should be: received - transferred to Bob
@@ -2210,11 +2199,7 @@ fn usdt_weth_solver_vs_router() {
 				(router_weth_received - solver_weth_received) * 10000 / solver_weth_received
 			};
 			// Should be within 1% (100 bps) - accounting for pool state change
-			assert!(
-				diff_pct < 100,
-				"WETH difference should be within 1%, got {}bps",
-				diff_pct
-			);
+			assert!(diff_pct < 100, "WETH difference should be within 1%, got {diff_pct}bps");
 		});
 }
 
@@ -2279,7 +2264,12 @@ fn usdt_weth_two_opposing_intents() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 46133687764083217, "score");
+			// v4 nets at the HDX spot price; on this USDT/WETH pair the USDT leg routes
+			// through stableswap, where the spot approximation diverges from the true
+			// executable rate — so v4 scores ~1e-8 below v3 here (46133687303190779 vs
+			// 46133687764083217). Accepted: the only stableswap-routed batch in the suite,
+			// economically negligible, and v4 still resolves both intents in one trade.
+			assert_eq!(solution.score, 46133687303190779, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -2290,7 +2280,7 @@ fn usdt_weth_two_opposing_intents() {
 				assert_eq!(s.asset_in, 10);
 				assert_eq!(s.asset_out, 20);
 				assert_eq!(s.amount_in, 100000000u128);
-				assert_eq!(s.amount_out, 46139078578077639u128);
+				assert_eq!(s.amount_out, 46139078117185200u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -2302,7 +2292,7 @@ fn usdt_weth_two_opposing_intents() {
 				assert_eq!(s.asset_in, 20);
 				assert_eq!(s.asset_out, 10);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 21595093u128);
+				assert_eq!(s.amount_out, 21595094u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			// fee so it is only sanity-checked.
@@ -2577,8 +2567,7 @@ fn eth_3pool_solver_vs_router() {
 			// Should be within 1% (100 bps)
 			assert!(
 				diff_pct < 100,
-				"3pool difference should be within 1%, got {}bps",
-				diff_pct
+				"3pool difference should be within 1%, got {diff_pct}bps"
 			);
 		});
 }
@@ -2649,7 +2638,7 @@ fn _eth_3pool_two_opposing_intents() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 214539470748917133315, "score");
+			assert_eq!(solution.score, 214539470748917133316, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -2672,7 +2661,7 @@ fn _eth_3pool_two_opposing_intents() {
 				assert_eq!(s.asset_in, 103);
 				assert_eq!(s.asset_out, 34);
 				assert_eq!(s.amount_in, 100000000000000000000u128);
-				assert_eq!(s.amount_out, 46500792162135263u128);
+				assert_eq!(s.amount_out, 46500792162135264u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
@@ -2685,13 +2674,16 @@ fn _eth_3pool_two_opposing_intents() {
 			let alice_3pool_after = Currencies::total_balance(pool3, &alice);
 			let bob_eth_after = Currencies::total_balance(eth, &bob);
 			assert_eq!(alice_3pool_after, 215532969956754998052u128);
-			assert_eq!(bob_eth_after, 1046500792162135263u128);
+			assert_eq!(bob_eth_after, 1046500792162135264u128);
 
 			let alice_3pool_received = alice_3pool_after - alice_3pool_before;
 			let bob_eth_received = bob_eth_after - bob_eth_before;
 
 			// Verify both intents were resolved
-			assert!(solution.resolved_intents.len() >= 1, "Should resolve at least 1 intent");
+			assert!(
+				!solution.resolved_intents.is_empty(),
+				"Should resolve at least 1 intent"
+			);
 
 			// Verify Alice got 3pool
 			assert!(alice_3pool_received > 0, "Alice should receive 3pool");
@@ -2751,7 +2743,7 @@ fn solver_ring_trade_triangle_execute() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 3, "resolved count");
-			assert_eq!(solution.score, 5845681041331610, "score");
+			assert_eq!(solution.score, 5848644064753465, "score");
 			assert_eq!(solution.trades.len(), 2, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -2762,7 +2754,7 @@ fn solver_ring_trade_triangle_execute() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 1000000000000000u128);
-				assert_eq!(s.amount_out, 67446698202754u128);
+				assert_eq!(s.amount_out, 67433819967149u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -2774,7 +2766,7 @@ fn solver_ring_trade_triangle_execute() {
 				assert_eq!(s.asset_in, 5);
 				assert_eq!(s.asset_out, 0);
 				assert_eq!(s.amount_in, 100000000000u128);
-				assert_eq!(s.amount_out, 6278734169887749u128);
+				assert_eq!(s.amount_out, 6281710071545208u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -2786,14 +2778,14 @@ fn solver_ring_trade_triangle_execute() {
 				assert_eq!(s.asset_in, 14);
 				assert_eq!(s.asset_out, 5);
 				assert_eq!(s.amount_in, 5000000000000u128);
-				assert_eq!(s.amount_out, 1173241107u128);
+				assert_eq!(s.amount_out, 1173241108u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
 			let fee_expected = expected_matched_fees(&solution);
 
 			assert_eq!(solution.resolved_intents.len(), 3, "resolved count");
-			assert_eq!(solution.score, 5845681041331610, "score");
+			assert_eq!(solution.score, 5848644064753465, "score");
 			assert_eq!(solution.trades.len(), 2, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -2804,7 +2796,7 @@ fn solver_ring_trade_triangle_execute() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 1000000000000000u128);
-				assert_eq!(s.amount_out, 67446698202754u128);
+				assert_eq!(s.amount_out, 67433819967149u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -2816,7 +2808,7 @@ fn solver_ring_trade_triangle_execute() {
 				assert_eq!(s.asset_in, 5);
 				assert_eq!(s.asset_out, 0);
 				assert_eq!(s.amount_in, 100000000000u128);
-				assert_eq!(s.amount_out, 6278734169887749u128);
+				assert_eq!(s.amount_out, 6281710071545208u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -2828,7 +2820,7 @@ fn solver_ring_trade_triangle_execute() {
 				assert_eq!(s.asset_in, 14);
 				assert_eq!(s.asset_out, 5);
 				assert_eq!(s.amount_in, 5000000000000u128);
-				assert_eq!(s.amount_out, 1173241107u128);
+				assert_eq!(s.amount_out, 1173241108u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			assert!(solution.trades.len() < 3, "Ring should reduce AMM trades below 3");
@@ -3011,7 +3003,7 @@ fn solver_ring_trade_vs_direct_trades() {
 					panic!("Expected submit_solution call");
 				};
 				assert_eq!(solution.resolved_intents.len(), 3, "resolved count");
-				assert_eq!(solution.score, 5845681041331610, "score");
+				assert_eq!(solution.score, 5848644064753465, "score");
 				assert_eq!(solution.trades.len(), 2, "trades count");
 				{
 					let r = &solution.resolved_intents[0];
@@ -3022,7 +3014,7 @@ fn solver_ring_trade_vs_direct_trades() {
 					assert_eq!(s.asset_in, 0);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 1000000000000000u128);
-					assert_eq!(s.amount_out, 67446698202754u128);
+					assert_eq!(s.amount_out, 67433819967149u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3034,7 +3026,7 @@ fn solver_ring_trade_vs_direct_trades() {
 					assert_eq!(s.asset_in, 5);
 					assert_eq!(s.asset_out, 0);
 					assert_eq!(s.amount_in, 100000000000u128);
-					assert_eq!(s.amount_out, 6278734169887749u128);
+					assert_eq!(s.amount_out, 6281710071545208u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3046,7 +3038,7 @@ fn solver_ring_trade_vs_direct_trades() {
 					assert_eq!(s.asset_in, 14);
 					assert_eq!(s.asset_out, 5);
 					assert_eq!(s.amount_in, 5000000000000u128);
-					assert_eq!(s.amount_out, 1173241107u128);
+					assert_eq!(s.amount_out, 1173241108u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				let mut alice_resolved_bnc = 0u128;
@@ -3155,8 +3147,8 @@ fn solver_mixed_batch_12_intents() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 12, "resolved count");
-			assert_eq!(solution.score, 11875262517424109, "score");
-			assert_eq!(solution.trades.len(), 3, "trades count");
+			assert_eq!(solution.score, 11875285687821560, "score");
+			assert_eq!(solution.trades.len(), 2, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
 				assert_eq!(r.id, 32752052247409382067756072960004);
@@ -3166,7 +3158,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 5);
 				assert_eq!(s.amount_in, 5000000000000000u128);
-				assert_eq!(s.amount_out, 79328226272u128);
+				assert_eq!(s.amount_out, 79360586315u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3178,7 +3170,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 5);
 				assert_eq!(s.amount_in, 4000000000000000u128);
-				assert_eq!(s.amount_out, 63462581017u128);
+				assert_eq!(s.amount_out, 63488469052u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3190,7 +3182,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 5);
 				assert_eq!(s.amount_in, 3000000000000000u128);
-				assert_eq!(s.amount_out, 47596935763u128);
+				assert_eq!(s.amount_out, 47616351789u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3202,7 +3194,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 674006392370210u128);
+				assert_eq!(s.amount_out, 673942394974417u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3214,7 +3206,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 8000000000000000u128);
-				assert_eq!(s.amount_out, 539205113896168u128);
+				assert_eq!(s.amount_out, 539153915979533u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3226,7 +3218,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.asset_in, 5);
 				assert_eq!(s.asset_out, 0);
 				assert_eq!(s.amount_in, 150000000000u128);
-				assert_eq!(s.amount_out, 9446755181733563u128);
+				assert_eq!(s.amount_out, 9446755181733561u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3238,7 +3230,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.asset_in, 5);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 100000000000u128);
-				assert_eq!(s.amount_out, 424430633328854u128);
+				assert_eq!(s.amount_out, 424522825359372u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3250,7 +3242,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.asset_in, 5);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 50000000000u128);
-				assert_eq!(s.amount_out, 212215316664427u128);
+				assert_eq!(s.amount_out, 212261412679686u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3328,10 +3320,7 @@ fn solver_mixed_batch_12_intents() {
 					let diff_pct = if min > 0.0 { (max - min) / min * 100.0 } else { 0.0 };
 					assert!(
 						diff_pct < 0.001,
-						"Rate spread for {} → {} should be < 0.001%, got {:.6}%",
-						a,
-						b,
-						diff_pct
+						"Rate spread for {a} → {b} should be < 0.001%, got {diff_pct:.6}%"
 					);
 				}
 			}
@@ -3524,8 +3513,8 @@ fn solver_mixed_batch_vs_direct_trades() {
 					panic!("Expected submit_solution call");
 				};
 				assert_eq!(solution.resolved_intents.len(), 12, "resolved count");
-				assert_eq!(solution.score, 11875262517424109, "score");
-				assert_eq!(solution.trades.len(), 3, "trades count");
+				assert_eq!(solution.score, 11875285687821560, "score");
+				assert_eq!(solution.trades.len(), 2, "trades count");
 				{
 					let r = &solution.resolved_intents[0];
 					assert_eq!(r.id, 32752052247409382067756072960004);
@@ -3535,7 +3524,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.asset_in, 0);
 					assert_eq!(s.asset_out, 5);
 					assert_eq!(s.amount_in, 5000000000000000u128);
-					assert_eq!(s.amount_out, 79328226272u128);
+					assert_eq!(s.amount_out, 79360586315u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3547,7 +3536,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.asset_in, 0);
 					assert_eq!(s.asset_out, 5);
 					assert_eq!(s.amount_in, 4000000000000000u128);
-					assert_eq!(s.amount_out, 63462581017u128);
+					assert_eq!(s.amount_out, 63488469052u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3559,7 +3548,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.asset_in, 0);
 					assert_eq!(s.asset_out, 5);
 					assert_eq!(s.amount_in, 3000000000000000u128);
-					assert_eq!(s.amount_out, 47596935763u128);
+					assert_eq!(s.amount_out, 47616351789u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3571,7 +3560,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.asset_in, 0);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 10000000000000000u128);
-					assert_eq!(s.amount_out, 674006392370210u128);
+					assert_eq!(s.amount_out, 673942394974417u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3583,7 +3572,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.asset_in, 0);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 8000000000000000u128);
-					assert_eq!(s.amount_out, 539205113896168u128);
+					assert_eq!(s.amount_out, 539153915979533u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3595,7 +3584,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.asset_in, 5);
 					assert_eq!(s.asset_out, 0);
 					assert_eq!(s.amount_in, 150000000000u128);
-					assert_eq!(s.amount_out, 9446755181733563u128);
+					assert_eq!(s.amount_out, 9446755181733561u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3607,7 +3596,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.asset_in, 5);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 100000000000u128);
-					assert_eq!(s.amount_out, 424430633328854u128);
+					assert_eq!(s.amount_out, 424522825359372u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3619,7 +3608,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.asset_in, 5);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 50000000000u128);
-					assert_eq!(s.amount_out, 212215316664427u128);
+					assert_eq!(s.amount_out, 212261412679686u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3679,6 +3668,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 
 				// Verify all 12 intents resolved and executed
 				assert_eq!(solution.resolved_intents.len(), 12, "All 12 intents should be resolved");
+				assert_fee_receiver_gained(&fee_before, &fee_expected);
 			});
 	}
 }
@@ -3736,7 +3726,7 @@ fn solver_near_perfect_cancel_ed_remainder() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 222702152662453, "score");
+			assert_eq!(solution.score, 222702152662454, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -3747,7 +3737,7 @@ fn solver_near_perfect_cancel_ed_remainder() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 1000000000000000u128);
-				assert_eq!(s.amount_out, 67628651710411u128);
+				assert_eq!(s.amount_out, 67628651710412u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3794,8 +3784,6 @@ fn solver_near_perfect_cancel_ed_remainder() {
 			assert!(Currencies::total_balance(hdx, &bob) > bob_hdx_before, "Bob got HDX");
 		});
 }
-
-/// Test with amounts at existential deposit level.
 
 /// Test with near-cancelling amounts where the net AMM remainder is small.
 /// Alice sells 100 HDX for BNC (~6.78 BNC at spot).
@@ -3848,7 +3836,7 @@ fn solver_existential_deposit_amounts() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 46217788629803, "score");
+			assert_eq!(solution.score, 46217788629804, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -3859,7 +3847,7 @@ fn solver_existential_deposit_amounts() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 100000000000000u128);
-				assert_eq!(s.amount_out, 6762865171042u128);
+				assert_eq!(s.amount_out, 6762865171043u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3878,7 +3866,7 @@ fn solver_existential_deposit_amounts() {
 			let fee_expected = expected_matched_fees(&solution);
 
 			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 46217788629803, "score");
+			assert_eq!(solution.score, 46217788629804, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -3889,7 +3877,7 @@ fn solver_existential_deposit_amounts() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 100000000000000u128);
-				assert_eq!(s.amount_out, 6762865171042u128);
+				assert_eq!(s.amount_out, 6762865171043u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3984,7 +3972,7 @@ fn solver_amm_remainder_below_ed() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 21371432585521, "score");
+			assert_eq!(solution.score, 21409316000000, "score");
 			assert_eq!(solution.trades.len(), 0, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -3995,7 +3983,7 @@ fn solver_amm_remainder_below_ed() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 50000000000000u128);
-				assert_eq!(s.amount_out, 3381432585521u128);
+				assert_eq!(s.amount_out, 3419316000000u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -4075,7 +4063,7 @@ fn solver_amm_remainder_dust() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 21371432585521, "score");
+			assert_eq!(solution.score, 21379322000000, "score");
 			assert_eq!(solution.trades.len(), 0, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -4086,7 +4074,7 @@ fn solver_amm_remainder_dust() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 50000000000000u128);
-				assert_eq!(s.amount_out, 3381432585521u128);
+				assert_eq!(s.amount_out, 3389322000000u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -4171,7 +4159,7 @@ fn solver_three_intent_dust_remainder() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 3, "resolved count");
-			assert_eq!(solution.score, 42742865171042, "score");
+			assert_eq!(solution.score, 42758644000000, "score");
 			assert_eq!(solution.trades.len(), 0, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -4182,7 +4170,7 @@ fn solver_three_intent_dust_remainder() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 100000000000000u128);
-				assert_eq!(s.amount_out, 6762865171042u128);
+				assert_eq!(s.amount_out, 6778644000000u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -4283,7 +4271,7 @@ fn solver_ice_fee_lands_in_fee_receiver() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 1334306026106478, "score");
+			assert_eq!(solution.score, 1334306026106479, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -4294,7 +4282,7 @@ fn solver_ice_fee_lands_in_fee_receiver() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 1000000000000000u128);
-				assert_eq!(s.amount_out, 67628651710411u128);
+				assert_eq!(s.amount_out, 67628651710412u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -4473,7 +4461,7 @@ fn solver_v2_partial_fill_whale() {
 						on_resolved: None,
 					}
 				));
-				println!("{}: submitted {} HDX → BNC (non-partial)", label, small_amount);
+				println!("{label}: submitted {small_amount} HDX → BNC (non-partial)");
 			}
 
 			// Submit whale partial intent
@@ -4491,10 +4479,7 @@ fn solver_v2_partial_fill_whale() {
 					on_resolved: None,
 				}
 			));
-			println!(
-				"dave (whale): submitted {} HDX → BNC (partial, min_bnc={})",
-				whale_amount, whale_min_bnc
-			);
+			println!("dave (whale): submitted {whale_amount} HDX → BNC (partial, min_bnc={whale_min_bnc})");
 
 			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
 			println!("total intents: {}", intents.len());
@@ -4603,7 +4588,7 @@ fn solver_v2_partial_fill_whale() {
 					!s.partial.is_partial() && s.amount_in == small_amount
 				})
 				.count();
-			println!("\nsmall intents resolved: {}/3", small_count);
+			println!("\nsmall intents resolved: {small_count}/3");
 			assert_eq!(small_count, 3, "All 3 small intents should be resolved");
 
 			// Whale should be resolved (possibly partially)
@@ -4708,10 +4693,7 @@ fn solver_v2_single_partial_whale() {
 
 			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
 			assert_eq!(intents.len(), 1, "Should have exactly 1 intent");
-			println!(
-				"single whale intent: {} HDX → BNC, min_out={}",
-				whale_amount, whale_min_bnc
-			);
+			println!("single whale intent: {whale_amount} HDX → BNC, min_out={whale_min_bnc}");
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
@@ -4785,7 +4767,7 @@ fn solver_v2_single_partial_whale() {
 			// The rate should meet the minimum
 			// min_rate = whale_min_bnc / whale_amount = 0.065 BNC/HDX
 			// actual_rate = amount_out / amount_in >= 0.065
-			let pro_rata_min = s.amount_in as u128 * whale_min_bnc / whale_amount;
+			let pro_rata_min = s.amount_in * whale_min_bnc / whale_amount;
 			assert!(
 				s.amount_out >= pro_rata_min,
 				"Rate should meet minimum: got {} BNC for {} HDX, pro_rata_min={}",
@@ -4813,6 +4795,7 @@ fn solver_v2_single_partial_whale() {
 				solution,
 			));
 			println!("submit_solution: OK");
+			assert_fee_receiver_gained(&fee_before, &fee_expected);
 
 			// Verify Dave's balances
 			let dave_hdx_after = Currencies::total_balance(hdx, &dave);
@@ -4822,14 +4805,8 @@ fn solver_v2_single_partial_whale() {
 			let hdx_spent = dave_hdx_before.saturating_sub(dave_hdx_after);
 			let bnc_received = dave_bnc_after.saturating_sub(dave_bnc_before);
 
-			println!(
-				"dave HDX: {} → {} (spent {})",
-				dave_hdx_before, dave_hdx_after, hdx_spent
-			);
-			println!(
-				"dave BNC: {} → {} (received {})",
-				dave_bnc_before, dave_bnc_after, bnc_received
-			);
+			println!("dave HDX: {dave_hdx_before} → {dave_hdx_after} (spent {hdx_spent})");
+			println!("dave BNC: {dave_bnc_before} → {dave_bnc_after} (received {bnc_received})");
 
 			assert_eq!(
 				hdx_spent, fill_amount,
@@ -4838,8 +4815,7 @@ fn solver_v2_single_partial_whale() {
 			// Single whale intent → no matched volume → no protocol fee.
 			assert_eq!(
 				bnc_received, expected_bnc_out,
-				"Dave should receive the full resolved amount_out: expected {}, got {}",
-				expected_bnc_out, bnc_received
+				"Dave should receive the full resolved amount_out: expected {expected_bnc_out}, got {bnc_received}"
 			);
 			assert_eq!(
 				Currencies::free_balance(bnc, &<Runtime as pallet_ice::Config>::FeeReceiver::get()),
@@ -4870,9 +4846,6 @@ fn solver_v2_single_partial_whale() {
 			let intents2 = pallet_intent::Pallet::<Runtime>::get_valid_intents();
 			assert_eq!(intents2.len(), 1, "Whale intent should still be valid");
 
-			let dave_hdx_before2 = Currencies::total_balance(hdx, &dave);
-			let dave_bnc_before2 = Currencies::total_balance(bnc, &dave);
-
 			// Check spot rate after block 1 trade
 			{
 				use hydradx_traits::amm::AMMInterface;
@@ -4886,10 +4859,7 @@ fn solver_v2_single_partial_whale() {
 						.map(|(s, e)| (routes[0].clone(), e.amount_out, s))
 				{
 					let rate = out as f64 / test_amount as f64;
-					println!(
-						"block 2 spot check: 1 HDX → {} BNC (rate: {:.6}, min: 0.065000)",
-						out, rate
-					);
+					println!("block 2 spot check: 1 HDX → {out} BNC (rate: {rate:.6}, min: 0.065000)");
 				}
 			}
 
@@ -4908,11 +4878,11 @@ fn solver_v2_single_partial_whale() {
 			}) = call2
 			{
 				assert_eq!(solution2.resolved_intents.len(), 1);
-				let (fill2_amount_in, fill2_amount_out) = {
+				let fill2_amount_in = {
 					let ice_support::IntentData::Swap(ref s2) = solution2.resolved_intents[0].data else {
 						panic!("expected Swap");
 					};
-					(s2.amount_in, s2.amount_out)
+					s2.amount_in
 				};
 
 				println!(
@@ -5122,8 +5092,7 @@ fn solver_v2_all_partial_same_direction() {
 			// Note: the solver processes partial intents sequentially, so this relationship
 			// depends on processing order. Log it for debugging.
 			println!(
-				"\nfill percentages: alice={:.1}%, bob={:.1}%, charlie={:.1}%",
-				alice_fill_pct, bob_fill_pct, charlie_fill_pct
+				"\nfill percentages: alice={alice_fill_pct:.1}%, bob={bob_fill_pct:.1}%, charlie={charlie_fill_pct:.1}%"
 			);
 
 			assert!(solution.score > 0, "Score should be positive");
@@ -5143,13 +5112,10 @@ fn solver_v2_all_partial_same_direction() {
 					continue;
 				};
 				let remaining = s.remaining();
-				println!("intent {}: remaining={}", id, remaining);
+				println!("intent {id}: remaining={remaining}");
 				assert!(
 					remaining == 0 || remaining >= hdx_ed,
-					"ED guard violated: intent {} has remaining={} < ED={}",
-					id,
-					remaining,
-					hdx_ed
+					"ED guard violated: intent {id} has remaining={remaining} < ED={hdx_ed}"
 				);
 			}
 		});
@@ -5253,6 +5219,7 @@ fn solver_v2_small_partial_fully_filled() {
 				RuntimeOrigin::none(),
 				solution,
 			));
+			assert_fee_receiver_gained(&fee_before, &fee_expected);
 
 			// Intent should be REMOVED from storage (fully filled partial)
 			assert!(
@@ -5628,14 +5595,8 @@ fn solver_v2_all_partial_opposing_directions() {
 			assert!(bob_bnc_after < bob_bnc_before, "Bob should have spent BNC");
 			assert!(bob_hdx_after > bob_hdx_before, "Bob should have received HDX");
 
-			println!(
-				"alice: HDX {} → {}, BNC {} → {}",
-				alice_hdx_before, alice_hdx_after, alice_bnc_before, alice_bnc_after
-			);
-			println!(
-				"bob: BNC {} → {}, HDX {} → {}",
-				bob_bnc_before, bob_bnc_after, bob_hdx_before, bob_hdx_after
-			);
+			println!("alice: HDX {alice_hdx_before} → {alice_hdx_after}, BNC {alice_bnc_before} → {alice_bnc_after}");
+			println!("bob: BNC {bob_bnc_before} → {bob_bnc_after}, HDX {bob_hdx_before} → {bob_hdx_after}");
 
 			// ED guard: remaining intents should have remaining >= ED
 			let hdx_ed = AssetRegistry::existential_deposit(hdx).unwrap_or(hdx_unit);
@@ -5800,7 +5761,7 @@ fn solver_v2_competing_partial_intents() {
 				let ice_support::IntentData::Swap(ref s) = intent.data else {
 					continue;
 				};
-				assert!(s.remaining() > 0, "Intent {} should have remaining", id);
+				assert!(s.remaining() > 0, "Intent {id} should have remaining");
 				assert!(
 					s.remaining() >= hdx_ed,
 					"ED guard: intent {} remaining={} < ED={}",
@@ -5927,7 +5888,7 @@ fn solver_v2_partial_with_non_partial_opposing() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 1119213812005087465, "score");
+			assert_eq!(solution.score, 1119213812005087466, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -5938,7 +5899,7 @@ fn solver_v2_partial_with_non_partial_opposing() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 100000000000000000u128);
-				assert_eq!(s.amount_out, 6762865171041124u128);
+				assert_eq!(s.amount_out, 6762865171041125u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -6014,6 +5975,7 @@ fn solver_v2_partial_with_non_partial_opposing() {
 				solution,
 			));
 			println!("submit_solution: OK");
+			assert_fee_receiver_gained(&fee_before, &fee_expected);
 
 			// Alice's intent should be removed (non-partial, fully resolved)
 			assert!(
@@ -6150,6 +6112,7 @@ fn solver_v2_cancel_after_partial_fill() {
 				RuntimeOrigin::none(),
 				solution,
 			));
+			assert_fee_receiver_gained(&fee_before, &fee_expected);
 
 			// Verify partial fill state
 			let stored = pallet_intent::Pallet::<Runtime>::get_intent(intent_id)
@@ -6202,10 +6165,7 @@ fn solver_v2_cancel_after_partial_fill() {
 			// Dave should get back the remaining HDX (unreserved)
 			let dave_hdx_after_cancel = Currencies::total_balance(hdx, &dave);
 			let hdx_returned = dave_hdx_after_cancel.saturating_sub(dave_hdx_after_fill);
-			println!(
-				"after cancel: HDX returned={}, expected remaining={}",
-				hdx_returned, remaining
-			);
+			println!("after cancel: HDX returned={hdx_returned}, expected remaining={remaining}");
 			// The remaining amount was locked via named reserve. Cancellation unreserves it,
 			// which increases free balance but total_balance stays the same (reserved → free).
 			// We check that the total balance didn't change after cancellation (just reserve → free).
@@ -6226,10 +6186,7 @@ fn solver_v2_cancel_after_partial_fill() {
 				"Account intent count should be 0"
 			);
 
-			println!(
-				"\nfinal state: dave HDX={}, BNC={}",
-				dave_hdx_after_cancel, dave_bnc_after_fill
-			);
+			println!("\nfinal state: dave HDX={dave_hdx_after_cancel}, BNC={dave_bnc_after_fill}");
 			println!("cancel after partial fill: OK");
 		});
 }
@@ -6368,7 +6325,7 @@ fn solver_v2_single_intent_hdx_to_hydrated_tether() {
 	// Sell 10,000 HDX — modest amount to avoid slippage issues
 	let amount_in = 10_000 * hdx_unit;
 	// Very loose limit: 1 hUSDT (effectively no minimum)
-	let min_amount_out = 1 * husdt_unit;
+	let min_amount_out = husdt_unit;
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(alice.clone(), hdx, amount_in * 10)
@@ -6549,7 +6506,7 @@ fn solver_v2_four_intents_hdx_to_different_atokens() {
 	// Each user sells 10,000 HDX for a different aToken
 	let amount_in = 10_000 * hdx_unit;
 	// Very loose limit — 1 unit of each aToken
-	let min_out = 1 * atoken_unit;
+	let min_out = atoken_unit;
 
 	struct IntentSetup {
 		who: AccountId,
@@ -6869,12 +6826,7 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 
 			for (who, label, asset_out, name) in &prep_trades {
 				let route = Router::get_route(hydradx_traits::router::AssetPair::new(hdx, *asset_out));
-				assert!(
-					!route.is_empty(),
-					"No route found for HDX → {} (asset {})",
-					name,
-					asset_out
-				);
+				assert!(!route.is_empty(), "No route found for HDX → {name} (asset {asset_out})");
 
 				crate::polkadot_test_net::hydradx_run_to_next_block();
 
@@ -6897,7 +6849,7 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 					name,
 					route.len()
 				);
-				assert!(received > 0, "{} should have received some {}", label, name);
+				assert!(received > 0, "{label} should have received some {name}");
 			}
 
 			// Log balances after prep
@@ -6992,7 +6944,7 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 							asset_in: ci.asset_in,
 							asset_out: ci.asset_out,
 							amount_in: ci.amount_in,
-							amount_out: 1 * atoken_unit,
+							amount_out: atoken_unit,
 							partial: false,
 						}),
 						deadline,
@@ -7042,7 +6994,7 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 4, "resolved count");
-			assert_eq!(solution.score, 36203275012696113837, "score");
+			assert_eq!(solution.score, 36234524332534714116, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -7053,7 +7005,7 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				assert_eq!(s.asset_in, 1110);
 				assert_eq!(s.asset_out, 1113);
 				assert_eq!(s.amount_in, 10074432980276737426u128);
-				assert_eq!(s.amount_out, 10050718343693021999u128);
+				assert_eq!(s.amount_out, 10050370706382834405u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -7065,7 +7017,7 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				assert_eq!(s.asset_in, 1111);
 				assert_eq!(s.asset_out, 1110);
 				assert_eq!(s.amount_in, 10062281042911715735u128);
-				assert_eq!(s.amount_out, 10050718343693022796u128);
+				assert_eq!(s.amount_out, 10072418093680682079u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -7077,7 +7029,7 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				assert_eq!(s.asset_in, 1111);
 				assert_eq!(s.asset_out, 1113);
 				assert_eq!(s.amount_in, 10061330244171591252u128);
-				assert_eq!(s.amount_out, 10051119981617046819u128);
+				assert_eq!(s.amount_out, 10052292896900060474u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -7089,7 +7041,7 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				assert_eq!(s.asset_in, 1113);
 				assert_eq!(s.asset_out, 1111);
 				assert_eq!(s.amount_in, 10052728889470916183u128);
-				assert_eq!(s.amount_out, 10050718343693022223u128);
+				assert_eq!(s.amount_out, 10059442635571137158u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 
@@ -7225,9 +7177,9 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 /// whether the same trade via ICE/intent also hits out-of-gas or not.
 #[test]
 fn ice_intent_with_evm_gas_eater_token() {
-	use crate::polkadot_test_net::{hydradx_run_to_block, DAI, HDX, LRNA, UNITS};
-	use frame_system::RawOrigin;
-	use hydradx_runtime::{Balances, EVMAccounts, EmaOracle, MultiTransactionPayment, Tokens, Treasury};
+	use crate::polkadot_test_net::{hydradx_run_to_block, HDX, LRNA, UNITS};
+
+	use hydradx_runtime::{EVMAccounts, EmaOracle, MultiTransactionPayment};
 	use hydradx_traits::evm::InspectEvmAccounts;
 	use primitives::constants::chain::OMNIPOOL_SOURCE;
 	use sp_runtime::FixedU128;
@@ -7274,7 +7226,7 @@ fn ice_intent_with_evm_gas_eater_token() {
 
 		hydradx_run_to_block(11);
 
-		println!("setup complete: erc20 asset id = {}", erc20);
+		println!("setup complete: erc20 asset id = {erc20}");
 		println!(
 			"alice erc20 balance: {}",
 			Currencies::free_balance(erc20, &ALICE.into())
@@ -7301,7 +7253,7 @@ fn ice_intent_with_evm_gas_eater_token() {
 				on_resolved: None,
 			}
 		));
-		println!("submitted intent: sell {} erc20 (gas-eater) → HDX", sell_amount);
+		println!("submitted intent: sell {sell_amount} erc20 (gas-eater) → HDX");
 
 		let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
 		assert_eq!(intents.len(), 1, "Should have 1 intent");
@@ -7310,7 +7262,6 @@ fn ice_intent_with_evm_gas_eater_token() {
 		// RUN SOLVER
 		// ============================================================
 		let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
-		let alice_erc20_before = Currencies::free_balance(erc20, &ALICE.into());
 
 		let call = pallet_ice::Pallet::<Runtime>::run(
 			hydradx_runtime::System::block_number(),
@@ -7338,8 +7289,6 @@ fn ice_intent_with_evm_gas_eater_token() {
 			assert_eq!(s.amount_out, 1993802295599997u128);
 			assert_eq!(s.partial, ice_support::Partial::No);
 		}
-		let fee_before = fee_receiver_snapshot(&solution);
-		let fee_expected = expected_matched_fees(&solution);
 		assert!(solution.score > 0, "Score should be positive");
 
 		let resolved = &solution.resolved_intents[0];
@@ -7377,8 +7326,7 @@ fn ice_intent_with_evm_gas_eater_token() {
 
 		assert_eq!(
 			hdx_received, expected_hdx_out,
-			"Alice should receive the full resolved amount_out: expected {}, got {}",
-			expected_hdx_out, hdx_received
+			"Alice should receive the full resolved amount_out: expected {expected_hdx_out}, got {hdx_received}"
 		);
 		assert_eq!(
 			Currencies::free_balance(HDX, &<Runtime as pallet_ice::Config>::FeeReceiver::get()),
@@ -7476,8 +7424,7 @@ fn solver_caps_at_max_resolved_intents() {
 			assert_eq!(
 				intents.len(),
 				total_intents as usize,
-				"Should have submitted {} intents",
-				total_intents
+				"Should have submitted {total_intents} intents"
 			);
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
@@ -8715,5 +8662,6 @@ fn solver_caps_at_max_resolved_intents() {
 				RuntimeOrigin::none(),
 				solution,
 			));
+			assert_fee_receiver_gained(&fee_before, &fee_expected);
 		});
 }
