@@ -2,6 +2,10 @@ use frame_support::traits::OnRuntimeUpgrade;
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
 use ice_support::{IntentData, Partial, SwapData};
 
+/// Continuous property-soak / fuzzing harness for the ICE solver and on-chain
+/// solution submission. Standalone manual utility — see `bin/ice_fuzz.rs`.
+pub mod fuzz;
+
 // Re-export both Intent types under distinct names
 pub use ice_support::Intent as SolverIntent;
 pub use pallet_intent::types::Intent as StorageIntent;
