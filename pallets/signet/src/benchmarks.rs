@@ -141,6 +141,7 @@ mod benches {
 	#[benchmark]
 	fn respond() {
 		let responder: T::AccountId = whitelisted_caller();
+		Signers::<T>::insert(&responder, ());
 
 		let mut ids: Vec<[u8; 32]> = Vec::with_capacity(MAX_BATCH_SIZE as usize);
 		let mut sigs: Vec<Signature> = Vec::with_capacity(MAX_BATCH_SIZE as usize);
@@ -171,6 +172,7 @@ mod benches {
 	#[benchmark]
 	fn respond_error() {
 		let responder: T::AccountId = whitelisted_caller();
+		Signers::<T>::insert(&responder, ());
 
 		let mut errs: Vec<ErrorResponse> = Vec::with_capacity(MAX_BATCH_SIZE as usize);
 
@@ -198,6 +200,7 @@ mod benches {
 	#[benchmark]
 	fn respond_bidirectional() {
 		let responder: T::AccountId = whitelisted_caller();
+		Signers::<T>::insert(&responder, ());
 
 		let request_id: [u8; 32] = [7u8; 32];
 		let output_vec = vec![8u8; MAX_SERIALIZED_OUTPUT_LENGTH as usize];
@@ -220,6 +223,28 @@ mod benches {
 			serialized_output,
 			signature,
 		);
+	}
+
+	#[benchmark]
+	fn add_signer() {
+		let who: T::AccountId = whitelisted_caller();
+
+		#[extrinsic_call]
+		add_signer(RawOrigin::Root, who.clone());
+
+		assert!(Signers::<T>::contains_key(&who));
+	}
+
+	#[benchmark]
+	fn remove_signer() {
+		let who: T::AccountId = whitelisted_caller();
+		Signers::<T>::insert(&who, ());
+		SignerCount::<T>::put(1);
+
+		#[extrinsic_call]
+		remove_signer(RawOrigin::Root, who.clone());
+
+		assert!(!Signers::<T>::contains_key(&who));
 	}
 
 	#[benchmark]

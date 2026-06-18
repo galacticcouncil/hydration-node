@@ -8,6 +8,8 @@ pub trait WeightInfo {
 	fn respond() -> Weight;
 	fn respond_error() -> Weight;
 	fn respond_bidirectional() -> Weight;
+	fn add_signer() -> Weight;
+	fn remove_signer() -> Weight;
 	fn pause() -> Weight;
 	fn unpause() -> Weight;
 }
