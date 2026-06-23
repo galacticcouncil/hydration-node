@@ -108,8 +108,8 @@ pub trait SimulatorConfig {
 /// trades against that snapshot, returning updated state and trade results.
 pub trait AmmSimulator {
 	/// Snapshot of the pool state needed for simulation.
-	/// Must be Clone for simulation state updates, Encode for offchain worker serialization.
-	type Snapshot: Clone + Encode;
+	/// Must be Clone for simulation state updates, Encode/Decode for shipping the snapshot to the node solver.
+	type Snapshot: Clone + Encode + Decode;
 
 	/// Returns the pool type this simulator handles (representative value)
 	fn pool_type() -> PoolType<AssetId>;
@@ -185,8 +185,8 @@ pub trait AmmSimulator {
 /// ```
 pub trait SimulatorSet {
 	/// Composite state type - typically a tuple of individual snapshots.
-	/// Must be Clone for simulation state updates, Encode for offchain worker serialization.
-	type State: Clone + Encode;
+	/// Must be Clone for simulation state updates, Encode/Decode for shipping the snapshot to the node solver.
+	type State: Clone + Encode + Decode;
 
 	/// Create initial state by calling snapshot() on each simulator
 	fn initial_state() -> Self::State;

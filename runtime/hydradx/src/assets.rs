@@ -1888,7 +1888,7 @@ parameter_types! {
 /// Bundles simulators and route discovery strategy for the solver
 pub struct HydrationSimulatorConfig;
 
-type HydrationSimulators = (
+pub type HydrationSimulators = (
 	OmnipoolSimulator<ice_simulator_provider::Omnipool<Runtime>>,
 	StableSwapSimulator<ice_simulator_provider::Stableswap<Runtime>>,
 	AaveSimulator<ice_simulator_provider::Aave<Runtime>>,

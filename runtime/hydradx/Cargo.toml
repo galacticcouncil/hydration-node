@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "428.0.0"
+version = "429.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -68,6 +68,7 @@ pallet-hsm = { workspace = true }
 pallet-parameters = { workspace = true }
 pallet-intent = { workspace = true }
 pallet-ice = { workspace = true }
+pallet-ice-runtime-api = { workspace = true }
 pallet-lazy-executor = { workspace = true }
 amm-simulator = { workspace = true }
 ice-support = { workspace = true }
@@ -405,6 +406,7 @@ std = [
     "pallet-dispenser/std",
     "pallet-intent/std",
     "pallet-ice/std",
+    "pallet-ice-runtime-api/std",
     "pallet-lazy-executor/std",
     "amm-simulator/std",
     "ice-support/std",

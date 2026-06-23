@@ -57,6 +57,7 @@ members = [
     'pallets/intent',
     'pallets/ice',
     'pallets/ice/support',
+    'pallets/ice/runtime-api',
     'ice/ice-solver',
     'ice/solver-bench',
     'pallets/ice/amm-simulator',
@@ -183,6 +184,7 @@ pallet-signet = { path = "pallets/signet", default-features = false }
 pallet-dispenser = { path = "pallets/dispenser", default-features = false }
 pallet-intent = { path = "pallets/intent", default-features = false }
 pallet-ice = { path = "pallets/ice", default-features = false }
+pallet-ice-runtime-api = { path = "pallets/ice/runtime-api", default-features = false }
 ice-support = { path = "pallets/ice/support", default-features = false }
 amm-simulator = { path = "pallets/ice/amm-simulator", default-features = false }
 pallet-lazy-executor = { path = "pallets/lazy-executor", default-features = false }

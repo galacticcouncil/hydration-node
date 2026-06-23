@@ -77,12 +77,13 @@ const LOG_PREFIX: &str = "ICE#pallet_ice";
 pub(crate) const OCW_TAG_PREFIX: &str = "ice-solution";
 pub(crate) const OCW_PROVIDES: &[u8; 15] = b"submit_solution";
 
+/// Parts returned by `solver_input`: valid intents, the SCALE-encoded simulator
+/// snapshot, the ED map for every asset the solver may query, and the matched fee.
+pub type SolverInputParts = (Vec<Intent>, Vec<u8>, Vec<(AssetId, Balance)>, Permill);
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_system::offchain::SubmitTransaction;
-	use hydradx_traits::CreateBare;
-	use ice_solver::v4::Solver;
 	use ice_support::SwapType;
 
 	#[pallet::pallet]
@@ -90,10 +91,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config
-		+ pallet_intent::Config
-		+ pallet_route_executor::Config<AssetId = AssetId>
-		+ CreateBare<Call<Self>>
+		frame_system::Config + pallet_intent::Config + pallet_route_executor::Config<AssetId = AssetId>
 	{
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Balance>;
@@ -406,31 +404,6 @@ pub mod pallet {
 		}
 	}
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_finalize(_n: BlockNumberFor<T>) {}
-
-		fn offchain_worker(block_number: BlockNumberFor<T>) {
-			let matched_fee = Self::protocol_fee();
-			let Some(call) = Self::run(block_number, |intents, state| {
-				match Solver::<amm_simulator::HydrationSimulator<T::Simulator>>::solve(intents, state, matched_fee) {
-					Ok(solution) => Some(solution),
-					Err(e) => {
-						log::error!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver failed, err: {e:?}");
-						None
-					}
-				}
-			}) else {
-				return;
-			};
-
-			let tx = <T as CreateBare<self::Call<T>>>::create_bare(call.into());
-			if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
-				log::error!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: submit_transaction failed (validate_unsigned rejected the solution), err: {e:?}");
-			};
-		}
-	}
-
 	#[pallet::validate_unsigned]
 	impl<T: Config> ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
@@ -669,6 +642,49 @@ impl<T: Config> Pallet<T> {
 			return Err(Error::<T>::ScoreMismatch.into());
 		}
 		Ok(())
+	}
+
+	/// Build the side-effect-free inputs for the node-side solver: the valid
+	/// intents, the SCALE-encoded simulator snapshot, the ED map for every asset
+	/// the solver may query, and the matched-volume fee. Returns `None` on an
+	/// empty intent set (the cheap empty-block path — no snapshot/EVM work).
+	pub fn solver_input() -> Option<SolverInputParts> {
+		let intents: Vec<Intent> = pallet_intent::Pallet::<T>::get_valid_intents()
+			.iter()
+			.map(|x| Intent {
+				id: x.0,
+				data: x.1.data.to_owned(),
+			})
+			.collect();
+
+		if intents.is_empty() {
+			return None;
+		}
+
+		let state = <<T as Config>::Simulator as SimulatorConfig>::Simulators::initial_state();
+
+		// ED universe = snapshot pool assets ∪ intent assets — exactly the set the
+		// solver can query. Source EDs via the simulator config (the same source
+		// the wasm solve uses) so the node's native solve is byte-identical.
+		let mut assets = BTreeSet::<AssetId>::new();
+		for edge in <<T as Config>::Simulator as SimulatorConfig>::Simulators::pool_edges(&state) {
+			assets.extend(edge.assets);
+		}
+		for intent in &intents {
+			assets.insert(intent.data.asset_in());
+			assets.insert(intent.data.asset_out());
+		}
+		let existential_deposits = assets
+			.into_iter()
+			.map(|asset| {
+				(
+					asset,
+					<<T as Config>::Simulator as SimulatorConfig>::existential_deposit(asset),
+				)
+			})
+			.collect();
+
+		Some((intents, state.encode(), existential_deposits, Self::protocol_fee()))
 	}
 
 	pub fn run<F>(block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
