@@ -20,7 +20,10 @@ const SIGNATURE = {
 	recoveryId: 0,
 };
 
-describe('signet feeless respond (allowlist-gated)', () => {
+// Existential deposit plus enough headroom to lock one respond fee.
+const FUND = ED + 10_000_000_000_000n;
+
+describe('signet respond (lock / refund-on-success)', () => {
 	let api: ApiPromise;
 	let provider: WsProvider;
 	let signer: KeyringPair;
@@ -34,9 +37,8 @@ describe('signet feeless respond (allowlist-gated)', () => {
 
 		await executeAsRootViaScheduler(api, provider, api.tx.signet.addSigner(signer.address));
 
-		// Fund both with exactly the existential deposit — no gas buffer.
-		await setNativeBalance(provider, signer.address, ED);
-		await setNativeBalance(provider, outsider.address, ED);
+		await setNativeBalance(provider, signer.address, FUND);
+		await setNativeBalance(provider, outsider.address, FUND);
 	}, 600000);
 
 	afterAll(async () => {
@@ -48,12 +50,12 @@ describe('signet feeless respond (allowlist-gated)', () => {
 		expect((entry as any).isSome).toBe(true);
 	});
 
-	it('respond should be annotated Pays::No (zero partial fee)', async () => {
+	it('respond should predict a non-zero fee (locked upfront)', async () => {
 		const info = await api.tx.signet.respond([REQUEST_ID], [SIGNATURE]).paymentInfo(signer.address);
-		expect((info as any).partialFee.toBigInt()).toBe(0n);
+		expect((info as any).partialFee.toBigInt()).toBeGreaterThan(0n);
 	});
 
-	it('respond should succeed for an ED-only signer and not charge a fee', async () => {
+	it('respond should refund the fee when successful', async () => {
 		const before = await freeBalance(api, signer.address);
 
 		const events = await submitAndMine(api, provider, api.tx.signet.respond([REQUEST_ID], [SIGNATURE]), signer);
@@ -63,10 +65,11 @@ describe('signet feeless respond (allowlist-gated)', () => {
 
 		const after = await freeBalance(api, signer.address);
 		expect(after).toBe(before);
-		expect(after).toBe(ED);
 	}, 300000);
 
-	it('respond should be rejected for a non-allowlisted account', async () => {
+	it('respond should charge the fee when the caller is not allowlisted', async () => {
+		const before = await freeBalance(api, outsider.address);
+
 		const events = await submitAndMine(api, provider, api.tx.signet.respond([REQUEST_ID], [SIGNATURE]), outsider);
 
 		const failed = findEvent(events, 'system', 'ExtrinsicFailed');
@@ -75,5 +78,8 @@ describe('signet feeless respond (allowlist-gated)', () => {
 		const err = moduleErrorName(api, failed);
 		expect(err.section).toBe('signet');
 		expect(err.name).toBe('NotAuthorizedSigner');
+
+		const after = await freeBalance(api, outsider.address);
+		expect(after).toBeLessThan(before);
 	}, 300000);
 });

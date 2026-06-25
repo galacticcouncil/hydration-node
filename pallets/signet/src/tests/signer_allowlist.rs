@@ -218,42 +218,89 @@ fn respond_should_fail_when_signer_is_removed() {
 }
 
 // -----------------------------------------------------------------------------
-// feeless (Pays::No) annotation
+// fee: refunded on success, charged on failure
 // -----------------------------------------------------------------------------
 
 #[test]
-fn respond_should_be_feeless_when_called() {
+fn respond_should_refund_fee_when_successful() {
 	new_test_ext().execute_with(|| {
-		let call = RuntimeCall::Signet(crate::Call::respond {
-			request_ids: bounded_array::<100>(vec![[1u8; 32]]),
-			signatures: bounded_sig::<100>(vec![create_test_signature()]),
-		});
-		assert_eq!(call.get_dispatch_info().pays_fee, Pays::No);
+		assert_ok!(Signet::add_signer(RuntimeOrigin::root(), SIGNER));
+
+		let info = Signet::respond(
+			RuntimeOrigin::signed(SIGNER),
+			bounded_array::<100>(vec![[1u8; 32]]),
+			bounded_sig::<100>(vec![create_test_signature()]),
+		)
+		.expect("respond should succeed");
+
+		assert_eq!(info.pays_fee, Pays::No);
 	});
 }
 
 #[test]
-fn respond_error_should_be_feeless_when_called() {
+fn respond_error_should_refund_fee_when_successful() {
 	new_test_ext().execute_with(|| {
-		let call = RuntimeCall::Signet(crate::Call::respond_error {
-			errors: bounded_err::<100>(vec![ErrorResponse {
+		assert_ok!(Signet::add_signer(RuntimeOrigin::root(), SIGNER));
+
+		let info = Signet::respond_error(
+			RuntimeOrigin::signed(SIGNER),
+			bounded_err::<100>(vec![ErrorResponse {
 				request_id: [1u8; 32],
 				error_message: bounded_u8::<1024>(b"boom".to_vec()),
 			}]),
-		});
-		assert_eq!(call.get_dispatch_info().pays_fee, Pays::No);
+		)
+		.expect("respond_error should succeed");
+
+		assert_eq!(info.pays_fee, Pays::No);
 	});
 }
 
 #[test]
-fn respond_bidirectional_should_be_feeless_when_called() {
+fn respond_bidirectional_should_refund_fee_when_successful() {
 	new_test_ext().execute_with(|| {
-		let call = RuntimeCall::Signet(crate::Call::respond_bidirectional {
-			request_id: [1u8; 32],
-			serialized_output: bounded_u8::<65536>(b"out".to_vec()),
-			signature: create_test_signature(),
-		});
-		assert_eq!(call.get_dispatch_info().pays_fee, Pays::No);
+		assert_ok!(Signet::add_signer(RuntimeOrigin::root(), SIGNER));
+
+		let info = Signet::respond_bidirectional(
+			RuntimeOrigin::signed(SIGNER),
+			[1u8; 32],
+			bounded_u8::<65536>(b"out".to_vec()),
+			create_test_signature(),
+		)
+		.expect("respond_bidirectional should succeed");
+
+		assert_eq!(info.pays_fee, Pays::No);
+	});
+}
+
+#[test]
+fn respond_should_charge_fee_when_unauthorized() {
+	new_test_ext().execute_with(|| {
+		let err = Signet::respond(
+			RuntimeOrigin::signed(OUTSIDER),
+			bounded_array::<100>(vec![[1u8; 32]]),
+			bounded_sig::<100>(vec![create_test_signature()]),
+		)
+		.expect_err("respond should fail for an unauthorized caller");
+
+		assert_eq!(err.error, Error::<Test>::NotAuthorizedSigner.into());
+		assert_eq!(err.post_info.pays_fee, Pays::Yes);
+	});
+}
+
+#[test]
+fn respond_should_charge_fee_when_input_lengths_mismatch() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Signet::add_signer(RuntimeOrigin::root(), SIGNER));
+
+		let err = Signet::respond(
+			RuntimeOrigin::signed(SIGNER),
+			bounded_array::<100>(vec![[1u8; 32], [2u8; 32]]),
+			bounded_sig::<100>(vec![create_test_signature()]),
+		)
+		.expect_err("respond should fail on length mismatch");
+
+		assert_eq!(err.error, Error::<Test>::InvalidInputLength.into());
+		assert_eq!(err.post_info.pays_fee, Pays::Yes);
 	});
 }
 

@@ -1,8 +1,10 @@
 # signet-feeless-test
 
-Chopsticks e2e for the allowlist-gated, feeless `signet.respond` flow: an
-authorized signer holding only the existential deposit (1 HDX) can call
-`respond` without paying a fee, and a non-allowlisted account is rejected.
+Chopsticks e2e for the allowlist-gated `signet.respond` flow: the fee is locked
+upfront and refunded when the call succeeds, otherwise charged. An authorized
+signer's successful `respond` costs nothing (fee refunded), while a
+non-allowlisted account fails and is charged. The caller must hold enough HDX to
+lock the fee.
 
 Mirrors the pallet unit tests in `pallets/signet/src/tests/signer_allowlist.rs`.
 

@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::useless_conversion)]
 
 use ethereum::{AccessListItem, EIP1559TransactionMessage, TransactionAction};
 use frame_support::{
@@ -412,12 +413,12 @@ pub mod pallet {
 
 		/// Respond to signature requests (batch support)
 		#[pallet::call_index(4)]
-		#[pallet::weight((<T as Config>::WeightInfo::respond(), Pays::No))]
+		#[pallet::weight(<T as Config>::WeightInfo::respond())]
 		pub fn respond(
 			origin: OriginFor<T>,
 			request_ids: BoundedVec<[u8; 32], ConstU32<MAX_BATCH_SIZE>>,
 			signatures: BoundedVec<Signature, ConstU32<MAX_BATCH_SIZE>>,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let responder = ensure_signed(origin)?;
 			ensure!(Signers::<T>::contains_key(&responder), Error::<T>::NotAuthorizedSigner);
 
@@ -431,16 +432,16 @@ pub mod pallet {
 				});
 			}
 
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Report signature generation errors (batch support)
 		#[pallet::call_index(5)]
-		#[pallet::weight((<T as Config>::WeightInfo::respond_error(), Pays::No))]
+		#[pallet::weight(<T as Config>::WeightInfo::respond_error())]
 		pub fn respond_error(
 			origin: OriginFor<T>,
 			errors: BoundedVec<ErrorResponse, ConstU32<MAX_BATCH_SIZE>>,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let responder = ensure_signed(origin)?;
 			ensure!(Signers::<T>::contains_key(&responder), Error::<T>::NotAuthorizedSigner);
 
@@ -452,18 +453,18 @@ pub mod pallet {
 				});
 			}
 
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Provide a read response with signature
 		#[pallet::call_index(6)]
-		#[pallet::weight((<T as Config>::WeightInfo::respond_bidirectional(), Pays::No))]
+		#[pallet::weight(<T as Config>::WeightInfo::respond_bidirectional())]
 		pub fn respond_bidirectional(
 			origin: OriginFor<T>,
 			request_id: [u8; 32],
 			serialized_output: BoundedVec<u8, ConstU32<MAX_SERIALIZED_OUTPUT_LENGTH>>,
 			signature: Signature,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let responder = ensure_signed(origin)?;
 			ensure!(Signers::<T>::contains_key(&responder), Error::<T>::NotAuthorizedSigner);
 
@@ -474,7 +475,7 @@ pub mod pallet {
 				signature,
 			});
 
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Pause the signet so that no new signing requests can be made.
