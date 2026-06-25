@@ -74,6 +74,40 @@ fn claim_rewards_should_remove_assets_from_the_list_when_not_successful() {
 		});
 }
 
+// Regression: sub-`MinTradingLimit` dust in `PendingConversions` must not block reward claims.
+#[test]
+fn claim_rewards_should_succeed_when_pending_asset_balance_is_below_min_trading_limit() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000),
+			// 500 raw units of DAI — below the converter's min trading limit (1_000).
+			(Pallet::<Test>::pot_account_id(), DAI, 500),
+		])
+		.with_referrer_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.with_assets(vec![DAI])
+		// Price present so the converter reaches the min-amount check (not the no-price branch,
+		// whose error the claim loop happens to tolerate).
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
+		.with_convert_min_amount(1_000)
+		.build()
+		.execute_with(|| {
+			assert_eq!(PendingConversions::<Test>::count(), 1);
+
+			// Bob can still claim his share despite the un-convertible dust asset.
+			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
+
+			// Bob received his portion of the HDX reward reserve.
+			assert_eq!(Tokens::free_balance(HDX, &BOB), 5_000_000_000_000);
+			// The dust entry is dropped rather than left to block future claims.
+			assert_eq!(PendingConversions::<Test>::count(), 0);
+			// The skipped conversion is surfaced as an event, not silently swallowed.
+			assert!(System::events().iter().any(|r| matches!(
+				&r.event,
+				RuntimeEvent::Referrals(Event::ConversionFailed { asset_id, .. }) if *asset_id == DAI
+			)));
+		});
+}
+
 #[test]
 fn claim_rewards_should_calculate_correct_portion_when_claimed() {
 	ExtBuilder::default()

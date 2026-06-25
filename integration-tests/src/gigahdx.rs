@@ -1161,12 +1161,19 @@ fn giga_stake_should_fail_when_evm_address_unbound() {
 }
 
 #[test]
-fn first_staker_inflation_grief_should_be_self_defeating_against_real_aave() {
-	// Audit lead: attacker leaves a 1-wei stHDX residual, donates HDX to
-	// inflate the rate, then expects new stakers to round-to-zero atokens.
-	// Self-defeating against real AAVE V3: `Pool.withdraw(1)` reverts on
-	// AAVE's min-amount check, so the attacker can never reclaim the donation.
-	// Pinned so any change to AAVE config that makes this profitable trips here.
+fn first_staker_inflation_should_not_harm_new_stakers_and_be_fully_reversible() {
+	// First-staker inflation setup: leave a 1-wei stHDX residual, donate HDX to
+	// inflate the rate, so new stakers round their mint to zero.
+	//
+	// Two invariants are pinned:
+	//   1. A new staker can never be defrauded — a round-to-zero mint reverts
+	//      cleanly with `ZeroAmount`; their HDX is untouched (no silent
+	//      0-atoken stake). This is the load-bearing protection and is
+	//      independent of AAVE config.
+	//   2. Under the current stHDX reserve config AAVE accepts `Pool.withdraw(1)`,
+	//      so the attacker can fully unwind the residual: the donation is
+	//      recovered in full and the pool resets to empty. No value is created
+	//      or destroyed — the inflation grief is reversible, not theft.
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		reset_giga_state_for_fixture();
@@ -1201,9 +1208,11 @@ fn first_staker_inflation_grief_should_be_self_defeating_against_real_aave() {
 			GigaHdx::exchange_rate() > Ratio::new(donation, 1),
 			"rate should be heavily inflated after donation",
 		);
+		let alice_after_donation = Balances::free_balance(&alice);
 
-		// `gigahdx_to_mint` floors to 0 → pallet's `ZeroAmount` guard fires
-		// before AAVE (so this holds even on forks that accept `Pool.supply(0)`).
+		// Invariant 1: a new staker rounds to zero and is rejected — `ZeroAmount`
+		// fires before AAVE (holds even on forks that accept `Pool.supply(0)`),
+		// leaving Bob's HDX untouched. No fund loss is possible.
 		fund(&bob, 100 * UNITS);
 		let bob_hdx_before = Balances::free_balance(&bob);
 		assert_noop!(
@@ -1214,15 +1223,37 @@ fn first_staker_inflation_grief_should_be_self_defeating_against_real_aave() {
 		assert_eq!(Currencies::free_balance(GIGAHDX, &bob), 0);
 		assert!(pallet_gigahdx::Stakes::<Runtime>::get(&bob).is_none());
 
-		// Self-defeat: attacker cannot exit the 1-wei residual.
-		assert_noop!(
-			GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 1),
-			pallet_gigahdx::Error::<Runtime>::MoneyMarketWithdrawFailed,
-		);
+		// Invariant 2: the attacker fully unwinds the 1-wei residual. AAVE accepts
+		// the `Pool.withdraw(1)`, the donation is pulled back out as yield, and
+		// the pool resets to empty.
+		assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), 1));
+		let exit = only_pending_position(&alice);
+		System::set_block_number(exit.expires_at);
+		assert_ok!(GigaHdx::unlock(RuntimeOrigin::signed(alice.clone()), exit.id));
 
-		assert_eq!(Balances::free_balance(&gigapot), donation);
-		assert_eq!(GigaHdx::total_gigahdx_supply(), 1);
-		assert!(GigaHdx::exchange_rate() > Ratio::new(donation, 1));
+		// Pool reset, donation fully recovered, nothing left behind.
+		assert_eq!(
+			Balances::free_balance(&gigapot),
+			0,
+			"donation fully drained from the gigapot"
+		);
+		assert_eq!(
+			GigaHdx::total_gigahdx_supply(),
+			0,
+			"residual burned — supply back to zero"
+		);
+		assert_eq!(
+			GigaHdx::exchange_rate(),
+			Ratio::one(),
+			"rate resets to 1.0 at empty supply"
+		);
+		// Exact recovery: the attacker reclaims precisely the donation — no more
+		// (no theft from the protocol) and no less (grief is not self-defeating).
+		assert_eq!(
+			Balances::free_balance(&alice),
+			alice_after_donation + donation,
+			"attacker reclaims exactly the donation: no value created or destroyed",
+		);
 	});
 }
 
@@ -2404,6 +2435,62 @@ fn crash_st_hdx_price(oracle: EvmAddress, st_hdx_evm: EvmAddress) {
 	set_oracle_price_source(oracle, st_hdx_evm, mock);
 }
 
+/// Attempt `Pool.borrow(asset, amount)` as `user` without asserting success,
+/// returning the raw EVM exit reason so the caller can assert on a revert.
+fn try_aave_borrow(pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: Balance) -> fp_evm::ExitReason {
+	let data = EvmDataWriter::new_with_selector(liquidation_worker_support::Function::Borrow)
+		.write(asset)
+		.write(amount)
+		.write(2u32) // variable interest rate mode
+		.write(0u32) // referral code
+		.write(user) // onBehalfOf
+		.build();
+	Executor::<Runtime>::call(CallContext::new_call(pool, user), data, U256::zero(), 50_000_000).exit_reason
+}
+
+#[test]
+fn aave_borrow_should_revert_when_asset_is_sthdx() {
+	// stHDX must be non-borrowable on the GIGAHDX AAVE pool (zero borrow cap /
+	// IRM returning 0). If it ever became borrowable, a drifting liquidityIndex
+	// would break the `aToken : stHDX = 1 : 1` invariant and leak unlocked
+	// aTokens past the lock-manager (see the stHDX invariants in `assets.rs`).
+	// Enforcement lives in the AAVE reserve config, not in runtime code, so this
+	// pins the deploy/snapshot setup against silent regression.
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		use crate::liquidation::get_user_account_data;
+
+		let (alice, _bob, alice_evm, pool, _oracle, _hollar) = liquidation_test_setup();
+		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
+
+		// Large stake → ample GIGAHDX collateral, so a stHDX borrow would clear
+		// the collateral check if the asset were borrowable. This makes the
+		// revert attributable to the disabled reserve, not thin collateral.
+		assert_ok!(GigaHdx::giga_stake(
+			RuntimeOrigin::signed(alice.clone()),
+			10_000 * UNITS
+		));
+
+		let data = get_user_account_data(pool, alice_evm).unwrap();
+		assert!(
+			data.available_borrows_base > U256::zero(),
+			"precondition: Alice must have borrowing power so the revert is attributable to stHDX being non-borrowable",
+		);
+
+		let st_hdx_before = Currencies::free_balance(ST_HDX, &alice);
+
+		let exit = try_aave_borrow(pool, alice_evm, st_hdx_evm, UNITS);
+		assert!(
+			matches!(exit, fp_evm::ExitReason::Revert(_)),
+			"borrowing stHDX must revert (reserve must be non-borrowable); got {:?}",
+			exit,
+		);
+
+		// No stHDX may reach the user.
+		assert_eq!(Currencies::free_balance(ST_HDX, &alice), st_hdx_before);
+	});
+}
+
 /// Executes the same flow as `pallet_liquidation::liquidate_gigahdx` step by
 /// step from the test, so we exercise the real building blocks (AAVE pool,
 /// LockableAToken precompile, Seize trait, lock refresh) end-to-end against
@@ -2417,11 +2504,10 @@ fn gigahdx_liquidation_flow_should_seize_collateral_and_close_debt() {
 		use crate::liquidation::{borrow, get_user_account_data};
 		use hydradx_runtime::BorrowingTreasuryAccount;
 		use hydradx_traits::gigahdx::Seize;
-		use sp_core::Get;
 
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let treasury = BorrowingTreasuryAccount::get();
 		let treasury_evm = EVMAccounts::evm_address(&treasury);
 
@@ -2554,11 +2640,10 @@ fn gigahdx_liquidation_should_not_seize_from_users_free_balance() {
 		use frame_support::traits::tokens::{Fortitude, Preservation};
 		use hydradx_runtime::BorrowingTreasuryAccount;
 		use hydradx_traits::gigahdx::Seize;
-		use sp_core::Get;
 
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let treasury_evm = EVMAccounts::evm_address(&BorrowingTreasuryAccount::get());
 		let treasury_evm_account = EVMAccounts::account_id(treasury_evm);
 
@@ -2709,11 +2794,10 @@ fn gigahdx_liquidation_should_keep_total_locked_invariant() {
 		use crate::liquidation::{borrow, get_user_account_data};
 		use hydradx_runtime::BorrowingTreasuryAccount;
 		use hydradx_traits::gigahdx::Seize;
-		use sp_core::Get;
 
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let treasury_evm = EVMAccounts::evm_address(&BorrowingTreasuryAccount::get());
 		let treasury_evm_account = EVMAccounts::account_id(treasury_evm);
 
@@ -2796,7 +2880,6 @@ fn other_users_should_stake_normally_after_liquidation() {
 		use crate::liquidation::borrow;
 		use hydradx_runtime::BorrowingTreasuryAccount;
 		use hydradx_traits::gigahdx::Seize;
-		use sp_core::Get;
 
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let charlie: AccountId = CHARLIE.into();
@@ -2807,7 +2890,7 @@ fn other_users_should_stake_normally_after_liquidation() {
 			100_000 * UNITS,
 		));
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let treasury_evm = EVMAccounts::evm_address(&BorrowingTreasuryAccount::get());
 		let treasury_evm_account = EVMAccounts::account_id(treasury_evm);
 
@@ -2886,11 +2969,10 @@ fn gigahdx_liquidation_should_force_remove_conflicting_vote() {
 		use hydradx_runtime::BorrowingTreasuryAccount;
 		use hydradx_traits::gigahdx::ClearConflictingVotes;
 		use hydradx_traits::gigahdx::Seize;
-		use sp_core::Get;
 
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let treasury_evm = EVMAccounts::evm_address(&BorrowingTreasuryAccount::get());
 		let treasury_evm_account = EVMAccounts::account_id(treasury_evm);
 
@@ -3241,11 +3323,10 @@ fn gigahdx_liquidation_should_succeed_when_borrower_has_split_vote() {
 		use hydradx_runtime::BorrowingTreasuryAccount;
 		use hydradx_traits::gigahdx::ClearConflictingVotes;
 		use hydradx_traits::gigahdx::Seize;
-		use sp_core::Get;
 
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let treasury_evm = EVMAccounts::evm_address(&BorrowingTreasuryAccount::get());
 		let treasury_evm_account = EVMAccounts::account_id(treasury_evm);
 
@@ -3366,11 +3447,10 @@ fn liquidation_should_seize_from_buffer_when_unrelated_lock_blocks_staked_portio
 		use frame_support::traits::{LockableCurrency, WithdrawReasons};
 		use hydradx_runtime::BorrowingTreasuryAccount;
 		use hydradx_traits::gigahdx::Seize;
-		use sp_core::Get;
 
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let treasury_evm = EVMAccounts::evm_address(&BorrowingTreasuryAccount::get());
 		let treasury_evm_account = EVMAccounts::account_id(treasury_evm);
 
@@ -3475,11 +3555,10 @@ fn liquidate_should_succeed_when_borrower_has_unrelated_lock() {
 		use frame_support::traits::{LockableCurrency, WithdrawReasons};
 		use hydradx_runtime::BorrowingTreasuryAccount;
 		use hydradx_traits::gigahdx::Seize;
-		use sp_core::Get;
 
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let treasury_evm = EVMAccounts::evm_address(&BorrowingTreasuryAccount::get());
 		let treasury_evm_account = EVMAccounts::account_id(treasury_evm);
 
@@ -3561,7 +3640,7 @@ fn liquidate_should_succeed_when_borrower_has_unrelated_lock() {
 // `Liquidation::liquidate` extrinsic. Validates the corrected design:
 //   * `realize_yield` (seize step 0) folds the borrower's accrued gigapot
 //     yield into their locked stake, so the pro-rata `seize_hdx` is non-zero.
-//   * The GigaHdxLiquidationAccount itself borrows the HOLLAR from the *main*
+//   * The liquidation account itself borrows the HOLLAR from the *main*
 //     money market (treasury keeps it collateralized there) and runs the
 //     `liquidationCall` on the GIGAHDX pool, receiving the seized aToken
 //     directly — it ends holding the seized GIGAHDX *and* the HOLLAR debt.
@@ -3571,7 +3650,6 @@ fn gigahdx_liquidation_extrinsic_should_consolidate_seized_gigahdx_and_hollar_de
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		use crate::liquidation::{borrow, get_user_account_data, supply};
-		use sp_core::Get;
 
 		const DOT: AssetId = 5;
 		const DOT_UNIT: Balance = 10_000_000_000;
@@ -3580,7 +3658,7 @@ fn gigahdx_liquidation_extrinsic_should_consolidate_seized_gigahdx_and_hollar_de
 
 		let (alice, bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let main_mm = Liquidation::borrowing_contract();
 
 		assert_ok!(Balances::force_set_balance(
@@ -3854,12 +3932,11 @@ fn gigahdx_liquidation_e2e_should_seize_when_normal_staker() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		use crate::liquidation::{borrow, get_user_account_data};
-		use sp_core::Get;
 
 		reset_giga_state_for_fixture();
 		let (alice, bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let main_mm = Liquidation::borrowing_contract();
 
 		let stake_amount = 10_000 * UNITS;
@@ -3912,12 +3989,11 @@ fn gigahdx_liquidation_e2e_should_remove_unbacked_vote_when_borrower_has_convict
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		use crate::liquidation::{borrow, get_user_account_data};
-		use sp_core::Get;
 
 		reset_giga_state_for_fixture();
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let main_mm = Liquidation::borrowing_contract();
 
 		let stake_amount = 10_000 * UNITS;
@@ -4051,12 +4127,11 @@ fn gigahdx_liquidation_e2e_should_keep_vote_still_backed_by_residual_stake() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		use crate::liquidation::{borrow, get_user_account_data};
-		use sp_core::Get;
 
 		reset_giga_state_for_fixture();
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let main_mm = Liquidation::borrowing_contract();
 
 		let stake_amount = 10_000 * UNITS;
@@ -4139,12 +4214,11 @@ fn gigahdx_liquidation_e2e_should_not_strand_surplus_hollar_debt() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		use crate::liquidation::{borrow, get_user_account_data};
-		use sp_core::Get;
 
 		reset_giga_state_for_fixture();
 		let (alice, _bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let main_mm = Liquidation::borrowing_contract();
 
 		let stake_amount = 10_000 * UNITS;
@@ -4189,6 +4263,112 @@ fn gigahdx_liquidation_e2e_should_not_strand_surplus_hollar_debt() {
 	});
 }
 
+/// `who`'s HOLLAR debt (variable + stable) on `pool`, read straight from the
+/// reserve's debt tokens — exact, unlike `getUserAccountData`'s base-currency
+/// aggregate.
+fn hollar_debt(pool: EvmAddress, who_evm: EvmAddress) -> Balance {
+	use hydradx_runtime::evm::{aave_trade_executor::Aave, Erc20Currency};
+	use hydradx_traits::evm::ERC20;
+	let hollar_evm = HydraErc20Mapping::asset_address(HOLLAR_ASSET_ID);
+	let reserve = Aave::get_reserve_data(pool, hollar_evm).expect("hollar reserve data");
+	let variable = <Erc20Currency<Runtime> as ERC20>::balance_of(
+		CallContext::new_view(reserve.variable_debt_token_address),
+		who_evm,
+	);
+	let stable = <Erc20Currency<Runtime> as ERC20>::balance_of(
+		CallContext::new_view(reserve.stable_debt_token_address),
+		who_evm,
+	);
+	variable.saturating_add(stable)
+}
+
+/// `debt_repaid` from the most recent `GigaHdxLiquidated` event.
+fn last_liquidated_debt_repaid() -> Balance {
+	System::events()
+		.iter()
+		.rev()
+		.find_map(|r| match &r.event {
+			hydradx_runtime::RuntimeEvent::Liquidation(pallet_liquidation::Event::GigaHdxLiquidated {
+				debt_repaid,
+				..
+			}) => Some(*debt_repaid),
+			_ => None,
+		})
+		.expect("GigaHdxLiquidated event emitted")
+}
+
+/// `liquidate` is permissionless, so `debt_to_cover` is attacker-controlled.
+/// The pallet clamps the protocol-funded HOLLAR borrow to the borrower's
+/// *actual* pool debt (`capped = min(debt_to_cover, borrower_debt)`) and repays
+/// any unconsumed surplus, so even a `u128::MAX` ask can never borrow more than
+/// the position owes. Pinned to exact amounts — the borrow that survives as
+/// treasury debt equals precisely what `liquidationCall` consumed.
+#[test]
+fn liquidate_gigahdx_should_clamp_borrow_to_actual_debt_when_debt_to_cover_is_absurd() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		use crate::liquidation::{borrow, get_user_account_data};
+
+		reset_giga_state_for_fixture();
+		let (alice, bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
+		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
+		let main_mm = Liquidation::borrowing_contract();
+
+		let stake_amount = 10_000 * UNITS;
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
+
+		let borrow_amount: Balance = 5 * HOLLAR_DECIMALS_18;
+		borrow(pool, alice_evm, hollar_addr, borrow_amount);
+		let liq_evm = e2e_provision_liq_account(&liq_account, main_mm);
+		crash_st_hdx_price(oracle, st_hdx_evm);
+		assert!(
+			get_user_account_data(pool, alice_evm).unwrap().health_factor < U256::from(1_000_000_000_000_000_000u128)
+		);
+
+		// The hard ceiling: the borrower's real HOLLAR debt on the gigahdx pool.
+		let borrower_debt_before = hollar_debt(pool, alice_evm);
+		assert!(borrower_debt_before > 0, "borrower has HOLLAR debt to liquidate");
+		// Treasury's pre-existing HOLLAR debt on the main MM (snapshot may be non-zero).
+		let liq_debt_before = hollar_debt(main_mm, liq_evm);
+
+		// Absurd ask: `u128::MAX`. Without the cap the pallet would try to borrow
+		// this from the main MM and Aave would revert (`BorrowFailed`); the
+		// extrinsic succeeding at all proves the borrow was clamped.
+		let absurd: Balance = Balance::MAX;
+		assert_ok!(Liquidation::liquidate(
+			RuntimeOrigin::signed(bob),
+			GIGAHDX,
+			HOLLAR_ASSET_ID,
+			alice_evm,
+			absurd,
+			hydradx_traits::router::Route::default(),
+		));
+
+		let debt_repaid = last_liquidated_debt_repaid();
+		let borrower_debt_after = hollar_debt(pool, alice_evm);
+		let liq_debt_after = hollar_debt(main_mm, liq_evm);
+
+		// Cap held: the `u128::MAX` ask is clamped to the borrower's actual debt.
+		// HF was crashed well below the 0.95 close-factor threshold, so Aave does
+		// a full (100% close-factor) liquidation — consuming exactly that debt and
+		// clearing the position. Pinned to exact amounts.
+		assert_eq!(
+			debt_repaid, borrower_debt_before,
+			"consumed exactly the borrower's full debt, not the absurd ask",
+		);
+		assert_eq!(borrower_debt_after, 0, "full liquidation clears the borrower's debt");
+		// The cap proof: the treasury's HOLLAR debt grows by exactly the borrower's
+		// debt — `min(u128::MAX, borrower_debt)` — never by the absurd ask. (Equals
+		// the consumed amount here, so no surplus needed repaying.)
+		assert_eq!(
+			liq_debt_after - liq_debt_before,
+			borrower_debt_before,
+			"treasury borrowed exactly the borrower's debt, not the absurd ask",
+		);
+	});
+}
+
 /// H1 closure: textbook DoS setup — borrower-controlled TRANSFER-scoped
 /// foreign lock forces `on_seize` onto the `slash` branch, and the
 /// borrower's free balance is pinned to the staked principal with zero
@@ -4201,12 +4381,11 @@ fn gigahdx_liquidation_should_land_when_foreign_lock_forces_slash_with_zero_slac
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		use crate::liquidation::{borrow, get_user_account_data};
 		use frame_support::traits::{LockableCurrency, WithdrawReasons};
-		use sp_core::Get;
 
 		reset_giga_state_for_fixture();
 		let (alice, bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let main_mm = Liquidation::borrowing_contract();
 
 		let stake_amount = 10_000 * UNITS;
@@ -4282,12 +4461,11 @@ fn gigahdx_liquidation_e2e_should_seize_when_borrower_has_unrelated_lock() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		use crate::liquidation::{borrow, get_user_account_data};
 		use frame_support::traits::{LockableCurrency, WithdrawReasons};
-		use sp_core::Get;
 
 		reset_giga_state_for_fixture();
 		let (alice, bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
 		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
-		let liq_account = hydradx_runtime::gigahdx::GigaHdxLiquidationAccount::get();
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
 		let main_mm = Liquidation::borrowing_contract();
 
 		let stake_amount = 10_000 * UNITS;
@@ -4351,6 +4529,115 @@ fn gigahdx_liquidation_e2e_should_seize_when_borrower_has_unrelated_lock() {
 			stake_amount,
 			collector_before,
 		);
+	});
+}
+
+// ============================================================================
+// Liquidation protocol fee — deployed reserve config.
+//
+// The snapshot ships the stHDX reserve with `LIQUIDATION_PROTOCOL_FEE = 0`
+// (deploy requirement, finding #6). This test pins the deployment as-is — no
+// fee zeroing — and asserts the full seizure reaches the liquidation account.
+// ============================================================================
+
+/// Deployment must ship the stHDX reserve with the fee already at 0.
+const SNAPSHOT_NEW_ZERO_FEE: &str = "snapshots/gigahdx/gigahdx";
+
+/// Raw Aave `ReserveConfigurationMap` bitmap for `asset`.
+fn reserve_configuration(pool: EvmAddress, asset: EvmAddress) -> U256 {
+	let mut data = selector("getConfiguration(address)");
+	data.extend_from_slice(H256::from(asset).as_bytes());
+	let r = Executor::<Runtime>::view(CallContext::new_view(pool), data, 100_000);
+	U256::from_big_endian(&r.value[0..32])
+}
+
+/// `LIQUIDATION_PROTOCOL_FEE` (bps) — bits 152..168 of the configuration bitmap.
+fn liquidation_protocol_fee_bps(pool: EvmAddress, asset: EvmAddress) -> u128 {
+	((reserve_configuration(pool, asset) >> 152) & U256::from(0xFFFFu64)).as_u128()
+}
+
+/// Run the happy-path e2e liquidation with the snapshot's deployed reserve
+/// config untouched; return everything the fee assertions need.
+struct FeeScenarioOutcome {
+	alice: AccountId,
+	liq_account: AccountId,
+	stake_amount: Balance,
+	collector_fee: Balance,
+	total_seized: Balance,
+}
+
+fn run_liquidation_with_deployed_fee() -> FeeScenarioOutcome {
+	use crate::liquidation::{borrow, get_user_account_data};
+
+	reset_giga_state_for_fixture();
+	let (alice, bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
+	let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
+	let liq_account = hydradx_runtime::TreasuryAccount::get();
+	let main_mm = Liquidation::borrowing_contract();
+
+	let stake_amount = 10_000 * UNITS;
+	assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
+	assert_rate_eq(GigaHdx::exchange_rate(), 1, 1);
+
+	let borrow_amount: Balance = 5 * HOLLAR_DECIMALS_18;
+	borrow(pool, alice_evm, hollar_addr, borrow_amount);
+	let _liq_evm = e2e_provision_liq_account(&liq_account, main_mm);
+	crash_st_hdx_price(oracle, st_hdx_evm);
+	let pre = get_user_account_data(pool, alice_evm).unwrap();
+	assert!(pre.health_factor < U256::from(1_000_000_000_000_000_000u128));
+
+	let collector_before = Currencies::free_balance(GIGAHDX, &gigahdx_atoken_collector());
+	assert_ok!(Liquidation::liquidate(
+		RuntimeOrigin::signed(bob),
+		GIGAHDX,
+		HOLLAR_ASSET_ID,
+		alice_evm,
+		borrow_amount / 2,
+		hydradx_traits::router::Route::default(),
+	));
+
+	let collector_fee = Currencies::free_balance(GIGAHDX, &gigahdx_atoken_collector()) - collector_before;
+	let total_seized = stake_amount - Currencies::free_balance(GIGAHDX, &alice);
+	FeeScenarioOutcome {
+		alice,
+		liq_account,
+		stake_amount,
+		collector_fee,
+		total_seized,
+	}
+}
+
+/// New deployment: the stHDX reserve ships with the fee already at 0, so the
+/// entire seizure reaches the liquidation account, the collector receives
+/// nothing, and every ledger/backing invariant holds without the test having
+/// to zero the fee first.
+#[test]
+fn liquidation_should_seize_everything_when_new_deployment_protocol_fee_is_zero() {
+	TestNet::reset();
+	hydra_live_ext(SNAPSHOT_NEW_ZERO_FEE).execute_with(|| {
+		let pool = pallet_gigahdx::GigaHdxPoolContract::<Runtime>::get().expect("snapshot must have pool");
+		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
+		assert_eq!(
+			liquidation_protocol_fee_bps(pool, st_hdx_evm),
+			0,
+			"new deployment must ship the stHDX reserve with zero protocol fee (finding #6)"
+		);
+
+		let o = run_liquidation_with_deployed_fee();
+		let alice_real = Currencies::free_balance(GIGAHDX, &o.alice);
+		let liq_received = Currencies::free_balance(GIGAHDX, &o.liq_account);
+
+		assert_eq!(o.collector_fee, 0, "collector receives nothing");
+		assert_eq!(liq_received, o.total_seized, "liquidator receives the full seizure");
+
+		let alice_stake = pallet_gigahdx::Stakes::<Runtime>::get(&o.alice).expect("borrower stake record");
+		let liq_stake = pallet_gigahdx::Stakes::<Runtime>::get(&o.liq_account).expect("liq stake record");
+
+		// Ledger == reality for both sides, and full conservation.
+		assert_eq!(alice_stake.gigahdx, alice_real);
+		assert_eq!(liq_stake.gigahdx, liq_received);
+		assert_eq!(alice_stake.gigahdx + liq_stake.gigahdx, o.stake_amount);
+		assert_eq!(alice_stake.hdx + liq_stake.hdx, o.stake_amount);
 	});
 }
 

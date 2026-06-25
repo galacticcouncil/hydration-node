@@ -70,6 +70,8 @@ thread_local! {
 	pub static TIER_VOLUME: RefCell<HashMap<Level, Option<Balance>>> = RefCell::new(HashMap::default());
 	pub static TIER_REWARDS: RefCell<HashMap<Level, FeeDistribution>> = RefCell::new(HashMap::default());
 	pub static SEED_AMOUNT: RefCell<Balance> = RefCell::new(Balance::zero());
+	// Mirrors runtime `MinTradingLimit`: reject sub-minimum amounts. 0 = disabled.
+	pub static CONVERT_MIN_AMOUNT: RefCell<Balance> = RefCell::new(Balance::zero());
 }
 
 construct_runtime!(
@@ -218,6 +220,10 @@ impl Default for ExtBuilder {
 			v.borrow_mut().clear();
 		});
 
+		CONVERT_MIN_AMOUNT.with(|v| {
+			*v.borrow_mut() = 0u128;
+		});
+
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_ALICE_BALANCE)],
 			referrer_shares: vec![],
@@ -257,6 +263,12 @@ impl ExtBuilder {
 			let mut m = v.borrow_mut();
 			m.insert(pair, price);
 			m.insert((pair.1, pair.0), price.inverted());
+		});
+		self
+	}
+	pub fn with_convert_min_amount(self, amount: Balance) -> Self {
+		CONVERT_MIN_AMOUNT.with(|v| {
+			*v.borrow_mut() = amount;
 		});
 		self
 	}
@@ -364,6 +376,11 @@ impl Convert<AccountId, AssetId, Balance> for AssetConvert {
 		asset_to: AssetId,
 		amount: Balance,
 	) -> Result<Balance, Self::Error> {
+		let min_amount = CONVERT_MIN_AMOUNT.with(|v| *v.borrow());
+		if amount > 0 && amount < min_amount {
+			// Like `ConvertViaOmnipool`: sub-min amounts fail with a non-referrals error.
+			return Err(DispatchError::Other("InsufficientTradingAmount"));
+		}
 		let price = CONVERSION_RATE
 			.with(|v| v.borrow().get(&(asset_to, asset_from)).copied())
 			.ok_or(Error::<Test>::ConversionMinTradingAmountNotReached)?;

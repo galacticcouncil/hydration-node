@@ -59,8 +59,24 @@ parameter_type_with_key! {
 	};
 }
 
+thread_local! {
+	/// Configurable native (HDX) existential deposit, so tests can exercise the
+	/// `hold_until_ed` buffering path. Reset to 1 by `ExtBuilder::build`.
+	pub static HDX_EXISTENTIAL_DEPOSIT: RefCell<Balance> = const { RefCell::new(1) };
+}
+
+pub fn set_hdx_existential_deposit(value: Balance) {
+	HDX_EXISTENTIAL_DEPOSIT.with(|v| *v.borrow_mut() = value);
+}
+
+pub struct ExistentialDeposit;
+impl frame_support::traits::Get<Balance> for ExistentialDeposit {
+	fn get() -> Balance {
+		HDX_EXISTENTIAL_DEPOSIT.with(|v| *v.borrow())
+	}
+}
+
 parameter_types! {
-	pub const ExistentialDeposit: u128 = 1;
 	pub const MaxReserves: u32 = 50;
 	pub const NativeAssetId: AssetId = HDX;
 	pub const LrnaAssetId: AssetId = LRNA;
@@ -155,10 +171,16 @@ thread_local! {
 	static RAW_FEE_FAILS: RefCell<bool> = const { RefCell::new(false) };
 	// When set, the raw receiver consumes this fixed amount instead of the whole offered slice.
 	static RAW_FEE_USED: RefCell<Option<Balance>> = const { RefCell::new(None) };
+	// `hold_until_ed` flag for the HDX-path staking receiver, toggled per test.
+	static HDX_STAKING_HOLD: RefCell<bool> = const { RefCell::new(true) };
 }
 
 pub fn set_raw_fee_should_fail(fail: bool) {
 	RAW_FEE_FAILS.with(|f| *f.borrow_mut() = fail);
+}
+
+pub fn set_hdx_staking_hold(value: bool) {
+	HDX_STAKING_HOLD.with(|v| *v.borrow_mut() = value);
 }
 
 pub fn set_raw_fee_used(used: Option<Balance>) {
@@ -260,6 +282,10 @@ impl FeeReceiver<AccountId, AssetId, Balance> for HdxStakingFeeReceiver {
 	fn percentage() -> Permill {
 		Permill::from_percent(50)
 	}
+
+	fn hold_until_ed() -> bool {
+		HDX_STAKING_HOLD.with(|v| *v.borrow())
+	}
 }
 
 pub struct HdxReferralsFeeReceiver;
@@ -328,6 +354,8 @@ impl Default for ExtBuilder {
 
 impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
+		// Reset before genesis so endowments are assimilated against the default ED.
+		set_hdx_existential_deposit(1);
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		let native_endowed: Vec<(AccountId, Balance)> = self
@@ -365,6 +393,7 @@ impl ExtBuilder {
 			HDX_RAW_FEE_CALLS.with(|c| c.borrow_mut().clear());
 			RAW_FEE_FAILS.with(|f| *f.borrow_mut() = false);
 			RAW_FEE_USED.with(|u| *u.borrow_mut() = None);
+			HDX_STAKING_HOLD.with(|v| *v.borrow_mut() = true);
 		});
 		ext
 	}

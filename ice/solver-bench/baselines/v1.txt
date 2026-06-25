@@ -1,0 +1,39 @@
+# ICE Solver Benchmark Baseline v1
+# Date: 2026-04-16
+# Machine: Darwin 25.3.0 (Apple Silicon)
+# Profile: bench [optimized]
+# Snapshot: integration-tests/snapshots/ice/mainnet_apr
+# Note: native execution — WASM OCW will be 2-5x slower
+
+simulator_initial_state                 12.99 ms
+get_valid_intents/10                     0.022 ms
+get_valid_intents/50                     0.102 ms
+get_valid_intents/100                    0.200 ms
+get_valid_intents/500                    1.015 ms
+get_valid_intents/1000                   2.051 ms
+get_valid_intents/5000                  10.513 ms
+solver_resolvable/10                     0.748 ms
+solver_resolvable/50                     3.503 ms
+solver_resolvable/100                    6.979 ms
+solver_resolvable/200                   13.839 ms
+solver_unresolvable/10                   0.692 ms
+solver_unresolvable/50                   3.434 ms
+solver_unresolvable/100                  6.885 ms
+solver_unresolvable/500                 34.379 ms
+solver_unresolvable/1000                69.379 ms
+solver_unresolvable/5000               349.680 ms
+solver_mixed/50good_50bad                7.307 ms
+solver_mixed/50good_500bad              38.748 ms
+solver_mixed/50good_5000bad            354.180 ms
+solver_mixed/100good_5000bad           355.400 ms
+solver_partial/1                         0.109 ms
+solver_partial/2                         1.224 ms
+solver_partial/5                         3.074 ms
+solver_partial/10                        5.956 ms
+solver_partial/20                       12.131 ms
+solver_mixed_partial/10np_1p             1.379 ms
+solver_mixed_partial/10np_5p             3.845 ms
+solver_mixed_partial/10np_10p            6.776 ms
+solver_mixed_partial/50np_10p            9.624 ms
+solver_mixed_partial/50np_50p           35.150 ms
+solver_mixed_partial/100np_20p          19.209 ms
