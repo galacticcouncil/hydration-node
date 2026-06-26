@@ -13,128 +13,201 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use core::cell::RefCell;
+use evm::{ExitReason, ExitRevert, ExitSucceed};
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{fungible, ConstU128, ConstU32, ConstU64, Contains, Imbalance, OnUnbalanced},
-	weights::{RuntimeDbWeight, Weight, WeightToFee as WeightToFeeT},
+	traits::{fungible, ConstU128, ConstU32, ConstU64, Everything, Imbalance, Nothing, OnUnbalanced},
+	weights::{Weight, WeightToFee as WeightToFeeT},
 };
+use hydradx_traits::evm::{CallContext, CallResult, Erc20Encoding, Erc20Mapping, InspectEvmAccounts, EVM};
+use orml_traits::parameter_type_with_key;
 use pallet_transaction_payment::FungibleAdapter;
-use sp_core::H256;
-use sp_runtime::SaturatedConversion;
+use primitives::{AssetId, Balance, EvmAddress};
+use sp_core::{H160, H256, U256};
 use sp_runtime::{
-	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
-	BuildStorage,
+	traits::{BlakeTwo256, Convert, IdentityLookup},
+	AccountId32, BuildStorage, DispatchError, SaturatedConversion,
 };
 
-type BlockNumber = u64;
-pub type AccountId = u64;
+use crate::{self as pallet_lazy_executor, pallet, Function};
+
 type Block = frame_system::mocking::MockBlock<Test>;
-type Balance = u128;
-pub type MockPalletCall = mock_pallet::Call<Test>;
+pub type AccountId = AccountId32;
+pub type Amount = i128;
+pub type NamedReserveIdentifier = [u8; 8];
+
 pub type LazyExecutorCall = pallet::Call<Test>;
 
-use crate::{self as pallet_lazy_executor, pallet};
+pub const UNIT: Balance = 1_000_000_000_000;
 
-const UNIT: Balance = 1_000_000_000_000;
-pub const ALICE: AccountId = 1_000;
-pub const BOB: AccountId = 1_001;
-pub const CHARLIE: AccountId = 1_002;
-pub const ACC_ZERO_BALANCE: AccountId = 1_003;
+pub const ALICE: AccountId = AccountId32::new([1u8; 32]);
+pub const BOB: AccountId = AccountId32::new([2u8; 32]);
+pub const CHARLIE: AccountId = AccountId32::new([3u8; 32]);
+/// Funded with neither native nor multi-currency balance.
+pub const ACC_ZERO_BALANCE: AccountId = AccountId32::new([9u8; 32]);
+
+pub const HDX: AssetId = 0;
+pub const DOT: AssetId = 3;
 
 construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
 		Balances: pallet_balances,
+		Tokens: orml_tokens,
 		LazyExecutor: pallet_lazy_executor,
-		MockPallet: mock_pallet,
 		TransactionPayment: pallet_transaction_payment,
 	}
 );
 
-pub mod mock_pallet {
-	pub use pallet::*;
-	#[frame_support::pallet(dev_mode)]
-	pub mod pallet {
-		use crate::tests::mock::AccountId;
-		use crate::{ensure_signed, OriginFor};
-		use frame_support::{ensure, pallet_prelude::*};
+/// The receiver contract that the forward is pushed to.
+pub fn contract_address() -> EvmAddress {
+	H160::repeat_byte(0xAA)
+}
 
-		#[pallet::pallet]
-		pub struct Pallet<T>(_);
+/// Substrate account that ends up holding the pushed funds (mirrors `EvmAccountsMock::account_id`).
+pub fn contract_account() -> AccountId {
+	EvmAccountsMock::account_id(contract_address())
+}
 
-		#[pallet::config]
-		pub trait Config: frame_system::Config<AccountId = AccountId, RuntimeEvent: From<Event<Self>>> + Sized {}
+/// The four ack bytes the receiver must return for the push to commit.
+pub fn execute_selector() -> [u8; 4] {
+	Into::<u32>::into(Function::Execute).to_be_bytes()
+}
 
-		#[pallet::event]
-		#[pallet::generate_deposit(pub(super) fn deposit_event)]
-		pub enum Event<T: Config> {
-			CallExecuted { who: T::AccountId, weight: Weight },
-		}
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum EvmOutcome {
+	SucceedCorrectAck,
+	SucceedWrongAck,
+	Revert,
+}
 
-		#[pallet::error]
-		pub enum Error<T> {
-			// Account is not allowed to perform action
-			Forbidden,
-		}
+thread_local! {
+	static EVM_OUTCOME: RefCell<EvmOutcome> = const { RefCell::new(EvmOutcome::SucceedCorrectAck) };
+}
 
-		#[pallet::call]
-		impl<T: Config> Pallet<T> {
-			#[pallet::call_index(1)]
-			#[pallet::weight(*weight)]
-			pub fn dummy_call(origin: OriginFor<T>, allowed_origin: Vec<AccountId>, weight: Weight) -> DispatchResult {
-				let who = ensure_signed(origin)?;
+pub fn set_evm_outcome(outcome: EvmOutcome) {
+	EVM_OUTCOME.with(|v| *v.borrow_mut() = outcome);
+}
 
-				ensure!(allowed_origin.contains(&who), Error::<T>::Forbidden);
-
-				Self::deposit_event(Event::CallExecuted { who, weight });
-
-				Ok(())
+pub struct EvmMock;
+impl EVM<CallResult> for EvmMock {
+	fn call(context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> CallResult {
+		let (exit_reason, value) = match EVM_OUTCOME.with(|v| *v.borrow()) {
+			EvmOutcome::SucceedCorrectAck => {
+				let mut ack = vec![0u8; 32];
+				ack[..4].copy_from_slice(&execute_selector());
+				(ExitReason::Succeed(ExitSucceed::Returned), ack)
 			}
+			EvmOutcome::SucceedWrongAck => (ExitReason::Succeed(ExitSucceed::Returned), vec![0u8; 32]),
+			EvmOutcome::Revert => (ExitReason::Revert(ExitRevert::Reverted), vec![]),
+		};
 
-			pub fn filtered_call(
-				origin: OriginFor<T>,
-				allowed_origin: Vec<AccountId>,
-				weight: Weight,
-			) -> DispatchResult {
-				let who = ensure_signed(origin)?;
-
-				ensure!(allowed_origin.contains(&who), Error::<T>::Forbidden);
-
-				Self::deposit_event(Event::CallExecuted { who, weight });
-
-				Ok(())
-			}
+		CallResult {
+			exit_reason,
+			value,
+			contract: context.contract,
+			gas_used: U256::zero(),
+			gas_limit: U256::zero(),
 		}
+	}
+
+	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {
+		unimplemented!()
+	}
+}
+
+pub struct EvmAccountsMock;
+impl InspectEvmAccounts<AccountId> for EvmAccountsMock {
+	fn is_evm_account(_account_id: AccountId) -> bool {
+		false
+	}
+
+	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
+		EvmAddress::from_slice(&account_id.as_ref()[..20])
+	}
+
+	fn truncated_account_id(evm_address: EvmAddress) -> AccountId {
+		Self::account_id(evm_address)
+	}
+
+	fn bound_account_id(_evm_address: EvmAddress) -> Option<AccountId> {
+		None
+	}
+
+	fn account_id(evm_address: EvmAddress) -> AccountId {
+		let mut bytes = [0u8; 32];
+		bytes[..20].copy_from_slice(evm_address.as_bytes());
+		AccountId32::new(bytes)
+	}
+
+	fn can_deploy_contracts(_evm_address: EvmAddress) -> bool {
+		false
+	}
+
+	fn is_approved_contract(_address: EvmAddress) -> bool {
+		false
+	}
+}
+
+pub struct HydraErc20Mapping;
+impl Erc20Mapping<AssetId> for HydraErc20Mapping {
+	fn asset_address(asset_id: AssetId) -> EvmAddress {
+		Self::encode_evm_address(asset_id)
+	}
+	fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
+		Self::decode_evm_address(address)
+	}
+}
+impl Erc20Encoding<AssetId> for HydraErc20Mapping {
+	fn encode_evm_address(asset_id: AssetId) -> EvmAddress {
+		let asset_id_bytes: [u8; 4] = asset_id.to_le_bytes();
+
+		let mut evm_address_bytes = [0u8; 20];
+		evm_address_bytes[15] = 1;
+		for i in 0..4 {
+			evm_address_bytes[16 + i] = asset_id_bytes[3 - i];
+		}
+
+		EvmAddress::from(evm_address_bytes)
+	}
+
+	fn decode_evm_address(evm_address: EvmAddress) -> Option<AssetId> {
+		let mut asset_id: u32 = 0;
+		for byte in evm_address.as_bytes() {
+			asset_id = (asset_id << 8) | (*byte as u32);
+		}
+		Some(asset_id)
+	}
+}
+
+pub struct DummyGasWeightMapping;
+impl pallet_evm::GasWeightMapping for DummyGasWeightMapping {
+	fn gas_to_weight(_gas: u64, _without_base_weight: bool) -> Weight {
+		Weight::zero()
+	}
+	fn weight_to_gas(_weight: Weight) -> u64 {
+		0
+	}
+}
+
+pub struct EvmErrorDecodeMock;
+impl Convert<CallResult, DispatchError> for EvmErrorDecodeMock {
+	fn convert(_call_result: CallResult) -> DispatchError {
+		DispatchError::Other("Call failed")
 	}
 }
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 63;
-	pub static MockBlockNumberProvider: u64 = 0;
-	pub const DbWeight: RuntimeDbWeight = RuntimeDbWeight{
-		read: 1_u64, write: 1_u64
-	};
-}
-
-impl BlockNumberProvider for MockBlockNumberProvider {
-	type BlockNumber = BlockNumber;
-
-	fn current_block_number() -> Self::BlockNumber {
-		System::block_number()
-	}
-}
-
-pub struct MockBaseFilter;
-impl Contains<RuntimeCall> for MockBaseFilter {
-	fn contains(call: &RuntimeCall) -> bool {
-		!matches!(call, RuntimeCall::MockPallet(MockPalletCall::filtered_call { .. }))
-	}
+	pub const MaxReserves: u32 = 50;
+	pub const GasLimit: u64 = 1_000_000;
 }
 
 impl frame_system::Config for Test {
-	type BaseCallFilter = MockBaseFilter;
+	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
@@ -147,7 +220,7 @@ impl frame_system::Config for Test {
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
-	type BlockHashCount = ConstU64<250>;
+	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
@@ -155,7 +228,7 @@ impl frame_system::Config for Test {
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
-	type SS58Prefix = ();
+	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
 	type SingleBlockMigrations = ();
@@ -166,11 +239,25 @@ impl frame_system::Config for Test {
 	type ExtensionsWeightInfo = ();
 }
 
-impl mock_pallet::Config for Test {}
-
-parameter_types! {
-	pub const MaxLocks: u32 = 20;
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+		1
+	};
 }
+
+impl orml_tokens::Config for Test {
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = AssetId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type MaxLocks = ();
+	type DustRemovalWhitelist = Nothing;
+	type ReserveIdentifier = NamedReserveIdentifier;
+	type MaxReserves = MaxReserves;
+	type CurrencyHooks = ();
+}
+
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
@@ -178,9 +265,9 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ConstU128<1>;
 	type AccountStore = System;
 	type WeightInfo = ();
-	type MaxLocks = MaxLocks;
-	type MaxReserves = ConstU32<50>;
-	type ReserveIdentifier = [u8; 8];
+	type MaxLocks = ();
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = NamedReserveIdentifier;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
@@ -208,9 +295,15 @@ where
 
 impl pallet_lazy_executor::Config for Test {
 	type RuntimeCall = RuntimeCall;
+	type Currency = Tokens;
+	type Evm = EvmMock;
+	type EvmAccounts = EvmAccountsMock;
+	type Erc20Mapping = HydraErc20Mapping;
+	type GasWeightMapping = DummyGasWeightMapping;
+	type GasLimit = GasLimit;
+	type EvmErrorDecoder = EvmErrorDecodeMock;
 	type UnsignedPriority = ConstU64<100>;
 	type UnsignedLongevity = ConstU64<3>;
-
 	type WeightInfo = ();
 }
 
@@ -265,20 +358,37 @@ impl pallet_transaction_payment::Config for Test {
 	type WeightInfo = ();
 }
 
-pub struct ExtBuilder;
-impl Default for ExtBuilder {
-	fn default() -> Self {
-		ExtBuilder
-	}
+#[derive(Default)]
+pub struct ExtBuilder {
+	native_balances: Vec<(AccountId, Balance)>,
+	token_balances: Vec<(AccountId, AssetId, Balance)>,
 }
 
 impl ExtBuilder {
+	pub fn new() -> Self {
+		Self {
+			native_balances: vec![(ALICE, 200_000 * UNIT), (BOB, 150_000 * UNIT), (CHARLIE, 15_000 * UNIT)],
+			token_balances: vec![],
+		}
+	}
+
+	pub fn with_tokens(mut self, balances: Vec<(AccountId, AssetId, Balance)>) -> Self {
+		self.token_balances = balances;
+		self
+	}
+
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		pallet_balances::GenesisConfig::<Test> {
-			balances: vec![(ALICE, 200_000 * UNIT), (BOB, 150_000 * UNIT), (CHARLIE, 15_000 * UNIT)],
+			balances: self.native_balances,
 			dev_accounts: None,
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		orml_tokens::GenesisConfig::<Test> {
+			balances: self.token_balances,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

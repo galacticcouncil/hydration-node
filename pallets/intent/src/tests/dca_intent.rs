@@ -4,6 +4,7 @@ use crate::{AccountIntentCount, AccountIntents, Error, Event, IntentOwner, Inten
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::lazy_executor::Source;
 use ice_support::{DcaParams, IntentData, IntentDataInput, Partial, SwapData};
 use sp_runtime::{DispatchResult, Permill, TransactionOutcome};
 
@@ -21,6 +22,12 @@ fn dca_intent(amount_in: u128, amount_out: u128, budget: Option<u128>) -> Intent
 		deadline: None,
 		on_resolved: None,
 	}
+}
+
+fn dca_intent_with_forward(amount_in: u128, amount_out: u128, budget: Option<u128>) -> IntentInput {
+	let mut input = dca_intent(amount_in, amount_out, budget);
+	input.on_resolved = dummy_on_resolved();
+	input
 }
 
 // ---- Submission tests ----
@@ -652,6 +659,72 @@ fn should_complete_rolling_dca_when_free_balance_insufficient() {
 				assert_eq!(AccountIntentCount::<Test>::get(ALICE), 0);
 				assert_eq!(orml_tokens::Pallet::<Test>::accounts(ALICE, HDX).reserved, 0);
 				assert_eq!(orml_tokens::Pallet::<Test>::accounts(ALICE, HDX).free, 0);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn dca_should_queue_one_forward_per_executed_trade() {
+	let amount_in = ONE_HDX;
+	let budget = 2 * ONE_HDX;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				set_block_number(100);
+				let id =
+					crate::Pallet::<Test>::add_intent(ALICE, dca_intent_with_forward(amount_in, ONE_DOT, Some(budget)))
+						.expect("should work");
+
+				// First (intermediate) trade — intent stays, forward fired once.
+				set_block_number(110);
+				assert_ok!(crate::Pallet::<Test>::unlock_funds(&ALICE, HDX, amount_in));
+				assert_ok!(crate::Pallet::<Test>::intent_resolved(
+					&ALICE,
+					&ice_support::ResolvedIntent {
+						id,
+						data: IntentData::Swap(SwapData {
+							asset_in: HDX,
+							asset_out: DOT,
+							amount_in,
+							amount_out: 2 * ONE_DOT,
+							partial: Partial::No,
+						}),
+					}
+				));
+				assert!(Intents::<Test>::get(id).is_some());
+				assert_eq!(get_queued_forwards(Source::ICE(id)).len(), 1);
+
+				// Second (final) trade — budget exhausted, forward fires again.
+				set_block_number(120);
+				assert_ok!(crate::Pallet::<Test>::unlock_funds(&ALICE, HDX, amount_in));
+				assert_ok!(crate::Pallet::<Test>::intent_resolved(
+					&ALICE,
+					&ice_support::ResolvedIntent {
+						id,
+						data: IntentData::Swap(SwapData {
+							asset_in: HDX,
+							asset_out: DOT,
+							amount_in,
+							amount_out: 3 * ONE_DOT,
+							partial: Partial::No,
+						}),
+					}
+				));
+				assert!(Intents::<Test>::get(id).is_none());
+
+				let forwards = get_queued_forwards(Source::ICE(id));
+				assert_eq!(forwards.len(), 2);
+				// Each forward carries that trade's resolved amounts.
+				assert_eq!(forwards[0].amount_out, 2 * ONE_DOT);
+				assert_eq!(forwards[1].amount_out, 3 * ONE_DOT);
+				assert_eq!(forwards[0].intent_id, id);
+				assert_eq!(forwards[0].asset_in, HDX);
+				assert_eq!(forwards[0].asset_out, DOT);
+				assert_eq!(forwards[0].amount_in, amount_in);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});

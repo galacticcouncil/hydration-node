@@ -5815,7 +5815,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "429.0.0"
+version = "430.0.0"
 dependencies = [
  "amm-simulator",
  "cumulus-pallet-aura-ext",
@@ -5987,7 +5987,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.12.0"
+version = "4.13.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10022,7 +10022,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-intent"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10047,18 +10047,26 @@ dependencies = [
 
 [[package]]
 name = "pallet-lazy-executor"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
+ "evm",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hex-literal",
  "hydradx-traits",
  "log",
+ "module-evm-utility-macro",
+ "num_enum",
+ "orml-tokens",
+ "orml-traits",
  "pallet-balances",
+ "pallet-evm",
  "pallet-transaction-payment",
  "parity-scale-codec",
+ "precompile-utils",
  "pretty_assertions",
+ "primitives",
  "scale-info",
  "serde",
  "sp-core",
@@ -14168,6 +14176,7 @@ dependencies = [
  "pallet-ice",
  "pallet-im-online",
  "pallet-intent",
+ "pallet-lazy-executor",
  "pallet-lbp",
  "pallet-liquidation",
  "pallet-liquidity-mining",

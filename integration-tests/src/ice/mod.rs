@@ -2,6 +2,7 @@
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/ice/mainnet_apr";
 
 mod dca;
+mod forward;
 mod netting;
 mod node_solver;
 mod recorder;

@@ -12,24 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //! # Lazy-Executor Pallet
+//!
+//! Queues a resolved intent's `ForwardAction` and later executes it as a best-effort EVM message
+//! call: pushes the resolved output to the named contract, then invokes its receiver interface. The
+//! whole push+call runs in one storage transaction and rolls back on revert / wrong ack, leaving the
+//! owner's funds untouched.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use evm::ExitReason;
 use frame_support::{
-	dispatch::{GetDispatchInfo, Pays, PostDispatchInfo},
+	dispatch::{DispatchClass, DispatchInfo, GetDispatchInfo, Pays, PostDispatchInfo},
 	pallet_prelude::{RuntimeDebug, TypeInfo},
-	traits::ConstU32,
+	storage::{with_transaction, TransactionOutcome},
+	traits::{ExistenceRequirement::AllowDeath, Get},
 	transactional,
 	weights::Weight,
 };
-use frame_system::{offchain::SubmitTransaction, pallet_prelude::*, Origin};
-use hydradx_traits::lazy_executor::Source;
-use pallet_transaction_payment::OnChargeTransaction;
-use sp_runtime::{
-	traits::{Dispatchable, One},
-	BoundedVec, DispatchError,
+use frame_system::{offchain::SubmitTransaction, pallet_prelude::*};
+use hydradx_traits::{
+	evm::{CallContext, CallResult, Erc20Mapping, InspectEvmAccounts, EVM},
+	lazy_executor::{ForwardAction, Source},
 };
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use orml_traits::MultiCurrency;
+use pallet_evm::GasWeightMapping;
+use pallet_transaction_payment::OnChargeTransaction;
+use precompile_utils::evm::{writer::EvmDataWriter, Bytes};
+use primitives::{AssetId, Balance};
+use sp_core::U256;
+use sp_runtime::{
+	traits::{Convert, Dispatchable, One},
+	DispatchError, DispatchResult,
+};
+use sp_std::vec::Vec;
 
 pub use pallet::*;
 pub mod weights;
@@ -39,14 +56,13 @@ pub use weights::WeightInfo;
 mod tests;
 
 pub type CallId = u128;
-pub const MAX_DATA_SIZE: u32 = 512;
-pub type BoundedCall = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
 type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
 
+/// A queued forward together with the owner whose funds back it.
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct CallData<AccountId> {
-	origin: AccountId,
-	call: BoundedCall,
+pub struct StoredForward<AccountId> {
+	pub owner: AccountId,
+	pub action: ForwardAction,
 }
 
 const NO_TIP: u32 = 0;
@@ -56,6 +72,14 @@ const NO_TIP: u32 = 0;
 const CALL_LEN_OFFSET: u32 = 158;
 const LOG_TARGET: &str = "runtime::pallet-lazy-executor";
 pub(crate) const OCW_TAG_PREFIX: &str = "lazy-executor-dispatch-top";
+
+/// ABI selectors of the receiver interface invoked on a forward.
+#[module_evm_utility_macro::generate_function_selector]
+#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(u32)]
+pub enum Function {
+	Execute = "execute(address,uint256,address,uint256,address,uint256,bytes)",
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -71,12 +95,37 @@ pub mod pallet {
 		CreateBare<Call<Self>>
 		+ frame_system::Config
 		+ pallet_transaction_payment::Config<RuntimeCall = <Self as pallet::Config>::RuntimeCall>
+	where
+		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
 	{
-		/// The aggregated call type.
+		/// The aggregated call type. Used only for the unsigned `dispatch_top` extrinsic and the
+		/// transaction-payment fee machinery — queued forwards are no longer arbitrary calls.
 		type RuntimeCall: Parameter
 			+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin, Info = DispatchInfo, PostInfo = PostDispatchInfo>
 			+ GetDispatchInfo
 			+ From<frame_system::Call<Self>>;
+
+		/// Multi currency, used to push the resolved output to the receiver contract.
+		type Currency: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Balance>;
+
+		/// EVM handler.
+		type Evm: EVM<CallResult>;
+
+		/// EVM address converter.
+		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
+
+		/// Mapping between AssetId and ERC20 address.
+		type Erc20Mapping: Erc20Mapping<AssetId>;
+
+		/// Gas to Weight conversion.
+		type GasWeightMapping: GasWeightMapping;
+
+		/// The gas limit for the forwarded EVM call.
+		#[pallet::constant]
+		type GasLimit: Get<u64>;
+
+		/// Decoder turning an EVM `CallResult` into a `DispatchError` for the emitted event.
+		type EvmErrorDecoder: Convert<CallResult, DispatchError>;
 
 		/// Configuration for unsigned transaction priority
 		#[pallet::constant]
@@ -100,8 +149,10 @@ pub mod pallet {
 
 	#[pallet::type_value]
 	pub(super) fn DefaultMaxCallWeight() -> Weight {
-		//TODO: set reasonable value
-		Weight::from_parts(10_000_000_000_u64, 5_000_000)
+		// Must accommodate a forward's `dispatch_top` weight = base + GasWeightMapping(GasLimit).
+		// At WEIGHT_PER_GAS = 25_000 a multi-million-gas forward is tens of G ref_time; this cap
+		// (a generous fraction of the 2000G block) stays well below the block limit.
+		Weight::from_parts(1_000_000_000_000_u64, 5_000_000)
 	}
 
 	#[pallet::storage]
@@ -123,12 +174,15 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn call_queue)]
-	pub(super) type CallQueue<T: Config> = StorageMap<_, Blake2_128Concat, CallId, CallData<T::AccountId>>;
+	pub(super) type CallQueue<T: Config> = StorageMap<_, Blake2_128Concat, CallId, StoredForward<T::AccountId>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config> {
-		/// Call was queued for execution.
+	pub enum Event<T: Config>
+	where
+		<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
+	{
+		/// Forward was queued for execution.
 		Queued {
 			id: CallId,
 			src: Source,
@@ -136,15 +190,12 @@ pub mod pallet {
 			fees: BalanceOf<T>,
 		},
 
-		/// Call was executed.
+		/// Forward was executed. `result` is `Ok` only on EVM success with the correct ack.
 		Executed { id: CallId, result: DispatchResult },
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Failed to decode provided call data.
-		Corrupted,
-
 		/// `id` reached max. value.
 		IdOverflow,
 
@@ -160,12 +211,18 @@ pub mod pallet {
 		/// Queue is empty.
 		EmptyQueue,
 
-		/// Call's weight is bigger than max allowed weight.
+		/// Forward's weight is bigger than max allowed weight.
 		Overweight,
+
+		/// The forwarded EVM call reverted or returned a wrong/missing ack.
+		ForwardFailed,
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
+	where
+		T::AccountId: AsRef<[u8; 32]>,
+	{
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			log::debug!(target: LOG_TARGET, "run offchain worker on block: {block_number:?}");
 
@@ -193,7 +250,10 @@ pub mod pallet {
 	}
 
 	#[pallet::validate_unsigned]
-	impl<T: Config> ValidateUnsigned for Pallet<T> {
+	impl<T: Config> ValidateUnsigned for Pallet<T>
+	where
+		T::AccountId: AsRef<[u8; 32]>,
+	{
 		type Call = Call<T>;
 
 		fn validate_unsigned(source: TransactionSource, unsigned_call: &self::Call<T>) -> TransactionValidity {
@@ -224,55 +284,33 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
-		/// Extrinsics dispatches top call from the queue.
+	impl<T: Config> Pallet<T>
+	where
+		T::AccountId: AsRef<[u8; 32]>,
+	{
+		/// Extrinsic executes the top forward from the queue.
 		///
 		/// This is called from OCW.
 		///
 		/// Emits:
 		/// - `Executed` when successful
 		#[pallet::call_index(1)]
-		#[pallet::weight({
-			let info = if let Some(call_data) = CallQueue::<T>::get(DispatchNextId::<T>::get()) {
-				if let Ok(c) = <T as Config>::RuntimeCall::decode(&mut &call_data.call[..]) {
-					c.get_dispatch_info()
-				} else {
-					DispatchInfo {
-						call_weight: Default::default(),
-						extension_weight: Default::default(),
-						class: DispatchClass::Normal,
-						pays_fee: Pays::No,
-					}
-				}
-			} else {
-				DispatchInfo {
-					call_weight: Default::default(),
-					extension_weight: Default::default(),
-					class: DispatchClass::Normal,
-					pays_fee: Pays::No,
-				}
-			};
-
-			<T as pallet::Config>::WeightInfo::dispatch_top_base_weight().saturating_add(info.call_weight)
-		})]
+		#[pallet::weight(
+			<T as pallet::Config>::WeightInfo::dispatch_top_base_weight()
+				.saturating_add(<T as pallet::Config>::GasWeightMapping::gas_to_weight(
+					<T as pallet::Config>::GasLimit::get(),
+					false,
+				))
+		)]
 		pub fn dispatch_top(origin: OriginFor<T>, _id: u128) -> DispatchResult {
 			ensure_none(origin)?;
 
 			DispatchNextId::<T>::try_mutate(|id| {
-				let call_data = CallQueue::<T>::take(*id).ok_or(Error::<T>::EmptyQueue)?;
+				let StoredForward { owner, action } = CallQueue::<T>::take(*id).ok_or(Error::<T>::EmptyQueue)?;
 
-				let result = if let Ok(call) = <T as Config>::RuntimeCall::decode(&mut &call_data.call[..]) {
-					let o: OriginFor<T> = Origin::<T>::Signed(call_data.origin).into();
+				let result = Self::execute_forward(owner, action);
 
-					call.dispatch(o)
-				} else {
-					Err(Error::<T>::Corrupted.into())
-				};
-
-				Self::deposit_event(Event::Executed {
-					id: *id,
-					result: result.map(|_| ()).map_err(|e| e.error),
-				});
+				Self::deposit_event(Event::Executed { id: *id, result });
 
 				*id = id.checked_add(One::one()).ok_or(Error::<T>::IdOverflow)?;
 
@@ -282,23 +320,29 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T> {
-	/// Function adds call to queue for future execution.
+impl<T: Config> Pallet<T>
+where
+	T::AccountId: AsRef<[u8; 32]>,
+{
+	/// Function adds a forward to the queue for future execution.
 	///
-	/// This function also charges fees for future call execution and fails if `origin` can't pay
-	/// fees.
+	/// This function also charges fees for future execution and fails if `origin` can't pay them.
 	#[transactional]
-	pub fn add_to_queue(src: Source, origin: T::AccountId, bounded_call: BoundedCall) -> Result<(), DispatchError> {
-		let call = <T as Config>::RuntimeCall::decode(&mut &bounded_call[..]).map_err(|_| Error::<T>::Corrupted)?;
+	pub fn add_to_queue(src: Source, owner: T::AccountId, action: ForwardAction) -> Result<(), DispatchError> {
+		let call_weight = <T as Config>::WeightInfo::dispatch_top_base_weight().saturating_add(
+			<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), false),
+		);
 
-		let mut info = call.get_dispatch_info();
-		info.call_weight = info
-			.call_weight
-			.saturating_add(<T as Config>::WeightInfo::dispatch_top_base_weight());
-
-		if info.call_weight.any_gt(Self::max_weight_per_call()) {
+		if call_weight.any_gt(Self::max_weight_per_call()) {
 			return Err(Error::<T>::Overweight.into());
 		}
+
+		let info = DispatchInfo {
+			call_weight,
+			extension_weight: Default::default(),
+			class: DispatchClass::Normal,
+			pays_fee: Pays::Yes,
+		};
 
 		let len = Call::<T>::dispatch_top { id: u128::MAX }
 			.encoded_size()
@@ -310,9 +354,13 @@ impl<T: Config> Pallet<T> {
 			NO_TIP.into(),
 		);
 
+		// `OnChargeTransaction` is keyed by a call; the queued forward is not a call, so a benign
+		// no-op call stands in for the fee accounting only.
+		let fee_call = <T as Config>::RuntimeCall::from(frame_system::Call::remark { remark: Vec::new() });
+
 		let already_withdrawn = <T as pallet_transaction_payment::Config>::OnChargeTransaction::withdraw_fee(
-			&origin,
-			&call,
+			&owner,
+			&fee_call,
 			&info,
 			fees,
 			NO_TIP.into(),
@@ -320,10 +368,10 @@ impl<T: Config> Pallet<T> {
 		.map_err(|_| Error::<T>::FailedToPayFees)?;
 
 		<T as pallet_transaction_payment::Config>::OnChargeTransaction::correct_and_deposit_fee(
-			&origin,
+			&owner,
 			&info,
 			&PostDispatchInfo {
-				actual_weight: Some(info.call_weight),
+				actual_weight: Some(call_weight),
 				pays_fee: Pays::Yes,
 			},
 			fees,
@@ -335,19 +383,74 @@ impl<T: Config> Pallet<T> {
 		let call_id = Self::get_next_call_id()?;
 		CallQueue::<T>::insert(
 			call_id,
-			CallData {
-				origin: origin.clone(),
-				call: bounded_call,
+			StoredForward {
+				owner: owner.clone(),
+				action,
 			},
 		);
 
 		Self::deposit_event(Event::Queued {
 			id: call_id,
 			src,
-			who: origin,
+			who: owner,
 			fees,
 		});
 		Ok(())
+	}
+
+	/// Pushes the resolved output to the receiver contract and invokes `execute(...)` in one
+	/// transactional scope. Rolls the push back on revert / wrong ack, leaving the owner whole.
+	fn execute_forward(owner: T::AccountId, action: ForwardAction) -> DispatchResult {
+		let owner_evm = T::EvmAccounts::evm_address(&owner);
+		let dest = T::EvmAccounts::account_id(action.contract);
+
+		let ForwardAction {
+			contract,
+			intent_id,
+			asset_in,
+			amount_in,
+			asset_out,
+			amount_out,
+			data,
+		} = action;
+
+		let calldata = EvmDataWriter::new_with_selector(Function::Execute)
+			.write(owner_evm)
+			.write(U256::from(intent_id))
+			.write(T::Erc20Mapping::asset_address(asset_in))
+			.write(U256::from(amount_in))
+			.write(T::Erc20Mapping::asset_address(asset_out))
+			.write(U256::from(amount_out))
+			.write(Bytes(data.into_inner()))
+			.build();
+
+		with_transaction(|| {
+			// 1. push: credit the contract's mapped account so its ERC20 balanceOf reflects it.
+			if let Err(e) = T::Currency::transfer(asset_out, &owner, &dest, amount_out, AllowDeath) {
+				return TransactionOutcome::Rollback(Err(e));
+			}
+
+			// 2. EVM message call as the owner (msg.sender == tx.origin == owner).
+			let ctx = CallContext::new_call(contract, owner_evm);
+			let res = T::Evm::call(ctx, calldata, U256::zero(), <T as Config>::GasLimit::get());
+
+			// 3. commit only on EVM success with the correct ack; otherwise roll the push back.
+			let succeeded = matches!(res.exit_reason, ExitReason::Succeed(_));
+			if succeeded && Self::ack_ok(&res.value) {
+				TransactionOutcome::Commit(Ok(()))
+			} else if succeeded {
+				TransactionOutcome::Rollback(Err(Error::<T>::ForwardFailed.into()))
+			} else {
+				TransactionOutcome::Rollback(Err(T::EvmErrorDecoder::convert(res)))
+			}
+		})
+	}
+
+	/// The receiver acknowledges by returning `execute`'s own selector as a `bytes4` (left-aligned
+	/// in the 32-byte ABI return word).
+	fn ack_ok(value: &[u8]) -> bool {
+		let expected = Into::<u32>::into(Function::Execute).to_be_bytes();
+		value.len() >= 4 && value[..4] == expected
 	}
 
 	fn get_next_call_id() -> Result<CallId, DispatchError> {
@@ -360,11 +463,13 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> hydradx_traits::lazy_executor::Mutate<T::AccountId> for Pallet<T> {
+impl<T: Config> hydradx_traits::lazy_executor::Mutate<T::AccountId> for Pallet<T>
+where
+	T::AccountId: AsRef<[u8; 32]>,
+{
 	type Error = DispatchError;
-	type BoundedCall = BoundedCall;
 
-	fn queue(src: Source, origin: T::AccountId, call: Self::BoundedCall) -> Result<(), Self::Error> {
-		Self::add_to_queue(src, origin, call)
+	fn queue(src: Source, origin: T::AccountId, forward: ForwardAction) -> Result<(), Self::Error> {
+		Self::add_to_queue(src, origin, forward)
 	}
 }

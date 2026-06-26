@@ -14,13 +14,13 @@
 // limitations under the License.
 
 use crate as pallet_intent;
-use crate::types;
 use crate::types::IntentInput;
 use crate::Config;
 use frame_support::parameter_types;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Everything;
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::lazy_executor::ForwardAction;
 use hydradx_traits::lazy_executor::Source;
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::registry::Inspect;
@@ -156,7 +156,7 @@ impl pallet_timestamp::Config for Test {
 pub(crate) const MIN_DCA_PERIOD: u32 = 5;
 
 thread_local! {
-	pub static QUEUD_TASKS: RefCell<Vec<(Source, AccountId)>> = RefCell::new(Vec::default());
+	pub static QUEUD_TASKS: RefCell<Vec<(Source, AccountId, ForwardAction)>> = RefCell::new(Vec::default());
 	pub static ORACLE_PRICE: RefCell<Option<EmaPrice>> = const { RefCell::new(None) };
 	pub static BLOCK_NUMBER: RefCell<u64> = const { RefCell::new(1) };
 }
@@ -190,30 +190,40 @@ impl sp_runtime::traits::BlockNumberProvider for MockBlockNumberProvider {
 pub struct DummyLazyExecutor<T>(sp_std::marker::PhantomData<T>);
 impl<T: Config> hydradx_traits::lazy_executor::Mutate<AccountId> for DummyLazyExecutor<T> {
 	type Error = DispatchError;
-	type BoundedCall = types::CallData;
 
-	fn queue(src: Source, origin: AccountId, _call: Self::BoundedCall) -> Result<(), Self::Error> {
-		QUEUD_TASKS.with(|v| {
-			if get_queued_task(src.clone()).is_some() {
-				return Err(DispatchError::Other("Duplicate intent"));
-			}
-
-			v.borrow_mut().push((src, origin));
-
-			Ok(())
-		})
+	fn queue(src: Source, origin: AccountId, forward: ForwardAction) -> Result<(), Self::Error> {
+		// Accumulate every queued forward — a DCA intent queues one per trade under the same `Source`.
+		QUEUD_TASKS.with(|v| v.borrow_mut().push((src, origin, forward)));
+		Ok(())
 	}
 }
 
+/// First queued task for `src`, if any. Kept for tests that only assert a forward was queued.
 pub fn get_queued_task(src: Source) -> Option<(Source, AccountId)> {
 	QUEUD_TASKS.with(|v| {
-		let m = v.borrow();
+		v.borrow()
+			.iter()
+			.find(|(s, _, _)| *s == src)
+			.map(|(s, acc, _)| (s.clone(), *acc))
+	})
+}
 
-		if let Some((_, (_, acc))) = m.clone().into_iter().enumerate().find(|x| x.1 .0 == src) {
-			Some((src, acc))
-		} else {
-			None
-		}
+/// All forwards queued for `src`, in queue order (one per executed trade for DCA).
+pub fn get_queued_forwards(src: Source) -> Vec<ForwardAction> {
+	QUEUD_TASKS.with(|v| {
+		v.borrow()
+			.iter()
+			.filter(|(s, _, _)| *s == src)
+			.map(|(_, _, f)| f.clone())
+			.collect()
+	})
+}
+
+/// A non-zero `Forward` action for tests that only need *some* `on_resolved`.
+pub fn dummy_on_resolved() -> Option<crate::types::OnResolved> {
+	Some(crate::types::OnResolved::Forward {
+		contract: primitives::EvmAddress::repeat_byte(1),
+		data: sp_runtime::BoundedVec::truncate_from(b"success".to_vec()),
 	})
 }
 
