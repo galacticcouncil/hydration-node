@@ -70,6 +70,14 @@ impl<AssetId> AssetPair<AssetId> {
 }
 
 pub trait RouteProvider<AssetId> {
+	/// Get the explicitly configured route from storage, if any.
+	/// Returns None if no route is explicitly configured (will use default).
+	fn get_onchain_route(_asset_pair: AssetPair<AssetId>) -> Option<Route<AssetId>> {
+		// Default: no explicit routes stored
+		None
+	}
+
+	/// Get route for asset pair (explicit or default).
 	fn get_route(asset_pair: AssetPair<AssetId>) -> Route<AssetId> {
 		BoundedVec::truncate_from(vec![Trade {
 			pool: PoolType::Omnipool,
@@ -101,6 +109,16 @@ pub struct Trade<AssetId> {
 	pub pool: PoolType<AssetId>,
 	pub asset_in: AssetId,
 	pub asset_out: AssetId,
+}
+
+/// A pool instance with its tradeable assets.
+///
+/// Used by route discovery to build a graph where every asset pair
+/// within a pool becomes a directed edge.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PoolEdge<AssetId> {
+	pub pool_type: PoolType<AssetId>,
+	pub assets: Vec<AssetId>,
 }
 
 #[derive(Debug, PartialEq)]
