@@ -166,23 +166,12 @@ pub fn new_partial(
 			extra_pages: h as _,
 		});
 
-	// The upstream default runtime cache size (2) is too small for nodes that serve
-	// historical state across runtime upgrades: the hot working set spans several
-	// runtime versions, so a cache of 2 evicts and re-prepares WASM runtimes
-	// constantly and exhausts the instance pool under indexer/RPC load. Treat the
-	// upstream default as "unset" and use 8; honor any explicit operator value.
-	let runtime_cache_size = if config.executor.runtime_cache_size == 2 {
-		8
-	} else {
-		config.executor.runtime_cache_size
-	};
-
 	let executor = WasmExecutor::builder()
 		.with_execution_method(config.executor.wasm_method)
 		.with_onchain_heap_alloc_strategy(heap_pages)
 		.with_offchain_heap_alloc_strategy(heap_pages)
 		.with_max_runtime_instances(config.executor.max_runtime_instances)
-		.with_runtime_cache_size(runtime_cache_size)
+		.with_runtime_cache_size(config.executor.runtime_cache_size)
 		.build();
 
 	let tx_priority_json = if no_tx_priority_override {
