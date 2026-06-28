@@ -131,7 +131,20 @@ fn extract_genesis_wasm(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Result<V
 /// Parse and run command line arguments
 #[allow(clippy::result_large_err)]
 pub fn run() -> sc_cli::Result<()> {
-	let cli = Cli::from_args();
+	// Raise the default `--runtime-cache-size` from the upstream default of 2 to 8.
+	// A cache of 2 is too small for nodes that serve historical state across runtime
+	// upgrades (the hot working set spans several runtime versions), causing constant
+	// WASM re-preparation and runtime-instance-pool exhaustion under indexer/RPC load.
+	// Changing the clap default (rather than the parsed value) keeps an explicit
+	// operator-provided `--runtime-cache-size` fully honored.
+	let cli = {
+		use clap::{CommandFactory, FromArgMatches};
+		let mut command = Cli::command();
+		if command.get_arguments().any(|a| a.get_id() == "runtime_cache_size") {
+			command = command.mut_arg("runtime_cache_size", |a| a.default_value("8"));
+		}
+		Cli::from_arg_matches(&command.get_matches()).unwrap_or_else(|e| e.exit())
+	};
 
 	match &cli.subcommand {
 		Some(Subcommand::BuildSpec(cmd)) => {
