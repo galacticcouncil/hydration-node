@@ -5726,7 +5726,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.13.1"
+version = "1.13.2"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -5754,6 +5754,7 @@ dependencies = [
  "pallet-dispatcher",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",
+ "pallet-fee-processor",
  "pallet-lbp",
  "pallet-liquidity-mining",
  "pallet-omnipool",
@@ -5761,7 +5762,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 5.0.0",
+ "pallet-staking 5.1.0",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
@@ -5783,7 +5784,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "425.0.0"
+version = "429.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -5868,6 +5869,7 @@ dependencies = [
  "pallet-evm-precompile-lock-manager",
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
+ "pallet-fee-processor",
  "pallet-genesis-history",
  "pallet-gigahdx",
  "pallet-gigahdx-rewards",
@@ -5894,7 +5896,7 @@ dependencies = [
  "pallet-session",
  "pallet-signet",
  "pallet-stableswap",
- "pallet-staking 5.0.0",
+ "pallet-staking 5.1.0",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -5950,7 +5952,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.8.0"
+version = "4.11.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9686,6 +9688,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-fee-processor"
+version = "1.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-genesis-history"
 version = "2.2.0"
 dependencies = [
@@ -9705,7 +9729,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-gigahdx"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9728,7 +9752,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-gigahdx-rewards"
-version = "1.0.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9886,7 +9910,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "2.4.2"
+version = "2.5.1"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -10371,7 +10395,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-referrals"
-version = "1.5.0"
+version = "1.6.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10650,7 +10674,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "5.0.0"
+version = "5.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -13876,7 +13900,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.88.1"
+version = "1.101.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -13940,6 +13964,7 @@ dependencies = [
  "pallet-evm",
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
+ "pallet-fee-processor",
  "pallet-gigahdx",
  "pallet-gigahdx-rewards",
  "pallet-hsm",
@@ -13958,7 +13983,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 5.0.0",
+ "pallet-staking 5.1.0",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
@@ -14024,7 +14049,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 5.0.0",
+ "pallet-staking 5.1.0",
  "primitives",
  "scraper",
  "serde",

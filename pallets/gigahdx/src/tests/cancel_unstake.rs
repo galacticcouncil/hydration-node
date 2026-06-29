@@ -233,19 +233,17 @@ fn cancel_unstake_should_rollback_when_supply_fails() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn cancel_unstake_should_preserve_frozen_amount() {
+fn cancel_unstake_should_preserve_voting_commitment_guard() {
 	ExtBuilder::default().build().execute_with(|| {
 		stake_alice_100();
-		// Freeze 30 before unstake; partial unstake of 50 leaves hdx=50 ≥ frozen=30.
-		GigaHdx::freeze(&ALICE, 30 * ONE);
+		// 30 HDX committed to votes; partial unstake of 50 leaves hdx=50 ≥ 30.
+		TestVotingCommitment::set(30 * ONE);
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 50 * ONE));
-		assert_eq!(Stakes::<Test>::get(ALICE).unwrap().frozen, 30 * ONE);
 
 		assert_ok!(GigaHdx::cancel_unstake(RawOrigin::Signed(ALICE).into(), 1));
 		let s = Stakes::<Test>::get(ALICE).unwrap();
-		assert_eq!(s.frozen, 30 * ONE, "cancel must not touch frozen");
 		assert_eq!(s.hdx, 100 * ONE);
-		assert!(s.frozen <= s.hdx, "invariant frozen ≤ hdx preserved");
+		assert!(30 * ONE <= s.hdx, "invariant: committed ≤ hdx preserved");
 	});
 }
 

@@ -19,11 +19,12 @@ use crate::evm::Executor;
 use crate::Runtime;
 use evm::ExitReason::Succeed;
 use frame_support::sp_runtime::traits::Convert;
-use frame_support::sp_runtime::DispatchError;
+use frame_support::sp_runtime::{DispatchError, DispatchResult};
 use frame_support::traits::LockIdentifier;
 use frame_support::weights::Weight;
 use hydradx_traits::evm::{CallContext, CallResult, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::gigahdx::MoneyMarketOperations;
+use pallet_conviction_voting::weights::WeightInfo as _;
 use pallet_evm::GasWeightMapping;
 use pallet_gigahdx_rewards::traits::{ReferendaTrackInspect, TrackRewardTable};
 use pallet_gigahdx_rewards::types::ReferendumIndex;
@@ -206,6 +207,186 @@ impl pallet_gigahdx::traits::ExternalClaims<AccountId> for HdxExternalClaims {
 			.filter(|l| !ALLOWED_OVERLAP.contains(&l.id))
 			.map(|l| l.amount)
 			.fold(0, Balance::saturating_add)
+	}
+}
+
+/// Selective force-removal of gigahdx-rewards votes that would otherwise pin
+/// HDX the protocol is about to seize. Delegated to by
+/// `GigaHdxLiquidationSupport`; also used directly by integration tests.
+///
+/// Walks `pallet_gigahdx_rewards::UserVoteRecords[who]`, finds every vote
+/// whose `staked_vote_amount` exceeds the post-seize `max_remaining_hdx`,
+/// and dispatches `pallet_conviction_voting::remove_vote` as the borrower's
+/// signed origin (`UnvoteScope::Any` — works on ongoing and completed
+/// referenda alike, no SDK patch needed). The existing `VotingHooks` chain
+/// then unfreezes `Stakes.frozen` and drops `UserVoteRecord`.
+pub struct GigaHdxVoteClearance;
+
+impl hydradx_traits::gigahdx::ClearConflictingVotes<AccountId> for GigaHdxVoteClearance {
+	fn clear_conflicting_votes(who: &AccountId, max_hdx: Balance) -> Result<u32, sp_runtime::DispatchError> {
+		// Conviction-voting locks overlap: the same HDX backs every concurrent
+		// vote, so the unstake commitment is the *max* (overlap) of live
+		// reservations, not their sum (see `committed_with_count`). A vote
+		// therefore "fits" under the residual stake iff its own reservation
+		// does — remove exactly the votes whose reservation exceeds `max_hdx`,
+		// matching the commitment guard.
+		let to_remove: sp_std::vec::Vec<pallet_gigahdx_rewards::types::ReferendumIndex> =
+			pallet_gigahdx_rewards::UserVoteRecords::<Runtime>::iter_prefix(who)
+				.filter_map(|(ref_index, rec)| (rec.staked_vote_amount > max_hdx).then_some(ref_index))
+				.collect();
+		let mut count = 0u32;
+		let mut classes: sp_std::vec::Vec<_> = sp_std::vec::Vec::new();
+		for ref_index in to_remove {
+			// Resolve the poll's class from conviction-voting's own ledger: the
+			// vote sits in `VotingFor[who][class]` whether the referendum is
+			// ongoing or completed. `remove_vote` requires `Some(class)` for a
+			// completed poll (it can only infer the class of an ongoing one),
+			// and neither the rewards `ReferendumTracks` cache (pruned once the
+			// reward pool is allocated) nor `ReferendumInfoFor` (no track id on
+			// completed variants) survives long enough to be a reliable source.
+			let class =
+				pallet_conviction_voting::VotingFor::<Runtime>::iter_prefix(who).find_map(
+					|(class, voting)| match voting {
+						pallet_conviction_voting::Voting::Casting(casting) => {
+							casting.votes.iter().any(|(idx, _)| *idx == ref_index).then_some(class)
+						}
+						_ => None,
+					},
+				);
+			// No live conviction vote for this ref — the rewards record is stale
+			// (the vote was already removed elsewhere, which fired the unfreeze).
+			// Skip rather than abort the whole liquidation.
+			let Some(class) = class else {
+				continue;
+			};
+			let origin: crate::RuntimeOrigin = frame_system::RawOrigin::Signed(who.clone()).into();
+			// Best-effort, symmetric with the `unlock` resync below: a single vote
+			// that refuses to clear must not abort the whole liquidation — an
+			// underwater borrower could otherwise pin one vote into an erroring
+			// state and block their own liquidation indefinitely. Skip it; the
+			// residual `pyconvot` lock is absorbed by `on_seize`'s slash fallback.
+			if let Err(e) = pallet_conviction_voting::Pallet::<Runtime>::remove_vote(origin, Some(class), ref_index) {
+				log::warn!(target: "liquidation", "gigahdx: remove_vote failed for ref {ref_index:?}, skipping: {e:?}");
+				continue;
+			}
+			if !classes.contains(&class) {
+				classes.push(class);
+			}
+			count = count.saturating_add(1);
+		}
+		// Resync the `pyconvot` lock for each touched class through conviction-
+		// voting's own ledger (`unlock` -> `update_lock`). `remove_vote` does not
+		// recompute the balance lock, so without this it stays stale at the
+		// pre-removal amount — over-locking the borrower and forcing `on_seize`'s
+		// clean transfer to fall through to slash. Best-effort: a failed resync
+		// must not abort the liquidation (the slash fallback still covers it).
+		let target =
+			<<Runtime as frame_system::Config>::Lookup as sp_runtime::traits::StaticLookup>::unlookup(who.clone());
+		for class in classes {
+			let origin: crate::RuntimeOrigin = frame_system::RawOrigin::Signed(who.clone()).into();
+			let _ = pallet_conviction_voting::Pallet::<Runtime>::unlock(origin, class, target.clone());
+		}
+		Ok(count)
+	}
+
+	fn clear_weight(votes: u32) -> Weight {
+		// Per cleared vote: a `VotingFor[who]` class scan (≤ GOV_TRACK_COUNT
+		// reads), one `remove_vote`, and one `unlock` (per-class, folded per-vote
+		// as a safe upper bound). Keep `GOV_TRACK_COUNT` in sync with the runtime
+		// governance track count (see `governance::tracks`).
+		const GOV_TRACK_COUNT: u64 = 10;
+		let per_vote = <Runtime as pallet_conviction_voting::Config>::WeightInfo::remove_vote()
+			.saturating_add(<Runtime as pallet_conviction_voting::Config>::WeightInfo::unlock())
+			.saturating_add(<Runtime as frame_system::Config>::DbWeight::get().reads(GOV_TRACK_COUNT));
+		per_vote.saturating_mul(votes.into())
+	}
+}
+
+/// Single `pallet_liquidation::Config::GigaHdx` adapter. Bundles the asset/
+/// account wiring, the live pool-contract lookup, the seize ledger ops
+/// (`pallet_gigahdx`) and the conviction-lock release (`GigaHdxVoteClearance`)
+/// the protocol-funded gigahdx liquidation path needs.
+pub struct GigaHdxLiquidationSupport;
+
+impl hydradx_traits::gigahdx::Seize<AccountId> for GigaHdxLiquidationSupport {
+	fn realize_yield(borrower: &AccountId) -> DispatchResult {
+		<pallet_gigahdx::Pallet<Runtime> as hydradx_traits::gigahdx::Seize<AccountId>>::realize_yield(borrower)
+	}
+
+	fn seize_weight() -> Weight {
+		<pallet_gigahdx::Pallet<Runtime> as hydradx_traits::gigahdx::Seize<AccountId>>::seize_weight()
+	}
+
+	fn snapshot_stake(borrower: &AccountId) -> Result<(Balance, Balance), DispatchError> {
+		<pallet_gigahdx::Pallet<Runtime> as hydradx_traits::gigahdx::Seize<AccountId>>::snapshot_stake(borrower)
+	}
+
+	fn on_pre_seize(borrower: &AccountId) -> Result<Balance, DispatchError> {
+		<pallet_gigahdx::Pallet<Runtime> as hydradx_traits::gigahdx::Seize<AccountId>>::on_pre_seize(borrower)
+	}
+
+	fn on_seize(
+		borrower: &AccountId,
+		recipient: &AccountId,
+		seize_hdx: Balance,
+		seize_gigahdx: Balance,
+		orig_gigahdx: Balance,
+	) -> DispatchResult {
+		<pallet_gigahdx::Pallet<Runtime> as hydradx_traits::gigahdx::Seize<AccountId>>::on_seize(
+			borrower,
+			recipient,
+			seize_hdx,
+			seize_gigahdx,
+			orig_gigahdx,
+		)
+	}
+}
+
+impl pallet_liquidation::traits::GigaHdxSupport<AccountId> for GigaHdxLiquidationSupport {
+	fn gigahdx_asset_id() -> AssetId {
+		<crate::assets::GigaHdxAssetIdConst as sp_core::Get<AssetId>>::get()
+	}
+
+	fn sthdx_asset_id() -> AssetId {
+		<crate::assets::StHdxAssetId as sp_core::Get<AssetId>>::get()
+	}
+
+	fn liquidation_account() -> AccountId {
+		<crate::TreasuryAccount as sp_core::Get<AccountId>>::get()
+	}
+
+	fn pool_contract() -> Option<EvmAddress> {
+		pallet_gigahdx::GigaHdxPoolContract::<Runtime>::get()
+	}
+
+	fn borrower_pool_debt(borrower: &AccountId, debt_asset: AssetId) -> Result<Balance, DispatchError> {
+		let pool = Self::pool_contract().ok_or(DispatchError::Other("gigahdx: pool contract not set"))?;
+		let asset_evm = HydraErc20Mapping::asset_address(debt_asset);
+		let reserve = crate::evm::aave_trade_executor::Aave::get_reserve_data(pool, asset_evm)
+			.map_err(|_| DispatchError::Other("gigahdx: get_reserve_data failed"))?;
+		let who_evm = pallet_evm_accounts::Pallet::<Runtime>::evm_address(borrower);
+		let variable = <Erc20Currency<Runtime> as ERC20>::balance_of(
+			CallContext::new_view(reserve.variable_debt_token_address),
+			who_evm,
+		);
+		let stable = <Erc20Currency<Runtime> as ERC20>::balance_of(
+			CallContext::new_view(reserve.stable_debt_token_address),
+			who_evm,
+		);
+		Ok(variable.saturating_add(stable))
+	}
+
+	fn clear_conflicting_votes(borrower: &AccountId, max_remaining_hdx: Balance) -> Result<u32, DispatchError> {
+		<GigaHdxVoteClearance as hydradx_traits::gigahdx::ClearConflictingVotes<AccountId>>::clear_conflicting_votes(
+			borrower,
+			max_remaining_hdx,
+		)
+	}
+
+	fn clear_weight_for(user: EvmAddress) -> Weight {
+		let borrower = pallet_evm_accounts::Pallet::<Runtime>::account_id(user);
+		let votes = pallet_gigahdx_rewards::UserVoteCount::<Runtime>::get(&borrower);
+		<GigaHdxVoteClearance as hydradx_traits::gigahdx::ClearConflictingVotes<AccountId>>::clear_weight(votes)
 	}
 }
 

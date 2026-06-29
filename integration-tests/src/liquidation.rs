@@ -106,7 +106,7 @@ pub fn get_user_account_data(mm_pool: EvmAddress, user: EvmAddress) -> Option<Us
 	let mut data = Into::<u32>::into(Function::GetUserAccountData).to_be_bytes().to_vec();
 	data.extend_from_slice(H256::from(user).as_bytes());
 
-	let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
+	let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 4_000_000);
 	assert_eq!(
 		call_result.exit_reason,
 		Succeed(Returned),
