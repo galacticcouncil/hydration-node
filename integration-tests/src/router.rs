@@ -3,8 +3,8 @@
 use super::assert_balance;
 use crate::polkadot_test_net::*;
 use hydradx_runtime::{
-	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
-	LBP, XYK,
+	AssetRegistry, BlockNumber, Currencies, FeeProcessor, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin,
+	Stableswap, LBP, XYK,
 };
 use sp_core::bounded_vec::BoundedVec;
 
@@ -2468,11 +2468,14 @@ mod omnipool_router_tests {
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 12_008_864_246)],
 						outputs: vec![Asset::new(DAI, amount_out)],
-						fees: vec![Fee::new(
-							DAI,
-							667155563986401,
-							Destination::Account(Omnipool::protocol_account()),
-						)],
+						fees: vec![
+							Fee::new(DAI, 366935560192521, Destination::Account(Omnipool::protocol_account()),),
+							Fee::new(
+								DAI,
+								300220003793880,
+								Destination::Account(FeeProcessor::pot_account_id()),
+							),
+						],
 						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 					}
 				]
@@ -2503,7 +2506,7 @@ mod omnipool_router_tests {
 					amount_in: amount_to_sell,
 					amount_out,
 					hub_amount_in: 12014871681,
-					hub_amount_out: 12038886566,
+					hub_amount_out: 12025376523,
 					asset_fee_amount: 667155563986401,
 					protocol_fee_amount: 6_007_435,
 				}
@@ -2531,11 +2534,14 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 12_008_864_246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
-					fees: vec![Fee::new(
-						DAI,
-						667155563986401,
-						Destination::Account(Omnipool::protocol_account()),
-					)],
+					fees: vec![
+						Fee::new(DAI, 366935560192521, Destination::Account(Omnipool::protocol_account())),
+						Fee::new(
+							DAI,
+							300220003793880,
+							Destination::Account(FeeProcessor::pot_account_id()),
+						),
+					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -2709,11 +2715,14 @@ mod omnipool_router_tests {
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(LRNA, 4511287241)],
 						outputs: vec![Asset::new(DAI, amount_to_buy)],
-						fees: vec![Fee::new(
-							DAI,
-							250626566416041,
-							Destination::Account(Omnipool::protocol_account()),
-						)],
+						fees: vec![
+							Fee::new(DAI, 137844611528823, Destination::Account(Omnipool::protocol_account()),),
+							Fee::new(
+								DAI,
+								112781954887218,
+								Destination::Account(FeeProcessor::pot_account_id()),
+							),
+						],
 						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 					}
 				]
@@ -2744,7 +2753,7 @@ mod omnipool_router_tests {
 					amount_in,
 					amount_out: amount_to_buy,
 					hub_amount_in: 4513544013,
-					hub_amount_out: 4522565481,
+					hub_amount_out: 4517490274,
 					asset_fee_amount: 250626566416041,
 					protocol_fee_amount: 2256772,
 				}
@@ -2771,11 +2780,14 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(LRNA, 4511287241)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
-					fees: vec![Fee::new(
-						DAI,
-						250626566416041,
-						Destination::Account(Omnipool::protocol_account()),
-					)],
+					fees: vec![
+						Fee::new(DAI, 137844611528823, Destination::Account(Omnipool::protocol_account())),
+						Fee::new(
+							DAI,
+							112781954887218,
+							Destination::Account(FeeProcessor::pot_account_id()),
+						),
+					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -5739,4 +5751,141 @@ fn populate_oracle(
 		BoundedVec::truncate_from(route.clone())
 	));
 	go_to_block(block.unwrap_or(10));
+}
+
+mod weight_uses_resolved_route {
+	use super::*;
+	use frame_support::dispatch::GetDispatchInfo;
+
+	fn stored_multi_hop_route() -> Vec<Trade<AssetId>> {
+		vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: DAI,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: DAI,
+				asset_out: DOT,
+			},
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: DOT,
+				asset_out: ETH,
+			},
+		]
+	}
+
+	#[test]
+	fn sell_weight_should_reflect_stored_route_when_input_route_is_empty() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let stored = stored_multi_hop_route();
+			assert_ok!(Router::force_insert_route(
+				RuntimeOrigin::root(),
+				Pair::new(HDX, ETH),
+				BoundedVec::truncate_from(stored.clone()),
+			));
+
+			let call = pallet_route_executor::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: ETH,
+				amount_in: UNITS,
+				min_amount_out: 0,
+				route: BoundedVec::new(),
+			};
+
+			let charged = call.get_dispatch_info().call_weight;
+			let expected = RouterWeightInfo::sell_weight(&stored);
+			assert_eq!(charged, expected);
+		});
+	}
+
+	#[test]
+	fn buy_weight_should_reflect_stored_route_when_input_route_is_empty() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let stored = stored_multi_hop_route();
+			assert_ok!(Router::force_insert_route(
+				RuntimeOrigin::root(),
+				Pair::new(HDX, ETH),
+				BoundedVec::truncate_from(stored.clone()),
+			));
+
+			let call = pallet_route_executor::Call::<Runtime>::buy {
+				asset_in: HDX,
+				asset_out: ETH,
+				amount_out: UNITS,
+				max_amount_in: u128::MAX,
+				route: BoundedVec::new(),
+			};
+
+			let charged = call.get_dispatch_info().call_weight;
+			let expected = RouterWeightInfo::buy_weight(&stored);
+			assert_eq!(charged, expected);
+		});
+	}
+
+	#[test]
+	fn sell_all_weight_should_reflect_stored_route_when_input_route_is_empty() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let stored = stored_multi_hop_route();
+			assert_ok!(Router::force_insert_route(
+				RuntimeOrigin::root(),
+				Pair::new(HDX, ETH),
+				BoundedVec::truncate_from(stored.clone()),
+			));
+
+			let call = pallet_route_executor::Call::<Runtime>::sell_all {
+				asset_in: HDX,
+				asset_out: ETH,
+				min_amount_out: 0,
+				route: BoundedVec::new(),
+			};
+
+			let charged = call.get_dispatch_info().call_weight;
+			let expected = RouterWeightInfo::sell_weight(&stored);
+			assert_eq!(charged, expected);
+		});
+	}
+
+	#[test]
+	fn sell_weight_should_be_higher_with_stored_multi_hop_route_than_without() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let call_without_stored = pallet_route_executor::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: ETH,
+				amount_in: UNITS,
+				min_amount_out: 0,
+				route: BoundedVec::new(),
+			};
+			let weight_without_stored = call_without_stored.get_dispatch_info().call_weight;
+
+			assert_ok!(Router::force_insert_route(
+				RuntimeOrigin::root(),
+				Pair::new(HDX, ETH),
+				BoundedVec::truncate_from(stored_multi_hop_route()),
+			));
+
+			let call_with_stored = pallet_route_executor::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: ETH,
+				amount_in: UNITS,
+				min_amount_out: 0,
+				route: BoundedVec::new(),
+			};
+			let weight_with_stored = call_with_stored.get_dispatch_info().call_weight;
+
+			assert!(
+				weight_with_stored.ref_time() > weight_without_stored.ref_time(),
+				"expected stored-route call to charge more ref_time than no-stored-route call \
+				 (got {} vs {})",
+				weight_with_stored.ref_time(),
+				weight_without_stored.ref_time(),
+			);
+		});
+	}
 }

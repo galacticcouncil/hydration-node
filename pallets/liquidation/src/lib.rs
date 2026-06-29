@@ -40,10 +40,10 @@ use frame_support::{
 	},
 	PalletId,
 };
-
 use frame_system::{pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::Erc20Mapping;
+use hydradx_traits::gigahdx::Seize;
 use hydradx_traits::{
 	evm::{CallContext, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
@@ -64,6 +64,8 @@ mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
+
+pub mod traits;
 
 pub mod weights;
 pub use weights::WeightInfo;
@@ -91,11 +93,14 @@ const BASE_UNSIGNED_LIQUIDATION_PRIORITY: Priority = MAX_UNSIGNED_LIQUIDATION_PR
 pub enum Function {
 	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",
 	FlashLoan = "flashLoan(address,address,uint256,bytes)",
+	Borrow = "borrow(address,uint256,uint256,uint16,address)",
+	Repay = "repay(address,uint256,uint256,address)",
 }
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	pub use crate::traits::GigaHdxSupport;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -148,6 +153,12 @@ pub mod pallet {
 		/// The origin which can update transaction priorities, allowed signers and call addresses
 		/// for the liquidation worker.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// Single integration seam for the protocol-funded gigahdx
+		/// liquidation path: asset/account wiring, the live pool-contract
+		/// lookup, the seize ledger ops and the conviction-lock release.
+		/// Wired to `pallet_gigahdx` / `pallet_gigahdx_rewards` in the runtime.
+		type GigaHdx: crate::traits::GigaHdxSupport<Self::AccountId>;
 	}
 
 	#[pallet::type_value]
@@ -211,6 +222,16 @@ pub mod pallet {
 			debt_asset: AssetId,
 			profit: Balance,
 		},
+		/// A gigahdx Money Market position was liquidated by the protocol.
+		/// `hdx_seized` is the matching HDX moved from the borrower to
+		/// the gigahdx liquidation account; `gigahdx_seized` is the aToken
+		/// amount transferred out of the borrower's gigahdx position.
+		GigaHdxLiquidated {
+			user: EvmAddress,
+			debt_repaid: Balance,
+			hdx_seized: Balance,
+			gigahdx_seized: Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -227,6 +248,28 @@ pub mod pallet {
 		FlashMinterNotSet,
 		/// Invalid liquidation data provided
 		InvalidLiquidationData,
+		/// Gigahdx liquidation only supports HOLLAR debt.
+		UnsupportedDebtAsset,
+		/// Borrower has no active gigahdx position.
+		NoGigaHdxPosition,
+		/// Realizing the borrower's accrued gigahdx yield before the seize failed.
+		RealizeYieldFailed,
+		/// The gigahdx liquidation account is not bound to its EVM address, so
+		/// the seized aToken would land in a different account than the ledger.
+		LiquidationAccountNotBound,
+		/// Selective vote clearing failed before seize.
+		ClearVotingLocksFailed,
+		/// Treasury's HOLLAR borrow against the GIGAHDX pool reverted.
+		BorrowFailed,
+		/// Final state move (HDX transfer + lock refresh) failed.
+		SeizeFailed,
+		/// GIGAHDX pool contract address not set in `pallet_gigahdx`.
+		GigaHdxPoolNotSet,
+		/// Borrower has no `debt_asset` debt on the GIGAHDX pool, so there is
+		/// nothing to liquidate.
+		NoPoolDebt,
+		/// Repaying the unconsumed protocol-borrowed HOLLAR surplus reverted.
+		RepayFailed,
 	}
 
 	#[pallet::call]
@@ -239,6 +282,17 @@ pub mod pallet {
 		///
 		/// Performs a flash loan to get funds to pay for the debt.
 		/// Received collateral is swapped and the profit is transferred to `FeeReceiver`.
+		///
+		/// Permissionless and caller-supplied `route` are intentional. This call exists
+		/// only to keep the money market solvent: the goal is that the position is
+		/// liquidated, not that the protocol captures the surplus. A caller can pick a
+		/// `route` that prices the collateral so that little or no profit reaches
+		/// `FeeReceiver` — that is acceptable. It is not an exploit: anyone can already
+		/// liquidate the same position by calling Aave's `liquidationCall` directly and
+		/// keep the entire bonus themselves. So reports framing the open origin or the
+		/// attacker-chosen route as a fund-redirection vulnerability are out of scope by
+		/// design; the only invariant that matters here is that unhealthy positions can
+		/// always be closed.
 		///
 		/// Parameters:
 		/// - `origin`: Signed origin.
@@ -253,9 +307,28 @@ pub mod pallet {
 		/// Emits `Liquidated` event when successful.
 		///
 		#[pallet::call_index(0)]
+		// Two branches with different substrate costs (the EVM gas budget is shared):
+		//   - generic: `liquidate()` benchmark + the router sell weight.
+		//   - gigahdx: `liquidate()` (pallet-level reads) + the benchmarked seize
+		//     sequence (`seize_weight`) + the exact vote-clearance loop
+		//     (`clear_weight_for`, from the borrower's recorded vote count). The
+		//     route is unused on this branch.
+		// Both add 4× `GasLimit`: the gigahdx branch makes up to 3 full-gas EVM
+		// calls (borrow + liquidationCall + surplus repay) plus the adapter's
+		// cheaper debt-read view calls; 4× is the shared safe upper bound.
 		#[pallet::weight(<T as Config>::WeightInfo::liquidate()
-			.saturating_add(<T as Config>::RouterWeightInfo::sell_weight(route))
-			.saturating_add(<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true))
+			.saturating_add(
+				if *collateral_asset == <T as Config>::GigaHdx::gigahdx_asset_id() {
+					<T as Config>::GigaHdx::seize_weight()
+						.saturating_add(<T as Config>::GigaHdx::clear_weight_for(*user))
+				} else {
+					<T as Config>::RouterWeightInfo::sell_weight(route)
+				}
+			)
+			.saturating_add(
+				<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true)
+					.saturating_mul(4)
+			)
 		)]
 		pub fn liquidate(
 			_origin: OriginFor<T>,
@@ -267,6 +340,26 @@ pub mod pallet {
 			_unsinged_priority: Option<Priority>,
 		) -> DispatchResult {
 			log::trace!(target: "liquidation","liquidating debt asset: {debt_asset:?} for amount: {debt_to_cover:?}");
+
+			if collateral_asset == T::GigaHdx::gigahdx_asset_id() {
+				// Protocol-funded gigahdx liquidation: treasury borrows HOLLAR,
+				// repays the borrower's debt via Aave's liquidationCall with
+				// `receiveAToken=true`, then matching HDX is seized from the
+				// borrower's substrate wallet and re-locked under the
+				// liquidation account. `route` is unused on this path.
+				//
+				// Routing is unconditional on the collateral: the gigahdx reserve lists
+				// HOLLAR as its ONLY borrowable asset, so GIGAHDX collateral always
+				// implies a HOLLAR-debt position. `liquidate_gigahdx`'s
+				// `debt_asset == HollarId` check is therefore a fail-closed guard, not a
+				// router. A gigahdx position can only be seized through this path (the
+				// locked aToken needs the `on_pre_seize`/`on_seize` dance), so it must
+				// never fall through to the generic path below. If that reserve is ever
+				// configured with another borrowable asset, `liquidate_gigahdx` must be
+				// extended to handle it.
+				let _ = route;
+				return Self::liquidate_gigahdx(debt_asset, user, debt_to_cover);
+			}
 
 			if debt_asset == T::HollarId::get() {
 				let (flash_minter, loan_receiver) = T::FlashMinter::get().ok_or(Error::<T>::FlashMinterNotSet)?;
@@ -332,6 +425,181 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	pub fn account_id() -> T::AccountId {
 		PalletId(*b"lqdation").into_account_truncating()
+	}
+
+	/// Protocol-funded liquidation of a GIGAHDX-collateral position.
+	/// See `liquidate` for the dispatch wiring.
+	#[frame_support::transactional]
+	fn liquidate_gigahdx(debt_asset: AssetId, user: EvmAddress, debt_to_cover: Balance) -> DispatchResult
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
+		ensure!(debt_asset == T::HollarId::get(), Error::<T>::UnsupportedDebtAsset);
+
+		let borrower = T::EvmAccounts::account_id(user);
+
+		// Fold accrued yield into the borrower's locked stake first, so the
+		// snapshot reflects the position's true HDX value: a drained-stake
+		// borrower (`Stakes.hdx == 0`, `gigahdx > 0`) would otherwise snapshot
+		// `orig_hdx = 0` and the pro-rata `seize_hdx` below would round to zero.
+		//
+		// Best-effort: a gigapot shortfall (`GigapotInsufficient`) must NOT block
+		// the liquidation. Realizing yield is only an optimisation for the seize;
+		// on failure we proceed with the un-incremented snapshot (a smaller
+		// `seize_hdx`) rather than reverting and leaving the underwater position
+		// and its bad debt in place. Liquidation outranks the yield fold.
+		if let Err(e) = T::GigaHdx::realize_yield(&borrower) {
+			log::warn!(target: "liquidation", "gigahdx: realize_yield failed, proceeding without it: {e:?}");
+		}
+
+		let (orig_hdx, orig_gigahdx) =
+			T::GigaHdx::snapshot_stake(&borrower).map_err(|_| Error::<T>::NoGigaHdxPosition)?;
+		ensure!(orig_gigahdx > 0, Error::<T>::NoGigaHdxPosition);
+
+		// Zero `Stakes[borrower].gigahdx` so the lock-manager precompile
+		// lets Aave's internal aToken transfer through. Conviction votes
+		// stay intact; `pyconvot` is trimmed surgically below.
+		T::GigaHdx::on_pre_seize(&borrower).map_err(|_| Error::<T>::SeizeFailed)?;
+
+		let pool = T::GigaHdx::pool_contract().ok_or(Error::<T>::GigaHdxPoolNotSet)?;
+		// One account runs the whole protocol-funded liquidation: the
+		// liquidation account borrows the HOLLAR from the *main* money market
+		// (against collateral the treasury keeps it topped up with), runs
+		// `liquidationCall` on the GIGAHDX pool, and — via `receiveAToken=true`
+		// — directly receives the seized aToken. It ends holding the seized
+		// GIGAHDX plus the HOLLAR debt; no intermediate treasury hop.
+		let borrowing_pool = Self::borrowing_contract();
+		let liq_account = T::GigaHdx::liquidation_account();
+		let liq_evm = T::EvmAccounts::evm_address(&liq_account);
+		// The seized aToken (an EVM-bridged ERC20) is credited to whatever
+		// account `liq_evm` maps back to. It must be `liq_account` itself so
+		// the balance matches the `on_seize` ledger update — only guaranteed
+		// when the liquidation account is bound to its EVM address.
+		ensure!(
+			T::EvmAccounts::account_id(liq_evm) == liq_account,
+			Error::<T>::LiquidationAccountNotBound
+		);
+		let gigahdx_asset = T::GigaHdx::gigahdx_asset_id();
+		let st_hdx = T::GigaHdx::sthdx_asset_id();
+
+		// Clamp the protocol-funded borrow to the borrower's actual debt on
+		// the GIGAHDX pool. Without this an attacker-chosen `debt_to_cover`
+		// borrows unbounded HOLLAR onto the liquidation account while Aave's
+		// `liquidationCall` only ever consumes the close-factor slice.
+		let hollar_address = T::Erc20Mapping::asset_address(debt_asset);
+		let borrower_debt = T::GigaHdx::borrower_pool_debt(&borrower, debt_asset)?;
+		let capped = debt_to_cover.min(borrower_debt);
+		ensure!(capped > 0, Error::<T>::NoPoolDebt);
+
+		// Liquidation account borrows the clamped HOLLAR from the main money market.
+		let borrow_data = Self::encode_borrow_call_data(hollar_address, capped, liq_evm);
+		let borrow_ctx = CallContext::new_call(borrowing_pool, liq_evm);
+		let borrow_result = T::Evm::call(borrow_ctx, borrow_data, U256::zero(), T::GasLimit::get());
+		if borrow_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::info!(target: "liquidation", "gigahdx: liquidation-account HOLLAR borrow reverted: {:?}", borrow_result.value);
+			return Err(Error::<T>::BorrowFailed.into());
+		}
+
+		// Aave liquidationCall — collateral asset is the *underlying* (stHDX),
+		// not the aToken. `receiveAToken=true` delivers the seized position
+		// straight to `liq_account`, where it keeps earning yield.
+		let gigahdx_balance_before = <T as Config>::Currency::balance(gigahdx_asset, &liq_account);
+		// HOLLAR held after the borrow; the drop across `liquidationCall` is
+		// exactly what Aave consumed (close-factor bounded).
+		let hollar_before = <T as Config>::Currency::balance(debt_asset, &liq_account);
+		let liq_data = Self::encode_liquidation_call_data(st_hdx, debt_asset, user, capped, true);
+		let liq_ctx = CallContext::new_call(pool, liq_evm);
+		let liq_result = T::Evm::call(liq_ctx, liq_data, U256::zero(), T::GasLimit::get());
+		if liq_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::info!(target: "liquidation", "gigahdx: liquidationCall reverted: {:?}", liq_result.value);
+			return Err(T::EvmErrorDecoder::convert(liq_result));
+		}
+		let gigahdx_balance_after = <T as Config>::Currency::balance(gigahdx_asset, &liq_account);
+		let actual_seized_atoken = gigahdx_balance_after
+			.checked_sub(gigahdx_balance_before)
+			.ok_or(Error::<T>::LiquidationCallFailed)?;
+		ensure!(actual_seized_atoken > 0, Error::<T>::LiquidationCallFailed);
+		let hollar_after = <T as Config>::Currency::balance(debt_asset, &liq_account);
+		let consumed = hollar_before
+			.checked_sub(hollar_after)
+			.ok_or(Error::<T>::LiquidationCallFailed)?;
+		ensure!(consumed > 0, Error::<T>::LiquidationCallFailed);
+
+		// Pro-rata HDX matching the seized aToken portion. Rounding-down: the
+		// protocol takes the floor; residue stays with the borrower.
+		let seize_hdx = sp_runtime::helpers_128bit::multiply_by_rational_with_rounding(
+			orig_hdx,
+			actual_seized_atoken,
+			orig_gigahdx,
+			sp_runtime::Rounding::Down,
+		)
+		.ok_or(Error::<T>::SeizeFailed)?;
+
+		// Remove conviction votes no longer backed by the borrower's residual
+		// stake so the protocol doesn't carry unbacked governance weight; the
+		// `remove_vote` hook also drops the matching `UserVoteRecord`, shrinking
+		// the borrower's lazily-derived unstake commitment.
+		let residual_hdx = orig_hdx.saturating_sub(seize_hdx);
+		T::GigaHdx::clear_conflicting_votes(&borrower, residual_hdx).map_err(|_| Error::<T>::ClearVotingLocksFailed)?;
+
+		// `receiveAToken=true` already delivered the seized aToken to
+		// `liq_account`; `on_seize` just reconciles the gigahdx ledger
+		// (borrower → liq_account) and refreshes locks.
+		T::GigaHdx::on_seize(&borrower, &liq_account, seize_hdx, actual_seized_atoken, orig_gigahdx)
+			.map_err(|_| Error::<T>::SeizeFailed)?;
+
+		// Repay the HOLLAR the liquidation account borrowed but Aave did not
+		// consume, so the protocol carries debt only for what actually
+		// cleared the borrower (and is matched by the seized aToken).
+		let surplus = capped.saturating_sub(consumed);
+		if surplus > 0 {
+			let repay_data = Self::encode_repay_call_data(hollar_address, surplus, liq_evm);
+			let repay_ctx = CallContext::new_call(borrowing_pool, liq_evm);
+			let repay_result = T::Evm::call(repay_ctx, repay_data, U256::zero(), T::GasLimit::get());
+			if repay_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+				log::info!(target: "liquidation", "gigahdx: surplus HOLLAR repay reverted: {:?}", repay_result.value);
+				return Err(Error::<T>::RepayFailed.into());
+			}
+		}
+
+		Self::deposit_event(Event::GigaHdxLiquidated {
+			user,
+			debt_repaid: consumed,
+			hdx_seized: seize_hdx,
+			gigahdx_seized: actual_seized_atoken,
+		});
+		Ok(())
+	}
+
+	/// Encode an AAVE Pool `borrow`/`repay` call. Both share the leading
+	/// `(asset, amount, interestRateMode=2, ...)` words; `borrow` carries an extra
+	/// `referralCode=0` word before `onBehalfOf`. `interestRateMode = 2` is variable-rate.
+	fn encode_pool_debt_call(
+		selector: Function,
+		asset: EvmAddress,
+		amount: Balance,
+		on_behalf_of: EvmAddress,
+		with_referral: bool,
+	) -> Vec<u8> {
+		let mut data = Into::<u32>::into(selector).to_be_bytes().to_vec();
+		data.extend_from_slice(H256::from(asset).as_bytes());
+		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
+		data.extend_from_slice(H256::from_uint(&U256::from(2u8)).as_bytes()); // variable rate
+		if with_referral {
+			data.extend_from_slice(H256::from_uint(&U256::from(0u8)).as_bytes()); // referral
+		}
+		data.extend_from_slice(H256::from(on_behalf_of).as_bytes());
+		data
+	}
+
+	/// Encode an AAVE Pool `borrow(asset, amount, interestRateMode=2, referralCode=0, onBehalfOf)` call.
+	pub fn encode_borrow_call_data(asset: EvmAddress, amount: Balance, on_behalf_of: EvmAddress) -> Vec<u8> {
+		Self::encode_pool_debt_call(Function::Borrow, asset, amount, on_behalf_of, true)
+	}
+
+	/// Encode an AAVE Pool `repay(asset, amount, interestRateMode=2, onBehalfOf)` call.
+	pub fn encode_repay_call_data(asset: EvmAddress, amount: Balance, on_behalf_of: EvmAddress) -> Vec<u8> {
+		Self::encode_pool_debt_call(Function::Repay, asset, amount, on_behalf_of, false)
 	}
 
 	pub fn encode_liquidation_call_data(

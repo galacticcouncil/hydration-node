@@ -1049,20 +1049,17 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 
 	Hydra::execute_with(|| {
 		//Create bodns
+		//NOTE: leave the treasury (bonds `IssuerAccount`) some native balance above ED after
+		//issuing, otherwise it loses its provider ref and the sufficiency-ED native lock fails.
 		assert_ok!(hydradx_runtime::Balances::force_set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			Treasury::account_id(),
-			2_000_000 * UNITS,
+			3_000_000 * UNITS,
 		));
 
 		let maturity = NOW + MONTH;
 		let bond_id = AssetRegistry::next_asset_id().unwrap();
-		assert_ok!(Bonds::issue(
-			RuntimeOrigin::signed(Treasury::account_id()),
-			HDX,
-			2_000_000 * UNITS,
-			maturity
-		));
+		assert_ok!(Bonds::issue(RuntimeOrigin::root(), HDX, 2_000_000 * UNITS, maturity));
 		assert_eq!(AssetRegistry::assets(bond_id).unwrap().asset_type, AssetType::Bond);
 		//NOTE: make bond sufficient because treasury account is whitelisted. In this case farm
 		//would have to pay ED for receiving insufficicient bods and farm's account has no balance.

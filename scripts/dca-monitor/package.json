@@ -1,0 +1,17 @@
+{
+  "name": "dca-monitor",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "type": "module",
+  "license": "ISC",
+  "description": "Monitor DCA pallet activity on a Chopsticks-based chain",
+  "dependencies": {
+    "@polkadot/api": "^16.4.5",
+    "@polkadot/keyring": "^13.5.5"
+  }
+}

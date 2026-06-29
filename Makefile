@@ -89,7 +89,7 @@ chopstics: release
 	npx @acala-network/chopsticks xcm --parachain=launch-configs/chopsticks/hydradx.yml --parachain=launch-configs/chopsticks/assethub.yml
 
 srbuild:
-	docker run --rm --user $(id -u):$(id -g) -v "$(CURDIR):/build" -e PACKAGE=hydradx-runtime -e RUNTIME_DIR=runtime/hydradx -e BUILD_OPTS="--features=metadata-hash" paritytech/srtool:1.84.1 build --app
+	docker run --rm --user $(id -u):$(id -g) -v "$(CURDIR):/build" -e PACKAGE=hydradx-runtime -e RUNTIME_DIR=runtime/hydradx -e BUILD_OPTS="--features=metadata-hash" paritytech/srtool:1.88.0 build --app
 
 check-papi-problems: checksum
 	npx @polkadot-api/check-runtime problems wss://rpc.hydradx.cloud --wasm target/release/hydradx_runtime.compact.compressed.wasm

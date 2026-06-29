@@ -107,6 +107,7 @@ pub fn parachain_genesis(
 	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
 	claims_data: Vec<(EthereumAddress, Balance)>,
 	parachain_id: ParaId,
+	is_testnet: bool,
 	duster: DusterConfig,
 ) -> serde_json::Value {
 	serde_json::json!({
@@ -156,6 +157,9 @@ pub fn parachain_genesis(
 	"multiTransactionPayment": {
 		"currencies": accepted_assets,
 		"accountCurrencies": Vec::<(AccountId, AssetId)>::new(),
+	},
+	"parameters": {
+		"isTestnet": is_testnet,
 	},
 	"tokens": {
 		"balances": if registered_assets.is_empty() {

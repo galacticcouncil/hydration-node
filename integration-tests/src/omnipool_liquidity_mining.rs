@@ -2408,7 +2408,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		//Assert
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
-			1000000184023703,
+			1000000184023887,
 		);
 
 		//NOTE:	omnipool position should not be unlocked because deposit wasn't destroyed(it has 1
@@ -2643,7 +2643,7 @@ fn withdraw_shares_should_send_reward_to_user_when_reward_is_less_than_ed_but_us
 			yield_farm_2_id
 		));
 
-		let expected_claimed_amount = 184_023_703u128;
+		let expected_claimed_amount = 184_023_887u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			1000 * UNITS + expected_claimed_amount
@@ -2753,7 +2753,7 @@ fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_an
 
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get()),
-			1000000184023703,
+			1000000184023887,
 		);
 
 		expect_reward_claimed_events(vec![]);
@@ -3110,7 +3110,7 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 		//Assert
 		let global_farm = hydradx_runtime::OmnipoolWarehouseLM::global_farm(global_farm_1_id).unwrap();
 		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
-		assert_eq!(price_adjustment, FixedU128::from_inner(830_815305689849957936u128));
+		assert_eq!(price_adjustment, FixedU128::from_inner(830_816136504139483533u128));
 	});
 }
 
@@ -3129,20 +3129,17 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 		do_lrna_hdx_trade();
 
 		//Create bodns
+		//NOTE: leave the treasury (bonds `IssuerAccount`) some native balance above ED after
+		//issuing, otherwise it loses its provider ref and the sufficiency-ED native lock fails.
 		assert_ok!(hydradx_runtime::Balances::force_set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			Treasury::account_id(),
-			2_000_000 * UNITS,
+			3_000_000 * UNITS,
 		));
 
 		let maturity = NOW + MONTH;
 		let bond_id = AssetRegistry::next_asset_id().unwrap();
-		assert_ok!(Bonds::issue(
-			RuntimeOrigin::signed(Treasury::account_id()),
-			HDX,
-			2_000_000 * UNITS,
-			maturity
-		));
+		assert_ok!(Bonds::issue(RuntimeOrigin::root(), HDX, 2_000_000 * UNITS, maturity));
 		assert_eq!(AssetRegistry::assets(bond_id).unwrap().asset_type, AssetType::Bond);
 		//NOTE: make bond sufficient because treasury account is whitelisted. In this case farm
 		//would have to pay ED for receiving insufficicient bods and farm's account has no balance.
@@ -3212,13 +3209,13 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(bond_id, &CHARLIE.into()),
-			2000622849461,
+			2000622850084,
 		);
 
 		// NOTE: make sure oracle's price adjustment was used.
 		let global_farm = hydradx_runtime::OmnipoolWarehouseLM::global_farm(global_farm_1_id).unwrap();
 		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
-		assert_eq!(price_adjustment, FixedU128::from_inner(830_815305689849957936u128));
+		assert_eq!(price_adjustment, FixedU128::from_inner(830_816136504139483533u128));
 	});
 }
 
@@ -3330,7 +3327,7 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			charlie_new_hdx_balance_after_first_claim > charlie_hdx_balance_0,
 			"Charlie's balance should be increased"
 		);
-		assert_eq!(charlie_new_hdx_balance_after_first_claim, 1000030740467093);
+		assert_eq!(charlie_new_hdx_balance_after_first_claim, 1000030740497834);
 
 		//Act 2 - claim rewards for differnt yield-farm-entry in the same period should work.
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
@@ -3346,7 +3343,7 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			charlie_new_hdx_balance_after_2nd_claim > charlie_new_hdx_balance_after_first_claim,
 			"Charlie's balance should be increased"
 		);
-		assert_eq!(charlie_new_hdx_balance_after_2nd_claim, 1000031130625358);
+		assert_eq!(charlie_new_hdx_balance_after_2nd_claim, 1000031130656489);
 	});
 }
 

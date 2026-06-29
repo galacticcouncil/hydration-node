@@ -315,6 +315,29 @@ fn validate_unsinged_should_work_when_submitted_from_local() {
 }
 
 #[test]
+fn liquidate_with_gigahdx_collateral_should_refuse_when_debt_is_not_hollar() {
+	ExtBuilder::default().build().execute_with(|| {
+		let bob_evm_address = EvmAccounts::evm_address(&BOB);
+		let route = Router::get_route(AssetPair {
+			asset_in: HDX,
+			asset_out: DOT,
+		});
+		assert_noop!(
+			Liquidation::liquidate(
+				RuntimeOrigin::signed(ALICE),
+				67,  // GIGAHDX
+				DOT, // not HOLLAR
+				bob_evm_address,
+				1_000 * ONE,
+				route,
+				None
+			),
+			Error::<Test>::UnsupportedDebtAsset
+		);
+	});
+}
+
+#[test]
 fn validate_unsinged_priority_should_be_up_to_max_unsigned_liquidation_priority() {
 	ExtBuilder::default().build().execute_with(|| {
 		let collateral_asset: AssetId = HDX;
@@ -342,6 +365,33 @@ fn validate_unsinged_priority_should_be_up_to_max_unsigned_liquidation_priority(
 				longevity: 1,
 				propagate: false,
 			})
+		);
+	});
+}
+
+// Finding #5: a gigapot shortfall makes `realize_yield` return an error, but that
+// must NOT abort the liquidation — folding yield is only an optimisation for the
+// seize snapshot, and an underwater position must still be liquidatable. The
+// mock's `realize_yield` always errors; the flow must proceed past it and fail at
+// the next step (`snapshot_stake` -> `NoGigaHdxPosition`) rather than reverting
+// with `RealizeYieldFailed`.
+#[test]
+fn liquidate_gigahdx_should_proceed_when_realize_yield_fails() {
+	ExtBuilder::default().build().execute_with(|| {
+		let user_evm = EvmAccounts::evm_address(&BOB);
+		// collateral == gigahdx asset (67) routes into `liquidate_gigahdx`;
+		// debt == HollarId (222) passes the debt-asset guard.
+		assert_noop!(
+			Liquidation::liquidate(
+				RuntimeOrigin::signed(BOB),
+				67,
+				222,
+				user_evm,
+				1_000 * ONE,
+				Default::default(),
+				None
+			),
+			Error::<Test>::NoGigaHdxPosition
 		);
 	});
 }

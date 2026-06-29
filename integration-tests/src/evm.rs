@@ -355,7 +355,7 @@ mod account_conversion {
 	}
 
 	#[test]
-	fn evm_call_from_runtime_rpc_should_not_be_accepted_from_bound_addresses() {
+	fn evm_rpc_call_should_be_accepted_from_bound_addresses() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -368,41 +368,21 @@ mod account_conversion {
 
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 
-			//Act & Assert
-			assert_noop!(
-				hydradx_runtime::Runtime::call(
-					evm_address,   // from
-					DISPATCH_ADDR, // to
-					data,          // data
-					U256::from(1000u64),
-					U256::from(100000u64),
-					None,
-					None,
-					None,
-					false,
-					None,
-					None,
-				),
-				pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed
-			);
-		});
-	}
+			//Act & Assert - both estimate=false and estimate=true should work from RPC
+			assert_ok!(hydradx_runtime::Runtime::call(
+				evm_address,   // from
+				DISPATCH_ADDR, // to
+				data.clone(),  // data
+				U256::from(1000u64),
+				U256::from(100000u64),
+				None,
+				None,
+				None,
+				false,
+				None,
+				None,
+			));
 
-	#[test]
-	fn estimation_of_evm_call_should_be_accepted_even_from_bound_address() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			let data =
-				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
-					.to_vec();
-
-			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())),);
-
-			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
-
-			//Act & Assert
 			assert_ok!(hydradx_runtime::Runtime::call(
 				evm_address,   // from
 				DISPATCH_ADDR, // to
@@ -415,6 +395,181 @@ mod account_conversion {
 				true,
 				None,
 				None,
+			));
+		});
+	}
+
+	#[test]
+	fn on_chain_evm_transaction_should_be_rejected_from_bound_address() {
+		use crate::utils::accounts::{alith_evm_account, alith_evm_address, alith_secret_key};
+		use ethereum::{
+			eip2930::TransactionSignature, EIP1559Transaction, EIP1559TransactionMessage, TransactionAction,
+			TransactionV2,
+		};
+		use libsecp256k1::{sign, Message, SecretKey};
+		use sp_runtime::transaction_validity::{InvalidTransaction, TransactionValidityError};
+
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let account = MockAccount::new(alith_evm_account());
+			let evm_address = alith_evm_address();
+
+			// fund the account
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				account.address(),
+				WETH,
+				1_000_000_000_000_000_000i128,
+			));
+
+			// simulate binding by inserting directly into storage
+			// (alith is a truncated account so bind_evm_address would fail)
+			let account_bytes: [u8; 32] = *account.address().as_ref();
+			let mut last_12: [u8; 12] = [0u8; 12];
+			last_12.copy_from_slice(&account_bytes[20..32]);
+			pallet_evm_accounts::AccountExtension::<Runtime>::insert(evm_address, last_12);
+
+			// verify binding works
+			assert!(EVMAccounts::bound_account_id(evm_address).is_some());
+
+			// build a simple evm transaction
+			let chain_id = <hydradx_runtime::Runtime as pallet_evm::Config>::ChainId::get();
+			let nonce = U256::zero();
+			let (base_gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+			let max_fee_per_gas = base_gas_price * 10;
+			let max_priority_fee_per_gas = base_gas_price;
+			let gas_limit: u64 = 100_000;
+
+			let tx_msg = EIP1559TransactionMessage {
+				chain_id,
+				nonce,
+				max_priority_fee_per_gas,
+				max_fee_per_gas,
+				gas_limit: gas_limit.into(),
+				action: TransactionAction::Call(DISPATCH_ADDR),
+				value: U256::zero(),
+				input: hex!("0107081337").to_vec(),
+				access_list: vec![],
+			};
+
+			let secret_key = SecretKey::parse(&alith_secret_key()).expect("valid secret key");
+			let hash = tx_msg.hash();
+			let mut hash_bytes = [0u8; 32];
+			hash_bytes.copy_from_slice(&hash.0);
+			let message = Message::parse(&hash_bytes);
+			let (rs, v) = sign(&message, &secret_key);
+			let odd_y_parity = v.serialize() != 0;
+			let signature = TransactionSignature::new(odd_y_parity, H256::from(rs.r.b32()), H256::from(rs.s.b32()))
+				.expect("valid signature");
+
+			let signed_tx = EIP1559Transaction {
+				chain_id,
+				nonce,
+				max_priority_fee_per_gas,
+				max_fee_per_gas,
+				gas_limit: gas_limit.into(),
+				action: TransactionAction::Call(DISPATCH_ADDR),
+				value: U256::zero(),
+				input: hex!("0107081337").to_vec(),
+				access_list: vec![],
+				signature,
+			};
+
+			let transaction = TransactionV2::EIP1559(signed_tx);
+
+			//Act
+			let call = hydradx_runtime::RuntimeCall::Ethereum(pallet_ethereum::Call::transact {
+				transaction: transaction.into(),
+			});
+			let ue = hydradx_runtime::HydraUncheckedExtrinsic::new_bare(call);
+			let result = hydradx_runtime::Executive::apply_extrinsic(ue);
+
+			//Assert - transaction should be rejected with BadSigner
+			assert!(result.is_err());
+			assert_eq!(
+				result.unwrap_err(),
+				TransactionValidityError::Invalid(InvalidTransaction::BadSigner),
+			);
+		});
+	}
+
+	#[test]
+	fn on_chain_evm_transaction_should_work_from_unbound_address() {
+		use crate::utils::accounts::{alith_evm_account, alith_secret_key};
+		use ethereum::{
+			eip2930::TransactionSignature, EIP1559Transaction, EIP1559TransactionMessage, TransactionAction,
+			TransactionV2,
+		};
+		use libsecp256k1::{sign, Message, SecretKey};
+
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let account = MockAccount::new(alith_evm_account());
+
+			// fund the account but do NOT bind
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				account.address(),
+				WETH,
+				1_000_000_000_000_000_000i128,
+			));
+
+			init_omnipool_with_oracle_for_block_10();
+
+			// build a simple evm transaction
+			let chain_id = <hydradx_runtime::Runtime as pallet_evm::Config>::ChainId::get();
+			let nonce = U256::zero();
+			let (base_gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+			let max_fee_per_gas = base_gas_price * 10;
+			let max_priority_fee_per_gas = base_gas_price;
+			let gas_limit: u64 = 1_000_000;
+
+			let tx_msg = EIP1559TransactionMessage {
+				chain_id,
+				nonce,
+				max_priority_fee_per_gas,
+				max_fee_per_gas,
+				gas_limit: gas_limit.into(),
+				action: TransactionAction::Call(DISPATCH_ADDR),
+				value: U256::zero(),
+				input: hex!("0107081337").to_vec(),
+				access_list: vec![],
+			};
+
+			let secret_key = SecretKey::parse(&alith_secret_key()).expect("valid secret key");
+			let hash = tx_msg.hash();
+			let mut hash_bytes = [0u8; 32];
+			hash_bytes.copy_from_slice(&hash.0);
+			let message = Message::parse(&hash_bytes);
+			let (rs, v) = sign(&message, &secret_key);
+			let odd_y_parity = v.serialize() != 0;
+			let signature = TransactionSignature::new(odd_y_parity, H256::from(rs.r.b32()), H256::from(rs.s.b32()))
+				.expect("valid signature");
+
+			let signed_tx = EIP1559Transaction {
+				chain_id,
+				nonce,
+				max_priority_fee_per_gas,
+				max_fee_per_gas,
+				gas_limit: gas_limit.into(),
+				action: TransactionAction::Call(DISPATCH_ADDR),
+				value: U256::zero(),
+				input: hex!("0107081337").to_vec(),
+				access_list: vec![],
+				signature,
+			};
+
+			let transaction = TransactionV2::EIP1559(signed_tx);
+
+			//Act & Assert - unbound address should pass pre_dispatch
+			crate::utils::executive::assert_executive_apply_unsigned_extrinsic(hydradx_runtime::RuntimeCall::Ethereum(
+				pallet_ethereum::Call::transact {
+					transaction: transaction.into(),
+				},
 			));
 		});
 	}
@@ -1090,9 +1245,9 @@ mod currency_precompile {
 
 			//Assert
 
-			// 950331588000000000
+			// 950335588000000000
 			let expected_output = hex! {"
-				00000000000000000000000000000000 00000000000000000D30418B5192A800
+				00000000000000000000000000000000 00000000000000000D30452EA426E800
 			"};
 
 			assert_eq!(
@@ -1799,7 +1954,7 @@ mod chainlink_precompile {
 	use hydradx_traits::{router::AssetPair, AggregatedPriceOracle, OraclePeriod};
 	use pallet_ema_oracle::Price;
 	use pallet_lbp::AssetId;
-	use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
+	use primitives::constants::chain::{GIGAHDX_SOURCE, OMNIPOOL_SOURCE, XYK_SOURCE};
 	use primitives::EvmAddress;
 
 	fn assert_prices_are_same(ema_price: Price, precompile_price: U256, asset_a_decimals: u8, asset_b_decimals: u8) {
@@ -2535,6 +2690,118 @@ mod chainlink_precompile {
 			let expected_decimals: u8 = 8;
 			let r: u8 = U256::from_big_endian(output.as_slice()).try_into().unwrap();
 			pretty_assertions::assert_eq!(r, expected_decimals);
+		});
+	}
+
+	const STHDX: AssetId = 670;
+	const HDX_ID: AssetId = 0;
+
+	fn register_st_hdx() {
+		if hydradx_runtime::AssetRegistry::decimals(STHDX).is_some() {
+			return;
+		}
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RuntimeOrigin::root(),
+			Some(STHDX),
+			Some(b"stHDX".to_vec().try_into().unwrap()),
+			pallet_asset_registry::AssetType::Token,
+			Some(1u128),
+			Some(b"stHDX".to_vec().try_into().unwrap()),
+			Some(12u8),
+			None,
+			None,
+			true,
+		));
+	}
+
+	fn seed_gigapot_and_supply(gigapot_hdx: Balance, st_hdx_supply: Balance) {
+		// `total_gigahdx_supply` reads orml-tokens issuance directly.
+		orml_tokens::TotalIssuance::<Runtime>::set(STHDX, st_hdx_supply);
+		let gigapot = pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id();
+		assert_ok!(Balances::force_set_balance(RuntimeOrigin::root(), gigapot, gigapot_hdx,));
+	}
+
+	fn chainlink_latest_answer(address: EvmAddress) -> U256 {
+		let data = EvmDataWriter::new_with_selector(AggregatorInterface::LatestAnswer).build();
+		let mut handle = MockHandle {
+			input: data,
+			context: Context {
+				address: evm_address(),
+				caller: address,
+				apparent_value: U256::from(0),
+			},
+			code_address: address,
+			is_static: true,
+		};
+		let PrecompileOutput { output, exit_status } =
+			ChainlinkOraclePrecompile::<Runtime>::execute(&mut handle).unwrap();
+		pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned);
+		U256::from_big_endian(&output)
+	}
+
+	#[test]
+	fn chainlink_precompile_should_return_gigahdx_exchange_rate_when_source_is_gigahdx() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			register_st_hdx();
+			// 110 HDX in gigapot, 100 stHDX issued ⇒ rate = 1.1.
+			seed_gigapot_and_supply(110 * UNITS, 100 * UNITS);
+
+			pretty_assertions::assert_eq!(
+				pallet_gigahdx::Pallet::<Runtime>::exchange_rate().cmp(&hydra_dx_math::ratio::Ratio::new(11, 10)),
+				std::cmp::Ordering::Equal
+			);
+
+			let address = encode_oracle_address(STHDX, HDX_ID, OraclePeriod::TenMinutes, GIGAHDX_SOURCE);
+
+			// Pin the canonical mainnet feed address.
+			pretty_assertions::assert_eq!(
+				address,
+				EvmAddress::from(hex!("0000010267696761686478730000029e00000000"))
+			);
+
+			pretty_assertions::assert_eq!(chainlink_latest_answer(address), U256::from(110_000_000u128));
+		});
+	}
+
+	#[test]
+	fn chainlink_precompile_should_floor_at_one_when_gigahdx_reserves_drained() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			register_st_hdx();
+			// Full drain: native rate would be 0 — pallet floor must clamp to 1.0.
+			seed_gigapot_and_supply(0, 100 * UNITS);
+
+			pretty_assertions::assert_eq!(
+				pallet_gigahdx::Pallet::<Runtime>::exchange_rate().cmp(&hydra_dx_math::ratio::Ratio::one()),
+				std::cmp::Ordering::Equal
+			);
+
+			let address = encode_oracle_address(STHDX, HDX_ID, OraclePeriod::TenMinutes, GIGAHDX_SOURCE);
+
+			pretty_assertions::assert_eq!(chainlink_latest_answer(address), U256::from(100_000_000u128));
+		});
+	}
+
+	#[test]
+	fn chainlink_precompile_should_floor_at_one_when_gigahdx_partially_drained() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			register_st_hdx();
+			// Partial drain: native rate would be 0.5 — clamp must hit 1.0, not 50_000_000.
+			seed_gigapot_and_supply(50 * UNITS, 100 * UNITS);
+
+			pretty_assertions::assert_eq!(
+				pallet_gigahdx::Pallet::<Runtime>::exchange_rate().cmp(&hydra_dx_math::ratio::Ratio::one()),
+				std::cmp::Ordering::Equal
+			);
+
+			let address = encode_oracle_address(STHDX, HDX_ID, OraclePeriod::TenMinutes, GIGAHDX_SOURCE);
+
+			pretty_assertions::assert_eq!(chainlink_latest_answer(address), U256::from(100_000_000u128));
 		});
 	}
 }
@@ -5243,5 +5510,246 @@ mod evm_error_decoder {
 		assert!(error_data.len() == 70, "Error data must be exactly 70 bytes");
 
 		error_data
+	}
+}
+
+mod proxy_fee_payer {
+	use crate::evm::init_omnipool_with_oracle_for_block_10;
+	use crate::polkadot_test_net::*;
+	use frame_support::assert_ok;
+	use hex_literal::hex;
+	use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
+	use hydradx_runtime::evm::{clear_evm_fee_payer, evm_fee_payer, set_evm_fee_payer};
+	use hydradx_runtime::{Currencies, Dispatcher, Proxy, ProxyType, RuntimeCall, RuntimeOrigin, Tokens, EVM};
+	use orml_traits::MultiCurrency;
+	use pallet_evm::FeeCalculator;
+	use sp_core::{H160, U256};
+	use xcm_emulator::TestExt;
+
+	#[test]
+	fn dispatch_with_fee_payer_should_charge_controller() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let evm_addr = evm_address();
+			let evm_acc = evm_account();
+			let controller: AccountId = ALICE.into();
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				evm_acc.clone(),
+				WETH,
+				100_000 * UNITS as i128,
+			));
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				evm_acc.clone(),
+				0,
+				100_000 * UNITS as i128,
+			));
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				controller.clone(),
+				WETH,
+				100_000 * UNITS as i128,
+			));
+
+			assert_ok!(Proxy::add_proxy(
+				RuntimeOrigin::signed(evm_acc.clone()),
+				controller.clone(),
+				ProxyType::Any,
+				0,
+			));
+
+			let controller_weth_before = Tokens::free_balance(WETH, &controller);
+			let controller_hdx_before = hydradx_runtime::Balances::free_balance(&controller);
+			let evm_acc_weth_before = Tokens::free_balance(WETH, &evm_acc);
+
+			let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+			let evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+				source: evm_addr,
+				target: H160::from_low_u64_be(0x1234),
+				input: vec![],
+				value: U256::from(0),
+				gas_limit: 100_000,
+				max_fee_per_gas: gas_price,
+				max_priority_fee_per_gas: None,
+				nonce: Some(U256::zero()),
+				access_list: vec![],
+				authorization_list: vec![],
+			});
+
+			let proxy_call = RuntimeCall::Proxy(pallet_proxy::Call::proxy {
+				real: evm_acc.clone(),
+				force_proxy_type: None,
+				call: Box::new(evm_call),
+			});
+
+			assert_ok!(Dispatcher::dispatch_with_fee_payer(
+				RuntimeOrigin::signed(controller.clone()),
+				Box::new(proxy_call),
+			));
+
+			assert_eq!(evm_fee_payer(), None);
+
+			let controller_weth_after = Tokens::free_balance(WETH, &controller);
+			let controller_hdx_after = hydradx_runtime::Balances::free_balance(&controller);
+			let evm_acc_weth_after = Tokens::free_balance(WETH, &evm_acc);
+
+			assert_eq!(
+				evm_acc_weth_after, evm_acc_weth_before,
+				"EVM source WETH should be unchanged when fee payer override is active"
+			);
+
+			let controller_charged =
+				controller_weth_after < controller_weth_before || controller_hdx_after < controller_hdx_before;
+			assert!(
+				controller_charged,
+				"Controller should have been charged gas fees. WETH: {controller_weth_before} -> {controller_weth_after}, HDX: {controller_hdx_before} -> {controller_hdx_after}",
+			);
+		});
+	}
+
+	#[test]
+	fn direct_evm_call_should_not_be_affected_by_fee_payer_override() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let evm_addr = evm_address();
+			let evm_acc = evm_account();
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				evm_acc.clone(),
+				WETH,
+				100_000 * UNITS as i128,
+			));
+
+			let weth_before = Tokens::free_balance(WETH, &evm_acc);
+
+			assert_eq!(evm_fee_payer(), None);
+
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+			let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+			assert_ok!(EVM::call(
+				evm_signed_origin(evm_addr),
+				evm_addr,
+				DISPATCH_ADDR,
+				data,
+				U256::from(0),
+				1_000_000,
+				gas_price * 10,
+				None,
+				Some(U256::zero()),
+				[].into(),
+				vec![],
+			));
+
+			let weth_after = Tokens::free_balance(WETH, &evm_acc);
+			assert!(
+				weth_after < weth_before,
+				"EVM source should have been charged gas fees directly"
+			);
+		});
+	}
+
+	#[test]
+	fn dispatch_with_fee_payer_charges_controller_not_evm_source() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let evm_addr = evm_address();
+			let evm_acc = evm_account();
+			let controller: AccountId = [99u8; 32].into();
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				evm_acc.clone(),
+				WETH,
+				100_000 * UNITS as i128,
+			));
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				evm_acc.clone(),
+				0,
+				100_000 * UNITS as i128,
+			));
+
+			assert_ok!(Proxy::add_proxy(
+				RuntimeOrigin::signed(evm_acc.clone()),
+				controller.clone(),
+				ProxyType::Any,
+				0,
+			));
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				controller.clone(),
+				0,
+				100_000 * UNITS as i128,
+			));
+
+			let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+			let evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+				source: evm_addr,
+				target: H160::from_low_u64_be(0x1234),
+				input: vec![],
+				value: U256::from(0),
+				gas_limit: 100_000,
+				max_fee_per_gas: gas_price,
+				max_priority_fee_per_gas: None,
+				nonce: Some(U256::zero()),
+				access_list: vec![],
+				authorization_list: vec![],
+			});
+
+			let proxy_call = RuntimeCall::Proxy(pallet_proxy::Call::proxy {
+				real: evm_acc.clone(),
+				force_proxy_type: None,
+				call: Box::new(evm_call),
+			});
+
+			let evm_acc_weth_before = Tokens::free_balance(WETH, &evm_acc);
+
+			assert_ok!(Dispatcher::dispatch_with_fee_payer(
+				RuntimeOrigin::signed(controller.clone()),
+				Box::new(proxy_call),
+			));
+
+			assert_eq!(evm_fee_payer(), None);
+
+			let evm_acc_weth_after = Tokens::free_balance(WETH, &evm_acc);
+			assert_eq!(
+				evm_acc_weth_after, evm_acc_weth_before,
+				"EVM source (pureProxy) WETH should be unchanged — controller pays via HDX"
+			);
+		});
+	}
+
+	#[test]
+	fn fee_payer_override_is_cleared_after_dispatch() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let controller: AccountId = ALICE.into();
+
+			assert_eq!(evm_fee_payer(), None);
+
+			// Manually test set/clear still works
+			set_evm_fee_payer(controller.clone());
+			assert_eq!(evm_fee_payer(), Some(controller));
+
+			clear_evm_fee_payer();
+			assert_eq!(evm_fee_payer(), None);
+		});
 	}
 }

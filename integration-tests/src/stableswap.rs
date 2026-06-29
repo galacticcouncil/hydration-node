@@ -254,6 +254,7 @@ mod circuit_breaker {
 }
 
 #[test]
+#[allow(deprecated)]
 fn pool_with_pegs_should_update_pegs_only_once_per_block() {
 	let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,

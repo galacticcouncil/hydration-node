@@ -979,3 +979,196 @@ fn on_finalize_clears_with_defensive_check() {
 			assert!(SlipFeeHubReserveAtBlockStart::<Test>::get(100).is_none());
 		});
 }
+
+// Regression tests for buy-side slip-fee cap inversion (#1412).
+
+#[test]
+fn buy_should_deliver_exact_amount_when_slip_cap_fires() {
+	let buy_amount = 50 * ONE;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP1, 100, 5000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			SlipFee::<Test>::put(SlipFeeConfig {
+				max_slip_fee: Permill::from_parts(1000), // 0.1%
+			});
+
+			let lp1_hdx_before = Tokens::free_balance(HDX, &LP1);
+			let lp1_token100_before = Tokens::free_balance(100, &LP1);
+
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP1),
+				HDX,
+				100,
+				buy_amount,
+				u128::MAX,
+			));
+
+			let lp1_hdx_after = Tokens::free_balance(HDX, &LP1);
+			let lp1_token100_after = Tokens::free_balance(100, &LP1);
+
+			assert_eq!(lp1_hdx_after - lp1_hdx_before, buy_amount);
+			assert!(lp1_token100_after < lp1_token100_before);
+		});
+}
+
+#[test]
+fn buy_with_cap_fired_should_match_math_layer_cost() {
+	let buy_amount = 50 * ONE;
+	let max_slip_fee = Permill::from_parts(1000); // 0.1%
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP1, 100, 5000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee });
+
+			let hdx_state = Omnipool::load_asset_state(HDX).unwrap();
+			let token100_state = Omnipool::load_asset_state(100).unwrap();
+
+			let math_slip = hydra_dx_math::omnipool::types::TradeSlipFees {
+				asset_in_hub_reserve: token100_state.hub_reserve,
+				asset_in_delta: hydra_dx_math::omnipool::types::SignedBalance::zero(),
+				asset_out_hub_reserve: hdx_state.hub_reserve,
+				asset_out_delta: hydra_dx_math::omnipool::types::SignedBalance::zero(),
+				max_slip_fee,
+			};
+			let math_result = hydra_dx_math::omnipool::calculate_buy_state_changes(
+				&(&token100_state).into(),
+				&(&hdx_state).into(),
+				buy_amount,
+				Permill::zero(),
+				Permill::zero(),
+				Permill::zero(),
+				Some(&math_slip),
+			)
+			.expect("math layer must succeed in cap regime");
+			let expected_token_in_spent = *math_result.asset_in.delta_reserve;
+
+			let token100_before = Tokens::free_balance(100, &LP1);
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP1),
+				HDX,
+				100,
+				buy_amount,
+				u128::MAX,
+			));
+			let actual_token_in_spent = token100_before - Tokens::free_balance(100, &LP1);
+
+			assert_eq!(actual_token_in_spent, expected_token_in_spent);
+		});
+}
+
+#[test]
+fn buy_for_hub_asset_with_cap_fired_should_match_math_layer_cost() {
+	let buy_amount = 50 * ONE;
+	let max_slip_fee = Permill::from_parts(1000); // 0.1%
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, LRNA, 5000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee });
+
+			let token100_state = Omnipool::load_asset_state(100).unwrap();
+			let math_slip = hydra_dx_math::omnipool::types::HubTradeSlipFees {
+				asset_hub_reserve: token100_state.hub_reserve,
+				asset_delta: hydra_dx_math::omnipool::types::SignedBalance::zero(),
+				max_slip_fee,
+			};
+			let math_result = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
+				&(&token100_state).into(),
+				buy_amount,
+				Permill::zero(),
+				Some(&math_slip),
+			)
+			.expect("math layer must succeed in cap regime");
+			let expected_lrna_cost = *math_result.asset.delta_hub_reserve;
+
+			let lrna_before = Tokens::free_balance(LRNA, &LP3);
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP3),
+				100,
+				LRNA,
+				buy_amount,
+				u128::MAX,
+			));
+			let actual_lrna_cost = lrna_before - Tokens::free_balance(LRNA, &LP3);
+
+			assert_eq!(actual_lrna_cost, expected_lrna_cost);
+		});
+}
+
+// A sizeable buy of a high-priced asset_out, paid for with a low-priced asset_in
+// under a large slip cap (40+%), inflates the required LRNA past the discriminant
+// threshold of the uncapped sell-side inversion, so the math returns Overflow.
+//
+// Since maxSlipFee is 25% on prod, this scenario should never really happen.
+#[test]
+fn buy_should_fail_with_overflow_when_low_priced_asset_in_pays_for_large_high_priced_buy() {
+	use sp_runtime::{ArithmeticError, DispatchError};
+
+	let amount: Balance = 3_622_468_058_278_488;
+	let stable_price = FixedU128::from_float(0.1);
+	let stable_reserve: Balance = 100_000_000_000_000_000;
+	let native_reserve: Balance = 100_000_000_000_000_000;
+	let token_in_price = FixedU128::from_float(0.1);
+	let token_in_reserve: Balance = 100_000_000_000_000_000;
+	let token_out_price = FixedU128::from_float(1.981_763_482_850_658_5);
+	let token_out_reserve: Balance = 100_000_000_000_000_000;
+	let asset_fee = Permill::from_rational(22u32, 1_000u32);
+	let protocol_fee = Permill::from_percent(3);
+	let max_slip_fee = Permill::from_percent(46);
+
+	let lp_in: u64 = 200;
+	let lp_out: u64 = 300;
+	let buyer: u64 = 500;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, stable_reserve),
+			(Omnipool::protocol_account(), HDX, native_reserve),
+			(lp_in, 200, token_in_reserve + 2 * ONE),
+			(lp_out, 300, token_out_reserve + 2 * ONE),
+			(buyer, 200, amount * 1000 + 200 * ONE),
+		])
+		.with_registered_asset(200)
+		.with_registered_asset(300)
+		.with_asset_fee(asset_fee)
+		.with_protocol_fee(protocol_fee)
+		.with_initial_pool(stable_price, FixedU128::from(1))
+		.with_token(200, token_in_price, lp_in, token_in_reserve)
+		.with_token(300, token_out_price, lp_out, token_out_reserve)
+		.build()
+		.execute_with(|| {
+			SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee });
+
+			let result = Omnipool::buy(RuntimeOrigin::signed(buyer), 300, 200, amount, Balance::MAX);
+			assert_noop!(result, DispatchError::Arithmetic(ArithmeticError::Overflow));
+		});
+}

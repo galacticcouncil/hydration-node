@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 5c5f24cc46aaf315e4c96c8576ab2e68d2324771990ecc6f0f73b4d91abde09a # shrinks to ops = [AccrueYield { amount: 30376718729381 }, Stake { who: 0, amount: 1000000595531 }, Stake { who: 1, amount: 1000035632141 }]
+cc 009af515f5b09355d2e4eb70cdb893133d64ac2173877b500c142651be1f9d61 # shrinks to ops = [AccrueYield { amount: 1000000000000 }, Stake { who: 1, amount: 1000000000001 }, Stake { who: 0, amount: 1000000000000 }, RealizeYield { who: 0 }]
+cc ad55fb586f84e4dcf373f15108cbc59aa095517eba93aad82c0140489a351039 # shrinks to prefix = [AccrueYield { amount: 1000000000000 }, Stake { who: 1, amount: 1000000000000 }, RealizeYield { who: 1 }], seed = 1000000000001

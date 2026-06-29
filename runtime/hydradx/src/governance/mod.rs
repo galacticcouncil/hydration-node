@@ -48,10 +48,13 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureRootWithSuccess};
 use hydradx_traits::evm::MaybeEvmCall;
 use pallet_collective::EnsureProportionAtLeast;
+use pallet_conviction_voting::{AccountVote, Status, VotingHooks};
+use pallet_referenda::ReferendumIndex;
 use primitives::constants::{currency::DOLLARS, time::DAYS};
 use sp_arithmetic::Perbill;
 use sp_core::ConstU32;
 use sp_runtime::traits::IdentityLookup;
+use sp_std::marker::PhantomData;
 
 pub type TechCommitteeMajority = EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 2>;
 pub type TechCommitteeSuperMajority = EnsureProportionAtLeast<AccountId, TechnicalCollective, 2, 3>;
@@ -180,6 +183,58 @@ impl pallet_treasury::Config for Runtime {
 
 parameter_types! {
 	pub const VoteLockingPeriod: BlockNumber = 7 * DAYS;
+	#[derive(Debug)]
+	pub const MaxVotes: u32 = 25;
+}
+
+/// Tuple adapter for `pallet_conviction_voting::VotingHooks` so the runtime
+/// can wire two consumers (staking + gigahdx rewards) into the single hook
+/// slot. The upstream trait does not provide a tuple impl.
+pub struct CombinedVotingHooks<A, B>(PhantomData<(A, B)>);
+
+impl<A, B, AccountId, Balance> VotingHooks<AccountId, ReferendumIndex, Balance> for CombinedVotingHooks<A, B>
+where
+	A: VotingHooks<AccountId, ReferendumIndex, Balance>,
+	B: VotingHooks<AccountId, ReferendumIndex, Balance>,
+	Balance: sp_std::cmp::PartialOrd + Clone,
+{
+	fn on_before_vote(
+		who: &AccountId,
+		idx: ReferendumIndex,
+		vote: AccountVote<Balance>,
+	) -> frame_support::dispatch::DispatchResult {
+		A::on_before_vote(who, idx, vote.clone())?;
+		B::on_before_vote(who, idx, vote)
+	}
+
+	fn on_remove_vote(who: &AccountId, idx: ReferendumIndex, status: Status) {
+		A::on_remove_vote(who, idx, status);
+		B::on_remove_vote(who, idx, status);
+	}
+
+	fn lock_balance_on_unsuccessful_vote(who: &AccountId, idx: ReferendumIndex) -> Option<Balance> {
+		// Combine conservatively: max if both ask for a lock, otherwise
+		// pass through whichever side answered.
+		match (
+			A::lock_balance_on_unsuccessful_vote(who, idx),
+			B::lock_balance_on_unsuccessful_vote(who, idx),
+		) {
+			(Some(a), Some(b)) => Some(if a > b { a } else { b }),
+			(a, b) => a.or(b),
+		}
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn on_vote_worst_case(who: &AccountId) {
+		A::on_vote_worst_case(who);
+		B::on_vote_worst_case(who);
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn on_remove_vote_worst_case(who: &AccountId) {
+		A::on_remove_vote_worst_case(who);
+		B::on_remove_vote_worst_case(who);
+	}
 }
 
 impl pallet_conviction_voting::Config for Runtime {
@@ -187,10 +242,13 @@ impl pallet_conviction_voting::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type VoteLockingPeriod = VoteLockingPeriod;
-	type MaxVotes = ConstU32<25>;
+	type MaxVotes = MaxVotes;
 	type MaxTurnout = frame_support::traits::tokens::currency::ActiveIssuanceOf<Balances, Self::AccountId>;
 	type Polls = Referenda;
-	type VotingHooks = pallet_staking::integrations::conviction_voting::StakingConvictionVoting<Runtime>;
+	type VotingHooks = CombinedVotingHooks<
+		pallet_staking::integrations::conviction_voting::StakingConvictionVoting<Runtime>,
+		pallet_gigahdx_rewards::voting_hooks::VotingHooksImpl<Runtime>,
+	>;
 	// Any single technical committee member may remove a vote.
 	type VoteRemovalOrigin = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;
 	type BlockNumberProvider = System;
@@ -213,7 +271,7 @@ impl pallet_whitelist::Config for Runtime {
 parameter_types! {
 	pub const AlarmInterval: BlockNumber = 1;
 	pub const SubmissionDeposit: Balance = DOLLARS;
-	pub const UndecidingTimeout: BlockNumber = 14 * DAYS;
+	pub const UndecidingTimeout: BlockNumber = 2 * DAYS;
 }
 
 impl pallet_referenda::Config for Runtime {
@@ -267,5 +325,6 @@ impl pallet_dispatcher::Config for Runtime {
 	type DefaultAaveManagerAccount = AaveManagerAccount;
 	type EmergencyAdminAccount = EmergencyAdminAccount;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
+	type EvmFeePayer = evm::EvmFeePayerImpl;
 	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
 }

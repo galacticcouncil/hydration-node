@@ -98,10 +98,10 @@ impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 12_785_000 picoseconds.
-		Weight::from_parts(13_265_882, 0)
+		// Minimum execution time: 12_965_000 picoseconds.
+		Weight::from_parts(13_281_547, 0)
 			// Standard Error: 1
-			.saturating_add(Weight::from_parts(1_187, 0).saturating_mul(n.into()))
+			.saturating_add(Weight::from_parts(1_215, 0).saturating_mul(n.into()))
 	}
 	/// The range of component `n` is `[1, 10000]`.
 	fn dispatch_with_extra_gas(n: u32, ) -> Weight {
@@ -118,9 +118,19 @@ impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 6_976_000 picoseconds.
-		Weight::from_parts(7_262_342, 0)
+		// Minimum execution time: 7_050_000 picoseconds.
+		Weight::from_parts(7_323_987, 0)
+			// Standard Error: 0
+			.saturating_add(Weight::from_parts(315, 0).saturating_mul(n.into()))
+	}
+	/// The range of component `n` is `[1, 10000]`.
+	fn dispatch_with_fee_payer(n: u32) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 13_000_000 picoseconds.
+		Weight::from_parts(13_334_558, 0)
 			// Standard Error: 1
-			.saturating_add(Weight::from_parts(352, 0).saturating_mul(n.into()))
+			.saturating_add(Weight::from_parts(1_198, 0).saturating_mul(n.into()))
 	}
 }

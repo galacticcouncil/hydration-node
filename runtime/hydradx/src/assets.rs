@@ -18,7 +18,7 @@
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
-use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
+use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin, Treasurer};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
@@ -32,11 +32,11 @@ use frame_support::{
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, ExistenceRequirement,
-		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
+		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced,
 	},
 	BoundedVec, PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use frame_system::{EnsureRoot, RawOrigin};
 use hydradx_adapters::{
 	stableswap_peg_oracle::PegOracle, AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT,
 	MultiCurrencyLockedBalance, OmnipoolHookAdapter, OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider,
@@ -77,7 +77,7 @@ use pallet_staking::{
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, AssetIdOf, RemoveTxAssetOnKilled};
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use primitives::constants::{
-	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, XYK_SOURCE},
+	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, STABLESWAP_SOURCE, XYK_SOURCE},
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::DAYS,
 };
@@ -429,7 +429,7 @@ impl pallet_currencies::Config for Runtime {
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeAssetId;
 	type RegistryInspect = AssetRegistry;
-	type EgressHandler = circuit_breaker::WithdrawLimitHandler<NativeAssetId>;
+	type EgressHandler = circuit_breaker::WithdrawLimitHandler;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
 
@@ -633,9 +633,18 @@ impl pallet_circuit_breaker::Config for Runtime {
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<{ pallet_ema_oracle::MAX_PERIODS }>> = BoundedVec::truncate_from(vec![
-		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes, OraclePeriod::Day,
+	]);
+	// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
+	pub BifrostAccount: AccountId = hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into();
+}
 
-	pub MaxAllowedPriceDifferenceForBifrostOracleUpdate: Permill = Permill::from_percent(10);
+/// Identifies internal (AMM) oracle sources via hardcoded constants. Zero storage reads.
+pub struct InternalOracleSources;
+impl Contains<Source> for InternalOracleSources {
+	fn contains(s: &Source) -> bool {
+		matches!(s, &OMNIPOOL_SOURCE | &STABLESWAP_SOURCE | &XYK_SOURCE)
+	}
 }
 
 pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);
@@ -650,26 +659,15 @@ where
 	}
 }
 
-// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
-pub fn bifrost_account() -> AccountId {
-	hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into()
-}
-pub struct BifrostAcc;
-impl SortedMembers<AccountId> for BifrostAcc {
-	fn sorted_members() -> Vec<AccountId> {
-		vec![bifrost_account()]
-	}
-}
-
 impl pallet_ema_oracle::Config for Runtime {
-	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
-	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EconomicParameters>;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = OracleWhitelist<Runtime>;
+	type InternalSources = InternalOracleSources;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
 	/// 40 seems a decent upper bound for the foreseeable future.
 	type MaxUniqueEntries = ConstU32<40>;
@@ -678,7 +676,6 @@ impl pallet_ema_oracle::Config for Runtime {
 	/// Should take care of the overhead introduced by `OracleWhitelist`.
 	type BenchmarkHelper = RegisterAsset<Runtime>;
 	type LocationToAssetIdConversion = CurrencyIdConvert;
-	type MaxAllowedPriceDifference = MaxAllowedPriceDifferenceForBifrostOracleUpdate;
 }
 
 pub struct ExtendedDustRemovalWhitelist;
@@ -692,6 +689,10 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			BondsPalletId::get().into_account_truncating(),
 			pallet_route_executor::Pallet::<Runtime>::router_account(),
 			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS),
+			GigaHdxPalletId::get().into_account_truncating(),
+			pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot(),
+			pallet_gigahdx_rewards::Pallet::<Runtime>::allocated_rewards_pot(),
+			pallet_fee_processor::Pallet::<Runtime>::pot_account_id(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
@@ -933,6 +934,11 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 		let errors: Vec<DispatchError> = vec![
 			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
 			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
+			// Off-by-one rounding on aToken balanceOf can trip the omnipool's
+			// pre-trade ensure_can_withdraw. Retry on a later block — the aave
+			// liquidity index is timestamp-dependent, so the rounding boundary
+			// shifts and a later attempt may pass.
+			pallet_omnipool::Error::<Runtime>::InsufficientBalance.into(),
 			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
 			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];
@@ -1426,7 +1432,6 @@ use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;
 use pallet_hsm::WeightInfo;
-use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::types::PegType;
@@ -1570,14 +1575,16 @@ impl pallet_stableswap::Config for Runtime {
 
 // Bonds
 parameter_types! {
-	pub ProtocolFee: Permill = Permill::from_percent(2);
 	pub const BondsPalletId: PalletId = PalletId(*b"pltbonds");
 }
 
 pub struct AssetTypeWhitelist;
 impl Contains<AssetKind> for AssetTypeWhitelist {
 	fn contains(t: &AssetKind) -> bool {
-		matches!(t, AssetKind::Token | AssetKind::XYK | AssetKind::StableSwap)
+		matches!(
+			t,
+			AssetKind::Token | AssetKind::XYK | AssetKind::StableSwap | AssetKind::Erc20
+		)
 	}
 }
 
@@ -1588,10 +1595,9 @@ impl pallet_bonds::Config for Runtime {
 	type ExistentialDeposits = AssetRegistry;
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
-	type IssueOrigin = EnsureSigned<AccountId>;
+	type IssueOrigin = EitherOf<EnsureRoot<Self::AccountId>, Treasurer>;
+	type IssuerAccount = TreasuryAccount;
 	type AssetTypeWhitelist = AssetTypeWhitelist;
-	type ProtocolFee = ProtocolFee;
-	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = weights::pallet_bonds::HydraWeight<Runtime>;
 }
 
@@ -1626,10 +1632,6 @@ impl GetByKey<FixedU128, Point> for StakingMinSlash {
 	}
 }
 
-parameter_types! {
-	pub const MaxVotes: u32 = 25;
-}
-
 impl pallet_staking::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
@@ -1650,19 +1652,23 @@ impl pallet_staking::Config for Runtime {
 	type NFTCollectionId = ConstU128<2222>;
 	type Collections = FreezableNFT<Runtime, Self::RuntimeOrigin>;
 	type NFTHandler = Uniques;
-	type MaxVotes = MaxVotes;
-	type ReferendumInfo = pallet_staking::integrations::conviction_voting::ReferendumStatus<
-		Referenda,
-		pallet_conviction_voting::TallyOf<Runtime>,
-	>;
+	type MaxVotes = governance::MaxVotes;
+	type ReferendumInfo = pallet_staking::integrations::conviction_voting::DirectReferendumStatus<Runtime>;
 	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
+	type ExternalClaims = crate::gigahdx::LegacyStakingExternalClaims;
 	type WeightInfo = weights::pallet_staking::HydraWeight<Runtime>;
 	type MinSlash = StakingMinSlash;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxLocks = MaxLocks;
 }
+
+//Make sure staking and conviction voting are using same `MaxVotes` value
+static_assertions::const_assert_eq!(
+	<Runtime as pallet_staking::Config>::MaxVotes::get(),
+	<Runtime as pallet_conviction_voting::Config>::MaxVotes::get()
+);
 
 // LBP
 pub struct AssetPairAccountId<T: frame_system::Config>(PhantomData<T>);
@@ -1727,7 +1733,6 @@ parameter_types! {
 	pub const MinCodeLength: u32 = 4;
 	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 	pub const ReferralsSeedAmount: Balance = 10_000_000_000_000;
-	pub ReferralsExternalRewardAccount: Option<AccountId> = Some(StakingPalletId::get().into_account_truncating());
 }
 
 impl pallet_referrals::Config for Runtime {
@@ -1746,7 +1751,6 @@ impl pallet_referrals::Config for Runtime {
 	type CodeLength = MaxCodeLength;
 	type MinCodeLength = MinCodeLength;
 	type LevelVolumeAndRewardPercentages = ReferralsLevelVolumeAndRewards;
-	type ExternalAccount = ReferralsExternalRewardAccount;
 	type SeedNativeAmount = ReferralsSeedAmount;
 	type WeightInfo = weights::pallet_referrals::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
@@ -1804,6 +1808,7 @@ impl pallet_liquidation::Config for Runtime {
 	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
 	type EvmErrorDecoder = EvmErrorDecoder;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type GigaHdx = crate::gigahdx::GigaHdxLiquidationSupport;
 }
 
 impl pallet_broadcast::Config for Runtime {}
@@ -1840,30 +1845,19 @@ impl pallet_hsm::Config for Runtime {
 
 parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
-	pub const MaxChainIdLength: u32 = 128;
-
-	pub const MaxEvmDataLength: u32 = 100_000;
-	pub const MaxSignatureDeposit: Balance = 200_000_000_000_000;
 }
 
 impl pallet_signet::Config for Runtime {
 	type Currency = Balances;
 	type PalletId = SignetPalletId;
-	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
-	type MaxDataLength = MaxEvmDataLength;
-	type UpdateOrigin = EnsureRoot<AccountId>;
-	type MaxSignatureDeposit = MaxSignatureDeposit;
+	type UpdateOrigin = EitherOf<EnsureRoot<AccountId>, TechCommitteeMajority>;
 }
 
 parameter_types! {
 	pub const SigEthPalletId: PalletId = PalletId(*b"py/fucet");
-	pub const SigEthFaucetDispenserFee: u128 = 5_000;
-	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000_000_000_000;
-	pub const SigEthFaucetMinRequest: u64 = 0;
 	pub const SigEthFaucetFeeAssetId: AssetId = 0;
 	pub const SigEthFaucetFaucetAssetId: AssetId = 20;
-	pub const SigEthMinFaucetThreshold: u128 = 50_000_000_000_000_000u128;
 }
 
 // Treasury as the fee receiver (reuses the Treasury pallet account)
@@ -1874,30 +1868,147 @@ impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
 	}
 }
 
-pub struct SigEthFaucetContractAddr;
-impl frame_support::traits::Get<EvmAddress> for SigEthFaucetContractAddr {
-	fn get() -> EvmAddress {
-		// 0x189d33ea9A9701fdb67C21df7420868193dcf578
-		EvmAddress::from(hex_literal::hex!("189d33ea9A9701fdb67C21df7420868193dcf578"))
-	}
-}
-
 impl pallet_dispenser::Config for Runtime {
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type Currency = FungibleCurrencies<Runtime>;
-	type MinimumRequestAmount = SigEthFaucetMinRequest;
-	type MaxDispenseAmount = SigEthFaucetMaxDispense;
-	type DispenserFee = SigEthFaucetDispenserFee;
 	type FeeAsset = SigEthFaucetFeeAssetId;
 	type FaucetAsset = SigEthFaucetFaucetAssetId;
 	type FeeDestination = SigEthFaucetTreasuryAccount;
-	type FaucetAddress = SigEthFaucetContractAddr;
 	type PalletId = SigEthPalletId;
-	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = DispenserBenchmarkHelper;
+}
+
+parameter_types! {
+	pub const GigaHdxLockId: frame_support::traits::LockIdentifier = *b"ghdxlock";
+	pub const GigaHdxPalletId: frame_support::PalletId = frame_support::PalletId(*b"gigahdx!");
+	// stHDX invariants — verify on any runtime / AAVE configuration change:
+	//   (1) Mint/burn exclusive to `pallet-gigahdx` — rate denominator reads
+	//       global `total_issuance` directly; any external mint/burn dilutes stakers.
+	//   (2) Non-borrowable on AAVE (zero borrow cap / IRM returning 0). If
+	//       `liquidityIndex` drifts above 1 RAY the `aToken : stHDX = 1 : 1`
+	//       invariant breaks, leaking unlocked aTokens past the lock-manager.
+	pub const StHdxAssetId: AssetId = 670;
+	pub const GigaHdxAssetIdConst: AssetId = 67;
+	pub const GigaHdxMinStake: Balance = UNITS;
+	pub const GigaHdxCooldownPeriod: BlockNumber = 28 * DAYS;
+	pub const GigaHdxMaxPendingUnstakes: u32 = 10;
+}
+
+impl pallet_gigahdx::Config for Runtime {
+	type NativeCurrency = Balances;
+	type MultiCurrency = FungibleCurrencies<Runtime>;
+	type StHdxAssetId = StHdxAssetId;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type MoneyMarket = crate::gigahdx::AaveMoneyMarket;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MoneyMarket = crate::gigahdx::BenchmarkMoneyMarket;
+	type AuthorityOrigin = EitherOf<EnsureRoot<AccountId>, TechCommitteeMajority>;
+	type PalletId = GigaHdxPalletId;
+	type LockId = GigaHdxLockId;
+	type MinStake = GigaHdxMinStake;
+	type CooldownPeriod = GigaHdxCooldownPeriod;
+	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
+	type ExternalClaims = crate::gigahdx::HdxExternalClaims;
+	type LegacyStaking = crate::gigahdx::LegacyStakingMigrator;
+	type VotingCommitment = GigaHdxRewards;
+	type WeightInfo = weights::pallet_gigahdx::HydraWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = GigaHdxBenchmarkHelper;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct GigaHdxBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_gigahdx::BenchmarkHelper<AccountId> for GigaHdxBenchmarkHelper {
+	fn register_assets() -> DispatchResult {
+		if <AssetRegistry as hydradx_traits::registry::Inspect>::exists(StHdxAssetId::get()) {
+			return Ok(());
+		}
+		let name: BoundedVec<u8, RegistryStrLimit> = b"stHDX"
+			.to_vec()
+			.try_into()
+			.map_err(|_| DispatchError::Other("BoundedConversionFailed"))?;
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				Some(StHdxAssetId::get()),
+				Some(name),
+				AssetKind::Token,
+				1u128,
+				None,
+				None,
+				None,
+				None,
+			))
+		})?;
+		Ok(())
+	}
+
+	fn setup_legacy_staking_position(who: &AccountId, amount: Balance) -> DispatchResult {
+		use frame_support::traits::Currency;
+		let _ = Balances::deposit_creating(who, amount.saturating_mul(10));
+		let staking_pot = pallet_staking::Pallet::<Runtime>::pot_account_id();
+		let _ = Balances::deposit_creating(&staking_pot, amount.saturating_mul(10));
+
+		// Idempotent — second-and-later calls hit `AlreadyInitialized`.
+		let _ = pallet_staking::Pallet::<Runtime>::initialize_staking(frame_system::RawOrigin::Root.into());
+
+		pallet_staking::Pallet::<Runtime>::stake(frame_system::RawOrigin::Signed(who.clone()).into(), amount)
+	}
+}
+
+parameter_types! {
+	pub const GigaRewardPotPalletId: frame_support::PalletId = frame_support::PalletId(*b"gigarwd!");
+}
+
+impl pallet_gigahdx_rewards::Config for Runtime {
+	type TrackId = u16;
+	type Referenda = crate::gigahdx::RuntimeReferenda;
+	type TrackRewardConfig = crate::gigahdx::TrackRewardConfig;
+	type RewardPotPalletId = GigaRewardPotPalletId;
+	type WeightInfo = weights::pallet_gigahdx_rewards::HydraWeight<Runtime>;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct DispenserBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_dispenser::BenchmarkHelper<AccountId> for DispenserBenchmarkHelper {
+	fn register_asset(asset_id: AssetId, min_balance: Balance) -> DispatchResult {
+		if <AssetRegistry as hydradx_traits::registry::Inspect>::exists(asset_id) {
+			return Ok(());
+		}
+		let name: BoundedVec<u8, RegistryStrLimit> = asset_id
+			.to_le_bytes()
+			.to_vec()
+			.try_into()
+			.map_err(|_| DispatchError::Other("BoundedConversionFailed"))?;
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				Some(asset_id),
+				Some(name),
+				AssetKind::Token,
+				min_balance,
+				None,
+				None,
+				None,
+				None,
+			))
+		})?;
+		Ok(())
+	}
+
+	fn mint(asset_id: AssetId, who: &AccountId, amount: Balance) -> DispatchResult {
+		use frame_support::traits::fungibles::Mutate;
+		<FungibleCurrencies<Runtime> as Mutate<AccountId>>::mint_into(asset_id, who, amount)?;
+		Ok(())
+	}
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
-impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
+impl<SP> hydradx_traits::fee_processor::Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where
 	SP: SpotPriceProvider<AssetId, Price = FixedU128>,
 {
@@ -1909,10 +2020,8 @@ where
 		asset_to: AssetId,
 		amount: Balance,
 	) -> Result<Balance, Self::Error> {
-		if amount < <Runtime as pallet_omnipool::Config>::MinimumTradingLimit::get() {
-			return Err(pallet_referrals::Error::<Runtime>::ConversionMinTradingAmountNotReached.into());
-		}
-		let price = SP::spot_price(asset_to, asset_from).ok_or(pallet_referrals::Error::<Runtime>::PriceNotFound)?;
+		let price =
+			SP::spot_price(asset_to, asset_from).ok_or(pallet_fee_processor::Error::<Runtime>::PriceNotAvailable)?;
 		let amount_to_receive = price.saturating_mul_int(amount);
 		let min_expected = amount_to_receive
 			.saturating_sub(Permill::from_percent(5).mul_floor(amount_to_receive))
@@ -1927,7 +2036,7 @@ where
 		);
 		if let Err(error) = r {
 			if error == pallet_omnipool::Error::<Runtime>::ZeroAmountOut.into() {
-				return Err(pallet_referrals::Error::<Runtime>::ConversionZeroAmountReceived.into());
+				return Err(pallet_fee_processor::Error::<Runtime>::ConversionFailed.into());
 			}
 			return Err(error);
 		}
@@ -1948,36 +2057,32 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 			Level::Tier3 => 61_111 * UNITS,
 			Level::Tier4 => 763_888 * UNITS,
 		};
+		// referrer + trader split 100% of the referrals slice; tier shifts the proportion toward
+		// the referrer. `None` mints nothing (no referrer). See pallet-fee-processor for the slice.
 		let rewards = match k {
 			Level::None => FeeDistribution {
 				referrer: Permill::zero(),
 				trader: Permill::zero(),
-				external: Permill::from_percent(50),
 			},
 			Level::Tier0 => FeeDistribution {
-				referrer: Permill::from_percent(3),
-				trader: Permill::from_percent(2),
-				external: Permill::from_percent(45),
+				referrer: Permill::from_percent(60),
+				trader: Permill::from_percent(40),
 			},
 			Level::Tier1 => FeeDistribution {
-				referrer: Permill::from_percent(6),
-				trader: Permill::from_percent(4),
-				external: Permill::from_percent(40),
+				referrer: Permill::from_percent(65),
+				trader: Permill::from_percent(35),
 			},
 			Level::Tier2 => FeeDistribution {
-				referrer: Permill::from_percent(9),
-				trader: Permill::from_percent(6),
-				external: Permill::from_percent(35),
+				referrer: Permill::from_percent(70),
+				trader: Permill::from_percent(30),
 			},
 			Level::Tier3 => FeeDistribution {
-				referrer: Permill::from_percent(12),
-				trader: Permill::from_percent(8),
-				external: Permill::from_percent(30),
+				referrer: Permill::from_percent(75),
+				trader: Permill::from_percent(25),
 			},
 			Level::Tier4 => FeeDistribution {
-				referrer: Permill::from_percent(15),
-				trader: Permill::from_percent(10),
-				external: Permill::from_percent(25),
+				referrer: Permill::from_percent(80),
+				trader: Permill::from_percent(20),
 			},
 		};
 		(volume, rewards)
@@ -1987,9 +2092,10 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
 use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
+use pallet_xyk::types::AssetPair;
+
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
-use pallet_xyk::types::AssetPair;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;
@@ -2051,6 +2157,20 @@ impl RefBenchmarkHelper<AssetId, Balance> for ReferralsBenchmarkHelper {
 			TreasuryAccount::get(),
 		)
 		.unwrap();
+
+		// `convert` sells the pot asset via Omnipool; that trade routes its HDX fee through the
+		// fee-processor to the gigaHDX / rewards / staking pots (empty in the benchmark genesis).
+		// Pre-create them so the sub-ED fee slices don't fail to create the account.
+		for p in [
+			pallet_fee_processor::Pallet::<Runtime>::pot_account_id(),
+			pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id(),
+			pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot(),
+			pallet_staking::Pallet::<Runtime>::pot_account_id(),
+			pallet_referrals::Pallet::<Runtime>::pot_account_id(),
+		] {
+			Currencies::update_balance(RuntimeOrigin::root(), p, NativeAssetId::get(), 1_000_000_000_000_000).unwrap();
+		}
+
 		(1234, 1_000_000_000_000_000_000)
 	}
 }
@@ -2200,4 +2320,131 @@ impl TryConvert<&<Runtime as frame_system::Config>::RuntimeCall, AssetIdOf<Runti
 			Err(call)
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// pallet-fee-processor — FeeReceiver impls and Config
+// ---------------------------------------------------------------------------
+
+parameter_types! {
+	pub const FeeProcessorPalletId: PalletId = PalletId(*b"feeproc/");
+	pub const MaxFeeConversionsPerBlock: u32 = 5;
+}
+
+/// Legacy staking fee receiver for non-HDX path — 5% of converted HDX.
+pub struct StakingFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for StakingFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_staking::Pallet::<Runtime>::pot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(5)
+	}
+}
+/// Legacy staking fee receiver for HDX path — 5% of HDX trade fees.
+pub struct HdxStakingFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for HdxStakingFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_staking::Pallet::<Runtime>::pot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(5)
+	}
+}
+
+/// GigaHDX main pot — 15% of trade fees. HDX accrued here lifts the gigaHDX
+/// exchange rate (`total_staked_hdx = TotalLocked + free_balance(gigapot)`),
+/// so a plain transfer is the only side-effect required.
+pub struct GigaHdxFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for GigaHdxFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_gigahdx::Pallet::<Runtime>::gigapot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(15)
+	}
+}
+
+/// GigaHDX rewards accumulator — 25% of trade fees. Externally funded pot
+/// drained by `pallet-gigahdx-rewards` into per-track allocations.
+pub struct GigaHdxRewardsFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for GigaHdxRewardsFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(25)
+	}
+}
+
+/// Referrals fee receiver — takes its 5% slice in the *raw* (unconverted) asset.
+/// The fee-processor transfers the slice into the referrals pot, then
+/// `on_raw_fee_received` mints shares and marks the asset for self-conversion.
+pub struct ReferralsFeeReceiver;
+
+impl hydradx_traits::fee_processor::FeeReceiver<AccountId, AssetId, Balance> for ReferralsFeeReceiver {
+	type Error = sp_runtime::DispatchError;
+
+	fn destination() -> AccountId {
+		pallet_referrals::Pallet::<Runtime>::pot_account_id()
+	}
+
+	fn percentage() -> Permill {
+		Permill::from_percent(5)
+	}
+
+	fn accepts_raw_asset() -> bool {
+		true
+	}
+
+	fn on_raw_fee_received(
+		trader: AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<Vec<(AccountId, Balance)>, Self::Error> {
+		let used = pallet_referrals::Pallet::<Runtime>::process_trade_fee(trader, asset, amount)?;
+		Ok(sp_std::vec![(
+			pallet_referrals::Pallet::<Runtime>::pot_account_id(),
+			used
+		)])
+	}
+}
+
+impl pallet_fee_processor::Config for Runtime {
+	type AssetId = AssetId;
+	type Currency = FungibleCurrencies<Runtime>;
+	type Convert = ConvertViaOmnipool<Omnipool>;
+	type PalletId = FeeProcessorPalletId;
+	type HdxAssetId = NativeAssetId;
+	type LrnaAssetId = LRNA;
+	type MaxConversionsPerBlock = MaxFeeConversionsPerBlock;
+	type FeeReceivers = (
+		GigaHdxFeeReceiver,
+		GigaHdxRewardsFeeReceiver,
+		StakingFeeReceiver,
+		ReferralsFeeReceiver,
+	);
+	type HdxFeeReceivers = (
+		GigaHdxFeeReceiver,
+		GigaHdxRewardsFeeReceiver,
+		HdxStakingFeeReceiver,
+		ReferralsFeeReceiver,
+	);
+	type WeightInfo = weights::pallet_fee_processor::HydraWeight<Runtime>;
 }

@@ -35,9 +35,9 @@ pub mod weights;
 mod assets;
 pub mod circuit_breaker;
 pub mod evm;
+pub mod gigahdx;
 pub mod governance;
 mod helpers;
-// mod hyperbridge;
 mod system;
 pub mod types;
 pub mod xcm;
@@ -70,7 +70,7 @@ pub use sp_runtime::{
 		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
-	transaction_validity::{TransactionValidity, TransactionValidityError},
+	transaction_validity::{InvalidTransaction, TransactionValidity, TransactionValidityError},
 	DispatchError, Permill, TransactionOutcome,
 };
 
@@ -129,7 +129,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 406,
+	spec_version: 428,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -179,6 +179,7 @@ construct_runtime!(
 		Claims: pallet_claims = 53,
 		GenesisHistory: pallet_genesis_history = 55,
 		CollatorRewards: pallet_collator_rewards = 57,
+		CollatorRotation: pallet_collator_rotation = 58,
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
 		Duster: pallet_duster = 61,
@@ -201,6 +202,8 @@ construct_runtime!(
 		Parameters: pallet_parameters = 83,
 		Signet: pallet_signet = 84,
 		EthDispenser: pallet_dispenser = 85,
+		GigaHdx: pallet_gigahdx = 86,
+		GigaHdxRewards: pallet_gigahdx_rewards = 87,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -249,16 +252,11 @@ construct_runtime!(
 		Aura: pallet_aura = 167,
 		AuraExt: cumulus_pallet_aura_ext = 169,
 
-		// Hyperbridge
-		// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
-		// Ismp: pallet_ismp = 180,
-		// IsmpParachain: ismp_parachain = 181,
-		// Hyperbridge: pallet_hyperbridge = 182,
-		// TokenGateway: pallet_token_gateway = 183,
-
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		EmaOracle: pallet_ema_oracle = 202,
 		Broadcast: pallet_broadcast = 204,
+
+		FeeProcessor: pallet_fee_processor = 207,
 	}
 );
 
@@ -366,6 +364,8 @@ mod benches {
 		[pallet_dynamic_fees, DynamicFees]
 		[pallet_signet, Signet]
 		[pallet_dispenser, EthDispenser]
+		[pallet_gigahdx, GigaHdx]
+		[pallet_gigahdx_rewards, GigaHdxRewards]
 		//[ismp_parachain, IsmpParachain]
 		//[pallet_token_gateway, TokenGateway]
 		[frame_system_extensions, frame_system_benchmarking::extensions::Pallet::<Runtime>]
@@ -379,6 +379,7 @@ mod benches {
 		[pallet_omnipool, benchmarking::omnipool::Benchmark]
 		[pallet_route_executor, benchmarking::route_executor::Benchmark]
 		[pallet_dca, benchmarking::dca::Benchmark]
+		[pallet_fee_processor, benchmarking::fee_processor::Benchmark]
 		[pallet_xyk, benchmarking::xyk::Benchmark]
 		[pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee::Benchmark]
 		[pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining::Benchmark]
@@ -457,7 +458,13 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		len: usize,
 	) -> Option<Result<(), TransactionValidityError>> {
 		match self {
-			RuntimeCall::Ethereum(call) => call.pre_dispatch_self_contained(info, dispatch_info, len),
+			RuntimeCall::Ethereum(call) => {
+				// don't allow on-chain EVM transactions from a bound address
+				if EVMAccounts::bound_account_id(*info).is_some() {
+					return Some(Err(TransactionValidityError::Invalid(InvalidTransaction::BadSigner)));
+				}
+				call.pre_dispatch_self_contained(info, dispatch_info, len)
+			}
 			_ => None,
 		}
 	}
@@ -607,6 +614,15 @@ impl_runtime_apis! {
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
 		fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
 			ParachainSystem::collect_collation_info(header)
+		}
+	}
+
+	impl cumulus_primitives_core::GetCoreSelectorApi<Block> for Runtime {
+		fn core_selector() -> (
+			cumulus_primitives_core::CoreSelector,
+			cumulus_primitives_core::ClaimQueueOffset,
+		) {
+			ParachainSystem::core_selector()
 		}
 	}
 
@@ -839,10 +855,6 @@ impl_runtime_apis! {
 							_ => (None, None),
 						};
 
-			// don't allow calling EVM RPC or Runtime API from a bound address
-			if !estimate && EVMAccounts::bound_account_id(from).is_some() {
-				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
-			};
 
 			<Runtime as pallet_evm::Config>::Runner::call(
 				from,
@@ -922,10 +934,6 @@ impl_runtime_apis! {
 					_ => (None, None),
 				};
 
-			// don't allow calling EVM RPC or Runtime API from a bound address
-			if !estimate && EVMAccounts::bound_account_id(from).is_some() {
-				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
-			};
 
 			// the address needs to have a permission to deploy smart contract
 			if !EVMAccounts::can_deploy_contracts(from) {
@@ -1114,6 +1122,12 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl cumulus_primitives_core::RelayParentOffsetApi<Block> for Runtime {
+		fn relay_parent_offset() -> u32 {
+			RelayParentOffset::get()
+		}
+	}
+
 	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
 					fn dry_run_call(
 						origin: OriginCaller,
@@ -1191,63 +1205,6 @@ impl_runtime_apis! {
 			Self::pairs().into_iter().map(|p| Self::pool(p.0, p.1)).collect()
 		}
 	}
-
-	// Hyperbridge
-	// FIXME: Disabled due to https://github.com/galacticcouncil/hydration-node/issues/1346
-	// impl pallet_ismp_runtime_api::IsmpRuntimeApi<Block, <Block as BlockT>::Hash> for Runtime {
-	// 	fn host_state_machine() -> StateMachine {
-	// 		<Runtime as pallet_ismp::Config>::HostStateMachine::get()
-	// 	}
-	//
-	// 	fn challenge_period(state_machine_id: StateMachineId) -> Option<u64> {
-	// 		pallet_ismp::Pallet::<Runtime>::challenge_period(state_machine_id)
-	// 	}
-	//
-	// 	/// Fetch all ISMP events in the block, should only be called from runtime-api.
-	// 	fn block_events() -> Vec<::ismp::events::Event> {
-	// 		pallet_ismp::Pallet::<Runtime>::block_events()
-	// 	}
-	//
-	// 	/// Fetch all ISMP events and their extrinsic metadata, should only be called from runtime-api.
-	// 	fn block_events_with_metadata() -> Vec<(::ismp::events::Event, Option<u32>)> {
-	// 		pallet_ismp::Pallet::<Runtime>::block_events_with_metadata()
-	// 	}
-	//
-	// 	/// Return the scale encoded consensus state
-	// 	fn consensus_state(id: ConsensusClientId) -> Option<Vec<u8>> {
-	// 		pallet_ismp::Pallet::<Runtime>::consensus_states(id)
-	// 	}
-	//
-	// 	/// Return the timestamp this client was last updated in seconds
-	// 	fn state_machine_update_time(height: StateMachineHeight) -> Option<u64> {
-	// 		pallet_ismp::Pallet::<Runtime>::state_machine_update_time(height)
-	// 	}
-	//
-	// 	/// Return the latest height of the state machine
-	// 	fn latest_state_machine_height(id: StateMachineId) -> Option<u64> {
-	// 		pallet_ismp::Pallet::<Runtime>::latest_state_machine_height(id)
-	// 	}
-	//
-	// 	/// Get actual requests
-	// 	fn requests(commitments: Vec<H256>) -> Vec<ismp::router::Request> {
-	// 		pallet_ismp::Pallet::<Runtime>::requests(commitments)
-	// 	}
-	//
-	// 	/// Get actual requests
-	// 	fn responses(commitments: Vec<H256>) -> Vec<ismp::router::Response> {
-	// 		pallet_ismp::Pallet::<Runtime>::responses(commitments)
-	// 	}
-	// }
-	//
-	// impl ismp_parachain_runtime_api::IsmpParachainApi<Block> for Runtime {
-	// 	fn para_ids() -> Vec<u32> {
-	// 		IsmpParachain::para_ids()
-	// 	}
-	//
-	// 	fn current_relay_chain_state() -> RelayChainState {
-	// 		IsmpParachain::current_relay_chain_state()
-	// 	}
-	// }
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {

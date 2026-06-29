@@ -54,6 +54,7 @@ pub trait WeightInfo {
     fn dispatch_with_extra_gas(n: u32) -> Weight;
     fn dispatch_evm_call(n: u32) -> Weight;
     fn dispatch_as_emergency_admin(n: u32) -> Weight;
+    fn dispatch_with_fee_payer(n: u32) -> Weight;
 }
 
 /// Weights for `pallet_dispatcher` using the HydraDX node and recommended hardware.
@@ -109,10 +110,14 @@ impl WeightInfo for () {
             .saturating_add(Weight::from_parts(223, 0).saturating_mul(n.into()))
     }
     /// The range of component `n` is `[1, 10000]`.
-    fn dispatch_as_emergency_admin(n: u32, ) -> Weight {
-        // Placeholder: uses dispatch_as_treasury weights (no storage read needed)
-        Weight::from_parts(11_608_545, 0)
-            .saturating_add(Weight::from_parts(1_288, 0).saturating_mul(n.into()))
+    fn dispatch_as_emergency_admin(n: u32) -> Weight {
+        Weight::from_parts(11_500_000, 0)
+            .saturating_add(Weight::from_parts(1_300, 0).saturating_mul(n.into()))
+    }
+    /// The range of component `n` is `[1, 10000]`.
+    fn dispatch_with_fee_payer(n: u32) -> Weight {
+        Weight::from_parts(11_500_000, 0)
+            .saturating_add(Weight::from_parts(1_300, 0).saturating_mul(n.into()))
     }
 }
 

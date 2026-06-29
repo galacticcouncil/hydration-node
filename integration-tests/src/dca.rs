@@ -11,8 +11,8 @@ use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{AssetPairAccountIdFor, NamedReserveId};
 use hydradx_runtime::{
-	AssetRegistry, Balances, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin,
-	Stableswap, Tokens, Treasury, DCA,
+	AssetRegistry, Balances, Currencies, FeeProcessor, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent,
+	RuntimeOrigin, Stableswap, Tokens, Treasury, DCA,
 };
 use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::router::AssetPair;
@@ -253,11 +253,10 @@ mod omnipool {
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(LRNA, 70175440163919)],
 						outputs: vec![Asset::new(DAI, amount_out)],
-						fees: vec![Fee::new(
-							DAI,
-							250626566417,
-							Destination::Account(Omnipool::protocol_account())
-						)],
+						fees: vec![
+							Fee::new(DAI, 137844611530, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 112781954887, Destination::Account(FeeProcessor::pot_account_id())),
+						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
@@ -299,11 +298,10 @@ mod omnipool {
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(LRNA, 70175443178473)],
 						outputs: vec![Asset::new(DAI, amount_out)],
-						fees: vec![Fee::new(
-							DAI,
-							250626566417,
-							Destination::Account(Omnipool::protocol_account())
-						)],
+						fees: vec![
+							Fee::new(DAI, 137844611530, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 112781954887, Destination::Account(FeeProcessor::pot_account_id())),
+						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
@@ -848,11 +846,10 @@ mod omnipool {
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 49974999160577)],
 						outputs: vec![Asset::new(DAI, 71214372624206)],
-						fees: vec![Fee::new(
-							DAI,
-							178482136903,
-							Destination::Account(Omnipool::protocol_account())
-						)],
+						fees: vec![
+							Fee::new(DAI, 98165175298, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 80316961605, Destination::Account(FeeProcessor::pot_account_id())),
+						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
@@ -894,11 +891,10 @@ mod omnipool {
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 49974997362314)],
 						outputs: vec![Asset::new(DAI, 71214367824533)],
-						fees: vec![Fee::new(
-							DAI,
-							178482124874,
-							Destination::Account(Omnipool::protocol_account())
-						)],
+						fees: vec![
+							Fee::new(DAI, 98165168682, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 80316956192, Destination::Account(FeeProcessor::pot_account_id())),
+						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
@@ -4756,7 +4752,7 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			assert_balance!(ALICE.into(), HDX, 5268049466638470);
+			assert_balance!(ALICE.into(), HDX, 5268049466638368);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}
@@ -4860,7 +4856,16 @@ mod aave_atoken {
 	use super::*;
 	use hydradx_runtime::DCA;
 
-	const PATH_TO_SNAPSHOT: &str = "dca-snapshot/SNAPSHOT";
+	// Snapshot at block 12309734, produced with:
+	//
+	//   ./target/release/scraper save-storage --slim \
+	//       --uri wss://hydration.dotters.network \
+	//       --at 0x5bfd245dd5612800f2291cef550a5e3f76b569e6de4d52d1c6cb122e674d838e \
+	//       --pallet Omnipool Stableswap AssetRegistry EVM DynamicFees EmaOracle \
+	//                MultiTransactionPayment Tokens Balances EVMAccounts Ethereum \
+	//                EVMChainId HSM Router System Aura Timestamp DCA \
+	//       --path integration-tests/dca-snapshot
+	const PATH_TO_SNAPSHOT: &str = "dca-snapshot/SNAPSHOT_12309734";
 
 	//Ignored as snapshot too big
 	//To verify locally, download snapshot with command `./target/release/scraper save-storage --uri wss://paseo-rpc.play.hydration.cloud --at 0x3db005212a4ae320a2808c6813880b583dacbf7df60b0314420e88f4f2dfe989`
@@ -4884,6 +4889,62 @@ mod aave_atoken {
 			let schedule = DCA::schedules(schedule_id);
 			assert!(schedule.is_some());
 		});
+	}
+
+	use frame_support::traits::OnInitialize;
+
+	#[test]
+	fn dca_should_succeed_after_retry_when_insufficient_balance_error_due_to_off_by_one_error() {
+		TestNet::reset();
+
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			//Arrange
+			assert_eq!(hydradx_runtime::System::block_number(), 12309734);
+			let schedule_id = 30972;
+			assert!(DCA::schedules(schedule_id).is_some());
+
+			//Act 1: first attempt fails with InsufficientBalance and is retried
+			DCA::on_initialize(12309735);
+			assert_trade_failed_with_omnipool_insufficient_balance(schedule_id);
+			assert_eq!(
+				DCA::retries_on_error(schedule_id),
+				1,
+				"first attempt should have been retried"
+			);
+			let retry_block =
+				DCA::schedule_execution_block(schedule_id).expect("schedule should be replanned to a retry block");
+
+			//Act 2: simulate elapsed time so aave liquidity index drifts (rounding boundary moves)
+			let now = hydradx_runtime::Timestamp::get();
+			hydradx_runtime::Timestamp::set_timestamp(now + 240_000);
+
+			//Act 3: run DCA at the retry block
+			DCA::on_initialize(retry_block);
+
+			//Assert: schedule still alive and retry counter reset (= the trade succeeded)
+			assert!(DCA::schedules(schedule_id).is_some(), "schedule must survive retry");
+			assert_eq!(
+				DCA::retries_on_error(schedule_id),
+				0,
+				"retry should have succeeded and reset the counter"
+			);
+		});
+	}
+
+	fn assert_trade_failed_with_omnipool_insufficient_balance(schedule_id: u32) {
+		let expected: sp_runtime::DispatchError = pallet_omnipool::Error::<Runtime>::InsufficientBalance.into();
+		let events = last_hydra_events(20);
+		let found = events.iter().any(|e| {
+			matches!(
+				e,
+				RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { id, error, .. })
+				if *id == schedule_id && *error == expected
+			)
+		});
+		assert!(
+			found,
+			"expected TradeFailed event with omnipool::InsufficientBalance for schedule {schedule_id}"
+		);
 	}
 }
 
@@ -5991,4 +6052,78 @@ mod extra_gas_erc20 {
 		// Deploy contract with complete bytecode
 		crate::utils::contracts::deploy_contract_code(bytecode, deployer)
 	}
+}
+
+#[test]
+fn rolling_buy_dca_completes_prematurely_when_price_increases() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		// Give ALICE a lot of HDX so she will NOT run out of funds
+		let alice_balance = 10_000_000_000 * UNITS;
+		assert_ok!(Balances::force_set_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			alice_balance,
+		));
+
+		let trade_size = 500 * UNITS; // amount_out: 500 DAI to buy each period
+
+		// Create rolling buy DCA at the current (normal) price
+		// Use high max_retries so DCA survives oracle instability after the price move
+		let rolling_buy_schedule = Schedule {
+			owner: AccountId::from(ALICE),
+			period: 5u32,
+			total_amount: 0, // rolling
+			max_retries: Some(100),
+			stability_threshold: Some(Permill::from_percent(5)),
+			slippage: Some(Permill::from_percent(50)),
+			order: Order::Buy {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_out: trade_size,
+				max_amount_in: Balance::MAX,
+				route: create_bounded_vec(vec![Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DAI,
+				}]),
+			},
+		};
+
+		create_schedule(ALICE, rolling_buy_schedule);
+
+		let schedule_id = 0;
+
+		// Now move the price AFTER DCA creation: BOB sells a massive amount of HDX for DAI,
+		// making DAI much more expensive in HDX terms (~3x price increase).
+		// The omnipool has ~5 billion UNITS of each asset, so we need billions to move the price.
+		// This does NOT affect remaining_amount which is already stored.
+		let bob_balance = 5_000_000_000 * UNITS;
+		assert_ok!(Balances::force_set_balance(
+			RuntimeOrigin::root(),
+			BOB.into(),
+			bob_balance,
+		));
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			1_500_000_000 * UNITS,
+			0,
+		));
+
+		//Act - run enough blocks for oracle to stabilize and DCA to execute
+		// Retry delays grow exponentially (20, 40, 80, 160 blocks), so we need many blocks
+		run_to_block(11, 200);
+
+		//Assert
+		// Rolling DCA should NOT be terminated just because the price moved
+		assert!(
+			DCA::schedules(schedule_id).is_some(),
+			"Rolling DCA should still be active after price increase"
+		);
+	});
 }

@@ -26,7 +26,7 @@
 //                  $$$
 
 use crate::mock::*;
-use crate::{IsTestnet, Pallet as Parameters};
+use crate::{IsTestnet, Pallet as Parameters, RelayParentOffsetOverride};
 
 #[test]
 fn is_testnet_false_by_default() {
@@ -40,5 +40,20 @@ fn is_testnet_true_when_set() {
 	ExtBuilder.build().execute_with(|| {
 		IsTestnet::<Test>::put(true);
 		assert!(Parameters::<Test>::is_testnet());
+	});
+}
+
+#[test]
+fn relay_parent_offset_override_false_by_default() {
+	ExtBuilder.build().execute_with(|| {
+		assert!(!Parameters::<Test>::relay_parent_offset_override());
+	});
+}
+
+#[test]
+fn relay_parent_offset_override_true_when_set() {
+	ExtBuilder.build().execute_with(|| {
+		RelayParentOffsetOverride::<Test>::put(true);
+		assert!(Parameters::<Test>::relay_parent_offset_override());
 	});
 }
