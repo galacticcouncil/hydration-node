@@ -1,110 +1,64 @@
 use crate::*;
 use frame_support::{assert_noop, assert_ok};
+use hydradx_traits::lazy_executor::{ForwardAction, Source};
 use pretty_assertions::assert_eq;
 use tests::{has_event, mock::*};
 
+fn forward(amount_out: Balance) -> ForwardAction {
+	ForwardAction {
+		contract: contract_address(),
+		intent_id: 1,
+		asset_in: HDX,
+		amount_in: 10 * UNIT,
+		asset_out: DOT,
+		amount_out,
+		data: Default::default(),
+	}
+}
+
 #[test]
-fn should_work_when_call_is_valid() {
-	ExtBuilder.build().execute_with(|| {
+fn add_to_queue_should_queue_forward_and_charge_fee_when_owner_can_pay() {
+	ExtBuilder::new().build().execute_with(|| {
 		//Arrange
-		let call: BoundedCall = RuntimeCall::MockPallet(MockPalletCall::dummy_call {
-			allowed_origin: vec![ALICE, BOB],
-			weight: Weight::from_parts(1_000_u64, 1_000_u64),
-		})
-		.encode()
-		.try_into()
-		.expect("failed to create BoundedCall");
+		let action = forward(100 * UNIT);
+		let alice_balance_before = Balances::free_balance(ALICE);
 
-		//Act&Assert
-		assert_ok!(LazyExecutor::add_to_queue(Source::ICE(0), ALICE, call));
+		//Act
+		assert_ok!(LazyExecutor::add_to_queue(Source::ICE(0), ALICE, action.clone()));
 
-		//TODO: make better assertion so we don't have to change it when weight change
+		//Assert
+		assert_eq!(
+			LazyExecutor::call_queue(0),
+			Some(StoredForward {
+				owner: ALICE,
+				action: action.clone()
+			})
+		);
+		assert_eq!(LazyExecutor::next_call_id(), 1);
+
+		let fees = 108_158_175_u128;
+		assert_eq!(Balances::free_balance(ALICE), alice_balance_before - fees);
 		assert!(has_event(
 			Event::Queued {
 				id: 0,
 				src: Source::ICE(0),
 				who: ALICE,
-				fees: 108_159_175_u128
+				fees,
 			}
 			.into()
-		))
+		));
 	})
 }
 
 #[test]
-fn should_fail_when_call_is_not_decodeable() {
-	ExtBuilder.build().execute_with(|| {
-		//Arrange
-		//NOTE: call encoded from PolkadotAPPs with removed last 2 characters
-		let corrupted_call: BoundedCall = Into::<Vec<u8>>::into(hex_literal::hex![
-			"070346f0b489ac07cb495852eba68e42250209e4d91f472d37a2fc8e4f0d9c74a828070010a5d4"
-		])
-		.try_into()
-		.expect("failed to create BoundeCall");
-
-		//Act&Assert
+fn add_to_queue_should_fail_when_owner_cannot_pay_fees() {
+	ExtBuilder::new().build().execute_with(|| {
+		//Act & Assert
 		assert_noop!(
-			LazyExecutor::add_to_queue(Source::ICE(0), ALICE, corrupted_call),
-			Error::<Test>::Corrupted
-		);
-	});
-}
-
-#[test]
-fn should_fail_when_call_is_overweight() {
-	ExtBuilder.build().execute_with(|| {
-		//Arrange
-		let max_allowed_weight = LazyExecutor::max_weight_per_call();
-
-		//NOTE: this is overweight because weight of dispatching call is added to call's weight
-		let overweight_ref_time_call: BoundedCall = RuntimeCall::MockPallet(MockPalletCall::dummy_call {
-			allowed_origin: vec![BOB],
-			weight: Weight::from_parts(max_allowed_weight.ref_time(), 1_u64),
-		})
-		.encode()
-		.try_into()
-		.expect("failed to create overweight_ref_time BoundedCall");
-
-		//NOTE: this is overweight because weight of dispatching call is added to call's weight
-		let overweight_proof_size_cal: BoundedCall = RuntimeCall::MockPallet(MockPalletCall::dummy_call {
-			allowed_origin: vec![BOB],
-			weight: Weight::from_parts(1_u64, max_allowed_weight.proof_size()),
-		})
-		.encode()
-		.try_into()
-		.expect("failed to create overweight_proof_size BoundeCall");
-
-		//Act&Assert - 1
-		assert_noop!(
-			LazyExecutor::add_to_queue(Source::ICE(0), ALICE, overweight_ref_time_call),
-			Error::<Test>::Overweight
-		);
-
-		//Act&Assert - 2
-		assert_noop!(
-			LazyExecutor::add_to_queue(Source::ICE(0), ALICE, overweight_proof_size_cal),
-			Error::<Test>::Overweight
-		);
-	});
-}
-
-#[test]
-fn should_fail_when_origin_cant_pay_fees() {
-	ExtBuilder.build().execute_with(|| {
-		//Arrange
-		let call: BoundedCall = RuntimeCall::MockPallet(MockPalletCall::dummy_call {
-			allowed_origin: vec![BOB],
-			//NOTE: whole call includes dispatch overhead so we need to substract more
-			weight: Weight::from_parts(100_u64, 100_u64),
-		})
-		.encode()
-		.try_into()
-		.expect("failed to create BoundeCall");
-
-		//Act&Assert
-		assert_noop!(
-			LazyExecutor::add_to_queue(Source::ICE(1), ACC_ZERO_BALANCE, call),
+			LazyExecutor::add_to_queue(Source::ICE(1), ACC_ZERO_BALANCE, forward(100 * UNIT)),
 			Error::<Test>::FailedToPayFees
 		);
+
+		assert_eq!(LazyExecutor::call_queue(0), None);
 	})
 }

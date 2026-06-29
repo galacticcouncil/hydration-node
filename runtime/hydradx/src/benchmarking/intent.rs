@@ -3,14 +3,23 @@ use crate::*;
 
 use frame_benchmarking::account;
 use frame_system::RawOrigin;
+use hydradx_traits::lazy_executor::MAX_FORWARD_DATA;
 use ice_support::IntentDataInput;
 use ice_support::IntentId;
 use ice_support::SwapParams;
 use orml_benchmarking::runtime_benchmarks;
 use pallet_intent::types::Intent as IntentT;
 use pallet_intent::types::IntentInput;
-use pallet_intent::types::MAX_DATA_SIZE;
+use pallet_intent::types::OnResolved;
 use sp_runtime::DispatchResult;
+
+// Worst-case `on_resolved`: a forward carrying the maximum opaque payload.
+fn worst_case_forward() -> OnResolved {
+	OnResolved::Forward {
+		contract: primitives::EvmAddress::repeat_byte(1u8),
+		data: sp_runtime::BoundedVec::truncate_from(vec![255u8; MAX_FORWARD_DATA as usize]),
+	}
+}
 
 const SEED: u32 = 1;
 
@@ -36,9 +45,6 @@ runtime_benchmarks! {
 		fund(caller.clone(), HDX, 10_000 * TRIL)?;
 		fund(caller.clone(), DAI, 10_000 * QUINTIL)?;
 
-		//NOTE: it's ok to use junk, we are not really dispatching `cb`
-		let cb: Vec<u8> = vec![255; MAX_DATA_SIZE as usize];
-
 		let intent = IntentInput {
 			data: IntentDataInput::Swap(SwapParams {
 				asset_in: HDX,
@@ -48,7 +54,7 @@ runtime_benchmarks! {
 				partial: false,
 			}),
 			deadline: Some(DEADLINE),
-			on_resolved: Some(cb.clone().try_into().unwrap()),
+			on_resolved: Some(worst_case_forward()),
 		};
 
 		let intents: Vec<(IntentId, IntentT)> = pallet_intent::Intents::<Runtime>::iter().collect();
@@ -65,9 +71,6 @@ runtime_benchmarks! {
 		fund(caller.clone(), HDX, 10_000 * TRIL)?;
 		fund(caller.clone(), DAI, 10_000 * QUINTIL)?;
 
-		//NOTE: it's ok to use junk, we are not really dispatching `cb`
-		let cb: Vec<u8> = vec![255; MAX_DATA_SIZE as usize];
-
 		let intent = IntentInput {
 			data: IntentDataInput::Swap(SwapParams {
 				asset_in: HDX,
@@ -77,7 +80,7 @@ runtime_benchmarks! {
 				partial: false,
 			}),
 			deadline: Some(DEADLINE),
-			on_resolved: Some(cb.clone().try_into().unwrap()),
+			on_resolved: Some(worst_case_forward()),
 		};
 
 		Intent::submit_intent(RawOrigin::Signed(caller.clone()).into(), intent)?;
@@ -105,9 +108,6 @@ runtime_benchmarks! {
 		fund(caller.clone(), HDX, 10_000 * TRIL)?;
 		fund(caller.clone(), DAI, 10_000 * QUINTIL)?;
 
-		//NOTE: it's ok to use junk, we are not really dispatching it.
-		let on_resolved: Vec<u8> = vec![255; MAX_DATA_SIZE as usize];
-
 		let intent = IntentInput {
 			data: IntentDataInput::Swap(SwapParams {
 				asset_in: HDX,
@@ -117,7 +117,7 @@ runtime_benchmarks! {
 				partial: false,
 			}),
 			deadline: Some(DEADLINE),
-			on_resolved: Some(on_resolved.try_into().unwrap()),
+			on_resolved: Some(worst_case_forward()),
 		};
 
 		Intent::submit_intent(RawOrigin::Signed(caller.clone()).into(), intent)?;

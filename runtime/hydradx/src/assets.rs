@@ -1850,8 +1850,22 @@ impl pallet_hsm::Config for Runtime {
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
 }
 
+parameter_types! {
+	pub const IntentForwardGasLimit: u64 = 2_000_000;
+}
+
 impl pallet_lazy_executor::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
+	type Currency = Currencies;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Evm = evm::Executor<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Evm = DummyEvm;
+	type EvmAccounts = EVMAccounts;
+	type Erc20Mapping = evm::precompiles::erc20_mapping::HydraErc20Mapping;
+	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
+	type GasLimit = IntentForwardGasLimit;
+	type EvmErrorDecoder = EvmErrorDecoder;
 	type UnsignedLongevity = ConstU64<2>;
 	type UnsignedPriority = ConstU64<100>;
 	type WeightInfo = weights::pallet_lazy_executor::HydraWeight<Runtime>;

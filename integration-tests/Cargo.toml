@@ -64,6 +64,7 @@ pallet-proxy = { workspace = true }
 pallet-hsm = { workspace = true }
 pallet-intent = { workspace = true }
 pallet-ice = { workspace = true }
+pallet-lazy-executor = { workspace = true }
 amm-simulator = { workspace = true }
 
 ice-solver = {workspace = true}
@@ -249,6 +250,7 @@ std = [
     "fp-self-contained/std",
     "pallet-intent/std",
     "pallet-ice/std",
+    "pallet-lazy-executor/std",
     "ice-solver/std",
     "ice-support/std",
     "amm-simulator/std",

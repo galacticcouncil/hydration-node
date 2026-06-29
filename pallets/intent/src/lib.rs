@@ -39,6 +39,7 @@ use crate::types::IncrementalIntentId;
 use crate::types::Intent;
 use crate::types::IntentInput;
 use crate::types::Moment;
+use crate::types::OnResolved;
 use core::cmp;
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
@@ -48,6 +49,7 @@ use frame_support::{dispatch::DispatchResult, require_transactional, traits::Get
 use frame_system::offchain::SubmitTransaction;
 use frame_system::pallet_prelude::*;
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::lazy_executor::ForwardAction;
 use hydradx_traits::lazy_executor::Mutate;
 use hydradx_traits::lazy_executor::Source;
 use hydradx_traits::price::PriceProvider;
@@ -81,8 +83,6 @@ pub(crate) const OCW_TAG_PREFIX: &str = "intent-cleanup";
 
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::types::CallData;
-
 	use super::*;
 
 	#[pallet::pallet]
@@ -102,7 +102,7 @@ pub mod pallet {
 		>;
 
 		/// Intents' lazy callback execution handling
-		type LazyExecutorHandler: Mutate<Self::AccountId, Error = DispatchError, BoundedCall = CallData>;
+		type LazyExecutorHandler: Mutate<Self::AccountId, Error = DispatchError>;
 
 		/// Asset registry handler
 		type RegistryHandler: Inspect<AssetId = AssetId>;
@@ -188,6 +188,8 @@ pub mod pallet {
 		InvalidDeadline,
 		/// Invalid intent parameters
 		InvalidIntent,
+		/// `on_resolved` forward names the zero contract address.
+		InvalidForwardContract,
 		/// Referenced intent doesn't exist.
 		IntentNotFound,
 		/// Referenced intent has expired.
@@ -448,6 +450,10 @@ impl<T: Config> Pallet<T> {
 			);
 		}
 
+		if let Some(OnResolved::Forward { contract, .. }) = &input.on_resolved {
+			ensure!(!contract.is_zero(), Error::<T>::InvalidForwardContract);
+		}
+
 		let ed_in = T::RegistryHandler::existential_deposit(input.data.asset_in()).ok_or(Error::<T>::AssetNotFound)?;
 		let ed_out =
 			T::RegistryHandler::existential_deposit(input.data.asset_out()).ok_or(Error::<T>::AssetNotFound)?;
@@ -703,9 +709,7 @@ impl<T: Config> Pallet<T> {
 
 				//NOTE: it's ok to `take`, intent will be removed from storage.
 				if let Some(cb) = intent.on_resolved.take() {
-					if let Err(e) = T::LazyExecutorHandler::queue(Source::ICE(*id), who.clone(), cb) {
-						Self::deposit_event(Event::FailedToQueueCallback { id: *id, error: e });
-					};
+					Self::queue_forward(&owner, *id, intent.data.asset_in(), resolve, cb);
 				}
 
 				*maybe_intent = None;
@@ -729,6 +733,7 @@ impl<T: Config> Pallet<T> {
 			}
 
 			// Not fully resolved
+			let asset_in = intent.data.asset_in();
 			match intent.data {
 				IntentData::Swap(_) => {
 					ensure!(intent.data.is_partial(), Error::<T>::LimitViolation);
@@ -739,17 +744,47 @@ impl<T: Config> Pallet<T> {
 					});
 				}
 				IntentData::Dca(ref dca) => {
+					let remaining_budget = dca.remaining_budget;
+					// Fire the forward on every executed DCA trade — `clone`, not `take`,
+					// so it fires again on the next trade. Carries this trade's fill amounts.
+					if let Some(cb) = intent.on_resolved.clone() {
+						Self::queue_forward(&owner, *id, asset_in, resolve, cb);
+					}
 					Self::deposit_event(Event::DcaTradeExecuted {
 						id: *id,
 						amount_in: resolve.amount_in(),
 						amount_out: resolve.amount_out(),
-						remaining_budget: dca.remaining_budget,
+						remaining_budget,
 					});
 				}
 			}
 
 			Ok(())
 		})
+	}
+
+	/// Builds a `ForwardAction` from `on_resolved` plus this trade's resolved amounts and queues it
+	/// for lazy EVM execution. A queue failure is surfaced as an event and never fails resolution.
+	fn queue_forward(
+		owner: &T::AccountId,
+		id: IntentId,
+		asset_in: AssetId,
+		resolve: &IntentData,
+		on_resolved: OnResolved,
+	) {
+		let OnResolved::Forward { contract, data } = on_resolved;
+		let action = ForwardAction {
+			contract,
+			intent_id: id,
+			asset_in,
+			amount_in: resolve.amount_in(),
+			asset_out: resolve.asset_out(),
+			amount_out: resolve.amount_out(),
+			data,
+		};
+		if let Err(e) = T::LazyExecutorHandler::queue(Source::ICE(id), owner.clone(), action) {
+			Self::deposit_event(Event::FailedToQueueCallback { id, error: e });
+		}
 	}
 
 	/// Updates the intent's partial fill state. Original `amount_in`/`amount_out` are immutable.

@@ -21,7 +21,7 @@ fn swap_intent_input(
 			partial: false,
 		}),
 		deadline,
-		on_resolved: Some(BoundedVec::truncate_from(b"success".to_vec())),
+		on_resolved: dummy_on_resolved(),
 	}
 }
 
@@ -398,6 +398,38 @@ fn should_work_when_intent_canceled_and_slot_freed() {
 					swap_intent_input(HDX, DOT, ONE_HDX, 100 * ONE_DOT, Some(MAX_INTENT_DEADLINE - 1)),
 				));
 				assert_eq!(IntentPallet::account_intent_count(ALICE), 5);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn add_intent_should_fail_when_forward_contract_is_zero() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let input = IntentInput {
+					data: IntentDataInput::Swap(SwapParams {
+						asset_in: HDX,
+						asset_out: DOT,
+						amount_in: 10 * ONE_HDX,
+						amount_out: 1_000 * ONE_DOT,
+						partial: false,
+					}),
+					deadline: Some(MAX_INTENT_DEADLINE - 1),
+					on_resolved: Some(crate::types::OnResolved::Forward {
+						contract: Default::default(),
+						data: Default::default(),
+					}),
+				};
+
+				assert_noop!(
+					IntentPallet::add_intent(ALICE, input),
+					Error::<Test>::InvalidForwardContract
+				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});

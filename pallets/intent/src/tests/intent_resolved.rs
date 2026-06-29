@@ -33,7 +33,7 @@ fn should_work_with_intent_without_deadline() {
 						partial: false,
 					}),
 					deadline: None,
-					on_resolved: Some(BoundedVec::new()),
+					on_resolved: dummy_on_resolved(),
 				},
 			),
 		])
@@ -87,7 +87,7 @@ fn non_partial_should_remove_intent_and_owner_when_resolved_exactly() {
 						partial: false,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_resolved: Some(BoundedVec::new()),
+					on_resolved: dummy_on_resolved(),
 				},
 			),
 		])
@@ -327,7 +327,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_exactly() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_resolved: Some(BoundedVec::new()),
+					on_resolved: dummy_on_resolved(),
 				},
 			),
 		])
@@ -382,7 +382,7 @@ fn partial_intent_should_remove_intent_and_owner_when_resolved_fully_and_better_
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_resolved: Some(BoundedVec::new()),
+					on_resolved: dummy_on_resolved(),
 				},
 			),
 		])
@@ -900,7 +900,7 @@ fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
 						partial: true,
 					}),
 					deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
-					on_resolved: Some(BoundedVec::new()),
+					on_resolved: dummy_on_resolved(),
 				},
 			),
 		])
@@ -926,5 +926,55 @@ fn partial_intent_should_not_queue_callback_when_not_fully_resolved() {
 			// Partial resolution must keep account index
 			assert_eq!(AccountIntents::<Test>::get(who, id), Some(()));
 			assert_eq!(IntentPallet::account_intent_count(who), 1);
+		});
+}
+
+#[test]
+fn fully_resolved_swap_should_queue_forward_with_resolved_amounts() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, ETH, 5 * ONE_QUINTIL)])
+		.with_intents(vec![(
+			BOB,
+			IntentInput {
+				data: IntentDataInput::Swap(SwapParams {
+					asset_in: ETH,
+					asset_out: DOT,
+					amount_in: ONE_QUINTIL,
+					amount_out: 1_500 * ONE_DOT,
+					partial: false,
+				}),
+				deadline: Some(MAX_INTENT_DEADLINE - ONE_SECOND),
+				on_resolved: dummy_on_resolved(),
+			},
+		)])
+		.build()
+		.execute_with(|| {
+			let id = 0;
+			let resolve = IntentPallet::get_intent(id).expect("intent to exist");
+			let who = IntentPallet::intent_owner(id).expect("intent owner to exist");
+
+			let Some(crate::types::OnResolved::Forward {
+				contract: expected_contract,
+				data: expected_data,
+			}) = dummy_on_resolved()
+			else {
+				unreachable!()
+			};
+
+			assert_ok!(IntentPallet::intent_resolved(
+				&who,
+				&ResolvedIntent { id, data: resolve.data }
+			));
+
+			let forwards = get_queued_forwards(Source::ICE(id));
+			assert_eq!(forwards.len(), 1);
+			let f = &forwards[0];
+			assert_eq!(f.contract, expected_contract);
+			assert_eq!(f.intent_id, id);
+			assert_eq!(f.asset_in, ETH);
+			assert_eq!(f.amount_in, ONE_QUINTIL);
+			assert_eq!(f.asset_out, DOT);
+			assert_eq!(f.amount_out, 1_500 * ONE_DOT);
+			assert_eq!(f.data, expected_data);
 		});
 }

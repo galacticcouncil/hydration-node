@@ -17,6 +17,7 @@ use ice_support::MAX_NUMBER_OF_RESOLVED_INTENTS;
 use orml_benchmarking::runtime_benchmarks;
 use pallet_intent::types::Intent as IntentT;
 use pallet_intent::types::IntentInput;
+use pallet_intent::types::OnResolved;
 use sp_runtime::DispatchResult;
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -61,12 +62,6 @@ runtime_benchmarks! {
 		fund(caller.clone(), HDX, 10_000 * TRIL)?;
 		fund(caller.clone(), DAI, 10_000 * QUINTIL)?;
 
-		let cb: Vec<u8> = RuntimeCall::Tokens(orml_tokens::Call::transfer{
-			dest: caller.clone(),
-			currency_id: 5,
-			amount: 10 * TRIL
-		}).encode();
-
 		let swap_params = SwapParams {
 			asset_in: HDX,
 			asset_out: DAI,
@@ -78,7 +73,10 @@ runtime_benchmarks! {
 		let intent = IntentInput {
 			data: IntentDataInput::Swap(swap_params.clone()),
 			deadline: DEADLINE,
-			on_resolved: Some(cb.clone().try_into().unwrap()),
+			on_resolved: Some(OnResolved::Forward {
+				contract: primitives::EvmAddress::repeat_byte(1u8),
+				data: BoundedVec::truncate_from(vec![255u8; 64]),
+			}),
 		};
 
 		Intent::submit_intent(RawOrigin::Signed(caller.clone()).into(), intent)?;

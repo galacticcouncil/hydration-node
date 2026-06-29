@@ -3,7 +3,7 @@ use crate::*;
 
 use frame_benchmarking::account;
 use frame_system::RawOrigin;
-use hydradx_traits::lazy_executor::Source;
+use hydradx_traits::lazy_executor::{ForwardAction, Source};
 use orml_benchmarking::runtime_benchmarks;
 use sp_runtime::DispatchResult;
 
@@ -32,12 +32,18 @@ runtime_benchmarks! {
 
 		let acc = account::<AccountId>("origin", 0, SEED);
 		fund(acc.clone(), HDX, 10_000 * TRIL)?;
-		let call: Vec<u8> = RuntimeCall::Balances(pallet_balances::Call::transfer_keep_alive{
-			dest: acc.clone(),
-			value: 0
-		}).encode();
 
-		LazyExecutor::add_to_queue(Source::ICE(1_u128), acc, call.try_into().unwrap())?;
+		let action = ForwardAction {
+			contract: primitives::EvmAddress::repeat_byte(1u8),
+			intent_id: 1,
+			asset_in: HDX,
+			amount_in: TRIL,
+			asset_out: HDX,
+			amount_out: TRIL,
+			data: Default::default(),
+		};
+
+		LazyExecutor::add_to_queue(Source::ICE(1_u128), acc, action)?;
 
 		assert!(LazyExecutor::call_queue(0).is_some());
 	}: { LazyExecutor::dispatch_top(RawOrigin::None.into(), 0)? }
