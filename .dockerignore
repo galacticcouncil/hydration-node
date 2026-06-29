@@ -1,3 +1,8 @@
 target/
 !target/release/hydradx
 Dockerfile
+.git
+**/node_modules
+launch-configs/fork/data
+launch-configs/fork/state.json
+launch-configs/fork/forked-chainspec.json

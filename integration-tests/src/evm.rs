@@ -350,7 +350,7 @@ mod account_conversion {
 				ExitReason::Succeed(ExitSucceed::Stopped)
 			);
 
-			println!("{:?}", res);
+			println!("{res:?}");
 		});
 	}
 
@@ -3833,9 +3833,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		let native_fee = new_alice_currency_balance - alice_currency_balance_pre_dispatch;
 		assert!(
 			evm_fee > native_fee,
-			"assertion failed evm_fee > native fee. Evm fee: {:?} Native fee: {:?}",
-			evm_fee,
-			native_fee
+			"assertion failed evm_fee > native fee. Evm fee: {evm_fee:?} Native fee: {native_fee:?}"
 		);
 
 		let fee_difference = evm_fee - native_fee;
@@ -3846,9 +3844,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		// EVM fees should be not higher than 20%
 		assert!(
 			relative_fee_difference < tolerated_fee_difference,
-			"relative_fee_difference: {:?} is bigger than tolerated {:?}",
-			relative_fee_difference,
-			tolerated_fee_difference
+			"relative_fee_difference: {relative_fee_difference:?} is bigger than tolerated {tolerated_fee_difference:?}"
 		);
 	})
 }
@@ -4850,7 +4846,10 @@ impl PrecompileHandle for MockHandle {
 	}
 
 	fn log(&mut self, _: H160, _: Vec<H256>, _: Vec<u8>) -> Result<(), ExitError> {
-		unimplemented!()
+		// no-op: tests using this mock handle don't inspect emitted logs;
+		// the precompile (e.g. multicurrency) calls `handle.log(...)` to emit
+		// the ERC-20 Transfer event inline, which we accept silently here.
+		Ok(())
 	}
 
 	fn code_address(&self) -> H160 {
