@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "15.0.3"
+version = "15.1.6"
 description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -26,6 +26,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 clap = { workspace = true }
 futures = { workspace = true }
+futures-timer = "3.0.3"
 async-trait = { workspace = true }
 hyperv14 = { package = "hyper", features = ["http2", "stream", "tcp"], version = "0.14.29", default-features = true }
 hyper-rustls = { version = "0.24.2", features = ["http1", "http2", "webpki-roots", "tokio-runtime"], default-features = false }
@@ -35,6 +36,8 @@ num_cpus = { version = "1.13.1" }
 ethereum = { workspace = true }
 ethabi = { workspace = true }
 kvdb-rocksdb = "0.19.0"
+lru = "0.12"
+rlp = "0.6"
 
 # local dependencies
 hydradx-runtime = { workspace = true, features = ["std"] }
@@ -66,6 +69,7 @@ sp-api = { workspace = true }
 sp-std = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-blockchain = { workspace = true }
+sp-storage = { workspace = true }
 sp-consensus = { workspace = true }
 sp-consensus-aura = { workspace = true }
 sp-core = { workspace = true }

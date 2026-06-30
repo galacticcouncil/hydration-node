@@ -5633,7 +5633,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.0.3"
+version = "15.1.6"
 dependencies = [
  "async-trait",
  "clap",
@@ -5663,6 +5663,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "futures",
+ "futures-timer",
  "hex-literal",
  "hydra-dx-build-script-utils",
  "hydradx-runtime",
@@ -5672,6 +5673,7 @@ dependencies = [
  "kvdb-rocksdb",
  "liquidation-worker-support",
  "log",
+ "lru 0.12.5",
  "num_cpus",
  "pallet-claims",
  "pallet-currencies-rpc-runtime-api",
@@ -5684,6 +5686,7 @@ dependencies = [
  "polkadot-primitives",
  "polkadot-service",
  "primitives",
+ "rlp 0.6.1",
  "sc-basic-authorship",
  "sc-chain-spec",
  "sc-cli",
@@ -5711,6 +5714,7 @@ dependencies = [
  "sp-offchain",
  "sp-runtime",
  "sp-std",
+ "sp-storage",
  "sp-timestamp",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
@@ -5780,8 +5784,10 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "428.0.0"
+version = "429.0.0"
 dependencies = [
+ "alloy-primitives 0.7.7",
+ "alloy-sol-types 0.7.7",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-weight-reclaim",
@@ -5795,6 +5801,7 @@ dependencies = [
  "cumulus-primitives-utility",
  "ethabi",
  "ethereum",
+ "ethereum-types",
  "evm",
  "fp-evm",
  "fp-rpc",
@@ -13905,6 +13912,7 @@ dependencies = [
  "cumulus-test-relay-sproof-builder",
  "ethabi",
  "ethereum",
+ "ethereum-types",
  "fp-evm",
  "fp-rpc",
  "fp-self-contained",
