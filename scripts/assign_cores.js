@@ -40,9 +40,9 @@ try {
 
 function parseArgs(argv) {
 	const defaults = {
-		ws: "ws://127.0.0.1:9945",
+		ws: "wss://relay3.lark.hydration.cloud",
 		suri: "//Alice",
-		paraId: 2032,
+		paraId: 2034,
 		cores: [0, 1, 2],
 		begin: 0,
 		finalized: true,
