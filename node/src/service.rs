@@ -409,7 +409,18 @@ async fn start_node_impl(
 		);
 	}
 
-	let overrides = Arc::new(crate::rpc::StorageOverrideHandler::new(client.clone()));
+	// Wrap the stock storage override so eth-rpc reads also surface synthetic
+	// logs (substrate transfers + swaps), translated client-side from each
+	// block's events read out of state — no on-chain synth txs, and works on
+	// any runtime version (no runtime-API dependency).
+	let overrides: Arc<dyn fc_rpc::StorageOverride<Block>> =
+		Arc::new(crate::synthetic_logs::storage_override::SyntheticStorageOverride::<
+			ParachainClient,
+			ParachainBackend,
+		>::new(
+			Arc::new(crate::rpc::StorageOverrideHandler::new(client.clone())),
+			client.clone(),
+		));
 	let block_data_cache = Arc::new(fc_rpc::EthBlockDataCacheTask::new(
 		task_manager.spawn_handle(),
 		overrides.clone(),
