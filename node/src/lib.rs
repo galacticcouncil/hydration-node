@@ -21,3 +21,4 @@ pub mod ice_solver_worker;
 pub mod liquidation_worker;
 pub mod rpc;
 pub mod service;
+pub mod synthetic_logs;
