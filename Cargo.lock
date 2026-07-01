@@ -5662,7 +5662,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.1.5"
+version = "15.1.6"
 dependencies = [
  "amm-simulator",
  "async-trait",
