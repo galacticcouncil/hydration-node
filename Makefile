@@ -76,6 +76,17 @@ docker: build
 	docker build -t hydra-dx .
 	docker tag hydra-dx galacticcouncil/hydra-dx:latest
 
+# Package a pre-built linux/amd64 `hydradx` binary (at target/release/) into an image —
+# no compile, no git fetch. Run e.g. `make docker-amd64 TAG=v399-test`; buildx emits an
+# amd64 manifest even on an arm host.
+DOCKER_IMAGE := galacticcouncil/hydra-dx
+TAG := latest
+
+.PHONY: docker-amd64
+docker-amd64:
+	cd target/release && $(sha256sum) -c hydradx.sha256
+	docker buildx build --platform linux/amd64 -f Dockerfile.binary -t $(DOCKER_IMAGE):$(TAG) --load .
+
 checksum:
 	$(sha256sum) target/release/hydradx > target/release/hydradx.sha256
 	cp runtime/hydradx/target/srtool/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm target/release/
