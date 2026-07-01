@@ -343,7 +343,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use sp_state_machine::TrieBackendBuilder;
 use sp_trie::{HashDBT, PrefixedMemoryDB};
 
-const PAGE_SIZE: u32 = 1000; //Limiting as bigger values lead to error when calling PROD RPCs
+const PAGE_SIZE: u32 = 1000;
 const CONCURRENCY: usize = 1000;
 
 const ESTIMATED_TOTAL_KEYS: u64 = 350_000;

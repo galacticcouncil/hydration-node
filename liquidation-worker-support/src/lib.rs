@@ -94,6 +94,7 @@ const CLOSE_FACTOR_HF_THRESHOLD: u128 = 950_000_000_000_000_000u128;
 #[repr(u32)]
 pub enum Function {
 	GetPool = "getPool()",
+	GetPoolConfigurator = "getPoolConfigurator()",
 	GetPriceOracle = "getPriceOracle()",
 	GetAssetPrice = "getAssetPrice(address)",
 	Supply = "supply(address,uint256,address,uint16)",
@@ -140,6 +141,9 @@ pub struct BorrowersData<AccountId> {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Borrower {
 	pub user_address: EvmAddress,
+	/// `(user, pool)` is the identity — same wallet can borrow in multiple pools.
+	#[serde(default)]
+	pub pool: EvmAddress,
 	pub health_factor: U256,
 }
 
@@ -1019,6 +1023,16 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		self.oracle_contract
 	}
 
+	/// Get pool address.
+	pub fn pool_contract(&self) -> EvmAddress {
+		self.pool_contract
+	}
+
+	/// Get PoolAddressesProvider address.
+	pub fn pap_contract(&self) -> EvmAddress {
+		self.pap_contract
+	}
+
 	/// Get the list of the reserves.
 	pub fn reserves(&self) -> &Vec<Reserve> {
 		&self.reserves
@@ -1032,6 +1046,28 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		caller: EvmAddress,
 	) -> Result<EvmAddress, LiquidationError> {
 		let data = Into::<u32>::into(Function::GetPool).to_be_bytes().to_vec();
+		let gas_limit = U256::from(100_000);
+		let call_info = ApiProvider::call(api_provider, hash, caller, pap_contract, data, gas_limit)
+			.map_err(LiquidationError::ApiError)?
+			.map_err(LiquidationError::DispatchError)?;
+
+		if call_info.exit_reason == Succeed(Returned) && call_info.value.len() >= 32 {
+			Ok(EvmAddress::from(H160::from_slice(&call_info.value[12..32])))
+		} else if call_info.exit_reason == Succeed(Returned) {
+			Err(LiquidationError::InvalidResponseLength)
+		} else {
+			Err(LiquidationError::EvmError(call_info.exit_reason))
+		}
+	}
+
+	/// Calls Runtime API.
+	pub fn fetch_pool_configurator<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
+		api_provider: &ApiProvider,
+		hash: Block::Hash,
+		pap_contract: EvmAddress,
+		caller: EvmAddress,
+	) -> Result<EvmAddress, LiquidationError> {
+		let data = Into::<u32>::into(Function::GetPoolConfigurator).to_be_bytes().to_vec();
 		let gas_limit = U256::from(100_000);
 		let call_info = ApiProvider::call(api_provider, hash, caller, pap_contract, data, gas_limit)
 			.map_err(LiquidationError::ApiError)?

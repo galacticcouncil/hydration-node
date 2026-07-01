@@ -34,15 +34,14 @@ use xcm_runtime_apis::dry_run::{CallDryRunEffects, DryRunApi};
 
 const LOG_TARGET: &str = "liquidation-worker";
 
-// Address of the pool address provider contract.
+// Default PAP — used only when no `--pap-contract` flags are passed.
 const PAP_CONTRACT: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67822a15fca691"));
+
+const DEFAULT_PAP_CONTRACTS: &[EvmAddress] = &[PAP_CONTRACT];
 
 // Account that calls the runtime API. Needs to have enough of WETH to pay for the runtime API call.
 const RUNTIME_API_CALLER: EvmAddress = H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e"));
 
-// Money market address
-const BORROW_CALL_ADDRESS: EvmAddress = H160(hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38"));
-const POOL_CONFIGURATOR_ADDRESS: EvmAddress = H160(hex!("e64c38e2fa00dfe4f1d0b92f75b8e44ebdf292e4"));
 mod events {
 	use super::{hex, H256};
 
@@ -80,9 +79,9 @@ pub struct LiquidationWorkerConfig {
 	#[clap(long)]
 	pub liquidation_worker: Option<bool>,
 
-	/// Address of the Pool Address Provider contract.
-	#[clap(long)]
-	pub pap_contract: Option<EvmAddress>,
+	/// Address(es) of Pool Address Provider contract(s). Comma-separate for multiple money markets.
+	#[clap(long = "pap-contract", value_delimiter = ',')]
+	pub pap_contracts: Vec<EvmAddress>,
 
 	/// EVM address of the account that calls Runtime API. Account needs to have WETH balance.
 	#[clap(long)]
@@ -176,9 +175,9 @@ pub type AssetSymbol = Vec<u8>;
 enum MessageType<B: BlockT> {
 	Block(
 		sc_client_api::client::BlockImportNotification<B>,
+		Vec<(UserAddress, EvmAddress)>,
 		Vec<UserAddress>,
-		Vec<UserAddress>,
-	), // (block, new_borrows, liquidated_users_in_previous_block)
+	), // (block, new_borrows_tagged_by_pool, liquidated_users_in_previous_block)
 	Transaction(TransactionType),
 }
 
@@ -278,21 +277,51 @@ where
 			return;
 		};
 
-		// Use `MoneyMarketData` to get the list of reserves.
-		let Ok(money_market) = MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
-			ApiProvider::<&C::Api>(runtime_api.deref()),
-			current_hash,
-			config.pap_contract.unwrap_or(PAP_CONTRACT),
-			config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
-		) else {
-			tracing::error!(target: LOG_TARGET, "liquidation-worker: MoneyMarketData initialization failed");
-			return;
+		let pap_contracts: Vec<EvmAddress> = if config.pap_contracts.is_empty() {
+			DEFAULT_PAP_CONTRACTS.to_vec()
+		} else {
+			config.pap_contracts.clone()
 		};
+		let caller = config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER);
 
-		let mut reserves: HashMap<AssetAddress, AssetSymbol> = money_market
-			.reserves()
-			.iter()
-			.map(|r| (r.asset_address, r.symbol.clone()))
+		let mut money_markets: HashMap<EvmAddress, MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>> =
+			HashMap::new();
+		let mut pool_configurators: HashMap<EvmAddress, EvmAddress> = HashMap::new();
+		for pap in pap_contracts.iter() {
+			let mm = match MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
+				ApiProvider::<&C::Api>(runtime_api.deref()),
+				current_hash,
+				*pap,
+				caller,
+			) {
+				Ok(mm) => mm,
+				Err(e) => panic!(
+					"liquidation-worker: pool misconfigured. MoneyMarketData init failed for PAP {pap:?}: {e:?}. Fix --pap-contract; PEPL will not start."
+				),
+			};
+			let pool_addr = mm.pool_contract();
+			let configurator =
+				match MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool_configurator::<
+					ApiProvider<&C::Api>,
+				>(&ApiProvider::<&C::Api>(runtime_api.deref()), current_hash, *pap, caller)
+				{
+					Ok(configurator) => configurator,
+					Err(e) => panic!(
+						"liquidation-worker: pool misconfigured. Failed to fetch pool configurator for PAP {pap:?}: {e:?}. Fix --pap-contract; PEPL will not start."
+					),
+				};
+			tracing::info!(
+				target: LOG_TARGET,
+				"liquidation-worker: configured pool pap={:?} pool={:?} configurator={:?} reserves={}",
+				pap, pool_addr, configurator, mm.reserves().len(),
+			);
+			money_markets.insert(pool_addr, mm);
+			pool_configurators.insert(pool_addr, configurator);
+		}
+
+		let mut reserves: HashMap<AssetAddress, AssetSymbol> = money_markets
+			.values()
+			.flat_map(|mm| mm.reserves().iter().map(|r| (r.asset_address, r.symbol.clone())))
 			.collect();
 
 		// Channel used to communicate new blocks and transactions to the liquidation worker thread.
@@ -302,6 +331,11 @@ where
 		let spawner_c = spawner.clone();
 		let transaction_pool_c = transaction_pool.clone();
 		let config_c = config.clone();
+
+		let pool_addresses: HashSet<EvmAddress> = money_markets.keys().copied().collect();
+		let configurator_addresses: HashSet<EvmAddress> = pool_configurators.values().copied().collect();
+		let money_markets_for_thread = money_markets.clone();
+		let pap_contracts_for_thread = pap_contracts.clone();
 
 		// Start the liquidation worker thread.
 		if let Ok(thread_pool) = liquidation_task_data.clone().thread_pool.lock() {
@@ -313,7 +347,8 @@ where
 					spawner_c,
 					header,
 					sorted_borrowers.clone(),
-					money_market.clone(),
+					money_markets_for_thread,
+					pap_contracts_for_thread,
 					worker_channel_rx,
 					liquidation_task_data,
 				)
@@ -339,12 +374,16 @@ where
 			tokio::select! {
 				Some(new_block) = block_notification_stream.next() => {
 					if new_block.is_new_best {
-						let mut borrows: Vec<UserAddress> = Vec::new();
+						let mut borrows: Vec<(UserAddress, EvmAddress)> = Vec::new();
 						let mut liquidated_users_in_last_block: Vec<UserAddress> = Vec::new();
 
 						// Get events from the previous block.
 						if let Ok(events) = Self::get_events(client.clone(), current_hash) {
-							if let Some((new_borrows, new_assets, liquidated_users)) = Self::filter_events(events) {
+							if let Some((new_borrows, new_assets, liquidated_users)) = Self::filter_events(
+								events,
+								&pool_addresses,
+								&configurator_addresses,
+							) {
 								for new_asset_address in new_assets {
 									let Ok(symbol) = MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_asset_symbol::<ApiProvider<&C::Api>>(
 										&ApiProvider::<&C::Api>(runtime_api.deref()),
@@ -493,16 +532,18 @@ where
 		borrowers: &mut [Borrower],
 		borrower: &Borrower,
 		updated_assets: Option<&Vec<AssetAddress>>,
-		money_market: &mut MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>,
+		money_markets: &mut HashMap<EvmAddress, MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>>,
 		liquidated_users: &mut Vec<UserAddress>,
 		max_liquidations: usize,
-		tx_waitlist: &mut HashSet<EvmAddress>,
+		tx_waitlist: &mut HashSet<(EvmAddress, EvmAddress)>,
 	) -> Result<(), ()> {
 		let hash = header.hash();
 
+		let borrower_pool = borrower.pool;
+
 		let Some(ref mut borrower) = borrowers
 			.iter_mut()
-			.find(|element| element.user_address == borrower.user_address)
+			.find(|element| element.user_address == borrower.user_address && element.pool == borrower_pool)
 		else {
 			return Ok(());
 		};
@@ -513,11 +554,18 @@ where
 			return Ok(());
 		};
 
-		// Skip if there is an oracle update and the user has been placed on the waitlist.
-		if updated_assets.is_some() && tx_waitlist.contains(&borrower.user_address) {
-			tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} skipping try_liquidate for user {}. The user is in tx_waitlist and the block contains price update.", header.number(), borrower.user_address);
+		let waitlist_key = (borrower.user_address, borrower_pool);
+
+		// Skip if there is an oracle update and the (user, pool) has been placed on the waitlist.
+		if updated_assets.is_some() && tx_waitlist.contains(&waitlist_key) {
+			tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} skipping try_liquidate for user {} in pool {:?}. The (user, pool) is in tx_waitlist and the block contains price update.", header.number(), borrower.user_address, borrower_pool);
 			return Ok(());
 		}
+
+		let Some(money_market) = money_markets.get_mut(&borrower_pool) else {
+			tracing::warn!(target: LOG_TARGET, "liquidation-worker: {:?} no MoneyMarketData configured for pool {:?} (borrower {:?})", header.number(), borrower_pool, borrower.user_address);
+			return Ok(());
+		};
 
 		// Get `UserData` based on updated price.
 		let Ok(user_data) = UserData::new(
@@ -528,7 +576,7 @@ where
 			current_evm_timestamp,
 			config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
 		) else {
-			tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} failed to get user data for user {:?}", header.number(), borrower.user_address);
+			tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} failed to get user data for user {:?} in pool {:?}", header.number(), borrower.user_address, borrower_pool);
 			return Ok(());
 		};
 
@@ -540,12 +588,12 @@ where
 
 			let hf_one = U256::from(10u128.pow(18));
 			if current_hf > hf_one {
-				tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} HF of user {:?} above one, skipping execution", header.number(), borrower.user_address);
+				tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} HF of user {:?} in pool {:?} above one, skipping execution", header.number(), borrower.user_address, borrower_pool);
 				return Ok(());
 			}
 		} else {
 			// We were unable to get user's HF. Skip the execution for this user.
-			tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} failed to get HF for user {:?}", header.number(), borrower.user_address);
+			tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} failed to get HF for user {:?} in pool {:?}", header.number(), borrower.user_address, borrower_pool);
 			return Ok(());
 		}
 
@@ -593,9 +641,9 @@ where
 				return Ok(());
 			}
 
-			// Dry run if there is no oracle update and the user has been placed on the waitlist.
+			// Dry run if there is no oracle update and the (user, pool) has been placed on the waitlist.
 			// We do not dry run if there is an oracle update because this would provide incorrect result due to the incorrect state of the MoneyMarketData struct.
-			if updated_assets.is_none() && tx_waitlist.contains(&borrower.user_address) {
+			if updated_assets.is_none() && tx_waitlist.contains(&waitlist_key) {
 				// dry run to prevent spamming with extrinsic that will fail (e.g. because of not being profitable)
 				let dry_run_result = ApiProvider::<&C::Api>(client.runtime_api().deref()).dry_run_call(
 					hash,
@@ -605,7 +653,7 @@ where
 
 				if let Ok(Ok(call_result)) = dry_run_result {
 					if let Err(error) = call_result.execution_result {
-						tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} Dry running liquidation failed for user {:?}, assets {:?} {:?} and debt amount {:?} with reason: {:?}", header.number(), borrower.user_address, collateral_asset_id, debt_asset_id, debt_to_liquidate, error);
+						tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} Dry running liquidation failed for user {:?}, pool {:?}, assets {:?} {:?} and debt amount {:?} with reason: {:?}", header.number(), borrower.user_address, borrower_pool, collateral_asset_id, debt_asset_id, debt_to_liquidate, error);
 						return Ok(());
 					}
 				} else {
@@ -616,7 +664,7 @@ where
 			// add user to the list of borrowers that are liquidated in this run.
 			liquidated_users.push(borrower.user_address);
 
-			let _ = tx_waitlist.insert(borrower.user_address);
+			let _ = tx_waitlist.insert(waitlist_key);
 
 			let tx_pool_c = transaction_pool.clone();
 			let borrower_c = borrower.clone();
@@ -625,10 +673,10 @@ where
 				let submit_result = tx_pool_c
 					.submit_one(hash, TransactionSource::Local, opaque_tx.into())
 					.await;
-				tracing::info!(target: LOG_TARGET, "liquidation-worker: {:?} Submit result for user {:?}: {:?}", header.number(), borrower_c.user_address, submit_result);
+				tracing::info!(target: LOG_TARGET, "liquidation-worker: {:?} Submit result for user {:?} in pool {:?}: {:?}", header.number(), borrower_c.user_address, borrower_c.pool, submit_result);
 			});
 		} else {
-			tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} failed to get liquidation option for user {:?}", header.number(), borrower.user_address);
+			tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} failed to get liquidation option for user {:?} in pool {:?}", header.number(), borrower.user_address, borrower_pool);
 		}
 
 		Ok(())
@@ -642,7 +690,8 @@ where
 		spawner: SpawnTaskHandle,
 		header: B::Header,
 		sorted_borrowers: Vec<Borrower>,
-		money_market: MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>,
+		money_markets: HashMap<EvmAddress, MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>>,
+		pap_contracts: Vec<EvmAddress>,
 		worker_channel_rx: mpsc::Receiver<MessageType<B>>,
 		liquidation_task_data: Arc<LiquidationTaskData>,
 	) {
@@ -650,8 +699,9 @@ where
 		let mut borrowers = sorted_borrowers;
 		// We need two lists of borrowers. One mutable that we can update and one we can iterate over.
 		let mut borrowers_c = borrowers.clone();
-		let mut money_market = money_market;
-		let mut tx_waitlist = HashSet::<EvmAddress>::new();
+		let mut money_markets = money_markets;
+		// (user, pool) entries — submissions across pools don't block each other.
+		let mut tx_waitlist = HashSet::<(EvmAddress, EvmAddress)>::new();
 
 		let mut max_transactions =
 			Self::calculate_max_number_of_liquidations_in_block(config.clone()).unwrap_or_default();
@@ -680,7 +730,8 @@ where
 						&mut header,
 						client.clone(),
 						&config,
-						&mut money_market,
+						&mut money_markets,
+						&pap_contracts,
 						&mut borrowers,
 						&mut borrowers_c,
 						&mut liquidated_users,
@@ -722,7 +773,8 @@ where
 									&mut header,
 									client.clone(),
 									&config,
-									&mut money_market,
+									&mut money_markets,
+									&pap_contracts,
 									&mut borrowers,
 									&mut borrowers_c,
 									&mut liquidated_users,
@@ -756,7 +808,7 @@ where
 							&mut borrowers,
 							borrower,
 							None,
-							&mut money_market,
+							&mut money_markets,
 							&mut liquidated_users,
 							max_transactions,
 							&mut tx_waitlist,
@@ -779,7 +831,10 @@ where
 					// All oracle updates we use are quoted in USD.
 					for (base_asset_address, maybe_new_price) in oracle_update_data.iter() {
 						if let Some(new_price) = maybe_new_price {
-							money_market.update_reserve_price(*base_asset_address, new_price);
+							// Forwarded to every MM — update_reserve_price no-ops for pools without the asset.
+							for mm in money_markets.values_mut() {
+								mm.update_reserve_price(*base_asset_address, new_price);
+							}
 						}
 						updated_assets.push(*base_asset_address);
 					}
@@ -795,7 +850,8 @@ where
 									&mut header,
 									client.clone(),
 									&config,
-									&mut money_market,
+									&mut money_markets,
+									&pap_contracts,
 									&mut borrowers,
 									&mut borrowers_c,
 									&mut liquidated_users,
@@ -831,7 +887,7 @@ where
 							&mut borrowers,
 							borrower,
 							Some(&updated_assets),
-							&mut money_market,
+							&mut money_markets,
 							&mut liquidated_users,
 							max_transactions,
 							&mut tx_waitlist,
@@ -857,7 +913,8 @@ where
 								&mut header,
 								client.clone(),
 								&config,
-								&mut money_market,
+								&mut money_markets,
+								&pap_contracts,
 								&mut borrowers,
 								&mut borrowers_c,
 								&mut liquidated_users,
@@ -926,22 +983,25 @@ where
 		Err(())
 	}
 
+	#[allow(clippy::type_complexity)]
 	fn filter_events(
 		events: Vec<frame_system::EventRecord<RuntimeEvent, hydradx_runtime::Hash>>,
-	) -> Option<(Vec<UserAddress>, Vec<AssetAddress>, Vec<UserAddress>)> {
-		let mut new_borrows: Vec<UserAddress> = Vec::new();
+		pool_addresses: &HashSet<EvmAddress>,
+		configurator_addresses: &HashSet<EvmAddress>,
+	) -> Option<(Vec<(UserAddress, EvmAddress)>, Vec<AssetAddress>, Vec<UserAddress>)> {
+		let mut new_borrows: Vec<(UserAddress, EvmAddress)> = Vec::new();
 		let mut new_assets = Vec::<AssetAddress>::new();
-		let mut liquidated_users = Vec::<AssetAddress>::new();
+		let mut liquidated_users = Vec::<UserAddress>::new();
 
 		for event in events {
 			match &event.event {
 				RuntimeEvent::EVM(pallet_evm::Event::Log { log }) => {
-					if log.address == BORROW_CALL_ADDRESS && log.topics[0] == events::BORROW {
+					if pool_addresses.contains(&log.address) && log.topics.first().copied() == Some(events::BORROW) {
 						if let Some(&borrower) = log.topics.get(2) {
-							new_borrows.push(UserAddress::from(borrower));
+							new_borrows.push((UserAddress::from(borrower), log.address));
 						}
-					} else if log.address == POOL_CONFIGURATOR_ADDRESS
-						&& log.topics[0] == events::COLLATERAL_CONFIGURATION_CHANGED
+					} else if configurator_addresses.contains(&log.address)
+						&& log.topics.first().copied() == Some(events::COLLATERAL_CONFIGURATION_CHANGED)
 					{
 						if let Some(&asset) = log.topics.get(1) {
 							new_assets.push(AssetAddress::from(asset));
@@ -949,6 +1009,9 @@ where
 					}
 				}
 				RuntimeEvent::Liquidation(pallet_liquidation::Event::Liquidated { user, .. }) => {
+					liquidated_users.push(*user);
+				}
+				RuntimeEvent::Liquidation(pallet_liquidation::Event::GigaHdxLiquidated { user, .. }) => {
 					liquidated_users.push(*user);
 				}
 				_ => {}
@@ -964,14 +1027,15 @@ where
 		header: &mut B::Header,
 		client: Arc<C>,
 		config: &LiquidationWorkerConfig,
-		money_market: &mut MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>,
+		money_markets: &mut HashMap<EvmAddress, MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>>,
+		pap_contracts: &[EvmAddress],
 		borrowers: &mut Vec<Borrower>,
 		borrowers_c: &mut Vec<Borrower>,
 		liquidated_users: &mut Vec<UserAddress>,
 		current_evm_timestamp: &mut u64,
-		new_borrowers: Vec<UserAddress>,
+		new_borrowers: Vec<(UserAddress, EvmAddress)>,
 		liquidated_users_in_last_block: Vec<UserAddress>,
-		tx_waitlist: &mut HashSet<UserAddress>,
+		tx_waitlist: &mut HashSet<(EvmAddress, EvmAddress)>,
 		max_transactions: &mut usize,
 		liquidation_task_data: Arc<LiquidationTaskData>,
 	) {
@@ -987,25 +1051,29 @@ where
 		let _ = Self::add_new_borrowers(new_borrowers, borrowers);
 
 		tracing::debug!(target: LOG_TARGET, "liquidation-worker: liquidated_users_in_last_block: {:?}", liquidated_users_in_last_block);
+		// Liquidated event doesn't carry the pool — drain every (user, pool) for the user.
 		for liquidated_user in liquidated_users_in_last_block {
-			let _ = tx_waitlist.remove(&liquidated_user);
+			tx_waitlist.retain(|(u, _)| u != &liquidated_user);
 		}
 
 		let runtime_api = client.runtime_api();
+		let caller = config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER);
 
-		let Ok(new_money_market) =
-			MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
+		let mut new_money_markets: HashMap<EvmAddress, MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>> =
+			HashMap::with_capacity(pap_contracts.len());
+		for pap in pap_contracts.iter() {
+			let Ok(mm) = MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
 				ApiProvider::<&C::Api>(runtime_api.deref()),
 				header.hash(),
-				config.pap_contract.unwrap_or(PAP_CONTRACT),
-				config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
-			)
-		else {
-			tracing::error!(target: LOG_TARGET, "liquidation-worker: MoneyMarketData initialization failed");
-			return;
-		};
-
-		*money_market = new_money_market;
+				*pap,
+				caller,
+			) else {
+				tracing::error!(target: LOG_TARGET, "liquidation-worker: MoneyMarketData re-init failed for PAP {:?}", pap);
+				return;
+			};
+			new_money_markets.insert(mm.pool_contract(), mm);
+		}
+		*money_markets = new_money_markets;
 
 		*borrowers_c = borrowers.to_owned();
 
@@ -1074,6 +1142,7 @@ where
 
 				Borrower {
 					user_address: *user_address,
+					pool: borrower_data_details.pool,
 					health_factor,
 				}
 			})
@@ -1121,12 +1190,18 @@ where
 		None
 	}
 
-	/// Adds a new borrower to the borrower list.
-	/// If the borrower is already in the list, invalidates the HF by setting it to 0 so the HF will be recalculated.
+	/// Adds new (user, pool) borrowers to the borrower list.
+	/// If the (user, pool) is already in the list, invalidates the HF by setting it to 0 so the HF will be recalculated.
 	/// We don't try to liquidate on new borrows.
-	fn add_new_borrowers(new_borrowers: Vec<UserAddress>, borrowers: &mut Vec<Borrower>) -> Result<(), ()> {
-		for user_address in new_borrowers {
-			match borrowers.iter_mut().find(|b| b.user_address == user_address) {
+	fn add_new_borrowers(
+		new_borrowers: Vec<(UserAddress, EvmAddress)>,
+		borrowers: &mut Vec<Borrower>,
+	) -> Result<(), ()> {
+		for (user_address, pool) in new_borrowers {
+			match borrowers
+				.iter_mut()
+				.find(|b| b.user_address == user_address && b.pool == pool)
+			{
 				Some(b) => {
 					// Borrower is already on the list. Invalidate the HF by setting it to 0 and adding an asset to the list.
 					b.health_factor = U256::zero();
@@ -1137,6 +1212,7 @@ where
 						0,
 						Borrower {
 							user_address,
+							pool,
 							health_factor: U256::zero(),
 						},
 					);
