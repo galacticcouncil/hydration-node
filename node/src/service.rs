@@ -166,12 +166,23 @@ pub fn new_partial(
 			extra_pages: h as _,
 		});
 
+	// The upstream default runtime cache size (2) is too small for nodes serving
+	// historical state across runtime upgrades: the hot working set spans several
+	// runtime versions, so a cache of 2 evicts and re-prepares WASM runtimes
+	// constantly and exhausts the instance pool under indexer/RPC load. Treat the
+	// upstream default as "unset" and use 8; any explicit operator value is honored.
+	let runtime_cache_size = if config.executor.runtime_cache_size == 2 {
+		8
+	} else {
+		config.executor.runtime_cache_size
+	};
+
 	let executor = WasmExecutor::builder()
 		.with_execution_method(config.executor.wasm_method)
 		.with_onchain_heap_alloc_strategy(heap_pages)
 		.with_offchain_heap_alloc_strategy(heap_pages)
 		.with_max_runtime_instances(config.executor.max_runtime_instances)
-		.with_runtime_cache_size(config.executor.runtime_cache_size)
+		.with_runtime_cache_size(runtime_cache_size)
 		.build();
 
 	let tx_priority_json = if no_tx_priority_override {
@@ -388,7 +399,18 @@ async fn start_node_impl(
 		);
 	}
 
-	let overrides = Arc::new(crate::rpc::StorageOverrideHandler::new(client.clone()));
+	// Wrap the stock storage override so eth-rpc reads also surface synthetic
+	// logs (substrate transfers + swaps), translated client-side from each
+	// block's events read out of state — no on-chain synth txs, and works on
+	// any runtime version (no runtime-API dependency).
+	let overrides: Arc<dyn fc_rpc::StorageOverride<Block>> =
+		Arc::new(crate::synthetic_logs::storage_override::SyntheticStorageOverride::<
+			ParachainClient,
+			ParachainBackend,
+		>::new(
+			Arc::new(crate::rpc::StorageOverrideHandler::new(client.clone())),
+			client.clone(),
+		));
 	let block_data_cache = Arc::new(fc_rpc::EthBlockDataCacheTask::new(
 		task_manager.spawn_handle(),
 		overrides.clone(),
