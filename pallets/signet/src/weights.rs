@@ -62,16 +62,26 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	fn respond() -> Weight {
-		Weight::from_parts(217_000_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
+		Weight::from_parts(217_000_000, 1517)
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	fn respond_error() -> Weight {
-		Weight::from_parts(296_000_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
+		Weight::from_parts(296_000_000, 1517)
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	fn respond_bidirectional() -> Weight {
-		Weight::from_parts(36_000_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
+		Weight::from_parts(36_000_000, 1517)
+			.saturating_add(T::DbWeight::get().reads(1))
+	}
+	fn add_signer() -> Weight {
+		Weight::from_parts(15_000_000, 1517)
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
+	fn remove_signer() -> Weight {
+		Weight::from_parts(15_000_000, 1517)
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 	fn pause() -> Weight {
 		Weight::from_parts(9_000_000, 0)

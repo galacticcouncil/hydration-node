@@ -1,7 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::useless_conversion)]
 
 use ethereum::{AccessListItem, EIP1559TransactionMessage, TransactionAction};
 use frame_support::{
+	dispatch::Pays,
 	pallet_prelude::*,
 	traits::{Currency, ExistenceRequirement},
 	PalletId,
@@ -31,6 +33,9 @@ const MAX_ERROR_MESSAGE_LENGTH: u32 = 1024;
 
 /// Maximum batch sizes
 const MAX_BATCH_SIZE: u32 = 100;
+
+/// Maximum number of authorized responder (MPC signer) accounts.
+const MAX_SIGNERS: u32 = 64;
 
 /// Hard upper bound for chain ID length (used as BoundedVec bound)
 pub const MAX_CHAIN_ID_LENGTH: u32 = 128;
@@ -130,6 +135,14 @@ pub mod pallet {
 	#[pallet::getter(fn signet_config)]
 	pub type SignetConfig<T: Config> = StorageValue<_, SignetConfigData<BalanceOf<T>>, OptionQuery>;
 
+	/// Accounts authorized to submit signature responses.
+	#[pallet::storage]
+	pub type Signers<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), OptionQuery>;
+
+	/// Number of authorized signer accounts currently registered.
+	#[pallet::storage]
+	pub type SignerCount<T: Config> = StorageValue<_, u32, ValueQuery>;
+
 	// ========================================
 	// Events
 	// ========================================
@@ -205,6 +218,11 @@ pub mod pallet {
 			serialized_output: Vec<u8>,
 			signature: Signature,
 		},
+
+		/// A new responder account has been authorized.
+		SignerAdded { who: T::AccountId },
+		/// A responder account has been deauthorized.
+		SignerRemoved { who: T::AccountId },
 	}
 
 	// ========================================
@@ -229,6 +247,14 @@ pub mod pallet {
 		InvalidAddress,
 		/// Priority fee cannot exceed max fee per gas (EIP-1559 requirement)
 		InvalidGasPrice,
+		/// Responder is not in the authorized signer set.
+		NotAuthorizedSigner,
+		/// The account is already an authorized signer.
+		SignerAlreadyExists,
+		/// The account is not an authorized signer.
+		SignerNotFound,
+		/// The maximum number of authorized signers has been reached.
+		TooManySigners,
 	}
 
 	// ========================================
@@ -392,8 +418,9 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			request_ids: BoundedVec<[u8; 32], ConstU32<MAX_BATCH_SIZE>>,
 			signatures: BoundedVec<Signature, ConstU32<MAX_BATCH_SIZE>>,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let responder = ensure_signed(origin)?;
+			ensure!(Signers::<T>::contains_key(&responder), Error::<T>::NotAuthorizedSigner);
 
 			ensure!(request_ids.len() == signatures.len(), Error::<T>::InvalidInputLength);
 
@@ -405,7 +432,7 @@ pub mod pallet {
 				});
 			}
 
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Report signature generation errors (batch support)
@@ -414,8 +441,9 @@ pub mod pallet {
 		pub fn respond_error(
 			origin: OriginFor<T>,
 			errors: BoundedVec<ErrorResponse, ConstU32<MAX_BATCH_SIZE>>,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let responder = ensure_signed(origin)?;
+			ensure!(Signers::<T>::contains_key(&responder), Error::<T>::NotAuthorizedSigner);
 
 			for error in errors {
 				Self::deposit_event(Event::SignatureError {
@@ -425,7 +453,7 @@ pub mod pallet {
 				});
 			}
 
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Provide a read response with signature
@@ -436,8 +464,9 @@ pub mod pallet {
 			request_id: [u8; 32],
 			serialized_output: BoundedVec<u8, ConstU32<MAX_SERIALIZED_OUTPUT_LENGTH>>,
 			signature: Signature,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let responder = ensure_signed(origin)?;
+			ensure!(Signers::<T>::contains_key(&responder), Error::<T>::NotAuthorizedSigner);
 
 			Self::deposit_event(Event::RespondBidirectionalEvent {
 				request_id,
@@ -446,7 +475,7 @@ pub mod pallet {
 				signature,
 			});
 
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Pause the signet so that no new signing requests can be made.
@@ -482,6 +511,37 @@ pub mod pallet {
 			});
 
 			Self::deposit_event(Event::Unpaused);
+			Ok(())
+		}
+
+		/// Authorize an account to submit signature responses.
+		#[pallet::call_index(9)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_signer())]
+		pub fn add_signer(origin: OriginFor<T>, who: T::AccountId) -> DispatchResult {
+			T::UpdateOrigin::ensure_origin(origin)?;
+
+			ensure!(!Signers::<T>::contains_key(&who), Error::<T>::SignerAlreadyExists);
+			ensure!(SignerCount::<T>::get() < MAX_SIGNERS, Error::<T>::TooManySigners);
+
+			Signers::<T>::insert(&who, ());
+			SignerCount::<T>::mutate(|n| *n = n.saturating_add(1));
+
+			Self::deposit_event(Event::SignerAdded { who });
+			Ok(())
+		}
+
+		/// Remove an account from the signer allowlist.
+		#[pallet::call_index(10)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_signer())]
+		pub fn remove_signer(origin: OriginFor<T>, who: T::AccountId) -> DispatchResult {
+			T::UpdateOrigin::ensure_origin(origin)?;
+
+			ensure!(Signers::<T>::contains_key(&who), Error::<T>::SignerNotFound);
+
+			Signers::<T>::remove(&who);
+			SignerCount::<T>::mutate(|n| *n = n.saturating_sub(1));
+
+			Self::deposit_event(Event::SignerRemoved { who });
 			Ok(())
 		}
 	}

@@ -90,6 +90,9 @@ const GAS_LIMIT = envBigInt('GAS_LIMIT', 100_000n)
 const DEFAULT_MAX_FEE_PER_GAS = envBigInt('DEFAULT_MAX_FEE_PER_GAS', 30_000_000_000n)
 const DEFAULT_MAX_PRIORITY_FEE_PER_GAS = envBigInt('DEFAULT_MAX_PRIORITY_FEE_PER_GAS', 2_000_000_000n)
 
+const FAUCET_OWNER_KEY = env('FAUCET_OWNER_KEY')
+const EVM_FUNDER_KEY = env('EVM_FUNDER_KEY')
+
 // Validate critical values
 if (!ethers.isAddress(FAUCET_ADDRESS)) throw new Error(`Invalid FAUCET_ADDRESS: ${FAUCET_ADDRESS}`)
 if (!ethers.isAddress(TARGET_ADDRESS)) throw new Error(`Invalid TARGET_ADDRESS: ${TARGET_ADDRESS}`)
@@ -109,6 +112,8 @@ export const ENV = {
   EVM_CHAIN_ID,
   ROOT_PUBLIC_KEY,
   FAUCET_ADDRESS,
+  FAUCET_OWNER_KEY,
+  EVM_FUNDER_KEY,
 
   // Test params
   TARGET_ADDRESS,

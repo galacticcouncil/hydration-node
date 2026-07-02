@@ -76,25 +76,26 @@ impl<T: frame_system::Config> pallet_signet::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	fn respond() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0`
-		//  Estimated: `0`
-		// Minimum execution time: 215_458_000 picoseconds.
-		Weight::from_parts(216_808_000, 0)
+		Weight::from_parts(216_808_000, 1517)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	fn respond_error() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0`
-		//  Estimated: `0`
-		// Minimum execution time: 321_457_000 picoseconds.
-		Weight::from_parts(323_288_000, 0)
+		Weight::from_parts(323_288_000, 1517)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	fn respond_bidirectional() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0`
-		//  Estimated: `0`
-		// Minimum execution time: 95_250_000 picoseconds.
-		Weight::from_parts(95_830_000, 0)
+		Weight::from_parts(95_830_000, 1517)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+	}
+	fn add_signer() -> Weight {
+		Weight::from_parts(15_000_000, 1517)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	fn remove_signer() -> Weight {
+		Weight::from_parts(15_000_000, 1517)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
 	fn pause() -> Weight {
 		Weight::from_parts(13_044_000, 1517)
