@@ -290,7 +290,8 @@ fn validate_unsinged_should_work_when_submitted_from_local() {
 		let user: EvmAddress = EvmAccounts::evm_address(&BOB);
 		let debt_to_cover: Balance = 1_000;
 		let route: Route<AssetId> = BoundedVec::new();
-		let unsinged_priority = Some(1_000);
+		let priority = 1_000;
+		let unsinged_priority = Some(priority);
 
 		let c = pallet::Call::<Test>::liquidate {
 			collateral_asset,
@@ -304,7 +305,7 @@ fn validate_unsinged_should_work_when_submitted_from_local() {
 		assert_eq!(
 			Liquidation::validate_unsigned(TransactionSource::Local, &c),
 			Ok(ValidTransaction {
-				priority: BASE_UNSIGNED_LIQUIDATION_PRIORITY + unsinged_priority.unwrap(),
+				priority: BASE_UNSIGNED_LIQUIDATION_PRIORITY + priority,
 				requires: vec![],
 				provides: vec![("liquidate_unsigned", user).encode()],
 				longevity: 1,

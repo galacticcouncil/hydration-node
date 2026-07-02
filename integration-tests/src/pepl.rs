@@ -44,6 +44,14 @@ use sp_runtime::traits::Block;
 use sp_runtime::BoundedVec;
 use xcm_emulator::Network;
 
+// v1 worker decision path (kept as dead code for the v1-vs-v2 comparison). v1 uses its own
+// support crate + `ApiProvider` (a different `RuntimeApiProvider` trait), imported here with
+// aliases so the parity harness can drive both workers from one underwater position.
+use crate::liquidation::ApiProvider as V1ApiProvider;
+use hydradx_runtime::{OriginCaller, RuntimeCall, RuntimeEvent};
+use liquidation_worker_support::MoneyMarketData as V1MoneyMarketData;
+use liquidation_worker_support::UserData as V1UserData;
+
 const LOG_PREFIX: &str = "tests-log-prefix";
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/pepl/b49b947a954942f74e23d4f46b668fff00bc8b4f8105c8b905222a3bf76ea308";
@@ -1053,4 +1061,189 @@ fn get_asset_address(mm: &MoneyMarket, symbol: &str) -> Option<EvmAddress> {
 		}
 		return None;
 	})
+}
+
+// ============================================================================
+// Tier-1 parity harness: drive BOTH the v2 (`pepl-worker`) and v1
+// (`liquidation-worker-support`) decision paths against the SAME synthetic
+// underwater borrower, and assert each restores the health factor. This is the
+// v1-vs-v2 behavioural comparison; v1 is kept as dead code purely to run these.
+// ============================================================================
+
+/// Sets up an underwater borrower on `LIQUIDATION_SNAPSHOT`: binds EVM accounts, sets the
+/// borrowing contract, supplies WETH + DOT collateral, borrows DOT, then triples the DOT oracle
+/// price so the health factor drops below 1. Returns `(pool_contract, borrower_evm, caller)`.
+/// Must be called inside `hydra_live_ext(PATH_TO_SNAPSHOT_2).execute_with(..)`.
+fn create_unhealthy_borrower() -> (EvmAddress, EvmAddress, EvmAddress) {
+	deposit_hdx_to_protocol_account();
+	hydradx_run_to_next_block();
+
+	let pallet_acc = Liquidation::account_id();
+	let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
+	let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
+
+	let caller = EVMAccounts::evm_address(&AccountId::from(CHARLIE));
+	assert_ok!(Currencies::deposit(DOT, &CHARLIE.into(), ALICE_INITIAL_DOT_BALANCE));
+	assert_ok!(Currencies::deposit(WETH, &CHARLIE.into(), ALICE_INITIAL_WETH_BALANCE));
+	assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
+	assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
+
+	assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+	assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(BOB.into())));
+	assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(pallet_acc.clone())));
+
+	let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+
+	let api = ApiProvider::<Runtime>(Runtime);
+	let hydration = Hydration::new(caller, PAP_CONTRACT, LOG_PREFIX);
+	let block_number = hydradx_runtime::System::block_number();
+	let block = hydradx_runtime::System::block_hash(block_number);
+	let pool_contract = hydration.fetch_pool(&api, block).expect("fetch_pool() to work");
+	assert_ok!(Liquidation::set_borrowing_contract(
+		RuntimeOrigin::root(),
+		pool_contract
+	));
+	assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+	supply(pool_contract, alice_evm_address, weth_asset_address, 10 * WETH_UNIT);
+	supply(pool_contract, alice_evm_address, dot_asset_address, 5_000 * DOT_UNIT);
+	borrow(pool_contract, alice_evm_address, dot_asset_address, 5_000 * DOT_UNIT);
+	hydradx_run_to_next_block();
+
+	// healthy before the price move
+	let usr = get_user_account_data(pool_contract, alice_evm_address).unwrap();
+	assert!(usr.health_factor > U256::from(1_000_000_000_000_000_000u128));
+
+	// triple the DOT price (DOT is the debt) -> HF < 1
+	let (price, timestamp) = get_oracle_price("DOT/USD").unwrap();
+	let price = price.as_u128() * 6 / 2;
+	let timestamp = timestamp.as_u128() + 6;
+	let mut data = price.to_be_bytes().to_vec();
+	data.extend_from_slice(timestamp.to_be_bytes().as_ref());
+	update_oracle_price(
+		vec![("DOT/USD", U256::from_big_endian(&data[0..32]))],
+		ORACLE_ADDRESS,
+		ORACLE_CALLER,
+	);
+
+	let usr = get_user_account_data(pool_contract, alice_evm_address).unwrap();
+	assert!(usr.health_factor < U256::from(1_000_000_000_000_000_000u128));
+
+	(pool_contract, alice_evm_address, caller)
+}
+
+/// Fetch the v2 money-market + borrower and run `decide_liquidation` for `borrower_evm`.
+fn v2_decision(caller: EvmAddress, borrower_evm: EvmAddress) -> pepl_worker::LiquidationDecision {
+	let api = ApiProvider::<Runtime>(Runtime);
+	let hydration = Hydration::new(caller, PAP_CONTRACT, LOG_PREFIX);
+	let block_number = hydradx_runtime::System::block_number();
+	let block = hydradx_runtime::System::block_hash(block_number);
+	let now = api.timestamp(block).expect("timestamp");
+
+	let mut mm = hydration
+		.fetch_money_market(&api, block)
+		.expect("v2 fetch_money_market");
+	let borrower = hydration
+		.fetch_borrower(&api, block, block_number, &mm, borrower_evm, now)
+		.expect("v2 fetch_borrower");
+
+	let cfg = pepl_worker::LiquidationTaskConfig {
+		target_hf: TARGET_HF,
+		log_prefix: LOG_PREFIX.to_string(),
+		..Default::default()
+	};
+	pepl_worker::decide_liquidation(&cfg, &mut mm, &borrower).expect("v2 should decide to liquidate")
+}
+
+/// Fetch the v1 money-market + user and run `get_best_liquidation_option`. Returns the on-chain
+/// `(collateral_asset_id, debt_asset_id, debt_to_liquidate)` v1 would submit.
+fn v1_decision(caller: EvmAddress, borrower_evm: EvmAddress) -> (AssetId, AssetId, Balance) {
+	let block_number = hydradx_runtime::System::block_number();
+	let block = hydradx_runtime::System::block_hash(block_number);
+	let now = ApiProvider::<Runtime>(Runtime).timestamp(block).expect("timestamp");
+
+	let mut mm = V1MoneyMarketData::<hydradx_runtime::Block, OriginCaller, RuntimeCall, RuntimeEvent>::new::<
+		V1ApiProvider<Runtime>,
+	>(V1ApiProvider::<Runtime>(Runtime), block, PAP_CONTRACT, caller)
+	.expect("v1 MoneyMarketData::new");
+
+	let user = V1UserData::new(V1ApiProvider::<Runtime>(Runtime), block, &mm, borrower_evm, now, caller)
+		.expect("v1 UserData::new");
+
+	let opt = mm
+		.get_best_liquidation_option::<V1ApiProvider<Runtime>>(&user, U256::from(TARGET_HF), None)
+		.expect("v1 option calc")
+		.expect("v1 should find a liquidation option");
+
+	let coll = mm
+		.address_to_asset(opt.collateral_asset)
+		.expect("v1 collateral asset id");
+	let debt = mm.address_to_asset(opt.debt_asset).expect("v1 debt asset id");
+	let amount: Balance = opt
+		.debt_to_liquidate
+		.try_into()
+		.expect("v1 debt_to_liquidate fits u128");
+	(coll, debt, amount)
+}
+
+#[test]
+fn v2_decide_liquidation_should_restore_hf_when_borrower_is_underwater() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_2).execute_with(|| {
+		let (pool_contract, borrower_evm, caller) = create_unhealthy_borrower();
+
+		let decision = v2_decision(caller, borrower_evm);
+
+		// pinned exact decision: v2 chooses DOT collateral / DOT debt on this scenario
+		assert_eq!(decision.collateral_asset, DOT);
+		assert_eq!(decision.debt_asset, DOT);
+		assert_eq!(decision.debt_to_cover, 17_190_053_835_700);
+		assert_eq!(decision.priority, 200_363);
+
+		assert_ok!(Liquidation::liquidate(
+			RuntimeOrigin::signed(BOB.into()),
+			decision.collateral_asset,
+			decision.debt_asset,
+			borrower_evm,
+			decision.debt_to_cover,
+			BoundedVec::new(),
+			Some(decision.priority),
+		));
+
+		let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
+		assert_health_factor_is_within_tolerance(usr.health_factor, U256::from(TARGET_HF));
+	});
+}
+
+#[test]
+fn v1_and_v2_should_choose_same_liquidation_when_borrower_is_underwater() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_2).execute_with(|| {
+		let (pool_contract, borrower_evm, caller) = create_unhealthy_borrower();
+
+		// both decisions are read-only, computed on the same underwater state
+		let v2 = v2_decision(caller, borrower_evm);
+		let (v1_coll, v1_debt, v1_amount) = v1_decision(caller, borrower_evm);
+
+		// exact parity: v1 and v2 choose the identical liquidation (same assets AND amount)
+		assert_eq!(v1_coll, DOT);
+		assert_eq!(v1_debt, DOT);
+		assert_eq!(v1_amount, 17_190_053_835_700);
+		assert_eq!(v1_coll, v2.collateral_asset, "collateral asset mismatch v1 vs v2");
+		assert_eq!(v1_debt, v2.debt_asset, "debt asset mismatch v1 vs v2");
+		assert_eq!(v1_amount, v2.debt_to_cover, "debt amount mismatch v1 vs v2");
+
+		// executing v1's choice restores HF (proves v1 works through the same harness)
+		assert_ok!(Liquidation::liquidate(
+			RuntimeOrigin::signed(BOB.into()),
+			v1_coll,
+			v1_debt,
+			borrower_evm,
+			v1_amount,
+			BoundedVec::new(),
+			None,
+		));
+		let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
+		assert_health_factor_is_within_tolerance(usr.health_factor, U256::from(TARGET_HF));
+	});
 }

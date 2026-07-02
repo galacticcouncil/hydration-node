@@ -7,7 +7,6 @@ use crate::traits::RuntimeApiProvider;
 use crate::LOG_TARGET;
 use ethabi::ethereum_types::U512;
 use fp_rpc::EthereumRuntimeRPCApi;
-use frame_support::traits::Len;
 use hydradx_runtime::evm::precompiles::erc20_mapping::Erc20MappingApi;
 use pallet_currencies_rpc_runtime_api::CurrenciesApi;
 use primitives::AccountId;
@@ -76,7 +75,7 @@ impl Borrower {
 	pub fn calc_health_factor(&self, money_market: &MoneyMarket) -> Result<U256, Error> {
 		let mut avg_liq_threshold = U256::zero();
 
-		for (_, r) in &money_market.reserves {
+		for r in money_market.reserves.values() {
 			let Some(user_reserve) = self.reserves.get(r.idx) else {
 				return Err(Error::UnexpectedError(
 					"reserves[idx] out of bounds. THIS SHOULD NEVER HAPPEN, please contact project's maintainers",
@@ -320,8 +319,8 @@ impl Reserve {
 
 	/// Returns liquidation threshold or emode liquidation threshold of the reserve  if `emode` is
 	/// `true`
-	///	WARN: fn returns normale liq. threshold if reserve doesn't have emode data even if `emode` is
-	///	`true`.
+	/// WARN: fn returns normale liq. threshold if reserve doesn't have emode data even if `emode` is
+	/// `true`.
 	pub fn liquidation_threshold(&self, emode: bool) -> U256 {
 		if emode {
 			if let Some(e) = &self.emode {
@@ -472,7 +471,7 @@ impl MoneyMarket {
 		let percentage_factor = U256::from(PERCENTAGE_FACTOR);
 
 		let mut weighted_total_collateral = U256::zero();
-		for (_, r) in &self.reserves {
+		for r in self.reserves.values() {
 			let Some(Some(u_reserve)) = borrower.reserves.get(r.idx) else {
 				continue;
 			};
@@ -488,7 +487,7 @@ impl MoneyMarket {
 				.ok_or(Error::Arithmetic("Overflow"))?;
 		}
 
-		let is_coll_emode = borrower.emode_id.is_some() && borrower.emode_id == collateral.data.emode_id().into();
+		let is_coll_emode = borrower.emode_id.is_some() && borrower.emode_id == collateral.data.emode_id();
 		let liq_bonus = collateral.liquidation_bonus(is_coll_emode);
 
 		let Some(Some(borrower_coll)) = borrower.reserves.get(collateral.idx) else {
@@ -646,7 +645,7 @@ impl MoneyMarket {
 			};
 
 			debt_in_base = actual_debt_to_liquidate
-				.full_mul(debt.price.into())
+				.full_mul(debt.price)
 				.checked_div(U512::from(10).pow(debt.decimals().into()))
 				.ok_or(Error::Arithmetic("Overflow"))?
 				.try_into()

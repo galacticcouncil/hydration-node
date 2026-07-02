@@ -2292,7 +2292,8 @@ fn hollar_liquidation_should_fail_when_above_health_factor() {
 				222,
 				alice_evm_address,
 				hollar_borrow_amount,
-				route
+				route,
+				None,
 			),
 			pallet_dispatcher::Error::<Runtime>::AaveHealthFactorNotBelowThreshold
 		);

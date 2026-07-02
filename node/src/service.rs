@@ -382,21 +382,37 @@ async fn start_node_impl(
 	if (validator && !(liquidation_worker_config.liquidation_worker == Some(false)))
 		|| (!validator && liquidation_worker_config.liquidation_worker == Some(true))
 	{
-		use pepl_worker::LiquidationTask;
-		use pepl_worker_support::types::RuntimeClient;
-
-		task_manager.spawn_handle().spawn(
-			"pepl-worker-runner",
-			"pepl-worker",
-			pepl_worker::run(
-				LiquidationTask::new(
-					RuntimeClient::new(client.clone()),
+		if liquidation_worker_config.liquidation_worker_v1 {
+			// Opt-in legacy path: run the v1 worker instead of v2 (for v1-vs-v2 comparison).
+			let liquidation_task_data = Arc::new(crate::liquidation_worker::LiquidationTaskData::new());
+			task_manager.spawn_handle().spawn(
+				"liquidation-worker",
+				None,
+				crate::liquidation_worker::LiquidationTask::run(
+					client.clone(),
+					(&liquidation_worker_config).into(),
 					transaction_pool.clone(),
-					liquidation_worker_config.into(),
+					task_manager.spawn_handle(),
+					liquidation_task_data,
 				),
-				client.clone(),
-			),
-		);
+			);
+		} else {
+			use pepl_worker::LiquidationTask;
+			use pepl_worker_support::types::RuntimeClient;
+
+			task_manager.spawn_handle().spawn(
+				"pepl-worker-runner",
+				"pepl-worker",
+				pepl_worker::run(
+					LiquidationTask::new(
+						RuntimeClient::new(client.clone()),
+						transaction_pool.clone(),
+						liquidation_worker_config.into(),
+					),
+					client.clone(),
+				),
+			);
+		}
 	}
 
 	// Wrap the stock storage override so eth-rpc reads also surface synthetic

@@ -25,22 +25,8 @@ pub mod types;
 
 const LOG_TARGET: &str = "liquidation-worker";
 
-/// Function prefixed with `fetch_` are doing external(runtimeApi) calls.
-
-/// Default percentage of borrower's debt to be repaid in a liquidation.
-/// Percentage applied when the users health factor is above `CLOSE_FACTOR_HF_THRESHOLD`
-/// Expressed in bps, a value of 0.5e4 results in 50.00%
-const DEFAULT_LIQUIDATION_CLOSE_FACTOR: u128 = 5_000u128;
-
-/// Maximum percentage of borrower's debt to be repaid in a liquidation
-/// Percentage applied when the users health factor is below `CLOSE_FACTOR_HF_THRESHOLD`
-/// Expressed in bps, a value of 1e4 results in 100.00%
-const MAX_LIQUIDATION_CLOSE_FACTOR: u128 = 10_000u128;
-
-/// This constant represents below which health factor value it is possible to liquidate
-/// an amount of debt corresponding to `MAX_LIQUIDATION_CLOSE_FACTOR`.
-/// A value of 0.95e18 results in 0.95
-const CLOSE_FACTOR_HF_THRESHOLD: u128 = 950_000_000_000_000_000u128;
+// Functions prefixed with `fetch_` do external (runtime API) calls. The liquidation close-factor
+// constants live in `types.rs`, next to the math that uses them.
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -612,10 +598,10 @@ impl Hydration {
 
 		let decoded = ethabi::decode(&[ethabi::ParamType::String], &res.value)?;
 
-		Ok(decoded[0]
+		decoded[0]
 			.clone()
 			.into_string()
-			.ok_or(Error::TypeDecode("symbol into string"))?)
+			.ok_or(Error::TypeDecode("symbol into string"))
 	}
 }
 

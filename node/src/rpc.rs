@@ -127,7 +127,6 @@ where
 	module.merge(System::new(client.clone(), pool).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 	module.merge(StateMigration::new(client.clone(), backend.clone()).into_rpc())?;
-	module.merge(LiquidationWorker::new(liquidation_task_data).into_rpc())?;
 
 	Ok(module)
 }
