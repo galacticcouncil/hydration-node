@@ -682,12 +682,17 @@ async function ensureAliceHasFaucetAsset(
   console.log(`Alice faucet asset (${faucetAsset}) balance after mint: ${afterBal}`)
 }
 
-export function deriveEthAddress(): {
+export function deriveEthAddress(
+  path: string,
+  palletSS58: string,
+): {
   derivedPubKey: string
   derivedEthAddress: string
 } {
   const derivedPubKey = KeyDerivation.derivePublicKey(
     ENV.ROOT_PUBLIC_KEY,
+    palletSS58,
+    path,
     ENV.SUBSTRATE_CHAIN_ID,
   )
 
@@ -716,11 +721,12 @@ export async function ensureDerivedEthHasGas(
 
   if (ethBalance >= estimatedGas) return
 
-  if (ENV.EVM_NETWORK === 'anvil') {
-    const ANVIL_DEFAULT_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
-    const funder = new ethers.Wallet(ANVIL_DEFAULT_KEY, provider)
+  const ANVIL_DEFAULT_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+  const funderKey = ENV.EVM_NETWORK === 'anvil' ? ANVIL_DEFAULT_KEY : ENV.EVM_FUNDER_KEY
+  if (funderKey) {
+    const funder = new ethers.Wallet(funderKey, provider)
     const fundAmount = estimatedGas * 10n
-    console.log(`Funding ${derivedEthAddress} with ${ethers.formatEther(fundAmount)} ETH from Anvil account...`)
+    console.log(`Funding ${derivedEthAddress} with ${ethers.formatEther(fundAmount)} ETH...`)
     const tx = await funder.sendTransaction({ to: derivedEthAddress, value: fundAmount })
     await tx.wait()
     console.log(`Funded. Tx: ${tx.hash}`)
@@ -731,7 +737,7 @@ export async function ensureDerivedEthHasGas(
     `Insufficient ETH at ${derivedEthAddress}\n` +
       `   Need: ${ethers.formatEther(estimatedGas)} ETH\n` +
       `   Have: ${ethers.formatEther(ethBalance)} ETH\n` +
-      `   Please fund this address with ETH for gas`,
+      `   Fund this address with ETH for gas, or set EVM_FUNDER_KEY to auto-fund`,
   )
 }
 
@@ -759,7 +765,15 @@ export async function ensureFaucetMpcAddress(
 
   console.log(`Setting faucet MPC to derived address ${derivedEthAddress}...`)
   // Use Anvil account 0 (deployer/owner) to call setMPC
-  const ownerKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+  const ANVIL_OWNER_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+  const ownerKey = ENV.EVM_NETWORK === 'anvil' ? ANVIL_OWNER_KEY : ENV.FAUCET_OWNER_KEY
+  if (!ownerKey) {
+    throw new Error(
+      `Faucet MPC is ${currentMpc} but derived address is ${derivedEthAddress}.\n` +
+        `   Set FAUCET_OWNER_KEY (owner of ${ENV.FAUCET_ADDRESS}) to auto-setMPC, ` +
+        `or call setMPC(${derivedEthAddress}) manually from the owner.`,
+    )
+  }
   const ownerWallet = new ethers.Wallet(ownerKey, provider)
   const contractWithSigner = faucetContract.connect(ownerWallet)
   const tx = await (contractWithSigner as any).setMPC(derivedEthAddress)
@@ -860,14 +874,15 @@ export async function executeAsRoot(
     return
   }
 
-  // Try TC path first — much faster than governance referendum
   const isTcMember = await isSignerTcMember(api, signer)
   if (isTcMember) {
-    await executeViaTechCommittee(api, signer, call, label)
-    return
+    const applied = await executeViaTechCommittee(api, signer, call, label)
+    if (applied) return
+    console.log(`${label}: TC motion did not apply the call (needs Root); falling back to referendum`)
+  } else {
+    console.log(`${label}: signer is not a TC member, using referendum`)
   }
 
-  console.log(`${label}: signer is not a TC member, falling back to referendum`)
   await executeAsRootViaReferendum(api, signer, call, label)
 }
 
@@ -953,7 +968,7 @@ async function executeViaTechCommittee(
   signer: any,
   call: SubmittableExtrinsic<'promise'>,
   label: string,
-) {
+): Promise<boolean> {
   const members = await (api.query as any).technicalCommittee.members()
   const memberList = members.toJSON() as string[]
   const memberCount = memberList.length
@@ -981,20 +996,26 @@ async function executeViaTechCommittee(
     }
   }
 
-  // Check if the call was executed (Executed event = threshold was 1 or auto-closed)
-  const executed = result.events.some(
-    (r: any) =>
-      r.event.section === 'technicalCommittee' &&
-      (r.event.method === 'Executed' || r.event.method === 'Closed'),
-  )
+  for (const { event } of result.events) {
+    if (event.section === 'technicalCommittee' && event.method === 'Executed') {
+      const res: any = (event.data as any).result ?? event.data[1]
+      if (res && res.isErr) {
+        console.warn(`${label}: TC motion executed but inner call failed: ${res.asErr.toString()}`)
+        return false
+      }
+      console.log(`${label}: TC proposal executed immediately`)
+      return true
+    }
+  }
 
-  if (executed) {
-    console.log(`${label}: TC proposal executed immediately`)
-  } else if (threshold > 1) {
+  if (threshold > 1) {
     console.log(`${label}: TC proposal needs ${threshold - 1} more Aye votes from other members`)
     // Poll for execution (other TC members may vote via separate process)
     await pollForTcExecution(api, result, label)
+    return true
   }
+
+  return false
 }
 
 /**

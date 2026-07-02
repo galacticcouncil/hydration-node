@@ -67,7 +67,7 @@ describe('ERC20 Vault Integration', () => {
       ENV.SUBSTRATE_CHAIN_ID,
     )
 
-    const derived = deriveEthAddress()
+    const derived = deriveEthAddress(DISPENSER_SIGNING_PATH, palletSS58Prefix0)
     derivedEthAddress = derived.derivedEthAddress
     derivedPubKey = derived.derivedPubKey
 
