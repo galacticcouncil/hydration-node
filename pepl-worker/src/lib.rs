@@ -851,6 +851,15 @@ where
 	// address, so a block skipped on a timestamp/money-market fetch failure (or imported as
 	// non-best and canonicalized later) must stay queued — a BORROW log must never be lost.
 	let mut pending_event_blocks: Vec<B::Hash> = Vec::new();
+	// Money market + borrowers cached from the latest per-block scan. The oracle fast-path reuses
+	// them (applying only the pending price delta) instead of re-fetching — a fetch is ~200ms of
+	// runtime-API EVM calls, too slow to beat the block that includes the oracle tx. Reusing the
+	// cache lets the fast-path decide + submit in well under a millisecond, so the liquidation is in
+	// the pool before that block seals and lands in it (ordered right after the oracle update by the
+	// priority ladder, W8). A few-seconds-stale cache is fine: the per-block scan is the source of
+	// truth and corrects any miss next block.
+	let mut cached_mm: Option<MoneyMarket> = None;
+	let mut cached_borrowers: Vec<Borrower> = Vec::new();
 
 	loop {
 	  tokio::select! {
@@ -946,6 +955,7 @@ where
 			let scan_list: Vec<EvmAddress> = borrowers.iter().copied().collect();
 
 			let mut decisions = Vec::new();
+			let mut fetched: Vec<Borrower> = Vec::with_capacity(scan_list.len());
 			for addr in &scan_list {
 				let Some(borrower) = hydration.fetch_borrower(&api, b.hash, block_number, &mm, *addr, now) else {
 					// Infra failure — keep the borrower; the set shrinks only on on-chain evidence.
@@ -960,7 +970,11 @@ where
 				if let Some(decision) = decide_liquidation(&task.cfg, &mm, &borrower) {
 					decisions.push(decision);
 				}
+				fetched.push(borrower);
 			}
+			// Cache this block's money market + borrowers for the oracle fast-path.
+			cached_borrowers = fetched;
+			cached_mm = Some(mm);
 			decisions
 		};
 
@@ -1005,39 +1019,12 @@ where
 			continue;
 		}
 
-		let best = client.info().best_hash;
-		let best_number: BlockNumber = client.info().best_number.saturated_into();
-
-		// Phase 1 (SYNC, runtime API scoped — never held across `.await`): fetch the money market
-		// at the current best block, then the borrowers, then apply the pending price updates and
-		// re-decide. `apply_oracle_updates_and_decide` reprices derived/strategy tokens too.
-		let mut decisions: Vec<LiquidationDecision> = {
-			let runtime_api = client.runtime_api();
-			let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
-
-			let Some(now) = api.timestamp(best) else { continue };
-			let Some(mut mm) = hydration.fetch_money_market(&api, best) else { continue };
-
-			// Skip the (expensive) borrower fetch unless an update touches a money-market reserve.
-			let touches_mm = updates.iter().any(|(base, _)| {
-				mm.reserves.values().any(|r| r.symbol.to_ascii_lowercase().contains(base.as_str()))
-			});
-			if !touches_mm {
-				log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path — update touches no money-market reserve, skipping", task.cfg.log_prefix);
-				continue;
-			}
-
-			let scan_list: Vec<EvmAddress> = borrowers.iter().copied().collect();
-			let mut fetched: Vec<Borrower> = Vec::with_capacity(scan_list.len());
-			for addr in &scan_list {
-				if let Some(borrower) = hydration.fetch_borrower(&api, best, best_number, &mm, *addr, now) {
-					fetched.push(borrower);
-				}
-			}
-			log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path fetched {} borrowers to re-check against the pending price(s)", task.cfg.log_prefix, fetched.len());
-
-			apply_oracle_updates_and_decide(&task.cfg, &mut mm, &updates, &fetched)
-		};
+		// Reuse the cached money market + borrowers from the last per-block scan — NO runtime API
+		// call here, so we decide + submit in well under a millisecond and beat the block that
+		// includes the oracle tx. Skip until the first scan has populated the cache.
+		let Some(mm_cache) = cached_mm.as_ref() else { continue };
+		let mut mm = mm_cache.clone();
+		let mut decisions = apply_oracle_updates_and_decide(&task.cfg, &mut mm, &updates, &cached_borrowers);
 
 		if decisions.is_empty() {
 			log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path — no borrower flips underwater on the pending price(s)", task.cfg.log_prefix);
@@ -1046,11 +1033,11 @@ where
 
 		decisions.sort_by(|a, b| b.priority.cmp(&a.priority));
 		let cap = task.cfg.liquidations_per_block as usize;
-		// Phase 2 (ASYNC): runtime API dropped; submit against the current best block.
+		let best = client.info().best_hash;
 		for decision in decisions.iter().take(cap) {
 			let _ = task.submit_liquidation(best, decision).await;
 		}
-		log::info!(target: LOG_TARGET, "{:?} run(): oracle fast-path decided {} liquidations from a pending DIA update, submitted up to {}", task.cfg.log_prefix, decisions.len(), cap);
+		log::info!(target: LOG_TARGET, "{:?} run(): oracle fast-path decided {} liquidations from a pending DIA update (cached mm), submitted up to {}", task.cfg.log_prefix, decisions.len(), cap);
 	    },
 
 	    else => break,
