@@ -73,6 +73,18 @@ pub struct Borrower {
 impl Borrower {
 	/// Calculates user's health factor.
 	pub fn calc_health_factor(&self, money_market: &MoneyMarket) -> Result<U256, Error> {
+		// No debt -> nothing to liquidate; mirrors Aave's `type(uint256).max` health factor.
+		if self.total_debt.is_zero() {
+			return Ok(U256::MAX);
+		}
+
+		// Debt with no collateral (e.g. a simulated full seize) is maximally unhealthy, not an
+		// error — erroring here silently dropped the only viable liquidation option for deeply
+		// underwater borrowers in `calculate_liquidation_options`.
+		if self.total_collateral.is_zero() {
+			return Ok(U256::zero());
+		}
+
 		let mut avg_liq_threshold = U256::zero();
 
 		for r in money_market.reserves.values() {
@@ -87,13 +99,13 @@ impl Borrower {
 				continue;
 			};
 
-			let reserve_liq_threashold: U256 =
+			let reserve_liq_threshold: U256 =
 				r.liquidation_threshold(self.emode_id.is_some() && self.emode_id == r.data.emode_id());
 			avg_liq_threshold = avg_liq_threshold
 				.checked_add(
 					user_reserve
 						.collateral
-						.checked_mul(reserve_liq_threashold)
+						.checked_mul(reserve_liq_threshold)
 						.ok_or(Error::Arithmetic("Overflow"))?,
 				)
 				.ok_or(Error::Arithmetic("Overflow"))?;
@@ -131,7 +143,7 @@ impl Borrower {
 	//Function returns `true` if borrower has any of `reserves`.
 	//
 	// `reserves`: vec of reserves' indexes in `MoneyMarket.reserves`
-	pub fn has_reseserve(&self, reserves: Vec<usize>) -> bool {
+	pub fn has_reserve(&self, reserves: Vec<usize>) -> bool {
 		for idx in reserves {
 			if let Some(Some(_)) = self.reserves.get(idx) {
 				return true;
@@ -185,6 +197,11 @@ impl UserConfiguration {
 	pub fn is_debt(&self, asset_index: usize) -> bool {
 		let bit_mask = U256::from(1) << (2 * asset_index);
 		!(self.0 & bit_mask).is_zero()
+	}
+
+	/// Returns `true` if the user uses any of the reserves (by index) as collateral or debt.
+	pub fn uses_any(&self, indices: &[usize]) -> bool {
+		indices.iter().any(|&idx| self.is_collateral(idx) || self.is_debt(idx))
 	}
 }
 
@@ -356,26 +373,32 @@ pub struct MoneyMarket {
 	pub pool: EvmAddress,
 	pub oracle: EvmAddress,
 	pub reserves: HashMap<EvmAddress, Reserve>,
+	/// Reserve-list indices that failed to load (`fetch_money_market`). One broken reserve must
+	/// not disable ALL liquidations; instead, borrowers holding a poisoned reserve are skipped
+	/// (`fetch_borrower`) — computing their HF on a partially-loaded market would misprice them.
+	pub poisoned: Vec<usize>,
 }
 
 impl MoneyMarket {
+	/// Total on-chain reserve count, including reserves that failed to load.
+	pub fn reserve_count(&self) -> usize {
+		self.reserves.len() + self.poisoned.len()
+	}
+
 	/// Evaluates all liquidation options and returns one that is closest to the `target_health_factor`.
 	/// `borrower` - borrower's data, generated from the `MoneyMarket` with updated price.
 	/// `target_health_factor` - 18 decimal places.
 	///
 	/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`.
 	pub fn calc_best_liquidation_option_for(
-		&mut self,
+		&self,
 		borrower: &Borrower,
 		target_health_factor: U256,
 		log_prefix: &str,
 	) -> Result<Option<LiquidationOption>, Error> {
-		let mut liq_opts = self.calculate_liquidation_options(borrower, target_health_factor, log_prefix)?;
+		let liq_opts = self.calculate_liquidation_options(borrower, target_health_factor, log_prefix)?;
 
-		// choose liquidation option with the highest HF. All HFs should be less or close to the target HF.
-		liq_opts.sort_by(|a, b| a.health_factor.cmp(&b.health_factor));
-
-		Ok(liq_opts.last().cloned())
+		Ok(select_best_liquidation_option(liq_opts, target_health_factor))
 	}
 
 	/// Calculate liquidation options based on the user's reserve, price update and target health factor.
@@ -387,7 +410,7 @@ impl MoneyMarket {
 	///
 	/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`
 	pub fn calculate_liquidation_options(
-		&mut self,
+		&self,
 		borrower: &Borrower,
 		target_health_factor: U256,
 		log_prefix: &str,
@@ -446,7 +469,7 @@ impl MoneyMarket {
 	/// The formula:
 	/// `debt_to_liquidate = (THF * Td - Sum(Ci * Pci * LTi)) / (Pd * (THF - LB * LTc))`
 	/// where
-	///    `THF` - target healt factor
+	///    `THF` - target health factor
 	///    `Td` - total debt in base currency
 	///    `Ci` - collateral amount
 	///    `Pci` - collateral asset price
@@ -491,13 +514,12 @@ impl MoneyMarket {
 		let liq_bonus = collateral.liquidation_bonus(is_coll_emode);
 
 		let Some(Some(borrower_coll)) = borrower.reserves.get(collateral.idx) else {
-			return Err(Error::UnexpectedError("borrower.reserves[collateral.idx]out of bounds. THIS SHOULD NEVEF HAPPEN, please contact project's maintainers"));
+			return Err(Error::UnexpectedError("borrower.reserves[collateral.idx] out of bounds. THIS SHOULD NEVER HAPPEN, please contact project's maintainers"));
 		};
 		let Some(Some(borrower_debt_reserve)) = borrower.reserves.get(debt.idx) else {
-			return Err(Error::UnexpectedError("borrower.reserves[debt.idx]out of bounds. THIS SHOULD NEVEF HAPPEN, please contact project's maintainers"));
+			return Err(Error::UnexpectedError("borrower.reserves[debt.idx] out of bounds. THIS SHOULD NEVER HAPPEN, please contact project's maintainers"));
 		};
 
-		//This is wrong, I have to mul by liquidation_threshold and sum
 		// Convert percentage to decimal number
 		let weighted_total_collateral = weighted_total_collateral
 			.checked_div(percentage_factor)
@@ -663,7 +685,7 @@ impl MoneyMarket {
 		if collateral_amount < collateral.existential_deposit.into()
 			|| actual_debt_to_liquidate < debt.existential_deposit.into()
 		{
-			return Err(Error::LiquidationBellowED);
+			return Err(Error::LiquidationBelowED);
 		}
 
 		Ok(LiquidationAmounts {
@@ -764,6 +786,35 @@ where
 	}
 }
 
+/// Selection policy, best first:
+/// 1. the option landing closest to `target_hf` from within `[1.0, target_hf]` — heals the
+///    position while seizing the least collateral (the partial-to-target design);
+/// 2. otherwise the smallest overshoot above the target (e.g. a simulated full debt repay
+///    yields `U256::MAX`) — heals, seizing no more than necessary;
+/// 3. otherwise (every option leaves HF < 1.0, e.g. close-factor-capped) the highest HF —
+///    best effort; the per-block re-scan drives the follow-up round.
+pub fn select_best_liquidation_option(
+	mut options: Vec<LiquidationOption>,
+	target_hf: U256,
+) -> Option<LiquidationOption> {
+	options.sort_by(|a, b| a.health_factor.cmp(&b.health_factor));
+
+	let one = U256::from(ONE_HF);
+	if let Some(best_healthy) = options
+		.iter()
+		.rev()
+		.find(|o| o.health_factor >= one && o.health_factor <= target_hf)
+	{
+		return Some(best_healthy.clone());
+	}
+
+	if let Some(smallest_overshoot) = options.iter().find(|o| o.health_factor > target_hf) {
+		return Some(smallest_overshoot.clone());
+	}
+
+	options.into_iter().next_back()
+}
+
 #[derive(Eq, PartialEq, Clone, RuntimeDebug)]
 pub struct LiquidationOption {
 	pub health_factor: U256,
@@ -784,7 +835,7 @@ pub struct LiquidationAmounts {
 pub enum Error {
 	RuntimeApi(RuntimeApiErr),
 	AbiDecode(ethabi::Error),
-	LiquidationBellowED,
+	LiquidationBelowED,
 	DecodeInvalidLength,
 	TypeDecode(&'static str),
 	Arithmetic(&'static str),

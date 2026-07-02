@@ -1,1 +1,1 @@
-pub mod fetch;
+mod types;

@@ -1070,11 +1070,40 @@ fn get_asset_address(mm: &MoneyMarket, symbol: &str) -> Option<EvmAddress> {
 // v1-vs-v2 behavioural comparison; v1 is kept as dead code purely to run these.
 // ============================================================================
 
-/// Sets up an underwater borrower on `LIQUIDATION_SNAPSHOT`: binds EVM accounts, sets the
-/// borrowing contract, supplies WETH + DOT collateral, borrows DOT, then triples the DOT oracle
-/// price so the health factor drops below 1. Returns `(pool_contract, borrower_evm, caller)`.
+/// One parity-matrix scenario: how the underwater position is built.
+struct ParityScenario {
+	name: &'static str,
+	weth_supply: Balance,
+	dot_supply: Balance,
+	dot_borrow: Balance,
+	/// DOT/USD price multiplier `(numerator, denominator)` applied to underwater the position.
+	price_mul: (u128, u128),
+	/// `Some(true)`: expect pre-liquidation HF above the 0.95 close-factor threshold (50% close
+	/// factor branch); `Some(false)`: below it (100% branch); `None`: don't assert.
+	hf_above_close_factor_threshold: Option<bool>,
+}
+
+/// The original pinned scenario: WETH + DOT collateral, DOT debt, DOT price tripled.
+const PINNED_SCENARIO: ParityScenario = ParityScenario {
+	name: "pinned",
+	weth_supply: 10 * WETH_UNIT,
+	dot_supply: 5_000 * DOT_UNIT,
+	dot_borrow: 5_000 * DOT_UNIT,
+	price_mul: (6, 2),
+	hf_above_close_factor_threshold: None,
+};
+
+/// Sets up an underwater borrower on `LIQUIDATION_SNAPSHOT` (the pinned scenario): binds EVM
+/// accounts, sets the borrowing contract, supplies WETH + DOT collateral, borrows DOT, then
+/// triples the DOT oracle price so the health factor drops below 1.
+/// Returns `(pool_contract, borrower_evm, caller)`.
 /// Must be called inside `hydra_live_ext(PATH_TO_SNAPSHOT_2).execute_with(..)`.
 fn create_unhealthy_borrower() -> (EvmAddress, EvmAddress, EvmAddress) {
+	create_unhealthy_borrower_with(&PINNED_SCENARIO)
+}
+
+/// Parameterized variant of [`create_unhealthy_borrower`] used by the parity matrix.
+fn create_unhealthy_borrower_with(s: &ParityScenario) -> (EvmAddress, EvmAddress, EvmAddress) {
 	deposit_hdx_to_protocol_account();
 	hydradx_run_to_next_block();
 
@@ -1105,18 +1134,22 @@ fn create_unhealthy_borrower() -> (EvmAddress, EvmAddress, EvmAddress) {
 	));
 	assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
 
-	supply(pool_contract, alice_evm_address, weth_asset_address, 10 * WETH_UNIT);
-	supply(pool_contract, alice_evm_address, dot_asset_address, 5_000 * DOT_UNIT);
-	borrow(pool_contract, alice_evm_address, dot_asset_address, 5_000 * DOT_UNIT);
+	if s.weth_supply > 0 {
+		supply(pool_contract, alice_evm_address, weth_asset_address, s.weth_supply);
+	}
+	if s.dot_supply > 0 {
+		supply(pool_contract, alice_evm_address, dot_asset_address, s.dot_supply);
+	}
+	borrow(pool_contract, alice_evm_address, dot_asset_address, s.dot_borrow);
 	hydradx_run_to_next_block();
 
 	// healthy before the price move
 	let usr = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 	assert!(usr.health_factor > U256::from(1_000_000_000_000_000_000u128));
 
-	// triple the DOT price (DOT is the debt) -> HF < 1
+	// raise the DOT price (DOT is the debt) -> HF < 1
 	let (price, timestamp) = get_oracle_price("DOT/USD").unwrap();
-	let price = price.as_u128() * 6 / 2;
+	let price = price.as_u128() * s.price_mul.0 / s.price_mul.1;
 	let timestamp = timestamp.as_u128() + 6;
 	let mut data = price.to_be_bytes().to_vec();
 	data.extend_from_slice(timestamp.to_be_bytes().as_ref());
@@ -1127,9 +1160,58 @@ fn create_unhealthy_borrower() -> (EvmAddress, EvmAddress, EvmAddress) {
 	);
 
 	let usr = get_user_account_data(pool_contract, alice_evm_address).unwrap();
-	assert!(usr.health_factor < U256::from(1_000_000_000_000_000_000u128));
+	let hf = usr.health_factor;
+	eprintln!("parity[{}]: pre-liquidation HF = {:?}", s.name, hf);
+	assert!(hf < U256::from(1_000_000_000_000_000_000u128));
+
+	// pin which close-factor branch this scenario exercises
+	let close_factor_threshold = U256::from(950_000_000_000_000_000u128);
+	match s.hf_above_close_factor_threshold {
+		Some(true) => assert!(
+			hf > close_factor_threshold,
+			"{}: expected pre-liq HF above 0.95, got {:?}",
+			s.name,
+			hf
+		),
+		Some(false) => assert!(
+			hf < close_factor_threshold,
+			"{}: expected pre-liq HF below 0.95, got {:?}",
+			s.name,
+			hf
+		),
+		None => {}
+	}
 
 	(pool_contract, alice_evm_address, caller)
+}
+
+/// Drives BOTH decision paths on scenario `s`, asserts exact v1==v2 parity, executes the shared
+/// decision on-chain and asserts the HF is restored to target. Returns v2's decision so callers
+/// can pin exact values.
+fn run_parity_scenario(s: &ParityScenario) -> pepl_worker::LiquidationDecision {
+	let (pool_contract, borrower_evm, caller) = create_unhealthy_borrower_with(s);
+
+	let v2 = v2_decision(caller, borrower_evm);
+	let (v1_coll, v1_debt, v1_amount) = v1_decision(caller, borrower_evm);
+	eprintln!("parity[{}]: v2 decision = {v2:?}", s.name);
+
+	assert_eq!(v1_coll, v2.collateral_asset, "{}: collateral asset mismatch v1 vs v2", s.name);
+	assert_eq!(v1_debt, v2.debt_asset, "{}: debt asset mismatch v1 vs v2", s.name);
+	assert_eq!(v1_amount, v2.debt_to_cover, "{}: debt amount mismatch v1 vs v2", s.name);
+
+	assert_ok!(Liquidation::liquidate(
+		RuntimeOrigin::signed(BOB.into()),
+		v2.collateral_asset,
+		v2.debt_asset,
+		borrower_evm,
+		v2.debt_to_cover,
+		BoundedVec::new(),
+		Some(v2.priority),
+	));
+	let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
+	assert_health_factor_is_within_tolerance(usr.health_factor, U256::from(TARGET_HF));
+
+	v2
 }
 
 /// Fetch the v2 money-market + borrower and run `decide_liquidation` for `borrower_evm`.
@@ -1140,7 +1222,7 @@ fn v2_decision(caller: EvmAddress, borrower_evm: EvmAddress) -> pepl_worker::Liq
 	let block = hydradx_runtime::System::block_hash(block_number);
 	let now = api.timestamp(block).expect("timestamp");
 
-	let mut mm = hydration
+	let mm = hydration
 		.fetch_money_market(&api, block)
 		.expect("v2 fetch_money_market");
 	let borrower = hydration
@@ -1152,7 +1234,7 @@ fn v2_decision(caller: EvmAddress, borrower_evm: EvmAddress) -> pepl_worker::Liq
 		log_prefix: LOG_PREFIX.to_string(),
 		..Default::default()
 	};
-	pepl_worker::decide_liquidation(&cfg, &mut mm, &borrower).expect("v2 should decide to liquidate")
+	pepl_worker::decide_liquidation(&cfg, &mm, &borrower).expect("v2 should decide to liquidate")
 }
 
 /// Fetch the v1 money-market + user and run `get_best_liquidation_option`. Returns the on-chain
@@ -1245,5 +1327,79 @@ fn v1_and_v2_should_choose_same_liquidation_when_borrower_is_underwater() {
 		));
 		let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
 		assert_health_factor_is_within_tolerance(usr.health_factor, U256::from(TARGET_HF));
+	});
+}
+
+// ============================================================================
+// R5 parity matrix — scenarios beyond the pinned DOT/DOT case. Each drives BOTH
+// workers on the same position, requires an IDENTICAL decision, executes it and
+// requires HF restoration. Coverage: both close-factor branches (pre-liq HF
+// above/below 0.95) and a cross-asset choice with mismatched decimals (WETH 18
+// vs DOT 10). NOT covered: eMode — the test money market has no eMode category
+// configured; that path needs Tier-2 / a snapshot with eMode.
+// The pinned scenario above (3x, pre-liq HF ≈ 0.933) already exercises the
+// below-0.95 (100% close factor) branch.
+// ============================================================================
+
+// mild shock: pre-liq HF ≈ 0.969 > 0.95 -> DEFAULT (50%) close-factor branch
+#[test]
+fn v1_and_v2_should_choose_same_liquidation_when_close_factor_is_default() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_2).execute_with(|| {
+		let v2 = run_parity_scenario(&ParityScenario {
+			name: "close-factor-default",
+			weth_supply: 10 * WETH_UNIT,
+			dot_supply: 5_000 * DOT_UNIT,
+			dot_borrow: 5_000 * DOT_UNIT,
+			price_mul: (5, 2),
+			hf_above_close_factor_threshold: Some(true),
+		});
+
+		assert_eq!(v2.collateral_asset, DOT);
+		assert_eq!(v2.debt_asset, DOT);
+		assert_eq!(v2.debt_to_cover, 7_983_228_329_300);
+		assert_eq!(v2.priority, 173_179);
+	});
+}
+
+// severe shock: pre-liq HF ≈ 0.887 < 0.95 -> MAX (100%) close-factor branch, deeper than pinned
+#[test]
+fn v1_and_v2_should_choose_same_liquidation_when_deeply_underwater() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_2).execute_with(|| {
+		let v2 = run_parity_scenario(&ParityScenario {
+			name: "close-factor-max",
+			weth_supply: 10 * WETH_UNIT,
+			dot_supply: 5_000 * DOT_UNIT,
+			dot_borrow: 5_000 * DOT_UNIT,
+			price_mul: (4, 1),
+			hf_above_close_factor_threshold: Some(false),
+		});
+
+		assert_eq!(v2.collateral_asset, DOT);
+		assert_eq!(v2.debt_asset, DOT);
+		assert_eq!(v2.debt_to_cover, 28_698_585_734_800);
+		assert_eq!(v2.priority, 254_730);
+	});
+}
+
+// WETH-only collateral vs DOT debt: cross-asset pair with mismatched decimals (18 vs 10)
+#[test]
+fn v1_and_v2_should_choose_same_liquidation_when_collateral_is_cross_asset_weth() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_2).execute_with(|| {
+		let v2 = run_parity_scenario(&ParityScenario {
+			name: "cross-asset-weth",
+			weth_supply: 10 * WETH_UNIT,
+			dot_supply: 0,
+			dot_borrow: 2_000 * DOT_UNIT,
+			price_mul: (7, 5),
+			hf_above_close_factor_threshold: Some(true),
+		});
+
+		assert_eq!(v2.collateral_asset, WETH);
+		assert_eq!(v2.debt_asset, DOT);
+		assert_eq!(v2.debt_to_cover, 2_727_049_921_500);
+		assert_eq!(v2.priority, 37_260);
 	});
 }

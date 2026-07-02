@@ -283,7 +283,7 @@ fn set_borrowing_contract_should_work() {
 }
 
 #[test]
-fn validate_unsinged_should_work_when_submitted_from_local() {
+fn validate_unsigned_should_work_when_submitted_from_local() {
 	ExtBuilder::default().build().execute_with(|| {
 		let collateral_asset: AssetId = HDX;
 		let debt_asset: AssetId = DOT;
@@ -291,7 +291,7 @@ fn validate_unsinged_should_work_when_submitted_from_local() {
 		let debt_to_cover: Balance = 1_000;
 		let route: Route<AssetId> = BoundedVec::new();
 		let priority = 1_000;
-		let unsinged_priority = Some(priority);
+		let unsigned_priority = Some(priority);
 
 		let c = pallet::Call::<Test>::liquidate {
 			collateral_asset,
@@ -299,7 +299,7 @@ fn validate_unsinged_should_work_when_submitted_from_local() {
 			user,
 			debt_to_cover,
 			route,
-			unsinged_priority,
+			unsigned_priority,
 		};
 
 		assert_eq!(
@@ -339,14 +339,14 @@ fn liquidate_with_gigahdx_collateral_should_refuse_when_debt_is_not_hollar() {
 }
 
 #[test]
-fn validate_unsinged_priority_should_be_up_to_max_unsigned_liquidation_priority() {
+fn validate_unsigned_priority_should_be_up_to_max_unsigned_liquidation_priority() {
 	ExtBuilder::default().build().execute_with(|| {
 		let collateral_asset: AssetId = HDX;
 		let debt_asset: AssetId = DOT;
 		let user: EvmAddress = EvmAccounts::evm_address(&BOB);
 		let debt_to_cover: Balance = 1_000;
 		let route: Route<AssetId> = BoundedVec::new();
-		let unsinged_priority = Some(u64::MAX);
+		let unsigned_priority = Some(u64::MAX);
 
 		let c = pallet::Call::<Test>::liquidate {
 			collateral_asset,
@@ -354,7 +354,7 @@ fn validate_unsinged_priority_should_be_up_to_max_unsigned_liquidation_priority(
 			user,
 			debt_to_cover,
 			route,
-			unsinged_priority,
+			unsigned_priority,
 		};
 
 		assert_eq!(

@@ -23,6 +23,9 @@ use types::*;
 pub mod math;
 pub mod types;
 
+#[cfg(test)]
+mod tests;
+
 const LOG_TARGET: &str = "liquidation-worker";
 
 // Functions prefixed with `fetch_` do external (runtime API) calls. The liquidation close-factor
@@ -122,7 +125,7 @@ impl Hydration {
 		}
 	}
 
-	/// Function fetches and returns money morket data for PEPL purposes
+	/// Function fetches and returns money market data for PEPL purposes
 	pub fn fetch_money_market<B: Block, RA: RuntimeApiProvider<B>>(
 		&self,
 		api: &RA,
@@ -145,40 +148,60 @@ impl Hydration {
 			log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): failed to fetch reserves list, err: {:?} duration: {:?}", self.log_prefix, e, timer.elapsed().as_nanos());
 		}).ok()?;
 
+		// A reserve that fails to load must NOT abort the whole money market — one broken reserve
+		// would otherwise disable ALL liquidations. Poison its index instead; borrowers holding a
+		// poisoned reserve are skipped in `fetch_borrower`.
 		let mut reserves = HashMap::with_capacity(reserves_list.len());
+		let mut poisoned = Vec::new();
 		for (idx, reserve_addr) in reserves_list.into_iter().enumerate() {
-			let reserve = self.fetch_reserve_data(api, block, pool, reserve_addr).inspect_err(|e| {
+			let Ok(reserve) = self.fetch_reserve_data(api, block, pool, reserve_addr).inspect_err(|e| {
 				log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): failed to fetch reserve data, reserve: {:?}, err: {:?}, duration: {:?}", self.log_prefix, reserve_addr, e, timer.elapsed().as_nanos());
-			}).ok()?;
-
-			let symbol = self.fetch_symbol(api, block, reserve_addr).inspect_err(|e| {
-				log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): failed to fetch reserve's symbol, reserve: {:?}, err: {:?}, duration: {:?}", self.log_prefix, reserve_addr, e, timer.elapsed().as_nanos());
-			}).ok()?;
-
-			let Some(asset_id) = api.address_to_asset(block, reserve_addr).inspect_err(|e| {
-				log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): failed to convert reserve to asset id, reserve: {:?}, symbol: {:?}, err: {:?}, duration: {:?}", self.log_prefix, reserve_addr, symbol, e, timer.elapsed().as_nanos());
-			}).ok()? else {
-				log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): failed to convert reserve to asset id, reserve: {:?}, symbol: {:?}, duration: {:?}", self.log_prefix, reserve_addr, symbol, timer.elapsed().as_nanos());
-				return None;
+			}) else {
+				poisoned.push(idx);
+				continue;
 			};
 
-			let existential_deposit = api.minimum_balance(block, asset_id).inspect_err(|e| {
+			let Ok(symbol) = self.fetch_symbol(api, block, reserve_addr).inspect_err(|e| {
+				log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): failed to fetch reserve's symbol, reserve: {:?}, err: {:?}, duration: {:?}", self.log_prefix, reserve_addr, e, timer.elapsed().as_nanos());
+			}) else {
+				poisoned.push(idx);
+				continue;
+			};
+
+			let Ok(Some(asset_id)) = api.address_to_asset(block, reserve_addr).inspect_err(|e| {
+				log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): failed to convert reserve to asset id, reserve: {:?}, symbol: {:?}, err: {:?}, duration: {:?}", self.log_prefix, reserve_addr, symbol, e, timer.elapsed().as_nanos());
+			}) else {
+				log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): no asset id for reserve, reserve: {:?}, symbol: {:?}, duration: {:?}", self.log_prefix, reserve_addr, symbol, timer.elapsed().as_nanos());
+				poisoned.push(idx);
+				continue;
+			};
+
+			let Ok(existential_deposit) = api.minimum_balance(block, asset_id).inspect_err(|e| {
 				log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): failed to get reserve's existential deposit, reserve: {:?}, symbol: {:?}, asset_id: {:?}, err: {:?}, duration: {:?}", self.log_prefix, reserve_addr, symbol, asset_id, e, timer.elapsed().as_nanos());
-			}).ok()?;
+			}) else {
+				poisoned.push(idx);
+				continue;
+			};
 
 			let emode = if let Some(emode_id) = reserve.emode_id() {
-				let emode = self.fetch_emode_category(api, block, pool, emode_id).inspect_err(|e| {
+				let Ok(emode) = self.fetch_emode_category(api, block, pool, emode_id).inspect_err(|e| {
 					log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): failed to fetch emode data, emode_id: {:?}, err: {:?}, duration: {:?}", self.log_prefix, emode_id, e, timer.elapsed().as_nanos());
-				}).ok()?;
+				}) else {
+					poisoned.push(idx);
+					continue;
+				};
 
 				Some(emode)
 			} else {
 				None
 			};
 
-			let price = self.fetch_asset_price(api, block, oracle, reserve_addr).inspect_err(|e| {
+			let Ok(price) = self.fetch_asset_price(api, block, oracle, reserve_addr).inspect_err(|e| {
 				log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): failed to fetch reserves's price, reserve: {:?}, symbol: {:?}, err: {:?}, duration: {:?}", self.log_prefix, reserve_addr, symbol,e, timer.elapsed().as_nanos());
-			}).ok()?;
+			}) else {
+				poisoned.push(idx);
+				continue;
+			};
 
 			reserves.insert(
 				reserve_addr,
@@ -195,12 +218,20 @@ impl Hydration {
 			);
 		}
 
+		if !poisoned.is_empty() {
+			log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): {} reserve(s) failed to load and are poisoned; borrowers holding them will be skipped, indices: {:?}", self.log_prefix, poisoned.len(), poisoned);
+		}
+
 		log::info!(target: LOG_TARGET, "{:?}: fetch_money_market(): finished, duration: {:?}", self.log_prefix, timer.elapsed().as_nanos());
-		//TODO: do we need `pool` and `oracle` in `MoneyMarket` ???
-		Some(MoneyMarket { pool, oracle, reserves })
+		Some(MoneyMarket {
+			pool,
+			oracle,
+			reserves,
+			poisoned,
+		})
 	}
 
-	/// Function loads borrower's data from
+	/// Function loads borrower's data from the money market contracts.
 	pub fn fetch_borrower<B: Block, RA: RuntimeApiProvider<B>>(
 		&self,
 		api: &RA,
@@ -217,11 +248,18 @@ impl Hydration {
 		log::error!(target: LOG_TARGET, "{:?}: fetch_borrower(): failed to fetch borrower's configuration data, who: {:?}, err: {:?}, duration: {:?}", self.log_prefix, who, e, timer.elapsed().as_nanos());
 	}).ok()?;
 
+		// Never compute HF on a partially-loaded market: a borrower holding a poisoned reserve
+		// would be silently mispriced. Skip them (loudly) until the reserve loads again.
+		if configuration.uses_any(&mm.poisoned) {
+			log::warn!(target: LOG_TARGET, "{:?}: fetch_borrower(): borrower holds a reserve that failed to load, skipping, who: {:?}, poisoned: {:?}", self.log_prefix, who, mm.poisoned);
+			return None;
+		}
+
 		let mut total_debt = U256::zero();
 		let mut total_collateral = U256::zero();
 
-		//NOTE: we are using option so we can access reserves by index
-		let mut reserves: Vec<Option<UserReserve>> = vec![None; mm.reserves.len()];
+		//NOTE: we are using option so we can access reserves by index (poisoned indices stay None)
+		let mut reserves: Vec<Option<UserReserve>> = vec![None; mm.reserve_count()];
 		for (addr, r) in &mm.reserves {
 			let coll: U256 = if configuration.is_collateral(r.idx) {
 				self.fetch_borrower_collateral_and_convert_to_base(api, block, who, r, now).inspect_err(|e| {

@@ -25,6 +25,7 @@ use primitives::EvmAddress;
 use sc_client_api::BlockchainEvents;
 use sc_client_api::HeaderBackend;
 use sc_client_api::StorageKey;
+use sc_transaction_pool_api::InPoolTransaction;
 use sc_transaction_pool_api::TransactionPool;
 use sc_transaction_pool_api::TransactionSource;
 use serde::Deserialize;
@@ -37,6 +38,7 @@ use sp_runtime::traits::Zero;
 use sp_runtime::BoundedVec;
 use sp_runtime::OpaqueExtrinsic;
 use sp_runtime::SaturatedConversion;
+use std::collections::HashSet;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -47,7 +49,7 @@ mod tests;
 
 const LOG_TARGET: &str = "liquidation-worker";
 
-// Target healt factor after liquidation
+// Target health factor after liquidation
 const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
 
 const ONE_HF: u128 = 1_000_000_000_000_000_000; //1.0(10^18)
@@ -58,7 +60,7 @@ const ONE_BASE: u128 = 100_000_000;
 // URL of serve to fetch borrowers list
 const OMNIWATCH_URL: &str = "https://omniwatch.play.hydration.cloud/api/borrowers/by-health";
 
-// Number of liquidation trasactions submited per 1 block
+// Number of liquidation transactions submitted per 1 block
 const LIQUIDATIONS_PER_BLOCK: u8 = 20;
 
 // Default worker log prefix (overridable once a CLI flag exists).
@@ -67,11 +69,20 @@ const DEFAULT_LOG_PREFIX: &str = "pepl-worker";
 // Borrowers holding less than this collateral (in base currency, 8 dec.) are skipped as dust.
 const MIN_COLLATERAL_BASE: u128 = ONE_BASE;
 
-// Omniwatch fetch: bounded retries + backoff, and how often `run()` re-fetches the borrower list
-// (to pick up new borrowers and to recover a seed that failed while omniwatch was down).
+// Omniwatch fetch: bounded retries + backoff + per-attempt timeout (an omniwatch that accepts
+// connections but never responds must not hang the worker), and how often `run()` re-fetches the
+// borrower list (to pick up new borrowers and to recover a seed that failed while omniwatch was
+// down).
 const OMNIWATCH_FETCH_ATTEMPTS: u32 = 5;
 const OMNIWATCH_FETCH_BACKOFF: Duration = Duration::from_secs(3);
+const OMNIWATCH_FETCH_TIMEOUT: Duration = Duration::from_secs(10);
 const OMNIWATCH_REFETCH_EVERY_N_BLOCKS: u32 = 100;
+// Until the FIRST successful omniwatch fetch, re-seed more often: event discovery only sees new
+// borrows, so pre-existing borrowers stay invisible until a seed succeeds (the prod-miss shape).
+const OMNIWATCH_REFETCH_UNSEEDED_EVERY_N_BLOCKS: u32 = 10;
+
+// Cap on blocks queued for BORROW-event scanning while the money market can't be fetched.
+const MAX_PENDING_EVENT_BLOCKS: usize = 256;
 
 // Contracts' addresses
 pub mod contracts {
@@ -82,9 +93,6 @@ pub mod contracts {
 
 	// Address of the pool address provider contract.
 	pub const POOL_ADDRESS_PROVIDER: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67822a15fca691"));
-
-	// Money market address
-	pub const BORROW_CALL: EvmAddress = H160(hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38"));
 
 	// Account that calls the runtime API. Needs to have enough of WETH to pay for the runtime API call.
 	pub const RUNTIME_API_CALLER: EvmAddress = H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e"));
@@ -105,7 +113,6 @@ pub mod contracts {
 mod events {
 	use super::*;
 
-	#[allow(dead_code)]
 	pub const BORROW: H256 = H256(hex!("b3d084820fb1a9decffb176436bd02558d15fac9b0ddfed8c465bc7359d7dce0"));
 }
 
@@ -113,7 +120,9 @@ mod omniwatch {
 	use super::*;
 	use primitives::AccountId;
 
-	#[derive(Clone, Encode, Decode, Deserialize, Debug)]
+	// Fields mirror the omniwatch JSON schema; only the borrower addresses are consumed.
+	#[allow(dead_code)]
+	#[derive(Clone, Deserialize, Debug)]
 	#[serde(rename_all = "camelCase")]
 	pub struct BorrowerData {
 		pub total_collateral_base: f32,
@@ -127,7 +136,8 @@ mod omniwatch {
 		pub pool: EvmAddress,
 	}
 
-	#[derive(Clone, Encode, Decode, Deserialize, Debug)]
+	#[allow(dead_code)]
+	#[derive(Clone, Deserialize, Debug)]
 	#[serde(rename_all = "camelCase")]
 	pub struct ByHealthRes {
 		pub last_global_update: u32,
@@ -159,12 +169,6 @@ mod storage_key {
 	use super::*;
 
 	pub const SYSTEM_EVENTS: [u8; 32] = hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7");
-}
-
-mod traits {
-	//NOTE: maybe this won't be necessary
-	#[allow(dead_code)]
-	pub trait Client {}
 }
 
 /// The configuration for the liquidation worker cli params.
@@ -230,8 +234,8 @@ pub struct LiquidationTaskConfig {
 	pub liquidations_per_block: u8,
 
 	/// Min. borrower's collateral in [BASE] to calculate liquidation.
-	/// Borrowers holding `< min_collaterall` are skipped
-	pub min_collaterall: U256,
+	/// Borrowers holding `< min_collateral` are skipped
+	pub min_collateral: U256,
 
 	pub log_prefix: String,
 }
@@ -250,7 +254,7 @@ impl From<LiquidationWorkerCli> for LiquidationTaskConfig {
 			liquidations_per_block: v.liquidations_per_block.unwrap_or(LIQUIDATIONS_PER_BLOCK),
 
 			//TODO: make these configurable
-			min_collaterall: U256::from(MIN_COLLATERAL_BASE),
+			min_collateral: U256::from(MIN_COLLATERAL_BASE),
 			log_prefix: DEFAULT_LOG_PREFIX.to_string(),
 		}
 	}
@@ -266,7 +270,7 @@ impl Default for LiquidationTaskConfig {
 			target_hf: TARGET_HF,
 			omniwatch_url: OMNIWATCH_URL.to_string(),
 			liquidations_per_block: LIQUIDATIONS_PER_BLOCK,
-			min_collaterall: U256::from(MIN_COLLATERAL_BASE),
+			min_collateral: U256::from(MIN_COLLATERAL_BASE),
 			log_prefix: DEFAULT_LOG_PREFIX.to_string(),
 		}
 	}
@@ -285,16 +289,15 @@ pub struct LiquidationDecision {
 /// Pure decision step: given an up-to-date money market and borrower, decide whether — and how —
 /// to liquidate. Returns `None` when the borrower should be skipped (dust, healthy, no liquidation
 /// option, or a reserve lookup miss). Does no I/O and touches no transaction pool, so it is
-/// unit-testable without a node. `money_market` is `&mut` only because
-/// `calc_best_liquidation_option_for` mutates its own working state.
+/// unit-testable without a node.
 pub fn decide_liquidation(
 	cfg: &LiquidationTaskConfig,
-	money_market: &mut MoneyMarket,
+	money_market: &MoneyMarket,
 	borrower: &Borrower,
 ) -> Option<LiquidationDecision> {
 	let log_prefix = cfg.log_prefix.as_str();
 
-	if borrower.total_collateral < cfg.min_collaterall {
+	if borrower.total_collateral < cfg.min_collateral {
 		log::info!(target: LOG_TARGET, "{:?} decide_liquidation(): collateral below min, skipping, borrower: {:?}, collateral: {:?}", log_prefix, borrower.address, borrower.total_collateral);
 		return None;
 	}
@@ -370,11 +373,13 @@ where
 	<B as BlockT>::Extrinsic: frame_support::traits::IsType<hydradx_runtime::opaque::UncheckedExtrinsic>,
 {
 	pub fn new(client: C, transaction_pool: Arc<TP>, cfg: LiquidationTaskConfig) -> Self {
-		//It's ok to panic here, collator should fix URL or disable liquidation worker
+		// Deliberate fail-fast: a mistyped --omniwatch-url panics at startup so the operator
+		// notices immediately — a collator silently running without its liquidation worker is
+		// the production-incident shape this worker exists to prevent.
 		let url = cfg
 			.omniwatch_url
 			.parse()
-			.expect("LiquidationTaks: failed to parse omniwatch_url, provide correct --omniwatch-url or disable liquidation worker");
+			.expect("LiquidationTask: failed to parse omniwatch_url, provide correct --omniwatch-url or disable liquidation worker");
 
 		Self {
 			client,
@@ -396,7 +401,7 @@ where
 			user: decision.user,
 			debt_to_cover: decision.debt_to_cover,
 			route: BoundedVec::new(),
-			unsinged_priority: Some(decision.priority),
+			unsigned_priority: Some(decision.priority),
 		});
 
 		let encoded_tx: fp_self_contained::UncheckedExtrinsic<
@@ -435,16 +440,16 @@ where
 	/// Function returns all events from `system.events` storage at `block`
 	pub fn load_events(&self, block: B::Hash) -> Vec<EventRecord<RuntimeEvent, hydradx_runtime::Hash>> {
 		let timer = Instant::now();
-		log::info!(target: LOG_TARGET, "{:?} LiquidationTaks.load_events(): fetching events from storage", self.cfg.log_prefix);
+		log::info!(target: LOG_TARGET, "{:?} LiquidationTask.load_events(): fetching events from storage", self.cfg.log_prefix);
 
 		let events = match self.client.storage(block, &self.system_events_key) {
 			Ok(Some(events)) => events,
 			Ok(None) => {
-				log::info!(target: LOG_TARGET, "{:?}.LiquidationTaks.load_events(): finished, stroage treturned no data, elapsed: {:?}", self.cfg.log_prefix, timer.elapsed().as_nanos());
+				log::info!(target: LOG_TARGET, "{:?} LiquidationTask.load_events(): finished, storage returned no data, elapsed: {:?}", self.cfg.log_prefix, timer.elapsed().as_nanos());
 				return Vec::new();
 			}
 			Err(e) => {
-				log::error!(target: LOG_TARGET, "{:?} LiquidationTaks.load_events(): failed to load events from storage. err: {:?}, elapsed: {:?}", self.cfg.log_prefix, e, timer.elapsed().as_nanos());
+				log::error!(target: LOG_TARGET, "{:?} LiquidationTask.load_events(): failed to load events from storage. err: {:?}, elapsed: {:?}", self.cfg.log_prefix, e, timer.elapsed().as_nanos());
 				return Vec::new();
 			}
 		};
@@ -452,17 +457,17 @@ where
 		let events = match Vec::<EventRecord<RuntimeEvent, hydradx_runtime::Hash>>::decode(&mut events.0.as_slice()) {
 			Ok(events) => events,
 			Err(e) => {
-				log::error!(target: LOG_TARGET, "{:?} LiquidationTaks.load_events(): failed to decode stroage item, err: {:?}, elapsed: {:?}", self.cfg.log_prefix, e, timer.elapsed().as_nanos());
+				log::error!(target: LOG_TARGET, "{:?} LiquidationTask.load_events(): failed to decode storage item, err: {:?}, elapsed: {:?}", self.cfg.log_prefix, e, timer.elapsed().as_nanos());
 				Vec::new()
 			}
 		};
 
-		log::info!(target: LOG_TARGET, "{:?}.LiquidationTaks.load_events(): finished loading {:?} events, elapsed: {:?}", self.cfg.log_prefix, events.len(), timer.elapsed().as_nanos());
+		log::info!(target: LOG_TARGET, "{:?} LiquidationTask.load_events(): finished loading {:?} events, elapsed: {:?}", self.cfg.log_prefix, events.len(), timer.elapsed().as_nanos());
 		events
 	}
 }
 
-/// Function fetches and returns list of borrowes' addresses from provided `url`.
+/// Function fetches and returns list of borrowers' addresses from provided `url`.
 /// Returned list is not deduped nor sorted in any way.
 async fn fetch_borrowers_list(https: &https::Client, url: Uri, log_prefix: &str) -> Option<Vec<EvmAddress>> {
 	let timer = Instant::now();
@@ -513,34 +518,42 @@ async fn fetch_borrowers_list(https: &https::Client, url: Uri, log_prefix: &str)
 	Some(b)
 }
 
-/// Fetches the omniwatch borrower list with bounded retries + backoff. Returns an empty list
-/// (never panics) when every attempt fails, so a transient omniwatch outage never kills the worker.
-/// `run()` keeps the previous list on a failed re-fetch and re-fetches periodically, so a seed that
-/// failed at startup recovers once omniwatch is reachable again.
+/// Fetches the omniwatch borrower list with bounded retries + backoff. Each attempt is bounded by
+/// `timeout` so an omniwatch that accepts connections but never responds cannot hang the worker.
+/// Returns `None` (never panics) when every attempt fails, so a transient omniwatch outage never
+/// kills the worker — `run()` starts unseeded and recovers via background re-seeds and
+/// event-driven discovery.
 async fn fetch_borrowers_list_with_retry(
 	https: &https::Client,
 	url: Uri,
 	log_prefix: &str,
 	max_attempts: u32,
 	backoff: Duration,
-) -> Vec<EvmAddress> {
+	timeout: Duration,
+) -> Option<Vec<EvmAddress>> {
 	for attempt in 1..=max_attempts {
-		if let Some(borrowers) = fetch_borrowers_list(https, url.clone(), log_prefix).await {
-			return borrowers;
+		match tokio::time::timeout(timeout, fetch_borrowers_list(https, url.clone(), log_prefix)).await {
+			Ok(Some(borrowers)) => return Some(borrowers),
+			Ok(None) => {}
+			Err(_) => {
+				log::error!(target: LOG_TARGET, "{log_prefix:?} fetch_borrowers_list_with_retry(): attempt timed out after {timeout:?}");
+			}
 		}
 		log::warn!(target: LOG_TARGET, "{log_prefix:?} fetch_borrowers_list_with_retry(): attempt {attempt}/{max_attempts} failed");
 		if attempt < max_attempts {
 			tokio::time::sleep(backoff).await;
 		}
 	}
-	log::error!(target: LOG_TARGET, "{log_prefix:?} fetch_borrowers_list_with_retry(): all {max_attempts} attempts failed; starting with an empty borrower list and relying on event-driven discovery");
-	Vec::new()
+	log::error!(target: LOG_TARGET, "{log_prefix:?} fetch_borrowers_list_with_retry(): all {max_attempts} attempts failed; starting unseeded — event-driven discovery still adds new borrowers and re-seeding continues in the background");
+	None
 }
 
-// Function iterates over `events` and returns list of new borrowers
-#[allow(dead_code)]
+// Function iterates over `events` and returns the borrowers from `pool`'s BORROW logs. The pool
+// address is the dynamically resolved one (`MoneyMarket.pool`), not a hardcoded constant, so
+// discovery keeps working if the PoolAddressesProvider ever points at a new pool.
 pub(crate) fn process_events(
 	events: Vec<EventRecord<RuntimeEvent, hydradx_runtime::Hash>>,
+	pool: EvmAddress,
 	log_prefix: &str,
 ) -> Vec<EvmAddress> {
 	let timer = Instant::now();
@@ -552,7 +565,7 @@ pub(crate) fn process_events(
 			continue;
 		};
 
-		if log.address == contracts::BORROW_CALL && log.topics.first() == Some(&events::BORROW) {
+		if log.address == pool && log.topics.first() == Some(&events::BORROW) {
 			let Some(&borrower) = log.topics.get(2) else {
 				continue;
 			};
@@ -565,8 +578,8 @@ pub(crate) fn process_events(
 	borrowers
 }
 
-/// Function checks if transactionsis dia's oracle update transactiona and return `Transaction` or
-/// `None`
+/// Function checks if the transaction is DIA's oracle update transaction and returns `Transaction`
+/// or `None`.
 #[allow(dead_code)]
 pub(crate) fn is_oracle_update_tx(
 	extrinsic: &sp_runtime::generic::UncheckedExtrinsic<
@@ -623,6 +636,173 @@ pub(crate) fn is_oracle_update_tx(
 	Some(transaction)
 }
 
+/// Parse a DIA oracle-update EVM transaction into `(base_asset_name_lowercase, new_price)` pairs.
+/// Handles both `setValue(string,uint128,uint128)` and `setMultipleValues(string[],uint256[])`.
+/// The DIA key is `"ASSET/USD"`; we keep the lowercased `ASSET` part. `new_price` is the DIA value
+/// (oracle 8-decimal USD, same scale as `Reserve.price`). Ports v1's `parse_oracle_transaction`.
+pub(crate) fn parse_oracle_price_updates(transaction: &Transaction) -> Vec<(String, U256)> {
+	let input = match transaction {
+		Transaction::Legacy(t) => &t.input,
+		Transaction::EIP2930(t) => &t.input,
+		Transaction::EIP1559(t) => &t.input,
+		Transaction::EIP7702(_) => return Vec::new(),
+	};
+	if input.len() < 4 {
+		return Vec::new();
+	}
+
+	let selector = &input[0..4];
+	// (dia_key, price) before splitting "ASSET/USD".
+	let mut raw: Vec<(String, U256)> = Vec::new();
+
+	if selector == Into::<u32>::into(pepl_worker_support::Function::SetValue).to_be_bytes() {
+		if let Ok(decoded) = ethabi::decode(
+			&[
+				ethabi::ParamType::String,
+				ethabi::ParamType::Uint(16),
+				ethabi::ParamType::Uint(16),
+			],
+			&input[4..],
+		) {
+			if let (Some(key), Some(price)) = (
+				decoded.first().and_then(|t| t.clone().into_string()),
+				decoded.get(1).and_then(|t| t.clone().into_uint()),
+			) {
+				raw.push((key, price));
+			}
+		}
+	} else if selector == Into::<u32>::into(pepl_worker_support::Function::SetMultipleValues).to_be_bytes() {
+		if let Ok(decoded) = ethabi::decode(
+			&[
+				ethabi::ParamType::Array(Box::new(ethabi::ParamType::String)),
+				ethabi::ParamType::Array(Box::new(ethabi::ParamType::Uint(32))),
+			],
+			&input[4..],
+		) {
+			if let (Some(keys), Some(vals)) = (
+				decoded.first().and_then(|t| t.clone().into_array()),
+				decoded.get(1).and_then(|t| t.clone().into_array()),
+			) {
+				for (k, v) in keys.iter().zip(vals.iter()) {
+					// DIA packs `value = (price << 128) | timestamp`; the price is the high 128 bits.
+					if let (Some(key), Some(packed)) = (k.clone().into_string(), v.clone().into_uint()) {
+						let le = packed.to_little_endian();
+						raw.push((key, U256::from_little_endian(&le[16..32])));
+					}
+				}
+			}
+		}
+	}
+
+	raw.into_iter()
+		.filter_map(|(key, price)| {
+			let base = key.split('/').next()?.trim_end_matches('\0').to_ascii_lowercase();
+			if base.is_empty() {
+				None
+			} else {
+				Some((base, price))
+			}
+		})
+		.collect()
+}
+
+/// Apply pending DIA price updates to a *fresh* money market, then re-decide liquidations for the
+/// borrowers holding any repriced reserve — the same-block oracle fast-path.
+///
+/// Fixes v1's blind spot: v1 repriced only the directly-quoted reserve (symbol == base) and marked
+/// derived reserves (symbol *contains* base — e.g. `gDOT`/`vDOT` for a `DOT` update) as affected
+/// but NEVER repriced them, so it missed strategy-token liquidations. Here a derived reserve is
+/// repriced by the ratio `new_base / old_base` (the LST/strategy exchange rate is unchanged by a
+/// USD-price move, so scaling the derived reserve's current price is correct).
+pub fn apply_oracle_updates_and_decide(
+	cfg: &LiquidationTaskConfig,
+	money_market: &mut MoneyMarket,
+	updates: &[(String, U256)],
+	borrowers: &[Borrower],
+) -> Vec<LiquidationDecision> {
+	use ethabi::ethereum_types::U512;
+
+	let scale = |v: U256, num: U256, den: U256| -> U256 {
+		if den.is_zero() {
+			return v;
+		}
+		TryInto::<U256>::try_into(v.full_mul(num) / U512::from(den)).unwrap_or(v)
+	};
+
+	// Per repriced reserve: (idx, old_price, new_price). Both the reserve price AND each borrower's
+	// base-currency amounts must be scaled — the borrower stores collateral/debt already converted
+	// to base at fetch time, so changing the reserve price alone would NOT move the health factor.
+	let mut affected: Vec<(usize, U256, U256)> = Vec::new();
+
+	for (base, new_price) in updates {
+		// Old price of the directly-quoted reserve (symbol == base) — the ratio denominator.
+		let old_base_price = money_market
+			.reserves
+			.values()
+			.find(|r| r.symbol.to_ascii_lowercase() == *base)
+			.map(|r| r.price);
+
+		// Collect (address, old_price, new_price) first to avoid a mutable borrow while iterating.
+		let mut repriced: Vec<(EvmAddress, U256, U256)> = Vec::new();
+		for r in money_market.reserves.values() {
+			let sym = r.symbol.to_ascii_lowercase();
+			if !sym.contains(base.as_str()) {
+				continue;
+			}
+			if sym == *base {
+				repriced.push((r.address, r.price, *new_price)); // direct
+			} else if let Some(old_base) = old_base_price {
+				// derived: new = current * new_base / old_base (LST/strategy exchange rate is
+				// unchanged by a USD-price move, so scaling the current derived price is correct).
+				repriced.push((r.address, r.price, scale(r.price, *new_price, old_base)));
+			}
+		}
+
+		for (addr, old, np) in repriced {
+			if money_market.update_price(addr, np).is_ok() {
+				if let Some(r) = money_market.reserves.get(&addr) {
+					if !affected.iter().any(|(i, _, _)| *i == r.idx) {
+						affected.push((r.idx, old, np));
+					}
+				}
+			}
+		}
+	}
+
+	if affected.is_empty() {
+		return Vec::new();
+	}
+
+	let affected_idx: Vec<usize> = affected.iter().map(|(i, _, _)| *i).collect();
+
+	let mut decisions = Vec::new();
+	for borrower in borrowers {
+		// Only borrowers touching a repriced reserve (as collateral or debt) can flip.
+		if !borrower.configuration.uses_any(&affected_idx) {
+			continue;
+		}
+
+		// Re-scale the borrower's base-currency collateral/debt for the repriced reserves so the
+		// simulated health factor reflects the pending price.
+		let mut b = borrower.clone();
+		for (idx, old, np) in &affected {
+			if let Some(Some(ur)) = b.reserves.get_mut(*idx) {
+				let new_coll = scale(ur.collateral, *np, *old);
+				let new_debt = scale(ur.debt, *np, *old);
+				b.total_collateral = b.total_collateral.saturating_sub(ur.collateral).saturating_add(new_coll);
+				b.total_debt = b.total_debt.saturating_sub(ur.debt).saturating_add(new_debt);
+				ur.collateral = new_coll;
+				ur.debt = new_debt;
+			}
+		}
+
+		if let Some(decision) = decide_liquidation(cfg, money_market, &b) {
+			decisions.push(decision);
+		}
+	}
+	decisions
+}
+
 pub async fn run<C, B, CL, TP>(task: LiquidationTask<C, B, TP>, client: Arc<CL>)
 where
 	CL: BlockchainEvents<B> + 'static,
@@ -636,6 +816,8 @@ where
 	C: RuntimeClient<B>,
 {
 	let mut blocks_stream = client.import_notification_stream();
+	// Mempool monitor for pending DIA oracle-update txs — the same-block fast-path (W5).
+	let mut tx_stream = task.transaction_pool.import_notification_stream();
 
 	let hydration = Hydration::new(
 		task.cfg.api_caller,
@@ -644,96 +826,236 @@ where
 	);
 
 	// A down/unreachable omniwatch must NOT panic or kill the worker: retry with backoff and start
-	// from whatever we get (possibly empty). The list is re-fetched every
-	// OMNIWATCH_REFETCH_EVERY_N_BLOCKS blocks to pick up new borrowers and to recover a seed that
-	// failed at startup once omniwatch is reachable again.
-	let mut borrowers = fetch_borrowers_list_with_retry(
+	// unseeded if it stays down. Coverage is a UNION of omniwatch seeds and on-chain BORROW-event
+	// discovery: the set only grows on external input and only shrinks on on-chain evidence (a
+	// scanned borrower with zero debt) — an omniwatch response that omits a known borrower must
+	// never evict it.
+	let seed = fetch_borrowers_list_with_retry(
 		&task.https,
 		task.url.clone(),
 		task.cfg.log_prefix.as_str(),
 		OMNIWATCH_FETCH_ATTEMPTS,
 		OMNIWATCH_FETCH_BACKOFF,
+		OMNIWATCH_FETCH_TIMEOUT,
 	)
 	.await;
+	// An empty-but-successful response (e.g. omniwatch restarted with a cold DB) does NOT count
+	// as seeded — pre-existing borrowers are still unknown, keep the fast re-seed cadence.
+	let mut seeded = matches!(&seed, Some(list) if !list.is_empty());
+	let mut borrowers: HashSet<EvmAddress> = seed.unwrap_or_default().into_iter().collect();
 	let mut blocks_since_refetch: u32 = 0;
+	// In-flight background re-seed: never awaited inline — a slow omniwatch must not stall the
+	// scan loop and cost a block's liquidation round.
+	let mut refetch_rx: Option<tokio::sync::oneshot::Receiver<Option<Vec<EvmAddress>>>> = None;
+	// Blocks whose BORROW logs have not been scanned yet: discovery needs the resolved pool
+	// address, so a block skipped on a timestamp/money-market fetch failure (or imported as
+	// non-best and canonicalized later) must stay queued — a BORROW log must never be lost.
+	let mut pending_event_blocks: Vec<B::Hash> = Vec::new();
 
 	loop {
-		tokio::select! {
-			Some(b) = blocks_stream.next() => {
-				if !b.is_new_best {
-					continue;
+	  tokio::select! {
+	    Some(b) = blocks_stream.next() => {
+		pending_event_blocks.push(b.hash);
+		if pending_event_blocks.len() > MAX_PENDING_EVENT_BLOCKS {
+			let dropped = pending_event_blocks.len() - MAX_PENDING_EVENT_BLOCKS;
+			pending_event_blocks.drain(..dropped);
+			log::warn!(target: LOG_TARGET, "{:?} run(): dropped {} unscanned block(s) from the event-discovery queue", task.cfg.log_prefix, dropped);
+		}
+
+		if !b.is_new_best {
+			continue;
+		}
+
+		// Harvest a completed background re-seed, if any (non-blocking).
+		if let Some(rx) = refetch_rx.as_mut() {
+			match rx.try_recv() {
+				Ok(Some(refreshed)) => {
+					seeded |= !refreshed.is_empty();
+					borrowers.extend(refreshed);
+					refetch_rx = None;
 				}
-
-				// Periodically re-seed from omniwatch (this `.await` is safe: no runtime API held).
-				// Keep the existing list if the re-fetch comes back empty (transient outage).
-				blocks_since_refetch += 1;
-				if blocks_since_refetch >= OMNIWATCH_REFETCH_EVERY_N_BLOCKS {
-					blocks_since_refetch = 0;
-					let refreshed = fetch_borrowers_list_with_retry(
-						&task.https,
-						task.url.clone(),
-						task.cfg.log_prefix.as_str(),
-						OMNIWATCH_FETCH_ATTEMPTS,
-						OMNIWATCH_FETCH_BACKOFF,
-					)
-					.await;
-					if !refreshed.is_empty() {
-						borrowers = refreshed;
-					}
-				}
-
-				let block_number: BlockNumber = (*b.header.number()).saturated_into();
-
-				// Phase 1 (synchronous): the runtime API (`ApiRef`) is NOT `Send`, so it must never
-				// be held across an `.await`. Fetch the money market + each borrower and decide the
-				// liquidations here, then drop the API at the end of this block before submitting.
-				let mut decisions: Vec<LiquidationDecision> = {
-					let runtime_api = client.runtime_api();
-					let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
-
-					let Some(now) = api.timestamp(b.hash) else {
-						log::error!(target: LOG_TARGET, "{:?} run(): failed to read timestamp for block {:?}, skipping", task.cfg.log_prefix, b.hash);
-						continue;
-					};
-
-					let Some(mut mm) = hydration.fetch_money_market(&api, b.hash) else {
-						log::error!(target: LOG_TARGET, "{:?} run(): failed to fetch money market for block {:?}, skipping", task.cfg.log_prefix, b.hash);
-						continue;
-					};
-
-					let mut decisions = Vec::new();
-					for addr in &borrowers {
-						let Some(borrower) = hydration.fetch_borrower(&api, b.hash, block_number, &mm, *addr, now) else {
-							log::error!(target: LOG_TARGET, "{:?} run(): failed to fetch borrower {:?}, skipping", task.cfg.log_prefix, addr);
-							continue;
-						};
-						if let Some(decision) = decide_liquidation(&task.cfg, &mut mm, &borrower) {
-							decisions.push(decision);
-						}
-					}
-					decisions
-				};
-
-				// Submit the highest collateral-at-risk liquidations first, capped at
-				// `liquidations_per_block` so a block with many underwater borrowers can't flood the
-				// pool (the on-chain priority still orders whatever lands there).
-				decisions.sort_by(|a, b| b.priority.cmp(&a.priority));
-				let cap = task.cfg.liquidations_per_block as usize;
-
-				// Phase 2 (async): the runtime API is dropped; submit the decided liquidations. No
-				// borrower blacklist is needed (W4): `validate_unsigned` tags each tx with
-				// `provides = (user)`, `longevity = 1`, `propagate = false`, so the pool keeps one
-				// tx per borrower per block and drops stale ones. Re-scanning every block is what
-				// drives follow-up rounds for a still-underwater borrower after a partial liquidation
-				// — v1's `tx_waitlist` (cleared on the `Liquidated` event) would have delayed those.
-				for decision in decisions.iter().take(cap) {
-					let _ = task.submit_liquidation(b.hash, decision).await.inspect_err(|_| {
-						log::error!(target: LOG_TARGET, "{:?} run(): failed to submit liquidation {:?} for block {:?}", task.cfg.log_prefix, decision, b.hash);
-					});
-				}
-
-				log::debug!(target: LOG_TARGET, "{:?} run(): decided {} liquidations, submitted up to {} for block {:?}", task.cfg.log_prefix, decisions.len(), cap, b.hash);
+				Ok(None) | Err(tokio::sync::oneshot::error::TryRecvError::Closed) => refetch_rx = None,
+				Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {}
 			}
 		}
+
+		// Periodic background re-seed. `seeded` (not set emptiness) keys the fast cadence: a
+		// borrower discovered from a BORROW event must not slow seed recovery down — the seed is
+		// what covers PRE-EXISTING borrowers, the prod-miss shape.
+		blocks_since_refetch += 1;
+		let refetch_after = if seeded {
+			OMNIWATCH_REFETCH_EVERY_N_BLOCKS
+		} else {
+			OMNIWATCH_REFETCH_UNSEEDED_EVERY_N_BLOCKS
+		};
+		if blocks_since_refetch >= refetch_after && refetch_rx.is_none() {
+			blocks_since_refetch = 0;
+			let (tx, rx) = tokio::sync::oneshot::channel();
+			refetch_rx = Some(rx);
+			let https = task.https.clone();
+			let url = task.url.clone();
+			let log_prefix = task.cfg.log_prefix.clone();
+			tokio::spawn(async move {
+				let refreshed = match tokio::time::timeout(
+					OMNIWATCH_FETCH_TIMEOUT,
+					fetch_borrowers_list(&https, url, log_prefix.as_str()),
+				)
+				.await
+				{
+					Ok(r) => r,
+					Err(_) => {
+						log::error!(target: LOG_TARGET, "{log_prefix:?} run(): omniwatch re-fetch timed out after {OMNIWATCH_FETCH_TIMEOUT:?}");
+						None
+					}
+				};
+				let _ = tx.send(refreshed);
+			});
+		}
+
+		let block_number: BlockNumber = (*b.header.number()).saturated_into();
+
+		// Phase 1 (synchronous): the runtime API (`ApiRef`) is NOT `Send`, so it must never
+		// be held across an `.await`. Fetch the money market + each borrower and decide the
+		// liquidations here, then drop the API at the end of this block before submitting.
+		let mut decisions: Vec<LiquidationDecision> = {
+			let runtime_api = client.runtime_api();
+			let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
+
+			let Some(now) = api.timestamp(b.hash) else {
+				log::error!(target: LOG_TARGET, "{:?} run(): failed to read timestamp for block {:?}, skipping", task.cfg.log_prefix, b.hash);
+				continue;
+			};
+
+			let Some(mm) = hydration.fetch_money_market(&api, b.hash) else {
+				log::error!(target: LOG_TARGET, "{:?} run(): failed to fetch money market for block {:?}, skipping", task.cfg.log_prefix, b.hash);
+				continue;
+			};
+
+			// Event-driven discovery: BORROW logs from the (dynamically resolved) pool add
+			// borrowers independently of omniwatch, so a borrower omniwatch never returns is
+			// still covered from their first borrow onwards. Drains the whole queue, so blocks
+			// skipped while the money market was unavailable are scanned now.
+			for hash in pending_event_blocks.drain(..) {
+				for addr in process_events(task.load_events(hash), mm.pool, task.cfg.log_prefix.as_str()) {
+					if borrowers.insert(addr) {
+						log::info!(target: LOG_TARGET, "{:?} run(): discovered new borrower from BORROW event: {:?}", task.cfg.log_prefix, addr);
+					}
+				}
+			}
+
+			let scan_list: Vec<EvmAddress> = borrowers.iter().copied().collect();
+
+			let mut decisions = Vec::new();
+			for addr in &scan_list {
+				let Some(borrower) = hydration.fetch_borrower(&api, b.hash, block_number, &mm, *addr, now) else {
+					// Infra failure — keep the borrower; the set shrinks only on on-chain evidence.
+					log::error!(target: LOG_TARGET, "{:?} run(): failed to fetch borrower {:?}, skipping", task.cfg.log_prefix, addr);
+					continue;
+				};
+				if borrower.total_debt.is_zero() {
+					borrowers.remove(addr);
+					log::info!(target: LOG_TARGET, "{:?} run(): borrower repaid all debt, pruned: {:?}", task.cfg.log_prefix, addr);
+					continue;
+				}
+				if let Some(decision) = decide_liquidation(&task.cfg, &mm, &borrower) {
+					decisions.push(decision);
+				}
+			}
+			decisions
+		};
+
+		// Submit the highest collateral-at-risk liquidations first, capped at
+		// `liquidations_per_block` so a block with many underwater borrowers can't flood the
+		// pool (the on-chain priority still orders whatever lands there).
+		decisions.sort_by(|a, b| b.priority.cmp(&a.priority));
+		let cap = task.cfg.liquidations_per_block as usize;
+
+		// Phase 2 (async): the runtime API is dropped; submit the decided liquidations. No
+		// borrower blacklist is needed (W4): `validate_unsigned` tags each tx with
+		// `provides = (user)`, `longevity = 1`, `propagate = false`, so the pool keeps one
+		// tx per borrower per block and drops stale ones. Re-scanning every block is what
+		// drives follow-up rounds for a still-underwater borrower after a partial liquidation
+		// — v1's `tx_waitlist` (cleared on the `Liquidated` event) would have delayed those.
+		// `submit_liquidation` logs its own failures.
+		for decision in decisions.iter().take(cap) {
+			let _ = task.submit_liquidation(b.hash, decision).await;
+		}
+
+		log::debug!(target: LOG_TARGET, "{:?} run(): decided {} liquidations, submitted up to {} for block {:?}", task.cfg.log_prefix, decisions.len(), cap, b.hash);
+	    },
+
+	    // Same-block oracle fast-path (W5): a pending DIA price-update tx in the mempool lets us
+	    // react to a price move in the SAME block it lands, ahead of the next per-block scan. The
+	    // priority ladder (oracle update > liquidation > user txs) orders the liquidation right
+	    // after the oracle update on-chain.
+	    Some(tx_hash) = tx_stream.next() => {
+		let Some(pool_tx) = task.transaction_pool.ready_transaction(&tx_hash) else { continue };
+		let encoded = pool_tx.data().encode();
+		let Ok(xt) = hydradx_runtime::HydraUncheckedExtrinsic::decode(&mut &encoded[..]) else { continue };
+		let Some(oracle_tx) = is_oracle_update_tx(
+			&xt.0,
+			task.cfg.oracle_signer.clone(),
+			task.cfg.oracle_update_call.clone(),
+			task.cfg.log_prefix.as_str(),
+		) else { continue };
+
+		let updates = parse_oracle_price_updates(&oracle_tx);
+		log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path saw a DIA update tx, parsed {} price update(s): {:?}", task.cfg.log_prefix, updates.len(), updates);
+		if updates.is_empty() {
+			continue;
+		}
+
+		let best = client.info().best_hash;
+		let best_number: BlockNumber = client.info().best_number.saturated_into();
+
+		// Phase 1 (SYNC, runtime API scoped — never held across `.await`): fetch the money market
+		// at the current best block, then the borrowers, then apply the pending price updates and
+		// re-decide. `apply_oracle_updates_and_decide` reprices derived/strategy tokens too.
+		let mut decisions: Vec<LiquidationDecision> = {
+			let runtime_api = client.runtime_api();
+			let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
+
+			let Some(now) = api.timestamp(best) else { continue };
+			let Some(mut mm) = hydration.fetch_money_market(&api, best) else { continue };
+
+			// Skip the (expensive) borrower fetch unless an update touches a money-market reserve.
+			let touches_mm = updates.iter().any(|(base, _)| {
+				mm.reserves.values().any(|r| r.symbol.to_ascii_lowercase().contains(base.as_str()))
+			});
+			if !touches_mm {
+				log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path — update touches no money-market reserve, skipping", task.cfg.log_prefix);
+				continue;
+			}
+
+			let scan_list: Vec<EvmAddress> = borrowers.iter().copied().collect();
+			let mut fetched: Vec<Borrower> = Vec::with_capacity(scan_list.len());
+			for addr in &scan_list {
+				if let Some(borrower) = hydration.fetch_borrower(&api, best, best_number, &mm, *addr, now) {
+					fetched.push(borrower);
+				}
+			}
+			log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path fetched {} borrowers to re-check against the pending price(s)", task.cfg.log_prefix, fetched.len());
+
+			apply_oracle_updates_and_decide(&task.cfg, &mut mm, &updates, &fetched)
+		};
+
+		if decisions.is_empty() {
+			log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path — no borrower flips underwater on the pending price(s)", task.cfg.log_prefix);
+			continue;
+		}
+
+		decisions.sort_by(|a, b| b.priority.cmp(&a.priority));
+		let cap = task.cfg.liquidations_per_block as usize;
+		// Phase 2 (ASYNC): runtime API dropped; submit against the current best block.
+		for decision in decisions.iter().take(cap) {
+			let _ = task.submit_liquidation(best, decision).await;
+		}
+		log::info!(target: LOG_TARGET, "{:?} run(): oracle fast-path decided {} liquidations from a pending DIA update, submitted up to {}", task.cfg.log_prefix, decisions.len(), cap);
+	    },
+
+	    else => break,
+	  }
 	}
+
+	log::warn!(target: LOG_TARGET, "{:?} run(): notification stream ended, liquidation worker stopping", task.cfg.log_prefix);
 }
