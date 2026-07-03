@@ -40,6 +40,7 @@ use sp_runtime::OpaqueExtrinsic;
 use sp_runtime::SaturatedConversion;
 use std::collections::HashSet;
 use std::marker::PhantomData;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -355,6 +356,35 @@ pub fn decide_liquidation(
 	})
 }
 
+/// Build the opaque `liquidate` extrinsic (sync — no tx pool needed). Shared by
+/// `submit_liquidation` and the parallel submit-on-find scan (which spawns the async `submit_one`
+/// onto a tokio handle from a worker thread). The unsigned tx carries `unsigned_priority =
+/// collateral-at-risk`, so the tx pool orders competing liquidations for the block builder.
+fn encode_liquidation_opaque(decision: &LiquidationDecision, log_prefix: &str) -> Option<OpaqueExtrinsic> {
+	let tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate {
+		collateral_asset: decision.collateral_asset,
+		debt_asset: decision.debt_asset,
+		user: decision.user,
+		debt_to_cover: decision.debt_to_cover,
+		route: BoundedVec::new(),
+		unsigned_priority: Some(decision.priority),
+	});
+
+	let encoded_tx: fp_self_contained::UncheckedExtrinsic<
+		hydradx_runtime::Address,
+		RuntimeCall,
+		hydradx_runtime::Signature,
+		hydradx_runtime::SignedExtra,
+	> = fp_self_contained::UncheckedExtrinsic::new_bare(tx.clone());
+	let encoded = encoded_tx.encode();
+
+	OpaqueExtrinsic::decode(&mut &encoded[..])
+		.map_err(|e| {
+			log::error!(target: LOG_TARGET, "{log_prefix:?} encode_liquidation_opaque(): failed to decode tx. THIS SHOULD NEVER HAPPEN, please report to project maintainers: err: {e:?}, tx: {tx:?}");
+		})
+		.ok()
+}
+
 pub struct LiquidationTask<C, B, TP> {
 	client: C,
 	pub https: https::Client,
@@ -394,28 +424,7 @@ where
 
 	async fn submit_liquidation(&self, block: B::Hash, decision: &LiquidationDecision) -> Result<(), ()> {
 		let log_prefix = self.cfg.log_prefix.as_str();
-
-		let tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate {
-			collateral_asset: decision.collateral_asset,
-			debt_asset: decision.debt_asset,
-			user: decision.user,
-			debt_to_cover: decision.debt_to_cover,
-			route: BoundedVec::new(),
-			unsigned_priority: Some(decision.priority),
-		});
-
-		let encoded_tx: fp_self_contained::UncheckedExtrinsic<
-			hydradx_runtime::Address,
-			RuntimeCall,
-			hydradx_runtime::Signature,
-			hydradx_runtime::SignedExtra,
-		> = fp_self_contained::UncheckedExtrinsic::new_bare(tx.clone());
-		let encoded = encoded_tx.encode();
-
-		let opaque_tx =
-			sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).map_err(|e| {
-				log::error!(target: LOG_TARGET, "{log_prefix:?} LiquidationTask.submit_liquidation(): failed to decode tx. THIS SHOULD NEVER HAPPEN, please report to project maintainers: err: {e:?}, tx: {tx:?}");
-			})?;
+		let opaque_tx = encode_liquidation_opaque(decision, log_prefix).ok_or(())?;
 
 		match self
 			.transaction_pool
@@ -923,10 +932,9 @@ where
 
 		let block_number: BlockNumber = (*b.header.number()).saturated_into();
 
-		// Phase 1 (synchronous): the runtime API (`ApiRef`) is NOT `Send`, so it must never
-		// be held across an `.await`. Fetch the money market + each borrower and decide the
-		// liquidations here, then drop the API at the end of this block before submitting.
-		let mut decisions: Vec<LiquidationDecision> = {
+		// Fetch the money market once for this block (runtime API is NOT `Send`, so it is scoped
+		// here and dropped before the parallel scan, which makes its own per-thread API).
+		let (now, mm) = {
 			let runtime_api = client.runtime_api();
 			let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
 
@@ -952,50 +960,83 @@ where
 				}
 			}
 
-			let scan_list: Vec<EvmAddress> = borrowers.iter().copied().collect();
-
-			let mut decisions = Vec::new();
-			let mut fetched: Vec<Borrower> = Vec::with_capacity(scan_list.len());
-			for addr in &scan_list {
-				let Some(borrower) = hydration.fetch_borrower(&api, b.hash, block_number, &mm, *addr, now) else {
-					// Infra failure — keep the borrower; the set shrinks only on on-chain evidence.
-					log::error!(target: LOG_TARGET, "{:?} run(): failed to fetch borrower {:?}, skipping", task.cfg.log_prefix, addr);
-					continue;
-				};
-				if borrower.total_debt.is_zero() {
-					borrowers.remove(addr);
-					log::info!(target: LOG_TARGET, "{:?} run(): borrower repaid all debt, pruned: {:?}", task.cfg.log_prefix, addr);
-					continue;
-				}
-				if let Some(decision) = decide_liquidation(&task.cfg, &mm, &borrower) {
-					decisions.push(decision);
-				}
-				fetched.push(borrower);
-			}
-			// Cache this block's money market + borrowers for the oracle fast-path.
-			cached_borrowers = fetched;
-			cached_mm = Some(mm);
-			decisions
+			(now, mm)
 		};
 
-		// Submit the highest collateral-at-risk liquidations first, capped at
-		// `liquidations_per_block` so a block with many underwater borrowers can't flood the
-		// pool (the on-chain priority still orders whatever lands there).
-		decisions.sort_by(|a, b| b.priority.cmp(&a.priority));
-		let cap = task.cfg.liquidations_per_block as usize;
+		let scan_list: Vec<EvmAddress> = borrowers.iter().copied().collect();
 
-		// Phase 2 (async): the runtime API is dropped; submit the decided liquidations. No
-		// borrower blacklist is needed (W4): `validate_unsigned` tags each tx with
-		// `provides = (user)`, `longevity = 1`, `propagate = false`, so the pool keeps one
-		// tx per borrower per block and drops stale ones. Re-scanning every block is what
-		// drives follow-up rounds for a still-underwater borrower after a partial liquidation
-		// — v1's `tx_waitlist` (cleared on the `Liquidated` event) would have delayed those.
-		// `submit_liquidation` logs its own failures.
-		for decision in decisions.iter().take(cap) {
-			let _ = task.submit_liquidation(b.hash, decision).await;
+		// Lumír's model: split the borrower list across cores and scan the shards in parallel;
+		// each thread makes its OWN (non-`Send`) runtime API, and the MOMENT it finds a liquidation
+		// it submits it (submit-on-find) via the tokio handle — no worker-side sort/cap. The unsigned
+		// tx carries `unsigned_priority = collateral-at-risk`, so the tx pool sorts and packs the
+		// block. Threads report zero-debt (prune) and fetched borrowers (fast-path cache) back over a
+		// channel; the money market is shared read-only.
+		let handle = tokio::runtime::Handle::current();
+		let (result_tx, result_rx) = std::sync::mpsc::channel::<(EvmAddress, Option<Borrower>)>();
+		let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).max(1);
+		let chunk_size = scan_list.len().div_ceil(cores).max(1);
+		let submitted = AtomicUsize::new(0);
+
+		tokio::task::block_in_place(|| {
+			std::thread::scope(|scope| {
+				for chunk in scan_list.chunks(chunk_size) {
+					let client = client.clone();
+					let handle = handle.clone();
+					let pool = task.transaction_pool.clone();
+					let result_tx = result_tx.clone();
+					let mm = &mm;
+					let cfg = &task.cfg;
+					let hydration = &hydration;
+					let submitted = &submitted;
+					let best = b.hash;
+					let log_prefix = task.cfg.log_prefix.as_str();
+					scope.spawn(move || {
+						let runtime_api = client.runtime_api();
+						let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
+						for addr in chunk {
+							let Some(borrower) = hydration.fetch_borrower(&api, best, block_number, mm, *addr, now)
+							else {
+								// Infra failure — keep the borrower; the set shrinks only on on-chain evidence.
+								log::error!(target: LOG_TARGET, "{log_prefix:?} run(): failed to fetch borrower {addr:?}, skipping");
+								continue;
+							};
+							if borrower.total_debt.is_zero() {
+								let _ = result_tx.send((*addr, None)); // prune
+								continue;
+							}
+							if let Some(decision) = decide_liquidation(cfg, mm, &borrower) {
+								// Submit-on-find: build the tx here (sync) and spawn the async submit.
+								if let Some(opaque) = encode_liquidation_opaque(&decision, log_prefix) {
+									let pool = pool.clone();
+									submitted.fetch_add(1, Ordering::Relaxed);
+									handle.spawn(async move {
+										let _ = pool.submit_one(best, TransactionSource::Local, opaque.into()).await;
+									});
+								}
+							}
+							let _ = result_tx.send((*addr, Some(borrower))); // cache
+						}
+					});
+				}
+				drop(result_tx); // let the receiver iteration end once all threads finish
+			});
+		});
+
+		// Drain results: prune repaid borrowers, collect the rest for the fast-path cache.
+		let mut fetched: Vec<Borrower> = Vec::with_capacity(scan_list.len());
+		for (addr, maybe_borrower) in result_rx {
+			match maybe_borrower {
+				None => {
+					borrowers.remove(&addr);
+					log::info!(target: LOG_TARGET, "{:?} run(): borrower repaid all debt, pruned: {:?}", task.cfg.log_prefix, addr);
+				}
+				Some(borrower) => fetched.push(borrower),
+			}
 		}
+		cached_borrowers = fetched;
+		cached_mm = Some(mm);
 
-		log::debug!(target: LOG_TARGET, "{:?} run(): decided {} liquidations, submitted up to {} for block {:?}", task.cfg.log_prefix, decisions.len(), cap, b.hash);
+		log::debug!(target: LOG_TARGET, "{:?} run(): parallel scan of {} borrowers over {} cores submitted {} liquidations (submit-on-find) for block {:?}", task.cfg.log_prefix, scan_list.len(), cores, submitted.load(Ordering::Relaxed), b.hash);
 	    },
 
 	    // Same-block oracle fast-path (W5): a pending DIA price-update tx in the mempool lets us
