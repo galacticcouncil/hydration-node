@@ -104,9 +104,7 @@ use frame_support::{
 	defensive,
 	pallet_prelude::*,
 	require_transactional,
-	sp_runtime::{
-		traits::{AccountIdConversion, BlockNumberProvider, MaybeSerializeDeserialize, One, Zero},
-	},
+	sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, MaybeSerializeDeserialize, One, Zero},
 	traits::{Defensive, DefensiveOption, ExistenceRequirement},
 	PalletId,
 };
@@ -319,9 +317,7 @@ pub mod pallet {
 	}
 
 	//NOTE: these errors should never happen.
-	#[derive(
-		Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, TypeInfo, frame_support::PalletError, Debug,
-	)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, TypeInfo, frame_support::PalletError, Debug)]
 	pub enum InconsistentStateError {
 		/// Yield farm does not exist.
 		YieldFarmNotFound,

@@ -4,9 +4,7 @@ pub mod v2 {
 	use super::*;
 	use crate::types::Balance;
 	use crate::{Config, Pallet};
-	use frame_support::pallet_prelude::{
-		Decode, Encode, Get, MaxEncodedLen, StorageVersion, ValueQuery, Weight,
-	};
+	use frame_support::pallet_prelude::{Decode, Encode, Get, MaxEncodedLen, StorageVersion, ValueQuery, Weight};
 	use frame_support::storage_alias;
 
 	const TARGET: &str = "runtime::omnipool";

@@ -113,9 +113,7 @@ impl<Balance: Saturating> AccountVote<Balance> {
 }
 
 /// A "prior" lock, i.e. a lock for some now-forgotten reason.
-#[derive(
-	Encode, MaxEncodedLen, Decode, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, TypeInfo,
-)]
+#[derive(Encode, MaxEncodedLen, Decode, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, TypeInfo)]
 pub struct PriorLock<BlockNumber, Balance>(pub BlockNumber, pub Balance);
 
 impl<BlockNumber: Ord + Copy + Zero, Balance: Ord + Copy + Zero> PriorLock<BlockNumber, Balance> {

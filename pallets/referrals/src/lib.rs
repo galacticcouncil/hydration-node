@@ -84,18 +84,7 @@ pub type ReferralCode<S> = BoundedVec<u8, S>;
 /// Referrer level.
 /// Indicates current level of the referrer to determine which reward percentages are used.
 #[derive(
-	Hash,
-	Clone,
-	Copy,
-	Default,
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Eq,
-	PartialEq,
-	Debug,
-	MaxEncodedLen,
-	TypeInfo,
+	Hash, Clone, Copy, Default, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo,
 )]
 pub enum Level {
 	None,

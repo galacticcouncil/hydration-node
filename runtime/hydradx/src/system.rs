@@ -500,18 +500,7 @@ impl pallet_identity::Config for Runtime {
 
 /// The type used to represent the kinds of proxying allowed.
 #[derive(
-	Copy,
-	Clone,
-	Eq,
-	PartialEq,
-	Ord,
-	PartialOrd,
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Debug,
-	MaxEncodedLen,
-	TypeInfo,
+	Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, DecodeWithMemTracking, Debug, MaxEncodedLen, TypeInfo,
 )]
 pub enum ProxyType {
 	Any,

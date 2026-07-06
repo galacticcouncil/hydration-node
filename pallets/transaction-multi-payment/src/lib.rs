@@ -723,7 +723,6 @@ where
 	type Credit = ();
 }
 
-
 impl<T, MC, DF, FR, WF> OnChargeTransaction<T> for TransferFees<T, MC, DF, FR, WF>
 where
 	T: Config,

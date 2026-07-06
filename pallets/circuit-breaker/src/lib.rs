@@ -31,7 +31,7 @@ use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_runtime::Saturating;
-use sp_runtime::{ArithmeticError, DispatchError, Debug};
+use sp_runtime::{ArithmeticError, Debug, DispatchError};
 use sp_std::vec::Vec;
 pub mod weights;
 

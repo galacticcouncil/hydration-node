@@ -34,18 +34,7 @@ pub use frame_support::storage::with_transaction;
 pub use sp_runtime::TransactionOutcome;
 
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Eq,
-	PartialEq,
-	Copy,
-	Clone,
-	PartialOrd,
-	Ord,
-	MaxEncodedLen,
-	Debug,
-	TypeInfo,
+	Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Copy, Clone, PartialOrd, Ord, MaxEncodedLen, Debug, TypeInfo,
 )]
 #[repr(u8)]
 pub enum ReserveIdentifier {
