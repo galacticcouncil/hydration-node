@@ -676,7 +676,11 @@ impl TransactAsset for LocalAssetTransactor {
 		BaseLocalAssetTransactor::check_out(dest, what, context)
 	}
 
-	fn deposit_asset(what: &Asset, who: &Location, context: Option<&XcmContext>) -> XcmResult {
+	fn deposit_asset(
+		what: xcm_executor::AssetsInHolding,
+		who: &Location,
+		context: Option<&XcmContext>,
+	) -> Result<(), (xcm_executor::AssetsInHolding, XcmError)> {
 		BaseLocalAssetTransactor::deposit_asset(what, who, context)
 	}
 
@@ -705,16 +709,11 @@ impl TransactAsset for LocalAssetTransactor {
 		from: &Location,
 		to: &Location,
 		context: &XcmContext,
-	) -> Result<xcm_executor::AssetsInHolding, XcmError> {
+	) -> Result<Asset, XcmError> {
 		BaseLocalAssetTransactor::internal_transfer_asset(asset, from, to, context)
 	}
 
-	fn transfer_asset(
-		asset: &Asset,
-		from: &Location,
-		to: &Location,
-		context: &XcmContext,
-	) -> Result<xcm_executor::AssetsInHolding, XcmError> {
+	fn transfer_asset(asset: &Asset, from: &Location, to: &Location, context: &XcmContext) -> Result<Asset, XcmError> {
 		BaseLocalAssetTransactor::transfer_asset(asset, from, to, context)
 	}
 }
