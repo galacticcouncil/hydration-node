@@ -27,7 +27,7 @@ use sp_std::ops::{Add, Div, Mul, Rem};
 
 /// A means of determining if a vote is past pass threshold.
 #[derive(
-	Clone, Copy, PartialEq, Eq, Encode, MaxEncodedLen, Decode, DecodeWithMemTracking, sp_runtime::RuntimeDebug, TypeInfo,
+	Clone, Copy, PartialEq, Eq, Encode, MaxEncodedLen, Decode, DecodeWithMemTracking, Debug, TypeInfo,
 )]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum VoteThreshold {

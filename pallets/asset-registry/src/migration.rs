@@ -29,10 +29,9 @@ pub mod v1 {
 	use codec::{Decode, Encode};
 	use frame_support::storage_alias;
 	use scale_info::TypeInfo;
-	use sp_core::RuntimeDebug;
 	use sp_runtime::BoundedVec;
 
-	#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, Debug, TypeInfo, MaxEncodedLen)]
 	pub enum AssetType<AssetId> {
 		Token,
 		PoolShare(AssetId, AssetId), // Use XYX instead
@@ -42,7 +41,7 @@ pub mod v1 {
 		External,
 	}
 
-	#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo)]
+	#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, Debug, TypeInfo)]
 	pub struct AssetDetails<AssetId, Balance, BoundedString> {
 		pub name: BoundedString,
 		pub asset_type: AssetType<AssetId>,
@@ -50,7 +49,7 @@ pub mod v1 {
 		pub xcm_rate_limit: Option<Balance>,
 	}
 
-	#[derive(Clone, Encode, Decode, Eq, PartialEq, Default, RuntimeDebug, TypeInfo)]
+	#[derive(Clone, Encode, Decode, Eq, PartialEq, Default, Debug, TypeInfo)]
 	pub struct AssetMetadata<BoundedString> {
 		pub(super) symbol: BoundedString,
 		pub(super) decimals: u8,

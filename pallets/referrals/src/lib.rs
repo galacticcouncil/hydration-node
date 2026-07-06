@@ -68,7 +68,7 @@ use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Rounding;
 use sp_runtime::{
 	traits::{CheckedAdd, Zero},
-	ArithmeticError, DispatchError, Permill, RuntimeDebug,
+	ArithmeticError, DispatchError, Permill,
 };
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -93,7 +93,7 @@ pub type ReferralCode<S> = BoundedVec<u8, S>;
 	DecodeWithMemTracking,
 	Eq,
 	PartialEq,
-	RuntimeDebug,
+	Debug,
 	MaxEncodedLen,
 	TypeInfo,
 )]
@@ -138,7 +138,7 @@ impl Level {
 }
 
 #[derive(
-	Clone, Copy, Default, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo,
+	Clone, Copy, Default, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo,
 )]
 pub struct FeeDistribution {
 	/// Percentage of the referrals slice that goes to the referrer.

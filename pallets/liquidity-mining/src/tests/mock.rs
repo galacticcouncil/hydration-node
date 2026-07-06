@@ -44,7 +44,7 @@ pub use sp_runtime::TransactionOutcome;
 	PartialOrd,
 	Ord,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 	TypeInfo,
 )]
 #[repr(u8)]

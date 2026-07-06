@@ -5,13 +5,13 @@ pub mod v2 {
 	use crate::types::Balance;
 	use crate::{Config, Pallet};
 	use frame_support::pallet_prelude::{
-		Decode, Encode, Get, MaxEncodedLen, RuntimeDebug, StorageVersion, ValueQuery, Weight,
+		Decode, Encode, Get, MaxEncodedLen, StorageVersion, ValueQuery, Weight,
 	};
 	use frame_support::storage_alias;
 
 	const TARGET: &str = "runtime::omnipool";
 
-	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo, Default)]
 	pub struct SimpleImbalance<Balance: Default> {
 		pub value: Balance,
 		pub negative: bool,

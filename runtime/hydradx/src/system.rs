@@ -38,7 +38,7 @@ use frame_support::{
 	parameter_types,
 	sp_runtime::{
 		traits::{ConstU32, ConstU64, IdentityLookup},
-		FixedPointNumber, Perbill, Perquintill, RuntimeDebug,
+		FixedPointNumber, Perbill, Perquintill,
 	},
 	traits::{
 		fungible::HoldConsideration, ConstBool, Contains, EitherOf, InstanceFilter, LinearStoragePrice, PrivilegeCmp,
@@ -509,7 +509,7 @@ impl pallet_identity::Config for Runtime {
 	Encode,
 	Decode,
 	DecodeWithMemTracking,
-	RuntimeDebug,
+	Debug,
 	MaxEncodedLen,
 	TypeInfo,
 )]

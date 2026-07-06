@@ -1231,7 +1231,7 @@ fn calculate_debt_to_liquidate_with_two_different_assets() {
 	});
 }
 
-#[derive(sp_core::RuntimeDebug)]
+#[derive(sp_core::Debug)]
 pub struct ApiProvider<C>(pub C);
 impl<Block, C> RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent> for ApiProvider<C>
 where

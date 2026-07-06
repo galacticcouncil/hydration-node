@@ -370,7 +370,7 @@ pub mod pallet {
 
 	// NOTE: these errors should never happen.
 	#[derive(
-		Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug,
+		Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, TypeInfo, frame_support::PalletError, Debug,
 	)]
 	pub enum InconsistentStateError {
 		/// Position was not found in storage but NFT does exists.

@@ -79,7 +79,7 @@ pub type AssetId = u32;
 //We don't want to frontrun oracle updates so these should be keept in sync.
 pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = u64::MAX - 2;
 #[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum Function {
 	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",

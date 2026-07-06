@@ -22,7 +22,6 @@ use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{Bounded, CheckedDiv, CheckedMul, Zero},
-	RuntimeDebug,
 };
 use sp_std::{prelude::*, result::Result};
 
@@ -39,7 +38,7 @@ use sp_std::{prelude::*, result::Result};
 	PartialEq,
 	Ord,
 	PartialOrd,
-	RuntimeDebug,
+	Debug,
 	TypeInfo,
 )]
 pub enum Conviction {
