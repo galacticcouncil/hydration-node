@@ -293,25 +293,24 @@ substrate-state-trie-migration-rpc = { git = "https://github.com/galacticcouncil
 
 #TODO: We use our custom ORML as it contains the fix of bug for reducible_balance check, for Preserve mode. Once the official ORML pushes a new version with the fix, we can use that again
 # ORML dependencies
-orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506", default-features = false }
-orml-currencies = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506", default-features = false }
-orml-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506", default-features = false }
-orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506", default-features = false }
-orml-utilities = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506", default-features = false }
-orml-vesting = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506", default-features = false }
+orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603", default-features = false }
+orml-currencies = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603", default-features = false }
+orml-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603", default-features = false }
+orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603", default-features = false }
+orml-utilities = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603", default-features = false }
+orml-vesting = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603", default-features = false }
 
 # orml XCM support
-orml-unknown-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506", default-features = false }
-orml-xcm = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506", default-features = false }
-orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506", default-features = false }
-orml-xtokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506", default-features = false }
+orml-unknown-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603", default-features = false }
+orml-xcm = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603", default-features = false }
+orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603", default-features = false }
+orml-xtokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603", default-features = false }
 
 # Cumulus dependencies
 cumulus-client-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch", default-features = false }
 cumulus-client-collator = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch", default-features = false }
 cumulus-client-consensus-aura = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch", default-features = false }
 cumulus-client-consensus-common = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch", default-features = false }
-cumulus-client-consensus-proposer = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch", default-features = false }
 cumulus-client-network = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch", default-features = false }
 cumulus-client-service = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch", default-features = false }
 cumulus-pallet-aura-ext = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch", default-features = false }
@@ -401,15 +400,15 @@ cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/
 
 [patch."https://github.com/moonbeam-foundation/open-runtime-module-library"]
 # ORML dependencies
-orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506" }
-orml-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506" }
-orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506" }
-orml-utilities = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506" }
-orml-vesting = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506" }
-orml-unknown-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506" }
-orml-xcm = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506" }
-orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506" }
-orml-xtokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2506" }
+orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603" }
+orml-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603" }
+orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603" }
+orml-utilities = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603" }
+orml-vesting = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603" }
+orml-unknown-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603" }
+orml-xcm = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603" }
+orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603" }
+orml-xtokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2603" }
 
 [patch."https://github.com/moonbeam-foundation/polkadot-sdk"]
 frame-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
@@ -519,7 +518,6 @@ cumulus-client-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", 
 cumulus-client-collator = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-client-consensus-aura = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-client-consensus-common = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
-cumulus-client-consensus-proposer = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-client-network = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-client-service = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-pallet-aura-ext = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
@@ -677,7 +675,6 @@ cumulus-client-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", 
 cumulus-client-collator = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-client-consensus-aura = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-client-consensus-common = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
-cumulus-client-consensus-proposer = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-client-network = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-client-service = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-pallet-aura-ext = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
@@ -836,7 +833,6 @@ cumulus-client-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", 
 cumulus-client-collator = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-client-consensus-aura = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-client-consensus-common = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
-cumulus-client-consensus-proposer = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-client-network = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-client-service = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }
 cumulus-pallet-aura-ext = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2603-4-patch" }

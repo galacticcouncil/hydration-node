@@ -35,7 +35,7 @@ threadpool = { version = "1.7" }
 num_cpus = { version = "1.13.1" }
 ethereum = { workspace = true }
 ethabi = { workspace = true }
-kvdb-rocksdb = "0.19.0"
+kvdb-rocksdb = "0.21.0"
 lru = "0.12"
 rlp = "0.6"
 
@@ -90,7 +90,6 @@ cumulus-client-cli = { workspace = true }
 cumulus-client-collator = { workspace = true }
 cumulus-client-consensus-aura = { workspace = true }
 cumulus-client-consensus-common = { workspace = true }
-cumulus-client-consensus-proposer = { workspace = true }
 cumulus-client-service = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
