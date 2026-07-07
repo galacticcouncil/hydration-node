@@ -533,11 +533,11 @@ fn validate_unsigned_should_not_collide_when_same_user_is_liquidated_in_two_pool
 	});
 }
 
-// Finding #5: a gigapot shortfall makes `realize_yield` return an error, but that
-// must NOT abort the liquidation — folding yield is only an optimisation for the
-// seize snapshot, and an underwater position must still be liquidatable. The
-// mock's `realize_yield` always errors; the flow must proceed past it and fail at
-// the next step (`snapshot_stake` -> `NoGigaHdxPosition`) rather than reverting
+// A gigapot shortfall makes `realize_yield` return an error, but that must NOT abort
+// the liquidation — folding yield is only an optimisation for the seize snapshot, and an
+// underwater position must still be liquidatable. The mock's `realize_yield` always errors;
+// the flow must proceed past it and fail at the next step (`snapshot_stake` ->
+// `NoGigaHdxPosition`) rather than reverting
 // with `RealizeYieldFailed`.
 #[test]
 fn liquidate_gigahdx_should_proceed_when_realize_yield_fails() {

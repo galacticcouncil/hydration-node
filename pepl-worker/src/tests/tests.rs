@@ -3,7 +3,7 @@ use crate::*;
 // Live smoke test: hits the real omniwatch endpoint over the network, so it is
 // #[ignore]d by default (flaky, and the borrower count is non-deterministic). Run it
 // manually with `cargo test -p pepl-worker -- --ignored` to check omniwatch
-// reachability. Deterministic failure-mode coverage lands in W3, against a local mock.
+// reachability. Deterministic failure-mode coverage is in the tests below, against a local mock.
 #[tokio::test]
 #[ignore = "hits live omniwatch over the network; run with --ignored"]
 async fn fetch_borrowers_list_should_return_borrowers_when_omniwatch_reachable() {
@@ -17,7 +17,7 @@ async fn fetch_borrowers_list_should_return_borrowers_when_omniwatch_reachable()
 	assert!(!borrowers.is_empty());
 }
 
-// W3: a down/unreachable omniwatch must return `None` (never panic). Port 1 is not listening, so
+// A down/unreachable omniwatch must return `None` (never panic). Port 1 is not listening, so
 // the connection is refused immediately — deterministic, no network dependency.
 #[tokio::test]
 async fn fetch_borrowers_list_should_return_none_when_endpoint_unreachable() {
@@ -27,7 +27,7 @@ async fn fetch_borrowers_list_should_return_none_when_endpoint_unreachable() {
 	assert_eq!(fetch_borrowers_list(&https, url, "test").await, None);
 }
 
-// W3: on total fetch failure the retry wrapper returns `None` (never panics), so the worker
+// On total fetch failure the retry wrapper returns `None` (never panics), so the worker
 // starts unseeded and keeps running — event discovery still adds borrowers and background
 // re-seeding recovers the seed.
 #[tokio::test]
@@ -48,7 +48,7 @@ async fn fetch_borrowers_list_with_retry_should_return_none_when_unreachable() {
 	assert_eq!(borrowers, None);
 }
 
-// R1: an omniwatch that accepts the TCP connection but never sends an HTTP response must not hang
+// An omniwatch that accepts the TCP connection but never sends an HTTP response must not hang
 // the worker — every fetch attempt is bounded by a timeout. The listener is bound but never
 // accepts: the kernel completes the handshake (backlog), so the request is sent and then hangs.
 #[tokio::test]
@@ -73,7 +73,7 @@ async fn fetch_borrowers_list_with_retry_should_return_none_when_endpoint_hangs(
 	drop(listener);
 }
 
-// R2: event-driven discovery — a BORROW log from the resolved pool yields the borrower
+// Event-driven discovery — a BORROW log from the resolved pool yields the borrower
 // (topic[2]); the same signature from any other contract is ignored.
 #[test]
 fn process_events_should_extract_borrower_when_borrow_log_present() {
@@ -254,7 +254,7 @@ fn storage_key_helpers_should_match_known_system_events_key() {
 }
 
 // The omniwatch by-health schema carries a `pool` per borrower; the fetch must return it so
-// borrowers can be bucketed per market (dropping it caused the R23 churn).
+// borrowers can be bucketed per market (dropping it scans everyone against the wrong pool).
 #[tokio::test]
 async fn fetch_borrowers_list_should_return_pool_tagged_pairs_when_response_has_pool_field() {
 	use std::io::{Read, Write};
@@ -518,7 +518,97 @@ mod registry {
 	}
 }
 
-// R7: a borrower with zero debt is healthy (HF = max), not an error — decide_liquidation skips.
+// --- borrower-set persistence ---
+
+mod cache {
+	use super::*;
+	use sp_core::H160;
+
+	fn tmp_path(name: &str) -> std::path::PathBuf {
+		// Unique-ish per test via the name; std::env::temp_dir avoids polluting the repo.
+		std::env::temp_dir().join(format!("pepl-w11-{name}.json"))
+	}
+
+	fn instance_with(pool: H160, borrowers: &[H160]) -> MmInstance {
+		let mut inst = MmInstance::new("test", H160::repeat_byte(0x01), Some(pool), InstanceSource::Chain);
+		inst.borrowers = borrowers.iter().copied().collect();
+		inst
+	}
+
+	#[test]
+	fn borrower_cache_should_round_trip_per_pool_sets() {
+		let path = tmp_path("roundtrip");
+		let _ = std::fs::remove_file(&path);
+		let pool_a = H160::repeat_byte(0xAA);
+		let pool_b = H160::repeat_byte(0xBB);
+		let a1 = H160::repeat_byte(0x11);
+		let a2 = H160::repeat_byte(0x12);
+		let b1 = H160::repeat_byte(0x21);
+		let instances = vec![instance_with(pool_a, &[a1, a2]), instance_with(pool_b, &[b1])];
+
+		borrower_cache::save(&path, &instances, "test");
+		let mut loaded = borrower_cache::load(&path, "test");
+		loaded.sort();
+		let mut expected = vec![(a1, pool_a), (a2, pool_a), (b1, pool_b)];
+		expected.sort();
+
+		assert_eq!(loaded, expected);
+		let _ = std::fs::remove_file(&path);
+	}
+
+	#[test]
+	fn borrower_cache_load_should_return_empty_when_file_missing() {
+		let path = tmp_path("missing-xyz");
+		let _ = std::fs::remove_file(&path);
+		assert!(borrower_cache::load(&path, "test").is_empty());
+	}
+
+	#[test]
+	fn borrower_cache_load_should_return_empty_when_file_corrupt() {
+		let path = tmp_path("corrupt");
+		std::fs::write(&path, b"not json at all {{{").expect("write");
+		assert!(borrower_cache::load(&path, "test").is_empty());
+		let _ = std::fs::remove_file(&path);
+	}
+
+	#[test]
+	fn borrower_cache_should_skip_instances_without_resolved_pool() {
+		let path = tmp_path("unresolved");
+		let _ = std::fs::remove_file(&path);
+		let pool_a = H160::repeat_byte(0xAA);
+		let resolved = instance_with(pool_a, &[H160::repeat_byte(0x11)]);
+		// pool = None → not persisted (borrowers get re-seeded anyway)
+		let mut unresolved = MmInstance::new("test", H160::repeat_byte(0x02), None, InstanceSource::Config);
+		unresolved.borrowers.insert(H160::repeat_byte(0x99));
+
+		borrower_cache::save(&path, &[resolved, unresolved], "test");
+		let loaded = borrower_cache::load(&path, "test");
+
+		assert_eq!(loaded, vec![(H160::repeat_byte(0x11), pool_a)]);
+		let _ = std::fs::remove_file(&path);
+	}
+
+	// A reachable-but-empty response (all instances empty) must NOT overwrite a good file.
+	#[test]
+	fn borrower_cache_save_should_not_wipe_file_when_set_is_empty() {
+		let path = tmp_path("no-wipe");
+		let pool = H160::repeat_byte(0xAA);
+		borrower_cache::save(&path, &[instance_with(pool, &[H160::repeat_byte(0x11)])], "test");
+		assert_eq!(borrower_cache::load(&path, "test").len(), 1);
+
+		// now save an all-empty set — the file must be untouched
+		let empty = MmInstance::new("test", H160::repeat_byte(0x02), Some(pool), InstanceSource::Chain);
+		borrower_cache::save(&path, &[empty], "test");
+		assert_eq!(
+			borrower_cache::load(&path, "test").len(),
+			1,
+			"empty set must not wipe the file"
+		);
+		let _ = std::fs::remove_file(&path);
+	}
+}
+
+// A borrower with zero debt is healthy (HF = max), not an error — decide_liquidation skips.
 #[test]
 fn decide_liquidation_should_return_none_when_borrower_has_no_debt() {
 	use pepl_worker_support::types::{Borrower, MoneyMarket, UserConfiguration};
@@ -545,7 +635,7 @@ fn decide_liquidation_should_return_none_when_borrower_has_no_debt() {
 	assert_eq!(decide_liquidation(&cfg, &mm, &borrower), None);
 }
 
-// W5: parse a DIA setValue oracle tx into (base_asset_lowercase, price).
+// Parse a DIA setValue oracle tx into (base_asset_lowercase, price).
 #[test]
 fn parse_oracle_price_updates_should_extract_base_and_price_from_setvalue() {
 	use ethabi::Token;
@@ -581,9 +671,9 @@ fn parse_oracle_price_updates_should_extract_base_and_price_from_setvalue() {
 	assert_eq!(parse_oracle_price_updates(&tx), vec![("dot".to_string(), price)]);
 }
 
-// W5: the derived-token reprice — v1's blind spot. A DOT price update must reprice BOTH the direct
-// DOT reserve (set to the new price) AND a derived reserve whose symbol contains "dot" (e.g. gDOT),
-// scaled by the ratio new_base/old_base. v1 left derived reserves at their stale price.
+// The derived-token reprice. A DOT price update must reprice BOTH the direct DOT reserve (set to
+// the new price) AND a derived reserve whose symbol contains "dot" (e.g. gDOT), scaled by the
+// ratio new_base/old_base.
 #[test]
 fn apply_oracle_updates_should_reprice_direct_and_derived_reserves() {
 	use pepl_worker_support::types::{Reserve, ReserveData};

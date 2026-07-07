@@ -11342,6 +11342,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "futures",
+ "hex",
  "hex-literal",
  "hydradx-runtime",
  "hyper 0.14.31",

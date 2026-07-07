@@ -1,4 +1,4 @@
-// Placeholder for load_events() unit tests — wired up once the loop exists (W1/W2).
+// Placeholder for load_events() unit tests.
 // use super::mock::MockClient;
 // use crate::*;
 

@@ -12,6 +12,7 @@ clap = { workspace = true }
 primitives = { workspace = true }
 sp-core = { workspace = true }
 hex-literal = { workspace = true }
+hex = { workspace = true, features = ["std"] }
 cumulus-primitives-core = { workspace = true  , features = ["std"] }
 sp-api = { workspace = true , features = ["std"] }
 frame-support = { workspace = true }

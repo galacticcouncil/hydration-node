@@ -64,7 +64,7 @@ fn select_best_should_prefer_partial_to_target_over_full_repay() {
 	assert_eq!(best, Some(exact));
 }
 
-// A full repay must survive as the sole option (pre-R10 it was dropped on a divide-by-zero).
+// A full repay must survive as the sole option — it must not be dropped on a divide-by-zero.
 #[test]
 fn select_best_should_return_full_repay_when_it_is_the_only_option() {
 	let full_repay = option(U256::MAX, 2);

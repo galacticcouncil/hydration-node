@@ -249,7 +249,7 @@ impl Hydration {
 			log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): {} reserve(s) failed to load and are poisoned; borrowers holding them will be skipped, indices: {:?}", self.log_prefix, poisoned.len(), poisoned);
 		}
 
-		log::info!(target: LOG_TARGET, "{:?}: fetch_money_market(): finished, duration: {:?}", self.log_prefix, timer.elapsed().as_nanos());
+		log::debug!(target: LOG_TARGET, "{:?}: fetch_money_market(): finished, duration: {:?}", self.log_prefix, timer.elapsed().as_nanos());
 		Some(MoneyMarket {
 			pool,
 			oracle,
@@ -335,7 +335,7 @@ impl Hydration {
 
 		let emode_id = if emode_id.is_zero() { None } else { Some(emode_id) };
 
-		log::info!(target: LOG_TARGET, "{:?}: fetch_borrower(): finished, duration: {:?}", self.log_prefix, timer.elapsed().as_nanos());
+		log::trace!(target: LOG_TARGET, "{:?}: fetch_borrower(): finished, duration: {:?}", self.log_prefix, timer.elapsed().as_nanos());
 		Some(Borrower {
 			configuration,
 			address: who,

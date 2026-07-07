@@ -378,6 +378,10 @@ async fn start_node_impl(
 		);
 	}
 
+	// Node base path for the v2 worker's borrower cache, captured before the config is consumed
+	// below.
+	let base_path_for_pepl = parachain_config.base_path.path().to_path_buf();
+
 	// By default, the liquidation worker is enabled for validator nodes and disabled for non-validator nodes.
 	if (validator && !(liquidation_worker_config.liquidation_worker == Some(false)))
 		|| (!validator && liquidation_worker_config.liquidation_worker == Some(true))
@@ -400,15 +404,17 @@ async fn start_node_impl(
 			use pepl_worker::LiquidationTask;
 			use pepl_worker_support::types::RuntimeClient;
 
+			// Resolve the borrower-cache path from the node base path before consuming the CLI
+			// config; `--borrower-cache-path ""` disables persistence.
+			let cache_path = liquidation_worker_config.resolve_borrower_cache_path(&base_path_for_pepl);
+			let mut worker_cfg: pepl_worker::LiquidationTaskConfig = liquidation_worker_config.into();
+			worker_cfg.borrower_cache_path = cache_path;
+
 			task_manager.spawn_handle().spawn(
 				"pepl-worker-runner",
 				"pepl-worker",
 				pepl_worker::run(
-					LiquidationTask::new(
-						RuntimeClient::new(client.clone()),
-						transaction_pool.clone(),
-						liquidation_worker_config.into(),
-					),
+					LiquidationTask::new(RuntimeClient::new(client.clone()), transaction_pool.clone(), worker_cfg),
 					client.clone(),
 				),
 			);
