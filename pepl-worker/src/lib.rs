@@ -74,16 +74,16 @@ const MIN_COLLATERAL_BASE: u128 = ONE_BASE;
 // connections but never responds must not hang the worker), and how often `run()` re-fetches the
 // borrower list (to pick up new borrowers and to recover a seed that failed while omniwatch was
 // down).
-const OMNIWATCH_FETCH_ATTEMPTS: u32 = 5;
-const OMNIWATCH_FETCH_BACKOFF: Duration = Duration::from_secs(3);
-const OMNIWATCH_FETCH_TIMEOUT: Duration = Duration::from_secs(10);
-const OMNIWATCH_REFETCH_EVERY_N_BLOCKS: u32 = 100;
+pub const OMNIWATCH_FETCH_ATTEMPTS: u32 = 5;
+pub const OMNIWATCH_FETCH_BACKOFF: Duration = Duration::from_secs(3);
+pub const OMNIWATCH_FETCH_TIMEOUT: Duration = Duration::from_secs(10);
+pub const OMNIWATCH_REFETCH_EVERY_N_BLOCKS: u32 = 100;
 // Until the FIRST successful omniwatch fetch, re-seed more often: event discovery only sees new
 // borrows, so pre-existing borrowers stay invisible until a seed succeeds (the prod-miss shape).
-const OMNIWATCH_REFETCH_UNSEEDED_EVERY_N_BLOCKS: u32 = 10;
+pub const OMNIWATCH_REFETCH_UNSEEDED_EVERY_N_BLOCKS: u32 = 10;
 
 // Cap on blocks queued for BORROW-event scanning while the money market can't be fetched.
-const MAX_PENDING_EVENT_BLOCKS: usize = 256;
+pub const MAX_PENDING_EVENT_BLOCKS: usize = 256;
 
 // Contracts' addresses
 pub mod contracts {
@@ -166,7 +166,7 @@ mod https {
 	}
 }
 
-mod storage_key {
+pub mod storage_key {
 	use super::*;
 
 	pub const SYSTEM_EVENTS: [u8; 32] = hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7");
@@ -560,7 +560,7 @@ async fn fetch_borrowers_list_with_retry(
 // Function iterates over `events` and returns the borrowers from `pool`'s BORROW logs. The pool
 // address is the dynamically resolved one (`MoneyMarket.pool`), not a hardcoded constant, so
 // discovery keeps working if the PoolAddressesProvider ever points at a new pool.
-pub(crate) fn process_events(
+pub fn process_events(
 	events: Vec<EventRecord<RuntimeEvent, hydradx_runtime::Hash>>,
 	pool: EvmAddress,
 	log_prefix: &str,
