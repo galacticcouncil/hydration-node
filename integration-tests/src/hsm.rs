@@ -2145,7 +2145,6 @@ fn hollar_liquidation_should_work() {
 			alice_evm_address,
 			hollar_borrow_amount,
 			route,
-			None,
 		));
 
 		// Assert
@@ -2293,7 +2292,6 @@ fn hollar_liquidation_should_fail_when_above_health_factor() {
 				alice_evm_address,
 				hollar_borrow_amount,
 				route,
-				None,
 			),
 			pallet_dispatcher::Error::<Runtime>::AaveHealthFactorNotBelowThreshold
 		);

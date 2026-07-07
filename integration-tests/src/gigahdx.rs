@@ -2225,7 +2225,6 @@ fn liquidate_gigahdx_should_refuse_when_debt_asset_is_not_hollar() {
 				alice_evm,
 				1_000 * UNITS,
 				route,
-				None,
 			),
 			pallet_liquidation::Error::<Runtime>::UnsupportedDebtAsset
 		);
@@ -2248,7 +2247,6 @@ fn liquidate_gigahdx_should_refuse_when_borrower_has_no_position() {
 				alice_evm,
 				1_000 * UNITS,
 				route,
-				None,
 			),
 			pallet_liquidation::Error::<Runtime>::NoGigaHdxPosition
 		);
@@ -3737,7 +3735,6 @@ fn gigahdx_liquidation_extrinsic_should_consolidate_seized_gigahdx_and_hollar_de
 			alice_evm,
 			borrow_amount / 2,
 			hydradx_traits::router::Route::default(),
-			None,
 		));
 
 		// Borrower: debt fell, collateral shrank.
@@ -3965,7 +3962,6 @@ fn gigahdx_liquidation_e2e_should_seize_when_normal_staker() {
 			alice_evm,
 			borrow_amount / 2,
 			hydradx_traits::router::Route::default(),
-			None,
 		));
 
 		assert!(Currencies::free_balance(GIGAHDX, &alice) < alice_gigahdx_before);
@@ -4049,7 +4045,6 @@ fn gigahdx_liquidation_e2e_should_remove_unbacked_vote_when_borrower_has_convict
 			alice_evm,
 			borrow_amount / 2,
 			hydradx_traits::router::Route::default(),
-			None,
 		));
 
 		let liq_stake = pallet_gigahdx::Stakes::<Runtime>::get(&liq_account).unwrap();
@@ -4177,7 +4172,6 @@ fn gigahdx_liquidation_e2e_should_keep_vote_still_backed_by_residual_stake() {
 			alice_evm,
 			borrow_amount / 2,
 			hydradx_traits::router::Route::default(),
-			None,
 		));
 
 		// Vote was still backed by the borrower's residual stake → kept.
@@ -4252,7 +4246,6 @@ fn gigahdx_liquidation_e2e_should_not_strand_surplus_hollar_debt() {
 			alice_evm,
 			absurd_debt_to_cover,
 			hydradx_traits::router::Route::default(),
-			None,
 		));
 
 		// The liquidation account's main-MM debt is bounded by the borrower's
@@ -4350,7 +4343,6 @@ fn liquidate_gigahdx_should_clamp_borrow_to_actual_debt_when_debt_to_cover_is_ab
 			alice_evm,
 			absurd,
 			hydradx_traits::router::Route::default(),
-			None,
 		));
 
 		let debt_repaid = last_liquidated_debt_repaid();
@@ -4432,7 +4424,6 @@ fn gigahdx_liquidation_should_land_when_foreign_lock_forces_slash_with_zero_slac
 			alice_evm,
 			borrow_amount,
 			hydradx_traits::router::Route::default(),
-			None,
 		));
 
 		let liq_stake = pallet_gigahdx::Stakes::<Runtime>::get(&liq_account).unwrap();
@@ -4508,7 +4499,6 @@ fn gigahdx_liquidation_e2e_should_seize_when_borrower_has_unrelated_lock() {
 			alice_evm,
 			borrow_amount / 2,
 			hydradx_traits::router::Route::default(),
-			None,
 		));
 
 		let liq_stake = pallet_gigahdx::Stakes::<Runtime>::get(&liq_account).unwrap();
@@ -4604,7 +4594,6 @@ fn run_liquidation_with_deployed_fee() -> FeeScenarioOutcome {
 		alice_evm,
 		borrow_amount / 2,
 		hydradx_traits::router::Route::default(),
-		None,
 	));
 
 	let collector_fee = Currencies::free_balance(GIGAHDX, &gigahdx_atoken_collector()) - collector_before;

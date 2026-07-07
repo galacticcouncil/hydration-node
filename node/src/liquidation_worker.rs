@@ -117,7 +117,8 @@ impl From<&pepl_worker::LiquidationWorkerCli> for LiquidationWorkerConfig {
 	fn from(v: &pepl_worker::LiquidationWorkerCli) -> Self {
 		Self {
 			liquidation_worker: v.liquidation_worker,
-			pap_contract: v.pool_address_provider,
+			// v1 is single-market by design: it takes the first pinned PAP, if any.
+			pap_contract: v.pool_address_provider.first().copied(),
 			runtime_api_caller: v.runtime_api_caller,
 			oracle_update_signer: v.oracle_signer.clone(),
 			oracle_update_call_address: v.oracle_update_call_address.clone(),
@@ -591,7 +592,6 @@ where
 				user: borrower.user_address,
 				debt_to_cover: debt_to_liquidate,
 				route: BoundedVec::new(),
-				unsigned_priority: None,
 			});
 
 			let encoded_tx: fp_self_contained::UncheckedExtrinsic<
@@ -917,7 +917,6 @@ where
 			user: Default::default(),
 			debt_to_cover: Default::default(),
 			route: BoundedVec::new(),
-			unsigned_priority: None,
 		};
 		let liquidation_weight = liquidation_weight.get_dispatch_info().call_weight;
 

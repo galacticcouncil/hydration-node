@@ -561,7 +561,6 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 			alice_evm_address,
 			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
-			None,
 		));
 
 		// Assert
@@ -680,7 +679,6 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 			alice_evm_address,
 			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
-			None,
 		));
 
 		// Assert
@@ -804,7 +802,6 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 			alice_evm_address,
 			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
-			None,
 		));
 
 		let mm = hydration
@@ -932,7 +929,6 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 			alice_evm_address,
 			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
-			None,
 		));
 
 		// Assert
@@ -1045,7 +1041,6 @@ fn calculate_debt_to_liquidate_with_two_different_assets() {
 			alice_evm_address,
 			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
-			None,
 		));
 
 		// Assert
@@ -1195,7 +1190,11 @@ fn run_parity_scenario(s: &ParityScenario) -> pepl_worker::LiquidationDecision {
 	let (v1_coll, v1_debt, v1_amount) = v1_decision(caller, borrower_evm);
 	eprintln!("parity[{}]: v2 decision = {v2:?}", s.name);
 
-	assert_eq!(v1_coll, v2.collateral_asset, "{}: collateral asset mismatch v1 vs v2", s.name);
+	assert_eq!(
+		v1_coll, v2.collateral_asset,
+		"{}: collateral asset mismatch v1 vs v2",
+		s.name
+	);
 	assert_eq!(v1_debt, v2.debt_asset, "{}: debt asset mismatch v1 vs v2", s.name);
 	assert_eq!(v1_amount, v2.debt_to_cover, "{}: debt amount mismatch v1 vs v2", s.name);
 
@@ -1206,7 +1205,6 @@ fn run_parity_scenario(s: &ParityScenario) -> pepl_worker::LiquidationDecision {
 		borrower_evm,
 		v2.debt_to_cover,
 		BoundedVec::new(),
-		Some(v2.priority),
 	));
 	let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
 	assert_health_factor_is_within_tolerance(usr.health_factor, U256::from(TARGET_HF));
@@ -1289,7 +1287,6 @@ fn v2_decide_liquidation_should_restore_hf_when_borrower_is_underwater() {
 			borrower_evm,
 			decision.debt_to_cover,
 			BoundedVec::new(),
-			Some(decision.priority),
 		));
 
 		let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
@@ -1323,7 +1320,6 @@ fn v1_and_v2_should_choose_same_liquidation_when_borrower_is_underwater() {
 			borrower_evm,
 			v1_amount,
 			BoundedVec::new(),
-			None,
 		));
 		let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
 		assert_health_factor_is_within_tolerance(usr.health_factor, U256::from(TARGET_HF));
@@ -1401,5 +1397,57 @@ fn v1_and_v2_should_choose_same_liquidation_when_collateral_is_cross_asset_weth(
 		assert_eq!(v2.debt_asset, DOT);
 		assert_eq!(v2.debt_to_cover, 2_727_049_921_500);
 		assert_eq!(v2.priority, 37_260);
+	});
+}
+
+// Multi-MM P1: the pool-addressed extrinsic must behave exactly like `liquidate` when the
+// provided pool is the one the liquidation executes against.
+#[test]
+fn liquidate_with_pool_should_liquidate_when_pool_matches_deployed_pool() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_2).execute_with(|| {
+		let (pool_contract, borrower_evm, caller) = create_unhealthy_borrower();
+
+		let decision = v2_decision(caller, borrower_evm);
+
+		assert_ok!(Liquidation::liquidate_with_pool(
+			RuntimeOrigin::signed(BOB.into()),
+			pool_contract,
+			decision.collateral_asset,
+			decision.debt_asset,
+			borrower_evm,
+			decision.debt_to_cover,
+			BoundedVec::new(),
+			Some(decision.priority),
+		));
+
+		let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
+		assert_health_factor_is_within_tolerance(usr.health_factor, U256::from(TARGET_HF));
+	});
+}
+
+// Multi-MM P1: a pool that is not the borrowing contract is rejected before any liquidation
+// work — the on-chain execution gate a worker/omniwatch bug cannot get past.
+#[test]
+fn liquidate_with_pool_should_fail_when_pool_is_wrong() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_2).execute_with(|| {
+		let (_pool_contract, borrower_evm, caller) = create_unhealthy_borrower();
+
+		let decision = v2_decision(caller, borrower_evm);
+
+		frame_support::assert_noop!(
+			Liquidation::liquidate_with_pool(
+				RuntimeOrigin::signed(BOB.into()),
+				EvmAddress::from_slice(&[0x42; 20]),
+				decision.collateral_asset,
+				decision.debt_asset,
+				borrower_evm,
+				decision.debt_to_cover,
+				BoundedVec::new(),
+				Some(decision.priority),
+			),
+			pallet_liquidation::Error::<Runtime>::PoolAddressMismatch
+		);
 	});
 }

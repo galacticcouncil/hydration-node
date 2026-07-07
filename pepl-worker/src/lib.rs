@@ -38,10 +38,10 @@ use sp_runtime::traits::Zero;
 use sp_runtime::BoundedVec;
 use sp_runtime::OpaqueExtrinsic;
 use sp_runtime::SaturatedConversion;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::ops::Deref;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -84,6 +84,10 @@ pub const OMNIWATCH_REFETCH_UNSEEDED_EVERY_N_BLOCKS: u32 = 10;
 
 // Cap on blocks queued for BORROW-event scanning while the money market can't be fetched.
 pub const MAX_PENDING_EVENT_BLOCKS: usize = 256;
+
+// Cap on watched money-market instances — a backstop against a hostile/buggy omniwatch
+// serving many bogus pools, set far above any realistic market count.
+pub const MAX_MM_INSTANCES: usize = 16;
 
 // Contracts' addresses
 pub mod contracts {
@@ -170,6 +174,186 @@ pub mod storage_key {
 	use super::*;
 
 	pub const SYSTEM_EVENTS: [u8; 32] = hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7");
+
+	/// `pallet_liquidation::BorrowingContract` — the main money-market pool. ValueQuery:
+	/// an absent value means the chain uses the pallet's default (the main pool).
+	pub fn borrowing_contract() -> [u8; 32] {
+		frame_support::storage::storage_prefix(b"Liquidation", b"BorrowingContract")
+	}
+
+	/// `pallet_gigahdx::GigaHdxPoolContract` — the gigahdx money-market pool (OptionQuery).
+	pub fn gigahdx_pool_contract() -> [u8; 32] {
+		frame_support::storage::storage_prefix(b"GigaHdx", b"GigaHdxPoolContract")
+	}
+}
+
+/// `(borrower, pool)` pairs as served by omniwatch's by-health endpoint.
+pub type PoolTaggedBorrowers = Vec<(EvmAddress, EvmAddress)>;
+
+/// Which liquidation path a market's decisions must take on-chain.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InstanceKind {
+	/// Regular Aave market — `liquidate_with_pool` runs the generic path against the
+	/// borrowing contract.
+	Generic,
+	/// The gigahdx market — the pallet routes on the GIGAHDX aToken asset id, so decisions
+	/// must carry the aToken (not the underlying) as collateral.
+	GigaHdx,
+}
+
+/// How a money-market instance entered the registry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InstanceSource {
+	/// Bootstrapped from on-chain storage (borrowing contract / gigahdx pool contract).
+	Chain,
+	/// Pinned via `--pool-address-provider`.
+	Config,
+	/// Discovered from omniwatch's per-borrower `pool` field.
+	Discovered,
+}
+
+/// One watched money market. The registry only grows (keep-until-restart): an instance, once
+/// seen — from chain state, config, or omniwatch — is never dropped on external omission;
+/// only the operator denylist prevents creation.
+pub struct MmInstance {
+	pub pap: EvmAddress,
+	/// Resolved pool contract — known at creation for pool-discovered instances, after the
+	/// first money-market fetch for PAP-pinned ones.
+	pub pool: Option<EvmAddress>,
+	/// Re-detected every block against `GigaHdxPoolContract` storage.
+	pub kind: InstanceKind,
+	pub source: InstanceSource,
+	pub borrowers: HashSet<EvmAddress>,
+	/// Money market + borrowers from this instance's latest scan — the oracle fast-path cache.
+	pub cached_mm: Option<MoneyMarket>,
+	pub cached_borrowers: Vec<Borrower>,
+	/// underlying asset id → aToken asset id, refreshed per block; populated for GigaHdx only.
+	pub atoken_map: HashMap<AssetId, AssetId>,
+	pub log_prefix: String,
+}
+
+impl MmInstance {
+	pub fn new(base_log_prefix: &str, pap: EvmAddress, pool: Option<EvmAddress>, source: InstanceSource) -> Self {
+		let tag = pool.unwrap_or(pap);
+		let b = tag.as_bytes();
+		let log_prefix = format!("{base_log_prefix}/mm-{:02x}{:02x}{:02x}{:02x}", b[0], b[1], b[2], b[3]);
+		Self {
+			pap,
+			pool,
+			kind: InstanceKind::Generic,
+			source,
+			borrowers: HashSet::new(),
+			cached_mm: None,
+			cached_borrowers: Vec::new(),
+			atoken_map: HashMap::new(),
+			log_prefix,
+		}
+	}
+}
+
+pub fn find_instance_by_pool(instances: &[MmInstance], pool: EvmAddress) -> Option<usize> {
+	instances.iter().position(|i| i.pool == Some(pool))
+}
+
+pub fn find_instance_by_pap(instances: &[MmInstance], pap: EvmAddress) -> Option<usize> {
+	instances.iter().position(|i| i.pap == pap)
+}
+
+/// Ensures a registry instance exists for `pool`, creating one if needed. Returns the
+/// instance index, or `None` when the pool is denylisted, the registry is full, or the
+/// PAP resolution / sanity round-trip fails (self-healing: the pool re-arrives with the
+/// next omniwatch re-seed or bootstrap read).
+pub fn ensure_instance_for_pool<B: Block, RA: RuntimeApiProvider<B>>(
+	instances: &mut Vec<MmInstance>,
+	api: &RA,
+	block: B::Hash,
+	pool: EvmAddress,
+	source: InstanceSource,
+	cfg: &LiquidationTaskConfig,
+) -> Option<usize> {
+	if cfg.pool_denylist.contains(&pool) {
+		log::debug!(target: LOG_TARGET, "{:?} ensure_instance_for_pool(): pool {pool:?} is denylisted, skipping", cfg.log_prefix);
+		return None;
+	}
+	if let Some(idx) = find_instance_by_pool(instances, pool) {
+		return Some(idx);
+	}
+
+	// Unknown pool: resolve its PAP on-chain.
+	let pap = match pepl_worker_support::fetch_addresses_provider(api, block, cfg.api_caller, pool) {
+		Ok(pap) => pap,
+		Err(e) => {
+			log::error!(target: LOG_TARGET, "{:?} ensure_instance_for_pool(): failed to resolve ADDRESSES_PROVIDER for pool {pool:?}: {e:?} — not instancing", cfg.log_prefix);
+			return None;
+		}
+	};
+
+	// Sanity round-trip BEFORE adopt or create: the resolved PAP must point back at the
+	// pool. Guards against a bogus contract answering ADDRESSES_PROVIDER() with garbage —
+	// including one naming a pinned PAP to hijack that instance's pool slot.
+	let probe = Hydration::new(cfg.api_caller, pap, cfg.log_prefix.as_str());
+	match probe.fetch_pool(api, block) {
+		Ok(resolved) if resolved == pool => {}
+		other => {
+			log::error!(target: LOG_TARGET, "{:?} ensure_instance_for_pool(): sanity round-trip failed for pool {pool:?} (PAP {pap:?} resolves to {other:?}) — not instancing", cfg.log_prefix);
+			return None;
+		}
+	}
+
+	// A PAP-pinned instance that has not resolved its pool yet is adopted instead of duplicated.
+	if let Some(idx) = find_instance_by_pap(instances, pap) {
+		match instances[idx].pool {
+			None => {
+				instances[idx].pool = Some(pool);
+				return Some(idx);
+			}
+			Some(existing) if existing == pool => return Some(idx),
+			Some(existing) => {
+				log::error!(target: LOG_TARGET, "{:?} ensure_instance_for_pool(): PAP {pap:?} already bound to pool {existing:?}, refusing pool {pool:?}", cfg.log_prefix);
+				return None;
+			}
+		}
+	}
+
+	if instances.len() >= MAX_MM_INSTANCES {
+		log::warn!(target: LOG_TARGET, "{:?} ensure_instance_for_pool(): registry full ({MAX_MM_INSTANCES}), not instancing pool {pool:?}", cfg.log_prefix);
+		return None;
+	}
+
+	let instance = MmInstance::new(cfg.log_prefix.as_str(), pap, Some(pool), source);
+	log::info!(target: LOG_TARGET, "{:?} run(): new money-market instance {} (pool {pool:?}, PAP {pap:?}, source {source:?})", cfg.log_prefix, instance.log_prefix, );
+	instances.push(instance);
+	Some(instances.len() - 1)
+}
+
+/// Rewrites a decision for on-chain submission according to the market's kind.
+///
+/// `Generic` markets pass through untouched. For the `GigaHdx` market the pallet routes on
+/// `collateral_asset == gigahdx aToken`, while `decide_liquidation` produces the underlying
+/// (stHDX) — the aToken asset id is substituted from `atoken_map` (underlying → aToken,
+/// built from the market's reserve data). A missing mapping returns `None`: submitting the
+/// underlying would route to the generic path and fail the on-chain pool check, so we fail
+/// closed here with a log instead.
+pub fn map_decision_collateral(
+	decision: &LiquidationDecision,
+	kind: InstanceKind,
+	atoken_map: &HashMap<AssetId, AssetId>,
+	log_prefix: &str,
+) -> Option<LiquidationDecision> {
+	match kind {
+		InstanceKind::Generic => Some(decision.clone()),
+		InstanceKind::GigaHdx => match atoken_map.get(&decision.collateral_asset) {
+			Some(atoken) => {
+				let mut mapped = decision.clone();
+				mapped.collateral_asset = *atoken;
+				Some(mapped)
+			}
+			None => {
+				log::error!(target: LOG_TARGET, "{log_prefix:?} map_decision_collateral(): no aToken mapping for collateral {:?} on the gigahdx market — skipping submission (fail-closed)", decision.collateral_asset);
+				None
+			}
+		},
+	}
 }
 
 /// The configuration for the liquidation worker cli params.
@@ -179,9 +363,20 @@ pub struct LiquidationWorkerCli {
 	#[clap(long)]
 	pub liquidation_worker: Option<bool>,
 
-	/// Address of the Pool Address Provider contract.
+	/// Address of a Pool Address Provider contract to watch. Repeatable — one money-market
+	/// instance per address. Optional: instances are auto-discovered from chain state and
+	/// omniwatch; this flag only pins additional markets.
 	#[clap(long)]
-	pub pool_address_provider: Option<EvmAddress>,
+	pub pool_address_provider: Vec<EvmAddress>,
+
+	/// Money-market pool addresses that must never be instantiated, even if discovered.
+	#[clap(long)]
+	pub mm_pool_denylist: Vec<EvmAddress>,
+
+	/// Enable/disable money-market instance discovery from omniwatch (default: enabled).
+	/// On-chain markets (borrowing contract, gigahdx pool) are always watched.
+	#[clap(long)]
+	pub mm_discovery: Option<bool>,
 
 	/// EVM address of the account that calls Runtime API. Account needs to have WETH balance.
 	#[clap(long)]
@@ -214,7 +409,15 @@ pub struct LiquidationWorkerCli {
 
 /// The configuration for `LiquidationTask`.
 pub struct LiquidationTaskConfig {
-	pub pool_address_provider: EvmAddress,
+	/// Pinned Pool Address Providers — one money-market instance each, on top of the
+	/// instances bootstrapped from chain state and discovered from omniwatch.
+	pub pool_address_providers: Vec<EvmAddress>,
+
+	/// Pool addresses that must never become instances.
+	pub pool_denylist: Vec<EvmAddress>,
+
+	/// Whether omniwatch-driven instance discovery is active.
+	pub discovery_enabled: bool,
 
 	/// EVM address of the account that calls Runtime API. Account needs to have WETH balance.
 	pub api_caller: EvmAddress,
@@ -244,7 +447,9 @@ pub struct LiquidationTaskConfig {
 impl From<LiquidationWorkerCli> for LiquidationTaskConfig {
 	fn from(v: LiquidationWorkerCli) -> Self {
 		Self {
-			pool_address_provider: v.pool_address_provider.unwrap_or(contracts::POOL_ADDRESS_PROVIDER),
+			pool_address_providers: v.pool_address_provider,
+			pool_denylist: v.mm_pool_denylist,
+			discovery_enabled: v.mm_discovery.unwrap_or(true),
 			api_caller: v.runtime_api_caller.unwrap_or(contracts::RUNTIME_API_CALLER),
 			oracle_signer: v.oracle_signer.unwrap_or(contracts::ORACLE_SIGNER.to_vec()),
 			oracle_update_call: v
@@ -264,7 +469,9 @@ impl From<LiquidationWorkerCli> for LiquidationTaskConfig {
 impl Default for LiquidationTaskConfig {
 	fn default() -> Self {
 		Self {
-			pool_address_provider: contracts::POOL_ADDRESS_PROVIDER,
+			pool_address_providers: Vec::new(),
+			pool_denylist: Vec::new(),
+			discovery_enabled: true,
 			api_caller: contracts::RUNTIME_API_CALLER,
 			oracle_signer: contracts::ORACLE_SIGNER.to_vec(),
 			oracle_update_call: contracts::ORACLE_UPDATE_CALL.to_vec(),
@@ -356,12 +563,19 @@ pub fn decide_liquidation(
 	})
 }
 
-/// Build the opaque `liquidate` extrinsic (sync — no tx pool needed). Shared by
+/// Build the opaque `liquidate_with_pool` extrinsic (sync — no tx pool needed). Shared by
 /// `submit_liquidation` and the parallel submit-on-find scan (which spawns the async `submit_one`
 /// onto a tokio handle from a worker thread). The unsigned tx carries `unsigned_priority =
 /// collateral-at-risk`, so the tx pool orders competing liquidations for the block builder.
-fn encode_liquidation_opaque(decision: &LiquidationDecision, log_prefix: &str) -> Option<OpaqueExtrinsic> {
-	let tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate {
+/// `pool` is the market the decision was made against; the pallet rejects the call if it is not
+/// the pool the liquidation would execute on.
+pub fn encode_liquidation_opaque(
+	decision: &LiquidationDecision,
+	pool: EvmAddress,
+	log_prefix: &str,
+) -> Option<OpaqueExtrinsic> {
+	let tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_with_pool {
+		pool,
 		collateral_asset: decision.collateral_asset,
 		debt_asset: decision.debt_asset,
 		user: decision.user,
@@ -422,9 +636,14 @@ where
 		}
 	}
 
-	async fn submit_liquidation(&self, block: B::Hash, decision: &LiquidationDecision) -> Result<(), ()> {
+	async fn submit_liquidation(
+		&self,
+		block: B::Hash,
+		pool: EvmAddress,
+		decision: &LiquidationDecision,
+	) -> Result<(), ()> {
 		let log_prefix = self.cfg.log_prefix.as_str();
-		let opaque_tx = encode_liquidation_opaque(decision, log_prefix).ok_or(())?;
+		let opaque_tx = encode_liquidation_opaque(decision, pool, log_prefix).ok_or(())?;
 
 		match self
 			.transaction_pool
@@ -476,9 +695,14 @@ where
 	}
 }
 
-/// Function fetches and returns list of borrowers' addresses from provided `url`.
+/// Function fetches and returns the list of `(borrower, pool)` pairs from provided `url` —
+/// each borrower tagged with the money-market pool omniwatch tracks them in.
 /// Returned list is not deduped nor sorted in any way.
-async fn fetch_borrowers_list(https: &https::Client, url: Uri, log_prefix: &str) -> Option<Vec<EvmAddress>> {
+async fn fetch_borrowers_list(
+	https: &https::Client,
+	url: Uri,
+	log_prefix: &str,
+) -> Option<Vec<(EvmAddress, EvmAddress)>> {
 	let timer = Instant::now();
 	log::trace!(target: LOG_TARGET, "{log_prefix:?} fetch_borrowers(): fetching borrowers list from external source");
 
@@ -518,9 +742,9 @@ async fn fetch_borrowers_list(https: &https::Client, url: Uri, log_prefix: &str)
 		}
 	};
 
-	let mut b = Vec::<EvmAddress>::with_capacity(data.borrowers.len());
-	for (addr, _) in &data.borrowers {
-		b.push(*addr);
+	let mut b = Vec::<(EvmAddress, EvmAddress)>::with_capacity(data.borrowers.len());
+	for (addr, details) in &data.borrowers {
+		b.push((*addr, details.pool));
 	}
 
 	log::info!(target: LOG_TARGET, "{:?} fetch_borrowers(): finished fetching {:?} borrowers elapsed: {:?}", log_prefix, b.len(), timer.elapsed().as_nanos());
@@ -539,7 +763,7 @@ async fn fetch_borrowers_list_with_retry(
 	max_attempts: u32,
 	backoff: Duration,
 	timeout: Duration,
-) -> Option<Vec<EvmAddress>> {
+) -> Option<Vec<(EvmAddress, EvmAddress)>> {
 	for attempt in 1..=max_attempts {
 		match tokio::time::timeout(timeout, fetch_borrowers_list(https, url.clone(), log_prefix)).await {
 			Ok(Some(borrowers)) => return Some(borrowers),
@@ -565,21 +789,35 @@ pub fn process_events(
 	pool: EvmAddress,
 	log_prefix: &str,
 ) -> Vec<EvmAddress> {
-	let timer = Instant::now();
-	log::trace!(target: LOG_TARGET, "{:?} process_events(): processing {:?} events", log_prefix, events.len());
+	process_events_multi(events, &[pool], log_prefix)
+		.into_iter()
+		.map(|(_, borrower)| borrower)
+		.collect()
+}
 
-	let mut borrowers: Vec<EvmAddress> = Vec::with_capacity(20);
+/// Multi-market BORROW-event discovery: one pass over `events`, matching each EVM log against
+/// the full set of watched pools. Returns `(pool, borrower)` pairs so the caller can route each
+/// discovery to its owning market instance.
+pub fn process_events_multi(
+	events: Vec<EventRecord<RuntimeEvent, hydradx_runtime::Hash>>,
+	pools: &[EvmAddress],
+	log_prefix: &str,
+) -> Vec<(EvmAddress, EvmAddress)> {
+	let timer = Instant::now();
+	log::trace!(target: LOG_TARGET, "{:?} process_events(): processing {:?} events against {} pool(s)", log_prefix, events.len(), pools.len());
+
+	let mut borrowers: Vec<(EvmAddress, EvmAddress)> = Vec::with_capacity(20);
 	for evt in &events {
 		let RuntimeEvent::EVM(pallet_evm::Event::Log { log }) = &evt.event else {
 			continue;
 		};
 
-		if log.address == pool && log.topics.first() == Some(&events::BORROW) {
+		if pools.contains(&log.address) && log.topics.first() == Some(&events::BORROW) {
 			let Some(&borrower) = log.topics.get(2) else {
 				continue;
 			};
 
-			borrowers.push(borrower.into());
+			borrowers.push((log.address, borrower.into()));
 		}
 	}
 
@@ -798,7 +1036,10 @@ pub fn apply_oracle_updates_and_decide(
 			if let Some(Some(ur)) = b.reserves.get_mut(*idx) {
 				let new_coll = scale(ur.collateral, *np, *old);
 				let new_debt = scale(ur.debt, *np, *old);
-				b.total_collateral = b.total_collateral.saturating_sub(ur.collateral).saturating_add(new_coll);
+				b.total_collateral = b
+					.total_collateral
+					.saturating_sub(ur.collateral)
+					.saturating_add(new_coll);
 				b.total_debt = b.total_debt.saturating_sub(ur.debt).saturating_add(new_debt);
 				ur.collateral = new_coll;
 				ur.debt = new_debt;
@@ -828,15 +1069,28 @@ where
 	// Mempool monitor for pending DIA oracle-update txs — the same-block fast-path (W5).
 	let mut tx_stream = task.transaction_pool.import_notification_stream();
 
-	let hydration = Hydration::new(
-		task.cfg.api_caller,
-		task.cfg.pool_address_provider,
-		task.cfg.log_prefix.as_str(),
-	);
+	// Multi-market instance registry. Instances arrive from three sources — on-chain
+	// bootstrap (BorrowingContract + GigaHdxPoolContract storage, every block), omniwatch
+	// discovery (per-borrower `pool` tags), and config pins — and are never dropped
+	// (keep-until-restart). Config pins are registered up-front; their pools resolve at the
+	// first money-market fetch.
+	let mut instances: Vec<MmInstance> = Vec::new();
+	for pap in &task.cfg.pool_address_providers {
+		if find_instance_by_pap(&instances, *pap).is_some() {
+			log::warn!(target: LOG_TARGET, "{:?} run(): duplicate --pool-address-provider {pap:?}, ignoring", task.cfg.log_prefix);
+			continue;
+		}
+		instances.push(MmInstance::new(
+			task.cfg.log_prefix.as_str(),
+			*pap,
+			None,
+			InstanceSource::Config,
+		));
+	}
 
 	// A down/unreachable omniwatch must NOT panic or kill the worker: retry with backoff and start
 	// unseeded if it stays down. Coverage is a UNION of omniwatch seeds and on-chain BORROW-event
-	// discovery: the set only grows on external input and only shrinks on on-chain evidence (a
+	// discovery: the sets only grow on external input and only shrink on on-chain evidence (a
 	// scanned borrower with zero debt) — an omniwatch response that omits a known borrower must
 	// never evict it.
 	let seed = fetch_borrowers_list_with_retry(
@@ -851,238 +1105,452 @@ where
 	// An empty-but-successful response (e.g. omniwatch restarted with a cold DB) does NOT count
 	// as seeded — pre-existing borrowers are still unknown, keep the fast re-seed cadence.
 	let mut seeded = matches!(&seed, Some(list) if !list.is_empty());
-	let mut borrowers: HashSet<EvmAddress> = seed.unwrap_or_default().into_iter().collect();
+	// Pool-tagged borrowers awaiting routing: bucketing needs resolved pools (and may create
+	// instances), which needs the runtime API — drained inside each block's API scope.
+	let mut pending_seed: PoolTaggedBorrowers = seed.unwrap_or_default();
 	let mut blocks_since_refetch: u32 = 0;
 	// In-flight background re-seed: never awaited inline — a slow omniwatch must not stall the
 	// scan loop and cost a block's liquidation round.
-	let mut refetch_rx: Option<tokio::sync::oneshot::Receiver<Option<Vec<EvmAddress>>>> = None;
+	let mut refetch_rx: Option<tokio::sync::oneshot::Receiver<Option<PoolTaggedBorrowers>>> = None;
 	// Blocks whose BORROW logs have not been scanned yet: discovery needs the resolved pool
-	// address, so a block skipped on a timestamp/money-market fetch failure (or imported as
+	// addresses, so a block skipped on a timestamp/money-market fetch failure (or imported as
 	// non-best and canonicalized later) must stay queued — a BORROW log must never be lost.
 	let mut pending_event_blocks: Vec<B::Hash> = Vec::new();
-	// Money market + borrowers cached from the latest per-block scan. The oracle fast-path reuses
-	// them (applying only the pending price delta) instead of re-fetching — a fetch is ~200ms of
-	// runtime-API EVM calls, too slow to beat the block that includes the oracle tx. Reusing the
-	// cache lets the fast-path decide + submit in well under a millisecond, so the liquidation is in
-	// the pool before that block seals and lands in it (ordered right after the oracle update by the
-	// priority ladder, W8). A few-seconds-stale cache is fine: the per-block scan is the source of
-	// truth and corrects any miss next block.
-	let mut cached_mm: Option<MoneyMarket> = None;
-	let mut cached_borrowers: Vec<Borrower> = Vec::new();
+	// While some instance's pool is still unresolved, queued blocks are scanned for the
+	// RESOLVED pools without being drained (so the late market still gets its logs from the
+	// eventual full drain — borrower insertion is idempotent). This watermark tracks how far
+	// that partial scanning has progressed, so each block's logs are read at most once.
+	let mut event_scan_watermark: usize = 0;
+	// Per-instance money market + borrowers are cached on each instance from its latest scan.
+	// The oracle fast-path reuses them (applying only the pending price delta) instead of
+	// re-fetching — a fetch is ~200ms of runtime-API EVM calls, too slow to beat the block that
+	// includes the oracle tx. Reusing the cache lets the fast-path decide + submit in well under
+	// a millisecond, so the liquidation is in the pool before that block seals and lands in it
+	// (ordered right after the oracle update by the priority ladder, W8). A few-seconds-stale
+	// cache is fine: the per-block scan is the source of truth and corrects any miss next block.
+
+	// Per-instance scan context, rebuilt each block inside the API scope and moved out as plain
+	// (`Send`) data for the parallel scan.
+	struct ScanCtx {
+		mm: MoneyMarket,
+		kind: InstanceKind,
+		atoken_map: HashMap<AssetId, AssetId>,
+		hydration: Hydration,
+		log_prefix: String,
+	}
 
 	loop {
-	  tokio::select! {
-	    Some(b) = blocks_stream.next() => {
-		pending_event_blocks.push(b.hash);
-		if pending_event_blocks.len() > MAX_PENDING_EVENT_BLOCKS {
-			let dropped = pending_event_blocks.len() - MAX_PENDING_EVENT_BLOCKS;
-			pending_event_blocks.drain(..dropped);
-			log::warn!(target: LOG_TARGET, "{:?} run(): dropped {} unscanned block(s) from the event-discovery queue", task.cfg.log_prefix, dropped);
+		tokio::select! {
+		  Some(b) = blocks_stream.next() => {
+		  pending_event_blocks.push(b.hash);
+		  if pending_event_blocks.len() > MAX_PENDING_EVENT_BLOCKS {
+			  let dropped = pending_event_blocks.len() - MAX_PENDING_EVENT_BLOCKS;
+			  pending_event_blocks.drain(..dropped);
+			  event_scan_watermark = event_scan_watermark.saturating_sub(dropped);
+			  log::warn!(target: LOG_TARGET, "{:?} run(): dropped {} unscanned block(s) from the event-discovery queue", task.cfg.log_prefix, dropped);
+		  }
+
+		  if !b.is_new_best {
+			  continue;
+		  }
+
+		  // Harvest a completed background re-seed, if any (non-blocking).
+		  if let Some(rx) = refetch_rx.as_mut() {
+			  match rx.try_recv() {
+				  Ok(Some(refreshed)) => {
+					  seeded |= !refreshed.is_empty();
+					  pending_seed.extend(refreshed);
+					  refetch_rx = None;
+				  }
+				  Ok(None) | Err(tokio::sync::oneshot::error::TryRecvError::Closed) => refetch_rx = None,
+				  Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {}
+			  }
+		  }
+
+		  // Periodic background re-seed. `seeded` (not set emptiness) keys the fast cadence: a
+		  // borrower discovered from a BORROW event must not slow seed recovery down — the seed is
+		  // what covers PRE-EXISTING borrowers, the prod-miss shape.
+		  blocks_since_refetch += 1;
+		  let refetch_after = if seeded {
+			  OMNIWATCH_REFETCH_EVERY_N_BLOCKS
+		  } else {
+			  OMNIWATCH_REFETCH_UNSEEDED_EVERY_N_BLOCKS
+		  };
+		  if blocks_since_refetch >= refetch_after && refetch_rx.is_none() {
+			  blocks_since_refetch = 0;
+			  let (tx, rx) = tokio::sync::oneshot::channel();
+			  refetch_rx = Some(rx);
+			  let https = task.https.clone();
+			  let url = task.url.clone();
+			  let log_prefix = task.cfg.log_prefix.clone();
+			  tokio::spawn(async move {
+				  let refreshed = match tokio::time::timeout(
+					  OMNIWATCH_FETCH_TIMEOUT,
+					  fetch_borrowers_list(&https, url, log_prefix.as_str()),
+				  )
+				  .await
+				  {
+					  Ok(r) => r,
+					  Err(_) => {
+						  log::error!(target: LOG_TARGET, "{log_prefix:?} run(): omniwatch re-fetch timed out after {OMNIWATCH_FETCH_TIMEOUT:?}");
+						  None
+					  }
+				  };
+				  let _ = tx.send(refreshed);
+			  });
+		  }
+
+		  let block_number: BlockNumber = (*b.header.number()).saturated_into();
+
+		  // Everything that needs the (non-`Send`) runtime API happens in this scope: instance
+		  // bootstrap/discovery, per-instance money-market fetches, and event discovery. Plain
+		  // data (`now` + per-instance scan contexts) moves out for the parallel scan.
+		  let (now, mut scan_ctxs) = {
+			  let runtime_api = client.runtime_api();
+			  let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
+
+			  let Some(now) = api.timestamp(b.hash) else {
+				  log::error!(target: LOG_TARGET, "{:?} run(): failed to read timestamp for block {:?}, skipping", task.cfg.log_prefix, b.hash);
+				  continue;
+			  };
+
+			  // --- On-chain instance bootstrap (primary source, no external dependency) ---
+			  // The chain itself names the markets: `Liquidation.BorrowingContract` (main) and
+			  // `GigaHdx.GigaHdxPoolContract` (gigahdx). A collator needs ZERO flags to watch
+			  // every market the runtime knows about — even with omniwatch fully down.
+			  let read_pool_storage = |key: [u8; 32]| -> Option<EvmAddress> {
+				  match task.client.storage(b.hash, &StorageKey(key.to_vec())) {
+					  Ok(Some(data)) if data.0.len() >= 20 => Some(EvmAddress::from_slice(&data.0[..20])),
+					  Ok(_) => None,
+					  Err(e) => {
+						  log::error!(target: LOG_TARGET, "{:?} run(): pool storage read failed: {e:?}", task.cfg.log_prefix);
+						  None
+					  }
+				  }
+			  };
+			  match read_pool_storage(storage_key::borrowing_contract()) {
+				  Some(main_pool) => {
+					  let _ = ensure_instance_for_pool(&mut instances, &api, b.hash, main_pool, InstanceSource::Chain, &task.cfg);
+				  }
+				  // ValueQuery storage: absent means the chain runs on the pallet default (the
+				  // main pool). We can't read the default's POOL address generically, but its
+				  // PAP is the known main-market default — pin it as the fallback instance.
+				  None => {
+					  if find_instance_by_pap(&instances, contracts::POOL_ADDRESS_PROVIDER).is_none()
+						  && instances.len() < MAX_MM_INSTANCES
+					  {
+						  instances.push(MmInstance::new(
+							  task.cfg.log_prefix.as_str(),
+							  contracts::POOL_ADDRESS_PROVIDER,
+							  None,
+							  InstanceSource::Chain,
+						  ));
+					  }
+				  }
+			  }
+			  let giga_pool = read_pool_storage(storage_key::gigahdx_pool_contract());
+			  if let Some(giga) = giga_pool {
+				  let _ = ensure_instance_for_pool(&mut instances, &api, b.hash, giga, InstanceSource::Chain, &task.cfg);
+			  }
+
+			  // --- Route pool-tagged omniwatch borrowers; unknown pools create instances ---
+			  // A pair that fails only TRANSIENTLY (PAP resolution / sanity round-trip on a
+			  // hiccuping runtime API) is RE-QUEUED for the next block: the borrower set must
+			  // only shrink on on-chain evidence, never on an infra failure. Permanent
+			  // conditions (denylist, discovery off, registry full) drop the pair — the next
+			  // re-seed re-lists it if it still matters.
+			  let mut seed_retry: PoolTaggedBorrowers = Vec::new();
+			  let mut seen_pairs: HashSet<(EvmAddress, EvmAddress)> = HashSet::new();
+			  let mut failed_pools: HashSet<EvmAddress> = HashSet::new();
+			  for (addr, pool) in pending_seed.drain(..) {
+				  if !seen_pairs.insert((addr, pool)) {
+					  continue;
+				  }
+				  if failed_pools.contains(&pool) {
+					  seed_retry.push((addr, pool));
+					  continue;
+				  }
+				  if let Some(idx) = find_instance_by_pool(&instances, pool) {
+					  instances[idx].borrowers.insert(addr);
+					  continue;
+				  }
+				  if !task.cfg.discovery_enabled {
+					  log::debug!(target: LOG_TARGET, "{:?} run(): discovery disabled — dropping borrower {addr:?} of unknown pool {pool:?}", task.cfg.log_prefix);
+					  continue;
+				  }
+				  if task.cfg.pool_denylist.contains(&pool) || instances.len() >= MAX_MM_INSTANCES {
+					  continue; // permanent for this process — ensure_instance would refuse anyway
+				  }
+				  match ensure_instance_for_pool(&mut instances, &api, b.hash, pool, InstanceSource::Discovered, &task.cfg) {
+					  Some(idx) => {
+						  instances[idx].borrowers.insert(addr);
+					  }
+					  // Transient resolve/sanity failure — retry next block (one attempt per
+					  // pool per block; further pairs for the same pool go straight to retry).
+					  None => {
+						  failed_pools.insert(pool);
+						  seed_retry.push((addr, pool));
+					  }
+				  }
+			  }
+			  pending_seed = seed_retry;
+
+			  // --- Per-instance money market fetch + kind detection + aToken map refresh ---
+			  let mut ctxs: Vec<Option<ScanCtx>> = Vec::with_capacity(instances.len());
+			  for inst in instances.iter_mut() {
+				  let hydration = Hydration::new(task.cfg.api_caller, inst.pap, inst.log_prefix.as_str());
+				  let Some(mm) = hydration.fetch_money_market(&api, b.hash) else {
+					  // One broken market must not disable the rest: skip only this instance's
+					  // scan; its borrowers, cache and the event queue are retained.
+					  log::error!(target: LOG_TARGET, "{:?} run(): failed to fetch money market for block {:?}, skipping this market", inst.log_prefix, b.hash);
+					  ctxs.push(None);
+					  continue;
+				  };
+				  inst.pool = Some(mm.pool);
+				  // The denylist is authoritative even for pinned/fallback instances whose pool
+				  // only becomes known here: never scan or submit against a denylisted pool.
+				  if task.cfg.pool_denylist.contains(&mm.pool) {
+					  log::error!(target: LOG_TARGET, "{:?} run(): pinned PAP {:?} resolves to DENYLISTED pool {:?} — this market will not be scanned", inst.log_prefix, inst.pap, mm.pool);
+					  ctxs.push(None);
+					  continue;
+				  }
+				  inst.kind = if giga_pool == Some(mm.pool) {
+					  InstanceKind::GigaHdx
+				  } else {
+					  InstanceKind::Generic
+				  };
+				  if inst.kind == InstanceKind::GigaHdx {
+					  let mut map = HashMap::new();
+					  for r in mm.reserves.values() {
+						  match api.address_to_asset(b.hash, r.data.a_token_address) {
+							  Ok(Some(atoken_id)) => {
+								  map.insert(r.asset_id, atoken_id);
+							  }
+							  // Fine unless this reserve ends up as the decision's COLLATERAL —
+							  // map_decision_collateral fails closed (with an error) in that case.
+							  other => {
+								  log::debug!(target: LOG_TARGET, "{:?} run(): no registered asset id for aToken {:?} (underlying {:?}): {other:?}", inst.log_prefix, r.data.a_token_address, r.asset_id);
+							  }
+						  }
+					  }
+					  inst.atoken_map = map;
+				  }
+				  ctxs.push(Some(ScanCtx {
+					  mm,
+					  kind: inst.kind,
+					  atoken_map: inst.atoken_map.clone(),
+					  hydration,
+					  log_prefix: inst.log_prefix.clone(),
+				  }));
+			  }
+
+			  // Two instances can resolve to the same pool (e.g. a config pin and a chain
+			  // bootstrap that raced the pin's first fetch): merge the later into the earlier.
+			  let mut i = 0;
+			  while i < instances.len() {
+				  let Some(pool) = instances[i].pool else {
+					  i += 1;
+					  continue;
+				  };
+				  if let Some(first) = find_instance_by_pool(&instances, pool) {
+					  if first < i {
+						  log::warn!(target: LOG_TARGET, "{:?} run(): merging duplicate instance for pool {pool:?}", task.cfg.log_prefix);
+						  let dup = instances.remove(i);
+						  let _ = ctxs.remove(i);
+						  instances[first].borrowers.extend(dup.borrowers);
+						  continue;
+					  }
+				  }
+				  i += 1;
+			  }
+
+			  // --- Event-driven discovery across ALL watched pools ---
+			  // BORROW logs add borrowers independently of omniwatch, so a borrower omniwatch
+			  // never returns is still covered from their first borrow onwards. When every
+			  // instance has a resolved pool the queue is DRAINED; while any pool is still
+			  // unresolved, the resolved pools are scanned WITHOUT draining (watermarked, each
+			  // block read once) so one unresolvable instance cannot stall discovery for the
+			  // rest — the late market gets its logs from the eventual full drain (borrower
+			  // insertion is idempotent). An empty registry never consumes the queue.
+			  let pools: Vec<EvmAddress> = instances.iter().filter_map(|inst| inst.pool).collect();
+			  if !pools.is_empty() {
+				  let route_discovered = |discovered: Vec<(EvmAddress, EvmAddress)>, instances: &mut Vec<MmInstance>| {
+					  for (pool, addr) in discovered {
+						  if let Some(idx) = find_instance_by_pool(instances, pool) {
+							  if instances[idx].borrowers.insert(addr) {
+								  log::info!(target: LOG_TARGET, "{:?} run(): discovered new borrower from BORROW event: {:?}", instances[idx].log_prefix, addr);
+							  }
+						  }
+					  }
+				  };
+				  if instances.iter().all(|inst| inst.pool.is_some()) {
+					  for hash in pending_event_blocks.drain(..) {
+						  let found = process_events_multi(task.load_events(hash), &pools, task.cfg.log_prefix.as_str());
+						  route_discovered(found, &mut instances);
+					  }
+					  event_scan_watermark = 0;
+				  } else {
+					  for hash in pending_event_blocks.iter().skip(event_scan_watermark).copied().collect::<Vec<_>>() {
+						  let found = process_events_multi(task.load_events(hash), &pools, task.cfg.log_prefix.as_str());
+						  route_discovered(found, &mut instances);
+					  }
+					  event_scan_watermark = pending_event_blocks.len();
+				  }
+			  }
+
+			  (now, ctxs)
+		  };
+
+		  // Flattened (instance, borrower) pairs — one parallel fan-out serves all markets.
+		  let scan_list: Vec<(usize, EvmAddress)> = instances
+			  .iter()
+			  .enumerate()
+			  .filter(|(idx, _)| scan_ctxs.get(*idx).map(|c| c.is_some()).unwrap_or(false))
+			  .flat_map(|(idx, inst)| inst.borrowers.iter().map(move |addr| (idx, *addr)))
+			  .collect();
+
+		  // Lumír's model, flattened across markets: split the (instance, borrower) pairs across
+		  // cores and scan the shards in parallel; each thread makes its OWN (non-`Send`) runtime
+		  // API, and the MOMENT it finds a liquidation it submits it (submit-on-find) via the
+		  // tokio handle — no worker-side sort/cap. The unsigned tx carries `unsigned_priority =
+		  // collateral-at-risk`, so the tx pool sorts and packs the block. Threads report
+		  // zero-debt (prune) and fetched borrowers (fast-path cache) back over a channel; the
+		  // per-instance scan contexts are shared read-only.
+		  let handle = tokio::runtime::Handle::current();
+		  let (result_tx, result_rx) = std::sync::mpsc::channel::<(usize, EvmAddress, Option<Borrower>)>();
+		  let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).max(1);
+		  let chunk_size = scan_list.len().div_ceil(cores).max(1);
+		  let submitted = AtomicUsize::new(0);
+
+		  tokio::task::block_in_place(|| {
+			  std::thread::scope(|scope| {
+				  for chunk in scan_list.chunks(chunk_size) {
+					  let client = client.clone();
+					  let handle = handle.clone();
+					  let pool = task.transaction_pool.clone();
+					  let result_tx = result_tx.clone();
+					  let scan_ctxs = &scan_ctxs;
+					  let cfg = &task.cfg;
+					  let submitted = &submitted;
+					  let best = b.hash;
+					  scope.spawn(move || {
+						  let runtime_api = client.runtime_api();
+						  let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
+						  for (idx, addr) in chunk {
+							  let Some(Some(ctx)) = scan_ctxs.get(*idx) else { continue };
+							  let log_prefix = ctx.log_prefix.as_str();
+							  let Some(borrower) =
+								  ctx.hydration.fetch_borrower(&api, best, block_number, &ctx.mm, *addr, now)
+							  else {
+								  // Infra failure — keep the borrower; the set shrinks only on on-chain evidence.
+								  log::error!(target: LOG_TARGET, "{log_prefix:?} run(): failed to fetch borrower {addr:?}, skipping");
+								  continue;
+							  };
+							  if borrower.total_debt.is_zero() {
+								  let _ = result_tx.send((*idx, *addr, None)); // prune
+								  continue;
+							  }
+							  if let Some(decision) = decide_liquidation(cfg, &ctx.mm, &borrower) {
+								  // Submit-on-find: build the tx here (sync) and spawn the async submit.
+								  // GigaHdx decisions are re-mapped to the aToken collateral first
+								  // (fail-closed on a missing mapping).
+								  if let Some(mapped) = map_decision_collateral(&decision, ctx.kind, &ctx.atoken_map, log_prefix) {
+									  if let Some(opaque) = encode_liquidation_opaque(&mapped, ctx.mm.pool, log_prefix) {
+										  let pool = pool.clone();
+										  submitted.fetch_add(1, Ordering::Relaxed);
+										  handle.spawn(async move {
+											  let _ = pool.submit_one(best, TransactionSource::Local, opaque.into()).await;
+										  });
+									  }
+								  }
+							  }
+							  let _ = result_tx.send((*idx, *addr, Some(borrower))); // cache
+						  }
+					  });
+				  }
+				  drop(result_tx); // let the receiver iteration end once all threads finish
+			  });
+		  });
+
+		  // Drain results: prune repaid borrowers, collect the rest for each instance's
+		  // fast-path cache.
+		  let mut fetched: Vec<Vec<Borrower>> = instances.iter().map(|_| Vec::new()).collect();
+		  for (idx, addr, maybe_borrower) in result_rx {
+			  match maybe_borrower {
+				  None => {
+					  instances[idx].borrowers.remove(&addr);
+					  log::info!(target: LOG_TARGET, "{:?} run(): borrower repaid all debt, pruned: {:?}", instances[idx].log_prefix, addr);
+				  }
+				  Some(borrower) => fetched[idx].push(borrower),
+			  }
+		  }
+		  for (idx, ctx) in scan_ctxs.iter_mut().enumerate() {
+			  if let Some(ctx) = ctx.take() {
+				  instances[idx].cached_borrowers = std::mem::take(&mut fetched[idx]);
+				  instances[idx].cached_mm = Some(ctx.mm);
+			  }
+		  }
+
+		  log::debug!(target: LOG_TARGET, "{:?} run(): parallel scan of {} borrowers across {} market(s) over {} cores submitted {} liquidations (submit-on-find) for block {:?}", task.cfg.log_prefix, scan_list.len(), instances.len(), cores, submitted.load(Ordering::Relaxed), b.hash);
+		  },
+
+		  // Same-block oracle fast-path (W5): a pending DIA price-update tx in the mempool lets us
+		  // react to a price move in the SAME block it lands, ahead of the next per-block scan. The
+		  // priority ladder (oracle update > liquidation > user txs) orders the liquidation right
+		  // after the oracle update on-chain.
+		  Some(tx_hash) = tx_stream.next() => {
+		  let Some(pool_tx) = task.transaction_pool.ready_transaction(&tx_hash) else { continue };
+		  let encoded = pool_tx.data().encode();
+		  let Ok(xt) = hydradx_runtime::HydraUncheckedExtrinsic::decode(&mut &encoded[..]) else { continue };
+		  let Some(oracle_tx) = is_oracle_update_tx(
+			  &xt.0,
+			  task.cfg.oracle_signer.clone(),
+			  task.cfg.oracle_update_call.clone(),
+			  task.cfg.log_prefix.as_str(),
+		  ) else { continue };
+
+		  let updates = parse_oracle_price_updates(&oracle_tx);
+		  log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path saw a DIA update tx, parsed {} price update(s): {:?}", task.cfg.log_prefix, updates.len(), updates);
+		  if updates.is_empty() {
+			  continue;
+		  }
+
+		  // Reuse each instance's cached money market + borrowers from its last per-block scan —
+		  // NO runtime API call here, so we decide + submit in well under a millisecond and beat
+		  // the block that includes the oracle tx. One DIA update can move several markets, so
+		  // every cached instance is repriced; instances not yet scanned are skipped. GigaHdx
+		  // decisions are re-mapped to the aToken collateral (fail-closed). Note: a market with
+		  // no reserve matching the update's base symbol (e.g. no plain-HDX reserve on the
+		  // gigahdx market) is a fast-path no-op there — the next per-block scan covers it.
+		  let mut decisions: Vec<(EvmAddress, LiquidationDecision)> = Vec::new();
+		  for inst in &instances {
+			  let Some(mm_cache) = inst.cached_mm.as_ref() else { continue };
+			  let mut mm = mm_cache.clone();
+			  for decision in apply_oracle_updates_and_decide(&task.cfg, &mut mm, &updates, &inst.cached_borrowers) {
+				  if let Some(mapped) =
+					  map_decision_collateral(&decision, inst.kind, &inst.atoken_map, inst.log_prefix.as_str())
+				  {
+					  decisions.push((mm.pool, mapped));
+				  }
+			  }
+		  }
+
+		  if decisions.is_empty() {
+			  log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path — no borrower flips underwater on the pending price(s)", task.cfg.log_prefix);
+			  continue;
+		  }
+
+		  decisions.sort_by(|a, b| b.1.priority.cmp(&a.1.priority));
+		  let cap = task.cfg.liquidations_per_block as usize;
+		  let best = client.info().best_hash;
+		  for (market_pool, decision) in decisions.iter().take(cap) {
+			  let _ = task.submit_liquidation(best, *market_pool, decision).await;
+		  }
+		  log::info!(target: LOG_TARGET, "{:?} run(): oracle fast-path decided {} liquidations across {} market(s) from a pending DIA update (cached mm), submitted up to {}", task.cfg.log_prefix, decisions.len(), instances.len(), cap);
+		  },
+
+		  else => break,
 		}
-
-		if !b.is_new_best {
-			continue;
-		}
-
-		// Harvest a completed background re-seed, if any (non-blocking).
-		if let Some(rx) = refetch_rx.as_mut() {
-			match rx.try_recv() {
-				Ok(Some(refreshed)) => {
-					seeded |= !refreshed.is_empty();
-					borrowers.extend(refreshed);
-					refetch_rx = None;
-				}
-				Ok(None) | Err(tokio::sync::oneshot::error::TryRecvError::Closed) => refetch_rx = None,
-				Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {}
-			}
-		}
-
-		// Periodic background re-seed. `seeded` (not set emptiness) keys the fast cadence: a
-		// borrower discovered from a BORROW event must not slow seed recovery down — the seed is
-		// what covers PRE-EXISTING borrowers, the prod-miss shape.
-		blocks_since_refetch += 1;
-		let refetch_after = if seeded {
-			OMNIWATCH_REFETCH_EVERY_N_BLOCKS
-		} else {
-			OMNIWATCH_REFETCH_UNSEEDED_EVERY_N_BLOCKS
-		};
-		if blocks_since_refetch >= refetch_after && refetch_rx.is_none() {
-			blocks_since_refetch = 0;
-			let (tx, rx) = tokio::sync::oneshot::channel();
-			refetch_rx = Some(rx);
-			let https = task.https.clone();
-			let url = task.url.clone();
-			let log_prefix = task.cfg.log_prefix.clone();
-			tokio::spawn(async move {
-				let refreshed = match tokio::time::timeout(
-					OMNIWATCH_FETCH_TIMEOUT,
-					fetch_borrowers_list(&https, url, log_prefix.as_str()),
-				)
-				.await
-				{
-					Ok(r) => r,
-					Err(_) => {
-						log::error!(target: LOG_TARGET, "{log_prefix:?} run(): omniwatch re-fetch timed out after {OMNIWATCH_FETCH_TIMEOUT:?}");
-						None
-					}
-				};
-				let _ = tx.send(refreshed);
-			});
-		}
-
-		let block_number: BlockNumber = (*b.header.number()).saturated_into();
-
-		// Fetch the money market once for this block (runtime API is NOT `Send`, so it is scoped
-		// here and dropped before the parallel scan, which makes its own per-thread API).
-		let (now, mm) = {
-			let runtime_api = client.runtime_api();
-			let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
-
-			let Some(now) = api.timestamp(b.hash) else {
-				log::error!(target: LOG_TARGET, "{:?} run(): failed to read timestamp for block {:?}, skipping", task.cfg.log_prefix, b.hash);
-				continue;
-			};
-
-			let Some(mm) = hydration.fetch_money_market(&api, b.hash) else {
-				log::error!(target: LOG_TARGET, "{:?} run(): failed to fetch money market for block {:?}, skipping", task.cfg.log_prefix, b.hash);
-				continue;
-			};
-
-			// Event-driven discovery: BORROW logs from the (dynamically resolved) pool add
-			// borrowers independently of omniwatch, so a borrower omniwatch never returns is
-			// still covered from their first borrow onwards. Drains the whole queue, so blocks
-			// skipped while the money market was unavailable are scanned now.
-			for hash in pending_event_blocks.drain(..) {
-				for addr in process_events(task.load_events(hash), mm.pool, task.cfg.log_prefix.as_str()) {
-					if borrowers.insert(addr) {
-						log::info!(target: LOG_TARGET, "{:?} run(): discovered new borrower from BORROW event: {:?}", task.cfg.log_prefix, addr);
-					}
-				}
-			}
-
-			(now, mm)
-		};
-
-		let scan_list: Vec<EvmAddress> = borrowers.iter().copied().collect();
-
-		// Lumír's model: split the borrower list across cores and scan the shards in parallel;
-		// each thread makes its OWN (non-`Send`) runtime API, and the MOMENT it finds a liquidation
-		// it submits it (submit-on-find) via the tokio handle — no worker-side sort/cap. The unsigned
-		// tx carries `unsigned_priority = collateral-at-risk`, so the tx pool sorts and packs the
-		// block. Threads report zero-debt (prune) and fetched borrowers (fast-path cache) back over a
-		// channel; the money market is shared read-only.
-		let handle = tokio::runtime::Handle::current();
-		let (result_tx, result_rx) = std::sync::mpsc::channel::<(EvmAddress, Option<Borrower>)>();
-		let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).max(1);
-		let chunk_size = scan_list.len().div_ceil(cores).max(1);
-		let submitted = AtomicUsize::new(0);
-
-		tokio::task::block_in_place(|| {
-			std::thread::scope(|scope| {
-				for chunk in scan_list.chunks(chunk_size) {
-					let client = client.clone();
-					let handle = handle.clone();
-					let pool = task.transaction_pool.clone();
-					let result_tx = result_tx.clone();
-					let mm = &mm;
-					let cfg = &task.cfg;
-					let hydration = &hydration;
-					let submitted = &submitted;
-					let best = b.hash;
-					let log_prefix = task.cfg.log_prefix.as_str();
-					scope.spawn(move || {
-						let runtime_api = client.runtime_api();
-						let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
-						for addr in chunk {
-							let Some(borrower) = hydration.fetch_borrower(&api, best, block_number, mm, *addr, now)
-							else {
-								// Infra failure — keep the borrower; the set shrinks only on on-chain evidence.
-								log::error!(target: LOG_TARGET, "{log_prefix:?} run(): failed to fetch borrower {addr:?}, skipping");
-								continue;
-							};
-							if borrower.total_debt.is_zero() {
-								let _ = result_tx.send((*addr, None)); // prune
-								continue;
-							}
-							if let Some(decision) = decide_liquidation(cfg, mm, &borrower) {
-								// Submit-on-find: build the tx here (sync) and spawn the async submit.
-								if let Some(opaque) = encode_liquidation_opaque(&decision, log_prefix) {
-									let pool = pool.clone();
-									submitted.fetch_add(1, Ordering::Relaxed);
-									handle.spawn(async move {
-										let _ = pool.submit_one(best, TransactionSource::Local, opaque.into()).await;
-									});
-								}
-							}
-							let _ = result_tx.send((*addr, Some(borrower))); // cache
-						}
-					});
-				}
-				drop(result_tx); // let the receiver iteration end once all threads finish
-			});
-		});
-
-		// Drain results: prune repaid borrowers, collect the rest for the fast-path cache.
-		let mut fetched: Vec<Borrower> = Vec::with_capacity(scan_list.len());
-		for (addr, maybe_borrower) in result_rx {
-			match maybe_borrower {
-				None => {
-					borrowers.remove(&addr);
-					log::info!(target: LOG_TARGET, "{:?} run(): borrower repaid all debt, pruned: {:?}", task.cfg.log_prefix, addr);
-				}
-				Some(borrower) => fetched.push(borrower),
-			}
-		}
-		cached_borrowers = fetched;
-		cached_mm = Some(mm);
-
-		log::debug!(target: LOG_TARGET, "{:?} run(): parallel scan of {} borrowers over {} cores submitted {} liquidations (submit-on-find) for block {:?}", task.cfg.log_prefix, scan_list.len(), cores, submitted.load(Ordering::Relaxed), b.hash);
-	    },
-
-	    // Same-block oracle fast-path (W5): a pending DIA price-update tx in the mempool lets us
-	    // react to a price move in the SAME block it lands, ahead of the next per-block scan. The
-	    // priority ladder (oracle update > liquidation > user txs) orders the liquidation right
-	    // after the oracle update on-chain.
-	    Some(tx_hash) = tx_stream.next() => {
-		let Some(pool_tx) = task.transaction_pool.ready_transaction(&tx_hash) else { continue };
-		let encoded = pool_tx.data().encode();
-		let Ok(xt) = hydradx_runtime::HydraUncheckedExtrinsic::decode(&mut &encoded[..]) else { continue };
-		let Some(oracle_tx) = is_oracle_update_tx(
-			&xt.0,
-			task.cfg.oracle_signer.clone(),
-			task.cfg.oracle_update_call.clone(),
-			task.cfg.log_prefix.as_str(),
-		) else { continue };
-
-		let updates = parse_oracle_price_updates(&oracle_tx);
-		log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path saw a DIA update tx, parsed {} price update(s): {:?}", task.cfg.log_prefix, updates.len(), updates);
-		if updates.is_empty() {
-			continue;
-		}
-
-		// Reuse the cached money market + borrowers from the last per-block scan — NO runtime API
-		// call here, so we decide + submit in well under a millisecond and beat the block that
-		// includes the oracle tx. Skip until the first scan has populated the cache.
-		let Some(mm_cache) = cached_mm.as_ref() else { continue };
-		let mut mm = mm_cache.clone();
-		let mut decisions = apply_oracle_updates_and_decide(&task.cfg, &mut mm, &updates, &cached_borrowers);
-
-		if decisions.is_empty() {
-			log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path — no borrower flips underwater on the pending price(s)", task.cfg.log_prefix);
-			continue;
-		}
-
-		decisions.sort_by(|a, b| b.priority.cmp(&a.priority));
-		let cap = task.cfg.liquidations_per_block as usize;
-		let best = client.info().best_hash;
-		for decision in decisions.iter().take(cap) {
-			let _ = task.submit_liquidation(best, decision).await;
-		}
-		log::info!(target: LOG_TARGET, "{:?} run(): oracle fast-path decided {} liquidations from a pending DIA update (cached mm), submitted up to {}", task.cfg.log_prefix, decisions.len(), cap);
-	    },
-
-	    else => break,
-	  }
 	}
 
 	log::warn!(target: LOG_TARGET, "{:?} run(): notification stream ended, liquidation worker stopping", task.cfg.log_prefix);

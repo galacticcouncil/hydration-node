@@ -103,6 +103,421 @@ fn process_events_should_extract_borrower_when_borrow_log_present() {
 	assert_eq!(discovered, vec![borrower]);
 }
 
+// Multi-MM: one pass over the event queue tags each BORROW discovery with its owning pool, so
+// the caller can route borrowers to the right market instance.
+#[test]
+fn process_events_multi_should_tag_borrowers_by_pool_when_logs_come_from_two_pools() {
+	use sp_core::H160;
+
+	let pool_a = H160::repeat_byte(0x77);
+	let pool_b = H160::repeat_byte(0x88);
+	let borrower_a = H160::repeat_byte(0xAB);
+	let borrower_b = H160::repeat_byte(0xCD);
+	let record = |log| EventRecord::<RuntimeEvent, hydradx_runtime::Hash> {
+		phase: frame_system::Phase::Initialization,
+		event: RuntimeEvent::EVM(pallet_evm::Event::Log { log }),
+		topics: Vec::new(),
+	};
+
+	let log_a = pallet_evm::Log {
+		address: pool_a,
+		topics: vec![events::BORROW, H256::zero(), H256::from(borrower_a)],
+		data: Vec::new(),
+	};
+	let log_b = pallet_evm::Log {
+		address: pool_b,
+		topics: vec![events::BORROW, H256::zero(), H256::from(borrower_b)],
+		data: Vec::new(),
+	};
+	let log_unknown_pool = pallet_evm::Log {
+		address: H160::repeat_byte(0x01),
+		topics: vec![events::BORROW, H256::zero(), H256::from(H160::repeat_byte(0xEF))],
+		data: Vec::new(),
+	};
+
+	let discovered = process_events_multi(
+		vec![record(log_a), record(log_b), record(log_unknown_pool)],
+		&[pool_a, pool_b],
+		"test",
+	);
+
+	assert_eq!(discovered, vec![(pool_a, borrower_a), (pool_b, borrower_b)]);
+}
+
+#[test]
+fn map_decision_collateral_should_pass_through_when_market_is_generic() {
+	use sp_core::H160;
+
+	let decision = LiquidationDecision {
+		collateral_asset: 670,
+		debt_asset: 222,
+		user: H160::repeat_byte(0xAB),
+		debt_to_cover: 1_000,
+		priority: 7,
+	};
+
+	let mapped = map_decision_collateral(&decision, InstanceKind::Generic, &HashMap::new(), "test")
+		.expect("generic market passes through");
+	assert_eq!(mapped, decision);
+}
+
+#[test]
+fn map_decision_collateral_should_replace_underlying_with_atoken_when_market_is_gigahdx() {
+	use sp_core::H160;
+
+	let decision = LiquidationDecision {
+		collateral_asset: 670, // stHDX underlying
+		debt_asset: 222,       // HOLLAR
+		user: H160::repeat_byte(0xAB),
+		debt_to_cover: 1_000,
+		priority: 7,
+	};
+	let atoken_map = HashMap::from([(670u32, 67u32)]); // stHDX -> GIGAHDX aToken
+
+	let mapped =
+		map_decision_collateral(&decision, InstanceKind::GigaHdx, &atoken_map, "test").expect("mapped decision");
+	assert_eq!(mapped.collateral_asset, 67);
+	assert_eq!(mapped.debt_asset, decision.debt_asset);
+	assert_eq!(mapped.debt_to_cover, decision.debt_to_cover);
+	assert_eq!(mapped.priority, decision.priority);
+}
+
+// Fail-closed: without the aToken mapping the underlying would route to the generic path
+// on-chain and fail the pool check — skip the submission instead.
+#[test]
+fn map_decision_collateral_should_return_none_when_atoken_mapping_is_missing() {
+	use sp_core::H160;
+
+	let decision = LiquidationDecision {
+		collateral_asset: 670,
+		debt_asset: 222,
+		user: H160::repeat_byte(0xAB),
+		debt_to_cover: 1_000,
+		priority: 7,
+	};
+
+	assert_eq!(
+		map_decision_collateral(&decision, InstanceKind::GigaHdx, &HashMap::new(), "test"),
+		None
+	);
+}
+
+// The submitted call must be `liquidate_with_pool` carrying the market's pool — decode the
+// opaque extrinsic back and pin every field.
+#[test]
+fn encode_liquidation_opaque_should_encode_liquidate_with_pool_when_pool_is_given() {
+	use sp_core::H160;
+
+	let decision = LiquidationDecision {
+		collateral_asset: 5,
+		debt_asset: 10,
+		user: H160::repeat_byte(0xAB),
+		debt_to_cover: 123_456,
+		priority: 42,
+	};
+	let market_pool = H160::repeat_byte(0x77);
+
+	let opaque = encode_liquidation_opaque(&decision, market_pool, "test").expect("encode");
+	let encoded = opaque.encode();
+	let xt = hydradx_runtime::HydraUncheckedExtrinsic::decode(&mut &encoded[..]).expect("decode");
+
+	match xt.0.function {
+		RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_with_pool {
+			pool,
+			collateral_asset,
+			debt_asset,
+			user,
+			debt_to_cover,
+			unsigned_priority,
+			..
+		}) => {
+			assert_eq!(pool, market_pool);
+			assert_eq!(collateral_asset, 5);
+			assert_eq!(debt_asset, 10);
+			assert_eq!(user, H160::repeat_byte(0xAB));
+			assert_eq!(debt_to_cover, 123_456);
+			assert_eq!(unsigned_priority, Some(42));
+		}
+		other => panic!("unexpected call encoded: {other:?}"),
+	}
+}
+
+// `storage_prefix` must produce exactly the layout our hardcoded SYSTEM_EVENTS key uses —
+// this pins the mechanism the borrowing-contract/gigahdx-pool reads rely on.
+#[test]
+fn storage_key_helpers_should_match_known_system_events_key() {
+	assert_eq!(
+		frame_support::storage::storage_prefix(b"System", b"Events"),
+		storage_key::SYSTEM_EVENTS
+	);
+	assert_ne!(storage_key::borrowing_contract(), storage_key::gigahdx_pool_contract());
+}
+
+// The omniwatch by-health schema carries a `pool` per borrower; the fetch must return it so
+// borrowers can be bucketed per market (dropping it caused the R23 churn).
+#[tokio::test]
+async fn fetch_borrowers_list_should_return_pool_tagged_pairs_when_response_has_pool_field() {
+	use std::io::{Read, Write};
+
+	let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind listener");
+	let addr = listener.local_addr().expect("local addr");
+
+	std::thread::spawn(move || {
+		if let Ok((mut stream, _)) = listener.accept() {
+			let mut buf = [0u8; 2048];
+			let _ = stream.read(&mut buf);
+			let body = r#"{"lastGlobalUpdate":0,"lastUpdate":0,"borrowers":[["0x222222ff7be76052e023ec1a306fcca8f9659d80",{"totalCollateralBase":1.0,"totalDebtBase":1.0,"availableBorrowsBase":0.0,"currentLiquidationThreshold":0.5,"ltv":0.5,"healthFactor":1.5,"updated":0,"account":"7KATdGakyhfBGnAt3XVgXTL7cYjzRXeSZHezKNtENcbwWibb","pool":"0x1b02e051683b5cfac5929c25e84adb26ecf87b38"}],["0x19e7e376e7c213b7e7e7e46cc70a5dd086daff2a",{"totalCollateralBase":2.0,"totalDebtBase":1.0,"availableBorrowsBase":0.0,"currentLiquidationThreshold":0.5,"ltv":0.5,"healthFactor":1.8,"updated":0,"account":"7KATdGakyhfBGnAt3XVgXTL7cYjzRXeSZHezKNtENcbwWibb","pool":"0x2ce2cfff743cdb6637f4b5d351937a541b8c8923"}]]}"#;
+			let resp = format!(
+				"HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+				body.len(),
+				body
+			);
+			let _ = stream.write_all(resp.as_bytes());
+		}
+	});
+
+	let https = https::new();
+	let url = format!("http://{addr}/api/borrowers/by-health")
+		.parse()
+		.expect("valid uri");
+	let pairs = fetch_borrowers_list(&https, url, "test").await.expect("fetch to work");
+
+	use sp_core::H160;
+	assert_eq!(
+		pairs,
+		vec![
+			(
+				H160::from(hex_literal::hex!("222222ff7be76052e023ec1a306fcca8f9659d80")),
+				H160::from(hex_literal::hex!("1b02e051683b5cfac5929c25e84adb26ecf87b38")),
+			),
+			(
+				H160::from(hex_literal::hex!("19e7e376e7c213b7e7e7e46cc70a5dd086daff2a")),
+				H160::from(hex_literal::hex!("2ce2cfff743cdb6637f4b5d351937a541b8c8923")),
+			),
+		]
+	);
+}
+
+// --- Instance registry / discovery (P4) ---
+
+mod registry {
+	use super::*;
+	use pepl_worker_support::traits::{RuntimeApiErr, RuntimeApiProvider};
+	use pepl_worker_support::types::Timestamp;
+	use sp_core::H160;
+
+	type TestBlock = hydradx_runtime::Block;
+	type TestHash = <TestBlock as BlockT>::Hash;
+
+	/// Answers `ADDRESSES_PROVIDER()` with `pap` and `getPool()` with `pool` — enough to
+	/// drive `ensure_instance_for_pool`'s resolve + sanity round-trip.
+	struct MockPoolApi {
+		pap: EvmAddress,
+		pool: EvmAddress,
+	}
+
+	impl RuntimeApiProvider<TestBlock> for MockPoolApi {
+		fn call(
+			&self,
+			_block: TestHash,
+			_from: EvmAddress,
+			_to: EvmAddress,
+			data: Vec<u8>,
+			_gas_limit: sp_core::U256,
+		) -> Result<fp_evm::ExecutionInfoV2<Vec<u8>>, RuntimeApiErr> {
+			let addresses_provider = Into::<u32>::into(pepl_worker_support::Function::AddressesProvider).to_be_bytes();
+			let get_pool = Into::<u32>::into(pepl_worker_support::Function::GetPool).to_be_bytes();
+			let addr = if data.starts_with(&addresses_provider) {
+				self.pap
+			} else if data.starts_with(&get_pool) {
+				self.pool
+			} else {
+				return Err(RuntimeApiErr::Dispatch(sp_runtime::DispatchError::Other(
+					"unexpected call",
+				)));
+			};
+			let mut word = vec![0u8; 32];
+			word[12..].copy_from_slice(addr.as_bytes());
+			Ok(fp_evm::ExecutionInfoV2 {
+				exit_reason: fp_evm::ExitReason::Succeed(fp_evm::ExitSucceed::Returned),
+				value: word,
+				used_gas: fp_evm::UsedGas {
+					standard: sp_core::U256::zero(),
+					effective: sp_core::U256::zero(),
+				},
+				weight_info: None,
+				logs: Vec::new(),
+			})
+		}
+
+		fn address_to_asset(&self, _block: TestHash, _address: EvmAddress) -> Result<Option<AssetId>, RuntimeApiErr> {
+			Ok(None)
+		}
+
+		fn minimum_balance(&self, _block: TestHash, _asset_id: AssetId) -> Result<Balance, RuntimeApiErr> {
+			Ok(0)
+		}
+
+		fn timestamp(&self, _block: TestHash) -> Option<Timestamp> {
+			None
+		}
+	}
+
+	fn cfg() -> LiquidationTaskConfig {
+		LiquidationTaskConfig::default()
+	}
+
+	#[test]
+	fn ensure_instance_should_create_instance_when_round_trip_matches() {
+		let pool = H160::repeat_byte(0x11);
+		let pap = H160::repeat_byte(0x22);
+		let api = MockPoolApi { pap, pool };
+		let mut instances = Vec::new();
+
+		let idx = ensure_instance_for_pool(
+			&mut instances,
+			&api,
+			TestHash::default(),
+			pool,
+			InstanceSource::Discovered,
+			&cfg(),
+		);
+
+		assert_eq!(idx, Some(0));
+		assert_eq!(instances.len(), 1);
+		assert_eq!(instances[0].pool, Some(pool));
+		assert_eq!(instances[0].pap, pap);
+		assert_eq!(instances[0].source, InstanceSource::Discovered);
+	}
+
+	#[test]
+	fn ensure_instance_should_return_existing_index_when_pool_already_instanced() {
+		let pool = H160::repeat_byte(0x11);
+		let api = MockPoolApi {
+			pap: H160::repeat_byte(0x22),
+			pool,
+		};
+		let mut instances = Vec::new();
+		let first = ensure_instance_for_pool(
+			&mut instances,
+			&api,
+			TestHash::default(),
+			pool,
+			InstanceSource::Discovered,
+			&cfg(),
+		);
+		let second = ensure_instance_for_pool(
+			&mut instances,
+			&api,
+			TestHash::default(),
+			pool,
+			InstanceSource::Discovered,
+			&cfg(),
+		);
+
+		assert_eq!(first, second);
+		assert_eq!(instances.len(), 1);
+	}
+
+	#[test]
+	fn ensure_instance_should_skip_when_pool_denylisted() {
+		let pool = H160::repeat_byte(0x11);
+		let api = MockPoolApi {
+			pap: H160::repeat_byte(0x22),
+			pool,
+		};
+		let mut config = cfg();
+		config.pool_denylist = vec![pool];
+		let mut instances = Vec::new();
+
+		let idx = ensure_instance_for_pool(
+			&mut instances,
+			&api,
+			TestHash::default(),
+			pool,
+			InstanceSource::Discovered,
+			&config,
+		);
+
+		assert_eq!(idx, None);
+		assert!(instances.is_empty());
+	}
+
+	#[test]
+	fn ensure_instance_should_adopt_config_pin_when_pap_matches() {
+		let pool = H160::repeat_byte(0x11);
+		let pap = H160::repeat_byte(0x22);
+		let api = MockPoolApi { pap, pool };
+		// A config-pinned instance whose pool has not resolved yet.
+		let mut instances = vec![MmInstance::new("test", pap, None, InstanceSource::Config)];
+
+		let idx = ensure_instance_for_pool(
+			&mut instances,
+			&api,
+			TestHash::default(),
+			pool,
+			InstanceSource::Discovered,
+			&cfg(),
+		);
+
+		assert_eq!(idx, Some(0));
+		assert_eq!(instances.len(), 1, "no duplicate instance for the same market");
+		assert_eq!(instances[0].pool, Some(pool));
+		assert_eq!(instances[0].source, InstanceSource::Config);
+	}
+
+	#[test]
+	fn ensure_instance_should_refuse_when_round_trip_mismatches() {
+		// The PAP answers getPool() with a DIFFERENT pool than the one being instanced —
+		// a bogus contract answering ADDRESSES_PROVIDER() with garbage.
+		let pool = H160::repeat_byte(0x11);
+		let api = MockPoolApi {
+			pap: H160::repeat_byte(0x22),
+			pool: H160::repeat_byte(0x33),
+		};
+		let mut instances = Vec::new();
+
+		let idx = ensure_instance_for_pool(
+			&mut instances,
+			&api,
+			TestHash::default(),
+			pool,
+			InstanceSource::Discovered,
+			&cfg(),
+		);
+
+		assert_eq!(idx, None);
+		assert!(instances.is_empty());
+	}
+
+	#[test]
+	fn ensure_instance_should_not_exceed_max_instances() {
+		let api = MockPoolApi {
+			pap: H160::repeat_byte(0x22),
+			pool: H160::repeat_byte(0xFF),
+		};
+		let mut instances: Vec<MmInstance> = (0..MAX_MM_INSTANCES)
+			.map(|i| {
+				let mut inst = MmInstance::new("test", H160::repeat_byte(i as u8), None, InstanceSource::Discovered);
+				inst.pool = Some(H160::repeat_byte(0x40 + i as u8));
+				inst
+			})
+			.collect();
+
+		let idx = ensure_instance_for_pool(
+			&mut instances,
+			&api,
+			TestHash::default(),
+			H160::repeat_byte(0xFF),
+			InstanceSource::Discovered,
+			&cfg(),
+		);
+
+		assert_eq!(idx, None);
+		assert_eq!(instances.len(), MAX_MM_INSTANCES);
+	}
+}
+
 // R7: a borrower with zero debt is healthy (HF = max), not an error — decide_liquidation skips.
 #[test]
 fn decide_liquidation_should_return_none_when_borrower_has_no_debt() {

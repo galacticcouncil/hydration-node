@@ -42,3 +42,4 @@ pallet-currencies-rpc-runtime-api = { workspace = true }
 pretty_assertions = { workspace = true }
 sc-service = { workspace = true }
 ethereum = { workspace = true, features = ["std"] }
+fp-evm = { workspace = true, features = ["std"] }

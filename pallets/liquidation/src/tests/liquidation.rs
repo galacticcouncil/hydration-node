@@ -65,7 +65,6 @@ fn liquidation_should_transfer_profit_to_treasury() {
 			bob_evm_address,
 			debt_to_cover,
 			route,
-			None
 		));
 
 		// Assert
@@ -128,7 +127,6 @@ fn liquidation_should_work_when_debt_and_collateral_asset_is_same() {
 			bob_evm_address,
 			debt_to_cover,
 			BoundedVec::new(),
-			None,
 		));
 
 		// Assert
@@ -171,7 +169,6 @@ fn liquidation_should_fail_if_not_profitable() {
 				bob_evm_address,
 				debt_to_cover,
 				route,
-				None,
 			),
 			Error::<Test>::NotProfitable
 		);
@@ -229,7 +226,6 @@ fn initial_pallet_balance_should_not_change_after_execution() {
 			bob_evm_address,
 			debt_to_cover,
 			route,
-			None,
 		));
 
 		// Assert
@@ -290,8 +286,6 @@ fn validate_unsigned_should_work_when_submitted_from_local() {
 		let user: EvmAddress = EvmAccounts::evm_address(&BOB);
 		let debt_to_cover: Balance = 1_000;
 		let route: Route<AssetId> = BoundedVec::new();
-		let priority = 1_000;
-		let unsigned_priority = Some(priority);
 
 		let c = pallet::Call::<Test>::liquidate {
 			collateral_asset,
@@ -299,13 +293,13 @@ fn validate_unsigned_should_work_when_submitted_from_local() {
 			user,
 			debt_to_cover,
 			route,
-			unsigned_priority,
 		};
 
+		// Legacy call: base priority, exactly the pre-multi-MM behavior.
 		assert_eq!(
 			Liquidation::validate_unsigned(TransactionSource::Local, &c),
 			Ok(ValidTransaction {
-				priority: BASE_UNSIGNED_LIQUIDATION_PRIORITY + priority,
+				priority: BASE_UNSIGNED_LIQUIDATION_PRIORITY,
 				requires: vec![],
 				provides: vec![("liquidate_unsigned", user).encode()],
 				longevity: 1,
@@ -331,30 +325,28 @@ fn liquidate_with_gigahdx_collateral_should_refuse_when_debt_is_not_hollar() {
 				bob_evm_address,
 				1_000 * ONE,
 				route,
-				None
 			),
 			Error::<Test>::UnsupportedDebtAsset
 		);
 	});
 }
 
+// The priority ladder lives on `liquidate_with_pool` (the worker's call): the supplied
+// priority is capped at MAX so a hostile value cannot outrank oracle updates.
 #[test]
 fn validate_unsigned_priority_should_be_up_to_max_unsigned_liquidation_priority() {
 	ExtBuilder::default().build().execute_with(|| {
-		let collateral_asset: AssetId = HDX;
-		let debt_asset: AssetId = DOT;
 		let user: EvmAddress = EvmAccounts::evm_address(&BOB);
-		let debt_to_cover: Balance = 1_000;
-		let route: Route<AssetId> = BoundedVec::new();
-		let unsigned_priority = Some(u64::MAX);
+		let pool = EvmAddress::from_slice(&[9; 20]);
 
-		let c = pallet::Call::<Test>::liquidate {
-			collateral_asset,
-			debt_asset,
+		let c = pallet::Call::<Test>::liquidate_with_pool {
+			pool,
+			collateral_asset: HDX,
+			debt_asset: DOT,
 			user,
-			debt_to_cover,
-			route,
-			unsigned_priority,
+			debt_to_cover: 1_000,
+			route: BoundedVec::new(),
+			unsigned_priority: Some(u64::MAX),
 		};
 
 		assert_eq!(
@@ -362,11 +354,182 @@ fn validate_unsigned_priority_should_be_up_to_max_unsigned_liquidation_priority(
 			Ok(ValidTransaction {
 				priority: MAX_UNSIGNED_LIQUIDATION_PRIORITY,
 				requires: vec![],
-				provides: vec![("liquidate_unsigned", user).encode()],
+				provides: vec![("liquidate_unsigned", (user, pool)).encode()],
 				longevity: 1,
 				propagate: false,
 			})
 		);
+	});
+}
+
+#[test]
+fn liquidate_with_pool_should_liquidate_when_pool_matches_borrowing_contract() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange — identical setup to `liquidation_should_transfer_profit_to_treasury`,
+		// so the outcome asserts double as an outcome-parity check against `liquidate`.
+		let pool = EvmAddress::from_slice(&[9; 20]);
+		assert_ok!(Liquidation::set_borrowing_contract(RuntimeOrigin::root(), pool));
+		let bob_evm_address = EvmAccounts::evm_address(&BOB);
+		let debt_to_cover = 1_000 * ONE;
+
+		let route = Router::get_route(AssetPair {
+			asset_in: HDX,
+			asset_out: DOT,
+		});
+
+		let hdx_total_issuance = Currencies::total_issuance(HDX);
+		let dot_total_issuance = Currencies::total_issuance(DOT);
+		let hdx_contract_balance_before = Currencies::free_balance(HDX, &MONEY_MARKET);
+		let dot_contract_balance_before = Currencies::free_balance(DOT, &MONEY_MARKET);
+
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(
+			Liquidation::account_id()
+		),));
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(MONEY_MARKET),));
+
+		// Act
+		assert_ok!(Liquidation::liquidate_with_pool(
+			RuntimeOrigin::signed(ALICE),
+			pool,
+			HDX, // collateral
+			DOT, // debt
+			bob_evm_address,
+			debt_to_cover,
+			route,
+			None,
+		));
+
+		// Assert — same outcome as `liquidate` on the identical position
+		assert_eq!(hdx_total_issuance, Currencies::total_issuance(HDX));
+		assert_eq!(dot_total_issuance, Currencies::total_issuance(DOT));
+		assert!(Currencies::free_balance(DOT, &TreasuryAccount::get()) > 0);
+		assert_eq!(
+			Currencies::free_balance(HDX, &MONEY_MARKET),
+			hdx_contract_balance_before - 2 * debt_to_cover
+		);
+		assert_eq!(
+			Currencies::free_balance(DOT, &MONEY_MARKET),
+			dot_contract_balance_before + debt_to_cover
+		);
+
+		expect_last_events(vec![Event::Liquidated {
+			user: bob_evm_address,
+			debt_asset: DOT,
+			collateral_asset: HDX,
+			profit: 2_976_143_141_153_081,
+		}
+		.into()]);
+	});
+}
+
+#[test]
+fn liquidate_with_pool_should_fail_when_pool_does_not_match_borrowing_contract() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			EvmAddress::from_slice(&[9; 20])
+		));
+		let bob_evm_address = EvmAccounts::evm_address(&BOB);
+
+		assert_noop!(
+			Liquidation::liquidate_with_pool(
+				RuntimeOrigin::signed(ALICE),
+				EvmAddress::from_slice(&[8; 20]), // not the borrowing contract
+				HDX,
+				DOT,
+				bob_evm_address,
+				1_000 * ONE,
+				BoundedVec::new(),
+				None,
+			),
+			Error::<Test>::PoolAddressMismatch
+		);
+	});
+}
+
+// The mock's `pool_contract()` returns `None`, so gigahdx-collateral calls must fail
+// the pool check with `GigaHdxPoolNotSet` regardless of the provided pool — the gate
+// runs before any liquidation logic.
+#[test]
+fn liquidate_with_pool_should_fail_when_gigahdx_pool_is_not_set() {
+	ExtBuilder::default().build().execute_with(|| {
+		let bob_evm_address = EvmAccounts::evm_address(&BOB);
+
+		assert_noop!(
+			Liquidation::liquidate_with_pool(
+				RuntimeOrigin::signed(ALICE),
+				EvmAddress::from_slice(&[9; 20]),
+				67,  // GIGAHDX collateral routes the pool check to `pool_contract()`
+				222, // HOLLAR
+				bob_evm_address,
+				1_000 * ONE,
+				BoundedVec::new(),
+				None,
+			),
+			Error::<Test>::GigaHdxPoolNotSet
+		);
+	});
+}
+
+#[test]
+fn validate_unsigned_should_provide_user_and_pool_when_call_is_liquidate_with_pool() {
+	ExtBuilder::default().build().execute_with(|| {
+		let pool = EvmAddress::from_slice(&[9; 20]);
+		let user: EvmAddress = EvmAccounts::evm_address(&BOB);
+		let priority = 1_000;
+
+		let c = pallet::Call::<Test>::liquidate_with_pool {
+			pool,
+			collateral_asset: HDX,
+			debt_asset: DOT,
+			user,
+			debt_to_cover: 1_000,
+			route: BoundedVec::new(),
+			unsigned_priority: Some(priority),
+		};
+
+		assert_eq!(
+			Liquidation::validate_unsigned(TransactionSource::Local, &c),
+			Ok(ValidTransaction {
+				priority: BASE_UNSIGNED_LIQUIDATION_PRIORITY + priority,
+				requires: vec![],
+				provides: vec![("liquidate_unsigned", (user, pool)).encode()],
+				longevity: 1,
+				propagate: false,
+			})
+		);
+	});
+}
+
+#[test]
+fn validate_unsigned_should_not_collide_when_same_user_is_liquidated_in_two_pools() {
+	ExtBuilder::default().build().execute_with(|| {
+		let user: EvmAddress = EvmAccounts::evm_address(&BOB);
+
+		let call_for_pool = |pool: EvmAddress| pallet::Call::<Test>::liquidate_with_pool {
+			pool,
+			collateral_asset: HDX,
+			debt_asset: DOT,
+			user,
+			debt_to_cover: 1_000,
+			route: BoundedVec::new(),
+			unsigned_priority: None,
+		};
+
+		let provides_a = Liquidation::validate_unsigned(
+			TransactionSource::Local,
+			&call_for_pool(EvmAddress::from_slice(&[9; 20])),
+		)
+		.expect("valid tx")
+		.provides;
+		let provides_b = Liquidation::validate_unsigned(
+			TransactionSource::Local,
+			&call_for_pool(EvmAddress::from_slice(&[8; 20])),
+		)
+		.expect("valid tx")
+		.provides;
+
+		assert_ne!(provides_a, provides_b);
 	});
 }
 
@@ -390,7 +553,6 @@ fn liquidate_gigahdx_should_proceed_when_realize_yield_fails() {
 				user_evm,
 				1_000 * ONE,
 				Default::default(),
-				None
 			),
 			Error::<Test>::NoGigaHdxPosition
 		);

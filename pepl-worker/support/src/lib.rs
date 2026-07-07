@@ -58,6 +58,33 @@ pub enum Function {
 	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",
 	Symbol = "symbol()",
 	GetUserReservesData = "getUserReservesData(address,address)",
+	AddressesProvider = "ADDRESSES_PROVIDER()",
+}
+
+/// Resolves a pool's `PoolAddressesProvider` (Aave v3 pools expose it as a public
+/// immutable). Free function because instance discovery needs it before a
+/// per-market `Hydration` exists.
+pub fn fetch_addresses_provider<B: Block, RA: RuntimeApiProvider<B>>(
+	api: &RA,
+	block: B::Hash,
+	caller: EvmAddress,
+	pool: EvmAddress,
+) -> Result<EvmAddress, Error> {
+	let data = Into::<u32>::into(Function::AddressesProvider).to_be_bytes().to_vec();
+	// The pool sits behind a proxy: the delegatecall hop pushes the view call just past
+	// 100k gas (measured ~104k on mainnet), so give it comfortable headroom.
+	let gas_limit = U256::from(400_000);
+	let res = api.call(block, caller, pool, data, gas_limit)?;
+
+	if res.exit_reason != Succeed(Returned) {
+		return Err(RuntimeApiErr::EvmExitReason(res.exit_reason).into());
+	}
+
+	if res.value.len() < 32 {
+		return Err(Error::DecodeInvalidLength);
+	}
+
+	Ok(EvmAddress::from_slice(&res.value[12..32]))
 }
 
 pub mod traits {
