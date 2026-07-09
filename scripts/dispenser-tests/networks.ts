@@ -24,19 +24,19 @@ export interface EvmPreset {
 export const SUBSTRATE_PRESETS: Record<SubstrateNetwork, SubstratePreset> = {
   chopsticks: {
     wsEndpoint: 'ws://localhost:8000',
-    // Chopsticks forks mainnet but tc-set-config.ts writes the lark chain ID
-    // by default. Override with SUBSTRATE_CHAIN_ID if needed.
-    chainId: 'polkadot:e6b50b06e72a81194e9c96c488175ecd',
+    // polkadot:2034 = MPC's canonical Hydration id; the mainnet derivation path
+    // is reused on every network (dev/testnet included), so all presets share it.
+    chainId: 'polkadot:2034',
     ss58Prefix: 63,
   },
   lark: {
     wsEndpoint: 'wss://1.lark.hydration.cloud',
-    chainId: 'polkadot:e6b50b06e72a81194e9c96c488175ecd',
+    chainId: 'polkadot:2034',
     ss58Prefix: 63,
   },
   mainnet: {
     wsEndpoint: 'wss://rpc.hydradx.cloud',
-    chainId: 'polkadot:afdc188f45c71dacbaa0b62e16a91f72',
+    chainId: 'polkadot:2034',
     ss58Prefix: 63,
   },
 }

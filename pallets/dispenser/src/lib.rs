@@ -280,7 +280,7 @@ pub mod pallet {
 			let path = SIGNING_PATH.to_vec();
 
 			// CAIP-2 chain ID (e.g., "eip155:1" for Ethereum mainnet)
-			let caip2_id = alloc::format!("eip155:{}", tx.chain_id);
+			let caip2_id = alloc::string::String::from(ETH_MAINNET_CAIP2);
 
 			// Derive canonical request ID and compare with user-supplied one.
 			let req_id = Self::generate_request_id(&pallet_acc, &rlp, &caip2_id, 0, &path, ECDSA, ETHEREUM, b"")?;

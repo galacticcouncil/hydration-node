@@ -67,7 +67,7 @@ pub fn compute_request_id(
 	let sender_ss58 = account_id32.to_ss58check_with_version(sp_core::crypto::Ss58AddressFormat::custom(0));
 
 	// CAIP-2 chain ID format
-	let caip2_id = format!("eip155:{}", tx_params.chain_id);
+	let caip2_id = crate::ETH_MAINNET_CAIP2.to_string();
 
 	let packed = (
 		sender_ss58.as_str(),

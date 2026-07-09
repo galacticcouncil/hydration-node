@@ -9,6 +9,8 @@ pub type BalanceOf<T> =
 pub const ECDSA: &[u8] = b"ecdsa";
 pub const ETHEREUM: &[u8] = b"ethereum";
 
+pub const ETH_MAINNET_CAIP2: &str = "eip155:1";
+
 /// Fixed signing derivation path — all dispenser requests use the same
 /// MPC-derived key so that only one EVM wallet needs to be funded and
 /// whitelisted on the faucet contract.

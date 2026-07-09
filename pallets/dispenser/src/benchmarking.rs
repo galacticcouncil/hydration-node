@@ -140,7 +140,7 @@ mod benches {
 		let path = SIGNING_PATH.to_vec();
 
 		// CAIP-2 chain ID format
-		let caip2_id = alloc::format!("eip155:{}", tx.chain_id);
+		let caip2_id = alloc::string::String::from(ETH_MAINNET_CAIP2);
 
 		let req_id = Pallet::<T>::generate_request_id(
 			&Pallet::<T>::account_id(),
