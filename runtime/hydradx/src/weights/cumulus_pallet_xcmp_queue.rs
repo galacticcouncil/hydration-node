@@ -198,12 +198,13 @@ impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for HydraWei
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	fn take_first_concatenated_xcm() -> Weight {
+	fn take_first_concatenated_xcm(n: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
 		// Minimum execution time: 8_644_000 picoseconds.
 		Weight::from_parts(8_733_000, 0)
+			.saturating_add(Weight::from_parts(44_593, 0).saturating_mul(n.into()))
 	}
 	/// Storage: UNKNOWN KEY `0x7b3237373ffdfeb1cab4222e3b520d6b345d8e88afa015075c945637c07e8f20` (r:1 w:1)
 	/// Proof: UNKNOWN KEY `0x7b3237373ffdfeb1cab4222e3b520d6b345d8e88afa015075c945637c07e8f20` (r:1 w:1)
