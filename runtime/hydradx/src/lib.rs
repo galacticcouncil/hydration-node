@@ -781,6 +781,7 @@ impl_runtime_apis! {
 			estimate: bool,
 			access_list: Option<Vec<(H160, Vec<H256>)>>,
 			authorization_list: Option<AuthorizationList>,
+			state_override: fp_evm::StateOverride,
 		) -> Result<pallet_evm::CallInfo, sp_runtime::DispatchError> {
 			let mut config = <Runtime as pallet_evm::Config>::config().clone();
 			config.estimate = estimate;
@@ -839,6 +840,7 @@ impl_runtime_apis! {
 				validate,
 				weight_limit,
 				proof_size_base_cost,
+				state_override,
 				&config,
 			)
 			.map_err(|err| err.error.into())
