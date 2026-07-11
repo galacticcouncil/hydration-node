@@ -37,7 +37,7 @@ use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
 	sp_runtime::{
-		traits::{ConstU32, ConstU64, IdentityLookup},
+		traits::{ConstU128, ConstU32, ConstU64, IdentityLookup},
 		FixedPointNumber, Perbill, Perquintill,
 	},
 	traits::{
@@ -310,7 +310,6 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
 	type ConsensusHook = ConsensusHook;
-	type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
 	type RelayParentOffset = RelayParentOffset;
 }
 
@@ -434,6 +433,8 @@ impl pallet_session::Config for Runtime {
 	type Keys = opaque::SessionKeys;
 	type WeightInfo = ();
 	type DisablingStrategy = ();
+	type Currency = Balances;
+	type KeyDeposit = ConstU128<0>;
 }
 
 impl pallet_utility::Config for Runtime {

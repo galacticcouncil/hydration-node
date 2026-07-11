@@ -38,7 +38,7 @@ use xcm_builder::{
 	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
 	TakeWeightCredit, TrailingSetTopicAsId, WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
 };
-use xcm_executor::{traits::MatchesFungible, traits::TransactAsset, Config, XcmExecutor};
+use xcm_executor::{traits::MatchesFungible, traits::TransactAsset, AssetsInHolding, Config, XcmExecutor};
 
 #[derive(Debug, Default, Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub Location);
@@ -251,7 +251,6 @@ impl Config for XcmConfig {
 	type AssetTrap = PolkadotXcm;
 	type AssetLocker = ();
 	type AssetExchanger = XcmAssetExchanger<Runtime, TempAccountForXcmAssetExchange, CurrencyIdConvert, Currencies>;
-	type AssetClaims = PolkadotXcm;
 	type SubscriptionService = PolkadotXcm;
 	type PalletInstancesInfo = AllPalletsWithSystem;
 	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
@@ -349,7 +348,7 @@ where
 		Inner::is_waived(origin, r)
 	}
 
-	fn handle_fee(fee: Assets, context: Option<&XcmContext>, r: FeeReason) {
+	fn handle_fee(fee: AssetsInHolding, context: Option<&XcmContext>, r: FeeReason) {
 		Inner::handle_fee(fee, context, r)
 	}
 }
