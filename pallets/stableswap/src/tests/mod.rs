@@ -16,6 +16,7 @@ mod peg_one;
 mod pegs_with_different_decimals;
 mod price;
 mod remove_liquidity;
+mod share_issuance;
 mod trades;
 mod update_max_peg_update;
 mod update_peg_source;
@@ -35,7 +36,7 @@ pub(crate) fn get_share_price(pool_id: AssetId, asset_idx: usize) -> FixedU128 {
 	let pool = <Pools<Test>>::get(pool_id).unwrap();
 	let balances = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
 	let amp = Pallet::<Test>::get_amplification(&pool);
-	let issuance = Tokens::total_issuance(pool_id);
+	let issuance = ShareIssuance::<Test>::get(pool_id);
 	let (_, asset_pegs) = Pallet::<Test>::get_updated_pegs(pool_id, &pool).unwrap();
 	let share_price = hydra_dx_math::stableswap::calculate_share_price::<128u8>(
 		&balances,

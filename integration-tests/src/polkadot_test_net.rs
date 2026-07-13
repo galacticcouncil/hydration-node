@@ -990,6 +990,7 @@ pub fn hydra_live_ext(
 			p.execute_with(|| {
 				hydradx_runtime::Parameters::set_relay_parent_offset_override(true);
 				pallet_ema_oracle::migrations::v1::MigrateV0ToV1::<hydradx_runtime::Runtime>::on_runtime_upgrade();
+				pallet_stableswap::migrations::v2::MigrateV1ToV2::<hydradx_runtime::Runtime>::on_runtime_upgrade();
 			});
 			p
 		});

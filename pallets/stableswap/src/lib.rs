@@ -222,6 +222,13 @@ pub mod pallet {
 	#[pallet::getter(fn block_fee)]
 	pub type BlockFee<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Permill, OptionQuery>;
 
+	/// Pallet-tracked issuance of pool share tokens ("virtual issuance").
+	/// Updated only when this pallet mints/burns shares, so external mints/burns
+	/// of the share token cannot influence pool math.
+	#[pallet::storage]
+	#[pallet::getter(fn share_issuance)]
+	pub type ShareIssuance<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Balance, ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -399,6 +406,9 @@ pub mod pallet {
 
 		/// Invariant check failed inside a trade or liquidity operation.
 		InvariantError,
+
+		/// Attempt to burn more shares than the pool's tracked share issuance.
+		InsufficientShareIssuance,
 	}
 
 	#[pallet::call]
@@ -648,7 +658,7 @@ pub mod pallet {
 				.reserves_with_decimals::<T>(&pool_account)
 				.ok_or(Error::<T>::UnknownDecimals)?;
 
-			let share_issuance = T::Currency::total_issuance(pool_id);
+			let share_issuance = ShareIssuance::<T>::get(pool_id);
 			let amplification = Self::get_amplification(&pool);
 			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, &pool)?;
 
@@ -669,8 +679,7 @@ pub mod pallet {
 			ensure!(shares <= max_share_amount, Error::<T>::SlippageLimit);
 			ensure!(shares >= 1, Error::<T>::ZeroAmountIn);
 
-			// Burn shares and transfer asset to user.
-			T::Currency::withdraw(pool_id, &who, shares, ExistenceRequirement::AllowDeath)?;
+			Self::burn_shares(pool_id, &who, shares)?;
 			T::Currency::transfer(asset_id, &pool_account, &who, amount, ExistenceRequirement::AllowDeath)?;
 
 			// All done and updated. let's call the on_liquidity_changed hook.
@@ -1009,7 +1018,7 @@ pub mod pallet {
 			let initial_reserves = pool
 				.reserves_with_decimals::<T>(&pool_account)
 				.ok_or(Error::<T>::UnknownDecimals)?;
-			let share_issuance = T::Currency::total_issuance(pool_id);
+			let share_issuance = ShareIssuance::<T>::get(pool_id);
 
 			// We want to ensure that given min amounts are correct. It must contain all pool assets.
 			// We convert vec of min amounts to a map.
@@ -1058,8 +1067,7 @@ pub mod pallet {
 				});
 			}
 
-			// Burn shares
-			T::Currency::withdraw(pool_id, &who, share_amount, ExistenceRequirement::AllowDeath)?;
+			Self::burn_shares(pool_id, &who, share_amount)?;
 
 			// All done and updated. let's call the on_liquidity_changed hook.
 			if share_amount != share_issuance {
@@ -1068,6 +1076,7 @@ pub mod pallet {
 				// Remove the pool.
 				Pools::<T>::remove(pool_id);
 				PoolPegs::<T>::remove(pool_id);
+				ShareIssuance::<T>::remove(pool_id);
 				let _ = AssetTradability::<T>::clear_prefix(pool_id, MAX_ASSETS_IN_POOL, None);
 				T::DustAccountHandler::remove_account(&Self::pool_account(pool_id))?;
 				Self::deposit_event(Event::PoolDestroyed { pool_id });
@@ -1311,7 +1320,7 @@ impl<T: Config> Pallet<T> {
 		let pool = Pools::<T>::get(pool_id)?;
 		let pool_account = Self::pool_account(pool_id);
 		let amplification = Self::get_amplification(&pool);
-		let share_issuance = T::Currency::total_issuance(pool_id);
+		let share_issuance = ShareIssuance::<T>::get(pool_id);
 		let reserves = pool.reserves_with_decimals::<T>(&pool_account)?;
 		let (block_fee, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).ok()?;
 
@@ -1531,7 +1540,7 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		let share_issuance = T::Currency::total_issuance(pool_id);
+		let share_issuance = ShareIssuance::<T>::get(pool_id);
 		Self::save_snapshot(pool_id);
 
 		let pool_account = Self::pool_account(pool_id);
@@ -1579,7 +1588,6 @@ impl<T: Config> Pallet<T> {
 		ensure!(added_assets.is_empty(), Error::<T>::AssetNotInPool);
 
 		let amplification = Self::get_amplification(&pool);
-		let share_issuance = T::Currency::total_issuance(pool_id);
 		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, &pool)?;
 		let (share_amount, fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
@@ -1601,7 +1609,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::InsufficientShareBalance
 		);
 
-		T::Currency::deposit(pool_id, who, share_amount)?;
+		Self::mint_shares(pool_id, who, share_amount)?;
 
 		for asset in assets.iter() {
 			T::Currency::transfer(
@@ -1665,7 +1673,7 @@ impl<T: Config> Pallet<T> {
 		);
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
-		let share_issuance = T::Currency::total_issuance(pool_id);
+		let share_issuance = ShareIssuance::<T>::get(pool_id);
 		let amplification = Self::get_amplification(&pool);
 		let pool_account = Self::pool_account(pool_id);
 		let initial_reserves = pool
@@ -1701,7 +1709,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::save_snapshot(pool_id);
 
-		T::Currency::deposit(pool_id, who, shares)?;
+		Self::mint_shares(pool_id, who, shares)?;
 		T::Currency::transfer(
 			asset_id,
 			who,
@@ -1756,7 +1764,7 @@ impl<T: Config> Pallet<T> {
 		let initial_reserves = pool
 			.reserves_with_decimals::<T>(&pool_account)
 			.ok_or(Error::<T>::UnknownDecimals)?;
-		let share_issuance = T::Currency::total_issuance(pool_id);
+		let share_issuance = ShareIssuance::<T>::get(pool_id);
 
 		ensure!(
 			share_issuance == share_amount || share_issuance.saturating_sub(share_amount) >= T::MinPoolLiquidity::get(),
@@ -1783,8 +1791,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(amount >= min_amount_out, Error::<T>::SlippageLimit);
 		ensure!(amount >= 1, Error::<T>::ZeroAmountOut);
 
-		// Burn shares and transfer asset to user.
-		T::Currency::withdraw(pool_id, who, share_amount, ExistenceRequirement::AllowDeath)?;
+		Self::burn_shares(pool_id, who, share_amount)?;
 		T::Currency::transfer(asset_id, &pool_account, who, amount, ExistenceRequirement::AllowDeath)?;
 
 		// All done and updated. let's call the on_liquidity_changed hook.
@@ -1834,7 +1841,7 @@ impl<T: Config> Pallet<T> {
 		let initial_reserves = pool
 			.reserves_with_decimals::<T>(&pool_account)
 			.ok_or(Error::<T>::UnknownDecimals)?;
-		let share_issuance = T::Currency::total_issuance(pool_id);
+		let share_issuance = ShareIssuance::<T>::get(pool_id);
 
 		// We want to ensure that given min amounts are correct. It must contain all pool assets.
 		// We convert vec of min amounts to a map.
@@ -1884,8 +1891,7 @@ impl<T: Config> Pallet<T> {
 			});
 		}
 
-		// Burn shares
-		T::Currency::withdraw(pool_id, who, share_amount, ExistenceRequirement::AllowDeath)?;
+		Self::burn_shares(pool_id, who, share_amount)?;
 
 		// All done and updated. let's call the on_liquidity_changed hook.
 		if share_amount != share_issuance {
@@ -1894,6 +1900,7 @@ impl<T: Config> Pallet<T> {
 			// Remove the pool.
 			Pools::<T>::remove(pool_id);
 			PoolPegs::<T>::remove(pool_id);
+			ShareIssuance::<T>::remove(pool_id);
 			let _ = AssetTradability::<T>::clear_prefix(pool_id, MAX_ASSETS_IN_POOL, None);
 			T::DustAccountHandler::remove_account(&Self::pool_account(pool_id))?;
 			Self::deposit_event(Event::PoolDestroyed { pool_id });
@@ -1920,6 +1927,32 @@ impl<T: Config> Pallet<T> {
 	#[inline]
 	pub fn pool_account(pool_id: T::AssetId) -> T::AccountId {
 		T::ShareAccountId::from_assets(&pool_id, Some(POOL_IDENTIFIER))
+	}
+
+	fn mint_shares(pool_id: T::AssetId, who: &T::AccountId, amount: Balance) -> DispatchResult {
+		ShareIssuance::<T>::try_mutate(pool_id, |issuance| -> DispatchResult {
+			*issuance = issuance.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
+			Ok(())
+		})?;
+		T::Currency::deposit(pool_id, who, amount)
+	}
+
+	fn burn_shares(pool_id: T::AssetId, who: &T::AccountId, amount: Balance) -> DispatchResult {
+		ShareIssuance::<T>::try_mutate(pool_id, |issuance| -> DispatchResult {
+			*issuance = issuance
+				.checked_sub(amount)
+				.ok_or(Error::<T>::InsufficientShareIssuance)?;
+			Ok(())
+		})?;
+		T::Currency::withdraw(pool_id, who, amount, ExistenceRequirement::AllowDeath)
+	}
+
+	fn debug_assert_issuance_in_sync(pool_id: T::AssetId) {
+		debug_assert_eq!(
+			ShareIssuance::<T>::get(pool_id),
+			T::Currency::total_issuance(pool_id),
+			"stableswap: virtual share issuance out of sync with total issuance for pool {pool_id:?}"
+		);
 	}
 
 	#[inline]
@@ -1970,7 +2003,7 @@ impl<T: Config> Pallet<T> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		let pool_account = Self::pool_account(pool_id);
 		let amplification = Self::get_amplification(&pool);
-		let share_issuance = T::Currency::total_issuance(pool_id);
+		let share_issuance = ShareIssuance::<T>::get(pool_id);
 		let updated_reserves = pool
 			.reserves_with_decimals::<T>(&pool_account)
 			.ok_or(Error::<T>::UnknownDecimals)?;
@@ -2007,6 +2040,7 @@ impl<T: Config> Pallet<T> {
 		initial_reserves: &[AssetReserve],
 		initial_issuance: Balance,
 	) -> DispatchResult {
+		Self::debug_assert_issuance_in_sync(pool_id);
 		let r: DispatchResult = (|| {
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::InvariantError)?;
 			let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).map_err(|_| Error::<T>::InvariantError)?;
@@ -2029,7 +2063,7 @@ impl<T: Config> Pallet<T> {
 			if initial_issuance.is_zero() {
 				return Ok(());
 			}
-			let current_share_issuance = T::Currency::total_issuance(pool_id);
+			let current_share_issuance = ShareIssuance::<T>::get(pool_id);
 			ensure!(!current_share_issuance.is_zero(), Error::<T>::InvariantError);
 			let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
 			let final_r = FixedU128::from_rational(final_d, current_share_issuance);
@@ -2045,6 +2079,7 @@ impl<T: Config> Pallet<T> {
 		initial_reserves: &[AssetReserve],
 		initial_issuance: Balance,
 	) -> DispatchResult {
+		Self::debug_assert_issuance_in_sync(pool_id);
 		let r: DispatchResult = (|| {
 			let Some(pool) = Pools::<T>::get(pool_id) else {
 				return Ok(());
@@ -2066,7 +2101,7 @@ impl<T: Config> Pallet<T> {
 				hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, &asset_pegs)
 					.ok_or(Error::<T>::InvariantError)?;
 			ensure!(final_d <= initial_d, Error::<T>::InvariantError);
-			let current_share_issuance = T::Currency::total_issuance(pool_id);
+			let current_share_issuance = ShareIssuance::<T>::get(pool_id);
 			if current_share_issuance.is_zero() {
 				return Ok(());
 			}
@@ -2081,6 +2116,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn ensure_trade_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve], _fee: Permill) -> DispatchResult {
+		Self::debug_assert_issuance_in_sync(pool_id);
 		let r: DispatchResult = (|| {
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::InvariantError)?;
 			let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).map_err(|_| Error::<T>::InvariantError)?;
