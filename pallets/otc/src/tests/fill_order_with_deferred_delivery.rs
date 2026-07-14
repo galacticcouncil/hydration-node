@@ -38,9 +38,9 @@ fn fill_order_with_deferred_delivery_should_preserve_maker_account_when_asset_ou
 		));
 
 		// A reap would reset the nonce to 0, so start it non-zero to detect one.
-		frame_system::Pallet::<Test>::inc_account_nonce(&MAKER);
-		frame_system::Pallet::<Test>::inc_account_nonce(&MAKER);
-		let nonce_before = frame_system::Pallet::<Test>::account_nonce(&MAKER);
+		frame_system::Pallet::<Test>::inc_account_nonce(MAKER);
+		frame_system::Pallet::<Test>::inc_account_nonce(MAKER);
+		let nonce_before = frame_system::Pallet::<Test>::account_nonce(MAKER);
 		assert_eq!(nonce_before, 2);
 
 		let amount_in = 5 * ONE;
@@ -54,7 +54,7 @@ fn fill_order_with_deferred_delivery_should_preserve_maker_account_when_asset_ou
 		// asset_out fully spent, asset_in received, and the account survived intact (nonce preserved).
 		assert_eq!(Tokens::free_balance(HDX, &MAKER), 0);
 		assert_eq!(Tokens::free_balance(DAI, &MAKER), 5 * ONE);
-		assert_eq!(frame_system::Pallet::<Test>::account_nonce(&MAKER), nonce_before);
+		assert_eq!(frame_system::Pallet::<Test>::account_nonce(MAKER), nonce_before);
 		assert!(OTC::orders(0).is_none());
 	});
 }
