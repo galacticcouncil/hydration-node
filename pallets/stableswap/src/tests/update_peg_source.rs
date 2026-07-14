@@ -1,5 +1,5 @@
 use crate::tests::mock::*;
-use crate::types::{BoundedPegSources, PegSource};
+use crate::types::PegSource;
 use crate::{Error, Event, PoolPegs};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 use hydradx_traits::OraclePeriod;
@@ -14,9 +14,6 @@ fn update_asset_peg_source_should_work() {
 	let amp = 1000;
 	let fee = Permill::from_percent(1);
 
-	let peg_sources: BoundedPegSources<AssetId> =
-		BoundedVec::try_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]).unwrap();
-
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, asset_a, 1_000_000 * ONE),
@@ -30,10 +27,13 @@ fn update_asset_peg_source_should_work() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b].try_into().unwrap(),
+				BoundedVec::try_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value((1, 1))),
+				])
+				.unwrap(),
 				amp,
 				fee,
-				peg_sources,
 				Perbill::from_percent(10),
 			));
 
@@ -139,9 +139,6 @@ fn update_asset_peg_source_should_fail_when_asset_not_in_pool() {
 	let amp = 1000;
 	let fee = Permill::from_percent(1);
 
-	let peg_sources: BoundedPegSources<AssetId> =
-		BoundedVec::try_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]).unwrap();
-
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, asset_a, 1_000_000 * ONE),
@@ -157,10 +154,13 @@ fn update_asset_peg_source_should_fail_when_asset_not_in_pool() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b].try_into().unwrap(),
+				BoundedVec::try_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value((1, 1))),
+				])
+				.unwrap(),
 				amp,
 				fee,
-				peg_sources,
 				Perbill::from_percent(10),
 			));
 
@@ -187,9 +187,6 @@ fn update_asset_peg_source_should_fail_when_invalid_origin() {
 	let amp = 1000;
 	let fee = Permill::from_percent(1);
 
-	let peg_sources: BoundedPegSources<AssetId> =
-		BoundedVec::try_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]).unwrap();
-
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, asset_a, 1_000_000 * ONE),
@@ -204,10 +201,13 @@ fn update_asset_peg_source_should_fail_when_invalid_origin() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b].try_into().unwrap(),
+				BoundedVec::try_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value((1, 1))),
+				])
+				.unwrap(),
 				amp,
 				fee,
-				peg_sources,
 				Perbill::from_percent(10),
 			));
 
@@ -230,9 +230,6 @@ fn update_asset_peg_source_should_work_with_oracle_source() {
 	let amp = 1000;
 	let fee = Permill::from_percent(1);
 
-	let peg_sources: BoundedPegSources<AssetId> =
-		BoundedVec::try_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]).unwrap();
-
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, asset_a, 1_000_000 * ONE),
@@ -246,10 +243,13 @@ fn update_asset_peg_source_should_work_with_oracle_source() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b].try_into().unwrap(),
+				BoundedVec::try_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value((1, 1))),
+				])
+				.unwrap(),
 				amp,
 				fee,
-				peg_sources,
 				Perbill::from_percent(10),
 			));
 
@@ -278,9 +278,6 @@ fn update_asset_peg_source_should_update_second_asset_correctly() {
 	let amp = 1000;
 	let fee = Permill::from_percent(1);
 
-	let peg_sources: BoundedPegSources<AssetId> =
-		BoundedVec::try_from(vec![PegSource::Value((1, 1)), PegSource::Value((2, 2))]).unwrap();
-
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, asset_a, 1_000_000 * ONE),
@@ -294,10 +291,13 @@ fn update_asset_peg_source_should_update_second_asset_correctly() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b].try_into().unwrap(),
+				BoundedVec::try_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value((2, 2))),
+				])
+				.unwrap(),
 				amp,
 				fee,
-				peg_sources,
 				Perbill::from_percent(10),
 			));
 
@@ -345,13 +345,6 @@ fn update_asset_peg_source_should_work_with_three_assets() {
 	let amp = 1000;
 	let fee = Permill::from_percent(1);
 
-	let peg_sources: BoundedPegSources<AssetId> = BoundedVec::try_from(vec![
-		PegSource::Value((1, 1)),
-		PegSource::Value((2, 2)),
-		PegSource::Value((3, 3)),
-	])
-	.unwrap();
-
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, asset_a, 1_000_000 * ONE),
@@ -367,10 +360,14 @@ fn update_asset_peg_source_should_work_with_three_assets() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				BoundedVec::try_from(vec![
+					(asset_a, PegSource::Value((1, 1))),
+					(asset_b, PegSource::Value((2, 2))),
+					(asset_c, PegSource::Value((3, 3))),
+				])
+				.unwrap(),
 				amp,
 				fee,
-				peg_sources,
 				Perbill::from_percent(10),
 			));
 
