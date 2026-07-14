@@ -6,13 +6,15 @@ export class KeyDerivation {
 
   static derivePublicKey(
     rootPublicKey: string,
+    predecessorId: string,
+    path: string,
     chainId: string
   ): string {
     const ec = new EC("secp256k1");
 
     const uncompressedRoot = rootPublicKey.slice(4);
 
-    const derivationPath = `${this.EPSILON_PREFIX},${chainId}`;
+    const derivationPath = `${this.EPSILON_PREFIX},${chainId},${predecessorId},${path}`;
     const hash = ethers.keccak256(ethers.toUtf8Bytes(derivationPath));
     const scalarHex = hash.slice(2);
 

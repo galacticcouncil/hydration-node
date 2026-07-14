@@ -67,7 +67,7 @@ describe('ERC20 Vault Integration', () => {
       ENV.SUBSTRATE_CHAIN_ID,
     )
 
-    const derived = deriveEthAddress()
+    const derived = deriveEthAddress(DISPENSER_SIGNING_PATH, palletSS58Prefix0)
     derivedEthAddress = derived.derivedEthAddress
     derivedPubKey = derived.derivedPubKey
 
@@ -139,7 +139,7 @@ describe('ERC20 Vault Integration', () => {
       palletSS58Prefix0,
       Array.from(ethers.getBytes(tx.unsignedSerialized)),
       {
-        caip2_id: `eip155:${ENV.EVM_CHAIN_ID}`,
+        caip2_id: 'eip155:1',
         keyVersion: 0,
         path: DISPENSER_SIGNING_PATH,
         algo: 'ecdsa',

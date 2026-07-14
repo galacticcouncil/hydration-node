@@ -1,3 +1,4 @@
+mod signer_allowlist;
 mod test_cases;
 pub mod utils;
 

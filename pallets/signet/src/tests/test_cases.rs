@@ -50,6 +50,11 @@ fn fund_signet_pallet(amount: u128) -> u64 {
 	pallet_account
 }
 
+/// Authorize an account as a responder (signer).
+fn authorize_signer(who: u64) {
+	assert_ok!(Signet::add_signer(RuntimeOrigin::root(), who));
+}
+
 // -----------------------------------------------------------------------------
 // set_config tests
 // -----------------------------------------------------------------------------
@@ -422,6 +427,7 @@ fn test_sign_bidirectional_empty_transaction_fails() {
 fn test_respond_single() {
 	new_test_ext().execute_with(|| {
 		let responder = REQUESTER;
+		authorize_signer(responder);
 		let request_id = [99u8; 32];
 		let signature = create_test_signature();
 
@@ -446,6 +452,7 @@ fn test_respond_single() {
 fn test_respond_batch() {
 	new_test_ext().execute_with(|| {
 		let responder = REQUESTER;
+		authorize_signer(responder);
 		let request_ids = vec![[1u8; 32], [2u8; 32], [3u8; 32]];
 		let signatures = vec![
 			create_test_signature(),
@@ -472,6 +479,7 @@ fn test_respond_batch() {
 fn test_respond_mismatched_arrays_fails() {
 	new_test_ext().execute_with(|| {
 		let responder = REQUESTER;
+		authorize_signer(responder);
 
 		assert_noop!(
 			Signet::respond(
@@ -492,6 +500,7 @@ fn test_respond_mismatched_arrays_fails() {
 fn test_respond_error_single() {
 	new_test_ext().execute_with(|| {
 		let responder = REQUESTER;
+		authorize_signer(responder);
 		let error_response = ErrorResponse {
 			request_id: [99u8; 32],
 			error_message: bounded_u8::<1024>(b"Signature generation failed".to_vec()),
@@ -517,6 +526,7 @@ fn test_respond_error_single() {
 fn test_respond_error_batch() {
 	new_test_ext().execute_with(|| {
 		let responder = REQUESTER;
+		authorize_signer(responder);
 		let errors = vec![
 			ErrorResponse {
 				request_id: [1u8; 32],
@@ -546,6 +556,7 @@ fn test_respond_error_batch() {
 fn test_respond_bidirectional() {
 	new_test_ext().execute_with(|| {
 		let responder = REQUESTER;
+		authorize_signer(responder);
 		let request_id = [99u8; 32];
 		let output = b"read_output_data".to_vec();
 		let signature = create_test_signature();
