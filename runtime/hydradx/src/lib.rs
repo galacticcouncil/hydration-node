@@ -42,6 +42,9 @@ mod system;
 pub mod types;
 pub mod xcm;
 
+// tmp. implemenation of ice simualtors' data providers
+pub mod ice_simulator_provider;
+
 extern crate alloc;
 use alloc::borrow::Cow;
 
@@ -204,6 +207,11 @@ construct_runtime!(
 		EthDispenser: pallet_dispenser = 85,
 		GigaHdx: pallet_gigahdx = 86,
 		GigaHdxRewards: pallet_gigahdx_rewards = 87,
+
+		//ICE
+		LazyExecutor: pallet_lazy_executor = 97,
+		Intent: pallet_intent = 98,
+		ICE: pallet_ice = 99,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -388,6 +396,9 @@ mod benches {
 		//[pallet_token_gateway_ismp, benchmarking::token_gateway_ismp::Benchmark]
 		[pallet_evm_accounts, benchmarking::evm_accounts::Benchmark]
 		[pallet_migrations, MultiBlockMigrations]
+		[pallet_intent, benchmarking::intent::Benchmark]
+		[pallet_lazy_executor, benchmarking::lazy_executor::Benchmark]
+		[pallet_ice, benchmarking::ice::Benchmark]
 	);
 }
 
@@ -1203,6 +1214,19 @@ impl_runtime_apis! {
 
 		fn pools() -> Vec<PoolData<Balance>> {
 			Self::pairs().into_iter().map(|p| Self::pool(p.0, p.1)).collect()
+		}
+	}
+
+	impl pallet_ice_runtime_api::IceSolverApi<Block> for Runtime {
+		fn solver_input() -> Option<pallet_ice_runtime_api::SolverInput> {
+			pallet_ice::Pallet::<Runtime>::solver_input().map(|(intents, state, eds, fee)| {
+				pallet_ice_runtime_api::SolverInput {
+					intents,
+					state,
+					existential_deposits: eds,
+					fee,
+				}
+			})
 		}
 	}
 

@@ -62,6 +62,10 @@ pub struct Cli {
 	/// Liquidation worker configuration
 	#[clap(flatten)]
 	pub liquidation_worker_config: crate::liquidation_worker::LiquidationWorkerConfig,
+
+	/// ICE solver worker configuration
+	#[clap(flatten)]
+	pub ice_solver_worker_config: crate::ice_solver_worker::IceSolverWorkerConfig,
 }
 
 #[derive(Debug)]

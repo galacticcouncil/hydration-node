@@ -45,6 +45,12 @@ primitives = { workspace = true }
 pallet-claims = { workspace = true }
 pallet-liquidation = { workspace = true }
 liquidation-worker-support = { workspace = true }
+pallet-ice = { workspace = true, features = ["std"] }
+pallet-ice-runtime-api = { workspace = true, features = ["std"] }
+ice-solver = { workspace = true, features = ["std"] }
+amm-simulator = { workspace = true, features = ["std"] }
+ice-support = { workspace = true, features = ["std"] }
+hydradx-traits = { workspace = true, features = ["std"] }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true }

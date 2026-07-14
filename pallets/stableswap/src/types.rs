@@ -231,4 +231,28 @@ impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
 		*b = b.saturating_sub(amount_out.amount);
 		self
 	}
+
+	/// Update share issuance and a single reserve (for add/remove liquidity simulation).
+	///
+	/// # Parameters
+	/// - `asset_id`: The asset to update reserve for
+	/// - `reserve_delta`: Change in reserve (positive = add, negative = remove)
+	/// - `shares_delta`: Change in shares (positive = mint, negative = burn)
+	pub fn update_shares_and_reserve(mut self, asset_id: AssetId, reserve_delta: i128, shares_delta: i128) -> Self {
+		if let Some(idx) = self.asset_idx(asset_id) {
+			if let Some(reserve) = self.reserves.get_mut(idx) {
+				if reserve_delta >= 0 {
+					reserve.amount = reserve.amount.saturating_add(reserve_delta as u128);
+				} else {
+					reserve.amount = reserve.amount.saturating_sub((-reserve_delta) as u128);
+				}
+			}
+		}
+		if shares_delta >= 0 {
+			self.share_issuance = self.share_issuance.saturating_add(shares_delta as u128);
+		} else {
+			self.share_issuance = self.share_issuance.saturating_sub((-shares_delta) as u128);
+		}
+		self
+	}
 }

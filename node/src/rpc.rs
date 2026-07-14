@@ -21,6 +21,7 @@
 
 use std::sync::Arc;
 
+use crate::ice_solver_worker::IceSolverTaskData;
 use crate::liquidation_worker::LiquidationTaskData;
 use cumulus_primitives_core::PersistedValidationData;
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
@@ -65,6 +66,8 @@ pub struct FullDeps<C, P, B> {
 	pub backend: Arc<B>,
 	/// Data provided from the liquidation worker.
 	pub liquidation_task_data: Arc<LiquidationTaskData>,
+	/// Data provided from the ICE solver worker.
+	pub ice_solver_task_data: Arc<IceSolverTaskData>,
 }
 
 /// Extra dependencies for Ethereum compatibility.
@@ -120,6 +123,7 @@ where
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::StateBackend<sp_runtime::traits::HashingFor<Block>>,
 {
+	use crate::ice_solver_worker::rpc::{IceSolverWorker, IceSolverWorkerApiServer};
 	use crate::liquidation_worker::rpc::{LiquidationWorker, LiquidationWorkerApiServer};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
@@ -131,6 +135,7 @@ where
 		pool,
 		backend,
 		liquidation_task_data,
+		ice_solver_task_data,
 	} = deps;
 
 	module.merge(System::new(client.clone(), pool).into_rpc())?;
@@ -138,6 +143,7 @@ where
 	module.merge(StateMigration::new(client.clone(), backend.clone()).into_rpc())?;
 
 	module.merge(LiquidationWorker::new(liquidation_task_data).into_rpc())?;
+	module.merge(IceSolverWorker::new(ice_solver_task_data).into_rpc())?;
 
 	Ok(module)
 }
