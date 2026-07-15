@@ -279,6 +279,18 @@ pub fn revert(output: impl AsRef<[u8]>) -> PrecompileFailure {
 	}
 }
 
+/// Reverts with a Solidity custom error: `keccak(signature)[..4] ++ abi.encode(args)`.
+#[must_use]
+pub fn revert_custom_error(signature: &str, args: &[Token]) -> PrecompileFailure {
+	let selector = sp_io::hashing::keccak_256(signature.as_bytes());
+	let mut output = selector[..4].to_vec();
+	output.extend(ethabi::encode(args));
+	PrecompileFailure::Revert {
+		exit_status: ExitRevert::Reverted,
+		output,
+	}
+}
+
 #[must_use]
 pub fn succeed(output: impl AsRef<[u8]>) -> PrecompileOutput {
 	PrecompileOutput {

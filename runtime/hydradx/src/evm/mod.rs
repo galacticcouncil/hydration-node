@@ -240,6 +240,9 @@ impl pallet_evm_accounts::Config for Runtime {
 	type EvmNonceProvider = EvmNonceProvider;
 	type FeeMultiplier = sp_core::ConstU32<50>;
 	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	// faster than ControllerOrigin (TC majority) so NTT mint/burn can be stopped in minutes
+	type NttEmergencyOrigin =
+		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<crate::governance::TechCommitteeMajority, GeneralAdmin>>;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
 	type ExistentialDeposits = AssetRegistry;
