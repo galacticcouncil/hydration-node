@@ -108,6 +108,7 @@ pub const ASSET_HUB_PARA_ID: u32 = 1_000;
 pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
 pub const MOONBEAM_PARA_ID: u32 = 2_004;
+pub const TAIFOON_PARA_ID: u32 = 3_369; // TODO: replace with Taifoon's reserved Polkadot para id once registered
 pub const INTERLAY_PARA_ID: u32 = 2_032;
 pub const ZEITGEIST_PARA_ID: u32 = 2_092;
 

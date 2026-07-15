@@ -5,7 +5,7 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use hydradx_runtime::AssetRegistry as Registry;
 use polkadot_xcm::v5::{
-	Junction::{GeneralIndex, Parachain},
+	Junction::{GeneralIndex, PalletInstance, Parachain},
 	Location,
 };
 use pretty_assertions::{assert_eq, assert_ne};
@@ -85,5 +85,42 @@ fn root_should_update_location_when_asset_exists() {
 		assert_eq!(Registry::location_assets(loc_2).unwrap(), LRNA);
 
 		assert!(Registry::location_assets(loc_1).is_none());
+	});
+}
+
+// Registering a Taifoon-native asset (xcFOON) on Hydration.
+//
+// Taifoon is a Moonbeam fork, so its native currency uses the Moonbeam-family multilocation shape:
+// `{ parents: 1, interior: X2(Parachain(TAIFOON_PARA_ID), PalletInstance(10)) }` — PalletInstance 10
+// is the Balances pallet on Moonbeam-family runtimes, i.e. the native token (18 decimals). This is
+// the on-chain `assetRegistry.register` a GeneralAdmin referendum would submit to accept xcFOON.
+#[test]
+fn root_should_register_xcfoon_from_taifoon() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let foon_location = hydradx_runtime::AssetLocation(Location {
+			parents: 1,
+			interior: [Parachain(TAIFOON_PARA_ID), PalletInstance(10)].into(),
+		});
+
+		// The location must not resolve before registration.
+		assert!(Registry::location_assets(foon_location.clone()).is_none());
+
+		assert_ok!(Registry::register(
+			RawOrigin::Root.into(),
+			None,                                    // asset_id: auto
+			Some(b"Taifoon FOON".to_vec().try_into().unwrap()),
+			pallet_asset_registry::AssetType::Token, // asset_type
+			None,                                    // existential_deposit: default
+			Some(b"xcFOON".to_vec().try_into().unwrap()),
+			Some(18),                                // decimals (FOON = 18)
+			Some(foon_location.clone()),             // location
+			None,                                    // xcm_rate_limit
+			false,                                   // is_sufficient
+		));
+
+		// The location now resolves to a local asset id, and back.
+		let foon_id = Registry::location_assets(foon_location.clone()).expect("xcFOON registered");
+		assert_eq!(Registry::locations(foon_id).unwrap(), foon_location);
 	});
 }
