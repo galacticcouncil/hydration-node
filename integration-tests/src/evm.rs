@@ -1977,20 +1977,24 @@ mod currency_precompile_ntt {
 		}
 	}
 
-	fn burn_handle(caller: H160, amount: u128) -> MockHandle {
+	fn burn_handle_for(token: H160, caller: H160, amount: u128) -> MockHandle {
 		let data = EvmDataWriter::new_with_selector(Function::Burn)
 			.write(U256::from(amount))
 			.build();
 		MockHandle {
 			input: data,
 			context: Context {
-				address: dai_ethereum_address(),
+				address: token,
 				caller,
 				apparent_value: U256::from(0),
 			},
-			code_address: dai_ethereum_address(),
+			code_address: token,
 			is_static: false,
 		}
+	}
+
+	fn burn_handle(caller: H160, amount: u128) -> MockHandle {
+		burn_handle_for(dai_ethereum_address(), caller, amount)
 	}
 
 	fn custom_error(signature: &[u8], args: &[ethabi::Token]) -> Vec<u8> {
@@ -2372,6 +2376,81 @@ mod currency_precompile_ntt {
 					exit_status: Reverted,
 					output: custom_error(b"MintLimitReached()", &[]),
 				})
+			);
+		});
+	}
+
+	#[test]
+	fn burn_should_be_throttled_by_global_withdraw_limit() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			// use HDX so no price fixture is needed (it is the limiter's reference currency).
+			// NTT assets keep asset_type = Token, which is not accounted by the global egress
+			// limiter by default — enrolling them requires the set_asset_category override.
+			assert_ok!(EVMAccounts::set_ntt_minter(
+				hydradx_runtime::RuntimeOrigin::root(),
+				HDX,
+				minter()
+			));
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				minter_account(),
+				HDX,
+				(2_000 * UNITS) as i128,
+			));
+			assert_ok!(CircuitBreaker::set_asset_category(
+				hydradx_runtime::RuntimeOrigin::root(),
+				HDX,
+				Some(pallet_circuit_breaker::GlobalAssetCategory::External),
+			));
+			assert_ok!(CircuitBreaker::set_global_withdraw_limit_params(
+				hydradx_runtime::RuntimeOrigin::root(),
+				pallet_circuit_breaker::types::GlobalWithdrawLimitParameters {
+					limit: 1_000 * UNITS,
+					window: primitives::constants::time::unix_time::DAY,
+				},
+			));
+			let hdx_token = native_asset_ethereum_address();
+			let balance_before = Currencies::free_balance(HDX, &minter_account());
+
+			// within the egress budget
+			assert_eq!(
+				CurrencyPrecompile::execute(&mut burn_handle_for(hdx_token, minter(), 600 * UNITS)),
+				empty_output()
+			);
+
+			// exceeding the budget: note_egress errors, the withdraw fails, the burn reverts.
+			// Executed through the real runner (not MockHandle) because the revert relies on
+			// the EVM call-frame storage transaction to roll the withdraw back.
+			let burn_data = EvmDataWriter::new_with_selector(Function::Burn)
+				.write(U256::from(500 * UNITS))
+				.build();
+			let info = <hydradx_runtime::Runtime as pallet_evm::Config>::Runner::call(
+				minter(),
+				hdx_token,
+				burn_data,
+				U256::zero(),
+				1_000_000u64,
+				None,
+				None,
+				None,
+				Default::default(),
+				Default::default(),
+				false,
+				true,
+				None,
+				None,
+				<hydradx_runtime::Runtime as pallet_evm::Config>::config(),
+			)
+			.expect("runner call should execute");
+			assert!(matches!(info.exit_reason, fp_evm::ExitReason::Revert(_)));
+			assert_balance!(minter_account(), HDX, balance_before - 600 * UNITS);
+
+			// smaller burn still fits under the remaining budget
+			assert_eq!(
+				CurrencyPrecompile::execute(&mut burn_handle_for(hdx_token, minter(), 300 * UNITS)),
+				empty_output()
 			);
 		});
 	}
