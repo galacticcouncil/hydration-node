@@ -2385,24 +2385,26 @@ mod currency_precompile_ntt {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
+			use hydradx_runtime::circuit_breaker::WithdrawCircuitBreaker;
+
 			// use HDX so no price fixture is needed (it is the limiter's reference currency).
-			// NTT assets keep asset_type = Token, which is not accounted by the global egress
-			// limiter by default — enrolling them requires the set_asset_category override.
+			// NTT assets keep asset_type = Token, which the global egress limiter does not
+			// account by default — setting the NTT minter must auto-enroll the asset.
+			assert_eq!(WithdrawCircuitBreaker::global_asset_category(HDX), None);
 			assert_ok!(EVMAccounts::set_ntt_minter(
 				hydradx_runtime::RuntimeOrigin::root(),
 				HDX,
 				minter()
 			));
+			assert_eq!(
+				WithdrawCircuitBreaker::global_asset_category(HDX),
+				Some(pallet_circuit_breaker::GlobalAssetCategory::External)
+			);
 			assert_ok!(Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
 				minter_account(),
 				HDX,
 				(2_000 * UNITS) as i128,
-			));
-			assert_ok!(CircuitBreaker::set_asset_category(
-				hydradx_runtime::RuntimeOrigin::root(),
-				HDX,
-				Some(pallet_circuit_breaker::GlobalAssetCategory::External),
 			));
 			assert_ok!(CircuitBreaker::set_global_withdraw_limit_params(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -2452,6 +2454,10 @@ mod currency_precompile_ntt {
 				CurrencyPrecompile::execute(&mut burn_handle_for(hdx_token, minter(), 300 * UNITS)),
 				empty_output()
 			);
+
+			// clearing the minter unenrolls the asset again
+			assert_ok!(EVMAccounts::clear_ntt_minter(hydradx_runtime::RuntimeOrigin::root(), HDX));
+			assert_eq!(WithdrawCircuitBreaker::global_asset_category(HDX), None);
 		});
 	}
 }
