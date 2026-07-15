@@ -409,6 +409,9 @@ pub mod pallet {
 
 		/// Attempt to burn more shares than the pool's tracked share issuance.
 		InsufficientShareIssuance,
+
+		/// Total issuance of pool shares exceeds the pallet-tracked issuance - shares were minted outside the pallet.
+		UnaccountedShareIssuance,
 	}
 
 	#[pallet::call]
@@ -1947,12 +1950,18 @@ impl<T: Config> Pallet<T> {
 		T::Currency::withdraw(pool_id, who, amount, ExistenceRequirement::AllowDeath)
 	}
 
-	fn debug_assert_issuance_in_sync(pool_id: T::AssetId) {
+	fn ensure_issuance_in_sync(pool_id: T::AssetId) -> DispatchResult {
+		let tracked = ShareIssuance::<T>::get(pool_id);
+		let total = T::Currency::total_issuance(pool_id);
+		// Strict equality asserted first so tests and fuzzing panic loudly on any desync -
+		// an error return would be silently ignored by a fuzzer.
 		debug_assert_eq!(
-			ShareIssuance::<T>::get(pool_id),
-			T::Currency::total_issuance(pool_id),
+			tracked, total,
 			"stableswap: virtual share issuance out of sync with total issuance for pool {pool_id:?}"
 		);
+		// Excess total issuance means shares were minted outside the pallet - hard-fail in production.
+		ensure!(total <= tracked, Error::<T>::UnaccountedShareIssuance);
+		Ok(())
 	}
 
 	#[inline]
@@ -2040,7 +2049,7 @@ impl<T: Config> Pallet<T> {
 		initial_reserves: &[AssetReserve],
 		initial_issuance: Balance,
 	) -> DispatchResult {
-		Self::debug_assert_issuance_in_sync(pool_id);
+		Self::ensure_issuance_in_sync(pool_id)?;
 		let r: DispatchResult = (|| {
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::InvariantError)?;
 			let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).map_err(|_| Error::<T>::InvariantError)?;
@@ -2079,7 +2088,7 @@ impl<T: Config> Pallet<T> {
 		initial_reserves: &[AssetReserve],
 		initial_issuance: Balance,
 	) -> DispatchResult {
-		Self::debug_assert_issuance_in_sync(pool_id);
+		Self::ensure_issuance_in_sync(pool_id)?;
 		let r: DispatchResult = (|| {
 			let Some(pool) = Pools::<T>::get(pool_id) else {
 				return Ok(());
@@ -2116,7 +2125,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn ensure_trade_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve], _fee: Permill) -> DispatchResult {
-		Self::debug_assert_issuance_in_sync(pool_id);
+		Self::ensure_issuance_in_sync(pool_id)?;
 		let r: DispatchResult = (|| {
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::InvariantError)?;
 			let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).map_err(|_| Error::<T>::InvariantError)?;

@@ -230,19 +230,86 @@ fn create_snapshot_should_use_tracked_issuance_when_external_mint_exists() {
 	});
 }
 
-// debug_assert compiles out in release builds, so the panic only exists under debug_assertions
+fn mint_shares_externally() {
+	assert_ok!(Tokens::set_balance(
+		RuntimeOrigin::root(),
+		ALICE,
+		POOL_ID,
+		1_000_000 * ONE * 1_000_000,
+		0,
+	));
+	assert!(Tokens::total_issuance(POOL_ID) > ShareIssuance::<Test>::get(POOL_ID));
+}
+
+// The strict-equality debug assert panics before the ensure can return the error,
+// so the production error path is only observable in release builds.
+#[cfg(not(debug_assertions))]
+#[test]
+fn add_liquidity_should_fail_when_total_issuance_exceeds_tracked() {
+	pool_with_initial_liquidity().execute_with(|| {
+		mint_shares_externally();
+
+		assert_noop!(
+			Stableswap::add_assets_liquidity(
+				RuntimeOrigin::signed(ALICE),
+				POOL_ID,
+				BoundedVec::truncate_from(vec![
+					AssetAmount::new(ASSET_A, 100 * ONE),
+					AssetAmount::new(ASSET_B, 100 * ONE),
+				]),
+				Balance::zero(),
+			),
+			Error::<Test>::UnaccountedShareIssuance
+		);
+	});
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn sell_should_fail_when_total_issuance_exceeds_tracked() {
+	pool_with_initial_liquidity().execute_with(|| {
+		mint_shares_externally();
+
+		assert_noop!(
+			Stableswap::sell(
+				RuntimeOrigin::signed(ALICE),
+				POOL_ID,
+				ASSET_A,
+				ASSET_B,
+				10 * ONE,
+				Balance::zero(),
+			),
+			Error::<Test>::UnaccountedShareIssuance
+		);
+	});
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn remove_liquidity_one_asset_should_fail_when_total_issuance_exceeds_tracked() {
+	pool_with_initial_liquidity().execute_with(|| {
+		mint_shares_externally();
+
+		assert_noop!(
+			Stableswap::remove_liquidity_one_asset(
+				RuntimeOrigin::signed(BOB),
+				POOL_ID,
+				ASSET_A,
+				50 * ONE * 1_000_000,
+				Balance::zero(),
+			),
+			Error::<Test>::UnaccountedShareIssuance
+		);
+	});
+}
+
+// debug_assert compiles out in release builds, so the panics only exist under debug_assertions
 #[cfg(debug_assertions)]
 #[test]
 #[should_panic(expected = "virtual share issuance")]
-fn add_liquidity_should_panic_when_issuance_desynced_in_debug_build() {
+fn add_liquidity_should_panic_when_total_issuance_exceeds_tracked_in_debug_build() {
 	pool_with_initial_liquidity().execute_with(|| {
-		assert_ok!(Tokens::set_balance(
-			RuntimeOrigin::root(),
-			ALICE,
-			POOL_ID,
-			1_000_000 * ONE * 1_000_000,
-			0,
-		));
+		mint_shares_externally();
 
 		let _ = Stableswap::add_assets_liquidity(
 			RuntimeOrigin::signed(ALICE),
@@ -253,5 +320,59 @@ fn add_liquidity_should_panic_when_issuance_desynced_in_debug_build() {
 			]),
 			Balance::zero(),
 		);
+	});
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic(expected = "virtual share issuance")]
+fn add_liquidity_should_panic_when_total_issuance_below_tracked_in_debug_build() {
+	pool_with_initial_liquidity().execute_with(|| {
+		// External burn: total issuance drops below the tracked counter.
+		assert_ok!(Tokens::set_balance(
+			RuntimeOrigin::root(),
+			BOB,
+			POOL_ID,
+			INITIAL_SHARES / 2,
+			0,
+		));
+		assert!(Tokens::total_issuance(POOL_ID) < ShareIssuance::<Test>::get(POOL_ID));
+
+		let _ = Stableswap::add_assets_liquidity(
+			RuntimeOrigin::signed(ALICE),
+			POOL_ID,
+			BoundedVec::truncate_from(vec![
+				AssetAmount::new(ASSET_A, 100 * ONE),
+				AssetAmount::new(ASSET_B, 100 * ONE),
+			]),
+			Balance::zero(),
+		);
+	});
+}
+
+// Only the excess direction blocks operations; a deficit (externally burned shares) must not.
+// The strict-equality debug assert panics on any desync, so this can only run in release builds.
+#[cfg(not(debug_assertions))]
+#[test]
+fn add_liquidity_should_succeed_when_total_issuance_below_tracked() {
+	pool_with_initial_liquidity().execute_with(|| {
+		assert_ok!(Tokens::set_balance(
+			RuntimeOrigin::root(),
+			BOB,
+			POOL_ID,
+			INITIAL_SHARES / 2,
+			0,
+		));
+		assert!(Tokens::total_issuance(POOL_ID) < ShareIssuance::<Test>::get(POOL_ID));
+
+		assert_ok!(Stableswap::add_assets_liquidity(
+			RuntimeOrigin::signed(ALICE),
+			POOL_ID,
+			BoundedVec::truncate_from(vec![
+				AssetAmount::new(ASSET_A, 100 * ONE),
+				AssetAmount::new(ASSET_B, 100 * ONE),
+			]),
+			Balance::zero(),
+		));
 	});
 }
