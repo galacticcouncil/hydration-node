@@ -1,0 +1,106 @@
+name: Runtime interaction graph
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  graph-diff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: current
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - name: Select coverage policy
+        id: coverage-policy
+        run: |
+          policy=base/scripts/runtime-interaction-graph/coverage-thresholds-deployment.json
+          if [ ! -f "$policy" ]; then
+            policy=current/scripts/runtime-interaction-graph/coverage-thresholds-deployment.json
+          fi
+          echo "path=$policy" >> "$GITHUB_OUTPUT"
+      - name: Select contract fixtures
+        id: contract-fixtures
+        run: |
+          before=base/scripts/runtime-interaction-graph/fixtures/ci-contracts.json
+          if [ ! -f "$before" ]; then
+            before=current/scripts/runtime-interaction-graph/fixtures/ci-contracts.json
+          fi
+          echo "before=$before" >> "$GITHUB_OUTPUT"
+          echo "after=current/scripts/runtime-interaction-graph/fixtures/ci-contracts.json" >> "$GITHUB_OUTPUT"
+      - name: Test graph tooling
+        run: |
+          python3 -m unittest discover -s current/scripts/runtime-interaction-graph -p 'test_*.py'
+          node --test current/scripts/runtime-interaction-graph/collect_runtime_contracts.test.mjs
+      - name: Generate graphs
+        run: |
+          python3 current/scripts/runtime-interaction-graph/runtime_interaction_graph.py \
+            --root base --output output/before \
+            --contracts-manifest "${{ steps.contract-fixtures.outputs.before }}"
+          python3 current/scripts/runtime-interaction-graph/runtime_interaction_graph.py \
+            --root current --output output/after \
+            --contracts-manifest "${{ steps.contract-fixtures.outputs.after }}"
+      - name: Compare graphs and coverage
+        run: |
+          python3 current/scripts/runtime-interaction-graph/diff_graphs.py \
+            output/before/interaction-graph.json output/after/interaction-graph.json \
+            --before-coverage output/before/coverage.json \
+            --after-coverage output/after/coverage.json \
+            --coverage-thresholds "${{ steps.coverage-policy.outputs.path }}" \
+            --output output/graph-diff.json --markdown output/graph-diff.md
+      - name: Add graph summary
+        if: always()
+        run: |
+          if [ -f output/graph-diff.md ]; then
+            cat output/graph-diff.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-interaction-graph
+          path: output
+
+  full-semantic-graph:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install pinned nightly
+        run: rustup toolchain install nightly-2025-12-06 --profile minimal
+      - name: Test graph tooling
+        run: |
+          python3 -m unittest discover -s scripts/runtime-interaction-graph -p 'test_*.py'
+          node --test scripts/runtime-interaction-graph/collect_runtime_contracts.test.mjs
+      - name: Collect workspace MIR
+        run: |
+          python3 scripts/runtime-interaction-graph/collect_mir.py \
+            --all --output output/full/mir
+      - name: Generate compiler-enriched graph
+        run: |
+          python3 scripts/runtime-interaction-graph/runtime_interaction_graph.py \
+            --rustc-mir-manifest output/full/mir/manifest.json \
+            --contracts-manifest scripts/runtime-interaction-graph/fixtures/ci-contracts.json \
+            --output output/full/graph \
+            --coverage-thresholds scripts/runtime-interaction-graph/coverage-thresholds-full.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-interaction-graph-full
+          path: output/full

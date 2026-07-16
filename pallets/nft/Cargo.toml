@@ -1,6 +1,6 @@
 [package]
 name = "pallet-nft"
-version = "7.3.0"
+version = "7.4.0"
 description = "A generic NFT pallet for managing non-fungible tokens"
 authors = ["GalacticCoucil"]
 edition = "2021"
@@ -46,6 +46,7 @@ std = [
     "pallet-uniques/std",
     "pallet-balances/std",
     "scale-info/std",
+    "hydradx-traits/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking",

@@ -28,6 +28,7 @@ Available shared skills:
 - `scripts/mint-limit/README.md` — generate TC proposals to set XCM mint limits and lift circuit breaker lockdowns
 - `scripts/dca-monitor/README.md` — verify DCA fixes on a Chopsticks fork before deploying a runtime upgrade
 - `scripts/onchain-routes/README.md` — generate TC proposals to register/update on-chain router routes
+- `scripts/runtime-interaction-graph/README.md` — generate, query, and visualize the runtime interaction graph
 - `integration-tests/README.md` — debug prod issues via scraper snapshots + integration tests
 
 ## Project overview
