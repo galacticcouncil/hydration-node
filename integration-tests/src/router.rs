@@ -549,11 +549,11 @@ mod router_different_pools_tests {
 				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
 				let some_dust = 9;
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 					ALICE.into(),
 					pool_id,
-					(100 * UNITS + some_dust) as i128,
+					100 * UNITS + some_dust
 				));
 				let trades = vec![Trade {
 					pool: PoolType::Stableswap(pool_id),
@@ -941,11 +941,11 @@ mod router_different_pools_tests {
 
 				init_omnipool();
 
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -986,7 +986,7 @@ mod router_different_pools_tests {
 				//Assert
 				assert_balance!(ALICE.into(), pool_id, 0);
 				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell);
-				assert_balance!(ALICE.into(), stable_asset_1, 2899390145403);
+				assert_balance!(ALICE.into(), stable_asset_1, 4638992106950);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -1003,11 +1003,11 @@ mod router_different_pools_tests {
 
 				init_omnipool();
 
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -1064,11 +1064,11 @@ mod router_different_pools_tests {
 
 				init_omnipool();
 
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -2221,14 +2221,16 @@ mod omnipool_router_tests {
 		Hydra::execute_with(|| {
 			//Arrange
 			let _ = with_transaction(|| {
-				let (pool_id, stable_asset_1, _stable_asset_2) = init_stableswap().unwrap();
+				// deeper initial liquidity so BOB's LP shares cover the omnipool token seed below
+				let (pool_id, stable_asset_1, _stable_asset_2) =
+					init_stableswap_with_details(20_000_000_000_000_000u128, 300_000_000_000_000u128, 18).unwrap();
 				init_omnipool();
 
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					60000 * UNITS as i128,
+					60000 * UNITS
 				));
 
 				assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -2297,14 +2299,16 @@ mod omnipool_router_tests {
 		Hydra::execute_with(|| {
 			//Arrange
 			let _ = with_transaction(|| {
-				let (pool_id, stable_asset_1, _stable_asset_2) = init_stableswap().unwrap();
+				// deeper initial liquidity so BOB's LP shares cover the omnipool token seed below
+				let (pool_id, stable_asset_1, _stable_asset_2) =
+					init_stableswap_with_details(20_000_000_000_000_000u128, 300_000_000_000_000u128, 18).unwrap();
 				init_omnipool();
 
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					60000 * UNITS as i128,
+					60000 * UNITS
 				));
 
 				assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -4076,11 +4080,11 @@ mod omnipool_stableswap_router_tests {
 				}];
 
 				//Act
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 					ALICE.into(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				let amount_to_buy = 100 * UNITS;
@@ -4127,13 +4131,21 @@ mod set_route {
 							init_stableswap_with_details(1_000_000_000_000_000u128, 300_000_000_000_000u128, 18)
 								.unwrap();
 
+						// High stableswap fee keeps route1 (which hops through the pool) more
+						// expensive than the direct XYK route in both directions
+						assert_ok!(hydradx_runtime::Stableswap::update_pool_fee(
+							hydradx_runtime::RuntimeOrigin::root(),
+							pool_id,
+							Permill::from_percent(50),
+						));
+
 						init_omnipool();
 
-						assert_ok!(Currencies::update_balance(
-							hydradx_runtime::RuntimeOrigin::root(),
+						assert_ok!(Currencies::transfer(
+							hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 							Omnipool::protocol_account(),
 							pool_id,
-							1000 * UNITS as i128,
+							1000 * UNITS
 						));
 
 						assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -4908,11 +4920,11 @@ mod with_on_chain_and_default_route {
 
 				init_omnipool();
 
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -4990,11 +5002,11 @@ mod with_on_chain_and_default_route {
 
 				init_omnipool();
 
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -5065,11 +5077,11 @@ mod with_on_chain_and_default_route {
 
 				init_omnipool();
 
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -5274,11 +5286,11 @@ mod route_spot_price {
 						.unwrap();
 				init_omnipool();
 
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -5356,11 +5368,11 @@ mod route_spot_price {
 						.unwrap();
 				init_omnipool();
 
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 					ALICE.into(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				let trades = vec![Trade {

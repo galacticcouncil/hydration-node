@@ -17,6 +17,7 @@ pub mod mock;
 
 pub mod cancel_order;
 pub mod fill_order;
+pub mod fill_order_with_deferred_delivery;
 pub mod invariants;
 pub mod partial_fill_order;
 pub mod place_order;

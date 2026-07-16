@@ -2488,7 +2488,7 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades() {
 		let amount_to_sell = 200 * UNITS;
-		let amount_to_receive = 197218633037918;
+		let amount_to_receive = 198401944835214;
 		//With DCA
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -2512,11 +2512,11 @@ mod stableswap {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -2616,11 +2616,11 @@ mod stableswap {
 
 				init_omnipol();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -2683,11 +2683,11 @@ mod stableswap {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -2774,11 +2774,11 @@ mod stableswap {
 
 				//Init omnipool and add pool id as token
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -2790,12 +2790,11 @@ mod stableswap {
 				));
 				set_zero_reward_for_referrals(pool_id);
 				//Populate oracle with omnipool source
-				assert_ok!(Tokens::set_balance(
-					RawOrigin::Root.into(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					CHARLIE.into(),
 					pool_id,
-					1000 * UNITS,
-					0,
+					1000 * UNITS
 				));
 
 				assert_ok!(Omnipool::sell(
@@ -2860,7 +2859,7 @@ mod stableswap {
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
 				assert!(fee > 0, "The treasury did not receive the fee");
 				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
-				assert_balance!(ALICE.into(), HDX, 1070726380522238);
+				assert_balance!(ALICE.into(), HDX, 1070726325505236);
 
 				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -2892,11 +2891,11 @@ mod stableswap {
 
 				init_omnipol();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -2909,12 +2908,11 @@ mod stableswap {
 				set_zero_reward_for_referrals(pool_id);
 
 				//Populate oracle with omnipool source
-				assert_ok!(Tokens::set_balance(
-					RawOrigin::Root.into(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					CHARLIE.into(),
 					pool_id,
-					1000 * UNITS,
-					0,
+					1000 * UNITS
 				));
 				assert_ok!(Omnipool::sell(
 					RuntimeOrigin::signed(CHARLIE.into()),
@@ -2962,7 +2960,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, 1070726380522238);
+				assert_balance!(ALICE.into(), HDX, 1070726325505236);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -2993,11 +2991,11 @@ mod stableswap {
 
 				init_omnipol();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -3010,12 +3008,11 @@ mod stableswap {
 				set_zero_reward_for_referrals(pool_id);
 
 				//Populate oracle with omnipool source
-				assert_ok!(Tokens::set_balance(
-					RawOrigin::Root.into(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					CHARLIE.into(),
 					pool_id,
-					1000 * UNITS,
-					0,
+					1000 * UNITS
 				));
 				assert_ok!(Omnipool::sell(
 					RuntimeOrigin::signed(CHARLIE.into()),
@@ -3065,7 +3062,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, 1070726380522238);
+				assert_balance!(ALICE.into(), HDX, 1070726325505236);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -3099,11 +3096,11 @@ mod stableswap {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -3279,11 +3276,11 @@ mod stableswap {
 
 				//Init omnipool and add pool id as token
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -3389,11 +3386,11 @@ mod stableswap {
 
 				//Init omnipool and add pool id as token
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -3512,11 +3509,11 @@ mod stableswap {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -3754,13 +3751,22 @@ mod stableswap {
 					alice_init_stable_balance as i128,
 				));
 
-				// Trigger lockdown on the stableshare (pool_id) by exceeding deposit limit
+				// Trigger lockdown on the stableshare (pool_id) by adding liquidity that mints
+				// more shares than the deposit limit
 				let deposit_limit = UNITS;
 				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
-				assert_ok!(Currencies::deposit(
+				let bob_liquidity = 10_000_000_000_000_000_000u128;
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					BOB.into(),
+					stable_asset_1,
+					bob_liquidity as i128,
+				));
+				assert_ok!(Stableswap::add_assets_liquidity(
+					RuntimeOrigin::signed(BOB.into()),
 					pool_id,
-					&AccountId::from(BOB),
-					deposit_limit + UNITS
+					BoundedVec::truncate_from(vec![AssetAmount::new(stable_asset_1, bob_liquidity)]),
+					Balance::zero(),
 				));
 
 				let dca_budget = 1100 * UNITS;
@@ -3821,13 +3827,22 @@ mod stableswap {
 					alice_init_stable_balance as i128,
 				));
 
-				// Trigger lockdown on the stableshare (pool_id) by exceeding deposit limit
+				// Trigger lockdown on the stableshare (pool_id) by adding liquidity that mints
+				// more shares than the deposit limit
 				let deposit_limit = UNITS;
 				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
-				assert_ok!(Currencies::deposit(
+				let bob_liquidity = 10_000_000_000_000_000_000u128;
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					BOB.into(),
+					stable_asset_1,
+					bob_liquidity as i128,
+				));
+				assert_ok!(Stableswap::add_assets_liquidity(
+					RuntimeOrigin::signed(BOB.into()),
 					pool_id,
-					&AccountId::from(BOB),
-					deposit_limit + UNITS
+					BoundedVec::truncate_from(vec![AssetAmount::new(stable_asset_1, bob_liquidity)]),
+					Balance::zero(),
 				));
 
 				let dca_budget = 1100 * UNITS;
@@ -4032,11 +4047,11 @@ mod all_pools {
 
 				//Create omnipool and populate oracle
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					1000000 * UNITS as i128,
+					1000000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -4126,7 +4141,7 @@ mod all_pools {
 
 				//Assert
 				assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
-				assert_balance!(ALICE.into(), DAI, 2380211607465609);
+				assert_balance!(ALICE.into(), DAI, 2380286185085611);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -4191,11 +4206,11 @@ mod with_onchain_route {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					300_000_000 * UNITS as i128,
+					300_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -4281,7 +4296,7 @@ mod with_onchain_route {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades_with_onchain_routes() {
 		let amount_to_sell = 200 * UNITS;
-		let amount_to_receive = 187172768546856u128;
+		let amount_to_receive = 198403134650839u128;
 
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -4305,11 +4320,11 @@ mod with_onchain_route {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					300_000_000 * UNITS as i128,
+					300_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -4528,11 +4543,11 @@ mod with_onchain_route {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					300_000_000 * UNITS as i128,
+					300_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
