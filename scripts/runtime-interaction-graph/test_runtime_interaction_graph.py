@@ -1103,10 +1103,12 @@ class HydrationRuntimeGraphTests(unittest.TestCase):
 		entrypoints = {edge["source"] for edge in self.graph.edges
 			if edge["kind"] == "enters-function" and edge["target"] == execute["id"]
 			and self.graph.nodes[edge["source"]].get("entrypoint_kind") == "precompile-selector"}
-		self.assertEqual(len(entrypoints), 11)
 		selectors = {self.graph.nodes[entrypoint]["signature"] for entrypoint in entrypoints}
-		self.assertTrue({"balanceOf(address)", "transfer(address,uint256)", "transferFrom(address,address,uint256)",
-			"mint(address,uint256)", "burn(uint256)"}.issubset(selectors))
+		expected = set(graph.generated_selector_enums(
+			(MODULE.parents[2] / "runtime/hydradx/src/evm/erc20_currency.rs").read_text())["Function"].values())
+		self.assertEqual(selectors, expected)
+		self.assertTrue({"balanceOf(address)", "transfer(address,uint256)",
+			"transferFrom(address,address,uint256)"}.issubset(selectors))
 		self.assertEqual({edge["source"] for edge in self.graph.edges
 			if edge["kind"] == "dispatches-evm-selector" and edge["source"] in entrypoints}, entrypoints)
 		self.assertFalse(any(edge["source"] == execute["id"] and edge["kind"] == "encodes-evm-selector"
