@@ -40,7 +40,7 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_system::{pallet_prelude::OriginFor, RawOrigin};
+use frame_system::{ensure_none, pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::gigahdx::Seize;
@@ -369,8 +369,13 @@ pub mod pallet {
 		/// This lets a multi-money-market worker state which market a decision was made
 		/// against and guarantees the liquidation can never execute against a different one.
 		///
+		/// Unlike `liquidate`, this call is not publicly dispatchable: the origin must be
+		/// none, and `ValidateUnsigned` rejects externally received transactions, so only
+		/// a collator's own liquidation worker can submit it. The public permissionless
+		/// path remains `liquidate`.
+		///
 		/// Parameters:
-		/// - `origin`: Signed origin.
+		/// - `origin`: Must be none (unsigned transaction).
 		/// - `pool`: EVM address of the money-market pool this liquidation targets.
 		/// - `collateral_asset`: Asset ID used as collateral in the MM position.
 		/// - `debt_asset`: Asset ID used as debt in the MM position.
@@ -402,7 +407,7 @@ pub mod pallet {
 		)]
 		#[allow(clippy::too_many_arguments)]
 		pub fn liquidate_with_pool(
-			_origin: OriginFor<T>,
+			origin: OriginFor<T>,
 			pool: EvmAddress,
 			collateral_asset: AssetId,
 			debt_asset: AssetId,
@@ -411,6 +416,8 @@ pub mod pallet {
 			route: Route<AssetId>,
 			_unsigned_priority: Option<Priority>,
 		) -> DispatchResult {
+			ensure_none(origin)?;
+
 			let expected = if collateral_asset == T::GigaHdx::gigahdx_asset_id() {
 				T::GigaHdx::pool_contract().ok_or(Error::<T>::GigaHdxPoolNotSet)?
 			} else {

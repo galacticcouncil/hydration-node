@@ -1411,7 +1411,7 @@ fn liquidate_with_pool_should_liquidate_when_pool_matches_deployed_pool() {
 		let decision = v2_decision(caller, borrower_evm);
 
 		assert_ok!(Liquidation::liquidate_with_pool(
-			RuntimeOrigin::signed(BOB.into()),
+			RuntimeOrigin::none(),
 			pool_contract,
 			decision.collateral_asset,
 			decision.debt_asset,
@@ -1438,7 +1438,7 @@ fn liquidate_with_pool_should_fail_when_pool_is_wrong() {
 
 		frame_support::assert_noop!(
 			Liquidation::liquidate_with_pool(
-				RuntimeOrigin::signed(BOB.into()),
+				RuntimeOrigin::none(),
 				EvmAddress::from_slice(&[0x42; 20]),
 				decision.collateral_asset,
 				decision.debt_asset,

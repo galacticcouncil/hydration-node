@@ -389,7 +389,7 @@ fn liquidate_with_pool_should_liquidate_when_pool_matches_borrowing_contract() {
 
 		// Act
 		assert_ok!(Liquidation::liquidate_with_pool(
-			RuntimeOrigin::signed(ALICE),
+			RuntimeOrigin::none(),
 			pool,
 			HDX, // collateral
 			DOT, // debt
@@ -433,7 +433,7 @@ fn liquidate_with_pool_should_fail_when_pool_does_not_match_borrowing_contract()
 
 		assert_noop!(
 			Liquidation::liquidate_with_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::none(),
 				EvmAddress::from_slice(&[8; 20]), // not the borrowing contract
 				HDX,
 				DOT,
@@ -457,7 +457,7 @@ fn liquidate_with_pool_should_fail_when_gigahdx_pool_is_not_set() {
 
 		assert_noop!(
 			Liquidation::liquidate_with_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::none(),
 				EvmAddress::from_slice(&[9; 20]),
 				67,  // GIGAHDX collateral routes the pool check to `pool_contract()`
 				222, // HOLLAR
@@ -467,6 +467,29 @@ fn liquidate_with_pool_should_fail_when_gigahdx_pool_is_not_set() {
 				None,
 			),
 			Error::<Test>::GigaHdxPoolNotSet
+		);
+	});
+}
+
+// `liquidate_with_pool` is the worker-only channel — the public permissionless path is
+// `liquidate`. Signed submissions must be rejected before any liquidation logic runs.
+#[test]
+fn liquidate_with_pool_should_fail_when_origin_is_signed() {
+	ExtBuilder::default().build().execute_with(|| {
+		let bob_evm_address = EvmAccounts::evm_address(&BOB);
+
+		assert_noop!(
+			Liquidation::liquidate_with_pool(
+				RuntimeOrigin::signed(ALICE),
+				EvmAddress::from_slice(&[9; 20]),
+				HDX,
+				DOT,
+				bob_evm_address,
+				1_000 * ONE,
+				BoundedVec::new(),
+				None,
+			),
+			sp_runtime::traits::BadOrigin
 		);
 	});
 }
