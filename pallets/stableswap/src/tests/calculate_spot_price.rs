@@ -7,7 +7,6 @@ use frame_support::assert_ok;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::TradeExecution;
 use hydradx_traits::stableswap::AssetAmount;
-use orml_traits::MultiCurrencyExtended;
 use proptest::prelude::ProptestConfig;
 use proptest::proptest;
 use proptest::strategy::Strategy;
@@ -44,11 +43,16 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_6_decimals() {
 			let pool_id = get_pool_id_at(0);
 
 			let bob_share_balance = 20 * ONE;
-			Tokens::update_balance(pool_id, &BOB, bob_share_balance as i128).unwrap();
+			assert_ok!(Tokens::transfer(
+				RuntimeOrigin::signed(ALICE),
+				BOB,
+				pool_id,
+				bob_share_balance
+			));
 
 			let sell_amount = 10 * ONE;
 			let total_issuance = Tokens::total_issuance(pool_id);
-			let initial_issuance = 80000000000020000000000000;
+			let initial_issuance = 80000000000000000000000000;
 			assert_eq!(total_issuance, initial_issuance);
 
 			assert_ok!(Stableswap::execute_sell(
@@ -116,11 +120,16 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() 
 			let pool_id = get_pool_id_at(0);
 
 			let bob_share_balance = 100 * ONE;
-			Tokens::update_balance(pool_id, &BOB, bob_share_balance as i128).unwrap();
+			assert_ok!(Tokens::transfer(
+				RuntimeOrigin::signed(ALICE),
+				BOB,
+				pool_id,
+				bob_share_balance
+			));
 
 			let sell_amount = ONE;
 			let total_issuance = Tokens::total_issuance(pool_id);
-			let initial_issuance = 8000000100000000000000;
+			let initial_issuance = 8000000000000000000000;
 			assert_eq!(total_issuance, initial_issuance);
 
 			assert_ok!(Stableswap::execute_sell(
@@ -188,11 +197,16 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 			let pool_id = get_pool_id_at(0);
 
 			let bob_share_balance = 100000 * ONE;
-			Tokens::update_balance(pool_id, &BOB, bob_share_balance as i128).unwrap();
+			assert_ok!(Tokens::transfer(
+				RuntimeOrigin::signed(ALICE),
+				BOB,
+				pool_id,
+				bob_share_balance
+			));
 
 			let sell_amount = 1000;
 			let total_issuance = Tokens::total_issuance(pool_id);
-			let initial_issuance = 200100000000000000000;
+			let initial_issuance = 200000000000000000000;
 			assert_eq!(total_issuance, initial_issuance);
 
 			assert_ok!(Stableswap::execute_sell(
@@ -204,7 +218,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 				0,
 			));
 
-			let expected = 991;
+			let expected = 992;
 
 			let pool_account = pool_account(pool_id);
 
@@ -225,7 +239,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 			// The difference of the amount out calculated with spot price should be less than 1%
 			assert_eq_approx!(
 				relative_difference,
-				FixedU128::from_float(0.004036326942482341),
+				FixedU128::from_float(0.004032258064516129),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
@@ -562,7 +576,12 @@ mod invariants {
 				let pool_id = get_pool_id_at(0);
 
 				let bob_share_balance = 200000 * ONE;
-				Tokens::update_balance(pool_id, &BOB, bob_share_balance as i128).unwrap();
+				assert_ok!(Tokens::transfer(
+					RuntimeOrigin::signed(ALICE),
+					BOB,
+					pool_id,
+					bob_share_balance
+				));
 
 				let sell_amount = 1000 * ONE;
 

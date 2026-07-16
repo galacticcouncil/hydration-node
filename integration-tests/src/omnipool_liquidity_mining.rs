@@ -774,11 +774,11 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 			init_omnipool();
 			seed_lm_pot();
 
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(BOB.into()),
 				Omnipool::protocol_account(),
 				stable_pool_id,
-				30_000_000 * UNITS as i128,
+				30_000_000 * UNITS
 			));
 
 			assert_ok!(Omnipool::add_token(
@@ -862,13 +862,13 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 			go_to_block(500);
 
 			let deposit = hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).unwrap();
-			let mut expected_deposit = DepositData::new(20044549999405, stable_pool_id);
+			let mut expected_deposit = DepositData::new(19924999999408, stable_pool_id);
 			//1-th deposit entry
 			expected_deposit
 				.add_yield_farm_entry(YieldFarmEntry::new(
 					global_farm_1_id,
 					yield_farm_1_id,
-					10022274999702,
+					9962499999704,
 					FixedU128::zero(),
 					40,
 					0,
@@ -880,7 +880,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 				.add_yield_farm_entry(YieldFarmEntry::new(
 					global_farm_2_id,
 					yield_farm_2_id,
-					10022274999702, //NOTE: nothing changed in omnipool so shares are
+					9962499999704, //NOTE: nothing changed in omnipool so shares are
 					//valued same as before
 					FixedU128::zero(),
 					40,
@@ -893,7 +893,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 				.add_yield_farm_entry(YieldFarmEntry::new(
 					global_farm_3_id,
 					yield_farm_3_id,
-					10022274999702, //NOTE: nothing changed in omnipool so shares are
+					9962499999704, //NOTE: nothing changed in omnipool so shares are
 					//valued same as before
 					FixedU128::zero(),
 					40,
@@ -906,7 +906,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 			expect_stableswap_liquidity_added_events(vec![pallet_stableswap::Event::LiquidityAdded {
 				pool_id: stable_pool_id,
 				who: CHARLIE.into(),
-				shares: 20044549999405,
+				shares: 19924999999408,
 				assets: vec![
 					AssetAmount::new(stable_asset_2, 10 * UNITS),
 					AssetAmount::new(stable_asset_1, 10 * UNITS),
@@ -914,7 +914,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 			}
 			.into()]);
 
-			let stableswap_shares_amount = 20044549999405;
+			let stableswap_shares_amount = 19924999999408;
 			//First liquidity added before calling add_liquidity_stableswap_omnipool_and_join_farms
 			expect_omnipool_liquidity_added_events(vec![
 				pallet_omnipool::Event::LiquidityAdded {
@@ -990,11 +990,11 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_stableshare_goes
 			init_omnipool();
 			seed_lm_pot();
 
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(BOB.into()),
 				Omnipool::protocol_account(),
 				stable_pool_id,
-				30_000_000 * UNITS as i128,
+				30_000_000 * UNITS
 			));
 
 			assert_ok!(Omnipool::add_token(
@@ -1088,11 +1088,11 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 			init_omnipool();
 			seed_lm_pot();
 
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(BOB.into()),
 				Omnipool::protocol_account(),
 				stable_pool_id,
-				30_000_000 * UNITS as i128,
+				30_000_000 * UNITS
 			));
 
 			assert_ok!(Omnipool::add_token(
@@ -1165,7 +1165,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 			expect_stableswap_liquidity_added_events(vec![pallet_stableswap::Event::LiquidityAdded {
 				pool_id: stable_pool_id,
 				who: CHARLIE.into(),
-				shares: 20044549999405,
+				shares: 19924999999408,
 				assets: vec![
 					AssetAmount::new(stable_asset_2, 10 * UNITS),
 					AssetAmount::new(stable_asset_1, 10 * UNITS),
@@ -1173,7 +1173,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 			}
 			.into()]);
 
-			let stableswap_shares_amount = 20044549999405;
+			let stableswap_shares_amount = 19924999999408;
 			//First liquidity added before calling add_liquidity_stableswap_omnipool_and_join_farms
 			expect_omnipool_liquidity_added_events(vec![
 				pallet_omnipool::Event::LiquidityAdded {
@@ -1218,11 +1218,11 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_when_slippage_li
 			init_omnipool();
 			seed_lm_pot();
 
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(BOB.into()),
 				Omnipool::protocol_account(),
 				stable_pool_id,
-				30_000_000 * UNITS as i128,
+				30_000_000 * UNITS
 			));
 
 			assert_ok!(Omnipool::add_token(
@@ -1314,11 +1314,11 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				init_omnipool();
 				seed_lm_pot();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					stable_pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -1450,21 +1450,21 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 						global_farm_id: 1,
 						yield_farm_id: 4,
 						deposit_id: 1,
-						amount: 20044549999405,
+						amount: 19924999999408,
 						who: CHARLIE.into(),
 					}),
 					RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
 						global_farm_id: 2,
 						yield_farm_id: 5,
 						deposit_id: 1,
-						amount: 20044549999405,
+						amount: 19924999999408,
 						who: CHARLIE.into(),
 					}),
 					RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::SharesWithdrawn {
 						global_farm_id: 3,
 						yield_farm_id: 6,
 						deposit_id: 1,
-						amount: 20044549999405,
+						amount: 19924999999408,
 						who: CHARLIE.into(),
 					}),
 				]);
@@ -1474,7 +1474,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					who: CHARLIE.into(),
 					position_id,
 					asset_id: stable_pool_id,
-					shares_removed: 20044549999405,
+					shares_removed: 19924999999408,
 					fee: FixedU128::from_float(0.000100000000000000),
 				}
 				.into()]);
@@ -1482,13 +1482,13 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				expect_stableswap_liquidity_removed_events(vec![pallet_stableswap::Event::LiquidityRemoved {
 					pool_id: stable_pool_id,
 					who: CHARLIE.into(),
-					shares: 20042545544405,
+					shares: 19923007499408,
 					amounts: vec![
-						AssetAmount::new(1000002, 3984601523849),
-						AssetAmount::new(1000003, 3984601484003),
-						AssetAmount::new(1000004, 3984601484003),
-						AssetAmount::new(1000005, 3984601484003),
-						AssetAmount::new(1000006, 3984601523849),
+						AssetAmount::new(1000002, 3984601523848),
+						AssetAmount::new(1000003, 3984601484002),
+						AssetAmount::new(1000004, 3984601484002),
+						AssetAmount::new(1000005, 3984601484002),
+						AssetAmount::new(1000006, 3984601523848),
 					],
 					fee: 0,
 				}
@@ -1510,11 +1510,11 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				init_omnipool();
 				seed_lm_pot();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					stable_pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -1616,7 +1616,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					who: CHARLIE.into(),
 					position_id,
 					asset_id: stable_pool_id,
-					shares_removed: 20044549999405,
+					shares_removed: 19924999999408,
 					fee: FixedU128::from_float(0.000100000000000000),
 				}
 				.into()]);
@@ -1624,13 +1624,13 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				expect_stableswap_liquidity_removed_events(vec![pallet_stableswap::Event::LiquidityRemoved {
 					pool_id: stable_pool_id,
 					who: CHARLIE.into(),
-					shares: 20042545544405,
+					shares: 19923007499408,
 					amounts: vec![
-						AssetAmount::new(1000002, 3984601523849),
-						AssetAmount::new(1000003, 3984601484003),
-						AssetAmount::new(1000004, 3984601484003),
-						AssetAmount::new(1000005, 3984601484003),
-						AssetAmount::new(1000006, 3984601523849),
+						AssetAmount::new(1000002, 3984601523848),
+						AssetAmount::new(1000003, 3984601484002),
+						AssetAmount::new(1000004, 3984601484002),
+						AssetAmount::new(1000005, 3984601484002),
+						AssetAmount::new(1000006, 3984601523848),
 					],
 					fee: 0,
 				}
@@ -1659,11 +1659,11 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				init_omnipool();
 				seed_lm_pot();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					stable_pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -1795,11 +1795,11 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				init_omnipool();
 				seed_lm_pot();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					stable_pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -1914,7 +1914,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					global_farm_id,
 					yield_farm_id,
 					deposit_id: 1,
-					amount: 20044549999405,
+					amount: 19924999999408,
 					who: CHARLIE.into(),
 				}
 				.into()]);
@@ -1924,7 +1924,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					who: CHARLIE.into(),
 					position_id,
 					asset_id: stable_pool_id,
-					shares_removed: 20044549999405,
+					shares_removed: 19924999999408,
 					fee: FixedU128::from_float(0.000100000000000000),
 				}
 				.into()]);
@@ -1932,8 +1932,8 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				expect_stableswap_liquidity_removed_events(vec![pallet_stableswap::Event::LiquidityRemoved {
 					pool_id: stable_pool_id,
 					who: CHARLIE.into(),
-					shares: 20042545544405,
-					amounts: vec![AssetAmount::new(stable_asset_1, 19823392461976)],
+					shares: 19923007499408,
+					amounts: vec![AssetAmount::new(stable_asset_1, 19823392461975)],
 					fee: 99615037340,
 				}
 				.into()]);
@@ -1958,11 +1958,11 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				init_omnipool();
 				seed_lm_pot();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					stable_pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -2079,7 +2079,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 					who: CHARLIE.into(),
 					position_id,
 					asset_id: stable_pool_id,
-					shares_removed: 10009699999606,
+					shares_removed: 9949999999608,
 					fee: FixedU128::from_float(0.000100000000000000),
 				}
 				.into()]);
@@ -2087,7 +2087,7 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				expect_stableswap_liquidity_removed_events(vec![pallet_stableswap::Event::LiquidityRemoved {
 					pool_id: stable_pool_id,
 					who: CHARLIE.into(),
-					shares: 10008699029606,
+					shares: 9949004999608,
 					amounts: vec![AssetAmount::new(stable_asset_1, 9899259975202)],
 					fee: 49745024898,
 				}
@@ -2113,11 +2113,11 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				init_omnipool();
 				seed_lm_pot();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					stable_pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -2225,11 +2225,11 @@ mod remove_liquidity_stableswap_omnipool_and_exit_farms {
 				init_omnipool();
 				seed_lm_pot();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					stable_pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
