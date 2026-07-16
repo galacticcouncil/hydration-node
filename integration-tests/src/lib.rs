@@ -45,6 +45,7 @@ mod router;
 mod sessions;
 mod stableswap;
 mod stableswap_curve_comparison;
+mod stableswap_extra;
 mod staking;
 mod transact_call_filter;
 mod utility;
