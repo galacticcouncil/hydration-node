@@ -27,7 +27,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
 
-use codec::decode_from_bytes;
+use codec::{decode_from_bytes, Encode};
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
 use frame_support::{
@@ -40,7 +40,7 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_system::{pallet_prelude::OriginFor, RawOrigin};
+use frame_system::{ensure_none, pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::gigahdx::Seize;
@@ -75,9 +75,19 @@ pub use pallet::*;
 
 pub type Balance = u128;
 pub type AssetId = u32;
-//NOTE: `u64::max -1` is set in /node/src/tx_priority.json oracles' updates.
-//We don't want to frontrun oracle updates so these should be keept in sync.
-pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = u64::MAX - 2;
+pub type Priority = u64;
+
+//NOTE: `u64::max - 1` is set in /node/src/tx_priority.json oracles' updates.
+//We don't want to frontrun oracle updates so these should be kept in sync.
+pub const MAX_UNSIGNED_LIQUIDATION_PRIORITY: Priority = u64::MAX - 2;
+//NOTE: base unsigned liquidation tx priority. `unsigned_priority` param is added on top of this
+//and it should represent collateral at risk(max. 10_000_000.0[BASE]).
+const BASE_UNSIGNED_LIQUIDATION_PRIORITY: Priority = MAX_UNSIGNED_LIQUIDATION_PRIORITY - 10_000_000;
+//NOTE: the polkadot-sdk fork caps signed user tx priority at `MAX_USER_TX_PRIORITY`
+//(`substrate/frame/transaction-payment/src/lib.rs`, `u64::MAX - 1_000_000_000`), which is below
+//`BASE_UNSIGNED_LIQUIDATION_PRIORITY` — users cannot frontrun liquidations with a tip.
+//Keep the two in sync if either changes.
+
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
@@ -179,17 +189,31 @@ pub mod pallet {
 				TransactionSource::InBlock => {} // some other node included it in a block
 			};
 
-			let valid_tx = |user| {
+			fn valid_tx(provides: impl Encode, priority: Priority) -> TransactionValidity {
 				ValidTransaction::with_tag_prefix("liquidate_unsigned")
-					.priority(UNSIGNED_LIQUIDATION_PRIORITY)
-					.and_provides([Encode::encode(user)])
+					.priority(
+						BASE_UNSIGNED_LIQUIDATION_PRIORITY
+							.saturating_add(priority)
+							.min(MAX_UNSIGNED_LIQUIDATION_PRIORITY),
+					)
+					.and_provides(provides)
 					.longevity(1)
 					.propagate(false)
 					.build()
-			};
+			}
 
 			match call {
-				Call::liquidate { user, .. } => valid_tx(user),
+				// Legacy call — byte-identical to the pre-multi-MM release (no priority
+				// param): unsigned submissions get the base priority, exactly as before.
+				Call::liquidate { user, .. } => valid_tx(user, 0),
+				// (user, pool): the same user underwater in two markets must not produce
+				// mutually-replacing transactions.
+				Call::liquidate_with_pool {
+					user,
+					pool,
+					unsigned_priority,
+					..
+				} => valid_tx((user, pool), unsigned_priority.unwrap_or(0)),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -253,6 +277,9 @@ pub mod pallet {
 		NoPoolDebt,
 		/// Repaying the unconsumed protocol-borrowed HOLLAR surplus reverted.
 		RepayFailed,
+		/// The `pool` provided to `liquidate_with_pool` is not the pool this liquidation
+		/// would execute against.
+		PoolAddressMismatch,
 	}
 
 	#[pallet::call]
@@ -319,74 +346,7 @@ pub mod pallet {
 			debt_to_cover: Balance,
 			route: Route<AssetId>,
 		) -> DispatchResult {
-			log::trace!(target: "liquidation","liquidating debt asset: {debt_asset:?} for amount: {debt_to_cover:?}");
-
-			if collateral_asset == T::GigaHdx::gigahdx_asset_id() {
-				// Protocol-funded gigahdx liquidation: treasury borrows HOLLAR,
-				// repays the borrower's debt via Aave's liquidationCall with
-				// `receiveAToken=true`, then matching HDX is seized from the
-				// borrower's substrate wallet and re-locked under the
-				// liquidation account. `route` is unused on this path.
-				//
-				// Routing is unconditional on the collateral: the gigahdx reserve lists
-				// HOLLAR as its ONLY borrowable asset, so GIGAHDX collateral always
-				// implies a HOLLAR-debt position. `liquidate_gigahdx`'s
-				// `debt_asset == HollarId` check is therefore a fail-closed guard, not a
-				// router. A gigahdx position can only be seized through this path (the
-				// locked aToken needs the `on_pre_seize`/`on_seize` dance), so it must
-				// never fall through to the generic path below. If that reserve is ever
-				// configured with another borrowable asset, `liquidate_gigahdx` must be
-				// extended to handle it.
-				let _ = route;
-				return Self::liquidate_gigahdx(debt_asset, user, debt_to_cover);
-			}
-
-			if debt_asset == T::HollarId::get() {
-				let (flash_minter, loan_receiver) = T::FlashMinter::get().ok_or(Error::<T>::FlashMinterNotSet)?;
-				let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
-				let context = CallContext::new_call(flash_minter, pallet_address);
-				let hollar_address = T::Erc20Mapping::asset_address(T::HollarId::get());
-
-				let liquidation_data = Self::encode_liquidation_data(collateral_asset, debt_asset, user, &route);
-
-				let data = EvmDataWriter::new_with_selector(Function::FlashLoan)
-					.write(loan_receiver)
-					.write(hollar_address)
-					.write(debt_to_cover)
-					.write(Bytes(liquidation_data))
-					.build();
-
-				let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
-
-				if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-					log::info!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
-					return Err(T::EvmErrorDecoder::convert(call_result));
-				}
-			} else {
-				let pallet_acc = Self::account_id();
-				<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
-				let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
-
-				Self::liquidate_position_internal(
-					pallet_address,
-					collateral_asset,
-					debt_asset,
-					debt_to_cover,
-					user,
-					route.clone(),
-				)?;
-
-				let _ = <T as Config>::Currency::burn_from(
-					debt_asset,
-					&pallet_acc,
-					debt_to_cover,
-					Preservation::Expendable,
-					Precision::Exact,
-					Fortitude::Force,
-				)?;
-			}
-
-			Ok(())
+			Self::do_liquidate(collateral_asset, debt_asset, user, debt_to_cover, route)
 		}
 
 		/// Set the borrowing market contract address.
@@ -399,12 +359,161 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Liquidates an existing money market position, addressing the market's pool explicitly.
+		///
+		/// Behaves exactly like `liquidate`; the extra `pool` parameter is a consistency
+		/// assertion, not a router: it must equal the pool contract the liquidation path
+		/// resolves on its own (the gigahdx pool for GIGAHDX-collateral positions, the
+		/// borrowing contract otherwise), or the call fails with `PoolAddressMismatch`.
+		/// This lets a multi-money-market worker state which market a decision was made
+		/// against and guarantees the liquidation can never execute against a different one.
+		///
+		/// Unlike `liquidate`, this call is not publicly dispatchable: the origin must be
+		/// none, and `ValidateUnsigned` rejects externally received transactions, so only
+		/// a collator's own liquidation worker can submit it. The public permissionless
+		/// path remains `liquidate`.
+		///
+		/// Parameters:
+		/// - `origin`: Must be none (unsigned transaction).
+		/// - `pool`: EVM address of the money-market pool this liquidation targets.
+		/// - `collateral_asset`: Asset ID used as collateral in the MM position.
+		/// - `debt_asset`: Asset ID used as debt in the MM position.
+		/// - `user`: EVM address of the MM position that we want to liquidate.
+		/// - `debt_to_cover`: Amount of debt we want to liquidate.
+		/// - `route`: The route we trade against. Required for the fee calculation.
+		/// - `unsigned_priority`: Optional priority added on top of `BASE_UNSIGNED_LIQUIDATION_PRIORITY` for
+		/// unsigned liquidation extrinsics.
+		///
+		/// Emits `Liquidated` event when successful.
+		///
+		#[pallet::call_index(2)]
+		// Same two-branch cost model as `liquidate` (see the comment there), plus one
+		// storage read for the pool consistency check.
+		#[pallet::weight(<T as Config>::WeightInfo::liquidate()
+			.saturating_add(
+				if *collateral_asset == <T as Config>::GigaHdx::gigahdx_asset_id() {
+					<T as Config>::GigaHdx::seize_weight()
+						.saturating_add(<T as Config>::GigaHdx::clear_weight_for(*user))
+				} else {
+					<T as Config>::RouterWeightInfo::sell_weight(route)
+				}
+			)
+			.saturating_add(
+				<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true)
+					.saturating_mul(4)
+			)
+			.saturating_add(T::DbWeight::get().reads(1))
+		)]
+		#[allow(clippy::too_many_arguments)]
+		pub fn liquidate_with_pool(
+			origin: OriginFor<T>,
+			pool: EvmAddress,
+			collateral_asset: AssetId,
+			debt_asset: AssetId,
+			user: EvmAddress,
+			debt_to_cover: Balance,
+			route: Route<AssetId>,
+			_unsigned_priority: Option<Priority>,
+		) -> DispatchResult {
+			ensure_none(origin)?;
+
+			let expected = if collateral_asset == T::GigaHdx::gigahdx_asset_id() {
+				T::GigaHdx::pool_contract().ok_or(Error::<T>::GigaHdxPoolNotSet)?
+			} else {
+				Self::borrowing_contract()
+			};
+			ensure!(pool == expected, Error::<T>::PoolAddressMismatch);
+
+			Self::do_liquidate(collateral_asset, debt_asset, user, debt_to_cover, route)
+		}
 	}
 }
 
 impl<T: Config> Pallet<T> {
 	pub fn account_id() -> T::AccountId {
 		PalletId(*b"lqdation").into_account_truncating()
+	}
+
+	/// Shared body of `liquidate` and `liquidate_with_pool`.
+	fn do_liquidate(
+		collateral_asset: AssetId,
+		debt_asset: AssetId,
+		user: EvmAddress,
+		debt_to_cover: Balance,
+		route: Route<AssetId>,
+	) -> DispatchResult
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
+		log::trace!(target: "liquidation","liquidating debt asset: {debt_asset:?} for amount: {debt_to_cover:?}");
+
+		if collateral_asset == T::GigaHdx::gigahdx_asset_id() {
+			// Protocol-funded gigahdx liquidation: treasury borrows HOLLAR,
+			// repays the borrower's debt via Aave's liquidationCall with
+			// `receiveAToken=true`, then matching HDX is seized from the
+			// borrower's substrate wallet and re-locked under the
+			// liquidation account. `route` is unused on this path.
+			//
+			// Routing is unconditional on the collateral: the gigahdx reserve lists
+			// HOLLAR as its ONLY borrowable asset, so GIGAHDX collateral always
+			// implies a HOLLAR-debt position. `liquidate_gigahdx`'s
+			// `debt_asset == HollarId` check is therefore a fail-closed guard, not a
+			// router. A gigahdx position can only be seized through this path (the
+			// locked aToken needs the `on_pre_seize`/`on_seize` dance), so it must
+			// never fall through to the generic path below. If that reserve is ever
+			// configured with another borrowable asset, `liquidate_gigahdx` must be
+			// extended to handle it.
+			let _ = route;
+			return Self::liquidate_gigahdx(debt_asset, user, debt_to_cover);
+		}
+
+		if debt_asset == T::HollarId::get() {
+			let (flash_minter, loan_receiver) = T::FlashMinter::get().ok_or(Error::<T>::FlashMinterNotSet)?;
+			let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
+			let context = CallContext::new_call(flash_minter, pallet_address);
+			let hollar_address = T::Erc20Mapping::asset_address(T::HollarId::get());
+
+			let liquidation_data = Self::encode_liquidation_data(collateral_asset, debt_asset, user, &route);
+
+			let data = EvmDataWriter::new_with_selector(Function::FlashLoan)
+				.write(loan_receiver)
+				.write(hollar_address)
+				.write(debt_to_cover)
+				.write(Bytes(liquidation_data))
+				.build();
+
+			let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+
+			if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+				log::info!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
+				return Err(T::EvmErrorDecoder::convert(call_result));
+			}
+		} else {
+			let pallet_acc = Self::account_id();
+			<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
+			let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
+
+			Self::liquidate_position_internal(
+				pallet_address,
+				collateral_asset,
+				debt_asset,
+				debt_to_cover,
+				user,
+				route.clone(),
+			)?;
+
+			let _ = <T as Config>::Currency::burn_from(
+				debt_asset,
+				&pallet_acc,
+				debt_to_cover,
+				Preservation::Expendable,
+				Precision::Exact,
+				Fortitude::Force,
+			)?;
+		}
+
+		Ok(())
 	}
 
 	/// Protocol-funded liquidation of a GIGAHDX-collateral position.
