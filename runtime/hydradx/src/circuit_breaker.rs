@@ -47,13 +47,6 @@ impl WithdrawCircuitBreaker {
 			return Some(overridden);
 		}
 
-		// assets with an NTT minter are bridge assets kept as asset_type = Token
-		// (no migration); enroll them in egress accounting so NTT burns count
-		// against the global withdraw limit. cleared minter = unenrolled again.
-		if EVMAccounts::ntt_minter(asset_id).is_some() {
-			return Some(GlobalAssetCategory::External);
-		}
-
 		let asset_details = AssetRegistry::assets(asset_id)?;
 		match asset_details.asset_type {
 			AssetType::External | AssetType::Erc20 => Some(GlobalAssetCategory::External),

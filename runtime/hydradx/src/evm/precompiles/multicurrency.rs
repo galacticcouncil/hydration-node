@@ -392,8 +392,9 @@ where
 		let caller = handle.context().caller;
 		Self::ensure_ntt_minter(asset_id, caller)?;
 
-		let from: Runtime::AccountId =
-			<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(ExtendedAddressMapping::into_account_id(caller));
+		let from: Runtime::AccountId = <sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(
+			ExtendedAddressMapping::into_account_id(caller),
+		);
 
 		let balance =
 			<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::free_balance(asset_id, &from);

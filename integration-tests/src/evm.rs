@@ -1939,6 +1939,7 @@ mod currency_precompile_ntt {
 	use fp_evm::ExitRevert::Reverted;
 	use fp_evm::PrecompileFailure;
 	use hydradx_runtime::{AssetRegistry, CircuitBreaker, EVMAccounts};
+	use pallet_asset_registry::AssetType;
 	use pretty_assertions::assert_eq;
 
 	type CurrencyPrecompile = MultiCurrencyPrecompile<hydradx_runtime::Runtime>;
@@ -2231,7 +2232,10 @@ mod currency_precompile_ntt {
 			);
 
 			// emergency stop
-			assert_ok!(EVMAccounts::clear_ntt_minter(hydradx_runtime::RuntimeOrigin::root(), DAI));
+			assert_ok!(EVMAccounts::clear_ntt_minter(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DAI
+			));
 
 			let result = CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), UNITS));
 
@@ -2388,13 +2392,24 @@ mod currency_precompile_ntt {
 			use hydradx_runtime::circuit_breaker::WithdrawCircuitBreaker;
 
 			// use HDX so no price fixture is needed (it is the limiter's reference currency).
-			// NTT assets keep asset_type = Token, which the global egress limiter does not
-			// account by default — setting the NTT minter must auto-enroll the asset.
 			assert_eq!(WithdrawCircuitBreaker::global_asset_category(HDX), None);
 			assert_ok!(EVMAccounts::set_ntt_minter(
 				hydradx_runtime::RuntimeOrigin::root(),
 				HDX,
 				minter()
+			));
+			assert_eq!(WithdrawCircuitBreaker::global_asset_category(HDX), None);
+			assert_ok!(AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				HDX,
+				None,
+				Some(AssetType::External),
+				None,
+				None,
+				None,
+				None,
+				None,
+				None,
 			));
 			assert_eq!(
 				WithdrawCircuitBreaker::global_asset_category(HDX),
@@ -2455,9 +2470,14 @@ mod currency_precompile_ntt {
 				empty_output()
 			);
 
-			// clearing the minter unenrolls the asset again
-			assert_ok!(EVMAccounts::clear_ntt_minter(hydradx_runtime::RuntimeOrigin::root(), HDX));
-			assert_eq!(WithdrawCircuitBreaker::global_asset_category(HDX), None);
+			assert_ok!(EVMAccounts::clear_ntt_minter(
+				hydradx_runtime::RuntimeOrigin::root(),
+				HDX
+			));
+			assert_eq!(
+				WithdrawCircuitBreaker::global_asset_category(HDX),
+				Some(pallet_circuit_breaker::GlobalAssetCategory::External)
+			);
 		});
 	}
 }
