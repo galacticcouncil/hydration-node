@@ -31,6 +31,29 @@ Available shared skills:
 - `scripts/runtime-interaction-graph/README.md` — generate, query, and visualize the runtime interaction graph
 - `integration-tests/README.md` — debug prod issues via scraper snapshots + integration tests
 
+## Runtime interaction graph (live query API)
+
+A deployed instance of the runtime interaction graph (FRAME pallets, runtime config, EVM
+subsystem, precompiles, storage, callbacks — evidence-backed nodes/edges) is queryable at:
+
+`https://runtime-graph.lark.hydration.cloud`
+
+Use it to answer "what calls what / what reaches what" questions about the runtime without
+grepping or loading the graph into context. `POST /api/v1/query` with JSON:
+
+- `{"operation":"summary"}` — graph totals and identity
+- `{"operation":"search","text":"pallet:omnipool"}` — ranked node/edge matches
+- `{"operation":"node","id":"pallet:omnipool"}` — one node with evidence
+- `{"operation":"neighbors","id":"pallet:omnipool","depth":2}` — bounded ego subgraph
+- `{"operation":"paths","source":"pallet:route-executor","target":"boundary:evm-execution","view":"components"}` — bounded reachability
+- `{"operation":"packs","section":"component_cycles"}` — precomputed audit queries (cycles, ordering, origin, token flows, entrypoints)
+
+Responses are deterministic, token-budgeted (defaults: 250 records / 16k tokens; lower with
+`max_records`/`max_tokens`), and carry the graph SHA-256 fingerprint — check it if build
+identity matters. `GET /api/v1` lists operations and limits; `/readyz` shows the loaded graph
+identity. The interactive dashboard for humans is at `/`. See
+`scripts/runtime-interaction-graph/README.md` for regenerating or querying local graphs.
+
 ## Project overview
 
 Substrate-based parachain (Polkadot ecosystem) implementing DeFi protocols — DEX (Omnipool, Stableswap, XYK, LBP), DCA, OTC, bonds, staking, governance, and EVM compatibility.
