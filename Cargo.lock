@@ -13900,7 +13900,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.104.1"
+version = "1.104.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -13955,6 +13955,7 @@ dependencies = [
  "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
  "pallet-dispatcher",
+ "pallet-dispenser",
  "pallet-duster",
  "pallet-duster-rpc-runtime-api",
  "pallet-dynamic-evm-fee",
@@ -13983,6 +13984,7 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-signet",
  "pallet-stableswap",
  "pallet-staking 5.1.0",
  "pallet-timestamp",
