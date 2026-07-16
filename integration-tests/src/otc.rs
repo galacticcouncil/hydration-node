@@ -139,3 +139,76 @@ fn cancel_order_should_work() {
 		);
 	});
 }
+
+// When the OTC `asset_in` is a StableSwap share, the settlement can only deliver what the maker's
+// payment actually buys from the pool, so an order asking for more shares than it pays for cannot
+// be settled: it reverts, minting nothing.
+#[test]
+fn settle_otc_order_should_not_over_mint_shares_when_maker_underpays_for_stableswap_share() {
+	use frame_support::storage::with_transaction;
+	use frame_support::{assert_noop, BoundedVec};
+	use hydradx_traits::router::{AssetPair, PoolType, RouteProvider, Trade};
+	use sp_runtime::{DispatchResult, TransactionOutcome};
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			// StableSwap pool set up the same way as the router/DCA integration tests. `pool_id` is the
+			// pool's share token; `asset_b` is one of the pooled stablecoins.
+			let (pool_id, _asset_a, asset_b) = crate::dca::init_stableswap().unwrap();
+
+			// The route the settlement buys shares through: depositing `asset_b` into the pool. It is an
+			// add-liquidity because the output asset is the share token `pool_id`.
+			let pair = AssetPair {
+				asset_in: asset_b,
+				asset_out: pool_id,
+			};
+			assert_ok!(hydradx_runtime::Router::force_insert_route(
+				hydradx_runtime::RuntimeOrigin::root(),
+				pair,
+				BoundedVec::truncate_from(vec![Trade {
+					pool: PoolType::Stableswap(pool_id),
+					asset_in: asset_b,
+					asset_out: pool_id,
+				}]),
+			));
+			let route = hydradx_runtime::Router::get_route(pair);
+
+			// Fund the attacker with the stablecoin they will pay with.
+			let attacker = AccountId::from(CHARLIE);
+			let payment = 1_000_000_000_000_000_000u128; // 1 unit of asset_b (18 decimals)
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				attacker.clone(),
+				asset_b,
+				(payment * 10) as i128,
+			));
+
+			// The maker places an OTC order buying more shares (`want_lp`) than `payment` fairly mints.
+			// `asset_in` is the share token the maker receives.
+			let want_lp = payment + payment / 10; // asks for 10% more shares than the payment buys
+			assert_ok!(hydradx_runtime::OTC::place_order(
+				hydradx_runtime::RuntimeOrigin::signed(attacker.clone()),
+				pool_id,
+				asset_b,
+				want_lp,
+				payment,
+				true,
+			));
+
+			// Self-settling this order must revert and change nothing: the pool only mints what
+			// `payment` buys, which is less than `want_lp`.
+			assert_noop!(
+				hydradx_runtime::OtcSettlements::settle_otc_order(
+					hydradx_runtime::RuntimeOrigin::signed(attacker),
+					0,
+					want_lp,
+					route,
+				),
+				pallet_otc_settlements::Error::<hydradx_runtime::Runtime>::TradeAmountTooHigh
+			);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}

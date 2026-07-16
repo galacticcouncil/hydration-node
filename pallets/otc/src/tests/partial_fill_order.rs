@@ -113,6 +113,41 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 	});
 }
 
+// Regression guard for the dust-check divergence between fill paths: the residual asset_out is
+// validated net of the fee the *remaining* order would pay (matching `place_order` and the deferred
+// fill path), not the fee of the filled portion. Under the old fee-of-filled basis this near-full
+// fill was rejected with `OrderAmountTooSmall`.
+#[test]
+fn partial_fill_order_should_succeed_when_remainder_clears_min_net_of_its_own_fee() {
+	ExtBuilder::default().build().execute_with(|| {
+		// asset_out (HDX) is the binding leg: filling 97/100 leaves only 0.6 HDX of asset_out.
+		assert_ok!(OTC::place_order(
+			RuntimeOrigin::signed(ALICE),
+			DAI,
+			HDX,
+			100 * ONE,
+			20 * ONE,
+			true
+		));
+
+		let amount = 97 * ONE;
+		assert_ok!(OTC::partial_fill_order(RuntimeOrigin::signed(BOB), 0, amount));
+
+		let expected_amount_out = 19_400_000_000_000_u128; // 20 * 97 / 100 = 19.4 HDX
+		let fee = OTC::calculate_fee(expected_amount_out);
+		assert_eq!(fee, 194_000_000_000); // 1% of 19.4 HDX
+
+		let order = OTC::orders(0).unwrap();
+		assert_eq!(order.amount_in, 3 * ONE); // 100 - 97
+		assert_eq!(order.amount_out, 600_000_000_000); // 20 - 19.4 = 0.6 HDX
+
+		// The residual asset_out (0.6 HDX) net of its own fee still clears min = 5 * ED = 0.5 HDX.
+		let min_order_amount = ONE / 10 * 5;
+		assert_eq!(min_order_amount, 500_000_000_000);
+		assert!(order.amount_out - OTC::calculate_fee(order.amount_out) >= min_order_amount);
+	});
+}
+
 #[test]
 fn partial_fill_order_should_throw_error_when_order_is_not_partially_fillable() {
 	ExtBuilder::default().build().execute_with(|| {
