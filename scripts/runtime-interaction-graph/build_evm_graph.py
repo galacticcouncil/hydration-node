@@ -20,6 +20,8 @@ PINNED_BLOCK = re.compile(r"^(?:0x[0-9a-fA-F]+|[0-9]+)$")
 HASH_256 = re.compile(r"^0x[0-9a-fA-F]{64}$")
 GRAPH_GENERATOR_INPUTS = (
 	"runtime_interaction_graph.py",
+	"graph_explorer.js",
+	"graph_explorer.css",
 	"mir_parser.py",
 	"runtime_inventory.py",
 	"semantic_inventory.py",

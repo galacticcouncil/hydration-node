@@ -33,7 +33,8 @@ Outputs are written to `target/runtime-interaction-graph/` and are not committed
 - `coverage.json` — CI metrics checked against `coverage-thresholds.json`
 - `integration-test-coverage.{json,md}` — graph components, entrypoints, and interactions linked from integration tests
 - `query-packs.json` — reusable cycles, paths, ordering, origin, lifecycle, token, contract, and entrypoint queries
-- `interaction-graph.html` — dependency-free interactive edge browser with evidence filtering
+- `interaction-graph.html` — dependency-free clickable canvas explorer with projection, domain, edge-kind, search,
+  pan/zoom, neighbor highlighting, evidence samples, deep links, and bounded API drill-down
 - `completeness.{json,md}` — source-component, entrypoint-class, MIR, state, asset, and contract inventory
 - `prioritized-test-gaps.md` — uncovered static targets ranked by privilege, asset impact, and domain crossings
 - `focused/state-invariants.svg` — storage, ledgers, pool state, guards, and source-validated invariants
@@ -139,7 +140,7 @@ curl --fail --request POST http://127.0.0.1:8080/api/v1/query \
 
 The service exposes:
 
-- `/` — redirect to the static interaction dashboard
+- `/` — redirect to the clickable interaction explorer
 - `/healthz` — container health check
 - `/readyz` — loaded graph identity, counts, and companion fingerprints
 - `/api/v1` — graph metadata, fingerprints, operations, and server limits

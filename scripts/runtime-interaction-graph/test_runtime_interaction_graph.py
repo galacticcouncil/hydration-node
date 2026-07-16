@@ -405,15 +405,22 @@ fn example<'a>(value: &'a str) {
 
 	def test_interactive_html_inline_scripts_should_compile(self):
 		g = graph.Graph()
-		g.node("pallet:a", "pallet", artifact="<untrusted>&evidence")
-		g.node("pallet:b", "pallet")
+		g.node("pallet:a", "pallet", domain="frame",
+			description="</script><untrusted>&evidence __GRAPH_SCRIPT__")
+		g.node("pallet:b", "pallet", domain="frame")
 		g.edge("pallet:a", "pallet:b", "contains", selector="0x12345678")
 		with tempfile.TemporaryDirectory() as directory:
 			output = Path(directory)
 			graph.write_interactive_html(g, graph.component_edges(g), output)
 			contents = (output / "interaction-graph.html").read_text()
-			self.assertIn("&evidence", contents)
+			self.assertNotIn("</script><untrusted>", contents)
+			self.assertIn("\\u003cuntrusted\\u003e", contents)
+			self.assertIn("\\u0026evidence", contents)
+			self.assertIn("evidence __GRAPH_SCRIPT__", contents)
 			self.assertIn('href="graph-scale.svg"', contents)
+			self.assertIn('id="graph-canvas"', contents)
+			self.assertIn('id="projection"', contents)
+			self.assertIn("Click any node or edge", contents)
 			for script in graph.re.findall(r"<script>(.*?)</script>", contents, graph.re.DOTALL):
 				try:
 					completed = graph.subprocess.run(["node", "--check"], input=script,
@@ -421,6 +428,37 @@ fn example<'a>(value: &'a str) {
 				except FileNotFoundError:
 					self.skipTest("node is unavailable")
 				self.assertEqual(completed.returncode, 0, completed.stderr)
+			first = (output / "interaction-graph.html").read_bytes()
+			graph.write_interactive_html(g, graph.component_edges(g), output)
+			self.assertEqual(first, (output / "interaction-graph.html").read_bytes())
+
+	def test_interactive_graph_payload_should_aggregate_pairs_and_projections(self):
+		g = graph.Graph()
+		g.node("pallet:a", "pallet", domain="frame", runtime_active=True)
+		g.node("pallet:b", "pallet", domain="frame", runtime_active=True)
+		g.edge("pallet:a", "pallet:b", "direct-call", method="one", file="a.rs", line=1)
+		g.edge("pallet:a", "pallet:b", "direct-call", method="two", file="a.rs", line=2)
+		g.edge("pallet:a", "pallet:b", "resolved-call", method="three", file="a.rs", line=3)
+		g.edge("pallet:a", "pallet:b", "contains")
+		payload = graph.interactive_graph_payload(g, graph.component_edges(g))
+		self.assertEqual(payload["schema_version"], 1)
+		self.assertEqual([node["id"] for node in payload["nodes"]], ["pallet:a", "pallet:b"])
+		self.assertEqual(payload["projections"]["execution"], {
+			"nodes": 2, "pairs": 1, "evidence_edges": 3,
+			"kinds": ["direct-call", "resolved-call"],
+		})
+		self.assertEqual(payload["projections"]["callback"]["evidence_edges"], 1)
+		self.assertEqual(payload["projections"]["configuration"]["evidence_edges"], 1)
+		self.assertEqual(payload["edges"], [{
+			"source": "pallet:a", "target": "pallet:b", "count": 4,
+			"kind_counts": {"contains": 1, "direct-call": 2, "resolved-call": 1},
+			"projection_counts": {"callback": 1, "configuration": 1, "execution": 3},
+			"samples": [
+				{"kind": "contains"},
+				{"kind": "direct-call", "file": "a.rs", "line": 1, "method": "one"},
+				{"kind": "resolved-call", "file": "a.rs", "line": 3, "method": "three"},
+			],
+		}])
 
 	def test_strongly_connected_reports_cycles_only(self):
 		edges = [

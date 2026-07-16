@@ -2822,19 +2822,115 @@ def write_layer_svg(g: Graph, edges: list[dict], path: Path, title: str) -> None
 		f.write("</svg>\n")
 
 
+def interactive_graph_payload(g: Graph, components: list[dict]) -> dict:
+	projection_names = tuple(EDGE_PROJECTIONS)
+	projection_stats = {name: {"nodes": set(), "pairs": set(), "evidence_edges": 0,
+		"kinds": Counter()} for name in projection_names}
+	pairs = {}
+	node_projections: dict[str, set[str]] = defaultdict(set)
+	sample_fields = ("kind", "file", "line", "method", "semantic_source", "resolution",
+		"address", "selector", "semantics", "enforcement", "evidence_source", "evidence_target",
+		"semantic_evidence")
+	for edge in components:
+		projections = tuple(name for name in projection_names if edge["kind"] in EDGE_PROJECTIONS[name])
+		if not projections:
+			continue
+		key = (edge["source"], edge["target"])
+		pair = pairs.setdefault(key, {"source": edge["source"], "target": edge["target"],
+			"count": 0, "kind_counts": Counter(), "projection_counts": Counter(), "samples": {}})
+		pair["count"] += 1
+		pair["kind_counts"][edge["kind"]] += 1
+		if edge["kind"] not in pair["samples"]:
+			pair["samples"][edge["kind"]] = {field: edge[field] for field in sample_fields if field in edge}
+		for projection in projections:
+			pair["projection_counts"][projection] += 1
+			stats = projection_stats[projection]
+			stats["nodes"].update(key)
+			stats["pairs"].add(key)
+			stats["evidence_edges"] += 1
+			stats["kinds"][edge["kind"]] += 1
+			node_projections[edge["source"]].add(projection)
+			node_projections[edge["target"]].add(projection)
+
+	def activity(node: dict) -> str:
+		if node.get("runtime_active") is False:
+			return "inactive"
+		for field in ("owner", "function"):
+			dependency = node.get(field)
+			if isinstance(dependency, str) and g.nodes.get(dependency, {}).get("runtime_active") is False:
+				return "inactive"
+		return "active" if node.get("runtime_active") is True else "unclassified"
+
+	compact_nodes = []
+	for ident in sorted(node_projections):
+		node = g.nodes[ident]
+		label = node.get("semantic_label") or node.get("name") or node.get("runtime_alias")
+		if not label and isinstance(node.get("names"), list) and node["names"]:
+			label = node["names"][0]
+		compact = {"id": ident, "label": label or ident, "kind": node.get("kind", "unknown"),
+			"domain": node.get("domain", "unspecified"), "activity": activity(node),
+			"projections": sorted(node_projections[ident])}
+		for field in ("description", "semantic_description", "file", "source", "configured_by",
+			"address", "chain_address_id", "network", "runtime_alias", "entrypoint_kind"):
+			if field in node:
+				compact[field] = node[field]
+		for field in ("roles", "names", "semantic_domains"):
+			if isinstance(node.get(field), list):
+				compact[field] = node[field][:20]
+		compact_nodes.append(compact)
+
+	compact_edges = []
+	for key in sorted(pairs):
+		pair = pairs[key]
+		compact_edges.append({"source": pair["source"], "target": pair["target"],
+			"count": pair["count"], "kind_counts": dict(sorted(pair["kind_counts"].items())),
+			"projection_counts": dict(sorted(pair["projection_counts"].items())),
+			"samples": [pair["samples"][kind] for kind in sorted(pair["samples"])[:12]]})
+
+	scale = graph_scale_summary(g)
+	return {"schema_version": 1,
+		"summary": {"nodes": scale["totals"]["nodes"], "edges": scale["totals"]["edges"],
+			"components": scale["totals"]["components"], "entrypoints": scale["totals"]["entrypoints"],
+			"inventory_only_targets": scale["inventory_only_targets"],
+			"unresolved_targets": scale["unresolved_targets"]},
+		"projections": {name: {"nodes": len(stats["nodes"]), "pairs": len(stats["pairs"]),
+			"evidence_edges": stats["evidence_edges"], "kinds": sorted(stats["kinds"])}
+			for name, stats in projection_stats.items()},
+		"nodes": compact_nodes, "edges": compact_edges}
+
+
 def write_interactive_html(g: Graph, components: list[dict], output: Path) -> None:
-	nodes = {ident: dict(node) for ident, node in g.nodes.items()}
-	payload = json.dumps({"nodes": nodes, "edges": components}).replace("</", "<\\/")
-	html_text = """<!doctype html><meta charset="utf-8"><title>Hydration interaction graph</title>
-<style>body{font:14px system-ui;margin:24px;color:#172033}input,select{padding:8px;margin-right:8px}.overview{display:inline-block;margin:0 0 16px;padding:9px 12px;border:1px solid #dbe2ee;border-radius:8px;background:#f8fafc;color:#4338ca;text-decoration:none}.overview:hover{background:#eef2ff}table{border-collapse:collapse;width:100%;margin-top:16px}td,th{padding:6px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top;word-break:break-word}code{font-size:12px}</style>
-<h1>Hydration interaction graph</h1><a class="overview" href="graph-scale.svg">open graph scale overview</a><br><input id="query" placeholder="filter nodes, edges, files"><select id="kind"><option value="">all edge kinds</option></select><select id="domain"><option value="">all domains</option></select><span id="count"></span>
-<table><thead><tr><th>source</th><th>edge</th><th>target</th><th>evidence</th></tr></thead><tbody id="rows"></tbody></table>
-<script>const graph=PAYLOAD;const q=document.querySelector('#query'),kind=document.querySelector('#kind'),domain=document.querySelector('#domain'),rows=document.querySelector('#rows'),count=document.querySelector('#count');
-for(const value of [...new Set(graph.edges.map(e=>e.kind))].sort())kind.add(new Option(value,value));
-for(const value of [...new Set(Object.values(graph.nodes).map(n=>n.domain).filter(Boolean))].sort())domain.add(new Option(value,value));
-function esc(value){const element=document.createElement('div');element.textContent=String(value);return element.innerHTML}
-function render(){const text=q.value.toLowerCase();const found=graph.edges.filter(e=>(!kind.value||e.kind===kind.value)&&(!domain.value||graph.nodes[e.source]?.domain===domain.value||graph.nodes[e.target]?.domain===domain.value)&&JSON.stringify([e,graph.nodes[e.source],graph.nodes[e.target]]).toLowerCase().includes(text));const foundNodes=text&&!kind.value?Object.values(graph.nodes).filter(n=>(!domain.value||n.domain===domain.value)&&JSON.stringify(n).toLowerCase().includes(text)):[];count.textContent=`${found.length} edges; ${foundNodes.length} matching nodes`;const nodeRows=foundNodes.slice(0,250).map(n=>`<tr><td><code>${esc(n.id)}</code></td><td>node:${esc(n.kind)}</td><td></td><td><code>${esc(JSON.stringify(n))}</code></td></tr>`);const edgeRows=found.slice(0,750).map(e=>{const evidence=Object.fromEntries(Object.entries(e).filter(([key])=>!['source','target','kind'].includes(key)));return `<tr><td><code>${esc(e.source)}</code></td><td>${esc(e.kind)}</td><td><code>${esc(e.target)}</code></td><td><code>${esc(JSON.stringify(evidence))}</code></td></tr>`});rows.innerHTML=[...nodeRows,...edgeRows].join('')}</script>
-<script>q.oninput=kind.onchange=domain.onchange=render;render()</script>""".replace("PAYLOAD", payload)
+	payload = json.dumps(interactive_graph_payload(g, components), sort_keys=True,
+		separators=(",", ":"), ensure_ascii=True)
+	payload = payload.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
+	style = Path(__file__).with_name("graph_explorer.css").read_text()
+	script = Path(__file__).with_name("graph_explorer.js").read_text()
+	template = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hydration runtime interaction explorer</title><style>__GRAPH_STYLE__</style></head>
+<body><header class="topbar"><div><p class="eyebrow">Hydration runtime</p><h1>Interaction explorer</h1>
+<p class="subtitle">Aggregated, evidence-backed relationships. Click any node or edge to inspect it.</p></div>
+<div class="headline-stats" aria-label="full graph scale"><div><strong id="full-node-count">—</strong><span>full nodes</span></div>
+<div><strong id="full-edge-count">—</strong><span>full edges</span></div><div><strong id="component-count">—</strong><span>components</span></div></div>
+<nav><a href="graph-scale.svg">scale overview</a><a href="interaction-graph.json">raw graph</a><a href="api/v1">API</a></nav></header>
+<main class="app"><section class="workspace" aria-label="interactive topology">
+<div class="toolbar"><label>projection<select id="projection"></select></label><label>domain<select id="domain"><option value="">all domains</option></select></label>
+<label>edge kind<select id="edge-kind"><option value="">all kinds</option></select></label>
+<label class="search-field">find node<input id="search" type="search" autocomplete="off" placeholder="omnipool, precompile, contract…" aria-controls="search-results"><span id="search-results" class="search-results"></span></label>
+<button id="fit" type="button">fit graph</button><button id="reset-selection" type="button">clear selection</button>
+<label class="check"><input id="labels" type="checkbox">more labels</label></div>
+<div class="projection-strip"><span id="projection-note"></span><strong id="relation-count"></strong></div>
+<div class="canvas-shell"><canvas id="graph-canvas" tabindex="0" role="img" aria-label="Interactive directed component graph. Use search or the inspector for an accessible node list."></canvas>
+<div id="legend" class="legend" aria-label="domain legend"></div><div class="canvas-hint">drag to pan · wheel to zoom · click to inspect</div></div>
+<p id="live-status" class="sr-only" aria-live="polite"></p></section>
+<aside id="inspector" class="inspector" aria-label="selection details"><div class="empty-inspector"><span>↗</span><h2>Select a node or relationship</h2><p>Neighbors, edge kinds, evidence samples, and bounded API metadata appear here.</p></div></aside></main>
+<noscript>This visualization requires JavaScript. The raw graph remains available through <a href="interaction-graph.json">interaction-graph.json</a>.</noscript>
+<script>const payload=__GRAPH_PAYLOAD__;</script><script>__GRAPH_SCRIPT__</script></body></html>
+"""
+	style_prefix, remainder = template.split("__GRAPH_STYLE__", 1)
+	payload_prefix, remainder = remainder.split("__GRAPH_PAYLOAD__", 1)
+	script_prefix, suffix = remainder.split("__GRAPH_SCRIPT__", 1)
+	html_text = style_prefix + style + payload_prefix + payload + script_prefix + script + suffix
 	(output / "interaction-graph.html").write_text(html_text)
 
 

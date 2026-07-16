@@ -288,6 +288,8 @@ class EvmBuildTests(unittest.TestCase):
 				(scripts / name).write_text(name)
 			standard = build.graph_generator_fingerprint(scripts, None)
 			self.assertEqual(standard, build.graph_generator_fingerprint(scripts, None))
+			self.assertTrue({"graph_explorer.js", "graph_explorer.css"}.issubset(
+				build.GRAPH_GENERATOR_INPUTS))
 			self.assertEqual(set(standard["files"]),
 				{*build.GRAPH_GENERATOR_INPUTS, "coverage-thresholds.json"})
 			self.assertNotIn("coverage-thresholds-full.json", standard["files"])
