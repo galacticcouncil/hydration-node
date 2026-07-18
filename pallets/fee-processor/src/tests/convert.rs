@@ -6,6 +6,7 @@ use frame_support::traits::fungibles::{Inspect, Mutate};
 use frame_support::traits::Hooks;
 use frame_support::{assert_noop, assert_ok};
 use pallet_currencies::fungibles::FungibleCurrencies;
+use sp_runtime::Permill;
 
 #[test]
 fn convert_extrinsic_works() {
@@ -181,6 +182,62 @@ fn distribute_proportionally_uses_total_param_not_actual_pot_balance() {
 		assert_eq!(
 			pot_hdx_after, pot_hdx_before_swap_topup,
 			"pre-existing HDX must remain in the pot — distribute uses the `total` param, not pot balance"
+		);
+	});
+}
+
+#[test]
+fn on_idle_conversion_is_atomic_when_a_later_receiver_transfer_fails() {
+	// Regression: `on_idle` establishes no storage layer, so `do_convert` must be
+	// `#[transactional]`. With two convert receivers, fund the pot enough for the
+	// first payout but not the second; the second transfer fails after the first
+	// succeeded. Everything must roll back — the first receiver keeps nothing.
+	ExtBuilder::default().build().execute_with(|| {
+		let pot = FeeProcessor::pot_account_id();
+
+		// Two non-raw convert receivers: staking 70%, second 30%.
+		set_second_convert_pct(Permill::from_percent(30));
+
+		// Pending DOT to convert.
+		<FungibleCurrencies<Test> as Mutate<AccountId>>::mint_into(DOT, &pot, 500 * ONE).unwrap();
+		PendingConversions::<Test>::insert(DOT, ());
+
+		// Swap "produces" 1000 HDX, but physically fund the pot with only the staking
+		// slice (700) — the second receiver's 300 transfer will fail on insufficient pot.
+		set_convert_result(Some(1000 * ONE));
+		<FungibleCurrencies<Test> as Mutate<AccountId>>::mint_into(HDX, &pot, 700 * ONE).unwrap();
+
+		let staking_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &STAKING_POT);
+		let second_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &SECOND_POT);
+		let pot_before = <FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &pot);
+
+		let weight = frame_support::weights::Weight::from_parts(200_000_000, 0);
+		let _used = FeeProcessor::on_idle(1u64, weight);
+
+		// The whole conversion rolled back: neither receiver was paid, pot HDX intact.
+		assert_eq!(
+			<FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &STAKING_POT),
+			staking_before,
+			"first receiver payout must roll back when a later transfer fails"
+		);
+		assert_eq!(
+			<FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &SECOND_POT),
+			second_before,
+		);
+		assert_eq!(
+			<FungibleCurrencies<Test> as Inspect<AccountId>>::balance(HDX, &pot),
+			pot_before,
+			"pot HDX untouched — swap output not distributed"
+		);
+
+		// Pending entry dropped by on_idle's failure arm; failure surfaced as an event.
+		assert!(!PendingConversions::<Test>::contains_key(DOT));
+		assert!(
+			System::events().iter().any(|r| matches!(
+				r.event,
+				RuntimeEvent::FeeProcessor(Event::ConversionFailed { asset_id, .. }) if asset_id == DOT
+			)),
+			"a ConversionFailed event for DOT must be emitted"
 		);
 	});
 }

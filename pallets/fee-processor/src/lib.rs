@@ -16,7 +16,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_support::traits::fungibles::{Inspect, Mutate};
 	use frame_support::traits::tokens::Preservation;
-	use frame_support::PalletId;
+	use frame_support::{transactional, PalletId};
 	use frame_system::pallet_prelude::*;
 	use hydradx_traits::fee_processor::{Convert, FeeDestination, FeeReceiver};
 	use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
@@ -261,6 +261,11 @@ pub mod pallet {
 
 		/// Internal conversion: swap pot's asset balance to HDX, distribute the proceeds
 		/// proportionally to the HDX-target receivers based on their relative weights.
+		///
+		/// Transactional: the `on_idle` caller establishes no storage layer, so without this
+		/// a distribution failure on a later receiver would strand the already-swapped HDX
+		/// with earlier receivers paid. The layer keeps the swap-and-distribute atomic.
+		#[transactional]
 		fn do_convert(asset_id: T::AssetId) -> DispatchResult {
 			ensure!(asset_id != T::HdxAssetId::get(), Error::<T>::AlreadyHdx);
 

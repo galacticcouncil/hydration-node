@@ -38,6 +38,7 @@ pub const FEE_SOURCE: AccountId = 100;
 
 pub const STAKING_POT: AccountId = 200;
 pub const REFERRALS_POT: AccountId = 201;
+pub const SECOND_POT: AccountId = 202;
 
 // HDX path uses same destination accounts but different percentages
 pub const HDX_STAKING_POT: AccountId = 200;
@@ -173,6 +174,14 @@ thread_local! {
 	static RAW_FEE_USED: RefCell<Option<Balance>> = const { RefCell::new(None) };
 	// `hold_until_ed` flag for the HDX-path staking receiver, toggled per test.
 	static HDX_STAKING_HOLD: RefCell<bool> = const { RefCell::new(true) };
+	// Percentage for a second non-raw convert receiver on the non-HDX path. Defaults
+	// to 0 so a `slice == 0` skip keeps it inert for every existing test; a test sets
+	// it > 0 to exercise multi-receiver distribution (e.g. atomicity on partial failure).
+	static SECOND_CONVERT_PCT: RefCell<Permill> = const { RefCell::new(Permill::zero()) };
+}
+
+pub fn set_second_convert_pct(value: Permill) {
+	SECOND_CONVERT_PCT.with(|v| *v.borrow_mut() = value);
 }
 
 pub fn set_raw_fee_should_fail(fail: bool) {
@@ -233,6 +242,27 @@ impl FeeReceiver<AccountId, AssetId, Balance> for StakingFeeReceiver {
 
 	fn percentage() -> Permill {
 		Permill::from_percent(70)
+	}
+}
+
+// Second HDX-target (convert) receiver, off by default (0%). Paid immediately
+// (no `hold_until_ed`) so a test can force its transfer to fail after an earlier
+// receiver was already paid.
+pub struct SecondStakingFeeReceiver;
+
+impl FeeReceiver<AccountId, AssetId, Balance> for SecondStakingFeeReceiver {
+	type Error = DispatchError;
+
+	fn destination() -> AccountId {
+		SECOND_POT
+	}
+
+	fn percentage() -> Permill {
+		SECOND_CONVERT_PCT.with(|v| *v.borrow())
+	}
+
+	fn hold_until_ed() -> bool {
+		false
 	}
 }
 
@@ -324,7 +354,7 @@ impl pallet_fee_processor::Config for Test {
 	type HdxAssetId = NativeAssetId;
 	type LrnaAssetId = LrnaAssetId;
 	type MaxConversionsPerBlock = MaxConversionsPerBlock;
-	type FeeReceivers = (StakingFeeReceiver, ReferralsFeeReceiver);
+	type FeeReceivers = (StakingFeeReceiver, SecondStakingFeeReceiver, ReferralsFeeReceiver);
 	type HdxFeeReceivers = (HdxStakingFeeReceiver, HdxReferralsFeeReceiver);
 	type WeightInfo = ();
 }
@@ -345,6 +375,7 @@ impl Default for ExtBuilder {
 				// ED for pots
 				(STAKING_POT, HDX, ONE),
 				(REFERRALS_POT, HDX, ONE),
+				(SECOND_POT, HDX, ONE),
 				// ED for fee processor pot
 				(FeeProcessor::pot_account_id(), HDX, ONE),
 			],
@@ -394,6 +425,7 @@ impl ExtBuilder {
 			RAW_FEE_FAILS.with(|f| *f.borrow_mut() = false);
 			RAW_FEE_USED.with(|u| *u.borrow_mut() = None);
 			HDX_STAKING_HOLD.with(|v| *v.borrow_mut() = true);
+			SECOND_CONVERT_PCT.with(|v| *v.borrow_mut() = Permill::zero());
 		});
 		ext
 	}
