@@ -163,7 +163,7 @@ sp-staking = { workspace = true }
 sp-transaction-pool = { workspace = true }
 sp-version = { workspace = true }
 sp-trie = { workspace = true }
-sp-io = { workspace = true }
+sp-io = { workspace = true, features = ["improved_panic_error_reporting"] }
 primitive-types = { workspace = true }
 static_assertions = { workspace = true }
 
